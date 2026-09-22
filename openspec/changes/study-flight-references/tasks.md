@@ -13,8 +13,8 @@
 
 ## 3. Video feed notes
 
-- [ ] 3.1 [tech-artist] Study the events, bursts, stills and `metrics.csv` files, and write `docs/reference-notes/video-feed.md` covering all five areas (noise events with rate and duration, pixel artifacts, optics, colour/exposure response, resolution feel and OSD layout). Each trait cites clips and names a candidate effect plus a sim driver; re-encoding is claimed only with block-based evidence; uncertain traits are listed for the user. Verify there is no OSD value anywhere in the file
-- [ ] 3.2 [tech-artist] End `video-feed.md` with the simulation signal list (unit + update rate for each) and verify that every driver named in 3.1 is covered
+- [x] 3.1 [tech-artist] Study the events, bursts, stills and `metrics.csv` files, and write `docs/reference-notes/video-feed.md` covering all five areas (noise events with rate and duration, pixel artifacts, optics, colour/exposure response, resolution feel and OSD layout). Each trait cites clips and names a candidate effect plus a sim driver; re-encoding is claimed only with block-based evidence; uncertain traits are listed for the user. Verify there is no OSD value anywhere in the file
+- [x] 3.2 [tech-artist] End `video-feed.md` with the simulation signal list (unit + update rate for each) and verify that every driver named in 3.1 is covered
 
 ## 4. Review
 
