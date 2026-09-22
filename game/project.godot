@@ -1,0 +1,22 @@
+; Engine configuration file.
+; Placeholder until the project is first opened in Godot 4.7 (.NET build),
+; which will fill in the rest and generate the C# solution.
+
+config_version=5
+
+[application]
+
+config/name="450fpv"
+config/features=PackedStringArray("4.7", "C#", "Forward Plus")
+
+[dotnet]
+
+project/assembly_name="Fpv450"
+
+[physics]
+
+3d/physics_engine="Jolt Physics"
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
