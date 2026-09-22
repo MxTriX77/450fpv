@@ -2,9 +2,9 @@
 
 ## 1. Frame extraction tool
 
-- [ ] 1.1 [world-artist] Write `tools/reference/extract_frames.py` (headless Blender 5.2, options `--interval`, `--burst-len`) and verify that a full run exits 0 and fills `reference/_frames/A..H/` with stills, 3+ lossless PNG bursts of 8+ frames, and contact sheets
-- [ ] 1.2 [world-artist] Write `reference/_frames/index.md` (letters A–H for clips, I–K for stills) and verify that letters stay the same across two runs, and that `git status --porcelain` shows nothing from the run
-- [ ] 1.3 [world-artist] Add the every-frame scan: per-clip `metrics.csv` plus lossless export of outlier frames with ±2 neighbours into `events/`, threshold via `--k`. Verify that CSV rows equal the frame count for every clip, that every flagged frame has its PNGs, and report the full-run runtime
+- [x] 1.1 [world-artist] Write `tools/reference/extract_frames.py` (headless Blender 5.2, options `--interval`, `--burst-len`) and verify that a full run exits 0 and fills `reference/_frames/A..H/` with stills, 3+ lossless PNG bursts of 8+ frames, and contact sheets
+- [x] 1.2 [world-artist] Write `reference/_frames/index.md` (letters A–H for clips, I–K for stills) and verify that letters stay the same across two runs, and that `git status --porcelain` shows nothing from the run
+- [x] 1.3 [world-artist] Add the every-frame scan: per-clip `metrics.csv` plus lossless export of outlier frames with ±2 neighbours into `events/`, threshold via `--k`. Verify that CSV rows equal the frame count for every clip, that every flagged frame has its PNGs, and report the full-run runtime
 
 ## 2. Terrain catalog
 
