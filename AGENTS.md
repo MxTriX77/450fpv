@@ -1,0 +1,1 @@
+commit only meaningful pieces of changes, dont. commit everything in to single commit. use comit head for commits, dont use descriptions, dont include claude as commit collaborator
