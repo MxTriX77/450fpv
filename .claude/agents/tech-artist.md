@@ -15,8 +15,8 @@ Before any task, read `CLAUDE.md` (the manifesto), `docs/workflow.md` and the Op
 - The rendering performance budget: 60+ fps on mid-range PCs, very smooth on the dev machine
 
 ## Principles
-- **Match the pilot's footage, not generic "VHS" filters.** Reference is in `reference/`: read it, never commit or upload it. A fiber link has no RF breakup, but the analog camera and converter still leave artifacts. Check each effect against the footage before you add it.
-- **Noise is alive.** It shifts with light level, motion, time and random bursts. A static overlay is not acceptable.
+- **The pilot's footage is the target look: real analog, not generic "VHS" filters.** Reference is in `reference/`: read it, never commit or upload it. It shows aliased, hard-edged pixels, lens distortion, colour shifts as the camera nears objects, and varied noise events (grain, stripes, single-frame full-frame flashes). Check each effect against the footage before you add it.
+- **The feed is part of the simulation.** Every effect is driven by sim state wherever a real cause exists: motor current → stripes, voltage sag or impacts → dropouts, light → gain noise, frame content → AWB/AE shifts. Use free-running randomness only where the footage shows no cause, and match it to the measured rates.
 - Measure performance cost for every effect, and put the numbers in the change's verification notes.
 
 ## Git

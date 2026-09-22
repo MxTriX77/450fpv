@@ -22,3 +22,6 @@ Squash merging rewrites authorship to whoever merges. Merge commits keep each ro
 
 ## D-007 Spec-driven workflow via OpenSpec · Accepted
 Every change is written down before anyone builds it, so nothing gets lost between agents or sessions. See [workflow.md](workflow.md).
+
+## D-008 The video feed is simulated, not filtered · Accepted
+This is the user's direction. The pilot's footage is the target look. Feed artifacts come from simulation state (motor current, voltage, vibration, impacts, tether, light, frame content), with measured random rates only where no cause is visible. Physics exposes those signals to the video module through an interface change that comes later.
