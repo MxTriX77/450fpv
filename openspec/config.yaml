@@ -1,0 +1,25 @@
+schema: spec-driven
+
+context: |
+  450fpv: simulator of heavy fiber-optic cargo FPV drones (Viriy 10 Opto / BOMBUS Opto / OTU / Beshketnyk class, 3-blade props).
+  The product is physics realism with physically grounded randomness: motor desync, legs snagging on liftoff, soil/grass contact,
+  landing-leg bounce, turbulence near trees and holes, fiber tether snap risk. Vision: CLAUDE.md (user-owned manifesto) — never contradict it silently.
+  Stack: Godot 4.7 (.NET/C#) + Jolt for contacts only, custom fixed-step flight model; Blender 5.2 → .glb; Git + LFS; Windows.
+  Perf budget: 60+ fps on mid-range PCs; flight model holds its sim rate with the full world loaded.
+  Layout: game/ (Godot project), blender/, tools/, docs/. Roles and ownership: docs/team.md. Workflow: docs/workflow.md.
+  User settings are deliberately minimal: payload weight, legs on/off (off = liftoff from two parallel rails), time of day.
+  reference/ holds the pilot's real footage: read locally, never commit, copy or upload it.
+
+rules:
+  proposal:
+    - Name one owner role (from docs/team.md) and any reviewer roles
+    - Cite the manifesto section (CLAUDE.md §) that motivates the change
+    - Include a Non-goals section
+  specs:
+    - Physics and performance scenarios must be measurable — units, tolerances, seed where randomness is involved
+  design:
+    - Physics designs state the model and equations, sim rate, randomness sources with their bounds, and what gets logged
+  tasks:
+    - Tag each task with its role, e.g. "[physics-engineer]"
+    - Tag tasks that need the user's eyes or hands (visual review, flight feel, wireframes) with "[user-review]"
+    - The last task is always "[qa-engineer] review against spec scenarios"
