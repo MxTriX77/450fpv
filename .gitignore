@@ -1,0 +1,31 @@
+# Godot
+.godot/
+*.translation
+
+# .NET / IDEs
+.vs/
+.idea/
+*.user
+*.csproj.old*
+
+# Blender autosaves
+*.blend1
+*.blend2
+*.blend@
+
+# Reference footage — OPSEC: never committed, never pushed (see reference/README.md)
+/reference/*
+!/reference/README.md
+
+# Runtime output
+/build/
+/logs/
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Personal Claude settings
+.claude/settings.local.json
+CLAUDE.local.md
