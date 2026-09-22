@@ -18,6 +18,6 @@
 
 ## 4. Review
 
-- [ ] 4.1 [qa-engineer] Run the spec scenarios: tool re-run, git clean, letter stability, metrics completeness, event export, OPSEC hygiene scan of both notes, and coverage. Write `review.md` with the verdict
+- [x] 4.1 [qa-engineer] Run the spec scenarios: tool re-run, git clean, letter stability, metrics completeness, event export, OPSEC hygiene scan of both notes, and coverage. Write `review.md` with the verdict
 - [ ] 4.2 [user-review] User reads `terrain.md` and `video-feed.md`, corrects anything wrong or missing (especially the uncertain traits), and approves. The notes are updated with the corrections
 - [ ] 4.3 [qa-engineer] Review against spec scenarios after the user's corrections, then clear the branch for merge
