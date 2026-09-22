@@ -278,27 +278,14 @@ Details:
 
 It reads as coarse horizontal line-dashes, soft horizontal edges with dark halos, rainbow crawl on fine textures, and colour that floats off edges. The sim should produce its feed from that effective resolution and only then scale it to the display. That is also a large performance win (§6).
 
-**OSD layout** (positions only, no values).
+**OSD layout** (general description only: no values and no per-airframe layout).
 - **Rendering.**
-  - A character OSD on a **30-column × 16-row grid** (each cell ≈ 64 × 67.5 px on the recording).
-  - White glyphs with a black outline.
+  - A character OSD on a **30-column × 16-row grid** (each cell ≈ 64 × 67.5 px on the recording, so one text row is 1/16 of the picture height, ≈ 6 %).
+  - White fixed-width glyphs with a black outline.
   - It is inserted on the drone before transmission, so it takes the analog treatment: soft horizontal edges (P2), coloured fringes (P4), tearing with the picture (N8, H f628) and cross-colour dots near busy texture.
   - It is **not** lens-distorted: the OSD horizon line stays straight while the real horizon bends (A f236).
   - Warning elements **blink** (≈ 7 frames on, ≥ 5 off; E).
-- **Layout by airframe group.** Every group has these elements:
-  - arming-status word, top-left
-  - crosshair or aircraft symbol, centre
-  - a bracketed status word, left edge
-  - two battery lines (icon + voltage), bottom-left
-  - a craft-name line, bottom-centre
-
-  | Element | A | B, G | C, D, E, F, H |
-  |---|---|---|---|
-  | Top-centre | craft-name field | compass strip with tick marks and cardinal letters | — |
-  | Top-right | altitude | distance, then altitude below it | altitude |
-  | Left-middle / middle | throttle and pitch readouts, left-middle | status word left-middle, speed value right-middle | status word + flight timer above the battery lines |
-  | Artificial-horizon dotted line | yes | no | yes |
-  | Bottom-right | distance readout; warning text line bottom-centre | consumption and timer | current readout; link-quality or warning text line in the bottom row |
+- **Typical layout** (A–H). Readouts sit along the edges and in the corners, and the centre stays clear apart from a small crosshair or aircraft symbol and, optionally, a dotted artificial-horizon line. The top edge holds arming or status text, a heading or name field, and height or distance readouts. The left side holds a flight-mode or status word, the bottom-left corner the battery readouts, and the bottom row a name or message line, timer, current and link-quality readouts, and warning text.
 - **Driver.** The content is the sim's flight and warning state (armed state, flight timer, battery voltage, link margin, attitude), which the game's OSD model turns into characters: the **OSD state** signal in §7. A warning is shown while its condition holds, for example battery voltage under load below a threshold or low fiber link margin, and the OSD model toggles it on a fixed cycle that matches the footage. The feed only draws the grid it receives.
 - **For the game.** The game-developer owns the OSD content (Train mode shows only what the pilot needs). The tech-artist owns putting it **through the feed pipeline before the analog stages**, so it degrades and tears like the real one.
 
