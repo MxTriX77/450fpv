@@ -55,7 +55,7 @@ Rates are per minute of the in-flight window unless marked. "Duration" is in rec
 |---|---|---|---|---|---|---|
 | N1 | Live grain | all, continuous | — | continuous | every frame, new pattern each field | cam, cvbs |
 | N2 | Chroma sparkles (coloured impulse dashes) | all; densest H, F, C; near zero A, E (§2 P6) | continuous | continuous background; no bursts beyond content changes | per frame | cvbs/link |
-| N3 | Rolling thin dark lines ("stripes") | C only: f3–4, f9–11, f30–53, f80–91 | 4 events (38 frames) | 3.3/min pooled; 50/min within C | 2, 3, 24 and 12 frames (0.07–0.8 s) | pwr |
+| N3 | Rolling thin dark lines ("stripes") | C only: f3–4, f9–11, f30–53, f80–91 | 4 events: 38 detected frames within runs spanning 41 | 3.3/min pooled; 50/min within C | 2, 3, 24 and 12 frames (0.07–0.8 s) | pwr |
 | N4 | Diagonal dotted interference, flickering | B only: f1–269 | 79 runs (125 frames) | 66 runs/min pooled; ≈ 510 runs/min (≈ 8.5/s) within B; 45 % of B's in-flight frames | runs of 1–3 frames (max 7), each covering part of a field | pwr |
 | N5 | Loss onset: partial-frame snow | C f174–175, D f208–209, F f250 | 3 | per loss event | 1–2 frames | rx (or rec) |
 | N6 | Snow ↔ blue cycle | C f176–186, D f210–221, F f251–262 | 3 | per loss event | blue 4 frames → full snow 7–8 frames | rx |
@@ -98,13 +98,14 @@ The pilot's words, mapped to what was measured:
 
   So the source frequency varies during the flight, as a motor-speed-linked source would.
 - **Where it occurs.** Found by a full-resolution scan of every picture frame of A–H: 3 or more lines at uniform 140–170 px spacing reaching the upper half of the picture.
-  - C: 4 events, 38 frames (27 % of C's in-flight frames).
+  - C: 4 events spanning 41 frames. 38 of them are detected (2, 3, 23 and 10 per run; 27 % of C's 143 in-flight frames). The other 3 sit in gaps of at most 2 frames inside a run, which the event grouping bridges.
   - Every other clip: 0. A single-frame match in H f400 shares a row with the OSD and is not counted.
   - The per-frame metrics flagged only C f37, because the lines are thin against C's busy scene.
 - **Candidate effect.** A set of thin dark lines, 1 source line tall and 15–30 levels deep, over the whole width. Spacing = field height × field rate ÷ interference frequency; position rolls each field by the frequency's offset from a multiple of the field rate.
 - **Driver.** **Motor electrical frequency** (from motor RPM × pole pairs, or ESC switching harmonics) sets the spacing and roll speed. **Motor current** sets visibility. Throttle changes should make the lines crowd, spread and change roll speed.
 
 **N4 Diagonal dotted interference, flickering.** First seen at B f123 and B f131, the only two frames the per-frame metrics flagged. A sky-region scan of every frame of A, B and G (the clips with open sky) shows it is **not rare in B**:
+- **Criterion.** At native 1920×1080, in one fixed open-sky box per clip (A 1100×70 px at x 300, y 100; B 950×190 at 450, 150; G 500×100 at 950, 170), BT.601 luma minus its 5×5 box mean is autocorrelated at (+8 px, +4 rows) and at (−8 px, +4 rows), each normalised by its variance. A frame counts when the two correlations differ by more than 0.2 (either sign) and the high-pass RMS is above 1.2 levels; consecutive counted frames form a run.
 - **B.** Present in 125 of B's 279 in-flight frames (45 %), from f1 to f269. It comes in 79 runs, mostly 1 frame long (53 runs; 12 of 2 frames, 11 of 3, 2 of 4, 1 of 7) and mostly separated by a single clean frame (51 of 78 gaps). Examples: B f5–6 show it and f4 is clean.
 - **A and G.** None. G is the same airframe group as B, so the source is specific to B's drone or flight. A's four candidate frames were prop-blade slivers.
 
@@ -210,7 +211,7 @@ Details:
 | O1 | **Barrel distortion** (strong, near fisheye) | See below | **k1 ≈ 0.33** (0.30–0.34), with p_u = p_d·(1 + k1·r_d²) and r normalised to the half-width | Inverse radial mapping in the final pass. Render the 3D view with extra field of view to fill the corners (the edge needs ≈ 1.33× the half-width of undistorted image) | Frame content (static per camera) |
 | O2 | **Vignetting** (mild) | See below | ≈ 10 % (5–15 %) at the edges, ≈ 10–20 % in the corners | cos⁴-style radial falloff, 10–15 % in the corners | Frame content (static) |
 | O3 | **Sun flare and veiling glare** | See below | Glare can lift mean luma by ≈ 10–15 % frame to frame (D f183) | Screen-space ghost placed by the sun's projected position, plus a veiling glare that scales with how close the sun is to the frame and whether it is occluded (depth test against the sun), clipped by a housing edge | Light level (sun direction and visibility vs. camera) |
-| O4 | **Lens dirt** | See below | Two blobs, ≈ 60–100 px | Optional dirt mask composited out of focus. It accumulates, it is not a fixed overlay | Contact with vegetation or ground (impact events, including light brushes) and dust exposure (hypothesis, U12) |
+| O4 | **Lens dirt** | See below | Two blobs, ≈ 60–100 px | Optional dirt mask composited out of focus. It accumulates, it is not a fixed overlay | Contact with vegetation or ground (impact events, including light brushes). Dust is not a driver unless U12 confirms it |
 | O5 | **Depth of field** | Fixed focus: sharp from ≈ 1 m to infinity. Very close surfaces (E f253–262, F f249) are soft, but blur from motion and low light dominates | Small | None needed beyond C4 motion blur. Optionally a mild near-field blur below ≈ 0.3 m | Frame content (camera-to-surface distance from the depth buffer) |
 
 **O1 Barrel distortion.**
@@ -298,6 +299,7 @@ It reads as coarse horizontal line-dashes, soft horizontal edges with dark halos
   | Left-middle / middle | throttle and pitch readouts, left-middle | status word left-middle, speed value right-middle | status word + flight timer above the battery lines |
   | Artificial-horizon dotted line | yes | no | yes |
   | Bottom-right | distance readout; warning text line bottom-centre | consumption and timer | current readout; link-quality or warning text line in the bottom row |
+- **Driver.** The content is the sim's flight and warning state (armed state, flight timer, battery voltage, link margin, attitude), which the game's OSD model turns into characters: the **OSD state** signal in §7. A warning is shown while its condition holds, for example battery voltage under load below a threshold or low fiber link margin, and the OSD model toggles it on a fixed cycle that matches the footage. The feed only draws the grid it receives.
 - **For the game.** The game-developer owns the OSD content (Train mode shows only what the pilot needs). The tech-artist owns putting it **through the feed pipeline before the analog stages**, so it degrades and tears like the real one.
 
 ## 6. Implementation notes for the feed (non-binding)
@@ -329,7 +331,7 @@ It reads as coarse horizontal line-dashes, soft horizontal edges with dark halos
 | U9 | Is the **lens distortion** similar on all your drones? A measures k1 ≈ 0.33. Is the picture native 16:9, or is a 4:3 camera stretched? The measurement favours native 16:9 | One k1 or one per airframe |
 | U10 | Were the losses in these clips all at **landing, drop or impact**? Does a **mid-flight fiber break** look the same? | Our loss model is built from end-of-flight footage only |
 | U11 | **Chroma sparkles** (coloured specks on grass and walls): on the goggles, or only in the recordings? | Could partly be a recording artifact |
-| U12 | **Lens dirt** after dusty landings: common enough to simulate? | O4 |
+| U12 | **Lens dirt** after dusty landings: common enough to simulate? | O4. A yes adds a dust-exposure signal to §7 |
 | U13 | Goggles no-signal screen: **blue** (as recorded) or configurable? | N7 look |
 
 ## 7. Simulation signals the feed needs (task 3.2)
@@ -351,6 +353,7 @@ This is the input to the later physics↔video interface change. "Field rate" me
 | Scene light level (mean and centre-weighted luminance of the rendered frame, before exposure) | cd/m² (or EV) | per rendered frame | renderer (video module) | C1 AE → N1 grain, C3 saturation, C4 exposure time |
 | Sun direction relative to the camera and sun visibility (occluded fraction) | unit vector + 0–1 | per rendered frame | renderer and sky (tech-artist) | O3 flare and veiling glare, N11 |
 | Time of day | h (local solar) | on change (user setting) | game settings | Sky and sun, base light level |
+| OSD state: the 30×16 character grid as currently shown, blinking cells already toggled, built from sim state (armed state, flight timer, battery voltage, link margin, attitude) | characters (30 × 16 cells) | 50 Hz (per field) | game (OSD model, game-developer) | §5 OSD content and blinking warnings |
 
 Every driver named in §1–§4 is covered:
 
@@ -364,5 +367,6 @@ Every driver named in §1–§4 is covered:
 | Fiber tension / bend / link margin | fiber tension, bend radius, link state + margin |
 | Light level | scene light level; sun direction and visibility; time of day |
 | Camera motion | camera angular velocity |
+| OSD flight and warning state | OSD state (built by the game from battery voltage, link state + margin and its own state) |
 | Frame content, including the static camera and receiver properties (P1–P4, P8, O1, O2, O5) | (the rendered frame and depth buffer themselves; no signal needed) |
 | Free-running random | (the feed's own seeded RNG, at the rates in §1.2; no signal needed) |
