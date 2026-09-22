@@ -378,7 +378,7 @@ Porosity values are typical for the soil type, not measured from the footage. Th
 1. **Tree-belt edge patch.** A belt about 20 m wide with trunks, understory and part-bare crowns, a straw-mat floor over dark soil, and a grass margin. Reason: it is in F, G, H and D and on every horizon (A, B), and it packs the most snag, wind-shadow and landing physics into one piece.
 2. **Straw-mat and stem micro-detail layer.** Lodged straw, standing stems and twigs over dark soil, with instanced physical stems near the drone. Reason: H is a long low flight over exactly this, the manifesto's straw-level landing jitter.
 3. **Open rolling meadow patch.** About 500 m of sod and mixed grass with hidden pitfall patches, and belts on the horizon. Reason: A is the main open cruise-and-descend surface, and M1 noclip needs the wide view.
-4. **Damaged adobe house with a stripped roof, an enterable door and a far window.** Reason: E flies in through the door and sees daylight through the far window. It is the core entry-target structure.
+4. **Damaged adobe house with a stripped roof, an enterable door and a far window.** Reason: E flies in through the door and sees daylight through the far window. It is the core fly-in structure.
 5. **Dry cratered field patch.** Craters 1–4 m with loose rims on crusted loam with sparse tufts. Reason: B shows it end to end, and it is the hard-surface bounce and crater-tilt case.
 6. **Trench along a narrow tree strip.** Reason: G flies it low and fast. It is the only narrow ground corridor in the clips.
 7. **Village yard set: fruit tree, brick cellar entrance, shed, leaf litter.** Reason: C ends by flying into the cellar door, the narrowest fly-in gap in the footage.
