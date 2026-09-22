@@ -8,8 +8,8 @@
 
 ## 2. Terrain catalog
 
-- [ ] 2.1 [world-artist] Study every contact sheet, then the stills and bursts where detail is needed, and write `docs/reference-notes/terrain.md` entries (clips, size in metres, materials/colours, density, physical role). Verify that every clip letter is cited
-- [ ] 2.2 [world-artist] Add the ranked M1 build list (patches, objects, textures), with a footage-based reason on each line, and verify it has at least 8 items
+- [x] 2.1 [world-artist] Study every contact sheet, then the stills and bursts where detail is needed, and write `docs/reference-notes/terrain.md` entries (clips, size in metres, materials/colours, density, physical role). Verify that every clip letter is cited
+- [x] 2.2 [world-artist] Add the ranked M1 build list (patches, objects, textures), with a footage-based reason on each line, and verify it has at least 8 items
 
 ## 3. Video feed notes
 
