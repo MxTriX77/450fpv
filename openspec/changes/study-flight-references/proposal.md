@@ -10,9 +10,17 @@ This change turns the footage into written reference notes that every role can b
 
 ## What Changes
 
-- A new headless Blender tool, `tools/reference/extract_frames.py`. It turns every clip in `reference/` into sampled stills, consecutive-frame bursts and contact sheets under the git-ignored `reference/_frames/`. It also writes a local-only index that maps clip letters to file names.
+- A new headless Blender tool, `tools/reference/extract_frames.py`. It turns every clip in `reference/` into sampled stills, lossless consecutive-frame bursts and contact sheets under the git-ignored `reference/_frames/`. It also writes a local-only index that maps clip letters to file names.
+- The tool also scans **every** frame and records per-frame noise, stripe, change and colour metrics. It exports outlier frames (flashes, stripe bursts) losslessly, because single-frame glitches fall between samples.
 - A new `docs/reference-notes/terrain.md`. It catalogues terrain types and object classes: tree belts (посадки), war-damaged houses, typical vehicles, fields, vegetation, roads, craters, debris, wires and poles. For each it records scale, materials, colours and density, and whether it matters physically (surface, obstacle, turbulence source). It ends with a prioritised build list for M1.
-- A new `docs/reference-notes/video-feed.md`. It describes the analog feed as the footage shows it: resolution feel, noise and how it changes, colour, exposure and artifacts, plus the general OSD layout (never OSD values). Each trait is mapped to a candidate shader effect. It also records which artifacts come from re-encoding the clips rather than from the real feed.
+- A new `docs/reference-notes/video-feed.md`. The footage **is** the target look, so this file describes it trait by trait:
+  - noise events (grain, stripes, full-frame flashes), with measured rates and durations
+  - aliased pixels
+  - lens distortion
+  - colour and exposure shifts on approach
+  - resolution feel and OSD layout (never OSD values)
+
+  The feed is part of the simulation. Each trait names the sim driver behind it (throttle current, voltage sag, vibration, impacts, fiber tension, light) as well as a candidate effect. The file ends with the list of signals physics must provide. Only clearly block-shaped artifacts are put down to re-encoding. Anything uncertain goes to the user.
 - OPSEC-safe by construction. The notes refer to clips only by letter, and contain no place names, coordinates, OSD values, dates, file names, unit information, identifiable landmarks or tactical positions.
 
 ## Capabilities

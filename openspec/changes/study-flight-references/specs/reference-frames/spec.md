@@ -17,6 +17,28 @@ The tool SHALL process every video file found anywhere under `reference/`, exclu
 - **WHEN** the tool runs with default settings
 - **THEN** each clip has at least 3 bursts (start, middle, end) of at least 8 consecutive native-rate frames. These let the temporal noise be studied.
 
+#### Scenario: Lossless detail frames
+- **WHEN** bursts or event frames are written
+- **THEN** they are saved losslessly (PNG) at native resolution, so no new compression artifacts are added to what's studied. Stills and contact sheets may be JPEG, because they are only for overview.
+
+### Requirement: Every frame is measured
+The tool SHALL decode every frame of every clip. For each clip it SHALL write `reference/_frames/<letter>/metrics.csv` with one row per frame, holding: frame index, time in seconds, mean luma, noise level (high-frequency energy), horizontal-stripe energy (row-to-row variation), change from the previous frame, and mean R, G and B.
+
+#### Scenario: Complete metrics
+- **WHEN** a full run finishes
+- **THEN** each clip's `metrics.csv` has exactly one row per decoded frame of that clip, and no empty values
+
+### Requirement: Glitch events are captured
+Frames whose noise, stripe or change metric is an outlier within their own clip SHALL be flagged in `metrics.csv` and exported losslessly together with 2 neighbouring frames on each side. The outlier threshold SHALL be configurable.
+
+#### Scenario: Events exported
+- **WHEN** a full run finishes
+- **THEN** every frame flagged in `metrics.csv` has a PNG in `reference/_frames/<letter>/events/`, along with its ±2 neighbours (clamped at the clip ends)
+
+#### Scenario: Short flashes are not missed
+- **WHEN** a clip contains a single-frame full-frame noise flash
+- **THEN** that frame is flagged, because the scan covers every frame and does not sample
+
 ### Requirement: Output stays local and ignored
 Every file the tool writes SHALL be inside `reference/_frames/`, which git ignores. The tool SHALL NOT write anywhere else in the repo.
 
