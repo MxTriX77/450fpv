@@ -2,8 +2,8 @@
 
 Status is one of Proposed, Accepted or Superseded. When a decision changes, add a new entry that supersedes the old one. Don't edit old entries.
 
-## D-001 Engine: Godot 4.7, .NET build (C#) · Proposed
-The flight dynamics model has to step at 1 kHz or more with fixed timesteps and log every step. C# handles that math-heavy loop many times faster than GDScript, and it avoids the build overhead of C++ GDExtension. GDScript is still fine for UI and glue code. The .NET 10 SDK is already installed.
+## D-001 Engine: Godot 4.7, .NET build (C#) · Accepted
+The flight dynamics model has to step at 1 kHz or more with fixed timesteps and log every step. C# handles that math-heavy loop many times faster than GDScript, and it avoids the build overhead of C++ GDExtension. GDScript is still fine for UI and glue code. The .NET 10 SDK is already installed. Accepted 2026-09-23: the user raised no objection and gave the go-ahead for the Godot bootstrap.
 
 ## D-002 Flight physics: custom model, Jolt for contacts only · Proposed
 The drone's motion comes from our own fixed-step model: rotors, motors, aerodynamics, wind and tether, in seeded sub-steps. Godot's stock rigid-body integration gives the "smooth and rigid" feel that the manifesto rejects. Jolt is used only for collision queries and contact geometry.
