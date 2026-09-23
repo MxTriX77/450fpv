@@ -1,6 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://scenes/sandbox/Sandbox.cs" id="1_sandbox"]
+[ext_resource type="Script" path="res://src/input/NoclipCamera.cs" id="2_noclip"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
 sky_top_color = Color(0.32, 0.47, 0.68, 1)
@@ -70,3 +71,4 @@ mesh = SubResource("PlaneMesh_ground")
 
 [node name="Camera" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 0.986394, 0.164399, 0, -0.164399, 0.986394, 0, 3, 12)
+script = ExtResource("2_noclip")
