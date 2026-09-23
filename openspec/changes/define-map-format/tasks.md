@@ -2,17 +2,18 @@
 
 ## 1. Renderer spike
 
-- [ ] 1.1 [world-artist] Generate a synthetic 4 km `.r16` heightfield (`tools/map/make_synthetic.py`). Measure Terrain3D against a chunked mesh in the sandbox (fps, 1 % low, load time, VRAM). Verify that the chosen option meets the map-loading budget, and record D-009 in `docs/decisions.md` with the numbers
+- [x] 1.1 [world-artist] Generate a synthetic 4 km `.r16` heightfield (`tools/map/make_synthetic.py`). Measure Terrain3D against a chunked mesh in the sandbox (fps, 1 % low, load time, VRAM). Verify that the chosen option meets the map-loading budget, and record D-009 in `docs/decisions.md` with the numbers
 
 ## 2. Format
 
-- [ ] 2.1 [world-artist] Write the manifest schema, `surfaces.json` (9 surfaces from notes §7) and `catalog.json` (primitive placeholder assets plus a wire). Verify with the validator
+- [x] 2.1 [world-artist] Write the manifest schema, `surfaces.json` (9 surfaces from notes §7) and `catalog.json` (primitive placeholder assets plus a wire). Verify with the validator
 - [ ] 2.2 [physics-engineer] Review the surface fields, units and ranges and sign them off in `surfaces.json` review notes. Verify that every field has a unit and a physical range
-- [ ] 2.3 [world-artist] Write `tools/map/validate_map.py` (stdlib only) covering every map-format scenario. Verify each failure scenario with a deliberately broken copy of the sample, created in a temp folder
+- [x] 2.3 [world-artist] Write `tools/map/validate_map.py` (stdlib only) covering every map-format scenario. Verify each failure scenario with a deliberately broken copy of the sample, created in a temp folder
+- [ ] 2.4 [world-artist] Add the 256 m-multiple side rule to the validator. Verify with a 300 m broken copy
 
 ## 3. World query
 
-- [ ] 3.1 [world-artist] Load the C# layers and add terrain height, ground height, normal, surface and cover queries. Verify the bilinear-accuracy and micro-relief scenarios in a `--selftest worldquery` run
+- [ ] 3.1 [world-artist] Load the C# layers and add terrain height, ground height, normal, surface and cover queries. Verify the matches-rendered-surface and micro-relief scenarios in a `--selftest worldquery` run
 - [ ] 3.2 [world-artist] Add the hash-based `MicroDetailNear`. Verify the replay-identity, overlap and density scenarios, with two processes for replay identity
 - [ ] 3.3 [world-artist] Add the wind-obstacle grid derived at load. Verify the house-shadow scenario
 - [ ] 3.4 [world-artist] Add the query benchmark. Verify the timings and zero allocations on the dev machine
