@@ -34,6 +34,7 @@ The pilot's standing direction: **REALISM above all.** Every effect varies rando
 
 The pilot reviews only tangible milestone deliverables (UAT-1 map parts, UAT-2 noclip world, MVP flights, release), never sandboxes, sample patches or planning documents. See `docs/roadmap.md`.
 
-## Still open
+## Drone, legs and launch (physics-engineer, world-artist, 2026-09-23)
 
-- **Launch rails** (for legs = FALSE): spacing, height, length, profile and finish, and which part of the drone rests on them. Asked; no answer yet.
+- **Launch rails (legs = FALSE):** two parallel steel bars spaced **about the drone's diameter**, so the frame rests across both and the fiber spool hangs clear between them. The pilot said "calculate it yourself", so the exact spacing, height and length come from the drone's frame geometry. The team derives them from the drone class (10" heavy quad, 3-blade props) and keeps them tunable until the drone model exists.
+- **Legs (for the physics and drone changes):** **plastic, about 25–35 cm long, slightly soft.** That softness **sometimes** adds a stumble on landing. So combat pilots land accurately and slowly, and correct the horizon right before touchdown. The landing model must reproduce this: legs that flex and rebound, per-leg variation, and an occasional stumble, never a constant one. This complements manifesto §1 item 6 (the bounce-back if throttle isn't cut on contact).
