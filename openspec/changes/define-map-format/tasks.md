@@ -9,17 +9,17 @@
 - [x] 2.1 [world-artist] Write the manifest schema, `surfaces.json` (9 surfaces from notes §7) and `catalog.json` (primitive placeholder assets plus a wire). Verify with the validator
 - [x] 2.2 [physics-engineer] Review the surface fields, units and ranges and sign them off in `surfaces.json` review notes. Verify that every field has a unit and a physical range
 - [x] 2.3 [world-artist] Write `tools/map/validate_map.py` (stdlib only) covering every map-format scenario. Verify each failure scenario with a deliberately broken copy of the sample, created in a temp folder
-- [ ] 2.4 [world-artist] Add the 256 m-multiple side rule to the validator. Verify with a 300 m broken copy
-- [ ] 2.5 [world-artist] Apply physics review §3–§5: the new surface fields and value corrections, the material table with primitive-only collision and wind volumes in the catalog, optional start points, and the README. Extend the validator (unknown material, the new ranges, element length and diameter > 0, start point bounds). Verify with the validator on new broken-copy cases
+- [x] 2.4 [world-artist] Add the 256 m-multiple side rule to the validator. Verify with a 300 m broken copy
+- [x] 2.5 [world-artist] Apply physics review §3–§5: the new surface fields and value corrections, the material table with primitive-only collision and wind volumes in the catalog, optional start points, and the README. Extend the validator (unknown material, the new ranges, element length and diameter > 0, start point bounds). Verify with the validator on new broken-copy cases
 
 ## 3. World query
 
-- [ ] 3.1 [world-artist] Add batch `SampleGround` (W-1–W-4, W-15): triangulated terrain, relief and ridges, pitfalls with ids, mat, cover, blend and flags. Verify the matches-rendered-surface, continuity, normal, micro-relief, pitfall and outside-map scenarios in `--selftest worldquery`
-- [ ] 3.2 [world-artist] Add `MicroDetailNear` (W-5, W-6): segment-meets-sphere, kind mask, canonical order, element scaling and overflow. Verify the replay-identity (two processes), overlap, crossing-straw, density and overflow scenarios
+- [x] 3.1 [world-artist] Add batch `SampleGround` (W-1–W-4, W-15): triangulated terrain, relief and ridges, pitfalls with ids, mat, cover, blend and flags. Verify the matches-rendered-surface, continuity, normal, micro-relief, pitfall and outside-map scenarios in `--selftest worldquery`
+- [x] 3.2 [world-artist] Add `MicroDetailNear` (W-5, W-6): segment-meets-sphere, kind mask, canonical order, element scaling and overflow. Verify the replay-identity (two processes), overlap, crossing-straw, density and overflow scenarios
 - [ ] 3.3 [world-artist] Add the wind grid with base heights and path-composable porosity from wind volumes, plus `GapsNear` (W-9, W-10). Verify the house, tree-crown and door-gap scenarios
 - [ ] 3.4 [world-artist] Add pure-C# swept static contacts and raycasts over catalog primitives and wires, plus runtime objects (W-7, W-8, W-11, D-010). Verify the tunnelling, material, roof-ray and rails scenarios
-- [ ] 3.5 [world-artist] Add the content hash, determinism golden file and concurrency check (W-12–W-14). Verify the hash-change, golden-file and concurrent-use scenarios
-- [ ] 3.6 [world-artist] Add the query benchmark (W-16). Verify every timing, including the < 60 µs composite step, with zero allocations on the dev machine
+- [ ] 3.6 [world-artist] Add the query benchmark (W-16) and **optimise until it passes, before 3.5 records the golden file**, because optimisations change the hashes. Plan: per-cell caches, a single-round hash, pitfall pre-rejection. Verify every timing, including the < 60 µs composite step, with zero allocations after warm-up on the dev machine
+- [ ] 3.5 [world-artist] Add the surface, material and soil-reference lookups, the content hash, the determinism golden file and the concurrency check (W-12–W-14). Do this after 3.6. Verify the hash-change, golden-file and concurrent-use scenarios
 - [ ] 3.7 [physics-engineer] Review the query API for use by the flight model and confirm that review §3–§5 is applied. Verify by writing a contact-probe sketch against the real API (not committed)
 
 ## 4. Loading and sample
