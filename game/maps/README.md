@@ -27,6 +27,8 @@ game/assets/catalog.json   shared asset catalog (all maps)
 
 A map side is at most 8192 m.
 
+Inside `game/` each PNG layer also has a Godot sidecar, `surface.png.import` and `cover.png.import`, containing `importer="keep"`. Godot then leaves the layers as raw files and exports them unchanged, instead of converting them to textures. The loader reads the exact bytes. The validator ignores these sidecars.
+
 ## Coordinates and units
 
 - Metres, seconds, kilograms and newtons everywhere. Angles are in degrees.
