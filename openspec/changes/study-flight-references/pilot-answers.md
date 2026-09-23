@@ -11,7 +11,7 @@ The pilot's standing direction: **REALISM above all.** Every effect varies rando
 - **Variety:** noise and flashes differ from one another. Sometimes a little noise, sometimes stripes, and every instance differs. Simulate real-life noise so it looks super realistic, never a repeating pattern.
 - **U6, throttle:** noise may depend on throttle, but **rarely**. So the throttle coupling is weak and occasional, not a dominant driver.
 - **U2 and U10, signal loss / fiber break sequence:** a **very quick picture glitch → a brief flashy moment → noisy and flashy → finally blue**. Randomise the timing and the look of each stage so no two losses look the same.
-- **U5, low light:** the pilot has added **night footage**, `reference/terrain/night.mp4`. Characterise it.
+- **U5, low light:** the pilot has added **night footage** (clip L). Characterise it.
 - U3, U4, U7, U8, U9, U11, U12 and U13 weren't answered. Keep the notes' current best estimate and mark them "unconfirmed, tunable".
 
 ## Terrain and world (world-artist)
@@ -21,7 +21,7 @@ The pilot's standing direction: **REALISM above all.** Every effect varies rando
   - low to mid-class cars: Chery, Chevrolet, VW, Daewoo Lanos
   - ЗИЛ and Урал trucks
 
-  Some are **abandoned** and some are **destroyed by strikes**. The pilot has added reference images: `reference/terrain/destroyedcar1–3.avif`.
+  Some are **abandoned** and some are **destroyed by strikes**. The pilot has added reference images of destroyed vehicles (photos M–O).
 - **Trenches:** common in this war and **confirmed** as a terrain class. Earthworks like clip B's bank are real.
 - **Dark fields:** both kinds exist. Some are **burnt**, from strikes or from FPV drones that fall and explode. Others are **tilled**. The map has both.
 - **Map composition:**
