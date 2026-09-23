@@ -48,6 +48,7 @@ Self-checks, which exit non-zero on failure:
 ```powershell
 & $env:GODOT --headless --path game -- --selftest noclip  # noclip covers 6 m and 48 m in 1 s at 30 and 144 fps, ±5 %
 & $env:GODOT --path game -- --selftest overlay            # opens a window for about 12 s: F3, F12 and the frame budget
+& $env:GODOT --headless --path game -- --selftest worldquery  # world-query scenarios on sample_patch, about 1 min
 ```
 
 Terrain-only frame budget on the synthetic 4 km map (D-009). `flypath` flies a fixed 12 s path and prints fps, 1 % low, draw calls and video memory:
