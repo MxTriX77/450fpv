@@ -83,12 +83,26 @@ CASES = [
      False, ["unknown surface index 42", "first at row 10, column 20"]),
     ("surface index 0", lambda pkg, tables: set_surface_pixel(pkg, 511, 0, 0),
      False, ["unknown surface index 0 (0 is invalid)", "row 511, column 0"]),
-    ("surface field missing", broken_surface(lambda d: surface(d, "meadow_sod")["soil"].pop("porosity")),
-     False, ["surface 'meadow_sod': soil.porosity is missing"]),
+    ("surface field missing", broken_surface(lambda d: surface(d, "meadow_sod")["soil"].pop("unload_stiffness_ratio")),
+     False, ["surface 'meadow_sod': soil.unload_stiffness_ratio is missing"]),
     ("negative stiffness", broken_surface(lambda d: surface(d, "dry_crust")["soil"].update(bearing_n_per_m3=-5e6)),
      False, ["surface 'dry_crust': soil.bearing_n_per_m3 = -5000000.0 is outside"]),
-    ("porosity above 1", broken_surface(lambda d: surface(d, "tilled")["soil"].update(porosity=1.5)),
-     False, ["surface 'tilled': soil.porosity = 1.5 is outside 0 to 1"]),
+    ("unload ratio below 1", broken_surface(lambda d: surface(d, "tilled")["soil"].update(unload_stiffness_ratio=0.5)),
+     False, ["surface 'tilled': soil.unload_stiffness_ratio = 0.5 is outside 1 to 100"]),
+    ("soil reference diameter missing", broken_surface(lambda d: d.pop("soil_reference_diameter_m")),
+     False, ["surfaces.json: soil_reference_diameter_m is missing"]),
+    ("ridge azimuth out of range", broken_surface(lambda d: surface(d, "tilled")["micro_relief"]["ridges"].update(azimuth_deg=200)),
+     False, ["surface 'tilled': micro_relief.ridges.azimuth_deg = 200 is outside 0 to 180"]),
+    ("mat depth min above max", broken_surface(lambda d: surface(d, "belt_straw")["cover"][0]["mat"].update(depth_m=[0.2, 0.05])),
+     False, ["surface 'belt_straw': cover.straw.mat.depth_m = [0.2, 0.05] must satisfy"]),
+    ("mat kinetic above static", broken_surface(lambda d: surface(d, "meadow_sod")["cover"][0]["mat"].update(friction_kinetic=0.6)),
+     False, ["surface 'meadow_sod': cover.grass.mat.friction_kinetic is greater than cover.grass.mat.friction_static"]),
+    ("zero element length", broken_surface(lambda d: surface(d, "weeds")["cover"][0].update(height_m=[0, 1.5])),
+     False, ["surface 'weeds': cover.grass.height_m min must be above 0"]),
+    ("zero element diameter", broken_surface(lambda d: surface(d, "dry_crust")["cover"][0].update(diameter_m=[0, 0.003])),
+     False, ["surface 'dry_crust': cover.grass.diameter_m min must be above 0"]),
+    ("hook release missing", broken_surface(lambda d: surface(d, "rubble")["cover"][0].pop("hook_release_n")),
+     False, ["surface 'rubble': cover.twigs.hook_release_n is missing"]),
     ("cover field missing", broken_surface(lambda d: surface(d, "belt_straw")["cover"][0].pop("hook_probability")),
      False, ["surface 'belt_straw': cover.straw.hook_probability is missing"]),
     ("inverted range", broken_surface(lambda d: surface(d, "weeds")["pitfalls"].update(depth_m=[0.3, 0.05])),
@@ -164,7 +178,7 @@ def main():
         ok = (run.returncode == 0) == succeed and all(text in output for text in expected)
         failures += not ok
         first = next((line for line in output.splitlines() if line.startswith(("ERROR", "OK"))), output.strip())
-        print(f"{'PASS' if ok else 'FAIL'}  {name:26s} exit {run.returncode}  {first}")
+        print(f"{'PASS' if ok else 'FAIL'}  {name:32s} exit {run.returncode}  {first}")
         if not ok:
             print(output)
     print(f"{len(CASES) - failures}/{len(CASES)} cases passed (work folder {work})")

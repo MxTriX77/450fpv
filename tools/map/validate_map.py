@@ -30,19 +30,23 @@ SURFACE_FIELDS = {
         "friction_static": (0, 2),
         "friction_kinetic": (0, 2),
         "max_sink_m": (0, 1),
-        "porosity": (0, 1),
+        "unload_stiffness_ratio": (1, 100),
     },
     "micro_relief": {"amplitude_m": (0, 0.5), "wavelength_m": (0.05, 10)},
     "pitfalls": {"density_per_m2": (0, 1), "depth_m": (0, 2, "range"), "radius_m": (0, 2, "range")},
     "material": {"roughness": (0, 1)},
 }
+RIDGE_FIELDS = {"amplitude_m": (0, 0.3), "spacing_m": (0.1, 5), "azimuth_deg": (0, 180)}
 COVER_FIELDS = {
     "height_m": (0, 3, "range"),
     "stems_per_m2": (0, 5000),
     "diameter_m": (0, 0.2, "range"),
     "lateral_stiffness_n_per_m": (0, 1e4),
     "hook_probability": (0, 1),
+    "hook_release_n": (0, 500, "range"),
 }
+MAT_FIELDS = {"depth_m": (0, 0.5, "range"), "modulus_pa": (10, 1e6), "damping_ratio": (0, 2),
+              "friction_static": (0, 2), "friction_kinetic": (0, 2)}
 SHAPE_FIELDS = {"box": ["size_m"], "sphere": ["radius_m"], "cylinder": ["radius_m", "height_m"],
                 "capsule": ["radius_m", "height_m"], "capsule_chain": ["segment_m"]}
 
@@ -87,6 +91,12 @@ def check_fields(obj, spec, where, prefix=""):
             error(f"{where}: {name} = {value} is outside {low} to {high}")
 
 
+def check_friction(obj, where, prefix):
+    if isinstance(obj, dict) and is_number(obj.get("friction_kinetic")) and is_number(obj.get("friction_static")) \
+            and obj["friction_kinetic"] > obj["friction_static"]:
+        error(f"{where}: {prefix}friction_kinetic is greater than {prefix}friction_static")
+
+
 def load_json(path):
     try:
         with open(path, encoding="utf-8") as f:
@@ -103,6 +113,7 @@ def check_surfaces(table):
     if not isinstance(surfaces, list) or not surfaces:
         error("surfaces.json: needs a non-empty 'surfaces' list")
         return indices
+    check_fields(table, {"soil_reference_diameter_m": (0.005, 0.1)}, "surfaces.json")
     for n, surface in enumerate(surfaces):
         sid = surface.get("id") if isinstance(surface, dict) else None
         where = f"surface '{sid}'" if isinstance(sid, str) else f"surface #{n}"
@@ -126,10 +137,10 @@ def check_surfaces(table):
                 error(f"{where}: {group} is missing")
                 continue
             check_fields(surface[group], spec, where, group + ".")
-        soil = surface["soil"] if isinstance(surface.get("soil"), dict) else {}
-        if is_number(soil.get("friction_kinetic")) and is_number(soil.get("friction_static")) \
-                and soil["friction_kinetic"] > soil["friction_static"]:
-            error(f"{where}: soil.friction_kinetic is greater than soil.friction_static")
+        check_friction(surface.get("soil"), where, "soil.")
+        relief = surface.get("micro_relief")
+        if isinstance(relief, dict) and "ridges" in relief:
+            check_fields(relief["ridges"], RIDGE_FIELDS, where, "micro_relief.ridges.")
         albedo = surface.get("material", {}).get("albedo_srgb") if isinstance(surface.get("material"), dict) else None
         if not isinstance(albedo, str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", albedo):
             error(f"{where}: material.albedo_srgb is missing or not #rrggbb")
@@ -148,6 +159,15 @@ def check_surfaces(table):
                 error(f"{where}: cover type '{kind}' is listed twice")
             seen.add(kind)
             check_fields(entry, COVER_FIELDS, where, f"cover.{kind}.")
+            if is_number(entry.get("stems_per_m2")) and entry["stems_per_m2"] > 0:
+                for field, what in (("height_m", "length"), ("diameter_m", "diameter")):
+                    value = entry.get(field)
+                    if isinstance(value, list) and value and is_number(value[0]) and value[0] <= 0:
+                        error(f"{where}: cover.{kind}.{field} min must be above 0: a cover with elements needs an "
+                              f"element {what}")
+            if "mat" in entry:
+                check_fields(entry["mat"], MAT_FIELDS, where, f"cover.{kind}.mat.")
+                check_friction(entry["mat"], where, f"cover.{kind}.mat.")
     return indices
 
 
