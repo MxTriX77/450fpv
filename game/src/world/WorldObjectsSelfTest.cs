@@ -587,7 +587,8 @@ public static partial class WorldQuerySelfTest
         // Bar 0 spans x −0.1425 to −0.1175 with its top at y 0.25.
         var resting = new Double3(-0.1185, 0.25 + r - 1e-4, 20);
         int before = world.StaticContacts(new Capsule(resting, resting, r), 0.001, buffer);
-        bool restingOk = before == 1 && buffer[0].Object == rails && buffer[0].Shape == 0 && Math.Abs(buffer[0].Distance + 1e-4) <= 1e-9;
+        double restingDistance = before > 0 ? buffer[0].Distance : double.NaN;
+        bool restingOk = before == 1 && buffer[0].Object == rails && buffer[0].Shape == 0 && Math.Abs(restingDistance + 1e-4) <= 1e-9;
         var offEdge = new Double3(-0.1075, 0.25 + r - 1.1e-3, 20);
         int slid = world.StaticContacts(new Capsule(resting, resting, r), new Capsule(offEdge, offEdge, r), 0.001, buffer);
 
@@ -608,7 +609,7 @@ public static partial class WorldQuerySelfTest
         int landing = world.StaticContacts(new Capsule(above, above, r), new Capsule(landed, landed, r), 0, buffer);
         bool landingOk = landing == 1 && buffer[0].Time == 1 && Math.Abs(buffer[0].Distance + 0.002) <= 1e-9;
         return Check("swept contact rules", restingOk && slid == 0 && pushOk && throughOk && landingOk,
-            $"resting on a bar: {before} contact, distance {(before > 0 ? buffer[0].Distance : double.NaN):0.0e0}; sliding off its edge: "
+            $"resting on a bar: {before} contact, distance {restingDistance:0.0e0}; sliding off its edge: "
             + $"{slid} contacts; pushed through the wire: {pushed}, Time {push.Time}, normal {N(push.Normal)}, distance {push.Distance:0.0e0}; "
             + $"dropping 100 mm through a bar: {through}, Time {bar.Time:0.000000}, normal y {bar.Normal.Y}, distance {bar.Distance:0.0e0}; "
             + $"landing 2 mm into it: {landing} contact, Time {buffer[0].Time}, distance {buffer[0].Distance:0.000000}");
