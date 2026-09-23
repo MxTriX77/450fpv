@@ -47,7 +47,7 @@ Each trait below names its most likely stage: **cam** (sensor/DSP), **cvbs** (co
 - loss sequences are over-represented by roughly **one per clip** rather than a rate in time. They are modelled as **event-driven** (impact, power loss, fiber break), not as a random rate.
 - **in-flight rates are from only 1.2–1.3 minutes** of footage from three airframe groups. A trait seen once gives a rate of about 1/min with a very wide error (one event in 1.2 min is consistent with anything from about 0.05 to 4 per minute at 90 %). Rates below are what was seen, not a stable statistic. The sim should expose them as tunables.
 - two traits cluster in single clips (diagonal interference only in B, rolling lines only in C). Pooled rates dilute them and per-clip rates inflate them. Both are given.
-- one trait (N13) appears only in the one night clip, L, so its rate comes from 7 s of footage.
+- one trait (N13) appears only in dim light: in L (7 s at night) and in P (47 s under heavy overcast). Its rate comes from those two clips alone.
 - N12 is measured only in clip P (47 s of severe wind and rain), so its rate reflects those conditions.
 
 ### 1.2 Event catalogue
@@ -68,7 +68,7 @@ Rates are per minute of the in-flight window unless marked. N2–N4 use the A–
 | N10 | Macroblock smear | B f306–309 (pre-loss) | 1 | — | 4 frames | **enc** |
 | N11 | Exposure jumps (sun occluded / revealed) | D f183 | 1 | frame-content driven | 1 frame (−13 % mean luma) | cam |
 | N12 | Mid-flight dropouts and flashes that recover | P only (severe wind and rain): f676–687, f951–958, f966–985, f1144–1164; also the pilot (U1) | 4 in P; 0 in A–H and L | ≈ 5/min in P; 0 in 1.32 min of the other clips | blue-outs 12–20 frames (0.40–0.67 s); black dropout ≈ 2 frames; precursors 1–3 frames | link/rx |
-| N13 | Level steps with one-frame dark dips (night) | L only: f14, f80–81, f115, f163–164, f200–201 (all 9 of L's flags) | 5 steps, 4 with a dip | 43/min within L (steps 1.1–2.2 s apart); 0 in A–H | dip 1 frame, then the new level holds | uncertain: cam, pwr or link (U14) |
+| N13 | Level steps with one-frame dark dips (dim light) | L: f14, f80–81, f115, f163–164, f200–201 (all 9 of L's flags); P: e.g. f139–141, f176, f372, f437 | L: 5 steps, 4 with a dip; P: 30 dips and 12 plain steps | 43/min in L (steps 1.1–2.2 s apart); ≈ 55/min in P; 0 in A–H | dip 1 frame, then the new level holds | uncertain: cam, pwr or link (U14) |
 
 The pilot's words, mapped to what was measured:
 - "baseline noise is always present" → N1 (the feed is never a clean picture; heaviest at night, L).
@@ -244,7 +244,7 @@ Details:
   - A small free-running floor (start at 0.2/min, tunable) keeps them random in calm flight.
   - The link between wind load and P's rate is a hypothesis, because P has no link data. The margin-to-hazard mapping is **unconfirmed, tunable**.
 
-**N13 Level steps with one-frame dark dips (night, L).** These are all 9 of L's flags. No day clip shows this.
+**N13 Level steps with one-frame dark dips (dim light: L, P).** These are all 9 of L's flags and most of P's. The brighter clips A–H show none.
 - **Steps.** The whole picture jumps to a new brightness and holds it. The framing and horizon carry on smoothly through the step, the OSD layout doesn't change, and there is no motion blur (f162–164, f199–201).
 
   | Step | Mean luma before → after | Change | Dip frame |
@@ -255,27 +255,32 @@ Details:
   | f164 | 52.1 → 42.1 | −19 % | f163, whole frame: mean 18.1 (−65 %) |
   | f201 | 43.8 → 27.0 | −38 % | f200, whole frame: mean 10.9 (−75 %) |
 
-- **The new level is mostly a black-level shift.** A block-by-block fit of each settled frame (f15, f81, f117, f164, f201) against the frame before the step gives a gain of 0.90–0.98 and an offset of −13 to +13 levels. So dark ground moves much more than the sky in relative terms (f199 → f201: ground 26 → 10, sky 80 → 62).
-- **The dip.** Gain ≈ 0.43–0.48 with an offset of ≈ −8 levels, which crushes the ground to 1–7 levels.
+- **P** (daylight under heavy overcast and rain, in full colour, mean luma 57–91). The same trait, more often: 30 one-frame dips (−17 % to −53 %) and 12 plain steps in ≈ 45 s of picture, about one every 1.1 s. The level toggles between ≈ 57–63 and ≈ 85–91, with steps from −30 % (f176) to +56 % (f651).
+- **The new level is mostly a black-level shift.** A block-by-block fit of each settled frame (f15, f81, f117, f164, f201) against the frame before the step gives a gain of 0.90–0.98 and an offset of −13 to +13 levels. So dark ground moves much more than the sky in relative terms (f199 → f201: ground 26 → 10, sky 80 → 62). P's larger steps also change the gain: 0.68–0.98, with offsets of −11 to +13 (f138 → f142, f175 → f177, f371 → f373, f436 → f438).
+- **The dip.** Gain ≈ 0.43–0.48 with an offset of ≈ −8 levels in L, which crushes the ground to 1–7 levels. In P the gain is 0.47–0.59, with offsets of −2 to −12 (f176, f372).
   - It eases towards the bottom of the frame. In f163, ground just below the horizon keeps 7–16 % of its f164 level, while the slightly darker ground in the bottom rows keeps 55–75 %. So the dip recovers within about one field.
-  - It can start partway down a field (f14).
+  - It can start partway down a field (L f14; P f139, where the rows above ≈ 330 are unchanged).
 - **Not a camera-only exposure change: the OSD dims too.**
   - Static OSD pixels (bright in every neighbouring frame) lose 10–48 % in f163, f200 and the dark part of f14, while the scene loses 60–98 %. After each down-step they settle 4–10 % lower (f15, f164, f201).
   - In the day clips the same pixels never move: they stay within ±1 % through D's exposure changes (f182–184 at −13 %, f197–207 at −38 %) and in H.
+  - In P the static OSD dims 5–32 % in the dips (f55, f139, f176, f372, f437) and follows the steps both ways (−16 % to +6 %).
   - So at least part of each change acts on the composite signal after the OSD is inserted.
-- **Rate.** 5 steps in 7.0 s (≈ 43/min), 1.1–2.2 s apart. Every down-step has a dip. There are none in the 72 s of day flight. One 7-s night clip makes this rate very rough.
+- **Rate.**
+  - L: 5 steps in 7.0 s (≈ 43/min), 1.1–2.2 s apart. Every down-step has a dip.
+  - P: ≈ 42 events in ≈ 45 s (≈ 55/min), 30 of them with a dip.
+  - None in the 72 s of brighter day flight (A–H). That includes H, which has the same airframe group and receiver type as L and P.
 - **Cause: unknown (U14).** Candidates:
-  - The camera's low-light gain control stepping, with an output transient that the receiver's own gain control follows. This would explain why it happens only at night.
+  - The camera's low-light gain control stepping, with an output transient that the receiver's own gain control follows. This would explain why it appears only in dim light.
   - A supply dip on the rail the camera, OSD and fiber transmitter share (pwr).
   - Steps in optical power as the fiber pays out (link).
 - **Candidate effect.** A level-step generator on the composite signal, after the OSD insert.
-  - At each event, draw a new gain (0.90–0.98) and black offset (−13 to +13 levels on the 8-bit scale).
-  - Before a down-step (and sometimes an up-step), insert one dip field (gain ≈ 0.45, offset ≈ −8) that eases back from top to bottom. It sometimes starts partway down the field.
+  - At each event, draw a new gain (0.68–0.98 going down, and its inverse going up) and black offset (−13 to +13 levels on the 8-bit scale).
+  - Before a down-step (and sometimes an up-step), insert one dip field (gain 0.43–0.59, offset −2 to −12) that eases back from top to bottom. It sometimes starts partway down the field.
   - Let the OSD whites clip at the top of the range, so they dim less than the scene, as measured.
   - Hold the new level until the next event, or ramp to it over ≤ 2 frames (f115–117).
-- **Driver.** **Light level** gates it: it runs only in the camera's low-light regime, the level where C3 has killed the colour.
-  - The timing is free-running random at the measured interval (1.1–2.2 s), because nothing measurable in L predicts it.
-  - Size and direction are drawn from the measured set (3 down, 2 up).
+- **Driver.** **Light level** gates it: it runs only when the scene is dim, at night (L) or under heavy overcast (P: mean luma 57–91, against 102–155 in A–H). It doesn't need the colour to be killed, because P keeps full colour.
+  - The timing is free-running random at the measured interval (≈ 1–2 s), because nothing measurable in L or P predicts it.
+  - Size and direction are drawn from the measured sets (L: 3 down, 2 up; P: −30 % to +56 %).
   - If U14 finds a supply-dip or fiber cause, the timing moves to motor current steps or fiber margin. Both signals are already in §7.
 
 ### 1.4 Not feed noise (for the record)
@@ -395,7 +400,7 @@ Details:
   - Per pixel, with black and OSD white excluded, chroma has a median of 1.1–1.4 levels and a 90th percentile of 2.3–3.6. The day clips A, B, C, D, G and H have medians of 18–44 by the same measure.
   - The only colour left is faint fringing on the OSD glyphs (P4; 90th percentile ≈ 8 levels next to them) and a coloured speckle on a bright patch of ground close to the camera (f1–13).
 - **Grain.** The strongest in the set, and live. See N1: σ ≈ 2.0–2.7 levels in static sky, 2–5× the day level.
-- **Level steps and dark dips.** This is the trait L shows that no day clip does. See N13.
+- **Level steps and dark dips.** L shares this trait with P, a dim overcast daytime flight. No bright day clip shows it. See N13.
 - **Not measured.**
   - Whether the camera runs at its maximum gain: it stepped *up* twice (f81, f115), so it still had some headroom.
   - The shutter time: L has no fast rotation and no frame with motion blur, so the C4 prediction (longer exposure, more blur) can't be checked.
@@ -443,7 +448,7 @@ It reads as coarse horizontal line-dashes, soft horizontal edges with dark halos
   2. Lens distortion, vignette, flare.
   3. Camera: AE/AWB, tone curve, clip, sharpening.
   4. Add the OSD.
-  5. Composite encode: luma/chroma band-limit, cross-colour, interference (N3, N4), grain, sparkles. At night, N13's level steps and dips go here, after the OSD, so the OSD dims with them.
+  5. Composite encode: luma/chroma band-limit, cross-colour, interference (N3, N4), grain, sparkles. In dim light, N13's level steps and dips go here, after the OSD, so the OSD dims with them.
   6. Field sampling (P1).
   7. Receiver: sync tearing (N8), recovering dropouts and flashes (N12), snow/blue state machine (N5–N7), border (P8).
   8. Upscale to the screen.
@@ -467,7 +472,7 @@ It reads as coarse horizontal line-dashes, soft horizontal edges with dark halos
 | U11 | Chroma sparkles in goggles | Unanswered by pilot; kept as link-margin / fiber-threshold impulse noise. **Unconfirmed, tunable.** |
 | U12 | Lens dirt accumulation | Unanswered by pilot; kept as contact-event accumulation. **Unconfirmed, tunable.** |
 | U13 | No-signal screen style | Unanswered by pilot; kept as blue screens per receiver styles (§0). **Unconfirmed, tunable.** |
-| U14 | Night level steps and dark dips (N13) | **New, from clip L.** The trait is real, but its cause is unknown (camera low-light gain, a supply dip, or fiber optical power), and one 7-s clip gives only a rough rate. **Unconfirmed, tunable.** |
+| U14 | Dim-light level steps and dark dips (N13) | **New, from clips L and P.** The trait is real, but its cause is unknown (camera low-light gain, a supply dip, or fiber optical power), and two clips give only a rough rate and light threshold. **Unconfirmed, tunable.** |
 
 ## 7. Simulation signals the feed needs (task 3.2)
 
