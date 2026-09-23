@@ -31,7 +31,7 @@ The written catalog of what the pilot's own flights show: terrain, vegetation, s
 | I | photo | Urban edge: a burnt five-storey block, a collapsed timber roof pile, a damaged two-storey house, a rubble field and a low masonry fence | low sun | winter / early spring (bare trees) |
 | J | photo | Village street: two damaged single-storey brick houses with stripped roofs, an overhead wire and brush piles | overcast | winter / early spring |
 | K | photo | Five-storey brick block with its facade torn off, a large rubble mound and bare trampled ground | overcast, dark | early spring |
-| L | clip | Night flight in black and white: a climb from a low ridge with a leaning pole, a bush and a small tree, over wide, gently rolling dark fields with a faint track, to a tree line on the horizon | night, overcast sky brighter than the ground | not readable |
+| L | clip | Night flight in black and white over open, gently rolling dark fields, with a tree line on the horizon. Poles, bushes and lone trees read only as silhouettes against the sky | night, overcast sky brighter than the ground | not readable |
 | M | photo | Abandoned classic small sedan on an asphalt street: fragment holes, a flat tyre, a crazed windscreen | bright sun, hard shadows | late winter / early spring (bare trees) |
 | N | photo | Blast-wrecked small hatchback in a wide field of strike debris | overcast | winter |
 | O | photo | Burnt-out heavy 6×6 truck on a slushy road, with snow all around | overcast, snow light | winter (snow) |
@@ -40,8 +40,8 @@ The tree belt is the backbone of the set. It appears in 7 of the 9 clips (A, B, 
 
 **Night (L).** At night the picture is black and white (the feed side of this is the tech-artist's).
 - The ground reads almost black (`feed` #0d0d0d–#191919). The overcast sky is mid-grey (`feed` #4e4f4e), so it is brighter than the ground.
-- Only silhouettes against the sky can be read: the horizon, the tree line, a pole, and a bush and a small tree on the ridge. Ground texture, a track, pits and low obstacles are barely visible or invisible.
-- For the map, this means skyline silhouettes are the pilot's only landmarks at night. Ridges, lone trees, poles and belt crowns need clean outlines at distance, and their LODs must keep those outlines. Wires and low debris are invisible at night, just as they are nearly invisible by day.
+- Only silhouettes against the sky can be read: the horizon, tree lines, poles, bushes and lone trees. Ground texture, tracks, pits and low obstacles are barely visible or invisible.
+- For the map, this means skyline silhouettes are the pilot's only landmarks at night. The crests of rolling ground, lone trees, bushes, poles and belt crowns need clean outlines at distance, and their LODs must keep those outlines. Wires and low debris are invisible at night, just as they are nearly invisible by day.
 - Textures need no night variant. The night look belongs to the video feed (tech-artist).
 
 ---
@@ -49,7 +49,7 @@ The tree belt is the backbone of the set. It appears in 7 of the 9 clips (A, B, 
 ## 1. Terrain surfaces
 
 ### T1 Open steppe meadow
-- **Clips:** A (the whole clip). L (the same wide, gently rolling open land at night, crossed by a faint track). The same land type forms the horizon in B and G.
+- **Clips:** A (the whole clip). L (the same kind of open, gently rolling land, at night). The same land type forms the horizon in B and G.
 - **Size:** open ground kilometres across, gently rolling (estimated 2–5 m of relief over hundreds of metres). Grass 0.2–0.6 m.
 - **Materials / colours:**
   - Continuous sod of mixed grasses and forbs, part green and part straw-dry. Seen from height it is a mottled olive-khaki.
@@ -314,7 +314,7 @@ The tree belt is the backbone of the set. It appears in 7 of the 9 clips (A, B, 
 - **Physical role:** a very uneven `surface`, jutting timbers as `snag`s, and voids as pitfalls.
 
 ### B6 Fences, gates and posts
-- **Clips:** E (a grey plank fence), I (a low masonry fence with a decorative panel, and metal or timber posts), J (posts and fence remains), H (thin posts in the distance).
+- **Clips:** E (a grey plank fence), I (a low masonry fence, and metal or timber posts), J (posts and fence remains), H (thin posts in the distance).
 - **Size:** 1–2 m high. Boards 0.10–0.15 m. Posts 0.1–0.2 m.
 - **Materials / colours:** grey weathered wood (`feed` #615e56), block or brick, and steel.
 - **Frequency:** along every yard.
@@ -406,11 +406,11 @@ No vehicle appears in any clip. This catalog comes from the pilot's list of typi
 - **Physical role:** `snag` and `obstacle`. Nearly invisible on the feed, so they need real collision (a thin capsule) and must be able to catch the fiber. The main surprise hazard in the set.
 
 ### O2 Poles
-- **Clips:** H (a straight grey pole about 20–25 cm across and about 7–9 m tall at the belt edge, with thin posts in the distance), J (wooden posts), L (a wooden pole with a crossarm, leaning about 10°, black against the night sky).
+- **Clips:** H (a straight grey pole about 20–25 cm across and about 7–9 m tall at the belt edge, with thin posts in the distance), J (wooden posts), L (poles as silhouettes against the night sky).
 - **Size:** as above.
-- **Materials / colours:** grey weathered wood, or possibly concrete.
-- **Frequency:** a line of them along the belt in H. A single leaning pole on a ridge in L.
-- **Physical role:** `obstacle`, and `snag` together with their wires. Leaning poles like L's are part of the class. At night a pole is one of the few readable landmarks (see Night (L)). **Uncertain:** it is not clear whether the H pole is wood or concrete, and whether it still carries wires.
+- **Materials / colours:** grey weathered wood, or possibly concrete. Some poles carry a crossarm.
+- **Frequency:** a line of them along the belt in H. Single poles and posts elsewhere (J, L).
+- **Physical role:** `obstacle`, and `snag` together with their wires. Poles may lean 5–15°, so leaning variants are part of the class. At night a pole is one of the few readable landmarks (see Night (L)). **Uncertain:** it is not clear whether the H pole is wood or concrete, and whether it still carries wires.
 
 ### O3 Loose masonry and roof debris
 - **Clips:** C, D, E, I, K. N (broken blocks scattered around the wreck).
@@ -477,7 +477,7 @@ Porosity values are typical for the soil type, not measured from the footage. Th
 ## 9. Gaps: expected classes missing from the footage
 
 - **Vehicles in the clips.** No vehicle appears in any clip. §5 now defines the classes from the photos M–O and the pilot's list. There is still no reference image of a ЗИЛ, a front-drive ВАЗ or a Niva, and none of a vehicle in a field or an overgrown yard, so that look is extrapolated from T7.
-- **Roads and tracks.** No asphalt road in any clip. Asphalt appears only in the vehicle photos (M, O, and paved ground under N's debris). L shows a faint dirt track across a field at night, too dark to measure. A track may run along the tree strip in G (uncertain).
+- **Roads and tracks.** No asphalt road in any clip. Asphalt appears only in the vehicle photos (M, O, and paved ground under N's debris). Dirt field tracks show only faintly at night (L), too dark to measure. A track may run along the tree strip in G (uncertain).
 - **Burnt fields close up.** Confirmed by the pilot (T3b), but no reference shows one at flying height.
 - **Power lines on pylons.** Only single wires and poles appear (C, D, H, J, L).
 - **Standing crops and gardens.** No sunflower, wheat or maize field, no orchard in leaf, no vegetable rows.
@@ -519,6 +519,6 @@ These are the parts to include, each tied to its reference. This is a content li
 10. **Destroyed five-storey Stalin-era block with its rubble mound.** Reason: the pilot wants exactly one, like I and K. It is the largest obstacle and turbulence source on the map, and its open rooms are fly-ins.
 11. **Core texture set.** Dark chernozem, dry loam, char and ash, adobe render, red brick, silicate brick, clay tile, weathered grey wood, dry straw, faded car paint, soot-black burnt metal, rust, asphalt. Reason: every clip and photo is built from these. Author them at photo albedo and check them through the feed against the `feed` hex values above.
 12. **Debris and rubble kit.** Bricks, tile shards, planks, sheets, tarp, branches, glass crumbs, body fragments, a rubble mound. Reason: it lies around every structure in C, D, E, I, J and K and every wreck in M and N, and it drives uneven landings and snags.
-13. **Wires and poles, including a leaning pole.** Reason: C, D, E and J all have thin lines that are nearly invisible on the feed, the main surprise fiber-snag hazard. Poles are also night landmarks (L).
+13. **Wires and poles, including leaning variants.** Reason: C, D, E and J all have thin lines that are nearly invisible on the feed, the main surprise fiber-snag hazard. Poles are also night landmarks (L).
 14. **Brick village house variant.** Silicate brick, asbestos roof, painted frames. Reason: J shows it is as common as adobe, and it is the second of the pilot's couple of houses, so the village isn't a single repeated house.
 15. **Vehicle kit, second pass: front-drive ВАЗ and Niva (R2), Lanos, Chevrolet, Chery and VW class cars (R3), ЗИЛ trucks (R4).** Reason: these are on the pilot's list, and N shows the small-hatchback class. They give the variety the pilot asked for once the first-pass states are approved.
