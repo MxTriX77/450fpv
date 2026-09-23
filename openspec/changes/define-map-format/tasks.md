@@ -16,8 +16,8 @@
 
 - [x] 3.1 [world-artist] Add batch `SampleGround` (W-1–W-4, W-15): triangulated terrain, relief and ridges, pitfalls with ids, mat, cover, blend and flags. Verify the matches-rendered-surface, continuity, normal, micro-relief, pitfall and outside-map scenarios in `--selftest worldquery`
 - [x] 3.2 [world-artist] Add `MicroDetailNear` (W-5, W-6): segment-meets-sphere, kind mask, canonical order, element scaling and overflow. Verify the replay-identity (two processes), overlap, crossing-straw, density and overflow scenarios
-- [ ] 3.3 [world-artist] Add the wind grid with base heights and path-composable porosity from wind volumes, plus `GapsNear` (W-9, W-10). Verify the house, tree-crown and door-gap scenarios
-- [ ] 3.4 [world-artist] Add pure-C# swept static contacts and raycasts over catalog primitives and wires, plus runtime objects (W-7, W-8, W-11, D-010). Verify the tunnelling, material, roof-ray and rails scenarios
+- [x] 3.3 [world-artist] Add the wind grid with base heights and path-composable porosity from wind volumes, plus `GapsNear` (W-9, W-10). Verify the house, tree-crown and door-gap scenarios
+- [x] 3.4 [world-artist] Add pure-C# swept static contacts and raycasts over catalog primitives and wires, plus runtime objects (W-7, W-8, W-11, D-010). Verify the tunnelling, material, roof-ray and rails scenarios
 - [ ] 3.6 [world-artist] Add the query benchmark (W-16) and **optimise until it passes, before 3.5 records the golden file**, because optimisations change the hashes. Plan: per-cell caches, a single-round hash, pitfall pre-rejection. Verify every timing, including the < 60 µs composite step, with zero allocations after warm-up on the dev machine
 - [ ] 3.5 [world-artist] Add the surface, material and soil-reference lookups, the content hash, the determinism golden file and the concurrency check (W-12–W-14). Do this after 3.6. Verify the hash-change, golden-file and concurrent-use scenarios
 - [ ] 3.7 [physics-engineer] Review the query API for use by the flight model and confirm that review §3–§5 is applied. Verify by writing a contact-probe sketch against the real API (not committed)
