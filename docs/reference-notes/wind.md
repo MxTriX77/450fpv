@@ -1,0 +1,242 @@
+# Wind reference notes
+
+The pilot marked one clip as the target for how flight in severe wind must feel: "constant and dynamic physics along with motors crying", never "wind goes south so my quad goes south smoothly". These notes measure, frame by frame, how the airframe was thrown around in that flight, and turn the numbers into targets for the sim's severe-wind preset.
+
+- **Source:** clip **P** only, cited by frame (`P f123`, 1-based, 29.917 frames per second).
+- **Evidence:** `reference/_frames/P/attitude.csv` (git-ignored), written by `tools/reference/track_attitude.py` for every frame, and every number in §1–§5 printed by `tools/reference/wind_stats.py` from that file. Nothing derived from the footage is in the repo.
+- **Reproduce** (from the repo root, Blender 5.2):
+  ```
+  blender -b --factory-startup --python tools/reference/track_attitude.py -- --letter P [--overlays 20]
+  blender -b --factory-startup --python tools/reference/track_attitude.py -- --selftest <scratch folder>
+  blender -b --factory-startup --python tools/reference/wind_stats.py -- --letter P --segment 121-330 [--json <file>]
+  ```
+- **Labels:** every statement in §5 is **measured** (read straight from `attitude.csv`), **derived** (computed from measured numbers with a stated model) or **assumed** (a value or model taken from outside the clip).
+- **Uncertainty:** `[a, b]` is the 16–84 % interval of 500 block-bootstrap resamples (2 s blocks, seed 0) unless stated otherwise.
+- **OPSEC:** clip letter only. No places, landmarks, dates, file names, people or values read from the on-screen display (OSD).
+- **Owners:** physics-engineer (§1–§6), tech-artist (§7).
+
+## 1. Method and coverage
+
+### 1.1 The clip
+
+- 1417 frames, 47.4 s, flown in severe wind and heavy rain (the pilot's account). Straight forward flight high above open stubble fields with straw windrows, crossing one tree belt with scrub at about f121–f330 (the contact-sheet stills at 4–11 s show trees and bushes below the drone). Overcast sky.
+- The camera looks well below the horizon the whole time, so the horizon runs through the top 5–40 % of the picture, where the lens bends it most.
+- The picture drops out three times and comes back each time (blue no-signal screen at f676–f687, f969–f985 and f1145–f1164), plus one black frame at f955 after a burst of impulse noise (f951–f954). 14 other frames repeat their predecessor.
+- Camera-fixed clutter: OSD text, a dotted OSD attitude line, two airframe parts in view at mid-height, the receiver's black top border, and propeller blades crossing the top corners.
+
+### 1.2 What is measured
+
+| Quantity | Definition | Depends on |
+|---|---|---|
+| Roll (deg) | Angle of the undistorted horizon line; positive when the camera is rolled right (the horizon's right end rises) | lens k1 only |
+| Pitch (deg) | Elevation of the camera's optical axis: `atan(d / f)`, with `d` the distance of the undistorted horizon line below the frame centre. Negative = looking down | k1 and the focal length `f` |
+| Yaw (deg, deg/s) | Heading change about the vertical, positive = turning right. The tracker gives the rate per frame; the statistics integrate it to a heading angle inside each run | k1 and `f` |
+
+These are **camera** angles. The body's roll and pitch differ from them by the camera's unknown uptilt on the airframe (§5.5, question Q1). The sim computes the same camera quantities from its own camera pose, so the targets in §6 compare like with like.
+
+Model and assumptions:
+- **Lens:** `p_u = p_d · (1 + k1 · r_d²)`, coordinates normalised to the half-width, centre at the frame centre, with k1 = 0.33 from `video-feed.md` O1 (clip A's camera). A one-off development check (residual curvature of the fitted horizon over 142 frames of P, not part of the tools) found P's horizon straightest at k1 ≈ 0.35, inside O1's spread. The effect of k1 = 0.36 is in §1.5.
+- **Focal length (assumed):** the undistorted image is treated as a pinhole image with `f = 1/√(3·k1)` = 1.005 half-widths. That is an equidistant (f-theta) lens matched to k1 at small angles. It puts the frame edge at 57° off-axis, a horizontal field of view of about 114°. Other fisheye families give `f` from 0.87 (stereographic) to 1.07 (equisolid), so **pitch and yaw carry a scale uncertainty of −6 % / +15 %.** Roll does not depend on `f`.
+- **Skyline, not true horizon:** the line found is the skyline of distant fields and tree lines. From tens of metres up it sits up to about 1° below the true horizon, and nearer tree belts can tilt it by a similar amount. That bias changes only as slowly as the scenery does, so it shifts the means in §2 but hardly the residuals, rates or spectra.
+
+### 1.3 How the tracker works (per frame)
+
+1. Decode the frame through Blender's sequencer at 960 × 540 (area-averaged; the feed carries about 450 × 286 real samples, `video-feed.md` §5).
+2. **Camera-fixed mask:** whatever stays sharp in the mean of 120 frames spread over the clip (OSD, airframe parts, border). It covers 14.2 % of the picture, and those pixels take no part in anything below.
+3. **Horizon points:** a "sky-likeness" feature (luma minus |R − B|, so grey sky scores high and brown soil or yellow straw low). Per column, the strongest step from brighter-above (16 rows) to darker-below (40 rows). The long lower window keeps thin dark lines such as prop blades from winning.
+4. **Undistort** those points with k1, then fit a straight line: RANSAC (400 tries, seeded by the frame number), then total least squares on the inliers.
+5. **Confidence** (0–1) = inlier share × contrast term (median inlier step, 15→50 levels mapped to 0→1) × span term (horizontal extent of the inliers, 20→50 % of the width for roll, 10→30 % for pitch). A frame with no picture or no line gets confidence 0 and empty values.
+6. **Jump gate:** a roll or pitch more than 15° from the median of its usable neighbours (up to 3 each side) keeps its value but gets 10 % of its confidence (flag `jump`; none occurred in P).
+7. **Yaw:** the band from 5° below to 1.5° above the horizon is resampled onto an azimuth × elevation grid (±50°, 0.15° steps) in the camera's level frame, so a heading change becomes a pure sideways shift of distant scenery. Phase correlation with the previous distinct frame gives that shift. Confidence = peak height (0.03→0.12) × uniqueness (main peak over the next-best, 1.3→2.0, which rejects repeating texture) × valid-grid share × both frames' horizon confidence. Repeated frames get no yaw value; the next frame's rate spans both steps.
+8. The CSV also keeps diagnostics per frame: columns found, inlier share, contrast, span, line residual, horizon edge width, peak height, uniqueness, and the elevation shift between consecutive strips.
+
+### 1.4 Statistics (`wind_stats.py`)
+
+- **Usable frame:** roll and pitch confidence ≥ 0.5 (yaw: yaw confidence ≥ 0.5), and not within 2 frames of a picture loss. Loss-onset frames can be torn: f1144 shows a new picture above a split line and the old one below it, yet it tracked with high confidence. A **run** is a stretch of consecutive usable frames. Nothing is interpolated across gaps. A single repeated frame keeps a yaw run going, because the recording shows the previous view there.
+- **Residual** ("wobble"): the angle minus its Gaussian-weighted (σ = 0.6 s) local-linear trend inside the run. It passes half the amplitude at 0.31 Hz and more than 90 % above 0.6 Hz. It removes the steady lean and the slow course changes. Frames within 17 frames (one σ) of a run end are dropped.
+- **Rate:** slope of a least-squares line through 5 frames. **Acceleration:** the matching 5-point quadratic fit. Both resolve motion up to about 4 Hz.
+- **Spectra:** Welch, Hann windows of 128 frames (4.3 s, 0.23 Hz resolution), 50 % overlap, linear detrend per window, windows only inside runs. Band RMS values carry a bootstrap interval over windows. Nothing above the 15 Hz Nyquist limit is visible (§3.3).
+- **Events** (gusts as the recording shows them): runs of frames where an axis's residual exceeds 2 standard deviations of that axis's residual over the whole clip, merged across gaps of up to 3 frames. `roll_or_pitch` means either axis beyond its own threshold. For each event: duration above threshold, the rise and decay time between 1/e of the peak and the peak, and the gap to the next onset. Rates are per minute of residual time, with a Poisson error.
+
+### 1.5 Verification
+
+**Synthetic set** (`--selftest`, generated in the scratchpad):
+- 120 frames rendered at 1920 × 1080 through the same lens model: grey sky with cloud texture, a tree line with trees sticking up, and a striped field with haze.
+- Degraded like the feed: 288-line fields, horizontal softening and sharpening halos, chroma smear, grain, sparkles, vignette. Camera-fixed OSD blocks, two rods, and a prop blade in half the frames.
+- Decoded through the same Blender path.
+- Content: 96 frames with a horizon (roll −30…+30°, pitch −22…+8°, heading swinging ±40°, i.e. up to ±125 °/s), then 8 ground-only, 8 sky-only, 4 blue no-signal and 4 snow frames.
+
+| Check (spec scenario) | Result | Limit |
+|---|---|---|
+| Frames reported | 120 of 120, all 96 horizon frames with values and confidence ≥ 0.5 | every frame |
+| Roll error | RMS 0.050°, mean −0.015°, max 0.23° | RMS ≤ 0.5° |
+| Pitch error | RMS 0.099°, mean −0.095°, max 0.15° | RMS ≤ 0.7° |
+| Yaw-rate error (92 frames, conf ≥ 0.5) | RMS 0.42 °/s, max 1.35 °/s | (no spec limit) |
+| Highest confidence without a horizon | ground 0.076, sky 0.050, blue 0.000, snow 0.000 | < 0.2 |
+| Tracker k1 = 0.30 / 0.36 on frames made with 0.33 | roll RMS 0.072° / 0.069°, pitch RMS 0.110° / 0.169° | |
+
+The synthetic set has no translation (no parallax), so it tests yaw only for pure rotation.
+
+**Real-frame spot check** (`--overlays 20`, seed 1): 20 random frames with roll and pitch confidence ≥ 0.5, namely f38, 47, 116, 197, 338, 350, 371, 422, 558, 575, 637, 701, 760, 886, 1050, 1144, 1176, 1229, 1334 and 1336. Each overlay draws the fitted horizon and the lines 1° above and below it, and each was inspected at 1.5× zoom at the left, centre and right of the horizon.
+- **In all 20, the visible skyline lies inside the ±1° band across the width.**
+- Single trees stick up past the upper line, and the fit correctly ignores them. Where a nearer tree belt forms the skyline, the line runs between the crowns and the base.
+- At the far left the line sits a few pixels above the dark edge, which is consistent with P's k1 being slightly above 0.33.
+- f1144 passes too, but it is the torn loss-onset frame described in §1.4, so the statistics exclude it.
+
+**Internal consistency (measured):** the vertical shift between consecutive yaw strips has a median of −0.002° (10–90 %: −0.045 to +0.036°, 1341 pairs). Frame-to-frame pitch from the horizon therefore agrees with image correlation to about 0.04°.
+
+**Lens sensitivity on P (measured):** re-tracking P with k1 = 0.36 (`--k1 0.36`) changes:
+- the roll and pitch residual std by < 1 % (0.707 → 0.702°, 0.311 → 0.308°)
+- the means by −0.07° (roll) and −0.20° (pitch)
+- the roll–yaw residual correlation from 0.73 to 0.66
+
+The yaw residual std changes from 0.83° to 0.56°, because it rests on a few large bursts (kurtosis 9). **Yaw figures therefore carry a ±35 % lens uncertainty on top of the bootstrap.**
+
+### 1.6 Coverage and frame sets
+
+| Set | Frames | Share of 1417 | Used for |
+|---|---|---|---|
+| Tracker confidence ≥ 0.5 | roll and pitch 1362, yaw 1330 | 96.1 %, 93.9 % | spec coverage |
+| No picture (flag `no_picture`) | 50 (f676–687, f955, f969–985, f1145–1164) | 3.5 % | excluded |
+| **U**: usable roll/pitch | 1348, in runs f1–673, f690–913, f915–951, f958–966, f988–1142, f1167–1378, f1380–1417 | 95.1 % | §2 angles and rates |
+| **Y**: usable yaw (single repeats held) | 1333, in 13 runs of ≥ 5 frames: f2–162, 165–348, 350–459, 461–481, 483–579, 581–673, 690–796, 805–913, 916–951, 959–966, 988–1142, 1167–1378, 1381–1417 | 94.1 % | §2 yaw |
+| **R**: residual roll/pitch | 1135 (U minus 17 frames at each run end) | 80.1 % (37.9 s) | §2 residuals, §4 |
+| **Ry**: residual yaw | 927 | 65.4 % (31.0 s) | §2, §4 |
+| **W**: Welch windows, roll and pitch | 14 × 128 frames starting at f1, 65, 129, 193, 257, 321, 385, 449, 513, 690, 754, 988, 1167, 1231 | | §3 |
+| **Wy**: Welch windows, yaw | 5 × 128 frames starting at f2, 165, 988, 1167, 1231 | | §3 |
+| **B** (tree belt) / **F** (open field) | R inside f121–330 (210 frames, 7.0 s) / the rest of R (925 frames, 30.9 s) | | §4.4 |
+
+Coverage is far above the 30 % threshold at which the design would call the results indicative. Rain did not stop the tracker.
+
+### 1.7 Limits
+
+- One flight of 47 s, closed loop (§5.1). Rates of rare events carry wide Poisson errors.
+- The recorder samples 50 fields/s at about 30 frames/s with slightly irregular timing (`video-feed.md` §0). Rates are therefore taken over 5 frames, never frame to frame.
+- There is no stick log and no telemetry. Pilot corrections and wind cannot be separated exactly; §5 bounds the difference.
+
+## 2. Distributions and rates
+
+All values are camera angles as defined in §1.2. The bracket after the mean or std is its [16–84 %] bootstrap interval.
+
+| Axis · quantity | Frames | Mean | Std | p5 / p95 | p95 of \|x\| | Max \|x\| | Kurtosis |
+|---|---|---|---|---|---|---|---|
+| Roll angle (deg) | U 1348 | −9.11 [−9.59, −8.65] | 2.41 [2.11, 2.63] | −13.07 / −4.81 | 13.07 [12.3, 13.5] | 14.42 | 2.81 |
+| Pitch angle (deg) | U 1348 | −22.71 [−23.0, −22.4] | 1.64 [1.26, 1.86] | −26.35 / −20.18 | 26.35 [25.1, 26.9] | 27.75 | 4.21 |
+| Yaw rate as tracked, per frame (°/s) | Y 1321 | −0.10 [−0.32, 0.12] | 4.89 [4.16, 5.49] | −8.78 / +8.30 | 10.0 [9.2, 12.0] | 28.2 | 8.59 |
+| **Roll residual (deg)** | R 1135 | −0.02 [−0.06, 0.02] | **0.71 [0.59, 0.79]** | −1.08 / +1.00 | 1.55 [1.09, 1.79] | 2.86 | 4.74 |
+| **Pitch residual (deg)** | R 1135 | +0.01 [−0.01, 0.03] | **0.31 [0.29, 0.33]** | −0.54 / +0.48 | 0.62 [0.57, 0.68] | 1.18 | 3.81 |
+| **Yaw (heading) residual (deg)** | Ry 927 | −0.01 [−0.06, 0.04] | **0.83 [0.54, 1.01]** | −1.15 / +1.03 | 1.93 [1.04, 2.83] | 3.71 | 9.18 |
+| Roll rate (°/s) | U 1320 | −0.17 [−0.39, 0.08] | 3.70 [3.30, 4.02] | −5.87 / +6.06 | 8.37 [7.02, 8.87] | 18.15 | 5.10 |
+| Pitch rate (°/s) | U 1320 | −0.01 [−0.16, 0.15] | 2.47 [2.24, 2.64] | −4.13 / +3.92 | 5.19 [4.56, 5.65] | 11.66 | 4.64 |
+| Yaw rate, 5-frame (°/s) | Y 1278 | −0.22 [−0.46, 0.07] | 3.96 [3.24, 4.52] | −6.71 / +5.72 | 8.64 [6.92, 10.4] | 21.96 | 9.37 |
+| Roll acceleration (°/s²) | U 1320 | −0.3 [−0.7, 0.3] | 76 [71, 81] | −121 / +120 | 164 [144, 177] | 386 | 5.41 |
+| Pitch acceleration (°/s²) | U 1320 | −0.1 [−0.5, 0.3] | 45 [41, 47] | −70 / +74 | 97 [88, 102] | 208 | 4.79 |
+| Yaw acceleration (°/s²) | Y 1278 | +0.0 [−0.5, 0.5] | 42 [38, 45] | −63 / +65 | 85 [76, 92] | 326 | 7.63 |
+
+What stands out:
+- **A steady left bank of 9.1°** (roll never rises above −1.8° in any frame, and 90 % of frames lie between −13.1 and −4.8°), with no net turn: the mean yaw rate is −0.10 °/s, about −5° of heading over the clip. Section 5.3 reads this as a crosswind from the left.
+- **The camera looks 22.7° below the horizon** on average and swings between −27.8 and −19.1°.
+- **The wobble is heavy-tailed:** residual kurtosis 4.7 (roll), 3.8 (pitch) and 9.2 (yaw) against 3.0 for Gaussian noise. The motion is calm most of the time, with bursts.
+- **Roll and pitch rates are symmetric** (p5 and p95 within 5 % of each other); yaw rate leans slightly left (−6.7 against +5.7 °/s).
+
+**Measurement noise** (derived from the flat spectral floor in §3): at most 0.11° per frame in roll, 0.04° in pitch and 0.06° in heading. That adds at most 1.0, 0.4 and 0.5 °/s to the rate std, which is negligible. It adds up to 53, 20 and 26 °/s² to the acceleration std, so noise-free acceleration std is about 54 (roll), 40 (pitch) and 33 °/s² (yaw), and the acceleration maxima are upper bounds.
+
+## 3. Spectra
+
+### 3.1 Band table
+
+Welch spectra of the angles on sets W and Wy. The value is the band RMS in degrees with its bootstrap interval over windows, then the band's share of the 0.23–15 Hz variance. The PSD values themselves are ±27 % (roll, pitch, 14 windows) and ±45 % (yaw, 5 windows).
+
+| Band (Hz) | Roll (deg) | Pitch (deg) | Yaw heading (deg) |
+|---|---|---|---|
+| 0.23–0.5 | 0.90 [0.80, 0.99] · 72 % | 0.27 [0.23, 0.31] · 50 % | 1.36 [0.40, 1.88] · 81 % |
+| 0.5–1 | 0.50 [0.39, 0.58] · 22 % | 0.155 [0.143, 0.165] · 16 % | 0.59 [0.29, 0.79] · 15 % |
+| 1–2 | 0.20 [0.16, 0.22] · 3 % | **0.179 [0.148, 0.204] · 22 %** | 0.27 [0.12, 0.36] · 3 % |
+| 2–4 | 0.114 [0.103, 0.124] · 1 % | 0.121 [0.105, 0.136] · 10 % | 0.066 [0.057, 0.072] · < 1 % |
+| 4–8 | 0.091 [0.083, 0.097] · 1 % | 0.044 [0.040, 0.048] · 1 % | 0.038 [0.034, 0.042] · < 1 % |
+| 8–15 | 0.086 [0.081, 0.092] · 1 % | 0.031 [0.029, 0.033] · 1 % | 0.039 [0.031, 0.044] · < 1 % |
+
+### 3.2 Shape and dominant bands
+
+- **Roll:**
+  - The PSD is flat at about 1.7–1.8 deg²/Hz from 0.23 to 0.5 Hz.
+  - It then falls steeply: 0.86 at 0.70 Hz, 0.20 at 0.93 Hz, 0.036 at 1.40 Hz. That is about f^−4.6 between 0.7 and 1.4 Hz.
+  - Above 2 Hz it tails off to 0.004–0.01 deg²/Hz, with a floor of about 0.001 deg²/Hz above 7 Hz.
+  - **Dominant band: below 1 Hz (94 %).** Above the manoeuvre band, 0.5–1 Hz carries the most (22 %).
+- **Pitch:**
+  - 0.19 deg²/Hz at 0.23 Hz, falling to 0.06 at 0.70 Hz.
+  - Then **a shelf of 0.03–0.05 deg²/Hz from 0.93 to 2.10 Hz**, falling steeply after it (0.008 at 2.34 Hz, 0.004 at 3 Hz), with a floor of about 1.5·10⁻⁴ deg²/Hz above 6 Hz.
+  - **Dominant bands: 0.23–0.5 Hz (50 %) and the 1–4 Hz shelf (32 %).** Pitch is the only axis with a distinct wobble band above 1 Hz.
+- **Yaw (heading):** about 4 deg²/Hz at 0.23–0.47 Hz, 1.1 at 0.70 Hz, 0.09 at 1.40 Hz and 0.009 at 1.6–1.9 Hz, with a floor of about 2·10⁻⁴. **Dominant band: below 1 Hz (96 %).**
+- The lowest band holds the pilot's slow course and speed corrections as well as the wind (§5.1). The linear detrend per window removes anything slower than one window (4.3 s).
+
+### 3.3 Above what the frame rate shows
+
+- Nothing above the 15 Hz Nyquist limit can appear as an angle. Faster shake either blurs the picture within one exposure or aliases into the flat floor.
+- **Aliased floor (measured):** RMS above 4 Hz is 0.13° roll, 0.05° pitch and 0.05° heading, including tracker noise.
+- **Blur (measured):** the horizon edge's 10–90 % width is 3.53 px on average (p5 3.11, p95 4.01, std 0.29 px; set U, native 1080-line pixels). The blur-free synthetic set gives 2.50 px with the same pipeline.
+- **Bound (derived):** even if all 1.03 px of excess (2.5 px when the widths are subtracted in quadrature) came from angular shake during the exposure, at about 17 px per degree near the horizon it is **≤ 0.15°**. The edge width barely varies over the flight (std 0.29 px, about 0.02°), so there are no intermittent vibration bursts either. The high-frequency shake at the camera is small. The wobble the pilot describes lives below 4 Hz.
+
+## 4. Gust events, spacing and coupling
+
+### 4.1 Events
+
+Thresholds are 2 × the residual std of each axis over set R (Ry for yaw). Durations, rise and decay times are in seconds, as 25th / 50th / 75th / 90th percentiles.
+
+| Axis | Threshold | Events (frames) | Rate per min | Duration | Rise to peak | Decay to 1/e |
+|---|---|---|---|---|---|---|
+| Roll | 1.41° | 7: f148–158, 168–179, 191–206, 216–226, 270, 276–281, 293–304 | 11.1 ± 4.2 | 0.28 / 0.37 / 0.40 / 0.45 (max 0.53) | 0.13 / 0.27 / 0.27 / 0.28 | 0.27 / 0.30 / 0.38 / 0.49 |
+| Pitch | 0.62° | 11: f162–168, 204–212, 222–225, 277, 283–290, 301–304, 391–392, 552–560, 581, 781–785, 1087–1093 | 17.4 ± 5.2 | 0.10 / 0.17 / 0.25 / 0.30 (max 0.30) | 0.10 / 0.13 / 0.18 / 0.30 | 0.12 / 0.17 / 0.22 / 0.27 |
+| Yaw | 1.65° | 5: f190–210, 217–231, 276–284, 297–303, 741–744 | 9.7 ± 4.3 | 0.23 / 0.30 / 0.50 / 0.62 (max 0.70) | 0.23 / 0.27 / 0.33 / 0.49 | 0.17 / 0.27 / 0.30 / 0.30 |
+| Roll or pitch | 2σ of each | 9: f148–179, 191–226, 270, 276–304, 391–392, 552–560, 581, 781–785, 1087–1093 | 14.2 ± 4.7 | 0.07 / 0.23 / 0.97 / 1.10 (max 1.20) | 0.10 / 0.17 / 0.43 / 0.57 | 0.13 / 0.17 / 0.43 / 0.68 |
+
+Residual time is 0.63 min for roll and pitch and 0.52 min for yaw.
+
+### 4.2 Time between large disturbances
+
+Gaps between consecutive event onsets inside one run, in seconds as 25th / 50th / 75th percentiles, mean and coefficient of variation (CV):
+- **Roll or pitch:** 1.09 / 2.04 / 3.54, mean 2.41, CV 0.73 (6 gaps).
+- **Roll:** 0.59 / 0.72 / 0.82, mean 0.81, CV 0.61 (6 gaps, all inside the tree-belt crossing).
+- **Pitch:** 0.60 / 1.19 / 2.13, mean 1.75, CV 0.92 (8 gaps).
+- **Yaw:** 0.80 / 0.90 / 1.44, mean 1.19, CV 0.47 (3 gaps).
+
+A CV near 1 means irregular, Poisson-like arrivals, and a CV near 0 means periodic ones. The large disturbances arrive irregularly, not as a rhythm.
+
+### 4.3 Cross-axis coupling
+
+Pearson r at zero lag with its bootstrap interval, then the strongest r within ±1 s and its lag (a positive lag means the second axis follows):
+
+| Pair | Residuals (R / Ry) | Rates (U / Y) |
+|---|---|---|
+| Roll ~ pitch | +0.21 [0.16, 0.28]; +0.33 at +0.13 s | +0.13 [0.07, 0.19]; +0.24 at +0.10 s |
+| Roll ~ yaw | **+0.73 [0.63, 0.79]**; +0.77 at +0.07 s | **+0.57 [0.48, 0.63]**; +0.63 at +0.07 s |
+| Pitch ~ yaw | +0.25 [0.22, 0.29]; +0.33 at −0.10 s | +0.14 [0.09, 0.19]; +0.25 at −0.10 s |
+
+- Roll and pitch disturbances are nearly independent.
+- Roll and yaw move together, with yaw following roll by only about 2 frames (§5.5).
+- Autocorrelation of the residuals falls to 1/e after 0.30 s (roll), 0.17 s (pitch) and 0.33 s (yaw).
+
+### 4.4 Terrain: tree belt against open field
+
+`--segment 121-330` (set B, over and just past the tree belt) against the rest of R (set F, open field):
+
+| | Roll residual std | Pitch residual std | Yaw residual std | Events per min, roll / pitch / yaw (thresholds of §4.1) |
+|---|---|---|---|---|
+| **B** (tree belt, 7.0 s) | **1.26° [1.16, 1.32]** | **0.43° [0.40, 0.46]** | **1.67° [1.42, 1.72]** | 60 ± 23 / 51 ± 21 / 41 ± 21 |
+| **F** (open field, 30.9 s) | **0.51° [0.47, 0.53]** | **0.28° [0.25, 0.30]** | **0.44° [0.38, 0.50]** | 0 (< 1.9) / 9.7 ± 4.3 / 2.4 ± 2.4 |
+| Ratio B / F | 2.5 | 1.6 | 3.8 | |
+
+- All 7 roll events, 6 of the 11 pitch events and 4 of the 5 yaw events fall in f148–f304.
+- Over the belt the roll rocks back and forth by 3–5° every 1.3–2.9 s (for example −8.6° at f153, −3.5° at f171, −7.7° at f192, −1.8° at f222, −10.3° at f279).
+- Over the field the roll drifts by at most about 3° over several seconds (f701–f899).
+- The 5 s blocks show the same picture: residual roll/pitch std 0.54/0.20° in f1–150, **1.39/0.46° in f151–300**, then 0.50–0.61 / 0.21–0.34° in every later block that has enough residual frames.
+
+### 4.5 Picture losses and attitude
+
+The largest 5-frame rate in the second before each loss, measured, in °/s (roll / pitch / yaw):
+- f676: 6.0 / 2.5 / 8.5
+- f955: 11.7 / 3.8 / 8.6
+- f969: 11.7 / 4.5 / 8.7
+- f1145: 2.9 / 5.2 / 4.6
+
+The flight's 95th percentiles are 8.4 / 5.2 / 8.6. Two losses follow brisk roll and two do not, so **the losses show no consistent link to hard manoeuvring** (see §5.5).
