@@ -1,0 +1,22 @@
+# Tasks
+
+## 1. Engine
+
+- [ ] 1.1 [orchestrator] With the user's permission, reinstall Godot 4.7.2 .NET via WinGet and record the console exe path as `GODOT` in the README. Verify that `& $env:GODOT --version` prints `4.7.2.stable.mono`
+
+## 2. Project
+
+- [ ] 2.1 [game-developer] Generate the C# solution with the headless editor, keeping the placeholder settings. Commit `Fpv450.csproj` and `Fpv450.sln` (not `.godot/`). Verify that `dotnet build game/Fpv450.sln` exits 0
+- [ ] 2.2 [game-developer] Add the input-map actions to `project.godot` and verify they're listed in the file
+
+## 3. Sandbox
+
+- [ ] 3.1 [game-developer] Add the sandbox main scene (sky, sun, ground placeholder), the `--scene` argument loading and `test_patch.tscn`. Verify the load and bad-path scenarios through headless runs
+- [ ] 3.2 [game-developer] Add the noclip camera script and the `--selftest noclip` mode. Verify the base and fast speed scenarios within ±5 % at 30 and 144 fps
+- [ ] 3.3 [game-developer] Add the F3 performance overlay and the F12 screenshot. Verify the toggle and capture in a windowed run, and record the empty-sandbox fps and 1 % low on the dev machine
+- [ ] 3.4 [game-developer] README: how to build, smoke-run and open a patch in the sandbox. Verify by following it from a fresh clone
+
+## 4. Review
+
+- [ ] 4.1 [user-review] The user opens the sandbox, flies the test patch with noclip, and approves the feel of the speeds and mouse (or asks for adjustments)
+- [ ] 4.2 [qa-engineer] Review against spec scenarios: build, smoke run, load/bad path, speeds, overlay, budget and screenshot. Write `review.md` with the verdict
