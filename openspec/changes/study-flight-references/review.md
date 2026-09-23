@@ -5,7 +5,7 @@
 ## Verdict
 
 - **4.1 (this section and everything down to "Risks"): changes requested.** F1–F3 and A1–A5 have since been fixed and re-checked in 4.3.
-- **4.3 (final re-review, at the end of this file): changes requested.** Task 4.4 passes. Tasks 4.5 and 4.6 and the change's own files have findings that must be fixed before merge. The branch is **not** cleared for merge.
+- **4.3 (final re-review, at the end of this file): approve** in round 2. Round 1 requested changes; all of them are fixed and re-checked, and only advisory items remain. The branch is **cleared for merge**, once the user has made the history decision under the 4.3 Risks.
 
 ## How it was run
 
@@ -45,7 +45,7 @@
 |---|---|---|---|
 | 10 | Hygiene check (both notes) | **Pass** | See the OPSEC table below. The branch outside the notes has one hit, `design.md` (F1). |
 | 11 | Every clip represented | **Pass** | Letters A–K are all cited, across 28 catalog entries. Every recurring object class on the 9 contact sheets has an entry. |
-| 12 | Physical relevance stated | **Pass** | 28 of 28 entries have a **Physical role** with tags. O5 and O6 say `visual only`. |
+| 12 | Physical relevance stated | **Pass** | 28 of 28 entries have a **Physical role** with tags. S5 and S6 (named O5 and O6 at the time) say `visual only`. |
 | 13 | Ready for M1 planning | **Pass** | The file ends with a ranked build list of 12 items (at least 8 required). Each has a footage-based "Reason:" and together they cover patches, objects and textures. |
 | 14 | Traits map to effects and drivers | **Pass** | Every N, P, O and C trait cites clips and names an effect and a driver. N10 and P10 are classed as re-encoding, with 16-px grid gradient evidence. The OSD layout in §5 names no driver (A4, advisory). |
 | 15 | Measured event statistics | **Pass, with a deviation to record** | Every event type gives a rate and a duration in frames. The loss events N5–N8 are event-driven by D-008, and the notes explain why. From `metrics.csv` I reproduced: 2369 picture frames; the loss frames of all 7 clips; 52–108-frame blue tails; N9 = 29 near-repeats including every example frame; N11 at D f183; and the AE/AWB figures (A f70/84/100, E f196 → f241). The N2–N4 counts come from full-resolution detector scans, not from `metrics.csv` (A2, A3). I spot-checked them at native resolution: thin lines in C f37, clean sky in B f4, diagonal interference in B f5. There is one internal count mismatch (F3). |
@@ -140,11 +140,150 @@ Keep future edits, including the user's corrections in 4.2, at this level. Neutr
 
 ## Final re-review (task 4.3)
 
-**Reviewer:** QA Engineer · **Branch:** `world/study-flight-references` at `4dc2d39` · **Verdict: changes requested**
+**Reviewer:** QA Engineer · **Branch:** `world/study-flight-references` at `af7399f` · **Verdict: approve**
+
+Round 2 re-checked every round-1 finding after the owners' fixes, and settled the three measurements the Tech Artist disputed. All eight F items and all four A items are resolved. The Tech Artist is right on all three disputes, so three of my round-1 claims are withdrawn (annotated in round 1 below). Four new items are advisory only. **The branch is cleared for merge.** Before the `--no-ff` merge, though, the user should make the history decision under Risks, because the merge carries the branch history into `main`.
+
+### Round 2: approve
+
+#### How it was run
+
+- **No tool re-run.** Task 4.4 passed in round 1, and `git log 5d4de89..HEAD -- tools/` is empty.
+- **Pixel measurements.** Scratch scripts (not committed) read the lossless PNGs in headless Blender and print only letters and frame numbers. They measured:
+  - the OSD level through every event in L, with no-event controls in L, D and H, and P's dips
+  - grain on the Tech Artist's sky boxes and on one fixed QA box: 13 pairs in L and 9 in the day clips
+  - OSD edge widths, both with interpolation and with my round-1 counter, in L and six day clips
+  - partial and full snow in C, D and F
+- **`metrics.csv`** of A–H, L and P: the loss states, L's steps, P's blue-outs, dips and steps, and the §1.1 totals.
+- **Viewed:** L f162, D f208, P f688, and the photos M, N and O.
+- **OPSEC.** A new scanner never prints a file-name fragment or a hand term; a hit prints as an id and a location. It checks:
+  - 66 distinctive fragments of the 16 indexed file names (the 10 ordinary words among them, and numbers of one or two digits, are counted but not flagged)
+  - 24 hand terms read off the frames and photos: OSD words, the craft string, the receiver's text, the plate, the photo credit, the signage
+  - pattern scans for dates, times, coordinates, OSD values, units, people and places
+  - scope: the change's files and both notes; the 60 other tracked text files; the messages of all 147 commits on every ref; the full patch history, split into this branch, pushed refs and local-only refs
+
+#### Round-1 findings
+
+| ID | Status | Evidence |
+|---|---|---|
+| F1 | **Resolved** | `video-feed.md:63–65`, `:131–188`. The staged loss is restored: partial snow 1–2 frames, blue exactly 4, full snow 7–8, then permanent blue. It carries the snow texture (`:151–155`), a pilot-to-measurement table (`:156–165`), "no white flash in any clip" (`:165`), randomisation bounded by the ±1-frame sampling limit (`:166–177`) and a state machine (`:178–182`). Everything reproduces from `metrics.csv`: C f174–175 / f176–179 / f180–186 / f187 onwards (99 frames), D f208–209 / f210–213 / f214–221 / f222 onwards (91), F f250 / f251–254 / f255–262 / f263 onwards (99), and hard cuts of 52–108 frames. Full snow measures 60–67 % of pixels below 32, 8–12 % above 224 and 19–23 % at or above 128, with mean luma 53–65 and chroma 1.6–2.9. Partial-snow chroma drops from ≈ 9 to 4–7. D f208 shows the ≈ 11 % top strip |
+| F2 | **Resolved** | N1 night grain from static sky (`:86`); gain and shutter are hypotheses (`:404–408`); "razor-sharp" is gone and the OSD is soft (`:410`); no point lights, with any bloom marked an assumption (`:412`); L's steps are the new trait N13 (`:247–284`); U5 reworded (`:466`). L's step table matches `L/metrics.csv` to 0.1 level, and all 9 of L's flags are those frames |
+| F3 | **Resolved** | N12 is now measured in clip P (`:70`, `:216–245`, U1 `:462`). Blue-outs f676–687, f969–985 and f1145–1164 (12, 17 and 20 frames). Brightening +27 %, +105 % and +120 % at f951–953, and +36 % at f966. Black at f955 (mean 1.5, OSD included). The receiver text is on from f688 to f906 (gone by f912) and from f1165 to f1383 (gone by f1405). 4 events in 47.3 s, and the one-sided 90 % bound of 1.7/min for the calm clips checks out |
+| F4 | **Resolved** | `terrain.md:35`, `:42–46`, `:53`, `:420–424`, `:491`, `:533` describe L at class level only. Photo I's fence lost its distinguishing detail (`:318`). This commit also removes round 1's quotation of the old wording from this file |
+| F5 | **Resolved in the tree** | `pilot-answers.md:14`, `:24` cite "clip L" and "photos M–O". The names stay in the history of `origin/main` (Risks) |
+| F6 | **Resolved** | `tasks.md:23–25` were ticked again only after the owners' fixes. 4.3 stays open at `:26` for the orchestrator |
+| F7 | **Resolved** | `specs/reference-frames/spec.md:13`, `:50`, and a new scenario at `:56–58`; `design.md:5`, `:25`. The wording matches `assign_letters()` and `copy_photo()` (`tools/reference/extract_frames.py:73–111`) |
+| F8 | **Resolved** | `4dc2d39` is on no remote ref. My round-1 commit was rebased as `5d4de89`: author and committer are both QA Engineer, and its `review.md` is byte-identical to the original `b30240c`. Both old commits survive only on a local branch (A8) |
+| A1 | **Resolved** | N3 and N4 name the main trigger: a per-flight draw, then free-running random at the measured rates, with current as a weak modulator (`video-feed.md:115`, `:129`). "(pilot confirmation)" is gone |
+| A2 | **Resolved** | N2–N4 are "A–H only", and L is spot-checked (`:43`, `:55`, `:96`, `:113`, `:121`); L's near-repeats are explained (`:198–201`); L and P are placed in §0 (`:27`, `:29`); U4 is labelled (`:465`); the vibration row is a hypothesis again (`:488`) |
+| A3 | **Resolved** | Small objects are now S1–S6 (`terrain.md:18`, `:407–452`). No O-class id is left; round 1 of this file is updated to match |
+| A4 | **Resolved** | The top of `reference/` now holds `README.md`, `terrain/`, `_frames/` and one indexed reference clip, which predates the outside session. No working files or index copies remain |
+
+#### Rulings on the three disputed measurements
+
+**1. Does the OSD dim in L's dark frames? Yes. The Tech Artist is right, and my round-1 claim is withdrawn.**
+- **The measure.** It uses the unclipped OSD pixels next to the glyph outlines: bright (Y > 200) in the frames around the event, with a dark outline pixel within 4 px. Each is compared with the two frames before the event, taking the per-pixel median.
+  - In the dips the bottom OSD loses 13 % (f163), 22 % (f200) and 42 % (the dark part of f14). The top OSD loses 36 % (f163) and 43 % (f200). The scene loses 71–97 %.
+  - After the down-steps the OSD settles 3–9 % lower (bottom) and 4–12 % lower (top): f15–17, f164–166, f201–203.
+- **Controls with the same measure.**
+  - No-event L frames (all three bursts): the bottom OSD stays within −2.3 % to +0.5 %.
+  - D's exposure changes (f183; f197–207): within ±1.1 %.
+  - H (f367–372; f619–627): the bottom OSD stays within ±0.6 %.
+  - Thin top glyphs flicker by up to 11 % with no event, because this receiver flips field parity. So only the bottom-OSD figures are clean, and they alone settle the question.
+- **Why round 1 missed it.** Round 1 looked at the peak whites. Glyph cores sit at the 255 clip: at f163 their 99.5th percentile stays at 254–255, and the eroded cores lose only 5 % (f163), 16 % (f200) and 36 % (f14). That clipping is exactly the behaviour at `video-feed.md:279`.
+- **The Tech Artist's figures reproduce** to within a few points: 10–48 % in the dips (`:264`), and 5–32 % in P's bottom OSD against my 3–32 % (`:266`).
+
+**2. Night grain: 2.0–3.6 % over five pairs, or 2.7–3.1 %? Both were measured correctly on different samples. The Tech Artist's range is the better figure.**
+- **Exact reproduction.** With the Tech Artist's boxes, the five pairs (f4/5, f102/103, f161/162, f165/166, f202/203) give σ 2.68, 2.01, 2.35, 2.35 and 2.23 levels. That is 3.03, 2.00, 2.76, 3.13 and 3.58 % of the sky level, with correlations of 0.18, 0.15, 0.35, 0.25 and 0.28.
+- **My round-1 range** came from three of those pairs in a different box, so it is a subset.
+- **The relative figure tracks the sky level:** 2.0 % at level 100, 3.6 % at level 62.
+- **More pairs.** Eight more pairs in one fixed box give 2.5–3.9 %, highest where the sky is darkest (f204–209). So "≈ 2–4 %" would cover every pair. That is too small a difference to be a finding.
+- **The day comparison reproduces:** B 0.55–0.97 levels (0.34–0.60 %) and G 0.51–0.53 (0.26–0.27 %). So "≈ 2–5×" and "≈ 3–14×" (`:86`) hold.
+
+**3. OSD edge rise: about 4 px, or 5–6 px? About 4 px. The Tech Artist is right, and my 5–6 px is withdrawn.**
+- **Interpolated width.** Measured 10–90 % with interpolation, both edge directions, static OSD strokes only: L f1, f106, f162 and f165 have medians of 3.7–4.3 px (interquartile 3.3–5.5). f203 has 4.5–4.9 px.
+- **My round-1 counter.** It counted whole pixels from the first sample above 10 % to the first at 90 %, both ends included. On the same edges it gives 5–6 px, because it adds about 1 px.
+- **The day OSD, measured the same way:** C 3.2–3.5, D 3.3–3.4, F 2.9–3.3, A 3.3–3.6, H 3.5–3.6 and B 4.1 px.
+- **So L's OSD is as soft as the day OSD**, or about 0.5 px softer, and "about one source sample" (`:410`) holds. "Razor-sharp" stays contradicted either way.
+
+#### Ruling: citing clip P in `video-feed.md`
+
+**Acceptable, as feed evidence cited by letter.**
+- **P is a normal citation.** It is an indexed clip with a stable letter, and it is cited by letter and frame like every other clip. The spec asks for clips to be cited by letter, and it does not limit which ones.
+- **Grounding N12 in P is the stronger fix.** F3 accepted "pilot only, unconfirmed", and footage evidence is better than that.
+- **N13 needs P.** Its light gate needs P's dim daylight as a comparison.
+- **The §0 grouping rests on evidence:** the no-signal screen style and the OSD layout.
+- **The selection bias is stated.** N12's rate comes from severe weather only (`:51`, `:239`), and N13's comes from two clips (`:50`, `:475`).
+- **Ownership is consistent.** The wind study's task 2.3 cross-references N12 instead of re-measuring P's dropouts, and its branch adds only `wind.md`.
+- **Conditions:**
+  - P stays out of the terrain coverage checks, as `design.md:5` records (P belongs to `study-wind-reference`).
+  - The wind study keeps citing N12 and N13 for P's feed events, rather than re-deriving them. That keeps one source of truth.
+
+#### Scenario results
+
+`reference-frames` scenarios 1–9 are unchanged since round 1, because the tool is unchanged. The spec text now matches the tool (F7), and the new scenario "New files don't reletter" is round 1's letter check: A–O were unchanged and P was new.
+
+| # | Scenario (`reference-notes`) | Result | Evidence |
+|---|---|---|---|
+| 10 | Hygiene check | **Pass** | See the OPSEC table below |
+| 11 | Every clip represented | **Pass** | `terrain.md` cites A–O. P is excluded, as its terrain belongs to the wind study. `video-feed.md` cites A–H, L and P |
+| 12 | Physical relevance stated | **Pass** | All 34 entries. R1–R3 rely on R0's block for every vehicle (A5) |
+| 13 | Ready for M1 planning | **Pass** | 15 ranked items, each with a "Reason:" |
+| 14 | Traits map to effects and drivers | **Pass** | N1–N13, P1–P10, O1–O5 and C1–C5 each cite clips and name an effect and a driver. N10 and P10 are re-encoding, with block evidence |
+| 15 | Measured event statistics | **Pass** | N5–N7, N12 and L's N13 reproduce from `metrics.csv`, as do the §1.1 totals (3226 rows, 2579 picture, 2369 and 2159 in flight). P's 30 dips reproduce exactly (−17 % to −53 %, counting f689 and not N12's f955). P's "12 plain steps" cannot be reproduced without a criterion (A6) |
+| 16 | Full coverage | **Pass** | All five areas are present. U1–U14 are listed together, each with a status |
+| 17 | Drivers are covered | **Pass** | The new drivers of N12 and N13 (link margin, motor current step, light level, fiber bend) are all in §7 (`:485`, `:490–493`) |
+| 18 | Gate | **Closed** | 4.2 is done |
+
+#### OPSEC scan
+
+| Scope | Result |
+|---|---|
+| `terrain.md`, `video-feed.md` | **Clean.** No fragment and no hand term. The pattern hits are all ordinary words ("dead grass", a vehicle "body", "colour-killed", lean angles in degrees).<br><br>None of these appears: an OSD value or word, the craft string, the receiver's text, a plate, a sign, a credit, a person, a place, a date or a coordinate. N's background and O's credit and figure stay out.<br><br>`PAL` is the standard derived in §0 from line counts. It is not quoted from the receiver's screen |
+| `review.md` | This commit removes round 1's quotation of the old take-off wording (the F4 row). No fragment or hand term |
+| `tasks.md`, `pilot-answers.md` | Clean. The only fragment hit is the current year, inside the date of the pilot's answers |
+| Proposal, design, specs | Clean |
+| Other tracked files | Three hits, none of them a leak:<br>- `.openspec.yaml` holds a date that also appears in some file names, as in round 1.<br>- A file extension matches in `.gitattributes` and in the tool.<br>- The manifesto and `openspec/config.yaml` name the typical drone types. That is the user's own text, not the notes |
+| Commit messages, all refs | No hits in 147 commits |
+| Patch history, pushed refs | Three leaks remain in the history:<br>- The file names added in `d1cf80c` and removed in `5e07ddc` (F5).<br>- The messenger's name added in `cbc22a1` and `7a1ccd1` and removed in `f55dfd2` (F1 of 4.1).<br>- Found by reading, not by pattern: the old take-off wording in `a2f5c83`, removed in `cfde6b1`. It was also quoted in `5d4de89` |
+| Patch history, local-only refs | The night clip's file name in `4dc2d39` and `b30240c`, both only on `backup/study-before-rewrite` (A8) |
+
+#### Hygiene
+
+- **14 commits since round 1.** The Tech Artist's 6 touch only `video-feed.md`, the World Artist's 3 only `terrain.md`, and the Orchestrator's 5 only this change's OpenSpec files.
+- **Format.** Author equals committer on every commit. Every message is subject-only, with no trailers or co-author lines. One subject is 74 characters (A7).
+- **The branch diff since `main`** is 8 text files with no binaries, and nothing from `reference/`, `.godot/`, logs or builds.
+- **No extra scope.** The changes match tasks 4.4–4.6 and the round-1 findings. N13 and the P citations are the fixes that F2 and F3 asked for.
+- **Performance** does not apply, because this change has no runtime code.
+
+#### New findings (advisory only)
+
+| ID | Owner | Where | Finding | Suggested fix |
+|---|---|---|---|---|
+| A5 | World Artist | `docs/reference-notes/terrain.md:364–387` | R1–R3 have no physical-role line of their own. They rely on R0's block for every vehicle (`:354–360`), while R4 (`:396`) and R5 (`:403`) state theirs | Add "**Physical role:** as R0" to R1, R2 and R3 |
+| A6 | Tech Artist | `docs/reference-notes/video-feed.md:71`, `:258`, `:270`; `:234`; `:231` | P's "12 plain steps" has no stated criterion. My detector reproduces the 30 dips exactly, but it finds 6–10 plain steps (thresholds 8–15 % between 2-frame means). Also:<br>- "Precursor (2 of 4 events)" is really 3 of 4, if f1144's tear counts.<br>- The second text interval is only bounded: on to f1383, gone by f1405, so 7.3–8.0 s | State the dip and step criterion in one line, as N4 does (`:118`). Reword the precursor count and the text interval |
+| A7 | Orchestrator | commit `4c94f6f` | The subject is 74 characters, over the 72-character limit (`docs/workflow.md:27`) | It is already pushed, so this is a process note and needs no action |
+| A8 | Orchestrator | local branch `backup/study-before-rewrite` | It holds `4dc2d39` and `b30240c`, which carry the night clip's file name. It has no upstream and is not on the remote | Delete it after the merge. Never run `git push --all` or `--mirror` while it exists |
+
+#### Risks and decisions for the user
+
+- **Public history still carries sensitive text.**
+  - It includes:
+    - the reference file names in `d1cf80c`, which are on `origin/main` (F5)
+    - the messenger's name in `cbc22a1` and `7a1ccd1`, which are on `origin/main`
+    - the old take-off wording in `a2f5c83` and `5d4de89`, on the remote branch
+  - The `--no-ff` merge brings that last item into `main`.
+  - Only a history rewrite and a force-push remove any of it. Rounds 4.1 and 4.3 both left that decision to the user.
+  - The orchestrator has decided not to rewrite `main`. Confirm that the user made or accepted that decision, and ask the same question about the branch **before** merging.
+- **Wind-study files inside `reference/_frames/`.** The wind study keeps attitude CSVs in `reference/_frames/P/`. A re-run of `extract_frames.py` rebuilds `_frames/` and would delete them (owner: physics-engineer).
+
+### Round 1: changes requested
+
+The review was run at `4dc2d39`. That commit was later dropped from the branch before anything was pushed (F8), and this round's commit is now `5d4de89`. Three claims below were withdrawn in round 2 and are marked where they stand.
 
 This section replaces an earlier "Final re-review" that approved the branch. The QA role did not write that one. It is treated below as an outside claim, and every point in it was re-checked.
 
-### Provenance: four commits from an outside session
+#### Provenance: four commits from an outside session
 
 While the team was paused, the user had another AI tool finish this branch. All four unpushed commits come from that one session: they were made within 6 minutes (10:34–10:40), under three different role identities.
 
@@ -153,11 +292,11 @@ While the team was paused, the user had another AI tool finish this branch. All 
 | `fc67eaf` | World Artist | 4.4, tool: stable letters and AVIF | Yes: re-run, before/after diff, code read. **Pass** |
 | `a2f5c83` | World Artist | 4.6, `terrain.md` | Yes: photos M–O, L frames, OPSEC. **F4** |
 | `d5b88ac` | Tech Artist | 4.5, `video-feed.md` | Yes: L and the C, D, F loss frames and metrics. **F1–F3** |
-| `4dc2d39` | QA Engineer | 4.3, approval; ticks 4.3–4.6 | Superseded by this section. It named a reference file (F8) |
+| `4dc2d39` | QA Engineer | 4.3, approval; ticks 4.3–4.6 | Superseded by this section. It named a reference file (F8). Dropped before push (round 2) |
 
 The session that wrote 4.5 also approved it, so that approval was not independent.
 
-### How it was run
+#### How it was run
 
 - **Tool re-run.**
   - Command: `blender -b --factory-startup --python tools/reference/extract_frames.py --`, from the repo root, with the tool unmodified.
@@ -177,7 +316,7 @@ The session that wrote 4.5 also approved it, so that approval was not independen
   - Regex scans covered dates, times, coordinates and OSD-value patterns.
   - Text read off the new photos and off L's OSD was searched for by hand.
 
-### Scenario results after the user's corrections
+#### Scenario results after the user's corrections
 
 | # | Scenario | Result | Evidence |
 |---|---|---|---|
@@ -201,7 +340,7 @@ The session that wrote 4.5 also approved it, so that approval was not independen
 
 Scenario 6 (short flashes) has not changed since 4.1 and was not re-run.
 
-### Task 4.4: tool review (karpathy-guidelines)
+#### Task 4.4: tool review (karpathy-guidelines)
 
 **Pass, no findings.**
 - `previous_letters()` and `assign_letters()` (`tools/reference/extract_frames.py:73–98`) keep the old letters and give new files the next ones.
@@ -211,21 +350,21 @@ Scenario 6 (short flashes) has not changed since 4.1 and was not re-run.
 - The docstring matches the behaviour. There are no leftovers: the old 26-file check was replaced, not duplicated.
 - The only gap is in the spec, not the code (F7).
 
-### Task 4.5: night clip L, claim by claim
+#### Task 4.5: night clip L, claim by claim
 
 | Claim (`video-feed.md` C5 and N1) | Verdict | Evidence |
 |---|---|---|
 | Mean luma 45.6, range 10.9–55.0 | Confirmed | `L/metrics.csv` |
 | Monochrome, R/G/B 45.08/45.96/44.82 | Confirmed, and stronger than stated | Per-pixel chroma magnitude, excluding black and OSD white: median 1.3 levels in L, against 34–61 in A, B, G and H |
 | The sky is brighter than the ground, and silhouettes are the only landmarks | Confirmed | Sky band ≈ 75 levels, ground ≈ 24 |
-| The OSD is full white and unaffected by exposure | Confirmed, but the best evidence isn't cited | OSD whites reach ≈ 246. At f163 and f200 the whole scene darkens for one frame while the OSD stays unchanged |
-| The OSD is "stark, razor-sharp" | **Contradicted** | L's OSD edges rise over 5–6 px (10–90 %), and the unit glyphs have coloured fringes (f1, f162), as P2 and P4 describe for day footage |
-| "Noise metric mean 8.37" shows maximum-gain grain, which "reaches 8.37 even on dark terrain" (N1) | **Wrong evidence** | 8.37 is the whole-frame mean of the 25 %-scale texture metric, and it is the **lowest** of all nine clips (A–H: 11.2–25.8). The grain is real, but other numbers show it. In static sky (f161/162, f165/166, f202/203): σ ≈ 2.0–2.4 levels, or 2.7–3.1 % of the level, with a frame-to-frame correlation of 0.23–0.31. A's and B's skies measure 0.3 % and 0.8 %, with correlations of 0.36 and 0.54 |
+| The OSD is full white and unaffected by exposure | **Withdrawn in round 2 (ruling 1): the OSD dims** | OSD whites reach ≈ 246. Round 1 said the OSD stays unchanged at f163 and f200, but it looked only at the peak whites, which sit at the 255 clip. Unclipped OSD pixels dim 13–43 % in those frames |
+| The OSD is "stark, razor-sharp" | **Contradicted** | L's OSD edges rise over ≈ 4 px (10–90 %; round 1 said 5–6 px, withdrawn in ruling 3), and the unit glyphs have coloured fringes (f1, f162), as P2 and P4 describe for day footage |
+| "Noise metric mean 8.37" shows maximum-gain grain, which "reaches 8.37 even on dark terrain" (N1) | **Wrong evidence** | 8.37 is the whole-frame mean of the 25 %-scale texture metric, and it is the **lowest** of all nine clips (A–H: 11.2–25.8). The grain is real, but other numbers show it. In static sky (f161/162, f165/166, f202/203): σ ≈ 2.0–2.4 levels, or 2.7–3.1 % of the level (three pairs; ruling 2 prefers the Tech Artist's five-pair 2.0–3.6 %), with a frame-to-frame correlation of 0.23–0.31. A's and B's skies measure 0.3 % and 0.8 %, with correlations of 0.36 and 0.54 |
 | "Camera AGC at maximum gain", "shutter 1/50 s" | **Not measured** | Both are stated as findings. Exposure also steps *up* at f81 (37 → 52) and f115 (46 → 50), so there was headroom left |
 | The "9 diff-jump flags correspond to rapid heading/pitch adjustments", with motion blur | **Contradicted** | The 9 flags are 5 whole-frame **exposure steps**, with framing, horizon and OSD unchanged: f13 → 14 (43 → 29 → 34), f80 → 81 (37 → 52), f114 → 115 (46 → 50), f162 → 163 → 164 (52 → **18** → 42) and f199 → 200 → 201 (44 → **11** → 27). Two of them pass through a single dark frame and recover. There is no motion blur in f162–164 or f199–201. This is a real night trait, and it is missing from the notes |
 | Point lights bloom into soft halos | **No evidence** | No point light appears in any still, burst or event frame of L. The only bright spot is speckled ground under the camera at take-off (f1), and it is gone by the second still |
 
-### Findings
+#### Findings
 
 Findings marked **F** must be fixed before merge. Items marked **A** are advisory.
 
@@ -234,7 +373,7 @@ Findings marked **F** must be fixed before merge. Items marked **A** are advisor
 | F1 | Tech Artist | `docs/reference-notes/video-feed.md:60–61`, `:124–134` | **The 4-stage loss rewrite contradicts the footage, and the measured detail it replaced was deleted.** `metrics.csv` shows the same sequence in C, D and F:<br>1. **1–2 frames of partial snow** (C f174–175, D f208–209, F f250). Their noise is 40–44, against 8–14 in picture. C f174 is ≈ 83 % coloured snow, and the picture survives only in the bottom ≈ 17 %.<br>2. **Exactly 4 solid-blue frames** (C f176–179, D f210–213, F f251–254).<br>3. **7–8 frames of full snow** (C f180–186, D f214–221, F f255–262).<br>4. Permanent blue.<br><br>The note says instead that stage 1 is "line displacement… picture remains largely visible", that stage 2 is a "white-out or luma spike", which no frame shows, and that stage 3 lasts "4–8 frames". It cites C f176–186 as monochrome snow, but f176–179 are blue.<br><br>The rewrite also removed the 4-frame blue interlude, the snow texture (hard-clipped blobs, ≈ 25 % white, luma 53–65), the receiver text drawn over the snow, and the candidate effect (the state machine). N5–N7 now have no candidate effect at all | Map the pilot's four stages onto the measured sequence. The natural fit: glitch = partial snow, flashy moment = the 4-frame blue flash, noisy and flashy = full snow, finally blue = blue.<br><br>Restore the measured durations, the texture and a candidate effect, then randomise *around* the measured values. Keep H f628 (N8) and the hard cut (A, B, E) as variants. Label anything that comes only from the pilot's words, such as a white flash, "pilot, unconfirmed, tunable" |
 | F2 | Tech Artist | `docs/reference-notes/video-feed.md:275–284` (C5), `:82` (N1), `:331` (U5) | **The night characterisation is partly ungrounded.** See the claim table above:<br>- The motion-blur reading of the flags is wrong.<br>- The grain evidence is the wrong metric.<br>- Maximum gain and 1/50 s are asserted, not measured.<br>- "Razor-sharp" is contradicted by the frames.<br>- The point lights have no evidence.<br><br>The exposure-step trait that L does show is missing | Add L's exposure steps as a camera trait: discrete steps of −36 % to +41 % in mean luma, twice through one dark frame (−65 %, −75 %). Driver: light level. Stage: cam.<br><br>Replace the 8.37 argument with the static-sky figures. Mark gain and shutter as hypotheses. Drop "razor-sharp" and the point lights, or mark them unconfirmed. Reword U5, which says "fully characterised" |
 | F3 | Tech Artist | `docs/reference-notes/video-feed.md:67`, `:142–146` (N12) | N12 cites no clip ("pilot confirmed; scattered"). Its look and length ("1–3 frames: snow burst, white flash, stripes") were not measured. No recovering flash exists in A–H (see 4.1). In L, the only events that recover are camera-side exposure dips (f163, f200), not link flashes | State "not in the footage; from the pilot (U1)", and mark the look, length and rate "unconfirmed, tunable". Say whether L f163 and f200 are a real kind of recovering flash (cam) |
-| F4 | World Artist | `docs/reference-notes/terrain.md:34`, `:43`, `:409`, `:412` | **OPSEC.** L's entry describes the pilot's take-off point and its distinctive features: "a climb from a low ridge with a leaning pole, a bush and a small tree", a pole with a crossarm leaning about 10°, and "a single leaning pole on a ridge". L starts at that spot, close to the ground (f1).<br><br>The spec bans positions of troops, and the 4.1 rulings keep flights at class level with no link to any position. This text ties a group of landmarks to where the crew stood | Describe classes only, for example: "rolling dark fields and a tree line; poles, lone trees and bushes read only as silhouettes against the sky; poles may lean 5–15°". Drop "a climb from", the ridge-top grouping and the detail of each object at that spot. `video-feed.md:277` can stay as it is: its wording is already generic |
+| F4 | World Artist | `docs/reference-notes/terrain.md:34`, `:43`, `:409`, `:412` | **OPSEC.** L's entry described the pilot's take-off point: the landform the flight started from, and the particular objects standing there, each with its own detail. L starts at that spot, close to the ground (f1). *(The quotations were removed in round 2, so that this file does not repeat them.)*<br><br>The spec bans positions of troops, and the 4.1 rulings keep flights at class level with no link to any position. This text ties a group of landmarks to where the crew stood | Describe classes only, for example: "rolling dark fields and a tree line; poles, lone trees and bushes read only as silhouettes against the sky; poles may lean 5–15°". Drop the take-off framing, the grouping of objects at that spot and the detail of each one. `video-feed.md:277` can stay as it is: its wording is already generic |
 | F5 | Orchestrator | `openspec/changes/study-flight-references/pilot-answers.md:14`, `:24` | **OPSEC.** These two lines give real reference file names: the night clip's and those of the three vehicle photos. They were committed in `d1cf80c`, and they are **already on `origin/main`** (merged through PR #8) and on the remote branch | Refer to them as "the night clip (L)" and "the three vehicle photos (M–O)". Rewriting the published history is the user's decision |
 | F6 | Orchestrator | `openspec/changes/study-flight-references/tasks.md:24–26` | The outside commit `4dc2d39` ticked 4.4, 4.5, 4.6 and 4.3 under the QA identity. 4.4 is verified. 4.5 (F1–F3), 4.6 (F4) and 4.3 (this verdict) are not done | Untick 4.3, 4.5 and 4.6 until their findings are fixed and re-checked |
 | F7 | Orchestrator | `specs/reference-frames/spec.md:13`, `:50`; `design.md:5`, `:23`, `:25` | The spec and the design still describe the old lettering: "in sorted path order", "8 clips", stills "under letters I, J, K". Neither mentions `<letter>/photo.png`. Task 4.4 changed this behaviour on purpose, so archiving now would publish a capability spec that the tool contradicts | Change the requirement to "existing letters are kept; new files take the next letters", and add a scenario for an added file. Add `photo.png` for AVIF photos to the output layout |
@@ -244,7 +383,7 @@ Findings marked **F** must be fixed before merge. Items marked **A** are advisor
 | A3 | World Artist | `terrain.md:349` and §6 | The object classes O1–O6 share their letter with photo O. At `:349`, "O3, O4" are classes; elsewhere "O" is the photo | Cite the photo as "photo O" in §5, or rename the class prefix |
 | A4 | Orchestrator | `reference/` (local, git-ignored) | The outside session left seven working files at the top of `reference/`, including two copies of the index with real file names in them. They are ignored and local, so nothing leaks, but they sit outside `_frames/` | Delete them, or ask the user to |
 
-### OPSEC scan (full)
+#### OPSEC scan (full)
 
 | Scope | Result |
 |---|---|
@@ -257,14 +396,14 @@ Findings marked **F** must be fixed before merge. Items marked **A** are advisor
 | Commit messages, all branches | No hits. |
 | Full patch history, all branches | The file names in `d1cf80c` (F5) and `4dc2d39` (F8). The messenger's product name in `cbc22a1`, `7a1ccd1`, `6168b15` and `f55dfd2`. That is F1 from 4.1: it was removed from the tree, and rewriting history is the user's call. |
 
-### Hygiene
+#### Hygiene
 
 - All four commits are subject-only (58–69 characters), with no trailers or co-author lines. Author equals committer in each.
 - The identities match `docs/team.md`, but not who actually did the work (see Provenance).
 - The diff is text only, with nothing from `reference/`, `.godot/`, logs or builds.
 - The 4.1 fixes are still in place: F1 (`design.md:5`), F2 (`video-feed.md:220`), F3 (`video-feed.md:58`, `:105`), and A1–A5.
 
-### Risks
+#### Risks
 
 - The file names in `pilot-answers.md` are public on `origin/main`. Scrubbing them takes a history rewrite and a force-push to a public `main`. That is the user's decision.
 - F1 and F2 change what the feed implementation will build. If the loss sequence ships as it is written now, the feed would show a white flash the footage never shows, and it would leave out the blue flash that every snow-cycle loss shows.
