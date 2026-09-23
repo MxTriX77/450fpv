@@ -157,6 +157,17 @@ Each `cover` entry:
 
 How the starting soil values were chosen: the reference notes (§7) give how far a leg sinks on each ground. The bearing stiffness reproduces that sink for a reference contact of 25 N on a 15 mm foot (about 140 kPa, a 10 kg drone on four legs). The damping gives a damping ratio for that contact: low on hard crust and rubble (the drone bounces), high on sod and spoil (the drone is cushioned). Physics replaces the reference contact with the real leg design.
 
+### How the world query turns the table into ground
+
+`game/src/world/WorldQuery.cs` builds everything below the height grid from the map seed and these fields, with integer hashes and plain IEEE arithmetic, so every machine gets the same bits (world-query spec).
+
+- **Ground height** = the rendered terrain triangle + micro-relief + ridges − pitfalls. Relief and mat blend bilinearly over the 4 nearest cell centres, so the ground has no step at a surface border.
+- **Micro-relief** is value noise with nodes half a `wavelength_m` apart and quintic fades, scaled so its RMS is `amplitude_m`. Peaks reach about 2.2 × the amplitude.
+- **Ridges** use the profile 1 − 2·smoothstep(2q), where q is the distance to the nearest crest in spacings. It is C², close to a cosine, with an RMS of 0.697 × `amplitude_m`. The phase comes from the seed.
+- **Pitfalls:** each 1 m world cell holds at most one candidate, at a hashed point. It exists with the `density_per_m2` of the surface under that point, and its radius and depth are drawn uniformly from the ranges. The floor is flat, and the wall is a smoothstep over the outer 25 % of the radius. A pitfall is never clipped at a cell or surface border, and where two overlap, the deeper one counts. Its id is its cell: (x + 32768) in the low 16 bits and (z + 32768) in the high 16 bits.
+- **Mat depth** is smooth noise between `mat.depth_m` min and max, with nodes half the surface's relief wavelength apart, times the cover channel. It follows the ground down into pitfalls.
+- **Outside the map**, terrain and surfaces continue from the edge cell, and samples carry the `OutsideMap` flag.
+
 There is no soil porosity field (the notes §7 give 0.40–0.60 void fractions). The contact model never used it: "loose" and "porous" ground is carried by the bearing modulus, the unload ratio and the maximum sink, and rubble voids are pitfalls.
 
 ## `game/assets/catalog.json` — asset catalog (shared)
