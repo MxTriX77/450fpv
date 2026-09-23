@@ -219,9 +219,32 @@ Collision and wind-volume shapes. Cylinders and capsules stand along asset +Y. `
 | `capsule` | `radius_m`, `height_m` (total, including the caps) |
 | `capsule_chain` | `segment_m`: capsule length along the sagged curve. Wires only, and a wire has exactly this one shape; the radius is half the object's `diameter_m`. Physics treats the chain as the wire's polyline. |
 
-The launch rails for legs off (manifesto §3) will be a steel asset, added once the pilot gives their dimensions.
-
 Each gap is a rectangular opening in asset space: `name`, `center_m` [x, y, z], `width_m`, `height_m` and `yaw_deg`. The opening faces asset ±Z, turned by `yaw_deg`.
+
+### `launch_rails`
+
+With legs off (manifesto §3), the drone lifts off from two parallel steel bars, so the fiber spool under the frame never touches the ground. The game places this asset at the chosen start point, with the start's yaw, before the flight. The pilot's only figure is "spaced about the drone's diameter, the frame rests across both and the spool hangs clear between them". Every dimension below is **derived, tunable until the drone model exists**.
+
+Asset space: the origin is on the ground at the centre, the bars run along Z (the drone's fore-aft axis, nose toward −Z) and they are spaced along X.
+
+| Assumption (drone class) | Value | Basis |
+|---|---|---|
+| Frame | X-frame, 450 mm motor-to-motor diagonal | 10" heavy fiber quad with 3-blade props. The motors sit at ±159 mm on each axis, 318 mm apart side to side, and the tip-to-tip span is 572 mm. |
+| Motor pad | about 40 mm across, so the arm is clear up to about 205 mm from the centre | 31xx–42xx motors on heavy 10" builds |
+| Spool | 150–200 mm across, its bottom 100–150 mm below the frame | Typical fiber spools on these drones |
+| Props | above the arms (tractor) | The frame's bottom rests on the bars, so the prop disks sit about 50 mm or more above the bar tops |
+
+| Derived | Value | Why |
+|---|---|---|
+| Profile | 25 × 25 mm square steel tube (a box) | A plain welded-frame profile. Its flat top seats a carbon arm. Material `steel`. |
+| Spacing, centre to centre | 0.26 m | Each arm crosses a bar at 0.26/√2 = 184 mm from the centre: on the arm, about 20 mm inboard of the motor pad. The inner gap is 0.235 m, which clears a 200 mm spool by 17.5 mm per side and a 150 mm spool by 42.5 mm. That is about 0.8 of the frame's side-to-side motor spacing, the pilot's "about the drone's diameter". |
+| Bar top height | 0.25 m | A spool hanging 150 mm below the frame still clears flat ground by 100 mm, which leaves room for micro-relief and short cover. |
+| Length | 0.60 m | About the drone's tip-to-tip span. The arm crossings are at z = ±0.13 m, so the drone can sit up to about 0.15 m off centre fore and aft and still rest on both bars. |
+| Supports | four 0.2 m legs under the bar ends, on two ground-level feet | The stand needs cross ties to stand up. They sit on the ground, not at bar height, so nothing behind the drone catches the fiber as it pays out between the bars. |
+| `snag_hazard` | false | Smooth tube with no hooks or loose ends |
+| Wind | no `wind_volume`, `wind_porosity` 0 | The collision boxes are the wind volume, and solid steel is opaque. The stand's openness comes from the small fraction of each 2 m wind cell that the thin tubes cover. |
+
+The `steel` edge radius (1 mm) is sharper than a real cold-formed tube corner (about 2 × the 2 mm wall), so fiber contact over a bar corner errs toward breaking.
 
 ## Versioning
 

@@ -57,6 +57,24 @@
       "wind_porosity": 0.8,
       "gaps": [ { "name": "gate", "center_m": [0.0, 0.99, 0.0], "width_m": 1.6, "height_m": 1.98, "yaw_deg": 0.0 } ]
     },
+    "launch_rails": {
+      "type": "object",
+      "scene": "res://assets/models/placeholders/launch_rails.tscn",
+      "material": "steel",
+      "collision": [
+        { "shape": "box", "size_m": [0.025, 0.025, 0.6], "position_m": [-0.13, 0.2375, 0.0] },
+        { "shape": "box", "size_m": [0.025, 0.025, 0.6], "position_m": [0.13, 0.2375, 0.0] },
+        { "shape": "box", "size_m": [0.025, 0.2, 0.025], "position_m": [-0.13, 0.125, -0.2875] },
+        { "shape": "box", "size_m": [0.025, 0.2, 0.025], "position_m": [0.13, 0.125, -0.2875] },
+        { "shape": "box", "size_m": [0.025, 0.2, 0.025], "position_m": [-0.13, 0.125, 0.2875] },
+        { "shape": "box", "size_m": [0.025, 0.2, 0.025], "position_m": [0.13, 0.125, 0.2875] },
+        { "shape": "box", "size_m": [0.285, 0.025, 0.025], "position_m": [0.0, 0.0125, -0.2875] },
+        { "shape": "box", "size_m": [0.285, 0.025, 0.025], "position_m": [0.0, 0.0125, 0.2875] }
+      ],
+      "snag_hazard": false,
+      "wind_porosity": 0.0,
+      "gaps": []
+    },
     "household_junk": {
       "type": "object",
       "scene": "res://assets/models/placeholders/household_junk.tscn",
