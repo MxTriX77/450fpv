@@ -14,11 +14,15 @@ A map SHALL be a folder `game/maps/<id>/` containing:
 - `cover.png` (cover densities)
 - `objects.json` (placed objects and wires)
 
-The surface table `game/maps/surfaces.json` and the asset catalog `game/assets/catalog.json` SHALL be shared by all maps. A map side SHALL be at most 8192 m.
+The surface table `game/maps/surfaces.json` and the asset catalog `game/assets/catalog.json` SHALL be shared by all maps. A map side SHALL be a multiple of 256 m (the collision chunk size) and at most 8192 m.
 
 #### Scenario: Complete package
 - **WHEN** the validator runs on `game/maps/sample_patch/`
 - **THEN** it finds all five files and exits 0
+
+#### Scenario: Bad map size
+- **WHEN** the manifest declares a side that is not a multiple of 256 m, or is larger than 8192 m
+- **THEN** the validator exits non-zero and reports the side and the rule
 
 #### Scenario: Missing layer
 - **WHEN** any of the five files is missing
