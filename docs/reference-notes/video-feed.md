@@ -47,6 +47,7 @@ Each trait below names its most likely stage: **cam** (sensor/DSP), **cvbs** (co
 - loss sequences are over-represented by roughly **one per clip** rather than a rate in time. They are modelled as **event-driven** (impact, power loss, fiber break), not as a random rate.
 - **in-flight rates are from only 1.2–1.3 minutes** of footage from three airframe groups. A trait seen once gives a rate of about 1/min with a very wide error (one event in 1.2 min is consistent with anything from about 0.05 to 4 per minute at 90 %). Rates below are what was seen, not a stable statistic. The sim should expose them as tunables.
 - two traits cluster in single clips (diagonal interference only in B, rolling lines only in C). Pooled rates dilute them and per-clip rates inflate them. Both are given.
+- one trait (N13) appears only in the one night clip, L, so its rate comes from 7 s of footage.
 
 ### 1.2 Event catalogue
 
@@ -66,9 +67,10 @@ Rates are per minute of the in-flight window unless marked. N2–N4 use the A–
 | N10 | Macroblock smear | B f306–309 (pre-loss) | 1 | — | 4 frames | **enc** |
 | N11 | Exposure jumps (sun occluded / revealed) | D f183 | 1 | frame-content driven | 1 frame (−13 % mean luma) | cam |
 | N12 | Random mid-flight flashes that recover | pilot confirmed; scattered | random | tunable | 1–3 frames (snow burst, white flash, stripes) | link, pwr |
+| N13 | Level steps with one-frame dark dips (night) | L only: f14, f80–81, f115, f163–164, f200–201 (all 9 of L's flags) | 5 steps, 4 with a dip | 43/min within L (steps 1.1–2.2 s apart); 0 in A–H | dip 1 frame, then the new level holds | uncertain: cam, pwr or link (U14) |
 
 The pilot's words, mapped to what was measured:
-- "baseline noise is always present" → N1 (the feed is never a clean picture; mild noise is always on, heavier at night).
+- "baseline noise is always present" → N1 (the feed is never a clean picture; heaviest at night, L).
 - "sometimes noise, sometimes stripes, every instance differs" → N1–N4 and N12 (procedural variety, never a repeating texture).
 - "mid-flight flashes that recover" → N12 (random brief events, independent of signal loss).
 - "noise may depend on throttle, but rarely" → motor current is only a weak modulator of N1–N4, never their main trigger.
@@ -79,10 +81,10 @@ The pilot's words, mapped to what was measured:
 **N1 Live grain (always-on baseline noise).** Fine luma and chroma noise over the whole picture.
 - **Pilot:** baseline noise is **always present** on analog video. The feed is never a clean picture. It varies continuously across instances: sometimes a little noise, sometimes stripes, never a repeating pattern.
 - **Measured.** Grain is elongated horizontally: half-correlation length 3–6 px horizontally and 2–3 px vertically, i.e. about one source sample by one field line.
-- **Re-encode masks it.** In flat bright sky the recordings keep only σ ≈ 0.9–1.3 levels luma (≈ 1.5–3 levels chroma), and the residual is 60–97 % correlated from frame to frame (B f2–4, G f1–4). A live analog grain would be uncorrelated, so the encoder has most likely flattened and frozen it.
-- **Low light (L).** In the night flight (L), low scene illumination pushes the camera AGC to maximum gain. High-pass noise RMS reaches 8.37 even on dark terrain, yielding a prominent "boiling" grain over the entire frame (see §4 C5).
-- **Candidate effect.** Continuous per-field procedural noise, low-passed horizontally to about one source sample and independent per field line. A non-zero baseline level is always active (luma σ ≥ 2–4 levels, chroma σ of similar amplitude but ≈ 5× wider horizontally). A new seed each field; never a static or looping texture.
-- **Driver.** **Always on** (baseline analog floor), scaling strongly with camera gain from the auto-exposure loop (**light level**), with a weak and occasional term from **motor current** (pilot: throttle coupling is rare).
+- **Re-encode masks it.** In flat bright sky the recordings keep only σ ≈ 0.9–1.3 levels luma (≈ 1.5–3 levels chroma), and the residual is 60–97 % correlated from frame to frame (B f2–4, G f1–3; it drops to 9 % at G f3 → f4). A live analog grain would be uncorrelated, so the encoder has most likely flattened and frozen it.
+- **Low light (L).** At night the grain is the strongest in the set. In static sky (L f4/5, f102/103, f161/162, f165/166, f202/203; luma minus its 5 × 5 box mean) σ ≈ 2.0–2.7 levels, or 2.0–3.6 % of the sky level, and it changes from frame to frame (correlation 0.15–0.35). The same measure on flat day sky gives 0.5–1.0 levels, or 0.3–0.6 % (B f2–4, f186–191; G f1–4). So the recorded night grain is ≈ 2–5× the day level, and ≈ 3–14× relative to the picture level. The `noise` column of `metrics.csv` is not a grain measure: it is a whole-frame texture metric at 25 % scale, and L's mean (8.4) is the lowest of the nine clips (A–H picture frames: 11.2–25.8), because the dark scene has little texture. See also C5.
+- **Candidate effect.** Per-field noise, low-passed horizontally to about one source sample and independent per field line. It is always on. Luma σ is tunable, starting at 2–4 levels at normal exposure (above the re-encoded ≈ 1, since the encode suppresses it; U4), with chroma noise of similar amplitude but about 5× wider horizontally. σ scales with the AE gain, so that at night it reaches ≈ 2–5× its day level. A new seed each field; never a static or looping texture.
+- **Driver.** Always on (the analog floor). Its level follows camera gain from the auto-exposure loop (**light level**). **Motor current** adds a weak, occasional term (power-rail ripple; the pilot says throttle coupling is rare).
 
 **N2 Chroma sparkles.** Isolated coloured dashes, one field line tall and 3–10 px long, in red, green, magenta and cyan, scattered over textured areas (B f122 ground; E, H grass and walls).
 - **Measured.** A full-resolution scan of every picture frame counted pixels whose chroma departs more than 45 levels from its 7×7 local mean.
@@ -216,6 +218,40 @@ Details:
 - **Not a recording glitch.** The frame is no closer to f190–197 than to its neighbours, so it isn't a displaced frame. It is a real frame in which vegetation briefly hid the sun and removed the veiling glare.
 - **Driver.** Frame content (sun visibility), handled by O3 + C1.
 
+**N13 Level steps with one-frame dark dips (night, L).** These are all 9 of L's flags. No day clip shows this.
+- **Steps.** The whole picture jumps to a new brightness and holds it. The framing and horizon carry on smoothly through the step, the OSD layout doesn't change, and there is no motion blur (f162–164, f199–201).
+
+  | Step | Mean luma before → after | Change | Dip frame |
+  |---|---|---|---|
+  | f14 | 43.1 → 33.8 (f15) | −22 % | f14: below a sharp split at row ≈ 433 (40 % down) the scene goes almost black (ground 31 → 0.7); the rows above are unchanged |
+  | f81 | 38.5 → 50.3 | +31 % | f80, mild: the top of the frame is 20–30 % darker than f79, easing towards the bottom, which already shows the new level |
+  | f115 | 46.5 → 50.3, then 52.6 at f117 | +8 %, then +13 % | none |
+  | f164 | 52.1 → 42.1 | −19 % | f163, whole frame: mean 18.1 (−65 %) |
+  | f201 | 43.8 → 27.0 | −38 % | f200, whole frame: mean 10.9 (−75 %) |
+
+- **The new level is mostly a black-level shift.** A block-by-block fit of each settled frame (f15, f81, f117, f164, f201) against the frame before the step gives a gain of 0.90–0.98 and an offset of −13 to +13 levels. So dark ground moves much more than the sky in relative terms (f199 → f201: ground 26 → 10, sky 80 → 62).
+- **The dip.** Gain ≈ 0.43–0.48 with an offset of ≈ −8 levels, which crushes the ground to 1–7 levels.
+  - It eases towards the bottom of the frame. In f163, ground just below the horizon keeps 7–16 % of its f164 level, while the slightly darker ground in the bottom rows keeps 55–75 %. So the dip recovers within about one field.
+  - It can start partway down a field (f14).
+- **Not a camera-only exposure change: the OSD dims too.**
+  - Static OSD pixels (bright in every neighbouring frame) lose 10–48 % in f163, f200 and the dark part of f14, while the scene loses 60–98 %. After each down-step they settle 4–10 % lower (f15, f164, f201).
+  - In the day clips the same pixels never move: they stay within ±1 % through D's exposure changes (f182–184 at −13 %, f197–207 at −38 %) and in H.
+  - So at least part of each change acts on the composite signal after the OSD is inserted.
+- **Rate.** 5 steps in 7.0 s (≈ 43/min), 1.1–2.2 s apart. Every down-step has a dip. There are none in the 72 s of day flight. One 7-s night clip makes this rate very rough.
+- **Cause: unknown (U14).** Candidates:
+  - The camera's low-light gain control stepping, with an output transient that the receiver's own gain control follows. This would explain why it happens only at night.
+  - A supply dip on the rail the camera, OSD and fiber transmitter share (pwr).
+  - Steps in optical power as the fiber pays out (link).
+- **Candidate effect.** A level-step generator on the composite signal, after the OSD insert.
+  - At each event, draw a new gain (0.90–0.98) and black offset (−13 to +13 levels on the 8-bit scale).
+  - Before a down-step (and sometimes an up-step), insert one dip field (gain ≈ 0.45, offset ≈ −8) that eases back from top to bottom. It sometimes starts partway down the field.
+  - Let the OSD whites clip at the top of the range, so they dim less than the scene, as measured.
+  - Hold the new level until the next event, or ramp to it over ≤ 2 frames (f115–117).
+- **Driver.** **Light level** gates it: it runs only in the camera's low-light regime, the level where C3 has killed the colour.
+  - The timing is free-running random at the measured interval (1.1–2.2 s), because nothing measurable in L predicts it.
+  - Size and direction are drawn from the measured set (3 down, 2 up).
+  - If U14 finds a supply-dip or fiber cause, the timing moves to motor current steps or fiber margin. Both signals are already in §7.
+
 ### 1.4 Not feed noise (for the record)
 
 - **E f206–237 stripe flags are the OSD blinking.** A block of OSD elements is on for ≈ 7 frames and off for ≥ 5 (E f206–219, f227–237). The OSD belongs in the feed (§5) but is not interference.
@@ -327,16 +363,29 @@ Details:
 - **Candidate effect.** Per-pixel motion blur with length = angular velocity × exposure time, where exposure time comes from the C1 loop (short in sun, up to about one field time in the dark).
 - **Driver.** **Light level** (through exposure time) × **camera angular rate** (physics).
 
-**C5 Low light and night flight response (Clip L).**
-- **Measured (L, 210 frames, 7.0 s).**
-  - **Luma and contrast.** Mean luma drops to 45.6 (range 10.9–55.0), compared to 90–140 in daytime. Dark terrain reads near-black (`feed` #0d0d0d–#191919, 10–25 levels), while the overcast sky is mid-grey (`feed` #4e4f4e, 70–85 levels). Because the sky is brighter than the ground, landmarks (ridges, tree-line crowns, a leaning pole) appear exclusively as skyline silhouettes.
-  - **Monochrome desaturation.** Low light triggers the camera DSP to drop chroma completely. Across L's 210 frames, channel means are almost perfectly equal: R = 45.08, G = 45.96, B = 44.82 (r/g = 0.98, b/g = 0.98). The scene is rendered essentially in black-and-white.
-  - **Sensor gain noise.** Camera AGC operates at maximum gain, producing prominent high-pass grain (noise metric mean 8.37) across the entire frame. Relative to the compressed scene dynamic range, this grain is visually dominant ("boiling" grain).
-  - **Integration time and motion blur.** Shutter time stretches to maximum integration (1/50 s), magnifying motion blur during turns (9 diff-jump flags in L correspond to rapid heading/pitch adjustments).
-  - **OSD contrast.** The character OSD is inserted downstream of the sensor at full composite level (white luma 240–255), completely bypassing camera AGC. It appears stark, razor-sharp, and brightly legible against the dark background.
-  - **Point lights.** Small point light sources bloom into soft halos from lens scattering and unsharp masking (P3, O3).
-- **Candidate effect.** Low-light mode: scale saturation down to 0 (monochrome), increase baseline noise amplitude to match maximum sensor gain, widen motion blur per C4, and render OSD at full standard white over the darkened scene.
-- **Driver.** **Light level** (time of day / ambient scene illuminance) and camera angular rate.
+**C5 Low light: the night flight (L).** 210 frames (7.0 s) under an overcast night sky.
+- **Level and contrast.** Mean luma is 45.6 (10.9–55.0 per frame), against 102–155 in the day clips (C1). The overcast sky is the brightest part of the scene (≈ 60–100 levels) and the ground is dark (≈ 15–35, and 5–12 after the f201 step). Tree crowns, poles and bushes read only as silhouettes against the sky.
+- **Monochrome.** Over the clip the channel means are R 45.1, G 46.0 and B 44.8.
+  - Per pixel, with black and OSD white excluded, chroma has a median of 1.1–1.4 levels and a 90th percentile of 2.3–3.6. The day clips A, B, C, D, G and H have medians of 18–44 by the same measure.
+  - The only colour left is faint fringing on the OSD glyphs (P4; 90th percentile ≈ 8 levels next to them) and a coloured speckle on a bright patch of ground close to the camera (f1–13).
+- **Grain.** The strongest in the set, and live. See N1: σ ≈ 2.0–2.7 levels in static sky, 2–5× the day level.
+- **Level steps and dark dips.** This is the trait L shows that no day clip does. See N13.
+- **Not measured.**
+  - Whether the camera runs at its maximum gain: it stepped *up* twice (f81, f115), so it still had some headroom.
+  - The shutter time: L has no fast rotation and no frame with motion blur, so the C4 prediction (longer exposure, more blur) can't be checked.
+
+  Both stay hypotheses.
+- **OSD.** The OSD whites (≈ 210–255) are the brightest thing on screen, so the OSD dominates the dark picture.
+  - Its edges are soft: they rise 10–90 % in ≈ 4 px (interquartile 3.4–4.8 px; L f1, f162, f165). That is about one source sample, the same as the day OSD measured the same way (3.4–3.9 px in C, D and F; P2).
+  - The glyphs have faint coloured fringes (P4), and the OSD dims with N13's dips.
+- **No point lights.** No still, burst or event frame of L shows a point light. The row of bright dots near the horizon is the OSD's dotted artificial horizon. How lights bloom at night is **unmeasured**. If the map gets lights, render them through P7 (hard clip) and O3 (flare), as an assumption.
+- **Candidate effect.** No separate night filter: the same pipeline, driven to its low-light end.
+  - C1 runs at high gain, and N1 grain rises to ≈ 2–5× its day level.
+  - C3 takes saturation to 0.
+  - C4 lengthens the exposure (assumed).
+  - N13 switches on.
+  - P2–P4 and the OSD insert are unchanged.
+- **Driver.** **Light level** (time of day and scene luminance) through the C1 loop, and **camera angular rate** for C4.
 
 ## 5. Resolution feel and OSD layout
 
@@ -368,7 +417,7 @@ It reads as coarse horizontal line-dashes, soft horizontal edges with dark halos
   2. Lens distortion, vignette, flare.
   3. Camera: AE/AWB, tone curve, clip, sharpening.
   4. Add the OSD.
-  5. Composite encode: luma/chroma band-limit, cross-colour, interference (N3, N4), grain, sparkles.
+  5. Composite encode: luma/chroma band-limit, cross-colour, interference (N3, N4), grain, sparkles. At night, N13's level steps and dips go here, after the OSD, so the OSD dims with them.
   6. Field sampling (P1).
   7. Receiver: sync tearing (N8), snow/blue state machine (N5–N7), border (P8).
   8. Upscale to the screen.
@@ -383,7 +432,7 @@ It reads as coarse horizontal line-dashes, soft horizontal edges with dark halos
 | U2 | **Signal loss sequence** | **Answered by the pilot, and matched to the footage.** The pilot's four stages are the staged loss of C, D and F: partial snow → 4 blue frames → 7–8 snow frames → blue (N5–N7), randomised within the measured ranges. The hard cut (A, B, E, H) stays as the second variant. Which cause gives which variant is a hypothesis. **Unconfirmed, tunable.** |
 | U3 | Pre-loss frame stutter | Unanswered by pilot; kept as recording artifact (rec). **Unconfirmed, tunable.** |
 | U4 | Live sky grain level | **Partly answered by the pilot:** baseline noise is always present. The live day level still can't be measured, because the encode flattens it. L gives the night level as recorded (N1). Base σ 2–4 levels. **Unconfirmed, tunable.** |
-| U5 | Low light and night look | **Answered by clip L.** Fully characterised in §4 C5: monochrome desaturation, maximum sensor AGC gain noise, skyline silhouette contrast, and full-brightness OSD. |
+| U5 | Low light and night look | **Partly answered by clip L** (C5, N13): monochrome, the strongest grain, sky brighter than ground, a dominant OSD, and level steps with dark dips. L doesn't show point lights, motion blur at night, the camera's gain limit or its shutter time. Those stay **unconfirmed, tunable.** |
 | U6 | Throttle noise coupling | **Answered by pilot.** Noise may depend on throttle, but **rarely**. Throttle coupling is weak and occasional, not a dominant driver. |
 | U7 | Diagonal dotted lines (B) | Unanswered by pilot; kept as airframe-specific interference. **Unconfirmed, tunable.** |
 | U8 | Rolling lines (C) | Unanswered by pilot; kept as motor/ESC harmonic transient. **Unconfirmed, tunable.** |
@@ -392,6 +441,7 @@ It reads as coarse horizontal line-dashes, soft horizontal edges with dark halos
 | U11 | Chroma sparkles in goggles | Unanswered by pilot; kept as link-margin / fiber-threshold impulse noise. **Unconfirmed, tunable.** |
 | U12 | Lens dirt accumulation | Unanswered by pilot; kept as contact-event accumulation. **Unconfirmed, tunable.** |
 | U13 | No-signal screen style | Unanswered by pilot; kept as blue screens per receiver styles (§0). **Unconfirmed, tunable.** |
+| U14 | Night level steps and dark dips (N13) | **New, from clip L.** The trait is real, but its cause is unknown (camera low-light gain, a supply dip, or fiber optical power), and one 7-s clip gives only a rough rate. **Unconfirmed, tunable.** |
 
 ## 7. Simulation signals the feed needs (task 3.2)
 
@@ -403,15 +453,15 @@ This is the input to the later physics↔video interface change. "Field rate" me
 | Motor current, per motor and total (a throttle/current proxy) | A | 50 Hz (field mean and field max) | physics | N3 visibility, N4 amplitude, N1/N2 power-rail term (all weak and occasional, per the pilot) |
 | Motor current step (d/dt of total current) | A/s | 50 Hz (field max) | physics | N4 burst trigger |
 | Battery voltage under load, pack | V | 50 Hz | physics | Brownout: power-loss hard cut (N7), N8 tearing at collapse, OSD |
-| Camera angular velocity (body rates at the camera) | rad/s (3 axes) | per rendered frame (≥ 60 Hz) | physics | C4/C5 motion blur, P5 crawl |
+| Camera angular velocity (body rates at the camera) | rad/s (3 axes) | per rendered frame (≥ 60 Hz) | physics | C4 motion blur (also at night, C5), P5 crawl |
 | Camera vibration (acceleration at the camera mount, RMS in 3 bands: < 50 Hz, 50–200 Hz, > 200 Hz) | m/s² | 50 Hz | physics | Hypothesis only: intermittent sparkles and interference from connector microphonics (N2, N3). Kept as a hook until U8 confirms it |
 | Impact event (peak acceleration, contact point, rigid-body impulse) | m/s² and N·s, per event | event, timestamped at physics rate | physics | Loss on hard impact (N5–N7), single-frame jolt, lens-dirt accumulation (O4) |
 | Fiber tension at the spool exit | N | 50 Hz | physics (tether model) | Link margin → N2 sparkles, N8 tearing, N5–N7 loss |
-| Fiber minimum bend radius along the paid-out length | m | 50 Hz | physics (tether model) | Link margin (macro-bend loss) |
+| Fiber minimum bend radius along the paid-out length | m | 50 Hz | physics (tether model) | Link margin (macro-bend loss); N13 timing if U14 finds a fiber cause |
 | Fiber link state: intact / broken, plus optical margin | enum + dB | 50 Hz (break as an event) | physics (tether model) | N5–N7 loss (how fast the margin falls picks staged or hard cut), N12 trigger, N2 density, N8 |
-| Scene light level (mean and centre-weighted luminance of the rendered frame, before exposure) | cd/m² (or EV) | per rendered frame | renderer (video module) | C1 AE → N1 grain, C3 saturation, C4/C5 exposure & motion blur |
+| Scene light level (mean and centre-weighted luminance of the rendered frame, before exposure) | cd/m² (or EV) | per rendered frame | renderer (video module) | C1 AE → N1 grain, C3 saturation, C4 exposure time; N13 low-light gate |
 | Sun direction relative to the camera and sun visibility (occluded fraction) | unit vector + 0–1 | per rendered frame | renderer and sky (tech-artist) | O3 flare and veiling glare, N11 |
-| Time of day | h (local solar) | on change (user setting) | game settings | Sky and sun, base light level (C5 night mode) |
+| Time of day | h (local solar) | on change (user setting) | game settings | Sky and sun, base light level (C5 night) |
 | OSD state: the 30×16 character grid as currently shown, blinking cells already toggled, built from sim state (armed state, flight timer, battery voltage, link margin, attitude) | characters (30 × 16 cells) | 50 Hz (per field) | game (OSD model, game-developer) | §5 OSD content and blinking warnings |
 
 Every driver named in §1–§4 is covered:
