@@ -15,6 +15,7 @@ The written catalog of what the pilot's own flights show: terrain, vegetation, s
   - `photo` comes from the photos I–K and M–O and is closer to true albedo.
   - Textures should be authored at photo-like albedo. The analog feed effect (tech-artist) adds the feed's shift, and M1 checks the result against the `feed` values.
 - **Physical role** uses these tags: `surface` (landing/liftoff), `obstacle`, `turbulence` (wind shadow or wake), `snag` (catches the fiber or the legs), `gap` (fly-through opening), or `visual only`.
+- **Entry IDs** are a class prefix plus a number: T terrain, V vegetation, W earthworks, B buildings, R vehicles, S small objects. A bare letter is always a clip or a photo.
 
 ## The reference set at a glance
 
@@ -113,7 +114,7 @@ The tree belt is the backbone of the set. It appears in 7 of the 9 clips (A, B, 
 - **Size:** patches the width of the belt corridor, 2–10 m.
 - **Materials / colours:** fine dry loam, beaten bare, with fallen twigs. Thick brown dust haze hangs among the trunks. `feed` #8a7156.
 - **Frequency:** most of the ground in F.
-- **Physical role:** `surface`. The ground is firm but has a loose top layer, so legs can slide on contact at speed. It is a dust source under prop wash (see O6).
+- **Physical role:** `surface`. The ground is firm but has a loose top layer, so legs can slide on contact at speed. It is a dust source under prop wash (see S6).
 
 ### T6 Yard ground with litter
 - **Clips:** C (leaf litter and brick bits), E (roof-tile shards and planks), D (stone slabs).
@@ -293,7 +294,7 @@ The tree belt is the backbone of the set. It appears in 7 of the 9 clips (A, B, 
   - burnt-out windows with soot above them
   - the roof gone down to its timbers
   - a rubble mound 2–4 m high spreading 15–20 m (B5)
-  - contents spilling out (O5)
+  - contents spilling out (S5)
 - **Frequency:** one on the map (pilot). In the reference, only in the urban-edge photos.
 - **Open:** the blocks in I and K look plainer than a textbook Stalin-era block, with no visible cornice or decoration. M1 shows the pilot the massing and damage first. Decoration and storey height are cheap to change afterwards.
 - **Physical role:**
@@ -356,7 +357,7 @@ No vehicle appears in any clip. This section keeps two sources apart, and every 
 - `snag`: torn sheet-metal edges, sprung door skins, folded bonnets, roof racks (M), hanging wiring, burnt seat springs, and the bare tilt hoops of a burnt truck. Torn metal is sharp, so a fiber dragged across it should be more likely to cut than on branches (an input for the tether model).
 - `surface`: an emergency landing spot on a roof. A car roof is about 1.2 × 1.1 m at 1.4–1.5 m, and a truck cab roof about 2.0 × 1.4 m at 2.4–2.7 m. Sheet steel is hard and slippery, and it flexes and pops under load. A dented or pushed-down roof (N) is uneven and may carry broken glass.
 - `gap`: none. Car window openings are about 0.4–0.5 m high, too small for a drone about 0.65 m across. The clearance under a car (0.15–0.22 m) or a truck (0.27–0.40 m) is too low as well.
-- The debris field around a wreck is an uneven `surface` with small rigid pieces (O3, O4, and glass crumbs in §7).
+- The debris field around a wreck is an uneven `surface` with small rigid pieces (S3, S4, and glass crumbs in §7).
 
 **Frequency on the map (a proposal, not the pilot's):** cars far outnumber trucks. Abandoned vehicles stand in yards, at roadsides and at field edges, often overgrown. Destroyed ones stand on roads, tracks and open fields, often near craters or scorched ground.
 
@@ -403,7 +404,7 @@ No vehicle appears in any clip. This section keeps two sources apart, and every 
 
 ## 6. Small objects, debris and lines
 
-### O1 Wires and cables
+### S1 Wires and cables
 - **Clips:**
   - C: an overhead wire above the shed roof, about 3–5 m up.
   - D: a cable sagging low across the weeds, about 0.5–2 m up.
@@ -415,35 +416,35 @@ No vehicle appears in any clip. This section keeps two sources apart, and every 
 - **Frequency:** present near every building clip (C, D, E) and in J and K.
 - **Physical role:** `snag` and `obstacle`. Nearly invisible on the feed, so they need real collision (a thin capsule) and must be able to catch the fiber. The main surprise hazard in the set.
 
-### O2 Poles
+### S2 Poles
 - **Clips:** H (a straight grey pole about 20–25 cm across and about 7–9 m tall at the belt edge, with thin posts in the distance), J (wooden posts), L (poles as silhouettes against the night sky).
 - **Size:** as above.
 - **Materials / colours:** grey weathered wood, or possibly concrete. Some poles carry a crossarm.
 - **Frequency:** a line of them along the belt in H. Single poles and posts elsewhere (J, L).
 - **Physical role:** `obstacle`, and `snag` together with their wires. Poles may lean 5–15°, so leaning variants are part of the class. At night a pole is one of the few readable landmarks (see Night (L)). **Uncertain:** it is not clear whether the H pole is wood or concrete, and whether it still carries wires.
 
-### O3 Loose masonry and roof debris
+### S3 Loose masonry and roof debris
 - **Clips:** C, D, E, I, K. N (broken blocks scattered around the wreck).
 - **Size:** bricks 250 × 120 × 65 mm, tile shards 0.1–0.4 m, stone slabs 0.3–0.8 m.
 - **Materials / colours:** red brick (#b97541 `feed`), clay tile (#825f44 `feed`), grey stone and concrete.
 - **Frequency:** clustered at wall feet and in yards.
 - **Physical role:** rigid small `obstacle`s under the legs (see T6).
 
-### O4 Timber, sheets, tarps and fragments
+### S4 Timber, sheets, tarps and fragments
 - **Clips:** planks in C, E, I, J, K and N. Sheet metal in N. Tarps and plastic in C (light blue) and K (white). In B, a light-coloured fragment about 1 m long lying in the field (a plank or sheet).
 - **Size:** planks 1–3 m, sheets up to 2 × 1 m.
 - **Materials / colours:** grey or brown wood, blue or white plastic.
 - **Frequency:** a few per damaged site.
 - **Physical role:** planks rock and slide under the legs. Tarps are soft, flutter in wind and prop wash, and `snag`.
 
-### O5 Household contents
+### S5 Household contents
 - **Clips:** K (wardrobes, shelving, radiators, appliances), I (sheets and plastic).
 - **Size:** 0.3–2 m.
 - **Materials / colours:** chipboard, metal and textiles.
 - **Frequency:** only at the apartment-block sites.
 - **Physical role:** mostly `visual only`. Large pieces inside rubble act as `obstacle`s.
 
-### O6 Airborne dust
+### S6 Airborne dust
 - **Clips:** F (a thick brown haze in the belt), B (dry dust).
 - **Size:** fills the belt corridor to 2–4 m high.
 - **Materials / colours:** brown loam dust matching T5.
@@ -509,8 +510,8 @@ These are the parts to include, each tied to its reference. This is a content li
 | Tree belts crossing the fields, several with a trench along them | V1, V2, T4, W2 | F, G, H (D; B, A and L on the horizon) |
 | Dark fields, both tilled and burnt | T3a, T3b | G, pilot |
 | Dry cratered field | T2, W1 | B |
-| Village: two houses with yards (adobe and brick), sheds, a cellar, fruit trees, weeds, fences, wires and poles | B1, B2, B3, W4, V3, V4, T6, T7, B6, O1, O2 | C, D, E, J |
-| Urban edge: the one destroyed Stalin-era block with its rubble mound | B4, B5, T8, O5 | I, K |
+| Village: two houses with yards (adobe and brick), sheds, a cellar, fruit trees, weeds, fences, wires and poles | B1, B2, B3, W4, V3, V4, T6, T7, B6, S1, S2 | C, D, E, J |
+| Urban edge: the one destroyed Stalin-era block with its rubble mound | B4, B5, T8, S5 | I, K |
 | Vehicles, abandoned and destroyed, on roads and tracks, in yards and at field edges | R0–R5 | M, N, O, pilot |
 
 ---
