@@ -1,9 +1,13 @@
+using System;
 using Godot;
 
 /// Review sandbox: sky, sun and ground placeholder.
 /// `-- --scene res://…` instances that scene at the origin in place of the ground placeholder.
+/// F12 saves a screenshot to user://screenshots/.
 public partial class Sandbox : Node3D
 {
+    public string LastScreenshot { get; private set; }
+
     public override void _Ready()
     {
         string[] args = OS.GetCmdlineUserArgs();
@@ -23,6 +27,27 @@ public partial class Sandbox : Node3D
         }
     }
 
+    public override void _UnhandledInput(InputEvent e)
+    {
+        if (e.IsActionPressed("screenshot"))
+            SaveScreenshot();
+    }
+
+    void SaveScreenshot()
+    {
+        string dir = ProjectSettings.GlobalizePath("user://screenshots");
+        DirAccess.MakeDirRecursiveAbsolute(dir);
+        string path = $"{dir}/{DateTime.Now:yyyyMMdd-HHmmss-fff}.png";
+        Error error = GetViewport().GetTexture().GetImage().SavePng(path);
+        if (error != Error.Ok)
+        {
+            GD.PrintErr($"ERROR: screenshot not saved to {path}: {error}");
+            return;
+        }
+        LastScreenshot = path;
+        GD.Print($"Screenshot saved: {path}");
+    }
+
     void LoadScene(string path)
     {
         var scene = ResourceLoader.Exists(path) ? ResourceLoader.Load(path) as PackedScene : null;
@@ -38,7 +63,7 @@ public partial class Sandbox : Node3D
 
     static string ArgValue(string[] args, string name)
     {
-        int i = System.Array.IndexOf(args, name);
+        int i = Array.IndexOf(args, name);
         return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
     }
 }
