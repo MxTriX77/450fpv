@@ -2,7 +2,7 @@
 
 ## 1. Engine
 
-- [ ] 1.1 [orchestrator] With the user's permission, reinstall Godot 4.7.2 .NET via WinGet and record the console exe path as `GODOT` in the README. Verify that `& $env:GODOT --version` prints `4.7.2.stable.mono`
+- [x] 1.1 [orchestrator] With the user's permission, reinstall Godot 4.7.2 .NET via WinGet and record the console exe path as `GODOT` in the README. Verify that `& $env:GODOT --version` prints `4.7.2.stable.mono`
 
 ## 2. Project
 
