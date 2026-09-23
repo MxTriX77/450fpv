@@ -31,5 +31,5 @@
 
 ## 5. Review
 
-- [ ] 5.1 [user-review] The pilot flies `sample_patch` in noclip and comments on the surfaces, the scale and the straw/stem look. This is a format and feel check, not final art
+- [ ] 5.1 [orchestrator] Fly `sample_patch` in noclip, check the surfaces, scale and straw/stem look against the reference notes, and record the findings in `review.md`. This is not a pilot gate: the pilot sees terrain at UAT-1
 - [ ] 5.2 [qa-engineer] Review against spec scenarios
