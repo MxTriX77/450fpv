@@ -21,7 +21,13 @@ If the format is decided late, every patch built for M1 has to be rebuilt.
 - A global **surface table** (`game/maps/surfaces.json`) with physical parameters in SI units for the 9 surfaces catalogued in `docs/reference-notes/terrain.md` §7. The physics engineer signs off the fields.
 - An **asset catalog** (`game/assets/catalog.json`) that gives each placeable object its scene, collision and physical tags (snag hazard, wind porosity, fly-through gaps).
 - **Deterministic micro-detail.** Individual stems, straws and twigs are never stored. They are generated from a hash of world position and map seed, the same for visuals and for physics, so a landing replayed from the physics log touches exactly the same straws.
-- A **world query API** in C# (`game/src/world/`) that physics calls every sub-step: height, normal, surface, cover, micro-detail near a point, and wind-obstacle data.
+- A **world query API** in pure C# (`game/src/world/`) that physics calls every 1 kHz step:
+  - batch ground samples: terrain, relief, mat, cover, pitfalls
+  - micro-detail near a point
+  - swept static contacts and raycasts against objects and wires, with contact materials (D-010)
+  - wind obstacles and gaps
+  - a content hash for replay
+- An **object material table** in the catalog (steel, sheet metal, timber, masonry, cable), with **optional start points** in the manifest where the launch rails go when legs are off.
 - A **derived wind-obstacle layer**: obstacle height and porosity, generated from the terrain and objects at import. The physics engineer's future turbulence model reads it.
 - A **validator** (`tools/map/validate_map.py`), and `-- --map <id>` loading in the review sandbox.
 - A **sample map** `sample_patch` (256 m × 256 m) exercising every layer, for the user to fly in noclip.

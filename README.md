@@ -50,6 +50,13 @@ Self-checks, which exit non-zero on failure:
 & $env:GODOT --path game -- --selftest overlay            # opens a window for about 12 s: F3, F12 and the frame budget
 ```
 
+Terrain-only frame budget on the synthetic 4 km map (D-009). `flypath` flies a fixed 12 s path and prints fps, 1 % low, draw calls and video memory:
+
+```powershell
+python tools/map/make_synthetic.py build/maps/synthetic_4km  # about 12 s, same bytes every run
+& $env:GODOT --path game --resolution 1920x1080 -- --scene res://scenes/world/terrain_bench.tscn --package "$PWD/build/maps/synthetic_4km" --selftest flypath
+```
+
 ### Sandbox controls
 
 The noclip camera has no collision and flies through everything. Close the window to quit.

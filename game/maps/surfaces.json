@@ -1,0 +1,115 @@
+{
+  "status": "starting values, physics to tune",
+  "surfaces": [
+    {
+      "id": "meadow_sod",
+      "index": 1,
+      "soil": { "bearing_n_per_m3": 7.0e6, "damping_ns_per_m3": 3.7e5, "friction_static": 0.55, "friction_kinetic": 0.45, "max_sink_m": 0.05, "porosity": 0.55 },
+      "micro_relief": { "amplitude_m": 0.02, "wavelength_m": 0.4 },
+      "pitfalls": { "density_per_m2": 0.01, "depth_m": [0.05, 0.3], "radius_m": [0.05, 1.0] },
+      "cover": [
+        { "type": "grass", "height_m": [0.2, 0.6], "stems_per_m2": 400, "diameter_m": [0.002, 0.004], "lateral_stiffness_n_per_m": 0.1, "hook_probability": 0.02 }
+      ],
+      "dust_emission": 0.05,
+      "material": { "albedo_srgb": "#6f6b45", "roughness": 0.95 }
+    },
+    {
+      "id": "dry_crust",
+      "index": 2,
+      "soil": { "bearing_n_per_m3": 5.0e7, "damping_ns_per_m3": 2.5e5, "friction_static": 0.7, "friction_kinetic": 0.6, "max_sink_m": 0.01, "porosity": 0.45 },
+      "micro_relief": { "amplitude_m": 0.01, "wavelength_m": 0.8 },
+      "pitfalls": { "density_per_m2": 0.004, "depth_m": [0.03, 0.15], "radius_m": [0.05, 0.3] },
+      "cover": [
+        { "type": "grass", "height_m": [0.1, 0.4], "stems_per_m2": 40, "diameter_m": [0.001, 0.003], "lateral_stiffness_n_per_m": 0.4, "hook_probability": 0.03 }
+      ],
+      "dust_emission": 0.8,
+      "material": { "albedo_srgb": "#9a7d5a", "roughness": 0.9 }
+    },
+    {
+      "id": "crater_spoil",
+      "index": 3,
+      "soil": { "bearing_n_per_m3": 2.8e6, "damping_ns_per_m3": 3.2e5, "friction_static": 0.8, "friction_kinetic": 0.65, "max_sink_m": 0.12, "porosity": 0.55 },
+      "micro_relief": { "amplitude_m": 0.05, "wavelength_m": 0.5 },
+      "pitfalls": { "density_per_m2": 0.02, "depth_m": [0.05, 0.2], "radius_m": [0.1, 0.4] },
+      "cover": [],
+      "dust_emission": 0.6,
+      "material": { "albedo_srgb": "#6e5a44", "roughness": 1.0 }
+    },
+    {
+      "id": "belt_straw",
+      "index": 4,
+      "soil": { "bearing_n_per_m3": 4.7e6, "damping_ns_per_m3": 1.8e5, "friction_static": 0.5, "friction_kinetic": 0.4, "max_sink_m": 0.08, "porosity": 0.55 },
+      "micro_relief": { "amplitude_m": 0.04, "wavelength_m": 0.7 },
+      "pitfalls": { "density_per_m2": 0.02, "depth_m": [0.1, 0.3], "radius_m": [0.05, 0.3] },
+      "cover": [
+        { "type": "straw", "height_m": [0.3, 1.0], "stems_per_m2": 250, "diameter_m": [0.002, 0.005], "lateral_stiffness_n_per_m": 0.3, "hook_probability": 0.15 },
+        { "type": "grass", "height_m": [0.5, 1.2], "stems_per_m2": 60, "diameter_m": [0.002, 0.005], "lateral_stiffness_n_per_m": 0.08, "hook_probability": 0.05 },
+        { "type": "twigs", "height_m": [0.3, 1.0], "stems_per_m2": 2, "diameter_m": [0.005, 0.02], "lateral_stiffness_n_per_m": 100, "hook_probability": 0.1 }
+      ],
+      "dust_emission": 0.1,
+      "material": { "albedo_srgb": "#7a7055", "roughness": 0.95 }
+    },
+    {
+      "id": "belt_bare",
+      "index": 5,
+      "soil": { "bearing_n_per_m3": 1.4e7, "damping_ns_per_m3": 3.5e5, "friction_static": 0.5, "friction_kinetic": 0.4, "max_sink_m": 0.03, "porosity": 0.47 },
+      "micro_relief": { "amplitude_m": 0.015, "wavelength_m": 1.0 },
+      "pitfalls": { "density_per_m2": 0.005, "depth_m": [0.05, 0.15], "radius_m": [0.05, 0.3] },
+      "cover": [
+        { "type": "twigs", "height_m": [0.3, 2.0], "stems_per_m2": 1, "diameter_m": [0.005, 0.03], "lateral_stiffness_n_per_m": 100, "hook_probability": 0.08 },
+        { "type": "litter", "height_m": [0.005, 0.02], "stems_per_m2": 40, "diameter_m": [0.03, 0.08], "lateral_stiffness_n_per_m": 0.01, "hook_probability": 0.0 }
+      ],
+      "dust_emission": 0.9,
+      "material": { "albedo_srgb": "#7e6a55", "roughness": 0.95 }
+    },
+    {
+      "id": "tilled",
+      "index": 6,
+      "soil": { "bearing_n_per_m3": 4.0e6, "damping_ns_per_m3": 3.3e5, "friction_static": 0.75, "friction_kinetic": 0.6, "max_sink_m": 0.1, "porosity": 0.6 },
+      "micro_relief": { "amplitude_m": 0.035, "wavelength_m": 0.7 },
+      "pitfalls": { "density_per_m2": 0.01, "depth_m": [0.05, 0.15], "radius_m": [0.1, 0.3] },
+      "cover": [
+        { "type": "straw", "height_m": [0.1, 0.3], "stems_per_m2": 80, "diameter_m": [0.002, 0.004], "lateral_stiffness_n_per_m": 0.3, "hook_probability": 0.05 }
+      ],
+      "dust_emission": 0.4,
+      "material": { "albedo_srgb": "#5e5446", "roughness": 1.0 }
+    },
+    {
+      "id": "yard_litter",
+      "index": 7,
+      "soil": { "bearing_n_per_m3": 3.5e7, "damping_ns_per_m3": 4.2e5, "friction_static": 0.45, "friction_kinetic": 0.35, "max_sink_m": 0.015, "porosity": 0.4 },
+      "micro_relief": { "amplitude_m": 0.015, "wavelength_m": 0.3 },
+      "pitfalls": { "density_per_m2": 0.005, "depth_m": [0.03, 0.1], "radius_m": [0.05, 0.2] },
+      "cover": [
+        { "type": "litter", "height_m": [0.01, 0.03], "stems_per_m2": 300, "diameter_m": [0.04, 0.12], "lateral_stiffness_n_per_m": 0.01, "hook_probability": 0.0 },
+        { "type": "twigs", "height_m": [0.2, 0.8], "stems_per_m2": 1, "diameter_m": [0.005, 0.02], "lateral_stiffness_n_per_m": 100, "hook_probability": 0.05 }
+      ],
+      "dust_emission": 0.2,
+      "material": { "albedo_srgb": "#8a6d4c", "roughness": 0.9 }
+    },
+    {
+      "id": "rubble",
+      "index": 8,
+      "soil": { "bearing_n_per_m3": 1.0e8, "damping_ns_per_m3": 2.4e5, "friction_static": 0.7, "friction_kinetic": 0.6, "max_sink_m": 0.005, "porosity": 0.4 },
+      "micro_relief": { "amplitude_m": 0.12, "wavelength_m": 0.6 },
+      "pitfalls": { "density_per_m2": 0.05, "depth_m": [0.1, 0.4], "radius_m": [0.1, 0.4] },
+      "cover": [
+        { "type": "twigs", "height_m": [0.5, 2.0], "stems_per_m2": 0.3, "diameter_m": [0.02, 0.08], "lateral_stiffness_n_per_m": 1000, "hook_probability": 0.15 }
+      ],
+      "dust_emission": 0.5,
+      "material": { "albedo_srgb": "#8d8172", "roughness": 0.9 }
+    },
+    {
+      "id": "weeds",
+      "index": 9,
+      "soil": { "bearing_n_per_m3": 1.4e7, "damping_ns_per_m3": 4.4e5, "friction_static": 0.6, "friction_kinetic": 0.5, "max_sink_m": 0.04, "porosity": 0.5 },
+      "micro_relief": { "amplitude_m": 0.03, "wavelength_m": 0.5 },
+      "pitfalls": { "density_per_m2": 0.02, "depth_m": [0.05, 0.3], "radius_m": [0.05, 0.3] },
+      "cover": [
+        { "type": "grass", "height_m": [0.5, 1.5], "stems_per_m2": 60, "diameter_m": [0.005, 0.015], "lateral_stiffness_n_per_m": 1.5, "hook_probability": 0.2 }
+      ],
+      "dust_emission": 0.05,
+      "material": { "albedo_srgb": "#6d6a38", "roughness": 0.95 }
+    }
+  ]
+}

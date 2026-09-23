@@ -1,0 +1,64 @@
+{
+  "assets": {
+    "house_box": {
+      "type": "object",
+      "scene": "res://assets/models/placeholders/house_box.tscn",
+      "collision": [ { "shape": "box", "size_m": [10.0, 5.0, 6.0], "position_m": [0.0, 2.5, 0.0] } ],
+      "snag_hazard": false,
+      "wind_porosity": 0.0,
+      "gaps": []
+    },
+    "shed_box": {
+      "type": "object",
+      "scene": "res://assets/models/placeholders/shed_box.tscn",
+      "collision": [ { "shape": "box", "size_m": [4.0, 2.3, 3.0], "position_m": [0.0, 1.15, 0.0] } ],
+      "snag_hazard": false,
+      "wind_porosity": 0.0,
+      "gaps": []
+    },
+    "tree_proxy": {
+      "type": "object",
+      "scene": "res://assets/models/placeholders/tree_proxy.tscn",
+      "collision": [ { "shape": "cylinder", "radius_m": 0.1, "height_m": 6.0, "position_m": [0.0, 3.0, 0.0] } ],
+      "snag_hazard": true,
+      "wind_porosity": 0.5,
+      "gaps": []
+    },
+    "pole": {
+      "type": "object",
+      "scene": "res://assets/models/placeholders/pole.tscn",
+      "collision": [ { "shape": "cylinder", "radius_m": 0.11, "height_m": 8.0, "position_m": [0.0, 4.0, 0.0] } ],
+      "snag_hazard": true,
+      "wind_porosity": 0.0,
+      "gaps": []
+    },
+    "gate_frame": {
+      "type": "object",
+      "scene": "res://assets/models/placeholders/gate_frame.tscn",
+      "collision": [
+        { "shape": "box", "size_m": [0.12, 2.1, 0.12], "position_m": [-0.86, 1.05, 0.0] },
+        { "shape": "box", "size_m": [0.12, 2.1, 0.12], "position_m": [0.86, 1.05, 0.0] },
+        { "shape": "box", "size_m": [1.84, 0.12, 0.12], "position_m": [0.0, 2.04, 0.0] }
+      ],
+      "snag_hazard": true,
+      "wind_porosity": 0.8,
+      "gaps": [ { "name": "gate", "center_m": [0.0, 0.99, 0.0], "width_m": 1.6, "height_m": 1.98, "yaw_deg": 0.0 } ]
+    },
+    "household_junk": {
+      "type": "object",
+      "scene": "res://assets/models/placeholders/household_junk.tscn",
+      "visual_only": true,
+      "snag_hazard": false,
+      "wind_porosity": 1.0,
+      "gaps": []
+    },
+    "cable": {
+      "type": "wire",
+      "scene": "res://assets/models/placeholders/wire_segment.tscn",
+      "collision": [ { "shape": "capsule_chain", "segment_m": 0.5 } ],
+      "snag_hazard": true,
+      "wind_porosity": 1.0,
+      "gaps": []
+    }
+  }
+}

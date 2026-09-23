@@ -14,11 +14,15 @@ A map SHALL be a folder `game/maps/<id>/` containing:
 - `cover.png` (cover densities)
 - `objects.json` (placed objects and wires)
 
-The surface table `game/maps/surfaces.json` and the asset catalog `game/assets/catalog.json` SHALL be shared by all maps. A map side SHALL be at most 8192 m.
+The surface table `game/maps/surfaces.json` and the asset catalog `game/assets/catalog.json` SHALL be shared by all maps. A map side SHALL be a multiple of 256 m (the collision chunk size) and at most 8192 m.
 
 #### Scenario: Complete package
 - **WHEN** the validator runs on `game/maps/sample_patch/`
 - **THEN** it finds all five files and exits 0
+
+#### Scenario: Bad map size
+- **WHEN** the manifest declares a side that is not a multiple of 256 m, or is larger than 8192 m
+- **THEN** the validator exits non-zero and reports the side and the rule
 
 #### Scenario: Missing layer
 - **WHEN** any of the five files is missing
@@ -47,25 +51,34 @@ The manifest SHALL declare every resolution, dimension, scale, offset and a 32-b
 - **THEN** the validator exits non-zero and reports the index and the first pixel where it appears
 
 ### Requirement: Surface table
-Each surface SHALL define:
+The table SHALL declare one soil reference contact diameter (m) at which the soil moduli are defined. Each surface SHALL define:
 - `id` and `index`
-- soil contact parameters in SI units: bearing stiffness (N/m³), damping (N·s/m³), static and kinetic friction, maximum sink (m), porosity (0–1)
-- micro-relief: roughness amplitude and wavelength (m)
+- soil contact parameters in SI units: bearing stiffness (N/m³), damping (N·s/m³), static and kinetic friction, maximum sink (m), and an unload stiffness ratio (≥ 1) for plastic sink
+- micro-relief: roughness amplitude and wavelength (m), plus optional directional ridges (amplitude and spacing in m, azimuth in degrees)
 - pitfalls: density (per m²), depth range and radius range (m)
-- cover: type, height range (m), stems per m², stem diameter (m), lateral stiffness (N/m), hook probability (0–1)
+- per cover entry:
+  - type, height range (m), elements per m², element diameter (m)
+  - lateral stiffness (N/m): the tip stiffness of an element of mean length and mean diameter
+  - hook probability (0–1) and hook release force range (N)
+  - an optional mat: depth range (m), compressive modulus (Pa), damping ratio, static and kinetic friction
 - dust emission (0–1) and a visual material
 
 The initial table SHALL contain the 9 surfaces of `docs/reference-notes/terrain.md` §7, with values signed off by the physics engineer as starting points.
 
 #### Scenario: Required fields
-- **WHEN** any surface lacks a required field or has a value outside its physical range (e.g. negative stiffness, porosity > 1)
+- **WHEN** any surface lacks a required field or has a value outside its physical range (e.g. negative stiffness, unload ratio < 1, mat depth min > max, kinetic friction > static, zero element length or diameter on a cover that has elements)
 - **THEN** the validator exits non-zero and names the surface and the field
 
 ### Requirement: Asset catalog and objects
-Every object in `objects.json` SHALL reference an asset id from the catalog, with position (m), rotation (yaw, pitch and roll in degrees) and uniform scale. Catalog entries SHALL give:
+Every object in `objects.json` SHALL reference an asset id from the catalog, with position (m), rotation (yaw, pitch and roll in degrees) and uniform scale.
+The catalog SHALL hold a shared material table. Each material gives static and kinetic friction, an optional local contact stiffness (N/m) with damping ratio (absent = rigid), and an edge radius (m).
+Catalog entries SHALL give:
 - the scene path
-- collision: required unless the asset is tagged `visual_only`
-- `snag_hazard`, `wind_porosity` (0 = solid to 1 = open)
+- collision as primitive shapes (box, sphere, capsule, cylinder): required unless the asset is tagged `visual_only`
+- a `material` for every asset with collision, which any shape may override
+- `snag_hazard`
+- an optional `wind_volume` (primitive shapes), used instead of collision for wind obstacles
+- `wind_porosity`: the optical porosity of the wind volume seen side-on (0 = solid to 1 = open)
 - any named fly-through gaps
 
 Wires SHALL be objects of type `wire`, with a point list, sag (m) and diameter (m).
@@ -74,9 +87,20 @@ Wires SHALL be objects of type `wire`, with a point list, sag (m) and diameter (
 - **WHEN** an object references an asset id that is not in the catalog
 - **THEN** the validator exits non-zero and names the object index and the id
 
+#### Scenario: Unknown material
+- **WHEN** an asset or shape names a material id missing from the material table
+- **THEN** the validator exits non-zero and names the asset and the id
+
 #### Scenario: Out of bounds
 - **WHEN** an object lies outside the map area
 - **THEN** the validator exits non-zero and names the object
+
+### Requirement: Start points
+The manifest SHALL accept an optional list of start points, each with a position (m) and yaw (degrees). When legs are off, the game places the launch rails at the chosen start point.
+
+#### Scenario: Start outside the map
+- **WHEN** a start point lies outside the map area
+- **THEN** the validator exits non-zero and names the start point
 
 ### Requirement: Versioning
 The manifest SHALL carry `format_version` as `major.minor`. The validator and the loader SHALL reject a major version they don't support, with a message naming both versions.
