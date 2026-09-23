@@ -3,12 +3,14 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using Godot;
 
-/// `-- --selftest worldquery`: every world-query scenario of SampleGround (task 3.1) on game/maps/sample_patch, plus
-/// uniform in-memory worlds for the per-surface checks. Prints one PASS/FAIL line per scenario with its numbers and exits
-/// non-zero on any failure.
+/// `-- --selftest worldquery`: every world-query scenario of SampleGround (task 3.1) and MicroDetailNear (task 3.2) on
+/// game/maps/sample_patch, plus uniform in-memory worlds for the per-surface checks. Prints one PASS/FAIL line per
+/// scenario with its numbers and exits non-zero on any failure. `-- --selftest worldquery-digest --digest-out <file>` is
+/// the second process of the replay-identity check.
 public static class WorldQuerySelfTest
 {
     const string Package = "res://maps/sample_patch";
@@ -41,6 +43,12 @@ public static class WorldQuerySelfTest
             pass &= ReliefRms(world, surfaces);
             pass &= Pitfalls(world, dir, surfaces);
             pass &= OutsideMap(world);
+            pass &= ReplayIdentity(world);
+            pass &= Overlap(world);
+            pass &= CrossingStraw(world);
+            pass &= Density(world, surfaces);
+            pass &= Overflow(world);
+            pass &= ElementRules(world);
             Timings(world);
         }
         catch (Exception e)
@@ -50,6 +58,17 @@ public static class WorldQuerySelfTest
         }
         GD.Print($"selftest worldquery: {(pass ? "ALL PASS" : "FAILED")}");
         tree.Quit(pass ? 0 : 1);
+    }
+
+    /// The second process of the replay-identity check: prints the digest and writes it to `--digest-out`.
+    public static void Digest(Node sandbox, string outPath)
+    {
+        WorldQuery world = WorldQuery.Load(ProjectSettings.GlobalizePath(Package), ProjectSettings.GlobalizePath(SurfacesPath));
+        string digest = ReplayDigest(world).ToString("x16");
+        GD.Print($"selftest worldquery-digest: {digest}");
+        if (outPath != null)
+            File.WriteAllText(outPath, digest);
+        sandbox.GetTree().Quit(0);
     }
 
     static bool Check(string scenario, bool ok, string numbers)
@@ -495,6 +514,224 @@ public static class WorldQuerySelfTest
 
     static double Clamp(double v, double bound) => double.IsNaN(v) ? -bound : Math.Clamp(v, -bound, bound);
 
+    // ---------------------------------------------------------------- 3.2 MicroDetailNear
+
+    /// Query centres on every sample_patch surface with cover, 2 m radius, all kinds.
+    static readonly Double3[] Centres =
+    {
+        new(-100, 0, -80), new(0, 0, -60), new(-20, 0, -54), new(40, 0, 20), new(64, 0, 40), new(-60, 0, 58.5), new(100, 0, 100),
+    };
+
+    /// FNV-1a over the raw bytes of every element list and ground sample of a fixed set of queries.
+    static ulong ReplayDigest(WorldQuery world)
+    {
+        ulong hash = 14695981039346656037UL;
+        void Add(ReadOnlySpan<byte> bytes)
+        {
+            foreach (byte b in bytes)
+                hash = (hash ^ b) * 1099511628211UL;
+        }
+        var buffer = new MicroElement[40000];
+        var ground = new GroundSample[64];
+        var points = new XZ[64];
+        foreach (Double3 c in Centres)
+        {
+            Double3 centre = At(world, c);
+            int count = world.MicroDetailNear(centre, 2.0, KindMask.All, buffer);
+            Add(BitConverter.GetBytes(count));
+            Add(MemoryMarshal.AsBytes(buffer.AsSpan(0, Math.Min(count, buffer.Length))));
+            for (int i = 0; i < points.Length; i++)
+                points[i] = new XZ(c.X + 0.37 * i, c.Z - 0.21 * i);
+            world.SampleGround(points, ground);
+            Add(MemoryMarshal.AsBytes(ground.AsSpan()));
+        }
+        return hash;
+    }
+
+    /// A centre at the ground height under (x, z) + 0.3 m.
+    static Double3 At(WorldQuery world, Double3 c)
+    {
+        var g = new GroundSample[1];
+        world.SampleGround(new[] { new XZ(c.X, c.Z) }, g);
+        return new Double3(c.X, g[0].GroundHeight + 0.3, c.Z);
+    }
+
+    /// The same queries in a second, separate Godot process must give bit-identical results.
+    static bool ReplayIdentity(WorldQuery world)
+    {
+        string mine = ReplayDigest(world).ToString("x16");
+        string outPath = Path.Combine(OS.GetUserDataDir(), "worldquery_digest.txt");
+        File.Delete(outPath);
+        var output = new Godot.Collections.Array();
+        var watch = Stopwatch.StartNew();
+        int exit = OS.Execute(OS.GetExecutablePath(), new[] { "--headless", "--path", ProjectSettings.GlobalizePath("res://"), "--",
+            "--selftest", "worldquery-digest", "--digest-out", outPath }, output, true);
+        string theirs = File.Exists(outPath) ? File.ReadAllText(outPath).Trim() : "(none)";
+        return Check("replay identity across two processes", exit == 0 && theirs == mine,
+            $"this process {mine}, a separate Godot process ({watch.ElapsedMilliseconds} ms, exit {exit}) {theirs} over "
+            + $"{Centres.Length} MicroDetailNear queries (r 2 m, all kinds) and {Centres.Length * 64} ground samples");
+    }
+
+    /// Two overlapping queries: every element of the first that meets the second sphere (tested independently here) is
+    /// in the second, byte for byte, and the shared elements keep the same relative order.
+    static bool Overlap(WorldQuery world)
+    {
+        bool pass = true;
+        foreach (Double3 c in new[] { Centres[0], Centres[2], Centres[3] })
+        {
+            Double3 a = At(world, c), b = new(a.X + 1.3, a.Y + 0.2, a.Z - 0.9);
+            MicroElement[] first = Query(world, a, 2.0, KindMask.All), second = Query(world, b, 1.5, KindMask.All);
+            var index = new Dictionary<ulong, int>();
+            for (int i = 0; i < second.Length; i++)
+                index[second[i].Id] = i;
+            int shared = 0, missing = 0, differing = 0, last = -1;
+            bool ordered = true;
+            foreach (MicroElement e in first)
+            {
+                bool meets = Meets(e, b, 1.5 - 1e-6); // the stored direction is float; stay clear of the boundary
+                if (!index.TryGetValue(e.Id, out int j))
+                {
+                    missing += meets ? 1 : 0;
+                    continue;
+                }
+                shared++;
+                differing += Bytes(e).SequenceEqual(Bytes(second[j])) ? 0 : 1;
+                ordered &= j > last;
+                last = j;
+            }
+            pass &= Check($"overlapping queries agree at ({c.X}, {c.Z})", shared > 0 && missing == 0 && differing == 0 && ordered,
+                $"{first.Length} and {second.Length} elements, {shared} in both, {missing} that meet both spheres but are "
+                + $"missing from the second, {differing} differing, same relative order {ordered}");
+        }
+        return pass;
+    }
+
+    static byte[] Bytes(MicroElement e) => MemoryMarshal.AsBytes(new ReadOnlySpan<MicroElement>(in e)).ToArray();
+
+    static MicroElement[] Query(WorldQuery world, Double3 centre, double radius, KindMask kinds)
+    {
+        var buffer = new MicroElement[200000];
+        int count = world.MicroDetailNear(centre, radius, kinds, buffer);
+        if (count > buffer.Length)
+            throw new InvalidOperationException($"test buffer too small for {count} elements");
+        return buffer[..count];
+    }
+
+    static bool Meets(MicroElement e, Double3 c, double radius)
+    {
+        double rx = c.X - e.Base.X, ry = c.Y - e.Base.Y, rz = c.Z - e.Base.Z;
+        double t = Math.Clamp(rx * e.Direction.X + ry * e.Direction.Y + rz * e.Direction.Z, 0, e.Length);
+        double qx = rx - t * e.Direction.X, qy = ry - t * e.Direction.Y, qz = rz - t * e.Direction.Z;
+        return Math.Sqrt(qx * qx + qy * qy + qz * qz) <= radius + e.Diameter / 2;
+    }
+
+    /// A lying straw of at least 0.9 m in belt_straw; a 0.1 m sphere on its axis 80 % of the way to the tip, so its base
+    /// is well outside the sphere. The straw must be returned.
+    static bool CrossingStraw(WorldQuery world)
+    {
+        MicroElement straw = Query(world, At(world, Centres[1]), 2.0, KindMask.Straw).First(e => e.Length >= 0.9f);
+        double t = 0.8 * straw.Length;
+        var centre = new Double3(straw.Base.X + t * straw.Direction.X, straw.Base.Y + t * straw.Direction.Y,
+            straw.Base.Z + t * straw.Direction.Z);
+        MicroElement[] found = Query(world, centre, 0.1, KindMask.Straw);
+        double baseDistance = Math.Sqrt(Math.Pow(straw.Base.X - centre.X, 2) + Math.Pow(straw.Base.Y - centre.Y, 2)
+            + Math.Pow(straw.Base.Z - centre.Z, 2));
+        return Check("crossing straw is found", found.Any(e => e.Id == straw.Id) && baseDistance > 0.1 + straw.Length * 0.5,
+            $"straw 0x{straw.Id:x16}, {straw.Length:0.000} m long, rooted {baseDistance:0.000} m from the centre of a 0.1 m "
+            + $"sphere it crosses: returned among {found.Length} straws");
+    }
+
+    /// Elements per m² by base position over 100 m² (10 × 10 m) of belt_straw at cover density 1.0, on a uniform world and
+    /// on the straw channel of sample_patch (which paints straw at 1.0), vs the table, ±5 %.
+    static bool Density(WorldQuery sample, string surfacesPath)
+    {
+        SurfaceParams[] table = SurfaceParams.ParseTable(File.ReadAllText(surfacesPath));
+        SurfaceParams belt = table.First(s => s.Id == "belt_straw");
+        bool pass = DensityOn(Uniform(table, belt.Index, sample.Seed), belt, 20, 20, 10, KindMask.All, "uniform world");
+        pass &= DensityOn(sample, belt, -60, -63.5, 20, KindMask.Straw, "sample_patch straw band, 20 × 5 m");
+        return pass;
+    }
+
+    static bool DensityOn(WorldQuery world, SurfaceParams belt, double x0, double z0, double width, KindMask kinds, string label)
+    {
+        double depth = 100 / width;
+        Double3 centre = At(world, new Double3(x0 + width / 2, 0, z0 + depth / 2));
+        MicroElement[] all = Query(world, centre, Math.Sqrt(width * width + depth * depth) / 2 + 0.5, kinds);
+        bool pass = true;
+        string numbers = "";
+        for (int k = 0; k < 4; k++)
+        {
+            if (((int)kinds & 1 << k) == 0 || belt.Cover[k] == null)
+                continue;
+            int n = all.Count(e => (int)e.Kind == k && e.Base.X >= x0 && e.Base.X < x0 + width && e.Base.Z >= z0 && e.Base.Z < z0 + depth);
+            double perM2 = n / 100.0, expected = belt.Cover[k].Density;
+            pass &= Math.Abs(perM2 - expected) <= 0.05 * expected;
+            numbers += $"{(CoverKind)k} {perM2:0.00}/m² vs {expected}/m² ({(perM2 / expected - 1) * 100:+0.00;-0.00} %); ";
+        }
+        return Check($"density matches the surface, belt_straw ({label})", pass, numbers + "over 100 m² (limit ±5 %)");
+    }
+
+    /// A buffer smaller than the result: it holds the first elements in canonical order and the count exceeds it.
+    static bool Overflow(WorldQuery world)
+    {
+        Double3 centre = At(world, Centres[0]);
+        MicroElement[] full = Query(world, centre, 2.0, KindMask.All);
+        var small = new MicroElement[full.Length / 3];
+        int count = world.MicroDetailNear(centre, 2.0, KindMask.All, small);
+        bool same = small.Select(Bytes).SequenceEqual(full[..small.Length].Select(Bytes), new BytesComparer());
+        return Check("overflow reported", count == full.Length && count > small.Length && same,
+            $"buffer {small.Length}, returned count {count} (full query {full.Length}), buffer equals the first {small.Length} "
+            + $"of the full list: {same}");
+    }
+
+    sealed class BytesComparer : IEqualityComparer<byte[]>
+    {
+        public bool Equals(byte[] a, byte[] b) => a.AsSpan().SequenceEqual(b);
+        public int GetHashCode(byte[] a) => a.Length;
+    }
+
+    /// Per-element rules (W-5, W-6) on every returned element of the query centres: canonical order, unique ids, base on
+    /// GroundHeight (standing grass) or SupportTop (lying), unit direction, ranges, scaled tip stiffness, hook release.
+    static bool ElementRules(WorldQuery world)
+    {
+        int total = 0, bad = 0;
+        string first = "";
+        var ids = new HashSet<ulong>();
+        var ground = new GroundSample[1];
+        foreach (Double3 c in Centres)
+        {
+            MicroElement[] elements = Query(world, At(world, c), 2.0, KindMask.All);
+            ulong previousKey = 0;
+            foreach (MicroElement e in elements)
+            {
+                total++;
+                CoverParams p = world.Surface(e.Surface).Cover[(int)e.Kind];
+                world.SampleGround(new[] { new XZ(e.Base.X, e.Base.Z) }, ground);
+                double baseY = e.Kind == CoverKind.Grass ? ground[0].GroundHeight : ground[0].SupportTop;
+                double dr = e.Diameter / ((p.DiameterMin + p.DiameterMax) / 2), lr = (p.LengthMin + p.LengthMax) / 2 / e.Length;
+                double stiffness = p.TipStiffness * Math.Pow(dr, 4) * Math.Pow(lr, 3);
+                int cx = (int)((e.Id >> 11) & 0x1FFFF) - 65536, cz = (int)((e.Id >> 28) & 0x1FFFF) - 65536;
+                ulong key = (ulong)(cz + 65536) << 40 | (ulong)(cx + 65536) << 20 | (e.Id & 0x7FF);
+                string why =
+                    !ids.Add(e.Id) ? "duplicate id" :
+                    key <= previousKey && previousKey != 0 ? "out of canonical order" :
+                    Math.Floor(e.Base.X / WorldQuery.MicroCell) != cx || Math.Floor(e.Base.Z / WorldQuery.MicroCell) != cz ? "base outside its cell" :
+                    e.Base.Y != baseY ? $"base y {e.Base.Y} vs {baseY}" :
+                    Math.Abs(e.Direction.Length() - 1) > 1e-6 ? "direction not unit" :
+                    e.Length < p.LengthMin - 1e-6 || e.Length > p.LengthMax + 1e-6 ? "length out of range" :
+                    e.Diameter < p.DiameterMin - 1e-7 || e.Diameter > p.DiameterMax + 1e-7 ? "diameter out of range" :
+                    Math.Abs(e.TipStiffness - stiffness) > 1e-5 * stiffness ? $"tip stiffness {e.TipStiffness} vs {stiffness}" :
+                    e.HookRelease < p.HookReleaseMin - 1e-5 || e.HookRelease > p.HookReleaseMax + 1e-5 ? "hook release out of range" :
+                    e.Kind == CoverKind.Grass && e.Direction.Y < Math.Cos(20.0 / 180 * Math.PI) - 1e-6 ? "grass leans too far" :
+                    null;
+                previousKey = key;
+                if (why != null && bad++ == 0)
+                    first = $"; first: 0x{e.Id:x16} {why}";
+            }
+        }
+        return Check("element rules", bad == 0 && total > 0, $"{total} elements, {bad} breaking a rule{first}");
+    }
+
     /// Informational: the formal benchmark with allocation counts is task 3.6.
     static void Timings(WorldQuery world)
     {
@@ -507,12 +744,19 @@ public static class WorldQuerySelfTest
         var watch = Stopwatch.StartNew();
         world.SampleGround(points, results);
         double groundMs = watch.Elapsed.TotalMilliseconds;
+        Double3 meadow = At(world, Centres[0]);
+        var buffer = new MicroElement[40000];
+        int count = world.MicroDetailNear(meadow, 2.0, KindMask.All, buffer);
+        watch.Restart();
+        for (int i = 0; i < 20; i++)
+            world.MicroDetailNear(meadow, 2.0, KindMask.All, buffer);
 #if DEBUG
         const string build = "Debug";
 #else
         const string build = "Release";
 #endif
         GD.Print($"selftest worldquery: timings ({build} build, informational; the benchmark is task 3.6): 100000 random ground samples {groundMs:0.0} ms "
-            + $"(budget 10 ms)");
+            + $"(budget 10 ms); MicroDetailNear r 2 m on meadow_sod, {count} elements, {watch.Elapsed.TotalMilliseconds / 20:0.000} ms "
+            + "(budget 0.25 ms)");
     }
 }
