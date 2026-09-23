@@ -34,7 +34,7 @@ Decided by the renderer spike in `define-map-format` (task 1.1) on the synthetic
   - The heights are one R16 texture. A quadtree draws one shared 32 × 32 grid patch at 1 m spacing near the camera, doubling with distance.
   - The vertex shader puts every vertex exactly on a height sample. Skirts hide the cracks between LODs, and normals come per pixel from the heights.
   - Collision is `HeightMapShape3D` in 256 m chunks.
-  - About 230 lines of C# and 40 of shader, with no third-party dependency.
+  - About 240 lines of C# and 40 of shader, with no third-party dependency.
 
 Measured on the dev machine: Lenovo 83S0 laptop, Ryzen 7 7735HS, RTX 4050 Laptop GPU (Godot chose it: Vulkan, Forward+), 1920 × 1080 144 Hz screen, Windows "Balanced" power plan on AC at 100 %, Godot 4.7.2 .NET. The run is `--selftest flypath`: a 1920 × 1055 window, vsync off, 2 s warm-up, then a fixed 12 s path (a quarter orbit of radius 200 m at 15 m, then a climbing quarter orbit to 150 m, about 52 m/s). One run each.
 
