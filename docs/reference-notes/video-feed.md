@@ -2,7 +2,7 @@
 
 The pilot's goggles feed **is** the target look. These notes break it down trait by trait: what the footage shows, how we would render it, and which part of the simulation drives it (D-008: the feed is simulated, not filtered).
 
-- **Sources:** 9 flight clips **A–H and L** (the 6 photos I–K and M–O are not feed footage and are not used here). Cited by letter and frame number (`B f123` = clip B, frame 123, 1-based, about 29.9 frames per second). Clip L is a night flight.
+- **Sources:** 9 flight clips **A–H and L** (the 6 photos I–K and M–O are not feed footage and are not used here). Cited by letter and frame number (`B f123` = clip B, frame 123, 1-based, about 29.9 frames per second; L exactly 30). Clip L is a night flight.
 - **Evidence:** `metrics.csv` for every frame, the lossless native PNG bursts and event frames, and read-only full-resolution scans of every frame (thin-line, diagonal-interference and chroma-impulse detectors). Nothing was re-extracted and nothing derived from the footage is in the repo.
 - **Units:** pixel positions and sizes are on the 1920×1080 recording. "Levels" are 8-bit code values (0–255). `r/g` and `b/g` are the ratios of the frame-mean channels (a white-balance proxy).
 - **OPSEC:** no places, positions, dates, file names or on-screen-display (OSD) values. The OSD is described only as a layout. Frame content is described only as far as the optics and exposure need it.
@@ -24,9 +24,9 @@ Evidence for the less obvious links:
 - **PAL timing.** The picture is built from ≈286 lines per field (§2 P1), and the OSD is a 30×16 character grid (§5). Both are PAL figures; NTSC would give 240 lines and 13 OSD rows.
 - **The recording shows fields, not frames.** Each 1080p frame carries only one field's worth of lines, scaled up. On the A/H receiver the line phase flips by half a line in runs of 2–3 frames (H f365–372), which is 50 fields/s bob-deinterlaced and sampled at about 30 fps. The B–G receiver shows the same field-line count without a clear parity flip (B f186–193 phase moves < 0.4 px), so it probably shows one field parity or a fixed blend.
 - **Two receiver/recorder set-ups.**
-  - A and H: bright pure-blue no-signal screen (mean B ≈245–255) with small centred text, ≈275 lines per picture height, 1-px black top border.
+  - A, H and L: bright pure-blue no-signal screen (mean B ≈245–255) with small centred text, ≈275 lines per picture height, 1-px black top border. L never loses picture; its border and line period (3.92–3.93 px, as in A and H) place it here. L is recorded at exactly 30.000 fps, the others at 29.84–29.97.
   - B–G: deeper blue no-signal screen (mean B ≈187–205, G ≈10–12; seen in B–F, since G never loses picture) with two short text lines top-left, ≈286 lines, 4-px black top border.
-- **Three airframe/camera set-ups,** recognisable by the OSD layout and the parts in view: A; B and G; C, D, E, F and H.
+- **Three airframe/camera set-ups,** recognisable by the OSD layout and the parts in view: A; B and G; C, D, E, F, H and L.
 - **Re-encode.** The messenger H.264 re-encode leaves a weak but frame-aligned block grid in every clip (§2 P10). Only traits with that block-aligned evidence are classed as re-encoding.
 
 Each trait below names its most likely stage: **cam** (sensor/DSP), **cvbs** (composite encoding/decoding), **pwr** (power-rail or ESC interference), **link** (fiber TX/RX), **rx** (goggles/receiver behaviour), **rec** (recorder) or **enc** (re-encode, not to be simulated).
@@ -40,37 +40,38 @@ Each trait below names its most likely stage: **cam** (sensor/DSP), **cvbs** (co
 | All clips (A–H, L) | 3226 | 107.8 |
 | Picture (not blue, not snow) | 2579 | 86.2 |
 | **In-flight window** = picture minus the last 1.0 s before each loss | 2369 | 79.1 (1.32 min) |
+| In-flight window, A–H only (the clips the full-resolution N2–N4 scans cover) | 2159 | 72.1 (1.20 min) |
 | Pre-loss windows (last 1.0 s before loss, 7 clips) | 210 | 7.0 |
 
 **Bias.** 7 of 9 clips (A–F, H; G and L never lose picture) end in loss of picture, and every one of those losses comes right after a close approach, landing or contact (A: low over grass; B: frame filled by a close object; C, E: flying into a doorway; D: contact with a stone structure; F: descent onto a ground surface; H: settling into grass). The clips were cut around the end of each flight, so:
 - loss sequences are over-represented by roughly **one per clip** rather than a rate in time. They are modelled as **event-driven** (impact, power loss, fiber break), not as a random rate.
-- **in-flight rates are from only 1.32 minutes** of footage from three airframes. A trait seen once gives a rate of about 1/min with a very wide error. Rates below are what was seen, not a stable statistic. The sim should expose them as tunables.
+- **in-flight rates are from only 1.2–1.3 minutes** of footage from three airframe groups. A trait seen once gives a rate of about 1/min with a very wide error (one event in 1.2 min is consistent with anything from about 0.05 to 4 per minute at 90 %). Rates below are what was seen, not a stable statistic. The sim should expose them as tunables.
 - two traits cluster in single clips (diagonal interference only in B, rolling lines only in C). Pooled rates dilute them and per-clip rates inflate them. Both are given.
 
 ### 1.2 Event catalogue
 
-Rates are per minute of the in-flight window unless marked. "Duration" is in recorded frames (≈30 fps). One recorded frame ≈ 1.67 fields.
+Rates are per minute of the in-flight window unless marked. N2–N4 use the A–H window (1.20 min), because the full-resolution scans cover A–H only. L's 52 lossless frames were spot-checked for them instead (see each entry). "Duration" is in recorded frames (≈30 fps). One recorded frame ≈ 1.67 fields.
 
 | ID | Event | Clips / frames | Count | Rate | Duration | Stage |
 |---|---|---|---|---|---|---|
 | N1 | Always-on baseline grain | all, continuous; heaviest in L | — | continuous | every frame, new pattern each field; never clean | cam, cvbs |
 | N2 | Chroma sparkles (coloured impulse dashes) | all; densest H, F, C; near zero A, E (§2 P6) | continuous | continuous background; no bursts beyond content changes | per frame | cvbs/link |
-| N3 | Rolling thin dark lines ("stripes") | C only: f3–4, f9–11, f30–53, f80–91 | 4 events: 38 detected frames within runs spanning 41 | 3.0/min pooled; 50/min within C | 2, 3, 24 and 12 frames (0.07–0.8 s) | pwr |
-| N4 | Diagonal dotted interference, flickering | B only: f1–269 | 79 runs (125 frames) | 60 runs/min pooled; ≈ 510 runs/min (≈ 8.5/s) within B; 45 % of B's in-flight frames | runs of 1–3 frames (max 7), each covering part of a field | pwr |
+| N3 | Rolling thin dark lines ("stripes") | C only: f3–4, f9–11, f30–53, f80–91 | 4 events: 38 detected frames within runs spanning 41 | 3.3/min pooled (A–H); 50/min within C | 2, 3, 24 and 12 frames (0.07–0.8 s) | pwr |
+| N4 | Diagonal dotted interference, flickering | B only: f1–269 | 79 runs (125 frames) | 66 runs/min pooled (A–H); ≈ 510 runs/min (≈ 8.5/s) within B; 45 % of B's in-flight frames | runs of 1–3 frames (max 7), each covering part of a field | pwr |
 | N5 | 4-stage loss: 1. Quick picture glitch | C f174–175, D f208–209, F f250, H f628 | 4 | per loss event | 1–2 frames: horizontal line displacement / tearing | link/rx |
 | N6 | 4-stage loss: 2. Brief flashy moment & 3. Noisy/flashy | C f176–186, D f210–221, F f251–262 | 3 | per loss event | flash 1–3 frames → thresholded snow/stripes 4–8 frames | rx |
 | N7 | 4-stage loss: 4. Solid blue no-signal screen | A f424, B f310, E f263, H f629 (and the end of N6 in C, D, F) | 7 | per loss event | permanent to clip end (52–108 frames, 1.7–3.6 s); never recovers | rx |
 | N8 | H-sync tearing, bottom of frame | H f628 | 1 | pre-loss only | 1 frame (the last picture frame) | link/rx |
-| N9 | Frame stutter (duplicate frames) | all clips, clustered; densest E f249–262 (pre-loss) | 29 repeated frames (1.1 %) in 15 groups | 10 groups/min (4.8/min for groups of ≥ 2 repeats) | 1 frame each; a group is 1–5 repeats spaced 2–3 frames apart | rec (uncertain, U3) |
+| N9 | Frame stutter (duplicate frames) | A–H, clustered; densest E f249–262 (pre-loss); none in L | 29 repeated frames (1.2 % of A–H picture frames) in 15 groups | 11 groups per minute of A–H picture (5.3/min for groups of ≥ 2 repeats) | 1 frame each; a group is 1–5 repeats spaced 2–3 frames apart | rec (uncertain, U3) |
 | N10 | Macroblock smear | B f306–309 (pre-loss) | 1 | — | 4 frames | **enc** |
 | N11 | Exposure jumps (sun occluded / revealed) | D f183 | 1 | frame-content driven | 1 frame (−13 % mean luma) | cam |
 | N12 | Random mid-flight flashes that recover | pilot confirmed; scattered | random | tunable | 1–3 frames (snow burst, white flash, stripes) | link, pwr |
 
-The pilot's words, mapped to what was measured and confirmed:
+The pilot's words, mapped to what was measured:
 - "baseline noise is always present" → N1 (the feed is never a clean picture; mild noise is always on, heavier at night).
-- "sometimes noise, sometimes stripes, every instance differs" → N1, N2, N3, N4, N12 (procedural variety, never repeating textures).
+- "sometimes noise, sometimes stripes, every instance differs" → N1–N4 and N12 (procedural variety, never a repeating texture).
 - "mid-flight flashes that recover" → N12 (random brief events, independent of signal loss).
-- "noise may depend on throttle, but rarely" → N3, N4 (throttle coupling is weak and occasional, not dominant).
+- "noise may depend on throttle, but rarely" → motor current is only a weak modulator of N1–N4, never their main trigger.
 - "very quick picture glitch → brief flashy moment → noisy and flashy → finally blue" → N5–N7 (4-stage randomised loss sequence).
 
 ### 1.3 Event detail
@@ -89,6 +90,7 @@ The pilot's words, mapped to what was measured and confirmed:
   - Frame-to-frame variation is small (90th percentile ≤ 3× the median).
   - The only jumps are F f5–6 and G f112–118, and both are content changes (G ends diving into vegetation).
   - Density follows fine texture (H's grass), so this detector partly counts P5 cross-colour. Softer lilac specks on E's walls fall under the threshold.
+  - L was not in the scan. Its colour is killed (C5: per-pixel chroma median 1.1–1.4 levels), and 4 of its lossless frames (f1, f102, f165, f203) have no chroma impulse above 45 levels. So N2 is absent at night.
 - **Candidate effect.** Sparse random impulses in chroma (and some in luma), each 1 line × 1–3 source samples, placed per field. The density scales with the amount of fine detail in the frame plus a link-margin term.
 - **Driver.** **Link margin** from fiber tension and bend (optical power near the receiver threshold adds impulse noise), plus **motor current** (ESC switching spikes). Free-running random at the measured density is the fallback.
 
@@ -105,13 +107,15 @@ The pilot's words, mapped to what was measured and confirmed:
   - C: 4 events spanning 41 frames. 38 of them are detected (2, 3, 23 and 10 per run; 27 % of C's 143 in-flight frames). The other 3 sit in gaps of at most 2 frames inside a run, which the event grouping bridges.
   - Every other clip: 0. A single-frame match in H f400 shares a row with the OSD and is not counted.
   - The per-frame metrics flagged only C f37, because the lines are thin against C's busy scene.
+  - L was not in the scan. A row-profile check of its 52 lossless frames for dark lines at 140–170 px spacing found none.
 - **Candidate effect.** A set of thin dark lines, 1 source line tall and 15–30 levels deep, over the whole width. Spacing = field height × field rate ÷ interference frequency; position rolls each field by the frequency's offset from a multiple of the field rate.
-- **Driver.** **Motor electrical frequency** (from motor RPM × pole pairs, or ESC switching harmonics) sets the spacing and roll speed. **Motor current** sets visibility, but **rarely** (pilot confirms throttle coupling is weak and occasional, not dominant).
+- **Driver.** Whether a flight has it at all is a per-flight random draw (1 of 3 airframe groups here: C only). Within such a flight the onsets are free-running random at C's measured rate (≈ 50/min, runs of 2–24 frames), because the pilot rules out throttle as the main trigger. **Motor electrical frequency** (from motor RPM × pole pairs, or ESC switching harmonics) sets the spacing and roll speed while lines are shown. **Motor current** modulates visibility only weakly (the pilot says throttle coupling is rare). U8 is still open.
 
 **N4 Diagonal dotted interference, flickering.** First seen at B f123 and B f131, the only two frames the per-frame metrics flagged. A sky-region scan of every frame of A, B and G (the clips with open sky) shows it is **not rare in B**:
 - **Criterion.** At native 1920×1080, in one fixed open-sky box per clip (A 1100×70 px at x 300, y 100; B 950×190 at 450, 150; G 500×100 at 950, 170), BT.601 luma minus its 5×5 box mean is autocorrelated at (+8 px, +4 rows) and at (−8 px, +4 rows), each normalised by its variance. A frame counts when the two correlations differ by more than 0.2 (either sign) and the high-pass RMS is above 1.2 levels; consecutive counted frames form a run.
 - **B.** Present in 125 of B's 279 in-flight frames (45 %), from f1 to f269. It comes in 79 runs, mostly 1 frame long (53 runs; 12 of 2 frames, 11 of 3, 2 of 4, 1 of 7) and mostly separated by a single clean frame (51 of 78 gaps). Examples: B f5–6 show it and f4 is clean.
 - **A and G.** None. G is the same airframe group as B, so the source is specific to B's drone or flight. A's four candidate frames were prop-blade slivers.
+- **L.** Not in the scan. The same criterion on its 52 lossless frames (sky box 900×200 px at x 500, y 130) finds none.
 
 Details:
 - **What it looks like.** About 10 parallel lines falling left to right at a slope of about 0.45–0.5. In f123 they cover only the top 28 % of the picture and in f131 the top 44 %, so each burst lasts only part of one field (≈ 5–8 ms).
@@ -119,7 +123,7 @@ Details:
 - **At 4× zoom.** Each line is a staircase of short dashes, one per field line, stepping ≈ 8 px right per line. The dashes alternate blue/white with yellow/green fringes, which is interference near the colour subcarrier beating against the line rate.
 - **Visibility.** Only clearly visible over flat sky, but present over the ground too. So in clips without open sky (C–F, H) it cannot be ruled out.
 - **Candidate effect.** A sinusoid added to the composite signal before decoding. Its frequency is near a multiple of the line rate plus an offset, which makes the diagonal and, through the chroma decoder, the colour dots. It is gated to a vertical span of 20–50 % of a field, on roughly every other field with random dropouts.
-- **Driver.** An **airframe-specific on-board interference source.** Whether a flight has it is a per-flight random draw (1 of 3 airframe groups here). Its amplitude scales with **motor current**, and bursts are triggered by **current transients**, but as a weak/occasional contributor rather than a dominant driver (pilot confirmation).
+- **Driver.** An **airframe-specific on-board interference source.** Whether a flight has it is a per-flight random draw (1 of 3 airframe groups here: B only). Within such a flight the bursts are free-running random at B's measured statistics (runs of 1–3 frames, ≈ 8.5 runs/s, present in 45 % of frames). **Motor current** and its steps modulate amplitude and burst onset only weakly (the pilot says throttle coupling is rare). What B's drone carried is still open (U7).
 
 **N5–N7 Loss sequences (end of flight / fiber break).**
 - **Pilot:** the real-life signal loss / fiber break sequence consists of four distinct stages:
@@ -146,7 +150,11 @@ Details:
 - **Driver.** Free-running random (seeded RNG, tunable event rate), with weak modulation by violent maneuvers or sudden current transients.
 
 **N9 Frame stutter.**
-- **Measured.** 29 picture frames across all clips are exact or near-exact repeats of the previous frame (mean difference < 2 levels). They come in groups spaced 2–3 frames apart, e.g. A f190/193/196, D f166/168/171 and E f249/252/255/257/262. E's group sits in the last 0.5 s before loss.
+- **Measured.** 29 picture frames across A–H are exact or near-exact repeats of the previous frame (mean difference < 2 levels). They come in groups spaced 2–3 frames apart, e.g. A f190/193/196, D f166/168/171 and E f249/252/255/257/262. E's group sits in the last 0.5 s before loss.
+- **L.** No repeats.
+  - Its three frames under the 2-level threshold (f192, f204, f210) belong to a 6-frame cadence: every frame whose number divides by 6 differs less from its predecessor (mean `diff` 3.0, against 3.6–4.4).
+  - f204 and f210, which are in the lossless burst, keep their own grain: their high-pass correlation with the previous frame is 0.78, the same as the other pairs (0.73–0.79). So they are new frames.
+  - The cadence comes from the recorder's conversion to exactly 30 fps (rec).
 - **Likely cause.** The clip frame rates are non-standard (29.84–29.97 fps), which is typical of a variable-rate recording converted to a constant rate. So most repeats are **rec**.
 - **Candidate effect.** Only if the pilot confirms the goggles stutter before loss (U3): hold the last field for 1 field at random, 2–3 fields apart, while link margin is low.
 - **Driver.** Link margin (if confirmed), else not simulated.
@@ -327,7 +335,7 @@ It reads as coarse horizontal line-dashes, soft horizontal edges with dark halos
 | U1 | **Mid-flight flashes that recover** | **Answered by pilot.** Flashes occur at random during flight, completely separate from signal loss, and recover. Every instance differs. Added as N12 (free-running random, tunable rate, 1–3 frames). |
 | U2 | **Signal loss sequence** | **Answered by pilot.** Canonical 4-stage sequence: quick picture glitch → brief flashy moment → noisy and flashy → finally blue. Randomised timing and look per stage (N5–N7). Hard cut remains for instant power cuts. |
 | U3 | Pre-loss frame stutter | Unanswered by pilot; kept as recording artifact (rec). **Unconfirmed, tunable.** |
-| U4 | Live sky grain level | **Partly answered by pilot.** Baseline noise is confirmed **always present**; analog is never a clean picture. Live base grain floor set to tunable σ ≥ 2–4. |
+| U4 | Live sky grain level | **Partly answered by the pilot:** baseline noise is always present. The live day level still can't be measured, because the encode flattens it. L gives the night level as recorded (N1). Base σ 2–4 levels. **Unconfirmed, tunable.** |
 | U5 | Low light and night look | **Answered by clip L.** Fully characterised in §4 C5: monochrome desaturation, maximum sensor AGC gain noise, skyline silhouette contrast, and full-brightness OSD. |
 | U6 | Throttle noise coupling | **Answered by pilot.** Noise may depend on throttle, but **rarely**. Throttle coupling is weak and occasional, not a dominant driver. |
 | U7 | Diagonal dotted lines (B) | Unanswered by pilot; kept as airframe-specific interference. **Unconfirmed, tunable.** |
@@ -345,11 +353,11 @@ This is the input to the later physics↔video interface change. "Field rate" me
 | Signal | Unit | Update rate | Source | Feeds traits |
 |---|---|---|---|---|
 | Motor electrical frequency, per motor (or RPM × pole pairs) | Hz | 50 Hz (field mean) | physics | N3 spacing and roll |
-| Motor current, per motor and total (a throttle/current proxy) | A | 50 Hz (field mean and field max) | physics | N3 amplitude, N4 trigger, N1/N2 power-rail term (weak and rare coupling per pilot) |
+| Motor current, per motor and total (a throttle/current proxy) | A | 50 Hz (field mean and field max) | physics | N3 visibility, N4 amplitude, N1/N2 power-rail term (all weak and occasional, per the pilot) |
 | Motor current step (d/dt of total current) | A/s | 50 Hz (field max) | physics | N4 burst trigger |
 | Battery voltage under load, pack | V | 50 Hz | physics | Brownout: power-loss hard cut (N7), N8 tearing at collapse, OSD |
 | Camera angular velocity (body rates at the camera) | rad/s (3 axes) | per rendered frame (≥ 60 Hz) | physics | C4/C5 motion blur, P5 crawl |
-| Camera vibration (acceleration at the camera mount, RMS in 3 bands: < 50 Hz, 50–200 Hz, > 200 Hz) | m/s² | 50 Hz | physics | Hook for intermittent sparkles/interference from connector microphonics (N2, N3) |
+| Camera vibration (acceleration at the camera mount, RMS in 3 bands: < 50 Hz, 50–200 Hz, > 200 Hz) | m/s² | 50 Hz | physics | Hypothesis only: intermittent sparkles and interference from connector microphonics (N2, N3). Kept as a hook until U8 confirms it |
 | Impact event (peak acceleration, contact point, rigid-body impulse) | m/s² and N·s, per event | event, timestamped at physics rate | physics | Loss on hard impact (N5–N7), single-frame jolt, lens-dirt accumulation (O4) |
 | Fiber tension at the spool exit | N | 50 Hz | physics (tether model) | Link margin → N2 sparkles, N8 tearing, N5–N7 loss |
 | Fiber minimum bend radius along the paid-out length | m | 50 Hz | physics (tether model) | Link margin (macro-bend loss) |
@@ -366,7 +374,7 @@ Every driver named in §1–§4 is covered:
 | Throttle / motor current | motor current; motor current step (weak and occasional coupling per pilot) |
 | Motor RPM / electrical frequency | motor electrical frequency |
 | Battery voltage sag | battery voltage under load |
-| Vibration | camera vibration (hook) |
+| Vibration | camera vibration (hook; hypothesis, U8 open) |
 | Impact | impact event |
 | Fiber tension / bend / link margin | fiber tension, bend radius, link state + margin |
 | Light level | scene light level; sun direction and visibility; time of day |
