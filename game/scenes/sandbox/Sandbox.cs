@@ -20,6 +20,10 @@ public partial class Sandbox : Node3D
         {
             GetTree().Quit(SandboxSelfTest.Noclip(GetNode<NoclipCamera>("Camera")) ? 0 : 1);
         }
+        else if (selftest == "overlay")
+        {
+            SandboxSelfTest.Overlay(this);
+        }
         else if (selftest != null)
         {
             GD.PrintErr($"ERROR: unknown selftest '{selftest}'.");
