@@ -5,7 +5,7 @@ Status is one of Proposed, Accepted or Superseded. When a decision changes, add 
 ## D-001 Engine: Godot 4.7, .NET build (C#) · Accepted
 The flight dynamics model has to step at 1 kHz or more with fixed timesteps and log every step. C# handles that math-heavy loop many times faster than GDScript, and it avoids the build overhead of C++ GDExtension. GDScript is still fine for UI and glue code. The .NET 10 SDK is already installed. Accepted 2026-09-23: the user raised no objection and gave the go-ahead for the Godot bootstrap.
 
-## D-002 Flight physics: custom model, Jolt for contacts only · Proposed
+## D-002 Flight physics: custom model, Jolt for contacts only · Superseded by D-010
 The drone's motion comes from our own fixed-step model: rotors, motors, aerodynamics, wind and tether, in seeded sub-steps. Godot's stock rigid-body integration gives the "smooth and rigid" feel that the manifesto rejects. Jolt is used only for collision queries and contact geometry.
 
 ## D-003 Godot project lives in `game/` · Accepted
@@ -51,3 +51,12 @@ Consequences:
 - Terrain video memory grows only with the heightfield, at 2 bytes per sample (134 MB for an 8 km map). Mesh memory is constant.
 - Surface materials and terrain holes (cellar entrances, dugouts) are built on this renderer by the loader (task 4.1) and later changes.
 - Revisit Terrain3D only if a release states Godot 4.7 support and this renderer runs out of room.
+
+## D-010 Flight physics: custom model with custom contacts; Jolt stays out of the flight loop · Accepted
+This supersedes D-002, keeping its custom fixed-step flight model (≥ 1 kHz, seeded, logged). It adds that contacts and raycasts for the flight model are pure C# over catalog primitives (box, sphere, capsule, cylinder), the triangulated heightfield and wire polylines. The reasons, raised in the Physics Engineer's review of `define-map-format`:
+- Godot's C# `PhysicsDirectSpaceState3D` calls allocate on every call.
+- Those calls are unsafe off the physics thread.
+- A headless replay from the physics log must run without Godot.
+- We need control of cross-machine determinism.
+
+It costs about 300 lines of closest-point code. Jolt keeps render-side and gameplay collision. The fallback, `PhysicsServer3D.BodyTestMotion` with reused objects, is only revisited if the benchmark (world-query W-16) fails.
