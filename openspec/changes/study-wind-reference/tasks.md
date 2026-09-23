@@ -10,7 +10,7 @@
 
 - [x] 2.1 [physics-engineer] Write `docs/reference-notes/wind.md` §1–§4: the method, coverage, and all measurements per axis with units, frame ranges and uncertainties. Verify that every number reproduces from `attitude.csv`
 - [x] 2.2 [physics-engineer] Add §5, the interpretation and closed-loop limit (the pilot's correction bandwidth, turbulence implications, motor margin and saturation, each labelled measured, derived or assumed), and §6, the testable severe-wind targets. Verify that each target has a number, unit, tolerance and procedure
-- [ ] 2.4 [physics-engineer] Fold `pilot-answers.md` into `wind.md`:
+- [x] 2.4 [physics-engineer] Fold `pilot-answers.md` into `wind.md`:
   - 0° uptilt: re-derive the motor margin, and explain the roll–yaw coupling as the pilot's yaw-versus-roll trade-off
   - a prevailing wind plus random direction changes
   - an acro-mode simulated pilot
