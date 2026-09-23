@@ -10,6 +10,17 @@ public partial class Sandbox : Node3D
         string scenePath = ArgValue(args, "--scene");
         if (scenePath != null)
             LoadScene(scenePath);
+
+        string selftest = ArgValue(args, "--selftest");
+        if (selftest == "noclip")
+        {
+            GetTree().Quit(SandboxSelfTest.Noclip(GetNode<NoclipCamera>("Camera")) ? 0 : 1);
+        }
+        else if (selftest != null)
+        {
+            GD.PrintErr($"ERROR: unknown selftest '{selftest}'.");
+            GetTree().Quit(2);
+        }
     }
 
     void LoadScene(string path)
