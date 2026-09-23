@@ -13,7 +13,7 @@ public static class SandboxSelfTest
         {
             foreach (bool fast in new[] { false, true })
             {
-                float expected = NoclipCamera.DefaultSpeed * (fast ? NoclipCamera.FastMultiplier : 1f);
+                float expected = fast ? 48f : 6f; // the spec's values, not the constants under test
                 camera.ResetPose(Vector3.Zero);
                 Input.ActionPress("move_forward");
                 if (fast)
