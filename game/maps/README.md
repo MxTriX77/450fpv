@@ -233,6 +233,20 @@ Collision and wind-volume shapes. Cylinders and capsules stand along asset +Y. `
 
 Each gap is a rectangular opening in asset space: `name`, `center_m` [x, y, z], `width_m`, `height_m` and `yaw_deg`. The opening faces asset ±Z, turned by `yaw_deg`.
 
+### How the world query uses objects
+
+`game/src/world/` reads `objects.json` and the catalog without Godot (D-010), and the loader draws from the same rules:
+
+- **Indices.** An object's index is its position in `objects.json`, where wires and visual-only objects count too. Objects the game adds before a flight, such as the launch rails at a start point, get the next indices. A material id is the material's position in the catalog's `materials` object.
+- **Wires.** Each span from point a to point b drops 4·`sag_m`·t·(1 − t) below the straight line, sampled at ⌈|b − a| / `segment_m`⌉ equal steps of t. Contacts and rays use this polyline, thickened to `diameter_m`.
+- **Wind grid.** Cells are 2 m, with row 0 north. Each wind-volume shape whose `wind_porosity` β is below 1 marks the cells its footprint (its horizontal convex hull) covers.
+  - A cell that is a fraction f covered gets porosity 1 − f·(1 − β^(2 m / D)).
+  - D is the footprint's mean width over all directions: perimeter / π, the diameter for a round crown. A path straight across the volume then has porosity about β.
+  - Top and base are the shape's highest and lowest points above the terrain at the cell centre, never below 0.
+  - Where volumes overlap, porosities multiply, and the highest top and the lowest base win. Wires are not wind obstacles.
+- **Contacts.** There is at most one contact per (object, shape), and it carries that shape's material. A query sweeps the capsule from its previous pose. `Time` below 1 means the sweep went into or through the shape during the step and the capsule is now past it, so the contact is reported where the capsule first touched it.
+- **Rays** hit the rendered terrain triangles only from above, and they ignore a shape they start inside.
+
 ### `launch_rails`
 
 With legs off (manifesto §3), the drone lifts off from two parallel steel bars, so the fiber spool under the frame never touches the ground. The game places this asset at the chosen start point, with the start's yaw, before the flight. The pilot's only figure is "spaced about the drone's diameter, the frame rests across both and the spool hangs clear between them". Every dimension below is **derived, tunable until the drone model exists**.
