@@ -24,6 +24,10 @@ public partial class Sandbox : Node3D
         {
             SandboxSelfTest.Overlay(this);
         }
+        else if (selftest == "flypath")
+        {
+            SandboxSelfTest.FlyPath(this);
+        }
         else if (selftest != null)
         {
             GD.PrintErr($"ERROR: unknown selftest '{selftest}'.");
