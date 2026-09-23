@@ -8,15 +8,15 @@ The fast, deterministic runtime questions physics asks about the world: ground h
 
 ### Requirement: Terrain and ground height
 The API SHALL provide:
-- terrain height: bilinear from the heightfield, the same surface the renderer draws
+- terrain height: linear interpolation over the heightfield's triangles, using the exact triangulation the renderer and Jolt collision use, so physics touches the surface the pilot sees
 - ground height: terrain height plus the surface's micro-relief plus pitfalls
 - ground normal
 
 Micro-relief and pitfalls SHALL be deterministic functions of world position, map seed and surface.
 
-#### Scenario: Bilinear accuracy
-- **WHEN** terrain height is queried at 10,000 random points of `sample_patch`
-- **THEN** each result matches an independent bilinear evaluation within 1 mm
+#### Scenario: Matches the rendered surface
+- **WHEN** terrain height is queried at 10,000 random points of `sample_patch`, including cell diagonals and chunk seams
+- **THEN** each result matches an independent evaluation of the renderer's triangle for that point, and a downward Jolt ray at the same point, within 1 mm
 
 #### Scenario: Micro-relief bounded
 - **WHEN** ground height is sampled on a 5 cm grid over 100 m² of any surface
