@@ -25,7 +25,7 @@ game/maps/
 game/assets/catalog.json   shared asset catalog (all maps)
 ```
 
-A map side is at most 8192 m.
+A map side is a multiple of 256 m (the terrain collision chunk) and at most 8192 m. Other sides would make the terrain fall back to slower mesh collision.
 
 Inside `game/` each PNG layer also has a Godot sidecar, `surface.png.import` and `cover.png.import`, containing `importer="keep"`. Godot then leaves the layers as raw files and exports them unchanged, instead of converting them to textures. The loader reads the exact bytes. The validator ignores these sidecars.
 
@@ -55,7 +55,7 @@ Inside `game/` each PNG layer also has a Godot sidecar, `surface.png.import` and
 | Field | Type / unit | Rule |
 |---|---|---|
 | `format_version` | string `"major.minor"` | This format is `1.0`. Readers reject any major other than 1 and accept any 1.x (minor bumps only add optional fields). |
-| `size_m` | number, m | 0 < size_m ≤ 8192 |
+| `size_m` | number, m | A multiple of 256, from 256 to 8192 |
 | `seed` | integer | 32-bit unsigned (0 to 4294967295). Drives all procedural micro-detail, micro-relief and pitfalls. |
 | `height.resolution_m` | number, m | > 0, and size_m / resolution_m is a whole number. Default 1 m. |
 | `height.samples_per_side` | integer | = size_m / height.resolution_m + 1 |

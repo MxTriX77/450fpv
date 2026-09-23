@@ -72,6 +72,10 @@ CASES = [
      False, ["surface.png is 256×256 pixels, expected 512×512"]),
     ("cover wrong pixel format", lambda pkg, tables: shutil.copy(os.path.join(pkg, "surface.png"), os.path.join(pkg, "cover.png")),
      False, ["cover.png must be 8-bit RGBA"]),
+    ("side not a 256 m multiple", lambda pkg, tables: edit_json(os.path.join(pkg, "map.json"), lambda d: d.update(size_m=300)),
+     False, ["size_m 300 breaks the side rule: a multiple of 256 m", "at most 8192 m"]),
+    ("side above 8192 m", lambda pkg, tables: edit_json(os.path.join(pkg, "map.json"), lambda d: d.update(size_m=8448)),
+     False, ["size_m 8448 breaks the side rule"]),
     ("manifest grid mismatch", lambda pkg, tables: edit_json(os.path.join(pkg, "map.json"),
                                                              lambda d: d["height"].update(samples_per_side=256)),
      False, ["height.samples_per_side is 256, expected 257"]),
@@ -142,6 +146,7 @@ CASES = [
 
 def main():
     work = sys.argv[1] if len(sys.argv) > 1 else tempfile.mkdtemp(prefix="validate_map_")
+    sys.stdout.reconfigure(encoding="utf-8")  # the validator quotes Cyrillic; Windows pipes default to cp1252
     failures = 0
     for n, (name, mutate, succeed, expected) in enumerate(CASES):
         case = os.path.join(work, f"case{n:02d}")

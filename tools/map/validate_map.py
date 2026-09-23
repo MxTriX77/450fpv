@@ -19,6 +19,7 @@ SUPPORTED_MAJOR = 1
 GAME = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "game")
 FILES = ["map.json", "height.r16", "surface.png", "cover.png", "objects.json"]
 MAX_SIZE_M = 8192
+CHUNK_M = 256
 COVER_TYPES = ["grass", "straw", "twigs", "litter"]
 
 # Surface fields: (low, high), or (low, high, "range") for a [min, max] pair.
@@ -220,8 +221,9 @@ def check_manifest(manifest):
         error(f"map.json: format_version {version} is not supported; this validator reads {SUPPORTED_MAJOR}.x")
         return None
     size = manifest.get("size_m")
-    if not is_number(size) or not 0 < size <= MAX_SIZE_M:
-        error(f"map.json: size_m must be a number above 0 and at most {MAX_SIZE_M}")
+    if not is_number(size) or not 0 < size <= MAX_SIZE_M or size % CHUNK_M:
+        error(f"map.json: size_m {size!r} breaks the side rule: a multiple of {CHUNK_M} m (the collision chunk) "
+              f"and at most {MAX_SIZE_M} m")
         return None
     seed = manifest.get("seed")
     if not isinstance(seed, int) or isinstance(seed, bool) or not 0 <= seed <= 0xFFFFFFFF:
