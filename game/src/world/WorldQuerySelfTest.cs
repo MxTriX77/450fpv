@@ -11,7 +11,7 @@ using Godot;
 /// game/maps/sample_patch, plus uniform in-memory worlds for the per-surface checks. Prints one PASS/FAIL line per
 /// scenario with its numbers and exits non-zero on any failure. `-- --selftest worldquery-digest --digest-out <file>` is
 /// the second process of the replay-identity check.
-public static class WorldQuerySelfTest
+public static partial class WorldQuerySelfTest
 {
     const string Package = "res://maps/sample_patch";
     const string SurfacesPath = "res://maps/surfaces.json";
@@ -50,6 +50,7 @@ public static class WorldQuerySelfTest
             pass &= Density(world, surfaces);
             pass &= Overflow(world);
             pass &= ElementRules(world);
+            pass &= ObjectScenarios(world, dir, surfaces);
             Timings(world);
         }
         catch (Exception e)
@@ -66,7 +67,7 @@ public static class WorldQuerySelfTest
     {
         WorldQuery world = WorldQuery.Load(ProjectSettings.GlobalizePath(Package), ProjectSettings.GlobalizePath(SurfacesPath),
             ProjectSettings.GlobalizePath(CatalogPath));
-        string digest = ReplayDigest(world).ToString("x16");
+        string digest = $"{ReplayDigest(world):x16}-{ObjectDigest():x16}";
         GD.Print($"selftest worldquery-digest: {digest}");
         if (outPath != null)
             File.WriteAllText(outPath, digest);
@@ -397,14 +398,14 @@ public static class WorldQuerySelfTest
     }
 
     /// A flat 256 m world with one surface everywhere and every cover channel at 1.0.
-    static WorldQuery Uniform(SurfaceParams[] table, byte index, uint seed)
+    static WorldQuery Uniform(SurfaceParams[] table, byte index, uint seed, Catalog catalog = null)
     {
         const int samples = 257, cells = 512;
         var surface = new byte[cells * cells];
         Array.Fill(surface, index);
         var cover = new byte[cells * cells * 4];
         Array.Fill(cover, (byte)255);
-        return new WorldQuery(table, 256, seed, samples, new float[samples * samples], cells, surface, cover);
+        return new WorldQuery(table, 256, seed, samples, new float[samples * samples], cells, surface, cover, catalog);
     }
 
     /// Pitfalls on a 5 cm grid over 60 × 60 m of sample_patch meadow: each hit names a pitfall id and depth; the id
@@ -561,7 +562,7 @@ public static class WorldQuerySelfTest
     /// The same queries in a second, separate Godot process must give bit-identical results.
     static bool ReplayIdentity(WorldQuery world)
     {
-        string mine = ReplayDigest(world).ToString("x16");
+        string mine = $"{ReplayDigest(world):x16}-{ObjectDigest():x16}";
         string outPath = Path.Combine(OS.GetUserDataDir(), "worldquery_digest.txt");
         File.Delete(outPath);
         var output = new Godot.Collections.Array();
@@ -571,7 +572,8 @@ public static class WorldQuerySelfTest
         string theirs = File.Exists(outPath) ? File.ReadAllText(outPath).Trim() : "(none)";
         return Check("replay identity across two processes", exit == 0 && theirs == mine,
             $"this process {mine}, a separate Godot process ({watch.ElapsedMilliseconds} ms, exit {exit}) {theirs} over "
-            + $"{Centres.Length} MicroDetailNear queries (r 2 m, all kinds) and {Centres.Length * 64} ground samples");
+            + $"{Centres.Length} MicroDetailNear queries (r 2 m, all kinds) and {Centres.Length * 64} ground samples, then "
+            + "static contacts, rays, gaps and the wind grid of sample_patch with launch rails added");
     }
 
     /// Two overlapping queries: every element of the first that meets the second sphere (tested independently here) is
