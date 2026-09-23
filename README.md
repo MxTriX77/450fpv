@@ -47,8 +47,11 @@ Self-checks, which exit non-zero on failure:
 
 ```powershell
 & $env:GODOT --headless --path game -- --selftest noclip  # noclip covers 6 m and 48 m in 1 s at 30 and 144 fps, ±5 %
-& $env:GODOT --path game -- --selftest overlay            # opens a window for about 12 s: F3, F12 and the frame budget
+& $env:GODOT --path game -- --selftest overlay            # opens a window for about 12 s: F3, F12 and the frame budget, vsync off
 ```
+
+The frame budget for the empty sandbox is at least 144 fps with a 1 % low of at least 120, measured with **vsync off**. `--selftest overlay` turns vsync off itself before it measures.
+With vsync on (the project default), fps is capped at the display rate and the 1 % low shows frame pacing, so the budget doesn't apply.
 
 ### Sandbox controls
 
@@ -61,9 +64,9 @@ The noclip camera has no collision and flies through everything. Close the windo
 | A / D | Left / right |
 | E or Space / Q or Ctrl | Up / down along world vertical |
 | Shift (hold) | 8× speed |
-| Mouse wheel | Base speed ×1.25 per step, 1 to 60 m/s (starts at 6 m/s) |
+| Mouse wheel | Base speed ×1.25 per step, 1.0 to 55.9 m/s (starts at 6 m/s) |
 | Esc | Release or recapture the mouse |
-| F3 | Performance overlay: fps, average frame time, 1 % low over 5 s, draw calls |
+| F3 | Performance overlay: fps, average frame time, 1 % low over 5 s, draw calls. With vsync on (the default), fps sits at the display rate, and on a 144 Hz screen a 1 % low of about 70–100 is frame pacing, not stutter. The budget (≥ 144 fps, 1 % low ≥ 120) assumes vsync off: add `--disable-vsync` to the launch command to check it |
 | F12 | Screenshot to `%APPDATA%\Godot\app_userdata\450fpv\screenshots\` (the path is printed) |
 
 ## How work happens
