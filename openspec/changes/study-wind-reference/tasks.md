@@ -10,7 +10,16 @@
 
 - [x] 2.1 [physics-engineer] Write `docs/reference-notes/wind.md` §1–§4: the method, coverage, and all measurements per axis with units, frame ranges and uncertainties. Verify that every number reproduces from `attitude.csv`
 - [x] 2.2 [physics-engineer] Add §5, the interpretation and closed-loop limit (the pilot's correction bandwidth, turbulence implications, motor margin and saturation, each labelled measured, derived or assumed), and §6, the testable severe-wind targets. Verify that each target has a number, unit, tolerance and procedure
-- [ ] 2.3 [tech-artist] Add the rain-on-the-feed section to `wind.md`: drops, streaks, contrast and colour, blur, flare, and clearing by prop wash or airspeed, each with frames, an effect and a driver. Verify that every trait cites frames and names a driver
+- [ ] 2.4 [physics-engineer] Fold `pilot-answers.md` into `wind.md`:
+  - 0° uptilt: re-derive the motor margin, and explain the roll–yaw coupling as the pilot's yaw-versus-roll trade-off
+  - a prevailing wind plus random direction changes
+  - an acro-mode simulated pilot
+  - the mass range
+  - the clip as the worst stretch of a 10-minute flight
+  - fiber shake and stretch as a feed-dropout driver
+
+  Update the §5 labels and the §6 targets. Verify that every answer is reflected, and every changed number reproduces from `attitude.csv`
+- [ ] 2.3 [tech-artist] Add the rain-on-the-feed section to `wind.md`: drops, streaks, contrast and colour, blur, flare, and clearing by prop wash or airspeed, each with frames, an effect and a driver. Cross-reference the pilot's fiber-shake hypothesis for P's dropouts (N12 in `video-feed.md`). Verify that every trait cites frames and names a driver
 
 ## 3. Review
 
