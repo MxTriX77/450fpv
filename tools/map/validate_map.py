@@ -47,6 +47,8 @@ COVER_FIELDS = {
 }
 MAT_FIELDS = {"depth_m": (0, 0.5, "range"), "modulus_pa": (10, 1e6), "damping_ratio": (0, 2),
               "friction_static": (0, 2), "friction_kinetic": (0, 2)}
+MATERIAL_FIELDS = {"friction_static": (0, 2), "friction_kinetic": (0, 2)}
+MATERIAL_OPTIONAL = {"stiffness_n_per_m": (1e2, 1e8), "damping_ratio": (0, 2), "edge_radius_m": (1e-4, 0.05)}
 SHAPE_FIELDS = {"box": ["size_m"], "sphere": ["radius_m"], "cylinder": ["radius_m", "height_m"],
                 "capsule": ["radius_m", "height_m"], "capsule_chain": ["segment_m"]}
 
@@ -171,12 +173,55 @@ def check_surfaces(table):
     return indices
 
 
+def known(material, materials):
+    return isinstance(material, str) and material in materials
+
+
+def check_materials(catalog):
+    """Returns the set of material ids."""
+    materials = catalog.get("materials") if isinstance(catalog, dict) else None
+    if not isinstance(materials, dict) or not materials:
+        error("catalog.json: needs a non-empty 'materials' object")
+        return set()
+    for mid, material in materials.items():
+        where = f"material '{mid}'"
+        check_fields(material, MATERIAL_FIELDS, where)
+        if isinstance(material, dict):
+            check_fields(material, {f: r for f, r in MATERIAL_OPTIONAL.items() if f in material}, where)
+            check_friction(material, where, "")
+    return set(materials)
+
+
+def check_shapes(where, label, shapes, wire, materials):
+    """Collision shapes (primitives, or one capsule_chain for a wire) or wind-volume shapes (primitives only)."""
+    for shape in shapes:
+        kind = shape.get("shape") if isinstance(shape, dict) else None
+        allowed = [k for k in SHAPE_FIELDS if label == "collision" or k != "capsule_chain"]
+        if kind not in allowed:
+            error(f"{where}: {label} shape {kind!r} is not one of {', '.join(allowed)}")
+            continue
+        if label == "collision" and (kind == "capsule_chain") != wire:
+            error(f"{where}: wires collide as one capsule_chain, other assets never do")
+        for field in SHAPE_FIELDS[kind]:
+            value = shape.get(field)
+            ok = all(is_number(v) and 0 < v <= 1000 for v in value) if field == "size_m" and is_vec3(value) \
+                else is_number(value) and 0 < value <= 1000
+            if not ok:
+                error(f"{where}: {label} {kind} {field} is missing or not a positive size in metres")
+        for field in ("position_m", "rotation_deg"):
+            if field in shape and not is_vec3(shape[field]):
+                error(f"{where}: {label} {kind} {field} must be [x, y, z]")
+        if label == "collision" and "material" in shape and not known(shape["material"], materials):
+            error(f"{where}: {kind} shape material {shape['material']!r} is not in the material table")
+
+
 def check_catalog(catalog):
     """Returns {asset id: type} for the assets that are usable."""
     assets = catalog.get("assets") if isinstance(catalog, dict) else None
     if not isinstance(assets, dict):
         error("catalog.json: needs an 'assets' object")
         return {}
+    materials = check_materials(catalog)
     usable = {}
     for aid, asset in assets.items():
         where = f"asset '{aid}'"
@@ -195,22 +240,17 @@ def check_catalog(catalog):
         if not isinstance(shapes, list) or (not visual_only and not shapes):
             error(f"{where}: collision is required unless the asset is visual_only")
             shapes = []
-        for shape in shapes:
-            kind = shape.get("shape") if isinstance(shape, dict) else None
-            if kind not in SHAPE_FIELDS:
-                error(f"{where}: collision shape {kind!r} is not one of {', '.join(SHAPE_FIELDS)}")
-                continue
-            if (kind == "capsule_chain") != (asset["type"] == "wire"):
-                error(f"{where}: wires collide as one capsule_chain, other assets never do")
-            for field in SHAPE_FIELDS[kind]:
-                value = shape.get(field)
-                ok = all(is_number(v) and 0 < v <= 1000 for v in value) if field == "size_m" and is_vec3(value) \
-                    else is_number(value) and 0 < value <= 1000
-                if not ok:
-                    error(f"{where}: {kind} {field} is missing or not a positive size in metres")
-            for field in ("position_m", "rotation_deg"):
-                if field in shape and not is_vec3(shape[field]):
-                    error(f"{where}: {kind} {field} must be [x, y, z]")
+        check_shapes(where, "collision", shapes, asset["type"] == "wire", materials)
+        if shapes and "material" not in asset:
+            error(f"{where}: material is required because the asset has collision")
+        elif shapes and not known(asset["material"], materials):
+            error(f"{where}: material {asset['material']!r} is not in the material table")
+        if "wind_volume" in asset:
+            volume = asset["wind_volume"]
+            if not isinstance(volume, list) or not volume:
+                error(f"{where}: wind_volume must be a non-empty list of shapes")
+            else:
+                check_shapes(where, "wind_volume", volume, False, materials)
         if not isinstance(asset.get("snag_hazard"), bool):
             error(f"{where}: snag_hazard must be true or false")
         check_fields(asset, {"wind_porosity": (0, 1)}, where)

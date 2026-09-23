@@ -57,6 +57,12 @@ def broken_surface(change):
     return mutate
 
 
+def broken_catalog(change):
+    def mutate(pkg, tables):
+        edit_json(tables["catalog"], change)
+    return mutate
+
+
 def surface(data, sid):
     return next(s for s in data["surfaces"] if s["id"] == sid)
 
@@ -107,6 +113,18 @@ CASES = [
      False, ["surface 'belt_straw': cover.straw.hook_probability is missing"]),
     ("inverted range", broken_surface(lambda d: surface(d, "weeds")["pitfalls"].update(depth_m=[0.3, 0.05])),
      False, ["surface 'weeds': pitfalls.depth_m = [0.3, 0.05] must satisfy"]),
+    ("unknown material", broken_catalog(lambda d: d["assets"]["house_box"].update(material="concrete")),
+     False, ["asset 'house_box': material 'concrete' is not in the material table"]),
+    ("unknown shape material", broken_catalog(lambda d: d["assets"]["gate_frame"]["collision"][2].update(material="brass")),
+     False, ["asset 'gate_frame': box shape material 'brass' is not in the material table"]),
+    ("collider without material", broken_catalog(lambda d: d["assets"]["pole"].pop("material")),
+     False, ["asset 'pole': material is required because the asset has collision"]),
+    ("material kinetic above static", broken_catalog(lambda d: d["materials"]["steel"].update(friction_kinetic=0.5)),
+     False, ["material 'steel': friction_kinetic is greater than friction_static"]),
+    ("material stiffness out of range", broken_catalog(lambda d: d["materials"]["sheet_metal"].update(stiffness_n_per_m=10)),
+     False, ["material 'sheet_metal': stiffness_n_per_m = 10 is outside"]),
+    ("wind volume not a primitive", broken_catalog(lambda d: d["assets"]["tree_proxy"]["wind_volume"][0].update(shape="capsule_chain")),
+     False, ["asset 'tree_proxy': wind_volume shape 'capsule_chain' is not one of box, sphere, cylinder, capsule"]),
     ("unknown asset", lambda pkg, tables: edit_json(os.path.join(pkg, "objects.json"),
                                                     lambda d: d["objects"][3].update(asset="tank_hull")),
      False, ["object 3: unknown asset 'tank_hull'"]),
