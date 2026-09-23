@@ -38,6 +38,7 @@
   - Candidate B: our own chunked mesh with LODs plus `HeightMapShape3D`.
   - Pick whichever meets the map-loading budget with less code. Record the choice as D-009.
   - Physics never queries the renderer: world-query reads its own C# copy of the layers, so the choice doesn't affect the specs.
+- **The renderer is our own quadtree heightmap (D-009, spike result).** It meets the 4 km budget about 4× over, with no dependency. Terrain3D failed the compatibility gate (no stated 4.7 support). Terrain height queries use the renderer's triangulation, not bilinear, so physics, Jolt and the pixels agree. The gap between the two can reach centimetres on crater rims.
 - **Surface parameters start from typical soil-mechanics values:** a Winkler bearing modulus per soil class, friction 0.5–0.8, and the porosity values from notes §7. The physics engineer reviews the fields and units before they are frozen (task 2.2) and tunes the values later during flight tests.
 - **Wires are polylines with a sag,** built into thin capsule chains for collision. They carry `snag_hazard=true` by default, because the pilot flagged them as the invisible danger.
 - **Validator in Python, stdlib only.** It uses `zlib` for PNG decoding, so QA and agents can run it without Godot or Blender. The C# loader applies the same checks at load time.
@@ -47,4 +48,6 @@
 - [Terrain3D isn't compatible with 4.7.2, or C# interop is awkward] → Candidate B is the fallback. The spike decides it on measured numbers.
 - [Hash-based micro-detail looks too uniform] → Per-surface clustering (a density modulated by low-frequency hash noise). The world artist tunes the look with the user during M1 reviews.
 - [Physics needs a field that isn't in the surface table] → `format_version` minor bumps allow added optional fields. A major bump is needed only for breaking changes.
+- [Map sides that aren't multiples of 256 m fall back to slower mesh collision] → The format requires multiples of 256 m.
+- [Trenches 0.6–1.0 m wide can't be made from a 1 m, or even 0.5 m, heightfield] → Terrain holes plus a trench mesh asset, in `build-m1-terrain-patches`.
 - [1 m heights are too coarse for trenches and craters] → Author those features at 1 m (they are 1–4 m wide). The sub-metre shape comes from micro-relief. Re-evaluate on the M1 patches, and the format allows 0.5 m.
