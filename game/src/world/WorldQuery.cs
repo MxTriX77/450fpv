@@ -36,6 +36,15 @@ public struct Double3
         Z = z;
     }
 
+    public static Double3 operator +(Double3 a, Double3 b) => new(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
+    public static Double3 operator -(Double3 a, Double3 b) => new(a.X - b.X, a.Y - b.Y, a.Z - b.Z);
+    public static Double3 operator -(Double3 a) => new(-a.X, -a.Y, -a.Z);
+    public static Double3 operator *(Double3 a, double s) => new(a.X * s, a.Y * s, a.Z * s);
+    public static double Dot(Double3 a, Double3 b) => a.X * b.X + a.Y * b.Y + a.Z * b.Z;
+    public static Double3 Cross(Double3 a, Double3 b) => new(a.Y * b.Z - a.Z * b.Y, a.Z * b.X - a.X * b.Z, a.X * b.Y - a.Y * b.X);
+    public readonly double Length() => Math.Sqrt(X * X + Y * Y + Z * Z);
+    public readonly Vector3 ToVector3() => new((float)X, (float)Y, (float)Z);
+
     public override readonly string ToString() => $"({X}, {Y}, {Z})";
 }
 

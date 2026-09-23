@@ -55,4 +55,32 @@ public static class DetMath
             default: sin = -c; cos = s; break;
         }
     }
+
+    const double Ln2 = 0.69314718055994530942;
+
+    /// b^e for b in [0, 1] and e > 0, as exp(e·ln b): both series to about 1e-16, so the bits never depend on the C
+    /// runtime's pow.
+    public static double Pow(double b, double e)
+    {
+        if (!(b > 0))
+            return 0;
+        // ln b: b = m·2^k with m in [√½, √2), then ln m = 2·atanh(s), s = (m − 1)/(m + 1), |s| ≤ 0.172.
+        long bits = System.BitConverter.DoubleToInt64Bits(b);
+        int k = (int)((bits >> 52) & 0x7FF) - 1023;
+        double m = System.BitConverter.Int64BitsToDouble(bits & 0xFFFFFFFFFFFFFL | 0x3FF0000000000000L);
+        if (m > 1.4142135623730951)
+        {
+            m *= 0.5;
+            k++;
+        }
+        double s = (m - 1.0) / (m + 1.0), s2 = s * s, series = 1.0 / 25;
+        for (int n = 23; n >= 1; n -= 2)
+            series = series * s2 + 1.0 / n;
+        double y = e * (2.0 * s * series + k * Ln2);
+        // exp y: y = j·ln 2 + r with |r| ≤ ln 2 / 2, Taylor to r¹⁷/17!, then scaled by 2^j exactly.
+        double j = System.Math.Floor(y / Ln2 + 0.5), r = y - j * Ln2, sum = 1.0;
+        for (int n = 17; n >= 1; n--)
+            sum = 1.0 + sum * r / n;
+        return System.Math.ScaleB(sum, (int)j);
+    }
 }
