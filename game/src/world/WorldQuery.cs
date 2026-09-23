@@ -99,6 +99,7 @@ public sealed partial class WorldQuery
     readonly double[] _ridgePhase = new double[256], _ridgeNx = new double[256], _ridgeNz = new double[256];
     readonly uint _pitKey;
     readonly double _pitSearch, _pitMaxDensity;
+    readonly double _minHeight = double.PositiveInfinity, _maxHeight = double.NegativeInfinity; // of the height samples
 
     public IReadOnlyList<SurfaceParams> Surfaces { get; }
 
@@ -166,6 +167,11 @@ public sealed partial class WorldQuery
         {
             if (_byIndex[surface[i]] == null)
                 throw new InvalidDataException($"surface index {surface[i]} at cell {i % cells}, {i / cells} is not in the table");
+        }
+        foreach (float h in heights)
+        {
+            _minHeight = Math.Min(_minHeight, h);
+            _maxHeight = Math.Max(_maxHeight, h);
         }
         Catalog = catalog;
         InitMicroDetail();
