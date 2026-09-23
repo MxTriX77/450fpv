@@ -58,7 +58,8 @@
 - [Terrain3D isn't compatible with 4.7.2, or C# interop is awkward] → Candidate B is the fallback. The spike decides it on measured numbers.
 - [Hash-based micro-detail looks too uniform] → Per-surface clustering (a density modulated by low-frequency hash noise). The world artist tunes the look with the user during M1 reviews.
 - [Until wind volumes and tree-crown snag volumes land, tree belts are invisible to wind and contacts] → Wind volumes land in this change (4.1). Crown snag volumes, debris chunks and trench holes are deferred to `build-m1-terrain-patches` (review §8, X-1 to X-8).
-- [Launch-rail geometry is unknown] → The pilot has been asked. The rails asset is added once dimensions arrive; start points already exist in the format.
+- [Launch-rail geometry is derived, not measured] → From the pilot's "about the drone's diameter" and a 10" X-frame (450 mm wheelbase): two 25 mm square steel tubes, 0.26 m apart centre to centre, 0.25 m high and 0.6 m long. The arms rest on them, and the spool clears. Everything is tunable until the drone model exists. The steel edge radius (1 mm) is sharper than a real tube corner, so fiber-break risk errs on the high side; physics tunes it.
+- [First query timings exceed budget: ground 28–36 ms per 100k (budget 10), MicroDetailNear 1.7–2.1 ms (budget 0.25)] → Optimise in 3.6 before the golden file (3.5), because a hash change alters every output.
 - [Physics needs a field that isn't in the surface table] → `format_version` minor bumps allow added optional fields. A major bump is needed only for breaking changes.
 - [Map sides that aren't multiples of 256 m fall back to slower mesh collision] → The format requires multiples of 256 m.
 - [Trenches 0.6–1.0 m wide can't be made from a 1 m, or even 0.5 m, heightfield] → Terrain holes plus a trench mesh asset, in `build-m1-terrain-patches`.
