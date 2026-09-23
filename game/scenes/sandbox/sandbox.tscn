@@ -1,0 +1,72 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/sandbox/Sandbox.cs" id="1_sandbox"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
+sky_top_color = Color(0.32, 0.47, 0.68, 1)
+sky_horizon_color = Color(0.7, 0.74, 0.78, 1)
+ground_bottom_color = Color(0.2, 0.19, 0.16, 1)
+ground_horizon_color = Color(0.7, 0.74, 0.78, 1)
+
+[sub_resource type="Sky" id="Sky_sky"]
+sky_material = SubResource("ProceduralSkyMaterial_sky")
+
+[sub_resource type="Environment" id="Environment_sandbox"]
+background_mode = 2
+sky = SubResource("Sky_sky")
+tonemap_mode = 2
+fog_enabled = true
+fog_density = 0.0008
+fog_aerial_perspective = 1.0
+fog_sky_affect = 0.0
+
+[sub_resource type="Shader" id="Shader_grid"]
+code = "shader_type spatial;
+
+// Ground placeholder: earth tone with 1 m minor and 10 m major grid lines for judging scale and speed.
+uniform vec3 base_color : source_color = vec3(0.33, 0.33, 0.27);
+uniform vec3 line_color : source_color = vec3(0.2, 0.2, 0.16);
+
+varying vec2 world_xz;
+
+void vertex() {
+	world_xz = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xz;
+}
+
+float grid_line(vec2 p, float spacing) {
+	vec2 cell = p / spacing;
+	vec2 w = fwidth(cell);
+	vec2 d = abs(fract(cell - 0.5) - 0.5) / w;
+	float line = 1.0 - clamp(min(d.x, d.y), 0.0, 1.0);
+	return line * (1.0 - smoothstep(0.1, 0.3, max(w.x, w.y)));
+}
+
+void fragment() {
+	float line = max(0.5 * grid_line(world_xz, 1.0), grid_line(world_xz, 10.0));
+	ALBEDO = mix(base_color, line_color, line);
+	ROUGHNESS = 1.0;
+}
+"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_grid"]
+shader = SubResource("Shader_grid")
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_ground"]
+material = SubResource("ShaderMaterial_grid")
+size = Vector2(4000, 4000)
+
+[node name="Sandbox" type="Node3D"]
+script = ExtResource("1_sandbox")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_sandbox")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.383022, 0.321394, 0, 0.642788, 0.766044, -0.5, -0.663414, 0.55667, 0, 10, 0)
+shadow_enabled = true
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+mesh = SubResource("PlaneMesh_ground")
+
+[node name="Camera" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.986394, 0.164399, 0, -0.164399, 0.986394, 0, 3, 12)
