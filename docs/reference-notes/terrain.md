@@ -34,7 +34,7 @@ The written catalog of what the pilot's own flights show: terrain, vegetation, s
 | L | clip | Night flight in black and white over open, gently rolling dark fields, with a tree line on the horizon. Poles, bushes and lone trees read only as silhouettes against the sky | night, overcast sky brighter than the ground | not readable |
 | M | photo | Abandoned classic small sedan on an asphalt street: fragment holes, a flat tyre, a crazed windscreen | bright sun, hard shadows | late winter / early spring (bare trees) |
 | N | photo | Blast-wrecked small hatchback in a wide field of strike debris | overcast | winter |
-| O | photo | Burnt-out heavy 6×6 truck on a slushy road, with snow all around | overcast, snow light | winter (snow) |
+| O | photo | Burnt-out heavy bonneted truck on a slushy road, with snow all around | overcast, snow light | winter (snow) |
 
 The tree belt is the backbone of the set. It appears in 7 of the 9 clips (A, B, D, F, G, H, L), either as the scene itself or as the horizon line.
 
@@ -322,25 +322,35 @@ The tree belt is the backbone of the set. It appears in 7 of the 9 clips (A, B, 
 
 ## 5. Vehicles
 
-No vehicle appears in any clip. This catalog comes from the pilot's list of typical models (pilot) and the vehicle photos M, N and O, plus the small car far off in K.
-- **Sizes** are the models' factory dimensions (length × width × height), rounded, from general knowledge. They are not estimated from the photos.
-- **Colours** are `photo` values measured on M, N and O. Colours marked "typical" are general knowledge, not measured.
+No vehicle appears in any clip. This section keeps two sources apart, and every line says which one it comes from:
+- **Observed** means seen in the vehicle photos M, N or O, always cited by letter. A small car far off in K is too small to add detail.
+- **General** means general knowledge, not seen in any reference. Only the makes come from the pilot's list (pilot): ВАЗ, Chery, Chevrolet, VW, Daewoo Lanos, ЗИЛ and Урал. The specific models, their factory dimensions (length × width × height, rounded), the typical colours and how wrecks age are the World Artist's general knowledge. Check the dimensions against a spec sheet when modelling.
+- **Colours:** the `photo` values were measured on M, N and O, so they are observed. Colours marked "typical" are general.
 - **Build:** each model is built once as a clean base plus two state kits, so every model exists in both states (R0).
 
 ### R0 Vehicle states: abandoned vs destroyed by strikes
 **Pilot:** some vehicles are abandoned and some are destroyed by strikes.
 
-| | Abandoned | Destroyed by strikes |
-|---|---|---|
-| Seen in | M (also holed by fragments, but not burnt) | N (blast-wrecked), O (burnt out) |
-| Body | Paint intact but faded and dusty. Rust at the sills, the wheel arches and every hole edge (M: fragment holes 3–20 cm, each with an orange rust halo). | **Burnt:** paint gone to soot black (O). From general knowledge, it then turns rust-brown within weeks. **Blast:** panels bent outward, doors sprung or hanging, bonnet and boot lids torn and folded back, roof pushed down, panels peppered with fragment holes (N). |
-| Glass | Windscreen crazed and sagging inwards, because it is laminated. Side windows gone (M). | All gone. |
-| Wheels | One or more flat tyres, so that corner sits 5–10 cm lower and the body leans 1–3° (M: front). | After a blast the tyres can survive (N). Fire burns them down to the steel bead wire, so a burnt car sits on its rims, 15–25 cm lower (general knowledge; O's wheels are hidden). |
-| Interior | Seats, dust and leaves. | Burnt down to seat frames and springs. After a blast, trim and wiring hang out (N). |
-| Around it | Leaves and litter underneath. Off asphalt, weeds 0.3–1.5 m grow around and through it (T7). On asphalt, a small scatter of glass and trim within about 2 m (M). | A debris field 5–20 m across: glass, body fragments, trim and plastic, plus whatever the strike threw (N: broken blocks, planks, sheet metal, a fallen trunk). Around a burnt wreck there is a dark soot or melt patch 2–6 m across (O: wet, dark slush in the snow). |
-| Colours (`photo`) | M: dark green paint #38444a in shade to #697c82 lit, tyre #545455, dusty asphalt #b7b2aa | N: soot-grey panels #393c3d–#3a3d3f, debris ground #5a5955–#6d6e6b. O: burnt cab front #1d1e21, body side #3d3c40, snow #ccd4e1, slush #525256 |
+**Observed.** One photo of the abandoned state and two of the destroyed state.
 
-**Physical role (every vehicle):**
+| | M: abandoned, holed by fragments, not burnt | N: destroyed, blast-wrecked | O: destroyed, burnt out |
+|---|---|---|---|
+| Body | Paint intact and dusty. Fragment holes about 3–20 cm in the wings and doors, with orange rust at their edges. The bonnet is torn and bent up at one rear corner. | Panels soot-grey. Doors bulged outward and sprung, the bonnet torn up and folded back, the roof pushed down, panels peppered with small holes. | Cab and bonnet soot-black. The cab door hangs open. |
+| Glass | Windscreen crazed, and holed where the bent bonnet edge meets it. No glass visible in the side windows. | None left. | No windscreen. |
+| Wheels | A flat front tyre. Steel wheels with hubcaps. | Tyres still on the alloy wheels. | Not readable at the photo's size. |
+| Interior | Seats in place. | Seats in place. A loose cable hangs across a door opening. | Not readable. |
+| Around it | A small scatter of lamp and trim parts within about 2 m, on asphalt. | A wide debris field on paved ground: broken concrete blocks, planks, sheet metal, a fallen trunk, paper and plastic. | Dark wet slush around the truck, snow beyond. |
+| Colours (`photo`) | dark green paint #38444a in shade to #697c82 lit, tyre #545455, dusty asphalt #b7b2aa | soot-grey panels #393c3d–#3a3d3f, debris ground #5a5955–#6d6e6b | burnt cab front #1d1e21, body side #3d3c40, snow #ccd4e1, slush #525256 |
+
+**General (not seen in M–O).**
+- **Abandoned:** paint fades, and rust spreads from the sills, the wheel arches and every hole edge. Leaves and litter collect under and inside. Off asphalt, weeds 0.3–1.5 m grow around and through the body (T7).
+- **Flat tyres:** the flat corner sits 5–10 cm lower and the body leans 1–3°. This is an estimate for M's flat front tyre as well.
+- **Glass:** a laminated windscreen crazes and sags in place. Tempered side and rear windows break into small crumbs.
+- **Blast:** trim and wiring hang out of the torn body, and the boot lid can be torn open like the bonnet.
+- **Burnt:** soot-black paint turns rust-brown within weeks. Plastic bumpers and trim melt first. Tyres burn down to the steel bead wire, so a burnt car sits on its rims, 15–25 cm lower. Interiors burn down to seat frames and springs. A truck's canvas tilt burns away and leaves bare steel hoops.
+- **Around a wreck:** a strike leaves a debris field about 5–20 m across of glass, body fragments, trim and plastic, plus whatever else it threw. A burnt wreck sits in a dark soot or melt patch about 2–6 m across.
+
+**Physical role (every vehicle; estimates from the general sizes in R1–R5):**
 - `obstacle`: a rigid hull. Collision is a few convex pieces (body, cabin, wheels), with thin capsules for torn parts. The drone flies around or over it.
 - `turbulence`: a bluff body. Expect a recirculation zone about 2–3 heights behind it and a gusty wind shadow to about 10 heights (a car at about 1.45 m: 3–4 m and about 15 m; a truck at 2.4–3 m: 6–8 m and about 30 m). A burnt or blast-opened shell with no glass is porous, because air passes through the cabin. Its shelter is weaker and its wake choppier than an intact vehicle's.
 - `snag`: torn sheet-metal edges, sprung door skins, folded bonnets, roof racks (M), hanging wiring, burnt seat springs, and the bare tilt hoops of a burnt truck. Torn metal is sharp, so a fiber dragged across it should be more likely to cut than on branches (an input for the tether model).
@@ -351,44 +361,44 @@ No vehicle appears in any clip. This catalog comes from the pilot's list of typi
 **Frequency on the map (a proposal, not the pilot's):** cars far outnumber trucks. Abandoned vehicles stand in yards, at roadsides and at field edges, often overgrown. Destroyed ones stand on roads, tracks and open fields, often near craters or scorched ground.
 
 ### R1 ВАЗ (Lada), classic rear-drive (2101–2107)
-- **Seen:** M, a first-generation four-door sedan with round headlamps, a chrome bumper, steel wheels with hubcaps and a steel-tube roof rack.
-- **Size:** 4.07–4.17 × 1.61–1.62 × 1.44 m, wheelbase 2.42 m, clearance 0.17 m, kerb mass 0.96–1.05 t. The estates (2102, 2104) have the same footprint and a longer roof.
-- **Materials / colours:** a steel body with chrome (2101–2103, 2106) or black plastic (2105, 2107) bumpers. Flat, faded solid paints: M's dark green (see R0), and typically white, beige, red, sky blue and olive.
-- **Frequency:** first on the pilot's list, and the most common old car in villages (general knowledge). It is the first vehicle to build.
+- **Observed (M):** a four-door sedan with twin round headlamps, a chrome bumper, steel wheels with hubcaps and a steel-tube roof rack. Its shape matches the first classic ВАЗ generation (identified from general knowledge).
+- **Size (general):** 4.07–4.17 × 1.61–1.62 × 1.44 m, wheelbase 2.42 m, clearance 0.17 m, kerb mass 0.96–1.05 t. The estates (2102, 2104) have the same footprint and a longer roof.
+- **Materials / colours:** a steel body with chrome (2101–2103, 2106) or black plastic (2105, 2107) bumpers (general). Flat, faded solid paints: M's dark green is measured (R0); typically also white, beige, red, sky blue and olive (general).
+- **Frequency:** the pilot lists ВАЗ first. That the classic ВАЗ is the most common old car in villages is general knowledge. It is the first vehicle to build.
 
 ### R2 ВАЗ (Lada), front-drive and Niva
-- **Seen:** none (from the pilot's list).
-- **Size:**
+- **Observed:** none. The pilot lists ВАЗ; these models are general.
+- **Size (general):**
   - 2108, 2109 and 21099: 4.01–4.21 × 1.65 × 1.40 m, about 0.9 t.
   - 2110 family: 4.27 × 1.68 × 1.42 m, about 1.0 t.
   - 2121 Niva: 3.74 × 1.68 × 1.64 m, clearance 0.22 m, about 1.15 t. A short, tall, boxy off-roader.
-- **Materials / colours:** a steel body with black plastic bumpers. Typically white, silver, dark red, green or dark blue.
-- **Frequency:** common in villages (general knowledge). The Niva suits tracks and field edges.
+- **Materials / colours (general):** a steel body with black plastic bumpers. Typically white, silver, dark red, green or dark blue.
+- **Frequency (general):** common in villages. The Niva suits tracks and field edges.
 
 ### R3 Low to mid-class cars: Daewoo Lanos, Chevrolet, Chery, VW
-- **Seen:** N, a small five-door hatchback of this class, blast-wrecked, on alloy wheels. Also the small car far off in K.
-- **Size:**
+- **Observed (N):** a small five-door hatchback of this class, blast-wrecked, on alloy wheels. Its make can't be read.
+- **Size (general; the models are common ones for each make on the pilot's list):**
   - Daewoo Lanos sedan: 4.24 × 1.68 × 1.43 m, about 1.0 t.
   - Chevrolet Aveo: hatch 3.92 m or sedan 4.31 m long, × 1.68–1.71 × 1.50 m. Lacetti: 4.52 × 1.73 × 1.45 m. About 1.1–1.2 t.
   - Chery Amulet: 4.27 × 1.69 × about 1.45 m. Tiggo SUV: 4.29 × 1.77 × 1.72 m.
   - VW Golf: 4.0–4.15 × 1.70–1.74 × 1.43 m. Passat: 4.58–4.68 × 1.71–1.74 × 1.43–1.46 m.
-- **Materials / colours:** a steel body with plastic bumpers and trim, which melt or tear away first, on steel or alloy wheels. Typically metallic silver, grey, black, dark blue or red. N's own colour can't be read under the soot.
-- **Frequency:** the common modern cars. One or two bodies (a hatchback and a sedan) cover the class.
+- **Materials / colours (general):** a steel body with plastic bumpers and trim, which melt or tear away first, on steel or alloy wheels. Typically metallic silver, grey, black, dark blue or red. N's own colour can't be read under the soot (observed).
+- **Frequency (general):** the common modern cars. One or two bodies (a hatchback and a sedan) cover the class.
 
 ### R4 ЗИЛ trucks (130, 131)
-- **Seen:** none (from the pilot's list).
-- **Size:**
+- **Observed:** none. The pilot lists ЗИЛ; these models are general.
+- **Size (general):**
   - ЗИЛ-130 (4×2, bonneted cab, flatbed): 6.68 × 2.50 × 2.40 m, empty about 4.3 t, wheels about 0.97 m across, clearance 0.27 m.
   - ЗИЛ-131 (6×6): 7.04 × 2.50 × 2.48 m at the cab and 2.98 m with a canvas tilt, empty about 6.1–6.7 t, wheels about 1.08 m across, clearance 0.33 m.
-- **Materials / colours:** a steel cab and frame, a timber-plank drop-side bed on the 130, and a canvas tilt on steel hoops on the 131. Typically a faded blue or green cab (130) or olive (131).
-- **Frequency:** rare. There are far fewer trucks than cars.
+- **Materials / colours (general):** a steel cab and frame, a timber-plank drop-side bed on the 130, and a canvas tilt on steel hoops on the 131. Typically a faded blue or green cab (130) or olive (131).
+- **Frequency (general):** rare. There are far fewer trucks than cars.
 - **Physical role:** as R0 at truck scale. The bed and the cab roof are landing spots. A burnt tilt leaves bare steel hoops over the bed, a cage-like `snag`.
 
 ### R5 Урал trucks (375, 4320)
-- **Seen:** O, a burnt-out 6×6 with a bonneted cab, a slatted grille and headlamps in the wings. A door hangs open, the windscreen is gone and the cab is soot-black.
-- **Size:** 7.35–7.37 × 2.50–2.69 m. 2.64–2.68 m at the cab and about 2.9–3.0 m with a tilt. Empty about 8.0–8.5 t. Wheels about 1.1 m across and 0.4 m wide, clearance 0.40 m.
-- **Materials / colours:** a steel cab, a long steel bonnet, a steel frame and a canvas tilt on hoops. Typically olive. Burnt: see R0 (O).
-- **Frequency:** rare, like R4.
+- **Observed (O):** a burnt-out heavy truck with a bonneted cab and a vertical-slat grille. The cab door hangs open, the windscreen is gone and the cab is soot-black. Its shape matches the Урал (identified from general knowledge). The axles and wheels can't be read at the photo's size.
+- **Size (general):** a 6×6, 7.35–7.37 × 2.50–2.69 m. 2.64–2.68 m at the cab and about 2.9–3.0 m with a tilt. Empty about 8.0–8.5 t. Wheels about 1.1 m across and 0.4 m wide, clearance 0.40 m.
+- **Materials / colours (general):** a steel cab, a long steel bonnet, a steel frame and a canvas tilt on hoops. Typically olive. Burnt: see R0 (O, observed).
+- **Frequency (general):** rare, like R4.
 - **Physical role:** as R4. It is the tallest and heaviest vehicle, so it has the largest wind shadow of any vehicle.
 
 ## 6. Small objects, debris and lines
@@ -511,7 +521,7 @@ These are the parts to include, each tied to its reference. This is a content li
 2. **Straw-mat and stem micro-detail layer.** Lodged straw, standing stems and twigs over dark soil, with instanced physical stems near the drone. Reason: H is a long low flight over exactly this, the manifesto's straw-level landing jitter.
 3. **Damaged adobe house with a stripped roof, an enterable door and a far window.** Reason: E flies in through the door and sees daylight through the far window. It is the core fly-in structure and the first of the pilot's couple of village houses.
 4. **Trench along a narrow tree strip.** Reason: G flies it low and fast, and the pilot confirms trenches are common. It is the only narrow ground corridor in the clips.
-5. **Vehicle kit, first pass: a classic ВАЗ sedan (R1) and a Урал truck (R5), each in the abandoned and the destroyed state (R0).** Reason: the pilot names both as typical, and M and O show them. They add a new class of obstacle with a wind shadow and torn-metal snags that no clip covers.
+5. **Vehicle kit, first pass: a classic ВАЗ sedan (R1) and a Урал truck (R5), each in the abandoned and the destroyed state (R0).** Reason: the pilot names both makes as typical, and M and O show one of each. They add a new class of obstacle with a wind shadow and torn-metal snags that no clip covers.
 6. **Open rolling meadow patch.** About 500 m of sod and mixed grass with hidden pitfall and scorch patches, and belts on the horizon. Reason: A is the main open cruise-and-descend surface, L shows the same land at night, and M1 noclip needs the wide view.
 7. **Dry cratered field patch.** Craters 1–4 m with loose rims on crusted loam with sparse tufts. Reason: B shows it end to end, and it is the hard-surface bounce and crater-tilt case.
 8. **Dark field patch, tilled and burnt variants.** Reason: G shows one, and the pilot confirms both kinds are common. It is the soft-furrow landing case and the brittle-char landing case.
