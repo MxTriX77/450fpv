@@ -19,5 +19,8 @@
 ## 4. Review
 
 - [x] 4.1 [qa-engineer] Run the spec scenarios: tool re-run, git clean, letter stability, metrics completeness, event export, OPSEC hygiene scan of both notes, and coverage. Write `review.md` with the verdict
-- [ ] 4.2 [user-review] User reads `terrain.md` and `video-feed.md`, corrects anything wrong or missing (especially the uncertain traits), and approves. The notes are updated with the corrections
+- [x] 4.2 [user-review] The user reviewed and answered the open questions (2026-09-23), recorded in `pilot-answers.md`. New reference was added: a night clip and 3 destroyed-car images
+- [ ] 4.4 [world-artist] Make `extract_frames.py` keep existing letters when new files appear, appending new files with the next letters (so citations of A–K stay valid). Re-run it on the new references. Verify that A–K are unchanged in `index.md` and the new files get new letters
+- [ ] 4.5 [tech-artist] Fold `pilot-answers.md` (video) into `video-feed.md`: always-on baseline noise, varied random mid-flight flashes that recover, weak and rare throttle coupling, and the 4-stage randomised loss sequence. Characterise the night clip (low light: gain noise, colour, exposure, lights). Verify that every answered U-item is updated, and the OPSEC scan is clean
+- [ ] 4.6 [world-artist] Fold `pilot-answers.md` (terrain) into `terrain.md`: vehicle classes from the new images (abandoned vs destroyed, typical models), confirmed trenches, burnt vs tilled fields, and the map composition. Update the build list. Verify coverage of the new letters and that the OPSEC scan is clean
 - [ ] 4.3 [qa-engineer] Review against spec scenarios after the user's corrections, then clear the branch for merge
