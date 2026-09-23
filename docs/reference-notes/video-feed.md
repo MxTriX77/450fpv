@@ -245,7 +245,7 @@ Details:
   - The link between wind load and P's rate is a hypothesis, because P has no link data. The margin-to-hazard mapping is **unconfirmed, tunable**.
 
 **N13 Level steps with one-frame dark dips (dim light: L, P).** These are all 9 of L's flags and most of P's. The brighter clips A–H show none.
-- **Steps.** The whole picture jumps to a new brightness and holds it. The framing and horizon carry on smoothly through the step, the OSD layout doesn't change, and there is no motion blur (f162–164, f199–201).
+- **Steps in L.** The whole picture jumps to a new brightness and holds it. The framing and horizon carry on smoothly through the step, the OSD layout doesn't change, and there is no motion blur (f162–164, f199–201).
 
   | Step | Mean luma before → after | Change | Dip frame |
   |---|---|---|---|
@@ -256,12 +256,12 @@ Details:
   | f201 | 43.8 → 27.0 | −38 % | f200, whole frame: mean 10.9 (−75 %) |
 
 - **P** (daylight under heavy overcast and rain, in full colour, mean luma 57–91). The same trait, more often: 30 one-frame dips (−17 % to −53 %) and 12 plain steps in ≈ 45 s of picture, about one every 1.1 s. The level toggles between ≈ 57–63 and ≈ 85–91, with steps from −30 % (f176) to +56 % (f651).
-- **The new level is mostly a black-level shift.** A block-by-block fit of each settled frame (f15, f81, f117, f164, f201) against the frame before the step gives a gain of 0.90–0.98 and an offset of −13 to +13 levels. So dark ground moves much more than the sky in relative terms (f199 → f201: ground 26 → 10, sky 80 → 62). P's larger steps also change the gain: 0.68–0.98, with offsets of −11 to +13 (f138 → f142, f175 → f177, f371 → f373, f436 → f438).
+- **The new level is mostly a black-level shift.** A block-by-block fit of each settled frame (L f15, f81, f117, f164, f201) against the frame before the step gives a gain of 0.90–0.98 and an offset of −13 to +13 levels. So dark ground moves much more than the sky in relative terms (f199 → f201: ground 26 → 10, sky 80 → 62). P's larger steps also change the gain: 0.68–0.98, with offsets of −11 to +13 (f138 → f142, f175 → f177, f371 → f373, f436 → f438).
 - **The dip.** Gain ≈ 0.43–0.48 with an offset of ≈ −8 levels in L, which crushes the ground to 1–7 levels. In P the gain is 0.47–0.59, with offsets of −2 to −12 (f176, f372).
-  - It eases towards the bottom of the frame. In f163, ground just below the horizon keeps 7–16 % of its f164 level, while the slightly darker ground in the bottom rows keeps 55–75 %. So the dip recovers within about one field.
+  - It eases towards the bottom of the frame. In L f163, ground just below the horizon keeps 7–16 % of its f164 level, while the slightly darker ground in the bottom rows keeps 55–75 %. So the dip recovers within about one field.
   - It can start partway down a field (L f14; P f139, where the rows above ≈ 330 are unchanged).
 - **Not a camera-only exposure change: the OSD dims too.**
-  - Static OSD pixels (bright in every neighbouring frame) lose 10–48 % in f163, f200 and the dark part of f14, while the scene loses 60–98 %. After each down-step they settle 4–10 % lower (f15, f164, f201).
+  - Static OSD pixels (bright in every neighbouring frame) lose 10–48 % in L f163, f200 and the dark part of f14, while the scene loses 60–98 %. After each down-step they settle 4–10 % lower (f15, f164, f201).
   - In the day clips the same pixels never move: they stay within ±1 % through D's exposure changes (f182–184 at −13 %, f197–207 at −38 %) and in H.
   - In P the static OSD dims 5–32 % in the dips (f55, f139, f176, f372, f437) and follows the steps both ways (−16 % to +6 %).
   - So at least part of each change acts on the composite signal after the OSD is inserted.
