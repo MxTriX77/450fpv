@@ -240,3 +240,169 @@ The largest 5-frame rate in the second before each loss, measured, in °/s (roll
 - f1145: 2.9 / 5.2 / 4.6
 
 The flight's 95th percentiles are 8.4 / 5.2 / 8.6. Two losses follow brisk roll and two do not, so **the losses show no consistent link to hard manoeuvring** (see §5.5).
+
+## 5. Interpretation
+
+### 5.1 The closed-loop limit (read this before the targets)
+
+- **Measured:** every number in §2–§4 is the attitude *after* the flight controller and the pilot had already reacted. There is no stick or telemetry log.
+- **Assumed** (pilot to confirm, Q3): the flight controller runs in rate (acro) mode, as is usual on these airframes. In rate mode it holds angular *rate*, not angle, so a gust's angular kick leaves a lasting angle error that only the pilot removes. The pilot also re-banks and re-pitches to stop the drift a gust causes. Part of the attitude motion is therefore the pilot's own correction, which is his "constantly compensating trajectory and horizon".
+- **Derived:** model the pilot as a first-order corrector with time constant τ (§5.2). The measured residual is then the attitude the disturbance alone would have caused, times |S(f)| = 2πfτ / √(1 + (2πfτ)²).
+  - For roll (τ = 0.30 s), |S| is 0.50 at 0.31 Hz, 0.69 at 0.5 Hz, 0.88 at 1 Hz and 0.97 at 2 Hz.
+  - Below 1 Hz, where 94 % of the roll variance sits, the uncorrected disturbance would have been **1.1–2× larger than measured**. Above 2 Hz, measured and uncorrected are about the same.
+  - A human reaction delay adds a resonance near 0.5–1 Hz, where the loop can even amplify the disturbance.
+- **Measured:** the steady part of the wind never shows as motion, only as the lean the pilot held (§5.3).
+- **Consequence:** the true disturbance is larger than any number in §2–§4, and most of all at low frequency. That is why §6 defines its targets on the closed loop, with a simulated pilot of the bandwidth below, never on the sim's open-loop gust response.
+
+### 5.2 The pilot's correction bandwidth
+
+- **Measured** (§4.1, §4.3): excursions decay to 1/e in a median of **0.30 s** for roll (IQR 0.27–0.38), **0.17 s** for pitch (0.12–0.22) and **0.27 s** for yaw (0.17–0.30). The residual autocorrelation falls to 1/e at 0.30, 0.17 and 0.33 s.
+- **Derived:** the correction bandwidth 1/(2πτ) is then:
+  - **Roll: 0.53 Hz** (0.42–0.59). That is a crossover near 3.3 rad/s, inside the 2–5 rad/s typical of a human closing a compensatory loop (**assumed**, from manual-control literature).
+  - **Pitch: 0.94 Hz** (0.72–1.33).
+  - **Yaw: 0.59 Hz** (0.53–0.94).
+- **Derived:** the residual filter (§1.4) cuts decays slower than about 0.5 s short by up to ~20 %. These τ are therefore lower bounds within that margin.
+- **Measured:** rises are nearly as long as decays (roll 0.27 against 0.30 s, pitch 0.13 against 0.17 s). The excursions are pulses of 0.3–0.6 s in total, not sudden steps that are then slowly corrected.
+- **Assumed:** pitch's faster decay and its 1–2 Hz shelf (§3.2) may come partly from the airframe and flight controller rather than the pilot: a heavy airframe's slower rate loop, or coupling between throttle and pitch. P cannot separate them.
+
+### 5.3 The mean wind, from the steady lean
+
+- **Measured:** the camera holds a left roll of −9.1° [−9.6, −8.7] through the whole clip with only about −5° of net heading change (§2). That is a steady sideways force, not a turn. **The drone leans left, into a wind from the left of its path.**
+- **Measured** by eye in f1, f705 and f1417: the flight controller's own on-screen attitude indicator leans the same way. The lean is real, not a camera-mount offset.
+- **Derived:** the side force is W · tan(body roll). Body roll is 9.1° if the camera has no uptilt and about 12.5° with 25° uptilt (§5.5). That puts the side force at **0.16–0.22 of the drone's weight**.
+- **Assumed:**
+  - take-off mass 4–7 kg (Q4)
+  - side area 0.06–0.12 m²
+  - drag coefficient 1.0–1.3
+  - air density 1.225 kg/m³
+  - rotor (induced) drag neglected
+- **Derived:** **crosswind component ≈ 12 m/s (8–20 m/s, 30–70 km/h).** Rotor drag grows linearly with airspeed and would lower this, so treat it as the upper-leaning estimate. It is consistent with the pilot's "severe wind".
+
+### 5.4 Turbulence intensity and scale, near the ground and near obstacles
+
+**Intensity**
+- **Derived:** if the lean follows the crosswind quasi-steadily, then Δφ/φ ≈ n·ΔV/V, with n = 2 for body drag (∝ V²) and n = 1 for rotor drag (∝ V). The roll std of 2.41° about 9.1° then gives **σ_v/V ≈ 0.13–0.26**. That covers the slow part and includes the pilot's own course changes, so it is an upper bound for the wind alone.
+- **Assumed:** the standard low-altitude turbulence model (MIL-F-8785C, Dryden form) at 30–50 m over farmland gives σ_v/U ≈ 0.12–0.15, with length scales L_u = L_v ≈ 150–200 m and L_w ≈ the height. That is consistent with the lower end.
+
+**Open field against tree belt** (measured, §4.4)
+- **Open field:** the wobble is modest (roll residual 0.51°, pitch 0.28°), and there is not a single 2σ roll event in 30.9 s.
+- **Over and just past the tree belt** (7 s): roll 1.26° (2.5×), pitch 0.43° (1.6×) and yaw 1.67° (3.8×). All 7 roll events fall here, and the drone rocks by 3–5° every 1.3–2.9 s.
+
+**Scale**
+- **Derived:** the belt multiplies the attitude disturbance by 1.6–3.8 even though the drone is well above the tree tops. Its wake adds turbulence at scales far below the open-field integral scale. Roll events over the belt last 0.28–0.45 s and arrive 0.6–0.8 s apart; at an **assumed** airspeed of 10–20 m/s (Q5) those are eddies of about 3–9 m, spaced 6–16 m apart. That is the size of the trees themselves.
+- **Assumed:** field studies of shelterbelt wakes report up to about twice the upstream turbulence intensity from roughly 5 to 15 belt heights downwind, in a wake that grows to 2–3 belt heights tall. That matches the measured 1.6–2.5× in roll and pitch.
+
+**What the model needs** (derived)
+1. Broadband turbulence whose energy reaches the airframe at encounter frequencies up to 2–4 Hz, not only slow gusts.
+2. Obstacles that shed their own, stronger turbulence (a wake behind tree belts and buildings on top of the background), because that is where the drone "yanks".
+3. Intermittent gusts (residual kurtosis 3.8–4.7 in roll and pitch, 9 in yaw), not Gaussian noise.
+
+**Not covered:** nothing in P is flown close to the ground, so turbulence within a few metres of the ground is not measured here.
+
+### 5.5 Motor margin and saturation
+
+**Roll and pitch authority**
+- **Measured:** 95th-percentile angular acceleration is 164 °/s² in roll (maximum 386, with up to about 53 °/s² of noise std) and 97 °/s² in pitch (maximum 208).
+- **Assumed** for a heavy quad of the 10-inch class the manifesto names:
+  - 4–7 kg
+  - radius of gyration 0.12 m about roll and pitch, with twice that inertia about yaw
+  - motors 0.16 m from the roll and pitch axes
+  - rotor drag torque 0.012–0.02 N·m per newton of thrust
+- **Derived:** those accelerations need only **2–3 % of hover thrust as differential thrust** at the 95th percentile, and about 6 % at the maximum (pitch: 1.5 % and 3 %).
+- **Measured:** the roll and pitch rate distributions are symmetric to within 5 %, with no clipped tails. **There is no sign of roll or pitch saturation.**
+
+**Yaw authority**
+- **Derived:** yaw is driven by rotor drag torque, which is roughly ten times weaker for the same differential thrust. The measured 95th-percentile heading acceleration of 85 °/s² would need **about 25 % differential thrust**, and the maximum of 326 °/s² about 90 %. Both are upper bounds, because they include noise and the coupling below.
+- **Derived:** **yaw is the axis that runs out of authority first.** Its heavy tail (kurtosis 9) and slow decay fit that.
+
+**Collective thrust** (depends on camera uptilt, Q1)
+- **Derived:** holding height at the measured tilt needs W / (cos θ_body · cos φ_body):
+  - no uptilt: body pitch −22.7°, roll 9.1° → **1.10 W**
+  - 25° uptilt: body pitch ≈ −48°, roll ≈ 12.5° → **1.52 W**
+- **Assumed:** heavy cargo quads of this class at full payload have a maximum thrust of about 1.6–2.2 W.
+- **Derived:** the sustained throttle is then about 50–70 % of maximum without uptilt, or **70–95 % with 25° uptilt**. In the second case the "motors crying" are sustained near-maximum throttle, with little headroom left for gusts: at 48° of tilt, every further 3° of lean costs about 6 % more thrust (0.09 W).
+
+**Roll–yaw coupling**
+- **Derived:** the coupling (r = +0.57, yaw 0.07 s behind roll, regression slope 0.61) is what camera uptilt produces kinematically: part of a body roll appears as a change in camera heading. If all of it were kinematic, the uptilt would be about 25°. Coordinated roll-and-yaw stick input from the pilot would also couple them positively; weathervaning in side gusts would couple them negatively. **Q1 settles this**, and with it the thrust margin above.
+
+**Picture losses and vibration**
+- **Measured:** three picture losses of 0.40–0.67 s and one black frame in 47 s, all recovered, with no consistent link to brisk manoeuvres (§4.5). Fiber link margin and supply sag under load are both possible (`video-feed.md` U1, U2). Neither is attributed here.
+- **Derived** (§3.3): shake at the camera is ≤ 0.15° within an exposure and ≤ 0.13° RMS aliased above 4 Hz. The airframe and camera mount keep motor vibration out of the picture, so the "crying" is not visible as shake.
+
+### 5.6 Summary for the wind model
+
+1. A steady crosswind that makes the drone lean about 9° (derived: roughly 12 m/s across the path).
+2. Background turbulence that, under a pilot of 0.5 Hz (roll) and 0.9 Hz (pitch) bandwidth, leaves 0.5° of roll and 0.3° of pitch wobble above 0.3 Hz over open field.
+3. Wakes behind tree belts (and, by extension, buildings) that multiply that wobble 1.6–4× and deliver a burst every 0.6–0.8 s.
+4. Intermittent bursts rather than smooth noise; roll and pitch nearly independent.
+5. Yaw authority is the weak link, and collective thrust may run close to its limit (Q1).
+
+### 5.7 Questions for the pilot
+
+Rough answers are enough. None of them needs a place, a date or an OSD reading.
+
+| # | Question | What it sharpens |
+|---|---|---|
+| Q1 | How far is the camera tilted up on this airframe, in degrees relative to the frame? | Body tilt and thrust margin (§5.5), body against camera roll, and whether the roll–yaw coupling is geometry or your stick input |
+| Q2 | Where did the wind come from relative to your path: across from the left, quartering head-on, from behind? Any idea how strong (gusts in km/h or m/s)? | Checks the 12 m/s crosswind estimate and the wind direction in the §6 test |
+| Q3 | Rate (acro) mode or a self-levelling mode? | The simulated pilot of §6 |
+| Q4 | Take-off mass with payload, and the prop size? | Drag, inertia and thrust margin in §5.3 and §5.5 |
+| Q5 | Roughly how high and how fast: tens of metres, and a speed range? | Converts event times into eddy sizes (§5.4) |
+| Q6 | How long was the whole flight, and was take-off and landing in the same wind? | Whether the 47 s here are typical of the flight |
+| Q7 | Did the tree belt at the start feel worse than the open field? Is that typical behind tree lines and houses? | Confirms the wake finding (§4.4) that §6 builds on |
+| Q8 | The picture dropped out three times for about half a second and came back. Does that happen often in hard wind, and do you know if it was the fiber or the battery at full throttle? | Picture-loss model (with the tech-artist), and thrust margin |
+
+## 6. Severe-wind targets
+
+A future `severe wind` preset passes when the sim, flown by the simulated pilot below along the test flight below, reproduces these numbers. Every target is a field of `wind_stats.py`'s JSON, so a physics test can check it automatically. In the field names, `angle[roll]` means the entry of the `angle` list whose `axis` is `roll`, and `bands[i]` counts the §3.1 bands from 0.
+
+### 6.1 The simulated pilot
+
+- Flies in rate mode through the sim's own flight-controller model (the Q3 assumption).
+- Sees the attitude through the sim camera, sampled at 29.917 Hz, with a reaction delay of **d = 0.10 s** (assumed; the measured decays already include the real pilot's delay). The test is repeated with d = 0 and d = 0.2 s, and all three results are reported.
+- Commands on each axis the rate −(angle − trim) / τ, with **τ_roll = 0.30 s, τ_pitch = 0.17 s, τ_yaw = 0.27 s** (measured, §5.2).
+- Trims:
+  - **roll:** follows the lateral drift through a slow loop (time constant 3 s, assumed, well below the residual band), so the course is held.
+  - **pitch:** holds the mean camera elevation at −22.7° ± 2°, P's speed regime.
+  - **yaw:** holds the course heading.
+- Makes no other inputs.
+
+### 6.2 The test flight and the measurement
+
+1. **Setup:** the sim's heavy drone with P's payload (Q4) and camera uptilt (Q1). The `severe wind` preset, with the mean wind blowing across the course from the left (Q2 may change this), and its speed set by T0.
+2. **Route:** a straight course, well above the tree tops (tens of metres, Q5). Each run has **32 s over open field and 7 s** from the upwind edge of one tree belt to about 10 belt heights downwind. That is P's mix: 7.0 s of belt in 37.9 s of residual time.
+3. **Runs:** at least **5 runs** with independent seeds. Each run's first 5 s after release are discarded.
+4. **Log:** each run as its own CSV in the `attitude.csv` columns at 29.917 Hz, with `conf_* = 1`, `dup = 0` and `flag = ok`. With the world "up" vector **u** in camera coordinates (x right, y down, z forward):
+   - `roll_deg = atan2(−u_x, −u_y)`
+   - `pitch_deg = asin(u_z)`
+   - `yaw_rate_dps` = the frame-to-frame change of the optical axis's azimuth × 29.917
+
+   These match §1.2 exactly.
+5. **Measure:** `blender -b --factory-startup --python tools/reference/wind_stats.py -- --csv <run.csv> --segment <belt frames> --json <run.json>`, then average each field over the runs.
+6. **Pass:** every target's run average lies inside its band.
+
+Bands are about ±35 % on spreads. That covers the bootstrap interval, the ±10 % variation between 5 s open-field blocks in P, the −6/+15 % pitch-scale assumption and the simple pilot model. Yaw quantities and event rates get about ±50 % (lens sensitivity and Poisson counts). These are acceptance bands for a first model. The pilot's MVP flights have the final word.
+
+### 6.3 Targets
+
+| ID | Quantity | JSON field | P value [16–84 %] | Target band |
+|---|---|---|---|---|
+| T0 | Mean lean into the crosswind (calibrates the preset's mean wind) | `angle[roll].mean` | −9.1° [−9.6, −8.7] | \|mean\| = 9 ± 3°, leaning into the wind |
+| T1 | Residual roll std, open field | `segment.outside.roll.res_std` | 0.51° [0.47, 0.53] | 0.35–0.70° |
+| T2 | Residual pitch std, open field | `segment.outside.pitch.res_std` | 0.28° [0.25, 0.30] | 0.19–0.38° |
+| T3 | Residual roll std, tree belt | `segment.inside.roll.res_std` | 1.26° [1.16, 1.32] | 0.85–1.70°, and ≥ 1.8 × the sim's T1 |
+| T4 | Residual pitch std, tree belt | `segment.inside.pitch.res_std` | 0.43° [0.40, 0.46] | 0.29–0.58°, and ≥ 1.2 × the sim's T2 |
+| T5 | Residual yaw (heading) std, open field / tree belt | `segment.outside.yaw.res_std` / `segment.inside.yaw.res_std` | 0.44° [0.38, 0.50] / 1.67° [1.42, 1.72] | 0.22–0.66° / 0.8–2.5° |
+| T6a | Spectral band, roll: share of 0.23–15 Hz variance below 1 Hz | `spectra.roll.bands[0..1].share` | 94 % | ≥ 85 % |
+| T6b | Spectral band, roll: 2–4 Hz RMS (the "never smooth" floor; P's value includes ≤ 0.04° of noise) | `spectra.roll.bands[3].rms` | 0.114° [0.103, 0.124] | 0.06–0.16° |
+| T6c | Spectral band, pitch: share of variance in 1–4 Hz, and 1–2 Hz RMS | `spectra.pitch.bands[2..3].share`, `spectra.pitch.bands[2].rms` | 32 %; 0.18° [0.15, 0.20] | 20–45 %; 0.11–0.25° |
+| T6d | High-frequency ceiling: RMS above 4 Hz | `spectra.{roll,pitch}.bands[4..5].rms`, combined | roll 0.125°, pitch 0.054° | ≤ 0.13°, ≤ 0.06° |
+| T7 | Gust events, roll or pitch beyond 2σ of each axis, over P's field and belt mix | `events.roll_or_pitch.per_min`; `segment.inside.roll.events` / `events.roll.count` | 14.2 ± 4.7 /min; 7 of 7 | 7–24 /min; ≥ 70 % of roll events inside the belt segment |
+| T8 | Time between large disturbances (onset gaps) | `events.roll_or_pitch.gap_q[1]`, `.gap_cv` | median 2.0 s, CV 0.73 | median 1–4 s, CV 0.5–1.2 (irregular, never periodic) |
+| T9 | Intermittency: residual kurtosis | `residual[roll].kurtosis`, `residual[pitch].kurtosis` | 4.74, 3.81 | ≥ 3.6, ≥ 3.3 |
+| T10a | Cross-axis correlation, roll ~ pitch residual | `corr["roll~pitch residual"].r` | +0.21 [0.16, 0.28] | −0.05 to +0.40 (nearly independent) |
+| T10b | Cross-axis correlation, roll ~ yaw rate (only when the sim's camera uptilt equals the real one, Q1) | `corr["roll~yaw rate"].r` | +0.57 [0.48, 0.63] | +0.35 to +0.75 |
+
+## 7. Rain on the feed
+
+_Reserved for the tech-artist (task 2.3). Physics adds nothing here._
