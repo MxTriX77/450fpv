@@ -16,6 +16,15 @@ public static class DetMath
 
     public static uint Key(uint seed, uint salt) => Hash(seed + Hash(salt));
 
+    /// SplitMix64's output function (Steele, Lea and Flood, "Fast Splittable Pseudorandom Number Generators", 2014): a
+    /// bijection of 64 bits with full avalanche, for when many bits are drawn at once.
+    public static ulong Mix64(ulong z)
+    {
+        z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9UL;
+        z = (z ^ (z >> 27)) * 0x94D049BB133111EBUL;
+        return z ^ (z >> 31);
+    }
+
     /// The i-th independent value drawn from one hash.
     public static uint Draw(uint h, uint i) => Hash(h + i * 0x9E3779B9u);
 
