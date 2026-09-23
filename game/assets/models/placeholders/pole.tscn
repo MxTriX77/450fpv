@@ -1,0 +1,19 @@
+[gd_scene format=3]
+
+[sub_resource type="StandardMaterial3D" id="Mat_pole"]
+albedo_color = Color(0.48, 0.47, 0.44, 1)
+roughness = 0.9
+
+[sub_resource type="CylinderMesh" id="Cyl_pole"]
+material = SubResource("Mat_pole")
+top_radius = 0.1
+bottom_radius = 0.11
+height = 8.0
+radial_segments = 8
+rings = 1
+
+[node name="Pole" type="Node3D"]
+
+[node name="Body" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 0)
+mesh = SubResource("Cyl_pole")
