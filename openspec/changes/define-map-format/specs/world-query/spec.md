@@ -85,8 +85,9 @@ The API SHALL answer sphere and capsule queries, including a swept form from the
 - material
 - object and shape index
 - the wire parameter (0–1, or −1)
+- `Time` (0–1): the fraction of a swept query at which the contact first occurred. 1 = at the current pose. Below 1, the sweep entered or passed through the shape during the step, and the contact is reported where it first touched. A body resting on a shape that moves clear on the same side reports no contact.
 
-Results SHALL be in canonical order (object, shape), allocation-free, in pure C# with no scene tree (D-010).
+At most one contact is reported per (object, shape). Results SHALL be in canonical order (object, shape), allocation-free, in pure C# with no scene tree (D-010).
 
 #### Scenario: No tunnelling through a wire
 - **WHEN** a 15 mm sphere is swept 60 mm per step across a 5 mm wire, at any phase
@@ -105,7 +106,7 @@ Results SHALL be in canonical order (object, shape), allocation-free, in pure C#
 
 ### Requirement: Wind obstacles
 The API SHALL expose, read-only on a 2 m grid, `TopM` and `BaseM` (m above terrain) and `Porosity`. Row 0 is north, and cell centres are at −size/2 + (i + 0.5) × 2 m.
-`Porosity` is the optical porosity of a 2 m horizontal path through the cell, so a path through n cells has porosity β₁·β₂·…·βₙ. The loader SHALL derive it from each asset's wind volume, or its collision shapes if it has none, as β_cell = 1 − f·(1 − β_obj^(2 m / D_obj)), where f is the covered fraction and D_obj is the volume's mean horizontal extent. Overlaps multiply porosity, take the maximum top and the minimum base.
+`Porosity` is the optical porosity of a 2 m horizontal path through the cell, so a path through n cells has porosity β₁·β₂·…·βₙ. The loader SHALL derive it from each asset's wind volume, or its collision shapes if it has none, as β_cell = 1 − f·(1 − β_obj^(2 m / D_obj)), where f is the covered fraction and D_obj is the volume's mean horizontal extent (footprint perimeter / π, which equals the diameter of a round crown; each shape of a multi-shape volume uses its own). Wires and shapes with porosity 1 are not wind obstacles. Overlaps multiply porosity, take the maximum top and the minimum base.
 
 #### Scenario: House shadow
 - **WHEN** a solid 6 m tall house stands on flat ground
