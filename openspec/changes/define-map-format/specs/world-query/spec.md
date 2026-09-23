@@ -26,11 +26,11 @@ Relief, ridges and pitfalls SHALL be deterministic functions of position, map se
 
 #### Scenario: Continuous across surface borders
 - **WHEN** every surface border of `sample_patch` is walked in 1 mm steps
-- **THEN** no two adjacent `GroundHeight` samples differ by more than 1 mm, because relief and mat blend bilinearly over the 4 nearest cell centres and pitfalls are never clipped at a cell border
+- **THEN** no adjacent pair of `GroundHeight` samples differs by more than 1 mm beyond what the local slope predicts (|Δh − slope·Δx| ≤ 1 mm, the jump test). Where the slope is ≤ 1 m/m at both ends, |Δh| ≤ 1 mm also holds, because relief and mat blend bilinearly over the 4 nearest cell centres and pitfalls are never clipped at a cell border
 
 #### Scenario: Normal accuracy
 - **WHEN** the normal is checked at 10,000 points away from facet creases
-- **THEN** it agrees with a 1 mm central difference of `GroundHeight` within 1e-3 rad. Pitfall walls have finite slope, smoothed over the outer 25 % of the radius.
+- **THEN** it agrees with a central difference of `GroundHeight` within 1e-3 rad. The difference step is 1 mm, or 1 µm inside pitfalls, where features are too small and steep for 1 mm. Pitfall walls have finite slope, smoothed over the outer 25 % of the radius.
 
 #### Scenario: Micro-relief bounded
 - **WHEN** `GroundHeight` is sampled on a 5 cm grid over 100 m² of any surface, excluding pitfalls
@@ -130,7 +130,7 @@ Before a flight starts, the game SHALL be able to add catalog objects, such as t
 - **THEN** a capsule resting on them returns contacts with the steel material
 
 ### Requirement: Content hash
-The API SHALL expose a 64-bit hash of the map package files plus `surfaces.json` and `catalog.json`. The physics log records it, so a replay can refuse to run on a mismatched world.
+The API SHALL expose lookups for surfaces by index, materials by id and the soil reference diameter (review §6.1). It SHALL also expose a 64-bit hash of the map package files plus `surfaces.json` and `catalog.json`. The physics log records it, so a replay can refuse to run on a mismatched world.
 
 #### Scenario: Any change is detected
 - **WHEN** one byte of any hashed file changes
