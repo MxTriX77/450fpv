@@ -19,4 +19,4 @@
 ## 4. Review
 
 - [ ] 4.1 [user-review] The user opens the sandbox, flies the test patch with noclip, and approves the feel of the speeds and mouse (or asks for adjustments)
-- [ ] 4.2 [qa-engineer] Review against spec scenarios: build, smoke run, load/bad path, speeds, overlay, budget and screenshot. Write `review.md` with the verdict
+- [x] 4.2 [qa-engineer] Review against spec scenarios: build, smoke run, load/bad path, speeds, overlay, budget and screenshot. Write `review.md` with the verdict
