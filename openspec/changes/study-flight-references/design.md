@@ -2,7 +2,7 @@
 
 ## Context
 
-- The reference set is 8 clips (1920×1080, about 30 fps, 4–25 s each, about 100 s in total) plus 3 stills of 450–2048 px. The clips look like WhatsApp re-encodes, most likely recordings of goggles or a DVR.
+- The reference set is 8 clips (1920×1080, about 30 fps, 4–25 s each, about 100 s in total) plus 3 stills of 450–2048 px. The clips look like messenger re-encodes, most likely recordings of goggles or a DVR.
 - ffmpeg and OpenCV are not installed. Blender 5.2.1 is, and it has ffmpeg (through MovieClip and the sequencer) and numpy.
 - Agents can view still images, not video. The repo is public, so nothing visual derived from the footage may be committed.
 - **User direction:** the footage *is* the target look, meaning real analog: aliased pixels, lens distortion, colour shifts on approach, and varied noise events (grain, stripes, single-frame full-frame flashes). The feed is part of the realism simulation, not a static filter.
@@ -26,9 +26,10 @@
 - **Work split.** world-artist builds the tool first (task 1). After that, world-artist writes `terrain.md` and tech-artist writes `video-feed.md` in parallel on the same branch. Each commits only its own path (`git commit -m "…" -- <path>`) and retries if `index.lock` is held.
 - **Scan every frame.** About 2,900 frames in total. Metrics are computed on a downscaled copy (about 480×270) to keep runtime down: high-pass energy for noise, variance of row means for stripes, mean absolute difference for change. Each frame's metric is compared with the median of the 3 frames on each side, excluding the frame itself. The frame is flagged when that jump is above the clip's median plus k × MAD of jumps, with `--k` defaulting to 10. The first version flagged on raw values above the clip's median plus k × MAD. It missed one-frame interference, line dropouts and ghosted frames, and it flagged a fast approach through vegetation. The jump rule catches every glitch confirmed by eye and none of that motion. Sampling was rejected because single-frame flashes fall between the samples.
 - **Frame counts.** Rows equal Blender's decoded frame count. For 4 clips the container lists one more frame than Blender decodes. The missing frame is the final frame of a static end run, because Blender sizes a clip as round(duration × fps). This is accepted.
+- **Event statistics source.** Rates and durations for N2–N4 (chroma sparkles, rolling lines, diagonal interference) come from the tech-artist's full-resolution detector scans. The 4×4-averaged `metrics.csv` smooths those fine patterns away. `metrics.csv` stays the source for flagging and for the other events. This is an accepted deviation from the "Measured event statistics" scenario.
 - **Lossless detail.** Bursts and events are saved as native-resolution PNG. JPEG is kept only for overview stills and sheets, because its own 8×8 blocking would contaminate the pixel-level study.
 - **Feed traits carry simulation drivers.** Each trait maps to the physical cause that produces it on a real quad: motor/ESC electrical noise → stripes that scale with throttle; voltage sag or a hard knock → full-frame dropout; low light → gain noise; the frame filling with one colour → AWB/AE shift. The later video-feed implementation then reads simulation state instead of running on timers. The signal list at the end of `video-feed.md` is the contract the physics engineer will expose.
-- **Re-encoding caveat (narrow).** WhatsApp H.264 adds macroblocking and block-aligned smearing. Only traits with that clearly block-shaped evidence are classed as re-encoding. Everything else counts as analog until the user says otherwise, and uncertain traits are flagged for them.
+- **Re-encoding caveat (narrow).** Messenger H.264 re-encoding adds macroblocking and block-aligned smearing. Only traits with that clearly block-shaped evidence are classed as re-encoding. Everything else counts as analog until the user says otherwise, and uncertain traits are flagged for them.
 
 ## Risks / Trade-offs
 

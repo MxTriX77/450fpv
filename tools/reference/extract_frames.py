@@ -34,8 +34,9 @@ FORMATS = {".jpg": "JPEG", ".png": "PNG", ".bmp": "BMP"}
 SCAN_PCT = 25              # metrics run on a 480x270 copy of each 1920x1080 frame
 STRIPE_WIN = 15            # rows in the moving average that removes the smooth vertical gradient
 LUMA = np.array([0.299, 0.587, 0.114], dtype=np.float32)  # Rec.601 weights on the encoded values
+METRICS = ("luma_mean", "noise", "stripe", "diff", "r_mean", "g_mean", "b_mean")  # frame_metrics order
 FLAG_METRICS = ("noise", "stripe", "diff")
-COLUMNS = ("frame", "time_s", "luma_mean", "noise", "stripe", "diff", "r_mean", "g_mean", "b_mean", "flag")
+COLUMNS = ("frame", "time_s", *METRICS, "flag")
 NEIGHBOURS = 3             # frames each side forming the local baseline a flagged frame jumps above
 EVENT_PAD = 2              # neighbours exported on each side of a flagged frame
 
@@ -137,9 +138,12 @@ def flag_outliers(m, k):
     thresholds = {}
     over = []
     for name in FLAG_METRICS:
-        col = m[:, COLUMNS.index(name) - 2]
-        jump = np.array([col[i] - np.median(np.concatenate((col[max(0, i - NEIGHBOURS):i], col[i + 1:i + 1 + NEIGHBOURS])))
-                         for i in range(len(col))])
+        col = m[:, METRICS.index(name)]
+        jump = np.empty(len(col))
+        for i in range(len(col)):
+            before = col[max(0, i - NEIGHBOURS):i]
+            after = col[i + 1:i + 1 + NEIGHBOURS]
+            jump[i] = col[i] - np.median(np.concatenate((before, after)))
         med = np.median(jump)
         thresholds[name] = float(med + k * np.median(np.abs(jump - med)))
         over.append(jump > thresholds[name])
