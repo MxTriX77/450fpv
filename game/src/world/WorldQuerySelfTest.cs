@@ -15,6 +15,7 @@ public static class WorldQuerySelfTest
 {
     const string Package = "res://maps/sample_patch";
     const string SurfacesPath = "res://maps/surfaces.json";
+    const string CatalogPath = "res://assets/catalog.json";
 
     public static async void Run(Node3D sandbox)
     {
@@ -23,7 +24,7 @@ public static class WorldQuerySelfTest
         try
         {
             string dir = ProjectSettings.GlobalizePath(Package), surfaces = ProjectSettings.GlobalizePath(SurfacesPath);
-            WorldQuery world = WorldQuery.Load(dir, surfaces);
+            WorldQuery world = WorldQuery.Load(dir, surfaces, ProjectSettings.GlobalizePath(CatalogPath));
 
             // The renderer and its Jolt collision, built from the same package.
             using JsonDocument manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "map.json")));
@@ -63,7 +64,8 @@ public static class WorldQuerySelfTest
     /// The second process of the replay-identity check: prints the digest and writes it to `--digest-out`.
     public static void Digest(Node sandbox, string outPath)
     {
-        WorldQuery world = WorldQuery.Load(ProjectSettings.GlobalizePath(Package), ProjectSettings.GlobalizePath(SurfacesPath));
+        WorldQuery world = WorldQuery.Load(ProjectSettings.GlobalizePath(Package), ProjectSettings.GlobalizePath(SurfacesPath),
+            ProjectSettings.GlobalizePath(CatalogPath));
         string digest = ReplayDigest(world).ToString("x16");
         GD.Print($"selftest worldquery-digest: {digest}");
         if (outPath != null)
@@ -413,7 +415,7 @@ public static class WorldQuerySelfTest
         SurfaceParams[] noPits = SurfaceParams.ParseTable(File.ReadAllText(surfacesPath));
         foreach (SurfaceParams s in noPits)
             s.PitDensity = 0;
-        WorldQuery again = WorldQuery.Load(dir, surfacesPath);
+        WorldQuery again = WorldQuery.Load(dir, surfacesPath, ProjectSettings.GlobalizePath(CatalogPath));
         var withoutPits = new WorldQuery(noPits, world.SizeM, world.Seed, world.Samples, HeightsOf(world), world.Cells,
             SurfaceLayer(world), CoverLayer(dir));
 

@@ -102,8 +102,8 @@ public sealed partial class WorldQuery
 
     public IReadOnlyList<SurfaceParams> Surfaces { get; }
 
-    /// Loads a map package (game/maps/README.md) and the shared surface table.
-    public static WorldQuery Load(string packageDir, string surfacesPath)
+    /// Loads a map package (game/maps/README.md) with its objects, the shared surface table and the shared catalog.
+    public static WorldQuery Load(string packageDir, string surfacesPath, string catalogPath)
     {
         using JsonDocument manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(packageDir, "map.json")));
         JsonElement root = manifest.RootElement, height = root.GetProperty("height");
@@ -119,14 +119,16 @@ public sealed partial class WorldQuery
         byte[] cover = MapPng.Read(Path.Combine(packageDir, "cover.png"), 4, out int coverCells, out _);
         if (coverCells != cells)
             throw new InvalidDataException($"{packageDir}: cover.png is {coverCells} wide, surface.png {cells}");
-        return new WorldQuery(SurfaceParams.ParseTable(File.ReadAllText(surfacesPath)), root.GetProperty("size_m").GetDouble(),
-            root.GetProperty("seed").GetUInt32(), samples, heights, cells, surface, cover);
+        var world = new WorldQuery(SurfaceParams.ParseTable(File.ReadAllText(surfacesPath)), root.GetProperty("size_m").GetDouble(),
+            root.GetProperty("seed").GetUInt32(), samples, heights, cells, surface, cover, Catalog.Parse(File.ReadAllText(catalogPath)));
+        world.LoadObjects(Path.Combine(packageDir, "objects.json"));
+        return world;
     }
 
     /// `heights` are samples² world Y values, `surface` cells² surface indices and `cover` cells² RGBA bytes, all
-    /// row-major from the north-west corner.
+    /// row-major from the north-west corner. Objects need a `catalog`.
     public WorldQuery(SurfaceParams[] table, double sizeM, uint seed, int samples, float[] heights, int cells, byte[] surface,
-        byte[] cover)
+        byte[] cover, Catalog catalog = null)
     {
         SizeM = sizeM;
         Half = sizeM / 2;
@@ -165,7 +167,9 @@ public sealed partial class WorldQuery
             if (_byIndex[surface[i]] == null)
                 throw new InvalidDataException($"surface index {surface[i]} at cell {i % cells}, {i / cells} is not in the table");
         }
+        Catalog = catalog;
         InitMicroDetail();
+        InitObjects();
     }
 
     public SurfaceParams Surface(byte index) => _byIndex[index];
