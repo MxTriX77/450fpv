@@ -48,7 +48,8 @@ Inside `game/` each PNG layer also has a Godot sidecar, `surface.png.import` and
   "size_m": 256,
   "seed": 20260923,
   "height": { "resolution_m": 1.0, "samples_per_side": 257, "offset_m": -50.0, "scale_m": 0.01 },
-  "surface": { "resolution_m": 0.5, "cells_per_side": 512 }
+  "surface": { "resolution_m": 0.5, "cells_per_side": 512 },
+  "starts": [ { "position_m": [12.0, 0.4, -30.0], "yaw_deg": 90.0 } ]
 }
 ```
 
@@ -63,6 +64,9 @@ Inside `game/` each PNG layer also has a Godot sidecar, `surface.png.import` and
 | `height.scale_m` | number, m | > 0. Metres per sample step. Default 0.01 (1 cm steps, 655.35 m range). |
 | `surface.resolution_m` | number, m | > 0, and size_m / resolution_m is a whole number. Default 0.5 m. |
 | `surface.cells_per_side` | integer | = size_m / surface.resolution_m. The cover layer uses this same grid. |
+| `starts` | list, optional | Start points. Leave it out for none. When legs are off, the game places the launch rails at the chosen start point. |
+| `starts[].position_m` | [x, y, z], m | x and z inside the map. y is absolute. |
+| `starts[].yaw_deg` | number, degrees | Heading, the same convention as object yaw |
 
 Unknown fields are ignored, except the georeference fields listed at the end, which are rejected.
 
@@ -100,7 +104,13 @@ Every object names an `asset` id from `game/assets/catalog.json`. Its fields dep
 
 ## `surfaces.json` — surface table (shared)
 
-The physics data for every ground type. **Values are starting values, and physics will tune them in flight tests.** The physics engineer signs off the fields, units and ranges (change `define-map-format`, task 2.2).
+The physics data for every ground type. **Values are starting values, and physics will tune them in flight tests.** The physics engineer reviewed the fields, units and ranges (`openspec/changes/define-map-format/surfaces-review.md`), and this table applies that review.
+
+At the top level, next to `surfaces`:
+
+| Field | Unit | Valid range | Meaning |
+|---|---|---|---|
+| `soil_reference_diameter_m` | m | 0.005 – 0.1 | The foot diameter at which `bearing_n_per_m3` and `damping_ns_per_m3` are defined (0.015). Physics scales the modulus for a contact of diameter b by (b_ref / b)^0.3. |
 
 Each surface:
 
@@ -108,14 +118,18 @@ Each surface:
 |---|---|---|---|
 | `id` | — | `[a-z][a-z0-9_]*`, unique | Name used by tools and logs |
 | `index` | — | integer 1–255, unique | Value in `surface.png` |
-| `soil.bearing_n_per_m3` | N/m³ | 1e4 – 1e9 | Winkler bearing stiffness: contact pressure per metre of sink |
+| `soil.bearing_n_per_m3` | N/m³ | 1e4 – 1e9 | Virgin-loading Winkler modulus at the reference diameter: contact pressure per metre of sink |
 | `soil.damping_ns_per_m3` | N·s/m³ | 0 – 1e8 | Contact pressure per m/s of sink rate |
 | `soil.friction_static` | — | 0 – 2 | Static friction, leg on this ground |
 | `soil.friction_kinetic` | — | 0 – 2, ≤ static | Sliding friction |
-| `soil.max_sink_m` | m | 0 – 1 | Sink depth at which a firm layer stops the leg |
-| `soil.porosity` | — | 0 – 1 | Void fraction of the soil (typical for the soil class, from the reference notes §7) |
+| `soil.max_sink_m` | m | 0 – 1 | Total sink (elastic + plastic) at which a firm layer stops the leg |
+| `soil.unload_stiffness_ratio` | — | 1 – 100 | Unload and reload stiffness over the loading stiffness. 1 is purely elastic. A fraction 1 − 1/ratio of the loading energy stays as plastic sink, so legs settle and landings thud. |
 | `micro_relief.amplitude_m` | m | 0 – 0.5 | RMS height of procedural relief finer than the height grid |
-| `micro_relief.wavelength_m` | m | 0.05 – 10 | Its typical horizontal feature size |
+| `micro_relief.wavelength_m` | m | 0.05 – 10 | Its crest-to-crest distance. The relief is smooth value noise with lattice nodes half a wavelength apart. |
+| `micro_relief.ridges` | object, optional | — | Directional furrows added on top of the relief. Leave it out for none. |
+| `micro_relief.ridges.amplitude_m` | m | 0 – 0.3 | Half the crest-to-trough height |
+| `micro_relief.ridges.spacing_m` | m | 0.1 – 5 | Crest to crest |
+| `micro_relief.ridges.azimuth_deg` | degrees | 0 – 180 | The direction the crests run. 0 = along X (east–west); positive turns toward −Z, as object yaw does. One field direction per surface variant (`tilled_000`, `tilled_045`, …). |
 | `pitfalls.density_per_m2` | 1/m² | 0 – 1 | Hidden holes per square metre |
 | `pitfalls.depth_m` | [min, max], m | 0 – 2, min ≤ max | Hole depth range |
 | `pitfalls.radius_m` | [min, max], m | 0 – 2, min ≤ max | Hole radius range |
@@ -129,42 +143,73 @@ Each `cover` entry:
 | Field | Unit | Valid range | Meaning |
 |---|---|---|---|
 | `type` | — | `grass`, `straw`, `twigs`, `litter` | Picks the `cover.png` channel: R, G, B, A |
-| `height_m` | [min, max], m | 0 – 3, min ≤ max | Element length along its axis: standing height for grass, lying length for straw and twigs, layer thickness for litter |
+| `height_m` | [min, max], m | 0 – 3, min ≤ max; min > 0 when `stems_per_m2` > 0 | Element length along its axis: standing height for grass, lying length for straw and twigs, layer thickness for litter |
 | `stems_per_m2` | 1/m² | 0 – 5000 | Elements per m² at cover multiplier 1.0 |
-| `diameter_m` | [min, max], m | 0 – 0.2, min ≤ max | Stem, straw or twig diameter. For litter, the leaf width. |
-| `lateral_stiffness_n_per_m` | N/m | 0 – 1e4 | Sideways force per metre of tip deflection for one element, at its full length (a cantilever at the root; physics scales it for lower contact points) |
-| `hook_probability` | — | 0 – 1 | Chance that an element touching a leg hooks it for a moment |
+| `diameter_m` | [min, max], m | 0 – 0.2, min ≤ max; min > 0 when `stems_per_m2` > 0 | Stem, straw or twig diameter. For litter, the leaf width. |
+| `lateral_stiffness_n_per_m` | N/m | 0 – 1e4 | Tip stiffness (sideways force per metre of tip deflection, a cantilever at the root) of an element of **mean** length and **mean** diameter. Each element is scaled by (d / d̄)⁴ × (L̄ / L)³, so all elements of a cover share one tissue modulus. Physics scales it for lower contact points. |
+| `hook_probability` | — | 0 – 1 | Chance that an element touching a leg or the fiber hooks it for a moment |
+| `hook_release_n` | [min, max], N | 0 – 500, min ≤ max | The pull at which a hooked element lets go (slips off, pulls out or breaks). Each element draws its own value from its hash. |
+| `mat` | object, optional | — | A compressible layer on the soil (thatch, lodged straw, leaves). Leave it out for none. The mats of all covers stack in series. |
+| `mat.depth_m` | [min, max], m | 0 – 0.5, min ≤ max | Uncompressed depth at cover multiplier 1.0. The depth at a point is smooth hash noise in [min, max] at the surface's relief wavelength, times this cover's `cover.png` channel. It drapes into pitfalls and never bridges them. |
+| `mat.modulus_pa` | Pa | 10 – 1e6 | Compressive modulus (pressure per unit strain) |
+| `mat.damping_ratio` | — | 0 – 2 | Damping ratio of the mat contact |
+| `mat.friction_static`, `mat.friction_kinetic` | — | 0 – 2, kinetic ≤ static | Foot friction on the mat |
 
 How the starting soil values were chosen: the reference notes (§7) give how far a leg sinks on each ground. The bearing stiffness reproduces that sink for a reference contact of 25 N on a 15 mm foot (about 140 kPa, a 10 kg drone on four legs). The damping gives a damping ratio for that contact: low on hard crust and rubble (the drone bounces), high on sod and spoil (the drone is cushioned). Physics replaces the reference contact with the real leg design.
+
+There is no soil porosity field (the notes §7 give 0.40–0.60 void fractions). The contact model never used it: "loose" and "porous" ground is carried by the bearing modulus, the unload ratio and the maximum sink, and rubble voids are pitfalls.
 
 ## `game/assets/catalog.json` — asset catalog (shared)
 
 ```json
 {
+  "materials": {
+    "timber": { "friction_static": 0.45, "friction_kinetic": 0.35, "edge_radius_m": 0.002 }
+  },
   "assets": {
-    "pole": {
+    "tree_proxy": {
       "type": "object",
-      "scene": "res://assets/models/placeholders/pole.tscn",
-      "collision": [ { "shape": "cylinder", "radius_m": 0.11, "height_m": 8.0, "position_m": [0, 4.0, 0] } ],
+      "scene": "res://assets/models/placeholders/tree_proxy.tscn",
+      "material": "timber",
+      "collision": [ { "shape": "cylinder", "radius_m": 0.1, "height_m": 6.0, "position_m": [0, 3.0, 0] } ],
+      "wind_volume": [ { "shape": "sphere", "radius_m": 3.0, "position_m": [0, 7.0, 0] } ],
       "snag_hazard": true,
-      "wind_porosity": 0.0,
+      "wind_porosity": 0.5,
       "gaps": []
     }
   }
 }
 ```
 
+### Materials
+
+`materials` is the shared contact-material table. Physics reads it for every contact with an object or a wire.
+
+| Field | Unit | Valid range | Meaning |
+|---|---|---|---|
+| `friction_static` | — | 0 – 2 | Stick limit for feet, skids and the fiber on this material |
+| `friction_kinetic` | — | 0 – 2, ≤ static | Sliding friction |
+| `stiffness_n_per_m` | N/m | 1e2 – 1e8, optional | The object's local stiffness under a point load (panel flex, a batten bending), in series with the drone part. Leave it out for a rigid material. |
+| `damping_ratio` | — | 0 – 2, optional | Damping of that local stiffness. Default 0.05. Only used with `stiffness_n_per_m`. |
+| `edge_radius_m` | m | 1e-4 – 0.05, optional | Radius of box edges where the fiber bends over. Default 0.002. Cylinders, capsules and wires use their own radius. |
+
+There is no restitution field. On rigid materials the drone's leg and frame compliance sets the bounce, and on compliant ones the bounce comes from stiffness plus damping.
+
+### Assets
+
 | Field | Type / unit | Rule |
 |---|---|---|
 | `type` | `object` or `wire` | A `wire` is placed with points, sag and diameter instead of a transform |
 | `scene` | `res://` path | Must exist. For a `wire` it is a unit segment (1 m long along +Z from the origin, 1 m diameter) that the loader stretches along each piece of the sagged curve. |
 | `visual_only` | boolean, optional | `true` means no collision. Default `false`. |
-| `collision` | list of shapes | Required and non-empty unless `visual_only`. Shapes are in asset space and scale with the object. |
+| `collision` | list of shapes | Required and non-empty unless `visual_only`. Primitive shapes only (see below); there is no mesh collision. Shapes are in asset space and scale with the object. |
+| `material` | material id | Required when the asset has collision. Any collision shape may override it with its own `material`. |
 | `snag_hazard` | boolean | Catches the fiber or the legs |
-| `wind_porosity` | 0 – 1 | Fraction of wind passing through the object's volume: 0 = solid, 1 = open |
+| `wind_volume` | list of shapes, optional | The volume that blocks wind, in the same schema as `collision` (primitives only, no `material`). Leave it out to use the collision shapes. A tree collides only as its trunk, but its crown blocks the wind. |
+| `wind_porosity` | 0 – 1 | Optical porosity of the wind volume seen side-on: the fraction of the silhouette you can see through. 0 = solid, 1 = open. |
 | `gaps` | list | Named fly-through openings, may be empty |
 
-Collision shapes. Cylinders and capsules stand along asset +Y. `position_m` (default [0, 0, 0]) and `rotation_deg` (default [0, 0, 0], same order as objects) place each shape.
+Collision and wind-volume shapes. Cylinders and capsules stand along asset +Y. `position_m` (default [0, 0, 0]) and `rotation_deg` (default [0, 0, 0], same order as objects) place each shape.
 
 | `shape` | Size fields (m) |
 |---|---|
@@ -172,7 +217,9 @@ Collision shapes. Cylinders and capsules stand along asset +Y. `position_m` (def
 | `sphere` | `radius_m` |
 | `cylinder` | `radius_m`, `height_m` |
 | `capsule` | `radius_m`, `height_m` (total, including the caps) |
-| `capsule_chain` | `segment_m`: capsule length along the sagged curve. Wires only; the radius is half the object's `diameter_m`. |
+| `capsule_chain` | `segment_m`: capsule length along the sagged curve. Wires only, and a wire has exactly this one shape; the radius is half the object's `diameter_m`. Physics treats the chain as the wire's polyline. |
+
+The launch rails for legs off (manifesto §3) will be a steel asset, added once the pilot gives their dimensions.
 
 Each gap is a rectangular opening in asset space: `name`, `center_m` [x, y, z], `width_m`, `height_m` and `yaw_deg`. The opening faces asset ±Z, turned by `yaw_deg`.
 
