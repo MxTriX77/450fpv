@@ -59,6 +59,10 @@
 - [Hash-based micro-detail looks too uniform] → Per-surface clustering (a density modulated by low-frequency hash noise). The world artist tunes the look with the user during M1 reviews.
 - [Until wind volumes and tree-crown snag volumes land, tree belts are invisible to wind and contacts] → Wind volumes land in this change (4.1). Crown snag volumes, debris chunks and trench holes are deferred to `build-m1-terrain-patches` (review §8, X-1 to X-8).
 - [Launch-rail geometry is derived, not measured] → From the pilot's "about the drone's diameter" and a 10" X-frame (450 mm wheelbase): two 25 mm square steel tubes, 0.26 m apart centre to centre, 0.25 m high and 0.6 m long. The arms rest on them, and the spool clears. Everything is tunable until the drone model exists. The steel edge radius (1 mm) is sharper than a real tube corner, so fiber-break risk errs on the high side; physics tunes it.
+- [Swept contacts need time of impact] → `StaticContact.Time` was added in 3.4 and accepted into the spec. The physics engineer confirms the response to Time < 1 (for example, rewinding the step) in 3.7.
+- [Contact and ray timings in a Debug build are above the 1 µs per-query share: static capsule 3.6 µs, swept 6.9 µs, ray 1.6 µs] → Release benchmark and optimisation in 3.6. Box and cylinder closest points use a 40-step golden-section search, the first candidate to replace with closed form.
+- [The wind grid is 12 B/cell: 50 MB at 4 km, 200 MB at 8 km] → Acceptable for the 4 km world. Pack it if an 8 km map is ever built.
+- [The catalog has no real sheet-metal roof; the roof scenario uses a test-only asset] → A corrugated-roof asset is part of `build-uat1-parts`.
 - [First query timings exceed budget: ground 28–36 ms per 100k (budget 10), MicroDetailNear 1.7–2.1 ms (budget 0.25)] → Optimise in 3.6 before the golden file (3.5), because a hash change alters every output.
 - [Physics needs a field that isn't in the surface table] → `format_version` minor bumps allow added optional fields. A major bump is needed only for breaking changes.
 - [Map sides that aren't multiples of 256 m fall back to slower mesh collision] → The format requires multiples of 256 m.
