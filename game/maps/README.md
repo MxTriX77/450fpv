@@ -129,7 +129,7 @@ Each `cover` entry:
 | `type` | — | `grass`, `straw`, `twigs`, `litter` | Picks the `cover.png` channel: R, G, B, A |
 | `height_m` | [min, max], m | 0 – 3, min ≤ max | Element length along its axis: standing height for grass, lying length for straw and twigs, layer thickness for litter |
 | `stems_per_m2` | 1/m² | 0 – 5000 | Elements per m² at cover multiplier 1.0 |
-| `diameter_m` | [min, max], m | 0 – 0.1, min ≤ max | Stem, straw or twig diameter. For litter, the leaf width. |
+| `diameter_m` | [min, max], m | 0 – 0.2, min ≤ max | Stem, straw or twig diameter. For litter, the leaf width. |
 | `lateral_stiffness_n_per_m` | N/m | 0 – 1e4 | Sideways force per metre of tip deflection for one element, at its full length (a cantilever at the root; physics scales it for lower contact points) |
 | `hook_probability` | — | 0 – 1 | Chance that an element touching a leg hooks it for a moment |
 
@@ -182,7 +182,7 @@ Each gap is a rectangular opening in asset space: `name`, `center_m` [x, y, z], 
 
 Maps are composites inspired by the reference footage, never replicas of a real place. The validator rejects:
 
-- any field named like `lat`, `lon`, `lng`, `latitude`, `longitude`, `epsg`, `crs`, `utm`, `mgrs`, `wgs84` or containing `geo`, anywhere in the manifest, objects, surface table or catalog
-- any text value that contains a real place name from `tools/map/place_blocklist.txt`, a decimal coordinate pair or an MGRS grid reference
+- any field whose name has a part (split at `_` and capitals) such as `lat`, `lon`, `lng`, `latitude`, `longitude`, `epsg`, `crs`, `srs`, `utm`, `mgrs`, `wgs84`, `geo`, `georef`, `geolocation`, `geojson` or `geotiff`, anywhere in the manifest, objects, surface table or catalog (so `origin_lat` and `geoRef` are rejected, `geometry` is not)
+- any text value that contains a real place name from `tools/map/place_blocklist.txt` (matched at the start of a word, so case endings and adjectives count), a decimal coordinate pair or an MGRS grid reference. This is a safety net and can trip on a common noun such as «лиман»; rephrase the text.
 - PNG metadata that could carry a location (`eXIf` chunks, and text chunks that match the rules above)
 - GIS sidecar files in the package folder (`.pgw`, `.wld`, `.prj`, `.aux.xml`, `.tfw`, `.kml`, `.kmz`, `.gpx`, `.geojson`)
