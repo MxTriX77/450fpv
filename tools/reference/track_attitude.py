@@ -67,7 +67,8 @@ PEAK_EXCL = 3                    # samples around the main peak ignored when fin
 LUMA = np.array([0.299, 0.587, 0.114], dtype=np.float32)
 
 COLUMNS = ("frame", "time_s", "roll_deg", "pitch_deg", "yaw_rate_dps", "conf_roll", "conf_pitch",
-           "conf_yaw", "dup", "n_cols", "inlier_frac", "contrast", "span", "resid_px", "yaw_peak",
+           "conf_yaw", "dup", "n_cols", "inlier_frac", "contrast", "span", "resid_px", "edge_px",
+           "yaw_peak",
            "yaw_unique", "yaw_del_deg", "flag")
 
 
@@ -176,7 +177,7 @@ def ramp(v, lo, hi):
 
 def no_line(flag):
     return dict(roll=math.nan, pitch=math.nan, conf_roll=0.0, conf_pitch=0.0, n_cols=0,
-                inlier_frac=0.0, contrast=0.0, span=0.0, resid_px=math.nan, flag=flag)
+                inlier_frac=0.0, contrast=0.0, span=0.0, resid_px=math.nan, edge_px=math.nan, flag=flag)
 
 
 def horizon(rgb, mask, k1, focal, rng):
@@ -184,7 +185,8 @@ def horizon(rgb, mask, k1, focal, rng):
     line), their confidences and diagnostics."""
     h, w = rgb.shape[:2]
     out = no_line("no_line")
-    cols, rows, steps = column_edges(feature(rgb), mask)
+    feat = feature(rgb)
+    cols, rows, steps = column_edges(feat, mask)
     out["n_cols"] = len(cols)
     if len(cols) < MIN_INLIER_COLS * w:
         return out
@@ -202,10 +204,15 @@ def horizon(rgb, mask, k1, focal, rng):
     contrast = float(np.median(steps[inl]))
     span = float(cols[inl].max() - cols[inl].min() + 1) / w
     q = frac * ramp(contrast, CONTRAST_LO, CONTRAST_HI)
+    # Edge width: step / steepest one-row drop near the edge ~ 10-90 % rise (motion blur, focus, lines).
+    r0, c0 = np.round(rows[inl]).astype(int), cols[inl]
+    drop = np.max([feat[np.clip(r0 + k, 0, h - 1), c0] - feat[np.clip(r0 + k + 1, 0, h - 1), c0]
+                   for k in range(-3, 3)], axis=0)
+    edge = float(np.median(steps[inl] / np.maximum(drop, 1e-6))) * 100 / WORK_PCT   # native px
     out.update(roll=math.degrees(math.atan2(-d[1], d[0])), pitch=math.degrees(math.atan(dist / focal)),
                conf_roll=q * ramp(span, *SPAN_ROLL), conf_pitch=q * ramp(span, *SPAN_PITCH),
                inlier_frac=float(frac), contrast=contrast, span=span,
-               resid_px=float(np.sqrt(np.mean(resid ** 2))) * 960.0, flag="ok")
+               resid_px=float(np.sqrt(np.mean(resid ** 2))) * 960.0, edge_px=edge, flag="ok")
     return out
 
 
@@ -347,7 +354,7 @@ def write_csv(path, rows):
         lines.append(",".join([str(r["frame"]), fmt(r["time_s"], 4), fmt(r["roll"], 3), fmt(r["pitch"], 3),
                                fmt(r["yaw_rate"], 2), fmt(r["conf_roll"], 3), fmt(r["conf_pitch"], 3),
                                fmt(r["conf_yaw"], 3), str(r["dup"]), str(r["n_cols"]), fmt(r["inlier_frac"], 3),
-                               fmt(r["contrast"], 1), fmt(r["span"], 3), fmt(r["resid_px"], 2),
+                               fmt(r["contrast"], 1), fmt(r["span"], 3), fmt(r["resid_px"], 2), fmt(r["edge_px"], 2),
                                fmt(r["yaw_peak"], 3), fmt(r["yaw_unique"], 2), fmt(r["yaw_del"], 3), r["flag"]]))
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -603,6 +610,8 @@ def evaluate(rows, plan, fps):
     if hi.any():
         out.append(f"high-confidence only: roll RMS {np.sqrt(np.mean(er[hi] ** 2)):.3f}, "
                    f"pitch RMS {np.sqrt(np.mean(ep[hi] ** 2)):.3f}")
+    out.append(f"horizon edge width (no motion blur in this set): median "
+               f"{np.nanmedian([byf[p[0]]['edge_px'] for p in scene]):.2f} px")
     truth_rate = {p[0]: (p[4] - q[4]) * fps for q, p in zip(plan, plan[1:])}
     ey = np.array([byf[f]["yaw_rate"] - t for f, t in truth_rate.items() if byf[f]["conf_yaw"] >= CONF_OK])
     if len(ey):
