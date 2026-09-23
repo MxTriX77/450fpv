@@ -22,7 +22,7 @@ reference/   local-only flight footage (git-ignored)
 
 ## Requirements
 
-- Godot 4.7, .NET build
+- Godot 4.7.2, .NET build (`winget install --id GodotEngine.GodotEngine.Mono --version 4.7.2`). Point the `GODOT` user environment variable at its `Godot_v4.7.2-stable_mono_win64_console.exe`. Scripts and agents call `$GODOT` and never hard-code a path.
 - .NET SDK 8 or newer
 - Blender 5.2
 - Git with LFS
