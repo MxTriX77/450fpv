@@ -156,6 +156,7 @@ public sealed partial class WorldQuery
             if (_byIndex[surface[i]] == null)
                 throw new InvalidDataException($"surface index {surface[i]} at cell {i % cells}, {i / cells} is not in the table");
         }
+        InitMicroDetail();
     }
 
     public SurfaceParams Surface(byte index) => _byIndex[index];
