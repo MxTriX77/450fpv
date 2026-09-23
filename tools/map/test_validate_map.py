@@ -125,6 +125,12 @@ CASES = [
      False, ["material 'sheet_metal': stiffness_n_per_m = 10 is outside"]),
     ("wind volume not a primitive", broken_catalog(lambda d: d["assets"]["tree_proxy"]["wind_volume"][0].update(shape="capsule_chain")),
      False, ["asset 'tree_proxy': wind_volume shape 'capsule_chain' is not one of box, sphere, cylinder, capsule"]),
+    ("start point inside", lambda pkg, tables: edit_json(os.path.join(pkg, "map.json"), lambda d: d.update(
+        starts=[{"position_m": [0.0, 0.5, 10.0], "yaw_deg": 90.0}])),
+     True, ["OK:"]),
+    ("start outside the map", lambda pkg, tables: edit_json(os.path.join(pkg, "map.json"), lambda d: d.update(
+        starts=[{"position_m": [0.0, 0.5, 10.0], "yaw_deg": 90.0}, {"position_m": [20.0, 0.0, 129.0], "yaw_deg": 0.0}])),
+     False, ["map.json: start point 1 at x=20, z=129 is outside the map"]),
     ("unknown asset", lambda pkg, tables: edit_json(os.path.join(pkg, "objects.json"),
                                                     lambda d: d["objects"][3].update(asset="tank_hull")),
      False, ["object 3: unknown asset 'tank_hull'"]),

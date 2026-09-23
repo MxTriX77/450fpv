@@ -309,6 +309,18 @@ def check_manifest(manifest):
         error("map.json: height.offset_m must be a number")
     if not is_number(height.get("scale_m")) or height["scale_m"] <= 0:
         error("map.json: height.scale_m must be a positive number")
+    starts = manifest.get("starts", [])
+    if not isinstance(starts, list):
+        error("map.json: starts must be a list (leave it out for none)")
+        starts = []
+    half = size / 2
+    for i, start in enumerate(starts):
+        position = start.get("position_m") if isinstance(start, dict) else None
+        if not is_vec3(position) or not is_number(start.get("yaw_deg")):
+            error(f"map.json: start point {i} needs position_m [x, y, z] and yaw_deg")
+        elif not (-half <= position[0] <= half and -half <= position[2] <= half):
+            error(f"map.json: start point {i} at x={position[0]:g}, z={position[2]:g} is outside the map "
+                  f"(x and z within ±{half:g} m)")
     return size, counts[0], counts[1]
 
 
