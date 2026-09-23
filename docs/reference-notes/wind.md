@@ -495,22 +495,42 @@ Still open. Rough answers are enough, and none of them blocks the targets:
 
 A future `severe wind` preset passes when the sim, flown by the simulated pilot below along the test flight below, reproduces these numbers. Every target is a field of `wind_stats.py`'s JSON, so a physics test can check it automatically. In the field names, `angle[roll]` means the entry of the `angle` list whose `axis` is `roll`, and `bands[i]` counts the §3.1 bands from 0.
 
+**What they describe (pilot, Q6):** P is the toughest 47 s of a flight of about 10 minutes, and the tree belt in a strong crosswind is what made it the toughest (Q7). The targets therefore describe the **worst stretch** of a severe-wind flight, not a whole flight. A whole flight in the same preset should be milder on average, because most of it is open field. §6.4 gives milder bands.
+
 ### 6.1 The simulated pilot
 
-- Flies in rate mode through the sim's own flight-controller model (the Q3 assumption).
-- Sees the attitude through the sim camera, sampled at 29.917 Hz, with a reaction delay of **d = 0.10 s** (assumed; the measured decays already include the real pilot's delay). The test is repeated with d = 0 and d = 0.2 s, and all three results are reported.
-- Commands on each axis the rate −(angle − trim) / τ, with **τ_roll = 0.30 s, τ_pitch = 0.17 s, τ_yaw = 0.27 s** (measured, §5.2).
-- Trims:
-  - **roll:** follows the lateral drift through a slow loop (time constant 3 s, assumed, well below the residual band), so the course is held.
-  - **pitch:** holds the mean camera elevation at −22.7° ± 2°, P's speed regime.
-  - **yaw:** holds the course heading.
+- **Rate mode (pilot, Q3).** The sticks command the body rates p, q and r through the sim's own flight-controller model. There is no self-levelling or angle mode anywhere in the loop.
+- **Perception.** He sees the sim camera (0° uptilt, pilot Q1), sampled at 29.917 Hz, with a reaction delay of **d = 0.10 s** (assumed; the measured decays already include the real pilot's delay). He reads:
+  - the horizon roll φ
+  - the camera pitch θ
+  - the heading ψ
+  - the sideways slide v of the ground across the course, positive to the right
+- **Thrust tilt (Q7).** The tilt he wants is e* = ē − v / (g · τ_v), in radians, with **τ_v = 0.5 s** (assumed). ē obeys ē̇ = −v / (g · τ_v · 3 s) (assumed), so it settles on the mean lean into the wind.
+- **Split (Q7).** He shares any change of tilt between the horizon and the heading with **s = 0.64** (derived: the belt's share in §5.5):
+  - φ_ref = ē + s · (e* − ē)
+  - ψ_ref = ψ_course + (1 − s) · (e* − ē) / k, with k = −sin θ̄ from the run's mean pitch
+- **Pitch.** θ_ref holds the mean camera elevation at −22.7° ± 2°, P's speed regime.
+- **Loops.**
+  - On each axis he commands the Euler rate (ref − angle) / τ, with **τ_roll = 0.30 s, τ_pitch = 0.17 s and τ_yaw = 0.27 s** (measured, §5.2).
+  - He turns those rates into sticks with the exact ZYX relations p = φ̇ − ψ̇ sin θ, q = θ̇ cos φ + ψ̇ cos θ sin φ and r = ψ̇ cos θ cos φ − θ̇ sin φ.
+  - That makes him a fluent rate-mode pilot, who adds roll when he yaws with the nose down.
+- **Throttle.** Holds the run's height through a 2 s loop (assumed).
 - Makes no other inputs.
+- **Variants**, flown on the same seeds and reported alongside the nominal pilot:
+  - d = 0 and d = 0.2 s
+  - τ_v = 0.3 and 1.0 s
+  - for T11b only, s = 1 and s = 0
 
 ### 6.2 The test flight and the measurement
 
-1. **Setup:** the sim's heavy drone with P's payload (Q4) and camera uptilt (Q1). The `severe wind` preset, with the mean wind blowing across the course from the left (Q2 may change this), and its speed set by T0.
-2. **Route:** a straight course, well above the tree tops (tens of metres, Q5). Each run has **32 s over open field and 7 s** from the upwind edge of one tree belt to about 10 belt heights downwind. That is P's mix: 7.0 s of belt in 37.9 s of residual time.
-3. **Runs:** at least **5 runs** with independent seeds. Each run's first 5 s after release are discarded.
+1. **Setup:**
+   - The sim's drone of the Viriy 10 Opto class, with 0° camera uptilt (pilot, Q1).
+   - Mass 2.5 kg, the middle of P's 1.6–3.35 kg, with the inertia of the §5.5 component model at that mass. This is assumed. One extra run each at 1.6 and 3.35 kg is reported but not scored.
+   - The `severe wind` preset, with its prevailing direction abeam from the left of the course and its random direction changes switched on (pilot, Q2). Its mean speed is set by T0.
+2. **Route:** a straight course, well above the tree tops.
+   - P's height varied and is unknown (pilot, Q5), so the runs spread evenly over 20–50 m above ground (assumed).
+   - Each run has **32 s over open field and 7 s** from the upwind edge of one tree belt to about 10 belt heights downwind. That is P's mix: 7.0 s of belt in 37.9 s of residual time.
+3. **Runs:** at least **5 runs** of the nominal pilot, with independent seeds. The §6.1 variants fly the same seeds. Each run's first 5 s after release are discarded.
 4. **Log:** each run as its own CSV in the `attitude.csv` columns at 29.917 Hz, with `conf_* = 1`, `dup = 0` and `flag = ok`. With the world "up" vector **u** in camera coordinates (x right, y down, z forward):
    - `roll_deg = atan2(−u_x, −u_y)`
    - `pitch_deg = asin(u_z)`
@@ -518,15 +538,16 @@ A future `severe wind` preset passes when the sim, flown by the simulated pilot 
 
    These match §1.2 exactly.
 5. **Measure:** `blender -b --factory-startup --python tools/reference/wind_stats.py -- --csv <run.csv> --segment <belt frames> --json <run.json>`, then average each field over the runs.
-6. **Pass:** every target's run average lies inside its band.
+6. **Pass:** every target's average over the nominal runs lies inside its band. T11b uses the variant runs.
 
-Bands are about ±35 % on spreads. That covers the bootstrap interval, the ±10 % variation between 5 s open-field blocks in P, the −6/+15 % pitch-scale assumption and the simple pilot model. Yaw quantities and event rates get about ±50 % (lens sensitivity and Poisson counts). These are acceptance bands for a first model. The pilot's MVP flights have the final word.
+Bands are about ±35 % on spreads. That covers the bootstrap interval, the ±10 % variation between 5 s open-field blocks in P, the −6/+15 % pitch-scale assumption and the simple pilot model. Yaw quantities and event rates get about ±50 % (lens sensitivity and Poisson counts), and correlations get absolute bands. These are acceptance bands for a first model. The pilot's MVP flights have the final word.
 
 ### 6.3 Targets
 
 | ID | Quantity | JSON field | P value [16–84 %] | Target band |
 |---|---|---|---|---|
-| T0 | Mean lean into the crosswind (calibrates the preset's mean wind) | `angle[roll].mean` | −9.1° [−9.6, −8.7] | \|mean\| = 9 ± 3°, leaning into the wind |
+| T0 | Mean lean into the crosswind (calibrates the preset's mean crosswind) | `angle[roll].mean` | −9.1° [−9.6, −8.7] | \|mean\| = 9 ± 3°, leaning into the wind |
+| T0b | The wind is never a fixed vector, yet keeps its side through a stretch: relative spread and minimum of the sideways thrust | `airframe.lateral.std` / `airframe.lateral.mean`; `airframe.lateral.min` | 0.27 (0.047 / 0.174); 0.034 W | 0.14–0.40 (at least half of P's; the rest may be the pilot's course changes); min > 0 on the windward side in at least 4 of 5 runs |
 | T1 | Residual roll std, open field | `segment.outside.roll.res_std` | 0.51° [0.47, 0.53] | 0.35–0.70° |
 | T2 | Residual pitch std, open field | `segment.outside.pitch.res_std` | 0.28° [0.25, 0.30] | 0.19–0.38° |
 | T3 | Residual roll std, tree belt | `segment.inside.roll.res_std` | 1.26° [1.16, 1.32] | 0.85–1.70°, and ≥ 1.8 × the sim's T1 |
@@ -540,7 +561,29 @@ Bands are about ±35 % on spreads. That covers the bootstrap interval, the ±10 
 | T8 | Time between large disturbances (onset gaps) | `events.roll_or_pitch.gap_q[1]`, `.gap_cv` | median 2.0 s, CV 0.73 | median 1–4 s, CV 0.5–1.2 (irregular, never periodic) |
 | T9 | Intermittency: residual kurtosis | `residual[roll].kurtosis`, `residual[pitch].kurtosis` | 4.74, 3.81 | ≥ 3.6, ≥ 3.3 |
 | T10a | Cross-axis correlation, roll ~ pitch residual | `corr["roll~pitch residual"].r` | +0.21 [0.16, 0.28] | −0.05 to +0.40 (nearly independent) |
-| T10b | Cross-axis correlation, roll ~ yaw rate (only when the sim's camera uptilt equals the real one, Q1) | `corr["roll~yaw rate"].r` | +0.57 [0.48, 0.63] | +0.35 to +0.75 |
+| T10b | Roll ~ yaw rate correlation: the trade-off paid on both axes, strongest over the belt | `corr["roll~yaw rate"].r`; `segment.inside.corr["roll~yaw rate"].r` | +0.57 [0.48, 0.63]; belt +0.77 [0.73, 0.79] | +0.35 to +0.75; belt +0.55 to +0.90, and above the field's `segment.outside.corr["roll~yaw rate"].r` |
+| T11a | Thrust-tilt residual std (the sideways push the pilot must answer), tree belt / open field | `segment.inside.tilt.res_std` / `segment.outside.tilt.res_std` | 1.72° [1.63, 1.72] / 0.60° [0.54, 0.64] | 1.1–2.3° / 0.39–0.81°, and belt ≥ 1.8 × field |
+| T11b | The trade-off is unavoidable (variant runs over the belt) | with s = 1: `segment.inside.roll.res_std` ÷ `segment.inside.tilt.res_std`; with s = 0: `segment.inside.yaw.res_std` × `airframe.k` ÷ `segment.inside.tilt.res_std`; in both: `segment.inside.tilt.res_std` | P flew s = 0.64: belt roll 1.26° (T3), heading 1.67° (T5), tilt 1.72°. With s = 0, that tilt would need ≈ 4.5° of heading | ≥ 0.8 for s = 1; ≥ 0.8 for s = 0; the tilt within ±25 % of the nominal run's T11a in both |
+
+**Why T11b makes the trade-off unavoidable.** Because e = φ + k · ψ, the pilot can hold the horizon or the heading, but not both, while he holds his line. T11b fails if the sim lets the drone hold its line without tilting the thrust. That happens with gusts that are only moments, with noise added to the pose, or with a drag model that has no sideways part. With s = 0, that pilot would then have no reason to yaw, and the heading would stay calm.
+
+### 6.4 Milder bands (derived, not measured)
+
+The rest of P's flight is not recorded, so no milder band is measured. Two are derived.
+
+1. **Same wind, away from obstacles:** the open-field targets alone. That means T1, T2, the open-field halves of T5 and T11a, and no roll events (P has 0 in 30.9 s, fewer than 1.9 per min). Most of a flight like P's is flown in this regime (assumed).
+2. **Milder wind, "typical windy":** a mean crosswind c times P's, at the same airspeed (pitch trim). Assume the turbulence intensity σ/U stays fixed (neutral surface layer) and the closed loop stays linear. Then:
+   - **Scaled by c:** every angle spread and band RMS (T1–T5, T6b, the T6c RMS, T6d, T11a), and the tangent of the mean lean (T0).
+   - **Unchanged:** shares, event rates (their thresholds scale too), gap statistics, kurtosis and correlations (T0b, T6a, the T6c share, T7–T10).
+
+   The default is **c = 0.5** (assumed), a mean crosswind of about 1–5 m/s:
+
+   | | T0 lean | T1 | T2 | T3 | T4 | T5 field / belt |
+   |---|---|---|---|---|---|---|
+   | Typical windy band | 4.6 ± 1.5° | 0.18–0.35° | 0.10–0.19° | 0.43–0.85° | 0.15–0.29° | 0.11–0.33° / 0.4–1.25° |
+
+   - The linear scaling is least safe for yaw: P's heavy yaw tail comes from authority running out (§5.5), and a milder wind should soften it.
+   - c is a starting value. The pilot's MVP flights set it.
 
 ## 7. Rain on the feed
 
