@@ -2,7 +2,7 @@
 
 The pilot's goggles feed **is** the target look. These notes break it down trait by trait: what the footage shows, how we would render it, and which part of the simulation drives it (D-008: the feed is simulated, not filtered).
 
-- **Sources:** 8 flight clips **A–H** (the 3 photos I–K are not feed footage and are not used here). Cited by letter and frame number (`B f123` = clip B, frame 123, 1-based, about 29.9 frames per second).
+- **Sources:** 9 flight clips **A–H and L** (the 6 photos I–K and M–O are not feed footage and are not used here). Cited by letter and frame number (`B f123` = clip B, frame 123, 1-based, about 29.9 frames per second). Clip L is a night flight.
 - **Evidence:** `metrics.csv` for every frame, the lossless native PNG bursts and event frames, and read-only full-resolution scans of every frame (thin-line, diagonal-interference and chroma-impulse detectors). Nothing was re-extracted and nothing derived from the footage is in the repo.
 - **Units:** pixel positions and sizes are on the 1920×1080 recording. "Levels" are 8-bit code values (0–255). `r/g` and `b/g` are the ratios of the frame-mean channels (a white-balance proxy).
 - **OPSEC:** no places, positions, dates, file names or on-screen-display (OSD) values. The OSD is described only as a layout. Frame content is described only as far as the optics and exposure need it.
@@ -37,14 +37,14 @@ Each trait below names its most likely stage: **cam** (sensor/DSP), **cvbs** (co
 
 | | Frames | Seconds |
 |---|---|---|
-| All clips | 3016 | 100.8 |
-| Picture (not blue, not snow) | 2369 | 79.2 |
-| **In-flight window** = picture minus the last 1.0 s before each loss | 2159 | 72.1 (1.20 min) |
+| All clips (A–H, L) | 3226 | 107.8 |
+| Picture (not blue, not snow) | 2579 | 86.2 |
+| **In-flight window** = picture minus the last 1.0 s before each loss | 2369 | 79.1 (1.32 min) |
 | Pre-loss windows (last 1.0 s before loss, 7 clips) | 210 | 7.0 |
 
-**Bias.** 7 of 8 clips (all except G) end in loss of picture, and every one of those losses comes right after a close approach, landing or contact (A: low over grass; B: frame filled by a close object; C, E: flying into a doorway; D: contact with a stone structure; F: descent onto a ground surface; H: settling into grass). The clips were cut around the end of each flight, so:
-- loss sequences are over-represented by roughly **one per clip** rather than a rate in time. Quoted per minute (7 / 1.32 min = 5.3/min) the number is meaningless. They are modelled as **event-driven** (impact, power loss, fiber break), not as a random rate.
-- **in-flight rates are from only 1.2 minutes** of footage from three airframes. A trait seen once gives a rate of about 1/min with a very wide error (one event in 1.2 min is consistent with anything from about 0.05 to 4 per minute at 90%). Rates below are what was seen, not a stable statistic. The sim should expose them as tunables.
+**Bias.** 7 of 9 clips (A–F, H; G and L never lose picture) end in loss of picture, and every one of those losses comes right after a close approach, landing or contact (A: low over grass; B: frame filled by a close object; C, E: flying into a doorway; D: contact with a stone structure; F: descent onto a ground surface; H: settling into grass). The clips were cut around the end of each flight, so:
+- loss sequences are over-represented by roughly **one per clip** rather than a rate in time. They are modelled as **event-driven** (impact, power loss, fiber break), not as a random rate.
+- **in-flight rates are from only 1.32 minutes** of footage from three airframes. A trait seen once gives a rate of about 1/min with a very wide error. Rates below are what was seen, not a stable statistic. The sim should expose them as tunables.
 - two traits cluster in single clips (diagonal interference only in B, rolling lines only in C). Pooled rates dilute them and per-clip rates inflate them. Both are given.
 
 ### 1.2 Event catalogue
@@ -53,31 +53,35 @@ Rates are per minute of the in-flight window unless marked. "Duration" is in rec
 
 | ID | Event | Clips / frames | Count | Rate | Duration | Stage |
 |---|---|---|---|---|---|---|
-| N1 | Live grain | all, continuous | — | continuous | every frame, new pattern each field | cam, cvbs |
+| N1 | Always-on baseline grain | all, continuous; heaviest in L | — | continuous | every frame, new pattern each field; never clean | cam, cvbs |
 | N2 | Chroma sparkles (coloured impulse dashes) | all; densest H, F, C; near zero A, E (§2 P6) | continuous | continuous background; no bursts beyond content changes | per frame | cvbs/link |
-| N3 | Rolling thin dark lines ("stripes") | C only: f3–4, f9–11, f30–53, f80–91 | 4 events: 38 detected frames within runs spanning 41 | 3.3/min pooled; 50/min within C | 2, 3, 24 and 12 frames (0.07–0.8 s) | pwr |
-| N4 | Diagonal dotted interference, flickering | B only: f1–269 | 79 runs (125 frames) | 66 runs/min pooled; ≈ 510 runs/min (≈ 8.5/s) within B; 45 % of B's in-flight frames | runs of 1–3 frames (max 7), each covering part of a field | pwr |
-| N5 | Loss onset: partial-frame snow | C f174–175, D f208–209, F f250 | 3 | per loss event | 1–2 frames | rx (or rec) |
-| N6 | Snow ↔ blue cycle | C f176–186, D f210–221, F f251–262 | 3 | per loss event | blue 4 frames → full snow 7–8 frames | rx |
-| N7 | Hard cut to blue no-signal screen | A f424, B f310, E f263, H f629 (and the end of N6 in C, D, F) | 7 | per loss event | permanent to clip end (52–108 frames, 1.7–3.6 s); never recovers | rx |
+| N3 | Rolling thin dark lines ("stripes") | C only: f3–4, f9–11, f30–53, f80–91 | 4 events: 38 detected frames within runs spanning 41 | 3.0/min pooled; 50/min within C | 2, 3, 24 and 12 frames (0.07–0.8 s) | pwr |
+| N4 | Diagonal dotted interference, flickering | B only: f1–269 | 79 runs (125 frames) | 60 runs/min pooled; ≈ 510 runs/min (≈ 8.5/s) within B; 45 % of B's in-flight frames | runs of 1–3 frames (max 7), each covering part of a field | pwr |
+| N5 | 4-stage loss: 1. Quick picture glitch | C f174–175, D f208–209, F f250, H f628 | 4 | per loss event | 1–2 frames: horizontal line displacement / tearing | link/rx |
+| N6 | 4-stage loss: 2. Brief flashy moment & 3. Noisy/flashy | C f176–186, D f210–221, F f251–262 | 3 | per loss event | flash 1–3 frames → thresholded snow/stripes 4–8 frames | rx |
+| N7 | 4-stage loss: 4. Solid blue no-signal screen | A f424, B f310, E f263, H f629 (and the end of N6 in C, D, F) | 7 | per loss event | permanent to clip end (52–108 frames, 1.7–3.6 s); never recovers | rx |
 | N8 | H-sync tearing, bottom of frame | H f628 | 1 | pre-loss only | 1 frame (the last picture frame) | link/rx |
-| N9 | Frame stutter (duplicate frames) | all clips, clustered; densest E f249–262 (pre-loss) | 29 repeated frames (1.2 %) in 15 groups | 11 groups/min (5.3/min for groups of ≥ 2 repeats) | 1 frame each; a group is 1–5 repeats spaced 2–3 frames apart | rec (uncertain) |
+| N9 | Frame stutter (duplicate frames) | all clips, clustered; densest E f249–262 (pre-loss) | 29 repeated frames (1.1 %) in 15 groups | 10 groups/min (4.8/min for groups of ≥ 2 repeats) | 1 frame each; a group is 1–5 repeats spaced 2–3 frames apart | rec (uncertain, U3) |
 | N10 | Macroblock smear | B f306–309 (pre-loss) | 1 | — | 4 frames | **enc** |
 | N11 | Exposure jumps (sun occluded / revealed) | D f183 | 1 | frame-content driven | 1 frame (−13 % mean luma) | cam |
+| N12 | Random mid-flight flashes that recover | pilot confirmed; scattered | random | tunable | 1–3 frames (snow burst, white flash, stripes) | link, pwr |
 
-The pilot's words, mapped to what was measured:
-- "sometimes noise" → N1 + N2.
-- "sometimes stripes" → N3 (horizontal) and N4 (diagonal).
-- "the whole image fully noised for a moment" → N5/N6. **In this footage full-frame noise appears only inside loss sequences**, never as an in-flight flash that recovers. See the uncertain list (U1).
+The pilot's words, mapped to what was measured and confirmed:
+- "baseline noise is always present" → N1 (the feed is never a clean picture; mild noise is always on, heavier at night).
+- "sometimes noise, sometimes stripes, every instance differs" → N1, N2, N3, N4, N12 (procedural variety, never repeating textures).
+- "mid-flight flashes that recover" → N12 (random brief events, independent of signal loss).
+- "noise may depend on throttle, but rarely" → N3, N4 (throttle coupling is weak and occasional, not dominant).
+- "very quick picture glitch → brief flashy moment → noisy and flashy → finally blue" → N5–N7 (4-stage randomised loss sequence).
 
 ### 1.3 Event detail
 
-**N1 Live grain.** Fine luma and chroma noise over the whole picture.
+**N1 Live grain (always-on baseline noise).** Fine luma and chroma noise over the whole picture.
+- **Pilot:** baseline noise is **always present** on analog video. The feed is never a clean picture. It varies continuously across instances: sometimes a little noise, sometimes stripes, never a repeating pattern.
 - **Measured.** Grain is elongated horizontally: half-correlation length 3–6 px horizontally and 2–3 px vertically, i.e. about one source sample by one field line.
-- **Re-encode masks it.** In flat bright sky the recordings keep only σ ≈ 0.9–1.3 levels luma (≈ 1.5–3 levels chroma), and the residual is 60–97 % correlated from frame to frame (B f2–4, G f1–4). A live analog grain would be uncorrelated, so the encoder has most likely flattened and frozen it. The true live level is therefore **not measurable from these clips** (U4). A higher reading on B f1 (σ ≈ 5.5) turned out to be the N4 interference pattern, not grain.
-- **Low light.** None of the footage is low-light, so grain against light level is not measured (U5).
-- **Candidate effect.** Per-field noise, low-passed horizontally to about one source sample and independent per field line. Luma σ is tunable, starting at 2–4 levels at normal exposure (above the re-encoded ≈ 1, since the encode suppresses it), and chroma noise of similar amplitude but about 5× wider horizontally. A new seed each field; never a static texture.
-- **Driver.** Camera gain from the auto-exposure loop (**light level**), plus a small term from **motor current** (power-rail ripple; hypothesis, U6).
+- **Re-encode masks it.** In flat bright sky the recordings keep only σ ≈ 0.9–1.3 levels luma (≈ 1.5–3 levels chroma), and the residual is 60–97 % correlated from frame to frame (B f2–4, G f1–4). A live analog grain would be uncorrelated, so the encoder has most likely flattened and frozen it.
+- **Low light (L).** In the night flight (L), low scene illumination pushes the camera AGC to maximum gain. High-pass noise RMS reaches 8.37 even on dark terrain, yielding a prominent "boiling" grain over the entire frame (see §4 C5).
+- **Candidate effect.** Continuous per-field procedural noise, low-passed horizontally to about one source sample and independent per field line. A non-zero baseline level is always active (luma σ ≥ 2–4 levels, chroma σ of similar amplitude but ≈ 5× wider horizontally). A new seed each field; never a static or looping texture.
+- **Driver.** **Always on** (baseline analog floor), scaling strongly with camera gain from the auto-exposure loop (**light level**), with a weak and occasional term from **motor current** (pilot: throttle coupling is rare).
 
 **N2 Chroma sparkles.** Isolated coloured dashes, one field line tall and 3–10 px long, in red, green, magenta and cyan, scattered over textured areas (B f122 ground; E, H grass and walls).
 - **Measured.** A full-resolution scan of every picture frame counted pixels whose chroma departs more than 45 levels from its 7×7 local mean.
@@ -102,7 +106,7 @@ The pilot's words, mapped to what was measured:
   - Every other clip: 0. A single-frame match in H f400 shares a row with the OSD and is not counted.
   - The per-frame metrics flagged only C f37, because the lines are thin against C's busy scene.
 - **Candidate effect.** A set of thin dark lines, 1 source line tall and 15–30 levels deep, over the whole width. Spacing = field height × field rate ÷ interference frequency; position rolls each field by the frequency's offset from a multiple of the field rate.
-- **Driver.** **Motor electrical frequency** (from motor RPM × pole pairs, or ESC switching harmonics) sets the spacing and roll speed. **Motor current** sets visibility. Throttle changes should make the lines crowd, spread and change roll speed.
+- **Driver.** **Motor electrical frequency** (from motor RPM × pole pairs, or ESC switching harmonics) sets the spacing and roll speed. **Motor current** sets visibility, but **rarely** (pilot confirms throttle coupling is weak and occasional, not dominant).
 
 **N4 Diagonal dotted interference, flickering.** First seen at B f123 and B f131, the only two frames the per-frame metrics flagged. A sky-region scan of every frame of A, B and G (the clips with open sky) shows it is **not rare in B**:
 - **Criterion.** At native 1920×1080, in one fixed open-sky box per clip (A 1100×70 px at x 300, y 100; B 950×190 at 450, 150; G 500×100 at 950, 170), BT.601 luma minus its 5×5 box mean is autocorrelated at (+8 px, +4 rows) and at (−8 px, +4 rows), each normalised by its variance. A frame counts when the two correlations differ by more than 0.2 (either sign) and the high-pass RMS is above 1.2 levels; consecutive counted frames form a run.
@@ -115,29 +119,31 @@ Details:
 - **At 4× zoom.** Each line is a staircase of short dashes, one per field line, stepping ≈ 8 px right per line. The dashes alternate blue/white with yellow/green fringes, which is interference near the colour subcarrier beating against the line rate.
 - **Visibility.** Only clearly visible over flat sky, but present over the ground too. So in clips without open sky (C–F, H) it cannot be ruled out.
 - **Candidate effect.** A sinusoid added to the composite signal before decoding. Its frequency is near a multiple of the line rate plus an offset, which makes the diagonal and, through the chroma decoder, the colour dots. It is gated to a vertical span of 20–50 % of a field, on roughly every other field with random dropouts.
-- **Driver.** An **airframe-specific on-board interference source.** Whether a flight has it is a per-flight random draw (1 of 3 airframe groups here). Its amplitude scales with **motor current**, and bursts are triggered by **current transients**. The pilot should say what B's drone carried (U7).
+- **Driver.** An **airframe-specific on-board interference source.** Whether a flight has it is a per-flight random draw (1 of 3 airframe groups here). Its amplitude scales with **motor current**, and bursts are triggered by **current transients**, but as a weak/occasional contributor rather than a dominant driver (pilot confirmation).
 
-**N5–N7 Loss sequences (end of flight).** Two receiver behaviours are seen.
+**N5–N7 Loss sequences (end of flight / fiber break).**
+- **Pilot:** the real-life signal loss / fiber break sequence consists of four distinct stages:
+  $$\text{quick picture glitch} \longrightarrow \text{brief flashy moment} \longrightarrow \text{noisy and flashy} \longrightarrow \text{finally blue}$$
+  Every loss sequence must be randomised in stage durations and exact visual look so no two losses look identical.
 
-1. **Hard cut** (A, B, E, H). The last picture frame is followed directly by the solid blue no-signal screen, which stays. There are no snow or black frames in between. H's last picture frame shows N8 tearing. A's last picture frame shows a ≈ 20 % grain rise but no tear.
-2. **Snow cycle** (C, D, F), identical in all three:
-   1. **Partial-frame snow, 1–2 frames.** Snow replaces the picture above a horizontal split line, and the previous picture survives below it (bottom 10–18 %, in D f208 also a thin top strip). The first snow frame is **coloured**, the next is **monochrome**, so the colour killer engages within a frame.
-   2. **Solid blue, exactly 4 frames.**
-   3. **Full-frame monochrome snow, 7–8 frames,** with the receiver's own no-signal text drawn over it. So this snow is the receiver showing its raw input, not the camera.
-   4. **Solid blue, permanently.**
-
-   After loss the no-signal text switches to the receiver's own mode detection (content omitted).
-- **Snow texture** (C f182, D f217 at 4×). Hard-clipped, near-binary white blobs on black, 1–2 field lines tall and ≈10–40 px long, ≈25 % white coverage (mean luma 53–65, neutral r = g = b). It is not grey Gaussian noise.
-- **Candidate effect.** A receiver state machine (`PICTURE → PARTIAL_SNOW → BLUE(4) → SNOW(7–8) → BLUE`, or `PICTURE → BLUE`) driven by the link state. Snow: per-field thresholded noise, horizontally stretched, colour killed, with a small no-signal text overlay. Two blue-screen styles, as in §0.
-- **Driver.** **Link lost** (fiber break or disconnection, signal below the receiver threshold), **power lost** (battery voltage collapse, or an impact that cuts power), or **camera/transmitter damage on impact.**
-  - In this footage every loss follows an approach, landing or contact (D is a clear contact case).
-  - Which variant plays may depend on how the signal dies. A gradual fade (fiber margin running out) gives snow first; an instant cut (power) gives a hard cut (U2).
+1. **Stage 1: Quick picture glitch (N5).** 1–2 frames. Horizontal displacement of field lines, H-sync shear, partial line tearing (H f628, C f174–175). Picture remains largely visible beneath the glitch.
+2. **Stage 2: Brief flashy moment (N6a).** 1–3 frames. Transient white-out or luma spike across lines, colour flash or rapid chroma inversion before sync lock collapses.
+3. **Stage 3: Noisy and flashy (N6b).** 4–8 frames. Chaotic full- or partial-frame thresholded snow, flashing horizontal stripes and rolling sync loss. Colour killer engages (drops to monochrome snow as seen in C f176–186, D f210–221).
+4. **Stage 4: Finally blue (N7).** Solid blue no-signal screen with receiver OSD text. Permanent until session reset.
+- **Hard cut alternative.** An instant cut to blue (A, B, E) remains as a model for sudden power collapse or catastrophic instant unplug/shredding.
+- **Driver.** **Fiber link severed** or optical link margin collapsed below receiver threshold (physics/tether model), **power loss** (battery voltage collapse or impact cutting power), or **transmitter damage.**
 
 **N8 H-sync tearing.** H f628, the last picture frame before blue.
 - **What it looks like.** In the bottom ≈ 200 px (18 %), lines are displaced sideways by ≈ 20–60 px in a jagged zig-zag. The OSD rows there are sheared diagonally and doubled.
 - **Analog, not codec.** The displacement is per line and not block-aligned.
 - **Candidate effect.** A per-line horizontal offset in the lower part of the frame, amplitude rising towards the bottom, random per line, correlated over 2–4 lines.
-- **Driver.** **Link margin** falling below the sync threshold, just before loss (and possibly **battery voltage** collapse). Its onset leads loss by at most 1 frame here.
+- **Driver.** **Link margin** falling below the sync threshold, just before loss (part of Stage 1 glitch).
+
+**N12 Random mid-flight flashes that recover.**
+- **Pilot:** flashes happen at random during flight, completely separate from signal loss, and they recover back to normal picture.
+- **Look:** 1–3 frames of brief picture glitch, transient horizontal stripe burst, or sudden flash of noise/luma, immediately followed by clean recovery of the video stream.
+- **Candidate effect.** Transient glitch/flash generator triggered on a low-probability poisson process during normal flight. Duration: 1–3 frames. Style: randomly chosen between luma spike, localized line jitter, or thin stripe burst.
+- **Driver.** Free-running random (seeded RNG, tunable event rate), with weak modulation by violent maneuvers or sudden current transients.
 
 **N9 Frame stutter.**
 - **Measured.** 29 picture frames across all clips are exact or near-exact repeats of the previous frame (mean difference < 2 levels). They come in groups spaced 2–3 frames apart, e.g. A f190/193/196, D f166/168/171 and E f249/252/255/257/262. E's group sits in the last 0.5 s before loss.
@@ -266,6 +272,17 @@ Details:
 - **Candidate effect.** Per-pixel motion blur with length = angular velocity × exposure time, where exposure time comes from the C1 loop (short in sun, up to about one field time in the dark).
 - **Driver.** **Light level** (through exposure time) × **camera angular rate** (physics).
 
+**C5 Low light and night flight response (Clip L).**
+- **Measured (L, 210 frames, 7.0 s).**
+  - **Luma and contrast.** Mean luma drops to 45.6 (range 10.9–55.0), compared to 90–140 in daytime. Dark terrain reads near-black (`feed` #0d0d0d–#191919, 10–25 levels), while the overcast sky is mid-grey (`feed` #4e4f4e, 70–85 levels). Because the sky is brighter than the ground, landmarks (ridges, tree-line crowns, a leaning pole) appear exclusively as skyline silhouettes.
+  - **Monochrome desaturation.** Low light triggers the camera DSP to drop chroma completely. Across L's 210 frames, channel means are almost perfectly equal: R = 45.08, G = 45.96, B = 44.82 (r/g = 0.98, b/g = 0.98). The scene is rendered essentially in black-and-white.
+  - **Sensor gain noise.** Camera AGC operates at maximum gain, producing prominent high-pass grain (noise metric mean 8.37) across the entire frame. Relative to the compressed scene dynamic range, this grain is visually dominant ("boiling" grain).
+  - **Integration time and motion blur.** Shutter time stretches to maximum integration (1/50 s), magnifying motion blur during turns (9 diff-jump flags in L correspond to rapid heading/pitch adjustments).
+  - **OSD contrast.** The character OSD is inserted downstream of the sensor at full composite level (white luma 240–255), completely bypassing camera AGC. It appears stark, razor-sharp, and brightly legible against the dark background.
+  - **Point lights.** Small point light sources bloom into soft halos from lens scattering and unsharp masking (P3, O3).
+- **Candidate effect.** Low-light mode: scale saturation down to 0 (monochrome), increase baseline noise amplitude to match maximum sensor gain, widen motion blur per C4, and render OSD at full standard white over the darkened scene.
+- **Driver.** **Light level** (time of day / ambient scene illuminance) and camera angular rate.
+
 ## 5. Resolution feel and OSD layout
 
 **Resolution feel, in short.** The feed carries far less real detail than its 1920×1080 container:
@@ -303,23 +320,23 @@ It reads as coarse horizontal line-dashes, soft horizontal edges with dark halos
 - **Performance** is not measured here (no effect is built in this change). Working at ≈ 720 × 288 per field for stages 4–7 keeps the per-pixel cost to about 10 % of a 1080p pass. The cost of every effect goes in the verification notes of the implementation change, against the 60+ fps budget.
 - **Not simulated:** N10 and P10 (re-encode), the recorder's frame-rate conversion, and N9 unless the pilot confirms it (U3).
 
-## Uncertain — for the pilot to confirm
+## Uncertain — status after pilot review
 
-| # | Question | Why it matters |
+| # | Item | Status / resolution |
 |---|---|---|
-| U1 | Do you see **full-frame noise flashes during flight that recover** (a few frames of snow, then picture again)? How often, and when (hard manoeuvres, far out, low battery)? | None exist in these clips: every full-frame snow is part of a loss. Without your answer the sim shows full snow only on loss |
-| U2 | Is the **snow → blue → snow → blue** cycle (C, D, F) what your goggles do on a fiber break, and the **hard cut to blue** (A, B, E, H) what they do on power loss or a hard impact? Or is that difference between the two receivers? | Decides which variant each failure triggers |
-| U3 | Does the goggle image **stutter or freeze** just before loss (E f249–262), or is that only the recording? | Simulate it or drop it |
-| U4 | Is the grain on the goggles **visibly alive on flat sky**, and how strong: barely visible, or clearly "boiling"? The re-encoded clips flatten it to σ ≈ 1 level and freeze it, so the live level cannot be measured | Sets the base grain level (N1) |
-| U5 | How does the picture change **at dusk, at night, or in dark interiors**? Grainier, more smear, colour loss? | Time of day is a user setting. There is no low-light footage |
-| U6 | Does noise or interference **get worse at high throttle or with a heavy payload** (high current)? | Confirms the motor-current driver for N1–N4 |
-| U7 | The **diagonal dotted lines** flicker through almost half of B's flight, but never in G (the same airframe group). What was different on B's drone: a payload-release servo, extra electronics, a damaged video cable or ground? Does it happen on some drones and not others? | The N4 driver, and how often a simulated drone should have it |
-| U8 | The **rolling thin horizontal lines** in C change spacing and roll speed during the flight. Do they appear with throttle or motor changes, or on one particular drone? | The N3 driver |
-| U9 | Is the **lens distortion** similar on all your drones? A measures k1 ≈ 0.33. Is the picture native 16:9, or is a 4:3 camera stretched? The measurement favours native 16:9 | One k1 or one per airframe |
-| U10 | Were the losses in these clips all at **landing, drop or impact**? Does a **mid-flight fiber break** look the same? | Our loss model is built from end-of-flight footage only |
-| U11 | **Chroma sparkles** (coloured specks on grass and walls): on the goggles, or only in the recordings? | Could partly be a recording artifact |
-| U12 | **Lens dirt** after dusty landings: common enough to simulate? | O4. A yes adds a dust-exposure signal to §7 |
-| U13 | Goggles no-signal screen: **blue** (as recorded) or configurable? | N7 look |
+| U1 | **Mid-flight flashes that recover** | **Answered by pilot.** Flashes occur at random during flight, completely separate from signal loss, and recover. Every instance differs. Added as N12 (free-running random, tunable rate, 1–3 frames). |
+| U2 | **Signal loss sequence** | **Answered by pilot.** Canonical 4-stage sequence: quick picture glitch → brief flashy moment → noisy and flashy → finally blue. Randomised timing and look per stage (N5–N7). Hard cut remains for instant power cuts. |
+| U3 | Pre-loss frame stutter | Unanswered by pilot; kept as recording artifact (rec). **Unconfirmed, tunable.** |
+| U4 | Live sky grain level | **Partly answered by pilot.** Baseline noise is confirmed **always present**; analog is never a clean picture. Live base grain floor set to tunable σ ≥ 2–4. |
+| U5 | Low light and night look | **Answered by clip L.** Fully characterised in §4 C5: monochrome desaturation, maximum sensor AGC gain noise, skyline silhouette contrast, and full-brightness OSD. |
+| U6 | Throttle noise coupling | **Answered by pilot.** Noise may depend on throttle, but **rarely**. Throttle coupling is weak and occasional, not a dominant driver. |
+| U7 | Diagonal dotted lines (B) | Unanswered by pilot; kept as airframe-specific interference. **Unconfirmed, tunable.** |
+| U8 | Rolling lines (C) | Unanswered by pilot; kept as motor/ESC harmonic transient. **Unconfirmed, tunable.** |
+| U9 | Lens distortion across airframes | Unanswered by pilot; kept as k1 ≈ 0.33 across airframes. **Unconfirmed, tunable.** |
+| U10 | Mid-flight fiber break look | **Answered by pilot.** Follows the same 4-stage randomised loss sequence as U2. |
+| U11 | Chroma sparkles in goggles | Unanswered by pilot; kept as link-margin / fiber-threshold impulse noise. **Unconfirmed, tunable.** |
+| U12 | Lens dirt accumulation | Unanswered by pilot; kept as contact-event accumulation. **Unconfirmed, tunable.** |
+| U13 | No-signal screen style | Unanswered by pilot; kept as blue screens per receiver styles (§0). **Unconfirmed, tunable.** |
 
 ## 7. Simulation signals the feed needs (task 3.2)
 
@@ -328,32 +345,32 @@ This is the input to the later physics↔video interface change. "Field rate" me
 | Signal | Unit | Update rate | Source | Feeds traits |
 |---|---|---|---|---|
 | Motor electrical frequency, per motor (or RPM × pole pairs) | Hz | 50 Hz (field mean) | physics | N3 spacing and roll |
-| Motor current, per motor and total (a throttle/current proxy) | A | 50 Hz (field mean and field max) | physics | N3 amplitude, N4 trigger, N1/N2 power-rail term |
+| Motor current, per motor and total (a throttle/current proxy) | A | 50 Hz (field mean and field max) | physics | N3 amplitude, N4 trigger, N1/N2 power-rail term (weak and rare coupling per pilot) |
 | Motor current step (d/dt of total current) | A/s | 50 Hz (field max) | physics | N4 burst trigger |
 | Battery voltage under load, pack | V | 50 Hz | physics | Brownout: power-loss hard cut (N7), N8 tearing at collapse, OSD |
-| Camera angular velocity (body rates at the camera) | rad/s (3 axes) | per rendered frame (≥ 60 Hz) | physics | C4 motion blur, P5 crawl |
-| Camera vibration (acceleration at the camera mount, RMS in 3 bands: < 50 Hz, 50–200 Hz, > 200 Hz) | m/s² | 50 Hz | physics | Hypothesis only: intermittent sparkles and interference from connector microphonics (N2, N3). Kept as a hook until U6 or U8 confirms it |
+| Camera angular velocity (body rates at the camera) | rad/s (3 axes) | per rendered frame (≥ 60 Hz) | physics | C4/C5 motion blur, P5 crawl |
+| Camera vibration (acceleration at the camera mount, RMS in 3 bands: < 50 Hz, 50–200 Hz, > 200 Hz) | m/s² | 50 Hz | physics | Hook for intermittent sparkles/interference from connector microphonics (N2, N3) |
 | Impact event (peak acceleration, contact point, rigid-body impulse) | m/s² and N·s, per event | event, timestamped at physics rate | physics | Loss on hard impact (N5–N7), single-frame jolt, lens-dirt accumulation (O4) |
 | Fiber tension at the spool exit | N | 50 Hz | physics (tether model) | Link margin → N2 sparkles, N8 tearing, N5–N7 loss |
 | Fiber minimum bend radius along the paid-out length | m | 50 Hz | physics (tether model) | Link margin (macro-bend loss) |
-| Fiber link state: intact / broken, plus optical margin | enum + dB | 50 Hz (break as an event) | physics (tether model) | N5–N7 loss sequence, N2 density, N8 |
-| Scene light level (mean and centre-weighted luminance of the rendered frame, before exposure) | cd/m² (or EV) | per rendered frame | renderer (video module) | C1 AE → N1 grain, C3 saturation, C4 exposure time |
+| Fiber link state: intact / broken, plus optical margin | enum + dB | 50 Hz (break as an event) | physics (tether model) | N5–N7 4-stage randomised loss sequence, N2 density, N8 |
+| Scene light level (mean and centre-weighted luminance of the rendered frame, before exposure) | cd/m² (or EV) | per rendered frame | renderer (video module) | C1 AE → N1 grain, C3 saturation, C4/C5 exposure & motion blur |
 | Sun direction relative to the camera and sun visibility (occluded fraction) | unit vector + 0–1 | per rendered frame | renderer and sky (tech-artist) | O3 flare and veiling glare, N11 |
-| Time of day | h (local solar) | on change (user setting) | game settings | Sky and sun, base light level |
+| Time of day | h (local solar) | on change (user setting) | game settings | Sky and sun, base light level (C5 night mode) |
 | OSD state: the 30×16 character grid as currently shown, blinking cells already toggled, built from sim state (armed state, flight timer, battery voltage, link margin, attitude) | characters (30 × 16 cells) | 50 Hz (per field) | game (OSD model, game-developer) | §5 OSD content and blinking warnings |
 
 Every driver named in §1–§4 is covered:
 
 | Driver named in the traits | Signal(s) |
 |---|---|
-| Throttle / motor current | motor current; motor current step |
+| Throttle / motor current | motor current; motor current step (weak and occasional coupling per pilot) |
 | Motor RPM / electrical frequency | motor electrical frequency |
 | Battery voltage sag | battery voltage under load |
-| Vibration | camera vibration (hook, pending U6/U8) |
+| Vibration | camera vibration (hook) |
 | Impact | impact event |
 | Fiber tension / bend / link margin | fiber tension, bend radius, link state + margin |
 | Light level | scene light level; sun direction and visibility; time of day |
 | Camera motion | camera angular velocity |
 | OSD flight and warning state | OSD state (built by the game from battery voltage, link state + margin and its own state) |
 | Frame content, including the static camera and receiver properties (P1–P4, P8, O1, O2, O5) | (the rendered frame and depth buffer themselves; no signal needed) |
-| Free-running random | (the feed's own seeded RNG, at the rates in §1.2; no signal needed) |
+| Free-running random | (the feed's own seeded RNG: N1 baseline noise, N12 random mid-flight flashes, randomised 4-stage loss timing/style) |
