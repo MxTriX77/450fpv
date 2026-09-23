@@ -17,7 +17,7 @@
 
 ## Decisions
 
-- **Let Godot generate the project.** Open the project headless once with the editor (`--headless --editor --quit`), then use `--build-solutions` to create `Fpv450.csproj` and `Fpv450.sln`. Keep the placeholder's settings. The alternative, writing the csproj by hand, risks an SDK version that doesn't match 4.7.2.
+- **Let Godot generate the project.** Godot 4.7.2's `--editor --quit` and `--build-solutions` never create a *missing* csproj, and the build step just skips it. Instead the solution came from Godot's own generator (the code behind the editor's "Create C# solution"), invoked once from a throwaway tool. The output is `Godot.NET.Sdk/4.7.2`, net8.0, and `--build-solutions` accepts it unchanged. We still don't hand-write the csproj, because its SDK version must match the engine.
 - **C# everywhere, including the sandbox glue.** D-001 allows GDScript for glue, but one language means one toolchain and one debugger, and it keeps `dotnet build` as the single check. We'll revisit only if GDScript clearly helps UI iteration later.
 - **The `GODOT` environment variable** points to the console executable (`Godot_v4.7.2-stable_mono_win64_console.exe`), which gives agents readable stdout. The README documents it. Nothing hard-codes a machine path.
 - **Scene argument** comes from `OS.GetCmdlineUserArgs()` (`-- --scene res://…`). Loading happens in the sandbox's `_Ready`. On failure it prints one error and falls back.

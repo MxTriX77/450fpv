@@ -1,0 +1,63 @@
+[gd_scene format=3]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_earth"]
+albedo_color = Color(0.36, 0.33, 0.27, 1)
+roughness = 1.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_orange"]
+albedo_color = Color(0.85, 0.45, 0.15, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wood"]
+albedo_color = Color(0.45, 0.3, 0.18, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_concrete"]
+albedo_color = Color(0.6, 0.6, 0.58, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_slab"]
+material = SubResource("StandardMaterial3D_earth")
+size = Vector3(20, 0.1, 20)
+
+[sub_resource type="BoxMesh" id="BoxMesh_cube"]
+material = SubResource("StandardMaterial3D_orange")
+size = Vector3(1, 1, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_post"]
+material = SubResource("StandardMaterial3D_wood")
+size = Vector3(0.1, 2, 0.1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_lintel"]
+material = SubResource("StandardMaterial3D_wood")
+size = Vector3(1.1, 0.1, 0.1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_wall"]
+material = SubResource("StandardMaterial3D_concrete")
+size = Vector3(10, 3, 0.2)
+
+[node name="TestPatch" type="Node3D"]
+
+[node name="Slab20m" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, 0)
+mesh = SubResource("BoxMesh_slab")
+
+[node name="Cube1m" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, 0.5, 0)
+mesh = SubResource("BoxMesh_cube")
+
+[node name="DoorFrame2m" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 0, 0)
+
+[node name="PostLeft" type="MeshInstance3D" parent="DoorFrame2m"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 1, 0)
+mesh = SubResource("BoxMesh_post")
+
+[node name="PostRight" type="MeshInstance3D" parent="DoorFrame2m"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 1, 0)
+mesh = SubResource("BoxMesh_post")
+
+[node name="Lintel" type="MeshInstance3D" parent="DoorFrame2m"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0)
+mesh = SubResource("BoxMesh_lintel")
+
+[node name="Wall10m" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -4)
+mesh = SubResource("BoxMesh_wall")
