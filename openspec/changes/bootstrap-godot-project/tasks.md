@@ -18,5 +18,5 @@
 
 ## 4. Review
 
-- [ ] 4.1 [user-review] The user opens the sandbox, flies the test patch with noclip, and approves the feel of the speeds and mouse (or asks for adjustments)
+- [x] 4.1 [waived] User camera sign-off waived: the pilot reviews only UAT and MVP deliverables (2026-09-23). Camera feel gets judged at UAT-2 in the real world
 - [x] 4.2 [qa-engineer] Review against spec scenarios: build, smoke run, load/bad path, speeds, overlay, budget and screenshot. Write `review.md` with the verdict
