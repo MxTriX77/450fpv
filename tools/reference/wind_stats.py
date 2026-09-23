@@ -24,6 +24,9 @@ Definitions (wind.md section 1.4):
   deviations of that axis, merged across gaps of up to EVENT_GAP frames.
 - Uncertainty: 16-84 % interval over BOOT block-bootstrap resamples of BLOCK-frame blocks
   (seed 0), and 1/sqrt(windows) scaling for spectra.
+- Airframe (camera with 0 deg uptilt): thrust/weight to hold height 1/(cos pitch cos roll), the
+  horizontal thrust's direction, body rates from ZYX kinematics, and the thrust tilt residual
+  roll + k * heading with k = -sin(mean pitch) (wind.md section 5.5).
 """
 import argparse
 import csv
@@ -226,6 +229,12 @@ def corr(a, b, fps):
     return dict(r=r0, r_ci=ci, n=int(both.sum()), best_r=best[0], best_lag_s=best[1] / fps)
 
 
+def split(a, e):
+    """Share of the variance of e carried by a: cov(a, e) / var(e), over frames that hold both."""
+    m = np.isfinite(a) & np.isfinite(e)
+    return float(np.cov(a[m], e[m])[0, 1] / np.var(e[m], ddof=1)) if m.sum() > 2 else math.nan
+
+
 def acf_time(x, fps):
     """Lag (s) where the residual's autocorrelation first falls below 1/e."""
     for lag in range(1, int(3 * fps)):
@@ -285,6 +294,22 @@ def analyse(c, segment=None):
     out["corr"] = {f"{a}~{b} {kind}": corr(src[a], src[b], fps) for kind, src in (("residual", res), ("rate", rate))
                    for a, b in (("roll", "pitch"), ("roll", "yaw"), ("pitch", "yaw"))}
     out["acf_s"] = {k: acf_time(res[k], fps) for k in axes}
+    # Airframe view, valid when the camera sits on the airframe with 0 deg uptilt (pilot, Q1). ZYX kinematics give
+    # the body rates that rate-mode sticks command (products of rates, < 1 deg/s^2, left out of the accelerations).
+    # tilt = roll residual + k * heading residual, k = -sin(mean pitch), is the sideways tilt of the thrust vector:
+    # yaw about the body axis leaves it unchanged (wind.md section 5.5).
+    th, ph = np.radians(axes["pitch"][0]), np.radians(axes["roll"][0])
+    k = -math.sin(math.radians(np.nanmean(axes["pitch"][0])))
+    tilt = res["roll"] + k * res["yaw"]
+    body = lambda d: {"p": d["roll"] - d["yaw"] * np.sin(th), "r": d["yaw"] * np.cos(th) * np.cos(ph) - d["pitch"] * np.sin(ph)}
+    brate, bacc = body(rate), body(acc)
+    out["airframe"] = dict(
+        k=k, load_factor=describe(1 / (np.cos(th) * np.cos(ph)), "thrust/weight", "1"),
+        lateral=describe(np.tan(-ph) / np.cos(th), "lateral thrust/weight", "1"),
+        thrust_dir=describe(np.degrees(np.arctan2(np.tan(-ph) / np.cos(th), np.tan(-th))), "thrust left of nose", "deg"),
+        tilt=describe(tilt, "thrust tilt residual", "deg"), tilt_split=split(res["roll"], tilt),
+        body_rate=[describe(v, a, "deg/s") for a, v in brate.items()],
+        body_accel=[describe(v, a, "deg/s^2") for a, v in bacc.items()], corr_pr=corr(brate["p"], brate["r"], fps))
     blocks = []                      # residual spread per 5 s of flight, for comparing terrain
     for s in range(0, n, BLOCK_S):
         seg = {k: res[k][s:s + BLOCK_S] for k in ("roll", "pitch")}
@@ -310,6 +335,11 @@ def analyse(c, segment=None):
                 d[k] = dict(res_std=float(np.nanstd(v)), res_std_ci=boot(v, np.nanstd), frames=int(np.isfinite(v).sum()),
                             events=count, per_min=count / minutes if minutes else math.nan,
                             per_min_err=math.sqrt(max(count, 1)) / minutes if minutes else math.nan)
+            v = np.where(m, tilt, np.nan)
+            d["tilt"] = dict(res_std=float(np.nanstd(v)), res_std_ci=boot(v, np.nanstd), frames=int(np.isfinite(v).sum()),
+                             split=split(np.where(m, res["roll"], np.nan), v))
+            d["corr"] = {f"roll~yaw {kind}": corr(np.where(m, src["roll"], np.nan), src["yaw"], fps)
+                         for kind, src in (("residual", res), ("rate", rate))}
             out["segment"][name] = d
         out["segment"]["range"] = segment
     return out
@@ -351,11 +381,23 @@ def report(o):
     for L in o["losses"]:
         print(f"  picture loss frames {L['frames'][0]}-{L['frames'][1]} ({L['dur_s']:.2f} s); max |rate| in the second before "
               f"(deg/s): roll {L['roll_rate_max_pre']:.1f}, pitch {L['pitch_rate_max_pre']:.1f}, yaw {L['yaw_rate_max_pre']:.1f}")
+    a = o["airframe"]
+    print(f"  airframe (0 deg uptilt): k {a['k']:.4f}; share of thrust tilt on roll {a['tilt_split']:.2f}; body p~r rate "
+          f"r {a['corr_pr']['r']:+.3f} {fmt_ci(a['corr_pr']['r_ci'])} n {a['corr_pr']['n']}")
+    for d in (a["load_factor"], a["lateral"], a["thrust_dir"], a["tilt"], *a["body_rate"], *a["body_accel"]):
+        print(f"  airframe {d['axis']:22s} n {d['n']:5d} mean {d['mean']:+9.4f} {fmt_ci(d['mean_ci']):20s} std {d['std']:8.4f} "
+              f"{fmt_ci(d['std_ci']):20s} p5 {d['p5']:+9.4f} p95 {d['p95']:+9.4f} p95|.| {d['p95_abs']:8.4f} "
+              f"min {d['min']:+9.4f} max {d['max']:+9.4f} kurt {d['kurtosis']:5.2f} {d['unit']}")
     if "segment" in o:
         for name in ("inside", "outside"):
+            s = o["segment"][name]
             print(f"  segment {o['segment']['range']} {name}: " + "; ".join(
                 f"{k} res std {d['res_std']:.3f} {fmt_ci(d['res_std_ci'])} ({d['frames']} fr), events {d['events']} = "
-                f"{d['per_min']:.1f} +- {d['per_min_err']:.1f}/min" for k, d in o["segment"][name].items()))
+                f"{d['per_min']:.1f} +- {d['per_min_err']:.1f}/min" for k, d in s.items() if k in ("roll", "pitch", "yaw")))
+            t = s["tilt"]
+            print(f"    thrust tilt res std {t['res_std']:.3f} {fmt_ci(t['res_std_ci'])} ({t['frames']} fr), share on roll "
+                  f"{t['split']:.2f}; " + "; ".join(f"corr {k} r {r['r']:+.3f} {fmt_ci(r['r_ci'])} n {r['n']}"
+                                                   for k, r in s["corr"].items()))
     print("  5 s blocks, residual std roll/pitch (deg): " + "; ".join(
         f"{b['frames'][0]}-{b['frames'][1]} {b['roll']:.2f}/{b['pitch']:.2f}" for b in o["blocks"]))
 
