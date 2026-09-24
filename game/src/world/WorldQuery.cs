@@ -102,6 +102,7 @@ public sealed partial class WorldQuery
     ulong[] _pitReach; // see InitPitReach
     int _pitLow, _pitSide;
     readonly byte[] _matKinds = new byte[256]; // per surface: a bit per cover kind that has a mat
+    readonly float[][] _density = new float[256][]; // per surface: CoverDensity at [channel * 4 + kind], see Density
     readonly double _minHeight = double.PositiveInfinity, _maxHeight = double.NegativeInfinity; // of the height samples
 
     public IReadOnlyList<SurfaceParams> Surfaces { get; }
@@ -153,8 +154,11 @@ public sealed partial class WorldQuery
             _reliefKey[s.Index] = DetMath.Key(seed, 0x100u | s.Index);
             _reliefScale[s.Index] = s.ReliefAmplitude / NoiseRms;
             _nodeScale[s.Index] = 2.0 / s.ReliefWavelength; // nodes half a wavelength apart
+            _density[s.Index] = new float[256 * 4];
             for (int k = 0; k < 4; k++)
             {
+                for (int channel = 0; channel < 256; channel++)
+                    _density[s.Index][channel * 4 + k] = Density(s, channel, k);
                 _matKey[s.Index * 4 + k] = DetMath.Key(seed, (uint)(0x200 + k * 0x100) | s.Index);
                 if (s.Cover[k] != null && s.Cover[k].HasMat)
                     _matKinds[s.Index] |= (byte)(1 << k);
@@ -247,13 +251,13 @@ public sealed partial class WorldQuery
         double inverse = 1.0 / Math.Sqrt(gx * gx + 1.0 + gz * gz);
         g.Normal = new Vector3((float)(-gx * inverse), (float)inverse, (float)(-gz * inverse));
 
-        int own = OwnCell(x, z);
-        g.Surface = _surface[own];
+        g.Surface = b.OwnSurface;
         if (!withMat)
             return;
-        SurfaceParams ownSurface = _byIndex[g.Surface];
-        g.CoverDensity = new Vector4(Density(ownSurface, own, 0), Density(ownSurface, own, 1), Density(ownSurface, own, 2),
-            Density(ownSurface, own, 3));
+        float[] density = _density[b.OwnSurface];
+        int cover = b.Own * 4;
+        g.CoverDensity = new Vector4(density[_cover[cover] * 4], density[_cover[cover + 1] * 4 + 1], density[_cover[cover + 2] * 4 + 2],
+            density[_cover[cover + 3] * 4 + 3]);
         // A kind without a mat on any of the 4 corners has depth 0 exactly, so it is not evaluated.
         int mats = _matKinds[b.S0] | _matKinds[b.S1] | _matKinds[b.S2] | _matKinds[b.S3];
         double m0 = (mats & 1) != 0 ? Mat(in b, in lattice, 0, x, z) : 0, m1 = (mats & 2) != 0 ? Mat(in b, in lattice, 1, x, z) : 0;
@@ -298,11 +302,12 @@ public sealed partial class WorldQuery
     static double Triangle(double u, double v, double h00, double h10, double h01, double h11) =>
         DetMath.SelectLe(u + v, 1.0, h00 + u * (h10 - h00) + v * (h01 - h00), h11 + (1.0 - u) * (h01 - h11) + (1.0 - v) * (h10 - h11));
 
-    /// The 4 nearest cell centres of a point, (−x, −z), (+x, −z), (−x, +z), (+x, +z): cells, surfaces and bilinear weights.
+    /// The 4 nearest cell centres of a point, (−x, −z), (+x, −z), (−x, +z), (+x, +z): cells, surfaces and bilinear weights;
+    /// and the cell that contains the point, OwnCell's, which is the corner it is nearest to.
     readonly struct Blend
     {
-        public readonly int C0, C1, C2, C3;
-        public readonly byte S0, S1, S2, S3;
+        public readonly int C0, C1, C2, C3, Own;
+        public readonly byte S0, S1, S2, S3, OwnSurface;
         public readonly double W0, W1, W2, W3, Wx, Wz;
         public bool Uniform => S0 == S1 && S0 == S2 && S0 == S3;
 
@@ -327,6 +332,10 @@ public sealed partial class WorldQuery
             W1 = Wx * (1 - Wz);
             W2 = (1 - Wx) * Wz;
             W3 = Wx * Wz;
+            // sx is (x + Half)·_perCell − 0.5 exactly and Wx its exact fraction, so floor((x + Half)·_perCell) is fi + 1
+            // when Wx ≥ 0.5, else fi: OwnCell's cell, from the corners.
+            Own = (Wz >= 0.5 ? j1 : j0) + (Wx >= 0.5 ? i1 : i0);
+            OwnSurface = w._surface[Own];
         }
     }
 
@@ -351,10 +360,11 @@ public sealed partial class WorldQuery
         return b.W0 * r0 + b.W1 * r1 + b.W2 * r2 + b.W3 * r3;
     }
 
-    float Density(SurfaceParams s, int cell, int kind)
+    /// Elements per m² of one kind on surface `s` at a cover channel value; tabulated per surface at load (_density).
+    static float Density(SurfaceParams s, int channel, int kind)
     {
         CoverParams c = s.Cover[kind];
-        return c == null ? 0f : (float)(c.Density * _cover[cell * 4 + kind] / 255.0);
+        return c == null ? 0f : (float)(c.Density * channel / 255.0);
     }
 
     /// Uncompressed mat depth of one kind: Σ over the corners of weight × cover channel × depth noise of that corner's
