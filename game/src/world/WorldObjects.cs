@@ -1,0 +1,336 @@
+using System;
+using System.IO;
+using System.Numerics;
+using System.Text.Json;
+
+/// An orthonormal rotation: the world directions of local X, Y and Z.
+public struct Axes
+{
+    public Double3 X, Y, Z;
+
+    /// Yaw about +Y, then pitch about the new +X, then roll about the new +Z, in degrees: Godot's YXZ order, as objects
+    /// and shapes are placed (game/maps/README.md). Positive yaw turns +X toward −Z.
+    public static Axes FromEuler(double yaw, double pitch, double roll)
+    {
+        DetMath.SinCosTurns(yaw / 360.0, out double sy, out double cy);
+        DetMath.SinCosTurns(pitch / 360.0, out double sp, out double cp);
+        DetMath.SinCosTurns(roll / 360.0, out double sr, out double cr);
+        Double3 Rotate(double x, double y, double z)
+        {
+            (x, y) = (x * cr - y * sr, x * sr + y * cr);
+            (y, z) = (y * cp - z * sp, y * sp + z * cp);
+            (x, z) = (x * cy + z * sy, z * cy - x * sy);
+            return new Double3(x, y, z);
+        }
+        return new Axes { X = Rotate(1, 0, 0), Y = Rotate(0, 1, 0), Z = Rotate(0, 0, 1) };
+    }
+
+    public readonly Double3 ToWorld(Double3 v) => X * v.X + Y * v.Y + Z * v.Z;
+    public readonly Double3 ToLocal(Double3 v) => new(Double3.Dot(v, X), Double3.Dot(v, Y), Double3.Dot(v, Z));
+
+    /// This rotation applied after `inner`.
+    public readonly Axes Compose(in Axes inner) => new() { X = ToWorld(inner.X), Y = ToWorld(inner.Y), Z = ToWorld(inner.Z) };
+}
+
+public struct Bounds
+{
+    public Double3 Min, Max;
+
+    public static Bounds Of(Double3 a, Double3 b, double pad) => new()
+    {
+        Min = new Double3(Math.Min(a.X, b.X) - pad, Math.Min(a.Y, b.Y) - pad, Math.Min(a.Z, b.Z) - pad),
+        Max = new Double3(Math.Max(a.X, b.X) + pad, Math.Max(a.Y, b.Y) + pad, Math.Max(a.Z, b.Z) + pad),
+    };
+
+    public readonly Bounds Union(in Bounds b) => new()
+    {
+        Min = new Double3(Math.Min(Min.X, b.Min.X), Math.Min(Min.Y, b.Min.Y), Math.Min(Min.Z, b.Min.Z)),
+        Max = new Double3(Math.Max(Max.X, b.Max.X), Math.Max(Max.Y, b.Max.Y), Math.Max(Max.Z, b.Max.Z)),
+    };
+
+    public readonly bool Overlaps(in Bounds b) =>
+        Min.X <= b.Max.X && b.Min.X <= Max.X && Min.Y <= b.Max.Y && b.Min.Y <= Max.Y && Min.Z <= b.Max.Z && b.Min.Z <= Max.Z;
+}
+
+/// A fly-through opening in world space (world-query W-10).
+public struct Gap
+{
+    public Double3 Center;       // m
+    public Vector3 Normal;       // unit, the way the opening faces: asset +Z turned by the gap's yaw
+    public Vector3 Up;           // unit, along the opening's height
+    public float Width, Height;  // m
+    public int Object;
+    public string Name;
+}
+
+/// Placed catalog objects and wires in world space, with a broadphase grid for the contact and ray queries, and the
+/// fly-through gaps. Objects are added while the map loads and, before a flight, by the game (W-11); from then on they
+/// are static and every query only reads them.
+public sealed partial class WorldQuery
+{
+    /// One collision primitive in world space: a catalog shape of a placed object, or a whole wire.
+    struct Prim
+    {
+        public ShapeKind Kind;
+        public ushort Shape, Material;
+        public int Object;
+        public Double3 C;        // centre
+        public Axes R;           // capsules and cylinders run along R.Y
+        public Double3 Half;     // box: half size; capsule: Half.Y = half the core length; cylinder: Half.Y = half height
+        public double Radius;    // sphere, capsule, cylinder, wire
+        public int First, Count; // wire: its polyline points in _wirePoints
+        public Bounds Box;       // world bounds
+        public int CellX, CellZ; // broadphase cell of the bounds' minimum corner
+    }
+
+    /// Broadphase cell side, m.
+    const double BroadCell = 8.0;
+
+    public Catalog Catalog { get; }
+    /// Objects so far: those of objects.json, in its order, then the runtime objects.
+    public int ObjectCount { get; private set; }
+
+    Prim[] _prims = new Prim[16];
+    int _primCount;
+    Double3[] _wirePoints = new Double3[64];
+    double[] _wireAlong = new double[64]; // length along the wire's polyline up to each point, m
+    int _wirePointCount;
+    Gap[] _gaps = new Gap[4];
+    int _gapCount;
+    int _broadCells;
+    int[] _cellStart, _cellItems; // primitives per broadphase cell, row-major from the north-west, each in primitive order
+
+    void InitObjects()
+    {
+        _broadCells = (int)Math.Ceiling(SizeM / BroadCell);
+        InitWind();
+        RebuildBroadphase();
+    }
+
+    /// World-query W-11: adds a catalog object (not a wire) before a flight starts, for example the launch rails at a
+    /// start point, and returns its object index. It is static from then on and takes part in StaticContacts, Raycast,
+    /// the wind grid and GapsNear. Not thread-safe: call it before any query runs.
+    public int AddObject(string assetId, Double3 position, double yaw, double pitch = 0, double roll = 0, double scale = 1)
+    {
+        int index = Place(Catalog.Assets[assetId], position, yaw, pitch, roll, scale);
+        RebuildBroadphase();
+        return index;
+    }
+
+    /// Adds a wire through `points` (m) whose every span sags `sag` (m) at mid-span, and returns its object index.
+    public int AddWire(string assetId, ReadOnlySpan<Double3> points, double sag, double diameter)
+    {
+        int index = PlaceWire(Catalog.Assets[assetId], points, sag, diameter);
+        RebuildBroadphase();
+        return index;
+    }
+
+    void LoadObjects(string path)
+    {
+        using JsonDocument document = JsonDocument.Parse(File.ReadAllText(path));
+        foreach (JsonElement o in document.RootElement.GetProperty("objects").EnumerateArray())
+        {
+            AssetDef asset = Catalog.Assets[o.GetProperty("asset").GetString()];
+            if (asset.IsWire)
+            {
+                JsonElement list = o.GetProperty("points_m");
+                var points = new Double3[list.GetArrayLength()];
+                int n = 0;
+                foreach (JsonElement p in list.EnumerateArray())
+                    points[n++] = new Double3(p[0].GetDouble(), p[1].GetDouble(), p[2].GetDouble());
+                PlaceWire(asset, points, o.GetProperty("sag_m").GetDouble(), o.GetProperty("diameter_m").GetDouble());
+            }
+            else
+            {
+                Double3 r = Catalog.Vec3(o, "rotation_deg");
+                Place(asset, Catalog.Vec3(o, "position_m"), r.X, r.Y, r.Z, o.GetProperty("scale").GetDouble());
+            }
+        }
+        RebuildBroadphase();
+    }
+
+    int Place(AssetDef asset, Double3 position, double yaw, double pitch, double roll, double scale)
+    {
+        if (asset.IsWire)
+            throw new ArgumentException($"asset '{asset.Id}' is a wire: add it with AddWire");
+        int index = ObjectCount++;
+        Axes r = Axes.FromEuler(yaw, pitch, roll);
+        for (int i = 0; i < asset.Collision.Length; i++)
+            Append(ref _prims, ref _primCount, MakePrim(asset.Collision[i], position, r, scale, index, i));
+        foreach (ShapeDef shape in asset.WindVolume)
+            AddWind(MakePrim(shape, position, r, scale, index, 0), asset.WindPorosity);
+        foreach (GapDef g in asset.Gaps)
+        {
+            Axes facing = r.Compose(Axes.FromEuler(g.Yaw, 0, 0));
+            Append(ref _gaps, ref _gapCount, new Gap
+            {
+                Center = position + r.ToWorld(g.Center) * scale,
+                Normal = facing.Z.ToVector3(),
+                Up = facing.Y.ToVector3(),
+                Width = (float)(g.Width * scale),
+                Height = (float)(g.Height * scale),
+                Object = index,
+                Name = g.Name,
+            });
+        }
+        return index;
+    }
+
+    static Prim MakePrim(ShapeDef d, Double3 origin, in Axes r, double scale, int obj, int shape)
+    {
+        var p = new Prim
+        {
+            Kind = d.Kind,
+            Shape = (ushort)shape,
+            Material = d.Material,
+            Object = obj,
+            C = origin + r.ToWorld(d.Position) * scale,
+            R = r.Compose(Axes.FromEuler(d.Yaw, d.Pitch, d.Roll)),
+            Radius = d.Radius * scale,
+            Half = d.Kind switch
+            {
+                ShapeKind.Box => d.Size * (0.5 * scale),
+                ShapeKind.Capsule => new Double3(0, Math.Max(d.Height / 2 - d.Radius, 0) * scale, 0),
+                ShapeKind.Cylinder => new Double3(0, d.Height / 2 * scale, 0),
+                _ => default,
+            },
+        };
+        Double3 x = p.R.X, y = p.R.Y, z = p.R.Z, h = p.Half;
+        double radius = p.Radius;
+        Double3 extent = p.Kind switch
+        {
+            ShapeKind.Box => new Double3(Math.Abs(x.X) * h.X + Math.Abs(y.X) * h.Y + Math.Abs(z.X) * h.Z,
+                Math.Abs(x.Y) * h.X + Math.Abs(y.Y) * h.Y + Math.Abs(z.Y) * h.Z, Math.Abs(x.Z) * h.X + Math.Abs(y.Z) * h.Y + Math.Abs(z.Z) * h.Z),
+            ShapeKind.Sphere => new Double3(radius, radius, radius),
+            ShapeKind.Capsule => new Double3(Math.Abs(y.X) * h.Y + radius, Math.Abs(y.Y) * h.Y + radius, Math.Abs(y.Z) * h.Y + radius),
+            _ => new Double3(Math.Abs(y.X) * h.Y + radius * Math.Sqrt(Math.Max(1 - y.X * y.X, 0)),
+                Math.Abs(y.Y) * h.Y + radius * Math.Sqrt(Math.Max(1 - y.Y * y.Y, 0)),
+                Math.Abs(y.Z) * h.Y + radius * Math.Sqrt(Math.Max(1 - y.Z * y.Z, 0))),
+        };
+        p.Box = new Bounds { Min = p.C - extent, Max = p.C + extent };
+        return p;
+    }
+
+    /// A wire is the polyline of its sagged spans: each span from point a to b drops 4·sag·t·(1 − t) below the straight
+    /// line at t = 0–1, in ⌈|b − a| / segment⌉ equal steps of t (the catalog's capsule_chain segment length).
+    int PlaceWire(AssetDef asset, ReadOnlySpan<Double3> points, double sag, double diameter)
+    {
+        int index = ObjectCount++, first = _wirePointCount;
+        double along = 0;
+        AddWirePoint(points[0], 0);
+        for (int i = 0; i + 1 < points.Length; i++)
+        {
+            Double3 a = points[i], b = points[i + 1];
+            int steps = Math.Max(1, (int)Math.Ceiling((b - a).Length() / asset.WireSegment));
+            for (int k = 1; k <= steps; k++)
+            {
+                double t = (double)k / steps;
+                Double3 p = k == steps ? b : a + (b - a) * t;
+                p.Y -= 4 * sag * t * (1 - t);
+                along += (p - _wirePoints[_wirePointCount - 1]).Length();
+                AddWirePoint(p, along);
+            }
+        }
+        var wire = new Prim
+        {
+            Kind = ShapeKind.Wire,
+            Material = asset.Material,
+            Object = index,
+            Radius = diameter / 2,
+            First = first,
+            Count = _wirePointCount - first,
+            Box = Bounds.Of(points[0], points[0], diameter / 2),
+        };
+        for (int i = first; i < _wirePointCount; i++)
+            wire.Box = wire.Box.Union(Bounds.Of(_wirePoints[i], _wirePoints[i], diameter / 2));
+        Append(ref _prims, ref _primCount, wire);
+        return index;
+    }
+
+    void AddWirePoint(Double3 p, double along)
+    {
+        if (_wirePointCount == _wirePoints.Length)
+        {
+            Array.Resize(ref _wirePoints, _wirePointCount * 2);
+            Array.Resize(ref _wireAlong, _wirePointCount * 2);
+        }
+        _wirePoints[_wirePointCount] = p;
+        _wireAlong[_wirePointCount++] = along;
+    }
+
+    static void Append<T>(ref T[] array, ref int count, in T item)
+    {
+        if (count == array.Length)
+            Array.Resize(ref array, count * 2);
+        array[count++] = item;
+    }
+
+    /// The broadphase cell range of a box, clamped to the map (a query outside it looks at the edge cells).
+    void BroadRange(in Bounds b, out int x0, out int x1, out int z0, out int z1)
+    {
+        x0 = BroadIndex(b.Min.X);
+        x1 = BroadIndex(b.Max.X);
+        z0 = BroadIndex(b.Min.Z);
+        z1 = BroadIndex(b.Max.Z);
+    }
+
+    /// NaN goes to cell 0.
+    int BroadIndex(double v)
+    {
+        double f = Math.Floor((v + Half) / BroadCell);
+        return f >= _broadCells - 1 ? _broadCells - 1 : f >= 0 ? (int)f : 0;
+    }
+
+    void RebuildBroadphase()
+    {
+        int n = _broadCells;
+        var start = new int[n * n + 1];
+        for (int pass = 0; pass < 2; pass++)
+        {
+            var fill = pass == 0 ? null : (int[])start.Clone();
+            for (int i = 0; i < _primCount; i++)
+            {
+                ref Prim p = ref _prims[i];
+                BroadRange(p.Box, out int x0, out int x1, out int z0, out int z1);
+                (p.CellX, p.CellZ) = (x0, z0);
+                for (int cz = z0; cz <= z1; cz++)
+                {
+                    for (int cx = x0; cx <= x1; cx++)
+                    {
+                        if (pass == 0)
+                            start[cz * n + cx + 1]++;
+                        else
+                            _cellItems[fill[cz * n + cx]++] = i;
+                    }
+                }
+            }
+            if (pass == 0)
+            {
+                for (int c = 0; c < n * n; c++)
+                    start[c + 1] += start[c];
+                _cellItems = new int[start[n * n]];
+            }
+        }
+        _cellStart = start;
+    }
+
+    /// World-query W-10: every fly-through gap whose rectangle comes within `radius` (m) of `center`, in canonical order
+    /// (object, gap). Returns the true count, which exceeds `results.Length` on overflow.
+    public int GapsNear(Double3 center, double radius, Span<Gap> results)
+    {
+        int count = 0;
+        for (int i = 0; i < _gapCount; i++)
+        {
+            ref readonly Gap g = ref _gaps[i];
+            Double3 normal = new(g.Normal.X, g.Normal.Y, g.Normal.Z), up = new(g.Up.X, g.Up.Y, g.Up.Z);
+            Double3 across = Double3.Cross(up, normal), v = center - g.Center;
+            Double3 off = v - across * Limit(Double3.Dot(v, across), g.Width / 2.0) - up * Limit(Double3.Dot(v, up), g.Height / 2.0);
+            if (!(Double3.Dot(off, off) <= radius * radius))
+                continue;
+            if (count < results.Length)
+                results[count] = g;
+            count++;
+        }
+        return count;
+    }
+}

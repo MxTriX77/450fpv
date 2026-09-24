@@ -19,6 +19,7 @@ SUPPORTED_MAJOR = 1
 GAME = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "game")
 FILES = ["map.json", "height.r16", "surface.png", "cover.png", "objects.json"]
 MAX_SIZE_M = 8192
+CHUNK_M = 256
 COVER_TYPES = ["grass", "straw", "twigs", "litter"]
 
 # Surface fields: (low, high), or (low, high, "range") for a [min, max] pair.
@@ -29,19 +30,25 @@ SURFACE_FIELDS = {
         "friction_static": (0, 2),
         "friction_kinetic": (0, 2),
         "max_sink_m": (0, 1),
-        "porosity": (0, 1),
+        "unload_stiffness_ratio": (1, 100),
     },
     "micro_relief": {"amplitude_m": (0, 0.5), "wavelength_m": (0.05, 10)},
     "pitfalls": {"density_per_m2": (0, 1), "depth_m": (0, 2, "range"), "radius_m": (0, 2, "range")},
     "material": {"roughness": (0, 1)},
 }
+RIDGE_FIELDS = {"amplitude_m": (0, 0.3), "spacing_m": (0.1, 5), "azimuth_deg": (0, 180)}
 COVER_FIELDS = {
     "height_m": (0, 3, "range"),
     "stems_per_m2": (0, 5000),
     "diameter_m": (0, 0.2, "range"),
     "lateral_stiffness_n_per_m": (0, 1e4),
     "hook_probability": (0, 1),
+    "hook_release_n": (0, 500, "range"),
 }
+MAT_FIELDS = {"depth_m": (0, 0.5, "range"), "modulus_pa": (10, 1e6), "damping_ratio": (0, 2),
+              "friction_static": (0, 2), "friction_kinetic": (0, 2)}
+MATERIAL_FIELDS = {"friction_static": (0, 2), "friction_kinetic": (0, 2)}
+MATERIAL_OPTIONAL = {"stiffness_n_per_m": (1e2, 1e8), "damping_ratio": (0, 2), "edge_radius_m": (1e-4, 0.05)}
 SHAPE_FIELDS = {"box": ["size_m"], "sphere": ["radius_m"], "cylinder": ["radius_m", "height_m"],
                 "capsule": ["radius_m", "height_m"], "capsule_chain": ["segment_m"]}
 
@@ -86,6 +93,12 @@ def check_fields(obj, spec, where, prefix=""):
             error(f"{where}: {name} = {value} is outside {low} to {high}")
 
 
+def check_friction(obj, where, prefix):
+    if isinstance(obj, dict) and is_number(obj.get("friction_kinetic")) and is_number(obj.get("friction_static")) \
+            and obj["friction_kinetic"] > obj["friction_static"]:
+        error(f"{where}: {prefix}friction_kinetic is greater than {prefix}friction_static")
+
+
 def load_json(path):
     try:
         with open(path, encoding="utf-8") as f:
@@ -102,6 +115,7 @@ def check_surfaces(table):
     if not isinstance(surfaces, list) or not surfaces:
         error("surfaces.json: needs a non-empty 'surfaces' list")
         return indices
+    check_fields(table, {"soil_reference_diameter_m": (0.005, 0.1)}, "surfaces.json")
     for n, surface in enumerate(surfaces):
         sid = surface.get("id") if isinstance(surface, dict) else None
         where = f"surface '{sid}'" if isinstance(sid, str) else f"surface #{n}"
@@ -125,10 +139,10 @@ def check_surfaces(table):
                 error(f"{where}: {group} is missing")
                 continue
             check_fields(surface[group], spec, where, group + ".")
-        soil = surface["soil"] if isinstance(surface.get("soil"), dict) else {}
-        if is_number(soil.get("friction_kinetic")) and is_number(soil.get("friction_static")) \
-                and soil["friction_kinetic"] > soil["friction_static"]:
-            error(f"{where}: soil.friction_kinetic is greater than soil.friction_static")
+        check_friction(surface.get("soil"), where, "soil.")
+        relief = surface.get("micro_relief")
+        if isinstance(relief, dict) and "ridges" in relief:
+            check_fields(relief["ridges"], RIDGE_FIELDS, where, "micro_relief.ridges.")
         albedo = surface.get("material", {}).get("albedo_srgb") if isinstance(surface.get("material"), dict) else None
         if not isinstance(albedo, str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", albedo):
             error(f"{where}: material.albedo_srgb is missing or not #rrggbb")
@@ -147,7 +161,58 @@ def check_surfaces(table):
                 error(f"{where}: cover type '{kind}' is listed twice")
             seen.add(kind)
             check_fields(entry, COVER_FIELDS, where, f"cover.{kind}.")
+            if is_number(entry.get("stems_per_m2")) and entry["stems_per_m2"] > 0:
+                for field, what in (("height_m", "length"), ("diameter_m", "diameter")):
+                    value = entry.get(field)
+                    if isinstance(value, list) and value and is_number(value[0]) and value[0] <= 0:
+                        error(f"{where}: cover.{kind}.{field} min must be above 0: a cover with elements needs an "
+                              f"element {what}")
+            if "mat" in entry:
+                check_fields(entry["mat"], MAT_FIELDS, where, f"cover.{kind}.mat.")
+                check_friction(entry["mat"], where, f"cover.{kind}.mat.")
     return indices
+
+
+def known(material, materials):
+    return isinstance(material, str) and material in materials
+
+
+def check_materials(catalog):
+    """Returns the set of material ids."""
+    materials = catalog.get("materials") if isinstance(catalog, dict) else None
+    if not isinstance(materials, dict) or not materials:
+        error("catalog.json: needs a non-empty 'materials' object")
+        return set()
+    for mid, material in materials.items():
+        where = f"material '{mid}'"
+        check_fields(material, MATERIAL_FIELDS, where)
+        if isinstance(material, dict):
+            check_fields(material, {f: r for f, r in MATERIAL_OPTIONAL.items() if f in material}, where)
+            check_friction(material, where, "")
+    return set(materials)
+
+
+def check_shapes(where, label, shapes, wire, materials):
+    """Collision shapes (primitives, or one capsule_chain for a wire) or wind-volume shapes (primitives only)."""
+    for shape in shapes:
+        kind = shape.get("shape") if isinstance(shape, dict) else None
+        allowed = [k for k in SHAPE_FIELDS if label == "collision" or k != "capsule_chain"]
+        if kind not in allowed:
+            error(f"{where}: {label} shape {kind!r} is not one of {', '.join(allowed)}")
+            continue
+        if label == "collision" and (kind == "capsule_chain") != wire:
+            error(f"{where}: wires collide as one capsule_chain, other assets never do")
+        for field in SHAPE_FIELDS[kind]:
+            value = shape.get(field)
+            ok = all(is_number(v) and 0 < v <= 1000 for v in value) if field == "size_m" and is_vec3(value) \
+                else is_number(value) and 0 < value <= 1000
+            if not ok:
+                error(f"{where}: {label} {kind} {field} is missing or not a positive size in metres")
+        for field in ("position_m", "rotation_deg"):
+            if field in shape and not is_vec3(shape[field]):
+                error(f"{where}: {label} {kind} {field} must be [x, y, z]")
+        if label == "collision" and "material" in shape and not known(shape["material"], materials):
+            error(f"{where}: {kind} shape material {shape['material']!r} is not in the material table")
 
 
 def check_catalog(catalog):
@@ -156,6 +221,7 @@ def check_catalog(catalog):
     if not isinstance(assets, dict):
         error("catalog.json: needs an 'assets' object")
         return {}
+    materials = check_materials(catalog)
     usable = {}
     for aid, asset in assets.items():
         where = f"asset '{aid}'"
@@ -174,22 +240,17 @@ def check_catalog(catalog):
         if not isinstance(shapes, list) or (not visual_only and not shapes):
             error(f"{where}: collision is required unless the asset is visual_only")
             shapes = []
-        for shape in shapes:
-            kind = shape.get("shape") if isinstance(shape, dict) else None
-            if kind not in SHAPE_FIELDS:
-                error(f"{where}: collision shape {kind!r} is not one of {', '.join(SHAPE_FIELDS)}")
-                continue
-            if (kind == "capsule_chain") != (asset["type"] == "wire"):
-                error(f"{where}: wires collide as one capsule_chain, other assets never do")
-            for field in SHAPE_FIELDS[kind]:
-                value = shape.get(field)
-                ok = all(is_number(v) and 0 < v <= 1000 for v in value) if field == "size_m" and is_vec3(value) \
-                    else is_number(value) and 0 < value <= 1000
-                if not ok:
-                    error(f"{where}: {kind} {field} is missing or not a positive size in metres")
-            for field in ("position_m", "rotation_deg"):
-                if field in shape and not is_vec3(shape[field]):
-                    error(f"{where}: {kind} {field} must be [x, y, z]")
+        check_shapes(where, "collision", shapes, asset["type"] == "wire", materials)
+        if shapes and "material" not in asset:
+            error(f"{where}: material is required because the asset has collision")
+        elif shapes and not known(asset["material"], materials):
+            error(f"{where}: material {asset['material']!r} is not in the material table")
+        if "wind_volume" in asset:
+            volume = asset["wind_volume"]
+            if not isinstance(volume, list) or not volume:
+                error(f"{where}: wind_volume must be a non-empty list of shapes")
+            else:
+                check_shapes(where, "wind_volume", volume, False, materials)
         if not isinstance(asset.get("snag_hazard"), bool):
             error(f"{where}: snag_hazard must be true or false")
         check_fields(asset, {"wind_porosity": (0, 1)}, where)
@@ -220,8 +281,9 @@ def check_manifest(manifest):
         error(f"map.json: format_version {version} is not supported; this validator reads {SUPPORTED_MAJOR}.x")
         return None
     size = manifest.get("size_m")
-    if not is_number(size) or not 0 < size <= MAX_SIZE_M:
-        error(f"map.json: size_m must be a number above 0 and at most {MAX_SIZE_M}")
+    if not is_number(size) or not 0 < size <= MAX_SIZE_M or size % CHUNK_M:
+        error(f"map.json: size_m {size!r} breaks the side rule: a multiple of {CHUNK_M} m (the collision chunk) "
+              f"and at most {MAX_SIZE_M} m")
         return None
     seed = manifest.get("seed")
     if not isinstance(seed, int) or isinstance(seed, bool) or not 0 <= seed <= 0xFFFFFFFF:
@@ -247,6 +309,18 @@ def check_manifest(manifest):
         error("map.json: height.offset_m must be a number")
     if not is_number(height.get("scale_m")) or height["scale_m"] <= 0:
         error("map.json: height.scale_m must be a positive number")
+    starts = manifest.get("starts", [])
+    if not isinstance(starts, list):
+        error("map.json: starts must be a list (leave it out for none)")
+        starts = []
+    half = size / 2
+    for i, start in enumerate(starts):
+        position = start.get("position_m") if isinstance(start, dict) else None
+        if not is_vec3(position) or not is_number(start.get("yaw_deg")):
+            error(f"map.json: start point {i} needs position_m [x, y, z] and yaw_deg")
+        elif not (-half <= position[0] <= half and -half <= position[2] <= half):
+            error(f"map.json: start point {i} at x={position[0]:g}, z={position[2]:g} is outside the map "
+                  f"(x and z within ±{half:g} m)")
     return size, counts[0], counts[1]
 
 

@@ -1,8 +1,16 @@
 {
+  "materials": {
+    "steel": { "friction_static": 0.35, "friction_kinetic": 0.28, "edge_radius_m": 0.001 },
+    "sheet_metal": { "friction_static": 0.30, "friction_kinetic": 0.25, "stiffness_n_per_m": 2e4, "damping_ratio": 0.03, "edge_radius_m": 0.0003 },
+    "timber": { "friction_static": 0.45, "friction_kinetic": 0.35, "edge_radius_m": 0.002 },
+    "masonry": { "friction_static": 0.65, "friction_kinetic": 0.55, "edge_radius_m": 0.002 },
+    "cable": { "friction_static": 0.30, "friction_kinetic": 0.25 }
+  },
   "assets": {
     "house_box": {
       "type": "object",
       "scene": "res://assets/models/placeholders/house_box.tscn",
+      "material": "masonry",
       "collision": [ { "shape": "box", "size_m": [10.0, 5.0, 6.0], "position_m": [0.0, 2.5, 0.0] } ],
       "snag_hazard": false,
       "wind_porosity": 0.0,
@@ -11,6 +19,7 @@
     "shed_box": {
       "type": "object",
       "scene": "res://assets/models/placeholders/shed_box.tscn",
+      "material": "timber",
       "collision": [ { "shape": "box", "size_m": [4.0, 2.3, 3.0], "position_m": [0.0, 1.15, 0.0] } ],
       "snag_hazard": false,
       "wind_porosity": 0.0,
@@ -19,7 +28,9 @@
     "tree_proxy": {
       "type": "object",
       "scene": "res://assets/models/placeholders/tree_proxy.tscn",
+      "material": "timber",
       "collision": [ { "shape": "cylinder", "radius_m": 0.1, "height_m": 6.0, "position_m": [0.0, 3.0, 0.0] } ],
+      "wind_volume": [ { "shape": "sphere", "radius_m": 3.0, "position_m": [0.0, 7.0, 0.0] } ],
       "snag_hazard": true,
       "wind_porosity": 0.5,
       "gaps": []
@@ -27,6 +38,7 @@
     "pole": {
       "type": "object",
       "scene": "res://assets/models/placeholders/pole.tscn",
+      "material": "timber",
       "collision": [ { "shape": "cylinder", "radius_m": 0.11, "height_m": 8.0, "position_m": [0.0, 4.0, 0.0] } ],
       "snag_hazard": true,
       "wind_porosity": 0.0,
@@ -35,14 +47,33 @@
     "gate_frame": {
       "type": "object",
       "scene": "res://assets/models/placeholders/gate_frame.tscn",
+      "material": "steel",
       "collision": [
         { "shape": "box", "size_m": [0.12, 2.1, 0.12], "position_m": [-0.86, 1.05, 0.0] },
         { "shape": "box", "size_m": [0.12, 2.1, 0.12], "position_m": [0.86, 1.05, 0.0] },
         { "shape": "box", "size_m": [1.84, 0.12, 0.12], "position_m": [0.0, 2.04, 0.0] }
       ],
       "snag_hazard": true,
-      "wind_porosity": 0.8,
+      "wind_porosity": 0.0,
       "gaps": [ { "name": "gate", "center_m": [0.0, 0.99, 0.0], "width_m": 1.6, "height_m": 1.98, "yaw_deg": 0.0 } ]
+    },
+    "launch_rails": {
+      "type": "object",
+      "scene": "res://assets/models/placeholders/launch_rails.tscn",
+      "material": "steel",
+      "collision": [
+        { "shape": "box", "size_m": [0.025, 0.025, 0.6], "position_m": [-0.13, 0.2375, 0.0] },
+        { "shape": "box", "size_m": [0.025, 0.025, 0.6], "position_m": [0.13, 0.2375, 0.0] },
+        { "shape": "box", "size_m": [0.025, 0.2, 0.025], "position_m": [-0.13, 0.125, -0.2875] },
+        { "shape": "box", "size_m": [0.025, 0.2, 0.025], "position_m": [0.13, 0.125, -0.2875] },
+        { "shape": "box", "size_m": [0.025, 0.2, 0.025], "position_m": [-0.13, 0.125, 0.2875] },
+        { "shape": "box", "size_m": [0.025, 0.2, 0.025], "position_m": [0.13, 0.125, 0.2875] },
+        { "shape": "box", "size_m": [0.285, 0.025, 0.025], "position_m": [0.0, 0.0125, -0.2875] },
+        { "shape": "box", "size_m": [0.285, 0.025, 0.025], "position_m": [0.0, 0.0125, 0.2875] }
+      ],
+      "snag_hazard": false,
+      "wind_porosity": 0.0,
+      "gaps": []
     },
     "household_junk": {
       "type": "object",
@@ -55,6 +86,7 @@
     "cable": {
       "type": "wire",
       "scene": "res://assets/models/placeholders/wire_segment.tscn",
+      "material": "cable",
       "collision": [ { "shape": "capsule_chain", "segment_m": 0.5 } ],
       "snag_hazard": true,
       "wind_porosity": 1.0,

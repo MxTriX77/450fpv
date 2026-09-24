@@ -1,0 +1,52 @@
+[gd_scene format=3]
+
+[sub_resource type="StandardMaterial3D" id="Mat_steel"]
+albedo_color = Color(0.31, 0.28, 0.25, 1)
+metallic = 0.6
+roughness = 0.7
+
+[sub_resource type="BoxMesh" id="Box_bar"]
+material = SubResource("Mat_steel")
+size = Vector3(0.025, 0.025, 0.6)
+
+[sub_resource type="BoxMesh" id="Box_leg"]
+material = SubResource("Mat_steel")
+size = Vector3(0.025, 0.2, 0.025)
+
+[sub_resource type="BoxMesh" id="Box_foot"]
+material = SubResource("Mat_steel")
+size = Vector3(0.285, 0.025, 0.025)
+
+[node name="LaunchRails" type="Node3D"]
+
+[node name="BarLeft" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.13, 0.2375, 0)
+mesh = SubResource("Box_bar")
+
+[node name="BarRight" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.13, 0.2375, 0)
+mesh = SubResource("Box_bar")
+
+[node name="LegFrontLeft" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.13, 0.125, -0.2875)
+mesh = SubResource("Box_leg")
+
+[node name="LegFrontRight" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.13, 0.125, -0.2875)
+mesh = SubResource("Box_leg")
+
+[node name="LegRearLeft" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.13, 0.125, 0.2875)
+mesh = SubResource("Box_leg")
+
+[node name="LegRearRight" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.13, 0.125, 0.2875)
+mesh = SubResource("Box_leg")
+
+[node name="FootFront" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0125, -0.2875)
+mesh = SubResource("Box_foot")
+
+[node name="FootRear" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0125, 0.2875)
+mesh = SubResource("Box_foot")
