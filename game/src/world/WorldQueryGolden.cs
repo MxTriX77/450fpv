@@ -17,7 +17,7 @@ using System.Threading;
 /// - Golden file: the fixed inputs of worldquery_golden.json give the output hashes recorded there, on sample_patch with
 ///   the launch rails and on a flat world of each surface. A hash is FNV-1a 64 over every field of every result in
 ///   order (see Fnv), so struct padding never counts. The file also records sample_patch's content hash, so a changed
-///   world reads as that and not as changed math.
+///   world reads as that and not as changed math, and WorldQuery.QueryVersion, which must be raised when the math changes.
 /// - Batched vs single-point: each ground and ray batch equals its points and rays queried one at a time, and every
 ///   micro-detail query equals its WorldQuery.ScalarReference run (no 4-wide pass, no per-cell ground cache), bit for bit.
 /// - Concurrent use: two threads run the sample_patch cases on one world at the same time; every result equals the
@@ -30,17 +30,24 @@ public static class WorldQueryGolden
 
     /// Checks every case of the golden file and prints one line per case through `check` (scenario, pass, numbers).
     /// With `record`, writes the counts and hashes computed here into the file instead, after an intended change to the
-    /// world data or the query math; it still refuses when a batched result differs from its single-point reference.
+    /// world data or the query math. It still refuses when a batched result differs from its single-point reference, and
+    /// when results changed on the same world data while QueryVersion is still the recorded one.
     public static bool Golden(string gameDir, Func<string, bool, string, bool> check, bool record = false)
     {
         string path = Path.Combine(gameDir, GoldenFile);
         JsonNode golden = JsonNode.Parse(File.ReadAllText(path));
         var worlds = new Worlds(gameDir, golden);
         ulong content = worlds.Get(SamplePatch).ContentHash;
-        bool pass = record || check("golden: world files as recorded", Hex(content) == (string)golden["content_hash"],
+        bool sameData = Hex(content) == (string)golden["content_hash"];
+        int version = (int?)golden["query_version"] ?? 0;
+        bool pass = record || check("golden: world files as recorded", sameData,
             $"sample_patch content hash {content:x16}, recorded {golden["content_hash"]} (a difference means the world data changed "
             + "since recording, not the math)");
+        pass &= record || check("golden: query math version as recorded", version == WorldQuery.QueryVersion,
+            $"WorldQuery.QueryVersion {WorldQuery.QueryVersion}, recorded {version} (a difference means the file was not re-recorded "
+            + "after the math changed)");
         var buffers = new Buffers();
+        bool changed = false;
         foreach (Case c in Cases(golden))
         {
             WorldQuery world = worlds.Get(c.World);
@@ -49,6 +56,7 @@ public static class WorldQueryGolden
             string singleText = single == null ? "no batched form" : single == hash ? "single-point identical" : $"single-point {single:x16} DIFFERS";
             if (record)
             {
+                changed |= Hex(hash) != c.Hash || count != c.Count;
                 c.Node["count"] = count;
                 c.Node["hash"] = Hex(hash);
                 pass &= check($"golden record: {c.Name}", single == null || single == hash, $"{count} results, hash {hash:x16}; {singleText}");
@@ -57,9 +65,17 @@ public static class WorldQueryGolden
             pass &= check($"golden: {c.Name}", Hex(hash) == c.Hash && count == c.Count && (single == null || single == hash),
                 $"{c.Call} on {c.World}, {c.Inputs} inputs: {count} results (recorded {c.Count}), hash {hash:x16} (recorded {c.Hash}); {singleText}");
         }
+        if (record)
+        {
+            // Results that changed on the same world data mean the math changed: an old log must not replay under it.
+            pass &= check("golden record: query math version", !(changed && sameData && WorldQuery.QueryVersion == version),
+                $"results {(changed ? "changed" : "unchanged")} on {(sameData ? "the same" : "changed")} world data; WorldQuery.QueryVersion "
+                + $"{WorldQuery.QueryVersion}, recorded {version} (raise it when the math changes the results)");
+        }
         if (record && pass)
         {
             golden["content_hash"] = Hex(content);
+            golden["query_version"] = WorldQuery.QueryVersion;
             Write(path, golden);
         }
         return pass;

@@ -17,6 +17,11 @@ public sealed partial class WorldQuery
     internal const ulong FnvOffset = 0xCBF29CE484222325UL;
     const ulong FnvPrime = 0x100000001B3UL;
 
+    /// The version of the query math. The content hash covers only the data, so this is raised with every code change
+    /// that alters any query result for the same data, and the golden file is re-recorded with it. The physics log
+    /// records it next to ContentHash, and a replay refuses a log whose version differs. 1: the math of task 3.5.
+    public const int QueryVersion = 1;
+
     /// The content hash of the world this instance was loaded from (ContentHashOf); 0 for a world built in memory.
     public ulong ContentHash { get; private set; }
 

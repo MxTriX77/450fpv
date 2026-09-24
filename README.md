@@ -58,9 +58,9 @@ dotnet run -c Debug --project tools/worldbench -- --golden    # golden file, 10 
 dotnet run -c Release --project tools/worldbench -- --golden  # the same on optimised code; the second golden pass runs after the JIT has optimised
 ```
 
-The golden file `game/src/world/worldquery_golden.json` holds fixed query inputs, the hash of their results from this machine, and sample_patch's content hash (the rule is in `game/maps/README.md`). The first output line names the build, runtime, OS and CPU features, so runs on different machines can be compared.
+The golden file `game/src/world/worldquery_golden.json` holds fixed query inputs, the hash of their results from this machine, sample_patch's content hash (the rule is in `game/maps/README.md`) and the query version. The first output line names the build, runtime, OS and CPU features, so runs on different machines can be compared.
 A failing `world files as recorded` line means that sample_patch, `surfaces.json` or `catalog.json` changed after recording; it does not mean the math changed.
-After an intended change to the world data or the query math, re-record with `dotnet run -c Release --project tools/worldbench -- --golden-record`. Then check the diff: only `count`, `hash` and `content_hash` may change. Recording refuses to run while any batched result differs from its single-point reference.
+After an intended change to the world data or the query math, re-record with `dotnet run -c Release --project tools/worldbench -- --golden-record`. A change to the math also raises `WorldQuery.QueryVersion` (`game/src/world/ContentHash.cs`) first. Then check the diff: only `count`, `hash`, `content_hash` and `query_version` may change. Recording refuses to run while any batched result differs from its single-point reference, or while results changed on the same world data and `QueryVersion` is still the recorded one.
 
 Terrain-only frame budget on the synthetic 4 km map (D-009). `flypath` flies a fixed 12 s path and prints fps, 1 % low, draw calls and video memory:
 

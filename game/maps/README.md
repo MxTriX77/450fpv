@@ -294,6 +294,8 @@ for path in files:  # the seven files, in the order above
 print(f"{h:016x}")
 ```
 
+The hash covers the data, not the code. `WorldQuery.QueryVersion`, an integer, identifies the query math: it is raised with every code change that alters any query result for the same data, and the golden file (`game/src/world/worldquery_golden.json`) records it. The physics log records it next to the content hash, and a replay refuses a log whose version differs, because the same world would give other results.
+
 ## Versioning
 
 `format_version` is `major.minor`. A minor bump adds optional fields that older readers ignore. A major bump breaks compatibility. The validator and the loader reject a major they do not support, and name both versions.

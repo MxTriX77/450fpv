@@ -76,7 +76,8 @@ static class Program
         string game = Path.Combine(FindRoot(), "game");
         Console.WriteLine($"worldbench --golden: {build} build, {RuntimeInformation.FrameworkDescription}, {RuntimeInformation.OSDescription}, "
             + $"{RuntimeInformation.ProcessArchitecture}, AVX2 {System.Runtime.Intrinsics.X86.Avx2.IsSupported}, FMA "
-            + $"{System.Runtime.Intrinsics.X86.Fma.IsSupported}, AVX-512 {System.Runtime.Intrinsics.X86.Avx512F.IsSupported}");
+            + $"{System.Runtime.Intrinsics.X86.Fma.IsSupported}, AVX-512 {System.Runtime.Intrinsics.X86.Avx512F.IsSupported}, query version "
+            + $"{WorldQuery.QueryVersion}");
         static bool Check(string scenario, bool ok, string numbers)
         {
             Console.WriteLine($"worldbench --golden: {scenario}: {numbers} {(ok ? "PASS" : "FAIL")}");
