@@ -85,8 +85,10 @@ public static class DetMath
 
     const double Ln2 = 0.69314718055994530942;
 
-    /// b^e for b in [0, 1] and e > 0, as exp(e·ln b): both series to about 1e-16, so the bits never depend on the C
-    /// runtime's pow.
+    /// b^e for any normal b > 0 (at least 2.2e-308) and finite e, as exp(e·ln b): both series to about 1e-16, so the bits
+    /// never depend on the C runtime's pow. The relative error grows with |e·ln b|: within 4 ulp for b in 0.1–10 and |e| ≤ 1
+    /// (such as physics' (b_ref / b)^0.3), within 1e-12 across the whole double range. 0 for b ≤ 0 or NaN; +∞ or 0 when
+    /// the result leaves the double range.
     public static double Pow(double b, double e)
     {
         if (!(b > 0))

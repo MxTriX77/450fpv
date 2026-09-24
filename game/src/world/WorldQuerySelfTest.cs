@@ -53,6 +53,7 @@ public static partial class WorldQuerySelfTest
             pass &= ElementRules(world);
             pass &= ObjectScenarios(world, dir, surfaces);
             pass &= Lookups(world, surfaces);
+            pass &= PowDomain();
             pass &= ContentHashScenarios(world, dir, surfaces);
             pass &= WorldQueryGolden.Golden(ProjectSettings.GlobalizePath("res://"), Check);
             pass &= WorldQueryGolden.Concurrent(ProjectSettings.GlobalizePath("res://"), 10, Check);
@@ -811,6 +812,30 @@ public static partial class WorldQuerySelfTest
             }
         }
         return Check("element rules", bad == 0 && total > 0, $"{total} elements, {bad} breaking a rule{first}");
+    }
+
+    /// DetMath.Pow over b > 0 (API review F7) against Math.Pow: 100,000 draws with b log-uniform in 0.1–10 and e in −1–1
+    /// within 8 ulp, and 100,000 with b in 1e-300–1e300 within 1e-12 relative; b ≤ 0 and NaN give 0.
+    static bool PowDomain()
+    {
+        var random = new Random(59);
+        double Worst(double lo, double hi, bool ulps)
+        {
+            double worst = 0;
+            for (int i = 0; i < 100000; i++)
+            {
+                double b = Math.Exp(Math.Log(lo) + (Math.Log(hi) - Math.Log(lo)) * random.NextDouble()), e = 2 * random.NextDouble() - 1;
+                double mine = DetMath.Pow(b, e), reference = Math.Pow(b, e), error = Math.Abs(mine - reference);
+                worst = Math.Max(worst, ulps ? error / (Math.BitIncrement(reference) - reference) : error / reference);
+            }
+            return worst;
+        }
+        double near = Worst(0.1, 10, true), wide = Worst(1e-300, 1e300, false);
+        bool zero = DetMath.Pow(0, 0.3) == 0 && DetMath.Pow(-2, 0.3) == 0 && DetMath.Pow(double.NaN, 0.3) == 0;
+        return Check("DetMath.Pow for b > 0", near <= 8 && wide <= 1e-12 && zero,
+            $"b in 0.1–10, e in −1–1: within {near} ulp of Math.Pow (limit 8); b in 1e-300–1e300: within {wide:0.0e0} relative "
+            + $"(limit 1e-12); b ≤ 0 and NaN give 0: {zero}; physics' (b_ref / b)^0.3 at b_ref / b = 1.5, 2, 3: "
+            + string.Join(", ", new[] { 1.5, 2, 3 }.Select(b => DetMath.Pow(b, 0.3) == Math.Pow(b, 0.3) ? "identical" : "differs")));
     }
 
     /// Informational: the formal benchmark with allocation counts is tools/worldbench, in Release.
