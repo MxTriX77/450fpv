@@ -34,7 +34,7 @@ _None._
 
 ## Impact
 
-- New: `tools/reference/track_attitude.py`, `tools/reference/wind_stats.py` (computes every number in the notes, and later runs the same statistics on a simulated flight log for the §6 target test) and `docs/reference-notes/wind.md`
+- New: `tools/reference/track_attitude.py`, `tools/reference/wind_stats.py` (computes every number in the notes, and later runs the same statistics on a simulated flight log for the §6 target test) and `docs/reference-notes/wind.md`, plus `docs/reference-notes/airframes.md` (public specs of the reference airframes, with the pilot's battery and the derived take-off mass)
 - Local only (git-ignored): `reference/_frames/<letter>/attitude.csv`
 - Depends on the stable-letter extractor from `study-flight-references`, which assigns the wind clip its letter
 - OPSEC: the repo is public. The notes follow the same rules as the other reference notes: letters only, and no places, dates, OSD values, file names or people.
