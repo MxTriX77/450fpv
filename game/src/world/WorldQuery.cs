@@ -125,21 +125,27 @@ public sealed partial class WorldQuery
         if (coverCells != cells)
             throw new InvalidDataException($"{packageDir}: cover.png is {coverCells} wide, surface.png {cells}");
         string surfacesJson = File.ReadAllText(surfacesPath);
-        var world = new WorldQuery(SurfaceParams.ParseTable(surfacesJson), root.GetProperty("size_m").GetDouble(),
-            root.GetProperty("seed").GetUInt32(), samples, heights, cells, surface, cover, Catalog.Parse(File.ReadAllText(catalogPath)));
-        world.LoadObjects(Path.Combine(packageDir, "objects.json"));
+        double soilReference;
         using (JsonDocument table = JsonDocument.Parse(surfacesJson))
-            world.SoilReferenceDiameter = table.RootElement.GetProperty("soil_reference_diameter_m").GetDouble();
+            soilReference = table.RootElement.GetProperty("soil_reference_diameter_m").GetDouble();
+        var world = new WorldQuery(SurfaceParams.ParseTable(surfacesJson), root.GetProperty("size_m").GetDouble(),
+            root.GetProperty("seed").GetUInt32(), samples, heights, cells, surface, cover, Catalog.Parse(File.ReadAllText(catalogPath)),
+            soilReference);
+        world.LoadObjects(Path.Combine(packageDir, "objects.json"));
         world.ContentHash = ContentHashOf(packageDir, surfacesPath, catalogPath);
         return world;
     }
 
+    /// surfaces.json's soil_reference_diameter_m, m: the default for a world built in memory.
+    public const double DefaultSoilReferenceDiameter = 0.015;
+
     /// `heights` are samples² world Y values, `surface` cells² surface indices and `cover` cells² RGBA bytes, all
-    /// row-major from the north-west corner. Objects need a `catalog`.
+    /// row-major from the north-west corner. Objects need a `catalog`. `soilReferenceDiameter` is the table's (m).
     public WorldQuery(SurfaceParams[] table, double sizeM, uint seed, int samples, float[] heights, int cells, byte[] surface,
-        byte[] cover, Catalog catalog = null)
+        byte[] cover, Catalog catalog = null, double soilReferenceDiameter = DefaultSoilReferenceDiameter)
     {
         SizeM = sizeM;
+        SoilReferenceDiameter = soilReferenceDiameter;
         Half = sizeM / 2;
         Seed = seed;
         Samples = samples;
@@ -196,12 +202,12 @@ public sealed partial class WorldQuery
 
     /// World-query "Content hash" (W-12) lookups, allocation-free: a surface by its index (null for an index not in the
     /// table), a contact material by its id (Catalog.MaterialIds), and the foot diameter at which the surfaces' bearing
-    /// and damping are defined, m (0 for a world built in memory).
+    /// and damping are defined, m (surfaces.json's, or the constructor's for a world built in memory).
     public SurfaceParams Surface(byte index) => _byIndex[index];
 
     public MaterialParams Material(ushort id) => Catalog.Materials[id];
 
-    public double SoilReferenceDiameter { get; private set; }
+    public double SoilReferenceDiameter { get; }
 
     /// World-query W-1: one GroundSample per (x, z) point. Points outside the map clamp to the edge and are flagged.
     public void SampleGround(ReadOnlySpan<XZ> points, Span<GroundSample> results)

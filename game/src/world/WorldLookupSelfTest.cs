@@ -13,7 +13,8 @@ public static partial class WorldQuerySelfTest
     static readonly string[] PackageFiles = { "map.json", "height.r16", "surface.png", "cover.png", "objects.json" };
 
     /// Every surface and material against surfaces.json and catalog.json read independently (the README's defaults for
-    /// material fields left out), the soil reference diameter, and 10,000 lookups allocating nothing.
+    /// material fields left out), the soil reference diameter (also of a world built in memory, which defaults to it),
+    /// and 10,000 lookups allocating nothing.
     static bool Lookups(WorldQuery world, string surfacesPath)
     {
         JsonNode table = JsonNode.Parse(File.ReadAllText(surfacesPath));
@@ -74,6 +75,9 @@ public static partial class WorldQuerySelfTest
             Expect($"{m.Key} edge radius", p.EdgeRadius, m.Value["edge_radius_m"] is JsonNode e ? D(e) : 0.002);
         }
         Expect("soil reference diameter", world.SoilReferenceDiameter, D(table["soil_reference_diameter_m"]));
+        SurfaceParams[] parsed = SurfaceParams.ParseTable(File.ReadAllText(surfacesPath));
+        double inMemory = Uniform(parsed, parsed[0].Index, world.Seed).SoilReferenceDiameter;
+        Expect("soil reference diameter of a world built in memory", inMemory, D(table["soil_reference_diameter_m"]));
 
         byte[] indices = world.Surfaces.Select(s => s.Index).ToArray();
         int materialCount = world.Catalog.Materials.Length;
@@ -85,7 +89,7 @@ public static partial class WorldQuerySelfTest
         return Check("surface, material and soil-reference lookups",
             bad == 0 && surfaces == table["surfaces"].AsArray().Count && materials > 0 && allocated == 0 && sum > 0,
             $"{surfaces} surfaces ({mats} with a mat), {materials} materials and the soil reference diameter "
-            + $"{world.SoilReferenceDiameter} m: {values} values vs surfaces.json and catalog.json, {bad} wrong{first}; "
+            + $"{world.SoilReferenceDiameter} m (in memory {inMemory} m): {values} values vs surfaces.json and catalog.json, {bad} wrong{first}; "
             + $"10000 lookups allocate {allocated} bytes");
     }
 
