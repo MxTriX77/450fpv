@@ -3,6 +3,8 @@
 Run with Blender's Python (for numpy) from the repo root:
     blender -b --factory-startup --python tools/reference/wind_stats.py -- --letter P [--json out.json]
     blender -b --factory-startup --python tools/reference/wind_stats.py -- --csv <log> [--json out.json]
+    blender -b --factory-startup --python tools/reference/wind_stats.py -- --letter P --segment 121-330 --gauss 5
+    blender -b --factory-startup --python tools/reference/wind_stats.py -- --wind-log <seed1.csv> ... [--json out.json]
 
 Input is reference/_frames/<letter>/attitude.csv from track_attitude.py, or a simulated flight
 logged in the same columns (frame, time_s, roll_deg, pitch_deg, yaw_rate_dps, conf_roll,
@@ -51,6 +53,7 @@ BLOCK = 60
 BLOCK_SEG = 30                      # bootstrap block inside and outside a segment (the belt holds only 7 s)
 BLOCK_S = 150                       # frames per block of the terrain comparison (5 s)
 BOOT = 500
+SHIFT_DEG, SHIFT_S, SIDE_S = 45.0, 30.0, 40.0   # wind history: a shift is >= 45 deg within 30 s; side kept over 40 s
 MAX_LAG_S = 1.0
 D1 = np.array([-2, -1, 0, 1, 2]) / 10.0      # 5-point first derivative (per frame)
 D2 = np.array([2, -1, -2, -1, 2]) / 7.0      # 5-point second derivative (per frame^2)
@@ -118,7 +121,7 @@ def boot(values_by_frame, fn, seed=0, block=BLOCK):
     idx = np.where(np.isfinite(values_by_frame[0]) if isinstance(values_by_frame, tuple)
                    else np.isfinite(values_by_frame))[0]
     blocks = [idx[i:i + block] for i in range(0, len(idx), block)]
-    if len(blocks) < 3:
+    if len(blocks) < 3 or not BOOT:
         return math.nan, math.nan
     rng = np.random.default_rng(seed)
     stats = []
@@ -168,7 +171,7 @@ def band_table(f, specs):
     base = rms(specs)
     rng = np.random.default_rng(0)
     bs = np.array([rms(specs[rng.integers(0, len(specs), len(specs))]) for _ in range(BOOT)])
-    lo, hi = np.percentile(bs, [16, 84], axis=0)
+    lo, hi = np.percentile(bs, [16, 84], axis=0) if BOOT else (np.full(len(BANDS), math.nan),) * 2
     share = base ** 2 / (base ** 2).sum()
     m = specs.mean(axis=0)
     band = (f >= BANDS[0][0]) & (f < BANDS[-1][1])
@@ -423,6 +426,84 @@ def report(o):
         f"{b['frames'][0]}-{b['frames'][1]} {b['roll']:.2f}/{b['pitch']:.2f}" for b in o["blocks"]))
 
 
+def wind_history(paths):
+    """T0c (wind.md section 6.3) on the weather preset's own wind state, not on the attitude: one CSV per seed with
+    columns time_s, wind_from_deg. Spread about the prevailing direction, shifts (a change of >= SHIFT_DEG within
+    SHIFT_S, counted once per run of such times) and the share of SIDE_S windows in which the wind stays within 90 deg
+    of the prevailing direction, i.e. keeps one side of a course flown abeam of it. Shifts and windows are pooled."""
+    per, gaps, keep, count, minutes = [], [], [], 0, 0.0
+    for p in paths:
+        rows = list(csv.DictReader(Path(p).open(encoding="utf-8")))
+        t = np.array([float(r["time_s"]) for r in rows])
+        d = np.radians([float(r["wind_from_deg"]) for r in rows])
+        dt = float(np.median(np.diff(t)))
+        z = np.exp(1j * d).mean()
+        dev = np.degrees(np.angle(np.exp(1j * d) / z))                     # deviation from the prevailing direction
+        lag, w = int(round(SHIFT_S / dt)), int(round(SIDE_S / dt))
+        onsets = []                                                        # crossings < SHIFT_S apart are one shift
+        for a, b in runs(np.abs(np.degrees(np.angle(np.exp(1j * (d[lag:] - d[:-lag]))))) >= SHIFT_DEG):
+            if not onsets or a - end >= lag:
+                onsets.append(a)
+            end = b
+        other = np.concatenate(([0], np.cumsum(np.abs(dev) >= 90)))
+        k = (other[w:] - other[:-w]) == 0
+        m = (t[-1] - t[0]) / 60
+        per.append(dict(prevailing_deg=math.degrees(np.angle(z)) % 360, spread_deg=math.degrees(math.sqrt(-2 * math.log(abs(z)))),
+                        shifts=len(onsets), minutes=m, side_keep=float(k.mean())))
+        gaps += list(np.diff(onsets) * dt)
+        keep.append(k)
+        count, minutes = count + len(onsets), minutes + m
+    g = np.array(gaps)
+    return dict(runs=per, minutes=minutes, shifts=dict(count=count, per_min=count / minutes, n_gaps=len(g),
+                gap_cv=float(g.std() / g.mean()) if len(g) > 1 else math.nan),
+                spread_deg=float(np.mean([r["spread_deg"] for r in per])), side_keep=float(np.concatenate(keep).mean()))
+
+
+def gauss_check(o, n):
+    """Plain Gaussian noise must fail the targets it should fail (wind.md section 6.5). Builds sim-style logs with the
+    input's Welch spectra and its inside/outside residual spreads, independent on each axis, and analyses them:
+    'stationary' is stationary inside each regime; 'calm/busy' alternates 20 s at 0.6x and 12 s at 1.4x outside."""
+    global BOOT
+    BOOT, fps, seg, N = 0, o["fps"], o["segment"]["range"], o["frames"]    # intervals are not needed here
+    fr = np.arange(1, N + 1)
+    inside = (fr >= seg[0]) & (fr <= seg[1])
+
+    def shaped(rng, k, length):
+        f_p, p_p = np.array(o["spectra"][k]["psd"][1:]).T
+        f = np.fft.rfftfreq(length, 1 / fps)
+        amp = np.exp(np.interp(np.log(np.maximum(f, f_p[0])), np.log(f_p), np.log(p_p)) / 2)
+        amp[0] = 0
+        return np.fft.irfft(amp * (rng.standard_normal(len(f)) + 1j * rng.standard_normal(len(f))), length) * math.sqrt(length)
+    unit = {k: float(np.nanstd(residual(shaped(np.random.default_rng(12345), k, 2 ** 17), [(0, 2 ** 17)], fps)))
+            for k in ("roll", "pitch", "yaw")}
+    busy = np.where(((fr - 1) / fps) % 32 < 20, 0.6, 1.4)
+    for fam, field in (("stationary", np.ones(N)), ("calm/busy", busy)):
+        rows = []
+        for seed in range(n):
+            rng = np.random.default_rng(seed)
+            x = {k: shaped(rng, k, N) / unit[k] * np.where(inside, o["segment"]["inside"][k]["res_std"],
+                                                              o["segment"]["outside"][k]["res_std"] * field)
+                 for k in ("roll", "pitch", "yaw")}
+            one = np.ones(N)
+            s = analyse(dict(frame=fr.astype(float), time_s=(fr - 1) / fps, roll_deg=o["angle"][0]["mean"] + x["roll"],
+                             pitch_deg=o["angle"][1]["mean"] + x["pitch"], yaw_rate_dps=np.diff(x["yaw"], prepend=0) * fps,
+                             conf_roll=one, conf_pitch=one, conf_yaw=one, edge_px=np.full(N, math.nan),
+                             dup=np.zeros(N, bool), guarded=0, lost=np.zeros(N, bool)), seg)
+            so, si = s["segment"]["outside"], s["segment"]["inside"]
+            rows.append([s["residual"][0]["kurtosis"], s["residual"][1]["kurtosis"], so["roll"]["kurtosis"],
+                         so["pitch"]["kurtosis"], so["roll"]["block_cv"], so["pitch"]["block_cv"], so["roll"]["block_min"],
+                         so["pitch"]["block_min"], so["roll"]["res_std"], si["roll"]["res_std"], s["corr"]["roll~yaw rate"]["r"]])
+        a = np.array(rows)
+        names = ("whole kurt roll", "whole kurt pitch", "field kurt roll", "field kurt pitch", "block cv roll",
+                 "block cv pitch", "block min roll", "block min pitch", "field res roll", "belt res roll", "r roll~yaw rate")
+        print(f"gauss {fam}: {n} logs")
+        for i, name in enumerate(names):
+            g5 = a[:n - n % 5, i].reshape(-1, 5).mean(axis=1) if n >= 5 else a[:, i]
+            print(f"  {name:17s} runs " + (" ".join(f"{v:.2f}" for v in a[:, i]) if n <= 10 else
+                  f"min {a[:, i].min():.2f} p5 {np.percentile(a[:, i], 5):.2f} p95 {np.percentile(a[:, i], 95):.2f} max {a[:, i].max():.2f}")
+                  + f" | means of 5: {g5.min():.2f}-{g5.max():.2f}")
+
+
 def finite(o):
     """JSON has no NaN; write null, which strict parsers (.NET's default) accept."""
     if isinstance(o, float):
@@ -442,14 +523,30 @@ def main():
     p.add_argument("--ref", default=str(Path(__file__).resolve().parents[2] / "reference"))
     p.add_argument("--json", help="also write every number to this JSON file")
     p.add_argument("--segment", help="first-last frame: also report residual spread and events inside vs outside")
+    p.add_argument("--wind-log", nargs="+", help="T0c: the weather preset's wind history, one CSV per seed")
+    p.add_argument("--gauss", type=int, help="after the input, check N plain-Gaussian logs built from it (needs --segment)")
     a = p.parse_args(argv)
-    if not (a.letter or a.csv):
-        p.error("give --letter or --csv")
-    path = Path(a.csv) if a.csv else Path(a.ref) / "_frames" / a.letter / "attitude.csv"
-    o = analyse(load(path), tuple(int(v) for v in a.segment.split("-")) if a.segment else None)
-    report(o)
+    if not (a.letter or a.csv or a.wind_log):
+        p.error("give --letter, --csv or --wind-log")
+    if a.wind_log:
+        o = wind_history(a.wind_log)
+        for r in o["runs"]:
+            print(f"  wind history: prevailing {r['prevailing_deg']:.1f} deg, spread {r['spread_deg']:.1f} deg, "
+                  f"{r['shifts']} shifts in {r['minutes']:.1f} min, side kept in {r['side_keep']:.1%} of {SIDE_S:g} s windows")
+        s = o["shifts"]
+        print(f"  pooled: {s['count']} shifts in {o['minutes']:.1f} min = {s['per_min']:.3f}/min, gap CV {s['gap_cv']:.2f} "
+              f"({s['n_gaps']} gaps); mean spread {o['spread_deg']:.1f} deg; side kept {o['side_keep']:.1%}")
+    else:
+        path = Path(a.csv) if a.csv else Path(a.ref) / "_frames" / a.letter / "attitude.csv"
+        o = analyse(load(path), tuple(int(v) for v in a.segment.split("-")) if a.segment else None)
+        report(o)
     if a.json:
         Path(a.json).write_text(json.dumps(finite(o), indent=1, allow_nan=False), encoding="utf-8")
+    if a.gauss:
+        if not a.segment:
+            p.error("--gauss needs --segment")
+        gauss_check(o, a.gauss)
+
 
 if __name__ == "__main__":
     try:
