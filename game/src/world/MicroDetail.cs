@@ -1,6 +1,7 @@
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
 
 /// One stem, straw, twig or leaf from the micro-detail generator (world-query W-5, W-6). Blittable, 64 bytes.
 public struct MicroElement
@@ -75,7 +76,7 @@ public sealed partial class WorldQuery
         int x0 = (int)Math.Floor((cxw - scan) / MicroCell), x1 = (int)Math.Floor((cxw + scan) / MicroCell);
         int z0 = (int)Math.Floor((czw - scan) / MicroCell), z1 = (int)Math.Floor((czw + scan) / MicroCell);
         int count = 0;
-        Span<Drawn> batch = stackalloc Drawn[Batch];
+        Drawn batch = default;
         CellGround ground = default; // refilled per cell, never cleared: only the fields a valid cell uses are read
         for (int cz = z0; cz <= z1; cz++)
         {
@@ -99,8 +100,8 @@ public sealed partial class WorldQuery
                     // Standing elements share their cell's ground once there are a few of them.
                     ground.Valid = k == (int)CoverKind.Grass && n >= 4 && CellGroundOf(cx, cz, ref ground);
                     for (int first = 0; first < n; first += Batch)
-                        count = Elements(c, surface, cx, cz, k, cell, first, Math.Min(n, first + Batch), in ground, in center, radius, batch,
-                            results, count);
+                        count = Elements(c, surface, cx, cz, k, cell, first, Math.Min(n, first + Batch), in ground, in center, radius,
+                            ref batch, results, count);
                 }
             }
         }
@@ -121,22 +122,37 @@ public sealed partial class WorldQuery
     /// [0, 1) from the low 16 bits.
     static double Unit16(uint bits) => (bits & 0xFFFF) * (1.0 / 65536);
 
-    /// Elements drawn by one call of Elements, between its passes.
+    /// Elements drawn by one call of Elements, between its passes. A multiple of 4, the vector width of the passes.
     const int Batch = 32;
 
+    [InlineArray(Batch)]
+    struct Lanes
+    {
+        double _element;
+    }
+
+    [InlineArray(Batch)]
+    struct Words
+    {
+        uint _element;
+    }
+
+    /// The elements of one batch between the passes of Elements, one lane each (a structure of arrays, so that the passes
+    /// can work on 4 elements at a time).
     struct Drawn
     {
-        public int Slot;
-        public uint Shape, Tail; // the second mix: lean and hook release, then azimuth and hooks
-        public double X, Y, Z, Length, Diameter, SinLean, Dx, Dy, Dz;
+        public Words Slot, Shape, Tail, Met; // Shape and Tail: the second mix, lean and hook release, then azimuth and hooks
+        public Lanes X, Y, Z, Length, Diameter, SinLean, Dx, Dy, Dz;
     }
 
     /// Draws elements `first` to `end` − 1 of cell (cx, cz), whose element hash is `cell`, and appends those that meet the
-    /// query sphere to `results` at `count` in slot order; returns the new count. Three short passes over `batch` rather
-    /// than one long chain per element, so the processor works on several elements at once: the base and reach (an
-    /// element out of reach costs two hashes), then the heading and the ground, then the sphere test and the result.
+    /// query sphere to `results` at `count` in slot order; returns the new count. Short passes over `batch` rather than
+    /// one long chain per element, so the processor works on several elements at once: the base and reach (an element out
+    /// of reach costs two hashes), then the heading and the ground, then the sphere test, then the results. The heading and
+    /// ground of standing elements and the sphere test run on 4 elements per vector, with the same IEEE operations in the
+    /// same order as one at a time, so the bits are the same.
     int Elements(CoverParams c, byte surface, int cx, int cz, int kind, uint cell, int first, int end, in CellGround ground,
-        in Double3 center, double radius, Span<Drawn> batch, Span<MicroElement> results, int count)
+        in Double3 center, double radius, ref Drawn batch, Span<MicroElement> results, int count)
     {
         // Everything that does not change per element is read once, so the loops keep it in registers.
         bool standing = kind == (int)CoverKind.Grass;
@@ -156,67 +172,144 @@ public sealed partial class WorldQuery
             double diameter = diameterMin + diameterSpan * Unit16(size >> 16);
             double sinLean = standing ? sinMaxLean * Unit16(shape) : 0; // standing grass: the sine of its lean is uniform
             double reach = radius + (standing ? length * sinLean : length) + diameter / 2;
-            ref Drawn d = ref batch[m];
-            d.Slot = slot;
-            d.Shape = shape;
-            d.Tail = (uint)(second64 >> 32);
-            d.X = bx;
-            d.Z = bz;
-            d.Length = length;
-            d.Diameter = diameter;
-            d.SinLean = sinLean;
+            batch.Slot[m] = (uint)slot;
+            batch.Shape[m] = shape;
+            batch.Tail[m] = (uint)(second64 >> 32);
+            batch.X[m] = bx;
+            batch.Z[m] = bz;
+            batch.Length[m] = length;
+            batch.Diameter[m] = diameter;
+            batch.SinLean[m] = sinLean;
             m += (horizontal <= far2 ? 1 : 0) & (horizontal <= reach * reach ? 1 : 0);
         }
-        for (int i = 0; i < m; i++)
+        if (m == 0)
+            return count;
+        // Lanes past m up to the next multiple of 4 repeat the last element, so every lane of a vector is a real base.
+        for (int pad = m; (pad & 3) != 0; pad++)
         {
-            ref Drawn d = ref batch[i];
-            Azimuth(d.Tail, out double cosAz, out double sinAz);
+            batch.X[pad] = batch.X[m - 1];
+            batch.Z[pad] = batch.Z[m - 1];
+        }
+        int i = 0;
+        if (standing && ground.Valid && ground.Ridges == null)
+        {
+            for (; i < m; i += 4)
+                Standing4(ref batch, i, in ground);
+        }
+        for (; i < m; i++)
+        {
+            Azimuth(batch.Tail[i], out double cosAz, out double sinAz);
+            double bx = batch.X[i], bz = batch.Z[i];
             if (standing)
             {
-                d.Y = ground.Valid ? CellHeight(in ground, d.X, d.Z) : GroundHeightAt(d.X, d.Z);
-                d.Dx = d.SinLean * cosAz;
-                d.Dy = Math.Sqrt(1 - d.SinLean * d.SinLean);
-                d.Dz = d.SinLean * sinAz;
+                double sinLean = batch.SinLean[i];
+                batch.Y[i] = ground.Valid ? CellHeight(in ground, bx, bz) : GroundHeightAt(bx, bz);
+                batch.Dx[i] = sinLean * cosAz;
+                batch.Dy[i] = Math.Sqrt(1 - sinLean * sinLean);
+                batch.Dz[i] = sinLean * sinAz;
             }
             else
-                d.Y = Lying(d.X, d.Z, cosAz, sinAz, out d.Dx, out d.Dy, out d.Dz);
+                batch.Y[i] = Lying(bx, bz, cosAz, sinAz, out batch.Dx[i], out batch.Dy[i], out batch.Dz[i]);
+        }
+        // Segment meets sphere: the closest point of the axis to the centre is within radius + element radius. The
+        // elements that meet it are listed in Met.
+        int met = 0;
+        var cxv = Vector256.Create(sx);
+        var cyv = Vector256.Create(sy);
+        var czv = Vector256.Create(sz);
+        var radiusv = Vector256.Create(radius);
+        var two = Vector256.Create(2.0);
+        for (i = 0; i < m; i += 4)
+        {
+            Vector256<double> dx = Load(ref batch.Dx, i), dy = Load(ref batch.Dy, i), dz = Load(ref batch.Dz, i);
+            Vector256<double> rx = cxv - Load(ref batch.X, i), ry = cyv - Load(ref batch.Y, i), rz = czv - Load(ref batch.Z, i);
+            Vector256<double> t = rx * dx + ry * dy + rz * dz;
+            t = Vector256.Max(Vector256.Min(t, Load(ref batch.Length, i)), Vector256<double>.Zero); // t is finite
+            Vector256<double> qx = rx - t * dx, qy = ry - t * dy, qz = rz - t * dz;
+            Vector256<double> touch = radiusv + Load(ref batch.Diameter, i) / two;
+            uint meets = Vector256.LessThanOrEqual(qx * qx + qy * qy + qz * qz, touch * touch).ExtractMostSignificantBits();
+            for (int lane = 0, lanes = Math.Min(4, m - i); lane < lanes; lane++)
+            {
+                batch.Met[met] = (uint)(i + lane);
+                met += (int)(meets >> lane & 1);
+            }
         }
         double perMeanDiameter = 2 / (c.DiameterMin + c.DiameterMax), meanLength = (c.LengthMin + c.LengthMax) / 2;
         double stiffness = c.TipStiffness, releaseMin = c.HookReleaseMin, releaseSpan = c.HookReleaseMax - c.HookReleaseMin;
         double hookProbability = c.HookProbability;
         ulong idBase = ElementId(cx, cz, kind, 0);
-        for (int i = 0; i < m; i++)
+        for (int j = 0; j < met; j++, count++)
         {
-            ref Drawn d = ref batch[i];
-            // Segment meets sphere: the closest point of the axis to the centre is within radius + element radius.
-            double rx = sx - d.X, ry = sy - d.Y, rz = sz - d.Z;
-            double t = rx * d.Dx + ry * d.Dy + rz * d.Dz;
-            t = Math.Max(Math.Min(t, d.Length), 0); // clamped without a branch; t is finite
-            double qx = rx - t * d.Dx, qy = ry - t * d.Dy, qz = rz - t * d.Dz;
-            double touch = radius + d.Diameter / 2;
-            if (!(qx * qx + qy * qy + qz * qz <= touch * touch))
+            if (count >= results.Length)
                 continue;
-            if (count < results.Length)
+            int e = (int)batch.Met[j];
+            double diameter = batch.Diameter[e], length = batch.Length[e];
+            double dr = diameter * perMeanDiameter, lr = meanLength / length;
+            results[count] = new MicroElement
             {
-                double dr = d.Diameter * perMeanDiameter, lr = meanLength / d.Length;
-                results[count] = new MicroElement
-                {
-                    Id = idBase | (uint)d.Slot,
-                    Base = new Double3(d.X, d.Y, d.Z),
-                    Direction = new Vector3((float)d.Dx, (float)d.Dy, (float)d.Dz),
-                    Length = (float)d.Length,
-                    Diameter = (float)d.Diameter,
-                    TipStiffness = (float)(stiffness * (dr * dr) * (dr * dr) * (lr * lr * lr)),
-                    HookRelease = (float)(releaseMin + releaseSpan * Unit16(d.Shape >> 16)),
-                    Hooks = Unit16(d.Tail >> 16) < hookProbability,
-                    Kind = (CoverKind)kind,
-                    Surface = surface,
-                };
-            }
-            count++;
+                Id = idBase | batch.Slot[e],
+                Base = new Double3(batch.X[e], batch.Y[e], batch.Z[e]),
+                Direction = new Vector3((float)batch.Dx[e], (float)batch.Dy[e], (float)batch.Dz[e]),
+                Length = (float)length,
+                Diameter = (float)diameter,
+                TipStiffness = (float)(stiffness * (dr * dr) * (dr * dr) * (lr * lr * lr)),
+                HookRelease = (float)(releaseMin + releaseSpan * Unit16(batch.Shape[e] >> 16)),
+                Hooks = Unit16(batch.Tail[e] >> 16) < hookProbability,
+                Kind = (CoverKind)kind,
+                Surface = surface,
+            };
         }
         return count;
     }
+
+    static Vector256<double> Load(ref Lanes lanes, int at) => Vector256.LoadUnsafe(ref lanes[0], (nuint)at);
+
+    /// Elements `at` to `at` + 3 of `batch`, standing, in a cell whose ground is `g` (valid, without ridges): the heading
+    /// (Azimuth), the base's GroundHeight (CellHeight) and the direction, as the one-at-a-time path computes them.
+    void Standing4(ref Drawn batch, int at, in CellGround g)
+    {
+        // Azimuth
+        uint b0 = batch.Tail[at], b1 = batch.Tail[at + 1], b2 = batch.Tail[at + 2], b3 = batch.Tail[at + 3];
+        Vector256<double> a = Vector256.Create((double)(b0 & 0xF), b1 & 0xF, b2 & 0xF, b3 & 0xF) * Vector256.Create(2 * Math.PI / 65536);
+        Vector256<double> a2 = a * a, one = Vector256.Create(1.0);
+        Vector256<double> s = a * (one - a2 * Vector256.Create(1.0 / 6));
+        Vector256<double> c = one - a2 * (Vector256.Create(1.0 / 2) - a2 * Vector256.Create(1.0 / 24));
+        double[] turns = Turns4096;
+        int k0 = (int)(b0 >> 4 & 0xFFF) * 2, k1 = (int)(b1 >> 4 & 0xFFF) * 2, k2 = (int)(b2 >> 4 & 0xFFF) * 2, k3 = (int)(b3 >> 4 & 0xFFF) * 2;
+        Vector256<double> ck = Vector256.Create(turns[k0], turns[k1], turns[k2], turns[k3]);
+        Vector256<double> sk = Vector256.Create(turns[k0 + 1], turns[k1 + 1], turns[k2 + 1], turns[k3 + 1]);
+        Vector256<double> cos = ck * c - sk * s, sin = sk * c + ck * s;
+
+        // CellHeight: the terrain triangle plus the relief
+        Vector256<double> x = Load(ref batch.X, at), z = Load(ref batch.Z, at), half = Vector256.Create(Half), perStep = Vector256.Create(_perHeightStep);
+        Vector256<double> u = (x + half) * perStep - Vector256.Create((double)g.Ci), v = (z + half) * perStep - Vector256.Create((double)g.Cj);
+        Vector256<double> h00 = Vector256.Create(g.H00), h10 = Vector256.Create(g.H10), h01 = Vector256.Create(g.H01), h11 = Vector256.Create(g.H11);
+        Vector256<double> terrain = Vector256.ConditionalSelect(Vector256.LessThanOrEqual(u + v, one),
+            h00 + u * (h10 - h00) + v * (h01 - h00), h11 + (one - u) * (h01 - h11) + (one - v) * (h10 - h11));
+        Vector256<double> scale = Vector256.Create(g.Scale), px = x * scale, pz = z * scale, fx = Vector256.Floor(px), fz = Vector256.Floor(pz);
+        int n0 = NodeIndex(fx, fz, 0, in g), n1 = NodeIndex(fx, fz, 1, in g), n2 = NodeIndex(fx, fz, 2, in g), n3 = NodeIndex(fx, fz, 3, in g);
+        Vector256<double> v00 = Vector256.Create(g.Nodes[n0], g.Nodes[n1], g.Nodes[n2], g.Nodes[n3]);
+        Vector256<double> v10 = Vector256.Create(g.Nodes[n0 + 1], g.Nodes[n1 + 1], g.Nodes[n2 + 1], g.Nodes[n3 + 1]);
+        Vector256<double> v01 = Vector256.Create(g.Nodes[n0 + 4], g.Nodes[n1 + 4], g.Nodes[n2 + 4], g.Nodes[n3 + 4]);
+        Vector256<double> v11 = Vector256.Create(g.Nodes[n0 + 5], g.Nodes[n1 + 5], g.Nodes[n2 + 5], g.Nodes[n3 + 5]);
+        Vector256<double> fa = Fade5(px - fx), fb = Fade5(pz - fz);
+        Vector256<double> noise = v00 + fa * (v10 - v00) + fb * (v01 - v00) + fa * fb * (v00 - v10 - v01 + v11);
+        (terrain + Vector256.Create(g.ReliefScale) * noise).StoreUnsafe(ref batch.Y[0], (nuint)at);
+
+        // Direction
+        Vector256<double> lean = Load(ref batch.SinLean, at);
+        (lean * cos).StoreUnsafe(ref batch.Dx[0], (nuint)at);
+        Vector256.Sqrt(one - lean * lean).StoreUnsafe(ref batch.Dy[0], (nuint)at);
+        (lean * sin).StoreUnsafe(ref batch.Dz[0], (nuint)at);
+    }
+
+    /// The index in CellGround.Nodes of the lattice node below lane `lane` of (fx, fz), the floored node coordinates.
+    static int NodeIndex(Vector256<double> fx, Vector256<double> fz, int lane, in CellGround g) =>
+        (DetMath.ToInt(fz.GetElement(lane)) - g.NodeZ) * 4 + DetMath.ToInt(fx.GetElement(lane)) - g.NodeX;
+
+    /// DetMath.Fade5 on 4 lanes.
+    static Vector256<double> Fade5(Vector256<double> t) =>
+        t * t * t * (t * (t * Vector256.Create(6.0) - Vector256.Create(15.0)) + Vector256.Create(10.0));
 
     /// A lying element at (bx, bz): its base on the mat (SupportTop), and its direction, the drawn heading laid in the
     /// ground's tangent plane.
