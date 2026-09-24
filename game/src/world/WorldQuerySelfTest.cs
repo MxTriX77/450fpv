@@ -51,6 +51,8 @@ public static partial class WorldQuerySelfTest
             pass &= Overflow(world);
             pass &= ElementRules(world);
             pass &= ObjectScenarios(world, dir, surfaces);
+            pass &= Lookups(world, surfaces);
+            pass &= ContentHashScenarios(world, dir, surfaces);
             Timings(world);
         }
         catch (Exception e)
