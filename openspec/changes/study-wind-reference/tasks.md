@@ -19,7 +19,7 @@
   - fiber shake and stretch as a feed-dropout driver
 
   Update the §5 labels and the §6 targets. Verify that every answer is reflected, and every changed number reproduces from `attitude.csv`
-- [ ] 2.3 [tech-artist] Add the rain-on-the-feed section to `wind.md`: drops, streaks, contrast and colour, blur, flare, and clearing by prop wash or airspeed, each with frames, an effect and a driver. Cross-reference the pilot's fiber-shake hypothesis for P's dropouts (N12 in `video-feed.md`). Verify that every trait cites frames and names a driver
+- [x] 2.3 [tech-artist] Add the rain-on-the-feed section to `wind.md`: drops, streaks, contrast and colour, blur, flare, and clearing by prop wash or airspeed, each with frames, an effect and a driver. Cross-reference the pilot's fiber-shake hypothesis for P's dropouts (N12 in `video-feed.md`). Verify that every trait cites frames and names a driver
 
 ## 3. Review
 
