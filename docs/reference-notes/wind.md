@@ -727,7 +727,14 @@ P is the only clip flown in rain ("pouring rain", assumed (pilot)). This section
 
 ### 7.1 Method
 
-- Every frame of P and of A–F, H and L was decoded at native size through the tracker's decoder (§1.3).
+- **Reproduce** (from the repo root, Blender 5.2):
+  ```
+  blender -b --factory-startup --python tools/reference/rain_stats.py -- [--reuse]
+  ```
+  - `rain_stats.py` prints every number of this section that is measured from the frames or derived from them.
+  - It decodes every frame of P, and every in-flight frame of A–F, H and L, at native size through the tracker's decoder (§1.3). That takes about an hour. `--reuse` reads its per-frame files back in seconds.
+  - It writes only `reference/_frames/P/rain_stats.json` and the folder `reference/_frames/P/rain_stats/` (git-ignored).
+  - Not from the tool: what was checked by eye (the stills, burst frames and crops cited by frame), numbers cited from §1–§5 or `video-feed.md`, and assumed values.
 - Statistics use the 2 × 2 area-averaged copy (960 × 540) with the camera-fixed mask removed, unless marked native. For P this is the §1.3 mask, 14.2 % of the frame.
 - **Frame sets:**
   - P: the 1340 picture frames outside the four N12 outages, with 2 frames of margin on each side.
@@ -738,8 +745,8 @@ P is the only clip flown in rain ("pouring rain", assumed (pilot)). This section
   - Edge widths are 10–90 % rises, in native pixels.
   - Sparkles (N2) and grain (N1) use `video-feed.md`'s definitions. Grain is taken over sky at least 3° above the skyline.
 - **Horizon-relative profiles:** every pixel gets its depression below the fitted skyline, from the frame's roll and pitch. The frames used have horizon confidence ≥ 0.5: P 1338 frames (the §1.3 fit), A 392 frames (the same fit).
+  - The tool refits the horizon on its own 2 × 2 copy. On P it trusts the same 1362 frames as `attitude.csv` and agrees with it within 0.12° of roll and 0.05° of pitch (p99; measured).
 - **Distances** assume the heights of 20–50 m used in §6.2 (assumed): 1–3° below the skyline is about 0.4–2.9 km away, 5–12° about 0.1–0.6 km, and 25–50° about 17–107 m.
-- **Tools:** the analysis is scratch code (Blender 5.2 with numpy) and is not in the repo. Derived images stay in `reference/_frames/P/` (git-ignored).
 
 ### 7.2 Summary
 
