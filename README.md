@@ -48,8 +48,19 @@ Self-checks, which exit non-zero on failure:
 ```powershell
 & $env:GODOT --headless --path game -- --selftest noclip  # noclip covers 6 m and 48 m in 1 s at 30 and 144 fps, ±5 %
 & $env:GODOT --path game -- --selftest overlay            # opens a window for about 12 s: F3, F12 and the frame budget
-& $env:GODOT --headless --path game -- --selftest worldquery  # world-query scenarios on sample_patch, about 1 min
+& $env:GODOT --headless --path game -- --selftest worldquery  # world-query scenarios, golden file and concurrency, about 1.5 min
 ```
+
+World-query determinism without Godot, on any machine with the .NET SDK (8 or later). Both lines must end in `ALL PASS`:
+
+```powershell
+dotnet run -c Debug --project tools/worldbench -- --golden    # golden file, 10 s of two threads querying at once, golden file again
+dotnet run -c Release --project tools/worldbench -- --golden  # the same on optimised code; the second golden pass runs after the JIT has optimised
+```
+
+The golden file `game/src/world/worldquery_golden.json` holds fixed query inputs, the hash of their results from this machine, and sample_patch's content hash (the rule is in `game/maps/README.md`). The first output line names the build, runtime, OS and CPU features, so runs on different machines can be compared.
+A failing `world files as recorded` line means that sample_patch, `surfaces.json` or `catalog.json` changed after recording; it does not mean the math changed.
+After an intended change to the world data or the query math, re-record with `dotnet run -c Release --project tools/worldbench -- --golden-record`. Then check the diff: only `count`, `hash` and `content_hash` may change. Recording refuses to run while any batched result differs from its single-point reference.
 
 Terrain-only frame budget on the synthetic 4 km map (D-009). `flypath` flies a fixed 12 s path and prints fps, 1 % low, draw calls and video memory:
 
