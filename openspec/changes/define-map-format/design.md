@@ -49,6 +49,18 @@
   - object materials and wind volumes
   - porosity dropped from soil, because the contact model never uses it
   - four value corrections
+- **Physics API review (3.7, `api-review.md`).** §3–§5 are fully applied. It requested:
+  - F1: lying elements laid mat-to-mat
+  - F2: resetting runtime objects between flights
+  - F3: shape and wire geometry lookup
+  - F4–F8: small fixes, including `QueryVersion`, a non-zero soil reference on in-memory worlds, and a terrain "no material" that doesn't throw
+
+  F1 changes micro-detail results, so the golden file is re-recorded. All of them land in this change, before the loader (4.1).
+- **Contact response to `StaticContact.Time` < 1** (the physics engineer's decision, for the future physics change): no rewind and no sub-stepping.
+  - Physics fixes the contact plane (point and normal) at first touch, and measures later penetration against that plane.
+  - It refreshes the plane only when a same-side `Time` = 1 contact returns, and releases it on separation or when the pair disappears.
+  - A part that ends up through an object is logged as a `tunnel` event, meaning a physics bug.
+  - The physics change's design must carry this decision.
 - **Surface parameters start from typical soil-mechanics values:** a Winkler bearing modulus per soil class, friction 0.5–0.8, and the porosity values from notes §7. The physics engineer reviews the fields and units before they are frozen (task 2.2) and tunes the values later during flight tests.
 - **Wires are polylines with a sag,** built into thin capsule chains for collision. They carry `snag_hazard=true` by default, because the pilot flagged them as the invisible danger.
 - **Validator in Python, stdlib only.** It uses `zlib` for PNG decoding, so QA and agents can run it without Godot or Blender. The C# loader applies the same checks at load time.
