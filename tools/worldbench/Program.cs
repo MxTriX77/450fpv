@@ -13,6 +13,14 @@ using System.Runtime.InteropServices;
 /// Each workload is warmed up until the JIT has optimised it, then timed over 21 runs, and the median is judged against
 /// its budget. The managed bytes allocated across all timed runs of a workload must be 0. Prints one PASS/FAIL line per
 /// budget and exits 1 on any failure.
+///
+/// The determinism checks (task 3.5, world-query W-13 and W-14), in either build, on any machine with the .NET SDK:
+///
+///     dotnet run -c Debug --project tools/worldbench -- --golden
+///     dotnet run -c Release --project tools/worldbench -- --golden
+///
+/// run the golden file and the 10 s concurrency check (WorldQueryGolden). `-- --golden-record` rewrites the golden
+/// file's hashes after an intended change to the world data or the query math.
 static class Program
 {
     const int Runs = 21;
@@ -26,8 +34,10 @@ static class Program
     /// The conditions of the last timed workload: the core clock before and after it (GHz), and the power source.
     static string _conditions = "";
 
-    static int Main()
+    static int Main(string[] args)
     {
+        if (args.Length > 0 && args[0] is "--golden" or "--golden-record")
+            return Golden(args[0] == "--golden-record");
 #if DEBUG
         Console.WriteLine("worldbench: this is a Debug build; the budgets are for Release: dotnet run -c Release --project tools/worldbench");
         return 2;
@@ -52,6 +62,36 @@ static class Program
         Console.WriteLine($"worldbench: {(_pass ? "ALL PASS" : "FAILED")}");
         return _pass ? 0 : 1;
 #endif
+    }
+
+    /// The golden file and the concurrency check, or with `record` the golden file's re-recording. The first line names
+    /// what the results may depend on, to compare machines.
+    static int Golden(bool record)
+    {
+#if DEBUG
+        const string build = "Debug";
+#else
+        const string build = "Release";
+#endif
+        string game = Path.Combine(FindRoot(), "game");
+        Console.WriteLine($"worldbench --golden: {build} build, {RuntimeInformation.FrameworkDescription}, {RuntimeInformation.OSDescription}, "
+            + $"{RuntimeInformation.ProcessArchitecture}, AVX2 {System.Runtime.Intrinsics.X86.Avx2.IsSupported}, FMA "
+            + $"{System.Runtime.Intrinsics.X86.Fma.IsSupported}, AVX-512 {System.Runtime.Intrinsics.X86.Avx512F.IsSupported}");
+        static bool Check(string scenario, bool ok, string numbers)
+        {
+            Console.WriteLine($"worldbench --golden: {scenario}: {numbers} {(ok ? "PASS" : "FAIL")}");
+            return ok;
+        }
+        bool pass = WorldQueryGolden.Golden(game, Check, record);
+        if (!record)
+        {
+            pass &= WorldQueryGolden.Concurrent(game, 10, Check);
+            // The first pass ran cold, before the JIT optimised anything (tier 0). The concurrency check has called every
+            // query thousands of times since, so in Release the golden file now runs on the optimised code (tier 1).
+            pass &= WorldQueryGolden.Golden(game, (scenario, ok, numbers) => Check($"warm {scenario}", ok, numbers));
+        }
+        Console.WriteLine($"worldbench --golden: {(pass ? record ? "RECORDED" : "ALL PASS" : "FAILED")}");
+        return pass ? 0 : 1;
     }
 
     static string FindRoot()

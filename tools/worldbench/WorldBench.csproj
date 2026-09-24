@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- The world-query benchmark (task 3.6), run in Release from the repository root: see Program.cs. It compiles the
-       pure-C# world query from game/src/world without Godot, as a headless replay would, on the runtime the game uses. -->
+  <!-- The world-query benchmark (task 3.6), run in Release from the repository root, and the determinism checks (task
+       3.5), in Debug or Release: see Program.cs. It compiles the pure-C# world query from game/src/world without Godot,
+       as a headless replay would, on the runtime the game uses. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
@@ -21,5 +22,6 @@
     <Compile Include="../../game/src/world/WindGrid.cs" />
     <Compile Include="../../game/src/world/WorldObjects.cs" />
     <Compile Include="../../game/src/world/WorldQuery.cs" />
+    <Compile Include="../../game/src/world/WorldQueryGolden.cs" />
   </ItemGroup>
 </Project>
