@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -8,8 +9,9 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading;
 
-/// The world-query determinism checks (world-query spec, "Determinism and threading"; W-13). Pure C#, so the Godot
+/// The world-query determinism checks (world-query spec, "Determinism and threading"; W-13, W-14). Pure C#, so the Godot
 /// selftest (`-- --selftest worldquery`, Debug) and `tools/worldbench -- --golden` (Debug and Release, no Godot) run the
 /// same code:
 /// - Golden file: the fixed inputs of worldquery_golden.json give the output hashes recorded there, on sample_patch with
@@ -18,6 +20,8 @@ using System.Text.Json.Nodes;
 ///   world reads as that and not as changed math.
 /// - Batched vs single-point: each ground and ray batch equals its points and rays queried one at a time, and every
 ///   micro-detail query equals its WorldQuery.ScalarReference run (no 4-wide pass, no per-cell ground cache), bit for bit.
+/// - Concurrent use: two threads run the sample_patch cases on one world at the same time; every result equals the
+///   single-threaded one.
 public static class WorldQueryGolden
 {
     /// The golden file, in the Godot project folder.
@@ -61,6 +65,55 @@ public static class WorldQueryGolden
         return pass;
     }
 
+    /// World-query "Concurrent use" (W-14): a physics thread runs every sample_patch case of the golden file in turn, and
+    /// the calling thread (in Godot the main thread, where the renderer draws micro-detail from the generator) runs the
+    /// micro-detail and ground cases in reverse order, on one world at the same time for `seconds`, each thread with its
+    /// own buffers. Every result must equal the single-threaded result computed before the threads start.
+    public static bool Concurrent(string gameDir, double seconds, Func<string, bool, string, bool> check)
+    {
+        JsonNode golden = JsonNode.Parse(File.ReadAllText(Path.Combine(gameDir, GoldenFile)));
+        WorldQuery world = new Worlds(gameDir, golden).Get(SamplePatch);
+        Case[] physicsCases = Cases(golden).Where(c => c.World == SamplePatch).ToArray();
+        var reference = new Buffers();
+        foreach (Case c in physicsCases)
+            c.Reference = Run(world, c, reference).Hash;
+        Case[] renderCases = physicsCases.Where(c => c.Call is "MicroDetailNear" or "SampleGround").Reverse().ToArray();
+
+        var clock = new Stopwatch();
+        (long Runs, long Differ) Loop(Case[] cases)
+        {
+            var buffers = new Buffers();
+            long runs = 0, differ = 0;
+            for (int i = 0; clock.Elapsed.TotalSeconds < seconds; i = (i + 1) % cases.Length, runs++)
+                differ += Run(world, cases[i], buffers).Hash == cases[i].Reference ? 0 : 1;
+            return (runs, differ);
+        }
+        (long Runs, long Differ) physics = default;
+        Exception failure = null;
+        using var start = new Barrier(2, _ => clock.Start());
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                start.SignalAndWait();
+                physics = Loop(physicsCases);
+            }
+            catch (Exception e)
+            {
+                failure = e;
+            }
+        }) { Name = "physics", IsBackground = true };
+        thread.Start();
+        start.SignalAndWait();
+        (long Runs, long Differ) main = Loop(renderCases);
+        thread.Join();
+        return check("concurrent use", failure == null && physics.Runs > 0 && main.Runs > 0 && physics.Differ + main.Differ == 0,
+            $"{clock.Elapsed.TotalSeconds:0.0} s on one sample_patch world: a physics thread ran {physics.Runs} cases "
+            + $"({physicsCases.Length} in turn: ground, micro-detail, contacts, rays, gaps, wind grid), {physics.Differ} differing from "
+            + $"the single-threaded results; the calling thread ran {main.Runs} ({renderCases.Length} micro-detail and ground cases in "
+            + $"reverse), {main.Differ} differing{(failure == null ? "" : $"; the physics thread threw {failure}")}");
+    }
+
     static string Hex(ulong v) => v.ToString("x16");
 
     // ---------------------------------------------------------------- cases
@@ -76,6 +129,7 @@ public static class WorldQueryGolden
         public Capsule[] Previous, Current;                                  // StaticContacts
         public Ray[] Rays;                                                   // Raycast
         public double Limit;                                                 // StaticContacts margin, Raycast max distance
+        public ulong Reference;                                              // Concurrent: the single-threaded hash
     }
 
     /// A number of the file: JSON numbers, and "NaN", "Infinity" and "-Infinity" as strings.

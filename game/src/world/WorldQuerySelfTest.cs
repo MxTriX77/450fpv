@@ -54,6 +54,7 @@ public static partial class WorldQuerySelfTest
             pass &= Lookups(world, surfaces);
             pass &= ContentHashScenarios(world, dir, surfaces);
             pass &= WorldQueryGolden.Golden(ProjectSettings.GlobalizePath("res://"), Check);
+            pass &= WorldQueryGolden.Concurrent(ProjectSettings.GlobalizePath("res://"), 10, Check);
             Timings(world);
         }
         catch (Exception e)
