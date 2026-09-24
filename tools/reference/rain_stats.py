@@ -19,8 +19,9 @@ Definitions (wind.md section 7.1):
   use the native frame.
 - Levels are 8-bit code values. Luma is BT.601 and chroma the length of (Cb, Cr). Texture is the mean of
   |3x3 box mean - 13x13 box mean| of luma; relative texture divides it by the mean luma.
-- Horizon: track_attitude.py's fit on the 960x540 copy. Profiles use the frames with confidence >= 0.5,
-  and each pixel's depression below the skyline from that frame's roll and pitch.
+- Horizon: track_attitude.py's fit on the 960x540 copy, compared with P's attitude.csv when it exists.
+  Profiles use the frames with confidence >= 0.5, and each pixel's depression below the skyline from
+  that frame's roll and pitch.
 - Sparkles (video-feed.md N2): native pixels whose chroma departs > 45 levels from its 7x7 mean, per
   thousand unmasked pixels. Grain (N1): the robust (MAD) sigma of luma minus its 5x5 mean over sky
   at least 3 deg above the skyline.
@@ -36,6 +37,7 @@ Definitions (wind.md section 7.1):
 OPSEC: letters only. Nothing this tool writes may be committed, copied out of reference/ or uploaded.
 """
 import argparse
+import csv
 import json
 import math
 import sys
@@ -475,6 +477,21 @@ def analyse(sc):
     return o
 
 
+def tracker_fit(ref, s):
+    """This tool's horizon fit for P (on its 2x2 copy) against track_attitude.py's attitude.csv (on the
+    sequencer's 960x540 downscale): the frames each trusts, and the largest differences where both do."""
+    path = ref / "_frames" / RAIN / "attitude.csv"
+    if not path.exists():
+        return None
+    rows = {int(r["frame"]): r for r in csv.DictReader(path.open(encoding="utf-8"))}
+    col = lambda k: np.array([float(rows[int(f)][k] or "nan") for f in s["frames"]])
+    conf = np.minimum(col("conf_roll"), col("conf_pitch"))
+    both = (s["conf"] >= CONF) & (conf >= CONF)
+    diff = {k: np.abs(s[k] - col(c))[both] for k, c in (("roll", "roll_deg"), ("pitch", "pitch_deg"), ("edge", "edge_px"))}
+    return dict(tool=int((s["conf"] >= CONF).sum()), tracker=int((conf >= CONF).sum()), both=int(both.sum()),
+                p99={k: float(np.percentile(d, 99)) for k, d in diff.items()}, max={k: float(d.max()) for k, d in diff.items()})
+
+
 def derived(o):
     """Numbers computed from the measured ones with the stated models (wind.md section 7)."""
     pr = o["profile"][RAIN]["bands"]
@@ -510,6 +527,11 @@ def report(o):
     print("rain_stats: frames scanned / in the set / with a horizon; camera-fixed mask")
     for L, d in c.items():
         print(f"  {L}: {d['scanned']} / {d['window']} / {d['horizon']}; mask {d['mask_share']:.1%}")
+    t = o.get("tracker_fit")
+    if t:
+        print(f"horizon fit against attitude.csv: confidence >= {CONF} in {t['tool']} / {t['tracker']} frames, {t['both']} in "
+              f"both; there, p99 (max) |difference| roll {t['p99']['roll']:.3f} ({t['max']['roll']:.3f}) deg, pitch "
+              f"{t['p99']['pitch']:.3f} ({t['max']['pitch']:.3f}) deg, edge {t['p99']['edge']:.3f} ({t['max']['edge']:.3f}) px")
     st = o["stills"]
     print(f"R1 stills: {st['count']} at {STILL_S:g} s (f{st['first']}-f{st['last']}); none with a drop bounds the "
           f"share at < {st['share_bound_95']:.1%} (95 %)")
@@ -590,6 +612,7 @@ def main():
         sc[L], reused = load_or_scan(ref, L, folder, a.reuse)
         print(f"rain_stats: {L} {'reused' if reused else 'scanned'} ({len(sc[L]['frames'])} frames)", flush=True)
     o = analyse(sc)
+    o["tracker_fit"] = tracker_fit(ref, sc[RAIN])
     report(o)
     (out / "rain_stats.json").write_text(json.dumps(finite(o), indent=1, allow_nan=False), encoding="utf-8")
     print(f"rain_stats: done in {time.time() - t0:.0f} s")
