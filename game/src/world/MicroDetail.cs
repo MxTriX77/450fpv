@@ -37,6 +37,11 @@ public sealed partial class WorldQuery
     ulong _idSeed;
     double _sinMaxLean;
 
+    /// Test only (the determinism check, WorldQueryGolden): draws every element one at a time, with no 4-wide pass and
+    /// no per-cell ground cache (each base from GroundHeightAt), as the reference the fast paths must match bit for bit.
+    /// Never changed while a query runs.
+    internal bool ScalarReference;
+
     void InitMicroDetail()
     {
         DetMath.SinCosTurns(GrassMaxLean, out _sinMaxLean, out _);
@@ -98,7 +103,7 @@ public sealed partial class WorldQuery
                     uint cell = DetMath.Hash(cx, cz, _elementKey[k]);
                     int n = ElementCount(c, _cover[own * 4 + k], cx, cz, k, cell);
                     // Standing elements share their cell's ground once there are a few of them.
-                    ground.Valid = k == (int)CoverKind.Grass && n >= 4 && CellGroundOf(cx, cz, ref ground);
+                    ground.Valid = k == (int)CoverKind.Grass && n >= 4 && !ScalarReference && CellGroundOf(cx, cz, ref ground);
                     for (int first = 0; first < n; first += Batch)
                         count = Elements(c, surface, cx, cz, k, cell, first, Math.Min(n, first + Batch), in ground, in center, radius,
                             ref batch, results, count);
@@ -150,7 +155,7 @@ public sealed partial class WorldQuery
     /// one long chain per element, so the processor works on several elements at once: the base and reach (an element out
     /// of reach costs two hashes), then the heading and the ground, then the sphere test, then the results. The heading and
     /// ground of standing elements and the sphere test run on 4 elements per vector, with the same IEEE operations in the
-    /// same order as one at a time, so the bits are the same.
+    /// same order as one at a time, so the bits are the same (ScalarReference runs them one at a time, to check that).
     int Elements(CoverParams c, byte surface, int cx, int cz, int kind, uint cell, int first, int end, in CellGround ground,
         in Double3 center, double radius, ref Drawn batch, Span<MicroElement> results, int count)
     {
@@ -214,24 +219,38 @@ public sealed partial class WorldQuery
         // Segment meets sphere: the closest point of the axis to the centre is within radius + element radius. The
         // elements that meet it are listed in Met.
         int met = 0;
-        var cxv = Vector256.Create(sx);
-        var cyv = Vector256.Create(sy);
-        var czv = Vector256.Create(sz);
-        var radiusv = Vector256.Create(radius);
-        var two = Vector256.Create(2.0);
-        for (i = 0; i < m; i += 4)
+        if (ScalarReference)
         {
-            Vector256<double> dx = Load(ref batch.Dx, i), dy = Load(ref batch.Dy, i), dz = Load(ref batch.Dz, i);
-            Vector256<double> rx = cxv - Load(ref batch.X, i), ry = cyv - Load(ref batch.Y, i), rz = czv - Load(ref batch.Z, i);
-            Vector256<double> t = rx * dx + ry * dy + rz * dz;
-            t = Vector256.Max(Vector256.Min(t, Load(ref batch.Length, i)), Vector256<double>.Zero); // t is finite
-            Vector256<double> qx = rx - t * dx, qy = ry - t * dy, qz = rz - t * dz;
-            Vector256<double> touch = radiusv + Load(ref batch.Diameter, i) / two;
-            uint meets = Vector256.LessThanOrEqual(qx * qx + qy * qy + qz * qz, touch * touch).ExtractMostSignificantBits();
-            for (int lane = 0, lanes = Math.Min(4, m - i); lane < lanes; lane++)
+            for (i = 0; i < m; i++)
             {
-                batch.Met[met] = (uint)(i + lane);
-                met += (int)(meets >> lane & 1);
+                double rx = sx - batch.X[i], ry = sy - batch.Y[i], rz = sz - batch.Z[i], dx = batch.Dx[i], dy = batch.Dy[i], dz = batch.Dz[i];
+                double t = Math.Max(Math.Min(rx * dx + ry * dy + rz * dz, batch.Length[i]), 0);
+                double qx = rx - t * dx, qy = ry - t * dy, qz = rz - t * dz, touch = radius + batch.Diameter[i] / 2.0;
+                batch.Met[met] = (uint)i;
+                met += qx * qx + qy * qy + qz * qz <= touch * touch ? 1 : 0;
+            }
+        }
+        else
+        {
+            var cxv = Vector256.Create(sx);
+            var cyv = Vector256.Create(sy);
+            var czv = Vector256.Create(sz);
+            var radiusv = Vector256.Create(radius);
+            var two = Vector256.Create(2.0);
+            for (i = 0; i < m; i += 4)
+            {
+                Vector256<double> dx = Load(ref batch.Dx, i), dy = Load(ref batch.Dy, i), dz = Load(ref batch.Dz, i);
+                Vector256<double> rx = cxv - Load(ref batch.X, i), ry = cyv - Load(ref batch.Y, i), rz = czv - Load(ref batch.Z, i);
+                Vector256<double> t = rx * dx + ry * dy + rz * dz;
+                t = Vector256.Max(Vector256.Min(t, Load(ref batch.Length, i)), Vector256<double>.Zero); // t is finite
+                Vector256<double> qx = rx - t * dx, qy = ry - t * dy, qz = rz - t * dz;
+                Vector256<double> touch = radiusv + Load(ref batch.Diameter, i) / two;
+                uint meets = Vector256.LessThanOrEqual(qx * qx + qy * qy + qz * qz, touch * touch).ExtractMostSignificantBits();
+                for (int lane = 0, lanes = Math.Min(4, m - i); lane < lanes; lane++)
+                {
+                    batch.Met[met] = (uint)(i + lane);
+                    met += (int)(meets >> lane & 1);
+                }
             }
         }
         double perMeanDiameter = 2 / (c.DiameterMin + c.DiameterMax), meanLength = (c.LengthMin + c.LengthMax) / 2;
