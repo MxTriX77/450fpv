@@ -894,12 +894,21 @@ Averages are over P's 1338 frames with a horizon (frame colour: 1340 frames). Th
   - If it did reach the lens, 10 m/s is above R1's shedding speed (about 8 m/s, assumed), so throttle alone would clear drops in hover.
 - **Candidate effect and driver:** the R1 lifetime rule, driven by the air speed across the lens. It is never driven by throttle, as long as the wash misses the lens (above). Whether drops stay in hover or slow flight in rain is unverified (§7.5, Q12).
 
-**Not rain, as far as P shows: the grey band at the left edge.**
+**Not rain, as far as P shows: the grey bands at the left and right edges.**
 - **What it looks like (measured):**
   - A translucent grey band, about 300 × 70 px, crosses the left edge a quarter of the way down, in single frames: f625 and f629, and the stills at f360, f958, f1257 and f1287.
   - It usually sits just under the dark line of the front-left propeller blade and moves with it (f958, f1257, f1287). In some frames only the dark line shows (the still at f988).
-- **What it is (derived):** the blade against the ground, as the recorder samples it. It is frame content (`video-feed.md` §1.4), like the blue-grey blurred blades of the dry clips B and G.
-- **Why not rain (measured):** with N13's level changes removed, the band brightens by more than 8 levels in 1.5 % of P's frames. Dry C, D and E, from P's airframe group, show 0–2.8 %.
+  - **The right edge shows the same** (lossless burst, by eye):
+    - f705–706 show only the front-right blade's dark line, high in the corner.
+    - In f707 a second, lower image of that blade lies against the tree line near the skyline.
+    - In f708–709 it shows as the same translucent grey patch over the tree line.
+    - f710–712 are clean.
+- **What it is (derived):** the blades against the ground, as the recorder samples them. It is frame content (`video-feed.md` §1.4), like the blue-grey blurred blades of the dry clips B and G.
+- **Why not rain (measured):**
+  - With N13's level changes removed, the left band brightens by more than 8 levels in 1.5 % of P's frames. Dry C, D and E, from P's airframe group, show 0–2.8 %.
+  - The right band brightens more often: in 4.6 % of P's frames, against 0–0.7 % in C–E.
+  - It comes every second frame: 19 of the 60 gaps between those frames are exactly 2 frames. Brightenings at random, at that rate, would give about 3 (derived: 60 × 0.046 × 0.954).
+  - **Derived:** that regularity is a rotating blade beating against the frame rate. Random spray wouldn't have it.
 - **Open (assumed):** whether the light part is sheen on a wet blade or spray thrown off it can't be told from P.
 - **Candidate effect:** render the blades as geometry, and don't add spray.
 - **Driver:** rotor speed and blade position, sampled by the camera (frame content).
