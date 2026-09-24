@@ -165,7 +165,7 @@ public sealed partial class WorldQuery
             d.Length = length;
             d.Diameter = diameter;
             d.SinLean = sinLean;
-            m += (horizontal <= far2) & (horizontal <= reach * reach) ? 1 : 0;
+            m += (horizontal <= far2 ? 1 : 0) & (horizontal <= reach * reach ? 1 : 0);
         }
         for (int i = 0; i < m; i++)
         {
