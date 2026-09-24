@@ -776,7 +776,7 @@ P is the only clip flown in rain ("pouring rain", assumed (pilot)). This section
   - None in 48 evenly spaced stills bounds the share of time a visible drop sits in the sky at < 6 % (95 %).
   - A drop covering a large part of the full-width skyline would widen its median edge or break the fit, so no such drop lasted even one frame. Small drops could hide in the median.
 - **Assumed:** why the lens stayed clear.
-  - At P's airspeed of 8–21 m/s (§5.3), the air over the lens sheds any drop that lands. Drops start to shed from smooth surfaces at an air speed of roughly 5–15 m/s, depending on drop size and coating.
+  - At P's airspeed of 9–25 m/s (§5.3), the air over the lens sheds any drop that lands. Drops start to shed from smooth surfaces at an air speed of roughly 5–15 m/s, depending on drop size and coating.
   - The camera housing may also shield the lens.
 
   P can't tell these apart.
@@ -879,14 +879,15 @@ Averages are over P's 1338 frames with a horizon (frame colour: 1340 frames). Th
 
 **R8 Clearing by prop wash or airspeed: nothing to clear at P's speeds.**
 - **Measured:**
-  - P is flown fast from start to end: the pitch stays between −19.1° and −27.8° in every tracked frame (§2), an airspeed of about 12 m/s (8–21 m/s, derived in §5.3).
+  - P is flown fast from start to end: the pitch stays between −19.1° and −27.8° in every tracked frame (§2), an airspeed of about 13 m/s (9–25 m/s, derived in §5.3).
   - With never a drop on the lens (R1), no drop can be seen moving, shedding or smearing with speed or attitude.
   - The lens stays clear through roll from −14.4° to −1.8° and yaw rates up to 28 °/s (§2).
 - **Derived:** prop wash probably misses the lens.
-  - At 2.5 kg (§6.2), the rotors' induced velocity in hover is about 7 m/s (momentum theory: 6.1 N on each 10" disc of 0.051 m²).
+  - At 4.8 kg, the nominal mass during P (§5.5), the rotors' induced velocity in hover is **about 10 m/s** (11.8 N on each 10" disc of 0.051 m²). Momentum theory: v = √(T / (2ρA)), with T = 4.8 kg × 9.81 m/s² / 4 = 11.8 N, A = π · (0.127 m)² = 0.051 m² and ρ = 1.225 kg/m³, gives 9.7 m/s.
   - It flows down through the discs. The camera looks forward from below their front edges: the blades cross the top corners of the picture.
   - So the wash most likely misses the lens (assumed).
-- **Candidate effect and driver:** the R1 lifetime rule, driven by the air speed across the lens and never by throttle. Whether drops stay in hover or slow flight in rain is unverified (§7.5, Q12).
+  - If it did reach the lens, 10 m/s is above R1's shedding speed (about 8 m/s, assumed), so throttle alone would clear drops in hover.
+- **Candidate effect and driver:** the R1 lifetime rule, driven by the air speed across the lens. It is never driven by throttle, as long as the wash misses the lens (above). Whether drops stay in hover or slow flight in rain is unverified (§7.5, Q12).
 
 **Not rain, as far as P shows: the grey band at the left edge.**
 - **What it looks like (measured):**
