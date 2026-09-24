@@ -23,7 +23,9 @@ Definitions (wind.md section 1.4):
 - Events: frames where the |residual| of an axis exceeds EVENT_K standard
   deviations of that axis, merged across gaps of up to EVENT_GAP frames.
 - Uncertainty: 16-84 % interval over BOOT block-bootstrap resamples of BLOCK-frame blocks
-  (seed 0), and 1/sqrt(windows) scaling for spectra.
+  (BLOCK_SEG inside and outside a segment; seed 0), and 1/sqrt(windows) scaling for spectra.
+- Segment: inside and outside a frame range, the residual spread, kurtosis and the spread per 5 s block
+  (steadiness), plus the thrust tilt and the roll-yaw coupling.
 - Airframe (camera with 0 deg uptilt): thrust/weight to hold height 1/(cos pitch cos roll), the
   horizontal thrust's direction, body rates from ZYX kinematics, and the thrust tilt residual
   roll + k * heading with k = -sin(mean pitch) (wind.md section 5.5).
@@ -46,6 +48,7 @@ BANDS = ((0.23, 0.5), (0.5, 1.0), (1.0, 2.0), (2.0, 4.0), (4.0, 8.0), (8.0, 15.0
 EVENT_K = 2.0
 EVENT_GAP = 3
 BLOCK = 60
+BLOCK_SEG = 30                      # bootstrap block inside and outside a segment (the belt holds only 7 s)
 BLOCK_S = 150                       # frames per block of the terrain comparison (5 s)
 BOOT = 500
 MAX_LAG_S = 1.0
@@ -106,11 +109,15 @@ def deriv(x, spans, fps, kern, power):
     return per_run(x, spans, lambda v: np.convolve(v, kern[::-1], mode="valid") * fps ** power, 2)
 
 
-def boot(values_by_frame, fn, seed=0):
+def kurtosis(v):
+    return float(np.mean((v - v.mean()) ** 4) / v.var() ** 2)
+
+
+def boot(values_by_frame, fn, seed=0, block=BLOCK):
     """16-84 % interval of fn over block-bootstrap resamples of the frames that hold values."""
     idx = np.where(np.isfinite(values_by_frame[0]) if isinstance(values_by_frame, tuple)
                    else np.isfinite(values_by_frame))[0]
-    blocks = [idx[i:i + BLOCK] for i in range(0, len(idx), BLOCK)]
+    blocks = [idx[i:i + block] for i in range(0, len(idx), block)]
     if len(blocks) < 3:
         return math.nan, math.nan
     rng = np.random.default_rng(seed)
@@ -127,13 +134,13 @@ def describe(x, name, unit):
     if len(v) < 2 * BLOCK:
         return dict(axis=name, unit=unit, n=int(len(v)), **{k: math.nan for k in (
             "mean", "std", "p5", "p95", "p95_abs", "max_abs", "min", "max", "kurtosis")},
-            mean_ci=(math.nan,) * 2, std_ci=(math.nan,) * 2, p95_abs_ci=(math.nan,) * 2)
+            mean_ci=(math.nan,) * 2, std_ci=(math.nan,) * 2, p95_abs_ci=(math.nan,) * 2, kurtosis_ci=(math.nan,) * 2)
     lo, hi = boot(x, np.std)
     return dict(axis=name, unit=unit, n=int(len(v)), mean=float(v.mean()), mean_ci=boot(x, np.mean),
                 std=float(v.std()), std_ci=(lo, hi), p5=float(np.percentile(v, 5)), p95=float(np.percentile(v, 95)),
                 p95_abs=float(np.percentile(np.abs(v), 95)), p95_abs_ci=boot(x, lambda a: np.percentile(np.abs(a), 95)),
                 max_abs=float(np.abs(v).max()), min=float(v.min()), max=float(v.max()),
-                kurtosis=float(np.mean((v - v.mean()) ** 4) / v.var() ** 2))
+                kurtosis=kurtosis(v), kurtosis_ci=boot(x, kurtosis))
 
 
 def welch(x, spans, fps):
@@ -206,18 +213,18 @@ def summarize_events(e):
     g = np.array(e["gaps_s"])
     return dict(threshold=e["threshold"], count=e["count"], minutes=e["minutes"], per_min=e["per_min"],
                 per_min_err=e["per_min_err"], dur_q=pct(q("dur_s")), dur_max=max(q("dur_s"), default=math.nan),
-                decay_q=pct(q("decay_s")), rise_q=pct(q("rise_s")), n_gaps=int(len(g)),
+                decay_q=pct(q("decay_s")), rise_q=pct(q("rise_s")), n_gaps=int(len(g)), gaps_s=[float(v) for v in g],
                 gap_q=pct(g), gap_mean=float(g.mean()) if len(g) else math.nan,
                 gap_cv=float(g.std() / g.mean()) if len(g) > 1 else math.nan)
 
 
-def corr(a, b, fps):
+def corr(a, b, fps, block=BLOCK):
     """Zero-lag Pearson r with bootstrap interval, and the strongest |r| within +-MAX_LAG_S."""
     both = np.isfinite(a) & np.isfinite(b)
     if both.sum() < 2 * BLOCK:
         return dict(r=math.nan, r_ci=(math.nan,) * 2, n=int(both.sum()), best_r=math.nan, best_lag_s=math.nan)
     r0 = float(np.corrcoef(a[both], b[both])[0, 1])
-    ci = boot((np.where(both, a, np.nan), np.where(both, b, np.nan)), lambda x, y: np.corrcoef(x, y)[0, 1])
+    ci = boot((np.where(both, a, np.nan), np.where(both, b, np.nan)), lambda x, y: np.corrcoef(x, y)[0, 1], block=block)
     best = (0.0, 0)
     for lag in range(-int(MAX_LAG_S * fps), int(MAX_LAG_S * fps) + 1):
         x, y = (a[:len(a) - lag], b[lag:]) if lag >= 0 else (a[-lag:], b[:len(b) + lag])
@@ -332,13 +339,22 @@ def analyse(c, segment=None):
                 v = np.where(m, res[k], np.nan)
                 minutes = np.isfinite(v).sum() / fps / 60
                 count = sum(bool(m[x["start"]]) for x in ev[k]["list"])
-                d[k] = dict(res_std=float(np.nanstd(v)), res_std_ci=boot(v, np.nanstd), frames=int(np.isfinite(v).sum()),
+                sd = float(np.nanstd(v))
+                # steadiness: residual spread per 5 s block of this side's frames (blocks with >= 2/3 of their frames)
+                bl = [dict(frames=(frame(s), frame(min(n, s + BLOCK_S) - 1)), std=float(np.nanstd(v[s:s + BLOCK_S])))
+                      for s in range(0, n, BLOCK_S) if np.isfinite(v[s:s + BLOCK_S]).sum() >= BLOCK_S * 2 // 3]
+                bs = np.array([b["std"] for b in bl])
+                d[k] = dict(res_std=sd, res_std_ci=boot(v, np.nanstd, block=BLOCK_SEG), frames=int(np.isfinite(v).sum()),
+                            kurtosis=kurtosis(v[np.isfinite(v)]),
+                            kurtosis_ci=boot(v, lambda a: kurtosis(a[np.isfinite(a)]), block=BLOCK_SEG),
+                            blocks=bl, block_cv=float(bs.std() / bs.mean()) if len(bs) > 1 else math.nan,
+                            block_min=float(bs.min() / sd) if len(bs) > 1 else math.nan,
                             events=count, per_min=count / minutes if minutes else math.nan,
                             per_min_err=math.sqrt(max(count, 1)) / minutes if minutes else math.nan)
             v = np.where(m, tilt, np.nan)
-            d["tilt"] = dict(res_std=float(np.nanstd(v)), res_std_ci=boot(v, np.nanstd), frames=int(np.isfinite(v).sum()),
-                             split=split(np.where(m, res["roll"], np.nan), v))
-            d["corr"] = {f"roll~yaw {kind}": corr(np.where(m, src["roll"], np.nan), src["yaw"], fps)
+            d["tilt"] = dict(res_std=float(np.nanstd(v)), res_std_ci=boot(v, np.nanstd, block=BLOCK_SEG),
+                             frames=int(np.isfinite(v).sum()), split=split(np.where(m, res["roll"], np.nan), v))
+            d["corr"] = {f"roll~yaw {kind}": corr(np.where(m, src["roll"], np.nan), src["yaw"], fps, block=BLOCK_SEG)
                          for kind, src in (("residual", res), ("rate", rate))}
             out["segment"][name] = d
         out["segment"]["range"] = segment
@@ -361,7 +377,7 @@ def report(o):
             print(f"  {sec:8s} {d['axis']:16s} n {d['n']:5d} mean {d['mean']:+8.3f} {fmt_ci(d['mean_ci']):20s} "
                   f"std {d['std']:7.3f} {fmt_ci(d['std_ci']):20s} p5 {d['p5']:+8.2f} p95 {d['p95']:+8.2f} "
                   f"p95|.| {d['p95_abs']:7.2f} {fmt_ci(d['p95_abs_ci']):18s} max|.| {d['max_abs']:7.2f} "
-                  f"kurt {d['kurtosis']:5.2f} {d['unit']}")
+                  f"kurt {d['kurtosis']:5.2f} {fmt_ci(d['kurtosis_ci'])} {d['unit']}")
     e = o["edge"]
     print(f"  horizon edge width px: n {e['n']} p5 {e['p5']:.2f} mean {e['mean']:.2f} p95 {e['p95']:.2f} std {e['std']:.2f}")
     for k, s in o["spectra"].items():
@@ -392,8 +408,13 @@ def report(o):
         for name in ("inside", "outside"):
             s = o["segment"][name]
             print(f"  segment {o['segment']['range']} {name}: " + "; ".join(
-                f"{k} res std {d['res_std']:.3f} {fmt_ci(d['res_std_ci'])} ({d['frames']} fr), events {d['events']} = "
-                f"{d['per_min']:.1f} +- {d['per_min_err']:.1f}/min" for k, d in s.items() if k in ("roll", "pitch", "yaw")))
+                f"{k} res std {d['res_std']:.3f} {fmt_ci(d['res_std_ci'])} ({d['frames']} fr), kurt {d['kurtosis']:.2f} "
+                f"{fmt_ci(d['kurtosis_ci'])}, events {d['events']} = {d['per_min']:.1f} +- {d['per_min_err']:.1f}/min"
+                for k, d in s.items() if k in ("roll", "pitch", "yaw")))
+            print("    5 s blocks: " + "; ".join(
+                f"{k} cv {d['block_cv']:.2f} min/std {d['block_min']:.2f} ["
+                + ", ".join(f"{b['frames'][0]}-{b['frames'][1]} {b['std']:.2f}" for b in d["blocks"]) + "]"
+                for k, d in s.items() if k in ("roll", "pitch", "yaw")))
             t = s["tilt"]
             print(f"    thrust tilt res std {t['res_std']:.3f} {fmt_ci(t['res_std_ci'])} ({t['frames']} fr), share on roll "
                   f"{t['split']:.2f}; " + "; ".join(f"corr {k} r {r['r']:+.3f} {fmt_ci(r['r_ci'])} n {r['n']}"
@@ -429,7 +450,6 @@ def main():
     report(o)
     if a.json:
         Path(a.json).write_text(json.dumps(finite(o), indent=1, allow_nan=False), encoding="utf-8")
-
 
 if __name__ == "__main__":
     try:
