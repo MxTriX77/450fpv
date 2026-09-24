@@ -587,4 +587,217 @@ The rest of P's flight is not recorded, so no milder band is measured. Two are d
 
 ## 7. Rain on the feed
 
-_Reserved for the tech-artist (task 2.3). Physics adds nothing here._
+P is the only clip flown in rain ("pouring rain", assumed (pilot)). This section measures, from P's frames, what the rain did to the picture. Each trait is mapped to a candidate effect for the analog feed (`game/src/video/`) and to the simulation driver behind it. Feed traits that P shares with the dry clips are catalogued in `video-feed.md` and cited by ID (N1, N2, N12, N13, O3, O5, P2, P3, C1–C3); they are not re-measured here.
+
+- **Labels:** as in §5. **Measured** means read from the frames; **derived** means computed from measured numbers with a stated model; **assumed** means taken from outside the clip.
+- **Controls:** the dry clips of `video-feed.md`.
+  - **A:** an open field seen from height under broken cloud, on the same receiver type as P but another airframe. It is the only dry clip whose sky is grey enough for the horizon fit, so the horizon-relative comparisons (R3, R6) use it.
+  - **H:** P's airframe group, camera set-up and receiver type, but flown low through vegetation.
+  - **C–F:** P's airframe group, on the other receiver type.
+  - **L:** the night flight, for low light.
+
+### 7.1 Method
+
+- Every frame of P and of A–F, H and L was decoded at native size through the tracker's decoder (§1.3).
+- Statistics use the 2 × 2 area-averaged copy (960 × 540) with the camera-fixed mask removed, unless marked native. For P this is the §1.3 mask, 14.2 % of the frame.
+- **Frame sets:**
+  - P: the 1340 picture frames outside the four N12 outages, with 2 frames of margin on each side.
+  - Dry clips: their in-flight windows (`video-feed.md` §1.1), i.e. picture minus the last 1.0 s before the loss.
+- **Definitions:**
+  - Levels are 8-bit code values. Luma is BT.601, and chroma is the length of (Cb, Cr).
+  - **Texture** is the mean of |3 × 3 box mean − 13 × 13 box mean| of luma. That band-pass ignores the grain. **Relative texture** divides it by the local mean luma.
+  - Edge widths are 10–90 % rises, in native pixels.
+  - Sparkles (N2) and grain (N1) use `video-feed.md`'s definitions. Grain is taken over sky at least 3° above the skyline.
+- **Horizon-relative profiles:** every pixel gets its depression below the fitted skyline, from the frame's roll and pitch. The frames used have horizon confidence ≥ 0.5: P 1338 frames (the §1.3 fit), A 392 frames (the same fit).
+- **Distances** assume the heights of 20–50 m used in §6.2 (assumed): 1–3° below the skyline is about 0.4–2.9 km away, 5–12° about 0.1–0.6 km, and 25–50° about 17–107 m.
+- **Tools:** the analysis is scratch code (Blender 5.2 with numpy) and is not in the repo. Derived images stay in `reference/_frames/P/` (git-ignored).
+
+### 7.2 Summary
+
+| ID | Trait | P, in short | Candidate effect | Driver |
+|---|---|---|---|---|
+| R1 | Drops and streaks on the lens | None in any frame examined (measured) | A lens-water layer that stays empty in flight like P's | Rain rate × air speed into the lens; shed by airspeed |
+| R2 | Rain falling through the view | None visible (measured) | None | — |
+| R3 | Contrast loss with distance | None: the far ground is darker than the near ground, and dry A shows the opposite (measured) | Rain extinction in the distance fog, kept weak | Rain rate |
+| R4 | Sky and ground colour | A neutral grey sky; dark ground that keeps its colour (measured) | An overcast sky; wet ground materials | Rain state, time of day |
+| R5 | A dim picture | Frame luma about half the dry day clips', with colour and day-level grain kept (measured) | The existing C1 → N1, N13, C3 chain; no rain filter | Light level |
+| R6 | Blur and softness | At most mild, and steady (measured); ≤ σ 0.7 px (derived) | None needed; optionally a capped wet-lens blur | Rain rate |
+| R7 | Flare, halos, veiling glare | None (measured) | None from rain; O3 off under overcast | Sun visibility |
+| R8 | Clearing by prop wash or airspeed | Nothing to clear at P's speeds (measured) | The drop lifetime of R1 | Airspeed at the lens, not throttle (assumed) |
+
+### 7.3 Traits
+
+**R1 Drops and streaks on the lens: none.**
+- **Measured:**
+  - The sky band (the top 330 rows) of all 48 one-per-second stills (f1 to f1407), at native resolution, shows no drop, refracting disc, streak or water-film edge.
+    - The sky there is flat grey: its relative texture is 0.018, so a drop would stand out.
+    - The bright streaks in the upper-right sky of many stills are clouds. They vanish from the temporal mean of all picture frames, while the camera-fixed OSD stays sharp in it.
+  - The 24 lossless burst frames (f1–8, f705–712, f1410–1417) and zoomed crops at f422–433, f622–633, f958–969 and f1411–1417 show none either. These cover the ground and the airframe rods as well as the sky.
+  - **Every frame:** the skyline edge stays under 4.5 px in all 1362 tracked frames (p95 4.01 px, §3.3). The tracker kept its confidence in 96.1 % of frames (§1.6). A drop crossing the skyline, which spans the whole width, would widen or break it.
+  - An automatic search for compact blobs in the sky can't separate drops from cloud structure. It flags 99.6 % of P's frames and 98 % of dry A's, and the flags inspected by eye (f424–430, f494–496) are cloud edges. It gives no bound.
+- **Derived:** none in 48 evenly spaced stills bounds the share of time a visible drop sits in the sky at < 6 % (95 %). The skyline test bounds drops on the skyline itself to less than one frame at a time.
+- **Assumed:** why the lens stayed clear.
+  - At P's airspeed of 8–21 m/s (§5.3), the air over the lens sheds any drop that lands. Drops start to shed from smooth surfaces at an air speed of roughly 5–15 m/s, depending on drop size and coating.
+  - The camera housing may also shield the lens.
+
+  P can't tell these apart.
+- **Candidate effect:** a lens-water layer in the optics stage (`video-feed.md` §6, stage 2): out-of-focus drops that refract the scene, land, slide and shed.
+  - **In flight like P's it stays empty.**
+  - Its look below the shedding speed isn't in any reference. Build it only once the pilot confirms that regime (§7.5, Q12).
+- **Driver:**
+  - Landing rate ∝ rain rate × the component of the rain's air-relative velocity into the lens. That is the rain vector seen from the camera: steep in hover, head-on at speed.
+  - Drop lifetime falls with the air speed across the lens. At P's speeds no drop outlives a frame (assumed threshold about 8 m/s, tunable).
+
+**R2 Rain falling through the view: none visible.**
+- **Measured:** no streak in the sky of any still or burst frame.
+- **Derived:** a 2 mm drop 0.5 m from the lens spans about 0.23°, which is 4 px at the centre. That is one source sample (`video-feed.md` §5). Within one exposure it smears over tens of pixels at P's speed, which dilutes it to a few levels.
+- **Candidate effect:** none. Rain in the air reaches the feed only through R3.
+
+**R3 Contrast loss with distance: none measurable.**
+
+| Band | P (rain): luma ÷ sky, chroma, relative texture | A (dry): luma ÷ sky, chroma, relative texture |
+|---|---|---|
+| Sky 2–12° above the skyline (luma, chroma) | 147, 1.4 | 225, 11.5 |
+| Ground 1–3° below (≈ 0.4–2.9 km) | 0.30, 9.7, 0.19 | 0.66, 5.8, 0.05 |
+| Ground 5–12° below (≈ 0.1–0.6 km) | 0.36, 21.0, 0.16 | 0.66, 15.6, 0.04 |
+| Ground 25–50° below (≈ 17–107 m) | 0.40, 30.7, 0.17 | 0.50, 26.1, 0.09 |
+| Far ÷ near luma (1–3° over 25–50°), per frame p10 / p50 / p90 | 0.63 / 0.74 / 0.89 | 1.24 / 1.32 / 1.42 |
+
+- **Measured:** in P the distant ground is darker than the near ground, and it keeps its texture (relative texture 0.19 far against 0.17 near).
+  - Airlight would lift distant dark ground towards the sky at the skyline, which is 127 levels in P.
+  - Dry A shows exactly that: its far ground is 1.32 times as bright as its near ground, with 0.57 times the relative texture. P doesn't.
+  - A's sky sits close to clipping. The far-over-near ratio doesn't use the sky, so that doesn't affect the comparison.
+- **Measured:** distant ground loses colour in both clips: far chroma is 0.32 of near in P and 0.22 in A. That desaturation is not rain-specific.
+- **Derived (Koschmieder, in luma levels):**
+  - The model is far = t · intrinsic + (1 − t) · sky at the skyline.
+  - Assume the distant terrain is intrinsically at least half as bright as the near ground; tree belts line P's skyline.
+  - Then the transmission is t ≥ 0.85 at about 0.6–1.4 km (2° below the skyline, from 20–50 m up).
+  - That is an extinction ≤ 0.12–0.29 km⁻¹, and a meteorological visibility of ≳ 13 km.
+- **Assumed:** heavy rain usually cuts visibility to a few kilometres, and P doesn't show that. Either the rain over the far field was lighter than at the drone, or "pouring" describes other parts of the flight (§7.5, Q13).
+- **Candidate effect:** rain adds extinction to the renderer's distance fog, with airlight towards the sky colour at the horizon. For rain like P's it stays weak: at least 85 % transmission at 1 km. The loss of colour with distance is the renderer's ordinary aerial perspective, dry or wet.
+- **Driver:** rain rate → extinction coefficient. It's a tunable map, calibrated so that P's rain gives ≤ 0.3 km⁻¹.
+
+**R4 Sky and ground colour: a neutral sky and dark ground that keeps its colour.**
+- **Measured:**
+  - The sky is neutral grey: chroma 1.4 levels at 2–12° above the skyline, against 11.5 in A.
+  - The sky is darker towards the skyline: 127 levels in the 2° above it, 147 higher up.
+- **Measured:**
+  - The ground is dark against the sky: 0.36–0.40 of the sky's luma at 5–50° below the skyline, against 0.50–0.66 in A.
+  - It keeps its colour: chroma 21–31, against 16–26 in A.
+  - The whole frame is warm: median r/g 1.31 and b/g 0.61, against r/g 0.98–1.16 and b/g 0.79–0.93 in A–F.
+- **Assumed:** wet soil and straw reflect roughly 0.5–0.8 times as much light as dry, with their hue kept. P fits that, but P's stubble and A's grassland are different surfaces too, so the share due to wetness can't be separated.
+- **Derived (a check for C2):** the camera kept the grey sky neutral while the frame mean stayed strongly warm. Under a sky like P's, the grey-world AWB (C2) must therefore stay inside its gain clamp (about 0.7–1.4). Otherwise it pushes the sky blue.
+- **Candidate effect:** not a feed effect. It is the renderer's weather state, which the feed then treats as usual:
+  - an overcast sky, neutral grey, darker towards the horizon
+  - wet variants of the ground materials: darker, same hue
+- **Driver:** rain state and time of day. Ground wetness follows the rain state.
+
+**R5 A dim picture: the existing low-light chain, with colour and day-level grain kept.**
+- **Measured:** P's frame luma is 57 / 69 / 89 (p10 / p50 / p90). That is about half the dry day clips' medians of 122–147, and above night L (42 / 53 / 63).
+- **Measured, in `video-feed.md`:** this dim light gates N13's level steps and one-frame dark dips, at about 55 per minute in P. They are not re-measured here.
+- **Measured:** grain (N1) stays at the day level.
+  - In P's sky it is a robust σ of 0.53 levels (MAD; p10–p90 0.46–0.59), or 0.37 % of the sky level. The plain σ, 1.5, includes cloud texture.
+  - `video-feed.md` N1 gives 0.5–1.0 levels (0.3–0.6 %) in flat day sky, and 2.0–2.7 levels at night.
+- **Measured:** saturation is kept. The median frame chroma is 20.8, inside the dry day range of 19.6–39.1, while night L has 1.2.
+- **Derived:** the camera was not at high gain in P. C3's gain-driven loss of colour and N1's rise in grain must therefore not start at P's light level; only N13 does.
+- **Candidate effect:** no rain filter. The overcast lighting drives C1 exposure to P's level, and N1, N13 and C3 follow from the gain, as in `video-feed.md`.
+- **Driver:** light level, from time of day × the rain state's overcast.
+
+**R6 Blur and softness: at most mild, and steady.**
+- **Measured:**
+  - The skyline edge is 3.50 px in P (p50; p5–p95 3.11–4.01) against 3.07 px in A (2.30–4.18). Both use the same receiver type.
+  - In P the width never jumps: std 0.29 px (§3.3), maximum under 4.5 px. There are no blur events.
+- **Derived:** suppose the whole difference were wet-lens blur.
+  - It is then at most 1.7 px (10–90 %, subtracted in quadrature).
+  - That is a Gaussian of σ ≈ 0.7 px at 1080p, 0.15 of a source sample.
+  - Camera-to-camera differences could explain it just as well.
+- **Measured:** the right airframe rod's upper edge is softer in P than in H.
+  - Mean image: 6.7 px in P against 5.3 px in H.
+  - Per lossless frame: 5.8–6.5 px (f1–8) and 4.7–5.6 px (f705–712) in P, against 2.6–2.8 px (f1–8) in H.
+  - At 4× zoom the rod shows no drop-like distortion (f1412, f1414).
+- **Derived:** the rod sits well inside the lens's near-focus limit (O5: sharp from about 1 m). Its edge therefore measures each camera's focus, not water, and it doesn't count as rain evidence.
+- **Measured:** the sharpening halos (P3) are intact in P: the bright rim above the skyline, and the dark undershoot under the rod at 0.13–0.37 of the edge step (0.11–0.38 in H).
+- **Candidate effect:** none is needed at P's level. If the pilot asks for a visibly wet lens, the most P allows is a constant blur of σ ≤ 0.7 px (at 1080p) before the P2 low-pass.
+- **Driver:** rain rate (lens wetness), capped at that bound.
+
+**R7 Flare, halos and veiling glare: none.**
+- **Measured:** no sun disc, flare ghost or veiling glare (O3) in any frame. The sky is even overcast.
+- **Measured:** no glow spills from the sky onto the ground.
+  - The ground just below the bright sky is the darkest ground in the frame: 0.30 of the sky at 1–3° below, against 0.40 at 25–50°.
+  - A water film on the lens would scatter the sky's light onto it.
+- **Measured:** no veil lifts the blacks.
+  - The darkest scene pixels (p0.5) sit 4.5 levels above the receiver's own black (median; p10–p90 2.4–11.5). The reference black is the OSD outline and the top border.
+  - That is 2.5 % of the frame's highlights (p99, 180 levels).
+  - The dry day clips A–F sit 17–45 levels above their black.
+- **Candidate effect:** none from rain. O3 stays off because the overcast hides the sun.
+- **Driver:** sun visibility, which is 0 under the rain state's overcast.
+
+**R8 Clearing by prop wash or airspeed: nothing to clear at P's speeds.**
+- **Measured:**
+  - P is flown fast from start to end: the pitch stays between −19.1° and −27.8° in every tracked frame (§2), an airspeed of about 12 m/s (8–21 m/s, derived in §5.3).
+  - With never a drop on the lens (R1), no drop can be seen moving, shedding or smearing with speed or attitude.
+  - The lens stays clear through roll from −14.4° to −1.8° and yaw rates up to 28 °/s (§2).
+- **Derived:** prop wash probably misses the lens.
+  - At 2.5 kg (§6.2), the rotors' induced velocity in hover is about 7 m/s (momentum theory: 6.1 N on each 10" disc of 0.051 m²).
+  - It flows down through the discs. The camera looks forward from below their front edges: the blades cross the top corners of the picture.
+  - So the wash most likely misses the lens (assumed).
+- **Candidate effect and driver:** the R1 lifetime rule, driven by the air speed across the lens and never by throttle. Whether drops stay in hover or slow flight in rain is unverified (§7.5, Q12).
+
+**Not rain, as far as P shows: the grey band at the left edge.**
+- **What it looks like (measured):**
+  - A translucent grey band, about 300 × 70 px, crosses the left edge a quarter of the way down, in single frames: f625 and f629, and the stills at f360, f958, f1257 and f1287.
+  - It usually sits just under the dark line of the front-left propeller blade and moves with it (f958, f1257, f1287). In some frames only the dark line shows (the still at f988).
+- **What it is (derived):** the blade against the ground, as the recorder samples it. It is frame content (`video-feed.md` §1.4), like the blue-grey blurred blades of the dry clips B and G.
+- **Why not rain (measured):** with N13's level changes removed, the band brightens by more than 8 levels in 1.5 % of P's frames. Dry C, D and E, from P's airframe group, show 0–2.8 %.
+- **Open (assumed):** whether the light part is sheen on a wet blade or spray thrown off it can't be told from P. Render the blades as geometry; don't add spray.
+
+### 7.4 The fiber-shake hypothesis (Q8, N12)
+
+**The hypothesis (assumed (pilot), Q8):** wind shakes the optic fiber, which makes the picture "noisier and flashier", and trees plus the drone's wobble stretch it.
+
+`video-feed.md` N12 owns the four recovering dropouts and gives them a link-margin driver: fiber tension and bends. §4.5 and §5.5 add their timing.
+
+**What P supports**
+- **Timing (measured, §5.5):** all four outages fall over open field, 12–27 s after the belt crossing, and none over the belt. That fits the "trees" part only through fiber lying across the belt behind the drone (derived, §5.5).
+- **Flashes (measured, N12):** two of the four outages start with 1–3 frames of brightening under dense bands of impulse dashes (f951–953, f966), and one with a sync tear (f1144). These are the pilot's "flashes".
+- **Derived:** they come from the link or the receiver, not from rain on the lens. Nothing on the lens changes around the outages. The skyline edge averages 3.2–4.0 px in the second before and the second after each one (the clip's p5–p95 is 3.11–4.01 px), with a maximum of 4.17 px.
+
+**What P does not support**
+- **Wobble (measured, §4.5):** two outages follow brisk roll, and two follow calm flight.
+- **A "noisier" link between the flashes (measured, new here):**
+  - Impulse sparkles (N2) are absent from P's picture: 0.000 per thousand pixels (median of 1340 frames; the busiest frame, f387, has 0.23).
+    - That matches dry A and E, and is below C, F and H (0.21–2.98 in N2).
+    - A's 0.00 reproduces N2's value, which confirms the method.
+  - Neither sparkles nor grain rise before an outage.
+    - The last second before each onset has no sparkle. The only one near an outage is in the precursor frame itself (f952).
+    - The sky grain over the 2 s before each onset (robust σ 0.52–0.59 levels) is the clip's normal level (0.53). Four random 1 s windows reach the pooled pre-onset median in 30 % of draws.
+  - Over the belt, where the pilot suspects the trees stretch the fiber, neither rises: grain 0.51 against 0.53 over the field, and sparkles 0 in both.
+- **Derived:** so P's link shows no degraded, near-threshold state before or between the outages.
+  - The margin collapses within 1–3 frames (30–100 ms) and recovers within 0.1–0.7 s.
+  - `video-feed.md` N2 ties impulse noise to optical power near the receiver threshold. A fiber that vibrated continuously near its limit would therefore show a background of sparkles; P has none.
+  - Sudden events fit P better: a tension spike, a snag on vegetation, a sharp bend.
+- **Rain:** nothing in P links rain to the outages. **Assumed:** water on the paid-out fiber adds mass and drag to the span, so a wet span sags and pulls harder in wind. That is a rain term for the physics-engineer's tether load, not a feed effect.
+
+**Consequence for N12's model**
+- Keep the link-margin driver from the tether model (the signals in §5.5).
+- Make its dips event-like: the margin stays well above the threshold between events, with no build-up of sparkles or grain, and falls within 1–3 frames when a tension spike, snag or bend comes.
+- Wind and trees raise the rate of those events. That is the pilot's hypothesis, which P can neither confirm nor rule out.
+- The feed must not tie dropouts to attitude rate or to rain on the lens.
+
+### 7.5 What the rain effects need
+
+Signals to add to `video-feed.md` §7:
+
+| Signal | Unit | Update rate | Source | Feeds |
+|---|---|---|---|---|
+| Rain rate | mm/h | on change | the weather state (a preset) | R1 landing rate, R3 extinction, R4 sky and ground wetness, R6 cap |
+| Air velocity at the camera, in camera axes (airspeed plus wind) | m/s (3 axes) | per rendered frame | physics | R1 landing direction and rate, R8 shedding |
+
+The light level, sun visibility and time of day are already listed there (for R4, R5 and R7).
+
+Open questions for the pilot. Rough answers are enough, and none of them blocks the feed:
+
+| # | Question | What it sharpens |
+|---|---|---|
+| Q12 | When you hover or fly slowly in rain, do drops sit on the lens and blur the picture? How fast do they clear once you speed up? | R1 and R8 below P's speed, which no clip shows |
+| Q13 | Was it raining as hard during this 47 s stretch as in the rest of the flight? P shows no rain haze in the distance | R3's extinction for "pouring" rain |
