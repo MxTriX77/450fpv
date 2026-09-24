@@ -56,6 +56,14 @@
   - F4–F8: small fixes, including `QueryVersion`, a non-zero soil reference on in-memory worlds, and a terrain "no material" that doesn't throw
 
   F1 changes micro-detail results, so the golden file is re-recorded. All of them land in this change, before the loader (4.1).
+- **3.8 outcomes (orchestrator rulings, 2026-09-24).**
+  - **Lying elements** now run mat-top to mat-top. Floating more than 20 cm dropped from 9.4 % to 0.3 %. Elements crossing belt_straw's pits (up to 0.3 m deep) can't lie flat in a straight line: 37 of 25,200 bridge a pit, which is physical, and 28 (0.11 %) with one end in a pit cut the wall, down to −328 mm. That's accepted as a known limitation instead of resting on the rim, which would cost more ground lookups per element. The scenario excludes pitfall crossings.
+  - **Micro-detail on belt_straw** now costs 1.07–1.15 ms at the full 3.3 GHz, over the 1 ms budget. That's accepted on the same grounds as 3.6 (worker-thread prefetch at ≤ 40 Hz, about 4.4 % of one core). A 4-wide path for lying elements is the first optimisation if the flight model ever stalls on it.
+  - **Physics must know:**
+    - a lying element's `Length` is the straight line, so it's longer on slopes
+    - `Material(NoMaterial)` is null; use `Surface(hit.Surface)` for terrain
+    - `ResetRuntimeObjects` and `AddObject` run before a flight's queries
+    - `QueryVersion` is 2
 - **Contact response to `StaticContact.Time` < 1** (the physics engineer's decision, for the future physics change): no rewind and no sub-stepping.
   - Physics fixes the contact plane (point and normal) at first touch, and measures later penetration against that plane.
   - It refreshes the plane only when a same-side `Time` = 1 contact returns, and releases it on separation or when the pair disappears.
