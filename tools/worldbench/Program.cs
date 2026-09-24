@@ -123,21 +123,60 @@ static class Program
         return new WorldQuery(table, 256, seed, samples, new float[samples * samples], cells, surface, cover);
     }
 
-    /// 100,000 random points over sample_patch (judged), then over each surface's own uniform world.
+    /// Flights for the ground samples in the physics call pattern: start (x, z) and heading (x, z) over sample_patch's
+    /// meadow, straw and bare belt bands (across their borders), yard, rubble, crater spoil, the start and the map edge.
+    static readonly (double X, double Z, double Hx, double Hz)[] Flights =
+    {
+        (-100, -80, 1, 0), (-111, 6, 0, 1), (0, -62, 0, 1), (-20, -58, 1, 0), (34, 12, 1, 0),
+        (58, 38, 0, 1), (-62, 58, 1, 0), (12, -32, 0, 1), (45, 25, 1, 0), (-126, 100, -1, 0),
+    };
+
+    /// 100,000 ground samples as physics asks for them (judged): each 1 kHz step samples 44 points, the 4 feet, 4 rotor
+    /// centres and 4 body points of a 450 mm X-frame and 32 fiber nodes trailing 0.1 m apart, while the drone flies at
+    /// 20 m/s along the Flights, 228 steps each. Then, for information, 100,000 random points over the whole map, which
+    /// mostly measures cache misses, and the same over each surface's own uniform world.
     static void GroundSamples(WorldQuery world, SurfaceParams[] table)
     {
+        const int PerStep = 44, StepsPerFlight = 228;
+        int steps = Flights.Length * StepsPerFlight;
+        var flight = new XZ[steps * PerStep];
+        for (int k = 0; k < steps; k++)
+        {
+            var (x0, z0, hx, hz) = Flights[k / StepsPerFlight];
+            double along = 0.02 * (k % StepsPerFlight), cx = x0 + hx * along, cz = z0 + hz * along;
+            Span<XZ> p = flight.AsSpan(k * PerStep, PerStep);
+            for (int m = 0; m < 4; m++)
+            {
+                double mx = m % 2 == 0 ? -0.159 : 0.159, mz = m < 2 ? -0.159 : 0.159;
+                p[m] = p[4 + m] = new XZ(cx + mx * hz + mz * hx, cz + mz * hz - mx * hx); // foot under its rotor
+                p[8 + m] = new XZ(cx + hx * (0.06 * m - 0.09), cz + hz * (0.06 * m - 0.09));
+            }
+            for (int i = 0; i < 32; i++)
+            {
+                double back = 0.1 * (i + 1), side = 0.05 * Math.Sin(0.7 * i + 0.01 * k);
+                p[12 + i] = new XZ(cx - hx * back + side * hz, cz - hz * back - side * hx);
+            }
+        }
+        var results = new GroundSample[flight.Length];
+        double[] ms = Time(() =>
+        {
+            for (int k = 0; k < steps; k++)
+                world.SampleGround(flight.AsSpan(k * PerStep, PerStep), results.AsSpan(k * PerStep, PerStep));
+        }, out long allocated);
+        Judge("100,000 SampleGround in the physics pattern (44-point steps along 10 flights over sample_patch)", ms,
+            100000.0 / flight.Length, "ms", 10, allocated, $"{flight.Length} samples in {steps} steps, scaled to 100,000; ");
+
         var random = new Random(5);
         var points = new XZ[100000];
         for (int i = 0; i < points.Length; i++)
             points[i] = new XZ(-world.Half + random.NextDouble() * world.SizeM, -world.Half + random.NextDouble() * world.SizeM);
-        var results = new GroundSample[points.Length];
-        double[] ms = Time(() => world.SampleGround(points, results), out long allocated);
-        Judge("100,000 SampleGround, random points over sample_patch", ms, 1, "ms", 10, allocated, "");
+        ms = Time(() => world.SampleGround(points, results.AsSpan(0, points.Length)), out allocated);
+        Info("100,000 SampleGround, random points over the whole of sample_patch", ms, 1, "ms", allocated, "");
         foreach (SurfaceParams s in table)
         {
             WorldQuery uniform = Uniform(table, s.Index, world.Seed);
-            ms = Time(() => uniform.SampleGround(points, results), out allocated);
-            Info($"100,000 SampleGround on {s.Id} alone", ms, 1, "ms", allocated, "");
+            ms = Time(() => uniform.SampleGround(points, results.AsSpan(0, points.Length)), out allocated);
+            Info($"100,000 SampleGround, random points on {s.Id} alone", ms, 1, "ms", allocated, "");
         }
     }
 
