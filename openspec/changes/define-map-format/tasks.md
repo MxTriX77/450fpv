@@ -20,7 +20,14 @@
 - [x] 3.4 [world-artist] Add pure-C# swept static contacts and raycasts over catalog primitives and wires, plus runtime objects (W-7, W-8, W-11, D-010). Verify the tunnelling, material, roof-ray and rails scenarios
 - [x] 3.6 [world-artist] Add the query benchmark (W-16) and **optimise until it passes, before 3.5 records the golden file**, because optimisations change the hashes. Plan: per-cell caches, a single-round hash, pitfall pre-rejection. Verify every timing, including the < 60 µs composite step, with zero allocations after warm-up on the dev machine. **Done** with an accepted deviation on the micro-detail budgets at the clocks Windows allowed. See the design. Measured on AC by the orchestrator
 - [x] 3.5 [world-artist] Add the surface, material and soil-reference lookups, the content hash, the determinism golden file and the concurrency check (W-12–W-14). Do this after 3.6. Verify the hash-change, golden-file and concurrent-use scenarios The determinism test also checks that batched and single-point results are byte-identical, because the 4-wide paths must match the scalar ones
-- [ ] 3.7 [physics-engineer] Review the query API for use by the flight model and confirm that review §3–§5 is applied. Verify by writing a contact-probe sketch against the real API (not committed)
+- [x] 3.7 [physics-engineer] Review the query API for use by the flight model and confirm that review §3–§5 is applied. Verify by writing a contact-probe sketch against the real API (not committed)
+- [ ] 3.8 [world-artist] Apply the physics API review (`api-review.md`):
+  - F1: lying elements mat-to-mat, then re-record the micro-detail golden cases
+  - F2: reset runtime objects between flights
+  - F3: shape and wire geometry lookup
+  - F4–F8
+
+  Verify the new world-query scenarios (lying elements, reset, wire geometry) and a golden re-run, in Debug and Release
 
 ## 4. Loading and sample
 
