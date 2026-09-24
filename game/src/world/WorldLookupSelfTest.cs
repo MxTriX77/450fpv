@@ -14,7 +14,7 @@ public static partial class WorldQuerySelfTest
 
     /// Every surface and material against surfaces.json and catalog.json read independently (the README's defaults for
     /// material fields left out), the soil reference diameter (also of a world built in memory, which defaults to it),
-    /// and 10,000 lookups allocating nothing.
+    /// the terrain's NoMaterial (null, not an exception), and 10,000 lookups allocating nothing.
     static bool Lookups(WorldQuery world, string surfacesPath)
     {
         JsonNode table = JsonNode.Parse(File.ReadAllText(surfacesPath));
@@ -79,6 +79,14 @@ public static partial class WorldQuerySelfTest
         double inMemory = Uniform(parsed, parsed[0].Index, world.Seed).SoilReferenceDiameter;
         Expect("soil reference diameter of a world built in memory", inMemory, D(table["soil_reference_diameter_m"]));
 
+        // A terrain ray carries Catalog.NoMaterial: Material gives null for it, also without a catalog, and its surface is known.
+        var down = new[] { new Ray(new Double3(-100, 50, 100), new Double3(0, -1, 0)) };
+        var hit = new RayHit[1];
+        world.Raycast(down, 100, hit);
+        bool terrainMaterial = hit[0].Object == -1 && hit[0].Material == Catalog.NoMaterial && world.Material(hit[0].Material) == null
+            && world.Surface(hit[0].Surface) != null && Uniform(parsed, parsed[0].Index, world.Seed).Material(Catalog.NoMaterial) == null;
+        bad += terrainMaterial ? 0 : 1;
+
         byte[] indices = world.Surfaces.Select(s => s.Index).ToArray();
         int materialCount = world.Catalog.Materials.Length;
         double sum = 0;
@@ -90,6 +98,8 @@ public static partial class WorldQuerySelfTest
             bad == 0 && surfaces == table["surfaces"].AsArray().Count && materials > 0 && allocated == 0 && sum > 0,
             $"{surfaces} surfaces ({mats} with a mat), {materials} materials and the soil reference diameter "
             + $"{world.SoilReferenceDiameter} m (in memory {inMemory} m): {values} values vs surfaces.json and catalog.json, {bad} wrong{first}; "
+            + $"a terrain ray hits object {hit[0].Object}, material {hit[0].Material}, Material() null {world.Material(hit[0].Material) == null}, "
+            + $"surface {world.Surface(hit[0].Surface)?.Id}; "
             + $"10000 lookups allocate {allocated} bytes");
     }
 

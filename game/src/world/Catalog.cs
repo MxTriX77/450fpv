@@ -49,6 +49,7 @@ public sealed class MaterialParams
 /// positions in the catalog's `materials` object.
 public sealed class Catalog
 {
+    /// No catalog material: visual-only assets, and terrain ray hits and misses. WorldQuery.Material gives null for it.
     public const ushort NoMaterial = ushort.MaxValue;
 
     public readonly string[] MaterialIds;

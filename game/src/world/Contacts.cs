@@ -46,7 +46,7 @@ public struct RayHit
     public Double3 Point;
     public Vector3 Normal;  // unit, out of the surface hit
     public int Object;      // −1 for terrain and for a miss
-    public ushort Material; // catalog material id; Catalog.NoMaterial for terrain and for a miss
+    public ushort Material; // catalog material id; Catalog.NoMaterial for terrain and for a miss (see WorldQuery.Material)
     public byte Surface;    // terrain hits: the surface under the point; 0 otherwise
 }
 

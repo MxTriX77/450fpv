@@ -202,10 +202,12 @@ public sealed partial class WorldQuery
 
     /// World-query "Content hash" (W-12) lookups, allocation-free: a surface by its index (null for an index not in the
     /// table), a contact material by its id (Catalog.MaterialIds), and the foot diameter at which the surfaces' bearing
-    /// and damping are defined, m (surfaces.json's, or the constructor's for a world built in memory).
+    /// and damping are defined, m (surfaces.json's, or the constructor's for a world built in memory). The material of
+    /// Catalog.NoMaterial, which terrain ray hits and misses carry, is null: the ground's contact properties are its
+    /// surface's, Surface(hit.Surface).
     public SurfaceParams Surface(byte index) => _byIndex[index];
 
-    public MaterialParams Material(ushort id) => Catalog.Materials[id];
+    public MaterialParams Material(ushort id) => id == Catalog.NoMaterial ? null : Catalog.Materials[id];
 
     public double SoilReferenceDiameter { get; }
 
