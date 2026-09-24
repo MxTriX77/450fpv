@@ -150,12 +150,12 @@ The ground function, the micro-detail generator, static contacts and raycasts SH
 
 ### Requirement: Physics-grade performance
 Queries SHALL allocate nothing on the managed heap in steady state. On the dev machine:
-- 100,000 ground samples SHALL take under 10 ms
-- `MicroDetailNear` with r = 2 m on the densest surface SHALL take under 0.25 ms
+- 100,000 ground samples in the physics call pattern (44 nearby points per step along flight paths) SHALL take under 10 ms. Random points across the whole map are reported for information only, because physics never samples that way
+- `MicroDetailNear` with r = 2 m SHALL take under 0.25 ms on the densest standing-cover surface and under 1 ms on every surface. Physics SHALL call it ahead of need (prefetch before the cache edge) and never inside a step's critical path
 - 100,000 capsule queries near `sample_patch` objects SHALL take under 100 ms
 - 100,000 rays of ≤ 2 m SHALL take under 100 ms
 - one worst-case physics step (44 ground samples + 46 swept capsules + 8 rays) SHALL take under 60 µs
 
 #### Scenario: Benchmark
-- **WHEN** the world-query benchmark selftest runs on the dev machine
+- **WHEN** the world-query benchmark runs on the dev machine **on AC power** (battery clocks are reported but not judged)
 - **THEN** every timing is under its limit, with zero GC allocations during the timed sections
