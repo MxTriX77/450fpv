@@ -9,9 +9,10 @@ The pilot marked one clip as the target for how flight in severe wind must feel:
   blender -b --factory-startup --python tools/reference/track_attitude.py -- --letter P [--overlays 20]
   blender -b --factory-startup --python tools/reference/track_attitude.py -- --selftest <scratch folder>
   blender -b --factory-startup --python tools/reference/wind_stats.py -- --letter P --segment 121-330 [--json <file>]
+  blender -b --factory-startup --python tools/reference/wind_stats.py -- --letter P --segment 121-330 --gauss 5   (§6.5; also --gauss 200)
   ```
 - **Labels:** every statement in §5 is **measured** (read straight from `attitude.csv`), **derived** (computed from measured numbers with a stated model) or **assumed** (a value or model taken from outside the clip). The pilot's answers (§5.7) come from outside the clip too; they are marked **assumed (pilot, Qn)**.
-- **Uncertainty:** `[a, b]` is the 16–84 % interval of 500 block-bootstrap resamples (2 s blocks, seed 0) unless stated otherwise.
+- **Uncertainty:** `[a, b]` is the 16–84 % interval of 500 block-bootstrap resamples (2 s blocks, seed 0; 1 s blocks inside and outside a segment, §1.4) unless stated otherwise.
 - **OPSEC:** clip letter only. No places, landmarks, dates, file names, people or values read from the on-screen display (OSD).
 - **Owners:** physics-engineer (§1–§6), tech-artist (§7).
 
@@ -36,7 +37,9 @@ These are **camera** angles. The camera has 0° uptilt on the airframe (pilot, Q
 
 Model and assumptions:
 - **Lens:** `p_u = p_d · (1 + k1 · r_d²)`, coordinates normalised to the half-width, centre at the frame centre, with k1 = 0.33 from `video-feed.md` O1 (clip A's camera). A one-off development check (residual curvature of the fitted horizon over 142 frames of P, not part of the tools) found P's horizon straightest at k1 ≈ 0.35, inside O1's spread. The effect of k1 = 0.36 is in §1.5.
-- **Focal length (assumed):** the undistorted image is treated as a pinhole image with `f = 1/√(3·k1)` = 1.005 half-widths. That is an equidistant (f-theta) lens matched to k1 at small angles. It puts the frame edge at 57° off-axis, a horizontal field of view of about 114°. Other fisheye families give `f` from 0.87 (stereographic) to 1.07 (equisolid), so **pitch and yaw carry a scale uncertainty of −6 % / +15 %.** Roll does not depend on `f`.
+- **Focal length (assumed):** the undistorted image is treated as a pinhole image with `f = 1/√(3·k1)` = 1.005 half-widths, the value that matches an equidistant (f-theta) lens to k1 at small angles. Other fisheye families give `f` from 0.87 (stereographic) to 1.07 (equisolid), so **pitch and yaw carry a scale uncertainty of −6 % / +15 %.** Roll does not depend on `f`.
+  - **Derived:** in the tool's model (undistort, then this pinhole), the frame edge moves out to 1 + k1 = 1.33 half-widths, which is atan(1.33 / 1.005) = 52.9° off-axis, a horizontal field of view of about 106°.
+  - A true equidistant lens with the same `f` would put the edge at 57° (about 114°). The two models agree to under 0.1° at the horizon's 22.7° (derived), so none of the numbers below depend on which one is right.
 - **Skyline, not true horizon:** the line found is the skyline of distant fields and tree lines. From tens of metres up it sits up to about 1° below the true horizon, and nearer tree belts can tilt it by a similar amount. That bias changes only as slowly as the scenery does, so it shifts the means in §2 but hardly the residuals, rates or spectra.
 
 ### 1.3 How the tracker works (per frame)
@@ -63,6 +66,10 @@ Model and assumptions:
   - the **thrust-tilt residual** e = roll residual + k · heading residual, with k = −sin(mean pitch), and the share of its variance on the roll, cov(roll, e) / var(e) (§5.5)
 
   With `--segment`, the tilt and the roll–yaw correlations are also reported inside and outside the segment.
+- **Segment** (`--segment`; fields under `segment.inside` and `segment.outside`): the residual std and kurtosis on each side, and the residual std per 5 s block of that side's frames (a block counts if it holds at least 2/3 of its 150 frames there). `block_cv` is the spread of those block stds over their mean. `block_min` is the smallest block std over the side's residual std.
+  - Their intervals use **1 s blocks** (30 frames), because the belt holds only 7 s: 2 s blocks gave it 3 blocks, which allow only 10 distinct resamples.
+  - 1 s is about three residual correlation times (§4.3), but shorter than the belt's 1.3–2.9 s rocking (§4.4). **The belt's intervals are therefore likely too narrow** (derived).
+- **No interval** is given for maxima (single frames), percentiles of event duration, rise, decay and gaps (few events, whose counts carry a Poisson error), the ACF 1/e times, or the belt/field ratios (their parts carry intervals).
 - **Events** (gusts as the recording shows them): runs of frames where an axis's residual exceeds 2 standard deviations of that axis's residual over the whole clip, merged across gaps of up to 3 frames. `roll_or_pitch` means either axis beyond its own threshold. For each event: duration above threshold, the rise and decay time between 1/e of the peak and the peak, and the gap to the next onset. Rates are per minute of residual time, with a Poisson error.
 
 ### 1.5 Verification
@@ -127,18 +134,18 @@ All values are camera angles as defined in §1.2. The bracket after the mean or 
 
 | Axis · quantity | Frames | Mean | Std | p5 / p95 | p95 of \|x\| | Max \|x\| | Kurtosis |
 |---|---|---|---|---|---|---|---|
-| Roll angle (deg) | U 1348 | −9.11 [−9.59, −8.65] | 2.41 [2.11, 2.63] | −13.07 / −4.81 | 13.07 [12.3, 13.5] | 14.42 | 2.81 |
-| Pitch angle (deg) | U 1348 | −22.71 [−23.0, −22.4] | 1.64 [1.26, 1.86] | −26.35 / −20.18 | 26.35 [25.1, 26.9] | 27.75 | 4.21 |
-| Yaw rate as tracked, per frame (°/s) | Y 1321 | −0.10 [−0.32, 0.12] | 4.89 [4.16, 5.49] | −8.78 / +8.30 | 10.0 [9.2, 12.0] | 28.2 | 8.59 |
-| **Roll residual (deg)** | R 1135 | −0.02 [−0.06, 0.02] | **0.71 [0.59, 0.79]** | −1.08 / +1.00 | 1.55 [1.09, 1.79] | 2.86 | 4.74 |
-| **Pitch residual (deg)** | R 1135 | +0.01 [−0.01, 0.03] | **0.31 [0.29, 0.33]** | −0.54 / +0.48 | 0.62 [0.57, 0.68] | 1.18 | 3.81 |
-| **Yaw (heading) residual (deg)** | Ry 927 | −0.01 [−0.06, 0.04] | **0.83 [0.54, 1.01]** | −1.15 / +1.03 | 1.93 [1.04, 2.83] | 3.71 | 9.18 |
-| Roll rate (°/s) | U 1320 | −0.17 [−0.39, 0.08] | 3.70 [3.30, 4.02] | −5.87 / +6.06 | 8.37 [7.02, 8.87] | 18.15 | 5.10 |
-| Pitch rate (°/s) | U 1320 | −0.01 [−0.16, 0.15] | 2.47 [2.24, 2.64] | −4.13 / +3.92 | 5.19 [4.56, 5.65] | 11.66 | 4.64 |
-| Yaw rate, 5-frame (°/s) | Y 1278 | −0.22 [−0.46, 0.07] | 3.96 [3.24, 4.52] | −6.71 / +5.72 | 8.64 [6.92, 10.4] | 21.96 | 9.37 |
-| Roll acceleration (°/s²) | U 1320 | −0.3 [−0.7, 0.3] | 76 [71, 81] | −121 / +120 | 164 [144, 177] | 386 | 5.41 |
-| Pitch acceleration (°/s²) | U 1320 | −0.1 [−0.5, 0.3] | 45 [41, 47] | −70 / +74 | 97 [88, 102] | 208 | 4.79 |
-| Yaw acceleration (°/s²) | Y 1278 | +0.0 [−0.5, 0.5] | 42 [38, 45] | −63 / +65 | 85 [76, 92] | 326 | 7.63 |
+| Roll angle (deg) | U 1348 | −9.11 [−9.59, −8.65] | 2.41 [2.11, 2.63] | −13.07 / −4.81 | 13.07 [12.3, 13.5] | 14.42 | 2.81 [2.33, 3.29] |
+| Pitch angle (deg) | U 1348 | −22.71 [−23.0, −22.4] | 1.64 [1.26, 1.86] | −26.35 / −20.18 | 26.35 [25.1, 26.9] | 27.75 | 4.21 [3.06, 5.55] |
+| Yaw rate as tracked, per frame (°/s) | 1321: set Y less its 12 held repeats, which carry no tracked rate | −0.10 [−0.32, 0.12] | 4.89 [4.16, 5.49] | −8.78 / +8.30 | 10.0 [9.2, 12.0] | 28.2 | 8.59 [6.58, 9.58] |
+| **Roll residual (deg)** | R 1135 | −0.02 [−0.06, 0.02] | **0.71 [0.59, 0.79]** | −1.08 / +1.00 | 1.55 [1.09, 1.79] | 2.86 | 4.74 [3.99, 5.16] |
+| **Pitch residual (deg)** | R 1135 | +0.01 [−0.01, 0.03] | **0.31 [0.29, 0.33]** | −0.54 / +0.48 | 0.62 [0.57, 0.68] | 1.18 | 3.81 [3.39, 4.26] |
+| **Yaw (heading) residual (deg)** | Ry 927 | −0.01 [−0.06, 0.04] | **0.83 [0.54, 1.01]** | −1.15 / +1.03 | 1.93 [1.04, 2.83] | 3.71 | 9.18 [5.71, 10.0] |
+| Roll rate (°/s) | U 1320 | −0.17 [−0.39, 0.08] | 3.70 [3.30, 4.02] | −5.87 / +6.06 | 8.37 [7.02, 8.87] | 18.15 | 5.10 [4.64, 5.42] |
+| Pitch rate (°/s) | U 1320 | −0.01 [−0.16, 0.15] | 2.47 [2.24, 2.64] | −4.13 / +3.92 | 5.19 [4.56, 5.65] | 11.66 | 4.64 [3.96, 5.15] |
+| Yaw rate, 5-frame (°/s) | Y 1278 | −0.22 [−0.46, 0.07] | 3.96 [3.24, 4.52] | −6.71 / +5.72 | 8.64 [6.92, 10.4] | 21.96 | 9.37 [6.31, 11.2] |
+| Roll acceleration (°/s²) | U 1320 | −0.3 [−0.7, 0.3] | 76 [71, 81] | −121 / +120 | 164 [144, 177] | 386 | 5.41 [4.67, 5.89] |
+| Pitch acceleration (°/s²) | U 1320 | −0.1 [−0.5, 0.3] | 45 [41, 47] | −70 / +74 | 97 [88, 102] | 208 | 4.79 [4.28, 5.10] |
+| Yaw acceleration (°/s²) | Y 1278 | +0.0 [−0.5, 0.5] | 42 [38, 45] | −63 / +65 | 85 [76, 92] | 326 | 7.63 [5.03, 9.27] |
 
 What stands out:
 - **A steady left bank of 9.1°** (roll never rises above −1.8° in any frame, and 90 % of frames lie between −13.1 and −4.8°), with no net turn: the mean yaw rate is −0.10 °/s, about −5° of heading over the clip. Section 5.3 reads this as a crosswind from the left.
@@ -227,11 +234,11 @@ Pearson r at zero lag with its bootstrap interval, then the strongest r within �
 
 `--segment 121-330` (set B, over and just past the tree belt) against the rest of R (set F, open field):
 
-| | Roll residual std | Pitch residual std | Yaw residual std | Events per min, roll / pitch / yaw (thresholds of §4.1) |
-|---|---|---|---|---|
-| **B** (tree belt, 7.0 s) | **1.26° [1.16, 1.32]** | **0.43° [0.40, 0.46]** | **1.67° [1.42, 1.72]** | 60 ± 23 / 51 ± 21 / 41 ± 21 |
-| **F** (open field, 30.9 s) | **0.51° [0.47, 0.53]** | **0.28° [0.25, 0.30]** | **0.44° [0.38, 0.50]** | 0 (< 1.9) / 9.7 ± 4.3 / 2.4 ± 2.4 |
-| Ratio B / F | 2.5 | 1.6 | 3.8 | |
+| | Roll residual std | Pitch residual std | Yaw residual std | Residual kurtosis, roll / pitch / yaw | Events per min, roll / pitch / yaw (thresholds of §4.1) |
+|---|---|---|---|---|---|
+| **B** (tree belt, 7.0 s) | **1.26° [1.07, 1.36]** | **0.43° [0.39, 0.46]** | **1.67° [1.19, 1.84]** | 2.28 [2.09, 2.64] / 2.65 [2.23, 3.03] / 2.77 [2.03, 3.53] | 60 ± 23 / 51 ± 21 / 41 ± 21 |
+| **F** (open field, 30.9 s) | **0.51° [0.47, 0.53]** | **0.28° [0.26, 0.29]** | **0.44° [0.37, 0.49]** | 2.51 [2.36, 2.77] / **3.85 [3.35, 4.24]** / 4.27 [2.73, 4.86] | 0 (< 1.9) / 9.7 ± 4.3 / 2.4 ± 2.4 |
+| Ratio B / F | 2.5 | 1.6 | 3.8 | | |
 
 - All 7 roll events, 6 of the 11 pitch events and 4 of the 5 yaw events fall in f148–f304.
 - Over the belt the roll rocks back and forth by 3–5° every 1.3–2.9 s (for example −8.6° at f153, −3.5° at f171, −7.7° at f192, −1.8° at f222, −10.3° at f279).
@@ -423,11 +430,11 @@ This whole section takes the camera's angles as the airframe's (0° uptilt, pilo
 
   | | Tilt residual std, e | Roll ~ yaw residual, r | Roll ~ yaw rate, r | Share of e on the horizon |
   |---|---|---|---|---|
-  | Belt | **1.72° [1.63, 1.72]** | +0.88 [0.85, 0.90] | **+0.77 [0.73, 0.79]** | 0.64 |
-  | Field | 0.60° [0.54, 0.64] | +0.51 [0.39, 0.63] | +0.34 [0.25, 0.42] | 0.80 |
+  | Belt | **1.72° [1.31, 1.90]** | +0.88 [0.83, 0.90] | **+0.77 [0.74, 0.79]** | 0.64 |
+  | Field | 0.60° [0.54, 0.65] | +0.51 [0.40, 0.62] | +0.34 [0.25, 0.41] | 0.80 |
   | Whole clip | 0.92° [0.71, 1.07] | +0.73 [0.63, 0.79] | +0.57 [0.48, 0.63] | 0.70 |
 
-  - The belt's intervals rest on only three bootstrap blocks.
+  - The belt and field intervals use 1 s blocks (§1.4). The belt's are likely too narrow, because its 7 s hold only seven blocks.
   - At the stick level, the body roll and yaw rates correlate at +0.77 [0.70, 0.81] over the whole clip.
 - **Derived:** the coupling concentrates where the gusts are, over the belt, and the horizon and heading swing together, both into the wind. That is the trade-off paid on both sides at once.
   - Over the belt the pilot put 64 % of the tilt on the horizon and 36 % on the heading. Over the field it was 80 % and 20 %.
