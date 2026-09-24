@@ -773,7 +773,7 @@ P is the only clip flown in rain ("pouring rain", assumed (pilot)). This section
   - **Every frame:** the skyline edge width, a median over the skyline's columns, stays under 4.5 px in all 1362 tracked frames (p95 4.01 px, §3.3). The tracker kept its confidence in 96.1 % of frames (§1.6).
   - An automatic search for compact blobs in the sky can't separate drops from cloud structure. It flags 99.6 % of P's frames and 98 % of dry A's, and the flags inspected by eye (f424–430, f494–496) are cloud edges. It gives no bound.
 - **Derived:**
-  - None in 48 evenly spaced stills bounds the share of time a visible drop sits in the sky at < 6 % (95 %).
+  - None in 48 evenly spaced stills bounds the share of time a visible drop sits in the sky at < 6.1 % (95 %; 1 − 0.05^(1/48)).
   - A drop covering a large part of the full-width skyline would widen its median edge or break the fit, so no such drop lasted even one frame. Small drops could hide in the median.
 - **Assumed:** why the lens stayed clear.
   - At P's airspeed of 9–25 m/s (§5.3), the air over the lens sheds any drop that lands. Drops start to shed from smooth surfaces at an air speed of roughly 5–15 m/s, depending on drop size and coating.
@@ -817,7 +817,7 @@ The table averages P's 1338 and A's 392 frames with a horizon. The distant tree 
   - Then the transmission is t ≥ 0.85 at about 0.6–1.4 km (2° below the skyline, from 20–50 m up).
   - That is an extinction ≤ 0.12–0.29 km⁻¹, and a meteorological visibility of ≳ 13 km.
 - **Assumed:** heavy rain usually cuts visibility to a few kilometres, and P doesn't show that. Either the rain over the far field was lighter than at the drone, or "pouring" describes other parts of the flight (§7.5, Q13).
-- **Candidate effect:** rain adds extinction to the renderer's distance fog, with airlight towards the sky colour at the horizon. For rain like P's it stays weak: at least 85 % transmission at 1 km. The loss of colour with distance is the renderer's ordinary aerial perspective, dry or wet.
+- **Candidate effect:** rain adds extinction to the renderer's distance fog, with airlight towards the sky colour at the horizon. For rain like P's it stays weak: an extinction of at most 0.29 km⁻¹, which is at least 85 % transmission over the 0.6–1.4 km P shows (derived above). The loss of colour with distance is the renderer's ordinary aerial perspective, dry or wet.
 - **Driver:** rain rate → extinction coefficient. It's a tunable map, calibrated so that P's rain gives ≤ 0.3 km⁻¹.
 
 **R4 Sky and ground colour: a neutral sky and dark ground that keeps its colour.**
@@ -856,12 +856,17 @@ Averages are over P's 1338 frames with a horizon (frame colour: 1340 frames). Th
   - It is then at most 1.7 px (10–90 %, subtracted in quadrature).
   - That is a Gaussian of σ ≈ 0.7 px at 1080p, 0.15 of a source sample.
   - Camera-to-camera differences could explain it just as well.
-- **Measured:** the right airframe rod's upper edge is softer in P than in H.
-  - Mean image: 6.7 px in P against 5.3 px in H.
-  - Per lossless frame: 5.8–6.5 px (f1–8) and 4.7–5.6 px (f705–712) in P, against 2.6–2.8 px (f1–8) in H.
+- **Measured:** the right airframe rod's upper edge is softer in P than in H on average, but not in every frame.
+  - Mean image: 6.7 px in P against 5.4 px in H.
+  - Per frame, where the edge can be measured (1137 of P's 1340 frames, 98 of H's 597): 3.6 / 5.1 / 6.1 px in P (p10 / p50 / p90) against 2.3 / 2.7 / 3.1 px in H.
+  - Lossless bursts: 5.8–6.5 px (f1–8), 4.7–5.6 px (f705–712) and 2.9–5.7 px (f1411–1417) in P, against 2.6–2.8 px (f1–8) in H.
+  - In f1411–1417 the width changes from one frame to the next, and in f1412 (2.9 px) it is as sharp as H's.
   - At 4× zoom the rod shows no drop-like distortion (f1412, f1414).
-- **Derived:** the rod sits well inside the lens's near-focus limit (O5: sharp from about 1 m). Its edge therefore measures each camera's focus, not water, and it doesn't count as rain evidence.
-- **Measured:** the sharpening halos (P3) are intact in P: the bright rim above the skyline, and the dark undershoot under the rod at 0.13–0.37 of the edge step (0.11–0.38 in H).
+- **Derived:** the rod doesn't count as rain evidence.
+  - It sits well inside the lens's near-focus limit (O5: sharp from about 1 m), so its edge measures the camera chain, not the scene.
+  - A water film would not clear for one frame and return the next, yet P's rod reaches H's sharpness between softer frames.
+- **Assumed:** the frame-to-frame change comes from the rod moving between the two fields of a frame (airframe vibration against the camera mount) or from the recorder. P can't tell which.
+- **Measured:** the sharpening halos (P3) are intact in P: the bright rim above the skyline, and the dark undershoot under the rod at 0.17–0.38 of the edge step (per-frame p10–p90; 0.15–0.38 in H).
 - **Candidate effect:** none is needed at P's level. If the pilot asks for a visibly wet lens, the most P allows is a constant blur of σ ≤ 0.7 px (at 1080p) before the P2 low-pass.
 - **Driver:** rain rate (lens wetness), capped at that bound.
 
@@ -908,7 +913,7 @@ Averages are over P's 1338 frames with a horizon (frame colour: 1340 frames). Th
 **What P supports**
 - **Timing (measured, §5.5):** all four outages fall over open field, 12–27 s after the belt crossing, and none over the belt. That fits the "trees" part only through fiber lying across the belt behind the drone (derived, §5.5).
 - **Flashes (measured, N12):** two of the four outages start with 1–3 frames of brightening under dense bands of impulse dashes (f951–953, f966), and one with a sync tear (f1144). These are the pilot's "flashes".
-- **Derived:** they come from the link or the receiver, not from rain on the lens. Nothing on the lens changes around the outages. The skyline edge averages 3.2–4.0 px in the second before and the second after each one (the clip's p5–p95 is 3.11–4.01 px), with a maximum of 4.17 px.
+- **Derived:** they come from the link or the receiver, not from rain on the lens. Nothing on the lens changes around the outages. The skyline edge averages 3.2–4.0 px in the second before and the second after each one (the clip's p5–p95 is 3.11–4.01 px), with a maximum of 4.18 px.
 
 **What P does not support**
 - **Wobble (measured, §4.5):** two outages follow brisk roll, and two follow calm flight.
@@ -917,9 +922,9 @@ Averages are over P's 1338 frames with a horizon (frame colour: 1340 frames). Th
     - That matches dry A and E, and is below C, F and H (0.21–2.98 in N2).
     - A's 0.00 reproduces N2's value, which confirms the method.
   - Neither sparkles nor grain rise before an outage.
-    - The last second before each onset has no sparkle, apart from the f951 event's precursor frame f952 (0.07), which falls in the second before f966.
+    - The last second before each onset, up to its 2-frame margin, has at most 0.003 per thousand, apart from the f951 event's precursor frame f952 (0.07), which falls in the second before f966.
     - Even the precursor dashes of N12 register only weakly on N2's colour threshold: 0.07 in f952, and 0 in f951, f953 and f966.
-    - The sky grain over the 2 s before each onset (robust σ, medians 0.53–0.59 levels) is the clip's normal level (0.53). Four random 1 s windows reach the pooled pre-onset median in 30 % of draws.
+    - The sky grain over the 2 s before each onset (robust σ, medians 0.53–0.59 levels) is the clip's normal level (0.53). Four random 1 s windows reach the pooled pre-onset median in 28 % of 2000 draws.
   - Over the belt, where the pilot suspects the trees stretch the fiber, neither rises: grain 0.51 against 0.53 over the field, and sparkles 0 in both.
 - **Derived:** so P's link shows no degraded, near-threshold state before or between the outages.
   - The margin collapses within 1–3 frames (30–100 ms) and recovers within 0.1–0.7 s.
