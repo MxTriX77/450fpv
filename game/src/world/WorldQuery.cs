@@ -367,6 +367,17 @@ public sealed partial class WorldQuery
         return c == null ? 0f : (float)(c.Density * channel / 255.0);
     }
 
+    /// A cover channel's value as a fraction, channel / 255.
+    static readonly double[] CoverUnit = MakeCoverUnit();
+
+    static double[] MakeCoverUnit()
+    {
+        var unit = new double[256];
+        for (int c = 0; c < 256; c++)
+            unit[c] = c / 255.0;
+        return unit;
+    }
+
     /// Uncompressed mat depth of one kind: Σ over the corners of weight × cover channel × depth noise of that corner's
     /// surface. The noise is evaluated once per distinct surface; `lattice` is the first corner's.
     double Mat(in Blend b, in Lattice lattice, int kind, double x, double z)
@@ -375,8 +386,9 @@ public sealed partial class WorldQuery
         double n1 = b.S1 == b.S0 ? n0 : MatNoise(b.S1, kind, new Lattice(x, z, _nodeScale[b.S1]));
         double n2 = b.S2 == b.S0 ? n0 : b.S2 == b.S1 ? n1 : MatNoise(b.S2, kind, new Lattice(x, z, _nodeScale[b.S2]));
         double n3 = b.S3 == b.S0 ? n0 : b.S3 == b.S1 ? n1 : b.S3 == b.S2 ? n2 : MatNoise(b.S3, kind, new Lattice(x, z, _nodeScale[b.S3]));
-        return b.W0 * _cover[b.C0 * 4 + kind] / 255.0 * n0 + b.W1 * _cover[b.C1 * 4 + kind] / 255.0 * n1
-            + b.W2 * _cover[b.C2 * 4 + kind] / 255.0 * n2 + b.W3 * _cover[b.C3 * 4 + kind] / 255.0 * n3;
+        double[] unit = CoverUnit;
+        return b.W0 * unit[_cover[b.C0 * 4 + kind]] * n0 + b.W1 * unit[_cover[b.C1 * 4 + kind]] * n1
+            + b.W2 * unit[_cover[b.C2 * 4 + kind]] * n2 + b.W3 * unit[_cover[b.C3 * 4 + kind]] * n3;
     }
 
     /// Mat depth of a surface's cover at channel 1.0: smooth noise between the depth range's ends (0 without a mat).
