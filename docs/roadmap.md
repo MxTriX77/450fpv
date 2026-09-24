@@ -28,7 +28,7 @@ This follows the pilot's release plan (CLAUDE.md §5). **The pilot reviews only 
 - `build-world-map`, planned: the composite 4 km map.
 
 **Wireframes and MVP-1**
-- The game app: wireframes, then menus, setup (payload, legs, time of day), TX12 input and calibration.
+- The game app: wireframes, then menus, setup (payload, legs, time of day, weather: Calm / Windy / Severe, see D-011), TX12 input and calibration.
 - The drone model: Viriy, Bombus, OTU or Beshketnyk class, 3-blade props, fiber spool, legs or rails.
 - Physics: flight model, contacts (legs, soil, straw, rails), wind and turbulence, fiber tether, physics logging.
 - The analog video feed, simulation-driven (D-008).
