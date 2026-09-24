@@ -8,7 +8,7 @@ through track_attitude.py's decoder, measures each one and prints every number o
 It writes only inside reference/_frames/P/ (git-ignored):
 - rain_stats.json: every printed number, missing values as null
 - rain_stats/<letter>.npz: the per-frame measurements. --reuse reads them instead of decoding again
-  (about 70 min for all clips at about 0.9 s per native frame; with --reuse, seconds).
+  (about an hour for all clips, 1.1 s per native frame; with --reuse, seconds).
 
 Definitions (wind.md section 7.1):
 - Frame sets. P: its picture frames outside the four N12 outages (video-feed.md, precursor frames
