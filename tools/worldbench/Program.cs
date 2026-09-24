@@ -9,6 +9,7 @@ using System.Runtime.InteropServices;
 ///     dotnet run -c Release --project tools/worldbench
 ///
 /// It loads game/maps/sample_patch with the launch rails at its example start, without Godot, as a headless replay does.
+/// It runs on one core at high priority, as a physics thread would, so other processes' work stays out of the numbers.
 /// Each workload is warmed up until the JIT has optimised it, then timed over 21 runs, and the median is judged against
 /// its budget. The managed bytes allocated across all timed runs of a workload must be 0. Prints one PASS/FAIL line per
 /// budget and exits 1 on any failure.
@@ -30,10 +31,15 @@ static class Program
         return 2;
 #else
         string root = FindRoot();
+        using Process self = Process.GetCurrentProcess();
+        if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux())
+            self.ProcessorAffinity = 1 << 2; // logical processor 2: not 0, which takes most interrupts
+        self.PriorityClass = ProcessPriorityClass.High;
         GetSystemPowerStatus(out PowerStatus power);
         Console.WriteLine($"worldbench: Release build, {RuntimeInformation.FrameworkDescription}, {RuntimeInformation.ProcessArchitecture}, "
-            + $"{Environment.ProcessorCount} logical processors, power {(power.AcLineStatus == 1 ? "AC" : power.AcLineStatus == 0 ? "battery" : "unknown")} "
-            + $"(battery {power.BatteryLifePercent} %), {Runs} timed runs per workload after a warm-up of at least 1 s");
+            + $"{Environment.ProcessorCount} logical processors, pinned to processor 2 at high priority, core clock {Clock():0.00} GHz, "
+            + $"power {(power.AcLineStatus == 1 ? "AC" : power.AcLineStatus == 0 ? "battery" : "unknown")} (battery {power.BatteryLifePercent} %), "
+            + $"{Runs} timed runs per workload after a warm-up of at least 1 s");
         SurfaceParams[] table = SurfaceParams.ParseTable(File.ReadAllText(Path.Combine(root, SurfacesPath)));
         WorldQuery world = WorldQuery.Load(Path.Combine(root, Package), Path.Combine(root, SurfacesPath), Path.Combine(root, CatalogPath));
         var start = new Double3(StartX, Ground(world, StartX, StartZ).TerrainHeight, StartZ);
@@ -59,6 +65,16 @@ static class Program
             }
         }
         throw new DirectoryNotFoundException($"no {SurfacesPath} above the current or the program directory");
+    }
+
+    /// The core clock the benchmark ran at, GHz: a chain of dependent 64-bit multiplies, 3 cycles each on Zen 3.
+    static double Clock()
+    {
+        long v = 1, t0 = Stopwatch.GetTimestamp();
+        for (int i = 0; i < 20_000_000; i++)
+            v *= 0x5DEECE66DL;
+        double seconds = (Stopwatch.GetTimestamp() - t0) / (double)Stopwatch.Frequency;
+        return v == 0 ? 0 : 20_000_000 * 3 / seconds / 1e9;
     }
 
     [StructLayout(LayoutKind.Sequential)]
