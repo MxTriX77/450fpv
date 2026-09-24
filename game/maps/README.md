@@ -237,7 +237,7 @@ Each gap is a rectangular opening in asset space: `name`, `center_m` [x, y, z], 
 
 `game/src/world/` reads `objects.json` and the catalog without Godot (D-010), and the loader draws from the same rules:
 
-- **Indices.** An object's index is its position in `objects.json`, where wires and visual-only objects count too. Objects the game adds before a flight, such as the launch rails at a start point, get the next indices. A material id is the material's position in the catalog's `materials` object.
+- **Indices.** An object's index is its position in `objects.json`, where wires and visual-only objects count too. Objects the game adds before a flight, such as the launch rails at a start point, get the next indices. Before each flight the game calls `ResetRuntimeObjects`, which removes them from contacts, rays, gaps and the wind grid, so that the world is its `objects.json` state again and the next rails get the same index. The flight log records every object added after the reset. A material id is the material's position in the catalog's `materials` object.
 - **Wires.** Each span from point a to point b drops 4·`sag_m`·t·(1 − t) below the straight line, sampled at ⌈|b − a| / `segment_m`⌉ equal steps of t. Contacts and rays use this polyline, thickened to `diameter_m`.
 - **Wind grid.** Cells are 2 m, with row 0 north. Each wind-volume shape whose `wind_porosity` β is below 1 marks the cells its footprint (its horizontal convex hull) covers.
   - A cell that is a fraction f covered gets porosity 1 − f·(1 − β^(2 m / D)).

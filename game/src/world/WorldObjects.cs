@@ -65,7 +65,7 @@ public struct Gap
 
 /// Placed catalog objects and wires in world space, with a broadphase grid for the contact and ray queries, and the
 /// fly-through gaps. Objects are added while the map loads and, before a flight, by the game (W-11); from then on they
-/// are static and every query only reads them.
+/// are static and every query only reads them. ResetRuntimeObjects removes the game's again before the next flight.
 public sealed partial class WorldQuery
 {
     /// One collision primitive in world space: a catalog shape of a placed object, or a whole wire.
@@ -99,6 +99,12 @@ public sealed partial class WorldQuery
     int _gapCount;
     int _broadCells;
     int[] _cellStart, _cellItems; // primitives per broadphase cell, row-major from the north-west, each in primitive order
+    /// The objects.json state that ResetRuntimeObjects returns to: the counts when loading ended (all 0 in memory).
+    int _loadedObjects, _loadedPrims, _loadedWirePoints, _loadedGaps;
+    bool _loading; // objects.json is being placed: its wind changes are never undone
+    /// Each wind cell as it was before a runtime object changed it, in order, so that a reset can undo them exactly.
+    (int Cell, WindCell Before)[] _windUndo = new (int, WindCell)[16];
+    int _windUndoCount;
 
     void InitObjects()
     {
@@ -125,8 +131,24 @@ public sealed partial class WorldQuery
         return index;
     }
 
+    /// World-query "Runtime objects": returns the world to its objects.json state before each flight. Every object added
+    /// since loading (AddObject, AddWire) leaves the contacts, rays, gaps and the wind grid, and the next one added gets
+    /// the first index after objects.json again. Not thread-safe: call it before any query of the flight runs.
+    public void ResetRuntimeObjects()
+    {
+        for (int i = _windUndoCount - 1; i >= 0; i--)
+            _wind[_windUndo[i].Cell] = _windUndo[i].Before;
+        _windUndoCount = 0;
+        ObjectCount = _loadedObjects;
+        _primCount = _loadedPrims;
+        _wirePointCount = _loadedWirePoints;
+        _gapCount = _loadedGaps;
+        RebuildBroadphase();
+    }
+
     void LoadObjects(string path)
     {
+        _loading = true;
         using JsonDocument document = JsonDocument.Parse(File.ReadAllText(path));
         foreach (JsonElement o in document.RootElement.GetProperty("objects").EnumerateArray())
         {
@@ -146,6 +168,8 @@ public sealed partial class WorldQuery
                 Place(asset, Catalog.Vec3(o, "position_m"), r.X, r.Y, r.Z, o.GetProperty("scale").GetDouble());
             }
         }
+        _loading = false;
+        (_loadedObjects, _loadedPrims, _loadedWirePoints, _loadedGaps) = (ObjectCount, _primCount, _wirePointCount, _gapCount);
         RebuildBroadphase();
     }
 

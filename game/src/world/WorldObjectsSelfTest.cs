@@ -65,6 +65,7 @@ public static partial class WorldQuerySelfTest
         pass &= MaterialsReported(Fresh(), catalog);
         pass &= RoofRay(Fresh(), catalog);
         pass &= RailsAdded(Fresh(), catalog);
+        pass &= ResetBetweenFlights(Fresh);
         pass &= NoAllocationSameBits(Fresh());
         pass &= FarFromEverything(Fresh());
         return pass;
@@ -1002,6 +1003,65 @@ public static partial class WorldQuerySelfTest
             + $"({(landing ? "same" : "different")}); ray from 1 m above a bar: {hit[0].Distance:0.000000000} m, object {hit[0].Object}, "
             + $"{(hit[0].Material == Catalog.NoMaterial ? "terrain" : catalog.MaterialIds[hit[0].Material])}; wind cell under the "
             + $"rails before (top {before.TopM}, porosity {before.Porosity}), after (top {after.TopM:0.000}, porosity {after.Porosity:0.0000})");
+    }
+
+    /// World-query "Reset between flights" (API review F2). On sample_patch the launch rails, a gate and a 20 m wire are
+    /// added, then the world is reset: the object count and the wind grid are the freshly loaded ones, bit for bit, and
+    /// the gate's gap, the wire and the rails are gone from GapsNear, contacts and rays. The rails are added again: a
+    /// 7.5 mm foot resting 0.1 mm into each bar gets exactly one contact, from that bar, and the wind grid equals, bit for
+    /// bit, that of a fresh world with the rails added once. Without the reset a second set of rails gives each foot two
+    /// contacts, for comparison.
+    static bool ResetBetweenFlights(Func<WorldQuery> fresh)
+    {
+        WorldQuery world = fresh(), once = fresh(), twice = fresh();
+        static byte[] Grid(WorldQuery w) => MemoryMarshal.AsBytes(w.WindGrid).ToArray();
+        byte[] loaded = Grid(world);
+        int loadedObjects = world.ObjectCount;
+        var start = new Double3(RailStart.X, TerrainAt(world, RailStart.X, RailStart.Z), RailStart.Z);
+        var gateAt = new Double3(-80, TerrainAt(world, -80, 80), 80);
+        var wireMid = new Double3(-80, 8 - 0.5, 60);
+        var gaps = new Gap[4];
+        var buffer = new StaticContact[8];
+        var ray = new[] { new Ray(start + Mul(Rot(RailYaw, 0, 0), new Double3(-0.13, 1.25, 0.1)), new Double3(0, -1, 0)) };
+        var hit = new RayHit[1];
+        world.AddObject("launch_rails", start, RailYaw);
+        world.AddObject("gate_frame", gateAt, 0);
+        int wire = world.AddWire("cable", new[] { new Double3(-90, 8, 60), new Double3(-70, 8, 60) }, 0.5, 0.012);
+        int gapsAdded = world.GapsNear(gateAt + new Double3(0, 1, 0), 3, gaps);
+        int wireAdded = world.StaticContacts(new Capsule(wireMid, wireMid, 0.05), 0.01, buffer);
+        bool wireSeen = wireAdded == 1 && buffer[0].Object == wire;
+
+        world.ResetRuntimeObjects();
+        int gapsReset = world.GapsNear(gateAt + new Double3(0, 1, 0), 3, gaps);
+        int wireReset = world.StaticContacts(new Capsule(wireMid, wireMid, 0.05), 0.01, buffer);
+        world.Raycast(ray, 2, hit);
+        bool cleared = world.ObjectCount == loadedObjects && Grid(world).AsSpan().SequenceEqual(loaded) && gapsAdded == 1 && gapsReset == 0
+            && wireSeen && wireReset == 0 && hit[0].Object == -1;
+        string clearedText = $"after the reset {world.ObjectCount} objects (loaded {loadedObjects}), wind grid "
+            + $"{(Grid(world).AsSpan().SequenceEqual(loaded) ? "equal to" : "DIFFERENT from")} the loaded one, gate gaps {gapsAdded} → {gapsReset}, "
+            + $"wire contacts {wireAdded} → {wireReset}, ray at a bar hits object {hit[0].Object}";
+
+        int rails = world.AddObject("launch_rails", start, RailYaw);
+        int onceRails = once.AddObject("launch_rails", start, RailYaw);
+        twice.AddObject("launch_rails", start, RailYaw);
+        twice.AddObject("launch_rails", start, RailYaw);
+        const double r = 0.0075;
+        bool feet = true;
+        string feetText = "";
+        for (int bar = 0; bar < 2; bar++)
+        {
+            Double3 foot = start + Mul(Rot(RailYaw, 0, 0), new Double3(bar == 0 ? -0.13 : 0.13, 0.25 + r - 1e-4, 0.05));
+            int n = world.StaticContacts(new Capsule(foot, foot, r), 0.002, buffer);
+            feet &= n == 1 && buffer[0].Object == rails && buffer[0].Shape == bar;
+            string mine = string.Join(" and ", buffer.Take(Math.Min(n, buffer.Length)).Select(c => $"({c.Object}, {c.Shape})"));
+            int doubled = twice.StaticContacts(new Capsule(foot, foot, r), 0.002, buffer);
+            feetText += $"bar {bar}: {n} contact {mine}, without the reset {doubled}; ";
+        }
+        bool grid = Grid(world).AsSpan().SequenceEqual(Grid(once));
+        return Check("reset between flights", cleared && rails == loadedObjects && onceRails == rails && feet && grid,
+            $"rails, a gate and a wire added, then reset: {clearedText}. Rails added again as object {rails} (a single addition: "
+            + $"{onceRails}); a 7.5 mm foot resting on each {feetText}wind grid {(grid ? "equal to" : "DIFFERENT from")} a single "
+            + "addition's, bit for bit");
     }
 
     // ---------------------------------------------------------------- allocation, determinism, broadphase
