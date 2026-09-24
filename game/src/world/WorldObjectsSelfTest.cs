@@ -1104,7 +1104,7 @@ public static partial class WorldQuerySelfTest
     }
 
     /// Queries over open meadow far from every object return nothing and take the broadphase's fast path; informational
-    /// timings of the object queries follow (the formal benchmark is task 3.6).
+    /// timings of the object queries follow (the formal benchmark is tools/worldbench, in Release).
     static bool FarFromEverything(WorldQuery world)
     {
         ObjectInputs inputs = Inputs(world);
@@ -1150,7 +1150,7 @@ public static partial class WorldQuerySelfTest
         const string build = "Release";
 #endif
         return Check("far from everything", found == 0,
-            $"1000 capsules over open meadow: {found} contacts. Timings ({build} build, informational; the benchmark is task 3.6): "
+            $"1000 capsules over open meadow: {found} contacts. Timings ({build} build, informational; the benchmark is tools/worldbench): "
             + $"far {farUs:0.000} µs, near objects static {nearUs:0.000} µs and swept {sweptUs:0.000} µs per capsule, 2 m rays "
             + $"{rayUs:0.000} µs each (budget: 100,000 capsules or rays in 100 ms, 1 µs each)");
     }

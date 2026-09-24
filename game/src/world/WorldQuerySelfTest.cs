@@ -736,7 +736,7 @@ public static partial class WorldQuerySelfTest
         return Check("element rules", bad == 0 && total > 0, $"{total} elements, {bad} breaking a rule{first}");
     }
 
-    /// Informational: the formal benchmark with allocation counts is task 3.6.
+    /// Informational: the formal benchmark with allocation counts is tools/worldbench, in Release.
     static void Timings(WorldQuery world)
     {
         var random = new Random(5);
@@ -759,7 +759,7 @@ public static partial class WorldQuerySelfTest
 #else
         const string build = "Release";
 #endif
-        GD.Print($"selftest worldquery: timings ({build} build, informational; the benchmark is task 3.6): 100000 random ground samples {groundMs:0.0} ms "
+        GD.Print($"selftest worldquery: timings ({build} build, informational; the benchmark is tools/worldbench): 100000 random ground samples {groundMs:0.0} ms "
             + $"(budget 10 ms); MicroDetailNear r 2 m on meadow_sod, {count} elements, {watch.Elapsed.TotalMilliseconds / 20:0.000} ms "
             + "(budget 0.25 ms)");
     }
