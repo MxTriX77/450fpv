@@ -245,6 +245,7 @@ Each gap is a rectangular opening in asset space: `name`, `center_m` [x, y, z], 
   - Top and base are the shape's highest and lowest points above the terrain at the cell centre, never below 0.
   - Where volumes overlap, porosities multiply, and the highest top and the lowest base win. Wires are not wind obstacles.
 - **Contacts.** There is at most one contact per (object, shape), and it carries that shape's material. A query sweeps the capsule from its previous pose. `Time` below 1 means the sweep went into or through the shape during the step and the capsule is now past it, so the contact is reported where the capsule first touched it.
+- **Geometry.** `Geometry(object, shape, wireParam)` looks up a contact's shape: its kind, material, centre, axes, half extents, radius and height. For a wire it gives the span that holds the contact's wire parameter: its two attachment points, straight length, sag and diameter, and where on it the contact is, as the t of the sag curve. Physics takes a wire's compliance (T = w·L²/(8·sag)) and the fiber's bend radius over round shapes from it. The lookup is read-only and allocates nothing, and it returns false for terrain, visual-only objects and indices out of range.
 - **Rays** hit the rendered terrain triangles only from above, and they ignore a shape they start inside.
 
 ### `launch_rails`

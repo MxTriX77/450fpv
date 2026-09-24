@@ -61,6 +61,7 @@ public static partial class WorldQuerySelfTest
         List<TestShape> shapes = RandomShapes(shapesWorld, catalog);
         pass &= ClosestAgrees(shapesWorld, shapes);
         pass &= RaysAgree(shapesWorld, shapes);
+        pass &= GeometryLookup(shapesWorld, shapes, Flat(), Fresh(), dir);
         pass &= TerrainRays(sample, dir, table);
         pass &= MaterialsReported(Fresh(), catalog);
         pass &= RoofRay(Fresh(), catalog);
@@ -1003,6 +1004,124 @@ public static partial class WorldQuerySelfTest
             + $"({(landing ? "same" : "different")}); ray from 1 m above a bar: {hit[0].Distance:0.000000000} m, object {hit[0].Object}, "
             + $"{(hit[0].Material == Catalog.NoMaterial ? "terrain" : catalog.MaterialIds[hit[0].Material])}; wind cell under the "
             + $"rails before (top {before.TopM}, porosity {before.Porosity}), after (top {after.TopM:0.000}, porosity {after.Porosity:0.0000})");
+    }
+
+    /// World-query "Shape and wire geometry" (API review F3). Every random primitive against its reference here: kind,
+    /// material, centre, axes, half extents, radius and height. Three wires of 1 to 3 spans on a flat world: a 2 mm sphere
+    /// on the sag curve at t = 0.02, 0.1, 0.5, 0.9 and 0.98 of each span, and the lookup of its contact gives that span's
+    /// attachment points, length, sag and diameter, and SpanT = t within 1e-3. The sample_patch cable's mid-span contact
+    /// matches objects.json (read here) within 1 mm, and its point lies on the sag curve at SpanT. Terrain, a visual-only
+    /// object and indices out of range give false, and 10,000 lookups allocate nothing.
+    static bool GeometryLookup(WorldQuery world, List<TestShape> shapes, WorldQuery flat, WorldQuery sample, string dir)
+    {
+        int primitives = 0, bad = 0;
+        double worst = 0;
+        string first = "";
+        void Expect(string what, bool ok)
+        {
+            if (!ok && bad++ == 0)
+                first = $"; first: {what}";
+        }
+        foreach (TestShape t in shapes.Where(t => t.Kind != ShapeKind.Wire))
+        {
+            primitives++;
+            bool found = world.Geometry(t.Object, t.Shape, -1, out ShapeGeometry g);
+            Double3 half = t.Kind switch
+            {
+                ShapeKind.Box => t.Half,
+                ShapeKind.Sphere => new Double3(t.Radius, t.Radius, t.Radius),
+                ShapeKind.Capsule => new Double3(t.Radius, t.H + t.Radius, t.Radius),
+                _ => new Double3(t.Radius, t.H, t.Radius),
+            };
+            double height = t.Kind == ShapeKind.Capsule ? 2 * (t.H + t.Radius) : t.Kind == ShapeKind.Cylinder ? 2 * t.H : 0;
+            double error = new[]
+            {
+                (g.Center - t.C).Length(), (g.Axes.X - new Double3(t.M[0], t.M[3], t.M[6])).Length(),
+                (g.Axes.Y - new Double3(t.M[1], t.M[4], t.M[7])).Length(), (g.Axes.Z - new Double3(t.M[2], t.M[5], t.M[8])).Length(),
+                (g.HalfExtents - half).Length(), Math.Abs(g.Radius - (t.Kind == ShapeKind.Box ? 0 : t.Radius)), Math.Abs(g.Height - height),
+            }.Max();
+            worst = Math.Max(worst, error);
+            Expect($"object {t.Object} shape {t.Shape} {t.Kind}: found {found}, {g.Kind}, error {error:0.0e0} m",
+                found && g.Kind == t.Kind && g.Material == t.Material && error <= 1e-9);
+        }
+
+        var wires = new (Double3[] Points, double Sag, double Diameter)[]
+        {
+            (new[] { new Double3(-11, 2.5, -4), new Double3(11, 3.5, 5) }, 0.5, 0.012),
+            (new[] { new Double3(-6, 1.5, 9), new Double3(0, 2, 2), new Double3(7, 1.2, -9) }, 0.3, 0.005),
+            (new[] { new Double3(-20, 5, 20), new Double3(-10, 6, 20), new Double3(-10, 5.5, 30), new Double3(0, 7, 32) }, 0.2, 0.01),
+        };
+        var buffer = new StaticContact[8];
+        int probes = 0;
+        double worstT = 0, worstSpan = 0;
+        foreach (var (points, sag, diameter) in wires)
+        {
+            int obj = flat.AddWire("cable", points, sag, diameter);
+            for (int span = 0; span + 1 < points.Length; span++)
+            {
+                Double3 a = points[span], b = points[span + 1];
+                foreach (double t in new[] { 0.02, 0.1, 0.5, 0.9, 0.98 })
+                {
+                    probes++;
+                    Double3 on = a + (b - a) * t - new Double3(0, 4 * sag * t * (1 - t), 0);
+                    int n = flat.StaticContacts(new Capsule(on, on, 0.002), 0.01, buffer);
+                    int at = Array.FindIndex(buffer, 0, Math.Min(n, buffer.Length), c => c.Object == obj);
+                    ShapeGeometry g = default;
+                    bool found = at >= 0 && flat.Geometry(obj, buffer[at].Shape, buffer[at].WireParam, out g);
+                    double spanError = Math.Max(Math.Max((g.SpanA - a).Length(), (g.SpanB - b).Length()), Math.Max(
+                        Math.Abs(g.SpanLength - (b - a).Length()), Math.Max(Math.Abs(g.Sag - sag), Math.Abs(g.Diameter - diameter))));
+                    worstSpan = Math.Max(worstSpan, spanError);
+                    worstT = Math.Max(worstT, Math.Abs(g.SpanT - t));
+                    Expect($"wire {obj} span {span} t {t}: found {found}, {g.Kind}, span error {spanError:0.0e0} m, SpanT {g.SpanT:0.0000}",
+                        found && g.Kind == ShapeKind.Wire && spanError <= 1e-9 && Math.Abs(g.SpanT - t) <= 1e-3);
+                }
+            }
+        }
+
+        using JsonDocument objects = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "objects.json")));
+        JsonElement cable = objects.RootElement.GetProperty("objects")[9];
+        Double3 Point(int i)
+        {
+            JsonElement v = cable.GetProperty("points_m")[i];
+            return new Double3(v[0].GetDouble(), v[1].GetDouble(), v[2].GetDouble());
+        }
+        Double3 c0 = Point(0), c1 = Point(1);
+        double cableSag = cable.GetProperty("sag_m").GetDouble(), cableDiameter = cable.GetProperty("diameter_m").GetDouble();
+        const double r = 0.0075;
+        var below = new Double3((c0.X + c1.X) / 2, (c0.Y + c1.Y) / 2 - cableSag - cableDiameter / 2 - r - 0.001, (c0.Z + c1.Z) / 2);
+        int m = sample.StaticContacts(new Capsule(below, below, r), 0.005, buffer);
+        int k = Array.FindIndex(buffer, 0, Math.Min(m, buffer.Length), c => c.Object == 9);
+        ShapeGeometry cg = default;
+        bool cableFound = k >= 0 && sample.Geometry(9, buffer[k].Shape, buffer[k].WireParam, out cg);
+        double ct = cg.SpanT;
+        Double3 curve = cg.SpanA + (cg.SpanB - cg.SpanA) * ct - new Double3(0, 4 * cg.Sag * ct * (1 - ct), 0);
+        double cableError = Math.Max(Math.Max((cg.SpanA - c0).Length(), (cg.SpanB - c1).Length()),
+            Math.Max(Math.Abs(cg.SpanLength - (c1 - c0).Length()), Math.Max(Math.Abs(cg.Sag - cableSag), Math.Abs(cg.Diameter - cableDiameter))));
+        double offCurve = k >= 0 ? (buffer[k].Point - curve).Length() - cg.Radius : double.PositiveInfinity;
+        bool cableOk = cableFound && cg.Kind == ShapeKind.Wire && cg.Material == sample.Catalog.MaterialId("cable") && cableError <= 1e-3
+            && Math.Abs(offCurve) <= 1e-3;
+
+        // Terrain, the visual-only household_junk (object 3), a shape past the house's one and the cable's one, an object
+        // past the last and a negative shape; the gate's third shape exists.
+        bool refused = !sample.Geometry(-1, 0, -1, out _) && !sample.Geometry(3, 0, -1, out _) && !sample.Geometry(0, 1, -1, out _)
+            && !sample.Geometry(9, 1, 0.5, out _) && !sample.Geometry(sample.ObjectCount, 0, -1, out _) && !sample.Geometry(2, -1, -1, out _)
+            && sample.Geometry(2, 2, -1, out _);
+        double sum = 0;
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 10000; i++)
+        {
+            sample.Geometry(i % 10, i % 3, i % 7 / 7.0, out ShapeGeometry g);
+            sum += g.Radius + g.SpanLength;
+        }
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        return Check("shape and wire geometry", bad == 0 && primitives > 0 && cableOk && refused && allocated == 0 && sum > 0,
+            $"{primitives} random primitives: kind, material, centre, axes, half extents, radius and height within {worst:0.0e0} m of "
+            + $"the reference; {probes} probes on 6 spans of 3 wires: attachment points, span length, sag and diameter within "
+            + $"{worstSpan:0.0e0} m, SpanT within {worstT:0.0e0} of t (limit 1e-3); {bad} wrong{first}. sample_patch cable at "
+            + $"mid-span: span length {cg.SpanLength:0.000000} m, sag {cg.Sag} m, diameter {cg.Diameter} m, attachment points and all "
+            + $"within {cableError * 1000:0.000000} mm of objects.json (limit 1 mm), SpanT {ct:0.0000}, contact point {offCurve * 1000:0.000} mm "
+            + $"off the wire's surface at that t; no geometry for terrain, visual-only, out-of-range: {refused}; 10000 lookups "
+            + $"allocate {allocated} bytes");
     }
 
     /// World-query "Reset between flights" (API review F2). On sample_patch the launch rails, a gate and a 20 m wire are
