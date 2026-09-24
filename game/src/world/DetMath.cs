@@ -1,8 +1,26 @@
+using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
+
 /// Deterministic math for the world query (W-13): integer hashes and functions built only from correctly rounded
 /// IEEE operations (+ − × ÷ √, floor), evaluated in a fixed order, so every x64 machine gets the same bits.
 /// Nothing here calls Math.Sin/Cos/Exp/Pow or fused multiply-add.
 public static class DetMath
 {
+    /// `x <= y ? a : b` as a bitwise select, never a branch: for choices that are a coin toss from call to call, where a
+    /// mispredicted branch costs more than evaluating both sides. The bits are those of a or b.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static double SelectLe(double x, double y, double a, double b)
+    {
+        Vector128<double> mask = Vector128.LessThanOrEqual(Vector128.CreateScalarUnsafe(x), Vector128.CreateScalarUnsafe(y));
+        return Vector128.ConditionalSelect(mask, Vector128.CreateScalarUnsafe(a), Vector128.CreateScalarUnsafe(b)).ToScalar();
+    }
+
+    /// (int)v for a finite v whose integer part fits an int: the processor's truncating conversion, without the checks
+    /// .NET adds to every (int) cast for NaN and out-of-range values since .NET 9. The same result for every such v.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int ToInt(double v) => Sse2.IsSupported ? Sse2.ConvertToInt32WithTruncation(Vector128.CreateScalarUnsafe(v)) : (int)v;
+
     /// PCG output permutation (Jarzynski and Olano, "Hash Functions for GPU Rendering", 2020).
     public static uint Hash(uint x)
     {

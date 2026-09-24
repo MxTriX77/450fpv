@@ -202,7 +202,7 @@ public sealed partial class WorldQuery
 
     /// The cell that contains (x, z); the far edge belongs to the last cell.
     int OwnCell(double x, double z) =>
-        ClampCell((int)Math.Floor((x + Half) * _perCell)) + ClampCell((int)Math.Floor((z + Half) * _perCell)) * Cells;
+        ClampCell(DetMath.ToInt(Math.Floor((x + Half) * _perCell))) + ClampCell(DetMath.ToInt(Math.Floor((z + Half) * _perCell))) * Cells;
 
     void Sample(double x, double z, out GroundSample g, bool withMat)
     {
@@ -228,14 +228,18 @@ public sealed partial class WorldQuery
         gx += rdx;
         gz += rdz;
 
-        double pit = Pitfall(x, z, out double pdx, out double pdz, out uint pitId);
-        if (pitId != 0)
+        double pit = 0;
+        if (PitMayReach(x, z))
         {
-            g.Feature = GroundFeature.Pitfall;
-            g.FeatureId = pitId;
-            g.FeatureDepth = (float)pit;
-            gx -= pdx;
-            gz -= pdz;
+            pit = Pitfall(x, z, out double pdx, out double pdz, out uint pitId);
+            if (pitId != 0)
+            {
+                g.Feature = GroundFeature.Pitfall;
+                g.FeatureId = pitId;
+                g.FeatureDepth = (float)pit;
+                gx -= pdx;
+                gz -= pdz;
+            }
         }
 
         g.TerrainHeight = terrain;
@@ -267,7 +271,7 @@ public sealed partial class WorldQuery
         var b = new Blend(this, x, z);
         var lattice = new Lattice(x, z, _nodeScale[b.S0]);
         double relief = b.Uniform ? Relief(b.S0, in lattice, x, z, out _, out _) : BlendedRelief(in b, in lattice, x, z, out _, out _);
-        return terrain + relief - Pitfall(x, z, out _, out _, out _);
+        return terrain + relief - (PitMayReach(x, z) ? Pitfall(x, z, out _, out _, out _) : 0);
     }
 
     /// The rendered terrain at (x, z), within Half + Margin, and its gradient. HeightmapTerrain splits each cell (a, b /
@@ -276,13 +280,12 @@ public sealed partial class WorldQuery
     {
         double tx = Limit(x, Half), tz = Limit(z, Half);
         double fx = (tx + Half) * _perHeightStep, fz = (tz + Half) * _perHeightStep;
-        int ci = Math.Min((int)fx, Samples - 2), cj = Math.Min((int)fz, Samples - 2);
+        int ci = Math.Min(DetMath.ToInt(fx), Samples - 2), cj = Math.Min(DetMath.ToInt(fz), Samples - 2);
         double u = fx - ci, v = fz - cj;
         int k0 = cj * Samples + ci;
         double h00 = _heights[k0], h10 = _heights[k0 + 1], h01 = _heights[k0 + Samples], h11 = _heights[k0 + Samples + 1];
-        bool lower = u + v <= 1.0;
-        gx = Select(lower, h10 - h00, h11 - h01) * _perHeightStep;
-        gz = Select(lower, h01 - h00, h11 - h10) * _perHeightStep;
+        gx = DetMath.SelectLe(u + v, 1.0, h10 - h00, h11 - h01) * _perHeightStep;
+        gz = DetMath.SelectLe(u + v, 1.0, h01 - h00, h11 - h10) * _perHeightStep;
         if (tx != x)
             gx = 0;
         if (tz != z)
@@ -291,13 +294,9 @@ public sealed partial class WorldQuery
     }
 
     /// The height at (u, v) in a height cell with corners a = h00, b = h10, c = h01, d = h11: triangle a-b-c or b-d-c.
+    /// Both are evaluated and one selected: which triangle is a coin toss from point to point.
     static double Triangle(double u, double v, double h00, double h10, double h01, double h11) =>
-        Select(u + v <= 1.0, h00 + u * (h10 - h00) + v * (h01 - h00), h11 + (1.0 - u) * (h01 - h11) + (1.0 - v) * (h10 - h11));
-
-    /// `c ? a : b` with both evaluated, picked by their bits: the processor gets a select, never a branch to mispredict
-    /// (the height triangle and the ridge side are a coin toss from point to point).
-    static double Select(bool c, double a, double b) =>
-        BitConverter.Int64BitsToDouble(c ? BitConverter.DoubleToInt64Bits(a) : BitConverter.DoubleToInt64Bits(b));
+        DetMath.SelectLe(u + v, 1.0, h00 + u * (h10 - h00) + v * (h01 - h00), h11 + (1.0 - u) * (h01 - h11) + (1.0 - v) * (h10 - h11));
 
     /// The 4 nearest cell centres of a point, (−x, −z), (+x, −z), (−x, +z), (+x, +z): cells, surfaces and bilinear weights.
     readonly struct Blend
@@ -313,8 +312,9 @@ public sealed partial class WorldQuery
             double fi = Math.Floor(sx), fj = Math.Floor(sz);
             Wx = sx - fi;
             Wz = sz - fj;
-            int i0 = w.ClampCell((int)fi), i1 = w.ClampCell((int)fi + 1);
-            int j0 = w.ClampCell((int)fj) * w.Cells, j1 = w.ClampCell((int)fj + 1) * w.Cells;
+            int ii = DetMath.ToInt(fi), jj = DetMath.ToInt(fj);
+            int i0 = w.ClampCell(ii), i1 = w.ClampCell(ii + 1);
+            int j0 = w.ClampCell(jj) * w.Cells, j1 = w.ClampCell(jj + 1) * w.Cells;
             C0 = j0 + i0;
             C1 = j0 + i1;
             C2 = j1 + i0;
@@ -403,8 +403,8 @@ public sealed partial class WorldQuery
     {
         double phase = (x * _ridgeNx[s.Index] + z * _ridgeNz[s.Index]) / s.RidgeSpacing + _ridgePhase[s.Index];
         double f = phase - Math.Floor(phase);
-        double q = Select(f <= 0.5, f, 1.0 - f);
-        slope = s.RidgeAmplitude * -4.0 * DetMath.Smooth3Slope(2.0 * q) * Select(f <= 0.5, 1.0, -1.0) / s.RidgeSpacing;
+        double q = DetMath.SelectLe(f, 0.5, f, 1.0 - f);
+        slope = s.RidgeAmplitude * -4.0 * DetMath.Smooth3Slope(2.0 * q) * DetMath.SelectLe(f, 0.5, 1.0, -1.0) / s.RidgeSpacing;
         return s.RidgeAmplitude * (1.0 - 2.0 * DetMath.Smooth3(2.0 * q));
     }
 
@@ -418,7 +418,7 @@ public sealed partial class WorldQuery
         public Lattice(double x, double z, double scale)
         {
             double px = x * scale, pz = z * scale, fx = Math.Floor(px), fz = Math.Floor(pz);
-            (Ix, Iz, Tx, Tz) = ((int)fx, (int)fz, px - fx, pz - fz);
+            (Ix, Iz, Tx, Tz) = (DetMath.ToInt(fx), DetMath.ToInt(fz), px - fx, pz - fz);
             A = DetMath.Fade5(Tx);
             B = DetMath.Fade5(Tz);
         }
@@ -498,6 +498,17 @@ public sealed partial class WorldQuery
         }
     }
 
+    /// Whether a pitfall may reach (x, z), both within Half + Margin: false means none does (see InitPitReach). Inlined
+    /// by the callers, so the common case costs no call.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    bool PitMayReach(double x, double z)
+    {
+        if (_pitReach == null)
+            return false;
+        long cell = (long)(DetMath.ToInt(Math.Floor(z)) - _pitLow) * _pitSide + (DetMath.ToInt(Math.Floor(x)) - _pitLow);
+        return (_pitReach[cell >> 6] >> (int)(cell & 63) & 1) != 0;
+    }
+
     /// The deepest pitfall at (x, z), both within Half + Margin: depth ≥ 0, its gradient and id (0 = none). Its floor is
     /// flat and its wall is a smoothstep over the outer 25 % of the radius.
     double Pitfall(double x, double z, out double dx, out double dz, out uint id)
@@ -505,10 +516,7 @@ public sealed partial class WorldQuery
         double depth = 0;
         dx = dz = 0;
         id = 0;
-        if (_pitSearch <= 0)
-            return 0;
-        long cell = (long)((int)Math.Floor(z) - _pitLow) * _pitSide + ((int)Math.Floor(x) - _pitLow);
-        if ((_pitReach[cell >> 6] >> (int)(cell & 63) & 1) == 0)
+        if (!PitMayReach(x, z))
             return 0;
         int x0 = (int)Math.Floor(x - _pitSearch), x1 = (int)Math.Floor(x + _pitSearch);
         int z0 = (int)Math.Floor(z - _pitSearch), z1 = (int)Math.Floor(z + _pitSearch);
