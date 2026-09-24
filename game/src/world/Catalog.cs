@@ -36,6 +36,15 @@ public sealed class AssetDef
     public GapDef[] Gaps;
 }
 
+/// A contact material of the catalog (game/maps/README.md, Materials), with the README's defaults for fields left out.
+public sealed class MaterialParams
+{
+    public double FrictionStatic, FrictionKinetic;
+    public double Stiffness;    // N/m, the object's local stiffness under a point load; +∞ for a rigid material
+    public double DampingRatio; // of that stiffness
+    public double EdgeRadius;   // m, of box edges where the fiber bends over
+}
+
 /// The shared asset catalog (game/assets/catalog.json) as the world query uses it. Material ids are the materials'
 /// positions in the catalog's `materials` object.
 public sealed class Catalog
@@ -43,9 +52,10 @@ public sealed class Catalog
     public const ushort NoMaterial = ushort.MaxValue;
 
     public readonly string[] MaterialIds;
+    public readonly MaterialParams[] Materials; // by material id, as MaterialIds
     public readonly Dictionary<string, AssetDef> Assets = new();
 
-    Catalog(string[] materialIds) => MaterialIds = materialIds;
+    Catalog(string[] materialIds, MaterialParams[] materials) => (MaterialIds, Materials) = (materialIds, materials);
 
     public ushort MaterialId(string id)
     {
@@ -58,9 +68,20 @@ public sealed class Catalog
         using JsonDocument document = JsonDocument.Parse(json);
         JsonElement root = document.RootElement;
         var ids = new List<string>();
+        var materials = new List<MaterialParams>();
         foreach (JsonProperty m in root.GetProperty("materials").EnumerateObject())
+        {
             ids.Add(m.Name);
-        var catalog = new Catalog(ids.ToArray());
+            materials.Add(new MaterialParams
+            {
+                FrictionStatic = m.Value.GetProperty("friction_static").GetDouble(),
+                FrictionKinetic = m.Value.GetProperty("friction_kinetic").GetDouble(),
+                Stiffness = Optional(m.Value, "stiffness_n_per_m", double.PositiveInfinity),
+                DampingRatio = Optional(m.Value, "damping_ratio", 0.05),
+                EdgeRadius = Optional(m.Value, "edge_radius_m", 0.002),
+            });
+        }
+        var catalog = new Catalog(ids.ToArray(), materials.ToArray());
         foreach (JsonProperty a in root.GetProperty("assets").EnumerateObject())
         {
             JsonElement e = a.Value;
@@ -130,6 +151,9 @@ public sealed class Catalog
         }
         return shapes;
     }
+
+    static double Optional(JsonElement parent, string name, double fallback) =>
+        parent.TryGetProperty(name, out JsonElement v) ? v.GetDouble() : fallback;
 
     public static Double3 Vec3(JsonElement parent, string name)
     {
