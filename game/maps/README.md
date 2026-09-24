@@ -272,6 +272,28 @@ Asset space: the origin is on the ground at the centre, the bars run along Z (th
 
 The `steel` edge radius (1 mm) is sharper than a real cold-formed tube corner (about 2 × the 2 mm wall), so fiber contact over a bar corner errs toward breaking.
 
+## Content hash
+
+`WorldQuery.ContentHash` identifies the exact world data a flight ran on. The physics log records it, and a replay refuses a world whose hash differs. `WorldQuery.ContentHashOf` computes it from the files alone. It is FNV-1a 64 (offset basis `0xCBF29CE484222325`, prime `0x100000001B3`) over this stream:
+
+1. The files, in this order: the package's `map.json`, `height.r16`, `surface.png`, `cover.png` and `objects.json`, then `game/maps/surfaces.json` and `game/assets/catalog.json`. Only these seven count. The folder names, the `.import` sidecars, any other file and the order in which the file system lists them do not.
+2. Each file adds its bytes, then their count as an unsigned 64-bit little-endian integer.
+3. In the four JSON files each CR LF pair counts as a single LF, and the count is taken after that, so a CRLF checkout hashes like an LF one. Every other change to the text (spacing, a byte-order mark, key order) changes the hash. The binary files count byte for byte.
+
+A one-byte change always changes the hash, unless it makes or breaks a CR LF pair. Those changes, like any larger change, leave it the same with a chance of 2⁻⁶⁴. It prints as 16 lowercase hex digits. The rule in Python, for checking by hand:
+
+```python
+import struct
+h = 0xCBF29CE484222325
+for path in files:  # the seven files, in the order above
+    data = open(path, "rb").read()
+    if path.endswith(".json"):
+        data = data.replace(b"\r\n", b"\n")
+    for byte in data + struct.pack("<Q", len(data)):
+        h = ((h ^ byte) * 0x100000001B3) % 2**64
+print(f"{h:016x}")
+```
+
 ## Versioning
 
 `format_version` is `major.minor`. A minor bump adds optional fields that older readers ignore. A major bump breaks compatibility. The validator and the loader reject a major they do not support, and name both versions.
