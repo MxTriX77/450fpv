@@ -589,6 +589,7 @@ The rest of P's flight is not recorded, so no milder band is measured. Two are d
 
 P is the only clip flown in rain ("pouring rain", assumed (pilot)). This section measures, from P's frames, what the rain did to the picture. Each trait is mapped to a candidate effect for the analog feed (`game/src/video/`) and to the simulation driver behind it. Feed traits that P shares with the dry clips are catalogued in `video-feed.md` and cited by ID (N1, N2, N12, N13, O3, O5, P2, P3, C1–C3); they are not re-measured here.
 
+- **Frames:** a bare frame number (`f625`) is P's. Other clips' frames carry their letter.
 - **Labels:** as in §5. **Measured** means read from the frames; **derived** means computed from measured numbers with a stated model; **assumed** means taken from outside the clip.
 - **Controls:** the dry clips of `video-feed.md`.
   - **A:** an open field seen from height under broken cloud, on the same receiver type as P but another airframe. It is the only dry clip whose sky is grey enough for the horizon fit, so the horizon-relative comparisons (R3, R6) use it.
@@ -617,7 +618,7 @@ P is the only clip flown in rain ("pouring rain", assumed (pilot)). This section
 | ID | Trait | P, in short | Candidate effect | Driver |
 |---|---|---|---|---|
 | R1 | Drops and streaks on the lens | None in any frame examined (measured) | A lens-water layer that stays empty in flight like P's | Rain rate × air speed into the lens; shed by airspeed |
-| R2 | Rain falling through the view | None visible (measured) | None | — |
+| R2 | Rain falling through the view | None visible (measured) | None of its own; folded into R3 | Rain rate, through R3 |
 | R3 | Contrast loss with distance | None: the far ground is darker than the near ground, and dry A shows the opposite (measured) | Rain extinction in the distance fog, kept weak | Rain rate |
 | R4 | Sky and ground colour | A neutral grey sky; dark ground that keeps its colour (measured) | An overcast sky; wet ground materials | Rain state, time of day |
 | R5 | A dim picture | Frame luma about half the dry day clips', with colour and day-level grain kept (measured) | The existing C1 → N1, N13, C3 chain; no rain filter | Light level |
@@ -654,7 +655,8 @@ P is the only clip flown in rain ("pouring rain", assumed (pilot)). This section
 **R2 Rain falling through the view: none visible.**
 - **Measured:** no streak in the sky of any of the 48 stills (f1 to f1407) or of the burst frames (f1–8, f705–712, f1410–1417).
 - **Derived:** a 2 mm drop 0.5 m from the lens spans about 0.23°, which is 4 px at the centre. That is one source sample (`video-feed.md` §5). Within one exposure it smears over tens of pixels at P's speed, which dilutes it to a few levels.
-- **Candidate effect:** none. Rain in the air reaches the feed only through R3.
+- **Candidate effect:** none of its own. Rain in the air reaches the feed only through R3.
+- **Driver:** rain rate, through R3's extinction.
 
 **R3 Contrast loss with distance: none measurable.**
 
@@ -757,7 +759,9 @@ Averages are over P's 1338 frames with a horizon (frame colour: 1340 frames). Th
   - It usually sits just under the dark line of the front-left propeller blade and moves with it (f958, f1257, f1287). In some frames only the dark line shows (the still at f988).
 - **What it is (derived):** the blade against the ground, as the recorder samples it. It is frame content (`video-feed.md` §1.4), like the blue-grey blurred blades of the dry clips B and G.
 - **Why not rain (measured):** with N13's level changes removed, the band brightens by more than 8 levels in 1.5 % of P's frames. Dry C, D and E, from P's airframe group, show 0–2.8 %.
-- **Open (assumed):** whether the light part is sheen on a wet blade or spray thrown off it can't be told from P. Render the blades as geometry; don't add spray.
+- **Open (assumed):** whether the light part is sheen on a wet blade or spray thrown off it can't be told from P.
+- **Candidate effect:** render the blades as geometry, and don't add spray.
+- **Driver:** rotor speed and blade position, sampled by the camera (frame content).
 
 ### 7.4 The fiber-shake hypothesis (Q8, N12)
 
