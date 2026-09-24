@@ -12,6 +12,7 @@
   <ItemGroup>
     <Compile Include="../../game/src/world/Catalog.cs" />
     <Compile Include="../../game/src/world/Contacts.cs" />
+    <Compile Include="../../game/src/world/ContentHash.cs" />
     <Compile Include="../../game/src/world/DetMath.cs" />
     <Compile Include="../../game/src/world/MapPng.cs" />
     <Compile Include="../../game/src/world/MicroDetail.cs" />

@@ -130,6 +130,7 @@ public sealed partial class WorldQuery
         world.LoadObjects(Path.Combine(packageDir, "objects.json"));
         using (JsonDocument table = JsonDocument.Parse(surfacesJson))
             world.SoilReferenceDiameter = table.RootElement.GetProperty("soil_reference_diameter_m").GetDouble();
+        world.ContentHash = ContentHashOf(packageDir, surfacesPath, catalogPath);
         return world;
     }
 
