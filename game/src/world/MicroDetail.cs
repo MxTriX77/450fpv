@@ -37,6 +37,12 @@ public sealed partial class WorldQuery
     ulong _idSeed;
     double _sinMaxLean;
 
+    /// How far below and above TerrainHeight an element's base can lie anywhere on the map, m, for the renderer to bound
+    /// its queries: standing bases on GroundHeight (relief within ±amplitude / NoiseRms, ridges within ±amplitude,
+    /// pitfalls), lying ones on SupportTop, which adds the mats.
+    public double BaseBelowTerrain { get; private set; }
+    public double BaseAboveTerrain { get; private set; }
+
     /// Test only (the determinism check, WorldQueryGolden): draws every element one at a time, with no 4-wide pass and
     /// no per-cell ground cache (each base from GroundHeightAt), as the reference the fast paths must match bit for bit.
     /// Never changed while a query runs.
@@ -57,6 +63,20 @@ public sealed partial class WorldQuery
             }
         }
         _idSeed = (ulong)(DetMath.Hash(Seed) & 0x7FFFF) << 45;
+
+        // Relief blends the corners' surfaces and a pitfall takes its depth from the surface under its centre, so each
+        // term is bounded by its largest value over the table.
+        double relief = 0, pit = 0;
+        var mat = new double[4];
+        foreach (SurfaceParams s in Surfaces)
+        {
+            relief = Math.Max(relief, s.ReliefAmplitude / NoiseRms + s.RidgeAmplitude);
+            pit = Math.Max(pit, s.PitDensity > 0 ? s.PitDepthMax : 0);
+            for (int k = 0; k < 4; k++)
+                mat[k] = Math.Max(mat[k], s.Cover[k] != null && s.Cover[k].HasMat ? s.Cover[k].MatDepthMax : 0);
+        }
+        BaseBelowTerrain = relief + pit;
+        BaseAboveTerrain = relief + mat[0] + mat[1] + mat[2] + mat[3];
     }
 
     /// Stable element id: 19 bits of the seed hash, then the 0.25 m cell z and x (each + 65536, 17 bits), kind (2 bits)

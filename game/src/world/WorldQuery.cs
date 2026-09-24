@@ -107,6 +107,9 @@ public sealed partial class WorldQuery
 
     public IReadOnlyList<SurfaceParams> Surfaces { get; }
 
+    /// surface.png's surface indices, Cells² row-major from the north-west corner, read-only (for the renderer).
+    public ReadOnlySpan<byte> SurfaceIds => _surface;
+
     /// Loads a map package (game/maps/README.md) with its objects, the shared surface table and the shared catalog.
     public static WorldQuery Load(string packageDir, string surfacesPath, string catalogPath)
     {

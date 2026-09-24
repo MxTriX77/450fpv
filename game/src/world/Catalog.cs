@@ -27,6 +27,7 @@ public sealed class GapDef
 public sealed class AssetDef
 {
     public string Id;
+    public string Scene;          // res:// path of the visual; for a wire, the unit segment the loader stretches
     public bool IsWire;
     public ushort Material;       // Catalog.NoMaterial for visual-only assets
     public double WireSegment;    // wires: capsule_chain segment length along the sagged curve, m
@@ -89,6 +90,7 @@ public sealed class Catalog
             var asset = new AssetDef
             {
                 Id = a.Name,
+                Scene = e.GetProperty("scene").GetString(),
                 IsWire = e.GetProperty("type").GetString() == "wire",
                 Material = e.TryGetProperty("material", out JsonElement material) ? catalog.MaterialId(material.GetString()) : NoMaterial,
                 WindPorosity = e.GetProperty("wind_porosity").GetDouble(),
