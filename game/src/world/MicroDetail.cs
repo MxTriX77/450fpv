@@ -76,6 +76,7 @@ public sealed partial class WorldQuery
         int z0 = (int)Math.Floor((czw - scan) / MicroCell), z1 = (int)Math.Floor((czw + scan) / MicroCell);
         int count = 0;
         Span<Drawn> batch = stackalloc Drawn[Batch];
+        CellGround ground = default; // refilled per cell, never cleared: only the fields a valid cell uses are read
         for (int cz = z0; cz <= z1; cz++)
         {
             double dz = Math.Max(Math.Max(cz * MicroCell - czw, czw - (cz + 1) * MicroCell), 0);
@@ -96,9 +97,7 @@ public sealed partial class WorldQuery
                     uint cell = DetMath.Hash(cx, cz, _elementKey[k]);
                     int n = ElementCount(c, _cover[own * 4 + k], cx, cz, k, cell);
                     // Standing elements share their cell's ground once there are a few of them.
-                    CellGround ground = default;
-                    if (k == (int)CoverKind.Grass && n >= 4)
-                        CellGroundOf(cx, cz, out ground);
+                    ground.Valid = k == (int)CoverKind.Grass && n >= 4 && CellGroundOf(cx, cz, ref ground);
                     for (int first = 0; first < n; first += Batch)
                         count = Elements(c, surface, cx, cz, k, cell, first, Math.Min(n, first + Batch), in ground, in center, radius, batch,
                             results, count);
@@ -139,24 +138,34 @@ public sealed partial class WorldQuery
     int Elements(CoverParams c, byte surface, int cx, int cz, int kind, uint cell, int first, int end, in CellGround ground,
         in Double3 center, double radius, Span<Drawn> batch, Span<MicroElement> results, int count)
     {
+        // Everything that does not change per element is read once, so the loops keep it in registers.
         bool standing = kind == (int)CoverKind.Grass;
-        double far = radius + _reach[kind];
+        double far2 = (radius + _reach[kind]) * (radius + _reach[kind]), x0 = cx, z0 = cz, sx = center.X, sy = center.Y, sz = center.Z;
+        double lengthMin = c.LengthMin, lengthSpan = c.LengthMax - c.LengthMin;
+        double diameterMin = c.DiameterMin, diameterSpan = c.DiameterMax - c.DiameterMin, sinMaxLean = _sinMaxLean;
+        ulong key = (ulong)cell << 32;
         int m = 0;
         for (int slot = first; slot < end; slot++)
         {
             // Every slot is drawn and written; only those within reach advance m (no branch to mispredict).
-            ulong first64 = DetMath.Mix64((ulong)cell << 32 | (uint)slot), second64 = DetMath.Mix64(first64 + 0x9E3779B97F4A7C15UL);
+            ulong first64 = DetMath.Mix64(key | (uint)slot), second64 = DetMath.Mix64(first64 + 0x9E3779B97F4A7C15UL);
             uint place = (uint)first64, size = (uint)(first64 >> 32), shape = (uint)second64;
-            double bx = (cx + Unit16(place)) * MicroCell, bz = (cz + Unit16(place >> 16)) * MicroCell;
-            double ox = bx - center.X, oz = bz - center.Z, horizontal = ox * ox + oz * oz;
-            double length = c.LengthMin + (c.LengthMax - c.LengthMin) * Unit16(size);
-            double diameter = c.DiameterMin + (c.DiameterMax - c.DiameterMin) * Unit16(size >> 16);
-            double sinLean = standing ? _sinMaxLean * Unit16(shape) : 0; // standing grass: the sine of its lean is uniform
+            double bx = (x0 + Unit16(place)) * MicroCell, bz = (z0 + Unit16(place >> 16)) * MicroCell;
+            double ox = bx - sx, oz = bz - sz, horizontal = ox * ox + oz * oz;
+            double length = lengthMin + lengthSpan * Unit16(size);
+            double diameter = diameterMin + diameterSpan * Unit16(size >> 16);
+            double sinLean = standing ? sinMaxLean * Unit16(shape) : 0; // standing grass: the sine of its lean is uniform
             double reach = radius + (standing ? length * sinLean : length) + diameter / 2;
             ref Drawn d = ref batch[m];
-            (d.Slot, d.Shape, d.Tail, d.X, d.Z, d.Length, d.Diameter, d.SinLean) = (slot, shape, (uint)(second64 >> 32), bx, bz, length,
-                diameter, sinLean);
-            m += (horizontal <= far * far) & (horizontal <= reach * reach) ? 1 : 0;
+            d.Slot = slot;
+            d.Shape = shape;
+            d.Tail = (uint)(second64 >> 32);
+            d.X = bx;
+            d.Z = bz;
+            d.Length = length;
+            d.Diameter = diameter;
+            d.SinLean = sinLean;
+            m += (horizontal <= far2) & (horizontal <= reach * reach) ? 1 : 0;
         }
         for (int i = 0; i < m; i++)
         {
@@ -165,17 +174,22 @@ public sealed partial class WorldQuery
             if (standing)
             {
                 d.Y = ground.Valid ? CellHeight(in ground, d.X, d.Z) : GroundHeightAt(d.X, d.Z);
-                (d.Dx, d.Dy, d.Dz) = (d.SinLean * cosAz, Math.Sqrt(1 - d.SinLean * d.SinLean), d.SinLean * sinAz);
+                d.Dx = d.SinLean * cosAz;
+                d.Dy = Math.Sqrt(1 - d.SinLean * d.SinLean);
+                d.Dz = d.SinLean * sinAz;
             }
             else
                 d.Y = Lying(d.X, d.Z, cosAz, sinAz, out d.Dx, out d.Dy, out d.Dz);
         }
         double perMeanDiameter = 2 / (c.DiameterMin + c.DiameterMax), meanLength = (c.LengthMin + c.LengthMax) / 2;
+        double stiffness = c.TipStiffness, releaseMin = c.HookReleaseMin, releaseSpan = c.HookReleaseMax - c.HookReleaseMin;
+        double hookProbability = c.HookProbability;
+        ulong idBase = ElementId(cx, cz, kind, 0);
         for (int i = 0; i < m; i++)
         {
             ref Drawn d = ref batch[i];
             // Segment meets sphere: the closest point of the axis to the centre is within radius + element radius.
-            double rx = center.X - d.X, ry = center.Y - d.Y, rz = center.Z - d.Z;
+            double rx = sx - d.X, ry = sy - d.Y, rz = sz - d.Z;
             double t = rx * d.Dx + ry * d.Dy + rz * d.Dz;
             t = Math.Max(Math.Min(t, d.Length), 0); // clamped without a branch; t is finite
             double qx = rx - t * d.Dx, qy = ry - t * d.Dy, qz = rz - t * d.Dz;
@@ -187,14 +201,14 @@ public sealed partial class WorldQuery
                 double dr = d.Diameter * perMeanDiameter, lr = meanLength / d.Length;
                 results[count] = new MicroElement
                 {
-                    Id = ElementId(cx, cz, kind, d.Slot),
+                    Id = idBase | (uint)d.Slot,
                     Base = new Double3(d.X, d.Y, d.Z),
                     Direction = new Vector3((float)d.Dx, (float)d.Dy, (float)d.Dz),
                     Length = (float)d.Length,
                     Diameter = (float)d.Diameter,
-                    TipStiffness = (float)(c.TipStiffness * (dr * dr) * (dr * dr) * (lr * lr * lr)),
-                    HookRelease = (float)(c.HookReleaseMin + (c.HookReleaseMax - c.HookReleaseMin) * Unit16(d.Shape >> 16)),
-                    Hooks = Unit16(d.Tail >> 16) < c.HookProbability,
+                    TipStiffness = (float)(stiffness * (dr * dr) * (dr * dr) * (lr * lr * lr)),
+                    HookRelease = (float)(releaseMin + releaseSpan * Unit16(d.Shape >> 16)),
+                    Hooks = Unit16(d.Tail >> 16) < hookProbability,
                     Kind = (CoverKind)kind,
                     Surface = surface,
                 };
@@ -263,39 +277,33 @@ public sealed partial class WorldQuery
         double _element;
     }
 
-    /// The shared ground of micro cell (cx, cz), valid when every base the cell can draw lies inside the map, in one height
-    /// cell and in one blend quad whose 4 corners are the same surface, in a 1 m cell that no pitfall reaches, and its
-    /// relief nodes span at most 4 × 4. Then CellHeight gives exactly GroundHeightAt's bits there.
-    void CellGroundOf(int cx, int cz, out CellGround g)
+    /// Fills `g` with the shared ground of micro cell (cx, cz) and returns true when every base the cell can draw lies inside
+    /// the map, in one height cell and in one blend quad whose 4 corners are the same surface, in a 1 m cell that no
+    /// pitfall reaches, and its relief nodes span at most 4 × 4. Then CellHeight gives exactly GroundHeightAt's bits there.
+    bool CellGroundOf(int cx, int cz, ref CellGround g)
     {
-        g = default;
         const double Last = 65535.0 / 65536; // the largest Unit16
         double x0 = cx * MicroCell, z0 = cz * MicroCell, x1 = (cx + Last) * MicroCell, z1 = (cz + Last) * MicroCell;
         if (!(x0 >= -Half && x1 <= Half && z0 >= -Half && z1 <= Half))
-            return;
+            return false;
         // Each index below is a non-decreasing function of the coordinate, so equal at both ends means equal between.
-        int ci = Math.Min((int)((x0 + Half) * _perHeightStep), Samples - 2), cj = Math.Min((int)((z0 + Half) * _perHeightStep), Samples - 2);
-        if (Math.Min((int)((x1 + Half) * _perHeightStep), Samples - 2) != ci || Math.Min((int)((z1 + Half) * _perHeightStep), Samples - 2) != cj)
-            return;
+        int ci = Math.Min(DetMath.ToInt((x0 + Half) * _perHeightStep), Samples - 2), cj = Math.Min(DetMath.ToInt((z0 + Half) * _perHeightStep), Samples - 2);
+        if (Math.Min(DetMath.ToInt((x1 + Half) * _perHeightStep), Samples - 2) != ci
+            || Math.Min(DetMath.ToInt((z1 + Half) * _perHeightStep), Samples - 2) != cj)
+            return false;
         if (Math.Floor((x0 + Half) * _perCell - 0.5) != Math.Floor((x1 + Half) * _perCell - 0.5)
             || Math.Floor((z0 + Half) * _perCell - 0.5) != Math.Floor((z1 + Half) * _perCell - 0.5))
-            return;
+            return false;
         var b = new Blend(this, x0, z0);
         if (!b.Uniform)
-            return;
-        if (_pitSearch > 0)
-        {
-            if (Math.Floor(x0) != Math.Floor(x1) || Math.Floor(z0) != Math.Floor(z1))
-                return;
-            long bit = (long)((int)Math.Floor(z0) - _pitLow) * _pitSide + ((int)Math.Floor(x0) - _pitLow);
-            if ((_pitReach[bit >> 6] >> (int)(bit & 63) & 1) != 0)
-                return;
-        }
+            return false;
+        if (_pitSearch > 0 && (Math.Floor(x0) != Math.Floor(x1) || Math.Floor(z0) != Math.Floor(z1) || PitMayReach(x0, z0)))
+            return false;
         double scale = _nodeScale[b.S0];
-        int nx = (int)Math.Floor(x0 * scale), nz = (int)Math.Floor(z0 * scale);
-        int wide = (int)Math.Floor(x1 * scale) + 1 - nx, deep = (int)Math.Floor(z1 * scale) + 1 - nz;
+        int nx = DetMath.ToInt(Math.Floor(x0 * scale)), nz = DetMath.ToInt(Math.Floor(z0 * scale));
+        int wide = DetMath.ToInt(Math.Floor(x1 * scale)) + 1 - nx, deep = DetMath.ToInt(Math.Floor(z1 * scale)) + 1 - nz;
         if (wide > 3 || deep > 3)
-            return;
+            return false;
         uint key = _reliefKey[b.S0];
         for (int j = 0; j <= deep; j++)
         {
@@ -304,10 +312,19 @@ public sealed partial class WorldQuery
                 g.Nodes[j * 4 + i] = Node(nx + i, row);
         }
         int k0 = cj * Samples + ci;
-        (g.H00, g.H10, g.H01, g.H11) = (_heights[k0], _heights[k0 + 1], _heights[k0 + Samples], _heights[k0 + Samples + 1]);
+        g.H00 = _heights[k0];
+        g.H10 = _heights[k0 + 1];
+        g.H01 = _heights[k0 + Samples];
+        g.H11 = _heights[k0 + Samples + 1];
         SurfaceParams s = _byIndex[b.S0];
-        (g.Ridges, g.Scale, g.ReliefScale) = (s.RidgeAmplitude > 0 ? s : null, scale, _reliefScale[b.S0]);
-        (g.Ci, g.Cj, g.NodeX, g.NodeZ, g.Valid) = (ci, cj, nx, nz, true);
+        g.Ridges = s.RidgeAmplitude > 0 ? s : null;
+        g.Scale = scale;
+        g.ReliefScale = _reliefScale[b.S0];
+        g.Ci = ci;
+        g.Cj = cj;
+        g.NodeX = nx;
+        g.NodeZ = nz;
+        return true;
     }
 
     /// GroundHeightAt(x, z) for a point of a valid CellGround's cell, from its shared values with the same arithmetic:
@@ -316,7 +333,7 @@ public sealed partial class WorldQuery
     {
         double terrain = Triangle((x + Half) * _perHeightStep - g.Ci, (z + Half) * _perHeightStep - g.Cj, g.H00, g.H10, g.H01, g.H11);
         double px = x * g.Scale, pz = z * g.Scale, fx = Math.Floor(px), fz = Math.Floor(pz);
-        int at = ((int)fz - g.NodeZ) * 4 + (int)fx - g.NodeX;
+        int at = (DetMath.ToInt(fz) - g.NodeZ) * 4 + DetMath.ToInt(fx) - g.NodeX;
         double relief = g.ReliefScale * Interpolate(DetMath.Fade5(px - fx), DetMath.Fade5(pz - fz), g.Nodes[at], g.Nodes[at + 1],
             g.Nodes[at + 4], g.Nodes[at + 5]);
         if (g.Ridges != null)
