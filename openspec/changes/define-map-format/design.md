@@ -63,6 +63,7 @@
 - [Contact and ray timings in a Debug build are above the 1 µs per-query share: static capsule 3.6 µs, swept 6.9 µs, ray 1.6 µs] → Release benchmark and optimisation in 3.6. Box and cylinder closest points use a 40-step golden-section search, the first candidate to replace with closed form.
 - [The wind grid is 12 B/cell: 50 MB at 4 km, 200 MB at 8 km] → Acceptable for the 4 km world. Pack it if an 8 km map is ever built.
 - [The catalog has no real sheet-metal roof; the roof scenario uses a test-only asset] → A corrugated-roof asset is part of `build-uat1-parts`.
+- [Benchmarks depend on the laptop's power state: 3.3 GHz on AC, 1.5–2.4 GHz on battery] → Budgets are judged on AC. Each benchmark line prints its clock and power source. After 3.6, ground takes 9.55 ms on AC (thin margin) and micro-detail about 0.18–0.20 ms on meadow. Straw and litter surfaces take about 0.6–0.9 ms, so physics prefetches micro-detail off the step's critical path.
 - [First query timings exceed budget: ground 28–36 ms per 100k (budget 10), MicroDetailNear 1.7–2.1 ms (budget 0.25)] → Optimise in 3.6 before the golden file (3.5), because a hash change alters every output.
 - [Physics needs a field that isn't in the surface table] → `format_version` minor bumps allow added optional fields. A major bump is needed only for breaking changes.
 - [Map sides that aren't multiples of 256 m fall back to slower mesh collision] → The format requires multiples of 256 m.
