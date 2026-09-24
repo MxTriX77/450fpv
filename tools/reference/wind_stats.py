@@ -431,13 +431,14 @@ def wind_history(paths):
     columns time_s, wind_from_deg. Spread about the prevailing direction, shifts (a change of >= SHIFT_DEG within
     SHIFT_S, counted once per run of such times) and the share of SIDE_S windows in which the wind stays within 90 deg
     of the prevailing direction, i.e. keeps one side of a course flown abeam of it. Shifts and windows are pooled."""
-    per, gaps, keep, count, minutes = [], [], [], 0, 0.0
+    per, gaps, keep, zs, count, minutes = [], [], [], [], 0, 0.0
     for p in paths:
         rows = list(csv.DictReader(Path(p).open(encoding="utf-8")))
         t = np.array([float(r["time_s"]) for r in rows])
         d = np.radians([float(r["wind_from_deg"]) for r in rows])
         dt = float(np.median(np.diff(t)))
         z = np.exp(1j * d).mean()
+        zs.append(z)
         dev = np.degrees(np.angle(np.exp(1j * d) / z))                     # deviation from the prevailing direction
         lag, w = int(round(SHIFT_S / dt)), int(round(SIDE_S / dt))
         onsets = []                                                        # crossings < SHIFT_S apart are one shift
@@ -454,7 +455,8 @@ def wind_history(paths):
         keep.append(k)
         count, minutes = count + len(onsets), minutes + m
     g = np.array(gaps)
-    return dict(runs=per, minutes=minutes, shifts=dict(count=count, per_min=count / minutes, n_gaps=len(g),
+    return dict(runs=per, minutes=minutes, prevailing_deg=math.degrees(np.angle(np.mean(zs))) % 360,
+                shifts=dict(count=count, per_min=count / minutes, n_gaps=len(g),
                 gap_cv=float(g.std() / g.mean()) if len(g) > 1 else math.nan),
                 spread_deg=float(np.mean([r["spread_deg"] for r in per])), side_keep=float(np.concatenate(keep).mean()))
 
@@ -534,7 +536,8 @@ def main():
             print(f"  wind history: prevailing {r['prevailing_deg']:.1f} deg, spread {r['spread_deg']:.1f} deg, "
                   f"{r['shifts']} shifts in {r['minutes']:.1f} min, side kept in {r['side_keep']:.1%} of {SIDE_S:g} s windows")
         s = o["shifts"]
-        print(f"  pooled: {s['count']} shifts in {o['minutes']:.1f} min = {s['per_min']:.3f}/min, gap CV {s['gap_cv']:.2f} "
+        print(f"  pooled: prevailing {o['prevailing_deg']:.1f} deg; {s['count']} shifts in {o['minutes']:.1f} min = "
+              f"{s['per_min']:.3f}/min, gap CV {s['gap_cv']:.2f} "
               f"({s['n_gaps']} gaps); mean spread {o['spread_deg']:.1f} deg; side kept {o['side_keep']:.1%}")
     else:
         path = Path(a.csv) if a.csv else Path(a.ref) / "_frames" / a.letter / "attitude.csv"
