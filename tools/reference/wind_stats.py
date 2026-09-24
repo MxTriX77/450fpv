@@ -402,6 +402,17 @@ def report(o):
         f"{b['frames'][0]}-{b['frames'][1]} {b['roll']:.2f}/{b['pitch']:.2f}" for b in o["blocks"]))
 
 
+def finite(o):
+    """JSON has no NaN; write null, which strict parsers (.NET's default) accept."""
+    if isinstance(o, float):
+        return o if math.isfinite(o) else None
+    if isinstance(o, dict):
+        return {k: finite(v) for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [finite(v) for v in o]
+    return o
+
+
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     p = argparse.ArgumentParser(prog="wind_stats.py")
@@ -417,7 +428,7 @@ def main():
     o = analyse(load(path), tuple(int(v) for v in a.segment.split("-")) if a.segment else None)
     report(o)
     if a.json:
-        Path(a.json).write_text(json.dumps(o, indent=1), encoding="utf-8")
+        Path(a.json).write_text(json.dumps(finite(o), indent=1, allow_nan=False), encoding="utf-8")
 
 
 if __name__ == "__main__":
