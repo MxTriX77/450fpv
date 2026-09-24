@@ -307,9 +307,8 @@ public sealed partial class WorldQuery
         uint key = _reliefKey[b.S0];
         for (int j = 0; j <= deep; j++)
         {
-            uint row = DetMath.Hash((uint)(nz + j) + key);
             for (int i = 0; i <= wide; i++)
-                g.Nodes[j * 4 + i] = Node(nx + i, row);
+                g.Nodes[j * 4 + i] = Node(NodeInput(nx + i, nz + j, key));
         }
         int k0 = cj * Samples + ci;
         g.H00 = _heights[k0];

@@ -427,15 +427,15 @@ public sealed partial class WorldQuery
     /// Value noise in [−1, 1] of the nodes under `key` at a lattice point.
     static double Noise(in Lattice l, uint key)
     {
-        uint row0 = DetMath.Hash((uint)l.Iz + key), row1 = DetMath.Hash((uint)(l.Iz + 1) + key); // DetMath.Hash(x, z, key)'s inner hash
-        return Interpolate(l.A, l.B, Node(l.Ix, row0), Node(l.Ix + 1, row0), Node(l.Ix, row1), Node(l.Ix + 1, row1));
+        uint n = NodeInput(l.Ix, l.Iz, key);
+        return Interpolate(l.A, l.B, Node(n), Node(n + NodeStepX), Node(n + NodeStepZ), Node(n + NodeStepX + NodeStepZ));
     }
 
     /// The same with its gradient per metre, for nodes 1/`scale` apart.
     static double Noise(in Lattice l, uint key, double scale, out double dx, out double dz)
     {
-        uint row0 = DetMath.Hash((uint)l.Iz + key), row1 = DetMath.Hash((uint)(l.Iz + 1) + key);
-        double v00 = Node(l.Ix, row0), v10 = Node(l.Ix + 1, row0), v01 = Node(l.Ix, row1), v11 = Node(l.Ix + 1, row1);
+        uint n = NodeInput(l.Ix, l.Iz, key);
+        double v00 = Node(n), v10 = Node(n + NodeStepX), v01 = Node(n + NodeStepZ), v11 = Node(n + NodeStepX + NodeStepZ);
         double cross = v00 - v10 - v01 + v11;
         dx = DetMath.Fade5Slope(l.Tx) * (v10 - v00 + l.B * cross) * scale;
         dz = DetMath.Fade5Slope(l.Tz) * (v01 - v00 + l.A * cross) * scale;
@@ -446,7 +446,15 @@ public sealed partial class WorldQuery
     static double Interpolate(double a, double b, double v00, double v10, double v01, double v11) =>
         v00 + a * (v10 - v00) + b * (v01 - v00) + a * b * (v00 - v10 - v01 + v11);
 
-    static double Node(int x, uint row) => DetMath.Unit(DetMath.Hash((uint)x + row)) * 2.0 - 1.0;
+    /// Value-noise nodes: node (ix, iz) under `key` is one PCG round of ix·NodeStepX + iz·NodeStepZ + key, so the 4 nodes
+    /// of a lattice cell are 4 independent hashes. The steps are odd, so neighbouring nodes never share an input, and
+    /// two nodes within 30,000 of each other on both axes never do.
+    const uint NodeStepX = 0x9E3779B1u, NodeStepZ = 0x85EBCA77u;
+
+    static uint NodeInput(int ix, int iz, uint key) => (uint)ix * NodeStepX + (uint)iz * NodeStepZ + key;
+
+    /// A node value in [−1, 1] from its input.
+    static double Node(uint input) => DetMath.Unit(DetMath.Hash(input)) * 2.0 - 1.0;
 
     /// The pitfall of generator cell (cx, cz), if it has one: its centre, radius, surface and hash. Each 1 m cell holds at
     /// most one candidate, which exists with the probability of the density of the surface under its centre.
