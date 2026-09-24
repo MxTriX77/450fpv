@@ -64,6 +64,11 @@
 - [The wind grid is 12 B/cell: 50 MB at 4 km, 200 MB at 8 km] → Acceptable for the 4 km world. Pack it if an 8 km map is ever built.
 - [The catalog has no real sheet-metal roof; the roof scenario uses a test-only asset] → A corrugated-roof asset is part of `build-uat1-parts`.
 - [Benchmarks depend on the laptop's power state: 3.3 GHz on AC, 1.5–2.4 GHz on battery] → Budgets are judged on AC. Each benchmark line prints its clock and power source. After 3.6, ground takes 9.55 ms on AC (thin margin) and micro-detail about 0.18–0.20 ms on meadow. Straw and litter surfaces take about 0.6–0.9 ms, so physics prefetches micro-detail off the step's critical path.
+- **Accepted deviation (3.6, orchestrator, 2026-09-24).** On AC, Windows' "Best power efficiency" mode held the CPU at 2.1–2.5 GHz, not 3.3 GHz. At those clocks:
+  - `MicroDetailNear` took 0.316 ms on meadow (budget 0.25) and 1.33 ms on `belt_straw` (budget 1). That's about 0.22 and 0.93 ms scaled to the 3.3 GHz nominal clock.
+  - Everything else passed: ground 9.80 ms, capsules 56 ms, rays 27 ms, the composite step 34.7 µs median (p99 72.9 µs, from OS jitter), with 0 B allocated.
+  - This is accepted because physics prefetches micro-detail on a worker thread at ≤ 40 Hz, so it never enters a physics step. On the densest belt floor it's about 5 % of one core.
+  - QA re-measures with Windows set to "Best performance" at 5.2. If the flight model's profiling ever shows a stall, optimising lying elements (a per-cell SupportTop cache) comes first.
 - [First query timings exceed budget: ground 28–36 ms per 100k (budget 10), MicroDetailNear 1.7–2.1 ms (budget 0.25)] → Optimise in 3.6 before the golden file (3.5), because a hash change alters every output.
 - [Physics needs a field that isn't in the surface table] → `format_version` minor bumps allow added optional fields. A major bump is needed only for breaking changes.
 - [Map sides that aren't multiples of 256 m fall back to slower mesh collision] → The format requires multiples of 256 m.
