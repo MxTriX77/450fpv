@@ -25,3 +25,6 @@ Every change is written down before anyone builds it, so nothing gets lost betwe
 
 ## D-008 The video feed is simulated, not filtered · Accepted
 This is the user's direction. The pilot's footage is the target look. Feed artifacts come from simulation state (motor current, voltage, vibration, impacts, tether, light, frame content), with measured random rates only where no cause is visible. Physics exposes those signals to the video module through an interface change that comes later.
+
+## D-011 Weather is a fixed pilot setting: Calm, Windy or Severe · Accepted
+This is the pilot's decision (2026-09-24). It adds a fourth setting to the manifesto's payload, legs and time of day: **Weather = Calm / Windy / Severe**, always chosen by the pilot, with no random option. Within the chosen level, the wind itself stays alive and unpredictable: a prevailing direction with random shifts, gusts, turbulence near obstacles, per `docs/reference-notes/wind.md`. Rain goes with the weather level. The Severe preset is held to the measured targets from clip P (wind study §6). Windy uses the derived "typical windy" band.
