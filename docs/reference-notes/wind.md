@@ -1,9 +1,9 @@
 # Wind reference notes
 
-The pilot marked one clip as the target for how flight in severe wind must feel: "constant and dynamic physics along with motors crying", never "wind goes south so my quad goes south smoothly". These notes measure, frame by frame, how the airframe was thrown around in that flight, and turn the numbers into targets for the sim's severe-wind preset.
+The pilot marked one clip as the target for how flight in severe wind must feel: "constant and dynamic physics along with motors crying", never "wind goes south so my quad goes south smoothly". These notes measure, frame by frame, how the airframe was thrown around in that flight, and turn the numbers into targets for the sim's wind: the Severe level measured here, and the Windy and Calm levels derived from it.
 
 - **Source:** clip **P** only, cited by frame (`P f123`, 1-based, 29.917 frames per second).
-- **Evidence:** `reference/_frames/P/attitude.csv` (git-ignored), written by `tools/reference/track_attitude.py` for every frame, and every number in §1–§5 printed by `tools/reference/wind_stats.py` from that file. Nothing derived from the footage is in the repo.
+- **Evidence:** `reference/_frames/P/attitude.csv` (git-ignored), written by `tools/reference/track_attitude.py` for every frame. Every measured number in §1–§6 is printed by `tools/reference/wind_stats.py` from that file. The derived ones follow from the measured numbers by the formulas and assumed values stated beside them (§5.3–§5.5). Nothing derived from the footage is in the repo.
 - **Reproduce** (from the repo root, Blender 5.2):
   ```
   blender -b --factory-startup --python tools/reference/track_attitude.py -- --letter P [--overlays 20]
@@ -150,7 +150,7 @@ All values are camera angles as defined in §1.2. The bracket after the mean or 
 What stands out:
 - **A steady left bank of 9.1°** (roll never rises above −1.8° in any frame, and 90 % of frames lie between −13.1 and −4.8°), with no net turn: the mean yaw rate is −0.10 °/s, about −5° of heading over the clip. Section 5.3 reads this as a crosswind from the left.
 - **The camera looks 22.7° below the horizon** on average and swings between −27.8 and −19.1°.
-- **The whole clip's heavy tails come from mixing the belt and the field, not from bursts within either** (§4.4). Residual kurtosis over the whole clip is 4.7 (roll), 3.8 (pitch) and 9.2 (yaw), against 3.0 for Gaussian noise. Within each terrain it is 2.3 / 2.5 (roll, belt / field), 2.7 / 3.9 (pitch) and 2.8 / 4.3 (yaw). Over the open field the wobble is steady, and only pitch adds isolated jolts (§5.4).
+- **The whole clip's heavy tails come from mixing the belt and the field, not from bursts within either** (§4.4). Residual kurtosis over the whole clip is 4.7 (roll), 3.8 (pitch) and 9.2 (yaw), against 3.0 for Gaussian noise. Within each terrain it is 2.3 / 2.5 (roll, belt / field), 2.7 / 3.9 (pitch) and 2.8 / 4.3 (yaw). Over the open field the wobble is steady, and only pitch adds isolated jolts (§5.4). Yaw there is unresolved.
 - **Roll and pitch rates are symmetric** (p5 and p95 within 5 % of each other); yaw rate leans slightly left (−6.7 against +5.7 °/s).
 
 **Measurement noise** (derived from the flat spectral floor in §3): at most 0.11° per frame in roll, 0.04° in pitch and 0.06° in heading. That adds at most 1.0, 0.4 and 0.5 °/s to the rate std, which is negligible. It adds up to 53, 20 and 26 °/s² to the acceleration std, so noise-free acceleration std is about 54 (roll), 40 (pitch) and 33 °/s² (yaw), and the acceleration maxima are upper bounds.
@@ -246,8 +246,9 @@ Pearson r at zero lag with its bootstrap interval, then the strongest r within �
 - **5 s blocks.** Over the belt (f151–300) the residual roll / pitch std is **1.39 / 0.46°**. With the belt's frames left out, the open-field blocks give 0.46 / 0.17° (f1–150), 0.33 / 0.26° (f301–450), 0.52 / 0.33°, 0.61 / 0.34°, 0.52 / 0.28° (f451–900) and 0.51 / 0.21° (f1201–1350). The remaining blocks hold too few residual frames, because of the picture losses and the clip's end.
   - Every open-field block is at least 0.65 (roll) and 0.62 (pitch) times the open-field level.
   - The blocks spread by a CV of 0.17 in roll and 0.23 in pitch. **The field wobble never goes calm.**
-- **Kurtosis per terrain.** The wobble has no heavy tail within either terrain, except pitch over the field.
+- **Kurtosis per terrain.** Within either terrain the wobble has no heavy tail, except pitch over the field.
   - Roll: 2.28 over the belt and 2.51 over the field.
+  - Yaw over the field is unresolved: 4.27 [2.73, 4.86] rests on a single event (f741–744) and carries the ±35 % lens uncertainty (§1.5).
   - Pitch over the field: 3.85 [3.35, 4.24]. Its five 2σ events there (f391–392, 552–560, 581, 781–785, 1087–1093) build up and decay over several frames (pitch rise and decay of 0.1–0.3 s, §4.1), with pitch confidence 0.69–0.88 in `attitude.csv`. They are motion, not one-frame tracker spikes (measured).
   - The whole-clip kurtosis of §2 is the mixture: a louder belt inside a quieter field.
 
@@ -313,7 +314,7 @@ The flight's 95th percentiles are 8.4 / 5.2 / 8.6. Two losses follow brisk roll 
   - At P's 22.7° of pitch and 4.8 kg, 17–22 m/s needs rotor drag at the bottom of its range, d_r ≈ 0.1–0.15 s⁻¹ (derived).
   - With the nominal drag, 17–22 m/s needs 32–41° of pitch (derived).
   - So either P was flown below cruise speed, which is plausible in severe wind on the toughest stretch (assumed), or the drag is at its low end. In the second case the crosswind is 6.5–8.5 m/s (derived). Both readings stay inside the ranges above; the pilot can settle it (§5.7, Q14).
-- **Derived:** the class mass of `airframes.md` raises the airspeed from the 12 m/s (8–21 m/s) derived earlier for 1.6–3.35 kg, because the quadratic body drag weighs less against a heavier drone. The confirmed forward pitch means fast flight, and in fast flight a crosswind's side drag grows with the airspeed, so a moderate crosswind gives the whole lean. The pilot's "severe wind" (strength unknown, Q2) then lies more in what P cannot see as a mean:
+- **Derived:** the class mass of `airframes.md` raises the airspeed from the 12 m/s (8–21 m/s) derived earlier for 1.6–3.35 kg, because the quadratic body drag weighs less against a heavier drone. The confirmed forward pitch means fast flight, and in fast flight a crosswind's side drag grows with the airspeed, so a smaller crosswind gives the same lean as a larger one would in hover. The pilot's "severe wind" (strength unknown, Q2) then lies more in what P cannot see as a mean:
   - the gusts
   - the belt's wake
   - the direction changes
