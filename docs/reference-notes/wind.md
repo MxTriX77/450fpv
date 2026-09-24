@@ -104,7 +104,7 @@ The synthetic set has no translation (no parallax), so it tests yaw only for pur
 - the means by −0.07° (roll) and −0.20° (pitch)
 - the roll–yaw residual correlation from 0.73 to 0.66
 
-The yaw residual std changes from 0.83° to 0.56°, because it rests on a few large bursts (kurtosis 9). **Yaw figures therefore carry a ±35 % lens uncertainty on top of the bootstrap.**
+The yaw residual std changes from 0.83° to 0.56°, because it rests on a few large bursts over the belt (whole-clip kurtosis 9). **Yaw figures therefore carry a ±35 % lens uncertainty on top of the bootstrap.**
 
 ### 1.6 Coverage and frame sets
 
@@ -150,7 +150,7 @@ All values are camera angles as defined in §1.2. The bracket after the mean or 
 What stands out:
 - **A steady left bank of 9.1°** (roll never rises above −1.8° in any frame, and 90 % of frames lie between −13.1 and −4.8°), with no net turn: the mean yaw rate is −0.10 °/s, about −5° of heading over the clip. Section 5.3 reads this as a crosswind from the left.
 - **The camera looks 22.7° below the horizon** on average and swings between −27.8 and −19.1°.
-- **The wobble is heavy-tailed:** residual kurtosis 4.7 (roll), 3.8 (pitch) and 9.2 (yaw) against 3.0 for Gaussian noise. The motion is calm most of the time, with bursts.
+- **The whole clip's heavy tails come from mixing the belt and the field, not from bursts within either** (§4.4). Residual kurtosis over the whole clip is 4.7 (roll), 3.8 (pitch) and 9.2 (yaw), against 3.0 for Gaussian noise. Within each terrain it is 2.3 / 2.5 (roll, belt / field), 2.7 / 3.9 (pitch) and 2.8 / 4.3 (yaw). Over the open field the wobble is steady, and only pitch adds isolated jolts (§5.4).
 - **Roll and pitch rates are symmetric** (p5 and p95 within 5 % of each other); yaw rate leans slightly left (−6.7 against +5.7 °/s).
 
 **Measurement noise** (derived from the flat spectral floor in §3): at most 0.11° per frame in roll, 0.04° in pitch and 0.06° in heading. That adds at most 1.0, 0.4 and 0.5 °/s to the rate std, which is negligible. It adds up to 53, 20 and 26 °/s² to the acceleration std, so noise-free acceleration std is about 54 (roll), 40 (pitch) and 33 °/s² (yaw), and the acceleration maxima are upper bounds.
@@ -243,7 +243,13 @@ Pearson r at zero lag with its bootstrap interval, then the strongest r within �
 - All 7 roll events, 6 of the 11 pitch events and 4 of the 5 yaw events fall in f148–f304.
 - Over the belt the roll rocks back and forth by 3–5° every 1.3–2.9 s (for example −8.6° at f153, −3.5° at f171, −7.7° at f192, −1.8° at f222, −10.3° at f279).
 - Over the field the roll drifts by at most about 3° over several seconds (f701–f899).
-- The 5 s blocks show the same picture: residual roll/pitch std 0.54/0.20° in f1–150, **1.39/0.46° in f151–300**, then 0.50–0.61 / 0.21–0.34° in every later block that has enough residual frames.
+- **5 s blocks.** Over the belt (f151–300) the residual roll / pitch std is **1.39 / 0.46°**. With the belt's frames left out, the open-field blocks give 0.46 / 0.17° (f1–150), 0.33 / 0.26° (f301–450), 0.52 / 0.33°, 0.61 / 0.34°, 0.52 / 0.28° (f451–900) and 0.51 / 0.21° (f1201–1350). The remaining blocks hold too few residual frames, because of the picture losses and the clip's end.
+  - Every open-field block is at least 0.65 (roll) and 0.62 (pitch) times the open-field level.
+  - The blocks spread by a CV of 0.17 in roll and 0.23 in pitch. **The field wobble never goes calm.**
+- **Kurtosis per terrain.** The wobble has no heavy tail within either terrain, except pitch over the field.
+  - Roll: 2.28 over the belt and 2.51 over the field.
+  - Pitch over the field: 3.85 [3.35, 4.24]. Its five 2σ events there (f391–392, 552–560, 581, 781–785, 1087–1093) build up and decay over several frames (pitch rise and decay of 0.1–0.3 s, §4.1), with pitch confidence 0.69–0.88 in `attitude.csv`. They are motion, not one-frame tracker spikes (measured).
+  - The whole-clip kurtosis of §2 is the mixture: a louder belt inside a quieter field.
 
 ### 4.5 Picture losses and attitude
 
@@ -353,7 +359,10 @@ The flight's 95th percentiles are 8.4 / 5.2 / 8.6. Two losses follow brisk roll 
 **What the model needs** (derived)
 1. Broadband turbulence whose energy reaches the airframe at encounter frequencies up to 2–4 Hz, not only slow gusts.
 2. Obstacles that shed their own, stronger turbulence (a wake behind tree belts and buildings on top of the background), because that is where the drone "yanks".
-3. Intermittent gusts (residual kurtosis 3.8–4.7 in roll and pitch, 9 in yaw), not Gaussian noise.
+3. **Spatial intermittency.** The bursts come from obstacles' wakes (the belt, §4.4). The background over open field is steady and never goes calm: every 5 s block lies within 0.65–1.20 (roll) and 0.62–1.21 (pitch) times its level (measured). The whole clip's heavy tails (kurtosis 4.7 roll, 3.8 pitch, 9.2 yaw) are the mix of the two regimes, not bursts within either.
+   - **Measured, against plain Gaussian noise with P's spectra (§6.5):** open-field roll is indistinguishable from stationary Gaussian noise. Its kurtosis of 2.51 lies at the 5th percentile of 200 Gaussian logs (2.50–3.41 for 90 % of them).
+   - Open-field pitch is not: its kurtosis of 3.85 lies above the 95th percentile of those logs (3.39). It comes in isolated jolts, about 10 per minute (the field's pitch events, §4.4).
+   - **Assumed:** small-scale turbulence is intermittent: wind changes over a few metres are heavy-tailed. Pitch would show that where roll doesn't, because 32 % of its variance lies at 1–4 Hz (eddies of about 3–13 m at 13 m/s) against 4 % for roll (§3.1). Vertical gusts, or the pilot's throttle and pitch inputs, could cause the jolts just as well; P can't separate them.
 4. Gusts that act as real sideways forces: drag of the relative wind on the body, coil and rotors, not only moments. That is what forces the horizon–heading trade-off (§5.5).
 
 **Not covered:** nothing in P is flown close to the ground, so turbulence within a few metres of the ground is not measured here.
@@ -412,7 +421,7 @@ This whole section takes the camera's angles as the airframe's (0° uptilt, pilo
 - **Derived:** the body yaw acceleration of 77 °/s² at the 95th percentile (maximum 288) needs **6–11 % differential thrust** between the two rotor pairs, and **24–43 %** at the maximum. These are upper bounds, because they include noise.
 - **Derived:** **yaw is the axis that runs out of authority first**. It needs 4–9 times the roll figure.
   - With the collective at 21–76 % of the available thrust, a 43 % shift between rotor pairs comes close to a motor's limit.
-  - Yaw's heavy tail (kurtosis 9) and slow decay fit that.
+  - **Measured:** P shows no direct sign of yaw saturation. Yaw's whole-clip kurtosis of 9 is mostly the mix of belt and field (2.8 over the belt, 4.3 over the field, §4.4), not clipped authority.
 
 **The horizon–heading trade-off (Q1, Q7)**
 - **Derived (kinematics, 0° uptilt):**
@@ -471,7 +480,7 @@ This whole section takes the camera's angles as the airframe's (0° uptilt, pilo
 1. A steady crosswind that makes the drone lean about 9° at 22.7° of forward pitch (derived: roughly 4.5 m/s across the path at about 12 m/s of airspeed). It blows from a prevailing direction that changes at random, never a fixed vector (pilot, Q2).
 2. Background turbulence that, under a pilot of 0.5 Hz (roll) and 0.9 Hz (pitch) bandwidth, leaves 0.5° of roll and 0.3° of pitch wobble above 0.3 Hz over open field.
 3. Wakes behind tree belts (and, by extension, buildings) that multiply that wobble 1.6–4× and deliver a burst every 0.6–0.8 s. The gusts push sideways, so the pilot pays for each one with horizon or heading (§5.5).
-4. Intermittent bursts rather than smooth noise. Roll and pitch are nearly independent; roll and heading are coupled through that trade-off.
+4. A steady wobble over open field that never goes calm, with isolated pitch jolts on top; the bursts are spatial, over the belt, not everywhere (§5.4). Roll and pitch are nearly independent; roll and heading are coupled through that trade-off.
 5. Yaw authority is the weak link. Collective thrust keeps a margin of about 2 (1.3–4.8).
 6. Picture losses need a fiber tension, bend and vibration driver (the pilot's hypothesis, `video-feed.md` N12).
 
