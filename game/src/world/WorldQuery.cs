@@ -289,6 +289,22 @@ public sealed partial class WorldQuery
         return terrain + relief - (PitMayReach(x, z) ? Pitfall(x, z, out _, out _, out _) : 0);
     }
 
+    /// SupportTop alone, the same bits as Sample's, for lying micro-detail: GroundHeightAt plus the mats, no normal.
+    double SupportTopAt(double x, double z)
+    {
+        x = Limit(x, Half + Margin);
+        z = Limit(z, Half + Margin);
+        double terrain = Terrain(x, z, out _, out _);
+        var b = new Blend(this, x, z);
+        var lattice = new Lattice(x, z, _nodeScale[b.S0]);
+        double relief = b.Uniform ? Relief(b.S0, in lattice, x, z, out _, out _) : BlendedRelief(in b, in lattice, x, z, out _, out _);
+        double ground = terrain + relief - (PitMayReach(x, z) ? Pitfall(x, z, out _, out _, out _) : 0);
+        int mats = _matKinds[b.S0] | _matKinds[b.S1] | _matKinds[b.S2] | _matKinds[b.S3];
+        double m0 = (mats & 1) != 0 ? Mat(in b, in lattice, 0, x, z) : 0, m1 = (mats & 2) != 0 ? Mat(in b, in lattice, 1, x, z) : 0;
+        double m2 = (mats & 4) != 0 ? Mat(in b, in lattice, 2, x, z) : 0, m3 = (mats & 8) != 0 ? Mat(in b, in lattice, 3, x, z) : 0;
+        return ground + (m0 + m1 + m2 + m3);
+    }
+
     /// The rendered terrain at (x, z), within Half + Margin, and its gradient. HeightmapTerrain splits each cell (a, b /
     /// c, d) into triangles a-b-c (u + v ≤ 1) and b-d-c. Outside the map the edge height continues flat.
     double Terrain(double x, double z, out double gx, out double gz)

@@ -8,8 +8,8 @@ public struct MicroElement
 {
     public ulong Id;           // stable: map seed bits, 0.25 m cell, kind and slot (see ElementId)
     public Double3 Base;       // root, m: standing grass at GroundHeight, lying elements on SupportTop
-    public Vector3 Direction;  // unit, base to tip
-    public float Length;       // m
+    public Vector3 Direction;  // unit, base to tip; lying elements run straight to SupportTop at the tip
+    public float Length;       // m; lying: the chord, the drawn length along the heading or more on a slope
     public float Diameter;     // m
     public float TipStiffness; // N/m at its own tip: table × (d/d̄)⁴ × (L̄/L)³
     public float HookRelease;  // N, the pull at which a hooked element lets go
@@ -214,7 +214,10 @@ public sealed partial class WorldQuery
                 batch.Dz[i] = sinLean * sinAz;
             }
             else
-                batch.Y[i] = Lying(bx, bz, cosAz, sinAz, out batch.Dx[i], out batch.Dy[i], out batch.Dz[i]);
+            {
+                batch.Y[i] = Lying(bx, bz, cosAz, sinAz, batch.Length[i], out batch.Dx[i], out batch.Dy[i], out batch.Dz[i], out double chord);
+                batch.Length[i] = chord;
+            }
         }
         // Segment meets sphere: the closest point of the axis to the centre is within radius + element radius. The
         // elements that meet it are listed in Met.
@@ -330,21 +333,18 @@ public sealed partial class WorldQuery
     static Vector256<double> Fade5(Vector256<double> t) =>
         t * t * t * (t * (t * Vector256.Create(6.0) - Vector256.Create(15.0)) + Vector256.Create(10.0));
 
-    /// A lying element at (bx, bz): its base on the mat (SupportTop), and its direction, the drawn heading laid in the
-    /// ground's tangent plane.
-    double Lying(double bx, double bz, double cosAz, double sinAz, out double dx, out double dy, out double dz)
+    /// A lying element at (bx, bz) with the drawn heading (cosAz, sinAz) and length `drawn`: a straight chord from the mat
+    /// top (SupportTop) at its base to the mat top at its tip, `drawn` along the heading. Returns the base's height, its
+    /// unit direction and its length, the chord's: `drawn` on level ground, longer on a slope.
+    double Lying(double bx, double bz, double cosAz, double sinAz, double drawn, out double dx, out double dy, out double dz,
+        out double length)
     {
-        Sample(bx, bz, out GroundSample g, true);
-        double nx = g.Normal.X, ny = g.Normal.Y, nz = g.Normal.Z;
-        double along = cosAz * nx + sinAz * nz;
-        dx = cosAz - along * nx;
-        dy = -along * ny;
-        dz = sinAz - along * nz;
-        double norm = Math.Sqrt(dx * dx + dy * dy + dz * dz);
-        dx /= norm;
-        dy /= norm;
-        dz /= norm;
-        return g.SupportTop;
+        double root = SupportTopAt(bx, bz), rise = SupportTopAt(bx + drawn * cosAz, bz + drawn * sinAz) - root;
+        length = Math.Sqrt(drawn * drawn + rise * rise);
+        dx = drawn * cosAz / length;
+        dy = rise / length;
+        dz = drawn * sinAz / length;
+        return root;
     }
 
     /// cos and sin of k/4096 turn at [2k] and [2k + 1], k = 0–4095, for Azimuth.
