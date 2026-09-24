@@ -23,6 +23,8 @@ static class Program
     const double Margin = 0.02;
 
     static bool _pass = true;
+    /// The conditions of the last timed workload: the core clock before and after it (GHz), and the power source.
+    static string _conditions = "";
 
     static int Main()
     {
@@ -35,11 +37,9 @@ static class Program
         if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux())
             self.ProcessorAffinity = 1 << 2; // logical processor 2: not 0, which takes most interrupts
         self.PriorityClass = ProcessPriorityClass.High;
-        GetSystemPowerStatus(out PowerStatus power);
         Console.WriteLine($"worldbench: Release build, {RuntimeInformation.FrameworkDescription}, {RuntimeInformation.ProcessArchitecture}, "
-            + $"{Environment.ProcessorCount} logical processors, pinned to processor 2 at high priority, core clock {Clock():0.00} GHz, "
-            + $"power {(power.AcLineStatus == 1 ? "AC" : power.AcLineStatus == 0 ? "battery" : "unknown")} (battery {power.BatteryLifePercent} %), "
-            + $"{Runs} timed runs per workload after a warm-up of at least 1 s");
+            + $"{Environment.ProcessorCount} logical processors, pinned to processor 2 at high priority, {Runs} timed runs per workload "
+            + "after a warm-up of at least 1 s; each line gives the core clock before and after its runs and the power source");
         SurfaceParams[] table = SurfaceParams.ParseTable(File.ReadAllText(Path.Combine(root, SurfacesPath)));
         WorldQuery world = WorldQuery.Load(Path.Combine(root, Package), Path.Combine(root, SurfacesPath), Path.Combine(root, CatalogPath));
         var start = new Double3(StartX, Ground(world, StartX, StartZ).TerrainHeight, StartZ);
@@ -87,6 +87,15 @@ static class Program
     [DllImport("kernel32.dll")]
     static extern bool GetSystemPowerStatus(out PowerStatus status);
 
+    static PowerStatus Power()
+    {
+        if (!OperatingSystem.IsWindows() || !GetSystemPowerStatus(out PowerStatus status))
+            status = new PowerStatus { AcLineStatus = 255, BatteryLifePercent = 255 };
+        return status;
+    }
+
+    static string Source(PowerStatus p) => p.AcLineStatus == 1 ? "AC" : p.AcLineStatus == 0 ? "battery" : "power unknown";
+
     /// Warms `body` up for at least 30 calls and 1 s, so the JIT has promoted it to its optimised tier, then times `Runs`
     /// calls. Returns each call's time in ms, sorted, and the managed bytes allocated across the timed calls.
     static double[] Time(Action body, out long allocated)
@@ -94,15 +103,20 @@ static class Program
         var warm = Stopwatch.StartNew();
         for (int i = 0; i < 30 || warm.ElapsedMilliseconds < 1000; i++)
             body();
+        double clockBefore = Clock();
+        PowerStatus before = Power();
         var ms = new double[Runs];
-        long before = GC.GetAllocatedBytesForCurrentThread();
+        long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
         for (int i = 0; i < Runs; i++)
         {
             long t0 = Stopwatch.GetTimestamp();
             body();
             ms[i] = (Stopwatch.GetTimestamp() - t0) * 1000.0 / Stopwatch.Frequency;
         }
-        allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        allocated = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+        PowerStatus after = Power();
+        string source = before.AcLineStatus == after.AcLineStatus ? Source(after) : $"{Source(before)}, then {Source(after)}";
+        _conditions = $"[{clockBefore:0.00}–{Clock():0.00} GHz, {source}, battery {after.BatteryLifePercent} %] ";
         Array.Sort(ms);
         return ms;
     }
@@ -114,12 +128,12 @@ static class Program
         bool ok = median < budget && allocated == 0;
         _pass &= ok;
         Console.WriteLine($"worldbench: {name}: median {median:0.000} {unit} (min {ms[0] * scale:0.000}, max {ms[^1] * scale:0.000}), "
-            + $"budget < {budget} {unit}; {allocated} B allocated in the timed runs; {detail}{(ok ? "PASS" : "FAIL")}");
+            + $"budget < {budget} {unit}; {allocated} B allocated in the timed runs; {detail}{_conditions}{(ok ? "PASS" : "FAIL")}");
     }
 
     static void Info(string name, double[] ms, double scale, string unit, long allocated, string detail) =>
         Console.WriteLine($"worldbench:   {name}: median {ms[Runs / 2] * scale:0.000} {unit} (min {ms[0] * scale:0.000}, max "
-            + $"{ms[^1] * scale:0.000}); {allocated} B allocated; {detail}(information)");
+            + $"{ms[^1] * scale:0.000}); {allocated} B allocated; {detail}{_conditions}(information)");
 
     static GroundSample Ground(WorldQuery world, double x, double z)
     {
