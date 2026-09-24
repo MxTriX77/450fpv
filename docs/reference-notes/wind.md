@@ -302,15 +302,18 @@ The flight's 95th percentiles are 8.4 / 5.2 / 8.6. Two losses follow brisk roll 
 - **Assumed (pilot, Q7, "roll and keep direction"):** the ground track follows the nose (no crab). The air then crosses the track from the left at w_c = V_a · sin 22.6° = **0.38 V_a**. A wind along the track doesn't show in the attitude: the pilot holds the pitch, so a head or tail wind changes only the ground speed.
 - **Assumed** drag: D = m · d_r · V_a + ½ ρ C_D A V_a², with:
   - linear rotor drag d_r = 0.1–0.4 s⁻¹ per unit mass (the value range reported for small quadrotors)
-  - body drag area C_D A = 0.03–0.06 m² (airframe, coil, battery and cargo, pitched 22.7°)
+  - body drag area C_D A = 0.035–0.065 m². That is the frontal area plus the pitched plan area of the class's stack at C_D ≈ 0.8–1.2: airframe, a 1.7–2.2 kg Li-ion pack, the coil and up to 2 kg of cargo (`airframes.md`), pitched 22.7°.
   - ρ = 1.225 kg/m³
-  - the mass during P, 1.6–3.35 kg (§5.5)
+  - the mass during P, 3.6–6.5 kg (nominal 4.8 kg, §5.5)
 - **Derived:** D = 0.453 W gives:
-  - an **airspeed V_a ≈ 12 m/s (8–21 m/s)**
-  - a **mean crosswind ≈ 4.5 m/s (2–10 m/s, 7–36 km/h)** across the track. The range includes the drag-direction uncertainty above.
-  - At that airspeed, every 1 m/s of extra crosswind needs 2.0° (1.1–3.0°) more lean to hold the track.
-- **Assumed (pilot, Q6, Q8):** about 10 km covered in a flight of about 10 minutes is about 17 m/s of mean ground speed, if the flight went mostly outward. That is the same order as V_a, so the derived airspeed is plausible.
-- **Derived:** this replaces the earlier estimate of 12 m/s (8–20 m/s). That estimate took the lean alone for a hovering 4–7 kg drone, with rotor drag neglected. The confirmed forward pitch means fast flight, and in fast flight a crosswind's side drag grows with the airspeed, so a smaller crosswind gives the same lean. The pilot's "severe wind" (strength unknown, Q2) then lies more in what P cannot see as a mean:
+  - an **airspeed V_a ≈ 13 m/s (9–25 m/s)**. The nominal is 4.8 kg, d_r = 0.25 s⁻¹ and C_D A = 0.05 m²; the range spans the corners of the three assumed ranges.
+  - a **mean crosswind ≈ 5 m/s (2.5–11.5 m/s, 9–41 km/h)** across the track. The range includes the drag-direction uncertainty above.
+  - Every 1 m/s of extra crosswind needs **1.8° (0.95–2.6°)** more lean to hold the track. Both drag terms are linear in a small crosswind, so the extra lean per m/s is (0.453 / V_a) · cos θ · cos² φ rad = 23.4° / V_a, and the mass enters only through V_a.
+- **Cross-check against the published cruise:** the class's published cruise is 60–80 km/h (17–22 m/s) with 1.5 kg of cargo (`airframes.md`). It lies inside the derived range, above its nominal (derived).
+  - At P's 22.7° of pitch and 4.8 kg, 17–22 m/s needs rotor drag at the bottom of its range, d_r ≈ 0.1–0.15 s⁻¹ (derived).
+  - With the nominal drag, 17–22 m/s needs 32–41° of pitch (derived).
+  - So either P was flown below cruise speed, which is plausible in severe wind on the toughest stretch (assumed), or the drag is at its low end. In the second case the crosswind is 6.5–8.5 m/s (derived). Both readings stay inside the ranges above; the pilot can settle it (§5.7, Q14).
+- **Derived:** the class mass of `airframes.md` raises the airspeed from the 12 m/s (8–21 m/s) derived earlier for 1.6–3.35 kg, because the quadratic body drag weighs less against a heavier drone. The confirmed forward pitch means fast flight, and in fast flight a crosswind's side drag grows with the airspeed, so a moderate crosswind gives the whole lean. The pilot's "severe wind" (strength unknown, Q2) then lies more in what P cannot see as a mean:
   - the gusts
   - the belt's wake
   - the direction changes
@@ -324,36 +327,36 @@ The flight's 95th percentiles are 8.4 / 5.2 / 8.6. Two losses follow brisk roll 
 - **Derived limit:** the lean shows only the wind component across the track. For a wind from abeam, a direction swing changes that component only to second order. P therefore cannot show how far or how often the direction changed.
 - **Derived (model requirement):** a prevailing direction per flight plus random direction changes, never a fixed vector. The changes must be:
   - slow or small enough that a ~40 s stretch can keep the crosswind on one side (P)
-  - large enough to put the wind on other sides within a flight of about 10 minutes (pilot, Q2, Q6)
+  - large enough to put the wind on other sides within a longer flight (pilot, Q2, Q6)
 - **Assumed** (starting values, tunable):
-  - a slow meander around the prevailing direction: a bounded random walk with std 30° and a correlation time of 2 min
-  - rare shifts of 45–120° over 10–30 s, at about 1 per 5 min (gust fronts in rain showers)
+  - a slow meander around the prevailing direction: a bounded random walk (mean-reverting) with std 30° and a correlation time of 2 min
+  - rare shifts of 45–120° (either way, at random) over 10–30 s, at about 1 per 5 min (gust fronts in rain showers). Each shift then relaxes back towards the prevailing direction with the meander's 2 min correlation time, so the wind stays mostly from its prevailing side.
   - local reversals from the obstacle-wake model, near belts and buildings
 
-  The fast wobble in direction comes from the turbulence in §5.4.
+  The fast wobble in direction comes from the turbulence in §5.4. T0c (§6.3) tests the preset's own wind history against this requirement; these starting values are chosen to meet it.
 
 ### 5.4 Turbulence intensity and scale, near the ground and near obstacles
 
 **Intensity**
-- **Derived:** at a given airspeed, both drag terms make the sideways force linear in the crosswind (§5.3). The sideways thrust's relative spread, 0.047 / 0.174 = 0.27, then bounds **σ_v ≲ 0.27 · w̄_c ≈ 1.2 m/s (0.5–2.7 m/s)**. That covers the slow part and includes the pilot's own course changes, so it is an upper bound for the wind alone.
+- **Derived:** at a given airspeed, both drag terms make the sideways force linear in the crosswind (§5.3). The sideways thrust's relative spread, 0.047 / 0.174 = 0.27, then bounds **σ_v ≲ 0.27 · w̄_c ≈ 1.4 m/s (0.7–3.1 m/s)**. That covers the slow part and includes the pilot's own course changes, so it is an upper bound for the wind alone.
 - **Assumed:** the standard low-altitude turbulence model (MIL-F-8785C, Dryden form) over farmland, at 20–50 m (the height varied, pilot Q5), gives:
-  - σ_v/U ≈ 0.12–0.15, which is at least 0.5–0.7 m/s at P's crosswind, inside the bound above
+  - σ_v/U ≈ 0.12–0.15, which is at least 0.6–0.8 m/s at P's crosswind, inside the bound above
   - length scales L_u = L_v ≈ 115–200 m
   - L_w ≈ the height
 
 **Open field against tree belt** (measured, §4.4)
 - **Open field:** the wobble is modest (roll residual 0.51°, pitch 0.28°), and there is not a single 2σ roll event in 30.9 s.
 - **Over and just past the tree belt** (7 s): roll 1.26° (2.5×), pitch 0.43° (1.6×) and yaw 1.67° (3.8×). All 7 roll events fall here, and the drone rocks by 3–5° every 1.3–2.9 s.
-- **Derived:** suppose the belt's thrust-tilt swings (1.72° std, §5.5) are the pilot's answers to sideways pushes. Through the 2.0° (1.1–3.0°) of lean per m/s (§5.3):
-  - the swings are crosswind fluctuations of at least 0.9 m/s std (0.6–1.5 m/s) above 0.3 Hz
-  - the 3–5° rocks are gusts of at least 1.5–2.5 m/s (1.0–4.5 m/s)
+- **Derived:** suppose the belt's thrust-tilt swings (1.72° std, §5.5) are the pilot's answers to sideways pushes. Through the 1.8° (0.95–2.6°) of lean per m/s (§5.3):
+  - the swings are crosswind fluctuations of at least 1.0 m/s std (0.7–1.8 m/s) above 0.3 Hz
+  - the 3–5° rocks are gusts of at least 1.7–2.8 m/s (1.1–5.3 m/s)
 
   Both are lower bounds, because the pilot doesn't fully answer gusts this fast (§5.1).
 
 **Scale**
 - **Derived:** the belt multiplies the attitude disturbance by 1.6–3.8, even though the drone is well above the tree tops. Its wake adds turbulence at scales far below the open-field integral scale.
   - Roll events over the belt last 0.28–0.45 s and arrive 0.6–0.8 s apart.
-  - At the derived airspeed of 8–21 m/s (§5.3, frozen turbulence assumed), those are eddies of about 2–9 m, spaced 5–17 m apart. That is the size of the trees themselves.
+  - At the derived airspeed of 9–25 m/s (§5.3, frozen turbulence assumed), those are eddies of about 2.5–11 m, spaced 5–20 m apart (4–6 m, spaced 8–11 m, at the nominal 13 m/s). That is the size of the trees themselves.
 - **Assumed:** field studies of shelterbelt wakes report up to about twice the upstream turbulence intensity from roughly 5 to 15 belt heights downwind, in a wake that grows to 2–3 belt heights tall. That matches the measured 1.6–2.5× in roll and pitch.
 
 **What the model needs** (derived)
@@ -373,54 +376,79 @@ This whole section takes the camera's angles as the airframe's (0° uptilt, pilo
 
 **Mass and inertia (Q4)**
 
+The pilot flies 10-inch heavy fiber quads of the reference class (pilot, Q4). `airframes.md` holds the published parts and the class ranges, and this section uses those ranges. Sortie specifics are deliberately not recorded (OPSEC).
+
 | Item | Mass | Label |
 |---|---|---|
-| Frame, 4 motors of the 3115 class, 10" three-blade props, ESC, flight controller, fiber air unit, camera, legs | 0.8–1.25 kg (nominal 1.0) | assumed, for the Viriy 10 Opto class the pilot named |
-| Fiber coil at take-off | ≈ 1.0 kg (0.9–1.1) | pilot, Q4 |
-| Cargo and battery | ≈ 0.8 kg (0.6–1.0, reading "maybe 100–200 g" as up to ±0.2 kg) | pilot, Q4 |
-| **Take-off** | **2.3–3.35 kg (nominal 2.8)** | derived |
-| Coil during P | 0.2–1.0 kg: the fiber pays out along the flight, and the pilot was about 10 km away (Q8). An empty spool with its housing is taken as at least 0.2 kg | assumed |
-| **During P** | **1.6–3.35 kg** | derived |
+| Frame, 452 mm wheelbase | 0.38 kg | published (`airframes.md`; the mass isn't on its cited page) |
+| 4 motors, 3115 size, 900 Kv, 40 A rating | 4 × 0.112 = 0.45 kg | published (`airframes.md`) |
+| ESC, flight controller, camera, fiber transceiver, wiring, 4 three-blade 10" props, legs | 0.35–0.5 kg | assumed (`airframes.md`) |
+| Battery, 6S Li-ion, 20–25 Ah (6S4P–6S5P) | 1.7–2.2 kg | derived: 24–30 cells of about 69 g (5 Ah 21700 cells, assumed), plus about 5 % for bus bars and wrap |
+| Fiber coil at take-off | ≈ 1.0 kg | class (`airframes.md`) |
+| Cargo | 0.5–2 kg, typically ≈ 1 kg | class (`airframes.md`) |
+| **Take-off** | **4.4–6.5 kg**; typical, with ≈ 1 kg of cargo, **4.9–5.5 kg** | derived |
+| Coil during P | 0.2–1.0 kg. How much fiber had paid out isn't recorded; an empty spool with its housing is taken as at least 0.2 kg | assumed |
+| **During P** | **3.6–6.5 kg**; typical 4.1–5.5 kg; **nominal 4.8 kg** | derived. The nominal takes the typical loadout with the coil half paid out and the cargo still on board (assumed) |
 
-- **Assumed** layout:
-  - motors and props: 4 × 85–105 g, 0.21–0.23 m from the centre
-  - arms: 100–160 g
-  - battery on top, 5 cm above the arm plane
-  - cargo 5 cm forward of the centre and 5 cm below the arm plane
-  - coil: a drum 14 cm across and 8 cm tall, centred 10 cm below the arm plane
-  - everything else: a 16 × 10 × 6 cm core
-- **Derived** (sum over those parts, across both mass ranges):
-  - roll inertia **0.013–0.027 kg·m²**, pitch **0.015–0.030 kg·m²** and yaw **0.020–0.033 kg·m²** (nominal take-off: 0.023, 0.025 and 0.027)
-  - radii of gyration of about 0.09 m (roll), 0.095 m (pitch) and 0.10–0.11 m (yaw)
-  - yaw inertia is only 1.1–1.6 times roll inertia, not twice as before: the hanging coil adds roll and pitch inertia but little yaw inertia
-- **Derived:** with a full coil, the centre of mass sits about 3 cm below the arm plane and the coil's centre 7 cm below that. A side gust on the coil is therefore also a rolling moment.
+- **Cross-check (published):** the class's published maximum take-off mass, 5.35 kg ± 10 % (4.8–5.9 kg, `airframes.md`), brackets the typical 4.9–5.5 kg. Loadouts above about 5.9 kg (2 kg of cargo with the larger pack) exceed it. They stay in the range as its heavy corner.
+- **Derived (the class's 20–35 Ah):**
+  - 5 Ah 21700 cells give 20–25 Ah as 6S4P–6S5P, or 30 Ah with 6 Ah cells.
+  - 35 Ah needs about 42 cells (6S7P), a pack of about 3.0 kg. With it, the take-off mass stays within 6.5 kg only with at most about 1.2 kg of cargo.
+  - The mass ranges above therefore use the 1.7–2.2 kg packs. The inertia ranges below also include the 3 kg pack with 0.5 kg of cargo (5.8 kg).
+- **Assumed** layout (x forward, z up, from the centre of the arm plane):
+  - motors with props: 4 × 130 g (112 g published plus an 18 g prop), on the diagonals 0.226 m from the centre (half the published wheelbase), 2 cm above the arm plane
+  - arms: 4 × 60 g rods from 3 to 22.6 cm out
+  - plates and standoffs: 143 g as a 16 × 10 × 3 cm box. With the arms, they make the frame's 383 g.
+  - legs: 4 × 25–35 g rods hanging 30 cm, 12 cm from the centre
+  - ESC, flight controller, camera, transceiver and wiring: 0.18–0.29 kg (the 0.35–0.5 kg above less props and legs), a 16 × 10 × 6 cm box 1 cm above the arm plane
+  - battery: a 14 × 9–11 × 7 cm box on top, centred 5.5 cm above the arm plane
+  - coil: a solid drum 14 cm across and 8 cm tall, centred 10 cm below the arm plane
+  - cargo: a 10 × 10 × 12 cm box in front of the coil, centred 10 cm forward and 8 cm below the arm plane
+- **Derived** (sum over those parts with the parallel-axis theorem), at seven loadouts:
+  - 3.6 kg: light parts, 1.7 kg pack, empty coil (0.2 kg), 0.5 kg of cargo
+  - 4.4 and 4.9 kg: light parts, 1.7 kg pack, full coil, 0.5 or 1 kg of cargo
+  - 4.8 kg (nominal): middle parts, 1.95 kg pack 10 cm wide, 30 g legs, 0.6 kg coil, 1 kg of cargo
+  - 5.5 and 6.5 kg: heavy parts, 2.2 kg pack, full coil, 1 or 2 kg of cargo
+  - 5.8 kg: heavy parts, the 3 kg pack (13 cm wide), full coil, 0.5 kg of cargo
+
+  Light parts are the 0.35 kg end, with 25 g legs and a 9 cm wide pack; heavy parts are the 0.5 kg end, with 35 g legs and an 11 cm pack. The results:
+  - roll inertia **0.033–0.057 kg·m²**, pitch **0.040–0.072 kg·m²** and yaw **0.043–0.060 kg·m²**; at the nominal 4.8 kg, **0.044, 0.054 and 0.050**
+  - radii of gyration r_g of 0.093–0.098 m (roll), 0.100–0.107 m (pitch) and 0.094–0.110 m (yaw)
+  - yaw inertia only 1.0–1.3 times roll inertia. The battery on top and the coil and cargo below add roll and pitch inertia but little yaw inertia. Pitch exceeds roll because the cargo sits forward.
+- **Derived:** with a full coil, the centre of mass sits 1–2 cm below the arm plane and 1–3 cm forward, and the coil's centre 8–9 cm below it. A side gust on the coil is therefore also a rolling moment. With the coil nearly empty, the centre of mass rises to about 1 cm above the arm plane.
 
 **Collective thrust**
 - **Derived** (`airframe.load_factor`): holding height at the measured tilt needs **1.10 W** on average (p95 1.13 W, maximum 1.14 W).
+- **Derived thrust curve** (momentum theory with a static figure of merit FM):
+  - Per motor, T = (FM · η · V · I · √(2ρA))^(2/3), with A = 0.0507 m² for a 10" disc. The thrust grows with the electrical power V · I to the power 2/3.
+  - With a fixed-pitch prop, T = k_T · n², and the rpm n follows throttle times pack voltage (assumed, ignoring the motor's resistance). So T ≈ T_full(V) · u² for a throttle u.
 - **Assumed:**
-  - 3115-class motors (900 Kv, 6S, the class published for this airframe family) with 10" three-blade props give 2.2–2.8 kgf each, static, on a full battery.
-  - P's flight state derates that to 0.55–0.75, from two effects:
-    - battery sag under load: thrust at full throttle scales with the voltage squared, giving 0.73–0.85
-    - 3–8 m/s of axial inflow through discs tilted 22.7° at 8–21 m/s, giving 0.75–0.9
+  - FM = 0.55–0.65 (static, 10" three-blade props) and η = 0.80–0.85 (motor and ESC).
+  - The published 40 A motor rating is the realistic maximum current.
+  - The loaded pack voltage is V = 6 · (OCV − I_cell · R_cell), with an OCV of 3.4–4.1 V per cell over the usable charge, R_cell ≈ 15 mΩ, and I_cell = 40 A (4P) or 32 A (5P) at full power. That gives 16.8–21.7 V.
 - **Derived:**
-  - At take-off, the static maximum thrust is 2.6–4.9 W.
-  - During P, 1.4–5.3 W is available. The mean need of 1.10 W is **21–76 % of it** (nominal 47 %, at the nominal take-off mass of 2.8 kg, 2.5 kgf per motor and a derating of 0.65).
-  - That is a **thrust margin of 1.3–4.8 (nominal 2.1)**.
-- **Derived:** this replaces the earlier case of 1.52 W and 70–95 % throttle, which assumed 25° of uptilt; Q1 rules that out.
-  - Collective thrust is not saturated in the mean. It gets close only at the heavy end with a sagged battery.
-  - The "motors crying" fits high rpm at 12 m/s or more, plus fast differential changes (below), better than a throttle held near its limit.
+  - The realistic maximum is **2.3–3.1 kgf per motor** (nominal 2.6 kgf, at FM 0.60, η 0.82, 3.7 V and 4P), **9.0–12.5 kgf** in total. That agrees within about 0.2 kgf with the 2.5–3.2 kgf assumed in `airframes.md`. The low end is a sagged pack near empty.
+  - At take-off that is a thrust-to-weight of 1.4–2.8, and 2.0 for the typical 5.2 kg at the nominal thrust.
+- **Assumed:** in P's flight state, axial inflow through the discs tilted 22.7° at 9–25 m/s derates the thrust to 0.80–0.95 (nominal 0.90 at 13 m/s); the edgewise flow partly offsets it. The pack's sag is already in the range above.
+- **Derived:**
+  - During P, 7.2–11.9 kgf is available (nominal 9.4 kgf). The mean need of 1.10 W is **33–99 % of it**, **nominal 57 %** at 4.8 kg.
+  - That is a **thrust margin of 1.0–3.0 (nominal 1.8)**. With thrust going with throttle squared (above), 57 % is about three-quarters of full throttle.
+  - At the nominal mass, collective thrust is not saturated in the mean. The heavy corner, 6.5 kg on a sagged pack, has no margin left: it could only just hold P's flight state.
+  - The "motors crying" fits: high rpm at about three-quarter throttle and 13 m/s or more, plus fast differential changes (below).
+- **Derived:** this replaces the margin of 2.1 (1.3–4.8) derived for the earlier 1.6–3.35 kg.
 
 **Roll and pitch authority**
 - **Measured** (`airframe.body_accel`, `accel[pitch]`): the 95th-percentile angular acceleration about the body's roll axis is 151 °/s² (maximum 412). In pitch it is 97 °/s² (maximum 208). Both include noise (up to about 53 °/s² std in roll and 20 °/s² in pitch, §2), so they are upper bounds.
-- **Assumed:** the motors sit 0.148–0.163 m from the roll and pitch axes (the 0.21–0.23 m arms of a 10" X frame).
-- **Derived:** at the 95th percentile these need only **1.3–1.5 % of hover thrust as differential thrust**, and 3.5–4.1 % at the maximum. Pitch needs 0.9–1.1 % and 2.0–2.3 %.
+- **Derived:** the motors sit 0.160 m from the roll and pitch axes (the published 452 mm wheelbase, as an X frame).
+- **Derived:** the differential thrust needed, as a share of hover thrust, is r_g² · α / (1.10 · g · 0.160 m). At the 95th percentile that is only **1.3–1.5 %** in roll, and 3.6–4.0 % at the maximum. Pitch needs 1.0–1.1 % and 2.1–2.4 %.
 - **Measured:** the roll and pitch rate distributions are symmetric to within 5 %, with no clipped tails. **There is no sign of roll or pitch saturation.**
 
 **Yaw authority**
-- **Assumed:** rotor drag torque of 0.015–0.02 N·m per newton of thrust (10" three-blade props).
-- **Derived:** the body yaw acceleration of 77 °/s² at the 95th percentile (maximum 288) needs **6–11 % differential thrust** between the two rotor pairs, and **24–43 %** at the maximum. These are upper bounds, because they include noise.
-- **Derived:** **yaw is the axis that runs out of authority first**. It needs 4–9 times the roll figure.
-  - With the collective at 21–76 % of the available thrust, a 43 % shift between rotor pairs comes close to a motor's limit.
+- **Assumed:** rotor drag torque κ of 0.015–0.02 N·m per newton of thrust (10" three-blade props).
+- **Derived:** the body yaw acceleration of 77 °/s² at the 95th percentile (maximum 288) needs r_g² · α / (κ · 1.10 · g): **5.5–10 % differential thrust** between the two rotor pairs, and **21–38 %** at the maximum. These are upper bounds, because they include noise.
+- **Derived:** **yaw is the axis that runs out of authority first**. It needs 4–8 times the roll figure.
+  - The rotor pair that takes the extra thrust runs at (1 + shift) times the collective. At the nominal 57 % and the maximum shift of 38 %, that is 79 % of its limit.
+  - It saturates once the collective passes 72 %, which the heavy corner reaches (above).
   - **Measured:** P shows no direct sign of yaw saturation. Yaw's whole-clip kurtosis of 9 is mostly the mix of belt and field (2.8 over the belt, 4.3 over the field, §4.4), not clipped authority.
 
 **The horizon–heading trade-off (Q1, Q7)**
@@ -461,7 +489,7 @@ This whole section takes the camera's angles as the airframe's (0° uptilt, pilo
   - three picture losses of 0.40–0.67 s and one black frame in 47 s, all recovered, with no consistent link to brisk manoeuvres
   - all fall at f676–f1164, 12–27 s after the belt crossing, over open field
   - none falls over the belt, where the wobble was 2.5 times larger
-- **Assumed (pilot, Q8):** the cause is unknown, because the pilot was about 10 km away.
+- **Assumed (pilot, Q8):** the cause is unknown; the pilot was far from the drone.
   - His hypothesis: wind shakes the optic fiber, making the picture noisier and flashier, and the trees plus the drone's wobble stretch it.
   - `video-feed.md` N12 gives these same events that driver: link-margin dips from fiber tension spikes and tight bends.
   - N12 owns their statistics, so they are not re-measured here.
@@ -477,11 +505,11 @@ This whole section takes the camera's angles as the airframe's (0° uptilt, pilo
 
 ### 5.6 Summary for the wind model
 
-1. A steady crosswind that makes the drone lean about 9° at 22.7° of forward pitch (derived: roughly 4.5 m/s across the path at about 12 m/s of airspeed). It blows from a prevailing direction that changes at random, never a fixed vector (pilot, Q2).
+1. A steady crosswind that makes the drone lean about 9° at 22.7° of forward pitch (derived for the class mass: roughly 5 m/s across the path at about 13 m/s of airspeed). It blows from a prevailing direction that changes at random, never a fixed vector (pilot, Q2; T0c).
 2. Background turbulence that, under a pilot of 0.5 Hz (roll) and 0.9 Hz (pitch) bandwidth, leaves 0.5° of roll and 0.3° of pitch wobble above 0.3 Hz over open field.
 3. Wakes behind tree belts (and, by extension, buildings) that multiply that wobble 1.6–4× and deliver a burst every 0.6–0.8 s. The gusts push sideways, so the pilot pays for each one with horizon or heading (§5.5).
 4. A steady wobble over open field that never goes calm, with isolated pitch jolts on top; the bursts are spatial, over the belt, not everywhere (§5.4). Roll and pitch are nearly independent; roll and heading are coupled through that trade-off.
-5. Yaw authority is the weak link. Collective thrust keeps a margin of about 2 (1.3–4.8).
+5. Yaw authority is the weak link. Collective thrust keeps a margin of about 1.8 (1.0–3.0) in P's flight state, at about three-quarter throttle.
 6. Picture losses need a fiber tension, bend and vibration driver (the pilot's hypothesis, `video-feed.md` N12).
 
 ### 5.7 The pilot's answers, and what is still open
@@ -491,21 +519,19 @@ The pilot answered Q1–Q8 (`pilot-answers.md` in the OpenSpec change). His stan
 | # | Question | Answer (pilot) | Where it went |
 |---|---|---|---|
 | Q1 | Camera uptilt | **0°** | Camera angles are the airframe's (§1.2); thrust and margin (§5.5); the roll–yaw coupling re-explained (§5.5, T10b) |
-| Q2 | Wind direction and strength | Mostly from the left, but at random from other sides too. Strength unknown | Checked against the lean, and a prevailing direction plus random changes (§5.3, T0b) |
+| Q2 | Wind direction and strength | Mostly from the left, but at random from other sides too. Strength unknown | Checked against the lean, and a prevailing direction plus random changes (§5.3, T0c) |
 | Q3 | Flight mode | Acro (rate) | §5.1; the simulated pilot (§6.1) |
-| Q4 | Mass and props | Viriy 10 Opto, 10" props, coil about 1 kg, cargo and battery about 800 g ("maybe 100–200 g"), frame mass unknown | Mass range and inertia (§5.5), airspeed (§5.3), test mass (§6.2) |
+| Q4 | Mass and props | A 10-inch heavy fiber quad of the reference class; coil, cargo and battery in the class ranges (`airframes.md`). Sortie specifics are not recorded (OPSEC) | Mass range and inertia (§5.5), airspeed (§5.3), test mass (§6.2) |
 | Q5 | Height and speed | Varied height | Turbulence scales as a range (§5.4); test heights spread (§6.2) |
-| Q6 | Flight duration | About 10 min; this clip was the toughest part | §6 describes the worst stretch; milder bands in §6.4 |
+| Q6 | Flight duration | This clip was the toughest part of a longer flight | §6 describes the worst stretch; the weather levels in §6.4 |
 | Q7 | Was the tree belt worse? | Yes. "Either you yaw but lose direction, OR you roll and keep direction but lose the horizon" | The horizon–heading trade-off (§5.5), the pilot's split (§6.1), T10b, T11 |
-| Q8 | Cause of the picture losses | Unknown (about 10 km away). Hypothesis: wind shakes the fiber, and trees plus wobbling stretch it | A tether driver for `video-feed.md` N12 (§5.5) |
+| Q8 | Cause of the picture losses | Unknown; the pilot was far from the drone. Hypothesis: wind shakes the fiber, and trees plus wobbling stretch it | A tether driver for `video-feed.md` N12 (§5.5) |
 
-Still open. Rough answers are enough, and none of them blocks the targets:
+The earlier Q9–Q11 (motor and battery, the cargo mass, the coil's length) are closed at the class level by `airframes.md`; sortie specifics stay unrecorded. One question is new. A rough answer is enough, and it doesn't block the targets:
 
 | # | Question | What it sharpens |
 |---|---|---|
-| Q9 | Motor size and battery: cells, capacity, LiPo or Li-ion? | Thrust margin and sag (§5.5) |
-| Q10 | Does "maybe 100–200 g" mean the cargo alone, or a correction to the 800 g? | Mass range (§5.5) |
-| Q11 | Roughly how many kilometres of fiber did the 1 kg coil hold? | The coil mass left during P (§5.5), and the tether's mass per metre |
+| Q14 | In strong wind, do you fly slower than your usual cruise, or was this stretch at cruise speed? | The airspeed and crosswind (§5.3) |
 
 ## 6. Severe-wind targets
 
