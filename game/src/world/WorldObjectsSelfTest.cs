@@ -61,10 +61,12 @@ public static partial class WorldQuerySelfTest
         List<TestShape> shapes = RandomShapes(shapesWorld, catalog);
         pass &= ClosestAgrees(shapesWorld, shapes);
         pass &= RaysAgree(shapesWorld, shapes);
+        pass &= GeometryLookup(shapesWorld, shapes, Flat(), Fresh(), dir);
         pass &= TerrainRays(sample, dir, table);
         pass &= MaterialsReported(Fresh(), catalog);
         pass &= RoofRay(Fresh(), catalog);
         pass &= RailsAdded(Fresh(), catalog);
+        pass &= ResetBetweenFlights(Fresh);
         pass &= NoAllocationSameBits(Fresh());
         pass &= FarFromEverything(Fresh());
         return pass;
@@ -966,7 +968,8 @@ public static partial class WorldQuerySelfTest
             + $"above the house: {houseHit[0].Distance:0.000000000} m, object {houseHit[0].Object}, {catalog.MaterialIds[houseHit[0].Material]}");
     }
 
-    /// The launch rails added at sample_patch's example start (x 12, z −30, yaw 90°) become object 10. An arm-like capsule
+    /// The launch rails added at sample_patch's example start (x 12, z −30, yaw 90°) become the next object after those of
+    /// objects.json. An arm-like capsule
     /// (10 mm radius, 0.4 m) resting 0.1 mm into both bars returns exactly the two bars in order, steel, facing up, at
     /// −0.1 mm, and the same when it lands on them from 20 mm above in one step. A ray from 1 m above a bar hits it at
     /// 1 m, and the wind grid cell under the rails now holds them.
@@ -975,6 +978,7 @@ public static partial class WorldQuerySelfTest
         var start = new Double3(RailStart.X, TerrainAt(world, RailStart.X, RailStart.Z), RailStart.Z);
         int row = (int)Math.Floor((start.Z + world.Half) / 2), col = (int)Math.Floor((start.X + world.Half) / 2);
         WindCell before = world.WindGrid[row * world.WindCells + col];
+        int loaded = world.ObjectCount;
         int rails = world.AddObject("launch_rails", start, RailYaw);
         WindCell after = world.WindGrid[row * world.WindCells + col];
         double[] m = Rot(RailYaw, 0, 0);
@@ -997,11 +1001,188 @@ public static partial class WorldQuerySelfTest
         world.Raycast(ray, 2, hit);
         bool rayOk = Math.Abs(hit[0].Distance - 1) <= 1e-9 && hit[0].Object == rails && hit[0].Material == steel;
         bool wind = before.Porosity == 1 && after.TopM > 0 && after.Porosity < 1;
-        return Check("rails added", rails == 10 && world.ObjectCount == 11 && resting && landing && rayOk && wind,
+        return Check("rails added", rails == loaded && world.ObjectCount == loaded + 1 && resting && landing && rayOk && wind,
             $"rails are object {rails} of {world.ObjectCount}; resting arm: {numbers}; landing from 20 mm in one step: {landed} contacts "
             + $"({(landing ? "same" : "different")}); ray from 1 m above a bar: {hit[0].Distance:0.000000000} m, object {hit[0].Object}, "
             + $"{(hit[0].Material == Catalog.NoMaterial ? "terrain" : catalog.MaterialIds[hit[0].Material])}; wind cell under the "
             + $"rails before (top {before.TopM}, porosity {before.Porosity}), after (top {after.TopM:0.000}, porosity {after.Porosity:0.0000})");
+    }
+
+    /// World-query "Shape and wire geometry" (API review F3). Every random primitive against its reference here: kind,
+    /// material, centre, axes, half extents, radius and height. Three wires of 1 to 3 spans on a flat world: a 2 mm sphere
+    /// on the sag curve at t = 0.02, 0.1, 0.5, 0.9 and 0.98 of each span, and the lookup of its contact gives that span's
+    /// attachment points, length, sag and diameter, and SpanT = t within 1e-3. The sample_patch cable's mid-span contact
+    /// matches objects.json (read here) within 1 mm, and its point lies on the sag curve at SpanT. Terrain, a visual-only
+    /// object and indices out of range give false, and 10,000 lookups allocate nothing.
+    static bool GeometryLookup(WorldQuery world, List<TestShape> shapes, WorldQuery flat, WorldQuery sample, string dir)
+    {
+        int primitives = 0, bad = 0;
+        double worst = 0;
+        string first = "";
+        void Expect(string what, bool ok)
+        {
+            if (!ok && bad++ == 0)
+                first = $"; first: {what}";
+        }
+        foreach (TestShape t in shapes.Where(t => t.Kind != ShapeKind.Wire))
+        {
+            primitives++;
+            bool found = world.Geometry(t.Object, t.Shape, -1, out ShapeGeometry g);
+            Double3 half = t.Kind switch
+            {
+                ShapeKind.Box => t.Half,
+                ShapeKind.Sphere => new Double3(t.Radius, t.Radius, t.Radius),
+                ShapeKind.Capsule => new Double3(t.Radius, t.H + t.Radius, t.Radius),
+                _ => new Double3(t.Radius, t.H, t.Radius),
+            };
+            double height = t.Kind == ShapeKind.Capsule ? 2 * (t.H + t.Radius) : t.Kind == ShapeKind.Cylinder ? 2 * t.H : 0;
+            double error = new[]
+            {
+                (g.Center - t.C).Length(), (g.Axes.X - new Double3(t.M[0], t.M[3], t.M[6])).Length(),
+                (g.Axes.Y - new Double3(t.M[1], t.M[4], t.M[7])).Length(), (g.Axes.Z - new Double3(t.M[2], t.M[5], t.M[8])).Length(),
+                (g.HalfExtents - half).Length(), Math.Abs(g.Radius - (t.Kind == ShapeKind.Box ? 0 : t.Radius)), Math.Abs(g.Height - height),
+            }.Max();
+            worst = Math.Max(worst, error);
+            Expect($"object {t.Object} shape {t.Shape} {t.Kind}: found {found}, {g.Kind}, error {error:0.0e0} m",
+                found && g.Kind == t.Kind && g.Material == t.Material && error <= 1e-9);
+        }
+
+        var wires = new (Double3[] Points, double Sag, double Diameter)[]
+        {
+            (new[] { new Double3(-11, 2.5, -4), new Double3(11, 3.5, 5) }, 0.5, 0.012),
+            (new[] { new Double3(-6, 1.5, 9), new Double3(0, 2, 2), new Double3(7, 1.2, -9) }, 0.3, 0.005),
+            (new[] { new Double3(-20, 5, 20), new Double3(-10, 6, 20), new Double3(-10, 5.5, 30), new Double3(0, 7, 32) }, 0.2, 0.01),
+        };
+        var buffer = new StaticContact[8];
+        int probes = 0;
+        double worstT = 0, worstSpan = 0;
+        foreach (var (points, sag, diameter) in wires)
+        {
+            int obj = flat.AddWire("cable", points, sag, diameter);
+            for (int span = 0; span + 1 < points.Length; span++)
+            {
+                Double3 a = points[span], b = points[span + 1];
+                foreach (double t in new[] { 0.02, 0.1, 0.5, 0.9, 0.98 })
+                {
+                    probes++;
+                    Double3 on = a + (b - a) * t - new Double3(0, 4 * sag * t * (1 - t), 0);
+                    int n = flat.StaticContacts(new Capsule(on, on, 0.002), 0.01, buffer);
+                    int at = Array.FindIndex(buffer, 0, Math.Min(n, buffer.Length), c => c.Object == obj);
+                    ShapeGeometry g = default;
+                    bool found = at >= 0 && flat.Geometry(obj, buffer[at].Shape, buffer[at].WireParam, out g);
+                    double spanError = Math.Max(Math.Max((g.SpanA - a).Length(), (g.SpanB - b).Length()), Math.Max(
+                        Math.Abs(g.SpanLength - (b - a).Length()), Math.Max(Math.Abs(g.Sag - sag), Math.Abs(g.Diameter - diameter))));
+                    worstSpan = Math.Max(worstSpan, spanError);
+                    worstT = Math.Max(worstT, Math.Abs(g.SpanT - t));
+                    Expect($"wire {obj} span {span} t {t}: found {found}, {g.Kind}, span error {spanError:0.0e0} m, SpanT {g.SpanT:0.0000}",
+                        found && g.Kind == ShapeKind.Wire && spanError <= 1e-9 && Math.Abs(g.SpanT - t) <= 1e-3);
+                }
+            }
+        }
+
+        using JsonDocument objects = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "objects.json")));
+        JsonElement cable = objects.RootElement.GetProperty("objects")[9];
+        Double3 Point(int i)
+        {
+            JsonElement v = cable.GetProperty("points_m")[i];
+            return new Double3(v[0].GetDouble(), v[1].GetDouble(), v[2].GetDouble());
+        }
+        Double3 c0 = Point(0), c1 = Point(1);
+        double cableSag = cable.GetProperty("sag_m").GetDouble(), cableDiameter = cable.GetProperty("diameter_m").GetDouble();
+        const double r = 0.0075;
+        var below = new Double3((c0.X + c1.X) / 2, (c0.Y + c1.Y) / 2 - cableSag - cableDiameter / 2 - r - 0.001, (c0.Z + c1.Z) / 2);
+        int m = sample.StaticContacts(new Capsule(below, below, r), 0.005, buffer);
+        int k = Array.FindIndex(buffer, 0, Math.Min(m, buffer.Length), c => c.Object == 9);
+        ShapeGeometry cg = default;
+        bool cableFound = k >= 0 && sample.Geometry(9, buffer[k].Shape, buffer[k].WireParam, out cg);
+        double ct = cg.SpanT;
+        Double3 curve = cg.SpanA + (cg.SpanB - cg.SpanA) * ct - new Double3(0, 4 * cg.Sag * ct * (1 - ct), 0);
+        double cableError = Math.Max(Math.Max((cg.SpanA - c0).Length(), (cg.SpanB - c1).Length()),
+            Math.Max(Math.Abs(cg.SpanLength - (c1 - c0).Length()), Math.Max(Math.Abs(cg.Sag - cableSag), Math.Abs(cg.Diameter - cableDiameter))));
+        double offCurve = k >= 0 ? (buffer[k].Point - curve).Length() - cg.Radius : double.PositiveInfinity;
+        bool cableOk = cableFound && cg.Kind == ShapeKind.Wire && cg.Material == sample.Catalog.MaterialId("cable") && cableError <= 1e-3
+            && Math.Abs(offCurve) <= 1e-3;
+
+        // Terrain, the visual-only household_junk (object 3), a shape past the house's one and the cable's one, an object
+        // past the last and a negative shape; the gate's third shape exists.
+        bool refused = !sample.Geometry(-1, 0, -1, out _) && !sample.Geometry(3, 0, -1, out _) && !sample.Geometry(0, 1, -1, out _)
+            && !sample.Geometry(9, 1, 0.5, out _) && !sample.Geometry(sample.ObjectCount, 0, -1, out _) && !sample.Geometry(2, -1, -1, out _)
+            && sample.Geometry(2, 2, -1, out _);
+        double sum = 0;
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 10000; i++)
+        {
+            sample.Geometry(i % 10, i % 3, i % 7 / 7.0, out ShapeGeometry g);
+            sum += g.Radius + g.SpanLength;
+        }
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        return Check("shape and wire geometry", bad == 0 && primitives > 0 && cableOk && refused && allocated == 0 && sum > 0,
+            $"{primitives} random primitives: kind, material, centre, axes, half extents, radius and height within {worst:0.0e0} m of "
+            + $"the reference; {probes} probes on 6 spans of 3 wires: attachment points, span length, sag and diameter within "
+            + $"{worstSpan:0.0e0} m, SpanT within {worstT:0.0e0} of t (limit 1e-3); {bad} wrong{first}. sample_patch cable at "
+            + $"mid-span: span length {cg.SpanLength:0.000000} m, sag {cg.Sag} m, diameter {cg.Diameter} m, attachment points and all "
+            + $"within {cableError * 1000:0.000000} mm of objects.json (limit 1 mm), SpanT {ct:0.0000}, contact point {offCurve * 1000:0.000} mm "
+            + $"off the wire's surface at that t; no geometry for terrain, visual-only, out-of-range: {refused}; 10000 lookups "
+            + $"allocate {allocated} bytes");
+    }
+
+    /// World-query "Reset between flights" (API review F2). On sample_patch the launch rails, a gate and a 20 m wire are
+    /// added, then the world is reset: the object count and the wind grid are the freshly loaded ones, bit for bit, and
+    /// the gate's gap, the wire and the rails are gone from GapsNear, contacts and rays. The rails are added again: a
+    /// 7.5 mm foot resting 0.1 mm into each bar gets exactly one contact, from that bar, and the wind grid equals, bit for
+    /// bit, that of a fresh world with the rails added once. Without the reset a second set of rails gives each foot two
+    /// contacts, for comparison.
+    static bool ResetBetweenFlights(Func<WorldQuery> fresh)
+    {
+        WorldQuery world = fresh(), once = fresh(), twice = fresh();
+        static byte[] Grid(WorldQuery w) => MemoryMarshal.AsBytes(w.WindGrid).ToArray();
+        byte[] loaded = Grid(world);
+        int loadedObjects = world.ObjectCount;
+        var start = new Double3(RailStart.X, TerrainAt(world, RailStart.X, RailStart.Z), RailStart.Z);
+        var gateAt = new Double3(-80, TerrainAt(world, -80, 80), 80);
+        var wireMid = new Double3(-80, 8 - 0.5, 60);
+        var gaps = new Gap[4];
+        var buffer = new StaticContact[8];
+        var ray = new[] { new Ray(start + Mul(Rot(RailYaw, 0, 0), new Double3(-0.13, 1.25, 0.1)), new Double3(0, -1, 0)) };
+        var hit = new RayHit[1];
+        world.AddObject("launch_rails", start, RailYaw);
+        world.AddObject("gate_frame", gateAt, 0);
+        int wire = world.AddWire("cable", new[] { new Double3(-90, 8, 60), new Double3(-70, 8, 60) }, 0.5, 0.012);
+        int gapsAdded = world.GapsNear(gateAt + new Double3(0, 1, 0), 3, gaps);
+        int wireAdded = world.StaticContacts(new Capsule(wireMid, wireMid, 0.05), 0.01, buffer);
+        bool wireSeen = wireAdded == 1 && buffer[0].Object == wire;
+
+        world.ResetRuntimeObjects();
+        int gapsReset = world.GapsNear(gateAt + new Double3(0, 1, 0), 3, gaps);
+        int wireReset = world.StaticContacts(new Capsule(wireMid, wireMid, 0.05), 0.01, buffer);
+        world.Raycast(ray, 2, hit);
+        bool cleared = world.ObjectCount == loadedObjects && Grid(world).AsSpan().SequenceEqual(loaded) && gapsAdded == 1 && gapsReset == 0
+            && wireSeen && wireReset == 0 && hit[0].Object == -1;
+        string clearedText = $"after the reset {world.ObjectCount} objects (loaded {loadedObjects}), wind grid "
+            + $"{(Grid(world).AsSpan().SequenceEqual(loaded) ? "equal to" : "DIFFERENT from")} the loaded one, gate gaps {gapsAdded} → {gapsReset}, "
+            + $"wire contacts {wireAdded} → {wireReset}, ray at a bar hits object {hit[0].Object}";
+
+        int rails = world.AddObject("launch_rails", start, RailYaw);
+        int onceRails = once.AddObject("launch_rails", start, RailYaw);
+        twice.AddObject("launch_rails", start, RailYaw);
+        twice.AddObject("launch_rails", start, RailYaw);
+        const double r = 0.0075;
+        bool feet = true;
+        string feetText = "";
+        for (int bar = 0; bar < 2; bar++)
+        {
+            Double3 foot = start + Mul(Rot(RailYaw, 0, 0), new Double3(bar == 0 ? -0.13 : 0.13, 0.25 + r - 1e-4, 0.05));
+            int n = world.StaticContacts(new Capsule(foot, foot, r), 0.002, buffer);
+            feet &= n == 1 && buffer[0].Object == rails && buffer[0].Shape == bar;
+            string mine = string.Join(" and ", buffer.Take(Math.Min(n, buffer.Length)).Select(c => $"({c.Object}, {c.Shape})"));
+            int doubled = twice.StaticContacts(new Capsule(foot, foot, r), 0.002, buffer);
+            feetText += $"bar {bar}: {n} contact {mine}, without the reset {doubled}; ";
+        }
+        bool grid = Grid(world).AsSpan().SequenceEqual(Grid(once));
+        return Check("reset between flights", cleared && rails == loadedObjects && onceRails == rails && feet && grid,
+            $"rails, a gate and a wire added, then reset: {clearedText}. Rails added again as object {rails} (a single addition: "
+            + $"{onceRails}); a 7.5 mm foot resting on each {feetText}wind grid {(grid ? "equal to" : "DIFFERENT from")} a single "
+            + "addition's, bit for bit");
     }
 
     // ---------------------------------------------------------------- allocation, determinism, broadphase
@@ -1104,7 +1285,7 @@ public static partial class WorldQuerySelfTest
     }
 
     /// Queries over open meadow far from every object return nothing and take the broadphase's fast path; informational
-    /// timings of the object queries follow (the formal benchmark is task 3.6).
+    /// timings of the object queries follow (the formal benchmark is tools/worldbench, in Release).
     static bool FarFromEverything(WorldQuery world)
     {
         ObjectInputs inputs = Inputs(world);
@@ -1150,7 +1331,7 @@ public static partial class WorldQuerySelfTest
         const string build = "Release";
 #endif
         return Check("far from everything", found == 0,
-            $"1000 capsules over open meadow: {found} contacts. Timings ({build} build, informational; the benchmark is task 3.6): "
+            $"1000 capsules over open meadow: {found} contacts. Timings ({build} build, informational; the benchmark is tools/worldbench): "
             + $"far {farUs:0.000} µs, near objects static {nearUs:0.000} µs and swept {sweptUs:0.000} µs per capsule, 2 m rays "
             + $"{rayUs:0.000} µs each (budget: 100,000 capsules or rays in 100 ms, 1 µs each)");
     }

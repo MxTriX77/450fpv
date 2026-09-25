@@ -49,7 +49,7 @@ Relief, ridges and pitfalls SHALL be deterministic functions of position, map se
 Elements SHALL come from integer hashing of world cells, kind, slot and the map seed, in the canonical order (cell z, cell x, kind, slot). Each element SHALL carry:
 - a stable 64-bit `Id`
 - `Kind` and `Surface`
-- `Base`: standing grass roots at `GroundHeight`; lying elements rest on `SupportTop`
+- `Base`: standing grass roots at `GroundHeight`. Lying elements (straw, twigs) run straight from `SupportTop` at their root to `SupportTop` at their tip, so they lie on the mat instead of floating above it or being buried in it
 - `Direction`, `Length`, `Diameter`
 - `TipStiffness` = table × (d/d̄)⁴ × (L̄/L)³
 - `HookRelease`, drawn by the element hash from the cover's range
@@ -68,6 +68,10 @@ Results SHALL go into a caller buffer, and the true count SHALL be returned so o
 #### Scenario: Crossing straw is found
 - **WHEN** a 1 m lying straw is rooted outside the query sphere but crosses through it
 - **THEN** the straw is returned
+
+#### Scenario: Lying elements lie on the mat
+- **WHEN** every lying element of `belt_straw` over 100 m² is sampled along its length
+- **THEN** endpoints are on `SupportTop` within 1 mm. Elements that touch no pitfall stay within ±0.25 m of `SupportTop` along their whole length. Elements that cross a pitfall are reported separately: bridging a pit is physical, and a rare end-in-pit element cutting the wall is a known limitation (about 0.1 %)
 
 #### Scenario: Density matches the surface
 - **WHEN** elements are counted over 100 m² of `belt_straw` at cover density 1.0
@@ -97,6 +101,13 @@ At most one contact is reported per (object, shape). Results SHALL be in canonic
 - **WHEN** a capsule touches a steel-rail shape
 - **THEN** the contact carries the steel material id
 
+### Requirement: Shape and wire geometry
+The API SHALL expose a read-only, allocation-free lookup by (object, shape) giving the shape's kind, world pose, dimensions (half-extents, radius, height) and material. For wires it SHALL also give the span length, sag and diameter, so physics can compute wire compliance and fiber bend radius over edges.
+
+#### Scenario: Wire geometry
+- **WHEN** physics looks up a contact's (object, shape) on the sample cable
+- **THEN** it gets the span length, sag and diameter that match `objects.json` within 1 mm
+
 ### Requirement: Raycast
 `Raycast(rays, maxDistance, hits)` SHALL test a batch of rays against terrain and objects. Each `RayHit` gives distance (or +∞), point, normal, material, object (−1 for terrain) and surface (for terrain hits). Results are allocation-free, in pure C#.
 
@@ -124,14 +135,18 @@ The API SHALL expose, read-only on a 2 m grid, `TopM` and `BaseM` (m above terra
 - **THEN** the gate's named gap is returned with its world-space centre and size
 
 ### Requirement: Runtime objects
-Before a flight starts, the game SHALL be able to add catalog objects, such as the launch rails at a start point. Once added, they are static and included in static contacts, raycasts and the wind grid.
+Before a flight starts, the game SHALL be able to add catalog objects, such as the launch rails at a start point. Once added, they are static and included in static contacts, raycasts and the wind grid. The game SHALL be able to reset the world to its `objects.json` state before each flight.
+
+#### Scenario: Reset between flights
+- **WHEN** rails are added, the world is reset, and rails are added again
+- **THEN** a foot resting on them gets exactly one contact per bar, and the wind grid equals the grid of a single addition
 
 #### Scenario: Rails added
 - **WHEN** the rails asset is added at a start point
 - **THEN** a capsule resting on them returns contacts with the steel material
 
 ### Requirement: Content hash
-The API SHALL expose lookups for surfaces by index, materials by id and the soil reference diameter (review §6.1). It SHALL also expose a 64-bit hash of the map package files plus `surfaces.json` and `catalog.json`. The physics log records it, so a replay can refuse to run on a mismatched world.
+The API SHALL expose lookups for surfaces by index, materials by id and the soil reference diameter (review §6.1). It SHALL also expose a 64-bit hash of the map package files plus `surfaces.json` and `catalog.json`. The physics log records it, so a replay can refuse to run on a mismatched world. The API SHALL also expose a `QueryVersion` integer, raised whenever query math changes, because the content hash covers only the data.
 
 #### Scenario: Any change is detected
 - **WHEN** one byte of any hashed file changes
@@ -150,12 +165,12 @@ The ground function, the micro-detail generator, static contacts and raycasts SH
 
 ### Requirement: Physics-grade performance
 Queries SHALL allocate nothing on the managed heap in steady state. On the dev machine:
-- 100,000 ground samples SHALL take under 10 ms
-- `MicroDetailNear` with r = 2 m on the densest surface SHALL take under 0.25 ms
+- 100,000 ground samples in the physics call pattern (44 nearby points per step along flight paths) SHALL take under 10 ms. Random points across the whole map are reported for information only, because physics never samples that way
+- `MicroDetailNear` with r = 2 m SHALL take under 0.25 ms on the densest standing-cover surface and under 1 ms on every surface. Physics SHALL call it ahead of need (prefetch before the cache edge) and never inside a step's critical path
 - 100,000 capsule queries near `sample_patch` objects SHALL take under 100 ms
 - 100,000 rays of ≤ 2 m SHALL take under 100 ms
 - one worst-case physics step (44 ground samples + 46 swept capsules + 8 rays) SHALL take under 60 µs
 
 #### Scenario: Benchmark
-- **WHEN** the world-query benchmark selftest runs on the dev machine
+- **WHEN** the world-query benchmark runs on the dev machine **on AC power** (battery clocks are reported but not judged)
 - **THEN** every timing is under its limit, with zero GC allocations during the timed sections

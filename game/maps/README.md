@@ -143,7 +143,7 @@ Each `cover` entry:
 | Field | Unit | Valid range | Meaning |
 |---|---|---|---|
 | `type` | — | `grass`, `straw`, `twigs`, `litter` | Picks the `cover.png` channel: R, G, B, A |
-| `height_m` | [min, max], m | 0 – 3, min ≤ max; min > 0 when `stems_per_m2` > 0 | Element length along its axis: standing height for grass, lying length for straw and twigs, layer thickness for litter |
+| `height_m` | [min, max], m | 0 – 3, min ≤ max; min > 0 when `stems_per_m2` > 0 | Element length along its axis: standing height for grass, lying length for straw and twigs (measured horizontally, see Micro-detail below), layer thickness for litter |
 | `stems_per_m2` | 1/m² | 0 – 5000 | Elements per m² at cover multiplier 1.0 |
 | `diameter_m` | [min, max], m | 0 – 0.2, min ≤ max; min > 0 when `stems_per_m2` > 0 | Stem, straw or twig diameter. For litter, the leaf width. |
 | `lateral_stiffness_n_per_m` | N/m | 0 – 1e4 | Tip stiffness (sideways force per metre of tip deflection, a cantilever at the root) of an element of **mean** length and **mean** diameter. Each element is scaled by (d / d̄)⁴ × (L̄ / L)³, so all elements of a cover share one tissue modulus. Physics scales it for lower contact points. |
@@ -166,7 +166,7 @@ How the starting soil values were chosen: the reference notes (§7) give how far
 - **Ridges** use the profile 1 − 2·smoothstep(2q), where q is the distance to the nearest crest in spacings. It is C², close to a cosine, with an RMS of 0.697 × `amplitude_m`. The phase comes from the seed.
 - **Pitfalls:** each 1 m world cell holds at most one candidate, at a hashed point. It exists with the `density_per_m2` of the surface under that point, and its radius and depth are drawn uniformly from the ranges. The floor is flat, and the wall is a smoothstep over the outer 25 % of the radius. A pitfall is never clipped at a cell or surface border, and where two overlap, the deeper one counts. Its id is its cell: (x + 32768) in the low 16 bits and (z + 32768) in the high 16 bits.
 - **Mat depth** is smooth noise between `mat.depth_m` min and max, with nodes half the surface's relief wavelength apart, times the cover channel. It follows the ground down into pitfalls.
-- **Micro-detail:** each 0.25 m world cell holds density × channel × 0.0625 m² elements of each kind. The fraction is dithered over 1 m blocks, so the count per m² matches the table. Length, diameter and hook release are uniform in their ranges, and an element hooks with `hook_probability`. Grass stands rooted on the ground, leaning up to 20° from vertical. Straw, twigs and litter lie on the mat top, along the ground's slope. Each element has a stable 64-bit id: 19 bits of the seed hash, then cell z and cell x (each + 65536, 17 bits), kind (2 bits) and slot (9 bits).
+- **Micro-detail:** each 0.25 m world cell holds density × channel × 0.0625 m² elements of each kind. The fraction is dithered over 1 m blocks, so the count per m² matches the table. Length, diameter and hook release are uniform in their ranges, and an element hooks with `hook_probability`. Grass stands rooted on the ground, leaning up to 20° from vertical. Straw, twigs and litter lie straight from the mat top (SupportTop) at their root to the mat top at their tip, which is the drawn length away along their heading. So an element's `Length` is that chord: the drawn length on level ground, a little more on a slope. Over a dip or a pitfall it bridges, and across a hump it cuts in. Each element has a stable 64-bit id: 19 bits of the seed hash, then cell z and cell x (each + 65536, 17 bits), kind (2 bits) and slot (9 bits).
 - **Outside the map**, terrain and surfaces continue from the edge cell, and samples carry the `OutsideMap` flag.
 
 There is no soil porosity field (the notes §7 give 0.40–0.60 void fractions). The contact model never used it: "loose" and "porous" ground is carried by the bearing modulus, the unload ratio and the maximum sink, and rubble voids are pitfalls.
@@ -237,15 +237,16 @@ Each gap is a rectangular opening in asset space: `name`, `center_m` [x, y, z], 
 
 `game/src/world/` reads `objects.json` and the catalog without Godot (D-010), and the loader draws from the same rules:
 
-- **Indices.** An object's index is its position in `objects.json`, where wires and visual-only objects count too. Objects the game adds before a flight, such as the launch rails at a start point, get the next indices. A material id is the material's position in the catalog's `materials` object.
+- **Indices.** An object's index is its position in `objects.json`, where wires and visual-only objects count too. Objects the game adds before a flight, such as the launch rails at a start point, get the next indices. Before each flight the game calls `ResetRuntimeObjects`, which removes them from contacts, rays, gaps and the wind grid, so that the world is its `objects.json` state again and the next rails get the same index. The flight log records every object added after the reset. A material id is the material's position in the catalog's `materials` object.
 - **Wires.** Each span from point a to point b drops 4·`sag_m`·t·(1 − t) below the straight line, sampled at ⌈|b − a| / `segment_m`⌉ equal steps of t. Contacts and rays use this polyline, thickened to `diameter_m`.
 - **Wind grid.** Cells are 2 m, with row 0 north. Each wind-volume shape whose `wind_porosity` β is below 1 marks the cells its footprint (its horizontal convex hull) covers.
   - A cell that is a fraction f covered gets porosity 1 − f·(1 − β^(2 m / D)).
   - D is the footprint's mean width over all directions: perimeter / π, the diameter for a round crown. A path straight across the volume then has porosity about β.
   - Top and base are the shape's highest and lowest points above the terrain at the cell centre, never below 0.
   - Where volumes overlap, porosities multiply, and the highest top and the lowest base win. Wires are not wind obstacles.
-- **Contacts.** There is at most one contact per (object, shape), and it carries that shape's material. A query sweeps the capsule from its previous pose. `Time` below 1 means the sweep went into or through the shape during the step and the capsule is now past it, so the contact is reported where the capsule first touched it.
-- **Rays** hit the rendered terrain triangles only from above, and they ignore a shape they start inside.
+- **Contacts.** There is at most one contact per (object, shape), and it carries that shape's material. A query sweeps the capsule from its previous pose. `Time` below 1 means the sweep went into or through the shape during the step and the capsule is now past it, so the contact is reported where the capsule first touched it. `Time` below 1 with a positive `Distance` is a graze, not a pass-through: the sweep came within a hair of the shape and left it again (conservative advancement gives up after 64 steps and counts that as a touch), so the `Distance` is clearance at the first touch and there is nothing to push against.
+- **Geometry.** `Geometry(object, shape, wireParam)` looks up a contact's shape: its kind, material, centre, axes, half extents, radius and height. For a wire it gives the span that holds the contact's wire parameter: its two attachment points, straight length, sag and diameter, and where on it the contact is, as the t of the sag curve. Physics takes a wire's compliance (T = w·L²/(8·sag)) and the fiber's bend radius over round shapes from it. The lookup is read-only and allocates nothing, and it returns false for terrain, visual-only objects and indices out of range.
+- **Rays** hit the rendered terrain triangles only from above, and they ignore a shape they start inside. A terrain hit, like a miss, carries the material `Catalog.NoMaterial` (65535), for which `Material()` returns null. The ground's contact properties are its surface's: `Surface(hit.Surface)`.
 
 ### `launch_rails`
 
@@ -271,6 +272,30 @@ Asset space: the origin is on the ground at the centre, the bars run along Z (th
 | Wind | no `wind_volume`, `wind_porosity` 0 | The collision boxes are the wind volume, and solid steel is opaque. The stand's openness comes from the small fraction of each 2 m wind cell that the thin tubes cover. |
 
 The `steel` edge radius (1 mm) is sharper than a real cold-formed tube corner (about 2 × the 2 mm wall), so fiber contact over a bar corner errs toward breaking.
+
+## Content hash
+
+`WorldQuery.ContentHash` identifies the exact world data a flight ran on. The physics log records it, and a replay refuses a world whose hash differs. `WorldQuery.ContentHashOf` computes it from the files alone. It is FNV-1a 64 (offset basis `0xCBF29CE484222325`, prime `0x100000001B3`) over this stream:
+
+1. The files, in this order: the package's `map.json`, `height.r16`, `surface.png`, `cover.png` and `objects.json`, then `game/maps/surfaces.json` and `game/assets/catalog.json`. Only these seven count. The folder names, the `.import` sidecars, any other file and the order in which the file system lists them do not.
+2. Each file adds its bytes, then their count as an unsigned 64-bit little-endian integer.
+3. In the four JSON files each CR LF pair counts as a single LF, and the count is taken after that, so a CRLF checkout hashes like an LF one. Every other change to the text (spacing, a byte-order mark, key order) changes the hash. The binary files count byte for byte.
+
+A one-byte change always changes the hash, unless it makes or breaks a CR LF pair. Those changes, like any larger change, leave it the same with a chance of 2⁻⁶⁴. It prints as 16 lowercase hex digits. The rule in Python, for checking by hand:
+
+```python
+import struct
+h = 0xCBF29CE484222325
+for path in files:  # the seven files, in the order above
+    data = open(path, "rb").read()
+    if path.endswith(".json"):
+        data = data.replace(b"\r\n", b"\n")
+    for byte in data + struct.pack("<Q", len(data)):
+        h = ((h ^ byte) * 0x100000001B3) % 2**64
+print(f"{h:016x}")
+```
+
+The hash covers the data, not the code. `WorldQuery.QueryVersion`, an integer, identifies the query math: it is raised with every code change that alters any query result for the same data, and the golden file (`game/src/world/worldquery_golden.json`) records it. The physics log records it next to the content hash, and a replay refuses a log whose version differs, because the same world would give other results.
 
 ## Versioning
 

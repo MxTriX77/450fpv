@@ -48,9 +48,15 @@ public static partial class WorldQuerySelfTest
             pass &= Overlap(world);
             pass &= CrossingStraw(world);
             pass &= Density(world, surfaces);
+            pass &= LyingOnMat(world, surfaces);
             pass &= Overflow(world);
             pass &= ElementRules(world);
             pass &= ObjectScenarios(world, dir, surfaces);
+            pass &= Lookups(world, surfaces);
+            pass &= PowDomain();
+            pass &= ContentHashScenarios(world, dir, surfaces);
+            pass &= WorldQueryGolden.Golden(ProjectSettings.GlobalizePath("res://"), Check);
+            pass &= WorldQueryGolden.Concurrent(ProjectSettings.GlobalizePath("res://"), 10, Check);
             Timings(world);
         }
         catch (Exception e)
@@ -261,7 +267,8 @@ public static partial class WorldQuerySelfTest
 
     /// The spec check: 10,000 uniform points, analytic normal vs a 1 mm central difference of GroundHeight. Then 1,000
     /// points inside pitfalls, where a wall a few cm wide curves too sharply for a 1 mm difference to be a 1e-3 rad
-    /// reference: there the reference is a 1 µm difference, and the 1 mm figure is printed for information.
+    /// reference: there the reference is a 1 µm difference, and the 1 mm figure is printed for information. A uniform
+    /// point that lands inside a pitfall uses the 1 µm difference too.
     static bool Normals(WorldQuery world)
     {
         var random = new Random(47);
@@ -278,15 +285,16 @@ public static partial class WorldQuerySelfTest
             if (probeResult[0].Feature == GroundFeature.Pitfall)
                 inPits.Add(probe[0]);
         }
-        bool pass = NormalsAt(world, uniform, 1e-3, "normal accuracy, 10000 uniform points, 1 mm difference", true);
-        NormalsAt(world, inPits, 1e-3, "normal inside pitfalls, 1000 points, 1 mm difference (information)", false);
-        pass &= NormalsAt(world, inPits, 1e-6, "normal inside pitfalls, 1000 points, 1 µm difference", true);
+        bool pass = NormalsAt(world, uniform, 1e-3, 1e-6, "normal accuracy, 10000 uniform points, 1 mm difference (1 µm inside pitfalls)", true);
+        NormalsAt(world, inPits, 1e-3, 1e-3, "normal inside pitfalls, 1000 points, 1 mm difference (information)", false);
+        pass &= NormalsAt(world, inPits, 1e-6, 1e-6, "normal inside pitfalls, 1000 points, 1 µm difference", true);
         return pass;
     }
 
-    /// Points whose ±h stencil crosses a crease are skipped: a facet edge of the rendered triangles, a line of cell centres
-    /// where the blended surfaces differ, or a pitfall rim.
-    static bool NormalsAt(WorldQuery world, List<XZ> points, double h, string scenario, bool judged)
+    /// The difference step is `step`, or `pitStep` at a point inside a pitfall. Points whose stencil crosses a crease are
+    /// skipped: a facet edge of the rendered triangles, a line of cell centres where the blended surfaces differ, or a
+    /// pitfall rim.
+    static bool NormalsAt(WorldQuery world, List<XZ> points, double step, double pitStep, string scenario, bool judged)
     {
         var stencil = new XZ[5];
         var s = new GroundSample[5];
@@ -295,12 +303,19 @@ public static partial class WorldQuerySelfTest
         string where = "";
         foreach (XZ p in points)
         {
-            stencil[0] = p;
-            stencil[1] = new XZ(p.X + h, p.Z);
-            stencil[2] = new XZ(p.X - h, p.Z);
-            stencil[3] = new XZ(p.X, p.Z + h);
-            stencil[4] = new XZ(p.X, p.Z - h);
-            world.SampleGround(stencil, s);
+            double h = step;
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                stencil[0] = p;
+                stencil[1] = new XZ(p.X + h, p.Z);
+                stencil[2] = new XZ(p.X - h, p.Z);
+                stencil[3] = new XZ(p.X, p.Z + h);
+                stencil[4] = new XZ(p.X, p.Z - h);
+                world.SampleGround(stencil, s);
+                if (s[0].Feature != GroundFeature.Pitfall || h == pitStep)
+                    break;
+                h = pitStep;
+            }
             if (Crease(world, stencil, s))
             {
                 skipped++;
@@ -675,6 +690,75 @@ public static partial class WorldQuerySelfTest
         return Check($"density matches the surface, belt_straw ({label})", pass, numbers + "over 100 m² (limit ±5 %)");
     }
 
+    /// World-query "Lying elements lie on the mat": every lying element (straw, twigs) based in 100 m² of belt_straw, on a
+    /// uniform world at cover 1.0 and on sample_patch's straw band, sampled at 65 points along its length against
+    /// SupportTop there. Both ends lie on SupportTop within 1 mm. Between them no point floats more than 0.25 m above it
+    /// or sits more than 0.25 m below it. That bound is judged on the elements that touch no pitfall. An element that
+    /// crosses a pitfall bridges it, or cuts into its wall when one end rests inside, and belt_straw pits are up to 0.3 m
+    /// deep, so those are reported, not judged.
+    static bool LyingOnMat(WorldQuery sample, string surfacesPath)
+    {
+        SurfaceParams[] table = SurfaceParams.ParseTable(File.ReadAllText(surfacesPath));
+        SurfaceParams belt = table.First(s => s.Id == "belt_straw");
+        bool pass = LyingOnMatIn(Uniform(table, belt.Index, sample.Seed), 20, 20, 10, "uniform world");
+        pass &= LyingOnMatIn(sample, -60, -63.5, 20, "sample_patch straw band, 20 × 5 m");
+        return pass;
+    }
+
+    static bool LyingOnMatIn(WorldQuery world, double x0, double z0, double width, string label)
+    {
+        const int Points = 65;
+        double depth = 100 / width;
+        Double3 centre = At(world, new Double3(x0 + width / 2, 0, z0 + depth / 2));
+        MicroElement[] all = Query(world, centre, Math.Sqrt(width * width + depth * depth) / 2 + 0.5, KindMask.Straw | KindMask.Twigs);
+        var points = new XZ[Points];
+        var ground = new GroundSample[Points];
+        int n = 0, crossing = 0, bridging = 0, endInPit = 0, floating = 0;
+        double worstEnd = 0, high = double.NegativeInfinity, low = double.PositiveInfinity, pitHigh = 0, pitLow = 0;
+        foreach (MicroElement e in all)
+        {
+            if (!(e.Base.X >= x0 && e.Base.X < x0 + width && e.Base.Z >= z0 && e.Base.Z < z0 + depth))
+                continue;
+            n++;
+            for (int j = 0; j < Points; j++)
+            {
+                double t = e.Length * j / (Points - 1.0);
+                points[j] = new XZ(e.Base.X + e.Direction.X * t, e.Base.Z + e.Direction.Z * t);
+            }
+            world.SampleGround(points, ground);
+            double up = double.NegativeInfinity, down = double.PositiveInfinity;
+            bool pit = false;
+            for (int j = 0; j < Points; j++)
+            {
+                double y = e.Base.Y + e.Direction.Y * (e.Length * j / (Points - 1.0)) - ground[j].SupportTop;
+                (up, down) = (Math.Max(up, y), Math.Min(down, y));
+                pit |= ground[j].Feature == GroundFeature.Pitfall;
+            }
+            worstEnd = Math.Max(worstEnd, Math.Max(Math.Abs(e.Base.Y - ground[0].SupportTop),
+                Math.Abs(e.Base.Y + e.Direction.Y * e.Length - ground[Points - 1].SupportTop)));
+            floating += up > 0.05 ? 1 : 0;
+            if (!pit)
+            {
+                (high, low) = (Math.Max(high, up), Math.Min(low, down));
+                continue;
+            }
+            crossing++;
+            (pitHigh, pitLow) = (Math.Max(pitHigh, up), Math.Min(pitLow, down));
+            if (up > 0.25 || down < -0.25)
+            {
+                bool end = ground[0].Feature == GroundFeature.Pitfall || ground[Points - 1].Feature == GroundFeature.Pitfall;
+                endInPit += end ? 1 : 0;
+                bridging += end ? 0 : 1;
+            }
+        }
+        return Check($"lying elements lie on the mat, belt_straw ({label})", n > 0 && worstEnd <= 1e-3 && high <= 0.25 && low >= -0.25,
+            $"{n} lying straws and twigs based in 100 m², {Points} points each: both ends on SupportTop within {worstEnd * 1000:0.000000} mm "
+            + $"(limit 1 mm); {n - crossing} touching no pitfall float at most {high * 1000:0} mm and sit at most {-low * 1000:0} mm "
+            + $"below (limit 250 mm); {100.0 * floating / n:0.0} % float more than 5 cm somewhere. Information: {crossing} cross a pitfall, "
+            + $"from {pitHigh * 1000:0} mm above to {-pitLow * 1000:0} mm below; beyond 250 mm, {bridging} bridge one with both ends "
+            + $"outside and {endInPit} have an end inside");
+    }
+
     /// A buffer smaller than the result: it holds the first elements in canonical order and the count exceeds it.
     static bool Overflow(WorldQuery world)
     {
@@ -695,7 +779,8 @@ public static partial class WorldQuerySelfTest
     }
 
     /// Per-element rules (W-5, W-6) on every returned element of the query centres: canonical order, unique ids, base on
-    /// GroundHeight (standing grass) or SupportTop (lying), unit direction, ranges, scaled tip stiffness, hook release.
+    /// GroundHeight (standing grass) or SupportTop (lying), unit direction, ranges (a lying element's drawn length is its
+    /// horizontal reach), scaled tip stiffness, hook release.
     static bool ElementRules(WorldQuery world)
     {
         int total = 0, bad = 0;
@@ -713,6 +798,8 @@ public static partial class WorldQuerySelfTest
                 world.SampleGround(new[] { new XZ(e.Base.X, e.Base.Z) }, ground);
                 double baseY = e.Kind == CoverKind.Grass ? ground[0].GroundHeight : ground[0].SupportTop;
                 double dr = e.Diameter / ((p.DiameterMin + p.DiameterMax) / 2), lr = (p.LengthMin + p.LengthMax) / 2 / e.Length;
+                double drawn = e.Kind == CoverKind.Grass ? e.Length
+                    : e.Length * Math.Sqrt(e.Direction.X * e.Direction.X + e.Direction.Z * e.Direction.Z);
                 double stiffness = p.TipStiffness * Math.Pow(dr, 4) * Math.Pow(lr, 3);
                 int cx = (int)((e.Id >> 11) & 0x1FFFF) - 65536, cz = (int)((e.Id >> 28) & 0x1FFFF) - 65536;
                 ulong key = (ulong)(cz + 65536) << 40 | (ulong)(cx + 65536) << 20 | (e.Id & 0x7FF);
@@ -722,7 +809,7 @@ public static partial class WorldQuerySelfTest
                     Math.Floor(e.Base.X / WorldQuery.MicroCell) != cx || Math.Floor(e.Base.Z / WorldQuery.MicroCell) != cz ? "base outside its cell" :
                     e.Base.Y != baseY ? $"base y {e.Base.Y} vs {baseY}" :
                     Math.Abs(e.Direction.Length() - 1) > 1e-6 ? "direction not unit" :
-                    e.Length < p.LengthMin - 1e-6 || e.Length > p.LengthMax + 1e-6 ? "length out of range" :
+                    drawn < p.LengthMin - 1e-6 || drawn > p.LengthMax + 1e-6 ? "length out of range" :
                     e.Diameter < p.DiameterMin - 1e-7 || e.Diameter > p.DiameterMax + 1e-7 ? "diameter out of range" :
                     Math.Abs(e.TipStiffness - stiffness) > 1e-5 * stiffness ? $"tip stiffness {e.TipStiffness} vs {stiffness}" :
                     e.HookRelease < p.HookReleaseMin - 1e-5 || e.HookRelease > p.HookReleaseMax + 1e-5 ? "hook release out of range" :
@@ -736,7 +823,31 @@ public static partial class WorldQuerySelfTest
         return Check("element rules", bad == 0 && total > 0, $"{total} elements, {bad} breaking a rule{first}");
     }
 
-    /// Informational: the formal benchmark with allocation counts is task 3.6.
+    /// DetMath.Pow over b > 0 (API review F7) against Math.Pow: 100,000 draws with b log-uniform in 0.1–10 and e in −1–1
+    /// within 8 ulp, and 100,000 with b in 1e-300–1e300 within 1e-12 relative; b ≤ 0 and NaN give 0.
+    static bool PowDomain()
+    {
+        var random = new Random(59);
+        double Worst(double lo, double hi, bool ulps)
+        {
+            double worst = 0;
+            for (int i = 0; i < 100000; i++)
+            {
+                double b = Math.Exp(Math.Log(lo) + (Math.Log(hi) - Math.Log(lo)) * random.NextDouble()), e = 2 * random.NextDouble() - 1;
+                double mine = DetMath.Pow(b, e), reference = Math.Pow(b, e), error = Math.Abs(mine - reference);
+                worst = Math.Max(worst, ulps ? error / (Math.BitIncrement(reference) - reference) : error / reference);
+            }
+            return worst;
+        }
+        double near = Worst(0.1, 10, true), wide = Worst(1e-300, 1e300, false);
+        bool zero = DetMath.Pow(0, 0.3) == 0 && DetMath.Pow(-2, 0.3) == 0 && DetMath.Pow(double.NaN, 0.3) == 0;
+        return Check("DetMath.Pow for b > 0", near <= 8 && wide <= 1e-12 && zero,
+            $"b in 0.1–10, e in −1–1: within {near} ulp of Math.Pow (limit 8); b in 1e-300–1e300: within {wide:0.0e0} relative "
+            + $"(limit 1e-12); b ≤ 0 and NaN give 0: {zero}; physics' (b_ref / b)^0.3 at b_ref / b = 1.5, 2, 3: "
+            + string.Join(", ", new[] { 1.5, 2, 3 }.Select(b => DetMath.Pow(b, 0.3) == Math.Pow(b, 0.3) ? "identical" : "differs")));
+    }
+
+    /// Informational: the formal benchmark with allocation counts is tools/worldbench, in Release.
     static void Timings(WorldQuery world)
     {
         var random = new Random(5);
@@ -759,7 +870,7 @@ public static partial class WorldQuerySelfTest
 #else
         const string build = "Release";
 #endif
-        GD.Print($"selftest worldquery: timings ({build} build, informational; the benchmark is task 3.6): 100000 random ground samples {groundMs:0.0} ms "
+        GD.Print($"selftest worldquery: timings ({build} build, informational; the benchmark is tools/worldbench): 100000 random ground samples {groundMs:0.0} ms "
             + $"(budget 10 ms); MicroDetailNear r 2 m on meadow_sod, {count} elements, {watch.Elapsed.TotalMilliseconds / 20:0.000} ms "
             + "(budget 0.25 ms)");
     }
