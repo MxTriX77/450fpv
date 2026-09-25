@@ -1,6 +1,6 @@
 {
   "about": "World-query determinism golden file (W-13): fixed inputs and the FNV-1a 64 hashes of their results. Check and re-record: README.md, Self-checks.",
-  "content_hash": "3635cf0a10155cc0",
+  "content_hash": "d8471718eb579079",
   "query_version": 2,
   "rails": {"asset":"launch_rails","position_m":[12,0.42,-30],"yaw_deg":90},
   "cases": [
