@@ -69,6 +69,14 @@ python tools/map/make_synthetic.py build/maps/synthetic_4km  # about 12 s, same 
 & $env:GODOT --path game --resolution 1920x1080 -- --scene res://scenes/world/terrain_bench.tscn --package "$PWD/build/maps/synthetic_4km" --selftest flypath
 ```
 
+With `--map`, `flypath` flies a 12 s low pass 3 m above the terrain instead, through the weeds, the yard, the belt and the bank of `sample_patch`, with micro-detail streaming in:
+
+```powershell
+& $env:GODOT --path game --resolution 1920x1080 -- --map sample_patch --selftest flypath
+```
+
+Regenerate `sample_patch` with `python tools/map/make_sample_patch.py`. Its layout, and which features the golden file pins in place, are described at the top of that script.
+
 ### Sandbox controls
 
 The noclip camera has no collision and flies through everything. Close the window to quit.
