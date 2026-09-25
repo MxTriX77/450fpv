@@ -3,7 +3,7 @@
 ## 1. Pipeline and sourcing
 
 - [ ] 1.1 [world-artist] Write `tools/blender/export.py` (headless builder → `.blend` → `.glb`, LODs, budget report, fails on excess) and the catalog-entry conventions. Verify the one-command and budget-report scenarios on one simple prop
-- [ ] 1.2 [world-artist] Write `tools/assets/fetch_cc0.py` (Poly Haven and ambientCG by id, resolution and SHA-256) and `CREDITS.md`. Fetch the core texture set from notes §11 item 11, **only after the pilot's download permission**. Verify the credits scenario
+- [ ] 1.2 [world-artist] Write `tools/assets/fetch_cc0.py` (Poly Haven and ambientCG by id, resolution and SHA-256) and `CREDITS.md`. Fetch the core texture set from notes §11 item 11, within the pilot's permission (2K, about 20–25 sets plus 1–2 HDRIs, Poly Haven and ambientCG only; see design). Verify the credits scenario
 
 ## 2. Terrain
 

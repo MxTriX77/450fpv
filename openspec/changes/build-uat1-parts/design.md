@@ -11,7 +11,8 @@
   Everything visible is a placeholder.
 - The reference notes (`terrain.md` §1–§11, `video-feed.md`) give sizes, colours measured from the footage, and a ranked build list. The pilot's answers add vehicles (ВАЗ, Lanos class, ЗИЛ, Урал), confirmed trenches, burnt and tilled fields, and the destroyed 5-storey block.
 - The target look is judged at FPV distances and later through the analog feed, which carries about 450 × 286 lines of real detail. Silhouette, scale, colour, material response and clutter matter more than fine mesh detail.
-- Tools: Blender 5.2.1 (headless Python), Godot 4.7.2 .NET. Downloads are allowed only from trusted CC0 sources, and only with the pilot's permission.
+- Tools: Blender 5.2.1 (headless Python), Godot 4.7.2 .NET.
+- **Download permission (pilot, 2026-09-25):** about 20–25 CC0 texture sets plus 1–2 sky HDRIs, at 2K, roughly 200–400 MB, from polyhaven.com and ambientcg.com only. They're stored in Git LFS, pinned by checksum and listed in `CREDITS.md`. Nothing else may be downloaded without asking.
 
 ## Goals / Non-Goals
 
