@@ -111,9 +111,7 @@ def fetch_map(entry, name, files):
     pin = entry["maps"][name]
     path = file_path(entry, name)
     if os.path.isfile(path) and pin.get("sha256"):
-        if sha256(path) != pin["sha256"]:
-            problem(f"{os.path.relpath(path, ROOT)}: SHA-256 differs from its pin (local file changed)")
-        return False
+        return False  # verify() checks it against the pin
     key, ext = POLYHAVEN_MAPS[name]
     source = files[key][entry["resolution"]][ext]
     if pin.get("url") and pin["url"] != source["url"]:
