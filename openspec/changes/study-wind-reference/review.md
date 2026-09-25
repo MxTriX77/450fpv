@@ -1,5 +1,86 @@
 # Review: study-wind-reference (task 3.1)
 
+## Round 3 (re-check at `3dcbdc5`)
+
+**Reviewer:** QA Engineer · **Branch:** `physics/study-wind-reference` at `3dcbdc5` (12 commits since my round-2 commit `b069166`) · **Scope:** only what changed since round 2 (F6–F8, Calm, A3, A10, A12–A15, and OPSEC on the new commits). Round 2 stands for everything else.
+
+### Verdict
+
+**Approve.** There are no blocking findings. F6, F7 and F8 are resolved, and I re-ran every §6.6 number myself.
+
+| Item | Status | Evidence |
+|---|---|---|
+| F6 | **Resolved** | T0c needs ≥ 40 seeds × 120 min, each seed checked against its own draw (`wind.md:601`, `:605`, `:616`). The periodicity peak is ≤ 2.4 and the gap CV floor is 0.5 (`:616`, `wind_stats.py:443–485`). The fixture is committed (`tools/reference/wind_history_fixture.py`), with §6.6 at `:730–765`. All re-runs match; see "F6 evidence". |
+| F7 | **Resolved** | §6 (`wind.md:542–547`) separates what the level fixes, what each flight draws and what evolves. It matches `design.md:33–37` and D-011: the pilot picks the level, which is never random, and the wind within it stays alive. The old wording is gone ("nothing … drawn at random between flights", "the preset's direction"). §5.3 (`:330`, `:335`), §5.6 (`:512`), §6.2 (`:586–587`), T0c (`:616`) and §6.4 (`:655–656`) all say the same. |
+| F8 | **Resolved** (orchestrator) | `spec.md:56`: Severe and Windy get the full set. Calm gets ceilings only plus the wind-history check, measured with airframe asymmetry off. Its floor goes to the flight-model change. |
+| Calm | **Matches the spec** | `wind.md:663–665`: ceilings on T0, T6d and the wind-scaled spreads, plus T0c, and no shape target. The column at `:667–687` agrees. Calm flies with asymmetry off; Severe and Windy fly with it on (`:689`, `design.md:37`). This answers my round-2 question. |
+| A3 | **Resolved** | A fresh `wind_stats.py --letter P --segment 121-330 --json` at the tip is byte-identical to the local `reference/_frames/P/wind_stats.json` (SHA-256 `2775f74f…`). |
+| A12 | **Resolved** | `wind.md:438–439` and `:454`: 1.0995 × 4.8 / 9.37 = 56.3 %, √0.563 = 0.75, and 0.563 × 1.38 = 78 %. No "57 %" or "79 %" is left. |
+| A13 | **Resolved** | `:387`: frame mass assumed. `:392`: typical cargo assumed. |
+| A14 | **Resolved** | `:315`: 22 m/s needs the low-end C_D A. `:422`: "with the 1.7–2.2 kg packs", and the 3 kg pack lifts the centre of mass 0.3 cm above the arm plane. |
+| A15 | **Resolved** | `:616` names "fields of the `--wind-log` JSON". Every field it lists exists in the tool's output (`draws.resultant`, `offset_deg`, `spread_deg`, `seeds[i].spread_deg`, `shifts.per_min`, `shifts.gap_cv`, `shifts.peak`, `side_keep`). |
+| A10 | **Still open** (orchestrator, advisory) | `airframes.md` is unchanged since `065717a`. `:10` and `:29` still call the 383 g "published", which now contradicts `wind.md:387`. |
+| A16 | Still open (Tech Artist, advisory; not in this round's diff) | `wind.md:897` still says 19.6–39.1. |
+
+### F6 evidence
+
+I ran the committed fixture at the tip under Blender 5.2.1:
+- **`--check 1000 --model random`:** **1000 of 1000** pass. Peak 1.341–1.983, gap CV 0.748–0.936, rate 0.145–0.174, side keep 85.2–89.0 %. Draws' resultant 0.005–0.425, offset −4.84 to +4.20°, mean spread 46.99–51.71°, smallest seed 28.9°. That is every number in `wind.md:742` and `:757`. It took 365 s.
+- **`--check 200`, all 14 models:** every row of the §6.6 table (`:742–755`) reproduces: pass counts, per-condition fail counts (spread 71 / 69, side 1, rate 197), and every min–max range. All 12 controls fail 200 of 200.
+- **History length (`:762`, `:764`):**
+  - `--seeds 5 --minutes 10` passes 34 and 64 of 200.
+  - At `--seeds 20`, the starting model's maximum peak is 2.481 in 1000 sets (1 of 1000 over the 2.4 cap).
+  - The 10 min schedule without the lag goes down to 3.103 over 200 sets, but to 2.929 over 1000. `:764` pairs the 1000-set 2.48 with the 200-set 3.10. That is a wording nit, and the conclusion holds.
+- **`--write --set 0`, then `wind_stats.py --wind-log` on the 40 CSVs:** it matches the in-memory run exactly on counts, rate, gap CV, peak, period and side keep, and to ≤ 5 × 10⁻⁵° on angles (`:732`).
+- **Independent generator (QA code, not the fixture's), measured by the tip's `wind_history`:** 50 sets of 40 × 120 min per process.
+  - Poisson onsets as in §5.3 pass 50 of 50, with the fixture's ranges.
+  - Random onsets that aren't Poisson also pass 50 of 50: clustered (pairs 1–3 min apart), and gamma gaps with CV 0.71 and 0.5 (peak ≤ 2.02, gap CV ≥ 0.51). So the peak doesn't reject randomness that isn't Poisson.
+  - A 5 min schedule jittered ±60 s fails 50 of 50, on both the peak (12.2–13.5) and the gap CV (0.29–0.35).
+- **Code and derivations:**
+  - The fixture's lag gain is the exact variance of an AR(1) passed through a first-order lag.
+  - `:336`'s 0.5 °/s (30° / √(120 · 30)) and 3.9 °/s derive.
+  - The peak's normalisation gives about 1 for random onsets, and about the number of shifts per seed for a schedule (3 min: 33.5–35.2).
+  - T0b's start rule (`:592–593`) checks out: with side keep 85.2–89.0 %, two or more of five runs out has a probability of 10–16 %.
+
+### Non-blocking
+
+- **A17 (Physics Engineer; the same premise sits in `design.md:36`, orchestrator).** `wind.md:656` puts each flight's lean at 6.9–11.3° (Severe) "at the direction abeam". That assumes the band's centre leans P's 9.1° with the wind exactly abeam. `:587` instead tunes the centre on T0, which averages runs whose direction wanders.
+  - Under the start rule, the run-mean cos of the deviation is 0.82 on the starting model (QA's generator).
+  - So a centre tuned to a 9.1° run average leans 11.1° abeam, and the draws span 8.4–13.7° abeam.
+  - The run-mean lean still lies in 6.6–11.7° for 90 % of runs.
+  - The fix: say which the centre means, or say "the run-mean lean stays inside the band in about 9 runs in 10". The levels stay apart in strength either way.
+- **A10 and A16** are as in the table above.
+
+### OPSEC (the 12 new commits and the diff since `b069166`)
+
+The scan is round 2's: 73 fragments from the 16 names in `index.md` (never printed), the place blocklist, the regexes, and the airframe-model, km, duration, standoff and sortie words. It covered every author line, subject and body, and all 334 added lines, including the new fixture.
+
+| Category | Result |
+|---|---|
+| File-name fragments | 0 specific hits. The numeric hits are 2-digit tokens inside ordinary numbers, and the year inside the orchestrator's two decision dates (`design.md:33–34`). Neither date matches any of the 16 file names in any date format. |
+| Places, coordinates, clock times, OSD values, unit words, Cyrillic, handles | 0, apart from the role e-mail addresses. |
+| Airframe tied to P | None. The one "model" hit is "ratel" inside "separately" (`wind.md:601`). New text is class level only. |
+| Standoff distance, flight duration | None. No km figure was added. The durations are model time constants, schedule periods and synthetic history lengths (40 × 120 min of wind state), not sortie times. |
+
+### Hygiene
+
+- **Commits:** all 12 are subject-only, 56–72 characters, with no trailer and author equal to committer.
+  - Orchestrator (3): `spec.md` and `design.md`.
+  - Physics Engineer (9): `wind.md` §1–§6 (every hunk ends before §7 at `:767`), `wind_stats.py` and the fixture.
+- **Branch diff:** against its merge base with `origin/main` (`c6e4819`) it has 10 files: docs, openspec and three tools. Nothing comes from `reference/`, `.godot/`, logs, builds or binaries. It merges cleanly into the current `origin/main` (`git merge-tree`).
+- **`reference/`:** the SHA-256 of `wind_stats.json`, `attitude.csv`, `attitude_k1_0.36.csv`, `rain_stats.json` and `metrics.csv` is the same before and after. My runs wrote only to the QA scratch folder (`qa-wind3`). `extract_frames.py` was not run, and `wt-map-format` was not touched.
+- **Performance:** there is no runtime code. The fixture's `--check 1000` on one model takes 365 s, and `--check 200` on all 14 models takes 901 s. T0c's own minimum history is 40 × 7201 samples of wind state, which is cheap.
+
+### Risks
+
+- **OPSEC on `main` is unchanged from round 2.** `origin/main`'s tree still carries the pre-fix text. Merging this branch removes it from the tree; removing it from history is the user's call.
+- **D-011** is still only on `chore/uat-release-plan` (`docs/decisions.md:29–30`), not on `main` or this branch.
+- **Constraints for the physics change:**
+  - The T0b start rule (`wind.md:592`) needs the prevailing wind history to be computable from the seed, independent of the drone.
+  - Both per-flight draws must be in the physics log (`:544`).
+  - No target checks the strength draw; the spec doesn't ask for one.
+- Round 2's other risks (T9b and the pilot's own jolts, the thrust derate at the fast corner) stand.
+
 ## Round 2 (re-review at `58e7eb8`)
 
 **Reviewer:** QA Engineer · **Branch:** `physics/study-wind-reference` at `58e7eb8` (21 commits since round 1, `b47a011`) · **Against:** `specs/reference-wind/spec.md` as amended in `4d42fda` (targets per weather level), D-011, and my round-1 findings F1–F5 and A1–A11 below
