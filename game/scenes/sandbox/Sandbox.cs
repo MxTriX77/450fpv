@@ -46,6 +46,18 @@ public partial class Sandbox : Node3D
         {
             WorldQuerySelfTest.Digest(this, ArgValue(args, "--digest-out"));
         }
+        else if (selftest == "map")
+        {
+            MapSelfTest.Run(this);
+        }
+        else if (selftest == "map-fallback")
+        {
+            GetTree().Quit(MapSelfTest.Fallback(this) ? 0 : 1);
+        }
+        else if (selftest == "map-view")
+        {
+            MapSelfTest.View(this, ArgValue(args, "--view"));
+        }
         else if (selftest != null)
         {
             GD.PrintErr($"ERROR: unknown selftest '{selftest}'.");
