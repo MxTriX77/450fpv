@@ -267,7 +267,8 @@ public static partial class WorldQuerySelfTest
 
     /// The spec check: 10,000 uniform points, analytic normal vs a 1 mm central difference of GroundHeight. Then 1,000
     /// points inside pitfalls, where a wall a few cm wide curves too sharply for a 1 mm difference to be a 1e-3 rad
-    /// reference: there the reference is a 1 µm difference, and the 1 mm figure is printed for information.
+    /// reference: there the reference is a 1 µm difference, and the 1 mm figure is printed for information. A uniform
+    /// point that lands inside a pitfall uses the 1 µm difference too.
     static bool Normals(WorldQuery world)
     {
         var random = new Random(47);
@@ -284,15 +285,16 @@ public static partial class WorldQuerySelfTest
             if (probeResult[0].Feature == GroundFeature.Pitfall)
                 inPits.Add(probe[0]);
         }
-        bool pass = NormalsAt(world, uniform, 1e-3, "normal accuracy, 10000 uniform points, 1 mm difference", true);
-        NormalsAt(world, inPits, 1e-3, "normal inside pitfalls, 1000 points, 1 mm difference (information)", false);
-        pass &= NormalsAt(world, inPits, 1e-6, "normal inside pitfalls, 1000 points, 1 µm difference", true);
+        bool pass = NormalsAt(world, uniform, 1e-3, 1e-6, "normal accuracy, 10000 uniform points, 1 mm difference (1 µm inside pitfalls)", true);
+        NormalsAt(world, inPits, 1e-3, 1e-3, "normal inside pitfalls, 1000 points, 1 mm difference (information)", false);
+        pass &= NormalsAt(world, inPits, 1e-6, 1e-6, "normal inside pitfalls, 1000 points, 1 µm difference", true);
         return pass;
     }
 
-    /// Points whose ±h stencil crosses a crease are skipped: a facet edge of the rendered triangles, a line of cell centres
-    /// where the blended surfaces differ, or a pitfall rim.
-    static bool NormalsAt(WorldQuery world, List<XZ> points, double h, string scenario, bool judged)
+    /// The difference step is `step`, or `pitStep` at a point inside a pitfall. Points whose stencil crosses a crease are
+    /// skipped: a facet edge of the rendered triangles, a line of cell centres where the blended surfaces differ, or a
+    /// pitfall rim.
+    static bool NormalsAt(WorldQuery world, List<XZ> points, double step, double pitStep, string scenario, bool judged)
     {
         var stencil = new XZ[5];
         var s = new GroundSample[5];
@@ -301,12 +303,19 @@ public static partial class WorldQuerySelfTest
         string where = "";
         foreach (XZ p in points)
         {
-            stencil[0] = p;
-            stencil[1] = new XZ(p.X + h, p.Z);
-            stencil[2] = new XZ(p.X - h, p.Z);
-            stencil[3] = new XZ(p.X, p.Z + h);
-            stencil[4] = new XZ(p.X, p.Z - h);
-            world.SampleGround(stencil, s);
+            double h = step;
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                stencil[0] = p;
+                stencil[1] = new XZ(p.X + h, p.Z);
+                stencil[2] = new XZ(p.X - h, p.Z);
+                stencil[3] = new XZ(p.X, p.Z + h);
+                stencil[4] = new XZ(p.X, p.Z - h);
+                world.SampleGround(stencil, s);
+                if (s[0].Feature != GroundFeature.Pitfall || h == pitStep)
+                    break;
+                h = pitStep;
+            }
             if (Crease(world, stencil, s))
             {
                 skipped++;
