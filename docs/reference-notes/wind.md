@@ -3,13 +3,14 @@
 The pilot marked one clip as the target for how flight in severe wind must feel: "constant and dynamic physics along with motors crying", never "wind goes south so my quad goes south smoothly". These notes measure, frame by frame, how the airframe was thrown around in that flight, and turn the numbers into targets for the sim's wind: the Severe level measured here, and the Windy and Calm levels derived from it.
 
 - **Source:** clip **P** only, cited by frame (`P f123`, 1-based, 29.917 frames per second).
-- **Evidence:** `reference/_frames/P/attitude.csv` (git-ignored), written by `tools/reference/track_attitude.py` for every frame. Every measured number in §1–§6 is printed by `tools/reference/wind_stats.py` from that file. The derived ones follow from the measured numbers by the formulas and assumed values stated beside them (§5.3–§5.5). Nothing derived from the footage is in the repo.
+- **Evidence:** `reference/_frames/P/attitude.csv` (git-ignored), written by `tools/reference/track_attitude.py` for every frame. Every measured number in §1–§6 is printed by `tools/reference/wind_stats.py` from that file, except §6.6's, which `tools/reference/wind_history_fixture.py` prints from synthetic wind histories. The derived ones follow from the measured numbers by the formulas and assumed values stated beside them (§5.3–§5.5). Nothing derived from the footage is in the repo.
 - **Reproduce** (from the repo root, Blender 5.2):
   ```
   blender -b --factory-startup --python tools/reference/track_attitude.py -- --letter P [--overlays 20]
   blender -b --factory-startup --python tools/reference/track_attitude.py -- --selftest <scratch folder>
   blender -b --factory-startup --python tools/reference/wind_stats.py -- --letter P --segment 121-330 [--json <file>]
   blender -b --factory-startup --python tools/reference/wind_stats.py -- --letter P --segment 121-330 --gauss 5   (§6.5; also --gauss 200)
+  blender -b --factory-startup --python tools/reference/wind_history_fixture.py -- --check 1000 --model random   (§6.6; --check 200 for all models)
   ```
 - **Labels:** every statement in §5 is **measured** (read straight from `attitude.csv`), **derived** (computed from measured numbers with a stated model) or **assumed** (a value or model taken from outside the clip). The pilot's answers (§5.7) come from outside the clip too; they are marked **assumed (pilot, Qn)**.
 - **Uncertainty:** `[a, b]` is the 16–84 % interval of 500 block-bootstrap resamples (2 s blocks, seed 0; 1 s blocks inside and outside a segment, §1.4) unless stated otherwise.
@@ -329,12 +330,14 @@ The flight's 95th percentiles are 8.4 / 5.2 / 8.6. Two losses follow brisk roll 
 - **Derived (model requirement):** a prevailing direction per flight, drawn from the flight's seed (§6), plus random direction changes, never a fixed vector. The changes must be:
   - slow or small enough that a ~40 s stretch can keep the crosswind on one side (P)
   - large enough to put the wind on other sides within a longer flight (pilot, Q2, Q6)
-- **Assumed** (starting values, tunable):
-  - a slow meander around the prevailing direction: a bounded random walk (mean-reverting) with std 30° and a correlation time of 2 min
-  - rare shifts of 45–120° (either way, at random) over 10–30 s, at about 1 per 5 min (gust fronts in rain showers). Each shift then relaxes back towards the prevailing direction with the meander's 2 min correlation time, so the wind stays mostly from its prevailing side.
+  - at random times, never on a schedule the pilot could learn (the pilot's "unexpected and undefined")
+- **Assumed** (starting values, tunable; `tools/reference/wind_history_fixture.py` implements exactly these):
+  - the prevailing direction, drawn per flight, uniform over the compass (§6)
+  - a slow meander around it: a mean-reverting random walk (Ornstein–Uhlenbeck, time constant 2 min) smoothed by a 30 s first-order lag, with a std of 30°. The lag keeps the mean wind from turning faster than 0.5 °/s RMS (derived: 30° / √(120 s · 30 s)); without it the walk turns 3.9 °/s RMS at 1 Hz (derived: 30° · √(2 · 1 s / 120 s)). The fast wobble in direction belongs to the turbulence (§5.4), which the wind history leaves out (§6.2).
+  - rare shifts of 45–120° (either way, at random) over 10–30 s, arriving at random times (Poisson), 1 per 5 min on average (gust fronts in rain showers). Each shift ramps linearly, then relaxes back towards the prevailing direction with the meander's 2 min time constant, so the wind stays mostly from its prevailing side.
   - local reversals from the obstacle-wake model, near belts and buildings
 
-  The fast wobble in direction comes from the turbulence in §5.4. T0c (§6.3) tests the preset's own wind history against this requirement; these starting values are chosen to meet it.
+  T0c (§6.3) tests the preset's own wind history against this requirement. This model passes it in all of 1000 independent seed sets, and shifts on a fixed schedule fail it (measured on the fixture, §6.6).
 
 ### 5.4 Turbulence intensity and scale, near the ground and near obstacles
 
@@ -545,6 +548,7 @@ So no two flights at a level meet the same wind, and none meets a fixed vector (
 - §6.3 gives the **Severe** targets, which P measures.
 - §6.4 derives **Windy** and **Calm** from them.
 - §6.5 shows that plain Gaussian noise fails the targets it must fail.
+- §6.6 shows that the §5.3 starting model passes T0c reliably, and that shifts on a schedule fail it.
 
 A level passes when the sim, flown by the simulated pilot below along the test flight below, reproduces its numbers. Every target is a field of `wind_stats.py`'s JSON, so a physics test can check it automatically. In the field names, `angle[roll]` means the entry of the `angle` list whose `axis` is `roll`, and `bands[i]` counts the §3.1 bands from 0.
 
@@ -592,14 +596,14 @@ A level passes when the sim, flown by the simulated pilot below along the test f
 
    These match §1.2 exactly.
 
-   **Wind history (T0c).** Separately, log the preset's own wind state for at least 5 seeds of 10 min each; no drone is needed. That is the prevailing wind at the reference height, before turbulence and obstacle wakes. Write a CSV per seed at 1 Hz or faster, with the columns `time_s` and `wind_from_deg`.
+   **Wind history (T0c).** Separately, log the preset's own wind state for at least **40 seeds of 120 min each**, at 1 Hz or faster. Each seed is its own flight draw; no drone is needed. That is the prevailing wind at the reference height, before turbulence and obstacle wakes. Write one CSV per seed with the columns `time_s`, `wind_from_deg` and `prevailing_from_deg` (the direction that seed drew, the same on every row). §6.6 shows why this much: shorter histories fail a correct model and miss schedules.
 5. **Measure:** `blender -b --factory-startup --python tools/reference/wind_stats.py -- --csv <run.csv> --segment <belt frames> --json <run.json>` for each run, then average each field over the runs. For T0c: `... wind_stats.py -- --wind-log <seed files> --json <wind.json>`. The JSON writes missing values as `null`.
 6. **Pass:** every target's average over the nominal runs lies inside its band. There are three exceptions:
    - T8 pools the onset gaps of all nominal runs (`gaps_s`) before taking its median and CV.
-   - T0c pools its seeds.
+   - T0c pools its seeds, each measured against the direction it drew.
    - T11b uses the variant runs.
 
-Bands are about ±35 % on spreads. That covers the bootstrap interval, the variation between 5 s open-field blocks in P (T12), the −6/+15 % pitch-scale assumption and the simple pilot model. Yaw quantities and event rates get about ±50 % (lens sensitivity and Poisson counts), and correlations get absolute bands. The bands of T9 and T12 come from the plain-Gaussian check (§6.5). T0c's bands are definitional, because P can't show direction changes (§5.3). These are acceptance bands for a first model. The pilot's MVP flights have the final word.
+Bands are about ±35 % on spreads. That covers the bootstrap interval, the variation between 5 s open-field blocks in P (T12), the −6/+15 % pitch-scale assumption and the simple pilot model. Yaw quantities and event rates get about ±50 % (lens sensitivity and Poisson counts), and correlations get absolute bands. The bands of T9 and T12 come from the plain-Gaussian check (§6.5). T0c's bands are definitional, because P can't show direction changes (§5.3). §6.6 shows that the §5.3 starting model passes them in all of 1000 seed sets, and that shifts on a schedule fail. These are acceptance bands for a first model. The pilot's MVP flights have the final word.
 
 ### 6.3 Targets
 
@@ -607,7 +611,7 @@ Bands are about ±35 % on spreads. That covers the bootstrap interval, the varia
 |---|---|---|---|---|
 | T0 | Mean lean into the crosswind (calibrates the centre of the level's strength band) | `angle[roll].mean` | −9.1° [−9.6, −8.7] | \|mean\| = 9 ± 3°, leaning into the wind |
 | T0b | Crosswind variability, which keeps its side through a stretch: relative spread and minimum of the sideways thrust. Turbulence around a fixed vector passes this too, so it doesn't test direction changes; T0c does | `airframe.lateral.std` / `airframe.lateral.mean`; `airframe.lateral.min` | 0.27 (0.047 / 0.174); 0.034 W | 0.14–0.40 (at least half of P's; the rest may be the pilot's course changes); min > 0 on the windward side in at least 4 of 5 runs |
-| T0c | Random direction changes about a prevailing direction, on the preset's own wind history (§6.2; 5 seeds × 10 min, pooled). Definitional: P can't show them (§5.3) | `wind_history.prevailing_deg`; `.spread_deg` and each `.runs[i].spread_deg`; `.shifts.per_min` and `.shifts.gap_cv`; `.side_keep` | none; assumed (pilot, Q2) | prevailing within ±30° of the preset's direction; mean spread about it 20–60°, and ≥ 10° in every seed (never a fixed vector); 0.15–0.6 shifts (≥ 45° within 30 s) per min, gap CV ≥ 0.35 (at random, not on a schedule); the wind within 90° of the prevailing direction throughout 75–98 % of 40 s windows (mostly one side, as in P, and sometimes the others) |
+| T0c | Random direction changes about each flight's own prevailing direction, on the preset's own wind history (§6.2: at least 40 seeds × 120 min, pooled, each seed measured against the direction it drew). Definitional: P can't show them (§5.3). Checked on the starting model and on schedules in §6.6 | fields of the `--wind-log` JSON: `draws.resultant`; `offset_deg`; `spread_deg` and each `seeds[i].spread_deg`; `shifts.per_min`, `shifts.gap_cv` and `shifts.peak`; `side_keep` | none; assumed (pilot, Q2) | **drawn per flight:** the seeds' drawn directions differ, resultant ≤ 0.7 (1 = all alike); **centred:** offset from the drawn direction within ±15°; **never a fixed vector:** RMS deviation from it 20–60° on average, and ≥ 10° in every seed; **shifts** (≥ 45° within 30 s): 0.1–0.4 per min; **at random, never on a schedule:** gap CV ≥ 0.5 and periodicity peak ≤ 2.4 (§6.6); **mostly one side:** the wind within 90° of the drawn direction throughout 75–98 % of 40 s windows (as in P, and sometimes the others) |
 | T1 | Residual roll std, open field | `segment.outside.roll.res_std` | 0.51° [0.47, 0.53] | 0.35–0.70° |
 | T2 | Residual pitch std, open field | `segment.outside.pitch.res_std` | 0.28° [0.26, 0.29] | 0.19–0.38° |
 | T3 | Residual roll std, tree belt | `segment.inside.roll.res_std` | 1.26° [1.07, 1.36] | 0.85–1.70°, and ≥ 1.8 × the sim's T1 |
@@ -720,6 +724,43 @@ Measured with `--gauss 5`. Each cell gives the mean of the 5 logs, with their ra
   P's pitch (kurtosis 3.85, CV 0.23) lies above the 95th percentile of both.
 
 **Derived:** a sim passes only with a steady background over the open field, pitch jolts on top of it (a heavy-tailed small-scale or vertical gust process, not Gaussian noise alone), obstacle wakes for the bursts, and gusts that push sideways for the coupling.
+
+### 6.6 T0c: the starting model passes, a schedule fails (a check on T0c)
+
+`wind_history_fixture.py -- --check N` builds N independent seed sets (set i from numpy seed i) of the §5.3 starting model and of the controls below. Each set is T0c's minimum, 40 seeds × 120 min at 1 Hz, and goes through the same `wind_history` code as `--wind-log`. `--write` writes one set as `--wind-log` CSVs. On set 0 the command-line path gives the same numbers as the in-memory run, to the CSVs' 4 decimals.
+
+**The periodicity peak** (`shifts.peak`) is the pooled Rayleigh power of the shift onset times: Σ over seeds of |Σ_k exp(2πi f t_k)|², divided by the number of onsets, at its largest over trial periods 1/f of 60–600 s. Onsets at random times give about 1 at every period. Onsets on a schedule pile up power at the schedule's period and its harmonics.
+- The trial periods run from 60 s, twice the 30 s window that merges crossings into one shift, to 600 s, the slowest mean gap the rate band allows (derived).
+- **Why the onsets, not the direction's spectrum (derived).** Shifts go either way at random, so a schedule's pulses have zero mean and leave no line in the direction's power spectrum. The onset times carry the schedule whichever way each shift goes.
+
+Measured on the fixture with `--check 1000 --model random` and `--check 200` for the rest. The ranges are min–max over the sets; **bold** fails its band in every set:
+
+| Model | Sets passing all of T0c | Fails on | Periodicity peak (≤ 2.4) | Gap CV (≥ 0.5) | Shifts per min (0.1–0.4) | Side keep (75–98 %) |
+|---|---|---|---|---|---|---|
+| **§5.3 starting model** | **1000 of 1000** | nothing | 1.34–1.98 | 0.75–0.94 | 0.145–0.174 | 85.2–89.0 % |
+| Same, meander without its 30 s lag (QA's round-2 reading of §5.3) | 200 of 200 | nothing | 1.32–1.92 | 0.69–0.79 | 0.314–0.354 | 82.4–85.9 % |
+| Shifts every 3 min | 0 of 200 | peak and gap CV; spread in 71, side in 1 | **33.5–35.2** | **0.24–0.31** | 0.312–0.324 | 74.5–79.7 % |
+| Every 3 min ± 30 s | 0 of 200 | peak and gap CV; spread in 71, side in 1 | **22.7–24.7** | **0.27–0.33** | 0.312–0.325 | 74.4–79.6 % |
+| Every 5 min | 0 of 200 | peak and gap CV | **20.8–22.2** | **0.23–0.32** | 0.187–0.196 | 84.9–88.6 % |
+| Every 8 min | 0 of 200 | peak and gap CV | **13.2–14.3** | **0.19–0.35** | 0.117–0.125 | 90.2–92.7 % |
+| Every 10 min | 0 of 200 | peak and gap CV; rate in 197 | **10.5–11.5** | **0.22–0.36** | 0.094–0.100 | 92.2–94.3 % |
+| Every 3 min, meander without its lag (QA's control) | 0 of 200 | peak, gap CV, rate and side; spread in 69 | **15.7–19.1** | **0.42–0.47** | **0.448–0.472** | **70.2–74.8 %** |
+| Every 5 min, without the lag | 0 of 200 | peak | **7.29–9.98** | 0.53–0.59 | 0.359–0.390 | 81.4–85.0 % |
+| Every 8 min, without the lag | 0 of 200 | peak | **4.14–5.90** | 0.64–0.69 | 0.302–0.333 | 87.3–90.6 % |
+| Every 10 min, without the lag | 0 of 200 | peak | **2.90–4.32** | 0.68–0.74 | 0.282–0.314 | 89.8–92.3 % |
+| One prevailing direction for every seed | 0 of 200 | draws: resultant **1.00** | 1.32–1.76 | 0.78–0.97 | 0.148–0.172 | 84.3–89.1 % |
+| Fixed vector | 0 of 200 | spread (**0°**), rate, gap CV and side | 0 | none | **0** | **100 %** |
+| Fixed vector with 5° of white jitter | 0 of 200 | spread (**5.0°**), rate, gap CV and side | 0 | none | **0** | **100 %** |
+
+- **The starting model's other T0c values** over the 1000 sets: draws' resultant 0.005–0.43 (≤ 0.7), offset −4.8 to +4.2° (within ±15°), mean spread 47.0–51.7° (20–60°), smallest seed spread 28.9° (≥ 10°).
+- **Its counted rate is below its own 0.2 shifts per min**, because a small shift ramped over up to 30 s doesn't always turn 45° within one 30 s window. Without the lag, the meander adds ≥ 45° swings of its own, 0.31–0.35 per min in all (measured).
+- **The gap CV alone can't catch a schedule under a rough meander.** The meander's own crossings arrive irregularly and lift the CV (0.42–0.47 for the unsmoothed 3 min schedule, 0.53–0.74 for the 5–10 min ones). That is why QA's 3 min schedule passed the old floor of 0.35. The peak doesn't depend on them: the crossings only dilute it.
+
+**Why 40 seeds × 120 min** (measured on the fixture):
+- **Too little history fails a correct model.** At the old 5 seeds × 10 min (`--seeds 5 --minutes 10`), the starting model passes these conditions in only 34 of 200 sets, and QA's reading in 64 of 200. About 8 shifts can't pin a rate, a gap CV, an offset or a side-keep share, and 5 draws can't show that the direction is drawn per flight. QA's round-2 review measured the old conditions at that length failing QA's reading of the model in 39 of 200 sets.
+- **A schedule shows only within a seed,** because each seed starts it at its own phase. So each seed must hold many shifts: 120 min holds about 24 at 1 per 5 min, where 10 min holds 2.
+- **The peak's noise falls as 1/√(seeds) (derived); a schedule's peak doesn't.** At 20 seeds × 120 min (`--seeds 20`), the starting model reached 2.48 in 1000 sets, while the 10 min schedule without the lag went down to 3.10. At 40 seeds the gap is 1.98 against 2.90.
+- **It is cheap:** the wind state alone, 40 × 7201 samples, with no drone and no world.
 
 ## 7. Rain on the feed
 
