@@ -654,8 +654,9 @@ P measures only Severe. The rest of P's flight isn't recorded, so nothing milder
 **Calm** (c = 0.15, assumed): light air, a band centred on about 0.8 m/s of mean crosswind (0.4–1.7 m/s). P can't measure calm; this band is derived and nothing more.
 - **Assumed:** at this level the airframe's own disturbances are probably as large as the wind's: motor asymmetry and ESC timing jitter (the manifesto's point 4), and prop wash.
 - Scaled lower bounds would then mean nothing, and shape targets would measure the airframe, not the wind.
-- So Calm keeps only T0, T0c, T6d and ceilings on the wind-scaled spreads. The ceilings sit at Windy's lower bounds, so the levels never overlap. The scaled values themselves are lower (T1 ≈ 0.08°), which leaves room for the airframe.
-- **Calm's floor**, "never perfectly still", is the airframe's, not the wind's. It belongs to the flight model's own acceptance targets, in the change that builds motor asymmetry and ESC jitter, not to this note.
+- So Calm is **ceilings only, plus T0c** (as the spec requires): ceilings on T0, T6d and the wind-scaled spreads, and no shape target. The ceilings sit at Windy's lower bounds, so the levels never overlap. The scaled values themselves are lower (T1 ≈ 0.08°).
+- **Calm's ceilings cap the wind-driven part only.** The Calm test flies with the airframe's own seeded asymmetry switched off: motor Kv spread, ESC timing jitter, prop imbalance and any other airframe perturbation. What the ceilings then see is what the wind alone leaves after the simulated pilot. With the asymmetry on, the total wobble may exceed them, and that is expected.
+- **Calm's floor**, "never perfectly still", is the airframe's, not the wind's. It belongs to the acceptance targets of the future flight-model change, the one that builds motor asymmetry and ESC jitter (not yet proposed), not to this note.
 
 | ID | Severe (§6.3) | Windy (c = 0.5) | Calm (c = 0.15; ceilings only) |
 |---|---|---|---|
@@ -679,7 +680,7 @@ P measures only Severe. The rest of P's flight isn't recorded, so nothing milder
 | T11b | as §6.3 | same | not applied |
 | T12 | CV ≤ 0.32; smallest ≥ 0.50 | same | not applied |
 
-**Test procedure for Windy and Calm.** Fly the §6.2 procedure unchanged, with the same pilot, mass, route, runs, logging and wind-history logs, but with the level's own preset. T0 checks the level's mean crosswind (the centre of its strength band is tuned until T0 passes). Every other target uses the level's column.
+**Test procedure for Windy and Calm.** Fly the §6.2 procedure unchanged, with the same pilot, mass, route, runs, logging and wind-history logs, but with the level's own preset. T0 checks the level's mean crosswind (the centre of its strength band is tuned until T0 passes). Every other target uses the level's column. Calm flies with the airframe's asymmetry off (above). Windy and Severe fly the full model, asymmetry included, as P's real airframe did (assumed: at those levels the wind dominates it).
 
 - **A whole Severe flight** is mostly open field. Its open-field targets describe most of it (assumed): T1, T2, the field halves of T5 and T11a, T9, T12, and no roll events (P has 0 in 30.9 s, fewer than 1.9 per min).
 - The linear scaling is least safe where authority runs short, which is yaw (§5.5). A milder wind needs less of it, so the scaled yaw bands are, if anything, generous.
