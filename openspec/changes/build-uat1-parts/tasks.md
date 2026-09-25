@@ -5,6 +5,13 @@
 - [ ] 1.1 [world-artist] Write `tools/blender/export.py` (headless builder → `.blend` → `.glb`, LODs, budget report, fails on excess) and the catalog-entry conventions. Verify the one-command and budget-report scenarios on one simple prop
 - [ ] 1.2 [world-artist] Write `tools/assets/fetch_cc0.py` (Poly Haven and ambientCG by id, resolution and SHA-256) and `CREDITS.md`. Fetch the core texture set from notes §11 item 11, within the pilot's permission (2K, about 20–25 sets plus 1–2 HDRIs, Poly Haven and ambientCG only; see design). Verify the credits scenario
 
+- [ ] 1.3 [world-artist] Carry over the non-blocking points from `define-map-format`'s QA review:
+  - F1: add a "< 1 ms on every surface" micro-detail line to `tools/worldbench` (belt_straw and yard_litter)
+  - F3: fix the "(limit 1 mm)" label placement in `WorldQuerySelfTest.cs`
+
+  Verify by running the benchmark and the selftest
+- [ ] 1.4 [qa-engineer] Carry over F2 from `define-map-format`'s QA review: add a corner-lookup check (an asymmetric in-memory world) to `--selftest worldquery`. Verify that it passes
+
 ## 2. Terrain
 
 - [ ] 2.1 [world-artist] Add the `burnt_field` surface (values from the notes and soil mechanics). Verify with the validator
