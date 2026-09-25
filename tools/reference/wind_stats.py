@@ -10,6 +10,9 @@ Input is reference/_frames/<letter>/attitude.csv from track_attitude.py, or a si
 logged in the same columns (frame, time_s, roll_deg, pitch_deg, yaw_rate_dps, conf_roll,
 conf_pitch, conf_yaw; a simulation writes conf 1). Every number in wind.md comes from this
 script, and the section 6 targets are checked by running it on the simulator's log.
+--wind-log takes the weather preset's own wind history instead (T0c): one CSV per seed with
+time_s, wind_from_deg and prevailing_from_deg (the direction that seed drew). wind_history_fixture.py
+builds such logs from the section 5.3 starting model and checks T0c on many seed sets.
 
 Definitions (wind.md section 1.4):
 - Usable frame: roll and pitch confidence >= CONF (yaw: yaw confidence >= CONF), and not within
@@ -54,6 +57,7 @@ BLOCK_SEG = 30                      # bootstrap block inside and outside a segme
 BLOCK_S = 150                       # frames per block of the terrain comparison (5 s)
 BOOT = 500
 SHIFT_DEG, SHIFT_S, SIDE_S = 45.0, 30.0, 40.0   # wind history: a shift is >= 45 deg within 30 s; side kept over 40 s
+PEAK_S = (60.0, 600.0)              # trial periods of the shift periodicity peak: 2 x SHIFT_S to the slowest T0c rate
 MAX_LAG_S = 1.0
 D1 = np.array([-2, -1, 0, 1, 2]) / 10.0      # 5-point first derivative (per frame)
 D2 = np.array([2, -1, -2, -1, 2]) / 7.0      # 5-point second derivative (per frame^2)
@@ -426,39 +430,59 @@ def report(o):
         f"{b['frames'][0]}-{b['frames'][1]} {b['roll']:.2f}/{b['pitch']:.2f}" for b in o["blocks"]))
 
 
-def wind_history(paths):
-    """T0c (wind.md section 6.3) on the weather preset's own wind state, not on the attitude: one CSV per seed with
-    columns time_s, wind_from_deg. Spread about the prevailing direction, shifts (a change of >= SHIFT_DEG within
-    SHIFT_S, counted once per run of such times) and the share of SIDE_S windows in which the wind stays within 90 deg
-    of the prevailing direction, i.e. keeps one side of a course flown abeam of it. Shifts and windows are pooled."""
-    per, gaps, keep, zs, count, minutes = [], [], [], [], 0, 0.0
-    for p in paths:
-        rows = list(csv.DictReader(Path(p).open(encoding="utf-8")))
-        t = np.array([float(r["time_s"]) for r in rows])
-        d = np.radians([float(r["wind_from_deg"]) for r in rows])
+def load_wind(path):
+    """One seed's wind history (T0c): columns time_s, wind_from_deg, and prevailing_from_deg, the prevailing direction
+    that seed drew for its flight (wind.md section 6), the same on every row."""
+    rows = list(csv.DictReader(Path(path).open(encoding="utf-8")))
+    t, d, p = (np.array([float(r[k]) for r in rows]) for k in ("time_s", "wind_from_deg", "prevailing_from_deg"))
+    if np.unique(p).size != 1:
+        raise ValueError(f"{path}: prevailing_from_deg must be the seed's one drawn direction on every row")
+    return t, d, p
+
+
+def wind_history(logs):
+    """T0c (wind.md section 6.3) on the weather preset's own wind state, not on the attitude. logs holds one
+    (time_s, wind_from_deg, prevailing_from_deg) triple of arrays per seed. Every seed is measured against its own drawn
+    prevailing direction; everything else is pooled over the seeds:
+    - draws: how alike the seeds' drawn directions are (resultant length: 1 = all the same, near 0 = spread round)
+    - offset and spread: the circular mean and the RMS of the wind's deviation from the drawn direction
+    - shifts: a change of >= SHIFT_DEG within SHIFT_S, counted once per stretch of such times; their rate, the CV of
+      the gaps between onsets, and the periodicity peak: the pooled Rayleigh power of the onset times,
+      sum over seeds |sum_k exp(2 pi i f t_k)|^2 / (number of onsets), at its largest over trial periods PEAK_S.
+      Random onsets give about 1 at every period; onsets on a schedule pile up power at its period.
+    - side_keep: the share of SIDE_S windows in which the wind stays within 90 deg of the drawn direction throughout,
+      i.e. keeps one side of a course flown abeam of it."""
+    per, gaps, keep, zdev, times, draws, span = [], [], [], 0j, [], [], 0.0
+    for t, d, p in logs:
         dt = float(np.median(np.diff(t)))
-        z = np.exp(1j * d).mean()
-        zs.append(z)
-        dev = np.degrees(np.angle(np.exp(1j * d) / z))                     # deviation from the prevailing direction
+        dev = np.angle(np.exp(1j * np.radians(d - p[0])))                  # rad, from the seed's drawn direction
         lag, w = int(round(SHIFT_S / dt)), int(round(SIDE_S / dt))
         onsets = []                                                        # crossings < SHIFT_S apart are one shift
-        for a, b in runs(np.abs(np.degrees(np.angle(np.exp(1j * (d[lag:] - d[:-lag]))))) >= SHIFT_DEG):
+        for a, b in runs(np.abs(np.angle(np.exp(1j * (dev[lag:] - dev[:-lag])))) >= math.radians(SHIFT_DEG)):
             if not onsets or a - end >= lag:
                 onsets.append(a)
             end = b
-        other = np.concatenate(([0], np.cumsum(np.abs(dev) >= 90)))
+        other = np.concatenate(([0], np.cumsum(np.abs(dev) >= math.pi / 2)))
         k = (other[w:] - other[:-w]) == 0
         m = (t[-1] - t[0]) / 60
-        per.append(dict(prevailing_deg=math.degrees(np.angle(z)) % 360, spread_deg=math.degrees(math.sqrt(-2 * math.log(abs(z)))),
-                        shifts=len(onsets), minutes=m, side_keep=float(k.mean())))
+        per.append(dict(prevailing_from_deg=float(p[0]) % 360, offset_deg=math.degrees(np.angle(np.exp(1j * dev).mean())),
+                        spread_deg=math.degrees(math.sqrt(np.mean(dev ** 2))), shifts=len(onsets), minutes=m,
+                        side_keep=float(k.mean())))
         gaps += list(np.diff(onsets) * dt)
         keep.append(k)
-        count, minutes = count + len(onsets), minutes + m
-    g = np.array(gaps)
-    return dict(runs=per, minutes=minutes, prevailing_deg=math.degrees(np.angle(np.mean(zs))) % 360,
+        zdev += np.exp(1j * dev).sum()
+        times.append(t[onsets])
+        draws.append(np.exp(1j * math.radians(p[0])))
+        span = max(span, t[-1] - t[0])
+    g, count, minutes = np.array(gaps), sum(len(x) for x in times), sum(r["minutes"] for r in per)
+    f = np.arange(1 / PEAK_S[1], 1 / PEAK_S[0], 1 / (4 * span))            # 4 x finer than the seeds resolve
+    power = sum(np.abs(np.exp(2j * math.pi * f[:, None] * x[None, :]).sum(axis=1)) ** 2 for x in times) / max(count, 1)
+    return dict(seeds=per, minutes=minutes, draws=dict(n=len(draws), resultant=float(abs(np.mean(draws)))),
+                offset_deg=math.degrees(np.angle(zdev)), spread_deg=float(np.mean([r["spread_deg"] for r in per])),
                 shifts=dict(count=count, per_min=count / minutes, n_gaps=len(g),
-                gap_cv=float(g.std() / g.mean()) if len(g) > 1 else math.nan),
-                spread_deg=float(np.mean([r["spread_deg"] for r in per])), side_keep=float(np.concatenate(keep).mean()))
+                            gap_cv=float(g.std() / g.mean()) if len(g) > 1 else math.nan,
+                            peak=float(power.max()), peak_period_s=float(1 / f[power.argmax()])),
+                side_keep=float(np.concatenate(keep).mean()))
 
 
 def gauss_check(o, n):
@@ -531,14 +555,16 @@ def main():
     if not (a.letter or a.csv or a.wind_log):
         p.error("give --letter, --csv or --wind-log")
     if a.wind_log:
-        o = wind_history(a.wind_log)
-        for r in o["runs"]:
-            print(f"  wind history: prevailing {r['prevailing_deg']:.1f} deg, spread {r['spread_deg']:.1f} deg, "
-                  f"{r['shifts']} shifts in {r['minutes']:.1f} min, side kept in {r['side_keep']:.1%} of {SIDE_S:g} s windows")
+        o = wind_history([load_wind(p) for p in a.wind_log])
+        for r in o["seeds"]:
+            print(f"  wind history: drawn {r['prevailing_from_deg']:.1f} deg, offset {r['offset_deg']:+.1f} deg, "
+                  f"spread {r['spread_deg']:.1f} deg, {r['shifts']} shifts in {r['minutes']:.1f} min, "
+                  f"side kept in {r['side_keep']:.1%} of {SIDE_S:g} s windows")
         s = o["shifts"]
-        print(f"  pooled: prevailing {o['prevailing_deg']:.1f} deg; {s['count']} shifts in {o['minutes']:.1f} min = "
-              f"{s['per_min']:.3f}/min, gap CV {s['gap_cv']:.2f} "
-              f"({s['n_gaps']} gaps); mean spread {o['spread_deg']:.1f} deg; side kept {o['side_keep']:.1%}")
+        print(f"  pooled over {o['draws']['n']} seeds: draws' resultant {o['draws']['resultant']:.2f}; offset "
+              f"{o['offset_deg']:+.1f} deg; mean spread {o['spread_deg']:.1f} deg; {s['count']} shifts in "
+              f"{o['minutes']:.1f} min = {s['per_min']:.3f}/min, gap CV {s['gap_cv']:.2f} ({s['n_gaps']} gaps), "
+              f"periodicity peak {s['peak']:.2f} at {s['peak_period_s']:.0f} s; side kept {o['side_keep']:.1%}")
     else:
         path = Path(a.csv) if a.csv else Path(a.ref) / "_frames" / a.letter / "attitude.csv"
         o = analyse(load(path), tuple(int(v) for v in a.segment.split("-")) if a.segment else None)
