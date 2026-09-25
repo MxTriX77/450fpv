@@ -326,7 +326,7 @@ The flight's 95th percentiles are 8.4 / 5.2 / 8.6. Two losses follow brisk roll 
   - The sideways thrust stayed on the left in every frame (at least 0.034 W, roll ≤ −1.8°), so the crosswind never reversed in the toughest stretch.
   - Its spread (std 0.047 W [0.041, 0.051], 27 % of the mean) is the crosswind's variation plus the pilot's course changes.
 - **Derived limit:** the lean shows only the wind component across the track. For a wind from abeam, a direction swing changes that component only to second order. P therefore cannot show how far or how often the direction changed.
-- **Derived (model requirement):** a prevailing direction per flight plus random direction changes, never a fixed vector. The changes must be:
+- **Derived (model requirement):** a prevailing direction per flight, drawn from the flight's seed (§6), plus random direction changes, never a fixed vector. The changes must be:
   - slow or small enough that a ~40 s stretch can keep the crosswind on one side (P)
   - large enough to put the wind on other sides within a longer flight (pilot, Q2, Q6)
 - **Assumed** (starting values, tunable):
@@ -506,7 +506,7 @@ The pilot flies 10-inch heavy fiber quads of the reference class (pilot, Q4). `a
 
 ### 5.6 Summary for the wind model
 
-1. A steady crosswind that makes the drone lean about 9° at 22.7° of forward pitch (derived for the class mass: roughly 5 m/s across the path at about 13 m/s of airspeed). It blows from a prevailing direction that changes at random, never a fixed vector (pilot, Q2; T0c).
+1. A steady crosswind that makes the drone lean about 9° at 22.7° of forward pitch (derived for the class mass: roughly 5 m/s across the path at about 13 m/s of airspeed). Each flight draws its prevailing direction and mean strength, and the direction then changes at random, never a fixed vector (pilot, Q2; §6; T0c).
 2. Background turbulence that, under a pilot of 0.5 Hz (roll) and 0.9 Hz (pitch) bandwidth, leaves 0.5° of roll and 0.3° of pitch wobble above 0.3 Hz over open field.
 3. Wakes behind tree belts (and, by extension, buildings) that multiply that wobble 1.6–4× and deliver a burst every 0.6–0.8 s. The gusts push sideways, so the pilot pays for each one with horizon or heading (§5.5).
 4. A steady wobble over open field that never goes calm, with isolated pitch jolts on top; the bursts are spatial, over the belt, not everywhere (§5.4). Roll and pitch are nearly independent; roll and heading are coupled through that trade-off.
@@ -536,7 +536,12 @@ The earlier Q9–Q11 (motor and battery, the cargo mass, the coil's length) are 
 
 ## 6. Wind targets: Severe, Windy and Calm
 
-The weather is a fixed pilot setting with three levels: **Calm, Windy and Severe** (D-011). Each level is one fixed preset, with no options inside it, and nothing about it is drawn at random between flights. At every level the preset's wind has a prevailing direction with random changes, never a fixed vector (pilot, Q2; T0c).
+The pilot picks the weather level: **Calm, Windy or Severe** (D-011). The level itself is never drawn at random. Within the level, each flight draws its own wind from the flight seed (the orchestrator's decision in `design.md`):
+- **Fixed by the level** (its preset parameters; nothing inside a level is an option): the band of mean wind strength (§6.4), the turbulence intensity σ/U and scales (§5.4), the obstacle wakes, and the direction-change parameters: meander, shift rate and shift size (§5.3).
+- **Drawn once per flight, from its seed:** the prevailing wind direction, uniform over the compass, and the mean strength, uniform within the level's band (both assumed). Both draws are written to the physics log, so the flight replays exactly.
+- **Evolving from the same seed during the flight:** the meander, the shifts, the gusts and the turbulence.
+
+So no two flights at a level meet the same wind, and none meets a fixed vector (pilot, Q2; T0c).
 - §6.3 gives the **Severe** targets, which P measures.
 - §6.4 derives **Windy** and **Calm** from them.
 - §6.5 shows that plain Gaussian noise fails the targets it must fail.
@@ -574,7 +579,8 @@ A level passes when the sim, flown by the simulated pilot below along the test f
 1. **Setup:**
    - The sim's drone: a 10-inch heavy fiber quad (reference class, `airframes.md`), with 0° camera uptilt (pilot, Q1).
    - Mass **4.8 kg**, the nominal mass during P (§5.5), with the inertia of the §5.5 component model at that mass: roll 0.044, pitch 0.054 and yaw 0.050 kg·m². This is assumed. One extra run each at 3.6 and 6.5 kg, the class's light and heavy ends during P, is reported but not scored.
-   - The weather level under test (Severe for §6.3), with its prevailing direction abeam from the left of the course (pilot, Q2). Its random direction changes are part of the level, and T0c checks them. The level's mean crosswind is a preset value, tuned until T0 passes.
+   - The weather level under test (Severe for §6.3). Each run is its own flight seed, so it draws its own prevailing direction and mean strength (§6). The course is laid with that run's drawn direction abeam from the left (pilot, Q2), so every run meets its wind as P did. The random direction changes are part of the level, and T0c checks them.
+   - The level's strength band is its centre ± 25 % (assumed). The centre is a preset value, tuned until T0 passes.
 2. **Route:** a straight course, well above the tree tops.
    - P's height varied and is unknown (pilot, Q5), so the runs spread evenly over 20–50 m above ground (assumed).
    - Each run has **32 s over open field and 7 s** from the upwind edge of one tree belt to about 10 belt heights downwind. That is P's mix: 7.0 s of belt in 37.9 s of residual time.
@@ -599,7 +605,7 @@ Bands are about ±35 % on spreads. That covers the bootstrap interval, the varia
 
 | ID | Quantity | JSON field | P value [16–84 %] | Severe band |
 |---|---|---|---|---|
-| T0 | Mean lean into the crosswind (calibrates the level's mean crosswind) | `angle[roll].mean` | −9.1° [−9.6, −8.7] | \|mean\| = 9 ± 3°, leaning into the wind |
+| T0 | Mean lean into the crosswind (calibrates the centre of the level's strength band) | `angle[roll].mean` | −9.1° [−9.6, −8.7] | \|mean\| = 9 ± 3°, leaning into the wind |
 | T0b | Crosswind variability, which keeps its side through a stretch: relative spread and minimum of the sideways thrust. Turbulence around a fixed vector passes this too, so it doesn't test direction changes; T0c does | `airframe.lateral.std` / `airframe.lateral.mean`; `airframe.lateral.min` | 0.27 (0.047 / 0.174); 0.034 W | 0.14–0.40 (at least half of P's; the rest may be the pilot's course changes); min > 0 on the windward side in at least 4 of 5 runs |
 | T0c | Random direction changes about a prevailing direction, on the preset's own wind history (§6.2; 5 seeds × 10 min, pooled). Definitional: P can't show them (§5.3) | `wind_history.prevailing_deg`; `.spread_deg` and each `.runs[i].spread_deg`; `.shifts.per_min` and `.shifts.gap_cv`; `.side_keep` | none; assumed (pilot, Q2) | prevailing within ±30° of the preset's direction; mean spread about it 20–60°, and ≥ 10° in every seed (never a fixed vector); 0.15–0.6 shifts (≥ 45° within 30 s) per min, gap CV ≥ 0.35 (at random, not on a schedule); the wind within 90° of the prevailing direction throughout 75–98 % of 40 s windows (mostly one side, as in P, and sometimes the others) |
 | T1 | Residual roll std, open field | `segment.outside.roll.res_std` | 0.51° [0.47, 0.53] | 0.35–0.70° |
@@ -636,15 +642,16 @@ Bands are about ±35 % on spreads. That covers the bootstrap interval, the varia
 
 P measures only Severe. The rest of P's flight isn't recorded, so nothing milder is measured, and Windy and Calm are derived from Severe.
 
-**Scaling (derived).** Take a level whose mean crosswind is c times Severe's, flown at the same airspeed (pitch trim). Assume that the turbulence intensity σ/U stays fixed (neutral surface layer) and that the closed loop stays linear. Then:
+**Scaling (derived).** Take a level whose strength band is centred on c times Severe's centre, flown at the same airspeed (pitch trim). Assume that the turbulence intensity σ/U stays fixed (neutral surface layer) and that the closed loop stays linear. Then:
 - **Scaled by c:** every angle spread and wind-driven band RMS (T1–T5, T6b, the T6c RMS, T11a), and the tangent of the mean lean (T0).
 - **Unchanged:** shares, event rates (their thresholds scale too), gap statistics, kurtosis, steadiness, ratios and correlations (T0b, T6a, the T6c share, T7–T10, T11b, T12).
 - **T6d is unchanged too.** It is a ceiling on all high-frequency shake, which the airframe drives as well as the wind, and P's value is mostly the tracker's noise floor (§3.3).
-- **T0c is the same at every level** (assumed). The pilot's Q2 describes the wind's character, not its strength.
+- **T0c is the same at every level** (assumed). The pilot's Q2 describes the wind's character, not its strength. So are the per-flight draws: a direction uniform over the compass, and a strength within the level's centre ± 25 %.
+- **The bands never overlap:** each level spans 0.75–1.25 × its own c, so Severe draws 0.75–1.25, Windy 0.375–0.625 and Calm 0.11–0.19 times Severe's centre (derived). Each flight's own lean then stays inside its level's T0 band: 6.9–11.3° for Severe, 3.4–5.7° for Windy and 1.0–1.7° for Calm (derived, at the direction abeam).
 
-**Windy** (c = 0.5, assumed): a mean crosswind of about 2.5 m/s (1.2–5.8 m/s) at the derived airspeed (§5.3).
+**Windy** (c = 0.5, assumed): a band centred on about 2.5 m/s of mean crosswind (1.2–5.8 m/s) at the derived airspeed (§5.3).
 
-**Calm** (c = 0.15, assumed): light air, a mean crosswind of about 0.8 m/s (0.4–1.7 m/s). P can't measure calm; this band is derived and nothing more.
+**Calm** (c = 0.15, assumed): light air, a band centred on about 0.8 m/s of mean crosswind (0.4–1.7 m/s). P can't measure calm; this band is derived and nothing more.
 - **Assumed:** at this level the airframe's own disturbances are probably as large as the wind's: motor asymmetry and ESC timing jitter (the manifesto's point 4), and prop wash.
 - Scaled lower bounds would then mean nothing, and shape targets would measure the airframe, not the wind.
 - So Calm keeps only T0, T0c, T6d and ceilings on the wind-scaled spreads. The ceilings sit at Windy's lower bounds, so the levels never overlap. The scaled values themselves are lower (T1 ≈ 0.08°), which leaves room for the airframe.
@@ -672,7 +679,7 @@ P measures only Severe. The rest of P's flight isn't recorded, so nothing milder
 | T11b | as §6.3 | same | not applied |
 | T12 | CV ≤ 0.32; smallest ≥ 0.50 | same | not applied |
 
-**Test procedure for Windy and Calm.** Fly the §6.2 procedure unchanged, with the same pilot, mass, route, runs, logging and wind-history logs, but with the level's own preset. T0 checks the level's mean crosswind (its preset value is tuned until T0 passes). Every other target uses the level's column.
+**Test procedure for Windy and Calm.** Fly the §6.2 procedure unchanged, with the same pilot, mass, route, runs, logging and wind-history logs, but with the level's own preset. T0 checks the level's mean crosswind (the centre of its strength band is tuned until T0 passes). Every other target uses the level's column.
 
 - **A whole Severe flight** is mostly open field. Its open-field targets describe most of it (assumed): T1, T2, the field halves of T5 and T11a, T9, T12, and no roll events (P has 0 in 30.9 s, fewer than 1.9 per min).
 - The linear scaling is least safe where authority runs short, which is yaw (§5.5). A milder wind needs less of it, so the scaled yaw bands are, if anything, generous.
