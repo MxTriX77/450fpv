@@ -381,12 +381,12 @@ The pilot flies 10-inch heavy fiber quads of the reference class (pilot, Q4). `a
 
 | Item | Mass | Label |
 |---|---|---|
-| Frame, 452 mm wheelbase | 0.38 kg | published (`airframes.md`; the mass isn't on its cited page) |
+| Frame, 452 mm wheelbase | 0.38 kg | wheelbase published; mass assumed (`airframes.md` lists it, but its cited page doesn't give it) |
 | 4 motors, 3115 size, 900 Kv, 40 A rating | 4 × 0.112 = 0.45 kg | published (`airframes.md`) |
 | ESC, flight controller, camera, fiber transceiver, wiring, 4 three-blade 10" props, legs | 0.35–0.5 kg | assumed (`airframes.md`) |
 | Battery, 6S Li-ion, 20–25 Ah (6S4P–6S5P) | 1.7–2.2 kg | derived: 24–30 cells of about 69 g (5 Ah 21700 cells, assumed), plus about 5 % for bus bars and wrap |
 | Fiber coil at take-off | ≈ 1.0 kg | class (`airframes.md`) |
-| Cargo | 0.5–2 kg, typically ≈ 1 kg | class (`airframes.md`) |
+| Cargo | 0.5–2 kg, typically ≈ 1 kg | range: class (`airframes.md`); typical ≈ 1 kg: assumed (no cited source gives a typical value, and it sets the nominal 4.8 kg) |
 | **Take-off** | **4.4–6.5 kg**; typical, with ≈ 1 kg of cargo, **4.9–5.5 kg** | derived |
 | Coil during P | 0.2–1.0 kg. How much fiber had paid out isn't recorded; an empty spool with its housing is taken as at least 0.2 kg | assumed |
 | **During P** | **3.6–6.5 kg**; typical 4.1–5.5 kg; **nominal 4.8 kg** | derived. The nominal takes the typical loadout with the coil half paid out and the cargo still on board (assumed) |
