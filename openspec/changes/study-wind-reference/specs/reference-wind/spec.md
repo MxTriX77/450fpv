@@ -53,7 +53,7 @@ Every inference SHALL be marked as measured, derived or assumed.
 - **THEN** it is labelled measured, derived or assumed, and the closed-loop limit is stated before the targets
 
 ### Requirement: Targets for the wind model
-The notes SHALL end with quantitative acceptance targets for a future "severe wind" preset: residual roll and pitch standard deviations, spectral band, gust-event rate and cross-axis correlation, each with a tolerance, measured with a simulated pilot of stated correction bandwidth. The targets SHALL be phrased so a physics test can check them automatically.
+The notes SHALL end with quantitative acceptance targets for each of the pilot's weather levels (D-011: **Calm / Windy / Severe**, always chosen by the pilot). **Severe** is measured from the clip. **Windy** and **Calm** are derived bands, labelled as such. The targets SHALL include a check on the preset's own wind history (a prevailing direction with random shifts, never a fixed vector), and a check that the wobble never goes smooth over open ground. For **Severe and Windy**: residual roll and pitch standard deviations, spectral band, gust-event rate and cross-axis correlation, each with a tolerance, measured with a simulated pilot of stated correction bandwidth. **Calm** is defined by ceilings only, plus the wind-history check. Its "never perfectly still" floor comes from the airframe (motor asymmetry), and belongs to the flight-model change's acceptance. Calm's ceilings apply to the wind-driven part, measured with airframe asymmetry off. The targets SHALL be phrased so a physics test can check them automatically.
 
 #### Scenario: Testable targets
 - **WHEN** the physics engineer reads the targets

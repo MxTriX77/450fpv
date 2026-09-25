@@ -30,6 +30,11 @@
 - **Spectra:** Welch power spectra on segments of continuous high-confidence frames, with Hann windows and segment lengths stated. Frequencies above the frame-rate Nyquist (15 Hz) can't be seen. That limit is stated: fast motor-level shake shows up as blur, not as angle.
 - **Gust events:** excursions of |roll| or |pitch| beyond 2σ, or rates beyond the 95th percentile. Report the count per minute and the durations. The threshold is stated with the results.
 - **Closed-loop interpretation:** also estimate the pilot's correction bandwidth from how fast excursions decay. The targets are defined against a simulated pilot of that bandwidth, so the sim is judged like-for-like.
+- **What varies per flight (orchestrator, 2026-09-24, following D-011).** The pilot picks the level: Calm, Windy or Severe. Within that level, **each flight draws its own prevailing wind direction and mean strength**, within the level's band, from the flight seed. The draw is logged in the physics log, so any flight can be replayed. Gusts, shifts and turbulence then evolve from the same seed. This keeps D-011's "always chosen by the pilot" (the level) and the pilot's "unexpected and undefined" (the wind itself). The level is never drawn at random.
+- **Per-flight draw details (orchestrator confirms the physics engineer's assumptions, 2026-09-25):**
+  - The prevailing direction is drawn uniformly over the compass.
+  - The mean strength is drawn uniformly within the level's centre ± 25 %. That keeps the levels apart and every flight's lean inside its level's T0 band.
+  - **Severe and Windy tests fly with the airframe's seeded asymmetry on,** as real drones have it. Only Calm's ceilings are judged with it off (per the spec).
 - **Ownership:** the physics engineer writes the tracker and `wind.md` §1–§5. The tech-artist then adds the rain section, running after the physics engineer on the same file, so there are no conflicts.
 
 ## Risks / Trade-offs
