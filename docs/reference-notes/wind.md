@@ -311,7 +311,7 @@ The flight's 95th percentiles are 8.4 / 5.2 / 8.6. Two losses follow brisk roll 
   - a **mean crosswind ≈ 5 m/s (2.5–11.5 m/s, 9–41 km/h)** across the track. The range includes the drag-direction uncertainty above.
   - Every 1 m/s of extra crosswind needs **1.8° (0.95–2.6°)** more lean to hold the track. Both drag terms are linear in a small crosswind, so the extra lean per m/s is (0.453 / V_a) · cos θ · cos² φ rad = 23.4° / V_a, and the mass enters only through V_a.
 - **Cross-check against the published cruise:** the class's published cruise is 60–80 km/h (17–22 m/s) with 1.5 kg of cargo (`airframes.md`). It lies inside the derived range, above its nominal (derived).
-  - At P's 22.7° of pitch and 4.8 kg, 17–22 m/s needs rotor drag at the bottom of its range, d_r ≈ 0.1–0.15 s⁻¹ (derived).
+  - At P's 22.7° of pitch and 4.8 kg, 17 m/s needs rotor drag near the bottom of its range, d_r ≈ 0.15 s⁻¹ at the nominal body drag. 22 m/s needs d_r ≈ 0.10 s⁻¹ with the body drag at its low end too (C_D A = 0.035 m²); at the nominal 0.05 m² it would need 0.06 s⁻¹, below the assumed range (derived).
   - With the nominal drag, 17–22 m/s needs 32–41° of pitch (derived).
   - So either P was flown below cruise speed, which is plausible in severe wind on the toughest stretch (assumed), or the drag is at its low end. In the second case the crosswind is 6.5–8.5 m/s (derived). Both readings stay inside the ranges above; the pilot can settle it (§5.7, Q14).
 - **Derived:** the class mass of `airframes.md` raises the airspeed from the 12 m/s (8–21 m/s) derived earlier for 1.6–3.35 kg, because the quadratic body drag weighs less against a heavier drone. The confirmed forward pitch means fast flight, and in fast flight a crosswind's side drag grows with the airspeed, so a smaller crosswind gives the same lean as a larger one would in hover. The pilot's "severe wind" (strength unknown, Q2) then lies more in what P cannot see as a mean:
@@ -416,7 +416,7 @@ The pilot flies 10-inch heavy fiber quads of the reference class (pilot, Q4). `a
   - roll inertia **0.033–0.057 kg·m²**, pitch **0.040–0.072 kg·m²** and yaw **0.043–0.060 kg·m²**; at the nominal 4.8 kg, **0.044, 0.054 and 0.050**
   - radii of gyration r_g of 0.093–0.098 m (roll), 0.100–0.107 m (pitch) and 0.094–0.110 m (yaw)
   - yaw inertia only 1.0–1.3 times roll inertia. The battery on top and the coil and cargo below add roll and pitch inertia but little yaw inertia. Pitch exceeds roll because the cargo sits forward.
-- **Derived:** with a full coil, the centre of mass sits 1–2 cm below the arm plane and 1–3 cm forward, and the coil's centre 8–9 cm below it. A side gust on the coil is therefore also a rolling moment. With the coil nearly empty, the centre of mass rises to about 1 cm above the arm plane.
+- **Derived:** with a full coil and the 1.7–2.2 kg packs, the centre of mass sits 1–2 cm below the arm plane and 1–3 cm forward, and the coil's centre 8–9 cm below it. The 3 kg pack (5.8 kg loadout) lifts it to about 0.3 cm above the arm plane. A side gust on the coil is therefore also a rolling moment. With the coil nearly empty, the centre of mass rises to about 1 cm above the arm plane.
 
 **Collective thrust**
 - **Derived** (`airframe.load_factor`): holding height at the measured tilt needs **1.10 W** on average (p95 1.13 W, maximum 1.14 W).
