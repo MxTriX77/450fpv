@@ -432,8 +432,8 @@ The pilot flies 10-inch heavy fiber quads of the reference class (pilot, Q4). `a
   - At take-off that is a thrust-to-weight of 1.4–2.8, and 2.0 for the typical 5.2 kg at the nominal thrust.
 - **Assumed:** in P's flight state, axial inflow through the discs tilted 22.7° at 9–25 m/s derates the thrust to 0.80–0.95 (nominal 0.90 at 13 m/s); the edgewise flow partly offsets it. The pack's sag is already in the range above.
 - **Derived:**
-  - During P, 7.2–11.9 kgf is available (nominal 9.4 kgf). The mean need of 1.10 W is **33–99 % of it**, **nominal 57 %** at 4.8 kg.
-  - That is a **thrust margin of 1.0–3.0 (nominal 1.8)**. With thrust going with throttle squared (above), 57 % is about three-quarters of full throttle.
+  - During P, 7.2–11.9 kgf is available (nominal 9.4 kgf). The mean need of 1.10 W is **33–99 % of it**, **nominal 56.3 %** at 4.8 kg.
+  - That is a **thrust margin of 1.0–3.0 (nominal 1.8)**. With thrust going with throttle squared (above), 56.3 % is about three-quarters of full throttle (√0.563 = 0.75).
   - At the nominal mass, collective thrust is not saturated in the mean. The heavy corner, 6.5 kg on a sagged pack, has no margin left: it could only just hold P's flight state.
   - The "motors crying" fits: high rpm at about three-quarter throttle and 13 m/s or more, plus fast differential changes (below).
 - **Derived:** this replaces the margin of 2.1 (1.3–4.8) derived for the earlier 1.6–3.35 kg.
@@ -448,7 +448,7 @@ The pilot flies 10-inch heavy fiber quads of the reference class (pilot, Q4). `a
 - **Assumed:** rotor drag torque κ of 0.015–0.02 N·m per newton of thrust (10" three-blade props).
 - **Derived:** the body yaw acceleration of 77 °/s² at the 95th percentile (maximum 288) needs r_g² · α / (κ · 1.10 · g): **5.5–10 % differential thrust** between the two rotor pairs, and **21–38 %** at the maximum. These are upper bounds, because they include noise.
 - **Derived:** **yaw is the axis that runs out of authority first**. It needs 4–8 times the roll figure.
-  - The rotor pair that takes the extra thrust runs at (1 + shift) times the collective. At the nominal 57 % and the maximum shift of 38 %, that is 79 % of its limit.
+  - The rotor pair that takes the extra thrust runs at (1 + shift) times the collective. At the nominal 56.3 % and the maximum shift of 38 %, that is 78 % of its limit.
   - It saturates once the collective passes 72 %, which the heavy corner reaches (above).
   - **Measured:** P shows no direct sign of yaw saturation. Yaw's whole-clip kurtosis of 9 is mostly the mix of belt and field (2.8 over the belt, 4.3 over the field, §4.4), not clipped authority.
 
