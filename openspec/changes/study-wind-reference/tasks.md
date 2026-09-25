@@ -24,4 +24,4 @@
 
 ## 3. Review
 
-- [ ] 3.1 [qa-engineer] Review against spec scenarios: tracker accuracy on the synthetic set, a re-run of the spot check, reproducibility of every statistic, the target format, and the OPSEC scan of `wind.md` and commit messages. Write `review.md` with the verdict
+- [x] 3.1 [qa-engineer] Review against spec scenarios: tracker accuracy on the synthetic set, a re-run of the spot check, reproducibility of every statistic, the target format, and the OPSEC scan of `wind.md` and commit messages. Write `review.md` with the verdict
