@@ -77,6 +77,8 @@ public sealed partial class WorldQuery
                     continue;
                 Sample(cx + WindCellSize / 2, cz + WindCellSize / 2, out GroundSample g, false);
                 ref WindCell c = ref _wind[row * WindCells + column];
+                if (!_loading)
+                    Append(ref _windUndo, ref _windUndoCount, (row * WindCells + column, c));
                 float cellTop = (float)Math.Max(top - g.TerrainHeight, 0), cellBase = (float)Math.Max(bottom - g.TerrainHeight, 0);
                 double beta = 1 - f * (1 - full);
                 if (c.TopM == 0 && c.Porosity == 1)

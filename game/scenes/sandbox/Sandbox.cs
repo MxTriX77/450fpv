@@ -3,10 +3,17 @@ using Godot;
 
 /// Review sandbox: sky, sun and ground placeholder.
 /// `-- --scene res://…` instances that scene at the origin in place of the ground placeholder.
+/// `-- --map <id>` loads the map package game/maps/<id>/ in place of the ground placeholder, with the noclip camera
+/// MapStartHeight above the map centre.
 /// F12 saves a screenshot to user://screenshots/.
 public partial class Sandbox : Node3D
 {
+    /// Metres above the terrain at the map centre where the camera starts.
+    public const float MapStartHeight = 15f;
+
     public string LastScreenshot { get; private set; }
+    /// The map `--map` loaded, or null.
+    public MapScene Map { get; private set; }
 
     public override void _Ready()
     {
@@ -14,6 +21,9 @@ public partial class Sandbox : Node3D
         string scenePath = ArgValue(args, "--scene");
         if (scenePath != null)
             LoadScene(scenePath);
+        string mapId = ArgValue(args, "--map");
+        if (mapId != null)
+            LoadMap(mapId);
 
         string selftest = ArgValue(args, "--selftest");
         if (selftest == "noclip")
@@ -35,6 +45,18 @@ public partial class Sandbox : Node3D
         else if (selftest == "worldquery-digest")
         {
             WorldQuerySelfTest.Digest(this, ArgValue(args, "--digest-out"));
+        }
+        else if (selftest == "map")
+        {
+            MapSelfTest.Run(this);
+        }
+        else if (selftest == "map-fallback")
+        {
+            GetTree().Quit(MapSelfTest.Fallback(this) ? 0 : 1);
+        }
+        else if (selftest == "map-view")
+        {
+            MapSelfTest.View(this, ArgValue(args, "--view"));
         }
         else if (selftest != null)
         {
@@ -75,6 +97,24 @@ public partial class Sandbox : Node3D
         GetNode<Node3D>("Ground").Visible = false;
         AddChild(scene.Instantiate());
         GD.Print($"Sandbox: loaded {path} at the origin");
+    }
+
+    void LoadMap(string id)
+    {
+        MapScene map = MapScene.Load(id, out string error);
+        if (map == null)
+        {
+            GD.PrintErr($"ERROR: Sandbox cannot load map '{id}': {error}. Starting with the ground placeholder.");
+            return;
+        }
+        GetNode<Node3D>("Ground").Visible = false;
+        AddChild(map);
+        Map = map;
+        Span<XZ> centre = stackalloc XZ[] { new XZ(0, 0) };
+        Span<GroundSample> ground = stackalloc GroundSample[1];
+        map.World.SampleGround(centre, ground);
+        GetNode<NoclipCamera>("Camera").ResetPose(new Vector3(0, (float)ground[0].TerrainHeight + MapStartHeight, 0));
+        GD.Print($"Sandbox: loaded map {id}");
     }
 
     static string ArgValue(string[] args, string name)

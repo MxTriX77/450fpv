@@ -102,9 +102,13 @@ public sealed partial class WorldQuery
     ulong[] _pitReach; // see InitPitReach
     int _pitLow, _pitSide;
     readonly byte[] _matKinds = new byte[256]; // per surface: a bit per cover kind that has a mat
+    readonly float[][] _density = new float[256][]; // per surface: CoverDensity at [channel * 4 + kind], see Density
     readonly double _minHeight = double.PositiveInfinity, _maxHeight = double.NegativeInfinity; // of the height samples
 
     public IReadOnlyList<SurfaceParams> Surfaces { get; }
+
+    /// surface.png's surface indices, Cells² row-major from the north-west corner, read-only (for the renderer).
+    public ReadOnlySpan<byte> SurfaceIds => _surface;
 
     /// Loads a map package (game/maps/README.md) with its objects, the shared surface table and the shared catalog.
     public static WorldQuery Load(string packageDir, string surfacesPath, string catalogPath)
@@ -123,18 +127,28 @@ public sealed partial class WorldQuery
         byte[] cover = MapPng.Read(Path.Combine(packageDir, "cover.png"), 4, out int coverCells, out _);
         if (coverCells != cells)
             throw new InvalidDataException($"{packageDir}: cover.png is {coverCells} wide, surface.png {cells}");
-        var world = new WorldQuery(SurfaceParams.ParseTable(File.ReadAllText(surfacesPath)), root.GetProperty("size_m").GetDouble(),
-            root.GetProperty("seed").GetUInt32(), samples, heights, cells, surface, cover, Catalog.Parse(File.ReadAllText(catalogPath)));
+        string surfacesJson = File.ReadAllText(surfacesPath);
+        double soilReference;
+        using (JsonDocument table = JsonDocument.Parse(surfacesJson))
+            soilReference = table.RootElement.GetProperty("soil_reference_diameter_m").GetDouble();
+        var world = new WorldQuery(SurfaceParams.ParseTable(surfacesJson), root.GetProperty("size_m").GetDouble(),
+            root.GetProperty("seed").GetUInt32(), samples, heights, cells, surface, cover, Catalog.Parse(File.ReadAllText(catalogPath)),
+            soilReference);
         world.LoadObjects(Path.Combine(packageDir, "objects.json"));
+        world.ContentHash = ContentHashOf(packageDir, surfacesPath, catalogPath);
         return world;
     }
 
+    /// surfaces.json's soil_reference_diameter_m, m: the default for a world built in memory.
+    public const double DefaultSoilReferenceDiameter = 0.015;
+
     /// `heights` are samples² world Y values, `surface` cells² surface indices and `cover` cells² RGBA bytes, all
-    /// row-major from the north-west corner. Objects need a `catalog`.
+    /// row-major from the north-west corner. Objects need a `catalog`. `soilReferenceDiameter` is the table's (m).
     public WorldQuery(SurfaceParams[] table, double sizeM, uint seed, int samples, float[] heights, int cells, byte[] surface,
-        byte[] cover, Catalog catalog = null)
+        byte[] cover, Catalog catalog = null, double soilReferenceDiameter = DefaultSoilReferenceDiameter)
     {
         SizeM = sizeM;
+        SoilReferenceDiameter = soilReferenceDiameter;
         Half = sizeM / 2;
         Seed = seed;
         Samples = samples;
@@ -153,8 +167,11 @@ public sealed partial class WorldQuery
             _reliefKey[s.Index] = DetMath.Key(seed, 0x100u | s.Index);
             _reliefScale[s.Index] = s.ReliefAmplitude / NoiseRms;
             _nodeScale[s.Index] = 2.0 / s.ReliefWavelength; // nodes half a wavelength apart
+            _density[s.Index] = new float[256 * 4];
             for (int k = 0; k < 4; k++)
             {
+                for (int channel = 0; channel < 256; channel++)
+                    _density[s.Index][channel * 4 + k] = Density(s, channel, k);
                 _matKey[s.Index * 4 + k] = DetMath.Key(seed, (uint)(0x200 + k * 0x100) | s.Index);
                 if (s.Cover[k] != null && s.Cover[k].HasMat)
                     _matKinds[s.Index] |= (byte)(1 << k);
@@ -186,7 +203,16 @@ public sealed partial class WorldQuery
         InitObjects();
     }
 
+    /// World-query "Content hash" (W-12) lookups, allocation-free: a surface by its index (null for an index not in the
+    /// table), a contact material by its id (Catalog.MaterialIds), and the foot diameter at which the surfaces' bearing
+    /// and damping are defined, m (surfaces.json's, or the constructor's for a world built in memory). The material of
+    /// Catalog.NoMaterial, which terrain ray hits and misses carry, is null: the ground's contact properties are its
+    /// surface's, Surface(hit.Surface).
     public SurfaceParams Surface(byte index) => _byIndex[index];
+
+    public MaterialParams Material(ushort id) => id == Catalog.NoMaterial ? null : Catalog.Materials[id];
+
+    public double SoilReferenceDiameter { get; }
 
     /// World-query W-1: one GroundSample per (x, z) point. Points outside the map clamp to the edge and are flagged.
     public void SampleGround(ReadOnlySpan<XZ> points, Span<GroundSample> results)
@@ -202,7 +228,7 @@ public sealed partial class WorldQuery
 
     /// The cell that contains (x, z); the far edge belongs to the last cell.
     int OwnCell(double x, double z) =>
-        ClampCell((int)Math.Floor((x + Half) * _perCell)) + ClampCell((int)Math.Floor((z + Half) * _perCell)) * Cells;
+        ClampCell(DetMath.ToInt(Math.Floor((x + Half) * _perCell))) + ClampCell(DetMath.ToInt(Math.Floor((z + Half) * _perCell))) * Cells;
 
     void Sample(double x, double z, out GroundSample g, bool withMat)
     {
@@ -228,14 +254,18 @@ public sealed partial class WorldQuery
         gx += rdx;
         gz += rdz;
 
-        double pit = Pitfall(x, z, out double pdx, out double pdz, out uint pitId);
-        if (pitId != 0)
+        double pit = 0;
+        if (PitMayReach(x, z))
         {
-            g.Feature = GroundFeature.Pitfall;
-            g.FeatureId = pitId;
-            g.FeatureDepth = (float)pit;
-            gx -= pdx;
-            gz -= pdz;
+            pit = Pitfall(x, z, out double pdx, out double pdz, out uint pitId);
+            if (pitId != 0)
+            {
+                g.Feature = GroundFeature.Pitfall;
+                g.FeatureId = pitId;
+                g.FeatureDepth = (float)pit;
+                gx -= pdx;
+                gz -= pdz;
+            }
         }
 
         g.TerrainHeight = terrain;
@@ -243,13 +273,13 @@ public sealed partial class WorldQuery
         double inverse = 1.0 / Math.Sqrt(gx * gx + 1.0 + gz * gz);
         g.Normal = new Vector3((float)(-gx * inverse), (float)inverse, (float)(-gz * inverse));
 
-        int own = OwnCell(x, z);
-        g.Surface = _surface[own];
+        g.Surface = b.OwnSurface;
         if (!withMat)
             return;
-        SurfaceParams ownSurface = _byIndex[g.Surface];
-        g.CoverDensity = new Vector4(Density(ownSurface, own, 0), Density(ownSurface, own, 1), Density(ownSurface, own, 2),
-            Density(ownSurface, own, 3));
+        float[] density = _density[b.OwnSurface];
+        int cover = b.Own * 4;
+        g.CoverDensity = new Vector4(density[_cover[cover] * 4], density[_cover[cover + 1] * 4 + 1], density[_cover[cover + 2] * 4 + 2],
+            density[_cover[cover + 3] * 4 + 3]);
         // A kind without a mat on any of the 4 corners has depth 0 exactly, so it is not evaluated.
         int mats = _matKinds[b.S0] | _matKinds[b.S1] | _matKinds[b.S2] | _matKinds[b.S3];
         double m0 = (mats & 1) != 0 ? Mat(in b, in lattice, 0, x, z) : 0, m1 = (mats & 2) != 0 ? Mat(in b, in lattice, 1, x, z) : 0;
@@ -267,7 +297,23 @@ public sealed partial class WorldQuery
         var b = new Blend(this, x, z);
         var lattice = new Lattice(x, z, _nodeScale[b.S0]);
         double relief = b.Uniform ? Relief(b.S0, in lattice, x, z, out _, out _) : BlendedRelief(in b, in lattice, x, z, out _, out _);
-        return terrain + relief - Pitfall(x, z, out _, out _, out _);
+        return terrain + relief - (PitMayReach(x, z) ? Pitfall(x, z, out _, out _, out _) : 0);
+    }
+
+    /// SupportTop alone, the same bits as Sample's, for lying micro-detail: GroundHeightAt plus the mats, no normal.
+    double SupportTopAt(double x, double z)
+    {
+        x = Limit(x, Half + Margin);
+        z = Limit(z, Half + Margin);
+        double terrain = Terrain(x, z, out _, out _);
+        var b = new Blend(this, x, z);
+        var lattice = new Lattice(x, z, _nodeScale[b.S0]);
+        double relief = b.Uniform ? Relief(b.S0, in lattice, x, z, out _, out _) : BlendedRelief(in b, in lattice, x, z, out _, out _);
+        double ground = terrain + relief - (PitMayReach(x, z) ? Pitfall(x, z, out _, out _, out _) : 0);
+        int mats = _matKinds[b.S0] | _matKinds[b.S1] | _matKinds[b.S2] | _matKinds[b.S3];
+        double m0 = (mats & 1) != 0 ? Mat(in b, in lattice, 0, x, z) : 0, m1 = (mats & 2) != 0 ? Mat(in b, in lattice, 1, x, z) : 0;
+        double m2 = (mats & 4) != 0 ? Mat(in b, in lattice, 2, x, z) : 0, m3 = (mats & 8) != 0 ? Mat(in b, in lattice, 3, x, z) : 0;
+        return ground + (m0 + m1 + m2 + m3);
     }
 
     /// The rendered terrain at (x, z), within Half + Margin, and its gradient. HeightmapTerrain splits each cell (a, b /
@@ -276,13 +322,12 @@ public sealed partial class WorldQuery
     {
         double tx = Limit(x, Half), tz = Limit(z, Half);
         double fx = (tx + Half) * _perHeightStep, fz = (tz + Half) * _perHeightStep;
-        int ci = Math.Min((int)fx, Samples - 2), cj = Math.Min((int)fz, Samples - 2);
+        int ci = Math.Min(DetMath.ToInt(fx), Samples - 2), cj = Math.Min(DetMath.ToInt(fz), Samples - 2);
         double u = fx - ci, v = fz - cj;
         int k0 = cj * Samples + ci;
         double h00 = _heights[k0], h10 = _heights[k0 + 1], h01 = _heights[k0 + Samples], h11 = _heights[k0 + Samples + 1];
-        bool lower = u + v <= 1.0;
-        gx = Select(lower, h10 - h00, h11 - h01) * _perHeightStep;
-        gz = Select(lower, h01 - h00, h11 - h10) * _perHeightStep;
+        gx = DetMath.SelectLe(u + v, 1.0, h10 - h00, h11 - h01) * _perHeightStep;
+        gz = DetMath.SelectLe(u + v, 1.0, h01 - h00, h11 - h10) * _perHeightStep;
         if (tx != x)
             gx = 0;
         if (tz != z)
@@ -291,19 +336,16 @@ public sealed partial class WorldQuery
     }
 
     /// The height at (u, v) in a height cell with corners a = h00, b = h10, c = h01, d = h11: triangle a-b-c or b-d-c.
+    /// Both are evaluated and one selected: which triangle is a coin toss from point to point.
     static double Triangle(double u, double v, double h00, double h10, double h01, double h11) =>
-        Select(u + v <= 1.0, h00 + u * (h10 - h00) + v * (h01 - h00), h11 + (1.0 - u) * (h01 - h11) + (1.0 - v) * (h10 - h11));
+        DetMath.SelectLe(u + v, 1.0, h00 + u * (h10 - h00) + v * (h01 - h00), h11 + (1.0 - u) * (h01 - h11) + (1.0 - v) * (h10 - h11));
 
-    /// `c ? a : b` with both evaluated, picked by their bits: the processor gets a select, never a branch to mispredict
-    /// (the height triangle and the ridge side are a coin toss from point to point).
-    static double Select(bool c, double a, double b) =>
-        BitConverter.Int64BitsToDouble(c ? BitConverter.DoubleToInt64Bits(a) : BitConverter.DoubleToInt64Bits(b));
-
-    /// The 4 nearest cell centres of a point, (−x, −z), (+x, −z), (−x, +z), (+x, +z): cells, surfaces and bilinear weights.
+    /// The 4 nearest cell centres of a point, (−x, −z), (+x, −z), (−x, +z), (+x, +z): cells, surfaces and bilinear weights;
+    /// and the cell that contains the point, OwnCell's, which is the corner it is nearest to.
     readonly struct Blend
     {
-        public readonly int C0, C1, C2, C3;
-        public readonly byte S0, S1, S2, S3;
+        public readonly int C0, C1, C2, C3, Own;
+        public readonly byte S0, S1, S2, S3, OwnSurface;
         public readonly double W0, W1, W2, W3, Wx, Wz;
         public bool Uniform => S0 == S1 && S0 == S2 && S0 == S3;
 
@@ -313,8 +355,9 @@ public sealed partial class WorldQuery
             double fi = Math.Floor(sx), fj = Math.Floor(sz);
             Wx = sx - fi;
             Wz = sz - fj;
-            int i0 = w.ClampCell((int)fi), i1 = w.ClampCell((int)fi + 1);
-            int j0 = w.ClampCell((int)fj) * w.Cells, j1 = w.ClampCell((int)fj + 1) * w.Cells;
+            int ii = DetMath.ToInt(fi), jj = DetMath.ToInt(fj);
+            int i0 = w.ClampCell(ii), i1 = w.ClampCell(ii + 1);
+            int j0 = w.ClampCell(jj) * w.Cells, j1 = w.ClampCell(jj + 1) * w.Cells;
             C0 = j0 + i0;
             C1 = j0 + i1;
             C2 = j1 + i0;
@@ -327,6 +370,10 @@ public sealed partial class WorldQuery
             W1 = Wx * (1 - Wz);
             W2 = (1 - Wx) * Wz;
             W3 = Wx * Wz;
+            // sx is (x + Half)·_perCell − 0.5 exactly and Wx its exact fraction, so floor((x + Half)·_perCell) is fi + 1
+            // when Wx ≥ 0.5, else fi: OwnCell's cell, from the corners.
+            Own = (Wz >= 0.5 ? j1 : j0) + (Wx >= 0.5 ? i1 : i0);
+            OwnSurface = w._surface[Own];
         }
     }
 
@@ -351,10 +398,22 @@ public sealed partial class WorldQuery
         return b.W0 * r0 + b.W1 * r1 + b.W2 * r2 + b.W3 * r3;
     }
 
-    float Density(SurfaceParams s, int cell, int kind)
+    /// Elements per m² of one kind on surface `s` at a cover channel value; tabulated per surface at load (_density).
+    static float Density(SurfaceParams s, int channel, int kind)
     {
         CoverParams c = s.Cover[kind];
-        return c == null ? 0f : (float)(c.Density * _cover[cell * 4 + kind] / 255.0);
+        return c == null ? 0f : (float)(c.Density * channel / 255.0);
+    }
+
+    /// A cover channel's value as a fraction, channel / 255.
+    static readonly double[] CoverUnit = MakeCoverUnit();
+
+    static double[] MakeCoverUnit()
+    {
+        var unit = new double[256];
+        for (int c = 0; c < 256; c++)
+            unit[c] = c / 255.0;
+        return unit;
     }
 
     /// Uncompressed mat depth of one kind: Σ over the corners of weight × cover channel × depth noise of that corner's
@@ -365,8 +424,9 @@ public sealed partial class WorldQuery
         double n1 = b.S1 == b.S0 ? n0 : MatNoise(b.S1, kind, new Lattice(x, z, _nodeScale[b.S1]));
         double n2 = b.S2 == b.S0 ? n0 : b.S2 == b.S1 ? n1 : MatNoise(b.S2, kind, new Lattice(x, z, _nodeScale[b.S2]));
         double n3 = b.S3 == b.S0 ? n0 : b.S3 == b.S1 ? n1 : b.S3 == b.S2 ? n2 : MatNoise(b.S3, kind, new Lattice(x, z, _nodeScale[b.S3]));
-        return b.W0 * _cover[b.C0 * 4 + kind] / 255.0 * n0 + b.W1 * _cover[b.C1 * 4 + kind] / 255.0 * n1
-            + b.W2 * _cover[b.C2 * 4 + kind] / 255.0 * n2 + b.W3 * _cover[b.C3 * 4 + kind] / 255.0 * n3;
+        double[] unit = CoverUnit;
+        return b.W0 * unit[_cover[b.C0 * 4 + kind]] * n0 + b.W1 * unit[_cover[b.C1 * 4 + kind]] * n1
+            + b.W2 * unit[_cover[b.C2 * 4 + kind]] * n2 + b.W3 * unit[_cover[b.C3 * 4 + kind]] * n3;
     }
 
     /// Mat depth of a surface's cover at channel 1.0: smooth noise between the depth range's ends (0 without a mat).
@@ -403,8 +463,8 @@ public sealed partial class WorldQuery
     {
         double phase = (x * _ridgeNx[s.Index] + z * _ridgeNz[s.Index]) / s.RidgeSpacing + _ridgePhase[s.Index];
         double f = phase - Math.Floor(phase);
-        double q = Select(f <= 0.5, f, 1.0 - f);
-        slope = s.RidgeAmplitude * -4.0 * DetMath.Smooth3Slope(2.0 * q) * Select(f <= 0.5, 1.0, -1.0) / s.RidgeSpacing;
+        double q = DetMath.SelectLe(f, 0.5, f, 1.0 - f);
+        slope = s.RidgeAmplitude * -4.0 * DetMath.Smooth3Slope(2.0 * q) * DetMath.SelectLe(f, 0.5, 1.0, -1.0) / s.RidgeSpacing;
         return s.RidgeAmplitude * (1.0 - 2.0 * DetMath.Smooth3(2.0 * q));
     }
 
@@ -418,7 +478,7 @@ public sealed partial class WorldQuery
         public Lattice(double x, double z, double scale)
         {
             double px = x * scale, pz = z * scale, fx = Math.Floor(px), fz = Math.Floor(pz);
-            (Ix, Iz, Tx, Tz) = ((int)fx, (int)fz, px - fx, pz - fz);
+            (Ix, Iz, Tx, Tz) = (DetMath.ToInt(fx), DetMath.ToInt(fz), px - fx, pz - fz);
             A = DetMath.Fade5(Tx);
             B = DetMath.Fade5(Tz);
         }
@@ -427,15 +487,15 @@ public sealed partial class WorldQuery
     /// Value noise in [−1, 1] of the nodes under `key` at a lattice point.
     static double Noise(in Lattice l, uint key)
     {
-        uint row0 = DetMath.Hash((uint)l.Iz + key), row1 = DetMath.Hash((uint)(l.Iz + 1) + key); // DetMath.Hash(x, z, key)'s inner hash
-        return Interpolate(l.A, l.B, Node(l.Ix, row0), Node(l.Ix + 1, row0), Node(l.Ix, row1), Node(l.Ix + 1, row1));
+        uint n = NodeInput(l.Ix, l.Iz, key);
+        return Interpolate(l.A, l.B, Node(n), Node(n + NodeStepX), Node(n + NodeStepZ), Node(n + NodeStepX + NodeStepZ));
     }
 
     /// The same with its gradient per metre, for nodes 1/`scale` apart.
     static double Noise(in Lattice l, uint key, double scale, out double dx, out double dz)
     {
-        uint row0 = DetMath.Hash((uint)l.Iz + key), row1 = DetMath.Hash((uint)(l.Iz + 1) + key);
-        double v00 = Node(l.Ix, row0), v10 = Node(l.Ix + 1, row0), v01 = Node(l.Ix, row1), v11 = Node(l.Ix + 1, row1);
+        uint n = NodeInput(l.Ix, l.Iz, key);
+        double v00 = Node(n), v10 = Node(n + NodeStepX), v01 = Node(n + NodeStepZ), v11 = Node(n + NodeStepX + NodeStepZ);
         double cross = v00 - v10 - v01 + v11;
         dx = DetMath.Fade5Slope(l.Tx) * (v10 - v00 + l.B * cross) * scale;
         dz = DetMath.Fade5Slope(l.Tz) * (v01 - v00 + l.A * cross) * scale;
@@ -446,7 +506,15 @@ public sealed partial class WorldQuery
     static double Interpolate(double a, double b, double v00, double v10, double v01, double v11) =>
         v00 + a * (v10 - v00) + b * (v01 - v00) + a * b * (v00 - v10 - v01 + v11);
 
-    static double Node(int x, uint row) => DetMath.Unit(DetMath.Hash((uint)x + row)) * 2.0 - 1.0;
+    /// Value-noise nodes: node (ix, iz) under `key` is one PCG round of ix·NodeStepX + iz·NodeStepZ + key, so the 4 nodes
+    /// of a lattice cell are 4 independent hashes. The steps are odd, so neighbouring nodes never share an input, and
+    /// two nodes within 30,000 of each other on both axes never do.
+    const uint NodeStepX = 0x9E3779B1u, NodeStepZ = 0x85EBCA77u;
+
+    static uint NodeInput(int ix, int iz, uint key) => (uint)ix * NodeStepX + (uint)iz * NodeStepZ + key;
+
+    /// A node value in [−1, 1] from its input.
+    static double Node(uint input) => DetMath.Unit(DetMath.Hash(input)) * 2.0 - 1.0;
 
     /// The pitfall of generator cell (cx, cz), if it has one: its centre, radius, surface and hash. Each 1 m cell holds at
     /// most one candidate, which exists with the probability of the density of the surface under its centre.
@@ -498,6 +566,17 @@ public sealed partial class WorldQuery
         }
     }
 
+    /// Whether a pitfall may reach (x, z), both within Half + Margin: false means none does (see InitPitReach). Inlined
+    /// by the callers, so the common case costs no call.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    bool PitMayReach(double x, double z)
+    {
+        if (_pitReach == null)
+            return false;
+        long cell = (long)(DetMath.ToInt(Math.Floor(z)) - _pitLow) * _pitSide + (DetMath.ToInt(Math.Floor(x)) - _pitLow);
+        return (_pitReach[cell >> 6] >> (int)(cell & 63) & 1) != 0;
+    }
+
     /// The deepest pitfall at (x, z), both within Half + Margin: depth ≥ 0, its gradient and id (0 = none). Its floor is
     /// flat and its wall is a smoothstep over the outer 25 % of the radius.
     double Pitfall(double x, double z, out double dx, out double dz, out uint id)
@@ -505,10 +584,7 @@ public sealed partial class WorldQuery
         double depth = 0;
         dx = dz = 0;
         id = 0;
-        if (_pitSearch <= 0)
-            return 0;
-        long cell = (long)((int)Math.Floor(z) - _pitLow) * _pitSide + ((int)Math.Floor(x) - _pitLow);
-        if ((_pitReach[cell >> 6] >> (int)(cell & 63) & 1) == 0)
+        if (!PitMayReach(x, z))
             return 0;
         int x0 = (int)Math.Floor(x - _pitSearch), x1 = (int)Math.Floor(x + _pitSearch);
         int z0 = (int)Math.Floor(z - _pitSearch), z1 = (int)Math.Floor(z + _pitSearch);

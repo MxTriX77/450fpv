@@ -63,9 +63,40 @@ public struct Gap
     public string Name;
 }
 
+/// The geometry of one collision shape or wire of a placed object (world-query "Shape and wire geometry", WorldQuery.
+/// Geometry), for what a contact alone does not give physics: a wire's compliance, T = w·L²/(8·sag), and the fiber's bend
+/// radius over what it touches. World frame, m.
+public struct ShapeGeometry
+{
+    public ShapeKind Kind;
+    public ushort Material;     // catalog material id: the shape's own, else the asset's
+    public Double3 Center;      // not set for a wire
+    public Axes Axes;           // the shape's rotation; capsules and cylinders run along Axes.Y. Not set for a wire
+    public Double3 HalfExtents; // along Axes.X, Y, Z: a box's half size, (r, r, r), capsule (r, h/2, r), cylinder (r, h/2, r)
+    public double Radius;       // sphere, capsule, cylinder and wire; 0 for a box, whose edges bend the fiber at its
+                                // material's EdgeRadius
+    public double Height;       // capsule (with its caps) and cylinder, along Axes.Y; 0 otherwise
+    // A wire: the span that holds the wire parameter asked for.
+    public Double3 SpanA, SpanB; // its attachment points
+    public double SpanLength;    // |SpanB − SpanA|
+    public double Sag;           // mid-span drop below the line A–B: the point at t drops 4·Sag·t·(1 − t)
+    public double Diameter;
+    public double SpanT;         // where the parameter falls on the span, as that t: 0 at SpanA, 1 at SpanB
+}
+
+/// Where an object was placed, as objects.json or AddObject gave it, for the loader to draw it where physics has it. A
+/// wire has only its asset: its shape is WorldQuery.WirePoints.
+public struct Placement
+{
+    public AssetDef Asset;
+    public Double3 Position; // m, the asset origin
+    public Axes Rotation;    // Axes.FromEuler of the object's yaw, pitch and roll
+    public double Scale;     // uniform
+}
+
 /// Placed catalog objects and wires in world space, with a broadphase grid for the contact and ray queries, and the
 /// fly-through gaps. Objects are added while the map loads and, before a flight, by the game (W-11); from then on they
-/// are static and every query only reads them.
+/// are static and every query only reads them. ResetRuntimeObjects removes the game's again before the next flight.
 public sealed partial class WorldQuery
 {
     /// One collision primitive in world space: a catalog shape of a placed object, or a whole wire.
@@ -79,6 +110,8 @@ public sealed partial class WorldQuery
         public Double3 Half;     // box: half size; capsule: Half.Y = half the core length; cylinder: Half.Y = half height
         public double Radius;    // sphere, capsule, cylinder, wire
         public int First, Count; // wire: its polyline points in _wirePoints
+        public int FirstAnchor, Anchors; // wire: its attachment points, as polyline indices in _wireAnchors
+        public double Sag;       // wire: the mid-span drop of every span
         public Bounds Box;       // world bounds
         public int CellX, CellZ; // broadphase cell of the bounds' minimum corner
     }
@@ -95,10 +128,20 @@ public sealed partial class WorldQuery
     Double3[] _wirePoints = new Double3[64];
     double[] _wireAlong = new double[64]; // length along the wire's polyline up to each point, m
     int _wirePointCount;
+    int[] _wireAnchors = new int[8];
+    int _wireAnchorCount;
+    int[] _objectPrim = new int[16]; // each object's first primitive; its shapes follow in order
+    Placement[] _placements = new Placement[16];
     Gap[] _gaps = new Gap[4];
     int _gapCount;
     int _broadCells;
     int[] _cellStart, _cellItems; // primitives per broadphase cell, row-major from the north-west, each in primitive order
+    /// The objects.json state that ResetRuntimeObjects returns to: the counts when loading ended (all 0 in memory).
+    int _loadedObjects, _loadedPrims, _loadedWirePoints, _loadedAnchors, _loadedGaps;
+    bool _loading; // objects.json is being placed: its wind changes are never undone
+    /// Each wind cell as it was before a runtime object changed it, in order, so that a reset can undo them exactly.
+    (int Cell, WindCell Before)[] _windUndo = new (int, WindCell)[16];
+    int _windUndoCount;
 
     void InitObjects()
     {
@@ -125,8 +168,25 @@ public sealed partial class WorldQuery
         return index;
     }
 
+    /// World-query "Runtime objects": returns the world to its objects.json state before each flight. Every object added
+    /// since loading (AddObject, AddWire) leaves the contacts, rays, gaps and the wind grid, and the next one added gets
+    /// the first index after objects.json again. Not thread-safe: call it before any query of the flight runs.
+    public void ResetRuntimeObjects()
+    {
+        for (int i = _windUndoCount - 1; i >= 0; i--)
+            _wind[_windUndo[i].Cell] = _windUndo[i].Before;
+        _windUndoCount = 0;
+        ObjectCount = _loadedObjects;
+        _primCount = _loadedPrims;
+        _wirePointCount = _loadedWirePoints;
+        _wireAnchorCount = _loadedAnchors;
+        _gapCount = _loadedGaps;
+        RebuildBroadphase();
+    }
+
     void LoadObjects(string path)
     {
+        _loading = true;
         using JsonDocument document = JsonDocument.Parse(File.ReadAllText(path));
         foreach (JsonElement o in document.RootElement.GetProperty("objects").EnumerateArray())
         {
@@ -146,6 +206,9 @@ public sealed partial class WorldQuery
                 Place(asset, Catalog.Vec3(o, "position_m"), r.X, r.Y, r.Z, o.GetProperty("scale").GetDouble());
             }
         }
+        _loading = false;
+        (_loadedObjects, _loadedPrims, _loadedWirePoints, _loadedAnchors, _loadedGaps) =
+            (ObjectCount, _primCount, _wirePointCount, _wireAnchorCount, _gapCount);
         RebuildBroadphase();
     }
 
@@ -154,7 +217,9 @@ public sealed partial class WorldQuery
         if (asset.IsWire)
             throw new ArgumentException($"asset '{asset.Id}' is a wire: add it with AddWire");
         int index = ObjectCount++;
+        StartObject(index);
         Axes r = Axes.FromEuler(yaw, pitch, roll);
+        _placements[index] = new Placement { Asset = asset, Position = position, Rotation = r, Scale = scale };
         for (int i = 0; i < asset.Collision.Length; i++)
             Append(ref _prims, ref _primCount, MakePrim(asset.Collision[i], position, r, scale, index, i));
         foreach (ShapeDef shape in asset.WindVolume)
@@ -215,9 +280,12 @@ public sealed partial class WorldQuery
     /// line at t = 0–1, in ⌈|b − a| / segment⌉ equal steps of t (the catalog's capsule_chain segment length).
     int PlaceWire(AssetDef asset, ReadOnlySpan<Double3> points, double sag, double diameter)
     {
-        int index = ObjectCount++, first = _wirePointCount;
+        int index = ObjectCount++, first = _wirePointCount, firstAnchor = _wireAnchorCount;
+        StartObject(index);
+        _placements[index] = new Placement { Asset = asset };
         double along = 0;
         AddWirePoint(points[0], 0);
+        Append(ref _wireAnchors, ref _wireAnchorCount, first);
         for (int i = 0; i + 1 < points.Length; i++)
         {
             Double3 a = points[i], b = points[i + 1];
@@ -230,6 +298,7 @@ public sealed partial class WorldQuery
                 along += (p - _wirePoints[_wirePointCount - 1]).Length();
                 AddWirePoint(p, along);
             }
+            Append(ref _wireAnchors, ref _wireAnchorCount, _wirePointCount - 1);
         }
         var wire = new Prim
         {
@@ -239,6 +308,9 @@ public sealed partial class WorldQuery
             Radius = diameter / 2,
             First = first,
             Count = _wirePointCount - first,
+            FirstAnchor = firstAnchor,
+            Anchors = _wireAnchorCount - firstAnchor,
+            Sag = sag,
             Box = Bounds.Of(points[0], points[0], diameter / 2),
         };
         for (int i = first; i < _wirePointCount; i++)
@@ -256,6 +328,31 @@ public sealed partial class WorldQuery
         }
         _wirePoints[_wirePointCount] = p;
         _wireAlong[_wirePointCount++] = along;
+    }
+
+    /// Object `index` starts at the next primitive.
+    void StartObject(int index)
+    {
+        if (index == _objectPrim.Length)
+        {
+            Array.Resize(ref _objectPrim, index * 2);
+            Array.Resize(ref _placements, index * 2);
+        }
+        _objectPrim[index] = _primCount;
+    }
+
+    /// Where object `obj` (0 to ObjectCount − 1) was placed.
+    public Placement PlacementOf(int obj) =>
+        obj >= 0 && obj < ObjectCount ? _placements[obj] : throw new ArgumentOutOfRangeException(nameof(obj));
+
+    /// A wire's polyline, the one contacts and rays use: its sagged spans from the first attachment point to the last
+    /// (game/maps/README.md, Wires). Empty for an object that is not a wire.
+    public ReadOnlySpan<Double3> WirePoints(int obj)
+    {
+        if (obj < 0 || obj >= ObjectCount || _objectPrim[obj] >= (obj + 1 < ObjectCount ? _objectPrim[obj + 1] : _primCount))
+            return default; // out of range, or no primitive (visual-only)
+        ref readonly Prim p = ref _prims[_objectPrim[obj]];
+        return p.Kind == ShapeKind.Wire ? _wirePoints.AsSpan(p.First, p.Count) : default;
     }
 
     static void Append<T>(ref T[] array, ref int count, in T item)
@@ -332,5 +429,48 @@ public sealed partial class WorldQuery
             count++;
         }
         return count;
+    }
+
+    /// World-query "Shape and wire geometry": shape `shape` of object `obj` (a StaticContact's Object and Shape) in world
+    /// space, and for a wire the span that holds `wireParam` (the contact's WireParam). Read-only and allocation-free.
+    /// Returns false, with `geometry` empty, when the object has no such collision shape: terrain (−1), a visual-only
+    /// object, or an index out of range.
+    public bool Geometry(int obj, int shape, double wireParam, out ShapeGeometry geometry)
+    {
+        geometry = default;
+        if (obj < 0 || obj >= ObjectCount || shape < 0
+            || _objectPrim[obj] + shape >= (obj + 1 < ObjectCount ? _objectPrim[obj + 1] : _primCount))
+            return false;
+        ref readonly Prim s = ref _prims[_objectPrim[obj] + shape];
+        double r = s.Radius;
+        (geometry.Kind, geometry.Material, geometry.Radius) = (s.Kind, s.Material, r);
+        if (s.Kind != ShapeKind.Wire)
+        {
+            (geometry.Center, geometry.Axes) = (s.C, s.R);
+            geometry.HalfExtents = s.Kind switch
+            {
+                ShapeKind.Box => s.Half,
+                ShapeKind.Sphere => new Double3(r, r, r),
+                ShapeKind.Capsule => new Double3(r, s.Half.Y + r, r),
+                _ => new Double3(r, s.Half.Y, r),
+            };
+            geometry.Height = s.Kind is ShapeKind.Capsule or ShapeKind.Cylinder ? 2 * geometry.HalfExtents.Y : 0;
+            return true;
+        }
+        // The span whose stretch of the polyline holds the parameter's length along the wire, then the piece of it.
+        double along = Clamp01(wireParam) * _wireAlong[s.First + s.Count - 1];
+        int k = s.FirstAnchor;
+        while (k + 2 < s.FirstAnchor + s.Anchors && _wireAlong[_wireAnchors[k + 1]] < along)
+            k++;
+        int a = _wireAnchors[k], b = _wireAnchors[k + 1], i = a;
+        while (i + 1 < b && _wireAlong[i + 1] < along)
+            i++;
+        double piece = _wireAlong[i + 1] - _wireAlong[i];
+        (geometry.SpanA, geometry.SpanB) = (_wirePoints[a], _wirePoints[b]);
+        geometry.SpanLength = (geometry.SpanB - geometry.SpanA).Length();
+        geometry.Sag = s.Sag;
+        geometry.Diameter = 2 * r;
+        geometry.SpanT = (i - a + (piece > 0 ? Clamp01((along - _wireAlong[i]) / piece) : 0)) / (b - a);
+        return true;
     }
 }

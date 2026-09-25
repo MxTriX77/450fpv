@@ -11,5 +11,23 @@
   "surface": {
     "resolution_m": 0.5,
     "cells_per_side": 512
-  }
+  },
+  "starts": [
+    {
+      "position_m": [
+        12.0,
+        0.42,
+        -30.0
+      ],
+      "yaw_deg": 90.0
+    },
+    {
+      "position_m": [
+        66.0,
+        1.07,
+        20.0
+      ],
+      "yaw_deg": 0.0
+    }
+  ]
 }

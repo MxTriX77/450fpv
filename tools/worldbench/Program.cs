@@ -9,9 +9,18 @@ using System.Runtime.InteropServices;
 ///     dotnet run -c Release --project tools/worldbench
 ///
 /// It loads game/maps/sample_patch with the launch rails at its example start, without Godot, as a headless replay does.
+/// It runs on one core at high priority, as a physics thread would, so other processes' work stays out of the numbers.
 /// Each workload is warmed up until the JIT has optimised it, then timed over 21 runs, and the median is judged against
 /// its budget. The managed bytes allocated across all timed runs of a workload must be 0. Prints one PASS/FAIL line per
 /// budget and exits 1 on any failure.
+///
+/// The determinism checks (task 3.5, world-query W-13 and W-14), in either build, on any machine with the .NET SDK:
+///
+///     dotnet run -c Debug --project tools/worldbench -- --golden
+///     dotnet run -c Release --project tools/worldbench -- --golden
+///
+/// run the golden file and the 10 s concurrency check (WorldQueryGolden). `-- --golden-record` rewrites the golden
+/// file's hashes after an intended change to the world data or the query math.
 static class Program
 {
     const int Runs = 21;
@@ -22,18 +31,25 @@ static class Program
     const double Margin = 0.02;
 
     static bool _pass = true;
+    /// The conditions of the last timed workload: the core clock before and after it (GHz), and the power source.
+    static string _conditions = "";
 
-    static int Main()
+    static int Main(string[] args)
     {
+        if (args.Length > 0 && args[0] is "--golden" or "--golden-record")
+            return Golden(args[0] == "--golden-record");
 #if DEBUG
         Console.WriteLine("worldbench: this is a Debug build; the budgets are for Release: dotnet run -c Release --project tools/worldbench");
         return 2;
 #else
         string root = FindRoot();
-        GetSystemPowerStatus(out PowerStatus power);
+        using Process self = Process.GetCurrentProcess();
+        if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux())
+            self.ProcessorAffinity = 1 << 2; // logical processor 2: not 0, which takes most interrupts
+        self.PriorityClass = ProcessPriorityClass.High;
         Console.WriteLine($"worldbench: Release build, {RuntimeInformation.FrameworkDescription}, {RuntimeInformation.ProcessArchitecture}, "
-            + $"{Environment.ProcessorCount} logical processors, power {(power.AcLineStatus == 1 ? "AC" : power.AcLineStatus == 0 ? "battery" : "unknown")} "
-            + $"(battery {power.BatteryLifePercent} %), {Runs} timed runs per workload after a warm-up of at least 1 s");
+            + $"{Environment.ProcessorCount} logical processors, pinned to processor 2 at high priority, {Runs} timed runs per workload "
+            + "after a warm-up of at least 1 s; each line gives the core clock before and after its runs and the power source");
         SurfaceParams[] table = SurfaceParams.ParseTable(File.ReadAllText(Path.Combine(root, SurfacesPath)));
         WorldQuery world = WorldQuery.Load(Path.Combine(root, Package), Path.Combine(root, SurfacesPath), Path.Combine(root, CatalogPath));
         var start = new Double3(StartX, Ground(world, StartX, StartZ).TerrainHeight, StartZ);
@@ -46,6 +62,37 @@ static class Program
         Console.WriteLine($"worldbench: {(_pass ? "ALL PASS" : "FAILED")}");
         return _pass ? 0 : 1;
 #endif
+    }
+
+    /// The golden file and the concurrency check, or with `record` the golden file's re-recording. The first line names
+    /// what the results may depend on, to compare machines.
+    static int Golden(bool record)
+    {
+#if DEBUG
+        const string build = "Debug";
+#else
+        const string build = "Release";
+#endif
+        string game = Path.Combine(FindRoot(), "game");
+        Console.WriteLine($"worldbench --golden: {build} build, {RuntimeInformation.FrameworkDescription}, {RuntimeInformation.OSDescription}, "
+            + $"{RuntimeInformation.ProcessArchitecture}, AVX2 {System.Runtime.Intrinsics.X86.Avx2.IsSupported}, FMA "
+            + $"{System.Runtime.Intrinsics.X86.Fma.IsSupported}, AVX-512 {System.Runtime.Intrinsics.X86.Avx512F.IsSupported}, query version "
+            + $"{WorldQuery.QueryVersion}");
+        static bool Check(string scenario, bool ok, string numbers)
+        {
+            Console.WriteLine($"worldbench --golden: {scenario}: {numbers} {(ok ? "PASS" : "FAIL")}");
+            return ok;
+        }
+        bool pass = WorldQueryGolden.Golden(game, Check, record);
+        if (!record)
+        {
+            pass &= WorldQueryGolden.Concurrent(game, 10, Check);
+            // The first pass ran cold, before the JIT optimised anything (tier 0). The concurrency check has called every
+            // query thousands of times since, so in Release the golden file now runs on the optimised code (tier 1).
+            pass &= WorldQueryGolden.Golden(game, (scenario, ok, numbers) => Check($"warm {scenario}", ok, numbers));
+        }
+        Console.WriteLine($"worldbench --golden: {(pass ? record ? "RECORDED" : "ALL PASS" : "FAILED")}");
+        return pass ? 0 : 1;
     }
 
     static string FindRoot()
@@ -61,6 +108,16 @@ static class Program
         throw new DirectoryNotFoundException($"no {SurfacesPath} above the current or the program directory");
     }
 
+    /// The core clock the benchmark ran at, GHz: a chain of dependent 64-bit multiplies, 3 cycles each on Zen 3.
+    static double Clock()
+    {
+        long v = 1, t0 = Stopwatch.GetTimestamp();
+        for (int i = 0; i < 20_000_000; i++)
+            v *= 0x5DEECE66DL;
+        double seconds = (Stopwatch.GetTimestamp() - t0) / (double)Stopwatch.Frequency;
+        return v == 0 ? 0 : 20_000_000 * 3 / seconds / 1e9;
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     struct PowerStatus
     {
@@ -71,6 +128,15 @@ static class Program
     [DllImport("kernel32.dll")]
     static extern bool GetSystemPowerStatus(out PowerStatus status);
 
+    static PowerStatus Power()
+    {
+        if (!OperatingSystem.IsWindows() || !GetSystemPowerStatus(out PowerStatus status))
+            status = new PowerStatus { AcLineStatus = 255, BatteryLifePercent = 255 };
+        return status;
+    }
+
+    static string Source(PowerStatus p) => p.AcLineStatus == 1 ? "AC" : p.AcLineStatus == 0 ? "battery" : "power unknown";
+
     /// Warms `body` up for at least 30 calls and 1 s, so the JIT has promoted it to its optimised tier, then times `Runs`
     /// calls. Returns each call's time in ms, sorted, and the managed bytes allocated across the timed calls.
     static double[] Time(Action body, out long allocated)
@@ -78,15 +144,20 @@ static class Program
         var warm = Stopwatch.StartNew();
         for (int i = 0; i < 30 || warm.ElapsedMilliseconds < 1000; i++)
             body();
+        double clockBefore = Clock();
+        PowerStatus before = Power();
         var ms = new double[Runs];
-        long before = GC.GetAllocatedBytesForCurrentThread();
+        long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
         for (int i = 0; i < Runs; i++)
         {
             long t0 = Stopwatch.GetTimestamp();
             body();
             ms[i] = (Stopwatch.GetTimestamp() - t0) * 1000.0 / Stopwatch.Frequency;
         }
-        allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        allocated = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+        PowerStatus after = Power();
+        string source = before.AcLineStatus == after.AcLineStatus ? Source(after) : $"{Source(before)}, then {Source(after)}";
+        _conditions = $"[{clockBefore:0.00}–{Clock():0.00} GHz, {source}, battery {after.BatteryLifePercent} %] ";
         Array.Sort(ms);
         return ms;
     }
@@ -98,12 +169,12 @@ static class Program
         bool ok = median < budget && allocated == 0;
         _pass &= ok;
         Console.WriteLine($"worldbench: {name}: median {median:0.000} {unit} (min {ms[0] * scale:0.000}, max {ms[^1] * scale:0.000}), "
-            + $"budget < {budget} {unit}; {allocated} B allocated in the timed runs; {detail}{(ok ? "PASS" : "FAIL")}");
+            + $"budget < {budget} {unit}; {allocated} B allocated in the timed runs; {detail}{_conditions}{(ok ? "PASS" : "FAIL")}");
     }
 
     static void Info(string name, double[] ms, double scale, string unit, long allocated, string detail) =>
         Console.WriteLine($"worldbench:   {name}: median {ms[Runs / 2] * scale:0.000} {unit} (min {ms[0] * scale:0.000}, max "
-            + $"{ms[^1] * scale:0.000}); {allocated} B allocated; {detail}(information)");
+            + $"{ms[^1] * scale:0.000}); {allocated} B allocated; {detail}{_conditions}(information)");
 
     static GroundSample Ground(WorldQuery world, double x, double z)
     {
@@ -123,21 +194,60 @@ static class Program
         return new WorldQuery(table, 256, seed, samples, new float[samples * samples], cells, surface, cover);
     }
 
-    /// 100,000 random points over sample_patch (judged), then over each surface's own uniform world.
+    /// Flights for the ground samples in the physics call pattern: start (x, z) and heading (x, z) over sample_patch's
+    /// meadow, straw and bare belt bands (across their borders), yard, rubble, crater spoil, the start and the map edge.
+    static readonly (double X, double Z, double Hx, double Hz)[] Flights =
+    {
+        (-100, -80, 1, 0), (-111, 6, 0, 1), (0, -62, 0, 1), (-20, -58, 1, 0), (34, 12, 1, 0),
+        (58, 38, 0, 1), (-62, 58, 1, 0), (12, -32, 0, 1), (45, 25, 1, 0), (-126, 100, -1, 0),
+    };
+
+    /// 100,000 ground samples as physics asks for them (judged): each 1 kHz step samples 44 points, the 4 feet, 4 rotor
+    /// centres and 4 body points of a 450 mm X-frame and 32 fiber nodes trailing 0.1 m apart, while the drone flies at
+    /// 20 m/s along the Flights, 228 steps each. Then, for information, 100,000 random points over the whole map, which
+    /// mostly measures cache misses, and the same over each surface's own uniform world.
     static void GroundSamples(WorldQuery world, SurfaceParams[] table)
     {
+        const int PerStep = 44, StepsPerFlight = 228;
+        int steps = Flights.Length * StepsPerFlight;
+        var flight = new XZ[steps * PerStep];
+        for (int k = 0; k < steps; k++)
+        {
+            var (x0, z0, hx, hz) = Flights[k / StepsPerFlight];
+            double along = 0.02 * (k % StepsPerFlight), cx = x0 + hx * along, cz = z0 + hz * along;
+            Span<XZ> p = flight.AsSpan(k * PerStep, PerStep);
+            for (int m = 0; m < 4; m++)
+            {
+                double mx = m % 2 == 0 ? -0.159 : 0.159, mz = m < 2 ? -0.159 : 0.159;
+                p[m] = p[4 + m] = new XZ(cx + mx * hz + mz * hx, cz + mz * hz - mx * hx); // foot under its rotor
+                p[8 + m] = new XZ(cx + hx * (0.06 * m - 0.09), cz + hz * (0.06 * m - 0.09));
+            }
+            for (int i = 0; i < 32; i++)
+            {
+                double back = 0.1 * (i + 1), side = 0.05 * Math.Sin(0.7 * i + 0.01 * k);
+                p[12 + i] = new XZ(cx - hx * back + side * hz, cz - hz * back - side * hx);
+            }
+        }
+        var results = new GroundSample[flight.Length];
+        double[] ms = Time(() =>
+        {
+            for (int k = 0; k < steps; k++)
+                world.SampleGround(flight.AsSpan(k * PerStep, PerStep), results.AsSpan(k * PerStep, PerStep));
+        }, out long allocated);
+        Judge("100,000 SampleGround in the physics pattern (44-point steps along 10 flights over sample_patch)", ms,
+            100000.0 / flight.Length, "ms", 10, allocated, $"{flight.Length} samples in {steps} steps, scaled to 100,000; ");
+
         var random = new Random(5);
         var points = new XZ[100000];
         for (int i = 0; i < points.Length; i++)
             points[i] = new XZ(-world.Half + random.NextDouble() * world.SizeM, -world.Half + random.NextDouble() * world.SizeM);
-        var results = new GroundSample[points.Length];
-        double[] ms = Time(() => world.SampleGround(points, results), out long allocated);
-        Judge("100,000 SampleGround, random points over sample_patch", ms, 1, "ms", 10, allocated, "");
+        ms = Time(() => world.SampleGround(points, results.AsSpan(0, points.Length)), out allocated);
+        Info("100,000 SampleGround, random points over the whole of sample_patch", ms, 1, "ms", allocated, "");
         foreach (SurfaceParams s in table)
         {
             WorldQuery uniform = Uniform(table, s.Index, world.Seed);
-            ms = Time(() => uniform.SampleGround(points, results), out allocated);
-            Info($"100,000 SampleGround on {s.Id} alone", ms, 1, "ms", allocated, "");
+            ms = Time(() => uniform.SampleGround(points, results.AsSpan(0, points.Length)), out allocated);
+            Info($"100,000 SampleGround, random points on {s.Id} alone", ms, 1, "ms", allocated, "");
         }
     }
 
