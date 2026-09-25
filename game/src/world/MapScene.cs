@@ -191,22 +191,20 @@ public partial class MapScene : Node3D
         return image;
     }
 
-    /// Stripe directions of the placeholders, as whole steps across a tile so that every layer tiles seamlessly.
-    static readonly (int X, int Y)[] StripeDirections = { (1, 0), (0, 1), (1, 1), (1, -1), (2, 1), (1, 2), (2, -1), (1, -2), (3, 1), (1, 3) };
-
-    /// Placeholder until UAT-1's textures: the table's albedo_srgb with ±18 % stripes whose direction and spacing depend
-    /// on the surface index, so that surfaces of similar colour still tell apart.
+    /// Placeholder until UAT-1's textures: the table's albedo_srgb with up to ±15 % value noise. Its grain, 16 or 32
+    /// lattice cells per tile, depends on the surface index. Noise, not stripes: a regular stripe of 0.5–1 m aliased into
+    /// bands across the whole field from 60 m up, and a coarser grain shows the tile's 2 m repeat from there.
     static Image PlaceholderAlbedo(Color color, int index)
     {
         const int size = PlaceholderSize;
-        (int a, int b) = StripeDirections[index % StripeDirections.Length];
-        int k = 2 + index % 3; // stripes per tile along the direction
+        int cells = 16 << index % 2;
         var pixels = new byte[size * size * 4];
         for (int y = 0; y < size; y++)
         {
             for (int x = 0; x < size; x++)
             {
-                float v = 1f + 0.18f * (float)Math.Cos(2 * Math.PI * (a * x + b * y) * k / size);
+                float n = 0.7f * TileNoise(x, y, cells, index) + 0.3f * TileNoise(x, y, 2 * cells, index + 256);
+                float v = 1f + 0.3f * (n - 0.5f);
                 int at = (y * size + x) * 4;
                 pixels[at] = (byte)Math.Clamp(color.R * v * 255f, 0f, 255f);
                 pixels[at + 1] = (byte)Math.Clamp(color.G * v * 255f, 0f, 255f);
@@ -215,6 +213,27 @@ public partial class MapScene : Node3D
             }
         }
         return Image.CreateFromData(size, size, false, Image.Format.Rgba8, pixels);
+    }
+
+    /// Value noise in 0–1 at pixel (x, y) of a placeholder tile: hashed lattice values, `cells` × `cells` per tile and
+    /// wrapped at its edges so that the tile repeats seamlessly, blended with smoothstep fades.
+    static float TileNoise(int x, int y, int cells, int seed)
+    {
+        float fx = (x + 0.5f) * cells / PlaceholderSize, fy = (y + 0.5f) * cells / PlaceholderSize;
+        int i = (int)fx, j = (int)fy;
+        float tx = fx - i, ty = fy - j;
+        tx = tx * tx * (3 - 2 * tx);
+        ty = ty * ty * (3 - 2 * ty);
+        float Lattice(int a, int b)
+        {
+            uint h = (uint)(a % cells) * 0x9E3779B1u ^ (uint)(b % cells) * 0x85EBCA77u ^ (uint)seed * 0xC2B2AE3Du;
+            h = (h ^ h >> 15) * 0x2C1B3C6Du;
+            h = (h ^ h >> 12) * 0x297A2D39u;
+            return (h ^ h >> 15) / (float)uint.MaxValue;
+        }
+        float top = Lattice(i, j) + (Lattice(i + 1, j) - Lattice(i, j)) * tx;
+        float bottom = Lattice(i, j + 1) + (Lattice(i + 1, j + 1) - Lattice(i, j + 1)) * tx;
+        return top + (bottom - top) * ty;
     }
 
     // ---------------------------------------------------------------- objects and wires
