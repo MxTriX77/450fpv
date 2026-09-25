@@ -968,7 +968,8 @@ public static partial class WorldQuerySelfTest
             + $"above the house: {houseHit[0].Distance:0.000000000} m, object {houseHit[0].Object}, {catalog.MaterialIds[houseHit[0].Material]}");
     }
 
-    /// The launch rails added at sample_patch's example start (x 12, z −30, yaw 90°) become object 10. An arm-like capsule
+    /// The launch rails added at sample_patch's example start (x 12, z −30, yaw 90°) become the next object after those of
+    /// objects.json. An arm-like capsule
     /// (10 mm radius, 0.4 m) resting 0.1 mm into both bars returns exactly the two bars in order, steel, facing up, at
     /// −0.1 mm, and the same when it lands on them from 20 mm above in one step. A ray from 1 m above a bar hits it at
     /// 1 m, and the wind grid cell under the rails now holds them.
@@ -977,6 +978,7 @@ public static partial class WorldQuerySelfTest
         var start = new Double3(RailStart.X, TerrainAt(world, RailStart.X, RailStart.Z), RailStart.Z);
         int row = (int)Math.Floor((start.Z + world.Half) / 2), col = (int)Math.Floor((start.X + world.Half) / 2);
         WindCell before = world.WindGrid[row * world.WindCells + col];
+        int loaded = world.ObjectCount;
         int rails = world.AddObject("launch_rails", start, RailYaw);
         WindCell after = world.WindGrid[row * world.WindCells + col];
         double[] m = Rot(RailYaw, 0, 0);
@@ -999,7 +1001,7 @@ public static partial class WorldQuerySelfTest
         world.Raycast(ray, 2, hit);
         bool rayOk = Math.Abs(hit[0].Distance - 1) <= 1e-9 && hit[0].Object == rails && hit[0].Material == steel;
         bool wind = before.Porosity == 1 && after.TopM > 0 && after.Porosity < 1;
-        return Check("rails added", rails == 10 && world.ObjectCount == 11 && resting && landing && rayOk && wind,
+        return Check("rails added", rails == loaded && world.ObjectCount == loaded + 1 && resting && landing && rayOk && wind,
             $"rails are object {rails} of {world.ObjectCount}; resting arm: {numbers}; landing from 20 mm in one step: {landed} contacts "
             + $"({(landing ? "same" : "different")}); ray from 1 m above a bar: {hit[0].Distance:0.000000000} m, object {hit[0].Object}, "
             + $"{(hit[0].Material == Catalog.NoMaterial ? "terrain" : catalog.MaterialIds[hit[0].Material])}; wind cell under the "

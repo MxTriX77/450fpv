@@ -138,7 +138,7 @@ CASES = [
                                                            lambda d: d["objects"][0]["position_m"].__setitem__(0, 131.0)),
      False, ["object 0 (house_box): x=131", "outside the map"]),
     ("wire point out of bounds", lambda pkg, tables: edit_json(os.path.join(pkg, "objects.json"),
-                                                               lambda d: d["objects"][-1]["points_m"][1].__setitem__(2, -140.0)),
+                                                               lambda d: d["objects"][9]["points_m"][1].__setitem__(2, -140.0)),
      False, ["object 9 (cable)", "z=-140 is outside the map"]),
     ("future major version", lambda pkg, tables: edit_json(os.path.join(pkg, "map.json"),
                                                            lambda d: d.update(format_version="2.0")),
