@@ -1,0 +1,15 @@
+[gd_scene format=3]
+
+[sub_resource type="StandardMaterial3D" id="Mat_planks"]
+albedo_color = Color(0.38, 0.37, 0.34, 1)
+roughness = 0.95
+
+[sub_resource type="BoxMesh" id="Box_shed"]
+material = SubResource("Mat_planks")
+size = Vector3(4, 2.3, 3)
+
+[node name="ShedBox" type="Node3D"]
+
+[node name="Body" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.15, 0)
+mesh = SubResource("Box_shed")
