@@ -33,10 +33,10 @@
 
 - [x] 4.1 [world-artist] Build the loader: terrain via the D-009 renderer, materials per surface, catalog objects (colliders tagged with their material), wires, wind volumes into the wind grid, and near-camera micro-detail from the shared generator. Verify the sample-patch and stem-parity scenarios
 - [x] 4.2 [world-artist] Add the sandbox `-- --map <id>` hook with a bad-id fallback. Verify both headless
-- [ ] 4.3 [world-artist] Author `sample_patch` (256 m) covering all 9 surfaces, a few catalog objects, one wire and some relief. Verify that it passes the validator and loads
-- [ ] 4.4 [world-artist] Measure performance: fly a fixed path through `sample_patch` and the synthetic 4 km map. Verify the budget numbers and power mode
+- [x] 4.3 [world-artist] Author `sample_patch` (256 m) covering all 9 surfaces, a few catalog objects, one wire and some relief. Verify that it passes the validator and loads
+- [x] 4.4 [world-artist] Measure performance: fly a fixed path through `sample_patch` and the synthetic 4 km map. Verify the budget numbers and power mode
 
 ## 5. Review
 
-- [ ] 5.1 [orchestrator] Fly `sample_patch` in noclip, check the surfaces, scale and straw/stem look against the reference notes, and record the findings in `review.md`. This is not a pilot gate: the pilot sees terrain at UAT-1
+- [x] 5.1 [orchestrator] Fly `sample_patch` in noclip, check the surfaces, scale and straw/stem look against the reference notes, and record the findings in `review.md`. This is not a pilot gate: the pilot sees terrain at UAT-1
 - [ ] 5.2 [qa-engineer] Review against spec scenarios
