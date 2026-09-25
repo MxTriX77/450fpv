@@ -97,6 +97,7 @@ public static class SandboxSelfTest
     /// orbit of radius 200 m at 15 m, then a quarter orbit climbing to 150 m, about 52 m/s, looking along the path) and
     /// prints fps and 1 % low over the whole path (the overlay's definitions), draw calls, video memory and the time of
     /// the first frame. A measurement, not a pass/fail check: compare the numbers with the budget. About 15 s.
+    /// With a map loaded (`--map`) the path is MapPathPose's low pass instead.
     public static async void FlyPath(Sandbox sandbox)
     {
         SceneTree tree = sandbox.GetTree();
@@ -108,7 +109,8 @@ public static class SandboxSelfTest
             DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
             var camera = sandbox.GetNode<NoclipCamera>("Camera");
             sandbox.GetNode<PerfOverlay>("PerfOverlay").Visible = true;
-            FlyPathPose(camera, 0);
+            WorldQuery world = sandbox.Map?.World;
+            Pose(camera, world, 0);
             await tree.ToSignal(tree, SceneTree.SignalName.ProcessFrame);
             GD.Print($"selftest flypath: first frame {Time.GetTicksMsec()} ms after engine start");
             await Seconds(tree, 2.0);
@@ -124,7 +126,7 @@ public static class SandboxSelfTest
                     break;
                 frameMs.Add((now - last) / 1000.0);
                 last = now;
-                FlyPathPose(camera, (now - start) / 1e6);
+                Pose(camera, world, (now - start) / 1e6);
                 long draws = (long)Performance.GetMonitor(Performance.Monitor.RenderTotalDrawCallsInFrame);
                 drawSum += draws;
                 drawMax = Math.Max(drawMax, draws);
@@ -156,6 +158,27 @@ public static class SandboxSelfTest
             return;
         }
         tree.Quit(0);
+    }
+
+    static void Pose(Camera3D camera, WorldQuery world, double t)
+    {
+        if (world == null)
+            FlyPathPose(camera, t);
+        else
+            MapPathPose(camera, world, t);
+    }
+
+    /// The map path: 12 s at 15 m/s, 3 m above the terrain along x = 42 m from z = 75 m north to z = −105 m, looking
+    /// north 10° down. On sample_patch it crosses the weeds, the yard between the shed and the house, the meadow, the
+    /// belt under the edge of the tree row, the spoil bank and the edge of a crater, with micro-detail streaming in.
+    static void MapPathPose(Camera3D camera, WorldQuery world, double t)
+    {
+        double z = 75 - 15 * Math.Clamp(t, 0, 12);
+        Span<XZ> point = stackalloc XZ[] { new XZ(42, z) };
+        Span<GroundSample> ground = stackalloc GroundSample[1];
+        world.SampleGround(point, ground);
+        camera.GlobalPosition = new Vector3(42f, (float)ground[0].TerrainHeight + 3f, (float)z);
+        camera.Rotation = new Vector3(Mathf.DegToRad(-10f), 0f, 0f);
     }
 
     static void FlyPathPose(Camera3D camera, double t)
