@@ -28,6 +28,9 @@ public partial class HeightmapTerrain : Node3D
     List<long> _selected = new();
     List<long> _shown = new();
 
+    /// The patches' shader material (heightmap_terrain.gdshader), set by Build.
+    public ShaderMaterial Material => _material;
+
     /// `r16` is the raw little-endian heightfield of `samples` × `samples`; height = offsetM + sample × scaleM.
     public void Build(byte[] r16, int samples, float resolution, float offsetM, float scaleM)
     {
@@ -55,6 +58,22 @@ public partial class HeightmapTerrain : Node3D
         _material.SetShaderParameter("skirt_bottom", _skirtBottom);
         _patch = PatchMesh();
         BuildCollision(heights);
+    }
+
+    /// Draws the ground with per-surface materials in place of the flat albedo. `ids` is the surface layer, `cells` ×
+    /// `cells` surface indices of `cellResolution` m, row-major from the north-west corner. Layer i of each array is the
+    /// material of surface index i, repeating every `tile` m. Call after Build.
+    public void SetSurfaces(ReadOnlySpan<byte> ids, int cells, float cellResolution, Texture2DArray albedo, Texture2DArray normal,
+        Texture2DArray roughness, float tile)
+    {
+        _material.SetShaderParameter("surface_ids", ImageTexture.CreateFromImage(Image.CreateFromData(cells, cells, false, Image.Format.R8, ids)));
+        _material.SetShaderParameter("surface_resolution", cellResolution);
+        _material.SetShaderParameter("surface_cells", cells);
+        _material.SetShaderParameter("surface_albedo", albedo);
+        _material.SetShaderParameter("surface_normal", normal);
+        _material.SetShaderParameter("surface_roughness", roughness);
+        _material.SetShaderParameter("texture_tile", tile);
+        _material.SetShaderParameter("use_surfaces", true);
     }
 
     public override void _Process(double delta)
