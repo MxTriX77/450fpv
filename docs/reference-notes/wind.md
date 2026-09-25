@@ -589,6 +589,8 @@ A level passes when the sim, flown by the simulated pilot below along the test f
    - P's height varied and is unknown (pilot, Q5), so the runs spread evenly over 20–50 m above ground (assumed).
    - Each run has **32 s over open field and 7 s** from the upwind edge of one tree belt to about 10 belt heights downwind. That is P's mix: 7.0 s of belt in 37.9 s of residual time.
 3. **Runs:** at least **5 runs** of the nominal pilot, with independent seeds. The §6.1 variants fly the same seeds. Each run's first 5 s after release are discarded.
+   - Each run starts where its seed's wind history (step 4) stays within 90° of the drawn direction for the whole run, as P's crosswind stayed on the left (§5.3). The wind history doesn't depend on the drone, so the start is found from the seed before the run. How common such stretches are is T0c's side keep.
+   - Without that rule, a correct model would lose the windward side in about 1 run in 8 (side keep 85.2–89.0 % on the §5.3 model, §6.6). T0b's "at least 4 of 5 runs" would then fail about 13 % (10–16 %) of correct 5-run sets, from the wind's direction changes alone (derived: two or more of five runs out).
 4. **Log:** each run as its own CSV in the `attitude.csv` columns at 29.917 Hz, with `conf_* = 1`, `dup = 0` and `flag = ok`. With the world "up" vector **u** in camera coordinates (x right, y down, z forward):
    - `roll_deg = atan2(−u_x, −u_y)`
    - `pitch_deg = asin(u_z)`
