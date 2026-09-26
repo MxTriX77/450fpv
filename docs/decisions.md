@@ -60,3 +60,6 @@ This supersedes D-002, keeping its custom fixed-step flight model (≥ 1 kHz, se
 - We need control of cross-machine determinism.
 
 It costs about 300 lines of closest-point code. Jolt keeps render-side and gameplay collision. The fallback, `PhysicsServer3D.BodyTestMotion` with reused objects, is only revisited if the benchmark (world-query W-16) fails.
+
+## D-011 Weather is a fixed pilot setting: Calm, Windy or Severe · Accepted
+This is the pilot's decision (2026-09-24). It adds a fourth setting to the manifesto's payload, legs and time of day: **Weather = Calm / Windy / Severe**, always chosen by the pilot, with no random option. Within the chosen level, the wind itself stays alive and unpredictable: a prevailing direction with random shifts, gusts, turbulence near obstacles, per `docs/reference-notes/wind.md`. Rain goes with the weather level. The Severe preset is held to the measured targets from clip P (wind study §6). Windy uses the derived "typical windy" band.
