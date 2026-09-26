@@ -114,6 +114,21 @@
       ],
       "dust_emission": 0.05,
       "material": { "albedo_srgb": "#6d6a38", "roughness": 0.95 }
+    },
+    {
+      "id": "burnt_field",
+      "index": 10,
+      "status": "starting values, physics to sign off",
+      "soil": { "bearing_n_per_m3": 2.5e7, "damping_ns_per_m3": 3.6e5, "friction_static": 0.6, "friction_kinetic": 0.5, "max_sink_m": 0.02, "unload_stiffness_ratio": 2 },
+      "micro_relief": { "amplitude_m": 0.015, "wavelength_m": 0.6 },
+      "pitfalls": { "density_per_m2": 0.006, "depth_m": [0.03, 0.15], "radius_m": [0.03, 0.25] },
+      "cover": [
+        { "type": "grass", "height_m": [0.05, 0.15], "stems_per_m2": 100, "diameter_m": [0.003, 0.005], "lateral_stiffness_n_per_m": 40, "hook_probability": 0.02, "hook_release_n": [0.05, 0.4] },
+        { "type": "litter", "height_m": [0.002, 0.01], "stems_per_m2": 150, "diameter_m": [0.01, 0.04], "lateral_stiffness_n_per_m": 0.01, "hook_probability": 0.0, "hook_release_n": [0, 0],
+          "mat": { "depth_m": [0.003, 0.01], "modulus_pa": 2e4, "damping_ratio": 1.0, "friction_static": 0.45, "friction_kinetic": 0.35 } }
+      ],
+      "dust_emission": 0.95,
+      "material": { "albedo_srgb": "#46403a", "roughness": 0.95 }
     }
   ]
 }

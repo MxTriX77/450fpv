@@ -91,6 +91,36 @@
       "snag_hazard": true,
       "wind_porosity": 1.0,
       "gaps": []
+    },
+    "fence_planks": {
+      "type": "object",
+      "scene": "res://assets/models/structures/fence_planks.glb",
+      "material": "timber",
+      "collision": [
+        { "shape": "box", "size_m": [0.12, 2.05, 0.12], "position_m": [-1.25, 0.725, 0] },
+        { "shape": "box", "size_m": [0.12, 2.05, 0.12], "position_m": [1.25, 0.725, 0] },
+        { "shape": "box", "size_m": [2.38, 0.08, 0.04], "position_m": [0, 0.3, -0.04] },
+        { "shape": "box", "size_m": [2.38, 0.08, 0.04], "position_m": [0, 1.3, -0.04] },
+        { "shape": "box", "size_m": [0.11, 1.5157, 0.02], "position_m": [-1.125, 0.8079, -0.07], "rotation_deg": [0, 0, -1.112] },
+        { "shape": "box", "size_m": [0.11, 1.5279, 0.02], "position_m": [-0.975, 0.814, -0.07], "rotation_deg": [0, 0, 0.564] },
+        { "shape": "box", "size_m": [0.11, 1.5224, 0.02], "position_m": [-0.675, 0.8112, -0.07], "rotation_deg": [0, 0, 0.985] },
+        { "shape": "box", "size_m": [0.11, 1.5038, 0.02], "position_m": [-0.525, 0.8019, -0.07], "rotation_deg": [0, 0, 0.479] },
+        { "shape": "box", "size_m": [0.11, 1.5066, 0.02], "position_m": [-0.375, 0.8033, -0.07], "rotation_deg": [0, 0, -0.989] },
+        { "shape": "box", "size_m": [0.11, 1.4917, 0.02], "position_m": [-0.225, 0.7959, -0.07], "rotation_deg": [0, 0, -0.216] },
+        { "shape": "box", "size_m": [0.11, 1.5153, 0.02], "position_m": [-0.075, 0.8077, -0.07], "rotation_deg": [0, 0, 0.482] },
+        { "shape": "box", "size_m": [0.11, 0.8812, 0.02], "position_m": [0.075, 0.4906, -0.07], "rotation_deg": [0, 0, 0.967] },
+        { "shape": "box", "size_m": [0.11, 1.52, 0.02], "position_m": [0.225, 0.81, -0.07], "rotation_deg": [0, 0, -0.735] },
+        { "shape": "box", "size_m": [0.11, 1.5235, 0.02], "position_m": [0.375, 0.8118, -0.07], "rotation_deg": [0, 0, 0.009] },
+        { "shape": "box", "size_m": [0.11, 1.4847, 0.02], "position_m": [0.525, 0.7923, -0.07], "rotation_deg": [0, 0, -0.169] },
+        { "shape": "box", "size_m": [0.11, 1.5, 0.02], "position_m": [0.675, 0.8, -0.07], "rotation_deg": [0, 0, 0.429] },
+        { "shape": "box", "size_m": [0.11, 1.4861, 0.02], "position_m": [0.825, 0.793, -0.07], "rotation_deg": [0, 0, 0.526] },
+        { "shape": "box", "size_m": [0.11, 1.5058, 0.02], "position_m": [0.975, 0.8029, -0.07], "rotation_deg": [0, 0, 0.802] },
+        { "shape": "box", "size_m": [0.11, 1.4813, 0.02], "position_m": [1.125, 0.7907, -0.07], "rotation_deg": [0, 0, -0.794] }
+      ],
+      "wind_volume": [ { "shape": "box", "size_m": [2.62, 1.75, 0.14], "position_m": [0, 0.875, -0.01] } ],
+      "snag_hazard": true,
+      "wind_porosity": 0.35,
+      "gaps": []
     }
   }
 }

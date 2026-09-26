@@ -44,6 +44,7 @@
   - `SampleGround` sets `Hole` and hands the ground over to the placed trench or cellar mesh
   - trench meshes' collision boxes carry a `surface:<id>` material, so their walls are soil (review X-7)
   - QueryVersion goes to 3, and the golden file is re-recorded
+- **LOD switching (orchestrator, 2026-09-25):** Godot visibility ranges per exported LOD, with distances in the catalog entry, and automatic mesh LOD off for our assets. Chosen over automatic LOD because it's explicit, reviewable and supports impostors the same way. Shared texture sets count against the 2K library limit, not a prop's 1K limit, because they're loaded once for all assets.
 - **Micro-detail view:**
   - fade the near ring with a dithered alpha by distance over its last 2 m
   - add a far layer: density-only instanced cards or short blades from the cover map, a cheap shader, out to 60–100 m, fading in under the near ring
