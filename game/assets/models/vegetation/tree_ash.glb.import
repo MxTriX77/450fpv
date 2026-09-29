@@ -1,0 +1,6 @@
+[remap]
+
+importer="scene"
+
+[params]
+meshes/generate_lods=false

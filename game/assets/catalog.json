@@ -152,6 +152,124 @@
       "snag_hazard": false,
       "wind_porosity": 1.0,
       "gaps": []
+    },
+    "tree_acacia": {
+      "type": "object",
+      "scene": "res://assets/models/vegetation/tree_acacia.glb",
+      "material": "timber",
+      "collision": [
+        { "shape": "cylinder", "radius_m": 0.13, "position_m": [0.0, 1.7, 0.0], "height_m": 3.4 },
+        { "shape": "capsule", "radius_m": 0.0775, "height_m": 5.4856, "position_m": [0.9959, 6.0623, 1.004], "rotation_deg": [36.79, 28.758, 0.0] },
+        { "shape": "capsule", "radius_m": 0.0695, "height_m": 5.4623, "position_m": [0.6863, 6.6811, -0.0642], "rotation_deg": [92.659, 10.511, 0.0] },
+        { "shape": "capsule", "radius_m": 0.0616, "height_m": 4.2858, "position_m": [-0.2986, 6.2226, -0.9478], "rotation_deg": [-152.825, 28.973, 0.0] },
+        { "shape": "capsule", "radius_m": 0.0536, "height_m": 5.6748, "position_m": [-0.8281, 7.2538, -0.7883], "rotation_deg": [-126.044, 25.402, 0.0] }
+      ],
+      "wind_volume": [ { "shape": "cylinder", "radius_m": 2.8, "height_m": 8.2, "position_m": [0.0, 7.5, 0.0] } ],
+      "snag_hazard": true,
+      "wind_porosity": 0.55,
+      "gaps": [],
+      "lod_switch_m": [
+        30.0,
+        80.0,
+        200.0
+      ]
+    },
+    "shrub_belt": {
+      "type": "object",
+      "scene": "res://assets/models/vegetation/shrub_belt.glb",
+      "material": "timber",
+      "collision": [
+        { "shape": "cylinder", "radius_m": 0.05, "position_m": [0.0, 0.225, 0.0], "height_m": 0.45 }
+      ],
+      "wind_volume": [ { "shape": "cylinder", "radius_m": 1.15, "height_m": 1.95, "position_m": [0.0, 1.425, 0.0] } ],
+      "snag_hazard": true,
+      "wind_porosity": 0.5,
+      "gaps": [],
+      "lod_switch_m": [
+        15.0,
+        40.0,
+        95.0
+      ]
+    },
+    "tree_ash": {
+      "type": "object",
+      "scene": "res://assets/models/vegetation/tree_ash.glb",
+      "material": "timber",
+      "collision": [
+        { "shape": "cylinder", "radius_m": 0.16, "position_m": [0.0, 2.5, 0.0], "height_m": 5.0 },
+        { "shape": "capsule", "radius_m": 0.0954, "height_m": 4.3894, "position_m": [-0.1083, 7.1488, 1.3646], "rotation_deg": [2.911, 35.708, 0.0] },
+        { "shape": "capsule", "radius_m": 0.0856, "height_m": 5.066, "position_m": [-0.4764, 8.3208, 0.0053], "rotation_deg": [-117.482, 7.238, 0.0] },
+        { "shape": "capsule", "radius_m": 0.0758, "height_m": 4.9021, "position_m": [-0.2709, 8.6841, -0.2354], "rotation_deg": [-177.0, 9.348, 0.0] },
+        { "shape": "capsule", "radius_m": 0.066, "height_m": 5.5223, "position_m": [-0.9187, 9.3249, -0.5207], "rotation_deg": [-137.717, 19.647, 0.0] },
+        { "shape": "capsule", "radius_m": 0.0562, "height_m": 4.3704, "position_m": [-1.353, 9.1169, 0.2728], "rotation_deg": [-82.248, 27.704, 0.0] }
+      ],
+      "wind_volume": [ { "shape": "cylinder", "radius_m": 2.6, "height_m": 8.5, "position_m": [0.0, 9.25, 0.0] } ],
+      "snag_hazard": true,
+      "wind_porosity": 0.5,
+      "gaps": [],
+      "lod_switch_m": [
+        30.0,
+        80.0,
+        200.0
+      ]
+    },
+    "tree_dead": {
+      "type": "object",
+      "scene": "res://assets/models/vegetation/tree_dead.glb",
+      "material": "timber",
+      "collision": [
+        { "shape": "cylinder", "radius_m": 0.12, "position_m": [0.0, 1.3, 0.0], "height_m": 2.6 },
+        { "shape": "capsule", "radius_m": 0.0679, "height_m": 2.4058, "position_m": [0.5683, 3.6007, 1.3257], "rotation_deg": [8.855, 57.711, 0.0] },
+        { "shape": "capsule", "radius_m": 0.0593, "height_m": 3.1705, "position_m": [1.2773, 4.7036, 0.2283], "rotation_deg": [109.337, 33.132, 0.0] },
+        { "shape": "capsule", "radius_m": 0.0507, "height_m": 3.2539, "position_m": [0.076, 5.3557, 0.2474], "rotation_deg": [-123.584, 20.244, 0.0] }
+      ],
+      "wind_volume": [ { "shape": "cylinder", "radius_m": 2.5, "height_m": 4.6, "position_m": [0.0, 4.9, 0.0] } ],
+      "snag_hazard": true,
+      "wind_porosity": 0.82,
+      "gaps": [],
+      "lod_switch_m": [
+        30.0,
+        80.0,
+        200.0
+      ]
+    },
+    "tree_maple": {
+      "type": "object",
+      "scene": "res://assets/models/vegetation/tree_maple.glb",
+      "material": "timber",
+      "collision": [
+        { "shape": "cylinder", "radius_m": 0.15, "position_m": [0.0, 1.1, 0.0], "height_m": 2.2 },
+        { "shape": "capsule", "radius_m": 0.0848, "height_m": 3.4254, "position_m": [1.2837, 3.9435, -0.4535], "rotation_deg": [111.087, 36.065, 0.0] },
+        { "shape": "capsule", "radius_m": 0.0741, "height_m": 3.9508, "position_m": [-0.3387, 4.7155, 0.4236], "rotation_deg": [-62.228, 30.166, 0.0] },
+        { "shape": "capsule", "radius_m": 0.0634, "height_m": 3.2428, "position_m": [1.0103, 4.2146, 1.3855], "rotation_deg": [17.967, 63.817, 0.0] },
+        { "shape": "capsule", "radius_m": 0.0526, "height_m": 2.8546, "position_m": [1.7642, 4.6351, 0.7105], "rotation_deg": [61.795, 61.013, 0.0] }
+      ],
+      "wind_volume": [ { "shape": "cylinder", "radius_m": 3.1, "height_m": 6.2, "position_m": [0.0, 5.3, 0.0] } ],
+      "snag_hazard": true,
+      "wind_porosity": 0.45,
+      "gaps": [],
+      "lod_switch_m": [
+        30.0,
+        80.0,
+        200.0
+      ]
+    },
+    "tree_young": {
+      "type": "object",
+      "scene": "res://assets/models/vegetation/tree_young.glb",
+      "material": "timber",
+      "collision": [
+        { "shape": "cylinder", "radius_m": 0.06, "position_m": [0.0, 0.7, 0.0], "height_m": 1.4 }
+      ],
+      "wind_volume": [ { "shape": "cylinder", "radius_m": 1.5, "height_m": 4.0, "position_m": [0.0, 3.4, 0.0] } ],
+      "snag_hazard": true,
+      "wind_porosity": 0.62,
+      "gaps": [],
+      "lod_switch_m": [
+        22.0,
+        60.0,
+        150.0
+      ]
     }
   }
 }
