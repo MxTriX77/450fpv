@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using Godot;
 
 /// The terrain-hole scenarios of `-- --selftest worldquery` (task 2.3, the terrain-holes spec), on the test trench of
