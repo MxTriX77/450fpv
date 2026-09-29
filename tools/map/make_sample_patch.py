@@ -42,7 +42,7 @@ MEADOW_SOD, DRY_CRUST, CRATER_SPOIL, BELT_STRAW, BELT_BARE, TILLED, YARD_LITTER,
 # The test trench. Its pad is levelled so that TerrainHeight is one value over the whole trench: the filler is
 # flat-topped placeholder boxes, and a flat lip then meets rule F-3 (within 0.03 m of TerrainHeight) exactly. A trench
 # on sloping ground needs a shape per step instead; that is for the real trench-section asset (task 3.5).
-PAD = (-21.5, 90.25, 11.0, 5.5, 3.0)  # centre x, z, half x, half z, blend width (m)
+PAD = (-21.5, 90.25, 11.0, 5.5, 2.0)  # centre x, z, half x, half z, blend width (m)
 TRENCH_A = (-27.0, 88.75)             # the straight section's closed end: its asset origin, and the cavity's start
 TRENCH_LENGTH = 6.0                   # cavity length of each section, m
 TRENCH_BEND_DEG = 30.0                # the second section turns this far, toward +z
