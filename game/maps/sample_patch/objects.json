@@ -662,6 +662,62 @@
       ],
       "sag_m": 1.0,
       "diameter_m": 0.01
+    },
+    {
+      "asset": "test_trench",
+      "position_m": [
+        -27.0,
+        -0.36,
+        88.75
+      ],
+      "rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": 1.0
+    },
+    {
+      "asset": "test_trench_cap",
+      "position_m": [
+        -27.0,
+        -0.36,
+        88.75
+      ],
+      "rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": 1.0
+    },
+    {
+      "asset": "test_trench",
+      "position_m": [
+        -15.803847577293368,
+        -0.36,
+        91.75
+      ],
+      "rotation_deg": [
+        150.0,
+        0.0,
+        0.0
+      ],
+      "scale": 1.0
+    },
+    {
+      "asset": "test_trench_cap",
+      "position_m": [
+        -15.803847577293368,
+        -0.36,
+        91.75
+      ],
+      "rotation_deg": [
+        150.0,
+        0.0,
+        0.0
+      ],
+      "scale": 1.0
     }
   ]
 }

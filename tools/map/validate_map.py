@@ -1,4 +1,4 @@
-"""Validates a map package against map format 1.0 (see game/maps/README.md). Stdlib only.
+"""Validates a map package against map format 1.1 (see game/maps/README.md). Stdlib only.
 
     python tools/map/validate_map.py game/maps/<id> [--surfaces PATH] [--catalog PATH]
 
@@ -18,6 +18,9 @@ from mappng import GREY, RGBA, PngError, read_png, scanlines
 SUPPORTED_MAJOR = 1
 GAME = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "game")
 FILES = ["map.json", "height.r16", "surface.png", "cover.png", "objects.json"]
+HOLES = "holes.png"       # the optional hole layer, format 1.1
+HOLES_MINOR = 1           # the minor version that added it
+SURFACE_MATERIAL = "surface:"  # a shape material that names a surface of surfaces.json instead of a catalog material
 MAX_SIZE_M = 8192
 CHUNK_M = 256
 COVER_TYPES = ["grass", "straw", "twigs", "litter"]
@@ -109,12 +112,12 @@ def load_json(path):
 
 
 def check_surfaces(table):
-    """Returns the set of valid surface indices."""
+    """Returns (valid surface indices, surface ids)."""
     indices, ids = set(), set()
     surfaces = table.get("surfaces") if isinstance(table, dict) else None
     if not isinstance(surfaces, list) or not surfaces:
         error("surfaces.json: needs a non-empty 'surfaces' list")
-        return indices
+        return indices, ids
     check_fields(table, {"soil_reference_diameter_m": (0.005, 0.1)}, "surfaces.json")
     for n, surface in enumerate(surfaces):
         sid = surface.get("id") if isinstance(surface, dict) else None
@@ -170,11 +173,16 @@ def check_surfaces(table):
             if "mat" in entry:
                 check_fields(entry["mat"], MAT_FIELDS, where, f"cover.{kind}.mat.")
                 check_friction(entry["mat"], where, f"cover.{kind}.mat.")
-    return indices
+    return indices, ids
 
 
-def known(material, materials):
-    return isinstance(material, str) and material in materials
+def known(material, materials, surface_ids):
+    """A catalog material id, or 'surface:<id>' naming a surface of surfaces.json (a soil shape)."""
+    if not isinstance(material, str):
+        return False
+    if material.startswith(SURFACE_MATERIAL):
+        return material[len(SURFACE_MATERIAL):] in surface_ids
+    return material in materials
 
 
 def check_materials(catalog):
@@ -192,7 +200,7 @@ def check_materials(catalog):
     return set(materials)
 
 
-def check_shapes(where, label, shapes, wire, materials):
+def check_shapes(where, label, shapes, wire, materials, surface_ids):
     """Collision shapes (primitives, or one capsule_chain for a wire) or wind-volume shapes (primitives only)."""
     for shape in shapes:
         kind = shape.get("shape") if isinstance(shape, dict) else None
@@ -211,11 +219,12 @@ def check_shapes(where, label, shapes, wire, materials):
         for field in ("position_m", "rotation_deg"):
             if field in shape and not is_vec3(shape[field]):
                 error(f"{where}: {label} {kind} {field} must be [x, y, z]")
-        if label == "collision" and "material" in shape and not known(shape["material"], materials):
-            error(f"{where}: {kind} shape material {shape['material']!r} is not in the material table")
+        if label == "collision" and "material" in shape and not known(shape["material"], materials, surface_ids):
+            error(f"{where}: {kind} shape material {shape['material']!r} is neither in the material table nor "
+                  f"'surface:<id>' of a surface in surfaces.json")
 
 
-def check_catalog(catalog):
+def check_catalog(catalog, surface_ids):
     """Returns {asset id: type} for the assets that are usable."""
     assets = catalog.get("assets") if isinstance(catalog, dict) else None
     if not isinstance(assets, dict):
@@ -240,17 +249,18 @@ def check_catalog(catalog):
         if not isinstance(shapes, list) or (not visual_only and not shapes):
             error(f"{where}: collision is required unless the asset is visual_only")
             shapes = []
-        check_shapes(where, "collision", shapes, asset["type"] == "wire", materials)
+        check_shapes(where, "collision", shapes, asset["type"] == "wire", materials, surface_ids)
         if shapes and "material" not in asset:
             error(f"{where}: material is required because the asset has collision")
-        elif shapes and not known(asset["material"], materials):
-            error(f"{where}: material {asset['material']!r} is not in the material table")
+        elif shapes and not known(asset["material"], materials, surface_ids):
+            error(f"{where}: material {asset['material']!r} is neither in the material table nor 'surface:<id>' of a "
+                  f"surface in surfaces.json")
         if "wind_volume" in asset:
             volume = asset["wind_volume"]
             if not isinstance(volume, list) or not volume:
                 error(f"{where}: wind_volume must be a non-empty list of shapes")
             else:
-                check_shapes(where, "wind_volume", volume, False, materials)
+                check_shapes(where, "wind_volume", volume, False, materials, surface_ids)
         if not isinstance(asset.get("snag_hazard"), bool):
             error(f"{where}: snag_hazard must be true or false")
         check_fields(asset, {"wind_porosity": (0, 1)}, where)
@@ -267,8 +277,42 @@ def check_catalog(catalog):
     return usable
 
 
+def check_holes(folder, size, cells, minor):
+    """The optional hole layer: 0 = ground, 255 = hole, on the surface-cell grid, from format 1.1 on."""
+    path = os.path.join(folder, HOLES)
+    if not os.path.isfile(path):
+        return
+    if minor < HOLES_MINOR:
+        error(f"{HOLES}: the hole layer is format 1.{HOLES_MINOR}, and map.json declares 1.{minor}")
+    try:
+        png = read_png(path)
+    except PngError as e:
+        error(f"{HOLES}: {e}")
+        return
+    scan_png_text(HOLES, png.ancillary)
+    if png.color_type != GREY or png.bit_depth != 8 or png.interlace != 0:
+        error(f"{HOLES} must be 8-bit greyscale, non-interlaced")
+        return
+    if (png.width, png.height) != (cells, cells):
+        error(f"{HOLES} is {png.width}×{png.height} pixels, expected {cells}×{cells}")
+        return
+    resolution = size / cells
+    try:
+        for r, row in enumerate(scanlines(png)):
+            if not row.translate(None, b"\x00\xff"):
+                continue
+            for c, value in enumerate(row):
+                if value not in (0, 255):
+                    x, z = -size / 2 + (c + 0.5) * resolution, -size / 2 + (r + 0.5) * resolution
+                    error(f"{HOLES}: value {value} at row {r}, column {c} (world x={x:g}, z={z:g}) is neither 0 "
+                          f"(ground) nor 255 (hole)")
+                    return
+    except PngError as e:
+        error(f"{HOLES}: {e}")
+
+
 def check_manifest(manifest):
-    """Returns (size_m, height samples per side, surface cells per side), or None if unusable."""
+    """Returns (size_m, height samples per side, surface cells per side, minor version), or None if unusable."""
     if not isinstance(manifest, dict):
         error("map.json: must be an object")
         return None
@@ -321,7 +365,7 @@ def check_manifest(manifest):
         elif not (-half <= position[0] <= half and -half <= position[2] <= half):
             error(f"map.json: start point {i} at x={position[0]:g}, z={position[2]:g} is outside the map "
                   f"(x and z within ±{half:g} m)")
-    return size, counts[0], counts[1]
+    return size, counts[0], counts[1], int(match.group(2))
 
 
 def check_layers(folder, size, samples, cells, surface_indices):
@@ -472,11 +516,12 @@ def main():
             documents[label] = load_json(path)
             if documents[label] is not None:
                 scan_json(label, documents[label], BLOCKLIST)
-        indices = check_surfaces(documents["surfaces.json"]) if documents["surfaces.json"] is not None else set()
-        assets = check_catalog(documents["catalog.json"]) if documents["catalog.json"] is not None else {}
+        indices, surface_ids = check_surfaces(documents["surfaces.json"]) if documents["surfaces.json"] is not None             else (set(), set())
+        assets = check_catalog(documents["catalog.json"], surface_ids) if documents["catalog.json"] is not None else {}
         grid = check_manifest(documents["map.json"]) if documents["map.json"] is not None else None
         if grid:
             check_layers(folder, grid[0], grid[1], grid[2], indices)
+            check_holes(folder, grid[0], grid[2], grid[3])
             if documents["objects.json"] is not None:
                 check_objects(documents["objects.json"], assets, grid[0])
 

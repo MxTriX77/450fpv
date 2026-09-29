@@ -1,0 +1,30 @@
+[gd_scene format=3]
+
+; Test trench, straight 6 m section (task 2.3). The meshes are the catalog collision boxes, so the cavity's open faces
+; are the drawn ones (hole-filler rule F-6). Local +X runs along the trench from its closed end; y = 0 is the lip level.
+
+[sub_resource type="StandardMaterial3D" id="Mat_cut_soil"]
+albedo_color = Color(0.494, 0.416, 0.333, 1)
+roughness = 0.95
+
+[sub_resource type="BoxMesh" id="Box_side"]
+material = SubResource("Mat_cut_soil")
+size = Vector3(10, 1.705, 1.1)
+
+[sub_resource type="BoxMesh" id="Box_floor"]
+material = SubResource("Mat_cut_soil")
+size = Vector3(10, 0.4, 3)
+
+[node name="TestTrench" type="Node3D"]
+
+[node name="SideNorth" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, -0.8475, 0.95)
+mesh = SubResource("Box_side")
+
+[node name="SideSouth" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, -0.8475, -0.95)
+mesh = SubResource("Box_side")
+
+[node name="Floor" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, -1.7, 0)
+mesh = SubResource("Box_floor")
