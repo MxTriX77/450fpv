@@ -239,11 +239,11 @@ public static partial class WorldQuerySelfTest
         // Where the ground is steeper than 1 m/m (pitfall walls, rubble relief) a continuous surface changes by more than
         // 1 mm per 1 mm step. There continuity is judged by the jump beyond the local slope; elsewhere the literal limit holds.
         return Check("continuous across surface borders", worstGentle <= 1e-3 && worstJump <= 1e-3,
-            $"{walks.Count / 2} border edges, {count} samples at 1 mm: largest step with the slope ≤ 1 at both ends {worstGentle * 1000:0.000} mm; "
-            + $"largest jump beyond the local slope {worstJump * 1000:0.000000} mm; {steepSteps} steps steeper than 1 m/m, "
-            + $"largest step anywhere {worstStep * 1000:0.000} mm (at {where}); largest outside pitfalls "
-            + $"{worstOutsidePits * 1000:0.000} mm (at {whereOutside}); largest SupportTop step {worstSupport * 1000:0.000} mm "
-            + "(limit 1 mm)");
+            $"{walks.Count / 2} border edges, {count} samples at 1 mm: largest step with the slope ≤ 1 at both ends "
+            + $"{worstGentle * 1000:0.000} mm and largest jump beyond the local slope {worstJump * 1000:0.000000} mm "
+            + $"(limit 1 mm each); {steepSteps} steps steeper than 1 m/m, largest step anywhere {worstStep * 1000:0.000} mm "
+            + $"(at {where}); largest outside pitfalls {worstOutsidePits * 1000:0.000} mm (at {whereOutside}); largest "
+            + $"SupportTop step {worstSupport * 1000:0.000} mm (information)");
     }
 
     /// dGroundHeight per metre along (dx, dz), from the analytic normal.
