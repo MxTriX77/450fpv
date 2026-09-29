@@ -9,7 +9,7 @@ Each role commits under its own git identity, which you pass on each commit with
 | Physics Engineer | `physics-engineer` | `Physics Engineer <physics@450fpv.local>` | `physics/` | `game/src/physics/`, `game/src/telemetry/` |
 | World Artist | `world-artist` | `World Artist <world@450fpv.local>` | `world/` | `blender/`, `game/assets/{models,textures,materials}/`, `game/maps/`, `game/scenes/world/`, `game/src/world/`, `tools/blender/` |
 | Tech Artist | `tech-artist` | `Tech Artist <techart@450fpv.local>` | `techart/` | `game/src/video/`, `game/assets/shaders/`, lighting, sky, time of day, rendering performance |
-| Game Developer | `game-developer` | `Game Developer <gamedev@450fpv.local>` | `game/` | `game/src/ui/`, `game/src/input/`, `game/scenes/ui/`, `game/scenes/drone/`, app flow, `docs/wireframes/` |
+| Game Developer | `game-developer` | `Game Developer <gamedev@450fpv.local>` | `game/` | `game/src/ui/`, `game/src/input/`, `game/scenes/ui/`, `game/scenes/drone/`, `game/scenes/sandbox/`, app flow, `docs/wireframes/` |
 | QA Engineer | `qa-engineer` | `QA Engineer <qa@450fpv.local>` | `qa/` | `game/tests/`, reviews, perf benchmarks, physics-log forensics |
 
 Commit command pattern:
