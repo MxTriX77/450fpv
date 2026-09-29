@@ -25,6 +25,7 @@
   - `surface:<id>` materials with the `Surface` field on contacts, rays and Geometry
   - micro-detail and the renderer skip holes; the wind guard
   - a test trench (straight and 30°, placeholder boxes meeting F-1–F-8), appended to `sample_patch`
+  - the content hash covers only referenced catalog entries, their materials and the used surfaces (asset-pipeline, "New assets don't disturb existing maps")
   - QueryVersion 3 and the golden re-record
   - B-1: remove `burnt_field`'s `"status"` line
 
