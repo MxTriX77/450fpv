@@ -38,9 +38,9 @@
     "yard_litter": { "set": "dirt", "tile_m": 3.0, "albedo_srgb": "#766450", "litter": 0.9, "macro": 0.1, "note": "T6: compacted soil under fallen leaves" },
     "rubble": { "set": "rubble", "tile_m": 2.5, "macro": 0.1, "note": "B5, T8: brick, concrete and plaster debris" },
     "weeds": {
-      "set": "grass_ground", "tile_m": 4.0, "macro": 0.2, "patch_srgb": "#4a4e22", "patch": 0.5,
+      "set": "grass_ground", "tile_m": 4.0, "albedo_srgb": "#4f5231", "macro": 0.2, "patch_srgb": "#6b6236", "patch": 0.45,
       "grass": ["#627a2c", "#9c9346"], "dry_fraction": 0.3, "blade_width_m": 0.02,
-      "note": "T7: tall green-yellow leafy stalks and dry seed heads over shaded ground"
+      "note": "T7: tall green-yellow leafy stalks and dry seed heads over ground shaded by them, so the soil reads much darker and greener than the meadow's khaki sod; the patches are the dry, opened-up gaps"
     },
     "burnt_field": {
       "set": "burned_ground_01", "tile_m": 3.0, "macro": 0.1,
