@@ -1,0 +1,15 @@
+[gd_scene format=3]
+
+[sub_resource type="StandardMaterial3D" id="Mat_junk"]
+albedo_color = Color(0.54, 0.61, 0.76, 1)
+roughness = 0.7
+
+[sub_resource type="BoxMesh" id="Box_junk"]
+material = SubResource("Mat_junk")
+size = Vector3(0.6, 0.4, 0.5)
+
+[node name="HouseholdJunk" type="Node3D"]
+
+[node name="Body" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
+mesh = SubResource("Box_junk")

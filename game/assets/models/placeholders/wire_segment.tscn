@@ -1,0 +1,19 @@
+[gd_scene format=3]
+
+[sub_resource type="StandardMaterial3D" id="Mat_wire"]
+albedo_color = Color(0.12, 0.12, 0.12, 1)
+roughness = 0.6
+
+[sub_resource type="CylinderMesh" id="Cyl_segment"]
+material = SubResource("Mat_wire")
+top_radius = 0.5
+bottom_radius = 0.5
+height = 1.0
+radial_segments = 6
+rings = 1
+
+[node name="WireSegment" type="Node3D"]
+
+[node name="Body" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0.5)
+mesh = SubResource("Cyl_segment")

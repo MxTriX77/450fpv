@@ -1,0 +1,833 @@
+{
+  "about": "CC0 texture sets and sky HDRIs, pinned by id, resolution and SHA-256. Fetch and check with tools/assets/fetch_cc0.py; empty map entries are pinned on first fetch.",
+  "sets": [
+    {
+      "set": "brown_mud_02",
+      "source": "polyhaven",
+      "resolution": "2k",
+      "use": "Dark chernozem: tilled soil base, belt-floor soil, fresh crater spoil (notes T3a, T4, W1)",
+      "maps": {
+        "albedo": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/brown_mud_02/brown_mud_02_diff_2k.jpg",
+          "bytes": 2163682,
+          "sha256": "5c735b1df784ab1990f4e209c55d27fa4e7a19508e40484ed5aa783266783726"
+        },
+        "normal": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/brown_mud_02/brown_mud_02_nor_gl_2k.jpg",
+          "bytes": 4234657,
+          "sha256": "3d6eec0adba8fd514d5634c56f806ad40206975c3ef17de1e2468b9e3ebcf719"
+        },
+        "roughness": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/brown_mud_02/brown_mud_02_rough_2k.jpg",
+          "bytes": 1662813,
+          "sha256": "00ef047ecda114930311efd31cbdb371c7a236f211a00f1dfeb6b1b73ac2f674"
+        },
+        "ao": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/brown_mud_02/brown_mud_02_ao_2k.jpg",
+          "bytes": 1611911,
+          "sha256": "00787413c68a6930dfd6cb78baf553aabd15f1c9d144400656fffc9fcbefcda6"
+        },
+        "height": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/brown_mud_02/brown_mud_02_disp_2k.jpg",
+          "bytes": 585864,
+          "sha256": "e788adc410cf05a4d0e381c1b8a1c93c7c0ec0c471faeefcc3f4a018f8a4c5ec"
+        }
+      },
+      "name": "Brown Mud 02",
+      "authors": [
+        "Rob Tuytel"
+      ]
+    },
+    {
+      "set": "dirt",
+      "source": "polyhaven",
+      "resolution": "2k",
+      "use": "Dry fine loam: bare belt floor, trampled ground around ruins (notes T5, T8)",
+      "maps": {
+        "albedo": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/dirt/dirt_diff_2k.jpg",
+          "bytes": 3053062,
+          "sha256": "126d3e4886cc94b494ba609ddc323a77ff0362a1b156c3750d5d2a0a0ead02b8"
+        },
+        "normal": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/dirt/dirt_nor_gl_2k.jpg",
+          "bytes": 4914156,
+          "sha256": "ff629fce04c5d6d581cfcb604ea85df6b726798e60d982fd5484c60cddcccd88"
+        },
+        "roughness": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/dirt/dirt_rough_2k.jpg",
+          "bytes": 964887,
+          "sha256": "a17048230e1a86fc874b381360f6a821df1f6b0174ca7f85a59596c4290080fa"
+        },
+        "ao": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/dirt/dirt_ao_2k.jpg",
+          "bytes": 2769552,
+          "sha256": "5c6f36c9cfc6a03faca87d5407eaa26e18d33c0b3762016de023a5cafa3e2246"
+        },
+        "height": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/dirt/dirt_disp_2k.jpg",
+          "bytes": 1274950,
+          "sha256": "4678a6034a118aba4ae5219a14c8503c3d4f96f54d6ecb86347338872d54af46"
+        }
+      },
+      "name": "Dirt",
+      "authors": [
+        "Charlotte Baglioni"
+      ]
+    },
+    {
+      "set": "dry_mud_field_001",
+      "source": "polyhaven",
+      "resolution": "2k",
+      "use": "Dry sun-baked loam crust of the cratered field (notes T2)",
+      "maps": {
+        "albedo": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/dry_mud_field_001/dry_mud_field_001_diff_2k.jpg",
+          "bytes": 1375586,
+          "sha256": "5e4cf51f8ce858a04e19228dc6e1f4956a47e0ee92efa684bd0079e326715b4c"
+        },
+        "normal": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/dry_mud_field_001/dry_mud_field_001_nor_gl_2k.jpg",
+          "bytes": 2344766,
+          "sha256": "2aa8f6415e900a1b5c5e0b8b75eed0f51013902d5511220dcc6e9b45e70239a4"
+        },
+        "roughness": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/dry_mud_field_001/dry_mud_field_001_rough_2k.jpg",
+          "bytes": 1066381,
+          "sha256": "749d475320fa440a16d87a639e2fad41ef1b28cc268cdcd4e41557fb5870d005"
+        },
+        "ao": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/dry_mud_field_001/dry_mud_field_001_ao_2k.jpg",
+          "bytes": 1579239,
+          "sha256": "a3fe4239b16fed9bbdfcd15d2f13b2567314fbe68eeaa41ceb1321f2b8e8ecdb"
+        },
+        "height": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/dry_mud_field_001/dry_mud_field_001_disp_2k.jpg",
+          "bytes": 400745,
+          "sha256": "529087a53139d0c512a91ef26e995555ee377321bde6805adfce2c4974064761"
+        }
+      },
+      "name": "Dry Mud Field 001",
+      "authors": [
+        "Rico Cilliers",
+        "Rob Tuytel"
+      ]
+    },
+    {
+      "set": "burned_ground_01",
+      "source": "polyhaven",
+      "resolution": "2k",
+      "use": "Char and ash of the burnt field and scorch spots (notes T3b)",
+      "maps": {
+        "albedo": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/burned_ground_01/burned_ground_01_diff_2k.jpg",
+          "bytes": 4127752,
+          "sha256": "3d7f67558e6ec57a50b56e196c37665ea4a1b3d7f8dc4049618f9002e08c109d"
+        },
+        "normal": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/burned_ground_01/burned_ground_01_nor_gl_2k.jpg",
+          "bytes": 1433507,
+          "sha256": "703e907fe5cdf952aea61134600be985453da66d1a6d88519e5b7cd71d93c9f0"
+        },
+        "roughness": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/burned_ground_01/burned_ground_01_rough_2k.jpg",
+          "bytes": 1358903,
+          "sha256": "7ab3d961e8d6bf8ae56e993dc32df3b5466d257f4c7547e8739b91615f45d1a9"
+        },
+        "ao": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/burned_ground_01/burned_ground_01_ao_2k.jpg",
+          "bytes": 2184988,
+          "sha256": "660f2a3c8f38d21a06c279309e57ac7f5a00677374391f06d5009cdf909b6970"
+        },
+        "height": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/burned_ground_01/burned_ground_01_disp_2k.jpg",
+          "bytes": 657242,
+          "sha256": "c952251c285d68bb95aa9833b97c5681b57c8faf320b7b820282f43db00ea20f"
+        }
+      },
+      "name": "Burned Ground 01",
+      "authors": [
+        "Rob Tuytel"
+      ]
+    },
+    {
+      "set": "farm_furrows",
+      "source": "polyhaven",
+      "resolution": "2k",
+      "use": "Tilled furrows, oriented along the ridge azimuth (notes T3a)",
+      "maps": {
+        "albedo": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/farm_furrows/farm_furrows_diff_2k.jpg",
+          "bytes": 2891328,
+          "sha256": "673f876ad96deaae49cbca81a932e5f1ccf1b01634297719d8258f1fe6e73436"
+        },
+        "normal": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/farm_furrows/farm_furrows_nor_gl_2k.jpg",
+          "bytes": 4953988,
+          "sha256": "68eab28e4ea6fcdc109da73f0f33302d9206e44db5557ecf81ca9fac18fbb1d7"
+        },
+        "roughness": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/farm_furrows/farm_furrows_rough_2k.jpg",
+          "bytes": 1817711,
+          "sha256": "1de914e5d42e20cf897a0863592288e888d236e7ac8cb4ab9443e330913497db"
+        },
+        "ao": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/farm_furrows/farm_furrows_ao_2k.jpg",
+          "bytes": 3095929,
+          "sha256": "39f7e41f56053b61752b6bf701fc0522460fba0b47d0dd32217ef2f79baee370"
+        },
+        "height": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/farm_furrows/farm_furrows_disp_2k.jpg",
+          "bytes": 1065886,
+          "sha256": "a7dfd724ae0cd4e61e7df8194c3c1a2ccb20e7816362fcf19b9032f6e13039b8"
+        }
+      },
+      "name": "Farm Furrows",
+      "authors": [
+        "Amal Kumar"
+      ]
+    },
+    {
+      "set": "grass_ground",
+      "source": "polyhaven",
+      "resolution": "2k",
+      "use": "Meadow sod and weeds ground, mixed green and dry grass (notes T1, T7)",
+      "maps": {
+        "albedo": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/grass_ground/grass_ground_diff_2k.jpg",
+          "bytes": 3787330,
+          "sha256": "4272bddc71a7fa659d1deeb13a9df8c42e68a5ac8cde7523187e4a081e028258"
+        },
+        "normal": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/grass_ground/grass_ground_nor_gl_2k.jpg",
+          "bytes": 5968024,
+          "sha256": "effa95c06af273c974476d9a74a234668a1c9292f60fffb4fa40348d638ee7f3"
+        },
+        "roughness": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/grass_ground/grass_ground_rough_2k.jpg",
+          "bytes": 1525000,
+          "sha256": "afaed95537e894b8054db38c81712a6d9504b05b560274526621d91d5a95fbe7"
+        },
+        "ao": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/grass_ground/grass_ground_ao_2k.jpg",
+          "bytes": 4064520,
+          "sha256": "ae4739457175ab2add4421a8ae803c7ef5005c946f942828d2adf7abe9843850"
+        },
+        "height": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/grass_ground/grass_ground_disp_2k.jpg",
+          "bytes": 2667246,
+          "sha256": "7871dd774df740647f16341196f60b6680c69f8073046ae9129f4a319685f2db"
+        }
+      },
+      "name": "Grass Ground",
+      "authors": [
+        "Charlotte Baglioni"
+      ]
+    },
+    {
+      "set": "withered_grass",
+      "source": "polyhaven",
+      "resolution": "2k",
+      "use": "Dry straw and hay: lodged straw mat of the belt floor, dry tufts (notes T4, T2)",
+      "maps": {
+        "albedo": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/withered_grass/withered_grass_diff_2k.jpg",
+          "bytes": 4632786,
+          "sha256": "0cf0fca68cbf4277199a2b9b7b3a8013357e4087247b1367f86d4a53b4fafa7e"
+        },
+        "normal": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/withered_grass/withered_grass_nor_gl_2k.jpg",
+          "bytes": 6194953,
+          "sha256": "5fd42baf06224086cb9afcb2f7a3b9f26feddd719bf1f9aed65ec49c586e7ff9"
+        },
+        "roughness": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/withered_grass/withered_grass_rough_2k.jpg",
+          "bytes": 3666367,
+          "sha256": "86adb8d6f24d0a38eb96c6b625f2dd027b805f59af46fe2a05ffe29f633e33c8"
+        },
+        "ao": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/withered_grass/withered_grass_ao_2k.jpg",
+          "bytes": 4031915,
+          "sha256": "b91ec4cab6fdd8034c928647a4ad9a09a5b99744db8d18c0743ead407c8d1b93"
+        },
+        "height": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/withered_grass/withered_grass_disp_2k.jpg",
+          "bytes": 2432965,
+          "sha256": "2e9ade0a66c6d6b9990ce19ead20b155e1aed7969e4e86f8210fc7595dd2983d"
+        }
+      },
+      "name": "Withered Grass",
+      "authors": [
+        "Charlotte Baglioni"
+      ]
+    },
+    {
+      "set": "dry_decay_leaves",
+      "source": "polyhaven",
+      "resolution": "2k",
+      "use": "Leaf litter of yards and belts (notes T6)",
+      "maps": {
+        "albedo": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/dry_decay_leaves/dry_decay_leaves_diff_2k.jpg",
+          "bytes": 2856071,
+          "sha256": "4dc7dde86f3db0df3566ca0ae77390000e979db31fbdc861796d2e516e6ad04e"
+        },
+        "normal": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/dry_decay_leaves/dry_decay_leaves_nor_gl_2k.jpg",
+          "bytes": 3920921,
+          "sha256": "76cbbca571145f9facf93db819cb909282df6bde8b81f82b5708be912611c5e1"
+        },
+        "roughness": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/dry_decay_leaves/dry_decay_leaves_rough_2k.jpg",
+          "bytes": 1962109,
+          "sha256": "13024199e2f90d1a43733a1a599386b4a4a7778a0affcc310430629de6a623e7"
+        },
+        "ao": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/dry_decay_leaves/dry_decay_leaves_ao_2k.jpg",
+          "bytes": 2888876,
+          "sha256": "516e66fa6038b91d4a8bb41b11b4a35469d47c6f57265820d00c64fbf26a212b"
+        },
+        "height": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/dry_decay_leaves/dry_decay_leaves_disp_2k.jpg",
+          "bytes": 1191385,
+          "sha256": "cd2461f31eeeb6b360bc9dcdcb745d56b3cb489992c344b7142ef9e672e8ecbb"
+        }
+      },
+      "name": "Dry Decay Leaves",
+      "authors": [
+        "Amal Kumar"
+      ]
+    },
+    {
+      "set": "rubble",
+      "source": "polyhaven",
+      "resolution": "2k",
+      "use": "Rubble ground and rubble mounds: brick, concrete and plaster debris (notes B5, T8)",
+      "maps": {
+        "albedo": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/rubble/rubble_diff_2k.jpg",
+          "bytes": 3004880,
+          "sha256": "81a931b8cf6d448f030ea21cd2089dc492cd560ce0508e651c8d7c28dab23b91"
+        },
+        "normal": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/rubble/rubble_nor_gl_2k.jpg",
+          "bytes": 4259793,
+          "sha256": "21746eb946263d95c9909bccd8b87e87b5ae954f91be97425d76d55d66898201"
+        },
+        "roughness": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/rubble/rubble_rough_2k.jpg",
+          "bytes": 1451231,
+          "sha256": "0aa465607f588db6cbafbe2b3cf949ae8331304b00df0466c29f29ec460194a7"
+        },
+        "ao": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/rubble/rubble_ao_2k.jpg",
+          "bytes": 2693590,
+          "sha256": "042577c222be321efdfb124b43423bbc33607f33f2973a41154fe2d8f68a851d"
+        },
+        "height": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/rubble/rubble_disp_2k.jpg",
+          "bytes": 1328135,
+          "sha256": "2a7ac899a650e9c81bb8b5a57ce95d7007e3824988afc139fe7d8d77b9abafd8"
+        }
+      },
+      "name": "Rubble",
+      "authors": [
+        "Amal Kumar"
+      ]
+    },
+    {
+      "set": "road_damaged",
+      "source": "polyhaven",
+      "resolution": "2k",
+      "use": "Worn dusty asphalt of village roads (notes R0 photo M, surface asphalt)",
+      "maps": {
+        "albedo": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/road_damaged/road_damaged_diff_2k.jpg",
+          "bytes": 3590993,
+          "sha256": "07e5d5424365d512a297a0610cb53d1a4ab0b66b1accfd027076baa570b72dd3"
+        },
+        "normal": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/road_damaged/road_damaged_nor_gl_2k.jpg",
+          "bytes": 3867036,
+          "sha256": "78fa83e74f9f6de92eeb7badeb05aac470e88b5bb75f58da2e7a9ca54cfb80cb"
+        },
+        "roughness": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/road_damaged/road_damaged_rough_2k.jpg",
+          "bytes": 2712127,
+          "sha256": "43b906e94edefd3c6f112417c97e13e55a0026683676105a02812a8122b88f6b"
+        },
+        "ao": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/road_damaged/road_damaged_ao_2k.jpg",
+          "bytes": 2646642,
+          "sha256": "96beb4705f1571aa4c5c079b7472b67637a40a6ad58f3ea292eb2b3ac157bab7"
+        },
+        "height": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/road_damaged/road_damaged_disp_2k.jpg",
+          "bytes": 903595,
+          "sha256": "78be6a948b5e6a499b38436222623a2c79830b92c471f0e70cd355fbd319f6e6"
+        }
+      },
+      "name": "Road Damaged",
+      "authors": [
+        "Dimitrios Savva"
+      ]
+    },
+    {
+      "set": "excavated_soil_wall",
+      "source": "polyhaven",
+      "resolution": "2k",
+      "use": "Cut soil walls of trenches, pits and the cellar stairwell, tinted dark (notes W2, W3, W4)",
+      "maps": {
+        "albedo": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/excavated_soil_wall/excavated_soil_wall_diff_2k.jpg",
+          "bytes": 2659985,
+          "sha256": "228effbe6848a4c95ac18030ea9a5de59a2fdd98f1ffb00ff16ac8e49920df9b"
+        },
+        "normal": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/excavated_soil_wall/excavated_soil_wall_nor_gl_2k.jpg",
+          "bytes": 4892651,
+          "sha256": "95aec73af2943290156d352044e8d1daff40b99512948232ab46096e6d37b56d"
+        },
+        "roughness": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/excavated_soil_wall/excavated_soil_wall_rough_2k.jpg",
+          "bytes": 1268781,
+          "sha256": "da6ce26f820e43ff41aee784868b66e4ef5febcb96437f28abbd2048fc7cfe70"
+        },
+        "ao": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/excavated_soil_wall/excavated_soil_wall_ao_2k.jpg",
+          "bytes": 3115259,
+          "sha256": "1c0460dd6b9a9d602778081305bd391c2c18f5e921add25efc979de30592baea"
+        }
+      },
+      "name": "Excavated Soil Wall",
+      "authors": [
+        "Amal Kumar"
+      ]
+    },
+    {
+      "set": "rough_plaster_broken",
+      "source": "polyhaven",
+      "resolution": "2k",
+      "use": "Adobe house lime-clay render falling off in patches (notes B1)",
+      "maps": {
+        "albedo": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/rough_plaster_broken/rough_plaster_broken_diff_2k.jpg",
+          "bytes": 2753565,
+          "sha256": "aff4e2eb8cb2c8eae4ae62c9952e6b509946848f07b5e4e8e2e8aa52359c8eb5"
+        },
+        "normal": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/rough_plaster_broken/rough_plaster_broken_nor_gl_2k.jpg",
+          "bytes": 1211542,
+          "sha256": "992f669fe6291a20ae9f86404cfa9d5cafbe964ec5d7775a9bcd6629a5070408"
+        },
+        "roughness": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/rough_plaster_broken/rough_plaster_broken_rough_2k.jpg",
+          "bytes": 2203357,
+          "sha256": "47829125401c8292fab03e4fd93362cbe59d57a090df85ce625d6524733ec6e7"
+        },
+        "ao": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/rough_plaster_broken/rough_plaster_broken_ao_2k.jpg",
+          "bytes": 573989,
+          "sha256": "bb3e0eca7271eeec96bad26af3a1a152ab92ddef7a5a9893e0f5cddf8b6eb488"
+        }
+      },
+      "name": "Rough Plaster Broken",
+      "authors": [
+        "Rob Tuytel"
+      ]
+    },
+    {
+      "set": "red_brick_plaster_patch_02",
+      "source": "polyhaven",
+      "resolution": "2k",
+      "use": "Red brick with lime render and mortar remnants: cellar head, sheds, the block's bare brick (notes W4, B3, B4)",
+      "maps": {
+        "albedo": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/red_brick_plaster_patch_02/red_brick_plaster_patch_02_diff_2k.jpg",
+          "bytes": 3007093,
+          "sha256": "288e02a39280ccb16546f81df2184c3be97ed987e4e84c237a7cd0cfd43065df"
+        },
+        "normal": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/red_brick_plaster_patch_02/red_brick_plaster_patch_02_nor_gl_2k.jpg",
+          "bytes": 1937478,
+          "sha256": "9ee35d5243e54159642a5b24127324c2a9d1fc4eaf9a1cc972c22a63bd9a9ee4"
+        },
+        "roughness": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/red_brick_plaster_patch_02/red_brick_plaster_patch_02_rough_2k.jpg",
+          "bytes": 898505,
+          "sha256": "7a80958117e8976db21b7119daa10833a463a47669728c4ac7d1a889f6aae7ff"
+        },
+        "ao": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/red_brick_plaster_patch_02/red_brick_plaster_patch_02_ao_2k.jpg",
+          "bytes": 1337716,
+          "sha256": "139abb86e7479865b9be88c26ba24a1916cdfdc31f21426962f3cbfff76daa00"
+        }
+      },
+      "name": "Red Brick Plaster Patch 02",
+      "authors": [
+        "Rob Tuytel"
+      ]
+    },
+    {
+      "set": "white_bricks",
+      "source": "polyhaven",
+      "resolution": "2k",
+      "use": "Pale silicate brick of the brick village house (notes B2)",
+      "maps": {
+        "albedo": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/white_bricks/white_bricks_diff_2k.jpg",
+          "bytes": 3428026,
+          "sha256": "82de68efea84ce3cf1d2f844b484a9176c240c5ef90884c3464bdee66dcd874b"
+        },
+        "normal": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/white_bricks/white_bricks_nor_gl_2k.jpg",
+          "bytes": 2005436,
+          "sha256": "936012e807329c85425813a17cb1b90550233adef94f1461c7b8c29ebd6a596d"
+        },
+        "roughness": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/white_bricks/white_bricks_rough_2k.jpg",
+          "bytes": 2531419,
+          "sha256": "31ee8984c108e94e44369a2f473e20dcdbd808d4ccdee6cf2bbeb97da7c06311"
+        },
+        "ao": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/white_bricks/white_bricks_ao_2k.jpg",
+          "bytes": 857529,
+          "sha256": "ccdda2173f11adff2e9754d11d7d7e0b4d4aa8db7bc3d5f2b68268f5ecd3d80a"
+        }
+      },
+      "name": "White Bricks",
+      "authors": [
+        "Rob Tuytel"
+      ]
+    },
+    {
+      "set": "clay_roof_tiles_02",
+      "source": "polyhaven",
+      "resolution": "2k",
+      "use": "Orange-red interlocking clay roof tiles and tile shards (notes B1, S3)",
+      "maps": {
+        "albedo": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/clay_roof_tiles_02/clay_roof_tiles_02_diff_2k.jpg",
+          "bytes": 3459427,
+          "sha256": "570e1878985993bf81433d785b4fa2d4ab9f6d32447706193089b11ff0851731"
+        },
+        "normal": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/clay_roof_tiles_02/clay_roof_tiles_02_nor_gl_2k.jpg",
+          "bytes": 3526539,
+          "sha256": "762e2f18ba063fe3c587955be9f8a0a6e8e75cee4057e188970d1ec70a880194"
+        },
+        "roughness": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/clay_roof_tiles_02/clay_roof_tiles_02_rough_2k.jpg",
+          "bytes": 1392056,
+          "sha256": "a70d571203b80f763a6bcd4463330d8e2a5480ee6e29b559d1a05f1a61d5a81e"
+        },
+        "ao": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/clay_roof_tiles_02/clay_roof_tiles_02_ao_2k.jpg",
+          "bytes": 2053038,
+          "sha256": "c49e8cc0175ed764ca3e25c4bfeb71184acb80049570959be8def17e271e943e"
+        }
+      },
+      "name": "Clay Roof Tiles 02",
+      "authors": [
+        "Amal Kumar"
+      ]
+    },
+    {
+      "set": "asbestos_sheet",
+      "source": "polyhaven",
+      "resolution": "2k",
+      "use": "Corrugated asbestos-cement roof sheets (notes B2, B4)",
+      "maps": {
+        "albedo": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/asbestos_sheet/asbestos_sheet_diff_2k.jpg",
+          "bytes": 2748897,
+          "sha256": "02fc849f5f7c145d36cffd7ee00b2b4838ff046cccf8a4eb366f653f0115acb3"
+        },
+        "normal": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/asbestos_sheet/asbestos_sheet_nor_gl_2k.jpg",
+          "bytes": 2493457,
+          "sha256": "658c9ee9ebde6da8fc89344d15af749bb452197f6eb276fbe2ad72fa5e144ffb"
+        },
+        "roughness": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/asbestos_sheet/asbestos_sheet_rough_2k.jpg",
+          "bytes": 1509210,
+          "sha256": "d1b440d82a11f254d3b90bb1cf9daf97ef9b8c4bb00dccbd1eb21527d1baedb7"
+        },
+        "ao": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/asbestos_sheet/asbestos_sheet_ao_2k.jpg",
+          "bytes": 1458530,
+          "sha256": "71649c46546b1e36727a081d5bd3cbab778d1a3ce25497544d60e39cebfebed7"
+        }
+      },
+      "name": "Asbestos Sheet",
+      "authors": [
+        "Amal Kumar"
+      ]
+    },
+    {
+      "set": "worn_corrugated_iron",
+      "source": "polyhaven",
+      "resolution": "2k",
+      "use": "Corrugated sheet metal of sheds and loose roof sheets (notes B3, S4)",
+      "maps": {
+        "albedo": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/worn_corrugated_iron/worn_corrugated_iron_diff_2k.jpg",
+          "bytes": 3254293,
+          "sha256": "523a3d07e3d5b3aabae8c8ed5f3e7dfb79df7ea01be5bc8b9826b12827f4fa0c"
+        },
+        "normal": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/worn_corrugated_iron/worn_corrugated_iron_nor_gl_2k.jpg",
+          "bytes": 4264832,
+          "sha256": "5a2ab6a4c4e117097d6d786e1b955b9c84d6d17a8c76b3f41538796f5fc1028f"
+        },
+        "roughness": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/worn_corrugated_iron/worn_corrugated_iron_rough_2k.jpg",
+          "bytes": 2207801,
+          "sha256": "b6a5a922d00f2b0cd451fa68e64c74e5eb4d2eabec3d03c5969101f65c0f8a83"
+        },
+        "ao": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/worn_corrugated_iron/worn_corrugated_iron_ao_2k.jpg",
+          "bytes": 2611993,
+          "sha256": "c12a911dff0c755b5220b6f91d77b5669e00dd40488ff7e1a50c0a7d2f2feef5"
+        }
+      },
+      "name": "Worn Corrugated Iron",
+      "authors": [
+        "Dimitrios Savva",
+        "Jenelle van Heerden"
+      ]
+    },
+    {
+      "set": "concrete_wall_008",
+      "source": "polyhaven",
+      "resolution": "2k",
+      "use": "Weathered concrete: floor slabs, lintels, plinths of the block (notes B4, B5)",
+      "maps": {
+        "albedo": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/concrete_wall_008/concrete_wall_008_diff_2k.jpg",
+          "bytes": 2666189,
+          "sha256": "a3eb7b24c5cf6f113ec9b3be8ab1715360ef3cbf4b1699979414e44341f54846"
+        },
+        "normal": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/concrete_wall_008/concrete_wall_008_nor_gl_2k.jpg",
+          "bytes": 2342650,
+          "sha256": "58ce9b818772d37fe16e1154ea0278f3ab423ed34073357e786ef44f9ceef052"
+        },
+        "roughness": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/concrete_wall_008/concrete_wall_008_rough_2k.jpg",
+          "bytes": 1458273,
+          "sha256": "f88aab6f11e0cbe3d366a2beb4ea1e50468e8e31da32bf1ea4a098b3be2f984e"
+        },
+        "ao": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/concrete_wall_008/concrete_wall_008_ao_2k.jpg",
+          "bytes": 2733036,
+          "sha256": "19cc50a0c3d375ae3d85c57fce63f22886daed4cbb6fedc46d034af0132c3ee4"
+        }
+      },
+      "name": "Concrete Wall 008",
+      "authors": [
+        "Charlotte Baglioni",
+        "Dario Barresi"
+      ]
+    },
+    {
+      "set": "weathered_planks",
+      "source": "polyhaven",
+      "resolution": "2k",
+      "use": "Weathered grey wood: fences, gates, sheds, doors, planks (notes B6, B1, B3, S4)",
+      "maps": {
+        "albedo": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/weathered_planks/weathered_planks_diff_2k.jpg",
+          "bytes": 2385451,
+          "sha256": "e763f1257acdfdbb31764c9ec9d480fd4efa5cc008f8b63d73a916d53d938942"
+        },
+        "normal": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/weathered_planks/weathered_planks_nor_gl_2k.jpg",
+          "bytes": 3184832,
+          "sha256": "d851c42bb0dbcf21012e9ca1ac308b04bc9071a4e87118ccd79eec762fd030dc"
+        },
+        "roughness": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/weathered_planks/weathered_planks_rough_2k.jpg",
+          "bytes": 989704,
+          "sha256": "964c154545e1ac4e1cb4b2ba60960a1effa2c56c31a2c300bf78fcc499b17c52"
+        },
+        "ao": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/weathered_planks/weathered_planks_ao_2k.jpg",
+          "bytes": 2563317,
+          "sha256": "3f797b00bc63c54a45e17f8b6ffcd9a6709d29e88b51049dbda4b0430c7cc7c4"
+        }
+      },
+      "name": "Weathered Planks",
+      "authors": [
+        "Dario Barresi",
+        "Dimitrios Savva"
+      ]
+    },
+    {
+      "set": "bark_willow_02",
+      "source": "polyhaven",
+      "resolution": "2k",
+      "use": "Grey-brown furrowed bark of tree-belt trees (notes V1)",
+      "maps": {
+        "albedo": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/bark_willow_02/bark_willow_02_diff_2k.jpg",
+          "bytes": 4010319,
+          "sha256": "6bec05b58cad3907ba2704010f2d6878152b679e5f5ab5c6c6ff7d449c373a76"
+        },
+        "normal": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/bark_willow_02/bark_willow_02_nor_gl_2k.jpg",
+          "bytes": 5216489,
+          "sha256": "53a852294a3cd51d55579615d33c73a6d439e380c375af627247b8ef39c38936"
+        },
+        "roughness": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/bark_willow_02/bark_willow_02_rough_2k.jpg",
+          "bytes": 2172857,
+          "sha256": "360bfce5b6f8ff6fd6ab5c8b61dcdaa4bcc36c86c920964c71d38e8fc671ebcb"
+        },
+        "ao": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/bark_willow_02/bark_willow_02_ao_2k.jpg",
+          "bytes": 3648331,
+          "sha256": "90bef89e48b0954f7c7aca7fa69c7facf30dfac30170c66178defdb5cc19609e"
+        }
+      },
+      "name": "Bark Willow 02",
+      "authors": [
+        "Charlotte Baglioni"
+      ]
+    },
+    {
+      "set": "bark_willow",
+      "source": "polyhaven",
+      "resolution": "2k",
+      "use": "Dark gnarled bark of yard fruit trees and old trunks (notes V3, V2)",
+      "maps": {
+        "albedo": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/bark_willow/bark_willow_diff_2k.jpg",
+          "bytes": 3154082,
+          "sha256": "d87e97687eb0abd61031161f2895ab7eafc241c850380e978d011ef98a45a67b"
+        },
+        "normal": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/bark_willow/bark_willow_nor_gl_2k.jpg",
+          "bytes": 5586193,
+          "sha256": "2984fe9d23f2cfb9b235fc50eea85f514b27be3f4addc7c7142afba077c9970e"
+        },
+        "roughness": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/bark_willow/bark_willow_rough_2k.jpg",
+          "bytes": 1629349,
+          "sha256": "fc3cc861befbd9dcaec295d7ddb54b41c68ecf153a49a18fc8460c25b3f57c49"
+        },
+        "ao": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/bark_willow/bark_willow_ao_2k.jpg",
+          "bytes": 3640849,
+          "sha256": "a742621a86a4630df38847c91cfe199885261fec07ced6d5c0600f0055a10c00"
+        }
+      },
+      "name": "Bark Willow",
+      "authors": [
+        "Dario Barresi",
+        "Dimitrios Savva"
+      ]
+    },
+    {
+      "set": "rusty_metal_02",
+      "source": "polyhaven",
+      "resolution": "2k",
+      "use": "Faded car paint: white weathered paint tinted to each car colour, a derivation (notes R0, R1, R3)",
+      "maps": {
+        "albedo": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/rusty_metal_02/rusty_metal_02_diff_2k.jpg",
+          "bytes": 1952454,
+          "sha256": "4c887dd400ed8a5964377c65e20654262307d6888443eae85feb80cc6e72287a"
+        },
+        "normal": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/rusty_metal_02/rusty_metal_02_nor_gl_2k.jpg",
+          "bytes": 1307478,
+          "sha256": "a7aa9c3e4b6859c723c8e9dc5b96d7ed6eed863271358a91641c727555da75ce"
+        },
+        "roughness": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/rusty_metal_02/rusty_metal_02_rough_2k.jpg",
+          "bytes": 411581,
+          "sha256": "1d0748dfe7754d8b18c1dea5a2dff2da30848787d35abeb916c34b804decca3a"
+        },
+        "ao": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/rusty_metal_02/rusty_metal_02_ao_2k.jpg",
+          "bytes": 2103272,
+          "sha256": "84d6f92cfadd4880dc65f32ab8d00c4b614397f4a04c0a4f9a5a5b2971fa8879"
+        }
+      },
+      "name": "Rusty Metal 02",
+      "authors": [
+        "Rob Tuytel"
+      ]
+    },
+    {
+      "set": "rust_coarse_01",
+      "source": "polyhaven",
+      "resolution": "2k",
+      "use": "Rust on wrecks and sheet metal; tinted to soot black for burnt-out metal, a derivation (notes R0 photo O)",
+      "maps": {
+        "albedo": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/rust_coarse_01/rust_coarse_01_diff_2k.jpg",
+          "bytes": 3519719,
+          "sha256": "5b8801674fa53ff1b6f7853300f50aa7a1b31e69278554803bd957fe9fa7e392"
+        },
+        "normal": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/rust_coarse_01/rust_coarse_01_nor_gl_2k.jpg",
+          "bytes": 3685688,
+          "sha256": "495d3c87da059827ffaf49dae59f967cb3e0b187f4426ab0a47088c3fa83e50b"
+        },
+        "roughness": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/rust_coarse_01/rust_coarse_01_rough_2k.jpg",
+          "bytes": 2845362,
+          "sha256": "652eaa2e668c4d24b038716e01c460e6614429634f67ddbcd7f9593296a24885"
+        },
+        "ao": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/rust_coarse_01/rust_coarse_01_ao_2k.jpg",
+          "bytes": 2817642,
+          "sha256": "4340b7de13e1690b2132234ec631d9b1166c70ae2c8076b2d32cf51808bad7f5"
+        }
+      },
+      "name": "Rust Coarse 01",
+      "authors": [
+        "Dimitrios Savva",
+        "Rico Cilliers"
+      ]
+    },
+    {
+      "set": "kloofendal_overcast_puresky",
+      "source": "polyhaven",
+      "resolution": "2k",
+      "use": "Sky: flat grey-blue overcast (clips A, H)",
+      "maps": {
+        "hdri": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/kloofendal_overcast_puresky_2k.hdr",
+          "bytes": 4335717,
+          "sha256": "312b1b04b7f10057a4f1418abc59d1166c8933cc93fc72051502edaf8d6b2fcd"
+        }
+      },
+      "name": "Kloofendal Overcast (Pure Sky)",
+      "authors": [
+        "Greg Zaal"
+      ]
+    },
+    {
+      "set": "kloofendal_48d_partly_cloudy_puresky",
+      "source": "polyhaven",
+      "resolution": "2k",
+      "use": "Sky: sunlit day with scattered cumulus (clips B, C, G)",
+      "maps": {
+        "hdri": {
+          "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/kloofendal_48d_partly_cloudy_puresky_2k.hdr",
+          "bytes": 5451493,
+          "sha256": "5244534e9cf5b606f2ff513aa00ddb161b0a4826ffd88a0d3bd03ac29247d198"
+        }
+      },
+      "name": "Kloofendal 48d Partly Cloudy (Pure Sky)",
+      "authors": [
+        "Greg Zaal",
+        "Jarod Guest"
+      ]
+    }
+  ],
+  "team_files": []
+}

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The world-query benchmark (task 3.6), run in Release from the repository root, and the determinism checks (task
+       3.5), in Debug or Release: see Program.cs. It compiles the pure-C# world query from game/src/world without Godot,
+       as a headless replay would, on the runtime the game uses. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RollForward>Major</RollForward>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../game/src/world/Catalog.cs" />
+    <Compile Include="../../game/src/world/Contacts.cs" />
+    <Compile Include="../../game/src/world/ContentHash.cs" />
+    <Compile Include="../../game/src/world/DetMath.cs" />
+    <Compile Include="../../game/src/world/MapPng.cs" />
+    <Compile Include="../../game/src/world/MicroDetail.cs" />
+    <Compile Include="../../game/src/world/Shapes.cs" />
+    <Compile Include="../../game/src/world/SurfaceTable.cs" />
+    <Compile Include="../../game/src/world/WindGrid.cs" />
+    <Compile Include="../../game/src/world/WorldObjects.cs" />
+    <Compile Include="../../game/src/world/WorldQuery.cs" />
+    <Compile Include="../../game/src/world/WorldQueryGolden.cs" />
+  </ItemGroup>
+</Project>
