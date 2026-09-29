@@ -118,7 +118,6 @@
     {
       "id": "burnt_field",
       "index": 10,
-      "status": "starting values, physics to sign off",
       "soil": { "bearing_n_per_m3": 2.5e7, "damping_ns_per_m3": 3.6e5, "friction_static": 0.6, "friction_kinetic": 0.5, "max_sink_m": 0.02, "unload_stiffness_ratio": 2 },
       "micro_relief": { "amplitude_m": 0.015, "wavelength_m": 0.6 },
       "pitfalls": { "density_per_m2": 0.006, "depth_m": [0.03, 0.15], "radius_m": [0.03, 0.25] },
