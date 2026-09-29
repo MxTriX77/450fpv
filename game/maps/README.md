@@ -171,6 +171,23 @@ How the starting soil values were chosen: the reference notes (§7) give how far
 
 There is no soil porosity field (the notes §7 give 0.40–0.60 void fractions). The contact model never used it: "loose" and "porous" ground is carried by the bearing modulus, the unload ratio and the maximum sink, and rubble voids are pitfalls.
 
+## `game/assets/materials/surface_look.json` — how surfaces look (shared, render-only)
+
+Not part of the map format or the content hash: nothing physical reads it, so looks change without re-recording anything. `game/src/world/SurfaceLook.cs` reads it when a map loads. A surface without an entry still draws: `default_set` tinted to its `material.albedo_srgb`, with the default vegetation.
+
+| Field | Meaning |
+|---|---|
+| `default_set` | CC0 texture set (a folder under `game/assets/textures/`) for surfaces without their own |
+| `overlays.straw`, `overlays.litter` | The sets drawn over the ground where `cover.png` G (straw) and A (litter) are set: `set`, `albedo_srgb` (the set is tinted so its mean matches) and `tile_m` |
+| `vegetation_default` | Colours of the near micro-detail and the far cover: `grass` [green, dry], `dry_fraction`, `blade_width_m` (far cards are never thinner), `straw`, `twigs`, `litter` |
+| `surfaces.<id>.set`, `.tile_m` | The ground's set and its repeat, m |
+| `.albedo_srgb` | Tint target of the ground set. Defaults to the surface's `material.albedo_srgb`; give the soil's own colour where overlays cover most of the ground |
+| `.straw`, `.litter` | Overlay amount, 0–1, times the cover channel |
+| `.macro`, `.patch_srgb`, `.patch` | Low-frequency brightness variation (±), and patches of another colour with their amount |
+| `.grass`, `.dry_fraction`, `.blade_width_m`, `.straw_srgb`, `.litter_srgb` | This surface's vegetation, overriding `vegetation_default` |
+
+Furrows need no entry: a surface with `micro_relief.ridges` gets them from the ridge azimuth, spacing and phase, so crests are drawn where physics has them.
+
 ## `game/assets/catalog.json` — asset catalog (shared)
 
 ```json
