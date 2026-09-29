@@ -35,6 +35,7 @@ public static class MapSelfTest
             pass &= CollidersTagged(map, dir, sandbox.GetWorld3D().DirectSpaceState);
             pass &= WindFed(map);
             pass &= SurfacesBound(map);
+            pass &= FillersFollowTheVisual(map);
             pass &= await StemParity(sandbox, map);
             pass &= BadPackages(dir);
         }
@@ -385,6 +386,44 @@ public static class MapSelfTest
 
     static (long, long, long) Cell(Double3 p) => ((long)Math.Floor(p.X * 100), (long)Math.Floor(p.Y * 100), (long)Math.Floor(p.Z * 100));
 
+    /// Hole-filler rule F-6: every box a filler draws is one of its collision shapes, within 0.05 m, so the cavity's open
+    /// faces are the drawn ones. The trench's placeholder assets draw exactly their collision boxes.
+    static bool FillersFollowTheVisual(MapScene map)
+    {
+        WorldQuery world = map.World;
+        int objects = 0, meshes = 0, wrong = 0;
+        double worst = 0;
+        string first = "";
+        for (int i = 0; i < world.ObjectCount; i++)
+        {
+            if (!world.PlacementOf(i).Asset.Id.StartsWith("test_trench", StringComparison.Ordinal))
+                continue;
+            objects++;
+            var shapes = new List<ShapeGeometry>();
+            for (int shape = 0; world.Geometry(i, shape, 0, out ShapeGeometry g); shape++)
+                shapes.Add(g);
+            foreach (MeshInstance3D drawn in Visual(map, i).GetChildren().OfType<MeshInstance3D>())
+            {
+                meshes++;
+                var box = (BoxMesh)drawn.Mesh;
+                Vector3 centre = drawn.GlobalPosition, half = box.Size / 2;
+                double best = double.MaxValue;
+                foreach (ShapeGeometry g in shapes)
+                {
+                    var c = new Vector3((float)g.Center.X, (float)g.Center.Y, (float)g.Center.Z);
+                    var h = new Vector3((float)g.HalfExtents.X, (float)g.HalfExtents.Y, (float)g.HalfExtents.Z);
+                    best = Math.Min(best, Math.Max(centre.DistanceTo(c), half.DistanceTo(h)));
+                }
+                worst = Math.Max(worst, best);
+                if (best > 0.05 && wrong++ == 0)
+                    first = $"; first {drawn.Name} at {centre} size {box.Size}, nearest shape off by {best:0.000} m";
+            }
+        }
+        return Check("hole fillers: F-6 open faces follow the visual", objects > 0 && meshes > 0 && wrong == 0,
+            $"{objects} filler objects, {meshes} drawn boxes: each within {worst * 1000:0.0} mm of a collision shape "
+            + $"(limit 50 mm), {wrong} further off{first}");
+    }
+
     /// A bad or unknown package gives one clear error and no map: broken copies of the sample in a temp folder.
     static bool BadPackages(string dir)
     {
@@ -392,7 +431,7 @@ public static class MapSelfTest
         string surfaces = ProjectSettings.GlobalizePath("res://maps/surfaces.json"), catalog = ProjectSettings.GlobalizePath("res://assets/catalog.json");
         var cases = new (string Name, Action<string> Break, string Expect, bool CustomTable)[]
         {
-            ("future major", d => Edit(d, "map.json", "\"1.0\"", "\"2.0\""), "format_version is 2.0, and this build reads 1.x", false),
+            ("future major", d => Edit(d, "map.json", "\"1.1\"", "\"2.0\""), "format_version is 2.0, and this build reads 1.x", false),
             ("missing layer", d => File.Delete(Path.Combine(d, "cover.png")), "no cover.png", false),
             ("bad map size", d => Edit(d, "map.json", "\"size_m\": 256", "\"size_m\": 300"), "multiple of 256", false),
             ("height size", d => File.WriteAllBytes(Path.Combine(d, "height.r16"), File.ReadAllBytes(Path.Combine(d, "height.r16"))[..^2]),

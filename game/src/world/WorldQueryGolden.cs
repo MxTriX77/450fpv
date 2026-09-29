@@ -425,6 +425,7 @@ public static class WorldQueryGolden
         h.U((ulong)(long)c.Object);
         h.U(c.Shape);
         h.U(c.Material);
+        h.U(c.Surface);
         h.F(c.WireParam);
         h.F(c.Time);
     }
