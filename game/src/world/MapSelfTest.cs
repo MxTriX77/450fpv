@@ -303,17 +303,19 @@ public static class MapSelfTest
             + $"{tree.Porosity:0.000}; open cell top {open.TopM} porosity {open.Porosity}");
     }
 
-    /// The terrain draws with the surface materials, and every surface in the patch has its own layer in each array (the
-    /// eye judges "visibly distinct" on a windowed screenshot, map-view).
+    /// The terrain draws with the surface looks: every surface in the patch has a texture set, and the albedo, normal,
+    /// height and AO arrays have one layer per set (the eye judges "visibly distinct" on a windowed screenshot, map-view).
     static bool SurfacesBound(MapScene map)
     {
         ShaderMaterial material = map.GetNode<HeightmapTerrain>("Terrain").Material;
         byte[] used = map.World.SurfaceIds.ToArray().Distinct().OrderBy(i => i).ToArray();
-        int[] layers = new[] { "surface_albedo", "surface_normal", "surface_roughness" }
+        int[] layers = new[] { "set_albedo", "set_normal", "set_height", "set_ao" }
             .Select(name => ((Texture2DArray)material.GetShaderParameter(name)).GetLayers()).ToArray();
-        return Check("sample patch: a material layer per surface", (bool)material.GetShaderParameter("use_surfaces") && layers.All(n => n > used.Max()),
-            $"{used.Length} surfaces in the patch ({string.Join(", ", used.Select(i => map.World.Surface(i).Id))}), "
-            + $"albedo, normal and roughness arrays of {string.Join(", ", layers)} layers");
+        SurfaceLook look = map.Look;
+        return Check("sample patch: a texture set per surface", (bool)material.GetShaderParameter("use_surfaces")
+            && layers.All(n => n == look.Sets.Length) && used.All(i => look.Layer[i] >= 0 && look.Layer[i] < look.Sets.Length),
+            $"{used.Length} surfaces in the patch ({string.Join(", ", used.Select(i => $"{map.World.Surface(i).Id} {look.Sets[look.Layer[i]]}"))}), "
+            + $"albedo, normal, height and AO arrays of {string.Join(", ", layers)} layers for {look.Sets.Length} sets");
     }
 
     /// Visual and physical stems agree: with the camera over belt_straw, the drawn element bases within 3 m of it are the

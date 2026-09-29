@@ -31,6 +31,15 @@ public partial class HeightmapTerrain : Node3D
     /// The patches' shader material (heightmap_terrain.gdshader), set by Build.
     public ShaderMaterial Material => _material;
 
+    /// The heights (R16, sample / 65535), set by Build; the surface indices (R8) and the cover (RGBA8, mipmapped), one
+    /// texel per cell, set by SetSurfaces. The far cover draws from the same textures.
+    public ImageTexture HeightTexture { get; private set; }
+    public ImageTexture SurfaceTexture { get; private set; }
+    public ImageTexture CoverTexture { get; private set; }
+    /// The lowest and highest height sample, m, set by Build.
+    public float Lowest { get; private set; }
+    public float Highest { get; private set; }
+
     /// `r16` is the raw little-endian heightfield of `samples` × `samples`; height = offsetM + sample × scaleM.
     public void Build(byte[] r16, int samples, float resolution, float offsetM, float scaleM)
     {
@@ -38,18 +47,20 @@ public partial class HeightmapTerrain : Node3D
         _resolution = resolution;
         _half = (samples - 1) * resolution / 2f;
         var heights = new float[samples * samples];
-        float lowest = float.MaxValue;
+        float lowest = float.MaxValue, highest = float.MinValue;
         for (int i = 0; i < heights.Length; i++)
         {
             heights[i] = offsetM + (r16[2 * i] | r16[2 * i + 1] << 8) * scaleM;
             lowest = Math.Min(lowest, heights[i]);
+            highest = Math.Max(highest, heights[i]);
         }
+        (Lowest, Highest) = (lowest, highest);
         _skirtBottom = lowest - 1f;
         BuildPyramid(heights);
 
-        var texture = ImageTexture.CreateFromImage(Image.CreateFromData(samples, samples, false, Image.Format.R16, r16));
+        HeightTexture = ImageTexture.CreateFromImage(Image.CreateFromData(samples, samples, false, Image.Format.R16, r16));
         _material = new ShaderMaterial { Shader = GD.Load<Shader>("res://src/world/heightmap_terrain.gdshader") };
-        _material.SetShaderParameter("heights", texture);
+        _material.SetShaderParameter("heights", HeightTexture);
         _material.SetShaderParameter("height_offset", offsetM);
         _material.SetShaderParameter("height_range", scaleM * 65535f);
         _material.SetShaderParameter("resolution", resolution);
@@ -60,19 +71,29 @@ public partial class HeightmapTerrain : Node3D
         BuildCollision(heights);
     }
 
-    /// Draws the ground with per-surface materials in place of the flat albedo. `ids` is the surface layer, `cells` ×
-    /// `cells` surface indices of `cellResolution` m, row-major from the north-west corner. Layer i of each array is the
-    /// material of surface index i, repeating every `tile` m. Call after Build.
-    public void SetSurfaces(ReadOnlySpan<byte> ids, int cells, float cellResolution, Texture2DArray albedo, Texture2DArray normal,
-        Texture2DArray roughness, float tile)
+    /// Draws the ground with each surface's look in place of the flat albedo. `ids` and `coverRgba` are the surface and
+    /// cover layers, `cells` × `cells` cells of `cellResolution` m, row-major from the north-west corner. Call after Build.
+    public void SetSurfaces(ReadOnlySpan<byte> ids, ReadOnlySpan<byte> coverRgba, int cells, float cellResolution, SurfaceLook look)
     {
-        _material.SetShaderParameter("surface_ids", ImageTexture.CreateFromImage(Image.CreateFromData(cells, cells, false, Image.Format.R8, ids)));
+        SurfaceTexture = ImageTexture.CreateFromImage(Image.CreateFromData(cells, cells, false, Image.Format.R8, ids));
+        Image cover = Image.CreateFromData(cells, cells, false, Image.Format.Rgba8, coverRgba);
+        cover.GenerateMipmaps(); // straw streaks and field edges filter out with distance instead of aliasing
+        CoverTexture = ImageTexture.CreateFromImage(cover);
+        _material.SetShaderParameter("surface_ids", SurfaceTexture);
+        _material.SetShaderParameter("cover", CoverTexture);
+        _material.SetShaderParameter("surface_params", look.Params);
         _material.SetShaderParameter("surface_resolution", cellResolution);
         _material.SetShaderParameter("surface_cells", cells);
-        _material.SetShaderParameter("surface_albedo", albedo);
-        _material.SetShaderParameter("surface_normal", normal);
-        _material.SetShaderParameter("surface_roughness", roughness);
-        _material.SetShaderParameter("texture_tile", tile);
+        _material.SetShaderParameter("set_albedo", look.Albedo);
+        _material.SetShaderParameter("set_normal", look.Normal);
+        _material.SetShaderParameter("set_height", look.Height);
+        _material.SetShaderParameter("set_ao", look.Occlusion);
+        _material.SetShaderParameter("straw_layer", (float)look.StrawLayer);
+        _material.SetShaderParameter("straw_tile", look.StrawTile);
+        _material.SetShaderParameter("straw_tint", look.StrawTint);
+        _material.SetShaderParameter("litter_layer", (float)look.LitterLayer);
+        _material.SetShaderParameter("litter_tile", look.LitterTile);
+        _material.SetShaderParameter("litter_tint", look.LitterTint);
         _material.SetShaderParameter("use_surfaces", true);
     }
 

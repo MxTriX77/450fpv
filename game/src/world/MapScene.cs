@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Godot;
 
-/// A map package built into a scene (map-loading spec): the terrain with its collision and a material per surface, every
-/// object and wire of objects.json with Jolt collision tagged with its material, and the micro-detail near the camera.
+/// A map package built into a scene (map-loading spec): the terrain with its collision and each surface's look
+/// (SurfaceLook), every object and wire of objects.json with Jolt collision tagged with its material, and the
+/// micro-detail near the camera.
 /// Everything is drawn from `World`, the WorldQuery that physics uses, so the renderer and physics share one world:
 /// object poses, wire polylines, collision shapes, the wind grid (filled from the wind volumes as World loads) and the
 /// stems all come from it.
@@ -17,16 +17,13 @@ using Godot;
 public partial class MapScene : Node3D
 {
     const string MapsDir = "res://maps", SurfacesPath = "res://maps/surfaces.json", CatalogPath = "res://assets/catalog.json";
-    /// Real textures drop in here with no code change, per surface id: `<id>_albedo.png`, `<id>_normal.png` (OpenGL
-    /// convention, u east, v south) and `<id>_roughness.png` (red channel). A surface without one gets the placeholder.
-    const string TextureDir = "res://assets/textures/terrain";
-    const float TextureTile = 2f; // m per texture repeat
-    const int PlaceholderSize = 128; // px per layer when no real texture sets a larger size
 
     static readonly string[] PackageFiles = { "map.json", "height.r16", "surface.png", "cover.png", "objects.json" };
 
     public WorldQuery World { get; private set; }
     public string Id { get; private set; }
+    /// How the surfaces look (surface_look.json), shared by the terrain, the near micro-detail and the far cover.
+    public SurfaceLook Look { get; private set; }
 
     /// Loads game/maps/<id>/. On failure returns null, with `error` saying why in one line.
     public static MapScene Load(string id, out string error)
@@ -111,129 +108,21 @@ public partial class MapScene : Node3D
 
     void Build(string dir, string surfacesPath)
     {
+        var terrain = new HeightmapTerrain { Name = "Terrain" };
+        AddChild(terrain);
         using (JsonDocument manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "map.json"))))
         {
             JsonElement height = manifest.RootElement.GetProperty("height");
-            var terrain = new HeightmapTerrain { Name = "Terrain" };
-            AddChild(terrain);
             terrain.Build(File.ReadAllBytes(Path.Combine(dir, "height.r16")), World.Samples, (float)World.HeightResolution,
                 height.GetProperty("offset_m").GetSingle(), height.GetProperty("scale_m").GetSingle());
-            terrain.GetNode("Collision").SetMeta("object", -1);
-            Texture2DArray[] layers = SurfaceLayers(surfacesPath);
-            terrain.SetSurfaces(World.SurfaceIds, World.Cells, (float)World.CellResolution, layers[0], layers[1], layers[2], TextureTile);
         }
+        terrain.GetNode("Collision").SetMeta("object", -1);
+        Look = SurfaceLook.Load(World, surfacesPath, ProjectSettings.GlobalizePath(SurfaceLook.LookPath));
+        terrain.SetSurfaces(World.SurfaceIds, World.CoverRgba, World.Cells, (float)World.CellResolution, Look);
         BuildObjects();
         var detail = new MicroDetailView { Name = "MicroDetail" };
         detail.Init(World);
         AddChild(detail);
-    }
-
-    // ---------------------------------------------------------------- surfaces
-
-    /// Albedo, normal and roughness arrays with one layer per surface index (layer 0, which no cell uses, is blank).
-    /// Each layer is the surface's texture from TextureDir when there is one, else a placeholder: PlaceholderAlbedo, a
-    /// flat normal and the table's roughness. All layers are resized to the largest image.
-    static Texture2DArray[] SurfaceLayers(string surfacesPath)
-    {
-        using JsonDocument table = JsonDocument.Parse(File.ReadAllText(surfacesPath));
-        Dictionary<int, JsonElement> byIndex = table.RootElement.GetProperty("surfaces").EnumerateArray()
-            .ToDictionary(s => s.GetProperty("index").GetInt32());
-        string[] maps = { "albedo", "normal", "roughness" };
-        var flatNormal = new Color(0.5f, 0.5f, 1f);
-        var layers = new List<Image>[] { new(), new(), new() };
-        for (int index = 0; index <= byIndex.Keys.Max(); index++)
-        {
-            bool known = byIndex.TryGetValue(index, out JsonElement s);
-            for (int m = 0; m < 3; m++)
-            {
-                string path = known ? $"{TextureDir}/{s.GetProperty("id").GetString()}_{maps[m]}.png" : null;
-                Image image;
-                if (path != null && ResourceLoader.Exists(path))
-                {
-                    image = GD.Load<Texture2D>(path).GetImage();
-                    if (image.IsCompressed())
-                        image.Decompress();
-                }
-                else if (!known)
-                {
-                    image = Solid(m == 1 ? flatNormal : Colors.Gray);
-                }
-                else
-                {
-                    JsonElement material = s.GetProperty("material");
-                    float roughness = material.GetProperty("roughness").GetSingle();
-                    image = m == 0 ? PlaceholderAlbedo(Color.FromHtml(material.GetProperty("albedo_srgb").GetString()), index)
-                        : Solid(m == 1 ? flatNormal : new Color(roughness, roughness, roughness));
-                }
-                layers[m].Add(image);
-            }
-        }
-        int size = layers.SelectMany(images => images).Max(image => image.GetWidth());
-        return layers.Select((images, m) =>
-        {
-            foreach (Image image in images)
-            {
-                image.Convert(Image.Format.Rgba8);
-                if (image.GetWidth() != size || image.GetHeight() != size)
-                    image.Resize(size, size, Image.Interpolation.Lanczos);
-                image.GenerateMipmaps(m == 1);
-            }
-            var array = new Texture2DArray();
-            array.CreateFromImages(new Godot.Collections.Array<Image>(images));
-            return array;
-        }).ToArray();
-    }
-
-    static Image Solid(Color color)
-    {
-        Image image = Image.CreateEmpty(PlaceholderSize, PlaceholderSize, false, Image.Format.Rgba8);
-        image.Fill(color);
-        return image;
-    }
-
-    /// Placeholder until UAT-1's textures: the table's albedo_srgb with up to ±15 % value noise. Its grain, 16 or 32
-    /// lattice cells per tile, depends on the surface index. Noise, not stripes: a regular stripe of 0.5–1 m aliased into
-    /// bands across the whole field from 60 m up, and a coarser grain shows the tile's 2 m repeat from there.
-    static Image PlaceholderAlbedo(Color color, int index)
-    {
-        const int size = PlaceholderSize;
-        int cells = 16 << index % 2;
-        var pixels = new byte[size * size * 4];
-        for (int y = 0; y < size; y++)
-        {
-            for (int x = 0; x < size; x++)
-            {
-                float n = 0.7f * TileNoise(x, y, cells, index) + 0.3f * TileNoise(x, y, 2 * cells, index + 256);
-                float v = 1f + 0.3f * (n - 0.5f);
-                int at = (y * size + x) * 4;
-                pixels[at] = (byte)Math.Clamp(color.R * v * 255f, 0f, 255f);
-                pixels[at + 1] = (byte)Math.Clamp(color.G * v * 255f, 0f, 255f);
-                pixels[at + 2] = (byte)Math.Clamp(color.B * v * 255f, 0f, 255f);
-                pixels[at + 3] = 255;
-            }
-        }
-        return Image.CreateFromData(size, size, false, Image.Format.Rgba8, pixels);
-    }
-
-    /// Value noise in 0–1 at pixel (x, y) of a placeholder tile: hashed lattice values, `cells` × `cells` per tile and
-    /// wrapped at its edges so that the tile repeats seamlessly, blended with smoothstep fades.
-    static float TileNoise(int x, int y, int cells, int seed)
-    {
-        float fx = (x + 0.5f) * cells / PlaceholderSize, fy = (y + 0.5f) * cells / PlaceholderSize;
-        int i = (int)fx, j = (int)fy;
-        float tx = fx - i, ty = fy - j;
-        tx = tx * tx * (3 - 2 * tx);
-        ty = ty * ty * (3 - 2 * ty);
-        float Lattice(int a, int b)
-        {
-            uint h = (uint)(a % cells) * 0x9E3779B1u ^ (uint)(b % cells) * 0x85EBCA77u ^ (uint)seed * 0xC2B2AE3Du;
-            h = (h ^ h >> 15) * 0x2C1B3C6Du;
-            h = (h ^ h >> 12) * 0x297A2D39u;
-            return (h ^ h >> 15) / (float)uint.MaxValue;
-        }
-        float top = Lattice(i, j) + (Lattice(i + 1, j) - Lattice(i, j)) * tx;
-        float bottom = Lattice(i, j + 1) + (Lattice(i + 1, j + 1) - Lattice(i, j + 1)) * tx;
-        return top + (bottom - top) * ty;
     }
 
     // ---------------------------------------------------------------- objects and wires
