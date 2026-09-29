@@ -42,6 +42,10 @@ BUDGETS = {
     "prop": (5_000, 1, 1024),
 }
 DECIMATE = {1: 0.5, 2: 0.2}  # LOD0 triangle ratio of a generated level
+# Godot's own automatic mesh LOD is off for our assets: the catalog's lod_switch_m drives the LOD levels the builder
+# made, and a second, hidden LOD on top of them would decimate a tree's leaf cards away (asset-pipeline, Budgets and
+# LOD). Written into the .glb.import sidecar; every other import option stays at Godot's default.
+IMPORT_PARAMS = {"meshes/generate_lods": "false"}
 
 
 def sources(names):
@@ -82,6 +86,29 @@ def textures(material):
     return found
 
 
+def sidecar(glb):
+    """Sets IMPORT_PARAMS in <asset>.glb.import, and returns True when the file changed. Godot writes the sidecar on
+    import and keeps every [params] line it finds, so the first export of a new asset creates one holding only these
+    params and Godot fills in the rest; a later export only corrects them. A changed sidecar needs one
+    `godot --headless --path game --import` to take effect."""
+    path = glb + ".import"
+    before = open(path, encoding="utf-8").read() if os.path.isfile(path) else '[remap]\n\nimporter="scene"\n\n[params]\n'
+    lines = before.split("\n")
+    for key, value in IMPORT_PARAMS.items():
+        for i, line in enumerate(lines):
+            if line.startswith(key + "="):
+                lines[i] = f"{key}={value}"
+                break
+        else:
+            lines.insert(lines.index("[params]") + 1, f"{key}={value}")
+    after = "\n".join(lines)
+    if after == before:
+        return False
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(after)
+    return True
+
+
 def entry_text(asset, entry):
     """The builder's catalog entry in catalog.json's layout, one shape per line, ready to paste."""
     one = lambda v: json.dumps(v, ensure_ascii=False).replace("{", "{ ").replace("}", " }")
@@ -117,7 +144,7 @@ def export(cls, asset, catalog):
     problems = []
     budget_class = scene.get("budget_class")
     if budget_class not in BUDGETS:
-        return f"{cls}/{asset}: no budget class", [f"{asset}: budget_class {budget_class!r} is not one of {', '.join(BUDGETS)}"]
+        return f"{cls}/{asset}: no budget class", [f"{asset}: budget_class {budget_class!r} is not one of {', '.join(BUDGETS)}"], False
     max_tris, min_levels, max_px = BUDGETS[budget_class]
 
     lods = {}
@@ -126,7 +153,7 @@ def export(cls, asset, catalog):
         if obj.type == "MESH" and match:
             lods[int(match.group(1))] = obj
     if 0 not in lods:
-        return f"{cls}/{asset}: no LOD0", [f"{asset}: the source has no mesh object {asset}_LOD0"]
+        return f"{cls}/{asset}: no LOD0", [f"{asset}: the source has no mesh object {asset}_LOD0"], False
     for level in range(1, min(min_levels, 3)):
         if level not in lods:
             copy = lods[0].copy()
@@ -160,6 +187,10 @@ def export(cls, asset, catalog):
     entry = catalog.get("assets", {}).get(asset)
     scene_path = f"res://assets/models/{cls}/{asset}.glb"
     stored = json.loads(scene["catalog_entry"]) if "catalog_entry" in scene else None
+    switches = (stored or {}).get("lod_switch_m", [])
+    if switches and len(switches) != len(levels) - 1:
+        problems.append(f"{asset}: lod_switch_m has {len(switches)} distance(s) for {len(levels)} LOD levels, "
+                        f"and it needs one between each pair ({len(levels) - 1})")
     if stored is None:
         problems.append(f"{asset}: the source stores no catalog entry; rebuild it with --build")
     elif stored.get("scene") != scene_path:
@@ -177,11 +208,13 @@ def export(cls, asset, catalog):
         export_image_format="NONE", export_materials="EXPORT", export_texcoords=True, export_normals=True,
         export_tangents=False, export_attributes=False, export_vertex_color="NONE", export_extras=False,
         export_animations=False, export_skins=False, export_morph=False, export_cameras=False, export_lights=False)
+    reimport = sidecar(out)
 
     counts = "  ".join(f"{t:>7}" for t in tris) + "        -" * (4 - len(tris))
     line = f"{cls + '/' + asset:<34} {budget_class:<8} {counts}   {max_tris:>7} {len(levels)}/{min_levels}  " \
-           f"{', '.join(notes) or '-'} (max {max_px})  {status}"
-    return line, problems
+           f"{', '.join(notes) or '-'} (max {max_px})  {status}" + (
+           f"\n{'':<34} switch at {', '.join(f'{d} m' for d in switches)}" if switches else "")
+    return line, problems, reimport
 
 
 def main():
@@ -193,13 +226,17 @@ def main():
             build(cls, asset)
     catalog = json.load(open(CATALOG, encoding="utf-8"))
     print(f"{'asset':<34} {'class':<8} {'LOD0':>7}  {'LOD1':>7}  {'LOD2':>7}  {'LOD3':>7}   {'budget':>7} lvls  textures px")
-    problems = []
+    problems, reimport = [], []
     for cls, asset in todo:
-        line, found = export(cls, asset, catalog)
+        line, found, sidecar_changed = export(cls, asset, catalog)
         print(line)
         problems += found
+        if sidecar_changed:
+            reimport.append(asset)
     for p in problems:
         print(f"ERROR: {p}")
+    if reimport:
+        print(f"sidecar updated for {', '.join(reimport)}: run `godot --headless --path game --import` once")
     print(f"export: {len(todo)} asset(s), {len(problems)} problem(s)")
     sys.exit(1 if problems else 0)
 
