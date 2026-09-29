@@ -15,8 +15,20 @@
 ## 2. Terrain
 
 - [x] 2.1 [world-artist] Add the `burnt_field` surface (values from the notes and soil mechanics). Verify with the validator
-- [ ] 2.2 [physics-engineer] Sign off `burnt_field` and the terrain-holes design (material resolution of trench walls, hole handling in contacts and rays). Verify by review notes in the change
-- [ ] 2.3 [world-artist] Add terrain holes (format 1.1 `holes.png`, renderer discard, holed collision, `SampleGround` Hole flag, `surface:<id>` materials, QueryVersion 3, golden re-record). Verify the trench-open, trench-wall and golden scenarios
+- [x] 2.2 [physics-engineer] Sign off `burnt_field` and the terrain-holes design (material resolution of trench walls, hole handling in contacts and rays). Verify by review notes in the change
+- [ ] 2.3 [world-artist] Add terrain holes per the updated `terrain-holes` spec and `terrain-review.md`:
+  - `holes.png`: 0/255 on the surface grid, format 1.1, included in the content hash, with validator checks
+  - renderer discard, including the depth and shadow passes
+  - Jolt: NaN plus a clipped patch
+  - the `SampleGround` hole values
+  - rays ignore holed terrain
+  - `surface:<id>` materials with the `Surface` field on contacts, rays and Geometry
+  - micro-detail and the renderer skip holes; the wind guard
+  - a test trench (straight and 30°, placeholder boxes meeting F-1–F-8), appended to `sample_patch`
+  - QueryVersion 3 and the golden re-record
+  - B-1: remove `burnt_field`'s `"status"` line
+
+  Verify every terrain-holes scenario, and `--golden` in Debug and Release
 - [ ] 2.4 [world-artist] Real surface textures for all 10 surfaces, with tilled furrows along the ridge azimuth, filtered with distance. Verify with screenshots looked at, and that meadow and weeds are visibly distinct
 - [ ] 2.5 [world-artist] Add the micro-detail near-ring fade and a far density layer out to at least 60 m. Verify the no-hard-edge scenario with a screenshot, and that parity stays at 0 mm
 - [ ] 2.6 [world-artist] Switch LODs by distance: the loader sets Godot visibility ranges on each LOD from switch distances in the catalog entry, with Godot's automatic mesh LOD off for our assets so there's no double LOD. Far tree impostors use the same mechanism. Verify that only one LOD draws at a time (draw-call check) and that transitions don't pop at the chosen distances (screenshots)
