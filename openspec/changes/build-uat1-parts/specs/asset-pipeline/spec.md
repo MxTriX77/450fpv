@@ -54,3 +54,10 @@ Third-party textures and HDRIs SHALL come only from CC0 sources (Poly Haven, amb
 #### Scenario: Credits are complete
 - **WHEN** QA compares the texture files in `game/assets/textures/` with `CREDITS.md`
 - **THEN** every third-party file is listed as CC0 with its source, and every other file is marked as made by the team
+
+### Requirement: New assets don't disturb existing maps
+A map's content hash SHALL cover only the catalog entries its objects reference, and the materials those entries use, in a canonical form (sorted keys, no whitespace), together with the surfaces the map uses. Adding or changing a catalog asset that a map doesn't place SHALL leave that map's content hash and golden results unchanged.
+
+#### Scenario: Unrelated asset
+- **WHEN** a new tree asset is added to the catalog and `sample_patch` doesn't place it
+- **THEN** `sample_patch`'s content hash is unchanged and `--golden` still passes without a re-record

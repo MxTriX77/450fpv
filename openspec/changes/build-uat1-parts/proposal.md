@@ -39,7 +39,9 @@ The map format, physics queries and loader are done (`define-map-format`), but e
 - `uat1-gallery`: the reviewable gallery: its contents, labels, view quality (micro-detail fade, far density, distinct surfaces) and performance
 
 ### Modified Capabilities
-_None._ The new `burnt_field` surface is data in `surfaces.json` under the existing map-format rules.
+_None as separate deltas._
+- The new `burnt_field` surface is data in `surfaces.json` under the existing map-format rules.
+- `terrain-holes` **extends** `map-format` (the optional `holes.png`, format 1.1, `surface:<id>` materials) and `world-query` (the `Hole` flag, `Surface` on contacts, the content hash, micro-detail and wind). Its requirements are written as its own capability, so they archive next to the specs they extend.
 
 ## Non-goals
 

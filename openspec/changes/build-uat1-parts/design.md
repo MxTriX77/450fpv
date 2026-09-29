@@ -38,13 +38,15 @@
   - new surface `burnt_field`: firm dark loam under a thin brittle char layer, sparse charred stubble, high dust
   - its values are proposed by the world artist and signed off by the physics engineer, the same way as the other 9
   - a minor data addition, not a format change
-- **Terrain holes:**
-  - an optional `holes.png` (1-bit per 0.5 m cell), with a format minor bump to 1.1
-  - the renderer discards holed fragments; terrain collision uses a HeightMapShape3D with holes (NaN heights)
-  - `SampleGround` sets `Hole` and hands the ground over to the placed trench or cellar mesh
-  - trench meshes' collision boxes carry a `surface:<id>` material, so their walls are soil (review X-7)
-  - QueryVersion goes to 3, and the golden file is re-recorded
-- **LOD switching (orchestrator, 2026-09-25):** Godot visibility ranges per exported LOD, with distances in the catalog entry, and automatic mesh LOD off for our assets. Chosen over automatic LOD because it's explicit, reviewable and supports impostors the same way. Shared texture sets count against the 2K library limit, not a prop's 1K limit, because they're loaded once for all assets.
+- **Terrain holes** (the physics engineer's `terrain-review.md`, TH-1–TH-12, adopted):
+  - An optional `holes.png`: 0/255 greyscale on the surface-cell grid, so `MapPng` reads it unchanged. It's one bit per cell in memory. Format 1.1, and it's included in the content hash.
+  - The renderer discards holed fragments, including in its depth and shadow passes.
+  - Jolt terrain: set NaN on every corner of a 1 m quad that overlaps a hole cell. Add a `ConcavePolygonShape3D` of the removed triangles, clipped to the non-hole cells (Sutherland–Hodgman, as in `WindGrid.ClippedArea`), so Jolt matches the rendered ground. Confirm the NaN behaviour on 4.7.2 in the selftest. The flight model never reads Jolt (D-010).
+  - Over a hole, `SampleGround` sets `Hole`, keeps `TerrainHeight` at the lip level, and returns −∞ for `GroundHeight` and `SupportTop` (fail-safe: "no ground"), +Y for the normal and 0 for mat and cover. The ground comes only from the **fillers' collision primitives**, through contacts and rays.
+  - `surface:<id>` shape materials: contacts, rays and `Geometry` carry a new `Surface` byte, with `Material` = `NoMaterial`.
+  - Micro-detail and the renderer draw nothing in hole cells. The wind grid ignores buried shapes.
+  - Fillers follow the F-1–F-8 contract.
+  - Physics-side follow-ups for the future flight-model change (review §2): the lip merge rule, the `WORLD_BUG` guards, the fiber friction amplification over a lip, and the trench cavity wind model.
 - **Micro-detail view:**
   - fade the near ring with a dithered alpha by distance over its last 2 m
   - add a far layer: density-only instanced cards or short blades from the cover map, a cheap shader, out to 60–100 m, fading in under the near ring

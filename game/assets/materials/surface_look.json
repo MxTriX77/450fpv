@@ -1,0 +1,51 @@
+{
+  "about": "How each surface of game/maps/surfaces.json looks. Render-only: not part of the world content hash, so no world-query result depends on it. Read by game/src/world/SurfaceLook.cs. Colours are photo-like sRGB albedos (reference notes terrain.md); a texture set is tinted so its mean matches. A surface without an entry gets default_set tinted to its surfaces.json albedo_srgb and the default vegetation.",
+  "default_set": "dirt",
+  "overlays": {
+    "straw": { "set": "withered_grass", "albedo_srgb": "#857656", "tile_m": 2.5, "note": "lodged dry straw over the soil, where cover.png G (straw) is set: belt floor, tilled residue streaks (T4, T3a)" },
+    "litter": { "set": "dry_decay_leaves", "albedo_srgb": "#86643f", "tile_m": 2.0, "note": "fallen leaves, where cover.png A (litter) is set: yards, bare belt floor (T6, T5)" }
+  },
+  "vegetation_default": {
+    "grass": ["#66733a", "#a39468"],
+    "dry_fraction": 0.5,
+    "blade_width_m": 0.006,
+    "straw": "#9c8c68",
+    "twigs": "#57493c",
+    "litter": "#86603a"
+  },
+  "surfaces": {
+    "meadow_sod": {
+      "set": "grass_ground", "tile_m": 3.0, "macro": 0.12, "patch_srgb": "#79793a", "patch": 0.4,
+      "grass": ["#627035", "#a09264"], "dry_fraction": 0.45,
+      "note": "T1: mottled olive-khaki sod, green and straw-dry, with brighter yellow-green patches 2-5 m"
+    },
+    "dry_crust": {
+      "set": "dry_mud_field_001", "tile_m": 3.0, "macro": 0.08,
+      "grass": ["#858150", "#b3a276"], "dry_fraction": 0.9,
+      "note": "T2: sun-baked loam crust with sparse dead tufts"
+    },
+    "crater_spoil": { "set": "brown_mud_02", "tile_m": 2.5, "macro": 0.06, "note": "W1: loose fresh spoil" },
+    "belt_straw": {
+      "set": "brown_mud_02", "tile_m": 2.5, "albedo_srgb": "#544b41", "straw": 0.85, "macro": 0.06,
+      "grass": ["#6c7640", "#a6986c"], "dry_fraction": 0.75,
+      "note": "T4: dark moist loam (the base colour here) under a lodged straw mat, standing stems with seed heads"
+    },
+    "belt_bare": { "set": "dirt", "tile_m": 3.0, "litter": 0.45, "macro": 0.08, "litter_srgb": "#7a5a3c", "note": "T5: fine dry loam beaten bare, some leaves" },
+    "tilled": {
+      "set": "brown_mud_02", "tile_m": 2.5, "straw": 0.65, "macro": 0.05,
+      "note": "T3a: dark loose loam; furrows are drawn from the physics ridges (azimuth, spacing, phase), straw residue from cover G"
+    },
+    "yard_litter": { "set": "dirt", "tile_m": 3.0, "albedo_srgb": "#766450", "litter": 0.9, "macro": 0.1, "note": "T6: compacted soil under fallen leaves" },
+    "rubble": { "set": "rubble", "tile_m": 2.5, "macro": 0.1, "note": "B5, T8: brick, concrete and plaster debris" },
+    "weeds": {
+      "set": "grass_ground", "tile_m": 4.0, "macro": 0.2, "patch_srgb": "#4a4e22", "patch": 0.5,
+      "grass": ["#627a2c", "#9c9346"], "dry_fraction": 0.3, "blade_width_m": 0.02,
+      "note": "T7: tall green-yellow leafy stalks and dry seed heads over shaded ground"
+    },
+    "burnt_field": {
+      "set": "burned_ground_01", "tile_m": 3.0, "macro": 0.1,
+      "grass": ["#2c2723", "#3d3630"], "dry_fraction": 0.5, "litter_srgb": "#625e58",
+      "note": "T3b: black char and grey ash; stubble is charred stumps, litter is ash flakes"
+    }
+  }
+}

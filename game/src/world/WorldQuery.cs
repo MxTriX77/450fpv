@@ -110,6 +110,13 @@ public sealed partial class WorldQuery
     /// surface.png's surface indices, Cells² row-major from the north-west corner, read-only (for the renderer).
     public ReadOnlySpan<byte> SurfaceIds => _surface;
 
+    /// cover.png's RGBA bytes, on the same grid as SurfaceIds, read-only (for the renderer).
+    public ReadOnlySpan<byte> CoverRgba => _cover;
+
+    /// The ridge phase of a surface with ridges, in spacings: its crests lie where
+    /// (x·sin a + z·cos a) / spacing + RidgePhase is a whole number (for the renderer's furrows).
+    public double RidgePhase(byte index) => _ridgePhase[index];
+
     /// Loads a map package (game/maps/README.md) with its objects, the shared surface table and the shared catalog.
     public static WorldQuery Load(string packageDir, string surfacesPath, string catalogPath)
     {
