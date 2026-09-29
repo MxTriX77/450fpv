@@ -10,6 +10,9 @@ A readable test patch built from the reference notes' vocabulary, not final art.
 - The meadow (T1): gentle roll, a crater, a power line on poles and a dirt road (dry crust) to the yard gate.
 - The yard (T6): a house, a shed, the gate, household junk and a rubble heap. South of it is an overgrown garden of weeds
   (T7) with a low cable sagging across it (S1).
+- The test trench (task 2.3), south-west of the meadow: a straight section and one turned 30 degrees, 0.8 m wide and
+  1.5 m deep, cut into a levelled pad. It is the terrain-holes fixture: holes.png marks its cells and four placed
+  objects of placeholder boxes fill them (see TRENCH below).
 - Two start points for the launch rails: on the meadow and in the yard.
 
 The golden file (game/src/world/worldquery_golden.json) probes the features that came first at fixed points: the first
@@ -36,10 +39,66 @@ BANK = (50.0, 5.0, -70.0, 3.5, 1.2)  # full-height half length, taper, centre z,
 ROAD_Z = (17.0, 22.0)                # the dirt road from the west edge to the gate
 MEADOW_SOD, DRY_CRUST, CRATER_SPOIL, BELT_STRAW, BELT_BARE, TILLED, YARD_LITTER, RUBBLE, WEEDS = range(1, 10)
 
+# The test trench. Its pad is levelled so that TerrainHeight is one value over the whole trench: the filler is
+# flat-topped placeholder boxes, and a flat lip then meets rule F-3 (within 0.03 m of TerrainHeight) exactly. A trench
+# on sloping ground needs a shape per step instead; that is for the real trench-section asset (task 3.5).
+PAD = (-21.5, 90.25, 11.0, 5.5, 2.0)  # centre x, z, half x, half z, blend width (m)
+TRENCH_A = (-27.0, 88.75)             # the straight section's closed end: its asset origin, and the cavity's start
+TRENCH_LENGTH = 6.0                   # cavity length of each section, m
+TRENCH_BEND_DEG = 30.0                # the second section turns this far, toward +z
+TRENCH_HALF = 0.75                    # half width of the hole band: the 0.4 m cavity plus 0.35 m of lip (F-2)
+TRENCH_LEAD = 0.5                     # the hole band runs this far past each closed end, so the end wall is inset
+
 
 def smoothstep(t):
     t = min(max(t, 0.0), 1.0)
     return t * t * (3 - 2 * t)
+
+
+def trench_axes():
+    """The two cavity axes as (origin, yaw_deg, direction, far end): the asset's local +X runs from the closed end."""
+    bend = math.radians(TRENCH_BEND_DEG)
+    a_dir = (1.0, 0.0)
+    b_dir = (math.cos(bend), math.sin(bend))
+    p0 = TRENCH_A
+    p1 = (p0[0] + TRENCH_LENGTH * a_dir[0], p0[1] + TRENCH_LENGTH * a_dir[1])
+    p2 = (p1[0] + TRENCH_LENGTH * b_dir[0], p1[1] + TRENCH_LENGTH * b_dir[1])
+    # Section B is placed at its own closed end, P2, running back toward the corner: yaw turns +X toward -Z.
+    return [(p0, 0.0, a_dir, p1), (p2, 180.0 - TRENCH_BEND_DEG, (-b_dir[0], -b_dir[1]), p1)]
+
+
+def trench_strips():
+    """Each section's hole footprint as a segment: from TRENCH_LEAD before the closed end to the corner."""
+    strips = []
+    for origin, _, direction, far in trench_axes():
+        strips.append(((origin[0] - TRENCH_LEAD * direction[0], origin[1] - TRENCH_LEAD * direction[1]), far))
+    return strips
+
+
+def segment_distance(px, pz, a, b):
+    dx, dz = b[0] - a[0], b[1] - a[1]
+    length2 = dx * dx + dz * dz
+    t = 0.0 if length2 == 0 else min(max(((px - a[0]) * dx + (pz - a[1]) * dz) / length2, 0.0), 1.0)
+    return math.hypot(px - (a[0] + t * dx), pz - (a[1] + t * dz))
+
+
+def is_hole(x0, z0, x1, z1):
+    """Whether the cell [x0, x1] x [z0, z1] meets a trench strip, so that the hole cells cover the whole strip."""
+    for a, b in trench_strips():
+        steps = max(2, int(math.hypot(b[0] - a[0], b[1] - a[1]) / 0.01))
+        for i in range(steps + 1):
+            t = i / steps
+            px, pz = a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t
+            near_x = min(max(px, x0), x1)
+            near_z = min(max(pz, z0), z1)
+            if math.hypot(px - near_x, pz - near_z) <= TRENCH_HALF:
+                return True
+    return False
+
+
+def pad_weight(x, z):
+    cx, cz, hx, hz, blend = PAD
+    return smoothstep((hx + blend - abs(x - cx)) / blend) * smoothstep((hz + blend - abs(z - cz)) / blend)
 
 
 def bank(x, z):
@@ -51,7 +110,7 @@ def bank(x, z):
     return top * math.cos(math.pi / 2 * d / half) ** 2 * smoothstep((length + taper - abs(x)) / taper)
 
 
-def height(x, z):
+def relief(x, z):
     h = 0.012 * x - 0.006 * z + 0.8 * math.sin(2 * math.pi * x / 180) * math.cos(2 * math.pi * z / 150) + bank(x, z)
     for cx, cz, radius, depth, rim in CRATERS:
         q = math.hypot(x - cx, z - cz) / radius
@@ -60,6 +119,19 @@ def height(x, z):
         elif q < 2:
             h += rim * (2 - q) ** 2
     return h
+
+
+def sample(h):
+    """A height on the r16 grid, so a levelled pad reads back as one exact value."""
+    return round(OFFSET + round((h - OFFSET) / SCALE) * SCALE, 6)
+
+
+PAD_HEIGHT = sample(relief(PAD[0], PAD[1]))
+
+
+def height(x, z):
+    w = pad_weight(x, z)
+    return relief(x, z) * (1 - w) + PAD_HEIGHT * w if w > 0 else relief(x, z)
 
 
 def surface(x, z):
@@ -97,6 +169,40 @@ def cover(kind, x, z):
             RUBBLE: (0, 0, 255, 0), CRATER_SPOIL: (0, 0, 0, 0)}[kind]
 
 
+def hole_cells(cells, half):
+    """The hole cells as a set of (row, column), over the trench's bounding box only."""
+    reach = TRENCH_HALF + CELL_RES
+    xs = [p[0] for strip in trench_strips() for p in strip]
+    zs = [p[1] for strip in trench_strips() for p in strip]
+    c0 = max(math.floor((min(xs) - reach + half) / CELL_RES), 0)
+    c1 = min(math.floor((max(xs) + reach + half) / CELL_RES) + 1, cells - 1)
+    r0 = max(math.floor((min(zs) - reach + half) / CELL_RES), 0)
+    r1 = min(math.floor((max(zs) + reach + half) / CELL_RES) + 1, cells - 1)
+    marked = set()
+    for r in range(r0, r1 + 1):
+        for c in range(c0, c1 + 1):
+            x0, z0 = -half + c * CELL_RES, -half + r * CELL_RES
+            if is_hole(x0, z0, x0 + CELL_RES, z0 + CELL_RES):
+                marked.add((r, c))
+    return marked
+
+
+def trench_objects():
+    """One section and one end cap per placement, at the pad height, and the wedge outside the bend.
+
+    Each section's sides stop at the corner, so neither blocks the other's cavity; their floors run 2 m past it, so the
+    ground there is still sealed. The wedge between the two sides' ends closes the outside of the turn.
+    """
+    objects = []
+    for (x, z), yaw, _, _ in trench_axes():
+        for asset in ("test_trench", "test_trench_cap"):
+            objects.append({"asset": asset, "position_m": [x, PAD_HEIGHT, z], "rotation_deg": [yaw, 0.0, 0.0], "scale": 1.0})
+    corner = (TRENCH_A[0] + TRENCH_LENGTH, TRENCH_A[1])
+    objects.append({"asset": "test_trench_corner", "position_m": [corner[0], PAD_HEIGHT, corner[1]],
+                    "rotation_deg": [90.0 - TRENCH_BEND_DEG / 2, 0.0, 0.0], "scale": 1.0})
+    return objects
+
+
 def placed(asset, x, z, yaw=0.0):
     return {"asset": asset, "position_m": [x, round(height(x, z), 3), z], "rotation_deg": [yaw, 0.0, 0.0], "scale": 1.0}
 
@@ -131,6 +237,7 @@ def objects():
     # Shed east wall, 2.2 m up: the shed is 4 m wide, turned -10 degrees.
     wall = at(shed, 2.2, 2.0 * math.cos(math.radians(10)), 2.0 * math.sin(math.radians(10)))
     garden_pole = placed("pole", 66.0, 72.0)
+    # The trench fillers come last, so every index before them stays where the golden file has it.
     return first + trees + line + [
         {"asset": "cable", "points_m": [at(p, 7.8) for p in [pole_a] + line], "sag_m": 0.6, "diameter_m": 0.012},
         placed("household_junk", 44.0, 14.0, 70.0),
@@ -138,7 +245,7 @@ def objects():
         placed("household_junk", 68.0, 48.0, -20.0),
         garden_pole,
         {"asset": "cable", "points_m": [wall, at(garden_pole, 2.0)], "sag_m": 1.0, "diameter_m": 0.01},
-    ]
+    ] + trench_objects()
 
 
 def start(x, z, yaw):
@@ -157,21 +264,29 @@ def main():
                 row.byteswap()
             f.write(row.tobytes())
 
-    kinds, covers = [], []
+    # A hole cell is bare cut soil with no cover, so the mat and relief taper toward the trench instead of stepping at it.
+    holes = hole_cells(cells, half)
+    kinds, covers, hole_rows = [], [], []
     for r in range(cells):
         z = -half + (r + 0.5) * CELL_RES
-        row_kinds = [surface(-half + (c + 0.5) * CELL_RES, z) for c in range(cells)]
+        row_kinds = [BELT_BARE if (r, c) in holes else surface(-half + (c + 0.5) * CELL_RES, z) for c in range(cells)]
         kinds.append(bytes(row_kinds))
-        covers.append(bytes(v for c, k in enumerate(row_kinds) for v in cover(k, -half + (c + 0.5) * CELL_RES, z)))
+        covers.append(bytes(v for c, k in enumerate(row_kinds)
+                            for v in ((0, 0, 0, 0) if (r, c) in holes else cover(k, -half + (c + 0.5) * CELL_RES, z))))
+        hole_rows.append(bytes(255 if (r, c) in holes else 0 for c in range(cells)))
     write_png(os.path.join(out, "surface.png"), cells, cells, GREY, kinds)
     write_png(os.path.join(out, "cover.png"), cells, cells, RGBA, covers)
+    write_png(os.path.join(out, "holes.png"), cells, cells, GREY, hole_rows)
+    for layer in ("surface.png", "cover.png", "holes.png"):
+        with open(os.path.join(out, layer + ".import"), "w", newline="\n") as f:
+            f.write('[remap]\n\nimporter="keep"\n')
 
     with open(os.path.join(out, "objects.json"), "w", newline="\n") as f:
         json.dump({"objects": objects()}, f, indent=2)
         f.write("\n")
 
     manifest = {
-        "format_version": "1.0",
+        "format_version": "1.1",  # holes.png
         "size_m": SIZE,
         "seed": SEED,
         "height": {"resolution_m": HEIGHT_RES, "samples_per_side": samples, "offset_m": OFFSET, "scale_m": SCALE},

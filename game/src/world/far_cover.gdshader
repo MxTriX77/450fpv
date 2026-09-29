@@ -27,6 +27,8 @@ uniform sampler2D cover : filter_nearest, repeat_disable;
 uniform sampler2D surface_params : filter_nearest, repeat_disable; // SurfaceLook.Params
 uniform float surface_resolution = 0.5;
 uniform int surface_cells = 1;
+uniform bool use_holes = false;                          // nothing grows in a hole cell
+uniform sampler2D holes : filter_nearest, repeat_disable; // R8: 255 = hole, one texel per surface cell
 
 uniform ivec2 origin_cell;  // the camera's grid cell at this level's spacing
 uniform float spacing;      // m between grid points
@@ -95,6 +97,7 @@ void vertex() {
 		vec4 green = texelFetch(surface_params, ivec2(id, 6), 0); // colour, straw silhouette
 		vec4 dry = texelFetch(surface_params, ivec2(id, 7), 0);   // colour, straw mean length
 		vec4 straw = texelFetch(surface_params, ivec2(id, 8), 0); // colour, blade width
+		float hole = use_holes ? texelFetch(holes, sc, 0).r : 0.0;
 		bool standing = blade < GRASS_CARDS;
 		float mean_len = standing ? 0.5 * (grass.y + grass.z) : dry.a;
 		float area = (standing ? grass.x * cov.r / float(GRASS_CARDS) : green.a * cov.g / STRAW_CARDS) * spacing * spacing;
@@ -103,7 +106,7 @@ void vertex() {
 		float min_width = max(straw.a, MIN_PIXELS * metres_per_pixel);
 		float width = mean_len > 0.0 ? area / (TOOTH_FILL * mean_len) : 0.0; // a toothed card of that side-on area
 		vec4 rb = hash42(key * 1.37 + float(blade) * 17.13 + 3.7);
-		if (width > 0.0 && rb.w * min_width < width) {
+		if (width > 0.0 && hole < 0.5 && rb.w * min_width < width) {
 			width = max(width, min_width);
 			teeth = max(1.0, floor(width / (TOOTH_PIXELS * metres_per_pixel)));
 			card_seed = floor(rb.y * 997.0);

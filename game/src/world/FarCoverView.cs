@@ -48,6 +48,11 @@ public partial class FarCoverView : Node3D
             material.SetShaderParameter("heights", terrain.HeightTexture);
             material.SetShaderParameter("surface_ids", terrain.SurfaceTexture);
             material.SetShaderParameter("cover", terrain.CoverTexture);
+            if (terrain.HoleTexture != null)
+            {
+                material.SetShaderParameter("holes", terrain.HoleTexture);
+                material.SetShaderParameter("use_holes", true);
+            }
             material.SetShaderParameter("surface_params", look.Params);
             material.SetShaderParameter("surface_resolution", (float)world.CellResolution);
             material.SetShaderParameter("surface_cells", world.Cells);

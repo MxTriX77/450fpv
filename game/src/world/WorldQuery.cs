@@ -13,8 +13,10 @@ public enum KindMask : byte { None = 0, Grass = 1, Straw = 2, Twigs = 4, Litter 
 
 public enum GroundFeature : byte { None, Pitfall }
 
+/// `Hole`: the point's own cell is a hole (map-format 1.1, holes.png), so there is no terrain ground under it. It is
+/// never set together with `OutsideMap`: outside the map the edge cell continues as ground.
 [Flags]
-public enum GroundFlags : byte { None = 0, OutsideMap = 1 }
+public enum GroundFlags : byte { None = 0, OutsideMap = 1, Hole = 2 }
 
 [InlineArray(4)]
 public struct Bytes4
@@ -48,12 +50,14 @@ public struct Double3
     public override readonly string ToString() => $"({X}, {Y}, {Z})";
 }
 
-/// The ground under one (x, z) point, world frame, Y up, metres (world-query W-1).
+/// The ground under one (x, z) point, world frame, Y up, metres (world-query W-1). In a hole cell (`Hole`) there is no
+/// terrain ground: GroundHeight and SupportTop are −∞, the normal is +Y, and the mat, cover and feature are empty. The
+/// ground there comes only from the hole's fillers, through StaticContacts and Raycast.
 public struct GroundSample
 {
-    public double TerrainHeight; // the rendered triangle (HeightmapTerrain and its Jolt collision)
-    public double GroundHeight;  // terrain + micro-relief + ridges − pitfall: the soil surface
-    public double SupportTop;    // GroundHeight + ΣMatDepth
+    public double TerrainHeight; // the rendered triangle (HeightmapTerrain and its Jolt collision); in a hole, the lip level
+    public double GroundHeight;  // terrain + micro-relief + ridges − pitfall: the soil surface; −∞ in a hole
+    public double SupportTop;    // GroundHeight + ΣMatDepth; −∞ in a hole
     public Vector3 Normal;       // unit normal of GroundHeight
     public Vector4 MatDepth;     // uncompressed mat per kind (X grass, Y straw, Z twigs, W litter), m
     public Vector4 CoverDensity; // elements per m² per kind in this point's own cell (table × cover channel)
@@ -92,6 +96,7 @@ public sealed partial class WorldQuery
     readonly float[] _heights;
     readonly byte[] _surface;
     readonly byte[] _cover;
+    readonly ulong[] _holes; // one bit per surface cell, set where holes.png is 255; null when the map has no holes
     readonly SurfaceParams[] _byIndex = new SurfaceParams[256];
     readonly uint[] _reliefKey = new uint[256];
     readonly uint[] _matKey = new uint[256 * 4];
@@ -112,6 +117,22 @@ public sealed partial class WorldQuery
 
     /// cover.png's RGBA bytes, on the same grid as SurfaceIds, read-only (for the renderer).
     public ReadOnlySpan<byte> CoverRgba => _cover;
+
+    /// Whether the map has a hole layer at all (holes.png, map format 1.1).
+    public bool HasHoles => _holes != null;
+
+    /// Whether surface cell `cell` (row · Cells + column) is a hole. Callers inside the map only.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    bool HoleAt(int cell) => _holes != null && (_holes[cell >> 6] >> (cell & 63) & 1) != 0;
+
+    /// Whether the cell that holds (x, z) is a hole: no terrain ground, no micro-detail, nothing drawn. A point outside
+    /// the map is never in a hole, because there the edge cell continues as ground.
+    public bool IsHole(double x, double z) =>
+        _holes != null && Math.Abs(x) <= Half && Math.Abs(z) <= Half && HoleAt(OwnCell(x, z));
+
+    /// Whether the cell at (row, column) is a hole, for the renderer and the terrain collision; false outside the grid.
+    public bool HoleCell(int row, int column) =>
+        row >= 0 && row < Cells && column >= 0 && column < Cells && HoleAt(row * Cells + column);
 
     /// The ridge phase of a surface with ridges, in spacings: its crests lie where
     /// (x·sin a + z·cos a) / spacing + RidgePhase is a whole number (for the renderer's furrows).
@@ -134,13 +155,22 @@ public sealed partial class WorldQuery
         byte[] cover = MapPng.Read(Path.Combine(packageDir, "cover.png"), 4, out int coverCells, out _);
         if (coverCells != cells)
             throw new InvalidDataException($"{packageDir}: cover.png is {coverCells} wide, surface.png {cells}");
+        byte[] holes = null;
+        string holesPath = Path.Combine(packageDir, HolesLayer);
+        if (File.Exists(holesPath))
+        {
+            holes = MapPng.Read(holesPath, 1, out int holeCells, out _);
+            if (holeCells != cells)
+                throw new InvalidDataException($"{packageDir}: {HolesLayer} is {holeCells} wide, surface.png {cells}");
+        }
         string surfacesJson = File.ReadAllText(surfacesPath);
         double soilReference;
-        using (JsonDocument table = JsonDocument.Parse(surfacesJson))
-            soilReference = table.RootElement.GetProperty("soil_reference_diameter_m").GetDouble();
-        var world = new WorldQuery(SurfaceParams.ParseTable(surfacesJson), root.GetProperty("size_m").GetDouble(),
-            root.GetProperty("seed").GetUInt32(), samples, heights, cells, surface, cover, Catalog.Parse(File.ReadAllText(catalogPath)),
-            soilReference);
+        using (JsonDocument document = JsonDocument.Parse(surfacesJson))
+            soilReference = document.RootElement.GetProperty("soil_reference_diameter_m").GetDouble();
+        SurfaceParams[] table = SurfaceParams.ParseTable(surfacesJson);
+        var world = new WorldQuery(table, root.GetProperty("size_m").GetDouble(),
+            root.GetProperty("seed").GetUInt32(), samples, heights, cells, surface, cover,
+            Catalog.Parse(File.ReadAllText(catalogPath), table), soilReference, holes);
         world.LoadObjects(Path.Combine(packageDir, "objects.json"));
         world.ContentHash = ContentHashOf(packageDir, surfacesPath, catalogPath);
         return world;
@@ -151,8 +181,9 @@ public sealed partial class WorldQuery
 
     /// `heights` are samples² world Y values, `surface` cells² surface indices and `cover` cells² RGBA bytes, all
     /// row-major from the north-west corner. Objects need a `catalog`. `soilReferenceDiameter` is the table's (m).
+    /// `holes` is holes.png's cells² bytes (0 ground, 255 hole), or null for a map without a hole layer.
     public WorldQuery(SurfaceParams[] table, double sizeM, uint seed, int samples, float[] heights, int cells, byte[] surface,
-        byte[] cover, Catalog catalog = null, double soilReferenceDiameter = DefaultSoilReferenceDiameter)
+        byte[] cover, Catalog catalog = null, double soilReferenceDiameter = DefaultSoilReferenceDiameter, byte[] holes = null)
     {
         SizeM = sizeM;
         SoilReferenceDiameter = soilReferenceDiameter;
@@ -199,6 +230,17 @@ public sealed partial class WorldQuery
             if (_byIndex[surface[i]] == null)
                 throw new InvalidDataException($"surface index {surface[i]} at cell {i % cells}, {i / cells} is not in the table");
         }
+        if (holes != null)
+        {
+            _holes = new ulong[((long)cells * cells + 63) / 64];
+            for (int i = 0; i < holes.Length; i++)
+            {
+                if (holes[i] == 255)
+                    _holes[i >> 6] |= 1UL << (i & 63);
+                else if (holes[i] != 0)
+                    throw new InvalidDataException($"{HolesLayer} value {holes[i]} at cell {i % cells}, {i / cells} is neither 0 (ground) nor 255 (hole)");
+            }
+        }
         foreach (float h in heights)
         {
             _minHeight = Math.Min(_minHeight, h);
@@ -240,19 +282,30 @@ public sealed partial class WorldQuery
     void Sample(double x, double z, out GroundSample g, bool withMat)
     {
         g = default;
-        if (!(Math.Abs(x) <= Half && Math.Abs(z) <= Half))
+        bool inside = Math.Abs(x) <= Half && Math.Abs(z) <= Half;
+        if (!inside)
             g.Flags = GroundFlags.OutsideMap;
         x = Limit(x, Half + Margin);
         z = Limit(z, Half + Margin);
         double terrain = Terrain(x, z, out double gx, out double gz);
 
         var b = new Blend(this, x, z);
-        var lattice = new Lattice(x, z, _nodeScale[b.S0]); // shared by the relief and the mat of the first corner's surface
         g.BlendSurface[0] = b.S0;
         g.BlendSurface[1] = b.S1;
         g.BlendSurface[2] = b.S2;
         g.BlendSurface[3] = b.S3;
         g.BlendWeight = new Vector4((float)b.W0, (float)b.W1, (float)b.W2, (float)b.W3);
+        g.Surface = b.OwnSurface;
+        // In a hole the fillers' shapes are the only ground: −∞ reads as "no ground here" to code that misses the flag.
+        if (inside && HoleAt(b.Own))
+        {
+            g.Flags |= GroundFlags.Hole;
+            g.TerrainHeight = terrain;
+            g.GroundHeight = g.SupportTop = double.NegativeInfinity;
+            g.Normal = new Vector3(0, 1, 0);
+            return;
+        }
+        var lattice = new Lattice(x, z, _nodeScale[b.S0]); // shared by the relief and the mat of the first corner's surface
         double relief, rdx, rdz;
         if (b.Uniform)
             relief = Relief(b.S0, in lattice, x, z, out rdx, out rdz); // the weights sum to 1 and their slopes cancel
@@ -280,7 +333,6 @@ public sealed partial class WorldQuery
         double inverse = 1.0 / Math.Sqrt(gx * gx + 1.0 + gz * gz);
         g.Normal = new Vector3((float)(-gx * inverse), (float)inverse, (float)(-gz * inverse));
 
-        g.Surface = b.OwnSurface;
         if (!withMat)
             return;
         float[] density = _density[b.OwnSurface];

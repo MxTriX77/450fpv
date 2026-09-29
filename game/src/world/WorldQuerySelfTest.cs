@@ -33,7 +33,8 @@ public static partial class WorldQuerySelfTest
             float offset = height.GetProperty("offset_m").GetSingle(), scale = height.GetProperty("scale_m").GetSingle();
             var terrain = new HeightmapTerrain { Name = "Terrain" };
             sandbox.AddChild(terrain);
-            terrain.Build(r16, world.Samples, (float)world.HeightResolution, offset, scale);
+            terrain.Build(r16, world.Samples, (float)world.HeightResolution, offset, scale, world);
+            AddFillerBodies(sandbox, world);
             for (int i = 0; i < 3; i++)
                 await tree.ToSignal(tree, SceneTree.SignalName.PhysicsFrame);
             PhysicsDirectSpaceState3D space = sandbox.GetWorld3D().DirectSpaceState;
@@ -52,6 +53,7 @@ public static partial class WorldQuerySelfTest
             pass &= Overflow(world);
             pass &= ElementRules(world);
             pass &= ObjectScenarios(world, dir, surfaces);
+            pass &= HoleScenarios(world, dir, surfaces, space);
             pass &= Lookups(world, surfaces);
             pass &= PowDomain();
             pass &= ContentHashScenarios(world, dir, surfaces);
@@ -127,23 +129,30 @@ public static partial class WorldQuerySelfTest
         GroundSample[] samples = SampleAll(world, points);
 
         double worstTriangle = 0, worstRay = 0;
-        int misses = 0;
+        int misses = 0, inHoles = 0, holeHits = 0;
         for (int i = 0; i < points.Length; i++)
         {
             double expected = RendererTriangle(r16, offset, scale, world.Samples, res, half, points[i].X, points[i].Z);
             worstTriangle = Math.Max(worstTriangle, Math.Abs(samples[i].TerrainHeight - expected));
             var ray = PhysicsRayQueryParameters3D.Create(new Vector3((float)points[i].X, 500f, (float)points[i].Z),
-                new Vector3((float)points[i].X, -500f, (float)points[i].Z));
+                new Vector3((float)points[i].X, -500f, (float)points[i].Z), TerrainLayer); // the terrain, not the hole fillers
             Godot.Collections.Dictionary hit = space.IntersectRay(ray);
-            if (hit.Count == 0)
+            // A hole has no terrain collision, so a ray there must find none; TerrainHeight is still the lip everywhere.
+            if (world.IsHole(points[i].X, points[i].Z))
+            {
+                inHoles++;
+                holeHits += hit.Count > 0 ? 1 : 0;
+            }
+            else if (hit.Count == 0)
                 misses++;
             else
                 worstRay = Math.Max(worstRay, Math.Abs(samples[i].TerrainHeight - ((Vector3)hit["position"]).Y));
         }
-        return Check("matches the rendered surface", worstTriangle <= 1e-3 && worstRay <= 1e-3 && misses == 0,
+        return Check("matches the rendered surface", worstTriangle <= 1e-3 && worstRay <= 1e-3 && misses == 0 && holeHits == 0,
             $"10000 points (2500 random, 2500 on diagonals, 2500 on cell edges, 2500 on the map/chunk edges): "
             + $"worst vs renderer triangle {worstTriangle * 1000:0.000000} mm, worst vs Jolt ray {worstRay * 1000:0.0000} mm, "
-            + $"{misses} ray misses (limit 1 mm)");
+            + $"{misses} ray misses (limit 1 mm); {inHoles} points in hole cells, where the Jolt terrain is gone: "
+            + $"{holeHits} still hit it");
     }
 
     /// The renderer's triangle, evaluated independently: its three vertices as HeightmapTerrain builds them (cell corners
@@ -181,12 +190,19 @@ public static partial class WorldQuerySelfTest
         int cells = world.Cells;
         double res = world.CellResolution, half = world.Half;
         var walks = new List<(double x, double z, double dx, double dz, int steps)>();
+        int holeBorders = 0;
         for (int r = 0; r < cells; r++)
         {
             for (int c = 0; c < cells; c++)
             {
                 byte s = surface[r * cells + c];
                 double x0 = -half + c * res, z0 = -half + r * res;
+                // Hole cells and their neighbours are excluded: over a hole there is no ground to be continuous with.
+                if (HoleNear(world, r, c))
+                {
+                    holeBorders++;
+                    continue;
+                }
                 if (c + 1 < cells && surface[r * cells + c + 1] != s) // border line x = x0 + res, z from z0 to z0 + res
                 {
                     walks.Add((x0 + res, z0, 0, 1e-3, 500));
@@ -239,7 +255,7 @@ public static partial class WorldQuerySelfTest
         // Where the ground is steeper than 1 m/m (pitfall walls, rubble relief) a continuous surface changes by more than
         // 1 mm per 1 mm step. There continuity is judged by the jump beyond the local slope; elsewhere the literal limit holds.
         return Check("continuous across surface borders", worstGentle <= 1e-3 && worstJump <= 1e-3,
-            $"{walks.Count / 2} border edges, {count} samples at 1 mm: largest step with the slope ≤ 1 at both ends "
+            $"{walks.Count / 2} border edges ({holeBorders} cells skipped at holes), {count} samples at 1 mm: largest step with the slope ≤ 1 at both ends "
             + $"{worstGentle * 1000:0.000} mm and largest jump beyond the local slope {worstJump * 1000:0.000000} mm "
             + $"(limit 1 mm each); {steepSteps} steps steeper than 1 m/m, largest step anywhere {worstStep * 1000:0.000} mm "
             + $"(at {where}); largest outside pitfalls {worstOutsidePits * 1000:0.000} mm (at {whereOutside}); largest "
@@ -274,7 +290,11 @@ public static partial class WorldQuerySelfTest
         var random = new Random(47);
         var uniform = new List<XZ>();
         while (uniform.Count < 10000)
-            uniform.Add(new XZ(-world.Half + random.NextDouble() * world.SizeM, -world.Half + random.NextDouble() * world.SizeM));
+        {
+            var p = new XZ(-world.Half + random.NextDouble() * world.SizeM, -world.Half + random.NextDouble() * world.SizeM);
+            if (!HoleNear(world, p)) // a hole cell has no ground, and its neighbour's difference stencil would reach into it
+                uniform.Add(p);
+        }
         var inPits = new List<XZ>();
         var probe = new XZ[1];
         var probeResult = new GroundSample[1];
@@ -398,7 +418,7 @@ public static partial class WorldQuerySelfTest
         int n = 0;
         foreach (GroundSample g in samples)
         {
-            if (g.Feature == GroundFeature.Pitfall || g.Surface != s.Index)
+            if (g.Feature == GroundFeature.Pitfall || g.Surface != s.Index || (g.Flags & GroundFlags.Hole) != 0)
                 continue;
             double d = g.GroundHeight - g.TerrainHeight;
             sum += d * d;
@@ -531,6 +551,26 @@ public static partial class WorldQuerySelfTest
     }
 
     static double Clamp(double v, double bound) => double.IsNaN(v) ? -bound : Math.Clamp(v, -bound, bound);
+
+    /// Whether a hole cell is at or next to (row, column), or within a cell of the point: the scenarios that walk or
+    /// difference the ground exclude them, because a hole has no ground (terrain-holes, "World query knows holes").
+    static bool HoleNear(WorldQuery world, int row, int column)
+    {
+        if (!world.HasHoles)
+            return false;
+        for (int dr = -1; dr <= 1; dr++)
+        {
+            for (int dc = -1; dc <= 1; dc++)
+            {
+                if (world.HoleCell(row + dr, column + dc))
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    static bool HoleNear(WorldQuery world, XZ p) => HoleNear(world,
+        (int)Math.Floor((p.Z + world.Half) / world.CellResolution), (int)Math.Floor((p.X + world.Half) / world.CellResolution));
 
     // ---------------------------------------------------------------- 3.2 MicroDetailNear
 

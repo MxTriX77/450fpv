@@ -38,6 +38,13 @@ def set_surface_pixel(pkg, row, col, value):
     write_png(os.path.join(pkg, "surface.png"), png.width, png.height, GREY, [bytes(r) for r in rows])
 
 
+def set_hole_pixel(pkg, row, col, value):
+    png = read_png(os.path.join(pkg, "holes.png"))
+    rows = [bytearray(r) for r in scanlines(png)]
+    rows[row][col] = value
+    write_png(os.path.join(pkg, "holes.png"), png.width, png.height, GREY, [bytes(r) for r in rows])
+
+
 def add_png_chunk(pkg, name, kind, body):
     path = os.path.join(pkg, name)
     with open(path, "rb") as f:
@@ -114,9 +121,23 @@ CASES = [
     ("inverted range", broken_surface(lambda d: surface(d, "weeds")["pitfalls"].update(depth_m=[0.3, 0.05])),
      False, ["surface 'weeds': pitfalls.depth_m = [0.3, 0.05] must satisfy"]),
     ("unknown material", broken_catalog(lambda d: d["assets"]["house_box"].update(material="concrete")),
-     False, ["asset 'house_box': material 'concrete' is not in the material table"]),
+     False, ["asset 'house_box': material 'concrete' is neither in the material table"]),
     ("unknown shape material", broken_catalog(lambda d: d["assets"]["gate_frame"]["collision"][2].update(material="brass")),
-     False, ["asset 'gate_frame': box shape material 'brass' is not in the material table"]),
+     False, ["asset 'gate_frame': box shape material 'brass' is neither in the material table"]),
+    ("unknown soil surface", broken_catalog(lambda d: d["assets"]["test_trench"].update(material="surface:no_such_surface")),
+     False, ["asset 'test_trench': material 'surface:no_such_surface' is neither in the material table nor "
+             "'surface:<id>' of a surface in surfaces.json"]),
+    ("unknown soil surface on a shape",
+     broken_catalog(lambda d: d["assets"]["test_trench"]["collision"][1].update(material="surface:no_such_surface")),
+     False, ["asset 'test_trench': box shape material 'surface:no_such_surface' is neither in the material table"]),
+    ("hole value neither 0 nor 255", lambda pkg, tables: set_hole_pixel(pkg, 200, 300, 128),
+     False, ["holes.png: value 128 at row 200, column 300", "neither 0 (ground) nor 255 (hole)"]),
+    ("hole grid mismatch", lambda pkg, tables: write_png(os.path.join(pkg, "holes.png"), 256, 256, GREY, [bytes(256)] * 256),
+     False, ["holes.png is 256×256 pixels, expected 512×512"]),
+    ("hole layer before format 1.1", lambda pkg, tables: edit_json(os.path.join(pkg, "map.json"),
+                                                                   lambda d: d.update(format_version="1.0")),
+     False, ["holes.png: the hole layer is format 1.1, and map.json declares 1.0"]),
+    ("no hole layer", remove("holes.png"), True, ["OK:"]),
     ("collider without material", broken_catalog(lambda d: d["assets"]["pole"].pop("material")),
      False, ["asset 'pole': material is required because the asset has collision"]),
     ("material kinetic above static", broken_catalog(lambda d: d["materials"]["steel"].update(friction_kinetic=0.5)),

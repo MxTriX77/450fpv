@@ -1,4 +1,4 @@
-# Map format 1.0
+# Map format 1.1
 
 A map is authored data that stays engine-independent. Godot builds the runtime scene from it at load time, and Python tools read it without Godot.
 The contract is the `map-format` spec (`openspec/changes/define-map-format/specs/map-format/spec.md`). This file is its field reference.
@@ -21,13 +21,14 @@ game/maps/
     height.r16         heightfield
     surface.png        surface ids
     cover.png          cover densities
+    holes.png          holes in the ground (optional, format 1.1)
     objects.json       placed objects and wires
 game/assets/catalog.json   shared asset catalog (all maps)
 ```
 
 A map side is a multiple of 256 m (the terrain collision chunk) and at most 8192 m. Other sides would make the terrain fall back to slower mesh collision.
 
-Inside `game/` each PNG layer also has a Godot sidecar, `surface.png.import` and `cover.png.import`, containing `importer="keep"`. Godot then leaves the layers as raw files and exports them unchanged, instead of converting them to textures. The loader reads the exact bytes. The validator ignores these sidecars.
+Inside `game/` each PNG layer also has a Godot sidecar, `surface.png.import`, `cover.png.import` and `holes.png.import`, containing `importer="keep"`. Godot then leaves the layers as raw files and exports them unchanged, instead of converting them to textures. The loader reads the exact bytes. The validator ignores these sidecars.
 
 ## Coordinates and units
 
@@ -55,7 +56,7 @@ Inside `game/` each PNG layer also has a Godot sidecar, `surface.png.import` and
 
 | Field | Type / unit | Rule |
 |---|---|---|
-| `format_version` | string `"major.minor"` | This format is `1.0`. Readers reject any major other than 1 and accept any 1.x (minor bumps only add optional fields). |
+| `format_version` | string `"major.minor"` | This format is `1.1`. Readers reject any major other than 1 and accept any 1.x (minor bumps only add optional fields). A package with `holes.png` declares at least `1.1`. |
 | `size_m` | number, m | A multiple of 256, from 256 to 8192 |
 | `seed` | integer | 32-bit unsigned (0 to 4294967295). Drives all procedural micro-detail, micro-relief and pitfalls. |
 | `height.resolution_m` | number, m | > 0, and size_m / resolution_m is a whole number. Default 1 m. |
@@ -77,8 +78,15 @@ Unknown fields are ignored, except the georeference fields listed at the end, wh
 | `height.r16` | Raw unsigned 16-bit **little-endian** samples, row-major, no header. Height (m) = `offset_m + sample × scale_m`. | `samples_per_side`² samples, so the file is exactly `samples_per_side² × 2` bytes |
 | `surface.png` | PNG, 8-bit greyscale, non-interlaced. Each value is a surface `index` from `surfaces.json`. **0 is invalid.** | `cells_per_side`² pixels |
 | `cover.png` | PNG, 8-bit RGBA, non-interlaced. **R = grass stems, G = lodged straw, B = twigs, A = leaf litter.** Each channel is a 0–1 multiplier (value / 255) on that cover type's density in the cell's surface. | `cells_per_side`² pixels, the same grid as `surface.png` |
+| `holes.png` | PNG, 8-bit greyscale, non-interlaced, **optional** (format 1.1). **0 = ground, 255 = hole**; any other value is invalid. | `cells_per_side`² pixels, the same grid as `surface.png` |
 
 Stems, straws and twigs are never stored. They are generated from an integer hash of world cell, map seed and kind, so visuals and physics see the same ones.
+
+### Holes
+
+A hole cell has no ground at all: the renderer discards it (in its depth and shadow passes too) and the terrain collision drops the quads that overlap it. What the drone lands on there is the collision of the objects placed to fill it, so **every hole cell must be filled** by objects that meet the hole-filler rules F-1 to F-8 (`terrain-holes` spec): sealed below, the cavity at least 0.25 m inside the hole cells, a lip within ±0.03 m of `TerrainHeight`, nothing above `TerrainHeight` + 0.01 m outside the hole cells, 0.3 m of material behind every open face with 0.2 m overlaps at the joints, open faces within 0.05 m of the visual, soil surfaces on walls and floor, and no wind obstacle.
+
+Over a hole cell `SampleGround` keeps `TerrainHeight` (the lip level), sets the `Hole` flag and returns −∞ for `GroundHeight` and `SupportTop`, +Y for the normal and 0 for the mat, the cover and the feature. Rays do not hit the terrain there, no micro-detail grows there, and `game/maps/sample_patch` carries the test trench that pins all of it.
 
 ## `objects.json` — placed objects and wires
 
@@ -167,7 +175,8 @@ How the starting soil values were chosen: the reference notes (§7) give how far
 - **Pitfalls:** each 1 m world cell holds at most one candidate, at a hashed point. It exists with the `density_per_m2` of the surface under that point, and its radius and depth are drawn uniformly from the ranges. The floor is flat, and the wall is a smoothstep over the outer 25 % of the radius. A pitfall is never clipped at a cell or surface border, and where two overlap, the deeper one counts. Its id is its cell: (x + 32768) in the low 16 bits and (z + 32768) in the high 16 bits.
 - **Mat depth** is smooth noise between `mat.depth_m` min and max, with nodes half the surface's relief wavelength apart, times the cover channel. It follows the ground down into pitfalls.
 - **Micro-detail:** each 0.25 m world cell holds density × channel × 0.0625 m² elements of each kind. The fraction is dithered over 1 m blocks, so the count per m² matches the table. Length, diameter and hook release are uniform in their ranges, and an element hooks with `hook_probability`. Grass stands rooted on the ground, leaning up to 20° from vertical. Straw, twigs and litter lie straight from the mat top (SupportTop) at their root to the mat top at their tip, which is the drawn length away along their heading. So an element's `Length` is that chord: the drawn length on level ground, a little more on a slope. Over a dip or a pitfall it bridges, and across a hump it cuts in. Each element has a stable 64-bit id: 19 bits of the seed hash, then cell z and cell x (each + 65536, 17 bits), kind (2 bits) and slot (9 bits).
-- **Outside the map**, terrain and surfaces continue from the edge cell, and samples carry the `OutsideMap` flag.
+- **Outside the map**, terrain and surfaces continue from the edge cell, and samples carry the `OutsideMap` flag. A point outside the map is never in a hole, even when its edge cell is one.
+- **In a hole cell** there is no ground: see Holes above. The wind grid ignores a shape whose top is at or below the terrain, so a hole's fillers are no obstacle.
 
 There is no soil porosity field (the notes §7 give 0.40–0.60 void fractions). The contact model never used it: "loose" and "porous" ground is carried by the bearing modulus, the unload ratio and the maximum sink, and rubble voids are pitfalls.
 
@@ -240,6 +249,8 @@ There is no restitution field. On rigid materials the drone's leg and frame comp
 
 Collision and wind-volume shapes. Cylinders and capsules stand along asset +Y. `position_m` (default [0, 0, 0]) and `rotation_deg` (default [0, 0, 0], same order as objects) place each shape.
 
+A shape's `material` may instead be `surface:<id>`, naming a surface of `surfaces.json`: cut soil, as the walls and floor of a hole's filler are. Its contacts and ray hits then carry `Surface` = that surface's index and `Material` = `Catalog.NoMaterial`, and `Geometry` gives the same `Surface`. Every other shape reports `Surface` = 0. So `Surface ≠ 0` means soil (terrain or shape) and a negative object index means terrain.
+
 | `shape` | Size fields (m) |
 |---|---|
 | `box` | `size_m`: [x, y, z] |
@@ -263,7 +274,7 @@ Each gap is a rectangular opening in asset space: `name`, `center_m` [x, y, z], 
   - Where volumes overlap, porosities multiply, and the highest top and the lowest base win. Wires are not wind obstacles.
 - **Contacts.** There is at most one contact per (object, shape), and it carries that shape's material. A query sweeps the capsule from its previous pose. `Time` below 1 means the sweep went into or through the shape during the step and the capsule is now past it, so the contact is reported where the capsule first touched it. `Time` below 1 with a positive `Distance` is a graze, not a pass-through: the sweep came within a hair of the shape and left it again (conservative advancement gives up after 64 steps and counts that as a touch), so the `Distance` is clearance at the first touch and there is nothing to push against.
 - **Geometry.** `Geometry(object, shape, wireParam)` looks up a contact's shape: its kind, material, centre, axes, half extents, radius and height. For a wire it gives the span that holds the contact's wire parameter: its two attachment points, straight length, sag and diameter, and where on it the contact is, as the t of the sag curve. Physics takes a wire's compliance (T = w·L²/(8·sag)) and the fiber's bend radius over round shapes from it. The lookup is read-only and allocates nothing, and it returns false for terrain, visual-only objects and indices out of range.
-- **Rays** hit the rendered terrain triangles only from above, and they ignore a shape they start inside. A terrain hit, like a miss, carries the material `Catalog.NoMaterial` (65535), for which `Material()` returns null. The ground's contact properties are its surface's: `Surface(hit.Surface)`.
+- **Rays** hit the rendered terrain triangles only from above, never over a hole cell, and they ignore a shape they start inside. A terrain hit, like a miss, carries the material `Catalog.NoMaterial` (65535), for which `Material()` returns null. The ground's contact properties are its surface's: `Surface(hit.Surface)`. A soil shape's hit carries `NoMaterial` too, with its surface in `Surface`.
 
 ### `launch_rails`
 
@@ -294,23 +305,31 @@ The `steel` edge radius (1 mm) is sharper than a real cold-formed tube corner (a
 
 `WorldQuery.ContentHash` identifies the exact world data a flight ran on. The physics log records it, and a replay refuses a world whose hash differs. `WorldQuery.ContentHashOf` computes it from the files alone. It is FNV-1a 64 (offset basis `0xCBF29CE484222325`, prime `0x100000001B3`) over this stream:
 
-1. The files, in this order: the package's `map.json`, `height.r16`, `surface.png`, `cover.png` and `objects.json`, then `game/maps/surfaces.json` and `game/assets/catalog.json`. Only these seven count. The folder names, the `.import` sidecars, any other file and the order in which the file system lists them do not.
-2. Each file adds its bytes, then their count as an unsigned 64-bit little-endian integer.
-3. In the four JSON files each CR LF pair counts as a single LF, and the count is taken after that, so a CRLF checkout hashes like an LF one. Every other change to the text (spacing, a byte-order mark, key order) changes the hash. The binary files count byte for byte.
+1. **The package's own files**, in this order: `map.json`, `height.r16`, `surface.png`, `cover.png`, `holes.png` (only when it exists) and `objects.json`. Each adds its bytes, then their count as an unsigned 64-bit little-endian integer. In the two JSON files each CR LF pair counts as a single LF, and the count is taken after that, so a CRLF checkout hashes like an LF one. Every other change to their text (spacing, a byte-order mark, key order) changes the hash. The binary layers count byte for byte.
+2. **Then the parts of the two shared tables that this map uses**, each item as its UTF-8 bytes followed by their count, in this order:
+   - `surfaces.json`'s `soil_reference_diameter_m`, as written;
+   - every surface the map uses, by rising `index`: the surfaces `surface.png` paints and those named by a placed asset's `surface:<id>` material;
+   - every asset `objects.json` names, by rising id (UTF-16 code units): the id, then the entry;
+   - every material those assets use, by rising material id: `"<id> <name>"`, then the entry.
 
-A one-byte change always changes the hash, unless it makes or breaks a CR LF pair. Those changes, like any larger change, leave it the same with a chance of 2⁻⁶⁴. It prints as 16 lowercase hex digits. The rule in Python, for checking by hand:
+   A table entry is hashed as **canonical JSON**: keys sorted by their UTF-16 code units, no whitespace, and every number, string, boolean and null exactly as the file writes it (no value is reformatted). So re-indenting or re-ordering the tables never changes a hash, while any value a map reads does.
+
+Only those files count. The folder names, the `.import` sidecars, any other file and the order in which the file system lists them do not. **Adding or changing a catalog asset a map does not place, or a surface it does not use, leaves that map's hash and its golden results alone** (asset-pipeline, "New assets don't disturb existing maps"). A material id is the material's position in the catalog's `materials` object, so it is hashed next to the entry: inserting a material before one a map uses changes the hash, because it changes the ids physics records.
+
+A one-byte change to a package file always changes the hash, unless it makes or breaks a CR LF pair. Those changes, like any larger change, leave it the same with a chance of 2⁻⁶⁴. It prints as 16 lowercase hex digits. The package part of the stream, in Python, for checking by hand:
 
 ```python
 import struct
 h = 0xCBF29CE484222325
-for path in files:  # the seven files, in the order above
+for path in files:  # map.json, height.r16, surface.png, cover.png, holes.png (if any), objects.json
     data = open(path, "rb").read()
     if path.endswith(".json"):
         data = data.replace(b"\r\n", b"\n")
     for byte in data + struct.pack("<Q", len(data)):
         h = ((h ^ byte) * 0x100000001B3) % 2**64
-print(f"{h:016x}")
 ```
+
+`game/src/world/ContentHash.cs` is the reference implementation, and it continues that hash over the tables.
 
 The hash covers the data, not the code. `WorldQuery.QueryVersion`, an integer, identifies the query math: it is raised with every code change that alters any query result for the same data, and the golden file (`game/src/world/worldquery_golden.json`) records it. The physics log records it next to the content hash, and a replay refuses a log whose version differs, because the same world would give other results.
 

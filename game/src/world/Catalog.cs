@@ -13,7 +13,8 @@ public sealed class ShapeDef
     public double Radius, Height;      // sphere, capsule, cylinder, m; a capsule's height includes its caps
     public Double3 Position;           // m
     public double Yaw, Pitch, Roll;    // degrees, the object order
-    public ushort Material;            // the shape's own material, else the asset's
+    public ushort Material;            // the shape's own material, else the asset's; NoMaterial for a soil shape
+    public byte Surface;               // soil shape ("surface:<id>"): that surface's index; 0 for every other shape
 }
 
 /// A named fly-through opening in asset space. It faces asset ±Z turned by `Yaw` (degrees).
@@ -29,7 +30,8 @@ public sealed class AssetDef
     public string Id;
     public string Scene;          // res:// path of the visual; for a wire, the unit segment the loader stretches
     public bool IsWire;
-    public ushort Material;       // Catalog.NoMaterial for visual-only assets
+    public ushort Material;       // Catalog.NoMaterial for visual-only assets and for soil ("surface:<id>") assets
+    public byte Surface;          // a soil asset's surface index; 0 otherwise
     public double WireSegment;    // wires: capsule_chain segment length along the sagged curve, m
     public ShapeDef[] Collision;  // empty for visual-only assets and wires
     public ShapeDef[] WindVolume; // the wind_volume shapes, else the collision shapes
@@ -50,14 +52,21 @@ public sealed class MaterialParams
 /// positions in the catalog's `materials` object.
 public sealed class Catalog
 {
-    /// No catalog material: visual-only assets, and terrain ray hits and misses. WorldQuery.Material gives null for it.
+    /// No catalog material: visual-only assets, soil shapes, and terrain ray hits and misses. WorldQuery.Material gives
+    /// null for it.
     public const ushort NoMaterial = ushort.MaxValue;
+
+    /// A material that names a surface of surfaces.json instead of a catalog material: cut soil, the walls and floor of
+    /// a hole's fillers. Its contacts and ray hits carry Surface = that surface's index and Material = NoMaterial.
+    public const string SurfacePrefix = "surface:";
 
     public readonly string[] MaterialIds;
     public readonly MaterialParams[] Materials; // by material id, as MaterialIds
     public readonly Dictionary<string, AssetDef> Assets = new();
+    readonly SurfaceParams[] _surfaces;         // the surface table, for "surface:<id>" materials; null if none was given
 
-    Catalog(string[] materialIds, MaterialParams[] materials) => (MaterialIds, Materials) = (materialIds, materials);
+    Catalog(string[] materialIds, MaterialParams[] materials, SurfaceParams[] surfaces) =>
+        (MaterialIds, Materials, _surfaces) = (materialIds, materials, surfaces);
 
     public ushort MaterialId(string id)
     {
@@ -65,7 +74,19 @@ public sealed class Catalog
         return i >= 0 ? (ushort)i : throw new JsonException($"unknown material '{id}'");
     }
 
-    public static Catalog Parse(string json)
+    /// A material string as (catalog material id, surface index): "surface:<id>" gives (NoMaterial, that index).
+    (ushort Material, byte Surface) Resolve(string material)
+    {
+        if (!material.StartsWith(SurfacePrefix, StringComparison.Ordinal))
+            return (MaterialId(material), 0);
+        string id = material[SurfacePrefix.Length..];
+        SurfaceParams surface = Array.Find(_surfaces ?? Array.Empty<SurfaceParams>(), s => s.Id == id)
+            ?? throw new JsonException($"material '{material}' names no surface of surfaces.json");
+        return (NoMaterial, surface.Index);
+    }
+
+    /// `surfaces` is surfaces.json's table, needed only by assets with a "surface:<id>" material.
+    public static Catalog Parse(string json, SurfaceParams[] surfaces = null)
     {
         using JsonDocument document = JsonDocument.Parse(json);
         JsonElement root = document.RootElement;
@@ -83,16 +104,19 @@ public sealed class Catalog
                 EdgeRadius = Optional(m.Value, "edge_radius_m", 0.002),
             });
         }
-        var catalog = new Catalog(ids.ToArray(), materials.ToArray());
+        var catalog = new Catalog(ids.ToArray(), materials.ToArray(), surfaces);
         foreach (JsonProperty a in root.GetProperty("assets").EnumerateObject())
         {
             JsonElement e = a.Value;
+            (ushort material, byte surface) = e.TryGetProperty("material", out JsonElement m)
+                ? catalog.Resolve(m.GetString()) : (NoMaterial, (byte)0);
             var asset = new AssetDef
             {
                 Id = a.Name,
                 Scene = e.GetProperty("scene").GetString(),
                 IsWire = e.GetProperty("type").GetString() == "wire",
-                Material = e.TryGetProperty("material", out JsonElement material) ? catalog.MaterialId(material.GetString()) : NoMaterial,
+                Material = material,
+                Surface = surface,
                 WindPorosity = e.GetProperty("wind_porosity").GetDouble(),
                 Collision = Array.Empty<ShapeDef>(),
             };
@@ -100,8 +124,9 @@ public sealed class Catalog
             if (asset.IsWire)
                 asset.WireSegment = e.GetProperty("collision")[0].GetProperty("segment_m").GetDouble();
             else if (!visualOnly)
-                asset.Collision = catalog.Shapes(e.GetProperty("collision"), asset.Material);
-            asset.WindVolume = e.TryGetProperty("wind_volume", out JsonElement wind) ? catalog.Shapes(wind, asset.Material) : asset.Collision;
+                asset.Collision = catalog.Shapes(e.GetProperty("collision"), asset.Material, asset.Surface);
+            asset.WindVolume = e.TryGetProperty("wind_volume", out JsonElement wind)
+                ? catalog.Shapes(wind, asset.Material, asset.Surface) : asset.Collision;
             var gaps = new List<GapDef>();
             foreach (JsonElement g in e.GetProperty("gaps").EnumerateArray())
             {
@@ -120,12 +145,14 @@ public sealed class Catalog
         return catalog;
     }
 
-    ShapeDef[] Shapes(JsonElement list, ushort assetMaterial)
+    ShapeDef[] Shapes(JsonElement list, ushort assetMaterial, byte assetSurface)
     {
         var shapes = new ShapeDef[list.GetArrayLength()];
         int n = 0;
         foreach (JsonElement s in list.EnumerateArray())
         {
+            (ushort material, byte surface) = s.TryGetProperty("material", out JsonElement m)
+                ? Resolve(m.GetString()) : (assetMaterial, assetSurface);
             var shape = new ShapeDef
             {
                 Kind = s.GetProperty("shape").GetString() switch
@@ -137,7 +164,8 @@ public sealed class Catalog
                     string other => throw new JsonException($"unknown shape '{other}'"),
                 },
                 Position = s.TryGetProperty("position_m", out _) ? Vec3(s, "position_m") : default,
-                Material = s.TryGetProperty("material", out JsonElement m) ? MaterialId(m.GetString()) : assetMaterial,
+                Material = material,
+                Surface = surface,
             };
             if (shape.Kind == ShapeKind.Box)
                 shape.Size = Vec3(s, "size_m");

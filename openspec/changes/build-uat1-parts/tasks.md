@@ -16,18 +16,18 @@
 
 - [x] 2.1 [world-artist] Add the `burnt_field` surface (values from the notes and soil mechanics). Verify with the validator
 - [x] 2.2 [physics-engineer] Sign off `burnt_field` and the terrain-holes design (material resolution of trench walls, hole handling in contacts and rays). Verify by review notes in the change
-- [ ] 2.3 [world-artist] Add terrain holes per the updated `terrain-holes` spec and `terrain-review.md`:
-  - `holes.png`: 0/255 on the surface grid, format 1.1, included in the content hash, with validator checks
-  - renderer discard, including the depth and shadow passes
-  - Jolt: NaN plus a clipped patch
-  - the `SampleGround` hole values
-  - rays ignore holed terrain
-  - `surface:<id>` materials with the `Surface` field on contacts, rays and Geometry
-  - micro-detail and the renderer skip holes; the wind guard
-  - a test trench (straight and 30°, placeholder boxes meeting F-1–F-8), appended to `sample_patch`
-  - the content hash covers only referenced catalog entries, their materials and the used surfaces (asset-pipeline, "New assets don't disturb existing maps")
-  - QueryVersion 3 and the golden re-record
-  - B-1: remove `burnt_field`'s `"status"` line
+- [x] 2.3 [world-artist] Add terrain holes per the updated `terrain-holes` spec and `terrain-review.md`:
+  - [x] `holes.png`: 0/255 on the surface grid, format 1.1, included in the content hash, with validator checks
+  - [x] renderer discard, including the depth and shadow passes
+  - [x] Jolt: NaN plus a clipped patch
+  - [x] the `SampleGround` hole values
+  - [x] rays ignore holed terrain
+  - [x] `surface:<id>` materials with the `Surface` field on contacts, rays and Geometry
+  - [x] micro-detail and the renderer skip holes; the wind guard
+  - [x] a test trench (straight and 30°, placeholder boxes meeting F-1–F-8), appended to `sample_patch`
+  - [x] the content hash covers only referenced catalog entries, their materials and the used surfaces (asset-pipeline, "New assets don't disturb existing maps")
+  - [x] QueryVersion 3 and the golden re-record
+  - [x] B-1: remove `burnt_field`'s `"status"` line
 
   Verify every terrain-holes scenario, and `--golden` in Debug and Release
 - [x] 2.4 [world-artist] Real surface textures for all 10 surfaces, with tilled furrows along the ridge azimuth, filtered with distance. Verify with screenshots looked at, and that meadow and weeds are visibly distinct

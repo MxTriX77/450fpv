@@ -86,8 +86,9 @@ public sealed partial class WorldQuery
         | (ulong)(uint)kind << 9 | (uint)slot;
 
     /// World-query W-5: every element of the kinds in `kinds` whose segment, thickened by its radius, meets the sphere
-    /// (`center`, `radius`), even when its base lies outside it. Results go into `results` in the canonical order
-    /// (cell z, cell x, kind, slot). Returns the true count, which exceeds `results.Length` when the buffer overflowed.
+    /// (`center`, `radius`), even when its base lies outside it. Nothing is rooted in a hole cell, and no lying element
+    /// whose tip lies in one is returned. Results go into `results` in the canonical order (cell z, cell x, kind, slot).
+    /// Returns the true count, which exceeds `results.Length` when the buffer overflowed.
     public int MicroDetailNear(Double3 center, double radius, KindMask kinds, Span<MicroElement> results)
     {
         double cxw = Limit(center.X, Half + Margin), czw = Limit(center.Z, Half + Margin);
@@ -110,7 +111,12 @@ public sealed partial class WorldQuery
             {
                 double dx = Math.Max(Math.Max(cx * MicroCell - cxw, cxw - (cx + 1) * MicroCell), 0);
                 double cellDistance2 = dx * dx + dz * dz;
-                int own = OwnCell((cx + 0.5) * MicroCell, (cz + 0.5) * MicroCell);
+                double ownX = (cx + 0.5) * MicroCell, ownZ = (cz + 0.5) * MicroCell;
+                int own = OwnCell(ownX, ownZ);
+                // Nothing is rooted in a hole cell. A 0.25 m micro cell lies inside one 0.5 m surface cell, so its own
+                // cell decides for every base it could draw.
+                if (_holes != null && Math.Abs(ownX) <= Half && Math.Abs(ownZ) <= Half && HoleAt(own))
+                    continue;
                 byte surface = _surface[own];
                 for (int k = 0; k < 4; k++)
                 {
@@ -167,6 +173,7 @@ public sealed partial class WorldQuery
     struct Drawn
     {
         public Words Slot, Shape, Tail, Met; // Shape and Tail: the second mix, lean and hook release, then azimuth and hooks
+        public Words Keep;                   // 0 for a lying element whose tip lies in a hole cell, else 1
         public Lanes X, Y, Z, Length, Diameter, SinLean, Dx, Dy, Dz;
     }
 
@@ -200,6 +207,7 @@ public sealed partial class WorldQuery
             batch.Slot[m] = (uint)slot;
             batch.Shape[m] = shape;
             batch.Tail[m] = (uint)(second64 >> 32);
+            batch.Keep[m] = 1;
             batch.X[m] = bx;
             batch.Z[m] = bz;
             batch.Length[m] = length;
@@ -235,8 +243,11 @@ public sealed partial class WorldQuery
             }
             else
             {
-                batch.Y[i] = Lying(bx, bz, cosAz, sinAz, batch.Length[i], out batch.Dx[i], out batch.Dy[i], out batch.Dz[i], out double chord);
+                double drawn = batch.Length[i];
+                batch.Y[i] = Lying(bx, bz, cosAz, sinAz, drawn, out batch.Dx[i], out batch.Dy[i], out batch.Dz[i], out double chord);
                 batch.Length[i] = chord;
+                if (_holes != null && IsHole(bx + drawn * cosAz, bz + drawn * sinAz))
+                    batch.Keep[i] = 0; // a lying element whose tip lies in a hole is not returned
             }
         }
         // Segment meets sphere: the closest point of the axis to the centre is within radius + element radius. The
@@ -250,7 +261,7 @@ public sealed partial class WorldQuery
                 double t = Math.Max(Math.Min(rx * dx + ry * dy + rz * dz, batch.Length[i]), 0);
                 double qx = rx - t * dx, qy = ry - t * dy, qz = rz - t * dz, touch = radius + batch.Diameter[i] / 2.0;
                 batch.Met[met] = (uint)i;
-                met += qx * qx + qy * qy + qz * qz <= touch * touch ? 1 : 0;
+                met += (qx * qx + qy * qy + qz * qz <= touch * touch ? 1 : 0) & (int)batch.Keep[i];
             }
         }
         else
@@ -272,7 +283,7 @@ public sealed partial class WorldQuery
                 for (int lane = 0, lanes = Math.Min(4, m - i); lane < lanes; lane++)
                 {
                     batch.Met[met] = (uint)(i + lane);
-                    met += (int)(meets >> lane & 1);
+                    met += (int)(meets >> lane & 1) & (int)batch.Keep[i + lane];
                 }
             }
         }

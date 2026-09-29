@@ -121,6 +121,37 @@
       "snag_hazard": true,
       "wind_porosity": 0.35,
       "gaps": []
+    },
+    "test_trench": {
+      "type": "object",
+      "scene": "res://assets/models/placeholders/test_trench.tscn",
+      "material": "surface:belt_bare",
+      "collision": [
+        { "shape": "box", "size_m": [8.0, 1.705, 1.1], "position_m": [2.0, -0.8475, 0.95] },
+        { "shape": "box", "size_m": [8.0, 1.705, 1.1], "position_m": [2.0, -0.8475, -0.95] },
+        { "shape": "box", "size_m": [10.0, 0.4, 3.0], "position_m": [3.0, -1.7, 0.0] }
+      ],
+      "snag_hazard": false,
+      "wind_porosity": 1.0,
+      "gaps": []
+    },
+    "test_trench_corner": {
+      "type": "object",
+      "scene": "res://assets/models/placeholders/test_trench_corner.tscn",
+      "material": "surface:belt_bare",
+      "collision": [ { "shape": "box", "size_m": [1.5, 1.705, 1.2], "position_m": [1.164, -0.8475, 0.0] } ],
+      "snag_hazard": false,
+      "wind_porosity": 1.0,
+      "gaps": []
+    },
+    "test_trench_cap": {
+      "type": "object",
+      "scene": "res://assets/models/placeholders/test_trench_cap.tscn",
+      "material": "surface:belt_bare",
+      "collision": [ { "shape": "box", "size_m": [2.0, 1.705, 3.0], "position_m": [-1.0, -0.8475, 0.0] } ],
+      "snag_hazard": false,
+      "wind_porosity": 1.0,
+      "gaps": []
     }
   }
 }
