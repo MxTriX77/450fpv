@@ -36,7 +36,8 @@ public sealed partial class WorldQuery
     /// β_cell = 1 − f·(1 − β_obj^(2 m / D)), with f the covered fraction of the cell and D the shape's mean horizontal
     /// extent, the footprint's mean width over all directions (perimeter / π, Cauchy): a round crown's diameter. Top and
     /// base are the shape's highest and lowest points above the terrain at each cell centre, never below 0. Overlaps
-    /// multiply porosity and take the highest top and the lowest base. A shape with β_obj = 1 blocks nothing.
+    /// multiply porosity and take the highest top and the lowest base. A shape with β_obj = 1 blocks nothing, and neither
+/// does a shape whose top is at or below the terrain in a cell.
     void AddWind(in Prim s, double porosity)
     {
         if (!(porosity < 1))
@@ -76,6 +77,10 @@ public sealed partial class WorldQuery
                 if (!(f > 0))
                     continue;
                 Sample(cx + WindCellSize / 2, cz + WindCellSize / 2, out GroundSample g, false);
+                // A buried shape is no obstacle: a hole's fillers would otherwise give the cell an obstacle of height 0
+                // with porosity below 1, which the wake model divides by.
+                if (!(top > g.TerrainHeight))
+                    continue;
                 ref WindCell c = ref _wind[row * WindCells + column];
                 if (!_loading)
                     Append(ref _windUndo, ref _windUndoCount, (row * WindCells + column, c));

@@ -69,7 +69,8 @@ public struct Gap
 public struct ShapeGeometry
 {
     public ShapeKind Kind;
-    public ushort Material;     // catalog material id: the shape's own, else the asset's
+    public ushort Material;     // catalog material id: the shape's own, else the asset's; NoMaterial for a soil shape
+    public byte Surface;        // soil shape: that surface's index (Material is then NoMaterial); 0 otherwise
     public Double3 Center;      // not set for a wire
     public Axes Axes;           // the shape's rotation; capsules and cylinders run along Axes.Y. Not set for a wire
     public Double3 HalfExtents; // along Axes.X, Y, Z: a box's half size, (r, r, r), capsule (r, h/2, r), cylinder (r, h/2, r)
@@ -104,6 +105,7 @@ public sealed partial class WorldQuery
     {
         public ShapeKind Kind;
         public ushort Shape, Material;
+        public byte Surface;     // soil shape: its surface index; 0 otherwise
         public int Object;
         public Double3 C;        // centre
         public Axes R;           // capsules and cylinders run along R.Y
@@ -248,6 +250,7 @@ public sealed partial class WorldQuery
             Kind = d.Kind,
             Shape = (ushort)shape,
             Material = d.Material,
+            Surface = d.Surface,
             Object = obj,
             C = origin + r.ToWorld(d.Position) * scale,
             R = r.Compose(Axes.FromEuler(d.Yaw, d.Pitch, d.Roll)),
@@ -443,7 +446,7 @@ public sealed partial class WorldQuery
             return false;
         ref readonly Prim s = ref _prims[_objectPrim[obj] + shape];
         double r = s.Radius;
-        (geometry.Kind, geometry.Material, geometry.Radius) = (s.Kind, s.Material, r);
+        (geometry.Kind, geometry.Material, geometry.Surface, geometry.Radius) = (s.Kind, s.Material, s.Surface, r);
         if (s.Kind != ShapeKind.Wire)
         {
             (geometry.Center, geometry.Axes) = (s.C, s.R);

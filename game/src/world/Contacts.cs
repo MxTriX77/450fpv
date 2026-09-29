@@ -23,7 +23,8 @@ public struct StaticContact
     public double Distance; // signed, surface to surface, m: negative = penetration, positive = within the margin
     public int Object;      // index in objects.json, or a runtime object's index after them
     public ushort Shape;    // collision shape index in the catalog entry; 0 for a wire
-    public ushort Material; // catalog material id: the shape's own, else the asset's
+    public ushort Material; // catalog material id: the shape's own, else the asset's; NoMaterial for a soil shape
+    public byte Surface;    // soil shape ("surface:<id>", cut soil in a hole): that surface's index; 0 otherwise
     public float WireParam; // along a wire's polyline by length, 0–1; −1 for other shapes
     public float Time;      // 1 = at the current pose; below 1 = the sweep went into or through the shape (StaticContacts)
 }
@@ -46,8 +47,9 @@ public struct RayHit
     public Double3 Point;
     public Vector3 Normal;  // unit, out of the surface hit
     public int Object;      // −1 for terrain and for a miss
-    public ushort Material; // catalog material id; Catalog.NoMaterial for terrain and for a miss (see WorldQuery.Material)
-    public byte Surface;    // terrain hits: the surface under the point; 0 otherwise
+    public ushort Material; // catalog material id; Catalog.NoMaterial for terrain, a soil shape and a miss
+    public byte Surface;    // terrain: the surface under the point; a soil shape: its surface; 0 otherwise. So Surface ≠ 0
+                            // means soil (terrain or shape) and Object < 0 means terrain.
 }
 
 /// Contacts and rays against the placed objects and wires (world-query W-7, W-8, D-010): pure C#, reentrant, no
@@ -153,6 +155,7 @@ public sealed partial class WorldQuery
             Object = s.Object,
             Shape = s.Shape,
             Material = s.Material,
+            Surface = s.Surface,
             WireParam = (float)use.WireParam,
             Time = time,
         };
@@ -175,8 +178,9 @@ public sealed partial class WorldQuery
     }
 
     /// World-query W-8: the first surface each ray enters within `maxDistance` (m, finite): catalog shapes, wires and
-    /// runtime objects, and the rendered terrain triangles (which it enters only from above). A ray that starts inside a
-    /// shape does not hit that shape. Micro-relief and pitfalls are not in the triangles; SampleGround gives them.
+    /// runtime objects, and the rendered terrain triangles (which it enters only from above, and never over a hole cell).
+    /// A ray that starts inside a shape does not hit that shape. Micro-relief and pitfalls are not in the triangles;
+    /// SampleGround gives them.
     public void Raycast(ReadOnlySpan<Ray> rays, double maxDistance, Span<RayHit> hits)
     {
         for (int i = 0; i < rays.Length; i++)
@@ -206,13 +210,13 @@ public sealed partial class WorldQuery
                     Double3 n = default;
                     RayPrim(s, o, d, reach, ref t, ref n);
                     if (t <= best && (!found || t < best)) // a tie keeps the first hit found
-                        (found, best, normal, hit.Object, hit.Material) = (true, t, n, s.Object, s.Material);
+                        (found, best, normal, hit.Object, hit.Material, hit.Surface) = (true, t, n, s.Object, s.Material, s.Surface);
                 }
             }
         }
         if (RayTerrain(o, d, Math.Min(best, TerrainRayLimit), out double terrain, out Double3 terrainNormal) && (!found || terrain < best))
         {
-            (found, best, normal, hit.Object, hit.Material) = (true, terrain, terrainNormal, -1, Catalog.NoMaterial);
+            (found, best, normal, hit.Object, hit.Material, hit.Surface) = (true, terrain, terrainNormal, -1, Catalog.NoMaterial, 0);
         }
         if (found)
         {
@@ -286,6 +290,9 @@ public sealed partial class WorldQuery
             if (!(ga >= 0 && gb <= 0))
                 return false;
             hit = ga > gb ? ta + (tb - ta) * (ga / (ga - gb)) : ta;
+            // There is no terrain over a hole cell: the ray goes on, under the triangles, to the hole's fillers.
+            if (_holes != null && IsHole((fx + hit * dx) * HeightResolution - Half, (fz + hit * dz) * HeightResolution - Half))
+                return false;
             double gx = (lower ? h10 - h00 : h11 - h01) * _perHeightStep, gz = (lower ? h01 - h00 : h11 - h10) * _perHeightStep;
             n = Unit(new Double3(-gx, 1, -gz));
             return true;

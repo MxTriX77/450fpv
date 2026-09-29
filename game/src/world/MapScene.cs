@@ -13,7 +13,8 @@ using Godot;
 /// stems all come from it.
 ///
 /// Every collider carries metadata: `object` (its index in objects.json; −1 for the terrain), and on each
-/// CollisionShape3D `shape`, `material` (the catalog material id) and `material_id` (its number, for World.Material).
+/// CollisionShape3D `shape`, `material` (the catalog material id, or `surface:<id>` for cut soil), `material_id` (its
+/// number, for World.Material) and `surface` (a soil shape's surface index, else 0, for World.Surface).
 public partial class MapScene : Node3D
 {
     const string MapsDir = "res://maps", SurfacesPath = "res://maps/surfaces.json", CatalogPath = "res://assets/catalog.json";
@@ -114,7 +115,7 @@ public partial class MapScene : Node3D
         {
             JsonElement height = manifest.RootElement.GetProperty("height");
             terrain.Build(File.ReadAllBytes(Path.Combine(dir, "height.r16")), World.Samples, (float)World.HeightResolution,
-                height.GetProperty("offset_m").GetSingle(), height.GetProperty("scale_m").GetSingle());
+                height.GetProperty("offset_m").GetSingle(), height.GetProperty("scale_m").GetSingle(), World);
         }
         terrain.GetNode("Collision").SetMeta("object", -1);
         Look = SurfaceLook.Load(World, surfacesPath, ProjectSettings.GlobalizePath(SurfaceLook.LookPath));
@@ -171,7 +172,7 @@ public partial class MapScene : Node3D
                     _ => new CylinderShape3D { Radius = (float)g.Radius, Height = (float)g.Height },
                 };
                 body.AddChild(Tagged(new CollisionShape3D { Shape = primitive, Transform = new Transform3D(ToBasis(g.Axes, 1), ToGodot(g.Center)) },
-                    shape, g.Material));
+                    shape, g.Material, g.Surface));
             }
         }
     }
@@ -190,7 +191,7 @@ public partial class MapScene : Node3D
         objects.AddChild(body);
         float diameter = (float)g.Diameter;
         for (int k = 0; k + 1 < points.Length; k++)
-        {
+        { // a wire never carries a soil material
             Vector3 a = ToGodot(points[k]), b = ToGodot(points[k + 1]), along = b - a;
             float length = along.Length();
             Vector3 z = along / length, x = Vector3.Up.Cross(z);
@@ -201,15 +202,18 @@ public partial class MapScene : Node3D
             visual.AddChild(piece);
             var capsule = new CapsuleShape3D { Radius = diameter / 2, Height = length + diameter };
             body.AddChild(Tagged(new CollisionShape3D { Shape = capsule, Transform = new Transform3D(new Basis(x, z, -y), (a + b) / 2) },
-                0, g.Material));
+                0, g.Material, 0));
         }
     }
 
-    CollisionShape3D Tagged(CollisionShape3D node, int shape, ushort material)
+    /// A soil shape (`surface:<id>`) carries that name, Catalog.NoMaterial and the surface index, as its contacts and
+    /// ray hits do; every other shape carries its catalog material and surface 0.
+    CollisionShape3D Tagged(CollisionShape3D node, int shape, ushort material, byte surface)
     {
         node.SetMeta("shape", shape);
-        node.SetMeta("material", World.Catalog.MaterialIds[material]);
+        node.SetMeta("material", surface != 0 ? Catalog.SurfacePrefix + World.Surface(surface).Id : World.Catalog.MaterialIds[material]);
         node.SetMeta("material_id", material);
+        node.SetMeta("surface", surface);
         return node;
     }
 

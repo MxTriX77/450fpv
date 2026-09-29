@@ -13,6 +13,14 @@ uniform int samples;          // samples per side
 uniform float skirt_bottom;   // world Y the skirt vertices drop to
 uniform vec3 albedo : source_color = vec3(0.44, 0.42, 0.28);
 
+// Holes (map format 1.1, holes.png): the ground is not there, so the fragment is discarded. The discard is in the one
+// fragment function Godot compiles for every pass, so the depth prepass and the shadow maps drop it too, and what fills
+// the hole is seen and lit through it.
+uniform bool use_holes = false;
+uniform sampler2D holes : filter_nearest, repeat_disable; // R8: 255 = hole, one texel per surface cell
+uniform float hole_resolution = 0.5;
+uniform int hole_cells = 1;
+
 // Surface materials (HeightmapTerrain.SetSurfaces, SurfaceLook). Rendering only: nothing here feeds the world query.
 // - A pixel blends the surfaces of the 4 nearest cell centres, looked up at a position that wanders up to
 //   BORDER_JITTER cells, so borders are not the 0.5 m grid. Equal surfaces are merged, then the weights are sharpened
@@ -125,6 +133,12 @@ void vertex() {
 }
 
 void fragment() {
+	if (use_holes) {
+		ivec2 hole_cell = clamp(ivec2(floor((world_pos.xz + half_size) / hole_resolution)), ivec2(0), ivec2(hole_cells - 1));
+		if (texelFetch(holes, hole_cell, 0).r > 0.5) {
+			discard;
+		}
+	}
 	float e = resolution;
 	float dx = height_linear(world_pos.xz + vec2(e, 0.0)) - height_linear(world_pos.xz - vec2(e, 0.0));
 	float dz = height_linear(world_pos.xz + vec2(0.0, e)) - height_linear(world_pos.xz - vec2(0.0, e));
