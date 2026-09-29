@@ -188,6 +188,16 @@ public static partial class WorldQuerySelfTest
             prefix = WorldQuery.HashFile(prefix, f, text[k]);
         }
 
+        // A package without the optional layer hashes as it did before the layer existed: it is skipped, not hashed empty.
+        File.Delete(Path.Combine(package, WorldQuery.HolesLayer));
+        ulong withoutLayer = WorldQuery.ContentHashOf(package, copiedSurfaces, copiedCatalog);
+        ulong asBefore = WorldQuery.HashTables(
+            layers.Where(n => n != WorldQuery.HolesLayer)
+                .Aggregate(WorldQuery.FnvOffset, (h, n) => WorldQuery.HashFile(h, File.ReadAllBytes(Path.Combine(dir, n)), IsJson(n))),
+            surfacesJson, catalogJson, objectsJson, surfaceLayer);
+        bool optional = withoutLayer == asBefore && withoutLayer != elsewhere;
+        File.Copy(Path.Combine(dir, WorldQuery.HolesLayer), Path.Combine(package, WorldQuery.HolesLayer));
+
         // What the tables contribute: a used surface, a placed asset and a material it uses count; anything else does not.
         string scoped = "";
         int wrongScope = 0;
@@ -223,10 +233,12 @@ public static partial class WorldQuerySelfTest
         Directory.Delete(copy, true);
 
         return Check("any change is detected", hash != 0 && fromFiles == hash && reloaded == hash && folded == hash
-                && elsewhere == hash && unchanged == 0 && wrongScope == 0,
+                && elsewhere == hash && unchanged == 0 && wrongScope == 0 && optional,
             $"content hash {hash:x16}: from the files alone {fromFiles:x16}, a second load {reloaded:x16}; a copy in another "
             + $"folder with CRLF JSON and stray files {elsewhere:x16}; {tried} single-byte changes to the layers in memory "
-            + $"({perFile.TrimEnd(',', ' ')}): {unchanged} leave it unchanged; the tables' scope: {scoped}{wrongScope} wrong");
+            + $"({perFile.TrimEnd(',', ' ')}): {unchanged} leave it unchanged; without {WorldQuery.HolesLayer} the same "
+            + $"package hashes {withoutLayer:x16}, which is the stream without that layer: {optional}; the tables' scope: "
+            + $"{scoped}{wrongScope} wrong");
     }
 
     static bool IsJson(string path) => path.EndsWith(".json", StringComparison.OrdinalIgnoreCase);

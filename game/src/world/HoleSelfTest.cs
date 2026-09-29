@@ -226,14 +226,38 @@ public static partial class WorldQuerySelfTest
             bool ok = wide[i] ? Math.Abs(y - (TrenchLip - TrenchDepth)) <= 1e-3 : Math.Abs(y - (TrenchLip + LipRise)) <= 1e-3;
             wrongWidth += ok && double.IsFinite(widthHits[i].Distance) ? 0 : 1;
         }
+        // Horizontal rays across the cavity at three heights: each crosses the open 0.8 m and hits the far wall's face.
+        var across3 = new List<Ray>();
+        for (int section = 0; section < 2; section++)
+        {
+            foreach (double depth in new[] { -0.2, -0.75, -1.3 })
+            {
+                Double3 from = InTrench(section, TrenchLength / 2, -1.0, depth);
+                Double3 to = InTrench(section, TrenchLength / 2, 1.0, depth);
+                across3.Add(new Ray(from, to - from));
+            }
+        }
+        var wallHits = new RayHit[across3.Count];
+        world.Raycast(across3.ToArray(), 5, wallHits);
+        int wrongFace = 0;
+        double worstFace = 0;
+        for (int i = 0; i < wallHits.Length; i++)
+        {
+            // The ray starts inside the near wall, which it therefore ignores, and must reach the far face at 0.4 m.
+            double travel = wallHits[i].Distance;
+            worstFace = Math.Max(worstFace, Math.Abs(travel - (1.0 + TrenchHalf)));
+            wrongFace += Array.IndexOf(fillers, wallHits[i].Object) >= 0 && Math.Abs(travel - (1.0 + TrenchHalf)) <= 0.05 ? 0 : 1;
+        }
         double floor = hits[0].Point.Y;
-        return Check("rays into a trench", bad == 0 && terrainHits == 0 && wrongWidth == 0
+        return Check("rays into a trench", bad == 0 && terrainHits == 0 && wrongWidth == 0 && wrongFace == 0
                 && Math.Abs(floor - (TrenchLip - TrenchDepth)) <= 1e-3,
             $"{hits.Length} rays (18 down, 6 at 45°, 2 grazing): {bad} that did not hit a filler with surface "
             + $"{expected} ({TrenchSurface}) and material NoMaterial, {terrainHits} that hit the terrain; the first ray "
             + $"reaches the floor at y {floor:0.000} (lip {TrenchLip} − depth {TrenchDepth}); of {widthHits.Length} rays "
             + $"at ±0.35 and ±0.45 m across, 11 stations along each section, {wrongWidth} did not find the floor inside the "
-            + $"0.8 m cavity or the lip outside it");
+            + $"0.8 m cavity or the lip outside it; {across3.Count} horizontal rays across the cavity at 0.2, 0.75 and 1.3 m "
+            + $"down reach the far wall's face within {worstFace * 1000:0.0} mm of the drawn one (limit 50 mm), {wrongFace} "
+            + $"missing it");
     }
 
     /// A foot sphere on the floor, on each wall and in the inner corner: the contact carries the trench's surface, no
