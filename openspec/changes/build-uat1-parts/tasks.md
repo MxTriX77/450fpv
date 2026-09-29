@@ -5,7 +5,7 @@
 - [x] 1.1 [world-artist] Write `tools/blender/export.py` (headless builder → `.blend` → `.glb`, LODs, budget report, fails on excess) and the catalog-entry conventions. Verify the one-command and budget-report scenarios on one simple prop
 - [x] 1.2 [world-artist] Write `tools/assets/fetch_cc0.py` (Poly Haven and ambientCG by id, resolution and SHA-256) and `CREDITS.md`. Fetch the core texture set from notes §11 item 11, within the pilot's permission (2K, about 20–25 sets plus 1–2 HDRIs, Poly Haven and ambientCG only; see design). Verify the credits scenario
 
-- [ ] 1.3 [world-artist] Carry over the non-blocking points from `define-map-format`'s QA review:
+- [x] 1.3 [world-artist] Carry over the non-blocking points from `define-map-format`'s QA review:
   - F1: add a "< 1 ms on every surface" micro-detail line to `tools/worldbench` (belt_straw and yard_litter)
   - F3: fix the "(limit 1 mm)" label placement in `WorldQuerySelfTest.cs`
 
@@ -30,7 +30,7 @@
   - B-1: remove `burnt_field`'s `"status"` line
 
   Verify every terrain-holes scenario, and `--golden` in Debug and Release
-- [ ] 2.4 [world-artist] Real surface textures for all 10 surfaces, with tilled furrows along the ridge azimuth, filtered with distance. Verify with screenshots looked at, and that meadow and weeds are visibly distinct
+- [x] 2.4 [world-artist] Real surface textures for all 10 surfaces, with tilled furrows along the ridge azimuth, filtered with distance. Verify with screenshots looked at, and that meadow and weeds are visibly distinct
 - [x] 2.5 [world-artist] Add the micro-detail near-ring fade and a far density layer out to at least 60 m. Verify the no-hard-edge scenario with a screenshot, and that parity stays at 0 mm
 - [ ] 2.6 [world-artist] Switch LODs by distance: the loader sets Godot visibility ranges on each LOD from switch distances in the catalog entry, with Godot's automatic mesh LOD off for our assets so there's no double LOD. Far tree impostors use the same mechanism. Verify that only one LOD draws at a time (draw-call check) and that transitions don't pop at the chosen distances (screenshots)
 
