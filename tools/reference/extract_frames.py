@@ -5,8 +5,11 @@ Run headless with Blender 5.2+ from the repo root:
 
 Reads every clip and photo under reference/ (except reference/_frames/) and writes only
 to reference/_frames/, which git ignores. That folder is wiped and rebuilt on every run.
-Clips get letters A.. in sorted path order and photos continue after them. The letter-to-file
-map is written only to reference/_frames/index.md; everything else refers to letters.
+The letter-to-file map is written only to reference/_frames/index.md; everything else refers to letters.
+Letters are stable because the notes cite them: a file keeps the letter the previous index gave it, and
+new files take the next letters after the highest one used (clips first, then photos, each in sorted
+path order). On a first run that gives clips A.. and photos after them. AVIF photos, which common
+viewers can't open, also get a lossless PNG copy of their decoded pixels.
 
 Every frame of every clip is measured (metrics.csv). Frames whose noise, stripe or diff jumps above
 its neighbours by more than the clip's median + k*MAD jump are flagged and exported with +-2
@@ -15,6 +18,7 @@ neighbours as native PNG in events/.
 OPSEC: nothing this tool writes may be committed, copied out of reference/ or uploaded.
 """
 import argparse
+import re
 import shutil
 import sys
 import time
@@ -26,7 +30,9 @@ import numpy as np
 
 MIN_BLENDER = (5, 2, 0)
 VIDEO_EXT = {".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v"}
-STILL_EXT = {".jpg", ".jpeg", ".png", ".webp"}
+STILL_EXT = {".jpg", ".jpeg", ".png", ".webp", ".avif"}
+COPY_EXT = {".avif"}       # photos that get a lossless PNG copy, because common viewers can't open them
+INDEX_ROW = re.compile(r"^\| ([A-Z]) \| \w+ \| `(.+)` \|$", re.M)  # one letter row of index.md
 GRID = 4                   # contact sheet is GRID x GRID cells
 CELL_W, CELL_H = 480, 270  # 4 x 480x270 cells -> 1920x1080 sheet
 JPEG_QUALITY = 95          # high, so the feed's noise survives for study
@@ -62,6 +68,47 @@ def find_media():
     clips = sorted((p for p in files if p.suffix.lower() in VIDEO_EXT), key=key)
     stills = sorted((p for p in files if p.suffix.lower() in STILL_EXT), key=key)
     return clips, stills
+
+
+def previous_letters():
+    """File (relative to reference/) -> letter, read from the last run's index.md; empty on a first run."""
+    index = OUT / "index.md"
+    if not index.exists():
+        return {}
+    return {path: letter for letter, path in INDEX_ROW.findall(index.read_text(encoding="utf-8"))}
+
+
+def assign_letters(media, previous):
+    """Keep each file's previous letter; new files take the next letters after the highest used, in media order.
+    A letter is never handed to a different file, so the notes' citations stay valid."""
+    rel = [p.relative_to(REF).as_posix() for p in media]
+    lost = sorted(letter for path, letter in previous.items() if path not in rel)
+    if lost:
+        raise RuntimeError(f"letters {', '.join(lost)} lost their file: restore it, or delete "
+                           "reference/_frames/index.md to re-letter everything (this breaks the notes' citations)")
+    known = dict(previous)
+    nxt = max(map(ord, known.values()), default=ord("A") - 1) + 1
+    letters = []
+    for r in rel:
+        if r not in known:
+            known[r], nxt = chr(nxt), nxt + 1
+        letters.append(known[r])
+    if nxt - 1 > ord("Z"):
+        raise RuntimeError("letters would run past Z")
+    return letters
+
+
+def copy_photo(letter, path):
+    """Save a photo's decoded pixels unchanged as reference/_frames/<letter>/photo.png. Returns (w, h)."""
+    img = bpy.data.images.load(str(path))
+    w, h = img.size
+    if w == 0 or h == 0:
+        raise RuntimeError(f"photo {letter} could not be decoded")
+    (OUT / letter).mkdir()
+    img.file_format = "PNG"
+    img.save(filepath=str(OUT / letter / "photo.png"))
+    bpy.data.images.remove(img)
+    return w, h
 
 
 def setup_scene():
@@ -261,9 +308,8 @@ def main():
     clips, stills = find_media()
     if not clips:
         raise RuntimeError("no video clips found under reference/")
-    if len(clips) + len(stills) > 26:
-        raise RuntimeError("more than 26 reference files; letters would run past Z")
-    letters = [chr(ord("A") + i) for i in range(len(clips) + len(stills))]
+    letters = assign_letters(clips + stills, previous_letters())  # read before the old index is wiped
+    media = sorted(zip(letters, clips + stills))                   # in letter order from here on
 
     if OUT.exists():
         shutil.rmtree(OUT)
@@ -271,8 +317,8 @@ def main():
 
     # The map goes first so a failing letter can be looked up even if the run aborts.
     index = OUT / "index.md"
-    rows = [f"| {L} | {'clip' if i < len(clips) else 'photo'} | `{p.relative_to(REF).as_posix()}` |"
-            for i, (L, p) in enumerate(zip(letters, clips + stills))]
+    rows = [f"| {L} | {'clip' if p in clips else 'photo'} | `{p.relative_to(REF).as_posix()}` |"
+            for L, p in media]
     index.write_text("\n".join([
         "# Reference index: LOCAL ONLY",
         "",
@@ -286,8 +332,13 @@ def main():
         "",
     ]), encoding="utf-8")
 
+    copies = []
+    for L, p in media:
+        if p.suffix.lower() in COPY_EXT:
+            w, h = copy_photo(L, p)
+            copies.append(f"{L} {w}x{h}")
     scene = setup_scene()
-    stats, scans = zip(*(extract_clip(scene, L, p, args) for L, p in zip(letters, clips)))
+    stats, scans = zip(*(extract_clip(scene, L, p, args) for L, p in media if p in clips))
 
     with index.open("a", encoding="utf-8") as f:
         f.write("\n".join([
@@ -319,7 +370,9 @@ def main():
             "|---|---|---|---|---|---|---|---|",
             *scans,
             "",
-            "Photos are indexed only; they are not re-encoded.",
+            "Photos are indexed only; they are not re-encoded. AVIF photos, which common viewers can't open, "
+            "also get `<letter>/photo.png`: their decoded pixels saved unchanged as PNG.",
+            f"PNG copies: {', '.join(copies) or 'none'}.",
             "",
         ]))
     print(f"extract_frames: done, {len(clips)} clips + {len(stills)} photos in {time.time() - t0:.1f} s")
