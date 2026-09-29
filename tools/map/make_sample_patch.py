@@ -188,11 +188,18 @@ def hole_cells(cells, half):
 
 
 def trench_objects():
-    """One section and one end cap per placement, at the pad height: the cavity runs from the cap's face."""
+    """One section and one end cap per placement, at the pad height, and the wedge outside the bend.
+
+    Each section's sides stop at the corner, so neither blocks the other's cavity; their floors run 2 m past it, so the
+    ground there is still sealed. The wedge between the two sides' ends closes the outside of the turn.
+    """
     objects = []
     for (x, z), yaw, _, _ in trench_axes():
         for asset in ("test_trench", "test_trench_cap"):
             objects.append({"asset": asset, "position_m": [x, PAD_HEIGHT, z], "rotation_deg": [yaw, 0.0, 0.0], "scale": 1.0})
+    corner = (TRENCH_A[0] + TRENCH_LENGTH, TRENCH_A[1])
+    objects.append({"asset": "test_trench_corner", "position_m": [corner[0], PAD_HEIGHT, corner[1]],
+                    "rotation_deg": [90.0 - TRENCH_BEND_DEG / 2, 0.0, 0.0], "scale": 1.0})
     return objects
 
 

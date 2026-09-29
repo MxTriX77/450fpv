@@ -718,6 +718,20 @@
         0.0
       ],
       "scale": 1.0
+    },
+    {
+      "asset": "test_trench_corner",
+      "position_m": [
+        -21.0,
+        -0.36,
+        88.75
+      ],
+      "rotation_deg": [
+        75.0,
+        0.0,
+        0.0
+      ],
+      "scale": 1.0
     }
   ]
 }

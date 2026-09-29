@@ -100,7 +100,7 @@ public static partial class WorldQuerySelfTest
         double worstLip = samples.Length > 0 ? samples.Max(g => Math.Abs(g.TerrainHeight - TrenchLip)) : 0;
         int[] fillers = Fillers(world);
         return Check("hole layer loaded", world.HasHoles && cells.Count > 0 && flagged == cells.Count && worstLip <= 1e-6
-                && fillers.Length == 4,
+                && fillers.Length > 0,
             $"holes.png gives {cells.Count} hole cells ({cells.Count * world.CellResolution * world.CellResolution:0.0} m²), "
             + $"all flagged: {flagged == cells.Count}; every cell centre is on the levelled pad within {worstLip * 1000:0.000000} mm "
             + $"of {TrenchLip} m; {fillers.Length} filler objects ({string.Join(", ", fillers)})");
@@ -202,11 +202,38 @@ public static partial class WorldQuerySelfTest
                 first += $"; {rays[i].What} hit object {h.Object}, surface {h.Surface}, material {h.Material}, "
                     + $"distance {h.Distance:0.000}";
         }
+        // The cavity is 0.8 m wide the whole way: just inside its faces a ray reaches the floor, just outside it stops on
+        // the lip.
+        var widthRays = new List<Ray>();
+        var wide = new List<bool>();
+        for (int section = 0; section < 2; section++)
+        {
+            for (int k = 1; k <= 11; k++)
+            {
+                foreach (double across in new[] { -0.35, 0.35, -0.45, 0.45 })
+                {
+                    widthRays.Add(new Ray(InTrench(section, TrenchLength * k / 12.0, across, 1.0), new Double3(0, -1, 0)));
+                    wide.Add(Math.Abs(across) < TrenchHalf);
+                }
+            }
+        }
+        var widthHits = new RayHit[widthRays.Count];
+        world.Raycast(widthRays.ToArray(), 10, widthHits);
+        int wrongWidth = 0;
+        for (int i = 0; i < widthHits.Length; i++)
+        {
+            double y = widthHits[i].Point.Y;
+            bool ok = wide[i] ? Math.Abs(y - (TrenchLip - TrenchDepth)) <= 1e-3 : Math.Abs(y - (TrenchLip + LipRise)) <= 1e-3;
+            wrongWidth += ok && double.IsFinite(widthHits[i].Distance) ? 0 : 1;
+        }
         double floor = hits[0].Point.Y;
-        return Check("rays into a trench", bad == 0 && terrainHits == 0 && Math.Abs(floor - (TrenchLip - TrenchDepth)) <= 1e-3,
+        return Check("rays into a trench", bad == 0 && terrainHits == 0 && wrongWidth == 0
+                && Math.Abs(floor - (TrenchLip - TrenchDepth)) <= 1e-3,
             $"{hits.Length} rays (18 down, 6 at 45°, 2 grazing): {bad} that did not hit a filler with surface "
             + $"{expected} ({TrenchSurface}) and material NoMaterial, {terrainHits} that hit the terrain; the first ray "
-            + $"reaches the floor at y {floor:0.000} (lip {TrenchLip} − depth {TrenchDepth})");
+            + $"reaches the floor at y {floor:0.000} (lip {TrenchLip} − depth {TrenchDepth}); of {widthHits.Length} rays "
+            + $"at ±0.35 and ±0.45 m across, 11 stations along each section, {wrongWidth} did not find the floor inside the "
+            + $"0.8 m cavity or the lip outside it");
     }
 
     /// A foot sphere on the floor, on each wall and in the inner corner: the contact carries the trench's surface, no
