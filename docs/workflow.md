@@ -10,7 +10,7 @@ All work is spec-driven through [OpenSpec](https://github.com/Fission-AI/OpenSpe
 4. **Build.** The subagent branches `<prefix>/<change-id>` off `main` and works through `tasks.md` (`/opsx:apply`). It ticks each task as it finishes and commits under its own identity.
 5. **Review.** `qa-engineer` checks the branch against the spec scenarios, the tests, the performance budget and repo hygiene. It writes `openspec/changes/<change-id>/review.md` and either approves or requests changes.
 6. **User sign-off, at gates only.** The pilot reviews only the gates in [roadmap.md](roadmap.md): UAT-1, UAT-2, the wireframes, MVPs and release. Only tasks that deliver one of those are tagged `[user-review]`, and they block the merge until the pilot approves. Sandboxes, sample patches, plans and notes are reviewed by QA and the orchestrator, never by the pilot. The pilot is asked in chat only about real-world facts only they know.
-7. **Merge.** The orchestrator merges with `git merge --no-ff`, which keeps each role's authorship visible (never squash). It then runs `/opsx:archive <change-id>` so the spec deltas land in `openspec/specs/`.
+7. **Merge, automatically.** The orchestrator pushes the branch, opens the PR and merges it itself once QA is green. It never asks the user to do either, and never waits on them for it. The merge keeps a merge commit (`gh pr merge --merge`, or `git merge --no-ff` locally), never a squash, so each role's authorship stays visible. A task tagged `[user-review]` is the one exception: it holds the merge until the pilot signs off. Once a change is complete, `/opsx:archive <change-id>` lands the spec deltas in `openspec/specs/`.
 
 If the user changes direction partway, the orchestrator updates the affected change artifacts first (`/opsx:update`). The code follows the spec, never the other way round.
 
@@ -30,7 +30,7 @@ If the user changes direction partway, the orchestrator updates the affected cha
 ## Pull requests
 
 Until the GitHub remote and `gh` are set up, a pull request is the branch plus `review.md`.
-After that, each change gets one PR titled with the change id. The PR body holds the proposal summary, the task checklist and how the work was verified.
+After that, every batch of work gets a PR titled with the change id — a long-running change has several, one per batch that lands. The PR body holds the proposal summary, the task checklist and how the work was verified. PRs are opened ready for review, never as drafts, and the orchestrator merges them without asking.
 
 ## Subagent handoff
 
