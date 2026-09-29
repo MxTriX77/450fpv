@@ -268,7 +268,7 @@ def check_catalog(catalog, surface_ids):
             switches = asset["lod_switch_m"]
             if not (isinstance(switches, list) and switches and all(is_number(d) for d in switches)):
                 error(f"{where}: lod_switch_m must be a non-empty list of distances in metres")
-            elif not all(0 < a < b for a, b in zip([0.0] + switches, switches)):
+            elif not all(a < b for a, b in zip([0.0] + switches, switches)):
                 error(f"{where}: lod_switch_m = {switches} must rise from 0")
         gaps = asset.get("gaps")
         if not isinstance(gaps, list):

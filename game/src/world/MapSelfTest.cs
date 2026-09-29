@@ -297,9 +297,11 @@ public static class MapSelfTest
         WorldQuery w = map.World;
         WindCell Cell(double x, double z) =>
             w.WindGrid[(int)Math.Floor((z + w.Half) / WorldQuery.WindCellSize) * w.WindCells + (int)Math.Floor((x + w.Half) / WorldQuery.WindCellSize)];
+        // The belt cell holds tree_acacia's crown (its top, 11.6 m) over the shrub understory (its base, near the
+        // ground), and both are porous: the wind goes through a belt, it does not go round it.
         WindCell house = Cell(52, 30), tree = Cell(-40, -50), open = Cell(-100, 100);
-        return Check("wind volumes in the wind grid", Math.Abs(house.TopM - 5) < 0.2 && house.Porosity < 0.1 && Math.Abs(tree.BaseM - 4) < 0.3
-            && Math.Abs(tree.TopM - 10) < 0.3 && tree.Porosity < 1 && open.TopM == 0 && open.Porosity == 1,
+        return Check("wind volumes in the wind grid", Math.Abs(house.TopM - 5) < 0.2 && house.Porosity < 0.1 && tree.BaseM < 1.5
+            && Math.Abs(tree.TopM - 11.6) < 0.4 && 0 < tree.Porosity && tree.Porosity < 0.9 && open.TopM == 0 && open.Porosity == 1,
             $"house cell top {house.TopM:0.00} m porosity {house.Porosity:0.000}; tree cell base {tree.BaseM:0.00} top {tree.TopM:0.00} m porosity "
             + $"{tree.Porosity:0.000}; open cell top {open.TopM} porosity {open.Porosity}");
     }

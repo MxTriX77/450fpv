@@ -22,7 +22,7 @@ kit.reset()
 profile = treekit.Profile(
     height=2.4, trunk_radius=0.05, fork=0.45, crown_radius=1.15, primaries=7, bark="bark_dark",
     stagger=0.5, limb=0.72, taper=0.62, lean=6.0, spread=19.0, split=26.0, children=(3, 3),
-    dry=0.2, bare=0.1, density=0.3, card_scale=0.55, porosity=0.5, impostor=treekit.GREEN)
+    dry=0.2, bare=0.1, density=0.55, card_scale=0.55, porosity=0.5, impostor=treekit.GREEN)
 lods, materials, entry = treekit.grow(
     profile, SEED, "res://assets/models/vegetation/shrub_belt.glb", [15.0, 40.0, 95.0], ("#5b534a", 0.88))
 kit.finish(__file__, "tree", lods, materials, entry)
