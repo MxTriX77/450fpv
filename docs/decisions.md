@@ -63,3 +63,13 @@ It costs about 300 lines of closest-point code. Jolt keeps render-side and gamep
 
 ## D-011 Weather is a fixed pilot setting: Calm, Windy or Severe · Accepted
 This is the pilot's decision (2026-09-24). It adds a fourth setting to the manifesto's payload, legs and time of day: **Weather = Calm / Windy / Severe**, always chosen by the pilot, with no random option. Within the chosen level, the wind itself stays alive and unpredictable: a prevailing direction with random shifts, gusts, turbulence near obstacles, per `docs/reference-notes/wind.md`. Rain goes with the weather level. The Severe preset is held to the measured targets from clip P (wind study §6). Windy uses the derived "typical windy" band.
+
+## D-012 Real models come before any gallery; the world map is built once, with them in it · Accepted
+This is the pilot's decision (2026-09-29), asked for directly: they are impatient to noclip a realistic world, and were offered three routes. They chose **real models first, then the world**.
+
+What it means for the plan:
+- Section 3 of `build-uat1-parts` (tree belt, adobe house and yard, vehicles, the five-storey block and its rubble, poles, wires and debris) is the next work, ahead of anything else. Task 2.6 (LOD switching) goes first only because the far tree impostor in 3.1 needs its mechanism.
+- The 512 m UAT-1 gallery (tasks 4.1 and 4.2) is **no longer assumed**. Its purpose was to show the pilot the parts; if the parts can be reviewed in the world map itself, the gallery is a step that buys a review device rather than the product. Decide when section 3 lands, not now.
+- `build-world-map` is then built once, with real assets in it from the pilot's first flight, rather than an empty layout that fills in later.
+
+What the pilot can fly meanwhile, offered on the same day: `sample_patch` (256 m, real ground, placeholder objects) and the synthetic 4 km terrain package (terrain only, 602 fps avg). Neither is a gate.
