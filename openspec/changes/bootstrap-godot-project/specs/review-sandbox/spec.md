@@ -33,11 +33,11 @@ The sandbox SHALL toggle an overlay with F3 showing fps, average frame time in m
 
 #### Scenario: Toggle
 - **WHEN** the user presses F3 twice
-- **THEN** the overlay appears and then disappears, and while shown its values change at least 4 times per second
+- **THEN** the overlay appears and then disappears, and while shown it refreshes at least 4 times per second (counted as refreshes, not as text changes)
 
 #### Scenario: Budget on the dev machine
-- **WHEN** the sandbox shows only the ground placeholder on the dev machine
-- **THEN** the overlay reports at least 144 fps (1 % low at least 120), so the empty baseline leaves headroom above the 60 fps target
+- **WHEN** the sandbox shows only the ground placeholder on the dev machine with **vsync off**
+- **THEN** the overlay reports at least 144 fps (1 % low at least 120), so the empty baseline leaves headroom above the 60 fps target. With vsync on, fps is capped at the display rate and the 1 % low reflects frame pacing, not headroom
 
 ### Requirement: Screenshot capture
 Pressing F12 SHALL save a PNG of the current frame to `user://screenshots/` with a sortable name, and print the saved path.

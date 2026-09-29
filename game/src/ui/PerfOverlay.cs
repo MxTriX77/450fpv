@@ -15,6 +15,8 @@ public partial class PerfOverlay : CanvasLayer
     public double AvgFrameMs { get; private set; }
     public double OnePercentLowFps { get; private set; }
     public int DrawCalls { get; private set; }
+    /// Number of refreshes so far, for the selftest.
+    public int Refreshes { get; private set; }
 
     readonly Queue<(ulong At, double Ms)> _frames = new();
     ulong _lastFrame;
@@ -45,6 +47,7 @@ public partial class PerfOverlay : CanvasLayer
         if (!Visible || now - _lastRefresh < RefreshUsec)
             return;
         _lastRefresh = now;
+        Refreshes++;
 
         var ms = new double[_frames.Count];
         int i = 0;
