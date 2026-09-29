@@ -42,7 +42,7 @@ public static partial class WorldQuerySelfTest
     {
         string catalogPath = TestCatalog();
         SurfaceParams[] table = SurfaceParams.ParseTable(File.ReadAllText(surfacesPath));
-        Catalog catalog = Catalog.Parse(File.ReadAllText(catalogPath));
+        Catalog catalog = Catalog.Parse(File.ReadAllText(catalogPath), table);
         byte meadow = table.First(s => s.Id == "meadow_sod").Index;
         WorldQuery Flat() => Uniform(table, meadow, sample.Seed, catalog);
         WorldQuery Fresh() => WorldQuery.Load(dir, surfacesPath, catalogPath);

@@ -10,7 +10,8 @@ using Godot;
 public static partial class WorldQuerySelfTest
 {
     /// The files the content hash covers, in its order, in the package folder and then the shared tables.
-    static readonly string[] PackageFiles = { "map.json", "height.r16", "surface.png", "cover.png", "objects.json" };
+    static readonly string[] PackageFiles =
+        { "map.json", "height.r16", "surface.png", "cover.png", WorldQuery.HolesLayer, "objects.json" };
 
     /// Every surface and material against surfaces.json and catalog.json read independently (the README's defaults for
     /// material fields left out), the soil reference diameter (also of a world built in memory, which defaults to it),
@@ -103,28 +104,31 @@ public static partial class WorldQuerySelfTest
             + $"10000 lookups allocate {allocated} bytes");
     }
 
-    /// The content hash (W-12). The loaded world's equals ContentHashOf and a second load's. A copy of the seven files in
-    /// another folder, with CRLF line endings in the JSON files and stray files beside them, hashes the same. One byte
-    /// changed on disk in each copied file changes it. In memory, every single-byte change tried changes it: each byte of
-    /// the files up to 16 KB set to CR, to LF and with bit 0 flipped (bits 7, all and 0 for the binary files), and the
-    /// same at 257 evenly spread bytes of the larger files.
+    /// The content hash (W-12). The loaded world's equals ContentHashOf and a second load's. A copy of the package and
+    /// the tables in another folder, with CRLF line endings in the JSON files and stray files beside them, hashes the
+    /// same. In memory, every single-byte change to a package file changes it: each byte of the files up to 16 KB set to
+    /// CR, to LF and with bit 0 flipped (bits 7, all and 0 for the binary files), and the same at 257 evenly spread bytes
+    /// of the larger files. The shared tables count only where this map uses them: a value changed in a surface it paints,
+    /// in an asset it places or in a material that asset uses changes the hash, while an unrelated asset, an unused
+    /// surface and reformatting the tables leave it alone (asset-pipeline, "New assets don't disturb existing maps").
     static bool ContentHashScenarios(WorldQuery world, string dir, string surfacesPath)
     {
-        string[] paths = PackageFiles.Select(n => Path.Combine(dir, n)).Append(surfacesPath)
-            .Append(ProjectSettings.GlobalizePath(CatalogPath)).ToArray();
-        ulong hash = world.ContentHash, fromFiles = WorldQuery.ContentHashOf(dir, paths[5], paths[6]);
-        ulong reloaded = WorldQuery.Load(dir, paths[5], paths[6]).ContentHash;
+        string catalogPath = ProjectSettings.GlobalizePath(CatalogPath);
+        string[] layers = PackageFiles.Where(n => File.Exists(Path.Combine(dir, n))).ToArray();
+        ulong hash = world.ContentHash, fromFiles = WorldQuery.ContentHashOf(dir, surfacesPath, catalogPath);
+        ulong reloaded = WorldQuery.Load(dir, surfacesPath, catalogPath).ContentHash;
 
+        // The same package and tables in another folder, with CRLF in the JSON files and files beside them that never count.
         string copy = Path.Combine(OS.GetUserDataDir(), "worldquery_hash_copy"), package = Path.Combine(copy, "another_name");
         if (Directory.Exists(copy))
             Directory.Delete(copy, true);
         Directory.CreateDirectory(package);
-        string[] copied = PackageFiles.Select(n => Path.Combine(package, n)).Append(Path.Combine(copy, "surfaces.json"))
-            .Append(Path.Combine(copy, "catalog.json")).ToArray();
-        for (int i = 0; i < paths.Length; i++)
+        string copiedSurfaces = Path.Combine(copy, "surfaces.json"), copiedCatalog = Path.Combine(copy, "catalog.json");
+        foreach ((string from, string to) in layers.Select(n => (Path.Combine(dir, n), Path.Combine(package, n)))
+            .Append((surfacesPath, copiedSurfaces)).Append((catalogPath, copiedCatalog)))
         {
-            var bytes = new List<byte>(File.ReadAllBytes(paths[i]));
-            if (IsJson(paths[i]))
+            var bytes = new List<byte>(File.ReadAllBytes(from));
+            if (IsJson(from))
             {
                 for (int at = bytes.Count - 1; at >= 0; at--)
                 {
@@ -132,29 +136,24 @@ public static partial class WorldQuerySelfTest
                         bytes.Insert(at, (byte)'\r');
                 }
             }
-            File.WriteAllBytes(copied[i], bytes.ToArray());
+            File.WriteAllBytes(to, bytes.ToArray());
         }
         File.WriteAllText(Path.Combine(package, "notes.txt"), "not a package file");
         File.Copy(Path.Combine(dir, "cover.png.import"), Path.Combine(package, "cover.png.import"));
-        ulong elsewhere = WorldQuery.ContentHashOf(package, copied[5], copied[6]);
-        int changedOnDisk = 0;
-        foreach (string path in copied)
-        {
-            byte[] bytes = File.ReadAllBytes(path);
-            bytes[bytes.Length / 2] ^= 1;
-            File.WriteAllBytes(path, bytes);
-            changedOnDisk += WorldQuery.ContentHashOf(package, copied[5], copied[6]) != elsewhere ? 1 : 0;
-            bytes[bytes.Length / 2] ^= 1;
-            File.WriteAllBytes(path, bytes);
-        }
+        ulong elsewhere = WorldQuery.ContentHashOf(package, copiedSurfaces, copiedCatalog);
 
-        byte[][] files = paths.Select(File.ReadAllBytes).ToArray();
-        bool[] text = paths.Select(IsJson).ToArray();
+        // Every single-byte change to a package file changes the hash: the layers folded in order, then the tables' part,
+        // which is held at its good value here (the layers' own framing is what this checks).
+        byte[][] files = layers.Select(n => File.ReadAllBytes(Path.Combine(dir, n))).ToArray();
+        bool[] text = layers.Select(IsJson).ToArray();
+        string surfacesJson = File.ReadAllText(surfacesPath), catalogJson = File.ReadAllText(catalogPath);
+        string objectsJson = File.ReadAllText(Path.Combine(dir, "objects.json"));
+        byte[] surfaceLayer = MapPng.Read(Path.Combine(dir, "surface.png"), 1, out _, out _);
         ulong Rest(ulong h, int from)
         {
             for (int i = from; i < files.Length; i++)
                 h = WorldQuery.HashFile(h, files[i], text[i]);
-            return h;
+            return WorldQuery.HashTables(h, surfacesJson, catalogJson, objectsJson, surfaceLayer);
         }
         ulong folded = Rest(WorldQuery.FnvOffset, 0), prefix = WorldQuery.FnvOffset;
         long tried = 0, unchanged = 0;
@@ -185,14 +184,49 @@ public static partial class WorldQuerySelfTest
                 }
                 f[at] = old;
             }
-            perFile += $"{Path.GetFileName(paths[k])} {tried - before} ({(every ? "every byte" : "257 bytes")}), ";
+            perFile += $"{layers[k]} {tried - before} ({(every ? "every byte" : "257 bytes")}), ";
             prefix = WorldQuery.HashFile(prefix, f, text[k]);
         }
-        return Check("any change is detected", hash != 0 && fromFiles == hash && reloaded == hash && folded == hash && elsewhere == hash
-                && changedOnDisk == paths.Length && unchanged == 0,
-            $"content hash {hash:x16}: from the files alone {fromFiles:x16}, a second load {reloaded:x16}; a copy in another folder "
-            + $"with CRLF JSON and stray files {elsewhere:x16}; one byte changed on disk changes it in {changedOnDisk} of "
-            + $"{paths.Length} files; {tried} single-byte changes in memory ({perFile.TrimEnd(',', ' ')}): {unchanged} leave it unchanged");
+
+        // What the tables contribute: a used surface, a placed asset and a material it uses count; anything else does not.
+        string scoped = "";
+        int wrongScope = 0;
+        void Scope(string what, bool expectChange, Action<JsonNode, JsonNode> edit)
+        {
+            JsonNode table = JsonNode.Parse(surfacesJson), catalog = JsonNode.Parse(catalogJson);
+            edit(table, catalog);
+            File.WriteAllText(copiedSurfaces, table.ToJsonString());
+            File.WriteAllText(copiedCatalog, catalog.ToJsonString());
+            bool changed = WorldQuery.ContentHashOf(package, copiedSurfaces, copiedCatalog) != elsewhere;
+            wrongScope += changed == expectChange ? 0 : 1;
+            scoped += $"{what} {(changed ? "changes" : "leaves")} it ({(expectChange ? "must change" : "must not")}); ";
+        }
+        static JsonNode Surface(JsonNode table, string id) => table["surfaces"].AsArray().First(s => (string)s["id"] == id);
+        Scope("meadow_sod's bearing", true, (table, _) => Surface(table, "meadow_sod")["soil"]["bearing_n_per_m3"] = 1.1e7);
+        Scope("house_box's size", true, (_, catalog) => catalog["assets"]["house_box"]["collision"][0]["size_m"][1] = 5.5);
+        Scope("timber's friction", true, (_, catalog) => catalog["materials"]["timber"]["friction_static"] = 0.5);
+        Scope("belt_bare's bearing (a filler's soil)", true,
+            (table, _) => Surface(table, "belt_bare")["soil"]["bearing_n_per_m3"] = 2.2e7);
+        Scope("an unplaced asset", false, (_, catalog) => catalog["assets"]["not_placed_here"] = JsonNode.Parse(
+            "{ \"type\": \"object\", \"scene\": \"res://x\", \"material\": \"timber\", \"snag_hazard\": false, "
+            + "\"wind_porosity\": 0.0, \"gaps\": [], \"collision\": [ { \"shape\": \"sphere\", \"radius_m\": 0.5 } ] }"));
+        Scope("burnt_field's bearing (a surface the map does not paint)", false,
+            (table, _) => Surface(table, "burnt_field")["soil"]["bearing_n_per_m3"] = 3.3e7);
+        Scope("a new surface", false, (table, _) =>
+        {
+            JsonNode extra = JsonNode.Parse(Surface(table, "burnt_field").ToJsonString());
+            extra["id"] = "not_used_here";
+            extra["index"] = 200;
+            table["surfaces"].AsArray().Add(extra);
+        });
+        Scope("reformatting both tables", false, (_, _) => { });
+        Directory.Delete(copy, true);
+
+        return Check("any change is detected", hash != 0 && fromFiles == hash && reloaded == hash && folded == hash
+                && elsewhere == hash && unchanged == 0 && wrongScope == 0,
+            $"content hash {hash:x16}: from the files alone {fromFiles:x16}, a second load {reloaded:x16}; a copy in another "
+            + $"folder with CRLF JSON and stray files {elsewhere:x16}; {tried} single-byte changes to the layers in memory "
+            + $"({perFile.TrimEnd(',', ' ')}): {unchanged} leave it unchanged; the tables' scope: {scoped}{wrongScope} wrong");
     }
 
     static bool IsJson(string path) => path.EndsWith(".json", StringComparison.OrdinalIgnoreCase);
