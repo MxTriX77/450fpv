@@ -29,6 +29,8 @@ static class Program
     const double StartX = 12, StartZ = -30, StartYaw = 90;
     /// Contact margin of the capsule queries, m.
     const double Margin = 0.02;
+    /// The one surface whose micro-detail is over the 1 ms budget by an accepted deviation.
+    const string Deviating = "belt_straw";
 
     static bool _pass = true;
     /// The conditions of the last timed workload: the core clock before and after it (GHz), and the power source.
@@ -252,7 +254,9 @@ static class Program
     }
 
     /// MicroDetailNear, r = 2 m, all kinds, 0.3 m above the ground, at 20 centres 0.5 m apart (physics re-queries after
-    /// 0.5 m), on each covered surface's uniform world at cover 1.0. The densest surface (most elements per m²) is judged.
+    /// 0.5 m), on each covered surface's uniform world at cover 1.0. Every covered surface is judged: the densest (most
+    /// elements per m²) against 0.25 ms and the rest against 1 ms (world-query, "Physics-grade performance"), except
+    /// Deviating, which is judged against its accepted deviation (define-map-format design.md, the 3.8 outcomes).
     static void MicroDetail(WorldQuery world, SurfaceParams[] table)
     {
         var buffer = new MicroElement[40000];
@@ -276,10 +280,10 @@ static class Program
                     elements += uniform.MicroDetailNear(c, 2.0, KindMask.All, buffer);
             }, out long allocated);
             string detail = $"{elements / centres.Length} elements per query, {s.Cover.Sum(c => c?.Density ?? 0)} per m² at cover 1.0; ";
-            if (s == densest)
-                Judge($"MicroDetailNear r 2 m, all kinds, densest surface {s.Id}", ms, 1.0 / centres.Length, "ms", 0.25, allocated, detail);
-            else
-                Info($"MicroDetailNear r 2 m, all kinds, {s.Id}", ms, 1.0 / centres.Length, "ms", allocated, detail);
+            (double budget, string name) = s == densest ? (0.25, $"densest surface {s.Id}")
+                : s.Id == Deviating ? (1.15, $"{s.Id}, accepted deviation (design.md: 1.07–1.15 ms at the full clock)")
+                : (1.0, s.Id);
+            Judge($"MicroDetailNear r 2 m, all kinds, {name}", ms, 1.0 / centres.Length, "ms", budget, allocated, detail);
         }
     }
 
