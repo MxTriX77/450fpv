@@ -113,7 +113,7 @@ def entry_text(asset, entry):
     """The builder's catalog entry in catalog.json's layout, one shape per line, ready to paste."""
     one = lambda v: json.dumps(v, ensure_ascii=False).replace("{", "{ ").replace("}", " }")
     lines = []
-    for key in ("type", "scene", "visual_only", "material", "collision", "wind_volume", "snag_hazard", "wind_porosity", "gaps"):
+    for key in ("type", "scene", "visual_only", "material", "collision", "wind_volume", "snag_hazard", "wind_porosity", "gaps", "lod_switch_m"):
         if key not in entry:
             continue
         value = entry[key]
