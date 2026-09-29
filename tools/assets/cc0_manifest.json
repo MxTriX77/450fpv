@@ -829,5 +829,7 @@
       ]
     }
   ],
-  "team_files": []
+  "team_files": [
+    "game/assets/textures/foliage_belt/foliage_belt_albedo.png"
+  ]
 }
