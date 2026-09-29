@@ -121,7 +121,7 @@ public partial class MapScene : Node3D
         terrain.SetSurfaces(World.SurfaceIds, World.CoverRgba, World.Cells, (float)World.CellResolution, Look);
         BuildObjects();
         var detail = new MicroDetailView { Name = "MicroDetail" };
-        detail.Init(World);
+        detail.Init(World, Look);
         AddChild(detail);
     }
 

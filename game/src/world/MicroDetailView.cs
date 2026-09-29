@@ -11,7 +11,8 @@ using Godot;
 /// Radius of the camera, and kept until it is farther than Keep. The main thread only hands finished tiles to a
 /// MultiMesh. One query per tile finds everything rooted in it: a sphere round the tile's terrain range widened by
 /// WorldQuery.BaseBelowTerrain and BaseAboveTerrain. Elements rooted in other tiles are dropped, so each is drawn once.
-/// Beyond Radius nothing is drawn: a placeholder until UAT-1's far vegetation.
+/// The ring fades out over its last Fade m (micro_detail.gdshader), where FarCoverView's cheap cover fades in. Colours
+/// come from SurfaceLook, per surface and element, as the far cover's do.
 public partial class MicroDetailView : Node3D
 {
     /// Tile side, m: a power of two and a whole number of WorldQuery.MicroCell, so that floor(x / Tile) of an element's
@@ -20,16 +21,15 @@ public partial class MicroDetailView : Node3D
     /// Tiles nearer the camera than this (m, from the camera's height above the terrain and the horizontal distance to
     /// the tile) are drawn.
     public const double Radius = 8;
+    /// Elements fade out, each whole at its own distance, over the last Fade m inside Radius.
+    public const double Fade = 2;
     const double Keep = 12;    // m, tiles farther than this are dropped
     const int TilesPerJob = 8; // nearest first
 
-    /// Placeholder colours per CoverKind (grass, straw, twigs, litter) until UAT-1's vegetation art.
-    static readonly Color[] KindColor =
-        { Color.FromHtml("#6b7a3a").SrgbToLinear(), Color.FromHtml("#c2ad6e").SrgbToLinear(), Color.FromHtml("#4f3d2c").SrgbToLinear(), Color.FromHtml("#8a5a30").SrgbToLinear() };
-
     WorldQuery _world;
+    SurfaceLook _look;
     ArrayMesh _mesh;
-    StandardMaterial3D _material;
+    ShaderMaterial _material;
     readonly Dictionary<(int X, int Z), MultiMeshInstance3D> _tiles = new(); // null for a tile with no elements
     Task<List<TileData>> _job;
     MicroElement[] _elements = new MicroElement[1 << 16]; // the job's buffer; one job runs at a time
@@ -46,16 +46,14 @@ public partial class MicroDetailView : Node3D
         public Aabb Box;        // relative to Origin
     }
 
-    public void Init(WorldQuery world)
+    public void Init(WorldQuery world, SurfaceLook look)
     {
         _world = world;
+        _look = look;
         _mesh = Cross();
-        _material = new StandardMaterial3D
-        {
-            VertexColorUseAsAlbedo = true,
-            Roughness = 1f,
-            CullMode = BaseMaterial3D.CullModeEnum.Disabled,
-        };
+        _material = new ShaderMaterial { Shader = GD.Load<Shader>("res://src/world/micro_detail.gdshader") };
+        _material.SetShaderParameter("radius", Radius);
+        _material.SetShaderParameter("fade", Fade);
     }
 
     public override void _Process(double delta)
@@ -68,6 +66,8 @@ public partial class MicroDetailView : Node3D
         Span<GroundSample> ground = stackalloc GroundSample[1];
         _world.SampleGround(point, ground);
         double lift = Math.Max(eye.Y - ground[0].TerrainHeight, 0);
+        _material.SetShaderParameter("eye", eye);
+        _material.SetShaderParameter("lift", lift);
 
         if (_job is { IsCompleted: true })
         {
@@ -183,13 +183,13 @@ public partial class MicroDetailView : Node3D
                 (x, y, z) = (side * e.Diameter, dir * e.Length, side.Cross(dir) * e.Diameter);
             }
             var origin = new Vector3((float)(e.Base.X - x0), (float)(e.Base.Y - tile.Origin.Y), (float)(e.Base.Z - z0));
-            Color color = KindColor[(int)e.Kind];
+            Color color = ColorOf(e);
             int at = tile.Count++ * 16;
             float[] b = tile.Buffer;
             (b[at], b[at + 1], b[at + 2], b[at + 3]) = (x.X, y.X, z.X, origin.X);
             (b[at + 4], b[at + 5], b[at + 6], b[at + 7]) = (x.Y, y.Y, z.Y, origin.Y);
             (b[at + 8], b[at + 9], b[at + 10], b[at + 11]) = (x.Z, y.Z, z.Z, origin.Z);
-            (b[at + 12], b[at + 13], b[at + 14], b[at + 15]) = (color.R, color.G, color.B, 1f);
+            (b[at + 12], b[at + 13], b[at + 14], b[at + 15]) = (color.R, color.G, color.B, color.A);
             Vector3 tip = origin + y;
             min = min.Min(origin.Min(tip));
             max = max.Max(origin.Max(tip));
@@ -198,6 +198,24 @@ public partial class MicroDetailView : Node3D
         Vector3 pad = Vector3.One * 0.1f; // wider than any element's diameter
         tile.Box = tile.Count > 0 ? new Aabb(min - pad, max - min + 2 * pad) : default;
         return tile;
+    }
+
+    /// An element's colour from its surface's look, varied by its id: grass is green or dry by the surface's dry fraction
+    /// and darkens toward its root in the shader (alpha 1); everything is ±15 % in brightness.
+    Color ColorOf(in MicroElement e)
+    {
+        ulong h = e.Id * 0x9E3779B97F4A7C15UL;
+        float u = (h >> 40) / 16777216f, v = (h >> 16 & 0xFFFFFF) / 16777216f;
+        int s = e.Surface;
+        Color c = e.Kind switch
+        {
+            CoverKind.Grass => u < _look.DryFraction[s] ? _look.GrassDry[s] : _look.GrassGreen[s],
+            CoverKind.Straw => _look.Straw[s],
+            CoverKind.Twigs => _look.Twigs[s],
+            _ => _look.Litter[s],
+        };
+        float k = 0.85f + 0.3f * v;
+        return new Color(c.R * k, c.G * k, c.B * k, e.Kind == CoverKind.Grass ? 1f : 0f);
     }
 
     /// Two crossed unit quads along +Y from 0 to 1, 1 across, one facing Z and one facing X: an element's instance
