@@ -6,8 +6,8 @@ using System.Text.RegularExpressions;
 using Godot;
 
 /// A map package built into a scene (map-loading spec): the terrain with its collision and each surface's look
-/// (SurfaceLook), every object and wire of objects.json with Jolt collision tagged with its material, and the
-/// micro-detail near the camera.
+/// (SurfaceLook), every object and wire of objects.json with Jolt collision tagged with its material, the micro-detail
+/// near the camera and the far cover beyond it.
 /// Everything is drawn from `World`, the WorldQuery that physics uses, so the renderer and physics share one world:
 /// object poses, wire polylines, collision shapes, the wind grid (filled from the wind volumes as World loads) and the
 /// stems all come from it.
@@ -123,6 +123,9 @@ public partial class MapScene : Node3D
         var detail = new MicroDetailView { Name = "MicroDetail" };
         detail.Init(World, Look);
         AddChild(detail);
+        var far = new FarCoverView { Name = "FarCover" };
+        far.Init(World, terrain, Look);
+        AddChild(far);
     }
 
     // ---------------------------------------------------------------- objects and wires

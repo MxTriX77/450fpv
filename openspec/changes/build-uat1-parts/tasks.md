@@ -31,7 +31,7 @@
 
   Verify every terrain-holes scenario, and `--golden` in Debug and Release
 - [ ] 2.4 [world-artist] Real surface textures for all 10 surfaces, with tilled furrows along the ridge azimuth, filtered with distance. Verify with screenshots looked at, and that meadow and weeds are visibly distinct
-- [ ] 2.5 [world-artist] Add the micro-detail near-ring fade and a far density layer out to at least 60 m. Verify the no-hard-edge scenario with a screenshot, and that parity stays at 0 mm
+- [x] 2.5 [world-artist] Add the micro-detail near-ring fade and a far density layer out to at least 60 m. Verify the no-hard-edge scenario with a screenshot, and that parity stays at 0 mm
 - [ ] 2.6 [world-artist] Switch LODs by distance: the loader sets Godot visibility ranges on each LOD from switch distances in the catalog entry, with Godot's automatic mesh LOD off for our assets so there's no double LOD. Far tree impostors use the same mechanism. Verify that only one LOD draws at a time (draw-call check) and that transitions don't pop at the chosen distances (screenshots)
 
 ## 3. Assets (in order)
