@@ -36,7 +36,10 @@
       "note": "T3a: dark loose loam; furrows are drawn from the physics ridges (azimuth, spacing, phase), straw residue from cover G"
     },
     "yard_litter": { "set": "dirt", "tile_m": 3.0, "albedo_srgb": "#766450", "litter": 0.9, "macro": 0.1, "note": "T6: compacted soil under fallen leaves" },
-    "rubble": { "set": "rubble", "tile_m": 2.5, "macro": 0.1, "note": "B5, T8: brick, concrete and plaster debris" },
+    "rubble": {
+      "set": "rubble", "tile_m": 2.5, "macro": 0.1, "patch_srgb": "#8a604a", "patch": 0.35,
+      "note": "B5, T8: the photo mean is grey concrete and plaster, with patches of the brick and tile in it"
+    },
     "weeds": {
       "set": "grass_ground", "tile_m": 4.0, "albedo_srgb": "#4f5231", "macro": 0.2, "patch_srgb": "#6b6236", "patch": 0.45,
       "grass": ["#627a2c", "#9c9346"], "dry_fraction": 0.3, "blade_width_m": 0.02,
