@@ -45,7 +45,7 @@ public static partial class WorldQuerySelfTest
         pass &= TrenchWallIsSoil(world);
         pass &= NoStemsInTheTrench(world, dir, surfacesPath);
         pass &= NoWindFromBuriedShapes(world, surfacesPath);
-        pass &= FillerContract(world);
+        pass &= FillerContract(world, (x, z) => HoleAt(x, z).Depth);
         pass &= JoltOverHoles(world, space);
         pass &= CellarIsOpen(world, space);
         return pass;
@@ -441,7 +441,8 @@ public static partial class WorldQuerySelfTest
     // ---------------------------------------------------------------- the hole-filler contract
 
     /// F-1 to F-4 on every hole of the map, measured against the world query, and F-5's thicknesses from the shapes.
-    static bool FillerContract(WorldQuery world)
+    /// `cavityDepth(x, z)` is how far below the lip the cavity next to a point goes, the depth F-2 probes down to.
+    internal static bool FillerContract(WorldQuery world, Func<double, double, double> cavityDepth)
     {
         List<(int Row, int Column)> cells = HoleCells(world);
         int[] fillers = Fillers(world);
@@ -493,7 +494,7 @@ public static partial class WorldQuerySelfTest
             }
             if (!near)
                 continue;
-            double lip = lips[index].TerrainHeight, depth = HoleAt(x, z).Depth;
+            double lip = lips[index].TerrainHeight, depth = cavityDepth(x, z);
             for (double y = lip; y >= lip - depth - 1e-9; y -= 0.05)
                 probes.Add(new Double3(x, y, z));
         }
