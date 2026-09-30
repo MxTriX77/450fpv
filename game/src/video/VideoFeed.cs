@@ -152,6 +152,8 @@ public partial class VideoFeed : CanvasLayer
         m.SetShaderParameter("osd_codes", _osd.Codes);
         m.SetShaderParameter("osd_glyphs", _glyphs);
         m.SetShaderParameter("osd_cells", (float)FeedFont.CellCount);
+        m.SetShaderParameter("osd_cell", new Vector2(FeedOsd.CellW, FeedOsd.CellH));
+        m.SetShaderParameter("osd_origin", new Vector2(FeedOsd.OriginX, FeedOsd.OriginY));
 
         FeedLoss loss = _events.Loss;
         m.SetShaderParameter("loss_state", (float)(int)loss.Current);
