@@ -10,7 +10,7 @@ door, falling to 1.6 m at the back, and its doorway is 0.78 x 1.62 m: the narrow
 It is placed at the same position and yaw as `cellar_shaft`, which is the hole filler under it and holds the steps:
 the head stands on the shaft's lip, so its back wall is over solid lip and never over the cavity.
 
-Collision is one box per pier, lintel, wall, roof slab, felt layer and the open door leaf. Deliberate
+Collision is one box per pier, lintel, wall, roof slab, felt layer and the fallen door leaf. Deliberate
 simplifications: the door frame and the tarp, which are 2-6 cm of trim and soft sheet that a drone tears or snags
 rather than stops against (`snag_hazard` carries them), and no glass, of which there is none.
 """
@@ -73,9 +73,10 @@ def build(level, shapes):
     collision.append(mesh.box((0.0, middle + SLAB + FELT / 2, 0.0), (slab[0], FELT, slab[1] - 0.02), FELT_MAT,
                               rotation_deg=(0, -SLOPE_DEG, 0)))
 
-    # The plank door, swung right back against the front wall, and the tarp thrown over the west side.
-    collision.append(mesh.box((-(DOOR[0] / 2 + 0.37), (DOOR[1] - 0.04) / 2, FRONT_Z + 0.04),
-                              (DOOR[0] - 0.04, DOOR[1] - 0.04, 0.045), PLANK, rotation_deg=(3.0, 0, 1.5)))
+    # The plank door, off its hinges and lying in the yard beside the head, and the tarp thrown over the west side.
+    # It lies clear of the shaft's hole band, so nothing but the cellar's own filler is ever over a hole cell.
+    collision.append(mesh.box((-1.6, 0.025, 0.1), (DOOR[0] - 0.04, 0.05, DOOR[1] - 0.04), PLANK,
+                              rotation_deg=(12.0, 0, 0)))
     if level < 2:
         mesh.box((-(FOOT[0] / 2 + 0.16), 0.52, -0.6), (0.34, 1.05, 1.30), TARP, rotation_deg=(0, 0, -11.0))
     return mesh
