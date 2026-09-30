@@ -17,7 +17,7 @@ matches TerrainHeight exactly, which is F-3.
 
 Walls and steps are `surface:belt_bare`, firm cut soil, as F-7 requires: contacts and rays in here carry a soil
 surface and no catalog material. Every box is drawn and collided, so the cavity's open faces are the drawn ones
-(F-6) to 0 mm. One LOD: ten boxes that can only be seen through a 0.78 m doorway, so a far level would save nothing.
+(F-6) to 0 mm. One LOD: ten boxes that can only be seen through a 0.70 m doorway, so a far level would save nothing.
 """
 import os
 import sys
