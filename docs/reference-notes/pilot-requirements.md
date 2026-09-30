@@ -90,6 +90,8 @@ The manifesto's version of the same point (`CLAUDE.md` §2) is that real flight 
 
 **Requirement.** Short losses SHALL follow N12: precursor → blue no-signal screen → recovery, with randomised durations inside the measured ranges. There SHALL always be a tell before the picture goes. The snow SHALL carry coloured impulse-dash texture (N2), not flat monochrome noise. The blue screen is a real screen with receiver text, in the two variants `video-feed.md` §0 measures, not a blue fill. Terminal losses SHALL use the staged sequence or the hard cut, fired by events (impact, power loss, fiber break) through `FeedEvents.TriggerCut()`.
 
+**Correction from the pilot** (2026-09-30): "When it comes back there should never be AV PAL text over OSD. Only when it's blue." When a recovering dropout ends, the picture and OSD come back **clean**, with no receiver text on them. The receiver's text belongs to the blue no-signal screen only. This overrides N12's reading of clip P (text held ≈ 7.3 s over the recovered picture), which is one clip of one receiver; `video-feed.md` keeps the measurement as it was seen. The receiver text on the snow stage of a terminal loss is unaffected, since the picture does not come back there.
+
 ---
 
 ## PR-5 Objects need destruction detail, and it is physical

@@ -233,7 +233,7 @@ Details:
 - **Candidate effect.** A dropout generator in the receiver stage. Draw each part per event, so no two are alike:
   - **Precursor** (2 of 4 events): 1–3 frames (2–5 fields) of brightening (+25 % to +120 % mean luma) under bands of coloured impulse dashes (N2 texture, much denser), or one N8-style tear.
   - **Outage.** Short, ≈ 3–4 fields (1 of 4): black, OSD included, entering and leaving mid-field at a random line. Long, 18–35 fields (0.37–0.70 s; 3 of 4): a hard cut to the blue screen and back.
-  - **Recovery.** Straight back to the picture. After a blue-out, show the receiver text for ≈ 7.3 s, and sometimes (1 of 3) an N13-type dip and level step.
+  - **Recovery.** Straight back to the picture, and sometimes (1 of 3) an N13-type dip and level step. P shows the receiver text over the recovered picture for ≈ 7.3 s after a blue-out, but **the simulator does not draw it**: the pilot ruled that receiver text appears only on the blue screen (`pilot-requirements.md`, PR-4 correction).
 
   The always-on N1 grain carries on through the picture parts.
 - **Rate.** ≈ 5/min in P's severe wind and rain, and none in 1.32 min of calmer flight (a 90 % one-sided bound of ≈ 1.7/min). So the rate comes from sim state, not a fixed clock.
