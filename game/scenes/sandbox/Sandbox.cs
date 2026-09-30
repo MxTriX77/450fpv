@@ -5,6 +5,7 @@ using Godot;
 /// `-- --scene res://…` instances that scene at the origin in place of the ground placeholder.
 /// `-- --map <id>` loads the map package game/maps/<id>/ in place of the ground placeholder, with the noclip camera
 /// MapStartHeight above the map centre.
+/// `-- --video chain|authored|hybrid` puts one of the analog-feed spike candidates over the render (V cycles them).
 /// F12 saves a screenshot to user://screenshots/.
 public partial class Sandbox : Node3D
 {
@@ -24,6 +25,16 @@ public partial class Sandbox : Node3D
         string mapId = ArgValue(args, "--map");
         if (mapId != null)
             LoadMap(mapId);
+
+        string video = ArgValue(args, "--video");
+        if (video != null)
+        {
+            if (VideoFeed.TryParseMode(video, out VideoFeed.Mode mode))
+                AddChild(VideoFeed.Create(mode, GetNode<Camera3D>("Camera"), ArgValue(args, "--video-signals"),
+                    ArgValue(args, "--video-seed"), ArgValue(args, "--video-field")));
+            else
+                GD.PrintErr($"ERROR: unknown --video mode '{video}' (clean, chain, authored, hybrid).");
+        }
 
         string selftest = ArgValue(args, "--selftest");
         if (selftest == "noclip")
