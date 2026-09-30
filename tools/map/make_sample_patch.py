@@ -13,6 +13,9 @@ A readable test patch built from the reference notes' vocabulary, not final art.
 - The test trench (task 2.3), south-west of the meadow: a straight section and one turned 30 degrees, 0.8 m wide and
   1.5 m deep, cut into a levelled pad. It is the terrain-holes fixture: holes.png marks its cells and four placed
   objects of placeholder boxes fill them (see TRENCH below).
+- The village yard (task 3.2), south of the dirt road at the west end: the damaged adobe house of notes B1 with its
+  yard set, on its own levelled pad (see YARD). Yard litter over the pad, rubble in and around the house, weeds in
+  the far corner, and the cellar entrance, whose stairwell is the second terrain hole on the map.
 - Two start points for the launch rails: on the meadow and in the yard.
 
 The golden file (game/src/world/worldquery_golden.json) probes the features that came first at fixed points: the first
@@ -53,6 +56,19 @@ TRENCH_BEND_DEG = 30.0                # the second section turns this far, towar
 TRENCH_HALF = 0.75                    # half width of the hole band: the 0.4 m cavity plus 0.35 m of lip (F-2)
 TRENCH_LEAD = 0.5                     # the hole band runs this far past each closed end, so the end wall is inset
 
+# The village yard (task 3.2), on its own levelled pad for the same reason as the trench's: a village yard is graded
+# level and the house is built on a level footing, and a flat pad is what lets the cellar's flat-topped lip meet F-3.
+YARD = (-56.0, 33.0, 14.0, 10.5, 2.5)   # centre x, z, half x, half z, blend width (m)
+HOUSE = (-58.0, 28.0, 5.0, 3.0)         # the adobe house: centre x, z and half footprint (m)
+FENCE_Z = 23.2                          # the road-side fence and gate line (m)
+FENCE_X = (-68.7, -66.2, -63.7, -58.7, -53.4, -48.4, -43.4)   # surviving fence bays (notes B6: fence remains)
+SHED, GATE_X = (-65.0, 38.0, -14.0), -56.0
+FRUIT = ((-57.0, 38.0, 20.0), (-46.5, 29.0, 200.0))           # notes V3: one or two per yard
+# The cellar entrance. Its origin must put the hole band on surface-cell edges, so both x and z are a multiple of 0.5
+# plus 0.25 (blender/structures/cellar_shaft.py); the band is then exactly 3 x 7 cells, centred on the origin.
+CELLAR = (-48.75, 36.25)
+CELLAR_BAND = (1.5, 3.5)                # the hole band: width across and length along, both about the origin (m)
+
 
 def smoothstep(t):
     t = min(max(t, 0.0), 1.0)
@@ -86,8 +102,18 @@ def segment_distance(px, pz, a, b):
     return math.hypot(px - (a[0] + t * dx), pz - (a[1] + t * dz))
 
 
+def cellar_band():
+    """The cellar's hole band as (x0, z0, x1, z1): cell-aligned, so its cells are exactly the band."""
+    return (CELLAR[0] - CELLAR_BAND[0] / 2, CELLAR[1] - CELLAR_BAND[1] / 2,
+            CELLAR[0] + CELLAR_BAND[0] / 2, CELLAR[1] + CELLAR_BAND[1] / 2)
+
+
 def is_hole(x0, z0, x1, z1):
-    """Whether the cell [x0, x1] x [z0, z1] meets a trench strip, so that the hole cells cover the whole strip."""
+    """Whether the cell [x0, x1] x [z0, z1] meets a trench strip or the cellar band, so that the hole cells cover the
+    whole of each. The cellar test is strict, so a cell that only touches the band's edge stays ground."""
+    bx0, bz0, bx1, bz1 = cellar_band()
+    if x0 < bx1 - 1e-9 and x1 > bx0 + 1e-9 and z0 < bz1 - 1e-9 and z1 > bz0 + 1e-9:
+        return True
     for a, b in trench_strips():
         steps = max(2, int(math.hypot(b[0] - a[0], b[1] - a[1]) / 0.01))
         for i in range(steps + 1):
@@ -100,8 +126,8 @@ def is_hole(x0, z0, x1, z1):
     return False
 
 
-def pad_weight(x, z):
-    cx, cz, hx, hz, blend = PAD
+def pad_weight(pad, x, z):
+    cx, cz, hx, hz, blend = pad
     return smoothstep((hx + blend - abs(x - cx)) / blend) * smoothstep((hz + blend - abs(z - cz)) / blend)
 
 
@@ -131,11 +157,17 @@ def sample(h):
 
 
 PAD_HEIGHT = sample(relief(PAD[0], PAD[1]))
+YARD_HEIGHT = sample(relief(YARD[0], YARD[1]))
+LEVELLED = ((PAD, PAD_HEIGHT), (YARD, YARD_HEIGHT))   # the pads do not overlap, so they blend one after the other
 
 
 def height(x, z):
-    w = pad_weight(x, z)
-    return relief(x, z) * (1 - w) + PAD_HEIGHT * w if w > 0 else relief(x, z)
+    h = relief(x, z)
+    for pad, level in LEVELLED:
+        w = pad_weight(pad, x, z)
+        if w > 0:
+            h = h * (1 - w) + level * w
+    return h
 
 
 def surface(x, z):
@@ -153,6 +185,11 @@ def surface(x, z):
         return YARD_LITTER
     if 30 <= x <= 74 and 52 < z <= 78:
         return WEEDS
+    # The village yard: beaten litter over the pad, rubble in and around the house, weeds in the far south-west corner.
+    if abs(x - YARD[0]) <= YARD[2] and abs(z - YARD[1]) <= YARD[3]:
+        if abs(x - HOUSE[0]) <= HOUSE[2] + 0.8 and abs(z - HOUSE[1]) <= HOUSE[3] + 0.8:
+            return RUBBLE
+        return WEEDS if x < YARD[0] - 8.5 and z > YARD[1] + 4.5 else YARD_LITTER
     if ROAD_Z[0] <= z <= ROAD_Z[1] and x < 30:
         return DRY_CRUST
     return MEADOW_SOD
@@ -174,20 +211,24 @@ def cover(kind, x, z):
 
 
 def hole_cells(cells, half):
-    """The hole cells as a set of (row, column), over the trench's bounding box only."""
+    """The hole cells as a set of (row, column), scanned over each hole's own bounding box only."""
     reach = TRENCH_HALF + CELL_RES
     xs = [p[0] for strip in trench_strips() for p in strip]
     zs = [p[1] for strip in trench_strips() for p in strip]
-    c0 = max(math.floor((min(xs) - reach + half) / CELL_RES), 0)
-    c1 = min(math.floor((max(xs) + reach + half) / CELL_RES) + 1, cells - 1)
-    r0 = max(math.floor((min(zs) - reach + half) / CELL_RES), 0)
-    r1 = min(math.floor((max(zs) + reach + half) / CELL_RES) + 1, cells - 1)
+    band = cellar_band()
+    boxes = [(min(xs) - reach, min(zs) - reach, max(xs) + reach, max(zs) + reach),
+             (band[0] - CELL_RES, band[1] - CELL_RES, band[2] + CELL_RES, band[3] + CELL_RES)]
     marked = set()
-    for r in range(r0, r1 + 1):
-        for c in range(c0, c1 + 1):
-            x0, z0 = -half + c * CELL_RES, -half + r * CELL_RES
-            if is_hole(x0, z0, x0 + CELL_RES, z0 + CELL_RES):
-                marked.add((r, c))
+    for bx0, bz0, bx1, bz1 in boxes:
+        c0 = max(math.floor((bx0 + half) / CELL_RES), 0)
+        c1 = min(math.floor((bx1 + half) / CELL_RES) + 1, cells - 1)
+        r0 = max(math.floor((bz0 + half) / CELL_RES), 0)
+        r1 = min(math.floor((bz1 + half) / CELL_RES) + 1, cells - 1)
+        for r in range(r0, r1 + 1):
+            for c in range(c0, c1 + 1):
+                x0, z0 = -half + c * CELL_RES, -half + r * CELL_RES
+                if is_hole(x0, z0, x0 + CELL_RES, z0 + CELL_RES):
+                    marked.add((r, c))
     return marked
 
 
@@ -204,6 +245,20 @@ def trench_objects():
     corner = (TRENCH_A[0] + TRENCH_LENGTH, TRENCH_A[1])
     objects.append({"asset": "test_trench_corner", "position_m": [corner[0], PAD_HEIGHT, corner[1]],
                     "rotation_deg": [90.0 - TRENCH_BEND_DEG / 2, 0.0, 0.0], "scale": 1.0})
+    return objects
+
+
+def yard_objects():
+    """The village yard of task 3.2 (notes B1, B3, B6, V3, W4): the adobe house with its door facing south into the
+    yard, the plank shed, the cellar entrance (head and shaft at one pose), two fruit trees, and what is left of the
+    road-side fence with its gate. The cellar's shaft is the hole filler for the cells `holes.png` marks."""
+    objects = [placed("house_adobe", HOUSE[0], HOUSE[1]),
+               placed("shed_plank", SHED[0], SHED[1], SHED[2]),
+               placed("cellar_head", CELLAR[0], CELLAR[1]),
+               placed("cellar_shaft", CELLAR[0], CELLAR[1]),
+               placed("gate_plank", GATE_X, FENCE_Z)]
+    objects += [placed("tree_fruit", x, z, yaw) for x, z, yaw in FRUIT]
+    objects += [placed("fence_planks", x, FENCE_Z) for x in FENCE_X]
     return objects
 
 
@@ -294,7 +349,7 @@ def objects():
     # Shed east wall, 2.2 m up: the shed is 4 m wide, turned -10 degrees.
     wall = at(shed, 2.2, 2.0 * math.cos(math.radians(10)), 2.0 * math.sin(math.radians(10)))
     garden_pole = placed("pole", 66.0, 72.0)
-    # The trench fillers come last, so every index before them stays where the golden file has it.
+    # The trench fillers and then the yard come last, so every index before them stays where the golden file has it.
     return first + trees + line + [
         {"asset": "cable", "points_m": [at(p, 7.8) for p in [pole_a] + line], "sag_m": 0.6, "diameter_m": 0.012},
         placed("household_junk", 44.0, 14.0, 70.0),
@@ -302,7 +357,7 @@ def objects():
         placed("household_junk", 68.0, 48.0, -20.0),
         garden_pole,
         {"asset": "cable", "points_m": [wall, at(garden_pole, 2.0)], "sag_m": 1.0, "diameter_m": 0.01},
-    ] + trench_objects()
+    ] + trench_objects() + yard_objects()
 
 
 def start(x, z, yaw):
