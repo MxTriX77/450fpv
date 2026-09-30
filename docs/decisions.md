@@ -90,3 +90,8 @@ The pilot asked on 2026-09-30 for a working analog video feed quickly, to demo t
 - **The feed is on by default in the sandbox**, so world-artist and QA screenshots now carry it unless `--video clean` is passed.
 
 **When redone properly:** render into a SubViewport at field resolution (about a tenth of the per-pixel cost, and it removes the tap-level aperture workaround); a real AE/AWB loop, so the pilot's "colours change as you get closer" exists at all; lens distortion; the staged loss with the blue no-signal screens; and `FeedSignals` replaced by the physics interface.
+
+## D-014 The simulator's airframe is "Svinorez 10 Opto", and the armament label reads "! SAFE !" · Accepted
+The pilot's decision (2026-09-30). The OSD copies the layout seen in their footage exactly, with two substitutions: the real manufacturer's brand name becomes **`Svinorez 10 Opto`**, and the `! ACTIVE !` indicator becomes **`! SAFE !`**.
+
+Neither is cosmetic. The first keeps a real manufacturer's brand out of the product. The second replaces a live-armament indicator: this is a training simulator and must not present itself as armed. Anyone tidying the OSD later must not revert either one. Everything else about the OSD stays as it looks in the footage — see `docs/reference-notes/pilot-requirements.md` PR-2.

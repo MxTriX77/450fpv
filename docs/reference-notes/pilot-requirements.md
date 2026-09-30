@@ -1,0 +1,77 @@
+# Pilot requirements
+
+Behaviour the pilot has stated from flying the real aircraft, given directly in conversation rather than derived from footage. This is first-hand knowledge that no reference clip shows well, so it is recorded verbatim first and interpreted second — **if the interpretation and the pilot's words disagree, the pilot's words win.**
+
+Every item here is a requirement for the flight model, the video feed or the OSD. Whoever writes those OpenSpec changes must read this file and turn each item into scenarios with numbers a QA engineer can execute.
+
+Source: the pilot, 2026-09-30. Their aircraft is a Vyriy-class heavy fiber-optic cargo quad.
+
+---
+
+## PR-1 Throttle-punch shake after arresting a fast descent
+
+**What the pilot said.** "I noticed on my Viriy that when I suddenly need to lower altitude and when the alt is what I need, after I suddenly compensate with heavy throttle — the image vibrates for a mere 0.3–0.7 sec."
+
+**The sequence, precisely.** Deliberate rapid descent → the target altitude is reached → a sharp, large throttle increase to arrest the descent → **the image vibrates for 0.3–0.7 s**, then settles. It is the *image* that shakes; the pilot did not describe the aircraft going anywhere it was not commanded.
+
+**Candidate mechanisms** (not yet distinguished, and the model does not need to pick only one):
+- The aircraft is descending into its own downwash. A sharp throttle step makes the rotors re-ingest disturbed, recirculating air, so thrust comes back unevenly and unsteadily across the four discs rather than smoothly. This is the region around vortex ring state; a heavy quad with a slung payload sits in it easily on a fast vertical descent.
+- The throttle step is a torque step into a heavy airframe. Arms and the payload mount flex, and the frame rings at its own structural frequency until it damps out.
+- Payload swing: a slung or bottom-mounted mass (including the fiber spool) excites a pendulum mode, which reacts back into the airframe.
+
+**Requirement.** After a rapid descent is arrested by a sharp throttle increase, the simulation SHALL produce a brief, damped, high-frequency disturbance lasting **0.3–0.7 s**, visible primarily as camera shake rather than as a large trajectory error. Its presence and severity SHALL depend on descent rate, on how abrupt the throttle input is, and on payload mass — not fire on every throttle increase. It SHALL vary between occurrences rather than being an identical canned shake.
+
+**This couples physics to the video feed.** The camera is rigidly mounted, so airframe vibration must reach the rendered image. The feed built on 2026-09-30 has no camera-shake input at all; `FeedSignals` must gain one, and the flight model must publish it.
+
+**Open, only the pilot can answer:** does it happen with an empty aircraft or only when loaded? Does it depend on how close to the ground you are? Is it worse with the fiber spool full or nearly paid out?
+
+---
+
+## PR-2 OSD: copy the real layout, change two strings
+
+**What the pilot said.** "OSD. You should base off of the OSD you see on my videos. Except don't use the real Viriy brand name, use **'Svinorez 10 Opto'**. Also there's '! ACTIVE !' label, instead it should say **'! SAFE !'**. Everything else should stay as it looks."
+
+**Requirement.** The OSD SHALL reproduce the layout in the footage as described in `video-feed.md` §5 — the character grid, the positions, the fields and their formatting — with exactly two substitutions:
+
+| In the footage | In the simulator |
+|---|---|
+| the real airframe's brand name | **`Svinorez 10 Opto`** |
+| `! ACTIVE !` | **`! SAFE !`** |
+
+Everything else stays as it looks. Do not redesign it, do not modernise it, do not "improve" the layout.
+
+**Why the substitutions matter.** `Svinorez 10 Opto` is a deliberate stand-in so the simulator does not carry a real manufacturer's brand. `! SAFE !` replaces a live-armament indicator: this is a training simulator and must not present itself as armed. Neither is a style choice and neither should be reverted by someone tidying up later.
+
+**Also true of the OSD, from the notes:** it is inserted *after* the lens, so **the OSD stays straight while the real horizon bends** (`video-feed.md`, A f236). When barrel distortion (O1) is implemented, the OSD must not be distorted with the picture. It is also inserted before the recorder, so it carries the same composite artifacts as the picture.
+
+**OPSEC.** `video-feed.md` describes the OSD only as a layout and deliberately records no on-screen values. Keep it that way: reproduce the arrangement, invent the numbers.
+
+---
+
+## PR-3 Wind must rotate the aircraft, not just push it
+
+**What the pilot said.** "About the wind logic — I want to make sure that it won't JUST make the drone drift towards the wind's direction, but also cause sometimes drone swirling and swerving in yaw axis, like you know its nose may lift up a bit suddenly AND turn in yaw axis in some direction, and when you try compensate — it can cause some intermediary control issues too. Bottom line — we must have top-notch realistic physics no one implemented in any FPV sim out there yet."
+
+**The failure to avoid.** Wind modelled as a translational velocity field added to the aircraft's airspeed. That produces drift and nothing else, and it is what every FPV simulator already does. The pilot is explicit that this is not enough.
+
+**Requirement.** Wind SHALL apply **moments as well as forces**. Specifically:
+- **Yaw disturbance.** The aircraft SHALL sometimes swirl and swerve in yaw from wind alone, with no yaw input from the pilot.
+- **Coupled pitch and yaw.** The described event is the nose lifting *and* the aircraft turning in yaw at the same time. These SHALL be able to occur together, as one event, not as two independent noise channels.
+- **Correction is not clean.** When the pilot corrects such a disturbance, the correction SHALL be able to create further difficulty of its own — an intermediate, awkward state rather than an immediate return to trim.
+- **Irregular.** These events SHALL be occasional and varied in direction, size and duration, not a periodic wobble. See the project's standing principle in `CLAUDE.md` §2 point 4: a tiny, cunning, elegant randomness rather than brute-force simulation.
+
+**Mechanisms that would produce this honestly**, rather than a yaw wobble bolted on:
+- **Gust gradients across the airframe.** When wind differs across the span, the four rotors see different inflow, so thrust and drag differ per rotor. Differential rotor drag is a yaw moment; differential thrust is pitch and roll. One gust front crossing the aircraft naturally produces a coupled pitch-and-yaw event, which is exactly what the pilot describes.
+- **Rotational content in the wind field.** Real turbulence has vorticity. The wind grid should be able to carry rotation, not only a vector per cell — particularly in the wakes of tree belts and buildings, where `wind.md` already puts the worst turbulence.
+- **Asymmetric disc loading.** In translational flight the advancing and retreating sides of each rotor see different relative airflow, which produces moments that change with airspeed and direction.
+- **The fiber tether.** A wind-loaded catenary pulls from a point that is not the centre of mass, so it contributes its own yawing and pitching moment that changes as the line pays out.
+
+**Acceptance is behavioural, and the pilot is the judge.** The measurable targets in `wind.md` (Calm / Windy / Severe, D-011) bound the magnitudes. Whether it *feels* right is decided by the pilot flying it, and the scenarios should be written so that the honest answer to "does wind ever turn the aircraft without pilot input" is a yes with numbers attached.
+
+---
+
+## The standing bar
+
+The pilot's closing line applies to everything in this file and to the flight model as a whole: **"we must have top-notch realistic physics no one implemented in any FPV sim out there yet."**
+
+The manifesto's version of the same point (`CLAUDE.md` §2) is that real flight always feels slightly random, that exhaustive physics is not affordable, and that the goal is therefore a small, well-chosen, well-placed randomness that reproduces the feel. Randomness must still be seeded and reproducible (D-010), so that a recorded flight can be replayed and a crash can be explained rather than shrugged at.
