@@ -3,7 +3,8 @@
 Sizes from B6: 1-2 m high, boards 0.10-0.15 m, posts 0.1-0.2 m, grey weathered wood (feed #615e56). The opening is
 2.6 m between posts, wide enough for a cart, with a header rail over it. One leaf still hangs on its lower hinge and
 stands half open; the other is gone, which is how gates read in clips E and J. So the gate is a real fly-through, and
-the leaf standing in the opening is what makes the line through it off-centre.
+the leaf standing in the opening is what makes the line through it off-centre. Both posts are plumb: a leaning post
+would move the gap's own edges with height, and the leaning ones belong to the poles and wires of task 3.5.
 
     blender -b --factory-startup --python blender/structures/gate_plank.py   (or tools/blender/export.py --build)
 
@@ -34,7 +35,10 @@ WOOD = "wood_weathered"
 
 HINGE_X = -OPENING / 2 + POST / 2      # the surviving leaf hangs on the west post
 COS_OPEN = math.cos(math.radians(LEAF_OPEN))
-CLEAR = OPENING - POST - LEAF[0] * COS_OPEN   # what is left to fly through, m
+SIN_OPEN = math.sin(math.radians(LEAF_OPEN))
+LEAF_EDGE = HINGE_X + LEAF[0] * COS_OPEN - LEDGE[1] / 2 * SIN_OPEN   # the open leaf's far edge, x
+POST_FACE = OPENING / 2 - POST / 2                                   # the east post's inner face, x
+CLEAR = POST_FACE - LEAF_EDGE          # what is left to fly through, m
 DETAIL = [{"boards": True, "brace": True}, {"boards": False, "brace": True}, {"boards": False, "brace": False}]
 
 
@@ -45,18 +49,16 @@ def build(level, shapes):
 
     for sx in (-1, 1):
         x = sx * (OPENING / 2)
-        lean = 0.0 if sx < 0 else 2.4      # the east post has been shoved out of plumb
         collision.append(mesh.box((x, (POST_TOP - POST_BURIED) / 2, 0.0), (POST, POST_TOP + POST_BURIED, POST), WOOD,
-                                  rotation_deg=(0, 0, lean), uv_offset=(x, 0)))
+                                  uv_offset=(x, 0)))
     collision.append(mesh.box((0.0, HEADER_Y - HEADER[1] / 2, 0.0), (OPENING + POST, HEADER[1], HEADER[0]), WOOD,
                               uv_offset=(0.4, 0)))
 
     # The surviving leaf, turned LEAF_OPEN degrees about its hinge post. Its own frame runs along the leaf, so the
     # boards and ledges are built in leaf coordinates and then turned together.
-    sin_open = math.sin(math.radians(LEAF_OPEN))
     def at(along, y, out):
         """A point on the leaf: `along` m from the hinge across the leaf, `out` m off its face."""
-        return (HINGE_X + along * COS_OPEN - out * sin_open, y, along * sin_open + out * COS_OPEN)
+        return (HINGE_X + along * COS_OPEN - out * SIN_OPEN, y, along * SIN_OPEN + out * COS_OPEN)
 
     ledge_y = (0.22, LEAF[1] - 0.26)
     for y in ledge_y:
@@ -93,12 +95,14 @@ entry = {
     "material": "timber",
     "collision": shapes,
     # Wind: the gate's own plane, a bay the wind sees straight through beside the leaf.
-    "wind_volume": [{"shape": "box", "size_m": [round(OPENING + POST, 4), POST_TOP, round(LEAF[0] * math.sin(math.radians(LEAF_OPEN)) + 0.2, 4)],
-                     "position_m": [0.0, round(POST_TOP / 2, 4), round(LEAF[0] * math.sin(math.radians(LEAF_OPEN)) / 2, 4)]}],
+    "wind_volume": [{"shape": "box", "size_m": [round(OPENING + POST, 4), POST_TOP, round(LEAF[0] * SIN_OPEN + 0.2, 4)],
+                     "position_m": [0.0, round(POST_TOP / 2, 4), round(LEAF[0] * SIN_OPEN / 2, 4)]}],
     "snag_hazard": True,
     "wind_porosity": 0.62,
-    "gaps": [{"name": "gate", "center_m": [round(OPENING / 2 - POST / 2 - CLEAR / 2, 4), round((HEADER_Y - HEADER[1]) / 2, 4), 0.0],
-              "width_m": round(CLEAR - 0.08, 4), "height_m": round(HEADER_Y - HEADER[1], 4), "yaw_deg": 0.0}],
+    # The gap is what the surviving leaf leaves of the opening, 1.5 cm in from the leaf's edge and the far post and 2 cm
+    # under the header, so the declared rectangle is clear of the mesh and no more than 5 cm inside it.
+    "gaps": [{"name": "gate", "center_m": [round((LEAF_EDGE + POST_FACE) / 2, 4), round((HEADER_Y - HEADER[1] - 0.02) / 2, 4), 0.0],
+              "width_m": round(CLEAR - 0.03, 4), "height_m": round(HEADER_Y - HEADER[1] - 0.02, 4), "yaw_deg": 0.0}],
     "lod_switch_m": [20.0, 55.0],
 }
 kit.finish(__file__, "prop", lods, {WOOD: ("#615e56", 0.9)}, entry)

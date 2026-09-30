@@ -445,8 +445,7 @@
         { "name": "window_far", "center_m": [1.8, 1.425, -3.0], "width_m": 0.8, "height_m": 1.15, "yaw_deg": 180.0 },
         { "name": "window_north_west", "center_m": [-2.6, 1.45, -3.0], "width_m": 0.8, "height_m": 1.0, "yaw_deg": 180.0 },
         { "name": "window_gable_east", "center_m": [5.0, 1.45, 0.0], "width_m": 0.8, "height_m": 1.0, "yaw_deg": 90.0 },
-        { "name": "inner_door", "center_m": [-1.9, 0.975, 0.0], "width_m": 0.85, "height_m": 1.95, "yaw_deg": 0.0 },
-        { "name": "gable_breach_east", "center_m": [5.0, 3.75, 0.0], "width_m": 1.8, "height_m": 0.9, "yaw_deg": 90.0 }
+        { "name": "inner_door", "center_m": [-1.9, 0.975, 0.0], "width_m": 0.85, "height_m": 1.95, "yaw_deg": 90.0 }
       ],
       "lod_switch_m": [
         45.0,
@@ -506,7 +505,7 @@
       "material": "timber",
       "collision": [
         { "shape": "box", "size_m": [0.14, 2.5, 0.14], "position_m": [-1.3, 0.85, 0.0] },
-        { "shape": "box", "size_m": [0.14, 2.5, 0.14], "position_m": [1.3, 0.85, 0.0], "rotation_deg": [0, 0, 2.4] },
+        { "shape": "box", "size_m": [0.14, 2.5, 0.14], "position_m": [1.3, 0.85, 0.0] },
         { "shape": "box", "size_m": [2.74, 0.13, 0.09], "position_m": [0.0, 1.945, 0.0] },
         { "shape": "box", "size_m": [1.25, 0.09, 0.028], "position_m": [-0.7261, 0.22, 0.37], "rotation_deg": [-35.0, 0, 0] },
         { "shape": "box", "size_m": [1.25, 0.09, 0.028], "position_m": [-0.7261, 1.44, 0.37], "rotation_deg": [-35.0, 0, 0] },
@@ -524,7 +523,7 @@
       "snag_hazard": true,
       "wind_porosity": 0.62,
       "gaps": [
-        { "name": "gate", "center_m": [0.512, 0.94, 0.0], "width_m": 1.3561, "height_m": 1.88, "yaw_deg": 0.0 }
+        { "name": "gate", "center_m": [0.508, 0.93, 0.0], "width_m": 1.4141, "height_m": 1.86, "yaw_deg": 0.0 }
       ],
       "lod_switch_m": [
         20.0,

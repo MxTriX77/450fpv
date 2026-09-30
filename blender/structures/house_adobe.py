@@ -11,9 +11,9 @@ fallen ceiling board heap and joists across the gap the boards left.
 
 The way in and out, which is the point of the asset (B1 `gap`): the door on the south wall at x +1.8 and the north
 wall's window at the same x, so the line straight through the room from the door and out of the far window is clear
-at about 1.3 m. The inner doorway of the partition wall, the other three windows and the breach in the east gable
-are gaps too. The stripped roof is open between the surviving batten runs, but a roof opening lies in a sloping
-plane and the catalog's gaps are upright rectangles (yaw only), so it carries no gap entry.
+at about 1.3 m. The inner doorway of the partition wall and the other four windows are gaps too. Two more openings a
+drone can use carry no gap entry, because a catalog gap is an upright rectangle: the stripped bay of the roof, which
+lies in a sloping plane, and the breach over the broken east gable, which is a triangle under the roof frame.
 
 Collision is one box per pier, lintel, gable course, plate, ridge, rafter, batten run, tile patch, ceiling board
 panel, joist, shard and fallen board. The wall panels the render patches are drawn from sit exactly in the faces of
@@ -268,9 +268,7 @@ entry = {
         {"name": "window_gable_east", "center_m": [FOOT[0] / 2, round(SILL + WINDOW[1] / 2, 4), 0.0],
          "width_m": WINDOW[0], "height_m": WINDOW[1], "yaw_deg": 90.0},
         {"name": "inner_door", "center_m": [PARTITION[0], 0.975, 0.0], "width_m": 0.85, "height_m": 1.95,
-         "yaw_deg": 0.0},
-        {"name": "gable_breach_east", "center_m": [FOOT[0] / 2, round(GABLE_BROKEN + 0.45, 4), 0.0], "width_m": 1.8,
-         "height_m": 0.9, "yaw_deg": 90.0},
+         "yaw_deg": 90.0},
     ],
     "lod_switch_m": [45.0, 130.0],
 }
