@@ -18,6 +18,7 @@ using Godot;
 public partial class MapScene : Node3D
 {
     const string MapsDir = "res://maps", SurfacesPath = "res://maps/surfaces.json", CatalogPath = "res://assets/catalog.json";
+    const string MaterialsDir = "res://assets/materials";
 
     static readonly string[] PackageFiles = { "map.json", "height.r16", "surface.png", "cover.png", "objects.json" };
 
@@ -25,6 +26,8 @@ public partial class MapScene : Node3D
     public string Id { get; private set; }
     /// How the surfaces look (surface_look.json), shared by the terrain, the near micro-detail and the far cover.
     public SurfaceLook Look { get; private set; }
+
+    readonly Dictionary<string, Material> _materials = new(); // <name>.tres by material name, null when there is none
 
     /// Loads game/maps/<id>/. On failure returns null, with `error` saying why in one line.
     public static MapScene Load(string id, out string error)
@@ -154,6 +157,10 @@ public partial class MapScene : Node3D
             visual.Transform = new Transform3D(ToBasis(p.Rotation, p.Scale), ToGodot(p.Position));
             visual.SetMeta("object", i);
             objects.AddChild(visual);
+            List<MeshInstance3D> meshes = Meshes(visual);
+            foreach (MeshInstance3D mesh in meshes)
+                BindMaterials(mesh);
+            SetLodRanges(p.Asset, meshes);
 
             StaticBody3D body = null;
             for (int shape = 0; World.Geometry(i, shape, 0, out ShapeGeometry g); shape++)
@@ -174,6 +181,68 @@ public partial class MapScene : Node3D
                 body.AddChild(Tagged(new CollisionShape3D { Shape = primitive, Transform = new Transform3D(ToBasis(g.Axes, 1), ToGodot(g.Center)) },
                     shape, g.Material, g.Surface));
             }
+        }
+    }
+
+    /// Every MeshInstance3D of an instantiated asset scene, in tree order.
+    static List<MeshInstance3D> Meshes(Node node)
+    {
+        var found = new List<MeshInstance3D>();
+        if (node is MeshInstance3D mesh)
+            found.Add(mesh);
+        foreach (Node child in node.GetChildren())
+            found.AddRange(Meshes(child));
+        return found;
+    }
+
+    /// Switches the asset's LOD meshes by camera distance (asset-pipeline, Budgets and LOD). The builder names them
+    /// `<asset>_LOD0`, `_LOD1`, ... and the catalog's `lod_switch_m` gives the distance where each level hands over to
+    /// the next, so level n draws from switch[n−1] (0 for LOD0) to switch[n] (unlimited for the last). The hand-over is
+    /// a hard switch, with no fade and no margin, so exactly one level ever draws. The `.glb.import` sidecar has
+    /// `meshes/generate_lods=false` (tools/blender/export.py writes it), so Godot adds no second LOD of its own.
+    /// An asset without `lod_switch_m` is drawn as it is.
+    static void SetLodRanges(AssetDef asset, List<MeshInstance3D> meshes)
+    {
+        if (asset.LodSwitch.Length == 0)
+            return;
+        var levels = new MeshInstance3D[asset.LodSwitch.Length + 1];
+        foreach (MeshInstance3D mesh in meshes)
+        {
+            Match match = Regex.Match(mesh.Name, @"_LOD(\d+)$");
+            int level = match.Success ? int.Parse(match.Groups[1].Value) : -1;
+            if (level < 0 || level >= levels.Length)
+                throw new InvalidDataException($"asset '{asset.Id}': {asset.LodSwitch.Length + 1} LOD levels follow from "
+                    + $"its lod_switch_m, and its scene has the mesh '{mesh.Name}'");
+            levels[level] = mesh;
+        }
+        for (int level = 0; level < levels.Length; level++)
+        {
+            MeshInstance3D mesh = levels[level]
+                ?? throw new InvalidDataException($"asset '{asset.Id}': its scene has no mesh '{asset.Id}_LOD{level}'");
+            mesh.VisibilityRangeBegin = level > 0 ? (float)asset.LodSwitch[level - 1] : 0f;
+            mesh.VisibilityRangeEnd = level < asset.LodSwitch.Length ? (float)asset.LodSwitch[level] : 0f;
+            mesh.VisibilityRangeBeginMargin = mesh.VisibilityRangeEndMargin = 0f;
+            mesh.VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Disabled;
+        }
+    }
+
+    /// Binds each mesh surface to game/assets/materials/<material name>.tres, the one place a material's textures live
+    /// (asset-pipeline; tools/blender/README.md). A `.glb` carries names and no images, so a name without a `.tres`
+    /// keeps the flat colour its builder gave it.
+    void BindMaterials(MeshInstance3D mesh)
+    {
+        for (int surface = 0; surface < mesh.Mesh.GetSurfaceCount(); surface++)
+        {
+            string name = mesh.Mesh.SurfaceGetMaterial(surface)?.ResourceName;
+            if (string.IsNullOrEmpty(name))
+                continue;
+            if (!_materials.TryGetValue(name, out Material bound))
+            {
+                string path = $"{MaterialsDir}/{name}.tres";
+                _materials[name] = bound = ResourceLoader.Exists(path) ? ResourceLoader.Load<Material>(path) : null;
+            }
+            if (bound != null)
+                mesh.SetSurfaceOverrideMaterial(surface, bound);
         }
     }
 

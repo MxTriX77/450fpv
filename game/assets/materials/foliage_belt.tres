@@ -1,0 +1,21 @@
+[gd_resource type="StandardMaterial3D" load_steps=2 format=3]
+
+; Leaf, twig and impostor cards of the tree belt, cut out of the team's foliage atlas (tools/assets/make_foliage.py).
+; Alpha scissor, not blending: the silhouette is hard, the cards need no sorting and they write depth, so a crown of a
+; hundred overlapping cards costs one pass. Culling is off because a card is one-sided geometry seen from both sides,
+; and the backlight is the green light that comes through a leaf lit from behind (notes V1, crowns seen against the sky).
+
+[ext_resource type="Texture2D" path="res://assets/textures/foliage_belt/foliage_belt_albedo.png" id="1_atlas"]
+
+[resource]
+resource_name = "foliage_belt"
+transparency = 2
+alpha_scissor_threshold = 0.5
+alpha_antialiasing_mode = 1
+cull_mode = 2
+albedo_texture = ExtResource("1_atlas")
+albedo_texture_force_srgb = false
+metallic_specular = 0.15
+roughness = 0.82
+backlight_enabled = true
+backlight = Color(0.16, 0.2, 0.09, 1)

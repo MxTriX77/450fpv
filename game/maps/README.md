@@ -246,6 +246,9 @@ There is no restitution field. On rigid materials the drone's leg and frame comp
 | `wind_volume` | list of shapes, optional | The volume that blocks wind, in the same schema as `collision` (primitives only, no `material`). Leave it out to use the collision shapes. A tree collides only as its trunk, but its crown blocks the wind. |
 | `wind_porosity` | 0 – 1 | Optical porosity of the wind volume seen side-on: the fraction of the silhouette you can see through. 0 = solid, 1 = open. |
 | `gaps` | list | Named fly-through openings, may be empty |
+| `lod_switch_m` | list of m, optional | Camera distances where the visual's LOD meshes hand over, rising from 0. Leave it out for an asset drawn at one level. |
+
+`lod_switch_m` goes with the LOD meshes `<asset>_LOD0`, `_LOD1`, … that the asset's `.glb` holds, so a list of n distances needs n + 1 of them. Level 0 draws from the camera out to the first distance, each next level to the next distance, and the last level (a tree's far impostor) from the last distance outward. The hand-over is a hard switch with no fade, so exactly one level ever draws, and the `.glb.import` sidecar keeps Godot's own automatic mesh LOD off (`meshes/generate_lods=false`, written by `tools/blender/export.py`) so there is no second LOD under this one.
 
 Collision and wind-volume shapes. Cylinders and capsules stand along asset +Y. `position_m` (default [0, 0, 0]) and `rotation_deg` (default [0, 0, 0], same order as objects) place each shape.
 

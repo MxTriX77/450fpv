@@ -37,6 +37,7 @@ public sealed class AssetDef
     public ShapeDef[] WindVolume; // the wind_volume shapes, else the collision shapes
     public double WindPorosity;   // optical porosity of the wind volume seen side-on
     public GapDef[] Gaps;
+    public double[] LodSwitch;    // camera distances (m) where the visual's LODs change over, rising; empty for none
 }
 
 /// A contact material of the catalog (game/maps/README.md, Materials), with the README's defaults for fields left out.
@@ -140,6 +141,17 @@ public sealed class Catalog
                 });
             }
             asset.Gaps = gaps.ToArray();
+            var switches = new List<double>();
+            if (e.TryGetProperty("lod_switch_m", out JsonElement lod))
+            {
+                foreach (JsonElement d in lod.EnumerateArray())
+                {
+                    if (d.GetDouble() <= (switches.Count > 0 ? switches[^1] : 0))
+                        throw new JsonException($"asset '{a.Name}': lod_switch_m must rise from 0, and {d} does not");
+                    switches.Add(d.GetDouble());
+                }
+            }
+            asset.LodSwitch = switches.ToArray();
             catalog.Assets[a.Name] = asset;
         }
         return catalog;

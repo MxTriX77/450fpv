@@ -394,10 +394,14 @@ public static partial class WorldQuerySelfTest
     }
 
     /// On sample_patch, row 0 is north: the cell holding the house (object 0, at x 52, z 30, 5 m tall on y 0.684) is solid
-    /// with its top 5.684 m minus the terrain there; the same column mirrored north–south is open ground. The first tree's
-    /// crown (x −40, z −50, on y 0.214) sits 4.214–10.214 m minus the terrain.
+    /// with its top 5.684 m minus the terrain there; the same column mirrored north–south is open ground. The first tree
+    /// (object 4, x −40, z −50) stands in the belt: its cell's top is that tree's own crown, taken from the catalog, and
+    /// its base is lower than the crown's underside because the shrub understory shares the cell and the lowest base wins.
     static bool WindGridLayout(WorldQuery sample)
     {
+        ShapeDef crown = sample.Catalog.Assets["tree_acacia"].WindVolume[0];
+        double crownTop = sample.PlacementOf(4).Position.Y + crown.Position.Y + crown.Height / 2;
+        double crownBase = sample.PlacementOf(4).Position.Y + crown.Position.Y - crown.Height / 2;
         int n = sample.WindCells;
         int row = (int)Math.Floor((30 + sample.Half) / 2), col = (int)Math.Floor((52 + sample.Half) / 2);
         WindCell house = sample.WindGrid[row * n + col], mirror = sample.WindGrid[(n - 1 - row) * n + col];
@@ -410,14 +414,14 @@ public static partial class WorldQuerySelfTest
             obstacles += c.Porosity < 1 ? 1 : 0;
         bool ok = n == 128 && sample.WindGrid.Length == n * n && Math.Abs(house.TopM - (5.684 - terrain)) <= 1e-4
             && Math.Abs(house.BaseM - Math.Max(0.684 - terrain, 0)) <= 1e-4 && house.Porosity <= 1e-6
-            && mirror.TopM == 0 && mirror.Porosity == 1 && Math.Abs(tree.BaseM - (4.214 - treeTerrain)) <= 1e-4
-            && Math.Abs(tree.TopM - (10.214 - treeTerrain)) <= 1e-4 && tree.Porosity < 1;
+            && mirror.TopM == 0 && mirror.Porosity == 1 && Math.Abs(tree.TopM - (crownTop - treeTerrain)) <= 1e-4
+            && tree.BaseM >= 0 && tree.BaseM < crownBase - treeTerrain && tree.Porosity < 1;
         return Check("wind grid layout on sample_patch", ok,
             $"{n} × {n} cells of 2 m, {obstacles} with an obstacle; house cell (row {row}, column {col}) TopM {house.TopM:0.0000} m "
             + $"(expected {5.684 - terrain:0.0000}), BaseM {house.BaseM:0.0000} (expected {Math.Max(0.684 - terrain, 0):0.0000}), porosity "
             + $"{house.Porosity}; mirrored cell (row {n - 1 - row}) TopM {mirror.TopM}, porosity {mirror.Porosity}; first tree's cell "
-            + $"BaseM {tree.BaseM:0.0000} / TopM {tree.TopM:0.0000} (expected {4.214 - treeTerrain:0.0000} / {10.214 - treeTerrain:0.0000}), "
-            + $"porosity {tree.Porosity:0.000}");
+            + $"TopM {tree.TopM:0.0000} (its crown top {crownTop - treeTerrain:0.0000}), BaseM {tree.BaseM:0.0000} (under its crown's "
+            + $"{crownBase - treeTerrain:0.0000}, the understory), porosity {tree.Porosity:0.000}");
     }
 
     /// Query centred 5 m in front of and behind sample_patch's gate (object 2): its gap "gate" comes back with the
@@ -909,7 +913,8 @@ public static partial class WorldQuerySelfTest
             ("house roof", new(52, 0.684 + 5 + gap, 30), 0, 0, "masonry"),
             ("shed roof", new(38, -0.017 + 2.3 + gap, 44), 1, 0, "timber"),
             ("gate top bar", new(30.5, 0.714 + 2.1 + gap, 20), 2, 2, "steel"),
-            ("tree trunk", new(-40 + 0.1 + gap, 0.214 + 3, -50), 4, 0, "timber"),
+            // 1 mm off the belt tree's trunk, whose radius comes from the catalog so the probe follows the asset.
+            ("tree trunk", new(-40 + world.Catalog.Assets["tree_acacia"].Collision[0].Radius + gap, 0.214 + 3, -50), 4, 0, "timber"),
             ("pole", new(-30 + 0.11 + gap, -1.053 + 4, 0), 7, 0, "timber"),
             ("cable mid-span", new(-15, (6.747 + 7.8) / 2 - 0.6 - 0.006 - gap, 0), 9, 0, "cable"),
             ("runtime shed roof", roofTop + roofUp * gap, shed, 1, "sheet_metal"),

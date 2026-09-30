@@ -39,5 +39,5 @@ under `game/assets/textures/`.
 
 ## Made by the team
 
-Files under `game/assets/textures/` made by the team: none yet.
+Files under `game/assets/textures/` made by the team: `game/assets/textures/foliage_belt/foliage_belt_albedo.png`
 Everything else under `game/assets/` (models, materials, shaders) and `blender/` is made by the team.

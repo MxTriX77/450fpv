@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://ih1m8qiw823u"
-path="res://.godot/imported/fence_planks.glb-90f7e8f5c7e7725d81ed1656cc7a10c1.scn"
+uid="uid://bhbwkvts4owb8"
+path="res://.godot/imported/shrub_belt.glb-e2a0cd9e1c0550c0878fbca2f8bcd4b5.scn"
 
 [deps]
 
-source_file="res://assets/models/structures/fence_planks.glb"
-dest_files=["res://.godot/imported/fence_planks.glb-90f7e8f5c7e7725d81ed1656cc7a10c1.scn"]
+source_file="res://assets/models/vegetation/shrub_belt.glb"
+dest_files=["res://.godot/imported/shrub_belt.glb-e2a0cd9e1c0550c0878fbca2f8bcd4b5.scn"]
 
 [params]
 
@@ -42,4 +42,4 @@ materials/extract_path=""
 _subresources={}
 gltf/naming_version=2
 gltf/embedded_image_handling=1
-gltf/texture_map_mode=1
+gltf/texture_map_mode=0

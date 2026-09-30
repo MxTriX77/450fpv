@@ -22,6 +22,7 @@ add new content where no probe relies on it, so a re-record changes only hashes 
 import json
 import math
 import os
+import random
 import sys
 from array import array
 
@@ -37,6 +38,9 @@ CRATERS = [  # x, z, radius, depth, rim (m); spoil reaches 2 radii out
 ]
 BANK = (50.0, 5.0, -70.0, 3.5, 1.2)  # full-height half length, taper, centre z, half width, height (m)
 ROAD_Z = (17.0, 22.0)                # the dirt road from the west edge to the gate
+# The tree belt (notes V1): 18 m of it, five rows across, with two clearings cut through (x centre, half width).
+BELT_Z, BELT_X, BELT_ROWS, BELT_ROW_M, BELT_STEP_M = (-63.0, -45.0), (-118.0, 118.0), 6, 3.0, 3.0
+BELT_CLEARINGS, BELT_SHRUBS = ((2.0, 5.0), (-74.0, 4.5)), 620
 MEADOW_SOD, DRY_CRUST, CRATER_SPOIL, BELT_STRAW, BELT_BARE, TILLED, YARD_LITTER, RUBBLE, WEEDS = range(1, 10)
 
 # The test trench. Its pad is levelled so that TerrainHeight is one value over the whole trench: the filler is
@@ -213,6 +217,61 @@ def at(p, up, dx=0.0, dz=0.0):
     return [round(x + dx, 3), round(y + up, 3), round(z + dz, 3)]
 
 
+def belt(placed_first):
+    """The tree belt (notes V1): rows of trees across the belt band with a shrub understory between them.
+
+    V1 puts trunks 1-3 m apart in a belt 10-30 m wide. This one is 18 m wide in five rows about 3.6 m apart, with
+    trunks about 3.8 m along a row: a belt thinned by shelling (notes B, "thinned and broken"), which is also what
+    keeps it inside the frame budget. Two clearings are left open (V1's `gap`: clearings inside the belt), so the
+    drone has somewhere to cross the belt other than over its crowns.
+
+    The species mix follows V1: planted acacia and ash through the middle, self-seeded box elder and young broken
+    trees at the margins where the light gets in, and a dead tree here and there (V2).
+    """
+    rng = random.Random(SEED)
+    fixed = [(t["position_m"][0], t["position_m"][2]) for t in placed_first]  # the golden file's three trees
+    objects, trunks = [], []
+    for row in range(BELT_ROWS):
+        z0 = BELT_Z[0] + BELT_ROW_M * (row + 0.5)
+        edge = min(row, BELT_ROWS - 1 - row) == 0  # the two outer rows get the light, and the scrub
+        x = BELT_X[0] + rng.uniform(0, BELT_STEP_M)
+        while x < BELT_X[1]:
+            x += BELT_STEP_M * rng.uniform(0.62, 1.38)
+            z = z0 + rng.uniform(-BELT_ROW_M, BELT_ROW_M) / 3
+            if any(abs(x - cx) < half for cx, half in BELT_CLEARINGS):
+                continue
+            if any(math.hypot(x - tx, z - tz) < 7.0 for tx, tz in fixed)                     or any(math.hypot(x - tx, z - tz) < 1.9 for tx, tz in trunks):
+                continue
+            roll = rng.random()
+            if roll < (0.10 if edge else 0.04):
+                asset = "tree_dead"
+            elif edge:
+                asset = "tree_young" if roll < 0.55 else "tree_maple"
+            else:
+                asset = "tree_acacia" if roll < 0.62 else "tree_ash" if roll < 0.9 else "tree_maple"
+            trunks.append((x, z))
+            objects.append(scaled(placed(asset, round(x, 2), round(z, 2), round(rng.uniform(0, 360), 1)),
+                                  round(rng.uniform(0.84, 1.16), 3)))
+    # The understory. V1 puts it through the whole belt, and it is thickest at the two edges where the light gets in;
+    # it is also what stops the drone seeing straight under the canopy and out the other side.
+    for _ in range(BELT_SHRUBS):
+        x = rng.uniform(*BELT_X)
+        z = rng.choice(BELT_Z) + rng.uniform(0, BELT_ROW_M * 1.3) * (1 if rng.random() < 0.5 else -1) \
+            if rng.random() < 0.45 else rng.uniform(*BELT_Z)
+        if not BELT_Z[0] <= z <= BELT_Z[1] or any(abs(x - cx) < half for cx, half in BELT_CLEARINGS):
+            continue
+        if any(math.hypot(x - tx, z - tz) < 1.2 for tx, tz in trunks + fixed):
+            continue
+        objects.append(scaled(placed("shrub_belt", round(x, 2), round(z, 2), round(rng.uniform(0, 360), 1)),
+                              round(rng.uniform(0.7, 1.35), 3)))
+    return objects
+
+
+def scaled(object, scale):
+    object["scale"] = scale
+    return object
+
+
 def objects():
     # The first ten are the golden file's: keep them and their order (indices).
     pole_a, pole_b = placed("pole", -30.0, 0.0), placed("pole", 0.0, 0.0)
@@ -222,16 +281,14 @@ def objects():
         shed,
         placed("gate_frame", 30.5, 20.0, 90.0),
         placed("household_junk", 58.0, 38.0, 30.0),
-        placed("tree_proxy", -40.0, -50.0),
-        placed("tree_proxy", -10.0, -56.0),
-        placed("tree_proxy", 20.0, -48.0),
+        placed("tree_acacia", -40.0, -50.0),
+        placed("tree_ash", -10.0, -56.0),
+        placed("tree_maple", 20.0, -48.0),
         pole_a,
         pole_b,
         {"asset": "cable", "points_m": [at(p, 7.8) for p in (pole_a, pole_b)], "sag_m": 0.6, "diameter_m": 0.012},
     ]
-    # A row along the belt's south edge, every 8 m, clear of the first three trees' crowns.
-    trees = [placed("tree_proxy", float(x), round(-46.0 + 0.6 * math.sin(1.7 * x), 2)) for x in range(-116, 117, 8)
-             if all(math.hypot(x - t["position_m"][0], -46.0 - t["position_m"][2]) >= 8 for t in first[4:7])]
+    trees = belt(first[4:7])
     # The power line goes on west from pole_a.
     line = [placed("pole", x, 0.0) for x in (-60.0, -90.0, -120.0)]
     # Shed east wall, 2.2 m up: the shed is 4 m wide, turned -10 degrees.
