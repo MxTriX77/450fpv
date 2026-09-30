@@ -75,3 +75,18 @@ What it means for the plan:
 **Resolved 2026-09-30.** The pilot asked how the finished objects would be shown to them and said they had no preference, leaving the call here. The gallery stays: `uat1_gallery` is built as specified, with a station per object, a patch per terrain kind and labels within 25 m. Its cost is one generator, and it is the only way to be sure the pilot has looked at every asset before the same assets are placed thousands of times across 4 km. Objects also keep landing in `sample_patch` as they are finished, so nothing waits for the gallery to be flown.
 
 What the pilot can fly meanwhile, offered on the same day: `sample_patch` (256 m, real ground, placeholder objects) and the synthetic 4 km terrain package (terrain only, 602 fps avg). Neither is a gate.
+
+## D-013 The analog feed shipped as a spike, on purpose, for demos · Accepted with debt
+The pilot asked on 2026-09-30 for a working analog video feed quickly, to demo the project to people, and said explicitly that this breaks the project's own rules and should be completed or redone properly later. Recorded here so the debt is visible rather than forgotten.
+
+**What was skipped, knowingly:** no OpenSpec change, no spec scenarios, no tests, no QA review, no pilot gate. It went spike → chosen from screenshots → built → merged in one sitting.
+
+**What it is:** one mixed feed. Baseline from candidates 1 and 2 (composite structure and colour, cleanly tunable), stochastic drops into candidate 3's degraded look, and short grain-only cuts. Rates are named constants at the top of `game/src/video/FeedEvents.cs`: cuts measured 3.8/min at 60–160 ms, drops 7.8/min at 0.3–2.2 s. Randomness is seeded and reproducible; `--video-seed` and `--video-field` pin a still.
+
+**What is not true of it yet, and matters:**
+- **Nothing physical drives it.** `FeedSignals.cs` stands in — distance from the map origin for fiber sparkle, camera speed for motor noise, a constant gain where an auto-exposure loop belongs. D-008 says the feed is simulated, not filtered, and it is not yet simulated from anything real.
+- **Losses of picture are random.** `video-feed.md` measures no random rate: every loss in the footage followed a close approach, landing or contact. `FeedEvents.TriggerCut()` is the hook for the flight model. The random rate is the pilot's deliberate demo choice.
+- **Performance is unverified.** The one trustworthy measurement was 345 fps clean against 310 fps for candidate 1 (~0.33 ms); the mixed feed is estimated at 0.5–0.8 ms. QA must re-measure on a quiet machine on AC before the 60 fps budget is claimed.
+- **The feed is on by default in the sandbox**, so world-artist and QA screenshots now carry it unless `--video clean` is passed.
+
+**When redone properly:** render into a SubViewport at field resolution (about a tenth of the per-pixel cost, and it removes the tap-level aperture workaround); a real AE/AWB loop, so the pilot's "colours change as you get closer" exists at all; lens distortion; the staged loss with the blue no-signal screens; and `FeedSignals` replaced by the physics interface.
