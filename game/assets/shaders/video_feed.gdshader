@@ -70,6 +70,12 @@ const float SC_CYCLES = 230.0;  // subcarrier cycles per active line (4.43 MHz x
 const float LUMA = 450.0;       // effective luma samples per line (P2)
 const float SHARPEN = 0.30;     // P3, radius 3 composite samples so its peak does not sit on the subcarrier
 const float GRAIN = 0.011;      // N1, about 2.8 levels at gain 1 (the notes' 2-4, U4)
+const float APERTURE_V = 0.15;  // the sensor's vertical aperture, in field lines
+const float CROSS = 2.6;        // P5: how hard the chroma the wide detector smears away is put back as false colour
+const float CROSS_V = 0.35;     // what the PAL delay line leaves of the V half of it
+const float SATURATION = 0.78;  // C2/C3: a good signal still reads desaturated
+const float LIFT = 0.05, CONTRAST = 0.90; // the milky, low-contrast black level of a composite picture
+const float BANDING = 0.006;    // the faint vertical banding flat sky shows, about 1.5 levels
 
 const float OSD_COLS = 30.0;    // §5: a 30-column by 16-row character grid
 const float OSD_ROWS = 16.0;
@@ -93,15 +99,29 @@ float hash(vec3 p) {
 	return fract((q.x + q.y) * q.z);
 }
 
-// The lens and the sensor pixel aperture band-limit the picture before the encoder ever sees it. Without it a 1080p
-// render aliases straight into the subcarrier band and the decoder turns the whole frame into rainbow.
+// The lens and the sensor pixel aperture band-limit the picture before the encoder ever sees it. The vertical
+// aperture is deliberately narrow: on a good signal the footage collapses fine detail horizontally while staying
+// sharp vertically, and the detail that survives into the line is what feeds the cross-colour.
 vec3 sensor_read(vec2 uv) {
-	return 0.5 * (texture(screen, uv - vec2(0.0, 0.25 / LINES)).rgb
-		+ texture(screen, uv + vec2(0.0, 0.25 / LINES)).rgb);
+	return 0.5 * (texture(screen, uv - vec2(0.0, APERTURE_V / LINES)).rgb
+		+ texture(screen, uv + vec2(0.0, APERTURE_V / LINES)).rgb);
 }
 
 float luma_of(vec3 c) {
 	return dot(c, vec3(0.299, 0.587, 0.114));
+}
+
+// The glyph code in one cell of the character grid, 0 for blank.
+float cell_code(float col, float row) {
+	if (col < 0.0 || col >= OSD_COLS || row < 0.0 || row >= CODE_ROWS) {
+		return 0.0;
+	}
+	return texture(osd_codes, vec2((col + 0.5) / OSD_COLS, (row + 0.5) / CODE_ROWS)).r;
+}
+
+// One glyph's (ink, outline) at horizontal cell position `cx` and in-cell height `v`.
+vec2 glyph_ink(float code, float cx, float v) {
+	return texture(osd_glyphs, vec2((code + fract(cx)) / osd_cells, v)).rg;
 }
 
 // The character grid at (x, y), as (glyph, outline). `row0` is the first code row of the block: 0 for the OSD, 16 for
@@ -112,26 +132,23 @@ vec2 grid_ink(float x, float y, float row0) {
 	}
 	float cx = x * OSD_COLS;
 	float cy = y * OSD_ROWS;
-	float row = floor(cy) + row0;
-	if (row < 0.0 || row >= CODE_ROWS) {
-		return vec2(0.0);
-	}
-	float code = texture(osd_codes, vec2((floor(cx) + 0.5) / OSD_COLS, (row + 0.5) / CODE_ROWS)).r;
-	if (code < 0.5) {
-		return vec2(0.0);
-	}
-	return texture(osd_glyphs, vec2((code + fract(cx)) / osd_cells, fract(cy))).rg;
+	float code = cell_code(floor(cx), floor(cy) + row0);
+	return code < 0.5 ? vec2(0.0) : glyph_ink(code, cx, fract(cy));
 }
 
 // The receiver showing its raw input: near-binary white dashes on black, one field line tall and 6-8 px long, about
 // 20 % of pixels white, with a faint diagonal herringbone through the whole field. A new pattern every field, so a
 // loss never reads as a frozen still. The first fields of a partial snow still carry colour.
 vec3 snow_of(float x, float line, float fw) {
+	// Measured over all 23 full-snow frames: 60-68 % of pixels below 32 levels, 18-23 % white (>= 128) and only
+	// 8-12 % above 224. The white run is spread rather than pinned near clip to land all three at once.
 	float s = hash(vec3(floor(x * LUMA * 0.55), line, fw + 511.0));
 	float white = step(0.80, s);
-	float lvl = white * (0.72 + 0.28 * fract(s * 37.0)) + step(0.62, s) * 0.10;
+	float lvl = white * (0.55 + 0.40 * fract(s * 37.0)) + step(0.62, s) * 0.10;
 	lvl += 0.04 * sin(TWO_PI * (x * 57.0 + line * 0.5));  // the herringbone
-	vec3 c = vec3(lvl * snow_level / 0.21);               // scaled to the level drawn for this field
+	// The field's mean level is drawn per field (52-65); it moves the level, not the white run, which is what keeps
+	// the clipped fraction where the footage has it.
+	vec3 c = vec3(lvl + snow_level - 0.188);
 	if (snow_chroma > 0.0) {
 		float h = hash(vec3(floor(x * LUMA * 0.55), line, fw + 733.0));
 		c += snow_chroma * 0.20 * white * (vec3(fract(h * 5.0), fract(h * 11.0), fract(h * 17.0)) - 0.5);
@@ -195,6 +212,15 @@ void fragment() {
 	// signal, one line tall and flat across the width, so the decoder keeps it colourless as the footage shows.
 	float n3 = n3_amp * step(fract(line / n3_spacing + n3_roll), 1.0 / n3_spacing);
 
+	// --- the OSD cells this pixel needs, hoisted out of the tap loop. The 13 taps span about 0.4 of a character
+	// cell, so they can only land in two of them; and where both are blank, which is most of the screen, the loop
+	// never touches the glyph atlas at all.
+	float cy_osd = sy * OSD_ROWS;
+	float cx_lo = floor(px * OSD_COLS - 0.2), cx_hi = floor(px * OSD_COLS + 0.2);
+	float code_lo = cell_code(cx_lo, floor(cy_osd));
+	float code_hi = cx_hi == cx_lo ? code_lo : cell_code(cx_hi, floor(cy_osd));
+	bool has_osd = code_lo > 0.5 || code_hi > 0.5;
+
 	// --- encode, disturb, decode.
 	float grain_sigma = GRAIN * gain * (1.0 + 2.2 * degrade) * (1.0 + grain_boost);
 	float comp[13];
@@ -205,9 +231,15 @@ void fragment() {
 		// The OSD is inserted here, on the drone, between the camera and the composite encoder: white glyphs with a
 		// black outline, hard-edged, at the undistorted x. Everything the footage shows on it - the 3-4 px edge rise,
 		// the coloured fringes, the cross-colour near busy texture, the shear of a tear - comes from what follows.
-		vec2 osd = grid_ink(x, sy, 0.0);
-		c = mix(c, vec3(OSD_BLACK), osd.y);
-		c = mix(c, vec3(OSD_WHITE), osd.x);
+		if (has_osd && x >= 0.0 && x < 1.0) {
+			float cx = x * OSD_COLS;
+			float code = floor(cx) <= cx_lo ? code_lo : code_hi;
+			if (code > 0.5) {
+				vec2 osd = glyph_ink(code, cx, fract(cy_osd));
+				c = mix(c, vec3(OSD_BLACK), osd.y);
+				c = mix(c, vec3(OSD_WHITE), osd.x);
+			}
+		}
 
 		float y = luma_of(c);
 		float u = 0.493 * (c.b - y);
@@ -218,31 +250,57 @@ void fragment() {
 		// N1: always on, flat over one luma sample, a new pattern every field line and every field.
 		comp[i] += (hash(vec3(floor(x * SC_SAMPLES * 0.5), line, fw)) - 0.5) * 2.0 * grain_sigma;
 
-		float imp = hash(vec3(floor(x * SC_SAMPLES * 0.25), line, fw + 17.0));
-		comp[i] += step(imp, imp_rate) * (imp < imp_rate * 0.5 ? 0.18 : -0.18);
+		// An impulse lands on the composite as a short burst inside the chroma band, so the decoder makes a coloured
+		// dash of it - red, green, magenta or cyan by the phase it happens to arrive at, which is what the footage
+		// shows (N2). A pulse held flat across a whole subcarrier cycle would null there and come out grey.
+		float cell = floor(x * SC_SAMPLES * 0.25);
+		float imp = hash(vec3(cell, line, fw + 17.0));
+		if (imp < imp_rate) {
+			comp[i] += 0.30 * sin(ph + TWO_PI * hash(vec3(cell, line, fw + 29.0)))
+				+ (imp < imp_rate * 0.4 ? 0.10 : -0.10);
+		}
 	}
 
 	// Y: a 4-tap box is exactly one subcarrier cycle, so it notches the subcarrier out; what the notch leaves behind
-	// on moving chroma is the dot crawl. It also rolls the luma off near 2.6 MHz (P2).
-	float y_dec = 0.25 * (comp[5] + comp[6] + comp[7] + comp[8]);
+	// on moving chroma is the dot crawl. Convolving it with a 2-tap box keeps that null and rolls the luma off
+	// earlier, which is the heavy horizontal smear a good signal already has: grass reads as streaks, not blades.
+	float y_dec = 0.25 * (0.5 * comp[4] + comp[5] + comp[6] + comp[7] + 0.5 * comp[8]);
 
-	// U/V: synchronous detection over 13 samples, Hann-windowed. The window is ~0.7 us, which is the measured 5x
-	// lower chroma bandwidth and the 0-6 px rightward offset (P4). Luma detail inside the passband survives the
-	// detector as false chroma: that is P5 cross-colour, not an added effect.
-	float u_dec = 0.0, v_dec = 0.0, wsum = 0.0;
+	// U/V: synchronous detection over two window widths at once. The 13-sample Hann window is ~0.7 us, which is the
+	// measured 5x lower chroma bandwidth and the 0-6 px rightward offset (P4). The narrow window is 8 samples with
+	// half-weight ends: 8 is two whole subcarrier cycles, so it still cancels the detector's own second harmonic
+	// exactly - a shorter window leaks it, and amplifying that leak weaves a herringbone over flat sky. What the
+	// narrow window keeps and the wide one has smeared away IS the cross-colour (P5), so amplifying that difference
+	// is what puts the vivid blue-violet on thin high-contrast structures, the trait that reads first in the footage.
+	float u_wide = 0.0, v_wide = 0.0, w_wide = 0.0;
+	float u_fine = 0.0, v_fine = 0.0, w_fine = 0.0;
 	for (int i = 0; i < 13; i++) {
-		float w = 0.5 - 0.5 * cos(TWO_PI * float(i) / 12.0);
+		float wl = 0.5 - 0.5 * cos(TWO_PI * float(i) / 12.0);
+		float ws = i < 2 || i > 10 ? 0.0 : (i == 2 || i == 10 ? 0.5 : 1.0);
 		float x = px + float(i - 6) / SC_SAMPLES;
 		float ph = TWO_PI * (SC_CYCLES * x + ph_line);
-		u_dec += comp[i] * sin(ph) * w;
-		v_dec += comp[i] * vsw * cos(ph) * w;
-		wsum += w;
+		float sp = sin(ph), cp = vsw * cos(ph);
+		u_wide += comp[i] * sp * wl;
+		v_wide += comp[i] * cp * wl;
+		w_wide += wl;
+		u_fine += comp[i] * sp * ws;
+		v_fine += comp[i] * cp * ws;
+		w_fine += ws;
 	}
-	u_dec = 2.0 * u_dec / wsum;
-	v_dec = 2.0 * v_dec / wsum;
+	u_wide = 2.0 * u_wide / w_wide;
+	v_wide = 2.0 * v_wide / w_wide;
+	u_fine = 2.0 * u_fine / w_fine;
+	v_fine = 2.0 * v_fine / w_fine;
+	// The receiver's PAL delay line averages two lines, and the V axis is switched between them, so most of the
+	// line-alternating V cross-colour cancels while the U axis survives. That is why the footage's fringes read
+	// blue-violet rather than alternating magenta and green, and keeping only a third of the V term reproduces it
+	// without decoding a second line.
+	float u_dec = u_wide + CROSS * (u_fine - u_wide);
+	float v_dec = v_wide + CROSS * CROSS_V * (v_fine - v_wide);
 
-	// C3: analog cameras drop chroma as gain rises, and a quality drop takes more of it with it.
-	float sat = clamp(1.0 - 0.32 * (gain - 1.0) - 0.35 * degrade, 0.0, 1.0);
+	// C3: analog cameras drop chroma as gain rises, and a quality drop takes more of it with it. The baseline is
+	// already below 1: even a good signal reads desaturated.
+	float sat = clamp(SATURATION - 0.32 * (gain - 1.0) - 0.35 * degrade, 0.0, 1.0);
 	u_dec *= sat;
 	v_dec *= sat;
 
@@ -260,6 +318,11 @@ void fragment() {
 	// brightens the whole picture, OSD included, because it acts on the signal after the insert.
 	y_dec = y_dec * (1.0 - 0.10 * degrade) - 0.03 * degrade;
 	y_dec *= 1.0 + tell;
+
+	// The picture that comes off a composite link is milky and low in contrast even at its best: black sits well
+	// above zero and white never reaches the top. Flat sky also carries faint vertical banding.
+	y_dec = LIFT + CONTRAST * y_dec
+		+ BANDING * (sin(TWO_PI * px * 3.7) + 0.7 * sin(TWO_PI * px * 9.3 + 2.1));
 
 	vec3 rgb = vec3(
 		y_dec + 1.140 * v_dec,

@@ -60,6 +60,9 @@ public sealed class FeedLoss
 
     /// The snow's mean level flickers between 52 and 65 levels, redrawn every 1–2 fields.
     const float SnowLevelMin = 52f / 255f, SnowLevelMax = 65f / 255f;
+    /// The colour killer never quite takes the snow to grey: a killed snow field still measures a chroma median of
+    /// 1.4–2.9 levels, against 7–10 on the first field of a partial snow.
+    const float SnowChromaFloor = 0.08f;
 
     /// N5–N7 variant draw (hypothesis, U2): a margin that faded over a field or longer — the fiber stretching or
     /// bending before it breaks — mostly gives the staged sequence; one that vanished within a field mostly gives a
@@ -68,7 +71,9 @@ public sealed class FeedLoss
 
     /// N8 tear amplitude, in units of the measured 20–60 px displacement at 1920 wide.
     const float TearMin = 0.45f, TearMax = 1.0f;
-    /// The hard cut's other pre-cut glitch: a ≈10 % rise in grain over the last 1–2 fields.
+    /// The hard cut's tell is one of the two the footage shows on it, 2 of 4 each: N8 tearing, or a ≈10 % rise in
+    /// grain over the last 1–2 picture fields.
+    const float HardCutTearChance = 0.5f;
     const float GrainRise = 0.10f;
 
     /// One stage of a sequence. `Fields` is how long it holds; Forever is the terminal blue.
@@ -121,7 +126,7 @@ public sealed class FeedLoss
     public void StartDropout()
     {
         _count = 0;
-        Push(DrawTell());
+        Push(DrawTell(false));
         if (_rng.NextDouble() < BlackChance)
             Push(new Stage { S = State.Black, Fields = Draw(BlackMinFields, BlackMaxFields) });
         else
@@ -145,7 +150,7 @@ public sealed class FeedLoss
         }
         else
         {
-            Push(DrawTell());
+            Push(DrawTell(true));
         }
         Push(new Stage { S = State.Blue, Fields = Forever });
         Begin();
@@ -179,7 +184,9 @@ public sealed class FeedLoss
             }
             // The first snow field is coloured (chroma 7–10 levels), the second paler (4–7), then killed. The full
             // snow of stage 3 is already colour-killed when it starts.
-            SnowChroma = s.S == State.PartialSnow ? Math.Max(0f, 1f - 0.5f * _fieldsInStage) : 0f;
+            SnowChroma = s.S == State.PartialSnow
+                ? Math.Max(SnowChromaFloor, 1f - 0.5f * _fieldsInStage)
+                : SnowChromaFloor;
             if (s.S == State.PartialSnow && _fieldsInStage > 0)
                 Split = Math.Min(0.97f, Split + SplitDriftPerField);
         }
@@ -208,15 +215,20 @@ public sealed class FeedLoss
         Clear();
     }
 
-    /// The tell that always comes before the picture goes: brightening under dense bands of impulse dashes, or one
-    /// N8-style tear. A hard cut's tear is at the bottom of the field (H f628); a dropout's is at the top (P f1144).
-    Stage DrawTell()
+    /// The tell that always comes before the picture goes. The footage gives a different pair for each sequence, so
+    /// the draw differs too: a dropout brightens under dense bands of impulse dashes, or tears at the top of the
+    /// field (P f1144); a hard cut tears at the bottom (N8, H f628), or raises its grain by ≈10 % (A f424).
+    Stage DrawTell(bool terminal)
     {
         var s = new Stage { S = State.Picture, Fields = Draw(TellMinFields, TellMaxFields) };
-        if (_rng.NextDouble() < TellTearChance)
+        bool tear = _rng.NextDouble() < (terminal ? HardCutTearChance : TellTearChance);
+        if (tear)
         {
             s.Tear = TearMin + (TearMax - TearMin) * (float)_rng.NextDouble();
-            s.TearTop = _rng.NextDouble() < 0.5 ? 1f : 0f;
+            s.TearTop = terminal ? 0f : 1f;
+        }
+        else if (terminal)
+        {
             s.Grain = GrainRise;
         }
         else

@@ -8,8 +8,8 @@ using Godot;
 /// camera, which is obviously wrong and is meant to be thrown away. The feed and the OSD only ever read the fields
 /// below, so replacing this class with the physics↔video interface touches nothing else.
 ///
-/// Attitude, altitude, distance and the flight timer are real values of the camera. Battery voltage, current and link
-/// margin are stand-ins, and are marked as such below.
+/// Altitude, distance and the flight timer are real values of the camera. Battery voltage, current and link margin
+/// are stand-ins, and are marked as such below.
 public sealed class FeedSignals
 {
     /// Fiber optical margin. 1 = plenty, 0 = at the receiver threshold. Feeds N2 sparkle density, the N12/N5–N7
@@ -22,8 +22,8 @@ public sealed class FeedSignals
     /// Camera AE gain. 1 = bright day, 4 ≈ the night level of clip L. Feeds N1 grain σ and C3 saturation.
     public float Gain = 1f;
 
-    /// Camera attitude and position, for the OSD. These are real.
-    public float HeadingDeg, PitchDeg, RollDeg, Altitude, Distance;
+    /// Camera height and distance from the origin, for the OSD. These are real.
+    public float Altitude, Distance;
 
     /// Seconds since the feed started, the OSD's flight timer.
     public double ElapsedSeconds;
@@ -40,7 +40,7 @@ public sealed class FeedSignals
 
     /// Stand-in: link margin falls with distance from a notional pilot at the map origin (as if the fiber were
     /// paying out), and motor current rises with camera speed.
-    public void UpdateFromCamera(Vector3 position, Vector3 rotation, double dt)
+    public void UpdateFromCamera(Vector3 position, double dt)
     {
         Distance = new Vector2(position.X, position.Z).Length();
         LinkMargin = Mathf.Clamp(1f - Distance / 400f, 0f, 1f);
@@ -49,9 +49,6 @@ public sealed class FeedSignals
         _lastCameraPos = position;
 
         Altitude = position.Y;
-        HeadingDeg = -Mathf.RadToDeg(rotation.Y);
-        PitchDeg = Mathf.RadToDeg(rotation.X);
-        RollDeg = Mathf.RadToDeg(rotation.Z);
 
         ElapsedSeconds += dt;
         Amps = FullAmps * MotorCurrent;
