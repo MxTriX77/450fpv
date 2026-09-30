@@ -5,7 +5,8 @@ using Godot;
 ///
 ///   mixed     — video_feed.gdshader:     the feed, and what the pilot chose. The simulated composite chain held to
 ///                                        the authored version's restraint, sliding into the heavy degraded look and
-///                                        back out at random, with occasional grain-only cuts
+///                                        back out at random, with the OSD in the signal and the receiver's staged
+///                                        loss of picture on top of it (FeedOsd, FeedLoss)
 ///   clean     — the pass is off, the raw render
 ///   chain     — video_chain.gdshader:    spike candidate 1, every artifact emerges from the signal
 ///   authored  — video_authored.gdshader: spike candidate 2, hand-written effects
