@@ -111,6 +111,19 @@ float luma_of(vec3 c) {
 	return dot(c, vec3(0.299, 0.587, 0.114));
 }
 
+// The glyph code in one cell of the character grid, 0 for blank.
+float cell_code(float col, float row) {
+	if (col < 0.0 || col >= OSD_COLS || row < 0.0 || row >= CODE_ROWS) {
+		return 0.0;
+	}
+	return texture(osd_codes, vec2((col + 0.5) / OSD_COLS, (row + 0.5) / CODE_ROWS)).r;
+}
+
+// One glyph's (ink, outline) at horizontal cell position `cx` and in-cell height `v`.
+vec2 glyph_ink(float code, float cx, float v) {
+	return texture(osd_glyphs, vec2((code + fract(cx)) / osd_cells, v)).rg;
+}
+
 // The character grid at (x, y), as (glyph, outline). `row0` is the first code row of the block: 0 for the OSD, 16 for
 // the receiver's own text, which then lands in the top two rows of the display.
 vec2 grid_ink(float x, float y, float row0) {
@@ -119,15 +132,8 @@ vec2 grid_ink(float x, float y, float row0) {
 	}
 	float cx = x * OSD_COLS;
 	float cy = y * OSD_ROWS;
-	float row = floor(cy) + row0;
-	if (row < 0.0 || row >= CODE_ROWS) {
-		return vec2(0.0);
-	}
-	float code = texture(osd_codes, vec2((floor(cx) + 0.5) / OSD_COLS, (row + 0.5) / CODE_ROWS)).r;
-	if (code < 0.5) {
-		return vec2(0.0);
-	}
-	return texture(osd_glyphs, vec2((code + fract(cx)) / osd_cells, fract(cy))).rg;
+	float code = cell_code(floor(cx), floor(cy) + row0);
+	return code < 0.5 ? vec2(0.0) : glyph_ink(code, cx, fract(cy));
 }
 
 // The receiver showing its raw input: near-binary white dashes on black, one field line tall and 6-8 px long, about
@@ -206,6 +212,15 @@ void fragment() {
 	// signal, one line tall and flat across the width, so the decoder keeps it colourless as the footage shows.
 	float n3 = n3_amp * step(fract(line / n3_spacing + n3_roll), 1.0 / n3_spacing);
 
+	// --- the OSD cells this pixel needs, hoisted out of the tap loop. The 13 taps span about 0.4 of a character
+	// cell, so they can only land in two of them; and where both are blank, which is most of the screen, the loop
+	// never touches the glyph atlas at all.
+	float cy_osd = sy * OSD_ROWS;
+	float cx_lo = floor(px * OSD_COLS - 0.2), cx_hi = floor(px * OSD_COLS + 0.2);
+	float code_lo = cell_code(cx_lo, floor(cy_osd));
+	float code_hi = cx_hi == cx_lo ? code_lo : cell_code(cx_hi, floor(cy_osd));
+	bool has_osd = code_lo > 0.5 || code_hi > 0.5;
+
 	// --- encode, disturb, decode.
 	float grain_sigma = GRAIN * gain * (1.0 + 2.2 * degrade) * (1.0 + grain_boost);
 	float comp[13];
@@ -216,9 +231,15 @@ void fragment() {
 		// The OSD is inserted here, on the drone, between the camera and the composite encoder: white glyphs with a
 		// black outline, hard-edged, at the undistorted x. Everything the footage shows on it - the 3-4 px edge rise,
 		// the coloured fringes, the cross-colour near busy texture, the shear of a tear - comes from what follows.
-		vec2 osd = grid_ink(x, sy, 0.0);
-		c = mix(c, vec3(OSD_BLACK), osd.y);
-		c = mix(c, vec3(OSD_WHITE), osd.x);
+		if (has_osd && x >= 0.0 && x < 1.0) {
+			float cx = x * OSD_COLS;
+			float code = floor(cx) <= cx_lo ? code_lo : code_hi;
+			if (code > 0.5) {
+				vec2 osd = glyph_ink(code, cx, fract(cy_osd));
+				c = mix(c, vec3(OSD_BLACK), osd.y);
+				c = mix(c, vec3(OSD_WHITE), osd.x);
+			}
+		}
 
 		float y = luma_of(c);
 		float u = 0.493 * (c.b - y);
