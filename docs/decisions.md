@@ -95,3 +95,21 @@ The pilot asked on 2026-09-30 for a working analog video feed quickly, to demo t
 The pilot's decision (2026-09-30). The OSD copies the layout seen in their footage exactly, with two substitutions: the real manufacturer's brand name becomes **`Svinorez 10 Opto`**, and the `! ACTIVE !` indicator becomes **`! SAFE !`**.
 
 Neither is cosmetic. The first keeps a real manufacturer's brand out of the product. The second replaces a live-armament indicator: this is a training simulator and must not present itself as armed. Anyone tidying the OSD later must not revert either one. Everything else about the OSD stays as it looks in the footage — see `docs/reference-notes/pilot-requirements.md` PR-2.
+
+## D-015 PAL only; NTSC is out of scope · Accepted
+The pilot's decision (2026-09-30), after asking whether modelling both broadcast standards was worth it. It is not: **PAL only.**
+
+This matches the evidence. `video-feed.md` derives PAL independently twice — about 286 lines per field, and a 30 × 16 OSD character grid, where NTSC would give 240 lines and 13 rows. Every measurement we hold is PAL. An NTSC mode would have been extrapolated from theory with nothing to check it against.
+
+The parts of the standard that earn their place, and are in the feed: the subcarrier frequency, which decides *which* spatial frequencies turn into cross-colour (this is why thin branches fringe and coarse detail does not); the line-alternating chroma phase and the delay line that cancels most of the V component, which is why fringes read blue-violet rather than magenta-green; and the field structure at ~286 lines, 50 fields/s, bob-deinterlaced. The broadcast plumbing — blanking intervals, equalising pulses, VBI, burst amplitude — is invisible to a pilot and is not modelled.
+
+## D-016 Controller input is built before the flight model, not after · Accepted
+Decided 2026-09-30 in answer to the pilot's question about when the RadioMaster TX12 gets connected.
+
+The two are nearly independent: the input layer produces four normalised axes plus switches, and the flight model consumes them. Neither needs the other to exist. The order is decided by one asymmetry: **flight feel cannot be tuned without a stick.** Everything the manifesto asks for — the landing bounce when the sticks are held after touchdown, a leg sticking on lift-off, correcting a yaw swerve mid-gust — is judged through gimbals with real travel, resolution and expo. A flight model tuned against keyboard input will feel wrong the first time the transmitter is plugged in, and the tuning will have to be redone against a moving target.
+
+So the input layer comes first, and the flight model is tuned with the transmitter in hand from its first line. The input layer is also independently verifiable, which is rare: a bar display of raw axes, endpoints, deadband, channel order and reversal proves the TX12 works with no drone in existence.
+
+**One thing that must be designed once rather than retrofitted:** the flight model runs a fixed step at ≥ 1 kHz (D-010) and USB HID polls far slower. How stick samples are timestamped and interpolated into the physics step affects control feel directly and is painful to change later. It belongs in the input spec, not in flight tuning.
+
+This does not reorder the roadmap — calibration already sits before MVP-1 — it fixes the order of the two changes relative to each other.

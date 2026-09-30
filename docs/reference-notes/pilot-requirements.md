@@ -138,3 +138,21 @@ The map already carries wires as sag polylines with real catenaries, so the geom
 **Where this stands today.** `sample_patch` is flat because it is a 256 m test patch for the map format, not a landscape. The synthetic 4 km package already generates steppe relief, crater fields, a gully and road embankments, so the terrain renderer and the physics handle relief; nothing in the shipped map exercises it. `build-world-map` must, and the review map should carry at least one patch with relief so it is reviewed before the world is built.
 
 **Also visible and worth building:** the pale matted grass with green showing through (our meadow is more uniformly green), fine-twigged bare crowns as a seasonal variant of the belt trees, and concrete-slab tracks, which are a distinctive and simple asset.
+
+---
+
+## PR-2a The OSD must match exactly, and the grid is not what you would guess
+
+**What the pilot said** (2026-09-30, on seeing the first OSD): "the layout should look exactly the same, and the fonts also, and the crosshair also."
+
+Exactly, not approximately. The first attempt was built from a description and was wrong in every dimension. The second was measured at 1:1 against frames of a clip the pilot shared, and the measurements are recorded here because they are not derivable from the picture size and will otherwise be "fixed" back to something plausible and wrong.
+
+**The character cell is 67.3 × 71.0 px on a 1920 × 1080 frame**, measured from glyph centres: advance 67.3 (across six letters), row pitch 71.0 (three consecutive gaps, all exactly 71), grid origin inset half a cell. A 30 × 16 grid at that pitch covers **2019 × 1136 px — larger than the picture.** The last two columns and the last two rows fall outside the frame. This is not a bug and it is why the bottom-left stack sits where it does. Dividing the frame by 30 × 16 instead puts every row and column in the wrong place.
+
+**The glyph is 5 × 8 samples inside a 14 × 18 cell** — small, narrow, widely spaced, ink about 23–24 × 29–30 px. Not a cell-filling interface face. Cap height is ~30 px, not ~52.
+
+**Two decoder facts the comparison proved**, both of which look like defects until you see why:
+- **The scene smears horizontally but the OSD stays crisp.** The softness comes from the sensor aperture *before* the composite encode. If the softness is instead put in the decoder's luma path, it notches the subcarrier and eats thin bright strokes — an OSD stroke comes out a 1 px grey sliver. A real receiver **traps** the chroma: luma is the composite minus the chroma just detected, which keeps the bandwidth.
+- **The OSD does not rainbow, while foliage of the same contrast does.** A glyph is identical on every line it spans, and the PAL delay line rejects exactly that. An OSD fed hard-edged into the chroma detector tears itself into rainbow stripes; band-limiting it into the detector brings fringing on OSD rows from 105 down to 7.7 against the footage's 7.9.
+
+**OPSEC.** The clip was decoded to a session scratchpad and never entered the repository. Layout, glyph geometry and positions are recorded here; **no on-screen value is**, and none appears in code, comments or commit messages. The receiver's text lines and the timer's unit label are invented marks placed at the measured footprint.
