@@ -13,14 +13,13 @@ public sealed class FeedEvents
     // long ones happen, so the viewer never learns a rhythm.
     // ---------------------------------------------------------------------------------------------------------
 
-    /// Grain-only cuts: the picture gone for an instant, pure snow, then back. The pilot asked for these explicitly
-    /// as a random event. `docs/reference-notes/video-feed.md` N5–N7 classes real losses as event-driven (impact,
-    /// power loss, fiber break) and measures no random rate, so this is the pilot's deliberate choice, not the
-    /// notes: keep the rate low and let <see cref="TriggerCut"/> serve the flight model once it exists.
-    /// 5–32 s apart, mean ≈ 14 s ⇒ a measured 4.2 per minute at seed 1 (the pilot asked for 3–6).
-    const double CutGapMinSeconds = 5.0, CutGapMaxSeconds = 32.0;
-    /// 60–160 ms, i.e. the 2–5 recorded frames the pilot asked for.
-    const double CutMinSeconds = 0.06, CutMaxSeconds = 0.16;
+    /// Recovering dropouts (N12): a tell, a short outage, then the picture back — the pilot's "occasional cut", whose
+    /// staging lives in <see cref="FeedLoss"/>. The pilot asked for these as a random event at 3–6 per minute.
+    /// `docs/reference-notes/video-feed.md` measures ≈5/min in severe wind and rain and a free-running floor of
+    /// 0.2/min otherwise, so this rate is the pilot's deliberate demo choice and the real driver is the fiber link
+    /// margin. 5–32 s apart, mean ≈ 14 s.
+    /// Terminal losses are never on this timer: <see cref="TriggerCut"/> is what fires them.
+    const double DropoutGapMinSeconds = 5.0, DropoutGapMaxSeconds = 32.0;
 
     /// Quality drops: the feed slides into a heavier degraded look and back out. Noticeably more frequent than the
     /// cuts. 1–15 s apart, mean ≈ 5.7 s ⇒ about 10 per minute. Nearest thing measured is N12 (≈5/min in severe wind
@@ -52,21 +51,23 @@ public sealed class FeedEvents
     public float N4Amp, N4Span;
     /// 0 = the baseline picture, 1 = the heaviest quality drop.
     public float Degrade;
-    /// 1 while the picture is replaced by full snow.
-    public float Snow;
+
+    /// The receiver's loss of picture: the staged sequences of N5–N8 and N12.
+    public readonly FeedLoss Loss;
 
     readonly Random _rng;
     int _n3Left, _n4Left;
     float _n3RollRate;
     int _dropLeft, _dropTotal, _dropWait;
     float _dropDepth;
-    int _cutLeft, _cutWait;
+    int _dropoutWait;
 
     public FeedEvents(int seed)
     {
         _rng = new Random(seed);
+        Loss = new FeedLoss(_rng);
         _dropWait = DrawGap(DropGapMinSeconds, DropGapMaxSeconds);
-        _cutWait = DrawGap(CutGapMinSeconds, CutGapMaxSeconds);
+        _dropoutWait = DrawGap(DropoutGapMinSeconds, DropoutGapMaxSeconds);
     }
 
     /// Advances to `field`, replaying every field in between, so the result depends only on the seed and the field.
@@ -79,14 +80,16 @@ public sealed class FeedEvents
         }
     }
 
-    /// Fires a grain-only cut now. The hook the flight model uses once impacts and fiber breaks exist; the staged
-    /// loss of N5–N7 (partial snow → blue → snow → blue) belongs here too and is not built yet.
-    public void TriggerCut() => _cutLeft = Math.Max(_cutLeft, DrawFields(CutMinSeconds, CutMaxSeconds));
+    /// Fires a terminal loss of picture now: the staged sequence of N5–N7, or the hard cut. The hook the flight model
+    /// calls on an impact, a battery collapse or a fiber break. `abrupt` is true when the optical margin vanished
+    /// within one field (a clean break, or power cut) and false when it faded first (the fiber stretching or bending),
+    /// which is what picks the variant. Nothing on a timer calls this.
+    public void TriggerCut(bool abrupt = false) => Loss.StartTerminal(abrupt);
 
     void Step(float motorCurrent)
     {
         StepDrop();
-        StepCut();
+        StepLoss();
 
         if (HasN3)
         {
@@ -138,19 +141,16 @@ public sealed class FeedEvents
         _dropWait = DrawGap(DropGapMinSeconds, DropGapMaxSeconds);
     }
 
-    void StepCut()
+    /// Advances the loss sequence, and starts a recovering dropout when the timer comes up and nothing is running.
+    /// A terminal blue screen never clears, so once one is up the timer does nothing.
+    void StepLoss()
     {
-        if (_cutLeft > 0)
+        if (!Loss.Busy && --_dropoutWait <= 0)
         {
-            _cutLeft--;
-            Snow = 1f;
-            return;
+            Loss.StartDropout();
+            _dropoutWait = DrawGap(DropoutGapMinSeconds, DropoutGapMaxSeconds);
         }
-        Snow = 0f;
-        if (--_cutWait > 0)
-            return;
-        _cutLeft = DrawFields(CutMinSeconds, CutMaxSeconds);
-        _cutWait = DrawGap(CutGapMinSeconds, CutGapMaxSeconds);
+        Loss.Step();
     }
 
     /// A gap in fields, squared so short gaps are common and long ones still happen.
