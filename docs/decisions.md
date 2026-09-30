@@ -113,3 +113,10 @@ So the input layer comes first, and the flight model is tuned with the transmitt
 **One thing that must be designed once rather than retrofitted:** the flight model runs a fixed step at ≥ 1 kHz (D-010) and USB HID polls far slower. How stick samples are timestamped and interpolated into the physics step affects control feel directly and is painful to change later. It belongs in the input spec, not in flight tuning.
 
 This does not reorder the roadmap — calibration already sits before MVP-1 — it fixes the order of the two changes relative to each other.
+
+## D-017 The gallery is built before the remaining assets, with reserved stations · Accepted
+This is the pilot's call (2026-09-30): "move on to the gallery". `uat1_gallery` (task 4.1) is built ahead of 3.3–3.5, instead of after them as D-012's resolution assumed. It is flyable now.
+
+- **Reserved stations.** Every station for an asset that has no catalog entry yet keeps its ground, places nothing, and is labelled "not built yet". The loader rejects unknown asset ids, so reserving a station is the only way the map can be laid out before its assets exist. Finishing an asset puts it in its station when the generator is re-run. The reserved asset ids in `make_uat1_gallery.py` are proposals: whoever builds 3.3–3.5 uses them or edits the station list.
+- **Labels are review data, not world data.** They live in an optional `labels.json` in the map package. The validator checks it, but it is **deliberately left out of the content hash**, because nothing physical reads it. Editing a label must never invalidate a recorded flight.
+- **Consequence:** the everything-present scenario can only pass once 3.5 lands. UAT-1 is still the gallery with every station filled.
