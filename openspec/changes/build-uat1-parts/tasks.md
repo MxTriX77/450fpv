@@ -32,11 +32,11 @@
   Verify every terrain-holes scenario, and `--golden` in Debug and Release
 - [x] 2.4 [world-artist] Real surface textures for all 10 surfaces, with tilled furrows along the ridge azimuth, filtered with distance. Verify with screenshots looked at, and that meadow and weeds are visibly distinct
 - [x] 2.5 [world-artist] Add the micro-detail near-ring fade and a far density layer out to at least 60 m. Verify the no-hard-edge scenario with a screenshot, and that parity stays at 0 mm
-- [ ] 2.6 [world-artist] Switch LODs by distance: the loader sets Godot visibility ranges on each LOD from switch distances in the catalog entry, with Godot's automatic mesh LOD off for our assets so there's no double LOD. Far tree impostors use the same mechanism. Verify that only one LOD draws at a time (draw-call check) and that transitions don't pop at the chosen distances (screenshots)
+- [x] 2.6 [world-artist] Switch LODs by distance: the loader sets Godot visibility ranges on each LOD from switch distances in the catalog entry, with Godot's automatic mesh LOD off for our assets so there's no double LOD. Far tree impostors use the same mechanism. Verify that only one LOD draws at a time (draw-call check) and that transitions don't pop at the chosen distances (screenshots)
 
 ## 3. Assets (in order)
 
-- [ ] 3.1 [world-artist] Tree belt: 3–4 tree types (per notes V1), shrubs, a dead tree, and a far impostor. Verify budgets, catalog wind volumes, and screenshots
+- [x] 3.1 [world-artist] Tree belt: 3–4 tree types (per notes V1), shrubs, a dead tree, and a far impostor. Verify budgets, catalog wind volumes, and screenshots
 - [ ] 3.2 [world-artist] Damaged adobe house (stripped roof, enterable door, far window) plus yard set (cellar entrance with a hole, shed, fence and gate, fruit tree). Verify the door-gap and collision-follows-visual scenarios
 - [ ] 3.3 [world-artist] Vehicles, first pass: a classic ВАЗ and an Урал, each abandoned and destroyed. Verify budgets, collision and screenshots against photos M–O and notes R0–R5
 - [ ] 3.4 [world-artist] Destroyed 5-storey Stalin-era block plus rubble mound, with room openings as gaps. Verify budgets, gaps and screenshots against photos I and K
