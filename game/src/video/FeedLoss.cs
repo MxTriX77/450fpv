@@ -8,11 +8,15 @@ using System;
 /// other. Three sequences exist.
 ///
 ///   Recovering dropout (N12, the pilot's "occasional cut") — <see cref="StartDropout"/>
-///       tell (2–5 fields) → blue 18–35 fields, or black 3–4 fields → picture, receiver text for ≈7.3 s
+///       tell (2–5 fields) → blue 18–35 fields, or black 3–4 fields → picture, clean
 ///   Staged terminal loss (N5–N7) — <see cref="StartTerminal"/> with a margin that faded
 ///       partial snow 1–5 → blue 5–8 → full snow 10–15 → blue until reset
 ///   Hard cut (N5–N7 variant 2) — <see cref="StartTerminal"/> with a margin that vanished within one field
 ///       glitch 1–2 fields (a tear, or a grain rise) → blue until reset
+///
+/// **The recovered picture and OSD come back clean** (PR-4 correction): the receiver's text lines belong to the blue
+/// and snow screens only, never over the picture. N12 measures clip P holding them ≈7.3 s over the recovered picture;
+/// the pilot overruled that, so do not restore it from the notes.
 ///
 /// **There is always a tell before the picture goes** (PR-4). The footage shows one in 2 of 4 dropouts and 2 of 4 hard
 /// cuts; the pilot's requirement raises both to every time, because a cut with no warning is the thing they rejected.
@@ -42,9 +46,6 @@ public sealed class FeedLoss
     const int BlackMinFields = 3, BlackMaxFields = 4;
     const float BlackEdgeMin = 0.40f, BlackEdgeMax = 0.70f;
     const int BlueOutMinFields = 18, BlueOutMaxFields = 35;
-    /// After a blue-out the receiver keeps its own two text lines up for ≈7.3–7.5 s. The black dropout does not bring
-    /// them up: the receiver never lost lock through it.
-    const int RxTextFields = 365;
 
     /// N5 partial snow: snow down to a split line with the previous picture surviving below it, 1–2 recorded frames.
     /// The split sits at 82–88 % of the height and can move down between fields; in 1 loss of 3 a strip ≈11 % tall
@@ -85,7 +86,6 @@ public sealed class FeedLoss
         public float Tear;      // N8 amplitude, 0 = none
         public float TearTop;   // 1 = the shear is at the top of the field (N12 f1144), 0 = the bottom (N8, H f628)
         public float Grain;     // extra grain, as a fraction
-        public bool RxTextAfter;
     }
 
     const int Forever = int.MaxValue;
@@ -93,7 +93,7 @@ public sealed class FeedLoss
     readonly Random _rng;
     readonly Stage[] _stages = new Stage[4];
     int _count, _index, _left;
-    int _rxTextLeft, _snowLevelLeft;
+    int _snowLevelLeft;
     int _fieldsInStage;
 
     public State Current { get; private set; } = State.Picture;
@@ -114,8 +114,6 @@ public sealed class FeedLoss
     public float TearAmp { get; private set; }
     public float TearTop { get; private set; }
     public float GrainBoost { get; private set; }
-    /// The receiver's own two text lines are up over the picture, after a blue-out.
-    public bool RxText => _rxTextLeft > 0;
     /// True while a sequence is running, so nothing schedules another on top of it.
     public bool Busy => _count > 0;
 
@@ -130,7 +128,7 @@ public sealed class FeedLoss
         if (_rng.NextDouble() < BlackChance)
             Push(new Stage { S = State.Black, Fields = Draw(BlackMinFields, BlackMaxFields) });
         else
-            Push(new Stage { S = State.Blue, Fields = Draw(BlueOutMinFields, BlueOutMaxFields), RxTextAfter = true });
+            Push(new Stage { S = State.Blue, Fields = Draw(BlueOutMinFields, BlueOutMaxFields) });
         Begin();
     }
 
@@ -159,8 +157,6 @@ public sealed class FeedLoss
     /// Advances one video field.
     public void Step()
     {
-        if (_rxTextLeft > 0)
-            _rxTextLeft--;
         if (_count == 0)
         {
             Clear();
@@ -202,8 +198,6 @@ public sealed class FeedLoss
             return;
         if (--_left > 0)
             return;
-        if (s.RxTextAfter)
-            _rxTextLeft = RxTextFields;
         _index++;
         _fieldsInStage = 0;
         if (_index < _count)
