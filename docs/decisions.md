@@ -72,4 +72,6 @@ What it means for the plan:
 - The 512 m UAT-1 gallery (tasks 4.1 and 4.2) is **no longer assumed**. Its purpose was to show the pilot the parts; if the parts can be reviewed in the world map itself, the gallery is a step that buys a review device rather than the product. Decide when section 3 lands, not now.
 - `build-world-map` is then built once, with real assets in it from the pilot's first flight, rather than an empty layout that fills in later.
 
+**Resolved 2026-09-30.** The pilot asked how the finished objects would be shown to them and said they had no preference, leaving the call here. The gallery stays: `uat1_gallery` is built as specified, with a station per object, a patch per terrain kind and labels within 25 m. Its cost is one generator, and it is the only way to be sure the pilot has looked at every asset before the same assets are placed thousands of times across 4 km. Objects also keep landing in `sample_patch` as they are finished, so nothing waits for the gallery to be flown.
+
 What the pilot can fly meanwhile, offered on the same day: `sample_patch` (256 m, real ground, placeholder objects) and the synthetic 4 km terrain package (terrain only, 602 fps avg). Neither is a gate.

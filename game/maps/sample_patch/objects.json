@@ -9090,6 +9090,202 @@
         0.0
       ],
       "scale": 1.0
+    },
+    {
+      "asset": "house_adobe",
+      "position_m": [
+        -58.0,
+        -1.01,
+        30.0
+      ],
+      "rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": 1.0
+    },
+    {
+      "asset": "shed_plank",
+      "position_m": [
+        -65.0,
+        -1.01,
+        38.0
+      ],
+      "rotation_deg": [
+        -14.0,
+        0.0,
+        0.0
+      ],
+      "scale": 1.0
+    },
+    {
+      "asset": "cellar_head",
+      "position_m": [
+        -48.75,
+        -1.01,
+        36.25
+      ],
+      "rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": 1.0
+    },
+    {
+      "asset": "cellar_shaft",
+      "position_m": [
+        -48.75,
+        -1.01,
+        36.25
+      ],
+      "rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": 1.0
+    },
+    {
+      "asset": "gate_plank",
+      "position_m": [
+        -56.0,
+        -1.01,
+        23.2
+      ],
+      "rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": 1.0
+    },
+    {
+      "asset": "tree_fruit",
+      "position_m": [
+        -57.0,
+        -1.01,
+        38.0
+      ],
+      "rotation_deg": [
+        20.0,
+        0.0,
+        0.0
+      ],
+      "scale": 1.0
+    },
+    {
+      "asset": "tree_fruit",
+      "position_m": [
+        -46.5,
+        -1.01,
+        29.0
+      ],
+      "rotation_deg": [
+        200.0,
+        0.0,
+        0.0
+      ],
+      "scale": 1.0
+    },
+    {
+      "asset": "fence_planks",
+      "position_m": [
+        -68.7,
+        -1.01,
+        23.2
+      ],
+      "rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": 1.0
+    },
+    {
+      "asset": "fence_planks",
+      "position_m": [
+        -66.2,
+        -1.01,
+        23.2
+      ],
+      "rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": 1.0
+    },
+    {
+      "asset": "fence_planks",
+      "position_m": [
+        -63.7,
+        -1.01,
+        23.2
+      ],
+      "rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": 1.0
+    },
+    {
+      "asset": "fence_planks",
+      "position_m": [
+        -58.7,
+        -1.01,
+        23.2
+      ],
+      "rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": 1.0
+    },
+    {
+      "asset": "fence_planks",
+      "position_m": [
+        -53.4,
+        -1.01,
+        23.2
+      ],
+      "rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": 1.0
+    },
+    {
+      "asset": "fence_planks",
+      "position_m": [
+        -48.4,
+        -1.01,
+        23.2
+      ],
+      "rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": 1.0
+    },
+    {
+      "asset": "fence_planks",
+      "position_m": [
+        -43.4,
+        -1.01,
+        23.2
+      ],
+      "rotation_deg": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": 1.0
     }
   ]
 }

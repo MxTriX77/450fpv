@@ -19,6 +19,11 @@ python tools/blender/export.py --build fence_planks   # only the named assets
 
 `export.py` restarts itself in Blender 5.2 (`-b --factory-startup`). Set `BLENDER` to use another `blender.exe`.
 
+**Always follow an export with one `godot --headless --path game --import`.** Godot keeps its own imported copy of each
+`.glb`, so until it re-imports, the game draws the previous mesh over the new collision. `--selftest map` catches that
+(collision follows the visual, which compares the drawn mesh with the collision shapes and prints both bounds), but
+only after a wasted run.
+
 - **Reproducible.** The same `.blend` always exports the same `.glb` bytes, so re-exporting unchanged sources leaves `git status` clean. A `.blend` is not byte-stable (Blender stores memory addresses in it), so commit it only when its builder changed.
 - **Budget report.** One line per asset: the triangles of each LOD against the class budget, the LOD count, and the pixel size of each texture the asset's materials use. `OVER` marks an excess, and the run exits 1.
 

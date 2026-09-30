@@ -4,11 +4,12 @@ using System.IO;
 using System.Linq;
 using Godot;
 
-/// The terrain-hole scenarios of `-- --selftest worldquery` (task 2.3, the terrain-holes spec), on the test trench of
-/// game/maps/sample_patch: what SampleGround reports over a hole, that rays and the terrain collision pass over one,
-/// that the fillers' soil shapes carry their surface, that no micro-detail grows in a hole, that a buried shape is no
-/// wind obstacle, and the hole-filler contract F-1 to F-6. The trench's own numbers are read from the world, not from
-/// the generator, except the layout constants below, which the generator and this file must agree on.
+/// The terrain-hole scenarios of `-- --selftest worldquery` (task 2.3, the terrain-holes spec), on the two holes of
+/// game/maps/sample_patch, the test trench and the village yard's cellar entrance (task 3.2): what SampleGround
+/// reports over a hole, that rays and the terrain collision pass over one, that the fillers' soil shapes carry their
+/// surface, that no micro-detail grows in a hole, that a buried shape is no wind obstacle, and the hole-filler
+/// contract F-1 to F-6. Each hole's own numbers are read from the world, not from the generator, except the layout
+/// constants below, which the generator and this file must agree on.
 public static partial class WorldQuerySelfTest
 {
     /// The levelled pad the test trench is cut into: TerrainHeight over the whole trench (make_sample_patch.py).
@@ -19,6 +20,15 @@ public static partial class WorldQuerySelfTest
     const double TrenchBend = 30.0;
     /// Cavity length, half width and depth, and the half width of the hole band (make_sample_patch.py, the catalog).
     const double TrenchLength = 6.0, TrenchHalf = 0.4, TrenchDepth = 1.5, HoleHalf = 0.75;
+    /// The cellar entrance of the village yard: the shaft's origin, the levelled yard's height and the floor depth
+    /// (make_sample_patch.py, CELLAR and YARD; blender/structures/cellar_shaft.py).
+    static readonly XZ CellarAt = new(-48.75, 36.25);
+    const double CellarLip = -1.01, CellarDepth = 1.80, CellarStep = CellarDepth / 6;
+    /// Its hole band and cavity about that origin: the band is symmetric, the cavity runs from the threshold back.
+    const double CellarBandHalf = 0.75, CellarBandHalfLength = 1.75;
+    const double CellarCavityHalf = 0.45, CellarThreshold = 1.25, CellarCavityBack = -1.25, CellarTread = 0.36;
+    /// A drone-sized capsule for the fly-in sweeps: 0.6 m across, the least a gap must be clear (game/maps/README.md).
+    const float DroneRadius = 0.3f, DroneHeight = 0.62f;
     /// The lip's rise above TerrainHeight: the fillers stand this far proud so nothing z-fights with the ground (F-3, F-4).
     const double LipRise = 0.005;
     /// The filler's surface (F-7).
@@ -37,8 +47,18 @@ public static partial class WorldQuerySelfTest
         pass &= NoWindFromBuriedShapes(world, surfacesPath);
         pass &= FillerContract(world);
         pass &= JoltOverHoles(world, space);
+        pass &= CellarIsOpen(world, space);
         return pass;
     }
+
+    /// Whether a point is inside the cellar's hole band.
+    static bool InCellar(double x, double z) =>
+        x >= CellarAt.X - CellarBandHalf && x <= CellarAt.X + CellarBandHalf
+        && z >= CellarAt.Z - CellarBandHalfLength && z <= CellarAt.Z + CellarBandHalfLength;
+
+    /// The hole a point belongs to: its name, the level of its lip and how deep its cavity goes.
+    static (string Name, double Lip, double Depth) HoleAt(double x, double z) =>
+        InCellar(x, z) ? ("cellar", CellarLip, CellarDepth) : ("test trench", TrenchLip, TrenchDepth);
 
     /// The two cavity axes: each a closed end and a unit direction along the trench, in world (x, z).
     static (XZ End, double Cos, double Sin)[] TrenchAxes()
@@ -73,13 +93,22 @@ public static partial class WorldQuerySelfTest
     static XZ CellCorner(WorldQuery world, int row, int column) =>
         new(-world.Half + column * world.CellResolution, -world.Half + row * world.CellResolution);
 
-    /// The objects that fill the holes: every placed object whose asset is one of the test trench's.
+    /// The objects that fill the holes, from the data rather than by name: a filler is an object all of whose shapes
+    /// are soil, meaning they carry a surface and no catalog material, which is what F-7 asks of a filler.
     static int[] Fillers(WorldQuery world)
     {
         var objects = new List<int>();
         for (int i = 0; i < world.ObjectCount; i++)
         {
-            if (world.PlacementOf(i).Asset.Id.StartsWith("test_trench", StringComparison.Ordinal))
+            bool soil = false, other = false;
+            for (int shape = 0; world.Geometry(i, shape, 0, out ShapeGeometry g); shape++)
+            {
+                if (g.Surface != 0 && g.Material == Catalog.NoMaterial)
+                    soil = true;
+                else
+                    other = true;
+            }
+            if (soil && !other)
                 objects.Add(i);
         }
         return objects.ToArray();
@@ -87,8 +116,8 @@ public static partial class WorldQuerySelfTest
 
     // ---------------------------------------------------------------- the layer and SampleGround
 
-    /// The package's hole layer is loaded, and it covers the test trench and nothing else: as many cells as the trench's
-    /// footprint needs, all of them on the levelled pad.
+    /// The package's hole layer is loaded, and it covers the test trench and the cellar and nothing else: as many cells
+    /// as the two footprints need, each on its own levelled pad.
     static bool HoleLayerLoaded(WorldQuery world)
     {
         List<(int Row, int Column)> cells = HoleCells(world);
@@ -96,13 +125,21 @@ public static partial class WorldQuerySelfTest
             CellCorner(world, c.Row, c.Column).Z + world.CellResolution / 2)).ToArray();
         GroundSample[] samples = points.Length > 0 ? SampleAll(world, points) : Array.Empty<GroundSample>();
         int flagged = samples.Count(g => (g.Flags & GroundFlags.Hole) != 0);
-        double worstLip = samples.Length > 0 ? samples.Max(g => Math.Abs(g.TerrainHeight - TrenchLip)) : 0;
+        double worstLip = 0;
+        int cellar = 0;
+        for (int i = 0; i < samples.Length; i++)
+        {
+            (string _, double lip, double _) = HoleAt(points[i].X, points[i].Z);
+            worstLip = Math.Max(worstLip, Math.Abs(samples[i].TerrainHeight - lip));
+            cellar += InCellar(points[i].X, points[i].Z) ? 1 : 0;
+        }
         int[] fillers = Fillers(world);
         return Check("hole layer loaded", world.HasHoles && cells.Count > 0 && flagged == cells.Count && worstLip <= 1e-6
-                && fillers.Length > 0,
+                && fillers.Length > 0 && cellar == 21,
             $"holes.png gives {cells.Count} hole cells ({cells.Count * world.CellResolution * world.CellResolution:0.0} m²), "
-            + $"all flagged: {flagged == cells.Count}; every cell centre is on the levelled pad within {worstLip * 1000:0.000000} mm "
-            + $"of {TrenchLip} m; {fillers.Length} filler objects ({string.Join(", ", fillers)})");
+            + $"{cellar} of them the cellar's (expected 21, a 1.5 × 3.5 m band) and the rest the test trench's, all flagged: "
+            + $"{flagged == cells.Count}; every cell centre is on its own levelled pad ({TrenchLip} m and {CellarLip} m) "
+            + $"within {worstLip * 1000:0.000000} mm; {fillers.Length} filler objects ({string.Join(", ", fillers)})");
     }
 
     /// A 1 cm grid across both sections, plus the hole boundary ± 1 mm: over a hole cell SampleGround reports the lip as
@@ -356,18 +393,33 @@ public static partial class WorldQuerySelfTest
             + $"{differing} differing byte for byte{first}");
     }
 
-    /// The trench's fillers leave the wind grid open, and a buried shape with porosity 0 changes no cell at all.
+    /// The trench's fillers leave the wind grid open, no filler anywhere can add to it, and a buried shape with
+    /// porosity 0 changes no cell at all. The cellar's hole cells are left out of the grid check: the cellar head
+    /// stands over them and is a real obstacle, which is why the fillers themselves are checked as well.
     static bool NoWindFromBuriedShapes(WorldQuery world, string surfacesPath)
     {
-        int obstacles = 0;
+        int obstacles = 0, trenchCells = 0;
         foreach ((int row, int column) in HoleCells(world))
         {
             XZ corner = CellCorner(world, row, column);
+            if (InCellar(corner.X + world.CellResolution / 2, corner.Z + world.CellResolution / 2))
+                continue;
+            trenchCells++;
             int wr = (int)Math.Floor((corner.Z + world.Half) / WorldQuery.WindCellSize);
             int wc = (int)Math.Floor((corner.X + world.Half) / WorldQuery.WindCellSize);
             WindCell cell = world.WindGrid[wr * world.WindCells + wc];
             obstacles += cell.Porosity < 1 || cell.TopM != 0 || cell.BaseM != 0 ? 1 : 0;
         }
+        // A wind volume with porosity 1 is dropped before it reaches a cell (WindGrid.AddWind), so a filler that
+        // declares 1 can never add an obstacle wherever it sits.
+        var open = new List<string>();
+        foreach (int obj in Fillers(world))
+        {
+            AssetDef asset = world.PlacementOf(obj).Asset;
+            if (!(asset.WindPorosity < 1))
+                open.Add(asset.Id);
+        }
+        int leaky = Fillers(world).Length - open.Count;
         // The guard itself: a solid box buried 5 m under a flat world must leave every cell as it was.
         SurfaceParams[] table = SurfaceParams.ParseTable(File.ReadAllText(surfacesPath));
         Catalog catalog = Catalog.Parse(File.ReadAllText(TestCatalog()), table);
@@ -380,14 +432,15 @@ public static partial class WorldQuerySelfTest
             WindCell a = before[i], b = flat.WindGrid[i];
             changed += a.TopM == b.TopM && a.BaseM == b.BaseM && a.Porosity == b.Porosity ? 0 : 1;
         }
-        return Check("buried filler adds no wind obstacle", obstacles == 0 && changed == 0,
-            $"of the wind cells over the trench's hole cells, {obstacles} carry an obstacle (limit 0); a solid 0.8 × 0.3 × 1.2 m "
-            + $"box buried 5 m under a flat world changes {changed} of {before.Length} wind cells (limit 0)");
+        return Check("buried filler adds no wind obstacle", obstacles == 0 && changed == 0 && leaky == 0,
+            $"of the wind cells over the test trench's {trenchCells} hole cells, {obstacles} carry an obstacle (limit 0); all "
+            + $"{open.Count} filler objects declare wind_porosity 1, so none can add one anywhere ({leaky} that do not); a solid "
+            + $"0.8 × 0.3 × 1.2 m box buried 5 m under a flat world changes {changed} of {before.Length} wind cells (limit 0)");
     }
 
     // ---------------------------------------------------------------- the hole-filler contract
 
-    /// F-1 to F-4 on the test trench, measured against the world query, and F-5's thicknesses from the shapes.
+    /// F-1 to F-4 on every hole of the map, measured against the world query, and F-5's thicknesses from the shapes.
     static bool FillerContract(WorldQuery world)
     {
         List<(int Row, int Column)> cells = HoleCells(world);
@@ -404,13 +457,14 @@ public static partial class WorldQuerySelfTest
             for (int j = 0; j < 10; j++)
             {
                 for (int i = 0; i < 10; i++)
-                {
-                    var p = new XZ(corner.X + (i + 0.5) * cell / 10, corner.Z + (j + 0.5) * cell / 10);
-                    at.Add(p);
-                    rays.Add(new Ray(new Double3(p.X, TrenchLip + 0.5, p.Z), new Double3(0, -1, 0)));
-                }
+                    at.Add(new XZ(corner.X + (i + 0.5) * cell / 10, corner.Z + (j + 0.5) * cell / 10));
             }
         }
+        // TerrainHeight is the lip level even over a hole, so every height below comes from the world, not a constant.
+        var lips = new GroundSample[at.Count];
+        world.SampleGround(at.ToArray(), lips);
+        for (int i = 0; i < at.Count; i++)
+            rays.Add(new Ray(new Double3(at[i].X, lips[i].TerrainHeight + 0.5, at[i].Z), new Double3(0, -1, 0)));
         var hits = new RayHit[rays.Count];
         world.Raycast(rays.ToArray(), 5, hits);
         int unsealed = 0;
@@ -428,26 +482,20 @@ public static partial class WorldQuerySelfTest
 
         // F-2: from TerrainHeight down to the cavity floor, every point within 0.25 m of the hole boundary is inside a filler.
         var probes = new List<Double3>();
-        foreach ((int row, int column) in cells)
+        for (int index = 0; index < at.Count; index++)
         {
-            XZ corner = CellCorner(world, row, column);
-            for (int j = 0; j < 10; j++)
+            double x = at[index].X, z = at[index].Z;
+            bool near = false;
+            for (int k = 0; k < 8 && !near; k++)
             {
-                for (int i = 0; i < 10; i++)
-                {
-                    double x = corner.X + (i + 0.5) * cell / 10, z = corner.Z + (j + 0.5) * cell / 10;
-                    bool near = false;
-                    for (int k = 0; k < 8 && !near; k++)
-                    {
-                        DetMath.SinCosTurns(k / 8.0, out double sin, out double cos);
-                        near = !world.IsHole(x + 0.25 * cos, z + 0.25 * sin);
-                    }
-                    if (!near)
-                        continue;
-                    for (double y = TrenchLip; y >= TrenchLip - TrenchDepth - 1e-9; y -= 0.05)
-                        probes.Add(new Double3(x, y, z));
-                }
+                DetMath.SinCosTurns(k / 8.0, out double sin, out double cos);
+                near = !world.IsHole(x + 0.25 * cos, z + 0.25 * sin);
             }
+            if (!near)
+                continue;
+            double lip = lips[index].TerrainHeight, depth = HoleAt(x, z).Depth;
+            for (double y = lip; y >= lip - depth - 1e-9; y -= 0.05)
+                probes.Add(new Double3(x, y, z));
         }
         var contacts = new StaticContact[16];
         int outside = 0;
@@ -484,7 +532,10 @@ public static partial class WorldQuerySelfTest
                 }
             }
         }
-        var edgeRays = edges.Select(p => new Ray(new Double3(p.X, TrenchLip + 0.5, p.Z), new Double3(0, -1, 0))).ToArray();
+        var edgeGround = new GroundSample[edges.Count];
+        world.SampleGround(edges.ToArray(), edgeGround);
+        var edgeRays = edges.Select((p, i) => new Ray(new Double3(p.X, edgeGround[i].TerrainHeight + 0.5, p.Z),
+            new Double3(0, -1, 0))).ToArray();
         var edgeHits = new RayHit[edgeRays.Length];
         world.Raycast(edgeRays, 5, edgeHits);
         double worstLip = 0;
@@ -496,7 +547,7 @@ public static partial class WorldQuerySelfTest
                 noTop++;
                 continue;
             }
-            worstLip = Math.Max(worstLip, Math.Abs(edgeHits[i].Point.Y - TrenchLip));
+            worstLip = Math.Max(worstLip, Math.Abs(edgeHits[i].Point.Y - edgeGround[i].TerrainHeight));
         }
         pass &= Check("hole fillers: F-3 level lip", noTop == 0 && worstLip <= 0.03,
             $"{edges.Count} samples along {edges.Count / 11} boundary edges: worst |filler top − TerrainHeight| "
@@ -526,11 +577,12 @@ public static partial class WorldQuerySelfTest
                     band.Add(new XZ(corner.X + (i + 0.5) * cell / 10, corner.Z + (j + 0.5) * cell / 10));
             }
         }
-        var bandRays = band.Select(p => new Ray(new Double3(p.X, TrenchLip + 0.5, p.Z), new Double3(0, -1, 0))).ToArray();
-        var bandHits = new RayHit[bandRays.Length];
-        world.Raycast(bandRays, 5, bandHits);
         var terrain = new GroundSample[band.Count];
         world.SampleGround(band.ToArray(), terrain);
+        var bandRays = band.Select((p, i) => new Ray(new Double3(p.X, terrain[i].TerrainHeight + 0.5, p.Z),
+            new Double3(0, -1, 0))).ToArray();
+        var bandHits = new RayHit[bandRays.Length];
+        world.Raycast(bandRays, 5, bandHits);
         double worstRise = 0;
         int above = 0;
         string firstAbove = "";
@@ -657,6 +709,116 @@ public static partial class WorldQuerySelfTest
             + $"on the cells beside the holes (inside the quads whose corners went NaN) {misses} miss and the worst differs "
             + $"from TerrainHeight by {worst * 1000:0.0000} mm (limit 1 mm); a 0.5 m capsule swept 2.6 m down the trench "
             + $"travels {travel:0.000} m to the floor and rests on {(touching.Count == 0 ? "nothing" : string.Join(", ", names))}, "
+            + $"terrain touched: {terrainTouched}");
+    }
+
+    // ---------------------------------------------------------------- the cellar entrance (task 3.2)
+
+    /// The cellar's stairwell is a real cavity, not a dark patch: downward rays inside it find the six earth steps at
+    /// the heights the builder cut them, horizontal rays cross its full 0.9 m, a foot on a tread and on a wall lands
+    /// on soil, and a drone-sized capsule dropped into it falls to the floor 1.80 m down without touching terrain.
+    static bool CellarIsOpen(WorldQuery world, PhysicsDirectSpaceState3D space)
+    {
+        byte expected = world.Surfaces.First(s => s.Id == TrenchSurface).Index;
+        int[] fillers = Fillers(world);
+
+        // Down the middle of the shaft: each ray lands on the tread of the step it is over, and on soil.
+        var rays = new List<(double Z, double Tread)>();
+        for (int k = 0; k < 12; k++)
+        {
+            double z = CellarThreshold - 0.1 - k * (CellarThreshold - CellarCavityBack - 0.2) / 11;
+            double step = Math.Min(5, Math.Floor((CellarThreshold - z) / CellarTread));
+            rays.Add((z, -CellarStep * (step + 1)));
+        }
+        var down = rays.Select(r => new Ray(new Double3(CellarAt.X, CellarLip + 0.4, CellarAt.Z + r.Z),
+            new Double3(0, -1, 0))).ToArray();
+        var hits = new RayHit[down.Length];
+        world.Raycast(down, 4, hits);
+        int wrong = 0;
+        double worstTread = 0;
+        string first = "";
+        for (int i = 0; i < hits.Length; i++)
+        {
+            double want = CellarLip + rays[i].Tread;
+            worstTread = Math.Max(worstTread, Math.Abs(hits[i].Point.Y - want));
+            bool ok = Array.IndexOf(fillers, hits[i].Object) >= 0 && hits[i].Surface == expected
+                && hits[i].Material == Catalog.NoMaterial && Math.Abs(hits[i].Point.Y - want) <= 1e-3;
+            if (!ok && wrong++ == 0)
+                first = $"; first wrong {rays[i].Z:0.00} m in: object {hits[i].Object}, surface {hits[i].Surface}, "
+                    + $"y {hits[i].Point.Y:0.000}, wanted {want:0.000}";
+        }
+
+        // Across the shaft at two depths: from inside one wall to the other face, 0.6 + 0.45 m of travel.
+        var across = new List<Ray>();
+        foreach (double depth in new[] { -0.55, -0.95 })
+        {
+            Double3 from = new(CellarAt.X - 0.6, CellarLip + depth, CellarAt.Z);
+            across.Add(new Ray(from, new Double3(1, 0, 0)));
+        }
+        var acrossHits = new RayHit[across.Count];
+        world.Raycast(across.ToArray(), 3, acrossHits);
+        double worstWidth = acrossHits.Max(h => Math.Abs(h.Distance - (0.6 + CellarCavityHalf)));
+        int wrongWidth = acrossHits.Count(h => Array.IndexOf(fillers, h.Object) < 0
+            || Math.Abs(h.Distance - (0.6 + CellarCavityHalf)) > 0.05);
+
+        // A foot on the second tread and on the west wall: both are soil, with no catalog material (F-7).
+        const double Foot = 0.0075;
+        var contacts = new StaticContact[16];
+        var probes = new (string What, Double3 At)[]
+        {
+            ("tread", new Double3(CellarAt.X, CellarLip - 2 * CellarStep + Foot,
+                CellarAt.Z + CellarThreshold - 1.5 * CellarTread)),
+            ("west wall", new Double3(CellarAt.X - CellarCavityHalf + Foot, CellarLip - 0.7, CellarAt.Z)),
+            ("back wall", new Double3(CellarAt.X, CellarLip - 1.2, CellarAt.Z + CellarCavityBack + Foot)),
+        };
+        int badContacts = 0, touched = 0;
+        foreach ((string what, Double3 p) in probes)
+        {
+            int n = world.StaticContacts(new Capsule(p, p, Foot), 0.02, contacts);
+            int soil = 0;
+            for (int i = 0; i < Math.Min(n, contacts.Length); i++)
+            {
+                if (contacts[i].Surface == 0)
+                    continue;
+                soil++;
+                badContacts += contacts[i].Surface == expected && contacts[i].Material == Catalog.NoMaterial ? 0 : 1;
+            }
+            touched += soil > 0 ? 1 : 0;
+        }
+
+        // A drone-sized capsule dropped over the landing at the back of the shaft.
+        var shape = new CapsuleShape3D { Radius = DroneRadius, Height = DroneHeight };
+        var from3 = new Vector3((float)CellarAt.X, (float)(CellarLip + 0.5), (float)(CellarAt.Z + CellarCavityBack + 0.35));
+        var parameters = new PhysicsShapeQueryParameters3D
+        {
+            Shape = shape,
+            Transform = new Transform3D(Basis.Identity, from3),
+            Motion = new Vector3(0, -2.8f, 0),
+        };
+        float[] motion = space.CastMotion(parameters);
+        double drop = motion[0] * 2.8;
+        parameters.Transform = new Transform3D(Basis.Identity, from3 + new Vector3(0, -(float)(motion[1] * 2.8), 0));
+        parameters.Motion = Vector3.Zero;
+        var resting = new List<string>();
+        bool terrainTouched = false;
+        foreach (Godot.Collections.Dictionary touch in space.IntersectShape(parameters, 8))
+        {
+            var collider = (CollisionObject3D)touch["collider"];
+            int obj = collider.HasMeta("object") ? (int)collider.GetMeta("object") : -2;
+            terrainTouched |= obj == -1;
+            resting.Add($"{collider.Name} (object {obj})");
+        }
+        double wantDrop = 0.5 + CellarDepth - DroneHeight / 2;
+        bool landed = Math.Abs(drop - wantDrop) <= 0.05 && resting.Count > 0 && !terrainTouched;
+        return Check("cellar stairwell is open", wrong == 0 && wrongWidth == 0 && badContacts == 0
+                && touched == probes.Length && landed,
+            $"{hits.Length} rays down the shaft land on soil surface {expected} ({TrenchSurface}) at the six treads "
+            + $"(0.30 m each to a floor {CellarDepth} m down), worst off by {worstTread * 1000:0.0} mm (limit 1 mm), {wrong} wrong"
+            + $"{first}; {across.Count} rays across it reach the far face over {0.6 + CellarCavityHalf:0.00} m, worst off by "
+            + $"{worstWidth * 1000:0.0} mm (limit 50 mm), {wrongWidth} wrong, so the cavity is {2 * CellarCavityHalf:0.00} m clear; "
+            + $"feet on a tread, a wall and the back wall give soil contacts on {touched} of {probes.Length} with {badContacts} "
+            + $"carrying the wrong surface or a catalog material; a {2 * DroneRadius:0.00} m capsule dropped over the landing "
+            + $"falls {drop:0.000} m (expected {wantDrop:0.000}) onto {(resting.Count == 0 ? "nothing" : string.Join(", ", resting))}, "
             + $"terrain touched: {terrainTouched}");
     }
 }

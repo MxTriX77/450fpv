@@ -1,0 +1,24 @@
+[gd_resource type="StandardMaterial3D" load_steps=5 format=3]
+
+; The bare clay-and-straw wall core where the render has fallen away (notes B1).
+; Bound by name (game/src/world/MapScene.cs, BindMaterials). UVs are in metres, so the set tiles every 2 m.
+
+[ext_resource type="Texture2D" path="res://assets/textures/dirt/dirt_albedo.jpg" id="1_albedo"]
+[ext_resource type="Texture2D" path="res://assets/textures/dirt/dirt_normal.jpg" id="2_normal"]
+[ext_resource type="Texture2D" path="res://assets/textures/dirt/dirt_roughness.jpg" id="3_rough"]
+[ext_resource type="Texture2D" path="res://assets/textures/dirt/dirt_ao.jpg" id="4_ao"]
+
+[resource]
+resource_name = "adobe_clay"
+albedo_color = Color(0.86, 0.72, 0.54, 1)
+albedo_texture = ExtResource("1_albedo")
+roughness_texture = ExtResource("3_rough")
+roughness_texture_channel = 0
+normal_enabled = true
+normal_scale = 1.4
+normal_texture = ExtResource("2_normal")
+ao_enabled = true
+ao_light_affect = 0.6
+ao_texture = ExtResource("4_ao")
+ao_texture_channel = 0
+uv1_scale = Vector3(0.5, 0.5, 0.5)

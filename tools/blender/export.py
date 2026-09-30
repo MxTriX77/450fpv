@@ -235,8 +235,11 @@ def main():
             reimport.append(asset)
     for p in problems:
         print(f"ERROR: {p}")
-    if reimport:
-        print(f"sidecar updated for {', '.join(reimport)}: run `godot --headless --path game --import` once")
+    # Godot keeps its own imported copy of every .glb, so a fresh export is not in the game until it re-imports. It is
+    # asked for unconditionally: a stale copy makes the game draw the previous mesh over the new collision, which is a
+    # mismatch `--selftest map` catches (collision follows the visual) but only after a wasted run.
+    print(f"exported {len(todo)} .glb file(s){f' and the sidecar of {", ".join(reimport)}' if reimport else ''}: "
+          "run `godot --headless --path game --import` before the game or the selftests read them")
     print(f"export: {len(todo)} asset(s), {len(problems)} problem(s)")
     sys.exit(1 if problems else 0)
 
