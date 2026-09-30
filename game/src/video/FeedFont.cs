@@ -81,7 +81,7 @@ public static class FeedFont
         "- ..... ..... ..... ..... ##### ..... ..... .....",
         // The battery mark that leads each voltage readout: 10 x 14 in the cell, measured 45 x 62 px on the footage.
         // A cap, a rim, a hollow upper part and a solid lower one.
-        "$ ...####... ########## #........# #........# #........# #........# #........# ########## ########## ########## ########## ########## ########## ##########",
+        "$ ...####... ########## #........# #........# #........# #........# #........# #........# ########## ########## ########## ########## ########## ########## ########## ##########",
         // The altitude label: three small letters inside one cell, 11 x 5, measured 49 x 18 px.
         "> .#..#...### #.#.#....#. ###.#....#. #.#.#....#. #.#.###..#.",
         // The two-line unit label beside the flight timer, 7 x 9, measured 33 x 37 px. The footage's label is text,
@@ -89,9 +89,9 @@ public static class FeedFont
         "[ ###.#.. #...#.. ##..#.. #...### ....... ###.#.# .#..### .#..#.# .#..#.#",
         // The centre reticle, three cells wide: a stub, the bar with its lozenge, and a stub. Measured on the
         // footage as a 100 px bar, one sample thick, with a 28 x 14 px lozenge at the middle.
-        "{ .............. ...........### ..............",
-        "| ....######.... #####.....#### ....######....",
-        "} .............. ####.......... ..............",
+        "{ .............. .............. ...........### ..............",
+        "| .............. ....######.... #####.....#### ....######....",
+        "} .............. .............. ####.......... ..............",
     };
 
     static readonly Dictionary<char, float> Codes = Build();

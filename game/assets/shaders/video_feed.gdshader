@@ -90,7 +90,7 @@ const float OSD_WHITE = 0.96;   // the OSD whites measure 210-255; they are the 
 // How much of the hard-edged OSD the receiver's delay line fails to cancel out of the chroma path. Tuned against the
 // pilot's frames: their OSD rows measure a 90th-percentile chroma departure of 7.9 levels, and a perfect comb (0.0)
 // put ours at 3.4.
-const float OSD_COMB = 0.20;
+const float OSD_COMB = 0.10;
 const float OSD_BLACK = 0.02;
 
 // The no-signal screen of this simulator's receiver. §0 measures two receivers; this is the B-G one, which is also
