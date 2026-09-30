@@ -75,3 +75,52 @@ Everything else stays as it looks. Do not redesign it, do not modernise it, do n
 The pilot's closing line applies to everything in this file and to the flight model as a whole: **"we must have top-notch realistic physics no one implemented in any FPV sim out there yet."**
 
 The manifesto's version of the same point (`CLAUDE.md` §2) is that real flight always feels slightly random, that exhaustive physics is not affordable, and that the goal is therefore a small, well-chosen, well-placed randomness that reproduces the feel. Randomness must still be seeded and reproducible (D-010), so that a recorded flight can be replayed and a crash can be explained rather than shrugged at.
+
+---
+
+## PR-4 The loss of picture is staged, and the shipped version is wrong
+
+**What the pilot said** (2026-09-30, after flying the merged feed). "That occasional FULL cut off — it's too sharp now, like it just appears and just disappears, and it's simple-ahh noise."
+
+**They are right, and `video-feed.md` already has the correct behaviour.** What shipped in D-013 snaps to flat snow and snaps back. The footage never does that.
+
+- **Staged loss** (N5–N7, clips C, D, F), in the pilot's own words matched to frames: *"very quick picture glitch"* = partial-frame snow, 1–2 frames → *"brief flashy moment"* = blue interlude, exactly 4 frames → *"noisy and flashy"* = full snow, 7–8 frames → *"finally blue"* = the no-signal screen.
+- **Hard cut** (A, B, E, H): straight to blue, but in 2 of 4 the last 1–2 picture fields still carry a pre-cut glitch — N8 tearing (top rows shear sideways, black wedge from the right edge) or a ≈10 % grain rise.
+- **Recovering dropout** (N12, clip P, severe wind and rain) — **this is the model for the pilot's "occasional short cut"**: a precursor in 2 of 4 events of 1–3 frames of brightening (+25 % to +120 % mean luma) under dense bands of coloured impulse dashes, or an N8-style tear; then blue about 20 frames (0.67 s); then straight back to picture with the receiver text.
+
+**Requirement.** Short losses SHALL follow N12: precursor → blue no-signal screen → recovery, with randomised durations inside the measured ranges. There SHALL always be a tell before the picture goes. The snow SHALL carry coloured impulse-dash texture (N2), not flat monochrome noise. The blue screen is a real screen with receiver text, in the two variants `video-feed.md` §0 measures, not a blue fill. Terminal losses SHALL use the staged sequence or the hard cut, fired by events (impact, power loss, fiber break) through `FeedEvents.TriggerCut()`.
+
+---
+
+## PR-5 Objects need destruction detail, and it is physical
+
+**What the pilot said.** "In general, we need a bit more details. Windows, trenches etc. are fine, but they are of straight form (like window which is JUST a rectangle). Jagged chunks of brickwork jut out from the windows, and in some places, you might see a bit of rebar sticking out, and so on. Remember, in our simulator, every little texture detail will affect the physics."
+
+**Requirement.** Openings in damaged structures SHALL NOT be clean rectangles. Window and door openings SHALL carry broken edges — jagged brickwork jutting inward, missing courses, rebar protruding — and that geometry SHALL be physical, not a texture or a normal map. The manifesto (§4 item 1) already demands micro-detail that interacts with the quad; this is that requirement applied to structures.
+
+**Consequence for the gap model.** A catalog gap is currently an upright rectangle (yaw only). A real broken window is not rectangular and not necessarily upright. The flyable opening must be the *actual* clear space between the jagged edges, not a rectangle drawn over them, or the pilot will clip geometry the sim believes is open. This is the same limitation already recorded against the house's roof bay and gable breach.
+
+### Immediate defects the pilot named
+- **Wall tiling.** Still unfixed: per-panel materials alternate instead of forming patches, each panel crops its texture at its own UV offset, and two clay materials are too close in hue, so seams land on hard squares.
+- **Brick textures are upside down.** Asset bug, not a style question.
+
+---
+
+## PR-6 Power lines need their own physics, and thickness matters
+
+**What the pilot said.** "Power lines need to have their own physics so they interact with the drone realistically — for instance, if it flies into one. We have to keep in mind, though, that a drone getting tangled in thin wires behaves differently than it does with thick cables."
+
+**Requirement.** Wires SHALL be simulated as physical lines, not static collision capsules. A strike SHALL depend on the wire's diameter and tension:
+- **Thin wire** — tends to catch, wrap and tangle in the props; the aircraft is snagged and dragged rather than bounced, and may be held. `snag_hazard` already exists in the catalog for this.
+- **Thick cable** — stiffer and heavier; the aircraft is more likely to be deflected, stopped or flipped than to wrap it.
+The map already carries wires as sag polylines with real catenaries, so the geometry is there; what is missing is the strike response. This interacts with the fiber tether model, which is a tensioned line on the same aircraft.
+
+---
+
+## PR-7 Build the objects from the footage, and research the real thing
+
+**What the pilot said.** "In short, look at the footage from my videos and intelligently reconstruct the scenes to scrape objects out of them. If necessary, search online to see what structures in Ukraine actually look like. Take houses, for example: you have information on what they are built of, what they looked like before the war, and how they appear now following the destruction (again, you can find images of destroyed buildings online yourself)."
+
+**Requirement.** Object work SHALL be driven by the footage-derived notes first, and SHALL be supplemented by researching what these structures actually look like — construction, pre-war appearance, and how they fail when hit. An asset that passes its budget but does not read as rural Ukraine to this pilot is a failed asset.
+
+**OPSEC boundary, unchanged.** `reference/` is never opened, copied, committed or uploaded. The derived notes in `docs/reference-notes/` are the sanctioned source. Online research is for general reference on Ukrainian construction and war damage — never for anything that could identify a place, unit or date from the footage.
