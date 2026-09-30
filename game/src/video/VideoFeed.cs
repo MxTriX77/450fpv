@@ -1,15 +1,18 @@
 using System;
 using Godot;
 
-/// Direction spike (no OpenSpec change yet): three candidate treatments of the analog feed, each one full-screen
-/// pass over the 3D render, so they can be compared on the same frame.
+/// The analog feed: one full-screen pass over the 3D render, on by default in the sandbox.
 ///
+///   mixed     — video_feed.gdshader:     the feed, and what the pilot chose. The simulated composite chain held to
+///                                        the authored version's restraint, sliding into the heavy degraded look and
+///                                        back out at random, with occasional grain-only cuts
 ///   clean     — the pass is off, the raw render
-///   chain     — video_chain.gdshader:    encode to PAL composite and decode back; artifacts emerge from the signal
-///   authored  — video_authored.gdshader: hand-written effects tuned by eye against the reference notes
-///   hybrid    — video_hybrid.gdshader:   a cheaper real encode/decode core, authored event layers on top
+///   chain     — video_chain.gdshader:    spike candidate 1, every artifact emerges from the signal
+///   authored  — video_authored.gdshader: spike candidate 2, hand-written effects
+///   hybrid    — video_hybrid.gdshader:   spike candidate 3, a real core with authored event layers
 ///
-/// `-- --video chain|authored|hybrid` picks one at start-up. V cycles clean → chain → authored → hybrid at runtime.
+/// The three candidates are kept so the choice can be revisited against the same frame.
+/// `-- --video clean|chain|authored|hybrid` picks another at start-up. V cycles them at runtime.
 /// `-- --video-signals gain,link,current` pins the stand-in drivers of <see cref="FeedSignals"/>.
 /// `-- --video-seed n` and `-- --video-field n` pin the feed's randomness, so a still is reproducible and two
 /// stills one field apart show how much of the picture is redrawn every field.
