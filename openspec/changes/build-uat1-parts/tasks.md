@@ -44,7 +44,9 @@
 
 ## 4. Gallery
 
-- [ ] 4.1 [world-artist] Generator for `uat1_gallery` (512 m): patches, stations, and labels (key-toggleable). Verify the everything-present and label scenarios
+Built ahead of 3.3–3.5 (pilot, 2026-09-30), so the gallery is flyable now and each asset lands in its station as it is finished.
+
+- [ ] 4.1 [world-artist] Generator for `uat1_gallery` (512 m) from one station list: every terrain patch, the relief patch (PR-8), every station (unbuilt ones reserved and labelled "not built yet"), and labels (key-toggleable, drawn outside the feed). Verify the station-not-built-yet and label scenarios now; everything-present is verified when 3.5 lands
 - [ ] 4.2 [world-artist] Fly the gallery path and look at a screenshot per station and patch. Verify the busiest-view performance and load time, with clock and power mode
 
 ## 5. Review

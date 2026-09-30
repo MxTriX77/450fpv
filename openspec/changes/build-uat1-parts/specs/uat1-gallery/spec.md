@@ -9,6 +9,7 @@ The pilot's UAT-1 review: a compact noclip map where every terrain kind and key 
 ### Requirement: Gallery contents
 The gallery map `uat1_gallery` SHALL contain:
 - **Terrain patches**, each at least 60 m across: tree-belt edge with straw floor, open meadow, dry cratered field, tilled field, burnt field, trench along a tree strip, yard ground with litter, tall weeds, rubble
+- **A relief patch** (pilot requirement PR-8): gently rolling meadow with a crest and shallow dips at the scale of tens of metres, at least 2 m from crest to dip, so the pilot judges surfaces and objects on ground that is not level. At least one tree-belt run and one object station sit on it.
 - **Asset stations:**
   - the damaged adobe house with its yard set (cellar entrance, shed, fence and gate, fruit tree)
   - the brick house variant
@@ -21,12 +22,18 @@ The gallery map `uat1_gallery` SHALL contain:
   - a corrugated roof sheet
   - the launch rails
 
+The gallery SHALL be generated from one station list, so adding an asset or moving a station is an edit and a re-run, not hand work. It SHALL be flyable before every asset exists: a station whose catalog entry does not exist yet keeps its reserved ground and shows its label marked "not built yet". Finishing an asset puts it in its station by re-running the generator.
+
 #### Scenario: Everything present
 - **WHEN** the gallery loads
 - **THEN** every listed patch and station is present, the map validates, and `--selftest map` passes on it
 
+#### Scenario: Station not built yet
+- **WHEN** the generator runs while a listed asset has no catalog entry
+- **THEN** the map still validates and loads, that station's ground is reserved and empty, and its label reads "not built yet"
+
 ### Requirement: Labels
-When the noclip camera is within 25 m of a station or patch, its name and state (e.g. "Урал 4320, destroyed") SHALL show on screen. Labels SHALL be toggleable with a key.
+When the noclip camera is within 25 m of a station or patch, its name and state (e.g. "Урал 4320, destroyed") SHALL show on screen. Labels SHALL be toggleable with a key. Labels are a review aid, drawn over the picture and never through the analog feed, so they stay readable whichever feed mode is on. The feed stays switchable in the gallery (V), so the pilot can judge each part both clean and through the goggles.
 
 #### Scenario: Label appears
 - **WHEN** the camera approaches the destroyed Урал station
