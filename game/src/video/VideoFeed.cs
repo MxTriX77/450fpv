@@ -15,10 +15,11 @@ using Godot;
 /// stills one field apart show how much of the picture is redrawn every field.
 public partial class VideoFeed : CanvasLayer
 {
-    public enum Mode { Clean, Chain, Authored, Hybrid }
+    public enum Mode { Mixed, Clean, Chain, Authored, Hybrid }
 
     static readonly string[] ShaderPaths =
     {
+        "res://assets/shaders/video_feed.gdshader",
         null,
         "res://assets/shaders/video_chain.gdshader",
         "res://assets/shaders/video_authored.gdshader",
@@ -64,8 +65,10 @@ public partial class VideoFeed : CanvasLayer
         _rect = new ColorRect { Name = "Feed", MouseFilter = Control.MouseFilterEnum.Ignore };
         _rect.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         AddChild(_rect);
-        for (int i = 1; i < ShaderPaths.Length; i++)
+        for (int i = 0; i < ShaderPaths.Length; i++)
         {
+            if (ShaderPaths[i] == null)
+                continue;
             var shader = ResourceLoader.Load<Shader>(ShaderPaths[i]);
             if (shader == null)
                 GD.PrintErr($"ERROR: VideoFeed cannot load {ShaderPaths[i]}.");
@@ -87,8 +90,8 @@ public partial class VideoFeed : CanvasLayer
         if (_pinnedField >= 0 && !_reported)
         {
             _reported = true;
-            GD.Print($"VideoFeed: field {_events.Field}: N3 {_events.N3Amp:0.000}, N4 {_events.N4Amp:0.000}. "
-                + $"Fields with both firing: {BothFiring(_seed, _signals.MotorCurrent)}");
+            GD.Print($"VideoFeed: field {_events.Field}: N3 {_events.N3Amp:0.000}, N4 {_events.N4Amp:0.000}, "
+                + $"degrade {_events.Degrade:0.00}, snow {_events.Snow:0}. {Schedule(_seed, _signals.MotorCurrent)}");
         }
 
         ShaderMaterial m = _materials[(int)_mode];
@@ -104,6 +107,8 @@ public partial class VideoFeed : CanvasLayer
         m.SetShaderParameter("n3_spacing", _events.N3Spacing);
         m.SetShaderParameter("n4_amp", _events.N4Amp);
         m.SetShaderParameter("n4_span", _events.N4Span);
+        m.SetShaderParameter("degrade", _events.Degrade);
+        m.SetShaderParameter("snow", _events.Snow);
     }
 
     public override void _Input(InputEvent e)
@@ -117,27 +122,35 @@ public partial class VideoFeed : CanvasLayer
 
     void Apply()
     {
-        _rect.Material = _mode == Mode.Clean ? null : _materials[(int)_mode];
-        _rect.Visible = _mode != Mode.Clean;
+        _rect.Material = _materials[(int)_mode];
+        _rect.Visible = _rect.Material != null;
         GD.Print($"VideoFeed: {_mode} (V cycles; seed {_seed}"
             + $"{(_pinnedField >= 0 ? $", field pinned to {_pinnedField}" : "")}; gain {_signals.Gain:0.00}, "
             + $"link margin {_signals.LinkMargin:0.00}, motor current {_signals.MotorCurrent:0.00}"
             + $"{(_pinnedSignals ? ", pinned" : "")})");
     }
 
-    /// The first few field indices where N3 and N4 are both firing, so a still can show both. Replaying from the
-    /// seed is what makes this answerable at all.
-    static string BothFiring(int seed, float motorCurrent)
+    /// The first field indices where a quality drop is at its deepest and where a grain-only cut is on, so a still
+    /// can be taken during one. Replaying from the seed is what makes this answerable at all.
+    static string Schedule(int seed, float motorCurrent)
     {
         var scan = new FeedEvents(seed);
-        string found = "";
-        for (int f = 1; f <= 2000; f++)
+        string drops = "", cuts = "";
+        int dropStarts = 0, cutStarts = 0;
+        bool wasDrop = false, wasCut = false;
+        for (int f = 1; f <= 15000; f++) // 5 minutes
         {
             scan.AdvanceTo(f, motorCurrent);
-            if (scan.N3Amp > 0f && scan.N4Amp > 0f && found.Split(' ').Length <= 6)
-                found += f + " ";
+            bool drop = scan.Degrade > 0f, cut = scan.Snow > 0.5f;
+            if (drop && !wasDrop) dropStarts++;
+            if (cut && !wasCut) cutStarts++;
+            wasDrop = drop;
+            wasCut = cut;
+            if (scan.Degrade > 0.75f && drops.Split(' ').Length <= 5) drops += f + " ";
+            if (cut && cuts.Split(' ').Length <= 5) cuts += f + " ";
         }
-        return found == "" ? "none in the first 2000" : found;
+        return $"over 5 min: {dropStarts / 5.0:0.0} drops/min, {cutStarts / 5.0:0.0} cuts/min; "
+            + $"deep drops at fields [{drops.Trim()}], cuts at [{cuts.Trim()}]";
     }
 
     /// Parses `--video <name>`. Returns false when the name is not a mode.
