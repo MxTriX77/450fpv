@@ -167,7 +167,6 @@ public partial class VideoFeed : CanvasLayer
         m.SetShaderParameter("tear_amp", loss.TearAmp);
         m.SetShaderParameter("tear_top", loss.TearTop);
         m.SetShaderParameter("grain_boost", loss.GrainBoost);
-        m.SetShaderParameter("rx_text", loss.RxText ? 1f : 0f);
     }
 
     /// Walks the pinned field range, saving one PNG per field, then quits. Reading a loss sequence any other way is
@@ -207,7 +206,6 @@ public partial class VideoFeed : CanvasLayer
             + (loss.Tell > 0f ? $", tell +{loss.Tell * 100f:0} %" : "")
             + (loss.TearAmp > 0f ? $", tear {loss.TearAmp:0.00} top {loss.TearTop:0}" : "")
             + (loss.GrainBoost > 0f ? $", grain +{loss.GrainBoost * 100f:0} %" : "")
-            + (loss.RxText ? ", rx text" : "")
             + $", N3 {_events.N3Amp:0.000}, N4 {_events.N4Amp:0.000}, degrade {_events.Degrade:0.00}";
     }
 
