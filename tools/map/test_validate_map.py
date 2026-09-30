@@ -58,6 +58,19 @@ def remove(name):
     return lambda pkg, tables: os.remove(os.path.join(pkg, name))
 
 
+def with_labels(change=lambda labels: None):
+    """Gives the package a labels.json with one patch and one station, then applies `change` to its list."""
+    def mutate(pkg, tables):
+        labels = [{"name": "Tree-belt edge", "state": "lodged straw", "kind": "patch", "centre_m": [0.0, -54.0],
+                   "half_m": [118.0, 10.0], "yaw_deg": 0.0, "y_m": [-1.0, 12.0]},
+                  {"name": "The house", "state": "a placeholder", "kind": "station", "assets": ["house_box"],
+                   "built": True, "centre_m": [52.0, 30.0], "half_m": [8.0, 6.0], "yaw_deg": 15.0, "y_m": [0.0, 6.0]}]
+        change(labels)
+        with open(os.path.join(pkg, "labels.json"), "w", encoding="utf-8") as f:
+            json.dump({"labels": labels}, f, ensure_ascii=False)
+    return mutate
+
+
 def broken_surface(change):
     def mutate(pkg, tables):
         edit_json(tables["surfaces"], change)
@@ -200,6 +213,19 @@ CASES = [
     ("innocent geometry field", lambda pkg, tables: edit_json(os.path.join(pkg, "map.json"),
                                                               lambda d: d.update(geometry_note="flat")),
      True, ["OK:"]),
+    ("review labels", with_labels(), True, ["OK:"]),
+    ("reserved station label", with_labels(lambda l: l[1].update(assets=["not_built_yet_asset"], built=False)),
+     True, ["OK:"]),
+    ("label outside the map", with_labels(lambda l: l[0].update(centre_m=[140.0, 0.0])),
+     False, ["labels.json: label 0 (Tree-belt edge): centre x=140, z=0 is outside the map"]),
+    ("label kind", with_labels(lambda l: l[0].update(kind="shop")),
+     False, ["labels.json: label 0 (Tree-belt edge): kind 'shop' is neither 'patch' nor 'station'"]),
+    ("label area", with_labels(lambda l: l[0].update(half_m=[0.0, 10.0])),
+     False, ["labels.json: label 0 (Tree-belt edge): needs centre_m [x, z], half_m [x, z] above 0"]),
+    ("built station, unknown asset", with_labels(lambda l: l[1].update(assets=["house_box", "tank_hull"])),
+     False, ["labels.json: label 1 (The house): is marked built, and the catalog has no tank_hull"]),
+    ("real place in a label", with_labels(lambda l: l[1].update(state="as seen near Bakhmut")),
+     False, ["labels.json: text 'Bakhmut' looks like a real-world place"]),
 ]
 
 
