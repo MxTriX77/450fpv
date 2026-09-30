@@ -32,3 +32,6 @@ CLAUDE.local.md
 
 # Python
 __pycache__/
+
+# Agent worktrees (cloud/isolated sessions)
+.claude/worktrees/
