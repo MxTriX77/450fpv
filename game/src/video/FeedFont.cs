@@ -9,7 +9,8 @@ using Godot;
 /// size, and it is what the analog character generators of this class of flight controller use.
 ///
 /// The glyphs are authored at 5 × 7 and doubled into the cell, which gives 2-sample-wide strokes — the weight the
-/// footage shows. The outline is a one-sample dilation, generated rather than authored. Nothing here is softened: the
+/// footage shows: a blocky segmented display face, not a thin modern one. The face is all capitals; the only small
+/// characters are the unit marks (`m`, `a`, Cyrillic `в`), which is how the footage reads. The outline is a one-sample dilation, generated rather than authored. Nothing here is softened: the
 /// measured 3–4 px edge rise is the transmission path (P2), which the feed applies afterwards, so the ROM is hard.
 ///
 /// The atlas is one row of 12 × 18 cells, RG8: R is the glyph, G is its outline. Cell 0 is blank.
@@ -60,25 +61,22 @@ public static class FeedFont
         "X #...# #...# .#.#. ..#.. .#.#. #...# #...#",
         "Y #...# #...# .#.#. ..#.. ..#.. ..#.. ..#..",
         "Z ##### ....# ...#. ..#.. .#... #.... #####",
-        "e ..... ..... .###. #...# ##### #.... .###.",
-        "i ..#.. ..... ..#.. ..#.. ..#.. ..#.. ..#..",
         "m ..... ..... ##.#. #.#.# #.#.# #.#.# #.#.#",
-        "n ..... ..... ####. #...# #...# #...# #...#",
-        "o ..... ..... .###. #...# #...# #...# .###.",
-        "p ..... ..... ####. #...# #...# ####. #....",
-        "r ..... ..... #.##. ##..# #.... #.... #....",
-        "t .#... .#... ###.. .#... .#... .#... ..##.",
-        "v ..... ..... #...# #...# #...# .#.#. ..#..",
-        "z ..... ..... ##### ...#. ..#.. .#... #####",
+        "a ..... ..... .###. ....# .#### #...# .####",
+        // Cyrillic ve: the unit character on both battery voltages.
+        "в ..... ..... ####. #...# ####. #...# ####.",
         "! ..#.. ..#.. ..#.. ..#.. ..#.. ..... ..#..",
-        "% ##..# ##.#. ...#. ..#.. .#... .#.## #..##",
         ". ..... ..... ..... ..... ..... .##.. .##..",
         ": ..... .##.. .##.. ..... .##.. .##.. .....",
-        "+ ..... ..#.. ..#.. ##### ..#.. ..#.. .....",
         "- ..... ..... ..... ##### ..... ..... .....",
-        "° .##.. #..#. #..#. .##.. ..... ..... .....",
-        // The dot of the OSD's dotted artificial horizon (the row of bright dots in L).
-        "~ ..... ..... ..#.. .###. ..#.. ..... .....",
+        // The battery mark that leads each voltage readout.
+        "$ ..#.. ##### #...# #.##. #.##. #.##. #####",
+        // The centre reticle: a horizontal bar with a short vertical tick and a dot at the middle.
+        "^ ..... ..#.. ..#.. ##### ..#.. ..... .....",
+        // The two-line unit label left of the flight timer, as a small stopwatch. The footage's label reads as text,
+        // but its content is not recorded (OPSEC), so this mark stands in for it.
+        "[ ..#.. .###. #...# #..#. #...# #...# .###.",
+        "] ..... .#.#. #...# ..... ..... ..... .....",
     };
 
     static readonly Dictionary<char, float> Codes = Build();

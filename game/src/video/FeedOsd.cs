@@ -8,12 +8,21 @@ using Godot;
 /// `! SAFE !`. Neither is cosmetic — the first keeps a real manufacturer's brand out of the product, the second keeps
 /// a training simulator from presenting itself as armed. Do not "tidy" either one away.
 ///
-/// §5 places the fields but records no values, on purpose (OPSEC): "readouts sit along the edges and in the corners,
-/// and the centre stays clear apart from a small crosshair or aircraft symbol and, optionally, a dotted
-/// artificial-horizon line. The top edge holds arming or status text, a heading or name field, and height or distance
-/// readouts. The left side holds a flight-mode or status word, the bottom-left corner the battery readouts, and the
-/// bottom row a name or message line, timer, current and link-quality readouts, and warning text." Every number and
-/// every string below is therefore invented to be plausible, and the arrangement is what is reproduced.
+/// The arrangement comes from a stable-feed clip the pilot supplied on 2026-09-30 so the OSD could be checked, read
+/// as positions only — no values are recorded here or anywhere in the repo (OPSEC), so every number and every string
+/// below is invented to be plausible and only the arrangement is reproduced:
+///
+///   top-left      a three-character mode word
+///   top-right     ALT, a value and a unit character; it changes frame to frame
+///   bottom-left   a stacked column: the arming indicator, then a tiny two-line unit label beside an MM:SS timer,
+///                 then a battery mark with the per-cell voltage, then a battery mark with the pack voltage, both
+///                 carrying a Cyrillic ve as their unit character
+///   bottom-centre the airframe name
+///   bottom-right  two right-aligned numbers, the lower one carrying an `a` for amps
+///   centre        a small reticle: a horizontal bar with a short vertical tick and a dot at the middle
+///
+/// This is narrower than §5's general description of A–H, which also allows a dotted artificial-horizon line; the
+/// clip's airframe does not show one, so neither does this.
 ///
 /// Altitude, distance, heading and attitude come from the camera. The rest are stand-ins on <see cref="FeedSignals"/>
 /// and will come from the flight model. §7 names the whole grid as the interface: **the game-developer owns the
@@ -28,8 +37,10 @@ public sealed class FeedOsd
     /// Warning elements blink: ≈7 recorded frames on, ≥5 off (measured on E), i.e. 12 fields on and 9 off.
     const int BlinkOnFields = 12, BlinkOffFields = 9;
 
-    /// The airframe name, D-014. Sixteen characters, which is the bottom row's message field exactly.
-    const string Airframe = "Svinorez 10 Opto";
+    /// The airframe name, D-014, kept here exactly as the decision writes it. The character ROM's face is all
+    /// capitals (it has no lowercase letters, only unit marks), so it reaches the screen upper-cased. That is the
+    /// font, not an edit to the name.
+    static readonly string Airframe = "Svinorez 10 Opto".ToUpperInvariant();
     /// The armament indicator, D-014.
     const string Armed = "! SAFE !";
 
@@ -37,12 +48,11 @@ public sealed class FeedOsd
     /// dropout recovers. The footage's text is not recorded (OPSEC), so this is invented and deliberately generic.
     static readonly string[] RxText = { "AV IN 1", "PAL 50" };
 
-    /// One row per grid line. Row 7 is the centre, which stays clear apart from the crosshair.
-    const int RowTop = 0, RowDistance = 1, RowMode = 3, RowCentre = 7;
-    const int RowPack = 12, RowCell = 13, RowPercent = 14, RowBottom = 15;
-    /// Where the readouts end, counting from the left. Right-aligned fields are placed by their last column.
-    const int ColLeft = 1, ColHeadingEnd = 17, ColHeightEnd = 27;
-    const int ColTimer = 17, ColCurrentEnd = 25, ColLinkEnd = 29;
+    /// One row per grid line. Row 7 is the centre, which stays clear apart from the reticle.
+    const int RowTop = 0, RowCentre = 7;
+    const int RowArmed = 10, RowLabelTop = 11, RowTimer = 12, RowCell = 13, RowPack = 14, RowBottom = 15;
+    /// Where the readouts sit. Right-aligned fields are placed by their last column.
+    const int ColLeft = 1, ColStack = 3, ColRightEnd = 28;
 
     /// Warning thresholds for the stand-in readouts. Real ones come from the flight model.
     const float LowCellVolts = 3.50f, LowLinkFraction = 0.35f;
@@ -68,71 +78,47 @@ public sealed class FeedOsd
             for (int c = 0; c < Cols; c++)
                 _grid[r, c] = ' ';
 
-        // Top edge: arming or status text, the heading, and the height and distance readouts.
-        Put(RowTop, ColLeft, Armed);
-        PutRight(RowTop, ColHeadingEnd, $"{Wrap(s.HeadingDeg):000}°");
-        PutRight(RowTop, ColHeightEnd, $"{Math.Max(0, (int)MathF.Round(s.Altitude))}m");
-        PutRight(RowDistance, ColHeightEnd, $"{(int)MathF.Round(s.Distance)}m");
+        // Top-left: the three-character mode word. Top-right: ALT, the value and its unit.
+        Put(RowTop, ColLeft, "ANG");
+        PutRight(RowTop, ColRightEnd, $"ALT {Math.Max(0, (int)MathF.Round(s.Altitude))}m");
 
-        // Left side: the flight-mode word.
-        Put(RowMode, ColLeft, "ANGL");
+        // Centre: the reticle, a bar with a tick and a dot at the middle.
+        Put(RowCentre, Cols / 2 - 3, "--^--");
 
-        // Centre: the crosshair, and the dotted artificial horizon around it.
-        Put(RowCentre, Cols / 2 - 2, "-");
-        Put(RowCentre, Cols / 2 - 1, "+");
-        Put(RowCentre, Cols / 2, "-");
-        Horizon(s.PitchDeg, s.RollDeg);
-
-        // Bottom-left corner: the battery readouts.
+        // Bottom-left: the stacked column, in the order the clip shows it.
         float cell = s.PackVolts / 6f;
-        Put(RowPack, ColLeft, $"{s.PackVolts.ToString("00.0", System.Globalization.CultureInfo.InvariantCulture)}V");
-        Put(RowCell, ColLeft, $"{cell.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}V");
-        Put(RowPercent, ColLeft, $"{Percent(cell)}%");
-
-        // Bottom row: the name or message line, the timer, the current and the link quality.
         int seconds = (int)s.ElapsedSeconds;
-        Put(RowBottom, 0, Airframe);
-        Put(RowBottom, ColTimer, $"{seconds / 60 % 100:00}:{seconds % 60:00}");
-        PutRight(RowBottom, ColCurrentEnd, $"{(int)MathF.Round(s.Amps)}A");
-        PutRight(RowBottom, ColLinkEnd, $"{(int)MathF.Round(s.LinkMargin * 100f)}%");
+        Put(RowArmed, ColLeft, Armed);
+        Put(RowLabelTop, ColLeft, "[");
+        Put(RowTimer, ColLeft, "]");
+        Put(RowTimer, ColStack, $"{seconds / 60 % 100:00}:{seconds % 60:00}");
+        Put(RowCell, ColLeft, "$");
+        Put(RowCell, ColStack, $"{cell.ToString("0.00", Invariant)}в");
+        Put(RowPack, ColLeft, "$");
+        Put(RowPack, ColStack, $"{s.PackVolts.ToString("00.0", Invariant)}в");
 
-        // Warning text, blinking, in the bottom row's message field — which is how the real one shows warnings and
-        // why that field is described as "a name or message line".
+        // Bottom-centre: the airframe name. Bottom-right: two right-aligned numbers, the lower one in amps.
+        Put(RowBottom, (Cols - Airframe.Length) / 2, Airframe);
+        PutRight(RowPack, ColRightEnd, $"{(int)MathF.Round(s.Distance)}");
+        PutRight(RowBottom, ColRightEnd, $"{(int)MathF.Round(s.Amps)}a");
+
+        // Warning text, blinking, over the airframe name — the message field of the bottom row, which is where §5
+        // puts warnings.
         string warning = cell < LowCellVolts ? "BATT LOW" : s.LinkMargin < LowLinkFraction ? "LOW LINK" : null;
         if (warning != null && Blink(field))
         {
             for (int c = 0; c < Airframe.Length; c++)
-                _grid[RowBottom, c] = ' ';
-            Put(RowBottom, (Airframe.Length - warning.Length) / 2, warning);
+                _grid[RowBottom, (Cols - Airframe.Length) / 2 + c] = ' ';
+            Put(RowBottom, (Cols - warning.Length) / 2, warning);
         }
 
         Upload();
     }
 
-    /// The dotted artificial-horizon line, straight because the OSD is inserted after the lens (A f236). It pivots on
-    /// the centre with roll and rides up and down with pitch; the two centre columns stay clear for the crosshair.
-    void Horizon(float pitchDeg, float rollDeg)
-    {
-        const float DegreesPerRow = 6f, CellAspect = 0.95f;
-        float centre = RowCentre + 0.5f + pitchDeg / DegreesPerRow;
-        float slope = MathF.Tan(Mathf.DegToRad(rollDeg)) * CellAspect;
-        for (int c = 3; c < Cols - 3; c++)
-        {
-            if (c >= Cols / 2 - 3 && c <= Cols / 2 + 1)
-                continue;
-            int row = (int)MathF.Round(centre + (c - (Cols - 1) / 2f) * slope - 0.5f);
-            if (row >= 1 && row < Rows - 1 && _grid[row, c] == ' ')
-                _grid[row, c] = '~';
-        }
-    }
-
     /// True while a blinking element is on.
     static bool Blink(int field) => field % (BlinkOnFields + BlinkOffFields) < BlinkOnFields;
 
-    static int Wrap(float degrees) => ((int)MathF.Round(degrees) % 360 + 360) % 360;
-
-    /// A stand-in state of charge from the cell voltage: 3.3 V empty, 4.2 V full.
-    static int Percent(float cell) => Math.Clamp((int)MathF.Round((cell - 3.3f) / 0.9f * 100f), 0, 100);
+    static readonly System.Globalization.CultureInfo Invariant = System.Globalization.CultureInfo.InvariantCulture;
 
     void Put(int row, int col, string text)
     {

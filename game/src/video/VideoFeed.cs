@@ -43,6 +43,7 @@ public partial class VideoFeed : CanvasLayer
     int _pinnedField = -1;
     int _lastField = -1;
     int _captureTo = -1;
+    string _cut;
     bool _pinnedSignals;
     bool _reported;
     double _clock;
@@ -63,16 +64,27 @@ public partial class VideoFeed : CanvasLayer
         }
         if (seed != null && !int.TryParse(seed, out feed._seed))
             GD.PrintErr($"ERROR: --video-seed needs an integer; got '{seed}'.");
-        if (field != null && !ParseField(field, out feed._pinnedField, out feed._captureTo))
+        if (field != null && !feed.ParseField(field, out feed._pinnedField, out feed._captureTo))
             GD.PrintErr($"ERROR: --video-field needs a field or a range like 610-660; got '{field}'.");
         return feed;
     }
 
     /// `--video-field n` pins one field. `--video-field a-b` walks a to b, saving a PNG of each: the only way to read
-    /// a loss sequence field by field, since it is over in half a second at 50 Hz.
-    static bool ParseField(string arg, out int from, out int to)
+    /// a loss sequence field by field, since it is over in half a second at 50 Hz. A `+cut` or `+hardcut` suffix
+    /// fires a terminal loss at the first field of the range, because nothing else can — those are event-driven and
+    /// the flight model that fires them does not exist yet.
+    bool ParseField(string arg, out int from, out int to)
     {
+        from = -1;
         to = -1;
+        int plus = arg.IndexOf('+');
+        if (plus >= 0)
+        {
+            _cut = arg[(plus + 1)..];
+            arg = arg[..plus];
+            if (_cut != "cut" && _cut != "hardcut")
+                return false;
+        }
         int dash = arg.IndexOf('-', 1);
         if (dash < 0)
             return int.TryParse(arg, out from);
@@ -106,7 +118,7 @@ public partial class VideoFeed : CanvasLayer
         if (_mode == Mode.Clean)
             return;
         if (!_pinnedSignals && _camera != null)
-            _signals.UpdateFromCamera(_camera.GlobalPosition, _camera.GlobalRotation, delta);
+            _signals.UpdateFromCamera(_camera.GlobalPosition, delta);
 
         _clock += delta;
         _events.AdvanceTo(_pinnedField >= 0 ? _pinnedField : (int)(_clock * 50.0), _signals.MotorCurrent);
@@ -163,6 +175,11 @@ public partial class VideoFeed : CanvasLayer
         string dir = ProjectSettings.GlobalizePath("user://screenshots");
         DirAccess.MakeDirRecursiveAbsolute(dir);
         GD.Print($"VideoFeed: capturing fields {_pinnedField}-{_captureTo}. {Schedule(_seed, _signals.MotorCurrent)}");
+        if (_cut != null)
+        {
+            _events.AdvanceTo(_pinnedField - 1, 0f);
+            _events.TriggerCut(_cut == "hardcut");
+        }
         for (int f = _pinnedField; f <= _captureTo; f++)
         {
             _pinnedField = f;
