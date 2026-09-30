@@ -156,3 +156,29 @@ Exactly, not approximately. The first attempt was built from a description and w
 - **The OSD does not rainbow, while foliage of the same contrast does.** A glyph is identical on every line it spans, and the PAL delay line rejects exactly that. An OSD fed hard-edged into the chroma detector tears itself into rainbow stripes; band-limiting it into the detector brings fringing on OSD rows from 105 down to 7.7 against the footage's 7.9.
 
 **OPSEC.** The clip was decoded to a session scratchpad and never entered the repository. Layout, glyph geometry and positions are recorded here; **no on-screen value is**, and none appears in code, comments or commit messages. The receiver's text lines and the timer's unit label are invented marks placed at the measured footprint.
+
+---
+
+## PR-9 Narrow fly-ins are sized to the drone: passable, barely
+
+**What the pilot said** (2026-09-30, on the cellar doorway). "It should be a LITTLE BIT wider than the drone so it's possible to fly through yet narrow enough to be very difficult, especially since we'll have turbulence and other aspects of realistic physics."
+
+**Requirement.** The narrowest fly-in openings (cellar doorways, broken windows, gaps between structures) SHALL be sized against the airframe, not against a generic clearance: passable nose-first with a few centimetres a side, and not passable with careless yaw. For the Vyriy-10-class airframe (452 mm wheelbase, 10" props) that is about 0.574 m prop tip to prop tip nose-first and 0.706 m on the diagonal. The cellar doorway is therefore **0.70 m**: about 63 mm a side flying straight in, passable up to about 35° of yaw, and it matches the footage's W4 figure. The turbulence that funnels through such an opening (W4 `turbulence`) is part of what makes it hard, and the flight model must keep it.
+
+## PR-10 Tree belts carry bushes among the trees
+
+**What the pilot said** (2026-09-30, asked whether посадки are denser than our 3 m trunk spacing). "Posadkis also have occasional bushes among the trees."
+
+**Requirement.** Trunk spacing stays. The understory SHALL run through the whole belt, not only along its edges: occasional clumps of bushes among the trunks inside the belt, thicker at the sunlit edges (V1). It is part of why the pilot cannot see straight through a belt at low level.
+
+## PR-11 Surface areas must not read as tiles
+
+**What the pilot said** (2026-09-30, on `sample_patch`). "I saw it's fully flat but there are plain-colored tiles. Do I understand correctly that this is for future ground curvature visuals AND physics?"
+
+**What it was.** Not curvature. The "tiles" are the surface areas (yard litter, dirt road, meadow, fields), which the test patch lays out as hard-edged axis-aligned rectangles, each rendered in one surface's texture. Each is physical data, since the physics reads soil, straw and sod per 0.5 m cell. Relief is a separate layer, the heightfield (PR-8).
+
+**Requirement.** Every surface area in a map meant for the pilot (the gallery, the world map) SHALL have an organic outline and a feathered transition in the surface and cover layers, the way field edges, yards and verges meet in reality. `sample_patch` keeps its rectangles because it is the format's test fixture and the golden file probes it.
+
+## Standing instruction: research what can be researched
+
+On how Ukrainian structures are built, how they looked before the war and how they fail when hit, the pilot has already answered (PR-7): work it out from the footage notes and from online images of damaged buildings, and do not ask them. Questions to the pilot are for what only a pilot knows: how the aircraft behaves, what they saw on a particular flight, how it felt.
