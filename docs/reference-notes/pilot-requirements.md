@@ -124,3 +124,17 @@ The map already carries wires as sag polylines with real catenaries, so the geom
 **Requirement.** Object work SHALL be driven by the footage-derived notes first, and SHALL be supplemented by researching what these structures actually look like — construction, pre-war appearance, and how they fail when hit. An asset that passes its budget but does not read as rural Ukraine to this pilot is a failed asset.
 
 **OPSEC boundary, unchanged.** `reference/` is never opened, copied, committed or uploaded. The derived notes in `docs/reference-notes/` are the sanctioned source. Online research is for general reference on Ukrainian construction and war damage — never for anything that could identify a place, unit or date from the footage.
+
+---
+
+## PR-8 The ground is not flat
+
+**What the pilot said** (2026-09-30, sharing a short clip of a stable feed). "It also gives you idea on terrain, grass, and trees — it's not always flat, sometimes there are ups and downs, our map eventually should also have this."
+
+**What the clip shows.** Gently rolling ground: a low crest running across the middle distance with the land falling away behind it, shallow dips in the foreground, and the horizon sitting well above the base of the far treeline rather than level with it. The grass is pale and matted with green patches through it, not a uniform sward. Bare deciduous trees with fine twig crowns, scattered scrub, low outbuildings, and concrete-slab tracks cutting across the field.
+
+**Requirement.** The world map SHALL have real relief — gentle rises, crests and dips at the scale of tens of metres — not a flat plane with surfaces painted on it. This matters for flight, not only for looks: a crest hides what is behind it, a dip changes how far you can see and where wind separates, and a heavy cargo quad on a slow glide approach meets ground that is not level.
+
+**Where this stands today.** `sample_patch` is flat because it is a 256 m test patch for the map format, not a landscape. The synthetic 4 km package already generates steppe relief, crater fields, a gully and road embankments, so the terrain renderer and the physics handle relief; nothing in the shipped map exercises it. `build-world-map` must, and the review map should carry at least one patch with relief so it is reviewed before the world is built.
+
+**Also visible and worth building:** the pale matted grass with green showing through (our meadow is more uniformly green), fine-twigged bare crowns as a seasonal variant of the belt trees, and concrete-slab tracks, which are a distinctive and simple asset.
