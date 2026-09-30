@@ -42,8 +42,12 @@ vec3 sensor_read(vec2 uv) {
 		+ texture(screen, uv + vec2(0.0, 0.25 / LINES)).rgb);
 }
 
+// Precision-safe hash: a sin-based one loses float32 accuracy once the field counter grows and degenerates into a
+// woven pattern, which is exactly what a feed must never do. Inputs are kept small for the same reason.
 float hash(vec3 p) {
-	return fract(sin(dot(p + seed, vec3(127.1, 311.7, 74.7))) * 43758.5453);
+	vec3 q = fract(p * vec3(0.1031, 0.1030, 0.0973) + seed * 0.017);
+	q += dot(q, q.yzx + 33.33);
+	return fract((q.x + q.y) * q.z);
 }
 
 float luma_of(vec3 c) {
@@ -55,7 +59,7 @@ void fragment() {
 	float parity = mod(field, 2.0);
 	float line = floor(SCREEN_UV.y * LINES - 0.5 * parity);
 	float sy = (line + 0.5 + 0.5 * parity) / LINES;
-	float abs_line = line + field * 312.5; // PAL: the subcarrier phase carries over between fields
+	float abs_line = line + mod(field, 8.0) * 312.5; // PAL: the subcarrier phase carries over between fields
 
 	// --- 17 scene taps along the line, one composite sample apart, each the mean of the two midpoint reads beside
 	// it: that pair is the horizontal sensor aperture, and it nulls exactly where the line would otherwise fold.
@@ -72,6 +76,12 @@ void fragment() {
 		int c = i + 2;
 		sharp[i] = tap[c] * (1.0 + 2.0 * SHARPEN) - SHARPEN * (tap[c - 3] + tap[c + 3]);
 	}
+
+	// --- N2: optical power near the receiver threshold puts short impulses on the composite. Their dash colours are
+	// whatever the chroma decoder makes of an impulse at that subcarrier phase, not a palette; as in the footage,
+	// the density follows the link margin and the amount of fine texture under them.
+	float texture_gate = clamp(0.15 + 12.0 * abs(luma_of(tap[8]) - 0.5 * (luma_of(tap[5]) + luma_of(tap[11]))), 0.0, 2.0);
+	float imp_rate = (0.0003 + 0.015 * (1.0 - link_margin) * (1.0 - link_margin) + 0.0015 * motor_current) * texture_gate;
 
 	// --- N3, the ~390 Hz power-rail transient: one dark line every ~40 field lines, the set rolling. It is put on
 	// the signal, one line tall and flat across the width, so the decoder keeps it colourless as the footage shows.
@@ -91,7 +101,10 @@ void fragment() {
 		comp[i] = y + u * sin(ph) + v * vsw * cos(ph) - n3;
 
 		// N1 grain, on the signal: flat over one luma sample, a new pattern every field line and every field.
-		comp[i] += (hash(vec3(floor(x * SC_SAMPLES * 0.5), abs_line, field)) - 0.5) * 2.0 * GRAIN * gain;
+		comp[i] += (hash(vec3(floor(x * SC_SAMPLES * 0.5), line, mod(field, 1024.0))) - 0.5) * 2.0 * GRAIN * gain;
+
+		float imp = hash(vec3(floor(x * SC_SAMPLES * 0.25), line, mod(field, 1024.0) + 17.0));
+		comp[i] += step(imp, imp_rate) * (imp < imp_rate * 0.5 ? 0.18 : -0.18);
 
 		// N4, an airframe interference source near the colour subcarrier, gated to the top of the field. One
 		// sinusoid: 10 cycles per line above the subcarrier, so the decoder beats it down to the ~10 diagonal lines

@@ -36,8 +36,12 @@ vec3 sensor_read(vec2 uv) {
 		+ texture(screen, uv + vec2(0.0, 0.25 / LINES)).rgb);
 }
 
+// Precision-safe hash: a sin-based one loses float32 accuracy once the field counter grows and degenerates into a
+// woven pattern, which is exactly what a feed must never do. Inputs are kept small for the same reason.
 float hash(vec3 p) {
-	return fract(sin(dot(p + seed, vec3(127.1, 311.7, 74.7))) * 43758.5453);
+	vec3 q = fract(p * vec3(0.1031, 0.1030, 0.0973) + seed * 0.017);
+	q += dot(q, q.yzx + 33.33);
+	return fract((q.x + q.y) * q.z);
 }
 
 float luma_of(vec3 c) {
@@ -48,7 +52,7 @@ void fragment() {
 	float parity = mod(field, 2.0);
 	float line = floor(SCREEN_UV.y * LINES - 0.5 * parity);
 	float sy = (line + 0.5 + 0.5 * parity) / LINES;
-	float abs_line = line + field * 312.5;
+	float abs_line = line + mod(field, 8.0) * 312.5;
 	float vsw = mod(abs_line, 2.0) < 1.0 ? 1.0 : -1.0;
 
 	// --- real core: encode 13 composite samples, N1 grain on the signal, then decode.
@@ -67,7 +71,7 @@ void fragment() {
 		float v = 0.877 * (c.r - y);
 		float ph = TWO_PI * (SC_CYCLES * x + 0.75 * abs_line);
 		comp[i] = y + u * sin(ph) + v * vsw * cos(ph);
-		comp[i] += (hash(vec3(floor(x * SC_SAMPLES * 0.5), abs_line, field)) - 0.5) * 2.0 * GRAIN * gain;
+		comp[i] += (hash(vec3(floor(x * SC_SAMPLES * 0.5), line, mod(field, 1024.0))) - 0.5) * 2.0 * GRAIN * gain;
 	}
 
 	float y_dec = 0.25 * (comp[5] + comp[6] + comp[7] + comp[8]);
@@ -96,7 +100,7 @@ void fragment() {
 	// N2 sparkles: dashes one field line tall, ~2 luma samples long; density from the link margin and, as the
 	// footage shows, from how much fine texture is under them.
 	float dash = floor(SCREEN_UV.x * LUMA / 2.0);
-	float s = hash(vec3(dash, line, field + 17.0));
+	float s = hash(vec3(dash, line, mod(field, 1024.0) + 17.0));
 	float density = (0.0006 + 0.03 * (1.0 - link_margin) * (1.0 - link_margin) + 0.003 * motor_current)
 		* clamp(0.15 + 12.0 * abs(detail), 0.0, 2.0);
 	if (s < density) {
@@ -131,8 +135,8 @@ void fragment() {
 	// random rate, so these only show what the link margin says; the staged sequence and its drawn durations are
 	// the hook that FeedEvents.TriggerLoss fills in once physics can report a link event.
 	if (link_margin < 0.16) {
-		float snow = step(0.62, hash(vec3(floor(SCREEN_UV.x * LUMA * 0.7), line, field)));
-		rgb = vec3(snow * (0.82 + 0.18 * hash(vec3(field, 1.0, 2.0))));
+		float snow = step(0.62, hash(vec3(floor(SCREEN_UV.x * LUMA * 0.7), line, mod(field, 1024.0))));
+		rgb = vec3(snow * (0.82 + 0.18 * hash(vec3(mod(field, 1024.0), 1.0, 2.0))));
 	}
 	if (link_margin < 0.06) {
 		rgb = vec3(0.0, 0.04, 0.78);

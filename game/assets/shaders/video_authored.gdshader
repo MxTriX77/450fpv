@@ -37,8 +37,12 @@ vec3 sensor_read(float x, float y) {
 		+ texture(screen, vec2(x - o.x, y + o.y)).rgb + texture(screen, vec2(x + o.x, y + o.y)).rgb);
 }
 
+// Precision-safe hash: a sin-based one loses float32 accuracy once the field counter grows and degenerates into a
+// woven pattern, which is exactly what a feed must never do. Inputs are kept small for the same reason.
 float hash(vec3 p) {
-	return fract(sin(dot(p + seed, vec3(127.1, 311.7, 74.7))) * 43758.5453);
+	vec3 q = fract(p * vec3(0.1031, 0.1030, 0.0973) + seed * 0.017);
+	q += dot(q, q.yzx + 33.33);
+	return fract((q.x + q.y) * q.z);
 }
 
 float luma_of(vec3 c) {
@@ -76,7 +80,7 @@ void fragment() {
 
 	// P5 cross-colour: fine luma detail is repainted as a chroma streak whose sign flips line to line and field to
 	// field, which is what makes it shimmer. Drawn, not decoded.
-	float phase = mod(line + field, 2.0) * 2.0 - 1.0;
+	float phase = mod(line + mod(field, 2.0), 2.0) * 2.0 - 1.0;
 	float cross = clamp(detail * 3.0, -0.16, 0.16) * phase; // the measured bands reach +-30-40 levels
 	u += cross;
 	v -= cross * 0.8;
@@ -88,8 +92,8 @@ void fragment() {
 
 	// N1 grain: one luma sample wide, one field line tall, a new pattern every field, sigma follows the AE gain.
 	float cell = floor(SCREEN_UV.x * LUMA);
-	y += (hash(vec3(cell, line, field)) - 0.5) * 2.0 * GRAIN * gain;
-	float cnoise = (hash(vec3(floor(cell * 0.2), line, field + 91.0)) - 0.5) * 2.0 * GRAIN * gain * sat;
+	y += (hash(vec3(cell, line, mod(field, 1024.0))) - 0.5) * 2.0 * GRAIN * gain;
+	float cnoise = (hash(vec3(floor(cell * 0.2), line, mod(field, 1024.0) + 91.0)) - 0.5) * 2.0 * GRAIN * gain * sat;
 	u += cnoise;
 	v -= cnoise * 0.7;
 
@@ -97,7 +101,7 @@ void fragment() {
 	// mean. Density follows the link margin AND the amount of fine texture, which is why the footage shows them on
 	// grass and walls and almost none on flat sky.
 	float dash = floor(SCREEN_UV.x * LUMA / 2.0);
-	float s = hash(vec3(dash, line, field + 17.0));
+	float s = hash(vec3(dash, line, mod(field, 1024.0) + 17.0));
 	float density = (0.0006 + 0.03 * (1.0 - link_margin) * (1.0 - link_margin) + 0.003 * motor_current)
 		* clamp(0.15 + 12.0 * abs(detail), 0.0, 2.0);
 	if (s < density) {
