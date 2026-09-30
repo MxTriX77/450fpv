@@ -36,6 +36,11 @@ uniform sampler2D screen : hint_screen_texture, repeat_disable, filter_linear;
 uniform sampler2D osd_codes : filter_nearest, repeat_disable;
 uniform sampler2D osd_glyphs : filter_nearest, repeat_disable;
 uniform float osd_cells = 1.0;
+// The character cell and the grid's origin, as fractions of the picture. FeedOsd owns the numbers: they are measured
+// off the pilot's footage and are NOT 1/30 by 1/16 - the grid is larger than the picture, so its last columns and
+// rows fall outside, exactly as they do on the aircraft.
+uniform vec2 osd_cell = vec2(0.0350521, 0.0657407);
+uniform vec2 osd_origin = vec2(0.0);
 
 uniform float gain = 1.0;          // camera AE gain: 1 day, ~4 night. N1 sigma and C3 saturation follow it.
 uniform float link_margin = 1.0;   // 1 plenty, 0 at the receiver threshold.
@@ -72,6 +77,7 @@ const float SHARPEN = 0.30;     // P3, radius 3 composite samples so its peak do
 const float GRAIN = 0.011;      // N1, about 2.8 levels at gain 1 (the notes' 2-4, U4)
 const float APERTURE_V = 0.15;  // the sensor's vertical aperture, in field lines
 const float CROSS = 2.6;        // P5: how hard the chroma the wide detector smears away is put back as false colour
+
 const float CROSS_V = 0.35;     // what the PAL delay line leaves of the V half of it
 const float SATURATION = 0.78;  // C2/C3: a good signal still reads desaturated
 const float LIFT = 0.05, CONTRAST = 0.90; // the milky, low-contrast black level of a composite picture
@@ -81,6 +87,10 @@ const float OSD_COLS = 30.0;    // §5: a 30-column by 16-row character grid
 const float OSD_ROWS = 16.0;
 const float CODE_ROWS = 18.0;   // the 16 OSD rows plus the receiver's two text lines
 const float OSD_WHITE = 0.96;   // the OSD whites measure 210-255; they are the brightest thing on screen (C5)
+// How much of the hard-edged OSD the receiver's delay line fails to cancel out of the chroma path. Tuned against the
+// pilot's frames: their OSD rows measure a 90th-percentile chroma departure of 7.9 levels, and a perfect comb (0.0)
+// put ours at 3.4.
+const float OSD_COMB = 0.10;
 const float OSD_BLACK = 0.02;
 
 // The no-signal screen of this simulator's receiver. §0 measures two receivers; this is the B-G one, which is also
@@ -127,11 +137,8 @@ vec2 glyph_ink(float code, float cx, float v) {
 // The character grid at (x, y), as (glyph, outline). `row0` is the first code row of the block: 0 for the OSD, 16 for
 // the receiver's own text, which then lands in the top two rows of the display.
 vec2 grid_ink(float x, float y, float row0) {
-	if (x < 0.0 || x >= 1.0) {
-		return vec2(0.0);
-	}
-	float cx = x * OSD_COLS;
-	float cy = y * OSD_ROWS;
+	float cx = (x - osd_origin.x) / osd_cell.x;
+	float cy = (y - osd_origin.y) / osd_cell.y;
 	float code = cell_code(floor(cx), floor(cy) + row0);
 	return code < 0.5 ? vec2(0.0) : glyph_ink(code, cx, fract(cy));
 }
@@ -215,40 +222,68 @@ void fragment() {
 	// --- the OSD cells this pixel needs, hoisted out of the tap loop. The 13 taps span about 0.4 of a character
 	// cell, so they can only land in two of them; and where both are blank, which is most of the screen, the loop
 	// never touches the glyph atlas at all.
-	float cy_osd = sy * OSD_ROWS;
-	float cx_lo = floor(px * OSD_COLS - 0.2), cx_hi = floor(px * OSD_COLS + 0.2);
+	float cy_osd = (sy - osd_origin.y) / osd_cell.y;
+	float cx_px = (px - osd_origin.x) / osd_cell.x;
+	float cx_lo = floor(cx_px - 0.2), cx_hi = floor(cx_px + 0.2);
 	float code_lo = cell_code(cx_lo, floor(cy_osd));
 	float code_hi = cx_hi == cx_lo ? code_lo : cell_code(cx_hi, floor(cy_osd));
 	bool has_osd = code_lo > 0.5 || code_hi > 0.5;
 
 	// --- encode, disturb, decode.
 	float grain_sigma = GRAIN * gain * (1.0 + 2.2 * degrade) * (1.0 + grain_boost);
-	float comp[13];
+	// The OSD is inserted here, on the drone, between the camera and the composite encoder: white glyphs with a black
+	// outline, read at the undistorted x. Everything the footage shows on it - the soft horizontal edges, the
+	// coloured fringes, the shear of a tear - comes from what follows.
+	float osd_ink[13], osd_out[13];
 	for (int i = 0; i < 13; i++) {
-		float x = px + float(i - 6) / SC_SAMPLES;
-		vec3 c = clamp(sharp[i], 0.0, 1.0);
-
-		// The OSD is inserted here, on the drone, between the camera and the composite encoder: white glyphs with a
-		// black outline, hard-edged, at the undistorted x. Everything the footage shows on it - the 3-4 px edge rise,
-		// the coloured fringes, the cross-colour near busy texture, the shear of a tear - comes from what follows.
-		if (has_osd && x >= 0.0 && x < 1.0) {
-			float cx = x * OSD_COLS;
+		osd_ink[i] = 0.0;
+		osd_out[i] = 0.0;
+		if (has_osd) {
+			float x = px + float(i - 6) / SC_SAMPLES;
+			float cx = (x - osd_origin.x) / osd_cell.x;
 			float code = floor(cx) <= cx_lo ? code_lo : code_hi;
 			if (code > 0.5) {
 				vec2 osd = glyph_ink(code, cx, fract(cy_osd));
-				c = mix(c, vec3(OSD_BLACK), osd.y);
-				c = mix(c, vec3(OSD_WHITE), osd.x);
+				osd_ink[i] = osd.x;
+				osd_out[i] = osd.y;
 			}
 		}
+	}
 
-		float y = luma_of(c);
-		float u = 0.493 * (c.b - y);
-		float v = 0.877 * (c.r - y);
+	// An OSD glyph is identical on every line it spans, and the receiver's PAL delay line works by comparing a line
+	// with the one before it - so anything vertically coherent cancels out of the chroma path and only the luma path
+	// sees it hard-edged. That is why the footage's glyphs have almost no false colour on them while foliage of the
+	// same contrast rainbows: measured on the pilot's own frames, the chroma departure on an OSD row is a 90th
+	// percentile of 7.9 levels, under the 10.0 of open sky. Feeding the chroma detector the OSD smeared over the
+	// whole 13-sample window reproduces that; feeding it the hard glyph put ours at 65.5 and tore the text into
+	// rainbow stripes.
+	float ink_soft = 0.0, out_soft = 0.0;
+	for (int i = 0; i < 13; i++) {
+		ink_soft += osd_ink[i];
+		out_soft += osd_out[i];
+	}
+	ink_soft /= 13.0;
+	out_soft /= 13.0;
+
+	float comp[13];   // the luma path: the OSD hard-edged, as the character generator draws it
+	float comp_c[13]; // the chroma path: the OSD as the delay line leaves it
+	for (int i = 0; i < 13; i++) {
+		float x = px + float(i - 6) / SC_SAMPLES;
+		vec3 scene = clamp(sharp[i], 0.0, 1.0);
+
+		vec3 c = mix(scene, vec3(OSD_BLACK), osd_out[i]);
+		c = mix(c, vec3(OSD_WHITE), osd_ink[i]);
+		vec3 cc = mix(scene, vec3(OSD_BLACK), mix(out_soft, osd_out[i], OSD_COMB));
+		cc = mix(cc, vec3(OSD_WHITE), mix(ink_soft, osd_ink[i], OSD_COMB));
+
+		float yc = luma_of(cc);
+		float u = 0.493 * (cc.b - yc);
+		float v = 0.877 * (cc.r - yc);
 		float ph = TWO_PI * (SC_CYCLES * x + ph_line);
-		comp[i] = y + u * sin(ph) + v * vsw * cos(ph) - n3;
+		float sub = u * sin(ph) + v * vsw * cos(ph) - n3;
 
 		// N1: always on, flat over one luma sample, a new pattern every field line and every field.
-		comp[i] += (hash(vec3(floor(x * SC_SAMPLES * 0.5), line, fw)) - 0.5) * 2.0 * grain_sigma;
+		sub += (hash(vec3(floor(x * SC_SAMPLES * 0.5), line, fw)) - 0.5) * 2.0 * grain_sigma;
 
 		// An impulse lands on the composite as a short burst inside the chroma band, so the decoder makes a coloured
 		// dash of it - red, green, magenta or cyan by the phase it happens to arrive at, which is what the footage
@@ -256,15 +291,13 @@ void fragment() {
 		float cell = floor(x * SC_SAMPLES * 0.25);
 		float imp = hash(vec3(cell, line, fw + 17.0));
 		if (imp < imp_rate) {
-			comp[i] += 0.30 * sin(ph + TWO_PI * hash(vec3(cell, line, fw + 29.0)))
+			sub += 0.30 * sin(ph + TWO_PI * hash(vec3(cell, line, fw + 29.0)))
 				+ (imp < imp_rate * 0.4 ? 0.10 : -0.10);
 		}
-	}
 
-	// Y: a 4-tap box is exactly one subcarrier cycle, so it notches the subcarrier out; what the notch leaves behind
-	// on moving chroma is the dot crawl. Convolving it with a 2-tap box keeps that null and rolls the luma off
-	// earlier, which is the heavy horizontal smear a good signal already has: grass reads as streaks, not blades.
-	float y_dec = 0.25 * (0.5 * comp[4] + comp[5] + comp[6] + comp[7] + 0.5 * comp[8]);
+		comp[i] = luma_of(c) + sub;
+		comp_c[i] = yc + sub;
+	}
 
 	// U/V: synchronous detection over two window widths at once. The 13-sample Hann window is ~0.7 us, which is the
 	// measured 5x lower chroma bandwidth and the 0-6 px rightward offset (P4). The narrow window is 8 samples with
@@ -280,17 +313,26 @@ void fragment() {
 		float x = px + float(i - 6) / SC_SAMPLES;
 		float ph = TWO_PI * (SC_CYCLES * x + ph_line);
 		float sp = sin(ph), cp = vsw * cos(ph);
-		u_wide += comp[i] * sp * wl;
-		v_wide += comp[i] * cp * wl;
+		u_wide += comp_c[i] * sp * wl;
+		v_wide += comp_c[i] * cp * wl;
 		w_wide += wl;
-		u_fine += comp[i] * sp * ws;
-		v_fine += comp[i] * cp * ws;
+		u_fine += comp_c[i] * sp * ws;
+		v_fine += comp_c[i] * cp * ws;
 		w_fine += ws;
 	}
 	u_wide = 2.0 * u_wide / w_wide;
 	v_wide = 2.0 * v_wide / w_wide;
 	u_fine = 2.0 * u_fine / w_fine;
 	v_fine = 2.0 * v_fine / w_fine;
+
+	// Y: a receiver traps the chroma rather than low-passing the whole signal - luma is the composite at this sample
+	// minus the chroma just detected from it. That is what keeps the luma bandwidth, and it is why the footage's
+	// one-sample OSD strokes arrive as solid 5-6 px white bars: a low-pass wide enough to notch the subcarrier on its
+	// own eats them, and ours came out grey stripes until this replaced it. What the trap leaves of moving chroma is
+	// the dot crawl. The picture's own horizontal softness (P2) comes from the sensor aperture, before the encode,
+	// which is why the scene smears while the OSD inserted after it stays crisp - exactly as the footage has it.
+	float ph_mid = TWO_PI * (SC_CYCLES * px + ph_line);
+	float y_dec = comp[6] - (u_wide * sin(ph_mid) + v_wide * vsw * cos(ph_mid));
 	// The receiver's PAL delay line averages two lines, and the V axis is switched between them, so most of the
 	// line-alternating V cross-colour cancels while the U axis survives. That is why the footage's fringes read
 	// blue-violet rather than alternating magenta and green, and keeping only a third of the V term reproduces it
