@@ -50,6 +50,18 @@ def _normalize(v):
     return (0.0, 1.0, 0.0) if length < 1e-9 else _scale(v, 1 / length)
 
 
+def _dot(a, b):
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+
+
+def _face_axes(normal):
+    """A face's right and up, seen from outside: up is +Y laid into the face (up the slope), or north (-Z) on a
+    level face; right completes them, so a texture is neither mirrored nor on its side."""
+    up = _sub((0.0, 1.0, 0.0), _scale(normal, normal[1]))
+    up = _normalize(up) if _dot(up, up) > 1e-6 else (0.0, 0.0, -1.0)
+    return _normalize(_cross(up, normal)), up
+
+
 def _frame(direction):
     """Two unit vectors across `direction`, picked so a nearly vertical branch gets a stable ring."""
     up = (1.0, 0.0, 0.0) if abs(direction[1]) > 0.95 else (0.0, 1.0, 0.0)
@@ -63,20 +75,29 @@ class Mesh:
     def __init__(self):
         self.verts, self.faces, self.uvs, self.face_materials = [], [], [], []
         self.normals = {}  # face index -> one normal per corner, for the faces that set their own (leaf cards)
+        self.uvs2 = {}     # face index -> a second UV per corner, for the faces that have one (a facade's mask)
 
-    def box(self, center, size, material, rotation_deg=(0, 0, 0), uv_offset=(0.0, 0.0)):
+    def box(self, center, size, material, rotation_deg=(0, 0, 0), uv_offset=(0.0, 0.0), upright=False, uv2=None):
         """Adds a box and returns it as a catalog collision shape. Values are rounded to 0.1 mm and 0.001°, and the
-        mesh uses the rounded values, so the shape and the mesh agree exactly. The box's longest side runs along V
-        on every face, so wood grain follows a plank."""
+        mesh uses the rounded values, so the shape and the mesh agree exactly.
+
+        By default the box's longest side runs along V on every face, so wood grain follows a plank. With `upright`
+        the UVs are instead the face's own position in asset space: U to the right and V up as the face is seen from
+        outside (up the slope on a sloping face, north on a level one). Masonry, render and tiles need that: their
+        courses stay level and the right way up whatever the box's proportions, and boxes that meet share one
+        continuous texture instead of each cropping it at its own offset. `uv2(point, normal)` gives a face corner's
+        second UV from its asset-space position and the face's outward normal."""
         center = [round(v, 4) for v in center]
         size = [round(v, 4) for v in size]
         rotation_deg = [round(v, 3) for v in rotation_deg]
         r = rotation(*rotation_deg)
         half = [s / 2 for s in size]
         base = len(self.verts)
+        points = []
         for i in range(8):
             local = [half[a] if i >> a & 1 else -half[a] for a in range(3)]
             p = [center[row] + sum(r[row][k] * local[k] for k in range(3)) for row in range(3)]
+            points.append(p)
             self.verts.append((p[0], -p[2], p[1]))
         for axis in range(3):
             u_axis, v_axis = [a for a in range(3) if a != axis]
@@ -90,9 +111,17 @@ class Mesh:
                     ring.reverse()
                 if side == 0:
                     ring.reverse()
+                normal = tuple(r[row][axis] * (1 if side else -1) for row in range(3))
                 self.faces.append([base + i for i in ring])
-                self.uvs.append([((i >> u_axis & 1) * size[u_axis] + uv_offset[0],
-                                  (i >> v_axis & 1) * size[v_axis] + uv_offset[1]) for i in ring])
+                if upright:
+                    right, up = _face_axes(normal)
+                    self.uvs.append([(_dot(points[i], right) + uv_offset[0], _dot(points[i], up) + uv_offset[1])
+                                     for i in ring])
+                else:
+                    self.uvs.append([((i >> u_axis & 1) * size[u_axis] + uv_offset[0],
+                                      (i >> v_axis & 1) * size[v_axis] + uv_offset[1]) for i in ring])
+                if uv2 is not None:
+                    self.uvs2[len(self.faces) - 1] = [uv2(points[i], normal) for i in ring]
                 self.face_materials.append(material)
         shape = {"shape": "box", "size_m": size, "position_m": center}
         if any(rotation_deg):
@@ -193,6 +222,11 @@ def finish(builder_file, budget_class, lods, materials, entry):
             poly.material_index = used.index(material)
             for loop, coord in zip(poly.loop_indices, face_uvs):
                 uv.data[loop].uv = coord
+        if lod.uvs2:  # glTF TEXCOORD_1, Godot's UV2; faces without one get (0, 0)
+            uv2 = mesh.uv_layers.new(name="UVMap2")
+            for face, coords in lod.uvs2.items():
+                for loop, coord in zip(mesh.polygons[face].loop_indices, coords):
+                    uv2.data[loop].uv = coord
         mesh.validate()
         if lod.normals:
             corner = [tuple(v.vector) for v in mesh.corner_normals]
