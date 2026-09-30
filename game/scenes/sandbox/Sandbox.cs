@@ -58,6 +58,10 @@ public partial class Sandbox : Node3D
         {
             MapSelfTest.View(this, ArgValue(args, "--view"));
         }
+        else if (selftest == "lod")
+        {
+            LodSelfTest.Run(this);
+        }
         else if (selftest != null)
         {
             GD.PrintErr($"ERROR: unknown selftest '{selftest}'.");
