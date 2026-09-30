@@ -20,7 +20,7 @@ kit.reset()
 profile = treekit.Profile(
     height=7.2, trunk_radius=0.12, fork=2.6, crown_radius=2.5, primaries=4, bark="bark_dark",
     stagger=0.7, limb=0.66, taper=0.6, lean=13.0, spread=33.0, split=30.0, children=(4, 4),
-    leaves=0, density=0.5, porosity=0.82)
+    leaves=0, density=0.5, porosity=0.8)
 lods, materials, entry = treekit.grow(
     profile, SEED, "res://assets/models/vegetation/tree_dead.glb", [30.0, 80.0, 200.0], ("#736c63", 0.9))
 kit.finish(__file__, "tree", lods, materials, entry)

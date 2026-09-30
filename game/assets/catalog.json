@@ -225,7 +225,7 @@
       ],
       "wind_volume": [ { "shape": "cylinder", "radius_m": 2.5, "height_m": 4.6, "position_m": [0.0, 4.9, 0.0] } ],
       "snag_hazard": true,
-      "wind_porosity": 0.82,
+      "wind_porosity": 0.8,
       "gaps": [],
       "lod_switch_m": [
         30.0,
