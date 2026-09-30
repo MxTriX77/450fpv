@@ -59,7 +59,8 @@ TRENCH_LEAD = 0.5                     # the hole band runs this far past each cl
 # The village yard (task 3.2), on its own levelled pad for the same reason as the trench's: a village yard is graded
 # level and the house is built on a level footing, and a flat pad is what lets the cellar's flat-topped lip meet F-3.
 YARD = (-56.0, 33.0, 14.0, 10.5, 2.5)   # centre x, z, half x, half z, blend width (m)
-HOUSE = (-58.0, 28.0, 5.0, 3.0)         # the adobe house: centre x, z and half footprint (m)
+HOUSE = (-58.0, 30.0, 5.0, 3.0)         # the adobe house: centre x, z and half footprint (m). Set back from the
+                                        # fence line so a drone can line up on the door and on the far window.
 FENCE_Z = 23.2                          # the road-side fence and gate line (m)
 FENCE_X = (-68.7, -66.2, -63.7, -58.7, -53.4, -48.4, -43.4)   # surviving fence bays (notes B6: fence remains)
 SHED, GATE_X = (-65.0, 38.0, -14.0), -56.0
