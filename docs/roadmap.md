@@ -11,6 +11,14 @@ This follows the pilot's release plan (CLAUDE.md §5). **The pilot reviews only 
 | **MVP-2..n** | Builds from the flight feedback | Flies and gives feedback | not started |
 | **Release** | | | not started |
 
+## Priority (pilot, 2026-10-06)
+
+"We need gallery asap, and we move on to the more important sections - physics and control interface."
+
+- **The gallery is finished as fast as it can be**, and object work no longer sets the pace of the project.
+- **Physics and the control interface are the main effort from here.** `build-flight-model` and `add-controller-input` run in parallel with the remaining objects, not after them. The input layer still comes ahead of flight tuning (D-016).
+- The wireframes gate is drawn now, because the calibration screen depends on it.
+
 ## Changes on the way to each gate
 
 **UAT-1**
