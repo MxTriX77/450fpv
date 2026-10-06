@@ -3,7 +3,12 @@
 Sizes from W4: 1.2-1.5 m wide, 1.8-2.0 m high, 2-3 m long, a doorway of about 0.7 x 1.6 m onto a dark stairwell, red
 brick under patchy lime render (feed #b97541), a weathered plank door and frame (#73623d), a sloped slab roof with
 dark roofing felt, and a light-blue tarp (#899cc2) draped beside it. This one is 1.5 x 3.0 m and 1.95 m high at the
-door, falling to 1.6 m at the back, and its doorway is 0.78 x 1.62 m: the narrowest fly-in on the map.
+door, falling to 1.6 m at the back, and its doorway is 0.70 x 1.62 m: the narrowest fly-in on the map.
+
+The width is the pilot's rule for this door: a little wider than the drone, so it can be flown through, and narrow
+enough to be very hard, especially in turbulence. The reference airframe (Vyriy-10 class, 452 mm wheelbase, 10"
+props) is 0.574 m prop tip to prop tip nose-first and 0.706 m across its diagonal. Flown straight in, that leaves
+63 mm a side; turned in yaw it still fits up to about 35 degrees, and square to the diagonal it does not fit at all.
 
     blender -b --factory-startup --python blender/structures/cellar_head.py   (or tools/blender/export.py --build)
 
@@ -25,7 +30,7 @@ import buildingkit as bk  # noqa: E402
 FOOT = (1.5, 3.0)        # outer footprint, m: 1.5 wide (W4: 1.2-1.5) and 3.0 long (W4: 2-3)
 WALL = 0.25              # brick wall thickness, m
 FRONT_H, BACK_H = 1.95, 1.60   # wall top at the door and at the back, m (W4: 1.8-2.0 high)
-DOOR = (0.78, 1.62)      # doorway width and height, m (W4: about 0.7 x 1.6)
+DOOR = (0.70, 1.62)      # doorway width and height, m (W4: about 0.7 x 1.6; the pilot: 0.70 wide)
 SLAB = 0.09              # concrete roof slab, m
 FELT = 0.012             # roofing felt over it, m
 EAVE = 0.12              # the slab past the walls on every side, m
