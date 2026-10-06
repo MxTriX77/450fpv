@@ -8,8 +8,10 @@ using System.Threading.Tasks;
 using Godot;
 
 /// The map-loading scenarios (define-map-format 4.1 and 4.2):
-/// - `-- --map sample_patch --selftest map`: the loaded map against objects.json and the world query (poses, wires,
-///   colliders and their material tags, the wind grid, one layer per surface, stem parity), then broken packages. Headless.
+/// - `-- --map <id> --selftest map`: the loaded map against objects.json and the world query (poses, wires, colliders
+///   and their material tags, the wind grid, one layer per surface, hole fillers, stem parity), then broken copies of
+///   sample_patch. On a review map with a labels.json (uat1_gallery) also its stations and labels (uat1-gallery spec).
+///   Headless.
 /// - `-- --map <bad id> --selftest map-fallback`: the sandbox kept its ground placeholder. Headless.
 /// - `-- --map <id> --selftest map-view --view x,h,z,yaw,pitch`: windowed. Puts the camera h m above the terrain at (x, z)
 ///   with yaw and pitch in degrees, waits for the micro-detail, measures fps for 3 s with vsync off and saves a
@@ -25,8 +27,8 @@ public static class MapSelfTest
         bool pass = false;
         try
         {
-            MapScene map = sandbox.Map ?? throw new InvalidOperationException("no map loaded: run it with -- --map sample_patch");
-            string dir = ProjectSettings.GlobalizePath(Package);
+            MapScene map = sandbox.Map ?? throw new InvalidOperationException("no map loaded: run it with -- --map <id>");
+            string dir = ProjectSettings.GlobalizePath($"res://maps/{map.Id}");
             for (int i = 0; i < 3; i++)
                 await tree.ToSignal(tree, SceneTree.SignalName.PhysicsFrame);
             pass = StartsAboveCentre(sandbox, map);
@@ -36,10 +38,18 @@ public static class MapSelfTest
             pass &= WindFed(map);
             pass &= SurfacesBound(map);
             pass &= FillersFollowTheVisual(map);
+            pass &= FillersMeetTheContract(map);
             pass &= CollisionFollowsTheVisual(map);
             pass &= GapsArePassable(map, sandbox.GetWorld3D().DirectSpaceState);
             pass &= await StemParity(sandbox, map);
-            pass &= BadPackages(dir);
+            MapLabels labels = map.GetNodeOrNull<MapLabels>("Labels");
+            if (labels != null)
+            {
+                pass &= StationsAsBuilt(map, labels);
+                pass &= LabelsNotHashed(dir);
+                pass &= await LabelsFollowTheCamera(sandbox, labels);
+            }
+            pass &= BadPackages(ProjectSettings.GlobalizePath(Package));
         }
         catch (Exception e)
         {
@@ -175,7 +185,7 @@ public static class MapSelfTest
             }
             checkedCount++;
         }
-        return Check("sample patch: objects at their poses", worst <= 0.01, $"{checkedCount} objects, largest corner error {worst * 1000:0.000} mm (limit 10 mm)");
+        return Check($"{map.Id}: objects at their poses", worst <= 0.01, $"{checkedCount} objects, largest corner error {worst * 1000:0.000} mm (limit 10 mm)");
     }
 
     /// Each wire drawn along the README's sag polyline, computed here from objects.json and the catalog.
@@ -215,7 +225,7 @@ public static class MapSelfTest
             wires++;
             pieces += drawn.Length;
         }
-        return Check("sample patch: wires on the sag polyline", counts && wires > 0 && worst <= 0.01,
+        return Check($"{map.Id}: wires on the sag polyline", counts && wires > 0 && worst <= 0.01,
             $"{wires} wire(s), {pieces} pieces, piece counts as expected: {counts}, largest end error {worst * 1000:0.000} mm (limit 10 mm)");
     }
 
@@ -265,16 +275,22 @@ public static class MapSelfTest
             $"{bodies} bodies (expected {expectedBodies}), {shapes} shapes, {wrongTags} wrong material tags, {wrongPieces} wrong wire capsules, "
             + $"largest centre or axis error {worst * 1000:0.000} mm (limit 10 mm)");
 
-        int house = objects.IndexOf(objects.First(o => o["asset"].GetValue<string>() == "house_box"));
-        int cable = objects.IndexOf(objects.First(o => o["asset"].GetValue<string>() == "cable"));
-        Vector3 housePos = V(objects[house]["position_m"]);
-        Vector3 a = V(objects[cable]["points_m"][0]), b = V(objects[cable]["points_m"][1]);
-        Vector3 mid = (a + b) / 2 - Vector3.Up * (float)objects[cable]["sag_m"].GetValue<double>();
+        // The sample's house roof when there is one, and the first cable's first span at mid-span.
+        var targets = new List<(string Name, Vector3 At, float Top, int Obj, string Material)>();
+        JsonNode houseBox = objects.FirstOrDefault(o => o["asset"].GetValue<string>() == "house_box");
+        if (houseBox != null)
+        {
+            Vector3 housePos = V(houseBox["position_m"]);
+            targets.Add(("house roof", housePos, housePos.Y + 5f, objects.IndexOf(houseBox), "masonry"));
+        }
+        JsonNode cable = objects.First(o => o["asset"].GetValue<string>() == "cable");
+        Vector3 a = V(cable["points_m"][0]), b = V(cable["points_m"][1]);
+        Vector3 mid = (a + b) / 2 - Vector3.Up * (float)cable["sag_m"].GetValue<double>();
+        targets.Add(("cable mid-span", mid, mid.Y + (float)cable["diameter_m"].GetValue<double>() / 2, objects.IndexOf(cable), "cable"));
         // Jolt's ray casts on millimetre capsules land up to a radius off (measured: a 6 mm capsule lying across a
         // downward ray is hit at its axis), so the heights are checked to 1 cm; the capsules themselves are checked above.
         bool rays = true;
-        foreach ((string name, Vector3 at, float top, int obj, string material) in new[]
-            { ("house roof", housePos, housePos.Y + 5f, house, "masonry"), ("cable mid-span", mid, mid.Y + 0.006f, cable, "cable") })
+        foreach ((string name, Vector3 at, float top, int obj, string material) in targets)
         {
             Godot.Collections.Dictionary hit = space.IntersectRay(PhysicsRayQueryParameters3D.Create(new Vector3(at.X, 60, at.Z), new Vector3(at.X, -60, at.Z)));
             bool ok = hit.Count > 0;
@@ -292,20 +308,42 @@ public static class MapSelfTest
         return placed & rays;
     }
 
-    /// Wind volumes fed into the wind grid: the cell under the house is a solid 5 m block and the one under a tree's
-    /// crown centre has the crown's base and top (4 and 10 m above the ground).
+    /// Wind volumes fed into the wind grid: the cell under every object that blocks the wind (wind porosity below 1)
+    /// holds an obstacle reaching above the ground, and an open cell, with no object within 60 m, holds none. (The
+    /// cells of sample_patch's house and belt are pinned to their heights by `--selftest worldquery`.)
     static bool WindFed(MapScene map)
     {
         WorldQuery w = map.World;
         WindCell Cell(double x, double z) =>
             w.WindGrid[(int)Math.Floor((z + w.Half) / WorldQuery.WindCellSize) * w.WindCells + (int)Math.Floor((x + w.Half) / WorldQuery.WindCellSize)];
-        // The belt cell holds tree_acacia's crown (its top, 11.6 m) over the shrub understory (its base, near the
-        // ground), and both are porous: the wind goes through a belt, it does not go round it.
-        WindCell house = Cell(52, 30), tree = Cell(-40, -50), open = Cell(-100, 100);
-        return Check("wind volumes in the wind grid", Math.Abs(house.TopM - 5) < 0.2 && house.Porosity < 0.1 && tree.BaseM < 1.5
-            && Math.Abs(tree.TopM - 11.6) < 0.4 && 0 < tree.Porosity && tree.Porosity < 0.9 && open.TopM == 0 && open.Porosity == 1,
-            $"house cell top {house.TopM:0.00} m porosity {house.Porosity:0.000}; tree cell base {tree.BaseM:0.00} top {tree.TopM:0.00} m porosity "
-            + $"{tree.Porosity:0.000}; open cell top {open.TopM} porosity {open.Porosity}");
+        int blockers = 0, unmarked = 0;
+        string first = "";
+        var origins = new List<Double3>();
+        for (int i = 0; i < w.ObjectCount; i++)
+        {
+            Placement p = w.PlacementOf(i);
+            origins.Add(p.Asset.IsWire ? w.WirePoints(i)[0] : p.Position);
+            if (p.Asset.IsWire || p.Asset.WindPorosity >= 1 || p.Asset.WindVolume.Length == 0)
+                continue;
+            blockers++;
+            WindCell c = Cell(p.Position.X, p.Position.Z);
+            if (!(c.TopM > 0 && c.Porosity < 1) && unmarked++ == 0)
+                first = $" (first: object {i} {p.Asset.Id}, cell top {c.TopM:0.00} m porosity {c.Porosity:0.000})";
+        }
+        // The first point of a 16 m lattice, from the north-west corner on, with no object within 60 m.
+        double ox = double.NaN, oz = double.NaN;
+        for (double z = -w.Half + 8; z < w.Half && double.IsNaN(ox); z += 16)
+        {
+            for (double x = -w.Half + 8; x < w.Half && double.IsNaN(ox); x += 16)
+            {
+                if (origins.All(o => (o.X - x) * (o.X - x) + (o.Z - z) * (o.Z - z) > 60 * 60))
+                    (ox, oz) = (x, z);
+            }
+        }
+        WindCell open = double.IsNaN(ox) ? default : Cell(ox, oz);
+        return Check("wind volumes in the wind grid", blockers > 0 && unmarked == 0 && !double.IsNaN(ox) && open.TopM == 0 && open.Porosity == 1,
+            $"{blockers} objects block the wind, {unmarked} with no obstacle in the cell under them{first}; open cell at "
+            + $"({ox}, {oz}) top {open.TopM} porosity {open.Porosity}");
     }
 
     /// The terrain draws with the surface looks: every surface in the patch has a texture set, and the albedo, normal,
@@ -317,11 +355,14 @@ public static class MapSelfTest
         int[] layers = new[] { "set_albedo", "set_normal", "set_height", "set_ao" }
             .Select(name => ((Texture2DArray)material.GetShaderParameter(name)).GetLayers()).ToArray();
         SurfaceLook look = map.Look;
-        return Check("sample patch: a texture set per surface", (bool)material.GetShaderParameter("use_surfaces")
+        return Check($"{map.Id}: a texture set per surface", (bool)material.GetShaderParameter("use_surfaces")
             && layers.All(n => n == look.Sets.Length) && used.All(i => look.Layer[i] >= 0 && look.Layer[i] < look.Sets.Length),
             $"{used.Length} surfaces in the patch ({string.Join(", ", used.Select(i => $"{map.World.Surface(i).Id} {look.Sets[look.Layer[i]]}"))}), "
             + $"albedo, normal, height and AO arrays of {string.Join(", ", layers)} layers for {look.Sets.Length} sets");
     }
+
+    /// A point over belt_straw in each map, for the stem parity.
+    static readonly Dictionary<string, XZ> StrawAt = new() { ["sample_patch"] = new XZ(0, -47), ["uat1_gallery"] = new XZ(-196, 60) };
 
     /// Visual and physical stems agree: with the camera over belt_straw, the drawn element bases within 3 m of it are the
     /// MicroDetailNear bases within 3 m, each within 1 mm.
@@ -330,7 +371,9 @@ public static class MapSelfTest
         const double Range = 3, Tolerance = 0.001;
         SceneTree tree = sandbox.GetTree();
         WorldQuery world = map.World;
-        var eye = new Double3(0, Terrain(world, 0, -47) + 1.0, -47);
+        if (!StrawAt.TryGetValue(map.Id, out XZ straw))
+            throw new InvalidOperationException($"no belt_straw point for map '{map.Id}': add one to MapSelfTest.StrawAt");
+        var eye = new Double3(straw.X, Terrain(world, straw.X, straw.Z) + 1.0, straw.Z);
         var probe = new GroundSample[1];
         world.SampleGround(new[] { new XZ(eye.X, eye.Z) }, probe);
         var camera = sandbox.GetNode<Camera3D>("Camera");
@@ -761,6 +804,185 @@ public static class MapSelfTest
         foreach (Godot.Collections.Dictionary touch in space.IntersectShape(parameters, 4))
             names.Add(((CollisionObject3D)touch["collider"]).Name);
         return (false, result[0] * length, names.Count == 0 ? "nothing it reports" : string.Join(", ", names));
+    }
+
+    /// Hole-filler rules F-1 to F-4 (terrain-holes) on this map's holes, the checks `--selftest worldquery` runs on
+    /// sample_patch's. How deep the cavity next to a point goes, which F-2 probes down to, is read from the fillers
+    /// themselves: the deepest floor a downward ray finds over the hole cells within 1.5 m.
+    static bool FillersMeetTheContract(MapScene map)
+    {
+        WorldQuery w = map.World;
+        var cells = new List<(int Row, int Column)>();
+        var centres = new List<XZ>();
+        for (int row = 0; row < w.Cells; row++)
+        {
+            for (int column = 0; column < w.Cells; column++)
+            {
+                if (!w.HoleCell(row, column))
+                    continue;
+                cells.Add((row, column));
+                centres.Add(new XZ(-w.Half + (column + 0.5) * w.CellResolution, -w.Half + (row + 0.5) * w.CellResolution));
+            }
+        }
+        if (cells.Count == 0)
+            return Check("hole fillers", true, "no hole cells in this map");
+        var lips = new GroundSample[centres.Count];
+        w.SampleGround(centres.ToArray(), lips);
+        var rays = centres.Select((p, i) => new Ray(new Double3(p.X, lips[i].TerrainHeight + 0.5, p.Z), new Double3(0, -1, 0))).ToArray();
+        var hits = new RayHit[rays.Length];
+        w.Raycast(rays, 5, hits);
+        var depth = new Dictionary<(int, int), double>();
+        for (int i = 0; i < cells.Count; i++)
+            depth[cells[i]] = double.IsFinite(hits[i].Distance) ? Math.Max(hits[i].Distance - 0.5, 0) : 0;
+        int reach = (int)Math.Ceiling(1.5 / w.CellResolution);
+        double CavityDepth(double x, double z)
+        {
+            int row = (int)Math.Floor((z + w.Half) / w.CellResolution), column = (int)Math.Floor((x + w.Half) / w.CellResolution);
+            double deepest = 0;
+            for (int dr = -reach; dr <= reach; dr++)
+            {
+                for (int dc = -reach; dc <= reach; dc++)
+                {
+                    if (depth.TryGetValue((row + dr, column + dc), out double d))
+                        deepest = Math.Max(deepest, d);
+                }
+            }
+            return deepest;
+        }
+        GD.Print($"selftest map: hole fillers of {map.Id}: {cells.Count} hole cells, cavities down to {depth.Values.Max():0.00} m "
+            + "(F-1 to F-4 follow, in the words of --selftest worldquery)");
+        return WorldQuerySelfTest.FillerContract(w, CavityDepth);
+    }
+
+    // ---------------------------------------------------------------- a review map's stations and labels (uat1-gallery)
+
+    /// Whether a point of the ground (x, z) lies in a label's area.
+    static bool InArea(MapLabels.Entry e, double x, double z) => MapLabels.Distance(e, new Vector3((float)x, e.Bottom, (float)z)) == 0;
+
+    /// uat1-gallery "Station not built yet": each station is built exactly when the catalog has every asset it names
+    /// (otherwise the package is stale and its generator must be re-run). A built station has an object of each of its
+    /// assets in its area and a plain label; a reserved one has nothing in its area and its label says "not built yet".
+    static bool StationsAsBuilt(MapScene map, MapLabels labels)
+    {
+        WorldQuery w = map.World;
+        var built = new List<string>();
+        var reserved = new List<string>();
+        var problems = new List<string>();
+        foreach (MapLabels.Entry e in labels.Entries.Where(e => e.Kind == "station"))
+        {
+            bool inCatalog = e.Assets.All(w.Catalog.Assets.ContainsKey);
+            var inside = new HashSet<string>();
+            for (int i = 0; i < w.ObjectCount; i++)
+            {
+                Placement p = w.PlacementOf(i);
+                bool within = false;
+                if (p.Asset.IsWire)
+                {
+                    foreach (Double3 q in w.WirePoints(i))
+                        within |= InArea(e, q.X, q.Z);
+                }
+                else
+                {
+                    within = InArea(e, p.Position.X, p.Position.Z);
+                }
+                if (within)
+                    inside.Add(p.Asset.Id);
+            }
+            string problem = inCatalog != e.Built ? $"stale: the catalog {(inCatalog ? "now has" : "lacks")} its assets, re-run its generator"
+                : e.Built && (!e.Assets.All(inside.Contains) || e.Text.Contains(MapLabels.NotBuilt)) ? "built, but not every asset of it stands in its area"
+                : !e.Built && (inside.Count > 0 || !e.Text.EndsWith(MapLabels.NotBuilt, StringComparison.Ordinal))
+                    ? $"reserved, but its area holds {string.Join(", ", inside)} or its label does not end '{MapLabels.NotBuilt}'"
+                : null;
+            if (problem != null)
+                problems.Add($"'{e.Text}': {problem}");
+            (e.Built ? built : reserved).Add(e.Text);
+        }
+        return Check("stations as built", problems.Count == 0 && built.Count > 0,
+            $"{built.Count} built, each with its assets in its area; {reserved.Count} reserved, empty, labelled: "
+            + $"{string.Join("; ", reserved)}{(problems.Count > 0 ? $". PROBLEMS: {string.Join("; ", problems)}" : "")}");
+    }
+
+    /// labels.json is not world data (game/maps/README.md): the content hash is the same with it changed or gone.
+    static bool LabelsNotHashed(string dir)
+    {
+        string copy = Path.Combine(OS.GetUserDataDir(), "map_selftest", "labels_not_hashed");
+        if (Directory.Exists(copy))
+            Directory.Delete(copy, true);
+        Directory.CreateDirectory(copy);
+        foreach (string file in Directory.GetFiles(dir))
+            File.Copy(file, Path.Combine(copy, Path.GetFileName(file)));
+        string surfaces = ProjectSettings.GlobalizePath("res://maps/surfaces.json"), catalog = ProjectSettings.GlobalizePath("res://assets/catalog.json");
+        ulong original = WorldQuery.ContentHashOf(dir, surfaces, catalog);
+        File.WriteAllText(Path.Combine(copy, MapLabels.FileName), "{\"labels\": []}\n");
+        ulong changed = WorldQuery.ContentHashOf(copy, surfaces, catalog);
+        File.Delete(Path.Combine(copy, MapLabels.FileName));
+        ulong gone = WorldQuery.ContentHashOf(copy, surfaces, catalog);
+        return Check("labels are not hashed", original == changed && original == gone,
+            $"content hash {original:x16}; with labels.json emptied {changed:x16}; without it {gone:x16}");
+    }
+
+    /// uat1-gallery "Label appears": the camera flies at the destroyed Урал's station from 60 m out, level with the middle
+    /// of its area, a quarter metre a step, into the area and back out. Its label must be on screen at every step within
+    /// 25 m of the area and at none beyond. Then L hides the labels and shows them again, and their layer is above the
+    /// analog feed's, so they are never drawn through it.
+    static async Task<bool> LabelsFollowTheCamera(Sandbox sandbox, MapLabels labels)
+    {
+        SceneTree tree = sandbox.GetTree();
+        async Task Frames()
+        {
+            // The first frame lets the labels see the new pose; they have updated by the end of the second.
+            for (int i = 0; i < 2; i++)
+                await tree.ToSignal(tree, SceneTree.SignalName.ProcessFrame);
+        }
+        MapLabels.Entry e = labels.Entries.First(l => l.Kind == "station" && l.Text.Contains("Урал") && l.Text.Contains("destroyed"));
+        var camera = sandbox.GetNode<Camera3D>("Camera");
+        float yaw = Mathf.DegToRad(e.Yaw);
+        var along = new Vector3(Mathf.Cos(yaw), 0, -Mathf.Sin(yaw)); // the area's +X
+        Vector3 At(float outside) => new Vector3(e.Centre.X, (e.Bottom + e.Top) / 2, e.Centre.Y) + along * (e.Half.X + outside);
+        // Steps a quarter metre apart, offset by an eighth so none lands on 25 m itself.
+        float[] path = Enumerable.Range(0, 261).Select(i => 60.125f - 0.25f * i)
+            .Concat(Enumerable.Range(0, 261).Select(i => -4.875f + 0.25f * i)).ToArray();
+        int wrong = 0;
+        float appeared = float.NaN, gone = float.NaN;
+        bool was = false;
+        foreach (float d in path)
+        {
+            camera.GlobalPosition = At(d);
+            await Frames();
+            bool shown = labels.Shown.Contains(e.Text);
+            wrong += shown == (d <= MapLabels.Range) ? 0 : 1;
+            if (shown && !was && float.IsNaN(appeared))
+                appeared = d;
+            if (!shown && was)
+                gone = d;
+            was = shown;
+        }
+        bool approach = Check("label appears within 25 m", wrong == 0 && appeared <= MapLabels.Range && gone > MapLabels.Range,
+            $"'{e.Text}': camera flown from 60 m out to 5 m inside its area and back in {path.Length} steps; the label appeared "
+            + $"at {appeared:0.000} m, went at {gone:0.000} m, {wrong} steps wrong (on beyond 25 m or off within it)");
+
+        camera.GlobalPosition = At(10f);
+        await Frames();
+        bool before = labels.Shown.Contains(e.Text);
+        foreach (bool pressed in new[] { true, false })
+            Input.ParseInputEvent(new InputEventKey { Keycode = Key.L, PhysicalKeycode = Key.L, Pressed = pressed });
+        await Frames();
+        bool hidden = !labels.Visible && labels.Shown.Count == 0;
+        foreach (bool pressed in new[] { true, false })
+            Input.ParseInputEvent(new InputEventKey { Keycode = Key.L, PhysicalKeycode = Key.L, Pressed = pressed });
+        await Frames();
+        bool back = labels.Visible && labels.Shown.Contains(e.Text);
+        bool toggled = Check("L toggles the labels", before && hidden && back,
+            $"at 10 m: shown {before}; after L hidden {hidden}; after L again shown {back}");
+
+        VideoFeed feed = sandbox.GetChildren().OfType<VideoFeed>().FirstOrDefault();
+        VideoFeed probe = feed ?? VideoFeed.Create(VideoFeed.Mode.Mixed, null, null, null, null);
+        int feedLayer = probe.Layer;
+        if (feed == null)
+            probe.Free();
+        bool above = Check("labels drawn above the feed", labels.Layer > feedLayer,
+            $"labels on canvas layer {labels.Layer}, the analog feed on layer {feedLayer}{(feed == null ? " (no feed headless: a new one's layer)" : "")}");
+        return approach & toggled & above;
     }
 
     /// A bad or unknown package gives one clear error and no map: broken copies of the sample in a temp folder.
