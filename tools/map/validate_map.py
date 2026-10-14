@@ -20,6 +20,7 @@ GAME = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.absp
 FILES = ["map.json", "height.r16", "surface.png", "cover.png", "objects.json"]
 HOLES = "holes.png"       # the optional hole layer, format 1.1
 HOLES_MINOR = 1           # the minor version that added it
+LABELS = "labels.json"    # optional review labels (a gallery's): not world data, so not hashed
 SURFACE_MATERIAL = "surface:"  # a shape material that names a surface of surfaces.json instead of a catalog material
 MAX_SIZE_M = 8192
 CHUNK_M = 256
@@ -449,6 +450,53 @@ def check_objects(objects, assets, size):
                 break
 
 
+def is_pair(value):
+    return isinstance(value, list) and len(value) == 2 and all(is_number(v) for v in value)
+
+
+def check_labels(folder, size, assets):
+    """The optional review labels: each a name and a state over an area of the map; a station also names its assets
+    and says whether they are built, which it may only say when the catalog has every one of them."""
+    path = os.path.join(folder, LABELS)
+    if not os.path.isfile(path):
+        return
+    document = load_json(path)
+    if document is None:
+        return
+    scan_json(LABELS, document, BLOCKLIST)
+    items = document.get("labels") if isinstance(document, dict) else None
+    if not isinstance(items, list):
+        error(f"{LABELS}: needs a 'labels' list")
+        return
+    half = size / 2
+    for i, label in enumerate(items):
+        where = f"{LABELS}: label {i}"
+        if not isinstance(label, dict):
+            error(f"{where}: must be an object")
+            continue
+        if not (isinstance(label.get("name"), str) and label["name"].strip() and isinstance(label.get("state"), str)):
+            error(f"{where}: needs a name and a state")
+        else:
+            where = f"{where} ({label['name']})"
+        kind = label.get("kind")
+        if kind not in ("patch", "station"):
+            error(f"{where}: kind {kind!r} is neither 'patch' nor 'station'")
+        centre, extent, heights = label.get("centre_m"), label.get("half_m"), label.get("y_m")
+        if not (is_pair(centre) and is_pair(extent) and min(extent) > 0 and is_number(label.get("yaw_deg"))
+                and is_pair(heights) and heights[0] <= heights[1]):
+            error(f"{where}: needs centre_m [x, z], half_m [x, z] above 0, yaw_deg and y_m [bottom, top]")
+        elif not (-half <= centre[0] <= half and -half <= centre[1] <= half):
+            error(f"{where}: centre x={centre[0]:g}, z={centre[1]:g} is outside the map (x and z within ±{half:g} m)")
+        if kind != "station":
+            continue
+        names = label.get("assets")
+        if not (isinstance(names, list) and names and all(isinstance(a, str) for a in names)
+                and isinstance(label.get("built"), bool)):
+            error(f"{where}: a station needs assets (a list of asset ids) and built (true or false)")
+        elif label["built"] and any(a not in assets for a in names):
+            error(f"{where}: is marked built, and the catalog has no {', '.join(a for a in names if a not in assets)}")
+
+
 def scan_text(where, value, blocklist):
     found = blocklist.search(value) or COORDINATE_PAIR.search(value) or MGRS.search(value)
     if found:
@@ -530,6 +578,7 @@ def main():
             check_holes(folder, grid[0], grid[2], grid[3])
             if documents["objects.json"] is not None:
                 check_objects(documents["objects.json"], assets, grid[0])
+            check_labels(folder, grid[0], assets)
 
     if errors:
         print(f"FAILED: {len(errors)} error(s) in {folder}")

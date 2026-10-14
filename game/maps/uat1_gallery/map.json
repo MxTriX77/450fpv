@@ -1,0 +1,25 @@
+{
+  "format_version": "1.1",
+  "size_m": 512,
+  "seed": 20260930,
+  "height": {
+    "resolution_m": 1.0,
+    "samples_per_side": 513,
+    "offset_m": -10.0,
+    "scale_m": 0.01
+  },
+  "surface": {
+    "resolution_m": 0.5,
+    "cells_per_side": 1024
+  },
+  "starts": [
+    {
+      "position_m": [
+        0.0,
+        0.16,
+        0.0
+      ],
+      "yaw_deg": 0.0
+    }
+  ]
+}

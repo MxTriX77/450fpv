@@ -1,0 +1,655 @@
+{
+  "about": "Review labels of the UAT-1 gallery, written by tools/map/make_uat1_gallery.py: the name, state and area of every terrain patch and asset station, shown by game/src/world/MapLabels.cs within 25 m. Not hashed: nothing physical reads them (game/maps/README.md, labels.json).",
+  "labels": [
+    {
+      "name": "Tilled field",
+      "state": "loose furrowed loam, straw residue along the furrows",
+      "kind": "patch",
+      "centre_m": [
+        -159.5,
+        -192.0
+      ],
+      "half_m": [
+        74.5,
+        42.0
+      ],
+      "yaw_deg": 0.0,
+      "y_m": [
+        -0.32,
+        2.69
+      ]
+    },
+    {
+      "name": "Trench along a tree strip",
+      "state": "0.8 m wide, 1.5 m deep, by a dark field; placeholder walls until task 3.5",
+      "kind": "patch",
+      "centre_m": [
+        0.0,
+        -192.0
+      ],
+      "half_m": [
+        80.0,
+        42.0
+      ],
+      "yaw_deg": 0.0,
+      "y_m": [
+        -0.14,
+        14.54
+      ]
+    },
+    {
+      "name": "Burnt field",
+      "state": "char and ash over firm loam, charred stubble, unburnt islands",
+      "kind": "patch",
+      "centre_m": [
+        159.5,
+        -192.0
+      ],
+      "half_m": [
+        74.5,
+        42.0
+      ],
+      "yaw_deg": 0.0,
+      "y_m": [
+        -0.39,
+        2.52
+      ]
+    },
+    {
+      "name": "Dry cratered field",
+      "state": "sun-baked crust, shell craters with loose rims, a spoil bank",
+      "kind": "patch",
+      "centre_m": [
+        192.0,
+        -75.0
+      ],
+      "half_m": [
+        42.0,
+        70.0
+      ],
+      "yaw_deg": 0.0,
+      "y_m": [
+        -0.38,
+        10.51
+      ]
+    },
+    {
+      "name": "Open meadow",
+      "state": "sod and mixed grass, small scorch spots",
+      "kind": "patch",
+      "centre_m": [
+        192.0,
+        75.0
+      ],
+      "half_m": [
+        42.0,
+        70.0
+      ],
+      "yaw_deg": 0.0,
+      "y_m": [
+        -0.2,
+        2.49
+      ]
+    },
+    {
+      "name": "Tall weeds",
+      "state": "an overgrown plot with saplings, a dead tree and a low sagging cable",
+      "kind": "patch",
+      "centre_m": [
+        159.5,
+        192.0
+      ],
+      "half_m": [
+        74.5,
+        42.0
+      ],
+      "yaw_deg": 0.0,
+      "y_m": [
+        -0.31,
+        10.54
+      ]
+    },
+    {
+      "name": "Yard ground with litter",
+      "state": "compacted soil under leaves and bits, fruit trees, fence remains",
+      "kind": "patch",
+      "centre_m": [
+        0.0,
+        192.0
+      ],
+      "half_m": [
+        80.0,
+        42.0
+      ],
+      "yaw_deg": 0.0,
+      "y_m": [
+        -0.37,
+        9.53
+      ]
+    },
+    {
+      "name": "Rubble",
+      "state": "brick, tile and timber debris in low heaps over trampled ground",
+      "kind": "patch",
+      "centre_m": [
+        -159.5,
+        192.0
+      ],
+      "half_m": [
+        74.5,
+        42.0
+      ],
+      "yaw_deg": 0.0,
+      "y_m": [
+        -0.38,
+        2.66
+      ]
+    },
+    {
+      "name": "Tree-belt edge",
+      "state": "lodged straw over dark soil, bushes among the trees",
+      "kind": "patch",
+      "centre_m": [
+        -192.0,
+        75.0
+      ],
+      "half_m": [
+        42.0,
+        70.0
+      ],
+      "yaw_deg": 0.0,
+      "y_m": [
+        -0.22,
+        15.62
+      ]
+    },
+    {
+      "name": "Rolling meadow",
+      "state": "a crest and dips, about 3 m from crest to dip, a belt and a power line on it",
+      "kind": "patch",
+      "centre_m": [
+        -127.0,
+        -82.5
+      ],
+      "half_m": [
+        107.0,
+        62.5
+      ],
+      "yaw_deg": 0.0,
+      "y_m": [
+        -2.16,
+        15.72
+      ]
+    },
+    {
+      "name": "Adobe village house and yard",
+      "state": "damaged, with its cellar, shed, fence, gate and fruit trees",
+      "kind": "station",
+      "assets": [
+        "cellar_head",
+        "cellar_shaft",
+        "fence_planks",
+        "gate_plank",
+        "house_adobe",
+        "shed_plank",
+        "tree_fruit"
+      ],
+      "built": true,
+      "centre_m": [
+        -56.0,
+        16.0
+      ],
+      "half_m": [
+        16.0,
+        12.0
+      ],
+      "yaw_deg": 0.0,
+      "y_m": [
+        -0.28,
+        6.72
+      ]
+    },
+    {
+      "name": "Brick village house and yard",
+      "state": "damaged, asbestos roof partly collapsed",
+      "kind": "station",
+      "assets": [
+        "house_brick"
+      ],
+      "built": false,
+      "centre_m": [
+        -112.0,
+        16.0
+      ],
+      "half_m": [
+        16.0,
+        12.0
+      ],
+      "yaw_deg": 0.0,
+      "y_m": [
+        -0.09,
+        6.91
+      ]
+    },
+    {
+      "name": "Five-storey block and rubble mound",
+      "state": "destroyed: facade torn off, burnt out",
+      "kind": "station",
+      "assets": [
+        "block_5storey",
+        "rubble_mound"
+      ],
+      "built": false,
+      "centre_m": [
+        100.0,
+        -48.0
+      ],
+      "half_m": [
+        44.0,
+        30.0
+      ],
+      "yaw_deg": 0.0,
+      "y_m": [
+        0.12,
+        22.12
+      ]
+    },
+    {
+      "name": "ВАЗ classic (2101-07)",
+      "state": "destroyed by a strike",
+      "kind": "station",
+      "assets": [
+        "vaz_classic_destroyed"
+      ],
+      "built": false,
+      "centre_m": [
+        24.0,
+        -28.0
+      ],
+      "half_m": [
+        11.0,
+        11.0
+      ],
+      "yaw_deg": 100.0,
+      "y_m": [
+        -0.04,
+        1.81
+      ]
+    },
+    {
+      "name": "Lanos-class car",
+      "state": "destroyed by a strike",
+      "kind": "station",
+      "assets": [
+        "lanos_destroyed"
+      ],
+      "built": false,
+      "centre_m": [
+        24.0,
+        -58.0
+      ],
+      "half_m": [
+        11.0,
+        11.0
+      ],
+      "yaw_deg": 80.0,
+      "y_m": [
+        -0.26,
+        1.48
+      ]
+    },
+    {
+      "name": "Урал-4320",
+      "state": "destroyed by a strike",
+      "kind": "station",
+      "assets": [
+        "ural_4320_destroyed"
+      ],
+      "built": false,
+      "centre_m": [
+        26.0,
+        -90.0
+      ],
+      "half_m": [
+        13.0,
+        13.0
+      ],
+      "yaw_deg": 95.0,
+      "y_m": [
+        -0.35,
+        2.88
+      ]
+    },
+    {
+      "name": "ЗИЛ-130",
+      "state": "destroyed by a strike",
+      "kind": "station",
+      "assets": [
+        "zil_130_destroyed"
+      ],
+      "built": false,
+      "centre_m": [
+        26.0,
+        -122.0
+      ],
+      "half_m": [
+        13.0,
+        13.0
+      ],
+      "yaw_deg": 70.0,
+      "y_m": [
+        -0.27,
+        3.02
+      ]
+    },
+    {
+      "name": "ВАЗ classic (2101-07)",
+      "state": "abandoned",
+      "kind": "station",
+      "assets": [
+        "vaz_classic_abandoned"
+      ],
+      "built": false,
+      "centre_m": [
+        24.0,
+        30.0
+      ],
+      "half_m": [
+        11.0,
+        11.0
+      ],
+      "yaw_deg": 85.0,
+      "y_m": [
+        0.07,
+        1.85
+      ]
+    },
+    {
+      "name": "Lanos-class car",
+      "state": "abandoned",
+      "kind": "station",
+      "assets": [
+        "lanos_abandoned"
+      ],
+      "built": false,
+      "centre_m": [
+        24.0,
+        62.0
+      ],
+      "half_m": [
+        11.0,
+        11.0
+      ],
+      "yaw_deg": 100.0,
+      "y_m": [
+        -0.28,
+        1.56
+      ]
+    },
+    {
+      "name": "Урал-4320",
+      "state": "abandoned",
+      "kind": "station",
+      "assets": [
+        "ural_4320_abandoned"
+      ],
+      "built": false,
+      "centre_m": [
+        64.0,
+        26.0
+      ],
+      "half_m": [
+        13.0,
+        13.0
+      ],
+      "yaw_deg": 10.0,
+      "y_m": [
+        -0.09,
+        3.28
+      ]
+    },
+    {
+      "name": "ЗИЛ-130",
+      "state": "abandoned",
+      "kind": "station",
+      "assets": [
+        "zil_130_abandoned"
+      ],
+      "built": false,
+      "centre_m": [
+        104.0,
+        26.0
+      ],
+      "half_m": [
+        13.0,
+        13.0
+      ],
+      "yaw_deg": -8.0,
+      "y_m": [
+        -0.19,
+        3.01
+      ]
+    },
+    {
+      "name": "Debris and rubble kit",
+      "state": "bricks, tile shards, planks, sheets, tarp, branches",
+      "kind": "station",
+      "assets": [
+        "debris_kit"
+      ],
+      "built": false,
+      "centre_m": [
+        24.0,
+        96.0
+      ],
+      "half_m": [
+        11.0,
+        11.0
+      ],
+      "yaw_deg": 0.0,
+      "y_m": [
+        -0.37,
+        1.2
+      ]
+    },
+    {
+      "name": "Corrugated roof sheet",
+      "state": "fallen, bent",
+      "kind": "station",
+      "assets": [
+        "roof_sheet_corrugated"
+      ],
+      "built": false,
+      "centre_m": [
+        24.0,
+        124.0
+      ],
+      "half_m": [
+        7.0,
+        7.0
+      ],
+      "yaw_deg": 20.0,
+      "y_m": [
+        -0.29,
+        0.38
+      ]
+    },
+    {
+      "name": "Ash",
+      "state": "tree-belt tree",
+      "kind": "station",
+      "assets": [
+        "tree_ash"
+      ],
+      "built": true,
+      "centre_m": [
+        -22.0,
+        40.0
+      ],
+      "half_m": [
+        7.0,
+        7.0
+      ],
+      "yaw_deg": 0.0,
+      "y_m": [
+        0.02,
+        13.16
+      ]
+    },
+    {
+      "name": "Acacia (black locust)",
+      "state": "tree-belt tree",
+      "kind": "station",
+      "assets": [
+        "tree_acacia"
+      ],
+      "built": true,
+      "centre_m": [
+        -22.0,
+        60.0
+      ],
+      "half_m": [
+        7.0,
+        7.0
+      ],
+      "yaw_deg": 0.0,
+      "y_m": [
+        0.09,
+        13.15
+      ]
+    },
+    {
+      "name": "Maple (box elder)",
+      "state": "tree-belt tree",
+      "kind": "station",
+      "assets": [
+        "tree_maple"
+      ],
+      "built": true,
+      "centre_m": [
+        -22.0,
+        80.0
+      ],
+      "half_m": [
+        7.0,
+        7.0
+      ],
+      "yaw_deg": 0.0,
+      "y_m": [
+        -0.05,
+        13.14
+      ]
+    },
+    {
+      "name": "Young tree",
+      "state": "self-seeded, broken",
+      "kind": "station",
+      "assets": [
+        "tree_young"
+      ],
+      "built": true,
+      "centre_m": [
+        -22.0,
+        100.0
+      ],
+      "half_m": [
+        6.0,
+        6.0
+      ],
+      "yaw_deg": 0.0,
+      "y_m": [
+        -0.17,
+        9.05
+      ]
+    },
+    {
+      "name": "Shrub",
+      "state": "tree-belt understory",
+      "kind": "station",
+      "assets": [
+        "shrub_belt"
+      ],
+      "built": true,
+      "centre_m": [
+        -22.0,
+        120.0
+      ],
+      "half_m": [
+        5.0,
+        5.0
+      ],
+      "yaw_deg": 0.0,
+      "y_m": [
+        -0.21,
+        3.41
+      ]
+    },
+    {
+      "name": "Dead tree",
+      "state": "bare, broken top",
+      "kind": "station",
+      "assets": [
+        "tree_dead"
+      ],
+      "built": true,
+      "centre_m": [
+        -22.0,
+        140.0
+      ],
+      "half_m": [
+        6.0,
+        6.0
+      ],
+      "yaw_deg": 0.0,
+      "y_m": [
+        -0.2,
+        9.86
+      ]
+    },
+    {
+      "name": "Poles and wires",
+      "state": "over the rolling meadow, one pole leaning; placeholder poles until task 3.5",
+      "kind": "station",
+      "assets": [
+        "cable",
+        "pole"
+      ],
+      "built": true,
+      "centre_m": [
+        -66.0,
+        -66.0
+      ],
+      "half_m": [
+        64.0,
+        5.0
+      ],
+      "yaw_deg": -45.0,
+      "y_m": [
+        -1.58,
+        10.24
+      ]
+    },
+    {
+      "name": "Launch rails",
+      "state": "the legs-off take-off stand",
+      "kind": "station",
+      "assets": [
+        "launch_rails"
+      ],
+      "built": true,
+      "centre_m": [
+        -12.0,
+        12.0
+      ],
+      "half_m": [
+        3.0,
+        3.0
+      ],
+      "yaw_deg": 0.0,
+      "y_m": [
+        0.04,
+        0.44
+      ]
+    }
+  ]
+}

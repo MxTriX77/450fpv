@@ -23,6 +23,7 @@ game/maps/
     cover.png          cover densities
     holes.png          holes in the ground (optional, format 1.1)
     objects.json       placed objects and wires
+    labels.json        review labels (optional; not world data, see below)
 game/assets/catalog.json   shared asset catalog (all maps)
 ```
 
@@ -109,6 +110,33 @@ Every object names an `asset` id from `game/assets/catalog.json`. Its fields dep
 | `wire` | `points_m` | list of [x, y, z], m | At least 2 points. Every point inside the map. Wire ends are its attachment points. |
 | | `sag_m` | number, m | ≥ 0. Mid-span drop of each span below the straight line between its points. |
 | | `diameter_m` | number, m | > 0 |
+
+## `labels.json` — review labels (optional)
+
+A review map, such as the UAT-1 gallery (`uat1_gallery`, written by `tools/map/make_uat1_gallery.py`), names what the pilot is looking at. `game/src/world/MapLabels.cs` shows the name and state of every label whose area the camera is within 25 m of, nearest first, on a canvas layer above the analog feed's, so they stay sharp in every feed mode. L toggles them.
+
+```json
+{
+  "labels": [
+    { "name": "Tilled field", "state": "loose furrowed loam", "kind": "patch",
+      "centre_m": [-159.5, -192.0], "half_m": [74.5, 42.0], "yaw_deg": 0.0, "y_m": [-0.4, 3.9] },
+    { "name": "Урал-4320", "state": "destroyed by a strike", "kind": "station", "assets": ["ural_4320_destroyed"],
+      "built": false, "centre_m": [26.0, -90.0], "half_m": [13.0, 13.0], "yaw_deg": 95.0, "y_m": [0.1, 3.3] }
+  ]
+}
+```
+
+| Field | Type / unit | Rule |
+|---|---|---|
+| `name`, `state` | text | The label reads "name, state". A name is not empty. |
+| `kind` | `patch` or `station` | A terrain patch, or an asset station |
+| `centre_m`, `half_m` | [x, z], m | The area: a rectangle on the ground, its centre inside the map and both half sizes above 0 |
+| `yaw_deg` | degrees | The rectangle's turn, as object yaw |
+| `y_m` | [bottom, top], m | How high the area reaches, bottom ≤ top. The camera's distance is to this box. |
+| `assets` | list of asset ids | Stations only: what the station places |
+| `built` | boolean | Stations only: whether its assets are placed. `true` only when the catalog has every one of them; a station marked `false` places nothing and its label adds "not built yet". |
+
+The validator checks these rules and scans the text like every other text of the package (no real place names, coordinates or georeference fields). **It is not part of the content hash, deliberately:** it is review text that nothing physical reads, so renaming or re-describing a station must never make a recorded flight's world "different" and refuse its replay. The hash covers only the files listed under Content hash, so this needs no special case, and `--selftest map` on a map with labels proves it (the hash is the same with the file changed or removed).
 
 ## `surfaces.json` — surface table (shared)
 
@@ -317,7 +345,7 @@ The `steel` edge radius (1 mm) is sharper than a real cold-formed tube corner (a
 
    A table entry is hashed as **canonical JSON**: keys sorted by their UTF-16 code units, no whitespace, and every number, string, boolean and null exactly as the file writes it (no value is reformatted). So re-indenting or re-ordering the tables never changes a hash, while any value a map reads does.
 
-Only those files count. The folder names, the `.import` sidecars, any other file and the order in which the file system lists them do not. **Adding or changing a catalog asset a map does not place, or a surface it does not use, leaves that map's hash and its golden results alone** (asset-pipeline, "New assets don't disturb existing maps"). A material id is the material's position in the catalog's `materials` object, so it is hashed next to the entry: inserting a material before one a map uses changes the hash, because it changes the ids physics records.
+Only those files count. The folder names, the `.import` sidecars, `labels.json` (review text, see above), any other file and the order in which the file system lists them do not. **Adding or changing a catalog asset a map does not place, or a surface it does not use, leaves that map's hash and its golden results alone** (asset-pipeline, "New assets don't disturb existing maps"). A material id is the material's position in the catalog's `materials` object, so it is hashed next to the entry: inserting a material before one a map uses changes the hash, because it changes the ids physics records.
 
 A one-byte change to a package file always changes the hash, unless it makes or breaks a CR LF pair. Those changes, like any larger change, leave it the same with a chance of 2⁻⁶⁴. It prints as 16 lowercase hex digits. The package part of the stream, in Python, for checking by hand:
 

@@ -7,7 +7,7 @@ using Godot;
 
 /// A map package built into a scene (map-loading spec): the terrain with its collision and each surface's look
 /// (SurfaceLook), every object and wire of objects.json with Jolt collision tagged with its material, the micro-detail
-/// near the camera and the far cover beyond it.
+/// near the camera and the far cover beyond it, and a review map's labels (MapLabels) when it has a labels.json.
 /// Everything is drawn from `World`, the WorldQuery that physics uses, so the renderer and physics share one world:
 /// object poses, wire polylines, collision shapes, the wind grid (filled from the wind volumes as World loads) and the
 /// stems all come from it.
@@ -130,6 +130,10 @@ public partial class MapScene : Node3D
         var far = new FarCoverView { Name = "FarCover" };
         far.Init(World, terrain, Look);
         AddChild(far);
+        // A review map's labels (optional, not part of the world data: nothing physical reads them).
+        string labels = Path.Combine(dir, MapLabels.FileName);
+        if (File.Exists(labels))
+            AddChild(MapLabels.Load(labels));
     }
 
     // ---------------------------------------------------------------- objects and wires
