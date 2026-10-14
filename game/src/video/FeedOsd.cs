@@ -56,8 +56,9 @@ public sealed class FeedOsd
     /// The three-character flight-mode word, as the footage draws it.
     const string Mode = "AIR";
 
-    /// The receiver's two short lines at the top left, green, shown on the no-signal screen and for ≈7.3 s after a
-    /// dropout recovers. The footage's text is not recorded (OPSEC), so this is invented and deliberately generic.
+    /// The receiver's two short lines at the top left, green, shown on the no-signal screen and the receiver's snow only,
+    /// never over the picture (PR-4 correction). The footage's text is not recorded (OPSEC), so this is invented and
+    /// deliberately generic.
     static readonly string[] RxText = { "AV IN 1", "PAL 50" };
 
     const int RowTop = 0, RowReticle = 7, RowArmed = 10, RowTimer = 11, RowCell = 12, RowPack = 13;

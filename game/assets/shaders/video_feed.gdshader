@@ -66,7 +66,6 @@ uniform float tell = 0.0;          // the N12 precursor: extra luma as a fractio
 uniform float tear_amp = 0.0;      // N8 line-sync tear
 uniform float tear_top = 0.0;      // 1 = the shear is at the top of the field, 0 = at the bottom
 uniform float grain_boost = 0.0;   // the hard cut's other pre-cut glitch: a ~10 % rise in grain
-uniform float rx_text = 0.0;       // 1 while the receiver keeps its own text up over the picture after a dropout
 
 const float TWO_PI = 6.2831853;
 const float LINES = 286.0;      // active lines per field, measured 286 on the B-G receiver (P1)
@@ -403,10 +402,10 @@ void fragment() {
 		rgb = snow_of(px, line, fw);
 	}
 
-	// The receiver draws its own two short lines of green text: on the no-signal screen and on the snow it puts up
-	// (which is how we know that snow is the receiver's, not the camera's), and for ~7.3 s after a dropout recovers.
-	// The black dropout never brings them up - the receiver kept its lock through it.
-	if ((loss_state > 1.5 && loss_state < 3.5) || rx_text > 0.5) {
+	// The receiver draws its own two short lines of green text on the no-signal screen and on the snow it puts up
+	// (which is how we know that snow is the receiver's, not the camera's), and never over the picture or the OSD:
+	// the pilot ruled the recovered picture comes back clean (PR-4 correction), overriding clip P's 7.3 s hold.
+	if (loss_state > 1.5 && loss_state < 3.5) {
 		vec2 t = grid_ink(SCREEN_UV.x, sy, OSD_ROWS);
 		rgb = mix(rgb, vec3(0.0), t.y);
 		rgb = mix(rgb, RX_TEXT_GREEN, t.x);
