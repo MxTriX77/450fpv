@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "shader": "Universal Render Pipeline/Lit",
+  "texture_set": "polyhaven/red_brick",
+  "tile_size_m": [1.4, 1.4],
+  "tint": [1.0, 1.0, 1.0, 1.0],
+  "smoothness": 0.25
+}
