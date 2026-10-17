@@ -1,5 +1,7 @@
 # 450fpv
 
+> **Frozen: this is the first, Godot attempt** (tag `godot-final`). The project continues in Unity on [`unity/main`](https://github.com/MxTriX77/450fpv/tree/unity/main).
+
 A physics-first simulator of heavy fiber-optic cargo FPV drones, the kind Ukraine flies for combat logistics.
 The vision and requirements are in [CLAUDE.md](CLAUDE.md).
 
