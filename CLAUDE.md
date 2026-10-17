@@ -91,7 +91,7 @@
 - **Persist everything to disk** (specs, sheets, decisions, reports). Compaction must lose nothing.
 
 ## Verification
-These are made real and tested in phase 0. `docs/environment.md` holds the pinned versions and the `UNITY` path. Unity batchmode can't run while the editor has the project open.
+These are made real and tested in phase 0. `docs/environment.md` holds the pinned versions and the `UNITY` path. Unity batchmode can't run while the editor has the project open. **`Unity.exe` is a GUI program: in PowerShell, pipe its output (`| Out-Host`) or the shell returns at once with no exit code.** `-testResults` paths resolve against the project, so the XML lands in `unity/Logs/` (ignored).
 
 ```powershell
 # sim core and tools
@@ -102,10 +102,10 @@ python -m pytest tools
 python tools/map/validate.py maps/<map-id>
 
 # Unity
-& $env:UNITY -batchmode -nographics -projectPath unity -runTests -testPlatform EditMode -testResults Logs/editmode.xml -logFile -
-& $env:UNITY -batchmode -projectPath unity -runTests -testPlatform PlayMode -testResults Logs/playmode.xml -logFile -
-& $env:UNITY -batchmode -quit -projectPath unity -executeMethod Fpv450.Build.Windows -logFile -
-& $env:UNITY -batchmode -quit -projectPath unity -executeMethod Fpv450.Review.Capture -asset <ID> -logFile -
+& $env:UNITY -batchmode -nographics -projectPath unity -runTests -testPlatform EditMode -testResults Logs/editmode.xml -logFile - | Out-Host
+& $env:UNITY -batchmode -projectPath unity -runTests -testPlatform PlayMode -testResults Logs/playmode.xml -logFile - | Out-Host
+& $env:UNITY -batchmode -quit -projectPath unity -executeMethod Fpv450.Build.Windows -logFile - | Out-Host
+& $env:UNITY -batchmode -quit -projectPath unity -executeMethod Fpv450.Review.Capture -asset <ID> -logFile - | Out-Host
 
 # one asset end to end (params → Blender → FBX → Unity prefab → review sheet)
 pwsh tools/build_asset.ps1 <ID>
