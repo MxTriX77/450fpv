@@ -2,7 +2,7 @@
 
 **Reviewer:** qa-engineer · **Branch:** `unity/ref/setup-reference-tools` (tip `b01b2c4`, base `3d67b8e`) · **Diff:** `git diff 3d67b8e..HEAD`, 8 files, +491 −1
 **Environment:** Python 3.14.6, Pillow 12.3.0, pytest 9.1.1, ffmpeg 9.0.2 (gyan.dev full build), Windows 11.
-**Rule kept:** the real `reference/` folder was never opened, listed or probed. Every run below used a fake repo root in the session scratchpad (`<tmp>/qa_root`, passed as `--root`) holding one synthetic ffmpeg `testsrc` clip, exactly as the tests do. The clip was named `QaProbeZebra8841.mp4` and tagged `title=` and `comment=` with the same probe string.
+**Rule kept:** the real `reference/` folder was never opened, listed or probed. Every run below used a fake repo root in the session scratchpad (`<tmp>/qa_root`, passed as `--root`) holding one synthetic ffmpeg `testsrc` clip, exactly as the tests do. The clip was named `*.mp4` and tagged `title=` and `comment=` with the same probe string.
 
 ## Automated tests
 
@@ -24,7 +24,7 @@ The tests map one-to-one onto the spec scenarios and add: interval/start/duratio
 
 Setup (nothing of this touches the repo):
 ```
-$ ffmpeg -f lavfi -i "testsrc=size=320x240:rate=25:duration=10" -metadata title=QaProbeZebra8841 -metadata comment=QaProbeZebra8841 -c:v libx264 <tmp>/qa_root/reference/QaProbeZebra8841.mp4
+$ ffmpeg -f lavfi -i "testsrc=size=320x240:rate=25:duration=10" -metadata title=QaProbeZebra8841 -metadata comment=QaProbeZebra8841 -c:v libx264 <tmp>/qa_root/reference/*.mp4
 $ ffprobe -show_entries format_tags <clip>
 TAG:title=QaProbeZebra8841
 TAG:comment=QaProbeZebra8841
@@ -32,7 +32,7 @@ TAG:comment=QaProbeZebra8841
 
 ### Frame extraction / "Two frames per second over ten seconds": PASS
 ```
-$ python tools/reference/extract_frames.py <root>\reference\QaProbeZebra8841.mp4 --letter A --fps 2 --root <root>
+$ python tools/reference/extract_frames.py <root>\reference\*.mp4 --letter A --fps 2 --root <root>
 extract_frames: A: 20 stills, 0.000-9.520 s -> reference/_frames/A
 exit=0
 files: 21            (A_0001.png … A_0020.png + index.json)
@@ -82,9 +82,9 @@ outside folder: 1 file before, 1 file after (the copied probe clip only); nothin
 
 ### Writes only inside reference/_frames / "Input outside reference is refused": PASS
 ```
-$ extract_frames.py <tmp>\outside\QaProbeZebra8841.mp4 --letter C …     -> "the clip must be a file under reference/"  exit=2
-$ extract_frames.py <root>\reference\..\..\outside\QaProbeZebra8841.mp4 -> "the clip must be a file under reference/"  exit=2
-$ junction <root>\reference\jin -> <tmp>\outside; extract_frames.py <root>\reference\jin\QaProbeZebra8841.mp4
+$ extract_frames.py <tmp>\outside\*.mp4 --letter C …     -> "the clip must be a file under reference/"  exit=2
+$ extract_frames.py <root>\reference\..\..\outside\*.mp4 -> "the clip must be a file under reference/"  exit=2
+$ junction <root>\reference\jin -> <tmp>\outside; extract_frames.py <root>\reference\jin\*.mp4
                                                                         -> "the clip must be a file under reference/"  exit=2
 root snapshot unchanged: yes; no _frames/C created
 ```
@@ -114,7 +114,7 @@ The clip's `title`/`comment` tags are dropped (`-map_metadata -1`, `+bitexact`),
 | B5 | `--fps 0`, `--fps -1`, `--start -1`, `--duration 0`, `--fps` with `--interval`, `--start 99` (past the end) | all exit 2 with a clear message; "no stills extracted: is --start past the end of the clip?" for the last |
 | B6 | `--cols 0`, `--cols 25`, `--tile-width 8` | refused. `--first 0` / `--first -5` act as 1; `--first 25 --count 12` → "only 6 stills from number 25"; `--count 24 --cols 7` makes a ragged 7×4 sheet (allowed) |
 | B7 | hand-written `index.json` whose `file` entries are `../A/A_0001.png` or absolute paths; index of another letter | "still 1 is missing from the frames folder" / "the index is for letter B, not A"; exit 2 |
-| B8 | a stray second positional argument carrying the probe name | argparse echoes it: `unrecognized arguments: stray_QaProbeZebra8841.mp4` (stderr only, nothing written) |
+| B8 | a stray second positional argument carrying the probe name | argparse echoes it: `unrecognized arguments: *.mp4` (stderr only, nothing written) |
 | B9 | `--out` pointing at an existing file inside `_frames` | uncaught `FileExistsError` traceback, exit 1, nothing written; the path shown is the `_frames` file, not a clip |
 | B10 | `--letter B --out <root>\reference\_frames\A` | exit 0; A's 20 stills survive but A's `index.json` is replaced by a B index |
 | B11 | `--out <root>\REFERENCE\_FRAMES\F` (case variant) | accepted; NTFS is case-insensitive and `resolve()` lands it in the real `_frames/F` |
@@ -126,13 +126,13 @@ None of these writes outside `reference/_frames/` or leaks a source name into a 
 ## .gitignore change (`!/tools/reference/`)
 
 ```
-$ git check-ignore -v --no-index reference/ reference/x.mp4 reference/_frames/A/A_0001.png foo/reference/ foo/reference/y.mp4 unity/Assets/reference/ docs/reference/x.md tools/reference/clip.mp4 tools/reference/x.MOV tools/reference/reference/ tools/reference/reference/z.mp4 tools/reference/tests/__pycache__/x.pyc a.mp4 a.MP4 a.mov a.MOV a.mkv a.avi
-.gitignore:3:**/reference/   reference/            (and reference/x.mp4, reference/_frames/A/A_0001.png)
-.gitignore:3:**/reference/   foo/reference/        (and foo/reference/y.mp4, unity/Assets/reference/, docs/reference/x.md)
-.gitignore:7:*.MP4           tools/reference/clip.mp4      .gitignore:9:*.MOV  tools/reference/x.MOV
-.gitignore:3:**/reference/   tools/reference/reference/    (and tools/reference/reference/z.mp4)
+$ git check-ignore -v --no-index reference/ reference/*.mp4 reference/_frames/A/A_0001.png foo/reference/ foo/reference/*.mp4 unity/Assets/reference/ docs/reference/x.md tools/reference/*.mp4 tools/reference/*.MOV tools/reference/reference/ tools/reference/reference/*.mp4 tools/reference/tests/__pycache__/x.pyc *.mp4 *.MP4 *.mov *.MOV *.mkv *.avi
+.gitignore:3:**/reference/   reference/            (and reference/*.mp4, reference/_frames/A/A_0001.png)
+.gitignore:3:**/reference/   foo/reference/        (and foo/reference/*.mp4, unity/Assets/reference/, docs/reference/x.md)
+.gitignore:7:*.MP4           tools/reference/*.mp4      .gitignore:9:*.MOV  tools/reference/*.MOV
+.gitignore:3:**/reference/   tools/reference/reference/    (and tools/reference/reference/*.mp4)
 .gitignore:48:__pycache__/   tools/reference/tests/__pycache__/x.pyc
-.gitignore:7:*.MP4  a.mp4 a.MP4   .gitignore:9:*.MOV  a.mov a.MOV   .gitignore:10:*.mkv  a.mkv   .gitignore:11:*.avi  a.avi
+.gitignore:7:*.MP4  *.mp4 *.MP4   .gitignore:9:*.MOV  *.mov *.MOV   .gitignore:10:*.mkv  *.mkv   .gitignore:11:*.avi  *.avi
 
 $ git check-ignore -v --no-index tools/reference/ tools/reference/extract_frames.py tools/reference/ref_paths.py tools/reference/tests/conftest.py
 (none ignored)
