@@ -21,7 +21,7 @@ Source: the pilot, 2026-09-30. Their aircraft is a Vyriy-class heavy fiber-optic
 
 **Requirement.** After a rapid descent is arrested by a sharp throttle increase, the simulation SHALL produce a brief, damped, high-frequency disturbance lasting **0.3–0.7 s**, visible primarily as camera shake rather than as a large trajectory error. Its presence and severity SHALL depend on descent rate, on how abrupt the throttle input is, and on payload mass — not fire on every throttle increase. It SHALL vary between occurrences rather than being an identical canned shake.
 
-**This couples physics to the video feed.** The camera is rigidly mounted, so airframe vibration must reach the rendered image. The feed built on 2026-09-30 has no camera-shake input at all; `FeedSignals` must gain one, and the flight model must publish it.
+**This couples physics to the video feed.** The camera is rigidly mounted, so airframe vibration must reach the rendered image. The first attempt's feed has no camera-shake input at all; `FeedSignals` must gain one, and the flight model must publish it.
 
 **Open, only the pilot can answer:** does it happen with an empty aircraft or only when loaded? Does it depend on how close to the ground you are? Is it worse with the fiber spool full or nearly paid out?
 

@@ -44,7 +44,7 @@ git config core.hooksPath .githooks
 python -m pip install --user -r tools/requirements.txt
 ```
 - **Fetch refspec:** this folder fetches only `unity/*` (docs/repository.md). Godot is read from the tag: `git fetch origin tag godot-final`, then `git show godot-final:<path>`.
-- **Pre-commit hook** (SEC-06): `.githooks/pre-commit`, active through `core.hooksPath`, which every worktree shares.
+- **Hooks** (SEC-06): `.githooks/` holds `pre-commit` and `commit-msg` (the OPSEC scan, `tools/hygiene/precommit.py`) and git-lfs's `pre-push`, `post-checkout`, `post-commit` and `post-merge` shims, which must stay there because `core.hooksPath` turns off `.git/hooks`. The setting is shared by every worktree. A worktree on a branch that predates `.githooks/` gets neither the scan nor LFS uploads until it merges `unity/main`.
 - **Claude Code worktrees** start from the current `HEAD` (`.claude/settings.json`, `worktree.baseRef: head`), never from `origin/main`, which is the frozen Godot trunk.
 
 ## GitHub

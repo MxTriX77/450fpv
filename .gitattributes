@@ -9,6 +9,7 @@
 *.compute text eol=lf
 *.asmdef text eol=lf
 *.ps1 text eol=crlf
+.githooks/* text eol=lf
 
 # Unity YAML: merge as text
 *.unity text merge=unityyamlmerge eol=lf

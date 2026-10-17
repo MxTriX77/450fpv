@@ -1,0 +1,3 @@
+#!/bin/sh
+# OPSEC scan of the commit message (SEC-06). All logic is in tools/hygiene/precommit.py.
+exec python "$(dirname "$0")/../tools/hygiene/precommit.py" --commit-msg "$1"
