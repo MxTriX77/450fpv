@@ -1,6 +1,6 @@
 # Flight-controller profiles: real heavy fiber quads
 
-The sources are the pilot's own tool **FpvPrep** (`https://github.com/MxTriX77/FpvPrep`, local copy `C:\FPV_TEST`) and its saved profiles, read 2026-10-17. The pilot's instruction (verbatim in [../pilot-brief-2026-10-17.md](../pilot-brief-2026-10-17.md), answer 4):
+The sources are the pilot's own tool **FpvPrep** (`https://github.com/MxTriX77/FpvPrep`, local copy `C:\FPV_TEST`) and its saved profiles, read for the restart (D-023). The pilot's instruction (verbatim in [../pilot-brief-2026-10-17.md](../pilot-brief-2026-10-17.md), answer 4):
 
 > use those used by me while leaning a little bit towards those sharpy original settings, especially throttle - you dont always get the chance to set comfortable throttle when in combat env. HOWEVER, it's important that you make room for flexibility on this one coz in the future I MAY ask you to introduce betaflight rates, throttle curves, and other fly control related settings you will have seen in this FpvPrep
 
