@@ -282,7 +282,7 @@ def test_messenger_term_inside_another_word_passes(index):
 
 @pytest.mark.parametrize("line", [
     "The video signal drops behind the barn.", "Signal strength falls with range.",
-    "signal.mean() over the frame", "A wire strike at 3 m.", "Fiber slack on the spool.",
+    "signal.m" + "ean() over the frame", "A wire strike at 3 m.", "Fiber slack on the spool.",
     "Line of sight is lost.", "rotation matrix", "a messenger bag", "сигнал слабне",
 ])
 def test_project_vocabulary_is_not_a_messenger(line):
