@@ -1,0 +1,7 @@
+{
+  "seed": 1,
+  "size_m": { "length": 0.250, "width": 0.120, "height": 0.065 },
+  "bevel_mm": { "min": 2.0, "max": 3.0 },
+  "physics_material": "masonry",
+  "lod": { "lod1_switch_m": 3.0, "cull_m": 120.0 }
+}
