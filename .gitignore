@@ -18,6 +18,8 @@ unity/[Ll]ogs/
 unity/[Uu]ser[Ss]ettings/
 unity/[Mm]emoryCaptures/
 unity/[Rr]ecordings/
+# left behind by a failed player build (com.unity.test-framework.performance)
+unity/Assets/Resources/PerformanceTestRun*
 unity/*.csproj
 unity/*.sln
 unity/*.slnx
