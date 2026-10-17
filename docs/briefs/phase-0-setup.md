@@ -61,7 +61,7 @@ Turn `C:\.dev\450fpv` into the Unity restart of 450fpv on the orphan branch `uni
 - Unity batchmode EditMode tests pass (an empty suite is fine). The Windows build succeeds and opens the Boot scene.
 - `pwsh tools/build_asset.ps1 K01` (one brick from the debris kit) produces an FBX, a prefab with collider and material, and a review sheet.
 - `python tools/assets/fetch.py --verify` passes.
-- The pre-commit hook blocks a planted `test.mp4`.
+- The pre-commit hook blocks a planted test clip (`.mp4`).
 - `openspec validate --strict` passes.
 
 ## Done means

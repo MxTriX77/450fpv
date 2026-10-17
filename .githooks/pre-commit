@@ -1,0 +1,3 @@
+#!/bin/sh
+# OPSEC and hygiene scan of the staged files (SEC-06). All logic is in tools/hygiene/precommit.py.
+exec python "$(dirname "$0")/../tools/hygiene/precommit.py"
