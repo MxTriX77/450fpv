@@ -20,3 +20,5 @@ Git for Windows runs hooks through its bundled `sh`; `python` (3.14.6, measured)
 ## Risks / Trade-offs
 - [False positives on legitimate text] → narrow patterns, scoped to `docs/` where possible; a false positive is fixed in the rule, never bypassed.
 - [Hook not active in a fresh clone] → `docs/environment.md` lists the one-liner; QA's review checks `git config core.hooksPath` on the dev machine.
+- [The media rule blocks generated map rasters (heightfield, surface, cover and holes PNGs under `maps/`)] → follow-up for the phase-3 map-format change: allow image rasters under `maps/<map-id>/` there, with tests. Diagrams in `docs/` stay text (Markdown or Mermaid), never images.
+- [Path findings could leak the very file name they catch, slip two of knowledge.md §14.2] → path rules print the folder and `*.ext` (or `reference/...`), never the name; text rules print `path:line`.

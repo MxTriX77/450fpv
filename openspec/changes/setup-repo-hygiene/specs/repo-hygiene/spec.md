@@ -10,7 +10,7 @@ The pre-commit scan SHALL reject a commit that stages a file with a video extens
 
 #### Scenario: Planted test.mp4 is blocked
 - **WHEN** `test.mp4` is force-added (`git add -f test.mp4`) and committed
-- **THEN** the commit is rejected with a message naming the rule (not the file's content), and nothing is committed
+- **THEN** the commit is rejected with a message naming the rule and a masked location (folder and extension, never the file name or content), and nothing is committed
 
 #### Scenario: Footage under unity/Assets is still blocked
 - **WHEN** a `.mov` file is staged under `unity/Assets/`
@@ -43,7 +43,7 @@ Staged text files SHALL contain no messenger names, and files under `docs/` SHAL
 - **THEN** the commit is rejected and the message names the file and line number
 
 #### Scenario: Decimal coordinates in docs are blocked
-- **WHEN** a staged file under `docs/` contains a pair like `48.4567, 35.0123`
+- **WHEN** a staged file under `docs/` contains an open-ocean pair like `-48.8767, -123.3933`
 - **THEN** the commit is rejected
 
 #### Scenario: The hook's own blocklist does not trip the hook
@@ -51,7 +51,7 @@ Staged text files SHALL contain no messenger names, and files under `docs/` SHAL
 - **THEN** they pass, because the blocklist is not stored as plain text
 
 ### Requirement: No dates in notes
-Lines in `docs/reference-notes/` and `docs/object-sheets/` SHALL contain no calendar dates, unless the line cites a decision id (`D-###`) or attributes a statement to the pilot.
+Lines in `docs/reference-notes/` and `docs/object-sheets/` SHALL contain no calendar dates, unless the line cites a decision id (`D-###`) or contains the word "pilot" (any case), which marks a decision or a pilot statement.
 
 #### Scenario: Sortie-like date in an object sheet is blocked
 - **WHEN** a staged object sheet contains `seen on 2025-03-14`
@@ -62,7 +62,7 @@ Lines in `docs/reference-notes/` and `docs/object-sheets/` SHALL contain no cale
 - **THEN** the date rule does not reject it
 
 ### Requirement: Clean commits pass quickly
-A commit with none of the above SHALL pass, and the scan SHALL finish in under 2 s for 200 staged text files on the dev machine.
+A commit with none of the above SHALL pass, and the scan itself (excluding the `sh` and `python` start-up, which costs 0.25–1.1 s on the dev machine, measured) SHALL finish in under 2 s for 200 staged text files.
 
 #### Scenario: Ordinary code commit passes
 - **WHEN** only `.cs`, `.py` and `.md` files without violations are staged
