@@ -1,0 +1,10 @@
+<Project>
+  <!-- Shared by every .NET tool. C# 9 is what Unity 6 compiles, so code that
+       builds here also builds in Unity (setup-sim-tools design). -->
+  <PropertyGroup>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <Deterministic>true</Deterministic>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>

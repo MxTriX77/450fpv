@@ -1,0 +1,7 @@
+{
+  "name": "com.fpv450.sim",
+  "version": "0.1.0",
+  "displayName": "450fpv Sim Core",
+  "description": "Engine-free, deterministic simulation core of 450fpv. The .NET tools under tools/ compile these same sources without Unity.",
+  "unity": "6000.3"
+}
