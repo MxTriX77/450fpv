@@ -2,7 +2,7 @@
 
 **Owner:** qa-engineer · **Reviewers:** orchestrator
 **Requirements:** PRC-03, SEC-06 · **Decisions:** D-029 · **VISION:** —
-**Lesson:** three subjects over 72 characters reached `unity/main` through `setup-asset-pipeline` (#44) because only eyes checked the rule.
+**Lesson:** four subjects over 72 characters reached `unity/main` through `setup-asset-pipeline` (#44) because only eyes checked the rule.
 
 ## Why
 `AGENTS.md` fixes the commit format (`type(scope): summary`, lower case, ≤ 72 characters, subject only, no trailers, no co-author). Agents keep breaking the length by a few characters, and QA catches it only after the branch is pushed. The `commit-msg` hook already exists; it should enforce the format so a bad subject never commits.
@@ -21,7 +21,7 @@
 
 ## Non-goals
 - No server-side check (GitHub has no commit-message rules on this plan).
-- No rewrite of the three existing long subjects.
+- No rewrite of the four existing long subjects.
 
 ## Impact
 `tools/hygiene/precommit.py`, its tests, `AGENTS.md`.
