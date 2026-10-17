@@ -284,3 +284,10 @@ The pilot, 2026-10-17: "specify that we're using openspec and other things we ad
 - **karpathy-guidelines,** the prompt and behaviour skill the pilot chose over ponytail and caveman. It is loaded by the orchestrator and every subagent. The project's amendment: simplicity applies to code, never to physical fidelity.
 - **The orchestrator rules** (`CLAUDE.md`), **the agent rules** (`AGENTS.md`), **seven role subagents** (`.claude/agents/`), one subagent per logical task, the handoff block and the token discipline.
 - **Details:** [tooling.md](tooling.md).
+
+## D-031 D-001 checked at phase 0: Unity 6000.3.26f1, URP · Accepted
+Checked on 2026-10-17, as D-001 asked.
+- **The version:** **6000.3.26f1** (Unity 6.3 LTS, changeset `de8167e7440c`) is the newest Unity 6 LTS on Unity's release API that day. The 6000.0 line is older. It is pinned in `unity/ProjectSettings/ProjectVersion.txt` and [environment.md](environment.md).
+- **URP still holds:** Unity's render-pipeline strategy for 2026 prioritises URP and moves HDRP to maintenance (no new features). That strengthens D-001's third reason. The HDRP fallback stays formally open until the G1 look-lock, but is now unlikely.
+- **Later LTS releases** (6.7 LTS is announced) are evaluated at a phase boundary, never adopted mid-phase. An upgrade gets its own decision entry, and every golden and review sheet is re-checked.
+- **Player backend:** Mono for now. IL2CPP needs the C++ toolchain and is considered only if profiling shows the need (PLT-02, PLT-04).
