@@ -1,0 +1,35 @@
+schema: spec-driven
+
+context: |
+  450fpv: simulator of heavy fiber-optic cargo FPV drones. One drone, "Svinoriz 10 Opto" (10-inch, 3-blade props,
+  fiber coil underneath, two battery packs, payload on top). Vision: VISION.md (the pilot's manifesto, never contradict
+  it silently). Restart brief: docs/pilot-brief-2026-10-17.md. Requirements with stable IDs: docs/requirements.md.
+  Decisions: docs/decisions.md. Plan and gates: docs/plan.md. Everything learned in the Godot attempt: docs/knowledge.md.
+  REALISM means a copy of the pilot's references (flight replays through the feed, photos in noclip) with proper
+  geometry for looks AND physics (D-028, REAL-01..05). Physics randomness is physical, seeded, bounded and logged.
+  Stack: Unity 6 LTS, URP, C#; engine-free sim core in unity/Packages/com.fpv450.sim (noEngineReferences), 1 kHz fixed
+  step, deterministic, headless replay without Unity; Blender (parametric generators) → FBX; Python tools; Git + LFS;
+  Windows. Free assets only (CC0 / CC-BY). Branches: everything under unity/ (trunk unity/main); Godot is frozen on main.
+  Perf: 60 fps 1 % low on the dev machine (RTX 4050 Laptop 6 GB), FPV view and noclip.
+  Settings are deliberately minimal: payload, legs on/off (off = four-post launch stand), time of day,
+  wind Calm/Windy/Severe, rain Sunny/Rain/Severe rain.
+  reference/ holds the pilot's real footage: read locally, never commit, copy or upload it. Cite clips by letter only.
+  Never ask the pilot for anything physics can calculate (D-024).
+
+rules:
+  proposal:
+    - Name one owner role (from docs/team.md) and any reviewer roles
+    - Cite the requirement IDs (docs/requirements.md) and the VISION.md section that motivate the change
+    - Include a Non-goals section
+  specs:
+    - Physics and performance scenarios must be measurable - units, tolerances, seed where randomness is involved
+    - Visual scenarios are judged against a reference letter side by side (REAL-03), never against taste
+  design:
+    - Label every number pilot / measured / published / derived / assumed
+    - Physics designs state the model and equations, sim rate, randomness sources with their bounds, and what gets logged
+    - Asset designs state the generator parameters and the physics metadata (collision, materials, gaps, wind volumes, snag)
+  tasks:
+    - One task = one logical unit a single fresh subagent can finish and hand off (D-029)
+    - Tag each task with its role, e.g. "[physics-engineer]"
+    - Tag with "[user-review]" only tasks that deliver a pilot gate from docs/plan.md (G1-G8, MVPs). Never tag sandboxes, sample patches, plans or notes
+    - The last task is always "[qa-engineer] review against spec scenarios"
