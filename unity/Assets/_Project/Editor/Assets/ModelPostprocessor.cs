@@ -8,12 +8,14 @@ namespace Fpv450.Assets
     /// <summary>
     /// The import settings of the art folders (setup-asset-pipeline, design decision 8), applied by
     /// <see cref="ModelPostprocessor"/> on every import and checked again by the catalog importer. FBX files under
-    /// <c>Art/Models/</c>: metres stay metres, no Unity mesh LODs (the project uses its own LOD groups, knowledge.md
-    /// 14.4), no Unity colliders, static. Textures under <c>Art/ThirdParty/</c>: typed from the Poly Haven suffix.
+    /// <c>Art/Models/</c>, and the EditMode fixtures (the X-sign probe, which must import exactly as every asset
+    /// does): metres stay metres, no Unity mesh LODs (the project uses its own LOD groups, knowledge.md 14.4), no
+    /// Unity colliders, static. Textures under <c>Art/ThirdParty/</c>: typed from the Poly Haven suffix.
     /// </summary>
     public static class ArtImportSettings
     {
         public const string ModelsFolder = "Assets/_Project/Art/Models/";
+        public const string FixturesFolder = "Assets/_Project/Tests/EditMode/Fixtures/";
         public const string ThirdPartyFolder = "Assets/_Project/Art/ThirdParty/";
 
         /// <summary>Applies the model settings and reports whether any of them changed.</summary>
@@ -83,7 +85,8 @@ namespace Fpv450.Assets
 
         void OnPreprocessModel()
         {
-            if (assetPath.StartsWith(ArtImportSettings.ModelsFolder, StringComparison.Ordinal))
+            if (assetPath.StartsWith(ArtImportSettings.ModelsFolder, StringComparison.Ordinal)
+                || assetPath.StartsWith(ArtImportSettings.FixturesFolder, StringComparison.Ordinal))
                 ArtImportSettings.ApplyModel((ModelImporter)assetImporter);
         }
 

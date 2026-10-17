@@ -27,6 +27,13 @@ def k01_params():
 
 
 @pytest.fixture
+def material_ids():
+    """The closed physics-material list of the repo, as build.py loads it."""
+    from lib import meta
+    return meta.load_physics_materials(REPO_ROOT)
+
+
+@pytest.fixture
 def k01_out():
     """The committed K01 output folder; skips when K01 has not been built."""
     folder = REPO_ROOT / "unity" / "Assets" / "_Project" / "Art" / "Models" / "debris" / "K01"
