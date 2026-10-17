@@ -9,5 +9,6 @@ the manifest.
 
 | Title | Licence | Author | Source | Files |
 |---|---|---|---|---|
+| Red Brick (1k) | CC0 1.0 | Rob Tuytel | [polyhaven.com/a/red_brick](https://polyhaven.com/a/red_brick) | `unity/Assets/_Project/Art/ThirdParty/polyhaven/red_brick/` (4 files, 11.1 MB) |
 
 Licences: [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/), [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/). CC0 needs no attribution; the authors are named as thanks.

@@ -1,3 +1,44 @@
 {
-  "entries": []
+  "entries": [
+    {
+      "source": "polyhaven",
+      "id": "red_brick",
+      "title": "Red Brick",
+      "resolution": "1k",
+      "licence": "CC0",
+      "author": "Rob Tuytel",
+      "page": "https://polyhaven.com/a/red_brick",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/polyhaven/red_brick",
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "red_brick_diff_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/red_brick/red_brick_diff_1k.png",
+          "sha256": "6cbeb81b1121713662835b863c0f71859d3b8cd51161d3ddb017631d0bf52d43",
+          "bytes": 5485318
+        },
+        {
+          "map": "normal",
+          "name": "red_brick_nor_gl_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/red_brick/red_brick_nor_gl_1k.png",
+          "sha256": "e1116366df05651cb54edea4977563a4c0d4ee7a523be61a51fb895c279fa9a8",
+          "bytes": 2236680
+        },
+        {
+          "map": "roughness",
+          "name": "red_brick_rough_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/red_brick/red_brick_rough_1k.png",
+          "sha256": "77bc9bc6897e0ddf1d2264a04eba4962dff5b0c0bec6279cc1fb715b5f1adbf7",
+          "bytes": 1475706
+        },
+        {
+          "map": "ao",
+          "name": "red_brick_ao_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/red_brick/red_brick_ao_1k.png",
+          "sha256": "6ce34cb07370e1048b41d1afa4fbc58651eae13f14e37e4ad06481f98b489a58",
+          "bytes": 1900523
+        }
+      ]
+    }
+  ]
 }
