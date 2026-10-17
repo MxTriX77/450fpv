@@ -28,7 +28,8 @@ namespace Fpv450
         const float PilotHeightM = 1.5f;
         const float GroundSizeM = 400f;
         const float GroundAlbedo = 0.18f;
-        const float BarHeightM = 1.8f, BarPostM = 0.05f, BarBandM = 0.1f, BarGapM = 1f;
+        const float BarHeightM = 1.8f, BarPostM = 0.05f, BarBandM = 0.1f, BarGapM = 1f, BarBearingDeg = 112.5f;
+        const float MinShadowDistanceM = 12f;  // the stage's shadow distance: finer shadow texels than the game's 50 m on a small stage
         const float BoundsMarginM = 0.3f;      // a camera closer than this to the bounds is pushed outside them
         static readonly float[] DistancesM = { 1.5f, 10f, 50f, 200f };
         static readonly string[] Lights = { "day", "overcast" };
@@ -269,7 +270,12 @@ namespace Fpv450
                 stage.AssetBounds = new Bounds(meta.Bounds.center + instance.transform.localPosition, meta.Bounds.size);
                 stage.LodGroup = instance.GetComponent<LODGroup>();
 
-                float barX = stage.AssetBounds.max.x + BarGapM + BarPostM * 0.5f;
+                // The bar stands 1 m outside the bounds, at a bearing off the 45° turntable grid so no view lines it up with the asset.
+                float bearing = BarBearingDeg * Mathf.Deg2Rad;
+                var towardsBar = new Vector3(Mathf.Sin(bearing), 0f, Mathf.Cos(bearing));
+                Vector3 centre = stage.AssetBounds.center;
+                Vector3 barBase = centre + towardsBar * (ExitDistance(stage.AssetBounds, centre, towardsBar) + BarGapM + BarPostM * 0.5f);
+                barBase.y = 0f;
                 Material light = Lit(new Color(0.8f, 0.8f, 0.8f), 0.05f), dark = Lit(new Color(0.03f, 0.03f, 0.03f), 0.05f);
                 int bands = Mathf.RoundToInt(BarHeightM / BarBandM);
                 for (int i = 0; i < bands; i++)
@@ -278,12 +284,12 @@ namespace Fpv450
                     band.name = $"ScaleBar{i}";
                     Object.DestroyImmediate(band.GetComponent<Collider>());
                     band.transform.SetParent(stage.Root.transform, false);
-                    band.transform.localPosition = new Vector3(barX, BarBandM * (i + 0.5f), 0f);
+                    band.transform.localPosition = barBase + Vector3.up * (BarBandM * (i + 0.5f));
                     band.transform.localScale = new Vector3(BarPostM, BarBandM, BarPostM);
                     band.GetComponent<MeshRenderer>().sharedMaterial = i % 2 == 0 ? light : dark;
                 }
                 stage.FrameBounds = stage.AssetBounds;
-                stage.FrameBounds.Encapsulate(new Bounds(new Vector3(barX, BarHeightM * 0.5f, 0f), new Vector3(BarPostM, BarHeightM, BarPostM)));
+                stage.FrameBounds.Encapsulate(new Bounds(barBase + Vector3.up * (BarHeightM * 0.5f), new Vector3(BarPostM, BarHeightM, BarPostM)));
                 return stage;
             }
 
@@ -438,10 +444,40 @@ namespace Fpv450
         static ReviewCanvas Sheet(Stage stage, ReviewMeta meta, LightProfile profile, Rig rig, string variant, string gpu, string quality)
         {
             string title = $"{variant}  {profile.name}";
-            Bounds asset = stage.AssetBounds;
             float turntableDistance = Mathf.Max(0.5f, stage.FrameBounds.extents.magnitude / Mathf.Sin(VerticalFovDeg * 0.5f * Mathf.Deg2Rad) * 1.1f);
             var tiles = new List<ReviewCanvas>();
 
+            // The game's shadow distance (50 m at High) gives 2.4 cm shadow texels, too coarse for a small stage; fit it to
+            // the stage for the capture and put it back afterwards. The value never exceeds the project's.
+            UniversalRenderPipelineAsset pipeline = UniversalRenderPipeline.asset;
+            float projectShadowDistance = pipeline != null ? pipeline.shadowDistance : 0f;
+            float shadowDistance = pipeline != null ? Mathf.Min(projectShadowDistance, Mathf.Max(MinShadowDistanceM, 4f * turntableDistance)) : 0f;
+            string shadows = pipeline != null
+                ? $"SHADOWS {pipeline.mainLightShadowmapResolution} PX, {pipeline.shadowCascadeCount} CASCADE(S), {shadowDistance:0.#} M (GAME {projectShadowDistance:0.#} M)"
+                : "SHADOWS: NO URP ASSET";
+            if (pipeline != null)
+                pipeline.shadowDistance = shadowDistance;
+            try
+            {
+                Tiles(stage, meta, rig, title, turntableDistance, tiles);
+            }
+            finally
+            {
+                if (pipeline != null)
+                    pipeline.shadowDistance = projectShadowDistance;
+            }
+
+            var sheet = new ReviewCanvas(4 * Tile, 4 * Tile, Panel);
+            for (int i = 0; i < tiles.Count; i++)
+                sheet.Blit(tiles[i], i % 4 * Tile, i / 4 * Tile);
+            sheet.Blit(Legend(meta, profile, title, gpu, quality, shadows), Tile, 3 * Tile);
+            sheet.Text(4 * Tile - ReviewCanvas.TextWidth(gpu, 3) - 16, 4 * Tile - ReviewCanvas.LineHeight(3) - 8, gpu, 3, White);
+            return sheet;
+        }
+
+        static void Tiles(Stage stage, ReviewMeta meta, Rig rig, string title, float turntableDistance, List<ReviewCanvas> tiles)
+        {
+            Bounds asset = stage.AssetBounds;
             foreach (float distance in DistancesM)
             {
                 bool pilot = distance == DistancesM[0];
@@ -464,13 +500,6 @@ namespace Fpv450
                 string view = $"OVERLAY {distance:0.00} M {LookDownDeg:0}° DOWN AZ {ShotAzimuthDeg:0}" + (fromBounds ? " FROM BOUNDS" : "");
                 tiles.Add(Shot(rig, stage, position, asset.center, title, view, meta, stage.LocalToWorld));
             }
-
-            var sheet = new ReviewCanvas(4 * Tile, 4 * Tile, Panel);
-            for (int i = 0; i < tiles.Count; i++)
-                sheet.Blit(tiles[i], i % 4 * Tile, i / 4 * Tile);
-            sheet.Blit(Legend(meta, profile, title, gpu, quality), Tile, 3 * Tile);
-            sheet.Text(4 * Tile - ReviewCanvas.TextWidth(gpu, 3) - 16, 4 * Tile - ReviewCanvas.LineHeight(3) - 8, gpu, 3, White);
-            return sheet;
         }
 
         static ReviewCanvas Shot(Rig rig, Stage stage, Vector3 position, Vector3 lookAt, string title, string view, ReviewMeta overlay, Matrix4x4? localToWorld)
@@ -513,7 +542,7 @@ namespace Fpv450
             return new Vector2((clip.x / clip.w + 1f) * 0.5f * Tile, (1f - clip.y / clip.w) * 0.5f * Tile);
         }
 
-        static ReviewCanvas Legend(ReviewMeta meta, LightProfile profile, string title, string gpu, string quality)
+        static ReviewCanvas Legend(ReviewMeta meta, LightProfile profile, string title, string gpu, string quality, string shadows)
         {
             var panel = new ReviewCanvas(Tile, Tile, Panel);
             int y = 24, step = ReviewCanvas.LineHeight(3) + 6;
@@ -540,6 +569,7 @@ namespace Fpv450
                          $"LIGHT {profile.name}: {profile.Summary}",
                          $"AMBIENT {Luminance(profile.Ambient):0.00}, ILLUMINANCE {profile.HorizontalIlluminance:0.00}, GROUND ALBEDO {GroundAlbedo:0.00}",
                          $"FOV {VerticalFovDeg:0}° VERT, TILES {Tile} PX, BAR {BarHeightM:0.0} M / {BarBandM * 100:0} CM BANDS",
+                         shadows,
                          $"QUALITY {quality}",
                          $"GPU {gpu}",
                      })
