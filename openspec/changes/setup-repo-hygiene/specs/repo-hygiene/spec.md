@@ -25,7 +25,7 @@ The pre-commit scan SHALL reject a commit that stages a file with a video extens
 - **THEN** the commit is rejected
 
 ### Requirement: No footage names inside text
-Staged Markdown, text, YAML and JSON files, and every commit message, SHALL contain no camera-export or messenger-export file names and no `<name>.<video extension>` tokens. When a local `reference/` folder exists, every staged text file and every commit message SHALL also contain no stem of a file in it, for stems of at least 8 characters that contain a digit, `_`, `-` or a space. Those stems are read at scan time only, and are never stored, cached or printed.
+Staged Markdown, text, YAML and JSON files, and every commit message, SHALL contain no camera-export or messenger-export file names and no `<name>.<video extension>` tokens. When a local `reference/` folder exists (in this worktree or in the main checkout), every staged text file and every commit message SHALL also contain no stem of a file in it: every media file's stem (video and image extensions), and any other file's stem when it contains a digit, for stems of at least 8 characters that contain a digit, `_`, `-` or a space. Those stems are read at scan time only, and are never stored, cached or printed.
 
 #### Scenario: Camera-style name written in a review is blocked
 - **WHEN** a staged `review.md` under `openspec/` mentions a camera-export file name built from the pattern
@@ -82,7 +82,7 @@ Staged text files and commit messages SHALL contain no messenger names. Files un
 - **THEN** they pass, because the blocklist is not stored as plain text
 
 ### Requirement: No dates in notes
-Lines in `docs/reference-notes/` and `docs/object-sheets/` SHALL contain no calendar dates, in ISO, dotted, slashed, compact (`YYYYMMDD`) or month-name form (English, Ukrainian or Russian), unless the line cites a decision id (`D-###`) or the date directly follows an attribution to the pilot (`pilot, <date>`, optionally preceded by "the" and in brackets).
+Lines in `docs/reference-notes/` and `docs/object-sheets/` SHALL contain no calendar dates, in ISO, dotted, slashed, compact (`YYYYMMDD`) or month-name form (English, Ukrainian or Russian), unless the line cites a decision id (`D-###`) or the date directly follows an attribution to the pilot: the word `pilot`, optionally followed by `said`, Markdown emphasis markers, a comma or an opening bracket, then the date.
 
 #### Scenario: Sortie-like date in an object sheet is blocked
 - **WHEN** a staged object sheet contains `seen on 2025-03-14`

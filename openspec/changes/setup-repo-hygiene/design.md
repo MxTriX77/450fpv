@@ -6,7 +6,7 @@ Git for Windows runs hooks through its bundled `sh`; `python` (3.14.6, measured)
 ## Decisions
 1. **Thin shell hooks, Python scan.** `.githooks/commit-msg` (review R1) runs the text rules over the commit message the same way. **git-lfs shims** (review R2): with `core.hooksPath` set, git no longer runs `.git/hooks`, so `.githooks/` carries git-lfs's standard `pre-push`, `post-checkout`, `post-commit` and `post-merge` hooks (LF, 100755). Otherwise pushes upload no LFS objects, and git-lfs writes untracked copies into each worktree's `.githooks/`.
    The pre-commit hook itself: `.githooks/pre-commit` (LF, executable bit) only runs `python tools/hygiene/precommit.py` and passes its exit code through. All logic is Python, so it is testable with pytest.
-2. **Scan the index, not the working tree.** File list: `git diff --cached --name-only --diff-filter=ACMR -z`. Content: `git show :<path>` (the staged blob). LFS files are scanned as pointers, so the binary rules use the path only.
+2. **Scan the index, not the working tree.** File list: `git diff --cached --raw --no-renames --diff-filter=ACMRT`. Content: one `git cat-file --batch` call for all staged blobs (a process per file would blow the 2 s budget). LFS files are scanned as pointers, so the binary rules use the path only. `--tree <rev>` scans every file of a commit instead, for the zero-findings check.
 3. **Rules** (one function each, each with a short id printed on failure):
    - `footage-ext`: video extensions anywhere (mp4, mov, mkv, avi, m4v, mts, m2ts, 3gp, webm, wmv, flv, mpg, mpeg, h264, h265, hevc, insv, lrv, dav).
    - `reference-path`: any path starting with `reference/`.
