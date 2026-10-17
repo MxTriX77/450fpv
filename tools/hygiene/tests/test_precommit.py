@@ -595,7 +595,9 @@ DATE_LINES = [
 
 @pytest.mark.parametrize("index", range(len(DATE_LINES)))
 def test_dates_are_caught(index):
-    assert precommit.notes_date(DATE_LINES[index])
+    line = DATE_LINES[index]
+    assert precommit.notes_date(line)
+    assert precommit.date_hint(line), "the whole-file hint must cover every date the rule catches"
 
 
 NOT_DATES = [

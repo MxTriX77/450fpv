@@ -120,15 +120,19 @@ LABELLED_COORDINATE = re.compile(
 _DAY = r"(?:0?[1-9]|[12]\d|3[01])"
 _MONTH = r"(?:0?[1-9]|1[0-2])"
 _YEAR = r"(?:19|20)\d\d"
-_MONTH_NAME = (
-    r"(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?"
-    r"|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?"
-    r"|(?:січ|берез|квіт|трав|черв|лип|серп|верес|жовт|груд)(?:ень|ня|ні)|лют(?:ий|ого|ому)"
-    r"|листопад[аі]?"
-    r"|(?:январ|феврал|апрел|июн|июл|сентябр|октябр|ноябр|декабр)[ьяе]|(?:март|август)[ае]?"
-    r"|ма[йяе])"
-    rf"(?!{_LETTER})\.?"
-)
+# Month names, English (and abbreviations), Ukrainian and Russian, in the cases dates use.
+MONTH_WORDS = {
+    "january", "february", "march", "april", "may", "june", "july", "august", "september",
+    "october", "november", "december",
+    "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec",
+    *(stem + end for stem in ("січ", "берез", "квіт", "трав", "черв", "лип", "серп", "верес",
+                              "жовт", "груд") for end in ("ень", "ня", "ні")),
+    "лютий", "лютого", "лютому", "листопад", "листопада", "листопаді",
+    *(stem + end for stem in ("январ", "феврал", "апрел", "июн", "июл", "сентябр", "октябр",
+                              "ноябр", "декабр") for end in "ьяе"),
+    "март", "марта", "марте", "август", "августа", "августе", "май", "мая", "мае",
+}
+_MONTH_NAME = "(?:" + "|".join(sorted(MONTH_WORDS, key=len, reverse=True)) + rf")(?!{_LETTER})\.?"
 DATE = re.compile(
     rf"(?<!\d){_YEAR}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])(?!\d)"                   # ISO
     rf"|(?<![\d.]){_YEAR}\.{_MONTH}\.{_DAY}(?![^\W_]|[./]\d)"                             # Y.M.D
@@ -151,6 +155,8 @@ PILOT_ATTRIBUTION = re.compile(rf"(?<!{_LETTER})pilot(?:\s+said)?\**(?:,\s*|\s*\
 # per-line pass (the lookbehinds above are slow when run at every position of every line).
 MESSENGER_HEADS = sorted({t.split(" ")[0].lower() for t in MESSENGER_TERMS})
 COORDINATES_HINT = re.compile(r"\d[.,]\d{4}|°|3[3-9][TUVtuv]\s?[A-Za-z]{2}")
+YEAR_HINT = re.compile(r"(?:19|20)\d\d|\d\.\d\d\.\d\d")
+WORD = re.compile(r"[^\W\d_]+")
 
 SCISSORS = re.compile(r"^\S -{24} >8 -{24}\r?$", re.MULTILINE)
 
@@ -239,6 +245,11 @@ def footage_text(line):
 def messenger_hint(text):
     lowered = text.lower()
     return any(head in lowered for head in MESSENGER_HEADS)
+
+
+def date_hint(text):
+    """Every date holds a year, a two-digit-year dotted date or a month word."""
+    return YEAR_HINT.search(text) is not None or not MONTH_WORDS.isdisjoint(WORD.findall(text.lower()))
 
 
 def _hint(pattern):
@@ -334,7 +345,7 @@ LINE_RULES = (
     ("messenger", everywhere, messenger_hint, messenger),
     ("coordinates", coordinates_scope, COORDINATES_HINT.search, coordinates),
     ("labelled-coordinate", everywhere, _hint(LABELLED_COORDINATE), labelled_coordinate),
-    ("notes-date", notes_scope, _hint(DATE), notes_date),
+    ("notes-date", notes_scope, date_hint, notes_date),
     ("footage-text", name_text_scope, _hint(FOOTAGE_TEXT), footage_text),
 )
 
