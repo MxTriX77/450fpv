@@ -36,7 +36,21 @@ Every third-party file SHALL be listed in `tools/assets/manifest.json` with sour
 - **THEN** the FBX, the metadata and the Unity prefab all reflect the new value with no other step (AST-03)
 
 ### Requirement: Asset metadata contract
-The metadata JSON SHALL state its schema version and units, and SHALL hold, in Unity's frame (D-019) and in metres: bounds; LODs with triangle counts and switch distances; material slots, each with a visual material and a physics material id; collision primitives (box, sphere, capsule, cylinder), each with a material id and a landable flag; gaps as planar polygons with their narrowest width; wind volumes with per-part porosity; snag-hazard features.
+The metadata JSON SHALL state its schema version and units, and SHALL hold, in Unity's frame (D-019) and in metres: bounds; LODs with triangle counts and switch distances, and a cull distance; material slots, each with a visual material and a physics material id; collision primitives (box, sphere, capsule, cylinder), each with a material id and a landable flag; gaps as planar polygons with their narrowest width; wind volumes with per-part porosity; snag-hazard features.
+
+The conventions SHALL be fixed and validated at build time: shapes are convex; `rotation` is a unit quaternion `[x, y, z, w]` applied about the shape's `center`; capsules and cylinders run along local +Y before rotation, with `height` the total length including caps (a capsule needs `height ≥ 2·radius`); a gap `polygon` is the throat of the opening, planar within 10 mm, simple, concave allowed, with a unit `normal` of free sign and meaningless winding, and `narrowest_m` the diameter of its largest inscribed circle; empty `wind_volumes` means the asset blocks no wind; `snag[].kind` is `edge` or `hook`, each with at least two points; `landable` is informational and never the contact law. Every physics material id SHALL come from the closed, physics-owned list in `assets-src/physics_materials.json`.
+
+#### Scenario: Convention violations are rejected
+- **WHEN** a metadata file carries a non-unit quaternion, a capsule with `height < 2·radius`, a gap polygon that is not planar within 10 mm or whose `normal` is not perpendicular to it, a `narrowest_m` outside `(0, polygon extent]`, or a snag of unknown kind or with fewer than two points
+- **THEN** the build's validator rejects it, naming the rule, and nothing is written
+
+#### Scenario: Unknown material id is rejected
+- **WHEN** a shape or material slot names a physics material id that is not in `assets-src/physics_materials.json`
+- **THEN** the build's validator rejects it
+
+#### Scenario: Frame is checked by a permanent probe
+- **WHEN** the EditMode tests run
+- **THEN** a committed asymmetric probe mesh, exported through the same path as every asset, imports with its +X, +Y and +Z features at +X, +Y and +Z in Unity (bounds min at the origin, max at the probe's stated size), so a wrong sign in the frame conversion fails the suite
 
 #### Scenario: Collision follows the visual
 - **WHEN** K01's collision primitives are compared with its LOD0 mesh
