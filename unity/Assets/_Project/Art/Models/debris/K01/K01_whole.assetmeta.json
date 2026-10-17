@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "id": "K01",
+  "variant": "K01_whole",
+  "generator": "debris_brick",
+  "params_sha256": "28d94cbed9857038c6a68e29745c09ac72f4dbe8371a2e5a7c148aa4f1330eb5",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -0.125,
+      0.0,
+      -0.06
+    ],
+    "max": [
+      0.125,
+      0.065,
+      0.06
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "K01_whole_LOD0",
+      "tris": 44,
+      "switch_distance_m": 0.0
+    },
+    {
+      "mesh": "K01_whole_LOD1",
+      "tris": 12,
+      "switch_distance_m": 3.0
+    }
+  ],
+  "cull_distance_m": 120.0,
+  "materials": [
+    {
+      "slot": "brick",
+      "visual": "brick_red",
+      "physics": "masonry"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.0325,
+        0.0
+      ],
+      "size": [
+        0.25,
+        0.065,
+        0.12
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [],
+  "snag": []
+}
