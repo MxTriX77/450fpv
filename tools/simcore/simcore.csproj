@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The sim core, compiled from the Unity package's own Runtime sources (never a copy).
+       netstandard2.1 is Unity's API level, so an API Unity lacks fails this build too. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>Fpv450.Sim</AssemblyName>
+    <RootNamespace>Fpv450.Sim</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Runtime/**/*.cs" />
+  </ItemGroup>
+</Project>
