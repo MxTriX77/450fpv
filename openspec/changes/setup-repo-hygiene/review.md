@@ -699,3 +699,16 @@ $ git status --porcelain --untracked-files=all                     # this worktr
 5. **P2 from the first review, still open (cosmetic):** stderr is cp1252 on Windows, so non-ASCII paths print as escapes.
 
 Verdict: CHANGES REQUESTED
+
+## R3 re-check (orchestrator, after PR #40 reworded the trunk)
+
+The re-review's only open item was R3, outside this branch. PR #40 rewrote the 29 synthetic probe tokens in `openspec/changes/setup-reference-tools/review.md` as `*.<ext>` patterns. Re-check on this branch against the updated trunk:
+
+```
+$ python tools/hygiene/precommit.py --tree $(git merge-tree --write-tree origin/unity/main HEAD)
+244 files scanned, 0 findings
+$ python -m pytest tools/hygiene -q
+351 passed in 76.60s
+```
+
+All other re-review results stand. Verdict: APPROVED
