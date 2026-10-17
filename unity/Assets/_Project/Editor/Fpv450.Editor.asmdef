@@ -1,0 +1,21 @@
+{
+    "name": "Fpv450.Editor",
+    "rootNamespace": "Fpv450",
+    "references": [
+        "Fpv450.App",
+        "Fpv450.Input",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.Universal.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
