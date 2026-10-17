@@ -1,0 +1,11 @@
+{
+  "name": "overcast",
+  "sun": false,
+  "sun_elevation_deg": 0.0,
+  "sun_azimuth_deg": 0.0,
+  "sun_intensity": 0.0,
+  "sun_color_linear": [0.0, 0.0, 0.0],
+  "shadows": false,
+  "ambient_linear": [0.99, 0.975, 0.96],
+  "background_srgb": [0.72, 0.73, 0.75]
+}
