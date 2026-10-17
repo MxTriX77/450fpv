@@ -29,6 +29,7 @@ namespace Fpv450
         const float GroundSizeM = 400f;
         const float GroundAlbedo = 0.18f;
         const float BarHeightM = 1.8f, BarPostM = 0.05f, BarBandM = 0.1f, BarGapM = 1f, BarBearingDeg = 112.5f;
+        const float PilotBarGapM = 0.5f;       // the pilot-height view: the bar on the far side of the asset, inside the steep frame (design decision 2)
         const float MinShadowDistanceM = 12f;  // the stage's shadow distance: finer shadow texels than the game's 50 m on a small stage
         const float BoundsMarginM = 0.3f;      // a camera closer than this to the bounds is pushed outside them
         static readonly float[] DistancesM = { 1.5f, 10f, 50f, 200f };
@@ -258,6 +259,13 @@ namespace Fpv450
             public Bounds AssetBounds;  // world
             public Bounds FrameBounds;  // asset plus scale bar, world
             public LODGroup LodGroup;
+            public Vector3 BarBase;     // the bar's place at the off-grid bearing, world
+            GameObject bar;
+
+            public Vector3 BarTop => bar.transform.position + Vector3.up * BarHeightM;
+
+            /// <summary>Moves the scale bar so that its base stands at <paramref name="basePosition"/>.</summary>
+            public void PlaceBar(Vector3 basePosition) => bar.transform.localPosition = basePosition;
 
             public static Stage Build(string prefabPath, ReviewMeta meta)
             {
@@ -276,6 +284,8 @@ namespace Fpv450
                 Vector3 centre = stage.AssetBounds.center;
                 Vector3 barBase = centre + towardsBar * (ExitDistance(stage.AssetBounds, centre, towardsBar) + BarGapM + BarPostM * 0.5f);
                 barBase.y = 0f;
+                stage.bar = new GameObject("ScaleBar");
+                stage.bar.transform.SetParent(stage.Root.transform, false);
                 Material light = Lit(new Color(0.8f, 0.8f, 0.8f), 0.05f), dark = Lit(new Color(0.03f, 0.03f, 0.03f), 0.05f);
                 int bands = Mathf.RoundToInt(BarHeightM / BarBandM);
                 for (int i = 0; i < bands; i++)
@@ -283,11 +293,13 @@ namespace Fpv450
                     GameObject band = GameObject.CreatePrimitive(PrimitiveType.Cube);
                     band.name = $"ScaleBar{i}";
                     Object.DestroyImmediate(band.GetComponent<Collider>());
-                    band.transform.SetParent(stage.Root.transform, false);
-                    band.transform.localPosition = barBase + Vector3.up * (BarBandM * (i + 0.5f));
+                    band.transform.SetParent(stage.bar.transform, false);
+                    band.transform.localPosition = Vector3.up * (BarBandM * (i + 0.5f));
                     band.transform.localScale = new Vector3(BarPostM, BarBandM, BarPostM);
                     band.GetComponent<MeshRenderer>().sharedMaterial = i % 2 == 0 ? light : dark;
                 }
+                stage.BarBase = barBase;
+                stage.PlaceBar(barBase);
                 stage.FrameBounds = stage.AssetBounds;
                 stage.FrameBounds.Encapsulate(new Bounds(barBase + Vector3.up * (BarHeightM * 0.5f), new Vector3(BarPostM, BarHeightM, BarPostM)));
                 return stage;
@@ -332,11 +344,23 @@ namespace Fpv450
                 return rig;
             }
 
-            /// <summary>Renders the camera from <paramref name="position"/> looking at <paramref name="lookAt"/> and reads the pixels back.</summary>
-            public ReviewCanvas Shoot(Vector3 position, Vector3 lookAt)
+            public void Aim(Vector3 position, Vector3 lookAt)
             {
                 Camera.transform.position = position;
                 Camera.transform.LookAt(lookAt, Vector3.up);
+            }
+
+            /// <summary>Whether a world point lies inside the aimed camera's frame, in front of the near plane.</summary>
+            public bool InFrame(Vector3 world)
+            {
+                Vector3 v = Camera.WorldToViewportPoint(world);
+                return v.z > Camera.nearClipPlane && v.x >= 0f && v.x <= 1f && v.y >= 0f && v.y <= 1f;
+            }
+
+            /// <summary>Renders the camera from <paramref name="position"/> looking at <paramref name="lookAt"/> and reads the pixels back.</summary>
+            public ReviewCanvas Shoot(Vector3 position, Vector3 lookAt)
+            {
+                Aim(position, lookAt);
                 var request = new RenderPipeline.StandardRequest { destination = target };
                 if (requestSupported == null)
                 {
@@ -426,6 +450,21 @@ namespace Fpv450
             return new Vector3(exit.x + horizontal.x * PilotHeightM, PilotHeightM, exit.z + horizontal.z * PilotHeightM);
         }
 
+        /// <summary>
+        /// The scale bar's base for the pilot-height view: at 1.5 m the camera looks steeply down at a small asset and the
+        /// side bar leaves the frame, so the bar stands on the far side of the asset, PilotBarGapM past its bounds, where its
+        /// lower bands are what a pilot sees beside the asset (design decision 2). The label says when its top is cut.
+        /// </summary>
+        static Vector3 PilotBar(Bounds bounds)
+        {
+            float az = ShotAzimuthDeg * Mathf.Deg2Rad;
+            var towardsFar = new Vector3(-Mathf.Sin(az), 0f, -Mathf.Cos(az));
+            Vector3 c = bounds.center;
+            Vector3 barBase = c + towardsFar * (ExitDistance(bounds, c, towardsFar) + PilotBarGapM + BarPostM * 0.5f);
+            barBase.y = 0f;
+            return barBase;
+        }
+
         /// <summary>Whether Unity's LOD group draws nothing from this camera: the metadata's cull distance, through lodBias.</summary>
         static bool Culled(LODGroup group, Camera camera)
         {
@@ -486,7 +525,15 @@ namespace Fpv450
                 string view = pilot ? $"{distance:0.#} M PILOT HEIGHT AZ {ShotAzimuthDeg:0}" : $"{distance:0.#} M SLANT {LookDownDeg:0}° DOWN AZ {ShotAzimuthDeg:0}";
                 if (fromBounds)
                     view += $" FROM BOUNDS ({Vector3.Distance(position, asset.center):0.0} M TO CENTRE)";
+                if (pilot)
+                {
+                    stage.PlaceBar(PilotBar(asset));
+                    rig.Aim(position, asset.center);
+                    if (!rig.InFrame(stage.BarTop))
+                        view += "  BAR LOWER BANDS";
+                }
                 tiles.Add(Shot(rig, stage, position, asset.center, title, view, null, null));
+                stage.PlaceBar(stage.BarBase);
             }
             for (int i = 0; i < 8; i++)
             {
