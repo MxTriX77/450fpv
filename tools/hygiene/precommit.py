@@ -1,10 +1,11 @@
 """OPSEC and hygiene scan of the staged files and the commit message (SEC-01, SEC-02, SEC-06).
 
 Run by .githooks/pre-commit (the index, never the working tree) and by .githooks/commit-msg
-(`--commit-msg <file>`). `--tree <rev>` scans every file of a commit or tree, for the check
-that the existing tree is clean. Exit 1 blocks the commit. Findings print the rule id and
-where it hit, never the matched text, so the hook's own output can't leak what it caught.
-A false positive is fixed in the rule, never bypassed.
+(`--commit-msg <file>`, which also enforces the commit format of AGENTS.md, PRC-03).
+`--tree <rev>` scans every file of a commit or tree, for the check that the existing tree is
+clean. Exit 1 blocks the commit. Findings print the rule id and where it hit, never the
+matched text, so the hook's own output can't leak what it caught. A false positive is fixed
+in the rule, never bypassed.
 """
 import argparse
 import base64
@@ -160,6 +161,12 @@ WORD = re.compile(r"[^\W\d_]+")
 
 SCISSORS = re.compile(r"^\S -{24} >8 -{24}\r?$", re.MULTILINE)
 
+# The commit format of AGENTS.md: `type(scope): summary` or `type: summary`, subject only.
+COMMIT_TYPES = ("feat", "fix", "perf", "refactor", "test", "docs", "chore", "art")
+SUBJECT_LIMIT = 72
+SUBJECT = re.compile(r"^(?:" + "|".join(COMMIT_TYPES) + r")(?:\([^\s()]+\))?: (\S.*)$")
+MERGE_SUBJECT = re.compile(r"^Merge (?:branch|pull request) ")
+
 
 # --- path rules: (path) -> bool ---------------------------------------------------------------
 
@@ -240,6 +247,35 @@ def notes_date(line):
 
 def footage_text(line):
     return FOOTAGE_TEXT.search(line) is not None
+
+
+# --- the commit format (the whole message, not a line) ----------------------------------------
+
+def commit_format(text):
+    """(line number, reason) for every way the message breaks the commit format of AGENTS.md.
+
+    The subject is the first line that is neither blank nor a `#` comment: at most 72
+    characters, `type(scope): summary` with a known type, the summary not starting with an
+    upper-case letter, and no non-empty line after it (a body, a trailer, a co-author line).
+    Git's own merge commits (`Merge branch`, `Merge pull request`) are exempt.
+    """
+    lines = [(number, line.rstrip()) for number, line in enumerate(text.split("\n"), 1)]
+    lines = [(number, line) for number, line in lines if line and not line.startswith("#")]
+    if not lines or MERGE_SUBJECT.match(lines[0][1]):
+        return []
+    (number, subject), rest = lines[0], lines[1:]
+    findings = []
+    if len(subject) > SUBJECT_LIMIT:
+        findings.append((number, f"the subject is {len(subject)} characters, the limit is {SUBJECT_LIMIT}"))
+    match = SUBJECT.match(subject)
+    if not match:
+        findings.append((number, "the subject must read type(scope): summary or type: summary, "
+                                 "type one of " + ", ".join(COMMIT_TYPES)))
+    elif match.group(1)[0].isupper():
+        findings.append((number, "the summary must not start with an upper-case letter"))
+    if rest:
+        findings.append((rest[0][0], "nothing may follow the subject: no body, no trailer, no co-author line"))
+    return findings
 
 
 def messenger_hint(text):
@@ -452,7 +488,10 @@ def scan_message(path, rules):
     cut = SCISSORS.search(text)
     if cut:
         text = text[:cut.start()]
-    return [f"  {rule:<19} commit message:{line}" for rule, line in scan_text(None, text, rules)]
+    findings = [f"  {rule:<19} commit message:{line}" for rule, line in scan_text(None, text, rules)]
+    findings += [f"  {'commit-format':<19} commit message:{line} ({reason})"
+                 for line, reason in commit_format(text)]
+    return findings
 
 
 def main(argv=None):

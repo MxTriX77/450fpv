@@ -83,7 +83,7 @@ def write(repo, files):
         target.write_bytes(data.encode("utf-8") if isinstance(data, str) else data)
 
 
-def commit(repo, files, force=False, message="x"):
+def commit(repo, files, force=False, message="test: x"):
     """Write and stage files ({path: str or bytes}), then try to commit through the hooks."""
     write(repo, files)
     added = git(repo, "add", *(["-f"] if force else []), "--", *files)
@@ -423,6 +423,59 @@ def test_existing_tree_is_clean(target):
     assert scan.stdout.strip().endswith(" 0 findings")
 
 
+# --- spec: Commit message format ------------------------------------------------------------
+
+def test_long_subject_is_rejected(repo):
+    subject = "fix(review): " + "a" * 60
+    assert len(subject) == 73
+    result = commit(repo, {"docs/notes.md": "# Notes\n"}, message=subject)
+    print(f"\ngit commit rc={result.returncode}\n{result.stderr.rstrip()}")
+    assert_blocked(result, repo, "commit-format")
+    assert "commit message:1" in result.stderr and "73 characters" in result.stderr
+
+
+@pytest.mark.parametrize("subject", ["Added the thing", "feature(x): thing", "fix(x): Thing"],
+                         ids=["no-type", "unknown-type", "upper-case-summary"])
+def test_wrong_shape_is_rejected(repo, subject):
+    result = commit(repo, {"docs/notes.md": "# Notes\n"}, message=subject)
+    assert_blocked(result, repo, "commit-format")
+    assert "commit message:1" in result.stderr
+
+
+@pytest.mark.parametrize("second", ["Explains why.", "Co-Authored-By: Someone <someone@example.invalid>"],
+                         ids=["body", "co-author-trailer"])
+def test_body_or_trailer_is_rejected(repo, second):
+    result = commit(repo, {"docs/notes.md": "# Notes\n"}, message=f"fix(x): thing\n\n{second}\n")
+    assert_blocked(result, repo, "commit-format")
+    assert "commit message:3" in result.stderr
+
+
+@pytest.mark.parametrize("subject", ["fix(review): keep the bar in frame", "fix(review): " + "a" * 59],
+                         ids=["spec", "72-characters"])
+def test_conforming_subject_passes(repo, subject):
+    assert len(subject) <= 72
+    assert_passes(commit(repo, {"docs/notes.md": "# Notes\n"}, message=subject), repo)
+
+
+@pytest.mark.parametrize("kind", ["branch", "pull-request"])
+def test_git_merge_commit_passes(repo, kind):
+    """A real `git merge` (git runs commit-msg for it too) and GitHub's merge shape, body included."""
+    assert commit(repo, {"a.md": "# A\n"}).returncode == 0
+    if kind == "pull-request":
+        message = "Merge pull request #1 from someone/unity/x/y\n\nfeat(x): add y\n"
+        result = commit(repo, {"b.md": "# B\n"}, message=message)
+        assert result.returncode == 0, result.stderr
+        assert git(repo, "log", "-1", "--format=%s").stdout.startswith("Merge pull request ")
+        return
+    assert git(repo, "switch", "-q", "-c", "feature").returncode == 0
+    assert commit(repo, {"b.md": "# B\n"}).returncode == 0
+    assert git(repo, "switch", "-q", "main").returncode == 0
+    merged = git(repo, "merge", "--no-ff", "--no-edit", "feature")
+    assert merged.returncode == 0, merged.stderr
+    assert git(repo, "log", "-1", "--format=%s").stdout.startswith("Merge branch ")
+    assert len(git(repo, "rev-list", "--parents", "-1", "HEAD").stdout.split()) == 3
+
+
 # --- rules, case by case (no git) -----------------------------------------------------------
 
 @pytest.mark.parametrize("ext", sorted(precommit.FOOTAGE_EXT))
@@ -663,7 +716,32 @@ def test_commit_message_below_the_scissors_line_is_not_scanned(tmp_path):
     assert precommit.scan_message(message, precommit.LINE_RULES) == []
     message.write_text(f"docs: fix\n\n{A}, {B}\n", encoding="utf-8")
     assert precommit.scan_message(message, precommit.LINE_RULES) == [
-        "  coordinates         commit message:3"]
+        "  coordinates         commit message:3",
+        "  commit-format       commit message:3 "
+        "(nothing may follow the subject: no body, no trailer, no co-author line)"]
+
+
+@pytest.mark.parametrize("subject", [
+    "feat: add x", "chore(tools): x", "art(k01): add y", "fix(com.fpv450.sim): x", "perf: 1 khz step",
+    "refactor(a/b): x", "docs(openspec): `review.md` for x", "test: x\n",
+])
+def test_commit_format_accepts_every_type_and_scope_shape(subject):
+    assert precommit.commit_format(subject) == []
+
+
+@pytest.mark.parametrize("subject", [
+    "fix:x", "fix(): x", "fix (x): x", "Fix: x", "fix: ", "fix(x) x", "feature: x", "fix(a b): x",
+    "Merge the thing", "merge: x",
+])
+def test_commit_format_rejects_near_misses(subject):
+    assert [line for line, _ in precommit.commit_format(subject)] == [1]
+
+
+def test_commit_format_ignores_comment_lines_and_the_scissors_diff(tmp_path):
+    message = tmp_path / "COMMIT_EDITMSG"
+    template = "# Please enter the commit message for your changes.\n#\n# On branch main\n"
+    message.write_text(f"fix(x): thing\n\n{template}{SCISSORS}\n+Co-Authored-By: nobody\n", encoding="utf-8")
+    assert precommit.scan_message(message, precommit.LINE_RULES) == []
 
 
 def test_utf16_and_bom_text_is_scanned_and_binary_is_skipped():
