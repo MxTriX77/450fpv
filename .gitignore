@@ -1,0 +1,75 @@
+# --- OPSEC: the pilot's footage never enters git (D-013) ---
+reference/
+**/reference/
+*.mp4
+*.MP4
+*.mov
+*.MOV
+*.mkv
+*.avi
+
+# --- Unity (project lives in unity/) ---
+unity/[Ll]ibrary/
+unity/[Tt]emp/
+unity/[Oo]bj/
+unity/[Bb]uild/
+unity/[Bb]uilds/
+unity/[Ll]ogs/
+unity/[Uu]ser[Ss]ettings/
+unity/[Mm]emoryCaptures/
+unity/[Rr]ecordings/
+unity/*.csproj
+unity/*.sln
+unity/*.slnx
+unity/*.user
+unity/*.pidb
+unity/*.booproj
+unity/*.svd
+unity/*.pdb
+unity/*.mdb
+unity/*.opendb
+unity/*.VC.db
+unity/.vs/
+unity/.idea/
+unity/.vscode/
+unity/sysinfo.txt
+unity/crashlytics-build.properties
+unity/Assets/AssetStoreTools*
+unity/Assets/StreamingAssets/aa*
+
+# --- .NET tools ---
+**/bin/
+**/obj/
+*.suo
+
+# --- Python ---
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# --- Blender ---
+*.blend1
+*.blend2
+
+# --- Generated or local outputs ---
+build/
+builds/
+Logs/
+logs/
+review-sheets/
+screenshots/
+flightlogs/
+*.flightlog
+tools/assets/cache/
+
+# --- OS / editors ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.vs/
+.idea/
+
+# --- Claude local ---
+.claude/worktrees/
+.claude/settings.local.json
