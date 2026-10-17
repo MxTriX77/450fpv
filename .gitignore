@@ -1,6 +1,8 @@
 # --- OPSEC: the pilot's footage never enters git (D-013) ---
 reference/
 **/reference/
+# the reference tools' source (they write only into the ignored reference/_frames/)
+!/tools/reference/
 *.mp4
 *.MP4
 *.mov
