@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "owner": "physics-engineer",
+  "about": "The closed list of physics material ids (AST-05, setup-asset-pipeline design decision 6, physics review R3). Every collision shape's 'material' and every material slot's 'physics' must be an id of 'materials'; lib/meta.validate refuses anything else. New ids are added here with physics sign-off, never invented in a generator. The values are the physics engineer's to tune in phases 3 and 6.",
+  "fields": {
+    "friction_static": "mu_s of the drone's polymer parts on the dry material",
+    "friction_kinetic": "mu_k, same pairing",
+    "stiffness_n_per_m": "contact compliance of the surface; absent means rigid",
+    "damping_ratio": "zeta of that compliance; present with stiffness_n_per_m",
+    "edge_radius_m": "the radius the fiber bends over at an arris; null means the shape's own radius (capsule, cylinder or sphere radius, or a snag's radius_m)",
+    "label": "where the numbers stand: pilot, measured, published, derived or assumed",
+    "rationale": "the source or the calculation, as recorded in the physics review"
+  },
+  "materials": {
+    "steel": {
+      "friction_static": 0.35,
+      "friction_kinetic": 0.28,
+      "edge_radius_m": 0.001,
+      "label": "assumed",
+      "rationale": "carried from surfaces-review §5 (polymer on dry mild steel, rolled or sawn edge)"
+    },
+    "sheet_metal": {
+      "friction_static": 0.30,
+      "friction_kinetic": 0.25,
+      "stiffness_n_per_m": 20000.0,
+      "damping_ratio": 0.03,
+      "edge_radius_m": 0.0003,
+      "label": "assumed",
+      "rationale": "carried: 0.5 mm corrugated sheet over a 1 m purlin span; its half-thickness edge cuts the fiber"
+    },
+    "timber": {
+      "friction_static": 0.45,
+      "friction_kinetic": 0.35,
+      "edge_radius_m": 0.002,
+      "label": "assumed",
+      "rationale": "carried; a batten asset may override with ≈ 1e5 N/m"
+    },
+    "masonry": {
+      "friction_static": 0.65,
+      "friction_kinetic": 0.55,
+      "edge_radius_m": 0.002,
+      "label": "assumed",
+      "rationale": "carried: brick, block, render; a worn arris"
+    },
+    "concrete": {
+      "friction_static": 0.60,
+      "friction_kinetic": 0.50,
+      "edge_radius_m": 0.003,
+      "label": "assumed",
+      "rationale": "plastic feet on cast concrete sit in the published 0.5–0.7 band; a cast arris. Broken edges and rebar are 'edge' snags with their own radius"
+    },
+    "glass": {
+      "friction_static": 0.40,
+      "friction_kinetic": 0.30,
+      "edge_radius_m": 0.0001,
+      "label": "assumed",
+      "rationale": "plastic on glass; a broken pane edge is a blade. Breakability is a later material property (review P3-6)"
+    },
+    "cable": {
+      "friction_static": 0.30,
+      "friction_kinetic": 0.25,
+      "edge_radius_m": null,
+      "label": "assumed",
+      "rationale": "carried; rigid locally, the span compliance T = w·L²/(8·sag) comes from the wire geometry; the edge radius is the wire's own"
+    },
+    "foliage": {
+      "friction_static": 0.50,
+      "friction_kinetic": 0.40,
+      "stiffness_n_per_m": 200.0,
+      "damping_ratio": 0.3,
+      "edge_radius_m": null,
+      "label": "derived",
+      "rationale": "a 20 mm green branch at 1 m, E ≈ 10 GPa (published 8–12 GPa for green wood), I = πd⁴/64 = 7.85e-9 m⁴, k = 3EI/L³ ≈ 236 N/m; ζ assumed for a leafy branch; the edge radius is the branch's own"
+    }
+  }
+}

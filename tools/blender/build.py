@@ -26,8 +26,9 @@ def check_version(version, pin=BLENDER_PIN):
                            "(docs/environment.md; BLENDER_PIN in build.py)")
 
 
-def build_variant(root, catalog_entry, asset_id, variant):
-    """Builds one variant and returns its report line. Raises on any problem."""
+def build_variant(root, catalog_entry, asset_id, variant, material_ids):
+    """Builds one variant and returns its report line. Raises on any problem. `material_ids` is the closed
+    physics-material list (lib.meta.load_physics_materials)."""
     from lib import catalog, export, meta
     params = catalog.load_params(catalog.params_path(root, catalog_entry, variant))
     generator = importlib.import_module(f"generators.{catalog_entry['generator']}")
@@ -41,7 +42,7 @@ def build_variant(root, catalog_entry, asset_id, variant):
     meta_path = os.path.join(out_dir, variant + ".assetmeta.json")
     export.export_fbx(fbx_path)
     data = meta.assemble(asset_id, variant, catalog_entry["generator"], params, built, catalog_entry["materials"])
-    problems = meta.validate(data) or meta.check_against_fbx(data, fbx_path)
+    problems = meta.validate(data, material_ids) or meta.check_against_fbx(data, fbx_path)
     if problems:
         raise RuntimeError(f"{variant}: " + "; ".join(problems))
     meta.write(meta_path, data)
@@ -52,7 +53,7 @@ def build_variant(root, catalog_entry, asset_id, variant):
 
 def main(argv):
     import bpy
-    from lib import catalog
+    from lib import catalog, meta
     parser = argparse.ArgumentParser(prog="build.py", description=__doc__.split("\n\n")[0])
     parser.add_argument("ids", nargs="+", metavar="ID", help="asset ids from assets-src/catalog.json, or 'all'")
     parser.add_argument("--root", default=REPO_ROOT, help=argparse.SUPPRESS)
@@ -60,11 +61,12 @@ def main(argv):
     try:
         check_version(bpy.app.version)
         cat = catalog.load(args.root)
+        material_ids = meta.load_physics_materials(args.root)
         print(f"build.py: Blender {bpy.app.version_string}, root {args.root}")
         for asset_id in catalog.asset_ids(cat, args.ids):
             entry = cat["assets"][asset_id]
             for variant in entry["variants"]:
-                print(build_variant(args.root, entry, asset_id, variant))
+                print(build_variant(args.root, entry, asset_id, variant, material_ids))
     except KeyError as e:
         print(f"ERROR: missing key {e} (params, catalog or FBX)")
         return 1

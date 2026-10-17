@@ -22,7 +22,7 @@ def test_version_pin():
         build.check_version((5, 3, 0))
 
 
-def test_k01_builds_headless_and_reproducibly(blender, repo_root, tmp_path):
+def test_k01_builds_headless_and_reproducibly(blender, repo_root, material_ids, tmp_path):
     shutil.copytree(repo_root / "assets-src", tmp_path / "assets-src")
     command = [blender, "--background", "--factory-startup", "--python", str(repo_root / "tools" / "blender" / "build.py"),
                "--", "K01", "--root", str(tmp_path)]
@@ -34,7 +34,7 @@ def test_k01_builds_headless_and_reproducibly(blender, repo_root, tmp_path):
         digests.append({name: hashlib.sha256(data).hexdigest() for name, data in files.items()})
     assert digests[0] == digests[1], "a rebuild of unchanged params must write identical bytes"
     data = json.loads(files["K01_whole.assetmeta.json"].decode("utf-8"))
-    assert meta.validate(data) == []
+    assert meta.validate(data, material_ids) == []
     assert meta.check_against_fbx(data, str(tmp_path / OUT / "K01_whole.fbx")) == []
     size = [data["bounds"]["max"][a] - data["bounds"]["min"][a] for a in range(3)]
     assert size == pytest.approx([0.250, 0.065, 0.120], abs=0.001)
