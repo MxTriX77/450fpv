@@ -34,6 +34,8 @@ The pinned toolchain for the Unity restart, as installed and checked in phase 0 
 
 **Unity batchmode** can't run while an editor has the project open (`unity/Temp/UnityLockfile`).
 
+**Keep Unity Hub running for batchmode.** The Hub is an MSIX package, so the Personal licence it activated lives in its virtualised AppData, which the editor's own licensing client can't read. The editor gets the licence only through the Hub's licensing-client pipe while the Hub is running; with the Hub closed, batchmode fails with `No valid Unity Editor license found` (exit 198) and leaves a stale `unity/Temp/UnityLockfile` behind (delete it once no Unity process runs). Found in phase 0 (2026-10-18).
+
 **Licence in batchmode:** checked on 2026-10-17 by creating a throwaway project with `-batchmode -nographics -quit -createProject` (exit 0, entitlements resolved). The log warns `Code 10 while verifying Licensing Client signature` for the Hub's MSIX licensing client; it's harmless, and licensing still succeeds.
 
 ## Repository setup (once per clone)
