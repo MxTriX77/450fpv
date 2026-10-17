@@ -1,0 +1,511 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using Fpv450.World;
+using UnityEditor;
+using UnityEngine;
+using Object = UnityEngine.Object;
+
+namespace Fpv450.Assets
+{
+    /// <summary>
+    /// Catalog plus metadata to prefab (setup-asset-pipeline, design decision 8). For every variant of an asset id:
+    /// the URP materials from <c>assets-src/materials/&lt;visual&gt;.json</c>, assigned by the FBX's slot names; the
+    /// prefab under <c>Prefabs/&lt;class&gt;/&lt;variant&gt;.prefab</c> with a LODGroup over the FBX's LOD meshes,
+    /// colliders from the metadata primitives and an <see cref="AssetPhysicsMeta"/> filled from the
+    /// <c>.assetmeta.json</c>. Idempotent: with unchanged inputs a second run changes no file.
+    /// Batchmode: <c>-executeMethod Fpv450.Assets.CatalogImporter.ImportFromCommandLine -asset &lt;ID|all&gt;</c>,
+    /// exit code 1 on any error.
+    /// </summary>
+    public static class CatalogImporter
+    {
+        const string CatalogFile = "assets-src/catalog.json";
+        const string ManifestFile = "tools/assets/manifest.json";
+        const string RecipesFolder = "assets-src/materials";
+        const string ModelsFolder = "Assets/_Project/Art/Models";
+        const string MaterialsFolder = "Assets/_Project/Art/Materials";
+        const string PrefabsFolder = "Assets/_Project/Prefabs";
+
+        // The metadata gives LOD distances; a LODGroup wants screen-relative heights. The conversion assumes the
+        // feed's vertical field of view (design decision 7, derived: 60 degrees, 935 px/rad at 1080 px).
+        const float VerticalFovDeg = 60f;
+
+        public static void ImportFromCommandLine()
+        {
+            try
+            {
+                string[] args = Environment.GetCommandLineArgs();
+                int at = Array.IndexOf(args, "-asset");
+                if (at < 0 || at + 1 >= args.Length)
+                    throw new ArgumentException("usage: -executeMethod Fpv450.Assets.CatalogImporter.ImportFromCommandLine -asset <ID|all>");
+                string id = args[at + 1];
+                AssetDatabase.Refresh();
+                if (id == "all")
+                    foreach (string each in Catalog().Keys.OrderBy(k => k, StringComparer.Ordinal))
+                        Import(each);
+                else
+                    Import(id);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[CatalogImporter] FAILED: {e.Message}\n{e}");
+                EditorApplication.Exit(1);
+            }
+        }
+
+        public static void Import(string id)
+        {
+            Dictionary<string, object> catalog = Catalog();
+            if (!catalog.TryGetValue(id, out object entryValue))
+                throw new ArgumentException($"{id} is not an asset of {CatalogFile}");
+            Dictionary<string, object> entry = Json.Obj(entryValue, $"{CatalogFile} {id}");
+            string assetClass = Json.Str(entry, "class", $"{CatalogFile} {id}");
+            Dictionary<string, object> manifest = Json.Obj(Json.Parse(ReadRepoFile(ManifestFile)), ManifestFile);
+
+            foreach (object variantValue in Json.Arr(entry, "variants", $"{CatalogFile} {id}"))
+            {
+                string variant = variantValue as string ?? throw new FormatException($"{CatalogFile} {id}: variants must be strings");
+                string fbxPath = $"{ModelsFolder}/{assetClass}/{id}/{variant}.fbx";
+                string metaPath = $"{ModelsFolder}/{assetClass}/{id}/{variant}.assetmeta.json";
+                foreach (string path in new[] { fbxPath, metaPath })
+                    if (!File.Exists(FullPath(path)))
+                        throw new FileNotFoundException($"{path} is missing: run the Blender build first");
+
+                EnsureModelImport(fbxPath);
+                var metaJson = Json.Obj(Json.Parse(File.ReadAllText(FullPath(metaPath))), metaPath);
+                var materialBySlot = new Dictionary<string, Material>();
+                foreach (object slotValue in Json.Arr(metaJson, "materials", metaPath))
+                {
+                    var slot = Json.Obj(slotValue, $"{metaPath} materials");
+                    materialBySlot[Json.Str(slot, "slot", metaPath)] = EnsureMaterial(Json.Str(slot, "visual", metaPath), manifest);
+                }
+
+                string prefabPath = $"{PrefabsFolder}/{assetClass}/{variant}.prefab";
+                EnsureFolder($"{PrefabsFolder}/{assetClass}");
+                EnsurePrefab(prefabPath, variant, metaJson, AssetDatabase.LoadAssetAtPath<TextAsset>(metaPath), fbxPath, materialBySlot);
+            }
+            AssetDatabase.SaveAssets();
+        }
+
+        // --- the catalog and the repo ---------------------------------------------------------------------------
+
+        static string RepoRoot => Path.GetFullPath(Path.Combine(Application.dataPath, "..", ".."));
+
+        static string FullPath(string assetPath) => Path.Combine(RepoRoot, "unity", assetPath);
+
+        static string ReadRepoFile(string relative)
+        {
+            string path = Path.Combine(RepoRoot, relative);
+            if (!File.Exists(path))
+                throw new FileNotFoundException($"{relative} is missing");
+            return File.ReadAllText(path);
+        }
+
+        static Dictionary<string, object> Catalog()
+        {
+            var catalog = Json.Obj(Json.Parse(ReadRepoFile(CatalogFile)), CatalogFile);
+            if ((int)Json.Num(catalog, "schema", CatalogFile) != 1)
+                throw new NotSupportedException($"{CatalogFile}: schema {catalog["schema"]}; this importer reads schema 1");
+            return Json.Obj(catalog, "assets", CatalogFile);
+        }
+
+        static void EnsureFolder(string assetFolder)
+        {
+            if (AssetDatabase.IsValidFolder(assetFolder))
+                return;
+            string parent = Path.GetDirectoryName(assetFolder).Replace('\\', '/');
+            EnsureFolder(parent);
+            if (string.IsNullOrEmpty(AssetDatabase.CreateFolder(parent, Path.GetFileName(assetFolder))))
+                throw new IOException($"could not create {assetFolder}");
+        }
+
+        // --- import settings --------------------------------------------------------------------------------------
+
+        static void EnsureModelImport(string fbxPath)
+        {
+            var importer = AssetImporter.GetAtPath(fbxPath) as ModelImporter
+                ?? throw new FileNotFoundException($"{fbxPath} is not in the asset database");
+            if (ArtImportSettings.ApplyModel(importer))
+                importer.SaveAndReimport();
+        }
+
+        static void EnsureTextureImport(string texturePath)
+        {
+            var importer = AssetImporter.GetAtPath(texturePath) as TextureImporter
+                ?? throw new FileNotFoundException($"{texturePath} is not in the asset database: run python tools/assets/fetch.py");
+            if (ArtImportSettings.ApplyTexture(importer, texturePath))
+                importer.SaveAndReimport();
+        }
+
+        // --- materials ------------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// The material of one recipe, created or updated in place. URP/Lit gets the set's diffuse as base map,
+        /// tiled by the set's real-world size (the UVs are in metres, AST-07), its normal map, the tint and a
+        /// constant smoothness. The roughness and AO maps are not wired: URP/Lit reads occlusion from a G channel
+        /// and smoothness from an alpha channel, so they need a packed mask texture derived by script (phase 1).
+        /// </summary>
+        static Material EnsureMaterial(string visual, Dictionary<string, object> manifest)
+        {
+            string recipePath = $"{RecipesFolder}/{visual}.json";
+            var recipe = Json.Obj(Json.Parse(ReadRepoFile(recipePath)), recipePath);
+            if ((int)Json.Num(recipe, "schema", recipePath) != 1)
+                throw new NotSupportedException($"{recipePath}: schema {recipe["schema"]}; this importer reads schema 1");
+            string shaderName = Json.Str(recipe, "shader", recipePath);
+            Shader shader = Shader.Find(shaderName) ?? throw new FormatException($"{recipePath}: no shader named \"{shaderName}\"");
+            Dictionary<string, Texture2D> maps = TextureSet(Json.Str(recipe, "texture_set", recipePath), manifest, recipePath);
+            Vector2 tile = Json.Vec2(recipe, "tile_size_m", recipePath);
+            if (!maps.TryGetValue("diffuse", out Texture2D diffuse))
+                throw new FormatException($"{recipePath}: the texture set has no diffuse map");
+            maps.TryGetValue("normal", out Texture2D normal);
+
+            string materialPath = $"{MaterialsFolder}/{visual}.mat";
+            EnsureFolder(MaterialsFolder);
+            var material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+            bool changed = false;
+            if (material == null)
+            {
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, materialPath);
+            }
+            else if (material.shader != shader)
+            {
+                material.shader = shader;
+                changed = true;
+            }
+            changed |= SetTexture(material, "_BaseMap", diffuse);
+            changed |= SetTextureScale(material, "_BaseMap", new Vector2(1f / tile.x, 1f / tile.y));
+            changed |= SetColor(material, "_BaseColor", Json.Rgba(recipe, "tint", recipePath));
+            changed |= SetTexture(material, "_BumpMap", normal);
+            changed |= SetKeyword(material, "_NORMALMAP", normal != null);
+            changed |= SetFloat(material, "_Smoothness", Json.Num(recipe, "smoothness", recipePath));
+            changed |= SetFloat(material, "_Metallic", 0f);
+            if (changed)
+                EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        /// <summary>The imported textures of a manifest entry, by map name (diffuse, normal, roughness, ao, displacement).</summary>
+        static Dictionary<string, Texture2D> TextureSet(string set, Dictionary<string, object> manifest, string what)
+        {
+            foreach (object entryValue in Json.Arr(manifest, "entries", ManifestFile))
+            {
+                var entry = Json.Obj(entryValue, ManifestFile);
+                if ($"{Json.Str(entry, "source", ManifestFile)}/{Json.Str(entry, "id", ManifestFile)}" != set)
+                    continue;
+                string destination = Json.Str(entry, "destination", ManifestFile);
+                if (!destination.StartsWith("unity/Assets/", StringComparison.Ordinal))
+                    throw new FormatException($"{ManifestFile} {set}: destination {destination} is not under unity/Assets/");
+                string folder = destination.Substring("unity/".Length);
+                var maps = new Dictionary<string, Texture2D>();
+                foreach (object fileValue in Json.Arr(entry, "files", ManifestFile))
+                {
+                    var file = Json.Obj(fileValue, ManifestFile);
+                    string path = $"{folder}/{Json.Str(file, "name", ManifestFile)}";
+                    EnsureTextureImport(path);
+                    maps[Json.Str(file, "map", ManifestFile)] = AssetDatabase.LoadAssetAtPath<Texture2D>(path)
+                        ?? throw new FileNotFoundException($"{path} did not import as a texture");
+                }
+                return maps;
+            }
+            throw new FormatException($"{what}: texture set \"{set}\" is not in {ManifestFile}");
+        }
+
+        static bool SetTexture(Material m, string name, Texture value)
+        {
+            if (m.GetTexture(name) == value)
+                return false;
+            m.SetTexture(name, value);
+            return true;
+        }
+
+        static bool SetTextureScale(Material m, string name, Vector2 value)
+        {
+            if (m.GetTextureScale(name) == value)
+                return false;
+            m.SetTextureScale(name, value);
+            return true;
+        }
+
+        static bool SetColor(Material m, string name, Color value)
+        {
+            if (m.GetColor(name) == value)
+                return false;
+            m.SetColor(name, value);
+            return true;
+        }
+
+        static bool SetFloat(Material m, string name, float value)
+        {
+            if (m.GetFloat(name) == value)
+                return false;
+            m.SetFloat(name, value);
+            return true;
+        }
+
+        static bool SetKeyword(Material m, string keyword, bool on)
+        {
+            if (m.IsKeywordEnabled(keyword) == on)
+                return false;
+            if (on)
+                m.EnableKeyword(keyword);
+            else
+                m.DisableKeyword(keyword);
+            return true;
+        }
+
+        // --- the prefab -------------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Creates or updates the prefab in place (so its file ids stay stable): the metadata component, one child
+        /// per LOD with the FBX mesh and the slot materials, the LODGroup, one child per collision primitive, and
+        /// nothing else.
+        /// </summary>
+        static void EnsurePrefab(string prefabPath, string variant, Dictionary<string, object> metaJson, TextAsset source,
+            string fbxPath, Dictionary<string, Material> materialBySlot)
+        {
+            bool exists = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath) != null;
+            GameObject root = exists ? PrefabUtility.LoadPrefabContents(prefabPath) : new GameObject(variant);
+            try
+            {
+                root.name = variant;
+                AssetPhysicsMeta meta = Ensure<AssetPhysicsMeta>(root);
+                Fill(meta, metaJson, source, prefabPath);
+                var keep = new HashSet<string>();
+                Renderer[] renderers = EnsureLods(root, meta, fbxPath, materialBySlot, keep);
+                EnsureLodGroup(root, meta, renderers);
+                EnsureColliders(root, meta, keep);
+                for (int i = root.transform.childCount - 1; i >= 0; i--)
+                {
+                    GameObject child = root.transform.GetChild(i).gameObject;
+                    if (!keep.Contains(child.name))
+                        Object.DestroyImmediate(child);
+                }
+
+                PrefabUtility.SaveAsPrefabAsset(root, prefabPath, out bool saved);
+                if (!saved)
+                    throw new IOException($"could not save {prefabPath}");
+                Debug.Log($"[CatalogImporter] {variant}: {prefabPath}, {renderers.Length} LODs, {meta.collision.Length} colliders, " +
+                          $"materials {string.Join(", ", materialBySlot.Select(kv => $"{kv.Key} -> {kv.Value.name}"))}, " +
+                          $"LOD heights {string.Join(" / ", root.GetComponent<LODGroup>().GetLODs().Select(l => l.screenRelativeTransitionHeight.ToString("0.0000")))} " +
+                          $"(size {root.GetComponent<LODGroup>().size} m, fov {VerticalFovDeg} deg)");
+            }
+            finally
+            {
+                if (exists)
+                    PrefabUtility.UnloadPrefabContents(root);
+                else
+                    Object.DestroyImmediate(root);
+            }
+        }
+
+        static Renderer[] EnsureLods(GameObject root, AssetPhysicsMeta meta, string fbxPath, Dictionary<string, Material> materialBySlot, HashSet<string> keep)
+        {
+            var imported = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath)
+                ?? throw new FileNotFoundException($"{fbxPath} did not import as a model");
+            MeshFilter[] filters = imported.GetComponentsInChildren<MeshFilter>(true);
+            var renderers = new Renderer[meta.lods.Length];
+            for (int i = 0; i < meta.lods.Length; i++)
+            {
+                string meshName = meta.lods[i].mesh;
+                MeshFilter filter = filters.FirstOrDefault(f => f.sharedMesh != null && f.sharedMesh.name == meshName)
+                    ?? throw new FormatException($"{fbxPath} has no mesh named {meshName}");
+                Material[] slotMaterials = filter.GetComponent<MeshRenderer>().sharedMaterials
+                    .Select(slot => materialBySlot.TryGetValue(slot.name, out Material material)
+                        ? material
+                        : throw new FormatException($"{meshName}: the FBX slot \"{slot.name}\" has no material in the metadata"))
+                    .ToArray();
+
+                GameObject child = Child(root, meshName, keep);
+                child.transform.localPosition = Vector3.zero;
+                child.transform.localRotation = Quaternion.identity;
+                child.transform.localScale = Vector3.one;
+                Ensure<MeshFilter>(child).sharedMesh = filter.sharedMesh;
+                MeshRenderer renderer = Ensure<MeshRenderer>(child);
+                renderer.sharedMaterials = slotMaterials;
+                renderers[i] = renderer;
+            }
+            return renderers;
+        }
+
+        /// <summary>
+        /// Unity draws LOD i while the object's screen-relative height stays above that LOD's transition height
+        /// (scaled by the quality level's lodBias), and culls it below the last one. The height of an object of
+        /// size s at distance d is s / (2 d tan(fov / 2)), so each metadata distance becomes that height, with s
+        /// the longest side of the bounds, which is also what the group's size is set to.
+        /// </summary>
+        static void EnsureLodGroup(GameObject root, AssetPhysicsMeta meta, Renderer[] renderers)
+        {
+            float size = Mathf.Max(meta.bounds.size.x, meta.bounds.size.y, meta.bounds.size.z);
+            var lods = new LOD[renderers.Length];
+            for (int i = 0; i < lods.Length; i++)
+            {
+                float farDistance = i + 1 < lods.Length ? meta.lods[i + 1].switchDistanceM : meta.cullDistanceM;
+                lods[i] = new LOD(RelativeHeight(size, farDistance), new[] { renderers[i] });
+            }
+            LODGroup group = Ensure<LODGroup>(root);
+            group.fadeMode = LODFadeMode.None;
+            group.localReferencePoint = meta.bounds.center;
+            group.size = size;
+            group.SetLODs(lods);
+        }
+
+        static float RelativeHeight(float size, float distance) =>
+            size / (2f * distance * Mathf.Tan(VerticalFovDeg * 0.5f * Mathf.Deg2Rad));
+
+        /// <summary>
+        /// One child per primitive, placed and rotated as the metadata says, with the matching Unity collider. No
+        /// physic material: the material id lives on the metadata component.
+        /// </summary>
+        static void EnsureColliders(GameObject root, AssetPhysicsMeta meta, HashSet<string> keep)
+        {
+            for (int i = 0; i < meta.collision.Length; i++)
+            {
+                AssetPhysicsMeta.CollisionShape shape = meta.collision[i];
+                Type type = shape.kind switch
+                {
+                    AssetPhysicsMeta.ShapeKind.Box => typeof(BoxCollider),
+                    AssetPhysicsMeta.ShapeKind.Sphere => typeof(SphereCollider),
+                    AssetPhysicsMeta.ShapeKind.Capsule => typeof(CapsuleCollider),
+                    _ => throw new NotSupportedException($"{root.name} collision[{i}]: Unity has no {shape.kind} primitive collider; not supported yet"),
+                };
+                GameObject host = Child(root, $"Collision{i}", keep);
+                host.transform.localPosition = shape.center;
+                host.transform.localRotation = shape.rotation;
+                host.transform.localScale = Vector3.one;
+                foreach (Collider stale in host.GetComponents<Collider>())
+                    if (stale.GetType() != type)
+                        Object.DestroyImmediate(stale);
+                var collider = (Collider)host.GetComponent(type);
+                if (collider == null)
+                    collider = (Collider)host.AddComponent(type);
+                switch (collider)
+                {
+                    case BoxCollider box:
+                        box.center = Vector3.zero;
+                        box.size = shape.size;
+                        break;
+                    case SphereCollider sphere:
+                        sphere.center = Vector3.zero;
+                        sphere.radius = shape.radius;
+                        break;
+                    case CapsuleCollider capsule:
+                        capsule.center = Vector3.zero;
+                        capsule.radius = shape.radius;
+                        capsule.height = shape.height;
+                        capsule.direction = 1; // Y; the child's rotation carries the axis
+                        break;
+                }
+            }
+        }
+
+        static GameObject Child(GameObject root, string name, HashSet<string> keep)
+        {
+            keep.Add(name);
+            Transform existing = root.transform.Find(name);
+            if (existing != null)
+                return existing.gameObject;
+            var child = new GameObject(name);
+            child.transform.SetParent(root.transform, false);
+            return child;
+        }
+
+        // Unity's missing-component null is not a C# null, so no ?? here.
+        static T Ensure<T>(GameObject on) where T : Component
+        {
+            T component = on.GetComponent<T>();
+            return component != null ? component : on.AddComponent<T>();
+        }
+
+        // --- the metadata component -------------------------------------------------------------------------------
+
+        static void Fill(AssetPhysicsMeta meta, Dictionary<string, object> json, TextAsset source, string what)
+        {
+            meta.schema = (int)Json.Num(json, "schema", what);
+            if (meta.schema != 1)
+                throw new NotSupportedException($"{what}: schema {meta.schema}; this importer reads schema 1");
+            meta.id = Json.Str(json, "id", what);
+            meta.variant = Json.Str(json, "variant", what);
+            meta.generator = Json.Str(json, "generator", what);
+            meta.paramsSha256 = Json.Str(json, "params_sha256", what);
+            meta.units = Json.Str(json, "units", what);
+            meta.frame = Json.Str(json, "frame", what);
+            if (meta.units != "m" || meta.frame != "unity-lh-yup")
+                throw new NotSupportedException($"{what}: units/frame {meta.units}/{meta.frame}; expected m/unity-lh-yup (D-019)");
+
+            var bounds = Json.Obj(json, "bounds", what);
+            Vector3 min = Json.Vec3(bounds, "min", what), max = Json.Vec3(bounds, "max", what);
+            meta.bounds = new Bounds((min + max) * 0.5f, max - min);
+
+            meta.lods = Items(json, "lods", what, (lod, at) => new AssetPhysicsMeta.LodEntry
+            {
+                mesh = Json.Str(lod, "mesh", at),
+                tris = (int)Json.Num(lod, "tris", at),
+                switchDistanceM = Json.Num(lod, "switch_distance_m", at),
+            });
+            if (meta.lods.Length == 0)
+                throw new FormatException($"{what}: no LODs");
+            meta.cullDistanceM = Json.Num(json, "cull_distance_m", what);
+            meta.materials = Items(json, "materials", what, (slot, at) => new AssetPhysicsMeta.MaterialSlot
+            {
+                slot = Json.Str(slot, "slot", at),
+                visual = Json.Str(slot, "visual", at),
+                physics = Json.Str(slot, "physics", at),
+            });
+            meta.collision = Items(json, "collision", what, (shape, at) =>
+            {
+                var collision = new AssetPhysicsMeta.CollisionShape
+                {
+                    material = Json.Str(shape, "material", at),
+                    landable = Json.Bool(shape, "landable", at),
+                };
+                ReadShape(collision, shape, at);
+                return collision;
+            });
+            meta.gaps = Items(json, "gaps", what, (gap, at) => new AssetPhysicsMeta.Gap
+            {
+                id = Json.Str(gap, "id", at),
+                polygon = Json.Arr(gap, "polygon", at).Select(p => Json.Vec3(p, $"{at} polygon")).ToArray(),
+                normal = Json.Vec3(gap, "normal", at),
+                narrowestM = Json.Num(gap, "narrowest_m", at),
+            });
+            meta.windVolumes = Items(json, "wind_volumes", what, (shape, at) =>
+            {
+                var volume = new AssetPhysicsMeta.WindVolume { porosity = Json.Num(shape, "porosity", at) };
+                ReadShape(volume, shape, at);
+                return volume;
+            });
+            meta.snag = Items(json, "snag", what, (feature, at) => new AssetPhysicsMeta.SnagFeature
+            {
+                kind = Json.Str(feature, "kind", at),
+                points = Json.Arr(feature, "points", at).Select(p => Json.Vec3(p, $"{at} points")).ToArray(),
+                radiusM = Json.Num(feature, "radius_m", at),
+            });
+            meta.sourceJson = source != null ? source : throw new FileNotFoundException($"{what}: the metadata did not import as a TextAsset");
+        }
+
+        static T[] Items<T>(Dictionary<string, object> json, string key, string what, Func<Dictionary<string, object>, string, T> read) =>
+            Json.Arr(json, key, what).Select((item, i) => read(Json.Obj(item, $"{what} {key}[{i}]"), $"{what} {key}[{i}]")).ToArray();
+
+        static void ReadShape(AssetPhysicsMeta.Shape target, Dictionary<string, object> json, string what)
+        {
+            string kind = Json.Str(json, "shape", what);
+            target.kind = kind switch
+            {
+                "box" => AssetPhysicsMeta.ShapeKind.Box,
+                "sphere" => AssetPhysicsMeta.ShapeKind.Sphere,
+                "capsule" => AssetPhysicsMeta.ShapeKind.Capsule,
+                "cylinder" => AssetPhysicsMeta.ShapeKind.Cylinder,
+                _ => throw new FormatException($"{what}: unknown shape \"{kind}\""),
+            };
+            bool box = target.kind == AssetPhysicsMeta.ShapeKind.Box;
+            bool sphere = target.kind == AssetPhysicsMeta.ShapeKind.Sphere;
+            target.center = Json.Vec3(json, "center", what);
+            target.size = box ? Json.Vec3(json, "size", what) : Vector3.zero;
+            target.radius = box ? 0f : Json.Num(json, "radius", what);
+            target.height = box || sphere ? 0f : Json.Num(json, "height", what);
+            target.rotation = sphere ? Quaternion.identity : Json.Quat(json, "rotation", what);
+        }
+    }
+}
