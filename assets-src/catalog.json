@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "assets": {
+    "K01": {
+      "class": "debris",
+      "generator": "debris_brick",
+      "variants": ["K01_whole"],
+      "materials": { "brick": "brick_red" }
+    }
+  }
+}

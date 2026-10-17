@@ -3,6 +3,7 @@
     "rootNamespace": "Fpv450.Tests.EditMode",
     "references": [
         "Fpv450.Input",
+        "Fpv450.World",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

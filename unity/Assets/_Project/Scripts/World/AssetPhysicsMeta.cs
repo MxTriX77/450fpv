@@ -1,0 +1,94 @@
+using System;
+using UnityEngine;
+
+namespace Fpv450.World
+{
+    /// <summary>
+    /// The physics metadata of one asset variant (AST-05): a copy of its <c>.assetmeta.json</c>, schema 1
+    /// (setup-asset-pipeline, design decision 6), in Unity's frame (D-019) and metres, relative to the prefab
+    /// origin. The catalog importer fills it; the sim reads it through an adapter later. Never edited by hand.
+    /// </summary>
+    [DisallowMultipleComponent]
+    public sealed class AssetPhysicsMeta : MonoBehaviour
+    {
+        public enum ShapeKind { Box, Sphere, Capsule, Cylinder }
+
+        [Serializable]
+        public sealed class LodEntry
+        {
+            public string mesh;
+            public int tris;
+            public float switchDistanceM;
+        }
+
+        [Serializable]
+        public sealed class MaterialSlot
+        {
+            public string slot;
+            public string visual;
+            public string physics;
+        }
+
+        /// <summary>A primitive: box (center, size), sphere (center, radius), capsule and cylinder (center, radius, height along the rotated Y axis).</summary>
+        [Serializable]
+        public class Shape
+        {
+            public ShapeKind kind;
+            public Vector3 center;
+            public Vector3 size;
+            public float radius;
+            public float height;
+            public Quaternion rotation = Quaternion.identity;
+        }
+
+        [Serializable]
+        public sealed class CollisionShape : Shape
+        {
+            public string material;
+            public bool landable;
+        }
+
+        [Serializable]
+        public sealed class WindVolume : Shape
+        {
+            [Range(0f, 1f)] public float porosity;
+        }
+
+        /// <summary>A planar polygon of the real clear space, with the narrowest width across it.</summary>
+        [Serializable]
+        public sealed class Gap
+        {
+            public string id;
+            public Vector3[] polygon;
+            public Vector3 normal;
+            public float narrowestM;
+        }
+
+        [Serializable]
+        public sealed class SnagFeature
+        {
+            public string kind;
+            public Vector3[] points;
+            public float radiusM;
+        }
+
+        public int schema;
+        public string id;
+        public string variant;
+        public string generator;
+        public string paramsSha256;
+        public string units;
+        public string frame;
+        public Bounds bounds;
+        public LodEntry[] lods;
+        public float cullDistanceM;
+        public MaterialSlot[] materials;
+        public CollisionShape[] collision;
+        public Gap[] gaps;
+        public WindVolume[] windVolumes;
+        public SnagFeature[] snag;
+
+        /// <summary>The <c>.assetmeta.json</c> this was filled from, for provenance and for readers that want the file.</summary>
+        public TextAsset sourceJson;
+    }
+}
