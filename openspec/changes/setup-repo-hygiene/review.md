@@ -335,3 +335,367 @@ $ python <scratch>/qa/blocklist_audit.py     # raw case-insensitive substring, s
    That change needs a `!tools/reference/` negation, with the hook still blocking the top-level `reference/`.
 
 Verdict: CHANGES REQUESTED
+
+---
+
+# Re-review (task 2.1, after the fixes for R1 and R2)
+
+**Reviewer:** qa-engineer (a fresh agent: not the author of the fixes, not the first reviewer) · **Range:** `f06bd33..d5f07aa` (9 commits: spec revisions `3523223`, `ed70009`, `d5f07aa`; fixes `d4ec7eb..51cdbc9`; 12 files) · **Contract:** the revised `specs/repo-hygiene/spec.md` at `d5f07aa`
+
+Every check below was re-run by this agent; nothing was taken from the author's handoff or the first review. Hand checks ran in throwaway repos under the session scratch folder (`<scratch>/qa/cases/`), with `core.hooksPath` set to this worktree's `.githooks` (absolute) unless a case says otherwise. This agent never opened the real `reference/`. Every planted name, value and term was built at run time from parts and is referred to here by pattern or list index only. The dev machine's `core.hooksPath` is still unset and was not touched.
+
+## Environment
+
+```
+$ python --version; python -m pytest --version; git --version; git lfs version
+Python 3.14.6 / pytest 9.1.1 / git version 2.55.0.windows.3 / git-lfs/3.7.1 (GitHub; windows amd64; go 1.25.1)
+$ Win32_Battery: BatteryStatus=2 (on AC) Charge=75%; PowerLineStatus=Online; scheme Balanced
+  AMD Ryzen 7 7735HS, CurrentClockSpeed 2502 MHz, MaxClockSpeed 3201 MHz
+$ git config --get core.hooksPath        # shared repo config, unchanged
+(empty) rc=1
+$ openspec validate setup-repo-hygiene --strict
+Change 'setup-repo-hygiene' is valid
+```
+
+## Test suite
+
+```
+$ time python -m pytest tools/hygiene -q
+.............................................F.......................... [ 20%]
+........................................................................ [ 41%]
+........................................................................ [ 61%]
+........................................................................ [ 82%]
+...............................................................          [100%]
+FAILED tools/hygiene/tests/test_precommit.py::test_existing_tree_is_clean[origin/unity/main merged with HEAD]
+  AssertionError: 244 files scanned, 13 findings   (all footage-text, openspec/changes/setup-reference-tools/review.md)
+1 failed, 350 passed in 73.36s
+real 1m14.762s
+```
+The one failure is outside the author's diff: the trunk moved during this review (see "Zero findings over the tree"). The timing test, run alone three times afterwards (AC, Balanced, nothing else running):
+```
+$ python -m pytest tools/hygiene -q -s -k 200_files
+200 staged files: scan 0.778, 0.830, 0.774 s; full commit through both hooks 2.124 s
+200 staged files: scan 0.738, 0.721, 0.704 s; full commit through both hooks 1.918 s
+200 staged files: scan 0.754, 0.697, 0.711 s; full commit through both hooks 1.902 s
+```
+The scan figure includes the Python start-up and the walk of a planted 1,000-file `reference/`; the spec's 2 s budget excludes start-up. Within budget.
+
+## Zero findings over the tree
+
+```
+$ python tools/hygiene/precommit.py --tree HEAD
+119 files scanned, 0 findings                                    rc=0
+$ git merge-tree --write-tree origin/unity/main HEAD              # origin/unity/main = 78e1aac when this review began
+1f9b467fa602a4adcfad286d586203c9378c6a64
+$ python tools/hygiene/precommit.py --tree 1f9b467fa602a4adcfad286d586203c9378c6a64
+237 files scanned, 0 findings                                    rc=0
+```
+
+**The trunk moved while the suite ran.** PR #39 (`setup-reference-tools`, trunk now `6f990e5`) landed `openspec/changes/setup-reference-tools/review.md`, and 13 of its lines hold `<name>.<video extension>` tokens:
+```
+$ git reflog show origin/unity/main -2
+6f990e5 refs/remotes/origin/unity/main@{0}: pull -q --ff-only: fast-forward
+78e1aac refs/remotes/origin/unity/main@{1}: pull --ff-only origin unity/main: fast-forward
+$ git merge-tree --write-tree origin/unity/main HEAD              # with 6f990e5
+95e3e4dbf18da59e40994a56a8510a143b773e39
+$ python tools/hygiene/precommit.py --tree 95e3e4dbf18da59e40994a56a8510a143b773e39
+  footage-text        openspec/changes/setup-reference-tools/review.md:5
+  footage-text        openspec/changes/setup-reference-tools/review.md:27
+  footage-text        openspec/changes/setup-reference-tools/review.md:35
+  footage-text        openspec/changes/setup-reference-tools/review.md:85   (and 86, 87, 117, 129, 130, 131, 132, 133, 135)
+244 files scanned, 13 findings                                   rc=1
+$ python tools/hygiene/precommit.py --tree origin/unity/main
+235 files scanned, 21 findings                                   rc=1
+```
+The 21 on the trunk alone are those 13 plus 8 lines this branch already rewords (`spec.md:11,12,20,46`, `tasks.md:5`, `docs/briefs/phase-0-setup.md:64`, `docs/reference-notes/fc-profiles.md:3`, `docs/reference-notes/pilot-requirements.md:24`), so after the merge exactly 13 remain. QA read those 13 lines: every token is the name of a synthetic ffmpeg `testsrc` probe clip (an invented word plus a video extension), or a `git check-ignore` probe path of the same shape. **No real reference name is on the trunk.** For OPSEC they are false positives, but the revised spec blocks every `<name>.<video extension>` token in staged Markdown on purpose (slip 1 of knowledge.md §14.2 was a real name of exactly that shape), so the lines must change, not the rule. If the branch merged as is:
+- `python -m pytest tools/hygiene` is red on `unity/main` at once (`test_existing_tree_is_clean[HEAD]` sees the 13 findings).
+- Once `core.hooksPath` is active, `setup-reference-tools` cannot be archived: `--no-renames` lists a folder move as an add, and the content is scanned. Proved in a throwaway repo, with such a token committed while hooks were off and the folder then moved with hooks on:
+```
+$ python <scratch>/qa/rename_probe.py
+index as the hook lists it: [':000000 100644 0000000 21194c9 A openspec/changes/archive/2026-10-18-x/review.md']
+archive commit rc=1 committed=False token_in_output=False
+  |   footage-text        openspec/changes/archive/2026-10-18-x/review.md:3
+```
+
+## Spec scenarios, hand-run
+
+Script: `<scratch>/qa/rr_scenarios.py` (73 cases, 3 min 50 s). Each case gets a fresh repo (a `.gitignore` for `reference/`, `*.mp4`, `*.mov`), writes and stages the planted files (`-f` where the scenario says force-added) and commits once through both hooks. The script checks the exit code, whether `HEAD` moved, the rule id and `path:line` in stderr, and that every hidden string (the planted name, stem, value or term) is absent from the output. The hook's two boilerplate lines are trimmed from the paste.
+
+```
+$ python <scratch>/qa/rr_scenarios.py spec
+[OK ] S1 force-added test clip (.mp4) at root: expect=block got=block rc=1 committed=False
+      |   footage-ext         *.mp4
+[OK ] S2 .mov under unity/Assets: expect=block got=block rc=1 committed=False
+      |   footage-ext         unity/Assets/_Project/Art/*.mov
+[OK ] S3a camera-style file name (maker prefix + frame no., .txt) in docs: expect=block got=block rc=1 committed=False
+      |   footage-name        docs/*.txt
+[OK ] S3b phone-style file name (phone prefix + date and time, .md) at root: expect=block got=block rc=1 committed=False
+      |   footage-name        *.md
+[OK ] S4 any file under reference/ force-added: expect=block got=block rc=1 committed=False
+      |   reference-path      reference/...
+[OK ] S5a R1: camera-style name built from parts in openspec/.../review.md: expect=block got=block rc=1 committed=False
+      |   footage-text        openspec/changes/x/review.md:3
+[OK ] S5b R1: messenger-export name in openspec/.../review.md: expect=block got=block rc=1 committed=False
+      |   footage-text        openspec/changes/x/review.md:3
+[OK ] S5c R1: <name>.<video ext> token in a doc: expect=block got=block rc=1 committed=False
+      |   footage-text        docs/notes.md:3
+[OK ] S6a R1: fake reference/ with a distinctive media stem, stem in a note: expect=block got=block rc=1 committed=False
+      |   reference-stem      docs/reference-notes/wind.md:3
+[OK ] S6b R1: same stem, different case, in a .cs file: expect=block got=block rc=1 committed=False
+      |   reference-stem      tools/a/notes.cs:1
+[OK ] S7a R1: <name>.<video ext> in the commit message: expect=block got=block rc=1 committed=False
+      |   footage-text        commit message:1
+[OK ] S7b R1: reference stem in the commit message: expect=block got=block rc=1 committed=False
+      |   reference-stem      commit message:1
+[OK ] S8a .gitignore with bare *.mp4 and **/*.MOV patterns: expect=pass got=pass rc=0 committed=True
+[OK ] S8b doc with `*.mp4`, `*.mkv` and 'a .webm file': expect=pass got=pass rc=0 committed=True
+[OK ] S9 .png under docs: expect=block got=block rc=1 committed=False
+      |   media-location      docs/*.png
+[OK ] S10 .png under unity/Assets/_Project/Art: expect=pass got=pass rc=0 committed=True
+[OK ] S11a messenger term #0 upper case in md: expect=block got=block rc=1 committed=False
+      |   messenger           docs/chat.md:3
+[OK ] S11b Cyrillic messenger term #0 title case, inflected, in md: expect=block got=block rc=1 committed=False
+      |   messenger           docs/chat.md:3
+[OK ] S12 7 ordinary words that are also messenger names, bare: expect=pass got=pass rc=0 committed=True
+[OK ] S13a regional decimal pair in docs/: expect=block got=block rc=1 committed=False
+      |   coordinates         docs/place.md:1
+[OK ] S13b regional decimal pair in openspec/ (T7): expect=block got=block rc=1 committed=False
+      |   coordinates         openspec/changes/x/design.md:1
+[OK ] S13c regional decimal pair in a root .md: expect=block got=block rc=1 committed=False
+      |   coordinates         NOTES.md:1
+[OK ] S14 JSON lat key with a number (T2): expect=block got=block rc=1 committed=False
+      |   labelled-coordinate tools/map/points.json:3
+[OK ] S15 physics coefficient pairs outside the box in a design (F2): expect=pass got=pass rc=0 committed=True
+[OK ] S16 the hook's own eight source files staged: expect=pass got=pass rc=0 committed=True
+[OK ] S17 spec's sortie date in an object sheet: expect=block got=block rc=1 committed=False
+      |   notes-date          docs/object-sheets/fence.md:3
+[OK ] S18 spec's 'the pilot flew there on 14 March 2025' (T14): expect=block got=block rc=1 committed=False
+      |   notes-date          docs/reference-notes/a.md:1
+[OK ] S19 spec's '(the pilot, 2026-10-17)': expect=pass got=pass rc=0 committed=True
+[OK ] S22 ordinary .cs, .py, .md commit: expect=pass got=pass rc=0 committed=True
+```
+S6a/S6b/S7b plant a fake `reference/` holding one `.mp4` whose stem is 13 characters with hyphens and a digit (built at run time); the stem was absent from every output. S12 and F3 use the 7 list heads that are stored only in unambiguous forms, in three forms each (bare, title case, plural), and pass. S16 stages the six hooks, the scan and its tests. Both hooks also fire through the relative `core.hooksPath .githooks` that `docs/environment.md` prescribes, with the hooks tracked in the repo:
+```
+$ python <scratch>/qa/relative_hookspath.py
+pre-commit via relative hooksPath: rc=1 committed=False
+  | pre-commit: blocked by the repo hygiene scan (SEC-06). Matched text is not printed.
+  |   media-location      docs/*.png
+commit-msg via relative hooksPath: rc=1 committed=False token_in_output=False
+  | commit-msg: blocked by the repo hygiene scan (SEC-06). Matched text is not printed.
+  |   footage-text        commit message:1
+```
+
+### Git LFS (R2)
+
+Three runs of the `docs/environment.md` set-up (`git lfs install --local`, then `core.hooksPath`), a 16 KiB `*.bin` tracked by LFS, a bare `file://` remote, and `GIT_TRACE=1` on the push:
+```
+$ python <scratch>/qa/rr_scenarios.py lfs
+== R2 LFS [tracked] hooksPath=.githooks                     # the six hooks and the scan committed in the repo
+      lfs install --local: rc=0 / config core.hooksPath: rc=0 / add hooks+attrs: rc=0 / commit hooks: rc=0
+      add data.bin: rc=0 / commit data.bin: rc=0 / remote add: rc=0 / push: rc=0
+      HEAD:data.bin is an LFS pointer: True
+      untracked under .githooks after commit: ''
+      pre-push trace: ['... run_command: .githooks/pre-push origin file:///...', '... run_command: git-lfs pre-push origin file:///...']
+      LFS object on the bare remote: True  (remote.git/lfs/objects/a1/f2/a1f259d4365...)
+      git status after push: ''
+      this worktree's .githooks untracked: ''
+== R2 LFS [worktree] hooksPath=C:/.dev/450fpv/.claude/worktrees/<agent>/.githooks    # this worktree's hooks
+      (same eight steps rc=0)
+      HEAD:data.bin is an LFS pointer: True
+      untracked under .githooks after commit: ''
+      pre-push trace: ['... run_command: C:/.dev/450fpv/.claude/worktrees/<agent>/.githooks/pre-push ...', '... run_command: git-lfs pre-push ...']
+      LFS object on the bare remote: True
+      git status after push: ''
+      this worktree's .githooks untracked: ''
+== R2 LFS [control] hooksPath=.githooks                     # same, with the four shims left out
+      untracked under .githooks after commit: '?? .githooks/post-checkout\n?? .githooks/post-commit\n?? .githooks/post-merge\n?? .githooks/pre-push'
+      LFS object on the bare remote: True   (git-lfs wrote its own shims into the tracked folder, as the first review found)
+      git status after push: '?? .githooks/post-checkout\n?? .githooks/post-commit\n?? .githooks/post-merge\n?? .githooks/pre-push'
+```
+The four shims are byte-identical to what git-lfs 3.7.1 itself prints (`git lfs update --manual`, compared by eye for all four bodies, and by the suite's `test_lfs_shims_match_what_the_installed_git_lfs_writes`).
+
+### Scenario table
+
+| Requirement · Scenario | Result | Evidence |
+|---|---|---|
+| Footage never commits · Planted test clip is blocked | **PASS** | S1: rule id, masked `*.mp4`, no `HEAD`, name absent |
+| · Footage under unity/Assets is still blocked | **PASS** | S2 |
+| · Camera-style file name is blocked | **PASS** | S3a, S3b; suite, 21 name patterns |
+| · Anything under reference is blocked | **PASS** | S4 |
+| No footage names inside text · Camera-style name written in a review is blocked | **PASS** | S5a (camera), S5b (messenger export), T12: `openspec/changes/x/review.md:3`, name absent |
+| · Reference file stem in a note is blocked | **PASS** | S6a (note), S6b (`.cs`, other case), N7 (linked worktree, `reference/` only in the main checkout), N9 (UTF-16), N13 (image stem), N14 (non-media stem with a digit); stem absent from every output |
+| · Footage name in a commit message is blocked | **PASS** | S7a (token), S7b (stem), N6 (upper-case extension on line 3 → `commit message:3`), T19, T20 |
+| · Extension patterns pass | **PASS** | S8a (`.gitignore` itself), S8b |
+| Media only where assets live · Image in docs is blocked | **PASS** | S9 |
+| · Texture in unity/Assets passes | **PASS** | S10 |
+| No OPSEC strings in text · Messenger name is blocked | **PASS** | S11a (Latin, upper), S11b (Cyrillic, title, inflected), N10 (`.yaml`, `.json`) |
+| · Ordinary word that is also a messenger name passes | **PASS** | S12, F3 |
+| · Regional decimal coordinates are blocked | **PASS** | S13a `docs/`, S13b `openspec/`, S13c root `.md` |
+| · Labelled coordinate in JSON is blocked | **PASS** | S14, T2; N8 (`.cs`) |
+| · Physics coefficients pass | **PASS** | S15, F2 |
+| · The hook's own blocklist does not trip the hook | **PASS** | S16; raw audit under Hygiene, 0 hits |
+| No dates in notes · Sortie-like date in an object sheet is blocked | **PASS** | S17 |
+| · Date on a line that merely mentions the pilot is blocked | **PASS** | S18 (the spec's line), T14, T14b |
+| · Attributed decision date is allowed | **PASS** | S19, N5 |
+| Git LFS keeps working · Push uploads LFS objects | **PASS** | `[tracked]` and `[worktree]`: object on the bare remote, trace shows `pre-push` → `git-lfs pre-push` |
+| · No untracked hook files appear | **PASS** | `git status --porcelain --untracked-files=all -- .githooks` empty after commit and after push; the control shows the four `??` files the shims prevent |
+| Clean commits pass quickly · Ordinary code commit passes | **PASS** | S22; N18 |
+| · scan under 2 s for 200 files | **PASS** | 0.70–0.83 s including start-up and a 1,000-file `reference/` |
+| · Existing tree is clean | **FAIL** (since PR #39) | 0 findings on HEAD and on the merge with `78e1aac`; 13 on the merge with the current trunk `6f990e5`, all in `setup-reference-tools/review.md` |
+
+## First review's break table, re-run
+
+Every miss the revised spec now covers, and both false positives:
+```
+$ python <scratch>/qa/rr_scenarios.py break
+[OK ] T2 JSON lat/lng pair in docs: expect=block got=block rc=1 committed=False
+      |   labelled-coordinate docs/a.json:1
+[OK ] T3 hemisphere-prefixed pair in docs: expect=block got=block rc=1 committed=False
+      |   coordinates         docs/a.md:1
+[OK ] T3b hemisphere-prefixed single value in docs: expect=block got=block rc=1 committed=False
+      |   coordinates         docs/a.md:1
+[OK ] T4 decimal-comma pair in docs: expect=block got=block rc=1 committed=False
+      |   coordinates         docs/a.md:1
+[OK ] T4b decimal-comma pair, space separated: expect=block got=block rc=1 committed=False
+      |   coordinates         docs/a.md:1
+[OK ] T6 D-M-S pair with no hemisphere letter in docs: expect=block got=block rc=1 committed=False
+      |   coordinates         docs/a.md:1
+[OK ] T6b D-M-S with ASCII quotes and no letter: expect=block got=block rc=1 committed=False
+      |   coordinates         docs/a.md:1
+[OK ] T7 decimal pair in openspec/ (not docs/): expect=block got=block rc=1 committed=False
+      |   coordinates         openspec/changes/y/proposal.md:1
+[OK ] T11 camera file name written in docs text: expect=block got=block rc=1 committed=False
+      |   footage-text        docs/a.md:1
+[OK ] T12 export file name written in an openspec review: expect=block got=block rc=1 committed=False
+      |   footage-text        openspec/changes/x/review.md:1
+[OK ] T14 sortie date next to the word pilot, in notes: expect=block got=block rc=1 committed=False
+      |   notes-date          docs/reference-notes/a.md:1
+[OK ] T14b attributed date then a second date on the same line: expect=block got=block rc=1 committed=False
+      |   notes-date          docs/reference-notes/a.md:1
+[OK ] T15 slash date in notes: expect=block got=block rc=1 committed=False
+      |   notes-date          docs/reference-notes/a.md:1
+[OK ] T15b Y/M/D date in notes: expect=block got=block rc=1 committed=False
+      |   notes-date          docs/reference-notes/a.md:1
+[OK ] T16 English month-name date in notes: expect=block got=block rc=1 committed=False
+      |   notes-date          docs/reference-notes/a.md:1
+[OK ] T16b Ukrainian month-name date in notes: expect=block got=block rc=1 committed=False
+      |   notes-date          docs/reference-notes/a.md:1
+[OK ] T16c Russian month-name date in notes: expect=block got=block rc=1 committed=False
+      |   notes-date          docs/reference-notes/a.md:1
+[OK ] T16d abbreviated month with ordinal, in an object sheet: expect=block got=block rc=1 committed=False
+      |   notes-date          docs/object-sheets/a.md:1
+[OK ] T17 compact YYYYMMDD date in notes: expect=block got=block rc=1 committed=False
+      |   notes-date          docs/reference-notes/a.md:1
+[OK ] T18 lower-case MGRS in docs: expect=block got=block rc=1 committed=False
+      |   coordinates         docs/a.md:1
+[OK ] T19 regional pair in the commit subject: expect=block got=block rc=1 committed=False
+      |   coordinates         commit message:1
+[OK ] T20 messenger term #1 in the commit subject: expect=block got=block rc=1 committed=False
+      |   messenger           commit message:1
+[OK ] F2 drag coefficient pair (4 decimals, outside the box) in docs: expect=pass got=pass rc=0 committed=True
+[OK ] F3 ordinary-noun list heads (7) in docs, bare: expect=pass got=pass rc=0 committed=True
+```
+All 14 former misses are blocked and both false positives are gone. T5 (three-decimal pairs, N16 below) still passes, as the spec and the first review accept.
+
+## New attempts on the revised rules
+
+```
+$ python <scratch>/qa/rr_scenarios.py new          # one stray placeholder line of the script (an empty commit) removed
+[MISMATCH] N1 reference stem used as a FILE NAME in notes (not in content): expect=block got=pass rc=0 committed=True
+[MISMATCH] N2 file named <name>.<video ext>.md: expect=block got=pass rc=0 committed=True
+[OK ] N3 camera name in a .cs comment (out of footage-text scope by spec): expect=pass got=pass rc=0 committed=True
+[OK ] N4 Windows path with a camera name and .MP4 in a .md: expect=block got=block rc=1 committed=False
+      |   footage-text        docs/a.md:1
+[OK ] N5 spec form '**What the pilot said** (<date>' is allowed: expect=pass got=pass rc=0 committed=True
+[OK ] N6 upper-case <name>.MOV on line 3 of the commit message: expect=block got=block rc=1 committed=False
+      |   footage-text        commit message:3
+[OK ] N7 stem in a .yaml in a linked worktree (reference/ only in the main checkout): expect=block got=block rc=1 committed=False leaked=False
+      |   reference-stem      docs/a.yaml:1
+[OK ] N8 labelled lon value in a .cs: expect=block got=block rc=1 committed=False
+      |   labelled-coordinate unity/Assets/a.cs:1
+[OK ] N9 UTF-16 LE with BOM .txt containing the stem: expect=block got=block rc=1 committed=False
+      |   reference-stem      docs/a.txt:1
+[OK ] N10 messenger term #2 in a .yaml and a .json: expect=block got=block rc=1 committed=False
+      |   messenger           tools/a.yaml:1
+      |   messenger           tools/b.json:1
+[OK ] N11 non-media reference file stem without a digit is NOT a stem (spec): expect=pass got=pass rc=0 committed=True
+[OK ] N12 reference media stem shorter than 8 chars is NOT a stem (spec): expect=pass got=pass rc=0 committed=True
+[OK ] N13 image stem (jpg) in reference/, cited in a .txt: expect=block got=block rc=1 committed=False
+      |   reference-stem      docs/a.txt:1
+[OK ] N14 non-media reference file WITH a digit, cited in a .md: expect=block got=block rc=1 committed=False
+      |   reference-stem      docs/a.md:1
+[OK ] N15 regional pair in a .cs (out of coordinates scope by spec): expect=pass got=pass rc=0 committed=True
+[OK ] N16 three-decimal pair in docs (below the 4-place floor, by design): expect=pass got=pass rc=0 committed=True
+[OK ] N17 a 45° bank and 0° uptilt in notes, no date: expect=pass got=pass rc=0 committed=True
+== 71/73 as expected
+```
+N1 and N2 are outside the spec's text (it says "contain", so content), and go to the suggestions. N3 and N15 pass by the spec's scopes, as intended. In all 73 cases no hidden string appeared in the hook's output.
+
+## Design conformance of the new pieces
+
+- **`commit-msg` hook:** three lines, `exec python …/precommit.py --commit-msg "$1"`, exit code passed through. The scissors line of `commit -v` is honoured (suite). Fires with both the absolute and the relative `core.hooksPath` (N18 above).
+- **git-lfs shims:** the standard four, LF, 100755, byte-identical to git-lfs 3.7.1's own text.
+- **`reference-stem`:** `reference_stems()` walks `<worktree>/reference` and `<main checkout>/reference` (via `--git-common-dir`); N7 proves the worktree case the spec was settled on. The stems live only in `ReferenceStems.by_run` and the compiled pattern; no code path prints them, and every stem case checked the output. Stems are indexed by their longest letter-digit run, so the per-file cost follows the text, not the folder (suite, 20,000 stems under 0.2 s).
+- **Prefilters (`4ed9c42`):** read against their rules. `date_hint` (a year, a two-digit dotted date or a month word) covers every `DATE` alternative; `COORDINATES_HINT` (a 4-decimal number, `°`, or an MGRS zone and band) covers every coordinate form; `messenger_hint` uses the first word of every term. The suite asserts the date hint for every caught date.
+- **Messages:** path rules print the folder and `*.ext` or `reference/...`; text rules print `path:line`; the commit message prints `commit message:N`. Matched text never.
+
+## Hygiene
+
+```
+$ git log --format='%h | %an <%ae> | %cn <%ce> | %s | body_len=%b' f06bd33..HEAD    (body_chars=0 for all nine)
+d5f07aa | Orchestrator <orchestrator@450fpv.local> | docs(openspec): settle the two repo-hygiene spec readings
+51cdbc9 | QA Engineer <qa@450fpv.local>            | docs(openspec): tick setup-repo-hygiene task 1.2
+4ed9c42 | QA Engineer <qa@450fpv.local>            | perf(hygiene): prefilter the date rule with a year and month-word hint
+9e562c1 | QA Engineer <qa@450fpv.local>            | test(hygiene): cover the revised repo-hygiene spec
+a093b90 | QA Engineer <qa@450fpv.local>            | feat(hygiene): carry the git-lfs hook shims in .githooks
+6fe7979 | QA Engineer <qa@450fpv.local>            | feat(hygiene): add a commit-msg hook that scans the message
+d4ec7eb | QA Engineer <qa@450fpv.local>            | feat(hygiene): widen the scan per the revised repo-hygiene spec
+ed70009 | Orchestrator <orchestrator@450fpv.local> | docs: reword two lines the stricter scan would block
+3523223 | Orchestrator <orchestrator@450fpv.local> | docs(openspec): revise repo-hygiene spec after review
+$ git log --format='%h [%(trailers:only)]' f06bd33..HEAD      all empty
+$ git log --format='%s' f06bd33..HEAD | awk '{print length($0)}'
+57 48 70 50 56 59 63 52 53
+$ git log --name-status f06bd33..HEAD      each commit touches only its own files (hooks, scan, tests, spec, docs)
+$ git diff --name-only f06bd33..HEAD | grep -E '^(reference/|unity/(Library|Temp|Logs|UserSettings)/)'
+(no output) rc=1
+$ git ls-files -s --eol .githooks tools/hygiene
+100755 i/lf w/lf attr/text eol=lf   .githooks/commit-msg, post-checkout, post-commit, post-merge, pre-commit, pre-push
+100644 i/lf w/lf attr/text eol=lf   tools/hygiene/precommit.py, tools/hygiene/tests/test_precommit.py
+$ PowerShell byte scan of the six hooks: CR=0 in each, each starts with #!/bin/sh
+$ python <scratch>/qa/blocklist_audit.py HEAD f06bd33..HEAD       # raw case-insensitive substring, no word boundaries
+35 terms decoded (23 Latin, 12 Cyrillic); empty: 0
+tree HEAD: 119 entries, 119 text candidates, raw hits in 0 files
+commit messages f06bd33..HEAD: 0 raw hits
+$ python <scratch>/qa/blocklist_audit.py 95e3e4d f06bd33..HEAD     # the merge with the current trunk
+tree 95e3e4dbf18d: 244 entries, 244 text candidates, raw hits in 0 files
+$ git status --porcelain --untracked-files=all                     # this worktree, after every run above
+(empty)
+```
+- Commits: subject-only, `type(scope): summary`, lower case, at most 70 characters, no trailers, no co-author. Identities match `docs/team.md` (QA Engineer for the code and tests, Orchestrator for the spec and docs).
+- OPSEC in the diff: the tests compute their regional point and build every name from parts; the only literal dates are the spec's own examples; the messenger list stays encoded and no decoded term appears anywhere in the tree or the messages.
+- Licences: still the standard library and pytest only.
+
+## Requirements
+
+- **SEC-06: met** on this branch. Media outside the asset roots, footage extensions and names, messenger names, coordinates (all listed forms, in `docs/`, `openspec/`, root Markdown and commit messages) and dates in notes (all listed forms), plus footage names and reference stems inside text and commit messages.
+- **SEC-01: met.** Files under `reference/` and footage files cannot commit; reference stems and footage-like names cannot be written into staged text or a commit message. R1 is fixed.
+- **SEC-02: met** as a backstop, with the attribution anchor the spec settled on.
+- **Git LFS keeps working: met.** R2 is fixed.
+- **PRC-10: met** by this review.
+- **"Clean commits pass quickly", clause "zero findings over the files already on `unity/main`": not met against the trunk as it stands today** (13 findings after PR #39). This is the one open item.
+
+## Required change
+
+**R3. Reword the 13 flagged lines of `openspec/changes/setup-reference-tools/review.md` (on `unity/main` since PR #39, `23ee053`)** so that no `<name>.<video extension>` token remains: write the synthetic probe clip as "the probe clip (`.mp4`)" and the `check-ignore` probe paths as patterns (`*.mp4`, `*.MOV`, `reference/…`), the way `ed70009` reworded `docs/briefs/phase-0-setup.md`. The rule stays as it is.
+- **Where:** the orchestrator's bookkeeping commit on `unity/main` (docs, as `workflow.md` allows), which leaves this branch untouched; or merge `origin/unity/main` into this branch and reword there.
+- **Then:** `python tools/hygiene/precommit.py --tree $(git merge-tree --write-tree origin/unity/main HEAD)` prints `0 findings`, and `python -m pytest tools/hygiene -q` is green. That re-check is small; every other result of this re-review stands.
+
+## Suggestions (non-blocking)
+
+1. **N1:** a reference stem used as a *file name* (`docs/reference-notes/<stem>.md`) commits, because the stem rule scans content only. A path check against the same in-memory stems, with the masked output the path rules already use, would close it. Needs one spec line.
+2. **N2:** a staged file named `<name>.<video ext>.md` passes the path rules (only the last extension counts), while the same token in content is blocked. Low.
+3. **`docs/environment.md` on the trunk** (line 47) names only `.githooks/pre-commit`. After the merge it should also name the `commit-msg` hook and say that git-lfs's hooks live in `.githooks/` (the order it already gives, `git lfs install --local` before `core.hooksPath`, is the right one).
+4. **A1 from the first review stands:** `core.hooksPath` is unset on the dev machine. With the relative `.githooks` value, a worktree whose branch predates this change has no hooks at all: no scan, and no LFS upload on push (the first review's `[nohook]` probe). Branches open today should merge `unity/main` once this lands.
+5. **P2 from the first review, still open (cosmetic):** stderr is cp1252 on Windows, so non-ASCII paths print as escapes.
+
+Verdict: CHANGES REQUESTED
