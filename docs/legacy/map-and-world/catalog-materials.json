@@ -1,0 +1,30 @@
+{
+  "materials": {
+    "steel": {
+      "friction_static": 0.35,
+      "friction_kinetic": 0.28,
+      "edge_radius_m": 0.001
+    },
+    "sheet_metal": {
+      "friction_static": 0.3,
+      "friction_kinetic": 0.25,
+      "stiffness_n_per_m": 20000.0,
+      "damping_ratio": 0.03,
+      "edge_radius_m": 0.0003
+    },
+    "timber": {
+      "friction_static": 0.45,
+      "friction_kinetic": 0.35,
+      "edge_radius_m": 0.002
+    },
+    "masonry": {
+      "friction_static": 0.65,
+      "friction_kinetic": 0.55,
+      "edge_radius_m": 0.002
+    },
+    "cable": {
+      "friction_static": 0.3,
+      "friction_kinetic": 0.25
+    }
+  }
+}
