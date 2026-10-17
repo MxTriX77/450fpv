@@ -34,6 +34,8 @@ The pinned toolchain for the Unity restart, as installed and checked in phase 0 
 
 **Unity batchmode** can't run while an editor has the project open (`unity/Temp/UnityLockfile`).
 
+**Licence in batchmode:** checked on 2026-10-17 by creating a throwaway project with `-batchmode -nographics -quit -createProject` (exit 0, entitlements resolved). The log warns `Code 10 while verifying Licensing Client signature` for the Hub's MSIX licensing client; it's harmless, and licensing still succeeds.
+
 ## Repository setup (once per clone)
 ```powershell
 git lfs install --local
