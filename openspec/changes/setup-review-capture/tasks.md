@@ -7,4 +7,4 @@
 
 ## 2. Review
 
-- [ ] 2.1 [qa-engineer] review against spec scenarios (re-review after 1.2)
+- [x] 2.1 [qa-engineer] review against spec scenarios (re-review after 1.2)
