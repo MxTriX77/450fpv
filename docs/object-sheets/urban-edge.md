@@ -55,7 +55,7 @@ The REAL-03 side-by-side sheets for I and K are made in `reference/_compare/` on
 - **Rubble is coloured from the building's own materials** (knowledge.md §14.4): buff brick with white dabs, grey slab concrete, white plaster, white PVC, brown furniture board, grey-brown timber. Never near-white overall.
 
 ### Physics ids
-The closed list in [physics_materials.json](../../assets-src/physics_materials.json): `steel`, `sheet_metal`, `timber`, `masonry`, `concrete`, `glass`, `cable`, `foliage`. Ids written `proposed:<id>` need physics sign-off (Open points at the end); four of them were already proposed by the houses and vehicles sheets.
+The 17 ids of [physics_materials.json](../../assets-src/physics_materials.json), as the physics sign-off settled them (`review-materials.md` of the archived change `p1-pipeline-hardening`): `steel`, `sheet_metal`, `timber`, `masonry`, `concrete`, `glass`, `cable`, `foliage`, `bark`, `twig`, `deadwood`, `asbestos_cement`, `straw`, `fabric`, `rubber`, `plastic`, `mesh`. A shape that stands in for ground, such as the rubble mound's walkable top faces, takes `surface:<id>`, one of the thirteen surface ids of the earthworks sheet. Ids written `proposed:<id>` are not in the table and need that sign-off (Open points at the end).
 
 ### The drone against an opening
 The houses-and-yard sheet's arithmetic, used unchanged: prop tip to prop tip **0.574 m nose-first, 0.706 m on the diagonal**; footprint at yaw θ `w(θ) = 0.254 + 0.32·(|cos θ| + |sin θ|)` m; an opening of clear width W passes nose-first when W > 0.574, at **any yaw** when W ≥ 0.706, and in between only up to `θmax = asin((W − 0.254) / 0.4525) − 45°`. Vertical envelope with legs about 0.55 m (assumed until phase 5). Every gap below is the **real clear space** after frames, jags, bars and hanging items, recorded as a polygon by the generator.
@@ -296,7 +296,7 @@ The block is built from a **section list**: each section is one stair cell with 
 - **I's flat roof line:** from the I viewpoint a 25° hip would show its ridge 1–2° above the eaves line (derived: eaves 16.5 m and ridge 19.5 m at 70–76 m), and none shows. The default explains it with the roof burnt down over the burnt sections; `roof_type` flat_attic is the alternative. Settled at the I side-by-side.
 - **The white dabs** on K's brick are interpreted as insulation adhesive; if the side-by-side reads them as something else (tile adhesive, render keys), only the facade map changes.
 - **Storey count from K:** five floors of open rooms read above the plinth, matching the type; no attic storey.
-- The ceiling effect in a 2.72 m room (the drone hovering under a slab) is the physics engineer's call, not a sheet number.
+- The ceiling effect in a 2.72 m room (the drone hovering under a slab): settled by the physics sign-off (review-materials.md §5): it is measurable within about 0.25 m of the slab (2 rotor radii), so the rooms are flyable and hugging the slab is not; PHY-08 covers it.
 
 ## U02 Rubble mound of the block
 
@@ -338,7 +338,7 @@ The block is built from a **section list**: each section is one stair cell with 
 
 ### Physics role
 - **Collision:** the core as a set of boxes and wedges following the visual within ±5 cm (±2 cm on faces the drone can land on); each large piece (≥ 0.3 m) its own box or capsule; small pieces via the debris kit's own collision; voids are open cavities in the core, never filled.
-- **Material ids:** core and brick pieces `masonry` (the walkable top faces may carry `surface:rubble`, the earthworks filler convention; the physics engineer decides); concrete pieces `concrete`; bars `steel`; timber and furniture board `timber`; PVC and plastic `plastic`; textiles and mattresses `fabric`; cables `cable`.
+- **Material ids:** core and brick pieces `masonry`, the walkable top faces `surface:rubble` (accepted by the physics sign-off, review-materials.md §1); concrete pieces `concrete`; bars `steel`; timber and furniture board `timber`; PVC and plastic `plastic`; textiles and mattresses `fabric`; cables `cable`.
 - **Gaps:** none to fly through; the voids are **pitfalls**: a leg drops 0.2–0.8 m into a 0.3–1.0 m cavity without warning (terrain.md B5).
 - **Wind volumes:** solid (0); its roughness shelters the ground in front from the wake's downwash only locally.
 - **Snag hazards:** jutting timbers 0.5–2 m (the S10 cover: 0.3 /m²), bars on concrete pieces (K06), cables and textiles, PVC frames.
@@ -366,7 +366,7 @@ The block is built from a **section list**: each section is one stair cell with 
 | `seed` | int | — | — | Every random choice above |
 
 ### Open points
-- Whether the mound's top faces use `surface:rubble` from the surface table or plain `masonry` on asset shapes is the physics engineer's call (the earthworks sheet leaves the same question for fillers).
+- The mound's top faces: settled by the physics sign-off (review-materials.md §1): `surface:rubble`.
 
 ## U02b Collapsed timber roof pile (the roof of a house or wing fallen as one heap)
 
@@ -450,7 +450,7 @@ How a roof comes down as one heap, in order (the houses sheet's failure order, w
   - **cover remnants:** thin boxes over the wave envelope (slate, K02; sheet, K04), tile clusters as thin boxes in rows (H01);
   - **contents** (K08) and **cables** (K10) with the kit's own shapes;
   - **budget (derived):** 20 rafters × 1–3 segments plus 20–60 batten pieces, the plates, ridge, collar ties and exposed joists give 60–150 capsules and 20–60 boxes, below a tree's 150–300 capsules (vegetation sheet).
-- **Material ids:** frame, boards, ceiling joists: `timber`; core, wall end, tile remnants: `masonry` (whether the core's top faces carry `surface:rubble` is the physics engineer's call, as U02); slate: `asbestos_cement`; sheet remnants and fragments: `sheet_metal`; lintel pieces: `concrete` with `steel` bars; cables: `cable`; contents per K08 (`timber`, `steel`, `fabric`, `plastic`). The ceiling fill is part of the core boxes (`masonry` until `soil` exists, the houses and earthworks proposal).
+- **Material ids:** frame, boards, ceiling joists: `timber`; core, wall end, tile remnants: `masonry`, the core's walkable top faces `surface:rubble`, as U02; slate: `asbestos_cement`; sheet remnants and fragments: `sheet_metal`; lintel pieces: `concrete` with `steel` bars; cables: `cable`; contents per K08 (`timber`, `steel`, `fabric`, `plastic`). The ceiling fill is part of the core boxes, `proposed:soil` (an open point below).
 - **Gaps** (each written as the real clear polygon; the drone as in "The drone against an opening"):
 
   | Opening | Narrowest clear width | Passes? |
@@ -527,7 +527,7 @@ How a roof comes down as one heap, in order (the houses sheet's failure order, w
 - **Size from I depends on the assumed lens and horizon** (±15 %). Settled at the I side-by-side: the pile's silhouette against the block and its height against the two-storey house are the check. Not a pilot question.
 - **The cover:** I shows almost none on the pile, and the grey-green pieces are not resolved (slate or painted sheet). The default H03 slate with `cover_keep` 0.05 matches the look; settled at the side-by-side.
 - **Capsules for the frame against K03's boxes for loose sawn pieces:** the frame uses capsules (this row's choice, within AST-05's tolerance). The physics engineer confirms that a leg on a capsule rafter, which slides off where a flat face would hold, is acceptable for a heap that is not landable anyway.
-- **Ids:** `asbestos_cement`, `fabric`, `plastic`, `proposed:soil`, and `surface:rubble` on the core's top faces, all already proposed (the buildability review's list).
+- **Ids:** `asbestos_cement`, `fabric`, `plastic` and `surface:rubble` on the core's top faces are settled by the physics sign-off (review-materials.md). The ceiling fill stays `proposed:soil`: for the physics engineer, at U02b's asset change.
 - **Static in phase 1:** members that would roll or shift under a leg are static catalog geometry, as K03. Runtime objects come later (the physics engineer and the world-builder).
 - **How often a destroyed plot shows a pile:** the world-builder's layout call (assumed one in three to five).
 
@@ -712,7 +712,7 @@ How a roof comes down as one heap, in order (the houses sheet's failure order, w
 - **Gaps:** end gates 3 × 3 m: any yaw; side doors 1.2 m: any yaw; windows with their small-pane frames: **no** (panes about 0.4 m); frames gone 1.2 × 1.0 m: any yaw; roof bays between purlins with sheets gone, 0.85–1.4 m clear: any yaw; collapsed bays: open. Inside: a hall 18 m wide and 3–6 m high, the longest indoor flight on the map, crossed by stall pipes at 1.0–1.3 m.
 - **Wind volumes:** walls 0 with the window band about 0.13 (derived: two 1.2 × 1.0 m windows in a 6 × 3 m bay); the stripped roof 0.6–0.9; open gates make the hall a channel along its length.
 - **Snag hazards:** hanging sheets and sheet edges, purlin ends, stall pipes and chains, cables, plank gates.
-- **Landable surfaces:** the concrete floor (clear between stalls); roof sheets: **no** (they crack: `asbestos_cement` breakability, open point); fallen beams' tops: hard, narrow.
+- **Landable surfaces:** the concrete floor (clear between stalls); roof sheets: yes where whole (the physics sign-off, review-materials.md §3: a landing loads a sound sheet to about 0.4 MPa against a rupture of 16 MPa or more; and the 20° pitch is under atan 0.60 = 31° for `asbestos_cement`, derived), no where holed or broken; fallen beams' tops: hard, narrow.
 - **Channels:** the manure channels 0.3–0.6 m wide are leg traps (a pitfall 0.2–0.4 m deep).
 
 ### Placement rules
@@ -899,7 +899,7 @@ How a roof comes down as one heap, in order (the houses sheet's failure order, w
 
 ### Physics role
 - **Collision:** poles cylinders, frames and crossarms boxes, transformer and board boxes, cooling tubes as one box, insulators and bushings capsules, conductors and cables per the L rows, grating a thin box.
-- **Material ids:** poles `concrete`; frames, tank, cabinet `steel` (cabinet skin and louvres `sheet_metal`); conductors and cables `cable`; insulators `masonry` for porcelain and `glass` for glass, as the pole rows L01 and L02 do, until a ceramic id exists.
+- **Material ids:** poles `concrete`; frames, tank, cabinet `steel` (cabinet skin and louvres `sheet_metal`); conductors and cables `cable`; insulators `glass`, porcelain or glass, as the pole rows L01 and L02 (the physics sign-off maps porcelain to `glass`).
 - **Gaps:** between the two poles under the platform (1.6 × 3.5 m): any yaw; between phase conductors no gap polygon is written (the L01 rule: the wire contacts bound that space), though their 0.7 m spacing admits the drone nose-first within ±35°, 63 mm a side, and every contact is a wire strike (PR-6); kiosk doors open 0.8–1.0 m: any yaw.
 - **Wind volumes:** poles and tank solid; the grating 0.6–0.8.
 - **Snag hazards:** every conductor and cable (the main hazard), crossarms, fuse holders, the grating rail, a snapped pole's bars.
@@ -923,7 +923,7 @@ How a roof comes down as one heap, in order (the houses sheet's failure order, w
 | `seed` | int | — | — | Random choices |
 
 ### Open points
-- Porcelain insulators share `masonry` with L01 and L02; if physics wants a separate brittle ceramic, it is one more id (whole-sheet open points).
+- Porcelain's id: settled by the physics sign-off (review-materials.md §2): `glass`, as L01 and L02.
 
 ## P06 Village name sign (invented name), road signs
 
@@ -989,12 +989,13 @@ How a roof comes down as one heap, in order (the houses sheet's failure order, w
 
 ## Open points for the whole sheet
 
-**Proposed physics material ids** (none invented in a generator; the physics engineer adds them to `physics_materials.json` with values; the first three were already proposed by the houses and vehicles sheets):
-- `fabric`: curtains, sheets, carpets, mattresses and sofas in U01 and the mound; soft, wraps, no bounce; a hanging curtain is a soft snag (K10).
-- `plastic`: white PVC window frames and profiles, appliance housings, packaging, plastic sheet (U01, U02, P01). The houses sheet's `plastic_film` covers thin sheet if physics keeps them apart.
-- `asbestos_cement`: the cowshed roof (P02) and the slate option of U01; brittle, breaks under a leg (P02's roof is therefore not landable).
-- **EPS foam** (insulation remnants on U01 and white chunks in the mound): very light and crushable; `plastic` unless physics wants a separate `foam`.
-- Insulators (P05) use `masonry` for porcelain and `glass` for glass, as L01 and L02; a `ceramic` id only if physics wants porcelain apart.
+**Physics material ids: settled** by the physics sign-off (review-materials.md §1, §2, §6; none is invented in a generator):
+- `fabric`: curtains, sheets, carpets, mattresses and sofas in U01 and the mound; soft, wraps, no bounce; a hanging curtain is a soft snag (K10). Thin plastic film maps to it too.
+- `plastic`: white PVC window frames and profiles, appliance housings, packaging, plastic sheet (U01, U02, P01).
+- `asbestos_cement`: the cowshed roof (P02) and the slate option of U01; rigid under a leg (about 0.4 MPa against a rupture of 16 MPa or more), so P02's whole sheets are landable; breakage is a crash case for a later plate model (P3-6).
+- **EPS foam** (insulation remnants on U01 and white chunks in the mound): `plastic`; the sign-off records the deviation (EPS yields under a foot, a remnant resists as a rigid shell).
+- Insulators (P05): `glass`, porcelain or glass, as L01 and L02.
+- U02's walkable top faces: `surface:rubble`. U02b's ceiling fill stays `proposed:soil` (U02b's open points).
 
 **For the orchestrator:**
 - **Asset-list §7, U01 eaves (resolved):** the asset list now reads 16–19 m to the eaves.

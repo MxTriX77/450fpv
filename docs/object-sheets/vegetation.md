@@ -35,7 +35,7 @@ The side-by-side sheets for these views (REAL-03) are made in `reference/_compar
 ### Geometry (REAL-05, AST-05)
 
 - **Branches thicker than 10 mm are geometry**, with real thickness, tapering and the real fork angles; the drone touches them and the fiber bends over them. Every such segment gets a collision capsule. Tolerance: the capsule follows the visual within 10 mm of radius.
-- **Twigs 3–10 mm and leaves are cards** (leaf and twig atlases) inside the crown; they have no capsules. Their physics is the crown volume: a porous wind volume plus a compliant contact shell (`foliage` material or the proposed `twig` id, below). A card must never be the only thing that stops the drone.
+- **Twigs 3–10 mm and leaves are cards** (leaf and twig atlases) inside the crown; they have no capsules. Their physics is the crown volume: a porous wind volume plus a compliant contact shell (`foliage` or `twig`, below). A card must never be the only thing that stops the drone.
 - **Collision follows the visual** at the trunk and the limbs; the crown shell's outer surface follows the card envelope within 0.1 m. Every opening between limbs wider than 0.574 m is a real gap the sim knows.
 - **How the generator writes a gap between two members** (asset-artist rule, the pipeline's gap convention): for two neighbouring members leaving one fork (two limbs ≥ 30 mm, a hanging limb and its trunk, the halves of a split trunk, two stems of a clump), the polygon lies in the plane through the fork point and the two member axes, bounded by the two member surfaces and closed by the chord where the crown shell or the next child fork begins; `narrowest_m` is the diameter of its largest inscribed circle. A branch bridging a pit (V19) or a log over the ground (V21) uses the vertical plane through its axis, bounded by the member's underside and the ground. Only polygons with `narrowest_m` ≥ 0.5 m are written.
 - **Snag records** (the pipeline's two kinds): every segment under 30 mm is an `edge` along its axis with the capsule's radius; every free tip (a twig end, a splinter, a broken stub) is a `hook` from its base to its tip. The "whole crown shell" as a snag is not a record: it is the `twig` material's hook behaviour (open point for the physics engineer).
@@ -57,14 +57,15 @@ Cantilever k = 3EI/L³ with I = πd⁴/64; E = 10 GPa for green wood (published 
 
 ### Physics ids
 
-Existing ids used here: `timber` (sawn and split faces, stumps' cut tops), `foliage` (crown shells), `cable` is not used. **Proposed ids (physics sign-off needed, never invented in a generator):**
+Ids used here, all in [physics_materials.json](../../assets-src/physics_materials.json) (never invented in a generator): `timber` (sawn and split faces, stumps' cut tops), `foliage` (crown shells), and the three this sheet asked for, added by the physics sign-off (review-materials.md §2, in the archived change `p1-pipeline-hardening`); `cable` is not used.
 
-| Proposed id | For | Suggested values | Why |
+| Id | For | Signed-off values | Why |
 |---|---|---|---|
 | `bark` | every live trunk and limb capsule | μs 0.55, μk 0.45, rigid, edge radius = the capsule's own | rougher than `timber`; the fiber bends over the limb radius, not an arris |
-| `twig` | crown contact shells of live trees and shrubs (cards region) | k 10–50 N/m, ζ 0.2, μs 0.5 | the derived 5–10 mm twig band; `foliage` (200 N/m) is a 20 mm branch and would stop the drone too hard at the crown edge |
-| `deadwood` | dead trees, broken tops, fallen branches, brush, logs | μs 0.45, μk 0.35, rigid; break moment per capsule M_b = 40e6·π·d³/32 | brittle: a capsule thinner than ≈ 15 mm snaps at the drone's push; the snap is a logged event and the piece becomes debris |
-| `forb_stem` | tall weed stalks within 3 m of the drone (instanced stems, terrain.md §7) | k 1–3 N/m per stalk, buckle 1 N, hook on legs per K§7.3 | the T7 "legs go deep" behaviour and fiber drag |
+| `twig` | crown contact shells of live trees and shrubs (cards region) | k 30 N/m, ζ 0.2, μs 0.5, edge radius 2.5 mm | the derived 5–10 mm twig band; `foliage` (200 N/m) is a 20 mm branch and would stop the drone too hard at the crown edge |
+| `deadwood` | dead trees, broken tops, fallen branches, brush, logs | μs 0.45, μk 0.35, rigid; `break_stress_pa` 4.0e7, so M_b = σ_b·π·r³/4 from the capsule's own radius (= 40e6·π·d³/32) | brittle: a capsule thinner than ≈ 15 mm snaps at the drone's push; the snap is a logged event and the piece becomes debris |
+
+`forb_stem` was declined (§2): tall weed stalks within 3 m of the drone are micro-detail cantilevers of the surface's `weeds` cover (AST-10, `MicroDetailNear`), their stiffness and buckling derived from each stem's E, d and L; no asset shape carries an id for them, and a V17 or V18 clump writes no stem collision.
 
 ### Shared generator: trees (V01–V06, V10–V12)
 
@@ -230,7 +231,7 @@ No set is in `tools/assets/manifest.json` yet for this group (the manifest holds
 
 ### Physics role
 - **Collision:** trunk capsules per 1–2 m segment following the lean and sinuosity; every limb and branch ≥ 10 mm as capsules (an M tree: about 150–300 segments, assumed, to be counted by the generator); crown shell per main limb with `twig` contact.
-- **Material ids:** `bark` (proposed) on trunk and limbs, else `timber`; crown shells `twig` (proposed) or `foliage`.
+- **Material ids:** `bark` on trunk and limbs, else `timber`; crown shells `twig` or `foliage`.
 - **Gaps:** the belt corridor between trunks 1–3 m (terrain.md V1): passable (≥ 0.706 m diagonal). Between limbs inside the crown: openings 0.3–1.5 m; only those ≥ 0.574 m are marked passable, and only nose-first below 0.706 m. The generator writes every inter-limb opening ≥ 0.5 m as a gap polygon.
 - **Wind volumes:** trunk column porosity 0.0 (width = dbh); crown pieces porosity 0.55 summer, 0.75 part-bare, 0.9 bare (assumed: an open crown; the belt-construction classes below give the belt-level target).
 - **Snag hazards:** every capsule under 30 mm and the whole crown shell; thorns on suckers are visual only (cards).
@@ -247,7 +248,7 @@ Preset over the shared tree generator: `height_m` 6/10/14, `dbh_m` 0.08/0.16/0.2
 
 ### Open points
 - Crown width from trunk diameter: the 20–25 × dbh ratio is assumed; a generic crown-allometry source would confirm it. Research, not a pilot question.
-- The segment count per tree against the world-query budget (K§10.5) is the world-builder's and physics engineer's call; if it bites, segments 10–15 mm fold into the `twig` shell.
+- The segment count per tree against the world-query budget (K§10.5): no limit from physics (the physics sign-off, review-materials.md §5: the per-step batch is 46 swept capsules against the near set, so the cost is the world's broadphase, not the count); the world-builder's, signed off at the phase-3 world-query API review; if it bites, segments 10–15 mm fold into the `twig` shell.
 
 ## V02 Belt tree: ash
 
@@ -483,7 +484,7 @@ Columnar preset: `height_m` 20, `dbh_m` 0.55, `first_fork_m` 1–2, `main_limbs`
 - Variants M, L; states summer, autumn brown-yellow, bare, bare with held brown leaves (M only); damaged → V07; a shell-split oak is V09's strongest case (the hardest wood splinters longest).
 
 ### Damage pattern
-- Thick bark takes fragment scars without dying; limbs snap and hang; a direct hit splits the trunk into standing halves (V09).
+- Thick bark takes fragment scars without dying; limbs snap and hang; a blast at the trunk splits it into standing halves (V09).
 
 ### Physics role
 - **Collision:** as V01 with thick low limbs (15–30 cm capsules the drone can hit at 2–4 m height).
@@ -906,7 +907,7 @@ Over the shrub generator: `height_m` 1.2/2/3, `width_m` 1.5/2.2/2.5, `stems` 5�
 Elder preset: `height_m` 3, `width_m` 3, `stems` 8, `stem_d_mm` 20–60, `arch` 0.7, `leaf_cover` 0.8, `fruit_tufts` 0–20 (berries, autumn). Lilac preset: `height_m` 3, `width_m` 3.5, `stems` 20, `stem_d_mm` 20–120, `arch` 0.1, `leaf_cover` 0.9.
 
 ### Open points
-- Whether a hollow elder stem should break under the drone (propose: yes, as `deadwood` with σ_b 20 MPa) is a physics call.
+- A hollow elder stem breaks under the drone: settled by the physics sign-off (review-materials.md §2): `deadwood`'s row applies, whose solid-section formula overstates a half-diameter pith by about 7 %, inside the σ_b spread.
 
 ## V15 Blackthorn / rose-hip thicket
 
@@ -1044,8 +1045,8 @@ Over the shrub generator: `height_m` 1–3, `stems` 1–3, `stem_d_mm` 10–40, 
 - Blast flattens a stand radially 2–6 m around a crater (lodged stalks pointing outward, assumed); fire leaves black stubs 5–15 cm (terrain.md T3b).
 
 ### Physics role
-- **Collision:** no solid collision; stalks within 3 m of the drone as `forb_stem` cantilevers (k 1–3 N/m, buckle at ≈ 1 N, derived above), so the drone wades through a stand at a drag of tens of N when 10–30 stalks touch it; the legs go deep (not a landing surface, terrain.md T7); hooks on the legs per K§7.3.
-- **Material ids:** `forb_stem` (proposed).
+- **Collision:** none on the asset; stalks within 3 m of the drone are micro-detail cantilevers of the surface's `weeds` cover (`MicroDetailNear`, AST-10; k 1–3 N/m, buckle at ≈ 1 N, derived above), so the drone wades through a stand at a drag of tens of N when 10–30 stalks touch it; the legs go deep (not a landing surface, terrain.md T7); hooks on the legs per K§7.3.
+- **Material ids:** none (`forb_stem` was declined by the physics sign-off, review-materials.md §2: micro-detail has no asset id).
 - **Gaps:** none; the stand is passable everywhere at a cost.
 - **Wind volumes:** the stand as a ground layer, porosity 0.6 green, 0.8 dry (assumed): the surface's cover height (terrain.md §8 `weeds` 0.5–1.5 m).
 - **Snag hazards:** the fiber drags through the stalks (capstans of 2.5–7.5 mm radius, hundreds per metre); seed-head cards are visual only.
@@ -1096,8 +1097,8 @@ Over the forb generator: `height_m` 0.5–1.5, `stem_d_mm` 5–15, `density_per_
 - As V17.
 
 ### Physics role
-- **Collision:** burdock stalks (15–30 mm) as capsules with `forb_stem` stiffness at the upper band (k ≈ 10–30 N/m derived for d 20 mm, E 2 GPa, L 1 m); nettle and thistle as V17.
-- **Material ids:** `forb_stem`.
+- **Collision:** none on the asset, as V17: burdock stalks (15–30 mm) are micro-detail cantilevers too, at the stiff end (k ≈ 10–30 N/m derived for d 20 mm, E 2 GPa, L 1 m); nettle and thistle as V17.
+- **Material ids:** none, as V17.
 - **Gaps:** none.
 - **Wind volumes:** as V17.
 - **Snag hazards:** burrs hook the fiber (visual cards; physically the burr stalk is a capstan 10–15 mm with a higher hook rate, K§7.3); nettle stalks drag.
@@ -1110,7 +1111,7 @@ Over the forb generator: `height_m` 0.5–1.5, `stem_d_mm` 5–15, `density_per_
 Over the forb generator: burdock `height_m` 1.5, `stem_d_mm` 15–30, `density_per_m2` 2–6, `basal_leaf_m` 0.45 (0.3–0.6), `fruit_tufts` 10–50 (burrs); nettle `height_m` 1.2, `stem_d_mm` 5–8, `density_per_m2` 20–50; thistle `height_m` 1, `density_per_m2` 5–20, `spines` true; `seed_heads` 0.8 and `dry` for variant 2.
 
 ### Open points
-- None.
+- Burdock's 15–30 mm stalks are thicker than the `weeds` cover's 5–15 mm stems (K§7.3): where V18 grows, the cover needs a burdock stem band for its micro-detail; for the world-builder and the physics engineer at V18's asset change.
 
 ## V19 Fallen branch set
 
@@ -1269,7 +1270,7 @@ Over the dead-wood generator: `lying` true, `length_m` 4–8, `butt_d_m` 0.20–
 
 ## Open points for other roles (summary)
 
-- **Physics engineer:** sign off or amend the proposed ids `bark`, `twig`, `deadwood` (with a break moment per capsule diameter), `forb_stem`; decide whether hollow elder stems break; decide the capsule budget per tree (fold 10–15 mm segments into the `twig` shell if the world-query budget bites). The material table's schema 1 has no field for a break moment (`deadwood`), a buckling load (`forb_stem`) or a shell's hook rate (`twig`, the crown-shell snag): each needs a new field, or a rule that derives it from the shape's radius (buildability review).
+- **Physics engineer (settled by the physics sign-off, review-materials.md §2, §3, §5):** `bark`, `twig` and `deadwood` added, `forb_stem` declined (micro-detail); hollow elder stems break; no physics limit on the capsules per tree (the budget is signed at the phase-3 world-query API review). The break moment is the new optional field `break_stress_pa`; the buckling load is derived from each stem's E, d and L; a crown's hooking comes from its snag records and the wind volume's porosity, so no hook-rate field.
 - **Asset-artist:** fetch and pin the CC0 candidates (Poly Haven bark and ground sets, ambientCG Bark and LeafSet sets); measure the photo albedos on the chosen sets and replace the assumed values; check the Lombardy crown width and the locust crown ratio against CC0 photos.
 - **World-builder:** belt-level porosity classes (blow-through, openwork, dense) come from the row layout plus V13 density, not from a per-asset value (K§10.6 noted the one-porosity-per-asset limit); the far-belt check: at 200 m a dark band (K§14.4), at about 1 km a shape 5–10 % darker than the field (A).
 - **Other analysts:** B (task 1.3) can count broken tops per 100 m of belt edge and look for blast-lodged weeds at craters; J (task 1.2) can size the brush-pile pieces.
