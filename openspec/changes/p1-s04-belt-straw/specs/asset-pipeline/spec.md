@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Ground recipes with a detail layer
-A material recipe MAY be of kind `ground`: it names a soil set and a cover set from the manifest, a seeded description of its regrowth strips and lodging direction, the bare patches taken from the asset's params through the one seeded patch definition the generator also uses (so the map's soil and the mesh's floors never disagree), and a target mean albedo, and the build SHALL derive from them one unique albedo, normal and packed mask for the asset (2K at most), tinted so the mean albedo matches the target, plus a URP/Lit detail layer (albedo and normal of the cover set) tiled at the set's metre size. The derivation is rerun when the recipe, the sources, the asset's patch params or any constant of the formula changes, and the derived files are never hand-edited.
+A material recipe MAY be of kind `ground`: it names a soil set and a cover set from the manifest, its lodging direction and tints, the bare patches, the regrowth strips and the tussock relief taken from the asset's params through the seeded field definitions the generator also uses (so the map's soil, strips and hollows and the mesh's floors, blades and humps never disagree), and a target mean albedo, and the build SHALL derive from them one unique albedo, normal and packed mask for the asset (2K at most), tinted so the mean albedo matches the target, plus a URP/Lit detail layer (albedo and normal of the cover set) tiled at the set's metre size. The derivation is rerun when the recipe, the sources, the asset's patch params or any constant of the formula changes, and the derived files are never hand-edited.
 
 #### Scenario: Ground recipe derived and wired
 - **WHEN** an asset's material recipe is a `ground` recipe
@@ -29,11 +29,11 @@ A generator MAY return, per LOD, meshes that are visual only (lying straws, stem
 - **THEN** no collider is created for a micro mesh and the physics metadata component lists it under `micro`
 
 ### Requirement: Flat palette recipes
-A material recipe MAY be of kind `palette`: a short list of named sRGB colours; the build SHALL derive one small flat map with a column per colour (recorded beside it like every derived texture), and a generator SHALL UV its faces into the column of their colour, so that a flat-tinted material still has a real base map.
+A material recipe MAY be of kind `palette`: a short list of named colours, each a single sRGB value or a gradient of sRGB values; the build SHALL derive one small map with a column per colour (a gradient along the column, the columns padded to a power of two; recorded beside it like every derived texture), and a generator SHALL UV its faces into the column of their colour, along it for a gradient, so that a flat-tinted or shaded material still has a real base map.
 
 #### Scenario: Straw palette
-- **WHEN** the `straw` recipe names the three straw shades (pale #cdb685, mid #b49c6a, dark #977f55) and the twig #6b5a3e
-- **THEN** the build writes `straw_albedo.png` with those four columns, the importer binds it as the base map, and the review capture's empty-stage guard passes
+- **WHEN** the `straw` recipe names six gradients (straw pale, mid and dark around #cdb685, #b49c6a and #977f55, twig, green blade, litter), each base to tip
+- **THEN** the build writes `straw_albedo.png` with those six gradient columns padded to eight, the importer binds it as the base map, and the review capture's empty-stage guard passes
 
 ### Requirement: The collision audit measures the union of the primitives
 The collision audit SHALL treat an asset's primitives as one union: the part of a primitive that lies inside another primitive is not measured against the mesh. A landable shape whose top is soft SHALL be held at 5 cm over its whole top as a landing face: its material is `surface:belt_straw`, `surface:crater_spoil` or `surface:tilled` (the surface rows where the reference foot sinks at least 25 mm), or a plain id with `stiffness_n_per_m` of 1000 N/m or less. Every other landing face, and every opening, keeps AST-05's 2 cm near-zone (`review-physics.md` §2: on hard ground a 5 cm float would show).

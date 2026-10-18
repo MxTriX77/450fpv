@@ -15,7 +15,7 @@ The pipeline SHALL build asset S04 (`ground_patch` generator, variant `S04_patch
 
 #### Scenario: Straws read as geometry at the pilot's height
 - **WHEN** the review sheet's 1.5 m tile of S04 is read
-- **THEN** separate lying straws, standing stems and twigs are visible as meshes over the mat within 4 m of the centre, and the tile is compared side by side with letter H (frames 1–21) in the local comparison sheet, where the mat's colour, the straw density, the bare patches and the green strips match by eye
+- **THEN** separate lying straws (layered, resting on one another), standing stems, twigs and green blades are visible as meshes over the mat within 4 m of the centre, and the tile is compared side by side with letter H (frames 1–21) in the local comparison sheet, where the mat's colour family, its structure (a shaded tangle, tussocks, bare patches read as ground, blades over the strips) match by eye; what a G1 stand-in cannot show (the feed, the view height, heap height and density beyond the budget, the far layer) is listed in design §10 with where each is fixed
 
 #### Scenario: No visible tiling at 10 m
 - **WHEN** the 10 m and 50 m tiles are read
