@@ -22,7 +22,9 @@ namespace Fpv450
     /// mean over the linear channels of white minus black, and the render over black is its colour times that coverage.
     /// Per LOD it prints the coverage-weighted mean linear colour and its Rec. 709 luminance, the crown's coverage in
     /// pixels, both against LOD0's at the same distance and light, the margin to the spec's limits (6 % in luminance,
-    /// 15 % in coverage) and PASS or FAIL.
+    /// 15 % in coverage) in percentage points, negative outside them, and PASS or FAIL. The shadow distance is the
+    /// review's, fitted to its stage, so a small asset's 50 m tile has no shadows; the review's 225° camera looks
+    /// along one of the impostor's eight baked views, its best case.
     /// <para>Batchmode, with graphics:
     /// <c>-batchmode -quit -executeMethod Fpv450.LodParity.Measure -asset &lt;ID&gt; [-variant &lt;variant&gt;]</c>.
     /// Exit code 0 when every row passes, 2 when one fails, 1 on an error.</para>
@@ -192,9 +194,12 @@ namespace Fpv450
             var asset = new Bounds(meta.bounds.center + instance.transform.position, meta.bounds.size);
             pipeline.shadowDistance = ReviewShadowDistance(asset, projectShadowDistance);
 
-            var tiles = new List<(string label, float distance)> { ($"review tile {ReviewTileM:0.#} m", ReviewTileM) };
+            // Each tile names the LODs Unity shows there: the one in range at 50 m, the two that meet at a switch.
+            int shownAtReview = Enumerable.Range(0, lodCount).Last(i => meta.lods[i].switchDistanceM <= ReviewTileM);
+            string shown = ReviewTileM < meta.cullDistanceM ? $"{names[shownAtReview]} shown" : "culled";
+            var tiles = new List<(string label, float distance)> { ($"review tile {ReviewTileM:0.#} m, {shown}", ReviewTileM) };
             for (int i = 1; i < lodCount; i++)
-                tiles.Add(($"{names[i]} switch {meta.lods[i].switchDistanceM:0.#} m", meta.lods[i].switchDistanceM));
+                tiles.Add(($"{names[i]} switch {meta.lods[i].switchDistanceM:0.#} m, {names[i - 1]} to {names[i]}", meta.lods[i].switchDistanceM));
             Debug.Log($"[LodParity] {variant}: LODs {string.Join(", ", names.Select((n, i) => $"{n} {meta.lods[i].tris} tris" + (i == 0 ? "" : $" @ {meta.lods[i].switchDistanceM:0.#} m")))}, " +
                       $"cull {meta.cullDistanceM:0.#} m; bounds centre {asset.center}, size {asset.size}; shadow distance {pipeline.shadowDistance:0.#} m (game {projectShadowDistance:0.#} m)");
 
@@ -230,8 +235,8 @@ namespace Fpv450
                             {
                                 double y = Relative(c.Luminance, crowns[0].Luminance), cover = Relative(c.Coverage, crowns[0].Coverage);
                                 bool pass = Passes(y, cover);
-                                row += $"  against LOD0: Y {y * 100:+0.0;-0.0} % (margin {(LuminanceLimit - Math.Abs(y)) * 100:0.0}), " +
-                                       $"coverage {cover * 100:+0.0;-0.0} % (margin {(CoverageLimit - Math.Abs(cover)) * 100:0.0})  {(pass ? "PASS" : "FAIL")}";
+                                row += $"  against LOD0: Y {y * 100:+0.00;-0.00} % (margin {(LuminanceLimit - Math.Abs(y)) * 100:0.00}), " +
+                                       $"coverage {cover * 100:+0.00;-0.00} % (margin {(CoverageLimit - Math.Abs(cover)) * 100:0.00})  {(pass ? "PASS" : "FAIL")}";
                                 rows++;
                                 if (!pass)
                                     failed++;
