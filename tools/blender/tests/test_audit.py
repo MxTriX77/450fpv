@@ -2,7 +2,9 @@
 beyond its box fails naming the primitive, the deviation and the tolerance, a box grown beyond its mesh fails the
 other way, the 2 cm rule applies within 0.3 m of a gap or a landable face, curved primitives tessellate to their
 dimensions and measure against a mesh, and narrowest_m is held to the largest inscribed circle, concave included
-(p1-pipeline-hardening, "Collision audit at build time")."""
+(p1-pipeline-hardening, "Collision audit at build time"). Compliant shells (p1-v13-shrub): cards inside a twig
+sphere pass with 0 printed, a card corner 8 cm outside fails naming the shell, the distance and the tolerance, a
+capsule off its tube by 7 cm still fails, and a shell no slot carries or a slot no shell stands for is refused."""
 import copy
 import math
 import re
@@ -10,7 +12,7 @@ import re
 import pytest
 
 from generators import debris_brick
-from lib import audit, meta
+from lib import audit, cards, meta, skeleton
 from lib.geometry import Mesh
 
 MM = re.compile(r"(-?[\d.]+) mm at \(")
@@ -195,3 +197,63 @@ def test_a_mesh_with_no_primitive_is_refused(k01_params):
     data, lod0 = k01(k01_params)
     data["collision"] = []
     assert audit.run(data, lod0) == (["mesh: no collision primitive stands for the LOD0 mesh"], [])
+
+
+SHELL_CENTRE = (0.0, 1.5, 0.0)
+
+
+def shrub_like():
+    """A 1 m vertical stem tube with its bark capsule, and three 0.6 m crossed leaf cards centred 1.5 m up inside a
+    0.5 m twig sphere, whose surface stands up to 0.2 m clear of the cards."""
+    lod0 = Mesh()
+    skeleton._tube(lod0, [((0.0, 0.0, 0.0), 0.009), ((0.0, 1.0, 0.0), 0.009)], 6, "stem", cap=True)
+    cards.add_to(lod0, cards.crossed(0.6, 1.2, 1.8), "leaf")
+    data = {"materials": [{"slot": "stem", "visual": "bark_shrub", "physics": "bark"},
+                          {"slot": "leaf", "visual": "leaf_shrub", "physics": "twig"}],
+            "collision": [{"shape": "capsule", "center": [0.0, 0.5, 0.0], "radius": 0.009, "height": 1.018,
+                           "rotation": [0.0, 0.0, 0.0, 1.0], "material": "bark", "landable": False},
+                          {"shape": "sphere", "center": list(SHELL_CENTRE), "radius": 0.5, "material": "twig", "landable": False}],
+            "gaps": []}
+    return data, lod0
+
+
+def test_cards_inside_the_shell_pass_with_zero_printed():
+    problems, lines = audit.run(*shrub_like())
+    assert problems == []
+    # the capsule's bottom pole stands its radius under the tube's open base, r * sqrt(2) = 12.7 mm from the base
+    # ring; the tip cap's centre sits the radius, 9 mm, inside the capsule's top cap
+    assert lines[0].startswith("audit collision[0] capsule: capsule->mesh ") and measured_mm(lines[0]) < 13.0
+    assert lines[1].startswith("audit mesh: mesh->collision 9.000 mm at (0, 1, 0) nearest collision[0]")
+    assert lines[2] == ("audit collision[1] sphere (twig shell): largest outside distance 0.000 mm over 12 vertices of "
+                        "slots leaf, tolerance 50 mm")
+    assert len(lines) == 3
+
+
+def test_a_card_corner_8cm_outside_fails_naming_the_shell_the_distance_and_the_tolerance():
+    data, lod0 = shrub_like()
+    corner = next(i for i, v in enumerate(lod0.vertices) if v == (0.3, 1.2, 0.0))
+    offset = audit._sub(lod0.vertices[corner], SHELL_CENTRE)
+    lod0.vertices[corner] = audit._add(SHELL_CENTRE, tuple(c * 0.58 / audit._dist(offset, (0.0, 0.0, 0.0)) for c in offset))
+    problems, lines = audit.run(data, lod0)
+    assert len(problems) == 1
+    assert problems[0].startswith("collision[1] sphere (twig shell): largest outside distance 80.000 mm at (0.41")
+    assert problems[0].endswith(" exceeds the tolerance 50 mm")
+    assert "largest outside distance 80.000 mm at (0.41" in lines[2]
+
+
+def test_a_capsule_off_its_tube_by_7cm_still_fails():
+    data, lod0 = shrub_like()
+    data["collision"][0]["center"][0] += 0.07
+    problems, _ = audit.run(data, lod0)
+    assert [p.split(" ")[:2] for p in problems] == [["collision[0]", "capsule:"], ["mesh:", "mesh->collision"]]
+    # 70 mm, give or take the 6-sided tube's 1.2 mm between its inradius and its circumradius
+    assert all(measured_mm(p) == pytest.approx(70.0, abs=1.5) and p.endswith("exceeds the tolerance 50 mm") for p in problems)
+
+
+def test_a_shell_without_a_slot_and_a_slot_without_a_shell_are_refused():
+    data, lod0 = shrub_like()
+    data["collision"][1]["material"] = "foliage"  # the leaf slot still carries twig
+    problems, lines = audit.run(data, lod0)
+    assert problems == ["collision[1] sphere (foliage shell): no material slot carries foliage, so it encloses nothing",
+                        "slots leaf carry twig but no twig shell stands for them"]
+    assert lines[-1].endswith("over 0 vertices of slots none, tolerance 50 mm")

@@ -16,11 +16,19 @@ only around chamfers, edges and openings:
   sharing an edge is clipped at the fold's bisector plane and each part bounded by its own face.
 - mesh -> primitives: cells are the mesh's triangles; each primitive's signed distance is exact. Outside a convex
   primitive the distance is convex (a vertex bound); inside it, the depth is bounded through the shape's own
-  planes, centre or axis (exact for a sphere, capsule or cylinder, the nearest face for a box)."""
+  planes, centre or axis (exact for a sphere, capsule or cylinder, the nearest face for a box).
+
+Compliant shells (p1-v13-shrub, "Compliant shells in the collision audit"): a primitive of a crown contact material
+(SHELL_MATERIALS) is a shell over the faces of the material slots carrying that material. The shell's surface need
+not lie near the mesh, and those faces are not held to the other primitives; instead every LOD0 vertex of those
+slots must lie inside a shell of its material or within TOLERANCE_M outside, and the report prints each shell with
+the largest outside distance among the vertices nearest to it. The other primitives and faces are audited as above
+against each other."""
 import heapq
 import math
 
 TOLERANCE_M = 0.05          # AST-05: collision follows the visual within +-5 cm
+SHELL_MATERIALS = ("twig", "foliage")
 NEAR_TOLERANCE_M = 0.02     # +-2 cm around openings and landing surfaces
 NEAR_RANGE_M = 0.3
 PRECISION_M = 0.0001        # the search stops when no cell can beat the best by this; with CHORD_M, under 1 mm
@@ -35,21 +43,29 @@ def run(meta, lod0):
     """(problems, report lines) of one variant: `meta` as lib.meta.assemble builds it, `lod0` its first
     lib.geometry.Mesh. Problems name the primitive, the deviation and the tolerance; the lines carry the measured
     numbers for every primitive, the mesh and every gap, success or not."""
-    faces = _mesh_faces(lod0)
     shapes = [_Shape(s) for s in meta["collision"]]
+    shell_slots = {m["slot"] for m in meta["materials"] if m["physics"] in SHELL_MATERIALS}
+    shells = [i for i, s in enumerate(meta["collision"]) if s["material"] in SHELL_MATERIALS]
+    body = [i for i in range(len(shapes)) if i not in shells]
+    faces = [face for face in _mesh_faces(lod0) if face.slot not in shell_slots]
     zone = _zone(meta, shapes)
     problems, lines = [], []
-    for i, shape in enumerate(shapes):
+    for i in body:
+        shape = shapes[i]
+        if not faces:
+            problems.append(f"collision[{i}] {shape.kind}: no LOD0 face outside the shells' slots stands under it")
+            continue
         cells = [tri[:3] for tri in shape.triangles]
         problems += _report(lines, f"collision[{i}] {shape.kind}", f"{shape.kind}->mesh", cells, zone,
                             lambda v: _nearest_face(v, faces), lambda cell, which: _faces_bound(cell, which, faces))
-    if not shapes:
+    if faces and not body:
         problems.append("mesh: no collision primitive stands for the LOD0 mesh")
-    else:
+    elif faces:
         cells = [tuple(face.points[i] for i in tri) for face in faces for tri in face.fan()]
         problems += _report(lines, "mesh", "mesh->collision", cells, zone,
-                            lambda v: _nearest_shape(v, shapes), lambda cell, which: _shapes_bound(cell, which, shapes),
+                            lambda v: _nearest_shape(v, shapes, body), lambda cell, which: _shapes_bound(cell, which, shapes),
                             lambda which: f" nearest collision[{which}]")
+    problems += _audit_shells(lines, meta, shapes, shells, lod0)
     for i, gap in enumerate(meta["gaps"]):
         diameter = 2 * _inscribed_radius(_flatten_polygon(gap["polygon"], gap["normal"]))
         text = f"gaps[{i}] '{gap['id']}': narrowest_m {gap['narrowest_m']:.4f}, largest inscribed circle {diameter:.4f}"
@@ -73,6 +89,39 @@ def _report(lines, label, direction, cells, zone, value, bound, note=lambda whic
             if distance > NEAR_TOLERANCE_M:
                 problems.append(f"{label}: {text} exceeds the tolerance {NEAR_TOLERANCE_M * 1000:g} mm")
     lines.append("audit " + line)
+    return problems
+
+
+def _audit_shells(lines, meta, shapes, shells, lod0):
+    """The shell rule (module docstring): for each crown contact material, every LOD0 vertex of its slots is
+    measured against the shells of that material, inside counting as 0 and outside as its distance to the nearest
+    one; each shell reports the largest distance among the vertices nearest to it, and fails beyond TOLERANCE_M.
+    A shell no slot carries, and a slot no shell stands for, are each a problem."""
+    problems = []
+    by_material = {m["physics"]: [] for m in meta["materials"] if m["physics"] in SHELL_MATERIALS}
+    for i in shells:
+        by_material.setdefault(meta["collision"][i]["material"], []).append(i)
+    for material, members in sorted(by_material.items()):
+        slots = sorted(m["slot"] for m in meta["materials"] if m["physics"] == material)
+        if not members:
+            problems.append(f"slots {', '.join(slots)} carry {material} but no {material} shell stands for them")
+            continue
+        vertices = sorted({lod0.vertices[k] for indices, _, _, slot in lod0.faces if slot in slots for k in indices})
+        worst = {i: (0.0, None) for i in members}
+        for v in vertices:
+            outside, which = min((max(shapes[i].sdf(v), 0.0), i) for i in members)
+            if outside > worst[which][0]:
+                worst[which] = (outside, v)
+        for i in members:
+            distance, at = worst[i]
+            label = f"collision[{i}] {shapes[i].kind} ({material} shell)"
+            text = f"largest outside distance {distance * 1000:.3f} mm" + (f" at {_fmt(at)}" if at else "")
+            if not slots:
+                problems.append(f"{label}: no material slot carries {material}, so it encloses nothing")
+            elif distance > TOLERANCE_M:
+                problems.append(f"{label}: {text} exceeds the tolerance {TOLERANCE_M * 1000:g} mm")
+            lines.append(f"audit {label}: {text} over {len(vertices)} vertices of slots {', '.join(slots) or 'none'}, "
+                         f"tolerance {TOLERANCE_M * 1000:g} mm")
     return problems
 
 
@@ -116,13 +165,13 @@ def _directed_max(cells, value, bound, zone=None):
 
 class _Face:
     """A convex planar polygon of the mesh: points counter-clockwise about its outward normal, the vertex indices
-    it was built from (for the shared edge with a neighbour), and its bounding box."""
+    it was built from (for the shared edge with a neighbour), its material slot, and its bounding box."""
 
-    def __init__(self, points, indices, outward):
+    def __init__(self, points, indices, outward, slot=None):
         self.normal = _normalize(outward)  # generators fix only its direction
         if _dot(_newell(points), outward) < 0:
             points, indices = points[::-1], indices[::-1]
-        self.points, self.indices = points, indices
+        self.points, self.indices, self.slot = points, indices, slot
         self.lo = tuple(min(p[k] for p in points) for k in range(3))
         self.hi = tuple(max(p[k] for p in points) for k in range(3))
 
@@ -136,13 +185,13 @@ class _Face:
 def _mesh_faces(mesh):
     """The mesh's faces as _Face polygons: convex ones whole, concave ones ear-clipped into triangles."""
     faces = []
-    for indices, outward, _, _ in mesh.faces:
+    for indices, outward, _, slot in mesh.faces:
         points = [mesh.vertices[i] for i in indices]
         if _is_convex(points, outward):
-            faces.append(_Face(points, list(indices), outward))
+            faces.append(_Face(points, list(indices), outward, slot))
         else:
             for tri in _triangulate(points, outward):
-                faces.append(_Face([points[i] for i in tri], [indices[i] for i in tri], outward))
+                faces.append(_Face([points[i] for i in tri], [indices[i] for i in tri], outward, slot))
     return faces
 
 
@@ -261,8 +310,8 @@ class _Shape:
         return max(outside, depth, 0.0)
 
 
-def _nearest_shape(p, shapes):
-    return min((abs(shape.sdf(p)), i) for i, shape in enumerate(shapes))
+def _nearest_shape(p, shapes, indices=None):
+    return min((abs(shapes[i].sdf(p)), i) for i in (range(len(shapes)) if indices is None else indices))
 
 
 def _shapes_bound(cell, which, shapes):
