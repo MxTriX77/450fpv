@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Commit message format
-The commit-message hook SHALL reject a commit whose subject is longer than 72 characters, whose subject does not read `type(scope): summary` or `type: summary` with a type from `feat`, `fix`, `perf`, `refactor`, `test`, `docs`, `chore`, `art`, whose summary starts with an upper-case letter, or whose message carries any non-empty line after the subject (a body, a trailer or a co-author line). Git's own merge commits SHALL pass, whatever `fmt-merge-msg` writes (branch, branches, remote-tracking branch, tag, commit, pull request). The subject is the first non-blank line of the message, whatever it starts with; a message without one SHALL be rejected.
+The commit-message hook SHALL reject a commit whose subject is longer than 72 characters, whose subject does not read `type(scope): summary` or `type: summary` with a type from `feat`, `fix`, `perf`, `refactor`, `test`, `docs`, `chore`, `art`, whose summary starts with an upper-case letter, or whose message carries any non-empty line after the subject (a body, a trailer or a co-author line). Git's own merge commits SHALL pass, whatever `fmt-merge-msg` writes (branch, branches, remote-tracking branch, tag, commit, pull request). The subject is the first non-blank line of the message, whatever it starts with; a message without one SHALL be rejected. `#` lines after the subject are git's editor template and are ignored.
 
 #### Scenario: Long subject is rejected
 - **WHEN** a commit message's first line has 73 or more characters
