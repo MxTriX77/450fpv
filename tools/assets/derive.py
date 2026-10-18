@@ -26,9 +26,11 @@ geometry never disagree (review-physics PR5). A floor (inside a step outline) is
 full at the outline, full at the outline shrunk by the feather, the ramp being each patch's core (its outline shrunk
 by half the feather) filled and blurred over half the feather each side, and nothing outside the outline; the bare
 share is the outlines'. The floor is broken by the cover's straws (strewn), so straws lie over its soil, more of
-them at its wall. Outside a floor the mat thins over LIP_M: the soil shows between its straws, LIP_LEVEL at the
-outline falling to nothing, so a step's lip is ragged. Elsewhere the gaps between the cover's straws (gap_share)
-show the mat's dark depth: the cover recoloured to the cover's optional gap_albedo (the litter in the straws'
+them at its wall, and FLOOR_STRAWS of it all over (H 12, H 14: a floor reads as soil with straws on it, not a hole).
+Outside a floor the mat thins over LIP_M: the soil shows between its straws, LIP_LEVEL at the outline falling to
+nothing, so a step's lip is ragged; so it does between two patches of a path (lib/patches.py), over the hull of
+their cores, so a path reads as one trodden strip broken by mat bridges (H 9-14; the map only, the mat's full depth
+stays under it). Elsewhere the gaps between the cover's straws (gap_share) show the mat's dark depth: the cover recoloured to the cover's optional gap_albedo (the litter in the straws'
 shadow, H 12-21), or the soil when it names none. The green strips (lib/mat.py) are filled and
 blurred over GREEN_FEATHER_M; the cover under them is tinted to the strip colour and its straws are strewn over
 them from GREEN_LEVEL, so a strip is regrowth with straws lying over it. The straws and the strips are
@@ -83,7 +85,7 @@ FORMULA = "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sourc
 CHANNELS = ("metallic", "occlusion", "smoothness")  # R, G, A
 MAP_EXPR = re.compile(r"^(1 - )?([a-z]+)$")
 
-GROUND_FORMULA = ("ground v4: cover tiled at tile_size_m and at tile_size_m*phi, averaged, stretched 1+bias along the "
+GROUND_FORMULA = ("ground v5: cover tiled at tile_size_m and at tile_size_m*phi, averaged, stretched 1+bias along the "
                   "lodging azimuth and rotated to it; soil tiled at its tile_size_m, gained to its albedo_target when "
                   "given; bare = the asset's patch layout (lib/patches.py): the outlines filled times FLOOR_EDGE + "
                   "(1 - FLOOR_EDGE) * the ramp of each core filled and blurred with sigma patches.FEATHER_M / 6, so "
@@ -91,9 +93,10 @@ GROUND_FORMULA = ("ground v4: cover tiled at tile_size_m and at tile_size_m*phi,
                   "u = x / size_m + 0.5, v = z / size_m + 0.5 with v up the image; green = the asset's strips "
                   "(lib/mat.py) filled and blurred with sigma mat.GREEN_FEATHER_M / 2; strewn masks clamp(2 m - c), c "
                   "the cover luminance high-passed at STRAW_M, blended with LOBE_M value noise and stretched to 0-1: "
-                  "the bare mask (noise BARE_LOBES), the lip (m = LIP_LEVEL * min(1, 2 * the outlines blurred with "
-                  "sigma LIP_M / 3), noise BARE_LOBES), the gaps between straws (m = sqrt(gap_share / 2), noise "
-                  "GAP_LOBES) and the strips shown (m = GREEN_LEVEL * green, noise GAP_LOBES); relief = the asset's "
+                  "the bare mask (noise BARE_LOBES), times the floors' strewn straws (m = 1 - sqrt(FLOOR_STRAWS / 2), "
+                  "noise GAP_LOBES), the lip (m = LIP_LEVEL * min(1, 2 * the outlines and each path bridge, the hull "
+                  "of two consecutive patches' cores, blurred with sigma LIP_M / 3), noise BARE_LOBES), the gaps "
+                  "between straws (m = sqrt(gap_share / 2), noise GAP_LOBES) and the strips shown (m = GREEN_LEVEL * green, noise GAP_LOBES); relief = the asset's "
                   "relief (lib/mat.py) sampled on RELIEF_SAMPLES^2 and resized bicubic, h01 in 0-1; albedo = the "
                   "cover times 1 - RELIEF_TONE (1 - h01) with the straw gain for albedo_target, the strips shown "
                   "tinted to the green tint, the gaps the cover gained to gap_albedo (the soil without one), the soil "
@@ -114,6 +117,7 @@ STRAW_M = 0.05         # the high-pass that keeps a cover's straws and gaps and 
 GAP_LOBES = 0.0        # the gaps between straws follow the cover's own straws, a little thicker and thinner by area
 BARE_LOBES = 0.5       # the share of value noise in a bare patch's strewn feather (assumed)
 FLOOR_EDGE = 0.55      # a floor's soil level at its wall before the straws are strewn over it (assumed, H 9-14)
+FLOOR_STRAWS = 0.2     # the cover's straws lie over this share of a floor's soil, all over it (assumed, H 12, H 14)
 LIP_M = 0.4            # the mat thins over this outside a floor's outline (assumed, H 9-14: the ragged lip)
 LIP_LEVEL = 0.6        # the lip's level at the outline: more than half the mat's cut edge shows soil (assumed)
 RELIEF_TONE = 0.45     # the straws darken by up to this in the relief's hollows (assumed, G 1-12)
@@ -123,8 +127,8 @@ RELIEF_SAMPLES = 256   # the relief's samples per side before the bicubic resize
 # The named constants the ground and palette formulas read: their values go into the stamp's hash (review R1). The
 # bare feather and the patch layout's own constants are lib/patches.py's, the strips' and the relief's lib/mat.py's,
 # hashed under "layout".
-GROUND_CONSTANTS = ("MAX_OUTPUT_PX", "PHI", "LOBE_M", "STRAW_M", "GAP_LOBES", "BARE_LOBES", "FLOOR_EDGE", "LIP_M",
-                    "LIP_LEVEL", "RELIEF_TONE", "RELIEF_AO", "RELIEF_SAMPLES", "GREEN_LEVEL")
+GROUND_CONSTANTS = ("MAX_OUTPUT_PX", "PHI", "LOBE_M", "STRAW_M", "GAP_LOBES", "BARE_LOBES", "FLOOR_EDGE",
+                    "FLOOR_STRAWS", "LIP_M", "LIP_LEVEL", "RELIEF_TONE", "RELIEF_AO", "RELIEF_SAMPLES", "GREEN_LEVEL")
 PALETTE_CONSTANTS = ("PALETTE_BLOCK_PX", "PALETTE_HEIGHT_PX")
 LUMA = (0.2126, 0.7152, 0.0722)
 SRGB_TO_LINEAR = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in (v / 255 for v in range(256))]
@@ -314,7 +318,7 @@ def bare_layout_inputs(root, bare, material, size_m):
         inputs = patches.inputs(params)
     except (KeyError, TypeError) as e:
         raise DeriveError(f"{what}: {path} lacks the layout key {e} (seed, size_m, bare.share, bare.size_m, "
-                          "bare.outline_vertices, lodging)")
+                          "bare.outline_vertices, bare.aspect, bare.path_patches, lodging)")
     if inputs["size_m"] != size_m:
         raise DeriveError(f"{what}: {path} has size_m {inputs['size_m']}, the recipe {size_m}; the map spans the asset")
     if not 0 <= inputs["share"] < 1:
@@ -461,10 +465,34 @@ def bare_layer(bare_patches, out_px, size_m):
 
 
 def lip_layer(bare_patches, out_px, size_m):
-    """The L mask of a floor's lip: the outlines filled and blurred with sigma LIP_M / 3, doubled: 255 on and inside
-    the outline, falling to nothing LIP_M outside it."""
-    blurred = outline_layer(bare_patches, out_px, size_m).filter(ImageFilter.GaussianBlur(LIP_M / 3 * out_px / size_m))
+    """The L mask of a floor's lip and of a path's bridges: the outlines and, between each patch laid on along a path
+    and the patch it follows, the hull of their cores (the mat trodden thin between them, H 9-14; the map only, the
+    mat's full depth stays under it), filled and blurred with sigma LIP_M / 3, doubled: 255 on and inside them,
+    falling to nothing LIP_M outside."""
+    layer = outline_layer(bare_patches, out_px, size_m)
+    draw = ImageDraw.Draw(layer)
+    for patch in bare_patches:
+        if patch["after"] is not None:
+            draw.polygon([to_px(p, out_px, size_m) for p in bridge(patch, bare_patches[patch["after"]])], fill=255)
+    blurred = layer.filter(ImageFilter.GaussianBlur(LIP_M / 3 * out_px / size_m))
     return blurred.point(lambda v: min(255, 2 * v))
+
+
+def bridge(a, b):
+    """The hull of two patches' cores (their outlines where a core is empty): a path's bridge between them."""
+    points = sorted(set((a["core"] if len(a["core"]) >= 3 else a["outline"]) +
+                        (b["core"] if len(b["core"]) >= 3 else b["outline"])))
+
+    def half(points):
+        chain = []
+        for p in points:
+            while len(chain) >= 2 and ((chain[-1][0] - chain[-2][0]) * (p[1] - chain[-2][1]) -
+                                       (chain[-1][1] - chain[-2][1]) * (p[0] - chain[-2][0])) <= 0:
+                chain.pop()
+            chain.append(p)
+        return chain[:-1]
+
+    return half(points) + half(points[::-1])  # Andrew's monotone chain, counter-clockwise
 
 
 def green_layer(strips, out_px, size_m):
@@ -577,11 +605,19 @@ def derive_ground(root, manifest, material, recipe):
                   px_per_m, GAP_LOBES)
     # Straws lie over the regrowth: a strip shows between the cover's straws (strewn at GREEN_LEVEL; H 19-21).
     shown = strewn(green.point(lambda v: round(v * GREEN_LEVEL)), cover_albedo, rng, px_per_m, GAP_LOBES)
+    # Straws lie strewn all over a floor's soil (H 12, H 14): the cover's straws over FLOOR_STRAWS of it (strewn on a
+    # level whose straws' share 2 (1 - level)^2 is FLOOR_STRAWS). The bare mask itself (PR7 c) is the one above.
+    floors = outline_layer(layout["patches"], out_px, size_m)
+    scatter = strewn(Image.new("L", (out_px, out_px), round(255 * (1 - math.sqrt(FLOOR_STRAWS / 2)))), cover_albedo,
+                     rng, px_per_m, GAP_LOBES)
+    bare_soil_share = coverage(bare)  # the soil the bare mask shows in the floors, before the strewn straws
+    bare = ImageChops.multiply(bare, scatter)
     # The relief's hollows: darker straws and less ambient light (G 1-12).
     tone = relief.point(lambda v: round(255 * (1 - RELIEF_TONE * (1 - v / 255))))
     cover_albedo = ImageChops.multiply(cover_albedo, Image.merge("RGB", (tone, tone, tone)))
     soil_mask = ImageChops.lighter(bare, lip)
-    bare_share, bare_soil_share = layout["share"], coverage(bare)  # the outlines'; the soil the map shows in them
+    bare_share = layout["share"]  # the outlines'
+    floor_soil_share = coverage(ImageChops.multiply(soil_mask, floors)) / max(1e-6, coverage(floors))
     gap_share, green_share = coverage(gaps, outside=bare), coverage(green, outside=bare)
 
     # The straw layer takes the gain that lands the whole patch on the target with the soil, the gaps and the strips
@@ -618,7 +654,8 @@ def derive_ground(root, manifest, material, recipe):
                 "target_luminance": round(luminance(g["target"]), 4),
                 "luminance_error_pct": round(100 * (luminance(means) / luminance(g["target"]) - 1), 2),
                 "bare_share": round(bare_share, 4), "bare_patches": len(layout["patches"]),
-                "bare_soil_share": round(bare_soil_share, 4), "green_share": round(green_share, 4),
+                "bare_soil_share": round(bare_soil_share, 4), "floor_soil_share": round(floor_soil_share, 4),
+                "green_share": round(green_share, 4),
                 "gap_share": round(gap_share, 4), "lip_soil_share": round(coverage(lip, outside=bare), 4),
                 "soil_mean_srgb": "#" + "".join(f"{to_srgb8(c):02x}" for c in linear_means(soil_albedo)),
                 "soil_gain": [round(x, 3) for x in soil_gain],
@@ -630,7 +667,8 @@ def derive_ground(root, manifest, material, recipe):
     return (f"{fetch.relpath(root, outputs['albedo'])}: derived {out_px}x{out_px} ground from soil {sets['soil']} and "
             f"cover {sets['cover']}; mean luminance {measured['mean_luminance']:.4f} (target "
             f"{measured['target_luminance']:.4f}, {measured['luminance_error_pct']:+.1f} %), bare {100 * bare_share:.1f} % "
-            f"({len(layout['patches'])} outlines from {g['layout_params']}; soil shown {100 * bare_soil_share:.1f} %), "
+            f"({len(layout['patches'])} outlines from {g['layout_params']}; soil shown {100 * bare_soil_share:.1f} %, "
+            f"{100 * floor_soil_share:.1f} % of the floors with the straws strewn over them), "
             f"green {100 * green_share:.1f} %, gaps {100 * gap_share:.1f} %, straw gain {measured['straw_gain']}; recipe recorded in "
             f"{os.path.basename(stamp_path)}")
 

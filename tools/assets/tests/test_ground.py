@@ -29,7 +29,8 @@ COVER_ID = "fake_cover"
 SOIL_RGB, COVER_RGB = (70, 55, 40), (210, 180, 120)
 LAYOUT_PARAMS = "assets-src/surfaces/fake_patch.json"  # the asset params the bare patches come from
 PARAMS = {"seed": 7, "size_m": 12, "cell_m": 0.25, "relief_m": 0.04,
-          "bare": {"share": 0.08, "size_m": {"min": 0.5, "max": 2.0}, "outline_vertices": 8},
+          "bare": {"share": 0.08, "size_m": {"min": 0.5, "max": 2.0}, "outline_vertices": 8,
+                   "aspect": {"min": 1.5, "max": 2.5}, "path_patches": 3},
           "green": {"share": 0.15, "width_m": {"min": 1.0, "max": 3.0}, "length_m": {"min": 3.0, "max": 12.0}},
           "lodging": {"azimuth_deg": 25, "bias": 0.3}}
 RECIPE = {
@@ -250,23 +251,50 @@ def test_the_relief_map_is_the_meshs_relief_and_darkens_the_hollows(tmp_path):
 
 
 def test_a_floors_lip_shows_soil_just_outside_its_outline(tmp_path):
-    """The mat thins at a step's cut edge: soil shows between the cover's straws within LIP_M outside an outline, and
-    none farther out (the gaps aside, which are none here)."""
+    """The mat thins at a step's cut edge: soil shows between the cover's straws within LIP_M outside an outline and
+    over a path's bridges (the hull of two consecutive patches' cores, task 1.8), and none farther out (the gaps
+    aside, which are none here)."""
     root = ground_root(tmp_path)
     assert run(MATERIAL, "--root", root) == 0
     measured = json.loads((root / MATERIALS / f"{MATERIAL}.recipe.json").read_text(encoding="utf-8"))["measured"]
     print(f"lip soil {100 * measured['lip_soil_share']:.2f} % outside the outlines")
-    assert 0.002 < measured["lip_soil_share"] < 0.04
+    assert 0.002 < measured["lip_soil_share"] < 0.06
     bare = patches.layout(**patches.inputs(PARAMS))["patches"]
+    bridges = [derive.bridge(p, bare[p["after"]]) for p in bare if p["after"] is not None]
+    assert bridges, "the layout lays patches along paths"
     lip = derive.lip_layer(bare, 256, 12)
     for py in range(0, 256, 3):
         for px in range(0, 256, 3):
             x, z = ((px + 0.5) / 256 - 0.5) * 12, (0.5 - (py + 0.5) / 256) * 12
             d = min(patches.distance((x, z), p["outline"]) for p in bare)
-            if d > derive.LIP_M + 0.1:
+            if min([d] + [patches.distance((x, z), b) for b in bridges]) > derive.LIP_M + 0.1:
                 assert lip.getpixel((px, py)) == 0, f"a lip {d:.2f} m out at {(x, z)}"
-            elif -0.02 < d < 0.02:
-                assert lip.getpixel((px, py)) >= 128, f"no lip at the outline {(x, z)}"
+            elif -0.02 < d < 0.02 or min([1.0] + [patches.distance((x, z), b) for b in bridges]) < -0.05:
+                assert lip.getpixel((px, py)) >= 128, f"no lip at the outline or on a bridge at {(x, z)}"
+
+
+def test_straws_lie_strewn_over_the_floors(tmp_path, monkeypatch):
+    """R6 (H 12, H 14): a floor reads as soil with straws lying on it, not a hole. Over a cover of straws, the floors'
+    soil is covered by the cover's straws by about FLOOR_STRAWS more than without them, while the bare mask PR7 (c)
+    checks stays as it was."""
+    root = ground_root(tmp_path)
+    cover = Image.new("RGB", (64, 64), (150, 125, 80))
+    for x in range(0, 64, 3):
+        cover.paste((230, 200, 140), (x, 0, x + 1, 64))
+    cover.save(root / THIRD_PARTY / "polyhaven" / COVER_ID / f"{COVER_ID}_diffuse_1k.png")
+
+    def measured(share):
+        monkeypatch.setattr(derive, "FLOOR_STRAWS", share)
+        assert run(MATERIAL, "--root", root) == 0
+        return json.loads((root / MATERIALS / f"{MATERIAL}.recipe.json").read_text(encoding="utf-8"))["measured"]
+
+    bare, strewn = measured(0.0), measured(derive.FLOOR_STRAWS)
+    covered = 1 - strewn["floor_soil_share"] / bare["floor_soil_share"]
+    print(f"floors' soil {100 * bare['floor_soil_share']:.1f} % -> {100 * strewn['floor_soil_share']:.1f} %: straws "
+          f"over {100 * covered:.1f} % of it (FLOOR_STRAWS {100 * derive.FLOOR_STRAWS:.0f} %)")
+    assert strewn["bare_soil_share"] == bare["bare_soil_share"], "the bare mask is untouched"
+    assert abs(covered - derive.FLOOR_STRAWS) <= derive.FLOOR_STRAWS / 2
+    assert abs(strewn["luminance_error_pct"]) <= 5
 
 
 def test_ground_is_idempotent_and_regenerates_on_a_change(tmp_path, capsys):
@@ -309,9 +337,10 @@ def test_ground_is_idempotent_and_regenerates_on_a_change(tmp_path, capsys):
 
 @pytest.mark.parametrize("module, name, value", [
     (derive, "STRAW_M", 0.1), (derive, "LOBE_M", 0.8), (derive, "GAP_LOBES", 0.25), (derive, "RELIEF_TONE", 0.2),
-    (derive, "LIP_M", 0.5), (derive, "GREEN_LEVEL", 0.8),
+    (derive, "LIP_M", 0.5), (derive, "GREEN_LEVEL", 0.8), (derive, "FLOOR_STRAWS", 0.3),
     (mat, "GREEN_FEATHER_M", 0.4), (mat, "GREEN_SPREAD_DEG", 20.0), (mat, "TUSSOCK_M", 0.6),
-    (patches, "FEATHER_M", 0.2), (patches, "RADIAL_JITTER", 0.1), (patches, "WINDOW_M", 0.4)])
+    (patches, "FEATHER_M", 0.2), (patches, "RADIAL_JITTER", 0.1), (patches, "WINDOW_M", 0.4),
+    (patches, "EPS", 1e-3), (patches, "CLUSTER", 0.5), (patches, "PATH_GAP_M", [0.4, 1.5])])
 def test_a_changed_formula_constant_re_derives(tmp_path, capsys, monkeypatch, module, name, value):
     """Spec "A formula constant changes" (review R1): the stamp records the value of every constant derive.py, the
     patch layout and the mat's fields read, under "constants" and "layout", and hashes them, so tuning one
