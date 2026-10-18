@@ -1,4 +1,4 @@
-# Object sheet: lines, roads and debris (L01–L05, R01–R03 roads, K01–K06, K08–K10)
+# Object sheet: lines, roads and debris (L01–L05, RD01–RD03, K01–K06, K08–K10)
 
 **Owner:** reference-analyst. **Reviewed for buildability by:** asset-artist (task 1.7, pending).
 
@@ -6,7 +6,7 @@
 
 **Requirements:** AST-02, AST-04, AST-05, AST-06, REAL-01…05, PHY-22, PHY-23, SEC-01, SEC-02, PRC-06 · **Decisions:** D-007, D-013, D-024, D-028 · **Change:** `p1-object-sheets`, task 1.4.
 
-**Rows:** L01–L05 and the road kits R01–R03 from [asset-list.md](../asset-list.md) §8, and the debris kit K01–K06, K08–K10 from §10 (K07 is in the vehicles sheet). The road kits share their IDs with the vehicles R01–R03 of §9; here they are always written "R01 (road)" and so on (see Open points).
+**Rows:** L01–L05 and the road kits RD01–RD03 from [asset-list.md](../asset-list.md) §8, and the debris kit K01–K06, K08–K10 from §10 (K07 is in the vehicles sheet). The road kits were renamed from R01–R03 to RD01–RD03 so they no longer share IDs with the vehicles R01–R09 of §9.
 
 ## How this sheet was made
 
@@ -453,13 +453,13 @@ A cable hangs wherever a ceiling, slab edge or eave was torn open: one per room 
 ### Open points
 - Whether a cable hanging across an opening is written into that opening's gap polygon (it narrows a doorway the drone could otherwise pass): world-builder and physics engineer; the cautious default is yes for diagonals, no for loops above head height.
 
-## Shared: roads (R01–R03 roads)
+## Shared: roads (RD01–RD03)
 
 - **The surfaces belong to the surfaces sheet:** `asphalt` (S11), `concrete_slab` (S12) and `dirt_track` (S13) are rows of the surface table (terrain.md §8; the earthworks-and-surfaces sheet). The road kits here are the **geometry and features** laid on them: the road outline, crossfall, edges, potholes, joints, ruts, crater rings, plates.
 - **What is ground and what is an object:** whatever the heightfield and the surface layers can hold (crossfall, the carriageway outline, ruts as sub-grid relief, potholes as pitfall features) is written into the map by the map compiler; whatever is a separate solid (a concrete plate, a lifted asphalt slab, a kerb stone) is a catalog asset with its own collision. The road kits produce both, from one parameter set.
 - **Landing:** roads are the flattest, most landable ground on the map; their realism is in where they are not flat.
 
-## R01 (road) Asphalt road kit: straight, curve, junction; potholes, crater decals, cracked edges
+## RD01 Asphalt road kit: straight, curve, junction; potholes, crater decals, cracked edges
 
 **Seen in:** M (a pale, dusty, worn asphalt street with fine dark cracks, scattered gravel and twigs, a lighter patched area, a shallow irregular depression holding water behind the car, a kerb with a painted face at the back); O (dark wet asphalt under slush, snow banks on both sides, dark debris on the carriageway). No asphalt appears in any clip (terrain.md §9).
 **Research sources:** lane widths 3.0 m on main village streets and roads and 2.75 m on local streets (published: ДБН В.2.3-5:2018 as reported at https://www.kmu.gov.ua/news/v-ukrayini-vzhe-mozhna-zvuzhuvati-dorogi-pri-yih-rekonstrukciyi-ta-budivnictvi-lev-parchaladze ); a maintained road may not carry a hole deeper than 4 cm (higher categories) or 6 cm (the rest) (published: ДСТУ 3587 cl. 3.1.2, https://dnaop.com/html/60501/doc-%D0%94%D0%A1%D0%A2%D0%A3_3587-97 ), so the holes of an unmaintained frontline road are deeper.
@@ -481,7 +481,7 @@ A cable hangs wherever a ceiling, slab edge or eave was torn open: one per room 
 | Crater in asphalt (with the E05 crater) | 1–4 m across, the asphalt lifted in slabs 0.2–0.8 m around the rim, radial cracks to 1–3 radii | 2 m | E05 in the earthworks sheet; ring assumed |
 | Fragment pits | 10–60 mm across, 5–30 mm deep, within 5–15 m of a crater | — | assumed |
 | Kerb (urban edge only) | stones 0.15 × 0.30 × 1.0 m, 0.10–0.15 m above the carriageway | — | measured M (a kerb at the back, urban); village streets have none (assumed) |
-| Kit pieces | straight 10 and 20 m; curves of radius 15–40 m; T and X junctions; an end that crumbles into a dirt track (R03) | — | asset list |
+| Kit pieces | straight 10 and 20 m; curves of radius 15–40 m; T and X junctions; an end that crumbles into a dirt track (RD03) | — | asset list |
 
 ### Construction and materials
 - Hot asphalt on crushed stone on the compacted soil; no kerbs in the village, grass and soil shoulders, a ditch on one or both sides on the road out of the village. Worn pale and dusty in dry weather (M), dark and wet under slush in winter (O); dust, mud, gravel, twigs and glass crumbs on it.
@@ -515,7 +515,7 @@ Asphalt fails by cracking (fatigue and frost), then the cracked cells lose their
 - **Landable surfaces:** the carriageway (rigid, flat to 2 %). A pothole under one leg tilts the drone by atan(depth / 0.24): 16° for a 70 mm hole (derived); a 0.6 m hole can take two legs. A water-filled hole looks like flat road on the feed (M).
 
 ### Placement rules
-- One asphalt main street through each village, joining the next village; side streets are dirt or gravel (R03); the asphalt ends in a crumbled edge where it meets a field road.
+- One asphalt main street through each village, joining the next village; side streets are dirt or gravel (RD03); the asphalt ends in a crumbled edge where it meets a field road.
 - Houses 5–15 m back behind their fences; L01/L02 poles along one side; abandoned and destroyed vehicles on and beside it (the vehicles sheet), with K07 debris around them; damage concentrated near the village centre and the junctions (assumed).
 
 ### Generator parameters
@@ -544,7 +544,7 @@ Asphalt fails by cracking (fatigue and frost), then the cracked cells lose their
 - `proposed:asphalt` for lifted slabs and broken edges (friction near `concrete`, edge radius 3–5 mm from the aggregate): physics sign-off.
 - Pitfall features for potholes and the sub-grid relief for crossfall and edges: world-builder (map format).
 
-## R02 (road) Concrete road plates (about 6 × 2 m), laid as a track
+## RD02 Concrete road plates (about 6 × 2 m), laid as a track
 
 **Seen in:** **R**; the pilot's own description of concrete-slab tracks crossing a field (PR-8, a clip that is not a lettered reference).
 **Research sources:** the plate standard (published: ГОСТ 25912 technical requirements, https://dnaop.com/html/59443_2.html ); the ПАГ-14 plate 6000 × 2000 × 140 mm (published listing, https://productcenter.ru/products/92973/pag-14 ).
@@ -609,7 +609,7 @@ Plates rarely break in place; a burst beside the track tips and lifts plates, a 
 ### Open points
 - Which layout dominates locally is not seen in any letter; the generator holds all three and the world uses double_row as the default. Settled by the world review, not by the pilot.
 
-## R03 (road) Dirt track ruts (decal plus surface)
+## RD03 Dirt track ruts (decal plus surface)
 
 **Seen in:** L (faint field tracks at night, too dark to measure; terrain.md §9); **R**.
 **Research sources:** none; vehicle tracks are in the vehicles sheet (published specs there).
@@ -1007,7 +1007,7 @@ Tarps tear at the grommets first, then along the weave; film shreds into strips 
 ## K06 Concrete chunks with protruding rebar
 
 **Seen in:** K (two precast concrete beams lying in the mound, about 3–4 m long and 0.3–0.5 m deep, one with a recessed side panel; a bar about 0.35 m long sticking out of one beam end; scaled from the bricks beside them); **R**.
-**Research sources:** precast lintels with 2–4 bars of 8–12 mm (houses-and-yard.md); hollow-core floor slabs 1ПК, 220 mm thick with round voids 159 mm across (published, ГОСТ 9561, https://meganorm.ru/mega_doc/norm/gost_gosudarstvennyj-standart/11/gost_9561-91_plity_perekrytiy_zhelezobetonnye_mnogopustotnye.html ); 12 mm prestressed bars in road plates (published, R02).
+**Research sources:** precast lintels with 2–4 bars of 8–12 mm (houses-and-yard.md); hollow-core floor slabs 1ПК, 220 mm thick with round voids 159 mm across (published, ГОСТ 9561, https://meganorm.ru/mega_doc/norm/gost_gosudarstvennyj-standart/11/gost_9561-91_plity_perekrytiy_zhelezobetonnye_mnogopustotnye.html ); 12 mm prestressed bars in road plates (published, RD02).
 
 ### Dimensions
 | Part | Range | Chosen default | Label |
@@ -1043,7 +1043,7 @@ Lintels crack and drop when the brick above them goes; slabs crack at their supp
 - **Landable surfaces:** a chunk or slab piece with a top face of at least 0.35 × 0.35 m within 15°, bars excluded from the face: yes.
 
 ### Placement rules
-- At the block (U01, U02), at the lintels of brick houses (H03, H04, H06), at concrete garages and sheds, with broken road plates (R02); in K-type mounds 10 % by volume.
+- At the block (U01, U02), at the lintels of brick houses (H03, H04, H06), at concrete garages and sheds, with broken road plates (RD02); in K-type mounds 10 % by volume.
 
 ### Generator parameters
 | Param | Type | Range | Default | Effect |
@@ -1242,7 +1242,7 @@ Blast pulls curtains out through the window openings and strips wallpaper from t
 ## Open points for the whole sheet
 
 **Proposed physics material ids** (none invented in a generator; the physics engineer adds them to `physics_materials.json` with values):
-- `asphalt`: lifted asphalt slabs and broken edges (R01); friction near `concrete`, edge radius 3–5 mm.
+- `asphalt`: lifted asphalt slabs and broken edges (RD01); friction near `concrete`, edge radius 3–5 mm.
 - `rubber`: tyres (K09); high friction on the polymer feet (μs about 0.8, assumed), compliant.
 - `plastic`: crates, PVC frames, appliance housings (K08, K09); μs 0.3–0.4, rigid thin shells (assumed).
 - `fabric` and `asbestos_cement`: as proposed in houses-and-yard.md; here for tarps, film, curtains, carpets, mattresses and sofas (`fabric`) and slate (`asbestos_cement`).
@@ -1255,10 +1255,9 @@ Blast pulls curtains out through the window openings and strips wallpaper from t
 **Tech-artist:** sub-pixel wire rendering (L03): coverage-weighted, fading as 270·D / d, never thickened; the J and D feed values for wires.
 
 **Orchestrator:**
-- The road kits reuse the IDs R01–R03 of the vehicles (asset-list §8 and §9), so "every ID exactly once" cannot hold across the six sheets. Proposed: rename the road kits (for example RD01–RD03) in the asset list.
 - The thick wire class: 13–32 mm instead of 15–20 mm (a SIP main is 26–32 mm).
 - Two existing notes rest on OSD marks (see "A correction"): terrain.md S1 (the C bullet) and houses-and-yard.md C01 ("Wire above … measured C 1–8", and the C reference-view row's "an overhead wire crossing the sky"). Suggested fix: no measured wire in C; D's wire is the low slack cable from the dead trunk.
 
-**Other sheets:** V20 (vegetation): J's brush pile is about 1.0–1.5 m high and 3–4 m long with branches 20–60 mm across and 1–3 m long, which matches V20's defaults (no change). Vehicles sheet: the published tracks feed R03's rut spacing; K07 sits beside the K kit on roads.
+**Other sheets:** V20 (vegetation): J's brush pile is about 1.0–1.5 m high and 3–4 m long with branches 20–60 mm across and 1–3 m long, which matches V20's defaults (no change). Vehicles sheet: the published tracks feed RD03's rut spacing; K07 sits beside the K kit on roads.
 
 **Pilot:** nothing. Every open point here is settled by research, the side-by-side sheets or a role decision.
