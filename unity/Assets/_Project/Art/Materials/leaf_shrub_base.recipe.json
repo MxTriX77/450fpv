@@ -1,0 +1,20 @@
+{
+  "material": "leaf_shrub",
+  "texture_set": "ambientcg/LeafSet002",
+  "formula": "RGB diffuse, A opacity; 8-bit sRGB at the sources' size",
+  "sources": {
+    "diffuse": {
+      "name": "LeafSet002_2K-PNG_Color.png",
+      "sha256": "f79fc4a4831ee1114ee5984d12c7777cbb382b8156d0b0239b557bf97a50fa75"
+    },
+    "opacity": {
+      "name": "LeafSet002_2K-PNG_Opacity.png",
+      "sha256": "c68f9e226d535daedb1e29ee3ca17c9645128a4165615682960b8b3bf9a6737d"
+    }
+  },
+  "inputs_sha256": "55140b012eeae5721a0d65f70804f72ad4000cbba540d5a29bbd417f41579a95",
+  "size": [
+    2048,
+    2048
+  ]
+}

@@ -2,7 +2,9 @@
 (metallic R from the recipe, AO G from a 16-bit source scaled not clipped, smoothness A = 1 - roughness, B 0), the
 recipe recorded beside it, regeneration when the recipe or a source changes and a no-op when nothing did, --all over
 every recipe with mask-less ones skipped, and the failures named: a map the set lacks, an unknown expression, a
-malformed mask, a missing recipe; nothing is written on failure."""
+malformed mask, a missing recipe; nothing is written on failure. And the base map of an alpha-clipped recipe
+("Alpha-clipped two-sided recipes"): the diffuse's RGB with the set's separate opacity map as alpha, skipped when the
+set has no opacity map, refused when the two differ in size."""
 import json
 from pathlib import Path
 
@@ -10,7 +12,7 @@ from PIL import Image
 
 import derive
 import fetch
-from conftest import SET_ID, THIRD_PARTY, make_root
+from conftest import MAPS, SET_ID, THIRD_PARTY, make_root
 
 SET_DIR = THIRD_PARTY / "polyhaven" / SET_ID
 RECIPES = Path("assets-src/materials")
@@ -19,6 +21,8 @@ SIZE = (8, 4)
 MATERIAL = "fake_mat"
 MASK = {"metallic": 0.0, "occlusion": "ao", "smoothness": "1 - roughness"}
 SOURCES = {"roughness": f"{SET_ID}_rough_1k.png", "ao": f"{SET_ID}_ao_1k.png"}
+OPACITY = f"{SET_ID}_opacity_1k.png"
+DIFFUSE_RGB = (200, 100, 50)
 
 
 def gradient(axis, bits):
@@ -32,13 +36,16 @@ def gradient(axis, bits):
     return image
 
 
-def write_recipe(root, mask):
+def write_recipe(root, mask, alpha_clip=None):
     recipe = {"schema": 1, "shader": "Universal Render Pipeline/Lit", "texture_set": f"polyhaven/{SET_ID}",
               "tile_size_m": [1.0, 1.0], "tint": [1.0, 1.0, 1.0, 1.0]}
     if mask is None:
         recipe["smoothness"] = 0.25
     else:
         recipe["mask"] = mask
+    if alpha_clip is not None:
+        recipe["alpha_clip"] = alpha_clip
+        recipe["two_sided"] = True
     (root / RECIPES).mkdir(parents=True, exist_ok=True)
     (root / RECIPES / f"{MATERIAL}.json").write_text(json.dumps(recipe, indent=2) + "\n", encoding="utf-8")
 
@@ -57,6 +64,22 @@ def derive_root(tmp_path):
                                                 "bytes": path.stat().st_size, "sha256": fetch.sha256(path)})
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     write_recipe(root, MASK)
+    return root
+
+
+def base_root(tmp_path):
+    """derive_root plus a real flat-colour diffuse in place of the fake bytes, an 8-bit opacity map rising along x
+    pinned as the set's opacity, and a recipe with the mask and alpha_clip 0.5."""
+    root = derive_root(tmp_path)
+    Image.new("RGB", SIZE, DIFFUSE_RGB).save(root / SET_DIR / MAPS["diffuse"])
+    gradient(0, 8).save(root / SET_DIR / OPACITY)
+    manifest_path = root / "tools" / "assets" / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    path = root / SET_DIR / OPACITY
+    manifest["entries"][0]["files"].append({"map": "opacity", "name": OPACITY, "url": f"https://dl.polyhaven.org/{OPACITY}",
+                                            "bytes": path.stat().st_size, "sha256": fetch.sha256(path)})
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    write_recipe(root, MASK, alpha_clip=0.5)
     return root
 
 
@@ -130,6 +153,44 @@ def test_all_derives_every_recipe_and_skips_those_without_a_mask(tmp_path, capsy
     out = capsys.readouterr().out
     assert f"{MATERIAL}_mask.png: derived" in out and "plain: no mask in the recipe, nothing to derive" in out
     assert (root / MATERIALS / f"{MATERIAL}_mask.png").is_file() and not (root / MATERIALS / "plain_mask.png").exists()
+
+
+def test_base_map_packs_the_opacity_into_the_diffuse_alpha(tmp_path, capsys):
+    root = base_root(tmp_path)
+    assert run(MATERIAL, "--root", root) == 0
+    out = capsys.readouterr().out
+    assert f"{MATERIAL}_mask.png: derived 8x4" in out, "the mask of the same recipe is derived too"
+    assert (f"{MATERIALS.as_posix()}/{MATERIAL}_base.png: derived 8x4 from polyhaven/{SET_ID} (diffuse, opacity); "
+            f"recipe recorded in {MATERIAL}_base.recipe.json") in out and "derive.py: OK" in out
+    base = Image.open(root / MATERIALS / f"{MATERIAL}_base.png")
+    assert base.mode == "RGBA" and base.size == SIZE
+    for y in range(SIZE[1]):
+        for x in range(SIZE[0]):
+            assert base.getpixel((x, y)) == DIFFUSE_RGB + (round(x / (SIZE[0] - 1) * 255),), "RGB diffuse, A opacity"
+    stamp = json.loads((root / MATERIALS / f"{MATERIAL}_base.recipe.json").read_text(encoding="utf-8"))
+    assert stamp["material"] == MATERIAL and stamp["formula"] == derive.BASE_FORMULA and "mask" not in stamp
+    assert {k: v["name"] for k, v in stamp["sources"].items()} == {"diffuse": MAPS["diffuse"], "opacity": OPACITY}
+    assert stamp["sources"]["opacity"]["sha256"] == fetch.sha256(root / SET_DIR / OPACITY) and stamp["size"] == [8, 4]
+
+    assert run(MATERIAL, "--root", root) == 0
+    assert f"{MATERIAL}_base.png: up to date" in capsys.readouterr().out
+
+    manifest_path = root / "tools" / "assets" / "manifest.json"  # a set without a separate opacity map: nothing to pack
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["entries"][0]["files"] = [f for f in manifest["entries"][0]["files"] if f["map"] != "opacity"]
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    (root / MATERIALS / f"{MATERIAL}_base.png").unlink()
+    assert run(MATERIAL, "--root", root) == 0
+    assert f"{MATERIAL}: polyhaven/{SET_ID} has no separate opacity map, the diffuse's own alpha clips" in capsys.readouterr().out
+    assert not (root / MATERIALS / f"{MATERIAL}_base.png").exists()
+
+
+def test_base_map_refuses_sources_of_different_size(tmp_path, capsys):
+    root = base_root(tmp_path)
+    Image.new("RGB", (SIZE[0] * 2, SIZE[1]), DIFFUSE_RGB).save(root / SET_DIR / MAPS["diffuse"])
+    assert run(MATERIAL, "--root", root) == 1
+    assert f"ERROR: {MATERIAL}: the sources differ in size: diffuse 16x4, opacity 8x4" in capsys.readouterr().out
+    assert not (root / MATERIALS / f"{MATERIAL}_base.png").exists()
 
 
 def test_failures_name_the_cause_and_write_nothing(tmp_path, capsys):

@@ -1,0 +1,25 @@
+{
+  "material": "bark_shrub",
+  "texture_set": "polyhaven/bark_brown_02",
+  "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
+  "mask": {
+    "metallic": 0.0,
+    "occlusion": "ao",
+    "smoothness": "1 - roughness"
+  },
+  "sources": {
+    "ao": {
+      "name": "bark_brown_02_ao_1k.png",
+      "sha256": "d7acd48f1f2259418ae65bcc6b37add5ad38b4cc0e10ee4cc9da17d20afa8cb6"
+    },
+    "roughness": {
+      "name": "bark_brown_02_rough_1k.png",
+      "sha256": "346e756131c7409fef357f6aa391f1d8b2db815fd965f0f5529fe76a2baf26ae"
+    }
+  },
+  "inputs_sha256": "c990c6f13da52b53b07238f86da572d9f0eb12ba0d20c9ba72f38900046f65e1",
+  "size": [
+    1024,
+    1024
+  ]
+}

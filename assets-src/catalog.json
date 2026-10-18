@@ -6,6 +6,12 @@
       "generator": "debris_brick",
       "variants": ["K01_whole"],
       "materials": { "brick": "brick_red" }
+    },
+    "V13": {
+      "class": "vegetation",
+      "generator": "shrub",
+      "variants": ["V13_low", "V13_mid", "V13_tall"],
+      "materials": { "stem": "bark_shrub", "twig": "bark_shrub", "leaf": "leaf_shrub" }
     }
   }
 }

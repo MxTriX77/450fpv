@@ -6,6 +6,7 @@ import os
 
 CATALOG = os.path.join("assets-src", "catalog.json")
 MODELS = os.path.join("unity", "Assets", "_Project", "Art", "Models")
+RECIPES = os.path.join("assets-src", "materials")
 
 
 class CatalogError(Exception):
@@ -45,6 +46,19 @@ def output_dir(root, entry, asset_id):
 def load_params(path):
     with open(path, encoding="utf-8") as f:
         return json.load(f)
+
+
+def card_visuals(root):
+    """The visual materials drawn as cards: the recipes in assets-src/materials with an `alpha_clip` (p1-v13-shrub,
+    "Compliant shells in the collision audit": the audit holds card slots to the card allowance)."""
+    folder = os.path.join(root, RECIPES)
+    names = set()
+    for name in sorted(os.listdir(folder)):
+        if name.endswith(".json"):
+            with open(os.path.join(folder, name), encoding="utf-8") as f:
+                if "alpha_clip" in json.load(f):
+                    names.add(name[:-len(".json")])
+    return names
 
 
 def params_sha256(params):

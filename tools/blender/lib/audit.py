@@ -16,11 +16,34 @@ only around chamfers, edges and openings:
   sharing an edge is clipped at the fold's bisector plane and each part bounded by its own face.
 - mesh -> primitives: cells are the mesh's triangles; each primitive's signed distance is exact. Outside a convex
   primitive the distance is convex (a vertex bound); inside it, the depth is bounded through the shape's own
-  planes, centre or axis (exact for a sphere, capsule or cylinder, the nearest face for a box)."""
+  planes, centre or axis (exact for a sphere, capsule or cylinder, the nearest face for a box).
+
+Compliant shells (p1-v13-shrub, "Compliant shells in the collision audit"; review-physics §2): the primitives of a
+crown contact material (SHELL_MATERIALS) are the pieces of one shell over the LOD0 faces of the material slots
+carrying that material. Those faces are not held to the other primitives; the shell is held to them both ways:
+- (a) standoff: every point of a piece's surface above the ground and outside the material's other pieces lies within
+  ENVELOPE_TOLERANCE_M of the nearest face of the slots, found by branch and bound over cells of the piece's own
+  surface (a sphere or capsule: vertices on it, each cell's patch within its sag of its flat triangle, so within
+  SHELL_PRECISION_M of the true largest standoff; any other shape flat at SHELL_CHORD_M), the faces' distances from
+  a grid (FaceIndex);
+- (b) every LOD0 vertex of a geometry slot lies inside a piece or within ENVELOPE_TOLERANCE_M outside the union;
+- (c) every LOD0 vertex of a card slot, one whose visual material is an alpha-clipped recipe (`card_visuals`), lies
+  inside a piece or within CARD_ALLOWANCE_M outside the union: a sprig hangs at most its own length off the twig mass,
+  and its twig carries a snag record.
+The report prints the piece count and kinds, each piece's largest standoff and where it is, and per slot the largest
+outside distance. The other primitives and faces are audited as above against each other."""
 import heapq
 import math
 
 TOLERANCE_M = 0.05          # AST-05: collision follows the visual within +-5 cm
+SHELL_MATERIALS = ("twig", "foliage")
+ENVELOPE_TOLERANCE_M = 0.1  # derived, p1-v13-shrub review-physics §2: 3 N at the twig row's 30 N/m before a leaf
+CARD_ALLOWANCE_M = 0.3      # derived, review-physics §2: card_m 0.2 m plus the envelope tolerance
+SHELL_START_M = 0.01        # the chord of a sphere's or capsule's first cells in the standoff search
+SHELL_CHORD_M = 0.002       # tessellation error allowed on a shell piece of any other shape
+SHELL_PRECISION_M = 0.0005
+FACE_CELL_M = 0.05          # FaceIndex grid cell
+FACE_RINGS = 3              # rings of cells searched before a far point falls back to every face
 NEAR_TOLERANCE_M = 0.02     # +-2 cm around openings and landing surfaces
 NEAR_RANGE_M = 0.3
 PRECISION_M = 0.0001        # the search stops when no cell can beat the best by this; with CHORD_M, under 1 mm
@@ -31,25 +54,34 @@ UP = (0.0, 1.0, 0.0)
 FAR_M = 1000.0              # a cylinder's axis as a segment long enough to act as a line
 
 
-def run(meta, lod0):
+def run(meta, lod0, card_visuals=()):
     """(problems, report lines) of one variant: `meta` as lib.meta.assemble builds it, `lod0` its first
-    lib.geometry.Mesh. Problems name the primitive, the deviation and the tolerance; the lines carry the measured
-    numbers for every primitive, the mesh and every gap, success or not."""
-    faces = _mesh_faces(lod0)
+    lib.geometry.Mesh, `card_visuals` the visual materials drawn as alpha-clipped cards (lib.catalog.card_visuals).
+    Problems name the primitive or slot, the deviation and the tolerance; the lines carry the measured numbers for
+    every primitive, the mesh, every shell piece and slot and every gap, success or not."""
     shapes = [_Shape(s) for s in meta["collision"]]
+    shell_slots = {m["slot"] for m in meta["materials"] if m["physics"] in SHELL_MATERIALS}
+    shells = [i for i, s in enumerate(meta["collision"]) if s["material"] in SHELL_MATERIALS]
+    body = [i for i in range(len(shapes)) if i not in shells]
+    faces = [face for face in _mesh_faces(lod0) if face.slot not in shell_slots]
     zone = _zone(meta, shapes)
     problems, lines = [], []
-    for i, shape in enumerate(shapes):
+    for i in body:
+        shape = shapes[i]
+        if not faces:
+            problems.append(f"collision[{i}] {shape.kind}: no LOD0 face outside the shells' slots stands under it")
+            continue
         cells = [tri[:3] for tri in shape.triangles]
         problems += _report(lines, f"collision[{i}] {shape.kind}", f"{shape.kind}->mesh", cells, zone,
                             lambda v: _nearest_face(v, faces), lambda cell, which: _faces_bound(cell, which, faces))
-    if not shapes:
+    if faces and not body:
         problems.append("mesh: no collision primitive stands for the LOD0 mesh")
-    else:
+    elif faces:
         cells = [tuple(face.points[i] for i in tri) for face in faces for tri in face.fan()]
         problems += _report(lines, "mesh", "mesh->collision", cells, zone,
-                            lambda v: _nearest_shape(v, shapes), lambda cell, which: _shapes_bound(cell, which, shapes),
+                            lambda v: _nearest_shape(v, shapes, body), lambda cell, which: _shapes_bound(cell, which, shapes),
                             lambda which: f" nearest collision[{which}]")
+    problems += _audit_shells(lines, meta, shapes, shells, lod0, set(card_visuals))
     for i, gap in enumerate(meta["gaps"]):
         diameter = 2 * _inscribed_radius(_flatten_polygon(gap["polygon"], gap["normal"]))
         text = f"gaps[{i}] '{gap['id']}': narrowest_m {gap['narrowest_m']:.4f}, largest inscribed circle {diameter:.4f}"
@@ -74,6 +106,241 @@ def _report(lines, label, direction, cells, zone, value, bound, note=lambda whic
                 problems.append(f"{label}: {text} exceeds the tolerance {NEAR_TOLERANCE_M * 1000:g} mm")
     lines.append("audit " + line)
     return problems
+
+
+def _audit_shells(lines, meta, shapes, shells, lod0, card_visuals):
+    """The shell rule (module docstring), per crown contact material: (a) each piece's largest standoff, (b) and (c)
+    each slot's largest outside distance. A piece no slot carries, and a slot with LOD0 faces that no piece stands
+    for, are each a problem."""
+    problems = []
+    by_material = {m["physics"]: [] for m in meta["materials"] if m["physics"] in SHELL_MATERIALS}
+    for i in shells:
+        by_material.setdefault(meta["collision"][i]["material"], []).append(i)
+    for material, members in sorted(by_material.items()):
+        entries = sorted((m["slot"], m["visual"]) for m in meta["materials"] if m["physics"] == material)
+        slots = [slot for slot, _ in entries]
+        faces = [face for face in _mesh_faces(lod0) if face.slot in slots]
+        if not members:
+            if faces:
+                problems.append(f"slots {', '.join(slots)} carry {material} but no {material} shell stands for them")
+            continue
+        kinds = [shapes[i].kind for i in members]
+        lines.append(f"audit {material} shell: {len(members)} piece{'s' * (len(members) > 1)} ("
+                     + ", ".join(f"{kinds.count(k)} {k}{'s' * (kinds.count(k) > 1)}" for k in sorted(set(kinds))) + ")")
+        index = FaceIndex(faces) if faces else None
+        for i in members:
+            label = f"collision[{i}] {shapes[i].kind} ({material} shell)"
+            if index is None:
+                problems.append(f"{label}: no material slot carries {material}, so it encloses nothing" if not slots
+                                else f"{label}: slots {', '.join(slots)} have no LOD0 face to stand off")
+                lines.append(f"audit {label}: no face of slots {', '.join(slots) or 'none'} to stand off")
+                continue
+            distance, at = _standoff(shapes, i, [j for j in members if j != i], index)
+            if at is None:
+                lines.append(f"audit {label}: no surface above the ground outside the other pieces, "
+                             f"tolerance {ENVELOPE_TOLERANCE_M * 1000:g} mm")
+                continue
+            text = f"largest standoff {distance * 1000:.3f} mm at {_fmt(at)}"
+            if distance > ENVELOPE_TOLERANCE_M:
+                problems.append(f"{label}: {text} exceeds the tolerance {ENVELOPE_TOLERANCE_M * 1000:g} mm")
+            lines.append(f"audit {label}: {text}, tolerance {ENVELOPE_TOLERANCE_M * 1000:g} mm")
+        for slot, visual in entries:
+            card = visual in card_visuals
+            limit, word = (CARD_ALLOWANCE_M, "allowance") if card else (ENVELOPE_TOLERANCE_M, "tolerance")
+            vertices = sorted({lod0.vertices[k] for indices, _, _, s in lod0.faces if s == slot for k in indices})
+            distance, at = 0.0, None
+            for v in vertices:
+                outside = math.inf
+                for i in members:
+                    outside = min(outside, shapes[i].sdf(v))
+                    if outside <= 0:
+                        break
+                if outside > distance:
+                    distance, at = outside, v
+            label = f"slot {slot} ({'cards' if card else 'geometry'}, {material} shell)"
+            text = f"largest outside distance {distance * 1000:.3f} mm" + (f" at {_fmt(at)}" if at else "")
+            if distance > limit:
+                problems.append(f"{label}: {text} exceeds the {word} {limit * 1000:g} mm")
+            lines.append(f"audit {label}: {text} over {len(vertices)} vertices, {word} {limit * 1000:g} mm")
+    return problems
+
+
+def _standoff(shapes, i, others, index):
+    """(largest standoff, where) of piece i: the largest distance from its surface to the nearest face of `index`,
+    over the points above the ground and outside the `others`, within SHELL_PRECISION_M by branch and bound over the
+    cells of _shell_cells; (0, None) when no such point exists. A cell's vertices lie on the surface and its patch
+    within its sag of its flat triangle, so its bound is the lesser of two, plus the sag: the distance to one
+    candidate face, convex, at its worst vertex; and the distance at its nearest vertex plus its longest edge (the
+    distance is 1-Lipschitz). A cell whose vertices all lie deeper than its sag under the ground, or inside one other
+    piece (convex), is dropped; a vertex hidden either way counts as no value but its cell's bound still holds every
+    point, so the search closes in on the edges of the exposed surface."""
+    shape = shapes[i]
+    reach = shape.reach()
+    others = [shapes[j] for j in others if _dist(shapes[j].centre, shape.centre) < reach + shapes[j].reach()]
+
+    def hidden(v):
+        return v[1] < 0 or any(other.sdf(v) < 0 for other in others)
+
+    def dropped(cell, sag):
+        return all(v[1] < -sag for v in cell) or any(all(other.sdf(v) < -sag for v in cell) for other in others)
+
+    cache = {}
+
+    def value(v):
+        """(distance, nearest face, exposed) at a vertex."""
+        if v not in cache:
+            d, which = index.nearest(v)
+            cache[v] = (d, which, not hidden(v))
+        return cache[v]
+
+    best, at, heap = -1.0, None, []
+
+    def push(cell):
+        nonlocal best, at
+        points, patch = cell
+        sag = _sag(shape, cell)
+        if dropped(points, sag):
+            return
+        values = [value(v) for v in points]
+        for v, (d, _, exposed) in zip(points, values):
+            if exposed and d > best:
+                best, at = d, v
+        edge = _longest_edge(points)
+        upper = min(v[0] for v in values) + edge + sag
+        if upper > best + SHELL_PRECISION_M:
+            faces = {v[1] for v in values}
+            upper = min(upper, sag + min(max(_face_distance(v, index.faces[f]) for v in points) for f in faces))
+        if upper > best + SHELL_PRECISION_M and edge > SHELL_PRECISION_M:
+            heapq.heappush(heap, (-upper, len(heap), cell))
+
+    for cell in _shell_cells(shape):
+        push(cell)
+    while heap and -heap[0][0] > best + SHELL_PRECISION_M:
+        _, _, cell = heapq.heappop(heap)
+        for child in _split(shape, cell):
+            push(child)
+    return (best, at) if at is not None else (0.0, None)
+
+
+def _shell_cells(shape):
+    """Coarse cells (vertices, patch) over a piece's surface, from its tessellation at SHELL_START_M. A sphere's
+    cells, and a capsule's cap cells, are patches of radial projection from the sphere's or cap's centre
+    (("radial", centre)); a capsule's wall is cut in angle and height (("wall", params)); both tile the surface
+    exactly as they split. Any other shape is cut flat at SHELL_CHORD_M (patch None)."""
+    if shape.kind not in ("sphere", "capsule"):
+        return [((a, b, c), None) for a, b, c, _ in _tessellate(shape, SHELL_CHORD_M)]
+    cells = []
+    for a, b, c, _ in _tessellate(shape, SHELL_START_M):
+        ys = [shape.local(p)[1] for p in (a, b, c)]
+        if shape.kind == "sphere":
+            cells.append(((a, b, c), ("radial", shape.centre)))
+        elif all(y <= -shape.h + 1e-9 for y in ys) or all(y >= shape.h - 1e-9 for y in ys):
+            cells.append(((a, b, c), ("radial", shape.place((0.0, math.copysign(shape.h, ys[0]), 0.0)))))
+    if shape.kind == "capsule" and shape.h > 0:
+        around = max(8, math.ceil(2 * math.pi / math.acos(1 - SHELL_START_M / shape.r))) if shape.r > SHELL_START_M else 8
+        for j in range(around):
+            t0, t1 = 2 * math.pi * j / around, 2 * math.pi * (j + 1) / around
+            for params in (((t0, -shape.h), (t1, -shape.h), (t1, shape.h)), ((t0, -shape.h), (t1, shape.h), (t0, shape.h))):
+                cells.append((tuple(_on_wall(shape, q) for q in params), ("wall", params)))
+    return cells
+
+
+def _on_wall(shape, param):
+    angle, y = param
+    return shape.place((shape.r * math.cos(angle), y, shape.r * math.sin(angle)))
+
+
+def _split(shape, cell):
+    """The four children of a cell, their new vertices on the surface (see _shell_cells)."""
+    (a, b, c), patch = cell
+    if patch is None:
+        ab, bc, ca = _mid(a, b), _mid(b, c), _mid(c, a)
+    elif patch[0] == "radial":
+        centre = patch[1]
+        ab, bc, ca = (_add(centre, tuple(shape.r * k for k in _normalize(_sub(_mid(p, q), centre))))
+                      for p, q in ((a, b), (b, c), (c, a)))
+    else:
+        pa, pb, pc = patch[1]
+        qab, qbc, qca = (((p[0] + q[0]) / 2, (p[1] + q[1]) / 2) for p, q in ((pa, pb), (pb, pc), (pc, pa)))
+        ab, bc, ca = _on_wall(shape, qab), _on_wall(shape, qbc), _on_wall(shape, qca)
+        return [((a, ab, ca), ("wall", (pa, qab, qca))), ((ab, b, bc), ("wall", (qab, pb, qbc))),
+                ((ca, bc, c), ("wall", (qca, qbc, pc))), ((ab, bc, ca), ("wall", (qab, qbc, qca)))]
+    return [((a, ab, ca), patch), ((ab, b, bc), patch), ((ca, bc, c), patch), ((ab, bc, ca), patch)]
+
+
+def _sag(shape, cell):
+    """How far a cell's patch may stand off its flat triangle: r less the distance from the projection centre to
+    the triangle for a radial patch; r * da^2 / 2 for a wall patch spanning the angle da (Taylor's bound on the
+    circle's chord); 0 when flat."""
+    points, patch = cell
+    if patch is None:
+        return 0.0
+    if patch[0] == "radial":
+        return max(0.0, shape.r - _point_triangle_distance(patch[1], points))
+    angles = [q[0] for q in patch[1]]
+    return shape.r * (max(angles) - min(angles)) ** 2 / 2
+
+
+def standoff(shape, index):
+    """(largest standoff, where) of one shape (a metadata dict) on its own against the faces of `index`: rule (a)
+    with no other piece hiding any of it, so at least what the audit measures. lib.shell checks its fit with it."""
+    return _standoff([_Shape(shape)], 0, [], index)
+
+
+class FaceIndex:
+    """The faces of some slots on a grid of FACE_CELL_M cells, each face listed in every cell it may meet (its
+    bounding box's cells whose centre lies within half a cell diagonal of it), for the nearest face to a point: rings
+    of cells outward until the face found is nearer than any unseen one can be, and every face (bounding boxes
+    first) for a point more than FACE_RINGS rings from the faces. `faces` are _Face polygons, or a
+    lib.geometry.Mesh whose faces of `slots` are taken."""
+
+    def __init__(self, faces, slots=None):
+        if slots is not None:
+            faces = [face for face in _mesh_faces(faces) if face.slot in slots]
+        self.faces, self.cells = faces, {}
+        half = FACE_CELL_M * math.sqrt(3) / 2
+        for i, face in enumerate(faces):
+            lo = [math.floor(c / FACE_CELL_M) for c in face.lo]
+            hi = [math.floor(c / FACE_CELL_M) for c in face.hi]
+            for x in range(lo[0], hi[0] + 1):
+                for y in range(lo[1], hi[1] + 1):
+                    for z in range(lo[2], hi[2] + 1):
+                        centre = ((x + 0.5) * FACE_CELL_M, (y + 0.5) * FACE_CELL_M, (z + 0.5) * FACE_CELL_M)
+                        if _face_distance(centre, face) <= half:
+                            self.cells.setdefault((x, y, z), []).append(i)
+
+    def nearest(self, p, cap=math.inf):
+        """(distance, face index) of the face nearest to p, or (cap, None) when none lies nearer than `cap`. A face
+        whose bounding box lies no nearer than the best so far is skipped."""
+        px, py, pz = p
+        cx, cy, cz = math.floor(px / FACE_CELL_M), math.floor(py / FACE_CELL_M), math.floor(pz / FACE_CELL_M)
+        best, which, seen, faces, cells = cap, None, set(), self.faces, self.cells
+        for k in range(FACE_RINGS + 2):
+            if k <= FACE_RINGS:
+                found = (i for dx, dy, dz in _RINGS[k] for i in cells.get((cx + dx, cy + dy, cz + dz), ()))
+            else:  # beyond the rings: every face not seen yet
+                found = range(len(faces))
+            for i in found:
+                if i in seen:
+                    continue
+                seen.add(i)
+                face = faces[i]
+                (lx, ly, lz), (hx, hy, hz) = face.lo, face.hi
+                ex = lx - px if px < lx else px - hx if px > hx else 0.0
+                ey = ly - py if py < ly else py - hy if py > hy else 0.0
+                ez = lz - pz if pz < lz else pz - hz if pz > hz else 0.0
+                if ex * ex + ey * ey + ez * ez < best * best:
+                    d = _face_distance(p, face)
+                    if d < best:
+                        best, which = d, i
+            if best <= k * FACE_CELL_M:  # every unseen face lies beyond the rings searched
+                break
+        return best, which
+
+
+# the cell offsets of each ring of FaceIndex.nearest, ring k at Chebyshev distance k
+_RINGS = [[(x, y, z) for x in range(-k, k + 1) for y in range(-k, k + 1) for z in range(-k, k + 1)
+           if max(abs(x), abs(y), abs(z)) == k] for k in range(FACE_RINGS + 1)]
 
 
 def _directed_max(cells, value, bound, zone=None):
@@ -116,15 +383,19 @@ def _directed_max(cells, value, bound, zone=None):
 
 class _Face:
     """A convex planar polygon of the mesh: points counter-clockwise about its outward normal, the vertex indices
-    it was built from (for the shared edge with a neighbour), and its bounding box."""
+    it was built from (for the shared edge with a neighbour), its material slot, and its bounding box."""
 
-    def __init__(self, points, indices, outward):
+    def __init__(self, points, indices, outward, slot=None):
         self.normal = _normalize(outward)  # generators fix only its direction
         if _dot(_newell(points), outward) < 0:
             points, indices = points[::-1], indices[::-1]
-        self.points, self.indices = points, indices
+        self.points, self.indices, self.slot = points, indices, slot
         self.lo = tuple(min(p[k] for p in points) for k in range(3))
         self.hi = tuple(max(p[k] for p in points) for k in range(3))
+        # per edge, for _face_distance: its start, its vector, its squared length and the in-plane normal pointing
+        # inside
+        self.edges = [(a, _sub(b, a), _dot(_sub(b, a), _sub(b, a)), _cross(self.normal, _sub(b, a)))
+                      for a, b in zip(points, points[1:] + points[:1])]
 
     def fan(self):
         return [(0, k, k + 1) for k in range(1, len(self.points) - 1)]
@@ -136,24 +407,36 @@ class _Face:
 def _mesh_faces(mesh):
     """The mesh's faces as _Face polygons: convex ones whole, concave ones ear-clipped into triangles."""
     faces = []
-    for indices, outward, _, _ in mesh.faces:
+    for indices, outward, _, slot in mesh.faces:
         points = [mesh.vertices[i] for i in indices]
         if _is_convex(points, outward):
-            faces.append(_Face(points, list(indices), outward))
+            faces.append(_Face(points, list(indices), outward, slot))
         else:
             for tri in _triangulate(points, outward):
-                faces.append(_Face([points[i] for i in tri], [indices[i] for i in tri], outward))
+                faces.append(_Face([points[i] for i in tri], [indices[i] for i in tri], outward, slot))
     return faces
 
 
 def _face_distance(p, face):
-    """Distance from p to a convex planar face: to its plane when p projects inside, else to its nearest edge."""
-    n, points = face.normal, face.points
-    h = _dot(_sub(p, points[0]), n)
-    q = (p[0] - h * n[0], p[1] - h * n[1], p[2] - h * n[2])
-    if all(_dot(_cross(_sub(b, a), _sub(q, a)), n) >= 0 for a, b in zip(points, points[1:] + points[:1])):
-        return abs(h)
-    return min(_segment_distance(p, a, b) for a, b in zip(points, points[1:] + points[:1]))
+    """Distance from p to a convex planar face: to its plane when p projects inside (on the inner side of every
+    edge's in-plane normal), else to its nearest edge. Written out: the shell audit calls it millions of times."""
+    px, py, pz = p
+    for (ax, ay, az), _, _, (mx, my, mz) in face.edges:
+        if (px - ax) * mx + (py - ay) * my + (pz - az) * mz < 0:
+            break
+    else:
+        (ox, oy, oz), (nx, ny, nz) = face.points[0], face.normal
+        return abs((px - ox) * nx + (py - oy) * ny + (pz - oz) * nz)
+    best = math.inf
+    for (ax, ay, az), (bx, by, bz), length2, _ in face.edges:
+        apx, apy, apz = px - ax, py - ay, pz - az
+        t = 0.0 if length2 == 0 else (apx * bx + apy * by + apz * bz) / length2
+        t = 0.0 if t < 0 else 1.0 if t > 1 else t
+        dx, dy, dz = apx - t * bx, apy - t * by, apz - t * bz
+        d2 = dx * dx + dy * dy + dz * dz
+        if d2 < best:
+            best = d2
+    return math.sqrt(best)
 
 
 def _nearest_face(p, faces):
@@ -219,7 +502,22 @@ class _Shape:
         self.r = shape.get("radius")
         self.half = tuple(s / 2 for s in shape["size"]) if self.kind == "box" else None
         self.h = shape["height"] / 2 - (self.r if self.kind == "capsule" else 0.0) if "height" in shape else 0.0
-        self.triangles = _tessellate(self)
+        self._triangles = None
+
+    @property
+    def triangles(self):
+        """The tessellation within CHORD_M, built on first use (a shell piece never needs it)."""
+        if self._triangles is None:
+            self._triangles = _tessellate(self)
+        return self._triangles
+
+    def reach(self):
+        """The radius of a sphere about the centre that holds the whole shape."""
+        if self.kind == "box":
+            return math.sqrt(sum(h * h for h in self.half))
+        if self.kind == "cylinder":
+            return math.hypot(self.h, self.r)
+        return self.h + self.r
 
     def local(self, p):
         x, y, z, w = self.q
@@ -261,17 +559,17 @@ class _Shape:
         return max(outside, depth, 0.0)
 
 
-def _nearest_shape(p, shapes):
-    return min((abs(shape.sdf(p)), i) for i, shape in enumerate(shapes))
+def _nearest_shape(p, shapes, indices=None):
+    return min((abs(shapes[i].sdf(p)), i) for i in (range(len(shapes)) if indices is None else indices))
 
 
 def _shapes_bound(cell, which, shapes):
     return min(shapes[i].bound(cell) for i in set(which))
 
 
-def _tessellate(shape):
+def _tessellate(shape, chord=CHORD_M):
     """(a, b, c, outward normal) triangles of a _Shape's surface in asset space: a box exactly, the curved shapes
-    within CHORD_M, built along local +Y, rotated by the shape's quaternion and moved to its centre."""
+    within `chord`, built along local +Y, rotated by the shape's quaternion and moved to its centre."""
     if shape.kind == "box":
         h = shape.half
         corners = {(x, y, z): shape.place((x * h[0], y * h[1], z * h[2]))
@@ -285,7 +583,7 @@ def _tessellate(shape):
                 triangles += [(a, b, c), (a, c, d)]
     else:
         r, h = shape.r, shape.h
-        step = math.pi / 4 if r <= CHORD_M else math.acos(1 - CHORD_M / r)
+        step = math.pi / 4 if r <= chord else math.acos(1 - chord / r)
         around, half_rings = max(8, math.ceil(2 * math.pi / step)), max(2, math.ceil(math.pi / step / 2))
         ring = lambda y, rho: [(rho * math.cos(2 * math.pi * j / around), y, rho * math.sin(2 * math.pi * j / around))
                                for j in range(around)]
