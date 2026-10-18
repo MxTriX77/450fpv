@@ -4,5 +4,5 @@
   "texture_set": "polyhaven/red_brick",
   "tile_size_m": [1.4, 1.4],
   "tint": [1.0, 1.0, 1.0, 1.0],
-  "smoothness": 0.25
+  "mask": { "metallic": 0.0, "occlusion": "ao", "smoothness": "1 - roughness" }
 }

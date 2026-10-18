@@ -130,10 +130,10 @@ namespace Fpv450.Assets
                 importer.SaveAndReimport();
         }
 
-        static void EnsureTextureImport(string texturePath)
+        static void EnsureTextureImport(string texturePath, string hint)
         {
             var importer = AssetImporter.GetAtPath(texturePath) as TextureImporter
-                ?? throw new FileNotFoundException($"{texturePath} is not in the asset database: run python tools/assets/fetch.py");
+                ?? throw new FileNotFoundException($"{texturePath} is not in the asset database: {hint}");
             if (ArtImportSettings.ApplyTexture(importer, texturePath))
                 importer.SaveAndReimport();
         }
@@ -142,9 +142,12 @@ namespace Fpv450.Assets
 
         /// <summary>
         /// The material of one recipe, created or updated in place. URP/Lit gets the set's diffuse as base map,
-        /// tiled by the set's real-world size (the UVs are in metres, AST-07), its normal map, the tint and a
-        /// constant smoothness. The roughness and AO maps are not wired: URP/Lit reads occlusion from a G channel
-        /// and smoothness from an alpha channel, so they need a packed mask texture derived by script (phase 1).
+        /// tiled by the set's real-world size (the UVs are in metres, AST-07), its normal map and the tint. With a
+        /// "mask" in the recipe, the packed mask that <c>tools/assets/derive.py</c> derives from it (metallic R,
+        /// occlusion G, smoothness A) is read twice, as <c>_MetallicGlossMap</c> with the albedo-alpha smoothness
+        /// option off and <c>_Smoothness</c> at 1 so the alpha is not scaled, and as <c>_OcclusionMap</c>; without
+        /// one, smoothness is the recipe's constant. The roughness and AO sources are never assigned themselves:
+        /// URP/Lit reads those channels only from packed maps.
         /// </summary>
         static Material EnsureMaterial(string visual, Dictionary<string, object> manifest)
         {
@@ -159,6 +162,10 @@ namespace Fpv450.Assets
             if (!maps.TryGetValue("diffuse", out Texture2D diffuse))
                 throw new FormatException($"{recipePath}: the texture set has no diffuse map");
             maps.TryGetValue("normal", out Texture2D normal);
+            bool masked = recipe.ContainsKey("mask");
+            if (masked == recipe.ContainsKey("smoothness"))
+                throw new FormatException($"{recipePath}: give \"smoothness\" as a constant or a \"mask\" whose alpha carries it, not both or neither");
+            Texture2D mask = masked ? DerivedMask(visual) : null;
 
             string materialPath = $"{MaterialsFolder}/{visual}.mat";
             EnsureFolder(MaterialsFolder);
@@ -179,11 +186,26 @@ namespace Fpv450.Assets
             changed |= SetColor(material, "_BaseColor", Json.Rgba(recipe, "tint", recipePath));
             changed |= SetTexture(material, "_BumpMap", normal);
             changed |= SetKeyword(material, "_NORMALMAP", normal != null);
-            changed |= SetFloat(material, "_Smoothness", Json.Num(recipe, "smoothness", recipePath));
+            changed |= SetTexture(material, "_MetallicGlossMap", mask);
+            changed |= SetKeyword(material, "_METALLICSPECGLOSSMAP", masked);
+            changed |= SetTexture(material, "_OcclusionMap", mask);
+            changed |= SetKeyword(material, "_OCCLUSIONMAP", masked);
+            changed |= SetFloat(material, "_SmoothnessTextureChannel", 0f);
+            changed |= SetKeyword(material, "_SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A", false);
+            changed |= SetFloat(material, "_Smoothness", masked ? 1f : Json.Num(recipe, "smoothness", recipePath));
             changed |= SetFloat(material, "_Metallic", 0f);
             if (changed)
                 EditorUtility.SetDirty(material);
             return material;
+        }
+
+        /// <summary>The packed mask derived from a recipe, <c>Art/Materials/&lt;visual&gt;_mask.png</c>, imported as linear data.</summary>
+        static Texture2D DerivedMask(string visual)
+        {
+            string path = $"{MaterialsFolder}/{visual}_mask.png";
+            EnsureTextureImport(path, $"run python tools/assets/derive.py {visual}");
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(path)
+                ?? throw new FileNotFoundException($"{path} did not import as a texture");
         }
 
         /// <summary>The imported textures of a manifest entry, by map name (diffuse, normal, roughness, ao, displacement).</summary>
@@ -203,7 +225,7 @@ namespace Fpv450.Assets
                 {
                     var file = Json.Obj(fileValue, ManifestFile);
                     string path = $"{folder}/{Json.Str(file, "name", ManifestFile)}";
-                    EnsureTextureImport(path);
+                    EnsureTextureImport(path, "run python tools/assets/fetch.py");
                     maps[Json.Str(file, "map", ManifestFile)] = AssetDatabase.LoadAssetAtPath<Texture2D>(path)
                         ?? throw new FileNotFoundException($"{path} did not import as a texture");
                 }
