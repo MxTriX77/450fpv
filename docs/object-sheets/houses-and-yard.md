@@ -8,7 +8,7 @@
 
 ## How to read this sheet
 
-- **Labels:** measured (from a letter, with the still number), published (with its source), derived (with the derivation), assumed. Exact sizes fixed by AST-04 (as settled in D-032) are used as given: brick 250 × 120 × 65 mm; the entrance door of the village houses H01–H04 0.8 × 1.8–1.9 m; the windows of the adobe houses H01–H02 0.8 × 1.0 m. Every other door, doorway and window (interior doors, H04's veranda doorway, the hut H05, H06, the outbuildings and the cellars) takes the labelled size its row gives, published where a standard exists, else measured or assumed (the 0.70 m cellar door is the pilot's, PR-9). Wall heights to the plate, from grade outside, sit in AST-04's class ranges: the small clay hut H05 2.0–2.3 m; the adobe houses H01–H02 2.3–2.6 m (measured E); the single-storey brick houses H03–H04 2.6–3.1 m including their plinth and cornice (measured J); two-storey houses 2.8 m a storey.
+- **Labels:** measured (from a letter, with the still number), published (with its source), derived (with the derivation), assumed. Exact sizes fixed by AST-04 (as settled in D-032) are used as given: brick 250 × 120 × 65 mm; the entrance door of the village houses H01–H04 0.8 × 1.8–1.9 m; the windows of the adobe houses H01–H02 0.8 × 1.0 m. Every other door, doorway and window (interior doors, H04's veranda doorway, the hut H05, H06, the outbuildings and the cellars) takes the labelled size its row gives, published where the row cites the standard it comes from, else measured or assumed (the 0.70 m cellar door is the pilot's, PR-9). Wall heights to the plate, from grade outside, sit in AST-04's class ranges: the small clay hut H05 2.0–2.3 m; the adobe houses H01–H02 2.3–2.6 m (measured E); the single-storey brick houses H03–H04 2.6–3.1 m including their plinth and cornice (derived: a 2.8 m storey plus plinth or cornice; J shows H03's ridge, not its wall; D-032); two-storey houses 2.8 m a storey.
 - **Reuse:** sizes and colours already in [terrain.md](../reference-notes/terrain.md) §3 W4 and §4 B1–B6 are cited, not re-measured. `feed` colours are mean sRGB of the goggles feed (warm and saturated in sun); `photo` colours are from the photos J and I and are closer to albedo. Textures are authored at photo albedo; the feed effect adds the shift.
 - **The drone against an opening** (used by every "Gaps" line): prop tip to prop tip **0.574 m nose-first, 0.706 m on the diagonal** (knowledge.md §5.4). The footprint across an opening at yaw θ is `w(θ) = 0.254 + 0.32·(|cos θ| + |sin θ|)` m (derived: 10″ props on motors 0.226 m from the centre, 0.16 m in x and y), so an opening of clear width W passes nose-first when W > 0.574, passes at **any yaw** when W ≥ 0.706, and in between only up to `θmax = asin((W − 0.254) / 0.4525) − 45°`. Worked values: 0.60 m → ±5° and 13 mm a side; 0.65 m → ±16°, 38 mm a side; **0.70 m → ±35°, 63 mm a side (PR-9)**; 0.75 m → any yaw, 22 mm a side on the diagonal; 0.80 m → any yaw, 47 mm a side on the diagonal. The vertical envelope with legs is about **0.55 m** (assumed: 0.25–0.35 m legs under a frame with the payload on top; phase 5 fixes it from `drone.json`), so a clear height of 0.7 m is comfortable and 0.6 m is tight.
 - **Physics ids** are the closed list in [physics_materials.json](../../assets-src/physics_materials.json): `steel`, `sheet_metal`, `timber`, `masonry`, `concrete`, `glass`, `cable`, `foliage`. Ids written as `proposed:<id>` are new and need physics sign-off (see Open points at the end).
@@ -263,7 +263,7 @@ Shared table with `roof_type_*` hip, `roof_pitch` 25, `roof_cover` slate, `batte
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
 | Footprint | 8–10 × 6–8 m | 9 × 7 m | measured J (terrain.md B2) |
-| Wall height to the cornice | 2.7–3.1 m | 2.9 m | derived: 2.8 m storey plus the cornice; inside AST-04's class range for the single-storey brick houses H03–H04, 2.6–3.1 m from grade including the plinth and cornice (measured J, D-032) |
+| Wall height to the cornice | 2.7–3.1 m | 2.9 m | derived: 2.8 m storey plus the cornice; inside AST-04's class range for the single-storey brick houses H03–H04, 2.6–3.1 m from grade including the plinth and cornice (derived: a 2.8 m storey plus plinth or cornice; J shows H03's ridge, not its wall; D-032) |
 | Wall thickness | 0.38–0.51 m | 0.38 m | derived from the brick (1.5 bricks) |
 | Plinth | 0.3–0.6 m above grade | 0.4 m | assumed |
 | Ridge height | 5–6 m | 5.5 m | measured J (B2); derived pitch 25–30° |
@@ -340,7 +340,7 @@ Shared table with `wall_material` silicate, `wall_height` 2.9, `wall_thickness` 
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
 | Footprint | 10–12 × 8–10 m | 11 × 9 m | asset-list §4 (assumed) |
-| Wall height | 2.9–3.1 m | 3.0 m | derived: 2.8 m storey plus a plinth step; inside AST-04's class range for the single-storey brick houses H03–H04, 2.6–3.1 m from grade including the plinth and cornice (measured J, D-032) |
+| Wall height | 2.9–3.1 m | 3.0 m | derived: 2.8 m storey plus a plinth step; inside AST-04's class range for the single-storey brick houses H03–H04, 2.6–3.1 m from grade including the plinth and cornice (derived: a 2.8 m storey plus plinth or cornice; J shows H03's ridge, not its wall; D-032) |
 | Wall thickness | 0.51 m | 0.51 m | derived: 2 bricks |
 | Roof | hip, 25–30°, ridge 5.5–6.5 m | 28°, ridge 6.0 m | derived |
 | Veranda | 2.5–3 × 4–6 m, lean-to 12–18° | 2.5 × 5 m | assumed (typical closed porch) |
@@ -462,7 +462,7 @@ Shared table with `wall_material` wattle or adobe, `wall_height` 2.1, `wall_thic
 | Floor slab | 0.22 m hollow-core, 1.2 m wide | — | assumed standard |
 | Roof | gable or half-hip, 35–45°, ridge 9–10 m | 40°, ridge 9.7 m | measured I: a steep roof skeleton about 0.6 × the wall height |
 | Windows | 1.3–1.5 × 1.4–1.5 m, 3–4 per floor per long side | 1.4 × 1.45 m | measured I (rough) |
-| Door | 0.9 × 2.0 m | — | published: GOST 6629-88's 21-10 door mark (the mark names the opening in dm, 2.1 × 1.0 m; https://meganorm.ru/Data1/3/3481/index.htm ), a leaf of about 0.9 × 2.0 m inside its frame (derived). AST-04's exact 0.8 × 1.8–1.9 m door is the entrance door of H01–H04 only; every other door takes its sheet's labelled size (D-032) |
+| Door | 0.9 × 2.0 m | — | assumed: a typical outside door of the type, a leaf of about 0.9 × 2.0 m in its frame (the internal-door standard first cited does not cover outside doors). AST-04's exact 0.8 × 1.8–1.9 m door is the entrance door of H01–H04 only; every other door takes its sheet's labelled size (D-032) |
 | Balcony (variant 2) | 1.0 × 3 m slab with a 1.0 m rail | — | assumed |
 
 ### Construction and materials

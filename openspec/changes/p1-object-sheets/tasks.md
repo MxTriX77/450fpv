@@ -13,6 +13,7 @@
 - [x] 1.9 [reference-analyst] QA rework R1–R5: generic research sources only, regional framing and device wording removed, the 29 unlabelled and 7 letterless rows labelled, D-032 applied (measured sizes beat AST-04's assumed ones; H06 keeps its door)
 - [x] 1.10 [asset-artist] QA rework R6: a U02b entry (the `roof_pile` generator) in `review-buildability.md`, and its two stale "sent back" items closed
 - [x] 1.11 [reference-analyst] QA rework R8–R9: the sheets follow the settled AST-04 and D-032 wall and door rules; the H04 veranda doorway row; the bare belt floor relabelled; the `rafter_spread` range closed
+- [x] 1.12 [orchestrator] QA rework R10–R11: the brick-house wall class labelled derived; "published" binds only where a row cites its standard; H06's door relabelled assumed; D-032 names the adobe windows
 
 ## 2. Review
 
