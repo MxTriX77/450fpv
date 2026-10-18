@@ -30,7 +30,7 @@ The pinned toolchain for the Unity restart, as installed and checked in phase 0 
 | Git LFS | 3.7.1 | `git lfs` | preinstalled |
 | GitHub CLI | 2.101.0 | `gh`, signed in as the repo owner | preinstalled |
 
-**Variables.** `UNITY` and `BLENDER` are user environment variables. Shells and apps started before the install don't see them, nor the new PATH entries: open a new terminal. Scripts fall back to the paths above when a variable is unset.
+**Variables.** `UNITY` and `BLENDER` are user environment variables. Shells and apps started before the install don't see them, nor the new PATH entries: open a new terminal. Scripts fall back to the paths above when a variable is unset. A subagent's shell may not carry them either: set `$env:UNITY` and `$env:BLENDER` explicitly in the brief, or rely on the pinned paths the scripts fall back to.
 
 **Unity batchmode** can't run while an editor has the project open (`unity/Temp/UnityLockfile`).
 
@@ -47,7 +47,7 @@ python -m pip install --user -r tools/requirements.txt
 ```
 - **Fetch refspec:** this folder fetches only `unity/*` (docs/repository.md). Godot is read from the tag: `git fetch origin tag godot-final`, then `git show godot-final:<path>`.
 - **Hooks** (SEC-06): `.githooks/` holds `pre-commit` and `commit-msg` (the OPSEC scan, `tools/hygiene/precommit.py`) and git-lfs's `pre-push`, `post-checkout`, `post-commit` and `post-merge` shims, which must stay there because `core.hooksPath` turns off `.git/hooks`. The setting is shared by every worktree. A worktree on a branch that predates `.githooks/` gets neither the scan nor LFS uploads until it merges `unity/main`.
-- **LFS in a new worktree:** a worktree the app creates can hold LFS *pointer files* (130 bytes) instead of the textures and FBX files, even though the objects sit in the shared `.git/lfs/objects`. Run `git lfs checkout` (local, no network) before any Blender or Unity work; `git lfs ls-files` shows `*` for real content and `-` for pointers. Found in phase 0: Unity imported nothing and the review capture still exited 0 with an empty stage.
+- **LFS in a new worktree:** a worktree the app creates can hold LFS *pointer files* (130 bytes) instead of the textures and FBX files, even though the objects sit in the shared `.git/lfs/objects`. Run `git lfs checkout` (local, no network) before any Blender or Unity work; `git lfs ls-files` shows `*` for real content and `-` for pointers. Found in phase 0: Unity imported nothing and the review capture still exited 0 with an empty stage. Since `p1-pipeline-hardening` the capture refuses an empty stage with exit 1 and names the fix (`run git lfs checkout`), and it prints the LOD bias it ran with.
 - **Claude Code worktrees** start from the current `HEAD` (`.claude/settings.json`, `worktree.baseRef: head`), never from `origin/main`, which is the frozen Godot trunk.
 
 ## GitHub
