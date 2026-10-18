@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using Fpv450.World;
@@ -30,6 +31,14 @@ namespace Fpv450.Assets
         // The metadata gives LOD distances; a LODGroup wants screen-relative heights. The conversion assumes the
         // feed's vertical field of view (design decision 7, derived: 60 degrees, 935 px/rad at 1080 px).
         const float VerticalFovDeg = 60f;
+
+        // A cylinder collider is a closed right prism over a regular N-gon inscribed in the circle, so its surface
+        // sits inside the true one by the chord's sagitta, r·(1 − cos(π/N)). N is the smallest count that keeps
+        // that within the tolerance, rounded up to a multiple of 4 so a vertex sits on ±X and ±Z and the bounds
+        // are exactly ±r; at least 8, and at most 64 because a PhysX convex hull takes 255 vertices at most.
+        const float CylinderToleranceM = 0.005f;
+        const int CylinderMinSegments = 8;
+        const int CylinderMaxSegments = 64;
 
         public static void ImportFromCommandLine()
         {
@@ -282,9 +291,9 @@ namespace Fpv450.Assets
         /// <summary>
         /// Creates or updates the prefab in place (so its file ids stay stable): the metadata component, one child
         /// per LOD with the FBX mesh and the slot materials, the LODGroup, one child per collision primitive, and
-        /// nothing else.
+        /// nothing else. Internal for the EditMode tests, which build a prefab from a throwaway metadata.
         /// </summary>
-        static void EnsurePrefab(string prefabPath, string variant, Dictionary<string, object> metaJson, TextAsset source,
+        internal static void EnsurePrefab(string prefabPath, string variant, Dictionary<string, object> metaJson, TextAsset source,
             string fbxPath, Dictionary<string, Material> materialBySlot)
         {
             bool exists = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath) != null;
@@ -297,7 +306,7 @@ namespace Fpv450.Assets
                 var keep = new HashSet<string>();
                 Renderer[] renderers = EnsureLods(root, meta, fbxPath, materialBySlot, keep);
                 EnsureLodGroup(root, meta, renderers);
-                EnsureColliders(root, meta, keep);
+                EnsureColliders(root, meta, keep, prefabPath);
                 for (int i = root.transform.childCount - 1; i >= 0; i--)
                 {
                     GameObject child = root.transform.GetChild(i).gameObject;
@@ -377,11 +386,14 @@ namespace Fpv450.Assets
             size / (2f * distance * Mathf.Tan(VerticalFovDeg * 0.5f * Mathf.Deg2Rad));
 
         /// <summary>
-        /// One child per primitive, placed and rotated as the metadata says, with the matching Unity collider. No
-        /// physic material: the material id lives on the metadata component.
+        /// One child per primitive, placed and rotated as the metadata says, with the matching Unity collider. A
+        /// cylinder, which Unity has no primitive for, gets a convex MeshCollider on a generated cylinder mesh
+        /// (<see cref="CylinderMesh"/>), for noclip only: the sim reads the metadata. No physic material: the
+        /// material id lives on the metadata component.
         /// </summary>
-        static void EnsureColliders(GameObject root, AssetPhysicsMeta meta, HashSet<string> keep)
+        static void EnsureColliders(GameObject root, AssetPhysicsMeta meta, HashSet<string> keep, string prefabPath)
         {
+            var cylinderMeshes = new Dictionary<string, Mesh>();
             for (int i = 0; i < meta.collision.Length; i++)
             {
                 AssetPhysicsMeta.CollisionShape shape = meta.collision[i];
@@ -390,7 +402,8 @@ namespace Fpv450.Assets
                     AssetPhysicsMeta.ShapeKind.Box => typeof(BoxCollider),
                     AssetPhysicsMeta.ShapeKind.Sphere => typeof(SphereCollider),
                     AssetPhysicsMeta.ShapeKind.Capsule => typeof(CapsuleCollider),
-                    _ => throw new NotSupportedException($"{root.name} collision[{i}]: Unity has no {shape.kind} primitive collider; not supported yet"),
+                    AssetPhysicsMeta.ShapeKind.Cylinder => typeof(MeshCollider),
+                    _ => throw new NotSupportedException($"{root.name} collision[{i}]: unknown shape kind {shape.kind}"),
                 };
                 GameObject host = Child(root, $"Collision{i}", keep);
                 host.transform.localPosition = shape.center;
@@ -418,9 +431,87 @@ namespace Fpv450.Assets
                         capsule.height = shape.height;
                         capsule.direction = 1; // Y; the child's rotation carries the axis
                         break;
+                    case MeshCollider cylinder:
+                        cylinder.sharedMesh = CylinderMesh(prefabPath, root.name, shape.radius, shape.height, cylinderMeshes);
+                        cylinder.convex = true;
+                        break;
                 }
             }
+
+            string folder = Path.GetDirectoryName(prefabPath).Replace('\\', '/');
+            foreach (string file in Directory.GetFiles(FullPath(folder), $"{root.name}_cylinder_*.asset"))
+            {
+                string stale = $"{folder}/{Path.GetFileName(file)}";
+                if (!cylinderMeshes.ContainsKey(stale))
+                    AssetDatabase.DeleteAsset(stale);
+            }
         }
+
+        /// <summary>
+        /// The mesh of a cylinder collider: a closed polygonal cylinder of the metadata's radius and height along
+        /// +Y, centred on the origin like the shape, wound clockwise seen from outside. It is an asset beside the
+        /// prefab, <c>&lt;variant&gt;_cylinder_r&lt;radius&gt;_h&lt;height&gt;.asset</c>, shared by every cylinder of the
+        /// variant with that radius and height, created once and rewritten only when its vertices change, so a
+        /// rebuild with unchanged inputs changes no file.
+        /// </summary>
+        static Mesh CylinderMesh(string prefabPath, string variant, float radius, float height, Dictionary<string, Mesh> cache)
+        {
+            string name = $"{variant}_cylinder_r{radius.ToString("R", CultureInfo.InvariantCulture)}_h{height.ToString("R", CultureInfo.InvariantCulture)}";
+            string path = $"{Path.GetDirectoryName(prefabPath).Replace('\\', '/')}/{name}.asset";
+            if (cache.TryGetValue(path, out Mesh cached))
+                return cached;
+
+            // r·(1 − cos(π/N)) ≤ tolerance  ⇔  N ≥ π / acos(1 − tolerance / r)
+            int segments = Mathf.CeilToInt(Mathf.PI / Mathf.Acos(Mathf.Max(-1f, 1f - CylinderToleranceM / radius)));
+            segments = Mathf.Clamp((segments + 3) / 4 * 4, CylinderMinSegments, CylinderMaxSegments);
+            float deviation = radius * (1f - Mathf.Cos(Mathf.PI / segments));
+            if (deviation > CylinderToleranceM)
+                Debug.LogWarning($"[CatalogImporter] {name}: {segments} segments (the convex hull's cap) sit {deviation * 1000f:0.0} mm " +
+                                 $"inside the true surface, beyond the {CylinderToleranceM * 1000f:0} mm tolerance");
+
+            var vertices = new Vector3[2 * segments]; // the bottom ring, then the top ring
+            for (int i = 0; i < segments; i++)
+            {
+                float angle = 2f * Mathf.PI * i / segments;
+                float x = radius * Mathf.Cos(angle), z = radius * Mathf.Sin(angle);
+                vertices[i] = new Vector3(x, -height / 2f, z);
+                vertices[segments + i] = new Vector3(x, height / 2f, z);
+            }
+            var triangles = new int[(4 * segments - 4) * 3];
+            int t = 0;
+            for (int i = 0; i < segments; i++)
+            {
+                int b0 = i, b1 = (i + 1) % segments, t0 = segments + b0, t1 = segments + b1;
+                triangles[t++] = b0; triangles[t++] = t0; triangles[t++] = t1;
+                triangles[t++] = b0; triangles[t++] = t1; triangles[t++] = b1;
+            }
+            for (int i = 1; i < segments - 1; i++) // the caps, fans from each ring's first vertex
+            {
+                triangles[t++] = 0; triangles[t++] = i; triangles[t++] = i + 1;
+                triangles[t++] = segments; triangles[t++] = segments + i + 1; triangles[t++] = segments + i;
+            }
+
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            if (mesh == null)
+            {
+                mesh = new Mesh { name = name, vertices = vertices, triangles = triangles };
+                mesh.RecalculateBounds();
+                AssetDatabase.CreateAsset(mesh, path);
+            }
+            else if (!SameVertices(mesh.vertices, vertices) || !mesh.triangles.SequenceEqual(triangles))
+            {
+                mesh.Clear();
+                mesh.vertices = vertices;
+                mesh.triangles = triangles;
+                mesh.RecalculateBounds();
+                EditorUtility.SetDirty(mesh);
+            }
+            cache[path] = mesh;
+            return mesh;
+        }
+
+        static bool SameVertices(Vector3[] a, Vector3[] b) =>
+            a.Length == b.Length && a.Zip(b, (p, q) => (p - q).sqrMagnitude <= 1e-12f).All(same => same);
 
         static GameObject Child(GameObject root, string name, HashSet<string> keep)
         {
