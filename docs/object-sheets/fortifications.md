@@ -42,7 +42,7 @@ None. No letter shows these objects, so no reference view exists and no side-by-
 | Core wire | 2.5 mm high-tensile steel, galvanised or stainless | 2.5 mm galvanised | published, same sources |
 | Projected tape width (mean along the tape) | 7–9 mm | **8 mm** | derived two ways. Geometry: the crimped band about 3.5 mm (the 2.5 mm core in 2 × 0.5 mm of tape) plus four barbs a cluster, each a triangle about 11 × 6.25 mm, per 35 mm: 3.5 + 3.9 = 7.4 mm. Mass: 16 kg over 158 m of tape is 0.101 kg/m; less the core (0.0385 kg/m at 7850 kg/m³) and the clips (about 0.005 kg/m) leaves 0.057 kg/m of strip, 7.3 mm² or 14.6 mm of 0.5 mm strip, of which about 9.4 mm (π × 3 mm) wraps the core: 14.6 − 9.4 + 3.5 = 8.7 mm |
 | Coil diameter | 0.45–1.0 m for barbed-tape coils (rows of 450, 600, 720, 750, 900, 980 and 1000 mm); 0.7–1.3 m for the older barbed-wire spiral | **0.90 m** on pickets and double-stacked; **0.45 m** on a fence top | published: the catalogue's product selector; the encyclopedia for the wire spiral |
-| Turns per coil | 31–56 over the catalogue's clipped concertina coils of 0.45–1.0 m (31, 50, 51 or 56 by product: every NATO-22 row 56, the military BTC row at 0.90 m 50) | 56 | published, catalogue |
+| Turns per coil | 31–56 over the catalogue's clipped concertina coils of 0.45–1.0 m (31, 50, 51 or 56 by product: every NATO-22 row 56, the military BTC row at 0.90 m 50; the selector's 81-turn option of two denser maximum-security coils left out) | 56 | published, catalogue; leaving out the 81-turn option assumed |
 | Yield (stretched length of one coil) | 11 m (0.45 and 0.6 m coils), 15 m (0.72–1.0 m coils; the 0.72 m coil also comes at 11 m); 4.3 m in a tight-clipped option; the wire spiral 10 m and 0.9 m high | 15 m (0.90 m), 11 m (0.45 m; 0.6 m) | published, catalogue and flyer (the NATO-22 rows: 36 ft, 11 m at 450 and 600 mm; 50 ft, 15 m from 720 mm); encyclopedia for the spiral |
 | Turn pitch, stretched | 0.15–0.40 m | **0.268 m** (0.90 m coil), 0.196 m (0.45 m; 0.6 m) | derived: yield / turns (15 / 56, 11 / 56); the range assumed for runs stretched more or less than the yield |
 | Tape a turn | π D | **2.83 m** (0.90 m coil), 1.41 m (0.45 m) | derived: π D, which is the mass row's 158 m of tape over 56 turns |
@@ -216,7 +216,7 @@ Outputs: **every turn at every LOD** (the buildability review: dropping turns wo
 - height, the truncated reinforced-concrete pyramid, staggered rows: https://en.wikipedia.org/wiki/Dragon%27s_teeth_(fortification)
 - rows, row spacing and spacing in a row (a public-domain US War Department bulletin, Tactical and Technical Trends no. 35, on concrete teeth and steel obstacles): https://lonesentry.com/articles/ttt07/coastal-antitank-obstacles.html
 - the proportions of the class: a truncated pyramid 3 ft square by 2 ft high, and a triangular pyramid with 6 ft sides and 5 ft high (a national monument-type thesaurus, the two terms' scope notes): https://heritagedata.org/live/schemes/eh_tmt2/concepts/160305.html , https://heritagedata.org/live/schemes/eh_tmt2/concepts/160309.html
-- rows in a set order, gaps left as dog-leg exits (encyclopedia): https://ru.wikipedia.org/wiki/Надолбы
+- rows in a set order, and dog-leg gaps in the older rows of wooden stakes (encyclopedia): https://ru.wikipedia.org/wiki/Надолбы
 - the density of heavy concrete, 2400 kg/m³ (the note to the mass table of ГОСТ 13579-78): https://dnaop.com/html/47138/doc-%D0%93%D0%9E%D0%A1%D0%A2_13579-78_
 
 ### Dimensions
@@ -287,7 +287,7 @@ Concrete spalls and cracks; it does not splinter. Chips and corner pieces 0.05�
 ### Placement rules (for the world)
 - **Across roads at settlement edges** and **across the gaps between tree belts**: a field of 3–5 staggered rows running across the road or the gap, its ends meeting a belt, a ditch, a trench line or a wire run (F01) (assumed).
 - **Along trench lines and earth banks**: a field beside the trench or the bank, its rows parallel to it (assumed).
-- **On roads**, a lane left open as a dog-leg exit (published: gaps left as dog-leg exits), closable with hedgehogs (F03) or blocks (F04).
+- **On roads**, a lane left open through the rows as a dog-leg (assumed; the encyclopedia's dog-leg gaps are in the older rows of wooden stakes), closable with hedgehogs (F03) or blocks (F04).
 - **Length:** 20–300 m per field (assumed). Wire (F01) often runs beside or among the rows (the encyclopedia's barbed wire with teeth).
 - Not inside the villages (assumed). D teeth where the field crosses a shelled area or a track.
 
@@ -402,7 +402,7 @@ Steel bends rather than breaks; the welds crack before the members; the hedgehog
 - **Landable surfaces:** none: members 0.07–0.15 m wide, every one at **54.7° from vertical** (35.3° from horizontal, derived: a cube's axes against its body diagonal), steeper than the 19.3° on which a foot holds on steel (atan 0.35), so a foot slides off (physics reading §8, item 6).
 
 ### Placement rules (for the world)
-- "A couple" in the world (the pilot, D-035): 2–6 in all (assumed), as **singles and pairs at road approaches and at the checkpoint** (asset list): on the asphalt or a hard verge (published), narrowing the carriageway to a dog-leg, closing the open lane of a dragon's-teeth field (F02), or standing in the spare width of the checkpoint chicane (F04).
+- "A couple" in the world (the pilot, D-035): 2–6 in all (assumed), as **singles and pairs on roads at settlement edges and at the checkpoint** (asset list): on the asphalt or a hard verge (published), narrowing the carriageway to a dog-leg, closing the open lane of a dragon's-teeth field (F02), or standing in the spare width of the checkpoint chicane (F04).
 - Pairs 1.8–3.0 m apart, sometimes chained; wire (F01) often lashed between them and the verge (assumed).
 - Orientation random (any stance looks the same); D ones pushed onto the verge or into the ditch.
 
