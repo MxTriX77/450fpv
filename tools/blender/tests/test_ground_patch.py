@@ -5,9 +5,11 @@ kit's scatter at its densities over the feathered bake area within 5 % (the stra
 a floor, none of the stems and blades there, the blades by the green strips' weight), the feather thins the rim,
 the metadata lists it, and `check` refuses a bake radius beyond the patch, a feather wider than the bake, and a
 mound the relief or the grid cannot carry. The bare patches: the mesh steps down by the mat depth along each
-outline to a floor whose walls are the mat's cut edge, no shape stands above a floor and the soil box lies just
-under it (PR7 a), the old single mat box fails the audit by the step (PR7 b), the shapes come in PR8's order, the
-mat boxes are the layout's, and the baked straws over a floor lie on it (N8). The loft: the lying straws stack
+outline to a floor whose walls are the mat's cut edge (the edge slot, the mat's map folded down; task 1.8), a lip of
+the mat's teeth hangs over every outline within PR3's 0.05 m and stays at LOD1, no shape stands above a floor and
+the soil box lies just under it (PR7 a), the old single mat box fails the audit by the step (PR7 b), the shapes
+come in PR8's order, the mat boxes are the layout's, and the baked straws over a floor lie on it (N8), at the
+sheet's share and at bare.share 0.12. The loft: the lying straws stack
 above the mat's top, more on the crowns, never above a 20 cm mat; straws overhang a step's lip; the blades stand
 only over the green strips."""
 import copy
@@ -75,8 +77,9 @@ def test_slab_top_is_the_mean_with_the_relief_inside_its_range(built, s04_params
 def test_bare_patches_step_down_by_the_mat_depth_along_their_outlines(built, s04_params, bare):
     """PR3, spec "Bare patches are ground, not stains": inside every outline the top is the floor, the relief lowered
     by D; along every outline edge stand vertical walls exactly D tall whose widths add up to the outline's
-    perimeter; the floor takes the ground slot, a wall the straw slot up the litter's palette column (the mat's
-    cut edge, darker at its foot)."""
+    perimeter; the floor takes the ground slot, a wall the edge slot (the mat's cut edge: the mat's own map with the
+    mat's physics, R6) with the map draped down the step: its top's UV the point's own (x, z) in metres, its foot's
+    D further in, so the wall shows the mat's straws above the floor's soil."""
     lod0 = built["lods"][0]
     depth, relief = s04_params["mat_depth_m"], s04_params["relief_m"]
     walls = {k: 0.0 for k in range(len(bare))}
@@ -90,20 +93,58 @@ def test_bare_patches_step_down_by_the_mat_depth_along_their_outlines(built, s04
                 walls[k] += math.hypot(tops[0][0] - tops[1][0], tops[0][2] - tops[1][2])
                 heights = sorted(p[1] for p in points)
                 assert heights[2] - heights[0] == pytest.approx(depth) and heights[3] - heights[1] == pytest.approx(depth)
-                assert slot == straw.SLOT
-                assert {u for u, _ in uvs} == {straw.palette_uv("litter")[0]}
-                for point, (_, v) in zip(points, uvs):
+                assert slot == ground_patch.EDGE_SLOT
+                for point, uv in zip(points, uvs):
                     top = point[1] == max(p[1] for p in points if abs(p[0] - point[0]) + abs(p[2] - point[2]) < 1e-9)
-                    assert v == pytest.approx(ground_patch.WALL_V[1] if top else ground_patch.WALL_V[0])
+                    into = 0.0 if top else depth  # the foot shows the floor D inside the outline, along the normal
+                    assert uv == pytest.approx((point[0] + normal[0] * into, point[2] + normal[2] * into), abs=1e-9)
     for k, patch in enumerate(bare):
         perimeter = sum(math.dist(a, b) for a, b in zip(patch["outline"], patch["outline"][1:] + patch["outline"][:1]))
         assert walls[k] == pytest.approx(perimeter, abs=1e-6), f"patch {k}: walls {walls[k]:.4f} m, outline {perimeter:.4f} m"
-    floor = 0
-    for x, y, z in lod0.vertices:
-        if any(patches.distance((x, z), p["outline"]) < -1e-6 for p in bare):
-            floor += 1
-            assert -depth - relief - 1e-9 <= y <= -depth + relief + 1e-9, (x, y, z)
-    assert floor > 100
+    floor = set()
+    for indices, _, _, slot in lod0.faces:
+        if slot != ground_patch.SLOT:
+            continue
+        for i in indices:
+            x, y, z = lod0.vertices[i]
+            if any(patches.distance((x, z), p["outline"]) < -1e-6 for p in bare):
+                floor.add(i)
+                assert -depth - relief - 1e-9 <= y <= -depth + relief + 1e-9, (x, y, z)
+    assert len(floor) > 100
+
+
+def test_the_lip_stays_at_lod1_ragged_and_inside_the_step_allowance(built, s04_params, bare):
+    """R6, design 15: the slab, LOD0 and LOD1 alike, carries the lip: teeth of the mat rooted along the whole of every
+    outline at the mat's top, facing up, their tips overhanging the floor by LIP_REACH_M (inside PR3's 0.05 m) at
+    most at y = 0 (so within reach of the edge box's inner face) and above the floor, hanging lower in lobes, in the
+    edge slot with the mat's map folded over the outline (a tip shows the mat as far outside as it reaches in)."""
+    lod0, lod1, _ = built["lods"]
+    assert lod0 is lod1, "the lip stays when the baked straws go"
+    depth, relief = s04_params["mat_depth_m"], s04_params["relief_m"]
+    roots, droops = {k: 0.0 for k in range(len(bare))}, []
+    for indices, normal, uvs, slot in lod0.faces:
+        if slot != ground_patch.EDGE_SLOT or abs(normal[1]) < 1e-9:
+            continue
+        a, b, tip = (lod0.vertices[i] for i in indices)
+        assert normal[1] > 0, "a tooth faces up, towards a camera above the step"
+        k = min(range(len(bare)), key=lambda j: abs(patches.distance((a[0], a[2]), bare[j]["outline"])))
+        assert all(abs(patches.distance((p[0], p[2]), bare[k]["outline"])) < 1e-9 for p in (a, b)), "rooted on the outline"
+        reach = -patches.distance((tip[0], tip[2]), bare[k]["outline"])
+        assert ground_patch.LIP_REACH_M[0] - 1e-9 <= reach <= ground_patch.LIP_REACH_M[1] + 1e-9 < 0.05
+        assert -depth - relief < tip[1] <= 0.0, "no tip above the mat boxes' top or under the floor"
+        assert uvs[:2] == [(a[0], a[2]), (b[0], b[2])]
+        d = ((b[0] - a[0]) / math.dist((a[0], a[2]), (b[0], b[2])), (b[2] - a[2]) / math.dist((a[0], a[2]), (b[0], b[2])))
+        along = (tip[0] - a[0]) * d[0] + (tip[2] - a[2]) * d[1]
+        foot = (a[0] + d[0] * along, a[2] + d[1] * along)  # the tip's foot on the roots' line
+        assert uvs[2] == pytest.approx((2 * foot[0] - tip[0], 2 * foot[1] - tip[2]), abs=1e-9), "the tip's UV folded out"
+        roots[k] += math.dist((a[0], a[2]), (b[0], b[2]))
+        droops.append((a[1] + b[1]) / 2 - tip[1])
+    for k, patch in enumerate(bare):
+        perimeter = sum(math.dist(a, b) for a, b in zip(patch["outline"], patch["outline"][1:] + patch["outline"][:1]))
+        assert roots[k] == pytest.approx(perimeter, abs=1e-6), f"patch {k}: the lip runs along the whole outline"
+    low, high = ground_patch.LIP_DROOP_M
+    print(f"{len(droops)} teeth, droop {min(droops):.3f}-{max(droops):.3f} m, median {statistics.median(droops):.3f} m")
+    assert min(droops) < low + (high - low) / 4 and max(droops) > high - (high - low) / 4, "short and long teeth"
 
 
 def test_no_shape_stands_above_a_floor(built, s04_params, bare):
@@ -137,7 +178,7 @@ def test_a_mat_box_left_whole_fails_the_audit_by_the_step(built, s04_params, rep
     at least 120 mm (the mat over a visible floor), the direction physics asserts on."""
     size, depth = s04_params["size_m"], s04_params["mat_depth_m"]
     data = meta.assemble("S04", "S04_patch", "ground_patch", s04_params, built,
-                         {"ground": "belt_straw", "soil": "belt_soil", "straw": "straw"})
+                         {"ground": "belt_straw", "soil": "belt_soil", "straw": "straw", "edge": "belt_straw"})
     data["collision"] = [c for c in data["collision"] if c["material"] != "straw"]
     data["collision"].insert(1, {"shape": "box", "center": [0.0, -depth / 2, 0.0], "size": [size, depth, size],
                                  "rotation": [0.0, 0.0, 0.0, 1.0], "material": "straw", "landable": True})
@@ -189,23 +230,39 @@ def test_mounds_keep_clear_of_the_bare_patches(built, bare):
             assert math.hypot(max(x0 - x, 0, x - x1), max(z0 - z, 0, z - z1)) >= ground_patch.MOUND_GAP_M
 
 
-def test_baked_straws_over_a_floor_lie_on_it(built, s04_params, bare):
-    """N8: the bake rests on the stepped surface, so the straws inside an outline lie on its floor (their median
-    height near -D), where the mat's straws lie near 0."""
-    depth = s04_params["mat_depth_m"]
-    mesh = built["micro"][0]["mesh"]
-    on_floor, on_mat = [], []
-    for x, y, z in mesh.vertices:
-        if math.hypot(x, z) > s04_params["bake_radius_m"] - s04_params["bake_feather_m"]:
+def straw_heights(built, params):
+    """The baked straws' vertices within the unfeathered bake: their heights above the local floor where they lie
+    deeper inside an outline than the lip's overhang (LIP_OVERHANG_M, within which a mat straw's end is held at the
+    mat's top) by 5 cm more, and above the mat's top where they lie 0.6 m clear of every outline."""
+    bare = patches.layout(**patches.inputs(params))["patches"]
+    relief = mat.relief(**mat.relief_inputs(params))
+    floor, top = [], []
+    for x, y, z in built["micro"][0]["mesh"].vertices:
+        if math.hypot(x, z) > params["bake_radius_m"] - params["bake_feather_m"]:
             continue
         near = [p for p in bare if p["window"][0] - 0.6 <= x <= p["window"][1] + 0.6
                 and p["window"][2] - 0.6 <= z <= p["window"][3] + 0.6]
         d = min([patches.distance((x, z), p["outline"]) for p in near] or [1.0])
-        (on_floor if d < -0.1 else on_mat if d > 0.6 else []).append(y)
-    print(f"median straw vertex: {statistics.median(on_floor):.3f} m over floors ({len(on_floor)}), "
-          f"{statistics.median(on_mat):.3f} m over the mat ({len(on_mat)})")
-    assert len(on_floor) > 1000
-    assert abs(statistics.median(on_floor) + depth) < 0.04 and abs(statistics.median(on_mat)) < 0.04
+        if d < -(ground_patch.LIP_OVERHANG_M + 0.05):
+            floor.append(y - (relief(x, z) - params["mat_depth_m"]))
+        elif d > 0.6:
+            top.append(y - relief(x, z))
+    return floor, top
+
+
+@pytest.mark.parametrize("share", [None, 0.12])
+def test_baked_straws_over_a_floor_lie_on_it(built, s04_params, share):
+    """N8 (QA F12): the bake rests on the stepped surface, so the straws deeper inside an outline than the lip lie on
+    its floor: their vertices' median height above the local floor is a straw's thickness and bow (under 3 cm), where
+    straws left at the mat's height would stand D (0.125 m) above it; over the mat they rest on its top, lofted under
+    loft_m. With the sheet's share and with bare.share 0.12 (more patches)."""
+    params = s04_params if share is None else dict(s04_params, bare=dict(s04_params["bare"], share=share))
+    floor, top = straw_heights(built if share is None else ground_patch.build(params), params)
+    print(f"bare.share {params['bare']['share']}: median straw vertex {statistics.median(floor):.3f} m above the floor "
+          f"({len(floor)}), {statistics.median(top):.3f} m above the mat's top ({len(top)})")
+    assert len(floor) > 1000 and len(top) > 10000
+    assert -0.005 < statistics.median(floor) < 0.03 < params["mat_depth_m"] - 0.05
+    assert 0.0 < statistics.median(top) < params["loft_m"]
 
 
 def test_mound_spheres_sit_within_5cm_of_their_raised_cells(built, s04_params):
@@ -283,7 +340,7 @@ def test_micro_mesh_holds_the_scatter_at_density_times_area(built, s04_params):
 
 def test_metadata_lists_the_micro_mesh_and_only_the_slab_shapes(built, s04_params, material_ids):
     data = meta.assemble("S04", "S04_patch", "ground_patch", s04_params, built,
-                         {"ground": "belt_straw", "soil": "belt_soil", "straw": "straw"})
+                         {"ground": "belt_straw", "soil": "belt_soil", "straw": "straw", "edge": "belt_straw"})
     assert meta.validate(data, material_ids) == []
     assert data["micro"] == [{"lod": 0, "name": "S04_patch_LOD0_straw", "kind": "straw", "count": built["micro"][0]["count"],
                               "tris": built["micro"][0]["mesh"].triangles()}]
@@ -292,7 +349,7 @@ def test_metadata_lists_the_micro_mesh_and_only_the_slab_shapes(built, s04_param
     assert data["bounds"]["max"][1] > 1.0, "the standing stems count towards the bounds"
     assert data["gaps"] == [] and data["wind_volumes"] == [] and data["snag"] == []
     assert [(m["slot"], m["physics"]) for m in data["materials"]] == [
-        ("ground", "surface:belt_straw"), ("soil", "surface:crater_spoil"), ("straw", "straw")]
+        ("ground", "surface:belt_straw"), ("soil", "surface:crater_spoil"), ("straw", "straw"), ("edge", "straw")]
 
 
 @pytest.mark.parametrize("edit, expected", [
@@ -303,6 +360,9 @@ def test_metadata_lists_the_micro_mesh_and_only_the_slab_shapes(built, s04_param
     (lambda p: p["mound_w_m"].update(min=0.6), "'mound_w_m.min' = 0.6 exceeds 'mound_w_m.max' = 0.5"),
     (lambda p: p["lod"].update(lod2_switch_m=5.0), "'lod.lod1_switch_m' < 'lod.lod2_switch_m' < 'lod.cull_m' must hold"),
     (lambda p: p["bare"]["size_m"].update(min=2.5), "'bare.size_m.min' = 2.5 exceeds 'bare.size_m.max' = 2.0"),
+    (lambda p: p["bare"]["aspect"].update(min=3.0), "'bare.aspect.min' = 3.0 exceeds 'bare.aspect.max' = 2.5"),
+    (lambda p: p["bare"]["size_m"].update(min=0.9),
+     "'bare.aspect.max' = 2.5 needs a patch longer than 'bare.size_m.max' = 2.0: at most 2.22222"),
     (lambda p: (p.update(cell_m=0.25), p["bare"]["size_m"].update(min=0.35)),
      "'bare.size_m.min' = 0.35 must exceed the cell's diagonal 0.354 m"),
     (lambda p: p["green"]["width_m"].update(min=3.5), "'green.width_m.min' = 3.5 exceeds 'green.width_m.max' = 3.0"),
@@ -323,7 +383,7 @@ def test_seed_moves_the_relief_and_the_scatter_but_not_the_bounds(built, s04_par
     assert ground_patch.build(s04_params)["micro"][0]["mesh"].vertices == built["micro"][0]["mesh"].vertices
 
 
-def test_mound_tops_are_bare_soil_and_the_rest_is_the_mat(built):
+def test_mound_tops_are_bare_soil_and_the_rest_is_the_mat(built, bare):
     mounds = [c for c in built["collision"] if c["shape"] == "sphere"]
     lod0, _, lod2 = built["lods"]
     soil = []
@@ -333,8 +393,11 @@ def test_mound_tops_are_bare_soil_and_the_rest_is_the_mat(built):
         if slot == ground_patch.SOIL_SLOT:
             soil.append(centroid)
             assert under, f"a soil face at {centroid} lies on no mound"
-        elif slot == straw.SLOT:
-            assert abs(normal[1]) < 1e-9, "only a step's wall takes the straw slot"
+        elif slot == ground_patch.EDGE_SLOT:  # a step's wall, or a tooth of its lip hanging over the floor
+            on_lip = all(-ground_patch.LIP_REACH_M[1] - 1e-9 <= min(patches.distance((lod0.vertices[i][0], lod0.vertices[i][2]),
+                                                                                       p["outline"]) for p in bare) <= 1e-9
+                         for i in indices)
+            assert abs(normal[1]) < 1e-9 or on_lip, "only a step's wall and its lip take the edge slot"
         else:
             assert slot == ground_patch.SLOT
     for m in mounds:

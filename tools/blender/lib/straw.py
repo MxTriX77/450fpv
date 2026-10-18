@@ -14,8 +14,8 @@ BLADE_SEGMENTS segments, BLADE_D_M thick, arching up to BLADE_LEAN of its height
 Every face is UV'd into one column of the straw palette (assets-src/materials/straw.json, kind "palette", whose
 colours are laid out left to right in PALETTE order, padded to a power of two of columns, COLUMNS): the n-th
 variant of a straw or stem (and its seed head) to SHADES[n % len(SHADES)], so the mat shows pale, mid and dark
-straws as H does (H 12-21), twigs to "twig" and blades to "blade" ("litter" is ground_patch's, for the mat's cut
-edge at a step). A column is a gradient up the map, dark at v = 0,
+straws as H does (H 12-21), twigs to "twig" and blades to "blade" ("litter", the gaps' dark depth, took a step's
+wall until R6, which gave the wall the mat's own map). A column is a gradient up the map, dark at v = 0,
 the colour at 0.5 and pale at 1 (H 12-21: straws shaded along their length); a tube's v runs from V_ALONG[0] at its
 base to V_ALONG[1] at its tip, and place() shifts a whole instance's v (a straw deep in the mat is darker). The
 kit's UVs and the recipe's column order are the one coupling between them; test_straw checks it.

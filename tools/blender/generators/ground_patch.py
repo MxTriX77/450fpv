@@ -15,9 +15,12 @@ mesh never disagree) are where the mat is missing: over each patch's convex step
 by the mat depth D to a floor that is the mat surface lowered by D, relief included (PR3). A cell the outline
 crosses is cut exactly along it: the part inside is floor, the part outside mat (ear-clipped), and one vertical
 wall quad stands on every piece of outline edge, all sharing their vertices with the neighbouring cells; a cell
-wholly inside is floor. The floor takes the ground slot. A wall is the mat's cut edge: it takes the straw slot, UV'd
-up the litter's palette column (the mat's dark depth, the colour the ground recipe gives the gaps between its
-straws) from WALL_V[0] at the floor to WALL_V[1] at the mat's top.
+wholly inside is floor. The floor takes the ground slot. A wall is the mat's cut edge: it takes EDGE_SLOT, the mat's
+own material with the mat's physics (mat_material), its UVs the map draped down the step, so the cut edge shows the
+mat's straws at its top and the floor's soil at its foot (R6: a flat litter column read as a near-black band, a flat
+straw column as a pale one, the mat folded down as a pale rim). Along every outline the slab carries the lip (_lip):
+teeth of the mat hanging from the wall's top over the floor within PR3's 0.05 m, so the cut edge stays ragged at
+LOD1, where the baked straws are gone (R6).
 
 The straw instance kit (lib.straw) is baked as the visual-only micro mesh of LOD0 within bake_radius_m of the
 centre, on seeded jittered grids at the kinds' densities, resting on the stepped surface (review-physics N8):
@@ -72,12 +75,16 @@ from lib.geometry import Mesh
 
 SLOT = "ground"
 SOIL_SLOT = "soil"       # a mound's bare earth
+EDGE_SLOT = "edge"       # a step's wall and lip: the mat's cut edge, the mat's own map with the mat's physics (R6)
 SOIL_M = 0.3             # the soil box below the mat: F-5 behind the floors' top (carried; review-physics PR1)
 REFINE = 4               # a cell under a mound is split this many times per side
 SKIRT_M = 0.03           # a mound's spread foot, under the audit tolerance so it sits on the slab box (assumed)
 BLEND_M = 0.1            # the relief returns over this ring past a mound's foot
 MOUND_GAP_M = 0.5        # clear ground between mounds, from the patch edge and from every bare patch's window
-WALL_V = (0.08, 0.9)     # a step wall's v up the litter's palette column, at the floor and at the mat's top
+LIP_TOOTH_M = (0.03, 0.08)  # the lip's teeth along the outline: straw tufts hanging over the step (assumed, H 9-14)
+LIP_REACH_M = (0.01, 0.04)  # a tooth's tip overhangs the floor this far, inside PR3's 0.05 m (derived: 1 cm margin)
+LIP_DROOP_M = (0.02, 0.11)  # a tooth's tip hangs this far below the mat's top, never above y = 0 (assumed, H 14)
+LIP_LOBE_M = 0.3         # the droop's lobes along the outline: value noise of this cell (assumed, H 9-14)
 LODGING_SPREAD_DEG = 20  # a lodged straw lies within this of the local swathe direction
 SWATHE_M = 1.2           # the swathes' value-noise lattice (assumed from H 12-21: near straws parallel over a metre)
 SWATHE_DEG = 45.0        # the swathe direction turns by up to this from the lodging azimuth (assumed)
@@ -103,7 +110,7 @@ MICRO_KIND = "straw"     # the micro mesh's kind: its count is the straw-kit ins
 IDENTITY = [0.0, 0.0, 0.0, 1.0]
 
 PARAMS = {
-    "seed": {"type": "int", "range": (0, 2**31 - 1), "default": 7,
+    "seed": {"type": "int", "range": (0, 2**31 - 1), "default": 27,
              "effect": "every draw: the relief, the bare patches, the green strips, the mounds, the kit and the "
                      "scatter"},
     "size_m": {"type": "float", "range": (2.0, 50.0), "default": 12.0, "effect": "side of the square patch, centred"},
@@ -124,6 +131,14 @@ PARAMS = {
     "bare.size_m.max": {"type": "float", "range": (0.3, 3.0), "default": 2.0, "effect": "longest bare patch"},
     "bare.outline_vertices": {"type": "int", "range": (6, 12), "default": 12,
                               "effect": "corners of a bare patch's convex step outline; one mat edge box per edge"},
+    "bare.aspect.min": {"type": "float", "range": (1.0, 4.0), "default": 1.5,
+                        "effect": "least length over width of a bare patch: path-like strips of soil, not round pits "
+                                  "(within the size range's max over min)"},
+    "bare.aspect.max": {"type": "float", "range": (1.0, 4.0), "default": 2.5,
+                        "effect": "greatest length over width of a bare patch"},
+    "bare.path_patches": {"type": "int", "range": (1, 10), "default": 3,
+                          "effect": "bare patches laid one after another along a path (lib.patches), fewer where it "
+                                    "finds no room; 1 places each on its own"},
     "green.share": {"type": "float", "range": (0.0, 0.5), "default": 0.15,
                     "effect": "share of the patch under green regrowth strips, outside the bare patches; the ground "
                               "recipe tints the same strips and the blades grow over them (lib.mat)"},
@@ -165,7 +180,7 @@ PARAMS = {
                             "effect": "lodging direction, degrees from +X towards +Z; the ground recipe's"},
     "lodging.bias": {"type": "float", "range": (0.0, 1.0), "default": 0.3,
                      "effect": "share of lying straws aligned with the local swathe direction about the azimuth, "
-                               "the rest crosswise; bare patches and tussocks are 1 + bias longer along it"},
+                               "the rest crosswise; tussocks are 1 + bias longer along it"},
     "straw_len_m.min": {"type": "float", "range": (0.05, 2.0), "default": 0.3, "effect": "shortest lying straw"},
     "straw_len_m.max": {"type": "float", "range": (0.05, 2.0), "default": 1.0, "effect": "longest lying straw"},
     "straw_d_mm.min": {"type": "float", "range": (0.5, 10.0), "default": 2.0, "effect": "thinnest straw or stem"},
@@ -206,11 +221,15 @@ def check(params):
     cell can hold whole, ordered LODs."""
     problems = [f"'{key}.min' = {params[key]['min']} exceeds '{key}.max' = {params[key]['max']}"
                 for key in RANGES if params[key]["min"] > params[key]["max"]]
-    for key, span in (("bare.size_m", params["bare"]["size_m"]), ("green.width_m", params["green"]["width_m"]),
-                      ("green.length_m", params["green"]["length_m"])):
+    for key, span in (("bare.size_m", params["bare"]["size_m"]), ("bare.aspect", params["bare"]["aspect"]),
+                      ("green.width_m", params["green"]["width_m"]), ("green.length_m", params["green"]["length_m"])):
         if span["min"] > span["max"]:
             problems.append(f"'{key}.min' = {span['min']} exceeds '{key}.max' = {span['max']}")
     bare = params["bare"]["size_m"]
+    if bare["min"] <= bare["max"] and params["bare"]["aspect"]["max"] * bare["min"] > bare["max"] + 1e-9:
+        problems.append(f"'bare.aspect.max' = {params['bare']['aspect']['max']} needs a patch longer than "
+                        f"'bare.size_m.max' = {bare['max']}: at most {bare['max'] / bare['min']:g}, the size range's max "
+                        "over its min")
     if bare["min"] <= params["cell_m"] * math.sqrt(2):
         problems.append(f"'bare.size_m.min' = {bare['min']} must exceed the cell's diagonal "
                         f"{params['cell_m'] * math.sqrt(2):.3f} m, so no cell holds a whole bare patch")
@@ -275,6 +294,7 @@ def build(params):
         return SOIL_SLOT if any(math.hypot(x - m["x"], z - m["z"]) < m["w"] / 2 for m in mounds) else SLOT
 
     slab = _slab(n, size, height, _refined_cells(n, size, mounds), slot, slab_m, bare, depth)
+    _lip(slab, bare, height, depth, random.Random(f"bare lip {params['seed']}"))
     micro = Mesh()
     count = _bake(rng, params, micro, height, surface, relief, bare, strips)
     lod = params["lod"]
@@ -285,7 +305,8 @@ def build(params):
         "cull_distance_m": lod["cull_m"],
         "materials": [{"slot": SLOT, "physics": params["physics_material"]},
                       {"slot": SOIL_SLOT, "physics": params["mound_material"]},
-                      {"slot": straw.SLOT, "physics": params["mat_material"]}],
+                      {"slot": straw.SLOT, "physics": params["mat_material"]},
+                      {"slot": EDGE_SLOT, "physics": params["mat_material"]}],
         "collision": _collision(params, bare, mounds),
         "gaps": [], "wind_volumes": [], "snag": [],
     }
@@ -532,8 +553,9 @@ def _clip_cell(outline, p, i, j, k, grid):
 def _cut_cell(mesh, i, j, k, grid, outline, piece, point, top_face, triangles):
     """One coarse cell an outline reaches: wholly inside, two floor triangles; else the piece inside as floor (a
     fan: it is convex), each part outside as mat (ear-clipped: the mat around a convex outline is not convex) and a
-    vertical wall quad on every piece of outline edge, its normal into the patch, in the straw slot up WALL_V of the
-    litter's palette column."""
+    vertical wall quad on every piece of outline edge, its normal into the patch, in EDGE_SLOT with the map draped
+    down the step 1:1 (the top's UV the outline point's, the foot's the mat depth inside it): the mat's straws at the
+    top, the floor's soil and strewn straws at the foot."""
     corner_keys = [("g", i * k, j * k), ("g", (i + 1) * k, j * k), ("g", (i + 1) * k, (j + 1) * k), ("g", i * k, (j + 1) * k)]
     xz = {key: (grid(key[1]), grid(key[2])) for key in corner_keys}
     xz.update({key: q for key, q, _ in piece})
@@ -579,8 +601,51 @@ def _cut_cell(mesh, i, j, k, grid, outline, piece, point, top_face, triangles):
             nx, nz = (e[1] - s[1]) / length, (s[0] - e[0]) / length  # outward of the outline
             (ka, qa), (kb, qb) = piece[c0][:2], piece[c1][:2]
             quad = [point(ka, qa, "mat"), point(kb, qb, "mat"), point(kb, qb, "floor"), point(ka, qa, "floor")]
-            top, foot = straw.palette_uv("litter", WALL_V[1]), straw.palette_uv("litter", WALL_V[0])
-            mesh.face(quad, (-nx, 0.0, -nz), straw.SLOT, [top, top, foot, foot])
+            drop = mesh.vertices[quad[0]][1] - mesh.vertices[quad[3]][1]  # the mat depth: the map draped down 1:1
+            mesh.face(quad, (-nx, 0.0, -nz), EDGE_SLOT,
+                      [qa, qb, (qb[0] - nx * drop, qb[1] - nz * drop), (qa[0] - nx * drop, qa[1] - nz * drop)])
+
+
+def _lip(mesh, bare, height, depth, rng):
+    """The ragged lip, in the slab so it stays at LOD1 when the baked straws are gone (R6): along every outline,
+    teeth of straw LIP_TOOTH_M wide hang over the step, each a triangle from two points on the outline at the mat's
+    top to a tip LIP_REACH_M inside it and LIP_DROOP_M below the mat's top (half a value noise of LIP_LOBE_M cells
+    along the outline, so it hangs low in lobes, half its own draw), never above y = 0 nor within 1 cm of the floor:
+    a tip stays within its reach of its edge box's inner face (PR3's 0.05 m, the audit's 5 cm). A tooth takes the
+    EDGE_SLOT with the mat's map folded over the outline: its UVs those of its points mirrored onto the mat, so it
+    shows the straws it hangs from."""
+    for patch in bare:
+        outline = patch["outline"]
+        edges = list(zip(outline, outline[1:] + outline[:1]))
+        perimeter = sum(math.dist(a, b) for a, b in edges)
+        cells = max(1, round(perimeter / LIP_LOBE_M))
+        knots = [rng.random() for _ in range(cells)]
+
+        def lobe(s):  # value noise along the outline, wrapping at the perimeter
+            u = s / perimeter * cells
+            i = int(u)
+            return knots[i % cells] + (knots[(i + 1) % cells] - knots[i % cells]) * _smooth(u - i)
+
+        start = 0.0
+        for a, b in edges:
+            length = math.dist(a, b)
+            d = ((b[0] - a[0]) / length, (b[1] - a[1]) / length)
+            inward = (-d[1], d[0])  # the left of a counter-clockwise edge
+            t = 0.0
+            while t < length:
+                t1 = t + rng.uniform(*LIP_TOOTH_M)
+                if t1 > length - LIP_TOOTH_M[0] / 2:
+                    t1 = length
+                mid, reach = (t + t1) / 2, rng.uniform(*LIP_REACH_M)
+                droop = LIP_DROOP_M[0] + (LIP_DROOP_M[1] - LIP_DROOP_M[0]) * (lobe(start + mid) + rng.random()) / 2
+                roots = [(a[0] + d[0] * s, a[1] + d[1] * s) for s in (t, t1)]
+                tip = (a[0] + d[0] * mid + inward[0] * reach, a[1] + d[1] * mid + inward[1] * reach)
+                y = max(height(*tip) - depth + 0.01, min(0.0, height(a[0] + d[0] * mid, a[1] + d[1] * mid) - droop))
+                tri = [mesh.vertex((x, height(x, z), z)) for x, z in roots] + [mesh.vertex((tip[0], y, tip[1]))]
+                folded = (a[0] + d[0] * mid - inward[0] * reach, a[1] + d[1] * mid - inward[1] * reach)
+                mesh.face(tri, _up_normal(mesh, tri), EDGE_SLOT, roots + [folded])
+                t = t1
+            start += length
 
 
 def _ear_clip(points):
