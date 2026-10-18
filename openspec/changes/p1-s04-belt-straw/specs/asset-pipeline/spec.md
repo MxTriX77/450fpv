@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Ground recipes with a detail layer
-A material recipe MAY be of kind `ground`: it names a soil set and a cover set from the manifest, a seeded patch description (bare patches, regrowth strips, a lodging direction) and a target mean albedo, and the build SHALL derive from them one unique albedo, normal and packed mask for the asset (2K at most), tinted so the mean albedo matches the target, plus a URP/Lit detail layer (albedo and normal of the cover set) tiled at the set's metre size. The derivation is rerun when the recipe changes, and the derived files are never hand-edited.
+A material recipe MAY be of kind `ground`: it names a soil set and a cover set from the manifest, a seeded description of its regrowth strips and lodging direction, the bare patches taken from the asset's params through the one seeded patch definition the generator also uses (so the map's soil and the mesh's floors never disagree), and a target mean albedo, and the build SHALL derive from them one unique albedo, normal and packed mask for the asset (2K at most), tinted so the mean albedo matches the target, plus a URP/Lit detail layer (albedo and normal of the cover set) tiled at the set's metre size. The derivation is rerun when the recipe, the sources, the asset's patch params or any constant of the formula changes, and the derived files are never hand-edited.
 
 #### Scenario: Ground recipe derived and wired
 - **WHEN** an asset's material recipe is a `ground` recipe
