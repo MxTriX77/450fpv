@@ -273,7 +273,12 @@ namespace Fpv450
             ground.name = "Ground";
             Object.DestroyImmediate(ground.GetComponent<Collider>());
             ground.transform.localScale = new Vector3(GroundSizeM / 10f, 1f, GroundSizeM / 10f);
-            ground.GetComponent<MeshRenderer>().sharedMaterial = Lit(new Color(GroundAlbedo, GroundAlbedo, GroundAlbedo), 0.05f);
+            var renderer = ground.GetComponent<MeshRenderer>();
+            renderer.sharedMaterial = Lit(new Color(GroundAlbedo, GroundAlbedo, GroundAlbedo), 0.05f);
+            // The ground only receives shadows: nothing lies under it, and as a 400 m caster it would set the sun's
+            // shadow depth range for the whole stage instead of the asset and the bar, and be pancaked onto the
+            // shadow map's near plane right where it receives.
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
         }
 
         static Material Lit(Color linearAlbedo, float smoothness)
