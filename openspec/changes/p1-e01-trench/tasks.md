@@ -1,0 +1,13 @@
+# Tasks: p1-e01-trench
+
+Branch `unity/art/p1-e01-trench` off `unity/main` once `p1-l01-l03-pole-wires` is merged (lane A). Tasks 1.1–1.2 run sequentially on the branch; 1.3 runs on the sub-branch `unity/art/p1-e01-trench--capture` in parallel with 1.1 (it touches only `ReviewCapture.cs` and its test) and is merged before 1.2. The trench is war terrain: spawn these agents on Opus.
+
+## 1. Build
+
+- [ ] 1.1 [asset-artist] Pin the loam set (design 7) at 1k, write `trench_wall.json` and its wall-space derivation (strip map, wall mask, spade-facet normal), build the `trench` generator with `PARAMS`, `check` and `E01_curving.json` on `lib/ground_patch` and `lib/straw` (design 1–5, 8, 10), the `holes` record in `meta.py` and `AssetPhysicsMeta` (design 6), and the E01 catalog entry; verify `python tools/assets/fetch.py --verify` exits 0, `python -m pytest tools/blender -q` passes with tests for the filler contract (thickness, overlap, level lips, nothing proud), the cross-section gap's inscribed circle (0.75 m ± 5 mm for the default section), the `holes` validation and the `check` refusals, `pwsh tools/build_asset.ps1 E01` exits 0 with the audit lines pasted, the triangle count per LOD printed, and a second run leaves `git status` clean
+- [ ] 1.2 [asset-artist] Look at it (after 1.3): the review sheet `review-sheets/E01/` at 1.5 / 10 / 50 / 200 m, the turntable and the collision overlay, and the local side-by-side sheet `reference/_compare/E01.png` against letters G (1–12) and B (1–6) built inside this task from the contact sheets, never committed; tune the sheet-ranged params by eye (bend rhythm, parapet heights, lip crumble, wall tint) and commit the params; verify the pilot-height tile reads as G's dark slot between pale parapets and the handoff lists what matches G and what does not
+- [ ] 1.3 [tech-artist] The earthwork framing of the review capture (design 9): for catalog class `earthworks` with a `holes` record, the pilot-height tile is shot from 1.5 m above the lip at the run's start looking along it 20° down, the pose printed in the log, an EditMode test on the pose; verify the K01 and S04 captures are pixel-identical before and after, and the E01 1.5 m tile shows the run once 1.1 lands
+
+## 2. Review
+
+- [ ] 2.1 [qa-engineer] review against spec scenarios: the five E01 scenarios and the two deltas, the audit lines against the hole contract (F-1…F-8), the gap list against the sheet's width table, the comparison sheet against G and B read by eye (REAL-03), the geometry audit (REAL-05: lips crumbled as geometry, clods as geometry, fillers follow the faces), budgets (AST-08), `fetch.py --verify`, hygiene (D-003 pins, nothing from `reference/`, subject-only commits)
