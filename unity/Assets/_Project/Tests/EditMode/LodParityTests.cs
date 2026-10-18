@@ -7,13 +7,16 @@ namespace Fpv450.Tests.EditMode
 {
     /// <summary>
     /// The LOD parity measure's arithmetic (p1-v01-locust task 1.2a; asset-pipeline "Baked impostor LOD", scenario
-    /// "Every LOD matches LOD0") on a six-pixel fixture, the renders over black and over white as their sRGB bytes:
+    /// "No LOD switch pops") on a six-pixel fixture, the renders over black and over white as their sRGB bytes:
     /// LOD0 three opaque pixels of (90, 120, 50) and one half covered (over black (64, 86, 34), over white
     /// (196, 203, 190), the bytes a coverage of 0.5 gives); LOD1 four opaque pixels of (88, 117, 49); LOD2 two opaque
     /// pixels of (70, 95, 40). The expected numbers were computed apart from the code, in double precision, with the
     /// sRGB decoding of IEC 61966-2-1; the limits are the spec's 6 % and 15 %. The averaging over the camera offsets
     /// (tasks 1.2c and 1.2d) on 64 literal crowns, one per offset of the 8 × 8 grid, with their numbers computed apart
-    /// from the code too, in exact fractions and 40-digit square roots.
+    /// from the code too, in exact fractions and 40-digit square roots. The judged rows (task 1.2f): which pair each tile
+    /// judges for V13's three LODs and V01's four, and the verdicts on grey crowns (r = g = b, so the luminance is the
+    /// grey) with the luminances, coverages and standard errors of task 1.2b's rows, the differences computed apart from
+    /// the code in exact fractions.
     /// </summary>
     public sealed class LodParityTests
     {
@@ -145,6 +148,88 @@ namespace Fpv450.Tests.EditMode
             // "less than": a LOD exactly at a limit fails.
             Assert.That(LodParity.Passes(0.06, 0.0), Is.False);
             Assert.That(LodParity.Passes(0.0, 0.15), Is.False);
+        }
+
+        [Test]
+        public void Tiles_ThreeLods_JudgeEachSwitchsIncomingLodAgainstTheOutgoingOne()
+        {
+            // V13's: LOD1 at 7.5 m, LOD2 at 93.5 m, cull 800 m; LOD1 is shown at 50 m.
+            (float distance, int judged, int against)[] tiles = LodParity.Tiles(new[] { 0f, 7.5f, 93.5f }, 800f);
+            Assert.That(tiles, Is.EqualTo(new[] { (50f, 1, 0), (7.5f, 1, 0), (93.5f, 2, 1) }));
+        }
+
+        [Test]
+        public void Tiles_FourLods_JudgeTheImpostorAgainstTheLastMeshLodAtItsSwitch()
+        {
+            // V01_M's with task 1.2b's override: LOD1 at 9.35 m, LOD2 at 116.9 m, the impostor at 190 m, cull 2500 m.
+            (float distance, int judged, int against)[] tiles = LodParity.Tiles(new[] { 0f, 9.35f, 116.9f, 190f }, 2500f);
+            Assert.That(tiles, Is.EqualTo(new[] { (50f, 1, 0), (9.35f, 1, 0), (116.9f, 2, 1), (190f, 3, 2) }));
+        }
+
+        [Test]
+        public void Tiles_TheReviewTileJudgesTheLodShownThereAgainstLod0()
+        {
+            // LOD2 from 40 m: LOD2 is shown at 50 m. LOD1 from 60 m: LOD0 is shown, nothing to judge. Culled at 40 m.
+            Assert.That(LodParity.Tiles(new[] { 0f, 7.5f, 40f, 120f }, 800f)[0], Is.EqualTo((50f, 2, 0)));
+            Assert.That(LodParity.Tiles(new[] { 0f, 50f, 120f }, 800f)[0], Is.EqualTo((50f, 1, 0)));
+            Assert.That(LodParity.Tiles(new[] { 0f, 60f, 120f }, 800f)[0], Is.EqualTo((50f, -1, -1)));
+            Assert.That(LodParity.Tiles(new[] { 0f, 7.5f, 20f }, 40f)[0], Is.EqualTo((50f, -1, -1)));
+        }
+
+        static LodParity.Crown Grey(double coverage, double luminance) => new LodParity.Crown(coverage, luminance, luminance, luminance);
+
+        [Test]
+        public void Judge_APairInsideTheLimitsPasses()
+        {
+            // V01_M at 190 m by day: the impostor (72.4 px, Y 0.0658, se 0.48 / 0.65 %) against LOD2 (84.8 px, Y 0.0663, se 0.53 / 0.58 %).
+            (double luminance, double coverage, double worstError, LodParity.Verdict verdict) =
+                LodParity.Judge(Grey(72.4, 0.0658), (0.0048, 0.0065), Grey(84.8, 0.0663), (0.0053, 0.0058));
+            Assert.That(luminance, Is.EqualTo(-0.0075415).Within(Tolerance));
+            Assert.That(coverage, Is.EqualTo(-0.1462264).Within(Tolerance));
+            Assert.That(worstError, Is.EqualTo(0.0065).Within(1e-12));
+            Assert.That(verdict, Is.EqualTo(LodParity.Verdict.Pass));
+        }
+
+        [Test]
+        public void Judge_APairOutsideTheLimitsFails()
+        {
+            // V13_mid at 93.5 m overcast: LOD2 (164.7 px, Y 0.1204, se 0.11 / 0.17 %) against LOD1 (169.7 px, Y 0.1073, se 0.16 / 0.32 %).
+            (double luminance, double coverage, double worstError, LodParity.Verdict verdict) =
+                LodParity.Judge(Grey(164.7, 0.1204), (0.0011, 0.0017), Grey(169.7, 0.1073), (0.0016, 0.0032));
+            Assert.That(luminance, Is.EqualTo(0.1220876).Within(Tolerance));
+            Assert.That(coverage, Is.EqualTo(-0.0294638).Within(Tolerance));
+            Assert.That(worstError, Is.EqualTo(0.0032).Within(1e-12));
+            Assert.That(verdict, Is.EqualTo(LodParity.Verdict.Fail));
+        }
+
+        [Test]
+        public void Judge_AStandardErrorOf1PercentInEitherValueOfEitherLodIsNotJudgeable()
+        {
+            LodParity.Crown incoming = Grey(72.4, 0.0658), outgoing = Grey(84.8, 0.0663);
+            Assert.That(LodParity.Judge(incoming, (0.0100, 0.0065), outgoing, (0.0053, 0.0058)).verdict, Is.EqualTo(LodParity.Verdict.NotJudgeable));
+            Assert.That(LodParity.Judge(incoming, (0.0048, 0.0100), outgoing, (0.0053, 0.0058)).verdict, Is.EqualTo(LodParity.Verdict.NotJudgeable));
+            Assert.That(LodParity.Judge(incoming, (0.0048, 0.0065), outgoing, (0.0100, 0.0058)).verdict, Is.EqualTo(LodParity.Verdict.NotJudgeable));
+            Assert.That(LodParity.Judge(incoming, (0.0048, 0.0065), outgoing, (0.0053, 0.0100)).verdict, Is.EqualTo(LodParity.Verdict.NotJudgeable));
+            Assert.That(LodParity.Judge(incoming, (0.0099, 0.0099), outgoing, (0.0099, 0.0099)).verdict, Is.EqualTo(LodParity.Verdict.Pass));
+            // A pair outside the limits with an error over 1 % is not judgeable either: V01_M at 190 m by day, LOD1
+            // (78.9 px, Y 0.0654, se 0.83 / 1.12 %) against LOD0 (62.0 px, Y 0.0714, se 0.69 / 1.20 %), were it judged.
+            (double luminance, double coverage, double worstError, LodParity.Verdict verdict) =
+                LodParity.Judge(Grey(78.9, 0.0654), (0.0083, 0.0112), Grey(62.0, 0.0714), (0.0069, 0.0120));
+            Assert.That(luminance, Is.EqualTo(-0.0840336).Within(Tolerance));
+            Assert.That(coverage, Is.EqualTo(0.2725806).Within(Tolerance));
+            Assert.That(worstError, Is.EqualTo(0.0120).Within(1e-12));
+            Assert.That(verdict, Is.EqualTo(LodParity.Verdict.NotJudgeable));
+        }
+
+        [Test]
+        public void ExitCode_ComesFromTheJudgedRows()
+        {
+            Assert.That(LodParity.ExitCode(0, 0), Is.EqualTo(0));
+            Assert.That(LodParity.ExitCode(1, 0), Is.EqualTo(2));
+            Assert.That(LodParity.ExitCode(0, 1), Is.EqualTo(3));
+            // A failed row outranks a row that is not judgeable.
+            Assert.That(LodParity.ExitCode(1, 1), Is.EqualTo(2));
+            Assert.That(LodParity.ExitCode(3, 2), Is.EqualTo(2));
         }
     }
 }

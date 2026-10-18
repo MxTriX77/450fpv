@@ -14,8 +14,8 @@ using Object = UnityEngine.Object;
 namespace Fpv450
 {
     /// <summary>
-    /// The LOD parity measure (p1-v01-locust task 1.2a, design decision 3 as amended; asset-pipeline "Baked impostor
-    /// LOD", scenario "Every LOD matches LOD0"). For every variant of an asset id, or the one <c>-variant</c> names, by
+    /// The LOD parity measure (p1-v01-locust tasks 1.2a and 1.2f, design decision 3 as amended; asset-pipeline "Baked
+    /// impostor LOD", scenario "No LOD switch pops"). For every variant of an asset id, or the one <c>-variant</c> names, by
     /// the review's day and overcast light (<c>Settings/Review/</c>): the review sheet's 50 m tile and a tile at each
     /// LOD's switch distance, from the review's far-shot camera, with each LOD forced in turn. Each LOD's crown comes
     /// from two renders, over black and over white, with no ground and no scale bar: a pixel's coverage is one less the
@@ -26,19 +26,26 @@ namespace Fpv450
     /// prints the spread of its luminance and coverage over the 64 (max − min) and their standard error of the mean
     /// (the sample standard deviation over √64), each as a percentage of the mean; the offsets are made on the
     /// projection, see <see cref="Rig.Offset"/>.
-    /// Per LOD it prints the coverage-weighted mean linear colour and its Rec. 709 luminance, the crown's coverage in
-    /// pixels, both against LOD0's at the same distance and light, the margin to the spec's limits (6 % in luminance,
-    /// 15 % in coverage) in percentage points, negative outside them, and PASS or FAIL. The shadow distance is the
+    /// Per LOD it prints the coverage-weighted mean linear colour and its Rec. 709 luminance and the crown's coverage in
+    /// pixels. Each tile judges one row, the scenario's pair (<see cref="Tiles"/>): at a LOD's switch distance the
+    /// incoming LOD against the outgoing one, at the 50 m tile the LOD Unity shows there against LOD0. The judged row
+    /// prints both values against the other LOD's, the margin to the spec's limits (6 % in luminance, 15 % in
+    /// coverage) and the worst of the pair's four standard errors with its margin to 1 %, in percentage points,
+    /// negative outside them, and PASS, FAIL or NOT JUDGEABLE (<see cref="Judge"/>). Every other row is printed for
+    /// information, against LOD0 as before, marked <c>info</c> with no verdict: LOD0 is the reference only up to its
+    /// own switch, and a LOD is never judged nearer than it is shown (task 1.2b). The shadow distance is the
     /// review's, fitted to its stage, so a small asset's 50 m tile has no shadows; the review's 225° camera looks
     /// along one of the impostor's eight baked views, its best case.
     /// <para>Batchmode, with graphics:
     /// <c>-batchmode -quit -executeMethod Fpv450.LodParity.Measure -asset &lt;ID&gt; [-variant &lt;variant&gt;]</c>.
-    /// Exit code 0 when every row passes, 2 when one fails, 1 on an error.</para>
+    /// The exit code comes from the judged rows alone (<see cref="ExitCode"/>): 0 when every one passes, 2 when one
+    /// fails, 3 when none fails but one is not judgeable, 1 on an error.</para>
     /// </summary>
     public static class LodParity
     {
-        // The spec's limits ("Every LOD matches LOD0"): a LOD's crown against LOD0's.
-        internal const double LuminanceLimit = 0.06, CoverageLimit = 0.15;
+        // The spec's limits ("No LOD switch pops"): a judged LOD's crown against the other LOD of its pair, each value's
+        // standard error under 1 %.
+        internal const double LuminanceLimit = 0.06, CoverageLimit = 0.15, ErrorLimit = 0.01;
 
         // The review sheet's stage, light and far shots as ReviewCapture.cs sets them; kept in step by hand, since that
         // file keeps them private. The scale bar is never built here, but its place enters the stage's shadow distance.
@@ -127,9 +134,48 @@ namespace Fpv450
         /// <summary>A LOD's value against LOD0's, as a fraction: 0.05 is 5 % over.</summary>
         internal static double Relative(double value, double lod0) => value / lod0 - 1.0;
 
-        /// <summary>Whether a LOD's crown is within the spec's limits of LOD0's (a NaN, a LOD with no crown, fails).</summary>
+        /// <summary>Whether a LOD's crown is within the spec's limits of another's (a NaN, a LOD with no crown, fails).</summary>
         internal static bool Passes(double relativeLuminance, double relativeCoverage) =>
             Math.Abs(relativeLuminance) < LuminanceLimit && Math.Abs(relativeCoverage) < CoverageLimit;
+
+        /// <summary>
+        /// The tiles in the order they are measured, the review's 50 m tile first and then each LOD's switch distance,
+        /// with the pair each judges ("No LOD switch pops"): at LOD i's switch, LOD i coming in against LOD i − 1 going
+        /// out (the impostor against the last mesh LOD at its switch); at 50 m, the LOD Unity shows there, the last
+        /// whose switch distance is at most 50 m, against LOD0. The 50 m tile judges nothing (−1 and −1) when LOD0 is
+        /// shown there or the asset is culled by then. <paramref name="switchDistancesM"/> holds every LOD's, LOD0's 0.
+        /// </summary>
+        internal static (float distance, int judged, int against)[] Tiles(float[] switchDistancesM, float cullDistanceM)
+        {
+            int shown = Enumerable.Range(0, switchDistancesM.Length).Last(i => switchDistancesM[i] <= ReviewTileM);
+            bool judged = shown > 0 && ReviewTileM < cullDistanceM;
+            var tiles = new List<(float distance, int judged, int against)> { (ReviewTileM, judged ? shown : -1, judged ? 0 : -1) };
+            for (int i = 1; i < switchDistancesM.Length; i++)
+                tiles.Add((switchDistancesM[i], i, i - 1));
+            return tiles.ToArray();
+        }
+
+        internal enum Verdict { Pass, Fail, NotJudgeable }
+
+        /// <summary>
+        /// A judged row: the incoming LOD's crown against the other LOD's of its pair, each with the standard errors of
+        /// its luminance and coverage as fractions of the mean. The row is not judgeable when any of the four errors is
+        /// 1 % or more; otherwise it passes inside both limits and fails outside them (a NaN, a LOD with no crown,
+        /// fails). Returns both differences and the worst of the four errors, for the row's margins.
+        /// </summary>
+        internal static (double luminance, double coverage, double worstError, Verdict verdict) Judge(
+            Crown judged, (double luminance, double coverage) judgedError, Crown against, (double luminance, double coverage) againstError)
+        {
+            double y = Relative(judged.Luminance, against.Luminance), cover = Relative(judged.Coverage, against.Coverage);
+            double worst = new[] { judgedError.luminance, judgedError.coverage, againstError.luminance, againstError.coverage }.Max();
+            Verdict verdict = worst >= ErrorLimit ? Verdict.NotJudgeable : Passes(y, cover) ? Verdict.Pass : Verdict.Fail;
+            return (y, cover, worst, verdict);
+        }
+
+        /// <summary>The exit code from the judged rows alone: 2 when one fails, else 3 when one is not judgeable, else 0.</summary>
+        internal static int ExitCode(int failed, int notJudgeable) => failed > 0 ? 2 : notJudgeable > 0 ? 3 : 0;
+
+        static string Outcome(int exitCode) => exitCode == 0 ? "PASS" : exitCode == 2 ? "FAIL" : "NOT JUDGEABLE";
 
         public static void Measure()
         {
@@ -137,8 +183,9 @@ namespace Fpv450
             {
                 string[] args = Environment.GetCommandLineArgs();
                 string id = Arg(args, "-asset") ?? throw new ArgumentException("usage: -executeMethod Fpv450.LodParity.Measure -asset <ID> [-variant <variant>]");
-                if (!Run(id, Arg(args, "-variant")))
-                    EditorApplication.Exit(2);
+                int code = Run(id, Arg(args, "-variant"));
+                if (code != 0)
+                    EditorApplication.Exit(code);
             }
             catch (Exception e)
             {
@@ -155,7 +202,7 @@ namespace Fpv450
 
         static string RepoRoot => Path.GetFullPath(Path.Combine(Application.dataPath, "..", ".."));
 
-        static bool Run(string id, string onlyVariant)
+        static int Run(string id, string onlyVariant)
         {
             AssetDatabase.Refresh();
             (string assetClass, string[] variants) = CatalogEntry(id);
@@ -179,12 +226,13 @@ namespace Fpv450
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             Debug.Log($"[LodParity] {id}: {variants.Length} variant(s), lights {string.Join("/", Lights)}, GPU {SystemInfo.graphicsDeviceName} ({SystemInfo.graphicsDeviceType}), " +
                       $"quality {QualitySettings.names[QualitySettings.GetQualityLevel()]} ({pipeline.name}), LOD bias {QualitySettings.lodBias:0.##}, MSAA {Mathf.Max(1, pipeline.msaaSampleCount)}, " +
-                      $"colour space {QualitySettings.activeColorSpace}; limits luminance {LuminanceLimit * 100:0} %, coverage {CoverageLimit * 100:0} %; " +
+                      $"colour space {QualitySettings.activeColorSpace}; limits luminance {LuminanceLimit * 100:0} %, coverage {CoverageLimit * 100:0} %, standard error under {ErrorLimit * 100:0} %; " +
+                      "judged: at each switch the incoming LOD against the outgoing one, at the review tile the LOD shown there against LOD0, every other row info; " +
                       $"each value the mean over {Offsets.Length} projection offsets ({string.Join(", ", Offsets.Select(o => $"{o.x:+0.####;-0.####} {o.y:+0.####;-0.####}"))} px), spread max - min of the {Offsets.Length}, se their sample standard deviation over sqrt({Offsets.Length}), both as a percentage of the mean");
 
             var rig = new Rig(Mathf.Max(1, pipeline.msaaSampleCount));
             float projectShadowDistance = pipeline.shadowDistance;
-            int rows = 0, failed = 0;
+            int judged = 0, failed = 0, notJudgeable = 0, info = 0;
             try
             {
                 for (int v = 0; v < variants.Length; v++)
@@ -193,9 +241,11 @@ namespace Fpv450
                     instance.name = variants[v];
                     try
                     {
-                        (int variantRows, int variantFailed) = MeasureVariant(instance, profiles, rig, pipeline, projectShadowDistance);
-                        rows += variantRows;
+                        (int variantJudged, int variantFailed, int variantNotJudgeable, int variantInfo) = MeasureVariant(instance, profiles, rig, pipeline, projectShadowDistance);
+                        judged += variantJudged;
                         failed += variantFailed;
+                        notJudgeable += variantNotJudgeable;
+                        info += variantInfo;
                     }
                     finally
                     {
@@ -210,11 +260,12 @@ namespace Fpv450
                 foreach (GameObject sun in Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None).Where(go => go.name == "ReviewSun"))
                     Object.DestroyImmediate(sun);
             }
-            Debug.Log($"[LodParity] {id}: {(failed == 0 ? "PASS" : "FAIL")}, {failed} of {rows} LOD rows outside the limits");
-            return failed == 0;
+            int code = ExitCode(failed, notJudgeable);
+            Debug.Log($"[LodParity] {id}: {Outcome(code)}, {failed} of {judged} judged rows outside the limits, {notJudgeable} not judgeable; {info} info rows");
+            return code;
         }
 
-        static (int rows, int failed) MeasureVariant(GameObject instance, Profile[] profiles, Rig rig, UniversalRenderPipelineAsset pipeline, float projectShadowDistance)
+        static (int judged, int failed, int notJudgeable, int info) MeasureVariant(GameObject instance, Profile[] profiles, Rig rig, UniversalRenderPipelineAsset pipeline, float projectShadowDistance)
         {
             string variant = instance.name;
             AssetPhysicsMeta meta = instance.GetComponent<AssetPhysicsMeta>() ?? throw new InvalidOperationException($"{variant}: the prefab has no AssetPhysicsMeta");
@@ -229,24 +280,24 @@ namespace Fpv450
             var asset = new Bounds(meta.bounds.center + instance.transform.position, meta.bounds.size);
             pipeline.shadowDistance = ReviewShadowDistance(asset, projectShadowDistance);
 
-            // Each tile names the LODs Unity shows there: the one in range at 50 m, the two that meet at a switch.
-            int shownAtReview = Enumerable.Range(0, lodCount).Last(i => meta.lods[i].switchDistanceM <= ReviewTileM);
-            string shown = ReviewTileM < meta.cullDistanceM ? $"{names[shownAtReview]} shown" : "culled";
-            var tiles = new List<(string label, float distance)> { ($"review tile {ReviewTileM:0.#} m, {shown}", ReviewTileM) };
-            for (int i = 1; i < lodCount; i++)
-                tiles.Add(($"{names[i]} switch {meta.lods[i].switchDistanceM:0.#} m, {names[i - 1]} to {names[i]}", meta.lods[i].switchDistanceM));
+            // Each tile names the LODs Unity shows there, the one in range at 50 m, the two that meet at a switch, and judges them.
+            (float distance, int judged, int against)[] tiles = Tiles(meta.lods.Select(l => l.switchDistanceM).ToArray(), meta.cullDistanceM);
+            string[] labels = tiles.Select((t, k) => k > 0 ? $"{names[k]} switch {t.distance:0.#} m, {names[t.against]} to {names[t.judged]}"
+                : $"review tile {ReviewTileM:0.#} m, " + (ReviewTileM >= meta.cullDistanceM ? "culled" : t.judged < 0 ? $"{names[0]} shown, none judged" : $"{names[t.judged]} shown")).ToArray();
             Debug.Log($"[LodParity] {variant}: LODs {string.Join(", ", names.Select((n, i) => $"{n} {meta.lods[i].tris} tris" + (i == 0 ? "" : $" @ {meta.lods[i].switchDistanceM:0.#} m")))}, " +
                       $"cull {meta.cullDistanceM:0.#} m; bounds centre {asset.center}, size {asset.size}; shadow distance {pipeline.shadowDistance:0.#} m (game {projectShadowDistance:0.#} m)");
 
-            int rows = 0, failed = 0;
+            int judgedRows = 0, failed = 0, notJudgeable = 0, info = 0;
             try
             {
                 foreach (Profile profile in profiles)
                 {
                     ApplyLight(profile);
                     rig.Shoot(Color.black); // a warm-up: the first render after a light change can read the previous ambient
-                    foreach ((string label, float distance) in tiles)
+                    for (int t = 0; t < tiles.Length; t++)
                     {
+                        string label = labels[t];
+                        (float distance, int judged, int against) = tiles[t];
                         Vector3 position = SlantShot(asset, distance, out bool fromBounds);
                         float toCentre = Vector3.Distance(position, asset.center);
                         if (toCentre + asset.extents.magnitude > FarClipM)
@@ -276,15 +327,29 @@ namespace Fpv450
                             string row = $"[LodParity]   {names[i],-9} Y {c.Luminance:0.0000}  coverage {c.Coverage,9:0.0} px  linear rgb {c.R:0.0000} {c.G:0.0000} {c.B:0.0000}" +
                                          $"  spread Y {spreads[i].luminance * 100:0.00} %, coverage {spreads[i].coverage * 100:0.00} %" +
                                          $"  se Y {errors[i].luminance * 100:0.00} %, coverage {errors[i].coverage * 100:0.00} %";
-                            if (i > 0)
+                            if (i == judged)
                             {
-                                double y = Relative(c.Luminance, crowns[0].Luminance), cover = Relative(c.Coverage, crowns[0].Coverage);
-                                bool pass = Passes(y, cover);
-                                row += $"  against LOD0: Y {y * 100:+0.00;-0.00} % (margin {(LuminanceLimit - Math.Abs(y)) * 100:0.00}), " +
-                                       $"coverage {cover * 100:+0.00;-0.00} % (margin {(CoverageLimit - Math.Abs(cover)) * 100:0.00})  {(pass ? "PASS" : "FAIL")}";
-                                rows++;
-                                if (!pass)
+                                (double y, double cover, double worst, Verdict verdict) = Judge(c, errors[i], crowns[against], errors[against]);
+                                row += $"  against {names[against]}: Y {y * 100:+0.00;-0.00} % (margin {(LuminanceLimit - Math.Abs(y)) * 100:0.00}), " +
+                                       $"coverage {cover * 100:+0.00;-0.00} % (margin {(CoverageLimit - Math.Abs(cover)) * 100:0.00}), " +
+                                       $"worst se {worst * 100:0.00} % (margin {(ErrorLimit - worst) * 100:0.00})  " +
+                                       (verdict == Verdict.Pass ? "PASS" : verdict == Verdict.Fail ? "FAIL" : "NOT JUDGEABLE");
+                                judgedRows++;
+                                if (verdict == Verdict.Fail)
                                     failed++;
+                                if (verdict == Verdict.NotJudgeable)
+                                    notJudgeable++;
+                            }
+                            else
+                            {
+                                if (i > 0)
+                                {
+                                    double y = Relative(c.Luminance, crowns[0].Luminance), cover = Relative(c.Coverage, crowns[0].Coverage);
+                                    row += $"  against LOD0: Y {y * 100:+0.00;-0.00} % (margin {(LuminanceLimit - Math.Abs(y)) * 100:0.00}), " +
+                                           $"coverage {cover * 100:+0.00;-0.00} % (margin {(CoverageLimit - Math.Abs(cover)) * 100:0.00})";
+                                }
+                                row += "  info";
+                                info++;
                             }
                             Debug.Log(row);
                         }
@@ -295,8 +360,8 @@ namespace Fpv450
             {
                 group.ForceLOD(-1);
             }
-            Debug.Log($"[LodParity] {variant}: {(failed == 0 ? "PASS" : "FAIL")}, {failed} of {rows} LOD rows outside the limits");
-            return (rows, failed);
+            Debug.Log($"[LodParity] {variant}: {Outcome(ExitCode(failed, notJudgeable))}, {failed} of {judgedRows} judged rows outside the limits, {notJudgeable} not judgeable; {info} info rows");
+            return (judgedRows, failed, notJudgeable, info);
         }
 
         // --- the review stage, as ReviewCapture.cs builds it ------------------------------------------------------
