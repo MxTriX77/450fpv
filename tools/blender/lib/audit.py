@@ -7,6 +7,13 @@ collides with), each within 1 mm of the true maximum. Beyond 50 mm the build fai
 a gap polygon or a landable face (a landable primitive's faces whose normal is within 30 degrees of up). Each gap's
 narrowest_m is checked against the diameter of the largest circle inscribed in its polygon, within 5 mm.
 
+Primitives form a union: the part of a primitive's surface that lies inside another primitive is not a collision
+surface (a mound sphere's lower half sunk in the ground slab, the slab's top under the mound), so it is not
+measured. A shape whose material is a surface (surface:<id>, a stand-in for ground) is landed on over its whole
+top, so it widens no 2 cm zone: its top is held to the 5 cm tolerance everywhere (p1-s04-belt-straw, design 6),
+and the lines say so. Visual-only micro meshes (meta["micro"]) are not part of the LOD0 mesh the audit sees; the
+lines name each one skipped.
+
 Both distances are found by branch and bound over triangles: a cell's three vertices give exact values, a lower
 bound; an upper bound comes from convexity; the cell with the largest upper bound is split in four until no cell
 can beat the best value by PRECISION_M. The bounds are tight wherever the surfaces coincide, so the search refines
@@ -29,6 +36,10 @@ NARROWEST_TOLERANCE_M = 0.005
 LANDABLE_COS = math.cos(math.radians(30))
 UP = (0.0, 1.0, 0.0)
 FAR_M = 1000.0              # a cylinder's axis as a segment long enough to act as a line
+SURFACE_PREFIX = "surface:"  # lib.meta.SURFACE_PREFIX; a shape standing in for ground
+COVERED_M = 1e-9            # a point this deep inside another primitive is on no collision surface
+BOX_CELL_M = 0.25           # a box face is tessellated in cells of at most this, so the search never quarters a long
+                            # thin wall (12 x 0.2 m) into slivers; a brick's faces stay one cell each
 
 
 def run(meta, lod0):
@@ -36,13 +47,28 @@ def run(meta, lod0):
     lib.geometry.Mesh. Problems name the primitive, the deviation and the tolerance; the lines carry the measured
     numbers for every primitive, the mesh and every gap, success or not."""
     faces = _mesh_faces(lod0)
+    index = _FaceIndex(faces)
     shapes = [_Shape(s) for s in meta["collision"]]
     zone = _zone(meta, shapes)
     problems, lines = [], []
+    for m in meta.get("micro", []):
+        lines.append(f"audit: skipped micro mesh {m['name']} ({m['count']} {m['kind']})")
+    surfaces = [f"collision[{i}]" for i, s in enumerate(meta["collision"]) if s["material"].startswith(SURFACE_PREFIX)]
+    if surfaces:
+        lines.append(f"audit: surface shapes {', '.join(surfaces)} are landed on over their whole top, "
+                     f"held to {TOLERANCE_M * 1000:g} mm there")
     for i, shape in enumerate(shapes):
+        others = [s for j, s in enumerate(shapes) if j != i]
         cells = [tri[:3] for tri in shape.triangles]
-        problems += _report(lines, f"collision[{i}] {shape.kind}", f"{shape.kind}->mesh", cells, zone,
-                            lambda v: _nearest_face(v, faces), lambda cell, which: _faces_bound(cell, which, faces))
+
+        def value(v, others=others):
+            d, which = index.nearest(v)
+            return (0.0 if _covered(v, others) else d), which
+
+        def bound(cell, which, others=others):
+            return 0.0 if _cell_covered(cell, others) else _faces_bound(cell, which, faces)
+
+        problems += _report(lines, f"collision[{i}] {shape.kind}", f"{shape.kind}->mesh", cells, zone, value, bound)
     if not shapes:
         problems.append("mesh: no collision primitive stands for the LOD0 mesh")
     else:
@@ -125,6 +151,12 @@ class _Face:
         self.points, self.indices = points, indices
         self.lo = tuple(min(p[k] for p in points) for k in range(3))
         self.hi = tuple(max(p[k] for p in points) for k in range(3))
+        # Per edge (a, b): the in-plane inward normal n x (b - a), so a point q projects inside the face when
+        # (q - a) . w >= 0 on every edge; and the edge vector with its squared length, for the distance to it.
+        self.edges = []
+        for a, b in zip(points, points[1:] + points[:1]):
+            e = _sub(b, a)
+            self.edges.append((a, _cross(self.normal, e), e, _dot(e, e)))
 
     def fan(self):
         return [(0, k, k + 1) for k in range(1, len(self.points) - 1)]
@@ -147,30 +179,94 @@ def _mesh_faces(mesh):
 
 
 def _face_distance(p, face):
-    """Distance from p to a convex planar face: to its plane when p projects inside, else to its nearest edge."""
-    n, points = face.normal, face.points
-    h = _dot(_sub(p, points[0]), n)
-    q = (p[0] - h * n[0], p[1] - h * n[1], p[2] - h * n[2])
-    if all(_dot(_cross(_sub(b, a), _sub(q, a)), n) >= 0 for a, b in zip(points, points[1:] + points[:1])):
-        return abs(h)
-    return min(_segment_distance(p, a, b) for a, b in zip(points, points[1:] + points[:1]))
-
-
-def _nearest_face(p, faces):
-    """(distance, index) of the face nearest to p; a face's bounding box skips it when it cannot win."""
+    """Distance from p to a convex planar face: to its plane when p projects inside, else to its nearest edge.
+    The hottest function of the audit, so the arithmetic is written out."""
     px, py, pz = p
-    best, which = math.inf, None
-    for i, face in enumerate(faces):
-        lo, hi = face.lo, face.hi
-        dx = lo[0] - px if px < lo[0] else px - hi[0] if px > hi[0] else 0.0
-        dy = lo[1] - py if py < lo[1] else py - hi[1] if py > hi[1] else 0.0
-        dz = lo[2] - pz if pz < lo[2] else pz - hi[2] if pz > hi[2] else 0.0
-        if dx * dx + dy * dy + dz * dz >= best * best:
-            continue
-        d = _face_distance(p, face)
-        if d < best:
-            best, which = d, i
-    return best, which
+    nx, ny, nz = face.normal
+    a0 = face.points[0]
+    h = (px - a0[0]) * nx + (py - a0[1]) * ny + (pz - a0[2]) * nz
+    qx, qy, qz = px - h * nx, py - h * ny, pz - h * nz
+    inside = True
+    for a, w, _, _ in face.edges:
+        if (qx - a[0]) * w[0] + (qy - a[1]) * w[1] + (qz - a[2]) * w[2] < 0:
+            inside = False
+            break
+    if inside:
+        return abs(h)
+    best = math.inf
+    for a, _, e, length2 in face.edges:
+        apx, apy, apz = px - a[0], py - a[1], pz - a[2]
+        t = 0.0 if length2 == 0 else (apx * e[0] + apy * e[1] + apz * e[2]) / length2
+        t = 0.0 if t < 0 else 1.0 if t > 1 else t
+        dx, dy, dz = apx - t * e[0], apy - t * e[1], apz - t * e[2]
+        d2 = dx * dx + dy * dy + dz * dz
+        if d2 < best:
+            best = d2
+    return math.sqrt(best)
+
+
+class _FaceIndex:
+    """The mesh's faces in a uniform grid of buckets (each face in every bucket its bounding box touches), so the
+    nearest face to a point is found among a few buckets instead of the whole mesh: a 12 m ground patch has twenty
+    thousand faces, and the search visits most of its vertices. The bucket size is the median face extent."""
+
+    def __init__(self, faces):
+        self.faces = faces
+        extents = sorted(max(f.hi[k] - f.lo[k] for k in range(3)) for f in faces)
+        self.h = max(0.01, extents[len(extents) // 2]) if extents else 1.0
+        self.buckets = {}
+        for i, face in enumerate(faces):
+            lo, hi = self._cell(face.lo), self._cell(face.hi)
+            for x in range(lo[0], hi[0] + 1):
+                for y in range(lo[1], hi[1] + 1):
+                    for z in range(lo[2], hi[2] + 1):
+                        self.buckets.setdefault((x, y, z), []).append(i)
+        self.reach = max((abs(c[k]) for c in self.buckets for k in range(3)), default=0) + 1
+
+    def _cell(self, p):
+        return (math.floor(p[0] / self.h), math.floor(p[1] / self.h), math.floor(p[2] / self.h))
+
+    def nearest(self, p):
+        """(distance, index) of the face nearest to p: the rings of buckets around p's, outwards, until no further
+        ring can hold a closer face (a face in ring k lies at least (k - 1) bucket sizes away)."""
+        px, py, pz = p
+        cx, cy, cz = self._cell(p)
+        best, which = math.inf, None
+        seen = set()
+        k = 0
+        while True:
+            for x in range(cx - k, cx + k + 1):
+                for y in range(cy - k, cy + k + 1):
+                    edge = max(abs(x - cx), abs(y - cy)) == k
+                    for z in (range(cz - k, cz + k + 1) if edge else (cz - k, cz + k) if k else (cz,)):
+                        for i in self.buckets.get((x, y, z), ()):
+                            if i in seen:
+                                continue
+                            seen.add(i)
+                            face = self.faces[i]
+                            lo, hi = face.lo, face.hi
+                            dx = lo[0] - px if px < lo[0] else px - hi[0] if px > hi[0] else 0.0
+                            dy = lo[1] - py if py < lo[1] else py - hi[1] if py > hi[1] else 0.0
+                            dz = lo[2] - pz if pz < lo[2] else pz - hi[2] if pz > hi[2] else 0.0
+                            if dx * dx + dy * dy + dz * dz >= best * best:
+                                continue
+                            d = _face_distance(p, face)
+                            if d < best:
+                                best, which = d, i
+            if best <= k * self.h or k > self.reach + max(abs(cx), abs(cy), abs(cz)):
+                return best, which
+            k += 1
+
+
+def _covered(p, others):
+    """Whether p lies inside one of the other primitives, so no collision surface passes there."""
+    return any(shape.sdf(p) <= COVERED_M for shape in others)
+
+
+def _cell_covered(cell, others):
+    """Whether a whole triangle lies inside one other primitive: every primitive is convex, so its three vertices
+    inside the same one is enough."""
+    return any(all(shape.sdf(v) <= COVERED_M for v in cell) for shape in others)
 
 
 def _faces_bound(cell, which, faces):
@@ -270,19 +366,24 @@ def _shapes_bound(cell, which, shapes):
 
 
 def _tessellate(shape):
-    """(a, b, c, outward normal) triangles of a _Shape's surface in asset space: a box exactly, the curved shapes
-    within CHORD_M, built along local +Y, rotated by the shape's quaternion and moved to its centre."""
+    """(a, b, c, outward normal) triangles of a _Shape's surface in asset space: a box exactly, each face in cells
+    of at most BOX_CELL_M, the curved shapes within CHORD_M, built along local +Y, rotated by the shape's
+    quaternion and moved to its centre."""
     if shape.kind == "box":
         h = shape.half
-        corners = {(x, y, z): shape.place((x * h[0], y * h[1], z * h[2]))
-                   for x in (-1, 1) for y in (-1, 1) for z in (-1, 1)}
         triangles = []
         for axis in range(3):
+            u, v = (axis + 1) % 3, (axis + 2) % 3
+            nu, nv = (max(1, math.ceil(2 * h[k] / BOX_CELL_M)) for k in (u, v))
             for side in (-1, 1):
-                face = [c for c in corners if c[axis] == side]
-                face.sort(key=lambda c: math.atan2(c[(axis + 2) % 3], c[(axis + 1) % 3]))
-                a, b, c, d = (corners[k] for k in face)
-                triangles += [(a, b, c), (a, c, d)]
+                def corner(i, j):
+                    p = [0.0, 0.0, 0.0]
+                    p[axis], p[u], p[v] = side * h[axis], -h[u] + 2 * h[u] * i / nu, -h[v] + 2 * h[v] * j / nv
+                    return shape.place(p)
+                for i in range(nu):
+                    for j in range(nv):
+                        a, b, c, d = corner(i, j), corner(i + 1, j), corner(i + 1, j + 1), corner(i, j + 1)
+                        triangles += [(a, b, c), (a, c, d)]
     else:
         r, h = shape.r, shape.h
         step = math.pi / 4 if r <= CHORD_M else math.acos(1 - CHORD_M / r)
@@ -321,8 +422,10 @@ def _tessellate(shape):
 # --- the 2 cm zone ----------------------------------------------------------------------------------------------
 
 def _zone(meta, shapes):
-    """The geometry that tightens the tolerance: (landable faces, gap polygons), or None when there is none."""
-    faces = [_Face([a, b, c], [0, 1, 2], n) for shape, entry in zip(shapes, meta["collision"]) if entry["landable"]
+    """The geometry that tightens the tolerance: (landable faces, gap polygons), or None when there is none. A
+    surface shape's top is a landing face everywhere and is held to the 5 cm tolerance, so it adds no zone."""
+    faces = [_Face([a, b, c], [0, 1, 2], n) for shape, entry in zip(shapes, meta["collision"])
+             if entry["landable"] and not entry["material"].startswith(SURFACE_PREFIX)
              for a, b, c, n in shape.triangles if _dot(n, UP) >= LANDABLE_COS]
     polygons = [(tuple(tuple(p) for p in g["polygon"]), tuple(g["normal"])) for g in meta["gaps"]]
     return (faces, polygons) if faces or polygons else None

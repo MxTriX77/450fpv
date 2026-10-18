@@ -195,3 +195,62 @@ def test_a_mesh_with_no_primitive_is_refused(k01_params):
     data, lod0 = k01(k01_params)
     data["collision"] = []
     assert audit.run(data, lod0) == (["mesh: no collision primitive stands for the LOD0 mesh"], [])
+
+
+def test_micro_mesh_far_from_any_primitive_is_skipped_and_named(k01_params):
+    """p1-s04-belt-straw, "Micro meshes skipped by the audit": a visual-only mesh is no part of the LOD0 the audit
+    measures; its name and count are printed first."""
+    data, lod0 = k01(k01_params)
+    far = Mesh()
+    for k in range(3):
+        far.vertex((5.0 + k, 5.0, 5.0 * k))
+    far.face([0, 1, 2], (0.0, 1.0, 0.0), "straw")
+    data["micro"] = [{"lod": 0, "name": "K01_whole_LOD0_straw", "kind": "straw", "count": 10000, "tris": 1}]
+    problems, lines = audit.run(data, lod0)
+    assert problems == []
+    assert lines[0] == "audit: skipped micro mesh K01_whole_LOD0_straw (10000 straw)"
+    assert lines[1].startswith("audit collision[0] box: box->mesh 3.288 mm")
+
+
+def slab(size=2.0, depth=0.2):
+    """A closed flat slab mesh: top at 0, bottom at -depth."""
+    mesh = Mesh()
+    h = size / 2
+    p = {(sx, sy, sz): mesh.vertex((sx * h, 0.0 if sy > 0 else -depth, sz * h)) for sx in (-1, 1) for sy in (-1, 1) for sz in (-1, 1)}
+    for axis in range(3):
+        for side in (-1, 1):
+            normal = tuple(side if a == axis else 0 for a in range(3))
+            indices = [p[c] for c in p if c[axis] == side]
+            from lib.geometry import ring
+            mesh.face(ring(mesh.vertices, indices, normal), normal, "ground")
+    return mesh
+
+
+def test_primitives_form_a_union_and_surface_tops_are_held_to_5cm(k01_params):
+    """p1-s04-belt-straw, design 6: a sphere sunk into a slab box is measured only where it stands proud of the box
+    (its cap), the box top is not measured under the sphere, and surface shapes add no 2 cm zone. The cap stands
+    8 cm above a flat slab, so the sphere fails by what its cap misses; the box passes by itself."""
+    data, _ = k01(k01_params)
+    lod0 = slab()
+    data["collision"] = [
+        {"shape": "box", "center": [0.0, -0.1, 0.0], "size": [2.0, 0.2, 2.0], "rotation": [0.0, 0.0, 0.0, 1.0],
+         "material": "surface:belt_straw", "landable": True},
+        {"shape": "sphere", "center": [0.0, -0.06, 0.0], "radius": 0.14, "material": "surface:crater_spoil", "landable": True},
+    ]
+    problems, lines = audit.run(data, lod0)
+    assert lines[0] == "audit: surface shapes collision[0], collision[1] are landed on over their whole top, held to 50 mm there"
+    assert measured_mm(lines[1]) == pytest.approx(0.0, abs=0.5), lines[1]   # the box top under the cap is covered
+    assert measured_mm(lines[2]) == pytest.approx(80.0, abs=1.0), lines[2]  # the cap's apex over the flat slab
+    assert all("near gaps/landable" not in line for line in lines), "surface tops widen no 2 cm zone"
+    assert [p.split(" at ")[0] for p in problems] == ["collision[1] sphere: sphere->mesh 80.000 mm"]
+    data["collision"][1]["center"][1] = -0.12  # the bottom now pokes 6 cm out of the slab: an invisible wall below
+    problems, lines = audit.run(data, lod0)
+    assert [p.split(" at ")[0] for p in problems] == ["collision[1] sphere: sphere->mesh 60.000 mm"]
+    data["collision"][1].update(center=[0.0, -0.085, 0.0], radius=0.115)  # a 3 cm cap, the bottom on the slab's: within tolerance
+    problems, lines = audit.run(data, lod0)
+    assert problems == [] and measured_mm(lines[2]) == pytest.approx(30.0, abs=1.0)
+    data["collision"][0]["material"] = "masonry"  # a hard landable face: the 2 cm zone is back
+    problems, lines = audit.run(data, lod0)
+    assert lines[0].startswith("audit: surface shapes collision[1] ")
+    assert any("near gaps/landable" in line for line in lines)
+    assert [p.split(" at ")[0] for p in problems] == ["collision[1] sphere: near gaps/landable 30.000 mm"]

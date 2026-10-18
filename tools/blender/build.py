@@ -5,7 +5,8 @@
 
 For every variant of each asset id in assets-src/catalog.json, it checks the variant's params
 (assets-src/<class>/<variant>.json) against the generator's PARAMS table (lib/params.py), runs the generator,
-validates the metadata (lib/meta.py) and audits the collision against the LOD0 mesh (lib/audit.py), and only then
+validates the metadata (lib/meta.py) and audits the collision against the LOD0 mesh (lib/audit.py; a generator's
+visual-only micro meshes are exported beside their LOD and skipped by the audit), and only then
 writes unity/Assets/_Project/Art/Models/<class>/<ID>/<variant>.fbx and <variant>.assetmeta.json, both in Unity's
 frame (lib/frame.py), the FBX staged beside its final name and moved once it reads back as the metadata says. A
 rejected build changes no file. It refuses any Blender other than the pinned major.minor. Exit code 1 on any
@@ -48,6 +49,8 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
     export.reset_scene()
     for n, mesh in enumerate(built["lods"]):
         export.add_lod(f"{variant}_LOD{n}", mesh)
+    for entry, micro in zip(data["micro"], built.get("micro", [])):  # extra mesh objects beside their LOD
+        export.add_lod(entry["name"], micro["mesh"])
     out_dir = catalog.output_dir(root, catalog_entry, asset_id)
     fbx_path = os.path.join(out_dir, variant + ".fbx")
     staged = os.path.join(out_dir, variant + ".staged.fbx")
@@ -65,7 +68,9 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
     meta.write(os.path.join(out_dir, variant + ".assetmeta.json"), data)
     size = [round(data["bounds"]["max"][a] - data["bounds"]["min"][a], 4) for a in range(3)]
     tris = " / ".join(str(lod["tris"]) for lod in data["lods"])
-    return f"{variant}: {os.path.relpath(fbx_path, root)}  size {size} m  tris {tris}  metadata written"
+    micro = "".join(f"  micro {m['name']} {m['count']} {m['kind']} {m['tris']} tris" for m in data["micro"])
+    return (f"{variant}: {os.path.relpath(fbx_path, root)}  size {size} m  tris {tris}{micro}  "
+            f"fbx {os.path.getsize(fbx_path) / 1048576:.1f} MB  metadata written")
 
 
 def _refuse(variant, problems, source=""):
