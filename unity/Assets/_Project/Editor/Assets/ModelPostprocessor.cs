@@ -12,7 +12,8 @@ namespace Fpv450.Assets
     /// does): metres stay metres, no Unity mesh LODs (the project uses its own LOD groups, knowledge.md 14.4), no
     /// Unity colliders, static. Textures under <c>Art/ThirdParty/</c>: typed from the Poly Haven or ambientCG suffix;
     /// the maps that <c>tools/assets/derive.py</c> writes under <c>Art/Materials/</c>: the packed masks as linear
-    /// RGBA data, the <c>_base</c> maps of alpha-clipped recipes as sRGB diffuse with their alpha.
+    /// RGBA data, the <c>_base</c> maps of alpha-clipped recipes as sRGB diffuse with their alpha. The base map of an
+    /// alpha-clipped recipe also keeps its mip coverage at the recipe's cutoff (<see cref="ApplyCoverage"/>).
     /// </summary>
     public static class ArtImportSettings
     {
@@ -76,6 +77,19 @@ namespace Fpv450.Assets
                     changed = true;
                 }
             }
+            return changed;
+        }
+
+        /// <summary>
+        /// Applies mip coverage preservation at <paramref name="cutoff"/> to the base map of an alpha-clipped recipe
+        /// and reports whether it changed. The cutoff is the recipe's, so the catalog importer applies it, not the
+        /// postprocessor; the setting lives in the map's .meta.
+        /// </summary>
+        public static bool ApplyCoverage(TextureImporter importer, float cutoff)
+        {
+            bool changed = false;
+            changed |= Set(importer.mipMapsPreserveCoverage, true, v => importer.mipMapsPreserveCoverage = v);
+            changed |= Set(importer.alphaTestReferenceValue, cutoff, v => importer.alphaTestReferenceValue = v);
             return changed;
         }
 

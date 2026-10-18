@@ -28,6 +28,8 @@ namespace Fpv450.Assets
         const string ModelsFolder = "Assets/_Project/Art/Models";
         const string MaterialsFolder = "Assets/_Project/Art/Materials";
         const string PrefabsFolder = "Assets/_Project/Prefabs";
+        const string LitShader = "Universal Render Pipeline/Lit";
+        const string LeafShader = "Fpv450/Leaf";
 
         // The metadata gives LOD distances; a LODGroup wants screen-relative heights. The conversion assumes the
         // feed's vertical field of view (design decision 7, derived: 60 degrees, 935 px/rad at 1080 px).
@@ -160,7 +162,10 @@ namespace Fpv450.Assets
         /// URP/Lit reads those channels only from packed maps. An "alpha_clip" (a cutoff in 0–1, p1-v13-shrub)
         /// turns on URP/Lit's alpha clipping at that cutoff on an opaque surface, read from the base map's alpha:
         /// the diffuse's own, or, when the set ships its opacity as a separate map, the <c>_base</c> map that
-        /// <c>derive.py</c> packs from both. "two_sided" renders both faces (cull off).
+        /// <c>derive.py</c> packs from both. "two_sided" renders both faces (cull off). A recipe that is both is a
+        /// leaf (p1-v13-shrub, design decision 6): it gets <c>Shaders/Leaf</c>, which reads the same properties and
+        /// lights a back face with its own normal, unless its "shader" names another than URP/Lit; and its base map
+        /// keeps its alpha coverage at the cutoff in every mip.
         /// </summary>
         static Material EnsureMaterial(string visual, Dictionary<string, object> manifest) =>
             EnsureMaterial(visual, manifest, $"{MaterialsFolder}/{visual}.mat");
@@ -173,7 +178,6 @@ namespace Fpv450.Assets
             if ((int)Json.Num(recipe, "schema", recipePath) != 1)
                 throw new NotSupportedException($"{recipePath}: schema {recipe["schema"]}; this importer reads schema 1");
             string shaderName = Json.Str(recipe, "shader", recipePath);
-            Shader shader = Shader.Find(shaderName) ?? throw new FormatException($"{recipePath}: no shader named \"{shaderName}\"");
             Dictionary<string, Texture2D> maps = TextureSet(Json.Str(recipe, "texture_set", recipePath), manifest, recipePath);
             Vector2 tile = Json.Vec2(recipe, "tile_size_m", recipePath);
             if (!maps.TryGetValue("diffuse", out Texture2D diffuse))
@@ -188,7 +192,12 @@ namespace Fpv450.Assets
             if (cutoff < 0f || cutoff > 1f)
                 throw new FormatException($"{recipePath}: \"alpha_clip\" must be a cutoff in 0–1, not {cutoff}");
             bool twoSided = recipe.ContainsKey("two_sided") && Json.Bool(recipe, "two_sided", recipePath);
+            if (clipped && twoSided && shaderName == LitShader)
+                shaderName = LeafShader;
+            Shader shader = Shader.Find(shaderName) ?? throw new FormatException($"{recipePath}: no shader named \"{shaderName}\"");
             Texture2D baseMap = clipped && maps.ContainsKey("opacity") ? DerivedBase(visual) : diffuse;
+            if (clipped)
+                EnsureCoverage(baseMap, cutoff);
 
             EnsureFolder(Path.GetDirectoryName(materialPath).Replace('\\', '/'));
             var material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
@@ -255,6 +264,19 @@ namespace Fpv450.Assets
             EnsureTextureImport(path, $"run python tools/assets/derive.py {visual}");
             return AssetDatabase.LoadAssetAtPath<Texture2D>(path)
                 ?? throw new FileNotFoundException($"{path} did not import as a texture");
+        }
+
+        /// <summary>
+        /// The base map of a clipped recipe keeps its alpha coverage at the recipe's cutoff in every mip: averaged
+        /// mips of a leaf atlas fall under the cutoff, and a far card thins out or vanishes (design decision 6).
+        /// </summary>
+        static void EnsureCoverage(Texture2D baseMap, float cutoff)
+        {
+            string path = AssetDatabase.GetAssetPath(baseMap);
+            var importer = AssetImporter.GetAtPath(path) as TextureImporter
+                ?? throw new FileNotFoundException($"{path} is not a texture in the asset database");
+            if (ArtImportSettings.ApplyCoverage(importer, cutoff))
+                importer.SaveAndReimport();
         }
 
         /// <summary>The packed mask derived from a recipe, <c>Art/Materials/&lt;visual&gt;_mask.png</c>, imported as linear data.</summary>
