@@ -10,7 +10,11 @@ from generators import debris_brick
 from lib import catalog, meta
 
 VISUALS = {"brick": "brick_red"}
-REVIEW_MATERIALS = {"steel", "sheet_metal", "timber", "masonry", "concrete", "glass", "cable", "foliage"}
+# Review R3's eight rows plus the nine signed off in p1-pipeline-hardening/review-materials.md.
+REVIEW_MATERIALS = {"steel", "sheet_metal", "timber", "masonry", "concrete", "glass", "cable", "foliage",
+                    "bark", "twig", "deadwood", "asbestos_cement", "straw", "fabric", "rubber", "plastic", "mesh"}
+SURFACE_RULE = "is not one of the thirteen surface ids surface:{meadow_sod, dry_crust, crater_spoil, belt_straw, " \
+               "belt_bare, tilled, burnt_field, weeds, yard_litter, rubble, asphalt, concrete_slab, dirt_track}"
 
 
 def k01_meta(params):
@@ -102,10 +106,16 @@ def test_valid_capsule_gap_and_snag_pass(k01_params, material_ids):
      "snag[0]: kind must be one of edge, hook, got 'spike'"),
     (lambda d: d["snag"][0].update(points=[[0.0, 2.0, 0.0]]),
      "snag[0]: needs at least 2 points, got 1"),
-    (lambda d: d["collision"][0].update(material="plastic"),
-     "collision[0]: material 'plastic' is not in assets-src"),
-    (lambda d: d["materials"][0].update(physics="plastic"),
-     "materials[0]: physics material 'plastic' is not in assets-src"),
+    (lambda d: d["collision"][0].update(material="unobtainium"),
+     "collision[0]: material 'unobtainium' is not in assets-src"),
+    (lambda d: d["materials"][0].update(physics="unobtainium"),
+     "materials[0]: physics material 'unobtainium' is not in assets-src"),
+    (lambda d: d["collision"][0].update(material="surface:nonsense"),
+     f"collision[0]: surface material 'surface:nonsense' {SURFACE_RULE}"),
+    (lambda d: d["materials"][0].update(physics="surface:nonsense"),
+     f"materials[0]: physics surface material 'surface:nonsense' {SURFACE_RULE}"),
+    (lambda d: d["collision"][1].update(material="surface:stubble"),
+     f"collision[1]: surface material 'surface:stubble' {SURFACE_RULE}"),
     (lambda d: d["wind_volumes"].append({"shape": "cylinder", "center": [0.0, 1.0, 0.0], "radius": 0.2, "height": 2.0,
                                          "rotation": [0.0, 0.0, 0.0, 0.0], "porosity": 0.5}),
      "wind_volumes[0]: cylinder rotation must be a unit quaternion"),
@@ -119,16 +129,40 @@ def test_convention_violations_name_the_rule(k01_params, material_ids, edit, exp
     assert all(p.startswith(expected.split(":")[0]) for p in problems), problems
 
 
+@pytest.mark.parametrize("surface_id", meta.SURFACE_IDS)
+def test_every_surface_id_is_accepted_on_a_shape_and_a_slot(k01_params, material_ids, surface_id):
+    """The trench filler scenario: `surface:belt_bare` passes, and so does each of the other twelve names."""
+    data = with_physics_features(k01_meta(k01_params))
+    data["collision"][1]["material"] = f"surface:{surface_id}"
+    data["materials"][0]["physics"] = f"surface:{surface_id}"
+    assert meta.validate(data, material_ids) == []
+
+
 def test_physics_material_table_holds_the_review_rows(material_ids):
     assert material_ids == REVIEW_MATERIALS
+    assert not material_ids & set(meta.SURFACE_IDS), "asphalt lives as a surface id only (review-materials.md)"
 
 
-def test_physics_material_table_without_a_label_is_refused(repo_root, tmp_path):
+def write_table(repo_root, tmp_path, edit):
     table = json.loads((repo_root / meta.PHYSICS_MATERIALS).read_text(encoding="utf-8"))
-    del table["materials"]["timber"]["label"]
+    edit(table["materials"])
     (tmp_path / "assets-src").mkdir()
     (tmp_path / meta.PHYSICS_MATERIALS).write_text(json.dumps(table), encoding="utf-8")
-    with pytest.raises(ValueError, match="timber needs .* a label in pilot, measured, published, derived, assumed"):
+
+
+@pytest.mark.parametrize("edit, expected", [
+    (lambda rows: rows["timber"].pop("label"),
+     "timber needs .* a label in pilot, measured, published, derived, assumed"),
+    (lambda rows: rows["deadwood"].update(break_stress_pa=0),
+     "deadwood needs .* break_stress_pa positive if present"),
+    (lambda rows: rows.update(asphalt=rows["concrete"]),
+     "'asphalt' is a surface id; a plain material id never shares a surface's name"),
+    (lambda rows: rows.update({"surface:soil": rows["concrete"]}),
+     "'surface:soil' is a surface id"),
+])
+def test_malformed_physics_material_table_is_refused(repo_root, tmp_path, edit, expected):
+    write_table(repo_root, tmp_path, edit)
+    with pytest.raises(ValueError, match=expected):
         meta.load_physics_materials(tmp_path)
 
 
