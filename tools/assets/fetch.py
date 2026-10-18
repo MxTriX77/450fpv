@@ -10,10 +10,11 @@
     python tools/assets/fetch.py --add ambientcg:<ID> --res 1k|2k|4k [--displacement]
 
 `--add` resolves the download URLs through the Poly Haven API (api.polyhaven.com) or the ambientCG API
-(ambientcg.com/api/v2), downloads the maps a material needs (diffuse, normal (GL), roughness, AO and, on request,
-displacement) at the requested resolution as PNG when the source offers it (else JPG), hashes them and writes the
-manifest entry plus CREDITS.md. Files live under unity/Assets/_Project/Art/ThirdParty/<source>/<id>/ and go through
-LFS. ambientCG ships zips: the zip is pinned by its own SHA-256 and so is each extracted map.
+(ambientcg.com/api/v2), downloads the maps a material needs (diffuse, normal (GL), roughness, AO, the opacity of an
+alpha atlas and, on request, displacement) at the requested resolution as PNG when the source offers it (else JPG),
+hashes them and writes the manifest entry plus CREDITS.md. Files live under
+unity/Assets/_Project/Art/ThirdParty/<source>/<id>/ and go through LFS. ambientCG ships zips: the zip is pinned by
+its own SHA-256 and so is each extracted map.
 """
 import argparse
 import hashlib
@@ -37,12 +38,12 @@ ALLOWED_HOSTS = {"api.polyhaven.com", "dl.polyhaven.org", "ambientcg.com"}
 LICENCES = {"CC0": ("CC0 1.0", "https://creativecommons.org/publicdomain/zero/1.0/"),
             "CC-BY": ("CC-BY 4.0", "https://creativecommons.org/licenses/by/4.0/")}
 SOURCES = ("polyhaven", "ambientcg")
-MAPS = ("diffuse", "normal", "roughness", "ao", "displacement")
-OPTIONAL_MAPS = ("ao",)  # taken when the set has it; displacement only on request
+MAPS = ("diffuse", "normal", "roughness", "ao", "opacity", "displacement")
+OPTIONAL_MAPS = ("ao", "opacity")  # taken when the set has them; displacement only on request
 POLYHAVEN_KEYS = {"diffuse": "Diffuse", "normal": "nor_gl", "roughness": "Rough", "ao": "AO",
-                  "displacement": "Displacement"}
+                  "displacement": "Displacement"}  # no opacity: Poly Haven ships no alpha atlases
 AMBIENTCG_SUFFIXES = {"diffuse": "Color", "normal": "NormalGL", "roughness": "Roughness", "ao": "AmbientOcclusion",
-                      "displacement": "Displacement"}
+                      "opacity": "Opacity", "displacement": "Displacement"}
 
 
 class FetchError(Exception):
@@ -221,6 +222,8 @@ def add_polyhaven(root, asset_id, res, displacement):
              "author": ", ".join(sorted(info["authors"])), "page": f"https://polyhaven.com/a/{asset_id}",
              "destination": f"{THIRD_PARTY}/polyhaven/{asset_id}".replace(os.sep, "/"), "files": []}
     for map_name in wanted_maps(displacement):
+        if map_name not in POLYHAVEN_KEYS:
+            continue
         formats = files_api.get(POLYHAVEN_KEYS[map_name], {}).get(res)
         if not formats:
             if map_name in OPTIONAL_MAPS:

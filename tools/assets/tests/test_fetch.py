@@ -135,7 +135,7 @@ def test_add_ambientcg_pins_the_zip_and_its_maps(root, server):
     (www / "api" / "v2").mkdir(parents=True)
     (www / "dl").mkdir()
     members = {f"Fake001_1K-PNG_{suffix}.png": content(suffix) for suffix in
-               ("Color", "NormalGL", "NormalDX", "Roughness", "AmbientOcclusion", "Displacement")}
+               ("Color", "NormalGL", "NormalDX", "Roughness", "AmbientOcclusion", "Opacity", "Displacement")}
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as zf:
         for name, data in members.items():
@@ -155,7 +155,8 @@ def test_add_ambientcg_pins_the_zip_and_its_maps(root, server):
                               "bytes": len(buffer.getvalue())}
     assert [f["name"] for f in new["files"]] == ["Fake001_1K-PNG_Color.png", "Fake001_1K-PNG_NormalGL.png",
                                                  "Fake001_1K-PNG_Roughness.png", "Fake001_1K-PNG_AmbientOcclusion.png",
-                                                 "Fake001_1K-PNG_Displacement.png"]
+                                                 "Fake001_1K-PNG_Opacity.png", "Fake001_1K-PNG_Displacement.png"]
+    assert [f["map"] for f in new["files"]] == ["diffuse", "normal", "roughness", "ao", "opacity", "displacement"]
     folder = root / THIRD_PARTY / "ambientcg" / "Fake001"
     assert sorted(p.name for p in folder.iterdir()) == sorted(f["name"] for f in new["files"])  # no NormalDX, no zip
     for f in new["files"]:
