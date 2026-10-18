@@ -7,8 +7,9 @@ recorded beside the maps, identical bytes on a rerun and regeneration on a chang
 formula constant, the patch layout's constants or the asset's layout params, and the failures named with nothing
 written. The bare mask and the step outlines agree (review-physics PR7 c). The green strips are the asset's
 (lib/mat.py) at their share, the relief map is lib/mat.py's relief and darkens the hollows, a floor's lip shows soil
-just outside its outline, and the gaps take the cover's gap_albedo. The last test measures the real belt_straw
-albedo."""
+just outside its outline and nowhere else, the straws strewn over the floors cover design 15's fifth of their soil,
+and the gaps take the cover's gap_albedo. The real belt_straw albedo is measured too: its path bridges read as the
+mat (R7), and its mean hits the sheet's target."""
 import json
 import math
 import random
@@ -251,32 +252,90 @@ def test_the_relief_map_is_the_meshs_relief_and_darkens_the_hollows(tmp_path):
 
 
 def test_a_floors_lip_shows_soil_just_outside_its_outline(tmp_path):
-    """The mat thins at a step's cut edge: soil shows between the cover's straws within LIP_M outside an outline and
-    over a path's bridges (the hull of two consecutive patches' cores, task 1.8), and none farther out (the gaps
-    aside, which are none here)."""
+    """The mat thins at a step's cut edge: soil shows between the cover's straws just outside an outline and none
+    farther than LIP_M out, a path's mat bridges included (R7: the mat there is full depth), and none on a floor,
+    whose soil and strewn straws are the bare mask's alone (R8; the gaps aside, which are none here)."""
     root = ground_root(tmp_path)
     assert run(MATERIAL, "--root", root) == 0
     measured = json.loads((root / MATERIALS / f"{MATERIAL}.recipe.json").read_text(encoding="utf-8"))["measured"]
     print(f"lip soil {100 * measured['lip_soil_share']:.2f} % outside the outlines")
     assert 0.002 < measured["lip_soil_share"] < 0.06
     bare = patches.layout(**patches.inputs(PARAMS))["patches"]
-    bridges = [derive.bridge(p, bare[p["after"]]) for p in bare if p["after"] is not None]
-    assert bridges, "the layout lays patches along paths"
-    lip = derive.lip_layer(bare, 256, 12)
+    lip, floors = derive.lip_layer(bare, 256, 12), derive.outline_layer(bare, 256, 12)
     for py in range(0, 256, 3):
         for px in range(0, 256, 3):
             x, z = ((px + 0.5) / 256 - 0.5) * 12, (0.5 - (py + 0.5) / 256) * 12
             d = min(patches.distance((x, z), p["outline"]) for p in bare)
-            if min([d] + [patches.distance((x, z), b) for b in bridges]) > derive.LIP_M + 0.1:
-                assert lip.getpixel((px, py)) == 0, f"a lip {d:.2f} m out at {(x, z)}"
-            elif -0.02 < d < 0.02 or min([1.0] + [patches.distance((x, z), b) for b in bridges]) < -0.05:
-                assert lip.getpixel((px, py)) >= 128, f"no lip at the outline or on a bridge at {(x, z)}"
+            if floors.getpixel((px, py)) or d > derive.LIP_M + 0.1:
+                assert lip.getpixel((px, py)) == 0, f"a lip on a floor or {d:.2f} m out at {(x, z)}"
+            elif d < 0.02:
+                assert lip.getpixel((px, py)) >= 128, f"no lip at the outline at {(x, z)}"
+
+
+def bridge(a, b):
+    """The hull of two patches' cores (their outlines where a core is empty): a path's mat bridge between them and
+    its two floors, counter-clockwise (Andrew's monotone chain)."""
+    points = sorted(set((a["core"] if len(a["core"]) >= 3 else a["outline"]) +
+                        (b["core"] if len(b["core"]) >= 3 else b["outline"])))
+
+    def half(points):
+        chain = []
+        for p in points:
+            while len(chain) >= 2 and ((chain[-1][0] - chain[-2][0]) * (p[1] - chain[-2][1]) -
+                                       (chain[-1][1] - chain[-2][1]) * (p[0] - chain[-2][0])) <= 0:
+                chain.pop()
+            chain.append(p)
+        return chain[:-1]
+
+    return half(points) + half(points[::-1])
+
+
+def test_belt_straw_path_bridges_read_as_the_mat():
+    """R7 (REAL-05, "Bare patches are ground, not stains"): a path's mat bridges are full-depth mat in the mesh and
+    the shapes, so the real belt_straw albedo shows the mat there, never soil: over the bridges (the hulls of two
+    consecutive patches' cores, off the outlines) its mean linear luminance lies within 10 % of the mat's (farther
+    than 0.6 m from every outline and off the bridges), every 4th pixel. Printed with the floors (inside the
+    outlines) and the lip ring (0-0.4 m outside an outline, off the bridges)."""
+    repo = Path(fetch.REPO_ROOT)
+    albedo = repo / MATERIALS / "belt_straw_albedo.png"
+    if not albedo.is_file() or albedo.stat().st_size < 1024:
+        pytest.skip("belt_straw_albedo.png is not derived here (run derive.py belt_straw, or git lfs checkout)")
+    recipe = json.loads((repo / RECIPES / "belt_straw.json").read_text(encoding="utf-8"))
+    params = json.loads((repo / recipe["patches"]["bare"]["params"]).read_text(encoding="utf-8"))
+    size_m, image = recipe["size_m"], Image.open(albedo).convert("RGB")
+    n, pixels = image.size[0], image.load()
+    bare = patches.layout(**patches.inputs(params))["patches"]
+    bridges = [bridge(p, bare[p["after"]]) for p in bare if p["after"] is not None]
+    assert bridges, "S04 lays patches along paths"
+
+    def box(polygon, grow):
+        return (min(x for x, _ in polygon) - grow, max(x for x, _ in polygon) + grow,
+                min(z for _, z in polygon) - grow, max(z for _, z in polygon) + grow)
+
+    def within(q, b):
+        return b[0] <= q[0] <= b[1] and b[2] <= q[1] <= b[3]
+
+    near = [(p["outline"], box(p["outline"], 0.6)) for p in bare]  # farther than 0.6 m from an outline: off its box
+    spans = [(b, box(b, 0.0)) for b in bridges]
+    zones = {"floors": [], "bridges": [], "lip ring": [], "mat": []}
+    for py in range(0, n, 4):
+        for px in range(0, n, 4):
+            q = ((px + 0.5) / n - 0.5) * size_m, (0.5 - (py + 0.5) / n) * size_m
+            d = min([patches.distance(q, o) for o, b in near if within(q, b)] + [1.0])
+            on_bridge = any(within(q, b) and patches.distance(q, h) < 0 for h, b in spans)
+            zone = "floors" if d < 0 else "bridges" if on_bridge else "lip ring" if d <= 0.4 else "mat" if d > 0.6 else None
+            if zone:
+                zones[zone].append(derive.luminance([derive.SRGB_TO_LINEAR[v] for v in pixels[px, py]]))
+    mean = {k: sum(v) / len(v) for k, v in zones.items()}
+    print(", ".join(f"{k} {mean[k]:.4f} over {len(v) * (4 * size_m / n) ** 2:.1f} m2" for k, v in zones.items()))
+    assert abs(mean["bridges"] / mean["mat"] - 1) <= 0.10, "the bridges show the mat, not soil"
 
 
 def test_straws_lie_strewn_over_the_floors(tmp_path, monkeypatch):
-    """R6 (H 12, H 14): a floor reads as soil with straws lying on it, not a hole. Over a cover of straws, the floors'
-    soil is covered by the cover's straws by about FLOOR_STRAWS more than without them, while the bare mask PR7 (c)
-    checks stays as it was."""
+    """R6, R8 (H 12, H 14): a floor reads as soil with straws lying on it, not a hole. Over a cover of straws, the
+    cover's straws lie over design 15's fifth of the floors' soil (FLOOR_STRAWS 0.2) within 2 points, against the
+    same derivation at FLOOR_STRAWS 0, while the bare mask PR7 (c) checks stays as it was. The share is read before
+    the first derivation patches it, so straws never strewn (TST-06's M2) cover 0 % and fail."""
     root = ground_root(tmp_path)
     cover = Image.new("RGB", (64, 64), (150, 125, 80))
     for x in range(0, 64, 3):
@@ -288,12 +347,14 @@ def test_straws_lie_strewn_over_the_floors(tmp_path, monkeypatch):
         assert run(MATERIAL, "--root", root) == 0
         return json.loads((root / MATERIALS / f"{MATERIAL}.recipe.json").read_text(encoding="utf-8"))["measured"]
 
-    bare, strewn = measured(0.0), measured(derive.FLOOR_STRAWS)
+    share = derive.FLOOR_STRAWS  # read before measured(0.0) patches it
+    assert share == 0.2, "design 15: the cover's straws over a fifth of a floor's soil"
+    strewn, bare = measured(share), measured(0.0)
     covered = 1 - strewn["floor_soil_share"] / bare["floor_soil_share"]
     print(f"floors' soil {100 * bare['floor_soil_share']:.1f} % -> {100 * strewn['floor_soil_share']:.1f} %: straws "
-          f"over {100 * covered:.1f} % of it (FLOOR_STRAWS {100 * derive.FLOOR_STRAWS:.0f} %)")
+          f"over {100 * covered:.1f} % of it (FLOOR_STRAWS {100 * share:.0f} %)")
     assert strewn["bare_soil_share"] == bare["bare_soil_share"], "the bare mask is untouched"
-    assert abs(covered - derive.FLOOR_STRAWS) <= derive.FLOOR_STRAWS / 2
+    assert abs(covered - 0.2) <= 0.02
     assert abs(strewn["luminance_error_pct"]) <= 5
 
 
@@ -337,7 +398,7 @@ def test_ground_is_idempotent_and_regenerates_on_a_change(tmp_path, capsys):
 
 @pytest.mark.parametrize("module, name, value", [
     (derive, "STRAW_M", 0.1), (derive, "LOBE_M", 0.8), (derive, "GAP_LOBES", 0.25), (derive, "RELIEF_TONE", 0.2),
-    (derive, "LIP_M", 0.5), (derive, "GREEN_LEVEL", 0.8), (derive, "FLOOR_STRAWS", 0.3),
+    (derive, "LIP_M", 0.5), (derive, "GREEN_LEVEL", 0.8), (derive, "FLOOR_STRAWS", 0.3), (derive, "LEVEL_STEPS", 8),
     (mat, "GREEN_FEATHER_M", 0.4), (mat, "GREEN_SPREAD_DEG", 20.0), (mat, "TUSSOCK_M", 0.6),
     (patches, "FEATHER_M", 0.2), (patches, "RADIAL_JITTER", 0.1), (patches, "WINDOW_M", 0.4),
     (patches, "EPS", 1e-3), (patches, "CLUSTER", 0.5), (patches, "PATH_GAP_M", [0.4, 1.5])])

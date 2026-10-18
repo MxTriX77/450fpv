@@ -33,10 +33,10 @@ by half the feather) filled and blurred over half the feather each side, and not
 share is the outlines'. The floor is broken by the cover's straws (strewn), so straws lie over its soil, more of
 them at its wall, and FLOOR_STRAWS of it all over (H 12, H 14: a floor reads as soil with straws on it, not a hole).
 Outside a floor the mat thins over LIP_M: the soil shows between its straws, LIP_LEVEL at the outline falling to
-nothing, so a step's lip is ragged; so it does between two patches of a path (lib/patches.py), over the hull of
-their cores, so a path reads as one trodden strip broken by mat bridges (H 9-14; the map only, the mat's full depth
-stays under it). Elsewhere the gaps between the cover's straws (gap_share) show the mat's dark depth: the cover recoloured to the cover's optional gap_albedo (the litter in the straws'
-shadow, H 12-21), or the soil when it names none. The green strips (lib/mat.py) are filled and
+nothing, so a step's lip is ragged; never on a floor, whose soil is the bare mask's alone, and never over a path's
+mat bridges (lib/patches.py), where the mat is full depth and so shows as the mat (R7). Elsewhere the gaps between
+the cover's straws (gap_share) show the mat's dark depth: the cover recoloured to the cover's optional gap_albedo
+(the litter in the straws' shadow, H 12-21), or the soil when it names none. The green strips (lib/mat.py) are filled and
 blurred over GREEN_FEATHER_M; the cover under them is tinted to the strip colour and its straws are strewn over
 them from GREEN_LEVEL, so a strip is regrowth with straws lying over it. The straws and the strips are
 darkened by up to RELIEF_TONE, and the occlusion by up to RELIEF_AO, in the relief's hollows (G 1-12: dark hollows
@@ -92,7 +92,7 @@ BASE_FORMULA = "RGB diffuse, A opacity; 8-bit sRGB at the sources' size"
 CHANNELS = ("metallic", "occlusion", "smoothness")  # R, G, A
 MAP_EXPR = re.compile(r"^(1 - )?([a-z]+)$")
 
-GROUND_FORMULA = ("ground v5: cover tiled at tile_size_m and at tile_size_m*phi, averaged, stretched 1+bias along the "
+GROUND_FORMULA = ("ground v6: cover tiled at tile_size_m and at tile_size_m*phi, averaged, stretched 1+bias along the "
                   "lodging azimuth and rotated to it; soil tiled at its tile_size_m, gained to its albedo_target when "
                   "given; bare = the asset's patch layout (lib/patches.py): the outlines filled times FLOOR_EDGE + "
                   "(1 - FLOOR_EDGE) * the ramp of each core filled and blurred with sigma patches.FEATHER_M / 6, so "
@@ -100,9 +100,10 @@ GROUND_FORMULA = ("ground v5: cover tiled at tile_size_m and at tile_size_m*phi,
                   "u = x / size_m + 0.5, v = z / size_m + 0.5 with v up the image; green = the asset's strips "
                   "(lib/mat.py) filled and blurred with sigma mat.GREEN_FEATHER_M / 2; strewn masks clamp(2 m - c), c "
                   "the cover luminance high-passed at STRAW_M, blended with LOBE_M value noise and stretched to 0-1: "
-                  "the bare mask (noise BARE_LOBES), times the floors' strewn straws (m = 1 - sqrt(FLOOR_STRAWS / 2), "
-                  "noise GAP_LOBES), the lip (m = LIP_LEVEL * min(1, 2 * the outlines and each path bridge, the hull "
-                  "of two consecutive patches' cores, blurred with sigma LIP_M / 3), noise BARE_LOBES), the gaps "
+                  "the bare mask (noise BARE_LOBES), times the floors' strewn straws (noise GAP_LOBES, m by "
+                  "LEVEL_STEPS bisection steps so that they cover FLOOR_STRAWS of the bare mask's soil), the lip "
+                  "(m = LIP_LEVEL * min(1, 2 * the outlines blurred with sigma LIP_M / 3) outside the outlines and 0 "
+                  "inside them, noise BARE_LOBES), the gaps "
                   "between straws (m = sqrt(gap_share / 2), noise GAP_LOBES) and the strips shown (m = GREEN_LEVEL * green, noise GAP_LOBES); relief = the asset's "
                   "relief (lib/mat.py) sampled on RELIEF_SAMPLES^2 and resized bicubic, h01 in 0-1; albedo = the "
                   "cover times 1 - RELIEF_TONE (1 - h01) with the straw gain for albedo_target, the strips shown "
@@ -125,6 +126,7 @@ GAP_LOBES = 0.0        # the gaps between straws follow the cover's own straws, 
 BARE_LOBES = 0.5       # the share of value noise in a bare patch's strewn feather (assumed)
 FLOOR_EDGE = 0.55      # a floor's soil level at its wall before the straws are strewn over it (assumed, H 9-14)
 FLOOR_STRAWS = 0.2     # the cover's straws lie over this share of a floor's soil, all over it (assumed, H 12, H 14)
+LEVEL_STEPS = 16       # bisection steps of the floor straws' level: 255 / 2^16, far under one 8-bit level
 LIP_M = 0.4            # the mat thins over this outside a floor's outline (assumed, H 9-14: the ragged lip)
 LIP_LEVEL = 0.6        # the lip's level at the outline: more than half the mat's cut edge shows soil (assumed)
 RELIEF_TONE = 0.45     # the straws darken by up to this in the relief's hollows (assumed, G 1-12)
@@ -135,7 +137,8 @@ RELIEF_SAMPLES = 256   # the relief's samples per side before the bicubic resize
 # bare feather and the patch layout's own constants are lib/patches.py's, the strips' and the relief's lib/mat.py's,
 # hashed under "layout".
 GROUND_CONSTANTS = ("MAX_OUTPUT_PX", "PHI", "LOBE_M", "STRAW_M", "GAP_LOBES", "BARE_LOBES", "FLOOR_EDGE",
-                    "FLOOR_STRAWS", "LIP_M", "LIP_LEVEL", "RELIEF_TONE", "RELIEF_AO", "RELIEF_SAMPLES", "GREEN_LEVEL")
+                    "FLOOR_STRAWS", "LEVEL_STEPS", "LIP_M", "LIP_LEVEL", "RELIEF_TONE", "RELIEF_AO", "RELIEF_SAMPLES",
+                    "GREEN_LEVEL")
 PALETTE_CONSTANTS = ("PALETTE_BLOCK_PX", "PALETTE_HEIGHT_PX")
 LUMA = (0.2126, 0.7152, 0.0722)
 SRGB_TO_LINEAR = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in (v / 255 for v in range(256))]
@@ -514,34 +517,13 @@ def bare_layer(bare_patches, out_px, size_m):
 
 
 def lip_layer(bare_patches, out_px, size_m):
-    """The L mask of a floor's lip and of a path's bridges: the outlines and, between each patch laid on along a path
-    and the patch it follows, the hull of their cores (the mat trodden thin between them, H 9-14; the map only, the
-    mat's full depth stays under it), filled and blurred with sigma LIP_M / 3, doubled: 255 on and inside them,
-    falling to nothing LIP_M outside."""
-    layer = outline_layer(bare_patches, out_px, size_m)
-    draw = ImageDraw.Draw(layer)
-    for patch in bare_patches:
-        if patch["after"] is not None:
-            draw.polygon([to_px(p, out_px, size_m) for p in bridge(patch, bare_patches[patch["after"]])], fill=255)
-    blurred = layer.filter(ImageFilter.GaussianBlur(LIP_M / 3 * out_px / size_m))
-    return blurred.point(lambda v: min(255, 2 * v))
-
-
-def bridge(a, b):
-    """The hull of two patches' cores (their outlines where a core is empty): a path's bridge between them."""
-    points = sorted(set((a["core"] if len(a["core"]) >= 3 else a["outline"]) +
-                        (b["core"] if len(b["core"]) >= 3 else b["outline"])))
-
-    def half(points):
-        chain = []
-        for p in points:
-            while len(chain) >= 2 and ((chain[-1][0] - chain[-2][0]) * (p[1] - chain[-2][1]) -
-                                       (chain[-1][1] - chain[-2][1]) * (p[0] - chain[-2][0])) <= 0:
-                chain.pop()
-            chain.append(p)
-        return chain[:-1]
-
-    return half(points) + half(points[::-1])  # Andrew's monotone chain, counter-clockwise
+    """The L mask of a floor's lip, the mat's cut edge thinned just outside its outline: the outlines filled,
+    blurred with sigma LIP_M / 3 and doubled, then cut out of the outlines, so 0 on a floor (its soil and strewn
+    straws are the bare mask's), 255 at the outline and falling to nothing LIP_M outside. A path's mat bridges are
+    never in it: the mat there is full depth, so the map shows the mat (R7)."""
+    floors = outline_layer(bare_patches, out_px, size_m)
+    blurred = floors.filter(ImageFilter.GaussianBlur(LIP_M / 3 * out_px / size_m))
+    return ImageChops.multiply(blurred.point(lambda v: min(255, 2 * v)), ImageChops.invert(floors))
 
 
 def green_layer(strips, out_px, size_m):
@@ -573,16 +555,41 @@ def strewn(bare, cover, rng, px_per_m, lobes=None):
     0-255. Where bare is full the soil stays, its feather breaks into lobes and straws over soil, and the outer half
     keeps soil only in the darkest gaps, so a patch has a ragged edge, never a clean ellipse (H 9-14). `lobes` is
     BARE_LOBES unless given."""
-    lobes = BARE_LOBES if lobes is None else lobes
-    cells = math.ceil(bare.size[0] / (LOBE_M * px_per_m)) + 1
+    c = straw_field(bare.size, cover, rng, px_per_m, BARE_LOBES if lobes is None else lobes)
+    return ImageMath.lambda_eval(lambda a: a["b"] * 2 - a["c"], b=bare.convert("F"), c=c).convert("L")
+
+
+def straw_field(size, cover, rng, px_per_m, lobes):
+    """The c of strewn(), as an F image of `size`: the cover's high-passed luminance blended with a `lobes` share of
+    the seeded value noise, stretched to 0-255."""
+    cells = math.ceil(size[0] / (LOBE_M * px_per_m)) + 1
     noise = Image.new("L", (cells, cells))
     noise.putdata([rng.randrange(256) for _ in range(cells * cells)])
-    noise = noise.resize(bare.size, Image.BICUBIC)
+    noise = noise.resize(size, Image.BICUBIC)
     luma = cover.convert("L")
     local = luma.filter(ImageFilter.GaussianBlur(STRAW_M * px_per_m))
     straws = ImageMath.lambda_eval(lambda a: a["l"] - a["m"] + 128, l=luma.convert("F"), m=local.convert("F")).convert("L")
-    c = ImageOps.autocontrast(Image.blend(straws, noise, lobes), cutoff=1).convert("F")
-    return ImageMath.lambda_eval(lambda a: a["b"] * 2 - a["c"], b=bare.convert("F"), c=c).convert("L")
+    return ImageOps.autocontrast(Image.blend(straws, noise, lobes), cutoff=1).convert("F")
+
+
+def floor_straws(bare, c):
+    """The straws of the field c strewn over the soil of the mask `bare` so that they cover FLOOR_STRAWS of it (R8):
+    clamp(2 m - c) on a level m found by LEVEL_STEPS bisection steps on coverage(bare x them) = (1 - FLOOR_STRAWS)
+    coverage(bare), the level kept on the side that leaves the soil at least that (none covered at FLOOR_STRAWS 0).
+    A level's straws cover 2 (1 - m)^2 of a full mask only where c is uniform, and the feather's own straws lie under
+    many of them, so the level is solved on the mask itself."""
+    soil, lo, hi = (1 - FLOOR_STRAWS) * coverage(bare), 0.0, 255.0
+
+    def straws(m):
+        return ImageMath.lambda_eval(lambda a: 2 * m - a["c"], c=c).convert("L")
+
+    for _ in range(LEVEL_STEPS):
+        m = (lo + hi) / 2
+        if coverage(ImageChops.multiply(bare, straws(m))) > soil:
+            hi = m
+        else:
+            lo = m
+    return straws(hi)
 
 
 def _load_set(root, manifest, texture_set, material, what):
@@ -654,11 +661,10 @@ def derive_ground(root, manifest, material, recipe):
                   px_per_m, GAP_LOBES)
     # Straws lie over the regrowth: a strip shows between the cover's straws (strewn at GREEN_LEVEL; H 19-21).
     shown = strewn(green.point(lambda v: round(v * GREEN_LEVEL)), cover_albedo, rng, px_per_m, GAP_LOBES)
-    # Straws lie strewn all over a floor's soil (H 12, H 14): the cover's straws over FLOOR_STRAWS of it (strewn on a
-    # level whose straws' share 2 (1 - level)^2 is FLOOR_STRAWS). The bare mask itself (PR7 c) is the one above.
+    # Straws lie strewn all over a floor's soil (H 12, H 14): the cover's straws over FLOOR_STRAWS of it. The bare
+    # mask itself (PR7 c) is the one above.
     floors = outline_layer(layout["patches"], out_px, size_m)
-    scatter = strewn(Image.new("L", (out_px, out_px), round(255 * (1 - math.sqrt(FLOOR_STRAWS / 2)))), cover_albedo,
-                     rng, px_per_m, GAP_LOBES)
+    scatter = floor_straws(bare, straw_field((out_px, out_px), cover_albedo, rng, px_per_m, GAP_LOBES))
     bare_soil_share = coverage(bare)  # the soil the bare mask shows in the floors, before the strewn straws
     bare = ImageChops.multiply(bare, scatter)
     # The relief's hollows: darker straws and less ambient light (G 1-12).
