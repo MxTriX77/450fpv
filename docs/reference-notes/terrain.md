@@ -406,14 +406,14 @@ No vehicle appears in any clip. This section keeps two sources apart, and every 
 
 ### S1 Wires and cables
 - **Clips:**
-  - C: an overhead wire above the shed roof, about 3–5 m up.
-  - D: a cable sagging low across the weeds, about 0.5–2 m up.
+  - C: no wire is measured. The straight dark lines high in C's sky, and in D's, are OSD marks, not wires: their inner ends sit at fixed screen columns, symmetric about the centre, and they move only with pitch.
+  - D: a cable sagging low across the weeds, about 0.5–2 m up: the real cable, slack from the dead trunk.
   - E: a cable hanging inside the house.
   - J: an overhead wire across the street.
   - K: cables hanging from the open floors.
 - **Size:** 5–15 mm across, spans 10–40 m with visible sag.
 - **Materials / colours:** dark, one or two pixels wide on the feed even at close range.
-- **Frequency:** present near every building clip (C, D, E) and in J and K.
+- **Frequency:** present near the building clips D and E (none measured in C) and in J and K.
 - **Physical role:** `snag` and `obstacle`. Nearly invisible on the feed, so they need real collision (a thin capsule) and must be able to catch the fiber. The main surprise hazard in the set.
 
 ### S2 Poles

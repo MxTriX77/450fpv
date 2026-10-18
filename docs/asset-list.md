@@ -133,8 +133,9 @@ Plaster recipe from research: weathered lime whitewash #c4bfb1 over clay render 
 
 | ID | Asset | Ref | Key size | Physics | Pri |
 |---|---|---|---|---|---|
-| U01 | **Stalin-era five-storey block, destroyed (exactly one)** | I, K | 15–17 m to the eaves plus a 3–4 m roof; 12–15 m deep; 40–80 m long in 3–5 stairwell sections; brick walls 0.5–0.65 m; windows 1.3 × 1.8 m. Damage kit: one end with its facade torn off and rooms open on every floor; hanging and sagging slabs; **protruding rebar**; burnt windows with soot plumes; roof down to its timbers; contents spilling out | gap (open rooms about 3–4 × 3 m; window openings 1.3 × 1.8 m), snag (rebar, cables, fabric, balcony rails), wind (strong wake, recirculation 1.5–2.5 heights, gusty to 10), land (slabs) | P1 |
+| U01 | **Stalin-era five-storey block, destroyed (exactly one)** | I, K | 16–19 m to the eaves (five storeys of 3.0–3.4 m, AST-04) plus a 3–4 m roof; 12–15 m deep; 40–80 m long in 3–5 stairwell sections; brick walls 0.5–0.65 m; windows 1.3 × 1.8 m. Damage kit: one end with its facade torn off and rooms open on every floor; hanging and sagging slabs; **protruding rebar**; burnt windows with soot plumes; roof down to its timbers; contents spilling out | gap (open rooms about 3–4 × 3 m; window openings 1.3 × 1.8 m), snag (rebar, cables, fabric, balcony rails), wind (strong wake, recirculation 1.5–2.5 heights, gusty to 10), land (slabs) | P1 |
 | U02 | Rubble mound of the block | K | 2–4 m high, spreading 15–20 m | pitfalls (voids), snag (timbers) | P1 |
+| U02b | Collapsed timber roof pile (the roof of a house or wing fallen as one heap) | I | 3–4 m high, 6–10 m across | pitfalls (voids), snag (rafters, battens, sheet) | P2 |
 | U03 | Row of garages (cooperative), damaged | R | 4–8 units, 3.5 × 6 m each | gap (open doors) | P2 |
 
 ## 8. Lines, poles and roads
@@ -143,12 +144,12 @@ Plaster recipe from research: weathered lime whitewash #c4bfb1 over clay render 
 |---|---|---|---|---|---|
 | L01 | Wooden pole | straight; leaning 5–15° with brace | H, J, L | snag, night landmark | P1 |
 | L02 | Concrete pole with crossarm and insulators | straight; leaning | R | snag | P1 |
-| L03 | Wires (generator: catenary between poles, sag) | **thin 5 mm, medium 10 mm, thick 15–20 mm cable** | C, D, J, K | **PR-6 strike physics by diameter**; nearly invisible in the feed | P1 |
+| L03 | Wires (generator: catenary between poles, sag) | **thin 3–6 mm, medium 7–12 mm, thick 13–32 mm cable** (classes from the lines sheet; a bundled insulated main line is 26–32 mm) | C, D, J, K | **PR-6 strike physics by diameter**; nearly invisible in the feed | P1 |
 | L04 | Fallen or sagging wire across a yard | 2 | D | snag | P1 |
 | L05 | Hanging cables (in ruins) | 2 | E, K | snag | P1 |
-| R01 | Asphalt road kit: straight, curve, junction; potholes, crater decals, cracked edges | kit | M, O | surface | P1 |
-| R02 | Concrete road plates (about 6 × 2 m), laid as a track | kit with gaps and tilt | PR-8 | surface, uneven joints | P1 |
-| R03 | Dirt track ruts (decal plus surface) | kit | L, R | surface | P1 |
+| RD01 | Asphalt road kit: straight, curve, junction; potholes, crater decals, cracked edges | kit | M, O | surface | P1 |
+| RD02 | Concrete road plates (about 6 × 2 m), laid as a track | kit with gaps and tilt | PR-8 | surface, uneven joints | P1 |
+| RD03 | Dirt track ruts (decal plus surface) | kit | L, R | surface | P1 |
 
 ## 9. Vehicles (9 models × 3 states)
 
@@ -161,12 +162,12 @@ Sizes from [knowledge.md](knowledge.md) §9.2. Every model is built once, as a c
 | R03 | ВАЗ 2121 Niva | R | 3.74 × 1.68 × 1.64 m | P1 |
 | R04 | Daewoo Lanos sedan | N (class) | 4.24 × 1.68 × 1.43 m | P1 |
 | R05 | Chevrolet Aveo | R | 3.92 to 4.31 × 1.68–1.71 × 1.50 m | P2 |
-| R06 | Chery Amulet | R | 4.27 × 1.69 × 1.45 m | P2 |
+| R06 | Chery Amulet | R | 4.39 × 1.68 × 1.42 m (published) | P2 |
 | R07 | VW Passat B3/B4 (or Golf II) | R | 4.58–4.68 × 1.71–1.74 × 1.43–1.46 m | P2 |
 | R08 | ЗИЛ-130 flatbed truck | R | 6.68 × 2.50 × 2.40 m | P1 |
 | R09 | Урал-4320 with canvas tilt (burnt: bare hoops) | O | 7.35 × 2.50–2.69 × 2.64–3.0 m | P1 |
 
-- **Physics for every vehicle:** a few convex pieces plus thin capsules for torn parts; snag (torn sheet edges, sprung doors, hoops); wind (bluff body; a burnt shell is porous); land (roofs, truck beds); no gaps (window openings 0.4–0.5 m are too small).
+- **Physics for every vehicle:** a few convex pieces plus thin capsules for torn parts; snag (torn sheet edges, sprung doors, hoops); wind (bluff body; a burnt shell is porous); land (roofs, truck beds); no gaps for cars (window openings 0.4–0.5 m are too small); the burnt Урал's bare bows leave real fly-through bays (vehicles sheet).
 - **Debris field per state:** 5–20 m of glass crumbs, body fragments, trim. Burnt wrecks also get a 2–6 m soot patch.
 
 ## 10. Debris kit (shared)
