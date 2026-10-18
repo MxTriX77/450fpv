@@ -166,6 +166,12 @@ namespace Fpv450.Assets
         /// <c>_DETAIL_MULX2</c>. URP/Lit derives the detail UV from the base UV times the detail tiling, so the
         /// tiling is size/tile_size_m: the detail repeats every tile_size_m metres of the asset.
         /// </para>
+        /// <para>
+        /// A recipe of kind <c>palette</c> (the straw instance kit's tints) has no texture set: its base map is the
+        /// flat <c>&lt;visual&gt;_albedo.png</c> that <c>derive.py</c> writes from its colours, one block per colour,
+        /// at tiling 1 (a generator UVs each face into its column), with the recipe's constant smoothness and no
+        /// normal or mask.
+        /// </para>
         /// Internal for the EditMode tests, which build the belt_straw material without an asset around it.
         /// </summary>
         internal static Material EnsureMaterial(string visual, Dictionary<string, object> manifest)
@@ -179,14 +185,24 @@ namespace Fpv450.Assets
             string kind = recipe.TryGetValue("kind", out object kindValue)
                 ? kindValue as string ?? throw new FormatException($"{recipePath}: \"kind\" must be a string")
                 : null;
-            if (kind != null && kind != "ground")
-                throw new FormatException($"{recipePath}: unknown recipe kind \"{kind}\" (omit it for a tiled set, or \"ground\")");
+            if (kind != null && kind != "ground" && kind != "palette")
+                throw new FormatException($"{recipePath}: unknown recipe kind \"{kind}\" (omit it for a tiled set, or \"ground\" or \"palette\")");
             bool ground = kind == "ground";
 
             Texture2D albedo, normal, mask, detailAlbedo = null, detailNormal = null;
             Vector2 baseScale, baseOffset = Vector2.zero, detailScale = Vector2.one;
             bool masked;
-            if (ground)
+            if (kind == "palette")
+            {
+                if (recipe.ContainsKey("texture_set") || recipe.ContainsKey("mask"))
+                    throw new FormatException($"{recipePath}: a palette recipe is flat colour; it takes neither \"texture_set\" nor \"mask\"");
+                albedo = Derived(visual, "albedo");
+                normal = null;
+                mask = null;
+                masked = false;
+                baseScale = Vector2.one;
+            }
+            else if (ground)
             {
                 if (recipe.ContainsKey("mask") || recipe.ContainsKey("smoothness"))
                     throw new FormatException($"{recipePath}: a ground recipe derives its own mask; it takes neither \"mask\" nor \"smoothness\"");
@@ -350,8 +366,9 @@ namespace Fpv450.Assets
 
         /// <summary>
         /// Creates or updates the prefab in place (so its file ids stay stable): the metadata component, one child
-        /// per LOD with the FBX mesh and the slot materials, the LODGroup, one child per collision primitive, and
-        /// nothing else. Internal for the EditMode tests, which build a prefab from a throwaway metadata.
+        /// per LOD with the FBX mesh and the slot materials plus one per micro mesh of that LOD (rendered with it,
+        /// never a collider), the LODGroup, one child per collision primitive, and nothing else. Internal for the
+        /// EditMode tests, which build a prefab from a throwaway metadata.
         /// </summary>
         internal static void EnsurePrefab(string prefabPath, string variant, Dictionary<string, object> metaJson, TextAsset source,
             string fbxPath, Dictionary<string, Material> materialBySlot)
@@ -364,7 +381,7 @@ namespace Fpv450.Assets
                 AssetPhysicsMeta meta = Ensure<AssetPhysicsMeta>(root);
                 Fill(meta, metaJson, source, prefabPath);
                 var keep = new HashSet<string>();
-                Renderer[] renderers = EnsureLods(root, meta, fbxPath, materialBySlot, keep);
+                Renderer[][] renderers = EnsureLods(root, meta, fbxPath, materialBySlot, keep);
                 EnsureLodGroup(root, meta, renderers);
                 EnsureColliders(root, meta, keep, prefabPath);
                 for (int i = root.transform.childCount - 1; i >= 0; i--)
@@ -377,7 +394,8 @@ namespace Fpv450.Assets
                 PrefabUtility.SaveAsPrefabAsset(root, prefabPath, out bool saved);
                 if (!saved)
                     throw new IOException($"could not save {prefabPath}");
-                Debug.Log($"[CatalogImporter] {variant}: {prefabPath}, {renderers.Length} LODs, {meta.collision.Length} colliders, " +
+                string micro = meta.micro.Length == 0 ? "" : $"{string.Join(", ", meta.micro.Select(m => $"{m.name} ({m.count} {m.kind}, LOD{m.lod})"))} micro, ";
+                Debug.Log($"[CatalogImporter] {variant}: {prefabPath}, {renderers.Length} LODs, {micro}{meta.collision.Length} colliders, " +
                           $"materials {string.Join(", ", materialBySlot.Select(kv => $"{kv.Key} -> {kv.Value.name}"))}, " +
                           $"LOD heights {string.Join(" / ", root.GetComponent<LODGroup>().GetLODs().Select(l => l.screenRelativeTransitionHeight.ToString("0.0000")))} " +
                           $"(size {root.GetComponent<LODGroup>().size} m, fov {VerticalFovDeg} deg)");
@@ -391,33 +409,42 @@ namespace Fpv450.Assets
             }
         }
 
-        static Renderer[] EnsureLods(GameObject root, AssetPhysicsMeta meta, string fbxPath, Dictionary<string, Material> materialBySlot, HashSet<string> keep)
+        /// <summary>Per LOD, its mesh's renderer followed by those of the micro meshes listed for it.</summary>
+        static Renderer[][] EnsureLods(GameObject root, AssetPhysicsMeta meta, string fbxPath, Dictionary<string, Material> materialBySlot, HashSet<string> keep)
         {
             var imported = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath)
                 ?? throw new FileNotFoundException($"{fbxPath} did not import as a model");
             MeshFilter[] filters = imported.GetComponentsInChildren<MeshFilter>(true);
-            var renderers = new Renderer[meta.lods.Length];
+            var renderers = new Renderer[meta.lods.Length][];
             for (int i = 0; i < meta.lods.Length; i++)
             {
-                string meshName = meta.lods[i].mesh;
-                MeshFilter filter = filters.FirstOrDefault(f => f.sharedMesh != null && f.sharedMesh.name == meshName)
-                    ?? throw new FormatException($"{fbxPath} has no mesh named {meshName}");
-                Material[] slotMaterials = filter.GetComponent<MeshRenderer>().sharedMaterials
-                    .Select(slot => materialBySlot.TryGetValue(slot.name, out Material material)
-                        ? material
-                        : throw new FormatException($"{meshName}: the FBX slot \"{slot.name}\" has no material in the metadata"))
-                    .ToArray();
-
-                GameObject child = Child(root, meshName, keep);
-                child.transform.localPosition = Vector3.zero;
-                child.transform.localRotation = Quaternion.identity;
-                child.transform.localScale = Vector3.one;
-                Ensure<MeshFilter>(child).sharedMesh = filter.sharedMesh;
-                MeshRenderer renderer = Ensure<MeshRenderer>(child);
-                renderer.sharedMaterials = slotMaterials;
-                renderers[i] = renderer;
+                var lod = new List<Renderer> { MeshChild(root, meta.lods[i].mesh, filters, fbxPath, materialBySlot, keep) };
+                foreach (AssetPhysicsMeta.MicroMesh micro in meta.micro)
+                    if (micro.lod == i)
+                        lod.Add(MeshChild(root, micro.name, filters, fbxPath, materialBySlot, keep));
+                renderers[i] = lod.ToArray();
             }
             return renderers;
+        }
+
+        static Renderer MeshChild(GameObject root, string meshName, MeshFilter[] filters, string fbxPath, Dictionary<string, Material> materialBySlot, HashSet<string> keep)
+        {
+            MeshFilter filter = filters.FirstOrDefault(f => f.sharedMesh != null && f.sharedMesh.name == meshName)
+                ?? throw new FormatException($"{fbxPath} has no mesh named {meshName}");
+            Material[] slotMaterials = filter.GetComponent<MeshRenderer>().sharedMaterials
+                .Select(slot => materialBySlot.TryGetValue(slot.name, out Material material)
+                    ? material
+                    : throw new FormatException($"{meshName}: the FBX slot \"{slot.name}\" has no material in the metadata"))
+                .ToArray();
+
+            GameObject child = Child(root, meshName, keep);
+            child.transform.localPosition = Vector3.zero;
+            child.transform.localRotation = Quaternion.identity;
+            child.transform.localScale = Vector3.one;
+            Ensure<MeshFilter>(child).sharedMesh = filter.sharedMesh;
+            MeshRenderer renderer = Ensure<MeshRenderer>(child);
+            renderer.sharedMaterials = slotMaterials;
+            return renderer;
         }
 
         /// <summary>
@@ -426,14 +453,14 @@ namespace Fpv450.Assets
         /// size s at distance d is s / (2 d tan(fov / 2)), so each metadata distance becomes that height, with s
         /// the longest side of the bounds, which is also what the group's size is set to.
         /// </summary>
-        static void EnsureLodGroup(GameObject root, AssetPhysicsMeta meta, Renderer[] renderers)
+        static void EnsureLodGroup(GameObject root, AssetPhysicsMeta meta, Renderer[][] renderers)
         {
             float size = Mathf.Max(meta.bounds.size.x, meta.bounds.size.y, meta.bounds.size.z);
             var lods = new LOD[renderers.Length];
             for (int i = 0; i < lods.Length; i++)
             {
                 float farDistance = i + 1 < lods.Length ? meta.lods[i + 1].switchDistanceM : meta.cullDistanceM;
-                lods[i] = new LOD(RelativeHeight(size, farDistance), new[] { renderers[i] });
+                lods[i] = new LOD(RelativeHeight(size, farDistance), renderers[i]);
             }
             LODGroup group = Ensure<LODGroup>(root);
             group.fadeMode = LODFadeMode.None;
@@ -619,6 +646,20 @@ namespace Fpv450.Assets
             });
             if (meta.lods.Length == 0)
                 throw new FormatException($"{what}: no LODs");
+            meta.micro = Items(json, "micro", what, (micro, at) =>
+            {
+                var entry = new AssetPhysicsMeta.MicroMesh
+                {
+                    lod = (int)Json.Num(micro, "lod", at),
+                    name = Json.Str(micro, "name", at),
+                    kind = Json.Str(micro, "kind", at),
+                    count = (int)Json.Num(micro, "count", at),
+                    tris = (int)Json.Num(micro, "tris", at),
+                };
+                if (entry.lod < 0 || entry.lod >= meta.lods.Length)
+                    throw new FormatException($"{at}: micro mesh {entry.name} names LOD {entry.lod}, which does not exist");
+                return entry;
+            });
             meta.cullDistanceM = Json.Num(json, "cull_distance_m", what);
             meta.materials = Items(json, "materials", what, (slot, at) => new AssetPhysicsMeta.MaterialSlot
             {

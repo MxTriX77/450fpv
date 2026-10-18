@@ -29,6 +29,21 @@ namespace Fpv450.World
             public string physics;
         }
 
+        /// <summary>
+        /// A visual-only micro-detail mesh rendered with its LOD and never collided with (p1-s04-belt-straw,
+        /// "Visual-only micro-detail meshes"): the baked straws of a ground patch until the shared micro-detail
+        /// generator places them at physics parity (AST-10).
+        /// </summary>
+        [Serializable]
+        public sealed class MicroMesh
+        {
+            public int lod;
+            public string name;
+            public string kind;
+            public int count;
+            public int tris;
+        }
+
         /// <summary>A primitive: box (center, size), sphere (center, radius), capsule and cylinder (center, radius, height along the rotated Y axis).</summary>
         [Serializable]
         public class Shape
@@ -81,6 +96,7 @@ namespace Fpv450.World
         public string frame;
         public Bounds bounds;
         public LodEntry[] lods;
+        public MicroMesh[] micro;
         public float cullDistanceM;
         public MaterialSlot[] materials;
         public CollisionShape[] collision;
