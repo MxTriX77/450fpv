@@ -38,7 +38,7 @@ The pipeline SHALL build asset V01 (`tree` generator; variants `V01_S`, `V01_M`,
 
 #### Scenario: Budget
 - **WHEN** the triangle counts per LOD are read
-- **THEN** `V01_L`'s LOD0 is under 40 000 triangles, each further LOD at most half the previous, the impostor atlas is 1k, every other texture 2K or less, and the cull distance follows the pixel rule from the tree's height
+- **THEN** `V01_L`'s LOD0 is under 40 000 triangles, each further LOD at most half the previous, the impostor's albedo and normal atlases are 1k each, every other texture 2K or less, and the cull distance follows the pixel rule from the tree's height
 
 ## MODIFIED Requirements
 
