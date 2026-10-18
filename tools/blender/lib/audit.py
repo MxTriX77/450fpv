@@ -9,10 +9,13 @@ narrowest_m is checked against the diameter of the largest circle inscribed in i
 
 Primitives form a union: the part of a primitive's surface that lies inside another primitive is not a collision
 surface (a mound sphere's lower half sunk in the ground slab, the slab's top under the mound), so it is not
-measured. A shape whose material is a surface (surface:<id>, a stand-in for ground) is landed on over its whole
-top, so it widens no 2 cm zone: its top is held to the 5 cm tolerance everywhere (p1-s04-belt-straw, design 6),
-and the lines say so. Visual-only micro meshes (meta["micro"]) are not part of the LOD0 mesh the audit sees; the
-lines name each one skipped.
+measured. A landable shape with a soft top is landed on over its whole top, so it widens no 2 cm zone: its top is
+held to the 5 cm tolerance everywhere, and the lines name those shapes. Soft means a reference foot (25 N on 15 mm)
+sinks at least 25 mm into it (p1-s04-belt-straw, review-physics §2 and PR6): the surfaces of SOFT_SURFACES, or a
+plain id of assets-src/physics_materials.json with stiffness_n_per_m of SOFT_STIFFNESS_N_PER_M or less
+(soft_materials). On hard ground a 5 cm float would show, so every other landable top keeps the 2 cm zone.
+Visual-only micro meshes (meta["micro"]) are not part of the LOD0 mesh the audit sees; the lines name each one
+skipped.
 
 Both distances are found by branch and bound over triangles: a cell's three vertices give exact values, a lower
 bound; an upper bound comes from convexity; the cell with the largest upper bound is split in four until no cell
@@ -25,7 +28,9 @@ only around chamfers, edges and openings:
   primitive the distance is convex (a vertex bound); inside it, the depth is bounded through the shape's own
   planes, centre or axis (exact for a sphere, capsule or cylinder, the nearest face for a box)."""
 import heapq
+import json
 import math
+import os
 
 TOLERANCE_M = 0.05          # AST-05: collision follows the visual within +-5 cm
 NEAR_TOLERANCE_M = 0.02     # +-2 cm around openings and landing surfaces
@@ -36,26 +41,43 @@ NARROWEST_TOLERANCE_M = 0.005
 LANDABLE_COS = math.cos(math.radians(30))
 UP = (0.0, 1.0, 0.0)
 FAR_M = 1000.0              # a cylinder's axis as a segment long enough to act as a line
-SURFACE_PREFIX = "surface:"  # lib.meta.SURFACE_PREFIX; a shape standing in for ground
+PHYSICS_MATERIALS = os.path.join("assets-src", "physics_materials.json")  # lib.meta.PHYSICS_MATERIALS
+# Soft tops (review-physics PR6): the reference foot sinks at least 25 mm (assumed: a round figure under the 3 cm the
+# wider tolerance adds). Derived from docs/legacy/map-and-world/surfaces.json at that foot: belt_straw 30.1 mm,
+# crater_spoil 50.5 mm, tilled 35.4 mm; every other surface sinks under 21 mm. The phase-3 compiler recomputes the
+# list from the map's table. A plain material sinks 25 mm at k = 25 N / 0.025 m = 1000 N/m.
+SOFT_SURFACES = ("surface:belt_straw", "surface:crater_spoil", "surface:tilled")
+SOFT_STIFFNESS_N_PER_M = 1000.0
 COVERED_M = 1e-9            # a point this deep inside another primitive is on no collision surface
 BOX_CELL_M = 0.25           # a box face is tessellated in cells of at most this, so the search never quarters a long
                             # thin wall (12 x 0.2 m) into slivers; a brick's faces stay one cell each
 
 
-def run(meta, lod0):
+def soft_materials(root):
+    """The material ids whose landable tops are soft (SOFT_SURFACES and every plain id of the physics table at
+    SOFT_STIFFNESS_N_PER_M or less), from <root>/assets-src/physics_materials.json."""
+    with open(os.path.join(root, PHYSICS_MATERIALS), encoding="utf-8") as f:
+        rows = json.load(f)["materials"]
+    return frozenset(SOFT_SURFACES) | {material for material, row in rows.items()
+                                       if row.get("stiffness_n_per_m") is not None
+                                       and row["stiffness_n_per_m"] <= SOFT_STIFFNESS_N_PER_M}
+
+
+def run(meta, lod0, soft=frozenset()):
     """(problems, report lines) of one variant: `meta` as lib.meta.assemble builds it, `lod0` its first
-    lib.geometry.Mesh. Problems name the primitive, the deviation and the tolerance; the lines carry the measured
-    numbers for every primitive, the mesh and every gap, success or not."""
+    lib.geometry.Mesh, `soft` the material ids with soft tops (soft_materials; none by default, so every landable
+    top keeps the 2 cm zone). Problems name the primitive, the deviation and the tolerance; the lines carry the
+    measured numbers for every primitive, the mesh and every gap, success or not."""
     faces = _mesh_faces(lod0)
     index = _FaceIndex(faces)
     shapes = [_Shape(s) for s in meta["collision"]]
-    zone = _zone(meta, shapes)
+    zone = _zone(meta, shapes, soft)
     problems, lines = [], []
     for m in meta.get("micro", []):
         lines.append(f"audit: skipped micro mesh {m['name']} ({m['count']} {m['kind']})")
-    surfaces = [f"collision[{i}]" for i, s in enumerate(meta["collision"]) if s["material"].startswith(SURFACE_PREFIX)]
-    if surfaces:
-        lines.append(f"audit: surface shapes {', '.join(surfaces)} are landed on over their whole top, "
+    soft_tops = [(i, s["material"]) for i, s in enumerate(meta["collision"]) if s["landable"] and s["material"] in soft]
+    if soft_tops:
+        lines.append(f"audit: soft tops {_runs(soft_tops)} are landed on over their whole top, "
                      f"held to {TOLERANCE_M * 1000:g} mm there")
     for i, shape in enumerate(shapes):
         others = [s for j, s in enumerate(shapes) if j != i]
@@ -83,6 +105,17 @@ def run(meta, lod0):
             problems.append(f"{text}: they differ by more than {NARROWEST_TOLERANCE_M * 1000:g} mm")
         lines.append(f"audit {text}, tolerance {NARROWEST_TOLERANCE_M * 1000:g} mm")
     return problems, lines
+
+
+def _runs(indexed):
+    """'collision[0] a, collision[1..9] b, ...': consecutive (index, material) pairs of one material as one run."""
+    runs = []
+    for i, material in indexed:
+        if runs and runs[-1][1] == i - 1 and runs[-1][2] == material:
+            runs[-1][1] = i
+        else:
+            runs.append([i, i, material])
+    return ", ".join(f"collision[{a}{'' if a == b else f'..{b}'}] {material}" for a, b, material in runs)
 
 
 def _report(lines, label, direction, cells, zone, value, bound, note=lambda which: ""):
@@ -421,11 +454,11 @@ def _tessellate(shape):
 
 # --- the 2 cm zone ----------------------------------------------------------------------------------------------
 
-def _zone(meta, shapes):
-    """The geometry that tightens the tolerance: (landable faces, gap polygons), or None when there is none. A
-    surface shape's top is a landing face everywhere and is held to the 5 cm tolerance, so it adds no zone."""
+def _zone(meta, shapes, soft):
+    """The geometry that tightens the tolerance: (landable faces, gap polygons), or None when there is none. A soft
+    top is a landing face everywhere and is held to the 5 cm tolerance, so it adds no zone."""
     faces = [_Face([a, b, c], [0, 1, 2], n) for shape, entry in zip(shapes, meta["collision"])
-             if entry["landable"] and not entry["material"].startswith(SURFACE_PREFIX)
+             if entry["landable"] and entry["material"] not in soft
              for a, b, c, n in shape.triangles if _dot(n, UP) >= LANDABLE_COS]
     polygons = [(tuple(tuple(p) for p in g["polygon"]), tuple(g["normal"])) for g in meta["gaps"]]
     return (faces, polygons) if faces or polygons else None

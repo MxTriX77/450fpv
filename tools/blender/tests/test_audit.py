@@ -226,10 +226,11 @@ def slab(size=2.0, depth=0.2):
     return mesh
 
 
-def test_primitives_form_a_union_and_surface_tops_are_held_to_5cm(k01_params):
+def test_primitives_form_a_union_and_soft_tops_are_held_to_5cm(k01_params, repo_root):
     """p1-s04-belt-straw, design 6: a sphere sunk into a slab box is measured only where it stands proud of the box
-    (its cap), the box top is not measured under the sphere, and surface shapes add no 2 cm zone. The cap stands
-    8 cm above a flat slab, so the sphere fails by what its cap misses; the box passes by itself."""
+    (its cap), the box top is not measured under the sphere, and soft tops add no 2 cm zone. The cap stands 8 cm
+    above a flat slab, so the sphere fails by what its cap misses; the box passes by itself."""
+    soft = audit.soft_materials(repo_root)
     data, _ = k01(k01_params)
     lod0 = slab()
     data["collision"] = [
@@ -237,20 +238,71 @@ def test_primitives_form_a_union_and_surface_tops_are_held_to_5cm(k01_params):
          "material": "surface:belt_straw", "landable": True},
         {"shape": "sphere", "center": [0.0, -0.06, 0.0], "radius": 0.14, "material": "surface:crater_spoil", "landable": True},
     ]
-    problems, lines = audit.run(data, lod0)
-    assert lines[0] == "audit: surface shapes collision[0], collision[1] are landed on over their whole top, held to 50 mm there"
+    problems, lines = audit.run(data, lod0, soft)
+    assert lines[0] == ("audit: soft tops collision[0] surface:belt_straw, collision[1] surface:crater_spoil are landed "
+                        "on over their whole top, held to 50 mm there")
     assert measured_mm(lines[1]) == pytest.approx(0.0, abs=0.5), lines[1]   # the box top under the cap is covered
     assert measured_mm(lines[2]) == pytest.approx(80.0, abs=1.0), lines[2]  # the cap's apex over the flat slab
-    assert all("near gaps/landable" not in line for line in lines), "surface tops widen no 2 cm zone"
+    assert all("near gaps/landable" not in line for line in lines), "soft tops widen no 2 cm zone"
     assert [p.split(" at ")[0] for p in problems] == ["collision[1] sphere: sphere->mesh 80.000 mm"]
     data["collision"][1]["center"][1] = -0.12  # the bottom now pokes 6 cm out of the slab: an invisible wall below
-    problems, lines = audit.run(data, lod0)
+    problems, lines = audit.run(data, lod0, soft)
     assert [p.split(" at ")[0] for p in problems] == ["collision[1] sphere: sphere->mesh 60.000 mm"]
     data["collision"][1].update(center=[0.0, -0.085, 0.0], radius=0.115)  # a 3 cm cap, the bottom on the slab's: within tolerance
-    problems, lines = audit.run(data, lod0)
+    problems, lines = audit.run(data, lod0, soft)
     assert problems == [] and measured_mm(lines[2]) == pytest.approx(30.0, abs=1.0)
     data["collision"][0]["material"] = "masonry"  # a hard landable face: the 2 cm zone is back
-    problems, lines = audit.run(data, lod0)
-    assert lines[0].startswith("audit: surface shapes collision[1] ")
+    problems, lines = audit.run(data, lod0, soft)
+    assert lines[0].startswith("audit: soft tops collision[1] surface:crater_spoil ")
     assert any("near gaps/landable" in line for line in lines)
     assert [p.split(" at ")[0] for p in problems] == ["collision[1] sphere: near gaps/landable 30.000 mm"]
+
+
+def test_soft_materials_are_the_soft_surfaces_and_the_compliant_ids(repo_root):
+    """review-physics PR6: the three surfaces where the reference foot sinks 25 mm or more, and every plain id at
+    1000 N/m or less (foliage 200, twig 30, straw 490, fabric 600, mesh 800); rigid and stiff ids are not soft."""
+    assert audit.soft_materials(repo_root) == {"surface:belt_straw", "surface:crater_spoil", "surface:tilled",
+                                               "foliage", "twig", "straw", "fabric", "mesh"}
+
+
+def relief(size=2.0, step=0.05, depth=0.2, amplitude=0.04):
+    """A closed slab whose top is a heightfield of +-amplitude relief on a step grid (review-physics E2)."""
+    mesh = Mesh()
+    n = round(size / step)
+    h = size / 2
+    top = {}
+    for i in range(n + 1):
+        for j in range(n + 1):
+            x, z = -h + i * step, -h + j * step
+            top[i, j] = mesh.vertex((x, amplitude * math.sin(math.pi * x) * math.sin(math.pi * z), z))
+    for i in range(n):
+        for j in range(n):
+            for tri in ((top[i, j], top[i + 1, j], top[i + 1, j + 1]), (top[i, j], top[i + 1, j + 1], top[i, j + 1])):
+                mesh.face(tri, (0.0, 1.0, 0.0), "ground")
+    corners = [mesh.vertex((sx * h, -depth, sz * h)) for sx, sz in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+    mesh.face(corners, (0.0, -1.0, 0.0), "ground")
+    for k in range(n):  # the walls, one quad per top edge
+        for (a, b), normal in (((top[k, 0], top[k + 1, 0]), (0.0, 0.0, -1.0)), ((top[k, n], top[k + 1, n]), (0.0, 0.0, 1.0)),
+                               ((top[0, k], top[0, k + 1]), (-1.0, 0.0, 0.0)), ((top[n, k], top[n, k + 1]), (1.0, 0.0, 0.0))):
+            pa, pb = mesh.vertices[a], mesh.vertices[b]
+            mesh.face([a, b, mesh.vertex((pb[0], -depth, pb[2])), mesh.vertex((pa[0], -depth, pa[2]))], normal, "ground")
+    return mesh
+
+
+@pytest.mark.parametrize("material, soft", [("surface:asphalt", False), ("masonry", False), ("straw", True),
+                                            ("surface:belt_straw", True)])
+def test_a_hard_top_keeps_2cm_and_a_soft_top_is_held_at_5cm(k01_params, repo_root, material, soft):
+    """Spec "A hard top keeps 2 cm" (review-physics E2, PR6): one landable box under a +-4 cm relief stands about
+    39 mm off the mesh; a hard top fails the 2 cm zone naming the shape, a soft one passes at 5 cm."""
+    data, _ = k01(k01_params)
+    data["collision"] = [{"shape": "box", "center": [0.0, -0.1, 0.0], "size": [2.0, 0.2, 2.0],
+                          "rotation": [0.0, 0.0, 0.0, 1.0], "material": material, "landable": True}]
+    problems, lines = audit.run(data, relief(), audit.soft_materials(repo_root))
+    box = next(line for line in lines if line.startswith("audit collision[0] box"))
+    assert 35.0 <= measured_mm(box) <= 40.0, box
+    if soft:
+        assert problems == [] and lines[0].startswith(f"audit: soft tops collision[0] {material} are landed on")
+    else:
+        assert any(p.startswith("collision[0] box: near gaps/landable ") and p.endswith("exceeds the tolerance 20 mm")
+                   for p in problems), problems
+        assert not any(line.startswith("audit: soft tops") for line in lines)

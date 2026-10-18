@@ -5,8 +5,9 @@
 
 For every variant of each asset id in assets-src/catalog.json, it checks the variant's params
 (assets-src/<class>/<variant>.json) against the generator's PARAMS table (lib/params.py), runs the generator,
-validates the metadata (lib/meta.py) and audits the collision against the LOD0 mesh (lib/audit.py; a generator's
-visual-only micro meshes are exported beside their LOD and skipped by the audit), and only then
+validates the metadata (lib/meta.py) and audits the collision against the LOD0 mesh (lib/audit.py, with the soft
+tops of assets-src/physics_materials.json; a generator's visual-only micro meshes are exported beside their LOD and
+skipped by the audit), and only then
 writes unity/Assets/_Project/Art/Models/<class>/<ID>/<variant>.fbx and <variant>.assetmeta.json, both in Unity's
 frame (lib/frame.py), the FBX staged beside its final name and moved once it reads back as the metadata says. A
 rejected build changes no file. It refuses any Blender other than the pinned major.minor. Exit code 1 on any
@@ -42,7 +43,7 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
     built = generator.build(params)
     data = meta.assemble(asset_id, variant, catalog_entry["generator"], params, built, catalog_entry["materials"])
     _refuse(variant, meta.validate(data, material_ids))
-    problems, lines = audit.run(data, built["lods"][0])
+    problems, lines = audit.run(data, built["lods"][0], audit.soft_materials(root))
     for line in lines:
         print(f"{variant}: {line}")
     _refuse(variant, problems)
