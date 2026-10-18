@@ -124,8 +124,11 @@ The pilot, 2026-10-17: "when i say realism i mean more than just abstract realis
 - **Shift** for much faster movement
 - **E/Space** up, **Q/Ctrl** down
 - mouse wheel scales the speed
+- **Esc** releases the mouse and a click recaptures it; pitch clamps at ±89° and the view never flips; one mouse-sensitivity setting
+- movement is bound to **physical key positions**, so WASD works on Ukrainian and Russian keyboard layouts
+- base speed 6 m/s, the wheel steps it ×1.25 within 1–60 m/s, Shift multiplies it by 8; no collision (the camera passes through walls and ground)
 
-*Accept:* used at gates G2 and G3. *Source:* V§5.2.
+*Accept:* used at gates G2 and G3; an EditMode or PlayMode test per control above. *Source:* V§5.2; gap review G16, G17 (D-037).
 
 **PRD-08 "Tiny, cunning, elegant randomness."** All randomness is seeded, bounded and physical (PHY-24). The same seed replays the same flight. *Source:* V§2.4, K§6.9.
 
@@ -229,9 +232,9 @@ The pilot, 2026-10-17: "when i say realism i mean more than just abstract realis
 
 *Accept:* the `.gitignore` entry, plus a pre-commit scan (SEC-06). *Source:* D-013.
 
-**SEC-02 Notes are class-level.** Clips and photos are cited by letter only. No places, coordinates, dates, OSD values, unit details, people or sortie specifics. *Source:* K§2.4.
+**SEC-02 Notes are class-level.** Clips and photos are cited by letter only. No places, coordinates, dates, OSD values, unit details, people or sortie specifics. **Wording stays class-level and neutral:** no targeting words, no occupancy, no dugouts, firing positions or fortifications described tactically, no direction, extent or relation between positions; a fly-in is a flight path, never an objective. This binds the object sheets, the layout and its notes (E04, F01–F04, D-035). *Source:* K§2.4; gap review L6 (D-037).
 
-**SEC-03 No georeferencing.** Maps hold no lat/lon or EPSG data and no real place names. Village and road signs use **invented** names. *Accept:* the validator rejects geo fields and blocklisted names.
+**SEC-03 No georeferencing.** Maps hold no lat/lon or EPSG data and no real place names. Village and road signs use **invented** names. *Accept:* the validator rejects geo fields and blocklisted names, MGRS strings, bare coordinate pairs, place names inside the catalog, PNG text chunks, EXIF metadata and GIS sidecar files in a package (gap review G24).
 
 **SEC-04 Licences** follow D-003:
 - CC0 preferred, CC-BY with attribution
@@ -246,6 +249,7 @@ The pilot, 2026-10-17: "when i say realism i mean more than just abstract realis
 - footage-like names and extensions
 - messenger names
 - coordinates and dates in notes
+- the terms on a local, git-ignored hand-term list (words read off the frames: OSD words, receiver text, plates, signage), read at scan time like the reference stems (gap review L6)
 
 ---
 
@@ -275,8 +279,9 @@ The footage is PAL and too coarse for photogrammetry, so **assets are rebuilt to
 - **wind volumes:** primitives, each with its own porosity (D-007)
 - landable-surface flags (roofs, beds, slabs)
 - LOD switch distances
+- **for every asset that cuts the ground** (a `holes` record: E01–E04, C01, C02): the hole-filler contract F-1…F-8 of the earthworks sheet, checked by its audit, including **F-1** (a downward ray on a 5 cm grid over every hole cell hits a filler) and **F-2** (every cavity face lies at least 0.25 m inside the hole cells)
 
-*Accept:* a probe flies a drone-sized capsule (0.574 m nose-first) through every gap and contacts every material. *Source:* D-012, PR-5, PR-9, K§10.6.
+*Accept:* a probe flies a drone-sized capsule (0.574 m nose-first) through every gap and contacts every material; the audit prints F-1…F-8 per `holes` asset. *Source:* D-012, PR-5, PR-9, K§10.6; gap review G5 (D-037).
 
 **AST-06 Damage is physical and parametric.**
 - **Buildings** have the states **intact-weathered, damaged and destroyed**:
@@ -287,6 +292,7 @@ The footage is PAL and too coarse for photogrammetry, so **assets are rebuilt to
   - rubble with brick, tile and plaster colours
 - **Vehicles** have the states **abandoned, blast-wrecked and burnt-out** (K§9.2, R0).
 - **Damage geometry carries collision.** Openings are the real clear space.
+- Breakable sheet metal, tile and branches (deferred X-8) stay static until phase 7d's design decides them (gap review L8).
 
 *Source:* PR-5, K§9.
 
@@ -299,6 +305,10 @@ The footage is PAL and too coarse for photogrammetry, so **assets are rebuilt to
 *Source:* K§14.4.
 
 **AST-08 Budgets per class.** The phase-1 spec sets triangle counts per LOD (3–4 LODs), and far impostors for trees. Textures are **2K at most**, with shared atlases and trim sheets for draw-call economy. Sum check: the world's VRAM stays within PLT-05.
+- The per-class table lives in the `asset-pipeline` capability and **the build fails over it**, printing the margin. It starts from the first attempt's (vehicle ≤ 40 k LOD0 triangles, house ≤ 60 k, destroyed block ≤ 200 k, tree ≤ 30 k plus an impostor, small props ≤ 5 k at ≤ 1K textures) and is set per class by the look-lock changes.
+- Each asset's repository size (its LFS share) is reported by the build, against the LFS quota in `docs/environment.md`.
+
+*Source:* gap review G25 (D-037).
 
 **AST-09 Vegetation.**
 - Late-summer to autumn mixed foliage (green, yellow, part-bare).
@@ -311,9 +321,18 @@ The footage is PAL and too coarse for photogrammetry, so **assets are rebuilt to
 
 *Source:* K§9.2.
 
-**AST-10 Micro-detail.** Grass stems, lying straw, twigs and litter are drawn near the camera from the **same deterministic generator the physics uses** (WLD-11), at 0 mm parity. A near-ring fade plus a far density layer to ≥ 60 m leave no hard edge. Litter has leaf silhouettes, not flat chips. *Source:* V§4.1, K§14.4.
+**AST-10 Micro-detail.** Grass stems, lying straw, twigs and litter are drawn near the camera from the **same deterministic generator the physics uses** (WLD-11), at 0 mm parity. A near-ring fade plus a far density layer to ≥ 60 m leave no hard edge. Litter has leaf silhouettes, not flat chips.
+- **Colour continuity:** the near ring, the far density layer and the terrain base match in mean colour where they hand over (as an impostor matches its mesh), so the grass changes colour with distance and never at a ring. The ground reading darker near than far (normals and AO resolving close) is physical and stays.
+- **Holes:** no element is rooted in a hole cell, no lying element's tip is in one, and the near ring and the far layer draw nothing there (WLD-16).
 
-**AST-11 Ground materials** for every surface in the surface table (K§7.2): meadow_sod, dry_crust, crater_spoil, belt_straw, belt_bare, tilled (with directional furrows), burnt_field, weeds, yard_litter, rubble, asphalt, concrete_slab, dirt_track. Each pairs a visual material with physical parameters. Transitions are feathered.
+*Source:* V§4.1, K§14.4; gap review L4, G3 (D-037).
+
+**AST-11 Ground materials** for every surface in the surface table (K§7.2): meadow_sod, dry_crust, crater_spoil, belt_straw, belt_bare, tilled (with directional furrows), burnt_field, weeds, yard_litter, rubble, asphalt, concrete_slab, dirt_track, and `water` (WLD-15). Each pairs a visual material with physical parameters. Transitions are feathered.
+- **Every row carries physical values signed off by the physics engineer before an asset or patch uses it.** asphalt, concrete_slab and dirt_track are signed off before G2; `water` gets its row and its `surface:<id>` name in the pipeline's list before phase 3 places it.
+- Every surface is **visibly distinct from its neighbours in a 60 m overview**.
+- Tilled furrows follow the physics ridge azimuth and are filtered and faded so they never alias into bands at distance.
+
+*Source:* K§7.2; gap review G22, G26 (D-037).
 
 **AST-12 Asset review sheet.** Every asset gets automated screenshots at **1.5 m, 10 m, 50 m and 200 m**, plus a turntable and a collision overlay, at day and overcast. **Every asset that appears in a reference also gets its side-by-side against the reference** (REAL-03, local only). QA judges them against the object sheet and the reference before the asset enters the gallery. *Source:* K§14.1.
 
@@ -332,18 +351,22 @@ The footage is PAL and too coarse for photogrammetry, so **assets are rebuilt to
 - a **vehicle row**
 - the Stalin-era block with its rubble
 
-Unbuilt items keep a reserved, labelled station. *Source:* B plan 2, old D-017.
+Every terrain patch is at least 60 m across. The relief patch rises at least 2 m from crest to dip at tens-of-metres scale and **carries a tree-belt run and an object station**, so assets are judged on ground that isn't level. The gallery is generated from one station list, so feedback is an edit and a re-run. Unbuilt items keep a reserved station labelled "not built yet". *Source:* B plan 2, old D-017; gap review G21 (D-037).
 
 **GAL-05 Reference views in the gallery.** The gallery holds a recreated reference view (REAL-02) for every letter its contents cover (B, C, D, E, F, G, H, I, J, K, M, N, O). **R** cycles through them, framed as in the reference. The same views produce the REAL-03 comparison sheets.
 
 **GAL-02 Review controls.**
 - PRD-07 movement
-- **L** toggles labels (outside the feed)
+- **L** toggles labels (outside the feed): a label appears within 25 m of a station with the asset's name and state (for example "truck, destroyed"), drawn over the picture, never through the feed, and clear of the OSD rows
+- **V** toggles the feed once it exists (phase 4), in the gallery and in world noclip, so each part is judged clean and through the goggles (WLD-14)
 - **T** cycles time-of-day presets (dawn, day sun, overcast, dusk, night)
+- **F3** toggles a performance overlay drawn outside the feed: fps, mean frame ms, the 1 % low over the last 5 s (the mean of the slowest 1 %), draw calls and the vsync state, refreshed at least 4 times a second (tested by counting refreshes)
 - **F12** takes a screenshot to a local folder
 - **F1** shows help
 
-**GAL-03 Build.** A Windows standalone build that meets PLT-02 (noclip) and PLT-06.
+*Source:* gap review G18, G23 (D-037).
+
+**GAL-03 Build.** A Windows standalone build that meets PLT-02 (noclip) and PLT-06. It starts on a named map or scene from the command line; an unknown id, a bad path or an unsupported major version prints one clear error and falls back to a placeholder scene, never a blank screen or a crash, so QA and agents can script it. *Source:* gap review G19 (D-037).
 
 **GAL-04 Gate G2.** The pilot explores the gallery. Every feedback point becomes a task, fixed or deferred with a reason, before G3 work uses the asset.
 
@@ -397,9 +420,13 @@ Along the street: wires and poles. The damage mix is a frontline village's today
 **WLD-11 World-query core** (engine-free, in `com.fpv450.sim`):
 - **the queries:** `SampleGround`, `MicroDetailNear`, `StaticContacts` (swept, with `Time`), `Geometry`, `Raycast`, `WindGrid`, `GapsNear`, runtime objects with reset, content hash, `QueryVersion`
 - **determinism:** IEEE basic operations only; a golden file in Debug and Release; batched results identical to single results; a concurrency test
-- **performance:** the K§10.4 budgets
+- **performance:** the K§10.4 budgets, judged **per surface** with a guarding line each (belt_straw's accepted deviation gets its own explicit limit, so a regression fails instead of printing)
+- **the rendered surface:** `TerrainHeight` equals the rendered triangle within 1 mm at 10,000 points, cell diagonals and tile seams included, using Unity Terrain's own triangulation, and the terrain renders at full resolution inside the physics radius (VIS-01)
+- **soil on shapes:** `StaticContact`, `RayHit` and `Geometry` carry a `Surface` byte (non-zero means a soil shape with `surface:<id>`, reporting no object material), and physics dispatches the soil law or the object law on it
+- **placed analytic features** (centre, radius, depth, profile, id) for craters under 4 m, ruts and potholes, evaluated by `SampleGround` and drawn by the renderer from the same function (E05)
+- **holes:** WLD-16
 
-*Source:* K§10, D-005, D-006.
+*Source:* K§10, D-005, D-006; gap review G4, G10, G27, L9 (D-037).
 
 **WLD-12 Validation.** The map validator checks:
 - layer sizes and indices
@@ -408,6 +435,20 @@ Along the street: wires and poles. The damage mix is a frontline village's today
 - out-of-bounds objects and starts
 - the format version
 - georeferencing (SEC-03)
+- the `holes` layer (WLD-16): values 0 or 255 only, hashed
+- **the frame conventions of D-019**, restated for the package: the corner mapping (row 0 is the +Z edge) and every angle (object yaw, pitch and roll; ridge azimuth; start yaw; gap normals; wind direction), with an asymmetric in-memory world in the query tests so a mirrored renderer and a mirrored query cannot agree by accident
+- the map side, tile size and heightmap resolution, re-derived for Unity Terrain tiles (2^n + 1 samples), not the first attempt's 256 m collision chunks
+- **pose parity at load:** every placed object renders at its `objects.json` pose within 1 cm of its physics primitives, since the prefab instance and the primitives are placed by two code paths
+
+*Source:* gap review G2, G8, G9, G11 (D-037).
+
+**WLD-16 Terrain holes** (trenches, cellars, dugouts; phase 3). The ground in a hole comes only from the asset's fillers (AST-05).
+- A `holes` layer on the 0.5 m surface grid marks hole cells, validated and hashed after the cover layer (a map without it keeps its hash).
+- The renderer skips hole cells in every pass (colour, depth, shadow), and terrain collision and rays match. Unity Terrain's hole mask is 1 m on a 1 m heightmap, so a 0.5 m hole needs a design (finer tiles or a patch mesh near holes).
+- Over a hole cell `SampleGround` sets `Hole`, keeps `TerrainHeight` at the lip, returns −∞ (never NaN) for the ground and support heights, a +Y normal and no mat, cover or feature; rays skip terrain triangles there; a wind-volume shape adds nothing to a cell where its top is at or below the terrain.
+- The golden file holds a test trench (straight and at 30°, 0.8 × 1.5 m) with cases across the cavity, the lip band and the boundary ± 1 mm: rays down, at 45° and grazing; foot spheres on floor, wall and inner corner; micro-detail straddling a boundary; the wind grid. The composite step's budget holds with holes.
+
+*Source:* K§10.1, D-007; gap review G1–G3, G6 (D-037).
 
 **WLD-14 Reference views in the world.** Every letter (A–H, L, P, I–K, M–O) has at least one place in the world that recreates its scene type (REAL-02, REAL-04), reachable from the review controls. The world is judged against the references through these views before G3.
 
@@ -424,7 +465,7 @@ Along the street: wires and poles. The damage mix is a frontline village's today
 
 ## 8. Rendering and look (VIS)
 
-**VIS-01 Pipeline.** URP Forward+, with the GPU Resident Drawer and occlusion culling where they help. One LOD system only: Unity LOD groups driven by catalog distances, with no engine auto-LOD on top. *Source:* D-001, K§14.4.
+**VIS-01 Pipeline.** URP Forward+, with the GPU Resident Drawer and occlusion culling where they help. One LOD system only: Unity LOD groups driven by catalog distances, with no engine auto-LOD on top. The terrain renders at full resolution inside the physics radius, so what the drone touches is what the camera sees (WLD-11). *Source:* D-001, K§14.4; gap review G10.
 
 **VIS-02 Time of day** is continuous, in hours. Sun and moon position, sky, ambient and night light all follow it.
 
@@ -459,14 +500,18 @@ The trait definitions and every measured number are in K§11. **The algorithms c
 - **The only change** inside the port is the name: "Svinoriz 10 Opto".
 - *Accept:*
   - a field-by-field diff of the event schedule against Godot for the same seed (15,000 fields)
-  - visually matching stills at the same seed and field for every stage (the A/B in that folder's README)
+  - visually matching stills at the same seed and field for every stage (the A/B in that folder's README), with **one identical input frame fed to both pipelines** and the feed compared alone, stage by stage (the two scenes differ, so whole-scene stills prove nothing)
+  - the Godot 4.7.2 .NET build and a `godot-final` worktree stay available for this A/B until G4 (`docs/environment.md`)
   - then G4
+
+  *Source:* gap review L2 (D-037).
 
 **FEED-01 Simulated, not filtered.** Artifacts come from signals (FEED-03). Free-running random rates are used only where K§11 says no cause is visible. *Source:* D-008.
 
 **FEED-02 Pipeline and resolution.**
 - The stage order follows K§11.7.
 - The FPV camera renders at reduced resolution with extra FOV (D-017).
+- **The FPV camera's intrinsics and pose are pinned:** a pinhole of f ≈ 1.005 half-widths before O1's k1 ≈ 0.33, about **106° horizontal**, native **16:9 with square pixels** (measured: `reference-notes/wind.md` §1, `video-feed.md` O1), at 0° uptilt (the pilot's set-up). Checked against letter A's horizon curvature. REAL-03 framing, O1, the blades in view (VIS-07) and the simulated pilot's pitch scale all depend on it. *Source:* gap review L1 (D-037).
 - The analog stages run at field resolution (about 720 × 288), **50 fields/s**, then bob-deinterlace and upscale.
 - **PAL only** (D-009).
 
@@ -496,7 +541,7 @@ N9, N10 and P10 are **not** simulated.
 
 **FEED-06 Clean recovery.** After a recovering dropout, the picture and OSD come back clean. Receiver text appears only on blue screens. *Source:* PR-4 correction.
 
-**FEED-07 Snow texture.** Near-binary white dashes on black, one field line tall, colour-killed after the first 1–2 fields, under the receiver text. **Never grey Gaussian noise.**
+**FEED-07 Snow texture.** Near-binary white dashes on black, one field line tall, colour-killed after the first 1–2 fields, under the receiver text. **Never grey Gaussian noise.** Two receiver no-signal styles are measured (K§11.1, `video-feed.md` U13): a bright blue with small centred text (A, H, L, P) and a deeper blue with two lines top-left (B–G). The port draws the Godot feed's; whether the sim shows one, the other or both by receiver is asked at G4 ([pilot-questions.md](pilot-questions.md)). *Source:* gap review L12.
 
 **FEED-08 Night** is the same pipeline at its low-light end: monochrome, strongest grain, N13 on. There is no separate night filter.
 
@@ -520,7 +565,11 @@ N9, N10 and P10 are **not** simulated.
 
 In detail:
 - A local comparison sheet per trait, against the reference letters, using the measured statistics where K§11 gives them: grain σ, luma and chroma bandwidth, k1 ± 0.03, AE and AWB τ, loss stage lengths, snow statistics.
+- **Like for like:** one frame-metrics tool runs on the footage and on captured Unity feed output alike: per frame the mean luma, high-pass noise, row-to-row stripe energy, frame change and mean R, G, B; outliers flagged by the local-jump rule (median of the ±3 neighbours, clip median + 10 × MAD, which catches one-field glitches and not fast motion) and exported losslessly with ±2 neighbours; N2–N4 counted by full-resolution detectors. It extracts at least 3 bursts of 8+ consecutive native-rate frames per clip for temporal noise, and keeps the local letter index stable (existing letters never change). A Standard change to the reference tools before phase 4 step 7.
+- **Colour with distance** (the pilot's "colours change as the grass comes closer"): the measured approach shifts run as scripted approaches in the A, E and G reference views and land within tolerance of K§11's C1–C3 values (E: r/g 1.16 → 0.99 and b/g 0.81 → 0.99 over about 1.5 s; G diving into vegetation: r/g 1.18 → 0.87, b/g 0.67 → 1.02; A's slow b/g drift 0.70 → 0.87; near-monochrome close to a surface), with the scene side held by AST-10's colour continuity.
 - Then **gate G4**: the pilot flies noclip through the feed and judges it.
+
+*Source:* gap review G13, G14, L3 (D-037).
 
 **FEED-13 Rain drops on the lens** (the pilot overrides the clip-P reading, D-021).
 - In Rain and Severe rain, drops land on the lens and **stay, even in fast flight**. **They travel across the lens with the airflow** at times.
@@ -633,8 +682,9 @@ The last setup is remembered.
 - a live bar display of the raw and calibrated axes
 - save named profiles
 - **a calibration health check:** if an axis spans only a tiny range, it behaves like a switch. Say so plainly and tell the pilot to recalibrate the radio. The pilot hit exactly this on a TX12 MKII (EdgeTX 2.8.0): spans 79 and 85, against healthy 683–903 ([reference-notes/fc-profiles.md](reference-notes/fc-profiles.md))
+- **radio-side curves:** the sweep measures each axis's stick-to-channel curve; expo or dual rates left on the radio (a curve that is not linear, or an endpoint short of full travel) are named and the pilot is told to switch them off, since they would stack with the sim's rates
 
-*Accept:* a TX12 calibrates in under 2 minutes, with no keyboard needed after the start. *Source:* V§3.
+*Accept:* a TX12 calibrates in under 2 minutes, with no keyboard needed after the start. *Source:* V§3; gap review, pilot emphasis 3 (D-037).
 
 **INP-03 Flight-controller settings: Betaflight 4.5 semantics** (D-023).
 - **Settings in v1:** **ACTUAL rates** (centre sensitivity, full-stick rate, expo per axis) and the **throttle curve** (`thr_mid`, `thr_expo`, Betaflight's 11-point table), with curve previews.
@@ -643,6 +693,7 @@ The last setup is remembered.
   - yaw: 85 / 260 °/s, expo 0.15
   - throttle: `thr_mid` 50, `thr_expo` 10
   - deadband 2 / 2, RC smoothing 50, feedforward 50
+  - **airmode and motor idle** as the pilot's profile records them (fc-profiles: `min_throttle` and the airmode setting), because they decide what "throttle to zero at touchdown" does (PHY-02); where the profile is silent, Betaflight 4.5's default, labelled
 - **Profiles** are stored with **Betaflight CLI names**.
 
 **INP-07 Room for the rest** (D-023). The settings layer must be able to expose any other Betaflight flight-feel setting without a redesign: deadband, RC smoothing, feedforward (transition, jitter, boost), PID stiffness steps, battery sag compensation, throttle softer/stiffer, and import of a real `diff all`. They are not in the v1 UI, because the pilot "MAY ask" for them later.
@@ -671,7 +722,10 @@ The last setup is remembered.
 - seeded named streams
 - the binary log and **headless bit-exact replay** (LOG-01, LOG-02)
 
-Phase 7 adds mechanisms and never rewrites this. *Source:* D-012.
+Phase 7 adds mechanisms and never rewrites this.
+- *Accept:* the step reads no wall clock, thread id, default hash code or unordered-collection order (checked in the suite); a worker forced early or late changes nothing but the logged hitches; a 250 ms renderer stall and render caps of 30, 60 and 240 fps give bit-identical logs.
+
+*Source:* D-012; gap review L10 (D-037).
 
 **PHB-02 Rigid body.** Mass and inertia come from `drone.json` (DRN-03): a quaternion attitude and semi-implicit Euler integration.
 
@@ -683,6 +737,7 @@ Phase 7 adds mechanisms and never rewrites this. *Source:* D-012.
 - ESC and motor first-order lags
 - thrust T = k_T·n² and torque Q = κ·T from momentum theory
 - battery voltage sag; **the pack voltage (6S or 8S Li-ion, two packs) is set in phase 5**
+- **the forward-flight thrust derate comes from axial inflow** through the tilted disc, never a flat 0.80–0.95 factor: at 25 m/s through a disc tilted 22.7° the inflow (≈ 9.6 m/s) is about the hover induced velocity, so the heavy fast corner may be infeasible, which PHY-17a's cruise must survive (gap review L11)
 - *Accept:*
   - hover throttle and thrust margin match K§5.3 at nominal mass
   - **a loaded drone lifts off near 50–65 % motor power** (a real heavy quad: about 62 %)
@@ -695,6 +750,7 @@ Phase 7 adds mechanisms and never rewrites this. *Source:* D-012.
 - launch-stand and object contacts through `StaticContacts` with the **Time < 1 latch rule** (K§7.5)
 - crash detection
 - `tunnel` events logged as bugs
+- the probe's lessons (`legacy/map-and-world/api-review.md` §2.4): load-bearing parts are spheres (a capsule lying on a bar rocks between its ends); the damping ratio is ignored on rigid materials; surface and material parameters are read-only to physics (a write changes results under the same hash). *Source:* gap review L7.
 
 **PHB-06 Wind basics.** A mean wind per wind level plus simple turbulence, **clearly labelled as a stand-in** until PHY-13.
 
@@ -728,9 +784,13 @@ The design to start from is [legacy/flight-model/](legacy/flight-model/), conden
 
 *Source:* V§2.1, K§7.3.
 
-**PHY-04 Unexpected ground.** Pitfalls (logged by `FeatureId`), crater rims, slopes, rubble, furrows (rocking across them, not along), leaf-litter slide, brittle char stubble. *Source:* V§2.2.
+**PHY-04 Unexpected ground.** Pitfalls (logged by `FeatureId`), crater rims, slopes, rubble, furrows (rocking across them, not along), leaf-litter slide, brittle char stubble.
+- **Over and in holes (WLD-16):** per foot, terrain and soil-shape contacts within 45° merge (the deepest wins); `WORLD_BUG terrain_deep` (terrain penetration over 0.25 m) and `WORLD_BUG bottomless` are logged as bugs.
+- Deferred items with a home here (decided in 7a's design): debris chunks on rubble (smooth relief gives 40–50° slopes where feet slide into troughs), roots in cut trench walls, a soil lip's edge radius.
 
-**PHY-05 Stems and twigs.** Cantilever forces giving touchdown jitter and drag when skimming weeds; twigs as rollers; prop strikes logged.
+*Source:* V§2.2; gap review G7, L8 (D-037).
+
+**PHY-05 Stems and twigs.** Cantilever forces giving touchdown jitter and drag when skimming weeds; twigs as rollers; prop strikes logged, with the stem's cut energy (deferred X-6, decided in 7a's design). *Source:* gap review L8.
 
 **PHY-06 Launch stand** (D-022).
 - The drone rests on four post tops: hard steel point contacts under the arms.
@@ -746,7 +806,7 @@ The design to start from is [legacy/flight-model/](legacy/flight-model/), conden
 
 *Source:* V§2.4.
 
-**PHY-08 Ground effect** per rotor (Cheeseman–Bennett, from per-rotor rays), ceiling effect under roofs, and **prop-wash recirculation** in a close hover, which is never still.
+**PHY-08 Ground effect** per rotor (Cheeseman–Bennett, from per-rotor rays), ceiling effect under roofs, and **prop-wash recirculation** in a close hover, which is never still. `Raycast` sees terrain triangles only, so the rotor's ground combines it with `SampleGround`'s relief and mat top; `Hole` switches terrain ground effect off. *Source:* gap review L7, G7.
 
 **PHY-09 Settling into the drone's own wash (vortex ring state)**, with hysteresis. Entry and exit are logged.
 - **The pilot's account:** "not a question of speed of descent but mostly how much throttle power hence pressure you give as opposed to drones weight. wobble - yes, of course". So the onset is governed by **thrust relative to weight while descending**: a heavy drone on low throttle sinks into its own wash and wobbles.
@@ -766,15 +826,21 @@ The design to start from is [legacy/flight-model/](legacy/flight-model/), conden
 **PHY-13 Wind field.**
 - Three layers (K§6.7): log-law mean profile, seeded broadband turbulence reaching 2–4 Hz, and obstacle wakes from the wind grid (belts, buildings, vehicles), plus jets through gaps and terrain shelter.
 - **PHY-13a (PR-3):** vorticity in the field and **per-rotor gust gradients**, which produce **wind-alone yaw swerves** and **coupled nose-up plus yaw events**, with awkward intermediate states when corrected.
+- A cavity wind model below a trench lip (WLD-16), and thermals over dark and burnt fields (deferred X-12), each decided in 7c's design. *Source:* gap review G7, L8.
 
 **PHY-14 Weather levels meet the targets.**
 - Severe, Windy and Calm reproduce the K§8.6 target table, flown by the simulated pilot of K§8.5 on the test route, measured automatically.
 - Calm is flown with asymmetry off.
 - **Calm's floor** ("never perfectly still") is a new target, owned by PHY-07.
+- **Measured automatically** by plain-Python ports under `tools/` of the first attempt's `wind_stats.py`, `wind_history_fixture.py` and `rain_stats.py` (Blender scripts on `godot-final`), with their self-checks (stationary Gaussian noise and scheduled shifts must fail, TST-03).
+- Watch item for the MVP: T9b's pitch jolts may be partly the pilot's own inputs, so pitch must not feel jumpier than reality.
+
+*Source:* gap review G15, L11 (D-037).
 
 **PHY-15 Per-flight wind.**
 - Prevailing direction (uniform) and strength (uniform in the level's band) are drawn from the seed and logged.
 - Meander and rare shifts follow K§8.3. It is **never a fixed vector** (T0c).
+- The prevailing-wind history is computable from the seed alone (T0b). *Source:* gap review G15.
 
 **PHY-16 Horizon–heading trade-off.** It emerges because gusts are real sideways forces, the camera has 0° uptilt, and rate-mode kinematics are exact (T10b, T11b). *Source:* pilot Q7.
 
@@ -787,7 +853,7 @@ The design to start from is [legacy/flight-model/](legacy/flight-model/), conden
 **PHY-17a Cruise in wind.** The pilot flies strong wind at **normal cruise speed** and works on correcting course drift ("i cant say speed is different"). So the airframe drag is tuned so that clip P's 22.7° pitch at about 4.8 kg gives the published cruise, **17–22 m/s**. That is the low-drag reading of K§8.2, a crosswind of about 6.5–8.5 m/s.
 
 ### 15.4 Fiber tether
-**PHY-18 The spool** pays out one way (it never retracts). The span uses ≤ 32 lumped nodes with gravity, wind drag and ground and vegetation contact (hooks, twig capstans). Tension acts at the spool exit, below the CoM. Coil mass leaves the airframe.
+**PHY-18 The spool** pays out one way (it never retracts). The span uses ≤ 32 lumped nodes with gravity, wind drag and ground and vegetation contact (hooks, twig capstans). Tension acts at the spool exit, below the CoM. Coil mass leaves the airframe. A wedged span never goes non-finite or gains energy (gap review L10).
 
 **PHY-19 Cut risk, never certainty.**
 - Tension, bend radius over edges (material `edge_radius_m`) and abrasion are compared against a **per-flight fiber-strength draw**.
@@ -797,8 +863,10 @@ The design to start from is [legacy/flight-model/](legacy/flight-model/), conden
   - **a very sharp liftoff:** spool payout inertia and friction limit how fast line can leave, so a hard acceleration spikes the tension
   - **backward momentum right after liftoff:** the drone moves back over the line lying at the launch point, so the line can enter a prop disc (**a line–prop contact is a cut**) or snag on the stand
 - **Smooth orbits keep it safe.**
+- Over a soil lip (a trench edge) the line's effective bend radius is at least 0.02 m, so the lip never breaks it by bending; the danger there is capstan friction, e^(μθ).
+- *Accept:* one reverse manoeuvre over 20 seeds sometimes cuts the line; gentle orbits over 20 seeds never do.
 
-*Source:* V§2.5.
+*Source:* V§2.5; gap review G7, L10 (D-037).
 
 **PHY-20 Link margin** comes from tension, bend and vibration, as **event-like dips** (spike, snag, sharp bend), with wind and trees raising their rate. It never follows attitude rate or rain on the lens. *Source:* K§8.7.
 
@@ -818,8 +886,9 @@ The design to start from is [legacy/flight-model/](legacy/flight-model/), conden
 **PHY-24 The randomness rule.** Randomness enters **only** as bounded perturbations of named physical parameters, drawn from named seeded streams and logged.
 - A catalogue lists every stream with its bounds.
 - Ground and cover are world-derived and never drawn: "the ground is not random, it is unknown, and the pilot learns it".
+- *Accept:* draws cover their bounds over 10,000 seeds; the asymmetry master switch is in the log header and bounded away from both unflyable and imperceptible.
 
-*Source:* V§2.4, K§6.9.
+*Source:* V§2.4, K§6.9; gap review L10 (D-037).
 
 **PHY-25 Physics → feed.**
 - Every signal in K§11.8 is published as 50 Hz field aggregates (mean and max), replacing the phase-4 stubs.
@@ -832,10 +901,10 @@ The design to start from is [legacy/flight-model/](legacy/flight-model/), conden
 **LOG-01 The flight log.**
 - **Header:** seed, every per-flight draw, settings, mass and inertia, world content hash, `QueryVersion`, build, runtime and ISA flags.
 - **Full state at 1 kHz.**
-- **Events at step resolution:** contacts with surface, material and feature; hooks; pitfalls; tunnels; strikes; saturation; VRS; payout; tether break and its mechanism; hitches; impacts with peak acceleration and impulse; wind draws; stub-signal flags.
+- **Events at step resolution:** contacts with surface, material and feature; hooks; pitfalls; tunnels; strikes; saturation; VRS; payout; tether break and its mechanism; hitches; impacts with peak acceleration and impulse; wind draws; stub-signal flags; entering and leaving a hole cell and the first filler contact (WLD-16).
 - **Size:** ≤ 50 MB per minute of flight after lossless compression, written from a ring buffer by a worker.
 
-**LOG-02 Headless replay.** `tools/replay` reproduces every logged state **bit-for-bit without Unity**, and refuses a mismatched world or version.
+**LOG-02 Headless replay.** `tools/replay` reproduces every logged state **bit-for-bit without Unity**, and refuses a mismatched world or version. A mismatch names the first diverging step and field; the summary reader survives a truncated log. *Source:* gap review L10.
 
 **LOG-03 Forensics.** A crash report, in the UI summary and in a CLI tool, answers without guessing:
 - which part touched what, at what speed and with what impulse
@@ -848,7 +917,7 @@ The design to start from is [legacy/flight-model/](legacy/flight-model/), conden
 
 It ends in a verdict: **physics bug, or pilot error**. *Source:* V§4.
 
-**LOG-04 Cross-machine determinism.** The golden and replay tests pass on a second x64 machine (QA, before release).
+**LOG-04 Cross-machine determinism.** The golden and replay tests pass on a second x64 machine (QA, before release), and the golden run inside the Unity editor and the Mono player matches the .NET tools' golden (the runtime the game ships with, D-031). *Source:* gap review G12.
 
 **LOG-05 Privacy.** Logs hold sim data only, stored under the user's profile.
 
@@ -861,6 +930,7 @@ It ends in a verdict: **physics bug, or pilot error**. *Source:* V§4.
 - Unity Test Framework EditMode and PlayMode tests
 - Python tests for tools and validators
 - benchmarks (PLT-07)
+- a headless smoke run of the player passes only with zero error or exception lines in its log, not on exit 0 alone (gap review G20)
 
 **TST-02 Golden audits.** Any golden re-record is audited case by case. A moved case needs a proven cause.
 
@@ -868,7 +938,9 @@ It ends in a verdict: **physics bug, or pilot error**. *Source:* V§4.
 
 **TST-04 Screenshot reviews** for every asset and view change (AST-12). The pre-pilot QA review comes before every gate.
 
-**TST-05 Determinism tests** cover concurrency, batched against single results, Debug against Release, and the second machine (LOG-04).
+**TST-05 Determinism tests** cover concurrency, batched against single results, Debug against Release, the Unity editor and player against the .NET tools, and the second machine (LOG-04).
+
+**TST-06 The tests are tested.** A test asserts the spec's literal numbers, never a value computed from the constant under test; a check counts events, not text changes; QA mutates the code under review to prove each check can fail; reports print the margin to each limit, not only pass or fail. *Source:* gap review L5 (D-037).
 
 ---
 
@@ -877,10 +949,10 @@ It ends in a verdict: **physics bug, or pilot error**. *Source:* V§4.
 | Phase ([plan.md](plan.md)) | Requirements | Gate |
 |---|---|---|
 | **All phases** | **REAL-01…05: realism is a copy of the references, with proper geometry** | every gate |
-| 0 Setup | PLT-01, PRC-01…12, SEC-01…06, TST-01 | none |
+| 0 Setup | PLT-01, PRC-01…12, SEC-01…06, TST-01, TST-06 (from then on) | none |
 | 1 Assets | AST-01…12, VIS-01…05 (look-lock), SEC-04 | G1 look-lock (short) |
 | 2 Gallery | GAL-01…04, PRD-07, PLT-02 (noclip), PLT-06 | **G2 gallery** |
-| 3 World | WLD-01…13, AST-10/11 at scale, PLT-04 (queries), PLT-05 | **G3 world (UAT-2)** |
+| 3 World | WLD-01…16, AST-10/11 at scale, PLT-04 (queries), PLT-05 | **G3 world (UAT-2)** |
 | 4 Feed and OSD | FEED-00…13, OSD-01…04, VIS-07 | **G4 feed** |
 | 5 Drone | DRN-01…07 | **G5 drone** |
 | 6 TX and basic physics | APP-01…05, INP-01…07, PHB-01…07, LOG-01…03 | **G6 wireframes**, **G7 MVP-1** |

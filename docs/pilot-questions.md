@@ -53,4 +53,8 @@ The pilot's words: "why tf are you asking me these questions if it's you whos go
 - **How often the throttle-punch shake happens:** from physics.
 
 ## Open
-None. Ask new questions only under the rule above, at the matching gate.
+Ask new questions only under the rule above, at the matching gate.
+
+| Gate | Question | Why it is the pilot's | Source |
+|---|---|---|---|
+| G4 | The references show two no-signal screens: a bright blue with small centred text, and a deeper blue with two lines top-left. Which do your goggles show, or does it depend on the receiver? | a preference about their own kit; the footage shows both | FEED-07, gap review L12 |
