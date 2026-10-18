@@ -15,5 +15,5 @@
   "twist_pitch_m": 0.45,
   "damage": "intact",
   "points_per_m": 2.0,
-  "lod": { "lod1_switch_m": 20.0, "cull_m": 300.0 }
+  "lod": { "lod1_switch_m": 20.0 }
 }

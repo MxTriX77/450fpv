@@ -4,16 +4,27 @@ import math
 
 class Mesh:
     """One LOD: vertices, polygon faces with an outward normal, per-corner UVs in metres and a material slot per
-    face. Winding is not the generator's business: lib.export orients every face by its outward normal."""
+    face. Winding is not the generator's business: lib.export orients every face by its outward normal.
+
+    A vertex may carry a unit normal and a second UV (p1-l01-l03-pole-wires: a wire tube's radial normal and its
+    radius, which the thin-wire shader reads). A face whose every vertex carries a normal is smooth-shaded with them;
+    every other face stays flat. The second UV map is exported only when some vertex carries one, (0, 0) elsewhere."""
 
     def __init__(self):
         self.vertices = []
         self.faces = []  # (indices, outward normal, uvs, slot)
+        self.normals = {}  # vertex index -> unit normal
+        self.uv2 = {}  # vertex index -> second UV
 
-    def vertex(self, p):
-        """Adds a vertex and returns its index."""
+    def vertex(self, p, normal=None, uv2=None):
+        """Adds a vertex, with its own normal and second UV when given, and returns its index."""
         self.vertices.append((float(p[0]), float(p[1]), float(p[2])))
-        return len(self.vertices) - 1
+        index = len(self.vertices) - 1
+        if normal is not None:
+            self.normals[index] = tuple(float(c) for c in normal)
+        if uv2 is not None:
+            self.uv2[index] = tuple(float(c) for c in uv2)
+        return index
 
     def face(self, indices, outward, slot, uvs=None):
         """A convex or concave polygon given in cyclic order (see `ring` for convex ones), with its outward normal.

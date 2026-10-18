@@ -19,13 +19,14 @@ their chord at mid-span (the sheet's sag f, from which PHY-22 takes T = w L^2 / 
 points per metre of horizontal distance (2: 81 points for 40 m; the chord between points 0.5 m apart stands 0.13 mm
 off the curve at a 2 % sag).
 
-Mesh: LOD0 a 6-sided tube per conductor along the record's points, LOD1 4-sided from `lod.lod1_switch_m`, culled at
-`lod.cull_m` (assumed: the thin-wire material fades the wire before it). Rings stand square to the bisected tangent,
-framed by parallel transport, their corners (pi / n) / sin(pi / n) of the radius out, so a ring's perimeter is the
-circle's and the tube's width averaged over every view is the true diameter (what a coverage-weighted thin wire
-reads); both ends capped. A SIP bundle is CORES cores of D sin(pi / k) / (1 + sin(pi / k)) twisted at `twist_pitch_m`
-about the bundle's axis at LOD0 (their centre lines sampled TWIST_RINGS times a turn), one tube of the bundle's
-diameter at LOD1. UVs are metres: U along the conductor from a `seed` offset, V around.
+Mesh: LOD0 a 6-sided tube per conductor along the record's points, LOD1 4-sided from `lod.lod1_switch_m`, culled
+where the thin-wire material's line weighs under CULL_COVERAGE of a pixel (its column sum, PX_PER_RAD * D / d: 468 m
+for 5 mm, 842 m for 9 mm, 1 870 m for 20 mm). Rings stand square to the bisected tangent, framed by parallel transport,
+every corner on the conductor's circle, both ends capped. For the thin-wire shader (task 1.4's contract) every vertex
+carries its radial unit normal (smooth shading) and its tube's radius as its second UV, (r, 0) in metres (Unity's
+uv2). A SIP bundle is CORES cores of D sin(pi / k) / (1 + sin(pi / k)) twisted at `twist_pitch_m` about the bundle's
+axis at LOD0 (their centre lines sampled TWIST_RINGS times a turn, each core its own tube and radius), one tube of
+the bundle's diameter at LOD1. UVs are metres: U along the conductor from a `seed` offset, V around.
 
 Metadata (the sheet's physics role): no collision primitive (conductors are map objects, D-007), no gap, no wind
 volume, nothing landable; per conductor a `wires` record (its slot, diameter, mass per metre, sag, material cable,
@@ -60,6 +61,8 @@ DROP_SPAN_M = 25.0      # published, ПУЕ cl. 2.4.17 via the sheet: a service 
 INTACT_SAG_RATIO = 0.05  # the sheet: a sag ratio above this only on a damaged span
 SIDES = (6, 4)          # per LOD (design decision 5: a 9 mm wire at 6 sides stands 0.6 mm off round)
 TWIST_RINGS = 8         # rings per turn of a bundle's cores (assumed: a core's centre within 0.4 mm of its helix)
+PX_PER_RAD = 935.0      # derived (pipeline design decision 7): the 60 degree vertical view on 1 080 px
+CULL_COVERAGE = 0.01    # assumed (task 1.4): culled once the line's column sum falls under 1 % of a pixel
 IDLE = {"single": ("spacing_m", "offset_step_m"), "not sip": ("twist_pitch_m",)}
 PARAMS = {
     "seed": {"type": "int", "range": (0, 2**31 - 1), "default": 1,
@@ -95,16 +98,14 @@ PARAMS = {
     "points_per_m": {"type": "float", "range": (1.0, 4.0), "default": 2.0,
                      "effect": "points of the wires record and of the tube's rings, per metre of horizontal span"},
     "lod.lod1_switch_m": {"type": "float", "range": (5.0, 100.0), "default": 20.0,
-                          "effect": "LOD1 (4-sided tubes, a bundle as one) from here"},
-    "lod.cull_m": {"type": "float", "range": (50.0, 2000.0), "default": 300.0,
-                   "effect": "culled beyond (assumed; the thin-wire material fades the wire before it)"},
+                          "effect": "LOD1 (4-sided tubes, a bundle as one) from here; the cull follows the diameter"},
 }
 
 
 def check(params):
     """Cross-parameter rules once every key is in range: the built types, arrangements and damage; the class holding
     the diameter; a SIP as one bundle and nothing else bundled; idle keys at their defaults; a service drop within
-    its 25 m; an intact sag ratio; every conductor's lowest point above its type's clearance; the LODs in order."""
+    its 25 m; an intact sag ratio; every conductor's lowest point above its type's clearance."""
     p = params
     problems = []
     for key, allowed, why in (("conductor_type", TYPES, "the sheet's conductor types"),
@@ -144,14 +145,17 @@ def check(params):
             problems.append(f"conductor {n}'s lowest point {low:.3f} m is under the {floor} m clearance of "
                             f"{p['conductor_type']} (the sheet's ПУЕ figures): raise 'attach_heights_m' or lower "
                             "'sag_ratio'")
-    lod = p["lod"]
-    if not lod["lod1_switch_m"] < lod["cull_m"]:
-        problems.append(f"'lod.*' must increase: {lod['lod1_switch_m']}, {lod['cull_m']}")
     return problems
 
 
 def sag(p):
     return p["sag_ratio"] * p["span_m"]
+
+
+def cull_distance(p):
+    """Where the line's column sum, PX_PER_RAD * D / d pixels, falls to CULL_COVERAGE: beyond LOD1's 100 m at most for
+    every diameter (281 m at 3 mm)."""
+    return PX_PER_RAD * p["diameter_mm"] / 1000 / CULL_COVERAGE
 
 
 def attachments(p):
@@ -232,11 +236,10 @@ def build(params):
         wires.append({"slot": slot, "diameter_m": 2 * radius, "mass_kg_per_m": p["mass_kg_per_m"], "sag_m": sag(p),
                       "material": PHYSICS, "damage": p["damage"], "points": record})
         snag.append({"kind": "edge", "points": [list(q) for q in record], "radius_m": radius, "material": PHYSICS})
-    lod = p["lod"]
     return {
         "lods": lods,
-        "switch_distances_m": [0.0, lod["lod1_switch_m"]],
-        "cull_distance_m": lod["cull_m"],
+        "switch_distances_m": [0.0, p["lod"]["lod1_switch_m"]],
+        "cull_distance_m": cull_distance(p),
         "materials": [{"slot": slot, "physics": PHYSICS}],
         "collision": [], "gaps": [], "wind_volumes": [], "ports": [],
         "wires": wires,
@@ -267,9 +270,9 @@ def twisted_cores(axis, diameter, cores, pitch, phase):
 
 def _tube(mesh, centre, radius, sides, slot, u0):
     """A tube of `sides` along the polyline `centre`, both ends capped: rings square to the bisected tangent, framed
-    by parallel transport, their corners (pi / sides) / sin(pi / sides) of the radius out (the ring's perimeter the
-    circle's); one quad per side and segment with its outward normal. UVs in metres: U along from u0, V around."""
-    grow = (math.pi / sides) / math.sin(math.pi / sides)
+    by parallel transport, every corner on the circle of `radius` with its radial unit normal and (radius, 0) as its
+    second UV (the thin-wire shader's inputs); one quad per side and segment with its outward normal. UVs in metres:
+    U along from u0, V around."""
     last = len(centre) - 1
     tangents = [normalize(sub(centre[min(i + 1, last)], centre[max(i - 1, 0)])) for i in range(len(centre))]
     t0 = tangents[0]
@@ -280,8 +283,11 @@ def _tube(mesh, centre, radius, sides, slot, u0):
             e = normalize(sub(e, scale(t, dot(e, t))))
             along.append(along[-1] + norm(sub(q, centre[i - 1])))
         f = cross(t, e)
-        rings.append([mesh.vertex(add(q, scale(add(scale(e, math.cos(a)), scale(f, math.sin(a))), radius * grow)))
-                      for a in (2 * math.pi * j / sides for j in range(sides))])
+        ring = []
+        for a in (2 * math.pi * j / sides for j in range(sides)):
+            out = add(scale(e, math.cos(a)), scale(f, math.sin(a)))
+            ring.append(mesh.vertex(add(q, scale(out, radius)), normal=out, uv2=(radius, 0.0)))
+        rings.append(ring)
     step = 2 * math.pi * radius / sides
     for i in range(last):
         mid = scale(add(centre[i], centre[i + 1]), 0.5)

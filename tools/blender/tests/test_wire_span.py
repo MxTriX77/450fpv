@@ -93,6 +93,32 @@ def test_records_reproduce_the_tubes_centre_line(repo_root):
     print(f"record vs ring centroids: {worst * 1000:.4f} mm (margin {5 - worst * 1000:.4f} mm of 5)")
 
 
+def test_tube_vertices_carry_the_thin_wire_inputs(repo_root):
+    """Task 1.4's contract: every tube vertex lies on its ring the conductor's radius from the centre line, with its
+    radial unit normal (square to the wire, pointing from the centre to the vertex) and (r, 0) as its second UV, at
+    both LODs; a SIP core's radius is the core's (5 mm in the 20 mm drop) at LOD0 and the bundle's at LOD1."""
+    for name, radii in (("L03_medium", (0.0045, 0.0045)), ("L03_thick", (0.005, 0.010))):
+        _, built, _ = build(repo_root, name)
+        for lod, radius in zip(built["lods"], radii):
+            assert len(lod.normals) == len(lod.uv2) == len(lod.vertices)
+            assert set(lod.uv2.values()) == {(radius, 0.0)}
+            for k, v in enumerate(lod.vertices):
+                n = lod.normals[k]
+                assert math.hypot(*n) == pytest.approx(1.0, abs=1e-12)
+    _, built, _ = build(repo_root, "L03_medium")
+    lod0 = built["lods"][0]
+    worst = 0.0
+    for n_wire, wire in enumerate(built["wires"]):  # the unrounded points
+        for i, q in enumerate(wire["points"]):
+            for j in range(6):
+                k = (n_wire * 81 + i) * 6 + j
+                offset = [lod0.vertices[k][a] - q[a] for a in range(3)]
+                worst = max(worst, abs(math.hypot(*offset) - 0.0045))
+                assert [offset[a] / 0.0045 for a in range(3)] == pytest.approx(list(lod0.normals[k]), abs=1e-6)
+    assert worst < 1e-6
+    print(f"L03_medium: tube corners within {worst * 1e6:.4f} um of the 4.5 mm radius, normals radial")
+
+
 def test_catenary_holds_its_sag_between_unequal_ends():
     """A drop from 6.355 m to 3.5 m over 20 m at 2 %: it passes through both ends, hangs 0.4 m below the chord at
     mid-span, and its lowest point is the house end (still falling there)."""
@@ -118,16 +144,13 @@ def test_polyline_audit_passes_the_built_tubes_under_5_mm(repo_root):
                                    for i, line in enumerate(lines))
     for line in lines:
         deviation = float(line.split("largest deviation ")[1].split(" mm")[0])
-        assert deviation < 5.0
+        assert deviation == 0.0  # every corner on the conductor's circle (the thin-wire contract)
         assert line.endswith(" over 486 vertices, tolerance 5 mm")  # 81 rings of 6
-    # the ring's corners stand (pi / 6) / sin(pi / 6) of the radius out: 0.212 mm on 4.5 mm
-    assert float(lines[0].split("largest deviation ")[1].split(" mm")[0]) == \
-        pytest.approx(4.5 * (math.pi / 6 / math.sin(math.pi / 6) - 1), abs=0.005)
 
 
 def test_polyline_audit_fails_a_vertex_20_mm_off_naming_the_wire(repo_root):
     """The scenario "Tube off its polyline": one vertex of the third conductor moved 20 mm out from its centre line
-    fails the audit naming the wire, its deviation (20 mm plus the corner's 0.212 mm) and the tolerance."""
+    fails the audit naming the wire, its deviation and the tolerance."""
     _, built, data = build(repo_root, "L03_medium")
     lod0 = copy.deepcopy(built["lods"][0])
     k = (2 * 81 + 40) * 6  # the third conductor's mid-span ring, its first corner
@@ -138,7 +161,7 @@ def test_polyline_audit_fails_a_vertex_20_mm_off_naming_the_wire(repo_root):
     lod0.vertices[k] = tuple(v[a] + 0.020 * out[a] / reach for a in range(3))
     problems, lines = audit.run(data, lod0)
     assert len(problems) == 1
-    assert problems[0].startswith("wires[2] 9 mm (slot aluminium): largest deviation 20.212 mm at (20, ")
+    assert problems[0].startswith("wires[2] 9 mm (slot aluminium): largest deviation 20.000 mm at (20, ")
     assert problems[0].endswith(" over 486 vertices exceeds the tolerance 5 mm")
     print(problems[0])
 
@@ -197,7 +220,6 @@ def test_sip_drop_is_two_twisted_cores_within_its_bundle(repo_root, material_ids
     ({"sag_ratio": 0.06}, "'sag_ratio' = 0.06 is over the intact 0.05"),
     ({"attach_heights_m": {"start": 4.0, "end": 4.0}},
      "conductor 1's lowest point 2.700 m is under the 3.5 m clearance of bare_al"),
-    ({"lod": {"lod1_switch_m": 80.0, "cull_m": 60.0}}, "'lod.*' must increase: 80.0, 60.0"),
 ])
 def test_check_refuses_what_is_not_built_or_does_not_hold(repo_root, edit, expected):
     problems = params.validate(wire_span, dict(load(repo_root, "L03_medium"), **edit))
@@ -215,12 +237,14 @@ def test_check_refuses_a_long_drop_and_idle_keys_on_a_single_conductor(repo_root
 
 
 def test_lods_records_and_snags(repo_root):
-    """LOD0 6-sided tubes, LOD1 4-sided from 20 m, culled at 300 m; per conductor a cable `wires` record and an
-    `edge` snag along the same points with the wire's radius; no collision, gap, wind volume or port."""
-    for name in VARIANTS:
+    """LOD0 6-sided tubes, LOD1 4-sided from 20 m, culled where the line's column sum 935 D / d falls under 1 % of a
+    pixel (5 mm: 467.5 m, 9 mm: 841.5 m, 20 mm: 1 870 m); per conductor a cable `wires` record and an `edge` snag
+    along the same points with the wire's radius; no collision, gap, wind volume or port."""
+    for name, cull in zip(VARIANTS, (467.5, 841.5, 1870.0)):
         _, built, data = build(repo_root, name)
         assert [lod["switch_distance_m"] for lod in data["lods"]] == [0.0, 20.0]
-        assert data["cull_distance_m"] == 300.0
+        assert data["cull_distance_m"] == pytest.approx(cull, abs=1e-6)
+        assert 935 * data["wires"][0]["diameter_m"] / data["cull_distance_m"] == pytest.approx(0.01)
         assert data["collision"] == data["gaps"] == data["wind_volumes"] == data["ports"] == []
         assert [m["physics"] for m in data["materials"]] == ["cable"]
         assert len(data["snag"]) == len(data["wires"])
