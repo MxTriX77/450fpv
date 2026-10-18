@@ -15,13 +15,14 @@ cards spanning the crown LOD0 built (its twigs and cards). lod.* come from the p
 LOD1 where the thickest twig, 8 mm, drops under 1 px (7.5 m); LOD2 where a card drops under 2 px (card_m * 467);
 cull where the clump's height drops under 2 px (height_m * 467, capped at 800 m: the belt beyond is V01's band).
 
-Metadata (design decisions 4 and 7, review-physics PR1-PR4): a `bark` capsule per stem segment (3 per stem) at the
+Metadata (design decisions 4 and 7, review-physics PR1-PR5): a `bark` capsule per stem segment (3 per stem) at the
 segment's mean radius; per stem a snag record on each capsule's chord at its radius, an `edge` on the lower segments
 and a `hook` from the top segment's lower end to the tip, so the chain runs from the ground to the tip; per twig one
 record from its base to its end at its mean radius, an `edge` where other twigs leave its end and a `hook` where it
 ends free; the crown contact shell as `twig` spheres and capsules on the leaf and twig mass (lib.shell, at most
-24, which the audit holds both ways); one wind box over the clump at porosity 0.7 - 0.35 * leaf_cover (the sheet's
-0.35 summer, 0.5 autumn, 0.7 bare); no gaps; nothing landable.
+24, which the audit holds both ways); one wind box over the LOD0 vertices of the twig and leaf slots, from the
+lowest of them to the top, at porosity 0.7 - 0.35 * leaf_cover (the sheet's 0.35 summer, 0.5 autumn, 0.7 bare); no
+gaps; nothing landable.
 
 Slots: stem (bark_shrub, physics bark), twig (bark_shrub, physics twig: the twigs are the shell's contact, not the
 capsules'), leaf (leaf_shrub, physics twig).
@@ -151,13 +152,15 @@ def build(params):
         cards.add_to(mesh, leaves[::lod + 1], LEAF)
     crown = sorted({lods[0].vertices[i] for indices, _, _, slot in lods[0].faces if slot in (TWIG, LEAF) for i in indices})
     collision = [meta.capsule(p0, p1, (r0 + r1) / 2, "bark") for stem in stems for p0, p1, r0, r1 in stem.segments]
+    wind = []
     if crown:  # the far cards span the built crown, not the envelope, so LOD2 shows the clump LOD0 showed
         clo, chi = (tuple(f(p[a] for p in crown) for a in range(3)) for f in (min, max))
         cards.add_to(lods[2], cards.crossed(max(chi[0] - clo[0], chi[2] - clo[2]), clo[1], chi[1]), LEAF)
         collision += [meta.capsule(a, b, r, "twig") for a, b, r in shell.fit(lods[0], (TWIG,), (LEAF,))]
+        wind.append({"shape": "box", "center": [(clo[a] + chi[a]) / 2 for a in range(3)], "size": [chi[a] - clo[a] for a in range(3)],
+                     "rotation": IDENTITY, "porosity": 0.7 - 0.35 * params["leaf_cover"]})
     else:
         lods.pop()
-    lo, hi = lods[0].bounds()
     lod = params["lod"]
     return {
         "lods": lods,
@@ -166,8 +169,7 @@ def build(params):
         "materials": [{"slot": STEM, "physics": "bark"}, {"slot": TWIG, "physics": "twig"}, {"slot": LEAF, "physics": "twig"}],
         "collision": collision,
         "gaps": [],
-        "wind_volumes": [{"shape": "box", "center": [(lo[a] + hi[a]) / 2 for a in range(3)], "size": [hi[a] - lo[a] for a in range(3)],
-                          "rotation": IDENTITY, "porosity": 0.7 - 0.35 * params["leaf_cover"]}],
+        "wind_volumes": wind,
         "snag": _stem_records(stems) + _twig_records(twigs),
     }
 
