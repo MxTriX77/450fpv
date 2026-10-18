@@ -25,6 +25,10 @@ The pipeline SHALL build asset S04 (`ground_patch` generator, variant `S04_patch
 - **WHEN** the collision audit runs on `S04_patch`
 - **THEN** every non-micro LOD0 vertex lies within 5 cm of the landable shapes and every shape within 5 cm of the mesh, the mounds included, and the audit's lines name the baked straws as micro-detail meshes it skipped
 
+#### Scenario: Bare patches are ground, not stains
+- **WHEN** the S04 metadata and LOD0 mesh are read where the derived map shows a bare soil patch
+- **THEN** the mesh steps down through the mat there by the depth the physics review sets, a landable `surface:belt_bare` shape (or the shape the physics review names) follows the patch within 5 cm, and the patch layout in the map and in the geometry come from one seeded definition, so the two never disagree
+
 #### Scenario: Colour inside the sheet's range
 - **WHEN** the derived albedo's mean over the patch is measured
 - **THEN** it lies within ±10 % luminance of the sheet's carried mean #7a7055, with bare soil patches inside 10YR 2/1–3/1 and the straw inside the sheet's dry-straw value, and the review sheet's day tile is compared with the H feed values in the comparison sheet
