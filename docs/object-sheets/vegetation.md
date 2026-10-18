@@ -395,7 +395,7 @@ Norway maple preset: `height_m` 6/10/14, `dbh_m` 0.08/0.18/0.32, `first_fork_m` 
 - **Landable surfaces:** none.
 
 ### Placement rules
-- 10–30 % of belts, more in the drier south; dead and half-dead elms stand at belt edges and strip ends (G).
+- 10–30 % of belts, more at dry belt edges; dead and half-dead elms stand at belt edges and strip ends (G).
 
 ### Generator parameters
 Preset: `height_m` 10/14, `dbh_m` 0.20/0.30, `first_fork_m` 2.5, `main_limbs` 4, `orders` 5, `children_per_order` 3.0, `fork_angle_deg` 35–60, `crown_shape` oval, `crown_width_m` 6/8, `dead_top_frac` 0–0.3 by state (half-dead 0.3).

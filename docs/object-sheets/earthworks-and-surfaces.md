@@ -913,7 +913,7 @@ Preset: `base_sets` brown_mud_02 + TextureCan Ground 0018; `albedo_target` #7a70
 | dust haze | to 2–4 m high in dry scenes | — | measured (terrain.md S6, F) |
 
 ### Construction and materials
-- Shaded, root-filled loam with no herb layer (published in vegetation.md: the herb layer is almost absent inside dense belts), a dusty top, dry leaves and twigs; exposed roots at trunk bases (assumed).
+- Shaded, root-filled loam with no herb layer (measured F, terrain.md T5: the floor is beaten bare inside dense belts), a dusty top, dry leaves and twigs; exposed roots at trunk bases (assumed).
 - **Materials:** Poly Haven `dirt_floor`, `forest_ground_04`, `park_dirt` tinted to 10YR 4/2–5/3; a dust-film mask; leaf instances from the belt trees above (AST-10).
 
 ### Colour

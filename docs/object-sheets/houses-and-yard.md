@@ -8,7 +8,7 @@
 
 ## How to read this sheet
 
-- **Labels:** measured (from a letter, with the still number), published (with its source), derived (with the derivation), assumed. Exact sizes fixed by AST-04 (as amended, D-032) are used as given: brick 250 × 120 × 65 mm; village-house doors 0.8 × 1.8–1.9 m; storeys 2.3–2.8 m for single-storey village houses and 2.8 m for two-storey houses. The larger house H06 uses a published door size, labelled in its row.
+- **Labels:** measured (from a letter, with the still number), published (with its source), derived (with the derivation), assumed. Exact sizes fixed by AST-04 (as settled in D-032) are used as given: brick 250 × 120 × 65 mm; the entrance door of the village houses H01–H04 0.8 × 1.8–1.9 m; the windows of the adobe houses H01–H02 0.8 × 1.0 m. Every other door, doorway and window (interior doors, H04's veranda doorway, the hut H05, H06, the outbuildings and the cellars) takes the labelled size its row gives, published where a standard exists, else measured or assumed (the 0.70 m cellar door is the pilot's, PR-9). Wall heights to the plate, from grade outside, sit in AST-04's class ranges: the small clay hut H05 2.0–2.3 m; the adobe houses H01–H02 2.3–2.6 m (measured E); the single-storey brick houses H03–H04 2.6–3.1 m including their plinth and cornice (measured J); two-storey houses 2.8 m a storey.
 - **Reuse:** sizes and colours already in [terrain.md](../reference-notes/terrain.md) §3 W4 and §4 B1–B6 are cited, not re-measured. `feed` colours are mean sRGB of the goggles feed (warm and saturated in sun); `photo` colours are from the photos J and I and are closer to albedo. Textures are authored at photo albedo; the feed effect adds the shift.
 - **The drone against an opening** (used by every "Gaps" line): prop tip to prop tip **0.574 m nose-first, 0.706 m on the diagonal** (knowledge.md §5.4). The footprint across an opening at yaw θ is `w(θ) = 0.254 + 0.32·(|cos θ| + |sin θ|)` m (derived: 10″ props on motors 0.226 m from the centre, 0.16 m in x and y), so an opening of clear width W passes nose-first when W > 0.574, passes at **any yaw** when W ≥ 0.706, and in between only up to `θmax = asin((W − 0.254) / 0.4525) − 45°`. Worked values: 0.60 m → ±5° and 13 mm a side; 0.65 m → ±16°, 38 mm a side; **0.70 m → ±35°, 63 mm a side (PR-9)**; 0.75 m → any yaw, 22 mm a side on the diagonal; 0.80 m → any yaw, 47 mm a side on the diagonal. The vertical envelope with legs is about **0.55 m** (assumed: 0.25–0.35 m legs under a frame with the payload on top; phase 5 fixes it from `drone.json`), so a clear height of 0.7 m is comfortable and 0.6 m is tight.
 - **Physics ids** are the closed list in [physics_materials.json](../../assets-src/physics_materials.json): `steel`, `sheet_metal`, `timber`, `masonry`, `concrete`, `glass`, `cable`, `foliage`. Ids written as `proposed:<id>` are new and need physics sign-off (see Open points at the end).
@@ -117,7 +117,7 @@ Every H row uses this set; a row's table lists only additions and changed defaul
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
 | Footprint | 8–12 × 5–7 m | 10 × 6 m | measured E (terrain.md B1) |
-| Wall height to the plate | 2.3–2.6 m | 2.4 m | measured E 7: the door head 1.9 m plus about 0.5 m to the plate; inside AST-04's amended 2.3–2.8 m for single-storey village houses (D-032) |
+| Wall height to the plate | 2.3–2.6 m | 2.4 m | measured E 7: the door head 1.9 m plus about 0.5 m to the plate; AST-04's class range for the adobe houses H01–H02, 2.3–2.6 m to the plate from grade (measured E, D-032) |
 | Wall thickness | 0.4–0.5 m | 0.45 m | measured E (B1); published 0.35–0.60 |
 | Ridge height | 4.6–5.4 m | 5.0 m | measured E (B1); derived pitch 38° |
 | Rafter pitch | 0.9–1.2 m | 1.0 m | measured E 7 |
@@ -263,7 +263,7 @@ Shared table with `roof_type_*` hip, `roof_pitch` 25, `roof_cover` slate, `batte
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
 | Footprint | 8–10 × 6–8 m | 9 × 7 m | measured J (terrain.md B2) |
-| Wall height to the cornice | 2.7–3.1 m | 2.9 m | derived: 2.8 m storey plus the cornice |
+| Wall height to the cornice | 2.7–3.1 m | 2.9 m | derived: 2.8 m storey plus the cornice; inside AST-04's class range for the single-storey brick houses H03–H04, 2.6–3.1 m from grade including the plinth and cornice (measured J, D-032) |
 | Wall thickness | 0.38–0.51 m | 0.38 m | derived from the brick (1.5 bricks) |
 | Plinth | 0.3–0.6 m above grade | 0.4 m | assumed |
 | Ridge height | 5–6 m | 5.5 m | measured J (B2); derived pitch 25–30° |
@@ -340,12 +340,13 @@ Shared table with `wall_material` silicate, `wall_height` 2.9, `wall_thickness` 
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
 | Footprint | 10–12 × 8–10 m | 11 × 9 m | asset-list §4 (assumed) |
-| Wall height | 2.9–3.1 m | 3.0 m | derived: 2.8 m storey plus a plinth step |
+| Wall height | 2.9–3.1 m | 3.0 m | derived: 2.8 m storey plus a plinth step; inside AST-04's class range for the single-storey brick houses H03–H04, 2.6–3.1 m from grade including the plinth and cornice (measured J, D-032) |
 | Wall thickness | 0.51 m | 0.51 m | derived: 2 bricks |
 | Roof | hip, 25–30°, ridge 5.5–6.5 m | 28°, ridge 6.0 m | derived |
 | Veranda | 2.5–3 × 4–6 m, lean-to 12–18° | 2.5 × 5 m | assumed (typical closed porch) |
 | Windows | 1.3–1.5 × 1.4–1.5 m | 1.4 × 1.45 m, 4 front, 3 side | assumed, as H03 |
 | Veranda glazing | panes 0.4 × 0.5 m in a 1.2 m high band | — | assumed |
+| Veranda doorway | 0.9 × 2.0 m | — | assumed: a typical veranda door, sized by this sheet; AST-04's exact door is H04's entrance door only (D-032) |
 | Roof sheet | 0.5–0.7 mm, corrugated or seamed | corrugated | assumed |
 
 ### Construction and materials
@@ -405,7 +406,7 @@ Shared table with `wall_material` red_brick, `wall_thickness` 0.51, `roof_cover`
 | Wall thickness | 0.3–0.45 m | 0.35 m | published 0.35–0.60; wattle 0.25–0.35 |
 | Roof | hip, 40–50°, ridge 4.0–4.6 m | 45°, ridge 4.3 m | assumed: steep for thatch, kept under slate |
 | Eaves | 0.5–0.7 m overhang, 1.8–2.0 m above grade | 0.6 m | assumed |
-| Door | 0.8 × 1.8 m | — | assumed: AST-04's exact door |
+| Door | 0.8 × 1.8 m | — | assumed: the village-house entrance door's size, reused; the hut takes its sheet's labelled size (AST-04, D-032) |
 | Windows | 0.6–0.8 × 0.7–0.9 m, 2–3 | 0.7 × 0.8 m | assumed (small hut windows) |
 | Призьба (clay bench) | 0.3–0.4 m high, 0.3–0.5 m wide | 0.35 × 0.4 m | assumed from tradition |
 
@@ -461,7 +462,7 @@ Shared table with `wall_material` wattle or adobe, `wall_height` 2.1, `wall_thic
 | Floor slab | 0.22 m hollow-core, 1.2 m wide | — | assumed standard |
 | Roof | gable or half-hip, 35–45°, ridge 9–10 m | 40°, ridge 9.7 m | measured I: a steep roof skeleton about 0.6 × the wall height |
 | Windows | 1.3–1.5 × 1.4–1.5 m, 3–4 per floor per long side | 1.4 × 1.45 m | measured I (rough) |
-| Door | 0.9 × 2.0 m | — | published: GOST 6629-88's 21-10 door mark (the mark names the opening in dm, 2.1 × 1.0 m; https://meganorm.ru/Data1/3/3481/index.htm ), a leaf of about 0.9 × 2.0 m inside its frame (derived). AST-04's exact 0.8 × 1.8–1.9 m door is for the village houses H01–H05 and the outbuildings (D-032) |
+| Door | 0.9 × 2.0 m | — | published: GOST 6629-88's 21-10 door mark (the mark names the opening in dm, 2.1 × 1.0 m; https://meganorm.ru/Data1/3/3481/index.htm ), a leaf of about 0.9 × 2.0 m inside its frame (derived). AST-04's exact 0.8 × 1.8–1.9 m door is the entrance door of H01–H04 only; every other door takes its sheet's labelled size (D-032) |
 | Balcony (variant 2) | 1.0 × 3 m slab with a 1.0 m rail | — | assumed |
 
 ### Construction and materials
@@ -529,7 +530,7 @@ A village plot is 20–30 m wide along the street and 60–100 m deep (assumed, 
 | Height | 2–2.5 m at the high side, 1.7–2.0 m at the low | 2.2 / 1.8 m | measured E 7 (against the 2.4 m wall) |
 | Boards | 0.10–0.15 m wide, 20–25 mm thick, gaps 5–30 mm | 0.12 m | measured E (B6) |
 | Posts | 0.10–0.15 m at 1.5–2 m | 0.12 m | assumed |
-| Door | 0.8 × 1.8 m, plank | — | assumed: AST-04's exact door (outbuildings) |
+| Door | 0.8 × 1.8 m, plank | — | assumed: the village-house entrance door's size, reused; outbuilding doors take their sheet's labelled size (AST-04, D-032) |
 | Window | 0.4 × 0.5 m or none | none | assumed |
 | Roof | lean-to 10–15°, boards and felt, or slate or sheet | boards and felt | measured E (a sloping plank roof), J (sheet) |
 
@@ -590,7 +591,7 @@ Two or three per yard (B3): against the house's end wall (E), along a side bound
 | Height | 2–2.5 m | 2.2 m | measured C 1 (against the 1.5 m fruit-tree fork) |
 | Wall | brick 0.25 m or block 0.20 m, cement render | block 0.20 m | assumed |
 | Roof | slab 0.1 m or boards on joists, felt, 3–8° | boards and felt, 5° | assumed; C reads a flat top |
-| Door | 0.8 × 1.8 m, plank | — | assumed: AST-04's exact door (outbuildings) |
+| Door | 0.8 × 1.8 m, plank | — | assumed: the village-house entrance door's size, reused; outbuilding doors take their sheet's labelled size (AST-04, D-032) |
 | Window | 0.4 × 0.5 m, 1 | 0.4 × 0.5 m | asset-list (small window); assumed size |
 
 ### Construction and materials
@@ -649,7 +650,7 @@ One per yard, along a side boundary or facing the cellar (C), 5–15 m from the 
 | Wall thickness | 0.25–0.38 m | 0.25 m | derived (1 or 1.5 bricks) |
 | Roof | gable or hip, slate, 25°, ridge 3.4–3.8 m | gable, ridge 3.6 m | assumed |
 | Chimney | 0.38 × 0.38 m, 0.5 m above the ridge | — | assumed (a stove inside) |
-| Door, windows | 0.8 × 1.9 m; 1–2 of 0.8–1.0 × 1.0–1.2 m | 2 windows 0.9 × 1.1 m | AST-04; assumed |
+| Door, windows | 0.8 × 1.9 m; 1–2 of 0.8–1.0 × 1.0–1.2 m | 2 windows 0.9 × 1.1 m | assumed (the door reuses the village-house entrance door's size; outbuildings take their sheet's labelled size, AST-04, D-032) |
 | Porch | 1.5 × 2 m lean-to on two posts | on | assumed |
 
 ### Construction and materials
@@ -1560,7 +1561,7 @@ The bench by the house door or the gate; the line between the house and a fruit 
 | `props` | set | any of the list | all | Which props the yard gets |
 | `line_span`, `line_height`, `line_sag` | m | 5–10, 1.5–1.9, 0.1–0.4 | 8, 1.7, 0.2 | The line's catenary (feeds L03's generator) |
 | `line_laundry` | 0–1 | — | 0.2 | Fraction of the line with cloth on it (visual, fabric snag) |
-| `tipped` | per prop | — | 0.2 | Fraction of props knocked over |
+| `tipped` | per prop | 0–1 | 0.2 | Fraction of props knocked over |
 | `rust` | 0–1 | — | 0.5 | Surface |
 | `seed` | int | — | — | Random choices |
 
