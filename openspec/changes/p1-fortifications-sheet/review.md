@@ -379,3 +379,20 @@ All 17 sent-back items are closed where the "Closed in 1.4" lines say:
   - F02's and F03's Outputs lines differ from the buildability review's LOD tables. The "box impostor row" is the world's merged LOD of a field, not the tooth's.
 - **S9** (the base spec, for the orchestrator at archive). `object-sheets` "Buildable" still says "WHEN the six sheets are done". Workflow lesson L13 would carry it in a MODIFIED delta.
 - **S10** (the physics reading's N-4). The two phase-7 tether scenarios (draped run: no cut above 1.35 GPa over 20 seeds; reversal round a barb: a cut logged with mechanism `bend` and the record index) go into QA's phase-7 test plan.
+
+## Closed in 1.5
+
+The reference analyst closed each item in `docs/object-sheets/fortifications.md` (branch `unity/ref/p1-fortifications-sheet--qa`; line numbers after the edit):
+
+- **R1** → every line of the OPSEC table reworded to what an object stands on or beside, how it is laid out and how many: F01 :86, :158–159, :162–163, `picket_side` :186 (`left, right, inside, alternate` against the run's drawing direction, default `left`), open point :209; F02 :288–289, :291; F04 :467–468, :482, :528, :535–536; across the sheet :611. The 30–100 m and 20–100 m figures and every tactical reason are gone. Same kind, found on the way: :162 ("around positions"), :261 (the buried D state's reason) and :341 ("a target of"). `git grep` for R1's words finds nothing.
+- **R2 (a)** → the 0.6 m coil at 11 m and a 0.406 m loop spacing, 15 m and 0.533 m from 0.72 m (which also comes at 11 m): Dimensions :46, :47, :49, :50; the turn model items 2 and 3 (:64–65: p 0.196 m, lean 40.9°, end-on 0.60 × 0.45 m; 42.6° and 0.44 m at the loop spacing's p 0.203 m); `coil_diameter_m` :176.
+- **R2 (b)** → :45: "56 in every concertina row" dropped; 31–56 over the catalogue's clipped concertina coils (31, 50, 51 or 56 by product; the military BTC row at 0.90 m 50).
+- **R2 (c)** → :51 and :85: the encyclopedia cited for 3 to 7 rivets joining the turns in a staggered pattern; :86: the ground stakes published (the encyclopedia's spirals fixed to the ground with stakes), the staples assumed; "three staples" gone.
+- **R2 (d)** → :346: rail as a member published, Р50 and Р65 assumed (the encyclopedias name no type); the sections at :347–348 stay published. `docs/asset-list.md` §12 F03: "Р50 rail (assumed)".
+- **R2 (e)** → :478 and `arm_length_m` :566: from 4.0 m a support at the arm's far end, swinging or fixed (the manufacturer's page lists the swinging support as required from 4.0 m; its brochure, added at :447, allows a fixed support instead), from 5.5 m the stabilising rope. The default 4.0 m arm keeps its fork end rest, and `check` refuses `end_rest` none from 4.0 m.
+- **R3** → :202: every turn at every LOD, with the buildability review's LOD1–LOD3 (4-sided on 12 points, 3-sided on 8, 3-sided on 6).
+- **S1** → :51 and :85 call the flat loops a simplification of the 3–7 staggered clips; F01 open point :210, a G2 look point with `clips_per_pair` to follow if needed.
+- **S4** → :80: the best box misses the 0.90 m coil's sections by 67–71 mm and the fence-top coil's by 24–26 mm, as close as its two capsules both ways; :75 quotes the two-way fit (21 / 27 mm; 24 / 36 mm at 0.19 m wide).
+- **S6** → `docs/asset-list.md` §12 F03 Key size: "members 1.8 m".
+- **S7** → :218: the county record replaced by the national monument-type thesaurus (heritagedata.org), which carries no county. The tetrahedron term's scope note there still names a historical command; it stays because no other source found gives the triangular class's proportion, which bounds the base default.
+- **S5, S8** → recorded for the asset change with their owner (asset-artist; physics sign-off on S5) at :606–610.
