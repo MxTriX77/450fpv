@@ -28,10 +28,9 @@
 | Moist against dry soil colour | Soil colour is read moist and dry; the moist colour is 1–2 Munsell value steps darker | USDA Soil Survey Manual, ch. 3: https://www.nrcs.usda.gov/resources/guides-and-instructions/soil-survey-manual |
 | Angle of repose | Soil 30–45°; wet excavated clay 15° | https://en.wikipedia.org/wiki/Angle_of_repose |
 | Explosion craters | Depth about a quarter of the apparent diameter, varying with soil; the apparent rim stands above the old surface; ejecta settles back into the bowl | https://amcaonline.org.ar/ojs/index.php/mc/article/download/569/542 · https://armamentresearch.com/an-introduction-to-crater-analysis/ |
-| Crater sizes on farmland | A national survey of shelled farmland counted craters 0.6–17.8 m across; satellite work counts millions of craters on fields | https://biz.liga.net/en/all/agriculture/novosti/shell-craters-counted-in-northern-ukraine-first-step-to-soil-remediation · https://ui.adsabs.harvard.edu/abs/2024AGUFMGC33O0339S/abstract |
-| Field trenches | Slit: 1.0–1.2 m wide at the top, 0.8 m at the bottom, about 1.5 m deep, straight legs no longer than 4–5 m, zigzag, an entrance of 5–6 steps at 90°; a battle trench about 0.75 m wide and 1.5 m deep; recent ones about 2 m deep and almost 1 m wide, lined with geotextile, mesh, boards and beams | https://dic.academic.ru/dic.nsf/ruwiki/1589715 · https://thinkdefence.co.uk/?p=67262 · https://news.liga.net/ua/amp/politics/news/ukriplennia-zsu-na-donechchyni-viiskovi-inzhenery-robliat-hlybshi-ta-shyrshi-okopy-foto |
+| Field trenches | Slit: 1.0–1.2 m wide at the top, 0.8 m at the bottom, about 1.5 m deep, straight legs no longer than 4–5 m, zigzag, an entrance of 5–6 steps at 90°; a battle trench about 0.75 m wide and 1.5 m deep; recent ones about 2 m deep and about 1 m wide, revetted with panels of sawn timber and steel mesh (75 mm) over geotextile | https://dic.academic.ru/dic.nsf/ruwiki/1589715 · https://thinkdefence.co.uk/?p=67262 |
 | Revetment | Hurdles of woven saplings about 0.9–1.2 m high and 1.8–2.7 m long between upright poles, anchored by pickets driven into the parapet | https://tnsos.net/TSLA/cwsourcebook/glossary.php?alph=h |
-| Dugouts | A covered shelter against plunging fire, its cover on timber or earth supports; positions reinforced with timber; roofs of logs 20–30 cm across, a film over them, then earth, leaving a low mound | https://booksite.ru/fulltext/1/001/007/012/12818.htm · https://texty.org.ua/articles/101984/vkopani-u-kamin-yak-vlashtovani-ukrayinski-okopy-na-shidnomu-fronti/ |
+| Dugouts | A covered shelter against plunging fire, its cover on timber or earth supports; a frame of round timber 16–22 cm across, a roof of one or more layers of logs, roofing felt or polyethylene film over them, then an earth cushion; the entrance turns 90° | https://booksite.ru/fulltext/1/001/007/012/12818.htm · https://ru.wikipedia.org/wiki/Блиндаж |
 | Trench flow | A narrow cavity under a cross-wind skims: one primary vortex fills it, with a secondary vortex under it at depth/width ≥ 2 | https://en.wikipedia.org/wiki/Street_canyon |
 | Field tillage | Mouldboard bodies 0.30–0.50 m wide (the furrow pitch), working depth 0.15–0.35 m; grain drill rows 15 cm on a 3.6 m drill; a combine's straw falls through a 1.5 m window into a windrow behind a 5–6 m header; wheat stubble 10–20 cm (13–35 cm in trials) | https://agro-masz.eu/en/strona-glowna/555-pj-single-beam-plough.html · https://learn.ztu.edu.ua/mod/resource/view.php?id=234541 · https://rep.bsatu.by/bitstream/doc/16458/1/2009_6.1.opredelenie.pdf · https://rae.agriculturejournals.cz/artkey/rae-201503-0004_evaluation-of-wheat-stubble-management-practices-in-terms-of-the-fuel-consumption-and-field-capacity.php · https://cigrjournal.org/index.php/Ejounral/article/view/3360 |
 | Stubble burning | Stubble burns to gases and light-coloured ash; windrows burn hotter than the stubble between them | https://eupdate.agronomy.ksu.edu/article/factors-to-consider-before-baling-or-burning-wheat-residue-289 · https://www.agric.wa.gov.au/grains/windrow-burning-tips-experts |
@@ -223,7 +222,7 @@ Outputs: the hole-band mask (`holes.png` cells), the filler mesh and its primiti
 |---|---|---|---|
 | top width, lip to lip | 0.6–1.0 m | 0.8 m | measured (terrain.md W2, G); published 0.75 m (battle trench) to 1.0–1.2 m (slit) |
 | bottom width | 0.5–0.8 m | 0.6 m | published (slit 0.8 m); default derived from a near-vertical spade cut |
-| depth below the lip | 1.2–1.8 m (recent runs to 2.0 m) | 1.5 m | measured (terrain.md W2); published 1.5 m, about 2 m for recent ones |
+| depth below the lip | 1.2–1.8 m (recent runs to 2.0 m) | 1.5 m | measured (terrain.md W2, G); published 1.5 m, about 2 m for recent ones |
 | wall batter | 80–90° | 86° | derived: (0.8 − 0.6)/2 = 0.1 m of batter over 1.5 m |
 | berm, lip to parapet toe | 0.2–0.6 m | 0.3 m | derived (the hole margin, shared rules) and assumed (spoil kept off the lip) |
 | parapet height | 0.3–0.5 m | 0.45 m field side, 0.3 m belt side | measured (terrain.md W2, G 1–12); the side split is assumed |
@@ -234,7 +233,7 @@ Outputs: the hole-band mask (`holes.png` cells), the filler mesh and its primiti
 | run length | 20–300 m | 80 m | assumed (G's run outlasts the clip, more than 50 m) |
 | side niches | 0.6–1.0 m wide, 0.5–0.7 m high, 0.5–1.0 m deep, sill 0.1–0.2 m above the floor | 0.8 × 0.6 × 0.7 m, 1 per 10 m | assumed |
 | spade facets on the walls | 0.2–0.3 m | — | assumed (a spade blade); normal map only (below 2 cm of relief) |
-| lip | crumbled 0–0.1 m, soil lip radius 0.02 m | — | physics constant (terrain-holes-review §2.4) |
+| lip | crumbled 0–0.1 m, soil lip radius 0.02 m | — | assumed: a physics constant (terrain-holes-review §2.4) |
 
 ### Construction and materials
 - Cut by spade or excavator into the field edge. The walls are undisturbed soil: a dark topsoil band (`topsoil_m`, 0.5 m) over the paler subsoil. G's walls are in shade and read uniformly dark; the band shows only in a sunlit or fresh wall (derived from the soil profile).
@@ -283,20 +282,20 @@ Outputs: the hole-band mask (`holes.png` cells), the filler mesh and its primiti
 The shared trench-family table, with `revetment` none, `collapse` 0, `overgrowth` 0; the three shapes are `shape` straight, zigzag, curving.
 
 ### Open points
-- Floors of boards or pallets in long-held runs: research names boards and beams; not visible in G at its height. Kept as an E02 option (`revetment` boards also floors the run), settled at the G2 review if the pilot says otherwise.
+- Floors of boards or pallets in long-held runs: assumed (research names sawn-timber revetment panels); not visible in G at its height. Kept as an E02 option (`revetment` boards also floors the run), settled at the G2 review if the pilot says otherwise.
 - The cavity model's mean in-cavity wind fraction: the physics engineer's (legacy §2.6 leaves it to tuning).
 - Whether the topsoil band reads in a sunlit wall at flying height: settled at the REAL-03 review against G.
 
 ## E02 Trench, revetted (boards, wattle, posts)
 
 **Seen in:** **R** (no letter shows a lined wall; G is too far and too fast to see one).
-**Research sources:** the revetment and field-trench rows (hurdles between upright poles; geotextile, mesh, boards and beams); https://en.wikipedia.org/wiki/EUR-pallet (pallet 1200 × 800 × 144 mm, for the pallet option).
+**Research sources:** the revetment and field-trench rows (hurdles between upright poles; sawn-timber and steel-mesh panels over geotextile); https://en.wikipedia.org/wiki/EUR-pallet (pallet 1200 × 800 × 144 mm, for the pallet option).
 
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
 | cut width (vertical walls) | 0.9–1.2 m | 1.0 m | assumed: cut wider so the lined corridor stays near the open trench's |
-| depth | as E01 | 1.5 m | as E01 |
+| depth | as E01 | 1.5 m | measured, as E01 (terrain.md W2, G) |
 | posts | 80–120 mm round or 100 × 100 mm sawn, every 1.0–1.5 m, driven 0.5–0.8 m below the floor, tops 0–0.3 m proud of the lip | 100 mm every 1.2 m, tops 0.1 m proud | assumed |
 | boards | 25–40 × 100–200 mm, horizontal behind the posts, gaps 0–30 mm | 30 × 150 mm, 10 mm gaps | assumed |
 | pallet option | 1.2 × 0.8 × 0.144 m, stood on end | — | published (EUR pallet) |
@@ -354,7 +353,7 @@ The shared trench-family table with `revetment` boards or wattle (or mesh), `rev
 | `broken` | float | 0–1 | 0 | share of panels broken or fallen in |
 
 ### Open points
-- The share of revetted runs and which lining dominates: research gives boards, beams, mesh and geotextile for recent work and wattle as the classic; the pilot confirms the mix at G2 (a qualitative look question, logged by the orchestrator only if the review sheet raises doubt).
+- The share of revetted runs and which lining dominates: research gives sawn timber, mesh and geotextile for recent work and wattle as the classic; the pilot confirms the mix at G2 (a qualitative look question, logged by the orchestrator only if the review sheet raises doubt).
 
 ## E03 Trench, collapsed and overgrown
 
@@ -368,7 +367,7 @@ The shared trench-family table with `revetment` boards or wattle (or mesh), `rev
 | top width | 1.2–2.5 m | 1.8 m | derived: 0.7 m deep with 35° walls and a 0.2 m floor → 2.2 m; the default trims the rounded lips |
 | wall slope | 30–40° | 35° | published (repose of soil) |
 | parapets | 0.1–0.3 m, spread 2–4 m | 0.2 m | derived (slumped from E01's 0.3–0.5 m) |
-| weeds in it | 0.5–1.5 m | 1.0 m | as S08 (terrain.md T7) |
+| weeds in it | 0.5–1.5 m | 1.0 m | measured, as S08 (terrain.md T7, D) |
 | saplings | 1–3 m, 0–1 per 5 m | 0.3 per 5 m | assumed (two or more seasons) |
 | remains of lining | 0–30 % of the run | 10 % | assumed |
 
@@ -408,23 +407,23 @@ The shared trench-family table with `collapse` 0.5–1, `overgrowth` 0.3–1, `a
 ## E04 Dugout entrance (log-roofed, steps down)
 
 **Seen in:** **R**. P2.
-**Research sources:** the dugout row (logs 20–30 cm, film, earth, a low mound; small); the slit-trench row (an entrance of 5–6 steps at 90°).
+**Research sources:** the dugout row (frame timber 16–22 cm, log layers, film, an earth cushion; small); the slit-trench row (an entrance of 5–6 steps at 90°).
 
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| opening (clear, in the frame) | 0.7–0.9 × 1.5–1.8 m | 0.8 × 1.6 m | asset list (R) |
+| opening (clear, in the frame) | 0.7–0.9 × 1.5–1.8 m | 0.8 × 1.6 m | assumed (asset list, R: research only) |
 | steps | 5–6, rise 0.20–0.25 m, tread 0.25–0.30 m | 6 × 0.22 / 0.28 m | published (5–6 steps) + assumed (rise, tread) |
 | stair corridor | 0.8–1.0 m wide, 1.6–1.8 m clear, about 40° down | 0.85 m, 1.7 m | derived from the steps (1.3 m down over 1.7 m) |
 | frame | two post logs and a lintel log, 0.12–0.20 m | 0.15 m | assumed |
-| roof logs | 0.20–0.30 m, 2–3 layers | 0.25 m, 2 layers | published (logs 20–30 cm) + assumed (layers) |
-| cover | film, then earth 0.3–0.8 m, grassed | 0.5 m | published (film, earth, low mound) + assumed (thickness) |
+| roof logs | 0.20–0.30 m, 2–3 layers | 0.25 m, 2 layers | assumed (a little over the published 16–22 cm frame timber; layers) |
+| cover | film, then earth 0.3–0.8 m, grassed | 0.5 m | published (film, earth cushion) + assumed (thickness: a field dugout, thinner than a full shelter's 1–2.5 m) |
 | mound above the field | 0.3–0.6 m, 3–5 m across | 0.4 m, 4 m | assumed |
 | chamber | 2.0–3.0 × 2.0–2.5 m, 1.7–2.0 m clear | 2.5 × 2.2 × 1.8 m | assumed: small (published) and a real room so that the fly-in ends somewhere (REAL-05) |
 | stove pipe or vent | 0.10–0.15 m, 0.3–0.6 m above the mound | 0.12 m | assumed (the asset list's "holes") |
 
 ### Construction and materials
-- A pit dug off the trench (belt side) and roofed with logs on log walls or on the soil shoulders; a film over the logs, then earth, leaving a low grassed mound (published). The entrance leaves the trench at about 90° (published) down 5–6 steps through a log frame. A tarp or a blanket hangs in the doorway (assumed). The steps are cut in soil, some edged with a board or a log.
+- A pit dug off the trench (belt side) and roofed with logs on log walls or on the soil shoulders; a film over the logs, then earth (published), leaving a low grassed mound (assumed). The entrance leaves the trench at about 90° (published) down 5–6 steps through a log frame. A tarp or a blanket hangs in the doorway (assumed). The steps are cut in soil, some edged with a board or a log.
 - **Materials:** logs: the vegetation sheet's bark sets (grey-brown, weathered) with sawn ends; film: a dark olive plastic tint at the edges; the mound: S04 or S01 cover; stair: S05 soil; tarp: the debris kit's tarp (K05).
 
 ### Colour
@@ -471,18 +470,18 @@ The shared trench-family table with `collapse` 0.5–1, `overgrowth` 0.3–1, `a
 ## E05 Craters (generator)
 
 **Seen in:** B (1–16: shallow, weathered craters 1–5 m over the crusted field, pale rims catching the low sun; B 12: a ring about 4–5 m across, four to five times the length of the 1 m fragment); A (1, 6–7: dark grassed hollows 1–3 m in the sod: the old, overgrown state and the small scorch spots, terrain.md T1, T3b). The pilot names strikes and fallen drones that explode as the source of scorched ground (terrain.md T3).
-**Research sources:** the crater rows of the research table (depth about a quarter of the apparent diameter; national counts 0.6–17.8 m across).
+**Research sources:** the explosion-crater row of the research table (depth about a quarter of the apparent diameter).
 
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| apparent diameter D, small | 0.3–1.0 m | 0.6 m | asset list; terrain.md T1, T3b |
+| apparent diameter D, small | 0.3–1.0 m | 0.6 m | assumed (asset list; terrain.md T3b, the pilot's small scorched craters); measured A fits it (terrain.md T1: dark patches 0.5–3 m) |
 | D, medium | 1.0–2.0 m | 1.5 m | asset list; measured (B 4–12) |
 | D, large | 3.0–4.0 m (B shows up to about 5 m) | 3.5 m | asset list; measured (B 12) |
 | depth d | 0.2–0.35 D | 0.25 D | published (about a quarter); terrain.md W1 0.3–1 m |
 | rim height h above the old surface | 0.03–0.1 D | 0.05 D | derived from terrain.md W1 (rims 0.1–0.3 m on 1–4 m craters, middle values) |
 | ejecta apron radius Re | 1.5–2.5 R | 2 R | assumed (the apron thins outward; fresh rays further) |
-| scorch disc, small class | 1–6 m | 3 m | terrain.md T1, T3b |
+| scorch disc, small class | 1–6 m | 3 m | assumed (terrain.md T3b: 2–6 m); measured A sets the low end (terrain.md T1: dark patches 0.5–3 m) |
 | clods on a fresh apron | 0.05–0.3 m | 10–30 per crater | assumed |
 | spacing in a cratered field | 5–20 m | 12 m | terrain.md T2; measured (B 4–12) |
 | steepest wall | 35–45° | 42° | derived from the profile below; the generator clamps it at 45° (the top of soil's repose range) |
@@ -687,7 +686,7 @@ How each surface row reads:
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| relief | 2–5 m over hundreds of metres | — | terrain.md T1; WLD-02 |
+| relief | 2–5 m over hundreds of metres | — | measured (terrain.md T1, A); WLD-02 |
 | grass height | 0.2–0.6 m | 0.35 m | terrain.md T1; carried |
 | stems | 2–4 mm, 400 per m² | — | carried |
 | thatch mat | 1–4 cm | 2.5 cm | carried |
@@ -907,11 +906,11 @@ Preset: `base_sets` brown_mud_02 + TextureCan Ground 0018; `albedo_target` #7a70
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| bare patches | the corridor width, 2–10 m | — | terrain.md T5 |
+| bare patches | the corridor width, 2–10 m | — | measured (terrain.md T5, F) |
 | loose top layer | 2–10 mm of dust over firm loam | 5 mm | assumed |
 | twigs and sticks | 5–30 mm, 0.3–2 m, 1 per m² | — | carried; measured (F 13–17) |
 | leaf litter | 3–8 cm leaves, 40 per m² | — | carried |
-| dust haze | to 2–4 m high in dry scenes | — | terrain.md S6 |
+| dust haze | to 2–4 m high in dry scenes | — | measured (terrain.md S6, F) |
 
 ### Construction and materials
 - Shaded, root-filled loam with no herb layer (published in vegetation.md: the herb layer is almost absent inside dense belts), a dusty top, dry leaves and twigs; exposed roots at trunk bases (assumed).
@@ -957,9 +956,9 @@ Preset: `base_sets` dirt_floor + forest_ground_04; `albedo_target` #7e6a55; `pat
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
 | furrow pitch, ploughed | 0.30–0.50 m | 0.35 m | published (body widths); terrain.md T3a |
-| ridge height, ploughed | 0.15–0.30 m | 0.20 m | terrain.md T3a |
-| clods, ploughed | 0.05–0.20 m | — | terrain.md T3a |
-| ridges, disked or harrowed | 0.05–0.15 m | 0.08 m | terrain.md T3a (the estimate for G) |
+| ridge height, ploughed | 0.15–0.30 m | 0.20 m | assumed (terrain.md T3a: a ploughed field; G shows the disked form) |
+| clods, ploughed | 0.05–0.20 m | — | assumed (terrain.md T3a: a ploughed field; G shows the disked form) |
+| ridges, disked or harrowed | 0.05–0.15 m | 0.08 m | measured (terrain.md T3a, G) |
 | straw streaks, disked stubble | 0.2–1 m wide, every 1–5 m, along the work direction | 0.5 m every 3 m | measured (G 1–12) |
 | drill rows, stubble | 0.15 m | 0.15 m | published (a 3.6 m drill with 15 cm rows); measured (P 33–42, fine parallel rows) |
 | stubble | 0.10–0.20 m standing, 3–4 mm, 400–700 per m² | 0.15 m, 500 /m² | published (cutting height); density assumed (about 4–5 million plants per hectare, 1–1.5 stems each) |
@@ -1015,12 +1014,12 @@ Preset: `base_sets` dry_mud_field_001 + aerial_mud_1 (+ brown_mud_02 wet); `albe
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| extent | a 2–6 m scorch disc up to whole fields | — | terrain.md T3b |
+| extent | a 2–6 m scorch disc up to whole fields | — | assumed (terrain.md T3b; no letter shows a burnt field close up) |
 | char stubble | 5–15 cm stumps, 3–5 mm, 100 per m² | 10 cm | terrain.md T3b; carried |
 | ash layer | 0–1 cm | 0.5 cm | terrain.md T3b; carried (mat 3–10 mm) |
 | ash lines where windrows burned | 0.5–2 m wide, every 5–9 m | as the field's windrows | derived (windrows burn hotter, published; their spacing from S06) |
 | fire front | wavy, 2–10 m amplitude | 5 m | terrain.md T3b; assumed amplitude |
-| unburnt islands and strips | 1–20 m | 5 m | terrain.md T3b |
+| unburnt islands and strips | 1–20 m | 5 m | assumed (terrain.md T3b) |
 | char gradient at the edge | 0.2–1 m | 0.5 m | assumed |
 
 ### Construction and materials
@@ -1109,7 +1108,7 @@ Preset: `base_sets` forest_ground_04 + dry_decay_leaves; `albedo_target` #4a463f
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| yard ground | compacted soil, 10–30 m yards | — | terrain.md T6 |
+| yard ground | compacted soil, 10–30 m yards | — | measured (terrain.md T6, C, E) |
 | leaf litter | 1–3 cm, leaves 4–12 cm, 300 per m² | 2 cm | terrain.md T6; carried |
 | loose items | bricks, tile shards, planks, stones 5–40 cm | 0.5–3 per m² near walls | terrain.md T6; density assumed |
 | twigs | 5–20 mm, 0.2–0.8 m, 1 per m² | — | carried |
@@ -1155,9 +1154,9 @@ Preset: `base_sets` brown_mud_leaves_01 + leaves_forest_ground; `albedo_target` 
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| pieces | 0.05–3 m: brick, tile, plaster, concrete, timber, sheet | — | terrain.md B5 |
-| rubble mound | 2–4 m high, spreading 15–20 m | — | terrain.md B5 (K) |
-| ground between pieces | trampled soil with fragments 0.05–1 m | — | terrain.md T8 |
+| pieces | 0.05–3 m: brick, tile, plaster, concrete, timber, sheet | — | measured (terrain.md B5, I, K) |
+| rubble mound | 2–4 m high, spreading 15–20 m | — | measured (terrain.md B5, K) |
+| ground between pieces | trampled soil with fragments 0.05–1 m | — | measured (terrain.md T8, I, K) |
 
 ### Construction and materials
 - The ground surface of a collapse: crushed brick and plaster fines with pieces in it. The pieces and mounds themselves are the debris kit and the houses and urban-edge assets; this row is the fine ground that carries them.
