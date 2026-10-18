@@ -421,3 +421,17 @@ Each step is a Standard-tier unit on established code (D-033), one agent each, a
    - F04 `post_bend_deg` 0–30 (line 471).
 
 Nothing here is a pilot question.
+
+## Closed in 1.4
+
+The reference analyst closed each sent-back item in `docs/object-sheets/fortifications.md` (branch `unity/ref/p1-fortifications-sheet--rework`); where an item touched physics, the physics reading's ruling was applied:
+
+1. F01 turn model → F01 Dimensions ("Tape a turn", "Loop extent along the run and lean", "Standing section", "Clips") and "The turn model", items 1–9: flat loops of 2.83 m, lean asin(2p / D) as an output, 0.90 × 0.72 m end-on, 2 clips a pair at the crossings, two capsules within 13–30 mm for every state and no box; Construction, "The coil"; D, sagging; Physics role, Collision; the snag polyline row; the generator's `pitch_m` (`loop_lean_deg` and `clips_per_turn` removed).
+2. F02 box count → F02 Physics role, Collision, "Why not boxes": 0.268 / n at the arrises, 14 boxes for ±2 cm and 6 for ±5 cm, spalls deeper than 2 cm; one `convex` hull per tooth instead (the physics reading §6); `collision_boxes` removed.
+3. Sections → F03 Dimensions: the Р50 and Р65 sections in full, the generator's rail outline checked at 66.4 cm² against the standard's 65.99 (81.7 against 82.65 for Р65), `angle_100` (L 100 × 100 × 8) and `channel_100` (No. 10); F01 Dimensions, "Picket type": the U picket 76 × 38 × 3 mm; the generator's `picket_section_m`.
+4. F03 "arm" → "member" for the 1.8 m bar and "half-arm" for node to end throughout F03: Dimensions ("Member length", wire holes 2 a half-arm, 4 a member), states, Physics role, the generator's `member_length_m`, `wire_holes`, `bent_half_arms`, `bend_at_m`, `cracked_weld`.
+5. F03 pair throat → F03 Physics role, Gaps: the polygon in the vertical plane through both centres, its sides the silhouettes projected along its normal.
+6. "From `damage`" → "How this sheet was made", one definition after houses-and-yard.md; every `damage` row points to it and every such item gives its I and D values in its Default cell (F01–F04).
+7. Missing parameters → F01: `trampled_count` and `trampled_length_m` (replacing `trampled_spans`), `picket_lean_deg`, `support_width_m`; F04: `cracked_blocks`, `post_bend_deg`.
+
+Also from the F04 notes above: the top-course boxes sit about 10 mm inside each bag (F04 Physics role, Collision), and the chicane rows are marked as the placement recipe for the layout, not prefab parameters (F04 Generator parameters).

@@ -381,3 +381,18 @@ yaw window: 0.60 +-4.9, 0.62 +-9.0, 0.66 +-18.8, 0.70 +-35.3 deg
 - the proof-test level 0.69 GPa (100 kpsi): https://stl.tech/wp-content/uploads/2023/04/Optical_Fiber_Proof_Testing.pdf and https://ro.prysmian.com/sites/ro.prysmian.com/files/media/documents/Product%20lifetime.pdf
 - bending strength of pristine fiber, 6.5–7.6 GPa Weibull means: https://nanophotonics.spiedigitallibrary.org/conference-proceedings-of-spie/4215.toc
 - Weibull moduli, 30–100 for telecom fiber and 3–7 for abraded glass: https://arxiv.org/abs/cond-mat/9606158
+
+## Closed in 1.4
+
+The reference analyst closed each item of §8 in `docs/object-sheets/fortifications.md` (branch `unity/ref/p1-fortifications-sheet--rework`):
+
+1. F01 snag records → F01 Physics role, the snag table (`radius_m` as the reach, `edge_radius_m` 0.00025, `barb_pitch_m` 0.035, `material`; clips, tie wire and pickets `steel`) and the default record; the generator rows `tape_width_m`, `barb_pitch_m`, `tape_thickness_m`; F01 Open points, "Which radius … closed".
+2. Cut or hold → F01 Physics role, "Cut or hold (ruled by the physics reading, §2)"; F01 Open points, "Cut or hold: closed".
+3. Collision and landing → F01 Physics role, Collision (60 N/m per part, about 240 N/m on four legs; the shape `stiffness_n_per_m` = 60 · (0.45 / R)³, 480 N/m; the fiber ignores `razor_wire` shapes), Material ids (the `steel` mapping sentence removed), Landable (0.20 m; 25 mm).
+4. `loop_lean_deg` → F01 Dimensions, "Loop extent along the run and lean", and "The turn model", items 2 and 5: asin(2p / D), 36.6° and 60.6°, openings 2p cos λ = 0.43 m and 0.19 m; the parameter removed, `pitch_m` sets the lean.
+5. F02 collision → F02 Physics role, Collision: one `convex` hull per tooth (8 points; 4–6 triangular), the box counts kept only as the reason; `collision_boxes` removed; F02 Open points, "The `convex` collision kind".
+6. F03 landable → F03 Physics role, Landable: 54.7° from vertical (35.3° from horizontal), above atan 0.35; the lower windows' plane stated as 35.3° from vertical.
+7. F04 sandbags → F04 Physics role, Collision and Material ids (`sandbag`, 900 N/m, ζ 0.9, edge 0.05 m; 13 mm and 28 mm a leg), Landable; the "rigid", 80 mm and "Until the physics reading rules" sentences struck; F04 Open points, closed.
+8. F04 entrance → F04 Dimensions, "Entrance"; the gaps table's entrance row; the generator's `entrance_m` (the clear width, the gap's `narrowest_m`); the collision bullet's one box per bag in every course within 0.3 m of the entrance and ports.
+9. Proposed ids → "Proposed physics ids: accepted by the physics reading": both rows replaced with §4's values, labelled derived.
+10. Open points across the sheet → "Open points across the sheet": the physics items and the F02 primitive closed with pointers to §1, §2, §4, §6 and §7; what is left kept with its owner (the asset change, the phase-3 world-query spec, the world-builder's compiler).
