@@ -6,13 +6,13 @@ from the hook's encoded list; footage names, dates, regional coordinates and ref
 are built at run time; test ids are indices, never values. test_own_sources_hold_no_planted_value
 holds this file and the hook to that.
 """
+import collections.abc
 import hashlib
 import os
 import re
 import shutil
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 import pytest
@@ -710,12 +710,53 @@ def test_reference_stems_match_whole_tokens_in_any_case():
         assert not stems.hint(text), i
 
 
+class CountingIndex(collections.abc.Mapping):
+    """A ReferenceStems index that counts the work done on it: every route to a stem runs here.
+
+    A probe per membership test, a key per key handed out, a stem per stem in a bucket handed out.
+    """
+
+    def __init__(self, by_run):
+        self.by_run, self.probes, self.keys_read, self.stems_read = by_run, 0, 0, 0
+
+    def __contains__(self, key):
+        self.probes += 1
+        return key in self.by_run
+
+    def __getitem__(self, key):
+        self.stems_read += len(self.by_run[key])
+        return self.by_run[key]
+
+    def __iter__(self):
+        for key in self.by_run:
+            self.keys_read += 1
+            yield key
+
+    def __len__(self):
+        return len(self.by_run)
+
+
 def test_reference_stems_scale_with_the_text_not_the_folder():
-    stems = precommit.ReferenceStems({f"{STEM}-{i:05d}" for i in range(20000)})
-    text = "".join(f"- Wall {i}: {i * 2} cm thick, seen from 50 m.\n" for i in range(2000))
-    start = time.perf_counter()
-    assert not stems.hint(text)
-    assert time.perf_counter() - start < 0.2
+    """hint probes the index once per distinct token of the text and reads only the stems the
+    text names: the same work for a 10- and a 10,000-file reference/, growing with the text.
+
+    Work is counted, not timed: wall time under other agents' load or on battery is not
+    evidence (TST-03, PLT-07). `python tools/hygiene/bench.py` times the whole scan.
+    """
+    names = [f"{STEM}-{i:08d}" for i in range(10000)]  # each indexed by its 8-digit sequence
+    wall = [f"- Wall {i}: {i * 2} cm thick, seen from 50 m.\n" for i in range(2000)]
+    texts = ["".join(wall[:200]), "".join(wall), "".join(wall) + "see " + ", ".join(names[:3])]
+    # (hint, probes, keys read, stems read). 200 lines hold the numbers 0-199, the even 200-398
+    # and 6 words (wall cm thick seen from m): 306 tokens; 2,000 lines: 3,006; naming 3 stems
+    # adds see, qz, hygiene, probe, 07 and the 3 sequences: 3,014.
+    expected = [(False, 306, 0, 0), (False, 3006, 0, 0), (True, 3014, 0, 3)]
+    for files in (10, 10000):
+        stems = precommit.ReferenceStems(set(names[:files]))
+        by_run = stems.by_run
+        for i, (text, want) in enumerate(zip(texts, expected)):
+            stems.by_run = index = CountingIndex(by_run)
+            got = (stems.hint(text), index.probes, index.keys_read, index.stems_read)
+            assert got == want, (files, i)
 
 
 def test_rules_apply_only_in_their_scope():
