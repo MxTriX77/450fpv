@@ -146,9 +146,9 @@ Plaster recipe from research: weathered lime whitewash #c4bfb1 over clay render 
 | L03 | Wires (generator: catenary between poles, sag) | **thin 5 mm, medium 10 mm, thick 15–20 mm cable** | C, D, J, K | **PR-6 strike physics by diameter**; nearly invisible in the feed | P1 |
 | L04 | Fallen or sagging wire across a yard | 2 | D | snag | P1 |
 | L05 | Hanging cables (in ruins) | 2 | E, K | snag | P1 |
-| R01 | Asphalt road kit: straight, curve, junction; potholes, crater decals, cracked edges | kit | M, O | surface | P1 |
-| R02 | Concrete road plates (about 6 × 2 m), laid as a track | kit with gaps and tilt | PR-8 | surface, uneven joints | P1 |
-| R03 | Dirt track ruts (decal plus surface) | kit | L, R | surface | P1 |
+| RD01 | Asphalt road kit: straight, curve, junction; potholes, crater decals, cracked edges | kit | M, O | surface | P1 |
+| RD02 | Concrete road plates (about 6 × 2 m), laid as a track | kit with gaps and tilt | PR-8 | surface, uneven joints | P1 |
+| RD03 | Dirt track ruts (decal plus surface) | kit | L, R | surface | P1 |
 
 ## 9. Vehicles (9 models × 3 states)
 
@@ -161,12 +161,12 @@ Sizes from [knowledge.md](knowledge.md) §9.2. Every model is built once, as a c
 | R03 | ВАЗ 2121 Niva | R | 3.74 × 1.68 × 1.64 m | P1 |
 | R04 | Daewoo Lanos sedan | N (class) | 4.24 × 1.68 × 1.43 m | P1 |
 | R05 | Chevrolet Aveo | R | 3.92 to 4.31 × 1.68–1.71 × 1.50 m | P2 |
-| R06 | Chery Amulet | R | 4.27 × 1.69 × 1.45 m | P2 |
+| R06 | Chery Amulet | R | 4.39 × 1.68 × 1.42 m (published) | P2 |
 | R07 | VW Passat B3/B4 (or Golf II) | R | 4.58–4.68 × 1.71–1.74 × 1.43–1.46 m | P2 |
 | R08 | ЗИЛ-130 flatbed truck | R | 6.68 × 2.50 × 2.40 m | P1 |
 | R09 | Урал-4320 with canvas tilt (burnt: bare hoops) | O | 7.35 × 2.50–2.69 × 2.64–3.0 m | P1 |
 
-- **Physics for every vehicle:** a few convex pieces plus thin capsules for torn parts; snag (torn sheet edges, sprung doors, hoops); wind (bluff body; a burnt shell is porous); land (roofs, truck beds); no gaps (window openings 0.4–0.5 m are too small).
+- **Physics for every vehicle:** a few convex pieces plus thin capsules for torn parts; snag (torn sheet edges, sprung doors, hoops); wind (bluff body; a burnt shell is porous); land (roofs, truck beds); no gaps for cars (window openings 0.4–0.5 m are too small); the burnt Урал's bare bows leave real fly-through bays (vehicles sheet).
 - **Debris field per state:** 5–20 m of glass crumbs, body fragments, trim. Burnt wrecks also get a 2–6 m soot patch.
 
 ## 10. Debris kit (shared)
