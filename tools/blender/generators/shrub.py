@@ -15,11 +15,11 @@ cards spanning the crown LOD0 built (its twigs and cards). lod.* come from the p
 LOD1 where the thickest twig, 8 mm, drops under 1 px (7.5 m); LOD2 where a card drops under 2 px (card_m * 467);
 cull where the clump's height drops under 2 px (height_m * 467, capped at 800 m: the belt beyond is V01's band).
 
-Metadata (design decision 4): a `bark` capsule per stem segment (3 per stem) at the segment's mean radius; a `hook`
-snag per stem from base to tip, radius half the base diameter; one `twig` sphere, the smallest enclosing every LOD0
-vertex of the twig and leaf slots (the crown contact shell, which the audit checks one-sided); one wind box over
-the clump at porosity 0.7 - 0.35 * leaf_cover (the sheet's 0.35 summer, 0.5 autumn, 0.7 bare); no gaps; nothing
-landable.
+Metadata (design decisions 4 and 7, review-physics PR1): a `bark` capsule per stem segment (3 per stem) at the
+segment's mean radius; a `hook` snag per stem from base to tip, radius half the base diameter; the crown contact
+shell as `twig` spheres and capsules on the leaf and twig mass (lib.shell, at most 24, which the audit holds both
+ways); one wind box over the clump at porosity 0.7 - 0.35 * leaf_cover (the sheet's 0.35 summer, 0.5 autumn, 0.7
+bare); no gaps; nothing landable.
 
 Slots: stem (bark_shrub, physics bark), twig (bark_shrub, physics twig: the twigs are the shell's contact, not the
 capsules'), leaf (leaf_shrub, physics twig).
@@ -27,7 +27,7 @@ capsules'), leaf (leaf_shrub, physics twig).
 import math
 import random
 
-from lib import cards, skeleton
+from lib import cards, meta, shell, skeleton
 from lib.geometry import Mesh
 
 STEM, TWIG, LEAF = "stem", "twig", "leaf"
@@ -40,7 +40,6 @@ BASE_R_SHARE, BASE_R_M = 0.1, (0.1, 0.25)
 CARD_MARGIN = 0.8           # of card_m: a sprig at a twig end reaches up to its length beyond it; 0.8 keeps
                             # the built width within 5 % of width_m (measured on the three variants)
 MIN_AXIS_M = 0.05
-SPHERE_ITERATIONS = 100     # Badoiu-Clarkson: the radius within about 1 % of the smallest
 IDENTITY = [0.0, 0.0, 0.0, 1.0]
 # Params the sheet gives the generator that nothing can draw yet: a non-default value is refused rather than
 # silently ignored (the proposal: the parameters exist, G1 shows summer).
@@ -149,12 +148,11 @@ def build(params):
         skeleton.tubes(mesh, stems, twigs, lod, STEM, TWIG)
         cards.add_to(mesh, leaves[::lod + 1], LEAF)
     crown = sorted({lods[0].vertices[i] for indices, _, _, slot in lods[0].faces if slot in (TWIG, LEAF) for i in indices})
-    collision = [_capsule(segment) for stem in stems for segment in stem.segments]
+    collision = [meta.capsule(p0, p1, (r0 + r1) / 2, "bark") for stem in stems for p0, p1, r0, r1 in stem.segments]
     if crown:  # the far cards span the built crown, not the envelope, so LOD2 shows the clump LOD0 showed
         clo, chi = (tuple(f(p[a] for p in crown) for a in range(3)) for f in (min, max))
         cards.add_to(lods[2], cards.crossed(max(chi[0] - clo[0], chi[2] - clo[2]), clo[1], chi[1]), LEAF)
-        centre, radius = _enclosing_sphere(crown)
-        collision.append({"shape": "sphere", "center": list(centre), "radius": radius, "material": "twig", "landable": False})
+        collision += [meta.capsule(a, b, r, "twig") for a, b, r in shell.fit(lods[0], (TWIG,), (LEAF,))]
     else:
         lods.pop()
     lo, hi = lods[0].bounds()
@@ -172,35 +170,3 @@ def build(params):
                  for stem in stems],
     }
 
-
-def _capsule(segment):
-    """A bark capsule along a stem segment (p0, p1, r0, r1): the mean radius, the chord as its cylinder (height is
-    the total length, caps included), rotated from local +Y onto the chord (meta schema, design decision 6)."""
-    p0, p1, r0, r1 = segment
-    radius = (r0 + r1) / 2
-    length = skeleton.norm(skeleton.sub(p1, p0))
-    return {"shape": "capsule", "center": [(p0[a] + p1[a]) / 2 for a in range(3)], "radius": radius, "height": length + 2 * radius,
-            "rotation": _rotation_from_y(skeleton.normalize(skeleton.sub(p1, p0))), "material": "bark", "landable": False}
-
-
-def _rotation_from_y(d):
-    """The unit quaternion [x, y, z, w] taking local +Y onto the unit direction d (Unity's convention)."""
-    c = max(-1.0, min(1.0, d[1]))
-    if c > 1 - 1e-9:
-        return list(IDENTITY)
-    if c < -1 + 1e-9:
-        return [1.0, 0.0, 0.0, 0.0]
-    axis = skeleton.normalize(skeleton.cross((0.0, 1.0, 0.0), d))
-    half = math.acos(c) / 2
-    s = math.sin(half)
-    return [axis[0] * s, axis[1] * s, axis[2] * s, math.cos(half)]
-
-
-def _enclosing_sphere(points):
-    """(centre, radius) of a near-smallest sphere holding every point: the centre walks toward the farthest point
-    by 1 / (i + 1) each round (Badoiu and Clarkson), then the radius is the farthest distance plus a millimetre."""
-    centre = tuple(sum(p[a] for p in points) / len(points) for a in range(3))
-    for i in range(1, SPHERE_ITERATIONS + 1):
-        far = max(points, key=lambda p: math.dist(p, centre))
-        centre = tuple(centre[a] + (far[a] - centre[a]) / (i + 1) for a in range(3))
-    return centre, max(math.dist(p, centre) for p in points) + 0.001

@@ -1,10 +1,10 @@
-"""generators.shrub with lib.skeleton and lib.cards (p1-v13-shrub, "V13 belt understory shrub"): the committed
-params conform and the defaults are V13_mid; the built sizes sit inside the sheet; LOD triangle counts under budget
-and halving; every stem segment a bark capsule on its chord with a hook of half the base diameter; one twig sphere
-enclosing every leaf and twig vertex; one wind box at porosity 0.35; no gap, nothing landable; the skeleton's
-radii, tubes and normals; card UVs inside the atlas cells, the far cards over the whole atlas; sprig cards leaving
-their twig at the fork angle; determinism per
-seed; check's refusals; and V13_mid's bounding sphere failing the audit's standoff (QA's R1)."""
+"""generators.shrub with lib.skeleton, lib.cards and lib.shell (p1-v13-shrub, "V13 belt understory shrub"): the
+committed params conform and the defaults are V13_mid; the built sizes sit inside the sheet; LOD triangle counts
+under budget and halving; every stem segment a bark capsule on its chord with a hook of half the base diameter; the
+twig shell as at most 24 twig spheres and capsules; one wind box at porosity 0.35; no gap, nothing landable; the
+skeleton's radii, tubes and normals; card UVs inside the atlas cells, the far cards over the whole atlas; sprig
+cards leaving their twig at the fork angle; determinism per seed; check's refusals; the low variant through the
+collision audit, and V13_mid's first, single sphere failing its standoff."""
 import copy
 import json
 import math
@@ -12,24 +12,32 @@ import math
 import pytest
 
 from generators import shrub
-from lib import audit, cards, catalog, meta, params, skeleton
+from lib import audit, cards, catalog, meta, params, shell, skeleton
 from lib.geometry import Mesh
 
 VARIANTS = ("V13_low", "V13_mid", "V13_tall")
 SHEET = {"V13_low": ((1.0, 1.5), (1.0, 2.0)), "V13_mid": ((1.5, 2.5), (1.5, 3.0)), "V13_tall": ((2.5, 3.5), (2.0, 3.0))}
 VISUALS = {"stem": "bark_shrub", "twig": "bark_shrub", "leaf": "leaf_shrub"}
 UP = (0.0, 1.0, 0.0)
+BUILT = {}  # one build per variant for the whole module: the shell fit takes seconds
 
 
 def load(repo_root, variant):
     return json.loads((repo_root / "assets-src" / "vegetation" / f"{variant}.json").read_text(encoding="utf-8"))
 
 
+def build(repo_root, name):
+    """(name, params, built, metadata) of a committed variant, built once."""
+    if name not in BUILT:
+        p = load(repo_root, name)
+        built = shrub.build(p)
+        BUILT[name] = name, p, built, meta.assemble("V13", name, "shrub", p, built, VISUALS)
+    return BUILT[name]
+
+
 @pytest.fixture(params=VARIANTS)
 def variant(request, repo_root):
-    p = load(repo_root, request.param)
-    built = shrub.build(p)
-    return request.param, p, built, meta.assemble("V13", request.param, "shrub", p, built, VISUALS)
+    return build(repo_root, request.param)
 
 
 def slot_vertices(mesh, slots):
@@ -71,43 +79,61 @@ def test_lods_under_budget_and_halving(variant):
     assert not any(f[3] == "twig" for f in built["lods"][1].faces) and all(f[3] == "leaf" for f in built["lods"][2].faces)
 
 
-def test_metadata_carries_capsules_hooks_shell_and_wind(variant, material_ids):
+def axis_ends(capsule):
+    """The end points of a capsule's axis (its chord), from its centre, height, radius and rotation."""
+    d = audit._rotate(tuple(capsule["rotation"]), UP)
+    half = capsule["height"] / 2 - capsule["radius"]
+    return [[capsule["center"][a] - half * d[a] for a in range(3)], [capsule["center"][a] + half * d[a] for a in range(3)]]
+
+
+def flat(points):
+    return [c for p in points for c in p]
+
+
+def test_metadata_carries_capsules_and_a_shell_of_pieces(variant, material_ids):
     name, p, built, data = variant
     assert meta.validate(data, material_ids) == []
-    capsules = [c for c in data["collision"] if c["shape"] == "capsule"]
-    spheres = [c for c in data["collision"] if c["shape"] == "sphere"]
-    assert len(capsules) == p["stems"] * skeleton.SEGMENTS and len(spheres) == 1 and len(data["collision"]) == len(capsules) + 1
-    assert all(c["material"] == "bark" and c["landable"] is False for c in capsules)
-    assert all(0.005 <= c["radius"] <= p["stem_d_mm"] / 2000 and c["height"] >= 2 * c["radius"] for c in capsules)
-    shell = spheres[0]
-    assert shell["material"] == "twig" and shell["landable"] is False
-    crown = slot_vertices(built["lods"][0], ("leaf", "twig"))
-    distances = [math.dist(v, shell["center"]) for v in crown]
-    assert max(distances) < shell["radius"] and shell["radius"] - max(distances) < 0.0015  # encloses, tightly
-    hooks = data["snag"]
-    assert len(hooks) == p["stems"] and all(h["kind"] == "hook" and h["radius_m"] == p["stem_d_mm"] / 2000 for h in hooks)
-    for hook in hooks:
-        assert len(hook["points"]) == skeleton.SEGMENTS + 1 and hook["points"][0][1] == 0.0
-        assert hook["points"][-1][1] == max(pt[1] for pt in hook["points"])
+    bark = [c for c in data["collision"] if c["material"] == "bark"]
+    pieces = [c for c in data["collision"] if c["material"] == "twig"]
+    assert len(bark) == p["stems"] * skeleton.SEGMENTS and all(c["shape"] == "capsule" for c in bark)
+    assert all(0.005 <= c["radius"] <= p["stem_d_mm"] / 2000 and c["height"] >= 2 * c["radius"] for c in bark)
+    assert 1 <= len(pieces) <= shell.MAX_PIECES and len(data["collision"]) == len(bark) + len(pieces)
+    assert all(c["shape"] in ("sphere", "capsule") for c in pieces)
     assert data["gaps"] == [] and not any(c["landable"] for c in data["collision"])
-    (wind,) = data["wind_volumes"]
-    lo, hi = built["lods"][0].bounds()
-    assert wind["shape"] == "box" and wind["porosity"] == pytest.approx(0.35)
-    assert wind["size"] == pytest.approx([hi[a] - lo[a] for a in range(3)], abs=1e-6)
     assert data["materials"] == [{"slot": "stem", "visual": "bark_shrub", "physics": "bark"},
                                  {"slot": "twig", "visual": "bark_shrub", "physics": "twig"},
                                  {"slot": "leaf", "visual": "leaf_shrub", "physics": "twig"}]
 
 
+def test_a_hook_per_stem_from_base_to_tip(variant):
+    name, p, built, data = variant
+    hooks = data["snag"]
+    assert len(hooks) == p["stems"] and all(h["kind"] == "hook" and h["radius_m"] == p["stem_d_mm"] / 2000 for h in hooks)
+    for hook in hooks:
+        assert len(hook["points"]) == skeleton.SEGMENTS + 1 and hook["points"][0][1] == 0.0
+        assert hook["points"][-1][1] == max(pt[1] for pt in hook["points"])
+
+
+def test_one_wind_box_over_the_clump(variant):
+    name, p, built, data = variant
+    (wind,) = data["wind_volumes"]
+    lo, hi = built["lods"][0].bounds()
+    assert wind["shape"] == "box" and wind["porosity"] == pytest.approx(0.35)
+    assert wind["size"] == pytest.approx([hi[a] - lo[a] for a in range(3)], abs=1e-6)
+
+
 def test_capsule_lies_on_its_segment():
     p0, p1 = (0.1, 0.0, 0.2), (0.4, 1.8, -0.1)
-    capsule = shrub._capsule((p0, p1, 0.009, 0.005))
+    capsule = meta.capsule(p0, p1, 0.007, "bark")
     direction = skeleton.normalize(skeleton.sub(p1, p0))
     assert audit._rotate(tuple(capsule["rotation"]), UP) == pytest.approx(direction)
     assert capsule["center"] == pytest.approx([0.25, 0.9, 0.05]) and capsule["radius"] == pytest.approx(0.007)
     assert capsule["height"] == pytest.approx(math.dist(p0, p1) + 0.014)
-    assert shrub._rotation_from_y(UP) == [0.0, 0.0, 0.0, 1.0]
-    assert audit._rotate(tuple(shrub._rotation_from_y((0.0, -1.0, 0.0))), UP) == pytest.approx((0.0, -1.0, 0.0))
+    assert flat(axis_ends(capsule)) == pytest.approx(flat([p0, p1]))
+    assert meta.capsule(p0, p0, 0.2, "twig") == {"shape": "sphere", "center": list(p0), "radius": 0.2, "material": "twig",
+                                                 "landable": False}
+    assert meta.rotation_from_y(UP) == [0.0, 0.0, 0.0, 1.0]
+    assert audit._rotate(tuple(meta.rotation_from_y((0.0, -1.0, 0.0))), UP) == pytest.approx((0.0, -1.0, 0.0))
 
 
 def test_skeleton_radii_segments_and_branching(repo_root):
@@ -194,8 +220,7 @@ def test_cards_face_the_viewer_outside_the_clump(repo_root, camera):
     """Most of the cards a camera outside the clump can see show it their front, so each card covers more of the
     clump for its two triangles (the leaf shader lights both faces right since task 1.4): the review sheet's 10 m
     and 1.5 m cameras and one low."""
-    built = shrub.build(load(repo_root, "V13_mid"))
-    lod0 = built["lods"][0]
+    lod0 = build(repo_root, "V13_mid")[2]["lods"][0]
     near, front = 0, 0
     for indices, normal, _, slot in lod0.faces:
         if slot != "leaf":
@@ -209,11 +234,13 @@ def test_cards_face_the_viewer_outside_the_clump(repo_root, camera):
     assert near > 100 and front / near >= 0.75, (front, near)  # 0.77-0.82 as tuned (sprigs off the twig); a random roll gives 0.5
 
 
-def test_seed_determines_the_clump(repo_root):
-    p = load(repo_root, "V13_mid")
-    a = shrub.build(p)["lods"][0].vertices
-    assert a == shrub.build(p)["lods"][0].vertices
-    assert a != shrub.build(dict(p, seed=p["seed"] + 1))["lods"][0].vertices
+def test_seed_determines_the_clump(repo_root, monkeypatch):
+    name, p, built, data = build(repo_root, "V13_low")
+    again = shrub.build(p)
+    assert again["lods"][0].vertices == built["lods"][0].vertices
+    assert meta.assemble("V13", name, "shrub", p, again, VISUALS) == data  # the shell and records too
+    monkeypatch.setattr(shell, "fit", lambda *args: [])  # the clump's geometry is all this compares
+    assert shrub.build(dict(p, seed=p["seed"] + 1))["lods"][0].vertices != built["lods"][0].vertices
 
 
 @pytest.mark.parametrize("edit, expected", [
@@ -230,15 +257,28 @@ def test_check_refuses(repo_root, edit, expected):
     assert params.validate(shrub, edited) == [expected]
 
 
+def test_low_variant_passes_the_collision_audit(repo_root):
+    """The low variant's shell holds both ways: each piece within 0.1 m of a leaf or twig face, every twig vertex
+    within 0.1 m of the pieces and every leaf vertex within 0.3 m (the build audits every variant)."""
+    _, p, built, data = build(repo_root, "V13_low")
+    problems, lines = audit.run(data, built["lods"][0], catalog.card_visuals(repo_root))
+    assert problems == []
+    pieces = [c for c in data["collision"] if c["material"] == "twig"]
+    shell_lines = [line for line in lines if "twig shell" in line]
+    assert sum(1 for line in shell_lines if "largest standoff" in line) == len(pieces)
+    assert [line.split(":")[0] for line in shell_lines if line.startswith("audit slot")] == \
+        ["audit slot leaf (cards, twig shell)", "audit slot twig (geometry, twig shell)"]
+    assert sum(1 for line in lines if "capsule->mesh" in line) == p["stems"] * skeleton.SEGMENTS
+
+
 FIRST_SPHERE = {"shape": "sphere", "center": [-0.007505, 1.257248, 0.022364], "radius": 1.106606, "material": "twig",
                 "landable": False}  # V13_mid's shell as task 1.2 built it: one sphere bounding every leaf and twig
 
 
 def test_the_first_bounding_sphere_fails_its_standoff(repo_root):
     """QA's R1: the one sphere stood up to 0.78 m off the leaves, round the bare stems; rule (a) fails it."""
-    p = load(repo_root, "V13_mid")
-    built = shrub.build(p)
-    data = meta.assemble("V13", "V13_mid", "shrub", p, built, VISUALS)
+    name, p, built, data = build(repo_root, "V13_mid")
+    data = copy.deepcopy(data)
     data["collision"] = [c for c in data["collision"] if c["material"] == "bark"] + [FIRST_SPHERE]
     problems, _ = audit.run(data, built["lods"][0], catalog.card_visuals(repo_root))
     assert len(problems) == 1 and problems[0].startswith("collision[42] sphere (twig shell): largest standoff ")
