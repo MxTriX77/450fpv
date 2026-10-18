@@ -675,6 +675,7 @@ MonoBehaviour:
   - mesh: V13_mid_LOD2
     tris: 6
     switchDistanceM: 93.5
+  micro: []
   cullDistanceM: 800
   materials:
   - slot: stem
@@ -2147,8 +2148,8 @@ LODGroup:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1681263470154961416}
   serializedVersion: 2
-  m_LocalReferencePoint: {x: 0, y: 1.0138314, z: 0.019282341}
-  m_Size: 2.0932937
+  m_LocalReferencePoint: {x: 0, y: 1.0138315, z: 0.01928252}
+  m_Size: 2.093294
   m_FadeMode: 0
   m_AnimateCrossFading: 0
   m_LastLODIsBillboard: 0
