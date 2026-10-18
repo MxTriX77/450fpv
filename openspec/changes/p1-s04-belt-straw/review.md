@@ -486,3 +486,179 @@ QA read the local side-by-side sheet rebuilt in task 1.7 (`reference/_compare/S0
 - **R6** (orchestrator, with the asset-artist if the look changes; REAL-03, the rest of R5): §10 items 7 and 11 name no owner, change or G1 acceptance, against R5 and ruling 14c, and item 7 is the largest look gap left: the bare patches read as clean round pits at 10 m and in the turntables, and as a cut hole on the far side of the 1.5 m tile. Either improve the 10 m look within PR3 and PR4 and re-judge it against H 9–14 and G 1–12 (for example: the step walls in the mat's straw tones instead of the litter column's near-black; the ragged lip carried to LOD1; the floors' value once the reference analyst re-measures the soil, ruling 14d; patches gathered like H's paths rather than spread evenly), or rule it accepted for G1 and name in items 7 and 11 the owner and the change that fixes each. A re-review of R6 alone needs §10, plus the S04 build and its sheets only if the look changes.
 
 Verdict: CHANGES REQUESTED
+
+## Short pass after 1.8
+
+**Reviewer:** qa-engineer (a fresh agent; none of the work is its own) · **Tip:** `8ee0917` · **Range:** `f0a12aa..8ee0917` (5 commits, task 1.8: R6 with F8 and F12)
+**Read:** `design.md` decision 15 and §10 items 7, 8 and 11, `tasks.md`, the spec deltas, `review-physics.md` PR1–PR8 and N7–N8, the full diff of `tools/blender/lib/patches.py`, `tools/blender/generators/ground_patch.py`, `tools/assets/derive.py`, the params, recipes and catalog, and every changed test; §S04 of the object sheet from `origin/unity/main`; TST-06 and D-037.
+
+Run by QA in its own worktree: `git lfs checkout` first (all 22 LFS files real), no `unity/Library/` before the first Unity run, Unity Hub running, no editor on the project, every Unity call piped. QA's scripts and crops live in its scratchpad; the side-by-side was built by QA from the H and G contact sheets into the git-ignored `reference/_compare/` and is not committed. No performance claim is made (the laptop read `BatteryStatus 1` at the start of the session).
+
+### Checks
+
+```
+$ pwsh tools/build_asset.ps1 S04                       (first run: EXIT 0, 440 s)
+S04_patch: audit: skipped micro mesh S04_patch_LOD0_straw (20329 straw)
+S04_patch: audit: soft tops collision[0] surface:belt_straw, collision[1..195] straw, collision[196..198] surface:crater_spoil are landed on over their whole top, held to 50 mm there
+S04_patch: audit collision[0] box: box->mesh 32.334 mm at (-1.5625, -0.125, -2.875), tolerance 50 mm
+S04_patch: audit collision[1..195] box: box->mesh 0.000 .. 39.564 mm (largest collision[1] at (-5.9594, 0, 2.7539)), tolerance 50 mm   [195 lines, condensed by QA]
+S04_patch: audit collision[196] sphere: sphere->mesh 15.876 mm at (4.1127, 0.0001, 0.0746), tolerance 50 mm
+S04_patch: audit collision[197] sphere: sphere->mesh 23.369 mm at (5.0988, 0.0001, 1.4007), tolerance 50 mm
+S04_patch: audit collision[198] sphere: sphere->mesh 17.652 mm at (2.2931, 0.0001, -2.3318), tolerance 50 mm
+S04_patch: audit mesh: mesh->collision 40.000 mm at (-6, 0.04, 2.75) nearest collision[1], tolerance 50 mm
+S04_patch: unity\Assets\_Project\Art\Models\surfaces\S04\S04_patch.fbx  size [12.0, 1.636, 12.0] m  tris 25029 / 25029 / 26  micro S04_patch_LOD0_straw 20329 straw 405792 tris  199 collision shapes  fbx 15.8 MB  metadata written
+build_asset: [2/4] … belt_soil_mask, belt_straw_albedo, brick_red_mask, straw_albedo: up to date; derive.py: OK
+[CatalogImporter] S04_patch: Assets/_Project/Prefabs/surfaces/S04_patch.prefab, 3 LODs, S04_patch_LOD0_straw (20329 straw, LOD0) micro, 199 colliders, materials ground -> belt_straw, soil -> belt_soil, straw -> straw, edge -> belt_straw, LOD heights 1.0000 / 0.1333 / 0.0200 (size 9.237604 m, fov 60 deg)
+[Review] surface pilot pose: camera (0.000, 1.925, 0.000), 1.500 m above the patch centre (0.000, 0.425, 0.000), forward (0.8192, -0.5736, 0.0000), 35.00° down towards +X; bar base (2.500, 0.425, 0.000), 2.50 m ahead, in frame True
+[Review] S04_patch day: review-sheets/S04/S04_patch_day.png (4096x4096, 6.5 MB); overcast 6.2 MB
+build_asset: OK (S04)
+$ git status --short                                   -> (clean)
+$ pwsh tools/build_asset.ps1 S04                       (second run: EXIT 0, 281 s; all 202 audit lines identical to the first run's)
+$ git status --short                                   -> (clean)
+  sha256 of both sheets, S04_patch.fbx (f4a9bf1c… = its LFS oid), .assetmeta.json and the prefab: identical after both runs
+  LOD0 25 029 + 405 792 = 430 821 triangles (< 450 k); 199 shapes = soil 1 + fill 39 + edge 156 (13 × 12) + mounds 3
+
+$ python -m pytest tools -q -p no:cacheprovider -rf
+  FAILED tools/hygiene/tests/test_precommit.py::test_existing_tree_is_clean[origin/unity/main merged with HEAD]
+         AssertionError: this branch does not merge cleanly into unity/main  (git merge-tree returncode 1)
+  1 failed, 634 passed in 752.98s (0:12:32)
+$ git merge-tree --write-tree --name-only origin/unity/main HEAD
+  conflicts: CREDITS.md, assets-src/catalog.json, tools/assets/{derive.py, fetch.py, manifest.json, tests/test_derive.py},
+  tools/blender/{build.py, lib/audit.py, tests/test_audit.py}, unity/Assets/_Project/Editor/Assets/{CatalogImporter.cs, ModelPostprocessor.cs}
+  -> the only failure, and it is the S04/V13 merge the handover's §4 lists (all eleven files are named there or are
+     their tests; it is more than the two .cs files). The timing test (F6) passed this run.
+$ python tools/assets/fetch.py --verify                -> OK   exit 0
+$ python tools/assets/derive.py --all                  -> all four "up to date"; derive.py: OK   exit 0
+$ python tools/assets/derive.py --root <QA scratch root: copies of assets-src, the manifest and the pinned sets> --all
+  -> every recipe derived from scratch; all 11 outputs and stamps byte-identical to the committed files (cmp)
+$ python tools/hygiene/precommit.py --tree HEAD        -> 497 files scanned, 0 findings   exit 0
+$ openspec validate p1-s04-belt-straw --strict         -> Change 'p1-s04-belt-straw' is valid   exit 0
+$ & $env:UNITY -batchmode -nographics -projectPath unity -runTests -testPlatform EditMode -testResults Logs/editmode.xml -logFile - | Out-File …
+  EXIT 0 (32 s); result=Passed total=25 passed=25 failed=0 skipped=0 (the re-review's 25)
+$ git status --short                                   -> (clean)
+$ python -m pytest -q -s tools/blender/tests/test_patches.py tools/blender/tests/test_ground_patch.py -k "lie_along_paths or gather or lip_stays or baked_straws_over_a_floor or step_down"
+  S04: 6 paths, 11 of 13 patches on paths of two or more
+  mean nearest gap 1.24 m scattered, 1.03 m gathered; within 1.2 m 51 % and 79 %      (deterministic: the same twice)
+  905 teeth, droop 0.023-0.105 m, median 0.065 m
+  bare.share 0.08: median straw vertex 0.012 m above the floor (3135), 0.026 m above the mat's top (67675)
+  bare.share 0.12: median straw vertex 0.011 m above the floor (2904), 0.026 m above the mat's top (55653)
+  6 passed
+```
+
+QA's own measurements (scripts in its scratchpad):
+- **The layout** (`patches.layout` on the params): 13 patches, share 0.0807; lengths 0.79–1.98 m, widths 0.53–1.17 m, aspect 1.50–2.48 (inside the sheet's 0.5–2 m and the params' 1.5–2.5); paths of 3, 3, 3, 2, 1, 1 patches with 7 bridges; nearest outline gaps 0.76–1.29 m.
+- **The albedo by zone** (every 4th pixel of the committed `belt_straw_albedo.png`, linear luminance; "dark" = below 0.09):
+
+  | Zone | Area | Mean | Dark share |
+  |---|---|---|---|
+  | floors (inside the outlines) | 11.6 m² | 0.0851 | 0.61 |
+  | path bridges (the hulls of two consecutive cores, outside the outlines) | 4.0 m² | **0.0944** | **0.53** |
+  | lip ring (0–0.4 m outside an outline, off the bridges) | 22.7 m² | 0.1679 | 0.13 |
+  | mat (beyond 0.6 m) | 89.5 m² | 0.1738 | 0.10 |
+  | *what-if: the same derivation with the bridges left out of the lip layer* | | bridges 0.1719, lip ring 0.1682, mat 0.1707, floors 0.0847 | bridges 0.11 |
+
+  The stamp's `lip_soil_share` (the soil the map shows outside the floors, over the mat) rose from 0.0179 (task 1.7) to 0.0528; without the bridges it is 0.0288. The floors' own soil (`bare_soil_share`) is 0.0668: the map now shows soil over a full-depth mat on 79 % as much area as it shows soil on the stepped floors (26 % after task 1.7).
+- **Floor against mat in H's feed** (QA's boxes on H 12 and H 14, linear luminance): soil 0.136 against mat 0.209 in H 12 (0.65), soil 0.135–0.143 against mat 0.198 in H 14 (0.68–0.72); the asset's albedo 0.0851 against 0.1738 (0.49). The artist's 0.57–0.74 holds.
+- **`bare.share` above 0.12:** 0.08, 0.10 and 0.12 lay out for seeds 1–8 (10–15, 13–20 and 21–30 patches; 4, 19 and 129 s for the eight); 0.14 raises `ValueError` after 118 s (seed 1, stuck at 0.1201) and 128 s (seed 27, 0.1253).
+
+### R6: the bare patches against H 9–14 and G 1–12
+
+QA read the review sheets at full size (every tile, day and overcast), its own crops of the 1.5 m, 10 m, 50 m, turntable and overlay tiles, and its side-by-side of H 9–14 and G 1, 5, 8, 12 beside them.
+
+| Tile | What QA sees | Against the references |
+|---|---|---|
+| 1.5 m overcast | the near floor is soil under strewn straws a step down, the lip's straws over its edge | H 12, H 14 in kind: **matches** (G1 stand-in for the view and the straw form, §10 items 2, 6) |
+| 1.5 m day | the same, the far wall a shadowed step crossed by straws; the mounds still dark bristly balls (F10) | **matches** for the floor; the mounds do not |
+| 10 m overcast | elongated dark strips in rows, gathered along paths, the walls a fine comb at the far side | H 10, H 11, H 14 seen in plan (trodden soil strips through the mat): **matches in reading**; but the strips are continuous only because the bridges between the floors are dark too (R7) |
+| 10 m day (45° sun) | every floor a crisp oval pit, its vertical wall lit or shadowed and topped by the lip's teeth, which read as a palisade; between the pits of a path, **dark smears at the mat's own height** | H's edges are heaped and slope onto the soil: the pit read is §10 item 7's accepted step; the smears are stains (R7) |
+| 50 m, turntables | day: rows of small oval pits joined by dark trails ("footprint trails"); overcast: dark trails | as the 10 m tiles |
+| overlay | the edge boxes ring every floor; the bridges lie under full-depth `straw` boxes | as built (PR4) |
+| G 1–12 | no bare soil in the mat (the dark channel is a trench, E01) | the 8 % is H's; §10 item 7 records it: accepted |
+
+**Ruling: R6 is closed for G1, except the path bridges, which become R7.** What R6 asked within PR3 and PR4 is done and seen: the walls carry the mat's map instead of the near-black litter band, the lip stays at LOD1 (905 teeth in the slab, `lod0 is lod1`), the outlines are path-like (aspect 1.50–2.48) and the patches gather along paths (11 of 13 on paths; mean nearest gap 1.03 m against 1.24 m scattered), and the floor colour was checked against H 12 and H 14 inside 10YR 2/1–3/1. What still differs is accepted for G1 exactly as design 15 and §10 items 7 and 8 state, each with an owner: the vertical 12.5 cm step that outlines each floor in the 45° sun (PR3; the physics engineer's box decomposition after G1, with item 4's heaps), the gathering bounded by PR4's windows (same owner), and the floor-to-mat contrast (0.49 in the albedo against 0.65–0.72 in H's feed; the reference analyst's soil re-measurement, ruling 14d). The bridges are not part of that acceptance: they are a new texture-only soil over a full-depth mat (below). After R7 the 10 m overcast tile is re-judged; floors in rows with mat bridges between them is what design 15 itself describes ("one trodden strip broken by mat bridges") and is acceptable for G1.
+
+### The open questions
+
+1. **Map-only thinning over a full-depth mat.**
+   - *The lip ring: acceptable* (as the re-review ruled at 1.8 % of the patch). It is the mat's ragged cover within about 0.2 m of a real step; over 0–0.4 m outside the outlines the map reads 0.168 against the mat's 0.174 (13 % dark against 10 %), so it does not show ground where there is none. The lip's teeth are geometry within PR3's 0.05 m (`LIP_REACH_M` 0.01–0.04 m, the audit's mesh line at 40.0 mm) and carry the mat's physics (`edge` slot → `straw`): acceptable.
+   - *The path bridges: not acceptable as built (R7).* Over 4.0 m² the map shows soil as a floor does (mean 0.094 against the floors' 0.085 and the mat's 0.174; 53 % dark against 61 % and 10 %), while the mesh stays at the mat's top and the shapes are full-depth `straw`. That is the "stain" R4 removed: a leg lands on 12.5 cm of straw where the map shows trodden soil, and in the day tiles the bridges read as dark smears on the mat, next to floors that visibly step down. It also fails the scenario "Bare patches are ground, not stains" on its own terms: where the derived map shows bare soil, the mesh does not step down.
+   - *For the physics engineer, after G1:* whether a trodden bridge gets geometry and physics (a thinner `straw` mat on its own boxes, or one merged floor), together with design 15 item 7's decomposition.
+2. **199 shapes against 154: within every budget there is.** No collision-shape budget exists: AST-08's per-class table counts triangles, and the physics reading set no cap (review-physics §3: `StaticContacts` pays per nearby shape; a tree carries 150–300 capsules). 199 shapes (1.4 per m²) sit inside that span. A per-asset shape budget is the physics engineer's to set when `StaticContacts` is specified; not blocking.
+3. **`bare.share` above about 0.12: yes, narrow the range** to (0, 0.12) in `PARAMS`, with the effect text naming PR4's windows as the bound. Measured above: 0.12 lays out for seeds 1–8, 0.14 raises after about two minutes of search for both seeds tried (0.1201 and 0.1253 placed). Today `check` accepts 0.3 and the build fails late; the sheet's measured share is 0.08. Non-blocking (the error is explicit, not a wrong asset); best done with R7.
+4. **The `litter` palette column: drop it.** No face takes it since task 1.8 (`grep`: only `straw.json`, `straw.PALETTE` and the docstring name it). Removing it touches `assets-src/materials/straw.json`, `straw.PALETTE`, the "Straw palette" scenario (six gradients → five) and re-derives `straw_albedo.png`; it is the orphan this change made (karpathy-guidelines §3). Non-blocking: kept, the scenario stays true; best done with R7.
+
+### F8, F12
+
+- **F8 closed.** `EPS` and the six new layout constants (`PATH_GAP_M`, `PATH_GAP_STEP_M`, `PATH_TURN_DEG`, `PATH_SIDE`, `CLUSTER`, `NEAR_M`) are in `patches.CONSTANTS` and in the committed stamp's `layout.constants` (tuples as lists), `FLOOR_STRAWS` is in `GROUND_CONSTANTS`, and the code versions moved (`bare patches v2`, `ground v5`). Every constant the layout reads is listed (`SAMPLE_M` feeds only the self-check). `test_a_changed_formula_constant_re_derives` covers `EPS`, `CLUSTER`, `PATH_GAP_M` and `FLOOR_STRAWS`, and fails when `EPS` is taken out of `CONSTANTS` (mutation M4 below). The ground-patch constants (`LIP_*`, `EDGE_SLOT`) shape the mesh, which every build rewrites, so they need no stamp.
+- **F12 closed.** `test_baked_straws_over_a_floor_lie_on_it` now measures heights above the local floor for straw vertices deeper inside an outline than `LIP_OVERHANG_M` + 0.05 m: median 0.012 m (3 135 vertices) at the sheet's 8 % and 0.011 m (2 904) at 0.12, inside (−0.005, 0.03) with 18–19 mm to the upper bound and 16–17 mm to the lower. The known-wrong model fails it: with the floor branch of `rest()` switched off (M3), the medians are 0.131 and 0.130 m and both cases fail.
+
+### TST-06: mutations of task 1.8's tests
+
+Each mutation applied in the worktree, the test run, and the file restored with `git checkout --` (`git status` clean after each):
+
+| # | Mutation | Test | Result |
+|---|---|---|---|
+| M1 | `_lip`: the tip's `min(0.0, …)` clamp removed, the tip 3 cm higher | `test_the_lip_stays_at_lod1_ragged_and_inside_the_step_allowance` | **fails** (`0.0055 <= 0.0`: a tip above the mat boxes' top) |
+| M1b | `LIP_REACH_M` (0.01, 0.06) | the same | **fails** on PR3's literal (`0.06 < 0.05`) |
+| M2 | `derive`: the floors' strewn straws dropped (`bare = ImageChops.multiply(bare, scatter)` removed) | `test_straws_lie_strewn_over_the_floors` | **passes: the test cannot fail** (R8) |
+| M3 | `rest()`: floor straws left at the mat's height | `test_baked_straws_over_a_floor_lie_on_it[None, 0.12]` | **both fail** (0.131 / 0.130 m against 0.03) |
+| M4 | `"EPS"` out of `patches.CONSTANTS` | `test_a_changed_formula_constant_re_derives[lib.patches-EPS-0.001]` | **fails** |
+| M5 | new paths never start near the others (`CLUSTER` unused) | `test_patches_lie_along_paths`; `test_paths_gather_the_patches` | the first **fails** (5 of 11 on paths); the second passes (paths alone gather: 1.10 m against 1.30 m) |
+
+**Why M2 survives.** `bare, strewn = measured(0.0), measured(derive.FLOOR_STRAWS)` evaluates `derive.FLOOR_STRAWS` after the first call has monkeypatched it to 0, so both derivations run at 0 and the test asserts |0 − 0| ≤ 0. Its own print says so: `floors' soil 90.6 % -> 90.6 %: straws over 0.0 % of it (FLOOR_STRAWS 0 %)`, on the unmutated code too. With the share captured first (QA's local probe, reverted), the mechanism covers **10.2 %** of the floors' soil on the test's cover against `FLOOR_STRAWS` 0.2, passing `abs(covered − 0.2) <= 0.1` by 0.2 percentage points, and M2 then fails it (`0.2 <= 0.1`). So design 15's "straws over about a fifth of the soil" is half delivered on that cover; a likely cause, for the asset-artist to confirm, is that `soil_mask = lighter(bare, lip)` lets the lip layer, which covers the floors at `LIP_LEVEL`, put soil back where the floor's straws were strewn. The test also compares the effect with the constant under test (`FLOOR_STRAWS`), not design 15's literal 0.2, and `test_patches_lie_along_paths` does the same with `PATH_GAP_M` (design 15: 0.3–1.5 m).
+
+The other numbers asserted by 1.8's tests are literals or known-wrong models: PR3's 0.05 m and y = 0 in the lip test, the floor test's 0.03 m against D = 0.125 m, the scattered layout in the gathering test (margins 0.13 m against its 0.08 m and 8 percentage points against its 20).
+
+### Spec scenarios (the ones task 1.8 touches; the rest are unchanged since the re-review: 1.8 changed no pipeline, importer or capture code)
+
+| Scenario | Result | Evidence |
+|---|---|---|
+| S04 · Built from params by one command | **PASS** | two runs, EXIT 0, `git status` clean after each, every output byte-identical |
+| S04 · Straws read as geometry at the pilot's height (as narrowed) | **PASS** | both 1.5 m tiles: 20 329 instances as meshes; the near floor reads as ground under strewn straws |
+| S04 · No visible tiling at 10 m | **PASS** | by eye on the 10 m and 50 m tiles; `cover_field` and the cover's tiling are untouched since the re-review's statistic |
+| S04 · Collision follows the mat | **PASS** | 199 shapes ≤ 39.564 mm, mesh 40.000 mm, the micro mesh named as skipped, the soft-tops line |
+| S04 · Bare patches are ground, not stains | **FAIL on the bridges** (the floors pass) | floors: the step of D along convex outlines (`test_bare_patches_step_down…`), no shape above a floor (PR7 a), the soil box exposed, one seeded layout (PR7 c; byte-identical re-derivation). Bridges: the map shows soil (0.094 against the floors' 0.085) where the mesh does not step down (R7) |
+| S04 · Colour inside the sheet's range | **PASS** | mean luminance +0.01 %; soil #4a463f, the top of 10YR 2/1–3/1; the mounds' `belt_soil` tint lands within a few codes of it (QA: the pinned set's sRGB-averaged mean × the tint, #4d463c) |
+| pipeline · Ground recipe derived and wired; A formula constant changes; Mean albedo hits the target | **PASS** | from-scratch re-derivation byte-identical; M4; bare 8.07 %, green 16.05 % (±2 pp) |
+
+### Requirements (changed since the re-review)
+
+| ID | Status | Why |
+|---|---|---|
+| AST-03 | met | one command, twice clean; every new layout number is a param with a range (but see question 3) |
+| AST-05 | met | 199 shapes within 50 mm; the lip within PR3's 0.05 m; the `edge` slot carries `straw` |
+| AST-08 | met for the task's budget | LOD0 430 821 < 450 k; 2K maps; 3 LODs; FBX 15.8 MB |
+| REAL-03 | partly met | R6 closed for G1 except the bridges (R7) |
+| REAL-05 | **partly met** | the floors, walls and lip are geometry; the path bridges show soil on the map over a full-depth mat (R7) |
+| TST-06 | **partly met** | four of five mutations caught; the floor-straw test cannot fail (R8) |
+
+### Hygiene
+
+- 5 commits, all `Asset Artist <assets@450fpv.local>` as author and committer; subject only (45–68 characters, `type(scope): lower-case summary`), no body, no trailer.
+- 21 files changed, none new (no `.meta` to pair); nothing under `reference/`, `review-sheets/` or `unity/{Library,Temp,Logs,UserSettings}/` is tracked (497 files).
+- LFS: all 22 files real; the rebuilt maps and FBX go through LFS. No new third-party file; `--verify` OK. OPSEC: 0 findings; the change's text cites letters and frames only.
+
+### Findings
+
+- **F13 (R7).** The path bridges are map-only soil over a full-depth `straw` mat: 4.0 m² reading as a floor in the map, dark smears in the day tiles; the scenario "Bare patches are ground, not stains" fails there.
+- **F14 (R8).** `test_straws_lie_strewn_over_the_floors` is vacuous (evaluation order), and measured correctly the mechanism delivers 10.2 % of the 20 % it claims; it and `test_patches_lie_along_paths` assert the constant under test instead of design 15's literals.
+- **F15 (record).** Design 15 records the gathering as 1.09 m against 1.24 m and 78 % against 46 %; the committed test prints 1.03 m against 1.24 m and 79 % against 51 %, the same on two runs.
+- **F16 (look).** In the 45° sun the lip's teeth along a lit or shadowed wall read as a palisade of even stakes at 10 m and in the turntables.
+- **F10 (look, open)** and **F11 (importer, pre-existing)** stand; F5 and F6 are unchanged (`unity/main`'s).
+
+### Suggestions (non-blocking)
+
+1. (Questions 3 and 4) Narrow `bare.share` to (0, 0.12) and drop the `litter` column with its scenario text, in the same round as R7.
+2. (F15) Correct design 15's gathering figures to the test's own output.
+3. (F16) Break the palisade: more spread in `LIP_TOOTH_M` and the droop, or teeth that lean out over the floor rather than hang straight; judge it in the day 10 m tile.
+4. (M5) `CLUSTER`'s own effect is untested: the gathering test passes without it. A case comparing `CLUSTER` 0.85 with 0 at `path_patches` 3 would pin it.
+5. (F10) The mounds still read as dark bristly balls at 1.5 m and 10 m; the asset-artist's, with the look-lock.
+
+### Required changes
+
+- **R7** (asset-artist; REAL-05, the scenario "Bare patches are ground, not stains"): the map may show soil over the full-depth mat only as the lip ring does. Take the path bridges out of `lip_layer` (or give them the mat's own look, flattened straw, never soil), so that QA's zone measurement reads the bridges within 10 % of the mat's mean linear luminance (now 0.094 against 0.174; QA's what-if without them: 0.172 against 0.171) and the stamp's `lip_soil_share` falls back to the ring's (0.029 in the what-if); adjust `test_a_floors_lip_shows_soil_just_outside_its_outline` and the design text (decision 15 "Paths and gathering", §10 item 7). If trodden bridges are wanted later as ground, they need geometry and shapes: the physics engineer's, after G1. Then rebuild S04 (twice clean) and re-capture; the next QA pass re-judges the 10 m tiles.
+- **R8** (asset-artist; TST-06): fix `test_straws_lie_strewn_over_the_floors` so it can fail (capture the share before the first `measured()` call) and assert design 15's literal 0.2 with a tolerance that a removed mechanism fails; then either make the mechanism deliver about a fifth (QA measured 10.2 %) or restate design 15's figure and label it to what it measures. Assert `PATH_GAP_M`'s literal 0.3–1.5 m in `test_patches_lie_along_paths` likewise. Show M2 failing the fixed test in the handoff.
+
+2.1 stays open: the pass on the merge with `unity/main` (handover §4) is still to come.
+
+Verdict: CHANGES REQUESTED
