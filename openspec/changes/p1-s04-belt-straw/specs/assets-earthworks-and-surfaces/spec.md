@@ -31,4 +31,4 @@ The pipeline SHALL build asset S04 (`ground_patch` generator, variant `S04_patch
 
 #### Scenario: Colour inside the sheet's range
 - **WHEN** the derived albedo's mean over the patch is measured
-- **THEN** it lies within ±10 % luminance of the sheet's carried mean #7a7055, with bare soil patches inside 10YR 2/1–3/1 and the straw inside the sheet's dry-straw value, and the review sheet's day tile is compared with the H feed values in the comparison sheet
+- **THEN** it lies within ±10 % luminance of the sheet's carried mean #7a7055, with bare soil patches inside 10YR 2/1–3/1 (the G1 value; the sheet now measures H's trodden floors at #59544c, the target after G1 if the side-by-side asks) and the straw inside the sheet's dry-straw value, and the review sheet's day tile is compared with the H feed values in the comparison sheet
