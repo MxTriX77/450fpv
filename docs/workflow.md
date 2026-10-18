@@ -18,6 +18,7 @@ When unsure, Standard. The tech approach of CLAUDE.md and the docs is the same i
 2. **Spec.** The orchestrator proposes a change: `openspec/changes/<change-id>/` with `proposal.md`, `design.md`, `specs/` and `tasks.md`.
    - The proposal cites requirement IDs from [requirements.md](requirements.md).
    - The design labels every number **pilot / measured / published / derived / assumed**.
+   - A change that extends another capability's records or fields writes a **MODIFIED** delta against that capability, so the archive leaves no stale field list behind (D-037, gap review L13).
    - Run `openspec validate <id> --strict` before committing planning artefacts.
 3. **Assign, one subagent per logical task** (D-029).
    - For **each logical task** (one reviewable unit: an asset, an object sheet group, a shader stage, a query, a mechanism, a screen, a review), the orchestrator spawns a **fresh** subagent of the owning role.
