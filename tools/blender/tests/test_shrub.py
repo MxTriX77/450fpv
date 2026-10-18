@@ -1,0 +1,192 @@
+"""generators.shrub with lib.skeleton and lib.cards (p1-v13-shrub, "V13 belt understory shrub"): the committed
+params conform and the defaults are V13_mid; the built sizes sit inside the sheet; LOD triangle counts under budget
+and halving; every stem segment a bark capsule on its chord with a hook of half the base diameter; one twig sphere
+enclosing every leaf and twig vertex; one wind box at porosity 0.35; no gap, nothing landable; the skeleton's
+radii, tubes and normals; card UVs inside the atlas cells, the far cards over the whole atlas; determinism per
+seed; check's refusals; and the low variant through the collision audit."""
+import copy
+import json
+import math
+
+import pytest
+
+from generators import shrub
+from lib import audit, cards, meta, params, skeleton
+from lib.geometry import Mesh
+
+VARIANTS = ("V13_low", "V13_mid", "V13_tall")
+SHEET = {"V13_low": ((1.0, 1.5), (1.0, 2.0)), "V13_mid": ((1.5, 2.5), (1.5, 3.0)), "V13_tall": ((2.5, 3.5), (2.0, 3.0))}
+VISUALS = {"stem": "bark_shrub", "twig": "bark_shrub", "leaf": "leaf_shrub"}
+UP = (0.0, 1.0, 0.0)
+
+
+def load(repo_root, variant):
+    return json.loads((repo_root / "assets-src" / "vegetation" / f"{variant}.json").read_text(encoding="utf-8"))
+
+
+@pytest.fixture(params=VARIANTS)
+def variant(request, repo_root):
+    p = load(repo_root, request.param)
+    built = shrub.build(p)
+    return request.param, p, built, meta.assemble("V13", request.param, "shrub", p, built, VISUALS)
+
+
+def slot_vertices(mesh, slots):
+    return sorted({mesh.vertices[i] for indices, _, _, slot in mesh.faces if slot in slots for i in indices})
+
+
+def test_params_conform_and_the_defaults_are_the_mid_variant(repo_root):
+    for name in VARIANTS:
+        assert params.validate(shrub, load(repo_root, name)) == [], name
+    flat = params._flatten(load(repo_root, "V13_mid"))
+    assert set(flat) == set(shrub.PARAMS)
+    for key, spec in shrub.PARAMS.items():
+        assert spec["default"] == flat[key], key
+        if spec["type"] in ("int", "float"):
+            assert spec["range"][0] <= spec["default"] <= spec["range"][1], key
+
+
+def test_sizes_inside_the_sheet(variant):
+    name, p, built, data = variant
+    (h_lo, h_hi), (w_lo, w_hi) = SHEET[name]
+    size = [data["bounds"]["max"][a] - data["bounds"]["min"][a] for a in range(3)]
+    assert h_lo <= size[1] <= h_hi, (name, size)
+    assert w_lo <= size[0] <= w_hi and w_lo <= size[2] <= w_hi, (name, size)
+    assert abs(size[1] - p["height_m"]) < 0.1 * p["height_m"] and abs(size[0] - p["width_m"]) < 0.1 * p["width_m"]
+    leaves = slot_vertices(built["lods"][0], ("leaf",))
+    lowest = min(v[1] for v in leaves)
+    assert lowest >= p["bare_base_m"] and (name != "V13_tall" or lowest >= 0.9)
+    assert data["bounds"]["min"][1] == 0.0
+
+
+def test_lods_under_budget_and_halving(variant):
+    name, p, built, data = variant
+    tris = [lod["tris"] for lod in data["lods"]]
+    assert len(tris) == 3 and tris[0] < 12000 and tris[1] <= tris[0] / 2 and tris[2] <= tris[1] / 2 and tris[2] == 6
+    assert [lod["switch_distance_m"] for lod in data["lods"]] == [0.0, 7.5, 93.5]
+    assert data["cull_distance_m"] == {"V13_low": 561.0, "V13_mid": 800.0, "V13_tall": 800.0}[name]
+    assert 2 * shrub.card_count(p) == sum(1 for f in built["lods"][0].faces if f[3] == "leaf") * 2
+    assert sum(1 for f in built["lods"][1].faces if f[3] == "leaf") == math.ceil(shrub.card_count(p) / 2)
+    assert not any(f[3] == "twig" for f in built["lods"][1].faces) and all(f[3] == "leaf" for f in built["lods"][2].faces)
+
+
+def test_metadata_carries_capsules_hooks_shell_and_wind(variant, material_ids):
+    name, p, built, data = variant
+    assert meta.validate(data, material_ids) == []
+    capsules = [c for c in data["collision"] if c["shape"] == "capsule"]
+    spheres = [c for c in data["collision"] if c["shape"] == "sphere"]
+    assert len(capsules) == p["stems"] * skeleton.SEGMENTS and len(spheres) == 1 and len(data["collision"]) == len(capsules) + 1
+    assert all(c["material"] == "bark" and c["landable"] is False for c in capsules)
+    assert all(0.005 <= c["radius"] <= p["stem_d_mm"] / 2000 and c["height"] >= 2 * c["radius"] for c in capsules)
+    shell = spheres[0]
+    assert shell["material"] == "twig" and shell["landable"] is False
+    crown = slot_vertices(built["lods"][0], ("leaf", "twig"))
+    distances = [math.dist(v, shell["center"]) for v in crown]
+    assert max(distances) < shell["radius"] and shell["radius"] - max(distances) < 0.0015  # encloses, tightly
+    hooks = data["snag"]
+    assert len(hooks) == p["stems"] and all(h["kind"] == "hook" and h["radius_m"] == p["stem_d_mm"] / 2000 for h in hooks)
+    for hook in hooks:
+        assert len(hook["points"]) == skeleton.SEGMENTS + 1 and hook["points"][0][1] == 0.0
+        assert hook["points"][-1][1] == max(pt[1] for pt in hook["points"])
+    assert data["gaps"] == [] and not any(c["landable"] for c in data["collision"])
+    (wind,) = data["wind_volumes"]
+    lo, hi = built["lods"][0].bounds()
+    assert wind["shape"] == "box" and wind["porosity"] == pytest.approx(0.35)
+    assert wind["size"] == pytest.approx([hi[a] - lo[a] for a in range(3)], abs=1e-6)
+    assert data["materials"] == [{"slot": "stem", "visual": "bark_shrub", "physics": "bark"},
+                                 {"slot": "twig", "visual": "bark_shrub", "physics": "twig"},
+                                 {"slot": "leaf", "visual": "leaf_shrub", "physics": "twig"}]
+
+
+def test_capsule_lies_on_its_segment():
+    p0, p1 = (0.1, 0.0, 0.2), (0.4, 1.8, -0.1)
+    capsule = shrub._capsule((p0, p1, 0.009, 0.005))
+    direction = skeleton.normalize(skeleton.sub(p1, p0))
+    assert audit._rotate(tuple(capsule["rotation"]), UP) == pytest.approx(direction)
+    assert capsule["center"] == pytest.approx([0.25, 0.9, 0.05]) and capsule["radius"] == pytest.approx(0.007)
+    assert capsule["height"] == pytest.approx(math.dist(p0, p1) + 0.014)
+    assert shrub._rotation_from_y(UP) == [0.0, 0.0, 0.0, 1.0]
+    assert audit._rotate(tuple(shrub._rotation_from_y((0.0, -1.0, 0.0))), UP) == pytest.approx((0.0, -1.0, 0.0))
+
+
+def test_skeleton_radii_segments_and_branching(repo_root):
+    import random
+    p = load(repo_root, "V13_mid")
+    envelope = shrub.Envelope(p["width_m"], p["bare_base_m"], p["height_m"], 0.06)
+    stems, twigs = skeleton.build(random.Random(1), 10, 0.22, (1.5, 1.9), 0.009, 0.2, 0.6, envelope.reach)
+    assert len(stems) == 10
+    for stem in stems:
+        radii = [r for _, r in stem.rings]
+        assert len(stem.rings) == skeleton.RINGS + 1 and radii[0] == 0.009 and radii[-1] == skeleton.STEM_TIP_R
+        assert radii == sorted(radii, reverse=True) and len(stem.segments) == skeleton.SEGMENTS
+        assert stem.segments[0][0] == stem.rings[0][0] and stem.segments[-1][1] == stem.rings[-1][0]
+        tip, base = stem.rings[-1][0], stem.rings[0][0]
+        assert math.hypot(tip[0] - base[0], tip[2] - base[2]) == pytest.approx(0.2 * stem.length)
+        assert tip[1] == pytest.approx(stem.length) and 1.5 <= stem.length <= 1.9
+        assert math.hypot(base[0], base[2]) <= 0.22
+    first = [t for t in twigs if t.level == 1]
+    second = [t for t in twigs if t.level == 2]
+    assert first and second and len(second) <= 2 * len(first)
+    assert all(0.0015 <= t.r1 < t.r0 <= 0.004 for t in twigs)  # the sheet's 3-8 mm twigs
+    assert all(t.p0[1] >= 0.6 for t in first)
+    ends = {t.p1 for t in first}
+    assert all(t.p0 in ends for t in second)
+    assert all(envelope.inside(t.p1) or envelope.reach(t.p0, skeleton.normalize(skeleton.sub(t.p1, t.p0))) >= 0 for t in twigs)
+
+
+def test_tubes_face_outward_with_metre_uvs():
+    mesh = Mesh()
+    rings = [((0.0, 0.0, 0.0), 0.009), ((0.0, 0.5, 0.0), 0.007), ((0.0, 1.0, 0.0), 0.005)]
+    skeleton._tube(mesh, rings, 6, "stem", cap=True)
+    assert len(mesh.faces) == 13 and mesh.triangles() == 28
+    for indices, normal, uvs, slot in mesh.faces[:-1]:
+        centroid = [sum(mesh.vertices[i][a] for i in indices) / 4 for a in range(3)]
+        assert normal[0] * centroid[0] + normal[2] * centroid[2] > 0 and slot == "stem"
+        assert max(v for _, v in uvs) - min(v for _, v in uvs) == pytest.approx(0.5)  # V runs up the stem in metres
+    assert mesh.faces[-1][1] == (0.0, 1.0, 0.0) and len(mesh.faces[-1][0]) == 6
+
+
+def test_cards_map_into_the_atlas_cells(variant):
+    name, p, built, data = variant
+    cells = cards.CELLS_UV
+    assert all(0 <= u0 < u1 <= 1 and 0 <= v0 < v1 <= 1 for (u0, v0), (u1, v1) in cells) and len(cells) == 6
+    for mesh in built["lods"][:2]:
+        for indices, _, uvs, slot in mesh.faces:
+            if slot != "leaf":
+                continue
+            (u0, v0), (u1, v1) = next(c for c in cells if c[0] == uvs[0])
+            assert uvs == [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
+            corners = [mesh.vertices[i] for i in indices]
+            assert math.dist(corners[0], corners[3]) == pytest.approx(p["card_m"])
+            assert math.dist(corners[0], corners[1]) == pytest.approx(p["card_m"] * (u1 - u0) / (v1 - v0))
+    assert [uvs for _, _, uvs, _ in built["lods"][2].faces] == [[(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]] * 3
+
+
+def test_seed_determines_the_clump(repo_root):
+    p = load(repo_root, "V13_mid")
+    a = shrub.build(p)["lods"][0].vertices
+    assert a == shrub.build(p)["lods"][0].vertices
+    assert a != shrub.build(dict(p, seed=p["seed"] + 1))["lods"][0].vertices
+
+
+@pytest.mark.parametrize("edit, expected", [
+    (lambda p: p.update(bare_base_m=1.5, height_m=1.5), "'bare_base_m' = 1.5 must stay under 'height_m' = 1.5"),
+    (lambda p: p.update(cards_per_m3=2000.0), "'cards_per_m3' = 2000.0 gives 7096 cards, 14192 triangles at LOD0, over the budget of 12000"),
+    (lambda p: p.update(autumn=0.5), "'autumn' = 0.5 is not built yet (a per-variant leaf tint needs the importer to read one; the look-lock decides); keep 0.0"),
+    (lambda p: p.update(spines=True), "'spines' = True is not built yet (no spine cell is pinned); keep False"),
+    (lambda p: p.update(fruit_tufts=3), "'fruit_tufts' = 3 is not built yet (no berry cell is pinned); keep 0"),
+])
+def test_check_refuses(repo_root, edit, expected):
+    edited = copy.deepcopy(load(repo_root, "V13_mid"))
+    edit(edited)
+    assert params.validate(shrub, edited) == [expected]
+
+
+def test_low_variant_passes_the_collision_audit(repo_root):
+    p = load(repo_root, "V13_low")
+    built = shrub.build(p)
+    problems, lines = audit.run(meta.assemble("V13", "V13_low", "shrub", p, built, VISUALS), built["lods"][0])
+    assert problems == []
+    shell = [line for line in lines if "shell" in line]
+    assert len(shell) == 1 and "sphere (twig shell): largest outside distance 0.000 mm over" in shell[0]
+    assert sum(1 for line in lines if "capsule->mesh" in line) == p["stems"] * skeleton.SEGMENTS

@@ -1,0 +1,16 @@
+{
+  "seed": 2,
+  "height_m": 1.2,
+  "width_m": 1.5,
+  "stems": 10,
+  "stem_d_mm": 18.0,
+  "arch": 0.2,
+  "bare_base_m": 0.0,
+  "leaf_cover": 1.0,
+  "autumn": 0.0,
+  "spines": false,
+  "fruit_tufts": 0,
+  "card_m": 0.2,
+  "cards_per_m3": 210.0,
+  "lod": { "lod1_switch_m": 7.5, "lod2_switch_m": 93.5, "cull_m": 561.0 }
+}
