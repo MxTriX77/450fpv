@@ -1,8 +1,8 @@
 """lib.impostor and the impostor LOD of lib.meta (p1-v01-locust design decision 3; asset-pipeline "Baked impostor LOD"),
-in plain Python: the design's numbers (8 views at 15 degrees, a 1k atlas), the switch distance from the params, the
-views' axes, the card frame that holds every view, the crown the card's normal follows, the atlas layout, the hash of
-the render's inputs, the slot materials as the importer picks them, the PNG's chunks, and the metadata's impostor LOD
-(last before the cull, validated, left out of the FBX check). The render itself runs in test_build_blender.py."""
+in plain Python: the design's numbers (8 views at 15 degrees, two 1k atlases), the switch distance from the params,
+the views' axes, the card frame that holds every view, the atlas layout, the hash of the render's inputs, the slot
+materials as the importer picks them, the PNG's chunks, and the metadata's impostor LOD (last before the cull,
+validated, left out of the FBX check). The render, the normal atlas's fill and its PNG run in test_build_blender.py."""
 import copy
 import json
 import math
@@ -37,7 +37,8 @@ def flat_materials(mesh, tile=(1.0, 1.0)):
 
 
 def test_the_design_numbers():
-    """Design 3: 8 azimuths at 15 degrees into a 1k atlas with alpha (the spec: 1k at most)."""
+    """Design 3: 8 azimuths at 15 degrees into a 1k albedo atlas with alpha and a 1k normal atlas (the spec: 1k each
+    at most)."""
     assert impostor.VIEWS == 8
     assert impostor.ELEVATION_DEG == 15.0
     assert impostor.SIZE_PX == 1024 == meta.IMPOSTOR_MAX_PX
@@ -77,7 +78,7 @@ def test_view_0_sees_plus_x_on_its_left_and_view_2_sees_plus_z_on_its_right():
 
 def test_the_card_holds_every_view_within_the_pad():
     mesh = box_mesh((0.5, 0.0, -1.0), (2.5, 6.0, 1.5))  # off the axis, so one side reaches farther
-    card, _ = impostor.frame(mesh, set())
+    card = impostor.frame(mesh)
     scale = impostor.CELL_PX[0] / card["width_m"]
     cos_e = math.cos(math.radians(impostor.ELEVATION_DEG))
     assert card["height_m"] * cos_e * scale == pytest.approx(impostor.CELL_PX[1])
@@ -95,28 +96,9 @@ def test_the_card_holds_every_view_within_the_pad():
             or max(vs) == pytest.approx((card["bottom_m"] + card["height_m"]) * cos_e - pad))
 
 
-def test_the_crown_follows_the_card_slots():
-    mesh = box_mesh((-0.1, 0.0, -0.1), (0.1, 3.0, 0.1), "bark")
-    leaves = box_mesh((1.0, 2.0, 1.0), (3.0, 4.0, 2.0), "leaf")
-    offset = len(mesh.vertices)
-    mesh.vertices += leaves.vertices
-    mesh.faces += [([i + offset for i in f], n, uvs, s) for f, n, uvs, s in leaves.faces]
-    _, crown = impostor.frame(mesh, {"leaf"})
-    assert crown["centre"] == pytest.approx([2.0, 3.0, 1.5])
-    assert crown["radii_m"] == pytest.approx([math.hypot(1.0, 0.5), 1.0])
-    _, everything = impostor.frame(mesh, set())
-    assert everything["centre"] == pytest.approx([1.45, 2.0, 0.95])
-    assert everything["radii_m"][1] == pytest.approx(2.0)
-
-
-def test_crown_slots_are_the_card_recipes():
-    visuals = {"bark": "bark_locust", "twig": "bark_locust", "leaf": "leaf_locust", "pod": "pod_locust"}
-    assert impostor.crown_slots(visuals, {"leaf_locust", "pod_locust", "leaf_shrub"}) == {"leaf", "pod"}
-
-
 def test_layout_puts_each_view_in_its_cell_and_scales_the_uvs():
     mesh = box_mesh((0.5, 0.0, -1.0), (2.5, 6.0, 1.5))
-    record = {"card": impostor.frame(mesh, set())[0]}
+    record = {"card": impostor.frame(mesh)}
     vertices, faces, uvs, slots, side = impostor.layout(mesh, record, flat_materials(mesh, (2.0, 0.5)))
     card = record["card"]
     scale = impostor.CELL_PX[0] / card["width_m"]
@@ -139,7 +121,7 @@ def test_inputs_hash_follows_the_mesh_the_recipe_and_the_map(tmp_path):
     texture.write_bytes(b"one")
     materials = {"wood": {"visual": "v", "recipe": {"tint": [1.0, 1.0, 1.0, 1.0]}, "texture": str(texture)}}
     record = {"size_px": [1024, 1024], "views": 8, "columns": 4, "rows": 2, "elevation_deg": 15.0,
-              "card": impostor.frame(mesh, set())[0], "crown": impostor.frame(mesh, set())[1]}
+              "card": impostor.frame(mesh)}
     first = impostor.inputs_sha256(mesh, record, materials)
     assert impostor.inputs_sha256(copy.deepcopy(mesh), copy.deepcopy(record), copy.deepcopy(materials)) == first
     moved = copy.deepcopy(mesh)
@@ -199,8 +181,8 @@ def k01_with_impostor(params, switch=60.0):
     built = debris_brick.build(params)
     mesh = built["lods"][0]
     materials = {"brick": {"visual": "brick_red", "recipe": {}, "texture": __file__, "tile_m": [1.0, 1.0]}}
-    lod = impostor.lod("K01_whole", switch, mesh, set(), materials)
-    lod["impostor"]["atlas_sha256"] = "a" * 64
+    lod = impostor.lod("K01_whole", switch, mesh, materials)
+    lod["impostor"]["atlas_sha256"], lod["impostor"]["normals_sha256"] = "a" * 64, "b" * 64
     return meta.assemble("K01", "K01_whole", "debris_brick", params, built, VISUALS, lod)
 
 
@@ -213,6 +195,7 @@ def test_impostor_lod_is_the_last_before_the_cull(k01_params, material_ids):
     assert last["tris"] == 2  # one quad
     record = last["impostor"]
     assert record["atlas"] == "K01_whole_impostor.png" and record["size_px"] == [1024, 1024]
+    assert record["normals"] == "K01_whole_impostor_normal.png" and record["occlusion"] == 1.0
     assert (record["views"], record["columns"], record["rows"], record["elevation_deg"]) == (8, 4, 2, 15.0)
     assert json.loads(meta.dumps(data))["lods"][-1] == last
 
@@ -230,11 +213,12 @@ def test_metadata_without_impostor_is_unchanged(k01_params):
     (lambda d: d["lods"][-1].update(switch_distance_m=150.0), "cull_distance_m must lie beyond the last LOD switch"),
     (lambda d: d["lods"][-1]["impostor"].update(size_px=[2048, 2048]), "each at most 1024 px (1k)"),
     (lambda d: d["lods"][-1]["impostor"].update(atlas="K01_whole_impostor.jpg"), "atlas must name a .png"),
+    (lambda d: d["lods"][-1]["impostor"].pop("normals"), "normals must name a .png"),
     (lambda d: d["lods"][-1]["impostor"].update(views=9), "views <= columns * rows"),
     (lambda d: d["lods"][-1].update(tris=32), "must be 2: the card is one quad"),
-    (lambda d: d["lods"][-1]["impostor"]["crown"].update(radii_m=[0.0, 1.0]), "crown needs a centre"),
-    (lambda d: d["lods"][-1]["impostor"]["crown"].update(occlusion=0.0), "occlusion in (0, 1]"),
+    (lambda d: d["lods"][-1]["impostor"].update(occlusion=0.0), "occlusion must lie in (0, 1]"),
     (lambda d: d["lods"][-1]["impostor"].update(atlas_sha256="none"), "atlas_sha256 is not a 64-digit hex"),
+    (lambda d: d["lods"][-1]["impostor"].update(normals_sha256="none"), "normals_sha256 is not a 64-digit hex"),
 ])
 def test_validate_names_the_impostor_problem(k01_params, material_ids, edit, expected):
     data = k01_with_impostor(k01_params)
@@ -248,14 +232,20 @@ def test_the_fbx_check_leaves_the_card_to_the_importer(k01_params, k01_out):
     assert meta.check_against_fbx(data, str(k01_out / "K01_whole.fbx")) == []
 
 
-def test_recorded_atlas_is_up_to_date_only_with_both_hashes(tmp_path):
-    atlas = tmp_path / "V_impostor.png"
+def test_recorded_atlases_are_up_to_date_only_with_every_hash(tmp_path):
+    atlas, normals = tmp_path / "V_impostor.png", tmp_path / "V_impostor_normal.png"
     atlas.write_bytes(b"pixels")
+    normals.write_bytes(b"normals")
     meta_path = tmp_path / "V.assetmeta.json"
-    record = {"inputs_sha256": "1" * 64, "atlas_sha256": impostor.file_sha256(str(atlas)), "crown": {"occlusion": 0.8}}
+    record = {"inputs_sha256": "1" * 64, "atlas_sha256": impostor.file_sha256(str(atlas)),
+              "normals_sha256": impostor.file_sha256(str(normals)), "occlusion": 0.8}
     meta_path.write_text(json.dumps({"lods": [{"mesh": "V_LOD0"}, {"mesh": "V_impostor", "impostor": record}]}))
-    assert impostor.recorded(str(meta_path), str(atlas), "1" * 64) == record  # with what its render measured
-    assert impostor.recorded(str(meta_path), str(atlas), "2" * 64) is None  # the params or materials changed
+    paths = (str(meta_path), str(atlas), str(normals))
+    assert impostor.recorded(*paths, "1" * 64) == record  # with what its render measured
+    assert impostor.recorded(*paths, "2" * 64) is None  # the params or materials changed
+    normals.write_bytes(b"hand-edited")
+    assert impostor.recorded(*paths, "1" * 64) is None  # never hand-edited: rendered over
+    normals.write_bytes(b"normals")
     atlas.write_bytes(b"hand-edited")
-    assert impostor.recorded(str(meta_path), str(atlas), "1" * 64) is None  # never hand-edited: rendered over
-    assert impostor.recorded(str(tmp_path / "missing.json"), str(atlas), "1" * 64) is None
+    assert impostor.recorded(*paths, "1" * 64) is None
+    assert impostor.recorded(str(tmp_path / "missing.json"), *paths[1:], "1" * 64) is None

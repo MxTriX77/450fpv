@@ -34,7 +34,7 @@ LABELS = ("pilot", "measured", "published", "derived", "assumed")
 SURFACE_PREFIX = "surface:"
 SURFACE_IDS = ("meadow_sod", "dry_crust", "crater_spoil", "belt_straw", "belt_bare", "tilled", "burnt_field",
                "weeds", "yard_litter", "rubble", "asphalt", "concrete_slab", "dirt_track")
-IMPOSTOR_MAX_PX = 1024  # asset-pipeline "Baked impostor LOD": one atlas, 1k at most
+IMPOSTOR_MAX_PX = 1024  # asset-pipeline "Baked impostor LOD": the albedo and the normal atlas, 1k each at most
 
 
 def load_physics_materials(root):
@@ -246,17 +246,18 @@ def _material_problems(material, material_ids):
 
 
 def _impostor_problems(lod, index, count):
-    """The impostor LOD (lib.impostor; asset-pipeline "Baked impostor LOD"): the last LOD, before the cull; a PNG atlas
-    of IMPOSTOR_MAX_PX at most with its views on a grid; the card's size, one quad; the crown's centre, radii, up
-    share and occlusion; the hashes of the render's inputs and of the atlas."""
+    """The impostor LOD (lib.impostor; asset-pipeline "Baked impostor LOD"): the last LOD, before the cull; an albedo
+    and a normal PNG atlas of IMPOSTOR_MAX_PX at most with their views on a grid; the card's size, one quad; the
+    crown's occlusion; the hashes of the render's inputs and of both atlases."""
     problems = [] if index == count - 1 else ["the impostor must be the last LOD, before the cull"]
     record = lod["impostor"]
     if not isinstance(record, dict):
         return problems + ["impostor must be an object"]
-    card, crown = record.get("card"), record.get("crown")
+    card = record.get("card")
     size = record.get("size_px")
-    if not (isinstance(record.get("atlas"), str) and record["atlas"].endswith(".png")):
-        problems.append("impostor atlas must name a .png beside the metadata")
+    for key in ("atlas", "normals"):
+        if not (isinstance(record.get(key), str) and record[key].endswith(".png")):
+            problems.append(f"impostor {key} must name a .png beside the metadata")
     if not (isinstance(size, list) and len(size) == 2 and all(_is_int(s) and 0 < s <= IMPOSTOR_MAX_PX for s in size)):
         problems.append(f"impostor size_px must be [width, height], each at most {IMPOSTOR_MAX_PX} px (1k), got {size}")
     grid = [record.get(k) for k in ("views", "columns", "rows")]
@@ -269,12 +270,9 @@ def _impostor_problems(lod, index, count):
         problems.append("impostor card needs width_m and height_m above 0 and bottom_m")
     if lod["tris"] != 2:
         problems.append(f"impostor tris {lod['tris']} must be 2: the card is one quad")
-    if not (isinstance(crown, dict) and _is_vec(crown.get("centre")) and _is_vec(crown.get("radii_m"), 2)
-            and all(r > 0 for r in crown["radii_m"]) and _is_num(crown.get("up")) and 0 <= crown["up"] < 1
-            and _is_num(crown.get("occlusion")) and 0 < crown["occlusion"] <= 1):
-        problems.append("impostor crown needs a centre [x, y, z], radii_m [horizontal, vertical] above 0, up in "
-                        "[0, 1) and occlusion in (0, 1]")
-    for key in ("inputs_sha256", "atlas_sha256"):
+    if not (_is_num(record.get("occlusion")) and 0 < record["occlusion"] <= 1):
+        problems.append("impostor occlusion must lie in (0, 1]")
+    for key in ("inputs_sha256", "atlas_sha256", "normals_sha256"):
         if not _is_hex(record.get(key), 64):
             problems.append(f"impostor {key} is not a 64-digit hex string")
     return problems

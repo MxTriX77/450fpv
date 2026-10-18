@@ -9,10 +9,10 @@ prints its report lines (counts and fit times), validates the metadata (lib/meta
 the LOD0 mesh (lib/audit.py, with the generator's stated card reach for the shell's cards), and only then
 writes unity/Assets/_Project/Art/Models/<class>/<ID>/<variant>.fbx and <variant>.assetmeta.json, both in Unity's
 frame (lib/frame.py), the FBX staged beside its final name and moved once it reads back as the metadata says. A
-variant whose params set `impostor: true` (p1-v01-locust design decision 3) also gets <variant>_impostor.png, the
-atlas lib/impostor.py renders from LOD0 after the FBX, staged the same way, and its metadata lists the impostor as
-the last LOD; an atlas the metadata records as up to date is not rendered again, and one the params no longer ask for
-is removed. A rejected build changes no file. It refuses any Blender other than the pinned major.minor. Exit code 1
+variant whose params set `impostor: true` (p1-v01-locust design decision 3) also gets <variant>_impostor.png and
+<variant>_impostor_normal.png, the albedo and normal atlases lib/impostor.py renders from LOD0 after the FBX, staged
+the same way, and its metadata lists the impostor as the last LOD; atlases the metadata records as up to date are not
+rendered again, and those the params no longer ask for are removed. A rejected build changes no file. It refuses any Blender other than the pinned major.minor. Exit code 1
 on any problem; nothing is hand-edited.
 """
 import argparse
@@ -50,17 +50,16 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
     out_dir = catalog.output_dir(root, catalog_entry, asset_id)
     meta_path = os.path.join(out_dir, variant + ".assetmeta.json")
     atlas_path = os.path.join(out_dir, variant + "_impostor.png")
+    normals_path = os.path.join(out_dir, variant + "_impostor_normal.png")
     switch, materials, impostor_lod = impostor.switch_distance(params), None, None
     if switch is not None:  # the impostor step (p1-v01-locust design decision 3): the record now, the render after
-        lod0, visuals = built["lods"][0], catalog_entry["materials"]
-        materials = impostor.slot_materials(root, visuals, lod0.slots())
-        impostor_lod = impostor.lod(variant, switch, lod0, impostor.crown_slots(visuals, catalog.card_visuals(root)),
-                                    materials)
+        lod0 = built["lods"][0]
+        materials = impostor.slot_materials(root, catalog_entry["materials"], lod0.slots())
+        impostor_lod = impostor.lod(variant, switch, lod0, materials)
         record = impostor_lod["impostor"]
-        old = impostor.recorded(meta_path, atlas_path, record["inputs_sha256"])
-        if old:  # up to date: the atlas and what its renders measured stand
-            record["atlas_sha256"] = old["atlas_sha256"]
-            record["crown"].update(occlusion=old["crown"]["occlusion"], up=old["crown"]["up"])
+        old = impostor.recorded(meta_path, atlas_path, normals_path, record["inputs_sha256"])
+        if old:  # up to date: the atlases and what their render measured stand
+            record.update({key: old[key] for key in ("atlas_sha256", "normals_sha256", "occlusion")})
     data = meta.assemble(asset_id, variant, catalog_entry["generator"], params, built, catalog_entry["materials"],
                          impostor_lod)
     _refuse(variant, meta.validate(data, material_ids))
@@ -76,6 +75,7 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
     fbx_path = os.path.join(out_dir, variant + ".fbx")
     staged = os.path.join(out_dir, variant + ".staged.fbx")
     staged_atlas = os.path.join(out_dir, variant + "_impostor.staged.png")
+    staged_normals = os.path.join(out_dir, variant + "_impostor_normal.staged.png")
     fresh = not os.path.isdir(out_dir)
     os.makedirs(out_dir, exist_ok=True)
     try:
@@ -85,24 +85,25 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
             record = data["lods"][-1]["impostor"]
             if record["atlas_sha256"] == impostor.NO_ATLAS:
                 started = time.perf_counter()
-                crown = record["crown"]
-                crown["occlusion"], crown["up"] = impostor.render(built["lods"][0], record, materials, staged_atlas)
+                record["occlusion"] = impostor.render(built["lods"][0], record, materials, staged_atlas, staged_normals)
                 record["atlas_sha256"] = impostor.file_sha256(staged_atlas)
+                record["normals_sha256"] = impostor.file_sha256(staged_normals)
                 _refuse(variant, meta.validate(data, material_ids))
                 print(f"{variant}: impostor rendered in {time.perf_counter() - started:.1f} s")
-            card, crown = record["card"], record["crown"]
-            print(f"{variant}: impostor {record['atlas']} {record['size_px'][0]}x{record['size_px'][1]}, "
-                  f"{record['views']} views at {record['elevation_deg']:g} deg, card {card['width_m']:.3f} x "
-                  f"{card['height_m']:.3f} m from {card['bottom_m']:.3f} m, crown radii {crown['radii_m'][0]:.3f} x "
-                  f"{crown['radii_m'][1]:.3f} m, up {crown['up']:.3f}, occlusion {crown['occlusion']:.3f}, switch "
-                  f"{data['lods'][-1]['switch_distance_m']:g} m, cull {data['cull_distance_m']:g} m")
+            card = record["card"]
+            print(f"{variant}: impostor {record['atlas']} and {record['normals']} {record['size_px'][0]}x"
+                  f"{record['size_px'][1]}, {record['views']} views at {record['elevation_deg']:g} deg, card "
+                  f"{card['width_m']:.3f} x {card['height_m']:.3f} m from {card['bottom_m']:.3f} m, occlusion "
+                  f"{record['occlusion']:.3f}, switch {data['lods'][-1]['switch_distance_m']:g} m, cull "
+                  f"{data['cull_distance_m']:g} m")
         os.replace(staged, fbx_path)
-        if impostor_lod is None and os.path.exists(atlas_path):
-            os.remove(atlas_path)  # the params no longer ask for one
-        elif os.path.exists(staged_atlas):
-            os.replace(staged_atlas, atlas_path)
+        for staged_path, path in ((staged_atlas, atlas_path), (staged_normals, normals_path)):
+            if impostor_lod is None and os.path.exists(path):
+                os.remove(path)  # the params no longer ask for one
+            elif os.path.exists(staged_path):
+                os.replace(staged_path, path)
     finally:
-        for path in (staged, staged_atlas):
+        for path in (staged, staged_atlas, staged_normals):
             if os.path.exists(path):
                 os.remove(path)
         if fresh and not os.listdir(out_dir):

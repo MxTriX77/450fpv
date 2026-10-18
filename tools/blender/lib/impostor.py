@@ -1,11 +1,11 @@
 """The baked impostor (p1-v01-locust, design decision 3; asset-pipeline "Baked impostor LOD"; AST-08, AST-09): the
 far LOD of a variant whose params set `impostor: true` and `lod.impostor_switch_m`, a camera-facing card that reads
-an atlas of the LOD0 mesh rendered in headless Blender with the catalog's materials. The importer builds the card as
-the last LOD before the cull.
+an albedo atlas and a normal atlas of the LOD0 mesh rendered in headless Blender with the catalog's materials. The
+importer builds the card as the last LOD before the cull.
 
 Views (assumed in design 3: belts are seen near level or from a little above): VIEWS orthographic views from
 ELEVATION_DEG above the horizon, view k from the azimuth a = k * 360 / VIEWS degrees (from +Z towards +X, asset
-space), in cell k of a COLUMNS x ROWS grid over the SIZE_PX square atlas, left to right from the top row. View k's
+space), in cell k of a COLUMNS x ROWS grid over each SIZE_PX square atlas, left to right from the top row. View k's
 image axes are right = (-cos a, 0, sin a) and up = (-sin e sin a, cos e, -sin e cos a), and the camera lies towards
 (cos e sin a, sin e, cos e cos a): the image is what a camera there sees, unmirrored. Every view has the same scale,
 the largest that keeps every view of the mesh PAD_PX inside its cell, with the asset's vertical axis through the
@@ -14,25 +14,26 @@ origin at the cell's horizontal centre.
 The card: the shader turns an upright quad about that axis to face the camera (or, for shadows, the light) and maps
 the nearest view onto it. The card's height is the image's up axis over cos e, so a viewer ELEVATION_DEG above the
 horizon sees each view exactly, and a level one sees a point in front of the axis lowered by its depth times tan e
-(a quarter of the crown's radius at most). Its normal, per pixel, is the crown's (card_normals): the normal of an
-ellipsoid round the card slots' vertices (alpha-clipped recipes; the whole mesh without any), their centre and their
-horizontal and vertical radii, on the side facing the camera (above and below the crown, where trunks and stems
-stand, an upright cylinder's), leaning up by the crown's up share. An ellipsoid's visible normals spread as the
-visible sides of leaves turned every way do (a projected-area-weighted hemisphere), so the card takes the sun as a
-crown of leaves does from any side; a horizontal-only normal (the leaf cards' outward rule) left a side-lit crown a
-third too dark (measured on V01 at 50 m).
+(a quarter of the crown's radius at most). Its normal, per pixel, is the normal atlas's: the visible side of the
+surface under the pixel as its view saw it (a back face's normal turned to the viewer, as the leaf shader lights a
+leaf), in that view's axes (right, up, towards the camera) mapped into 0-1, which the shader turns into object space
+with the same view's axes. So every leaf, limb and trunk takes the sun at its own angle, from any sun; the texels no
+surface covers are filled from the covered ones (push_pull), so neither the filter at the crown's edge nor a mip mixes
+in a normal that no surface has. One albedo card with one normal for every sun left a sunlit crown 8-18 % dark at
+50 m (measured in task 1.2, design 3).
 
-The render is flat: each slot's base map, as the importer picks it (a groove, paint or separate-opacity recipe's
+The renders are flat: each slot's base map, as the importer picks it (a groove, paint or separate-opacity recipe's
 derived _base map, else the set's diffuse), times its tint, both linear as Unity takes them, clipped at the recipe's
-cutoff and emitted, so the atlas holds albedo and the gallery's light shades the card (design 3). Two more renders of
-the same views measure what the card's lighting needs, since one albedo card cannot carry it per pixel: the crown's
-occlusion, the luminance of the base maps times their recipes' derived occlusion (the mask's G, which URP/Lit applies
-to ambient light only) over that of the atlas, which the card's material applies to its ambient light; and from the
-normals the views saw, the up share (up_share). Cycles on the CPU with fixed samples and seed, no denoiser, the
-Standard view transform and no dither, so a render repeats; the PNG keeps only its critical chunks. The metadata
-records the hash of everything the render reads (`inputs_sha256`) and of the atlas (`atlas_sha256`): an atlas whose
-two hashes match is up to date and is not rendered again (its measures stand), so an unchanged rebuild writes no
-byte, and a hand-edited atlas is rendered over."""
+cutoff and emitted, so the albedo atlas holds albedo and the gallery's light shades the card (design 3); the normal
+render emits the normal through the Raw view transform, so its PNG holds the values, linear, each texel's the mean of
+the surfaces under it (straight alpha), and the atlas is written from it, filled, as 8-bit RGB. One more render
+of the same views measures the crown's occlusion, the luminance of the base maps times their recipes' derived
+occlusion (the mask's G, which URP/Lit applies to ambient light only) over that of the albedo atlas, which the card's
+material applies to its ambient light, since one albedo card cannot carry it per pixel. Cycles on the CPU with fixed
+samples and seed, no denoiser, the Standard view transform for albedo and no dither, so a render repeats; each PNG
+keeps only its critical chunks. The metadata records the hash of everything the render reads (`inputs_sha256`) and
+of each atlas (`atlas_sha256`, `normals_sha256`): atlases whose hashes all match are up to date and are not rendered
+again (their measure stands), so an unchanged rebuild writes no byte, and a hand-edited atlas is rendered over."""
 import hashlib
 import json
 import math
@@ -41,20 +42,19 @@ import struct
 
 VIEWS = 8
 COLUMNS, ROWS = 4, 2
-SIZE_PX = 1024              # the spec's 1k
+SIZE_PX = 1024              # the spec's 1k, both atlases
 CELL_PX = (SIZE_PX // COLUMNS, SIZE_PX // ROWS)
 ELEVATION_DEG = 15.0        # design 3 (assumed)
 PAD_PX = 8                  # an empty margin round every view: a texel still at mip 3, where a card switched in at
                             # 24 px of crown samples, so no cell bleeds into the next (assumed: the bleed past it is
                             # a texel at 400 m and more)
-MAX_UP = 0.95               # the card's normal never lies flat
-SUN_ELEVATIONS_DEG = (30.0, 45.0, 60.0)  # the suns the up share is matched under, at every view's azimuth (assumed:
-                                         # the day's sun over the belts)
+FACING = (0.5, 0.5, 1.0)    # a normal atlas cell no surface covers: the view's own direction, (0, 0, 1) in 0-1
 LUMA = (0.2126, 0.7152, 0.0722)          # linear Rec. 709 luminance
 SAMPLES = 32               # Cycles samples per pixel: anti-aliasing and the texture average under a pixel
 TRANSPARENT_BOUNCES = 256   # alpha-clipped cards a ray may pass through; a dense clump stacks dozens
-FORMULA = "impostor 1: flat albedo x tint, Cycles CPU"  # change when the render changes, so every atlas is redone
-NO_ATLAS = "0" * 64         # atlas_sha256 until the atlas is rendered or found up to date
+FORMULA = "impostor 2: flat albedo x tint and the visible side's normal, Cycles CPU"  # change when the render
+                            # changes, so every atlas is redone
+NO_ATLAS = "0" * 64         # an atlas's sha256 until it is rendered or found up to date
 MATERIALS = os.path.join("unity", "Assets", "_Project", "Art", "Materials")
 RECIPES = os.path.join("assets-src", "materials")
 MANIFEST = os.path.join("tools", "assets", "manifest.json")
@@ -79,30 +79,17 @@ def basis(k):
             (math.cos(e) * math.sin(a), math.sin(e), math.cos(e) * math.cos(a)))
 
 
-def crown_slots(visual_by_slot, card_visuals):
-    """The slots drawn as cards (catalog.card_visuals): the crown the card's normal follows."""
-    return {slot for slot, visual in visual_by_slot.items() if visual in card_visuals}
-
-
-def frame(mesh, crowned):
-    """The card and the crown of the LOD0 `mesh` (module docstring): {"width_m", "height_m", "bottom_m"} in the card's
-    own upright frame, and {"centre": [x, y, z], "radii_m": [horizontal, vertical]} of the vertices of the `crowned`
-    slots (all vertices when no face has one): the middle of their box, the farthest of them from the vertical through
-    it, half their height."""
+def frame(mesh):
+    """The card of the LOD0 `mesh` (module docstring): {"width_m", "height_m", "bottom_m"} in the card's own upright
+    frame."""
     views = [[(_dot(p, right), _dot(p, up)) for p in mesh.vertices] for right, up, _ in map(basis, range(VIEWS))]
     half = max(max(abs(x) for view in views for x, _ in view), 1e-3)
     lo = min(y for view in views for _, y in view)
     hi = max(max(y for view in views for _, y in view), lo + 1e-3)
     scale = min((CELL_PX[0] - 2 * PAD_PX) / (2 * half), (CELL_PX[1] - 2 * PAD_PX) / (hi - lo))  # px per metre
     cos_e = math.cos(math.radians(ELEVATION_DEG))
-    card = {"width_m": CELL_PX[0] / scale, "height_m": CELL_PX[1] / scale / cos_e,
+    return {"width_m": CELL_PX[0] / scale, "height_m": CELL_PX[1] / scale / cos_e,
             "bottom_m": (lo - PAD_PX / scale) / cos_e}
-    picked = {i for indices, _, _, slot in mesh.faces if slot in crowned for i in indices}
-    points = [mesh.vertices[i] for i in sorted(picked)] or mesh.vertices
-    centre = [(min(p[a] for p in points) + max(p[a] for p in points)) / 2 for a in range(3)]
-    radii = [max(max(math.hypot(p[0] - centre[0], p[2] - centre[2]) for p in points), 1e-3),
-             max((max(p[1] for p in points) - min(p[1] for p in points)) / 2, 1e-3)]
-    return card, {"centre": centre, "radii_m": radii}
 
 
 def slot_materials(root, visual_by_slot, slots):
@@ -146,29 +133,28 @@ def gamma_to_linear(value):
     return value ** 2.2
 
 
-def lod(variant, switch, mesh, crowned, materials):
+def lod(variant, switch, mesh, materials):
     """The metadata's impostor LOD (lib.meta) for the LOD0 `mesh`: the card mesh's name and triangles, the switch
-    distance, and the record of the atlas, its views, the card and the crown, with the inputs' hash and NO_ATLAS for
-    the atlas's own until it is rendered or found up to date."""
-    card, crown = frame(mesh, crowned)
-    record = {"atlas": f"{variant}_impostor.png", "size_px": [SIZE_PX, SIZE_PX], "views": VIEWS, "columns": COLUMNS,
-              "rows": ROWS, "elevation_deg": ELEVATION_DEG, "card": card, "crown": crown}
+    distance, and the record of the two atlases, their views and the card, with the inputs' hash and NO_ATLAS for the
+    atlases' own until they are rendered or found up to date."""
+    record = {"atlas": f"{variant}_impostor.png", "normals": f"{variant}_impostor_normal.png",
+              "size_px": [SIZE_PX, SIZE_PX], "views": VIEWS, "columns": COLUMNS, "rows": ROWS,
+              "elevation_deg": ELEVATION_DEG, "card": frame(mesh)}
     record["inputs_sha256"] = inputs_sha256(mesh, record, materials)
-    record["atlas_sha256"] = NO_ATLAS
-    crown["up"], crown["occlusion"] = 0.0, 1.0  # the render measures both
+    record["atlas_sha256"] = record["normals_sha256"] = NO_ATLAS
+    record["occlusion"] = 1.0  # the render measures it
     return {"mesh": f"{variant}_impostor", "tris": 2, "switch_distance_m": float(switch), "impostor": record}
 
 
 def inputs_sha256(mesh, record, materials):
-    """SHA-256 of everything the render reads: the formula and the render's constants, the card and crown, the LOD0
-    mesh (vertices, faces, UVs and slots, to the metadata's micrometre), and per slot its recipe and base map bytes."""
+    """SHA-256 of everything the render reads: the formula and the render's constants, the card, the LOD0 mesh
+    (vertices, faces, UVs and slots, to the metadata's micrometre), and per slot its recipe and base map bytes."""
     digest = hashlib.sha256()
 
     def put(value):
         digest.update(json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8") + b"\n")
 
-    put({"formula": FORMULA, "samples": SAMPLES, "transparent_bounces": TRANSPARENT_BOUNCES, "pad_px": PAD_PX,
-         "keys": {k: record[k] for k in ("size_px", "views", "columns", "rows", "elevation_deg", "card", "crown")}})
+    put({"formula": FORMULA, "samples": SAMPLES, "transparent_bounces": TRANSPARENT_BOUNCES, "pad_px": PAD_PX, "keys": {k: record[k] for k in ("size_px", "views", "columns", "rows", "elevation_deg", "card")}})
     put([[round(c, 6) for c in v] for v in mesh.vertices])
     put([[indices, [[round(c, 6) for c in uv] for uv in uvs], slot] for indices, _, uvs, slot in mesh.faces])
     for slot in sorted(materials):
@@ -184,17 +170,19 @@ def file_sha256(path):
         return hashlib.sha256(f.read()).hexdigest()
 
 
-def recorded(meta_path, atlas_path, inputs):
-    """The impostor record the variant's current metadata holds, when it records these `inputs` and the atlas on disk
-    still has its atlas_sha256; else None, and the atlas is rendered."""
-    if not (os.path.isfile(meta_path) and os.path.isfile(atlas_path)):
+def recorded(meta_path, atlas_path, normals_path, inputs):
+    """The impostor record the variant's current metadata holds, when it records these `inputs` and both atlases on
+    disk still have their hashes; else None, and the atlases are rendered."""
+    if not all(os.path.isfile(p) for p in (meta_path, atlas_path, normals_path)):
         return None
     with open(meta_path, encoding="utf-8") as f:
         lods = json.load(f).get("lods", [])
     old = next((l["impostor"] for l in lods if isinstance(l, dict) and "impostor" in l), None)
     if not old or old.get("inputs_sha256") != inputs:
         return None
-    return old if file_sha256(atlas_path) == old.get("atlas_sha256") else None
+    if file_sha256(atlas_path) != old.get("atlas_sha256") or file_sha256(normals_path) != old.get("normals_sha256"):
+        return None
+    return old
 
 
 def layout(mesh, record, materials):
@@ -222,9 +210,9 @@ def layout(mesh, record, materials):
     return vertices, faces, uvs, slots, COLUMNS * cell_w
 
 
-def render(mesh, record, materials, path):
-    """Renders the atlas to `path` in this Blender (module docstring), replacing the scene, and returns what two more
-    renders of the same views measure (the module docstring): the crown's occlusion and its up share."""
+def render(mesh, record, materials, path, normals_path):
+    """Renders the albedo atlas to `path` and the normal atlas to `normals_path` in this Blender (module docstring),
+    replacing the scene, and returns what one more render of the same views measures: the crown's occlusion."""
     import bpy
     vertices, faces, uvs, slots, side = layout(mesh, record, materials)
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -250,92 +238,40 @@ def render(mesh, record, materials, path):
     camera_object.location = (side / 2, side / 2, near)
     scene.collection.objects.link(camera_object)
     scene.camera = camera_object
-    _shoot(scene, path)
-    size = png_header(path)
-    if size != (SIZE_PX, SIZE_PX, 8, 6):
-        raise RuntimeError(f"impostor: {path} came out {size}, expected {SIZE_PX}x{SIZE_PX} 8-bit RGBA")
-    albedo = _pixels(path)
+    _shoot(scene, path, 6)
     occlusion, scratch = 1.0, path[:-len(".png")] + ".measure.png"
     try:
         if any(materials[slot]["mask"] for slot in order):
             for i, slot in enumerate(order):
                 me.materials[i] = _material(slot, materials[slot], "occlusion")
-            _shoot(scene, scratch)
-            occlusion = _luminance(_pixels(scratch)) / _luminance(albedo)
-        for i, slot in enumerate(order):
-            me.materials[i] = _material(slot, materials[slot], "normal")
-        _shoot(scene, scratch)
-        up = up_share(albedo, _pixels(scratch), record)
+            _shoot(scene, scratch, 6)
+            occlusion = _luminance(_pixels(scratch)) / _luminance(_pixels(path))
     finally:
         if os.path.exists(scratch):
             os.remove(scratch)
-    return occlusion, up
+    for i, slot in enumerate(order):
+        me.materials[i] = _material(slot, materials[slot], "normal")
+    scene.view_settings.view_transform = 'Raw'  # the PNG holds the emitted values: the normal, linear
+    try:
+        _shoot(scene, scratch, 6)
+        _write_rgb(normals_path, _filled(_pixels(scratch)))
+    finally:
+        if os.path.exists(scratch):
+            os.remove(scratch)
+    return occlusion
 
 
-def card_normals(across, height, right, facing, crown, up=0.0):
-    """The card's normal at card points `across` (metres along `right` from the axis) and `height` (metres up the
-    card), numpy arrays, `right` and `facing` (the horizontal direction towards the viewer) per point: the crown's
-    ellipsoid's on the facing side (a point beside its outline takes the outline's; one above or below the crown, a
-    trunk's or stems', an upright cylinder's), leaning up by `up`, unit. The shader computes the same."""
-    import numpy as np
-    centre, (radius, half) = crown["centre"], crown["radii_m"]
-    x = (across - (right[:, 0] * centre[0] + right[:, 2] * centre[2])) / radius
-    y = (height - centre[1]) / half
-    band = np.abs(y) < 1.0
-    x, y = np.where(band, x, np.clip(x, -1.0, 1.0)), np.where(band, y, 0.0)
-    out = np.maximum(np.sqrt(x * x + y * y), 1.0)
-    x, y = x / out, y / out
-    n = x[:, None] * right + y[:, None] * np.array([0.0, 1.0, 0.0]) + np.sqrt(np.maximum(1.0 - x * x - y * y, 0.0))[:, None] * facing
-    n = n * math.sqrt(1.0 - up * up) + np.array([0.0, up, 0.0])
-    return n / np.linalg.norm(n, axis=1, keepdims=True)
-
-
-def up_share(albedo, normals, record):
-    """How far the card's normal leans up: the share u in [0, MAX_UP] at which the card's mean sun response, its
-    normal at each atlas pixel the shader's (card_normals), equals the mean response of the normals the views saw
-    there (`normals`, the visible side's normal of the surface under the pixel, as the leaf shader lights a card),
-    both weighted by the pixel's coverage times its albedo's luminance and summed over SUN_ELEVATIONS_DEG x VIEWS
-    azimuths. Pixels are numpy rows (r, g, b, a) of the renders, bottom row first, as Blender stores an image."""
-    import numpy as np
-    weight = albedo[:, 3] * (_linear(albedo[:, :3]) @ LUMA)
-    index = np.nonzero(weight > 0)[0]
-    weight = weight[index]
-    x_px, y_px = index % SIZE_PX, index // SIZE_PX
-    k = (SIZE_PX - 1 - y_px) // CELL_PX[1] * COLUMNS + x_px // CELL_PX[0]
-    axes = np.array([basis(j) for j in range(VIEWS)])  # (view, right / up / toward, xyz)
-    right, up, toward = axes[k, 0], axes[k, 1], axes[k, 2]
-    facing = toward * np.array([1.0, 0.0, 1.0])
-    facing /= np.linalg.norm(facing, axis=1, keepdims=True)
-    seen = _linear(normals[index, :3]) * 2.0 - 1.0  # the layout's axes are right, up, towards the camera
-    seen = seen[:, :1] * right + seen[:, 1:2] * up + seen[:, 2:3] * toward
-    card = record["card"]
-    across = (x_px % CELL_PX[0] + 0.5) / CELL_PX[0] * card["width_m"] - card["width_m"] / 2
-    height = card["bottom_m"] + (y_px % CELL_PX[1] + 0.5) / CELL_PX[1] * card["height_m"]
-    suns = np.array([(math.sin(a) * math.cos(e), math.sin(e), math.cos(a) * math.cos(e))
-                     for e in map(math.radians, SUN_ELEVATIONS_DEG)
-                     for a in (2 * math.pi * j / VIEWS for j in range(VIEWS))])
-    target = float(np.sum(weight[:, None] * np.maximum(seen @ suns.T, 0.0)))
-
-    def response(u):
-        lit = card_normals(across, height, right, facing, record["crown"], u) @ suns.T
-        return float(np.sum(weight[:, None] * np.maximum(lit, 0.0)))
-
-    lo, hi = 0.0, MAX_UP
-    if response(lo) >= target:
-        return lo
-    if response(hi) <= target:
-        return hi
-    for _ in range(32):
-        mid = (lo + hi) / 2
-        lo, hi = (mid, hi) if response(mid) < target else (lo, mid)
-    return (lo + hi) / 2
-
-
-def _shoot(scene, path):
+def _shoot(scene, path, colour_type):
+    """Renders the scene to `path` and checks it came out SIZE_PX square, 8-bit, of the PNG colour type (6 RGBA,
+    2 RGB)."""
     import bpy
     scene.render.filepath = path
     bpy.ops.render.render(write_still=True)
     strip_png(path)
+    size = png_header(path)
+    if size != (SIZE_PX, SIZE_PX, 8, colour_type):
+        raise RuntimeError(f"impostor: {path} came out {size}, expected {SIZE_PX}x{SIZE_PX} 8-bit of colour type "
+                           f"{colour_type}")
 
 
 def _pixels(path):
@@ -389,6 +325,54 @@ def _settings(scene):
     scene.view_settings.gamma = 1.0
     image = render.image_settings
     image.file_format, image.color_mode, image.color_depth, image.compression = 'PNG', 'RGBA', '8', 15
+
+
+def _filled(pixels):
+    """The normal render's rows (r, g, b, a, bottom row first, straight alpha) as SIZE_PX x SIZE_PX x 3 bytes, top row
+    first, every texel no surface covers filled from its cell's covered ones (`push_pull`), so neither the bilinear
+    filter nor a mip ever mixes in a normal no surface has."""
+    import numpy as np
+    image = pixels.reshape(SIZE_PX, SIZE_PX, 4)[::-1]
+    out = np.empty((SIZE_PX, SIZE_PX, 3))
+    for row in range(ROWS):
+        for column in range(COLUMNS):
+            cell = (slice(row * CELL_PX[1], (row + 1) * CELL_PX[1]), slice(column * CELL_PX[0], (column + 1) * CELL_PX[0]))
+            out[cell] = push_pull(image[cell][..., :3], image[cell][..., 3] > 0)
+    return np.clip(np.round(out * 255.0), 0, 255).astype(np.uint8)
+
+
+def push_pull(values, known):
+    """`values` (h x w x c, numpy) with every texel where `known` is False filled: from the means of the known ones
+    over 2 x 2 blocks, level by level up to one texel, then back down, so a hole takes the mean of the nearest known
+    texels at the finest level that has any; FACING when none is known."""
+    import numpy as np
+    h, w = known.shape
+    if known.all():
+        return values
+    if not known.any():
+        return np.broadcast_to(np.array(FACING[:values.shape[2]], dtype=float), values.shape).copy()
+    if h % 2 or w % 2:
+        mean = values[known].mean(axis=0)
+        return np.where(known[..., None], values, mean)
+    weight = known.reshape(h // 2, 2, w // 2, 2).sum(axis=(1, 3))
+    total = (values * known[..., None]).reshape(h // 2, 2, w // 2, 2, -1).sum(axis=(1, 3))
+    coarse = push_pull(total / np.maximum(weight, 1)[..., None], weight > 0)
+    return np.where(known[..., None], values, coarse.repeat(2, axis=0).repeat(2, axis=1))
+
+
+def _write_rgb(path, rgb):
+    """An 8-bit RGB PNG of `rgb` (h x w x 3 bytes, top row first): IHDR, one IDAT of unfiltered rows at zlib level 9,
+    IEND, so the same texels always make the same bytes."""
+    import zlib
+    h, w, _ = rgb.shape
+    raw = b"".join(b"\x00" + rgb[y].tobytes() for y in range(h))
+
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+
+    with open(path, "wb") as f:
+        f.write(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0))
+                + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
 
 
 def _material(slot, m, mode):
@@ -469,7 +453,7 @@ def strip_png(path):
 
 
 def png_header(path):
-    """(width, height, bit depth, colour type) from the PNG's IHDR; colour type 6 is RGBA."""
+    """(width, height, bit depth, colour type) from the PNG's IHDR; colour type 6 is RGBA, 2 RGB."""
     with open(path, "rb") as f:
         head = f.read(26)
     width, height, depth, colour = struct.unpack(">IIBB", head[16:26])

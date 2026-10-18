@@ -1,7 +1,7 @@
 """build.py end to end in headless Blender, when the pinned Blender is installed: K01 builds into a scratch root
 with its audit printed, the outputs agree with the spec scenarios, a second run writes byte-identical files, an
 out-of-range param and a mesh grown beyond its box are refused before anything is written, and an impostor asked for
-is rendered once as a 1k atlas. The version pin is checked without Blender."""
+is rendered once as a 1k albedo and a 1k normal atlas. The version pin is checked without Blender."""
 import hashlib
 import json
 import os
@@ -70,12 +70,12 @@ def test_out_of_range_bevel_is_refused_and_the_outputs_stay_untouched(blender, r
     assert {p.name: p.read_bytes() for p in (tmp_path / OUT).iterdir()} == before
 
 
-def test_impostor_atlas_is_rendered_at_1k_once_and_removed_when_off(blender, repo_root, tmp_path):
+def test_impostor_atlases_are_rendered_at_1k_once_and_removed_when_off(blender, repo_root, tmp_path):
     """p1-v01-locust design decision 3 (asset-pipeline "Baked impostor LOD"): K01 with its params asking for an
-    impostor (the brick generator taught the two keys inside this Blender) gets a 1k RGBA atlas beside its FBX with
-    every view inside its cell, and the impostor as its last LOD at the params' switch distance; a rebuild finds the
-    atlas up to date and writes identical bytes; a deleted atlas renders again to the same bytes; params that stop
-    asking remove it."""
+    impostor (the brick generator taught the two keys inside this Blender) gets a 1k RGBA albedo atlas beside its FBX
+    with every view inside its cell and a 1k RGB normal atlas whose every texel faces its view, and the impostor as
+    its last LOD at the params' switch distance; a rebuild finds the atlases up to date and writes identical bytes; a
+    deleted atlas renders both again to the same bytes; params that stop asking remove them."""
     shutil.copytree(repo_root / "assets-src", tmp_path / "assets-src")
     for path in ("tools/assets/manifest.json", "unity/Assets/_Project/Art/ThirdParty/polyhaven/red_brick/red_brick_diff_1k.png",
                  "unity/Assets/_Project/Art/Materials/brick_red_mask.png"):
@@ -95,7 +95,7 @@ def test_impostor_atlas_is_rendered_at_1k_once_and_removed_when_off(blender, rep
                                                         "effect": "test"}}
         sys.exit(build.main(["K01", "--root", {str(tmp_path)!r}]))
         """)
-    names = ("K01_whole.fbx", "K01_whole.assetmeta.json", "K01_whole_impostor.png")
+    names = ("K01_whole.fbx", "K01_whole.assetmeta.json", "K01_whole_impostor.png", "K01_whole_impostor_normal.png")
     atlas = tmp_path / OUT / names[2]
     outputs, digests = [], []
     for step in ("first", "again", "deleted"):
@@ -109,14 +109,20 @@ def test_impostor_atlas_is_rendered_at_1k_once_and_removed_when_off(blender, rep
     assert "impostor rendered" not in outputs[1], "an up-to-date atlas is not rendered again"
     assert "K01_whole: impostor rendered in" in outputs[2]
     assert digests[0] == digests[1] == digests[2], "the same inputs render the same bytes"
-    assert "K01_whole: impostor K01_whole_impostor.png 1024x1024, 8 views at 15 deg" in outputs[0]
+    assert ("K01_whole: impostor K01_whole_impostor.png and K01_whole_impostor_normal.png 1024x1024, 8 views at 15 deg"
+            in outputs[0])
 
     assert impostor.png_header(str(atlas)) == (1024, 1024, 8, 6), "a 1k 8-bit RGBA atlas"
+    normals = tmp_path / OUT / names[3]
+    assert impostor.png_header(str(normals)) == (1024, 1024, 8, 2), "a 1k 8-bit RGB normal atlas"
+    blue = Image.open(normals).getchannel("B")
+    assert blue.getextrema()[0] >= 127, "every texel's normal faces its view's camera, the filled ones too"
     data = json.loads((tmp_path / OUT / names[1]).read_text(encoding="utf-8"))
     last = data["lods"][-1]
     assert [lod["mesh"] for lod in data["lods"]] == ["K01_whole_LOD0", "K01_whole_LOD1", "K01_whole_impostor"]
     assert last["switch_distance_m"] == 60.0 and data["cull_distance_m"] == 120.0
     assert last["impostor"]["atlas_sha256"] == digests[0][names[2]]
+    assert last["impostor"]["normals_sha256"] == digests[0][names[3]]
     alpha = Image.open(atlas).getchannel("A")
     pad = impostor.PAD_PX
     for k in range(impostor.VIEWS):
@@ -131,7 +137,7 @@ def test_impostor_atlas_is_rendered_at_1k_once_and_removed_when_off(blender, rep
     params_path.write_text(json.dumps(params), encoding="utf-8")
     code, output = run_build(blender, tmp_path, driver)
     assert code == 0, output
-    assert not atlas.exists(), "an atlas the params no longer ask for is removed"
+    assert not atlas.exists() and not normals.exists(), "atlases the params no longer ask for are removed"
     data = json.loads((tmp_path / OUT / names[1]).read_text(encoding="utf-8"))
     assert [lod["mesh"] for lod in data["lods"]] == ["K01_whole_LOD0", "K01_whole_LOD1"]
 
