@@ -8175,6 +8175,7 @@ MonoBehaviour:
   gaps: []
   windVolumes: []
   ports: []
+  wires: []
   snag: []
   sourceJson: {fileID: 4900000, guid: fbbcf8d53da4c044ebd1c73d41f87c19, type: 3}
 --- !u!205 &5889537756516214687

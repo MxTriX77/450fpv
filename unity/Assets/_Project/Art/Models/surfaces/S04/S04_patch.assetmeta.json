@@ -4221,5 +4221,6 @@
   "gaps": [],
   "wind_volumes": [],
   "ports": [],
+  "wires": [],
   "snag": []
 }

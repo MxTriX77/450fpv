@@ -408,6 +408,7 @@
       ]
     }
   ],
+  "wires": [],
   "snag": [
     {
       "kind": "hook",

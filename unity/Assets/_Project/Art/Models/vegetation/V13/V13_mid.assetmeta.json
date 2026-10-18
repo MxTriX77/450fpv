@@ -1106,6 +1106,7 @@
     }
   ],
   "ports": [],
+  "wires": [],
   "snag": [
     {
       "kind": "edge",

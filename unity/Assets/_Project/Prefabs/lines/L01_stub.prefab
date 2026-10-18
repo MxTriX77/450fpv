@@ -1301,6 +1301,7 @@ MonoBehaviour:
   - id: hook_3
     position: {x: 0, y: 5.855, z: -0.261}
     direction: {x: 0, y: 0, z: -1}
+  wires: []
   snag:
   - kind: edge
     points:
