@@ -17,7 +17,8 @@ namespace Fpv450
     /// under <c>Settings/Review/</c>: 1024 px tiles at 1.5, 10, 50 and 200 m, an 8-view turntable and the metadata
     /// overlay, on a neutral stage with a 1.8 m scale bar, composed into <c>review-sheets/&lt;ID&gt;/&lt;variant&gt;_&lt;light&gt;.png</c>.
     /// Batchmode, with graphics: <c>-batchmode -quit -executeMethod Fpv450.Review.Capture -asset &lt;ID&gt;</c>;
-    /// exit code 1 on any error, and nothing written when the id, a prefab or its metadata is missing.
+    /// exit code 1 on any error, and nothing written when the id, a prefab or its metadata is missing, or when a
+    /// prefab would render nothing (<see cref="RequireRenderable"/>).
     /// </summary>
     public static class Review
     {
@@ -75,6 +76,8 @@ namespace Fpv450
                         throw new FileNotFoundException($"{path} is missing: run the catalog import first");
                 inputs.Add((variant, prefabPath, metaPath));
             }
+            foreach ((string variant, string prefabPath, _) in inputs)
+                RequireRenderable(AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath) ?? throw new FileNotFoundException($"{prefabPath} did not load as a prefab"), variant);
             LightProfile[] profiles = Lights.Select(LoadProfile).ToArray();
 
             ShaderUtil.allowAsyncCompilation = false; // or the first tiles show the "compiling" placeholder
@@ -115,6 +118,35 @@ namespace Fpv450
             {
                 rig.Dispose();
             }
+        }
+
+        /// <summary>
+        /// Refuses a prefab that would render an empty stage: a renderer without a mesh, or a material without a
+        /// texture asset, which is what an un-smudged Git LFS pointer leaves behind (the FBX or a PNG fails to import,
+        /// the references go missing, and every tile shows bare ground). The importer gives every renderer its mesh
+        /// and every material its diffuse, so each missing one is named.
+        /// </summary>
+        public static void RequireRenderable(GameObject prefab, string variant)
+        {
+            var missing = new List<string>();
+            MeshRenderer[] renderers = prefab.GetComponentsInChildren<MeshRenderer>(true);
+            if (renderers.Length == 0)
+                missing.Add("no renderer");
+            foreach (MeshRenderer renderer in renderers)
+            {
+                var filter = renderer.GetComponent<MeshFilter>();
+                if (filter == null || filter.sharedMesh == null || filter.sharedMesh.vertexCount == 0)
+                    missing.Add($"no mesh on {renderer.name}");
+                foreach (Material material in renderer.sharedMaterials)
+                {
+                    if (material == null)
+                        missing.Add($"no material on {renderer.name}");
+                    else if (material.mainTexture == null || !AssetDatabase.GetAssetPath(material.mainTexture).StartsWith("Assets/", StringComparison.Ordinal))
+                        missing.Add($"texture missing on {material.name}");
+                }
+            }
+            if (missing.Count > 0)
+                throw new InvalidOperationException($"{variant}: {string.Join(", ", missing.Distinct())} (an LFS pointer on disk? run git lfs checkout)");
         }
 
         // --- the catalog and the repo ---------------------------------------------------------------------------
