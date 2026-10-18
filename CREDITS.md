@@ -10,5 +10,7 @@ the manifest.
 | Title | Licence | Author | Source | Files |
 |---|---|---|---|---|
 | Red Brick (1k) | CC0 1.0 | Rob Tuytel | [polyhaven.com/a/red_brick](https://polyhaven.com/a/red_brick) | `unity/Assets/_Project/Art/ThirdParty/polyhaven/red_brick/` (4 files, 11.1 MB) |
+| Brown Mud 02 (2k) | CC0 1.0 | Rob Tuytel | [polyhaven.com/a/brown_mud_02](https://polyhaven.com/a/brown_mud_02) | `unity/Assets/_Project/Art/ThirdParty/polyhaven/brown_mud_02/` (4 files, 21.9 MB) |
+| Dry Straw Grass / Hay Texture (2k) | CC0 1.0 | TextureCan | [www.texturecan.com/details/190/](https://www.texturecan.com/details/190/) | `unity/Assets/_Project/Art/ThirdParty/texturecan/ground_0018/` (4 files, 30.4 MB) |
 
 Licences: [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/), [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/). CC0 needs no attribution; the authors are named as thanks.
