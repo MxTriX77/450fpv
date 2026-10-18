@@ -5949,6 +5949,7 @@ MonoBehaviour:
   - mesh: V01_M_LOD2
     tris: 638
     switchDistanceM: 116.9
+  micro: []
   cullDistanceM: 2500
   materials:
   - slot: bark
@@ -9059,7 +9060,7 @@ LODGroup:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3933851746596072919}
   serializedVersion: 2
-  m_LocalReferencePoint: {x: 0.36608362, y: 4.9646683, z: 0.30607533}
+  m_LocalReferencePoint: {x: 0.3660835, y: 4.9646683, z: 0.30607498}
   m_Size: 10.105095
   m_FadeMode: 0
   m_AnimateCrossFading: 0

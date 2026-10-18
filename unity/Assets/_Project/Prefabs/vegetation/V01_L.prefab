@@ -9132,6 +9132,7 @@ MonoBehaviour:
   - mesh: V01_L_LOD2
     tris: 872
     switchDistanceM: 116.9
+  micro: []
   cullDistanceM: 2500
   materials:
   - slot: bark
@@ -13006,8 +13007,8 @@ LODGroup:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4687923983965885791}
   serializedVersion: 2
-  m_LocalReferencePoint: {x: -0.55812883, y: 6.833281, z: 0.3045802}
-  m_Size: 13.95217
+  m_LocalReferencePoint: {x: -0.558129, y: 6.833281, z: 0.30457997}
+  m_Size: 10.796451
   m_FadeMode: 0
   m_AnimateCrossFading: 0
   m_LastLODIsBillboard: 0
@@ -13016,11 +13017,11 @@ LODGroup:
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 6790312322691191639}
-  - screenRelativeHeight: 0.103361286
+  - screenRelativeHeight: 0.0799829
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 782361301126223835}
-  - screenRelativeHeight: 0.0048331735
+  - screenRelativeHeight: 0.0037400003
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 5779665679799019980}
