@@ -16,9 +16,9 @@ A generator MAY ask for an impostor: the build SHALL render the LOD0 mesh with i
 - **WHEN** a tree variant's params set `impostor: true` with a switch distance
 - **THEN** the build writes `<variant>_impostor.png` at 1k with alpha and its normal atlas at 1k, the metadata lists the impostor LOD with its switch distance, and the prefab's LOD group shows the card set beyond that distance and the mesh LODs before it
 
-#### Scenario: Every LOD matches LOD0
+#### Scenario: No LOD switch pops
 - **WHEN** the 50 m tile and the tile at each LOD's switch distance are rendered with each LOD forced in turn (every mesh LOD and the impostor), by day and overcast, each value the mean over an 8 × 8 grid of sub-pixel projection offsets (±1/16 to ±7/16 px), with its standard error under 1 % in luminance and coverage (single renders of a crown of about 100 px scatter by 5–16 %; the error of the mean falls as 1/√N, tasks 1.2c–1.2d)
-- **THEN** each LOD's crown differs from LOD0's by less than 6 % in mean luminance and by less than 15 % in pixel coverage, so no switch pops
+- **THEN** at each switch distance the incoming LOD's crown differs from the outgoing LOD's by less than 6 % in mean luminance and by less than 15 % in pixel coverage, and at the 50 m tile the LOD shown there differs from LOD0's by the same limits; LOD0 is the reference only up to its own switch, since beyond it its sub-pixel leaves drop out of the raster, and a LOD is never judged nearer than it is shown (task 1.2b)
 
 ## MODIFIED Requirements
 
