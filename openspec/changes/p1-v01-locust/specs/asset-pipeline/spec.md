@@ -17,7 +17,7 @@ A generator MAY ask for an impostor: the build SHALL render the LOD0 mesh with i
 - **THEN** the build writes `<variant>_impostor.png` at 1k with alpha and its normal atlas at 1k, the metadata lists the impostor LOD with its switch distance, and the prefab's LOD group shows the card set beyond that distance and the mesh LODs before it
 
 #### Scenario: Every LOD matches LOD0
-- **WHEN** the 50 m tile and the tile at each LOD's switch distance are rendered with each LOD forced in turn (every mesh LOD and the impostor), by day and overcast
+- **WHEN** the 50 m tile and the tile at each LOD's switch distance are rendered with each LOD forced in turn (every mesh LOD and the impostor), by day and overcast, each value the mean over a 2 × 2 grid of half-pixel camera offsets (a crown of about 100 px moves 5–6 % under a half-pixel shift)
 - **THEN** each LOD's crown differs from LOD0's by less than 6 % in mean luminance and by less than 15 % in pixel coverage, so no switch pops
 
 ## MODIFIED Requirements
