@@ -2940,6 +2940,7 @@ MonoBehaviour:
     height: 0
     rotation: {x: 0, y: 0, z: 0, w: 1}
     porosity: 0.35
+  ports: []
   snag:
   - kind: edge
     points:

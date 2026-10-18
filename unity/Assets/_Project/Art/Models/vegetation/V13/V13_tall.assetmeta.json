@@ -1260,6 +1260,7 @@
       "porosity": 0.35
     }
   ],
+  "ports": [],
   "snag": [
     {
       "kind": "edge",
