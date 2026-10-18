@@ -312,8 +312,8 @@ def build(params):
     for s, side in pole.levels:
         head_low = min(head_low, s)
         bases.append(_hook(lods[0], pole, s, side, collision, snag))
-    for n, (base, side) in enumerate(bases):
-        ports.append(_insulator(lods[0], pole, base, side, n, collision, snag))
+    for i, (base, side) in enumerate(bases):
+        ports.append(_insulator(lods[0], pole, base, side, i, collision, snag))
     _ground_wire(lods[0], pole, head_low - GROUND_WIRE_GAP_M, snag)
     lod = p["lod"]
     centre = pole.place((0.0, pole.height / 2, 0.0))
