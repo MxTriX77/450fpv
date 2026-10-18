@@ -1,6 +1,6 @@
 # Object sheet: urban edge (U01–U03) and village public buildings (P01–P06)
 
-**Owner:** reference-analyst. **Reviewed for buildability by:** asset-artist (task 1.7, pending).
+**Owner:** reference-analyst. **Reviewed for buildability by:** asset-artist (task 1.7, `openspec/changes/p1-object-sheets/review-buildability.md`).
 
 **OPSEC:** cite clips and photos by letter only. Describe classes, never a specific identifiable building, place, date or person. No file names, and no OSD values. Every sign, name or lettering on these assets is **invented** (SEC-03): no text is ever copied from a reference or a research image.
 
@@ -10,7 +10,7 @@
 
 - **Letters read:** the two urban-edge photos I and K, each as a single still, plus local zoom crops kept in the ignored `reference/_frames/<letter>/zoom/`: in I the block's long facade and its near end at about 3.5×; in K the open floors, the roof line, the stacked balconies, the ground floor with its wall stub, the rubble mound, the concrete pieces in it and the ground in front. No clip shows any row of this sheet (terrain.md §9), so there are no contact sheets and **no feed check values**: the REAL-03 comparison for this group is a noclip view against the photo.
 - **Reused, not re-measured:** terrain.md §4 B4 (the block: storeys, depth, length, sections, wall thickness, windows, damage kit, wake) and B5 (the mound: 2–4 m high, spreading 15–20 m, the K rubble colour #8d8172), B6 and T8 (fence, trampled ground), §6 S1, S3–S5 (cables, masonry debris, timber and tarps, household contents); knowledge.md §9.2 and §14.4 (rubble coloured from the building's own materials, windows are empty frames or broken glass, damage masks); the houses-and-yard sheet's shared construction (brick sizes, lintels, slate, blast thresholds, the failure order) and its drone-against-an-opening arithmetic; the earthworks-and-surfaces sheet's four geometry layers and its S10 `rubble` row, which leaves the piece mix to this sheet. Where this sheet gives a number terrain.md already gives, terrain.md is the source.
-- **Not yet on this branch:** `lines-roads-debris.md` (task 1.4). The debris kit **K06** (concrete chunks with protruding rebar), **K08** (household items) and **K10** (fabric and cables hanging from ruins) are defined there; this sheet only says where the block uses them and how densely, and gives the block-specific bar sizes.
+- **Shared with `lines-roads-debris.md`** (task 1.4): the debris kit **K06** (concrete chunks with protruding rebar), **K08** (household items) and **K10** (fabric and cables hanging from ruins), and the cables of **L05**, are defined there; this sheet only says where the block uses them and how densely, and gives the block-specific bar sizes, which K06 now matches.
 - **Scale cues in the photos:** the storey (AST-04: 3.0–3.4 m for this block); in K the slab edges (one per storey), the cast-iron radiator under a window (about 0.5–0.6 m high, assumed), the room doors in the back walls (about 0.8 × 2.0 m), the wardrobes (about 2.0 m, assumed), the balcony rails (about 1.0 m, assumed); in I the window rows (one per storey) and the entrance canopies.
 - **Labels:** every number is **measured** (from a letter), **published** (with its source), **derived** (with the derivation) or **assumed**. Measured values from I and K are rough: I shows the block at 60–80 m in low sun, K is a portrait photo looking up 15–25°, so perspective shortens the upper floors.
 - **Colours** are mean sRGB of hand-picked regions on the two photos (`photo` values). I is lit by a low warm sun, so its lit reads are warmer than albedo and its shade reads are blue; K is overcast and dark, so its interior reads are deep shade. Each row says what to author.
@@ -112,7 +112,7 @@ As the houses sheet: a master `damage` (0–1) per section or part sets defaults
 - **Walls:** brick in lime-cement mortar, 2.5 bricks outside. The look has two finishes on one block, both from the references:
   - the facades **rendered** pale cream, with a painted band (yellow in I) over the lowest one or two storeys of some sections, and a dark plinth (I);
   - around the torn end and big breaches, **bare buff brick with white adhesive dabs** about 0.10–0.15 m across on a 0.25–0.35 m grid (K). The dabs read as the adhesive left after an external insulation layer was blown off (interpreted from the published bead-and-dab method, assumed). So the default build puts that layer on every facade: EPS boards 50–100 mm, mesh and a thin render, which is the smooth pale render I shows; where it is lost, the dabs show on bare brick, and remnant boards hang at the patch edges (geometry).
-- **Floors:** hollow-core slabs 1.2 m wide side by side along the block, with a cement screed and linoleum or boards; precast lintels over openings (as the houses sheet: 0.12–0.14 × 0.25 m per leaf, 2–4 bars of 10–12 mm); a cast ring beam with 4 bars of 12 mm at the wall head (assumed). Timber-beam floors (the older Stalin-era alternative, published) are a generator option.
+- **Floors:** hollow-core slabs 1.2 m wide side by side along the block, with a cement screed and linoleum or boards; precast lintels over openings (as the houses sheet: 0.12–0.14 × 0.25 m per leaf, 2–4 bars of 8–12 mm); a cast ring beam with 4 bars of 12 mm at the wall head (assumed). Timber-beam floors (the older Stalin-era alternative, published) are a generator option.
 - **Stairs:** precast flights and landings in the brick stair cell, steel balusters with a timber or PVC handrail, the section entrance under a canopy, a vestibule and 6–7 risers up to the ground-floor landing (derived from the 1.0 m plinth).
 - **Roof:** hipped (published for the brick five-storey series), rafters on purlins carried by posts on the spine wall, battens, cover of painted sheet steel 0.5–0.7 mm (the series' metal roof) or asbestos-cement slate (houses sheet), an attic over the top slab with its fill layer, small dormer vents; gutters and downpipes of galvanised sheet.
 - **Openings:** windows with timber double frames painted white, many replaced by white PVC; balcony doors; radiators (cast iron, 0.5–0.6 m high) under every window; ground-floor windows with steel grilles in places (K: one on the long facade).
@@ -171,7 +171,7 @@ Each kit item, what it is physically:
 - **Hanging and sagging slabs:** a **hollow-core slab** that lost one support drops that end until it lands on the floor below or on debris, hanging at **20–60°** from its other support, held at the joint anchors (assumed); a **cracked slab** hinges on its bottom bars and sags **5–30°** at the free edge (the H06 rule); its broken face shows the Ø 159 mm voids (published) and bars. On timber-beam floors (option) the beams hang from the remaining wall pocket, the boards split.
 - **Protruding rebar (PR-5):**
   - at broken slab ends: the bottom bars or wires, Ø 5–14 mm, ribbed (А-III class) or smooth wire, 0.1–0.6 m out and bent, one per 0.15–0.3 m of broken edge (derived from the bar pitch), 30–70 % of them visible (the rest snapped flush, assumed); the screed's mesh Ø 4–5 mm at 0.10–0.20 m;
-  - at broken lintels over blown windows: 2–4 bars Ø 10–12 mm bent out 0.2–0.5 m (houses sheet);
+  - at broken lintels over blown windows: 2–4 bars Ø 8–12 mm bent out 0.2–0.5 m (houses sheet);
   - at broken balcony slabs: the top bars Ø 10–12 mm at 0.15–0.20 m, a slab hanging on them at 20–80°;
   - at the ring beam where the wall head broke: 4 bars Ø 12 mm, up to 1 m exposed;
   - in the mound: K06 concrete chunks with bars (lines-roads-debris sheet).
@@ -292,7 +292,7 @@ The block is built from a **section list**: each section is one stair cell with 
 | `seed` | int | — | — | Every random choice above |
 
 ### Open points
-- **Eaves height:** asset-list §7 gives 15–17 m, which holds for 3.0–3.1 m storeys on a 1 m plinth; 3.4 m storeys (AST-04's top) give 18–19 m. The default 3.0 m keeps both and matches the published ≈ 19 m overall. Suggest the asset list reads "16–19 m to the eaves" (orchestrator).
+- **Eaves height:** asset-list §7 gives 15–17 m, which holds for 3.0–3.1 m storeys on a 1 m plinth; 3.4 m storeys (AST-04's top) give 18–19 m. The default 3.0 m keeps both and matches the published ≈ 19 m overall. The asset list now reads "16–19 m to the eaves".
 - **Windows:** the given 1.3 × 1.8 m (taller than wide) is the default; I reads wider than tall (1.8 × 1.35 m three-leaf). Both pass the drone only with the frame gone. Settled at the I side-by-side, not by the pilot.
 - **I's flat roof line:** from the I viewpoint a 25° hip would show its ridge 1–2° above the eaves line (derived: eaves 16.5 m and ridge 19.5 m at 70–76 m), and none shows. The default explains it with the roof burnt down over the burnt sections; `roof_type` flat_attic is the alternative. Settled at the I side-by-side.
 - **The white dabs** on K's brick are interpreted as insulation adhesive; if the side-by-side reads them as something else (tile adhesive, render keys), only the facade map changes.
@@ -737,8 +737,8 @@ The block is built from a **section list**: each section is one stair cell with 
 
 ### Physics role
 - **Collision:** poles cylinders, frames and crossarms boxes, transformer and board boxes, cooling tubes as one box, insulators and bushings capsules, conductors and cables per the L rows, grating a thin box.
-- **Material ids:** poles `concrete`; frames, tank, cabinet `steel` (cabinet skin and louvres `sheet_metal`); conductors and cables `cable`; insulators `glass` (porcelain approximated; no new id proposed).
-- **Gaps:** between the two poles under the platform (1.6 × 3.5 m): any yaw; between phase conductors 0.7 m: nose-first within ±35°, 63 mm a side, and every contact is a wire strike (PR-6); kiosk doors open 0.8–1.0 m: any yaw.
+- **Material ids:** poles `concrete`; frames, tank, cabinet `steel` (cabinet skin and louvres `sheet_metal`); conductors and cables `cable`; insulators `masonry` for porcelain and `glass` for glass, as the pole rows L01 and L02 do, until a ceramic id exists.
+- **Gaps:** between the two poles under the platform (1.6 × 3.5 m): any yaw; between phase conductors no gap polygon is written (the L01 rule: the wire contacts bound that space), though their 0.7 m spacing admits the drone nose-first within ±35°, 63 mm a side, and every contact is a wire strike (PR-6); kiosk doors open 0.8–1.0 m: any yaw.
 - **Wind volumes:** poles and tank solid; the grating 0.6–0.8.
 - **Snag hazards:** every conductor and cable (the main hazard), crossarms, fuse holders, the grating rail, a snapped pole's bars.
 - **Landable surfaces:** the kiosk roof (2.2 × 1.8 m, flat, steel) under its entry portal: tight; the transformer platform: no (cluttered).
@@ -761,7 +761,7 @@ The block is built from a **section list**: each section is one stair cell with 
 | `seed` | int | — | — | Random choices |
 
 ### Open points
-- Insulators share `glass`; if physics wants a separate brittle ceramic, it is one more id (whole-sheet open points).
+- Porcelain insulators share `masonry` with L01 and L02; if physics wants a separate brittle ceramic, it is one more id (whole-sheet open points).
 
 ## P06 Village name sign (invented name), road signs
 
@@ -832,11 +832,11 @@ The block is built from a **section list**: each section is one stair cell with 
 - `plastic`: white PVC window frames and profiles, appliance housings, packaging, plastic sheet (U01, U02, P01). The houses sheet's `plastic_film` covers thin sheet if physics keeps them apart.
 - `asbestos_cement`: the cowshed roof (P02) and the slate option of U01; brittle, breaks under a leg (P02's roof is therefore not landable).
 - **EPS foam** (insulation remnants on U01 and white chunks in the mound): very light and crushable; `plastic` unless physics wants a separate `foam`.
-- Insulators (P05) use `glass`; a `ceramic` id only if physics wants porcelain apart.
+- Insulators (P05) use `masonry` for porcelain and `glass` for glass, as L01 and L02; a `ceramic` id only if physics wants porcelain apart.
 
 **For the orchestrator:**
-- **Asset-list §7, U01 eaves:** "15–17 m to the eaves" holds for 3.0–3.1 m storeys; with AST-04's full 3.0–3.4 m range it is 16–19 m (U01, Open points).
-- **The I roof pile** (a collapsed timber roof 3–4 m high, terrain.md B5) sits in the I view between this sheet's block and the houses sheet's H06, but no asset-list row names it. The houses generator's X state (roof down on the floor, walls collapsed) builds it; suggest the asset list notes it under H03/H04 X, or a U02 variant.
-- **K10 and K06** are referenced here before `lines-roads-debris.md` exists on the branch; when it lands, its cable diameters and bar sizes should match this sheet's (cables 5–10 mm, bars Ø 5–14 mm in slabs, Ø 10–12 in lintels and balconies).
+- **Asset-list §7, U01 eaves (resolved):** the asset list now reads 16–19 m to the eaves.
+- **The I roof pile:** the asset list now has it as U02b (P2), but no sheet has a U02b section yet (buildability review: sent back to a reference-analyst task, from I). The houses generator's X state (roof down on the floor, walls collapsed) and K03's timbers can build it once it has its dimensions.
+- **K10, K06 and L05 (checked):** L05's cables (3–15 mm, diagonals to 6.5 m) cover this sheet's 5–10 mm cables across the open bays; K06's bars are now 5–14 mm, matching the slab bars here; lintel bars are 8–12 mm as the houses sheet gives, balcony bars 10–12 mm.
 
 **Settled by side-by-side or by the asset-artist, not by the pilot:** the window proportion and the roof silhouette in I, the dab interpretation in K, the storey height within AST-04's range, the P02 span and length, the P03 tank diameter. **No pilot question** comes out of this sheet: sizes are published, derived or measured, and P01–P06 and U03 are R rows the pilot sees at G2 like every other R row.
