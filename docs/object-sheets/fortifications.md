@@ -4,7 +4,7 @@
 
 **OPSEC:** cite clips and photos by letter only. Describe classes, never a specific identifiable building, place, date or person. No file names, and no OSD values.
 
-**Requirements:** AST-01, AST-02, AST-04, AST-05, AST-06, SEC-01, SEC-02, WLD-01 · **Decisions:** D-024, D-028, D-032, D-035 · **Change:** `p1-fortifications-sheet`, task 1.1.
+**Requirements:** AST-01, AST-02, AST-04, AST-05, AST-06, SEC-01, SEC-02, WLD-01 · **Decisions:** D-024, D-028, D-032, D-035 · **Change:** `p1-fortifications-sheet`, task 1.1, reworked in task 1.4 from both readings.
 
 **Rows:** F01–F04 from [asset-list.md](../asset-list.md) §12, in the pilot's words (D-035): concertina wire ("єгоза"), dragon's teeth, a couple of anti-tank hedgehogs, a checkpoint kit, "built as the real thing (researched: sizes, steel sections, concrete, how they stand, sag and fall), never as game props".
 
@@ -15,7 +15,8 @@
 - **Labels:** every number is **published** (its source in the row), **derived** (the derivation in the row) or **assumed**. No row is measured.
 - **The drone against an opening** is as in [houses-and-yard.md](houses-and-yard.md) ("How to read this sheet"): **0.574 m nose-first, 0.706 m on the diagonal**; an opening of clear width W between the two passes only within `θmax = asin((W − 0.254) / 0.4525) − 45°` of square (0.60 m → ±5°, 0.65 m → ±16°, 0.70 m → ±35°); the vertical envelope with legs is about **0.55 m**; the legs are a 0.24 m square under the frame (assumed, as in the other sheets, until `drone.json` fixes them in phase 5). The legs are narrower than the prop span, so in the gap tables below **the height given is that of the prop plane**, the widest part of the drone.
 - **AST-05 tolerances:** collision within ±5 cm of the visual wherever the drone can touch, ±2 cm around openings and landing surfaces.
-- **Physics ids** are the closed list in [physics_materials.json](../../assets-src/physics_materials.json) (`steel`, `concrete`, `fabric`, `timber` and the rest). `proposed:<id>` marks a new id for physics sign-off; the proposals are collected at the end of the sheet. Snag features use the pipeline's two kinds: `edge` (a polyline the fiber bends over, with its radius) and `hook` (a free-ended member from base to tip).
+- **Physics ids** are the closed list in [physics_materials.json](../../assets-src/physics_materials.json) (`steel`, `concrete`, `fabric`, `timber` and the rest), plus two new ids this sheet proposed and the physics reading accepted, `razor_wire` and `sandbag` (their rows are at the end of the sheet; the asset change adds them to the file). Snag features use the pipeline's two kinds: `edge` (a polyline the fiber bends over, with its radius) and `hook` (a free-ended member from base to tip). F01's turn records also carry the two optional fields the physics reading added, `edge_radius_m` and `barb_pitch_m`.
+- **"From `damage`"** in a generator table means: the item takes its I value at `damage` 0, its D value (given in brackets in the Default cell) at the row's D default (0.6 for F01, 0.5 for F02–F04) and the top of its range at `damage` 1, linearly between; where the D value is a range, `seed` draws a point in it and that point is interpolated; an integer item rounds down; any item can be set explicitly, and then `damage` no longer drives it. Whatever has no number (masks, wear, poses) reads as I below 0.25 and as D above. This is the houses sheet's rule ([houses-and-yard.md](houses-and-yard.md), "Shared house generator parameters") for a group with two states.
 - **Porosity** is the open-area fraction a wind volume lets through (0 solid, 1 free air). For a volume of thin elements (the wire coil) it is derived from the elements' area per volume: `β = exp(−G · a · s)`, with `a` the one-sided element area per unit volume, `s` the path length through the volume and `G = 0.5` the mean projection of randomly oriented flat elements (the canopy gap relation; the orientation is assumed random, see F01).
 - **How thin parts read on the feed:** about 270 px/rad on the feed and 935 px/rad on the 1080 px render (derived in [lines-roads-debris.md](lines-roads-debris.md)), so a part of width D is one feed pixel wide at 270 · D metres and one render pixel at 935 · D. Never thicken a part to make it visible.
 
@@ -44,11 +45,13 @@ None. No letter shows these objects, so no reference view exists and no side-by-
 | Turns per coil | 31–56 (56 in every concertina row) | 56 | published, catalogue |
 | Yield (stretched length of one coil) | 11 m (0.45 m coil), 15 m (0.6–1.0 m coils); 4.3 m in a tight-clipped option; the wire spiral 10 m and 0.9 m high | 15 m (0.90 m), 11 m (0.45 m) | published, catalogue and flyer; encyclopedia for the spiral |
 | Turn pitch, stretched | 0.15–0.40 m | **0.268 m** (0.90 m coil), 0.196 m (0.45 m) | derived: yield / turns (15 / 56, 11 / 56); the range assumed for runs stretched more or less than the yield |
-| Loop extent along the run and lean | a loop spans two pitches: 0.533 m (0.6–1.0 m coils), 0.406 m (0.45 m) | lean **31°** from the cross-section plane (0.90 m), 42° (0.45 m); alternate loops lean the opposite way | published "loop spacing" (catalogue); derived: in every concertina row turns × loop spacing = 2 × yield, so each loop reaches the next-but-one; lean = atan(extent / D) |
-| Clips | 3 a turn (0.45–0.6 m coils), 5 (0.72–1.0 m), 5–7 (0.98 m) | 5 (0.90 m), 3 (0.45 m) | published, catalogue |
+| Tape a turn | π D | **2.83 m** (0.90 m coil), 1.41 m (0.45 m) | derived: π D, which is the mass row's 158 m of tape over 56 turns |
+| Loop extent along the run and lean | a loop spans two pitches: 0.533 m (0.6–1.0 m coils), 0.406 m (0.45 m) | lean **36.6°** from the cross-section plane (0.90 m), 60.6° (0.45 m); alternate loops lean the opposite way | published "loop spacing" (catalogue); derived: in every concertina row turns × loop spacing = 2 × yield, so each loop reaches the next-but-one; a flat loop of the coil's diameter reaches D sin(lean), so lean = asin(2p / D) (the turn model below) |
+| Standing section (end-on) | an ellipse D high and √(D² − 4p²) wide | **0.90 m high × 0.72 m wide** (0.90 m coil), 0.45 × 0.22 m (0.45 m) | derived (the turn model below) |
+| Clips | 3 a circle (0.45–0.6 m coils), 5 (0.72–1.0 m), 5–7 (0.98 m), on the closed coil | 2 to each neighbour, at the two points where the loops cross: 4 clip points a turn | published counts (catalogue); the model's count derived (the turn model below): flat loops meet a neighbour at two points only, so the published clips beyond two a pair have nowhere to sit and are left out |
 | Clip | a steel strip crimped round two adjacent cores, 20–30 mm long | 25 × 8 × 1.2 mm | assumed (the patent gives the form, not the size) |
 | Coil mass | 8 kg (0.45 m) to 17 kg (1.0 m) | 16 kg (0.90 m) = **1.07 kg per metre of run** | published, catalogue; per metre derived |
-| Picket type | U-section steel pickets 76 mm wide with wire slots; angle-iron pickets; locally steel angle, rebar or timber stakes | steel angle 50 × 50 × 5 mm | published types (U picket: catalogue; angle iron: the pamphlet); the default section assumed (common stock) |
+| Picket type | U-section steel pickets 76 mm wide with wire slots; angle-iron pickets; locally steel angle, rebar or timber stakes | steel angle 50 × 50 × 5 mm (4.8 cm², 3.77 kg/m); a U picket 76 mm wide, 38 mm deep, 3 mm wall (4.4 cm², 3.4 kg/m) | published types (U picket: catalogue; angle iron: the pamphlet) and the 76 mm width; the 50 × 50 × 5 row published (EN 10056-1 table: https://roymech.org/Useful_Tables/Sections/AngleA_dim_prop.html ); the default section, the U's depth and wall assumed (common stock), its area and mass derived |
 | Picket length | 0.81, 1.52, 1.83, 2.44 m (U pickets) | 1.52 m single run (about 1.0 m standing); 2.44 m double-stacked (about 1.85 m standing); 0.81 m anchor pickets at the run ends | published lengths (catalogue); the 0.5–0.6 m embedment assumed |
 | Picket spacing | 3–5 m | **3.8 m** | derived: the pamphlet's stores for 50 yards (45.7 m) of triple fence are 26 long pickets in two rows, 13 a row, 12 intervals: 45.7 / 12 = 3.81 m |
 | Rows and tiers | 1–3 coils side by side, 1–2 tiers | single: 1 × 1; double-stacked: 1 × 2 | published (the encyclopedia: spirals set 2–3 rows wide and 1–2 tiers high; the pamphlet's triple fence is 2 + 1) |
@@ -56,9 +59,30 @@ None. No letter shows these objects, so no reference view exists and no side-by-
 | Fence-top coil | a 0.45–0.6 m coil on a fence or wall 1.5–2.5 m high | 0.45 m, resting on the fence top, tied at every post or every 1.0–1.5 m on a wall | coil size published; the mounting assumed |
 | Tie wire | 1.5–3 mm soft wire | 2 mm, two turns at each picket top | assumed |
 
+**The turn model** (derived from the rows above; one geometry for the generator, the snag records, the clips and the volume). D is the coil diameter, p the stretched pitch, λ the lean.
+1. **Tape.** Each turn keeps the coil's own tape, π D: 2.83 m a turn for the 0.90 m coil (158 m / 56) and 1.41 m for the 0.45 m.
+2. **Shape.** A turn is a flat circle of diameter D, in a vertical plane turned λ from the cross-section plane, alternate turns turned the other way, centres on the run's axis one pitch apart. A flat loop reaches D sin λ along the run, and the published loop spacing is two pitches, so **λ = asin(2p / D)**: **36.6°** (0.90 m, p 0.268 m) and **60.6°** (0.45 m, p 0.196 m). The earlier atan(2p / D) would need a loop of 3.06 m of tape, 8 % more than the coil holds.
+3. **Standing section.** End-on, every loop projects to the same ellipse, D high and D cos λ = √(D² − 4p²) wide: **0.90 × 0.72 m** and **0.45 × 0.22 m**. The height is unchanged, so the drone still clears a single run above 0.90 m (Physics role, Gaps).
+4. **Where turns meet.** Two neighbouring loops lie in planes 2λ apart. The planes cross on a vertical line half a pitch along the run and (D / 4) cos λ off the axis (0.18 m; 0.055 m). Both loops pass through that line at ±(√3 / 2)(D / 2) above and below the axis (±0.39 m; ±0.195 m), which is 60° either side of each loop's in-plane horizontal, at any pitch. A loop meets no other turn: the line it would share with the next loop of the other lean lies 1.5 D / 2 from its centre, outside it. So each turn meets each neighbour at exactly two points: **2 clips a pair, 4 clip points a turn**, at 60°, 120°, 240° and 300° round the loop, and 7.5 clips per metre of run (10.2 on the 0.45 m coil).
+5. **Side view.** Loops of one lean stand 2p cos λ apart (0.43 m; 0.19 m), and a loop of the other lean crosses every such opening: the diamond lattice of a concertina.
+6. **Sag (D).** A slumped loop keeps its tape: an ellipse of perimeter π D in its own plane, 0.7 D high and 1.26 D wide, 0.8 D and 1.18 D, 0.9 D and 1.10 D. It still reaches two pitches along the run, so its lean becomes asin(2p / W) for its in-plane width W, and its end-on section √(W² − 4p²) wide: **0.63 × 1.00 m, 0.72 × 0.92 m, 0.81 × 0.83 m** for the 0.90 m coil.
+7. **Bunched (D, a cut).** The same rule at a 0.05–0.10 m pitch: the coil stands nearly round, 0.90 × 0.88–0.89 m.
+8. **The volume.** Two capsules along the run, offset along the end-on ellipse's long axis, fitted to it (the largest distance between the capsules' outline and the ellipse, sampled every 1.5°; derived):
+
+   | Section | Ellipse (high × wide) | One capsule (r = the mean semi-axis) | Two capsules | Fit |
+   |---|---|---|---|---|
+   | I, 0.90 m coil | 0.90 × 0.72 m | 44 mm | r 0.358 m, centres ±0.079 m above and below the axis | **13 mm** |
+   | I, 0.45 m fence-top coil | 0.45 × 0.22 m | 57 mm: over ±5 cm | r 0.121 m, ±0.083 m above and below | **21 mm** |
+   | D, sagged to 0.7 D | 0.63 × 1.00 m | 92 mm | r 0.321 m, ±0.149 m side by side | **30 mm** |
+   | D, sagged to 0.8 D | 0.72 × 0.92 m | 50 mm | r 0.356 m, ±0.089 m side by side | **15 mm** |
+   | D, sagged to 0.9 D | 0.81 × 0.83 m | 4 mm | r 0.408 m, ±0.002 m (one in effect) | **4 mm** |
+
+   All are inside ±5 cm. A box misses every one of these sections by at least 70 mm however it is sized (derived the same way), so no state uses one except the trampled mat.
+9. **Limit.** The model needs 2p < D; the generator's `check` refuses a pitch above 0.47 D (a lean above 70°).
+
 ### Construction and materials
 - **The tape:** a 0.5 mm steel strip punched into barb clusters (four points to a cluster, two each side) and crimped round a 2.5 mm high-tensile core wire. The blades lie in the plane of the loop, so the barbs point into and out of the coil (published: the manufacturers' product photographs on the pages above).
-- **The coil:** the taped core is wound into 56 turns and adjacent turns are clipped together at 3 or 5 points round the circumference (published); successive pairs are clipped at points offset by half the clip interval (assumed: the usual concertina pattern), so when the coil is pulled out along its axis the loops lean alternately and cross, forming the diamond lattice of a concertina. Delivered closed (about 0.3–0.5 m long, assumed), it is pulled out to its yield on site and tied.
+- **The coil:** the taped core is wound into 56 turns and adjacent turns are clipped together (published: 3 or 5 clips a circle on the closed coil), so when the coil is pulled out along its axis the loops lean alternately and cross, forming the diamond lattice of a concertina. The sheet builds each stretched turn as a flat loop clipped to each neighbour at their two crossings (the turn model above). Delivered closed (about 0.3–0.5 m long, assumed), it is pulled out to its yield on site and tied.
 - **Single run on pickets (variant 1):** coils laid end to end along the line, the coil ends twisted together with tie wire, every coil tied at its top to a picket every 3.8 m on the home side, and an anchor picket at each end of the run holding the stretch. Coils can also lie loose on the ground pinned by short stakes or staples (the encyclopedia's "three staples" for a self-supporting coil).
 - **Double-stacked (variant 2):** a second coil of the same size laid on top of the first, nested a little into it, both tied to long pickets at every picket position and to each other between.
 - **Fence or wall top (variant 3):** a 0.45 m coil laid along a fence top (the yard fences of houses-and-yard.md, the farm and compound fences of urban-edge.md) or a masonry wall coping, tied to each post top or to the top wire, stretched to about the 0.196 m pitch.
@@ -82,9 +106,9 @@ None. No letter shows these objects, so no reference view exists and no side-by-
 - **I (taut):** pulled out to its yield, loops evenly spaced and leaning alternately, ties sound, the zinc dull; a little dry grass grown up through the bottom loops.
 - **D (torn, sagging, trampled flat in places):**
   - **cut:** a fragment cuts the core of 1–3 turns; the loops on each side spring back toward the nearest picket ties and bunch to a pitch of 0.05–0.10 m, leaving a breach 1–4 m long with the cut ends curled 0.2–0.5 m out of it (assumed);
-  - **sagging:** where ties have broken the coil slumps to 0.7–0.9 of its diameter and spreads to keep its loop length: 0.7 D high is 1.26 D wide, 0.8 D is 1.18 D, 0.9 D is 1.10 D (derived: an ellipse of the circle's perimeter); a double-stacked upper coil slides off to one side and lies against the lower;
+  - **sagging:** where ties have broken the coil slumps to 0.7–0.9 of its diameter and each loop spreads in its own plane to keep its tape: 0.7 D high is 1.26 D wide in the plane, 0.8 D is 1.18 D, 0.9 D is 1.10 D (derived: an ellipse of the circle's perimeter), so the 0.90 m coil stands 0.63 × 1.00 m, 0.72 × 0.92 m or 0.81 × 0.83 m end-on (the turn model, item 6); a double-stacked upper coil slides off to one side and lies against the lower;
   - **trampled flat:** over 1–5 m lengths a vehicle or crossing has pressed the loops into a mat 0.10–0.25 m high and up to π D / 2 = 1.41 m wide for the 0.90 m coil (derived: a loop of perimeter π D flattened into two layers);
-  - **fence top:** a span pulled down off the fence face, hanging in a festoon 0.5–1.5 m below the top;
+  - **fence top:** a span pulled down off the fence face, hanging in a festoon 0.5–1.5 m below the top beside the face: its axis lies half the support's width plus the coil's 0.11 m end-on half-width out from the support's centre line (derived);
   - **rust and litter:** rust patches along the tape, dry weeds, film and bags caught in the loops (visual only).
 
 ### Damage pattern
@@ -92,39 +116,43 @@ The soft parts fail first: tie wire and clips break, then fragments cut the tape
 
 ### Physics role
 - **Collision:**
-  - the coil body as one compliant contact volume per span between pickets: a cylinder (a capsule along the run) of the coil's diameter, material `proposed:razor_wire`, not landable; it stands for the push the airframe feels as it enters the coil (about 200 N/m, derived under the proposed ids at the end of this sheet);
+  - the coil body as one compliant contact volume per span between pickets: **two capsules along the run** fitted to the end-on ellipse within ±5 cm (13 mm for the 0.90 m coil, 21 mm for the 0.45 m; the turn model, item 8), material `razor_wire`, not landable. It stands for the push the airframe feels as it enters the coil: **60 N/m per touching part** (one loop under a leg, an arm or the body; about 240 N/m on four legs). A coil of radius R other than 0.45 m writes the shape's own `stiffness_n_per_m` = 60 · (0.45 / R)³: **480 N/m** for the 0.45 m fence-top coil, 44 N/m for a 1.0 m coil (physics reading §4);
+  - **the fiber ignores `razor_wire` shapes** (the coil volume, a sagged coil, a trampled mat) and reads only the turn records; the airframe feels the shapes, and the props, legs and fiber meet the records;
   - the turns themselves carry no rigid collision; they are the snag records below (props, legs and the fiber);
   - pickets: an angle as two thin boxes (its two legs, exact), a U picket as three, rebar or a stake as a capsule of its own radius; material `steel` (`timber` for a stake);
-  - D: the sagged volume as two capsules side by side (or a box) following the slumped ellipse within ±5 cm; a trampled span is a low box (the mat) of the same material; a breach has no volume.
-- **Material ids:** `proposed:razor_wire` for the coil volume and the tape; `steel` for pickets, clips and tie wire. If the physics reading maps the tape to `steel` instead, the fiber bends over steel's 1 mm edge radius rather than the 0.25 mm blade (open point).
-- **Gaps:** none. A coil is never passable: seen from the side, the crossing loops leave openings about one pitch across (0.27 m) and at most two pitches (0.54 m) between loops of the same lean, under the drone's 0.574 m, and the far side of every loop closes the path again (derived). The drone passes **over** a run (0.90 m single, 1.62 m double-stacked, the fence top plus 0.45 m) or through a **D breach**, which is open ground and written as no gap polygon: its clear width is the breach length less the curled ends (0.2–0.5 m each), so a 1–4 m breach clears 0–3.6 m (derived).
-- **Wind volumes:** the coil volume of each span, porosity **0.95** (I). Derivation: one turn holds π D of tape, so the one-sided tape area per coil volume is `a = 4 w / (D p)` with `w` the 8 mm projected width and `p` the pitch; across the coil the mean chord is π D / 4, so `β = exp(−(π / 2) · w / p)` averaged over the silhouette and `exp(−2 w / p)` straight through the axis, both independent of D:
+  - D: the sagged volume as two capsules side by side fitted to the slumped ellipse within ±5 cm (30 / 15 / 4 mm at 0.7 / 0.8 / 0.9 D, the turn model, item 8); a trampled span is a low box (the mat) of the same material; a breach has no volume.
+- **Material ids:** `razor_wire` (accepted, physics reading §4) for the coil volume and every turn record; `steel` for pickets, clips and tie wire, and for their records.
+- **Gaps:** none. A coil is never passable: seen from the side, loops of one lean stand 2p cos λ = 0.43 m apart (0.19 m on the 0.45 m coil), under the drone's 0.574 m, a loop of the other lean crosses every such opening, and the far side of every loop closes the path again (derived: the turn model, item 5). The drone passes **over** a run (0.90 m single, 1.62 m double-stacked, the fence top plus 0.45 m) or through a **D breach**, which is open ground and written as no gap polygon: its clear width is the breach length less the curled ends (0.2–0.5 m each), so a 1–4 m breach clears 0–3.6 m (derived).
+- **Wind volumes:** the coil volume of each span (the same two capsules), porosity **0.95** (I), accepted by the physics reading (§3). Derivation: one turn holds π D of tape and the end-on section is an ellipse of area π D² cos λ / 4, so the one-sided tape area per coil volume is `a = 4 w / (D p cos λ)` with `w` the 8 mm projected width and `p` the pitch; across the coil the mean chord is π D cos λ / 4, so the lean cancels and `β = exp(−(π / 2) · w / p)` averaged over the silhouette and `exp(−2 w / p)` straight through the axis, both independent of D and λ:
 
   | Case | Pitch | a (m²/m³) | β, silhouette mean | β, through the axis |
   |---|---|---|---|---|
-  | 0.90 m coil, stretched (I) | 0.268 m | 0.133 | **0.95** | 0.94 |
-  | 0.45 m fence-top coil (I) | 0.196 m | 0.362 | 0.94 | 0.92 |
-  | 0.90 m coil, bunched by a cut (D) | 0.10 m | 0.356 | 0.88 | 0.85 |
+  | 0.90 m coil, stretched (I) | 0.268 m | 0.165 | **0.95** | 0.94 |
+  | 0.45 m fence-top coil (I) | 0.196 m | 0.739 | 0.94 | 0.92 |
+  | 0.90 m coil, bunched by a cut (D) | 0.10 m | 0.365 | 0.88 | 0.85 |
   | trampled mat 0.15 m high, 1.41 m wide (D) | 0.268 m | 0.398 | 0.75 along the 1.41 m path across it | 0.97 through its height |
 
-  The range with w 6–10 mm and p 0.20–0.30 m is 0.92–0.97; with the loops leaning ±31° the true mean projection could sit anywhere in G 0.3–0.7, the same band. A coil barely shades the wind: it is not a windbreak.
+  The range with w 6–10 mm and p 0.20–0.30 m is 0.92–0.97; with the loops leaning ±36.6° the true mean projection could sit anywhere in G 0.3–0.7, the same band (the physics reading's orientation check gives 0.96). A coil barely shades the wind: it is not a windbreak.
 - **Snag hazards (the core of this row):**
 
   | Record | Value | Label |
   |---|---|---|
   | Kind | one `edge` per turn | design decision 3 |
-  | Polyline | the turn's core centreline, a closed loop through the clip points, leaning ±31° alternately; at least 24 points a turn for the 0.90 m coil and 17 for the 0.45 m (default 24 for both) | derived: the chord's sagitta R(1 − cos(π / n)) stays within half the radius, n ≥ π / acos(1 − r / 2R) |
-  | `radius_m` | **0.008** (the tape's half-width across the barbs; 0.0075–0.0105 over the profiles) | published (half of 15–21 mm) |
-  | Barb pitch, recorded with each edge | **0.035 m** (0.034–0.101) | published |
-  | Barb cluster length | 0.022 m (0.022–0.065) | published |
-  | Blade edge (half the tape thickness) | **0.00025 m** (0.00025–0.0003) | derived from the published 0.5–0.6 mm |
+  | Polyline | the turn's core centreline: the flat loop of the turn model, leaning ±36.6° alternately (±60.6° on the 0.45 m coil); 24 points a turn, every 15° from the loop's in-plane horizontal, so the four clip points (60°, 120°, 240°, 300°) are vertices; closed, written as 25 points with the first repeated (schema 1 has no closed flag); at least 24 points a turn for the 0.90 m coil and 17 for the 0.45 m (default 24 for both) | derived: the chord's sagitta R(1 − cos(π / n)) stays within half the radius, n ≥ π / acos(1 − r / 2R) |
+  | `radius_m` | **0.008**: the barbs' reach from the core, half the tape's width across the barbs (0.0075–0.0105 over the profiles). Props, legs and the fiber touch the record within it, and it inflates the record's bounds | published (half of 15–21 mm) |
+  | `edge_radius_m` (optional field) | **0.00025**: the radius the fiber bends over at the record, half the blade's thickness (0.00025–0.0003); the generator writes `tape_thickness_m` / 2 | derived from the published 0.5–0.6 mm; field ruled by the physics reading §1 |
+  | `barb_pitch_m` (optional field, `edge` only) | **0.035** (0.034–0.101): a fiber pressed onto the record is locked along it to within half a pitch of where it touched, and can still slip along its own length | published; field ruled by the physics reading §1 |
+  | `material` | `razor_wire` on every turn record | physics reading §1 |
+  | Barb cluster length | 0.022 m (0.022–0.065): not recorded; the sim treats the whole tape as blade (conservative) | published; physics reading §1 |
   | Records per metre of run | **3.7** (0.90 m coil), 5.1 (0.45 m), 7.5 double-stacked | derived: 56 turns per 15 m or 11 m of yield |
   | Points per metre of run | about 90 (single, 0.90 m) | derived: 3.7 × 24 |
-  | Clips | 5 (or 3) per turn: short `edge` records (25 mm, radius 1 mm) where they join two turns | published count; size assumed |
-  | Pickets | the picket top and the tie-wire tails: `hook`, radius 1–2.5 mm | assumed |
+  | Clips | 2 to each neighbour at the loops' crossings (the turn model, item 4): 2-point `edge` records 25 mm long centred on the crossing, radius 1 mm, `steel`; 7.5 per metre of run (0.90 m coil) | positions derived; size assumed |
+  | Pickets | the picket top and the tie-wire tails: `hook`, radius 1–2.5 mm, `steel` | assumed |
 
-  Props and legs strike every turn they touch (a logged prop strike per turn); the fiber laid over a run touches 3–4 turns per metre of run it crosses and every one of them is a snag. **Whether a barb cuts the fiber or only holds it is not ruled here:** it is the physics reading's question (task 1.3). The inputs it needs are above: a 0.5 mm blade (edge 0.25 mm), four points to a cluster 22 mm long, clusters every 35 mm, on a core that will not move under the drone (a 2.5 mm high-tensile core breaks at about 7 kN, derived at an assumed 1500 MPa).
-- **Landable surfaces:** none. A drone set down on a coil sinks into it (about 0.25 m under its 49 N at the derived 200 N/m) and is held by the barbs.
+  The default turn record reads `{"kind": "edge", "points": [25 points], "radius_m": 0.008, "edge_radius_m": 0.00025, "barb_pitch_m": 0.035, "material": "razor_wire"}` (physics reading §1). Props and legs strike every turn they touch (a logged prop strike per turn; the strike law takes the thin-wire class from `razor_wire`'s 2.5 mm core, never from the 8 mm reach); the fiber laid over a run touches 3–4 turns per metre of run it crosses and every one of them is a snag.
+
+  **Cut or hold (ruled by the physics reading, §2):** a barb holds the line while its tension stays below T_c = EI·σ_f² / (4 (E·r)² sin²(θ/4)) and is a probable cut above it, where θ is the line's turn at the barb and σ_f the flight's drawn fiber strength. At a 90° turn T_c is **0.034–1.0 N** (σ_f 0.69–3.8 GPa), against the 0.03–0.5 N a line carries at a barb in flight: a line pulled round a barb (a turn, a reverse, a drag along the run) is a probable cut, and a line draped over a run (15–45° a turn) holds on all but the weakest draws. A barb also abrades the coating wherever the line rubs. The core never moves under the drone (it breaks at about 7.4 kN, derived at an assumed 1500 MPa).
+- **Landable surfaces:** none. A drone set down on a coil sinks about **0.20 m** on four legs (25 mm on the fence-top coil) and is held by the barbs: a barb hooked into a printed leg lets go at about 50 N, so a leg on two barbs stays held at full throttle (physics reading §2.5).
 
 ### Placement rules (for the world)
 - **In front of trenches and firing positions** (E01–E04, placed by the layout): a run parallel to the trench line, 30–100 m out, beyond hand-grenade throw and inside small-arms range (assumed: the usual doctrine; no primary manual could be reached to cite it).
@@ -140,43 +168,44 @@ The soft parts fail first: tie wire and clips break, then fragments cut the tape
 | `layout` | enum | single, double_stacked, fence_top | single | Variant: tiers, picket length, mounting |
 | `rows`, `tiers` | int, int | 1–3, 1–2 | from `layout` (1, 1) | Coils side by side and stacked (published 2–3 rows by 1–2 tiers) |
 | `profile` | enum | bto22, nato22, cbt65 | nato22 | Preset of the four tape values below |
-| `tape_width_m` | m | 0.015–0.021 | 0.016 | Width across the barbs; the snag `radius_m` is half |
+| `tape_width_m` | m | 0.015–0.021 | 0.016 | Width across the barbs; every turn record's `radius_m` (the barbs' reach) is half |
 | `barb_length_m` | m | 0.022–0.065 | 0.022 | Length of a barb cluster along the tape |
-| `barb_pitch_m` | m | 0.034–0.101 | 0.035 | Cluster spacing; written into every snag record |
-| `tape_thickness_m` | m | 0.0005–0.0006 | 0.0005 | Blade thickness; its half is the blade edge |
+| `barb_pitch_m` | m | 0.034–0.101 | 0.035 | Cluster spacing; written into every turn record as `barb_pitch_m` |
+| `tape_thickness_m` | m | 0.0005–0.0006 | 0.0005 | Blade thickness; its half is every turn record's `edge_radius_m` |
 | `core_diameter_m` | m | 0.0025 | 0.0025 | Core wire (fixed by the published profiles) |
-| `coil_diameter_m` | m | 0.45–1.0 | 0.90 (fence top 0.45) | Coil size; sets the yield and clip count defaults |
+| `coil_diameter_m` | m | 0.45–1.0 | 0.90 (fence top 0.45) | Coil size: each turn's loop diameter and tape (π D); sets the yield default, and the volume's `stiffness_n_per_m` = 60 · (0.45 / R)³ when R ≠ 0.45 m |
 | `turns` | int | 31–56 | 56 | Turns per coil |
-| `clips_per_turn` | int | 3–7 | 5 (3 under 0.7 m) | Clip points; the lattice pattern |
-| `pitch_m` | m | 0.10–0.40 | yield / turns (0.268; 0.196) | Stretched turn pitch; sets snag density, lean and porosity |
-| `loop_lean_deg` | deg | 20–45 | atan(2 · pitch / D) (31°; 42°) | Lean of each loop, alternating |
+| `pitch_m` | m | 0.10–0.40, at most 0.47 · `coil_diameter_m` | yield / turns (0.268; 0.196) | Stretched turn pitch; sets the lean asin(2p / D) (36.6°; 60.6°), the end-on width √(D² − 4p²), the clip points, snag density and porosity (the turn model) |
 | `run_length_m` | m | 2–500 | from placement | Run length, cut into whole coils plus a part coil |
 | `nest_fraction` | 0–0.3 | — | 0.1 | How far an upper coil sinks into the lower |
-| `picket_type` | enum | u_steel, angle, rebar, timber, staples | angle | Section and look |
-| `picket_section_m` | m | 0.016–0.10 | 0.05 | Angle leg, bar or stake diameter |
+| `picket_type` | enum | u_steel, angle, rebar, timber, staples | angle | Section and look (the U and angle sections in the Dimensions table) |
+| `picket_section_m` | m | 0.016–0.10 | 0.05 | Angle leg (its thickness a tenth of it), the U picket's width (0.076; depth half of it, 3 mm wall), bar or stake diameter |
 | `picket_length_m` | m | 0.6–2.44 | 1.52 (2.44 double-stacked) | Picket length |
 | `picket_embed_m` | m | 0.3–0.7 | 0.5 | Driven depth |
 | `picket_spacing_m` | m | 3.0–5.0 | 3.8 | Tie points along the run |
 | `picket_side` | enum | home, enemy, inside, alternate | home | Where the pickets stand against the coil |
 | `anchor_pickets` | bool | — | true | 0.81 m pickets holding each run end |
 | `support` | enum | fence_posts, top_wire, wall_top | fence_posts | Fence-top mounting |
+| `support_width_m` | m | 0.02–0.6 | 0.05 (fence_posts, top_wire); 0.25 (wall_top) | Width of the fence top or wall coping the coil sits on (a top rail to a coping, assumed); the coil sits centred on it, and a festoon hangs beside its face, its axis half this width plus the coil's end-on half-width out from the centre line |
 | `tie_spacing_m` | m | 1.0–3.0 | post spacing | Fence-top tie points |
 | `finish` | enum | galvanised_new, galvanised_dull, rusted | galvanised_dull | Material preset |
-| `damage` | 0–1 | — | 0 (I) / 0.6 (D) | I below 0.25, D above; the four items below default from it |
-| `cuts` | int | 0–3 per coil | from damage | Breaches: the coil springs back to the next tie, cut ends curl |
-| `sag` | 0–0.3 | — | from damage | Height lost where ties broke; the width grows to keep the loop length |
-| `trampled_spans` | list | 0–5 m each | from damage | Flattened mats 0.10–0.25 m high, up to π D / 2 wide |
+| `damage` | 0–1 | — | 0 (I) / 0.6 (D) | I below 0.25, D above; drives the items marked "from `damage`" ("How this sheet was made") |
+| `cuts` | int | 0–3 per coil | from `damage` (I 0, D 1) | Breaches: the coil springs back to the next tie and bunches to a 0.05–0.10 m pitch, cut ends curl |
+| `sag` | 0–0.3 | — | from `damage` (I 0, D 0.1–0.3) | Height lost where ties broke, as a fraction of D; each loop widens in its plane to keep its tape (the turn model, item 6) |
+| `trampled_count` | int | 0–3 per coil | from `damage` (I 0, D 1) | Flattened mats 0.10–0.25 m high, up to π D / 2 wide, at positions along the coil drawn by `seed` |
+| `trampled_length_m` | m | 1–5 | drawn by `seed` in 1–5 | Length of each mat along the run |
+| `picket_lean_deg` | deg | 0–20 | from `damage` (I 0, D 5–20, drawn per picket) | Each picket leans toward the pull; a picket inside a trampled mat lies flat under it |
 | `litter_caught` | 0–1 | — | 0.2 | Dry weeds, film and bags in the loops (visual only) |
-| `points_per_turn` | int | 16–48 | 24 | Polyline resolution of each turn's snag record |
+| `points_per_turn` | int | 18–48, a multiple of 6 | 24 | Polyline resolution of each turn's snag record; a multiple of 6 keeps the four clip points as vertices |
 | `seed` | int | — | — | Every random choice |
 
 Outputs: LOD0 with every turn as a tube along the core and the blade clusters as real flat geometry; LOD1 the turns as tubes of the tape's projected width without clusters (a 16 mm tape drops under two render pixels at about 7.5 m, derived); LOD2 the coil as a sparse set of loop strips; collision, wind volume and the snag records as above.
 
 ### Open points
-- **Cut or hold:** whether a barb (a 0.25 mm blade edge, four points per cluster every 35 mm) cuts the fiber or only holds it: physics reading, task 1.3.
-- **Which radius the fiber bends over:** the brief sets each turn's `radius_m` to the tape's half-width (8 mm, the reach of the barbs from the core). In `physics_materials.json` a snag's `radius_m` is the fiber's bend radius and overrides the material's, so an 8 mm radius hides the 0.25 mm blade. Whether the record carries the half-width for contact and the blade edge and barb pitch as extra fields (a schema change), or another split: physics reading, then the asset change.
-- **`proposed:razor_wire`** (values at the end of the sheet), or a mapping to `steel`: physics reading.
-- **Snag budget:** a 100 m single run carries about 370 turn records and 9,000 points (derived); whether `StaticContacts` takes them per turn or needs a coarser record per span: physics engineer and world-builder, phase 3.
+- **Cut or hold: closed** by the physics reading (§2): a barb holds below T_c and is a probable cut above it (Physics role). The sim's per-step barb contact (lock, capstan, bend, abrasion) is the phase-7 tether change's.
+- **Which radius the fiber bends over: closed** by the physics reading (§1): `radius_m` is the barbs' reach, the new optional `edge_radius_m` the blade the fiber bends over, `barb_pitch_m` the lock. The asset change carries both fields through `meta.validate`, the importer and `SnagFeature` (they are lost in the prefab today).
+- **`razor_wire`: closed**, accepted as a new id at 60 N/m per touching part (physics reading §4; the row at the end of the sheet). The asset change adds the row, the per-shape `stiffness_n_per_m` override and an envelope audit for a compliant volume.
+- **Snag budget:** ruled by the physics reading (§7): the records never go through a per-step scan but through the binned 2 m cache, 2.4–4.8 µs a step on the densest default stack. Built in phase 3 by the world-query spec (world-builder, physics sign-off): a spatial index over shapes, records and gaps, a record query feeding the cache, a cap of 2,048 record segments per 2 m cube, and a `wire_runs` bench.
 - **The stand-off of protective wire** (30–100 m) is assumed; the layout may set it from the trench layout. Not a pilot question.
 
 ## F02 Dragon's teeth (зуби дракона)
