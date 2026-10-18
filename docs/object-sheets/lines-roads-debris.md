@@ -663,3 +663,602 @@ Craters in the track (E05), tracks detouring around them in a widened, braided b
 
 ### Open points
 - Sub-grid ruts in the map format (a relief feature like the tilled furrows): world-builder.
+
+## Shared: the debris kit (K01–K06, K08–K10)
+
+### Rules every piece follows
+- **Colour from its source** (knowledge.md §14.4): rubble takes the colours of the building it came from, never near-white. A heap at a house is that house's brick or adobe, tile or slate, render, timber and contents.
+- **Geometry threshold:** every piece of 50 mm and larger is geometry with collision, placed by the world or by a host asset; smaller crumbs and shards are the `rubble` and `yard_litter` surfaces' micro-detail (terrain.md §7, `MicroDetailNear`), so no shard exists twice. Thin members over 2 mm (bars, nails, splinters, cables) are capsules or snag features at their real radius whatever the piece's size (REAL-05).
+- **Size distribution:** a heap or scatter draws piece sizes from a power law, the number of pieces larger than s ∝ s⁻² (assumed: many small, few large), clipped to each row's range.
+- **Spread around a damaged building:** the count density falls off from the wall as exp(−d / λ), 1.5–2 times wider on the side away from the burst (assumed):
+
+  | Class | λ | Anchor |
+  |---|---|---|
+  | Tile shards (K02) | 1.0 m; a heap 0.2–0.4 m deep and 1–2 m wide along the foot | measured E 7, 10 (houses-and-yard H01) |
+  | Bricks, halves, clusters (K01) | 1.5 m, centred on breaches and collapsed walls | measured J, K |
+  | Slate fragments (K02) | 4 m; fragments 5–15 m out | measured J |
+  | Planks, battens, rafters (K03) | 2 m; leaning on walls, lying across heaps | measured E, J, K |
+  | Corrugated and flat sheet (K04) | 6 m, out to 30 m (light; they fly) | assumed |
+  | Concrete with bars (K06) | 2 m, only at concrete structures | measured K |
+  | Household items (K08) | 3 m, in front of open rooms and windows | measured K |
+  | Tarps, fabric, film, cables (K05, K10) | attached, or within 2 m | measured C, K |
+
+- **Mixture by volume:** the K mound (by eye, measured K): brick fragments and clusters about 50 %, furniture and appliances 15 %, plastic (PVC frames, crates, film) 10 %, concrete elements 10 %, timber 10 %, fabric 5 %. A village house's heap (E, J, assumed from both): tile or slate 40 %, adobe or brick 35 %, timber 20 %, glass and contents 5 %.
+- **Landable pieces (derived):** a piece is landable only if its top face holds the 0.24 m leg square with 5 cm to spare each side (at least 0.35 × 0.35 m) within 15° of level; the generator sets `landable` from the resting pose.
+- **Tilt under one leg (derived, atan(h / 0.24) along a side / atan(h / 0.34) on the diagonal):** tile shard 15 mm: 3.6° / 2.5°; flat brick 65 mm: 15° / 11°; brick on edge 120 mm: 27° / 19°; board 30 mm: 7° / 5°; a 0.2 m chunk: 40° / 30° (the drone slides off).
+- **LOD:** a piece of size s drops under 2 render px at d = 935 · s / 2 (K01: 0.25 m → 117 m, the 120 m cull of `K01_whole`); a 0.1 m chunk culls at about 47 m and the surface micro-detail and textures carry the heap beyond.
+- **Static or dynamic:** phase 1 builds every piece as a static catalog instance. Pieces that "rock and slide" (planks, sheets, tyres, barrels) need runtime objects in the flight loop (Open points).
+- **One generator family:** `debris_*` generators share the K01 parameter set (`seed`, `size_m`, `physics_material`, `lod`) and add their own; every piece is rebuilt from params, never hand-edited.
+
+## K01 Bricks: whole, halves, chunks; brick clusters
+
+**Seen in:** C 1–8 (red brick bits at the foot of the cellar head's piers); D 12–14 (a pile of flat pale stone slabs with red brick beside them, the dive target); E (the chimney's brick, the adobe heap is H01's); J (silicate bricks and blocks heaped along the right house's wall, pieces 0.1–0.3 m with many smaller); K (the mound's main material: sandy-red bricks, many of them perforated, single and in mortared clusters 0.5–0.8 m); I (terrain.md B5).
+**Research sources:** AST-04 (brick 250 × 120 × 65 mm), the thickened 88 mm brick (published, houses-and-yard.md shared section); the existing generator `tools/blender/generators/debris_brick.py` and `assets-src/debris/K01_whole.json`.
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Whole brick | 250 × 120 × 65 mm (88 mm thickened) | 250 × 120 × 65 mm | AST-04; published |
+| Corner wear (chamfer) | 2–3 mm | per corner, seeded | assumed (`bevel_mm` of K01_whole) |
+| Half | 120–130 mm long, the fracture face rough by 3–8 mm | 125 mm | derived; roughness assumed |
+| Three-quarter | 180–190 mm | 185 mm | derived |
+| Chunk | 40–150 mm, irregular | 90 mm | assumed; measured J, K for the size spread |
+| Cluster | 2–20 bricks still mortared, 0.3–1.0 m | 2 courses × 3 bricks | measured K (blocks 0.5–0.8 m) |
+| Mortar | joints 10–12 mm; a crust 0–10 mm on faces | 10 mm | derived (houses); crust assumed |
+| Perforation | none, or 19–32 round voids 12–16 mm through the bed faces | none | measured K (perforated bricks in the mound); sizes assumed |
+| Rubble-stone slab | 0.2–0.5 × 0.15–0.4 × 0.04–0.12 m | 0.35 × 0.25 × 0.07 m | measured D 12–14 (flat pale slabs, stacked, scaled from the bricks beside them) |
+
+### Construction and materials
+- Fired red clay brick (orange-red to sandy-red), silicate brick (pale grey-white, J), perforated ceramic brick (K), rubble-stone slabs (limestone or sandstone flags from foundations and walls, D). Faces worn, arrises chipped; fracture faces paler and sharper than weathered faces; a grey mortar crust on some faces.
+- **Materials:** red brick: manifest `red_brick` (already pinned; visual material `brick_red`); silicate: Poly Haven `white_bricks` (candidate, CC0: https://polyhaven.com/a/white_bricks ); perforated: `red_brick` with the voids as geometry; stone slabs: Poly Haven `white_sandstone_bricks` or `rough_block_wall` ( https://polyhaven.com/a/white_sandstone_bricks , https://polyhaven.com/a/rough_block_wall ); mortar crust: `rough_plaster_03` ( https://polyhaven.com/a/rough_plaster_03 ). **Derived:** a fracture-face map (rougher, 10–15 % lighter) and a soot mask. UVs in asset space and upright (knowledge.md §14.4, PR-5's upside-down bricks).
+
+### Colour
+| Surface | Photo albedo (sRGB) | Feed check value (sRGB) | Source |
+|---|---|---|---|
+| Red brick, sunlit | as `red_brick` | #b97541 | terrain.md S3 |
+| Red brick in backlight and flare | — | #a16f66 | measured D 14 |
+| Sandy-red brick with mortar, in rubble | #988a78 | — | measured K |
+| Brick wall face with mortar dabs | #8d8174 | — | measured K; terrain.md #847b71 |
+| Silicate brick and plaster rubble, overcast | #7a6f66 | — | measured J |
+| Rubble-stone slab | #b5aa9c | #998d82 | assumed albedo; measured D 14 |
+| Fresh fracture face | 10–15 % lighter than the face | — | assumed |
+
+### Variants and states
+- Pieces: whole (the existing `K01_whole`), half, three_quarter, chunk, cluster, stone_slab. Types: red, silicate, perforated. States: clean, mortar-crusted, sooted.
+
+### Damage pattern
+Bricks come out whole or halved along the bed joints where mortar is weak (houses-and-yard.md, step 5), stay in clusters where it is strong, and shatter into chunks where a fragment or a fall hits them.
+
+### Physics role
+- **Collision:** whole, half, three-quarter: one box (the existing generator's plain box, within the chamfer of LOD0); chunk: one box along its principal axes within ±10 mm (chunks are generated as convex near-boxes so one box holds); cluster: one box per course, or per brick where the course is stepped; stone slab: one box. Perforation voids (12–16 mm) have no collision of their own.
+- **Material ids:** `masonry` for every piece (as `K01_whole.json`).
+- **Gaps / wind volumes:** none.
+- **Snag hazards:** a whole brick none (as `K01_whole`); halves and chunks carry an `edge` along the fracture rim, radius 1 mm (sharper than the worn 2 mm arris, as the physics review foresaw); clusters an `edge` along their stepped ends (2 mm).
+- **Landable surfaces:** single pieces no (as `K01_whole`); a cluster or stone slab with a top face of at least 0.35 × 0.35 m within 15°: yes. A flat brick under one leg tilts the drone 15° along a side, on edge 27° (the asset list's "tilt at liftoff").
+
+### Placement rules
+- At wall feet, breaches and collapsed walls of brick houses, outbuildings and the block; around the cellar head and sheds (C); stone slabs in piles at old foundations and in overgrown plots (D); clusters in X-state heaps (K).
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `seed` | int | any | per variant | The wear (as today) and every new random choice |
+| `size_m` | {length, width, height} | as above | 0.250, 0.120, 0.065 | Whole-brick size (as today); halves and three-quarters cut it |
+| `bevel_mm` | {min, max} | 1–4 | 2.0, 3.0 | Corner chamfer (as today) |
+| `physics_material` | id | `masonry` | `masonry` | Collision material (as today) |
+| `lod` | {lod1_switch_m, cull_m} | — | 3.0, 120.0 for the whole brick; cull scaled as 935 · s / 2 for smaller pieces | LOD switch and cull (as today) |
+| `piece` | enum | whole, half, three_quarter, chunk, cluster, stone_slab | whole | Which piece; `whole` is today's generator unchanged |
+| `brick_type` | enum | red, silicate, perforated | red | Visual material and voids |
+| `fracture_roughness_mm` | mm | 2–10 | 5 | Relief of fracture faces |
+| `chunk_size_m` | m | 0.04–0.15 | 0.09 | Chunk bounding size |
+| `cluster_courses`, `cluster_bricks` | int | 1–5, 2–20 | 2, 6 | Cluster layout |
+| `cluster_step` | 0–1 | — | 0.5 | How ragged the cluster's ends are |
+| `mortar_mm` | mm | 0–12 | 10 | Joint thickness in clusters |
+| `mortar_cover` | 0–1 | — | 0.3 | Fraction of faces with a crust |
+| `voids` | {count, d_mm} | 0–32, 12–16 | 0 | Perforation (geometry) |
+| `stone_size_m` | {length, width, height} | as above | 0.35, 0.25, 0.07 | Stone slab |
+| `soot` | 0–1 | — | 0 | Burnt state |
+
+### Open points
+- The existing generator builds `whole` only; the other pieces are additions to `debris_brick` (asset-artist), with `K01_whole` unchanged so its committed metadata keeps matching.
+- If stone slabs prove too numerous as catalog pieces, the small ones move to the `rubble` micro-detail (world-builder).
+
+## K02 Clay tile shards; slate (шифер) fragments
+
+**Seen in:** E 7, 10 (tile shards 0.1–0.35 m heaped along the wall foot, a few nearly whole tiles among them; more inside, E 16); J (asbestos-cement slate: whole and half sheets about 1.1 m wide stacked and leaning in the debris, fragments 0.1–0.6 m scattered between the houses and the street).
+**Research sources:** houses-and-yard.md shared section (tile and slate sizes, the blast fracture of asbestos-cement sheet).
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Whole tile | 0.33–0.40 × 0.20–0.24 m, 12–16 mm thick, a nib at the head, slight camber | 0.36 × 0.22 × 0.014 m | houses-and-yard H01 (assumed from the batten pitch); thickness assumed |
+| Tile shards | 0.05–0.35 m, 2–6 pieces per tile | 0.15 m | measured E 7, 10; terrain.md S3 (0.1–0.4 m) |
+| Ridge tile pieces | half-round, 0.40 × 0.20 × 0.10 m | — | assumed |
+| Slate sheet | 1.75 × 1.13 m, 5.2–5.8 mm, 8 waves at 150 mm, 40 mm high | — | published (houses-and-yard) |
+| Slate fragments | 0.1–1.13 m; straight breaks along the wave troughs, jagged across | 0.3 m | measured J |
+| Heap along a wall | 0.2–0.4 m deep, 1–2 m wide | 0.3 m | measured E (houses-and-yard H01) |
+
+### Construction and materials
+- Tiles: fired clay as H01, broken faces paler and rougher. Slate: asbestos-cement, grey, lichen and moss on the old upper face, paler underneath and on the breaks, nail holes at the crests.
+- **Materials:** tiles Poly Haven `clay_roof_tiles_02` ( https://polyhaven.com/a/clay_roof_tiles_02 , as H01); slate as the houses sheet's slate surface (`concrete_wall_003` tinted #736767, https://polyhaven.com/a/concrete_wall_003 ). **Derived:** a fracture-face map; the wave profile is geometry.
+
+### Colour
+| Surface | Photo albedo (sRGB) | Feed check value (sRGB) | Source |
+|---|---|---|---|
+| Tile shards at the foot | about #a0613f (as H01 tiles) | #825e3f (E 10), #805c43 (E 7), #825f44 (terrain.md) | measured E |
+| Slate, weathered upper face | #736767 | — | houses-and-yard (J) |
+| Slate stack in shade | #5a5048 | — | measured J |
+
+### Variants and states
+- Tile: shard (seeded outline), whole, ridge piece. Slate: whole sheet, half sheet, fragment (seeded outline), a stack of 2–6. States: clean, mossy, sooted.
+
+### Damage pattern
+Tiles lift, slide and break at the eaves and the foot; slate shatters and scatters 5–15 m on the street side (houses-and-yard.md, step 2).
+
+### Physics role
+- **Collision:** tile shard: one thin box (14 mm); whole curved tile: 2 boxes; slate sheet or fragment: one box over the wave envelope (40 mm plus the sheet) so the legs meet the crests at the right height; a large fragment lying across rubble: 2–3 boxes following its tilt.
+- **Material ids:** tiles `masonry`; slate `proposed:asbestos_cement` (the houses sheet's proposal).
+- **Gaps / wind volumes:** none.
+- **Snag hazards:** slate rims (`edge`, radius 3 mm, half the sheet), tile fracture rims (`edge`, 2 mm).
+- **Landable surfaces:** a whole or half slate sheet lying flat (at least 0.87 × 1.13 m): yes, the legs on crests 150 mm apart; it may crack under a hard landing (a later material property). Tile shards: no.
+
+### Placement rules
+- Tile heaps along the foot of tiled houses and inside them (E); slate fragments fanned 5–15 m on the street side of slate houses, whole sheets leaning on fences and debris (J).
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `piece` | enum | tile_shard, tile_whole, ridge_piece, slate_sheet, slate_half, slate_fragment, slate_stack | tile_shard | Which piece |
+| `size_m` | m | 0.05–1.75 | by piece | Outline size |
+| `fracture_count` | int | 2–6 | 3 | Breaks per tile or sheet |
+| `slate_waves` | int | 1–8 | by size | Waves on a fragment |
+| `stack_count` | int | 2–6 | 3 | Sheets in a stack |
+| `moss`, `soot` | 0–1 | — | 0.3, 0 | Surface state |
+| `physics_material` | id | `masonry`, `proposed:asbestos_cement` | by piece | Collision material |
+| `seed`, `lod` | — | — | — | As K01 |
+
+### Open points
+- Tile and slate breakability under a leg (a later material property): physics engineer, as in the houses sheet.
+
+## K03 Planks, beams, broken rafters
+
+**Seen in:** E 7 (the plank lean-to: grey boards and a board panel broken off and leaning; battens and rafters on the stripped roof); E 16 (ceiling boards 0.1–0.2 m wide and 0.5–1.5 m long on the floor among plaster slabs); J (a beam about 0.15–0.18 m wide and about 2.8 m long leaning at 60° against the debris, scaled from the 0.8 m door; planks, posts and poles among the slate); K (timber in the mound and a cut log in two sections 0.25–0.3 m across); C 7, 12 (the cellar head's boards).
+**Research sources:** sawn softwood: boards 16–44 mm and beams 50–100 mm thick, widths from 75 mm in 25 mm steps (published, the ГОСТ 24454 and 26002 classes, https://dnaop.com/html/66566/doc-%D0%93%D0%9E%D0%A1%D0%A2_24454-80 ); roof timber sizes from houses-and-yard.md.
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Board | 25–40 × 100–200 mm × 0.3–6 m | 32 × 150 mm × 1.5 m | published classes; lengths assumed |
+| Batten | 50 × 50 mm (or 25 × 100) × 0.3–4 m | 50 × 50 mm × 1.2 m | houses-and-yard |
+| Rafter | 50 × 150 or 100 × 150 mm, or round 0.10–0.16 m, × 1–6 m | 100 × 150 mm × 3 m | houses-and-yard (0.10–0.15 m thick) |
+| Beam (plate, сволок) | 150 × 150 to 200 × 250 mm × 2–6 m | 180 × 180 mm × 3 m | houses-and-yard; measured J (0.15–0.18 m, about 2.8 m) |
+| Board panel (door leaf, fence or shed section) | 0.8–2 × 1.5–2 m, boards on 2–3 ledges | 0.8 × 1.9 m | AST-04; measured E 7 |
+| Splinters at a break | 0.05–0.4 m long, 5–30 mm thick | 0.2 m | assumed (the V07 style) |
+| Nails | 3–4 mm × 70–120 mm, 20–80 mm proud, often bent | 3.5 mm, 50 mm proud | assumed |
+| Log section | 0.2–0.35 m across × 0.3–1 m | 0.3 × 0.6 m | measured K |
+
+### Construction and materials
+- Pine and spruce sawn timber: grey-weathered outside, pale yellow at fresh breaks, dark old roof timber, charred in burnt houses; rusted nails; board panels on ledges with a brace.
+- **Materials:** Poly Haven `raw_plank_wall`, `weathered_brown_planks`, `old_planks_02`, `rough_wood`, `roof_planks` (candidates, CC0: https://polyhaven.com/a/raw_plank_wall , https://polyhaven.com/a/weathered_brown_planks , https://polyhaven.com/a/old_planks_02 , https://polyhaven.com/a/rough_wood , https://polyhaven.com/a/roof_planks ). **Derived:** grain along each piece's length, a fracture-end map, a char mask.
+
+### Colour
+| Surface | Photo albedo (sRGB) | Feed check value (sRGB) | Source |
+|---|---|---|---|
+| Weathered shed boards | #8a8478 | #605c56 | assumed albedo; measured E 7 (terrain.md B6 #615e56) |
+| Leaning board panel | — | #66604e | measured E 7 |
+| Plank, overcast | #6f6555 | — | measured J |
+| Fallen ceiling boards and plaster, in shade | — | #5e5c61 | measured E 16 |
+| Cut log, bark in shade | #2c2721 | — | measured K |
+| Fresh fracture | #b09a78 | — | assumed |
+| Charred | #2a2622 | — | assumed |
+
+### Variants and states
+- Pieces: board, batten, sawn rafter, round rafter, beam, panel, log section. States: whole, broken at one or both ends (splintered), charred, with nails; panels whole, with boards missing, or hanging by one hinge (on a host).
+
+### Damage pattern
+Battens and rafters snap at mid-span or at the plate with long splinters (houses-and-yard.md, step 4); boards split along the grain; panels lose boards; burnt timber chars to a black crust and breaks short.
+
+### Physics role
+- **Collision:** a box per sawn piece, a capsule per round rafter or log section (real radius), capsules for splinters ≥ 10 mm thick; a panel one box (boards flush) or a box per board where boards are missing (gaps of 0.1–0.4 m, not passable).
+- **Material ids:** `timber` (sawn timber; the vegetation sheet's `deadwood` is for natural dead wood).
+- **Gaps / wind volumes:** none (a leaning panel at a wall is part of its host's wind volume).
+- **Snag hazards:** splinters (`hook`, radius half their thickness), nails (`hook`, radius 1.75 mm), broken ends (`edge`, 2 mm).
+- **Landable surfaces:** a board panel lying flat (0.8 × 1.9 m): yes; a plank (≤ 0.2 m wide) or a beam: no. A plank across a brick rocks under the legs like a see-saw (the asset list's "rock and slide"): static in phase 1 (Open points).
+
+### Placement rules
+- Around every D or X house and shed: battens and rafters inside and along the foot, panels leaning on walls (E), beams leaning on heaps (J), boards across heaps; brush piles (V20) beside them in yards (J).
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `piece` | enum | board, batten, rafter_sawn, rafter_round, beam, panel, log_section | board | Which piece |
+| `section_m` | {w, h} or d | as above | by piece | Cross-section |
+| `length_m` | m | 0.3–6 | by piece | Length |
+| `break_ends` | int | 0–2 | 1 | Splintered ends |
+| `splinter_len_m`, `splinter_count` | m, int | 0.05–0.4, 2–10 | 0.2, 5 | Break geometry |
+| `nails`, `nail_proud_mm` | int, mm | 0–10, 20–80 | 2, 50 | Protruding nails |
+| `panel_missing_boards` | 0–1 | — | 0 | Panel state |
+| `char`, `weathering` | 0–1 | — | 0, 0.6 | Surface state |
+| `seed`, `lod` | — | — | — | As K01 |
+
+### Open points
+- Which planks rock and slide under the legs (runtime objects) and which are fixed in heaps: physics engineer and world-builder.
+
+## K04 Corrugated sheet, bent sheet metal
+
+**Seen in:** N per the asset list (the vehicles sheet; terrain.md S4). In this sheet's letters no steel sheet is certain: the wavy grey sheets in J read as asbestos-cement slate (K02). **R** for the rest.
+**Research sources:** corrugated galvanised iron from about 0.3 mm upward, today nearly always at a 76 mm pitch (published, https://en.wikipedia.org/wiki/Corrugated_galvanised_iron ); corrugated panels fail at 7–14 kPa (published, houses-and-yard.md's blast thresholds).
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Wavy corrugated sheet | 0.3–0.8 mm, pitch 76 mm, depth 15–20 mm, 0.8–1.1 × 1.5–3 m | 0.5 mm, 76 / 18 mm, 1.0 × 2.0 m | published pitch and gauge; depth and size assumed |
+| Trapezoidal profiled sheet (C8, C20 class) | 0.4–0.5 mm, ribs 8 or 20 mm, 1.15–1.2 m wide, 2–6 m long | C20, 0.45 mm, 1.15 × 2.5 m | assumed (typical sold sizes) |
+| Flat roofing sheet with folded seams | 0.5–0.7 mm, panels 0.7–1.25 m wide | 0.55 mm | assumed (houses-and-yard H04, O06) |
+| Bends | 1–4 folds of 20–170°, or crumpled | 1 fold of 60° | assumed |
+| Holes and tears | fragment holes 10–150 mm with petals; tears 0.1–1 m | 5 holes | assumed; car panels in M show holes 30–200 mm (terrain.md R0) |
+
+### Construction and materials
+- Galvanised or painted steel (green, red-brown, grey), rusting from cut edges, holes and folds. The corrugation is geometry at LOD0 (18 mm deep: the legs land on crests), the texture carries only paint, zinc and rust.
+- **Materials:** Poly Haven `corrugated_iron`, `corrugated_iron_02`, `rusty_corrugated_iron`, `worn_corrugated_iron`, `rusty_metal_sheet`, `painted_metal_shutter` (candidates, CC0: https://polyhaven.com/a/corrugated_iron , https://polyhaven.com/a/rusty_corrugated_iron , https://polyhaven.com/a/rusty_metal_sheet , https://polyhaven.com/a/painted_metal_shutter ).
+
+### Colour
+| Surface | Photo albedo (sRGB) | Feed check value (sRGB) | Source |
+|---|---|---|---|
+| Galvanised | #9a9a95 | — | houses-and-yard (Y11) |
+| Rust | #6e5a48 | — | houses-and-yard (Y03) |
+| Painted green / red-brown | #4e6a4a / #6e3b2c | — | assumed |
+| Sooted | #2a2828 | — | assumed |
+
+### Variants and states
+- Profiles: wavy, C8, C20, flat. States: flat, bent, crumpled, torn, holed, rusted, painted.
+
+### Damage pattern
+Panels tear off their battens at a few kPa and fly 5–30 m downwind, wrapping round posts, trees and fences; fragments punch petalled holes; folds crease sharply and rust along the crease.
+
+### Physics role
+- **Collision:** one thin box per flat facet between folds (a bent sheet 2–6 facets), as thick as the corrugation envelope (18–20 mm wavy and C20, 8 mm C8, 2 mm flat) so the legs meet the crests.
+- **Material ids:** `sheet_metal` (20 kN/m compliance: it drums when landed on).
+- **Gaps:** none.
+- **Wind volumes:** a standing or leaning sheet over 1 m² is one solid part (porosity 0).
+- **Snag hazards:** every cut, torn and hole edge is an `edge` with the material's 0.3 mm radius: **it cuts the fiber**; petals and torn corners are `hook`s.
+- **Landable surfaces:** a flat or gently bent sheet of 1 m or more lying on the ground: yes, springy; a crumpled sheet: no.
+
+### Placement rules
+- Around sheds, garages (O06), the cowshed (P02) and sheet-metal gates (Y05); wrapped on posts, fences and trees downwind of damaged roofs, 5–30 m out.
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `profile` | enum | wavy, c8, c20, flat | wavy | Section |
+| `thickness_mm` | mm | 0.3–0.8 | 0.5 | Gauge (visual edge, mass) |
+| `size_m` | {w, l} | 0.7–1.2 × 1–6 | 1.0 × 2.0 | Sheet size |
+| `folds` | list of angles | 0–4 of 20–170° | [60] | Bends |
+| `crumple` | 0–1 | — | 0 | Crumpled state |
+| `holes` | {count, size range} | 0–20, 10–150 mm | 5, 20–80 | Fragment holes with petals |
+| `tears` | int | 0–3 | 0 | Torn edges |
+| `rust`, `paint` | 0–1, colour | — | 0.4, galvanised | Surface |
+| `seed`, `physics_material`, `lod` | — | — | `sheet_metal` | As K01 |
+
+### Open points
+- Sheets lifted and moved by strong wind or prop wash (a loose sheet flips in a 15–20 m/s gust): physics engineer, phase 7 (visual only before).
+
+## K05 Tarp, draped and torn
+
+**Seen in:** C 5–9 (a light-blue woven tarp hanging down the cellar head's right flank from the roof edge to the ground, about 2 × 3 m, sunlit blue above, a dirty grey-white lower half, folded at the corner); K (white plastic film draped over a concrete beam in the mound, white sacks among the rubble); I (sheets and plastic, terrain.md S5).
+**Research sources:** polyethylene tarps: a loosely woven polyethylene-strip core laminated with polyethylene sheet; blue light-duty about 0.13–0.15 mm, silver heavy-duty about 0.28–0.30 mm; grommets every 0.46–1.5 m (published, https://en.wikipedia.org/wiki/Tarpaulin ).
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Tarp | 2 × 3 to 6 × 8 m | 3 × 4 m | assumed; measured C (about 2 × 3 m, houses-and-yard C01) |
+| Thickness | 0.13–0.30 mm | 0.15 mm | published |
+| Grommets | every 0.46–1.5 m on a rope-hemmed edge | 1.0 m | published |
+| Film (building, greenhouse) | 0.1–0.2 mm, 1.5–6 m | 0.15 mm, 3 × 3 m | assumed; measured K (a white sheet of about 1 × 1.5 m on the beam) |
+| Tears | rips 0.2–2 m, holes 0.05–0.5 m, frayed edges | 2 rips | assumed |
+| Weights | bricks, tyres, planks on the edges | 3 bricks | houses-and-yard (C01, Y09) |
+
+### Construction and materials
+- Woven polyethylene, blue (also green, silver, white), sun-faded on the exposed side, dirt in the folds and along the bottom, frayed where it rubbed. Film: a single clear-to-milky sheet that shreds into strips.
+- **Materials:** the houses sheet's derived woven surface (Poly Haven `rough_linen` tinted #8aa0c0, https://polyhaven.com/a/rough_linen ); film a plain translucent material (no set needed).
+
+### Colour
+| Surface | Photo albedo (sRGB) | Feed check value (sRGB) | Source |
+|---|---|---|---|
+| Blue tarp, sunlit | #8aa0c0 | #768bb0 (C 7), #767f9a (C 5), #8695b2 (C 9) | houses-and-yard albedo; measured C |
+| Blue tarp, dirty lower part | #a3a6a6 | #95999b | assumed albedo; measured C 7 |
+| White film | #b7bdc2 | — | measured K |
+
+### Variants and states
+- Modes: draped over a host (a roof edge, a cellar head, a pile, a woodpile), hanging from one fixed edge, lying crumpled. Material: tarp or film. States: whole, torn, shredded.
+
+### Damage pattern
+Tarps tear at the grommets first, then along the weave; film shreds into strips that wrap round anything they touch.
+
+### Physics role
+- **Collision:** where the tarp lies on its host the host's collision stands; where it spans a void or hangs free it is a thin compliant shell (boxes 5 mm thick) with `proposed:fabric`; crumpled on the ground it is part of the ground's cover.
+- **Material ids:** `proposed:fabric` (the houses sheet's proposal).
+- **Gaps:** none; a tarp hanging across an opening does not close the opening's gap (the drone pushes through), but it is a snag.
+- **Wind volumes:** a free-hanging tarp: porosity 0 while taut, 0.3–0.6 when loose (assumed); a draped tarp adds nothing to its host.
+- **Snag hazards:** free corners and torn flaps (`hook`), the hem and grommet line and the rips (`edge`, radius 2 mm): **the fiber catches the hem**. Flutter in wind and prop wash is visual in phase 1.
+- **Landable surfaces:** as whatever lies under it; over a void, no (it sags).
+
+### Placement rules
+- On cellar heads, woodpiles, hay stacks and roofs as repairs (houses-and-yard), on the sunny flank (C); film and sacks in the block's rubble (K); about one tarp per 3–5 yards (assumed).
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `size_m` | {w, l} | 2–8 | 3 × 4 | Sheet size |
+| `material` | enum | tarp, film | tarp | Surface and tear style |
+| `colour` | enum | blue, green, silver, white, clear | blue | Albedo |
+| `mode` | enum | draped, hanging, crumpled | draped | Shape |
+| `host` | asset | — | — | What it lies on (its collision is reused) |
+| `fixed_edge` | edge | — | top | Hanging mode |
+| `tears`, `shred` | int, 0–1 | 0–5 | 1, 0 | Damage |
+| `grommet_spacing_m` | m | 0.46–1.5 | 1.0 | Hem detail and snag points |
+| `weights` | int | 0–6 | 3 | Bricks or tyres on the edges (K01, K09) |
+| `dirt`, `fade` | 0–1 | — | 0.4, 0.5 | Surface |
+| `seed` | int | — | — | Drape, tears |
+
+### Open points
+- `fabric` (soft, wraps, no bounce): physics sign-off, shared with the houses sheet. Physical flutter (a tarp that wraps a prop) is phase 7.
+
+## K06 Concrete chunks with protruding rebar
+
+**Seen in:** K (two precast concrete beams lying in the mound, about 3–4 m long and 0.3–0.5 m deep, one with a recessed side panel; a bar about 0.35 m long sticking out of one beam end; scaled from the bricks beside them); **R**.
+**Research sources:** precast lintels with 2–4 bars of 8–12 mm (houses-and-yard.md); hollow-core floor slabs 1ПК, 220 mm thick with round voids 159 mm across (published, ГОСТ 9561, https://meganorm.ru/mega_doc/norm/gost_gosudarstvennyj-standart/11/gost_9561-91_plity_perekrytiy_zhelezobetonnye_mnogopustotnye.html ); 12 mm prestressed bars in road plates (published, R02).
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Lintel piece | 0.12–0.14 × 0.22 × 0.5–2 m, 2–4 bars of 8–12 mm | 0.12 × 0.22 × 1.2 m, 2 bars of 10 mm | houses-and-yard (lintels) |
+| Hollow-core slab piece | 0.22 m thick, voids 159 mm, pieces 0.3–1.5 m | 0.22 × 1.0 × 0.8 m | published |
+| Precast beam | 3–4 m × 0.3–0.5 m deep | 3.5 × 0.4 × 0.25 m | measured K |
+| Screed or thin slab piece | 0.05–0.15 m thick, 4–5 mm mesh at 0.1–0.2 m | 0.08 m, mesh 0.15 m | assumed |
+| Bars | 6–14 mm; 0.05–0.8 m proud; straight, bent 30–90° or hooked; 2–6 per break | 10 mm, 0.35 m | assumed range; measured K (about 0.35 m) |
+
+### Construction and materials
+- Precast concrete elements of the brick houses and the block (lintels, floor slabs, beams, balcony slabs) and monolithic screeds; broken across, the concrete crushed at the break, bars bent out and rusting, fracture faces paler and rough with aggregate.
+- **Materials:** Poly Haven `concrete_wall_003`, `rough_concrete`, `concrete_debris`, and `rebar_reinforced_concrete` for fracture faces; bars `rusty_metal` (candidates, CC0: https://polyhaven.com/a/concrete_debris , https://polyhaven.com/a/rebar_reinforced_concrete , https://polyhaven.com/a/rusty_metal ).
+
+### Colour
+| Surface | Photo albedo (sRGB) | Feed check value (sRGB) | Source |
+|---|---|---|---|
+| Precast beam, weathered | #96958f | — | measured K |
+| Fresh fracture | #a9a69e | — | assumed |
+| Bars, rusted | #6e5a48 | — | houses-and-yard (rust) |
+
+### Variants and states
+- Pieces: lintel, hollow_core, beam, screed, balcony slab edge. States: clean break, crushed end, sooted.
+
+### Damage pattern
+Lintels crack and drop when the brick above them goes; slabs crack at their supports and hang on their bars (houses-and-yard H06); in a collapse everything breaks into pieces whose bars bend out of the breaks.
+
+### Physics role
+- **Collision:** a chunk is 1–3 boxes (`concrete`); a hollow-core piece's webs are boxes so its voids are real (a leg drops into an open 159 mm tube at a broken end); every bar a capsule at its real radius (`steel`).
+- **Material ids:** `concrete`, `steel`.
+- **Gaps / wind volumes:** none (below 2 m).
+- **Snag hazards:** every bar a `hook` from its root to its tip, radius half the bar (PR-5's "rebar sticking out", physical); fracture rims `edge` (3 mm, the concrete arris); mesh pieces `hook`s.
+- **Landable surfaces:** a chunk or slab piece with a top face of at least 0.35 × 0.35 m within 15°, bars excluded from the face: yes.
+
+### Placement rules
+- At the block (U01, U02), at the lintels of brick houses (H03, H04, H06), at concrete garages and sheds, with broken road plates (R02); in K-type mounds 10 % by volume.
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `piece` | enum | lintel, hollow_core, beam, screed, balcony_edge | lintel | Which element |
+| `size_m` | {l, w, h} | as above | by piece | Piece size |
+| `fracture_roughness_mm` | mm | 5–40 | 15 | Break relief |
+| `bars` | int | 0–8 | by piece | Bars at each break |
+| `bar_d_mm` | mm | 6–14 | 10 | Bar radius (collision and snag) |
+| `bar_proud_m` | range | 0.05–0.8 | 0.1–0.4 | How far bars stick out |
+| `bar_bend_deg` | range | 0–90 | 0–45 | Bending |
+| `mesh_pitch_m` | m | 0 or 0.1–0.2 | 0 | Screed mesh |
+| `spall`, `soot` | 0–1 | — | 0.3, 0 | Surface |
+| `seed`, `physics_material`, `lod` | — | — | `concrete` | As K01 |
+
+### Open points
+- None beyond the shared ones.
+
+## K08 Household items: fridge, wardrobe, mattress, radiator, chair
+
+**Seen in:** K (two-door chipboard wardrobes in the open rooms and a brown wardrobe panel in the mound, shelving, a cast-iron radiator under a window, a sofa back, dark appliance housings, PVC window frames, a TV); I (sheets and plastic, terrain.md S5).
+**Research sources:** a cast-iron sectional radiator of the МС-140 type is about 585 mm high with 500 mm between the connections (published listing, https://catalog.onliner.by/radiators/llmz ) and 140 mm deep (from the type name).
+
+### Dimensions
+| Item | Range | Chosen default | Label |
+|---|---|---|---|
+| Fridge | 0.55–0.60 × 0.60–0.65 × 1.4–1.65 m, steel shell 0.5–0.8 mm | 0.57 × 0.60 × 1.5 m | assumed |
+| Wardrobe | 0.55–0.60 × 0.8–1.6 × 1.8–2.2 m, chipboard 16 mm | 0.58 × 1.2 × 2.0 m | measured K (two-door wardrobes about 1.0–1.6 m wide, about two thirds of the room height); board assumed |
+| Mattress | 1.9–2.0 × 0.8–1.6 × 0.10–0.20 m, spring core | 1.9 × 0.9 × 0.15 m | assumed |
+| Radiator | sections 0.585 m high, 0.14 m deep, at an 80 mm pitch, 6–12 sections | 8 sections, 0.64 m long | published height and depth; pitch and count assumed |
+| Chair | 0.42–0.45 × 0.45–0.50 × 0.85–0.95 m | 0.43 × 0.47 × 0.90 m | assumed |
+| Also seen | sofa 2.0 × 0.9 × 0.9 m; shelving; appliance housings 0.4–0.9 m; PVC window frames, white profiles 60–70 mm deep; a TV | — | measured K by eye (scaled from bricks); profile depth assumed |
+
+### Construction and materials
+- Chipboard furniture with wood-look veneer or laminate (light and dark brown), enamelled steel appliances, cast-iron radiators painted white or cream, spring mattresses in fabric, upholstered sofas, white PVC window frames with steel cores.
+- **Materials:** chipboard: Poly Haven `oriented_strand_board` for broken cores, a plain veneer tint for faces (https://polyhaven.com/a/oriented_strand_board ); upholstery: `fabric_pattern_05`, `dirty_carpet` (https://polyhaven.com/a/fabric_pattern_05 , https://polyhaven.com/a/dirty_carpet ); enamel and PVC plain tinted materials; radiator `rusty_painted_metal` (https://polyhaven.com/a/rusty_painted_metal ).
+
+### Colour
+| Surface | Photo albedo (sRGB) | Feed check value (sRGB) | Source |
+|---|---|---|---|
+| Light veneer wardrobe | #997d61 | — | measured K |
+| Dark brown wardrobe panel | #45322b | — | measured K |
+| PVC frame | #dcd8c8 | — | measured K |
+| Fridge enamel | #d9d6cc | — | assumed |
+| Radiator paint | #cfcac0 | — | assumed |
+
+### Variants and states
+- Items as listed. States: in place (inside a room), fallen, on its back, broken into panels (wardrobe), door off (fridge), torn with springs out (mattress), torn off the wall with pipe stubs (radiator), sooted.
+
+### Damage pattern
+Contents spill out of open rooms and down the rubble slope (K); light items (cushions, sheets, plastic) fly furthest; heavy items (fridges, radiators) stay near the wall foot.
+
+### Physics role
+- **Collision:** boxes per item part; radiator sections as separate boxes (the 0.04 m gaps between sections at the top can wedge a leg); a broken wardrobe one box per panel.
+- **Material ids:** fridge `sheet_metal`; wardrobe, shelving, chair `timber`; mattress and sofa `proposed:fabric` (soft, sinks 50–100 mm); radiator `steel`; PVC frames, appliance housings, TV `proposed:plastic`.
+- **Gaps / wind volumes:** none (a standing wardrobe in an open room is part of the host's interior).
+- **Snag hazards:** mattress springs when torn (`hook`, 1.5 mm), broken panel edges (`edge`, 2 mm), chair legs (`hook`), PVC frames' broken profiles and their steel cores (`edge`), radiator pipe stubs (`hook`).
+- **Landable surfaces:** a fridge on its back (0.57 × 1.5 m): yes, springy; a wardrobe lying flat: yes; a mattress: soft-landable (the legs sink); a chair seat (0.42 m): only centred within ±9 cm (derived: 0.42 − 0.24); a radiator: no.
+
+### Placement rules
+- Only at the block and the two-storey houses in quantity (terrain.md S5); a few items in X-state village houses (a fridge, a bed frame, a wardrobe); in front of open rooms 0–8 m out (λ 3 m).
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `item` | enum | fridge, wardrobe, mattress, radiator, chair, sofa, shelving, pvc_frame, appliance | fridge | Which item |
+| `size_m` | {w, d, h} | as above | by item | Size |
+| `sections` | int | 6–12 | 8 | Radiator |
+| `pose` | enum | upright, fallen, on_back, on_side | upright | Resting pose |
+| `broken` | 0–1 | — | 0 | Panels off, doors off, torn |
+| `colour` | enum | light_veneer, dark_veneer, white, cream | by item | Surface |
+| `soot` | 0–1 | — | 0 | Burnt state |
+| `seed`, `physics_material`, `lod` | — | — | by item | As K01 |
+
+### Open points
+- `plastic` (PVC, housings, crates): physics sign-off.
+
+## K09 Tyres, metal barrel, bucket, crates
+
+**Seen in:** **R** per the asset list; K shows a blue plastic crate about 0.6 × 0.45 m in the mound; the intact barrel and bucket are the yard props of houses-and-yard.md Y11.
+**Research sources:** tyre sizes from their size codes (derived); the 200 l drum and the bucket as in Y11; tyres burn down to the bead wire (terrain.md R0).
+
+### Dimensions
+| Item | Range | Chosen default | Label |
+|---|---|---|---|
+| Car tyre | 0.57–0.60 m × 0.155–0.175 m, a 13-inch (0.33 m) bead | 165/80 R13: 0.59 × 0.165 m | derived from the size code |
+| Truck tyre | 1.0–1.22 m × 0.26–0.40 m | 1.0 × 0.26 m | derived from the size codes of the ЗИЛ and Урал class (the vehicles sheet holds the published specs) |
+| Burnt tyre | two bead rings of 5–8 mm steel-wire bundles plus a tangle of 0.3–1 mm cord wire | — | assumed |
+| Barrel | 0.585 × 0.88 m, 200 l steel drum | — | houses-and-yard Y11 |
+| Bucket | 0.28–0.32 × 0.27–0.30 m, 10–12 l | 0.30 × 0.28 m | houses-and-yard Y11 |
+| Wooden crate | 0.5 × 0.3 × 0.3 m, slatted | — | assumed |
+| Plastic crate | 0.6 × 0.4 × 0.3 m | — | assumed; measured K (about 0.6 × 0.45 m) |
+
+### Construction and materials
+- Black rubber tyres with a tread, alone, stacked or weighting tarps and roofs; burnt tyres reduced to their steel. Steel drums and buckets, rusted, dented and holed. Slatted wooden vegetable crates; ribbed plastic crates (blue, green, grey).
+- **Materials:** tyres a plain rubber material with a tread normal (no set needed); barrel and bucket as Y11 (`rusty_painted_metal`, `rusty_metal`); wooden crates `raw_plank_wall` (https://polyhaven.com/a/raw_plank_wall ); plastic crates a plain tinted material.
+
+### Colour
+| Surface | Photo albedo (sRGB) | Feed check value (sRGB) | Source |
+|---|---|---|---|
+| Tyre rubber, dusty | #3a3a3a | — | assumed; terrain.md tyre #545455 (M, lit) |
+| Blue plastic crate | #174893 | — | measured K |
+| Barrel, bucket | as Y11 | — | houses-and-yard |
+
+### Variants and states
+- Tyres: car, truck; lying, upright, stacked (2–6), burnt. Barrel: upright, on its side, dented, holed. Bucket: upright, tipped, crushed. Crates: wooden or plastic, whole or broken.
+
+### Damage pattern
+Fire leaves tyres as bead rings and wire tangles in a black ash patch; fragments hole drums and buckets with petalled holes; crates split.
+
+### Physics role
+- **Collision:** a lying tyre is a ring of 8 capsules of radius 0.08 m (half the section) around its 0.21 m centreline, so the 0.33 m hole stays real and a leg drops into it (derived); an upright tyre a cylinder; a burnt tyre two capsule rings (`steel`, radius 3 mm) and its cord tangle as `hook` snags; barrel and bucket cylinders; crates boxes.
+- **Material ids:** tyres `proposed:rubber`; burnt tyre steel `steel`; barrel and bucket `sheet_metal`; wooden crate `timber`; plastic crate `proposed:plastic`.
+- **Gaps / wind volumes:** none.
+- **Snag hazards:** burnt-tyre cord wire (`hook`, 0.5 mm: the worst fiber trap in the kit), petals on holed drums (`edge`, 0.3 mm), broken crate slats (`hook`).
+- **Landable surfaces:** an upright barrel's top (0.585 m) when centred within ±15 cm (houses-and-yard Y11); a plastic crate upright (0.6 × 0.4 m); a lying tyre: no (the leg corners, 0.17 m from the centre, sit just outside the 0.165 m bead hole: effectively not landable, derived); a barrel on its side: no, it rolls.
+
+### Placement rules
+- Tyres on shed and garage roofs and on tarps as weights (houses-and-yard), stacked at garages, burnt in yards and at roadsides; barrels at downpipes and garages, tipped in debris; crates in yards, cellars and summer kitchens; all within the vehicle debris fields too (K07's area, the vehicles sheet).
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `item` | enum | car_tyre, truck_tyre, barrel, bucket, wooden_crate, plastic_crate | car_tyre | Which item |
+| `pose` | enum | lying, upright, on_side, stacked | lying | Resting pose |
+| `stack_count` | int | 1–6 | 1 | Tyre stack |
+| `burnt` | bool | — | false | Tyre reduced to steel; drum sooted |
+| `dents`, `holes` | 0–1, int | 0–10 | 0.2, 0 | Drum and bucket damage |
+| `colour` | enum | blue, green, grey (plastic) | blue | Crate colour |
+| `seed`, `physics_material`, `lod` | — | — | by item | As K01; barrel and bucket reuse the Y11 meshes |
+
+### Open points
+- `rubber` (high friction, compliant) and `plastic`: physics sign-off. Rolling barrels and tyres: runtime objects (shared open point).
+
+## K10 Fabric and cables hanging from ruins
+
+**Seen in:** K (patterned wallpaper strips sagging in swags across a top-floor room, about 3–4 m; a purple fabric hanging about 0.5 m over a slab edge; curtains and sheets in the open rooms; pale cables hanging 1–3 m from slab edges; white film on the rubble).
+**Research sources:** none; sizes are everyday objects (assumed). The cables are L05's.
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Curtain | 1.4–2.6 m drop × 1–3 m wide; tulle (sheer) or heavy | 2.4 × 1.5 m | assumed |
+| Wallpaper strip | 0.53 m wide × 0.5–2.7 m, hanging or in swags | 0.53 × 1.5 m | assumed (the common roll width) |
+| Swag across a room | 2–4 m span, 0.3–1 m sag | 3 m, 0.6 m | measured K |
+| Wall carpet | 1.5 × 2 to 2 × 3 m, 5–10 mm thick | 2 × 3 m | assumed |
+| Fabric over a slab edge | 0.3–1.5 m drop | 0.5 m | measured K |
+| Insulation and film | 0.5–2 m pieces | 1 m | assumed; measured K (film) |
+| Hanging cables | as L05 | — | L05 |
+
+### Construction and materials
+- Household textiles and wall finishes torn loose by blast and fire: curtains blowing out of window openings, wallpaper peeling in strips and swags, wall carpets hanging by one corner, bedding and clothes over slab edges, mineral wool and film from roofs; all dusty, many sooted.
+- **Materials:** Poly Haven `crepe_georgette` (tulle), `floral_jacquard` (curtains), `dirty_carpet` (wall carpets) (candidates, CC0: https://polyhaven.com/a/crepe_georgette , https://polyhaven.com/a/floral_jacquard , https://polyhaven.com/a/dirty_carpet ); wallpaper a plain patterned tint with a paper backing; film as K05.
+
+### Colour
+| Surface | Photo albedo (sRGB) | Feed check value (sRGB) | Source |
+|---|---|---|---|
+| Purple fabric over a slab edge | #90808e | — | measured K |
+| White film | #b7bdc2 | — | measured K |
+| Wallpaper, faded | #c8b89a | — | assumed |
+
+### Variants and states
+- Pieces: curtain, tulle, wallpaper strip, wallpaper swag, wall carpet, sheet over an edge, insulation, film; each with 0–3 L05 cables added. States: clean, dusty, sooted, shredded.
+
+### Damage pattern
+Blast pulls curtains out through the window openings and strips wallpaper from the walls; fire chars the lower edges; wind keeps them moving.
+
+### Physics role
+- **Collision:** heavy pieces (carpets, sheets over edges) a thin compliant shell (boxes 10 mm); light pieces (tulle, wallpaper, film) no collision of their own, only snags (they cannot stop the drone; a card is never the only thing that stops it, and here nothing should).
+- **Material ids:** `proposed:fabric`; cables `cable` (L05).
+- **Gaps:** a curtain in a window opening does not close the opening's gap; the opening's polygon stays the real clear space.
+- **Wind volumes:** a heavy curtain or carpet hanging free: porosity 0.3–0.6 (assumed); light pieces none.
+- **Snag hazards:** every free edge and corner (`hook`), swags (`edge` along the lower hem, 2 mm): **fabric wraps props and the fiber**.
+- **Landable surfaces:** none.
+
+### Placement rules
+- At window openings of burnt and blasted rooms (curtains out), at the open floors and slab edges of the block (K), inside D and X village houses (wall carpets, curtains), on roof timbers (insulation, film).
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `piece` | enum | curtain, tulle, wallpaper_strip, wallpaper_swag, wall_carpet, sheet_over_edge, insulation, film | curtain | Which piece |
+| `size_m` | {w, drop} | as above | by piece | Size |
+| `attach` | points or edge | — | from the host | Rail, slab edge, nail points |
+| `swag_sag_m` | m | 0.3–1 | 0.6 | Swags |
+| `blow_out` | 0–1 | — | 0 | How far it hangs out of an opening |
+| `tears`, `shred` | int, 0–1 | — | 1, 0 | Damage |
+| `pattern`, `colour` | — | — | by piece | Surface |
+| `soot`, `dust` | 0–1 | — | 0, 0.5 | Surface |
+| `cables` | int | 0–3 | 1 | L05 cables added with it |
+| `seed` | int | — | — | Drape, tears |
+
+### Open points
+- Cloth simulation of the snag (a curtain wrapping a prop) is phase 7; phase 1 is static drape plus snag features.
+
+## Open points for the whole sheet
+
+**Proposed physics material ids** (none invented in a generator; the physics engineer adds them to `physics_materials.json` with values):
+- `asphalt`: lifted asphalt slabs and broken edges (R01); friction near `concrete`, edge radius 3–5 mm.
+- `rubber`: tyres (K09); high friction on the polymer feet (μs about 0.8, assumed), compliant.
+- `plastic`: crates, PVC frames, appliance housings (K08, K09); μs 0.3–0.4, rigid thin shells (assumed).
+- `fabric` and `asbestos_cement`: as proposed in houses-and-yard.md; here for tarps, film, curtains, carpets, mattresses and sofas (`fabric`) and slate (`asbestos_cement`).
+- A ceramic id for porcelain insulators (L01, L02); `masonry` until then.
+
+**Physics engineer:** the PHY-22 inputs are in "Sag, tension and sway" (D, mass, sag → T, k, sway); tension-free lines (L04, L05) wrap whatever their diameter; whether spans sway with the wind; which debris pieces become runtime objects that rock, slide and roll (planks, sheets, tyres, barrels); L04's support points (anchors with a release force, or friction only).
+
+**World-builder:** wires as map objects written by L03 (D-007); potholes as pitfall features and ruts and road edges as sub-grid relief; the debris spread model (the λ table); hanging cables across openings and the gap polygons (L05).
+
+**Tech-artist:** sub-pixel wire rendering (L03): coverage-weighted, fading as 270·D / d, never thickened; the J and D feed values for wires.
+
+**Orchestrator:**
+- The road kits reuse the IDs R01–R03 of the vehicles (asset-list §8 and §9), so "every ID exactly once" cannot hold across the six sheets. Proposed: rename the road kits (for example RD01–RD03) in the asset list.
+- The thick wire class: 13–32 mm instead of 15–20 mm (a SIP main is 26–32 mm).
+- Two existing notes rest on OSD marks (see "A correction"): terrain.md S1 (the C bullet) and houses-and-yard.md C01 ("Wire above … measured C 1–8", and the C reference-view row's "an overhead wire crossing the sky"). Suggested fix: no measured wire in C; D's wire is the low slack cable from the dead trunk.
+
+**Other sheets:** V20 (vegetation): J's brush pile is about 1.0–1.5 m high and 3–4 m long with branches 20–60 mm across and 1–3 m long, which matches V20's defaults (no change). Vehicles sheet: the published tracks feed R03's rut spacing; K07 sits beside the K kit on roads.
+
+**Pilot:** nothing. Every open point here is settled by research, the side-by-side sheets or a role decision.
