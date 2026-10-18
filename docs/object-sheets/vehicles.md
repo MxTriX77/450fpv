@@ -1,6 +1,6 @@
 # Object sheet: vehicles (R01–R09, K07)
 
-**Owner:** reference-analyst. **Reviewed for buildability by:** asset-artist (task 1.7, pending).
+**Owner:** reference-analyst. **Reviewed for buildability by:** asset-artist (task 1.7, `openspec/changes/p1-object-sheets/review-buildability.md`).
 
 **OPSEC:** cite clips and photos by letter only. Describe classes, never a specific identifiable building, place, date or person. No file names, and no OSD values. Number plates, markings and any text on a vehicle are never copied: a generated plate is blank or absent.
 
@@ -201,6 +201,12 @@ Every row uses this set; a row's table lists only its additions and defaults.
 | `length`, `width`, `height` | m | per row, ±2 % | published | Overall size; the profiles scale to it |
 | `wheelbase`, `track_front`, `track_rear` | m | per row | published | Wheel positions |
 | `ground_clearance` | m | per row | published | Sill and underbody height |
+| `overhang_front`, `overhang_rear` | m | cars 0.6–1.1, 0.6–1.3; trucks per row | per model (Open points) | Body ends beyond the axles; with `wheelbase` they make up `length` |
+| `side_profile` | list of (x, z) | 8–14 stations, bumper to bumper | per model (Open points) | Centreline silhouette the shell is lofted through: front bumper, bonnet front, cowl, windscreen top, roof rear, rear screen base or tailgate top, boot edge, rear bumper |
+| `plan_profile` | list of (x, half-width) | at the `side_profile` stations, ≤ `width` / 2 | per model (Open points) | Plan taper of the nose and tail |
+| `belt_line`, `sill_height` | m | cars 0.80–1.00, 0.22–0.40 | per model (Open points) | Where the greenhouse starts (the window sills) and the door bottoms |
+| `tumblehome` | m | 0.05–0.20 | per model | Inward lean of the greenhouse side from the belt line to the roof edge; with the side-window heights of each row it closes the greenhouse |
+| `arch_clearance` | m | 0.02–0.06 | 0.04 | Wheel-arch radius over the tyre radius (the arch cut in the side panels) |
 | `wheel` | enum | steel_hubcap, steel, alloy, truck_steel | per row | Rim geometry; F drop and melt behaviour |
 | `tyre_diameter`, `tyre_width` | m | per row | derived from the tyre size | Wheel cylinders; the A flat-tyre and F drop |
 | `paint` | sRGB or palette name | the palette above | per row | Body colour |
@@ -558,7 +564,7 @@ Shared table, defaults: `model` R05, `body` hatch5, `wheel` steel, `paint` silve
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| Length × width × height | 4.393 × 1.682 × 1.424 m | same | published (the asset list's 4.27 × 1.69 × 1.45 m is superseded; see Open points) |
+| Length × width × height | 4.393 × 1.682 × 1.424 m | same | published (the asset list now carries this figure) |
 | Wheelbase | 2.468 m | 2.468 m | published |
 | Track front / rear | 1.426 / 1.419 m | same | published |
 | Ground clearance | 0.121 m (CIS adaptations higher, about 0.14) | 0.13 m | published (0.121); the default assumed between |
@@ -598,7 +604,7 @@ Shared table, defaults: `model` R06, `body` liftback5, `wheel` steel, `paint` si
 | `tailgate` | enum | closed, torn_open, gone | closed (A), torn_open (B) | The liftback tailgate with its glass |
 
 ### Open points
-- The published length (4.393 m) differs from the asset list (4.27 m); the asset list should be corrected (orchestrator).
+- None: the asset list now carries the published size (4.39 × 1.68 × 1.42 m).
 
 ## R07 VW Passat B3/B4 (or Golf II)
 
@@ -799,7 +805,7 @@ Shared table, defaults: `model` R09, `body` tilt, `wheel` truck_steel, `paint` o
 
 ### Open points
 - The platform length (3.89 or 4.42 m in two secondary sources), the side height and the bow count are not confirmed by a primary source; the default (3.90 m, 0.62 m, 5 bows) is settled by the asset-artist from public photos of the class.
-- The gap rule here departs from the asset list's "no gaps" for vehicles: the bare-bow cage has openings of 0.83 m and more, so by the rule that every visible opening is a gap the sim knows, they are recorded. The orchestrator should amend asset-list §9 for R09.
+- The gap rule here departs from the asset list's "no gaps" for vehicles: the bare-bow cage has openings of 0.83 m and more, so by the rule that every visible opening is a gap the sim knows, they are recorded. Asset-list §9 now says so.
 
 ## K07 Glass crumbs (decal plus micro) and vehicle fragments (doors, bumpers, wheels)
 
@@ -893,8 +899,10 @@ Driven by the vehicle's `debris_radius`, `debris_count`, `crumb_cover`, `burst_d
 
 **For the orchestrator:**
 - **ID collision (resolved by the orchestrator):** the road kit is now RD01–RD03 in the asset list; R01–R09 are the vehicles only.
-- **R06 size:** the published Chery Amulet is 4.393 × 1.682 × 1.424 m, not the asset list's 4.27 × 1.69 × 1.45 m.
-- **R09 gaps:** the burnt or bare-bow Урал has fly-through openings of 0.83 m and more (side bays, rear, top); asset-list §9's "no gaps" should read "no gaps for cars; the bare-bow cage of R09 has gaps".
+- **R06 size (resolved):** the asset list now carries the published 4.39 × 1.68 × 1.42 m.
+- **R09 gaps (resolved):** asset-list §9 now says the bare-bow cage of R09 has fly-through bays.
 - **Fragment holes in collision:** holes ≤ 0.25 m stay closed in the collision (shared Geometry rule); this is a deliberate deviation from "collision follows the visual" and needs the physics engineer's sign-off.
+
+**Body profile stations (buildability review):** the shell's shape per model (`overhang_front`, `overhang_rear`, `side_profile`, `plan_profile`, `belt_line`, `sill_height`, `tumblehome`) is not in this sheet; the rows give the overall sizes, the wheelbase, the window heights, the bonnet, roof and windscreen sizes, which fix only part of the silhouette. The asset-artist derives the stations at the start of each model's change from public dimensioned side, front and top views (labelled published or derived), so the clean base is a loft through params and never a hand-sculpted shell; R01's come first and are checked against M at the side-by-side.
 
 **Settled by side-by-side or by the asset-artist, not by the pilot:** R01's height figure, the N class silhouette (R04/R05), the ЗИЛ platform and dual wheels, the Урал platform length, side height and bow count. **No pilot question** comes out of this sheet: sizes are published or derived, and the looks are in the photos.
