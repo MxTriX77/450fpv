@@ -7,6 +7,13 @@
       "variants": ["K01_whole"],
       "materials": { "brick": "brick_red" }
     },
+    "L01": {
+      "class": "lines",
+      "generator": "pole",
+      "variants": ["L01_straight", "L01_leaning", "L01_stub"],
+      "materials": { "wood": "pole_wood", "concrete": "pole_concrete", "steel": "pole_steel",
+                     "insulator": "insulator_porcelain", "ground_wire": "wire_steel" }
+    },
     "S04": {
       "class": "surfaces",
       "generator": "ground_patch",
