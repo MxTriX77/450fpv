@@ -1,0 +1,25 @@
+{
+  "material": "bark_locust",
+  "texture_set": "polyhaven/bark_brown_01",
+  "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
+  "mask": {
+    "metallic": 0.0,
+    "occlusion": "ao",
+    "smoothness": "1 - roughness"
+  },
+  "sources": {
+    "ao": {
+      "name": "bark_brown_01_ao_2k.png",
+      "sha256": "02bb9025280895c00e4d93a7849bff005295207dbed1e398962b0e2a64750286"
+    },
+    "roughness": {
+      "name": "bark_brown_01_rough_2k.png",
+      "sha256": "d7990a8319db5beb185d6fd36b1d9acef82556e2d942d68583ce3a505907cab2"
+    }
+  },
+  "inputs_sha256": "c6e43da3546ec751590de4e8f4453c9119b4041bd8ee2c7bf0ba88f6fb2745a3",
+  "size": [
+    2048,
+    2048
+  ]
+}

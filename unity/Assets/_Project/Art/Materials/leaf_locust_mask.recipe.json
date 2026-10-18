@@ -1,0 +1,21 @@
+{
+  "material": "leaf_locust",
+  "texture_set": "ambientcg/LeafSet002",
+  "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
+  "mask": {
+    "metallic": 0.0,
+    "occlusion": "ao",
+    "smoothness": 0.2
+  },
+  "sources": {
+    "ao": {
+      "name": "LeafSet002_2K-PNG_AmbientOcclusion.png",
+      "sha256": "c83746696f3fbfb52f9d3a796daa4c539b413a109d50e2a4eb77fe711b20fa6a"
+    }
+  },
+  "inputs_sha256": "703fb2651e64f81a324b6036debda75c6d8e55085abb48ce5bc29811cb2e9967",
+  "size": [
+    2048,
+    2048
+  ]
+}
