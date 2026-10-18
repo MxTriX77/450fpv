@@ -1,12 +1,7 @@
 """debris_brick: one clay brick, a box with chamfered edges and slightly worn corners (object sheet K01, AST-04).
 
-Params (assets-src/debris/<variant>.json), metres unless the key says otherwise:
-  seed              drives the wear
-  size_m            {"length", "width", "height"}: length along +X, height along +Y, width along +Z; the origin is
-                    the bottom centre, so the brick lies flat on y = 0
-  bevel_mm          {"min", "max"}: every corner draws its own chamfer width from this range, the wear
-  physics_material  the collision material id (AST-05); "masonry" for fired clay
-  lod               {"lod1_switch_m", "cull_m"}: LOD1, a plain box, from this distance; culled beyond cull_m
+Params (assets-src/debris/<variant>.json) are PARAMS below (lib.params checks them): the origin is the bottom
+centre, so the brick lies flat on y = 0; every corner draws its own chamfer width from bevel_mm, the wear.
 
 LOD0 is the chamfered box: 24 vertices, 6 face quads, 12 chamfer strips and 8 corner triangles, 44 triangles. LOD1
 is the plain box, 12 triangles. Collision is the plain box, within the chamfer width of LOD0 everywhere.
@@ -19,6 +14,38 @@ from lib.geometry import Mesh, ring
 
 SLOT = "brick"
 CORNERS = [(sx, sy, sz) for sx in (-1, 1) for sy in (-1, 1) for sz in (-1, 1)]
+# The object sheet's generator table (docs/object-sheets, "Generator parameters"); defaults are K01_whole. The size
+# range spans a chip to a block (assumed); the chamfer range holds the 2-3 mm wear of a fired brick with room for a
+# battered one, and never more than half the smallest size (check below) so the chamfers cannot meet.
+PARAMS = {
+    "seed": {"type": "int", "range": (0, 2**31 - 1), "default": 1,
+             "effect": "draws each corner's chamfer width within bevel_mm"},
+    "size_m.length": {"type": "float", "range": (0.02, 1.0), "default": 0.25, "effect": "extent along +X"},
+    "size_m.width": {"type": "float", "range": (0.02, 1.0), "default": 0.12, "effect": "extent along +Z"},
+    "size_m.height": {"type": "float", "range": (0.02, 1.0), "default": 0.065,
+                      "effect": "extent along +Y, from y = 0"},
+    "bevel_mm.min": {"type": "float", "range": (0.0, 10.0), "default": 2.0,
+                     "effect": "narrowest chamfer a corner may draw"},
+    "bevel_mm.max": {"type": "float", "range": (0.0, 10.0), "default": 3.0,
+                     "effect": "widest chamfer a corner may draw; under half the smallest size"},
+    "physics_material": {"type": "str", "range": "an id of assets-src/physics_materials.json", "default": "masonry",
+                         "effect": "collision material of the box and the brick slot (AST-05)"},
+    "lod.lod1_switch_m": {"type": "float", "range": (0.1, 100.0), "default": 3.0,
+                          "effect": "distance from which LOD1, the plain box, shows"},
+    "lod.cull_m": {"type": "float", "range": (1.0, 2000.0), "default": 120.0,
+                   "effect": "distance beyond which the brick is culled; beyond lod1_switch_m"},
+}
+
+
+def check(params):
+    """Cross-parameter rules once every key is in range: the chamfer range is ordered and fits the brick."""
+    bevel, limit = params["bevel_mm"], min(params["size_m"].values()) * 500  # half the smallest size, in mm
+    problems = []
+    if bevel["min"] > bevel["max"]:
+        problems.append(f"'bevel_mm.min' = {bevel['min']} exceeds 'bevel_mm.max' = {bevel['max']}")
+    if bevel["max"] >= limit:
+        problems.append(f"'bevel_mm.max' = {bevel['max']} must stay under half the smallest size, {limit:g} mm")
+    return problems
 
 
 def build(params):
