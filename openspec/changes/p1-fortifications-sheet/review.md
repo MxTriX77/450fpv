@@ -396,3 +396,192 @@ The reference analyst closed each item in `docs/object-sheets/fortifications.md`
 - **S6** → `docs/asset-list.md` §12 F03 Key size: "members 1.8 m".
 - **S7** → :218: the county record replaced by the national monument-type thesaurus (heritagedata.org), which carries no county. The tetrahedron term's scope note there still names a historical command; it stays because no other source found gives the triangular class's proportion, which bounds the base default.
 - **S5, S8** → recorded for the asset change with their owner (asset-artist; physics sign-off on S5) at :606–610.
+
+## Re-check after 1.5
+
+**Reviewer:** qa-engineer, a fresh agent that did none of tasks 1.1–1.5 (D-034) · **Branch:** `unity/ref/p1-fortifications-sheet` at `27723f6` · Line numbers below are at `27723f6`. I read `CLAUDE.md`, `AGENTS.md`, SEC-02 and D-037 as they stand on `origin/unity/main`, this review, `tasks.md`, the whole sheet and the asset list's §12. I did not open `reference/`. Every source below was opened by me; the scripts are throwaway files in my scratchpad, not committed.
+
+**Verdict: APPROVED**, with the five fix-at-merge lines at the end applied by the orchestrator before the merge. R1–R3 are closed; nothing left blocks. The fix-at-merge lines are exact wording: one SEC-02 phrase the rework left in F03 and the asset list, two labels that still say a little more than their source, and two record slips.
+
+### Checks run
+
+```
+$ git log --format='%h|%an|%ae|%s|body=[%b]|trailers=[%(trailers)]' c2a0290..HEAD
+27723f6|Reference Analyst|reference@450fpv.local|docs(openspec): record qa closures for fortifications and tick 1.5|body=[]|trailers=[]
+b43efaf|Reference Analyst|reference@450fpv.local|docs(ref): name hedgehog members and label р50 assumed in asset list|body=[]|trailers=[]
+32b4d58|Reference Analyst|reference@450fpv.local|docs(ref): close qa's r1-r3 and line edits in the fortifications sheet|body=[]|trailers=[]
+(3 commits, subject only, no trailers, the role's identity from docs/team.md)
+
+$ git diff --name-only c2a0290 HEAD
+docs/asset-list.md
+docs/object-sheets/fortifications.md
+openspec/changes/p1-fortifications-sheet/review.md
+openspec/changes/p1-fortifications-sheet/tasks.md
+(nothing outside the sheet, the asset list and the change folder; no media, nothing from reference/, Library/, Temp/ or Logs/)
+
+$ git diff --name-only $(git merge-base HEAD origin/unity/main) origin/unity/main -- docs/object-sheets/fortifications.md docs/asset-list.md openspec/changes/p1-fortifications-sheet
+(no output: the 17 commits on unity/main since c570d68 touch none of these files)
+
+$ git diff c2a0290 HEAD -- docs/object-sheets/fortifications.md docs/asset-list.md | grep -E '^[-+]#{2,3} |^[-+]\| F0'
+(only the F03 row of the asset list; no heading added or removed, so coverage stays 107 of 107)
+
+$ python tools/hygiene/precommit.py --tree HEAD
+520 files scanned, 0 findings                                   exit=0
+
+$ openspec validate p1-fortifications-sheet --strict
+Change 'p1-fortifications-sheet' is valid                       exit=0
+```
+
+### 1. R1: wording under SEC-02 (D-037)
+
+**Every line of the OPSEC table is now neutral and class-level:**
+
+| Was | Now | Reads |
+|---|---|---|
+| 86 "on the home side" | :86 "every 3.8 m on one side of the run (`picket_side`)" | neutral |
+| 158 "In front of trenches …, 30–100 m out, beyond hand-grenade throw …" | :158 "Along trench lines … and along field and belt edges: a run beside the line, following it" | neutral |
+| 159 "… so they cannot be bypassed" | :159 "Across road shoulders and verges, from the road edge to the ditch or the belt edge, often meeting the end of" F02 or F04 | kit neighbours only |
+| 163 "along the defended line, pickets on the home side" | :163 "along the trench line, edge or fence it follows, or across the verge" | neutral |
+| 186 `home, enemy` | :186 `left, right, inside, alternate` against the layout polyline's order, default `left` | neutral |
+| 209, 605 stand-off 30–100 m | :209, :611 "Where each run lies is the layout's" | neutral |
+| 287 "… so it cannot be driven round" | :288 across roads at settlement edges and across gaps between belts, its ends meeting a belt, ditch, trench line or wire run | neutral |
+| 288 "20–100 m in front of the trench" | :289 "a field beside the trench or the bank, its rows parallel to it" | neutral |
+| 290 "in front of or among the rows" | :291 "beside or among the rows" | neutral |
+| 466 "(a breastwork to fire over standing)" | :467 "assumed" | neutral |
+| 467, 481, 527 "open at the rear" | :468, :482, :528 "open on one side" | neutral |
+| 534 "away from the approach, against cover" | :535 "on the verge beside it, next to a building corner, a tree or a belt edge where one stands" | what it stands beside |
+| 535 "so the kit cannot be driven round" | :536 "wire (F01) along both verges, from the road edge to the ditch or the belt edge" | neutral |
+
+The analyst's three extra finds are gone too (:162 "around positions", :261 the crossing reason, :341 "a target of").
+
+**The R1 grep finds 19 lines, not none as "Closed in 1.5" says.** I read each one:
+- **Acceptable:**
+  - "position" as a place on a part: picket position :87, positions along the coil :149 and :195, `position_jitter_m` :307, hole and loop positions :353, :428, :458.
+  - "sandbag position(s)": :440, :468, :471, :482, :503, :526, :528, :535, :556, :563, :585. This is the asset list's own name for the F04 piece (D-035), and the sheet describes it only by construction: plan, inside size, courses, entrance and ports.
+- **Reword:** :405 "road approaches" (flag a below; fix at merge 1).
+
+**A wider scan,** for front, attack, tank, firing, fire, cover, fragment, bullet, military, defence, obstacle, army, command, doctrine, stand-off and "cannot be", read hit by hit. All acceptable:
+- **:341, "about 1 m, the height of a tank's front plate":** the ru encyclopedia's published design height for the class. The sheet drops the source's "enemy". It states no direction, extent or relation.
+- **:358, a pushing vehicle "rolls it under its belly":** the published physical mechanism, and the reason the sim leaves it unanchored.
+- **Damage causes:** :108 and :115 (a fragment cuts the core), :162 and :292 (a shelled area), :258 (the blast side).
+- **:537, "the frontline town":** WLD-01 and WLD-05's own term for the settlement class.
+- **:482, "most modern military bags":** a material fact.
+- **:217, the bulletin's title:** a source title, not wording.
+
+**The analyst's open flags:**
+- **a. "road approaches", F03 :405 and `docs/asset-list.md:203` (F03's description): reword.**
+  - "Approach" ties the object to a settlement that a road leads to: a relation, and in military usage a direction.
+  - The rework already changed the same phrase at F02 (:288, "road approaches to the settlements" → "across roads at settlement edges"), so F03 and the asset list should match it.
+  - The asset-list wording is the orchestrator's from D-035, not the pilot's quote (:197 does not contain it).
+  - Neutral wording: "on roads at settlement edges and at the checkpoint" (fix at merge 1).
+- **b. `firing_ports` (:470, :482, :516, :527, :561): acceptable.**
+  - Each port is a physical opening: a 0.20 × 0.12 m slot left by a missing bag, a gap polygon with a "no" verdict, and the reason one box per bag is laid within 0.3 m of it.
+  - REAL-05 requires the sim to know it.
+  - SEC-02 bars firing positions *described tactically*. The construction term with its size says nothing of siting, direction, extent or use against anyone.
+  - The project uses "firing positions" as a neutral class noun itself (asset list :206).
+- **c. "20 in (0.51 m) of sand in bags is proof against armour-piercing bullets and fragments" (:466, source line :445): acceptable.**
+  - It is a published physical property of a thickness of fill, and the anchor of the wall-thickness range.
+  - It is class-level and says nothing of siting or use.
+- **d. The national thesaurus note at :218: acceptable.**
+  - Opened: FISH Thesaurus of Monument Types on heritagedata.org, "Anti Tank Pimple" (160305) and "Anti Tank Tetrahedron" (160309). No county on either page; the spatial coverage is the country.
+  - The tetrahedron's scope note names a historical army command of that country in the 1940s (I leave its name out of this file).
+  - The sheet does not quote it, and it identifies nothing of the pilot's places, units or dates.
+  - It is the only source found for the triangular class's proportion, which bounds a derived default. D-032 admits such sources.
+
+### 2. R2: the five figures against their sources
+
+| Item | Sheet now | Source opened | Result |
+|---|---|---|---|
+| (a) the 0.6 m coil | :46 11 m (0.45 and 0.6 m), 15 m from 0.72 m, the 0.72 m also at 11 m; :49 0.406 m (0.45 and 0.6 m; 0.72 m also), 0.533 m (0.72–1.0 m); :176 the yield default | NATO-22 flyer, p. 2 table: 600 mm, 56 loops, 3 clips, 16 in / 406 mm, 36 ft / 11 m; 720 mm, 3 (5) clips, 533 (406) mm, 50 (36) ft, 15 (11) m; 750–1000 mm 533 mm, 15 m. The catalogue's selector repeats the NATO-22 rows | **match** |
+| (a) derived | :47 p 0.196 m; :49 and :64 lean 40.9°, 42.6° at p 0.203 m; :50 and :65 0.60 × 0.45 m, 0.44 m at p 0.203 m | my recomputation (below) | **match** |
+| (b) the turns | :45 "31–56 over the catalogue's clipped concertina coils of 0.45–1.0 m (31, 50, 51 or 56 by product: every NATO-22 row 56, the military BTC row at 0.90 m 50)" | catalogue, "Military Tactical Barrier Concertina Coil": 900 mm, **50** loops, 5 clips, 24 in / 600 mm, 50 ft / 15 m. Selector: Maze 31, military BTC 56/50, NATO-22 56, Supermaze and NATO Barrier **51 (81)**, Detainer Hook 31 (51) | the military row and the 56 **match**; the list leaves out the selector's 81-turn option of two dense maximum-security coils at 0.75–1.0 m. The default and the generator's 31–56 stand, but the label should say the 81 is left out (fix at merge 2) |
+| (c) the clips | :51, :85 "3 to 7 rivets joining the turns in a staggered pattern"; :86 stakes published, staples assumed | ru encyclopedia (Спираль Бруно): "заклёпки от 3 до 7 штук для соединения витков … в шахматном порядке"; "связываются между собой проволокой и крепятся кольями к земле"; no staples on the page | **match** |
+| (d) the rail type | :346 rail as a member published, Р50 and Р65 assumed; :347–348 sections published; `docs/asset-list.md:203` "Р50 rail (assumed)" | ru encyclopedia: rails named only generically ("швеллера, уголка, рельса"; I-beams No. 25–40); en encyclopedia: angle L 140/140/13, rail only as "new tracks" in recent use; neither names Р50, Р65 or any rail type | **match** |
+| (e) the barrier support | :478 from 4.0 m a support at the far end, swinging or fixed; from 5.5 m the rope; :566 the same, `check` refuses `end_rest` none from 4.0 m | the manufacturer's page: pendulum support "optional" for 2.5–3.5 m, "required" from the 4.0 m model; stabilisation rope "included for 5,500mm boom length and longer". The brochure: from 4,000 mm effective boom length "a swinging support or a fixed support is mandatory"; the rope "From 5,500mm effective boom length included in delivery" | **match** |
+
+**The 0.6 m coil, recomputed:**
+- p = 11 / 56 = 0.1964 m.
+- λ = asin(2p / D) = asin(0.6548) = **40.90°**.
+- End-on width √(D² − 4p²) = √(0.36 − 0.1543) = **0.4535 m**.
+- At the loop spacing's p = 0.203 m: 42.58° and 0.4418 m.
+- The `check` limit 0.47 D = 0.282 m is far above both.
+- 56 × 0.406 = 22.7 m against 2 × 11 = 22 m, as at 0.45 m.
+
+```
+$ python -I (inline)
+0.6 yield/turns        p 0.1964  lean 40.90 deg  end-on 0.60 x 0.4535  2p/D 0.6548  check 0.47D 0.282
+0.6 loop spacing/2     p 0.2030  lean 42.58 deg  end-on 0.60 x 0.4418  2p/D 0.6767  check 0.47D 0.282
+0.9                    p 0.2679  lean 36.53 deg  end-on 0.90 x 0.7232  2p/D 0.5952  check 0.47D 0.423
+0.45                   p 0.1964  lean 60.81 deg  end-on 0.45 x 0.2195  2p/D 0.8730  check 0.47D 0.211
+0.6 m at the old 15 m / 0.533 m: p 0.2679 lean 63.2 width 0.270
+```
+
+### 3. R3: every turn at every LOD
+
+**Closed.** :202 reads "**every turn at every LOD**":
+- LOD1: a 4-sided tube on 12 points a turn from about 7.5 m.
+- LOD2: 3-sided on 8 points from about 16 m.
+- LOD3: 3-sided on 6 points from about 28 m to the cull.
+
+This is the buildability review's Budgets table (its lines 112–123) row for row. The grep for "sparse", "loop strips" and dropped turns finds only F02's "sparse array" (:283, the teeth field's plan, unrelated).
+
+### 4. S1, S4, S5–S8 and the barrier `check`
+
+- **S1:** closed.
+  - :51 and :85 call the flat loops a simplification of the 3–7 staggered clips.
+  - :210 is the G2 look point, with `clips_per_pair` to follow (asset-artist).
+- **S4:** closed.
+  - :80 says the best box misses the 0.90 m coil's sections by 67–71 mm and comes within 24–26 mm of the fence-top coil's.
+  - :75 gives the capsules' two-way fit, 21 / 27 mm (24 / 36 mm at 0.19 m).
+  - My own two-way best-box search (1.5° sampling, half-sizes in 0.4 % steps) gives 69 / 69 / 70 / 71 mm on the I and sagged 0.90 m sections, and 28 / 26 mm on the fence-top coil.
+  - Both claims hold either way: over ±5 cm on the 0.90 m coil, inside it on the fence-top coil. The 2–3 mm differences come from the fitting method.
+
+    ```
+    I 0.90     best box 0.584 x 0.763: worst 69.4 mm (ellipse->box 69.4, box->ellipse 69.4)
+    sag 0.7    best box 0.864 x 0.504: worst 69.1 mm (ellipse->box 68.0, box->ellipse 69.1)
+    sag 0.8    best box 0.780 x 0.582: worst 69.9 mm (ellipse->box 69.9, box->ellipse 69.9)
+    sag 0.9    best box 0.691 x 0.671: worst 71.3 mm (ellipse->box 69.7, box->ellipse 71.3)
+    fence 0.22 best box 0.176 x 0.394: worst 27.9 mm (ellipse->box 27.9, box->ellipse 27.9)
+    fence 0.19 best box 0.155 x 0.398: worst 26.4 mm (ellipse->box 26.1, box->ellipse 26.4)
+    ```
+- **S6:** closed. `docs/asset-list.md:203` reads "members 1.8 m (published)". The same row's Physics cell still says "the spaces between arms" (fix at merge 5).
+- **S7:** closed. The county record is replaced by the national thesaurus (1d above).
+- **S5 and S8:** recorded as open points for the asset change at :606–610. Owner asset-artist, physics sign-off on S5. Each item is stated with its fix: arc-length sampling; a festoon parameter or the `damage`/`seed` rule; the spill cones' `surface:crater_spoil` cylinders; the LOD lines.
+- **The barrier `check`:** consistent.
+  - `arm_length_m` 3.0–8.0, default 4.0 (:566); `end_rest` fork, lockable or none, default fork (:571).
+  - The default arm therefore passes with its fork, the source's fixed support.
+  - Arms of 3.0–3.9 m may have none, which the manufacturer makes optional below 4.0 m.
+  - :477 (a fork post at the far end) and :478 agree.
+- **Not in 1.5's scope, still open as suggestions:** S2 (36.6° printed; 36.5° exact), S3 (the head depth's provenance at :347), S9 and S10 (for the orchestrator and the phase-7 test plan).
+
+### 5. The analyst's suggestion: F02 :290
+
+**Relabel.**
+- The ru encyclopedia's "оставляя местами коленчатые выходы" is in its paragraph on the old rows of wooden stakes, not on concrete teeth. So "published" at :290 transfers a fact across classes.
+- "Exit" also names a way out of a position, which SEC-02 would rather not say.
+- The same page's earth pushed over the teeth (the buried D state, :261) is about concrete rows, so that label stands.
+
+Fix at merge 3 relabels :290 as assumed and drops "exit". The source line :219 follows it.
+
+### Requirements, after the re-check
+
+| ID | Status | Note |
+|---|---|---|
+| AST-04 | met, with fix at merge 2 and 3 | all five R2 figures match their sources; two labels narrowed |
+| SEC-02 | met, with fix at merge 1 | every R1 line neutral; "road approaches" the last relational phrase |
+| WLD-01 | met | placement now says only what each object stands on and beside, how it is laid out and how many |
+| AST-01, AST-02, AST-05, AST-06, SEC-01 | met | unchanged by 1.5 |
+
+### Fix at merge (orchestrator, before `gh pr merge --merge`)
+
+1. **SEC-02, "road approaches".**
+   - `docs/object-sheets/fortifications.md:405`: replace "as **singles and pairs at road approaches and at the checkpoint** (asset list)" with "as **singles and pairs on roads at settlement edges and at the checkpoint** (asset list)".
+   - `docs/asset-list.md:203`: replace "singles and pairs at road approaches and checkpoints" with "singles and pairs on roads at settlement edges and at checkpoints".
+2. **R2 (b), the turns.** `docs/object-sheets/fortifications.md:45`:
+   - In the Range cell, replace "the military BTC row at 0.90 m 50)" with "the military BTC row at 0.90 m 50; the selector's 81-turn option of two denser maximum-security coils left out)".
+   - In the Label cell, replace "published, catalogue" with "published, catalogue; leaving out the 81-turn option assumed".
+3. **The dog-leg label.**
+   - `docs/object-sheets/fortifications.md:290`: replace "a lane left open as a dog-leg exit (published: gaps left as dog-leg exits)," with "a lane left open through the rows as a dog-leg (assumed; the encyclopedia's dog-leg gaps are in the older rows of wooden stakes),".
+   - `docs/object-sheets/fortifications.md:219`: replace "rows in a set order, gaps left as dog-leg exits (encyclopedia)" with "rows in a set order, and dog-leg gaps in the older rows of wooden stakes (encyclopedia)".
+4. **The record.** In this file's "Closed in 1.5" first paragraph, replace "branch `unity/ref/p1-fortifications-sheet--qa`" with "branch `unity/ref/p1-fortifications-sheet`". No `--qa` branch exists on origin; the three commits are on this branch.
+5. **S6's rename, followed through.** `docs/asset-list.md:203`, the Physics cell: replace "the spaces between arms as gaps" with "the spaces between half-arms as gaps".

@@ -12,4 +12,4 @@ Complex tier (D-033): research only, a buildability pass and a physics reading, 
 
 ## 2. Review
 
-- [ ] 2.1 [qa-engineer] review against spec scenarios: coverage (every ID in asset-list §1–10 and §12 exactly once across the seven sheets), labels (published rows cite their source, no measured row), OPSEC (generic sources, no place, no identifying imagery), materials resolve (CC0 or CC-BY), gaps stated against the drone, buildability and physics readings recorded and reflected in the sheet, hygiene (subject-only commits, the scan clean)
+- [x] 2.1 [qa-engineer] review against spec scenarios: coverage (every ID in asset-list §1–10 and §12 exactly once across the seven sheets), labels (published rows cite their source, no measured row), OPSEC (generic sources, no place, no identifying imagery), materials resolve (CC0 or CC-BY), gaps stated against the drone, buildability and physics readings recorded and reflected in the sheet, hygiene (subject-only commits, the scan clean)
