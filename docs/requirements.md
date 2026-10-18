@@ -202,7 +202,7 @@ The pilot, 2026-10-17: "when i say realism i mean more than just abstract realis
 **PRC-08 Decisions** are logged in [decisions.md](decisions.md).
 
 **PRC-09 Token and limit discipline:**
-- at most 2 subagents in parallel
+- at most 4 subagents in parallel (the pilot raised it from 2 on 2026-10-18, D-036)
 - fresh agents with short briefs, rather than resuming huge ones
 - commit early
 - long jobs run in the background, never polled
@@ -355,7 +355,7 @@ Unbuilt items keep a reserved, labelled station. *Source:* B plan 2, old D-017.
 - **three settlements:** a typical village (linear, along its roads, about 0.6–1.2 km of street), a smaller village nearby, and a somewhat larger town that holds the destroyed Stalin-era block, its rubble and garages, a farm complex and the larger public buildings; divided by **tree belts and fields** in the pattern the layout reference (letter Q) shows: a pattern to copy, never a place
 - fields: meadow, tilled, burnt, cratered; **trenches and firing positions in the fields** as well as along belts
 - **tree belts** crossing the fields, several with trenches along them
-- a **small river with tree-lined banks and a pond or two**, as the layout reference shows (the pilot may veto water at G1; [pilot-questions.md](pilot-questions.md))
+- a **small river with tree-lined banks and a pond or two**, as the layout reference shows (the pilot, D-036): the fiber laid on water cuts the signal, the water looks mildly realistic, and wind raises waves on it
 - **fortifications** at road approaches, field edges and between the settlements: concertina-wire runs (F01), dragon's-teeth rows (F02), a couple of anti-tank hedgehogs (F03), built and placed as the real thing is, never as game props
 - vehicles on roads, in yards and at field edges
 - **the settlements read as frontline today:** most houses damaged or destroyed (WLD-05), not a peaceful village with a few ruins
@@ -410,6 +410,13 @@ Along the street: wires and poles. The damage mix is a frontline village's today
 - georeferencing (SEC-03)
 
 **WLD-14 Reference views in the world.** Every letter (A–H, L, P, I–K, M–O) has at least one place in the world that recreates its scene type (REAL-02, REAL-04), reachable from the review controls. The world is judged against the references through these views before G3.
+
+**WLD-15 Water** (D-036). The world holds a small river and a pond or two where the layout reference puts them.
+- **Signal:** fiber lying on or in water cuts the feed: the video drops to the no-signal state while any part of the line is in the water, and a line laid across water stays cut for the sortie (the physics logs where the line entered the water).
+- **Look:** mildly realistic: a reflective surface with the sky and the banks in it, mud and reeds at the edge, no feature beyond what the feed resolves.
+- **Wind:** waves follow the wind level and direction (ripples in Calm, wavelets in Windy, short breaking crests in Severe), driven by the same wind field as the vegetation (VIS-05).
+- **Physics:** the water surface is a surface row of its own (`water`): a drone that touches it is down (the sortie ends as a crash into water); legs do not land on it.
+*Source:* the pilot, 2026-10-18.
 
 **WLD-13 Gate G3 (UAT-2). The pilot explores the full world in noclip (PRD-07) and gives final map feedback.
 
