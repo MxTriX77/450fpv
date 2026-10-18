@@ -416,3 +416,121 @@ The first pass's 20 openings recompute unchanged and their lines did not move in
 - **S15:** the first pass's S2 (lines-roads-debris.md:1047 "10 %" against U02's 0.08), S3 (design.md:14 lacks U02b), S5 (houses-and-yard.md:1563 `tipped` has no range) and S7 are still open.
 
 Verdict: CHANGES REQUESTED
+
+## Third pass (after R7–R9)
+
+**Reviewer:** qa-engineer, a fresh agent, independent of the rework · **Branch:** `unity/ref/p1-object-sheets` at `449cd30`; the merge base with `origin/unity/main` is still `e6ee5d6` · **Scope:** R7, R8 a–f, R9 and S5, plus the cheap whole-tree checks. Coverage, materials, gaps and params were verified in full by the first two passes and are not redone; the rework touches no `##` heading, no material line and no gap verdict except the new H04 row. · **Rework read:** `git diff c3a9af3..HEAD` in full: `154474a` (D-032's "Wall and door sizes", AST-04), `df42c51` (the sheets, R8, R9, S5), `449cd30` (tasks 1.11) · **Not opened:** `reference/`. Line numbers are at `449cd30`.
+
+### Checks run
+
+```
+$ python tools/hygiene/precommit.py --tree HEAD
+364 files scanned, 0 findings                                          exit=0
+
+$ openspec validate p1-object-sheets --strict
+Change 'p1-object-sheets' is valid                                     exit=0
+
+$ git log --format='%h %an <%ae> [%s] body=[%b]' c3a9af3..HEAD
+449cd30 Reference Analyst <reference@450fpv.local> [docs(openspec): record qa rework task 1.11 of p1-object-sheets] body=[]
+df42c51 Reference Analyst <reference@450fpv.local> [docs(ref): align the sheets with the settled wall and door rules] body=[]
+154474a Orchestrator <orchestrator@450fpv.local> [docs: settle the ast-04 and d-032 wall and door rules per class] body=[]
+subject lengths 62, 64, 63 (limit 72); co-author lines 0; lines in the bodies beyond the subjects: none
+
+$ git diff --name-only origin/unity/main...HEAD
+docs/asset-list.md  docs/decisions.md  docs/requirements.md  docs/reference-notes/terrain.md
+docs/object-sheets/{earthworks-and-surfaces,houses-and-yard,lines-roads-debris,urban-edge,vegetation,vehicles}.md
+openspec/changes/p1-object-sheets/{design,review-buildability,review,tasks}.md
+$ ... | grep -iE '^reference/|\.(png|jpe?g|gif|webp|tiff?|mp4|mov|mkv|avi|exr|hdr|wav|mp3|fbx|blend)$|(^|/)(Library|Temp|Logs|UserSettings)/'
+(no output)                                                            exit=1
+
+$ git diff -U0 c3a9af3..HEAD -- docs/object-sheets   # the part, range and default cells of every changed table row, old against new
+unchanged: H01 wall 2.3–2.6 / 2.4; H03 wall 2.7–3.1 / 2.9; H04 wall 2.9–3.1 / 3.0; H05 door 0.8 × 1.8; H06 door 0.9 × 2.0;
+           O01, O02 door 0.8 × 1.8; O03 door 0.8 × 1.9 and windows; `rafter_spread` 0–1.0 / 0.3
+changed:   `tipped` range — → 0–1 (S5); added: H04 "Veranda doorway | 0.9 × 2.0 m | —" (R8 c)
+
+$ grep -niE 'south|north|east|west|steppe|oblast|region' <the six sheets>
+judged one by one: "least", "stepped", pixel "regions" and "cards region" are not place words; houses-and-yard.md:609
+("moss on the north face"), :1503 and :1513 (a greenhouse's axis and door) are orientations; :1186 ("in the south of
+the map") places a fence variant on the invented map; earthworks-and-surfaces.md:50 "open rolling steppe meadow"
+describes A's land cover (S18). No zone phrase of O-7's class is left.
+
+$ python -I (arithmetic for R7 and R9)
+L = 3.5 / cos 25° = 3.8618 m; L − b = 0.3618 m (sheet 0.36); H02 0.310, H04 0.597, H01 0.807 (sheet 0.31, 0.60, 0.81)
+spread 0.30: L² − (b+s)² = +0.474 -> ridge 0.688 m above the feet; 0.36: +0.014 -> 0.119 m
+spread 1.00: −5.336 -> clamped flat; each top b + s − L = 0.638 m short of the ridge line; parted width 1.276 m (sheet 1.28)
+H03 standing wall, `standing_wall_h` 0.9: × (2.9 + 0.4) = 2.97 m (sheet "3.0 m"); × 2.9 = 2.61 m; at 1.0 with the plinth added: 3.3 m
+H03 ridge at its defaults (9 × 7 m hip, 25°): 2.9 + 3.5 tan 25° = 4.53 m (plinth inside); 4.93 m (plinth added); J measures 5–6 m
+```
+
+Public pages opened to judge R8 d (read only, standards hosts): GOST 11214-86 at meganorm.ru (wooden windows and balcony doors with double glazing for residential and public buildings; its balcony-door marks are БС/БР 22-7,5, 22-9, 24-7,5 and 24-9, openings 2.2 or 2.4 m high); GOST 24698-81 at meganorm.ru (wooden external doors for residential and public buildings, types Н entrance and С service, single and two-leaf, marks such as ДН21-9 and 21-13); GOST 6629-88 at meganorm.ru, the source the sheets already cite (wooden **internal** doors for residential and public buildings, including type У doors into flats; it does not cover external doors).
+
+### R7 (D-032 and AST-04)
+
+| Item | Status | Evidence |
+|---|---|---|
+| a. the wall figure and what it measures | **closed** | decisions.md:297 and requirements.md:268 give the same five classes, the same numbers and the same measure, "to the plate, from grade outside": H05 2.0–2.3 m; H01–H02 2.3–2.6 m (E); H03–H04 2.6–3.1 m including plinth and cornice (J); two-storey 2.8 m a storey; the block 3.0–3.4 m a storey. The sheets' numbers sit inside: H01 2.4 (houses-and-yard.md:120), H02 as H01, H03 2.9 (:266), H04 3.0 (:343), H05 2.1 (:405), H06 2 × 2.8 m (:460), U01 3.0 m (urban-edge.md:75). The "(J)" provenance of the H03–H04 range is not true (R10). |
+| b. the doors of the larger buildings | **closed in the rule** | both texts: "takes the size its sheet gives, labelled published where a standard exists, else measured or assumed", naming shops and the block's section entrances and balcony doors. The sheets do not yet follow the "published" branch (R8 d, R11). |
+| c. the exact door is the entrance door only | **closed** | both texts: the entrance door of H01–H04 is exact at 0.8 × 1.8–1.9 m; H04's veranda doorway is named among "every other door". |
+| no sentence contradicts the other | **holds** | Sentence by sentence: bricks (AST-04 only, unchanged); the entrance door (identical); the walls (identical but for "E" against "measured in E"); the other doors (identical lists; D-032 spells out the block's door kinds, AST-04 says "the block"). AST-04 also fixes the adobe windows at 0.8 × 1.0 m, which D-032 does not mention: silence, not a contradiction, and H01's measured E 7 window (:127) is that size (S19 for the wording). |
+
+### R8 a–f, R9, S5
+
+| # | Status | Evidence |
+|---|---|---|
+| R8 a | **closed** (the label it brings in is R10) | houses-and-yard.md:11 now restates AST-04's class ranges "to the plate, from grade outside"; :120 cites the H01–H02 range; :266 and :343 cite the H03–H04 range and sit inside it. |
+| R8 b | **closed** | :11 (H01–H04 entrance door exact; the rest labelled), :409 (H05), :465 (H06), :533 (O01), :594 (O02), :653 (O03, "AST-04;" dropped from the label): each now says the exact door is H01–H04's entrance door and the others take their row's size. No size changed. A whole-docs grep for the stale forms ("2.3–2.8", "2.0–2.8", "village-house doors", "H01–H05", "amended 2") finds only the bus stop's unrelated 2.3–2.8 m clear height (urban-edge.md:815, :852); "AST-04 as amended" at :460 is still true. |
+| R8 c | **closed** | :349 "Veranda doorway \| 0.9 × 2.0 m \| — \| assumed: a typical veranda door, sized by this sheet; AST-04's exact door is H04's entrance door only (D-032)"; the gap line :375 agrees (0.9 m ≥ 0.706: any yaw, 97 mm a side on the diagonal). |
+| R8 d | **open** (R11) | The settled rule kept "published where a standard exists", and standards exist: urban-edge.md:98 (section entrance, 1.3 × 2.1 m double door) and :101 (balcony door, 0.75 × 2.1 m) are still "assumed", as are the shop's doors :622 and :623 (shops stayed in the rule). GOST 24698-81 covers external doors of residential and public buildings; GOST 11214-86 covers residential balcony doors, and none of its marks is 2.1 m high. Also, houses-and-yard.md:465 labels H06's door published from GOST 6629-88, the internal-door standard; the door is the house's outside door (the fly-in at :492). |
+| R8 e | **closed** | earthworks-and-surfaces.md:916 "(measured F, terrain.md T5: the floor is beaten bare inside dense belts)"; terrain.md:112–117 T5 says so: clip F, "fine dry loam, beaten bare", "most of the ground in F"; it matches vegetation.md:1055. |
+| R8 f | **closed** | vegetation.md:398 "more at dry belt edges"; the six-sheet grep above leaves no zone phrase. |
+| R9 | **closed** | urban-edge.md:509 keeps 0–1.0 m and states the clamp: the root is real up to L − b (0.36 m for H03, 0.31 H02, 0.60 H04, 0.81 H01), the pair lies flat there, and beyond it each rafter's top stops b + spread − L short of the ridge line (1.28 m parted at 1.0 m for H03). Every figure recomputes (block above). The reference-analyst made the fix rather than the asset-artist the re-review named; the clamp is a plain geometric rule, buildable as written, and review-buildability.md needs no new entry. |
+| S5 | **closed** | houses-and-yard.md:1564 `tipped` range 0–1. |
+
+### Spec scenarios (updated)
+
+| Requirement | Scenario | Re-review | Third pass | Evidence |
+|---|---|---|---|---|
+| One sheet per class group, every row covered | Coverage check | PASS | **PASS** | no heading touched by the rework (`git diff c3a9af3..HEAD` holds no `##` line) |
+| Measured, labelled numbers | Label present | FAIL (R7, R8) | **FAIL** (R10, R11) | every row still carries a label word and the new H04 row is labelled; but the H03–H04 wall range is called measured in J with no J measurement behind it (R10), and five door rows do not follow AST-04's settled door rule: four assumed where a covering standard exists, one published from a standard that does not cover it (R11) |
+| Materials and colours resolve to the pipeline | Material resolves | PASS | **PASS** | no material line changed |
+| Physics role in the pipeline's terms | Gap stated against the drone | PASS | **PASS** | the new veranda row and its gap line agree; no other verdict changed |
+| OPSEC-clean | Hygiene scan passes | PASS, one low remainder (R8 f) | **PASS** | scan 0 findings; R8 f closed; the regional grep judged hit by hit; no reference file name, place, date or OSD value in the rework |
+| Buildable | Buildability review recorded | PASS, one defect (R9) | **PASS** | R9 closed; S5 closed |
+
+### Requirements (updated)
+
+| ID | Re-review | Third pass | Why |
+|---|---|---|---|
+| AST-02 | met | met | unchanged |
+| AST-04 | partly met (R7, R8) | **partly met** (R10, R11) | one text with D-032, and every sheet number inside its class range; but the H03–H04 range carries a false "measured in J", and the block's, the shop's and H06's doors do not follow the door rule it now states |
+| AST-05 | met (sheet level) | met (sheet level) | unchanged; the new row's gap verdict follows the formula |
+| AST-06 | met | met | unchanged |
+| SEC-01 | met | met | nothing from `reference/` in the diff, no reference file names |
+| SEC-02 | met, one low remainder | **met** | R8 f closed |
+| PRC-06 | met | met | research throughout; nothing asked of the pilot |
+| PRC-09 | met as far as git shows | met as far as git shows | three small commits, one per role and step |
+| D-003 | met | met | manifest untouched |
+| D-032 | partly applied (R7, R8) | **partly applied** (R10, R11) | the wording is settled and the sheets follow its walls and its exact door; the H03–H04 provenance and the "published where a standard exists" branch are not yet true |
+
+### New findings
+
+1. **The H03–H04 wall range is labelled measured, and nothing measured it.** requirements.md:268 "(measured in J)", decisions.md:297 "(J)", houses-and-yard.md:11 "(measured J)", :266 and :343 "(measured J, D-032)". J measures H03's footprint and ridge only (terrain.md B2: "single storey, footprint 8–10 × 6–8 m, ridge 5–6 m"; houses-and-yard.md:265, :269); H03's own wall row is "derived: 2.8 m storey plus the cornice" and its plinth "assumed" (:268); H04 is in no letter at all (:336 "Seen in: R"). The range's floor, 2.6 m, is below both rows' ranges (2.7 and 2.9 m). D-032's lead "the sheets measured them" holds for the entrance door (E 7) and the adobe walls (E), not for this class. J's one height measurement, the ridge, does not support the range either at H03's defaults (S16).
+2. **The door rule's "published where a standard exists" is not applied** (R8 d). See R8 d above: four rows assumed where GOST 24698-81 or GOST 11214-86 covers the door; H06's outside door published from the internal-door standard. The village-built doors (H04's veranda, H05, the outbuildings) are a different case: the measured village doors (0.8 × 1.8–1.9 m) match no standard mark (the door standards' openings are 2.1 m high and up), so the sheets' "assumed" there is defensible, but the rule's wording does not say where its "published" branch binds.
+
+### Required changes
+
+- **R10 (orchestrator and reference-analyst, the H03–H04 label).** Relabel the H03–H04 class range as what it is, for example "derived: the 2.8 m storey plus the plinth step or the cornice (the H03 and H04 rows)", in requirements.md:268, decisions.md:297 (and scope its "the sheets measured them" to the door and the adobe walls), houses-and-yard.md:11, :266 and :343. No number changes. Or measure H03's wall in J with its still and give that row; H04 stays derived either way.
+- **R11 (reference-analyst, or an orchestrator decision; R8 d).** Either:
+  - **a.** the rows follow the settled rule: urban-edge.md:98 and :622, :623 cite GOST 24698-81's mark for the door they show, and :101 cites GOST 11214-86's (a 22 dm high mark, so the balcony opening becomes 0.75 × 2.2 m; the gap verdicts at :203–204 do not change); or
+  - **b.** the orchestrator states in AST-04 and D-032 where "published where a standard exists" binds (for example, the block and the shop only, or "where the sheet cites a standard"), and the sheets follow that.
+  - Either way, houses-and-yard.md:465 drops GOST 6629-88 for H06's outside door: cite GOST 24698-81's mark, or label the 0.9 × 2.0 m leaf assumed. The gap verdict (:492, any yaw) does not change.
+
+### Suggestions (not blocking)
+
+- **S16 (orchestrator's known item, judged):** the plinth. U02b reads H03's 2.9 m wall as standing on the 0.4 m plinth (urban-edge.md:381 "walls 0.38 m to 2.9 m on a 0.4 m plinth"; :503 `standing_wall_h` "× wall height plus plinth", 3.0 m for H03 = 0.9 × 3.3), and so does H03's own derivation (:266 "2.8 m storey plus the cornice" beside a separate plinth row, :268); AST-04 now puts the plinth inside the 2.6–3.1 m. At `standing_wall_h` 1.0 the U02b reading gives 3.3 m, outside AST-04. H03's envelope does not close at its defaults under either reading: 2.9 + 3.5 tan 25° = 4.53 m to the ridge (4.93 m with the plinth added) against J's measured 5–6 m and the 5.5 m default; only walls of 3.0–3.1 m with pitches of 29–30° reach 5.0 m. Not a scenario failure (no generator reads these yet; every row is labelled), but it must be settled before H03's or U02b's generator is written, or the REAL-03 sheet against J will show a low roof.
+- **S17 (orchestrator's known item, judged):** the shared `wall_height` range (houses-and-yard.md:79, 2.2–3.0 m, "Eaves height") is narrower than AST-04's classes (2.0–3.1 m), and H05's preset already sits outside it (`wall_height` 2.1, :440). Widen it to 2.0–3.1 m and call it "to the plate, from grade" when the shared house generator is proposed.
+- **S18:** earthworks-and-surfaces.md:50 "open rolling steppe meadow" describes A's land cover and names no place, but "steppe" is also a zone word; "open rolling grassland" gives the same look.
+- **S19:** requirements.md:268 "and their windows 0.8 × 1.0 m for the adobe houses" reads as all H01–H04 windows, then narrows; houses-and-yard.md:11's "the windows of the adobe houses H01–H02 0.8 × 1.0 m" is clearer. D-032 could name the windows too, since AST-04 now fixes them.
+- **S8–S14** of the re-review stay open, and from S15 the first pass's S2, S3 and S7 (S5 is closed).
+
+Verdict: CHANGES REQUESTED
