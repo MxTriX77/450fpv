@@ -9,8 +9,11 @@ prints its report lines (counts and fit times), validates the metadata (lib/meta
 the LOD0 mesh (lib/audit.py, with the generator's stated card reach for the shell's cards), and only then
 writes unity/Assets/_Project/Art/Models/<class>/<ID>/<variant>.fbx and <variant>.assetmeta.json, both in Unity's
 frame (lib/frame.py), the FBX staged beside its final name and moved once it reads back as the metadata says. A
-rejected build changes no file. It refuses any Blender other than the pinned major.minor. Exit code 1 on any
-problem; nothing is hand-edited.
+variant whose params set `impostor: true` (p1-v01-locust design decision 3) also gets <variant>_impostor.png, the
+atlas lib/impostor.py renders from LOD0 after the FBX, staged the same way, and its metadata lists the impostor as
+the last LOD; an atlas the metadata records as up to date is not rendered again, and one the params no longer ask for
+is removed. A rejected build changes no file. It refuses any Blender other than the pinned major.minor. Exit code 1
+on any problem; nothing is hand-edited.
 """
 import argparse
 import importlib
@@ -33,9 +36,10 @@ def check_version(version, pin=BLENDER_PIN):
 
 def build_variant(root, catalog_entry, asset_id, variant, material_ids):
     """Builds one variant and returns its report line, printing the audit's measurements. Raises on any problem,
-    all of them found before the first file is written except the read-back of the staged FBX, which is removed
-    on failure. `material_ids` is the closed physics-material list (lib.meta.load_physics_materials)."""
-    from lib import audit, catalog, export, meta, params as params_lib
+    all of them found before the first file is written except the read-back of the staged FBX and the impostor's
+    render, both staged and removed on failure. `material_ids` is the closed physics-material list
+    (lib.meta.load_physics_materials)."""
+    from lib import audit, catalog, export, impostor, meta, params as params_lib
     params_path = catalog.params_path(root, catalog_entry, variant)
     params = catalog.load_params(params_path)
     generator = importlib.import_module(f"generators.{catalog_entry['generator']}")
@@ -43,7 +47,22 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
     built = generator.build(params)
     for line in built.get("report", ()):
         print(f"{variant}: {line}")
-    data = meta.assemble(asset_id, variant, catalog_entry["generator"], params, built, catalog_entry["materials"])
+    out_dir = catalog.output_dir(root, catalog_entry, asset_id)
+    meta_path = os.path.join(out_dir, variant + ".assetmeta.json")
+    atlas_path = os.path.join(out_dir, variant + "_impostor.png")
+    switch, materials, impostor_lod = impostor.switch_distance(params), None, None
+    if switch is not None:  # the impostor step (p1-v01-locust design decision 3): the record now, the render after
+        lod0, visuals = built["lods"][0], catalog_entry["materials"]
+        materials = impostor.slot_materials(root, visuals, lod0.slots())
+        impostor_lod = impostor.lod(variant, switch, lod0, impostor.crown_slots(visuals, catalog.card_visuals(root)),
+                                    materials)
+        record = impostor_lod["impostor"]
+        old = impostor.recorded(meta_path, atlas_path, record["inputs_sha256"])
+        if old:  # up to date: the atlas and what its renders measured stand
+            record["atlas_sha256"] = old["atlas_sha256"]
+            record["crown"].update(occlusion=old["crown"]["occlusion"], up=old["crown"]["up"])
+    data = meta.assemble(asset_id, variant, catalog_entry["generator"], params, built, catalog_entry["materials"],
+                         impostor_lod)
     _refuse(variant, meta.validate(data, material_ids))
     started = time.perf_counter()
     problems, lines = audit.run(data, built["lods"][0], catalog.card_visuals(root), built.get("card_reach_m"))
@@ -54,21 +73,41 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
     export.reset_scene()
     for n, mesh in enumerate(built["lods"]):
         export.add_lod(f"{variant}_LOD{n}", mesh)
-    out_dir = catalog.output_dir(root, catalog_entry, asset_id)
     fbx_path = os.path.join(out_dir, variant + ".fbx")
     staged = os.path.join(out_dir, variant + ".staged.fbx")
+    staged_atlas = os.path.join(out_dir, variant + "_impostor.staged.png")
     fresh = not os.path.isdir(out_dir)
     os.makedirs(out_dir, exist_ok=True)
     try:
         export.export_fbx(staged)
         _refuse(variant, meta.check_against_fbx(data, staged))
+        if impostor_lod is not None:
+            record = data["lods"][-1]["impostor"]
+            if record["atlas_sha256"] == impostor.NO_ATLAS:
+                started = time.perf_counter()
+                crown = record["crown"]
+                crown["occlusion"], crown["up"] = impostor.render(built["lods"][0], record, materials, staged_atlas)
+                record["atlas_sha256"] = impostor.file_sha256(staged_atlas)
+                _refuse(variant, meta.validate(data, material_ids))
+                print(f"{variant}: impostor rendered in {time.perf_counter() - started:.1f} s")
+            card, crown = record["card"], record["crown"]
+            print(f"{variant}: impostor {record['atlas']} {record['size_px'][0]}x{record['size_px'][1]}, "
+                  f"{record['views']} views at {record['elevation_deg']:g} deg, card {card['width_m']:.3f} x "
+                  f"{card['height_m']:.3f} m from {card['bottom_m']:.3f} m, crown radii {crown['radii_m'][0]:.3f} x "
+                  f"{crown['radii_m'][1]:.3f} m, up {crown['up']:.3f}, occlusion {crown['occlusion']:.3f}, switch "
+                  f"{data['lods'][-1]['switch_distance_m']:g} m, cull {data['cull_distance_m']:g} m")
         os.replace(staged, fbx_path)
+        if impostor_lod is None and os.path.exists(atlas_path):
+            os.remove(atlas_path)  # the params no longer ask for one
+        elif os.path.exists(staged_atlas):
+            os.replace(staged_atlas, atlas_path)
     finally:
-        if os.path.exists(staged):
-            os.remove(staged)
+        for path in (staged, staged_atlas):
+            if os.path.exists(path):
+                os.remove(path)
         if fresh and not os.listdir(out_dir):
             os.rmdir(out_dir)
-    meta.write(os.path.join(out_dir, variant + ".assetmeta.json"), data)
+    meta.write(meta_path, data)
     size = [round(data["bounds"]["max"][a] - data["bounds"]["min"][a], 4) for a in range(3)]
     tris = " / ".join(str(lod["tris"]) for lod in data["lods"])
     return f"{variant}: {os.path.relpath(fbx_path, root)}  size {size} m  tris {tris}  metadata written"
