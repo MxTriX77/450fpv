@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
@@ -10,8 +11,9 @@ namespace Fpv450.Tests.EditMode
     /// LOD0 three opaque pixels of (90, 120, 50) and one half covered (over black (64, 86, 34), over white
     /// (196, 203, 190), the bytes a coverage of 0.5 gives); LOD1 four opaque pixels of (88, 117, 49); LOD2 two opaque
     /// pixels of (70, 95, 40). The expected numbers were computed apart from the code, in double precision, with the
-    /// sRGB decoding of IEC 61966-2-1; the limits are the spec's 6 % and 15 %. Task 1.2c's averaging over the camera
-    /// offsets on four literal crowns, one per offset, with their numbers computed apart from the code too.
+    /// sRGB decoding of IEC 61966-2-1; the limits are the spec's 6 % and 15 %. The averaging over the camera offsets
+    /// (tasks 1.2c and 1.2d) on 64 literal crowns, one per offset of the 8 × 8 grid, with their numbers computed apart
+    /// from the code too, in exact fractions and 40-digit square roots.
     /// </summary>
     public sealed class LodParityTests
     {
@@ -77,9 +79,19 @@ namespace Fpv450.Tests.EditMode
         }
 
         [Test]
-        public void Offsets_AreA2x2GridHalfAPixelApartAroundTheReviewsFraming()
+        public void Offsets_AreAn8x8GridAnEighthPixelApartAroundTheReviewsFraming()
         {
-            Assert.That(LodParity.Offsets, Is.EqualTo(new[] { new Vector2(-0.25f, -0.25f), new Vector2(0.25f, -0.25f), new Vector2(-0.25f, 0.25f), new Vector2(0.25f, 0.25f) }));
+            float[] steps = { -0.4375f, -0.3125f, -0.1875f, -0.0625f, 0.0625f, 0.1875f, 0.3125f, 0.4375f };
+            var grid = new List<Vector2>();
+            foreach (float y in steps)
+                foreach (float x in steps)
+                    grid.Add(new Vector2(x, y));
+            Assert.That(LodParity.Offsets, Is.EqualTo(grid.ToArray()));
+            Assert.That(LodParity.Offsets.Length, Is.EqualTo(64));
+            Assert.That(LodParity.Offsets[0], Is.EqualTo(new Vector2(-0.4375f, -0.4375f)));
+            Assert.That(LodParity.Offsets[31], Is.EqualTo(new Vector2(0.4375f, -0.0625f)));
+            Assert.That(LodParity.Offsets[32], Is.EqualTo(new Vector2(-0.4375f, 0.0625f)));
+            Assert.That(LodParity.Offsets[63], Is.EqualTo(new Vector2(0.4375f, 0.4375f)));
         }
 
         [Test]
@@ -87,22 +99,38 @@ namespace Fpv450.Tests.EditMode
         {
             LodParity.Crown[] samples =
             {
-                new LodParity.Crown(96, 0.060, 0.070, 0.040),
-                new LodParity.Crown(100, 0.064, 0.074, 0.038),
-                new LodParity.Crown(94, 0.058, 0.068, 0.042),
-                new LodParity.Crown(98, 0.062, 0.072, 0.040),
+                new LodParity.Crown(90, 0.056, 0.066, 0.037), new LodParity.Crown(97, 0.061, 0.069, 0.041), new LodParity.Crown(104, 0.066, 0.072, 0.037), new LodParity.Crown(96, 0.060, 0.075, 0.041),
+                new LodParity.Crown(103, 0.065, 0.067, 0.037), new LodParity.Crown(95, 0.059, 0.070, 0.041), new LodParity.Crown(102, 0.064, 0.073, 0.037), new LodParity.Crown(94, 0.058, 0.076, 0.041),
+                new LodParity.Crown(101, 0.063, 0.068, 0.037), new LodParity.Crown(93, 0.057, 0.071, 0.041), new LodParity.Crown(100, 0.062, 0.074, 0.037), new LodParity.Crown(92, 0.056, 0.066, 0.041),
+                new LodParity.Crown(99, 0.061, 0.069, 0.037), new LodParity.Crown(91, 0.066, 0.072, 0.041), new LodParity.Crown(98, 0.060, 0.075, 0.037), new LodParity.Crown(90, 0.065, 0.067, 0.041),
+                new LodParity.Crown(97, 0.059, 0.070, 0.037), new LodParity.Crown(104, 0.064, 0.073, 0.041), new LodParity.Crown(96, 0.058, 0.076, 0.037), new LodParity.Crown(103, 0.063, 0.068, 0.041),
+                new LodParity.Crown(95, 0.057, 0.071, 0.037), new LodParity.Crown(102, 0.062, 0.074, 0.041), new LodParity.Crown(94, 0.056, 0.066, 0.037), new LodParity.Crown(101, 0.061, 0.069, 0.041),
+                new LodParity.Crown(93, 0.066, 0.072, 0.037), new LodParity.Crown(100, 0.060, 0.075, 0.041), new LodParity.Crown(92, 0.065, 0.067, 0.037), new LodParity.Crown(99, 0.059, 0.070, 0.041),
+                new LodParity.Crown(91, 0.064, 0.073, 0.037), new LodParity.Crown(98, 0.058, 0.076, 0.041), new LodParity.Crown(90, 0.063, 0.068, 0.037), new LodParity.Crown(97, 0.057, 0.071, 0.041),
+                new LodParity.Crown(104, 0.062, 0.074, 0.037), new LodParity.Crown(96, 0.056, 0.066, 0.041), new LodParity.Crown(103, 0.061, 0.069, 0.037), new LodParity.Crown(95, 0.066, 0.072, 0.041),
+                new LodParity.Crown(102, 0.060, 0.075, 0.037), new LodParity.Crown(94, 0.065, 0.067, 0.041), new LodParity.Crown(101, 0.059, 0.070, 0.037), new LodParity.Crown(93, 0.064, 0.073, 0.041),
+                new LodParity.Crown(100, 0.058, 0.076, 0.037), new LodParity.Crown(92, 0.063, 0.068, 0.041), new LodParity.Crown(99, 0.057, 0.071, 0.037), new LodParity.Crown(91, 0.062, 0.074, 0.041),
+                new LodParity.Crown(98, 0.056, 0.066, 0.037), new LodParity.Crown(90, 0.061, 0.069, 0.041), new LodParity.Crown(97, 0.066, 0.072, 0.037), new LodParity.Crown(104, 0.060, 0.075, 0.041),
+                new LodParity.Crown(96, 0.065, 0.067, 0.037), new LodParity.Crown(103, 0.059, 0.070, 0.041), new LodParity.Crown(95, 0.064, 0.073, 0.037), new LodParity.Crown(102, 0.058, 0.076, 0.041),
+                new LodParity.Crown(94, 0.063, 0.068, 0.037), new LodParity.Crown(101, 0.057, 0.071, 0.041), new LodParity.Crown(93, 0.062, 0.074, 0.037), new LodParity.Crown(100, 0.056, 0.066, 0.041),
+                new LodParity.Crown(92, 0.061, 0.069, 0.037), new LodParity.Crown(99, 0.066, 0.072, 0.041), new LodParity.Crown(91, 0.060, 0.075, 0.037), new LodParity.Crown(98, 0.065, 0.067, 0.041),
+                new LodParity.Crown(90, 0.059, 0.070, 0.037), new LodParity.Crown(97, 0.064, 0.073, 0.041), new LodParity.Crown(104, 0.058, 0.076, 0.037), new LodParity.Crown(96, 0.063, 0.068, 0.041),
             };
-            (LodParity.Crown mean, double luminanceSpread, double coverageSpread) = LodParity.Average(samples);
-            Assert.That(mean.Coverage, Is.EqualTo(97.0).Within(Tolerance));
-            Assert.That(mean.R, Is.EqualTo(0.061).Within(Tolerance));
-            Assert.That(mean.G, Is.EqualTo(0.071).Within(Tolerance));
-            Assert.That(mean.B, Is.EqualTo(0.040).Within(Tolerance));
-            // The mean of the four luminances 0.0657080, 0.0692748, 0.0639968 and 0.0675636; pooling the four renders'
-            // pixels, weighted by coverage, would give 0.0666814.
-            Assert.That(mean.Luminance, Is.EqualTo(0.0666358).Within(Tolerance));
-            // (0.0692748 − 0.0639968) / 0.0666358 and (100 − 94) / 97.
-            Assert.That(luminanceSpread, Is.EqualTo(0.0792067).Within(Tolerance));
-            Assert.That(coverageSpread, Is.EqualTo(0.0618557).Within(Tolerance));
+            Assert.That(samples.Length, Is.EqualTo(64));
+            (LodParity.Crown mean, double luminanceSpread, double coverageSpread, double luminanceError, double coverageError) = LodParity.Average(samples);
+            Assert.That(mean.Coverage, Is.EqualTo(96.9843750).Within(Tolerance));
+            Assert.That(mean.R, Is.EqualTo(0.0610469).Within(Tolerance));
+            Assert.That(mean.G, Is.EqualTo(0.0709531).Within(Tolerance));
+            Assert.That(mean.B, Is.EqualTo(0.0390000).Within(Tolerance));
+            // The mean of the 64 luminances; pooling the 64 renders' pixels, weighted by coverage, would give 0.0665636.
+            Assert.That(mean.Luminance, Is.EqualTo(0.0665400).Within(Tolerance));
+            // (0.0696462 − 0.0617802) / 0.0665400 and (104 − 90) / 96.984375.
+            Assert.That(luminanceSpread, Is.EqualTo(0.1182145).Within(Tolerance));
+            Assert.That(coverageSpread, Is.EqualTo(0.1443531).Within(Tolerance));
+            // The sample standard deviation (over 63) over √64, as a fraction of the mean; the population deviation
+            // (over 64) would give 0.0044648 and 0.0056249.
+            Assert.That(luminanceError, Is.EqualTo(0.0045001).Within(Tolerance));
+            Assert.That(coverageError, Is.EqualTo(0.0056694).Within(Tolerance));
         }
 
         [Test]
