@@ -132,7 +132,7 @@ def test_all_derives_every_recipe_and_skips_those_without_a_mask(tmp_path, capsy
     assert (root / MATERIALS / f"{MATERIAL}_mask.png").is_file() and not (root / MATERIALS / "plain_mask.png").exists()
 
 
-def test_palette_recipe_derives_one_block_per_colour_in_order(tmp_path, capsys):
+def test_palette_recipe_derives_one_block_per_colour_in_order(tmp_path, capsys, monkeypatch):
     """p1-s04-belt-straw: a palette recipe (the straw kit's tints) becomes a flat albedo, one 16 px block per colour
     left to right, sRGB-encoded, with its stamp; a second run is a no-op; a palette with a texture set is refused."""
     root = derive_root(tmp_path)
@@ -147,7 +147,11 @@ def test_palette_recipe_derives_one_block_per_colour_in_order(tmp_path, capsys):
     assert image.getpixel((8, 8)) == (0xb4, 0x9c, 0x6a) and image.getpixel((24, 8)) == (0x6b, 0x5a, 0x3e)
     stamp = json.loads((root / MATERIALS / "pal.recipe.json").read_text(encoding="utf-8"))
     assert stamp["kind"] == "palette" and stamp["columns"] == ["straw", "twig"] and stamp["formula"] == derive.PALETTE_FORMULA
+    assert stamp["constants"] == {"PALETTE_BLOCK_PX": 16}
     assert run("pal", "--root", root) == 0 and "pal_albedo.png: up to date" in capsys.readouterr().out
+    monkeypatch.setattr(derive, "PALETTE_BLOCK_PX", 8)  # a changed constant regenerates (review R1)
+    assert run("pal", "--root", root) == 0 and "derived 16x8 palette" in capsys.readouterr().out
+    monkeypatch.undo()
     (root / RECIPES / "pal.json").write_text(json.dumps(dict(palette, texture_set="polyhaven/x")), encoding="utf-8")
     assert run("pal", "--root", root) == 1
     assert 'ERROR: pal: a palette recipe is flat colour; it takes neither "texture_set" nor "mask"' in capsys.readouterr().out

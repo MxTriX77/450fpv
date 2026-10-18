@@ -35,9 +35,11 @@ plain tint is.
 
 Beside the PNGs, <material>_mask.recipe.json (masks) or <material>.recipe.json (ground, palette) records what made them: the
 formula, the recipe, each source's file name and SHA-256 as found on disk, and the SHA-256 of all of that together
-(plus the Pillow version for ground maps, whose resampling it fixes). A run rewrites the files only when that hash
-differs from the stamp or a PNG is missing, so an unchanged recipe is a no-op and a changed recipe, source or formula
-regenerates; nothing is edited by hand. Derived files live under Art/Materials/, beside the .mat they feed, never
+(plus the Pillow version for ground maps, whose resampling it fixes, and for ground and palette maps the value of
+every named constant their formula reads, GROUND_CONSTANTS and PALETTE_CONSTANTS, under "constants"). A run rewrites
+the files only when that hash differs from the stamp or a PNG is missing, so an unchanged recipe is a no-op and a
+changed recipe, source, constant or formula regenerates; a change to the code itself bumps the formula's version.
+Nothing is edited by hand. Derived files live under Art/Materials/, beside the .mat they feed, never
 under Art/ThirdParty/: they are not third-party, and fetch.py --verify keeps its "nothing unlisted under ThirdParty"
 check without an exception. Exit code 1 on any problem.
 """
@@ -82,7 +84,18 @@ GREEN_FEATHER_M = 0.5  # regrowth fades into the mat over half a metre (assumed)
 LOBE_M = 0.4           # the value-noise cell that lobes a bare patch's outline (assumed from H 9-14)
 STRAW_M = 0.05         # the high-pass that keeps a cover's straws and gaps and drops its tile-sized shading
 GAP_LOBES = 0.0        # the gaps between straws follow the cover's own straws, a little thicker and thinner by area
+BARE_LOBES = 0.5       # the share of value noise in a bare patch's strewn feather (assumed)
+BARE_SPREAD_DEG = 45.0  # a bare patch lies within this of the lodging azimuth (assumed)
+GREEN_SPREAD_DEG = 10.0  # a green strip runs within this of the lodging azimuth (assumed)
+BLOB_SATELLITES = 3     # a blob is an ellipse and this many satellites (assumed)
+BLOB_OFFSET = 0.35      # a satellite's centre within this share of the blob's axes (assumed)
+BLOB_SCALE = (0.45, 0.8)  # a satellite's size as a share of the blob's (assumed)
 SHARE_TOLERANCE = 0.005
+# The named constants the ground and palette formulas read: their values go into the stamp's hash (review R1).
+GROUND_CONSTANTS = ("MAX_OUTPUT_PX", "PHI", "BARE_FEATHER_M", "GREEN_FEATHER_M", "LOBE_M", "STRAW_M", "GAP_LOBES",
+                    "BARE_LOBES", "BARE_SPREAD_DEG", "GREEN_SPREAD_DEG", "BLOB_SATELLITES", "BLOB_OFFSET", "BLOB_SCALE",
+                    "SHARE_TOLERANCE")
+PALETTE_CONSTANTS = ("PALETTE_BLOCK_PX",)
 LUMA = (0.2126, 0.7152, 0.0722)
 SRGB_TO_LINEAR = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in (v / 255 for v in range(256))]
 
@@ -190,6 +203,12 @@ def derive(root, manifest, material):
     _write_stamp(stamp_path, stamp)
     return (f"{fetch.relpath(root, png_path)}: derived {size[0]}x{size[1]} from {texture_set} "
             f"({', '.join(sorted(used)) or 'constants only'}); recipe recorded in {os.path.basename(stamp_path)}")
+
+
+def _constants(names):
+    """The current value of each named module constant, read at call time (a test that sets one sees it here)."""
+    return {name: list(value) if isinstance(value, tuple) else value
+            for name, value in ((n, globals()[n]) for n in names)}
 
 
 def _inputs_sha256(stamp, keys):
@@ -353,8 +372,8 @@ def coverage(layer, outside=None):
 def blob(rng):
     """The outline of one patch: a main ellipse and three satellites, as (dx, dy, scale) fractions of its axes, so
     no patch is a clean ellipse."""
-    return [(0.0, 0.0, 1.0)] + [(rng.uniform(-0.35, 0.35), rng.uniform(-0.35, 0.35), rng.uniform(0.45, 0.8))
-                                for _ in range(3)]
+    return [(0.0, 0.0, 1.0)] + [(rng.uniform(-BLOB_OFFSET, BLOB_OFFSET), rng.uniform(-BLOB_OFFSET, BLOB_OFFSET),
+                                 rng.uniform(*BLOB_SCALE)) for _ in range(BLOB_SATELLITES)]
 
 
 def stamp_blob(layer, centre, px_per_m, length_m, width_m, angle_deg, feather_m, parts):
@@ -392,12 +411,14 @@ def stamped(rng, out_px, px_per_m, share, length_m, width_m, angle, feather_m, w
     raise DeriveError(f"{what}: could not reach a share of {share} in 10000 stamps")
 
 
-def strewn(bare, cover, rng, px_per_m, lobes=0.5):
+def strewn(bare, cover, rng, px_per_m, lobes=None):
     """The mask `bare` with a lobed outline and the cover's straws lying across its feather: clamp(2 bare - c), c the
     cover's luminance high-passed at STRAW_M (only the straws and the gaps between them, never the cover's tile-sized
     shading, which would repeat) blended with a `lobes` share of seeded value noise of LOBE_M cells, stretched to
     0-255. Where bare is full the soil stays, its feather breaks into lobes and straws over soil, and the outer half
-    keeps soil only in the darkest gaps, so a patch has a ragged edge, never a clean ellipse (H 9-14)."""
+    keeps soil only in the darkest gaps, so a patch has a ragged edge, never a clean ellipse (H 9-14). `lobes` is
+    BARE_LOBES unless given."""
+    lobes = BARE_LOBES if lobes is None else lobes
     cells = math.ceil(bare.size[0] / (LOBE_M * px_per_m)) + 1
     noise = Image.new("L", (cells, cells))
     noise.putdata([rng.randrange(256) for _ in range(cells * cells)])
@@ -426,11 +447,11 @@ def derive_ground(root, manifest, material, recipe):
     sets = {"soil": g["soil"]["texture_set"], "cover": g["cover"]["texture_set"], "detail": g["detail"]["texture_set"]}
     maps = {role: _load_set(root, manifest, texture_set, material, role) for role, texture_set in sets.items()}
     stamp = {"material": material, "kind": "ground", "formula": GROUND_FORMULA, "pillow": PIL.__version__,
-             "recipe": recipe,
+             "constants": _constants(GROUND_CONSTANTS), "recipe": recipe,
              "sources": {f"{role}/{name}": {"name": os.path.basename(path), "sha256": fetch.sha256(path)}
                          for role in ("soil", "cover", "detail") for name, path in sorted(maps[role].items())
                          if name in ("diffuse", "normal", "roughness", "ao")}}
-    stamp["inputs_sha256"] = _inputs_sha256(stamp, ("formula", "pillow", "recipe", "sources"))
+    stamp["inputs_sha256"] = _inputs_sha256(stamp, ("formula", "pillow", "constants", "recipe", "sources"))
     outputs = {name: os.path.join(root, MATERIALS, f"{material}_{name}.png") for name in GROUND_MAPS}
     stamp_path = os.path.join(root, MATERIALS, f"{material}.recipe.json")
     if _up_to_date(list(outputs.values()), stamp_path, stamp["inputs_sha256"]):
@@ -456,9 +477,10 @@ def derive_ground(root, manifest, material, recipe):
     stretch = 1 + bias
     bare = stamped(rng, out_px, px_per_m, g["bare_share"],
                    [s * stretch for s in g["bare_size_m"]], [s / stretch for s in g["bare_size_m"]],
-                   lambda r: az + r.uniform(-45, 45), BARE_FEATHER_M, f"{material}: bare patches")
+                   lambda r: az + r.uniform(-BARE_SPREAD_DEG, BARE_SPREAD_DEG), BARE_FEATHER_M, f"{material}: bare patches")
     green = stamped(rng, out_px, px_per_m, g["green_share"], g["green_length_m"], g["green_width_m"],
-                    lambda r: az + r.uniform(-10, 10), GREEN_FEATHER_M, f"{material}: green strips", outside=bare)
+                    lambda r: az + r.uniform(-GREEN_SPREAD_DEG, GREEN_SPREAD_DEG), GREEN_FEATHER_M,
+                    f"{material}: green strips", outside=bare)
     soil_albedo, cover_albedo = soil("diffuse"), cover("diffuse")
     soil_gain = [1.0, 1.0, 1.0]
     if g["soil_target"] is not None:
@@ -524,8 +546,9 @@ def derive_palette(root, material, recipe):
     if "texture_set" in recipe or "mask" in recipe:
         raise DeriveError(f"{material}: a palette recipe is flat colour; it takes neither \"texture_set\" nor \"mask\"")
     rgb = {name: _colour(colours, name, f"{material}.colours") for name in colours}
-    stamp = {"material": material, "kind": "palette", "formula": PALETTE_FORMULA, "recipe": recipe}
-    stamp["inputs_sha256"] = _inputs_sha256(stamp, ("formula", "recipe"))
+    stamp = {"material": material, "kind": "palette", "formula": PALETTE_FORMULA,
+             "constants": _constants(PALETTE_CONSTANTS), "recipe": recipe}
+    stamp["inputs_sha256"] = _inputs_sha256(stamp, ("formula", "constants", "recipe"))
     png_path = os.path.join(root, MATERIALS, f"{material}_albedo.png")
     stamp_path = os.path.join(root, MATERIALS, f"{material}.recipe.json")
     if _up_to_date([png_path], stamp_path, stamp["inputs_sha256"]):

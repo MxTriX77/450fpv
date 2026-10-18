@@ -3,6 +3,25 @@
   "kind": "ground",
   "formula": "ground v2: cover tiled at tile_size_m and at tile_size_m*phi, averaged, stretched 1+bias along the lodging azimuth and rotated to it; soil tiled at its tile_size_m, gained to its albedo_target when given; seeded blobs (an ellipse and three satellites) stamped to the bare and green shares, feathered 0.3 m (bare) and 0.5 m (green along the azimuth, counted outside bare); strewn masks clamp(2 m - c), c the cover luminance high-passed at STRAW_M, blended with LOBE_M value noise and stretched to 0-1: the bare mask's feather (noise 0.5) and the gaps between straws (a flat m of sqrt(gap_share / 2), noise GAP_LOBES 0), soil under both; albedo = cover with the straw gain for albedo_target, strips tinted to the green tint, soil under bare and gaps, then a global gain against clipping; normal composited the same with the cover normals rotated by the azimuth; mask R 0, G AO, B 0, A 1 - roughness; detail albedo = the detail set's diffuse as grey at its size with a linear mean of 0.5; 8-bit sRGB albedos",
   "pillow": "12.3.0",
+  "constants": {
+    "MAX_OUTPUT_PX": 2048,
+    "PHI": 1.618033988749895,
+    "BARE_FEATHER_M": 0.3,
+    "GREEN_FEATHER_M": 0.5,
+    "LOBE_M": 0.4,
+    "STRAW_M": 0.05,
+    "GAP_LOBES": 0.0,
+    "BARE_LOBES": 0.5,
+    "BARE_SPREAD_DEG": 45.0,
+    "GREEN_SPREAD_DEG": 10.0,
+    "BLOB_SATELLITES": 3,
+    "BLOB_OFFSET": 0.35,
+    "BLOB_SCALE": [
+      0.45,
+      0.8
+    ],
+    "SHARE_TOLERANCE": 0.005
+  },
   "recipe": {
     "schema": 1,
     "kind": "ground",
@@ -107,7 +126,7 @@
       "sha256": "9191758c59d352d71fc6434e78bebf01380515b13c0883e4e6f605442b67e7ec"
     }
   },
-  "inputs_sha256": "9de5fc66cebac6d791526fa0da51e3fc34e83be3369e24433b73fe540cd416ab",
+  "inputs_sha256": "8a2881e82480a3eb749c4303acd233e9d0e682abc29f78c0e7de79d539e8913a",
   "size": [
     2048,
     2048

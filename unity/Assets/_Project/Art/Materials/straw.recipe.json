@@ -2,6 +2,9 @@
   "material": "straw",
   "kind": "palette",
   "formula": "palette v1: one PALETTE_BLOCK_PX square block per colour, left to right in the recipe's order; 8-bit sRGB",
+  "constants": {
+    "PALETTE_BLOCK_PX": 16
+  },
   "recipe": {
     "schema": 1,
     "kind": "palette",
@@ -20,7 +23,7 @@
     ],
     "smoothness": 0.3
   },
-  "inputs_sha256": "2b04dfb0cd8d5804377b9b2f5347c017d19735358befc5b2d331c3229bdc8cf9",
+  "inputs_sha256": "897ad2c5ffc7f153f10f940c2fb0da5189ce8f12f7561a7d306d824961969b84",
   "size": [
     64,
     16

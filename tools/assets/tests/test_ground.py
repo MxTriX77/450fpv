@@ -215,6 +215,25 @@ def test_ground_is_idempotent_and_regenerates_on_a_change(tmp_path, capsys):
     assert "derived 256x256 ground" in capsys.readouterr().out and maps["normal"].is_file()
 
 
+@pytest.mark.parametrize("name, value", [("STRAW_M", 0.1), ("LOBE_M", 0.8), ("BARE_FEATHER_M", 0.2),
+                                         ("GREEN_FEATHER_M", 0.4), ("GAP_LOBES", 0.25), ("SHARE_TOLERANCE", 0.01)])
+def test_a_changed_formula_constant_re_derives(tmp_path, capsys, monkeypatch, name, value):
+    """Spec "A formula constant changes" (review R1): the stamp records every constant's value under "constants" and
+    hashes it, so tuning one in derive.py re-derives the maps instead of reporting them up to date."""
+    root = ground_root(tmp_path)
+    stamp_path = root / MATERIALS / f"{MATERIAL}.recipe.json"
+    assert run(MATERIAL, "--root", root) == 0
+    before = json.loads(stamp_path.read_text(encoding="utf-8"))
+    assert before["constants"] == {n: list(v) if isinstance(v, tuple) else v
+                                   for n, v in ((n, getattr(derive, n)) for n in derive.GROUND_CONSTANTS)}
+    assert run(MATERIAL, "--root", root) == 0 and "up to date" in capsys.readouterr().out
+    monkeypatch.setattr(derive, name, value)
+    assert run(MATERIAL, "--root", root) == 0
+    assert f"{MATERIAL}_albedo.png: derived 256x256 ground" in capsys.readouterr().out
+    after = json.loads(stamp_path.read_text(encoding="utf-8"))
+    assert after["constants"][name] == value and after["inputs_sha256"] != before["inputs_sha256"]
+
+
 def test_all_handles_ground_and_mask_recipes_together(tmp_path, capsys):
     root = ground_root(tmp_path)
     brick = {"schema": 1, "shader": "Universal Render Pipeline/Lit", "texture_set": f"polyhaven/{SET_ID}",
