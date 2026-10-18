@@ -263,8 +263,10 @@ Outputs: LOD0 with every turn as a tube along the core and the blade clusters as
 Concrete spalls and cracks; it does not splinter. Chips and corner pieces 0.05–0.3 m lie round the foot; a crater in the row leaves a tooth tilted on its lip with its sand bed exposed. Bars show only at deep spalls (assumed light reinforcement).
 
 ### Physics role
-- **Collision:** a frustum is not one of the pipeline's primitives (box, sphere, capsule, cylinder). As stacked boxes matched to the faces at each box's mid-height, n boxes stay within 0.205 / n m of the sloping face (derived): **11 boxes** meet AST-05's ±2 cm round the openings between teeth (18.7 mm), 5 meet only the ±5 cm elsewhere (41 mm). A frustum or convex-hull primitive would make each tooth one exact shape (open point). The loop and exposed bars are capsules of their own radius. Material `concrete`, `steel` for loop and bars. **Not landable** (a 0.3 m top).
-- **Gaps** (default field, teeth square to the rows; the generator writes each from the actual placement):
+- **Collision:** **one `convex` hull per tooth**: the frustum's 8 corners (4–6 points for the triangular pyramid), material `concrete`, exact in every state (a toppled or shifted tooth is the same hull moved; a spall cut on a plane keeps it convex) (physics reading §6). The loop and exposed bars are capsules of their own radius, `steel`. **Not landable** (a 0.3 m top).
+  - **Why not boxes** (derived; physics reading §6, buildability review): stacked boxes stand off the sloping face by 0.205 / n m at a face and 0.268 / n m at an arris corner, where two faces meet, so a tooth would need 14 boxes for AST-05's ±2 cm round the openings and 6 for ±5 cm; they leave ledges a foot can rest on (32 mm wide at 14 boxes, 90 mm at 5) where the real face slopes at 65.8°, they cannot follow a spall deeper than 2 cm, and they cannot build the triangular variant.
+  - The `convex` kind is new to the pipeline: the asset change adds it (`meta.SHAPES`, validator, audit, importer) and the phase-3 world-query spec its contact and raycast (open points).
+- **Gaps** (default field, teeth square to the rows; the field's placement recipe writes each from the actual placement: in the world the world-builder's compiler in phase 3, in a gallery field module its own metadata):
 
   | Prop-plane height | Tooth width | In a row, between neighbours | Along the rows, between two rows | Straight across the rows | Diagonal lane at 63° to the rows |
   |---|---|---|---|---|---|
@@ -306,11 +308,10 @@ Concrete spalls and cracks; it does not splinter. Chips and corner pieces 0.05�
 | `bars` | int | 0–8 | 4 | Corner bars (exposed only at deep spalls) |
 | `bar_d_m` | m | 0.010–0.012 | 0.012 | Bar diameter |
 | `lifting_loop` | bool | — | true | Loop on the top |
-| `collision_boxes` | int | 5–16 | 11 | Stacked boxes per tooth (±2 cm at 11) |
-| `damage` | 0–1 | — | 0 / 0.5 | I below 0.25, D above; the items below default from it |
-| `spalls` | int | 0–6 per tooth | from damage | Chipped arrises and corners, 0.05–0.2 m |
-| `toppled_fraction` | 0–0.3 | — | from damage | Teeth lying on a face or tilted on a crater lip |
-| `shifted_fraction` | 0–0.3 | — | from damage | Teeth rotated or moved off the grid |
+| `damage` | 0–1 | — | 0 / 0.5 | I below 0.25, D above; drives the items marked "from `damage`" ("How this sheet was made") |
+| `spalls` | int | 0–6 per tooth | from `damage` (I 0, D 2–4, assumed) | Chipped arrises and corners, 0.05–0.2 m, each a planar cut so the hull stays convex |
+| `toppled_fraction` | 0–0.3 | — | from `damage` (I 0, D 0.05–0.15) | Teeth lying on a face or tilted on a crater lip |
+| `shifted_fraction` | 0–0.3 | — | from `damage` (I 0, D 0.05–0.15, assumed) | Teeth rotated or moved off the grid |
 | `buried_span_m` | m | 0–20 | 0 | A pushed earth ramp over part of the rows |
 | `weathering` | 0–1 | — | 0.6 | Algae, lichen, splash dirt, rust bleed |
 | `seed` | int | — | — | Every random choice |
@@ -318,7 +319,8 @@ Concrete spalls and cracks; it does not splinter. Chips and corner pieces 0.05�
 Outputs: one tooth mesh per variant and state, instanced by the field generator with the gaps written per pair of neighbours; LOD0 with chips and the loop; LOD1 the plain frustum; LOD2 a box impostor row beyond 300 m (assumed).
 
 ### Open points
-- **A frustum (or small convex-hull) collision primitive:** 11 stacked boxes per tooth meet AST-05; one exact shape would be cheaper for a field of 50–200 teeth. Asset change and physics engineer.
+- **The `convex` collision kind:** ruled by the physics reading (§6). The asset change adds the kind (4–16 points, every point a hull vertex within 1 mm, a volume above zero) to `meta.SHAPES`, the validator, the audit and the importer; the phase-3 world-query spec (world-builder, physics sign-off) adds its `StaticContacts` and `Raycast`, the golden cases and a `teeth_field` bench case.
+- **The gaps between teeth** lie between separately placed objects: the world-builder's compiler writes them in phase 3 from the placed geometry (the buildability review's placement recipe).
 - **The base proportion** (1.2 × the height) is derived from two published classes; the pilot's look at G2 settles whether today's teeth read as squatter or slimmer (a look, not a number: D-024).
 
 ## F03 Anti-tank hedgehog (протитанковий їжак)
@@ -326,30 +328,35 @@ Outputs: one tooth mesh per variant and state, instanced by the field generator 
 **Seen in:** R: research only.
 **Research sources:**
 - the form, member sections, joints, the octahedron geometry and its height relation, where it stands best (encyclopedia): https://ru.wikipedia.org/wiki/Противотанковый_ёж
-- arm lengths and masses, the industrial angle section, feet, wire notches, the bolted third arm, rail in recent use (encyclopedia): https://en.wikipedia.org/wiki/Czech_hedgehog
+- member lengths and masses, the industrial angle section, feet, wire notches, the bolted third member, rail in recent use (encyclopedia): https://en.wikipedia.org/wiki/Czech_hedgehog
 - the Р50 rail section (a seller's datasheet; the profile standard is ГОСТ 7174-75): https://www.railway.supply/uk/rejki-r50-r60-r65-r75-prodazh-ta-postachannya-v-ukra%d1%97ni-ta-%d1%94vropi/ , https://prg.kz/m/amp/document/30983366
+- the Р50 and Р65 sections in full: ГОСТ 7174-75 (Р50: area, mass and the head, web and foot shares): https://dnaop.com/html/64676/doc-%D0%93%D0%9E%D0%A1%D0%A2_7174-75 ; ГОСТ 8161-75 (Р65: the same): https://dnaop.com/html/70510/doc-%D0%93%D0%9E%D0%A1%D0%A2%0A8161%E2%80%9475 ; the cross-section table of ГОСТ Р 51685 (height, web height and thickness, head and foot width, foot edge): https://www.baurum.ru/_library/?cat=rails&id=245 ; a rail maker's tables (head height): https://rails.arcelormittal.com/types-rails/transport-rails/russian-standards/rail-r50 , https://rails.arcelormittal.com/types-rails/transport-rails/russian-standards/rail-r65
+- the light sections: equal angles to EN 10056-1 (a reference table): https://roymech.org/Useful_Tables/Sections/AngleA_dim_prop.html ; channels to ГОСТ 8240-97: https://ru.wikisource.org/wiki/%D0%93%D0%9E%D0%A1%D0%A2_8240%E2%80%9497
 
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| Arm (member) length | 1.2–2.1 m | **1.8 m** | published: 1.8 m for the original pattern and 2.1 m later (en encyclopedia); up to 2 m, and about 1.2 m in some manuals (ru encyclopedia) |
-| Height, standing | 0.69–1.21 m | **1.04 m** | derived: three arms at right angles through one point, standing on three ends (an octahedron on a face), H = L / √3; the ru encyclopedia gives the same relation (h = a√6 / 3 with L = a√2) and a target of about 1 m, the height of a tank's front plate |
+| Member length | 1.2–2.1 m | **1.8 m**: a **member** is one of the three straight bars through the node; a **half-arm** is a member's half from the node to an end (0.9 m) | published: 1.8 m for the original pattern and 2.1 m later (en encyclopedia); up to 2 m, and about 1.2 m in some manuals (ru encyclopedia) |
+| Height, standing | 0.69–1.21 m | **1.04 m** | derived: three members at right angles through one point, standing on three ends (an octahedron on a face), H = L / √3; the ru encyclopedia gives the same relation (h = a√6 / 3 with L = a√2) and a target of about 1 m, the height of a tank's front plate |
 | Across the feet (corners) | 0.98–1.72 m | **1.47 m** | derived: the six ends project onto a regular hexagon of circumradius (L / 2) · √(2/3) = 0.735 m |
 | Across flats | 0.85–1.49 m | 1.27 m | derived |
 | Node height | 0.35–0.61 m | 0.52 m | derived (H / 2) |
 | Spread of the feet | the three feet form an equilateral triangle of side L / √2 | 1.27 m | derived |
-| Member: rail | Р50: 152 mm high, foot about 125–132 mm, head about 70–72 mm, about 50–52 kg/m; Р65 for heavier | **Р50** | published (the seller's datasheet gives 152 mm, about 125 mm and 50.4 kg/m); the head width assumed 72 mm |
-| Member: angle | L 140 × 140 × 13 mm in the industrial pattern; I-beams No. 25–40 in older ones; lighter angle or channel 75–100 mm in improvised ones | variant 2: L 140 × 140 × 13 | published (en and ru encyclopedias); the lighter sizes assumed |
-| Joint | gusset plates riveted or bolted, the third arm bolted with M20 bolts; welded with or without gussets when improvised | welded, three gussets 0.25 × 0.25 × 0.012 m | published forms; gusset size assumed |
-| Feet | square plates on the arm ends against sinking | 0.15 × 0.15 × 0.010 m | published (en encyclopedia); size assumed |
-| Wire holes or notches | for lashing barbed wire | 2 per arm, 0.15 m and 0.35 m from each end | published (both encyclopedias); position assumed |
-| Mass | 0.15–0.30 t | rail: about **0.29 t**; angle: 0.20 t | derived: 3 × 1.8 m × 51.7 kg/m = 279 kg plus gussets and feet; published: 198 kg for the 1.8 m angle pattern (en encyclopedia) |
+| Member: rail | Р50; Р65 for heavier | **Р50** | published (encyclopedias, the seller's datasheet) |
+| Р50 section (`rail_r50`) | — | **152 mm high; head 72 mm wide and 42 mm deep; web 16 mm thick and 83 mm high; foot 132 mm wide, 10.5 mm thick at the edge and 27 mm at the root; 65.99 cm², 51.8 kg/m** (head 38 %, web 24 %, foot 37 % of the area) | published: height, web, head and foot widths and the foot edge (ГОСТ Р 51685 table), the head depth (the rail maker's table), area, mass and shares (ГОСТ 7174-75; the seller's datasheet lists 50.4 kg/m); the foot root derived (152 − 42 − 83) |
+| Р65 section (`rail_r65`) | — | 180 mm high; head 75 mm wide and 45 mm deep; web 18 mm thick and 105 mm high; foot 150 mm wide, 11.2 mm at the edge and 30 mm at the root; 82.65 cm², 64.9 kg/m | published (the same tables; ГОСТ 8161-75 for the area and mass); the foot root derived (180 − 45 − 105) |
+| Rail outline drawn by the generator | — | the head's underside slopes 1:4 down to the web, its crown is an arc of R 300 mm and its top corners are rounded R 13 mm (Р50) or R 15 mm (Р65); the foot's top runs straight from the root to the edge; no fillets. It comes to **66.4 cm²** for Р50 (+0.6 % on the standard's 65.99) and **81.7 cm²** for Р65 (−1.2 % on 82.65); the generator's `check` holds its outline within ±3 % of the standard's area | the slope, crown and corner radii assumed (typical of the class); the areas derived |
+| Member: angle or channel | L 140 × 140 × 13 mm in the industrial pattern; I-beams No. 25–40 in older ones; lighter angle or channel 75–100 mm in improvised ones | variant 2: L 140 × 140 × 13 (`angle_140`). Variant 3: L 100 × 100 × 8 (`angle_100`: root radius 12 mm, toe radius 6 mm, 15.5 cm², 12.2 kg/m; 10 and 12 mm walls are rolled too) or channel No. 10 (`channel_100`: 100 mm deep, flanges 46 mm wide and 7.6 mm thick, web 4.5 mm, root radius 7 mm, 10.9 cm², 8.59 kg/m) | published (en and ru encyclopedias; the EN 10056-1 table for the 100 mm angle; ГОСТ 8240-97 for the channel); the choice of these two light sizes for variant 3 assumed |
+| Joint | gusset plates riveted or bolted, the third member bolted with M20 bolts; welded with or without gussets when improvised | welded, three gussets 0.25 × 0.25 × 0.012 m | published forms; gusset size assumed |
+| Feet | square plates on the member ends against sinking | 0.15 × 0.15 × 0.010 m | published (en encyclopedia); size assumed |
+| Wire holes or notches | for lashing barbed wire | 2 per half-arm, 0.15 m and 0.35 m from its end: 4 a member, 12 a hedgehog | published (both encyclopedias); position assumed |
+| Mass | 0.15–0.30 t | rail: about **0.29 t**; angle: 0.20 t | derived: 3 × 1.8 m × 51.8 kg/m (ГОСТ 7174-75) = 280 kg plus gussets and feet; published: 198 kg for the 1.8 m angle pattern (en encyclopedia) |
 | Pair spacing (centres) | 1.8–3.0 m | 2.0 m | assumed |
 
 ### Construction and materials
 - **The form:** three straight members of equal length crossing at their middles, each at right angles to the other two, like the axes of a cube; the six ends make an octahedron, so it stands on any three ends with the other three up, and stands the same however it is rolled (published). A vehicle that tries to push it rolls it under its belly and is lifted off its wheels or tracks (published), which is why it is not anchored.
 - **Default (variant 1), welded rail:** three 1.8 m pieces of Р50 rail. Rails cannot all pass through one point, so two are notched half-depth where they cross and welded, the third is cut in two and its halves welded to the node, and three triangular gussets close the joint (assumed fabrication). Square feet welded to the ends, holes for wire, weld beads ground or left rough.
-- **Variant 2, the industrial angle pattern:** three L 140 × 140 × 13 angles with riveted gusset plates at the node, the third arm bolted on (published).
+- **Variant 2, the industrial angle pattern:** three L 140 × 140 × 13 angles with riveted gusset plates at the node, the third member bolted on (published).
 - **Variant 3, improvised light:** angle 75–100 mm or channel, welded without gussets, the members welded side by side rather than through one point (assumed).
 - **Setting:** unanchored, on asphalt or hard ground (published: asphalt is best, concrete is unsuitable because the hedgehog slides on it); a pair may be chained or cabled together (published).
 - **Materials:** Poly Haven `rusty_metal` and `rust_coarse_01` (candidates, CC0: https://polyhaven.com/a/rusty_metal , https://polyhaven.com/a/rust_coarse_01 ), with derived masks for the worn running band of a used rail head, the weld beads and rust streaks below the node; a painted variant uses `rusty_painted_metal` (https://polyhaven.com/a/rusty_painted_metal ).
@@ -366,19 +373,19 @@ Outputs: one tooth mesh per variant and state, instanced by the field generator 
 ### Variants and states
 - **Variants:** 1 welded rail (default); 2 industrial angle with riveted gussets; 3 improvised light angle or channel. Each a single or one of a pair (with or without a chain).
 - **I:** upright on three feet sunk 0–0.05 m, even rust.
-- **D (bent, rusted):** one or two arms bent 5–30° at 0.3–0.6 m from the node by a vehicle; a cracked weld with an arm sagging at the node; rolled onto other ends (the height unchanged, published), pushed to the verge and tilted 10–30° on the ditch slope, or sunk 0.1–0.3 m into mud on soft ground; heavy flaking rust.
+- **D (bent, rusted):** one or two half-arms bent 5–30° at 0.3–0.6 m from the node by a vehicle; a cracked weld with a half-arm sagging at the node; rolled onto other ends (the height unchanged, published), pushed to the verge and tilted 10–30° on the ditch slope, or sunk 0.1–0.3 m into mud on soft ground; heavy flaking rust.
 
 ### Damage pattern
 Steel bends rather than breaks; the welds crack before the members; the hedgehog rolls before it fails (published). Nothing scatters round it: rust flakes, a loose chain, tyre marks where it was shoved (assumed).
 
 ### Physics role
-- **Collision:** each arm as boxes following its section (a rail as head, web and foot, three boxes; an angle as its two legs, two boxes: exact, inside ±2 cm), each gusset and foot a thin box; material `steel`. A bent arm is two boxed segments meeting at the bend.
+- **Collision:** each member as boxes following its section (a rail as head, web and foot, three boxes from the dimensioned section; an angle as its two legs, two boxes; a channel as its web and two flanges, three boxes: exact, inside ±2 cm), each gusset and foot a thin box; material `steel`. A bent half-arm is two boxed segments meeting at the bend.
 - **Material id:** `steel`.
-- **Gaps** (default 1.8 m arms of Р50, about 0.14 m across the section):
-  - **the three lower windows:** each the triangle between two lower arms and the ground, in a plane leaning 35° from vertical; a right isosceles triangle with 0.9 m legs, largest inscribed circle 0.53 m between the member centrelines and **0.44–0.45 m** clear of the rail (derived: (L/2 − 2d) · (2 − √2) with d the half-section 0.066–0.076 m): **not passable**;
-  - **under the node:** 0.44 m clear below the node's members, closed round by the three lower arms: not passable (the drone's envelope is 0.55 m);
-  - **the three upper notches:** open-topped 90° vees between two upper arms; not gaps; the drone clears a hedgehog only over its top (1.04 m plus about 0.08 m of section);
-  - **between a pair at 2.0 m centres:** the throat is the vertical plane midway between them, waisted: narrowest at the ground and at the tips' height, widest at the node height. Worst case (a foot or tip of each pointing at the other) to best case (the ends turned 60° away):
+- **Gaps** (default 1.8 m members of Р50, about 0.14 m across the section):
+  - **the three lower windows:** each the triangle between two lower half-arms and the ground, in a plane leaning 35.3° from vertical (its normal 54.7° from vertical, derived); a right isosceles triangle with 0.9 m legs, largest inscribed circle 0.53 m between the member centrelines and **0.44–0.45 m** clear of the rail (derived: (L/2 − 2d) · (2 − √2) with d the half-section 0.066–0.076 m): **not passable**;
+  - **under the node:** 0.44 m clear below the node's members, closed round by the three lower half-arms: not passable (the drone's envelope is 0.55 m);
+  - **the three upper notches:** open-topped 90° vees between two upper half-arms; not gaps; the drone clears a hedgehog only over its top (1.04 m plus about 0.08 m of section);
+  - **between a pair at 2.0 m centres:** the throat polygon lies in the vertical plane through both centres, its sides each hedgehog's silhouette projected onto that plane along its normal (the houses sheet's rule for a gap through a thick wall), and its widths are measured along the line of centres. It is waisted: narrowest at the ground and at the tips' height, widest at the node height. Worst case (a foot or tip of each pointing at the other) to best case (the ends turned 60° away):
 
     | Prop-plane height | Clear width, worst | Clear width, best | Passes |
     |---|---|---|---|
@@ -388,10 +395,10 @@ Steel bends rather than breaks; the welds crack before the members; the hedgehog
     | 0.8 m | 1.08 m | 1.47 m | any yaw |
     | 1.04 m (tips) | 0.40 m | 1.13 m | worst: no |
 
-    (derived: a lower arm reaches 0.735 · (1 − z / 0.52) m from its centre at height z, an upper arm 0.735 · (z − 0.52) / 0.52 m, less 0.13 m of section.) The worst-case throat's largest inscribed circle is **1.04 m**, centred at the node height and limited by the ground (derived). So the drone passes between a pair at any yaw with its prop plane between 0.11 and 0.93 m even in the worst orientation (the 0.24 m legs fit the narrower gap below them); at 1.8 m centres the worst-case gap at the ground and tips drops to 0.20 m and the band narrows to 0.18–0.86 m (derived: clear width ≥ 0.706 m).
+    (derived: a lower half-arm reaches 0.735 · (1 − z / 0.52) m from its centre at height z, an upper half-arm 0.735 · (z − 0.52) / 0.52 m, less 0.13 m of section.) The worst-case throat's largest inscribed circle is **1.04 m**, centred at the node height and limited by the ground (derived). So the drone passes between a pair at any yaw with its prop plane between 0.11 and 0.93 m even in the worst orientation (the 0.24 m legs fit the narrower gap below them); at 1.8 m centres the worst-case gap at the ground and tips drops to 0.20 m and the band narrows to 0.18–0.86 m (derived: clear width ≥ 0.706 m).
 - **Wind volumes:** the envelope (1.47 m across, 1.04 m high) as one volume, porosity **0.6** (derived: three 1.8 m members 0.14 m across, at a mean projection of π / 4, present about 0.59 m² against a 1.53 m² silhouette: 0.61 open).
-- **Snag hazards:** every member end (`edge` round the cut end's perimeter, steel 1 mm); the rail foot's flange tips along every arm (`edge`, 1 mm) and the head's corners (`edge`, about 13 mm, assumed for a rail head); the gusset edges (`edge`, 1 mm); the foot plates (`edge`, 1 mm); a chain or lashed barbed wire (`edge`, its own radius). An angle's leg tips along each arm (`edge`, 1 mm).
-- **Landable surfaces:** none (members 0.07–0.15 m wide, all inclined at 35° from vertical).
+- **Snag hazards:** every member end (`edge` round the cut end's perimeter, steel 1 mm); the rail foot's flange tips along every member (`edge`, 1 mm) and the head's corners (`edge`, about 13 mm, the corner radius); the gusset edges (`edge`, 1 mm); the foot plates (`edge`, 1 mm); a chain or lashed barbed wire (`edge`, its own radius). An angle's leg tips or a channel's flange tips along each member (`edge`, 1 mm).
+- **Landable surfaces:** none: members 0.07–0.15 m wide, every one at **54.7° from vertical** (35.3° from horizontal, derived: a cube's axes against its body diagonal), steeper than the 19.3° on which a foot holds on steel (atan 0.35), so a foot slides off (physics reading §8, item 6).
 
 ### Placement rules (for the world)
 - "A couple" in the world (the pilot, D-035): 2–6 in all (assumed), as **singles and pairs at road approaches and at the checkpoint** (asset list): on the asphalt or a hard verge (published), narrowing the carriageway to a dog-leg, closing the open lane of a dragon's-teeth field (F02), or standing in the spare width of the checkpoint chicane (F04).
@@ -401,24 +408,24 @@ Steel bends rather than breaks; the welds crack before the members; the hedgehog
 ### Generator parameters
 | Param | Type | Range | Default | Effect |
 |---|---|---|---|---|
-| `member` | enum | rail_r50, rail_r65, angle_140, angle_100, channel_100 | rail_r50 | Section, mass, look |
-| `arm_length_m` | m | 1.2–2.1 | 1.8 | Size: height L / √3, across the feet 0.816 L |
+| `member` | enum | rail_r50, rail_r65, angle_140, angle_100, channel_100 | rail_r50 | Section (each dimensioned in the Dimensions table), mass, look |
+| `member_length_m` | m | 1.2–2.1 | 1.8 | Length L of each member; a half-arm is L / 2. Size: height L / √3, across the feet 0.816 L |
 | `node_offset_m` | m | 0–0.10 | 0 | Members welded side by side instead of through one point (variant 3) |
 | `joint` | enum | gusset_riveted, gusset_welded, welded_bare, bolted_third | gusset_welded | Node construction |
 | `gusset_m` | m | 0.15–0.35 | 0.25 | Gusset leg |
 | `feet` | bool | — | true | Square foot plates |
 | `foot_plate_m` | m | 0.10–0.25 | 0.15 | Foot plate side |
-| `wire_holes` | int | 0–3 per arm | 2 | Holes or notches for lashing wire |
+| `wire_holes` | int | 0–3 per half-arm | 2 | Holes or notches for lashing wire on each half-arm (2: 4 a member, 12 a hedgehog) |
 | `stance` | int | 0–7 | from seed | Which three ends it stands on |
 | `yaw_deg` | deg | 0–120 | from seed | Rotation about the vertical |
 | `pair` | bool | — | false | A second hedgehog beside it |
 | `pair_spacing_m` | m | 1.8–3.0 | 2.0 | Centres of a pair; sets the pair's gap |
 | `chain` | bool | — | false | A chain or cable between a pair |
-| `damage` | 0–1 | — | 0 / 0.5 | I below 0.25, D above; the items below default from it |
-| `bent_arms` | int | 0–2 | from damage | Arms bent by a vehicle |
+| `damage` | 0–1 | — | 0 / 0.5 | I below 0.25, D above; drives the items marked "from `damage`" ("How this sheet was made") |
+| `bent_half_arms` | int | 0–2 | from `damage` (I 0, D 1–2) | Half-arms bent by a vehicle |
 | `bend_deg` | deg | 5–30 | 15 | Bend angle |
-| `bend_at_m` | m | 0.3–0.6 | 0.45 | Bend position from the node |
-| `cracked_weld` | bool | — | false | One arm sagging at the node |
+| `bend_at_m` | m | 0.3–0.6 | 0.45 | Bend position along the half-arm, from the node |
+| `cracked_weld` | bool | — | false | One half-arm sagging at the node |
 | `sink_m` | m | 0–0.3 | 0.02 | Feet sunk into soft ground |
 | `tilt_deg` | deg | 0–30 | 0 | Tilt on a verge or ditch slope |
 | `rust` | 0–1 | — | 0.6 | Rust and flaking |
@@ -458,7 +465,7 @@ Outputs: LOD0 with welds, holes and feet; LOD1 the three members and the node; L
 | Sandbag wall thickness | 0.30–0.75 m | 0.48 m (one header) | derived from the bag; published: 20 in (0.51 m) of sand in bags is proof against armour-piercing bullets and fragments (encyclopedia) |
 | Sandbag wall height | 1.0–1.6 m | 1.2 m = 10 courses | assumed (a breastwork to fire over standing); courses derived (1.2 / 0.12) |
 | Position plan | U-shaped, ring, L or straight; 1.5–3.5 m inside | U, 2.5 × 2.5 m inside, open at the rear | assumed |
-| Entrance | 0.5–1.0 m | 0.7 m | assumed |
+| Entrance | 0.5–1.0 m clear | 0.7 m clear between the bulging bag faces, so 0.74–0.78 m between the wall ends' nominal faces | the clear width assumed; the nominal derived (plus a 20–40 mm bulge each side) |
 | Firing ports | 0–4, 0.15–0.30 × 0.10–0.15 m | 2, 0.20 × 0.12 m | assumed |
 | Bags in a position | 150–400 | about 250 | derived: 7.5 m of U wall, 3.3 headers a metre, 10 courses |
 | Barrier arm | 3–8 m long | **4.0 m** | published (datasheet: 3, 4, 5, 6, 7, 8 m) |
@@ -505,9 +512,9 @@ Blocks chip at the arrises and crack across without bars; bags burst and spill, 
 ### Physics role
 - **Collision:**
   - each block a box (inside the published ±13 mm), material `concrete`, **landable** top 2.38 × 0.60 m; the 0.10 m end grooves exceed AST-05's ±5 cm, so the body box stops at the groove's depth and each end adds two prong boxes either side of the groove (5 boxes a block, derived); each loop three capsules of radius 6 mm, `steel`;
-  - the sandbag wall as one box per straight segment per 3–4 courses (bag faces bulge 20–40 mm, inside ±5 cm), the top course one box per bag (landable surfaces, ±2 cm); material `proposed:sandbag`;
+  - the sandbag wall as one box per straight segment per 3–4 courses (bag faces bulge 20–40 mm, inside ±5 cm); the top course one box per bag, each box about 10 mm inside the bag's sides (a box of the full 0.29 m stadium stands 25 mm off its rounded shoulders, over the landable ±2 cm; inset 10 mm a side it holds 18 mm, derived in the buildability review); within 0.3 m of the entrance and of each firing port (both gap polygons), one box per bag in every course, following each course's bulge, to hold ±2 cm; material `sandbag`;
   - the barrier: the post a box, the arm a capsule along the tube (or a box), the counterweight a box, the end rest a capsule with a box fork; material `steel`.
-- **Material ids:** `concrete`, `steel`, and `proposed:sandbag` for the bags. The asset list names `fabric`, but `fabric`'s 600 N/m is a mattress: the drone would sink 80 mm into a filled bag. A filled bag is rigid against the drone; see the proposals below. Until the physics reading rules, `fabric` friction with `concrete`-like rigidity is the intent.
+- **Material ids:** `concrete`, `steel`, and `sandbag` for the bags (accepted by the physics reading, §4; the row at the end of the sheet): 900 N/m per touching part, ζ 0.9, edge 0.05 m. A 15 mm foot presses at 67 kPa, far above loose fill's bearing capacity, so it punches in and the fill behaves like tamped soil: a leg sinks 13 mm at rest and 28 mm under 25 N, 39–79 mm in a 3–6 g landing (derived there). The asset list named `fabric`; `sandbag` replaces it for its damping and its edge: `fabric`'s 5 mm hem would put a cut risk on a line hauled over the wall top, a bag's 50 mm shoulder none.
 - **Gaps:**
 
   | Opening | Polygon | Narrowest | Passes |
@@ -515,11 +522,11 @@ Blocks chip at the arrises and crack across without bars; bags burst and spill, 
   | Under the barrier arm | the vertical rectangle from the road to the arm's underside, between the post and the end rest | 1.0 m high × about 3.8 m (inscribed circle 1.0 m) | **yes, any yaw**, with 0.45 m over the drone's 0.55 m envelope |
   | The chicane lane | an open channel between a block line's end and the road edge or the next line, open above | 3.2 m | **yes, any yaw** (no polygon: open channel) |
   | Joints between blocks in a line | the slot between two block ends, 0.58 m high | 0.1 m (0–0.3 m) | no |
-  | Sandbag position entrance | the slot between the wall ends, open above the 1.2 m wall (with a roof, 0.7 × 1.1 m) | 0.70 m | **yes, nose-first and within ±35° of square** (63 mm a side), derived from the houses sheet's yaw formula |
+  | Sandbag position entrance | the slot between the wall ends, open above the 1.2 m wall (with a roof, 0.7 × 1.1 m); its sides are the bulging bag faces | **0.70 m clear between the bulges** (`entrance_m`, the gap's `narrowest_m`); the wall ends' nominal faces stand 0.74–0.78 m apart | **yes, nose-first and within ±35° of square** (63 mm a side), derived from the houses sheet's yaw formula. Were 0.70 m the nominal width, the clear 0.62–0.66 m would pass only within ±9–19° (physics reading §5) |
   | Firing ports | the slot left by a missing bag | 0.20 × 0.12 m | no |
 - **Wind volumes:** blocks solid (0); sandbag walls solid (0), the position's interior a sheltered cavity open at the rear; the barrier none (thin, below the 2 m grid).
 - **Snag hazards:** block arrises (`edge`, concrete 3 mm) and lifting loops (`edge` along the bar, 6 mm); bag ties and ears (`hook`, 2 mm cord stubs 0.05–0.10 m), torn bag fabric and fibres in D (`hook`, 1 mm); the barrier arm's ends, the counterweight frame and the pivot bracket (`edge`, steel 1 mm), the rest fork's tines (`hook`, 8 mm).
-- **Landable surfaces:** block tops (2.38 × 0.60 m, flat within 3 mm, published); the sandbag wall top (0.48 m wide, crowns within ±2 cm, compliant as the proposed id says); not the barrier.
+- **Landable surfaces:** block tops (2.38 × 0.60 m, flat within 3 mm, published); the sandbag wall top (0.48 m wide, crowns within ±2 cm, compliant: `sandbag`, a leg sinks 13 mm at rest); not the barrier.
 
 ### Placement rules (for the world)
 - **One checkpoint on the main road into the town and into each village** (F04 is P2; assumed), on a straight 50–200 m outside the first houses or at a junction on the settlement edge.
@@ -535,12 +542,12 @@ Blocks chip at the arrises and crack across without bars; bags burst and spill, 
 | `end_groove` | bool | — | true | The groove in each end face |
 | `loops` | enum | raised, flush, cut | raised | Lifting loops: raised, flush in recesses, cut off |
 | `loop_d_m` | m | 0.010–0.014 | 0.012 | Loop bar diameter; its snag radius is half |
-| `stack` | int | 1–2 | 1 | Blocks one or two high |
-| `lines` | int | 2–3 | 3 | Chicane lines |
-| `blocks_per_line` | int | 1–4 | 2 | Blocks in a line |
-| `lane_m` | m | 3.0–3.5 | 3.2 | The chicane lane |
-| `line_offset_m` | m | 6–10 | 8 | Distance between lines along the road |
-| `joint_m` | m | 0–0.3 | 0.1 | Joints between blocks in a line |
+| `stack` | int | 1–2 | 1 | Recipe: blocks one or two high |
+| `lines` | int | 2–3 | 3 | Recipe: chicane lines |
+| `blocks_per_line` | int | 1–4 | 2 | Recipe: blocks in a line |
+| `lane_m` | m | 3.0–3.5 | 3.2 | Recipe: the chicane lane |
+| `line_offset_m` | m | 6–10 | 8 | Recipe: distance between lines along the road |
+| `joint_m` | m | 0–0.3 | 0.1 | Recipe: joints between blocks in a line |
 | `bag_size` | enum | mil_36x66, pp_50x80 | mil_36x66 | Empty bag; the filled size follows by the derivation above |
 | `fill_fraction` | 0.5–0.75 | — | 0.66 | Fill; sets the bag thickness and mass |
 | `fill` | enum | sand, local_soil | local_soil | Fill colour and the spill surface |
@@ -549,7 +556,7 @@ Blocks chip at the arrises and crack across without bars; bags burst and spill, 
 | `inner_size_m` | m, m | 1.5–3.5 | 2.5, 2.5 | Inside dimensions |
 | `wall_height_m` | m | 0.8–1.6 | 1.2 | Courses = height / bag thickness |
 | `wall_thickness_m` | m | 0.30–0.75 | 0.48 | One header, or a header and a stretcher |
-| `entrance_m` | m | 0.5–1.0 | 0.7 | Entrance width; the gap |
+| `entrance_m` | m | 0.5–1.0 | 0.7 | Clear entrance width between the bulging bag faces: the gap's `narrowest_m`; the wall ends are laid twice the bulge (0.04–0.08 m) further apart |
 | `firing_ports` | int | 0–4 | 2 | Ports left in the top courses |
 | `port_size_m` | m, m | 0.15–0.30, 0.10–0.15 | 0.20, 0.12 | Port width and height |
 | `roof` | bool | — | false | Timbers and a course of bags over the position |
@@ -562,32 +569,38 @@ Blocks chip at the arrises and crack across without bars; bags burst and spill, 
 | `counterweight_tail_m` | m | 0.3–0.6 | 0.4 | Tail behind the pivot |
 | `end_rest` | enum | fork, lockable, none | fork | The far-side rest |
 | `arm_state` | enum | down, up, snapped, torn_off | down | Arm pose; snapped and torn_off are D |
-| `hedgehogs` | int | 0–2 | 1 | F03 placed with the kit |
-| `wire_verges` | bool | — | true | F01 runs along the verges |
-| `damage` | 0–1 | — | 0 / 0.5 | I below 0.25, D above; the items below default from it |
-| `shifted_blocks` | 0–1 | — | from damage | Fraction of blocks shoved and rotated |
-| `chips` | int | 0–6 per block | from damage | Chipped arrises and corners |
-| `burst_bags` | 0–0.3 | — | from damage | Fraction of bags burst, with spill cones and slumped courses |
+| `post_bend_deg` | deg | 0–30 | from `damage` (I 0, D 10–30) | The post bent at its foot away from the impact; the pivot, arm and counterweight move with it, and the gap under the arm is written from the bent pose |
+| `hedgehogs` | int | 0–2 | 1 | Recipe: F03 placed with the kit |
+| `wire_verges` | bool | — | true | Recipe: F01 runs along the verges |
+| `damage` | 0–1 | — | 0 / 0.5 | I below 0.25, D above; drives the items marked "from `damage`" ("How this sheet was made") |
+| `shifted_blocks` | 0–1 | — | from `damage` (I 0, D 0.2–0.4, assumed) | Recipe: fraction of blocks shoved 0.2–1 m and rotated 5–20° |
+| `cracked_blocks` | 0–0.3 | — | from `damage` (I 0, D 0.17: one block of the default six, assumed) | Recipe: fraction of blocks placed cracked. The block generator cuts such a block through on one plane across it, inside its middle third and turned up to 20° from square (drawn by `seed`), with a rough plain-concrete fracture and no bars, the halves parted 0–0.05 m; each half is its own body box with its own landable top |
+| `chips` | int | 0–6 per block | from `damage` (I 0, D 1–3, assumed) | Chipped arrises and corners |
+| `burst_bags` | 0–0.3 | — | from `damage` (I 0, D 0.1–0.3) | Fraction of bags burst, with spill cones and slumped courses |
 | `seed` | int | — | — | Every random choice |
+
+Rows marked **Recipe** are the chicane's placement recipe for the layout (phase 3, the world-builder's compiler), not prefab parameters: they place the blocks, hedgehogs and wire, and write the joints between blocks as gaps from the placed geometry (the lane is an open channel with no polygon). The other rows build the three prefabs.
 
 Outputs: the block, the position and the barrier as separate prefabs with their own LODs, collision, gaps and snags; the chicane recipe writes their placement and the lane.
 
 ### Open points
-- `proposed:sandbag` against `fabric` (the stiffness): physics reading.
+- **`sandbag` against `fabric`: closed** by the physics reading (§4): `sandbag` accepted as a new id at 900 N/m per touching part (the row at the end of the sheet).
 - Whether the improvised pipe barrier or the manufactured one reads as today's at G2: a look (D-024).
 
-## Proposed physics ids (for the physics reading, task 1.3)
+## Proposed physics ids: accepted by the physics reading (task 1.3)
 
-Neither is added to `physics_materials.json` here (non-goal of the change); the physics sign-off adds or maps them in the asset change.
+Both ids are **accepted** as new ids with the rows below (`review-physics.md` §4). Each stiffness is the contact law's own: a part's local stiffness, applied once per touching part, not per drone. Neither is added to `physics_materials.json` here (non-goal of the change): the asset change adds both rows, the `fields.edge_radius_m` sentence for a record's own edge radius, and the optional per-shape `stiffness_n_per_m`.
 
 | Id | Used by | μs / μk | Stiffness | ζ | Edge radius | Break | Label and derivation |
 |---|---|---|---|---|---|---|---|
-| `razor_wire` | F01: the coil volume and the tape | 0.35 / 0.28 | **200 N/m** (100–300) for the 0.90 m coil; about 1.8 kN/m for the 0.45 m coil | 0.3 | **0.00025 m** | none (the core takes about 7 kN) | Friction as `steel` (assumed): the barbs hold by hooking, not by μ. Stiffness derived: a loop as a ring under a diametral load, k = EI / ((π/4 − 2/π) R³); the 2.5 mm core at E 200 GPa (assumed for high-tensile steel), I = π d⁴ / 64 = 1.92e-12 m⁴, EI 0.38 N·m², gives 28 N/m for a 0.9 m loop, doubled for the crimped tape (assumed) to 57 N/m; the drone's 0.574 m span bears on about four loops (each spans 0.536 m at a 0.268 m pitch): about 230 N/m; R³ makes the 0.45 m coil 8 times stiffer. ζ assumed for loop-on-loop friction and the clips. Edge: half the published 0.5 mm blade. Break: 2.5 mm core at an assumed 1500 MPa |
-| `sandbag` | F04: filled bags | 0.40 / 0.30 | **1.6e5 N/m** (rigid against the drone) | 0.5 | **0.05 m** | none | Friction as `fabric` (assumed: a polymer foot on woven polypropylene). Stiffness derived: a 15 mm foot bears on the fill like a small plate, k ≈ E · D / (1 − ν²) with E 10 MPa for loose sand or soil and ν 0.3 (both assumed): 1.6e5 N/m; `fabric`'s 600 N/m would let the drone sink 80 mm. Edge: the rounded shoulder of a 0.12 m bag, about half its thickness (derived). ζ assumed for damp fill |
+| `razor_wire` | F01: the coil volume, a sagged coil, a trampled mat; the material of every turn record | 0.35 / 0.28 | **60 N/m per touching part** (40–110) for the 0.90 m coil; a coil of radius R writes its shape's own `stiffness_n_per_m` = 60 · (0.45 / R)³, 480 N/m for the 0.45 m coil | 0.3 | **0.00025 m** (a turn record carries it as `edge_radius_m`) | none (the core takes about 7.4 kN) | derived; accepted. Friction as `steel` (assumed): the barbs hold through the turn records, not μ. Stiffness: one loop under a part as a ring under a diametral load, k = f · EI / ((π/4 − 2/π) R³), with the 2.5 mm core (EI 0.383 N·m² at an assumed 200 GPa) and f = 2 for the crimped tape (assumed, 2–3.8): 57 N/m for a 0.90 m coil, so a drone on four legs meets about 240 N/m and sinks 0.20 m. ζ assumed for loop-on-loop friction and the clips. Edge: half the published 0.5 mm blade. Break: 2.5 mm core at an assumed 1500 MPa. The fiber ignores `razor_wire` shapes and bends over the turn records' `edge_radius_m` |
+| `sandbag` | F04: filled bags | 0.40 / 0.30 | **900 N/m per touching part** | 0.9 | **0.05 m** | none | derived; accepted. Friction as `fabric` (assumed: a polymer foot on woven polypropylene or hessian). Stiffness: a 15 mm foot at 67 kPa punches into loose fill (surface bearing capacity 2–4 kPa), so the fill acts as a loose-soil row: tamped fill at 5e6 N/m³ (assumed, between `tilled` and `meadow_sod`) under the 15 mm reference foot, k = bearing · A = 884 N/m, so a leg sinks 13 mm at rest and 28 mm at 25 N. ζ from those rows' damping at a quarter of 4.8 kg, 0.94. Edge: the rounded shoulder of a 0.12 m bag (derived), so a line over a wall top never cuts. Elastic, so no footprint stays (a deviation from the soil law, accepted). No wet adhesion on polypropylene |
 
 ## Open points across the sheet
 
-- **For the physics reading (task 1.3):** cut or hold (F01); which radius the fiber bends over on a turn and whether the snag record carries the barb pitch and blade edge as fields (F01); `proposed:razor_wire` and `proposed:sandbag`; the snag budget of long wire runs.
-- **For the asset change and the pipeline:** a frustum or convex-hull collision primitive for the teeth (F02); until then 11 stacked boxes per tooth.
+- **Closed by the physics reading (task 1.3):** cut or hold (F01, §2); which radius the fiber bends over and the snag fields `edge_radius_m` and `barb_pitch_m` (F01, §1); `razor_wire` and `sandbag`, accepted (§4); the teeth's collision, one `convex` hull per tooth (F02, §6); the snag budget, through the binned cache (§7).
+- **For the asset change and the pipeline** (asset-artist, physics sign-off): the `convex` collision kind in `meta.SHAPES`, the validator, the audit and the importer (F02, §6); the optional snag fields through `meta.validate`, the importer and `SnagFeature` (F01, §1); the two material rows, the `fields.edge_radius_m` sentence and the per-shape `stiffness_n_per_m` (§4); an envelope audit for the compliant coil volume (F01).
+- **For the phase-3 world-query spec** (world-builder, physics sign-off): the `convex` contact, raycast, golden cases and `teeth_field` case (§6); a spatial index over shapes, records and gaps, a record query feeding the cache, the 2,048-segment cap per 2 m cube and the `wire_runs` bench (§7).
+- **For the world-builder's compiler (phase 3):** the gaps between separately placed objects, written from the placed geometry by the placement recipes: the in-row and between-row throats of a teeth field (F02) and the joints of a block line (F04). A gallery module built as one asset carries its own; a hedgehog pair (F03) is one asset, so its throat stays in its metadata.
 - **For the layout (phase 3):** the stand-off of protective wire, the checkpoint positions and the number of hedgehogs are assumed here and set by the layout from the trench and road plan.
 - **For the pilot, at G2 only, as a look (D-024):** which forms read as today's: coils loose on the ground or on pickets, bright or rusted; teeth squat or slim; hedgehogs of rail or angle; a manufactured or an improvised barrier. No number is asked.
