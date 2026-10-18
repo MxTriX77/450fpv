@@ -399,6 +399,20 @@ def test_surface_under_the_ground_is_ignored(lift):
         assert measured_mm(problems[0]) == pytest.approx(math.hypot(0.3, HUG_R) * 1000, abs=SHELL_MM)
 
 
+def test_a_chain_of_capsules_is_measured_outside_its_buried_caps():
+    """p1-v01-locust: a trunk of two 80 mm capsules along a 12-sided tube domed at both ends, as the tree builds
+    it. The caps where they meet lie inside each other, 80 mm off the tube's wall at their poles: no invisible wall.
+    The exposed surface follows the mesh within its facets."""
+    trunk = skeleton.Member([(0.0, 0.5, 0.0), (0.0, 1.5, 0.0), (0.0, 2.5, 0.0)], [0.08, 0.08, 0.08], 0)
+    lod0 = Mesh()
+    skeleton.tree_tubes(lod0, [trunk], 0, lambda member: "bark")
+    data = {"materials": [{"slot": "bark", "visual": "bark_locust", "physics": "bark"}],
+            "collision": [meta.capsule(p0, p1, 0.08, "bark") for p0, p1, _, _ in trunk.segments()], "gaps": []}
+    problems, lines = audit.run(data, lod0)
+    assert problems == [] and len(lines) == 3
+    assert all(measured_mm(line) < 10.0 for line in lines)  # the dome's 22.5 deg facets: 6 mm
+
+
 def test_a_capsule_off_its_tube_by_7cm_still_fails():
     data, lod0 = hugged()
     data["collision"][0]["center"][0] += 0.07

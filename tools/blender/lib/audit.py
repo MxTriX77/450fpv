@@ -1,8 +1,9 @@
 """The build-time collision audit (p1-pipeline-hardening, "Collision audit at build time"; physics review P1-2;
 AST-05), in plain Python so the tests run without Blender.
 
-For every collision primitive, the largest distance from its surface to the LOD0 mesh (an invisible wall), and for
-the LOD0 mesh, the largest distance from its surface to the union of the primitives (a visible surface nothing
+For every collision primitive, the largest distance from its surface to the LOD0 mesh (an invisible wall), over the
+surface outside the other primitives (a cap buried in the next capsule of a chain is no wall; p1-v01-locust), and
+for the LOD0 mesh, the largest distance from its surface to the union of the primitives (a visible surface nothing
 collides with), each within 1 mm of the true maximum. Beyond 50 mm the build fails, or beyond 20 mm within 0.3 m of
 a gap polygon or a landable face (a landable primitive's faces whose normal is within 30 degrees of up). Each gap's
 narrowest_m is checked against the diameter of the largest circle inscribed in its polygon, within 5 mm.
@@ -78,6 +79,7 @@ def run(meta, lod0, card_visuals=(), card_reach_m=None):
     shells = [i for i, s in enumerate(meta["collision"]) if s["material"] in SHELL_MATERIALS]
     body = [i for i in range(len(shapes)) if i not in shells]
     faces = [face for face in _mesh_faces(lod0) if face.slot not in shell_slots]
+    index = FaceIndex(faces) if faces else None  # the faces on a grid, as a scan of them in order finds them
     zone = _zone(meta, shapes)
     problems, lines = [], []
     for i in body:
@@ -86,8 +88,10 @@ def run(meta, lod0, card_visuals=(), card_reach_m=None):
             problems.append(f"collision[{i}] {shape.kind}: no LOD0 face outside the shells' slots stands under it")
             continue
         cells = [tri[:3] for tri in shape.triangles]
+        others = [shapes[j] for j in body if j != i and _dist(shapes[j].centre, shape.centre) < shape.reach() + shapes[j].reach()]
         problems += _report(lines, f"collision[{i}] {shape.kind}", f"{shape.kind}->mesh", cells, zone,
-                            lambda v: _nearest_face(v, faces), lambda cell, which: _faces_bound(cell, which, faces))
+                            lambda v: index.nearest(v, lowest=True), lambda cell, which: _faces_bound(cell, which, faces),
+                            hidden=_hider(others))
     if faces and not body:
         problems.append("mesh: no collision primitive stands for the LOD0 mesh")
     elif faces:
@@ -105,14 +109,28 @@ def run(meta, lod0, card_visuals=(), card_reach_m=None):
     return problems, lines
 
 
-def _report(lines, label, direction, cells, zone, value, bound, note=lambda which: ""):
+def _hider(others):
+    """None with no `others`, else the pair (hidden(v), dropped(cell)) of the primitive -> mesh direction: a point
+    inside another body primitive is no invisible wall, as in a chain of capsules whose caps lie buried in their
+    neighbours (p1-v01-locust: the tree's trunk and limbs), and a flat cell whose three vertices lie deeper than
+    CHORD_M in one of them (convex) is wholly so."""
+    if not others:
+        return None
+    return (lambda v: any(o.sdf(v) < 0 for o in others),
+            lambda cell: any(all(o.sdf(v) < -CHORD_M for v in cell) for o in others))
+
+
+def _report(lines, label, direction, cells, zone, value, bound, note=lambda which: "", hidden=None):
     """Measures one direction, appends its report line and returns its problems."""
-    distance, at, which = _directed_max(cells, value, bound)
+    distance, at, which = _directed_max(cells, value, bound, hidden=hidden)
+    if at is None:
+        lines.append(f"audit {label}: {direction} no surface outside the other primitives, tolerance {TOLERANCE_M * 1000:g} mm")
+        return []
     text = f"{direction} {distance * 1000:.3f} mm at {_fmt(at)}{note(which)}"
     line = f"{label}: {text}, tolerance {TOLERANCE_M * 1000:g} mm"
     problems = [] if distance <= TOLERANCE_M else [f"{label}: {text} exceeds the tolerance {TOLERANCE_M * 1000:g} mm"]
     if zone:
-        distance, at, which = _directed_max(cells, value, bound, zone)
+        distance, at, which = _directed_max(cells, value, bound, zone, hidden)
         if at is not None:
             text = f"near gaps/landable {distance * 1000:.3f} mm at {_fmt(at)}{note(which)}"
             line += f"; {text}, tolerance {NEAR_TOLERANCE_M * 1000:g} mm"
@@ -379,9 +397,10 @@ class FaceIndex:
                         if _face_distance(centre, face) <= half:
                             self.cells.setdefault((x, y, z), []).append(i)
 
-    def nearest(self, p, cap=math.inf):
+    def nearest(self, p, cap=math.inf, lowest=False):
         """(distance, face index) of the face nearest to p, or (cap, None) when none lies nearer than `cap`. A face
-        whose bounding box lies no nearer than the best so far is skipped."""
+        whose bounding box lies no nearer than the best so far is skipped; with `lowest`, a tie goes to the lower
+        face index, as a scan of the faces in order gives it (the collision audit's primitive -> mesh direction)."""
         px, py, pz = p
         cx, cy, cz = math.floor(px / FACE_CELL_M), math.floor(py / FACE_CELL_M), math.floor(pz / FACE_CELL_M)
         best, which, seen, faces, cells = cap, None, set(), self.faces, self.cells
@@ -399,9 +418,10 @@ class FaceIndex:
                 ex = lx - px if px < lx else px - hx if px > hx else 0.0
                 ey = ly - py if py < ly else py - hy if py > hy else 0.0
                 ez = lz - pz if pz < lz else pz - hz if pz > hz else 0.0
-                if ex * ex + ey * ey + ez * ez < best * best:
+                box = ex * ex + ey * ey + ez * ez
+                if box < best * best or (lowest and box == best * best):
                     d = _face_distance(p, face)
-                    if d < best:
+                    if d < best or (lowest and d == best and which is not None and i < which):
                         best, which = d, i
             if best <= k * FACE_CELL_M:  # every unseen face lies beyond the rings searched
                 break
@@ -413,30 +433,35 @@ _RINGS = [[(x, y, z) for x in range(-k, k + 1) for y in range(-k, k + 1) for z i
            if max(abs(x), abs(y), abs(z)) == k] for k in range(FACE_RINGS + 1)]
 
 
-def _directed_max(cells, value, bound, zone=None):
+def _directed_max(cells, value, bound, zone=None, hidden=None):
     """The largest value over the surface of the `cells` triangles, within PRECISION_M, as (value, point, which):
     `value(vertex)` gives the exact (distance, which) at a point and `bound(cell, [which per vertex])` an upper
     bound over a cell. Only the points within NEAR_RANGE_M of `zone` count when it is given (point None when no
-    such point exists)."""
-    cache, near = {}, {}
+    such point exists). With `hidden` (see _hider), a hidden vertex counts no value and a hidden cell is dropped;
+    a cell's bound still holds its exposed points, so the search closes in on the edges of the exposed surface down
+    to cells of PRECISION_M."""
+    cache, near, covered = {}, {}, {}
     best, at, which = -1.0, None, None
     heap = []
 
     def push(cell):
         nonlocal best, at, which
+        if hidden and hidden[1](cell):
+            return
         for v in cell:
             if v not in cache:
                 cache[v] = value(v)
+                covered[v] = bool(hidden) and hidden[0](v)
             if zone and v not in near:
                 near[v] = _zone_distance(v, zone)
         if zone and min(near[v] for v in cell) - _longest_edge(cell) > NEAR_RANGE_M:
             return
         for v in cell:
             d, w = cache[v]
-            if d > best and (not zone or near[v] <= NEAR_RANGE_M):
+            if d > best and (not zone or near[v] <= NEAR_RANGE_M) and not covered[v]:
                 best, at, which = d, v, w
         upper = bound(cell, [cache[v][1] for v in cell])
-        if upper > best + PRECISION_M:
+        if upper > best + PRECISION_M and (not hidden or _longest_edge(cell) > PRECISION_M):
             heapq.heappush(heap, (-upper, len(heap), cell))
 
     for cell in cells:
@@ -507,23 +532,6 @@ def _face_distance(p, face):
         if d2 < best:
             best = d2
     return math.sqrt(best)
-
-
-def _nearest_face(p, faces):
-    """(distance, index) of the face nearest to p; a face's bounding box skips it when it cannot win."""
-    px, py, pz = p
-    best, which = math.inf, None
-    for i, face in enumerate(faces):
-        lo, hi = face.lo, face.hi
-        dx = lo[0] - px if px < lo[0] else px - hi[0] if px > hi[0] else 0.0
-        dy = lo[1] - py if py < lo[1] else py - hi[1] if py > hi[1] else 0.0
-        dz = lo[2] - pz if pz < lo[2] else pz - hi[2] if pz > hi[2] else 0.0
-        if dx * dx + dy * dy + dz * dz >= best * best:
-            continue
-        d = _face_distance(p, face)
-        if d < best:
-            best, which = d, i
-    return best, which
 
 
 def _faces_bound(cell, which, faces):
