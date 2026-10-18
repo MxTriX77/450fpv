@@ -10,7 +10,8 @@ namespace Fpv450.Tests.EditMode
     /// LOD0 three opaque pixels of (90, 120, 50) and one half covered (over black (64, 86, 34), over white
     /// (196, 203, 190), the bytes a coverage of 0.5 gives); LOD1 four opaque pixels of (88, 117, 49); LOD2 two opaque
     /// pixels of (70, 95, 40). The expected numbers were computed apart from the code, in double precision, with the
-    /// sRGB decoding of IEC 61966-2-1; the limits are the spec's 6 % and 15 %.
+    /// sRGB decoding of IEC 61966-2-1; the limits are the spec's 6 % and 15 %. Task 1.2c's averaging over the camera
+    /// offsets on four literal crowns, one per offset, with their numbers computed apart from the code too.
     /// </summary>
     public sealed class LodParityTests
     {
@@ -73,6 +74,35 @@ namespace Fpv450.Tests.EditMode
             Assert.That(luminance, Is.EqualTo(-0.390903).Within(Tolerance));
             Assert.That(coverage, Is.EqualTo(-0.428364).Within(Tolerance));
             Assert.That(LodParity.Passes(luminance, coverage), Is.False);
+        }
+
+        [Test]
+        public void Offsets_AreA2x2GridHalfAPixelApartAroundTheReviewsFraming()
+        {
+            Assert.That(LodParity.Offsets, Is.EqualTo(new[] { new Vector2(-0.25f, -0.25f), new Vector2(0.25f, -0.25f), new Vector2(-0.25f, 0.25f), new Vector2(0.25f, 0.25f) }));
+        }
+
+        [Test]
+        public void Average_TakesEachValuesMeanAndItsSpreadOverTheOffsets()
+        {
+            LodParity.Crown[] samples =
+            {
+                new LodParity.Crown(96, 0.060, 0.070, 0.040),
+                new LodParity.Crown(100, 0.064, 0.074, 0.038),
+                new LodParity.Crown(94, 0.058, 0.068, 0.042),
+                new LodParity.Crown(98, 0.062, 0.072, 0.040),
+            };
+            (LodParity.Crown mean, double luminanceSpread, double coverageSpread) = LodParity.Average(samples);
+            Assert.That(mean.Coverage, Is.EqualTo(97.0).Within(Tolerance));
+            Assert.That(mean.R, Is.EqualTo(0.061).Within(Tolerance));
+            Assert.That(mean.G, Is.EqualTo(0.071).Within(Tolerance));
+            Assert.That(mean.B, Is.EqualTo(0.040).Within(Tolerance));
+            // The mean of the four luminances 0.0657080, 0.0692748, 0.0639968 and 0.0675636; pooling the four renders'
+            // pixels, weighted by coverage, would give 0.0666814.
+            Assert.That(mean.Luminance, Is.EqualTo(0.0666358).Within(Tolerance));
+            // (0.0692748 − 0.0639968) / 0.0666358 and (100 − 94) / 97.
+            Assert.That(luminanceSpread, Is.EqualTo(0.0792067).Within(Tolerance));
+            Assert.That(coverageSpread, Is.EqualTo(0.0618557).Within(Tolerance));
         }
 
         [Test]
