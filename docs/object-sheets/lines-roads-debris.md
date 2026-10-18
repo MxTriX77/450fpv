@@ -1,6 +1,6 @@
 # Object sheet: lines, roads and debris (L01–L05, RD01–RD03, K01–K06, K08–K10)
 
-**Owner:** reference-analyst. **Reviewed for buildability by:** asset-artist (task 1.7, pending).
+**Owner:** reference-analyst. **Reviewed for buildability by:** asset-artist (task 1.7, `openspec/changes/p1-object-sheets/review-buildability.md`).
 
 **OPSEC:** cite clips and photos by letter only. Describe classes, never a specific identifiable building, place, date or person. No file names, and no OSD values.
 
@@ -133,7 +133,7 @@ Every wire is far stronger than anything the drone can pull (3.7 kN for the weak
 | `damage` | 0–1 | — | 0 / 0.5 / 1.0 | I below 0.25, D 0.25–0.8, X above 0.8; the items below default from it |
 | `shrapnel_scars` | int | 0–40 | from damage | Wood: gouges 10–80 mm on one side; concrete: spalls 20–150 mm with bars showing |
 | `broken_insulators` | 0–1 | — | from damage | Fraction shattered to a stub, shards at the foot |
-| `crossarm_state` | enum | intact, twisted, hanging, gone | from damage | |
+| `crossarm_state` | enum | intact, twisted, hanging, gone | from damage | Crossarm pose: twisted 10–45° about the pole, hanging from one bolt, or gone (its insulators and wires follow; snags and `wire_ports` move with it) |
 | `snap_height_m` | m | 0 or 0.3–3 | 0 | X: where the pole broke; wood splinters, concrete crushed with its bars bent |
 | `snap_hang_deg` | deg | 0–90 | 60 | X concrete: the angle the top hangs at on its bars |
 | `char_height_m` | m | 0–2 | 0 | Burnt base (wood) |
@@ -328,7 +328,7 @@ See "How lines fail" above. A cut aluminium conductor unravels at the end (stran
 | `arrangement` | enum | vertical_zigzag, horizontal, top_triangle, bundle | from the pole head | Positions at the pole |
 | `spacing_m` | m | 0.4–1.0 | 0.5 | Between conductors |
 | `span_m` | m | 10–90 | from placement | Pole to pole |
-| `sag_ratio` | — | 0.005–0.3 | 0.02 | Sag = ratio × span; above 0.05 only on damaged spans |
+| `sag_ratio` | float | 0.005–0.3 | 0.02 | Sag = ratio × span; above 0.05 only on damaged spans |
 | `attach_heights_m` | m, m | 2.75–8 | from the poles or the house | The two ends |
 | `twist_pitch_m` | m | 0.3–0.6 | 0.45 | SIP bundle twist (visual) |
 | `damage` | enum per conductor | intact, cut, down | intact | Cut ends hang (L05 form) or drop (L04 form) |
@@ -408,7 +408,7 @@ The end of a cut span or a torn drop; the far end may still be live on its pole 
 | Diameter | 3–15 mm (phone pair 3–4, coax 6–7, round power 8–12, flat twin 4 × 8, SIP drop 15) | 7 mm | assumed |
 | Loop (both ends fixed) | span 0.5–3 m, drop 0.3–1.5 m | 1.5 m span, 0.8 m drop | measured E 16–17 (0.5–1 m drop) |
 | Free end | 0.5–3 m long, the tip 0–0.5 m above the floor or lying on it | 1.5 m | assumed |
-| Diagonal (between two edges) | 1–4 m | 2.5 m | measured K (1–3 m between slab edges) |
+| Diagonal (between two edges) | 1–6.5 m | 2.5 m | measured K (1–3 m between slab edges); up to 6.5 m from a slab edge to the floor below across a 5.6 m bay (urban-edge U01, derived) |
 | Coil on the ground | 0.4–1.0 m across | 0.6 m | measured K |
 
 ### Construction and materials
@@ -444,7 +444,7 @@ A cable hangs wherever a ceiling, slab edge or eave was torn open: one per room 
 | `form` | enum | loop, free_end, diagonal, coil | loop | End conditions |
 | `type` | enum | phone_pair, coax, round, flat_twin, sip_drop | round | Diameter, cross-section shape, colour |
 | `diameter_mm` | mm | 3–15 | by type | Radius |
-| `length_m` | m | 0.3–4 | 1.5 | Cable length |
+| `length_m` | m | 0.3–6.5 | 1.5 | Cable length (diagonals in U01 to 6.5 m) |
 | `attach` | points | 1–2 | from the host asset | Where it hangs from |
 | `tip_height_m` | m | 0–0.5 | 0.2 | Free end above the floor |
 | `seed` | int | — | — | Curl, end splay |
@@ -525,19 +525,19 @@ Asphalt fails by cracking (fatigue and frost), then the cracked cells lose their
 | `curve_radius_m` | m | 15–40 | 25 | Curve |
 | `width_m` | m | 3.5–7.0 | 6.0 | Carriageway |
 | `shoulder_m` | m | 0.5–2.0 | 1.0 | Shoulders |
-| `crossfall` | — | 0.015–0.03 | 0.02 | Camber |
+| `crossfall` | float | 0.015–0.03 | 0.02 | Camber |
 | `layer_mm` | mm | 40–80 | 50 | Edge drop and slab thickness |
 | `edge_break_m` | m | 0–0.6 | 0.3 | Ravelled edge width |
 | `patch_fraction` | 0–1 | 0–0.3 | 0.1 | Patches |
 | `crack_density` | 0–1 | — | 0.4 | Crack network (decal and normal; cracks have no physical role below 20 mm) |
-| `potholes_per_100m2` | — | 0–5 | 0.5 (I), 2 (D) | Pitfall features |
-| `pothole_size_m`, `pothole_depth_mm` | m, mm | 0.2–2.0, 40–150 | 0.6, 70 | |
+| `potholes_per_100m2` | float | 0–5 | 0.5 (I), 2 (D) | Pitfall features |
+| `pothole_size_m`, `pothole_depth_mm` | m, mm | 0.2–2.0, 40–150 | 0.6, 70 | Pothole size and depth, drawn per hole around the defaults; written to the map as pitfall features (outline, depth, wall slope) |
 | `pothole_water` | 0–1 | — | 0.3 | Fraction holding water (a flat reflective top) |
 | `crater_spacing_m` | m | 0 or 20–100 | 0 (X: 50) | Craters with slab rings (with E05) |
 | `debris_density` | 0–1 | — | from the state | Branches, glass, K-kit pieces on the road |
 | `wetness`, `snow` | 0–1 | — | 0, 0 | Weather state (O: 0.8, 0.6) |
 | `kerb` | bool | — | false | Urban kerb |
-| `seed` | int | — | — | |
+| `seed` | int | any | per piece | Every random choice (cracks, patches, potholes, edge breaks) |
 
 ### Open points
 - `proposed:asphalt` for lifted slabs and broken edges (friction near `concrete`, edge radius 3–5 mm from the aggregate): physics sign-off.
@@ -603,7 +603,7 @@ Plates rarely break in place; a burst beside the track tips and lifts plates, a 
 | `broken` | 0–1 | 0–0.2 | 0.02 | Broken plates |
 | `soil_cover` | 0–1 | — | 0.3 | Mud and straw on the plates (decal) |
 | `joint_weeds` | 0–1 | — | 0.6 | Weed density in the joints (micro-detail) |
-| `seed` | int | — | — | |
+| `seed` | int | any | per track | Every random choice (joints, steps, tilts, missing and broken plates) |
 
 ### Open points
 - Which layout dominates locally is not seen in any letter; the generator holds all three and the world uses double_row as the default. Settled by the world review, not by the pilot.
@@ -656,9 +656,11 @@ Craters in the track (E05), tracks detouring around them in a widened, braided b
 | `rut_spacing_m` | m | 1.3–2.0 | 1.6 | Gauge |
 | `rut_width_m`, `rut_depth_m` | m | 0.25–0.5, 0.05–0.3 | 0.35, 0.12 | Rut cross-section |
 | `median_grass_m` | m | 0–0.4 | 0.25 | Median cover height (cover layer) |
+| `median_h_m` | m | 0–0.1 | 0.05 | Median rise above the verges (the earthworks sheet's S13, which now defers to this table) |
+| `wander` | amplitude, wavelength | 0–0.5 m, 10–50 m | 0.2 m, 30 m | Sway of the ruts about the centreline |
 | `wet` | 0–1 | — | 0 | Puddles, mud |
 | `braid_width_m` | m | 0–15 | 0 | Detour braiding around an obstacle |
-| `seed` | int | — | — | |
+| `seed` | int | any | per track | Every random choice (rut wander, puddles, braiding) |
 
 ### Open points
 - Sub-grid ruts in the map format (a relief feature like the tilled furrows): world-builder.
@@ -682,7 +684,7 @@ Craters in the track (E05), tracks detouring around them in a widened, braided b
   | Household items (K08) | 3 m, in front of open rooms and windows | measured K |
   | Tarps, fabric, film, cables (K05, K10) | attached, or within 2 m | measured C, K |
 
-- **Mixture by volume:** the K mound (by eye, measured K): brick fragments and clusters about 50 %, furniture and appliances 15 %, plastic (PVC frames, crates, film) 10 %, concrete elements 10 %, timber 10 %, fabric 5 %. A village house's heap (E, J, assumed from both): tile or slate 40 %, adobe or brick 35 %, timber 20 %, glass and contents 5 %.
+- **Mixture by volume:** the K mound is urban-edge U02's, whose `piece_mix` is the one source (brick 55 %, bonded chunks 8 %, concrete 8 %, timber 12 %, PVC 7 %, contents 7 %, textiles 3 %; this sheet's own first read of K, by eye, was brick about 50 %, furniture 15 %, plastic 10 %, concrete 10 %, timber 10 %, fabric 5 %). A village house's heap (E, J, assumed from both): tile or slate 40 %, adobe or brick 35 %, timber 20 %, glass and contents 5 %.
 - **Landable pieces (derived):** a piece is landable only if its top face holds the 0.24 m leg square with 5 cm to spare each side (at least 0.35 × 0.35 m) within 15° of level; the generator sets `landable` from the resting pose.
 - **Tilt under one leg (derived, atan(h / 0.24) along a side / atan(h / 0.34) on the diagonal):** tile shard 15 mm: 3.6° / 2.5°; flat brick 65 mm: 15° / 11°; brick on edge 120 mm: 27° / 19°; board 30 mm: 7° / 5°; a 0.2 m chunk: 40° / 30° (the drone slides off).
 - **LOD:** a piece of size s drops under 2 render px at d = 935 · s / 2 (K01: 0.25 m → 117 m, the 120 m cull of `K01_whole`); a 0.1 m chunk culls at about 47 m and the surface micro-detail and textures carry the heap beyond.
@@ -1011,11 +1013,11 @@ Tarps tear at the grommets first, then along the weave; film shreds into strips 
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| Lintel piece | 0.12–0.14 × 0.22 × 0.5–2 m, 2–4 bars of 8–12 mm | 0.12 × 0.22 × 1.2 m, 2 bars of 10 mm | houses-and-yard (lintels) |
+| Lintel piece | 0.12–0.14 × 0.25 × 0.5–2 m, 2–4 bars of 8–12 mm | 0.12 × 0.25 × 1.2 m, 2 bars of 10 mm | houses-and-yard (lintels: 0.12–0.14 × 0.25 m per leaf) |
 | Hollow-core slab piece | 0.22 m thick, voids 159 mm, pieces 0.3–1.5 m | 0.22 × 1.0 × 0.8 m | published |
 | Precast beam | 3–4 m × 0.3–0.5 m deep | 3.5 × 0.4 × 0.25 m | measured K |
 | Screed or thin slab piece | 0.05–0.15 m thick, 4–5 mm mesh at 0.1–0.2 m | 0.08 m, mesh 0.15 m | assumed |
-| Bars | 6–14 mm; 0.05–0.8 m proud; straight, bent 30–90° or hooked; 2–6 per break | 10 mm, 0.35 m | assumed range; measured K (about 0.35 m) |
+| Bars | 5–14 mm (the lower end is the wire urban-edge U01 lists at broken slab ends); 0.05–0.8 m proud; straight, bent 30–90° or hooked; 2–6 per break | 10 mm, 0.35 m | assumed range; measured K (about 0.35 m) |
 
 ### Construction and materials
 - Precast concrete elements of the brick houses and the block (lintels, floor slabs, beams, balcony slabs) and monolithic screeds; broken across, the concrete crushed at the break, bars bent out and rusting, fracture faces paler and rough with aggregate.
@@ -1051,7 +1053,7 @@ Lintels crack and drop when the brick above them goes; slabs crack at their supp
 | `size_m` | {l, w, h} | as above | by piece | Piece size |
 | `fracture_roughness_mm` | mm | 5–40 | 15 | Break relief |
 | `bars` | int | 0–8 | by piece | Bars at each break |
-| `bar_d_mm` | mm | 6–14 | 10 | Bar radius (collision and snag) |
+| `bar_d_mm` | mm | 5–14 | 10 | Bar diameter; the collision capsule and the snag take half of it as their radius |
 | `bar_proud_m` | range | 0.05–0.8 | 0.1–0.4 | How far bars stick out |
 | `bar_bend_deg` | range | 0–90 | 0–45 | Bending |
 | `mesh_pitch_m` | m | 0 or 0.1–0.2 | 0 | Screed mesh |
@@ -1230,7 +1232,7 @@ Blast pulls curtains out through the window openings and strips wallpaper from t
 | `swag_sag_m` | m | 0.3–1 | 0.6 | Swags |
 | `blow_out` | 0–1 | — | 0 | How far it hangs out of an opening |
 | `tears`, `shred` | int, 0–1 | — | 1, 0 | Damage |
-| `pattern`, `colour` | — | — | by piece | Surface |
+| `pattern`, `colour` | enum, sRGB | per piece: plain, floral, striped, wallpaper print | by piece | Surface print and tint |
 | `soot`, `dust` | 0–1 | — | 0, 0.5 | Surface |
 | `cables` | int | 0–3 | 1 | L05 cables added with it |
 | `seed` | int | — | — | Drape, tears |
