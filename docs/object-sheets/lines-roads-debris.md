@@ -209,7 +209,7 @@ Shared pole table, with these defaults: `pole_kind` wood_log, `length_m` 9.5, `t
 ## L02 Concrete pole with crossarm and insulators
 
 **Seen in:** H 1–4 (a straight grey pole passing 3–4 m to the right: two flat faces meeting at a sharp vertical arris, a clear taper from the butt, and a round through-hole on the lit face at mid-frame, H 2–3; so a vibrated rectangular СВ-type pole, not a round log). O shows a lamp post with a curved arm (the urban class). **R** for the head.
-**Research sources:** the СВ-95 pole: 9.5 m long, 0.36 m³, 0.9 t, for lines from 0.4 kV (published, https://productcenter.ru/products/124963/stoika-sv95-3 ); vibrated stands of 9.5 and 10.5 m for 0.38 kV SIP lines (published registry abstract, https://nrat.ukrintei.ua/searchdoc/0305U001101 ); ПУЕ clauses above.
+**Research sources:** the СВ-95 pole: 9.5 m long, 0.36 m³, 0.9 t, for lines from 0.4 kV (published, https://productcenter.ru/products/124963/stoika-sv95-3 ); the СВ-105 stand: 10.5 m long, 0.47 m³, 1.18 t, for lines up to 10 kV (published, https://productcenter.ru/products/124965/sv105-5 ); ПУЕ clauses above.
 
 ### Dimensions
 | Part | Range | Chosen default | Label |
@@ -480,7 +480,7 @@ A cable hangs wherever a ceiling, slab edge or eave was torn open: one per room 
 | Crater in asphalt (with the E05 crater) | 1–4 m across, the asphalt lifted in slabs 0.2–0.8 m around the rim, radial cracks to 1–3 radii | 2 m | E05 in the earthworks sheet; ring assumed |
 | Fragment pits | 10–60 mm across, 5–30 mm deep, within 5–15 m of a crater | — | assumed |
 | Kerb (urban edge only) | stones 0.15 × 0.30 × 1.0 m, 0.10–0.15 m above the carriageway | — | measured M (a kerb at the back, urban); village streets have none (assumed) |
-| Kit pieces | straight 10 and 20 m; curves of radius 15–40 m; T and X junctions; an end that crumbles into a dirt track (RD03) | — | asset list |
+| Kit pieces | straight 10 and 20 m; curves of radius 15–40 m; T and X junctions; an end that crumbles into a dirt track (RD03) | — | assumed (asset list) |
 
 ### Construction and materials
 - Hot asphalt on crushed stone on the compacted soil; no kerbs in the village, grass and soil shoulders, a ditch on one or both sides on the road out of the village. Worn pale and dusty in dry weather (M), dark and wet under slush in winter (O); dust, mud, gravel, twigs and glass crumbs on it.
@@ -830,8 +830,8 @@ Tiles lift, slide and break at the eaves and the foot; slate shatters and scatte
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
 | Board | 25–40 × 100–200 mm × 0.3–6 m | 32 × 150 mm × 1.5 m | published classes; lengths assumed |
-| Batten | 50 × 50 mm (or 25 × 100) × 0.3–4 m | 50 × 50 mm × 1.2 m | houses-and-yard |
-| Rafter | 50 × 150 or 100 × 150 mm, or round 0.10–0.16 m, × 1–6 m | 100 × 150 mm × 3 m | houses-and-yard (0.10–0.15 m thick) |
+| Batten | 50 × 50 mm (or 25 × 100) × 0.3–4 m | 50 × 50 mm × 1.2 m | published, as houses-and-yard (shared roofs: battens 50 × 50 or 25 × 100 mm); lengths assumed |
+| Rafter | 50 × 150 or 100 × 150 mm, or round 0.10–0.16 m, × 1–6 m | 100 × 150 mm × 3 m | assumed, as houses-and-yard (rafters 0.10–0.15 m thick) |
 | Beam (plate, сволок) | 150 × 150 to 200 × 250 mm × 2–6 m | 180 × 180 mm × 3 m | houses-and-yard; measured J (0.15–0.18 m, about 2.8 m) |
 | Board panel (door leaf, fence or shed section) | 0.8–2 × 1.5–2 m, boards on 2–3 ledges | 0.8 × 1.9 m | AST-04; measured E 7 |
 | Splinters at a break | 0.05–0.4 m long, 5–30 mm thick | 0.2 m | assumed (the V07 style) |
@@ -957,7 +957,7 @@ Panels tear off their battens at a few kPa and fly 5–30 m downwind, wrapping r
 | Grommets | every 0.46–1.5 m on a rope-hemmed edge | 1.0 m | published |
 | Film (building, greenhouse) | 0.1–0.2 mm, 1.5–6 m | 0.15 mm, 3 × 3 m | assumed; measured K (a white sheet of about 1 × 1.5 m on the beam) |
 | Tears | rips 0.2–2 m, holes 0.05–0.5 m, frayed edges | 2 rips | assumed |
-| Weights | bricks, tyres, planks on the edges | 3 bricks | houses-and-yard (C01, Y09) |
+| Weights | bricks, tyres, planks on the edges | 3 bricks | assumed, as houses-and-yard (C01, Y09) |
 
 ### Construction and materials
 - Woven polyethylene, blue (also green, silver, white), sun-faded on the exposed side, dirt in the folds and along the bottom, frayed where it rubbed. Film: a single clear-to-milky sheet that shreds into strips.
@@ -1013,7 +1013,7 @@ Tarps tear at the grommets first, then along the weave; film shreds into strips 
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| Lintel piece | 0.12–0.14 × 0.25 × 0.5–2 m, 2–4 bars of 8–12 mm | 0.12 × 0.25 × 1.2 m, 2 bars of 10 mm | houses-and-yard (lintels: 0.12–0.14 × 0.25 m per leaf) |
+| Lintel piece | 0.12–0.14 × 0.25 × 0.5–2 m, 2–4 bars of 8–12 mm | 0.12 × 0.25 × 1.2 m, 2 bars of 10 mm | assumed, as houses-and-yard (lintels: 0.12–0.14 × 0.25 m per leaf, standard practice) |
 | Hollow-core slab piece | 0.22 m thick, voids 159 mm, pieces 0.3–1.5 m | 0.22 × 1.0 × 0.8 m | published |
 | Precast beam | 3–4 m × 0.3–0.5 m deep | 3.5 × 0.4 × 0.25 m | measured K |
 | Screed or thin slab piece | 0.05–0.15 m thick, 4–5 mm mesh at 0.1–0.2 m | 0.08 m, mesh 0.15 m | assumed |
@@ -1133,8 +1133,8 @@ Contents spill out of open rooms and down the rubble slope (K); light items (cus
 | Car tyre | 0.57–0.60 m × 0.155–0.175 m, a 13-inch (0.33 m) bead | 165/80 R13: 0.59 × 0.165 m | derived from the size code |
 | Truck tyre | 1.0–1.22 m × 0.26–0.40 m | 1.0 × 0.26 m | derived from the size codes of the ЗИЛ and Урал class (the vehicles sheet holds the published specs) |
 | Burnt tyre | two bead rings of 5–8 mm steel-wire bundles plus a tangle of 0.3–1 mm cord wire | — | assumed |
-| Barrel | 0.585 × 0.88 m, 200 l steel drum | — | houses-and-yard Y11 |
-| Bucket | 0.28–0.32 × 0.27–0.30 m, 10–12 l | 0.30 × 0.28 m | houses-and-yard Y11 |
+| Barrel | 0.585 × 0.88 m, 200 l steel drum | — | assumed, as houses-and-yard Y11 (the standard drum) |
+| Bucket | 0.28–0.32 × 0.27–0.30 m, 10–12 l | 0.30 × 0.28 m | assumed, as houses-and-yard Y11 |
 | Wooden crate | 0.5 × 0.3 × 0.3 m, slatted | — | assumed |
 | Plastic crate | 0.6 × 0.4 × 0.3 m | — | assumed; measured K (about 0.6 × 0.45 m) |
 
@@ -1193,7 +1193,7 @@ Fire leaves tyres as bead rings and wire tangles in a black ash patch; fragments
 | Wall carpet | 1.5 × 2 to 2 × 3 m, 5–10 mm thick | 2 × 3 m | assumed |
 | Fabric over a slab edge | 0.3–1.5 m drop | 0.5 m | measured K |
 | Insulation and film | 0.5–2 m pieces | 1 m | assumed; measured K (film) |
-| Hanging cables | as L05 | — | L05 |
+| Hanging cables | as L05 | — | assumed, as L05 |
 
 ### Construction and materials
 - Household textiles and wall finishes torn loose by blast and fire: curtains blowing out of window openings, wallpaper peeling in strips and swags, wall carpets hanging by one corner, bedding and clothes over slab edges, mineral wool and film from roofs; all dusty, many sooted.
