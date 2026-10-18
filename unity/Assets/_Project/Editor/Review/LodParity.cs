@@ -20,10 +20,12 @@ namespace Fpv450
     /// LOD's switch distance, from the review's far-shot camera, with each LOD forced in turn. Each LOD's crown comes
     /// from two renders, over black and over white, with no ground and no scale bar: a pixel's coverage is one less the
     /// mean over the linear channels of white minus black, and the render over black is its colour times that coverage.
-    /// Each value is the mean over a 2 × 2 grid of camera offsets a quarter pixel either way of the review's framing (a
-    /// crown of about 100 px moves 5–6 % under a half-pixel shift; task 1.2c), LOD0's too, and each row also prints the
-    /// spread of its luminance and coverage over the four (max − min, as a percentage of the mean); the offsets are made
-    /// on the projection, see <see cref="Rig.Offset"/>.
+    /// Each value is the mean over an 8 × 8 grid of camera offsets, an eighth of a pixel apart from 1/16 to 7/16 px
+    /// either way of the review's framing, LOD0's too: single renders of a crown of about 100 px scatter by 5–16 % with
+    /// the sub-pixel phase, like noise, so the error of the mean falls as 1/√N (tasks 1.2c and 1.2d). Each row also
+    /// prints the spread of its luminance and coverage over the 64 (max − min) and their standard error of the mean
+    /// (the sample standard deviation over √64), each as a percentage of the mean; the offsets are made on the
+    /// projection, see <see cref="Rig.Offset"/>.
     /// Per LOD it prints the coverage-weighted mean linear colour and its Rec. 709 luminance, the crown's coverage in
     /// pixels, both against LOD0's at the same distance and light, the margin to the spec's limits (6 % in luminance,
     /// 15 % in coverage) in percentage points, negative outside them, and PASS or FAIL. The shadow distance is the
@@ -94,20 +96,32 @@ namespace Fpv450
             return a > 0 ? new Crown(a, r / a, g / a, b / a) : new Crown(0, double.NaN, double.NaN, double.NaN);
         }
 
-        /// <summary>The camera offsets each value is averaged over, in pixels: a 2 × 2 grid half a pixel apart, centred on the review's framing.</summary>
-        internal static readonly Vector2[] Offsets = { new Vector2(-0.25f, -0.25f), new Vector2(0.25f, -0.25f), new Vector2(-0.25f, 0.25f), new Vector2(0.25f, 0.25f) };
+        // Declared before Offsets: static fields are initialised in the order they are written.
+        static readonly float[] GridSteps = { -7f / 16f, -5f / 16f, -3f / 16f, -1f / 16f, 1f / 16f, 3f / 16f, 5f / 16f, 7f / 16f };
+
+        /// <summary>The camera offsets each value is averaged over, in pixels: an 8 × 8 grid an eighth of a pixel apart, centred on the review's framing, x the faster.</summary>
+        internal static readonly Vector2[] Offsets = GridSteps.SelectMany(y => GridSteps.Select(x => new Vector2(x, y))).ToArray();
 
         /// <summary>
         /// A LOD's crown over the offsets: the mean of the samples' coverages and colours, so its luminance is the mean of
-        /// theirs (luminance is linear in the colour), and the spread, max − min over the samples, of the luminance and of
-        /// the coverage, each as a fraction of its mean.
+        /// theirs (luminance is linear in the colour); the spread, max − min over the samples, of the luminance and of
+        /// the coverage; and the standard error of each mean, the samples' standard deviation (over n − 1) divided by
+        /// √n; each as a fraction of its mean.
         /// </summary>
-        internal static (Crown mean, double luminanceSpread, double coverageSpread) Average(Crown[] samples)
+        internal static (Crown mean, double luminanceSpread, double coverageSpread, double luminanceError, double coverageError) Average(Crown[] samples)
         {
             var mean = new Crown(samples.Average(s => s.Coverage), samples.Average(s => s.R), samples.Average(s => s.G), samples.Average(s => s.B));
             double luminanceSpread = samples.Max(s => s.Luminance) - samples.Min(s => s.Luminance);
             double coverageSpread = samples.Max(s => s.Coverage) - samples.Min(s => s.Coverage);
-            return (mean, luminanceSpread / mean.Luminance, coverageSpread / mean.Coverage);
+            return (mean, luminanceSpread / mean.Luminance, coverageSpread / mean.Coverage,
+                    StandardError(samples.Select(s => s.Luminance), mean.Luminance) / mean.Luminance,
+                    StandardError(samples.Select(s => s.Coverage), mean.Coverage) / mean.Coverage);
+        }
+
+        static double StandardError(IEnumerable<double> values, double mean)
+        {
+            double[] v = values.ToArray();
+            return Math.Sqrt(v.Sum(x => (x - mean) * (x - mean)) / (v.Length - 1) / v.Length);
         }
 
         /// <summary>A LOD's value against LOD0's, as a fraction: 0.05 is 5 % over.</summary>
@@ -166,7 +180,7 @@ namespace Fpv450
             Debug.Log($"[LodParity] {id}: {variants.Length} variant(s), lights {string.Join("/", Lights)}, GPU {SystemInfo.graphicsDeviceName} ({SystemInfo.graphicsDeviceType}), " +
                       $"quality {QualitySettings.names[QualitySettings.GetQualityLevel()]} ({pipeline.name}), LOD bias {QualitySettings.lodBias:0.##}, MSAA {Mathf.Max(1, pipeline.msaaSampleCount)}, " +
                       $"colour space {QualitySettings.activeColorSpace}; limits luminance {LuminanceLimit * 100:0} %, coverage {CoverageLimit * 100:0} %; " +
-                      $"each value the mean over {Offsets.Length} projection offsets ({string.Join(", ", Offsets.Select(o => $"{o.x:+0.##;-0.##} {o.y:+0.##;-0.##}"))} px), spread max - min of the {Offsets.Length}");
+                      $"each value the mean over {Offsets.Length} projection offsets ({string.Join(", ", Offsets.Select(o => $"{o.x:+0.####;-0.####} {o.y:+0.####;-0.####}"))} px), spread max - min of the {Offsets.Length}, se their sample standard deviation over sqrt({Offsets.Length}), both as a percentage of the mean");
 
             var rig = new Rig(Mathf.Max(1, pipeline.msaaSampleCount));
             float projectShadowDistance = pipeline.shadowDistance;
@@ -240,6 +254,7 @@ namespace Fpv450
                         rig.Aim(position, asset.center);
                         var crowns = new Crown[lodCount];
                         var spreads = new (double luminance, double coverage)[lodCount];
+                        var errors = new (double luminance, double coverage)[lodCount];
                         for (int i = 0; i < lodCount; i++)
                         {
                             group.ForceLOD(i);
@@ -249,7 +264,7 @@ namespace Fpv450
                                 rig.Offset(Offsets[k]);
                                 samples[k] = Find(rig.Shoot(Color.black), rig.Shoot(Color.white));
                             }
-                            (crowns[i], spreads[i].luminance, spreads[i].coverage) = Average(samples);
+                            (crowns[i], spreads[i].luminance, spreads[i].coverage, errors[i].luminance, errors[i].coverage) = Average(samples);
                         }
                         group.ForceLOD(-1);
                         if (crowns[0].Coverage <= 0)
@@ -259,7 +274,8 @@ namespace Fpv450
                         {
                             Crown c = crowns[i];
                             string row = $"[LodParity]   {names[i],-9} Y {c.Luminance:0.0000}  coverage {c.Coverage,9:0.0} px  linear rgb {c.R:0.0000} {c.G:0.0000} {c.B:0.0000}" +
-                                         $"  spread Y {spreads[i].luminance * 100:0.00} %, coverage {spreads[i].coverage * 100:0.00} %";
+                                         $"  spread Y {spreads[i].luminance * 100:0.00} %, coverage {spreads[i].coverage * 100:0.00} %" +
+                                         $"  se Y {errors[i].luminance * 100:0.00} %, coverage {errors[i].coverage * 100:0.00} %";
                             if (i > 0)
                             {
                                 double y = Relative(c.Luminance, crowns[0].Luminance), cover = Relative(c.Coverage, crowns[0].Coverage);
