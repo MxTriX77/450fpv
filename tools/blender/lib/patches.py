@@ -9,12 +9,24 @@ towards +Z (the recipes' lodging convention). Polygons run counter-clockwise in 
 A patch is a convex step outline of `vertices` corners: corners round a circle, each pulled in by up to
 RADIAL_JITTER of the radius, scaled to measure `length` along the patch's angle (the lodging azimuth within
 ANGLE_SPREAD_DEG) and `width` across, with no exterior angle above MAX_EXTERIOR_DEG, which makes its edge boxes cover
-its window (below). `length` is drawn from size_range_m and `width` is length / (1 + bias), at least the range's
-minimum, so a patch is a little longer along the lodging. Patches are drawn until their outlines cover `share` of the area within SHARE_TOLERANCE; the bare
-share is measured on the outlines (PR5), and a patch that would overshoot it is shrunk by SHRINK while it stays
-inside the size range. The map stamps soil full on the outline shrunk by FEATHER_M and fading to nothing at the
-outline: it fills `core`, the outline shrunk by FEATHER_M / 2, and blurs it over FEATHER_M / 2 each side, so the
-straws strewn over the feather lie on the floor.
+its window (below). A patch is path-like (H 9-14: ragged strips of trodden soil, never round pits): its length over
+its width is drawn from `aspect`, its length from size_range_m but at least that ratio times the range's minimum,
+and its width is length / ratio, at least the range's minimum. Patches are drawn until their outlines cover `share`
+of the area within SHARE_TOLERANCE; the bare share is measured on the outlines (PR5), and a patch that would
+overshoot it is shrunk by SHRINK while it stays inside the size range. A patch drawn after n patches in a row found
+no place is SHRINK^n as long (at least the range's minimum, so rounder too), so a crowded area (a share above the
+sheet's 8 %) still fills its share with smaller patches. The map stamps soil full on the outline shrunk by
+FEATHER_M and fading to nothing at the outline: it fills `core`, the outline shrunk by FEATHER_M / 2, and blurs it
+over FEATHER_M / 2 each side, so the straws strewn over the feather lie on the floor.
+
+The patches gather into paths rather than spread evenly. A path runs one way along its first patch, and the next
+per_path - 1 patches are laid on along it, each turned by up to PATH_TURN_DEG from the last (staying within
+ANGLE_SPREAD_DEG of the lodging), stepped sideways by up to PATH_SIDE of its width and set behind the shortest mat
+bridge of PATH_GAP_M (tried every PATH_GAP_STEP_M) where it fits; blocked, the path runs on from its first patch
+the other way once, and blocked again it ends and the patch starts a new path. With probability CLUSTER a new path
+starts near the patches laid so far (its centre NEAR_M from one of theirs) for the first half of its tries, else
+anywhere. The edge boxes keep about a metre of mat between two floors (PR4, below), so at the sheet's share the
+patches still fill much of the area the boxes may reach and gather only so far.
 
 The mat around a patch is a set of boxes (PR4). The window is the outline's bounding rectangle grown by WINDOW_M.
 Per outline edge, one box (`edges`, a rectangle in the plane: t along the edge from its first corner, s outward)
@@ -26,7 +38,7 @@ where none of its edge boxes leaves the area or enters another outline, and none
 import math
 import random
 
-LAYOUT = "bare patches v1"  # bumped with any change to the code below; derive.py hashes it with the constants
+LAYOUT = "bare patches v2"  # bumped with any change to the code below; derive.py hashes it with the constants
 FEATHER_M = 0.3            # a soil patch's strewn edge (H 9-14, by eye; derive.py's tuned value, moved here)
 ANGLE_SPREAD_DEG = 45.0    # a patch lies within this of the lodging azimuth (assumed; derive.py's before)
 RADIAL_JITTER = 0.35       # a corner's radius drawn in [1 - this, 1] of the ellipse's (assumed; 0.25 until task 1.7)
@@ -40,10 +52,17 @@ SHARE_TOLERANCE = 0.005    # the outlines' share lands within this of `share`
 SHRINK = 0.75              # the last patch shrinks by this until it fits the share
 PLACE_TRIES = 1000         # placements tried per drawn patch before another is drawn
 SHAPE_TRIES = 200          # drawn patches that found no place before the layout gives up
+PATH_GAP_M = (0.3, 1.5)    # the mat bridge between two patches of a path, the shortest that fits (assumed, H 9-14)
+PATH_GAP_STEP_M = 0.1      # the bridges tried, shortest first
+PATH_TURN_DEG = 20.0       # a path turns by up to this from one patch to the next (assumed, H 9-14)
+PATH_SIDE = 0.5            # a patch steps sideways off its path by up to this share of its width (assumed, H 14)
+CLUSTER = 0.85             # a new path starts near the patches laid so far with this probability (assumed, H 9-14)
+NEAR_M = (1.0, 2.2)        # near: its centre this far from a laid patch's centre, in the first half of its tries
 SAMPLE_M = 0.02            # the coverage self-check's spacing (PR4)
-EPS = 1e-9
+EPS = 1e-9                 # the placement's tolerance on touching shapes
 CONSTANTS = ("FEATHER_M", "ANGLE_SPREAD_DEG", "RADIAL_JITTER", "MAX_EXTERIOR_DEG", "WINDOW_M", "REACH_M", "SEAM_M",
-             "SHARE_TOLERANCE", "SHRINK", "PLACE_TRIES", "SHAPE_TRIES")
+             "SHARE_TOLERANCE", "SHRINK", "PLACE_TRIES", "SHAPE_TRIES", "PATH_GAP_M", "PATH_GAP_STEP_M",
+             "PATH_TURN_DEG", "PATH_SIDE", "CLUSTER", "NEAR_M", "EPS")
 
 
 def inputs(params):
@@ -51,44 +70,78 @@ def inputs(params):
     bare = params["bare"]
     return {"seed": params["seed"], "size_m": params["size_m"], "share": bare["share"],
             "size_range_m": [bare["size_m"]["min"], bare["size_m"]["max"]], "vertices": bare["outline_vertices"],
-            "azimuth_deg": params["lodging"]["azimuth_deg"], "bias": params["lodging"]["bias"]}
+            "azimuth_deg": params["lodging"]["azimuth_deg"], "aspect": [bare["aspect"]["min"], bare["aspect"]["max"]],
+            "per_path": bare["path_patches"]}
 
 
 def constants():
-    """The current value of every constant the layout reads, for derive.py's stamp."""
-    return {"LAYOUT": LAYOUT, **{name: globals()[name] for name in CONSTANTS}}
+    """The current value of every constant the layout reads, for derive.py's stamp (tuples as lists, as JSON keeps
+    them)."""
+    return {"LAYOUT": LAYOUT, **{name: list(globals()[name]) if isinstance(globals()[name], tuple) else globals()[name]
+                                 for name in CONSTANTS}}
 
 
-def layout(seed, size_m, share, size_range_m, vertices, azimuth_deg, bias):
+def layout(seed, size_m, share, size_range_m, vertices, azimuth_deg, aspect, per_path):
     """{"patches": [...], "share": the outlines' area over size_m^2}. Each patch: "centre", "angle_deg", "outline",
-    "core", "window" (x0, x1, z0, z1) and "edges" (one rectangle per outline edge, edge k from corner k). Raises
-    ValueError when the share does not fit the area."""
+    "core", "window" (x0, x1, z0, z1), "edges" (one rectangle per outline edge, edge k from corner k), "extent" (the
+    edge boxes' bounding rectangle, x0, x1, z0, z1), "path" (its path's number, in the order the paths started) and
+    "after" (the index of the patch it was laid on after, None for a path's first; derive.py thins the mat between
+    the two). `aspect` is the (min, max) of a patch's length over its width, `per_path` the most patches one path
+    holds. Raises ValueError when the share does not fit the area."""
     rng = random.Random(f"bare patches {seed}")
     half, area_m2 = size_m / 2, size_m * size_m
     target, tolerance = share * area_m2, SHARE_TOLERANCE * area_m2
     lo, hi = size_range_m
-    patches, covered, failures = [], 0.0, 0
+    patches, covered, failures, paths, streak = [], 0.0, 0, 0, 0
+    path = None  # the path being laid: its last patch, the way it runs along that patch's angle (+-1), patches left
     while covered < target - tolerance:
-        length = rng.uniform(lo, hi)
-        width = max(lo, length / (1 + bias))
-        angle = azimuth_deg + rng.uniform(-ANGLE_SPREAD_DEG, ANGLE_SPREAD_DEG)
+        ratio = rng.uniform(*aspect)
+        length = max(lo, rng.uniform(min(hi, ratio * lo), hi) * SHRINK ** streak)  # crowded: shorter, rounder
+        width = max(lo, length / ratio)
+        if path is None:
+            angle = azimuth_deg + rng.uniform(-ANGLE_SPREAD_DEG, ANGLE_SPREAD_DEG)
+        else:
+            turned = path["last"]["angle_deg"] + rng.uniform(-PATH_TURN_DEG, PATH_TURN_DEG)
+            angle = min(azimuth_deg + ANGLE_SPREAD_DEG, max(azimuth_deg - ANGLE_SPREAD_DEG, turned))
         shape = _outline(rng, vertices, length, width, angle)
         scale = 1.0
         while covered + area(shape) * scale * scale > target + tolerance and min(length, width) * scale * SHRINK >= lo:
             scale *= SHRINK
         shape = [(x * scale, z * scale) for x, z in shape]
-        for _ in range(PLACE_TRIES):
-            centre = (rng.uniform(-half, half), rng.uniform(-half, half))
-            patch = _patch(centre, angle, [(x + centre[0], z + centre[1]) for x, z in shape])
-            if _fits(patch, patches, half):
-                patches.append(patch)
-                covered += area(patch["outline"])
-                break
-        else:
-            failures += 1
-            if failures > SHAPE_TRIES:
-                raise ValueError(f"bare patches: {len(patches)} placed covering {covered / area_m2:.4f} of the area, "
-                                 f"no room for more towards a share of {share} after {SHAPE_TRIES} patches")
+        patch = None if path is None else _along(rng, path, shape, angle, patches, half)
+        if patch is None and path is not None and not path["back"]:  # blocked: the path runs on from its other end
+            path.update(last=path["first"], sign=-path["sign"], back=True)
+            patch = _along(rng, path, shape, angle, patches, half)
+        after = None if patch is None else next(k for k, p in enumerate(patches) if p is path["last"])
+        if patch is None:
+            near = bool(patches) and rng.random() < CLUSTER
+            for k in range(PLACE_TRIES):
+                if near and k < PLACE_TRIES // 2:  # a new path beside the patches laid so far: the paths gather
+                    other, bearing, r = rng.choice(patches), rng.uniform(0, 2 * math.pi), rng.uniform(*NEAR_M)
+                    centre = (other["centre"][0] + r * math.cos(bearing), other["centre"][1] + r * math.sin(bearing))
+                else:
+                    centre = (rng.uniform(-half, half), rng.uniform(-half, half))
+                candidate = _patch(centre, angle, [(x + centre[0], z + centre[1]) for x, z in shape])
+                if _fits(candidate, patches, half):
+                    patch = candidate
+                    break
+            else:
+                failures, streak = failures + 1, streak + 1
+                if failures > SHAPE_TRIES:
+                    raise ValueError(f"bare patches: {len(patches)} placed covering {covered / area_m2:.4f} of the "
+                                     f"area, no room for more towards a share of {share} after {SHAPE_TRIES} patches")
+                path = None
+                continue
+            path = {"id": paths, "first": patch, "sign": rng.choice((-1, 1)), "back": False,
+                    "left": per_path}
+            paths += 1
+        patch.update(path=path["id"], after=after)
+        patches.append(patch)
+        streak = 0
+        covered += area(patch["outline"])
+        path["last"], path["left"] = patch, path["left"] - 1
+        if path["left"] == 0:
+            path = None
     return {"patches": patches, "share": covered / area_m2}
 
 
@@ -224,8 +277,30 @@ def _patch(centre, angle, outline):
         n = (d[1], -d[0])  # outward of a counter-clockwise polygon
         reach = max([REACH_M] + [(c[0] - a[0]) * n[0] + (c[1] - a[1]) * n[1] + SEAM_M for c in corners])
         edges.append({"a": a, "d": d, "n": n, "t": (-reach, length + reach), "s": (0.0, reach)})
+    ex, ez = zip(*(c for r in edges for c in rect_corners(r)))
     return {"centre": centre, "angle_deg": angle, "outline": outline, "core": inset(outline, FEATHER_M / 2),
-            "window": window, "edges": edges}
+            "window": window, "edges": edges, "extent": (min(ex), max(ex), min(ez), max(ez))}
+
+
+def _along(rng, path, shape, angle, placed, half):
+    """The patch `shape` (centred on the origin, at `angle`) laid on along a path: past the path's last patch the
+    way the path runs, stepped sideways by up to PATH_SIDE of its width, behind the shortest mat bridge of PATH_GAP_M
+    (every PATH_GAP_STEP_M) where it fits; None when none does (the path ends)."""
+    a = math.radians(angle)
+    u = (path["sign"] * math.cos(a), path["sign"] * math.sin(a))
+    v = (-u[1], u[0])
+    last = path["last"]
+    ahead = max((p[0] - last["centre"][0]) * u[0] + (p[1] - last["centre"][1]) * u[1] for p in last["outline"])
+    behind = max(-(q[0] * u[0] + q[1] * u[1]) for q in shape)
+    across = [q[0] * v[0] + q[1] * v[1] for q in shape]
+    side = rng.uniform(-PATH_SIDE, PATH_SIDE) * (max(across) - min(across))
+    for k in range(round((PATH_GAP_M[1] - PATH_GAP_M[0]) / PATH_GAP_STEP_M) + 1):
+        step = ahead + PATH_GAP_M[0] + k * PATH_GAP_STEP_M + behind
+        centre = (last["centre"][0] + u[0] * step + v[0] * side, last["centre"][1] + u[1] * step + v[1] * side)
+        candidate = _patch(centre, angle, [(x + centre[0], z + centre[1]) for x, z in shape])
+        if _fits(candidate, placed, half):
+            return candidate
+    return None
 
 
 def _fits(patch, placed, half):
@@ -234,11 +309,18 @@ def _fits(patch, placed, half):
         if any(abs(c) > half + EPS for corner in rect_corners(rect) for c in corner):
             return False
     for other in placed:
+        if not (_meet(patch["extent"], other["window"]) or _meet(other["extent"], patch["window"])):
+            continue  # neither's edge boxes reach the other's window, which holds its outline
         if any(_overlap(rect_corners(r), other["outline"]) for r in patch["edges"]):
             return False
         if any(_overlap(rect_corners(r), patch["outline"]) for r in other["edges"]):
             return False
     return True
+
+
+def _meet(a, b):
+    """Whether two axis-aligned rectangles (x0, x1, z0, z1) overlap or touch."""
+    return a[0] <= b[1] and b[0] <= a[1] and a[2] <= b[3] and b[2] <= a[3]
 
 
 def _overlap(a, b):

@@ -1,6 +1,8 @@
 """lib.patches, the bare soil patches derive.py and ground_patch share (p1-s04-belt-straw, review-physics PR4 and PR5):
 the S04 layout's outlines are convex with no turn over 90 degrees, measure inside the size range along and across
-their angle, lie near the lodging azimuth and cover the bare share within the tolerance; the layout is seeded;
+their angle and inside the aspect range (path-like), lie near the lodging azimuth and cover the bare share within
+the tolerance; they lie along paths and gather closer than patches placed each on its own (task 1.8, R6); the
+layout is seeded;
 every window minus its outline is covered by the patch's edge boxes (the self-check, and an independent sample);
 no edge box leaves the area or enters another outline; the fill rectangles and the windows cover the area while no
 fill rectangle comes near an outline; the core is the outline shrunk by half the feather."""
@@ -34,7 +36,8 @@ def test_outlines_are_convex_sized_and_cover_the_share(layout, s04_params):
         across = [-x * math.sin(a) + z * math.cos(a) for x, z in p["outline"]]
         length, width = max(along) - min(along), max(across) - min(across)
         assert bare["size_m"]["min"] - 1e-9 <= width <= length + 1e-9 <= bare["size_m"]["max"] + 1e-9, (length, width)
-        assert abs(p["angle_deg"] - s04_params["lodging"]["azimuth_deg"]) <= patches.ANGLE_SPREAD_DEG
+        assert bare["aspect"]["min"] - 1e-9 <= length / width <= bare["aspect"]["max"] + 1e-9, "path-like, not round"
+        assert abs(p["angle_deg"] - s04_params["lodging"]["azimuth_deg"]) <= patches.ANGLE_SPREAD_DEG + 1e-9
 
 
 def test_the_layout_is_seeded(layout, s04_params):
@@ -96,3 +99,57 @@ def test_the_core_is_the_outline_shrunk_by_half_the_feather(layout):
         for q in p["core"]:
             assert patches.distance(q, p["outline"]) == pytest.approx(-patches.FEATHER_M / 2, abs=1e-9) or \
                 patches.distance(q, p["outline"]) < -patches.FEATHER_M / 2
+
+
+def gap(a, b):
+    """The clear ground between two outlines that do not overlap: the least corner-to-outline distance."""
+    return min(min(patches.distance(p, b["outline"]) for p in a["outline"]),
+               min(patches.distance(p, a["outline"]) for p in b["outline"]))
+
+
+def test_patches_lie_along_paths(layout, s04_params):
+    """R6 (H 9-14: paths of soil, not pits spread evenly): a patch laid on along a path lies behind a mat bridge of
+    PATH_GAP_M from the patch it follows, measured along its own axis, on the same path and turned by at most
+    PATH_TURN_DEG from it; no path holds more than bare.path_patches; most of S04's patches lie on paths of two or
+    more."""
+    bare = layout["patches"]
+    sizes = {}
+    for k, p in enumerate(bare):
+        sizes[p["path"]] = sizes.get(p["path"], 0) + 1
+        if p["after"] is None:
+            continue
+        q = bare[p["after"]]
+        assert p["after"] < k and q["path"] == p["path"]
+        assert abs(p["angle_deg"] - q["angle_deg"]) <= patches.PATH_TURN_DEG + 1e-9
+        a = math.radians(p["angle_deg"])
+        u = (math.cos(a), math.sin(a))
+        bridge = max(min((x * s * u[0] + z * s * u[1]) for x, z in p["outline"]) -
+                     max((x * s * u[0] + z * s * u[1]) for x, z in q["outline"]) for s in (1, -1))
+        assert patches.PATH_GAP_M[0] - 1e-9 <= bridge <= patches.PATH_GAP_M[1] + 1e-9, f"patch {k}: bridge {bridge:.3f} m"
+    assert max(sizes.values()) <= s04_params["bare"]["path_patches"]
+    on_paths = sum(n for n in sizes.values() if n > 1)
+    print(f"S04: {len(sizes)} paths, {on_paths} of {len(bare)} patches on paths of two or more")
+    assert on_paths >= len(bare) / 2
+
+
+def test_paths_gather_the_patches(s04_params, monkeypatch):
+    """R6: laid along paths and started near the patches laid so far, the patches stand closer to their nearest
+    neighbour than when each is placed on its own anywhere (bare.path_patches 1, CLUSTER 0), over six seeds: a smaller
+    mean gap to the nearest outline and more patches within 1.2 m of another. The edge boxes keep about a metre
+    between two floors (PR4), which bounds how close they can gather."""
+    def nearest(per_path, cluster):
+        monkeypatch.setattr(patches, "CLUSTER", cluster)
+        means, close = [], []
+        for seed in range(1, 7):
+            params = dict(s04_params, seed=seed, bare=dict(s04_params["bare"], path_patches=per_path))
+            bare = patches.layout(**patches.inputs(params))["patches"]
+            gaps = [min(gap(a, b) for b in bare if b is not a) for a in bare]
+            means.append(sum(gaps) / len(gaps))
+            close.append(sum(1 for g in gaps if g < 1.2) / len(gaps))
+        return sum(means) / len(means), sum(close) / len(close)
+
+    cluster = patches.CLUSTER
+    scattered, gathered = nearest(1, 0.0), nearest(s04_params["bare"]["path_patches"], cluster)
+    print(f"mean nearest gap {scattered[0]:.2f} m scattered, {gathered[0]:.2f} m gathered; within 1.2 m "
+          f"{100 * scattered[1]:.0f} % and {100 * gathered[1]:.0f} %")
+    assert gathered[0] < scattered[0] - 0.08 and gathered[1] > scattered[1] + 0.2
