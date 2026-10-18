@@ -99,8 +99,8 @@ As the houses sheet: a master `damage` (0–1) per section or part sets defaults
 | Entrance canopy | slab 1.5 × 2.0–2.5 m at 2.4–2.8 m | 1.5 × 2.2 m at 2.6 m | measured I (a canopy over each entrance); size assumed |
 | Balconies | slab 0.9–1.2 × 2.4–3.2 m, 0.12–0.16 m thick, rail 1.0–1.1 m | 1.0 × 2.8 × 0.14 m, rail 1.05 m | measured K (stacked on the long facade next to the torn end); published (from the 2nd floor up on the front facade); sizes assumed |
 | Balcony door | 0.75 × 2.1 m opening | 0.75 × 2.1 m | assumed |
-| Interior doors | 0.80 × 2.05 m opening, 40 mm casing | clear 0.72 m | assumed; K (doors in the back walls) |
-| Flat entrance doors | 0.9 × 2.1 m opening, steel leaf | clear 0.80 m | assumed |
+| Interior doors | 0.80 × 2.05 m opening, 40 mm casing | clear 0.72 m | published (GOST 6629-88: the 21-8 door mark, its opening 2.1 × 0.8 m, https://meganorm.ru/Data1/3/3481/index.htm ); K (doors in the back walls); casing assumed |
+| Flat entrance doors | 0.9 × 2.1 m opening, steel leaf | clear 0.80 m | published (GOST 6629-88: the 21-9 door mark, its opening 2.1 × 0.9 m); the steel leaf assumed |
 | Rafters | 0.10 × 0.18 m at 1.0–1.2 m | 1.1 m | assumed; K (the timbers along the roof line) |
 | Attic fill on the top slab | 0.15–0.30 m slag or expanded clay | 0.25 m | measured K (a thick dark layer between the top ceiling and the timbers); material assumed |
 | Vent stacks | brick, 0.5 × 0.8–1.0 m, 0.5–1.0 m above the roof | 4 per section | measured I (small boxes on the roof line); sizes assumed |
