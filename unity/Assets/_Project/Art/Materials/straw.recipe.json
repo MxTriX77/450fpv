@@ -1,0 +1,30 @@
+{
+  "material": "straw",
+  "kind": "palette",
+  "formula": "palette v1: one PALETTE_BLOCK_PX square block per colour, left to right in the recipe's order; 8-bit sRGB",
+  "recipe": {
+    "schema": 1,
+    "kind": "palette",
+    "shader": "Universal Render Pipeline/Lit",
+    "colours": {
+      "straw": "#b49c6a",
+      "twig": "#6b5a3e"
+    },
+    "tint": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "smoothness": 0.3
+  },
+  "inputs_sha256": "376fbb69f4b20b602ddaa3a7adb2b57c7ed7b44688ff1c4ecf88b419884bc8f7",
+  "size": [
+    32,
+    16
+  ],
+  "columns": [
+    "straw",
+    "twig"
+  ]
+}

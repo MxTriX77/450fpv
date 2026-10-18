@@ -1,0 +1,119 @@
+{
+  "schema": 1,
+  "id": "S04",
+  "variant": "S04_patch",
+  "generator": "ground_patch",
+  "params_sha256": "d30538ff93ec92469ebd5bfd8c5fc757c1984539ecd37fd777f5428dee081dd3",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -6.0,
+      -0.2,
+      -6.0
+    ],
+    "max": [
+      6.0,
+      1.26384,
+      6.0
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "S04_patch_LOD0",
+      "tris": 22142,
+      "switch_distance_m": 0.0
+    },
+    {
+      "mesh": "S04_patch_LOD1",
+      "tris": 22142,
+      "switch_distance_m": 8.0
+    },
+    {
+      "mesh": "S04_patch_LOD2",
+      "tris": 26,
+      "switch_distance_m": 60.0
+    }
+  ],
+  "micro": [
+    {
+      "lod": 0,
+      "name": "S04_patch_LOD0_straw",
+      "kind": "straw",
+      "count": 15683,
+      "tris": 381672
+    }
+  ],
+  "cull_distance_m": 400.0,
+  "materials": [
+    {
+      "slot": "ground",
+      "visual": "belt_straw",
+      "physics": "surface:belt_straw"
+    },
+    {
+      "slot": "straw",
+      "visual": "straw",
+      "physics": "surface:belt_straw"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        -0.1,
+        0.0
+      ],
+      "size": [
+        12.0,
+        0.2,
+        12.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "surface:belt_straw",
+      "landable": true
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        4.859777,
+        -0.03386,
+        0.444167
+      ],
+      "radius": 0.16614,
+      "material": "surface:crater_spoil",
+      "landable": true
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        0.266154,
+        -0.040702,
+        0.436617
+      ],
+      "radius": 0.159298,
+      "material": "surface:crater_spoil",
+      "landable": true
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -0.94783,
+        -0.026632,
+        1.343358
+      ],
+      "radius": 0.173368,
+      "material": "surface:crater_spoil",
+      "landable": true
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [],
+  "snag": []
+}
