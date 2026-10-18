@@ -32,8 +32,8 @@ A generator MAY return, per LOD, meshes that are visual only (lying straws, stem
 A material recipe MAY be of kind `palette`: a short list of named colours, each a single sRGB value or a gradient of sRGB values; the build SHALL derive one small map with a column per colour (a gradient along the column, the columns padded to a power of two; recorded beside it like every derived texture), and a generator SHALL UV its faces into the column of their colour, along it for a gradient, so that a flat-tinted or shaded material still has a real base map.
 
 #### Scenario: Straw palette
-- **WHEN** the `straw` recipe names six gradients (straw pale, mid and dark around #cdb685, #b49c6a and #977f55, twig, green blade, litter), each base to tip
-- **THEN** the build writes `straw_albedo.png` with those six gradient columns padded to eight, the importer binds it as the base map, and the review capture's empty-stage guard passes
+- **WHEN** the `straw` recipe names five gradients (straw pale, mid and dark around #cdb685, #b49c6a and #977f55, twig, green blade), each base to tip
+- **THEN** the build writes `straw_albedo.png` with those five gradient columns padded to eight, the importer binds it as the base map, and the review capture's empty-stage guard passes
 
 ### Requirement: The collision audit measures the union of the primitives
 The collision audit SHALL treat an asset's primitives as one union: the part of a primitive that lies inside another primitive is not measured against the mesh. A landable shape whose top is soft SHALL be held at 5 cm over its whole top as a landing face: its material is `surface:belt_straw`, `surface:crater_spoil` or `surface:tilled` (the surface rows where the reference foot sinks at least 25 mm), or a plain id with `stiffness_n_per_m` of 1000 N/m or less. Every other landing face, and every opening, keeps AST-05's 2 cm near-zone (`review-physics.md` §2: on hard ground a 5 cm float would show).
