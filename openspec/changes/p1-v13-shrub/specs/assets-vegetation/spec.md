@@ -7,7 +7,7 @@ The assets of the vegetation object sheet (V01–V21: belt trees, yard trees, sh
 ## ADDED Requirements
 
 ### Requirement: V13 belt understory shrub
-The pipeline SHALL build asset V13 (`shrub` generator; variants `V13_low`, `V13_mid`, `V13_tall`) from its params files into Unity prefabs that copy the understory clumps of letters H and F: many thin stems from the base, a dense leafy mass of small leaves, the low variant leafy to the ground, the tall variant bare for 1 m under the canopy. Dimensions, stem counts and colours SHALL sit inside the ranges of `docs/object-sheets/vegetation.md` §V13, and the physics metadata SHALL carry every stem of 10 mm or more as a `bark` capsule with a `hook` snag from base to tip, the leafy mass as one `twig` shell, one wind volume with the clump's porosity, no gap and no landable surface.
+The pipeline SHALL build asset V13 (`shrub` generator; variants `V13_low`, `V13_mid`, `V13_tall`) from its params files into Unity prefabs that copy the understory clumps of letters H and F: many thin stems from the base, a dense leafy mass of small leaves, the low variant leafy to the ground, the tall variant bare for 1 m under the canopy. Dimensions, stem counts and colours SHALL sit inside the ranges of `docs/object-sheets/vegetation.md` §V13, and the physics metadata SHALL carry every stem of 10 mm or more as `bark` capsules with one snag record per capsule segment (an `edge` on each lower segment, a `hook` on the top one, each at its capsule's radius), one snag record per twig (an `edge` where other twigs leave its end, a `hook` where its end is free, at its mean radius), the leafy mass as a `twig` shell of at most 24 sphere or capsule pieces that follows the leaf and twig mass, one wind volume over the leafy mass with the clump's porosity, no gap and no landable surface (`review-physics.md`).
 
 #### Scenario: Built from params by one command
 - **WHEN** `pwsh tools/build_asset.ps1 V13` runs on a clean checkout
@@ -23,7 +23,7 @@ The pipeline SHALL build asset V13 (`shrub` generator; variants `V13_low`, `V13_
 
 #### Scenario: Stems and shell carry the contact
 - **WHEN** the metadata of any variant is validated and audited
-- **THEN** every capsule names `bark`, lies within 5 cm of its stem tube, and has a `hook` snag of half the stem's diameter; the `twig` shell is made of convex pieces that enclose every leaf and twig vertex within 5 cm and whose outer surface stands within 0.1 m of the leaf and twig mass (the sheet's group rule), leaving the bare-stem zone to the capsules; the wind volume's porosity is 0.35 for the summer state; `gaps` is empty and no shape is landable
+- **THEN** every capsule names `bark` and lies within 5 cm of its stem tube; each stem carries one record per capsule segment (lower segments `edge`, the top one a `hook` to the tip, each at its capsule's radius) and each twig one record (`edge` where other twigs leave its end, `hook` where it is free, at its mean radius); the `twig` shell is at most 24 sphere or capsule pieces whose surface above the ground stands within 0.1 m of the nearest leaf or twig face, with every twig vertex inside it or within 0.1 m outside and every leaf-card vertex inside it or within 0.3 m outside, leaving the bare-stem zone to the capsules; the wind volume spans the leafy mass from its lowest leaf or twig vertex, with porosity 0.35 for the summer state; `gaps` is empty and no shape is landable
 
 #### Scenario: Four LODs under budget
 - **WHEN** the triangle counts per LOD are read from the metadata
