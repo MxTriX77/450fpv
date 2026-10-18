@@ -71,7 +71,8 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
     tris = " / ".join(str(lod["tris"]) for lod in data["lods"])
     micro = "".join(f"  micro {m['name']} {m['count']} {m['kind']} {m['tris']} tris" for m in data["micro"])
     return (f"{variant}: {os.path.relpath(fbx_path, root)}  size {size} m  tris {tris}{micro}  "
-            f"fbx {os.path.getsize(fbx_path) / 1048576:.1f} MB  metadata written")
+            f"{len(data['collision'])} collision shapes  fbx {os.path.getsize(fbx_path) / 1048576:.1f} MB  "
+            "metadata written")
 
 
 def _refuse(variant, problems, source=""):

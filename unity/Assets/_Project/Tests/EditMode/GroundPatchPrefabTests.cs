@@ -69,11 +69,38 @@ namespace Fpv450.Tests.EditMode
             Assert.That(meta.micro[0].count, Is.GreaterThan(10000));
             Collider[] colliders = prefab.GetComponentsInChildren<Collider>(true);
             Assert.That(colliders.Length, Is.EqualTo(meta.collision.Length), "one collider per primitive, none for the straws");
-            Assert.That(colliders.OfType<BoxCollider>().Count(), Is.EqualTo(1));
-            Assert.That(colliders.OfType<SphereCollider>().Count(), Is.EqualTo(meta.collision.Length - 1));
+            int boxes = meta.collision.Count(c => c.kind == AssetPhysicsMeta.ShapeKind.Box);
+            Assert.That(colliders.OfType<BoxCollider>().Count(), Is.EqualTo(boxes));
+            Assert.That(colliders.OfType<SphereCollider>().Count(), Is.EqualTo(meta.collision.Length - boxes));
             Assert.That(meta.collision.All(c => c.landable), Is.True);
-            Assert.That(meta.collision[0].material, Is.EqualTo("surface:belt_straw"));
-            Assert.That(meta.collision.Skip(1).All(c => c.material == "surface:crater_spoil"), Is.True);
+        }
+
+        /// <summary>
+        /// review-physics PR1, PR2 and PR8: collision[0] is the soil box one mat depth down, then the mat as straw boxes
+        /// (fill, then each bare patch's edge boxes) from -D to 0, then the mound spheres; every rotated box keeps its
+        /// rotation on its collider.
+        /// </summary>
+        [Test]
+        public void Collision_IsTheSoilThenTheStrawMatThenTheMounds()
+        {
+            GameObject prefab = Prefab();
+            AssetPhysicsMeta meta = prefab.GetComponent<AssetPhysicsMeta>();
+            AssetPhysicsMeta.CollisionShape soil = meta.collision[0];
+            Assert.That(soil.kind, Is.EqualTo(AssetPhysicsMeta.ShapeKind.Box));
+            Assert.That(soil.material, Is.EqualTo("surface:belt_straw"));
+            Assert.That(soil.center.y + soil.size.y / 2f, Is.EqualTo(-0.125f).Within(1e-5f), "the soil's top one mat depth down");
+            int mounds = meta.collision.Count(c => c.kind == AssetPhysicsMeta.ShapeKind.Sphere);
+            var mat = meta.collision.Skip(1).Take(meta.collision.Length - 1 - mounds).ToArray();
+            Assert.That(mat.Length, Is.GreaterThan(50));
+            Assert.That(mat.All(c => c.kind == AssetPhysicsMeta.ShapeKind.Box && c.material == "straw"), Is.True);
+            Assert.That(mat.All(c => Mathf.Abs(c.center.y + 0.0625f) < 1e-5f && Mathf.Abs(c.size.y - 0.125f) < 1e-5f), Is.True,
+                "the mat boxes stand from -D to 0");
+            Assert.That(meta.collision.Skip(1 + mat.Length).All(c => c.material == "surface:crater_spoil"), Is.True);
+            for (int i = 0; i < meta.collision.Length; i++)
+            {
+                Transform host = prefab.transform.Find($"Collision{i}");
+                Assert.That(Quaternion.Angle(host.localRotation, meta.collision[i].rotation), Is.LessThan(0.01f), $"Collision{i}");
+            }
         }
     }
 }

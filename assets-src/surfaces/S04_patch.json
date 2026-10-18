@@ -3,6 +3,7 @@
   "size_m": 12.0,
   "cell_m": 0.25,
   "relief_m": 0.04,
+  "mat_depth_m": 0.125,
   "bare": { "share": 0.08, "size_m": { "min": 0.5, "max": 2.0 }, "outline_vertices": 8 },
   "mounds_per_m2": 0.02,
   "mound_w_m": { "min": 0.3, "max": 0.5 },
@@ -25,6 +26,7 @@
   "variants": 12,
   "segments": 4,
   "physics_material": "surface:belt_straw",
+  "mat_material": "straw",
   "mound_material": "surface:crater_spoil",
   "lod": { "lod1_switch_m": 8.0, "lod2_switch_m": 60.0, "cull_m": 400.0 }
 }

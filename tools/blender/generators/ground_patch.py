@@ -1,46 +1,64 @@
 """ground_patch: a square patch of ground surface, S04 belt_straw first (p1-s04-belt-straw, design decisions 1, 4, 6
-and 8; object sheet §S04). The origin is the patch centre and y = 0 the mean top of the mat.
+and 8; review-physics PR1-PR8; object sheet §S04). The origin is the patch centre and y = 0 the mean top of the mat.
 
-LOD0 is a closed slab SLAB_M deep: its top a grid of cell_m cells with seeded value-noise relief within +-relief_m
-(the mean over the grid exactly 0) and round(mounds_per_m2 * area) earth mounds as raised vertices, triangulated so
-the audit and the renderer see the same surface; four walls and a bottom close it. The cells under a mound are
-refined REFINE x REFINE so the grid follows the mound sphere's steep rim within the audit's tolerance; the refined
-vertices on an edge shared with a coarse cell lie on that edge (T-junctions, no cracks). Its UVs are metres, u = x
-and v = z, which is how the belt_straw ground recipe lays its unique base map (tiling 1/size_m, offset 0.5). LOD1
-is the same slab without the micro mesh, LOD2 the slab with a flat 2 x 2 top.
+LOD0 is a closed slab mat_depth_m + SOIL_M deep: its top a grid of cell_m cells with seeded value-noise relief within
++-relief_m (the mean over the grid exactly 0) and round(mounds_per_m2 * area) earth mounds as raised vertices,
+triangulated so the audit and the renderer see the same surface; four walls and a bottom close it. The cells under
+a mound are refined REFINE x REFINE so the grid follows the mound sphere's steep rim within the audit's tolerance;
+the refined vertices on an edge shared with a coarse cell lie on that edge (T-junctions, no cracks). Its UVs are
+metres, u = x and v = z, which is how the belt_straw ground recipe lays its unique base map (tiling 1/size_m, offset
+0.5). LOD1 is the same slab without the micro mesh, LOD2 the slab with a flat 2 x 2 top.
+
+The bare soil patches (lib.patches, the layout tools/assets/derive.py stamps the bare mask from, so the map and the
+mesh never disagree) are where the mat is missing: over each patch's convex step outline the top drops vertically
+by the mat depth D to a floor that is the mat surface lowered by D, relief included (PR3). A cell the outline
+crosses is cut exactly along it: the part inside is floor, the part outside mat (ear-clipped), and one vertical
+wall quad stands on every piece of outline edge, all sharing their vertices with the neighbouring cells; a cell
+wholly inside is floor. The floor and the walls take the ground slot; a wall's UVs unfold it outward from its top,
+so it shows the mat's cut edge.
 
 The straw instance kit (lib.straw) is baked as the visual-only micro mesh of LOD0 within bake_radius_m of the
 centre: lying straws, standing stems (a seed_head_share of them headed) and belt twigs on a seeded jittered grid at
-their densities, resting on the mat's local height, crosswise with a weak lodging bias (a `lodging.bias` share of
-the lying straws within +-LODGING_SPREAD_DEG of `lodging.azimuth_deg`, degrees from +X towards +Z, the recipe's
-convention). The standing stems grow in tussocks of stems_per_tuft within TUFT_R_M of a tuft's centre, each leaning
-up to stem_tilt_deg away from it (H 3-9). Over the last bake_feather_m of the radius every kind thins to nothing
-along a smoothstep, so the bake has no hard rim. The shared micro-detail generator replaces the bake at physics
-parity later (AST-10).
+their densities, resting on the stepped surface (a floor's straws lie on the floor, review-physics N8), crosswise
+with a weak lodging bias (a `lodging.bias` share of the lying straws within +-LODGING_SPREAD_DEG of
+`lodging.azimuth_deg`, degrees from +X towards +Z, the recipe's convention). The standing stems grow in tussocks of
+stems_per_tuft within TUFT_R_M of a tuft's centre, each leaning up to stem_tilt_deg away from it (H 3-9). Over the
+last bake_feather_m of the radius every kind thins to nothing along a smoothstep, so the bake has no hard rim. The
+shared micro-detail generator replaces the bake at physics parity later (AST-10).
 
 A mound is a sphere cap on the slab: radius r = min(the sphere through the mound's rim and apex, the largest sphere
 whose bottom stays inside the slab), centre sunk to y = h - r, its cap sampled on the grid; a low skirt (SKIRT_M)
 spreads the foot to mound_w_m, and the relief blends back in over BLEND_M past the foot, so every vertex stays
-within the audit's tolerance of the sphere or the slab top. A mound is bare earth (H 1-4): the top triangles inside
-its foot take the SOIL_SLOT material. Collision (design 6): one box of the slab, landable, physics_material; one
-sphere per mound, landable, mound_material; no gaps, wind volumes or snags (the straws' hooks are the micro-detail
-generator's, AST-10).
+within the audit's tolerance of the sphere or the slab top. A mound keeps MOUND_GAP_M from every other mound, the
+patch edge and every bare patch's window, so it stands on the mat. A mound is bare earth (H 1-4): the top
+triangles inside its foot take the SOIL_SLOT material.
+
+Collision (design 6, review-physics §3), every shape landable, in this order (PR8), so a logged (object, shape)
+reads as floor, mat or mound:
+- collision[0], the soil: one box over the whole patch, physics_material (surface:belt_straw), its top one mat
+  depth below the mat top and SOIL_M deep (F-5 behind the floors' top); the floors show it;
+- the fill boxes: the mat, mat_material (straw), from -D to 0 standing on the soil box, axis-aligned over the patch
+  minus every bare patch's window (lib.patches.fill);
+- each bare patch's edge boxes in patch order, one per outline edge from its first corner: the mat around the
+  patch, mat_material, open exactly over the outline (lib.patches; the window is checked covered every 2 cm);
+- the mound spheres, mound_material.
+No gaps, wind volumes or snags (the straws' hooks are the micro-detail generator's, AST-10).
 """
 import math
 import random
 
 from lib.audit import TOLERANCE_M
-from lib import straw
+from lib import patches, straw
 from lib.geometry import Mesh
 
 SLOT = "ground"
 SOIL_SLOT = "soil"       # a mound's bare earth
-SLAB_M = 0.2            # the slab's depth, the collision box of design 6 (the mat is 5-20 cm deep)
+SOIL_M = 0.3             # the soil box below the mat: F-5 behind the floors' top (carried; review-physics PR1)
 REFINE = 4               # a cell under a mound is split this many times per side
 NOISE_M = (1.0, 0.5)     # value-noise octaves of the relief: lattice spacings, the second at half amplitude (assumed)
 SKIRT_M = 0.03           # a mound's spread foot, under the audit tolerance so it sits on the slab box (assumed)
 BLEND_M = 0.1            # the relief returns over this ring past a mound's foot
-MOUND_GAP_M = 0.5        # clear ground between mounds and from the patch edge
+MOUND_GAP_M = 0.5        # clear ground between mounds, from the patch edge and from every bare patch's window
 LODGING_SPREAD_DEG = 20  # a lodged straw lies within this of the azimuth
 STRAW_LIFT_M = (-0.005, 0.03)  # a lying straw's centre above the mat: part buried to stacked (assumed)
 TWIG_LIFT_M = (0.0, 0.01)
@@ -48,15 +66,20 @@ STEM_SINK_M = 0.02       # a stem's foot below the mat
 TUFT_R_M = 0.15          # a tussock's foot radius (assumed from H 3-9: tussocks 0.2-0.4 m across)
 STRAW_PITCH_DEG = 6.0    # extra pitch beyond the mat's slope between a straw's ends
 MICRO_KIND = "straw"     # the micro mesh's kind: its count is the straw-kit instances baked
+IDENTITY = [0.0, 0.0, 0.0, 1.0]
 
 PARAMS = {
     "seed": {"type": "int", "range": (0, 2**31 - 1), "default": 1,
-             "effect": "every draw: the relief, the mounds, the kit and the scatter"},
+             "effect": "every draw: the relief, the bare patches, the mounds, the kit and the scatter"},
     "size_m": {"type": "float", "range": (2.0, 50.0), "default": 12.0, "effect": "side of the square patch, centred"},
     "cell_m": {"type": "float", "range": (0.05, 1.0), "default": 0.25,
                "effect": "grid cell of the LOD0/LOD1 top; small enough to follow the mound spheres (check)"},
     "relief_m": {"type": "float", "range": (0.0, TOLERANCE_M), "default": 0.04,
                  "effect": "the mat's unevenness, +- about the mean top y = 0, within the audit's tolerance"},
+    "mat_depth_m": {"type": "float", "range": (0.05, 0.2), "default": 0.125,
+                    "effect": "the mat's depth D (sheet 5-20 cm): the mat boxes stand from -D to 0 on the soil box and "
+                              "a bare patch's floor lies D below the mat; straw's 490 N/m in physics_materials.json is "
+                              "derived at 0.125 m, so another depth needs a physics re-derivation"},
     "bare.share": {"type": "float", "range": (0.0, 0.3), "default": 0.08,
                    "effect": "share of the patch under bare soil patches, measured on their step outlines; the ground "
                              "recipe draws its bare mask from the same layout (lib.patches)"},
@@ -84,7 +107,8 @@ PARAMS = {
     "lodging.azimuth_deg": {"type": "float", "range": (-360.0, 360.0), "default": 25.0,
                             "effect": "lodging direction, degrees from +X towards +Z; the ground recipe's"},
     "lodging.bias": {"type": "float", "range": (0.0, 1.0), "default": 0.3,
-                     "effect": "share of lying straws aligned with the azimuth; the rest lie crosswise"},
+                     "effect": "share of lying straws aligned with the azimuth, the rest crosswise; bare patches are "
+                               "1 + bias longer along it"},
     "straw_len_m.min": {"type": "float", "range": (0.05, 2.0), "default": 0.3, "effect": "shortest lying straw"},
     "straw_len_m.max": {"type": "float", "range": (0.05, 2.0), "default": 1.0, "effect": "longest lying straw"},
     "straw_d_mm.min": {"type": "float", "range": (0.5, 10.0), "default": 2.0, "effect": "thinnest straw or stem"},
@@ -102,7 +126,11 @@ PARAMS = {
     "variants": {"type": "int", "range": (4, 16), "default": 12, "effect": "distinct kit meshes per kind"},
     "segments": {"type": "int", "range": (2, 6), "default": 4, "effect": "tube segments per straw at LOD0"},
     "physics_material": {"type": "str", "range": "surface:<id> or an id of assets-src/physics_materials.json",
-                         "default": "surface:belt_straw", "effect": "material of the slab box and both slots"},
+                         "default": "surface:belt_straw", "effect": "material of the soil box and the ground slot"},
+    "mat_material": {"type": "str", "range": "an id of assets-src/physics_materials.json or surface:<id>",
+                     "default": "straw",
+                     "effect": "material of the mat boxes and the straw slot: a straw layer over a shape is the "
+                               "compliant straw id (review-physics §3)"},
     "mound_material": {"type": "str", "range": "surface:<id> or an id of assets-src/physics_materials.json",
                        "default": "surface:crater_spoil", "effect": "material of the mound spheres"},
     "lod.lod1_switch_m": {"type": "float", "range": (0.1, 100.0), "default": 8.0,
@@ -117,12 +145,16 @@ RANGES = ("mound_w_m", "mound_h_m", "straw_len_m", "straw_d_mm", "stem_h_m", "tw
 
 def check(params):
     """Cross-parameter rules once every key is in range: ordered ranges, the bake inside the patch, mounds above the
-    relief and spheres the grid can follow within the audit's tolerance, mounds that fit the patch, ordered LODs."""
+    relief and spheres the grid can follow within the audit's tolerance, mounds that fit the patch, bare patches no
+    cell can hold whole, ordered LODs."""
     problems = [f"'{key}.min' = {params[key]['min']} exceeds '{key}.max' = {params[key]['max']}"
                 for key in RANGES if params[key]["min"] > params[key]["max"]]
     bare = params["bare"]["size_m"]
     if bare["min"] > bare["max"]:
         problems.append(f"'bare.size_m.min' = {bare['min']} exceeds 'bare.size_m.max' = {bare['max']}")
+    if bare["min"] <= params["cell_m"] * math.sqrt(2):
+        problems.append(f"'bare.size_m.min' = {bare['min']} must exceed the cell's diagonal "
+                        f"{params['cell_m'] * math.sqrt(2):.3f} m, so no cell holds a whole bare patch")
     if params["bake_radius_m"] > params["size_m"] / 2:
         problems.append(f"'bake_radius_m' = {params['bake_radius_m']} reaches beyond the patch; at most size_m / 2 = "
                         f"{params['size_m'] / 2:g}")
@@ -139,7 +171,8 @@ def check(params):
         # A sunk sphere is steep at its rim, so the refined grid misses it by up to its half-diagonal there, and a
         # chord between two grid points on the sphere sags below it; both must stay inside the audit's tolerance
         # (a bound: S04 at 0.25 m measures 34-35 mm against the 44 mm half-diagonal).
-        radius = min(_mound_radius(w["min"], h["max"]), _mound_radius(w["max"], h["min"]))
+        slab = params["mat_depth_m"] + SOIL_M
+        radius = min(_mound_radius(w["min"], h["max"], slab), _mound_radius(w["max"], h["min"], slab))
         half_diagonal = params["cell_m"] / REFINE * math.sqrt(2) / 2
         if half_diagonal > TOLERANCE_M or _sagitta(radius, params["cell_m"] / REFINE) > TOLERANCE_M:
             problems.append(f"'cell_m' = {params['cell_m']} cannot follow the mound spheres (smallest radius {radius:.3f} m) "
@@ -153,12 +186,20 @@ def check(params):
 
 def build(params):
     rng = random.Random(params["seed"])
-    size = params["size_m"]
+    size, depth = params["size_m"], params["mat_depth_m"]
+    slab_m = depth + SOIL_M
     n = max(1, round(size / params["cell_m"]))
     relief = _relief(rng, n, size, params["relief_m"])
-    mounds = _mounds(rng, params)
+    bare = patches.layout(**patches.inputs(params))["patches"]
+    for k, patch in enumerate(bare):  # PR4's self-check: the edge boxes open the mat exactly over the outline
+        misses = patches.uncovered(patch)
+        if misses:
+            raise ValueError(f"bare patch {k}: its edge boxes leave {len(misses)} samples of its window open, the "
+                             f"first at ({misses[0][0]:.3f}, {misses[0][1]:.3f})")
+    mounds = _mounds(rng, params, bare, slab_m)
 
     def height(x, z):
+        """The mat's top."""
         y = relief(x, z)
         for m in mounds:
             d = math.hypot(x - m["x"], z - m["z"])
@@ -166,27 +207,58 @@ def build(params):
                 return _mound_height(m, d, y)
         return y
 
+    def surface(x, z):
+        """The top a straw rests on: the mat, or a bare patch's floor D below it."""
+        return height(x, z) - depth if patches.inside(bare, x, z) else height(x, z)
+
     def slot(x, z):
         return SOIL_SLOT if any(math.hypot(x - m["x"], z - m["z"]) < m["w"] / 2 for m in mounds) else SLOT
 
-    slab = _slab(n, size, height, _refined_cells(n, size, mounds), slot)
+    slab = _slab(n, size, height, _refined_cells(n, size, mounds), slot, slab_m, bare, depth)
     micro = Mesh()
-    count = _bake(rng, params, micro, height)
+    count = _bake(rng, params, micro, surface)
     lod = params["lod"]
-    physics = params["physics_material"]
     return {
-        "lods": [slab, slab, _slab(2, size, lambda x, z: 0.0, set(), lambda x, z: SLOT)],
+        "lods": [slab, slab, _slab(2, size, lambda x, z: 0.0, set(), lambda x, z: SLOT, slab_m)],
         "micro": [{"lod": 0, "kind": MICRO_KIND, "count": count, "mesh": micro}],
         "switch_distances_m": [0.0, lod["lod1_switch_m"], lod["lod2_switch_m"]],
         "cull_distance_m": lod["cull_m"],
-        "materials": [{"slot": SLOT, "physics": physics}, {"slot": SOIL_SLOT, "physics": params["mound_material"]},
-                      {"slot": straw.SLOT, "physics": physics}],
-        "collision": [{"shape": "box", "center": [0.0, -SLAB_M / 2, 0.0], "size": [size, SLAB_M, size],
-                       "rotation": [0.0, 0.0, 0.0, 1.0], "material": physics, "landable": True}]
-                     + [{"shape": "sphere", "center": [m["x"], m["h"] - m["r"], m["z"]], "radius": m["r"],
-                         "material": params["mound_material"], "landable": True} for m in mounds],
+        "materials": [{"slot": SLOT, "physics": params["physics_material"]},
+                      {"slot": SOIL_SLOT, "physics": params["mound_material"]},
+                      {"slot": straw.SLOT, "physics": params["mat_material"]}],
+        "collision": _collision(params, bare, mounds),
         "gaps": [], "wind_volumes": [], "snag": [],
     }
+
+
+# --- collision ----------------------------------------------------------------------------------------------------
+
+def _collision(params, bare, mounds):
+    """The shapes in PR8's order: the soil box, the fill boxes, each patch's edge boxes, the mound spheres."""
+    size, depth, mat = params["size_m"], params["mat_depth_m"], params["mat_material"]
+    shapes = [{"shape": "box", "center": [0.0, -depth - SOIL_M / 2, 0.0], "size": [size, SOIL_M, size],
+               "rotation": list(IDENTITY), "material": params["physics_material"], "landable": True}]
+    for x0, x1, z0, z1 in patches.fill(size, bare):
+        shapes.append({"shape": "box", "center": [(x0 + x1) / 2, -depth / 2, (z0 + z1) / 2],
+                       "size": [x1 - x0, depth, z1 - z0], "rotation": list(IDENTITY), "material": mat,
+                       "landable": True})
+    for patch in bare:
+        shapes += [_edge_box(rect, depth, mat) for rect in patch["edges"]]
+    shapes += [{"shape": "sphere", "center": [m["x"], m["h"] - m["r"], m["z"]], "radius": m["r"],
+                "material": params["mound_material"], "landable": True} for m in mounds]
+    return shapes
+
+
+def _edge_box(rect, depth, material):
+    """A mat box from an edge rectangle of lib.patches: local X along the edge, local Z across it, from -D to 0. The
+    rotation turns local +X onto the edge's direction about +Y (Unity's quaternion, as lib.audit applies it)."""
+    (t0, t1), (s0, s1) = rect["t"], rect["s"]
+    (ax, az), (dx, dz), (nx, nz) = rect["a"], rect["d"], rect["n"]
+    t, s = (t0 + t1) / 2, (s0 + s1) / 2
+    half = math.atan2(-dz, dx) / 2
+    return {"shape": "box", "center": [ax + dx * t + nx * s, -depth / 2, az + dz * t + nz * s],
+            "size": [t1 - t0, depth, s1 - s0], "rotation": [0.0, math.sin(half), 0.0, math.cos(half)],
+            "material": material, "landable": True}
 
 
 # --- the slab -----------------------------------------------------------------------------------------------------
@@ -223,10 +295,10 @@ def _smooth(t):
     return t * t * (3 - 2 * t)
 
 
-def _mound_radius(w, h):
+def _mound_radius(w, h, slab_m):
     """The mound sphere's radius: through the rim (w/2 at y = 0) and the apex (h), unless its bottom would leave
     the slab, then the largest sphere with its apex at h and its bottom on the slab's bottom."""
-    return min((w * w / 4 + h * h) / (2 * h), (SLAB_M + h) / 2)
+    return min((w * w / 4 + h * h) / (2 * h), (slab_m + h) / 2)
 
 
 def _sagitta(radius, cell):
@@ -235,26 +307,33 @@ def _sagitta(radius, cell):
     return radius - math.sqrt(radius * radius - c * c) if c < radius else radius
 
 
-def _mounds(rng, params):
-    """The mounds: seeded positions with MOUND_GAP_M of clear ground between them and from the edge, each with its
-    foot width w, height h, sphere radius r and cap footprint radius a."""
+def _mounds(rng, params, bare, slab_m):
+    """The mounds: seeded positions with MOUND_GAP_M of clear ground between them, from the edge and from every bare
+    patch's window, each with its foot width w, height h, sphere radius r and cap footprint radius a."""
     size = params["size_m"]
     count = round(params["mounds_per_m2"] * size * size)
     mounds = []
     for _ in range(count):
         w, h = rng.uniform(params["mound_w_m"]["min"], params["mound_w_m"]["max"]), \
             rng.uniform(params["mound_h_m"]["min"], params["mound_h_m"]["max"])
-        r = _mound_radius(w, h)
+        r = _mound_radius(w, h, slab_m)
         reach = w / 2 + BLEND_M
         for _ in range(1000):
             x, z = rng.uniform(-size / 2 + reach + MOUND_GAP_M, size / 2 - reach - MOUND_GAP_M), \
                 rng.uniform(-size / 2 + reach + MOUND_GAP_M, size / 2 - reach - MOUND_GAP_M)
-            if all(math.hypot(x - m["x"], z - m["z"]) >= reach + m["w"] / 2 + BLEND_M + MOUND_GAP_M for m in mounds):
+            if all(math.hypot(x - m["x"], z - m["z"]) >= reach + m["w"] / 2 + BLEND_M + MOUND_GAP_M for m in mounds) \
+                    and all(_rect_distance(x, z, p["window"]) >= reach + MOUND_GAP_M for p in bare):
                 break
         else:
-            raise ValueError(f"could not place mound {len(mounds) + 1} of {count} with {MOUND_GAP_M} m between mounds")
+            raise ValueError(f"could not place mound {len(mounds) + 1} of {count} with {MOUND_GAP_M} m between mounds "
+                             "and from the bare patches")
         mounds.append({"x": x, "z": z, "w": w, "h": h, "r": r, "a": math.sqrt(r * r - (h - r) ** 2)})
     return mounds
+
+
+def _rect_distance(x, z, rect):
+    x0, x1, z0, z1 = rect
+    return math.hypot(max(x0 - x, 0.0, x - x1), max(z0 - z, 0.0, z - z1))
 
 
 def _refined_cells(n, size, mounds):
@@ -283,30 +362,53 @@ def _mound_height(m, d, relief):
     return max(cap, skirt) * (1 - f) + relief * f
 
 
-def _slab(n, size, height, refined, slot):
+def _slab(n, size, height, refined, slot, slab_m, bare=(), depth=0.0):
     """The closed slab: the top as an n x n grid of `height` samples, two triangles per cell (the diagonal
     alternating like a chequerboard, so no ridge runs across the patch), the `refined` cells split REFINE x REFINE
     with their vertices on an edge shared with a coarse cell interpolated along it, each top triangle in the
-    material slot(x, z) of its centroid; four walls down to -SLAB_M and the bottom in SLOT; UVs u = x, v = z on the
-    top and bottom and upright on the walls."""
+    material slot(x, z) of its centroid; the cells of the `bare` patches stepped down by `depth` along their
+    outlines (_cut_cells); four walls down to -slab_m and the bottom in SLOT; UVs u = x, v = z on the top and bottom
+    and upright on the walls."""
     mesh = Mesh()
     cell, k = size / n, REFINE
-    vertices = {}  # sub-grid coordinates (coarse * k + fine) -> vertex index
+    vertices = {}  # sub-grid coordinates (coarse * k + fine) -> vertex index on the mat's top
+    points = {}    # (key, level) -> vertex index of a cut cell's point at "mat" or "floor" level
+
+    def grid(a):
+        return -size / 2 + a * cell / k
 
     def vertex(a, b, y=None):
         if (a, b) not in vertices:
-            x, z = -size / 2 + a * cell / k, -size / 2 + b * cell / k
+            x, z = grid(a), grid(b)
             vertices[(a, b)] = mesh.vertex((x, height(x, z) if y is None else y, z))
         return vertices[(a, b)]
 
+    def point(key, xz, level):
+        """A point of a cut cell by its key (lib.patches outline corner, outline-grid crossing or grid corner), on
+        the mat's top or on the floor D below it; a grid corner on the mat is the grid's own vertex."""
+        if key[0] == "g" and level == "mat":
+            return vertex(key[1], key[2])
+        if (key, level) not in points:
+            x, z = xz
+            points[(key, level)] = mesh.vertex((x, height(x, z) - (depth if level == "floor" else 0.0), z))
+        return points[(key, level)]
+
+    def top_face(tri):
+        p = [mesh.vertices[v] for v in tri]
+        centroid = (sum(q[0] for q in p) / 3, sum(q[2] for q in p) / 3)
+        mesh.face(tri, _up_normal(mesh, tri), slot(*centroid), [(q[0], q[2]) for q in p])
+
     def triangles(i, j, a, b, c, d):
         for tri in ((a, b, c), (a, c, d)) if (i + j) % 2 == 0 else ((a, b, d), (b, c, d)):
-            points = [mesh.vertices[v] for v in tri]
-            centroid = (sum(p[0] for p in points) / 3, sum(p[2] for p in points) / 3)
-            mesh.face(tri, _up_normal(mesh, tri), slot(*centroid), [(p[0], p[2]) for p in points])
+            top_face(tri)
 
+    cut = _cut_cells(n, size, k, grid, bare, refined)
+    for (i, j), (p, piece) in sorted(cut.items()):
+        _cut_cell(mesh, i, j, k, grid, bare[p]["outline"], piece, point, top_face, triangles, depth)
     for i in range(n):
         for j in range(n):
+            if (i, j) in cut:
+                continue
             if (i, j) not in refined:
                 triangles(i, j, vertex(i * k, j * k), vertex((i + 1) * k, j * k),
                           vertex((i + 1) * k, (j + 1) * k), vertex(i * k, (j + 1) * k))
@@ -324,20 +426,155 @@ def _slab(n, size, height, refined, slot):
                 for b in range(k):
                     triangles(a, b, vertex(i * k + a, j * k + b), vertex(i * k + a + 1, j * k + b),
                               vertex(i * k + a + 1, j * k + b + 1), vertex(i * k + a, j * k + b + 1))
-    top = [[vertices[(i * k, j * k)] for j in range(n + 1)] for i in range(n + 1)]
-    y = -SLAB_M
+    def top(i, j):  # a grid vertex on the patch's rim, which no bare patch reaches
+        return vertices[(i * k, j * k)]
+
+    y = -slab_m
     bottom = {(sx, sz): mesh.vertex((sx * size / 2, y, sz * size / 2)) for sx in (-1, 1) for sz in (-1, 1)}
     for i in range(n):  # the walls at z = -size/2 and +size/2 run along i, those at x = -size/2 and +size/2 along j
-        for (a, b), normal in (((top[i][0], top[i + 1][0]), (0.0, 0.0, -1.0)),
-                               ((top[i][n], top[i + 1][n]), (0.0, 0.0, 1.0)),
-                               ((top[0][i], top[0][i + 1]), (-1.0, 0.0, 0.0)),
-                               ((top[n][i], top[n][i + 1]), (1.0, 0.0, 0.0))):
+        for (a, b), normal in (((top(i, 0), top(i + 1, 0)), (0.0, 0.0, -1.0)),
+                               ((top(i, n), top(i + 1, n)), (0.0, 0.0, 1.0)),
+                               ((top(0, i), top(0, i + 1)), (-1.0, 0.0, 0.0)),
+                               ((top(n, i), top(n, i + 1)), (1.0, 0.0, 0.0))):
             pa, pb = mesh.vertices[a], mesh.vertices[b]
             la, lb = mesh.vertex((pa[0], y, pa[2])), mesh.vertex((pb[0], y, pb[2]))
             mesh.face([a, b, lb, la], normal, SLOT)
     base = [bottom[(-1, -1)], bottom[(1, -1)], bottom[(1, 1)], bottom[(-1, 1)]]
     mesh.face(base, (0.0, -1.0, 0.0), SLOT, [(mesh.vertices[v][0], mesh.vertices[v][2]) for v in base])
     return mesh
+
+
+def _cut_cells(n, size, k, grid, bare, refined):
+    """(i, j) -> (patch index, the patch's outline clipped to the cell) for every coarse cell an outline reaches. A
+    cell two patches or a patch and a mound share is refused (the layout keeps them apart; the check on
+    bare.size_m.min keeps a patch from fitting inside one cell)."""
+    cell = size / n
+    cut = {}
+    for p, patch in enumerate(bare):
+        xs, zs = [q[0] for q in patch["outline"]], [q[1] for q in patch["outline"]]
+        for i in range(max(0, int((min(xs) + size / 2) / cell)), min(n, int((max(xs) + size / 2) / cell) + 1)):
+            for j in range(max(0, int((min(zs) + size / 2) / cell)), min(n, int((max(zs) + size / 2) / cell) + 1)):
+                piece = _clip_cell(patch["outline"], p, i, j, k, grid)
+                if not piece:
+                    continue
+                if (i, j) in cut or (i, j) in refined:
+                    raise ValueError(f"cell ({i}, {j}) is reached by bare patch {p} and by another patch or a mound")
+                if all(src[0] == "P" for _, _, src in piece):
+                    raise ValueError(f"bare patch {p} lies inside cell ({i}, {j}); make cell_m smaller")
+                cut[(i, j)] = (p, piece)
+    return cut
+
+
+def _clip_cell(outline, p, i, j, k, grid):
+    """The convex outline clipped to coarse cell (i, j) (Sutherland-Hodgman against its four grid lines), as
+    [(key, (x, z), source of the edge leaving this vertex)]. A key names its point exactly, so two cells sharing it
+    share the vertex: ("pv", p, m) an outline corner, ("x", p, m, line) where outline edge m crosses a grid line
+    ("V", a) at x = grid(a) or ("H", b) at z = grid(b), ("g", a, b) a grid corner. A source is ("P", m), outline edge
+    m, or a grid line. Each crossing is computed from the outline edge's own corners, never from a clipped piece, so
+    both cells get the same floats."""
+    poly = [(("pv", p, m), outline[m], ("P", m)) for m in range(len(outline))]
+    for axis, a, keep in ((0, i * k, 1), (0, (i + 1) * k, -1), (1, j * k, 1), (1, (j + 1) * k, -1)):
+        line, value = ("V" if axis == 0 else "H", a), grid(a)
+        out = []
+        for q, (key, xz, src) in enumerate(poly):
+            nxz = poly[(q + 1) % len(poly)][1]
+            inside, next_inside = keep * (xz[axis] - value) >= 0, keep * (nxz[axis] - value) >= 0
+            if inside:
+                out.append((key, xz, src))
+            if inside != next_inside:
+                if src[0] == "P":
+                    m = src[1]
+                    s, e = outline[m], outline[(m + 1) % len(outline)]
+                    other = s[1 - axis] + (value - s[axis]) / (e[axis] - s[axis]) * (e[1 - axis] - s[1 - axis])
+                    crossing = (("x", p, m, line), (value, other) if axis == 0 else (other, value))
+                else:  # a grid line across this one: the cell's corner
+                    va, vb = (a, src[1]) if axis == 0 else (src[1], a)
+                    crossing = (("g", va, vb), (grid(va), grid(vb)))
+                out.append((*crossing, line if inside else src))  # leaving: along the line; entering: along src
+        poly = out
+        if not poly:
+            return []
+    return poly
+
+
+def _cut_cell(mesh, i, j, k, grid, outline, piece, point, top_face, triangles, depth):
+    """One coarse cell an outline reaches: wholly inside, two floor triangles; else the piece inside as floor (a
+    fan: it is convex), each part outside as mat (ear-clipped: the mat around a convex outline is not convex) and a
+    vertical wall quad on every piece of outline edge, its normal into the patch, its UVs unfolded outward by D."""
+    corner_keys = [("g", i * k, j * k), ("g", (i + 1) * k, j * k), ("g", (i + 1) * k, (j + 1) * k), ("g", i * k, (j + 1) * k)]
+    xz = {key: (grid(key[1]), grid(key[2])) for key in corner_keys}
+    xz.update({key: q for key, q, _ in piece})
+    if not any(src[0] == "P" for _, _, src in piece):
+        a, b, c, d = (point(key, xz[key], "floor") for key in corner_keys)
+        triangles(i, j, a, b, c, d)
+        return
+    floor = [point(key, q, "floor") for key, q, _ in piece]
+    for q in range(1, len(floor) - 1):
+        top_face((floor[0], floor[q], floor[q + 1]))
+    x0, x1, z0, z1 = grid(i * k), grid((i + 1) * k), grid(j * k), grid((j + 1) * k)
+
+    def perimeter(key):
+        """The point's place on the cell's boundary, counter-clockwise from (x0, z0): 0-1 bottom, 1-2 right, 2-3 top,
+        3-4 left."""
+        if key[0] == "g":
+            return float(corner_keys.index(key))
+        (x, z), (axis, a) = xz[key], key[3]
+        if axis == "H":
+            return (x - x0) / (x1 - x0) if a == j * k else 2 + (x1 - x) / (x1 - x0)
+        return 1 + (z - z0) / (z1 - z0) if a == (i + 1) * k else 3 + (z1 - z) / (z1 - z0)
+
+    m = len(piece)
+    on_outline = [src[0] == "P" for _, _, src in piece]
+    for q in range(m):
+        if not on_outline[q] or on_outline[q - 1]:
+            continue
+        chain = [q]  # a run of outline edges from the boundary point q back to the boundary
+        while on_outline[chain[-1]]:
+            chain.append((chain[-1] + 1) % m)
+        start, end = piece[chain[0]][0], piece[chain[-1]][0]
+        ps = perimeter(start)
+        span = (perimeter(end) - ps) % 4
+        between = sorted(((perimeter(c) - ps) % 4, c) for c in corner_keys if 0 < (perimeter(c) - ps) % 4 < span)
+        ring = [start] + [c for _, c in between] + [end] + [piece[c][0] for c in reversed(chain[1:-1])]
+        ids = [point(key, xz[key], "mat") for key in ring]
+        for a, b, c in _ear_clip([xz[key] for key in ring]):
+            top_face((ids[a], ids[b], ids[c]))
+        for c0, c1 in zip(chain, chain[1:]):
+            edge = piece[c0][2][1]
+            s, e = outline[edge], outline[(edge + 1) % len(outline)]
+            length = math.hypot(e[0] - s[0], e[1] - s[1])
+            nx, nz = (e[1] - s[1]) / length, (s[0] - e[0]) / length  # outward of the outline
+            (ka, qa), (kb, qb) = piece[c0][:2], piece[c1][:2]
+            quad = [point(ka, qa, "mat"), point(kb, qb, "mat"), point(kb, qb, "floor"), point(ka, qa, "floor")]
+            uvs = [qa, qb, (qb[0] + depth * nx, qb[1] + depth * nz), (qa[0] + depth * nx, qa[1] + depth * nz)]
+            mesh.face(quad, (-nx, 0.0, -nz), SLOT, uvs)
+
+
+def _ear_clip(points):
+    """Index triples of a simple counter-clockwise polygon in the plane, by ear clipping."""
+    order = list(range(len(points)))
+    tris = []
+    while len(order) > 3:
+        for idx in range(len(order)):
+            a, b, c = order[idx - 1], order[idx], order[(idx + 1) % len(order)]
+            if _cross2(points[a], points[b], points[c]) <= 0:
+                continue
+            if any(_in_triangle(points[o], points[a], points[b], points[c]) for o in order if o not in (a, b, c)):
+                continue
+            tris.append((a, b, c))
+            del order[idx]
+            break
+        else:
+            raise ValueError(f"no ear left in a mat piece of {len(order)} corners")
+    return tris + [tuple(order)]
+
+
+def _cross2(a, b, c):
+    return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+
+
+def _in_triangle(p, a, b, c):
+    return _cross2(a, b, p) >= 0 and _cross2(b, c, p) >= 0 and _cross2(c, a, p) >= 0
 
 
 def _up_normal(mesh, tri):
@@ -351,7 +588,8 @@ def _up_normal(mesh, tri):
 # --- the bake -----------------------------------------------------------------------------------------------------
 
 def _bake(rng, params, micro, height):
-    """Scatters the kit into `micro` within bake_radius_m and returns the instance count."""
+    """Scatters the kit into `micro` within bake_radius_m, resting on `height` (the stepped surface), and returns
+    the instance count."""
     kit = straw.build_kit(params, rng)
     radius, feather = params["bake_radius_m"], params["bake_feather_m"]
     azimuth, bias = math.radians(params["lodging"]["azimuth_deg"]), params["lodging"]["bias"]

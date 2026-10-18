@@ -1,21 +1,34 @@
-"""generators.ground_patch with the S04 params (p1-s04-belt-straw, design decisions 1, 4, 6, 8): the slab's top is
-the mean at y = 0 with the relief inside +-relief_m, the mounds' spheres sit within 5 cm of their raised cells and
-the box top at the mean, a mound's top is bare soil, the micro mesh holds the kit's scatter at density x the
-feathered bake area within 5 %, the feather thins the rim, the metadata lists it, and `check` refuses a bake radius
-beyond the patch, a feather wider than the bake, and a mound the relief or the grid cannot carry."""
+"""generators.ground_patch with the S04 params (p1-s04-belt-straw, design decisions 1, 4, 6, 8; review-physics PR1-PR8):
+the slab's top is the mean at y = 0 with the relief inside +-relief_m, the mounds' spheres sit within 5 cm of their
+raised cells, a mound's top is bare soil, the micro mesh holds the kit's scatter at density x the feathered bake
+area within 5 %, the feather thins the rim, the metadata lists it, and `check` refuses a bake radius beyond the
+patch, a feather wider than the bake, and a mound the relief or the grid cannot carry. The bare patches: the mesh
+steps down by the mat depth along each outline to a floor, no shape stands above a floor and the soil box lies
+just under it (PR7 a), the old single mat box fails the audit by the step (PR7 b), the shapes come in PR8's order,
+the mat boxes are the layout's, and the baked straws over a floor lie on it (N8)."""
 import copy
 import math
+import statistics
 
 import pytest
 
 from generators import ground_patch
-from lib import meta, params
+from lib import audit, meta, params, patches
 from lib.audit import TOLERANCE_M
 
 
 @pytest.fixture(scope="module")
 def built(s04_params):
     return ground_patch.build(s04_params)
+
+
+@pytest.fixture(scope="module")
+def bare(s04_params):
+    return patches.layout(**patches.inputs(s04_params))["patches"]
+
+
+def slab_m(s04_params):
+    return s04_params["mat_depth_m"] + ground_patch.SOIL_M
 
 
 def test_s04_params_conform_and_defaults_are_s04(s04_params):
@@ -29,31 +42,159 @@ def test_s04_params_conform_and_defaults_are_s04(s04_params):
             assert spec["range"][0] <= spec["default"] <= spec["range"][1], key
 
 
-def test_slab_top_is_the_mean_with_the_relief_inside_its_range(built, s04_params):
-    size, relief = s04_params["size_m"], s04_params["relief_m"]
+def test_slab_top_is_the_mean_with_the_relief_inside_its_range(built, s04_params, bare):
+    """The grid's vertices, a floor's lifted back by the mat depth, are the relief: mean 0, within +-relief_m."""
+    size, relief, depth = s04_params["size_m"], s04_params["relief_m"], s04_params["mat_depth_m"]
     lod0, lod1, lod2 = built["lods"]
     assert lod0 is lod1, "LOD1 is the grid alone"
     lo, hi = lod0.bounds()
-    assert lo == pytest.approx((-size / 2, -ground_patch.SLAB_M, -size / 2))
+    assert lo == pytest.approx((-size / 2, -slab_m(s04_params), -size / 2))
     assert hi[0] == pytest.approx(size / 2) and hi[2] == pytest.approx(size / 2)
     mounds = [c for c in built["collision"] if c["shape"] == "sphere"]
     n = round(size / s04_params["cell_m"])
     grid = []
     for x, y, z in lod0.vertices:
-        if y <= -ground_patch.SLAB_M + 1e-9:
+        if y <= -slab_m(s04_params) + 1e-9:
             continue
         under_mound = any(math.hypot(x - m["center"][0], z - m["center"][2]) < 0.5 for m in mounds)
         on_grid = abs((x + size / 2) / (size / n) - round((x + size / 2) / (size / n))) < 1e-9 and \
             abs((z + size / 2) / (size / n) - round((z + size / 2) / (size / n))) < 1e-9
         if not under_mound and on_grid:
-            grid.append(y)
+            grid.append(y + depth if patches.inside(bare, x, z) else y)
     assert len(grid) > 0.9 * (n + 1) ** 2
     assert max(abs(y) for y in grid) <= relief + 1e-9 and max(abs(y) for y in grid) > 0.9 * relief
-    assert sum(grid) / len(grid) == pytest.approx(0.0, abs=0.0005), "the box top at the mean"
-    box = built["collision"][0]
-    assert box["shape"] == "box" and box["center"] == [0.0, -ground_patch.SLAB_M / 2, 0.0] and box["landable"]
-    assert box["size"] == [size, ground_patch.SLAB_M, size] and box["material"] == "surface:belt_straw"
+    assert sum(grid) / len(grid) == pytest.approx(0.0, abs=0.0005), "the mat boxes' top at the mean"
     assert lod2.triangles() == 2 * 4 + 4 * 2 * 2 + 2 and lod2.bounds()[1][1] == 0.0  # a 2 x 2 top, the walls, the bottom
+    assert lod2.bounds()[0][1] == pytest.approx(-slab_m(s04_params))
+
+
+def test_bare_patches_step_down_by_the_mat_depth_along_their_outlines(built, s04_params, bare):
+    """PR3, spec "Bare patches are ground, not stains": inside every outline the top is the floor, the relief lowered
+    by D; along every outline edge stand vertical walls exactly D tall whose widths add up to the outline's
+    perimeter; floor and walls take the ground slot."""
+    lod0 = built["lods"][0]
+    depth, relief = s04_params["mat_depth_m"], s04_params["relief_m"]
+    walls = {k: 0.0 for k in range(len(bare))}
+    for indices, normal, uvs, slot in lod0.faces:
+        points = [lod0.vertices[i] for i in indices]
+        if abs(normal[1]) > 1e-9 or len(points) != 4 or min(p[1] for p in points) < -depth - relief - 1e-9 - 0.01:
+            continue
+        for k, patch in enumerate(bare):
+            if all(abs(patches.distance((p[0], p[2]), patch["outline"])) < 1e-9 for p in points):
+                tops = sorted(points, key=lambda p: -p[1])[:2]
+                walls[k] += math.hypot(tops[0][0] - tops[1][0], tops[0][2] - tops[1][2])
+                heights = sorted(p[1] for p in points)
+                assert heights[2] - heights[0] == pytest.approx(depth) and heights[3] - heights[1] == pytest.approx(depth)
+                assert slot == ground_patch.SLOT
+    for k, patch in enumerate(bare):
+        perimeter = sum(math.dist(a, b) for a, b in zip(patch["outline"], patch["outline"][1:] + patch["outline"][:1]))
+        assert walls[k] == pytest.approx(perimeter, abs=1e-6), f"patch {k}: walls {walls[k]:.4f} m, outline {perimeter:.4f} m"
+    floor = 0
+    for x, y, z in lod0.vertices:
+        if any(patches.distance((x, z), p["outline"]) < -1e-6 for p in bare):
+            floor += 1
+            assert -depth - relief - 1e-9 <= y <= -depth + relief + 1e-9, (x, y, z)
+    assert floor > 100
+
+
+def test_no_shape_stands_above_a_floor(built, s04_params, bare):
+    """PR7 (a), physics' own check, independent of the audit: inside every outline shrunk by 6 cm, sampled every
+    2 cm, every shape's signed distance is positive at y = -D + 0.06, -0.03, 0 and +0.05, and the soil box's is
+    negative 1 cm under the floor's mean level."""
+    depth = s04_params["mat_depth_m"]
+    shapes = [audit._Shape(s) for s in built["collision"]]
+    reach = [(min(p[0] for t in s.triangles for p in t[:3]), max(p[0] for t in s.triangles for p in t[:3]),
+              min(p[2] for t in s.triangles for p in t[:3]), max(p[2] for t in s.triangles for p in t[:3])) for s in shapes]
+    samples = 0
+    for k, patch in enumerate(bare):
+        x0, x1, z0, z1 = patch["window"]
+        near = [s for s, r in zip(shapes, reach) if r[0] < x1 and r[1] > x0 and r[2] < z1 and r[3] > z0]
+        nx, nz = math.ceil((x1 - x0) / 0.02), math.ceil((z1 - z0) / 0.02)
+        for i in range(nx + 1):
+            for j in range(nz + 1):
+                x, z = x0 + (x1 - x0) * i / nx, z0 + (z1 - z0) * j / nz
+                if patches.distance((x, z), patch["outline"]) > -0.06:
+                    continue
+                samples += 1
+                for y in (-depth + 0.06, -0.03, 0.0, 0.05):
+                    assert all(s.sdf((x, y, z)) > 0 for s in near), f"patch {k}: a shape stands at {(x, y, z)}"
+                assert shapes[0].sdf((x, -depth - 0.01, z)) < 0, f"patch {k}: no soil under {(x, z)}"
+    print(f"{samples} floor samples over {len(bare)} patches")
+    assert samples > 1000
+
+
+def test_a_mat_box_left_whole_fails_the_audit_by_the_step(built, s04_params, repo_root):
+    """PR7 (b): the same build with the straw boxes replaced by one 12 m straw box over the floors fails box->mesh by
+    at least 120 mm (the mat over a visible floor), the direction physics asserts on."""
+    size, depth = s04_params["size_m"], s04_params["mat_depth_m"]
+    data = meta.assemble("S04", "S04_patch", "ground_patch", s04_params, built,
+                         {"ground": "belt_straw", "soil": "belt_soil", "straw": "straw"})
+    data["collision"] = [c for c in data["collision"] if c["material"] != "straw"]
+    data["collision"].insert(1, {"shape": "box", "center": [0.0, -depth / 2, 0.0], "size": [size, depth, size],
+                                 "rotation": [0.0, 0.0, 0.0, 1.0], "material": "straw", "landable": True})
+    problems, lines = audit.run(data, built["lods"][0], audit.soft_materials(repo_root))
+    line = next(line for line in lines if line.startswith("audit collision[1] box"))
+    print(line)
+    assert float(line.split("box->mesh ")[1].split(" mm")[0]) >= 120.0
+    assert any(p.startswith("collision[1] box: box->mesh ") for p in problems)
+
+
+def test_shapes_come_soil_fill_edges_mounds(built, s04_params, bare):
+    """PR8: collision[0] the soil box one mat depth down and SOIL_M deep, then the axis-aligned fill boxes of
+    lib.patches.fill, then each patch's edge boxes in patch order (a box's inner face on its outline edge), then the
+    mound spheres; the mat is mat_material from -D to 0, every shape landable."""
+    size, depth = s04_params["size_m"], s04_params["mat_depth_m"]
+    shapes = built["collision"]
+    soil = shapes[0]
+    assert soil == {"shape": "box", "center": [0.0, -depth - ground_patch.SOIL_M / 2, 0.0],
+                    "size": [size, ground_patch.SOIL_M, size], "rotation": [0.0, 0.0, 0.0, 1.0],
+                    "material": "surface:belt_straw", "landable": True}
+    fill = patches.fill(size, bare)
+    edges = [rect for patch in bare for rect in patch["edges"]]
+    assert len(shapes) == 1 + len(fill) + len(edges) + 3
+    for shape, (x0, x1, z0, z1) in zip(shapes[1:], fill):
+        assert shape["rotation"] == [0.0, 0.0, 0.0, 1.0]
+        assert shape["center"] == pytest.approx([(x0 + x1) / 2, -depth / 2, (z0 + z1) / 2])
+        assert shape["size"] == pytest.approx([x1 - x0, depth, z1 - z0])
+    for shape, rect in zip(shapes[1 + len(fill):], edges):
+        box = audit._Shape(shape)
+        (ax, az), (dx, dz), (nx, nz) = rect["a"], rect["d"], rect["n"]
+        length = rect["t"][1] - rect["t"][0] - 2 * rect["s"][1]  # the edge between the reaches
+        for t in (0.25, 0.5, 0.75):  # the inner face lies on the edge, the box outside it
+            on = (ax + dx * length * t, -depth / 2, az + dz * length * t)
+            assert box.sdf(on) == pytest.approx(0.0, abs=1e-6)
+            assert box.sdf((on[0] + nx * 0.01, on[1], on[2] + nz * 0.01)) < 0
+            assert box.sdf((on[0] - nx * 0.01, on[1], on[2] - nz * 0.01)) > 0
+    for shape in shapes[1:1 + len(fill) + len(edges)]:
+        assert shape["material"] == "straw" and shape["center"][1] == pytest.approx(-depth / 2)
+        assert shape["size"][1] == pytest.approx(depth)
+    assert [s["shape"] for s in shapes[-3:]] == ["sphere"] * 3
+    assert all(s["landable"] for s in shapes)
+
+
+def test_mounds_keep_clear_of_the_bare_patches(built, bare):
+    for m in [c for c in built["collision"] if c["shape"] == "sphere"]:
+        for patch in bare:
+            x0, x1, z0, z1 = patch["window"]
+            x, z = m["center"][0], m["center"][2]
+            assert math.hypot(max(x0 - x, 0, x - x1), max(z0 - z, 0, z - z1)) >= ground_patch.MOUND_GAP_M
+
+
+def test_baked_straws_over_a_floor_lie_on_it(built, s04_params, bare):
+    """N8: the bake rests on the stepped surface, so the straws inside an outline lie on its floor (their median
+    height near -D), where the mat's straws lie near 0."""
+    depth = s04_params["mat_depth_m"]
+    mesh = built["micro"][0]["mesh"]
+    on_floor, on_mat = [], []
+    for x, y, z in mesh.vertices:
+        if math.hypot(x, z) > s04_params["bake_radius_m"] - s04_params["bake_feather_m"]:
+            continue
+        d = min(patches.distance((x, z), p["outline"]) for p in bare)
+        (on_floor if d < -0.1 else on_mat if d > 0.6 else []).append(y)
+    print(f"median straw vertex: {statistics.median(on_floor):.3f} m over floors ({len(on_floor)}), "
+          f"{statistics.median(on_mat):.3f} m over the mat ({len(on_mat)})")
+    assert len(on_floor) > 1000
+    assert abs(statistics.median(on_floor) + depth) < 0.04 and abs(statistics.median(on_mat)) < 0.04
 
 
 def test_mound_spheres_sit_within_5cm_of_their_raised_cells(built, s04_params):
@@ -63,7 +204,7 @@ def test_mound_spheres_sit_within_5cm_of_their_raised_cells(built, s04_params):
     for m in mounds:
         assert m["material"] == "surface:crater_spoil" and m["landable"]
         cx, cy, cz, r = m["center"][0], m["center"][1], m["center"][2], m["radius"]
-        assert cy - r >= -ground_patch.SLAB_M - 1e-9, "the sphere stays inside the slab"
+        assert cy - r >= -slab_m(s04_params) - 1e-9, "the sphere stays inside the slab"
         apex = cy + r
         assert s04_params["mound_h_m"]["min"] <= apex <= s04_params["mound_h_m"]["max"]
         raised = [(x, y, z) for x, y, z in lod0.vertices if y > 0 and math.hypot(x - cx, z - cz) < r]
@@ -93,7 +234,7 @@ def test_micro_mesh_holds_the_scatter_at_density_times_area(built, s04_params):
     reach = s04_params["bake_radius_m"] + max(s04_params["straw_len_m"]["max"] / 2,
                                               ground_patch.TUFT_R_M + s04_params["stem_h_m"]["max"])
     assert -reach <= lo[0] and hi[0] <= reach and -reach <= lo[2] and hi[2] <= reach
-    assert hi[1] >= s04_params["stem_h_m"]["max"] * 0.9 and lo[1] >= -ground_patch.SLAB_M, "buried ends stay inside the slab"
+    assert hi[1] >= s04_params["stem_h_m"]["max"] * 0.9 and lo[1] >= -slab_m(s04_params), "buried ends stay inside the slab"
 
 
 def test_metadata_lists_the_micro_mesh_and_only_the_slab_shapes(built, s04_params, material_ids):
@@ -107,7 +248,7 @@ def test_metadata_lists_the_micro_mesh_and_only_the_slab_shapes(built, s04_param
     assert data["bounds"]["max"][1] > 1.0, "the standing stems count towards the bounds"
     assert data["gaps"] == [] and data["wind_volumes"] == [] and data["snag"] == []
     assert [(m["slot"], m["physics"]) for m in data["materials"]] == [
-        ("ground", "surface:belt_straw"), ("soil", "surface:crater_spoil"), ("straw", "surface:belt_straw")]
+        ("ground", "surface:belt_straw"), ("soil", "surface:crater_spoil"), ("straw", "straw")]
 
 
 @pytest.mark.parametrize("edit, expected", [
@@ -117,6 +258,8 @@ def test_metadata_lists_the_micro_mesh_and_only_the_slab_shapes(built, s04_param
     (lambda p: p.update(cell_m=0.3), "'cell_m' = 0.3 cannot follow the mound spheres"),
     (lambda p: p["mound_w_m"].update(min=0.6), "'mound_w_m.min' = 0.6 exceeds 'mound_w_m.max' = 0.5"),
     (lambda p: p["lod"].update(lod2_switch_m=5.0), "'lod.lod1_switch_m' < 'lod.lod2_switch_m' < 'lod.cull_m' must hold"),
+    (lambda p: p["bare"]["size_m"].update(min=2.5), "'bare.size_m.min' = 2.5 exceeds 'bare.size_m.max' = 2.0"),
+    (lambda p: p["bare"]["size_m"].update(min=0.35), "'bare.size_m.min' = 0.35 must exceed the cell's diagonal 0.354 m"),
 ])
 def test_check_refuses_naming_the_rule(s04_params, edit, expected):
     edited = copy.deepcopy(s04_params)
