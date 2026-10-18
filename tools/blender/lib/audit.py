@@ -96,17 +96,18 @@ def _audit_shells(lines, meta, shapes, shells, lod0):
     """The shell rule (module docstring): for each crown contact material, every LOD0 vertex of its slots is
     measured against the shells of that material, inside counting as 0 and outside as its distance to the nearest
     one; each shell reports the largest distance among the vertices nearest to it, and fails beyond TOLERANCE_M.
-    A shell no slot carries, and a slot no shell stands for, are each a problem."""
+    A shell no slot carries, and a slot with LOD0 faces that no shell stands for, are each a problem."""
     problems = []
     by_material = {m["physics"]: [] for m in meta["materials"] if m["physics"] in SHELL_MATERIALS}
     for i in shells:
         by_material.setdefault(meta["collision"][i]["material"], []).append(i)
     for material, members in sorted(by_material.items()):
         slots = sorted(m["slot"] for m in meta["materials"] if m["physics"] == material)
-        if not members:
-            problems.append(f"slots {', '.join(slots)} carry {material} but no {material} shell stands for them")
-            continue
         vertices = sorted({lod0.vertices[k] for indices, _, _, slot in lod0.faces if slot in slots for k in indices})
+        if not members:
+            if vertices:
+                problems.append(f"slots {', '.join(slots)} carry {material} but no {material} shell stands for them")
+            continue
         worst = {i: (0.0, None) for i in members}
         for v in vertices:
             outside, which = min((max(shapes[i].sdf(v), 0.0), i) for i in members)
