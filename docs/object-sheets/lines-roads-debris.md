@@ -507,7 +507,7 @@ Asphalt fails by cracking (fatigue and frost), then the cracked cells lose their
 
 ### Physics role
 - **Collision:** the carriageway is ground: the `asphalt` surface over the heightfield with the crossfall and the edge drop in the relief; each pothole is a pitfall feature (outline, depth, wall slope) written into the map; each crater ring's lifted slabs are catalog debris pieces (boxes, 50 mm thick, tilted 10–40°). Kerb stones are boxes (`concrete`).
-- **Material ids:** the ground uses the S11 surface row; lifted slabs `proposed:asphalt` (else `concrete`); kerbs `concrete`.
+- **Material ids:** the ground uses the S11 surface row; lifted slabs `concrete`; kerbs `concrete`.
 - **Gaps:** none.
 - **Wind volumes:** none.
 - **Snag hazards:** the edges of lifted slabs (`edge`, radius 3 mm); nothing on intact asphalt.
@@ -540,7 +540,7 @@ Asphalt fails by cracking (fatigue and frost), then the cracked cells lose their
 | `seed` | int | any | per piece | Every random choice (cracks, patches, potholes, edge breaks) |
 
 ### Open points
-- `proposed:asphalt` for lifted slabs and broken edges (friction near `concrete`, edge radius 3–5 mm from the aggregate): physics sign-off.
+- `concrete` for lifted slabs and broken edges (friction near `concrete`, edge radius 3–5 mm from the aggregate): the physics sign-off's mapping of the proposed `asphalt`, which is a surface id only.
 - Pitfall features for potholes and the sub-grid relief for crossfall and edges: world-builder (map format).
 
 ## RD02 Concrete road plates (about 6 × 2 m), laid as a track
@@ -798,7 +798,7 @@ Tiles lift, slide and break at the eaves and the foot; slate shatters and scatte
 
 ### Physics role
 - **Collision:** tile shard: one thin box (14 mm); whole curved tile: 2 boxes; slate sheet or fragment: one box over the wave envelope (40 mm plus the sheet) so the legs meet the crests at the right height; a large fragment lying across rubble: 2–3 boxes following its tilt.
-- **Material ids:** tiles `masonry`; slate `proposed:asbestos_cement` (the houses sheet's proposal).
+- **Material ids:** tiles `masonry`; slate `asbestos_cement`.
 - **Gaps / wind volumes:** none.
 - **Snag hazards:** slate rims (`edge`, radius 3 mm, half the sheet), tile fracture rims (`edge`, 2 mm).
 - **Landable surfaces:** a whole or half slate sheet lying flat (at least 0.87 × 1.13 m): yes, the legs on crests 150 mm apart; it may crack under a hard landing (a later material property). Tile shards: no.
@@ -815,7 +815,7 @@ Tiles lift, slide and break at the eaves and the foot; slate shatters and scatte
 | `slate_waves` | int | 1–8 | by size | Waves on a fragment |
 | `stack_count` | int | 2–6 | 3 | Sheets in a stack |
 | `moss`, `soot` | 0–1 | — | 0.3, 0 | Surface state |
-| `physics_material` | id | `masonry`, `proposed:asbestos_cement` | by piece | Collision material |
+| `physics_material` | id | `masonry`, `asbestos_cement` | by piece | Collision material |
 | `seed`, `lod` | — | — | — | As K01 |
 
 ### Open points
@@ -977,8 +977,8 @@ Panels tear off their battens at a few kPa and fly 5–30 m downwind, wrapping r
 Tarps tear at the grommets first, then along the weave; film shreds into strips that wrap round anything they touch.
 
 ### Physics role
-- **Collision:** where the tarp lies on its host the host's collision stands; where it spans a void or hangs free it is a thin compliant shell (boxes 5 mm thick) with `proposed:fabric`; crumpled on the ground it is part of the ground's cover.
-- **Material ids:** `proposed:fabric` (the houses sheet's proposal).
+- **Collision:** where the tarp lies on its host the host's collision stands; where it spans a void or hangs free it is a thin compliant shell (boxes 5 mm thick) with `fabric`; crumpled on the ground it is part of the ground's cover.
+- **Material ids:** `fabric`.
 - **Gaps:** none; a tarp hanging across an opening does not close the opening's gap (the drone pushes through), but it is a snag.
 - **Wind volumes:** a free-hanging tarp: porosity 0 while taut, 0.3–0.6 when loose (assumed); a draped tarp adds nothing to its host.
 - **Snag hazards:** free corners and torn flaps (`hook`), the hem and grommet line and the rips (`edge`, radius 2 mm): **the fiber catches the hem**. Flutter in wind and prop wash is visual in phase 1.
@@ -1099,7 +1099,7 @@ Contents spill out of open rooms and down the rubble slope (K); light items (cus
 
 ### Physics role
 - **Collision:** boxes per item part; radiator sections as separate boxes (the 0.04 m gaps between sections at the top can wedge a leg); a broken wardrobe one box per panel.
-- **Material ids:** fridge `sheet_metal`; wardrobe, shelving, chair `timber`; mattress and sofa `proposed:fabric` (soft, sinks 50–100 mm); radiator `steel`; PVC frames, appliance housings, TV `proposed:plastic`.
+- **Material ids:** fridge `sheet_metal`; wardrobe, shelving, chair `timber`; mattress and sofa `fabric` (soft, sinks 50–100 mm); radiator `steel`; PVC frames, appliance housings, TV `plastic`.
 - **Gaps / wind volumes:** none (a standing wardrobe in an open room is part of the host's interior).
 - **Snag hazards:** mattress springs when torn (`hook`, 1.5 mm), broken panel edges (`edge`, 2 mm), chair legs (`hook`), PVC frames' broken profiles and their steel cores (`edge`), radiator pipe stubs (`hook`).
 - **Landable surfaces:** a fridge on its back (0.57 × 1.5 m): yes, springy; a wardrobe lying flat: yes; a mattress: soft-landable (the legs sink); a chair seat (0.42 m): only centred within ±9 cm (derived: 0.42 − 0.24); a radiator: no.
@@ -1157,7 +1157,7 @@ Fire leaves tyres as bead rings and wire tangles in a black ash patch; fragments
 
 ### Physics role
 - **Collision:** a lying tyre is a ring of 8 capsules of radius 0.08 m (half the section) around its 0.21 m centreline, so the 0.33 m hole stays real and a leg drops into it (derived); an upright tyre a cylinder; a burnt tyre two capsule rings (`steel`, radius 3 mm) and its cord tangle as `hook` snags; barrel and bucket cylinders; crates boxes.
-- **Material ids:** tyres `proposed:rubber`; burnt tyre steel `steel`; barrel and bucket `sheet_metal`; wooden crate `timber`; plastic crate `proposed:plastic`.
+- **Material ids:** tyres `rubber`; burnt tyre steel `steel`; barrel and bucket `sheet_metal`; wooden crate `timber`; plastic crate `plastic`.
 - **Gaps / wind volumes:** none.
 - **Snag hazards:** burnt-tyre cord wire (`hook`, 0.5 mm: the worst fiber trap in the kit), petals on holed drums (`edge`, 0.3 mm), broken crate slats (`hook`).
 - **Landable surfaces:** an upright barrel's top (0.585 m) when centred within ±15 cm (houses-and-yard Y11); a plastic crate upright (0.6 × 0.4 m); a lying tyre: no (the leg corners, 0.17 m from the centre, sit just outside the 0.165 m bead hole: effectively not landable, derived); a barrel on its side: no, it rolls.
@@ -1214,7 +1214,7 @@ Blast pulls curtains out through the window openings and strips wallpaper from t
 
 ### Physics role
 - **Collision:** heavy pieces (carpets, sheets over edges) a thin compliant shell (boxes 10 mm); light pieces (tulle, wallpaper, film) no collision of their own, only snags (they cannot stop the drone; a card is never the only thing that stops it, and here nothing should).
-- **Material ids:** `proposed:fabric`; cables `cable` (L05).
+- **Material ids:** `fabric`; cables `cable` (L05).
 - **Gaps:** a curtain in a window opening does not close the opening's gap; the opening's polygon stays the real clear space.
 - **Wind volumes:** a heavy curtain or carpet hanging free: porosity 0.3–0.6 (assumed); light pieces none.
 - **Snag hazards:** every free edge and corner (`hook`), swags (`edge` along the lower hem, 2 mm): **fabric wraps props and the fiber**.

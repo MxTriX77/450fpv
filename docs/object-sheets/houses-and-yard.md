@@ -233,7 +233,7 @@ Slate shatters at low overpressure (published): it goes first, in fragments, not
 
 ### Physics role
 - **Collision:** as H01; each remaining sheet a thin box following the wave (collision box 0.04 m deep, the wave is visual within AST-05's 5 cm), fragments on the ground as thin boxes.
-- **Material ids:** slate and fragments: `proposed:asbestos_cement` (brittle: cracks and breaks under a landing leg or a strike; until signed off, `masonry`); the rest as H01.
+- **Material ids:** slate and fragments: `asbestos_cement` (brittle: cracks and breaks under a landing leg or a strike); the rest as H01.
 - **Gaps:** as H01; holes in sheets 0.1–0.5 m **do not pass**; a bay with the sheets and battens gone 0.9–1.1 m wide **passes**.
 - **Wind volumes:** walls 0; a slate field 0 when intact, 0.3–0.6 when holed, 0.7–0.85 when stripped to battens.
 - **Snag hazards:** broken sheet edges (sharp but thick, 6 mm: a fiber bends over them rather than cutting), batten ends, the ridge cap edge, rafter tails.
@@ -302,7 +302,7 @@ Glass → slate shattered and scattered → sashes bent out of the frames → ba
 
 ### Physics role
 - **Collision:** as H01, brick walls 0.38 m; the jagged opening edges as stacked boxes following the stepped brick (±2 cm); lintel rebar as capsules 10 mm; the dish a thin cylinder on a capsule; porch posts capsules, porch sheet a thin box.
-- **Material ids:** brick, plinth, cornice: `masonry`; lintels: `concrete`; rebar, dish bracket: `steel`; porch sheet and ridge cap: `sheet_metal` (cuts fiber); slate: `proposed:asbestos_cement`; frames, gable boards, rafters: `timber`; glass remnants: `glass`; hanging wire: `cable`.
+- **Material ids:** brick, plinth, cornice: `masonry`; lintels: `concrete`; rebar, dish bracket: `steel`; porch sheet and ridge cap: `sheet_metal` (cuts fiber); slate: `asbestos_cement`; frames, gable boards, rafters: `timber`; glass remnants: `glass`; hanging wire: `cable`.
 - **Gaps:**
   - door 0.8 × 1.9 m: passes at any yaw (the 0.8 m leaf is the clear opening inside its 0.10 × 0.08 m frame, as H01; about 0.77 m between the stops (15 mm a side, assumed) while the frame stays: still any yaw, 32 mm a side on the diagonal)
   - windows 1.3 × 1.45 m frame gone: **passes at any yaw** with 0.3 m a side; frame on (1.16 × 1.3): any yaw; with a bent sash hanging (J): the clear polygon is the frame minus the sash, typically 0.6–0.9 m wide, recorded as generated
@@ -427,7 +427,7 @@ As H01's whitewash, render and adobe; thatch grey-brown about #6f6552 (assumed).
 As H01; thatch burns completely and leaves charred bundles and a black ring; adobe survives fire.
 
 ### Physics role
-- **Collision, ids:** as H01; thatch bundles `proposed:straw` (soft: sinks under a leg, snags).
+- **Collision, ids:** as H01; thatch bundles `straw` (soft: sinks under a leg, snags).
 - **Gaps:** door 0.8 × 1.8 any yaw; windows 0.7 × 0.8 clear: **±35° yaw, 63 mm a side**, height 0.8 m is tight (0.55 m envelope leaves 12 cm); roof bays as H01.
 - **Wind volumes:** walls 0; thatch 0 when intact, 0.5 when burnt through.
 - **Snag hazards:** thatch bundle ends, rafter tails at the low eaves (1.8–2.0 m, at flying height), the door leaf.
@@ -554,7 +554,7 @@ Light timber goes with the first blast: boards strip from the posts, the roof sl
 
 ### Physics role
 - **Collision:** each board a thin box, posts capsules, roof boards thin boxes, the door a box; D boards at their hung angles.
-- **Material ids:** `timber`; sheet `sheet_metal`; slate `proposed:asbestos_cement`.
+- **Material ids:** `timber`; sheet `sheet_metal`; slate `asbestos_cement`.
 - **Gaps:** door 0.8 × 1.8 m: any yaw. Missing-board slots 0.12–0.4 m: **no**. A D wall opening of 4+ boards (≥ 0.6 m): passes nose-first only; a fallen wall panel (1.5–2 m): any yaw. Interior 3.8 × 2.3 × 1.8–2.2 m: hover room, the low side is tight.
 - **Wind volumes:** walls porosity 0.05–0.2 (board gaps), 0.3–0.5 with boards missing, 1 where down; the roof 0.
 - **Snag hazards:** nails, board ends, the roof edge, felt flaps, the door edge.
@@ -701,7 +701,7 @@ Shared house table with `length` 4.5, `width` 3.5, `wall_thickness` 0.25, `roof_
 
 ### Construction and materials
 - A post frame on stone pads, vertical boards with gaps, a slate gable roof on purlins, double plank doors, a loft floor of boards at 2.5 m over half the length with hay on it.
-- **Materials:** boards as O01; slate as H02; hay `proposed:straw` with Poly Haven `hessian_380` tinted straw as a surface ( https://polyhaven.com/a/hessian_380 ); structure `rough_wood`.
+- **Materials:** boards as O01; slate as H02; hay `straw` with Poly Haven `hessian_380` tinted straw as a surface ( https://polyhaven.com/a/hessian_380 ); structure `rough_wood`.
 
 ### Colour
 Weathered grey boards as O01; hay yellow-grey about #a8956a (assumed).
@@ -716,7 +716,7 @@ As O01 at a larger scale; hay burns to a black patch.
 
 ### Physics role
 - **Collision:** posts capsules, boards thin boxes, purlins and rafters boxes, the loft a box, hay a soft box.
-- **Material ids:** `timber`; slate `proposed:asbestos_cement`; hay `proposed:straw`.
+- **Material ids:** `timber`; slate `asbestos_cement`; hay `straw`.
 - **Gaps:** double doors 2.4 × 2.2: any yaw; one leaf 1.2 m: any yaw; the loft door 0.8 × 1.0: any yaw, height tight (0.55 m envelope); interior 7.6 × 4.6 × 2.5 m with the loft edge at 2.5 m; roof bays once stripped.
 - **Wind volumes:** walls porosity 0.1–0.3 (gaps); roof 0 / 0.75 stripped; the interior a large draughty cavity.
 - **Snag hazards:** board ends, the loft edge, purlin ends, hay (hooks the legs), nails, the door hinges.
@@ -868,7 +868,7 @@ At the street side next to the gate (Y05), the gate facing the street; one per t
 
 ### Construction and materials
 - A brick head on a 0.3–0.6 m earth mound, red-brick corner piers with lime-rendered panels between them (the render peeling to show brick: C 9), a timber door frame and lintel with a plank door (absent in C; a param), a flat felt roof on boards with a plank edge, side walls brick and rendered; inside, a plank ceiling on a round log beam, lime-whitewashed walls peeling in flakes (C 12), brick or earth steps down to a brick-walled chamber with a vaulted or slab ceiling; a ventilation pipe 100–150 mm out of the mound; a tarp draped over one flank, weighted with bricks.
-- **Materials:** piers `red_brick`; render Poly Haven `rough_plaster_brick_02` and `worn_cracked_plaster`; frame and ceiling boards `rough_pine_door`, `raw_plank_wall`; felt `bitumen`; slab `concrete_wall_003`; the tarp `proposed:fabric` with Poly Haven `rough_linen` tinted #8aa0c0 as a woven polyethylene surface ( https://polyhaven.com/a/rough_linen ; no CC0 tarp set was found, so this is derived); the mound: the S01 sod and S09 litter surfaces.
+- **Materials:** piers `red_brick`; render Poly Haven `rough_plaster_brick_02` and `worn_cracked_plaster`; frame and ceiling boards `rough_pine_door`, `raw_plank_wall`; felt `bitumen`; slab `concrete_wall_003`; the tarp `fabric` with Poly Haven `rough_linen` tinted #8aa0c0 as a woven polyethylene surface ( https://polyhaven.com/a/rough_linen ; no CC0 tarp set was found, so this is derived); the mound: the S01 sod and S09 litter surfaces.
 
 ### Colour
 | Surface | Photo albedo (sRGB) | Feed check value (sRGB) | Source |
@@ -891,7 +891,7 @@ Not a damage asset. Weathering: render off the piers' edges, felt torn at the ov
 
 ### Physics role
 - **Collision:** piers and side walls as boxes (`masonry`), the lintel and frame as boxes, the roof a box with its plank edge, the ceiling boards and log as boxes and a capsule, each step a box, the chamber walls boxes, the tarp a thin soft surface, the mound a sloped box.
-- **Material ids:** brick, render, steps, chamber `masonry`; frame, lintel, boards, log `timber`; roof `concrete` (slab) or `timber` (boards); felt as the roof's id; the tarp `proposed:fabric`; the pipe `steel`; the mound `proposed:soil`.
+- **Material ids:** brick, render, steps, chamber `masonry`; frame, lintel, boards, log `timber`; roof `concrete` (slab) or `timber` (boards); felt as the roof's id; the tarp `fabric`; the pipe `steel`; the mound `surface:meadow_sod`.
 - **Gaps:**
   - **the doorway 0.70 × 1.6 m: passes nose-first with 63 mm a side, up to ±35° of yaw, the narrowest fly-in on the map (PR-9).** With a door leaf half open it drops to 0.35–0.5 m: no. Height 1.6 m is comfortable.
   - the passage 0.85 × 1.8 m, descending 2.2 m over about 2.5 m (a 40° slope): passes at any yaw within the walls, but the drone must pitch down the stair; the log beam at the ceiling narrows the height to 1.65 m for 0.12 m
@@ -956,7 +956,7 @@ Not a damage asset; weathering only (concrete spalling at the portal's arrises, 
 
 ### Physics role
 - **Collision:** the mound a smooth sloped shape (a few sloped boxes or the heightfield), the portal boxes, the door a box, steps boxes, the chamber boxes.
-- **Material ids:** portal `concrete` or `masonry`; door `timber` or `sheet_metal`; mound `proposed:soil`; pipe `steel`.
+- **Material ids:** portal `concrete` or `masonry`; door `timber` or `sheet_metal`; mound `surface:meadow_sod`; pipe `steel`.
 - **Gaps:** the door **0.75 × 1.7 m: any yaw, 88 mm a side nose-first, 22 mm on the diagonal**; the portal and stair 1.1 m wide; the chamber as C01.
 - **Wind volumes:** the mound solid, a smooth bump the flow rides over; the doorway a funnel.
 - **Snag hazards:** the pipe, the door edge, the portal's arrises.
@@ -1391,7 +1391,7 @@ A blast scatters the top rows; the rest slumps.
 
 ### Physics role
 - **Collision:** the stacked body a box per row with a bumpy top (protruding logs as cylinders), loose logs cylinders, the cover a thin box, posts capsules.
-- **Material ids:** `timber`; cover `sheet_metal` or `proposed:fabric`.
+- **Material ids:** `timber`; cover `sheet_metal` or `fabric`.
 - **Gaps:** none.
 - **Wind volumes:** porosity 0.05–0.15.
 - **Snag hazards:** log ends, the cover's edge, bricks on top.
@@ -1429,7 +1429,7 @@ Against a shed (O01) or the house's back wall, under the eaves; one or two per y
 
 ### Construction and materials
 - Loose hay or straw built up around a pole, settled and grey outside, yellow where torn; or a stack of small bales.
-- **Materials:** surface `proposed:straw` with Poly Haven `hessian_380` or the S04 belt-straw material tinted (derived); the tarp as C01.
+- **Materials:** surface `straw` with Poly Haven `hessian_380` or the S04 belt-straw material tinted (derived); the tarp as C01.
 
 ### Colour
 Weathered outside #8f8468, fresh inside #c9b273 (assumed; S04 `feed` straw #797258 as the check).
@@ -1442,7 +1442,7 @@ Burns completely; leaves a black circle 4–6 m and charred stubs.
 
 ### Physics role
 - **Collision:** a rounded body (a few boxes and a sphere) with a soft contact layer 0.1–0.2 m.
-- **Material ids:** `proposed:straw` (soft: a leg sinks 5–15 cm and the straw hooks it on liftoff, as T4); the tarp `proposed:fabric`.
+- **Material ids:** `straw` (soft: a leg sinks 5–15 cm and the straw hooks it on liftoff, as T4); the tarp `fabric`.
 - **Gaps:** none.
 - **Wind volumes:** solid (0): a bluff body with a wake of 2–3 heights.
 - **Snag hazards:** the whole surface for the legs and the fiber; the tarp and its tyres.
@@ -1480,7 +1480,7 @@ At the back of a plot or beside the barn (O04); one per three or four yards; row
 
 ### Construction and materials
 - Pipe arches on ground stakes, purlins, film clipped on and torn into strips, a door frame at one end, raised beds inside overgrown with weeds (V17).
-- **Materials:** pipe `rusty_metal_02`; film `proposed:plastic_film` as a translucent sheet with a derived dirt map; wood frame `rough_wood`.
+- **Materials:** pipe `rusty_metal_02`; film `fabric` as a translucent sheet with a derived dirt map; wood frame `rough_wood`.
 
 ### Colour
 Film milky #d9d9d0 with green algae streaks; pipe rust (assumed).
@@ -1493,7 +1493,7 @@ Film shreds in the first gust after a blast; the frame bends at a strike.
 
 ### Physics role
 - **Collision:** arches and purlins capsules; film as thin soft panels where it remains; the door frame boxes.
-- **Material ids:** frame `steel`; film `proposed:plastic_film` (soft, snags props and wraps); wood `timber`.
+- **Material ids:** frame `steel`; film `fabric` (soft, snags props and wraps); wood `timber`.
 - **Gaps:** the door 0.75 × 1.8: any yaw; a bay between arches with the film gone (1.0 × 2.0 m): any yaw; the tunnel interior 2.8 × 5.8 × 2.0 m: fly-through end to end.
 - **Wind volumes:** film intact 0 (a bluff tunnel); torn 0.5–0.9; bare frame 0.95.
 - **Snag hazards:** film strips (the worst: they wrap the props), arch ends, clips and ties, the door frame.

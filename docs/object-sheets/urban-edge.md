@@ -188,8 +188,8 @@ Each kit item, what it is physically:
   - balcony slab a box, rails as capsules, aprons thin boxes (`sheet_metal`);
   - roof: rafters and purlins boxes, battens boxes 0.05 × 0.05, remaining sheets thin boxes, the attic fill a low box;
   - stairs: each flight a sloped box with stepped visual (the drone flies, it does not walk), landings boxes, balusters capsules;
-  - contents: furniture as boxes, radiators as boxes, mattresses and sofas as boxes with `proposed:fabric`, hanging cables and fabric per K10.
-- **Material ids:** brick, render, plinth, stair-cell walls: `masonry`; slabs, lintels, balconies, flights, ring beam, canopies: `concrete`; rebar, rails, grilles, radiators, pipes, bed frames: `steel`; roof sheet, gutters, balcony aprons: `sheet_metal` (cuts fiber); rafters, battens, timber frames, boards, chipboard furniture: `timber`; glass remnants: `glass`; hanging cables: `cable`; curtains, sheets, mattresses, sofas, carpets: `proposed:fabric`; PVC frames and profiles, appliances, plastic sheet, EPS remnants: `proposed:plastic`; slate option: `proposed:asbestos_cement`.
+  - contents: furniture as boxes, radiators as boxes, mattresses and sofas as boxes with `fabric`, hanging cables and fabric per K10.
+- **Material ids:** brick, render, plinth, stair-cell walls: `masonry`; slabs, lintels, balconies, flights, ring beam, canopies: `concrete`; rebar, rails, grilles, radiators, pipes, bed frames: `steel`; roof sheet, gutters, balcony aprons: `sheet_metal` (cuts fiber); rafters, battens, timber frames, boards, chipboard furniture: `timber`; glass remnants: `glass`; hanging cables: `cable`; curtains, sheets, mattresses, sofas, carpets: `fabric`; PVC frames and profiles, appliances, plastic sheet, EPS remnants: `plastic`; slate option: `asbestos_cement`.
 - **Gaps** (each recorded as the real clear polygon):
 
   | Opening | Narrowest clear width | Passes? |
@@ -219,7 +219,7 @@ Each kit item, what it is physically:
   - the roof skeleton 0.8–0.9 (as H06), sheet remnants 0, the attic a cavity between the fill and the skeleton;
   - balconies with frames 0.3–0.6;
   - **the wake** (terrain.md B4): roof-edge separation and corner vortices; a recirculation zone 1.5–2.5 block heights behind it (with the 19.5 m ridge, **29–49 m**, derived) and a gusty wake to about 10 heights (**about 195 m**, derived); downwash on the lee face; channelling between the block and the garages (U03). The physics engineer's wind grid reads the block's solid and cavity boxes; the wake is the flow solution, not a hand-placed volume.
-- **Snag hazards:** rebar and wire at every broken slab, lintel, balcony and ring beam; the screed mesh; hanging cables (K10) and the cables strung from the roof; curtains, sheets and textiles (K10, `proposed:fabric`); balcony rails, glazing frames and torn aprons; window grilles; frame remnants and charred frames; splayed rafters and broken battens; heating risers; EPS remnants with their mesh.
+- **Snag hazards:** rebar and wire at every broken slab, lintel, balcony and ring beam; the screed mesh; hanging cables (K10) and the cables strung from the roof; curtains, sheets and textiles (K10, `fabric`); balcony rails, glazing frames and torn aprons; window grilles; frame remnants and charred frames; splayed rafters and broken battens; heating risers; EPS remnants with their mesh.
 - **Landable surfaces:**
   - **each open floor at the torn end:** the slab 5.6 × 3–4 m per bay, hard, flat, `concrete`, landable from 0.5–1 m behind the edge (the sagging edge is not); furniture and fallen plaster on it make it uneven; the 2.72 m clear height leaves room to hover (the ceiling effect is the physics engineer's to judge);
   - **balcony slabs:** 1.0 × 2.8 m inside a 1.05 m rail, entered from above (97 mm a side on the diagonal inside a 0.9 m clear rail box, derived) or through the balcony door;
@@ -338,7 +338,7 @@ The block is built from a **section list**: each section is one stair cell with 
 
 ### Physics role
 - **Collision:** the core as a set of boxes and wedges following the visual within ±5 cm (±2 cm on faces the drone can land on); each large piece (≥ 0.3 m) its own box or capsule; small pieces via the debris kit's own collision; voids are open cavities in the core, never filled.
-- **Material ids:** core and brick pieces `masonry` (the walkable top faces may carry `surface:rubble`, the earthworks filler convention; the physics engineer decides); concrete pieces `concrete`; bars `steel`; timber and furniture board `timber`; PVC and plastic `proposed:plastic`; textiles and mattresses `proposed:fabric`; cables `cable`.
+- **Material ids:** core and brick pieces `masonry` (the walkable top faces may carry `surface:rubble`, the earthworks filler convention; the physics engineer decides); concrete pieces `concrete`; bars `steel`; timber and furniture board `timber`; PVC and plastic `plastic`; textiles and mattresses `fabric`; cables `cable`.
 - **Gaps:** none to fly through; the voids are **pitfalls**: a leg drops 0.2–0.8 m into a 0.3–1.0 m cavity without warning (terrain.md B5).
 - **Wind volumes:** solid (0); its roughness shelters the ground in front from the wake's downwash only locally.
 - **Snag hazards:** jutting timbers 0.5–2 m (the S10 cover: 0.3 /m²), bars on concrete pieces (K06), cables and textiles, PVC frames.
@@ -450,7 +450,7 @@ How a roof comes down as one heap, in order (the houses sheet's failure order, w
   - **cover remnants:** thin boxes over the wave envelope (slate, K02; sheet, K04), tile clusters as thin boxes in rows (H01);
   - **contents** (K08) and **cables** (K10) with the kit's own shapes;
   - **budget (derived):** 20 rafters × 1–3 segments plus 20–60 batten pieces, the plates, ridge, collar ties and exposed joists give 60–150 capsules and 20–60 boxes, below a tree's 150–300 capsules (vegetation sheet).
-- **Material ids:** frame, boards, ceiling joists: `timber`; core, wall end, tile remnants: `masonry` (whether the core's top faces carry `surface:rubble` is the physics engineer's call, as U02); slate: `proposed:asbestos_cement` (fallback `masonry`, as H02); sheet remnants and fragments: `sheet_metal`; lintel pieces: `concrete` with `steel` bars; cables: `cable`; contents per K08 (`timber`, `steel`, `proposed:fabric`, `proposed:plastic`). The ceiling fill is part of the core boxes (`masonry` until `soil` exists, the houses and earthworks proposal).
+- **Material ids:** frame, boards, ceiling joists: `timber`; core, wall end, tile remnants: `masonry` (whether the core's top faces carry `surface:rubble` is the physics engineer's call, as U02); slate: `asbestos_cement`; sheet remnants and fragments: `sheet_metal`; lintel pieces: `concrete` with `steel` bars; cables: `cable`; contents per K08 (`timber`, `steel`, `fabric`, `plastic`). The ceiling fill is part of the core boxes (`masonry` until `soil` exists, the houses and earthworks proposal).
 - **Gaps** (each written as the real clear polygon; the drone as in "The drone against an opening"):
 
   | Opening | Narrowest clear width | Passes? |
@@ -527,7 +527,7 @@ How a roof comes down as one heap, in order (the houses sheet's failure order, w
 - **Size from I depends on the assumed lens and horizon** (±15 %). Settled at the I side-by-side: the pile's silhouette against the block and its height against the two-storey house are the check. Not a pilot question.
 - **The cover:** I shows almost none on the pile, and the grey-green pieces are not resolved (slate or painted sheet). The default H03 slate with `cover_keep` 0.05 matches the look; settled at the side-by-side.
 - **Capsules for the frame against K03's boxes for loose sawn pieces:** the frame uses capsules (this row's choice, within AST-05's tolerance). The physics engineer confirms that a leg on a capsule rafter, which slides off where a flat face would hold, is acceptable for a heap that is not landable anyway.
-- **Ids:** `proposed:asbestos_cement`, `fabric`, `plastic`, `soil`, and `surface:rubble` on the core's top faces, all already proposed (the buildability review's list).
+- **Ids:** `asbestos_cement`, `fabric`, `plastic`, `proposed:soil`, and `surface:rubble` on the core's top faces, all already proposed (the buildability review's list).
 - **Static in phase 1:** members that would roll or shift under a leg are static catalog geometry, as K03. Runtime objects come later (the physics engineer and the world-builder).
 - **How often a destroyed plot shows a pile:** the world-builder's layout call (assumed one in three to five).
 
@@ -644,7 +644,7 @@ How a roof comes down as one heap, in order (the houses sheet's failure order, w
 
 ### Physics role
 - **Collision:** walls boxes per segment, slabs boxes, grilles capsules, counters and shelving boxes.
-- **Material ids:** walls `masonry`; slabs, steps, lintels `concrete`; grilles, door, sign frame `steel`; door skin and sign board `sheet_metal`; shelving `timber`; glass `glass`; packaging `proposed:plastic`.
+- **Material ids:** walls `masonry`; slabs, steps, lintels `concrete`; grilles, door, sign frame `steel`; door skin and sign board `sheet_metal`; shelving `timber`; glass `glass`; packaging `plastic`.
 - **Gaps:** door 0.8 m clear: any yaw, 47 mm a side on the diagonal; display window with its grille: **no** (bars at 0.12–0.15 m); grille torn out: 2.0 m, any yaw; back door as the front; roof hole ≥ 0.6 m after the mesh: passes.
 - **Wind volumes:** solid; the sales room a cavity once windows and door are out.
 - **Snag hazards:** grille bars, the sign board's edges and brackets, roof-hole bars, hanging cables.
@@ -708,7 +708,7 @@ How a roof comes down as one heap, in order (the houses sheet's failure order, w
 
 ### Physics role
 - **Collision:** walls boxes per bay, pilasters boxes, beams or truss members boxes, purlins boxes, sheets thin boxes per sheet (shards as debris), stall pipes capsules, channels as slots in the floor.
-- **Material ids:** walls `masonry`; beams, floor `concrete`; trusses, purlins, gates `timber`; sheets `proposed:asbestos_cement`; stall pipes `steel`.
+- **Material ids:** walls `masonry`; beams, floor `concrete`; trusses, purlins, gates `timber`; sheets `asbestos_cement`; stall pipes `steel`.
 - **Gaps:** end gates 3 × 3 m: any yaw; side doors 1.2 m: any yaw; windows with their small-pane frames: **no** (panes about 0.4 m); frames gone 1.2 × 1.0 m: any yaw; roof bays between purlins with sheets gone, 0.85–1.4 m clear: any yaw; collapsed bays: open. Inside: a hall 18 m wide and 3–6 m high, the longest indoor flight on the map, crossed by stall pipes at 1.0–1.3 m.
 - **Wind volumes:** walls 0 with the window band about 0.13 (derived: two 1.2 × 1.0 m windows in a 6 × 3 m bay); the stripped roof 0.6–0.9; open gates make the hall a channel along its length.
 - **Snag hazards:** hanging sheets and sheet edges, purlin ends, stall pipes and chains, cables, plank gates.
