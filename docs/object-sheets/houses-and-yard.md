@@ -890,8 +890,16 @@ At the street side next to the gate (Y05), the gate facing the street; one per t
 Not a damage asset. Weathering: render off the piers' edges, felt torn at the overhang, the plank edge rotten, the inner whitewash flaking in 0.1–0.5 m plates.
 
 ### Physics role
-- **Collision:** piers and side walls as boxes (`masonry`), the lintel and frame as boxes, the roof a box with its plank edge, the ceiling boards and log as boxes and a capsule, each step a box, the chamber walls boxes, the tarp a thin soft surface, the mound a sloped box.
-- **Material ids:** brick, render, steps, chamber `masonry`; frame, lintel, boards, log `timber`; roof `concrete` (slab) or `timber` (boards); felt as the roof's id; the tarp `fabric`; the pipe `steel`; the mound `surface:meadow_sod`.
+- **Collision:** piers and side walls as boxes (`masonry`), the lintel and frame as boxes, the roof a box with its plank edge, the ceiling boards and log as boxes and a capsule, each step a box, the chamber walls boxes, the tarp a thin soft surface; the mound heightfield outside the hole band and filler boxes inside it (Holes, below).
+- **Holes** (AST-05, WLD-16): the stair and the chamber lie below the ground, so their cells are holes and the ground over them comes only from the fillers, under the earthworks sheet's contract F-1…F-8 (its figures, terrain-holes-review §3).
+  - **Record**, in E01's form with a footprint for the centre line (asset space: x across the stair, z along it into the cellar, y up; origin the doorway sill's centre, the sill level with the ground at the doorway, assumed):
+    `{"id": "C01", "footprint": [[-0.425, 0], [0.425, 0], [0.425, 2.5], [1.25, 2.5], [1.25, 5.5], [-1.25, 5.5], [-1.25, 2.5], [-0.425, 2.5]], "top_width_m": 0.85, "depth_m": 2.2, "band_width_m": 2.15}`
+    The footprint is the cavity's clear outline in plan: the stair 0.85 m wide (measured, C 11–12) over its 2.5 m run (derived: 9 treads of 0.28 m, as Gaps), then the chamber 3 m along the stair and 2.5 m across (assumed, the row's default). `top_width_m` is the stair at the lip; `depth_m` the chamber floor below the sill (assumed, the row). The band is the footprint grown by 0.65 m on every side, 0.85 + 2 × 0.65 = 2.15 m along the stair and 3.8 × 4.3 m round the chamber (derived: F-2's 0.25 m plus half a 0.5 m cell's diagonal, 0.354 m, rounded up, so every cavity face stays at least 0.25 m inside the hole cells at any placement yaw when a cell is marked by its centre).
+  - **Lining, the open faces** (F-5, F-6): the stair's side walls and the chamber's walls `masonry` boxes at least 0.3 m thick behind the face, within 0.05 m of the visual; each step a `masonry` box 0.3 m under its tread, running 0.2 m under the next step and 0.2 m into both side walls; the chamber floor one `masonry` box 0.3 m thick, 0.2 m under every wall; the ceiling (vault or slab) a box at least 0.3 m above its underside, resting 0.2 m on the walls (`masonry`, or `concrete` for a slab).
+  - **Backing** (F-1, F-2, F-4): `surface:belt_bare` boxes (cut soil, F-7) behind every lining box, from the cover boxes down to 0.3 m under the floor and out to 0.75 m past the band's edge, so a downward ray on a 5 cm grid over every hole cell hits a filler (derived: a marked cell reaches at most 0.71 m past the band, by centre or by touch); outside the cells they stay buried, never above TerrainHeight + 0.01 m.
+  - **Cover, the ground over the hole** (F-3, F-6): boxes 0.3 m thick, `surface:meadow_sod` on the mound and the yard's own surface beyond it (`surface:yard_litter`, S09), level with TerrainHeight within ±0.03 m along the band's edge and within 0.05 m of the visual inside it (one sloped box per mound face, as E01's parapets). Over the chamber they lie on the ceiling box: the floor 2.2 m below the sill and the room 2.0 m high put the 0.3 m ceiling box's top 0.1 m above the sill, so the mound there stands at least that high; at 0.4 m (`mound_height`) it leaves 0.3 m of earth on the ceiling (derived). Outside the band the mound is heightfield, raised by the compiler as E01's parapets are.
+  - **F-7, F-8:** surfaces as above; no filler is a wind obstacle, and only the head above the ground keeps its wind volume.
+- **Material ids:** brick, render, steps, chamber `masonry`; frame, lintel, boards, log `timber`; roof `concrete` (slab) or `timber` (boards); felt as the roof's id; the tarp `fabric`; the pipe `steel`; the mound `surface:meadow_sod`; the other fillers as in Holes.
 - **Gaps:**
   - **the doorway 0.70 × 1.6 m: passes nose-first with 63 mm a side, up to ±35° of yaw, the narrowest fly-in on the map (PR-9).** With a door leaf half open it drops to 0.35–0.5 m: no. Height 1.6 m is comfortable.
   - the passage 0.85 × 1.8 m, descending 2.2 m over about 2.5 m (a 40° slope): passes at any yaw within the walls, but the drone must pitch down the stair; the log beam at the ceiling narrows the height to 1.65 m for 0.12 m
@@ -925,6 +933,8 @@ One per yard, 10–15 m behind the house, the doorway facing the house or the pa
 ### Open points
 - The tarp's and the mound's ids: settled by the physics sign-off (review-materials.md §2, §6): the tarp `fabric`, the grassed mound `surface:meadow_sod`. The tarp's flutter is visual; its snag is what matters.
 - The first attempt built the door at 0.78 m "to fit" and was corrected to 0.70 m (knowledge.md §14.3): the default is locked, not a question.
+- Where the sill sits against the mound (assumed in Holes: level with the ground at the doorway, the mound rising round the head and over the chamber; else on the mound's top, the sill raised): settled at the C side-by-side. The record's depths count from the sill either way.
+- How the compiler marks the band's cells (by centre, or every cell touched) is the world-builder's (WLD-16, phase 3); the 0.65 m margin and the backing's 0.75 m reach hold under either (derived in Holes).
 
 ## C02 Earth-mound cellar with a concrete or brick portal
 
@@ -955,8 +965,14 @@ Concrete grey about #8e8a82 (assumed); brick as `red_brick`; door as O01 or O06.
 Not a damage asset; weathering only (concrete spalling at the portal's arrises, grass over the mound).
 
 ### Physics role
-- **Collision:** the mound a smooth sloped shape (a few sloped boxes or the heightfield), the portal boxes, the door a box, steps boxes, the chamber boxes.
-- **Material ids:** portal `concrete` or `masonry`; door `timber` or `sheet_metal`; mound `surface:meadow_sod`; pipe `steel`.
+- **Collision:** the mound a smooth sloped shape: heightfield outside the hole band, sloped filler boxes inside it (Holes, below); the portal boxes, the door a box, steps boxes, the chamber boxes.
+- **Holes** (AST-05, WLD-16), under the contract F-1…F-8 exactly as C01's Holes; what differs:
+  - **Record** (asset space as C01's, origin the door sill's centre, the sill level with the yard at the mound's foot, assumed):
+    `{"id": "C02", "footprint": [[-0.55, 0], [0.55, 0], [0.55, 2.25], [1.25, 2.25], [1.25, 5.25], [-1.25, 5.25], [-1.25, 2.25], [-0.55, 2.25]], "top_width_m": 1.1, "depth_m": 2.0, "band_width_m": 2.4}`
+    The stair 1.1 m wide (assumed, as Gaps) over 2.25 m (derived: 8 treads of 0.28 m, C01's tread, assumed; the rise 2.0 / 8 = 0.25 m, inside C01's range), then the chamber 3 m along and 2.5 m across (assumed, the row). The band is the footprint grown by 0.65 m (derived, as C01): 1.1 + 2 × 0.65 = 2.4 m along the stair and 3.8 × 4.3 m round the chamber.
+  - **Lining:** the stair's steps and walls as the portal (`concrete` or `masonry`), the chamber `masonry` as C01 (a slab ceiling `concrete`); the passage's ceiling, from the portal's back to the chamber, a box at least 0.3 m above its underside, stepping down with the stair.
+  - **Cover:** `surface:meadow_sod` over the mound; in front of the portal, the surface the cellar stands on (`surface:yard_litter` or `surface:meadow_sod`, as placed). The floor 2.0 m down and the room 2.0 m high put the chamber's underside at the sill's level and the 0.3 m ceiling box's top 0.3 m above it, under 0.9 m of earth at the 1.2 m crown (derived). With the 6 m mound centred on the chamber (assumed: its front foot then falls at the portal's back, 0.75 m from the door, against the portal's 0.8 m depth), the band's corners round the chamber lie 2.9 m from the centre (derived), inside the mound's foot, so the band's edge crosses the mound's slopes: the cover boxes follow them there within ±0.03 m (F-3), and the backing outside the cells is tilted with them so it stays buried (F-4).
+- **Material ids:** portal `concrete` or `masonry`; door `timber` or `sheet_metal`; mound `surface:meadow_sod`; pipe `steel`; the other fillers as in Holes.
 - **Gaps:** the door **0.75 × 1.7 m: any yaw, 88 mm a side nose-first, 22 mm on the diagonal**; the portal and stair 1.1 m wide; the chamber as C01.
 - **Wind volumes:** the mound solid, a smooth bump the flow rides over; the doorway a funnel.
 - **Snag hazards:** the pipe, the door edge, the portal's arrises.
@@ -977,6 +993,8 @@ Alternative to C01 on one yard in three, further back in the plot (15–25 m), n
 
 ### Open points
 - The mound's id: settled by the physics sign-off (review-materials.md §6): `surface:meadow_sod`.
+- The band's cell-marking rule: the world-builder's, as C01's open point.
+- The portal's 1.1 m (Dimensions) and the stair's 1.1 m (Gaps) are one figure; if it is the portal's outside width, the clear stair is narrower by the portal's walls, and the record's `top_width_m` and band with it: for the asset-artist at C02's asset change.
 
 ## Y01 Plank fence (grey weathered)
 

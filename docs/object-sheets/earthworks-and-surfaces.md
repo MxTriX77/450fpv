@@ -254,7 +254,7 @@ Outputs: the hole-band mask (`holes.png` cells), the filler mesh and its primiti
 - A crater (E05) on or beside the trench cuts the parapet and slumps the walls over 1–4 m; the corridor fills to about half depth with loose spoil there, and a gap opens in the parapet (derived from the crater sizes). Burnt parapets where a field fire reached the trench (S07).
 
 ### Physics role
-- **Collision:** a hole band along the trench, filled with filler primitives per 1–2 m straight segment (≤ 1 m on curves, so the faces stay within 0.05 m of the visual): a floor box, two wall boxes at the batter, level lip boxes, each at least 0.3 m thick behind its face and overlapping 0.2 m (F-1…F-6). The parapets stay terrain: the heightfield raised 0.3–0.5 m on its 1 m samples, with the surface's cover (F-7).
+- **Collision:** a hole band along the trench, filled with filler primitives per 1–2 m straight segment (≤ 1 m on curves, so the faces stay within 0.05 m of the visual): a floor box, two wall boxes at the batter, level lip boxes, each at least 0.3 m thick behind its face and overlapping 0.2 m (F-1…F-6; F-7 and F-8 below; the asset's audit prints all eight, AST-05). The asset carries a `holes` record (centre line, top width, depth, band width: the p1-e01-trench design, decision 6). The parapets stay terrain: the heightfield raised 0.3–0.5 m on its 1 m samples, with the surface's cover (F-7).
 - **Material ids:** walls and floor `surface:belt_bare` (F-7), its wet variant in rain; parapets `belt_straw` or `crater_spoil` terrain (the physics sign-off's mapping of soil, review-materials.md §6).
 - **Gaps:** the corridor: a cross-section gap polygon every metre and at every bend (the clear trapezoid from the floor to the lip), and the open top slot along the run, written as one polygon per filler segment (1–2 m, ≤ 1 m on curves) so that each stays planar within the pipeline's 10 mm on rolling ground. A polygon's `narrowest_m` is its inscribed circle (the pipeline convention), so the table below, not `narrowest_m`, gives the drone's clear width at each height. The drone's side-to-side span equals its nose-first span, 0.574 m, for a square X frame; its yawed span reaches 0.706 m at 45°.
 
@@ -324,7 +324,7 @@ The shared trench-family table, with `revetment` none, `collapse` 0, `overgrowth
 - Blast and slumping push the lining inward: bowed boards, a panel torn off, a post across the corridor. Splintered board ends are geometry (REAL-05).
 
 ### Physics role
-- **Collision:** the E01 fillers behind the lining (F-5 thickness behind the revetment face); posts as capsules, boards and pallets as thin boxes per board or per panel, wattle panels as one box per panel for the contact plane plus capsules for the protruding rod ends, mesh as one box.
+- **Collision:** the E01 fillers and `holes` record behind the lining, under the same contract F-1…F-8 (F-5's thickness behind the revetment face); posts as capsules, boards and pallets as thin boxes per board or per panel, wattle panels as one box per panel for the contact plane plus capsules for the protruding rod ends, mesh as one box.
 - **Material ids:** `timber` (posts, boards, pallets), `deadwood` (wattle rods), `steel` (mesh), the E01 fillers' `surface:belt_bare` behind.
 - **Gaps:** the clear width between the lining faces, written per metre; vertical walls make it constant with height. Boards (0.74 m): nose-first 83 mm a side, yawed 45° only 17 mm a side: PR-9's "barely" at the diagonal. Wattle (0.84 m): 133 and 67 mm. A leaning post or a fallen panel narrows it locally; the generator writes the narrowest width.
 - **Wind volumes:** none (as E01).
@@ -384,7 +384,7 @@ The shared trench-family table with `revetment` boards or wattle (or mesh), `rev
 - It is the end state; a crater in it reads as a wider pit in the line.
 
 ### Physics role
-- **Collision:** the 35° slopes still need the hole and filler method: a 1.8 m trough is too narrow for the 1 m heightfield. Fillers as E01, with the walls at 35°.
+- **Collision:** the 35° slopes still need the hole and filler method: a 1.8 m trough is too narrow for the 1 m heightfield. Fillers and the `holes` record as E01, under F-1…F-8, with the walls at 35°.
 - **Material ids:** `surface:weeds` in the bottom, `surface:belt_straw` on the slopes.
 - **Gaps:** none: 0.4–1.0 m deep with weeds is too shallow to fly in below ground.
 - **Wind volumes:** none.
@@ -437,7 +437,7 @@ The shared trench-family table with `collapse` 0.5–1, `overgrowth` 0.3–1, `a
 - A hit near the entrance: the lintel and the first roof logs break, earth slides onto the steps, the clear height drops to 1.0–1.3 m (assumed).
 
 ### Physics role
-- **Collision:** the trench fillers continue down the stair: step boxes, wall boxes, a ceiling box under the roof; frame logs as capsules (`timber`); roof logs only where they show at the entrance face (their ends, capsules); the chamber as a box room. The mound is heightfield.
+- **Collision:** the trench fillers continue down the stair: step boxes, wall boxes, a ceiling box under the roof; frame logs as capsules (`timber`); roof logs only where they show at the entrance face (their ends, capsules); the chamber as a box room. **Holes:** a `holes` record of its own, a footprint over the stair and the chamber, under F-1…F-8 as the cellar C01's (houses-and-yard.md, Holes): the chamber lies below the ground, so its cells are holes too and the ground over them is filler (`surface:meadow_sod`, or `surface:belt_straw` under the crowns); the mound is heightfield only outside the band.
 - **Material ids:** `surface:belt_bare` (stair walls and steps, floor), `timber` (frame, logs, boards), `fabric` (the doorway tarp).
 - **Gaps:** the doorway polygon in the frame plane, 0.8 × 1.6 m: nose-first 113 mm a side, yawed 45° 47 mm a side, so passable at any yaw, barely on the diagonal; the stair corridor's cross-sections every 0.5 m (0.85 × 1.7 m, descending about 40°); the chamber door if any. A damaged state's sagging lintel lowers the doorway; the generator re-measures it. The vent is not passable.
 - **Wind volumes:** none; a doorway draft is the physics engineer's (as the cellar door, terrain.md W4).
