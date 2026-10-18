@@ -505,10 +505,11 @@ namespace Fpv450.Assets
         /// Creates or updates the prefab in place (so its file ids stay stable): the metadata component, one child
         /// per LOD with the FBX mesh and the slot materials plus one per micro mesh of that LOD (rendered with it,
         /// never a collider), the LODGroup, one child per collision primitive, and nothing else. A wire's tube
-        /// (p1-l01-l03-pole-wires, "Wires are audited against their polyline") is drawn by the LOD meshes in the slot
-        /// its <c>wires</c> record names, with that slot's recipe material (a recipe naming the thin-wire shader gets
-        /// it), and no collider stands for it: conductors are map objects the sim reads from the metadata (D-007).
-        /// Internal for the EditMode tests, which build a prefab from a throwaway metadata.
+        /// (p1-l01-l03-pole-wires, "Wires are audited against their polyline") is the faces of the slot its
+        /// <c>wires</c> record names: that slot draws with the thin-wire material made from its recipe's
+        /// (<see cref="EnsureThinWireMaterial"/>), every vertex of it must carry its radius in uv2, a renderer drawing
+        /// only wires casts no shadow, and no collider stands for a wire: conductors are map objects the sim reads from
+        /// the metadata (D-007). Internal for the EditMode tests, which build a prefab from a throwaway metadata.
         /// </summary>
         internal static void EnsurePrefab(string prefabPath, string variant, Dictionary<string, object> metaJson, TextAsset source,
             string fbxPath, Dictionary<string, Material> materialBySlot)
@@ -520,8 +521,11 @@ namespace Fpv450.Assets
                 root.name = variant;
                 AssetPhysicsMeta meta = Ensure<AssetPhysicsMeta>(root);
                 Fill(meta, metaJson, source, prefabPath);
+                var wireSlots = new HashSet<string>(meta.wires.Select(w => w.slot));
+                materialBySlot = materialBySlot.ToDictionary(kv => kv.Key,
+                    kv => wireSlots.Contains(kv.Key) ? EnsureThinWireMaterial(kv.Value) : kv.Value);
                 var keep = new HashSet<string>();
-                Renderer[][] renderers = EnsureLods(root, meta, fbxPath, materialBySlot, keep);
+                Renderer[][] renderers = EnsureLods(root, meta, fbxPath, materialBySlot, wireSlots, keep);
                 EnsureLodGroup(root, meta, renderers);
                 EnsureColliders(root, meta, keep, prefabPath);
                 for (int i = root.transform.childCount - 1; i >= 0; i--)
@@ -552,7 +556,8 @@ namespace Fpv450.Assets
         }
 
         /// <summary>Per LOD, its mesh's renderer followed by those of the micro meshes listed for it.</summary>
-        static Renderer[][] EnsureLods(GameObject root, AssetPhysicsMeta meta, string fbxPath, Dictionary<string, Material> materialBySlot, HashSet<string> keep)
+        static Renderer[][] EnsureLods(GameObject root, AssetPhysicsMeta meta, string fbxPath, Dictionary<string, Material> materialBySlot,
+            HashSet<string> wireSlots, HashSet<string> keep)
         {
             var imported = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath)
                 ?? throw new FileNotFoundException($"{fbxPath} did not import as a model");
@@ -560,24 +565,29 @@ namespace Fpv450.Assets
             var renderers = new Renderer[meta.lods.Length][];
             for (int i = 0; i < meta.lods.Length; i++)
             {
-                var lod = new List<Renderer> { MeshChild(root, meta.lods[i].mesh, filters, fbxPath, materialBySlot, keep) };
+                var lod = new List<Renderer> { MeshChild(root, meta.lods[i].mesh, filters, fbxPath, materialBySlot, wireSlots, keep) };
                 foreach (AssetPhysicsMeta.MicroMesh micro in meta.micro)
                     if (micro.lod == i)
-                        lod.Add(MeshChild(root, micro.name, filters, fbxPath, materialBySlot, keep));
+                        lod.Add(MeshChild(root, micro.name, filters, fbxPath, materialBySlot, wireSlots, keep));
                 renderers[i] = lod.ToArray();
             }
             return renderers;
         }
 
-        static Renderer MeshChild(GameObject root, string meshName, MeshFilter[] filters, string fbxPath, Dictionary<string, Material> materialBySlot, HashSet<string> keep)
+        static Renderer MeshChild(GameObject root, string meshName, MeshFilter[] filters, string fbxPath, Dictionary<string, Material> materialBySlot,
+            HashSet<string> wireSlots, HashSet<string> keep)
         {
             MeshFilter filter = filters.FirstOrDefault(f => f.sharedMesh != null && f.sharedMesh.name == meshName)
                 ?? throw new FormatException($"{fbxPath} has no mesh named {meshName}");
-            Material[] slotMaterials = filter.GetComponent<MeshRenderer>().sharedMaterials
-                .Select(slot => materialBySlot.TryGetValue(slot.name, out Material material)
+            string[] slots = filter.GetComponent<MeshRenderer>().sharedMaterials.Select(slot => slot.name).ToArray();
+            Material[] slotMaterials = slots
+                .Select(slot => materialBySlot.TryGetValue(slot, out Material material)
                     ? material
-                    : throw new FormatException($"{meshName}: the FBX slot \"{slot.name}\" has no material in the metadata"))
+                    : throw new FormatException($"{meshName}: the FBX slot \"{slot}\" has no material in the metadata"))
                 .ToArray();
+            for (int i = 0; i < slots.Length; i++)
+                if (wireSlots.Contains(slots[i]))
+                    RequireWireRadius(filter.sharedMesh, i, $"{meshName} slot {slots[i]}");
 
             GameObject child = Child(root, meshName, keep);
             child.transform.localPosition = Vector3.zero;
@@ -586,7 +596,22 @@ namespace Fpv450.Assets
             Ensure<MeshFilter>(child).sharedMesh = filter.sharedMesh;
             MeshRenderer renderer = Ensure<MeshRenderer>(child);
             renderer.sharedMaterials = slotMaterials;
+            renderer.shadowCastingMode = slots.Length > 0 && slots.All(wireSlots.Contains) ? ShadowCastingMode.Off : ShadowCastingMode.On;
             return renderer;
+        }
+
+        /// <summary>
+        /// A wire tube's submesh carries its radius in uv2 on every vertex (the thin-wire shader's input, written by
+        /// lib/export from the generator's second UV): without it the shader draws a wire of radius 0, nothing.
+        /// </summary>
+        static void RequireWireRadius(Mesh mesh, int submesh, string what)
+        {
+            var uv2 = new List<Vector2>();
+            mesh.GetUVs(1, uv2);
+            int[] indices = mesh.GetIndices(submesh);
+            if (indices.Length == 0 || uv2.Count == 0 || indices.Any(i => !(uv2[i].x > 0f)))
+                throw new FormatException($"{what}: a wire's tube needs its radius (> 0 m) in uv2 on every vertex for the thin-wire shader " +
+                                          $"({uv2.Count} uv2 values over {mesh.vertexCount} vertices)");
         }
 
         /// <summary>
