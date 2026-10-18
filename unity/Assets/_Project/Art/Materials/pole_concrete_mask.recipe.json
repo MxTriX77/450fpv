@@ -1,0 +1,25 @@
+{
+  "material": "pole_concrete",
+  "texture_set": "polyhaven/rough_concrete",
+  "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
+  "mask": {
+    "metallic": 0.0,
+    "occlusion": "ao",
+    "smoothness": "1 - roughness"
+  },
+  "sources": {
+    "ao": {
+      "name": "rough_concrete_ao_1k.png",
+      "sha256": "82fb596855eb9af8716be9f671f2b901048cc209810f2996c35b38236817a02b"
+    },
+    "roughness": {
+      "name": "rough_concrete_rough_1k.png",
+      "sha256": "6bafcc1ca5646fe0b1f9da8099a835e157687bd65a50dda125d83e1c8ec7789b"
+    }
+  },
+  "inputs_sha256": "be0be604f858bf3bdbf288e90593ad1af973286c6a7caf3c0157e1dd9fd316c4",
+  "size": [
+    1024,
+    1024
+  ]
+}
