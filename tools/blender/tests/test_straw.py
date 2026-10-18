@@ -93,6 +93,7 @@ def test_palette_columns_are_the_straw_recipe_colours_in_order(repo_root):
     columns as derive.py writes it (its stamp records the columns and the map's width)."""
     recipe = json.loads((repo_root / "assets-src" / "materials" / "straw.json").read_text(encoding="utf-8"))
     assert recipe["kind"] == "palette" and tuple(recipe["colours"]) == straw.PALETTE
+    assert straw.PALETTE == ("straw_pale", "straw", "straw_dark", "twig", "blade"), "the scenario's five gradients"
     assert all(isinstance(v, list) and len(v) == 3 for v in recipe["colours"].values())
     assert set(straw.SHADES) < set(straw.PALETTE) and straw.shade(0) != straw.shade(1) != straw.shade(2)
     assert straw.COLUMNS == 8 and straw.COLUMNS >= len(straw.PALETTE) > straw.COLUMNS // 2
