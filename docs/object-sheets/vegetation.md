@@ -1,6 +1,6 @@
 # Object sheet: vegetation (V01–V21)
 
-**Owner:** reference-analyst. **Reviewed for buildability by:** asset-artist (task 1.7, pending).
+**Owner:** reference-analyst. **Reviewed for buildability by:** asset-artist (task 1.7, `openspec/changes/p1-object-sheets/review-buildability.md`).
 
 **OPSEC:** cite clips and photos by letter only. Describe classes, never a specific identifiable building, place, date or person. No file names, and no OSD values.
 
@@ -37,6 +37,8 @@ The side-by-side sheets for these views (REAL-03) are made in `reference/_compar
 - **Branches thicker than 10 mm are geometry**, with real thickness, tapering and the real fork angles; the drone touches them and the fiber bends over them. Every such segment gets a collision capsule. Tolerance: the capsule follows the visual within 10 mm of radius.
 - **Twigs 3–10 mm and leaves are cards** (leaf and twig atlases) inside the crown; they have no capsules. Their physics is the crown volume: a porous wind volume plus a compliant contact shell (`foliage` material or the proposed `twig` id, below). A card must never be the only thing that stops the drone.
 - **Collision follows the visual** at the trunk and the limbs; the crown shell's outer surface follows the card envelope within 0.1 m. Every opening between limbs wider than 0.574 m is a real gap the sim knows.
+- **How the generator writes a gap between two members** (asset-artist rule, the pipeline's gap convention): for two neighbouring members leaving one fork (two limbs ≥ 30 mm, a hanging limb and its trunk, the halves of a split trunk, two stems of a clump), the polygon lies in the plane through the fork point and the two member axes, bounded by the two member surfaces and closed by the chord where the crown shell or the next child fork begins; `narrowest_m` is the diameter of its largest inscribed circle. A branch bridging a pit (V19) or a log over the ground (V21) uses the vertical plane through its axis, bounded by the member's underside and the ground. Only polygons with `narrowest_m` ≥ 0.5 m are written.
+- **Snag records** (the pipeline's two kinds): every segment under 30 mm is an `edge` along its axis with the capsule's radius; every free tip (a twig end, a splinter, a broken stub) is a `hook` from its base to its tip. The "whole crown shell" as a snag is not a record: it is the `twig` material's hook behaviour (open point for the physics engineer).
 - **No texture or normal-map fakes** for anything the drone can touch: furrows in bark are a normal map (the fiber does not read them), but a broken limb's splinters, a split trunk's halves and a stump's jagged top are geometry.
 - **Branch diameters follow Leonardo's rule:** at every fork the parent's cross-section equals the sum of the children's, d_p² = Σ d_c² (published: APS DFD 2011 abstract, Eloy, https://meetings-archive.aps.org/dfd/2011/l24/6, and https://www.npr.org/2011/12/26/144127874/the-wisdom-of-trees-leonardo-da-vinci-knew-it). The generator takes the trunk diameter and the branching counts and derives every segment diameter from this; the twig threshold (10 mm) then falls out of the order count, not a hand-set value.
 - **Taper:** a segment thins linearly between forks; the last 10 mm segment ends in cards.
@@ -88,7 +90,14 @@ One parametric tree generator with a species preset per asset. Variants are seed
 | `leaf_tint` | colour | — | per species | leaf albedo; autumn presets per species |
 | `twig_threshold_mm` | float | 8–12 | 10 | below this a segment is a card (REAL-05 fixes 10; the range is for review only) |
 | `broken_top_m` | float | 0 or 2–height | 0 | state V07: the trunk ends at this height in a splintered break |
-| `dead` | bool | — | false | state V08: no leaf cards, twig cards reduced to 20 %, bark flaking mask, `deadwood` material |
+| `dead` | bool | — | false | state V08: no leaf cards, twig cards reduced to `twig_cards`, bark flaking mask, `deadwood` material |
+| `dead_top_frac` | float | 0–1 | 0 | share of the crown, from the top down, that is dead: no leaf cards there and `deadwood` on its capsules (V04 half-dead 0.3) |
+| `twig_cards` | float | 0–1 | 1 (0.2 when `dead`) | share of twig-card tufts kept on the skeleton (V08: 0.2; its dead sapling 0.3 with brown leaves) |
+| `spines` | bool | — | false | thorn cards on suckers and low branches (V01 when `stems` > 1); visual only |
+| `fruit_share` | float | 0–0.5 | 0 | share of twig tips carrying pod, key or fruit cards (V01 pods 0.2 in autumn and bare; V02 keys; V10 fruit) |
+| `water_sprouts` | int | 0–20 | 0 | vertical whips 0.5–1.5 m, 5–15 mm, on the upper limbs (V10 abandoned apple 5–15); those ≥ 10 mm get capsules |
+| `suckers` | int | 0–10 | 0 | root-sucker whips 0.5–2 m, 5–15 mm, in a ring 0.3–1 m round the base (V11 cherry); those ≥ 10 mm get capsules and `twig` contact |
+| `epicormic_tufts` | int | 0–20 | 0 | leafy shoots 0.3–1.5 m, 5–15 mm, on the trunk below a break (V07) |
 | `shrapnel_scars` | int | 0–30 | 0 | bark wounds 20–150 mm on the lower 3 m, facing one side (the blast side) |
 | `char_height_m` | float | 0–3 | 0 | charred band from the ground (burnt-field edges) |
 
@@ -104,11 +113,17 @@ Outputs per asset: LOD0 mesh (limbs + cards), LOD1–2, an impostor; capsules fo
 | `stems` | int | 1–40 | per asset | stems from the base (a sapling 1, a lilac clump 20–40, forbs 5–40 per m²) |
 | `stem_d_mm` | range | 3–60 | per asset | base diameter of the stems; ≥ 10 mm get capsules |
 | `arch` | float | 0–1 | 0.3 | how far stems bow outward (elder, rose 0.7; caragana, saplings 0.1) |
+| `fork_angle_deg` | range | 10–90 | 30–50 | opening angle where stems branch (blackthorn's stiff tangle 60–90) |
+| `bare_base_m` | float | 0–1.5 | 0.3 | stems bare of twigs and leaf cards below this height (V13 variant 1: 0, variant 3: 1.0, the leggy shrub under the canopy) |
 | `spines` | bool | — | false | blackthorn, rose, locust suckers: spine cards on stems |
 | `leaf_cover` | float | 0–1 | 0.8 | as for trees |
+| `fruit_tufts` | int | 0–60 | 0 | 1-card clusters of berries, hips, sloes or burrs (V13 honeysuckle berries, V14 elder 0–20, V15 hips 10–40, V18 burrs) |
+| `basal_leaf_m` | float | 0–0.6 | 0 | size of the basal-rosette leaf cards (V18 burdock 0.3–0.6); 0 means none |
 | `seed_heads` | float | 0–1 | 0 | share of stems with seed-head cards (forbs in autumn 0.8) |
 | `dry` | bool | — | false | dead stalks: brown tint, leaf cards off, `deadwood` stiffness for stems |
+| `char_height_m` | float | 0–1.5 | 0 | burnt base after a field fire: black bare stems and twigs below this height (V13, V14 burnt clumps) |
 | `density_per_m2` | float | 5–60 | per asset | forbs only: stalks per m² of the patch |
+| `species_mix` | list of (card set, weight) | weights 0–1, summing to 1 | per asset | forbs only: which leaf and head card sets the stalks draw (V17: mugwort 0.3, goldenrod 0.2, ragweed 0.2, fat-hen 0.15, thistle 0.15) |
 | `patch_shape` | polygon | — | — | forbs only: the patch outline from the map (feathered, PR-11) |
 
 ### Shared generator: dead wood (V07–V09, V19–V21)
@@ -125,6 +140,12 @@ Uses the tree generator's branch skeleton (or a stored one) with `dead = true`, 
 | `char_height_m` | float | 0–3 | 0 | charred band |
 | `bark_loss` | float | 0–1 | 0.5 | share of bark gone (grey wood showing) |
 | `lying` | bool | — | false | V19, V21: laid on the ground with its contacts resolved |
+| `length_m` | float | 0.5–8 | per piece | lying pieces: overall length (V19 0.5–4, V21 4–8) |
+| `butt_d_m`, `tip_d_m` | float | 0.02–0.40, 0.01–0.15 | per piece | lying pieces: diameter at the thick and thin end, linear taper between (V19 2–10 cm; V21 20–40 → 8–15 cm) |
+| `forks` | int | 0–2 | 0 | lying pieces: side forks of the skeleton (V19 piece 1: 2) |
+| `twig_share` | float | 0–1 | 0.3 | lying pieces: share of side twigs still attached (V19 0.2–0.5); ≥ 10 mm are capsules, finer are cards |
+| `stubs` | int | 0–5 | 0 | V21: limb stubs 0.3–1.5 m, 3–8 cm, which hold the trunk 0–0.4 m off the ground |
+| `char_share` | float | 0–1 | 0 | lying pieces: share of the surface charred (burnt edges); standing trunks use `char_height_m` |
 | `root_plate` | bool | — | false | V21: a torn-out root plate 1–2 m across at the butt |
 
 ### Materials: CC0 candidates
@@ -222,7 +243,7 @@ No set is in `tools/assets/manifest.json` yet for this group (the manifest holds
 - Sizes along a belt: L in the middle rows, M at the rows beside them, S and sucker clumps at both edges.
 
 ### Generator parameters
-Preset over the shared tree generator: `height_m` 6/10/14, `dbh_m` 0.08/0.16/0.26, `stems` 2/1/1, `first_fork_m` 2.5/3/4, `main_limbs` 3, `orders` 5, `children_per_order` 2.2, `fork_angle_deg` 25–40, `trunk_sinuosity` 0.4, `crown_shape` scraggly, `crown_width_m` 3/5/6, `leaf_cover` by state, thorn cards on when `stems` > 1. Ranges and effects: see the shared table.
+Preset over the shared tree generator: `height_m` 6/10/14, `dbh_m` 0.08/0.16/0.26, `stems` 2/1/1, `first_fork_m` 2.5/3/4, `main_limbs` 3, `orders` 5, `children_per_order` 2.2, `fork_angle_deg` 25–40, `trunk_sinuosity` 0.4, `crown_shape` scraggly, `crown_width_m` 3/5/6, `leaf_cover` by state, `spines` true when `stems` > 1, `fruit_share` 0.2 (pods) in the autumn and bare states. Ranges and effects: see the shared table.
 
 ### Open points
 - Crown width from trunk diameter: the Northern-Steppe crown model gives the function; the full text is needed to confirm the 20–25 × dbh ratio (assumed here). Research, not a pilot question.
@@ -377,7 +398,7 @@ Norway maple preset: `height_m` 6/10/14, `dbh_m` 0.08/0.18/0.32, `first_fork_m` 
 - 10–30 % of belts, more in the drier south; dead and half-dead elms stand at belt edges and strip ends (G).
 
 ### Generator parameters
-Preset: `height_m` 10/14, `dbh_m` 0.20/0.30, `first_fork_m` 2.5, `main_limbs` 4, `orders` 5, `children_per_order` 3.0, `fork_angle_deg` 35–60, `crown_shape` oval, `crown_width_m` 6/8, `dead` top share 0–0.3 by state.
+Preset: `height_m` 10/14, `dbh_m` 0.20/0.30, `first_fork_m` 2.5, `main_limbs` 4, `orders` 5, `children_per_order` 3.0, `fork_angle_deg` 35–60, `crown_shape` oval, `crown_width_m` 6/8, `dead_top_frac` 0–0.3 by state (half-dead 0.3).
 
 ### Open points
 - None beyond the shared ones.
@@ -526,7 +547,7 @@ Preset: `height_m` 12/16, `dbh_m` 0.40/0.65, `first_fork_m` 3, `main_limbs` 4–
 - One per 10–20 m of belt edge facing open ground (assumed 5–15 % of stems); every strip beside a trench (G) has several; one or two per shelled yard.
 
 ### Generator parameters
-Over the dead-wood generator: `break_height_m` 2–6 (default 4), `splinter_len_m` 0.3–1.0, `splinter_count` 4–10, `hanging_limb` true for variant 1, `bark_loss` 0.2–0.5, `shrapnel_scars` 5–20, plus the parent preset with `leaf_cover` 0.3–0.5.
+Over the dead-wood generator: `break_height_m` 2–6 (default 4), `splinter_len_m` 0.3–1.0, `splinter_count` 4–10, `hanging_limb` true for variant 1, `bark_loss` 0.2–0.5, `shrapnel_scars` 5–20, `epicormic_tufts` 4–12 (count assumed; the dimension table gives their size), plus the parent preset with `leaf_cover` 0.3–0.5.
 
 ### Open points
 - The share of broken trees per belt is assumed; the earthworks analyst reading B (task 1.3) can count broken tops per 100 m of belt edge and replace the assumption.
@@ -578,7 +599,7 @@ Over the dead-wood generator: `break_height_m` 2–6 (default 4), `splinter_len_
 - One or two per overgrown yard (D) in the middle of the weeds; several per belt edge, at strip ends and beside trenches (G); the tallest thing in open ground, so a night landmark (L).
 
 ### Generator parameters
-Over the tree preset with `dead` true: `trunk_lean_deg` 0–15, `bark_loss` 0.3–1.0, `leaf_cover` 0, twig-card share 0.2 (variant 2: 0.3 brown).
+Over the tree preset with `dead` true: `trunk_lean_deg` 0–15, `bark_loss` 0.3–1.0, `leaf_cover` 0, `twig_cards` 0.2 (variant 2: 0.3, brown leaf cards).
 
 ### Open points
 - None.
@@ -682,7 +703,7 @@ Over the dead-wood generator: `break_height_m` 1–4 / 0.3–1.5, `split_depth_m
 - 2–6 per yard in a loose row 4–7 m apart along a fence or behind the house, 2–4 m from the nearest wall (C); one or two per yard in the map's villages.
 
 ### Generator parameters
-Preset: `height_m` 5.5 (4–7), `dbh_m` 0.30, `first_fork_m` 1.5, `main_limbs` 4, `orders` 5, `children_per_order` 2.8, `fork_angle_deg` 45–70, `limb_droop` 0.4, `trunk_sinuosity` 0.6, `crown_shape` spreading, `crown_width_m` 6, water-sprout tufts 5–15 (an extra int param on this preset: vertical whips 0.5–1.5 m on the upper limbs).
+Preset: `height_m` 5.5 (4–7), `dbh_m` 0.30, `first_fork_m` 1.5, `main_limbs` 4, `orders` 5, `children_per_order` 2.8, `fork_angle_deg` 45–70, `limb_droop` 0.4, `trunk_sinuosity` 0.6, `crown_shape` spreading, `crown_width_m` 6, `water_sprouts` 5–15 (the younger variant 0–5, assumed), `fruit_share` 0.05 in late summer ("a few fruit cards", assumed).
 
 ### Open points
 - None.
@@ -728,7 +749,7 @@ Preset: `height_m` 5.5 (4–7), `dbh_m` 0.30, `first_fork_m` 1.5, `main_limbs` 4
 - Mixed with V10 in the yard row; cherry often along the fence; apricot nearer the house (assumed).
 
 ### Generator parameters
-Cherry preset: `height_m` 4, `dbh_m` 0.18, `first_fork_m` 1.2, `main_limbs` 4, `children_per_order` 3.0, `limb_droop` 0.6, `crown_shape` oval, `crown_width_m` 4, sucker whips 0–10. Apricot preset: `height_m` 6, `dbh_m` 0.30, `first_fork_m` 1.6, `main_limbs` 4, `fork_angle_deg` 40–60, `crown_shape` dome, `crown_width_m` 6.
+Cherry preset: `height_m` 4, `dbh_m` 0.18, `first_fork_m` 1.2, `main_limbs` 4, `children_per_order` 3.0, `limb_droop` 0.6, `crown_shape` oval, `crown_width_m` 4, `suckers` 6 (range 0–10). Apricot preset: `height_m` 6, `dbh_m` 0.30, `first_fork_m` 1.6, `main_limbs` 4, `fork_angle_deg` 40–60, `crown_shape` dome, `crown_width_m` 6.
 
 ### Open points
 - None.
@@ -831,7 +852,7 @@ Preset: `height_m` 12, `dbh_m` 0.55, `first_fork_m` 2, `main_limbs` 4, `orders` 
 - Inside every belt among the trunks (PR-10): 15–30 % ground cover inside, 40–70 % along the sunlit edges, variant 3 inside, 1 and 2 at the edges; clumps 1–4 m apart; none in the bare corridor of F-type belts (blow-through) beyond the margins. Along trenches (G) and at belt ends.
 
 ### Generator parameters
-Over the shrub generator: `height_m` 1.2/2/3, `width_m` 1.5/2.2/2.5, `stems` 5–20, `stem_d_mm` 10–30, `arch` 0.1–0.3, `leaf_cover` by state, `spines` true for the silverberry look.
+Over the shrub generator: `height_m` 1.2/2/3, `width_m` 1.5/2.2/2.5, `stems` 5–20, `stem_d_mm` 10–30, `arch` 0.1–0.3, `bare_base_m` 0 / 0.6 / 1.0, `leaf_cover` by state, `spines` true for the silverberry look, `fruit_tufts` 0–10 (honeysuckle berries in autumn; count assumed).
 
 ### Open points
 - Species share per belt (honeysuckle vs caragana vs silverberry) is a look choice for the look-lock (G1); nothing in the footage separates them at PAL resolution.
@@ -882,7 +903,7 @@ Over the shrub generator: `height_m` 1.2/2/3, `width_m` 1.5/2.2/2.5, `stems` 5�
 - At fences, gates and the corners of houses and sheds, 1–3 clumps per yard; a lilac thicket on every abandoned house plot (assumed, published habit); elder beside the cellar and the shed (C, E class yards).
 
 ### Generator parameters
-Elder preset: `height_m` 3, `width_m` 3, `stems` 8, `stem_d_mm` 20–60, `arch` 0.7, `leaf_cover` 0.8, berry tufts 0–20. Lilac preset: `height_m` 3, `width_m` 3.5, `stems` 20, `stem_d_mm` 20–120, `arch` 0.1, `leaf_cover` 0.9.
+Elder preset: `height_m` 3, `width_m` 3, `stems` 8, `stem_d_mm` 20–60, `arch` 0.7, `leaf_cover` 0.8, `fruit_tufts` 0–20 (berries, autumn). Lilac preset: `height_m` 3, `width_m` 3.5, `stems` 20, `stem_d_mm` 20–120, `arch` 0.1, `leaf_cover` 0.9.
 
 ### Open points
 - Whether a hollow elder stem should break under the drone (propose: yes, as `deadwood` with σ_b 20 MPa) is a physics call.
@@ -934,7 +955,7 @@ Elder preset: `height_m` 3, `width_m` 3, `stems` 8, `stem_d_mm` 20–60, `arch` 
 - Belt edges facing the sun, field corners, along old fences and ditch banks; 1 per 20–50 m of belt edge (assumed).
 
 ### Generator parameters
-Blackthorn preset: `height_m` 1.8, `width_m` 2.5, `stems` 20, `stem_d_mm` 8–30, `arch` 0.1, `spines` true, `fork_angle_deg` 60–90. Rose preset: `height_m` 1.5, `stems` 8, `stem_d_mm` 8–20, `arch` 0.8, `spines` true, hip tufts 10–40.
+Blackthorn preset: `height_m` 1.8, `width_m` 2.5, `stems` 20, `stem_d_mm` 8–30, `arch` 0.1, `spines` true, `fork_angle_deg` 60–90, `fruit_tufts` 10–30 (sloes in autumn; count assumed). Rose preset: `height_m` 1.5, `stems` 8, `stem_d_mm` 8–20, `arch` 0.8, `spines` true, `fruit_tufts` 10–40 (hips).
 
 ### Open points
 - None.
@@ -1034,7 +1055,7 @@ Over the shrub generator: `height_m` 1–3, `stems` 1–3, `stem_d_mm` 10–40, 
 - Fills every abandoned plot (D), 10–40 m patches with feathered edges (PR-11); strips 0.5–2 m along every wall, fence and cellar (C, E); belt margins 1–3 m (B, H); not inside dense belts (the herb layer is almost absent there, the belt survey cited under V03) but along the F corridor margins.
 
 ### Generator parameters
-Over the forb generator: `height_m` 0.5–1.5, `stem_d_mm` 5–15, `density_per_m2` 10–60, `seed_heads` 0.2–0.9, `leaf_cover` 0.9/0.5/0, `dry` by variant, `patch_shape` from the map; species mix weights (mugwort 0.3, goldenrod 0.2, ragweed 0.2, fat-hen 0.15, thistle 0.15) as a look parameter.
+Over the forb generator: `height_m` 0.5–1.5, `stem_d_mm` 5–15, `density_per_m2` 10–60, `seed_heads` 0.2–0.9, `leaf_cover` 0.9/0.5/0, `dry` by variant, `patch_shape` from the map; `species_mix` mugwort 0.3, goldenrod 0.2, ragweed 0.2, fat-hen 0.15, thistle 0.15 (a look parameter).
 
 ### Open points
 - Stalk density per m² is assumed; the first 1.5 m review sheet against D decides it.
@@ -1086,7 +1107,7 @@ Over the forb generator: `height_m` 0.5–1.5, `stem_d_mm` 5–15, `density_per_
 - Nitrogen spots: shed and barn walls, manure heaps, fence lines, the cellar wall (C), around rubble; nettle patches 1–5 m; burdock in groups of 3–10 at shed corners.
 
 ### Generator parameters
-Over the forb generator: burdock `height_m` 1.5, `stem_d_mm` 15–30, `density_per_m2` 2–6, basal leaf cards 0.3–0.6 m; nettle `height_m` 1.2, `stem_d_mm` 5–8, `density_per_m2` 20–50; thistle `height_m` 1, `density_per_m2` 5–20, `spines` true; `seed_heads` 0.8 and `dry` for variant 2.
+Over the forb generator: burdock `height_m` 1.5, `stem_d_mm` 15–30, `density_per_m2` 2–6, `basal_leaf_m` 0.45 (0.3–0.6), `fruit_tufts` 10–50 (burrs); nettle `height_m` 1.2, `stem_d_mm` 5–8, `density_per_m2` 20–50; thistle `height_m` 1, `density_per_m2` 5–20, `spines` true; `seed_heads` 0.8 and `dry` for variant 2.
 
 ### Open points
 - None.
@@ -1134,7 +1155,7 @@ Over the forb generator: burdock `height_m` 1.5, `stem_d_mm` 15–30, `density_p
 - 2–5 pieces per 100 m² under belts (F), piled at pits and craters, scattered in the straw at belt edges (H); 1–3 per yard under the fruit trees and the walnut.
 
 ### Generator parameters
-Over the dead-wood generator: `lying` true, length 0.5–4 m, diameter 2–10 cm, fork count 0–2, twig share 0.2–0.5, `bark_loss` 0.3–0.8, char share 0–1.
+Over the dead-wood generator: `lying` true, `length_m` 0.5–4, `butt_d_m` 0.02–0.10 (`tip_d_m` 0.01–0.04), `forks` 0–2, `twig_share` 0.2–0.5, `bark_loss` 0.3–0.8, `char_share` 0–1; the four pieces of the dimension table are four params files.
 
 ### Open points
 - None.
@@ -1180,7 +1201,21 @@ Over the dead-wood generator: `lying` true, length 0.5–4 m, diameter 2–10 cm
 - Yards (J): 1–2 per yard at the back fence or beside the shed; at belt ends where a belt was cleared.
 
 ### Generator parameters
-`height_m` 1–2, `width_m` 2–4, piece count 20–60, piece length 1–3 m, diameter 2–6 cm, leaf share 0–0.5 (fresh), void fraction 0.6–0.8.
+A pile generator that throws V19-class pieces from the dead-wood generator into a mound and settles them:
+
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `seed` | int | any | per variant | every draw (piece sizes, throw, settling) |
+| `height_m` | float | 1–2 | 1.5 (old variant 1.0) | mound height after settling |
+| `width_m` | float | 2–4 | 3 | mound footprint |
+| `pieces` | int | 20–60 | 40 | cut branches thrown in |
+| `piece_length_m` | range | 1–3 | 1–3 | length of each piece (drawn) |
+| `piece_d_m` | range | 0.02–0.06 | 0.02–0.06 | butt diameter of each piece (drawn) |
+| `leaf_share` | float | 0–0.5 | 0.4 fresh, 0 old | share of twig tips with brown leaf cards |
+| `void_fraction` | float | 0.6–0.8 | 0.7 | how loosely the pieces sit; sets the pile's mass and the hull's `twig` stiffness band |
+| `burnt` | bool | — | false | the third state: a black ring 2–4 m with ash and charred stubs |
+
+Only the outer pieces get capsules (the inner ones are culled, as the physics role says).
 
 ### Open points
 - The houses-and-yard analyst (J, task 1.2) may add the pile's piece sizes from the photo.
@@ -1227,14 +1262,14 @@ Over the dead-wood generator: `lying` true, length 0.5–4 m, diameter 2–10 cm
 - 1 per 50–100 m of belt, lying across the corridor or into the field; 1 per shelled yard with a big tree; in G-type strips beside the trench.
 
 ### Generator parameters
-Over the dead-wood generator: `lying` true, length 4–8 m, butt diameter 20–40 cm, taper to 8–15 cm, stub count 2–5, `root_plate` on/off, `bark_loss` 0.3–0.8, `splinter_len_m` 0.3–0.8 at the butt when the root plate is off.
+Over the dead-wood generator: `lying` true, `length_m` 4–8, `butt_d_m` 0.20–0.40, `tip_d_m` 0.08–0.15, `stubs` 2–5, `root_plate` on/off, `bark_loss` 0.3–0.8, `splinter_len_m` 0.3–0.8 at the butt when the root plate is off.
 
 ### Open points
 - None.
 
 ## Open points for other roles (summary)
 
-- **Physics engineer:** sign off or amend the proposed ids `bark`, `twig`, `deadwood` (with a break moment per capsule diameter), `forb_stem`; decide whether hollow elder stems break; decide the capsule budget per tree (fold 10–15 mm segments into the `twig` shell if the world-query budget bites).
+- **Physics engineer:** sign off or amend the proposed ids `bark`, `twig`, `deadwood` (with a break moment per capsule diameter), `forb_stem`; decide whether hollow elder stems break; decide the capsule budget per tree (fold 10–15 mm segments into the `twig` shell if the world-query budget bites). The material table's schema 1 has no field for a break moment (`deadwood`), a buckling load (`forb_stem`) or a shell's hook rate (`twig`, the crown-shell snag): each needs a new field, or a rule that derives it from the shape's radius (buildability review).
 - **Asset-artist:** fetch and pin the CC0 candidates (Poly Haven bark and ground sets, ambientCG Bark and LeafSet sets); measure the photo albedos on the chosen sets and replace the assumed values; check the Lombardy crown width and the locust crown ratio against CC0 photos.
 - **World-builder:** belt-level porosity classes (blow-through, openwork, dense) come from the row layout plus V13 density, not from a per-asset value (K§10.6 noted the one-porosity-per-asset limit); the far-belt check: at 200 m a dark band (K§14.4), at about 1 km a shape 5–10 % darker than the field (A).
 - **Other analysts:** B (task 1.3) can count broken tops per 100 m of belt edge and look for blast-lodged weeds at craters; J (task 1.2) can size the brush-pile pieces.
