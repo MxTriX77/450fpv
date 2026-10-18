@@ -34,11 +34,11 @@ namespace Fpv450.Assets
 
         // The impostor card's material (p1-v01-locust, design decision 3): the atlas, whose alpha is the coverage
         // the Blender render found per texel (tools/blender/lib/impostor.py), clipped where half of it is covered;
-        // matte, because a far crown is many small surfaces whose highlights average out, and a smooth card would
-        // add a Fresnel rim along its sides, where its normal grazes, that no crown shows (measured: at the leaves'
-        // 0.2 the overcast 50 m tile came out 8-12 % brighter than LOD0's).
+        // the leaf recipes' smoothness (assets-src/materials/leaf_*.json), since the card shows the leaves' own normals
+        // from its normal atlas (task 1.2b: matte, it lost 8-11 % of LOD0's light at the switch distances by day and
+        // overcast; the 0 task 1.2 measured stood for an ellipsoid's normal, whose grazing rim the leaves never have).
         const float ImpostorCutoff = 0.5f;
-        const float ImpostorSmoothness = 0f;
+        const float ImpostorSmoothness = 0.2f;
 
         // The metadata gives LOD distances; a LODGroup wants screen-relative heights. The conversion assumes the
         // feed's vertical field of view (design decision 7, derived: 60 degrees, 935 px/rad at 1080 px).
@@ -472,11 +472,12 @@ namespace Fpv450.Assets
         // --- the impostor (p1-v01-locust, design decision 3) -----------------------------------------------------
 
         /// <summary>
-        /// The impostor LOD: a camera-facing card set reading the atlas the Blender build renders beside the
-        /// metadata (tools/blender/lib/impostor.py), one child named as the LOD's mesh with the card mesh and its
-        /// material. The card is one quad of the record's size, x across and y up in its own frame
+        /// The impostor LOD: a camera-facing card set reading the albedo and normal atlases the Blender build renders
+        /// beside the metadata (tools/blender/lib/impostor.py), one child named as the LOD's mesh with the card mesh
+        /// and its material. The card is one quad of the record's size, x across and y up in its own frame
         /// (<see cref="ImpostorMesh"/>); the shader <c>Fpv450/Impostor</c> turns it to the camera, picks the nearest
-        /// view and gives each pixel the crown's normal. The atlas is imported as a diffuse that keeps its alpha coverage at the cutoff in every mip.
+        /// view and gives each pixel the normal its view saw. The albedo atlas is imported as a diffuse that keeps its
+        /// alpha coverage at the cutoff in every mip, the normal atlas as linear data (<see cref="ArtImportSettings"/>).
         /// The mesh and the material are assets beside the prefab, <c>&lt;variant&gt;_impostor.asset</c> and
         /// <c>.mat</c>, rewritten only when they change.
         /// </summary>
@@ -484,29 +485,22 @@ namespace Fpv450.Assets
             string prefabPath, HashSet<string> keep)
         {
             string what = $"{root.name} {lod.mesh}";
-            string atlasPath = $"{atlasFolder}/{Json.Str(record, "atlas", what)}";
-            EnsureTextureImport(atlasPath, "run the Blender build of the asset (tools/blender/build.py)");
-            var atlas = AssetDatabase.LoadAssetAtPath<Texture2D>(atlasPath)
-                ?? throw new FileNotFoundException($"{atlasPath} did not import as a texture");
             Vector2 size = Json.Vec2(record, "size_px", what);
-            if (atlas.width != (int)size.x || atlas.height != (int)size.y)
-                throw new FormatException($"{atlasPath} is {atlas.width}x{atlas.height} px; the metadata says {size.x}x{size.y}");
+            Texture2D atlas = ImpostorAtlas($"{atlasFolder}/{Json.Str(record, "atlas", what)}", size);
             EnsureCoverage(atlas, ImpostorCutoff);
+            Texture2D normals = ImpostorAtlas($"{atlasFolder}/{Json.Str(record, "normals", what)}", size);
 
             if (lod.tris != 2)
                 throw new FormatException($"{what}: the card is one quad, 2 triangles; the metadata says {lod.tris}");
             var cardJson = Json.Obj(record, "card", what);
             var card = new Vector4(Json.Num(cardJson, "width_m", what), Json.Num(cardJson, "height_m", what), Json.Num(cardJson, "bottom_m", what), 0f);
-            var crown = Json.Obj(record, "crown", what);
-            Vector3 centre = Json.Vec3(crown, "centre", what);
-            Vector2 radii = Json.Vec2(crown, "radii_m", what);
-            var grid = new Vector4(Json.Num(record, "views", what), Json.Num(record, "columns", what), Json.Num(record, "rows", what), 0f);
+            var grid = new Vector4(Json.Num(record, "views", what), Json.Num(record, "columns", what), Json.Num(record, "rows", what),
+                Json.Num(record, "elevation_deg", what));
 
             string folder = Path.GetDirectoryName(prefabPath).Replace('\\', '/');
             Mesh mesh = ImpostorMesh($"{folder}/{root.name}_impostor.asset", lod.mesh, card.x, card.y, card.z);
-            Material material = ImpostorMaterial($"{folder}/{root.name}_impostor.mat", atlas, grid, card,
-                new Vector4(centre.x, centre.y, centre.z, Json.Num(crown, "up", what)), new Vector4(radii.x, radii.y, 0f, 0f),
-                Json.Num(crown, "occlusion", what));
+            Material material = ImpostorMaterial($"{folder}/{root.name}_impostor.mat", atlas, normals, grid, card,
+                Json.Num(record, "occlusion", what));
 
             GameObject child = Child(root, lod.mesh, keep);
             child.transform.localPosition = Vector3.zero;
@@ -516,6 +510,17 @@ namespace Fpv450.Assets
             MeshRenderer renderer = Ensure<MeshRenderer>(child);
             renderer.sharedMaterials = new[] { material };
             return renderer;
+        }
+
+        /// <summary>One of the impostor's atlases beside the metadata, imported by the art settings and as large as the record says.</summary>
+        static Texture2D ImpostorAtlas(string path, Vector2 size)
+        {
+            EnsureTextureImport(path, "run the Blender build of the asset (tools/blender/build.py)");
+            var atlas = AssetDatabase.LoadAssetAtPath<Texture2D>(path)
+                ?? throw new FileNotFoundException($"{path} did not import as a texture");
+            if (atlas.width != (int)size.x || atlas.height != (int)size.y)
+                throw new FormatException($"{path} is {atlas.width}x{atlas.height} px; the metadata says {size.x}x{size.y}");
+            return atlas;
         }
 
         /// <summary>
@@ -563,11 +568,11 @@ namespace Fpv450.Assets
 
         /// <summary>
         /// The card's material: <c>Fpv450/Impostor</c> over the atlas, untinted, clipped at the cutoff with alpha to
-        /// coverage as the leaves are, no face culled, receiving no shadow (the shader says why), the views' grid, the
-        /// card's size and the crown's centre, up share and radii for the shader, and the crown's occlusion on the
-        /// ambient light: the shader's default black occlusion map at strength 1 − occlusion.
+        /// coverage as the leaves are, no face culled, receiving no shadow (the shader says why), the normal atlas, the
+        /// views' grid and elevation and the card's size for the shader, and the crown's occlusion on the ambient
+        /// light: the shader's default black occlusion map at strength 1 − occlusion.
         /// </summary>
-        static Material ImpostorMaterial(string path, Texture2D atlas, Vector4 grid, Vector4 card, Vector4 crown, Vector4 radii, float occlusion)
+        static Material ImpostorMaterial(string path, Texture2D atlas, Texture2D normals, Vector4 grid, Vector4 card, float occlusion)
         {
             Shader shader = Shader.Find(ImpostorShader) ?? throw new FormatException($"no shader named \"{ImpostorShader}\"");
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
@@ -593,10 +598,14 @@ namespace Fpv450.Assets
             changed |= SetKeyword(material, "_RECEIVE_SHADOWS_OFF", true);
             changed |= SetFloat(material, "_OcclusionStrength", 1f - occlusion);
             changed |= SetKeyword(material, "_OCCLUSIONMAP", true);
+            changed |= SetTexture(material, "_BumpMap", normals); // read by the shader itself; _NORMALMAP stays off
+            if (!material.enableInstancing)
+            {
+                material.enableInstancing = true; // a belt's cards draw instanced: the SRP batcher cannot take them
+                changed = true;
+            }
             changed |= SetVector(material, "_ImpostorGrid", grid);
             changed |= SetVector(material, "_ImpostorCard", card);
-            changed |= SetVector(material, "_ImpostorCrown", crown);
-            changed |= SetVector(material, "_ImpostorRadii", radii);
             if (material.renderQueue != (int)RenderQueue.AlphaTest)
             {
                 material.renderQueue = (int)RenderQueue.AlphaTest;

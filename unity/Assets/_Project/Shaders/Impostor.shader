@@ -3,16 +3,18 @@
 // shadow pass, the light), showing the atlas cell of the nearest of the views tools/blender/lib/impostor.py renders.
 // The card mesh, built by the catalog importer, holds the quad in its own frame: x across it, y up it, 0 on the axis.
 // The views are _ImpostorGrid.x orthographic views from the azimuths k * 360 / views (from +Z towards +X, object
-// space), view k in cell (k mod columns, k div columns) from the atlas's top left. The atlas holds albedo; the card is
-// lit as URP/Lit lights a surface, with the crown's normal per pixel (lib/impostor.py card_normals, which this
-// follows): the normal of the ellipsoid round the crown (_ImpostorCrown: centre, up share; _ImpostorRadii: horizontal,
-// vertical) on the side facing the camera (above and below the crown, an upright cylinder's), leaning up by the up
-// share. The crown's occlusion reaches URP/Lit's
+// space), view k in cell (k mod columns, k div columns) from the atlas's top left, in both atlases. The albedo atlas
+// (_BaseMap) holds albedo; the card is lit as URP/Lit lights a surface, with the normal atlas's normal per pixel
+// (_BumpMap, linear): the visible side's normal as view k saw it, in its axes (right, up, towards its camera,
+// _ImpostorGrid.w degrees above the horizon) mapped into 0-1, which the forward pass samples at the cell's uv, at full
+// resolution, and turns into object space with the same axes; URP's _NORMALMAP stays off, as the fragment sets the
+// normal itself. The card has the leaves' smoothness, since it shows their normals (the catalog importer sets it). The
+// crown's occlusion reaches URP/Lit's
 // ambient term as an occlusion map does, through the default black _OcclusionMap at strength 1 - occlusion. It casts
 // shadows facing the light and receives none (the material sets _RECEIVE_SHADOWS_OFF): the light-facing caster would
 // shadow the camera-facing card along their shared axis. Each pass includes URP's own Lit pass and wraps its vertex
 // function (and the forward pass its fragment), as Fpv450/Leaf does; the extra vectors stand outside URP/Lit's
-// per-material buffer, so the SRP batcher draws the card on its own. No wind.
+// per-material buffer, so the SRP batcher draws the card on its own, and the material instances it. No wind.
 Shader "Fpv450/Impostor"
 {
     Properties
@@ -24,10 +26,9 @@ Shader "Fpv450/Impostor"
         _Metallic("Metallic", Range(0.0, 1.0)) = 0.0
         _OcclusionStrength("Strength", Range(0.0, 1.0)) = 0.0
         _OcclusionMap("Occlusion", 2D) = "black" {}
-        _ImpostorGrid("Views, columns, rows", Vector) = (8, 4, 2, 0)
+        [NoScaleOffset] _BumpMap("Normal atlas", 2D) = "bump" {}
+        _ImpostorGrid("Views, columns, rows, elevation", Vector) = (8, 4, 2, 15)
         _ImpostorCard("Card width, height, bottom", Vector) = (1, 2, 0, 0)
-        _ImpostorCrown("Crown centre x, y, z, up share", Vector) = (0, 1, 0, 0)
-        _ImpostorRadii("Crown radii horizontal, vertical", Vector) = (1, 1, 0, 0)
 
         // Render state, set by the catalog importer: clipping on, no face culled, no shadow received.
         [ToggleUI] _AlphaClip("__clip", Float) = 1.0
@@ -51,10 +52,8 @@ Shader "Fpv450/Impostor"
         LOD 300
 
         HLSLINCLUDE
-        float4 _ImpostorGrid;   // x: views, y: columns, z: rows
+        float4 _ImpostorGrid;   // x: views, y: columns, z: rows, w: the views' elevation in degrees
         float4 _ImpostorCard;   // x: width, y: height, z: bottom, in the card's frame
-        float4 _ImpostorCrown;  // xyz: the crown's centre (object space), w: the up share of its normals
-        float4 _ImpostorRadii;  // x: the crown's horizontal radius, y: its vertical one
 
         // The horizontal direction from the vertical axis towards `toward` (an object-space point or direction), and
         // the card's right across it.
@@ -66,33 +65,34 @@ Shader "Fpv450/Impostor"
             right = float3(-facing.z, 0.0, facing.x);
         }
 
+        // The nearest view to a card facing `facing`: k of the views from the azimuths k * 360 / views.
+        float ImpostorView(float3 facing)
+        {
+            float views = _ImpostorGrid.x;
+            return fmod(round(atan2(facing.x, facing.z) * views / 6.28318530718) + views, views);
+        }
+
         // Turns the card point positionOS (x across, y up) to face `toward` and maps uv (0..1 over the card) into the
         // nearest view's cell.
         void ImpostorCard(float3 toward, inout float3 positionOS, inout float2 uv)
         {
             float3 facing, right;
             ImpostorFrame(toward, facing, right);
-            float views = _ImpostorGrid.x;
-            float k = fmod(round(atan2(facing.x, facing.z) * views / 6.28318530718) + views, views);
+            float k = ImpostorView(facing);
             float column = fmod(k, _ImpostorGrid.y);
             float row = floor(k / _ImpostorGrid.y);
             uv = float2((column + uv.x) / _ImpostorGrid.y, (_ImpostorGrid.z - 1.0 - row + uv.y) / _ImpostorGrid.z);
             positionOS = right * positionOS.x + float3(0.0, positionOS.y, 0.0);
         }
 
-        // The crown's normal (object space) at the atlas uv of a card facing `facing`.
-        float3 ImpostorNormal(float2 uv, float3 facing, float3 right)
+        // An encoded texel of the normal atlas in object space: view k's right, up and towards-the-camera axes
+        // (lib/impostor.py basis) weighted by its components.
+        float3 ImpostorNormal(float3 encoded, float k)
         {
-            float across = (frac(uv.x * _ImpostorGrid.y) - 0.5) * _ImpostorCard.x;
-            float height = _ImpostorCard.z + frac(uv.y * _ImpostorGrid.z) * _ImpostorCard.y;
-            float2 p = float2((across - dot(_ImpostorCrown.xyz * float3(1.0, 0.0, 1.0), right)) / _ImpostorRadii.x,
-                              (height - _ImpostorCrown.y) / _ImpostorRadii.y);
-            if (abs(p.y) >= 1.0) // above or below the crown, where trunks and stems stand: an upright cylinder's
-                p = float2(clamp(p.x, -1.0, 1.0), 0.0);
-            p /= max(length(p), 1.0);
-            float3 n = p.x * right + float3(0.0, p.y, 0.0) + sqrt(max(1.0 - dot(p, p), 0.0)) * facing;
-            float up = _ImpostorCrown.w;
-            return normalize(n * sqrt(1.0 - up * up) + float3(0.0, up, 0.0));
+            float a = k * 6.28318530718 / _ImpostorGrid.x, e = radians(_ImpostorGrid.w);
+            float sa = sin(a), ca = cos(a), se = sin(e), ce = cos(e);
+            float3 n = encoded * 2.0 - 1.0;
+            return normalize(n.x * float3(-ca, 0.0, sa) + n.y * float3(-se * sa, ce, -se * ca) + n.z * float3(ce * sa, se, ce * ca));
         }
         ENDHLSL
 
@@ -167,7 +167,10 @@ Shader "Fpv450/Impostor"
                 UNITY_SETUP_INSTANCE_ID(input);
                 float3 facing, right;
                 ImpostorFrame(TransformWorldToObject(GetCameraPositionWS()), facing, right);
-                input.normalWS = TransformObjectToWorldNormal(ImpostorNormal(input.uv, facing, right));
+                // At full resolution: each pixel is lit by the normal of the surface under it, as each of LOD0's pixels
+                // is by one leaf's; a mip's mean normal leans towards the viewer and lost 10-20 % of the sun (measured).
+                float3 encoded = SAMPLE_TEXTURE2D_LOD(_BumpMap, sampler_BumpMap, input.uv, 0).rgb;
+                input.normalWS = TransformObjectToWorldNormal(ImpostorNormal(encoded, ImpostorView(facing)));
                 LitPassFragment(input, outColor
             #ifdef _WRITE_RENDERING_LAYERS
                     , outRenderingLayers

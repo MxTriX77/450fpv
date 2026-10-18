@@ -13,8 +13,8 @@ namespace Fpv450.Assets
     /// Unity colliders, static. Textures under <c>Art/ThirdParty/</c>: typed from the Poly Haven or ambientCG suffix;
     /// the maps that <c>tools/assets/derive.py</c> writes under <c>Art/Materials/</c>: the packed masks as linear
     /// RGBA data, the <c>_base</c> maps of alpha-clipped recipes as sRGB diffuse with their alpha; the impostor
-    /// atlases the Blender build writes beside the FBX under <c>Art/Models/</c> (<c>_impostor</c>, p1-v01-locust):
-    /// sRGB diffuse with their alpha. The base map of an alpha-clipped recipe and an impostor atlas also keep their
+    /// atlases the Blender build writes beside the FBX under <c>Art/Models/</c> (p1-v01-locust): the albedo
+    /// (<c>_impostor</c>) sRGB diffuse with its alpha, the normals (<c>_impostor_normal</c>) linear data. The base map of an alpha-clipped recipe and an impostor atlas also keep their
     /// mip coverage at the cutoff (<see cref="ApplyCoverage"/>, applied by the catalog importer).
     /// </summary>
     public static class ArtImportSettings
@@ -52,7 +52,8 @@ namespace Fpv450.Assets
         /// diffuse); a derived <c>_base</c> map and an <c>_impostor</c> atlas are sRGB diffuse too; a derived
         /// <c>_mask</c> and anything else is a default-typed linear map. Only the diffuse maps are sRGB, and only a
         /// diffuse whose source carries an alpha channel (a leaf atlas, an impostor) is imported as transparency, its
-        /// alpha kept as given, never premultiplied.
+        /// alpha kept as given, never premultiplied. An impostor's normal atlas (<c>_impostor_normal</c>) has no mips:
+        /// its shader reads it at full resolution.
         /// </summary>
         public static bool ApplyTexture(TextureImporter importer, string assetPath)
         {
@@ -69,6 +70,8 @@ namespace Fpv450.Assets
             changed |= Set(importer.textureType, type, v => importer.textureType = v);
             changed |= Set(importer.sRGBTexture, diffuse, v => importer.sRGBTexture = v);
             changed |= Set(importer.alphaIsTransparency, diffuse && importer.DoesSourceTextureHaveAlpha(), v => importer.alphaIsTransparency = v);
+            if (name.EndsWith("_impostor_normal"))
+                changed |= Set(importer.mipmapEnabled, false, v => importer.mipmapEnabled = v);
             if (single)
             {
                 var settings = new TextureImporterSettings();
@@ -109,7 +112,7 @@ namespace Fpv450.Assets
     public sealed class ModelPostprocessor : AssetPostprocessor
     {
         // Bump when ArtImportSettings changes, so Unity reimports the files it covers.
-        public override uint GetVersion() => 4;
+        public override uint GetVersion() => 5;
 
         void OnPreprocessModel()
         {
