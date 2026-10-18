@@ -189,7 +189,7 @@ def test_ground_failures_name_the_cause_and_write_nothing(tmp_path, capsys):
         (too_big, f"{MATERIAL}.output_px: 4096 must be an integer in [16, 2048]"),
         (too_much, f"{MATERIAL}.patches: bare.share + green.share = {0.9 + 0.15} exceeds 1"),
         (bad_colour, f"{MATERIAL}.albedo_target: '7a7055' is not an sRGB colour like #7a7055"),
-        (dict(RECIPE, kind="lawn"), f"{MATERIAL}: unknown recipe kind 'lawn' (omit it for a tiled set, or 'ground')"),
+        (dict(RECIPE, kind="lawn"), f"{MATERIAL}: unknown recipe kind 'lawn' (omit it for a tiled set, or 'ground' or 'palette')"),
         (dict(RECIPE, soil={"texture_set": "polyhaven/nope", "tile_size_m": 1.0}),
          f"{MATERIAL}: texture set 'polyhaven/nope' is not in {fetch.MANIFEST}"),
     ]

@@ -132,6 +132,27 @@ def test_all_derives_every_recipe_and_skips_those_without_a_mask(tmp_path, capsy
     assert (root / MATERIALS / f"{MATERIAL}_mask.png").is_file() and not (root / MATERIALS / "plain_mask.png").exists()
 
 
+def test_palette_recipe_derives_one_block_per_colour_in_order(tmp_path, capsys):
+    """p1-s04-belt-straw: a palette recipe (the straw kit's tints) becomes a flat albedo, one 16 px block per colour
+    left to right, sRGB-encoded, with its stamp; a second run is a no-op; a palette with a texture set is refused."""
+    root = derive_root(tmp_path)
+    palette = {"schema": 1, "kind": "palette", "shader": "Universal Render Pipeline/Lit",
+               "colours": {"straw": "#b49c6a", "twig": "#6b5a3e"}, "tint": [1.0, 1.0, 1.0, 1.0], "smoothness": 0.3}
+    (root / RECIPES / "pal.json").write_text(json.dumps(palette), encoding="utf-8")
+    assert run("pal", "--root", root) == 0
+    out = capsys.readouterr().out
+    assert f"{MATERIALS.as_posix()}/pal_albedo.png: derived 32x16 palette (straw #b49c6a, twig #6b5a3e); recipe recorded in pal.recipe.json" in out
+    image = Image.open(root / MATERIALS / "pal_albedo.png")
+    assert image.mode == "RGB" and image.size == (32, 16)
+    assert image.getpixel((8, 8)) == (0xb4, 0x9c, 0x6a) and image.getpixel((24, 8)) == (0x6b, 0x5a, 0x3e)
+    stamp = json.loads((root / MATERIALS / "pal.recipe.json").read_text(encoding="utf-8"))
+    assert stamp["kind"] == "palette" and stamp["columns"] == ["straw", "twig"] and stamp["formula"] == derive.PALETTE_FORMULA
+    assert run("pal", "--root", root) == 0 and "pal_albedo.png: up to date" in capsys.readouterr().out
+    (root / RECIPES / "pal.json").write_text(json.dumps(dict(palette, texture_set="polyhaven/x")), encoding="utf-8")
+    assert run("pal", "--root", root) == 1
+    assert 'ERROR: pal: a palette recipe is flat colour; it takes neither "texture_set" nor "mask"' in capsys.readouterr().out
+
+
 def test_failures_name_the_cause_and_write_nothing(tmp_path, capsys):
     root = derive_root(tmp_path)
     cases = [

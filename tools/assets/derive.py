@@ -25,7 +25,13 @@ albedo_target with the soil and the strips at their own colours, then a global p
 mean, the shares and the gains are recorded in the stamp. The azimuth is degrees from +u towards +v of the map,
 which is +X towards +Z of the asset when its UVs are metres.
 
-Beside the PNGs, <material>_mask.recipe.json (masks) or <material>.recipe.json (ground) records what made them: the
+A recipe of kind "palette" (p1-s04-belt-straw, the straw instance kit) has no texture set: its "colours" object names
+flat sRGB colours, and the build writes <material>_albedo.png, one PALETTE_BLOCK_PX square block per colour from left to
+right in the object's order, so a generator tints a face by UV'ing it into a column (lib/straw.py's PALETTE). A tinted
+material without any texture would read to the review capture as an un-smudged LFS pointer, and a flat map is what a
+plain tint is.
+
+Beside the PNGs, <material>_mask.recipe.json (masks) or <material>.recipe.json (ground, palette) records what made them: the
 formula, the recipe, each source's file name and SHA-256 as found on disk, and the SHA-256 of all of that together
 (plus the Pillow version for ground maps, whose resampling it fixes). A run rewrites the files only when that hash
 differs from the stamp or a PNG is missing, so an unchanged recipe is a no-op and a changed recipe, source or formula
@@ -61,6 +67,8 @@ GROUND_FORMULA = ("ground v1: cover tiled at tile_size_m and at tile_size_m*phi,
                   "with the cover normals rotated by the azimuth; mask R 0, G AO, B 0, A 1 - roughness; detail albedo "
                   "= the detail set's diffuse at its size with a linear mean of 0.5 per channel; 8-bit sRGB albedos")
 GROUND_MAPS = ("albedo", "normal", "mask", "detail_albedo")
+PALETTE_FORMULA = "palette v1: one PALETTE_BLOCK_PX square block per colour, left to right in the recipe's order; 8-bit sRGB"
+PALETTE_BLOCK_PX = 16  # a block survives four mip levels before its colour bleeds into its neighbour's
 MAX_OUTPUT_PX = 2048  # AST-08
 PHI = 1.618033988749895
 BARE_FEATHER_M = 0.1   # a soil patch's edge: straw thins out over about a hand's width (assumed)
@@ -128,8 +136,10 @@ def derive(root, manifest, material):
     kind = recipe.get("kind")
     if kind == "ground":
         return derive_ground(root, manifest, material, recipe)
+    if kind == "palette":
+        return derive_palette(root, material, recipe)
     if kind is not None:
-        raise DeriveError(f"{material}: unknown recipe kind {kind!r} (omit it for a tiled set, or 'ground')")
+        raise DeriveError(f"{material}: unknown recipe kind {kind!r} (omit it for a tiled set, or 'ground' or 'palette')")
     mask = recipe.get("mask")
     if mask is None:
         return f"{material}: no mask in the recipe, nothing to derive"
@@ -458,6 +468,34 @@ def derive_ground(root, manifest, material, recipe):
             f"{measured['target_luminance']:.4f}, {measured['luminance_error_pct']:+.1f} %), bare {100 * bare_share:.1f} %, "
             f"green {100 * green_share:.1f} %, straw gain {measured['straw_gain']}; recipe recorded in "
             f"{os.path.basename(stamp_path)}")
+
+
+# --- palette recipes ----------------------------------------------------------------------------------------------
+
+def derive_palette(root, material, recipe):
+    """The flat albedo of a palette recipe: its colours as blocks, left to right in the recipe's order."""
+    colours = recipe.get("colours")
+    if not isinstance(colours, dict) or not colours or not all(isinstance(k, str) for k in colours):
+        raise DeriveError(f"{material}: a palette recipe needs a non-empty \"colours\" object of name -> sRGB colour")
+    if "texture_set" in recipe or "mask" in recipe:
+        raise DeriveError(f"{material}: a palette recipe is flat colour; it takes neither \"texture_set\" nor \"mask\"")
+    rgb = {name: _colour(colours, name, f"{material}.colours") for name in colours}
+    stamp = {"material": material, "kind": "palette", "formula": PALETTE_FORMULA, "recipe": recipe}
+    stamp["inputs_sha256"] = _inputs_sha256(stamp, ("formula", "recipe"))
+    png_path = os.path.join(root, MATERIALS, f"{material}_albedo.png")
+    stamp_path = os.path.join(root, MATERIALS, f"{material}.recipe.json")
+    if _up_to_date([png_path], stamp_path, stamp["inputs_sha256"]):
+        return f"{fetch.relpath(root, png_path)}: up to date"
+    block = PALETTE_BLOCK_PX
+    image = Image.new("RGB", (block * len(rgb), block))
+    for i, linear in enumerate(rgb.values()):
+        image.paste(tuple(to_srgb8(c) for c in linear), (i * block, 0, (i + 1) * block, block))
+    os.makedirs(os.path.dirname(png_path), exist_ok=True)
+    image.save(png_path, "PNG")
+    stamp.update({"size": list(image.size), "columns": list(rgb)})
+    _write_stamp(stamp_path, stamp)
+    return (f"{fetch.relpath(root, png_path)}: derived {image.size[0]}x{image.size[1]} palette "
+            f"({', '.join(f'{name} {colours[name]}' for name in rgb)}); recipe recorded in {os.path.basename(stamp_path)}")
 
 
 # --- main ---------------------------------------------------------------------------------------------------------
