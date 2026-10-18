@@ -51,6 +51,7 @@ NORTH, EAST = 40 + 5.3702, 15 + 10.5678
 A, B = f"{NORTH:.4f}", f"{EAST:.4f}"
 KEY = j("la", "t")
 STEM = j("qz", "-hygiene-", "probe", "-", "07")  # the fake reference/'s distinctive stem
+SHEET = j("qz", "_", "0001", "-", "0024")  # a letter and a sequence range, as the tools name sheets
 SCISSORS = j("# ", "-" * 24, " >8 ", "-" * 24)
 
 
@@ -167,6 +168,22 @@ def test_reference_stem_is_blocked_in_a_linked_worktree(tmp_path):
     assert result.returncode != 0 and "reference-stem" in result.stderr
     assert STEM.lower() not in result.stderr.lower()
     assert git(wt, "rev-parse", "HEAD").stdout == head
+
+
+def test_tool_output_stems_are_not_footage(repo):
+    """A sheet the reference tools wrote under reference/_frames/ is not the pilot's file, even
+    while the rule is live for the pilot's clip next to it; the same stem directly under
+    reference/ is still caught."""
+    plant_reference(repo, [STEM + ".mp4", f"_frames/X/sheets/{SHEET}.jpg"])
+    note = f"# Review\n\nThe gable is clearest on sheet {SHEET}.\n"
+    assert_passes(commit(repo, {"openspec/changes/x/review.md": note}), repo)
+    head = git(repo, "rev-parse", "HEAD").stdout
+    plant_reference(repo, [SHEET + ".jpg"])
+    result = commit(repo, {"openspec/changes/y/review.md": note})
+    assert result.returncode != 0 and "reference-stem" in result.stderr
+    assert "openspec/changes/y/review.md:3" in result.stderr
+    assert SHEET.lower() not in result.stderr.lower()
+    assert git(repo, "rev-parse", "HEAD").stdout == head
 
 
 @pytest.mark.parametrize("kind", ["clip", "stem", "messenger", "coordinates"])

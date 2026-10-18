@@ -347,12 +347,16 @@ def reference_stems():
 
     Agents commit from linked worktrees, whose own reference/ is absent: the footage sits in
     the main checkout, next to the shared .git folder. The folder is walked at scan time.
+    Folders directly under reference/ whose name starts with "_" (_frames, _compare, ...) hold
+    the reference tools' own letter-named outputs, not the pilot's files, and are skipped.
     """
     out = git("rev-parse", "--path-format=absolute", "--show-toplevel", "--git-common-dir")
     top, common = out.decode("utf-8").splitlines()
     stems = set()
     for folder in {os.path.join(top, "reference"), os.path.join(os.path.dirname(common), "reference")}:
-        for _, _, names in os.walk(folder):
+        for root, dirs, names in os.walk(folder):
+            if root == folder:
+                dirs[:] = [d for d in dirs if not d.startswith("_")]
             stems.update(filter(None, map(distinctive_stem, names)))
     return stems
 
