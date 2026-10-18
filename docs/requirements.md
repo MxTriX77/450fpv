@@ -351,14 +351,16 @@ Unbuilt items keep a reserved, labelled station. *Source:* B plan 2, old D-017.
 
 ## 7. World (WLD): phase 3
 
-**WLD-01 Composition** (D-018), about 4 × 4 km:
-- **three adjacent villages**, linear, along roads, each about 0.6–1.2 km of street
-- fields: meadow, tilled, burnt, cratered
+**WLD-01 Composition** (D-018 as refined by D-035), about 4 × 4 km:
+- **three settlements:** a typical village (linear, along its roads, about 0.6–1.2 km of street), a smaller village nearby, and a somewhat larger town that holds the destroyed Stalin-era block, its rubble and garages, a farm complex and the larger public buildings; divided by **tree belts and fields** in the pattern the layout reference (letter Q) shows: a pattern to copy, never a place
+- fields: meadow, tilled, burnt, cratered; **trenches and firing positions in the fields** as well as along belts
 - **tree belts** crossing the fields, several with trenches along them
-- one **urban edge** with the single destroyed Stalin-era block, its rubble and garages
+- a **small river with tree-lined banks and a pond or two**, as the layout reference shows (the pilot may veto water at G1; [pilot-questions.md](pilot-questions.md))
+- **fortifications** at road approaches, field edges and between the settlements: concertina-wire runs (F01), dragon's-teeth rows (F02), a couple of anti-tank hedgehogs (F03), built and placed as the real thing is, never as game props
 - vehicles on roads, in yards and at field edges
+- **the settlements read as frontline today:** most houses damaged or destroyed (WLD-05), not a peaceful village with a few ruins
 
-*Source:* B plan 2–3, K§4.5.
+*Source:* B plan 2–3, K§4.5, the pilot 2026-10-18 (D-035).
 
 **WLD-02 Relief.** Real rolling ground: 2–5 m over hundreds of metres, crests, dips, a gully, road embankments, spoil banks. Never a flat plane. Crests hide what is behind them. *Source:* PR-8.
 
@@ -371,7 +373,7 @@ Unbuilt items keep a reserved, labelled station. *Source:* B plan 2, old D-017.
 - a garden plot (tilled), fruit trees, a fence and gate
 - litter, weeds and brush piles
 
-Along the street: wires and poles. The damage mix is plausible for a frontline village: abandoned, damaged, destroyed, with craters in yards and roads. Vehicles are abandoned or destroyed.
+Along the street: wires and poles. The damage mix is a frontline village's today (D-035): **most houses damaged or destroyed**, the rest abandoned, with craters in yards and roads; the exact share per settlement is set in the layout with a reason, never by taste. Vehicles are abandoned or destroyed.
 
 **WLD-06 Roads.** A damaged asphalt village road with potholes and craters, dirt tracks with ruts, and **concrete-slab tracks** across the fields (PR-8).
 
