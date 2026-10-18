@@ -381,10 +381,26 @@ namespace Fpv450.Assets
 
         static bool SetTexture(Material m, string name, Texture value)
         {
-            if (m.GetTexture(name) == value)
+            if (m.GetTexture(name) == value && (value != null || !NamesMissingTexture(m, name)))
                 return false;
             m.SetTexture(name, value);
             return true;
+        }
+
+        /// <summary>
+        /// Whether the material's texture property still names an asset that is gone (a recipe that dropped its mask):
+        /// such a reference reads back as null but stays in the file until it is set again.
+        /// </summary>
+        static bool NamesMissingTexture(Material m, string name)
+        {
+            SerializedProperty textures = new SerializedObject(m).FindProperty("m_SavedProperties.m_TexEnvs");
+            for (int i = 0; i < textures.arraySize; i++)
+            {
+                SerializedProperty entry = textures.GetArrayElementAtIndex(i);
+                if (entry.FindPropertyRelative("first").stringValue == name)
+                    return entry.FindPropertyRelative("second.m_Texture").objectReferenceInstanceIDValue != 0;
+            }
+            return false;
         }
 
         static bool SetTextureScale(Material m, string name, Vector2 value)
