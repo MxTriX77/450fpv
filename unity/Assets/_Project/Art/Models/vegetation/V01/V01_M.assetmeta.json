@@ -1,0 +1,8690 @@
+{
+  "schema": 1,
+  "id": "V01",
+  "variant": "V01_M",
+  "generator": "tree",
+  "params_sha256": "029be78fe0c5a6f05acf02cc824a557f633a156970ea529c3023875c8ff96d67",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -1.950158,
+      -0.087879,
+      -1.870554
+    ],
+    "max": [
+      2.68346,
+      9.97033,
+      2.435729
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "V01_M_LOD0",
+      "tris": 7430,
+      "switch_distance_m": 0.0
+    },
+    {
+      "mesh": "V01_M_LOD1",
+      "tris": 2792,
+      "switch_distance_m": 9.35
+    },
+    {
+      "mesh": "V01_M_LOD2",
+      "tris": 638,
+      "switch_distance_m": 116.9
+    }
+  ],
+  "cull_distance_m": 2500.0,
+  "materials": [
+    {
+      "slot": "bark",
+      "visual": "bark_locust",
+      "physics": "bark"
+    },
+    {
+      "slot": "twig",
+      "visual": "bark_locust",
+      "physics": "twig"
+    },
+    {
+      "slot": "leaf",
+      "visual": "leaf_locust",
+      "physics": "twig"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "capsule",
+      "center": [
+        0.017564,
+        0.504514,
+        0.019763
+      ],
+      "radius": 0.084895,
+      "height": 1.180204,
+      "rotation": [
+        0.019566,
+        0.0,
+        -0.017389,
+        0.999657
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.101371,
+        1.509638,
+        0.0549
+      ],
+      "radius": 0.07871,
+      "height": 1.167833,
+      "rotation": [
+        0.01525,
+        0.0,
+        -0.065709,
+        0.997722
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.267934,
+        2.505123,
+        0.086603
+      ],
+      "radius": 0.072584,
+      "height": 1.155581,
+      "rotation": [
+        0.016243,
+        0.0,
+        -0.099799,
+        0.994875
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.450501,
+        3.143836,
+        0.055354
+      ],
+      "radius": 0.037426,
+      "height": 0.419623,
+      "rotation": [
+        -0.14409,
+        0.0,
+        -0.249088,
+        0.957702
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.617587,
+        3.430635,
+        -0.037834
+      ],
+      "radius": 0.036121,
+      "height": 0.417013,
+      "rotation": [
+        -0.138328,
+        0.0,
+        -0.2573,
+        0.95638
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.783509,
+        3.718925,
+        -0.128419
+      ],
+      "radius": 0.034817,
+      "height": 0.414404,
+      "rotation": [
+        -0.135887,
+        0.0,
+        -0.244985,
+        0.959957
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.935171,
+        4.014949,
+        -0.218399
+      ],
+      "radius": 0.033512,
+      "height": 0.411794,
+      "rotation": [
+        -0.134852,
+        0.0,
+        -0.211479,
+        0.968035
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.082216,
+        4.313515,
+        -0.308179
+      ],
+      "radius": 0.032207,
+      "height": 0.409185,
+      "rotation": [
+        -0.134741,
+        0.0,
+        -0.230113,
+        0.963791
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.242254,
+        4.604997,
+        -0.398859
+      ],
+      "radius": 0.030902,
+      "height": 0.406575,
+      "rotation": [
+        -0.139083,
+        0.0,
+        -0.253201,
+        0.957364
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.396602,
+        4.897188,
+        -0.496072
+      ],
+      "radius": 0.029597,
+      "height": 0.403966,
+      "rotation": [
+        -0.154231,
+        0.0,
+        -0.212755,
+        0.964857
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.541149,
+        5.194828,
+        -0.592707
+      ],
+      "radius": 0.028293,
+      "height": 0.401356,
+      "rotation": [
+        -0.136164,
+        0.0,
+        -0.221603,
+        0.965583
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.683663,
+        5.498971,
+        -0.668716
+      ],
+      "radius": 0.026988,
+      "height": 0.398746,
+      "rotation": [
+        -0.091304,
+        0.0,
+        -0.204584,
+        0.974581
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.818461,
+        5.81066,
+        -0.728158
+      ],
+      "radius": 0.025683,
+      "height": 0.396137,
+      "rotation": [
+        -0.085406,
+        0.0,
+        -0.196136,
+        0.97685
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.945615,
+        6.127233,
+        -0.776796
+      ],
+      "radius": 0.024378,
+      "height": 0.393527,
+      "rotation": [
+        -0.058711,
+        0.0,
+        -0.180491,
+        0.981823
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        2.070403,
+        6.446517,
+        -0.813335
+      ],
+      "radius": 0.023073,
+      "height": 0.390918,
+      "rotation": [
+        -0.04928,
+        0.0,
+        -0.188339,
+        0.980867
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        2.187598,
+        6.769058,
+        -0.844575
+      ],
+      "radius": 0.021769,
+      "height": 0.388308,
+      "rotation": [
+        -0.042849,
+        0.0,
+        -0.157288,
+        0.986623
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        2.281245,
+        7.099626,
+        -0.869187
+      ],
+      "radius": 0.020464,
+      "height": 0.385698,
+      "rotation": [
+        -0.029324,
+        0.0,
+        -0.117298,
+        0.992664
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        2.343187,
+        7.366369,
+        -0.886412
+      ],
+      "radius": 0.019425,
+      "height": 0.242877,
+      "rotation": [
+        -0.035468,
+        0.0,
+        -0.107527,
+        0.993569
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.290724,
+        3.149352,
+        0.081129
+      ],
+      "radius": 0.039795,
+      "height": 0.418958,
+      "rotation": [
+        -0.066259,
+        0.0,
+        0.235626,
+        0.969582
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.140899,
+        3.450193,
+        0.034474
+      ],
+      "radius": 0.038607,
+      "height": 0.416582,
+      "rotation": [
+        -0.075279,
+        0.0,
+        0.218974,
+        0.972822
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.005414,
+        3.757733,
+        -0.011519
+      ],
+      "radius": 0.03742,
+      "height": 0.414206,
+      "rotation": [
+        -0.063581,
+        0.0,
+        0.190063,
+        0.979711
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.117478,
+        4.071167,
+        -0.054099
+      ],
+      "radius": 0.036232,
+      "height": 0.411831,
+      "rotation": [
+        -0.064357,
+        0.0,
+        0.179194,
+        0.981707
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.233817,
+        4.386686,
+        -0.099559
+      ],
+      "radius": 0.035044,
+      "height": 0.409455,
+      "rotation": [
+        -0.07201,
+        0.0,
+        0.169807,
+        0.982843
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.341099,
+        4.705456,
+        -0.144198
+      ],
+      "radius": 0.033856,
+      "height": 0.407079,
+      "rotation": [
+        -0.061589,
+        0.0,
+        0.151261,
+        0.986573
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.446979,
+        5.025428,
+        -0.183583
+      ],
+      "radius": 0.032668,
+      "height": 0.404703,
+      "rotation": [
+        -0.056153,
+        0.0,
+        0.165301,
+        0.984643
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.550684,
+        5.346422,
+        -0.220003
+      ],
+      "radius": 0.03148,
+      "height": 0.402327,
+      "rotation": [
+        -0.052655,
+        0.0,
+        0.14454,
+        0.988097
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.645081,
+        5.669894,
+        -0.259968
+      ],
+      "radius": 0.030292,
+      "height": 0.399951,
+      "rotation": [
+        -0.066508,
+        0.0,
+        0.136932,
+        0.988345
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.733645,
+        5.994927,
+        -0.300604
+      ],
+      "radius": 0.029104,
+      "height": 0.397576,
+      "rotation": [
+        -0.054532,
+        0.0,
+        0.126849,
+        0.990422
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.814817,
+        6.322685,
+        -0.334193
+      ],
+      "radius": 0.027916,
+      "height": 0.3952,
+      "rotation": [
+        -0.04531,
+        0.0,
+        0.114422,
+        0.992398
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.890677,
+        6.651915,
+        -0.366123
+      ],
+      "radius": 0.026728,
+      "height": 0.392824,
+      "rotation": [
+        -0.049487,
+        0.0,
+        0.110799,
+        0.99261
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.95924,
+        6.982738,
+        -0.397467
+      ],
+      "radius": 0.02554,
+      "height": 0.390448,
+      "rotation": [
+        -0.043465,
+        0.0,
+        0.092538,
+        0.99476
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.024575,
+        7.314662,
+        -0.424166
+      ],
+      "radius": 0.024352,
+      "height": 0.388072,
+      "rotation": [
+        -0.035642,
+        0.0,
+        0.101049,
+        0.994243
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.085263,
+        7.647733,
+        -0.446275
+      ],
+      "radius": 0.023164,
+      "height": 0.385696,
+      "rotation": [
+        -0.029816,
+        0.0,
+        0.078638,
+        0.996457
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.145904,
+        7.981149,
+        -0.4621
+      ],
+      "radius": 0.021977,
+      "height": 0.38332,
+      "rotation": [
+        -0.017011,
+        0.0,
+        0.100858,
+        0.994755
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.203634,
+        8.315251,
+        -0.472111
+      ],
+      "radius": 0.020789,
+      "height": 0.380945,
+      "rotation": [
+        -0.012608,
+        0.0,
+        0.069957,
+        0.99747
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.39616,
+        3.136542,
+        0.203258
+      ],
+      "radius": 0.041196,
+      "height": 0.425832,
+      "rotation": [
+        0.308341,
+        0.0,
+        -0.08576,
+        0.947402
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.450866,
+        3.41272,
+        0.399873
+      ],
+      "radius": 0.039818,
+      "height": 0.423077,
+      "rotation": [
+        0.294454,
+        0.0,
+        -0.08196,
+        0.952145
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.505186,
+        3.690549,
+        0.594309
+      ],
+      "radius": 0.038441,
+      "height": 0.420322,
+      "rotation": [
+        0.30084,
+        0.0,
+        -0.08435,
+        0.949937
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.549503,
+        3.971585,
+        0.786275
+      ],
+      "radius": 0.037063,
+      "height": 0.417567,
+      "rotation": [
+        0.285433,
+        0.0,
+        -0.051108,
+        0.957035
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.582442,
+        4.260247,
+        0.969334
+      ],
+      "radius": 0.035686,
+      "height": 0.414812,
+      "rotation": [
+        0.270237,
+        0.0,
+        -0.048878,
+        0.961552
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.613432,
+        4.553517,
+        1.145325
+      ],
+      "radius": 0.034308,
+      "height": 0.412057,
+      "rotation": [
+        0.262016,
+        0.0,
+        -0.044847,
+        0.964021
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.640487,
+        4.854,
+        1.309017
+      ],
+      "radius": 0.032931,
+      "height": 0.409302,
+      "rotation": [
+        0.23039,
+        0.0,
+        -0.03655,
+        0.972412
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.663563,
+        5.167343,
+        1.446541
+      ],
+      "radius": 0.031553,
+      "height": 0.406547,
+      "rotation": [
+        0.179402,
+        0.0,
+        -0.032189,
+        0.983249
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.691016,
+        5.490296,
+        1.55966
+      ],
+      "radius": 0.030176,
+      "height": 0.403792,
+      "rotation": [
+        0.155035,
+        0.0,
+        -0.048938,
+        0.986696
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.732692,
+        5.815771,
+        1.660612
+      ],
+      "radius": 0.028798,
+      "height": 0.401037,
+      "rotation": [
+        0.142832,
+        0.0,
+        -0.074025,
+        0.986975
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.781832,
+        6.140421,
+        1.761224
+      ],
+      "radius": 0.027421,
+      "height": 0.398282,
+      "rotation": [
+        0.154222,
+        0.0,
+        -0.071052,
+        0.985478
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.827226,
+        6.465359,
+        1.862653
+      ],
+      "radius": 0.026043,
+      "height": 0.395527,
+      "rotation": [
+        0.145179,
+        0.0,
+        -0.062949,
+        0.987401
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.859836,
+        6.791479,
+        1.964729
+      ],
+      "radius": 0.024666,
+      "height": 0.392772,
+      "rotation": [
+        0.155856,
+        0.0,
+        -0.03322,
+        0.987221
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.879626,
+        7.119289,
+        2.06503
+      ],
+      "radius": 0.023288,
+      "height": 0.390017,
+      "rotation": [
+        0.139595,
+        0.0,
+        -0.025081,
+        0.989891
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.895794,
+        7.450251,
+        2.155192
+      ],
+      "radius": 0.02191,
+      "height": 0.387261,
+      "rotation": [
+        0.12536,
+        0.0,
+        -0.02243,
+        0.991858
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.905389,
+        7.650414,
+        2.205116
+      ],
+      "radius": 0.021082,
+      "height": 0.111817,
+      "rotation": [
+        0.104288,
+        0.0,
+        -0.028232,
+        0.994146
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.316801,
+        4.924488,
+        -0.459623
+      ],
+      "radius": 0.016374,
+      "height": 0.372348,
+      "rotation": [
+        -0.036693,
+        0.0,
+        0.036429,
+        0.998662
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.296904,
+        5.262721,
+        -0.48202
+      ],
+      "radius": 0.015161,
+      "height": 0.369922,
+      "rotation": [
+        -0.029327,
+        0.0,
+        0.022224,
+        0.999323
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.289566,
+        5.601703,
+        -0.499313
+      ],
+      "radius": 0.013948,
+      "height": 0.367496,
+      "rotation": [
+        -0.021618,
+        0.0,
+        -0.000601,
+        0.999766
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.285115,
+        5.941037,
+        -0.510494
+      ],
+      "radius": 0.012735,
+      "height": 0.36507,
+      "rotation": [
+        -0.011313,
+        0.0,
+        0.01371,
+        0.999842
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.27592,
+        6.280454,
+        -0.512064
+      ],
+      "radius": 0.011522,
+      "height": 0.362645,
+      "rotation": [
+        0.006689,
+        0.0,
+        0.01337,
+        0.999888
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.260312,
+        6.6196,
+        -0.507387
+      ],
+      "radius": 0.010309,
+      "height": 0.360219,
+      "rotation": [
+        0.007087,
+        0.0,
+        0.032611,
+        0.999443
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.241356,
+        6.958472,
+        -0.51251
+      ],
+      "radius": 0.009096,
+      "height": 0.357793,
+      "rotation": [
+        -0.022181,
+        0.0,
+        0.023237,
+        0.999484
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        2.010301,
+        6.145303,
+        -0.789261
+      ],
+      "radius": 0.015623,
+      "height": 0.27449,
+      "rotation": [
+        -0.091291,
+        0.0,
+        -0.399471,
+        0.912189
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        2.189537,
+        6.304503,
+        -0.830345
+      ],
+      "radius": 0.011159,
+      "height": 0.265563,
+      "rotation": [
+        -0.094419,
+        0.0,
+        -0.410717,
+        0.906861
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.438182,
+        5.002905,
+        -0.263691
+      ],
+      "radius": 0.018984,
+      "height": 0.350124,
+      "rotation": [
+        -0.330804,
+        0.0,
+        0.134819,
+        0.93402
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.514376,
+        5.236915,
+        -0.455698
+      ],
+      "radius": 0.016985,
+      "height": 0.346128,
+      "rotation": [
+        -0.326835,
+        0.0,
+        0.12616,
+        0.936623
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.58233,
+        5.479495,
+        -0.639667
+      ],
+      "radius": 0.014987,
+      "height": 0.342131,
+      "rotation": [
+        -0.298574,
+        0.0,
+        0.104919,
+        0.948602
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.642532,
+        5.736887,
+        -0.805117
+      ],
+      "radius": 0.012989,
+      "height": 0.338135,
+      "rotation": [
+        -0.256642,
+        0.0,
+        0.09706,
+        0.961621
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.703713,
+        6.000747,
+        -0.960247
+      ],
+      "radius": 0.010991,
+      "height": 0.334138,
+      "rotation": [
+        -0.260742,
+        0.0,
+        0.106997,
+        0.959461
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.903293,
+        6.468385,
+        -0.316081
+      ],
+      "radius": 0.016472,
+      "height": 0.323723,
+      "rotation": [
+        0.074616,
+        0.0,
+        0.296324,
+        0.952168
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.0631,
+        6.708772,
+        -0.282362
+      ],
+      "radius": 0.014738,
+      "height": 0.320255,
+      "rotation": [
+        0.046825,
+        0.0,
+        0.278807,
+        0.959205
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.218683,
+        6.952974,
+        -0.255698
+      ],
+      "radius": 0.013004,
+      "height": 0.316787,
+      "rotation": [
+        0.048781,
+        0.0,
+        0.279056,
+        0.959035
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.376391,
+        7.195888,
+        -0.229893
+      ],
+      "radius": 0.01127,
+      "height": 0.313319,
+      "rotation": [
+        0.043855,
+        0.0,
+        0.287114,
+        0.956892
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.538497,
+        7.436013,
+        -0.205272
+      ],
+      "radius": 0.009536,
+      "height": 0.309852,
+      "rotation": [
+        0.044765,
+        0.0,
+        0.296379,
+        0.954021
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.954155,
+        7.390907,
+        -0.440338
+      ],
+      "radius": 0.01994,
+      "height": 0.33887,
+      "rotation": [
+        -0.070215,
+        0.0,
+        -0.198748,
+        0.977532
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.838821,
+        7.663702,
+        -0.481258
+      ],
+      "radius": 0.018206,
+      "height": 0.335402,
+      "rotation": [
+        -0.069744,
+        0.0,
+        -0.195736,
+        0.978173
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.731921,
+        7.939877,
+        -0.521605
+      ],
+      "radius": 0.016472,
+      "height": 0.331934,
+      "rotation": [
+        -0.067856,
+        0.0,
+        -0.168895,
+        0.983296
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.638986,
+        8.220177,
+        -0.567553
+      ],
+      "radius": 0.014739,
+      "height": 0.328467,
+      "rotation": [
+        -0.088261,
+        0.0,
+        -0.146931,
+        0.985201
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.558589,
+        8.502326,
+        -0.624635
+      ],
+      "radius": 0.013005,
+      "height": 0.324999,
+      "rotation": [
+        -0.105393,
+        0.0,
+        -0.125846,
+        0.986436
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.487544,
+        8.788066,
+        -0.67508
+      ],
+      "radius": 0.011271,
+      "height": 0.321531,
+      "rotation": [
+        -0.065324,
+        0.0,
+        -0.114475,
+        0.991276
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.491125,
+        4.31375,
+        0.9567
+      ],
+      "radius": 0.023028,
+      "height": 0.376708,
+      "rotation": [
+        0.123642,
+        0.0,
+        0.2587,
+        0.958012
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.331468,
+        4.593339,
+        1.031737
+      ],
+      "radius": 0.021847,
+      "height": 0.374346,
+      "rotation": [
+        0.112629,
+        0.0,
+        0.243993,
+        0.963214
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.188509,
+        4.88252,
+        1.102964
+      ],
+      "radius": 0.020666,
+      "height": 0.371984,
+      "rotation": [
+        0.109889,
+        0.0,
+        0.202805,
+        0.973034
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.056894,
+        5.177874,
+        1.172036
+      ],
+      "radius": 0.019485,
+      "height": 0.369622,
+      "rotation": [
+        0.104814,
+        0.0,
+        0.20631,
+        0.972857
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.070168,
+        5.475424,
+        1.239954
+      ],
+      "radius": 0.018304,
+      "height": 0.367261,
+      "rotation": [
+        0.105932,
+        0.0,
+        0.187996,
+        0.97644
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.184714,
+        5.779574,
+        1.299638
+      ],
+      "radius": 0.017123,
+      "height": 0.364899,
+      "rotation": [
+        0.078395,
+        0.0,
+        0.16566,
+        0.983062
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.288908,
+        6.089248,
+        1.35026
+      ],
+      "radius": 0.015942,
+      "height": 0.362537,
+      "rotation": [
+        0.077191,
+        0.0,
+        0.154589,
+        0.984959
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.380575,
+        6.404114,
+        1.390002
+      ],
+      "radius": 0.014761,
+      "height": 0.360175,
+      "rotation": [
+        0.044563,
+        0.0,
+        0.126098,
+        0.991016
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.453641,
+        6.725266,
+        1.41746
+      ],
+      "radius": 0.01358,
+      "height": 0.357813,
+      "rotation": [
+        0.039092,
+        0.0,
+        0.096536,
+        0.994562
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.515814,
+        7.049297,
+        1.438602
+      ],
+      "radius": 0.012399,
+      "height": 0.355452,
+      "rotation": [
+        0.025177,
+        0.0,
+        0.092445,
+        0.995399
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.900964,
+        7.018097,
+        2.077461
+      ],
+      "radius": 0.017062,
+      "height": 0.243695,
+      "rotation": [
+        0.32897,
+        0.0,
+        -0.157753,
+        0.931071
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.958898,
+        7.172563,
+        2.206649
+      ],
+      "radius": 0.012187,
+      "height": 0.233945,
+      "rotation": [
+        0.332481,
+        0.0,
+        -0.138892,
+        0.932827
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.221997,
+        5.987658,
+        -0.423295
+      ],
+      "radius": 0.009177,
+      "height": 0.360955,
+      "rotation": [
+        0.263819,
+        0.0,
+        0.202729,
+        0.943027
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.093413,
+        6.257325,
+        -0.255666
+      ],
+      "radius": 0.007953,
+      "height": 0.358508,
+      "rotation": [
+        0.25381,
+        0.0,
+        0.194334,
+        0.947531
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.963153,
+        6.531171,
+        -0.096394
+      ],
+      "radius": 0.00673,
+      "height": 0.356061,
+      "rotation": [
+        0.23634,
+        0.0,
+        0.206506,
+        0.949473
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.840684,
+        6.809677,
+        0.060605
+      ],
+      "radius": 0.005506,
+      "height": 0.353614,
+      "rotation": [
+        0.244958,
+        0.0,
+        0.169057,
+        0.954681
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.301586,
+        6.924312,
+        -0.543162
+      ],
+      "radius": 0.008278,
+      "height": 0.325618,
+      "rotation": [
+        -0.126213,
+        0.0,
+        -0.172244,
+        0.976935
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.404229,
+        7.206873,
+        -0.614685
+      ],
+      "radius": 0.007175,
+      "height": 0.323411,
+      "rotation": [
+        -0.110356,
+        0.0,
+        -0.167234,
+        0.979721
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.498997,
+        7.492986,
+        -0.682732
+      ],
+      "radius": 0.006071,
+      "height": 0.321203,
+      "rotation": [
+        -0.114014,
+        0.0,
+        -0.145287,
+        0.982798
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.586445,
+        7.781895,
+        -0.749007
+      ],
+      "radius": 0.004967,
+      "height": 0.318995,
+      "rotation": [
+        -0.104019,
+        0.0,
+        -0.142392,
+        0.98433
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        2.154291,
+        6.221265,
+        -0.835799
+      ],
+      "radius": 0.006478,
+      "height": 0.21565,
+      "rotation": [
+        -0.213002,
+        0.0,
+        -0.56339,
+        0.798262
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        2.335804,
+        6.281687,
+        -0.902577
+      ],
+      "radius": 0.004627,
+      "height": 0.211949,
+      "rotation": [
+        -0.196102,
+        0.0,
+        -0.54834,
+        0.812937
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        2.219526,
+        6.421047,
+        -0.821801
+      ],
+      "radius": 0.007784,
+      "height": 0.275261,
+      "rotation": [
+        0.025725,
+        0.0,
+        -0.149731,
+        0.988392
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        2.289334,
+        6.67062,
+        -0.806828
+      ],
+      "radius": 0.006369,
+      "height": 0.27243,
+      "rotation": [
+        0.03249,
+        0.0,
+        -0.121787,
+        0.992024
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        2.346054,
+        6.923587,
+        -0.793382
+      ],
+      "radius": 0.004953,
+      "height": 0.2696,
+      "rotation": [
+        0.019642,
+        0.0,
+        -0.098087,
+        0.994984
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.559416,
+        5.388671,
+        -0.675635
+      ],
+      "radius": 0.01036,
+      "height": 0.336916,
+      "rotation": [
+        -0.553819,
+        0.0,
+        0.061968,
+        0.830328
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.594038,
+        5.509135,
+        -0.96592
+      ],
+      "radius": 0.008476,
+      "height": 0.333149,
+      "rotation": [
+        -0.550995,
+        0.0,
+        0.069797,
+        0.831585
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.636654,
+        5.640406,
+        -1.250109
+      ],
+      "radius": 0.006592,
+      "height": 0.329382,
+      "rotation": [
+        -0.51792,
+        0.0,
+        0.090207,
+        0.85066
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.708411,
+        5.817412,
+        -0.790663
+      ],
+      "radius": 0.009071,
+      "height": 0.331452,
+      "rotation": [
+        -0.056674,
+        0.0,
+        0.257498,
+        0.964615
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.861071,
+        6.08964,
+        -0.816391
+      ],
+      "radius": 0.007862,
+      "height": 0.329033,
+      "rotation": [
+        -0.028333,
+        0.0,
+        0.24658,
+        0.968708
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.002631,
+        6.36826,
+        -0.836521
+      ],
+      "radius": 0.006652,
+      "height": 0.326614,
+      "rotation": [
+        -0.037742,
+        0.0,
+        0.218386,
+        0.975132
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.138605,
+        6.648946,
+        -0.865572
+      ],
+      "radius": 0.005443,
+      "height": 0.324195,
+      "rotation": [
+        -0.057522,
+        0.0,
+        0.22738,
+        0.972106
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.115184,
+        6.917218,
+        -0.218217
+      ],
+      "radius": 0.006676,
+      "height": 0.353213,
+      "rotation": [
+        0.175993,
+        0.0,
+        0.060131,
+        0.982553
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.153251,
+        7.230896,
+        -0.093327
+      ],
+      "radius": 0.005462,
+      "height": 0.350786,
+      "rotation": [
+        0.198816,
+        0.0,
+        0.054086,
+        0.978543
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.200042,
+        7.54087,
+        0.037488
+      ],
+      "radius": 0.004248,
+      "height": 0.348358,
+      "rotation": [
+        0.194839,
+        0.0,
+        0.086747,
+        0.976992
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.510258,
+        7.38703,
+        -0.275848
+      ],
+      "radius": 0.00626,
+      "height": 0.262137,
+      "rotation": [
+        -0.243216,
+        0.0,
+        0.287965,
+        0.926241
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.635711,
+        7.572633,
+        -0.385421
+      ],
+      "radius": 0.004471,
+      "height": 0.25856,
+      "rotation": [
+        -0.227067,
+        0.0,
+        0.250625,
+        0.941078
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.726499,
+        7.904485,
+        -0.610797
+      ],
+      "radius": 0.010488,
+      "height": 0.315746,
+      "rotation": [
+        -0.405376,
+        0.0,
+        -0.187746,
+        0.894663
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.629704,
+        8.080904,
+        -0.826178
+      ],
+      "radius": 0.009089,
+      "height": 0.31295,
+      "rotation": [
+        -0.411932,
+        0.0,
+        -0.179552,
+        0.893349
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.532067,
+        8.25883,
+        -1.039894
+      ],
+      "radius": 0.007691,
+      "height": 0.310153,
+      "rotation": [
+        -0.397789,
+        0.0,
+        -0.190334,
+        0.897517
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.423953,
+        8.438414,
+        -1.246979
+      ],
+      "radius": 0.006293,
+      "height": 0.307356,
+      "rotation": [
+        -0.385402,
+        0.0,
+        -0.218569,
+        0.896489
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.623245,
+        8.490672,
+        -0.553883
+      ],
+      "radius": 0.010084,
+      "height": 0.353232,
+      "rotation": [
+        0.101828,
+        0.0,
+        0.053161,
+        0.993381
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.653724,
+        8.816391,
+        -0.49177
+      ],
+      "radius": 0.008251,
+      "height": 0.349565,
+      "rotation": [
+        0.085716,
+        0.0,
+        0.038872,
+        0.995561
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.673795,
+        9.14488,
+        -0.441288
+      ],
+      "radius": 0.006417,
+      "height": 0.345898,
+      "rotation": [
+        0.066395,
+        0.0,
+        0.021617,
+        0.997559
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.390235,
+        8.81559,
+        -0.653559
+      ],
+      "radius": 0.009107,
+      "height": 0.316552,
+      "rotation": [
+        0.04555,
+        0.0,
+        -0.419335,
+        0.906688
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.166954,
+        9.011751,
+        -0.628204
+      ],
+      "radius": 0.007893,
+      "height": 0.314124,
+      "rotation": [
+        0.047797,
+        0.0,
+        -0.402848,
+        0.914018
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.046018,
+        9.218769,
+        -0.601764
+      ],
+      "radius": 0.006679,
+      "height": 0.311695,
+      "rotation": [
+        0.048501,
+        0.0,
+        -0.373059,
+        0.926539
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.245384,
+        9.438626,
+        -0.572874
+      ],
+      "radius": 0.005464,
+      "height": 0.309267,
+      "rotation": [
+        0.055371,
+        0.0,
+        -0.344193,
+        0.937265
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.158877,
+        5.158074,
+        1.137549
+      ],
+      "radius": 0.01264,
+      "height": 0.333027,
+      "rotation": [
+        0.016154,
+        0.0,
+        -0.081691,
+        0.996527
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.209756,
+        5.461493,
+        1.140627
+      ],
+      "radius": 0.011541,
+      "height": 0.330829,
+      "rotation": [
+        -0.006119,
+        0.0,
+        -0.084219,
+        0.996428
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.257344,
+        5.765492,
+        1.137198
+      ],
+      "radius": 0.010441,
+      "height": 0.328631,
+      "rotation": [
+        -0.005059,
+        0.0,
+        -0.070897,
+        0.997471
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.287504,
+        6.071422,
+        1.132415
+      ],
+      "radius": 0.009342,
+      "height": 0.326432,
+      "rotation": [
+        -0.010498,
+        0.0,
+        -0.027294,
+        0.999572
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.300752,
+        6.378649,
+        1.121736
+      ],
+      "radius": 0.008243,
+      "height": 0.324234,
+      "rotation": [
+        -0.024218,
+        0.0,
+        -0.015774,
+        0.999582
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.317657,
+        6.685352,
+        1.104455
+      ],
+      "radius": 0.007144,
+      "height": 0.322036,
+      "rotation": [
+        -0.031986,
+        0.0,
+        -0.039215,
+        0.998719
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.454677,
+        6.430533,
+        1.374865
+      ],
+      "radius": 0.012928,
+      "height": 0.328721,
+      "rotation": [
+        -0.02441,
+        0.0,
+        0.341921,
+        0.939412
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.641295,
+        6.667895,
+        1.354355
+      ],
+      "radius": 0.011204,
+      "height": 0.325273,
+      "rotation": [
+        -0.04718,
+        0.0,
+        0.310715,
+        0.949331
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.808833,
+        6.918244,
+        1.325995
+      ],
+      "radius": 0.009481,
+      "height": 0.321826,
+      "rotation": [
+        -0.050782,
+        0.0,
+        0.268416,
+        0.961964
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.964777,
+        7.175973,
+        1.294676
+      ],
+      "radius": 0.007757,
+      "height": 0.318378,
+      "rotation": [
+        -0.056707,
+        0.0,
+        0.266808,
+        0.96208
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.975899,
+        7.176063,
+        2.136093
+      ],
+      "radius": 0.007433,
+      "height": 0.22323,
+      "rotation": [
+        0.018017,
+        0.0,
+        -0.240148,
+        0.970569
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.072262,
+        7.360728,
+        2.138975
+      ],
+      "radius": 0.005309,
+      "height": 0.218983,
+      "rotation": [
+        -0.003762,
+        0.0,
+        -0.236067,
+        0.971729
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.950269,
+        7.235451,
+        2.254267
+      ],
+      "radius": 0.008668,
+      "height": 0.137821,
+      "rotation": [
+        0.303554,
+        0.0,
+        0.123757,
+        0.944743
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.891579,
+        6.805762,
+        -0.010783
+      ],
+      "radius": 0.004821,
+      "height": 0.255083,
+      "rotation": [
+        0.002403,
+        0.0,
+        -0.004969,
+        0.999985
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.895851,
+        7.051157,
+        -0.009801
+      ],
+      "radius": 0.003945,
+      "height": 0.25333,
+      "rotation": [
+        0.001598,
+        0.0,
+        -0.012436,
+        0.999921
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.899349,
+        7.296558,
+        -0.009298
+      ],
+      "radius": 0.003068,
+      "height": 0.251577,
+      "rotation": [
+        0.000453,
+        0.0,
+        -0.001817,
+        0.999998
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.581849,
+        5.444661,
+        -0.981959
+      ],
+      "radius": 0.004971,
+      "height": 0.26303,
+      "rotation": [
+        -0.757954,
+        0.0,
+        0.009865,
+        0.652234
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.585268,
+        5.412909,
+        -1.23295
+      ],
+      "radius": 0.004067,
+      "height": 0.261222,
+      "rotation": [
+        -0.742131,
+        0.0,
+        0.010554,
+        0.670172
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.59068,
+        5.391828,
+        -1.485049
+      ],
+      "radius": 0.003164,
+      "height": 0.259414,
+      "rotation": [
+        -0.729374,
+        0.0,
+        0.020928,
+        0.683795
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.681683,
+        5.665291,
+        -1.222534
+      ],
+      "radius": 0.005383,
+      "height": 0.284818,
+      "rotation": [
+        -0.355413,
+        0.0,
+        0.264744,
+        0.896433
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.809975,
+        5.838994,
+        -1.390994
+      ],
+      "radius": 0.004404,
+      "height": 0.282861,
+      "rotation": [
+        -0.32496,
+        0.0,
+        0.253303,
+        0.911174
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.936844,
+        6.027603,
+        -1.543582
+      ],
+      "radius": 0.003426,
+      "height": 0.280903,
+      "rotation": [
+        -0.281441,
+        0.0,
+        0.250611,
+        0.926275
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.130866,
+        6.659779,
+        -0.799745
+      ],
+      "radius": 0.004664,
+      "height": 0.246768,
+      "rotation": [
+        0.240811,
+        0.0,
+        0.158549,
+        0.957534
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.195308,
+        6.861356,
+        -0.692436
+      ],
+      "radius": 0.003816,
+      "height": 0.245072,
+      "rotation": [
+        0.229278,
+        0.0,
+        0.123866,
+        0.965448
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.245801,
+        7.069061,
+        -0.589302
+      ],
+      "radius": 0.002968,
+      "height": 0.243376,
+      "rotation": [
+        0.219384,
+        0.0,
+        0.09586,
+        0.970918
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.547914,
+        8.111874,
+        -0.807403
+      ],
+      "radius": 0.005575,
+      "height": 0.294953,
+      "rotation": [
+        -0.169851,
+        0.0,
+        -0.431949,
+        0.88576
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.334075,
+        8.279218,
+        -0.889612
+      ],
+      "radius": 0.004561,
+      "height": 0.292926,
+      "rotation": [
+        -0.155163,
+        0.0,
+        -0.41334,
+        0.897259
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.12418,
+        8.4535,
+        -0.96779
+      ],
+      "radius": 0.003548,
+      "height": 0.290899,
+      "rotation": [
+        -0.151471,
+        0.0,
+        -0.409919,
+        0.899457
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.541418,
+        8.216982,
+        -1.110765
+      ],
+      "radius": 0.005085,
+      "height": 0.352804,
+      "rotation": [
+        -0.611329,
+        0.0,
+        -0.130737,
+        0.780502
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.470163,
+        8.304158,
+        -1.434112
+      ],
+      "radius": 0.003632,
+      "height": 0.349898,
+      "rotation": [
+        -0.580832,
+        0.0,
+        -0.131864,
+        0.803272
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.372566,
+        8.538629,
+        -1.246425
+      ],
+      "radius": 0.005116,
+      "height": 0.270219,
+      "rotation": [
+        -0.060578,
+        0.0,
+        -0.23958,
+        0.968985
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.250517,
+        8.765629,
+        -1.280385
+      ],
+      "radius": 0.003654,
+      "height": 0.267296,
+      "rotation": [
+        -0.074416,
+        0.0,
+        -0.24551,
+        0.966533
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.705645,
+        9.244331,
+        -0.340222
+      ],
+      "radius": 0.003932,
+      "height": 0.304641,
+      "rotation": [
+        0.371673,
+        0.0,
+        0.117147,
+        0.920943
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.017516,
+        9.226405,
+        -0.684329
+      ],
+      "radius": 0.004246,
+      "height": 0.33687,
+      "rotation": [
+        -0.21124,
+        0.0,
+        -0.201577,
+        0.956423
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.249919,
+        5.802198,
+        1.227999
+      ],
+      "radius": 0.006387,
+      "height": 0.337954,
+      "rotation": [
+        0.288475,
+        0.0,
+        -0.021438,
+        0.957247
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.258664,
+        6.069744,
+        1.412468
+      ],
+      "radius": 0.005226,
+      "height": 0.335631,
+      "rotation": [
+        0.305796,
+        0.0,
+        -0.006691,
+        0.952074
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.260902,
+        6.33595,
+        1.599167
+      ],
+      "radius": 0.004065,
+      "height": 0.333309,
+      "rotation": [
+        0.29631,
+        0.0,
+        -0.000534,
+        0.955092
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.28545,
+        6.548524,
+        1.046745
+      ],
+      "radius": 0.004983,
+      "height": 0.263649,
+      "rotation": [
+        -0.29707,
+        0.0,
+        0.072079,
+        0.952131
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.252601,
+        6.756829,
+        0.905782
+      ],
+      "radius": 0.004077,
+      "height": 0.261837,
+      "rotation": [
+        -0.285276,
+        0.0,
+        0.06364,
+        0.95633
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.219327,
+        6.971456,
+        0.775013
+      ],
+      "radius": 0.003171,
+      "height": 0.260025,
+      "rotation": [
+        -0.251431,
+        0.0,
+        0.072844,
+        0.96513
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.759306,
+        6.827213,
+        1.416542
+      ],
+      "radius": 0.005692,
+      "height": 0.283773,
+      "rotation": [
+        0.277514,
+        0.0,
+        0.279402,
+        0.919195
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.903346,
+        7.015145,
+        1.551051
+      ],
+      "radius": 0.004657,
+      "height": 0.281704,
+      "rotation": [
+        0.259693,
+        0.0,
+        0.295871,
+        0.91925
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.044847,
+        7.205782,
+        1.68435
+      ],
+      "radius": 0.003622,
+      "height": 0.279634,
+      "rotation": [
+        0.271095,
+        0.0,
+        0.267691,
+        0.92458
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.86393,
+        7.096382,
+        1.253893
+      ],
+      "radius": 0.006242,
+      "height": 0.330281,
+      "rotation": [
+        -0.219732,
+        0.0,
+        0.103881,
+        0.970014
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.929308,
+        7.372884,
+        1.111745
+      ],
+      "radius": 0.005107,
+      "height": 0.328011,
+      "rotation": [
+        -0.242916,
+        0.0,
+        0.108886,
+        0.963917
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.9947,
+        7.648135,
+        0.967074
+      ],
+      "radius": 0.003972,
+      "height": 0.325741,
+      "rotation": [
+        -0.228396,
+        0.0,
+        0.104145,
+        0.967982
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.96458,
+        7.260985,
+        2.254942
+      ],
+      "radius": 0.005165,
+      "height": 0.105681,
+      "rotation": [
+        0.155438,
+        0.0,
+        -0.092167,
+        0.983537
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.322455,
+        7.720987,
+        -0.656214
+      ],
+      "radius": 0.086803,
+      "height": 0.723607,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        2.322455,
+        6.610631,
+        -0.89157
+      ],
+      "radius": 0.086803,
+      "height": 0.473607,
+      "rotation": [
+        0.382683,
+        0.0,
+        0.0,
+        0.92388
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        2.198711,
+        7.16973,
+        -0.856214
+      ],
+      "radius": 0.045711,
+      "height": 0.641421,
+      "rotation": [
+        0.0,
+        0.0,
+        -0.92388,
+        0.382683
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.922455,
+        6.645987,
+        0.268786
+      ],
+      "radius": 0.075,
+      "height": 0.4,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        2.375488,
+        6.192954,
+        -0.856214
+      ],
+      "radius": 0.065103,
+      "height": 0.280205,
+      "rotation": [
+        0.0,
+        0.0,
+        -0.92388,
+        0.382683
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.922455,
+        7.220987,
+        -0.056214
+      ],
+      "radius": 0.075,
+      "height": 0.5,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        1.822455,
+        8.045987,
+        -0.756214
+      ],
+      "radius": 0.075,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        2.081226,
+        7.404758,
+        -0.897443
+      ],
+      "radius": 0.045711,
+      "height": 0.641421,
+      "rotation": [
+        0.325058,
+        0.0,
+        -0.325058,
+        0.888074
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        1.666743,
+        7.810892,
+        -0.713804
+      ],
+      "radius": 0.061603,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        1.022455,
+        6.445987,
+        -0.056214
+      ],
+      "radius": 0.075,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.38019,
+        7.703722,
+        -0.713949
+      ],
+      "radius": 0.077496,
+      "height": 0.354992,
+      "rotation": [
+        -0.325058,
+        0.0,
+        -0.325058,
+        0.888074
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.081554,
+        8.005086,
+        -0.656214
+      ],
+      "radius": 0.045711,
+      "height": 0.541421,
+      "rotation": [
+        0.0,
+        0.0,
+        -0.382683,
+        0.92388
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.724516,
+        7.642094,
+        0.004098
+      ],
+      "radius": 0.045711,
+      "height": 0.172322,
+      "rotation": [
+        -0.081314,
+        0.0,
+        -0.974861,
+        0.207445
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        2.422455,
+        5.945987,
+        -0.856214
+      ],
+      "radius": 0.045711,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.975488,
+        6.645987,
+        0.196819
+      ],
+      "radius": 0.075,
+      "height": 0.3,
+      "rotation": [
+        0.5,
+        0.0,
+        -0.5,
+        0.707107
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        1.922455,
+        8.145987,
+        -0.856214
+      ],
+      "radius": 0.061603,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        2.122455,
+        7.495987,
+        -0.856214
+      ],
+      "radius": 0.045711,
+      "height": 0.591421,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.295783,
+        9.481145,
+        -0.424614
+      ],
+      "radius": 0.045711,
+      "height": 1.091421,
+      "rotation": [
+        0.325058,
+        0.0,
+        -0.325058,
+        0.888074
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.393736,
+        7.850205,
+        -0.314132
+      ],
+      "radius": 0.086803,
+      "height": 0.773607,
+      "rotation": [
+        0.5,
+        0.0,
+        -0.5,
+        0.707107
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.935158,
+        7.450205,
+        0.144446
+      ],
+      "radius": 0.099835,
+      "height": 0.499671,
+      "rotation": [
+        0.0,
+        0.0,
+        -0.382683,
+        0.92388
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.848555,
+        8.963602,
+        -0.568951
+      ],
+      "radius": 0.069957,
+      "height": 0.439914,
+      "rotation": [
+        0.627963,
+        0.0,
+        -0.627963,
+        0.459701
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.761952,
+        9.22341,
+        -0.282349
+      ],
+      "radius": 0.045711,
+      "height": 0.891421,
+      "rotation": [
+        0.325058,
+        0.0,
+        -0.325058,
+        0.888074
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.935158,
+        6.050205,
+        -1.455554
+      ],
+      "radius": 0.103554,
+      "height": 0.407108,
+      "rotation": [
+        -0.382683,
+        0.0,
+        0.0,
+        0.92388
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.677422,
+        7.50794,
+        -0.397819
+      ],
+      "radius": 0.05625,
+      "height": 0.3125,
+      "rotation": [
+        0.325058,
+        0.0,
+        -0.325058,
+        0.888074
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -0.535158,
+        5.350205,
+        -1.455554
+      ],
+      "radius": 0.155278,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.135158,
+        8.850205,
+        -1.255554
+      ],
+      "radius": 0.043402,
+      "height": 0.686803,
+      "rotation": [
+        0.0,
+        0.0,
+        -0.382683,
+        0.92388
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.264447,
+        6.979494,
+        -0.655554
+      ],
+      "radius": 0.086803,
+      "height": 0.573607,
+      "rotation": [
+        0.0,
+        0.0,
+        -0.92388,
+        0.382683
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.22176,
+        8.363602,
+        -0.968951
+      ],
+      "radius": 0.080814,
+      "height": 0.461629,
+      "rotation": [
+        -0.325058,
+        0.0,
+        -0.325058,
+        0.888074
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.411414,
+        8.250205,
+        -1.379297
+      ],
+      "radius": 0.09375,
+      "height": 0.5375,
+      "rotation": [
+        -0.5,
+        0.0,
+        -0.5,
+        0.707107
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.064842,
+        9.450205,
+        -0.755554
+      ],
+      "radius": 0.081705,
+      "height": 0.363409,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -1.235158,
+        7.550205,
+        -0.055554
+      ],
+      "radius": 0.086803,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -0.935158,
+        6.150205,
+        -0.855554
+      ],
+      "radius": 0.045711,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -0.435158,
+        8.950205,
+        -1.055554
+      ],
+      "radius": 0.097474,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.735158,
+        5.267883,
+        -1.237876
+      ],
+      "radius": 0.075622,
+      "height": 0.501245,
+      "rotation": [
+        0.382683,
+        0.0,
+        0.0,
+        0.92388
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -1.135158,
+        7.150205,
+        -0.155554
+      ],
+      "radius": 0.045711,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.082124,
+        8.450205,
+        -0.908587
+      ],
+      "radius": 0.045711,
+      "height": 0.641421,
+      "rotation": [
+        -0.5,
+        0.0,
+        -0.5,
+        0.707107
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -1.635158,
+        7.450205,
+        -0.355554
+      ],
+      "radius": 0.045711,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.585158,
+        8.250205,
+        -1.455554
+      ],
+      "radius": 0.075,
+      "height": 0.85,
+      "rotation": [
+        0.0,
+        0.0,
+        -0.707107,
+        0.707107
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -0.535158,
+        5.350205,
+        -1.655554
+      ],
+      "radius": 0.086803,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -0.635158,
+        8.750205,
+        -0.555554
+      ],
+      "radius": 0.045711,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        0.464842,
+        9.850205,
+        -0.355554
+      ],
+      "radius": 0.045711,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -1.435158,
+        6.450205,
+        -1.355554
+      ],
+      "radius": 0.045711,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -1.435158,
+        8.050205,
+        -0.055554
+      ],
+      "radius": 0.045711,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.135158,
+        7.397172,
+        0.091413
+      ],
+      "radius": 0.045711,
+      "height": 0.241421,
+      "rotation": [
+        0.382683,
+        0.0,
+        0.0,
+        0.92388
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.864447,
+        9.050205,
+        -0.584843
+      ],
+      "radius": 0.086803,
+      "height": 0.373607,
+      "rotation": [
+        0.5,
+        0.0,
+        -0.5,
+        0.707107
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -0.735158,
+        5.450205,
+        -1.655554
+      ],
+      "radius": 0.045711,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.985158,
+        5.850205,
+        -1.455554
+      ],
+      "radius": 0.075,
+      "height": 0.55,
+      "rotation": [
+        0.0,
+        0.0,
+        -0.707107,
+        0.707107
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -1.135158,
+        6.250205,
+        -1.555554
+      ],
+      "radius": 0.097474,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.308363,
+        6.42341,
+        -1.028759
+      ],
+      "radius": 0.05625,
+      "height": 0.7125,
+      "rotation": [
+        0.627963,
+        0.0,
+        -0.627963,
+        0.459701
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.137309,
+        7.442652,
+        2.057703
+      ],
+      "radius": 0.076733,
+      "height": 0.853466,
+      "rotation": [
+        -0.325058,
+        0.0,
+        -0.325058,
+        0.888074
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.281647,
+        6.293055,
+        1.419431
+      ],
+      "radius": 0.082715,
+      "height": 0.765431,
+      "rotation": [
+        0.382683,
+        0.0,
+        0.0,
+        0.92388
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.118353,
+        7.711989,
+        0.913365
+      ],
+      "radius": 0.075,
+      "height": 0.8,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.281647,
+        6.733956,
+        0.766398
+      ],
+      "radius": 0.045711,
+      "height": 0.541421,
+      "rotation": [
+        -0.382683,
+        0.0,
+        0.0,
+        0.92388
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.060618,
+        7.129254,
+        1.7711
+      ],
+      "radius": 0.075,
+      "height": 0.35,
+      "rotation": [
+        0.627963,
+        0.0,
+        -0.627963,
+        0.459701
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -0.818353,
+        6.986989,
+        1.613365
+      ],
+      "radius": 0.097474,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.152358,
+        7.116278,
+        0.713365
+      ],
+      "radius": 0.045711,
+      "height": 0.291421,
+      "rotation": [
+        0.0,
+        0.0,
+        -0.92388,
+        0.382683
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.040746,
+        7.586989,
+        1.954266
+      ],
+      "radius": 0.05625,
+      "height": 0.5625,
+      "rotation": [
+        -0.5,
+        0.0,
+        -0.5,
+        0.707107
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.06532,
+        7.386989,
+        0.966398
+      ],
+      "radius": 0.05625,
+      "height": 0.2625,
+      "rotation": [
+        0.5,
+        0.0,
+        -0.5,
+        0.707107
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        0.181647,
+        6.386989,
+        1.813365
+      ],
+      "radius": 0.086803,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        0.224155,
+        6.481053,
+        2.009091
+      ],
+      "radius": 0.061603,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.256647,
+        7.586989,
+        1.913365
+      ],
+      "radius": 0.065103,
+      "height": 0.680205,
+      "rotation": [
+        0.0,
+        0.0,
+        -0.707107,
+        0.707107
+      ],
+      "material": "twig",
+      "landable": false
+    }
+  ],
+  "gaps": [
+    {
+      "id": "g0",
+      "polygon": [
+        [
+          0.415717,
+          3.119147,
+          0.123454
+        ],
+        [
+          0.452383,
+          3.300259,
+          0.257534
+        ],
+        [
+          0.511166,
+          3.575909,
+          0.45297
+        ],
+        [
+          0.568449,
+          3.850564,
+          0.651434
+        ],
+        [
+          0.625705,
+          4.123797,
+          0.84809
+        ],
+        [
+          0.638567,
+          4.181804,
+          0.887792
+        ],
+        [
+          1.346425,
+          4.763457,
+          -0.392842
+        ],
+        [
+          1.34257,
+          4.756736,
+          -0.390587
+        ],
+        [
+          1.177909,
+          4.468008,
+          -0.296343
+        ],
+        [
+          1.014368,
+          4.176645,
+          -0.20885
+        ],
+        [
+          0.852181,
+          3.885546,
+          -0.124929
+        ],
+        [
+          0.68881,
+          3.596762,
+          -0.034502
+        ],
+        [
+          0.524711,
+          3.30922,
+          0.059685
+        ]
+      ],
+      "normal": [
+        -0.867619,
+        0.397145,
+        -0.299188
+      ],
+      "narrowest_m": 0.86278
+    },
+    {
+      "id": "g1",
+      "polygon": [
+        [
+          0.370991,
+          3.120897,
+          0.074188
+        ],
+        [
+          0.483922,
+          3.316605,
+          0.00928
+        ],
+        [
+          0.653895,
+          3.600671,
+          -0.085958
+        ],
+        [
+          0.815152,
+          3.887321,
+          -0.180324
+        ],
+        [
+          0.956431,
+          4.186462,
+          -0.274228
+        ],
+        [
+          1.110638,
+          4.482308,
+          -0.369551
+        ],
+        [
+          1.27801,
+          4.767471,
+          -0.464605
+        ],
+        [
+          1.281382,
+          4.774457,
+          -0.466811
+        ],
+        [
+          -0.35568,
+          4.892708,
+          -0.217168
+        ],
+        [
+          -0.348297,
+          4.872428,
+          -0.213675
+        ],
+        [
+          -0.243306,
+          4.555185,
+          -0.157252
+        ],
+        [
+          -0.128369,
+          4.242101,
+          -0.103488
+        ],
+        [
+          -0.006667,
+          3.93111,
+          -0.051358
+        ],
+        [
+          0.121431,
+          3.623382,
+          -0.001076
+        ],
+        [
+          0.265451,
+          3.322495,
+          0.04491
+        ]
+      ],
+      "normal": [
+        0.16274,
+        0.224727,
+        0.960736
+      ],
+      "narrowest_m": 1.086593
+    },
+    {
+      "id": "g2",
+      "polygon": [
+        [
+          0.34631,
+          3.121913,
+          0.135463
+        ],
+        [
+          0.242636,
+          3.320575,
+          0.105798
+        ],
+        [
+          0.088862,
+          3.61783,
+          0.063059
+        ],
+        [
+          -0.05528,
+          3.920679,
+          0.034764
+        ],
+        [
+          -0.197794,
+          4.22577,
+          0.009541
+        ],
+        [
+          -0.339857,
+          4.529322,
+          -0.015882
+        ],
+        [
+          -0.474613,
+          4.836239,
+          -0.030775
+        ],
+        [
+          -0.483446,
+          4.856087,
+          -0.031882
+        ],
+        [
+          0.532926,
+          4.199649,
+          0.886404
+        ],
+        [
+          0.526224,
+          4.13891,
+          0.848727
+        ],
+        [
+          0.488488,
+          3.854717,
+          0.664676
+        ],
+        [
+          0.435021,
+          3.581247,
+          0.466685
+        ],
+        [
+          0.384335,
+          3.304512,
+          0.270493
+        ]
+      ],
+      "normal": [
+        0.738388,
+        0.294769,
+        -0.606543
+      ],
+      "narrowest_m": 0.874192
+    }
+  ],
+  "wind_volumes": [
+    {
+      "shape": "box",
+      "center": [
+        0.366651,
+        7.502768,
+        0.282588
+      ],
+      "size": [
+        4.633618,
+        4.935125,
+        4.306283
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.75
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.308214,
+        2.51087,
+        0.086149
+      ],
+      "size": [
+        0.16,
+        5.062366,
+        0.16
+      ],
+      "rotation": [
+        0.017052,
+        0.0,
+        -0.061006,
+        0.997992
+      ],
+      "porosity": 0.0
+    }
+  ],
+  "snag": [
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.167612,
+          2.010247,
+          0.070274
+        ],
+        [
+          0.368255,
+          3.0,
+          0.102931
+        ]
+      ],
+      "radius_m": 0.072584,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          2.321389,
+          7.266971,
+          -0.879223
+        ],
+        [
+          2.364984,
+          7.465766,
+          -0.893602
+        ]
+      ],
+      "radius_m": 0.019425,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.179953,
+          8.147283,
+          -0.467843
+        ],
+        [
+          -1.227315,
+          8.48322,
+          -0.476379
+        ]
+      ],
+      "radius_m": 0.020789,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.903434,
+          7.616401,
+          2.197895
+        ],
+        [
+          0.907344,
+          7.684428,
+          2.212338
+        ]
+      ],
+      "radius_m": 0.021082,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.289362,
+          5.432061,
+          -0.491973
+        ],
+        [
+          1.28977,
+          5.771344,
+          -0.506652
+        ]
+      ],
+      "radius_m": 0.013948,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.28977,
+          5.771344,
+          -0.506652
+        ],
+        [
+          1.28046,
+          6.11073,
+          -0.514335
+        ]
+      ],
+      "radius_m": 0.012735,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.28046,
+          6.11073,
+          -0.514335
+        ],
+        [
+          1.27138,
+          6.450178,
+          -0.509792
+        ]
+      ],
+      "radius_m": 0.011522,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.27138,
+          6.450178,
+          -0.509792
+        ],
+        [
+          1.249243,
+          6.789022,
+          -0.504981
+        ]
+      ],
+      "radius_m": 0.010309,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.249243,
+          6.789022,
+          -0.504981
+        ],
+        [
+          1.233469,
+          7.127922,
+          -0.520039
+        ]
+      ],
+      "radius_m": 0.009096,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          2.098937,
+          6.226082,
+          -0.809517
+        ],
+        [
+          2.280136,
+          6.382924,
+          -0.851172
+        ]
+      ],
+      "radius_m": 0.011159,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.551262,
+          5.35468,
+          -0.551256
+        ],
+        [
+          -0.613397,
+          5.604309,
+          -0.728079
+        ]
+      ],
+      "radius_m": 0.014987,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.613397,
+          5.604309,
+          -0.728079
+        ],
+        [
+          -0.671667,
+          5.869465,
+          -0.882154
+        ]
+      ],
+      "radius_m": 0.012989,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.671667,
+          5.869465,
+          -0.882154
+        ],
+        [
+          -0.735759,
+          6.132029,
+          -1.03834
+        ]
+      ],
+      "radius_m": 0.010991,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.985336,
+          6.586623,
+          -0.295422
+        ],
+        [
+          -1.140864,
+          6.83092,
+          -0.269302
+        ]
+      ],
+      "radius_m": 0.014738,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -1.140864,
+          6.83092,
+          -0.269302
+        ],
+        [
+          -1.296503,
+          7.075028,
+          -0.242095
+        ]
+      ],
+      "radius_m": 0.013004,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -1.296503,
+          7.075028,
+          -0.242095
+        ],
+        [
+          -1.456278,
+          7.316748,
+          -0.21769
+        ]
+      ],
+      "radius_m": 0.01127,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.456278,
+          7.316748,
+          -0.21769
+        ],
+        [
+          -1.620715,
+          7.555277,
+          -0.192854
+        ]
+      ],
+      "radius_m": 0.009536,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.682267,
+          8.079466,
+          -0.541554
+        ],
+        [
+          -0.595705,
+          8.360888,
+          -0.593551
+        ]
+      ],
+      "radius_m": 0.014739,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.595705,
+          8.360888,
+          -0.593551
+        ],
+        [
+          -0.521472,
+          8.643765,
+          -0.655719
+        ]
+      ],
+      "radius_m": 0.013005,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.521472,
+          8.643765,
+          -0.655719
+        ],
+        [
+          -0.453616,
+          8.932366,
+          -0.694441
+        ]
+      ],
+      "radius_m": 0.011271,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.339255,
+          6.244702,
+          1.375399
+        ],
+        [
+          -0.421895,
+          6.563527,
+          1.404604
+        ]
+      ],
+      "radius_m": 0.014761,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.421895,
+          6.563527,
+          1.404604
+        ],
+        [
+          -0.485387,
+          6.887006,
+          1.430315
+        ]
+      ],
+      "radius_m": 0.01358,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.485387,
+          6.887006,
+          1.430315
+        ],
+        [
+          -0.54624,
+          7.211588,
+          1.446888
+        ]
+      ],
+      "radius_m": 0.012399,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.931746,
+          7.094987,
+          2.141651
+        ],
+        [
+          0.986051,
+          7.250139,
+          2.271647
+        ]
+      ],
+      "radius_m": 0.012187,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.287495,
+          5.854283,
+          -0.50853
+        ],
+        [
+          1.156499,
+          6.121033,
+          -0.338059
+        ]
+      ],
+      "radius_m": 0.009177,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.156499,
+          6.121033,
+          -0.338059
+        ],
+        [
+          1.030327,
+          6.393617,
+          -0.173273
+        ]
+      ],
+      "radius_m": 0.007953,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.030327,
+          6.393617,
+          -0.173273
+        ],
+        [
+          0.895978,
+          6.668725,
+          -0.019514
+        ]
+      ],
+      "radius_m": 0.00673,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.895978,
+          6.668725,
+          -0.019514
+        ],
+        [
+          0.78539,
+          6.950629,
+          0.140725
+        ]
+      ],
+      "radius_m": 0.005506,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.249579,
+          6.783874,
+          -0.505054
+        ],
+        [
+          1.353592,
+          7.06475,
+          -0.58127
+        ]
+      ],
+      "radius_m": 0.008278,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.353592,
+          7.06475,
+          -0.58127
+        ],
+        [
+          1.454867,
+          7.348996,
+          -0.648101
+        ]
+      ],
+      "radius_m": 0.007175,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.454867,
+          7.348996,
+          -0.648101
+        ],
+        [
+          1.543127,
+          7.636975,
+          -0.717363
+        ]
+      ],
+      "radius_m": 0.006071,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.543127,
+          7.636975,
+          -0.717363
+        ],
+        [
+          1.629763,
+          7.926816,
+          -0.780652
+        ]
+      ],
+      "radius_m": 0.004967,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          2.063133,
+          6.193451,
+          -0.801335
+        ],
+        [
+          2.24545,
+          6.24908,
+          -0.870264
+        ]
+      ],
+      "radius_m": 0.006478,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          2.24545,
+          6.24908,
+          -0.870264
+        ],
+        [
+          2.426159,
+          6.314294,
+          -0.93489
+        ]
+      ],
+      "radius_m": 0.004627,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          2.181094,
+          6.297195,
+          -0.828404
+        ],
+        [
+          2.257959,
+          6.544899,
+          -0.815198
+        ]
+      ],
+      "radius_m": 0.007784,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          2.257959,
+          6.544899,
+          -0.815198
+        ],
+        [
+          2.320709,
+          6.79634,
+          -0.798458
+        ]
+      ],
+      "radius_m": 0.006369,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          2.320709,
+          6.79634,
+          -0.798458
+        ],
+        [
+          2.371399,
+          7.050835,
+          -0.788307
+        ]
+      ],
+      "radius_m": 0.004953,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.543146,
+          5.32877,
+          -0.530231
+        ],
+        [
+          -0.575685,
+          5.448573,
+          -0.821039
+        ]
+      ],
+      "radius_m": 0.01036,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.575685,
+          5.448573,
+          -0.821039
+        ],
+        [
+          -0.612391,
+          5.569697,
+          -1.110801
+        ]
+      ],
+      "radius_m": 0.008476,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.612391,
+          5.569697,
+          -1.110801
+        ],
+        [
+          -0.660918,
+          5.711114,
+          -1.389418
+        ]
+      ],
+      "radius_m": 0.006592,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.630589,
+          5.682537,
+          -0.773535
+        ],
+        [
+          -0.786232,
+          5.952286,
+          -0.807792
+        ]
+      ],
+      "radius_m": 0.009071,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.786232,
+          5.952286,
+          -0.807792
+        ],
+        [
+          -0.93591,
+          6.226994,
+          -0.824991
+        ]
+      ],
+      "radius_m": 0.007862,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.93591,
+          6.226994,
+          -0.824991
+        ],
+        [
+          -1.069352,
+          6.509526,
+          -0.848052
+        ]
+      ],
+      "radius_m": 0.006652,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.069352,
+          6.509526,
+          -0.848052
+        ],
+        [
+          -1.207858,
+          6.788366,
+          -0.883091
+        ]
+      ],
+      "radius_m": 0.005443,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -1.095104,
+          6.759042,
+          -0.276987
+        ],
+        [
+          -1.135263,
+          7.075393,
+          -0.159448
+        ]
+      ],
+      "radius_m": 0.006676,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -1.135263,
+          7.075393,
+          -0.159448
+        ],
+        [
+          -1.171238,
+          7.386398,
+          -0.027207
+        ]
+      ],
+      "radius_m": 0.005462,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.171238,
+          7.386398,
+          -0.027207
+        ],
+        [
+          -1.228845,
+          7.695341,
+          0.102183
+        ]
+      ],
+      "radius_m": 0.004248,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -1.443679,
+          7.297687,
+          -0.219615
+        ],
+        [
+          -1.576837,
+          7.476374,
+          -0.332081
+        ]
+      ],
+      "radius_m": 0.00626,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.576837,
+          7.476374,
+          -0.332081
+        ],
+        [
+          -1.694585,
+          7.668893,
+          -0.438761
+        ]
+      ],
+      "radius_m": 0.004471,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.776011,
+          7.815929,
+          -0.503891
+        ],
+        [
+          -0.676986,
+          7.99304,
+          -0.717703
+        ]
+      ],
+      "radius_m": 0.010488,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.676986,
+          7.99304,
+          -0.717703
+        ],
+        [
+          -0.582422,
+          8.168767,
+          -0.934654
+        ]
+      ],
+      "radius_m": 0.009089,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.582422,
+          8.168767,
+          -0.934654
+        ],
+        [
+          -0.481712,
+          8.348894,
+          -1.145133
+        ]
+      ],
+      "radius_m": 0.007691,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.481712,
+          8.348894,
+          -1.145133
+        ],
+        [
+          -0.366194,
+          8.527934,
+          -1.348825
+        ]
+      ],
+      "radius_m": 0.006293,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.605656,
+          8.328535,
+          -0.587574
+        ],
+        [
+          -0.640834,
+          8.652809,
+          -0.520192
+        ]
+      ],
+      "radius_m": 0.010084,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.640834,
+          8.652809,
+          -0.520192
+        ],
+        [
+          -0.666613,
+          8.979972,
+          -0.463348
+        ]
+      ],
+      "radius_m": 0.008251,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.666613,
+          8.979972,
+          -0.463348
+        ],
+        [
+          -0.680978,
+          9.309788,
+          -0.419228
+        ]
+      ],
+      "radius_m": 0.006417,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.503665,
+          8.7195,
+          -0.665881
+        ],
+        [
+          -0.276805,
+          8.91168,
+          -0.641238
+        ]
+      ],
+      "radius_m": 0.009107,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.276805,
+          8.91168,
+          -0.641238
+        ],
+        [
+          -0.057103,
+          9.111822,
+          -0.615171
+        ]
+      ],
+      "radius_m": 0.007893,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.057103,
+          9.111822,
+          -0.615171
+        ],
+        [
+          0.14914,
+          9.325716,
+          -0.588358
+        ]
+      ],
+      "radius_m": 0.006679,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.14914,
+          9.325716,
+          -0.588358
+        ],
+        [
+          0.341628,
+          9.551537,
+          -0.557391
+        ]
+      ],
+      "radius_m": 0.005464,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.133824,
+          5.006334,
+          1.132595
+        ],
+        [
+          0.18393,
+          5.309813,
+          1.142503
+        ]
+      ],
+      "radius_m": 0.01264,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.18393,
+          5.309813,
+          1.142503
+        ],
+        [
+          0.235581,
+          5.613172,
+          1.138751
+        ]
+      ],
+      "radius_m": 0.011541,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.235581,
+          5.613172,
+          1.138751
+        ],
+        [
+          0.279108,
+          5.917811,
+          1.135645
+        ]
+      ],
+      "radius_m": 0.010441,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.279108,
+          5.917811,
+          1.135645
+        ],
+        [
+          0.2959,
+          6.225032,
+          1.129186
+        ]
+      ],
+      "radius_m": 0.009342,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.2959,
+          6.225032,
+          1.129186
+        ],
+        [
+          0.305604,
+          6.532266,
+          1.114286
+        ]
+      ],
+      "radius_m": 0.008243,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.305604,
+          6.532266,
+          1.114286
+        ],
+        [
+          0.32971,
+          6.838437,
+          1.094624
+        ]
+      ],
+      "radius_m": 0.007144,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.357395,
+          6.314689,
+          1.38181
+        ],
+        [
+          -0.551958,
+          6.546377,
+          1.36792
+        ]
+      ],
+      "radius_m": 0.012928,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.551958,
+          6.546377,
+          1.36792
+        ],
+        [
+          -0.730631,
+          6.789413,
+          1.34079
+        ]
+      ],
+      "radius_m": 0.011204,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.730631,
+          6.789413,
+          1.34079
+        ],
+        [
+          -0.887034,
+          7.047075,
+          1.3112
+        ]
+      ],
+      "radius_m": 0.009481,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.887034,
+          7.047075,
+          1.3112
+        ],
+        [
+          -1.042519,
+          7.304872,
+          1.278153
+        ]
+      ],
+      "radius_m": 0.007757,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.927333,
+          7.083965,
+          2.132449
+        ],
+        [
+          1.024464,
+          7.268161,
+          2.139736
+        ]
+      ],
+      "radius_m": 0.007433,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.024464,
+          7.268161,
+          2.139736
+        ],
+        [
+          1.120059,
+          7.453296,
+          2.138213
+        ]
+      ],
+      "radius_m": 0.005309,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.964356,
+          7.188156,
+          2.219714
+        ],
+        [
+          0.936182,
+          7.282747,
+          2.28882
+        ]
+      ],
+      "radius_m": 0.008668,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.047214,
+          6.357135,
+          -0.195327
+        ],
+        [
+          1.035532,
+          6.39117,
+          -0.111124
+        ],
+        [
+          1.005093,
+          6.436646,
+          -0.037705
+        ],
+        [
+          0.995745,
+          6.473234,
+          0.045715
+        ],
+        [
+          0.969737,
+          6.519458,
+          0.12036
+        ],
+        [
+          0.960777,
+          6.553443,
+          0.204916
+        ],
+        [
+          0.933643,
+          6.599305,
+          0.279383
+        ],
+        [
+          0.924269,
+          6.633945,
+          0.363627
+        ]
+      ],
+      "radius_m": 0.003434,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.890359,
+          6.683049,
+          -0.011373
+        ],
+        [
+          0.892799,
+          6.928475,
+          -0.010193
+        ]
+      ],
+      "radius_m": 0.004821,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.892799,
+          6.928475,
+          -0.010193
+        ],
+        [
+          0.898903,
+          7.173839,
+          -0.009409
+        ]
+      ],
+      "radius_m": 0.003945,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.898903,
+          7.173839,
+          -0.009409
+        ],
+        [
+          0.899794,
+          7.419278,
+          -0.009187
+        ]
+      ],
+      "radius_m": 0.003068,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.446384,
+          7.325189,
+          -0.642503
+        ],
+        [
+          1.405528,
+          7.409148,
+          -0.646902
+        ],
+        [
+          1.389447,
+          7.500819,
+          -0.655579
+        ],
+        [
+          1.35151,
+          7.58607,
+          -0.661111
+        ],
+        [
+          1.337503,
+          7.678085,
+          -0.669748
+        ],
+        [
+          1.298368,
+          7.762506,
+          -0.678634
+        ],
+        [
+          1.282332,
+          7.854148,
+          -0.687702
+        ],
+        [
+          1.243443,
+          7.938882,
+          -0.694424
+        ]
+      ],
+      "radius_m": 0.003505,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.553013,
+          7.670049,
+          -0.724585
+        ],
+        [
+          1.60168,
+          7.746754,
+          -0.714647
+        ],
+        [
+          1.667872,
+          7.809654,
+          -0.711003
+        ],
+        [
+          1.717186,
+          7.885772,
+          -0.699814
+        ],
+        [
+          1.784441,
+          7.947635,
+          -0.698839
+        ],
+        [
+          1.831255,
+          8.025685,
+          -0.690614
+        ],
+        [
+          1.894897,
+          8.091224,
+          -0.688322
+        ]
+      ],
+      "radius_m": 0.002937,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          2.227052,
+          6.243466,
+          -0.863308
+        ],
+        [
+          2.299086,
+          6.232141,
+          -0.866294
+        ],
+        [
+          2.365998,
+          6.203006,
+          -0.866461
+        ],
+        [
+          2.43808,
+          6.192079,
+          -0.869738
+        ]
+      ],
+      "radius_m": 0.002999,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          2.373572,
+          6.295316,
+          -0.916084
+        ],
+        [
+          2.399037,
+          6.347953,
+          -0.948016
+        ],
+        [
+          2.431567,
+          6.403378,
+          -0.965586
+        ]
+      ],
+      "radius_m": 0.002888,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          2.273558,
+          6.607402,
+          -0.811037
+        ],
+        [
+          2.32535,
+          6.656804,
+          -0.814511
+        ],
+        [
+          2.372799,
+          6.705734,
+          -0.836638
+        ],
+        [
+          2.424777,
+          6.754973,
+          -0.839621
+        ]
+      ],
+      "radius_m": 0.002811,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          2.336835,
+          6.877302,
+          -0.795229
+        ],
+        [
+          2.303597,
+          6.962087,
+          -0.818754
+        ],
+        [
+          2.273212,
+          7.05106,
+          -0.821428
+        ],
+        [
+          2.239578,
+          7.133865,
+          -0.850731
+        ],
+        [
+          2.209625,
+          7.222845,
+          -0.856394
+        ],
+        [
+          2.178193,
+          7.306649,
+          -0.885299
+        ],
+        [
+          2.152971,
+          7.397106,
+          -0.890583
+        ],
+        [
+          2.124118,
+          7.481652,
+          -0.920015
+        ]
+      ],
+      "radius_m": 0.003527,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.580221,
+          5.463539,
+          -0.856843
+        ],
+        [
+          -0.583478,
+          5.425783,
+          -1.107076
+        ]
+      ],
+      "radius_m": 0.004971,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.583478,
+          5.425783,
+          -1.107076
+        ],
+        [
+          -0.587058,
+          5.400035,
+          -1.358824
+        ]
+      ],
+      "radius_m": 0.004067,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.587058,
+          5.400035,
+          -1.358824
+        ],
+        [
+          -0.594301,
+          5.383622,
+          -1.611275
+        ]
+      ],
+      "radius_m": 0.003164,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.616644,
+          5.582091,
+          -1.13522
+        ],
+        [
+          -0.746723,
+          5.748491,
+          -1.309848
+        ]
+      ],
+      "radius_m": 0.005383,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.746723,
+          5.748491,
+          -1.309848
+        ],
+        [
+          -0.873227,
+          5.929496,
+          -1.472139
+        ]
+      ],
+      "radius_m": 0.004404,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.873227,
+          5.929496,
+          -1.472139
+        ],
+        [
+          -1.000461,
+          6.125709,
+          -1.615026
+        ]
+      ],
+      "radius_m": 0.003426,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.901509,
+          6.163857,
+          -0.821038
+        ],
+        [
+          -0.968481,
+          6.214263,
+          -0.871805
+        ],
+        [
+          -1.048814,
+          6.249435,
+          -0.915542
+        ],
+        [
+          -1.112143,
+          6.302287,
+          -0.968452
+        ],
+        [
+          -1.192923,
+          6.339135,
+          -1.009929
+        ],
+        [
+          -1.255643,
+          6.394301,
+          -1.061176
+        ],
+        [
+          -1.336317,
+          6.432122,
+          -1.101976
+        ]
+      ],
+      "radius_m": 0.00315,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -1.094819,
+          6.560797,
+          -0.854495
+        ],
+        [
+          -1.166913,
+          6.758761,
+          -0.744995
+        ]
+      ],
+      "radius_m": 0.004664,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -1.166913,
+          6.758761,
+          -0.744995
+        ],
+        [
+          -1.223702,
+          6.963951,
+          -0.639878
+        ]
+      ],
+      "radius_m": 0.003816,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.223702,
+          6.963951,
+          -0.639878
+        ],
+        [
+          -1.2679,
+          7.174172,
+          -0.538726
+        ]
+      ],
+      "radius_m": 0.002968,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.137453,
+          7.094327,
+          -0.151397
+        ],
+        [
+          -1.10091,
+          7.165194,
+          -0.094981
+        ],
+        [
+          -1.085643,
+          7.231918,
+          -0.025303
+        ],
+        [
+          -1.049394,
+          7.305277,
+          0.028034
+        ],
+        [
+          -1.035328,
+          7.373581,
+          0.096421
+        ],
+        [
+          -1.000926,
+          7.446798,
+          0.151158
+        ],
+        [
+          -0.988006,
+          7.518496,
+          0.216218
+        ]
+      ],
+      "radius_m": 0.00314,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.183987,
+          7.454767,
+          0.001427
+        ],
+        [
+          -1.185423,
+          7.54219,
+          -0.020269
+        ],
+        [
+          -1.212642,
+          7.626465,
+          -0.03677
+        ],
+        [
+          -1.217014,
+          7.714183,
+          -0.056821
+        ],
+        [
+          -1.244272,
+          7.798469,
+          -0.073198
+        ],
+        [
+          -1.2506,
+          7.885746,
+          -0.094604
+        ]
+      ],
+      "radius_m": 0.002413,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.530824,
+          7.414629,
+          -0.293218
+        ],
+        [
+          -1.609361,
+          7.449023,
+          -0.320976
+        ],
+        [
+          -1.693813,
+          7.480437,
+          -0.322579
+        ],
+        [
+          -1.772481,
+          7.516603,
+          -0.347574
+        ]
+      ],
+      "radius_m": 0.002994,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.628933,
+          7.561552,
+          -0.37928
+        ],
+        [
+          -1.616027,
+          7.631147,
+          -0.408471
+        ],
+        [
+          -1.621298,
+          7.698318,
+          -0.444838
+        ],
+        [
+          -1.606981,
+          7.768764,
+          -0.471194
+        ],
+        [
+          -1.610462,
+          7.836207,
+          -0.507272
+        ]
+      ],
+      "radius_m": 0.002989,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.656498,
+          8.031112,
+          -0.764706
+        ],
+        [
+          -0.43933,
+          8.192636,
+          -0.850101
+        ]
+      ],
+      "radius_m": 0.005575,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.43933,
+          8.192636,
+          -0.850101
+        ],
+        [
+          -0.22882,
+          8.365799,
+          -0.929124
+        ]
+      ],
+      "radius_m": 0.004561,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.22882,
+          8.365799,
+          -0.929124
+        ],
+        [
+          -0.019541,
+          8.541202,
+          -1.006456
+        ]
+      ],
+      "radius_m": 0.003548,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.576381,
+          8.179572,
+          -0.947279
+        ],
+        [
+          -0.506456,
+          8.254392,
+          -1.27425
+        ]
+      ],
+      "radius_m": 0.005085,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.506456,
+          8.254392,
+          -1.27425
+        ],
+        [
+          -0.43387,
+          8.353925,
+          -1.593973
+        ]
+      ],
+      "radius_m": 0.003632,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.432922,
+          8.424512,
+          -1.231163
+        ],
+        [
+          -0.31221,
+          8.652746,
+          -1.261686
+        ]
+      ],
+      "radius_m": 0.005116,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.31221,
+          8.652746,
+          -1.261686
+        ],
+        [
+          -0.188823,
+          8.878512,
+          -1.299085
+        ]
+      ],
+      "radius_m": 0.003654,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.643278,
+          8.683825,
+          -0.514803
+        ],
+        [
+          -0.668703,
+          8.759214,
+          -0.55431
+        ],
+        [
+          -0.69979,
+          8.840501,
+          -0.572112
+        ],
+        [
+          -0.727102,
+          8.915624,
+          -0.610859
+        ],
+        [
+          -0.75893,
+          8.996894,
+          -0.62738
+        ]
+      ],
+      "radius_m": 0.003578,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.673627,
+          9.141013,
+          -0.441805
+        ],
+        [
+          -0.737663,
+          9.34765,
+          -0.238638
+        ]
+      ],
+      "radius_m": 0.003932,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.080825,
+          9.090212,
+          -0.617985
+        ],
+        [
+          0.045793,
+          9.362598,
+          -0.750673
+        ]
+      ],
+      "radius_m": 0.004246,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.09359,
+          9.268106,
+          -0.595579
+        ],
+        [
+          0.147613,
+          9.330472,
+          -0.542027
+        ],
+        [
+          0.181684,
+          9.392671,
+          -0.473863
+        ],
+        [
+          0.232286,
+          9.457473,
+          -0.419863
+        ],
+        [
+          0.266967,
+          9.51845,
+          -0.350907
+        ],
+        [
+          0.322389,
+          9.579632,
+          -0.297418
+        ],
+        [
+          0.355803,
+          9.640816,
+          -0.228021
+        ]
+      ],
+      "radius_m": 0.003467,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.243246,
+          5.666819,
+          1.138204
+        ],
+        [
+          0.256593,
+          5.937577,
+          1.317795
+        ]
+      ],
+      "radius_m": 0.006387,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.256593,
+          5.937577,
+          1.317795
+        ],
+        [
+          0.260736,
+          6.201911,
+          1.50714
+        ]
+      ],
+      "radius_m": 0.005226,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.260736,
+          6.201911,
+          1.50714
+        ],
+        [
+          0.261068,
+          6.469989,
+          1.691194
+        ]
+      ],
+      "radius_m": 0.004065,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.30286,
+          6.445388,
+          1.118499
+        ],
+        [
+          0.26804,
+          6.65166,
+          0.974991
+        ]
+      ],
+      "radius_m": 0.004983,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.26804,
+          6.65166,
+          0.974991
+        ],
+        [
+          0.237161,
+          6.861998,
+          0.836572
+        ]
+      ],
+      "radius_m": 0.004077,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.237161,
+          6.861998,
+          0.836572
+        ],
+        [
+          0.201492,
+          7.080915,
+          0.713453
+        ]
+      ],
+      "radius_m": 0.003171,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.68935,
+          6.733261,
+          1.347058
+        ],
+        [
+          -0.829262,
+          6.921166,
+          1.486026
+        ]
+      ],
+      "radius_m": 0.005692,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.829262,
+          6.921166,
+          1.486026
+        ],
+        [
+          -0.97743,
+          7.109125,
+          1.616076
+        ]
+      ],
+      "radius_m": 0.004657,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.97743,
+          7.109125,
+          1.616076
+        ],
+        [
+          -1.112264,
+          7.302439,
+          1.752624
+        ]
+      ],
+      "radius_m": 0.003622,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.831907,
+          6.956257,
+          1.321629
+        ],
+        [
+          -0.895953,
+          7.236507,
+          1.186157
+        ]
+      ],
+      "radius_m": 0.006242,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.895953,
+          7.236507,
+          1.186157
+        ],
+        [
+          -0.962663,
+          7.509262,
+          1.037333
+        ]
+      ],
+      "radius_m": 0.005107,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.962663,
+          7.509262,
+          1.037333
+        ],
+        [
+          -1.026737,
+          7.787009,
+          0.896815
+        ]
+      ],
+      "radius_m": 0.003972,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.996519,
+          7.215167,
+          2.13764
+        ],
+        [
+          1.011909,
+          7.291796,
+          2.1023
+        ],
+        [
+          1.017995,
+          7.357936,
+          2.048019
+        ],
+        [
+          1.03406,
+          7.43368,
+          2.011107
+        ],
+        [
+          1.036195,
+          7.500824,
+          1.957769
+        ],
+        [
+          1.051482,
+          7.576422,
+          1.920231
+        ],
+        [
+          1.055887,
+          7.641877,
+          1.864966
+        ],
+        [
+          1.071209,
+          7.716138,
+          1.824862
+        ]
+      ],
+      "radius_m": 0.003217,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.046937,
+          7.311684,
+          2.139378
+        ],
+        [
+          1.074917,
+          7.351261,
+          2.167969
+        ],
+        [
+          1.102573,
+          7.381041,
+          2.206892
+        ]
+      ],
+      "radius_m": 0.002682,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.097981,
+          7.410538,
+          2.138565
+        ],
+        [
+          1.157208,
+          7.463026,
+          2.106181
+        ],
+        [
+          1.222427,
+          7.49625,
+          2.061976
+        ],
+        [
+          1.280339,
+          7.548205,
+          2.026503
+        ],
+        [
+          1.34302,
+          7.5817,
+          1.978957
+        ],
+        [
+          1.401263,
+          7.633365,
+          1.943603
+        ],
+        [
+          1.464324,
+          7.666096,
+          1.896026
+        ]
+      ],
+      "radius_m": 0.002748,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.955937,
+          7.216423,
+          2.240365
+        ],
+        [
+          0.973224,
+          7.305547,
+          2.269519
+        ]
+      ],
+      "radius_m": 0.005165,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.99491,
+          6.474718,
+          0.04811
+        ],
+        [
+          1.023638,
+          6.51606,
+          0.127847
+        ],
+        [
+          1.058346,
+          6.572969,
+          0.194547
+        ],
+        [
+          1.08956,
+          6.608979,
+          0.275918
+        ],
+        [
+          1.126906,
+          6.662986,
+          0.3436
+        ]
+      ],
+      "radius_m": 0.002097,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.955418,
+          6.5625,
+          0.219623
+        ],
+        [
+          0.90973,
+          6.636519,
+          0.241551
+        ],
+        [
+          0.853003,
+          6.696813,
+          0.276099
+        ],
+        [
+          0.80828,
+          6.771819,
+          0.296615
+        ]
+      ],
+      "radius_m": 0.001711,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.895281,
+          7.028274,
+          -0.009874
+        ],
+        [
+          0.9238,
+          7.098227,
+          -0.04631
+        ],
+        [
+          0.939482,
+          7.177536,
+          -0.068639
+        ],
+        [
+          0.967383,
+          7.248566,
+          -0.103433
+        ],
+        [
+          0.982105,
+          7.328919,
+          -0.122432
+        ],
+        [
+          1.012992,
+          7.398994,
+          -0.156635
+        ]
+      ],
+      "radius_m": 0.002248,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.899459,
+          7.326933,
+          -0.00927
+        ],
+        [
+          0.870423,
+          7.402323,
+          -0.004991
+        ],
+        [
+          0.822486,
+          7.467456,
+          -0.002838
+        ],
+        [
+          0.791517,
+          7.542038,
+          0.001997
+        ],
+        [
+          0.740876,
+          7.605125,
+          0.002733
+        ],
+        [
+          0.708155,
+          7.679063,
+          0.005462
+        ]
+      ],
+      "radius_m": 0.002195,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.386876,
+          7.506598,
+          -0.655954
+        ],
+        [
+          1.384213,
+          7.579979,
+          -0.71963
+        ],
+        [
+          1.389654,
+          7.666754,
+          -0.763068
+        ],
+        [
+          1.387811,
+          7.738577,
+          -0.828525
+        ],
+        [
+          1.393472,
+          7.823905,
+          -0.874714
+        ]
+      ],
+      "radius_m": 0.002138,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.336265,
+          7.680755,
+          -0.670029
+        ],
+        [
+          1.247316,
+          7.720071,
+          -0.675094
+        ],
+        [
+          1.170386,
+          7.779682,
+          -0.678496
+        ],
+        [
+          1.081013,
+          7.818186,
+          -0.682118
+        ],
+        [
+          1.006446,
+          7.880819,
+          -0.682628
+        ]
+      ],
+      "radius_m": 0.002141,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.273721,
+          7.87291,
+          -0.68919
+        ],
+        [
+          1.286788,
+          7.946025,
+          -0.657825
+        ],
+        [
+          1.278918,
+          8.019823,
+          -0.626325
+        ],
+        [
+          1.29227,
+          8.092837,
+          -0.594845
+        ],
+        [
+          1.285058,
+          8.166921,
+          -0.563863
+        ]
+      ],
+      "radius_m": 0.001902,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.689863,
+          7.843598,
+          -0.706014
+        ],
+        [
+          1.762056,
+          7.879891,
+          -0.689193
+        ],
+        [
+          1.824924,
+          7.919921,
+          -0.653736
+        ],
+        [
+          1.897186,
+          7.956314,
+          -0.637429
+        ]
+      ],
+      "radius_m": 0.001634,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.825021,
+          8.015292,
+          -0.691709
+        ],
+        [
+          1.880316,
+          8.078863,
+          -0.734094
+        ],
+        [
+          1.941197,
+          8.148295,
+          -0.75328
+        ],
+        [
+          1.996223,
+          8.211589,
+          -0.796426
+        ]
+      ],
+      "radius_m": 0.001912,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          2.312199,
+          6.226431,
+          -0.866327
+        ],
+        [
+          2.365797,
+          6.164649,
+          -0.85588
+        ],
+        [
+          2.402601,
+          6.090923,
+          -0.85289
+        ],
+        [
+          2.455668,
+          6.029055,
+          -0.840433
+        ],
+        [
+          2.490873,
+          5.954705,
+          -0.834795
+        ]
+      ],
+      "radius_m": 0.001928,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          2.400657,
+          6.197752,
+          -0.868036
+        ],
+        [
+          2.460999,
+          6.208346,
+          -0.92175
+        ]
+      ],
+      "radius_m": 0.001705,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          2.392005,
+          6.333418,
+          -0.939198
+        ],
+        [
+          2.395569,
+          6.361708,
+          -0.98596
+        ],
+        [
+          2.39987,
+          6.37617,
+          -1.03861
+        ]
+      ],
+      "radius_m": 0.001721,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          2.411938,
+          6.369933,
+          -0.954984
+        ],
+        [
+          2.391318,
+          6.449312,
+          -0.990428
+        ],
+        [
+          2.390625,
+          6.534425,
+          -1.017586
+        ],
+        [
+          2.370231,
+          6.611796,
+          -1.057338
+        ]
+      ],
+      "radius_m": 0.001707,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          2.325841,
+          6.657309,
+          -0.81474
+        ],
+        [
+          2.369864,
+          6.677001,
+          -0.869498
+        ],
+        [
+          2.396418,
+          6.707433,
+          -0.930268
+        ]
+      ],
+      "radius_m": 0.001548,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          2.384718,
+          6.717025,
+          -0.837322
+        ],
+        [
+          2.408138,
+          6.784372,
+          -0.81415
+        ],
+        [
+          2.448857,
+          6.841702,
+          -0.788145
+        ],
+        [
+          2.471961,
+          6.909735,
+          -0.766725
+        ]
+      ],
+      "radius_m": 0.0016,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          2.257249,
+          7.09036,
+          -0.835335
+        ],
+        [
+          2.192421,
+          7.123898,
+          -0.896436
+        ],
+        [
+          2.142588,
+          7.178772,
+          -0.956153
+        ],
+        [
+          2.076155,
+          7.215341,
+          -1.013687
+        ],
+        [
+          2.025542,
+          7.271358,
+          -1.071662
+        ]
+      ],
+      "radius_m": 0.00211,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          2.217486,
+          7.199493,
+          -0.854908
+        ],
+        [
+          2.18021,
+          7.282586,
+          -0.828047
+        ],
+        [
+          2.144785,
+          7.356253,
+          -0.779738
+        ],
+        [
+          2.109651,
+          7.440353,
+          -0.753122
+        ],
+        [
+          2.077416,
+          7.515635,
+          -0.70507
+        ]
+      ],
+      "radius_m": 0.002106,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          2.158157,
+          7.378504,
+          -0.889496
+        ],
+        [
+          2.159926,
+          7.468674,
+          -0.915664
+        ],
+        [
+          2.185372,
+          7.558243,
+          -0.927844
+        ],
+        [
+          2.187774,
+          7.648888,
+          -0.952258
+        ]
+      ],
+      "radius_m": 0.001756,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.582867,
+          5.43286,
+          -1.060174
+        ],
+        [
+          -0.596067,
+          5.385782,
+          -1.123656
+        ],
+        [
+          -0.629139,
+          5.344767,
+          -1.184026
+        ],
+        [
+          -0.644666,
+          5.299341,
+          -1.248182
+        ],
+        [
+          -0.678424,
+          5.260944,
+          -1.309881
+        ],
+        [
+          -0.69117,
+          5.217632,
+          -1.376079
+        ]
+      ],
+      "radius_m": 0.002181,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.586362,
+          5.405041,
+          -1.309872
+        ],
+        [
+          -0.607355,
+          5.435572,
+          -1.3999
+        ],
+        [
+          -0.642489,
+          5.483711,
+          -1.47688
+        ],
+        [
+          -0.663238,
+          5.511699,
+          -1.567786
+        ],
+        [
+          -0.696136,
+          5.557449,
+          -1.647175
+        ]
+      ],
+      "radius_m": 0.002141,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.589685,
+          5.394082,
+          -1.450384
+        ],
+        [
+          -0.557438,
+          5.366422,
+          -1.534114
+        ],
+        [
+          -0.509228,
+          5.356203,
+          -1.614033
+        ],
+        [
+          -0.477821,
+          5.329171,
+          -1.698285
+        ],
+        [
+          -0.429969,
+          5.320868,
+          -1.77864
+        ]
+      ],
+      "radius_m": 0.002091,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.802586,
+          5.828422,
+          -1.381515
+        ],
+        [
+          -0.868734,
+          5.870282,
+          -1.428125
+        ],
+        [
+          -0.947172,
+          5.890653,
+          -1.469752
+        ],
+        [
+          -1.015154,
+          5.928625,
+          -1.517047
+        ],
+        [
+          -1.094928,
+          5.947475,
+          -1.55681
+        ]
+      ],
+      "radius_m": 0.002052,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.924139,
+          6.00801,
+          -1.529314
+        ],
+        [
+          -0.933867,
+          6.089475,
+          -1.538462
+        ],
+        [
+          -0.956081,
+          6.168636,
+          -1.531055
+        ],
+        [
+          -0.967481,
+          6.249773,
+          -1.541137
+        ],
+        [
+          -0.993448,
+          6.327741,
+          -1.533291
+        ]
+      ],
+      "radius_m": 0.001929,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.026475,
+          6.239654,
+          -0.90338
+        ],
+        [
+          -1.094285,
+          6.281141,
+          -0.902478
+        ],
+        [
+          -1.167064,
+          6.309861,
+          -0.888389
+        ],
+        [
+          -1.2336,
+          6.353338,
+          -0.88674
+        ],
+        [
+          -1.304926,
+          6.384282,
+          -0.870154
+        ]
+      ],
+      "radius_m": 0.001886,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.256176,
+          6.394551,
+          -1.061446
+        ],
+        [
+          -1.299495,
+          6.407368,
+          -1.13673
+        ],
+        [
+          -1.348813,
+          6.439765,
+          -1.201742
+        ],
+        [
+          -1.391472,
+          6.452643,
+          -1.277392
+        ]
+      ],
+      "radius_m": 0.001691,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.157006,
+          6.731556,
+          -0.760043
+        ],
+        [
+          -1.127806,
+          6.797294,
+          -0.721302
+        ],
+        [
+          -1.11816,
+          6.870056,
+          -0.685418
+        ],
+        [
+          -1.091266,
+          6.936772,
+          -0.646681
+        ],
+        [
+          -1.08644,
+          7.010992,
+          -0.612869
+        ]
+      ],
+      "radius_m": 0.001917,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.231665,
+          7.001825,
+          -0.621654
+        ],
+        [
+          -1.293706,
+          7.068759,
+          -0.59186
+        ],
+        [
+          -1.367349,
+          7.130064,
+          -0.585907
+        ],
+        [
+          -1.427682,
+          7.198467,
+          -0.555944
+        ]
+      ],
+      "radius_m": 0.001779,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.075273,
+          7.252904,
+          -0.010045
+        ],
+        [
+          -1.048083,
+          7.268466,
+          0.063345
+        ],
+        [
+          -1.025886,
+          7.303873,
+          0.131325
+        ],
+        [
+          -1.000066,
+          7.321222,
+          0.20481
+        ],
+        [
+          -0.979076,
+          7.357323,
+          0.272808
+        ]
+      ],
+      "radius_m": 0.00189,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.030271,
+          7.384344,
+          0.104468
+        ],
+        [
+          -0.9661,
+          7.435121,
+          0.109498
+        ],
+        [
+          -0.915335,
+          7.499465,
+          0.111505
+        ],
+        [
+          -0.848596,
+          7.546475,
+          0.119079
+        ],
+        [
+          -0.796026,
+          7.609204,
+          0.123862
+        ]
+      ],
+      "radius_m": 0.001921,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.213863,
+          7.650969,
+          -0.042371
+        ],
+        [
+          -1.22611,
+          7.699512,
+          -0.104698
+        ],
+        [
+          -1.257529,
+          7.745084,
+          -0.16238
+        ],
+        [
+          -1.270098,
+          7.790067,
+          -0.227262
+        ]
+      ],
+      "radius_m": 0.001607,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.245182,
+          7.811011,
+          -0.076274
+        ],
+        [
+          -1.26516,
+          7.885111,
+          -0.0501
+        ],
+        [
+          -1.303958,
+          7.950041,
+          -0.020878
+        ],
+        [
+          -1.323178,
+          8.025448,
+          0.001912
+        ]
+      ],
+      "radius_m": 0.001619,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.650338,
+          7.464266,
+          -0.321754
+        ],
+        [
+          -1.710261,
+          7.455614,
+          -0.331375
+        ],
+        [
+          -1.766901,
+          7.455076,
+          -0.354824
+        ]
+      ],
+      "radius_m": 0.00193,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.617506,
+          7.649999,
+          -0.418677
+        ],
+        [
+          -1.655011,
+          7.711995,
+          -0.42804
+        ],
+        [
+          -1.689382,
+          7.775682,
+          -0.41802
+        ]
+      ],
+      "radius_m": 0.001607,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.609422,
+          7.756754,
+          -0.4667
+        ],
+        [
+          -1.551835,
+          7.820104,
+          -0.499809
+        ],
+        [
+          -1.490866,
+          7.887657,
+          -0.511852
+        ],
+        [
+          -1.434394,
+          7.95075,
+          -0.547287
+        ]
+      ],
+      "radius_m": 0.001733,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.420565,
+          8.208072,
+          -0.857145
+        ],
+        [
+          -0.382789,
+          8.28771,
+          -0.850092
+        ],
+        [
+          -0.344789,
+          8.365774,
+          -0.866859
+        ],
+        [
+          -0.306244,
+          8.445146,
+          -0.861073
+        ],
+        [
+          -0.267662,
+          8.522791,
+          -0.87844
+        ]
+      ],
+      "radius_m": 0.002013,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.198929,
+          8.390851,
+          -0.940169
+        ],
+        [
+          -0.123038,
+          8.406207,
+          -0.961321
+        ],
+        [
+          -0.044427,
+          8.401118,
+          -0.97672
+        ],
+        [
+          0.031822,
+          8.41399,
+          -0.998241
+        ],
+        [
+          0.110403,
+          8.407018,
+          -1.013039
+        ],
+        [
+          0.187118,
+          8.419084,
+          -1.033335
+        ]
+      ],
+      "radius_m": 0.002183,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.536089,
+          8.222684,
+          -1.135684
+        ],
+        [
+          -0.578606,
+          8.23933,
+          -1.204692
+        ],
+        [
+          -0.607725,
+          8.24478,
+          -1.281952
+        ],
+        [
+          -0.651614,
+          8.26467,
+          -1.349221
+        ],
+        [
+          -0.681056,
+          8.271708,
+          -1.426231
+        ],
+        [
+          -0.725207,
+          8.294053,
+          -1.49255
+        ]
+      ],
+      "radius_m": 0.002384,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.454525,
+          8.325601,
+          -1.502991
+        ],
+        [
+          -0.41004,
+          8.34911,
+          -1.551818
+        ],
+        [
+          -0.375248,
+          8.3874,
+          -1.599137
+        ]
+      ],
+      "radius_m": 0.00206,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.330051,
+          8.619014,
+          -1.257175
+        ],
+        [
+          -0.321313,
+          8.708463,
+          -1.231442
+        ],
+        [
+          -0.323133,
+          8.789261,
+          -1.184454
+        ],
+        [
+          -0.315259,
+          8.878869,
+          -1.159002
+        ],
+        [
+          -0.319118,
+          8.960283,
+          -1.113215
+        ],
+        [
+          -0.307875,
+          9.049218,
+          -1.08669
+        ]
+      ],
+      "radius_m": 0.002419,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.223868,
+          8.814389,
+          -1.288463
+        ],
+        [
+          -0.148619,
+          8.859366,
+          -1.290282
+        ],
+        [
+          -0.065894,
+          8.887249,
+          -1.282054
+        ],
+        [
+          0.009118,
+          8.932655,
+          -1.282163
+        ],
+        [
+          0.092572,
+          8.958367,
+          -1.274232
+        ],
+        [
+          0.167226,
+          9.004349,
+          -1.275195
+        ]
+      ],
+      "radius_m": 0.002316,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.677254,
+          8.781574,
+          -0.559207
+        ],
+        [
+          -0.675444,
+          8.875698,
+          -0.542345
+        ],
+        [
+          -0.666971,
+          8.962292,
+          -0.502638
+        ],
+        [
+          -0.666818,
+          9.05602,
+          -0.483617
+        ]
+      ],
+      "radius_m": 0.001775,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.713589,
+          8.878456,
+          -0.591688
+        ],
+        [
+          -0.764216,
+          8.926702,
+          -0.609387
+        ],
+        [
+          -0.827407,
+          8.959363,
+          -0.621395
+        ],
+        [
+          -0.879183,
+          9.006164,
+          -0.639642
+        ]
+      ],
+      "radius_m": 0.002136,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.738356,
+          8.944361,
+          -0.616701
+        ],
+        [
+          -0.784366,
+          9.001346,
+          -0.58714
+        ],
+        [
+          -0.844042,
+          9.047933,
+          -0.564638
+        ],
+        [
+          -0.888421,
+          9.104913,
+          -0.532673
+        ]
+      ],
+      "radius_m": 0.002117,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.696544,
+          9.214963,
+          -0.369097
+        ],
+        [
+          -0.73962,
+          9.228374,
+          -0.306318
+        ],
+        [
+          -0.789056,
+          9.257661,
+          -0.254598
+        ],
+        [
+          -0.833907,
+          9.271071,
+          -0.193074
+        ]
+      ],
+      "radius_m": 0.002104,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.718333,
+          9.285273,
+          -0.299967
+        ],
+        [
+          -0.699001,
+          9.314947,
+          -0.231184
+        ],
+        [
+          -0.660671,
+          9.350494,
+          -0.174153
+        ],
+        [
+          -0.639143,
+          9.382089,
+          -0.106894
+        ],
+        [
+          -0.602687,
+          9.420157,
+          -0.050262
+        ]
+      ],
+      "radius_m": 0.001855,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.029659,
+          9.200283,
+          -0.671604
+        ],
+        [
+          0.004668,
+          9.278661,
+          -0.662935
+        ],
+        [
+          0.020182,
+          9.361258,
+          -0.644667
+        ],
+        [
+          0.054341,
+          9.439697,
+          -0.63589
+        ],
+        [
+          0.07086,
+          9.521685,
+          -0.615847
+        ]
+      ],
+      "radius_m": 0.001979,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.026362,
+          9.320798,
+          -0.730311
+        ],
+        [
+          0.049892,
+          9.338111,
+          -0.798813
+        ],
+        [
+          0.084258,
+          9.370211,
+          -0.856558
+        ],
+        [
+          0.109627,
+          9.387537,
+          -0.924397
+        ]
+      ],
+      "radius_m": 0.001925,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.171628,
+          9.374312,
+          -0.493982
+        ],
+        [
+          0.218798,
+          9.447524,
+          -0.466333
+        ],
+        [
+          0.272962,
+          9.520718,
+          -0.458698
+        ],
+        [
+          0.318528,
+          9.594324,
+          -0.42945
+        ],
+        [
+          0.372536,
+          9.667495,
+          -0.420587
+        ]
+      ],
+      "radius_m": 0.002078,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.286484,
+          9.539995,
+          -0.332071
+        ],
+        [
+          0.340429,
+          9.608275,
+          -0.338345
+        ],
+        [
+          0.375038,
+          9.688168,
+          -0.343904
+        ],
+        [
+          0.429421,
+          9.756324,
+          -0.346865
+        ]
+      ],
+      "radius_m": 0.001776,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.257345,
+          5.985556,
+          1.352162
+        ],
+        [
+          0.267202,
+          6.0802,
+          1.371905
+        ],
+        [
+          0.258543,
+          6.176778,
+          1.378388
+        ],
+        [
+          0.269242,
+          6.27101,
+          1.399608
+        ],
+        [
+          0.257479,
+          6.366945,
+          1.409735
+        ],
+        [
+          0.266587,
+          6.460515,
+          1.434354
+        ]
+      ],
+      "radius_m": 0.002485,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.260859,
+          6.301716,
+          1.575663
+        ],
+        [
+          0.248584,
+          6.345226,
+          1.659124
+        ],
+        [
+          0.24678,
+          6.368499,
+          1.751128
+        ],
+        [
+          0.234641,
+          6.414271,
+          1.833391
+        ],
+        [
+          0.234623,
+          6.437429,
+          1.925441
+        ],
+        [
+          0.223509,
+          6.480688,
+          2.009194
+        ]
+      ],
+      "radius_m": 0.002445,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.264063,
+          6.678752,
+          0.957163
+        ],
+        [
+          0.270241,
+          6.722776,
+          0.888913
+        ],
+        [
+          0.295339,
+          6.758657,
+          0.820232
+        ],
+        [
+          0.30008,
+          6.801948,
+          0.7514
+        ],
+        [
+          0.32516,
+          6.834436,
+          0.681044
+        ],
+        [
+          0.32817,
+          6.875102,
+          0.610535
+        ]
+      ],
+      "radius_m": 0.002204,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.216661,
+          6.987813,
+          0.765814
+        ],
+        [
+          0.157506,
+          7.053193,
+          0.744485
+        ],
+        [
+          0.094275,
+          7.105248,
+          0.705485
+        ],
+        [
+          0.036366,
+          7.172291,
+          0.685973
+        ],
+        [
+          -0.028473,
+          7.223753,
+          0.648875
+        ]
+      ],
+      "radius_m": 0.002046,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.824474,
+          6.914736,
+          1.48127
+        ],
+        [
+          -0.831517,
+          6.967476,
+          1.564815
+        ],
+        [
+          -0.859835,
+          7.023204,
+          1.641649
+        ],
+        [
+          -0.864869,
+          7.071427,
+          1.728021
+        ],
+        [
+          -0.895234,
+          7.125564,
+          1.80521
+        ],
+        [
+          -0.901777,
+          7.172348,
+          1.892269
+        ]
+      ],
+      "radius_m": 0.002606,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.997424,
+          7.13779,
+          1.636324
+        ],
+        [
+          -1.070047,
+          7.173485,
+          1.650715
+        ],
+        [
+          -1.139972,
+          7.198182,
+          1.686156
+        ],
+        [
+          -1.213354,
+          7.231202,
+          1.702895
+        ]
+      ],
+      "radius_m": 0.002279,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.928836,
+          7.370953,
+          1.112799
+        ],
+        [
+          -1.00434,
+          7.408893,
+          1.068499
+        ],
+        [
+          -1.064576,
+          7.468255,
+          1.024334
+        ],
+        [
+          -1.13866,
+          7.508127,
+          0.979338
+        ],
+        [
+          -1.200251,
+          7.565939,
+          0.934986
+        ]
+      ],
+      "radius_m": 0.002113,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.9847,
+          7.60479,
+          0.989004
+        ],
+        [
+          -0.979706,
+          7.691375,
+          0.985483
+        ],
+        [
+          -0.994008,
+          7.776598,
+          0.993668
+        ],
+        [
+          -0.988992,
+          7.86325,
+          0.992776
+        ],
+        [
+          -1.003206,
+          7.948401,
+          1.001815
+        ],
+        [
+          -0.996903,
+          8.03496,
+          1.000349
+        ]
+      ],
+      "radius_m": 0.0023,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.020072,
+          7.367731,
+          2.043246
+        ],
+        [
+          1.05126,
+          7.433447,
+          2.067176
+        ],
+        [
+          1.087832,
+          7.500631,
+          2.070746
+        ],
+        [
+          1.123407,
+          7.564611,
+          2.093219
+        ]
+      ],
+      "radius_m": 0.001637,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.044815,
+          7.543451,
+          1.936603
+        ],
+        [
+          1.082993,
+          7.600835,
+          1.875842
+        ],
+        [
+          1.140242,
+          7.653013,
+          1.82642
+        ],
+        [
+          1.176425,
+          7.710868,
+          1.76489
+        ]
+      ],
+      "radius_m": 0.001734,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.064656,
+          7.336747,
+          2.157484
+        ],
+        [
+          1.077402,
+          7.423686,
+          2.167277
+        ],
+        [
+          1.109988,
+          7.505849,
+          2.165257
+        ]
+      ],
+      "radius_m": 0.001543,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.25413,
+          7.524692,
+          2.042557
+        ],
+        [
+          1.29112,
+          7.560896,
+          2.038329
+        ],
+        [
+          1.331145,
+          7.592679,
+          2.047533
+        ]
+      ],
+      "radius_m": 0.001756,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.356746,
+          7.593876,
+          1.970626
+        ],
+        [
+          1.411865,
+          7.619242,
+          1.926425
+        ],
+        [
+          1.459244,
+          7.631715,
+          1.869549
+        ],
+        [
+          1.513086,
+          7.656415,
+          1.823439
+        ]
+      ],
+      "radius_m": 0.001554,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.964233,
+          7.259197,
+          2.254357
+        ],
+        [
+          1.005872,
+          7.297516,
+          2.252143
+        ],
+        [
+          1.037637,
+          7.344378,
+          2.253567
+        ]
+      ],
+      "radius_m": 0.002177,
+      "material": "twig"
+    }
+  ]
+}
