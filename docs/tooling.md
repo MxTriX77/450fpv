@@ -54,7 +54,7 @@ Everything below is part of the project and lives in the repo. A new session in 
 - **[`CLAUDE.md`](../CLAUDE.md):** the orchestrator's operating rules, loaded every session. It covers the read-first list, realism, delegation, the pilot, git, OPSEC, engineering rules, tokens and verification.
 - **[`.claude/agents/`](../.claude/agents/):** seven role subagents. Each file holds the role's description (for auto-selection), what it owns, its principles, its git identity and branch prefix, and the handoff block:
   - reference-analyst, asset-artist, world-builder, tech-artist, physics-engineer, game-developer, qa-engineer
-- **One fresh subagent per logical task** (D-029).
+- **One fresh subagent per logical task** (D-029), always on Opus 5.5, planned as independent units that can run at the same time (D-033).
 - **At most 2 in parallel.**
 - **Each works in its own git worktree,** using Claude Code's worktree isolation.
 - **Handoff block:** every subagent ends with it ([workflow.md](workflow.md)), and the orchestrator summarises it for the pilot. The pilot can see the team work.
