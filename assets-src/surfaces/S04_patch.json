@@ -3,6 +3,7 @@
   "size_m": 12.0,
   "cell_m": 0.25,
   "relief_m": 0.04,
+  "bare": { "share": 0.08, "size_m": { "min": 0.5, "max": 2.0 }, "outline_vertices": 8 },
   "mounds_per_m2": 0.02,
   "mound_w_m": { "min": 0.3, "max": 0.5 },
   "mound_h_m": { "min": 0.08, "max": 0.15 },

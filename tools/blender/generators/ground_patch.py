@@ -57,6 +57,14 @@ PARAMS = {
                "effect": "grid cell of the LOD0/LOD1 top; small enough to follow the mound spheres (check)"},
     "relief_m": {"type": "float", "range": (0.0, TOLERANCE_M), "default": 0.04,
                  "effect": "the mat's unevenness, +- about the mean top y = 0, within the audit's tolerance"},
+    "bare.share": {"type": "float", "range": (0.0, 0.3), "default": 0.08,
+                   "effect": "share of the patch under bare soil patches, measured on their step outlines; the ground "
+                             "recipe draws its bare mask from the same layout (lib.patches)"},
+    "bare.size_m.min": {"type": "float", "range": (0.3, 3.0), "default": 0.5,
+                        "effect": "shortest bare patch along the lodging; at least the cell's diagonal"},
+    "bare.size_m.max": {"type": "float", "range": (0.3, 3.0), "default": 2.0, "effect": "longest bare patch"},
+    "bare.outline_vertices": {"type": "int", "range": (6, 12), "default": 8,
+                              "effect": "corners of a bare patch's convex step outline; one mat edge box per edge"},
     "mounds_per_m2": {"type": "float", "range": (0.0, 1.0), "default": 0.02, "effect": "earth mounds per m2 of patch"},
     "mound_w_m.min": {"type": "float", "range": (0.1, 2.0), "default": 0.3, "effect": "narrowest mound foot"},
     "mound_w_m.max": {"type": "float", "range": (0.1, 2.0), "default": 0.5, "effect": "widest mound foot"},
@@ -112,6 +120,9 @@ def check(params):
     relief and spheres the grid can follow within the audit's tolerance, mounds that fit the patch, ordered LODs."""
     problems = [f"'{key}.min' = {params[key]['min']} exceeds '{key}.max' = {params[key]['max']}"
                 for key in RANGES if params[key]["min"] > params[key]["max"]]
+    bare = params["bare"]["size_m"]
+    if bare["min"] > bare["max"]:
+        problems.append(f"'bare.size_m.min' = {bare['min']} exceeds 'bare.size_m.max' = {bare['max']}")
     if params["bake_radius_m"] > params["size_m"] / 2:
         problems.append(f"'bake_radius_m' = {params['bake_radius_m']} reaches beyond the patch; at most size_m / 2 = "
                         f"{params['size_m'] / 2:g}")

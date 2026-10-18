@@ -1,10 +1,14 @@
-"""derive.py against the spec scenarios "Ground recipe derived and wired" and "Mean albedo hits the target"
-(p1-s04-belt-straw): the four maps of a ground recipe from two synthetic sets, the albedo's mean luminance within
-+-5 % of the target (printed), the bare and green shares within +-2 points of the recipe, the detail albedo grey
-at a linear mean of 0.5, the soil on its optional target, a bare patch's feather broken by the cover, the soil in
-the gaps between straws at the cover's gap_share, the recipe recorded beside the maps, identical bytes on a rerun and regeneration on a recipe
-or source change, and the failures named with nothing written. The last test measures the real belt_straw albedo."""
+"""derive.py against the spec scenarios "Ground recipe derived and wired", "Mean albedo hits the target" and "A
+formula constant changes" (p1-s04-belt-straw): the four maps of a ground recipe from two synthetic sets, the
+albedo's mean luminance within +-5 % of the target (printed), the bare share on the asset's outlines and the green
+share within +-2 points, the detail albedo grey at a linear mean of 0.5, the soil on its optional target, a bare
+patch's feather broken by the cover, the soil in the gaps between straws at the cover's gap_share, the recipe
+recorded beside the maps, identical bytes on a rerun and regeneration on a change of the recipe, a source, a
+formula constant, the patch layout's constants or the asset's layout params, and the failures named with nothing
+written. The bare mask and the step outlines agree (review-physics PR7 c). The last test measures the real
+belt_straw albedo."""
 import json
+import math
 import random
 from pathlib import Path
 
@@ -14,17 +18,21 @@ from PIL import Image, ImageChops
 import derive
 import fetch
 from conftest import SET_ID, THIRD_PARTY, make_root
+from lib import patches  # tools/blender, which derive.py puts on the path
 
 RECIPES = Path("assets-src/materials")
 MATERIALS = Path("unity/Assets/_Project/Art/Materials")
 MATERIAL = "fake_ground"
 COVER_ID = "fake_cover"
 SOIL_RGB, COVER_RGB = (70, 55, 40), (210, 180, 120)
+LAYOUT_PARAMS = "assets-src/surfaces/fake_patch.json"  # the asset params the bare patches come from
+PARAMS = {"seed": 7, "size_m": 12, "bare": {"share": 0.08, "size_m": {"min": 0.5, "max": 2.0}, "outline_vertices": 8},
+          "lodging": {"azimuth_deg": 25, "bias": 0.3}}
 RECIPE = {
     "schema": 1, "kind": "ground", "shader": "Universal Render Pipeline/Lit", "seed": 7, "size_m": 12, "output_px": 256,
     "soil": {"texture_set": f"polyhaven/{SET_ID}", "tile_size_m": 1.3},
     "cover": {"texture_set": f"polyhaven/{COVER_ID}", "tile_size_m": 2.0},
-    "patches": {"bare": {"share": 0.08, "size_m": [0.5, 2.0]},
+    "patches": {"bare": {"params": LAYOUT_PARAMS},
                 "green": {"share": 0.15, "width_m": [1.0, 3.0], "length_m": [3.0, 12.0], "tint": "#6a7a3a"},
                 "lodging": {"azimuth_deg": 25, "bias": 0.3}},
     "albedo_target": "#7a7055", "tint": [1.0, 1.0, 1.0, 1.0],
@@ -36,6 +44,11 @@ TARGET_LUMINANCE = derive.luminance([derive.SRGB_TO_LINEAR[v] for v in (0x7a, 0x
 def write_recipe(root, recipe):
     (root / RECIPES).mkdir(parents=True, exist_ok=True)
     (root / RECIPES / f"{MATERIAL}.json").write_text(json.dumps(recipe, indent=2) + "\n", encoding="utf-8")
+
+
+def write_params(root, params, path=LAYOUT_PARAMS):
+    (root / path).parent.mkdir(parents=True, exist_ok=True)
+    (root / path).write_text(json.dumps(params, indent=2) + "\n", encoding="utf-8")
 
 
 def pin_set(root, manifest, set_id, rgb, roughness, ao, size=(32, 32)):
@@ -68,6 +81,7 @@ def ground_root(tmp_path):
     pin_set(root, manifest, SET_ID, SOIL_RGB, roughness=180, ao=200)
     pin_set(root, manifest, COVER_ID, COVER_RGB, roughness=220, ao=240)
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    write_params(root, PARAMS)
     write_recipe(root, RECIPE)
     return root
 
@@ -113,9 +127,12 @@ def test_ground_maps_hit_the_target_and_the_shares(tmp_path, capsys):
                                      for m in ("diffuse", "normal", "roughness", "ao")}
     assert stamp["sources"]["soil/diffuse"]["sha256"] == fetch.sha256(root / THIRD_PARTY / "polyhaven" / SET_ID / f"{SET_ID}_diffuse_1k.png")
     assert len(stamp["inputs_sha256"]) == 64 and stamp["pillow"]
+    assert stamp["layout"] == {"params": LAYOUT_PARAMS, "inputs": patches.inputs(PARAMS), "constants": patches.constants()}
     shares = stamp["measured"]
-    print(f"bare {100 * shares['bare_share']:.2f} % (recipe 8), green {100 * shares['green_share']:.2f} % (recipe 15)")
-    assert abs(shares["bare_share"] - 0.08) <= 0.02 and abs(shares["green_share"] - 0.15) <= 0.02
+    print(f"bare {100 * shares['bare_share']:.2f} % on {shares['bare_patches']} outlines (params 8), soil shown "
+          f"{100 * shares['bare_soil_share']:.2f} %, green {100 * shares['green_share']:.2f} % (recipe 15)")
+    assert abs(shares["bare_share"] - 0.08) <= patches.SHARE_TOLERANCE and abs(shares["green_share"] - 0.15) <= 0.02
+    assert 0 < shares["bare_soil_share"] < shares["bare_share"], "the feather inside the outlines shows straws"
     assert abs(shares["mean_luminance"] - measured) < 1e-3
 
     r, g, b, a = mask.getpixel((5, 5))
@@ -194,7 +211,13 @@ def test_ground_is_idempotent_and_regenerates_on_a_change(tmp_path, capsys):
     assert f"{MATERIAL}_albedo.png: up to date" in capsys.readouterr().out
     assert {p: p.read_bytes() for p in first} == first and {p: p.stat().st_mtime_ns for p in first} == times
 
-    write_recipe(root, dict(RECIPE, seed=8))  # the patches move
+    write_params(root, dict(PARAMS, bare=dict(PARAMS["bare"], share=0.1)))  # the asset's layout changes
+    assert run(MATERIAL, "--root", root) == 0
+    assert "derived 256x256 ground" in capsys.readouterr().out
+    assert json.loads(stamp.read_text(encoding="utf-8"))["layout"]["inputs"]["share"] == 0.1
+    write_params(root, PARAMS)
+
+    write_recipe(root, dict(RECIPE, seed=8))  # the strips move
     assert run(MATERIAL, "--root", root) == 0
     assert "derived 256x256 ground" in capsys.readouterr().out
     assert maps["albedo"].read_bytes() != first[maps["albedo"]]
@@ -215,23 +238,65 @@ def test_ground_is_idempotent_and_regenerates_on_a_change(tmp_path, capsys):
     assert "derived 256x256 ground" in capsys.readouterr().out and maps["normal"].is_file()
 
 
-@pytest.mark.parametrize("name, value", [("STRAW_M", 0.1), ("LOBE_M", 0.8), ("BARE_FEATHER_M", 0.2),
-                                         ("GREEN_FEATHER_M", 0.4), ("GAP_LOBES", 0.25), ("SHARE_TOLERANCE", 0.01)])
-def test_a_changed_formula_constant_re_derives(tmp_path, capsys, monkeypatch, name, value):
-    """Spec "A formula constant changes" (review R1): the stamp records every constant's value under "constants" and
-    hashes it, so tuning one in derive.py re-derives the maps instead of reporting them up to date."""
+@pytest.mark.parametrize("module, name, value", [
+    (derive, "STRAW_M", 0.1), (derive, "LOBE_M", 0.8), (derive, "GREEN_FEATHER_M", 0.4), (derive, "GAP_LOBES", 0.25),
+    (derive, "GREEN_SPREAD_DEG", 20.0), (derive, "SHARE_TOLERANCE", 0.01),
+    (patches, "FEATHER_M", 0.2), (patches, "RADIAL_JITTER", 0.1), (patches, "WINDOW_M", 0.4)])
+def test_a_changed_formula_constant_re_derives(tmp_path, capsys, monkeypatch, module, name, value):
+    """Spec "A formula constant changes" (review R1): the stamp records the value of every constant derive.py and
+    the patch layout read, under "constants" and "layout", and hashes them, so tuning one re-derives the maps
+    instead of reporting them up to date."""
     root = ground_root(tmp_path)
     stamp_path = root / MATERIALS / f"{MATERIAL}.recipe.json"
     assert run(MATERIAL, "--root", root) == 0
     before = json.loads(stamp_path.read_text(encoding="utf-8"))
     assert before["constants"] == {n: list(v) if isinstance(v, tuple) else v
                                    for n, v in ((n, getattr(derive, n)) for n in derive.GROUND_CONSTANTS)}
+    assert before["layout"]["constants"] == patches.constants()
     assert run(MATERIAL, "--root", root) == 0 and "up to date" in capsys.readouterr().out
-    monkeypatch.setattr(derive, name, value)
+    monkeypatch.setattr(module, name, value)
     assert run(MATERIAL, "--root", root) == 0
     assert f"{MATERIAL}_albedo.png: derived 256x256 ground" in capsys.readouterr().out
     after = json.loads(stamp_path.read_text(encoding="utf-8"))
-    assert after["constants"][name] == value and after["inputs_sha256"] != before["inputs_sha256"]
+    recorded = after["constants"] if module is derive else after["layout"]["constants"]
+    assert recorded[name] == value and after["inputs_sha256"] != before["inputs_sha256"]
+
+
+def test_the_bare_mask_and_the_step_outlines_agree():
+    """review-physics PR7 (c), on S04's own layout at the belt_straw map's size: the bare mask derive.py stamps,
+    strewn over a cover of straws and before the gaps are merged in, is at least 128 inside every outline shrunk by
+    the feather and 0 outside every outline grown by 5 cm."""
+    repo_root = Path(fetch.REPO_ROOT)
+    recipe = json.loads((repo_root / RECIPES / "belt_straw.json").read_text(encoding="utf-8"))
+    params = json.loads((repo_root / recipe["patches"]["bare"]["params"]).read_text(encoding="utf-8"))
+    out_px, size_m = recipe["output_px"], recipe["size_m"]
+    bare = patches.layout(**patches.inputs(params))["patches"]
+    cover = Image.effect_noise((out_px, out_px), 80).convert("RGB")
+    mask = derive.strewn(derive.bare_layer(bare, out_px, size_m), cover, random.Random(1), out_px / size_m)
+    pixels = mask.load()
+
+    def to_xz(px, py):  # a pixel's centre in asset metres, derive.to_px inverted
+        return ((px + 0.5) / out_px - 0.5) * size_m, (0.5 - (py + 0.5) / out_px) * size_m
+
+    inside = 0
+    for patch in bare:
+        x0, x1, z0, z1 = patch["window"]
+        (px0, py0), (px1, py1) = derive.to_px((x0, z1), out_px, size_m), derive.to_px((x1, z0), out_px, size_m)
+        for py in range(max(0, int(py0)), min(out_px, math.ceil(py1))):
+            for px in range(max(0, int(px0)), min(out_px, math.ceil(px1))):
+                if patches.distance(to_xz(px, py), patch["outline"]) <= -patches.FEATHER_M:
+                    inside += 1
+                    assert pixels[px, py] >= 128, f"soil missing at {to_xz(px, py)}: {pixels[px, py]}"
+    outside = 0
+    for i, value in enumerate(mask.tobytes()):  # an L image: one byte per pixel, row by row
+        if value:
+            xz = to_xz(i % out_px, i // out_px)
+            near = [p for p in bare if p["window"][0] - 0.1 <= xz[0] <= p["window"][1] + 0.1
+                    and p["window"][2] - 0.1 <= xz[1] <= p["window"][3] + 0.1]
+            assert any(patches.distance(xz, p["outline"]) <= 0.05 for p in near), f"soil at {xz}, off every floor"
+            outside += 1
+    print(f"{inside} pixels inside the outlines shrunk by the feather, {outside} soil pixels, all within 5 cm of a floor")
+    assert inside > 10000
 
 
 def test_all_handles_ground_and_mask_recipes_together(tmp_path, capsys):
@@ -249,12 +314,25 @@ def test_ground_failures_name_the_cause_and_write_nothing(tmp_path, capsys):
     root = ground_root(tmp_path)
     without_cover = {k: v for k, v in RECIPE.items() if k != "cover"}
     too_big = dict(RECIPE, output_px=4096)
-    too_much = dict(RECIPE, patches=dict(RECIPE["patches"], bare={"share": 0.9, "size_m": [0.5, 2.0]}))
+    write_params(root, dict(PARAMS, bare=dict(PARAMS["bare"], share=0.9)), "assets-src/surfaces/too_much.json")
+    write_params(root, dict(PARAMS, size_m=10), "assets-src/surfaces/smaller.json")
+    write_params(root, {"seed": 1, "size_m": 12}, "assets-src/surfaces/no_bare.json")
+
+    def bare_from(path):
+        return dict(RECIPE, patches=dict(RECIPE["patches"], bare={"params": path}))
+
     bad_colour = dict(RECIPE, albedo_target="7a7055")
     cases = [
         (without_cover, f"{MATERIAL}: missing object \"cover\""),
         (too_big, f"{MATERIAL}.output_px: 4096 must be an integer in [16, 2048]"),
-        (too_much, f"{MATERIAL}.patches: bare.share + green.share = {0.9 + 0.15} exceeds 1"),
+        (bare_from("assets-src/surfaces/too_much.json"),
+         f"{MATERIAL}.patches: the bare share 0.9 + green.share 0.15 exceeds 1"),
+        (bare_from("assets-src/surfaces/nope.json"),
+         f"{MATERIAL}.patches.bare.params: 'assets-src/surfaces/nope.json' is not an asset params file"),
+        (bare_from("assets-src/surfaces/smaller.json"),
+         f"{MATERIAL}.patches.bare.params: assets-src/surfaces/smaller.json has size_m 10, the recipe 12"),
+        (bare_from("assets-src/surfaces/no_bare.json"),
+         f"{MATERIAL}.patches.bare.params: assets-src/surfaces/no_bare.json lacks the layout key 'bare'"),
         (bad_colour, f"{MATERIAL}.albedo_target: '7a7055' is not an sRGB colour like #7a7055"),
         (dict(RECIPE, kind="lawn"), f"{MATERIAL}: unknown recipe kind 'lawn' (omit it for a tiled set, or 'ground' or 'palette')"),
         (dict(RECIPE, soil={"texture_set": "polyhaven/nope", "tile_size_m": 1.0}),
