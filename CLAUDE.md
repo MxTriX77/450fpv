@@ -84,7 +84,7 @@
 - **Performance numbers count only on AC power,** with vsync off and the power mode printed. On battery the laptop falls back to its iGPU.
 
 ## Tokens and limits
-- **At most 2 subagents in parallel,** each with a short brief, and **one per logical task** (D-029).
+- **At most 4 subagents in parallel** (D-036), each with a short brief, and **one per logical task** (D-029).
 - **Commit early.** Start fresh agents rather than resuming huge ones; resume an agent only if a usage limit stopped it.
 - **Long jobs** (builds, batch renders, benchmarks): run them in the background and wait for the completion notice. **Never poll.**
 - **Image-heavy work happens in subagents,** which write their results to files. Don't load footage or stills into your own context.
