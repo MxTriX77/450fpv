@@ -29,7 +29,7 @@ import random
 LAYOUT = "bare patches v1"  # bumped with any change to the code below; derive.py hashes it with the constants
 FEATHER_M = 0.3            # a soil patch's strewn edge (H 9-14, by eye; derive.py's tuned value, moved here)
 ANGLE_SPREAD_DEG = 45.0    # a patch lies within this of the lodging azimuth (assumed; derive.py's before)
-RADIAL_JITTER = 0.25       # a corner's radius drawn in [1 - this, 1] of the ellipse's (assumed)
+RADIAL_JITTER = 0.35       # a corner's radius drawn in [1 - this, 1] of the ellipse's (assumed; 0.25 until task 1.7)
 MAX_EXTERIOR_DEG = 90.0    # derived: the largest turn at a corner for which the edge boxes cover the window
 WINDOW_M = 0.3             # F-5 behind an open face (carried), around the outline's bounding rectangle
 REACH_M = 0.3              # F-5: the least an edge box reaches outward

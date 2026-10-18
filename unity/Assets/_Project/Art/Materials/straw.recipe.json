@@ -1,19 +1,46 @@
 {
   "material": "straw",
   "kind": "palette",
-  "formula": "palette v1: one PALETTE_BLOCK_PX square block per colour, left to right in the recipe's order; 8-bit sRGB",
+  "formula": "palette v2: one column PALETTE_BLOCK_PX x PALETTE_HEIGHT_PX per colour, left to right in the recipe's order, its stops spread evenly from the bottom to the top and interpolated in linear light, padded with the last column to a power of two of columns; 8-bit sRGB",
   "constants": {
-    "PALETTE_BLOCK_PX": 16
+    "PALETTE_BLOCK_PX": 16,
+    "PALETTE_HEIGHT_PX": 64
   },
   "recipe": {
     "schema": 1,
     "kind": "palette",
     "shader": "Universal Render Pipeline/Lit",
     "colours": {
-      "straw_pale": "#cdb685",
-      "straw": "#b49c6a",
-      "straw_dark": "#977f55",
-      "twig": "#6b5a3e"
+      "straw_pale": [
+        "#a9966d",
+        "#cdb685",
+        "#ead099"
+      ],
+      "straw": [
+        "#766644",
+        "#b49c6a",
+        "#dec184"
+      ],
+      "straw_dark": [
+        "#635236",
+        "#977f55",
+        "#bb9e6a"
+      ],
+      "twig": [
+        "#5a4c34",
+        "#6b5a3e",
+        "#796647"
+      ],
+      "blade": [
+        "#53602c",
+        "#6a7a3a",
+        "#7c8e45"
+      ],
+      "litter": [
+        "#28231b",
+        "#3a3227",
+        "#4f4535"
+      ]
     },
     "tint": [
       1.0,
@@ -23,15 +50,17 @@
     ],
     "smoothness": 0.3
   },
-  "inputs_sha256": "897ad2c5ffc7f153f10f940c2fb0da5189ce8f12f7561a7d306d824961969b84",
+  "inputs_sha256": "ff644827b99aee1dc41e4f74f0c3ce6b1bf0467b531f925fe77a2a47c5f33d0f",
   "size": [
-    64,
-    16
+    128,
+    64
   ],
   "columns": [
     "straw_pale",
     "straw",
     "straw_dark",
-    "twig"
+    "twig",
+    "blade",
+    "litter"
   ]
 }
