@@ -1,16 +1,17 @@
 <#
 .SYNOPSIS
-One asset end to end: params -> Blender build -> derived textures -> Unity import -> review sheet
+One asset end to end: params -> derived textures -> Blender build -> Unity import -> review sheet
 (setup-asset-pipeline, design decision 9; p1-pipeline-hardening, derived textures; setup-review-capture, design
-decision 7).
+decision 7; p1-v01-locust, the impostor).
 
 .DESCRIPTION
     pwsh tools/build_asset.ps1 <ID|all>
 
-Step 1 runs tools/blender/build.py in headless Blender (FBX plus .assetmeta.json). Step 2 runs
-tools/assets/derive.py --all, the packed mask maps of every material recipe (a stamped, unchanged mask is a no-op),
-so the importer finds them. Step 3 runs the catalog importer in Unity batchmode (materials, prefab, colliders,
-metadata component). Step 4 renders the AST-12 review sheet in Unity batchmode with graphics (review-sheets/<ID>/).
+Step 1 runs tools/assets/derive.py --all, the derived maps of every material recipe (a stamped, unchanged map is a
+no-op), so the importer finds them and the Blender build's impostor render reads them current. Step 2 runs
+tools/blender/build.py in headless Blender (FBX plus .assetmeta.json, and the impostor atlas when the params ask for
+one). Step 3 runs the catalog importer in Unity batchmode (materials, prefab, colliders, metadata component). Step 4
+renders the AST-12 review sheet in Unity batchmode with graphics (review-sheets/<ID>/).
 Blender and Unity come from $env:BLENDER and $env:UNITY, falling back to the paths pinned in docs/environment.md;
 python is the pinned one on PATH. The script refuses to run while an editor holds the project open, stops at the
 first failing step and exits 1, naming the step. The full Unity logs go to unity/Logs/build_asset_<ID>.log and
@@ -40,17 +41,17 @@ if (Test-Path -LiteralPath (Join-Path $project 'Temp\UnityLockfile')) {
     exit 1
 }
 
-Write-Host "build_asset: [1/4] Blender build of $Id"
-& $blender --background --factory-startup --python (Join-Path $root 'tools\blender\build.py') -- $Id
+Write-Host "build_asset: [1/4] Derived textures of every material recipe"
+& python (Join-Path $root 'tools\assets\derive.py') --all
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "build_asset: FAILED at step 1 (Blender build), exit code $LASTEXITCODE"
+    Write-Host "build_asset: FAILED at step 1 (derived textures), exit code $LASTEXITCODE"
     exit 1
 }
 
-Write-Host "build_asset: [2/4] Derived textures of every material recipe"
-& python (Join-Path $root 'tools\assets\derive.py') --all
+Write-Host "build_asset: [2/4] Blender build of $Id"
+& $blender --background --factory-startup --python (Join-Path $root 'tools\blender\build.py') -- $Id
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "build_asset: FAILED at step 2 (derived textures), exit code $LASTEXITCODE"
+    Write-Host "build_asset: FAILED at step 2 (Blender build), exit code $LASTEXITCODE"
     exit 1
 }
 

@@ -30,10 +30,20 @@ namespace Fpv450.Assets
         const string PrefabsFolder = "Assets/_Project/Prefabs";
         const string LitShader = "Universal Render Pipeline/Lit";
         const string LeafShader = "Fpv450/Leaf";
+        const string ImpostorShader = "Fpv450/Impostor";
+
+        // The impostor card's material (p1-v01-locust, design decision 3): the atlas, whose alpha is the coverage
+        // the Blender render found per texel (tools/blender/lib/impostor.py), clipped where half of it is covered;
+        // matte, because a far crown is many small surfaces whose highlights average out, and a smooth card would
+        // add a Fresnel rim along its sides, where its normal grazes, that no crown shows (measured: at the leaves'
+        // 0.2 the overcast 50 m tile came out 8-12 % brighter than LOD0's).
+        const float ImpostorCutoff = 0.5f;
+        const float ImpostorSmoothness = 0f;
 
         // The metadata gives LOD distances; a LODGroup wants screen-relative heights. The conversion assumes the
         // feed's vertical field of view (design decision 7, derived: 60 degrees, 935 px/rad at 1080 px).
         const float VerticalFovDeg = 60f;
+        const float BoundsToleranceM = 0.001f; // the build's check of the FBX against the metadata bounds (lib/meta.py)
 
         // A cylinder collider is a closed right prism over a regular N-gon inscribed in the circle, so its surface
         // sits inside the true one by the chord's sagitta, r·(1 − cos(π/N)). N is the smallest count that keeps
@@ -344,6 +354,14 @@ namespace Fpv450.Assets
             return true;
         }
 
+        static bool SetVector(Material m, string name, Vector4 value)
+        {
+            if (m.GetVector(name) == value)
+                return false;
+            m.SetVector(name, value);
+            return true;
+        }
+
         static bool SetFloat(Material m, string name, float value)
         {
             if (m.GetFloat(name) == value)
@@ -367,8 +385,9 @@ namespace Fpv450.Assets
 
         /// <summary>
         /// Creates or updates the prefab in place (so its file ids stay stable): the metadata component, one child
-        /// per LOD with the FBX mesh and the slot materials, the LODGroup, one child per collision primitive, and
-        /// nothing else. Internal for the EditMode tests, which build a prefab from a throwaway metadata.
+        /// per LOD with the FBX mesh and the slot materials (or, for an impostor LOD, the card set,
+        /// <see cref="EnsureImpostor"/>), the LODGroup, one child per collision primitive, and nothing else.
+        /// Internal for the EditMode tests, which build a prefab from a throwaway metadata.
         /// </summary>
         internal static void EnsurePrefab(string prefabPath, string variant, Dictionary<string, object> metaJson, TextAsset source,
             string fbxPath, Dictionary<string, Material> materialBySlot)
@@ -381,7 +400,7 @@ namespace Fpv450.Assets
                 AssetPhysicsMeta meta = Ensure<AssetPhysicsMeta>(root);
                 Fill(meta, metaJson, source, prefabPath);
                 var keep = new HashSet<string>();
-                Renderer[] renderers = EnsureLods(root, meta, fbxPath, materialBySlot, keep);
+                Renderer[] renderers = EnsureLods(root, meta, metaJson, AssetDatabase.GetAssetPath(source), fbxPath, materialBySlot, keep, prefabPath);
                 EnsureLodGroup(root, meta, renderers);
                 EnsureColliders(root, meta, keep, prefabPath);
                 for (int i = root.transform.childCount - 1; i >= 0; i--)
@@ -408,15 +427,26 @@ namespace Fpv450.Assets
             }
         }
 
-        static Renderer[] EnsureLods(GameObject root, AssetPhysicsMeta meta, string fbxPath, Dictionary<string, Material> materialBySlot, HashSet<string> keep)
+        static Renderer[] EnsureLods(GameObject root, AssetPhysicsMeta meta, Dictionary<string, object> metaJson, string metaPath, string fbxPath,
+            Dictionary<string, Material> materialBySlot, HashSet<string> keep, string prefabPath)
         {
             var imported = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath)
                 ?? throw new FileNotFoundException($"{fbxPath} did not import as a model");
             MeshFilter[] filters = imported.GetComponentsInChildren<MeshFilter>(true);
+            List<object> lodsJson = Json.Arr(metaJson, "lods", metaPath);
             var renderers = new Renderer[meta.lods.Length];
+            bool impostor = false;
             for (int i = 0; i < meta.lods.Length; i++)
             {
                 string meshName = meta.lods[i].mesh;
+                var lodJson = Json.Obj(lodsJson[i], $"{metaPath} lods[{i}]");
+                if (lodJson.ContainsKey("impostor"))
+                {
+                    renderers[i] = EnsureImpostor(root, meta.lods[i], Json.Obj(lodJson, "impostor", $"{metaPath} lods[{i}]"),
+                        Path.GetDirectoryName(metaPath).Replace('\\', '/'), prefabPath, keep);
+                    impostor = true;
+                    continue;
+                }
                 MeshFilter filter = filters.FirstOrDefault(f => f.sharedMesh != null && f.sharedMesh.name == meshName)
                     ?? throw new FormatException($"{fbxPath} has no mesh named {meshName}");
                 Material[] slotMaterials = filter.GetComponent<MeshRenderer>().sharedMaterials
@@ -434,7 +464,163 @@ namespace Fpv450.Assets
                 renderer.sharedMaterials = slotMaterials;
                 renderers[i] = renderer;
             }
+            if (!impostor)
+                DeleteImpostorAssets(prefabPath, root.name);
             return renderers;
+        }
+
+        // --- the impostor (p1-v01-locust, design decision 3) -----------------------------------------------------
+
+        /// <summary>
+        /// The impostor LOD: a camera-facing card set reading the atlas the Blender build renders beside the
+        /// metadata (tools/blender/lib/impostor.py), one child named as the LOD's mesh with the card mesh and its
+        /// material. The card is one quad of the record's size, x across and y up in its own frame
+        /// (<see cref="ImpostorMesh"/>); the shader <c>Fpv450/Impostor</c> turns it to the camera, picks the nearest
+        /// view and gives each pixel the crown's normal. The atlas is imported as a diffuse that keeps its alpha coverage at the cutoff in every mip.
+        /// The mesh and the material are assets beside the prefab, <c>&lt;variant&gt;_impostor.asset</c> and
+        /// <c>.mat</c>, rewritten only when they change.
+        /// </summary>
+        static Renderer EnsureImpostor(GameObject root, AssetPhysicsMeta.LodEntry lod, Dictionary<string, object> record, string atlasFolder,
+            string prefabPath, HashSet<string> keep)
+        {
+            string what = $"{root.name} {lod.mesh}";
+            string atlasPath = $"{atlasFolder}/{Json.Str(record, "atlas", what)}";
+            EnsureTextureImport(atlasPath, "run the Blender build of the asset (tools/blender/build.py)");
+            var atlas = AssetDatabase.LoadAssetAtPath<Texture2D>(atlasPath)
+                ?? throw new FileNotFoundException($"{atlasPath} did not import as a texture");
+            Vector2 size = Json.Vec2(record, "size_px", what);
+            if (atlas.width != (int)size.x || atlas.height != (int)size.y)
+                throw new FormatException($"{atlasPath} is {atlas.width}x{atlas.height} px; the metadata says {size.x}x{size.y}");
+            EnsureCoverage(atlas, ImpostorCutoff);
+
+            if (lod.tris != 2)
+                throw new FormatException($"{what}: the card is one quad, 2 triangles; the metadata says {lod.tris}");
+            var cardJson = Json.Obj(record, "card", what);
+            var card = new Vector4(Json.Num(cardJson, "width_m", what), Json.Num(cardJson, "height_m", what), Json.Num(cardJson, "bottom_m", what), 0f);
+            var crown = Json.Obj(record, "crown", what);
+            Vector3 centre = Json.Vec3(crown, "centre", what);
+            Vector2 radii = Json.Vec2(crown, "radii_m", what);
+            var grid = new Vector4(Json.Num(record, "views", what), Json.Num(record, "columns", what), Json.Num(record, "rows", what), 0f);
+
+            string folder = Path.GetDirectoryName(prefabPath).Replace('\\', '/');
+            Mesh mesh = ImpostorMesh($"{folder}/{root.name}_impostor.asset", lod.mesh, card.x, card.y, card.z);
+            Material material = ImpostorMaterial($"{folder}/{root.name}_impostor.mat", atlas, grid, card,
+                new Vector4(centre.x, centre.y, centre.z, Json.Num(crown, "up", what)), new Vector4(radii.x, radii.y, 0f, 0f),
+                Json.Num(crown, "occlusion", what));
+
+            GameObject child = Child(root, lod.mesh, keep);
+            child.transform.localPosition = Vector3.zero;
+            child.transform.localRotation = Quaternion.identity;
+            child.transform.localScale = Vector3.one;
+            Ensure<MeshFilter>(child).sharedMesh = mesh;
+            MeshRenderer renderer = Ensure<MeshRenderer>(child);
+            renderer.sharedMaterials = new[] { material };
+            return renderer;
+        }
+
+        /// <summary>
+        /// The card mesh: one quad <paramref name="width"/> wide and <paramref name="height"/> tall from
+        /// <paramref name="bottom"/>, x across and y up with the asset's vertical axis at x = 0, UVs 0–1 over it (the
+        /// shader moves them into a view's cell), wound clockwise seen from +z. Its bounds are what the card sweeps
+        /// turning about the axis, so Unity never culls it as it turns.
+        /// </summary>
+        static Mesh ImpostorMesh(string path, string name, float width, float height, float bottom)
+        {
+            float x = width / 2f, top = bottom + height;
+            var vertices = new[] { new Vector3(-x, bottom, 0f), new Vector3(-x, top, 0f), new Vector3(x, top, 0f), new Vector3(x, bottom, 0f) };
+            var uvs = new[] { new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(1f, 0f) };
+            var normals = new[] { Vector3.back, Vector3.back, Vector3.back, Vector3.back };
+            var triangles = new[] { 0, 1, 2, 0, 2, 3 };
+            var bounds = new Bounds(new Vector3(0f, bottom + height / 2f, 0f), new Vector3(width, height, width));
+
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            if (mesh == null)
+            {
+                mesh = new Mesh { name = name };
+                SetCard(mesh, vertices, uvs, normals, triangles, bounds);
+                AssetDatabase.CreateAsset(mesh, path);
+            }
+            else if (mesh.name != name || !SameVertices(mesh.vertices, vertices) || !mesh.uv.SequenceEqual(uvs) || !mesh.triangles.SequenceEqual(triangles)
+                     || mesh.bounds != bounds)
+            {
+                mesh.name = name;
+                SetCard(mesh, vertices, uvs, normals, triangles, bounds);
+                EditorUtility.SetDirty(mesh);
+                AssetDatabase.SaveAssetIfDirty(mesh);
+            }
+            return mesh;
+        }
+
+        static void SetCard(Mesh mesh, Vector3[] vertices, Vector2[] uvs, Vector3[] normals, int[] triangles, Bounds bounds)
+        {
+            mesh.Clear();
+            mesh.vertices = vertices;
+            mesh.uv = uvs;
+            mesh.normals = normals;
+            mesh.triangles = triangles;
+            mesh.bounds = bounds; // after the triangles, which recompute them
+        }
+
+        /// <summary>
+        /// The card's material: <c>Fpv450/Impostor</c> over the atlas, untinted, clipped at the cutoff with alpha to
+        /// coverage as the leaves are, no face culled, receiving no shadow (the shader says why), the views' grid, the
+        /// card's size and the crown's centre, up share and radii for the shader, and the crown's occlusion on the
+        /// ambient light: the shader's default black occlusion map at strength 1 − occlusion.
+        /// </summary>
+        static Material ImpostorMaterial(string path, Texture2D atlas, Vector4 grid, Vector4 card, Vector4 crown, Vector4 radii, float occlusion)
+        {
+            Shader shader = Shader.Find(ImpostorShader) ?? throw new FormatException($"no shader named \"{ImpostorShader}\"");
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            bool created = material == null, changed = false;
+            if (created)
+                material = new Material(shader);
+            else if (material.shader != shader)
+            {
+                material.shader = shader;
+                changed = true;
+            }
+            changed |= SetTexture(material, "_BaseMap", atlas);
+            changed |= SetTextureScale(material, "_BaseMap", Vector2.one);
+            changed |= SetColor(material, "_BaseColor", Color.white);
+            changed |= SetFloat(material, "_Smoothness", ImpostorSmoothness);
+            changed |= SetFloat(material, "_Metallic", 0f);
+            changed |= SetFloat(material, "_AlphaClip", 1f);
+            changed |= SetFloat(material, "_Cutoff", ImpostorCutoff);
+            changed |= SetKeyword(material, "_ALPHATEST_ON", true);
+            changed |= SetFloat(material, "_AlphaToMask", 1f);
+            changed |= SetFloat(material, "_Cull", (float)CullMode.Off);
+            changed |= SetFloat(material, "_ReceiveShadows", 0f);
+            changed |= SetKeyword(material, "_RECEIVE_SHADOWS_OFF", true);
+            changed |= SetFloat(material, "_OcclusionStrength", 1f - occlusion);
+            changed |= SetKeyword(material, "_OCCLUSIONMAP", true);
+            changed |= SetVector(material, "_ImpostorGrid", grid);
+            changed |= SetVector(material, "_ImpostorCard", card);
+            changed |= SetVector(material, "_ImpostorCrown", crown);
+            changed |= SetVector(material, "_ImpostorRadii", radii);
+            if (material.renderQueue != (int)RenderQueue.AlphaTest)
+            {
+                material.renderQueue = (int)RenderQueue.AlphaTest;
+                changed = true;
+            }
+            // Written whole and at once: a material created empty and filled after was found reloaded from its empty
+            // file by the prefab's save (the EditMode test's second build).
+            if (created)
+                AssetDatabase.CreateAsset(material, path);
+            else if (changed)
+            {
+                EditorUtility.SetDirty(material);
+                AssetDatabase.SaveAssetIfDirty(material);
+            }
+            return material;
+        }
+
+        /// <summary>Removes a variant's card mesh and material when its metadata no longer lists an impostor.</summary>
+        static void DeleteImpostorAssets(string prefabPath, string variant)
+        {
+            string folder = Path.GetDirectoryName(prefabPath).Replace('\\', '/');
+            foreach (string stale in new[] { $"{folder}/{variant}_impostor.asset", $"{folder}/{variant}_impostor.mat" })
+                if (AssetDatabase.LoadMainAssetAtPath(stale) != null)
+                    AssetDatabase.DeleteAsset(stale);
         }
 
         /// <summary>
@@ -457,6 +643,15 @@ namespace Fpv450.Assets
             group.localReferencePoint = meta.bounds.center;
             group.size = size;
             group.SetLODs(lods);
+            // SetLODs recalculates the reference point and size from the renderers' bounds. The mesh LODs' agree with
+            // the metadata's within float noise (and the prefabs keep what SetLODs wrote); an impostor's card reaches
+            // past them (its cell's frame, what it sweeps as it turns), which would move every switch distance, so
+            // the metadata's are put back.
+            if (Mathf.Abs(group.size - size) > BoundsToleranceM || (group.localReferencePoint - meta.bounds.center).magnitude > BoundsToleranceM)
+            {
+                group.localReferencePoint = meta.bounds.center;
+                group.size = size;
+            }
         }
 
         static float RelativeHeight(float size, float distance) =>

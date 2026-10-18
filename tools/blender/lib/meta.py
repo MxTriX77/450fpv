@@ -34,6 +34,7 @@ LABELS = ("pilot", "measured", "published", "derived", "assumed")
 SURFACE_PREFIX = "surface:"
 SURFACE_IDS = ("meadow_sod", "dry_crust", "crater_spoil", "belt_straw", "belt_bare", "tilled", "burnt_field",
                "weeds", "yard_litter", "rubble", "asphalt", "concrete_slab", "dirt_track")
+IMPOSTOR_MAX_PX = 1024  # asset-pipeline "Baked impostor LOD": one atlas, 1k at most
 
 
 def load_physics_materials(root):
@@ -63,10 +64,10 @@ def load_physics_materials(root):
     return set(rows)
 
 
-def assemble(asset_id, variant, generator, params, built, visual_by_slot):
+def assemble(asset_id, variant, generator, params, built, visual_by_slot, impostor_lod=None):
     """The metadata of one variant from the generator's result `built` ({"lods": [Mesh...], "switch_distances_m",
     "cull_distance_m", "materials": [{"slot", "physics"}], "collision", "gaps", "wind_volumes", "snag"}) and the
-    catalog's visual material per slot."""
+    catalog's visual material per slot; `impostor_lod` (lib.impostor.lod) follows the mesh LODs when given."""
     lods = built["lods"]
     switches = built["switch_distances_m"]
     if len(switches) != len(lods):
@@ -83,7 +84,7 @@ def assemble(asset_id, variant, generator, params, built, visual_by_slot):
         "params_sha256": catalog.params_sha256(params), "units": UNITS, "frame": FRAME,
         "bounds": {"min": lo, "max": hi},
         "lods": [{"mesh": f"{variant}_LOD{n}", "tris": mesh.triangles(), "switch_distance_m": float(switch)}
-                 for n, (mesh, switch) in enumerate(zip(lods, switches))],
+                 for n, (mesh, switch) in enumerate(zip(lods, switches))] + ([impostor_lod] if impostor_lod else []),
         "cull_distance_m": float(built["cull_distance_m"]),
         "materials": materials,
         "collision": built["collision"], "gaps": built["gaps"], "wind_volumes": built["wind_volumes"],
@@ -144,6 +145,9 @@ def validate(meta, material_ids):
             problems.append(f"LOD switch distances must start at 0 and increase, got {switches}")
         if not (_is_num(meta["cull_distance_m"]) and meta["cull_distance_m"] > switches[-1]):
             problems.append("cull_distance_m must lie beyond the last LOD switch")
+        for i, lod in enumerate(lods):
+            if "impostor" in lod:
+                problems += [f"lods[{i}]: {p}" for p in _impostor_problems(lod, i, len(lods))]
     for i, m in enumerate(meta["materials"]):
         if not all(isinstance(m.get(k), str) and m[k] for k in ("slot", "visual", "physics")):
             problems.append(f"material entry needs slot, visual and physics: {m}")
@@ -190,6 +194,8 @@ def check_against_fbx(meta, fbx_path):
     problems = []
     lo, hi = [None] * 3, [None] * 3
     for lod in meta["lods"]:
+        if "impostor" in lod:
+            continue  # the importer builds the card from the record; the FBX holds the mesh LODs
         if lod["mesh"] not in found:
             problems.append(f"{lod['mesh']} is not a mesh of {fbx_path}; it holds {', '.join(sorted(found))}")
             continue
@@ -237,6 +243,41 @@ def _material_problems(material, material_ids):
     if material not in material_ids:
         return [f"material {material!r} is not in {PHYSICS_MATERIALS}"]
     return []
+
+
+def _impostor_problems(lod, index, count):
+    """The impostor LOD (lib.impostor; asset-pipeline "Baked impostor LOD"): the last LOD, before the cull; a PNG atlas
+    of IMPOSTOR_MAX_PX at most with its views on a grid; the card's size, one quad; the crown's centre, radii, up
+    share and occlusion; the hashes of the render's inputs and of the atlas."""
+    problems = [] if index == count - 1 else ["the impostor must be the last LOD, before the cull"]
+    record = lod["impostor"]
+    if not isinstance(record, dict):
+        return problems + ["impostor must be an object"]
+    card, crown = record.get("card"), record.get("crown")
+    size = record.get("size_px")
+    if not (isinstance(record.get("atlas"), str) and record["atlas"].endswith(".png")):
+        problems.append("impostor atlas must name a .png beside the metadata")
+    if not (isinstance(size, list) and len(size) == 2 and all(_is_int(s) and 0 < s <= IMPOSTOR_MAX_PX for s in size)):
+        problems.append(f"impostor size_px must be [width, height], each at most {IMPOSTOR_MAX_PX} px (1k), got {size}")
+    grid = [record.get(k) for k in ("views", "columns", "rows")]
+    if not (all(_is_int(g) and g > 0 for g in grid) and grid[1] * grid[2] >= grid[0]):
+        problems.append(f"impostor views, columns and rows must be positive with views <= columns * rows, got {grid}")
+    if not (_is_num(record.get("elevation_deg")) and 0 <= record["elevation_deg"] < 90):
+        problems.append("impostor elevation_deg must lie in [0, 90)")
+    if not (isinstance(card, dict) and all(_is_num(card.get(k)) and card[k] > 0 for k in ("width_m", "height_m"))
+            and _is_num(card.get("bottom_m"))):
+        problems.append("impostor card needs width_m and height_m above 0 and bottom_m")
+    if lod["tris"] != 2:
+        problems.append(f"impostor tris {lod['tris']} must be 2: the card is one quad")
+    if not (isinstance(crown, dict) and _is_vec(crown.get("centre")) and _is_vec(crown.get("radii_m"), 2)
+            and all(r > 0 for r in crown["radii_m"]) and _is_num(crown.get("up")) and 0 <= crown["up"] < 1
+            and _is_num(crown.get("occlusion")) and 0 < crown["occlusion"] <= 1):
+        problems.append("impostor crown needs a centre [x, y, z], radii_m [horizontal, vertical] above 0, up in "
+                        "[0, 1) and occlusion in (0, 1]")
+    for key in ("inputs_sha256", "atlas_sha256"):
+        if not _is_hex(record.get(key), 64):
+            problems.append(f"impostor {key} is not a 64-digit hex string")
+    return problems
 
 
 def _shape_problems(shape):
@@ -294,6 +335,10 @@ def _dot(a, b):
 
 def _is_num(v):
     return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def _is_int(v):
+    return isinstance(v, int) and not isinstance(v, bool)
 
 
 def _is_vec(v, n=3):

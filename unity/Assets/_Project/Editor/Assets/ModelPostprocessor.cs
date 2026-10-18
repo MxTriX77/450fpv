@@ -12,8 +12,10 @@ namespace Fpv450.Assets
     /// does): metres stay metres, no Unity mesh LODs (the project uses its own LOD groups, knowledge.md 14.4), no
     /// Unity colliders, static. Textures under <c>Art/ThirdParty/</c>: typed from the Poly Haven or ambientCG suffix;
     /// the maps that <c>tools/assets/derive.py</c> writes under <c>Art/Materials/</c>: the packed masks as linear
-    /// RGBA data, the <c>_base</c> maps of alpha-clipped recipes as sRGB diffuse with their alpha. The base map of an
-    /// alpha-clipped recipe also keeps its mip coverage at the recipe's cutoff (<see cref="ApplyCoverage"/>).
+    /// RGBA data, the <c>_base</c> maps of alpha-clipped recipes as sRGB diffuse with their alpha; the impostor
+    /// atlases the Blender build writes beside the FBX under <c>Art/Models/</c> (<c>_impostor</c>, p1-v01-locust):
+    /// sRGB diffuse with their alpha. The base map of an alpha-clipped recipe and an impostor atlas also keep their
+    /// mip coverage at the cutoff (<see cref="ApplyCoverage"/>, applied by the catalog importer).
     /// </summary>
     public static class ArtImportSettings
     {
@@ -47,9 +49,10 @@ namespace Fpv450.Assets
         /// <summary>
         /// Applies the texture settings of a map by its file name and reports whether any changed: a Poly Haven or
         /// ambientCG suffix types the third-party maps (normal, single-channel roughness, AO and opacity, sRGB
-        /// diffuse); a derived <c>_base</c> map is an sRGB diffuse too; a derived <c>_mask</c> and anything else is a
-        /// default-typed linear map. Only the diffuse maps are sRGB, and only a diffuse whose source carries an alpha
-        /// channel (a leaf atlas) is imported as transparency, its alpha kept as given, never premultiplied.
+        /// diffuse); a derived <c>_base</c> map and an <c>_impostor</c> atlas are sRGB diffuse too; a derived
+        /// <c>_mask</c> and anything else is a default-typed linear map. Only the diffuse maps are sRGB, and only a
+        /// diffuse whose source carries an alpha channel (a leaf atlas, an impostor) is imported as transparency, its
+        /// alpha kept as given, never premultiplied.
         /// </summary>
         public static bool ApplyTexture(TextureImporter importer, string assetPath)
         {
@@ -57,7 +60,7 @@ namespace Fpv450.Assets
             bool normal = name.Contains("_nor_gl") || name.Contains("_NormalGL");
             bool single = name.Contains("_rough") || name.Contains("_ao")
                 || name.Contains("_Roughness") || name.Contains("_AmbientOcclusion") || name.Contains("_Opacity");
-            bool diffuse = name.Contains("_diff") || name.Contains("_Color") || name.EndsWith("_base");
+            bool diffuse = name.Contains("_diff") || name.Contains("_Color") || name.EndsWith("_base") || name.EndsWith("_impostor");
             TextureImporterType type = normal ? TextureImporterType.NormalMap
                 : single ? TextureImporterType.SingleChannel
                 : TextureImporterType.Default;
@@ -106,7 +109,7 @@ namespace Fpv450.Assets
     public sealed class ModelPostprocessor : AssetPostprocessor
     {
         // Bump when ArtImportSettings changes, so Unity reimports the files it covers.
-        public override uint GetVersion() => 3;
+        public override uint GetVersion() => 4;
 
         void OnPreprocessModel()
         {
@@ -118,7 +121,8 @@ namespace Fpv450.Assets
         void OnPreprocessTexture()
         {
             if (assetPath.StartsWith(ArtImportSettings.ThirdPartyFolder, StringComparison.Ordinal)
-                || assetPath.StartsWith(ArtImportSettings.MaterialsFolder, StringComparison.Ordinal))
+                || assetPath.StartsWith(ArtImportSettings.MaterialsFolder, StringComparison.Ordinal)
+                || assetPath.StartsWith(ArtImportSettings.ModelsFolder, StringComparison.Ordinal))
                 ArtImportSettings.ApplyTexture((TextureImporter)assetImporter, assetPath);
         }
     }

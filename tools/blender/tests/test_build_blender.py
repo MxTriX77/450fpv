@@ -1,7 +1,7 @@
 """build.py end to end in headless Blender, when the pinned Blender is installed: K01 builds into a scratch root
 with its audit printed, the outputs agree with the spec scenarios, a second run writes byte-identical files, an
-out-of-range param and a mesh grown beyond its box are refused before anything is written. The version pin is
-checked without Blender."""
+out-of-range param and a mesh grown beyond its box are refused before anything is written, and an impostor asked for
+is rendered once as a 1k atlas. The version pin is checked without Blender."""
 import hashlib
 import json
 import os
@@ -10,9 +10,10 @@ import subprocess
 import textwrap
 
 import pytest
+from PIL import Image
 
 import build
-from lib import meta
+from lib import impostor, meta
 
 OUT = "unity/Assets/_Project/Art/Models/debris/K01"
 
@@ -67,6 +68,72 @@ def test_out_of_range_bevel_is_refused_and_the_outputs_stay_untouched(blender, r
             "'bevel_mm.max' = 200 is outside [0.0, 10.0]") in output
     assert "FBX export" not in output and "audit" not in output
     assert {p.name: p.read_bytes() for p in (tmp_path / OUT).iterdir()} == before
+
+
+def test_impostor_atlas_is_rendered_at_1k_once_and_removed_when_off(blender, repo_root, tmp_path):
+    """p1-v01-locust design decision 3 (asset-pipeline "Baked impostor LOD"): K01 with its params asking for an
+    impostor (the brick generator taught the two keys inside this Blender) gets a 1k RGBA atlas beside its FBX with
+    every view inside its cell, and the impostor as its last LOD at the params' switch distance; a rebuild finds the
+    atlas up to date and writes identical bytes; a deleted atlas renders again to the same bytes; params that stop
+    asking remove it."""
+    shutil.copytree(repo_root / "assets-src", tmp_path / "assets-src")
+    for path in ("tools/assets/manifest.json", "unity/Assets/_Project/Art/ThirdParty/polyhaven/red_brick/red_brick_diff_1k.png",
+                 "unity/Assets/_Project/Art/Materials/brick_red_mask.png"):
+        (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(repo_root / path, tmp_path / path)
+    params_path = tmp_path / "assets-src" / "debris" / "K01_whole.json"
+    params = json.loads(params_path.read_text(encoding="utf-8"))
+    params["impostor"], params["lod"]["impostor_switch_m"] = True, 60.0
+    params_path.write_text(json.dumps(params), encoding="utf-8")
+    driver = textwrap.dedent(f"""
+        import sys
+        sys.path.insert(0, {build.HERE!r})
+        import build
+        from generators import debris_brick
+        debris_brick.PARAMS["impostor"] = {{"type": "bool", "range": "true or false", "default": False, "effect": "test"}}
+        debris_brick.PARAMS["lod.impostor_switch_m"] = {{"type": "float", "range": (1.0, 2000.0), "default": 60.0,
+                                                        "effect": "test"}}
+        sys.exit(build.main(["K01", "--root", {str(tmp_path)!r}]))
+        """)
+    names = ("K01_whole.fbx", "K01_whole.assetmeta.json", "K01_whole_impostor.png")
+    atlas = tmp_path / OUT / names[2]
+    outputs, digests = [], []
+    for step in ("first", "again", "deleted"):
+        if step == "deleted":
+            atlas.unlink()
+        code, output = run_build(blender, tmp_path, driver)
+        assert code == 0 and "build.py: OK" in output, output
+        outputs.append(output)
+        digests.append({name: hashlib.sha256((tmp_path / OUT / name).read_bytes()).hexdigest() for name in names})
+    assert "K01_whole: impostor rendered in" in outputs[0]
+    assert "impostor rendered" not in outputs[1], "an up-to-date atlas is not rendered again"
+    assert "K01_whole: impostor rendered in" in outputs[2]
+    assert digests[0] == digests[1] == digests[2], "the same inputs render the same bytes"
+    assert "K01_whole: impostor K01_whole_impostor.png 1024x1024, 8 views at 15 deg" in outputs[0]
+
+    assert impostor.png_header(str(atlas)) == (1024, 1024, 8, 6), "a 1k 8-bit RGBA atlas"
+    data = json.loads((tmp_path / OUT / names[1]).read_text(encoding="utf-8"))
+    last = data["lods"][-1]
+    assert [lod["mesh"] for lod in data["lods"]] == ["K01_whole_LOD0", "K01_whole_LOD1", "K01_whole_impostor"]
+    assert last["switch_distance_m"] == 60.0 and data["cull_distance_m"] == 120.0
+    assert last["impostor"]["atlas_sha256"] == digests[0][names[2]]
+    alpha = Image.open(atlas).getchannel("A")
+    pad = impostor.PAD_PX
+    for k in range(impostor.VIEWS):
+        x0, y0 = (k % 4) * 256, (k // 4) * 512
+        cell = alpha.crop((x0, y0, x0 + 256, y0 + 512))
+        assert cell.getbbox() is not None, f"view {k} is empty"
+        left, top, right, bottom = cell.getbbox()
+        assert left >= pad - 1 and top >= pad - 1 and right <= 256 - pad + 1 and bottom <= 512 - pad + 1, \
+            f"view {k} reaches {cell.getbbox()} into its {pad} px pad"
+
+    params["impostor"] = False
+    params_path.write_text(json.dumps(params), encoding="utf-8")
+    code, output = run_build(blender, tmp_path, driver)
+    assert code == 0, output
+    assert not atlas.exists(), "an atlas the params no longer ask for is removed"
+    data = json.loads((tmp_path / OUT / names[1]).read_text(encoding="utf-8"))
+    assert [lod["mesh"] for lod in data["lods"]] == ["K01_whole_LOD0", "K01_whole_LOD1"]
 
 
 def test_mesh_grown_beyond_its_box_fails_the_audit_and_writes_nothing(blender, repo_root, tmp_path):
