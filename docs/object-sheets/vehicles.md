@@ -306,7 +306,7 @@ Glass and the struck corner first (the bonnet corner and the lamp), then the pan
 
 ### Physics role
 - **Collision:** the shared car plan, 24–30 primitives; the rack as 4 capsules on 4 short posts; the folded bonnet flap a thin box at its angle; the chrome bumpers boxes (`steel`).
-- **Material ids:** body `sheet_metal`; bumpers, rims, rack, seat frames `steel`; windscreen `glass` while crazed in place; tyres `proposed:rubber`; seats `proposed:fabric`.
+- **Material ids:** body `sheet_metal`; bumpers, rims, rack, seat frames `steel`; windscreen `glass` while crazed in place; tyres `rubber`; seats `fabric`.
 - **Gaps:** none (side windows 0.43–0.45 m tall; shared gap table). The rear-row cabin gap applies only if the generator removes or opens both rear doors.
 - **Wind volumes:** shared; height 1.44 m: recirculation 3–4 m, shadow about 15 m.
 - **Snag hazards:** the bonnet flap's torn edges, hole petals, the rack tubes and their ends, the bumper overriders, a whip antenna (optional), wipers; B: sprung door edges, hanging wiring; F: seat springs, rim flanges, bead-wire rings.
@@ -367,7 +367,7 @@ As shared. The large tailgate glass and the wedge nose's plastic go first; the b
 
 ### Physics role
 - **Collision:** the shared car plan with a single sloping bonnet box and the tailgate as a raked box.
-- **Material ids:** shared; bumpers `proposed:plastic` (B, A), their beams `steel` (F).
+- **Material ids:** shared; bumpers `plastic` (B, A), their beams `steel` (F).
 - **Gaps:** none (0.42 m windows); the rear-row cabin gap only if generated (five-door).
 - **Wind volumes:** shared; height 1.40 m.
 - **Snag hazards:** shared; cracked bumper edges (plastic, blunt).
@@ -483,7 +483,7 @@ As N: the bonnet skin peels away from its inner frame; the plastic bumper covers
 
 ### Physics role
 - **Collision:** the shared car plan; the standing bonnet frame as two thin boxes (frame and fold); a hanging bumper cover as a thin box at its angle.
-- **Material ids:** shared; covers and lamp units `proposed:plastic`.
+- **Material ids:** shared; covers and lamp units `plastic`.
 - **Gaps:** none by default; with both rear doors off (hatchback or sedan), the rear-row cabin gap is recorded (shared table).
 - **Wind volumes:** shared; height 1.43 m.
 - **Snag hazards:** shared; the bonnet frame's lightening-hole edges (`edge`), the wiring loop (`hook`), the hanging mirror, the hanging cover's torn edge.
@@ -704,7 +704,7 @@ The timber bed fails first (it splinters in B and burns in F); the steel cab den
 
 ### Physics role
 - **Collision:** frame 2 boxes; cab 4 boxes (lower, upper, roof, rear wall); bonnet and wings 3 boxes; 6 wheel cylinders (the duals as one wide cylinder per side); platform floor 1 box, sides 3 boxes (each drop side its own box at its angle); in F the floor becomes 6–9 cross-member boxes and char stubs.
-- **Material ids:** cab, bonnet `sheet_metal`; frame, cross members, rims `steel`; boards `timber`; tyres `proposed:rubber`.
+- **Material ids:** cab, bonnet `sheet_metal`; frame, cross members, rims `steel`; boards `timber`; tyres `rubber`.
 - **Gaps:** none (shared table: the cab is a pocket; under the truck no clear crossing; the F floor's 0.40–0.50 m gaps are below 0.574 m).
 - **Wind volumes:** cab 0 (glass in) / 0.3 (glass gone); bonnet 0.1; chassis 0.6; side boards 0; F side boards gone, floor 0.8 (cross members only). Height 2.4 m: recirculation 5–7 m, shadow about 24 m.
 - **Snag hazards:** split board ends and hinge pins, sprung cab door edges, the windscreen frame, B and F: hanging wiring; F: char stubs and nails on the cross members, rim flanges, bead wires.
@@ -776,7 +776,7 @@ The canvas goes first (torn in B, burnt in F), then the glass and the cab's shee
 
 ### Physics role
 - **Collision:** frame 2 boxes; cab 4–5 boxes; bonnet and wings 3 boxes; 6 wheel cylinders; platform floor, sides and tailgate 5 boxes; the tilt (A, B) as 3 boxes (two sides, a top) following the canvas within 2 cm; bows (F, variant 2) as capsule arcs, 5–7 segments each; torn canvas flaps as thin boxes.
-- **Material ids:** cab, bonnet `sheet_metal`; frame, platform, bows, rims `steel`; tilt `proposed:fabric`; benches `timber`; tyres `proposed:rubber`.
+- **Material ids:** cab, bonnet `sheet_metal`; frame, platform, bows, rims `steel`; tilt `fabric`; benches `timber`; tyres `rubber`.
 - **Gaps (F and variant 2, bows bare):**
   - side bays between bows above the side boards: 0.975 − 0.04 = **0.935 m wide** × (1.55 − 0.62 − about 0.10 m bow shoulder) = **0.83 m tall**; narrowest 0.83 m ≥ 0.706: **passes at any yaw**, 62 mm a side on the diagonal, 128 mm nose-first; 0.83 m above the 0.55 m drone height
   - rear opening above the closed tailgate: **2.33 × 0.83 m**, passes at any yaw; with the tailgate down 2.33 × 1.45 m
@@ -860,8 +860,8 @@ Not applicable (they are the damage); burnt fragments follow `weeks_since_fire` 
 
 ### Physics role
 - **Collision:** each fragment is 1–3 primitives (a door a box; a bumper a box or capsule; a wheel a cylinder; a trim strip a capsule; a bead-wire ring 6–8 capsule segments, r 3–4 mm). Fragments are static obstacles; pieces under 0.10 m are visual only (below the leg foot's scale; assumed).
-- **Material ids:** shards, doors, lids `sheet_metal`; bumpers (classic), rims, bead wires, seat frames `steel`; covers, lamps `proposed:plastic`; tyres `proposed:rubber`; the fallen windscreen `glass`.
-- **The crumb layer** is not per-crumb physics (a 10 mm crumb is smaller than a leg foot): it is a ground cover, **`proposed:glass_crumbs`**, with μ 0.30/0.20 (assumed: loose glass cubes roll under a polymer foot; the same values as the earthworks sheet's S11 crumb cover), rigid on asphalt, so a landing on crumbs slides more readily than on bare asphalt (μ 0.65/0.55, S11).
+- **Material ids:** shards, doors, lids `sheet_metal`; bumpers (classic), rims, bead wires, seat frames `steel`; covers, lamps `plastic`; tyres `rubber`; the fallen windscreen `glass`.
+- **The crumb layer** is not per-crumb physics (a 10 mm crumb is smaller than a leg foot): it is a ground cover, **the crumb cover of the `asphalt` surface** (S11; nothing on the asset), with μ 0.30/0.20 (assumed: loose glass cubes roll under a polymer foot; the same values as the earthworks sheet's S11 crumb cover), rigid on asphalt, so a landing on crumbs slides more readily than on bare asphalt (μ 0.65/0.55, S11).
 - **Gaps:** none.
 - **Wind volumes:** none (low pieces); a standing bonnet or door in the field is a solid thin box.
 - **Snag hazards:** torn shard edges (`edge`, r 0.35 mm), bead-wire rings (`hook`/`edge`, r 3 mm), trim strips, hanging bumper covers, the fallen windscreen's torn PVB edge (`edge`, r 0.4 mm).
