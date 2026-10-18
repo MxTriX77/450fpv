@@ -17,6 +17,10 @@ The far LOD is CROSSED vertical cards of the whole clump, each mapped to the den
 atlas scaled up: the whole atlas is 20 % leaf, so at the 9 px of a far clump its six thin sprigs fell under the
 clip and the card vanished (measured on the first review sheet at 200 m).
 
+Trees (p1-v01-locust, design decision 2): `along` lays a pinnate leaf card every step along a member's polyline,
+alternate sides, each a whole sprig cell (a stalk with 12-20 small oval leaves, which at a 0.25 m leaf are the
+locust's 2.5-6.8 cm leaflets on their rachis); `hanging` hangs a crossed pair of pod cards from a twig tip.
+
 The cells are LeafSet002's six sprigs, measured on its 2048 px map (design 3, "as built") as inclusive pixel
 columns and rows, row 0 at the top, so V runs up and the stalk sits at the cell's V0; the recipe tiles the atlas at
 1.0 m, so UV metres are atlas fractions.
@@ -68,19 +72,60 @@ def place(rng, twigs, count, card_m, ground_y=0.0, fork_deg=(0.0, 0.0)):
         t = max(MIN_T, 1 - u * u)
         attach = add(twig.p0, scale(sub(twig.p1, twig.p0), t))
         axis = _off_twig(normalize(sub(twig.p1, twig.p0)), math.radians(rng.uniform(*fork_deg)), rng.uniform(0.0, 2 * math.pi))
-        half_l = card_m / 2
-        centre = add(attach, scale(axis, half_l))
-        side = cross(_facing(axis, centre, rng.uniform(-ROLL_JITTER, ROLL_JITTER)), axis)
-        cell = rng.randrange(len(CELLS_UV))
-        (u0, v0), (u1, v1) = CELLS_UV[cell]
-        half_w = half_l * (u1 - u0) / (v1 - v0)
-        a, b = scale(axis, half_l), scale(side, half_w)
-        corners = [sub(sub(centre, a), b), add(sub(centre, a), b), add(add(centre, a), b), sub(add(centre, a), b)]
-        lift = ground_y - min(c[1] for c in corners)
-        if lift > 0:
-            corners = [(x, y + lift, z) for x, y, z in corners]
-        cards.append(Card(corners, cross(axis, side), [(u0, v0), (u1, v0), (u1, v1), (u0, v1)], cell))
+        cards.append(_card(rng, attach, axis, card_m, ground_y))
     return cards
+
+
+def along(rng, members, leaf_m, step_m, start, angle_deg, axis=(0.0, 0.0), ground_y=0.0):
+    """Pinnate leaf cards along polyline members (lib.skeleton.Member; p1-v01-locust, design decision 2): one every
+    `step_m` of arc from `start` of a member's length to its tip, each a whole cell of the atlas `leaf_m` long from its
+    petiole on the member, alternate sides about it (half a turn apart, jittered) at an angle drawn from `angle_deg`,
+    facing outward from the crown's vertical `axis` (x, z) as the sprigs do. Returns {member index: [Card]}."""
+    out = {}
+    for index, member in members:
+        length = member.length()
+        phase, cards = rng.uniform(0.0, 2 * math.pi), []
+        k, s = 0, start * length
+        while s <= length:
+            p, tangent, _ = member.at(s)
+            leaf = _off_twig(tangent, math.radians(rng.uniform(*angle_deg)), phase + k * math.pi + rng.uniform(-0.4, 0.4))
+            cards.append(_card(rng, p, leaf, leaf_m, ground_y, axis))
+            k, s = k + 1, s + step_m
+        out[index] = cards
+    return out
+
+
+def hanging(rng, tips, length, aspect, uv=((0.0, 0.0), (1.0, 1.0))):
+    """Two crossed vertical cards hanging `length` from each tip point, `aspect` as wide as long, at a random
+    azimuth, mapped over the whole of `uv`: the pod strips (design decision 2)."""
+    (u0, v0), (u1, v1) = uv
+    cards = []
+    for tip in tips:
+        azimuth = rng.uniform(0.0, math.pi)
+        for k in (0, 1):
+            a = azimuth + k * math.pi / 2
+            b = scale((math.cos(a), 0.0, math.sin(a)), length * aspect / 2)
+            low = (tip[0], tip[1] - length, tip[2])
+            corners = [sub(low, b), add(low, b), add(tip, b), sub(tip, b)]
+            cards.append(Card(corners, cross(UP, normalize(b)), [(u0, v0), (u1, v0), (u1, v1), (u0, v1)], None))
+    return cards
+
+
+def _card(rng, attach, axis, card_m, ground_y, crown=(0.0, 0.0)):
+    """One card `card_m` long from `attach` along the unit `axis`, as wide as its cell's aspect, facing outward from
+    the crown's vertical axis with a rolled jitter, lifted onto the ground if it dips under it."""
+    half_l = card_m / 2
+    centre = add(attach, scale(axis, half_l))
+    side = cross(_facing(axis, centre, rng.uniform(-ROLL_JITTER, ROLL_JITTER), crown), axis)
+    cell = rng.randrange(len(CELLS_UV))
+    (u0, v0), (u1, v1) = CELLS_UV[cell]
+    half_w = half_l * (u1 - u0) / (v1 - v0)
+    a, b = scale(axis, half_l), scale(side, half_w)
+    corners = [sub(sub(centre, a), b), add(sub(centre, a), b), add(add(centre, a), b), sub(add(centre, a), b)]
+    lift = ground_y - min(c[1] for c in corners)
+    if lift > 0:
+        corners = [(x, y + lift, z) for x, y, z in corners]
+    return Card(corners, cross(axis, side), [(u0, v0), (u1, v0), (u1, v1), (u0, v1)], cell)
 
 
 def crossed(width, y0, y1, count=CROSSED):
@@ -110,11 +155,11 @@ def _off_twig(along, angle, azimuth):
     return normalize(add(scale(along, math.cos(angle)), scale(around, math.sin(angle))))
 
 
-def _facing(axis, centre, roll):
+def _facing(axis, centre, roll, crown=(0.0, 0.0)):
     """The unit normal of a card along the unit `axis` at `centre`: the clump's outward horizontal direction there
-    (about the Y axis), less its part along the sprig, or up when the sprig points within asin(MIN_OUTWARD) of
-    outward, then rolled about the sprig by `roll`."""
-    radial = (centre[0], 0.0, centre[2])
+    (about the vertical through `crown`, (x, z)), less its part along the sprig, or up when the sprig points within
+    asin(MIN_OUTWARD) of outward, then rolled about the sprig by `roll`."""
+    radial = (centre[0] - crown[0], 0.0, centre[2] - crown[1])
     outward = normalize(radial) if norm(radial) > 1e-6 else (1.0, 0.0, 0.0)
     for preferred in (outward, UP):
         n = sub(preferred, scale(axis, dot(preferred, axis)))

@@ -7,6 +7,12 @@
       "variants": ["K01_whole"],
       "materials": { "brick": "brick_red" }
     },
+    "V01": {
+      "class": "vegetation",
+      "generator": "tree",
+      "variants": ["V01_S", "V01_M", "V01_L"],
+      "materials": { "bark": "bark_locust", "twig": "bark_locust", "leaf": "leaf_locust", "pod": "pod_locust" }
+    },
     "V13": {
       "class": "vegetation",
       "generator": "shrub",
