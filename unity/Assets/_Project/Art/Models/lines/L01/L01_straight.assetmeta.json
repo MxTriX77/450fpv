@@ -1,0 +1,726 @@
+{
+  "schema": 1,
+  "id": "L01",
+  "variant": "L01_straight",
+  "generator": "pole",
+  "params_sha256": "8d861b1b6be890b9bccc6275cb33aadd0c761e6533ba310cfbe72710988c6509",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -0.128052,
+      0.0,
+      -0.276974
+    ],
+    "max": [
+      0.128052,
+      7.5,
+      0.274342
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "L01_straight_LOD0",
+      "tris": 892,
+      "switch_distance_m": 0.0
+    },
+    {
+      "mesh": "L01_straight_LOD1",
+      "tris": 22,
+      "switch_distance_m": 35.0
+    },
+    {
+      "mesh": "L01_straight_LOD2",
+      "tris": 16,
+      "switch_distance_m": 120.0
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 1200.0,
+  "materials": [
+    {
+      "slot": "ground_wire",
+      "visual": "wire_steel",
+      "physics": "cable"
+    },
+    {
+      "slot": "insulator",
+      "visual": "insulator_porcelain",
+      "physics": "glass"
+    },
+    {
+      "slot": "steel",
+      "visual": "pole_steel",
+      "physics": "steel"
+    },
+    {
+      "slot": "wood",
+      "visual": "pole_wood",
+      "physics": "timber"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "capsule",
+      "center": [
+        0.0,
+        1.25,
+        0.0
+      ],
+      "radius": 0.112895,
+      "height": 2.725789,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.0,
+        3.75,
+        0.0
+      ],
+      "radius": 0.099737,
+      "height": 2.699474,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        6.25,
+        0.0
+      ],
+      "radius": 0.086579,
+      "height": 2.5,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.0,
+        7.2,
+        0.126579
+      ],
+      "radius": 0.0085,
+      "height": 0.227,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.0,
+        7.265,
+        0.231579
+      ],
+      "radius": 0.0085,
+      "height": 0.147,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.0,
+        6.7,
+        -0.129211
+      ],
+      "radius": 0.0085,
+      "height": 0.227,
+      "rotation": [
+        -0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.0,
+        6.765,
+        -0.234211
+      ],
+      "radius": 0.0085,
+      "height": 0.147,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.0,
+        6.2,
+        0.131842
+      ],
+      "radius": 0.0085,
+      "height": 0.227,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.0,
+        6.265,
+        0.236842
+      ],
+      "radius": 0.0085,
+      "height": 0.147,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.0,
+        5.7,
+        -0.134474
+      ],
+      "radius": 0.0085,
+      "height": 0.227,
+      "rotation": [
+        -0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.0,
+        5.765,
+        -0.239474
+      ],
+      "radius": 0.0085,
+      "height": 0.147,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        7.334,
+        0.231579
+      ],
+      "radius": 0.0375,
+      "height": 0.108,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "glass",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        6.834,
+        -0.234211
+      ],
+      "radius": 0.0375,
+      "height": 0.108,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "glass",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        6.334,
+        0.236842
+      ],
+      "radius": 0.0375,
+      "height": 0.108,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "glass",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        5.834,
+        -0.239474
+      ],
+      "radius": 0.0375,
+      "height": 0.108,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "glass",
+      "landable": false
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        3.75,
+        0.0
+      ],
+      "size": [
+        0.238947,
+        7.5,
+        0.238947
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    }
+  ],
+  "ports": [
+    {
+      "id": "hook_0",
+      "position": [
+        0.0,
+        7.355,
+        0.250579
+      ],
+      "direction": [
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "id": "hook_1",
+      "position": [
+        0.0,
+        6.855,
+        -0.253211
+      ],
+      "direction": [
+        0.0,
+        0.0,
+        -1.0
+      ]
+    },
+    {
+      "id": "hook_2",
+      "position": [
+        0.0,
+        6.355,
+        0.255842
+      ],
+      "direction": [
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "id": "hook_3",
+      "position": [
+        0.0,
+        5.855,
+        -0.258474
+      ],
+      "direction": [
+        0.0,
+        0.0,
+        -1.0
+      ]
+    }
+  ],
+  "snag": [
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.0,
+          7.2,
+          0.081579
+        ],
+        [
+          0.0,
+          7.2,
+          0.231579
+        ],
+        [
+          0.0,
+          7.28,
+          0.231579
+        ]
+      ],
+      "radius_m": 0.008,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.0,
+          6.7,
+          -0.084211
+        ],
+        [
+          0.0,
+          6.7,
+          -0.234211
+        ],
+        [
+          0.0,
+          6.78,
+          -0.234211
+        ]
+      ],
+      "radius_m": 0.008,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.0,
+          6.2,
+          0.086842
+        ],
+        [
+          0.0,
+          6.2,
+          0.236842
+        ],
+        [
+          0.0,
+          6.28,
+          0.236842
+        ]
+      ],
+      "radius_m": 0.008,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.0,
+          5.7,
+          -0.089474
+        ],
+        [
+          0.0,
+          5.7,
+          -0.239474
+        ],
+        [
+          0.0,
+          5.78,
+          -0.239474
+        ]
+      ],
+      "radius_m": 0.008,
+      "material": "steel"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.019,
+          7.355,
+          0.231579
+        ],
+        [
+          0.013435,
+          7.355,
+          0.245014
+        ],
+        [
+          0.0,
+          7.355,
+          0.250579
+        ],
+        [
+          -0.013435,
+          7.355,
+          0.245014
+        ],
+        [
+          -0.019,
+          7.355,
+          0.231579
+        ],
+        [
+          -0.013435,
+          7.355,
+          0.218144
+        ],
+        [
+          0.0,
+          7.355,
+          0.212579
+        ],
+        [
+          0.013435,
+          7.355,
+          0.218144
+        ],
+        [
+          0.019,
+          7.355,
+          0.231579
+        ]
+      ],
+      "radius_m": 0.005,
+      "material": "glass"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.019,
+          6.855,
+          -0.234211
+        ],
+        [
+          0.013435,
+          6.855,
+          -0.220775
+        ],
+        [
+          0.0,
+          6.855,
+          -0.215211
+        ],
+        [
+          -0.013435,
+          6.855,
+          -0.220775
+        ],
+        [
+          -0.019,
+          6.855,
+          -0.234211
+        ],
+        [
+          -0.013435,
+          6.855,
+          -0.247646
+        ],
+        [
+          0.0,
+          6.855,
+          -0.253211
+        ],
+        [
+          0.013435,
+          6.855,
+          -0.247646
+        ],
+        [
+          0.019,
+          6.855,
+          -0.234211
+        ]
+      ],
+      "radius_m": 0.005,
+      "material": "glass"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.019,
+          6.355,
+          0.236842
+        ],
+        [
+          0.013435,
+          6.355,
+          0.250277
+        ],
+        [
+          0.0,
+          6.355,
+          0.255842
+        ],
+        [
+          -0.013435,
+          6.355,
+          0.250277
+        ],
+        [
+          -0.019,
+          6.355,
+          0.236842
+        ],
+        [
+          -0.013435,
+          6.355,
+          0.223407
+        ],
+        [
+          0.0,
+          6.355,
+          0.217842
+        ],
+        [
+          0.013435,
+          6.355,
+          0.223407
+        ],
+        [
+          0.019,
+          6.355,
+          0.236842
+        ]
+      ],
+      "radius_m": 0.005,
+      "material": "glass"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.019,
+          5.855,
+          -0.239474
+        ],
+        [
+          0.013435,
+          5.855,
+          -0.226039
+        ],
+        [
+          0.0,
+          5.855,
+          -0.220474
+        ],
+        [
+          -0.013435,
+          5.855,
+          -0.226039
+        ],
+        [
+          -0.019,
+          5.855,
+          -0.239474
+        ],
+        [
+          -0.013435,
+          5.855,
+          -0.252909
+        ],
+        [
+          0.0,
+          5.855,
+          -0.258474
+        ],
+        [
+          0.013435,
+          5.855,
+          -0.252909
+        ],
+        [
+          0.019,
+          5.855,
+          -0.239474
+        ]
+      ],
+      "radius_m": 0.005,
+      "material": "glass"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.122474,
+          0.0,
+          0.0
+        ],
+        [
+          -0.092737,
+          5.65,
+          0.0
+        ]
+      ],
+      "radius_m": 0.003,
+      "material": "cable"
+    }
+  ]
+}
