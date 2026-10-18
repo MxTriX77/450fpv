@@ -40,6 +40,33 @@ The pipeline after `p1-pipeline-hardening`: params ranges per generator (`PARAMS
    - **The detail layer is grey:** the per-channel neutralisation multiplied the hay set's weak blue by 4.2 and put blue and lilac flecks into the base; a grey detail keeps the grain without a hue.
    - Measured: the albedo's mean luminance 0.1637 against 0.1638 (−0.1 %), bare 7.8 %, green 15.5 %, gaps 21.7 %. No repeat: the normalised autocorrelation of the albedo's luminance (high-passed at 0.5 m) over every shift of 0.4–4 m peaks at +0.14 beyond 1 m, where the cover tiled plainly at 2 m scores +0.77 at 2 m and +0.88 at 4 m; the 10 m tiles show no pattern by eye.
    - Not matched, for the record: the feed's own saturation and contrast (the feed stage's work); H's near straws lie in locally parallel swathes, ours cross at random with the global 0.3 bias; the review's 35° look-down from 1.5 m shows more soil between straws than H's 0.3–1.5 m forward view; G's low warm sun is not a review light, so G is matched only for the mat's texture and colour family.
+   - **Labels** (review R3; every number is inside the sheet's range where the sheet gives one):
+     - `gap_share` 0.25 (recipe): **assumed**, tuned by eye so the soil shows between the straws as in H 12–21.
+     - bare feather 0.3 m (`lib/patches.py` `FEATHER_M` since task 1.6): **measured** by eye on H 9–14, straws strewn over a patch's edge for a few hand widths.
+     - lobe noise 0.4 m (`derive.LOBE_M`): **assumed** from H 9–14, the lobes of a patch's edge a few tenths of a metre.
+     - high-pass 5 cm (`derive.STRAW_M`): **assumed** inside a derived bracket: any scale between the straws' 2–5 mm (sheet) and the set's 2 m tile keeps the straws and drops the tile's shading; 5 cm is about 9 px of the 2K map.
+     - soil #433f37 (recipe `soil.albedo_target`): **assumed** inside the sheet's derived 10YR 2/1–3/1, greyer than the pinned set's #50473a to read as H 12 and H 14's grey soil.
+     - olive #7f8a4e (recipe green tint): **assumed**, between the sheet's assumed #6a7a3a and H 16's feed value #959763, judged at 10 m.
+     - `bake_feather_m` 1.0: **assumed**, the shortest fade that shows no rim at 1.5 m by eye (a quarter of the bake radius).
+     - `seed_head_share` 0.35: **assumed** inside the sheet's 30–60 % (itself assumed from H), tuned by eye on H 3–9.
+     - `variants` 12: **assumed** inside the sheet's 4–16; no repeat reads at 1.5 m by eye.
+     - `stems_per_tuft` 10 and tuft radius 0.15 m (`ground_patch.TUFT_R_M`): **assumed** from H 3–9 (tussocks 0.2–0.4 m across).
+     - `stem_tilt_deg` 60: **assumed** from H 3–9, stems leaning every way.
+     - the two extra straw shades #cdb685 and #977f55: **assumed** around the sheet's #b49c6a; their linear mean with it lies within 3 % luminance of it.
+
+12. **Task 1.6's numbers** (R1, R3, R4 with `review-physics.md` PR1–PR8; the bare patches are geometry):
+   - Mat depth D 0.125 m (`mat_depth_m`): **carried**, the sheet's default (T4), the depth `straw`'s 490 N/m is derived at.
+   - Soil box 0.3 m deep under the mat (`ground_patch.SOIL_M`), so the slab is D + 0.3 = 0.425 m (**derived**): F-5's 0.3 m behind an open face, **carried**.
+   - Bare share 0.08 on the step outlines and sizes 0.5–2 m (`bare.share`, `bare.size_m`): the sheet's (**measured** on H 9–14), moved from the recipe to the asset's params, which the recipe now names; width = length / (1 + `lodging.bias`), at least 0.5 m (**assumed**, as the blobs were before).
+   - Outline corners 8 (`bare.outline_vertices`): **assumed** inside the reading's 6–8; 8 reads less polygonal, at 143 mat boxes for S04.
+   - Corner radii in [0.75, 1] of the circle (`RADIAL_JITTER` 0.25) and patch angle within ±45° of the lodging (`ANGLE_SPREAD_DEG`): **assumed** (the second as the recipe's blobs before).
+   - Largest turn at a corner 90° (`MAX_EXTERIOR_DEG`): **derived**, the bound under which the edge boxes provably cover the window minus the outline.
+   - Window 0.3 m and least outward reach 0.3 m (`WINDOW_M`, `REACH_M`): F-5, **carried** (PR4).
+   - Box overlap 0.05 m (`SEAM_M`): **assumed**; the audit's union can only end its search at a seam down to the overlap's width, and abutting boxes have none.
+   - Drop width 0 m: **derived**: PR3 allows a vertical drop or up to 0.05 m; the mesh is cut exactly along the outline, so a vertical wall lies on the edge boxes' inner faces.
+   - Mounds keep `MOUND_GAP_M` 0.5 m from every window (PR5): the existing gap, **assumed** in task 1.2.
+   - Soft tops: a reference sink of 25 mm (**assumed**, the reading's) and so 1000 N/m for a plain id (**derived**); the list adds `foliage` (200 N/m) by the rule, which the reading's enumeration did not name.
+   - Audit coverage: 2 µm (`COVERED_M`, **derived**: twice the metadata's 1 µm rounding) and seam cells of 1 mm (`SEAM_CELL_M`, **assumed**: far under the 15 mm reference foot).
 
 11. **QA's first pass and how it is answered** (`review.md` R1–R5). R1: the ground stamp must hash the formula's constants, so a tuned constant never leaves stale maps behind an "up to date". R2: the palette scenario now names the four columns built. R3: every number §10 added carries its label. R4: the bare soil patches had a physical role but were texture only (a leg would land on straw physics where the mat is visibly absent); they become geometry: the mesh steps down through the mat over each patch and a surface shape with soil physics follows it, the patch layout shared between `derive.py` and the generator from one seeded definition. The physics engineer first reads the surface metadata (the 5 cm surface-top tolerance the audit now applies, the mound spheres, how a bare patch is represented: its step, shape kind and surface id; the proposal named that reading and it had not run). R5: the look is improved rather than the scenario narrowed: the mat gets loft (heaped, layered straws, not one sparse layer), tussock relief that reads at 10 m as G's lumpy mat, straws shaded along their length, and green regrowth as blades over the strips, judged again against H and G; §10's "not matched" list carries what still differs.
 
