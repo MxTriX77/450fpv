@@ -663,8 +663,8 @@ MonoBehaviour:
   units: m
   frame: unity-lh-yup
   bounds:
-    m_Center: {x: 0, y: 1.0138315, z: 0.01928252}
-    m_Extent: {x: 1.046647, y: 1.0138315, z: 1.0466466}
+    m_Center: {x: 0.021297514, y: 1.034412, z: 0.019215465}
+    m_Extent: {x: 1.0570505, y: 1.034412, z: 1.0775535}
   lods:
   - mesh: V13_mid_LOD0
     tris: 8380
@@ -673,7 +673,7 @@ MonoBehaviour:
     tris: 3558
     switchDistanceM: 7.5
   - mesh: V13_mid_LOD2
-    tris: 6
+    tris: 30
     switchDistanceM: 93.5
   cullDistanceM: 800
   materials:
@@ -2147,21 +2147,21 @@ LODGroup:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1681263470154961416}
   serializedVersion: 2
-  m_LocalReferencePoint: {x: 0, y: 1.0138314, z: 0.019282341}
-  m_Size: 2.0932937
+  m_LocalReferencePoint: {x: 0.021297693, y: 1.0344121, z: 0.019215822}
+  m_Size: 2.1551073
   m_FadeMode: 0
   m_AnimateCrossFading: 0
   m_LastLODIsBillboard: 0
   m_LODs:
-  - screenRelativeHeight: 0.24171276
+  - screenRelativeHeight: 0.24885033
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 4855062798766511188}
-  - screenRelativeHeight: 0.019388724
+  - screenRelativeHeight: 0.019961257
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 6513539223764071286}
-  - screenRelativeHeight: 0.002266057
+  - screenRelativeHeight: 0.002332972
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 3616592030742862449}
