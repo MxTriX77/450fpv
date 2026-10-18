@@ -233,3 +233,186 @@ max subject length 69 (limit 72); all type(scope): summary
 - **S7:** the S02–S13 physics sections omit "Gaps, wind volumes: none", which S01 states.
 
 Verdict: CHANGES REQUESTED
+
+## Re-review (after 1.9 and 1.10)
+
+**Reviewer:** qa-engineer, a fresh agent, independent of the rework · **Branch:** `unity/ref/p1-object-sheets` at `5744340`. `origin/unity/main` has moved on, but the merge base is still `e6ee5d6`, so `origin/unity/main...HEAD` is this change alone · **Rework read:** the 11 commits after `70812fb` (`d066f1a` D-032 and AST-04; `6bdf6fc`, `d1f7db5`, `f9ccc55`, `8921aa4`, `7f7bb1b`, `4ca3e95` sheets; `19dbfa3` AST-04 rewording; `5fd5cd6` tasks; `6c6b19e`, `5744340` U02b buildability), D-032, AST-04 as reworded, all six sheets in full, `asset-list.md` and `review-buildability.md` · **Not opened:** `reference/`. Line numbers are at `5744340`.
+
+Every check below was run again by me. The scripts are new throwaway files in my scratchpad (run with `python -I`, not committed).
+
+### Checks run
+
+```
+$ python tools/hygiene/precommit.py --tree HEAD
+364 files scanned, 0 findings                                          exit=0
+
+$ openspec validate p1-object-sheets --strict
+Change 'p1-object-sheets' is valid                                     exit=0
+
+$ python -I coverage.py .        # asset-list §1–10 IDs against "## <ID> " headings; 9 template sections + Seen in + Research sources per row
+asset-list IDs (sec 1-10): 103 distinct: 103
+sheet ## <ID> headings: 103 distinct: 103
+missing: []   extras: []   duplicates: {}
+per sheet: earthworks-and-surfaces 20, houses-and-yard 25, lines-roads-debris 17, urban-edge 10, vegetation 21, vehicles 10
+rows checked: 103 rows with gaps: 0
+
+$ python -I labels.py . 20261 --measured   # every row of every "### Dimensions" table (a row with two label words counts under both)
+earthworks-and-surfaces.md rows 145  measured 54 published 27 derived 20 assumed  60 carried 16  no-label 0
+houses-and-yard.md         rows 165  measured 50 published 17 derived 13 assumed 101 carried  0  no-label 0
+lines-roads-debris.md      rows 128  measured 35 published 29 derived 15 assumed  86 carried  0  no-label 0
+urban-edge.md              rows 121  measured 31 published 27 derived 24 assumed  71 carried  0  no-label 0
+vegetation.md              rows 147  measured 45 published 63 derived  7 assumed  63 carried  0  no-label 0
+vehicles.md                rows 138  measured  8 published 68 derived 26 assumed  48 carried  0  no-label 0
+dimension rows total: 844 {'labelled': 844}
+rows with no label word: (none)
+'measured' with no letter A-P in the label cell: (none)
+measured rows whose only letter match is A, D or I: 43, all read by eye: each is the letter (none is a diameter "D" or an article "A")
+
+$ python -I materials.py . 20262  # "**Materials" bullets and their sub-bullets, and the group CC0 candidate tables
+material lines found: 156
+domains in material lines: {'polyhaven.com': 148, 'ambientcg.com': 30, 'www.texturecan.com': 2}
+flagged (store/paid/NC/ND/OFL): []
+(the domain counts equal the first pass's exactly; the line count differs only in how sub-bullets are split)
+
+$ python -I params.py . U02b      # every row of every "| Param |" table
+generator tables: 75 param rows: 778
+rows with empty effect: 0
+rows with no range and no range-bearing type: 2
+  houses-and-yard.md:1563 `tipped` type=[per prop] range=[—]     (first-pass S5, still open)
+  urban-edge.md:290 `mound` type=[seed] range=[—]                 (a seed: fine)
+table under ## U02b Collapsed timber roof pile at urban-edge.md 495 rows 28
+
+$ python -I urls.py . --all       # every URL in the six sheets
+URL occurrences: 384 distinct URLs: 269 hosts: 74
+(the 99 distinct URLs outside polyhaven.com, ambientcg.com and en.wikipedia.org were read one by one; judgements under R1–R3)
+
+$ python -I gaps.py               # w(θ) = 0.254 + 0.32·(|cos θ| + |sin θ|); θmax = asin((W − 0.254)/0.4525) − 45°, checked by brute force
+w(0) = 0.5740 m, w(45) = 0.7065 m
+first pass's 20 openings: unchanged results; their sheet lines are untouched by the rework (git diff 70812fb..HEAD)
+U02b: rafter L = 3.5 / cos 25° = 3.862 m; rise 1.632 m; L + 0.4 / cos 25° = 4.30 m
+  held ridge: rise 2.2 m, run √(L² − rise²) = 3.174 m, flank 34.7°
+  rafter_spread 0.30: L² − (b+s)² = +0.474 -> ridge 0.688 m above the feet
+  rafter_spread 0.36: +0.014 -> 0.119 m
+  rafter_spread 0.40: -0.296 -> no real ridge height
+  rafter_spread 1.00: -5.336 -> no real ridge height
+  spread limit L − b: H03 0.362, H02 0.310, H04 0.597, H01 0.807 m
+  brick removed 30.5 × 0.38 × 2.4 − 4.9 − 1.8 = 21.12 m³ × 1.86 = 39.3 m³ (centreline perimeter of 9 × 7 m at 0.38 m: 30.48 m)
+  ceiling fill 51 × 0.2 = 10.2 m³; core 40 + 10.2 ≈ 50 m³ over 80 m² = 0.63 m mean
+  timber 1.29 + 0.43 + 0.8 + 2.5 + 1.6 = 6.62 m³; void 1 − 6.6/80 = 0.917; battens 2 slopes × 9.8 m × 9 rows = 176 m (sheet: 173 m)
+  lean-to mouth 6.5 × 2 m: inscribed diameter 1.84 m (isosceles) / 1.70 m (right triangle); sheet: 1.8 m
+  heap body 10 × 8 m seen 30–45° off its axis: 12.66–12.73 m across (sheet: 12.7–12.8 m)
+
+$ git log --no-merges --format='%h %an <%ae> [%s] body=[%b]' e6ee5d6..HEAD
+36 commits (11 since the first pass): 18 Reference Analyst <reference@450fpv.local>, 9 Asset Artist <assets@450fpv.local>,
+8 Orchestrator <orchestrator@450fpv.local>, 1 QA Engineer <qa@450fpv.local>; every body empty; 0 co-author lines; longest subject 72 (the limit)
+rework subjects and lengths: 49 docs(ref): record u02b buildability in the review
+  69 docs(ref): fix u02b source brick, pitch, core volume and gap verdicts · 62 docs(openspec): record the qa rework tasks of p1-object-sheets
+  60 docs: ast-04 wording for cellar and hut sizes per the sheets · 60 docs(ref): cite the door standard for the block's flat doors
+  70 docs(ref): drop regional surveys and framing from the vegetation sheet · 71 docs(ref): drop a city catalogue and label rows in the urban edge sheet
+  72 docs(ref): label inherited rows and replace a pole source in lines sheet · 70 docs(ref): neutral wording, d-032 sizes and labels in the houses sheet
+  66 docs(ref): generic sources and full labels in the earthworks sheet · 64 docs: d-032, measured sizes beat ast-04 and views are composites
+
+$ git diff --name-only origin/unity/main...HEAD
+docs/asset-list.md  docs/decisions.md  docs/requirements.md  docs/reference-notes/terrain.md
+docs/object-sheets/{earthworks-and-surfaces,houses-and-yard,lines-roads-debris,urban-edge,vegetation,vehicles}.md
+openspec/changes/p1-object-sheets/{design,review-buildability,review,tasks}.md
+$ git diff --name-only origin/unity/main...HEAD | grep -iE '^reference/|\.(png|jpe?g|gif|webp|tiff?|mp4|mov|mkv|avi|exr|hdr|wav|mp3)$|(^|/)(Library|Temp|Logs|UserSettings)/'
+(no output)                                                            exit=1
+```
+
+Identities match `docs/team.md`. The diff holds 14 expected docs and change files; the manifest is untouched (D-003).
+
+Public pages I opened to judge sources (read only): the trench guide at thinkdefence.co.uk (earthworks-and-surfaces.md:31) is a generic field-construction guide that names no site, region or front; the tree-restoration article at trees.org.uk (vegetation.md:229, :508, :610) names the country only; the ragweed article at zaxid.net (vegetation.md:1014) is general advice with no sub-national place in its body; the clay-building item at repo.snau.edu.ua (houses-and-yard.md:37) is a conference paper on natural wall materials in general (the cited bitstream URL itself returns 404, S9); the two hut overviews at unian.ua and osvita.ua (houses-and-yard.md:398) describe the type across the country, regions only in passing; the SIP file on the procurement portal (lines-roads-debris.md:76) is a cable maker's catalogue with no buyer, place or site. The substation item at ena.lpnu.ua (urban-edge.md:34) returned HTTP 500 twice and is judged on the sheet's own generic description.
+
+### R1–R6
+
+| # | Status | Evidence |
+|---|---|---|
+| R1 location-specific sources | **closed** | earthworks-and-surfaces.md:30–33: the news photo report, the regional trench article and the crater-count news and abstract are gone; trenches cite an encyclopedia mirror and a generic guide, dugouts an encyclopedia (:33). vegetation.md:188, :307, :810: the stand records, the belt survey and the community forestry PDF are gone; the belt structure, the belt mix and the shrub mix are labelled assumed. vegetation.md:1014: the city news, the city survey and the village survey are gone (Wikipedia plus a generic advice article). The satellite abstract is gone, so its region question is moot. Beyond R1's list, lines-roads-debris.md:212 dropped a registry abstract and urban-edge.md's research table (the row after :22) a city's building-series catalogue. Host-by-host read of the remaining 99 non-library URLs: standards hosts, encyclopedias, manufacturer and store product pages, journals, university repositories and general how-to articles; none is about a named place, oblast, front or site (D-032). |
+| R2 regional framing | **closed, one remainder** | vegetation.md:240 now "V01 is the default belt tree for the map"; the zone names at :188, :249, :296, :351, :362, :497, :810, :825 are gone (grep for steppe sub-zones, "eastern", "southern", "forest-steppe", oblast and city names: none); houses-and-yard.md:1161 "pale porous stone (a stone chosen for the invented map)". **Remainder:** vegetation.md:398 "more in the drier south", a zone phrase of O-7's class that the first pass also missed (R8 f). |
+| R3 pilot and device wording | **closed** | houses-and-yard.md:243 "the reference views … on the map", :316 "the second village house type of the map"; urban-edge.md:45 "a camera field of about 50° in portrait, the photo's lens, assumed", :376 "the photo's lens, assumed". Grep for device and place wording ("phone", camera and lens makers, "pilot's villages"): none left; the remaining "phone" hits are phone cables and wires. |
+| R4 labels | **closed** | 844 of 844 rows carry a label word; no "measured" row lacks its letter. Each relabelled row was checked against terrain.md: T1 → A, T3a → G, T5 → F, T6 → C, E, T7 → D, T8 → I, K, B4 → I, K, B5 → I, K, B6 → E, I, J, V1 → F, H, V2 → B, D, G, V4 → J, W2 → G, S6 → F: every letter the sheets now name is one terrain.md gives. |
+| R5 doors against AST-04 | **partly closed** | H06's door is published (GOST 6629-88's 21-10 mark, a 0.9 × 2.0 m leaf, houses-and-yard.md:464) and still passes at any yaw (:491, 97 mm a side on the diagonal); U01's interior and flat doors are published (urban-edge.md:102, :103); D-032 and the reworded AST-04 record that measured and published sizes beat AST-04's assumed ones. **Open:** D-032 and AST-04 disagree with each other and with the houses sheet on the single-storey figure and on the doors (R7, R8). |
+| R6 U02b buildability | **closed, one defect** | review-buildability.md:3, :216 (the U02b entry), :225–231 (the five `6c6b19e` fixes), :233 (the stale "sent back" note closed), :326–336 (the sent-back table no longer lists U02b). The 28 rows each have a range or a discrete choice and an effect. The fixes are in the sheet and recompute: source H03 in red brick (urban-edge.md:381, :497), 25° and 3.86 m rafters (:386), the 50 m³ core (:389), the gap verdicts (:459, :460). K03 sections (lines-roads-debris.md:832–835) and U02's bulking, core and voids (urban-edge.md:312–317) agree. **Defect:** `rafter_spread` (:509) runs to 1.0 m, past the domain of the formula it states (R9). |
+
+The first pass's doubt about the I and K scene as a layout is answered by D-032 (reference views are composites, never site layouts). S6 is answered by D-032 too, but the answer opened R7.
+
+### Gaps against the drone (Gap stated against the drone)
+
+The first pass's 20 openings recompute unchanged and their lines did not move in content. New or changed verdicts:
+
+| Opening (file:line) | W (m) | Recomputed | Sheet says | Match |
+|---|---|---|---|---|
+| H06 door, published leaf (houses:491) | 0.90 | any yaw, 97 mm diag | any yaw | yes |
+| H04 veranda doorway (houses:374) | 0.90 | any yaw, 97 mm diag | any yaw | yes (its size is R7 c, R8 c) |
+| U01 flat entrance door, leaf open (urban:206) | 0.80 | any yaw, 47 mm diag | 47 mm | yes |
+| U02b rafter bay, battens gone (urban:458) | 0.74–1.1 (0.84–0.90 at H03) | any yaw, 17–197 mm diag (67–97 at H03) | any yaw | yes |
+| U02b battened slate bay, 0.60–0.70 clear (urban:459) | 0.60–0.70 | ±4.9° 13 mm to ±35.2° 63 mm | ±5° to ±35°, 13–63 mm | yes |
+| U02b battened slate at H03's 0.5 m battens (urban:459) | 0.45 | no | no | yes |
+| U02b crossed members (urban:460) | 0.574–0.60 | none at 0.574; ±4.9°, 13 mm at 0.60 | ±5°, 13 mm at 0.6 | yes |
+| U02b lean-to mouth (urban:461) | triangle 6.5 × 2 m | inscribed 1.70–1.84 m | 1.8 m | yes |
+
+### Spec scenarios (updated)
+
+| Requirement | Scenario | First pass | Re-review | Evidence |
+|---|---|---|---|---|
+| One sheet per class group, every row covered | Coverage check | PASS | **PASS** | 103 of 103, each once, no extras; 103 rows with all 11 markers |
+| Measured, labelled numbers | Label present | FAIL (R4, R5) | **FAIL** (R7, R8) | 844 of 844 rows labelled and every measured row names its letter (R4 closed); but the AST-04 sizes are not "used as given" while AST-04, D-032 and the houses sheet disagree: single-storey walls (H03 2.9 m, H04 3.0 m against "walls 2.0–2.8 m"), H04's 0.9 m veranda door against the H01–H04 exact door, two block doors assumed where AST-04 says published; and one "published" claim lost its source (earthworks-and-surfaces.md:916) |
+| Materials and colours resolve to the pipeline | Material resolves | PASS | **PASS** | 156 lines, CC0 hosts only, the manifest id `red_brick`, nothing flagged |
+| Physics role in the pipeline's terms | Gap stated against the drone | PASS | **PASS** | 20 + 8 openings recomputed, 0 mismatches |
+| OPSEC-clean | Hygiene scan passes | FAIL (R1–R3) | **PASS**, one low remainder (R8 f) | scan 0 findings; R1–R3 closed; no reference file name, OSD value, person, plate, coordinate or reference date; one zone phrase left at vegetation.md:398 |
+| Buildable | Buildability review recorded | PASS, record stale (R6) | **PASS**, one defect in a fixed row (R9) | U02b entry and closures present; the sheet reflects all five fixes; `rafter_spread`'s range exceeds the effect it states |
+
+### Requirements (updated)
+
+| ID | First pass | Re-review | Why |
+|---|---|---|---|
+| AST-02 | met | met | unchanged content on all 103 rows; research lines now generic |
+| AST-04 | partly met | **partly met** (R7, R8) | bricks, storeys of H06 and the block, the H01–H03 doors and H06's published door hold; the single-storey wall figure, H04's veranda door and two block doors do not match AST-04's own text |
+| AST-05 | met (sheet level) | met (sheet level) | U02b's gap verdicts now follow the formula; polygons, porosities and snag records per the conventions |
+| AST-06 | met | met | unchanged |
+| SEC-01 | met | met | nothing from `reference/` in the diff, no reference file names |
+| SEC-02 | partly met | **met**, one low remainder (R8 f) | location-specific sources, regional framing and device wording removed |
+| PRC-06 | met | met | research throughout; every sheet ends "Pilot: nothing" |
+| PRC-09 | met as far as git shows | met as far as git shows | small commits per sheet and per fix |
+| D-003 | met | met | CC0 sets only; manifest untouched |
+| D-032 | — | **partly applied** (R7, R8) | composite views and generic sources applied; the size rule is stated two ways (decisions.md:297, requirements.md:268) and the houses sheet follows the first wording |
+
+### New findings
+
+1. **D-032 and AST-04 disagree.** D-032 (decisions.md:297) says "AST-04 now reads 2.3–2.8 m for single-storey village houses" and ends "single-storey village walls are 2.0–2.8 m"; it lets "larger houses, shops and the block use published sizes". AST-04 (requirements.md:268), as reworded by `19dbfa3`, says "walls 2.0–2.8 m for single-storey village houses", names no shops, and says "Larger houses and the block use published door sizes".
+2. **The houses sheet follows the first D-032 wording**, which `19dbfa3` replaced: houses-and-yard.md:11 "storeys 2.3–2.8 m" and village-house doors without the H01–H04 scope; :120 "inside AST-04's amended 2.3–2.8 m"; :464 "AST-04's exact … door is for the village houses H01–H05 and the outbuildings (D-032)"; :532 and :593 "AST-04's exact door (outbuildings)". The sizes are fine; the attributions are stale.
+3. **H03 and H04 walls exceed AST-04's single-storey figure.** H03 2.7–3.1 m, default 2.9 m (houses-and-yard.md:266), H04 2.9–3.1 m, default 3.0 m (:343), each "derived: 2.8 m storey plus the cornice / a plinth step". They fit if the figure is a storey and the cornice or step sits above it; they do not fit "walls 2.0–2.8 m".
+4. **H04's veranda doorway** is 0.9 × 2.0 m (houses-and-yard.md:374, in the Gaps line only, no Dimensions row, no label), while AST-04 fixes 0.8 × 1.8–1.9 m for H01–H04 doors. R5 named it; the rework did not reach it.
+5. **Two block doors are assumed** where AST-04 says the block uses published door sizes: the section entrance (urban-edge.md:98) and the balcony door (:101). The shop's two doors (:622, :623) are assumed; D-032 lists shops, AST-04 does not.
+6. **A "published" claim lost its source.** earthworks-and-surfaces.md:916: "no herb layer (published in vegetation.md: the herb layer is almost absent inside dense belts)". That source was the belt survey removed under R1; vegetation.md:1055 now reads the bare floor as measured (F, terrain.md T5).
+7. **One regional phrase remains:** vegetation.md:398 "more in the drier south" (V04 placement). Not in the first pass's list; same class as O-7.
+8. **`rafter_spread` exceeds its formula's domain.** urban-edge.md:509 gives 0–1.0 m and states the unheld ridge sits √(L² − (b + spread)²) above the feet, "never below the core". For the default H03 source (L 3.86 m, b 3.5 m) the root is real only up to spread = L − b = 0.36 m; at 0.4 m it is √(−0.30), and the range runs to 1.0. The limit is 0.31 m for H02, 0.60 m for H04 and 0.81 m for H01, so 1.0 m exceeds every source. "Never below the core" bounds a real height; it does not define one.
+
+### Required changes
+
+- **R7 (orchestrator, D-032 and AST-04).** One text in both, decisions.md:297 and requirements.md:268:
+  - **a.** The single-storey figure: 2.3–2.8 or 2.0–2.8 m, and what it measures (the wall to the plate, or the storey without a cornice or plinth step), so that H03's 2.9 m and H04's 3.0 m walls either fit or are named as allowed.
+  - **b.** The doors of the larger buildings: whether the block (and shops, if they stay in D-032) must use published sizes, or "published or assumed, labelled in their sheets".
+  - **c.** Whether AST-04's exact door for H01–H04 is the entrance door only (H04's veranda doorway is 0.9 × 2.0 m).
+- **R8 (reference-analyst, the sheets).**
+  - **a.** houses-and-yard.md:11 and :120 use R7 a's figure and word; H03 (:266) and H04 (:343) sit inside it or cite the allowance.
+  - **b.** The door attributions at houses-and-yard.md:11, :464, :532, :593 follow AST-04 as reworded: H01–H04 exact; H05, outbuildings and cellars their sheet's labelled size. The sizes stay.
+  - **c.** H04's veranda doorway (:374) gets a Dimensions row with a label: AST-04's 0.8 × 1.9 m (any yaw, 47 mm a side on the diagonal) or its own size if R7 c allows it.
+  - **d.** If R7 b keeps "published": published sizes for urban-edge.md:98 and :101 (and :622, :623 if shops stay).
+  - **e.** earthworks-and-surfaces.md:916: relabel the bare belt floor measured (F, terrain.md T5), as vegetation.md:1055 now does.
+  - **f.** vegetation.md:398: drop "more in the drier south", or use a class or map word ("more at dry belt edges").
+- **R9 (asset-artist, U02b `rafter_spread`).** urban-edge.md:509: cap the range at the source's L − b (0.36 m for H03), or state what the generator does beyond it (the pair lies flat on the core at L − b; more spread parts the ridge).
+
+### Suggestions (not blocking)
+
+- **S8:** lines-roads-debris.md:464 cites the lane widths through a government press item whose URL slug carries an official's name; cite the ДБН text itself (dnaop.com hosts the norms). On the same line, "an unmaintained frontline road" reads as well as "an unmaintained road".
+- **S9:** houses-and-yard.md:37's repository bitstream URL returns 404; the item's handle page (`/handle/123456789/7568`) is the stable link.
+- **S10:** houses-and-yard.md:895 calls C01's 0.70 m doorway "the narrowest fly-in on the map", and :773 calls O05's door "the yard's second-narrowest fly-in after the cellar". O05's 0.65 m door (±16°), U01's framed balcony door (0.65 m) and a car's rear-row cabin are narrower. Say "the pilot's reference fly-in (PR-9)".
+- **S11:** urban-edge.md:507 calls `rubble_volume` "the masonry core's volume" (default 40 m³); the core is 50 m³ with the ceiling fill (:389). Name it the brick part of the core.
+- **S12:** urban-edge.md:466 derives the frame's porosity from 50 mm battens at 0.33 m (H01's tile), while the default H03 has battens at 0.5 m (0.81 open, not 0.77). The 0.6–0.8 range still holds.
+- **S13:** vegetation.md:195 labels V01's size L height 12–16 m as measured against belt crowns of 6–15 m; the 16 m end is above the measurement (assumed).
+- **S14:** review-buildability.md:233 cites the physics sign-off of `p1-pipeline-hardening`. That sign-off (`b67d084`, nine ids) is on its own unmerged branch, so the sheets correctly still write `proposed:`. Re-sync them when that change merges.
+- **S15:** the first pass's S2 (lines-roads-debris.md:1047 "10 %" against U02's 0.08), S3 (design.md:14 lacks U02b), S5 (houses-and-yard.md:1563 `tipped` has no range) and S7 are still open.
+
+Verdict: CHANGES REQUESTED
