@@ -17,4 +17,4 @@
 
 ## 2. Review
 
-- [ ] 2.1 [qa-engineer] review against spec scenarios (coverage, labels, OPSEC, buildability recorded); first pass CHANGES REQUESTED (`review.md` R1–R6), re-review after 1.9 and 1.10
+- [x] 2.1 [qa-engineer] review against spec scenarios (coverage, labels, OPSEC, buildability recorded); first pass CHANGES REQUESTED (`review.md` R1–R6), re-review after 1.9 and 1.10 (R7–R9), third pass after 1.11 (R10–R11), fourth pass after 1.12 APPROVED

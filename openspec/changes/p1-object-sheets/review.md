@@ -534,3 +534,137 @@ Public pages opened to judge R8 d (read only, standards hosts): GOST 11214-86 at
 - **S8–S14** of the re-review stay open, and from S15 the first pass's S2, S3 and S7 (S5 is closed).
 
 Verdict: CHANGES REQUESTED
+
+## Fourth pass (after R10–R11)
+
+**Reviewer:** qa-engineer, a fresh agent, independent of the rework · **Branch:** `unity/ref/p1-object-sheets` at `1d8370e`; `origin/unity/main` is at `b16fd15`, and the merge base is still `e6ee5d6` · **Scope:** R10 and R11, S19 (which the rework addressed), and the cheap whole-tree checks. The earlier passes verified everything else, and the rework does not reach it: `git diff e8029ae..HEAD` changes seven lines in four files (decisions.md:297, requirements.md:268, houses-and-yard.md:11, :266, :343, :465, tasks.md:16) and no heading, material line or gap line · **Rework read:** `1d8370e` (orchestrator) in full · **Not opened:** `reference/`. Line numbers are at `1d8370e`.
+
+### Checks run
+
+```
+$ python tools/hygiene/precommit.py --tree HEAD
+364 files scanned, 0 findings                                          exit=0
+
+$ openspec validate p1-object-sheets --strict
+Change 'p1-object-sheets' is valid                                     exit=0
+
+$ git log --format='%h %an <%ae> [%s] body=[%b]' e8029ae..HEAD
+1d8370e Orchestrator <orchestrator@450fpv.local> [docs: label the brick-house wall class derived; published means cited] body=[]
+subject length 69 (limit 72); co-author lines 0
+
+$ git diff --name-only origin/unity/main...HEAD
+docs/asset-list.md  docs/decisions.md  docs/requirements.md  docs/reference-notes/terrain.md
+docs/object-sheets/{earthworks-and-surfaces,houses-and-yard,lines-roads-debris,urban-edge,vegetation,vehicles}.md
+openspec/changes/p1-object-sheets/{design,review-buildability,review,tasks}.md
+$ ... | grep -iE '^reference/|\.(png|jpe?g|gif|webp|tiff?|mp4|mov|mkv|avi|exr|hdr|wav|mp3|fbx|blend)$|(^|/)(Library|Temp|Logs|UserSettings)/'
+(no output)                                                            exit=1
+
+$ git diff --stat e8029ae..HEAD
+ docs/decisions.md                          | 2 +-
+ docs/object-sheets/houses-and-yard.md      | 8 ++++----
+ docs/requirements.md                       | 2 +-
+ openspec/changes/p1-object-sheets/tasks.md | 1 +
+$ git diff -U0 e8029ae..HEAD | grep -cE '^[-+]#'                  # headings added or removed
+0
+
+$ python -I nums.py rework.diff     # numbers and sizes in the removed lines against the added ones, per file
+decisions.md        only old: {}   only new: 2.8 (the storey in the derivation), 03 (H03), 0.8 × 1.0 (the adobe windows, S19)
+houses-and-yard.md  only old: 6629-88, 21-10, 2.1 × 1.0 and the URL's digits (H06's dropped citation)   only new: 2.8 ×3, 03 ×3, 032 (D-032)
+requirements.md     only old: {}   only new: 2.8, 03
+
+$ python -I (part, range and default cells of the changed rows, at e8029ae against HEAD; the file keeps 1582 lines)
+:266 Wall height to the cornice | 2.7–3.1 m   | 2.9 m   same
+:343 Wall height                | 2.9–3.1 m   | 3.0 m   same
+:465 Door                       | 0.9 × 2.0 m | —       same
+
+$ grep -c 'measured J' docs/object-sheets/houses-and-yard.md      # at e8029ae, then at HEAD
+27
+24
+
+$ python -I doors.py .   # every Dimensions row in the six sheets whose part names a door, doorway, window, wicket, gate, hatch, entrance or opening
+rows: 65
+published: urban-edge.md:102 (interior doors) and :103 (flat entrance doors) only, each citing GOST 6629-88 and its mark (21-8, 21-9)
+every other row: measured, assumed or AST-04's exact size; derived only for a window pitch (urban-edge.md:94) and a crumb count (vehicles.md:819)
+rows with no label word: none
+
+$ grep -rn 'standard exists\|where a standard\|6629' docs openspec/changes/p1-object-sheets --include=*.md   # review.md excluded; cells abbreviated
+docs/object-sheets/urban-edge.md:102   GOST 6629-88, the 21-8 mark
+docs/object-sheets/urban-edge.md:103   GOST 6629-88, the 21-9 mark
+```
+
+The scripts are throwaway files in my scratchpad, run with `python -I`, not committed.
+
+### R10 (the H03–H04 wall label)
+
+| Place | Status | Evidence |
+|---|---|---|
+| requirements.md:268 (AST-04) | **closed** | "(measured in J)" is now "(derived: a 2.8 m storey plus plinth or cornice; J shows H03's ridge, not its wall)" |
+| decisions.md:297 (D-032) | **closed**, one wording remainder | "(J)" is now the same parenthesis. The lead "the sheets measured them" is not scoped to the door and the adobe walls, as R10's parenthesis asked (S20) |
+| houses-and-yard.md:11 | **closed** | the same parenthesis, ending "; D-032" |
+| houses-and-yard.md:266 (H03) | **closed** | "derived: 2.8 m storey plus the cornice; inside AST-04's class range … (derived: a 2.8 m storey plus plinth or cornice; J shows H03's ridge, not its wall; D-032)"; part, range and default unchanged |
+| houses-and-yard.md:343 (H04) | **closed** | "derived: 2.8 m storey plus a plinth step; …" with the same class parenthesis; cells unchanged |
+| the other J attributions | **untouched** | 27 "measured J" became 24: the three removed are :11, :266 and :343. The 24 left sit on rows J measures, none a wall height: the footprint :265, the ridge :269, the cornice :270 and :44, the rafter and batten pitch :271–272, the windows :273, the door leaf :274, the dish :275, the gable :276, the roof pitch :208, and colours (:221–222, :285–292, :544, :1002). terrain.md:261–263 (B2) gives J as "single storey, footprint 8–10 × 6–8 m, ridge 5–6 m", so "J shows H03's ridge, not its wall" is true |
+| numbers | **none changed** | the number comparison and the cell comparison above |
+
+R10's main ask holds in all five places. The remainder is the lead of D-032 (decisions.md:297): "AST-04's exact door … and storey … figures were assumed for village houses; the sheets measured them, and the measured or published figure wins, per class". It is true of the entrance door (E 7, houses-and-yard.md:126) and the adobe walls (E, :120), and it overstates the brick class. The same bullet labels that class derived and names what it is derived from, so no figure in D-032, AST-04 or the sheets carries a "measured" it lacks. I judge it a wording fix, not blocking (S20).
+
+### R11 (the door rule, option b)
+
+| Item | Status | Evidence |
+|---|---|---|
+| "published" bound to the row's citation | **closed** | AST-04 (requirements.md:268): "published where the row cites the standard it comes from, else measured or assumed"; D-032 (decisions.md:297): "labelled published where the row cites the standard it comes from, else measured or assumed"; the houses sheet's How to read (:11): the same words. The old "where a standard exists" is gone from `docs/` and the change folder |
+| H06's door | **closed** | houses-and-yard.md:465: "assumed: a typical outside door of the type, a leaf of about 0.9 × 2.0 m in its frame (the internal-door standard first cited does not cover outside doors)". GOST 6629-88 and its URL are gone from the houses sheet. The size is unchanged at 0.9 × 2.0 m, and the gap line :492 ("door 0.9 × 2.0 any yaw", 0.9 ≥ 0.706 m) is untouched |
+| the block's and the shop's doors | **allowed as they stand** | urban-edge.md:98 (section entrance), :101 (balcony door), :622 (shop door), :623 (back door): "assumed" with no standard cited, which the bound rule allows. Their gap verdicts (:203, :204, :207) are unchanged |
+| every published opening row cites its standard | **holds** | the census: only urban-edge.md:102 and :103 are published, both from GOST 6629-88 with the mark. The third pass read that standard as covering internal doors, including doors into flats, and those are the two rows |
+| AST-04 against D-032, sentence by sentence | **no contradiction** | Bricks: AST-04 only. The entrance door: identical (H01–H04, exact, 0.8 × 1.8–1.9 m). The adobe windows: AST-04 "their windows 0.8 × 1.0 m for the adobe houses", D-032 "the adobe houses' windows at 0.8 × 1.0 m"; the same scope, both exact. The other doors: the same rule word for word; D-032 says "the block's section entrances and balcony doors" where AST-04 says "the block", and AST-04 says "the small hut H05" where D-032 says "the hut". The walls: the same classes, numbers and measure; "(E)" against "(measured in E)"; the brick class's derived parenthesis is word for word the same |
+
+**S19:** D-032 now names the adobe windows, so S19 is closed there. AST-04's "and their windows 0.8 × 1.0 m for the adobe houses" keeps its word order, which first reads as all H01–H04 windows; it means the same as D-032 and houses-and-yard.md:11. The remainder is cosmetic and is carried.
+
+**Hygiene of the rework:** one commit for R10, R11 and the task line, under the orchestrator's identity for an orchestrator decision. R10 and R11 edit the same three sentences (AST-04, D-032, the How to read line), so one step is a fair reading of "one logical step per commit". The added text names a letter (J), a class and a kind of standard. It names no place, date, reference file or OSD value.
+
+### Spec scenarios (updated)
+
+| Requirement | Scenario | Third pass | Fourth pass | Evidence |
+|---|---|---|---|---|
+| One sheet per class group, every row covered | Coverage check | PASS | **PASS** | no heading touched (0 `#` lines in the rework diff) |
+| Measured, labelled numbers | Label present | FAIL (R10, R11) | **PASS** | the H03–H04 range is labelled derived in all five places; the door rule binds "published" to a cited standard, and all 65 opening rows follow it; H06's door no longer cites a standard that does not cover it. The rework changes labels on four sheet lines, each to a true one, and the earlier passes' 844 of 844 labelled rows stand |
+| Materials and colours resolve to the pipeline | Material resolves | PASS | **PASS** | no material line changed |
+| Physics role in the pipeline's terms | Gap stated against the drone | PASS | **PASS** | no gap line changed; H06's 0.9 m door passes at any yaw |
+| OPSEC-clean | Hygiene scan passes | PASS | **PASS** | 0 findings; nothing identifying added |
+| Buildable | Buildability review recorded | PASS | **PASS** | not touched by the rework |
+
+### Requirements (updated)
+
+| ID | Third pass | Fourth pass | Why |
+|---|---|---|---|
+| AST-02 | met | met | unchanged |
+| AST-04 | partly met (R10, R11) | **met** | one text with D-032; every sheet number inside its class range; the brick class labelled derived; the door rule stated so it can be checked, and the sheets follow it |
+| AST-05 | met (sheet level) | met (sheet level) | unchanged |
+| AST-06 | met | met | unchanged |
+| SEC-01 | met | met | nothing from `reference/` in the diff, no reference file names |
+| SEC-02 | met | met | the rework adds nothing identifying |
+| PRC-06 | met | met | nothing asked of the pilot |
+| PRC-09 | met as far as git shows | met as far as git shows | one subject-only commit under the orchestrator's identity |
+| D-003 | met | met | manifest untouched |
+| D-032 | partly applied (R10, R11) | **met** | the H03–H04 provenance is true; "published" binds where a row cites its standard; the adobe windows are named. One wording remainder in its lead (S20) |
+
+### Open suggestions (carried, not blocking)
+
+- **S2:** lines-roads-debris.md:1047 says K06 is "10 % by volume" in K-type mounds; U02's `piece_mix` (urban-edge.md:358) gives concrete 0.08.
+- **S3:** design.md:14 lists urban-edge as U01–U03 and P01–P06, without U02b.
+- **S7:** the S02–S13 physics sections omit "Gaps, wind volumes: none", which S01 states (earthworks-and-surfaces.md:724).
+- **S8:** lines-roads-debris.md:464 cites the lane widths through a government press item whose URL slug carries an official's name; cite the ДБН text. "An unmaintained frontline road" reads as well as "an unmaintained road".
+- **S9:** houses-and-yard.md:37's repository bitstream URL returns 404; the item's handle page is the stable link.
+- **S10:** houses-and-yard.md:896 calls C01's doorway "the narrowest fly-in on the map", and :774 calls O05's door "the yard's second-narrowest fly-in". Narrower openings exist; say "the pilot's reference fly-in (PR-9)".
+- **S11:** urban-edge.md:507 calls `rubble_volume` "the masonry core's volume" (40 m³); the core is 50 m³ with the ceiling fill. Name it the brick part of the core.
+- **S12:** urban-edge.md:466 derives the frame's porosity from H01's 0.33 m battens (:427), while the default H03 has 0.5 m battens. The 0.6–0.8 range still holds.
+- **S13:** vegetation.md:195 labels V01's L height of 12–16 m as measured against belt crowns of 6–15 m; the 16 m end is assumed.
+- **S14 (updated):** the physics sign-off `b67d084` is now on `unity/main`. Its nine ids (`asbestos_cement`, `bark`, `deadwood`, `fabric`, `mesh`, `plastic`, `rubber`, `straw`, `twig`) are in the merged list there, while this branch's sheets still write them `proposed:`. Re-sync the sheets once this branch merges; the other `proposed:` ids stay proposed.
+- **S15:** this was the carry list for S2, S3, S5 and S7. S5 closed in the third pass, and the rest are listed here.
+- **S16:** the plinth. U02b reads H03's wall as standing on the plinth (urban-edge.md:381, :503), and AST-04 puts the plinth inside 2.6–3.1 m. H03's ridge does not reach J's measured 5–6 m at its defaults under either reading. Settle this before H03's or U02b's generator is written.
+- **S17:** the shared `wall_height` range (houses-and-yard.md:79, 2.2–3.0 m, "Eaves height") is narrower than AST-04's classes (2.0–3.1 m), and H05's preset 2.1 (:440) is outside it. Widen it, and say "to the plate, from grade".
+- **S18:** earthworks-and-surfaces.md:50 "open rolling steppe meadow": "open rolling grassland" gives the same look without a zone word.
+- **S19 (remainder):** requirements.md:268 "and their windows 0.8 × 1.0 m for the adobe houses" could read "and the adobe houses' windows 0.8 × 1.0 m", as D-032 now does.
+- **S20 (new, R10's parenthesis):** decisions.md:297 should scope the lead "the sheets measured them" to what was measured, for example "the sheets measured the door and the adobe walls". The brick class is derived from the assumed 2.8 m storey, and the bullet's own class list already says so.
+
+Verdict: APPROVED
