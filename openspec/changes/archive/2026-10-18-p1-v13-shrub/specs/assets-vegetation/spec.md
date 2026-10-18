@@ -25,6 +25,6 @@ The pipeline SHALL build asset V13 (`shrub` generator; variants `V13_low`, `V13_
 - **WHEN** the metadata of any variant is validated and audited
 - **THEN** every capsule names `bark` and lies within 5 cm of its stem tube; each stem carries one record per capsule segment (lower segments `edge`, the top one a `hook` to the tip, each at its capsule's radius) and each twig one record (`edge` where other twigs leave its end, `hook` where it is free, at its mean radius); the `twig` shell is at most 24 sphere or capsule pieces whose surface above the ground stands within 0.1 m of the nearest leaf or twig face, with every twig vertex inside it or within 0.1 m outside and every leaf-card vertex inside it or within 0.3 m outside, leaving the bare-stem zone to the capsules; the wind volume spans the leafy mass from its lowest leaf or twig vertex, with porosity 0.35 for the summer state; `gaps` is empty and no shape is landable
 
-#### Scenario: Four LODs under budget
+#### Scenario: LODs and cull under budget
 - **WHEN** the triangle counts per LOD are read from the metadata
 - **THEN** LOD0 is under 12 000 triangles, each further LOD is at most half the previous, the cull distance follows the pixel rule from the clump's height, and the textures are 2K or less
