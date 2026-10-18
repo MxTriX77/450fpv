@@ -73,7 +73,7 @@ A real wire does none of this. **Consequence:** C shows no wire for certain; ter
 | Bare aluminium A-50 | 9.0 mm | 0.135 kg/m | 10.7 kN | medium | published, same table |
 | Steel-aluminium AC-35/6.2 and 50/8.0 (10 kV) | 8.4 and 9.6 mm | 0.148 and 0.195 kg/m | 13.5 and 17.1 kN | medium | published, same table |
 | SIP service drop, 2 × 16 mm² | about 15 mm | about 0.13 kg/m | — | thick | derived: two 16 mm² aluminium cores of about 7.5 mm over their insulation, twisted; aluminium 43 g/m per core plus about 22 g/m of insulation per core |
-| SIP main, 3 × 35 + 1 × 54.6 mm² | 26–32 mm | 0.55–0.61 kg/m | — | thick (above the list's 15–20 mm) | published, two datasheets: https://dn.ru/storage/certificates/ludinivikabel/dop_mat_sip2.pdf (26.2 mm) and https://storage.mtender.gov.md/get/d886941c-18a5-441a-9bfc-f1c23940c575-1679407095103 (32 mm) |
+| SIP main, 3 × 35 + 1 × 54.6 mm² | 26–32 mm | 0.55–0.61 kg/m | — | thick | published, two datasheets: https://dn.ru/storage/certificates/ludinivikabel/dop_mat_sip2.pdf (26.2 mm) and https://storage.mtender.gov.md/get/d886941c-18a5-441a-9bfc-f1c23940c575-1679407095103 (32 mm) |
 
 Minimum sections by the ПУЕ: SIP service drops 16 mm², SIP mains 25–35 mm², bare aluminium 25–35 mm² (published, cl. 2.4.13, https://dnaop.com/html/41440_2.html ). Old village lines still carry A-16 and steel wires below those minimums (assumed).
 
@@ -336,7 +336,6 @@ See "How lines fail" above. A cut aluminium conductor unravels at the end (stran
 | `seed` | int | — | — | Cut positions, strand splay |
 
 ### Open points
-- The asset list's thick class is 15–20 mm; a SIP main is 26–32 mm. Proposed: the thick class covers 13–32 mm (the generator takes the real diameter anyway). Orchestrator decision.
 - Whether the strike model moves the wire with the wind (sway 0.3–0.4 m at mid-span in a 10 m/s wind, 0.5–0.9 Hz): physics engineer, phase 7d.
 - Rendering sub-pixel wires (tech-artist): coverage-weighted thin lines so a wire fades as 270·D / d and never shimmers or pops; never a minimum width that makes it visible.
 
@@ -1253,9 +1252,6 @@ Blast pulls curtains out through the window openings and strips wallpaper from t
 **World-builder:** wires as map objects written by L03 (D-007); potholes as pitfall features and ruts and road edges as sub-grid relief; the debris spread model (the λ table); hanging cables across openings and the gap polygons (L05).
 
 **Tech-artist:** sub-pixel wire rendering (L03): coverage-weighted, fading as 270·D / d, never thickened; the J and D feed values for wires.
-
-**Orchestrator:**
-- The thick wire class: 13–32 mm instead of 15–20 mm (a SIP main is 26–32 mm).
 
 **Other sheets:** V20 (vegetation): J's brush pile is about 1.0–1.5 m high and 3–4 m long with branches 20–60 mm across and 1–3 m long, which matches V20's defaults (no change). Vehicles sheet: the published tracks feed RD03's rut spacing; K07 sits beside the K kit on roads.
 
