@@ -10,7 +10,9 @@
 - [x] 1.6 [reference-analyst] `docs/object-sheets/urban-edge.md` (U01–U03, P01–P06), from I, K plus research; same checks, plus the block's damage kit and rebar
 - [x] 1.7 [asset-artist] Buildability review of all six sheets, written to `openspec/changes/p1-object-sheets/review-buildability.md`; sheets fixed where sent back; verify every generator table has ranges and effects
 - [x] 1.8 [reference-analyst] Add the U02b row (collapsed timber roof pile, letter I) to `docs/object-sheets/urban-edge.md` with every template section, consistent with U02 and the debris kit; verify the coverage check passes for every ID in asset-list §1–10 and the commit passes the hooks
+- [x] 1.9 [reference-analyst] QA rework R1–R5: generic research sources only, regional framing and device wording removed, the 29 unlabelled and 7 letterless rows labelled, D-032 applied (measured sizes beat AST-04's assumed ones; H06 keeps its door)
+- [ ] 1.10 [asset-artist] QA rework R6: a U02b entry (the `roof_pile` generator) in `review-buildability.md`, and its two stale "sent back" items closed
 
 ## 2. Review
 
-- [ ] 2.1 [qa-engineer] review against spec scenarios (coverage, labels, OPSEC, buildability recorded)
+- [ ] 2.1 [qa-engineer] review against spec scenarios (coverage, labels, OPSEC, buildability recorded); first pass CHANGES REQUESTED (`review.md` R1–R6), re-review after 1.9 and 1.10
