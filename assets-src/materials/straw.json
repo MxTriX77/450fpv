@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "kind": "palette",
+  "shader": "Universal Render Pipeline/Lit",
+  "colours": { "straw": "#b49c6a", "twig": "#6b5a3e" },
+  "tint": [1.0, 1.0, 1.0, 1.0],
+  "smoothness": 0.3
+}
