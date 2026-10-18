@@ -8,7 +8,7 @@
 
 ## How to read this sheet
 
-- **Labels:** measured (from a letter, with the still number), published (with its source), derived (with the derivation), assumed. Exact sizes fixed by AST-04 are used as given: brick 250 × 120 × 65 mm, doors 0.8 × 1.8–1.9 m, storeys 2.8 m.
+- **Labels:** measured (from a letter, with the still number), published (with its source), derived (with the derivation), assumed. Exact sizes fixed by AST-04 (as amended, D-032) are used as given: brick 250 × 120 × 65 mm; village-house doors 0.8 × 1.8–1.9 m; storeys 2.3–2.8 m for single-storey village houses and 2.8 m for two-storey houses. The larger house H06 uses a published door size, labelled in its row.
 - **Reuse:** sizes and colours already in [terrain.md](../reference-notes/terrain.md) §3 W4 and §4 B1–B6 are cited, not re-measured. `feed` colours are mean sRGB of the goggles feed (warm and saturated in sun); `photo` colours are from the photos J and I and are closer to albedo. Textures are authored at photo albedo; the feed effect adds the shift.
 - **The drone against an opening** (used by every "Gaps" line): prop tip to prop tip **0.574 m nose-first, 0.706 m on the diagonal** (knowledge.md §5.4). The footprint across an opening at yaw θ is `w(θ) = 0.254 + 0.32·(|cos θ| + |sin θ|)` m (derived: 10″ props on motors 0.226 m from the centre, 0.16 m in x and y), so an opening of clear width W passes nose-first when W > 0.574, passes at **any yaw** when W ≥ 0.706, and in between only up to `θmax = asin((W − 0.254) / 0.4525) − 45°`. Worked values: 0.60 m → ±5° and 13 mm a side; 0.65 m → ±16°, 38 mm a side; **0.70 m → ±35°, 63 mm a side (PR-9)**; 0.75 m → any yaw, 22 mm a side on the diagonal; 0.80 m → any yaw, 47 mm a side on the diagonal. The vertical envelope with legs is about **0.55 m** (assumed: 0.25–0.35 m legs under a frame with the payload on top; phase 5 fixes it from `drone.json`), so a clear height of 0.7 m is comfortable and 0.6 m is tight.
 - **Physics ids** are the closed list in [physics_materials.json](../../assets-src/physics_materials.json): `steel`, `sheet_metal`, `timber`, `masonry`, `concrete`, `glass`, `cable`, `foliage`. Ids written as `proposed:<id>` are new and need physics sign-off (see Open points at the end).
@@ -117,16 +117,16 @@ Every H row uses this set; a row's table lists only additions and changed defaul
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
 | Footprint | 8–12 × 5–7 m | 10 × 6 m | measured E (terrain.md B1) |
-| Wall height to the plate | 2.3–2.6 m | 2.4 m | measured E 7: the door head 1.9 m plus about 0.5 m to the plate |
+| Wall height to the plate | 2.3–2.6 m | 2.4 m | measured E 7: the door head 1.9 m plus about 0.5 m to the plate; inside AST-04's amended 2.3–2.8 m for single-storey village houses (D-032) |
 | Wall thickness | 0.4–0.5 m | 0.45 m | measured E (B1); published 0.35–0.60 |
 | Ridge height | 4.6–5.4 m | 5.0 m | measured E (B1); derived pitch 38° |
 | Rafter pitch | 0.9–1.2 m | 1.0 m | measured E 7 |
 | Batten pitch | 0.30–0.40 m | 0.33 m | measured E (B1); published 0.30–0.35 |
 | Chimney | 0.5 × 0.5 m, 0.5–0.8 m above the ridge | 0.5 × 0.5 × 0.6 m | measured E 7 |
-| Door | 0.8 × 1.8–1.9 m | 0.8 × 1.9 m | AST-04; E 7 |
-| Windows | 0.8 × 1.0 m, sill 0.9 m | 3 front, 1 back, 1 per gable end | AST-04; E 7 (one right of the door, one left behind the shed) |
+| Door | 0.8 × 1.8–1.9 m | 0.8 × 1.9 m | measured E 7 (terrain.md B1: 0.8 × 1.8 m); AST-04's exact door |
+| Windows | 0.8 × 1.0 m, sill 0.9 m | 3 front, 1 back, 1 per gable end | measured E 7 (terrain.md B1; one right of the door, one left behind the shed); AST-04's exact window; the count is assumed |
 | Eaves overhang | 0.3–0.5 m | 0.4 m | assumed |
-| Base band | 0.42 m | 0.42 m | research (asset-list §4) |
+| Base band | 0.42 m | 0.42 m | assumed: the first attempt's research recipe (asset-list §4), its source not recorded |
 | Interior room depth | 4–6 m | 5 m | derived from the footprint; E 16 shows the far window 4–6 m in |
 
 ### Construction and materials
@@ -204,12 +204,12 @@ Shared table, with these defaults: `wall_material` adobe, `wall_height` 2.4, `wa
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| Footprint, walls | as H01 | 9 × 6 m, 2.4 m, 0.45 m | as H01 |
+| Footprint, walls | as H01 | 9 × 6 m, 2.4 m, 0.45 m | measured, as H01 (E, terrain.md B1) |
 | Roof pitch | 20–30° | 25° | published practice for slate; J roofs read 20–25° (measured J, rough) |
 | Ridge height | 3.6–4.2 m | 3.8 m | derived: 2.4 + 3 × tan 25° |
 | Slate sheet | 1750 × 1130 × 5.8 mm, wave 150 / 40 mm | as published | published |
 | Batten pitch | 0.5–0.75 m | 0.58 m (3 battens per sheet) | assumed from the sheet length |
-| Door, windows | as H01 | as H01 | AST-04 |
+| Door, windows | as H01 | as H01 | measured, as H01 (E 7); AST-04's exact door and window |
 
 ### Construction and materials
 - As H01 for the walls; a four-slope hip roof (вальмовий) of шифер on battens, with a sheet-metal or asbestos ridge cap; eaves 0.2–0.3 m; a brick chimney through the slope with a lead or cement flashing.
@@ -240,7 +240,7 @@ Slate shatters at low overpressure (published): it goes first, in fragments, not
 - **Landable surfaces:** none.
 
 ### Placement rules
-As H01; slate is the commoner roof in the pilot's villages (J: both houses), so H02 and H03 together outnumber H01.
+As H01; slate is the commoner roof in the reference views (J: both houses), so on the map H02 and H03 together outnumber H01.
 
 ### Generator parameters
 Shared table with `roof_type_*` hip, `roof_pitch` 25, `roof_cover` slate, `batten_pitch` 0.58.
@@ -271,7 +271,7 @@ Shared table with `roof_type_*` hip, `roof_pitch` 25, `roof_cover` slate, `batte
 | Rafter pitch | 0.9–1.0 m | 1.0 m | measured J right house |
 | Batten pitch | 0.35–0.6 m | 0.5 m | measured J right house (rough) |
 | Windows | 1.2–1.5 × 1.4–1.5 m, sill 0.9 m | 1.3 × 1.45 m, 3 front, 2 side, 1 back | measured J, rough; AST-04 brick |
-| Door | 0.8 × 1.9 m, panelled, painted | — | AST-04; J left |
+| Door | 0.8 × 1.9 m, panelled, painted | — | assumed: AST-04's exact door; the panelled, painted leaf is measured J left |
 | Satellite dish | 0.6 m offset dish on a 0.3 m bracket at the eaves | 0.6 m | measured J (against the window) |
 | Gable (variant 2) | vertical boards 25 × 120–150 mm, attic opening 0.4 × 0.5 m | — | measured J left house |
 
@@ -313,7 +313,7 @@ Glass → slate shattered and scattered → sashes bent out of the frames → ba
 - **Landable surfaces:** none on the house; the porch roof (2 × 1.5 m, 10°) is a slide.
 
 ### Placement rules
-Street-facing, 3–8 m behind the fence, the dish on the street side at the eaves; the second of the pilot's couple of houses (terrain.md B2); in J two stand 15–25 m apart along one street with a lean-to shed between them and brush piles (V20) in the yard.
+Street-facing, 3–8 m behind the fence, the dish on the street side at the eaves; the second village house type of the map (terrain.md B2); in J two stand 15–25 m apart along one street with a lean-to shed between them and brush piles (V20) in the yard.
 
 ### Generator parameters
 Shared table with `wall_material` silicate, `wall_height` 2.9, `wall_thickness` 0.38, `roof_cover` slate, `roof_pitch` 25, `windows` 1.3 × 1.45.
@@ -405,7 +405,7 @@ Shared table with `wall_material` red_brick, `wall_thickness` 0.51, `roof_cover`
 | Wall thickness | 0.3–0.45 m | 0.35 m | published 0.35–0.60; wattle 0.25–0.35 |
 | Roof | hip, 40–50°, ridge 4.0–4.6 m | 45°, ridge 4.3 m | assumed: steep for thatch, kept under slate |
 | Eaves | 0.5–0.7 m overhang, 1.8–2.0 m above grade | 0.6 m | assumed |
-| Door | 0.8 × 1.8 m | — | AST-04 |
+| Door | 0.8 × 1.8 m | — | assumed: AST-04's exact door |
 | Windows | 0.6–0.8 × 0.7–0.9 m, 2–3 | 0.7 × 0.8 m | assumed (small hut windows) |
 | Призьба (clay bench) | 0.3–0.4 m high, 0.3–0.5 m wide | 0.35 × 0.4 m | assumed from tradition |
 
@@ -455,13 +455,13 @@ Shared table with `wall_material` wattle or adobe, `wall_height` 2.1, `wall_thic
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| Footprint | 9–11 × 8–10 m | 10 × 9 m | asset-list; I (rough, against the 2.8 m storeys) |
-| Storeys | 2 × 2.8 m | 5.6 m to the upper ceiling, 6.0 m to the eaves | AST-04 |
+| Footprint | 9–11 × 8–10 m | 10 × 9 m | measured I (rough, against the 2.8 m storeys); asset list |
+| Storeys | 2 × 2.8 m | 5.6 m to the upper ceiling, 6.0 m to the eaves | assumed: AST-04 as amended (D-032), 2.8 m for two-storey houses |
 | Wall thickness | 0.38–0.51 m | 0.51 m ground, 0.38 m upper | derived |
 | Floor slab | 0.22 m hollow-core, 1.2 m wide | — | assumed standard |
 | Roof | gable or half-hip, 35–45°, ridge 9–10 m | 40°, ridge 9.7 m | measured I: a steep roof skeleton about 0.6 × the wall height |
 | Windows | 1.3–1.5 × 1.4–1.5 m, 3–4 per floor per long side | 1.4 × 1.45 m | measured I (rough) |
-| Door | 0.9 × 2.0 m | — | assumed (a wider later door) |
+| Door | 0.9 × 2.0 m | — | published: GOST 6629-88's 21-10 door mark (the mark names the opening in dm, 2.1 × 1.0 m; https://meganorm.ru/Data1/3/3481/index.htm ), a leaf of about 0.9 × 2.0 m inside its frame (derived). AST-04's exact 0.8 × 1.8–1.9 m door is for the village houses H01–H05 and the outbuildings (D-032) |
 | Balcony (variant 2) | 1.0 × 3 m slab with a 1.0 m rail | — | assumed |
 
 ### Construction and materials
@@ -529,7 +529,7 @@ A village plot is 20–30 m wide along the street and 60–100 m deep (assumed, 
 | Height | 2–2.5 m at the high side, 1.7–2.0 m at the low | 2.2 / 1.8 m | measured E 7 (against the 2.4 m wall) |
 | Boards | 0.10–0.15 m wide, 20–25 mm thick, gaps 5–30 mm | 0.12 m | measured E (B6) |
 | Posts | 0.10–0.15 m at 1.5–2 m | 0.12 m | assumed |
-| Door | 0.8 × 1.8 m, plank | — | AST-04 |
+| Door | 0.8 × 1.8 m, plank | — | assumed: AST-04's exact door (outbuildings) |
 | Window | 0.4 × 0.5 m or none | none | assumed |
 | Roof | lean-to 10–15°, boards and felt, or slate or sheet | boards and felt | measured E (a sloping plank roof), J (sheet) |
 
@@ -590,7 +590,7 @@ Two or three per yard (B3): against the house's end wall (E), along a side bound
 | Height | 2–2.5 m | 2.2 m | measured C 1 (against the 1.5 m fruit-tree fork) |
 | Wall | brick 0.25 m or block 0.20 m, cement render | block 0.20 m | assumed |
 | Roof | slab 0.1 m or boards on joists, felt, 3–8° | boards and felt, 5° | assumed; C reads a flat top |
-| Door | 0.8 × 1.8 m, plank | — | AST-04 |
+| Door | 0.8 × 1.8 m, plank | — | assumed: AST-04's exact door (outbuildings) |
 | Window | 0.4 × 0.5 m, 1 | 0.4 × 0.5 m | asset-list (small window); assumed size |
 
 ### Construction and materials
@@ -1043,7 +1043,7 @@ Along every yard boundary (B6): the street side at 1.6–2 m, between yards at 1
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| Height | 1.0–1.3 m | 1.2 m | asset-list |
+| Height | 1.0–1.3 m | 1.2 m | assumed (asset list, R: research only) |
 | Staves | 20 × 80–100 mm, pointed or rounded tops | 20 × 90 mm | assumed |
 | Stave gap | 40–60 mm | 50 mm | assumed |
 | Rails | 2 of 40 × 80 mm | — | assumed |
@@ -1154,11 +1154,11 @@ Between yards and along gardens, 10–40 m runs; around the farm (P02).
 | Brick base panel | 0.5–0.7 m high, 0.12–0.25 m thick | 0.6 m, 0.12 m | measured I |
 | Lattice panel on top | 0.4–0.6 m high, balusters 0.05–0.08 m with 0.05 m gaps | 0.5 m | measured I |
 | Variant 2: precast panels | 2.0 × 0.5 × 0.04–0.05 m, 3–4 high, posts 0.12 × 0.12 m | 2.0 × 0.5, 3 high (1.5 m) | assumed (common precast sizes) |
-| Variant 3: brick wall | 1.5–2 m, 0.25 m thick, piers 0.38 m | 1.8 m | asset-list |
+| Variant 3: brick wall | 1.5–2 m, 0.25 m thick, piers 0.38 m | 1.8 m | assumed (asset list; I shows only variant 1) |
 | Variant 4 (D): dry stone | blocks 0.3–0.5 m, a wall 0.6–1.0 m high or a pile 1 m high × 2–3 m | pile | measured D 14 |
 
 ### Construction and materials
-- Variant 1: brick piers with caps, a low brick panel between them, a precast concrete lattice (balusters) on top, a concrete coping. Variant 2: precast concrete panels slotted between H-posts. Variant 3: a full brick wall. Variant 4: weathered pale stone blocks (shell-rock or limestone), rounded, mossy on the shade side, laid dry or heaped where a wall or foundation has gone.
+- Variant 1: brick piers with caps, a low brick panel between them, a precast concrete lattice (balusters) on top, a concrete coping. Variant 2: precast concrete panels slotted between H-posts. Variant 3: a full brick wall. Variant 4: weathered pale porous stone blocks (a stone chosen for the invented map), rounded, mossy on the shade side, laid dry or heaped where a wall or foundation has gone.
 - **Materials:** brick `red_brick` or `white_bricks`; precast `concrete_wall_003`, `concrete_wall_007`; stone Poly Haven `large_sandstone_blocks_01` or `rough_block_wall` tinted grey-beige ( https://polyhaven.com/a/large_sandstone_blocks_01 ).
 
 ### Colour
@@ -1263,7 +1263,7 @@ In the street fence of every brick-house yard (H03, H04), beside the garage (O06
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| Gate | 2.5–3 m wide, 1.5–2 m high, two leaves | 2.8 × 1.7 m | asset-list; B6 heights |
+| Gate | 2.5–3 m wide, 1.5–2 m high, two leaves | 2.8 × 1.7 m | assumed (asset list: width); heights measured (terrain.md B6, E, I, J: 1–2 m) |
 | Leaves | vertical boards 0.10–0.15 m on a Z-braced frame 40 × 100 mm | 0.12 m boards | measured E (board width), assumed frame |
 | Wicket | 0.8–0.9 × 1.7 m | 0.85 m | assumed |
 | Posts | 0.15–0.20 m, 2.0–2.2 m | 0.18 m | assumed |
