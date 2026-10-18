@@ -1,0 +1,150 @@
+{
+  "material": "belt_straw",
+  "kind": "ground",
+  "formula": "ground v1: cover tiled at tile_size_m and at tile_size_m*phi, averaged, stretched 1+bias along the lodging azimuth and rotated to it; soil tiled at its tile_size_m; seeded blobs (an ellipse and three satellites) stamped to the bare and green shares, feathered 0.1 m (bare) and 0.5 m (green along the azimuth, counted outside bare); albedo = cover with the straw gain for albedo_target, strips tinted to the green tint, soil under bare, then a global gain against clipping; normal composited the same with the cover normals rotated by the azimuth; mask R 0, G AO, B 0, A 1 - roughness; detail albedo = the detail set's diffuse at its size with a linear mean of 0.5 per channel; 8-bit sRGB albedos",
+  "pillow": "12.3.0",
+  "recipe": {
+    "schema": 1,
+    "kind": "ground",
+    "shader": "Universal Render Pipeline/Lit",
+    "seed": 4,
+    "size_m": 12,
+    "output_px": 2048,
+    "soil": {
+      "texture_set": "polyhaven/brown_mud_02",
+      "tile_size_m": 1.3
+    },
+    "cover": {
+      "texture_set": "texturecan/ground_0018",
+      "tile_size_m": 2.0
+    },
+    "patches": {
+      "bare": {
+        "share": 0.08,
+        "size_m": [
+          0.5,
+          2.0
+        ]
+      },
+      "green": {
+        "share": 0.15,
+        "width_m": [
+          1.0,
+          3.0
+        ],
+        "length_m": [
+          3.0,
+          12.0
+        ],
+        "tint": "#6a7a3a"
+      },
+      "lodging": {
+        "azimuth_deg": 25,
+        "bias": 0.3
+      }
+    },
+    "albedo_target": "#7a7055",
+    "tint": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "detail": {
+      "texture_set": "texturecan/ground_0018",
+      "tile_size_m": 2.0
+    }
+  },
+  "sources": {
+    "soil/ao": {
+      "name": "brown_mud_02_ao_2k.png",
+      "sha256": "16f6fa689c964651952714aedc88be4c2de3786aa271cb59000edbb3b8b0ffa4"
+    },
+    "soil/diffuse": {
+      "name": "brown_mud_02_diff_2k.png",
+      "sha256": "a00bad20b2c339bd3d2837b8ae80903c4646876bb4ec0cc960846a97b2d3d737"
+    },
+    "soil/normal": {
+      "name": "brown_mud_02_nor_gl_2k.png",
+      "sha256": "78e01270b222a96cc1433c8d4ba2b6fbbe24b296934b45d1ff6aa30cad647888"
+    },
+    "soil/roughness": {
+      "name": "brown_mud_02_rough_2k.png",
+      "sha256": "c2c7835ff92171d9141dd7a1884dbf3a00b5d989fe8ae05737ac6d5397c12572"
+    },
+    "cover/ao": {
+      "name": "ground_0018_ao_2k.jpg",
+      "sha256": "3a0ead2c87dc8e3ba337f2a0d134604c26547bcb765155946745377c05380633"
+    },
+    "cover/diffuse": {
+      "name": "ground_0018_color_2k.jpg",
+      "sha256": "8b50f97b98a90f276d4e62c855037540ef1358a030e25b3045bcabfded669886"
+    },
+    "cover/normal": {
+      "name": "ground_0018_normal_opengl_2k.png",
+      "sha256": "2418eba61f9966ef34bae4899c96d845a4865e6489a592317d2b07fa9f007498"
+    },
+    "cover/roughness": {
+      "name": "ground_0018_roughness_2k.jpg",
+      "sha256": "9191758c59d352d71fc6434e78bebf01380515b13c0883e4e6f605442b67e7ec"
+    },
+    "detail/ao": {
+      "name": "ground_0018_ao_2k.jpg",
+      "sha256": "3a0ead2c87dc8e3ba337f2a0d134604c26547bcb765155946745377c05380633"
+    },
+    "detail/diffuse": {
+      "name": "ground_0018_color_2k.jpg",
+      "sha256": "8b50f97b98a90f276d4e62c855037540ef1358a030e25b3045bcabfded669886"
+    },
+    "detail/normal": {
+      "name": "ground_0018_normal_opengl_2k.png",
+      "sha256": "2418eba61f9966ef34bae4899c96d845a4865e6489a592317d2b07fa9f007498"
+    },
+    "detail/roughness": {
+      "name": "ground_0018_roughness_2k.jpg",
+      "sha256": "9191758c59d352d71fc6434e78bebf01380515b13c0883e4e6f605442b67e7ec"
+    }
+  },
+  "inputs_sha256": "3388a934a22d7c2f6da8a369361993e34704d61205eed215cd7c023bb88b95bf",
+  "size": [
+    2048,
+    2048
+  ],
+  "detail_size": [
+    2048,
+    2048
+  ],
+  "outputs": [
+    "belt_straw_albedo.png",
+    "belt_straw_normal.png",
+    "belt_straw_mask.png",
+    "belt_straw_detail_albedo.png"
+  ],
+  "measured": {
+    "mean_linear_rgb": [
+      0.1942,
+      0.1619,
+      0.0902
+    ],
+    "mean_luminance": 0.1636,
+    "target_luminance": 0.1638,
+    "luminance_error_pct": -0.15,
+    "bare_share": 0.0818,
+    "green_share": 0.1545,
+    "straw_gain": [
+      0.395,
+      0.502,
+      0.931
+    ],
+    "final_gain": [
+      1.008,
+      1.009,
+      1.01
+    ],
+    "detail_gain": [
+      0.892,
+      1.47,
+      4.16
+    ]
+  }
+}
