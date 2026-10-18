@@ -133,7 +133,10 @@ def run(meta, lod0, *, soft=frozenset(), card_visuals=(), card_reach_m=None):
         if not faces:
             problems.append(f"collision[{i}] {shape.kind}: no LOD0 face outside the shells' slots stands under it")
             continue
-        others = [shapes[j] for j in body if j != i]
+        # only the primitives whose bounding sphere, grown by COVERED_M, meets this one's can cover a point of it: a
+        # tree's hundreds of bark capsules each meet a few (p1-v01-locust)
+        others = [shapes[j] for j in body if j != i
+                  and _dist(shapes[j].centre, shape.centre) <= shape.reach() + shapes[j].reach() + COVERED_M]
         cells = [tri[:3] for tri in shape.triangles]
 
         def value(v, others=others):
