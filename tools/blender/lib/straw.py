@@ -10,7 +10,8 @@ stem is the same tube along +Y from its foot at the origin, curving a little und
 carries a seed head: a closed four-triangle spindle HEAD_H_M tall on the stem's tip.
 
 Every face is UV'd to the centre of one column of the straw palette (assets-src/materials/straw.json, kind
-"palette", whose colours are laid out left to right in PALETTE order): straws and stems to "straw", twigs to
+"palette", whose colours are laid out left to right in PALETTE order): the n-th variant of a straw or stem (and its
+seed head) to SHADES[n % len(SHADES)], so the mat shows pale, mid and dark straws as H does (H 12-21), and twigs to
 "twig". The kit's UVs and the recipe's column order are the one coupling between them; test_straw checks it.
 """
 import math
@@ -18,7 +19,8 @@ import math
 from lib.geometry import Mesh
 
 SLOT = "straw"
-PALETTE = ("straw", "twig")  # the columns of the straw palette, left to right
+PALETTE = ("straw_pale", "straw", "straw_dark", "twig")  # the columns of the straw palette, left to right
+SHADES = ("straw_pale", "straw", "straw_dark")  # straws and stems cycle through these by variant
 SIDES = 3
 TIP = 0.4          # a grass stem's tip diameter as a share of its base (assumed)
 TWIG_TIP = 0.6     # a broken twig tapers less
@@ -36,21 +38,26 @@ def palette_uv(colour):
     return ((PALETTE.index(colour) + 0.5) / len(PALETTE), 0.5)
 
 
+def shade(variant):
+    """The palette column of the variant-th straw or stem."""
+    return SHADES[variant % len(SHADES)]
+
+
 def build_kit(params, rng):
     """The kit's meshes per kind, params["variants"] of each: lying straws and twigs along +X centred on the origin,
     headless and headed stems along +Y from the origin. `params` carries the sheet's table (straw_len_m, straw_d_mm,
     straw_bend, stem_h_m, twig_len_m, twig_d_mm, variants, segments, each range as {"min", "max"})."""
     n, segments, bend = params["variants"], params["segments"], params["straw_bend"]
     kit = {kind: [] for kind in KINDS}
-    for _ in range(n):
+    for i in range(n):
         kit["straw"].append(lying(rng, segments, _draw(rng, params["straw_len_m"]),
-                                  _draw(rng, params["straw_d_mm"]) / 1000, bend, TIP, "straw"))
-    for _ in range(n):
+                                  _draw(rng, params["straw_d_mm"]) / 1000, bend, TIP, shade(i)))
+    for i in range(n):
         kit["stem"].append(stem(rng, segments, _draw(rng, params["stem_h_m"]),
-                                _draw(rng, params["straw_d_mm"]) / 1000, bend, False))
-    for _ in range(n):
+                                _draw(rng, params["straw_d_mm"]) / 1000, bend, False, shade(i)))
+    for i in range(n):
         kit["stem_head"].append(stem(rng, segments, _draw(rng, params["stem_h_m"]),
-                                     _draw(rng, params["straw_d_mm"]) / 1000, bend, True))
+                                     _draw(rng, params["straw_d_mm"]) / 1000, bend, True, shade(i)))
     for _ in range(n):
         kit["twig"].append(lying(rng, segments, _draw(rng, params["twig_len_m"]),
                                  _draw(rng, params["twig_d_mm"]) / 1000, bend, TWIG_TIP, "twig"))
@@ -74,16 +81,16 @@ def lying(rng, segments, length, diameter, bend, tip, colour):
     return tube(spine, diameter / 2, tip, (0.0, 0.0, 1.0), colour)
 
 
-def stem(rng, segments, height, diameter, bend, headed):
+def stem(rng, segments, height, diameter, bend, headed, colour):
     """A standing stem from its foot at the origin: a tube along +Y curving towards a random side, with a seed head
-    when `headed`."""
+    when `headed`, both in the palette column `colour`."""
     lean = rng.uniform(0.2, 1.0) * bend * LEAN * height
     direction = rng.uniform(0, 2 * math.pi)
     spine = [[lean * t * t * math.cos(direction), t * height, lean * t * t * math.sin(direction)]
              for t in (i / segments for i in range(segments + 1))]
-    mesh = tube(spine, diameter / 2, TIP, (1.0, 0.0, 0.0), "straw")
+    mesh = tube(spine, diameter / 2, TIP, (1.0, 0.0, 0.0), colour)
     if headed:
-        head(mesh, spine[-1], _normalize(_sub(spine[-1], spine[-2])), rng.uniform(0, 2 * math.pi))
+        head(mesh, spine[-1], _normalize(_sub(spine[-1], spine[-2])), rng.uniform(0, 2 * math.pi), colour)
     return mesh
 
 
@@ -111,16 +118,16 @@ def tube(spine, radius, tip, ref, colour):
     return mesh
 
 
-def head(mesh, tip, direction, phase):
+def head(mesh, tip, direction, phase, colour):
     """A seed head on a stem's tip: a closed spindle of four triangles, its base triangle of radius HEAD_R_M around
-    the tip and its apex HEAD_H_M along `direction`."""
+    the tip and its apex HEAD_H_M along `direction`, in the palette column `colour`."""
     normal = _normalize(_reject((1.0, 0.0, 0.0) if abs(direction[0]) < 0.9 else (0.0, 0.0, 1.0), direction))
     binormal = _cross(direction, normal)
     base = [mesh.vertex(_add(tip, _add(_scale(normal, HEAD_R_M * math.cos(a)), _scale(binormal, HEAD_R_M * math.sin(a)))))
             for a in (phase + 2 * math.pi * j / 3 for j in range(3))]
     apex = mesh.vertex(_add(tip, _scale(direction, HEAD_H_M)))
     centre = _add(tip, _scale(direction, HEAD_H_M / 3))
-    uv = [palette_uv("straw")] * 3
+    uv = [palette_uv(colour)] * 3
     for j in range(3):
         tri = (base[j], base[(j + 1) % 3], apex)
         mesh.face(tri, _outward(mesh, tri, centre), SLOT, uv)

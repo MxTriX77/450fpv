@@ -2,7 +2,7 @@
   "schema": 1,
   "kind": "palette",
   "shader": "Universal Render Pipeline/Lit",
-  "colours": { "straw": "#b49c6a", "twig": "#6b5a3e" },
+  "colours": { "straw_pale": "#cdb685", "straw": "#b49c6a", "straw_dark": "#977f55", "twig": "#6b5a3e" },
   "tint": [1.0, 1.0, 1.0, 1.0],
   "smoothness": 0.3
 }

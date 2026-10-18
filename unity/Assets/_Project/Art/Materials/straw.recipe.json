@@ -7,7 +7,9 @@
     "kind": "palette",
     "shader": "Universal Render Pipeline/Lit",
     "colours": {
+      "straw_pale": "#cdb685",
       "straw": "#b49c6a",
+      "straw_dark": "#977f55",
       "twig": "#6b5a3e"
     },
     "tint": [
@@ -18,13 +20,15 @@
     ],
     "smoothness": 0.3
   },
-  "inputs_sha256": "376fbb69f4b20b602ddaa3a7adb2b57c7ed7b44688ff1c4ecf88b419884bc8f7",
+  "inputs_sha256": "2b04dfb0cd8d5804377b9b2f5347c017d19735358befc5b2d331c3229bdc8cf9",
   "size": [
-    32,
+    64,
     16
   ],
   "columns": [
+    "straw_pale",
     "straw",
+    "straw_dark",
     "twig"
   ]
 }
