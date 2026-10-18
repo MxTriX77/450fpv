@@ -7,6 +7,13 @@ Each asset-list row SHALL appear in exactly one object sheet, under its ID, with
 - **WHEN** the IDs in the seven sheets are compared with `docs/asset-list.md`
 - **THEN** every ID in sections 1–10 and 12 appears exactly once, and no sheet carries an ID the list lacks
 
+### Requirement: Buildable
+Each sheet SHALL be reviewed by the asset-artist for buildability: every parameter in the generator table has a range and an effect, every damage state says what changes physically, and nothing requires a hand-sculpted part the design does not name.
+
+#### Scenario: Buildability review recorded
+- **WHEN** a change adds or reworks a sheet
+- **THEN** `review-buildability.md` in that change's folder lists, per row, what is buildable as written and what was sent back, and the sheet reflects the fixes
+
 ## ADDED Requirements
 
 ### Requirement: Research-only sheets
