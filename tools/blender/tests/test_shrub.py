@@ -159,7 +159,30 @@ def test_cards_map_into_the_atlas_cells(variant):
             corners = [mesh.vertices[i] for i in indices]
             assert math.dist(corners[0], corners[3]) == pytest.approx(p["card_m"])
             assert math.dist(corners[0], corners[1]) == pytest.approx(p["card_m"] * (u1 - u0) / (v1 - v0))
-    assert [uvs for _, _, uvs, _ in built["lods"][2].faces] == [[(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]] * 3
+    far = [cards.cell_uv(box) for box in cards.FAR_PX]
+    assert [uvs for _, _, uvs, _ in built["lods"][2].faces] == [[(u0, v0), (u1, v0), (u1, v1), (u0, v1)] for (u0, v0), (u1, v1) in far]
+    for ((x0, y0), (x1, y1)), cell in zip(cards.FAR_PX, (3, 5, 2)):  # each far core lies inside its sprig's cell
+        (cx0, cy0), (cx1, cy1) = cards.CELLS_PX[cell]
+        assert cx0 <= x0 < x1 <= cx1 and cy0 <= y0 < y1 <= cy1
+
+
+@pytest.mark.parametrize("camera", [(-6.66, 4.37, -6.67), (-2.36, 1.5, -2.37), (4.0, 1.0, 0.5)])
+def test_cards_face_the_viewer_outside_the_clump(repo_root, camera):
+    """Most of the cards a camera outside the clump can see show it their front, whose normal URP/Lit lights
+    right (the back of a two-sided card turns pale): the review sheet's 10 m and 1.5 m cameras and one low."""
+    built = shrub.build(load(repo_root, "V13_mid"))
+    lod0 = built["lods"][0]
+    near, front = 0, 0
+    for indices, normal, _, slot in lod0.faces:
+        if slot != "leaf":
+            continue
+        centre = [sum(lod0.vertices[i][k] for i in indices) / 4 for k in range(3)]
+        to_camera = [camera[k] - centre[k] for k in range(3)]
+        if centre[0] * to_camera[0] + centre[2] * to_camera[2] <= 0:
+            continue  # on the far side of the clump from this camera
+        near += 1
+        front += sum(normal[k] * to_camera[k] for k in range(3)) > 0
+    assert near > 100 and front / near >= 0.8, (front, near)  # 0.84-0.86 as built; a random roll gives 0.5
 
 
 def test_seed_determines_the_clump(repo_root):
