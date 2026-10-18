@@ -507,3 +507,1070 @@ Shared table with `storeys` 2, `wall_thickness` 0.51/0.38, `roof_pitch` 40, plus
 ### Open points
 - The house in I is read at 25–35 m in a low-sun photo; its proportions are ±1 m. Settled at the I side-by-side.
 - Landing on the upper slab: the surface flag is proposed here; the physics engineer confirms that `concrete` with debris on it needs no extra field.
+
+## Shared: the yard
+
+A village plot is 20–30 m wide along the street and 60–100 m deep (assumed, a typical 0.15–0.25 ha plot). From the street inward: the street fence (Y01, Y03 or Y04) with the gate (Y05 or Y06) at one side; a front garden (палісадник) with a picket fence (Y02) and 1–2 fruit trees (V10, V11); the house (H) 5–15 m back, long side along the street; the summer kitchen (O03) 3–8 m from the house door; sheds (O01, O02) along a side boundary; the well (Y07) near the house; the cellar (C01 or C02) 10–15 m behind the house; the woodpile (Y08) against a shed; the garage (O06) at the street side next to the gate; the toilet (O05) at a far corner 15–25 m from the house; the greenhouse (Y10) and the haystack (Y09) at the back; a laundry line (Y11) between the house and a tree; leaf litter (S09) under the trees, weeds (V17) along every wall. The E house with the C yard set is the first yard (terrain.md B1); abandoned plots become D (weeds, dead trees, a stone pile).
+
+## O01 Plank shed
+
+**Seen in:** E (the grey plank lean-to at the house's left corner, stills 1–12), J (a lean-to between the two houses, its sheet roof down). terrain.md B3.
+**Research sources:** none needed beyond B3 and B6.
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Footprint | 3–6 × 2–4 m | 4 × 2.5 m | measured E, J (B3) |
+| Height | 2–2.5 m at the high side, 1.7–2.0 m at the low | 2.2 / 1.8 m | measured E 7 (against the 2.4 m wall) |
+| Boards | 0.10–0.15 m wide, 20–25 mm thick, gaps 5–30 mm | 0.12 m | measured E (B6) |
+| Posts | 0.10–0.15 m at 1.5–2 m | 0.12 m | assumed |
+| Door | 0.8 × 1.8 m, plank | — | AST-04 |
+| Window | 0.4 × 0.5 m or none | none | assumed |
+| Roof | lean-to 10–15°, boards and felt, or slate or sheet | boards and felt | measured E (a sloping plank roof), J (sheet) |
+
+### Construction and materials
+- Posts set in the ground, horizontal boards (variant 1, E) or vertical boards on two rails (variant 2), a lean-to roof of boards with roofing felt or one row of slate or corrugated sheet, an earth floor, a plank door with strap hinges.
+- **Materials:** Poly Haven `weathered_brown_planks`, `old_planks_02`, `dark_planks` ( https://polyhaven.com/a/weathered_brown_planks , https://polyhaven.com/a/old_planks_02 ); felt `bitumen` ( https://polyhaven.com/a/bitumen ); sheet `worn_corrugated_iron`; slate as H02.
+
+### Colour
+| Surface | Photo albedo (sRGB) | Feed check value (sRGB) | Source |
+|---|---|---|---|
+| Weathered grey boards | #645d59 (J gable boards, overcast) | #5e5a55 (E 7), B3 #615e56 to #73623d | measured J; measured E |
+| Felt | near-black grey #3a3a38 | — | assumed |
+
+### Variants and states
+- Variants: 1 = horizontal boards, felt roof (E); 2 = vertical boards, slate roof.
+- **I:** boards silver-grey, 1–3 missing, felt torn at the edge, the door ajar.
+- **D:** the roof half down (boards hanging from the high side), one wall leaning 10–20° with boards on one nail, a sheet folded over the edge, boards and felt on the ground.
+
+### Damage pattern
+Light timber goes with the first blast: boards strip from the posts, the roof slides. Debris: grey boards with nails, felt strips, slate or sheet pieces.
+
+### Physics role
+- **Collision:** each board a thin box, posts capsules, roof boards thin boxes, the door a box; D boards at their hung angles.
+- **Material ids:** `timber`; sheet `sheet_metal`; slate `proposed:asbestos_cement`.
+- **Gaps:** door 0.8 × 1.8 m: any yaw. Missing-board slots 0.12–0.4 m: **no**. A D wall opening of 4+ boards (≥ 0.6 m): passes nose-first only; a fallen wall panel (1.5–2 m): any yaw. Interior 3.8 × 2.3 × 1.8–2.2 m: hover room, the low side is tight.
+- **Wind volumes:** walls porosity 0.05–0.2 (board gaps), 0.3–0.5 with boards missing, 1 where down; the roof 0.
+- **Snag hazards:** nails, board ends, the roof edge, felt flaps, the door edge.
+- **Landable surfaces:** the roof when sound and ≤ 15° (4 × 2.5 m, timber, mu 0.45 holds a 15° slope); not when boards hang.
+
+### Placement rules
+Two or three per yard (B3): against the house's end wall (E), along a side boundary, or between two houses (J). Often with the woodpile (Y08) under its eaves.
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `length`, `width`, `height_high`, `height_low` | m | 3–6, 2–4, 2–2.5, 1.7–2 | 4, 2.5, 2.2, 1.8 | Size and roof slope |
+| `board_dir` | enum | horizontal, vertical | horizontal | Board layout and the gap pattern |
+| `board_width`, `board_gap` | m | 0.10–0.15, 0.005–0.03 | 0.12, 0.015 | Porosity and the slot sizes |
+| `boards_missing` | 0–1 | 0–0.5 | 0.05 | Fraction of boards gone, clustered |
+| `roof_cover` | enum | felt, slate, sheet | felt | Roof material and its snag edge |
+| `door` | side or none | — | front | Door position |
+| `damage` | 0–1 | — | 0 / 0.6 | I below 0.3, D above: lean, hanging boards, roof down |
+| `lean` | deg | 0–20 | from `damage` | Wall lean in D |
+| `seed` | int | — | — | Random choices |
+
+### Open points
+- none.
+
+## O02 Brick or block shed with a small window
+
+**Seen in:** C (the grey low structure at the far left of stills 1–4, with a dark door opening and a flat roof about 2 m up). terrain.md B3.
+**Research sources:** brick sizes (shared section); cinder block 390 × 190 × 188 mm (assumed standard).
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Footprint | 3–6 × 2–4 m | 4 × 3 m | measured C (B3) |
+| Height | 2–2.5 m | 2.2 m | measured C 1 (against the 1.5 m fruit-tree fork) |
+| Wall | brick 0.25 m or block 0.20 m, cement render | block 0.20 m | assumed |
+| Roof | slab 0.1 m or boards on joists, felt, 3–8° | boards and felt, 5° | assumed; C reads a flat top |
+| Door | 0.8 × 1.8 m, plank | — | AST-04 |
+| Window | 0.4 × 0.5 m, 1 | 0.4 × 0.5 m | asset-list (small window); assumed size |
+
+### Construction and materials
+- Block or brick walls with grey cement render, a flat roof of boards and roofing felt (or a thin slab), a plank door, one small window with a four-pane frame.
+- **Materials:** render Poly Haven `grey_plaster_02` or `concrete_wall_003` ( https://polyhaven.com/a/grey_plaster_02 ); block `rough_block_wall` ( https://polyhaven.com/a/rough_block_wall ); brick `red_brick`; felt `bitumen`; door as O01.
+
+### Colour
+| Surface | Photo albedo (sRGB) | Feed check value (sRGB) | Source |
+|---|---|---|---|
+| Cement render | about #9a948a | #8c6e49 (lit, warmed by the feed) | assumed; measured C 1 |
+| Felt | #3a3a38 | — | assumed |
+
+### Variants and states
+- Variants: 1 = block, rendered, felt roof; 2 = bare red brick, slab roof.
+- **I:** render cracked and patchy, moss on the north face, the door ajar.
+- **D:** the roof dropped at one corner (boards hanging, felt torn), one corner out with block halves on the ground, the door gone, the window frame out.
+
+### Damage pattern
+Blocks and bricks come out in stepped jags as H03; the light roof lifts first. Rubble: grey block halves and brick, render plates, boards, felt.
+
+### Physics role
+- **Collision:** walls as boxes per segment, the roof a box, the door a box, rubble boxes.
+- **Material ids:** walls `masonry`; a slab roof `concrete`; board roof, door, frame `timber`.
+- **Gaps:** door 0.8 × 1.8: any yaw. Window 0.4 × 0.5: **no**. A D corner breach 0.5–0.9 m: passes nose-first when ≥ 0.6 m clear. Interior 3.6 × 2.6 × 2.0 m: hover room.
+- **Wind volumes:** solid (0); the interior a cavity through the door.
+- **Snag hazards:** the felt edge, the door frame, the window frame, nails in a dropped roof.
+- **Landable surfaces:** **the flat roof** (4 × 3 m, ≤ 8°, felt on boards or a slab, 2.2 m up): the yard's best rooftop target when sound.
+
+### Placement rules
+One per yard, along a side boundary or facing the cellar (C), 5–15 m from the house.
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `length`, `width`, `height` | m | 3–6, 2–4, 2–2.5 | 4, 3, 2.2 | Size |
+| `wall_material` | enum | block, brick | block | Texture, jag style, rubble |
+| `render_loss` | 0–1 | — | 0.2 | Render patches gone |
+| `roof` | enum | boards_felt, slab | boards_felt | Roof build and whether it is `concrete` |
+| `window` | pos or none | — | side | The small window |
+| `damage` | 0–1 | — | 0 / 0.6 | I / D as above |
+| `seed` | int | — | — | Random choices |
+
+### Open points
+- none.
+
+## O03 Summer kitchen (літня кухня), small brick
+
+**Seen in:** R.
+**Research sources:** shared section; the class is a small brick house with a stove, so H01/H03's construction applies.
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Footprint | 4–5 × 3–4 m | 4.5 × 3.5 m | asset-list (assumed) |
+| Wall height | 2.3–2.6 m | 2.4 m | assumed |
+| Wall thickness | 0.25–0.38 m | 0.25 m | derived (1 or 1.5 bricks) |
+| Roof | gable or hip, slate, 25°, ridge 3.4–3.8 m | gable, ridge 3.6 m | assumed |
+| Chimney | 0.38 × 0.38 m, 0.5 m above the ridge | — | assumed (a stove inside) |
+| Door, windows | 0.8 × 1.9 m; 1–2 of 0.8–1.0 × 1.0–1.2 m | 2 windows 0.9 × 1.1 m | AST-04; assumed |
+| Porch | 1.5 × 2 m lean-to on two posts | on | assumed |
+
+### Construction and materials
+- Brick walls, whitewashed or bare, a slate gable roof, a brick chimney, a plank door, two windows, a small porch roof. Inside: a stove, a table, shelves.
+- **Materials:** as H03 (`white_bricks` or `red_brick`, slate as H02, frames `blue_painted_planks`), whitewash `white_stucco_02`.
+
+### Colour
+As H03 or H01 by wall material; no reference colour of its own.
+
+### Variants and states
+- Variants: 1 = whitewashed brick; 2 = bare silicate with red bands.
+- **I / D / X:** as H03 at a smaller scale: D strips the slate, breaks the sashes and jags one opening; X drops the gable and one wall.
+
+### Damage pattern
+As H03.
+
+### Physics role
+- **Collision, ids:** as H03; porch posts `timber` capsules.
+- **Gaps:** door 0.8 × 1.9: any yaw; windows 0.9 × 1.1 frame gone: any yaw (0.9 ≥ 0.706); frame on (0.76 × 0.96): any yaw with 27 mm a side on the diagonal; interior 4 × 3 × 2.3 m.
+- **Wind volumes:** walls 0; roof 0 / 0.7–0.85 stripped; the porch 0.
+- **Snag hazards:** as H03; the chimney cap; the porch edge.
+- **Landable surfaces:** none.
+
+### Placement rules
+3–8 m from the house door, facing the yard; one per lived-in yard.
+
+### Generator parameters
+Shared house table with `length` 4.5, `width` 3.5, `wall_thickness` 0.25, `roof_cover` slate, `windows` 0.9 × 1.1, `porch` on. No additions.
+
+### Open points
+- none.
+
+## O04 Barn or hayloft, timber
+
+**Seen in:** R.
+**Research sources:** none found for sizes; assumed from the asset list and standard timber practice.
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Footprint | 6–10 × 4–6 m | 8 × 5 m | asset-list (assumed) |
+| Eaves height | 2.5–3.0 m | 2.7 m | assumed |
+| Ridge | 4.5–5.5 m, pitch 25–30° | 5.0 m | derived |
+| Posts | 0.15–0.20 m at 2–3 m | 0.18 m at 2.5 m | assumed |
+| Wall boards | vertical, 0.12–0.15 m, gaps 10–30 mm | 0.15 m, 20 mm | assumed (ventilation gaps) |
+| Double doors | 2.0–2.5 × 2.2 m | 2.4 × 2.2 m | assumed |
+| Loft door | 0.8 × 1.0 m in the gable at 2.5 m | — | assumed |
+
+### Construction and materials
+- A post frame on stone pads, vertical boards with gaps, a slate gable roof on purlins, double plank doors, a loft floor of boards at 2.5 m over half the length with hay on it.
+- **Materials:** boards as O01; slate as H02; hay `proposed:straw` with Poly Haven `hessian_380` tinted straw as a surface ( https://polyhaven.com/a/hessian_380 ); structure `rough_wood`.
+
+### Colour
+Weathered grey boards as O01; hay yellow-grey about #a8956a (assumed).
+
+### Variants and states
+- Variants: 1 = boarded, slate; 2 = open-fronted (a hay shelter, three walls).
+- **I:** boards grey and gapped, the roof sagging, doors off one hinge.
+- **D:** the roof stripped over half, purlins bare, one side wall down, hay spilled.
+
+### Damage pattern
+As O01 at a larger scale; hay burns to a black patch.
+
+### Physics role
+- **Collision:** posts capsules, boards thin boxes, purlins and rafters boxes, the loft a box, hay a soft box.
+- **Material ids:** `timber`; slate `proposed:asbestos_cement`; hay `proposed:straw`.
+- **Gaps:** double doors 2.4 × 2.2: any yaw; one leaf 1.2 m: any yaw; the loft door 0.8 × 1.0: any yaw, height tight (0.55 m envelope); interior 7.6 × 4.6 × 2.5 m with the loft edge at 2.5 m; roof bays once stripped.
+- **Wind volumes:** walls porosity 0.1–0.3 (gaps); roof 0 / 0.75 stripped; the interior a large draughty cavity.
+- **Snag hazards:** board ends, the loft edge, purlin ends, hay (hooks the legs), nails, the door hinges.
+- **Landable surfaces:** the loft floor (boards, uneven under hay); hay is soft and sinks.
+
+### Placement rules
+Rare: one per two or three yards, at the back of the plot, near the haystack (Y09).
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `length`, `width`, `eaves`, `pitch` | m, deg | 6–10, 4–6, 2.5–3, 25–30 | 8, 5, 2.7, 27 | Size |
+| `open_front` | bool | — | off | Variant 2 |
+| `board_gap` | m | 0.01–0.03 | 0.02 | Porosity |
+| `loft_fraction` | 0–1 | 0–0.7 | 0.5 | Loft floor length |
+| `hay_fill` | 0–1 | — | 0.4 | Hay volume in the loft and on the floor |
+| `damage` | 0–1 | — | 0 / 0.6 | I / D |
+| `seed` | int | — | — | Random choices |
+
+### Open points
+- `straw` id: physics sign-off.
+
+## O05 Outdoor toilet, wooden
+
+**Seen in:** R.
+**Research sources:** typical plank construction (the search confirmed only that boards about 20 × 150 mm are used: https://uznayvse.ru/voprosyi/kak-postroit-tualet-na-dache-73933.html ); sizes assumed from the asset list.
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Box | 1.0 × 1.2 m, 2.2 m high at the front, 2.0 at the back | as given | asset-list (assumed) |
+| Door | 0.6–0.7 × 1.8 m, a 0.1 m gap at the top | 0.65 × 1.8 m | assumed |
+| Frame | 50 × 50 mm, boards 20 × 150 mm | — | published boards; assumed frame |
+| Roof | lean-to, boards and felt or one slate sheet | felt | assumed |
+| Pit | 1 × 1 m, 1.5–2 m deep under the box | — | assumed |
+
+### Construction and materials
+- A plank box on a frame over a pit, a lean-to roof, a plank door with a wooden latch, a heart or diamond cut-out in the door (assumed, traditional), a seat box inside.
+- **Materials:** boards as O01; felt `bitumen`.
+
+### Colour
+As O01's grey boards; sometimes painted green or blue (`green_rough_planks`).
+
+### Variants and states
+- Variants: 1 = grey boards; 2 = painted, gable roof.
+- **I:** grey, leaning 2–5°, the door hanging.
+- **D:** leaning 10–20°, the door off and lying, the roof gone, two boards out.
+
+### Damage pattern
+It tips or is pushed over whole; boards and the door scatter.
+
+### Physics role
+- **Collision:** boards thin boxes, frame boxes, the door a box, the seat a box; the pit a hole 1 × 1 m where the floor is gone (D).
+- **Material ids:** `timber`.
+- **Gaps:** the door **0.65 × 1.8 m: ±16° yaw, 38 mm a side**: the yard's second-narrowest fly-in after the cellar; the interior 0.95 × 1.15 m holds the drone (0.574 wide) with no room to turn: a dead end to back out of. The top gap 0.1 m: no.
+- **Wind volumes:** solid; the door opening a slot.
+- **Snag hazards:** the door edge and latch, board ends, nails, the roof edge.
+- **Landable surfaces:** the roof (1.2 × 1.1 m, 10°, felt): yes when sound.
+
+### Placement rules
+One per yard, at a far corner 15–25 m from the house, behind the sheds, often next to the compost and nettles (V18).
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `width`, `depth`, `height` | m | 0.9–1.2, 1.0–1.4, 2.0–2.4 | 1.0, 1.2, 2.2 | Size |
+| `door_width` | m | 0.6–0.7 | 0.65 | The fly-in clear width |
+| `lean` | deg | 0–20 | from `damage` | Tilt of the whole box |
+| `door_state` | enum | closed, ajar, open, gone | ajar | Door position and collision |
+| `damage` | 0–1 | — | 0 / 0.6 | I / D |
+| `seed` | int | — | — | Random choices |
+
+### Open points
+- none.
+
+## O06 Garage, brick or sheet metal
+
+**Seen in:** R.
+**Research sources:** a modern 3 × 6 m metal garage is 3.0 × 6.02 × 2.32 m ( https://dancovershop.com/en-at/products/metal-garage-3x6-02x2-32-m-18-06-m-proshed-anthracite ), a size check for the class; the welded-sheet Soviet garage is assumed.
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Footprint | 3.2–4 × 5.5–6.5 m | 3.5 × 6 m | asset-list; published size check |
+| Height | 2.2–2.6 m | 2.4 m | published check (2.32 m) |
+| Walls | brick 0.25 m, or steel sheet 1.5–2 mm on an angle frame 40 × 40 mm | sheet | assumed |
+| Roof | flat or 5–10° one-way, sheet or slab with felt | sheet, 6° | assumed |
+| Gate | two leaves 1.2–1.3 m each, 2.0 m high; a wicket in one leaf optional | 2.5 × 2.0 m | assumed |
+
+### Construction and materials
+- Variant 1: welded sheet-steel panels on an angle frame, a sheet roof, a double gate, painted and rusting. Variant 2: brick walls with a slab roof and felt, a steel gate, a small window 0.4 × 0.5 at the back.
+- **Materials:** steel: Poly Haven `rusty_painted_metal`, `rusty_metal_sheet`, `painted_metal_shutter` ( https://polyhaven.com/a/painted_metal_shutter ); brick as H03/H04; felt `bitumen`.
+
+### Colour
+Painted steel faded green or grey-blue about #5a6a5e with rust #6b3f2a (assumed); brick as H03.
+
+### Variants and states
+- **I:** paint faded, rust at the seams and the foot, the gate shut or one leaf open.
+- **D:** the roof holed (0.5–1.5 m, curled edges), one gate leaf bent out 20–40° and the other off its hinges, a wall panel torn.
+
+### Damage pattern
+Sheet steel holes and curls (sharp edges); brick jags as H03. Debris: curled sheet strips, bricks, slab chunks.
+
+### Physics role
+- **Collision:** walls and roof as thin boxes (sheet) or boxes (brick); gate leaves as boxes at their angles; holes as polygons.
+- **Material ids:** sheet walls, roof, gate: `sheet_metal` (cuts fiber); frame `steel`; brick `masonry`; slab `concrete`.
+- **Gaps:** one leaf open 1.2–1.3 m: any yaw; both 2.5 m; the wicket 0.8 × 1.8: any yaw; interior 3.3 × 5.8 × 2.2 m: the drone can enter and turn; a roof hole 0.5–1.5 m: passes when ≥ 0.6 m clear, edges cut.
+- **Wind volumes:** solid; the interior a cavity through the gate.
+- **Snag hazards:** torn sheet edges, hinge pins, the gate's top bar, the roof edge.
+- **Landable surfaces:** the roof (3.5 × 6 m, ≤ 10°): sheet flexes and pops (as a car roof, terrain.md R0); a slab roof is hard and good.
+
+### Placement rules
+At the street side next to the gate (Y05), the gate facing the street; one per two or three yards; rows of them become U03.
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `length`, `width`, `height` | m | 5.5–6.5, 3.2–4, 2.2–2.6 | 6, 3.5, 2.4 | Size |
+| `wall_material` | enum | sheet, brick | sheet | Build, material id, failure style |
+| `gate_state` | enum | closed, one_open, both_open, bent, off | one_open | Gate leaves and the clear width |
+| `roof_holes` | int | 0–3 | from `damage` | Holes with curled edges |
+| `damage` | 0–1 | — | 0 / 0.6 | I / D |
+| `seed` | int | — | — | Random choices |
+
+### Open points
+- none.
+
+## C01 Cellar entrance, brick head with plank door, steps down (hole)
+
+**Seen in:** C (stills 1–8 the head from the yard, 9–10 the doorway, 11–12 inside the passage). terrain.md W4, PR-9, knowledge.md §14.3.
+**Research sources:** ventilation pipes 100–150 mm with the inlet 50–60 cm above the floor, drainage below the floor ( https://media.halvacard.ru/dacha/kak-postroit-pogreb ); the pit is usually under 3 m wide ( https://poradu.pp.ua/svoyimi-rukami/print:page,1,2782-yak-pobuduvati-loh-svoyimi-rukami-korisn-poradi-yak-zrobiti-zruchniy-nadyniy-pogrb.html ).
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Head (погрібник) | 1.2–1.5 wide × 1.8–2.0 high × 2–3 m long | 1.4 × 1.95 × 2.5 m | measured C (W4) |
+| Doorway | **0.70 × 1.6 m** | 0.70 × 1.6 m | **pilot (PR-9)**; measured C 9–10 about 0.7 × 1.6 |
+| Brick piers | 0.25–0.38 m wide at each front corner | 0.25 m (one brick) | measured C 9: one brick plus render |
+| Lintel | timber 0.12 × 0.15 m | — | measured C 9 (a dark beam over the frame) |
+| Door frame | 0.10 × 0.08 m timber | — | measured C 9 |
+| Roof | slab or boards on joists, felt, sloping back 5–10°, overhang 0.1–0.2 m with a plank edge | boards, 8° | measured C 9 (a pale plank edge under the felt) |
+| Passage inside | 0.8–0.9 m wide, 1.8 m high normal to the stair | 0.85 m | measured C 11–12 (wider than the door) |
+| Steps | treads 0.25–0.30, risers 0.20–0.25, 8–10 steps | 9 steps | assumed |
+| Depth to the chamber floor | 2.0–2.5 m | 2.2 m | assumed (frost-proof depth) |
+| Chamber | 2.5–3.5 × 2–3 m, 1.9–2.2 m high | 3 × 2.5 × 2.0 m | assumed; published pit under 3 m wide |
+| Ceiling beam | round log 0.10–0.14 m across the passage | 0.12 m | measured C 12 |
+| Tarp | 2 × 3 m draped on the right flank | — | measured C (W4) |
+| Wire above | one wire 3–5 m up crossing the yard | — | measured C 1–8 (S1) |
+
+### Construction and materials
+- A brick head on a 0.3–0.6 m earth mound, red-brick corner piers with lime-rendered panels between them (the render peeling to show brick: C 9), a timber door frame and lintel with a plank door (absent in C; a param), a flat felt roof on boards with a plank edge, side walls brick and rendered; inside, a plank ceiling on a round log beam, lime-whitewashed walls peeling in flakes (C 12), brick or earth steps down to a brick-walled chamber with a vaulted or slab ceiling; a ventilation pipe 100–150 mm out of the mound; a tarp draped over one flank, weighted with bricks.
+- **Materials:** piers `red_brick`; render Poly Haven `rough_plaster_brick_02` and `worn_cracked_plaster`; frame and ceiling boards `rough_pine_door`, `raw_plank_wall`; felt `bitumen`; slab `concrete_wall_003`; the tarp `proposed:fabric` with Poly Haven `rough_linen` tinted #8aa0c0 as a woven polyethylene surface ( https://polyhaven.com/a/rough_linen ; no CC0 tarp set was found, so this is derived); the mound: the S01 sod and S09 litter surfaces.
+
+### Colour
+| Surface | Photo albedo (sRGB) | Feed check value (sRGB) | Source |
+|---|---|---|---|
+| Pier brick | as `red_brick` | #b27142 (C 9), W4 #b97541 | measured C 9 |
+| Lime render on the head | about #b5afa3 | #8f8676 | assumed; measured C 9 |
+| Door frame, lintel | about #7a6a55 | #72583f, W4 #73623d | assumed; measured C 9 |
+| Slab and plank edge | grey timber and felt | #6a645e | measured C 9 |
+| Ceiling boards inside | pale timber | #75623c | measured C 9 |
+| Inner whitewash, peeling | about #a9a08e | #6a644d | assumed; measured C 9 |
+| Tarp | about #8aa0c0 | #8695b2, W4 #899cc2 | measured C 9 |
+| Leaf litter around | — | #a88147 (C 1), T6 #a67f4d | measured C 1 |
+
+### Variants and states
+- One variant (asset-list). Optional parts: the door leaf (gone, open, half-open), the tarp, the pipe, the mound size.
+- The head reads I (weathered, render peeling); no D or X state is asked for.
+
+### Damage pattern
+Not a damage asset. Weathering: render off the piers' edges, felt torn at the overhang, the plank edge rotten, the inner whitewash flaking in 0.1–0.5 m plates.
+
+### Physics role
+- **Collision:** piers and side walls as boxes (`masonry`), the lintel and frame as boxes, the roof a box with its plank edge, the ceiling boards and log as boxes and a capsule, each step a box, the chamber walls boxes, the tarp a thin soft surface, the mound a sloped box.
+- **Material ids:** brick, render, steps, chamber `masonry`; frame, lintel, boards, log `timber`; roof `concrete` (slab) or `timber` (boards); felt as the roof's id; the tarp `proposed:fabric`; the pipe `steel`; the mound `proposed:soil`.
+- **Gaps:**
+  - **the doorway 0.70 × 1.6 m: passes nose-first with 63 mm a side, up to ±35° of yaw, the narrowest fly-in on the map (PR-9).** With a door leaf half open it drops to 0.35–0.5 m: no. Height 1.6 m is comfortable.
+  - the passage 0.85 × 1.8 m, descending 2.2 m over about 2.5 m (a 40° slope): passes at any yaw within the walls, but the drone must pitch down the stair; the log beam at the ceiling narrows the height to 1.65 m for 0.12 m
+  - the chamber 3 × 2.5 × 2.0 m: hover room, dark
+  - the pipe 100–150 mm: no
+- **Wind volumes:** the head solid (0); the doorway is a funnel part (porosity 1, W4 `turbulence`): gusts accelerate through it and the passage; the tarp flaps (visual) and is porosity 0 while it lies on the wall.
+- **Snag hazards:** the tarp (soft, wraps), the wire above the yard, the plank edge of the roof, the frame and lintel edges, nails, the log beam, the pipe.
+- **Landable surfaces:** the roof (1.4 × 2.5 m at 5–10°, felt, 2 m up): yes; the mound top behind: `soil`, soft and uneven.
+
+### Placement rules
+One per yard, 10–15 m behind the house, the doorway facing the house or the path, a fruit tree (V10/V11) beside it (C), a shed (O02) across the path, leaf litter (S09) around; the tarp on the sunny flank.
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `door_width`, `door_height` | m | 0.65–0.80, 1.5–1.8 | **0.70, 1.6** | The fly-in; 0.70 is the pilot's number |
+| `head_width`, `head_height`, `head_length` | m | 1.2–1.5, 1.8–2.0, 2–3 | 1.4, 1.95, 2.5 | Head size; the piers take 0.25–0.38 each side of the door |
+| `pier_width` | m | 0.25–0.38 | 0.25 | Brick pier width |
+| `render_loss` | 0–1 | — | 0.4 | Render gone on the head |
+| `roof` | enum | boards_felt, slab_felt | boards_felt | Roof build and material id |
+| `roof_slope` | deg | 3–10 | 8 | Back slope |
+| `passage_width` | m | 0.8–0.9 | 0.85 | Inside clear width |
+| `steps`, `depth` | int, m | 7–10, 2.0–2.5 | 9, 2.2 | Stair and the chamber floor level |
+| `chamber` | m | 2.5–3.5 × 2–3 × 1.9–2.2 | 3 × 2.5 × 2.0 | The underground room |
+| `door_leaf` | enum | gone, open_out, half, closed | gone | Leaf presence and the resulting clear width |
+| `tarp` | side or none | — | right | The draped tarp |
+| `mound_height` | m | 0.3–0.6 | 0.4 | The earth mound the head sits on |
+| `pipe` | bool | — | on | Ventilation pipe |
+| `seed` | int | — | — | Random choices |
+
+### Open points
+- `fabric` and `soil` ids: physics sign-off. The tarp's flutter is visual; its snag is what matters.
+- The first attempt built the door at 0.78 m "to fit" and was corrected to 0.70 m (knowledge.md §14.3): the default is locked, not a question.
+
+## C02 Earth-mound cellar with a concrete or brick portal
+
+**Seen in:** R.
+**Research sources:** as C01 (pipes, depth); the mound form is traditional (assumed).
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Mound | 5–7 m across, 1.0–1.5 m high, grassed, flat top 1–2 m | 6 × 1.2 m | assumed |
+| Portal | 1.0–1.2 wide × 1.9–2.1 high × 0.6–1.0 m deep, concrete or brick | 1.1 × 2.0 × 0.8 m | assumed |
+| Door | about 0.75 × 1.7 m, plank or steel | 0.75 × 1.7 m | asset-list (assumed) |
+| Steps, depth | 7–9 steps, 1.8–2.2 m | 8, 2.0 m | assumed |
+| Chamber | 2.5–3 × 2–2.5 × 1.9–2.1 m, vaulted brick or slab | 3 × 2.5 × 2.0 m | assumed; published pit under 3 m wide |
+| Pipe | 100–150 mm, 0.5–1 m out of the mound top | 120 mm | published size; assumed height |
+
+### Construction and materials
+- A chamber cut into the ground and covered with an earth mound, a short portal of cast concrete or brick at the foot of the mound, a door, steps, a vent pipe.
+- **Materials:** portal `concrete_wall_003` or `red_brick`; door `rough_pine_door` or `rusty_painted_metal`; the mound the S01 sod surface; chamber as C01.
+
+### Colour
+Concrete grey about #8e8a82 (assumed); brick as `red_brick`; door as O01 or O06.
+
+### Variants and states
+- One variant (asset-list); the door leaf open or gone as a param.
+
+### Damage pattern
+Not a damage asset; weathering only (concrete spalling at the portal's arrises, grass over the mound).
+
+### Physics role
+- **Collision:** the mound a smooth sloped shape (a few sloped boxes or the heightfield), the portal boxes, the door a box, steps boxes, the chamber boxes.
+- **Material ids:** portal `concrete` or `masonry`; door `timber` or `sheet_metal`; mound `proposed:soil`; pipe `steel`.
+- **Gaps:** the door **0.75 × 1.7 m: any yaw, 88 mm a side nose-first, 22 mm on the diagonal**; the portal and stair 1.1 m wide; the chamber as C01.
+- **Wind volumes:** the mound solid, a smooth bump the flow rides over; the doorway a funnel.
+- **Snag hazards:** the pipe, the door edge, the portal's arrises.
+- **Landable surfaces:** the mound top (1–2 m flat, `soil` under sod, soft) and its slopes (20–30°: slides).
+
+### Placement rules
+Alternative to C01 on one yard in three, further back in the plot (15–25 m), near the garden.
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `mound_diameter`, `mound_height` | m | 5–7, 1.0–1.5 | 6, 1.2 | Mound size |
+| `portal_material` | enum | concrete, brick | concrete | Portal build |
+| `door_width`, `door_height` | m | 0.7–0.8, 1.6–1.8 | 0.75, 1.7 | The fly-in |
+| `door_leaf` | enum | gone, open, closed | open | Leaf and clear width |
+| `steps`, `depth`, `chamber` | as C01 | — | 8, 2.0, 3 × 2.5 × 2.0 | Underground part |
+| `seed` | int | — | — | Random choices |
+
+### Open points
+- `soil` id: physics sign-off.
+
+## Y01 Plank fence (grey weathered)
+
+**Seen in:** E (horizontal grey boards at the left, beyond the shed, stills 1–12), J (fence remains and posts), H (thin posts far off). terrain.md B6.
+**Research sources:** none needed.
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Height | 1–2 m | 1.6 m (street), 1.2 m (between yards) | measured E, B6 |
+| Boards | 0.10–0.15 m wide, 20–25 mm thick | 0.12 m | measured E, B6 |
+| Gaps between boards | 5–30 mm (horizontal), 10–50 mm (vertical) | 15 mm | measured E (tight horizontal boards) |
+| Posts | 0.10–0.20 m at 2–3 m | 0.14 m at 2.5 m | B6; assumed spacing |
+| Rails (vertical variant) | 2 of 40 × 80 mm | — | assumed |
+
+### Construction and materials
+- Variant 1 (E): horizontal boards nailed to posts, tight, grey. Variant 2: vertical boards on two rails, gapped. Both with a run of missing or fallen boards and a leaning section.
+- **Materials:** boards as O01 (`weathered_brown_planks`, `old_planks_02`, `dark_planks`); posts `rough_wood`.
+
+### Colour
+| Surface | Photo albedo (sRGB) | Feed check value (sRGB) | Source |
+|---|---|---|---|
+| Grey boards | #645d59 (J, overcast) to about #8b8780 (silvered, assumed) | #5e5a55 (E 7), B6 #615e56 | measured J; measured E |
+
+### Variants and states
+- Variants: 2 heights × 2 board directions; `gaps` as a param (asset-list: "2 heights, gaps").
+- **I:** silvered boards, 2–5 % missing, one post leaning 5–10°.
+- **D:** a 2–4 m run flattened (boards on the ground, posts snapped), boards hanging on one nail.
+
+### Damage pattern
+A blast lays a run flat away from the burst; boards stay nailed to the rails and lie as a panel.
+
+### Physics role
+- **Collision:** each board a thin box, posts capsules, rails boxes; a fallen panel a thin box on the ground.
+- **Material ids:** `timber`.
+- **Gaps:** slots from 1–3 missing boards (0.12–0.4 m): **no**; a 5-board slot (0.6 m): nose-first only; a fallen panel (2–3 m): any yaw. Over the top: the top edge at 1.2–1.6 m is in the low-flight band.
+- **Wind volumes:** porosity 0.1–0.2 tight, 0.3–0.5 with boards missing, 1 where down; a 1.6 m fence gives a sheltered, gusty zone 5–10 heights downwind (as V1's windbreak at a smaller scale).
+- **Snag hazards:** post tops, board tops, nails, a hanging board.
+- **Landable surfaces:** none.
+
+### Placement rules
+Along every yard boundary (B6): the street side at 1.6–2 m, between yards at 1.2 m; the gate (Y06) in it; weeds (V17) along its foot.
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `length` | m | 2–40 | 20 | Run length, built from post bays |
+| `height` | m | 1–2 | 1.6 | Height |
+| `board_dir` | enum | horizontal, vertical | horizontal | Board layout |
+| `board_width`, `board_gap` | m | 0.10–0.15, 0.005–0.05 | 0.12, 0.015 | Porosity and slots |
+| `boards_missing` | 0–1 | 0–0.3 | 0.03 | Missing boards, clustered |
+| `post_lean` | deg | 0–15 | 5 | Max lean of posts |
+| `fallen_runs` | list | 0–3 of (start, length) | from `damage` | Flattened sections |
+| `damage` | 0–1 | — | 0 / 0.6 | I / D |
+| `seed` | int | — | — | Random choices |
+
+### Open points
+- none.
+
+## Y02 Picket fence, painted
+
+**Seen in:** R.
+**Research sources:** the stave gap is set at assembly, not by the product ( https://build.rozetka.com.ua/ua/498221154/p498221154/ ); sizes assumed from common practice.
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Height | 1.0–1.3 m | 1.2 m | asset-list |
+| Staves | 20 × 80–100 mm, pointed or rounded tops | 20 × 90 mm | assumed |
+| Stave gap | 40–60 mm | 50 mm | assumed |
+| Rails | 2 of 40 × 80 mm | — | assumed |
+| Posts | 0.10 m at 2.5 m | — | assumed |
+
+### Construction and materials
+- Staves nailed to two rails between posts, painted white, blue or green, peeling.
+- **Materials:** Poly Haven `distressed_painted_planks`, `blue_painted_planks`, `green_rough_planks`.
+
+### Colour
+Peeling paint over grey wood: white #d3cfc4, blue #8fb2c6, green #5f7a5a (assumed).
+
+### Variants and states
+- One variant with a colour param; **I** (peeling, 1–2 staves missing) and a `damage` dial for a flattened run.
+
+### Damage pattern
+As Y01, lighter: staves snap at the rail.
+
+### Physics role
+- **Collision:** staves thin boxes, rails and posts boxes.
+- **Material ids:** `timber`.
+- **Gaps:** stave gaps 50 mm: **no**; a missing-stave slot (0.19 m): no; a flattened run: any yaw. The top at 1.2 m is in the low-flight band.
+- **Wind volumes:** porosity 0.35–0.45 (derived: 50 mm gaps at 140 mm pitch).
+- **Snag hazards:** pointed stave tops catch the fiber in low flight; nails.
+- **Landable surfaces:** none.
+
+### Placement rules
+Around the front garden between the house and the street fence, 5–8 m long runs; around a vegetable patch.
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `length`, `height` | m | 2–20, 1.0–1.3 | 8, 1.2 | Size |
+| `stave_width`, `stave_gap` | m | 0.08–0.10, 0.04–0.06 | 0.09, 0.05 | Porosity |
+| `stave_top` | enum | pointed, rounded, flat | pointed | Snag shape |
+| `paint` | colour | white, blue, green | white | Paint |
+| `paint_loss` | 0–1 | — | 0.4 | Peeling |
+| `staves_missing` | 0–1 | 0–0.2 | 0.05 | Missing staves |
+| `damage` | 0–1 | — | 0 / 0.6 | I / flattened runs |
+| `seed` | int | — | — | Random choices |
+
+### Open points
+- none.
+
+## Y03 Chain-link mesh on metal posts
+
+**Seen in:** R.
+**Research sources:** 50 × 50 mm mesh, wire 1.7–2.5 mm, rolls 1.5 m high and 10 m long ( https://epicentrk.ua/shop/setka-rabitsa/ ).
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Height | 1.5 m (roll height) | 1.5 m | published |
+| Mesh | 50 × 50 mm, wire 1.7–2.5 mm | 50 mm, 2.0 mm | published |
+| Posts | steel pipe 50–60 mm or concrete 0.10 × 0.10 m, at 2.5–3 m | pipe 57 mm at 3 m | assumed |
+| Top wire | 3–4 mm tension wire | 3 mm | assumed |
+| Sag | mesh sags 0.1–0.3 m between posts when loose | 0.15 m | assumed |
+
+### Construction and materials
+- Galvanised or rusted mesh stretched between posts, tied with wire, a tension wire along the top, sagging and torn in places, weeds grown through it.
+- **Materials:** mesh as geometry (wire diamonds), Poly Haven `rusty_metal` for the wire surface ( https://polyhaven.com/a/rusty_metal ); posts `rusty_metal_02`.
+
+### Colour
+Rusted wire #6e5a48, galvanised #9a9a95 (assumed).
+
+### Variants and states
+- One variant; `rust` and `tears` as params.
+
+### Damage pattern
+Mesh tears and curls from a post; posts bend at the ground.
+
+### Physics role
+- **Collision:** the mesh as a thin compliant panel per bay (a thin box 1.5 m high), the top wire a capsule 3 mm, posts capsules; tears as polygons.
+- **Material ids:** mesh and top wire `cable` (the physics engineer may want a mesh-specific response: see Open points); posts `steel`.
+- **Gaps:** none when intact (50 mm); a tear ≥ 0.6 m: nose-first; a bay with the mesh down (3 m): any yaw. Over the top: the top wire at 1.5 m is a thin-wire snag at low height (PR-6's thin class).
+- **Wind volumes:** porosity about 0.92 (derived: 2 mm wire in both directions at 50 mm gives 8 % solidity).
+- **Snag hazards:** the whole mesh for the fiber and the legs (it wraps and holds), torn ends, post tops.
+- **Landable surfaces:** none.
+
+### Placement rules
+Between yards and along gardens, 10–40 m runs; around the farm (P02).
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `length`, `height` | m | 3–40, 1.2–2.0 | 20, 1.5 | Size |
+| `mesh_size`, `wire_d` | mm | 40–60, 1.6–2.5 | 50, 2.0 | Geometry and porosity |
+| `post_type` | enum | pipe, concrete | pipe | Posts |
+| `sag` | m | 0–0.4 | 0.15 | Mesh sag between posts |
+| `tears` | list | 0–3 of (pos, w, h) | from `damage` | Torn openings |
+| `rust` | 0–1 | — | 0.6 | Surface |
+| `damage` | 0–1 | — | 0 / 0.6 | Tears, bent posts, a bay down |
+| `seed` | int | — | — | Random choices |
+
+### Open points
+- Mesh contact: a drone hitting chain-link is caught, not bounced (compliant, wrapping). Whether `cable` plus a snag flag covers it or a `mesh` material is needed: physics sign-off.
+
+## Y04 Brick or concrete-panel fence
+
+**Seen in:** I (a low brick fence with piers and a precast lattice top, soot-darkened, in the near foreground); D (a pile of pale stone blocks, stills 13–14, read as a dry-stone wall base or a rubble-stone foundation). terrain.md B6.
+**Research sources:** brick sizes (shared); precast panel fences are common practice (assumed sizes).
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Variant 1 (I): height | 1.2–1.5 m | 1.3 m | measured I (against the rubble and the house's 2.8 m storey) |
+| Piers | 0.38 × 0.38 m at 2.5–3 m, a cap 0.45 × 0.45 × 0.06 m | 0.38 m at 2.8 m | measured I (about 1.5 bricks) |
+| Brick base panel | 0.5–0.7 m high, 0.12–0.25 m thick | 0.6 m, 0.12 m | measured I |
+| Lattice panel on top | 0.4–0.6 m high, balusters 0.05–0.08 m with 0.05 m gaps | 0.5 m | measured I |
+| Variant 2: precast panels | 2.0 × 0.5 × 0.04–0.05 m, 3–4 high, posts 0.12 × 0.12 m | 2.0 × 0.5, 3 high (1.5 m) | assumed (common precast sizes) |
+| Variant 3: brick wall | 1.5–2 m, 0.25 m thick, piers 0.38 m | 1.8 m | asset-list |
+| Variant 4 (D): dry stone | blocks 0.3–0.5 m, a wall 0.6–1.0 m high or a pile 1 m high × 2–3 m | pile | measured D 14 |
+
+### Construction and materials
+- Variant 1: brick piers with caps, a low brick panel between them, a precast concrete lattice (balusters) on top, a concrete coping. Variant 2: precast concrete panels slotted between H-posts. Variant 3: a full brick wall. Variant 4: weathered pale stone blocks (shell-rock or limestone), rounded, mossy on the shade side, laid dry or heaped where a wall or foundation has gone.
+- **Materials:** brick `red_brick` or `white_bricks`; precast `concrete_wall_003`, `concrete_wall_007`; stone Poly Haven `large_sandstone_blocks_01` or `rough_block_wall` tinted grey-beige ( https://polyhaven.com/a/large_sandstone_blocks_01 ).
+
+### Colour
+| Surface | Photo albedo (sRGB) | Feed check value (sRGB) | Source |
+|---|---|---|---|
+| Piers and base (I, in blue shade, sooted) | #1c3849 pillar, #283b4b base: shadow reads; author at about #7a766f with soot | — | measured I |
+| Stone blocks (D, backlit) | about #a09486 | #8d766a | assumed; measured D 14 |
+
+### Variants and states
+- Four variants above; `damage` 0–1: panels cracked and missing (I shows several lattice panels broken and the piers chipped), a pier down, soot and dust over everything near a burnt block.
+
+### Damage pattern
+Lattice panels break first (thin concrete), then the brick panel in stepped jags, then piers topple whole. Debris: lattice pieces with their bar stubs, bricks, coping slabs.
+
+### Physics role
+- **Collision:** piers boxes, panels boxes, the lattice a box with the baluster gaps as visual only (50 mm: no gap), stones as boxes or spheres.
+- **Material ids:** brick `masonry`; precast and lattice `concrete` (bar stubs `steel` snags); stone `masonry`.
+- **Gaps:** none when intact; a missing lattice panel (2.4 × 0.5 m): the slot is 0.5 m high, **no** (0.55 m envelope); a missing precast panel row: no; a pier and panel down (2.8 m): any yaw.
+- **Wind volumes:** solid below the lattice (0); the lattice 0.4; precast and brick walls 0; the stone pile 0.1.
+- **Snag hazards:** lattice balusters and their broken stubs, pier caps, the coping edge, stone edges.
+- **Landable surfaces:** the pier cap (0.45 m square) and the coping (0.12–0.25 m): the legs sit 0.24 m apart, so a cap holds the drone only if centred within ±10 cm: flagged `land` as an expert target; the coping no. The stone pile: uneven `rubble`.
+
+### Placement rules
+Variant 1 in front of H06 and street-side plots at the urban edge (I); variant 2 along newer plots; variant 3 around a shop or the farm; variant 4 on abandoned plots (D) and as old boundary walls in the south of the map.
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `variant` | enum | brick_lattice, precast, brick_wall, stone | brick_lattice | Build |
+| `length`, `height` | m | 3–40, 0.6–2.0 | 15, 1.3 | Size |
+| `pier_pitch` | m | 2.5–3 | 2.8 | Pier spacing |
+| `lattice_height` | m | 0.4–0.6 | 0.5 | Top panel |
+| `panels_missing` | 0–1 | 0–0.5 | from `damage` | Missing or broken top panels |
+| `piers_down` | int | 0–3 | from `damage` | Toppled piers with their rubble |
+| `soot` | 0–1 | — | 0 | Darkening near a burnt building (mask G) |
+| `stone_block` | m | 0.3–0.5 | 0.4 | Block size (variant 4) |
+| `damage` | 0–1 | — | 0 / 0.5 | As above |
+| `seed` | int | — | — | Random choices |
+
+### Open points
+- Landing on a pier cap: the landable flag is proposed; QA's probe decides whether it is worth keeping.
+
+## Y05 Sheet-metal gate with wicket
+
+**Seen in:** R.
+**Research sources:** profiled sheet C8 has a working width of 1150 mm and an 8 mm wave, used on fences to 2 m ( https://toolfox.ru/tools/fence-calculator ); the welded-sheet Soviet gate is assumed.
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Gate | 3 m wide, 1.8–2.0 m high, two leaves of 1.5 m | 3 × 1.9 m | asset-list; assumed height |
+| Wicket | 0.85–0.95 × 1.8 m beside the gate | 0.9 × 1.8 m | assumed |
+| Frame | 40 × 40 angle or 40 × 60 tube; sheet 1.5–2 mm steel (variant 1) or 0.45 mm profiled sheet C8 (variant 2) | variant 1 | assumed; published sheet width |
+| Posts | 80 × 80–100 × 100 mm steel, or 0.38 m brick piers 2.2 m high | 100 × 100 steel | assumed |
+| Top bar | the frame's top at 1.9 m, hinge pins 20 mm | — | assumed |
+
+### Construction and materials
+- Two steel leaves on heavy hinges between posts, a wicket beside them, painted green, blue or brown, rust at the foot and the welds; variant 2 in profiled sheet on a tube frame.
+- **Materials:** Poly Haven `rusty_painted_metal`, `painted_metal_shutter`, `rusted_shutter` ( https://polyhaven.com/a/rusted_shutter ); profiled sheet `corrugated_iron_03`.
+
+### Colour
+Paint green #4a6a4f or blue #4f6f8a over rust #6b3f2a (assumed).
+
+### Variants and states
+- **I:** closed or one leaf open, paint peeling, rust streaks, the wicket ajar.
+- **D:** one leaf blown off and lying flat 2–4 m inside the yard, the other bent 20–40° with the sheet torn and curled, the wicket hanging on one hinge, a post leaning.
+
+### Damage pattern
+The sheet tears from its frame at the welds and curls (sharp edges), the frame bends; hinges hold or shear.
+
+### Physics role
+- **Collision:** leaves boxes at their angles, the frame boxes, torn sheet as thin boxes at their curl, posts boxes, the fallen leaf a thin box on the ground.
+- **Material ids:** sheet `sheet_metal` (cuts fiber); frame, posts, hinges `steel`; brick piers `masonry`.
+- **Gaps:** one leaf open 1.5 m: any yaw; both open 3 m; the wicket 0.9 × 1.8: any yaw (0.19 m spare on the diagonal); a bent leaf leaves a tapered gap recorded from the real clear polygon; the fallen leaf on the ground is a hard, slippery sheet to land on (0.5 mm or 2 mm steel: flexes).
+- **Wind volumes:** solid when shut (0); open leaves 1; a torn leaf 0.3–0.6.
+- **Snag hazards:** torn curled edges, hinge pins, the top bar, the latch.
+- **Landable surfaces:** the fallen leaf (1.5 × 1.9 m, sheet on the ground: pops and slides); none upright.
+
+### Placement rules
+In the street fence of every brick-house yard (H03, H04), beside the garage (O06); the wicket on the house side.
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `width`, `height` | m | 2.5–4, 1.8–2.2 | 3, 1.9 | Size |
+| `sheet_type` | enum | welded, profiled | welded | Material thickness and tear style |
+| `wicket` | side or none | — | right | The wicket |
+| `leaf_states` | 2 × enum | closed, open, bent, off | one open | Each leaf's state and angle |
+| `posts` | enum | steel, brick | steel | Posts |
+| `paint`, `rust` | colour, 0–1 | — | green, 0.4 | Surface |
+| `damage` | 0–1 | — | 0 / 0.6 | I / D |
+| `seed` | int | — | — | Random choices |
+
+### Open points
+- none.
+
+## Y06 Plank gate
+
+**Seen in:** E (the plank structures at the house's left corner: a lean-to and fence of the same grey boards; the gate class follows B6). 
+**Research sources:** none needed.
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Gate | 2.5–3 m wide, 1.5–2 m high, two leaves | 2.8 × 1.7 m | asset-list; B6 heights |
+| Leaves | vertical boards 0.10–0.15 m on a Z-braced frame 40 × 100 mm | 0.12 m boards | measured E (board width), assumed frame |
+| Wicket | 0.8–0.9 × 1.7 m | 0.85 m | assumed |
+| Posts | 0.15–0.20 m, 2.0–2.2 m | 0.18 m | assumed |
+| Hinges | strap hinges 0.3–0.5 m | — | assumed |
+
+### Construction and materials
+- Two Z-braced plank leaves on strap hinges hung from heavy posts, a wicket beside, grey and sagging so one leaf drags on the ground.
+- **Materials:** as Y01 (`weathered_brown_planks`, `old_planks_02`); hinges `rusty_metal`.
+
+### Colour
+As Y01 (feed #5e5a55, B6 #615e56; photo #645d59).
+
+### Variants and states
+- **I:** sagging 5–10°, boards gapped, one leaf open and dragging.
+- **D:** one leaf torn off and lying, the other hanging from the top hinge at 20–40°, boards broken out of the brace.
+
+### Damage pattern
+Boards snap at the brace; the leaf stays as a frame with gaps.
+
+### Physics role
+- **Collision:** boards thin boxes, frames and posts boxes, hinges capsules; leaves at their hung angles.
+- **Material ids:** `timber`; hinges `steel`.
+- **Gaps:** both leaves open: 2.8 m, any yaw; one leaf open: 1.4 m, any yaw; the wicket 0.85 × 1.7: any yaw (72 mm spare on the diagonal); a leaf hung at 30–60° leaves 0.6–1.2 m clear (recorded from the real polygon); a leaf with boards broken out leaves slots 0.12–0.36 m: no.
+- **Wind volumes:** a closed gate as Y01 (0.1–0.2); open 1.
+- **Snag hazards:** board tops, the brace ends, strap hinges, nails, the dragging leaf's bottom edge.
+- **Landable surfaces:** none.
+
+### Placement rules
+In every plank fence (Y01) at the street, beside the house end; the wicket on the path side.
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `width`, `height` | m | 2.5–3, 1.5–2 | 2.8, 1.7 | Size |
+| `board_width`, `board_gap` | m | 0.10–0.15, 0.01–0.04 | 0.12, 0.02 | Porosity |
+| `wicket` | side or none | — | left | The wicket |
+| `leaf_states` | 2 × enum | closed, open, hanging, off | one open | Each leaf's angle and collision |
+| `sag` | deg | 0–10 | 5 | Leaf sag |
+| `boards_missing` | 0–1 | 0–0.4 | 0.05 | Broken-out boards |
+| `damage` | 0–1 | — | 0 / 0.6 | I / D |
+| `seed` | int | — | — | Random choices |
+
+### Open points
+- none.
+
+## Y07 Well (криниця) with a small roof and crank
+
+**Seen in:** R.
+**Research sources:** concrete well ring KS 10-9: 1000 mm inner, 1160 mm outer, 900 mm high ( https://productcenter.ru/products/118548/koltso-zhieliezobietonnoie-ktsd-10-9 ); the head and roof are traditional (assumed).
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Head | a concrete ring 1.0 m inner, 1.16 m outer, 0.9 m high, standing 0.8–1.0 m above grade; or a timber box 1 × 1 × 0.9 m | ring | published ring; assumed height above grade |
+| Windlass | a drum 0.2 m on two posts 0.1 m at 1.6–1.8 m, a crank 0.4 m, a chain or rope, a bucket 0.3 m | — | assumed |
+| Roof | a small gable 1.2 × 1.4 m of boards or sheet at 2.0 m | — | asset-list (1 × 1 × 2 m); assumed |
+| Lid | boards 1.1 m across, hinged | — | assumed |
+| Shaft | 1.0 m diameter, 5–15 m deep, water at 3–10 m | 8 m, water at 5 m | assumed |
+
+### Construction and materials
+- A ring or box head, two posts with the windlass and crank, a gable roof, a plank lid, a chain and bucket, a concrete apron 2 × 2 m around it.
+- **Materials:** ring `concrete_wall_003`; posts and roof `rough_wood`, `dark_planks`; chain `rusty_metal`; bucket `rusty_metal_sheet`.
+
+### Colour
+Concrete grey #8e8a82, boards as O01, rust (assumed).
+
+### Variants and states
+- One variant; the lid open or closed as a param; `damage` tips the roof and posts.
+
+### Damage pattern
+The roof and posts go first; the ring stays.
+
+### Physics role
+- **Collision:** the ring a hollow cylinder (a ring of boxes), posts capsules, the roof thin boxes, the lid a box, the chain a capsule chain, the bucket a cylinder; the shaft open below the ring when the lid is open.
+- **Material ids:** ring and apron `concrete`; timber `timber`; chain `cable`; bucket `steel`.
+- **Gaps:** the shaft, **1.0 m across: the drone fits at any yaw and falls 5–8 m to the water**: a vertical trap flagged `holes` when the lid is open; the space under the roof above the ring (1.2 × 1.0 m): passes sideways between the posts.
+- **Wind volumes:** solid ring; the roof a small lid; negligible.
+- **Snag hazards:** the chain and crank (a thin-line snag at 1.0–1.8 m), the roof edge, the posts.
+- **Landable surfaces:** the closed lid (1.1 m, boards, 0.9 m up): yes; the ring edge (0.08 m): no.
+
+### Placement rules
+One per two or three yards, 3–8 m from the house or at the street verge as a shared well.
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `head` | enum | ring, timber_box | ring | Head build |
+| `head_height` | m | 0.8–1.0 | 0.9 | Above grade |
+| `roof` | bool | — | on | The small roof and posts |
+| `lid` | enum | closed, open, gone | closed | Whether the shaft is open (holes flag) |
+| `shaft_depth`, `water_depth` | m | 5–15, 3–10 | 8, 5 | The fall |
+| `damage` | 0–1 | — | 0 | Roof and posts tipped |
+| `seed` | int | — | — | Random choices |
+
+### Open points
+- Whether an open shaft is a hazard the world wants (a lost drone): a design choice for the world-builder, not a pilot question; the flag is there either way.
+
+## Y08 Woodpile
+
+**Seen in:** R.
+**Research sources:** none needed; sizes are the asset list's plus firewood practice (assumed).
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Pile | 2–4 m long, 1.2–1.8 m high, 0.5–1.0 m deep | 3 × 1.5 × 0.6 m | asset-list; assumed |
+| Logs | split, 0.33–0.5 m long, 0.08–0.15 m across; or 1 m rounds 0.1–0.2 m | split 0.4 m | assumed |
+| End posts | 0.1 m or a crossed stack | posts | assumed |
+| Cover | a sheet or tarp on top, or none | sheet | assumed |
+
+### Construction and materials
+- Split logs stacked bark-out between posts or against a shed wall, loose logs at the foot, a sheet or tarp weighted with bricks on top.
+- **Materials:** Poly Haven `bark_brown_01`, `bark_willow` for the log ends and bark ( https://polyhaven.com/a/bark_brown_01 ); split faces `rough_wood`; cover `worn_corrugated_iron` or the C01 tarp.
+
+### Colour
+Bark grey-brown #6a5e52, split faces #b39a72 weathering to grey (assumed).
+
+### Variants and states
+- Variants: 1 = split logs between posts under a sheet; 2 = metre rounds against a shed, no cover.
+- `damage`: the pile part collapsed, logs scattered 1–3 m.
+
+### Damage pattern
+A blast scatters the top rows; the rest slumps.
+
+### Physics role
+- **Collision:** the stacked body a box per row with a bumpy top (protruding logs as cylinders), loose logs cylinders, the cover a thin box, posts capsules.
+- **Material ids:** `timber`; cover `sheet_metal` or `proposed:fabric`.
+- **Gaps:** none.
+- **Wind volumes:** porosity 0.05–0.15.
+- **Snag hazards:** log ends, the cover's edge, bricks on top.
+- **Landable surfaces:** the top: **landable, uneven** (log ends 0.05–0.1 m proud tilt the drone and roll under a leg); the sheet cover is flat but pops.
+
+### Placement rules
+Against a shed (O01) or the house's back wall, under the eaves; one or two per yard.
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `length`, `height`, `depth` | m | 2–4, 1.2–1.8, 0.5–1.0 | 3, 1.5, 0.6 | Size |
+| `log_type` | enum | split, rounds | split | Log shape and end look |
+| `log_length`, `log_diameter` | m | 0.33–1.0, 0.08–0.2 | 0.4, 0.12 | Log size |
+| `top_roughness` | m | 0–0.15 | 0.07 | How far logs stand proud of the top |
+| `cover` | enum | none, sheet, tarp | sheet | Cover and its material id |
+| `loose_logs` | int | 0–20 | 5 | Logs on the ground |
+| `damage` | 0–1 | — | 0 | Collapse and scatter |
+| `seed` | int | — | — | Random choices |
+
+### Open points
+- none.
+
+## Y09 Straw or hay stack
+
+**Seen in:** R.
+**Research sources:** none; traditional sizes assumed.
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Stack | 3–5 m across, 2.5–4 m high, round or loaf-shaped | 4 × 3 m | asset-list; assumed |
+| Crown | rounded, often under a tarp or film with tyres on it | tarp | assumed |
+| Bale variant | bales 1.2 × 0.5 × 0.4 m stacked 3–5 high | — | assumed |
+
+### Construction and materials
+- Loose hay or straw built up around a pole, settled and grey outside, yellow where torn; or a stack of small bales.
+- **Materials:** surface `proposed:straw` with Poly Haven `hessian_380` or the S04 belt-straw material tinted (derived); the tarp as C01.
+
+### Colour
+Weathered outside #8f8468, fresh inside #c9b273 (assumed; S04 `feed` straw #797258 as the check).
+
+### Variants and states
+- Variants: loose stack; bale stack. `damage`: torn open, part burnt to a black patch.
+
+### Damage pattern
+Burns completely; leaves a black circle 4–6 m and charred stubs.
+
+### Physics role
+- **Collision:** a rounded body (a few boxes and a sphere) with a soft contact layer 0.1–0.2 m.
+- **Material ids:** `proposed:straw` (soft: a leg sinks 5–15 cm and the straw hooks it on liftoff, as T4); the tarp `proposed:fabric`.
+- **Gaps:** none.
+- **Wind volumes:** solid (0): a bluff body with a wake of 2–3 heights.
+- **Snag hazards:** the whole surface for the legs and the fiber; the tarp and its tyres.
+- **Landable surfaces:** the crown: **landable, soft** (sinks and rocks; slides off the sides above 20°).
+
+### Placement rules
+At the back of a plot or beside the barn (O04); one per three or four yards; rows of bale stacks at the farm (P02).
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `diameter`, `height` | m | 3–5, 2.5–4 | 4, 3 | Size |
+| `shape` | enum | round, loaf, bales | round | Build |
+| `settle` | 0–1 | — | 0.5 | How slumped and grey it is |
+| `cover` | enum | none, tarp, film | tarp | Cover and tyres |
+| `burn` | 0–1 | — | 0 | Burnt fraction and the black patch |
+| `seed` | int | — | — | Random choices |
+
+### Open points
+- `straw` id: physics sign-off.
+
+## Y10 Greenhouse frame (film torn)
+
+**Seen in:** R.
+**Research sources:** none found with sizes; a common hobby size is 3 × 6 m (assumed, asset-list).
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Frame | 3 × 6 m, 2.0–2.2 m at the ridge | 3 × 6 × 2.1 m | asset-list; assumed |
+| Arches | steel pipe 20–25 mm or wood 40 × 40, at 1.0 m pitch | pipe 25 mm, 7 arches | assumed |
+| Purlins | a ridge pipe and two side purlins | — | assumed |
+| Film | polyethylene 0.1–0.15 mm, torn and flapping | — | assumed |
+| Door | 0.7–0.8 × 1.8 m at one end, a film-covered frame | 0.75 m | assumed |
+
+### Construction and materials
+- Pipe arches on ground stakes, purlins, film clipped on and torn into strips, a door frame at one end, raised beds inside overgrown with weeds (V17).
+- **Materials:** pipe `rusty_metal_02`; film `proposed:plastic_film` as a translucent sheet with a derived dirt map; wood frame `rough_wood`.
+
+### Colour
+Film milky #d9d9d0 with green algae streaks; pipe rust (assumed).
+
+### Variants and states
+- One variant; `film_loss` from 0.3 (I) to 1.0 (bare frame).
+
+### Damage pattern
+Film shreds in the first gust after a blast; the frame bends at a strike.
+
+### Physics role
+- **Collision:** arches and purlins capsules; film as thin soft panels where it remains; the door frame boxes.
+- **Material ids:** frame `steel`; film `proposed:plastic_film` (soft, snags props and wraps); wood `timber`.
+- **Gaps:** the door 0.75 × 1.8: any yaw; a bay between arches with the film gone (1.0 × 2.0 m): any yaw; the tunnel interior 2.8 × 5.8 × 2.0 m: fly-through end to end.
+- **Wind volumes:** film intact 0 (a bluff tunnel); torn 0.5–0.9; bare frame 0.95.
+- **Snag hazards:** film strips (the worst: they wrap the props), arch ends, clips and ties, the door frame.
+- **Landable surfaces:** none.
+
+### Placement rules
+At the back of a lived-in plot, long axis north–south; one per three or four yards.
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `length`, `width`, `height` | m | 4–8, 2.5–3.5, 1.8–2.4 | 6, 3, 2.1 | Size |
+| `arch_pitch` | m | 0.8–1.2 | 1.0 | Arch spacing and bay width |
+| `frame_material` | enum | pipe, wood | pipe | Frame look and id |
+| `film_loss` | 0–1 | — | 0.6 | Fraction of film gone, in strips |
+| `strip_length` | m | 0.3–2 | 1.0 | Hanging strip length (snag) |
+| `door` | end or none | — | south | The door frame |
+| `seed` | int | — | — | Random choices |
+
+### Open points
+- `plastic_film` id: physics sign-off.
+
+## Y11 Yard props: bench, laundry line, barrel, bucket, washbasin
+
+**Seen in:** R.
+**Research sources:** none; sizes are everyday objects (assumed).
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Bench | 1.5–2 × 0.35 × 0.45 m, a plank seat on two posts, with or without a back | 1.6 m | assumed |
+| Laundry line | 3–4 mm wire or cord at 1.6–1.8 m, spans 5–10 m between posts, a post and a tree, or two trees | 8 m, 1.7 m | assumed |
+| Barrel | a 200 l steel drum about 0.58 m across, 0.88 m high | — | assumed (the standard drum) |
+| Bucket | 0.3 m across, 0.3 m high | — | assumed |
+| Washbasin | a tin basin 0.3 m on a post 1.2 m, a basin 0.4 m below | — | assumed |
+| Also | a dog kennel 0.8 × 1.0 × 0.8 m; a 1 m³ cube water tank on a stand; two chairs | — | assumed |
+
+### Construction and materials
+- Everyday steel and timber objects, rusted and faded.
+- **Materials:** timber as O01; steel `rusty_metal`, `rusty_painted_metal`, `rusty_metal_sheet`; the line `cable`; a plastic tank: a plain tinted material (no CC0 set needed).
+
+### Colour
+Rust and faded paint (assumed); galvanised buckets #9a9a95.
+
+### Variants and states
+- A set; each prop placed by the yard layout; `tipped` per prop.
+
+### Damage pattern
+Props tip and scatter; the line breaks and lies in the weeds (then it is L04's class).
+
+### Physics role
+- **Collision:** bench boxes; barrel a cylinder; bucket a cylinder; basin and post a capsule and a cylinder; kennel boxes; the line a capsule 3–4 mm.
+- **Material ids:** `timber`, `steel`, `sheet_metal` (bucket and basin), `cable` (line).
+- **Gaps:** none; the kennel door 0.35 × 0.4: no.
+- **Wind volumes:** negligible; the tank a 1 m cube (0).
+- **Snag hazards:** **the laundry line at 1.6–1.8 m, nearly invisible on the feed: the yard's own thin-wire trap (PR-6 thin class)**; the basin post; chair backs.
+- **Landable surfaces:** the barrel top (0.58 m, `steel`, 0.88 m up): the legs sit within 0.24 m, so it holds the drone when centred within ±15 cm, an expert target; the tank top (1 m, flat): yes; the bench seat (0.35 m): no; the kennel roof (0.8 × 1.0, felt): yes.
+
+### Placement rules
+The bench by the house door or the gate; the line between the house and a fruit tree or the shed; the barrel at a downpipe; the bucket and basin by the well; the kennel by the gate.
+
+### Generator parameters
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `props` | set | any of the list | all | Which props the yard gets |
+| `line_span`, `line_height`, `line_sag` | m | 5–10, 1.5–1.9, 0.1–0.4 | 8, 1.7, 0.2 | The line's catenary (feeds L03's generator) |
+| `line_laundry` | 0–1 | — | 0.2 | Fraction of the line with cloth on it (visual, fabric snag) |
+| `tipped` | per prop | — | 0.2 | Fraction of props knocked over |
+| `rust` | 0–1 | — | 0.5 | Surface |
+| `seed` | int | — | — | Random choices |
+
+### Open points
+- none.
+
+## Open points for the whole sheet
+
+**Proposed physics material ids** (none invented in a generator; the physics engineer adds them to `physics_materials.json` with values):
+- `asbestos_cement`: шифер sheets and fragments (H02–H05, O01, O03, O04). Brittle: cracks under a landing leg, breaks on a strike into shards; friction near `masonry`; edge radius about 3 mm (a 6 mm sheet's half thickness).
+- `soil`: the cellar mounds (C01, C02) and the clay bench (H05). Soft, sinks 2–5 cm; the surface table's `crater_spoil` row is the nearest existing behaviour.
+- `straw`: thatch (H05), hay (O04), the stack (Y09). Very soft, hooks the legs on liftoff (T4 behaviour as a material).
+- `fabric`: tarps (C01, Y08, Y09) and laundry (Y11). Soft, wraps, no bounce.
+- `plastic_film`: greenhouse film (Y10). Soft, wraps the props.
+- Tile and slate breakability (a tile cracks under a leg, a shard slides) is a later material property, as physics review P3-6 says for glass; until then tiles are `masonry`.
+- Chain-link (Y03): whether `cable` plus a snag flag reproduces being caught, or a `mesh` material is needed.
+
+**Settled by side-by-side, not by the pilot:** the E roof end shape (H01), the J window size (H03), the I house proportions (H06), tile size (H01). Nothing in this sheet needs a pilot question.
