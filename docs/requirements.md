@@ -265,7 +265,7 @@ The footage is PAL and too coarse for photogrammetry, so **assets are rebuilt to
 
 **AST-03 Editable by parameters** (D-004). Each asset is generated from a parametric Blender script plus a params file per variant. **One command rebuilds one asset or all of them**, export and Unity import included. Each class's params are documented in its object sheet. *Accept:* QA changes one parameter (a wall height, damage level or colour), rebuilds, and sees the change in Unity with no hand step. *Source:* B plan 1.
 
-**AST-04 Scale and dimensions** sit inside the reference ranges. Door, window and brick sizes are exact: brick 250 × 120 × 65 mm; doors 0.8 × 1.8–1.9 m; storeys 2.8 m for houses and 3.0–3.4 m for the Stalin-era block. A 1.8 m human scale bar is checked in screenshots.
+**AST-04 Scale and dimensions** sit inside the reference ranges. Door, window and brick sizes are exact: brick 250 × 120 × 65 mm; village-house doors (H01–H05, outbuildings, cellars) 0.8 × 1.8–1.9 m; storeys 2.3–2.8 m for single-storey village houses (measured 2.3–2.6 m wall height in E; D-032), 2.8 m for two-storey houses, and 3.0–3.4 m for the Stalin-era block. Larger houses and the block use published door sizes, labelled in their sheets. A 1.8 m human scale bar is checked in screenshots.
 
 **AST-05 Physics metadata, authored with the asset** (not in phase 7):
 - **collision:** primitives (box, sphere, capsule, cylinder) following the visual surface within **±5 cm** wherever the drone can touch, and **±2 cm** around openings and landing surfaces

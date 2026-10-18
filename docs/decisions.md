@@ -291,3 +291,10 @@ Checked on 2026-10-17, as D-001 asked.
 - **URP still holds:** Unity's render-pipeline strategy for 2026 prioritises URP and moves HDRP to maintenance (no new features). That strengthens D-001's third reason. The HDRP fallback stays formally open until the G1 look-lock, but is now unlikely.
 - **Later LTS releases** (6.7 LTS is announced) are evaluated at a phase boundary, never adopted mid-phase. An upgrade gets its own decision entry, and every golden and review sheet is re-checked.
 - **Player backend:** Mono for now. IL2CPP needs the C++ toolchain and is considered only if profiling shows the need (PLT-02, PLT-04).
+
+## D-032 Measured sizes beat AST-04's assumed ones; reference views are composites · Accepted
+Settled while reviewing the phase-1 object sheets (2026-10-18).
+- **Door and storey sizes.** AST-04's exact door (0.8 × 1.8–1.9 m) and storey (2.8 m) figures were assumed for village houses. The sheets measured adobe wall heights of 2.3–2.6 m in the footage, and a two-storey brick house (H06) has a 0.9 × 2.0 m door by its published type. The measurement and the published figure win: AST-04 now reads 2.3–2.8 m for single-storey village houses, keeps the exact door for H01–H05 and the outbuildings, and lets larger houses and the block use published sizes, labelled in their sheets.
+- **Reference views (REAL-02) against OPSEC (REAL-04).** A recreated view reproduces the *look* of a letter's scene: the objects in frame, their classes, states, rough distances and light. The world places them as a composite among invented surroundings; it never reproduces a real site's layout beyond what the frame shows, and no view is tied to a place. The I/K urban-edge views and the J street are allowed on this reading.
+- **Research sources.** A sheet cites public, non-identifying sources only: construction manuals, standards, encyclopedias, manufacturer pages. News reports, surveys or photo sets about a named place, oblast, front or site are not allowed as sources, even for a generic fact (SEC-02); the fact is cited from a generic source or labelled assumed.
+
