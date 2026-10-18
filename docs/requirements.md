@@ -176,7 +176,7 @@ The pilot, 2026-10-17: "when i say realism i mean more than just abstract realis
 
 **PRC-01 Orchestrator and subagents.** The main session orchestrates and delegates implementation to role subagents ([team.md](team.md)), **one fresh subagent per logical task** (D-029: the pilot prefers it). Every handoff is announced (role, change id, goal), and every returning handoff is summarised for the pilot. *Source:* V§4, B req 5.
 
-**PRC-02 Spec-driven.** Every piece of work is an OpenSpec change (proposal, design, specs, tasks) before it is built. Code follows specs. When the pilot changes direction, the spec changes first. *Source:* D-015.
+**PRC-02 Spec-driven, scaled to the task** (D-033). Standard and Complex work is an OpenSpec change before it is built (Complex: proposal, design, specs, tasks; Standard: proposal and tasks, with a spec delta or design only when needed). Quick work (wording, labels, a config value, a test threshold, a one-file fix, bookkeeping) carries no change folder. Code follows specs. When the pilot changes direction, the spec changes first. *Source:* D-015.
 
 **PRC-03 Commits** (the pilot's `AGENTS.md`):
 - one meaningful piece per commit
