@@ -13,6 +13,13 @@ The metadata schema MAY carry `ports` (named attachment points: id, position, di
 - **WHEN** a `wires` record names a material other than `cable`, or a point list shorter than two points
 - **THEN** the validator rejects the metadata naming the record and the rule
 
+### Requirement: A planted asset's buried surface is not audited
+A generator MAY declare its asset planted (`PLANTED`): its members stand in the ground, which covers everything below y = 0. For such an asset the audit SHALL treat every point below the ground plane as covered: a primitive's surface below y = 0 is not measured against the mesh, and no mesh is drawn there, since the drone can never touch it; everything at or above the ground is audited as before.
+
+#### Scenario: A buried capsule end on a planted pole
+- **WHEN** a planted log's lowest capsule ends 0.17 m below the ground, beneath the open log mesh
+- **THEN** the audit passes it (the buried end is not measured), and the same capsule on an asset not declared planted fails, naming the end and its distance
+
 ### Requirement: Wires are audited against their polyline
 For an asset with `wires`, the collision audit SHALL check that every LOD0 vertex of a wire's tube lies within 5 mm plus the wire's radius of its point list, SHALL exclude those vertices from the primitive audit, and SHALL print each wire with the largest deviation it found; the importer SHALL render the tube with the thin-wire material and SHALL create no collider for a wire.
 

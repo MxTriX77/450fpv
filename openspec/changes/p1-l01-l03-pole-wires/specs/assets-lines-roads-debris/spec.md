@@ -15,7 +15,7 @@ The pipeline SHALL build asset L01 (`pole` generator; variants `L01_straight`, `
 
 #### Scenario: Brace gap against the drone
 - **WHEN** `L01_leaning`'s metadata is read
-- **THEN** it holds one gap polygon for the triangle between pole, brace and ground with `narrowest_m` within 5 mm of 1.78 m (the sheet's inscribed circle for a 25° brace attached at 0.65 of the height), and the audit's inscribed-circle check agrees
+- **THEN** it holds one gap polygon for the triangle between pole, brace and ground with `narrowest_m` within 5 mm of 1.611 m (derived: the real clear space between the pole's and the brace's surfaces for a 25° brace attached at 0.65 of the 7.5 m height, AST-05's gap rule; the sheet's 1.78 m is the centre-line triangle at a rounded 4.9 m attachment, task 1.1), and the audit's inscribed-circle check agrees
 
 #### Scenario: Night silhouette kept to 1 km
 - **WHEN** the LOD distances are read
@@ -33,8 +33,8 @@ The pipeline SHALL build asset L03 (`wire_span` generator; variants `L03_thin`, 
 - **THEN** it exits 0 for the three variants, each FBX holds one tube per conductor, and a second run leaves `git status` clean
 
 #### Scenario: Catenary and clearance
-- **WHEN** `L03_medium` (40 m span, 4 bare conductors at 7.0 m stepping down 0.5 m, sag 2 %) is built
-- **THEN** every conductor's lowest point is within 10 mm of its attachment height minus 0.8 m, the lowest conductor stays above 5.3 m, and the `wires` record's points reproduce the tube's centre line within 5 mm
+- **WHEN** `L03_medium` (40 m span, 4 bare conductors hung from `L01_straight`'s four ports, 7.355 m stepping down 0.5 m, sag 2 %) is built
+- **THEN** every conductor's lowest point is within 10 mm of its port's height minus 0.8 m, the lowest conductor stays above 5.3 m, and the `wires` record's points reproduce the tube's centre line within 5 mm
 
 #### Scenario: Nearly invisible, never shimmering
 - **WHEN** the 10 m, 50 m and 200 m tiles of `L03_thin` are read with the thin-wire material
