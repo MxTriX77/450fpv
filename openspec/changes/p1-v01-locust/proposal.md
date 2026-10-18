@@ -14,13 +14,15 @@ Lane B's second step: the default belt tree. It grows the shrub's skeleton and c
 - **Physics metadata** (AST-05): trunk capsules per 1–2 m following lean and sinuosity, every limb and branch of 10 mm or more as a capsule (counted and printed by the generator), a `twig` shell per main limb, every inter-limb opening of 0.5 m or more as a gap polygon with its narrowest width, wind volumes (a solid trunk column, crown pieces with porosity by state), `hook` snags on every capsule under 30 mm, no landable surface.
 - **The catalog entry V01** and the side-by-side comparison against letters F (the corridor, trunks and part-bare crowns), H (the belt wall) and G (the openwork strip) in a local `reference/_compare/` sheet, never committed (REAL-03).
 
+- **The H belt state (V13 and V01 together).** Letter H's reference view is an overcast autumn belt edge with mixed green and yellow foliage, a part-bare, stem-rich understory wall over the straw. `p1-v13-shrub` built the shrub's summer state, and its look task found the mismatch (V13's closed leafy domes against H's twiggy wall). This change adds per-variant material overrides to the catalog and autumn variants of both assets (`V13_*_autumn`, `V01_*_autumn`: `leaf_cover` 0.2–0.5 with the twig mesh still dense, the sheet's autumn tints), compared against H, so the G1 belt station copies H.
+
 ## Capabilities
 ### New Capabilities
 - none
 
 ### Modified Capabilities
-- `assets-vegetation`: ADDED requirement for V01 (the capability is introduced by `p1-v13-shrub`, which merges first).
-- `asset-pipeline`: ADDED requirement for a baked impostor LOD.
+- `assets-vegetation`: ADDED requirements for V01 and for the H autumn belt state of V01 and V13 (the capability is introduced by `p1-v13-shrub`, which merges first).
+- `asset-pipeline`: ADDED requirements for a baked impostor LOD and for per-variant material overrides in the catalog.
 
 ## Non-goals
 - No V16 suckers, no V07 damaged or V08 dead variants (the same skeleton, their own changes), no wind sway shader (tech-artist, VIS-05), no belt placement (the world's).
