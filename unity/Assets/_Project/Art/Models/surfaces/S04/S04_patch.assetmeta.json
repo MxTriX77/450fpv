@@ -3,7 +3,7 @@
   "id": "S04",
   "variant": "S04_patch",
   "generator": "ground_patch",
-  "params_sha256": "d30538ff93ec92469ebd5bfd8c5fc757c1984539ecd37fd777f5428dee081dd3",
+  "params_sha256": "32e2b0e6f1160cba810ffa37a57e21ff2b53382bac6fd7ef3fd7990e1ad86d59",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
@@ -21,12 +21,12 @@
   "lods": [
     {
       "mesh": "S04_patch_LOD0",
-      "tris": 22142,
+      "tris": 6014,
       "switch_distance_m": 0.0
     },
     {
       "mesh": "S04_patch_LOD1",
-      "tris": 22142,
+      "tris": 6014,
       "switch_distance_m": 8.0
     },
     {

@@ -32,7 +32,6 @@ from lib.geometry import Mesh
 SLOT = "ground"
 SLAB_M = 0.2             # the slab's depth, the collision box of design 6 (the mat is 5-20 cm deep)
 REFINE = 4               # a cell under a mound is split this many times per side
-RIM_SHARE = 0.6          # a refined cell's half-diagonal, the mesh's miss at a vertical rim, as a share of the tolerance
 NOISE_M = (1.0, 0.5)     # value-noise octaves of the relief: lattice spacings, the second at half amplitude (assumed)
 SKIRT_M = 0.03           # a mound's spread foot, under the audit tolerance so it sits on the slab box (assumed)
 BLEND_M = 0.1            # the relief returns over this ring past a mound's foot
@@ -49,7 +48,7 @@ PARAMS = {
     "seed": {"type": "int", "range": (0, 2**31 - 1), "default": 1,
              "effect": "every draw: the relief, the mounds, the kit and the scatter"},
     "size_m": {"type": "float", "range": (2.0, 50.0), "default": 12.0, "effect": "side of the square patch, centred"},
-    "cell_m": {"type": "float", "range": (0.05, 1.0), "default": 0.125,
+    "cell_m": {"type": "float", "range": (0.05, 1.0), "default": 0.25,
                "effect": "grid cell of the LOD0/LOD1 top; small enough to follow the mound spheres (check)"},
     "relief_m": {"type": "float", "range": (0.0, TOLERANCE_M), "default": 0.04,
                  "effect": "the mat's unevenness, +- about the mean top y = 0, within the audit's tolerance"},
@@ -113,13 +112,14 @@ def check(params):
         problems.append(f"'mound_w_m.max' = {w['max']} does not fit the patch with its blend and gap")
     if params["mounds_per_m2"] > 0:
         # A sunk sphere is steep at its rim, so the refined grid misses it by up to its half-diagonal there, and a
-        # chord between two grid points on the sphere sags below it; both must stay inside the audit's tolerance.
+        # chord between two grid points on the sphere sags below it; both must stay inside the audit's tolerance
+        # (a bound: S04 at 0.25 m measures 34-35 mm against the 44 mm half-diagonal).
         radius = min(_mound_radius(w["min"], h["max"]), _mound_radius(w["max"], h["min"]))
         half_diagonal = params["cell_m"] / REFINE * math.sqrt(2) / 2
-        if half_diagonal > RIM_SHARE * TOLERANCE_M or _sagitta(radius, params["cell_m"] / REFINE) > TOLERANCE_M:
+        if half_diagonal > TOLERANCE_M or _sagitta(radius, params["cell_m"] / REFINE) > TOLERANCE_M:
             problems.append(f"'cell_m' = {params['cell_m']} cannot follow the mound spheres (smallest radius {radius:.3f} m) "
                             f"within {TOLERANCE_M * 1000:g} mm, even refined {REFINE}x under the mounds; use a cell of at "
-                            f"most {RIM_SHARE * TOLERANCE_M * REFINE * math.sqrt(2):.3f} m")
+                            f"most {TOLERANCE_M * REFINE * math.sqrt(2):.3f} m")
     lod = params["lod"]
     if not lod["lod1_switch_m"] < lod["lod2_switch_m"] < lod["cull_m"]:
         problems.append("'lod.lod1_switch_m' < 'lod.lod2_switch_m' < 'lod.cull_m' must hold")

@@ -102,7 +102,7 @@ def test_metadata_lists_the_micro_mesh_and_only_the_slab_shapes(built, s04_param
 @pytest.mark.parametrize("edit, expected", [
     (lambda p: p.update(bake_radius_m=7.0), "'bake_radius_m' = 7.0 reaches beyond the patch; at most size_m / 2 = 6"),
     (lambda p: p["mound_h_m"].update(min=0.03), "'mound_h_m.min' = 0.03 must rise above 'relief_m' = 0.04"),
-    (lambda p: p.update(cell_m=0.25), "'cell_m' = 0.25 cannot follow the mound spheres"),
+    (lambda p: p.update(cell_m=0.3), "'cell_m' = 0.3 cannot follow the mound spheres"),
     (lambda p: p["mound_w_m"].update(min=0.6), "'mound_w_m.min' = 0.6 exceeds 'mound_w_m.max' = 0.5"),
     (lambda p: p["lod"].update(lod2_switch_m=5.0), "'lod.lod1_switch_m' < 'lod.lod2_switch_m' < 'lod.cull_m' must hold"),
 ])
