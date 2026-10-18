@@ -8,7 +8,7 @@
 `AGENTS.md` fixes the commit format (`type(scope): summary`, lower case, ≤ 72 characters, subject only, no trailers, no co-author). Agents keep breaking the length by a few characters, and QA catches it only after the branch is pushed. The `commit-msg` hook already exists; it should enforce the format so a bad subject never commits.
 
 ## What Changes
-- The `commit-msg` hook rejects a message whose first line is longer than 72 characters, does not match `type(scope): summary` (or `type: summary`) with a known type, starts with an upper-case letter after the colon, or whose later lines carry a body, a trailer or a co-author line. Merge commits made by git (`Merge branch`, `Merge pull request`) pass.
+- The `commit-msg` hook rejects a message whose first line is longer than 72 characters, does not match `type(scope): summary` (or `type: summary`) with a known type, starts with an upper-case letter after the colon, or whose later lines carry a body, a trailer or a co-author line. Merge commits git writes itself (branch, branches, remote-tracking branch, tag, commit, pull request) pass.
 - One test per rule in the hygiene suite.
 - `AGENTS.md` mentions that the hook enforces it.
 
