@@ -79,6 +79,18 @@ namespace Fpv450.World
             public float narrowestM;
         }
 
+        /// <summary>
+        /// A named attachment point another generator or the map attaches to (p1-l01-l03-pole-wires): a pole's
+        /// insulator for its wire, at the neck groove on the outward side, with the outward unit direction.
+        /// </summary>
+        [Serializable]
+        public sealed class Port
+        {
+            public string id;
+            public Vector3 position;
+            public Vector3 direction;
+        }
+
         [Serializable]
         public sealed class SnagFeature
         {
@@ -102,6 +114,7 @@ namespace Fpv450.World
         public CollisionShape[] collision;
         public Gap[] gaps;
         public WindVolume[] windVolumes;
+        public Port[] ports;
         public SnagFeature[] snag;
 
         /// <summary>The <c>.assetmeta.json</c> this was filled from, for provenance and for readers that want the file.</summary>

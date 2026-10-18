@@ -28,6 +28,7 @@ def with_physics_features(data):
     data["gaps"].append({"id": "door", "polygon": [[0.0, 0.0, 0.0], [0.9, 0.0, 0.0], [0.9, 2.0, 0.0], [0.0, 2.0, 0.0]],
                          "normal": [0.0, 0.0, 1.0], "narrowest_m": 0.9})
     data["snag"].append({"kind": "edge", "points": [[0.0, 2.0, 0.0], [0.9, 2.0, 0.0]], "radius_m": 0.002})
+    data["ports"].append({"id": "hook_0", "position": [0.0, 7.0, 0.3], "direction": [0.0, 0.0, 1.0]})
     return data
 
 
@@ -40,7 +41,7 @@ def test_assembled_metadata_validates_in_schema_order(k01_params, material_ids):
     assert [lod["tris"] for lod in data["lods"]] == [44, 12]
     assert data["micro"] == []
     assert data["materials"] == [{"slot": "brick", "visual": "brick_red", "physics": "masonry"}]
-    assert data["gaps"] == [] and data["wind_volumes"] == [] and data["snag"] == []
+    assert data["gaps"] == [] and data["wind_volumes"] == [] and data["snag"] == [] and data["ports"] == []
 
 
 def test_micro_meshes_are_named_counted_and_bounded(k01_params, material_ids):
@@ -103,8 +104,20 @@ def test_validate_names_the_problem(k01_params, material_ids, edit, expected):
     assert any(expected in p for p in problems), problems
 
 
-def test_valid_capsule_gap_and_snag_pass(k01_params, material_ids):
+def test_valid_capsule_gap_snag_and_port_pass(k01_params, material_ids):
     assert meta.validate(with_physics_features(k01_meta(k01_params)), material_ids) == []
+
+
+def test_ports_are_carried_from_the_generator(k01_params, material_ids):
+    """p1-l01-l03-pole-wires, "Ports and wires in the metadata": a generator's ports land under `ports` in schema
+    order, rounded like every number; without any the key is still written, empty."""
+    built = debris_brick.build(k01_params)
+    built["ports"] = [{"id": "hook_0", "position": [0.1, 7.0000004, -0.2], "direction": [0.0, 0.0, -1.0]}]
+    data = meta.assemble("K01", "K01_whole", "debris_brick", k01_params, built, VISUALS)
+    assert meta.validate(data, material_ids) == []
+    assert data["ports"] == [{"id": "hook_0", "position": [0.1, 7.0, -0.2], "direction": [0.0, 0.0, -1.0]}]
+    assert list(data).index("ports") == list(data).index("wind_volumes") + 1
+    assert '"ports": []' in meta.dumps(k01_meta(k01_params))
 
 
 @pytest.mark.parametrize("edit, expected", [
@@ -141,6 +154,14 @@ def test_valid_capsule_gap_and_snag_pass(k01_params, material_ids):
     (lambda d: d["wind_volumes"].append({"shape": "cylinder", "center": [0.0, 1.0, 0.0], "radius": 0.2, "height": 2.0,
                                          "rotation": [0.0, 0.0, 0.0, 0.0], "porosity": 0.5}),
      "wind_volumes[0]: cylinder rotation must be a unit quaternion"),
+    (lambda d: d["ports"][0].update(direction=[0.0, 0.0, 0.9]),
+     "ports[0] 'hook_0': direction must be a unit vector within 1e-06, |d| = 0.900000"),
+    (lambda d: d["ports"][0].pop("position"),
+     "ports[0]: needs id, position, direction"),
+    (lambda d: d["ports"][0].update(id=""),
+     "ports[0]: needs id, position, direction"),
+    (lambda d: d["ports"].append(dict(d["ports"][0])),
+     "ports[1]: id 'hook_0' is not unique"),
 ])
 def test_convention_violations_name_the_rule(k01_params, material_ids, edit, expected):
     data = with_physics_features(k01_meta(k01_params))

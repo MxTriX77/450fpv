@@ -463,7 +463,8 @@ namespace Fpv450.Assets
                 if (!saved)
                     throw new IOException($"could not save {prefabPath}");
                 string micro = meta.micro.Length == 0 ? "" : $"{string.Join(", ", meta.micro.Select(m => $"{m.name} ({m.count} {m.kind}, LOD{m.lod})"))} micro, ";
-                Debug.Log($"[CatalogImporter] {variant}: {prefabPath}, {renderers.Length} LODs, {micro}{meta.collision.Length} colliders, " +
+                string ports = meta.ports.Length == 0 ? "" : $"{meta.ports.Length} ports ({string.Join(", ", meta.ports.Select(p => p.id))}), ";
+                Debug.Log($"[CatalogImporter] {variant}: {prefabPath}, {renderers.Length} LODs, {micro}{meta.collision.Length} colliders, {ports}" +
                           $"materials {string.Join(", ", materialBySlot.Select(kv => $"{kv.Key} -> {kv.Value.name}"))}, " +
                           $"LOD heights {string.Join(" / ", root.GetComponent<LODGroup>().GetLODs().Select(l => l.screenRelativeTransitionHeight.ToString("0.0000")))} " +
                           $"(size {root.GetComponent<LODGroup>().size} m, fov {VerticalFovDeg} deg)");
@@ -762,6 +763,12 @@ namespace Fpv450.Assets
                 var volume = new AssetPhysicsMeta.WindVolume { porosity = Json.Num(shape, "porosity", at) };
                 ReadShape(volume, shape, at);
                 return volume;
+            });
+            meta.ports = Items(json, "ports", what, (port, at) => new AssetPhysicsMeta.Port
+            {
+                id = Json.Str(port, "id", at),
+                position = Json.Vec3(port, "position", at),
+                direction = Json.Vec3(port, "direction", at),
             });
             meta.snag = Items(json, "snag", what, (feature, at) => new AssetPhysicsMeta.SnagFeature
             {
