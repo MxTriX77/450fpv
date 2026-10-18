@@ -7,7 +7,7 @@ The assets of the earthworks-and-surfaces object sheet (trenches, craters, banks
 ## ADDED Requirements
 
 ### Requirement: S04 belt_straw ground patch
-The pipeline SHALL build asset S04 (`ground_patch` generator, variant `S04_patch`) from its params file into a Unity prefab that copies the belt-edge ground of letter H: a lodged mat of dry straw over dark soil with bare soil patches, short green regrowth strips, small earth mounds, and, within 4 m of the patch centre, lying straws, standing stems with seed heads and belt twigs as geometry. Its dimensions, densities and colours SHALL sit inside the ranges of `docs/object-sheets/earthworks-and-surfaces.md` §S04, and its physics metadata SHALL carry the mat as a landable `surface:belt_straw` shape and each mound as a landable `surface:crater_spoil` shape.
+The pipeline SHALL build asset S04 (`ground_patch` generator, variant `S04_patch`) from its params file into a Unity prefab that copies the belt-edge ground of letter H: a lodged mat of dry straw over dark soil with bare soil patches, short green regrowth strips, small earth mounds, and, within 4 m of the patch centre, lying straws, standing stems with seed heads and belt twigs as geometry. Its dimensions, densities and colours SHALL sit inside the ranges of `docs/object-sheets/earthworks-and-surfaces.md` §S04, and its physics metadata SHALL carry the soil as a landable `surface:belt_straw` shape one mat depth below the mat top, the mat over it as landable `straw` shapes open over every bare patch, and each mound as a landable `surface:crater_spoil` shape (`review-physics.md` §3).
 
 #### Scenario: Built from params by one command
 - **WHEN** `pwsh tools/build_asset.ps1 S04` runs on a clean checkout
@@ -27,7 +27,7 @@ The pipeline SHALL build asset S04 (`ground_patch` generator, variant `S04_patch
 
 #### Scenario: Bare patches are ground, not stains
 - **WHEN** the S04 metadata and LOD0 mesh are read where the derived map shows a bare soil patch
-- **THEN** the mesh steps down through the mat there by the depth the physics review sets, a landable `surface:belt_bare` shape (or the shape the physics review names) follows the patch within 5 cm, and the patch layout in the map and in the geometry come from one seeded definition, so the two never disagree
+- **THEN** the mesh steps down through the mat there by the mat depth D = 0.125 m along the patch's convex step outline, no shape stands above that floor, the floor is the `surface:belt_straw` soil box exposed through the opened `straw` mat, and the patch layout in the map and in the geometry come from one seeded definition, so the two never disagree
 
 #### Scenario: Colour inside the sheet's range
 - **WHEN** the derived albedo's mean over the patch is measured

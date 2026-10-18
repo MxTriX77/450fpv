@@ -36,11 +36,15 @@ A material recipe MAY be of kind `palette`: a short list of named sRGB colours; 
 - **THEN** the build writes `straw_albedo.png` with those four columns, the importer binds it as the base map, and the review capture's empty-stage guard passes
 
 ### Requirement: The collision audit measures the union of the primitives
-The collision audit SHALL treat an asset's primitives as one union: the part of a primitive that lies inside another primitive is not measured against the mesh. A shape whose material is `surface:<id>` SHALL be held at 5 cm over its whole top as a landing face; the 2 cm near-zone applies to the landing faces of objects and to openings.
+The collision audit SHALL treat an asset's primitives as one union: the part of a primitive that lies inside another primitive is not measured against the mesh. A landable shape whose top is soft SHALL be held at 5 cm over its whole top as a landing face: its material is `surface:belt_straw`, `surface:crater_spoil` or `surface:tilled` (the surface rows where the reference foot sinks at least 25 mm), or a plain id with `stiffness_n_per_m` of 1000 N/m or less. Every other landing face, and every opening, keeps AST-05's 2 cm near-zone (`review-physics.md` §2: on hard ground a 5 cm float would show).
 
 #### Scenario: Mound spheres sunk in the mat box
 - **WHEN** three `surface:crater_spoil` spheres are sunk into a `surface:belt_straw` box over a mat with ±4 cm relief
-- **THEN** the audit measures only the spheres' exposed caps and the box's exposed top, holds both at 5 cm, prints a line saying the surface tops are held at 5 cm, and passes
+- **THEN** the audit measures only the spheres' exposed caps and the box's exposed top, holds both at 5 cm, prints a line naming the soft shapes held at 5 cm, and passes
+
+#### Scenario: A hard top keeps 2 cm
+- **WHEN** a landable `surface:asphalt` box lies under a mesh with ±4 cm relief, and a landable `straw` box under the same relief
+- **THEN** the asphalt box fails the 2 cm near-zone naming the shape, and the straw box passes at 5 cm
 
 ### Requirement: Third-party sources are pinnable by URL
 Every third-party file SHALL enter the manifest through `fetch.py --add` with a stable download URL and a SHA-256, from a source the fetcher knows (`polyhaven`, `ambientcg`, and `texturecan` once it is added). A source whose files cannot be fetched by a stable URL SHALL NOT be used; the sheet's material line then names the substitute set and why.
