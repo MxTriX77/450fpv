@@ -46,6 +46,10 @@ The collision audit SHALL treat an asset's primitives as one union: the part of 
 - **WHEN** a landable `surface:asphalt` box lies under a mesh with ±4 cm relief, and a landable `straw` box under the same relief
 - **THEN** the asphalt box fails the 2 cm near-zone naming the shape, and the straw box passes at 5 cm
 
+#### Scenario: A shell piece hides no rigid primitive
+- **WHEN** a `bark` capsule's top stands 70 mm proud of its stem's tip, inside a `twig` shell sphere
+- **THEN** the audit still measures it and fails it at 70 mm against the 50 mm tolerance, naming the capsule (`test_a_shell_piece_hides_no_rigid_primitive`)
+
 ### Requirement: Third-party sources are pinnable by URL
 Every third-party file SHALL enter the manifest through `fetch.py --add` with a stable download URL and a SHA-256, from a source the fetcher knows (`polyhaven`, `ambientcg`, and `texturecan` once it is added). A source whose files cannot be fetched by a stable URL SHALL NOT be used; the sheet's material line then names the substitute set and why.
 
