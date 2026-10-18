@@ -11,7 +11,7 @@
 - **Labels:** measured (from a letter, with the still number), published (with its source), derived (with the derivation), assumed. Exact sizes fixed by AST-04 (as settled in D-032) are used as given: brick 250 × 120 × 65 mm; the entrance door of the village houses H01–H04 0.8 × 1.8–1.9 m; the windows of the adobe houses H01–H02 0.8 × 1.0 m. Every other door, doorway and window (interior doors, H04's veranda doorway, the hut H05, H06, the outbuildings and the cellars) takes the labelled size its row gives, published where the row cites the standard it comes from, else measured or assumed (the 0.70 m cellar door is the pilot's, PR-9). Wall heights to the plate, from grade outside, sit in AST-04's class ranges: the small clay hut H05 2.0–2.3 m; the adobe houses H01–H02 2.3–2.6 m (measured E); the single-storey brick houses H03–H04 2.6–3.1 m including their plinth and cornice (derived: a 2.8 m storey plus plinth or cornice; J shows H03's ridge, not its wall; D-032); two-storey houses 2.8 m a storey.
 - **Reuse:** sizes and colours already in [terrain.md](../reference-notes/terrain.md) §3 W4 and §4 B1–B6 are cited, not re-measured. `feed` colours are mean sRGB of the goggles feed (warm and saturated in sun); `photo` colours are from the photos J and I and are closer to albedo. Textures are authored at photo albedo; the feed effect adds the shift.
 - **The drone against an opening** (used by every "Gaps" line): prop tip to prop tip **0.574 m nose-first, 0.706 m on the diagonal** (knowledge.md §5.4). The footprint across an opening at yaw θ is `w(θ) = 0.254 + 0.32·(|cos θ| + |sin θ|)` m (derived: 10″ props on motors 0.226 m from the centre, 0.16 m in x and y), so an opening of clear width W passes nose-first when W > 0.574, passes at **any yaw** when W ≥ 0.706, and in between only up to `θmax = asin((W − 0.254) / 0.4525) − 45°`. Worked values: 0.60 m → ±5° and 13 mm a side; 0.65 m → ±16°, 38 mm a side; **0.70 m → ±35°, 63 mm a side (PR-9)**; 0.75 m → any yaw, 22 mm a side on the diagonal; 0.80 m → any yaw, 47 mm a side on the diagonal. The vertical envelope with legs is about **0.55 m** (assumed: 0.25–0.35 m legs under a frame with the payload on top; phase 5 fixes it from `drone.json`), so a clear height of 0.7 m is comfortable and 0.6 m is tight.
-- **Physics ids** are the closed list in [physics_materials.json](../../assets-src/physics_materials.json): `steel`, `sheet_metal`, `timber`, `masonry`, `concrete`, `glass`, `cable`, `foliage`. Ids written as `proposed:<id>` are new and need physics sign-off (see Open points at the end).
+- **Physics ids** are the 17 of [physics_materials.json](../../assets-src/physics_materials.json), as the physics sign-off settled them (`review-materials.md` of the archived change `p1-pipeline-hardening`): `steel`, `sheet_metal`, `timber`, `masonry`, `concrete`, `glass`, `cable`, `foliage`, `bark`, `twig`, `deadwood`, `asbestos_cement`, `straw`, `fabric`, `rubber`, `plastic`, `mesh`. A shape that stands in for ground (a hole filler, a cellar mound) takes `surface:<id>`, one of the thirteen surface ids S01–S13 of the earthworks sheet. An id written `proposed:<id>` is not in the table and needs that sign-off (see Open points at the end).
 - **Porosity** is the open-area fraction a wind volume lets through (0 solid, 1 free air).
 
 ## Reference views (REAL-02)
@@ -194,7 +194,7 @@ Shared table, with these defaults: `wall_material` adobe, `wall_height` 2.4, `wa
 ### Open points
 - The E roof end: the right end reads hipped in E 1–7 and the left gabled; the generator's per-end `roof_type` covers both, and variant 1 copies E. Settled at the E side-by-side.
 - Tile size and profile are assumed from the batten pitch; settled by the look-lock (G1), not by the pilot.
-- Tile breakability under the legs (a tile cracks, a shard slides) needs a material property beyond `masonry`: physics sign-off (see the end of the sheet).
+- Tile breakability under the legs (a tile cracks, a shard slides): deferred by the physics sign-off to a later plate model (review P3-6; review-materials.md §3); tiles stay `masonry`.
 
 ## H02 Adobe house, hip roof, asbestos-cement slate (шифер)
 
@@ -233,7 +233,7 @@ Slate shatters at low overpressure (published): it goes first, in fragments, not
 
 ### Physics role
 - **Collision:** as H01; each remaining sheet a thin box following the wave (collision box 0.04 m deep, the wave is visual within AST-05's 5 cm), fragments on the ground as thin boxes.
-- **Material ids:** slate and fragments: `proposed:asbestos_cement` (brittle: cracks and breaks under a landing leg or a strike; until signed off, `masonry`); the rest as H01.
+- **Material ids:** slate and fragments: `asbestos_cement` (rigid under a landing leg: a landing loads a sound sheet to about 0.4 MPa against a published rupture of 16 MPa or more, derived in the physics sign-off, review-materials.md §3; breakage is a crash case for a later plate model, P3-6); the rest as H01.
 - **Gaps:** as H01; holes in sheets 0.1–0.5 m **do not pass**; a bay with the sheets and battens gone 0.9–1.1 m wide **passes**.
 - **Wind volumes:** walls 0; a slate field 0 when intact, 0.3–0.6 when holed, 0.7–0.85 when stripped to battens.
 - **Snag hazards:** broken sheet edges (sharp but thick, 6 mm: a fiber bends over them rather than cutting), batten ends, the ridge cap edge, rafter tails.
@@ -252,7 +252,7 @@ Shared table with `roof_type_*` hip, `roof_pitch` 25, `roof_cover` slate, `batte
 | `ridge_cap` | enum | asbestos, sheet_metal | asbestos | Cap material and its snag edge |
 
 ### Open points
-- `asbestos_cement` material id: physics sign-off.
+- `asbestos_cement` material id: settled by the physics sign-off (review-materials.md §2).
 
 ## H03 Silicate-brick house, slate roof, painted window frames, satellite dish
 
@@ -302,7 +302,7 @@ Glass → slate shattered and scattered → sashes bent out of the frames → ba
 
 ### Physics role
 - **Collision:** as H01, brick walls 0.38 m; the jagged opening edges as stacked boxes following the stepped brick (±2 cm); lintel rebar as capsules 10 mm; the dish a thin cylinder on a capsule; porch posts capsules, porch sheet a thin box.
-- **Material ids:** brick, plinth, cornice: `masonry`; lintels: `concrete`; rebar, dish bracket: `steel`; porch sheet and ridge cap: `sheet_metal` (cuts fiber); slate: `proposed:asbestos_cement`; frames, gable boards, rafters: `timber`; glass remnants: `glass`; hanging wire: `cable`.
+- **Material ids:** brick, plinth, cornice: `masonry`; lintels: `concrete`; rebar, dish bracket: `steel`; porch sheet and ridge cap: `sheet_metal` (cuts fiber); slate: `asbestos_cement`; frames, gable boards, rafters: `timber`; glass remnants: `glass`; hanging wire: `cable`.
 - **Gaps:**
   - door 0.8 × 1.9 m: passes at any yaw (the 0.8 m leaf is the clear opening inside its 0.10 × 0.08 m frame, as H01; about 0.77 m between the stops (15 mm a side, assumed) while the frame stays: still any yaw, 32 mm a side on the diagonal)
   - windows 1.3 × 1.45 m frame gone: **passes at any yaw** with 0.3 m a side; frame on (1.16 × 1.3): any yaw; with a bent sash hanging (J): the clear polygon is the frame minus the sash, typically 0.6–0.9 m wide, recorded as generated
@@ -427,7 +427,7 @@ As H01's whitewash, render and adobe; thatch grey-brown about #6f6552 (assumed).
 As H01; thatch burns completely and leaves charred bundles and a black ring; adobe survives fire.
 
 ### Physics role
-- **Collision, ids:** as H01; thatch bundles `proposed:straw` (soft: sinks under a leg, snags).
+- **Collision, ids:** as H01; thatch bundles `straw` (soft: sinks under a leg, snags).
 - **Gaps:** door 0.8 × 1.8 any yaw; windows 0.7 × 0.8 clear: **±35° yaw, 63 mm a side**, height 0.8 m is tight (0.55 m envelope leaves 12 cm); roof bays as H01.
 - **Wind volumes:** walls 0; thatch 0 when intact, 0.5 when burnt through.
 - **Snag hazards:** thatch bundle ends, rafter tails at the low eaves (1.8–2.0 m, at flying height), the door leaf.
@@ -446,7 +446,7 @@ Shared table with `wall_material` wattle or adobe, `wall_height` 2.1, `wall_thic
 | `thatch_burn` | 0–1 | — | from `damage` | Fraction burnt away |
 
 ### Open points
-- `straw` material id for thatch (shared with Y09): physics sign-off.
+- `straw` material id for thatch (shared with Y09): settled by the physics sign-off (review-materials.md §2).
 
 ## H06 Two-storey brick house
 
@@ -554,7 +554,7 @@ Light timber goes with the first blast: boards strip from the posts, the roof sl
 
 ### Physics role
 - **Collision:** each board a thin box, posts capsules, roof boards thin boxes, the door a box; D boards at their hung angles.
-- **Material ids:** `timber`; sheet `sheet_metal`; slate `proposed:asbestos_cement`.
+- **Material ids:** `timber`; sheet `sheet_metal`; slate `asbestos_cement`.
 - **Gaps:** door 0.8 × 1.8 m: any yaw. Missing-board slots 0.12–0.4 m: **no**. A D wall opening of 4+ boards (≥ 0.6 m): passes nose-first only; a fallen wall panel (1.5–2 m): any yaw. Interior 3.8 × 2.3 × 1.8–2.2 m: hover room, the low side is tight.
 - **Wind volumes:** walls porosity 0.05–0.2 (board gaps), 0.3–0.5 with boards missing, 1 where down; the roof 0.
 - **Snag hazards:** nails, board ends, the roof edge, felt flaps, the door edge.
@@ -618,7 +618,7 @@ Blocks and bricks come out in stepped jags as H03; the light roof lifts first. R
 - **Gaps:** door 0.8 × 1.8: any yaw. Window 0.4 × 0.5: **no**. A D corner breach 0.5–0.9 m: passes nose-first when ≥ 0.6 m clear. Interior 3.6 × 2.6 × 2.0 m: hover room.
 - **Wind volumes:** solid (0); the interior a cavity through the door.
 - **Snag hazards:** the felt edge, the door frame, the window frame, nails in a dropped roof.
-- **Landable surfaces:** **the flat roof** (4 × 3 m, ≤ 8°, felt on boards or a slab, 2.2 m up): the yard's best rooftop target when sound.
+- **Landable surfaces:** **the flat roof** (4 × 3 m, ≤ 8°, felt on boards or a slab, 2.2 m up): the yard's best rooftop landing spot when sound.
 
 ### Placement rules
 One per yard, along a side boundary or facing the cellar (C), 5–15 m from the house.
@@ -701,7 +701,7 @@ Shared house table with `length` 4.5, `width` 3.5, `wall_thickness` 0.25, `roof_
 
 ### Construction and materials
 - A post frame on stone pads, vertical boards with gaps, a slate gable roof on purlins, double plank doors, a loft floor of boards at 2.5 m over half the length with hay on it.
-- **Materials:** boards as O01; slate as H02; hay `proposed:straw` with Poly Haven `hessian_380` tinted straw as a surface ( https://polyhaven.com/a/hessian_380 ); structure `rough_wood`.
+- **Materials:** boards as O01; slate as H02; hay `straw` with Poly Haven `hessian_380` tinted straw as a surface ( https://polyhaven.com/a/hessian_380 ); structure `rough_wood`.
 
 ### Colour
 Weathered grey boards as O01; hay yellow-grey about #a8956a (assumed).
@@ -716,7 +716,7 @@ As O01 at a larger scale; hay burns to a black patch.
 
 ### Physics role
 - **Collision:** posts capsules, boards thin boxes, purlins and rafters boxes, the loft a box, hay a soft box.
-- **Material ids:** `timber`; slate `proposed:asbestos_cement`; hay `proposed:straw`.
+- **Material ids:** `timber`; slate `asbestos_cement`; hay `straw`.
 - **Gaps:** double doors 2.4 × 2.2: any yaw; one leaf 1.2 m: any yaw; the loft door 0.8 × 1.0: any yaw, height tight (0.55 m envelope); interior 7.6 × 4.6 × 2.5 m with the loft edge at 2.5 m; roof bays once stripped.
 - **Wind volumes:** walls porosity 0.1–0.3 (gaps); roof 0 / 0.75 stripped; the interior a large draughty cavity.
 - **Snag hazards:** board ends, the loft edge, purlin ends, hay (hooks the legs), nails, the door hinges.
@@ -737,7 +737,7 @@ Rare: one per two or three yards, at the back of the plot, near the haystack (Y0
 | `seed` | int | — | — | Random choices |
 
 ### Open points
-- `straw` id: physics sign-off.
+- `straw` id: settled by the physics sign-off (review-materials.md §2).
 
 ## O05 Outdoor toilet, wooden
 
@@ -868,7 +868,7 @@ At the street side next to the gate (Y05), the gate facing the street; one per t
 
 ### Construction and materials
 - A brick head on a 0.3–0.6 m earth mound, red-brick corner piers with lime-rendered panels between them (the render peeling to show brick: C 9), a timber door frame and lintel with a plank door (absent in C; a param), a flat felt roof on boards with a plank edge, side walls brick and rendered; inside, a plank ceiling on a round log beam, lime-whitewashed walls peeling in flakes (C 12), brick or earth steps down to a brick-walled chamber with a vaulted or slab ceiling; a ventilation pipe 100–150 mm out of the mound; a tarp draped over one flank, weighted with bricks.
-- **Materials:** piers `red_brick`; render Poly Haven `rough_plaster_brick_02` and `worn_cracked_plaster`; frame and ceiling boards `rough_pine_door`, `raw_plank_wall`; felt `bitumen`; slab `concrete_wall_003`; the tarp `proposed:fabric` with Poly Haven `rough_linen` tinted #8aa0c0 as a woven polyethylene surface ( https://polyhaven.com/a/rough_linen ; no CC0 tarp set was found, so this is derived); the mound: the S01 sod and S09 litter surfaces.
+- **Materials:** piers `red_brick`; render Poly Haven `rough_plaster_brick_02` and `worn_cracked_plaster`; frame and ceiling boards `rough_pine_door`, `raw_plank_wall`; felt `bitumen`; slab `concrete_wall_003`; the tarp `fabric` with Poly Haven `rough_linen` tinted #8aa0c0 as a woven polyethylene surface ( https://polyhaven.com/a/rough_linen ; no CC0 tarp set was found, so this is derived); the mound: the S01 sod and S09 litter surfaces.
 
 ### Colour
 | Surface | Photo albedo (sRGB) | Feed check value (sRGB) | Source |
@@ -890,8 +890,16 @@ At the street side next to the gate (Y05), the gate facing the street; one per t
 Not a damage asset. Weathering: render off the piers' edges, felt torn at the overhang, the plank edge rotten, the inner whitewash flaking in 0.1–0.5 m plates.
 
 ### Physics role
-- **Collision:** piers and side walls as boxes (`masonry`), the lintel and frame as boxes, the roof a box with its plank edge, the ceiling boards and log as boxes and a capsule, each step a box, the chamber walls boxes, the tarp a thin soft surface, the mound a sloped box.
-- **Material ids:** brick, render, steps, chamber `masonry`; frame, lintel, boards, log `timber`; roof `concrete` (slab) or `timber` (boards); felt as the roof's id; the tarp `proposed:fabric`; the pipe `steel`; the mound `proposed:soil`.
+- **Collision:** piers and side walls as boxes (`masonry`), the lintel and frame as boxes, the roof a box with its plank edge, the ceiling boards and log as boxes and a capsule, each step a box, the chamber walls boxes, the tarp a thin soft surface; the mound heightfield outside the hole band and filler boxes inside it (Holes, below).
+- **Holes** (AST-05, WLD-16): the stair and the chamber lie below the ground, so their cells are holes and the ground over them comes only from the fillers, under the earthworks sheet's contract F-1…F-8 (its figures, terrain-holes-review §3).
+  - **Record**, in E01's form with a footprint for the centre line (asset space: x across the stair, z along it into the cellar, y up; origin the doorway sill's centre, the sill level with the ground at the doorway, assumed):
+    `{"id": "C01", "footprint": [[-0.425, 0], [0.425, 0], [0.425, 2.5], [1.25, 2.5], [1.25, 5.5], [-1.25, 5.5], [-1.25, 2.5], [-0.425, 2.5]], "top_width_m": 0.85, "depth_m": 2.2, "band_width_m": 2.15}`
+    The footprint is the cavity's clear outline in plan: the stair 0.85 m wide (measured, C 11–12) over its 2.5 m run (derived: 9 treads of 0.28 m, as Gaps), then the chamber 3 m along the stair and 2.5 m across (assumed, the row's default). `top_width_m` is the stair at the lip; `depth_m` the chamber floor below the sill (assumed, the row). The band is the footprint grown by 0.65 m on every side, 0.85 + 2 × 0.65 = 2.15 m along the stair and 3.8 × 4.3 m round the chamber (derived: F-2's 0.25 m plus half a 0.5 m cell's diagonal, 0.354 m, rounded up, so every cavity face stays at least 0.25 m inside the hole cells at any placement yaw when a cell is marked by its centre).
+  - **Lining, the open faces** (F-5, F-6): the stair's side walls and the chamber's walls `masonry` boxes at least 0.3 m thick behind the face, within 0.05 m of the visual; each step a `masonry` box 0.3 m under its tread, running 0.2 m under the next step and 0.2 m into both side walls; the chamber floor one `masonry` box 0.3 m thick, 0.2 m under every wall; the ceiling (vault or slab) a box at least 0.3 m above its underside, resting 0.2 m on the walls (`masonry`, or `concrete` for a slab).
+  - **Backing** (F-1, F-2, F-4): `surface:belt_bare` boxes (cut soil, F-7) behind every lining box, from the cover boxes down to 0.3 m under the floor and out to 0.75 m past the band's edge, so a downward ray on a 5 cm grid over every hole cell hits a filler (derived: a marked cell reaches at most 0.71 m past the band, by centre or by touch); outside the cells they stay buried, never above TerrainHeight + 0.01 m.
+  - **Cover, the ground over the hole** (F-3, F-6): boxes 0.3 m thick, `surface:meadow_sod` on the mound and the yard's own surface beyond it (`surface:yard_litter`, S09), level with TerrainHeight within ±0.03 m along the band's edge and within 0.05 m of the visual inside it (one sloped box per mound face, as E01's parapets). Over the chamber they lie on the ceiling box: the floor 2.2 m below the sill and the room 2.0 m high put the 0.3 m ceiling box's top 0.1 m above the sill, so the mound there stands at least that high; at 0.4 m (`mound_height`) it leaves 0.3 m of earth on the ceiling (derived). Outside the band the mound is heightfield, raised by the compiler as E01's parapets are.
+  - **F-7, F-8:** surfaces as above; no filler is a wind obstacle, and only the head above the ground keeps its wind volume.
+- **Material ids:** brick, render, steps, chamber `masonry`; frame, lintel, boards, log `timber`; roof `concrete` (slab) or `timber` (boards); felt as the roof's id; the tarp `fabric`; the pipe `steel`; the mound `surface:meadow_sod`; the other fillers as in Holes.
 - **Gaps:**
   - **the doorway 0.70 × 1.6 m: passes nose-first with 63 mm a side, up to ±35° of yaw, the narrowest fly-in on the map (PR-9).** With a door leaf half open it drops to 0.35–0.5 m: no. Height 1.6 m is comfortable.
   - the passage 0.85 × 1.8 m, descending 2.2 m over about 2.5 m (a 40° slope): passes at any yaw within the walls, but the drone must pitch down the stair; the log beam at the ceiling narrows the height to 1.65 m for 0.12 m
@@ -899,7 +907,7 @@ Not a damage asset. Weathering: render off the piers' edges, felt torn at the ov
   - the pipe 100–150 mm: no
 - **Wind volumes:** the head solid (0); the doorway is a funnel part (porosity 1, W4 `turbulence`): gusts accelerate through it and the passage; the tarp flaps (visual) and is porosity 0 while it lies on the wall.
 - **Snag hazards:** the tarp (soft, wraps), the wire above the yard, the plank edge of the roof, the frame and lintel edges, nails, the log beam, the pipe.
-- **Landable surfaces:** the roof (1.4 × 2.5 m at 5–10°, felt, 2 m up): yes; the mound top behind: `soil`, soft and uneven.
+- **Landable surfaces:** the roof (1.4 × 2.5 m at 5–10°, felt, 2 m up): yes; the mound top behind: `surface:meadow_sod`, soft and uneven.
 
 ### Placement rules
 One per yard, 10–15 m behind the house, the doorway facing the house or the path, a fruit tree (V10/V11) beside it (C), a shed (O02) across the path, leaf litter (S09) around; the tarp on the sunny flank.
@@ -923,8 +931,10 @@ One per yard, 10–15 m behind the house, the doorway facing the house or the pa
 | `seed` | int | — | — | Random choices |
 
 ### Open points
-- `fabric` and `soil` ids: physics sign-off. The tarp's flutter is visual; its snag is what matters.
+- The tarp's and the mound's ids: settled by the physics sign-off (review-materials.md §2, §6): the tarp `fabric`, the grassed mound `surface:meadow_sod`. The tarp's flutter is visual; its snag is what matters.
 - The first attempt built the door at 0.78 m "to fit" and was corrected to 0.70 m (knowledge.md §14.3): the default is locked, not a question.
+- Where the sill sits against the mound (assumed in Holes: level with the ground at the doorway, the mound rising round the head and over the chamber; else on the mound's top, the sill raised): settled at the C side-by-side. The record's depths count from the sill either way.
+- How the compiler marks the band's cells (by centre, or every cell touched) is the world-builder's (WLD-16, phase 3); the 0.65 m margin and the backing's 0.75 m reach hold under either (derived in Holes).
 
 ## C02 Earth-mound cellar with a concrete or brick portal
 
@@ -955,12 +965,18 @@ Concrete grey about #8e8a82 (assumed); brick as `red_brick`; door as O01 or O06.
 Not a damage asset; weathering only (concrete spalling at the portal's arrises, grass over the mound).
 
 ### Physics role
-- **Collision:** the mound a smooth sloped shape (a few sloped boxes or the heightfield), the portal boxes, the door a box, steps boxes, the chamber boxes.
-- **Material ids:** portal `concrete` or `masonry`; door `timber` or `sheet_metal`; mound `proposed:soil`; pipe `steel`.
+- **Collision:** the mound a smooth sloped shape: heightfield outside the hole band, sloped filler boxes inside it (Holes, below); the portal boxes, the door a box, steps boxes, the chamber boxes.
+- **Holes** (AST-05, WLD-16), under the contract F-1…F-8 exactly as C01's Holes; what differs:
+  - **Record** (asset space as C01's, origin the door sill's centre, the sill level with the yard at the mound's foot, assumed):
+    `{"id": "C02", "footprint": [[-0.55, 0], [0.55, 0], [0.55, 2.25], [1.25, 2.25], [1.25, 5.25], [-1.25, 5.25], [-1.25, 2.25], [-0.55, 2.25]], "top_width_m": 1.1, "depth_m": 2.0, "band_width_m": 2.4}`
+    The stair 1.1 m wide (assumed, as Gaps) over 2.25 m (derived: 8 treads of 0.28 m, C01's tread, assumed; the rise 2.0 / 8 = 0.25 m, inside C01's range), then the chamber 3 m along and 2.5 m across (assumed, the row). The band is the footprint grown by 0.65 m (derived, as C01): 1.1 + 2 × 0.65 = 2.4 m along the stair and 3.8 × 4.3 m round the chamber.
+  - **Lining:** the stair's steps and walls as the portal (`concrete` or `masonry`), the chamber `masonry` as C01 (a slab ceiling `concrete`); the passage's ceiling, from the portal's back to the chamber, a box at least 0.3 m above its underside, stepping down with the stair.
+  - **Cover:** `surface:meadow_sod` over the mound; in front of the portal, the surface the cellar stands on (`surface:yard_litter` or `surface:meadow_sod`, as placed). The floor 2.0 m down and the room 2.0 m high put the chamber's underside at the sill's level and the 0.3 m ceiling box's top 0.3 m above it, under 0.9 m of earth at the 1.2 m crown (derived). With the 6 m mound centred on the chamber (assumed: its front foot then falls at the portal's back, 0.75 m from the door, against the portal's 0.8 m depth), the band's corners round the chamber lie 2.9 m from the centre (derived), inside the mound's foot, so the band's edge crosses the mound's slopes: the cover boxes follow them there within ±0.03 m (F-3), and the backing outside the cells is tilted with them so it stays buried (F-4).
+- **Material ids:** portal `concrete` or `masonry`; door `timber` or `sheet_metal`; mound `surface:meadow_sod`; pipe `steel`; the other fillers as in Holes.
 - **Gaps:** the door **0.75 × 1.7 m: any yaw, 88 mm a side nose-first, 22 mm on the diagonal**; the portal and stair 1.1 m wide; the chamber as C01.
 - **Wind volumes:** the mound solid, a smooth bump the flow rides over; the doorway a funnel.
 - **Snag hazards:** the pipe, the door edge, the portal's arrises.
-- **Landable surfaces:** the mound top (1–2 m flat, `soil` under sod, soft) and its slopes (20–30°: slides).
+- **Landable surfaces:** the mound top (1–2 m flat, `surface:meadow_sod`, soft) and its slopes (20–30°: slides).
 
 ### Placement rules
 Alternative to C01 on one yard in three, further back in the plot (15–25 m), near the garden.
@@ -976,7 +992,9 @@ Alternative to C01 on one yard in three, further back in the plot (15–25 m), n
 | `seed` | int | — | — | Random choices |
 
 ### Open points
-- `soil` id: physics sign-off.
+- The mound's id: settled by the physics sign-off (review-materials.md §6): `surface:meadow_sod`.
+- The band's cell-marking rule: the world-builder's, as C01's open point.
+- The portal's 1.1 m (Dimensions) and the stair's 1.1 m (Gaps) are one figure; if it is the portal's outside width, the clear stair is narrower by the portal's walls, and the record's `top_width_m` and band with it: for the asset-artist at C02's asset change.
 
 ## Y01 Plank fence (grey weathered)
 
@@ -1118,7 +1136,7 @@ Mesh tears and curls from a post; posts bend at the ground.
 
 ### Physics role
 - **Collision:** the mesh as a thin compliant panel per bay (a thin box 1.5 m high), the top wire a capsule 3 mm, posts capsules; tears as polygons.
-- **Material ids:** mesh and top wire `cable` (the physics engineer may want a mesh-specific response: see Open points); posts `steel`.
+- **Material ids:** the bay panels `mesh`, the top wire `cable` (the physics sign-off, review-materials.md §2, §6); posts `steel`.
 - **Gaps:** none when intact (50 mm); a tear ≥ 0.6 m: nose-first; a bay with the mesh down (3 m): any yaw. Over the top: the top wire at 1.5 m is a thin-wire snag at low height (PR-6's thin class).
 - **Wind volumes:** porosity about 0.92 (derived: 2 mm wire in both directions at 50 mm gives 8 % solidity).
 - **Snag hazards:** the whole mesh for the fiber and the legs (it wraps and holds), torn ends, post tops.
@@ -1140,7 +1158,7 @@ Between yards and along gardens, 10–40 m runs; around the farm (P02).
 | `seed` | int | — | — | Random choices |
 
 ### Open points
-- Mesh contact: a drone hitting chain-link is caught, not bounced (compliant, wrapping). Whether `cable` plus a snag flag covers it or a `mesh` material is needed: physics sign-off.
+- Mesh contact: settled by the physics sign-off (review-materials.md §2): `mesh` answers a drone-sized load as a membrane (about 800 N/m, derived there), so a drone hitting chain-link is caught, not bounced; its 1 mm wire is a cut risk for the fiber.
 
 ## Y04 Brick or concrete-panel fence
 
@@ -1180,7 +1198,7 @@ Lattice panels break first (thin concrete), then the brick panel in stepped jags
 - **Gaps:** none when intact; a missing lattice panel (2.4 × 0.5 m): the slot is 0.5 m high, **no** (0.55 m envelope); a missing precast panel row: no; a pier and panel down (2.8 m): any yaw.
 - **Wind volumes:** solid below the lattice (0); the lattice 0.4; precast and brick walls 0; the stone pile 0.1.
 - **Snag hazards:** lattice balusters and their broken stubs, pier caps, the coping edge, stone edges.
-- **Landable surfaces:** the pier cap (0.45 m square) and the coping (0.12–0.25 m): the legs sit 0.24 m apart, so a cap holds the drone only if centred within ±10 cm: flagged `land` as an expert target; the coping no. The stone pile: uneven `rubble`.
+- **Landable surfaces:** the pier cap (0.45 m square) and the coping (0.12–0.25 m): the legs sit 0.24 m apart, so a cap holds the drone only if centred within ±10 cm: flagged `land` as an expert landing spot; the coping no. The stone pile: uneven `rubble`.
 
 ### Placement rules
 Variant 1 in front of H06 and street-side plots at the urban edge (I); variant 2 along newer plots; variant 3 around a shop or the farm; variant 4 on abandoned plots (D) and as old boundary walls in the south of the map.
@@ -1391,7 +1409,7 @@ A blast scatters the top rows; the rest slumps.
 
 ### Physics role
 - **Collision:** the stacked body a box per row with a bumpy top (protruding logs as cylinders), loose logs cylinders, the cover a thin box, posts capsules.
-- **Material ids:** `timber`; cover `sheet_metal` or `proposed:fabric`.
+- **Material ids:** `timber`; cover `sheet_metal` or `fabric`.
 - **Gaps:** none.
 - **Wind volumes:** porosity 0.05–0.15.
 - **Snag hazards:** log ends, the cover's edge, bricks on top.
@@ -1429,7 +1447,7 @@ Against a shed (O01) or the house's back wall, under the eaves; one or two per y
 
 ### Construction and materials
 - Loose hay or straw built up around a pole, settled and grey outside, yellow where torn; or a stack of small bales.
-- **Materials:** surface `proposed:straw` with Poly Haven `hessian_380` or the S04 belt-straw material tinted (derived); the tarp as C01.
+- **Materials:** surface `straw` with Poly Haven `hessian_380` or the S04 belt-straw material tinted (derived); the tarp as C01.
 
 ### Colour
 Weathered outside #8f8468, fresh inside #c9b273 (assumed; S04 `feed` straw #797258 as the check).
@@ -1442,7 +1460,7 @@ Burns completely; leaves a black circle 4–6 m and charred stubs.
 
 ### Physics role
 - **Collision:** a rounded body (a few boxes and a sphere) with a soft contact layer 0.1–0.2 m.
-- **Material ids:** `proposed:straw` (soft: a leg sinks 5–15 cm and the straw hooks it on liftoff, as T4); the tarp `proposed:fabric`.
+- **Material ids:** `straw` (soft: a leg sinks 5–15 cm and the straw hooks it on liftoff, as T4); the tarp `fabric`.
 - **Gaps:** none.
 - **Wind volumes:** solid (0): a bluff body with a wake of 2–3 heights.
 - **Snag hazards:** the whole surface for the legs and the fiber; the tarp and its tyres.
@@ -1462,7 +1480,7 @@ At the back of a plot or beside the barn (O04); one per three or four yards; row
 | `seed` | int | — | — | Random choices |
 
 ### Open points
-- `straw` id: physics sign-off.
+- `straw` id: settled by the physics sign-off (review-materials.md §2).
 
 ## Y10 Greenhouse frame (film torn)
 
@@ -1480,7 +1498,7 @@ At the back of a plot or beside the barn (O04); one per three or four yards; row
 
 ### Construction and materials
 - Pipe arches on ground stakes, purlins, film clipped on and torn into strips, a door frame at one end, raised beds inside overgrown with weeds (V17).
-- **Materials:** pipe `rusty_metal_02`; film `proposed:plastic_film` as a translucent sheet with a derived dirt map; wood frame `rough_wood`.
+- **Materials:** pipe `rusty_metal_02`; film `fabric` as a translucent sheet with a derived dirt map; wood frame `rough_wood`.
 
 ### Colour
 Film milky #d9d9d0 with green algae streaks; pipe rust (assumed).
@@ -1493,7 +1511,7 @@ Film shreds in the first gust after a blast; the frame bends at a strike.
 
 ### Physics role
 - **Collision:** arches and purlins capsules; film as thin soft panels where it remains; the door frame boxes.
-- **Material ids:** frame `steel`; film `proposed:plastic_film` (soft, snags props and wraps); wood `timber`.
+- **Material ids:** frame `steel`; film `fabric` (soft, snags props and wraps); wood `timber`.
 - **Gaps:** the door 0.75 × 1.8: any yaw; a bay between arches with the film gone (1.0 × 2.0 m): any yaw; the tunnel interior 2.8 × 5.8 × 2.0 m: fly-through end to end.
 - **Wind volumes:** film intact 0 (a bluff tunnel); torn 0.5–0.9; bare frame 0.95.
 - **Snag hazards:** film strips (the worst: they wrap the props), arch ends, clips and ties, the door frame.
@@ -1514,7 +1532,7 @@ At the back of a lived-in plot, long axis north–south; one per three or four y
 | `seed` | int | — | — | Random choices |
 
 ### Open points
-- `plastic_film` id: physics sign-off.
+- The film's id: settled by the physics sign-off (review-materials.md §2): `plastic_film` is mapped to `fabric`.
 
 ## Y11 Yard props: bench, laundry line, barrel, bucket, washbasin
 
@@ -1550,7 +1568,7 @@ Props tip and scatter; the line breaks and lies in the weeds (then it is L04's c
 - **Gaps:** none; the kennel door 0.35 × 0.4: no.
 - **Wind volumes:** negligible; the tank a 1 m cube (0).
 - **Snag hazards:** **the laundry line at 1.6–1.8 m, nearly invisible on the feed: the yard's own thin-wire trap (PR-6 thin class)**; the basin post; chair backs.
-- **Landable surfaces:** the barrel top (0.58 m, `steel`, 0.88 m up): the legs sit within 0.24 m, so it holds the drone when centred within ±15 cm, an expert target; the tank top (1 m, flat): yes; the bench seat (0.35 m): no; the kennel roof (0.8 × 1.0, felt): yes.
+- **Landable surfaces:** the barrel top (0.58 m, `steel`, 0.88 m up): the legs sit within 0.24 m, so it holds the drone when centred within ±15 cm, an expert landing spot; the tank top (1 m, flat): yes; the bench seat (0.35 m): no; the kennel roof (0.8 × 1.0, felt): yes.
 
 ### Placement rules
 The bench by the house door or the gate; the line between the house and a fruit tree or the shed; the barrel at a downpipe; the bucket and basin by the well; the kennel by the gate.
@@ -1570,13 +1588,12 @@ The bench by the house door or the gate; the line between the house and a fruit 
 
 ## Open points for the whole sheet
 
-**Proposed physics material ids** (none invented in a generator; the physics engineer adds them to `physics_materials.json` with values):
-- `asbestos_cement`: шифер sheets and fragments (H02–H05, O01, O03, O04). Brittle: cracks under a landing leg, breaks on a strike into shards; friction near `masonry`; edge radius about 3 mm (a 6 mm sheet's half thickness).
-- `soil`: the cellar mounds (C01, C02) and the clay bench (H05). Soft, sinks 2–5 cm; the surface table's `crater_spoil` row is the nearest existing behaviour.
-- `straw`: thatch (H05), hay (O04), the stack (Y09). Very soft, hooks the legs on liftoff (T4 behaviour as a material).
-- `fabric`: tarps (C01, Y08, Y09) and laundry (Y11). Soft, wraps, no bounce.
-- `plastic_film`: greenhouse film (Y10). Soft, wraps the props.
-- Tile and slate breakability (a tile cracks under a leg, a shard slides) is a later material property, as physics review P3-6 says for glass; until then tiles are `masonry`.
-- Chain-link (Y03): whether `cable` plus a snag flag reproduces being caught, or a `mesh` material is needed.
+**Physics material ids: settled** by the physics sign-off (review-materials.md §2, §6; none is invented in a generator):
+- `asbestos_cement`: шифер sheets and fragments (H02–H05, O01, O03, O04). Rigid under a landing leg (about 0.4 MPa against a published rupture of 16 MPa or more); breakage is a crash case for a later plate model (P3-6); edge radius 3 mm (a 6 mm sheet's half thickness).
+- `soil` is mapped to ground surfaces, not added: the cellar mounds (C01, C02) `surface:meadow_sod`; the clay bench (H05) `surface:belt_bare` (the sign-off's cut-and-trampled row, chosen for firm rammed clay: assumed).
+- `straw`: thatch (H05), hay (O04), the stack (Y09). Very soft, hooks the legs on liftoff through the hook snags the generator writes for bundle ends.
+- `fabric`: tarps (C01, Y08, Y09), laundry (Y11) and the greenhouse film (Y10: `plastic_film` is mapped to it).
+- `mesh`: the chain-link bays (Y03); its top wire `cable`.
+- Tile and slate breakability (a tile cracks under a leg, a shard slides) is deferred to a later plate model (P3-6, review-materials.md §3); until then tiles are `masonry`.
 
 **Settled by side-by-side, not by the pilot:** the E roof end shape (H01), the J window size (H03), the I house proportions (H06), tile size (H01). Nothing in this sheet needs a pilot question.

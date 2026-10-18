@@ -15,7 +15,7 @@ The pipeline SHALL build asset E01 (`trench` generator; variant `E01_curving`) f
 
 #### Scenario: Fillers under the hole contract
 - **WHEN** the collision audit and the validator run on `E01_curving`
-- **THEN** every open face of a wall, floor or lip box lies within 5 cm of the visual (2 cm at the lips), each box is at least 0.3 m thick behind its face and overlaps its neighbour by at least 0.2 m, no box top stands above the ground outside the cut, the lip boxes are level with the patch within 3 cm, and the audit prints the per-segment measurements
+- **THEN** every open face of a wall, floor or lip box lies within 5 cm of the visual (2 cm at the lips), each box is at least 0.3 m thick behind its face and overlaps its neighbour by at least 0.2 m, no box top stands above the ground outside the cut, the lip boxes are level with the patch within 3 cm, a downward ray on a 5 cm grid over every cell of the `holes` band hits a filler (F-1), every cavity face lies at least 0.25 m inside the band's cells (F-2), and the audit prints the per-segment measurements
 
 #### Scenario: The G look
 - **WHEN** the review sheet's pilot-height tile (shot along the run from 1.5 m above the lip) and the 10 m tile are compared side by side with letter G (frames 1–12) in the local comparison sheet

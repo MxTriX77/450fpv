@@ -157,6 +157,33 @@ def test_all_derives_every_recipe_and_skips_those_without_a_mask(tmp_path, capsy
     assert (root / MATERIALS / f"{MATERIAL}_mask.png").is_file() and not (root / MATERIALS / "plain_mask.png").exists()
 
 
+def test_palette_recipe_derives_one_block_per_colour_in_order(tmp_path, capsys, monkeypatch):
+    """p1-s04-belt-straw: a palette recipe (the straw kit's tints) becomes an albedo of one 16 x 64 px column per
+    colour left to right, sRGB-encoded, flat for a single colour, with its stamp; a second run is a no-op; a palette
+    with a texture set is refused."""
+    root = derive_root(tmp_path)
+    palette = {"schema": 1, "kind": "palette", "shader": "Universal Render Pipeline/Lit",
+               "colours": {"straw": "#b49c6a", "twig": "#6b5a3e"}, "tint": [1.0, 1.0, 1.0, 1.0], "smoothness": 0.3}
+    (root / RECIPES / "pal.json").write_text(json.dumps(palette), encoding="utf-8")
+    assert run("pal", "--root", root) == 0
+    out = capsys.readouterr().out
+    assert f"{MATERIALS.as_posix()}/pal_albedo.png: derived 32x64 palette (straw #b49c6a, twig #6b5a3e); recipe recorded in pal.recipe.json" in out
+    image = Image.open(root / MATERIALS / "pal_albedo.png")
+    assert image.mode == "RGB" and image.size == (32, 64)
+    for y in (0, 31, 63):
+        assert image.getpixel((8, y)) == (0xb4, 0x9c, 0x6a) and image.getpixel((24, y)) == (0x6b, 0x5a, 0x3e)
+    stamp = json.loads((root / MATERIALS / "pal.recipe.json").read_text(encoding="utf-8"))
+    assert stamp["kind"] == "palette" and stamp["columns"] == ["straw", "twig"] and stamp["formula"] == derive.PALETTE_FORMULA
+    assert stamp["constants"] == {"PALETTE_BLOCK_PX": 16, "PALETTE_HEIGHT_PX": 64}
+    assert run("pal", "--root", root) == 0 and "pal_albedo.png: up to date" in capsys.readouterr().out
+    monkeypatch.setattr(derive, "PALETTE_BLOCK_PX", 8)  # a changed constant regenerates (review R1)
+    assert run("pal", "--root", root) == 0 and "derived 16x64 palette" in capsys.readouterr().out
+    monkeypatch.undo()
+    (root / RECIPES / "pal.json").write_text(json.dumps(dict(palette, texture_set="polyhaven/x")), encoding="utf-8")
+    assert run("pal", "--root", root) == 1
+    assert 'ERROR: pal: a palette recipe is flat colour; it takes neither "texture_set" nor "mask"' in capsys.readouterr().out
+
+
 def test_base_map_packs_the_opacity_into_the_diffuse_alpha(tmp_path, capsys):
     root = base_root(tmp_path)
     assert run(MATERIAL, "--root", root) == 0
@@ -307,3 +334,27 @@ def test_failures_name_the_cause_and_write_nothing(tmp_path, capsys):
     assert f"ERROR: no_such: no recipe at {RECIPES.as_posix()}/no_such.json" in capsys.readouterr().out
     assert run("--root", root) == 2  # nothing to do
     assert not (root / MATERIALS).exists()
+
+
+def test_palette_gradients_run_up_their_columns_padded_to_a_power_of_two(tmp_path, capsys):
+    """Task 1.7: a colour given as stops is a gradient from the first at the bottom of its column to the last at the
+    top, interpolated in linear light, so the column's linear mean is (s0 + 2 s1 + s2) / 4 for three stops; three
+    colours make four columns, the last one repeated."""
+    root = derive_root(tmp_path)
+    stops = ["#40382a", "#b49c6a", "#e0cc9a"]
+    palette = {"schema": 1, "kind": "palette", "shader": "Universal Render Pipeline/Lit",
+               "colours": {"a": stops, "b": "#6b5a3e", "c": ["#202020", "#606060"]}, "tint": [1.0, 1.0, 1.0, 1.0],
+               "smoothness": 0.3}
+    (root / RECIPES / "grad.json").write_text(json.dumps(palette), encoding="utf-8")
+    assert run("grad", "--root", root) == 0
+    assert "grad_albedo.png: derived 64x64 palette (a #40382a/#b49c6a/#e0cc9a, b #6b5a3e, c #202020/#606060)" in capsys.readouterr().out
+    image = Image.open(root / MATERIALS / "grad_albedo.png")
+    linear = [[derive.SRGB_TO_LINEAR[v] for v in image.getpixel((8, y))] for y in range(64)]
+    bottom, top = image.getpixel((8, 63)), image.getpixel((8, 0))
+    assert all(abs(a - b) <= 6 for a, b in zip(bottom, (0x40, 0x38, 0x2a))), "the first stop at the bottom"
+    assert all(abs(a - b) <= 6 for a, b in zip(top, (0xe0, 0xcc, 0x9a))), "the last stop at the top"
+    want = [(a + 2 * b + c) / 4 for a, b, c in zip(*([derive.SRGB_TO_LINEAR[int(h[i:i + 2], 16)] for i in (1, 3, 5)]
+                                                     for h in stops))]
+    got = [sum(row[k] for row in linear) / 64 for k in range(3)]
+    assert all(abs(g - w) <= 0.01 for g, w in zip(got, want)), (got, want)
+    assert image.getpixel((56, 10)) == image.getpixel((40, 10)), "the padding column repeats the last colour"

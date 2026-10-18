@@ -27,7 +27,7 @@ This is the pilot's seven-step plan (2026-10-17), "made right". Their order stay
 - **The most expensive phase comes first, while the pilot's plan wants it:** phase 1 front-loads all footage and photo reading. After it, no later phase needs to open the footage again, except feed phase 4, and only for local A/B stills.
 - **One subagent per logical task** (D-029, the pilot's preference): one asset, one object sheet group, one shader stage, one query, one mechanism, one screen, one review. A fresh agent with a short brief each time.
 - **Agent hygiene** (PRC-09):
-  - at most 2 agents in parallel
+  - at most 4 agents in parallel (D-036)
   - fresh agents with short briefs
   - commit early
   - long jobs in the background
@@ -87,7 +87,7 @@ This is the pilot's seven-step plan (2026-10-17), "made right". Their order stay
 **Owners:** reference-analyst (object sheets), asset-artist (models, textures), tech-artist (look: URP lighting, sky, time of day, post), QA (review sheets). The brief is [briefs/phase-1-assets.md](briefs/phase-1-assets.md).
 
 **Work, in order:**
-1. **Object sheets** (reference-analyst; one subagent per class group, at most 2 in parallel):
+1. **Object sheets** (reference-analyst; one subagent per class group, at most 4 in parallel, D-036):
    - re-read the relevant clips and photos via contact sheets, the existing notes, and online research for what the footage lacks
    - write `docs/object-sheets/<group>.md` with dimensions, construction, materials, colours (photo albedo and `feed` check values), damage patterns, density and placement rules, physics role and the params list
    - OPSEC-clean
@@ -107,7 +107,7 @@ This is the pilot's seven-step plan (2026-10-17), "made right". Their order stay
    - QA approval
 
    Each one also goes into its gallery station as it lands.
-7. **Micro-detail generator and renderer:** deterministic, shared with physics (AST-10).
+7. **Micro-detail generator and renderer:** deterministic, shared with physics (AST-10). Before it, the next materials sign-off by the physics engineer: every row of `physics_materials.json` re-derived per touching part, not for the whole drone (`fabric` 600 N/m and `mesh` 800 N/m sink four legs 20 mm, not 50–100 mm; `straw`'s 490 N/m with S04's measured mat depth), and the fortifications' `razor_wire` and `sandbag` rows added (archive/2026-10-18-p1-fortifications-sheet/review-physics.md §4).
 8. **Gap probe:** a drone-sized capsule through every gap, and contact with every material (AST-05).
 
 **Deliverables:** `assets-src/` (params), `tools/blender/` generators, Unity prefabs, the catalog, object sheets, review sheets, `CREDITS.md`.
@@ -156,14 +156,15 @@ This is the pilot's seven-step plan (2026-10-17), "made right". Their order stay
 **Owners:** world-builder (layout, compiler, terrain, placement), physics-engineer (world-query core review and the contact probe), tech-artist (performance, distance look), QA.
 
 **Work:**
-1. **The map-format spec** for Unity: carry the old format over (K§10), plus the D-007 fixes (polygon gaps, per-part porosity) and the D-019 frames.
+1. **The map-format spec** for Unity: carry the old format over (K§10), plus the D-007 fixes (polygon gaps, per-part porosity) and the D-019 frames. It and the world-query spec take the gap review's G1–G4, G6 and G8–G11 in full (D-037): terrain holes (WLD-16), the frame conventions and corner mapping, the Unity Terrain tile rule, the rendered-surface parity and the load-time pose parity.
 2. **The layout and the compiler** (`layout.json` → package) with its validator (WLD-09, WLD-12).
 3. **World-query core** in `com.fpv450.sim`:
    - port and adapt the first attempt's C# (`WorldQuery`, `Contacts`, `MicroDetail`, `WindGrid`, `DetMath`, `ContentHash`)
    - the golden file, the concurrency tests and the benchmarks (WLD-11)
    - the physics engineer runs a contact probe (a fake drone over the API) before sign-off
-4. **Unity world builder:** terrain tiles from the heightfield, surface splatting with feathered edges, vegetation and object instancing from `objects.json`, micro-detail near the camera, impostors, streaming if needed.
-5. **The map itself:** the D-018 layout. Three villages, fields, belts with trenches, cratered, burnt and tilled fields, roads and slab tracks, the urban edge, at least 30 fly-ins, at least 6 start points.
+   - from the fortifications and V01 readings (archive/2026-10-18-p1-fortifications-sheet/review-physics.md §6–§7, p1-v01-locust review-physics §A.4): a `convex` shape (a face and edge list per hull, a swept separating-axis contact test, ray clipping, geometry lookup, golden cases, a `teeth_field` benchmark); a spatial index over snag records and gaps with a record query, a cap of 2,048 record segments per 2 m cube per asset and per map, a `wire_runs` benchmark; a two-level shape index for belts of trees; density counted as narrow tests
+4. **Unity world builder:** terrain tiles from the heightfield, surface splatting with feathered edges, vegetation and object instancing from `objects.json`, micro-detail near the camera, impostors, streaming if needed. The compiler writes the gaps between separately placed objects (between dragon's teeth, between road blocks) as the layout places them, sizes long thin wind volumes (wire runs, hedges, porous fences) by their thickness across the wind, not by footprint perimeter / π, and re-derives gap verdicts per instance scale (a 0.706 m gap at scale 0.9 is nose-first only).
+5. **The map itself:** the D-018 layout as refined by D-035 (WLD-01). A village, a smaller village and a somewhat larger town divided by belts and fields in the pattern of the layout reference (letter Q); fields, belts with trenches, trenches in the fields, cratered, burnt and tilled fields, roads and slab tracks, a small river and ponds, the fortifications (F01–F03), the urban edge, most houses damaged or destroyed, at least 30 fly-ins, at least 6 start points.
 6. **Performance** (PLT-02, PLT-05, PLT-06) and the night silhouette check (WLD-10).
 
 **Done means:**
@@ -182,13 +183,13 @@ This is the pilot's seven-step plan (2026-10-17), "made right". Their order stay
 **Owners:** tech-artist (feed, OSD rendering), game-developer (OSD content model, debug panel), QA.
 
 **Work:**
-1. The FPV camera rig: a low-resolution render with extra FOV (D-017), and in-view prop and airframe stand-ins until phase 5.
+1. The FPV camera rig: a low-resolution render with extra FOV (D-017) and the pinned intrinsics (FEED-02: about 106° horizontal, 16:9, f ≈ 1.005 before k1), and in-view prop and airframe stand-ins until phase 5.
 2. **Port the Godot feed faithfully** (FEED-00, D-026, [legacy/video-feed-godot/](legacy/video-feed-godot/)): the shader pipeline, `FeedEvents`, `FeedLoss`, `FeedOsd` and `FeedFont`, with the A/B against the Godot original (same seed: identical schedule, matching stills). Then the `IFeedSignals` interface and its labelled stubs (FEED-03).
 3. The pipeline stages in K§11.7 order, at field resolution, 50 fields/s (FEED-02, FEED-04).
 4. The receiver state machines: staged loss, hard cut, N12 dropouts with clean recovery (FEED-05/06/07).
 5. AE and AWB loops, and night (C1–C5, FEED-08).
 6. The exact OSD: grid, font, crosshair, strings and the analog path (OSD-01…04).
-7. Review tools and the local A/B comparison sheet (FEED-11/12).
+7. Review tools and the local A/B comparison sheet (FEED-11/12). Before it, a Standard change to the reference tools: the frame-metrics tool run alike on footage and captured feed output, burst extraction and the stable letter index (FEED-12, D-037).
 8. The performance budget (FEED-10).
 
 **Done means:** every trait is implemented with its K§11 parameters; the comparison sheet is within tolerance; the feed costs ≤ 1.0 ms; PLT-02 FPV is met.
@@ -248,8 +249,8 @@ Five changes, each ending in an MVP the pilot flies:
 |---|---|---|
 | 7a Ground and landing | PHY-01…06: soil, mat, hooks, stiction, pitfalls, furrows, stems, launch stand, landing bounce, wet ground | legs stick "sometimes, a little", more on soft ground, most of the time in rain |
 | 7b Propulsion and airframe | PHY-07…12: asymmetry, ground effect, VRS, PR-1 shake, battery, inertia character | settling into own wash depends on throttle against weight, with wobble; the PR-1 shake is rare |
-| 7c Wind and turbulence | PHY-13…17: field, PR-3 vorticity and gradients, wakes, levels against the K§8.6 targets via the simulated-pilot harness, per-flight draws, trade-off, rain, cruise in wind | wind flown at normal cruise speed; the effort goes into correcting course |
-| 7d Tether and wires | PHY-18…23: spool, span, cut risk, link margin, fiber break, wire strikes, openings | cuts from sharp reverse, tree snags, very sharp liftoff, backward momentum after liftoff |
+| 7c Wind and turbulence | PHY-13…17 (the wind and rain statistics tools ported to plain Python first, D-037): field, PR-3 vorticity and gradients, wakes, levels against the K§8.6 targets via the simulated-pilot harness, per-flight draws, trade-off, rain, cruise in wind | wind flown at normal cruise speed; the effort goes into correcting course |
+| 7d Tether and wires | PHY-18…23: spool, span, cut risk, link margin, fiber break, wire strikes, openings (with the fortifications reading's §9: the exact bend radius over an edge, `payout_tension_n` named and logged, abrasion per fiber section, barb pitch as a lock point, the fiber skipping compliant stand-in shapes; QA scenarios: a line draped over a coil run, a reverse round a snagged barb) | cuts from sharp reverse, tree snags, very sharp liftoff, backward momentum after liftoff |
 | 7e Physics → feed, and forensics | PHY-24/25, LOG-03/04: all signals live, the crash report with a verdict, the second-machine determinism check, lens drops driven by physics | drops stay on the lens even when fast, and travel with the airflow |
 
 **Done means, per change:** its PHY requirements are met with scenarios; statistical targets are proven to fail wrong models; replay is bit-exact; performance is held; the pilot has flown it.
@@ -286,7 +287,7 @@ All requirements are green, including PLT-03 on a mid-range estimate and LOG-04 
                 └─ physics metadata (collision, gaps, wind, snag) ───────────────────► consumed in 3/6/7
 ```
 
-Work that may overlap without breaking the pilot's order, at most 2 agents at a time:
+Work that may overlap without breaking the pilot's order, at most 4 agents at a time (D-036):
 - P2 assets during phase 3
 - research for the drone during phase 4
 - the input layer spec during phase 5

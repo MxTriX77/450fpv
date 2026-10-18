@@ -19,6 +19,8 @@ The pilot's words: "why tf are you asking me these questions if it's you whos go
 | Batteries | Li-ion, 20–35 Ah, 6S4P to 6S5P ±; **"a couple of batteries"** on the drone. The OTU class runs 8S Li-ion (FpvPrep profiles) | pilot, fc-profiles |
 | Coil | about 1 kg | pilot |
 | Payload | on **top** of the drone | 2026-10-17 |
+| Water in the world | yes: a pond or a small river; fiber laid on water cuts the signal; graphics mildly realistic; wind makes waves | 2026-10-18 (D-036) |
+| Parallel subagents | 4 | 2026-10-18 (D-036) |
 | Legs | plastic, 25–35 cm, a little soft; sometimes stumble on landing; pilots land slowly and level the horizon just before touchdown | pilot |
 | **Launch stand** | about **25 cm high, "like a chair upside down"**: one post under each motor, on a base; sized to the Svinoriz (D-022) | 2026-10-17 |
 | **Rates and throttle** | the pilot's FpvPrep profiles: their flown set, leaning toward the sharper factory set, especially throttle; keep room for more Betaflight settings later (D-023) | 2026-10-17 |
@@ -51,4 +53,9 @@ The pilot's words: "why tf are you asking me these questions if it's you whos go
 - **How often the throttle-punch shake happens:** from physics.
 
 ## Open
-None. Ask new questions only under the rule above, at the matching gate.
+Ask new questions only under the rule above, at the matching gate.
+
+| Gate | Question | Why it is the pilot's | Source |
+|---|---|---|---|
+| G2 | Looking at the fortifications in the gallery: which forms read as what you see today? Coils loose or on pickets, bright or rusted; teeth squat or slim; hedgehogs of rail or of angle; a made or an improvised barrier; do the coil's flat loops read right? | qualitative look; no reference shows them | F01–F04, D-035 |
+| G4 | The references show two no-signal screens: a bright blue with small centred text, and a deeper blue with two lines top-left. Which do your goggles show, or does it depend on the receiver? | a preference about their own kit; the footage shows both | FEED-07, gap review L12 |

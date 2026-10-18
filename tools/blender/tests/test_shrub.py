@@ -363,7 +363,8 @@ def test_low_variant_passes_the_collision_audit(repo_root):
     within 0.1 m of the pieces and every leaf vertex within 0.3 m (the build audits every variant)."""
     _, p, built, data = build(repo_root, "V13_low")
     assert built["card_reach_m"] == p["card_m"] == 0.2 and audit.card_allowance(built["card_reach_m"]) == 0.3
-    problems, lines = audit.run(data, built["lods"][0], catalog.card_visuals(repo_root), built["card_reach_m"])
+    problems, lines = audit.run(data, built["lods"][0], card_visuals=catalog.card_visuals(repo_root),
+                                card_reach_m=built["card_reach_m"])
     assert problems == []
     pieces = [c for c in data["collision"] if c["material"] == "twig"]
     shell_lines = [line for line in lines if "twig shell" in line]
@@ -382,7 +383,8 @@ def test_the_first_bounding_sphere_fails_its_standoff(repo_root):
     name, p, built, data = build(repo_root, "V13_mid")
     data = copy.deepcopy(data)
     data["collision"] = [c for c in data["collision"] if c["material"] == "bark"] + [FIRST_SPHERE]
-    problems, _ = audit.run(data, built["lods"][0], catalog.card_visuals(repo_root), built["card_reach_m"])
+    problems, _ = audit.run(data, built["lods"][0], card_visuals=catalog.card_visuals(repo_root),
+                            card_reach_m=built["card_reach_m"])
     assert len(problems) == 1 and problems[0].startswith("collision[42] sphere (twig shell): largest standoff ")
     assert problems[0].endswith(" exceeds the tolerance 100 mm")
     assert 700 < float(problems[0].split("largest standoff ")[1].split(" mm")[0]) < 800

@@ -43,7 +43,6 @@ namespace Fpv450.Assets
         // The metadata gives LOD distances; a LODGroup wants screen-relative heights. The conversion assumes the
         // feed's vertical field of view (design decision 7, derived: 60 degrees, 935 px/rad at 1080 px).
         const float VerticalFovDeg = 60f;
-        const float BoundsToleranceM = 0.001f; // the build's check of the FBX against the metadata bounds (lib/meta.py)
 
         // A cylinder collider is a closed right prism over a regular N-gon inscribed in the circle, so its surface
         // sits inside the true one by the chord's sagitta, r·(1 − cos(π/N)). N is the smallest count that keeps
@@ -178,8 +177,24 @@ namespace Fpv450.Assets
         /// keeps its alpha coverage at the cutoff in every mip. A "groove" (a bark's grooves tinted by its cavity) or
         /// a "paint" in place of a "texture_set" (p1-v01-locust, design decision 5) also takes the <c>_base</c> map
         /// that <c>derive.py</c> derives or paints; a painted recipe has no normal map.
+        /// <para>
+        /// A recipe of kind <c>ground</c> (p1-s04-belt-straw) takes the maps <c>derive.py</c> composes for it as its
+        /// base: <c>&lt;visual&gt;_albedo.png</c>, <c>_normal.png</c> and <c>_mask.png</c>, which span
+        /// <c>size_m</c> × <c>size_m</c> centred on the asset origin, so the base tiling is 1/size with a half-tile
+        /// offset. The detail layer is the derived <c>_detail_albedo.png</c> (the detail set's diffuse, neutralised
+        /// to mid-grey for URP's "detail albedo ×2") and the detail set's own normal map, keyword
+        /// <c>_DETAIL_MULX2</c>. URP/Lit derives the detail UV from the base UV times the detail tiling, so the
+        /// tiling is size/tile_size_m: the detail repeats every tile_size_m metres of the asset.
+        /// </para>
+        /// <para>
+        /// A recipe of kind <c>palette</c> (the straw instance kit's tints) has no texture set: its base map is the
+        /// flat <c>&lt;visual&gt;_albedo.png</c> that <c>derive.py</c> writes from its colours, one block per colour,
+        /// at tiling 1 (a generator UVs each face into its column), with the recipe's constant smoothness and no
+        /// normal or mask.
+        /// </para>
+        /// Internal for the EditMode tests, which build the belt_straw material without an asset around it.
         /// </summary>
-        static Material EnsureMaterial(string visual, Dictionary<string, object> manifest) =>
+        internal static Material EnsureMaterial(string visual, Dictionary<string, object> manifest) =>
             EnsureMaterial(visual, manifest, $"{MaterialsFolder}/{visual}.mat");
 
         /// <summary>The material of one recipe at an explicit path. Internal for the EditMode tests, which build one at a throwaway path.</summary>
@@ -190,18 +205,65 @@ namespace Fpv450.Assets
             if ((int)Json.Num(recipe, "schema", recipePath) != 1)
                 throw new NotSupportedException($"{recipePath}: schema {recipe["schema"]}; this importer reads schema 1");
             string shaderName = Json.Str(recipe, "shader", recipePath);
-            bool painted = recipe.ContainsKey("paint");
-            Dictionary<string, Texture2D> maps = painted
-                ? new Dictionary<string, Texture2D>()
-                : TextureSet(Json.Str(recipe, "texture_set", recipePath), manifest, recipePath);
-            Vector2 tile = Json.Vec2(recipe, "tile_size_m", recipePath);
-            if (!maps.TryGetValue("diffuse", out Texture2D diffuse) && !painted)
-                throw new FormatException($"{recipePath}: the texture set has no diffuse map");
-            maps.TryGetValue("normal", out Texture2D normal);
-            bool masked = recipe.ContainsKey("mask");
-            if (masked == recipe.ContainsKey("smoothness"))
-                throw new FormatException($"{recipePath}: give \"smoothness\" as a constant or a \"mask\" whose alpha carries it, not both or neither");
-            Texture2D mask = masked ? DerivedMask(visual) : null;
+            string kind = recipe.TryGetValue("kind", out object kindValue)
+                ? kindValue as string ?? throw new FormatException($"{recipePath}: \"kind\" must be a string")
+                : null;
+            if (kind != null && kind != "ground" && kind != "palette")
+                throw new FormatException($"{recipePath}: unknown recipe kind \"{kind}\" (omit it for a tiled set, or \"ground\" or \"palette\")");
+            bool ground = kind == "ground";
+
+            Texture2D albedo, normal, mask, detailAlbedo = null, detailNormal = null;
+            Vector2 baseScale, baseOffset = Vector2.zero, detailScale = Vector2.one;
+            bool masked, separateOpacity = false, derivedBase = false;
+            if (kind == "palette")
+            {
+                if (recipe.ContainsKey("texture_set") || recipe.ContainsKey("mask"))
+                    throw new FormatException($"{recipePath}: a palette recipe is flat colour; it takes neither \"texture_set\" nor \"mask\"");
+                albedo = Derived(visual, "albedo");
+                normal = null;
+                mask = null;
+                masked = false;
+                baseScale = Vector2.one;
+            }
+            else if (ground)
+            {
+                if (recipe.ContainsKey("mask") || recipe.ContainsKey("smoothness"))
+                    throw new FormatException($"{recipePath}: a ground recipe derives its own mask; it takes neither \"mask\" nor \"smoothness\"");
+                float size = Json.Num(recipe, "size_m", recipePath);
+                var detail = Json.Obj(recipe, "detail", recipePath);
+                float detailTile = Json.Num(detail, "tile_size_m", recipePath);
+                if (size <= 0f || detailTile <= 0f)
+                    throw new FormatException($"{recipePath}: size_m and detail.tile_size_m must be positive metres");
+                albedo = Derived(visual, "albedo");
+                normal = Derived(visual, "normal");
+                mask = Derived(visual, "mask");
+                detailAlbedo = Derived(visual, "detail_albedo");
+                Dictionary<string, Texture2D> detailSet = TextureSet(Json.Str(detail, "texture_set", recipePath), manifest, recipePath);
+                if (!detailSet.TryGetValue("normal", out detailNormal))
+                    throw new FormatException($"{recipePath}: the detail texture set has no normal map");
+                baseScale = new Vector2(1f / size, 1f / size);
+                baseOffset = new Vector2(0.5f, 0.5f);
+                detailScale = new Vector2(size / detailTile, size / detailTile);
+                masked = true;
+            }
+            else
+            {
+                bool painted = recipe.ContainsKey("paint");
+                Dictionary<string, Texture2D> maps = painted
+                    ? new Dictionary<string, Texture2D>()
+                    : TextureSet(Json.Str(recipe, "texture_set", recipePath), manifest, recipePath);
+                Vector2 tile = Json.Vec2(recipe, "tile_size_m", recipePath);
+                if (!maps.TryGetValue("diffuse", out albedo) && !painted)
+                    throw new FormatException($"{recipePath}: the texture set has no diffuse map");
+                maps.TryGetValue("normal", out normal);
+                separateOpacity = maps.ContainsKey("opacity");
+                derivedBase = painted || recipe.ContainsKey("groove");
+                masked = recipe.ContainsKey("mask");
+                if (masked == recipe.ContainsKey("smoothness"))
+                    throw new FormatException($"{recipePath}: give \"smoothness\" as a constant or a \"mask\" whose alpha carries it, not both or neither");
+                mask = masked ? Derived(visual, "mask") : null;
+                baseScale = new Vector2(1f / tile.x, 1f / tile.y);
+            }
             bool clipped = recipe.ContainsKey("alpha_clip");
             float cutoff = clipped ? Json.Num(recipe, "alpha_clip", recipePath) : 0.5f;
             if (cutoff < 0f || cutoff > 1f)
@@ -210,10 +272,10 @@ namespace Fpv450.Assets
             if (clipped && twoSided && shaderName == LitShader)
                 shaderName = LeafShader;
             Shader shader = Shader.Find(shaderName) ?? throw new FormatException($"{recipePath}: no shader named \"{shaderName}\"");
-            bool derivedBase = painted || recipe.ContainsKey("groove") || (clipped && maps.ContainsKey("opacity"));
-            Texture2D baseMap = derivedBase ? DerivedBase(visual) : diffuse;
+            if (derivedBase || (clipped && separateOpacity))
+                albedo = Derived(visual, "base");
             if (clipped)
-                EnsureCoverage(baseMap, cutoff);
+                EnsureCoverage(albedo, cutoff);
 
             EnsureFolder(Path.GetDirectoryName(materialPath).Replace('\\', '/'));
             var material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
@@ -228,8 +290,9 @@ namespace Fpv450.Assets
                 material.shader = shader;
                 changed = true;
             }
-            changed |= SetTexture(material, "_BaseMap", baseMap);
-            changed |= SetTextureScale(material, "_BaseMap", new Vector2(1f / tile.x, 1f / tile.y));
+            changed |= SetTexture(material, "_BaseMap", albedo);
+            changed |= SetTextureScale(material, "_BaseMap", baseScale);
+            changed |= SetTextureOffset(material, "_BaseMap", baseOffset);
             changed |= SetColor(material, "_BaseColor", Json.Rgba(recipe, "tint", recipePath));
             changed |= SetTexture(material, "_BumpMap", normal);
             changed |= SetKeyword(material, "_NORMALMAP", normal != null);
@@ -241,6 +304,15 @@ namespace Fpv450.Assets
             changed |= SetKeyword(material, "_SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A", false);
             changed |= SetFloat(material, "_Smoothness", masked ? 1f : Json.Num(recipe, "smoothness", recipePath));
             changed |= SetFloat(material, "_Metallic", 0f);
+            if (material.HasProperty("_DetailAlbedoMap")) // URP/Lit's detail layer; the leaf shader has none
+            {
+                changed |= SetTexture(material, "_DetailAlbedoMap", detailAlbedo);
+                changed |= SetTextureScale(material, "_DetailAlbedoMap", detailScale);
+                changed |= SetTexture(material, "_DetailNormalMap", detailNormal);
+                changed |= SetFloat(material, "_DetailAlbedoMapScale", 1f);
+                changed |= SetFloat(material, "_DetailNormalMapScale", 1f);
+                changed |= SetKeyword(material, "_DETAIL_MULX2", ground);
+            }
             // Opaque with clipping, as URP/Lit's own inspector sets it: the cutoff, the keyword, the alpha-test queue
             // and render type, alpha to coverage under MSAA; two-sided is cull off, with double-sided GI to match.
             changed |= SetFloat(material, "_AlphaClip", clipped ? 1f : 0f);
@@ -270,19 +342,6 @@ namespace Fpv450.Assets
         }
 
         /// <summary>
-        /// The base map <c>derive.py</c> writes for a recipe, <c>Art/Materials/&lt;visual&gt;_base.png</c>: the diffuse's
-        /// RGB with the set's separate opacity in A (an alpha-clipped recipe), the diffuse with its grooves tinted (a
-        /// "groove"), or a painted map (a "paint"); imported as an sRGB map that keeps any alpha.
-        /// </summary>
-        static Texture2D DerivedBase(string visual)
-        {
-            string path = $"{MaterialsFolder}/{visual}_base.png";
-            EnsureTextureImport(path, $"run python tools/assets/derive.py {visual}");
-            return AssetDatabase.LoadAssetAtPath<Texture2D>(path)
-                ?? throw new FileNotFoundException($"{path} did not import as a texture");
-        }
-
-        /// <summary>
         /// The base map of a clipped recipe keeps its alpha coverage at the recipe's cutoff in every mip: averaged
         /// mips of a leaf atlas fall under the cutoff, and a far card thins out or vanishes (design decision 6).
         /// </summary>
@@ -295,10 +354,15 @@ namespace Fpv450.Assets
                 importer.SaveAndReimport();
         }
 
-        /// <summary>The packed mask derived from a recipe, <c>Art/Materials/&lt;visual&gt;_mask.png</c>, imported as linear data.</summary>
-        static Texture2D DerivedMask(string visual)
+        /// <summary>
+        /// A map derived from a recipe, <c>Art/Materials/&lt;visual&gt;_&lt;role&gt;.png</c>, imported as its role needs
+        /// (<see cref="ArtImportSettings"/>): the packed mask, a ground recipe's maps, a palette's albedo, or the
+        /// <c>_base</c> map, an sRGB map that keeps any alpha: the diffuse's RGB with the set's separate opacity in A
+        /// (an alpha-clipped recipe), the diffuse with its grooves tinted (a "groove"), or a painted map (a "paint").
+        /// </summary>
+        static Texture2D Derived(string visual, string role)
         {
-            string path = $"{MaterialsFolder}/{visual}_mask.png";
+            string path = $"{MaterialsFolder}/{visual}_{role}.png";
             EnsureTextureImport(path, $"run python tools/assets/derive.py {visual}");
             return AssetDatabase.LoadAssetAtPath<Texture2D>(path)
                 ?? throw new FileNotFoundException($"{path} did not import as a texture");
@@ -346,6 +410,14 @@ namespace Fpv450.Assets
             return true;
         }
 
+        static bool SetTextureOffset(Material m, string name, Vector2 value)
+        {
+            if (m.GetTextureOffset(name) == value)
+                return false;
+            m.SetTextureOffset(name, value);
+            return true;
+        }
+
         static bool SetColor(Material m, string name, Color value)
         {
             if (m.GetColor(name) == value)
@@ -385,9 +457,10 @@ namespace Fpv450.Assets
 
         /// <summary>
         /// Creates or updates the prefab in place (so its file ids stay stable): the metadata component, one child
-        /// per LOD with the FBX mesh and the slot materials (or, for an impostor LOD, the card set,
-        /// <see cref="EnsureImpostor"/>), the LODGroup, one child per collision primitive, and nothing else.
-        /// Internal for the EditMode tests, which build a prefab from a throwaway metadata.
+        /// per LOD with the FBX mesh and the slot materials plus one per micro mesh of that LOD (rendered with it,
+        /// never a collider), or, for an impostor LOD, the card set (<see cref="EnsureImpostor"/>), the LODGroup, one
+        /// child per collision primitive, and nothing else. Internal for the EditMode tests, which build a prefab from
+        /// a throwaway metadata.
         /// </summary>
         internal static void EnsurePrefab(string prefabPath, string variant, Dictionary<string, object> metaJson, TextAsset source,
             string fbxPath, Dictionary<string, Material> materialBySlot)
@@ -400,7 +473,7 @@ namespace Fpv450.Assets
                 AssetPhysicsMeta meta = Ensure<AssetPhysicsMeta>(root);
                 Fill(meta, metaJson, source, prefabPath);
                 var keep = new HashSet<string>();
-                Renderer[] renderers = EnsureLods(root, meta, metaJson, AssetDatabase.GetAssetPath(source), fbxPath, materialBySlot, keep, prefabPath);
+                Renderer[][] renderers = EnsureLods(root, meta, metaJson, AssetDatabase.GetAssetPath(source), fbxPath, materialBySlot, keep, prefabPath);
                 EnsureLodGroup(root, meta, renderers);
                 EnsureColliders(root, meta, keep, prefabPath);
                 for (int i = root.transform.childCount - 1; i >= 0; i--)
@@ -413,7 +486,8 @@ namespace Fpv450.Assets
                 PrefabUtility.SaveAsPrefabAsset(root, prefabPath, out bool saved);
                 if (!saved)
                     throw new IOException($"could not save {prefabPath}");
-                Debug.Log($"[CatalogImporter] {variant}: {prefabPath}, {renderers.Length} LODs, {meta.collision.Length} colliders, " +
+                string micro = meta.micro.Length == 0 ? "" : $"{string.Join(", ", meta.micro.Select(m => $"{m.name} ({m.count} {m.kind}, LOD{m.lod})"))} micro, ";
+                Debug.Log($"[CatalogImporter] {variant}: {prefabPath}, {renderers.Length} LODs, {micro}{meta.collision.Length} colliders, " +
                           $"materials {string.Join(", ", materialBySlot.Select(kv => $"{kv.Key} -> {kv.Value.name}"))}, " +
                           $"LOD heights {string.Join(" / ", root.GetComponent<LODGroup>().GetLODs().Select(l => l.screenRelativeTransitionHeight.ToString("0.0000")))} " +
                           $"(size {root.GetComponent<LODGroup>().size} m, fov {VerticalFovDeg} deg)");
@@ -427,46 +501,58 @@ namespace Fpv450.Assets
             }
         }
 
-        static Renderer[] EnsureLods(GameObject root, AssetPhysicsMeta meta, Dictionary<string, object> metaJson, string metaPath, string fbxPath,
+        /// <summary>
+        /// Per LOD, its mesh's renderer followed by those of the micro meshes listed for it; an impostor LOD's card set
+        /// (<see cref="EnsureImpostor"/>) alone.
+        /// </summary>
+        static Renderer[][] EnsureLods(GameObject root, AssetPhysicsMeta meta, Dictionary<string, object> metaJson, string metaPath, string fbxPath,
             Dictionary<string, Material> materialBySlot, HashSet<string> keep, string prefabPath)
         {
             var imported = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath)
                 ?? throw new FileNotFoundException($"{fbxPath} did not import as a model");
             MeshFilter[] filters = imported.GetComponentsInChildren<MeshFilter>(true);
             List<object> lodsJson = Json.Arr(metaJson, "lods", metaPath);
-            var renderers = new Renderer[meta.lods.Length];
+            var renderers = new Renderer[meta.lods.Length][];
             bool impostor = false;
             for (int i = 0; i < meta.lods.Length; i++)
             {
-                string meshName = meta.lods[i].mesh;
                 var lodJson = Json.Obj(lodsJson[i], $"{metaPath} lods[{i}]");
                 if (lodJson.ContainsKey("impostor"))
                 {
-                    renderers[i] = EnsureImpostor(root, meta.lods[i], Json.Obj(lodJson, "impostor", $"{metaPath} lods[{i}]"),
-                        Path.GetDirectoryName(metaPath).Replace('\\', '/'), prefabPath, keep);
+                    renderers[i] = new[] { EnsureImpostor(root, meta.lods[i], Json.Obj(lodJson, "impostor", $"{metaPath} lods[{i}]"),
+                        Path.GetDirectoryName(metaPath).Replace('\\', '/'), prefabPath, keep) };
                     impostor = true;
                     continue;
                 }
-                MeshFilter filter = filters.FirstOrDefault(f => f.sharedMesh != null && f.sharedMesh.name == meshName)
-                    ?? throw new FormatException($"{fbxPath} has no mesh named {meshName}");
-                Material[] slotMaterials = filter.GetComponent<MeshRenderer>().sharedMaterials
-                    .Select(slot => materialBySlot.TryGetValue(slot.name, out Material material)
-                        ? material
-                        : throw new FormatException($"{meshName}: the FBX slot \"{slot.name}\" has no material in the metadata"))
-                    .ToArray();
-
-                GameObject child = Child(root, meshName, keep);
-                child.transform.localPosition = Vector3.zero;
-                child.transform.localRotation = Quaternion.identity;
-                child.transform.localScale = Vector3.one;
-                Ensure<MeshFilter>(child).sharedMesh = filter.sharedMesh;
-                MeshRenderer renderer = Ensure<MeshRenderer>(child);
-                renderer.sharedMaterials = slotMaterials;
-                renderers[i] = renderer;
+                var lod = new List<Renderer> { MeshChild(root, meta.lods[i].mesh, filters, fbxPath, materialBySlot, keep) };
+                foreach (AssetPhysicsMeta.MicroMesh micro in meta.micro)
+                    if (micro.lod == i)
+                        lod.Add(MeshChild(root, micro.name, filters, fbxPath, materialBySlot, keep));
+                renderers[i] = lod.ToArray();
             }
             if (!impostor)
                 DeleteImpostorAssets(prefabPath, root.name);
             return renderers;
+        }
+
+        static Renderer MeshChild(GameObject root, string meshName, MeshFilter[] filters, string fbxPath, Dictionary<string, Material> materialBySlot, HashSet<string> keep)
+        {
+            MeshFilter filter = filters.FirstOrDefault(f => f.sharedMesh != null && f.sharedMesh.name == meshName)
+                ?? throw new FormatException($"{fbxPath} has no mesh named {meshName}");
+            Material[] slotMaterials = filter.GetComponent<MeshRenderer>().sharedMaterials
+                .Select(slot => materialBySlot.TryGetValue(slot.name, out Material material)
+                    ? material
+                    : throw new FormatException($"{meshName}: the FBX slot \"{slot.name}\" has no material in the metadata"))
+                .ToArray();
+
+            GameObject child = Child(root, meshName, keep);
+            child.transform.localPosition = Vector3.zero;
+            child.transform.localRotation = Quaternion.identity;
+            child.transform.localScale = Vector3.one;
+            Ensure<MeshFilter>(child).sharedMesh = filter.sharedMesh;
+            MeshRenderer renderer = Ensure<MeshRenderer>(child);
+            renderer.sharedMaterials = slotMaterials;
+            return renderer;
         }
 
         // --- the impostor (p1-v01-locust, design decision 3) -----------------------------------------------------
@@ -636,31 +722,27 @@ namespace Fpv450.Assets
         /// Unity draws LOD i while the object's screen-relative height stays above that LOD's transition height
         /// (scaled by the quality level's lodBias), and culls it below the last one. The height of an object of
         /// size s at distance d is s / (2 d tan(fov / 2)), so each metadata distance becomes that height, with s
-        /// the longest side of the bounds, which is also what the group's size is set to.
+        /// the longest side of the bounds, which is also what the group's size is set to. Unity holds transition
+        /// heights to (0, 1], so an asset taller than the screen at its first switch distance (a 12 m ground patch
+        /// switching at 8 m: 1.3) would be clamped and switch late; there s is reduced until that first height is
+        /// 1. Only the ratio s / d reaches Unity, so every switch distance is kept either way.
         /// </summary>
-        static void EnsureLodGroup(GameObject root, AssetPhysicsMeta meta, Renderer[] renderers)
+        static void EnsureLodGroup(GameObject root, AssetPhysicsMeta meta, Renderer[][] renderers)
         {
-            float size = Mathf.Max(meta.bounds.size.x, meta.bounds.size.y, meta.bounds.size.z);
+            float firstFar = renderers.Length > 1 ? meta.lods[1].switchDistanceM : meta.cullDistanceM;
+            float size = Mathf.Min(Mathf.Max(meta.bounds.size.x, meta.bounds.size.y, meta.bounds.size.z),
+                2f * firstFar * Mathf.Tan(VerticalFovDeg * 0.5f * Mathf.Deg2Rad));
             var lods = new LOD[renderers.Length];
             for (int i = 0; i < lods.Length; i++)
             {
                 float farDistance = i + 1 < lods.Length ? meta.lods[i + 1].switchDistanceM : meta.cullDistanceM;
-                lods[i] = new LOD(RelativeHeight(size, farDistance), new[] { renderers[i] });
+                lods[i] = new LOD(RelativeHeight(size, farDistance), renderers[i]);
             }
             LODGroup group = Ensure<LODGroup>(root);
             group.fadeMode = LODFadeMode.None;
+            group.SetLODs(lods); // recomputes the size and reference point from the renderers, so they are set after it
             group.localReferencePoint = meta.bounds.center;
             group.size = size;
-            group.SetLODs(lods);
-            // SetLODs recalculates the reference point and size from the renderers' bounds. The mesh LODs' agree with
-            // the metadata's within float noise (and the prefabs keep what SetLODs wrote); an impostor's card reaches
-            // past them (its cell's frame, what it sweeps as it turns), which would move every switch distance, so
-            // the metadata's are put back.
-            if (Mathf.Abs(group.size - size) > BoundsToleranceM || (group.localReferencePoint - meta.bounds.center).magnitude > BoundsToleranceM)
-            {
-                group.localReferencePoint = meta.bounds.center;
-                group.size = size;
-            }
         }
 
         static float RelativeHeight(float size, float distance) =>
@@ -840,6 +922,20 @@ namespace Fpv450.Assets
             });
             if (meta.lods.Length == 0)
                 throw new FormatException($"{what}: no LODs");
+            meta.micro = Items(json, "micro", what, (micro, at) =>
+            {
+                var entry = new AssetPhysicsMeta.MicroMesh
+                {
+                    lod = (int)Json.Num(micro, "lod", at),
+                    name = Json.Str(micro, "name", at),
+                    kind = Json.Str(micro, "kind", at),
+                    count = (int)Json.Num(micro, "count", at),
+                    tris = (int)Json.Num(micro, "tris", at),
+                };
+                if (entry.lod < 0 || entry.lod >= meta.lods.Length)
+                    throw new FormatException($"{at}: micro mesh {entry.name} names LOD {entry.lod}, which does not exist");
+                return entry;
+            });
             meta.cullDistanceM = Json.Num(json, "cull_distance_m", what);
             meta.materials = Items(json, "materials", what, (slot, at) => new AssetPhysicsMeta.MaterialSlot
             {

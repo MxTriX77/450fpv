@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "kind": "ground",
+  "shader": "Universal Render Pipeline/Lit",
+  "seed": 4,
+  "size_m": 12,
+  "output_px": 2048,
+  "soil": { "texture_set": "polyhaven/brown_mud_02", "tile_size_m": 1.3, "albedo_target": "#4a463f" },
+  "cover": { "texture_set": "texturecan/ground_0018", "tile_size_m": 2.0, "gap_share": 0.25, "gap_albedo": "#3a3227" },
+  "patches": {
+    "bare": { "params": "assets-src/surfaces/S04_patch.json" },
+    "green": { "params": "assets-src/surfaces/S04_patch.json", "tint": "#7f8a4e" },
+    "lodging": { "azimuth_deg": 25, "bias": 0.3 }
+  },
+  "albedo_target": "#7a7055",
+  "tint": [1.0, 1.0, 1.0, 1.0],
+  "detail": { "texture_set": "texturecan/ground_0018", "tile_size_m": 2.0 }
+}

@@ -118,7 +118,7 @@ The drone is **0.574 m nose-first and 0.706 m on the diagonal**, and about **0.5
 ### Physics, shared (the pipeline's terms)
 
 - **Collision** (meta schema 1: boxes, cylinders, capsules, spheres; each with a material and a landable flag): a car is 20–35 primitives: the lower body as 3 boxes (front, cabin, rear sections following the plan taper) from the sill to the belt line; the bonnet, boot lid and roof as thin boxes (0.02 m) on top; the A, B and C pillars as capsules (r 0.04–0.05 m); glass that remains as thin boxes (0.005 m); four wheel cylinders; bumpers as boxes; inside, the seats, headrests and dashboard as boxes and the steering wheel as a thin cylinder (they matter as soon as a window is open). Torn parts add thin boxes (folded bonnet, sprung door at its angle, a flap) and thin capsules (hanging wiring r 0.005 m, trim strips, roof-rack tubes r 0.01 m, bare bows r 0.02 m, seat springs). A truck adds the frame as two boxes, the cab as 3–5 boxes, the bonnet, the bed floor and sides as boxes, the bows as capsule arcs (5–7 segments each).
-- **Material ids** (closed list in `assets-src/physics_materials.json`): body panels, roof, bonnet, doors, torn edges: `sheet_metal` (0.7 mm sheet; its edge cuts the fiber); frames, bumpers on the classics, rims, axles, bows, seat frames and springs, roof racks: `steel`; remaining glass panes and the crazed windscreen: `glass`; R08 platform boards: `timber`; hanging wiring: `cable`. **Proposed (physics sign-off, see Open points):** `rubber` (tyres), `plastic` (bumper covers, lamp housings, dashboards, trim), `fabric` (seats, headliners, the canvas tilt; the same id the houses-and-yard sheet proposes for tarps), `glass_crumbs` (the crumb layer as a ground cover).
+- **Material ids** (closed list in `assets-src/physics_materials.json`): body panels, roof, bonnet, doors, torn edges: `sheet_metal` (0.7 mm sheet; its edge cuts the fiber); frames, bumpers on the classics, rims, axles, bows, seat frames and springs, roof racks: `steel`; remaining glass panes and the crazed windscreen: `glass`; R08 platform boards: `timber`; hanging wiring: `cable`. **Added by the physics sign-off** (review-materials.md §2, in the archived change `p1-pipeline-hardening`): `rubber` (tyres), `plastic` (bumper covers, lamp housings, dashboards, trim), `fabric` (seats, headliners, the canvas tilt; the id of the houses-and-yard sheet's tarps); the crumb layer is the `asphalt` surface's cover, nothing on the asset (`glass_crumbs` is mapped there).
 - **Wind volumes** (bluff bodies; porosity = open-area fraction): lower body 0 in every state; the greenhouse (belt line to roof) 0 with its glass in, 0.35 with the side glass gone (A, as M: side windows about half the greenhouse side, seats and headrests blocking about a third of the passage; assumed), 0.45 with all glass gone (B), 0.55 burnt with the seats down to frames (F); the underbody gap is free air. Trucks: cab 0 (glass in) or 0.3 (glass gone, doors open); engine and bonnet 0.1 (grille); chassis between the axles 0.6; bed side boards 0; tilt 0 intact, 0.4 torn, **0.93 as bare bows** (derived: 0.04 m tubes at 0.975 m, plus the top ties). Wake (terrain.md R0): recirculation 2–3 heights behind, a gusty shadow to about 10 heights: cars 3–5 m and about 15 m, the ЗИЛ about 5–7 m and 24 m, the Урал 6–9 m and 30 m.
 - **Snag hazards** (meta kinds): `edge` polylines on torn sheet edges (radius 0.35 mm, half a 0.7 mm skin), fragment-hole petals ≥ 0.08 m, the folded bonnet's edges, sprung door edges (a hemmed edge, r 1.5 mm), bumpers' ends, roof-rack tubes (r 0.01 m), bare bows (r 0.02 m), burnt rim flanges (r 3 mm); `hook` members for free ends: hanging wiring (r 3–6 mm), a whip antenna (classics, optional, r 2 mm, 0.6–1.0 m), burnt seat springs (wire r 2 mm), torn trim strips, a mirror hanging on its cable, bead-wire rings on the ground, torn canvas flaps (R09 B). Torn metal is sharp: the fiber dragged over it should cut more readily than over branches (knowledge.md §7.4).
 - **Landable surfaces:** car roofs, flat bonnets and boot lids (slopes 3–12°), truck cab roofs, truck bonnets, truck beds; each `landable: true` in its collision box. A pushed-down (N) or burnt sagging roof is still landable but uneven and may carry glass crumbs. Sheet steel is hard, slippery and drums: `sheet_metal` gives 2e4 N/m, so the drone's 49 N weight (5 kg class) dents a roof about 2.5 mm before it holds (derived from the material row). Folded, torn or sprung parts are not landable.
@@ -306,7 +306,7 @@ Glass and the struck corner first (the bonnet corner and the lamp), then the pan
 
 ### Physics role
 - **Collision:** the shared car plan, 24–30 primitives; the rack as 4 capsules on 4 short posts; the folded bonnet flap a thin box at its angle; the chrome bumpers boxes (`steel`).
-- **Material ids:** body `sheet_metal`; bumpers, rims, rack, seat frames `steel`; windscreen `glass` while crazed in place; tyres `proposed:rubber`; seats `proposed:fabric`.
+- **Material ids:** body `sheet_metal`; bumpers, rims, rack, seat frames `steel`; windscreen `glass` while crazed in place; tyres `rubber`; seats `fabric`.
 - **Gaps:** none (side windows 0.43–0.45 m tall; shared gap table). The rear-row cabin gap applies only if the generator removes or opens both rear doors.
 - **Wind volumes:** shared; height 1.44 m: recirculation 3–4 m, shadow about 15 m.
 - **Snag hazards:** the bonnet flap's torn edges, hole petals, the rack tubes and their ends, the bumper overriders, a whip antenna (optional), wipers; B: sprung door edges, hanging wiring; F: seat springs, rim flanges, bead-wire rings.
@@ -367,7 +367,7 @@ As shared. The large tailgate glass and the wedge nose's plastic go first; the b
 
 ### Physics role
 - **Collision:** the shared car plan with a single sloping bonnet box and the tailgate as a raked box.
-- **Material ids:** shared; bumpers `proposed:plastic` (B, A), their beams `steel` (F).
+- **Material ids:** shared; bumpers `plastic` (B, A), their beams `steel` (F).
 - **Gaps:** none (0.42 m windows); the rear-row cabin gap only if generated (five-door).
 - **Wind volumes:** shared; height 1.40 m.
 - **Snag hazards:** shared; cracked bumper edges (plastic, blunt).
@@ -483,7 +483,7 @@ As N: the bonnet skin peels away from its inner frame; the plastic bumper covers
 
 ### Physics role
 - **Collision:** the shared car plan; the standing bonnet frame as two thin boxes (frame and fold); a hanging bumper cover as a thin box at its angle.
-- **Material ids:** shared; covers and lamp units `proposed:plastic`.
+- **Material ids:** shared; covers and lamp units `plastic`.
 - **Gaps:** none by default; with both rear doors off (hatchback or sedan), the rear-row cabin gap is recorded (shared table).
 - **Wind volumes:** shared; height 1.43 m.
 - **Snag hazards:** shared; the bonnet frame's lightening-hole edges (`edge`), the wiring loop (`hook`), the hanging mirror, the hanging cover's torn edge.
@@ -704,7 +704,7 @@ The timber bed fails first (it splinters in B and burns in F); the steel cab den
 
 ### Physics role
 - **Collision:** frame 2 boxes; cab 4 boxes (lower, upper, roof, rear wall); bonnet and wings 3 boxes; 6 wheel cylinders (the duals as one wide cylinder per side); platform floor 1 box, sides 3 boxes (each drop side its own box at its angle); in F the floor becomes 6–9 cross-member boxes and char stubs.
-- **Material ids:** cab, bonnet `sheet_metal`; frame, cross members, rims `steel`; boards `timber`; tyres `proposed:rubber`.
+- **Material ids:** cab, bonnet `sheet_metal`; frame, cross members, rims `steel`; boards `timber`; tyres `rubber`.
 - **Gaps:** none (shared table: the cab is a pocket; under the truck no clear crossing; the F floor's 0.40–0.50 m gaps are below 0.574 m).
 - **Wind volumes:** cab 0 (glass in) / 0.3 (glass gone); bonnet 0.1; chassis 0.6; side boards 0; F side boards gone, floor 0.8 (cross members only). Height 2.4 m: recirculation 5–7 m, shadow about 24 m.
 - **Snag hazards:** split board ends and hinge pins, sprung cab door edges, the windscreen frame, B and F: hanging wiring; F: char stubs and nails on the cross members, rim flanges, bead wires.
@@ -776,7 +776,7 @@ The canvas goes first (torn in B, burnt in F), then the glass and the cab's shee
 
 ### Physics role
 - **Collision:** frame 2 boxes; cab 4–5 boxes; bonnet and wings 3 boxes; 6 wheel cylinders; platform floor, sides and tailgate 5 boxes; the tilt (A, B) as 3 boxes (two sides, a top) following the canvas within 2 cm; bows (F, variant 2) as capsule arcs, 5–7 segments each; torn canvas flaps as thin boxes.
-- **Material ids:** cab, bonnet `sheet_metal`; frame, platform, bows, rims `steel`; tilt `proposed:fabric`; benches `timber`; tyres `proposed:rubber`.
+- **Material ids:** cab, bonnet `sheet_metal`; frame, platform, bows, rims `steel`; tilt `fabric`; benches `timber`; tyres `rubber`.
 - **Gaps (F and variant 2, bows bare):**
   - side bays between bows above the side boards: 0.975 − 0.04 = **0.935 m wide** × (1.55 − 0.62 − about 0.10 m bow shoulder) = **0.83 m tall**; narrowest 0.83 m ≥ 0.706: **passes at any yaw**, 62 mm a side on the diagonal, 128 mm nose-first; 0.83 m above the 0.55 m drone height
   - rear opening above the closed tailgate: **2.33 × 0.83 m**, passes at any yaw; with the tailgate down 2.33 × 1.45 m
@@ -860,8 +860,8 @@ Not applicable (they are the damage); burnt fragments follow `weeks_since_fire` 
 
 ### Physics role
 - **Collision:** each fragment is 1–3 primitives (a door a box; a bumper a box or capsule; a wheel a cylinder; a trim strip a capsule; a bead-wire ring 6–8 capsule segments, r 3–4 mm). Fragments are static obstacles; pieces under 0.10 m are visual only (below the leg foot's scale; assumed).
-- **Material ids:** shards, doors, lids `sheet_metal`; bumpers (classic), rims, bead wires, seat frames `steel`; covers, lamps `proposed:plastic`; tyres `proposed:rubber`; the fallen windscreen `glass`.
-- **The crumb layer** is not per-crumb physics (a 10 mm crumb is smaller than a leg foot): it is a ground cover, **`proposed:glass_crumbs`**, with μ 0.30/0.20 (assumed: loose glass cubes roll under a polymer foot; the same values as the earthworks sheet's S11 crumb cover), rigid on asphalt, so a landing on crumbs slides more readily than on bare asphalt (μ 0.65/0.55, S11).
+- **Material ids:** shards, doors, lids `sheet_metal`; bumpers (classic), rims, bead wires, seat frames `steel`; covers, lamps `plastic`; tyres `rubber`; the fallen windscreen `glass`.
+- **The crumb layer** is not per-crumb physics (a 10 mm crumb is smaller than a leg foot): it is a ground cover, **the crumb cover of the `asphalt` surface** (S11; nothing on the asset), with μ 0.30/0.20 (assumed: loose glass cubes roll under a polymer foot; the same values as the earthworks sheet's S11 crumb cover), rigid on asphalt, so a landing on crumbs slides more readily than on bare asphalt (μ 0.65/0.55, S11).
 - **Gaps:** none.
 - **Wind volumes:** none (low pieces); a standing bonnet or door in the field is a solid thin box.
 - **Snag hazards:** torn shard edges (`edge`, r 0.35 mm), bead-wire rings (`hook`/`edge`, r 3 mm), trim strips, hanging bumper covers, the fallen windscreen's torn PVB edge (`edge`, r 0.4 mm).
@@ -885,23 +885,23 @@ Driven by the vehicle's `debris_radius`, `debris_count`, `crumb_cover`, `burst_d
 | `edge_jitter` | m | 0–2 | 1.0 | Raggedness of the field's outer edge |
 
 ### Open points
-- `glass_crumbs` as a ground cover (not a material on a collision shape) is the proposal; whether it lives in the surface table as a cover channel (as S11 does) or as a material row is the physics engineer's call.
+- The crumb layer: settled by the physics sign-off (review-materials.md §2): the `asphalt` surface's cover (S11), not a material row; crumbs on a roof or a seat stay visual (a deviation the sign-off records).
 - The 0.10 m visual-only threshold for small fragments is assumed; settled with the leg contact model.
 
 ## Open points for the whole sheet
 
-**Proposed physics material ids** (none invented in a generator; the physics engineer adds them to `physics_materials.json` with values):
-- `rubber`: tyres (R01–R09, K07). Compliant: a leg on a tyre sinks a few millimetres; μ high (about 0.8–1.0 for polymer on rubber, assumed); the edge radius is the tyre's own.
-- `plastic`: bumper covers, lamp housings, dashboards, trim (R02–R07, K07). Rigid at drone loads, μ about 0.35/0.30 (assumed), cracked edges blunt (r 1–2 mm).
-- `fabric`: seats, headliners and the canvas tilt (R01–R09). The same id the houses-and-yard sheet proposes for tarps: soft, wraps, no bounce; a torn canvas flap is a soft snag.
-- `glass_crumbs`: the K07 crumb layer as a ground cover, μ 0.30/0.20 (assumed, matching the earthworks sheet's S11 cover).
+**Physics material ids: settled** by the physics sign-off (review-materials.md §2, §6; none is invented in a generator; the values are in `physics_materials.json`):
+- `rubber`: tyres (R01–R09, K07). Compliant: a leg on a tyre sinks a few millimetres; μ high; the edge radius is the tyre's own.
+- `plastic`: bumper covers, lamp housings, dashboards, trim (R02–R07, K07). Rigid at drone loads, cracked edges blunt (r 1–2 mm).
+- `fabric`: seats, headliners and the canvas tilt (R01–R09), the id of the houses-and-yard sheet's tarps: soft, wraps, no bounce; a torn canvas flap is a soft snag.
+- The K07 crumb layer: the `asphalt` surface's cover, μ 0.30/0.20 (the earthworks sheet's S11 cover); `glass_crumbs` is mapped there, not added.
 - Glass breakability (a crazed windscreen giving way under a leg, a shard in a frame snapping) stays a later property, as review P3-6 says.
 
 **For the orchestrator:**
 - **ID collision (resolved by the orchestrator):** the road kit is now RD01–RD03 in the asset list; R01–R09 are the vehicles only.
 - **R06 size (resolved):** the asset list now carries the published 4.39 × 1.68 × 1.42 m.
 - **R09 gaps (resolved):** asset-list §9 now says the bare-bow cage of R09 has fly-through bays.
-- **Fragment holes in collision:** holes ≤ 0.25 m stay closed in the collision (shared Geometry rule); this is a deliberate deviation from "collision follows the visual" and needs the physics engineer's sign-off.
+- **Fragment holes in collision (settled):** holes ≤ 0.25 m stay closed in the collision (shared Geometry rule), a deliberate deviation from "collision follows the visual" that the physics sign-off accepts (review-materials.md §5): one prop disc is 0.254 m and the inner panel sits 80–120 mm behind, so nothing but a blade tip enters.
 
 **Body profile stations (buildability review):** the shell's shape per model (`overhang_front`, `overhang_rear`, `side_profile`, `plan_profile`, `belt_line`, `sill_height`, `tumblehome`) is not in this sheet; the rows give the overall sizes, the wheelbase, the window heights, the bonnet, roof and windscreen sizes, which fix only part of the silhouette. The asset-artist derives the stations at the start of each model's change from public dimensioned side, front and top views (labelled published or derived), so the clean base is a loft through params and never a hand-sculpted shell; R01's come first and are checked against M at the side-by-side.
 

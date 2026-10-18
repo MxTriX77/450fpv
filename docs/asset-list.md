@@ -192,6 +192,19 @@ Sizes from [knowledge.md](knowledge.md) §9.2. Every model is built once, as a c
 | D01 | **Svinoriz 10 Opto**: 10" X frame, 3-blade props, coil underneath, two battery packs, generic payload on top, 0° camera, legs | legs on / legs off (with launch stand) | phase 5 |
 | D02 | Launch stand (D-022): an X-shaped steel base with four posts about 0.25 m high, one under each motor (on the diagonals, 0.226 m from the centre), sized from `drone.json`; unanchored | — | phase 5 |
 
+## 12. Fortifications (added by D-035; an object sheet `docs/object-sheets/fortifications.md` comes first)
+
+The pilot (2026-10-18): the villages of today carry concertina wire ("єгоза"), dragon's teeth, a couple of anti-tank hedgehogs, and trenches in the fields. Built as the real thing (researched: sizes, steel sections, concrete, how they stand, sag and fall), never as game props. Sizes below are the sheet's pinned defaults from published sources, with their labels; the sheet holds the ranges, derivations and both readings' rulings.
+
+| ID | Asset | Variants or states | Ref | Key size | Physics | Pri |
+|---|---|---|---|---|---|---|
+| F01 | Concertina wire (єгоза): a single coil run on pickets, a double-stacked run, a coil along a fence or wall top | I (taut) / D (torn, sagging, trampled flat in places) | R | coil Ø 0.90 m on pickets, 0.45 m on a fence top (published); 56 turns at a 0.268 m pitch stretched (derived); tape 16 mm across, barbs every 35 mm (published); pickets every 3.8 m (derived) | the fiber's and the props' worst snag: every strand an `edge` with the barb pitch recorded, coils as wind-porous volumes, gaps none (a coil is never passable) | P1 (world) |
+| F02 | Dragon's teeth (зуби дракона): concrete pyramids in 3–5 staggered rows, some toppled or chipped | I / D | R | 1.0 m tall (published 0.8–1.2 m), 1.2 m base (derived), 0.3 m top (assumed), 1.5 t (derived); 4 staggered rows, 2.0 m centres in and between rows (published) | `concrete` collision, not landable, `edge` snags on arrises, the spaces between teeth are real gaps measured against the drone | P1 (world) |
+| F03 | Anti-tank hedgehog (протитанковий їжак): welded angle iron or rail, singles and pairs on roads at settlement edges and at checkpoints | I / D (bent, rusted) | R | members 1.8 m (published); 1.04 m tall, 1.47 m across the feet (derived); Р50 rail (assumed); about 0.29 t (derived) | `steel` collision, `edge` snags on every member end, the spaces between half-arms as gaps | P1 (world) |
+| F04 | Checkpoint kit: concrete road blocks, sandbag positions, a lifting barrier | I / D | R | ФБС 24.6.6 blocks 2.38 × 0.60 × 0.58 m, 1.96 t (published, ГОСТ 13579-78); sandbags 0.48 × 0.30 × 0.12 m filled, 24 kg (derived); barrier arm 4.0 m (published), underside 1.0 m (derived) | `concrete`, `sandbag` (a new id, accepted by the physics reading), landable block tops | P2 |
+
+Trenches and firing positions in the fields are E01–E04 placed by the layout (WLD-01), not new assets.
+
 ## Totals
 
 | Group | Base assets | Variants and states (approx.) |

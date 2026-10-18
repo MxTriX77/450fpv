@@ -51,7 +51,7 @@ def test_leaf_masses_round_a_twig_are_fitted_with_pieces_that_pass_the_shell_rul
     data = {"materials": [{"slot": "twig", "visual": "bark_shrub", "physics": "twig"},
                           {"slot": "leaf", "visual": "leaf_shrub", "physics": "twig"}],
             "collision": [meta.capsule(a, b, r, "twig") for a, b, r in pieces], "gaps": []}
-    problems, lines = audit.run(data, mesh, {"leaf_shrub"}, 0.2)
+    problems, lines = audit.run(data, mesh, card_visuals={"leaf_shrub"}, card_reach_m=0.2)
     assert problems == []
     assert lines[0].startswith(f"audit twig shell: {len(pieces)} pieces (")
 
@@ -72,7 +72,7 @@ def test_a_mass_that_24_pieces_do_not_hold_escalates_to_the_first_cap_that_passe
     assert (cap, passes) == (32, True) and 24 < len(pieces) <= 32
     data = {"materials": [{"slot": "twig", "visual": "bark_shrub", "physics": "twig"}],
             "collision": [meta.capsule(a, b, r, "twig") for a, b, r in pieces], "gaps": []}
-    assert audit.run(data, mesh, (), None)[0] == []
+    assert audit.run(data, mesh)[0] == []
 
 
 def test_no_fit_returns_more_than_64_pieces():

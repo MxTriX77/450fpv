@@ -6,13 +6,13 @@ from the hook's encoded list; footage names, dates, regional coordinates and ref
 are built at run time; test ids are indices, never values. test_own_sources_hold_no_planted_value
 holds this file and the hook to that.
 """
+import collections.abc
 import hashlib
 import os
 import re
 import shutil
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 import pytest
@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[3]
 HOOKS = ROOT / ".githooks"
 PRECOMMIT = ROOT / "tools" / "hygiene" / "precommit.py"
 sys.path.insert(0, str(PRECOMMIT.parent))
+import bench  # noqa: E402
 import precommit  # noqa: E402
 
 ENV = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
@@ -28,7 +29,7 @@ LATIN = [t for t in precommit.MESSENGER_TERMS if t.isascii()]
 CYRILLIC = [t for t in precommit.MESSENGER_TERMS if not t.isascii()]
 LFS_HOOKS = ("pre-push", "post-checkout", "post-commit", "post-merge")
 OWN = [f".githooks/{h}" for h in ("pre-commit", "commit-msg", *LFS_HOOKS)] + [
-    "tools/hygiene/precommit.py", "tools/hygiene/tests/test_precommit.py"]
+    "tools/hygiene/precommit.py", "tools/hygiene/bench.py", "tools/hygiene/tests/test_precommit.py"]
 
 
 def j(*parts):
@@ -380,47 +381,16 @@ def test_later_commits_are_scanned_too(repo):
     assert git(repo, "rev-parse", "HEAD").stdout == head
 
 
-def clean_tree(count):
-    """count clean files of a few kilobytes each: C#, Python and object-sheet Markdown."""
-    files = {}
-    for i in range(count):
-        kind = i % 3
-        if kind == 0:
-            body = "".join(f"        public float Value{j} = {j}.5f; // rotor {j} cm\n" for j in range(100))
-            files[f"unity/Assets/_Project/Scripts/Gen{i}.cs"] = f"public class Gen{i}\n{{\n{body}}}\n"
-        elif kind == 1:
-            body = "".join(f"    total += {j} * 0.25  # sample {j}\n" for j in range(100))
-            files[f"tools/gen/gen_{i}.py"] = f"def gen_{i}():\n    total = 0\n{body}    return total\n"
-        else:
-            body = "".join(f"- Wall {j}: {j * 2} cm thick, seen from 50 m (D-028).\n" for j in range(100))
-            files[f"docs/object-sheets/sheet_{i}.md"] = f"# Sheet {i}\n\n{body}"
-    return files
+def test_200_files_and_a_full_reference_commit_clean(repo):
+    """The benchmark's workload commits through both hooks with no finding.
 
-
-def test_200_files_scan_in_under_2_s(repo):
-    # A reference/ the size of the real one, so the stem rule runs at full cost.
-    plant_reference(repo, [f"{STEM}-{i:04d}.jpg" for i in range(1000)])
-    files = clean_tree(200)
-    for rel, text in files.items():
-        (repo / rel).parent.mkdir(parents=True, exist_ok=True)
-        (repo / rel).write_text(text, encoding="utf-8", newline="\n")
-    assert git(repo, "add", "--", "unity", "tools", "docs").returncode == 0
-    staged = git(repo, "diff", "--cached", "--name-only").stdout.split()
-    assert len(staged) == 200
-
-    times = []
-    for _ in range(3):
-        start = time.perf_counter()
-        scan = subprocess.run([sys.executable, str(PRECOMMIT)], cwd=repo, env=ENV, capture_output=True)
-        times.append(time.perf_counter() - start)
-        assert scan.returncode == 0, scan.stderr
-    start = time.perf_counter()
+    Its 2 s budget is not asserted here: wall time under other agents' load or on battery is
+    not evidence (TST-03, PLT-07). `python tools/hygiene/bench.py` prints it with its margin.
+    """
+    assert len(bench.stage_workload(repo)) == 200
     result = git(repo, "commit", "-q", "-m", "feat: add generated files")
-    commit_time = time.perf_counter() - start
-    assert result.returncode == 0, result.stderr
-    print(f"\n200 staged files: scan {', '.join(f'{t:.3f}' for t in times)} s; "
-          f"full commit through both hooks {commit_time:.3f} s")
-    assert max(times) < 2.0
+    assert_passes(result, repo)
+    assert result.stderr == ""
 
 
 @pytest.mark.parametrize("target", ["HEAD", "origin/unity/main merged with HEAD"])
@@ -740,12 +710,53 @@ def test_reference_stems_match_whole_tokens_in_any_case():
         assert not stems.hint(text), i
 
 
+class CountingIndex(collections.abc.Mapping):
+    """A ReferenceStems index that counts the work done on it: every route to a stem runs here.
+
+    A probe per membership test, a key per key handed out, a stem per stem in a bucket handed out.
+    """
+
+    def __init__(self, by_run):
+        self.by_run, self.probes, self.keys_read, self.stems_read = by_run, 0, 0, 0
+
+    def __contains__(self, key):
+        self.probes += 1
+        return key in self.by_run
+
+    def __getitem__(self, key):
+        self.stems_read += len(self.by_run[key])
+        return self.by_run[key]
+
+    def __iter__(self):
+        for key in self.by_run:
+            self.keys_read += 1
+            yield key
+
+    def __len__(self):
+        return len(self.by_run)
+
+
 def test_reference_stems_scale_with_the_text_not_the_folder():
-    stems = precommit.ReferenceStems({f"{STEM}-{i:05d}" for i in range(20000)})
-    text = "".join(f"- Wall {i}: {i * 2} cm thick, seen from 50 m.\n" for i in range(2000))
-    start = time.perf_counter()
-    assert not stems.hint(text)
-    assert time.perf_counter() - start < 0.2
+    """hint probes the index once per distinct token of the text and reads only the stems the
+    text names: the same work for a 10- and a 10,000-file reference/, growing with the text.
+
+    Work is counted, not timed: wall time under other agents' load or on battery is not
+    evidence (TST-03, PLT-07). `python tools/hygiene/bench.py` times the whole scan.
+    """
+    names = [f"{STEM}-{i:08d}" for i in range(10000)]  # each indexed by its 8-digit sequence
+    wall = [f"- Wall {i}: {i * 2} cm thick, seen from 50 m.\n" for i in range(2000)]
+    texts = ["".join(wall[:200]), "".join(wall), "".join(wall) + "see " + ", ".join(names[:3])]
+    # (hint, probes, keys read, stems read). 200 lines hold the numbers 0-199, the even 200-398
+    # and 6 words (wall cm thick seen from m): 306 tokens; 2,000 lines: 3,006; naming 3 stems
+    # adds see, qz, hygiene, probe, 07 and the 3 sequences: 3,014.
+    expected = [(False, 306, 0, 0), (False, 3006, 0, 0), (True, 3014, 0, 3)]
+    for files in (10, 10000):
+        stems = precommit.ReferenceStems(set(names[:files]))
+        by_run = stems.by_run
+        for i, (text, want) in enumerate(zip(texts, expected)):
+            stems.by_run = index = CountingIndex(by_run)
+            got = (stems.hint(text), index.probes, index.keys_read, index.stems_read)
+            assert got == want, (files, i)
 
 
 def test_rules_apply_only_in_their_scope():

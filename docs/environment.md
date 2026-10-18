@@ -34,6 +34,8 @@ The pinned toolchain for the Unity restart, as installed and checked in phase 0 
 
 **Unity batchmode** can't run while an editor has the project open (`unity/Temp/UnityLockfile`).
 
+**Wait for Unity.** `Unity.exe` is a GUI program: PowerShell returns at once, with no exit code, unless its output is piped (`| Out-Host`, `| Tee-Object <log> | Out-Host` or `| Select-String`). A redirect (`*>`, `>`) detaches it the same way: the run goes on in the background and its log is lost. Two agents hit this on 2026-10-18.
+
 **Keep Unity Hub running for batchmode.** The Hub is an MSIX package, so the Personal licence it activated lives in its virtualised AppData, which the editor's own licensing client can't read. The editor gets the licence only through the Hub's licensing-client pipe while the Hub is running; with the Hub closed, batchmode fails with `No valid Unity Editor license found` (exit 198) and leaves a stale `unity/Temp/UnityLockfile` behind (delete it once no Unity process runs). Found in phase 0 (2026-10-18).
 
 **Licence in batchmode:** checked on 2026-10-17 by creating a throwaway project with `-batchmode -nographics -quit -createProject` (exit 0, entitlements resolved). The log warns `Code 10 while verifying Licensing Client signature` for the Hub's MSIX licensing client; it's harmless, and licensing still succeeds.
@@ -63,11 +65,10 @@ python -m pip install --user -r tools/requirements.txt
 - **Used by this repo:** about **0.28 GiB**, all of it the Godot attempt's 164 LFS objects (measured at the `godot-final` push). The Unity line adds its CC0 textures, FBX exports and textures through LFS.
 - **Exact account usage** needs the `user` token scope, which `gh` doesn't have. Check it at github.com → Settings → Billing → Git LFS before a large asset push. Every local worktree shares one LFS object store, so agents don't spend bandwidth.
 
-## Godot-era tools no longer needed
-- Godot 4.7.2 (.NET build), installed through winget as `GodotEngine.GodotEngine.Mono`. Keep it only to run the frozen attempt from its own checkout.
-- The Godot add-ons and modules: Terrain3D, Jolt Physics.
-- Godot's C# project generator (the old csproj workaround, knowledge.md §14.6).
-- The Godot-side Blender reference scripts (`tools/reference/track_attitude.py`, `wind_stats.py`, `rain_stats.py` on `godot-final`). They stay readable from the tag; the feed and wind studies they fed are already measured.
+## Godot-era tools
+- **Kept until G4:** Godot 4.7.2 (.NET build), installed through winget as `GodotEngine.GodotEngine.Mono`, and a `godot-final` worktree (`git worktree add <scratchpad>/godot godot-final`, never a branch), for FEED-00's A/B: one identical input frame through both feeds, stage by stage (D-037).
+- **Not needed:** the Godot add-ons and modules (Terrain3D, Jolt Physics), Godot's C# project generator (the old csproj workaround, knowledge.md §14.6), and `tools/reference/track_attitude.py` on `godot-final` (the attitude study is measured).
+- **To port, not to run:** `wind_stats.py`, `wind_history_fixture.py` and `rain_stats.py` on `godot-final` are Blender Python; PHY-14 grades the wind targets with them, so phase 7c ports them to plain Python under `tools/` with their self-checks (D-037).
 
 ## Unity MCP
 - Claude Code's Unity plugin can drive a **running** editor through the `com.unity.pipeline` package and a beta `unity` CLI. Neither is installed.

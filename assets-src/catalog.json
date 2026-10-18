@@ -7,6 +7,12 @@
       "variants": ["K01_whole"],
       "materials": { "brick": "brick_red" }
     },
+    "S04": {
+      "class": "surfaces",
+      "generator": "ground_patch",
+      "variants": ["S04_patch"],
+      "materials": { "ground": "belt_straw", "soil": "belt_soil", "straw": "straw", "edge": "belt_straw" }
+    },
     "V01": {
       "class": "vegetation",
       "generator": "tree",

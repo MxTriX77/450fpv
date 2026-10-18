@@ -155,6 +155,7 @@ MonoBehaviour:
   - mesh: K01_whole_LOD1
     tris: 12
     switchDistanceM: 3
+  micro: []
   cullDistanceM: 120
   materials:
   - slot: brick

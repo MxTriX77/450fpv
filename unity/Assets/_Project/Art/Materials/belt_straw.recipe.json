@@ -1,0 +1,255 @@
+{
+  "material": "belt_straw",
+  "kind": "ground",
+  "formula": "ground v6: cover tiled at tile_size_m and at tile_size_m*phi, averaged, stretched 1+bias along the lodging azimuth and rotated to it; soil tiled at its tile_size_m, gained to its albedo_target when given; bare = the asset's patch layout (lib/patches.py): the outlines filled times FLOOR_EDGE + (1 - FLOOR_EDGE) * the ramp of each core filled and blurred with sigma patches.FEATHER_M / 6, so 255 on the outline shrunk by the feather, FLOOR_EDGE at the outline and 0 outside it, mapped u = x / size_m + 0.5, v = z / size_m + 0.5 with v up the image; green = the asset's strips (lib/mat.py) filled and blurred with sigma mat.GREEN_FEATHER_M / 2; strewn masks clamp(2 m - c), c the cover luminance high-passed at STRAW_M, blended with LOBE_M value noise and stretched to 0-1: the bare mask (noise BARE_LOBES), times the floors' strewn straws (noise GAP_LOBES, m by LEVEL_STEPS bisection steps so that they cover FLOOR_STRAWS of the bare mask's soil), the lip (m = LIP_LEVEL * min(1, 2 * the outlines blurred with sigma LIP_M / 3) outside the outlines and 0 inside them, noise BARE_LOBES), the gaps between straws (m = sqrt(gap_share / 2), noise GAP_LOBES) and the strips shown (m = GREEN_LEVEL * green, noise GAP_LOBES); relief = the asset's relief (lib/mat.py) sampled on RELIEF_SAMPLES^2 and resized bicubic, h01 in 0-1; albedo = the cover times 1 - RELIEF_TONE (1 - h01) with the straw gain for albedo_target, the strips shown tinted to the green tint, the gaps the cover gained to gap_albedo (the soil without one), the soil under bare and the lip, then a global gain against clipping; normal composited the same with the cover normals rotated by the azimuth; mask R 0, G AO times 1 - RELIEF_AO (1 - h01), B 0, A 1 - roughness; detail albedo = the detail set's diffuse as grey at its size with a linear mean of 0.5; 8-bit sRGB albedos",
+  "pillow": "12.3.0",
+  "constants": {
+    "MAX_OUTPUT_PX": 2048,
+    "PHI": 1.618033988749895,
+    "LOBE_M": 0.4,
+    "STRAW_M": 0.05,
+    "GAP_LOBES": 0.0,
+    "BARE_LOBES": 0.5,
+    "FLOOR_EDGE": 0.55,
+    "FLOOR_STRAWS": 0.2,
+    "LEVEL_STEPS": 16,
+    "LIP_M": 0.4,
+    "LIP_LEVEL": 0.6,
+    "RELIEF_TONE": 0.45,
+    "RELIEF_AO": 0.4,
+    "RELIEF_SAMPLES": 256,
+    "GREEN_LEVEL": 0.6
+  },
+  "layout": {
+    "params": "assets-src/surfaces/S04_patch.json",
+    "inputs": {
+      "seed": 27,
+      "size_m": 12.0,
+      "share": 0.08,
+      "size_range_m": [
+        0.5,
+        2.0
+      ],
+      "vertices": 12,
+      "azimuth_deg": 25.0,
+      "aspect": [
+        1.5,
+        2.5
+      ],
+      "per_path": 3
+    },
+    "constants": {
+      "LAYOUT": "bare patches v2",
+      "FEATHER_M": 0.3,
+      "ANGLE_SPREAD_DEG": 45.0,
+      "RADIAL_JITTER": 0.35,
+      "MAX_EXTERIOR_DEG": 90.0,
+      "WINDOW_M": 0.3,
+      "REACH_M": 0.3,
+      "SEAM_M": 0.05,
+      "SHARE_TOLERANCE": 0.005,
+      "SHRINK": 0.75,
+      "PLACE_TRIES": 1000,
+      "SHAPE_TRIES": 200,
+      "PATH_GAP_M": [
+        0.3,
+        1.5
+      ],
+      "PATH_GAP_STEP_M": 0.1,
+      "PATH_TURN_DEG": 20.0,
+      "PATH_SIDE": 0.5,
+      "CLUSTER": 0.85,
+      "NEAR_M": [
+        1.0,
+        2.2
+      ],
+      "EPS": 1e-09
+    },
+    "green": {
+      "seed": 27,
+      "size_m": 12.0,
+      "share": 0.15,
+      "width_m": [
+        1.0,
+        3.0
+      ],
+      "length_m": [
+        3.0,
+        12.0
+      ],
+      "azimuth_deg": 25.0
+    },
+    "relief": {
+      "seed": 27,
+      "size_m": 12.0,
+      "cell_m": 0.125,
+      "relief_m": 0.04,
+      "azimuth_deg": 25.0,
+      "bias": 0.3
+    },
+    "fields": {
+      "FIELDS": "mat fields v1",
+      "TUSSOCK_M": 0.5,
+      "SWELL_M": 1.5,
+      "SWELL_SHARE": 0.5,
+      "GREEN_FEATHER_M": 0.5,
+      "GREEN_SPREAD_DEG": 10.0,
+      "BLOB_SATELLITES": 3,
+      "BLOB_OFFSET": 0.35,
+      "BLOB_SCALE": [
+        0.45,
+        0.8
+      ],
+      "GREEN_SAMPLE_M": 0.1,
+      "SHARE_TOLERANCE": 0.005,
+      "SHRINK": 0.75,
+      "STRIP_TRIES": 10000
+    }
+  },
+  "recipe": {
+    "schema": 1,
+    "kind": "ground",
+    "shader": "Universal Render Pipeline/Lit",
+    "seed": 4,
+    "size_m": 12,
+    "output_px": 2048,
+    "soil": {
+      "texture_set": "polyhaven/brown_mud_02",
+      "tile_size_m": 1.3,
+      "albedo_target": "#4a463f"
+    },
+    "cover": {
+      "texture_set": "texturecan/ground_0018",
+      "tile_size_m": 2.0,
+      "gap_share": 0.25,
+      "gap_albedo": "#3a3227"
+    },
+    "patches": {
+      "bare": {
+        "params": "assets-src/surfaces/S04_patch.json"
+      },
+      "green": {
+        "params": "assets-src/surfaces/S04_patch.json",
+        "tint": "#7f8a4e"
+      },
+      "lodging": {
+        "azimuth_deg": 25,
+        "bias": 0.3
+      }
+    },
+    "albedo_target": "#7a7055",
+    "tint": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "detail": {
+      "texture_set": "texturecan/ground_0018",
+      "tile_size_m": 2.0
+    }
+  },
+  "sources": {
+    "soil/ao": {
+      "name": "brown_mud_02_ao_2k.png",
+      "sha256": "16f6fa689c964651952714aedc88be4c2de3786aa271cb59000edbb3b8b0ffa4"
+    },
+    "soil/diffuse": {
+      "name": "brown_mud_02_diff_2k.png",
+      "sha256": "a00bad20b2c339bd3d2837b8ae80903c4646876bb4ec0cc960846a97b2d3d737"
+    },
+    "soil/normal": {
+      "name": "brown_mud_02_nor_gl_2k.png",
+      "sha256": "78e01270b222a96cc1433c8d4ba2b6fbbe24b296934b45d1ff6aa30cad647888"
+    },
+    "soil/roughness": {
+      "name": "brown_mud_02_rough_2k.png",
+      "sha256": "c2c7835ff92171d9141dd7a1884dbf3a00b5d989fe8ae05737ac6d5397c12572"
+    },
+    "cover/ao": {
+      "name": "ground_0018_ao_2k.jpg",
+      "sha256": "3a0ead2c87dc8e3ba337f2a0d134604c26547bcb765155946745377c05380633"
+    },
+    "cover/diffuse": {
+      "name": "ground_0018_color_2k.jpg",
+      "sha256": "8b50f97b98a90f276d4e62c855037540ef1358a030e25b3045bcabfded669886"
+    },
+    "cover/normal": {
+      "name": "ground_0018_normal_opengl_2k.png",
+      "sha256": "2418eba61f9966ef34bae4899c96d845a4865e6489a592317d2b07fa9f007498"
+    },
+    "cover/roughness": {
+      "name": "ground_0018_roughness_2k.jpg",
+      "sha256": "9191758c59d352d71fc6434e78bebf01380515b13c0883e4e6f605442b67e7ec"
+    },
+    "detail/ao": {
+      "name": "ground_0018_ao_2k.jpg",
+      "sha256": "3a0ead2c87dc8e3ba337f2a0d134604c26547bcb765155946745377c05380633"
+    },
+    "detail/diffuse": {
+      "name": "ground_0018_color_2k.jpg",
+      "sha256": "8b50f97b98a90f276d4e62c855037540ef1358a030e25b3045bcabfded669886"
+    },
+    "detail/normal": {
+      "name": "ground_0018_normal_opengl_2k.png",
+      "sha256": "2418eba61f9966ef34bae4899c96d845a4865e6489a592317d2b07fa9f007498"
+    },
+    "detail/roughness": {
+      "name": "ground_0018_roughness_2k.jpg",
+      "sha256": "9191758c59d352d71fc6434e78bebf01380515b13c0883e4e6f605442b67e7ec"
+    }
+  },
+  "inputs_sha256": "849d914d287100eaaea206ac38e11ef0d70604521f5d0d79d6fcc04c5df05fb8",
+  "size": [
+    2048,
+    2048
+  ],
+  "detail_size": [
+    2048,
+    2048
+  ],
+  "outputs": [
+    "belt_straw_albedo.png",
+    "belt_straw_normal.png",
+    "belt_straw_mask.png",
+    "belt_straw_detail_albedo.png"
+  ],
+  "measured": {
+    "mean_linear_rgb": [
+      0.1946,
+      0.162,
+      0.0908
+    ],
+    "mean_luminance": 0.1638,
+    "target_luminance": 0.1638,
+    "luminance_error_pct": 0.0,
+    "bare_share": 0.0807,
+    "bare_patches": 13,
+    "bare_soil_share": 0.0668,
+    "floor_soil_share": 0.6595,
+    "green_share": 0.1612,
+    "gap_share": 0.2216,
+    "lip_soil_share": 0.0121,
+    "soil_mean_srgb": "#4a463f",
+    "soil_gain": [
+      0.882,
+      1.002,
+      1.234
+    ],
+    "straw_gain": [
+      0.816,
+      1.087,
+      1.782
+    ],
+    "final_gain": [
+      1.071,
+      1.065,
+      1.038
+    ],
+    "detail_gain": [
+      1.374,
+      1.374,
+      1.374
+    ]
+  }
+}

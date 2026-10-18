@@ -46,6 +46,7 @@ namespace Fpv450.Tests.EditMode
                     ""normals_sha256"": ""0000000000000000000000000000000000000000000000000000000000000000"",
                     ""occlusion"": 0.75 } }
   ],
+  ""micro"": [],
   ""cull_distance_m"": 100.0,
   ""materials"": [ { ""slot"": ""probe"", ""visual"": ""brick_red"", ""physics"": ""masonry"" } ],
   ""collision"": [], ""gaps"": [], ""wind_volumes"": [], ""snag"": []

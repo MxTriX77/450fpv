@@ -6,7 +6,9 @@
 For every variant of each asset id in assets-src/catalog.json, it checks the variant's params
 (assets-src/<class>/<variant>.json) against the generator's PARAMS table (lib/params.py), runs the generator and
 prints its report lines (counts and fit times), validates the metadata (lib/meta.py) and audits the collision against
-the LOD0 mesh (lib/audit.py, with the generator's stated card reach for the shell's cards), and only then
+the LOD0 mesh (lib/audit.py, with the soft tops of assets-src/physics_materials.json, the card slots of the
+alpha-clipped recipes and the generator's stated card reach for the shell's cards; a generator's visual-only micro
+meshes are exported beside their LOD and skipped by the audit), and only then
 writes unity/Assets/_Project/Art/Models/<class>/<ID>/<variant>.fbx and <variant>.assetmeta.json, both in Unity's
 frame (lib/frame.py), the FBX staged beside its final name and moved once it reads back as the metadata says. A
 variant whose params set `impostor: true` (p1-v01-locust design decision 3) also gets <variant>_impostor.png and
@@ -64,7 +66,8 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
                          impostor_lod)
     _refuse(variant, meta.validate(data, material_ids))
     started = time.perf_counter()
-    problems, lines = audit.run(data, built["lods"][0], catalog.card_visuals(root), built.get("card_reach_m"))
+    problems, lines = audit.run(data, built["lods"][0], soft=audit.soft_materials(root),
+                                card_visuals=catalog.card_visuals(root), card_reach_m=built.get("card_reach_m"))
     for line in lines:
         print(f"{variant}: {line}")
     print(f"{variant}: audit took {time.perf_counter() - started:.1f} s")
@@ -72,6 +75,8 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
     export.reset_scene()
     for n, mesh in enumerate(built["lods"]):
         export.add_lod(f"{variant}_LOD{n}", mesh)
+    for entry, micro in zip(data["micro"], built.get("micro", [])):  # extra mesh objects beside their LOD
+        export.add_lod(entry["name"], micro["mesh"])
     fbx_path = os.path.join(out_dir, variant + ".fbx")
     staged = os.path.join(out_dir, variant + ".staged.fbx")
     staged_atlas = os.path.join(out_dir, variant + "_impostor.staged.png")
@@ -111,7 +116,10 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
     meta.write(meta_path, data)
     size = [round(data["bounds"]["max"][a] - data["bounds"]["min"][a], 4) for a in range(3)]
     tris = " / ".join(str(lod["tris"]) for lod in data["lods"])
-    return f"{variant}: {os.path.relpath(fbx_path, root)}  size {size} m  tris {tris}  metadata written"
+    micro = "".join(f"  micro {m['name']} {m['count']} {m['kind']} {m['tris']} tris" for m in data["micro"])
+    return (f"{variant}: {os.path.relpath(fbx_path, root)}  size {size} m  tris {tris}{micro}  "
+            f"{len(data['collision'])} collision shapes  fbx {os.path.getsize(fbx_path) / 1048576:.1f} MB  "
+            "metadata written")
 
 
 def _refuse(variant, problems, source=""):

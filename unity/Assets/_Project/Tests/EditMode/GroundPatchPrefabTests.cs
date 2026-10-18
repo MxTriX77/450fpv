@@ -1,0 +1,106 @@
+using System.Linq;
+using Fpv450.World;
+using NUnit.Framework;
+using UnityEditor;
+using UnityEngine;
+
+namespace Fpv450.Tests.EditMode
+{
+    /// <summary>
+    /// The S04 prefab as the catalog importer builds it (p1-s04-belt-straw, "Micro meshes carry no collision" and
+    /// "Micro meshes skipped by the audit"): LOD0 renders the slab and the baked straws, no collider stands for the
+    /// straws, the metadata component lists them under <c>micro</c>. Needs a prior <c>pwsh tools/build_asset.ps1 S04</c>.
+    /// </summary>
+    public sealed class GroundPatchPrefabTests
+    {
+        const string PrefabPath = "Assets/_Project/Prefabs/surfaces/S04_patch.prefab";
+        const string MicroMesh = "S04_patch_LOD0_straw";
+
+        static GameObject Prefab()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
+            Assert.That(prefab, Is.Not.Null, $"{PrefabPath} is missing: run pwsh tools/build_asset.ps1 S04");
+            return prefab;
+        }
+
+        [Test]
+        public void Lod0_RendersTheSlabAndTheMicroMesh_AndTheOtherLodsOnlyTheSlab()
+        {
+            LOD[] lods = Prefab().GetComponent<LODGroup>().GetLODs();
+            Assert.That(lods.Length, Is.EqualTo(3));
+            string[] lod0 = lods[0].renderers.Select(r => r.GetComponent<MeshFilter>().sharedMesh.name).ToArray();
+            Assert.That(lod0, Is.EquivalentTo(new[] { "S04_patch_LOD0", MicroMesh }));
+            Assert.That(lods[1].renderers.Select(r => r.GetComponent<MeshFilter>().sharedMesh.name), Is.EqualTo(new[] { "S04_patch_LOD1" }));
+            Assert.That(lods[2].renderers.Select(r => r.GetComponent<MeshFilter>().sharedMesh.name), Is.EqualTo(new[] { "S04_patch_LOD2" }));
+            Renderer straws = lods[0].renderers.Single(r => r.GetComponent<MeshFilter>().sharedMesh.name == MicroMesh);
+            Assert.That(straws.sharedMaterial.name, Is.EqualTo("straw"));
+            Assert.That(straws.GetComponent<MeshFilter>().sharedMesh.triangles.Length / 3, Is.GreaterThan(100000), "the baked straws are geometry");
+        }
+
+        /// <summary>A 12 m patch is taller than the screen at its 8 m switch; the group's size keeps every switch distance.</summary>
+        [Test]
+        public void LodGroup_SwitchesAtTheMetadataDistances()
+        {
+            GameObject prefab = Prefab();
+            LODGroup group = prefab.GetComponent<LODGroup>();
+            AssetPhysicsMeta meta = prefab.GetComponent<AssetPhysicsMeta>();
+            LOD[] lods = group.GetLODs();
+            float[] far = { meta.lods[1].switchDistanceM, meta.lods[2].switchDistanceM, meta.cullDistanceM };
+            Assert.That(far, Is.EqualTo(new[] { 8f, 60f, 400f }));
+            for (int i = 0; i < lods.Length; i++)
+            {
+                float distance = group.size / (2f * lods[i].screenRelativeTransitionHeight * Mathf.Tan(30f * Mathf.Deg2Rad));
+                Assert.That(distance, Is.EqualTo(far[i]).Within(0.01f), $"LOD{i} ends at {distance} m");
+            }
+        }
+
+        [Test]
+        public void MicroMesh_HasNoCollider_AndTheMetaListsIt()
+        {
+            GameObject prefab = Prefab();
+            Transform straws = prefab.transform.Find(MicroMesh);
+            Assert.That(straws, Is.Not.Null);
+            Assert.That(straws.GetComponentsInChildren<Collider>(true), Is.Empty, "a micro mesh carries no collision");
+            AssetPhysicsMeta meta = prefab.GetComponent<AssetPhysicsMeta>();
+            Assert.That(meta.micro.Length, Is.EqualTo(1));
+            Assert.That(meta.micro[0].name, Is.EqualTo(MicroMesh));
+            Assert.That(meta.micro[0].kind, Is.EqualTo("straw"));
+            Assert.That(meta.micro[0].lod, Is.EqualTo(0));
+            Assert.That(meta.micro[0].count, Is.GreaterThan(10000));
+            Collider[] colliders = prefab.GetComponentsInChildren<Collider>(true);
+            Assert.That(colliders.Length, Is.EqualTo(meta.collision.Length), "one collider per primitive, none for the straws");
+            int boxes = meta.collision.Count(c => c.kind == AssetPhysicsMeta.ShapeKind.Box);
+            Assert.That(colliders.OfType<BoxCollider>().Count(), Is.EqualTo(boxes));
+            Assert.That(colliders.OfType<SphereCollider>().Count(), Is.EqualTo(meta.collision.Length - boxes));
+            Assert.That(meta.collision.All(c => c.landable), Is.True);
+        }
+
+        /// <summary>
+        /// review-physics PR1, PR2 and PR8: collision[0] is the soil box one mat depth down, then the mat as straw boxes
+        /// (fill, then each bare patch's edge boxes) from -D to 0, then the mound spheres; every rotated box keeps its
+        /// rotation on its collider.
+        /// </summary>
+        [Test]
+        public void Collision_IsTheSoilThenTheStrawMatThenTheMounds()
+        {
+            GameObject prefab = Prefab();
+            AssetPhysicsMeta meta = prefab.GetComponent<AssetPhysicsMeta>();
+            AssetPhysicsMeta.CollisionShape soil = meta.collision[0];
+            Assert.That(soil.kind, Is.EqualTo(AssetPhysicsMeta.ShapeKind.Box));
+            Assert.That(soil.material, Is.EqualTo("surface:belt_straw"));
+            Assert.That(soil.center.y + soil.size.y / 2f, Is.EqualTo(-0.125f).Within(1e-5f), "the soil's top one mat depth down");
+            int mounds = meta.collision.Count(c => c.kind == AssetPhysicsMeta.ShapeKind.Sphere);
+            var mat = meta.collision.Skip(1).Take(meta.collision.Length - 1 - mounds).ToArray();
+            Assert.That(mat.Length, Is.GreaterThan(50));
+            Assert.That(mat.All(c => c.kind == AssetPhysicsMeta.ShapeKind.Box && c.material == "straw"), Is.True);
+            Assert.That(mat.All(c => Mathf.Abs(c.center.y + 0.0625f) < 1e-5f && Mathf.Abs(c.size.y - 0.125f) < 1e-5f), Is.True,
+                "the mat boxes stand from -D to 0");
+            Assert.That(meta.collision.Skip(1 + mat.Length).All(c => c.material == "surface:crater_spoil"), Is.True);
+            for (int i = 0; i < meta.collision.Length; i++)
+            {
+                Transform host = prefab.transform.Find($"Collision{i}");
+                Assert.That(Quaternion.Angle(host.localRotation, meta.collision[i].rotation), Is.LessThan(0.01f), $"Collision{i}");
+            }
+        }
+    }
+}

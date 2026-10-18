@@ -10,12 +10,13 @@ namespace Fpv450.Assets
     /// <see cref="ModelPostprocessor"/> on every import and checked again by the catalog importer. FBX files under
     /// <c>Art/Models/</c>, and the EditMode fixtures (the X-sign probe, which must import exactly as every asset
     /// does): metres stay metres, no Unity mesh LODs (the project uses its own LOD groups, knowledge.md 14.4), no
-    /// Unity colliders, static. Textures under <c>Art/ThirdParty/</c>: typed from the Poly Haven or ambientCG suffix;
-    /// the maps that <c>tools/assets/derive.py</c> writes under <c>Art/Materials/</c>: the packed masks as linear
-    /// RGBA data, the <c>_base</c> maps of alpha-clipped recipes as sRGB diffuse with their alpha; the impostor
-    /// atlases the Blender build writes beside the FBX under <c>Art/Models/</c> (p1-v01-locust): the albedo
-    /// (<c>_impostor</c>) sRGB diffuse with its alpha, the normals (<c>_impostor_normal</c>) linear data. The base map of an alpha-clipped recipe and an impostor atlas also keep their
-    /// mip coverage at the cutoff (<see cref="ApplyCoverage"/>, applied by the catalog importer).
+    /// Unity colliders, static. Textures under <c>Art/ThirdParty/</c>: typed from the Poly Haven, ambientCG or
+    /// TextureCan suffix; the maps that <c>tools/assets/derive.py</c> writes under <c>Art/Materials/</c>: the packed
+    /// masks as linear RGBA data, the ground and palette albedos as sRGB, the <c>_base</c> maps of alpha-clipped
+    /// recipes as sRGB diffuse with their alpha; the impostor atlases the Blender build writes beside the FBX under
+    /// <c>Art/Models/</c> (p1-v01-locust): the albedo (<c>_impostor</c>) sRGB diffuse with its alpha, the normals
+    /// (<c>_impostor_normal</c>) linear data. The base map of an alpha-clipped recipe and an impostor atlas also keep
+    /// their mip coverage at the cutoff (<see cref="ApplyCoverage"/>, applied by the catalog importer).
     /// </summary>
     public static class ArtImportSettings
     {
@@ -47,21 +48,26 @@ namespace Fpv450.Assets
         }
 
         /// <summary>
-        /// Applies the texture settings of a map by its file name and reports whether any changed: a Poly Haven or
-        /// ambientCG suffix types the third-party maps (normal, single-channel roughness, AO and opacity, sRGB
-        /// diffuse); a derived <c>_base</c> map and an <c>_impostor</c> atlas are sRGB diffuse too; a derived
+        /// Applies the texture settings of a map by its file name and reports whether any changed. The name,
+        /// lower-cased, types the map: Poly Haven's <c>_nor_gl</c>, ambientCG's <c>_NormalGL</c>, TextureCan's
+        /// <c>_normal</c> and a derived <c>_normal</c> are normal maps; <c>_rough</c>, <c>_ao</c>,
+        /// <c>ambientocclusion</c> and ambientCG's <c>_Opacity</c> are single-channel; <c>_diff</c>, <c>_color</c>, a
+        /// derived <c>_albedo</c> (the ground base and detail albedos, the palettes), a derived <c>_base</c> map (the
+        /// alpha-clipped, groove and paint recipes') and an <c>_impostor</c> atlas are sRGB diffuse; a derived
         /// <c>_mask</c> and anything else is a default-typed linear map. Only the diffuse maps are sRGB, and only a
         /// diffuse whose source carries an alpha channel (a leaf atlas, an impostor) is imported as transparency, its
-        /// alpha kept as given, never premultiplied. An impostor's normal atlas (<c>_impostor_normal</c>) has no mips:
-        /// its shader reads it at full resolution.
+        /// alpha kept as given, never premultiplied. An impostor's normal atlas (<c>_impostor_normal</c>) is no
+        /// normal map but linear data without mips: its shader reads it raw at full resolution.
         /// </summary>
         public static bool ApplyTexture(TextureImporter importer, string assetPath)
         {
-            string name = Path.GetFileNameWithoutExtension(assetPath);
-            bool normal = name.Contains("_nor_gl") || name.Contains("_NormalGL");
-            bool single = name.Contains("_rough") || name.Contains("_ao")
-                || name.Contains("_Roughness") || name.Contains("_AmbientOcclusion") || name.Contains("_Opacity");
-            bool diffuse = name.Contains("_diff") || name.Contains("_Color") || name.EndsWith("_base") || name.EndsWith("_impostor");
+            string name = Path.GetFileNameWithoutExtension(assetPath).ToLowerInvariant();
+            bool impostorNormals = name.EndsWith("_impostor_normal");
+            bool normal = !impostorNormals && (name.Contains("_nor_gl") || name.Contains("_normal"));
+            bool single = name.Contains("_rough") || name.Contains("_ao") || name.Contains("ambientocclusion")
+                || name.Contains("_opacity");
+            bool diffuse = name.Contains("_diff") || name.Contains("_color") || name.Contains("_albedo")
+                || name.EndsWith("_base") || name.EndsWith("_impostor");
             TextureImporterType type = normal ? TextureImporterType.NormalMap
                 : single ? TextureImporterType.SingleChannel
                 : TextureImporterType.Default;
@@ -70,7 +76,7 @@ namespace Fpv450.Assets
             changed |= Set(importer.textureType, type, v => importer.textureType = v);
             changed |= Set(importer.sRGBTexture, diffuse, v => importer.sRGBTexture = v);
             changed |= Set(importer.alphaIsTransparency, diffuse && importer.DoesSourceTextureHaveAlpha(), v => importer.alphaIsTransparency = v);
-            if (name.EndsWith("_impostor_normal"))
+            if (impostorNormals)
                 changed |= Set(importer.mipmapEnabled, false, v => importer.mipmapEnabled = v);
             if (single)
             {
@@ -112,7 +118,7 @@ namespace Fpv450.Assets
     public sealed class ModelPostprocessor : AssetPostprocessor
     {
         // Bump when ArtImportSettings changes, so Unity reimports the files it covers.
-        public override uint GetVersion() => 5;
+        public override uint GetVersion() => 6;
 
         void OnPreprocessModel()
         {

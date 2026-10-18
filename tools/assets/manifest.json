@@ -177,6 +177,96 @@
           "bytes": 4022617
         }
       ]
+    },
+    {
+      "source": "polyhaven",
+      "id": "brown_mud_02",
+      "title": "Brown Mud 02",
+      "resolution": "2k",
+      "licence": "CC0",
+      "author": "Rob Tuytel",
+      "page": "https://polyhaven.com/a/brown_mud_02",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/polyhaven/brown_mud_02",
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "brown_mud_02_diff_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/brown_mud_02/brown_mud_02_diff_2k.png",
+          "sha256": "a00bad20b2c339bd3d2837b8ae80903c4646876bb4ec0cc960846a97b2d3d737",
+          "bytes": 7351489
+        },
+        {
+          "map": "normal",
+          "name": "brown_mud_02_nor_gl_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/brown_mud_02/brown_mud_02_nor_gl_2k.png",
+          "sha256": "78e01270b222a96cc1433c8d4ba2b6fbbe24b296934b45d1ff6aa30cad647888",
+          "bytes": 8869082
+        },
+        {
+          "map": "roughness",
+          "name": "brown_mud_02_rough_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/brown_mud_02/brown_mud_02_rough_2k.png",
+          "sha256": "c2c7835ff92171d9141dd7a1884dbf3a00b5d989fe8ae05737ac6d5397c12572",
+          "bytes": 2307264
+        },
+        {
+          "map": "ao",
+          "name": "brown_mud_02_ao_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/brown_mud_02/brown_mud_02_ao_2k.png",
+          "sha256": "16f6fa689c964651952714aedc88be4c2de3786aa271cb59000edbb3b8b0ffa4",
+          "bytes": 3382853
+        }
+      ]
+    },
+    {
+      "source": "texturecan",
+      "id": "ground_0018",
+      "title": "Dry Straw Grass / Hay Texture",
+      "resolution": "2k",
+      "licence": "CC0",
+      "author": "TextureCan",
+      "page": "https://www.texturecan.com/details/190/",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/texturecan/ground_0018",
+      "archive": {
+        "name": "ground_0018_2k_krQ65t.zip",
+        "url": "https://www.texturecan.com/downloads/ground_0018/ground_0018_2k_krQ65t.zip",
+        "sha256": "bef43ce200ef56480e45e73d11f7c7a2aaecc58d1ea7a3ab4f25c9608df91f1e",
+        "bytes": 63105063
+      },
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "ground_0018_color_2k.jpg",
+          "member": "ground_0018_color_2k.jpg",
+          "url": "https://www.texturecan.com/downloads/ground_0018/ground_0018_2k_krQ65t.zip",
+          "sha256": "8b50f97b98a90f276d4e62c855037540ef1358a030e25b3045bcabfded669886",
+          "bytes": 1020854
+        },
+        {
+          "map": "normal",
+          "name": "ground_0018_normal_opengl_2k.png",
+          "member": "ground_0018_normal_opengl_2k.png",
+          "url": "https://www.texturecan.com/downloads/ground_0018/ground_0018_2k_krQ65t.zip",
+          "sha256": "2418eba61f9966ef34bae4899c96d845a4865e6489a592317d2b07fa9f007498",
+          "bytes": 27177776
+        },
+        {
+          "map": "roughness",
+          "name": "ground_0018_roughness_2k.jpg",
+          "member": "ground_0018_roughness_2k.jpg",
+          "url": "https://www.texturecan.com/downloads/ground_0018/ground_0018_2k_krQ65t.zip",
+          "sha256": "9191758c59d352d71fc6434e78bebf01380515b13c0883e4e6f605442b67e7ec",
+          "bytes": 474615
+        },
+        {
+          "map": "ao",
+          "name": "ground_0018_ao_2k.jpg",
+          "member": "ground_0018_ao_2k.jpg",
+          "url": "https://www.texturecan.com/downloads/ground_0018/ground_0018_2k_krQ65t.zip",
+          "sha256": "3a0ead2c87dc8e3ba337f2a0d134604c26547bcb765155946745377c05380633",
+          "bytes": 1713134
+        }
+      ]
     }
   ]
 }

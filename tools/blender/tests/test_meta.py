@@ -40,8 +40,30 @@ def test_assembled_metadata_validates_in_schema_order(k01_params, material_ids):
     assert data["units"] == "m" and data["frame"] == "unity-lh-yup" and data["schema"] == 1
     assert data["bounds"] == {"min": [-0.125, 0.0, -0.06], "max": [0.125, 0.065, 0.06]}
     assert [lod["tris"] for lod in data["lods"]] == [44, 12]
+    assert data["micro"] == []
     assert data["materials"] == [{"slot": "brick", "visual": "brick_red", "physics": "masonry"}]
     assert data["gaps"] == [] and data["wind_volumes"] == [] and data["snag"] == []
+
+
+def test_micro_meshes_are_named_counted_and_bounded(k01_params, material_ids):
+    """p1-s04-belt-straw, "Visual-only micro-detail meshes": a generator's micro mesh is listed under `micro` by its
+    LOD, kind and count, named <variant>_LOD<n>_<kind>, and its vertices widen the bounds; a bad entry is refused."""
+    from lib.geometry import Mesh
+    built = debris_brick.build(k01_params)
+    tuft = Mesh()
+    for p in ((0.0, 0.0, 0.0), (0.01, 0.0, 0.0), (0.0, 0.3, 0.0)):
+        tuft.vertex(p)
+    tuft.face([0, 1, 2], (0.0, 0.0, 1.0), "straw")
+    built["micro"] = [{"lod": 0, "kind": "straw", "count": 7, "mesh": tuft}]
+    data = meta.assemble("K01", "K01_whole", "debris_brick", k01_params, built, dict(VISUALS, straw="straw"))
+    assert meta.validate(data, material_ids) == []
+    assert data["micro"] == [{"lod": 0, "name": "K01_whole_LOD0_straw", "kind": "straw", "count": 7, "tris": 1}]
+    assert data["bounds"]["max"][1] == 0.3
+    data["micro"][0]["lod"] = 5
+    assert any(p.startswith("micro[0]: needs lod, name, kind, count, tris") for p in meta.validate(data, material_ids))
+    built["micro"][0]["lod"] = 5
+    with pytest.raises(ValueError, match="LOD 5, which does not exist"):
+        meta.assemble("K01", "K01_whole", "debris_brick", k01_params, built, dict(VISUALS, straw="straw"))
 
 
 def test_writer_is_deterministic_and_lf_terminated(k01_params):

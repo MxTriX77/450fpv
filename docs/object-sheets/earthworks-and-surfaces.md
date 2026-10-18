@@ -28,9 +28,9 @@
 | Moist against dry soil colour | Soil colour is read moist and dry; the moist colour is 1–2 Munsell value steps darker | USDA Soil Survey Manual, ch. 3: https://www.nrcs.usda.gov/resources/guides-and-instructions/soil-survey-manual |
 | Angle of repose | Soil 30–45°; wet excavated clay 15° | https://en.wikipedia.org/wiki/Angle_of_repose |
 | Explosion craters | Depth about a quarter of the apparent diameter, varying with soil; the apparent rim stands above the old surface; ejecta settles back into the bowl | https://amcaonline.org.ar/ojs/index.php/mc/article/download/569/542 · https://armamentresearch.com/an-introduction-to-crater-analysis/ |
-| Field trenches | Slit: 1.0–1.2 m wide at the top, 0.8 m at the bottom, about 1.5 m deep, straight legs no longer than 4–5 m, zigzag, an entrance of 5–6 steps at 90°; a battle trench about 0.75 m wide and 1.5 m deep; recent ones about 2 m deep and about 1 m wide, revetted with panels of sawn timber and steel mesh (75 mm) over geotextile | https://dic.academic.ru/dic.nsf/ruwiki/1589715 · https://thinkdefence.co.uk/?p=67262 |
+| Field trenches | Slit: 1.0–1.2 m wide at the top, 0.8 m at the bottom, about 1.5 m deep, straight legs no longer than 4–5 m, zigzag, an entrance of 5–6 steps at 90°; a narrow trench about 0.75 m wide and 1.5 m deep; recent ones about 2 m deep and about 1 m wide, revetted with panels of sawn timber and steel mesh (75 mm) over geotextile | https://dic.academic.ru/dic.nsf/ruwiki/1589715 · https://thinkdefence.co.uk/?p=67262 |
 | Revetment | Hurdles of woven saplings about 0.9–1.2 m high and 1.8–2.7 m long between upright poles, anchored by pickets driven into the parapet | https://tnsos.net/TSLA/cwsourcebook/glossary.php?alph=h |
-| Dugouts | A covered shelter against plunging fire, its cover on timber or earth supports; a frame of round timber 16–22 cm across, a roof of one or more layers of logs, roofing felt or polyethylene film over them, then an earth cushion; the entrance turns 90° | https://booksite.ru/fulltext/1/001/007/012/12818.htm · https://ru.wikipedia.org/wiki/Блиндаж |
+| Dugouts | A covered shelter, its cover on timber or earth supports; a frame of round timber 16–22 cm across, a roof of one or more layers of logs, roofing felt or polyethylene film over them, then an earth cushion; the entrance turns 90° | https://booksite.ru/fulltext/1/001/007/012/12818.htm · https://ru.wikipedia.org/wiki/Блиндаж |
 | Trench flow | A narrow cavity under a cross-wind skims: one primary vortex fills it, with a secondary vortex under it at depth/width ≥ 2 | https://en.wikipedia.org/wiki/Street_canyon |
 | Field tillage | Mouldboard bodies 0.30–0.50 m wide (the furrow pitch), working depth 0.15–0.35 m; grain drill rows 15 cm on a 3.6 m drill; a combine's straw falls through a 1.5 m window into a windrow behind a 5–6 m header; wheat stubble 10–20 cm (13–35 cm in trials) | https://agro-masz.eu/en/strona-glowna/555-pj-single-beam-plough.html · https://learn.ztu.edu.ua/mod/resource/view.php?id=234541 · https://rep.bsatu.by/bitstream/doc/16458/1/2009_6.1.opredelenie.pdf · https://rae.agriculturejournals.cz/artkey/rae-201503-0004_evaluation-of-wheat-stubble-management-practices-in-terms-of-the-fuel-consumption-and-field-capacity.php · https://cigrjournal.org/index.php/Ejounral/article/view/3360 |
 | Stubble burning | Stubble burns to gases and light-coloured ash; windrows burn hotter than the stubble between them | https://eupdate.agronomy.ksu.edu/article/factors-to-consider-before-baling-or-burning-wheat-residue-289 · https://www.agric.wa.gov.au/grains/windrow-burning-tips-experts |
@@ -51,7 +51,7 @@ Viewpoint heights are estimated from the scene (the drone's props, tussocks, cra
 | B | a dry sun-baked field pocked with shallow craters, a lumpy earth bank with saplings on it along the left edge, a sparse strip of thin broken trees on the horizon | 1–3 m, slow forward (crater rings 2–4 m read at 5–30 m; the 1 m fragment in B 10–14) | forward, 0° tilt, the horizon at mid-frame, the bank and the strip at the left edge (B 1–6, B 9–16), the field filling the lower half | low warm sun from the side and behind, long shadows in the crater lips | early evening or morning | clear, dry, dusty |
 | F | the floor of a dense belt: bare dusty loam with twigs, then a round dug pit with branches across it | 1–2 m along the corridor (F 1–14), then 0.5–1.5 m over the pit, looking down into it (F 15–17) | forward, then forward-down into the pit | low sun through the branches, brown dust haze at 0.5–3 m | afternoon | dry, dusty |
 | G | a narrow winding trench with broad grassed parapets, between an openwork tree strip and a dark field with straw streaks | 2–5 m above the parapets, fast | forward-down; the trench from the bottom centre to the horizon, the strip on the left, the dark field on the right (G 1–12) | low warm sun, long shadows, saturated straw | early evening or morning | clear, dry |
-| H | a belt edge over a lodged straw mat on dark soil, bare soil patches and a short-grass strip | 0.3–1.5 m, slow | forward, 0° tilt; the straw mat fills the lower half, the belt wall the upper (H 1–21) | overcast, flat | daytime | overcast, dry, autumn |
+| H | a belt edge over a lodged straw mat on dark soil, bare soil patches and a short-grass strip | 0.3–0.5 m (measured, H 12–20: S04's note), slow | forward, 0° tilt; the straw mat fills the lower half, the belt wall the upper (H 1–21) | overcast, flat | daytime | overcast, dry, autumn |
 | L | open rolling fields at night; a pale dirt track running ahead; a lone tree, a bush and a pole as silhouettes on a crest | 1–3 m (the bush and the tree on the crest at 50–150 m) | forward, 0° tilt, the horizon mid-frame, the track from the bottom centre (L 1–8) | none; the sky is brighter than the ground | night | overcast |
 | P | wet stubble fields with straw windrows and drill rows, a dirt track along a belt, green patches of new growth | tens of metres, lower in P 30–42 where drill rows resolve | forward-down, the horizon in the top quarter and strongly bent by the lens | overcast, dim | daytime | rain and severe wind, wet ground |
 
@@ -106,22 +106,18 @@ Normal maps, parallax and decals carry only detail below 1–2 cm with no physic
 | `max_sink` | × 1.6 (soils); × 1 (hard) | softer ground, deeper prints |
 | `unload_ratio` | × 1.5 | wet loam is more plastic: prints stay |
 | `μs / μk` (soil) | → 0.45/0.35 on loam; 0.40/0.30 on crust turned to a slick film; asphalt 0.50/0.40; slab 0.45/0.38 | a water film on a fine surface |
-| **`adhesion`** (proposed new field) | pull-off per foot 2–10 N, default 4 N, released over 10–30 mm of lift (derived: wet-loam adhesion and suction of 2–10 kPa, assumed, over the 1.6e-3 m² that a 15 mm foot sunk 30 mm wets on its sole and sides) | the pilot's "legs stick most of the time in rain" (D-021); K's deferred X-5 |
+| **`adhesion`** (accepted as the surface table's field `adhesion_pa`, phase 3: the physics sign-off, review-materials.md §3) | pull-off per foot 2–10 N, default 4 N, released over 10–30 mm of lift (derived: wet-loam adhesion and suction of 2–10 kPa, assumed, over the 1.6e-3 m² that a 15 mm foot sunk 30 mm wets on its sole and sides) | the pilot's "legs stick most of the time in rain" (D-021); K's deferred X-5 |
 | mats (straw, thatch, litter) | modulus × 0.6, μ → 0.35/0.28 (straw, thatch), 0.25/0.18 (wet leaves), hook release × 1.5 | wet straw softens and clings; wet leaves slide |
 | `dust_emission` | → 0 | no dust from wet ground |
 | visual | albedo × 0.55–0.7 in luminance, +10–20 % saturation, roughness −0.2 on soils, a thin wet sheen on asphalt and slab | wet darkening, above; P's wet ground stays dark and keeps its colour (K§8.7 R4) |
 
   `wetness` is proposed as 0.6 for Rain and 1.0 for Severe rain (assumed). No reference shows standing water (terrain.md §9), so the wet variant has no puddles; ruts and crater bottoms go to mud through their lower factors.
-- **Physics ids for earthwork shapes.** `assets-src/physics_materials.json` is closed and has no soil. Two ways, for the physics engineer:
-  - **Preferred: `surface:<id>`** as the material of filler shapes (the first attempt's TH-4): a trench wall then follows the same elasto-plastic soil law, sink and ploughing as the terrain, with the 0.02 m soil lip radius as a physics constant.
-  - **Fallback: two new ids,** if the pipeline keeps object materials only:
+- **Physics ids for earthwork shapes** (settled by the physics sign-off, review-materials.md §1, §6, in the archived change `p1-pipeline-hardening`):
+  - **`surface:<id>`** is the material of every shape that stands in for ground (the first attempt's TH-4): a filler wall then follows the same elasto-plastic soil law, sink and ploughing as the terrain, with the 0.02 m soil lip radius as a physics constant.
+  - **`soil` is mapped, not added:** cut walls, floors and stairs `surface:belt_bare` (F-7); loose spoil and fresh mounds `surface:crater_spoil`; a grassed mound `surface:meadow_sod`.
+  - **`straw` is an object id** for straw carried by a mesh or a shape: windrows built as geometry, straw on a dugout roof, straw spread in a trench (490 N/m, belt_straw's mat at 12.5 cm under the reference foot, surfaces-review §3.1). Straw over ground is `surface:belt_straw`.
 
-| Proposed id | For | Suggested values | Why |
-|---|---|---|---|
-| `soil` | cut walls, floors, banks, dugout earth covers built as shapes | μs 0.5, μk 0.4; stiffness 2.5e3 N/m, ζ 0.5; edge radius 0.02 m | belt_bare's foot stiffness (2474 N/m) and friction; the soil lip radius |
-| `straw` | straw layers carried by a mesh: windrows built as geometry, straw on a dugout roof, straw spread in a trench | μs 0.45, μk 0.35; stiffness 490 N/m, ζ 0.3 | belt_straw's mat at 12.5 cm under the reference foot (surfaces-review §3.1: ≈ 490 N/m) |
-
-  Timber revetment, posts, boards and logs use `timber`; wattle rods use `deadwood` (proposed in vegetation.md); welded mesh uses `steel`; a hanging tarp or blanket uses the tarp id of the debris kit (K05, task 1.4).
+  Timber revetment, posts, boards and logs use `timber`; wattle rods use `deadwood`; welded mesh uses `steel`; a hanging tarp or blanket uses `fabric`.
 
 ### Feathered transitions (PR-11, WLD-03, AST-11)
 
@@ -207,7 +203,7 @@ One generator builds the trench along a map polyline; E02 and E03 are its parame
 | `revet_height_m` | float | 0.8–depth | depth | lined height, from the lip down |
 | `collapse` | float | 0–1 | 0 | E03: walls slump toward 35°, the floor fills, the parapets flatten |
 | `overgrowth` | float | 0–1 | 0 | E03: weeds and saplings in and over it |
-| `dugouts_per_100m` | float | 0–3 | 1.5 | E04 fittings along the belt side |
+| `dugouts` | int | 0–3 | 1 | E04 entrances off the run's belt side, at seeded points unless the layout (phase 3) gives them |
 | `seed` | int | any | per run | every draw |
 
 Outputs: the hole-band mask (`holes.png` cells), the filler mesh and its primitives with `surface:<id>`, the parapet height deltas for the heightfield and their cover weights, gap polygons every metre and at every bend, the revetment parts with their collision and snag flags, and the LOD ladder. At 50–200 m the trench must read as G shows it: a dark winding line 1–3 px wide on the feed between two pale parapet bands (G 1–12).
@@ -220,7 +216,7 @@ Outputs: the hole-band mask (`holes.png` cells), the filler mesh and its primiti
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| top width, lip to lip | 0.6–1.0 m | 0.8 m | measured (terrain.md W2, G); published 0.75 m (battle trench) to 1.0–1.2 m (slit) |
+| top width, lip to lip | 0.6–1.0 m | 0.8 m | measured (terrain.md W2, G); published 0.75 m (narrow) to 1.0–1.2 m (slit) |
 | bottom width | 0.5–0.8 m | 0.6 m | published (slit 0.8 m); default derived from a near-vertical spade cut |
 | depth below the lip | 1.2–1.8 m (recent runs to 2.0 m) | 1.5 m | measured (terrain.md W2, G); published 1.5 m, about 2 m for recent ones |
 | wall batter | 80–90° | 86° | derived: (0.8 − 0.6)/2 = 0.1 m of batter over 1.5 m |
@@ -258,8 +254,8 @@ Outputs: the hole-band mask (`holes.png` cells), the filler mesh and its primiti
 - A crater (E05) on or beside the trench cuts the parapet and slumps the walls over 1–4 m; the corridor fills to about half depth with loose spoil there, and a gap opens in the parapet (derived from the crater sizes). Burnt parapets where a field fire reached the trench (S07).
 
 ### Physics role
-- **Collision:** a hole band along the trench, filled with filler primitives per 1–2 m straight segment (≤ 1 m on curves, so the faces stay within 0.05 m of the visual): a floor box, two wall boxes at the batter, level lip boxes, each at least 0.3 m thick behind its face and overlapping 0.2 m (F-1…F-6). The parapets stay terrain: the heightfield raised 0.3–0.5 m on its 1 m samples, with the surface's cover (F-7).
-- **Material ids:** walls and floor `surface:belt_bare` (F-7), its wet variant in rain; parapets `belt_straw` or `crater_spoil` terrain. Fallback id `soil` (proposed).
+- **Collision:** a hole band along the trench, filled with filler primitives per 1–2 m straight segment (≤ 1 m on curves, so the faces stay within 0.05 m of the visual): a floor box, two wall boxes at the batter, level lip boxes, each at least 0.3 m thick behind its face and overlapping 0.2 m (F-1…F-6; F-7 and F-8 below; the asset's audit prints all eight, AST-05). The asset carries a `holes` record (centre line, top width, depth, band width: the p1-e01-trench design, decision 6). The parapets stay terrain: the heightfield raised 0.3–0.5 m on its 1 m samples, with the surface's cover (F-7).
+- **Material ids:** walls and floor `surface:belt_bare` (F-7), its wet variant in rain; parapets `belt_straw` or `crater_spoil` terrain (the physics sign-off's mapping of soil, review-materials.md §6).
 - **Gaps:** the corridor: a cross-section gap polygon every metre and at every bend (the clear trapezoid from the floor to the lip), and the open top slot along the run, written as one polygon per filler segment (1–2 m, ≤ 1 m on curves) so that each stays planar within the pipeline's 10 mm on rolling ground. A polygon's `narrowest_m` is its inscribed circle (the pipeline convention), so the table below, not `narrowest_m`, gives the drone's clear width at each height. The drone's side-to-side span equals its nose-first span, 0.574 m, for a square X frame; its yawed span reaches 0.706 m at 45°.
 
 | Cut (top / bottom / depth) | Width at the floor / at 0.35 m (props of a landed drone) / at the lip | Along it, nose-first | Yawed 45°, or through a zigzag corner |
@@ -275,7 +271,7 @@ Outputs: the hole-band mask (`holes.png` cells), the filler mesh and its primiti
 
 ### Placement rules (for the world)
 - Along the field side of belts and narrow strips, 1–5 m out from the outer trunk line, following the belt's line with its own wander (G; terrain.md §10). Also along field edges and between belts (assumed).
-- Runs of 50–300 m, several per belt system, with dugouts (E04) on the belt side every 30–100 m and side niches facing the open field (assumed).
+- Runs of 50–300 m, several per belt system (assumed). The run's fittings, E04 entrances and side niches, are counts in the generator table; the layout (phase 3) sets the rest.
 - The parapets blend into the local surface over 1–2 m; their cover is the local meadow or straw.
 
 ### Generator parameters
@@ -328,15 +324,15 @@ The shared trench-family table, with `revetment` none, `collapse` 0, `overgrowth
 - Blast and slumping push the lining inward: bowed boards, a panel torn off, a post across the corridor. Splintered board ends are geometry (REAL-05).
 
 ### Physics role
-- **Collision:** the E01 fillers behind the lining (F-5 thickness behind the revetment face); posts as capsules, boards and pallets as thin boxes per board or per panel, wattle panels as one box per panel for the contact plane plus capsules for the protruding rod ends, mesh as one box.
-- **Material ids:** `timber` (posts, boards, pallets), `deadwood` (wattle rods, proposed in vegetation.md), `steel` (mesh), fallback `soil` behind.
+- **Collision:** the E01 fillers and `holes` record behind the lining, under the same contract F-1…F-8 (F-5's thickness behind the revetment face); posts as capsules, boards and pallets as thin boxes per board or per panel, wattle panels as one box per panel for the contact plane plus capsules for the protruding rod ends, mesh as one box.
+- **Material ids:** `timber` (posts, boards, pallets), `deadwood` (wattle rods), `steel` (mesh), the E01 fillers' `surface:belt_bare` behind.
 - **Gaps:** the clear width between the lining faces, written per metre; vertical walls make it constant with height. Boards (0.74 m): nose-first 83 mm a side, yawed 45° only 17 mm a side: PR-9's "barely" at the diagonal. Wattle (0.84 m): 133 and 67 mm. A leaning post or a fallen panel narrows it locally; the generator writes the narrowest width.
 - **Wind volumes:** none (as E01).
 - **Snag hazards:** post tops proud of the lip and wattle rod ends (the fiber, at the lip), splintered board ends, cut mesh wires at the top edge (steel). A fiber dragged along boards meets `timber`'s 2 mm arris.
 - **Landable surfaces:** none.
 
 ### Placement rules
-- Runs that are held long: near dugouts, at belt corners, in soft or sandy ground (assumed). 20–40 % of trench length (assumed), the rest open (E01).
+- Long-lived runs, at belt corners and in soft or sandy ground (assumed): 20–40 % of trench length (assumed), the rest open (E01).
 
 ### Generator parameters
 The shared trench-family table with `revetment` boards or wattle (or mesh), `revet_height_m`, plus:
@@ -357,7 +353,7 @@ The shared trench-family table with `revetment` boards or wattle (or mesh), `rev
 
 ## E03 Trench, collapsed and overgrown
 
-**Seen in:** **R**. H's small earth mounds and bare soil hollows at the belt edge (H 1–4, H 9–14) are of this scale, but no letter shows an abandoned trench line.
+**Seen in:** **R**. H's small earth mounds and bare soil hollows at the belt edge (H 1–4, H 9–14) are of this scale, but no letter shows an abandoned trench.
 **Research sources:** the angle-of-repose row (soil 30–45°).
 
 ### Dimensions
@@ -388,7 +384,7 @@ The shared trench-family table with `revetment` boards or wattle (or mesh), `rev
 - It is the end state; a crater in it reads as a wider pit in the line.
 
 ### Physics role
-- **Collision:** the 35° slopes still need the hole and filler method: a 1.8 m trough is too narrow for the 1 m heightfield. Fillers as E01, with the walls at 35°.
+- **Collision:** the 35° slopes still need the hole and filler method: a 1.8 m trough is too narrow for the 1 m heightfield. Fillers and the `holes` record as E01, under F-1…F-8, with the walls at 35°.
 - **Material ids:** `surface:weeds` in the bottom, `surface:belt_straw` on the slopes.
 - **Gaps:** none: 0.4–1.0 m deep with weeds is too shallow to fly in below ground.
 - **Wind volumes:** none.
@@ -396,7 +392,7 @@ The shared trench-family table with `revetment` boards or wattle (or mesh), `rev
 - **Landable surfaces:** none flagged; a hidden pitfall under the weeds for a landing (a leg drops 0.4–1.0 m on one side).
 
 ### Placement rules
-- Older positions away from the current lines: along belts and field edges, 10–30 % of all trench length (assumed); often beside an E01 run that replaced it.
+- Along belts and field edges, 10–30 % of all trench length (assumed); the layout (phase 3) sets where.
 
 ### Generator parameters
 The shared trench-family table with `collapse` 0.5–1, `overgrowth` 0.3–1, `age` 1.
@@ -438,18 +434,18 @@ The shared trench-family table with `collapse` 0.5–1, `overgrowth` 0.3–1, `a
 - One variant; states intact and damaged (the frame's lintel cracked and sagging 0.1–0.3 m, earth spilled on the steps, the tarp torn).
 
 ### Damage pattern
-- A hit near the entrance: the lintel and the first roof logs break, earth slides onto the steps, the clear height drops to 1.0–1.3 m (assumed).
+- A blast near the entrance: the lintel and the first roof logs break, earth slides onto the steps, the clear height drops to 1.0–1.3 m (assumed).
 
 ### Physics role
-- **Collision:** the trench fillers continue down the stair: step boxes, wall boxes, a ceiling box under the roof; frame logs as capsules (`timber`); roof logs only where they show at the entrance face (their ends, capsules); the chamber as a box room. The mound is heightfield.
-- **Material ids:** `surface:belt_bare` (stair walls and steps, floor), `timber` (frame, logs, boards), the tarp id (doorway).
+- **Collision:** the trench fillers continue down the stair: step boxes, wall boxes, a ceiling box under the roof; frame logs as capsules (`timber`); roof logs only where they show at the entrance face (their ends, capsules); the chamber as a box room. **Holes:** a `holes` record of its own, a footprint over the stair and the chamber, under F-1…F-8 as the cellar C01's (houses-and-yard.md, Holes): the chamber lies below the ground, so its cells are holes too and the ground over them is filler (`surface:meadow_sod`, or `surface:belt_straw` under the crowns); the mound is heightfield only outside the band.
+- **Material ids:** `surface:belt_bare` (stair walls and steps, floor), `timber` (frame, logs, boards), `fabric` (the doorway tarp).
 - **Gaps:** the doorway polygon in the frame plane, 0.8 × 1.6 m: nose-first 113 mm a side, yawed 45° 47 mm a side, so passable at any yaw, barely on the diagonal; the stair corridor's cross-sections every 0.5 m (0.85 × 1.7 m, descending about 40°); the chamber door if any. A damaged state's sagging lintel lowers the doorway; the generator re-measures it. The vent is not passable.
 - **Wind volumes:** none; a doorway draft is the physics engineer's (as the cellar door, terrain.md W4).
 - **Snag hazards:** log ends at the entrance face, the tarp (soft, flutters), splintered lintel ends in the damaged state.
 - **Landable surfaces:** the mound top (ordinary ground).
 
 ### Placement rules
-- On the belt side of E01 runs, every 30–100 m (assumed), the mound partly under the outer crowns.
+- Off the belt side of an E01 run, the mound partly under the outer crowns (assumed); how many per run is the trench generator's `dugouts`, and the layout (phase 3) sets where.
 
 ### Generator parameters
 | Param | Type | Range | Default | Effect |
@@ -525,8 +521,8 @@ The shared trench-family table with `collapse` 0.5–1, `overgrowth` 0.3–1, `a
 ### Placement rules (for the world)
 - **Cratered field (B type):** 1 per 100–400 m² (derived from the 5–20 m spacing); size mix medium 50 %, small 30 %, large 20 % (assumed from B 4–12); most weathered.
 - **Meadow (A type):** small craters with scorch discs and old hollows, 1 per 1,000–5,000 m² (assumed: one to three dark hollows per A frame).
-- Clusters near belts, trench lines, tracks and yards (assumed: where the targets are); craters cut parapets (E01) and tracks.
-- Elongated craters orient downrange by draw (assumed for oblique hits).
+- Clusters near belts, trenches, tracks and yards (assumed); craters cut parapets (E01) and tracks.
+- Elongated craters take a seeded azimuth (assumed: an oblique impact elongates the bowl).
 
 ### Generator parameters
 | Param | Type | Range | Default | Effect |
@@ -535,7 +531,7 @@ The shared trench-family table with `collapse` 0.5–1, `overgrowth` 0.3–1, `a
 | `depth_ratio` | float | 0.2–0.35 | 0.25 | d/D |
 | `rim_ratio` | float | 0.03–0.1 | 0.05 | h/D |
 | `apron_ratio` | float | 1.5–2.5 | 2.0 | Re/R |
-| `ellipticity` | float, azimuth | 0–0.3, 0–360° | 0 | elongation of an oblique hit |
+| `ellipticity` | float, azimuth | 0–0.3, 0–360° | 0 | elongation from an oblique impact |
 | `age` | float | 0–1 | 0.5 | fresh → weathered → grassed: slump, rim softening, crust, regrowth |
 | `scorch_m` | float | 0–6 | 3 (small class), 0 otherwise | scorch disc diameter |
 | `rays` | int | 0–12 | 6 when fresh | spoil rays on the apron |
@@ -586,7 +582,7 @@ The shared trench-family table with `collapse` 0.5–1, `overgrowth` 0.3–1, `a
 
 ### Physics role
 - **Collision:** a hole (about 3–3.5 m of cells, with the F-2 margin) filled with a ring of 12–16 wall boxes, each at least 0.3 m thick and within 0.05 m of the visual (F-5, F-6), a floor box and level lip boxes; the mound is heightfield; branches as V19 capsules.
-- **Material ids:** `surface:belt_bare`; branches `deadwood` (proposed, vegetation.md).
+- **Material ids:** `surface:belt_bare`; branches `deadwood`.
 - **Gaps:** the opening (2–3 m: passable at any yaw); the branch grille: every opening of 0.5 m or more is written as a gap polygon, passable nose-first where at least 0.574 m and at any yaw where at least 0.706 m.
 - **Wind volumes:** none. Inside, a cylindrical cavity (depth/diameter 0.4–0.75) holds one recirculating vortex (derived from the cavity model); rotor rays see the walls, so wall and ground effect in a pit come from the physics rays.
 - **Snag hazards:** the branches over and in it.
@@ -838,14 +834,30 @@ Preset: `base_sets` brown_mud_dry + brown_mud_rocks_01; `albedo_target` by mix; 
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| mat depth | 5–20 cm | 12.5 cm | terrain.md T4; carried |
-| lying straws | 0.3–1.0 m long, 2–5 mm, crosswise, 250 per m² | — | terrain.md T4; carried; measured (H 1–21) |
+| mat depth | 5–20 cm | 12.5 cm | terrain.md T4; carried; checked on H 12–17: the heaps there are ground (next row) |
+| heaped ground under the mat | crests 0.2–0.8 m above the bare floors (H 12: 0.5–0.6 m, H 14: 0.45 m, H 15–17 lower), 1–3 m across, sloping onto the floors and rising into a bank along the belt; soil relief with the mat over it, not mat | 0.45 m high, 2 m across | measured (H 12, H 14; note below) |
+| lying straws, top layer | 0.3–1.0 m long, 2–5 mm, crosswise, 250 per m²: the layer the feed resolves and a leg meets (the physics row's cover) | 250 per m² | terrain.md T4; carried; measured (H 1–21; resolved crossings on H 16, H 17, H 20, note below) |
+| lying straws, all layers | the same straws stacked through the mat's depth, 500–1000 per m² | 750 per m² (the top layer and 500 per m² under it) | derived (coverage, note below) |
 | standing stems with seed heads | 0.5–1.2 m, 2–5 mm, 60 per m² | 0.8 m | terrain.md T4; carried; measured (H 3–9) |
 | twigs in the mat | 5–20 mm, 0.3–1.0 m, 2 per m² | — | carried; measured (H 13–21) |
 | bare soil patches | 0.5–2 m | 1 m | terrain.md T4; measured (H 9–14) |
 | small earth mounds | 0.3–0.5 m across | 0.4 m | terrain.md T4; measured (H 1–4) |
 | short green regrowth | 10–30 % of the area, strips 1–3 m | 15 % | measured (H 16) |
 | uneven support | one leg on a 5 cm mat, another on 20 cm | — | derived (legacy §3.1: a 12.5 cm mat compresses about 5 cm under the reference load, a 20 cm mat about 3 cm, a 5 cm mat through to the soil) |
+
+**How the H numbers above were measured** (H 10–21 through the contact sheets, 960 × 540 px per still):
+- **View geometry** (measured): the camera looks 2–3.5° down in H 10–18 (3.2° in H 12 and H 14), from the convergence of the belt's trunks across the frame after undistortion with O1's k1 0.33 and f 1.005 half-widths (video-feed.md O1, wind.md §1.2). The result moves under 0.3° at k1 0.30 and 0.36, and the method returns 7.7°, 1.5° and −2.9° on synthetic frames drawn at 8°, 1.5° and −3°. Edge trees leaning toward the open side would add their lean; the far fields' skyline at H 1's right edge would put the pitch near 7° if those fields were level, so 7° is the bound used below. The camera's eye level therefore runs about 27 px above the still's centre, and whatever stands there is as high as the camera.
+- **Scale: the camera's height** (derived): 0.3–0.5 m above the bare floors in H 12–20, default 0.35 m.
+  - The nearest straws at the frame's bottom edge (rays 32–35° below the horizontal) are about 3 px wide once the feed's edge spread (P2) is taken off: 5.9 mrad. That puts a 2–5 mm straw 0.34–0.85 m away and the camera 0.2–0.5 m up.
+  - The legs (25–35 cm, pilot) keep a flying drone at least about 0.3 m up.
+- **Heaps** (measured):
+  - H 12: the heap's foot on the bare patch lies 30–75 px below the centre and its crest 65 px above it, so the crest stands 1.4–1.7 camera heights above the floor.
+  - H 14: 1.2–1.3 camera heights (crest 55 px above the centre, foot 60–90 px below).
+  - At the default scale: 0.5–0.6 m and 0.45 m (0.35–0.85 m over the scale's range). Across, at the feet's distance (4–8 camera heights): H 12's heap 470 px, 1.6–2.9 m; H 14's 400 px, 1.2–1.6 m. Pitched 7°, H 12's crest would still stand 1.0–1.1 camera heights up, above the 20 cm mat in every reading. In H 15–17 the mat's skyline lies 10–35 px under the eye level: lower heaps.
+  - **They are ground, not straw.** The crests are smooth domes (H 12); the flanks show soil between the straws a straw or two deep (H 14); the short-grass strip behind them (H 14, H 17) and the trunks' feet (H 12–18) also stand above the camera's eye level, so the ground rises into a bank along the belt. Shelterbelts trap wind-blown soil: deposits 15–85 cm high at the belts after one dust storm (published, https://agris.fao.org/search/zh/records/6473aa7c13d110e4e7a7c72a). The mat over the heaps is the same 5–20 cm, so the mat depth and `straw`'s 490 N/m stand.
+- **Lying-straw density:**
+  - **Top layer** (measured, at the feed's limit): along the near rows of H 16, H 17 and H 20 (rays about 32° down, 510 px wide, local maxima of 10–30 levels) the feed resolves 43–61 straw crossings per row, one every four to six source samples: its resolution limit. With the camera 0.2–0.4 m above the mat's top a row spans 0.4–0.8 m, so that is 130–380 straws per m² by Buffon's n = πN/(2ℓ) with ℓ 0.65 m: the order of the sheet's 250, and all the feed can show. The same count finds 5–11 crossings per 100 px on H 14's strewn bare soil against 8–12 on the mat, so it bounds the visible layer and cannot see the layers under it.
+  - **All layers** (derived): that layer alone covers 43 % of the ground in plan (1 − e^(−nℓd), d 3.5 mm). Seen at H's 20–35°, it would show the soil through 31–45 % of the near mat, since a ray through a layer of random azimuths meets n·ℓ·d·K straws with K 2.1–1.4 at those angles. H 12–21 show soil only in the bare patches and their feathered edges (read by eye). That needs 490–720 per m² for at most 10 % soil and 630–940 per m² for at most 5 %: 500–1000 in all, default 750.
 
 ### Construction and materials
 - Moist dark loam (chernozem type) under a mat of last season's grass lodged in all directions, with standing stems through it, a few purple flowers and green regrowth, twigs from the belt, and holes hidden under the mat.
@@ -856,11 +868,23 @@ Preset: `base_sets` brown_mud_dry + brown_mud_rocks_01; `albedo_target` by mix; 
 |---|---|---|---|
 | mat, mean | #7a7055 (carried) | #777158 (H 16), terrain.md #797258, overcast | measured on H |
 | dry straw itself | #b49c6a (assumed; 0.35 in luminance, derived) | #d39641 (G 3, low sun); terrain.md #d2953f | measured on G |
-| soil patches | #33302b–#4a463f (10YR 2/1–3/1, derived) | #67675c (H 14), #686257 (H 12), #4a4841 (H 10, a damp dark path) | measured on H |
+| soil patches | #59544c, range #555049–#5d584f (about 10YR 3.5/1–4/1, dry trodden topsoil), derived from the feed ratio below; the soil profile's #33302b–#4a463f (10YR 2/1–3/1) is the moist and the tilled soil | #67675c (H 14), #686257 (H 12), #4a4841 (H 10, a damp dark path) | measured on H |
 | short green strip | #6a7a3a (assumed) | #959763 (H 16) | measured on H |
 | wet straw | — | #9d7020 (P 23, windrow straw in rain) | measured on P |
 
 **Albedo check:** a mat of dry straw over dark soil sits at 0.15–0.25 (derived from its parts); the carried mean #7a7055 is 0.17: plausible.
+
+**Soil against mat (H 12, H 14):**
+- **In the feed** (measured, linear luminance within one still, sRGB decoded):
+  - the bare soil between the strewn straws (the patch's median) reads 0.103–0.122, against the mat's mean of 0.194–0.217: a ratio of 0.53–0.61;
+  - the patch with its strewn straws (its mean) reads 0.65–0.78 of the mat (QA's boxes: 0.65–0.72).
+- **What the feed does to that ratio:**
+  - AE (C1) is one gain per frame and cancels.
+  - AWB (C2) pulls the frame toward grey with per-channel gains. For gains of 0.7–1.4 that moves a ratio of two green-weighted luminances by under 1 % (the soil reads neutral grey, b/g 0.85–0.89; the mat yellow, b/g 0.6).
+  - C3 lowers chroma only.
+  - Outside C1–C3, a black lift or flare would raise the ratio. The darkest 1–5 % of H 12–17 read 0.006–0.018, so a lift accounts for at most 0.03 of it.
+  - The camera's tone curve is taken as sRGB's (assumed; the feed port's, D-026).
+- **Photo albedo** (derived): bare soil at 0.50–0.60 of the mat's #7a7055 (luminance 0.164) is 0.082–0.098, #555049–#5d584f, default #59544c (0.55).
 
 ### Variants and states
 - Dry autumn (default, H); low-sun look (G); wet (D-021): the mat heavier and slicker (modulus × 0.6, μ 0.35/0.28, hooks hold × 1.5), the soil × 0.4, dark straw (P 23).
@@ -874,7 +898,7 @@ Preset: `base_sets` brown_mud_dry + brown_mud_rocks_01; `albedo_target` by mix; 
 - **Snag:** straws and twigs hook legs and the fiber. **Landable:** yes; springy and uneven.
 
 ### Micro-detail (AST-10)
-- Lying straws 250 /m², 0.3–1.0 m, 2–5 mm, crosswise with a weak lodging direction; standing stems 60 /m², 0.5–1.2 m, seed heads on 30–60 % (assumed from H); twigs 2 /m²; litter none. The near ring draws and simulates every one; the far layer keeps the mat's texture to 60 m and more. This is the H look at 0.3–1.5 m: the mat must read as separate straws, never as a texture (REAL-05).
+- Lying straws 250 /m² in the top layer and 500 /m² under it (Dimensions), 0.3–1.0 m, 2–5 mm, crosswise with a weak lodging direction; standing stems 60 /m², 0.5–1.2 m, seed heads on 30–60 % (assumed from H); twigs 2 /m²; litter none. The near ring draws every one and simulates the top layer, stems and twigs (the layers under it are the mat's bulk, K§7.3); the far layer keeps the mat's texture to 60 m and more. This is the H look at 0.3–1.5 m: the mat must read as separate straws, never as a texture (REAL-05).
 - **The instance kit** (asset-artist; the scatter and its densities above are the shared micro-detail generator's, AST-10): one small generator builds the meshes the generator places, each a tapered tube of a few segments.
 
 | Param | Type | Range | Default | Effect |
@@ -897,6 +921,8 @@ Preset: `base_sets` brown_mud_02 + TextureCan Ground 0018; `albedo_target` #7a70
 
 ### Open points
 - The hook rate (21.5 % of legs) may read as "every time"; flight tuning with the pilot at the physics gate (K§7.3).
+- The heaped ground and the bank along the belt (0.2–0.8 m, measured above) are relief, not mat: the world-builder puts them in the heightfield or as placed features in phase 3; the S04 patch's ±4 cm relief and mounds do not carry them.
+- S04's floors read 0.62 of the mat in the albedo after p1-s04-belt-straw task 1.10; the bare soil measured here implies #59544c: the asset-artist moves the floors' soil toward it after G1 if the side-by-side asks.
 
 ## S05 belt_bare
 
@@ -991,7 +1017,7 @@ Preset: `base_sets` dirt_floor + forest_ground_04; `albedo_target` #7e6a55; `pat
 ### Physics role
 - **Row `tilled`** (carried): 4.0e6 · 3.3e5 · 0.75/0.6 · 0.10 m · 8 · 0.02 m @ 0.3 m, plus ridges 0.05 m every 0.5 m at the field's azimuth · 0.01 /m². Cover straw 0.1–0.3 m, 80 /m², 2–4 mm, 5 N/m, hook p 0.05 at 0.5–2 N. Dust 0.4. Foot 707 N/m, 35 mm: soft, uneven sink 2–5 cm; a clod under one leg tilts the drone at liftoff and landing across the furrows rocks it (terrain.md T3a).
 - **Ridge parameters by variant:** ploughed 0.10 m half-height every 0.35 m; disked 0.04 m every 0.5 m; stubble none.
-- **Stubble variant (proposed row `stubble`, for physics sign-off):** untilled firm soil (bearing 1.4e7, max sink 0.03 m, as belt_bare), stubble cover 0.10–0.20 m, 500 /m², 3–4 mm, 5 N/m (the dry-straw stiffness of the carried tilled row), hook p 0.05; windrows as a straw mat 0.05–0.15 m deep (belt_straw's mat values) where the windrow mask is set. Derived and assumed.
+- **Stubble variant** (a `tilled` variant, not its own surface row: the physics sign-off, review-materials.md §2, which refuses `surface:stubble`; the variant lives in the surface table's cover block, phase 3): untilled firm soil (bearing 1.4e7, max sink 0.03 m, as belt_bare), stubble cover 0.10–0.20 m, 500 /m², 3–4 mm, 5 N/m (the dry-straw stiffness of the carried tilled row), hook p 0.05; windrows as a straw mat 0.05–0.15 m deep (belt_straw's mat values) where the windrow mask is set. Derived and assumed.
 - **Snag:** stubble and straw hooks (weak). **Landable:** yes.
 
 ### Micro-detail (AST-10)
@@ -1089,7 +1115,7 @@ Preset: `base_sets` burned_ground_01 + the host's; `albedo_target` #3f3d3a char,
 - **Snag:** stalks hook legs and the fiber; props clipping the tops add drag. **Landable:** no.
 
 ### Micro-detail (AST-10)
-- Physical stalks within 3 m of the drone from the same generator as vegetation.md's `forb_stem` (proposed there); lying dead stalks 0.3–1 m, 20 /m² (assumed).
+- Physical stalks within 3 m of the drone from the shared micro-detail generator, the cover's own stems (`MicroDetailNear`; vegetation.md V17, where `forb_stem` was declined as an id); lying dead stalks 0.3–1 m, 20 /m² (assumed).
 
 ### Placement rules
 - Abandoned plots, yard margins, wall feet, crater fields' margins, collapsed trenches (E03); feathers 0.5–2 m into yard and meadow.
@@ -1226,7 +1252,7 @@ Preset: `base_sets` concrete_debris + Ground111; `albedo_target` #8d8172; `cover
 - Potholes, crater holes with broken plates of asphalt (RD01), fragment scars (texture only: under 1–2 cm, no physical role), burnt patches under wrecks (2–6 m, terrain.md R0).
 
 ### Physics role
-- **Proposed row `asphalt`** (physics sign-off): bearing 1.0e8, damping 2.4e5, μ 0.65/0.55 dry (assumed: hard polymer on coarse aggregate, as `masonry`), max sink 0.001 m, unload 1.5, micro-relief none (aggregate is below 1–2 cm), pitfalls: the potholes are RD01's placed pitfall features (0–5 per 100 m² by damage, 0.2–2.0 m, 40–150 mm deep), so the row's own hashed pitfalls are 0 and nothing is counted twice; cover: dust (μ 0.55/0.45 where the dust mask is set), glass crumbs near wrecks (a slippery layer, μ 0.30/0.20, assumed). Dust 0.1. Foot 17.7 kN/m, 1.4 mm: hard bounce set by the leg (derived, the stability bound). The row matches the terrain.md §8 proposal (rigid, slides on glass crumbs).
+- **Proposed row `asphalt`** (the id accepted by the physics sign-off, review-materials.md §2; the values are signed off with `surfaces.json` in phase 3): bearing 1.0e8, damping 2.4e5, μ 0.65/0.55 dry (assumed: hard polymer on coarse aggregate, as `masonry`), max sink 0.001 m, unload 1.5, micro-relief none (aggregate is below 1–2 cm), pitfalls: the potholes are RD01's placed pitfall features (0–5 per 100 m² by damage, 0.2–2.0 m, 40–150 mm deep), so the row's own hashed pitfalls are 0 and nothing is counted twice; cover: dust (μ 0.55/0.45 where the dust mask is set), glass crumbs near wrecks (a slippery layer, μ 0.30/0.20, assumed). Dust 0.1. Foot 17.7 kN/m, 1.4 mm: hard bounce set by the leg (derived, the stability bound). The row matches the terrain.md §8 proposal (rigid, slides on glass crumbs).
 - **Snag:** none. **Landable:** yes, hard.
 
 ### Micro-detail (AST-10)
@@ -1239,7 +1265,7 @@ Preset: `base_sets` concrete_debris + Ground111; `albedo_target` #8d8172; `cover
 Preset: `base_sets` road_damaged + asphalt_02; `albedo_target` #616161; `patch_mask` patches 0.1, cracks by damage, dust film 0.3 at the edges; `cover_channels` litter 0.1 (glass and grit near wrecks).
 
 ### Open points
-- The proposed row's friction values: the physics engineer's; the lines-roads-debris analyst (task 1.4) owns the road kit's geometry.
+- The proposed row's friction values: the physics engineer's, with `surfaces.json` in phase 3 (the id is accepted, review-materials.md §2); the lines-roads-debris analyst (task 1.4) owns the road kit's geometry.
 
 ## S12 concrete_slab
 
@@ -1272,7 +1298,7 @@ Preset: `base_sets` road_damaged + asphalt_02; `albedo_target` #616161; `patch_m
 - Weathered (default), muddy (soil carried on), wet (darker, μ 0.45/0.38).
 
 ### Damage pattern
-- Cracked and spalled plates, a plate tipped or broken by a hit (RD02), a crater beside the track.
+- Cracked and spalled plates, a plate tipped or broken by a blast (RD02), a crater beside the track.
 
 ### Physics role
 - **Plates** are RD02 objects: boxes with `concrete` (μ 0.60/0.50, 3 mm arris), landable flags on their tops, the joints and steps real geometry.
@@ -1324,7 +1350,7 @@ Preset: `base_sets` worn_concrete_floor + cracked_concrete; `albedo_target` #9a9
 - Craters on and beside the track; deep ruts where heavy vehicles passed in mud (0.2–0.3 m, assumed).
 
 ### Physics role
-- **Proposed row `dirt_track`** (physics sign-off): bearing 3.0e7 (assumed, between yard_litter's 3.5e7 and dry_crust's 5.0e7), damping 3.5e5, μ 0.65/0.55, max sink 0.01 m, unload 2, micro-relief 0.01 m @ 0.3 m, pitfalls 0.005 /m². Cover: median grass 0.1–0.4 m, 200 /m² (assumed) with the meadow's stem values. Dust 0.6. Foot 5.3 kN/m, about 5 mm.
+- **Proposed row `dirt_track`** (the id accepted by the physics sign-off, review-materials.md §2; the values are signed off with `surfaces.json` in phase 3): bearing 3.0e7 (assumed, between yard_litter's 3.5e7 and dry_crust's 5.0e7), damping 3.5e5, μ 0.65/0.55, max sink 0.01 m, unload 2, micro-relief 0.01 m @ 0.3 m, pitfalls 0.005 /m². Cover: median grass 0.1–0.4 m, 200 /m² (assumed) with the meadow's stem values. Dust 0.6. Foot 5.3 kN/m, about 5 mm.
 - **Ruts are geometry:** a placed linear feature along the track's polyline (two rut troughs and the raised median, an integer-power profile like E05's), evaluated by `SampleGround` and drawn from the same function; the 1 m heightfield can't hold a 0.35 m rut. For the world-builder and the physics engineer (open point).
 - **Snag:** median grass (weak). **Landable:** yes; a leg in a rut tilts the drone 12–27° for 0.05–0.12 m ruts (derived: atan(depth / 0.24), as RD03).
 
@@ -1345,9 +1371,9 @@ The rut feature's geometry has one owner, the RD03 rut kit (lines-roads-debris.m
 ## Open points for other roles (summary)
 
 - **Physics engineer:**
-  - adopt `surface:<id>` for earthwork filler shapes (preferred), or add the proposed `soil` and `straw` ids;
-  - sign off or amend the three proposed rows `asphalt`, `concrete_slab`, `dirt_track` and the `stubble` variant of `tilled`;
-  - the D-021 wet rules and the new `adhesion` field (pull-off 2–10 N per foot); `wetness` 0.6 / 1.0 for Rain / Severe rain;
+  - `surface:<id>` on earthwork filler shapes: adopted, `soil` mapped to it and `straw` added (settled by the physics sign-off, review-materials.md §1, §6);
+  - the rows `asphalt`, `concrete_slab`, `dirt_track`: the ids are accepted, their values signed off with the map's `surfaces.json` in phase 3; `stubble` is a variant of `tilled`, not a row (settled, review-materials.md §2);
+  - the D-021 wet rules and the `adhesion` field (accepted as the surface table's `adhesion_pa`, review-materials.md §3; pull-off 2–10 N per foot); `wetness` 0.6 / 1.0 for Rain / Severe rain: phase 3, with the surface table;
   - the trench cavity model's in-cavity wind fraction; whether the pit's overhanging lip breaks (X-8);
   - clods as rigid pieces or micro-relief (X-1).
 - **World-builder:** placed features for craters 0.3–4 m (the X-9 mechanism with E05's profile), the rut feature (S13), trench hole bands with the berm they imply, crater and trench placement densities, feathered edges per the shared table.

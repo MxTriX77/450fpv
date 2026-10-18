@@ -32,6 +32,7 @@ namespace Fpv450.Tests.EditMode
   ""params_sha256"": ""0"", ""units"": ""m"", ""frame"": ""unity-lh-yup"",
   ""bounds"": { ""min"": [0.0, 0.0, 0.0], ""max"": [0.3, 0.1, 0.2] },
   ""lods"": [ { ""mesh"": ""xsign_probe"", ""tris"": 12, ""switch_distance_m"": 0.0 } ],
+  ""micro"": [],
   ""cull_distance_m"": 50.0,
   ""materials"": [ { ""slot"": ""probe"", ""visual"": ""brick_red"", ""physics"": ""masonry"" } ],
   ""collision"": [ { ""shape"": ""cylinder"", ""center"": [0.15, 0.05, 0.1], ""radius"": 0.1, ""height"": 0.4,

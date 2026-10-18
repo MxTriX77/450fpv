@@ -6,11 +6,11 @@ Defines what an object sheet holds for each asset class, so a generator can be w
 ## Requirements
 
 ### Requirement: One sheet per class group, every row covered
-Each asset-list row SHALL appear in exactly one object sheet, under its ID, with the sections of `docs/object-sheets/_template.md`.
+Each asset-list row SHALL appear in exactly one object sheet, under its ID, with the sections of `docs/object-sheets/_template.md`. Sections 1–10 and 12 of `docs/asset-list.md` are covered by seven sheets, the fortifications (§12) in `docs/object-sheets/fortifications.md`.
 
 #### Scenario: Coverage check
-- **WHEN** the IDs in the six sheets are compared with `docs/asset-list.md`
-- **THEN** every ID in sections 1–10 appears exactly once, and no sheet carries an ID the list lacks
+- **WHEN** the IDs in the seven sheets are compared with `docs/asset-list.md`
+- **THEN** every ID in sections 1–10 and 12 appears exactly once, and no sheet carries an ID the list lacks
 
 ### Requirement: Measured, labelled numbers
 Every dimension SHALL give a range and a chosen default, each labelled measured (from a letter, with the still number), published (with its source), derived (with the derivation) or assumed. Exact sizes fixed by AST-04 (brick, doors, storeys) SHALL be used as given.
@@ -44,5 +44,12 @@ A sheet SHALL cite clips and photos by letter only, describe classes rather than
 Each sheet SHALL be reviewed by the asset-artist for buildability: every parameter in the generator table has a range and an effect, every damage state says what changes physically, and nothing requires a hand-sculpted part the design does not name.
 
 #### Scenario: Buildability review recorded
-- **WHEN** the six sheets are done
-- **THEN** `review-buildability.md` in the change folder lists, per sheet, what is buildable as written and what was sent back, and the sheets reflect the fixes
+- **WHEN** a change adds or reworks a sheet
+- **THEN** `review-buildability.md` in that change's folder lists, per row, what is buildable as written and what was sent back, and the sheet reflects the fixes
+
+### Requirement: Research-only sheets
+A row that no reference letter shows SHALL say "Seen in: R" and rest on generic published sources only (standards, manufacturers' pages and datasheets, public-domain manuals, encyclopedias), each cited by URL in the row it supports. Its numbers SHALL be labelled published, derived or assumed, never measured. No source SHALL identify a place, unit, date or person.
+
+#### Scenario: Research-only row
+- **WHEN** an F row of `docs/object-sheets/fortifications.md` is read
+- **THEN** it says "Seen in: R", every published number names its source, no number is labelled measured, and a reviewer finds no source tied to a named place, unit or date

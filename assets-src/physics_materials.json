@@ -111,7 +111,7 @@
       "damping_ratio": 0.3,
       "edge_radius_m": 0.02,
       "label": "derived",
-      "rationale": "thatch, hay, a stack, straw carried by a mesh or a roof: the belt_straw mat (modulus 4 kPa, surfaces.json) 0.125 m deep under the 15 mm reference foot, km = modulus·π(b/2 + D/2)²/D ≈ 490 N/m; μ and ζ carried from that mat; the fiber sinks into a straw edge, so the bend radius is the soil-lip figure 0.02 m (assumed); bundle ends are hook snags the generator writes. Straw over ground is surface:belt_straw, not this id"
+      "rationale": "thatch, hay, a stack, straw carried by a mesh or a roof: the belt_straw mat (modulus 4 kPa, surfaces.json) 0.125 m deep under the 15 mm reference foot, km = modulus·π(b/2 + D/2)²/D ≈ 490 N/m; μ and ζ carried from that mat; the fiber sinks into a straw edge, so the bend radius is the soil-lip figure 0.02 m (assumed); bundle ends are hook snags the generator writes. Straw lying on terrain is the surface's mat (surface:belt_straw's cover), never this id; a straw layer over a shape, a surface shape standing in for ground included, is this id (p1-s04-belt-straw review-physics §3)."
     },
     "fabric": {
       "friction_static": 0.40,
