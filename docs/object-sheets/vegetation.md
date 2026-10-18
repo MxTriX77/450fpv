@@ -40,7 +40,7 @@ The side-by-side sheets for these views (REAL-03) are made in `reference/_compar
 - **How the generator writes a gap between two members** (asset-artist rule, the pipeline's gap convention): for two neighbouring members leaving one fork (two limbs ≥ 30 mm, a hanging limb and its trunk, the halves of a split trunk, two stems of a clump), the polygon lies in the plane through the fork point and the two member axes, bounded by the two member surfaces and closed by the chord where the crown shell or the next child fork begins; `narrowest_m` is the diameter of its largest inscribed circle. A branch bridging a pit (V19) or a log over the ground (V21) uses the vertical plane through its axis, bounded by the member's underside and the ground. Only polygons with `narrowest_m` ≥ 0.5 m are written.
 - **Snag records** (the pipeline's two kinds): every segment under 30 mm is an `edge` along its axis with the capsule's radius; every free tip (a twig end, a splinter, a broken stub) is a `hook` from its base to its tip. The "whole crown shell" as a snag is not a record: it is the `twig` material's hook behaviour (open point for the physics engineer).
 - **No texture or normal-map fakes** for anything the drone can touch: furrows in bark are a normal map (the fiber does not read them), but a broken limb's splinters, a split trunk's halves and a stump's jagged top are geometry.
-- **Branch diameters follow Leonardo's rule:** at every fork the parent's cross-section equals the sum of the children's, d_p² = Σ d_c² (published: APS DFD 2011 abstract, Eloy, https://meetings-archive.aps.org/dfd/2011/l24/6, and https://www.npr.org/2011/12/26/144127874/the-wisdom-of-trees-leonardo-da-vinci-knew-it). The generator takes the trunk diameter and the branching counts and derives every segment diameter from this; the twig threshold (10 mm) then falls out of the order count, not a hand-set value.
+- **Branch diameters follow Leonardo's rule:** at every fork the parent's cross-section equals the sum of the children's, d_p² = Σ d_c² (published: APS DFD 2011 abstract, Eloy, https://meetings-archive.aps.org/dfd/2011/l24/6). The generator takes the trunk diameter and the branching counts and derives every segment diameter from this; the twig threshold (10 mm) then falls out of the order count, not a hand-set value.
 - **Taper:** a segment thins linearly between forks; the last 10 mm segment ends in cards.
 
 ### Branch and stem stiffness (derived, for the physics ids)
@@ -185,18 +185,18 @@ No set is in `tools/assets/manifest.json` yet for this group (the manifest holds
 ## V01 Belt tree: black locust (робінія / "акація")
 
 **Seen in:** F (stills 1–17, the corridor and the pit), H (1–21, the belt wall behind the bushes), G (1–13, the openwork strip). Also B, D and A, L as the horizon band.
-**Research sources:** https://en.wikipedia.org/wiki/Robinia_pseudoacacia (size, bark, leaves, pods, suckers); https://dspace.dsau.dp.ua/handle/123456789/2071 (Northern-Steppe locust stands: over-mature stands dominate, maturity 26–35 years); https://journals.uran.ua/bnusing/article/view/337151 (crown projection vs trunk diameter, Northern Steppe); https://journals.nubip.edu.ua/index.php/Dopovidi/uk/article/view/48989/15599 and https://dglib.nubip.edu.ua/bitstreams/8f517abb-d77a-4b68-9413-5a0bee4aec91/download (belt structure: 5–9 rows main, 3–4 auxiliary, rows 1.0–3.5 m apart, 1–2 m in the row).
+**Research sources:** https://en.wikipedia.org/wiki/Robinia_pseudoacacia (size, bark, leaves, pods, suckers). The belt structure under Placement rules (rows, spacing, construction classes) is assumed from common shelterbelt practice: no generic source with these figures was found.
 
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
 | height, size S (edge, suckers, young) | 4–7 m | 6 m | measured (G 1–13: thin strip trees 3–6 m; F margins) |
 | height, size M | 8–12 m | 10 m | measured (F 1–12 crowns arching at 2–4 m with the canopy well above; terrain.md V1 crowns 6–15 m) |
-| height, size L | 12–16 m | 14 m | published (a 70-year lowland belt study cited in the Robinia search: trunk 15.1 m) + terrain.md V1 upper range |
-| trunk diameter S / M / L | 5–10 / 12–20 / 20–35 cm | 8 / 16 / 26 cm | measured (F 1–17: most trunks 5–15 cm, some 15–25 cm, against the 0.574 m prop line and the 2–3 m pit); published 22.1 cm at 70 years |
+| height, size L | 12–16 m | 14 m | measured (terrain.md V1, F, H: belt crowns 6–15 m, the upper range) |
+| trunk diameter S / M / L | 5–10 / 12–20 / 20–35 cm | 8 / 16 / 26 cm | measured (F 1–17: most trunks 5–15 cm, some 15–25 cm, against the 0.574 m prop line and the 2–3 m pit) |
 | stems per base | 1–4 | 1 (S: 2–3) | measured (F 1–12: many two- to four-stem clumps, root suckers) |
 | first fork | 2–5 m | 3 m | measured (F 1–12) |
-| crown width S / M / L | 2–4 / 3–6 / 5–8 m | 3 / 5 / 6 m | derived (narrow, scraggly crown; the crown-projection study models width from trunk diameter: ≈ 20–25 × dbh) |
+| crown width S / M / L | 2–4 / 3–6 / 5–8 m | 3 / 5 / 6 m | derived (narrow, scraggly crown; width ≈ 20–25 × dbh, an assumed ratio) |
 | crown shape | scraggly, open, flat-topped when old | — | measured (F, H) + published ("narrow crown that grows scraggly with age") |
 | trunk lean | 0–15° | 3° (edge trees 8°) | measured (F 13–17: leaning trunks at the pit) |
 | twigs | 3–10 mm, zigzag | — | published (zigzag twigs) |
@@ -226,7 +226,7 @@ No set is in `tools/assets/manifest.json` yet for this group (the manifest holds
 - **States:** summer (`leaf_cover` 0.9), late summer part-bare (0.6, F), autumn (0.3 yellow, H), bare (0, with pods); damaged → V07; dead → V08. Damage is parametric on the same skeleton (AST-06).
 
 ### Damage pattern
-- Fragments scalp bark and snap limbs on the lower 3 m on the blast side (published: trunk wounds concentrate low, https://www.trees.org.uk/Help-and-Advice/News/Methods-of-tree-and-landscape-restoration-after-wa; Croatian survey: 74 % of trees in a shelled hectare wounded, most on the trunk, https://www.bib.irb.hr:8443/55750). The locust resprouts from the base after the top dies, so a damaged belt mixes dead crowns with a dense young understory of suckers.
+- Fragments scalp bark and snap limbs on the lower 3 m on the blast side (assumed; the wound kinds are published: https://www.trees.org.uk/Help-and-Advice/News/Methods-of-tree-and-landscape-restoration-after-wa). The locust resprouts from the base after the top dies, so a damaged belt mixes dead crowns with a dense young understory of suckers.
 
 ### Physics role
 - **Collision:** trunk capsules per 1–2 m segment following the lean and sinuosity; every limb and branch ≥ 10 mm as capsules (an M tree: about 150–300 segments, assumed, to be counted by the generator); crown shell per main limb with `twig` contact.
@@ -237,16 +237,16 @@ No set is in `tools/assets/manifest.json` yet for this group (the manifest holds
 - **Landable surfaces:** none.
 
 ### Placement rules (for the world)
-- Belts: rows 2.5–3 m apart (published range 1.0–3.5), 1–2 m in the row; auxiliary belts 3–4 rows, main belts 5–9 rows; width 10–15 m planted, growing to 10–30 m with edge suckers (terrain.md V1). Locust-dominated belts (60–80 % locust, the rest V02/V03/V04) are the southern-steppe type; V01 is the default belt tree for the map.
-- Belt construction (published, DSTU 48-74:2007 as cited in the search above): **blow-through** (gaps > 60 % in the lower profile, ≤ 10 % above), **openwork** (gaps spread through the profile), **dense** (no gaps). H is dense at low level (PR-10: bushes among the trees, no see-through); G is openwork; F is blow-through inside (bare corridor, closed crowns).
-- Dead and broken trees (V07, V08): 5–15 % of stems in over-mature belts (assumed from "over-mature stands dominate"), so one every 10–20 m of belt, more at the field edge.
+- Belts: rows 2.5–3 m apart, 1–2 m in the row; auxiliary belts 3–4 rows, main belts 5–9 rows (assumed: common shelterbelt practice); width 10–15 m planted, growing to 10–30 m with edge suckers (terrain.md V1). Belts are locust-dominated by default (60–80 % locust, the rest V02/V03/V04: a choice for the map); V01 is the default belt tree for the map.
+- Belt construction (assumed: the common agroforestry classes, their thresholds not checked against a standard): **blow-through** (gaps > 60 % in the lower profile, ≤ 10 % above), **openwork** (gaps spread through the profile), **dense** (no gaps). H is dense at low level (PR-10: bushes among the trees, no see-through); G is openwork; F is blow-through inside (bare corridor, closed crowns).
+- Dead and broken trees (V07, V08): 5–15 % of stems in over-mature belts (assumed), so one every 10–20 m of belt, more at the field edge.
 - Sizes along a belt: L in the middle rows, M at the rows beside them, S and sucker clumps at both edges.
 
 ### Generator parameters
 Preset over the shared tree generator: `height_m` 6/10/14, `dbh_m` 0.08/0.16/0.26, `stems` 2/1/1, `first_fork_m` 2.5/3/4, `main_limbs` 3, `orders` 5, `children_per_order` 2.2, `fork_angle_deg` 25–40, `trunk_sinuosity` 0.4, `crown_shape` scraggly, `crown_width_m` 3/5/6, `leaf_cover` by state, `spines` true when `stems` > 1, `fruit_share` 0.2 (pods) in the autumn and bare states. Ranges and effects: see the shared table.
 
 ### Open points
-- Crown width from trunk diameter: the Northern-Steppe crown model gives the function; the full text is needed to confirm the 20–25 × dbh ratio (assumed here). Research, not a pilot question.
+- Crown width from trunk diameter: the 20–25 × dbh ratio is assumed; a generic crown-allometry source would confirm it. Research, not a pilot question.
 - The segment count per tree against the world-query budget (K§10.5) is the world-builder's and physics engineer's call; if it bites, segments 10–15 mm fold into the `twig` shell.
 
 ## V02 Belt tree: ash
@@ -257,7 +257,7 @@ Preset over the shared tree generator: `height_m` 6/10/14, `dbh_m` 0.08/0.16/0.2
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| height S / M / L | 5–7 / 9–12 / 13–18 m | 6 / 11 / 15 m | published (12–18 m typical) + measured belt crowns 6–15 m (terrain.md V1) |
+| height S / M / L | 5–7 / 9–12 / 13–18 m | 6 / 11 / 15 m | published (12–18 m typical) + measured belt crowns 6–15 m (terrain.md V1, F, H) |
 | trunk diameter S / M / L | 6–10 / 14–22 / 25–40 cm | 8 / 18 / 30 cm | derived from height by the locust ratio (assumed the same) |
 | first fork | 3–6 m | 4 m | assumed (a tall narrow crown) |
 | crown width S / M / L | 2–3 / 3–5 / 5–7 m | 2.5 / 4 / 6 m | published ("tall and narrow") |
@@ -293,7 +293,7 @@ Preset over the shared tree generator: `height_m` 6/10/14, `dbh_m` 0.08/0.16/0.2
 - **Landable surfaces:** none.
 
 ### Placement rules
-- 10–30 % of a forest-steppe belt mixed with V03 and V01; rarely the main species. Keeps to the inner rows.
+- 10–30 % of a belt mixed with V03 and V01; rarely the main species. Keeps to the inner rows.
 
 ### Generator parameters
 Preset: `height_m` 6/11/15, `dbh_m` 0.08/0.18/0.30, `first_fork_m` 3/4/5, `main_limbs` 2–3, `orders` 4, `children_per_order` 2.0, `fork_angle_deg` 20–35, `limb_droop` −0.3, `crown_shape` oval, `crown_width_m` 2.5/4/6.
@@ -304,12 +304,12 @@ Preset: `height_m` 6/11/15, `dbh_m` 0.08/0.18/0.30, `first_fork_m` 3/4/5, `main_
 ## V03 Belt tree: maple (incl. box elder)
 
 **Seen in:** F, H (as the denser, rounder crowns in the belt wall, H 1–8). Box elder as saplings: D (1–14), H (7–12). **R** for the species detail.
-**Research sources:** https://en.wikipedia.org/wiki/Acer_platanoides (Norway maple: 20–30 m, bark, leaf 7–14 cm, yellow autumn); https://en.wikipedia.org/wiki/Acer_negundo (box elder: 10–25 m, trunk 30–50 cm, multi-stemmed, brittle, green twigs, 3–7 leaflets, invasive in Central Europe); https://repo.snau.edu.ua/handle/123456789/13056 (a belt survey: Norway maple dominant with birch, box elder in the shrub layer with Tatar honeysuckle and blackthorn; the herb layer almost absent inside the belt; the edge carries the diversity).
+**Research sources:** https://en.wikipedia.org/wiki/Acer_platanoides (Norway maple: 20–30 m, bark, leaf 7–14 cm, yellow autumn); https://en.wikipedia.org/wiki/Acer_negundo (box elder: 10–25 m, trunk 30–50 cm, multi-stemmed, brittle, green twigs, 3–7 leaflets, invasive in Central Europe). The belt mix (Norway maple in the inner rows, box elder and shrubs at the edges) is assumed.
 
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| Norway maple height S / M / L | 5–7 / 8–12 / 12–16 m | 6 / 10 / 14 m | published (20–30 m free-grown) capped by measured belt crowns 6–15 m |
+| Norway maple height S / M / L | 5–7 / 8–12 / 12–16 m | 6 / 10 / 14 m | published (20–30 m free-grown) capped by measured belt crowns 6–15 m (terrain.md V1, F, H) |
 | Norway maple trunk S / M / L | 6–10 / 14–24 / 25–45 cm | 8 / 18 / 32 cm | derived (as V02) |
 | Norway maple crown width | 4–6 / 6–9 / 8–11 m | 5 / 7 / 9 m | published ("broad and rounded") + assumed ratios |
 | box elder height / trunk | 6–12 m / 15–40 cm | 9 m / 25 cm | published (10–25 m, 30–50 cm) capped for belts |
@@ -348,7 +348,7 @@ Preset: `height_m` 6/11/15, `dbh_m` 0.08/0.18/0.30, `first_fork_m` 3/4/5, `main_
 - **Landable surfaces:** none.
 
 ### Placement rules
-- Norway maple: 10–40 % of forest-steppe belts, inner rows. Box elder: self-seeded at belt edges, in yards, along fences and at ruined walls (the most common self-seeded tree, published invasive status); its saplings are V16's default.
+- Norway maple: 10–40 % of belts, inner rows. Box elder: self-seeded at belt edges, in yards, along fences and at ruined walls (the most common self-seeded tree, published invasive status); its saplings are V16's default.
 
 ### Generator parameters
 Norway maple preset: `height_m` 6/10/14, `dbh_m` 0.08/0.18/0.32, `first_fork_m` 2.5/3.5/4.5, `main_limbs` 3–4, `orders` 5, `children_per_order` 2.8, `fork_angle_deg` 35–55, `crown_shape` dome, `crown_width_m` 5/7/9. Box elder preset: `height_m` 9, `dbh_m` 0.25, `stems` 3, `trunk_lean_deg` 10–25, `first_fork_m` 1–2, `fork_angle_deg` 40–70, `crown_shape` spreading, `crown_width_m` 7.
@@ -359,12 +359,12 @@ Norway maple preset: `height_m` 6/10/14, `dbh_m` 0.08/0.18/0.32, `first_fork_m` 
 ## V04 Belt tree: elm
 
 **Seen in:** **R** (the asset list); the bushy, dark, irregularly fissured trunks in F 1–12 and the dead thin trees in G 1–13 fit the class.
-**Research sources:** https://en.wikipedia.org/wiki/Ulmus_pumila (Siberian elm: 15–25 m, dbh to 1 m, dark grey irregularly fissured bark, bushy crown, brittle wood, leaves 2–8 cm, short-lived under 60 years, the classic post-drought shelterbelt tree); https://doaj.org/article/e8aeefde920141f2b55c91af5576277d (elm stands in eastern Ukraine grow mainly in man-made plantations).
+**Research sources:** https://en.wikipedia.org/wiki/Ulmus_pumila (Siberian elm: 15–25 m, dbh to 1 m, dark grey irregularly fissured bark, bushy crown, brittle wood, leaves 2–8 cm, short-lived under 60 years, the classic post-drought shelterbelt tree).
 
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| height M / L | 8–12 / 12–16 m | 10 / 14 m | published (15–25 m) capped by measured belt crowns |
+| height M / L | 8–12 / 12–16 m | 10 / 14 m | published (15–25 m) capped by measured belt crowns (terrain.md V1, F, H) |
 | trunk M / L | 15–25 / 25–40 cm | 20 / 30 cm | published (rapid, 40 mm per year on stumps) + derived as V02 |
 | stems | 1–3 | 1 | assumed (often bushy) |
 | first fork | 1.5–4 m | 2.5 m | assumed (low, bushy) |
@@ -494,7 +494,7 @@ Columnar preset: `height_m` 20, `dbh_m` 0.55, `first_fork_m` 1–2, `main_limbs`
 - **Landable surfaces:** a horizontal lower limb ≥ 0.3 m wide is a landable surface for two legs (the drone tilts; see V21 for the rule).
 
 ### Placement rules
-- The main species in some forest-steppe belts (1–3 rows of oak with V02/V03 companions); lone oaks at field corners and yards: one per village (assumed).
+- The main species in some belts (1–3 rows of oak with V02/V03 companions); lone oaks at field corners and yards: one per village (assumed).
 
 ### Generator parameters
 Preset: `height_m` 12/16, `dbh_m` 0.40/0.65, `first_fork_m` 3, `main_limbs` 4–5, `orders` 6, `children_per_order` 2.5, `fork_angle_deg` 45–70, `trunk_sinuosity` 0.5, `crown_shape` dome, `crown_width_m` 10/14.
@@ -505,13 +505,13 @@ Preset: `height_m` 12/16, `dbh_m` 0.40/0.65, `first_fork_m` 3, `main_limbs` 4–
 ## V07 Damaged tree, broken top
 
 **Seen in:** B (per the asset list and terrain.md V2: thin trees with broken tops), G (1–13: thin leafless trees with small, ragged crowns in the strip), D (1–12: the dead tree's top is a thin fan, part broken). B not re-read here.
-**Research sources:** war damage to trees: https://www.trees.org.uk/Help-and-Advice/News/Methods-of-tree-and-landscape-restoration-after-wa (scalped bark, fractured trunks and limbs, fragment wounds, burnt stems, overturned trees, epicormic regrowth); https://www.bib.irb.hr:8443/55750 (Croatian survey: 74 % of trees wounded on a shelled hectare, most wounds on the trunk, decreasing with height, 74 % penetrating below the bark).
+**Research sources:** war damage to trees: https://www.trees.org.uk/Help-and-Advice/News/Methods-of-tree-and-landscape-restoration-after-wa (scalped bark, fractured trunks and limbs, fragment wounds, burnt stems, overturned trees, epicormic regrowth).
 
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
 | standing height after the break | 4–10 m | 6 m | measured (G 1–13: 3–6 m thin trees; terrain.md V2 4–10 m) |
-| trunk | 10–30 cm | 18 cm | measured (terrain.md V2) |
+| trunk | 10–30 cm | 18 cm | measured (terrain.md V2, B, D, G) |
 | break height | 2–6 m | 4 m | assumed (the top third to half goes) |
 | splinters at the break | 0.3–1.0 m long, 2–6 cm wide | 0.5 m | assumed (dry hardwood splits along the grain) |
 | hanging limb | 1–3 m, held by a bark strip 5–15 cm wide | 2 m | published pattern, sizes assumed |
@@ -607,7 +607,7 @@ Over the tree preset with `dead` true: `trunk_lean_deg` 0–15, `bark_loss` 0.3�
 ## V09 Shell-split trunk / charred stump
 
 **Seen in:** **R**. Burnt fields (T3b) are confirmed by the pilot but not in the letters.
-**Research sources:** https://www.trees.org.uk/Help-and-Advice/News/Methods-of-tree-and-landscape-restoration-after-wa (burnt stems and main branches from direct flame and nearby building fires; fractured trunks); the Croatian survey above (trunk wounds).
+**Research sources:** https://www.trees.org.uk/Help-and-Advice/News/Methods-of-tree-and-landscape-restoration-after-wa (burnt stems and main branches from direct flame and nearby building fires; fractured trunks).
 
 ### Dimensions
 | Part | Range | Chosen default | Label |
@@ -807,7 +807,7 @@ Preset: `height_m` 12, `dbh_m` 0.55, `first_fork_m` 2, `main_limbs` 4, `orders` 
 ## V13 Belt understory shrub
 
 **Seen in:** H (1–21: the continuous bush layer 1.5–3 m in front of and under the trees, thicker at the edge), F (1–12: green shrubs 1–2 m in the mid-ground under the canopy), G (1–15: shrubs 1–2 m beside the trench, the last stills inside one). PR-10.
-**Research sources:** https://repo.snau.edu.ua/handle/123456789/13056 (belt shrub layer: box elder, Tatar honeysuckle, blackthorn); https://en.wikipedia.org/wiki/Caragana_arborescens (peashrub 2–6 m, the standard steppe shelterbelt shrub, pods twist open); https://en.wikipedia.org/wiki/Elaeagnus_angustifolia (silverberry to 11 m, thorns 2–7 cm, silvery leaves, in the Pontic steppe); https://www.hromady.org/wp-content/uploads/2021/05/Лісогосподарські-заходи-в-лісосмугах-.pdf (shrubs are planted into belts to help the main species and suppress weeds).
+**Research sources:** https://en.wikipedia.org/wiki/Lonicera_tatarica (Tatar honeysuckle to about 3 m, leaves 3–6 cm, forms thickets and a dense understory, orange or red berries); https://en.wikipedia.org/wiki/Caragana_arborescens (peashrub 2–6 m, a standard shelterbelt shrub, pods twist open); https://en.wikipedia.org/wiki/Elaeagnus_angustifolia (silverberry to 11 m, thorns 2–7 cm, silvery leaves). The shrub-layer mix (honeysuckle, caragana, silverberry, box elder) and its role (planted to help the main trees and shade out weeds) are assumed from common practice.
 
 ### Dimensions
 | Part | Range | Chosen default | Label |
@@ -816,13 +816,13 @@ Preset: `height_m` 12, `dbh_m` 0.55, `first_fork_m` 2, `main_limbs` 4, `orders` 
 | width | 1–2 / 1.5–3 / 2–3 m | 1.5 / 2.2 / 2.5 m | measured (H: clumps 1.5–3 m wide) |
 | stems from the base | 5–20 | 10 | assumed (honeysuckle, caragana: multi-stem) |
 | stem diameter at the base | 10–30 mm | 18 mm | assumed (3 m shrub stems) |
-| branching from | 0.3–1 m up (variant 1), 1 m up (variant 3, leggy under the canopy) | 0.6 m | measured (terrain.md V1: branches from about 1 m up) |
+| branching from | 0.3–1 m up (variant 1), 1 m up (variant 3, leggy under the canopy) | 0.6 m | measured (terrain.md V1, F, H: branches from about 1 m up) |
 | twigs | 3–8 mm, dense | — | measured (H 13–21: a fine mesh) |
 | leaf | 2–6 cm (honeysuckle oval; caragana pinnate with 8–12 leaflets 1–2 cm) | 4 cm | published / assumed |
 | spacing between clumps inside the belt | 1–4 m, gaps 0.5–1.5 m | 2.5 m | derived from PR-10 and H (no see-through at 1–2 m height) |
 
 ### Construction and materials
-- Species mix as a look, not a label: Tatar honeysuckle and caragana (upright, many thin stems, small leaves), silverberry (grey-silver leaves, thorns, in the south) and box-elder saplings (V16). One generator, three size variants; a leafy card mass over a stem skeleton; ≥ 10 mm stems as geometry.
+- Species mix as a look, not a label: Tatar honeysuckle and caragana (upright, many thin stems, small leaves), silverberry (grey-silver leaves, thorns) and box-elder saplings (V16). One generator, three size variants; a leafy card mass over a stem skeleton; ≥ 10 mm stems as geometry.
 - Variant 1 (low, dense, edge): stems to the ground, leaves to the ground. Variant 2 (mid): the H edge clump. Variant 3 (tall, leggy, inside): bare stems 1 m, leaves above, under the canopy.
 - **Materials:** stems: Poly Haven `bark_brown_02` with a grey-green tint; leaves: a LeafSet with small oval leaves (honeysuckle) and one with small leaflets (caragana); autumn tints yellow (honeysuckle red berries as 1-card tufts, derived).
 
@@ -844,7 +844,7 @@ Preset: `height_m` 12, `dbh_m` 0.55, `first_fork_m` 2, `main_limbs` 4, `orders` 
 - **Collision:** stems ≥ 10 mm as capsules (10–20 per clump); the leafy mass as a convex shell with `twig` contact (k 10–50 N/m): the drone pushes 0.2–0.5 m into a clump before the stems stop it.
 - **Material ids:** `bark` on stems, `twig` on the shell.
 - **Gaps:** between clumps 0.5–1.5 m: passable only where ≥ 0.574 m nose-first; the edge wall in H has none at 1–2 m height (PR-10). The generator does not write gaps inside a clump (none ≥ 0.5 m).
-- **Wind volumes:** clump porosity 0.35 summer, 0.5 autumn, 0.7 bare (assumed); at belt level this is what makes the lower profile dense (DSTU constructions, V01).
+- **Wind volumes:** clump porosity 0.35 summer, 0.5 autumn, 0.7 bare (assumed); at belt level this is what makes the lower profile dense (the belt construction classes, V01).
 - **Snag hazards:** the whole twig mesh (3–8 mm twigs: the fiber's worst case) and the stems at leg height.
 - **Landable surfaces:** none (the shell gives way, the legs drop through).
 
@@ -1011,13 +1011,13 @@ Over the shrub generator: `height_m` 1–3, `stems` 1–3, `stem_d_mm` 10–40, 
 ## V17 Tall weeds: mixed forbs
 
 **Seen in:** D (1–14: the dominant cover, 0.5–1.5 m, green-yellow with seed heads), C (1–6: dry yellow-brown weeds 0.5–1 m along the cellar wall), E (per the asset list; terrain.md T7: patches along the walls). Also the margins in B and the standing stems in H (13–21).
-**Research sources:** https://en.wikipedia.org/wiki/Artemisia_vulgaris (mugwort to 1.5 m, purplish angular stems, dark green leaves white below, waste places); https://en.wikipedia.org/wiki/Ambrosia_artemisiifolia (ragweed to 0.7 m, much-branched; https://zaxid.net/ambroziya_chim_nebezpechna_yak_borotisya_koli_znishhuvati_poradi_n1640701 and https://kyivcity.gov.ua/news/borotba_z_ambroziyeyu_v_kiyevi_pochali_obroblennya_dilyanok_na_yakikh_viyavili_nebezpechniy_alergenniy_buryan/ : stands to 2 m where uncontrolled, on waste ground and yards); https://en.wikipedia.org/wiki/Chenopodium_album (fat-hen 0.1–1.5 m, mealy leaves, recumbent after seeding, nitrogen-rich wasteland); https://en.wikipedia.org/wiki/Solidago_canadensis (goldenrod 0.6–1.8 m, dense clonal stands, yellow plumes in late summer, invasive in Europe); https://en.wikipedia.org/wiki/Cirsium_arvense (creeping thistle 0.3–1.5 m, clonal colonies, spiny leaves 15–20 cm); a city ruderal survey https://harvester.nas.gov.ua/Record/open-sciencenbuvgovua-6142?lng=de and a village survey https://publications.lnu.edu.ua/journals/index.php/biology/article/view/822 (the Artemisietea class of tall perennial ruderals is the abandoned-yard community).
+**Research sources:** https://en.wikipedia.org/wiki/Artemisia_vulgaris (mugwort to 1.5 m, purplish angular stems, dark green leaves white below, waste places); https://en.wikipedia.org/wiki/Ambrosia_artemisiifolia (ragweed to 0.7 m, much-branched; https://zaxid.net/ambroziya_chim_nebezpechna_yak_borotisya_koli_znishhuvati_poradi_n1640701 : on roadsides, waste ground, yards and abandoned plots); https://en.wikipedia.org/wiki/Chenopodium_album (fat-hen 0.1–1.5 m, mealy leaves, recumbent after seeding, nitrogen-rich wasteland); https://en.wikipedia.org/wiki/Solidago_canadensis (goldenrod 0.6–1.8 m, dense clonal stands, yellow plumes in late summer, invasive in Europe); https://en.wikipedia.org/wiki/Cirsium_arvense (creeping thistle 0.3–1.5 m, clonal colonies, spiny leaves 15–20 cm); https://en.wikipedia.org/wiki/Ruderal_species (ruderals are the first to colonise disturbed land, abandoned fields among it). Tall perennial ruderals as the abandoned-yard cover is assumed.
 
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
 | height | 0.5–1.5 m | 1.0 m | measured (D 1–12 against the 1.5–3 m saplings and the prop line; terrain.md T7) |
-| stalk diameter | 5–15 mm | 8 mm | measured (terrain.md T7) |
+| stalk diameter | 5–15 mm | 8 mm | measured (terrain.md T7, D) |
 | stalks per m² | 10–60 | 30 | assumed (a dense late-summer stand) |
 | branching | from 0.3–0.6 m up, 3–8 side branches 3–6 mm | 5 | published (mugwort, ragweed much-branched) |
 | seed heads / plumes | 0.1–0.4 m at the top, 20–40 % of stalks in late summer, 80 % in autumn | — | measured (D: seed heads on many tops; C: brown heads) |
@@ -1052,7 +1052,7 @@ Over the shrub generator: `height_m` 1–3, `stems` 1–3, `stem_d_mm` 10–40, 
 - **Landable surfaces:** none (legs go deep; rubble hides underneath, terrain.md T7).
 
 ### Placement rules
-- Fills every abandoned plot (D), 10–40 m patches with feathered edges (PR-11); strips 0.5–2 m along every wall, fence and cellar (C, E); belt margins 1–3 m (B, H); not inside dense belts (the herb layer is almost absent there, the belt survey cited under V03) but along the F corridor margins.
+- Fills every abandoned plot (D), 10–40 m patches with feathered edges (PR-11); strips 0.5–2 m along every wall, fence and cellar (C, E); belt margins 1–3 m (B, H); not inside dense belts (the floor is bare there: F, terrain.md T5) but along the F corridor margins.
 
 ### Generator parameters
 Over the forb generator: `height_m` 0.5–1.5, `stem_d_mm` 5–15, `density_per_m2` 10–60, `seed_heads` 0.2–0.9, `leaf_cover` 0.9/0.5/0, `dry` by variant, `patch_shape` from the map; `species_mix` mugwort 0.3, goldenrod 0.2, ragweed 0.2, fat-hen 0.15, thistle 0.15 (a look parameter).
