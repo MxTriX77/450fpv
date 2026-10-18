@@ -107,7 +107,7 @@ This is the pilot's seven-step plan (2026-10-17), "made right". Their order stay
    - QA approval
 
    Each one also goes into its gallery station as it lands.
-7. **Micro-detail generator and renderer:** deterministic, shared with physics (AST-10).
+7. **Micro-detail generator and renderer:** deterministic, shared with physics (AST-10). Before it, the next materials sign-off by the physics engineer: every row of `physics_materials.json` re-derived per touching part, not for the whole drone (`fabric` 600 N/m and `mesh` 800 N/m sink four legs 20 mm, not 50–100 mm; `straw`'s 490 N/m with S04's measured mat depth), and the fortifications' `razor_wire` and `sandbag` rows added (archive/2026-10-18-p1-fortifications-sheet/review-physics.md §4).
 8. **Gap probe:** a drone-sized capsule through every gap, and contact with every material (AST-05).
 
 **Deliverables:** `assets-src/` (params), `tools/blender/` generators, Unity prefabs, the catalog, object sheets, review sheets, `CREDITS.md`.
@@ -162,7 +162,8 @@ This is the pilot's seven-step plan (2026-10-17), "made right". Their order stay
    - port and adapt the first attempt's C# (`WorldQuery`, `Contacts`, `MicroDetail`, `WindGrid`, `DetMath`, `ContentHash`)
    - the golden file, the concurrency tests and the benchmarks (WLD-11)
    - the physics engineer runs a contact probe (a fake drone over the API) before sign-off
-4. **Unity world builder:** terrain tiles from the heightfield, surface splatting with feathered edges, vegetation and object instancing from `objects.json`, micro-detail near the camera, impostors, streaming if needed.
+   - from the fortifications and V01 readings (archive/2026-10-18-p1-fortifications-sheet/review-physics.md §6–§7, p1-v01-locust review-physics §A.4): a `convex` shape (a face and edge list per hull, a swept separating-axis contact test, ray clipping, geometry lookup, golden cases, a `teeth_field` benchmark); a spatial index over snag records and gaps with a record query, a cap of 2,048 record segments per 2 m cube per asset and per map, a `wire_runs` benchmark; a two-level shape index for belts of trees; density counted as narrow tests
+4. **Unity world builder:** terrain tiles from the heightfield, surface splatting with feathered edges, vegetation and object instancing from `objects.json`, micro-detail near the camera, impostors, streaming if needed. The compiler writes the gaps between separately placed objects (between dragon's teeth, between road blocks) as the layout places them, sizes long thin wind volumes (wire runs, hedges, porous fences) by their thickness across the wind, not by footprint perimeter / π, and re-derives gap verdicts per instance scale (a 0.706 m gap at scale 0.9 is nose-first only).
 5. **The map itself:** the D-018 layout as refined by D-035 (WLD-01). A village, a smaller village and a somewhat larger town divided by belts and fields in the pattern of the layout reference (letter Q); fields, belts with trenches, trenches in the fields, cratered, burnt and tilled fields, roads and slab tracks, a small river and ponds, the fortifications (F01–F03), the urban edge, most houses damaged or destroyed, at least 30 fly-ins, at least 6 start points.
 6. **Performance** (PLT-02, PLT-05, PLT-06) and the night silhouette check (WLD-10).
 
@@ -249,7 +250,7 @@ Five changes, each ending in an MVP the pilot flies:
 | 7a Ground and landing | PHY-01…06: soil, mat, hooks, stiction, pitfalls, furrows, stems, launch stand, landing bounce, wet ground | legs stick "sometimes, a little", more on soft ground, most of the time in rain |
 | 7b Propulsion and airframe | PHY-07…12: asymmetry, ground effect, VRS, PR-1 shake, battery, inertia character | settling into own wash depends on throttle against weight, with wobble; the PR-1 shake is rare |
 | 7c Wind and turbulence | PHY-13…17 (the wind and rain statistics tools ported to plain Python first, D-037): field, PR-3 vorticity and gradients, wakes, levels against the K§8.6 targets via the simulated-pilot harness, per-flight draws, trade-off, rain, cruise in wind | wind flown at normal cruise speed; the effort goes into correcting course |
-| 7d Tether and wires | PHY-18…23: spool, span, cut risk, link margin, fiber break, wire strikes, openings | cuts from sharp reverse, tree snags, very sharp liftoff, backward momentum after liftoff |
+| 7d Tether and wires | PHY-18…23: spool, span, cut risk, link margin, fiber break, wire strikes, openings (with the fortifications reading's §9: the exact bend radius over an edge, `payout_tension_n` named and logged, abrasion per fiber section, barb pitch as a lock point, the fiber skipping compliant stand-in shapes; QA scenarios: a line draped over a coil run, a reverse round a snagged barb) | cuts from sharp reverse, tree snags, very sharp liftoff, backward momentum after liftoff |
 | 7e Physics → feed, and forensics | PHY-24/25, LOG-03/04: all signals live, the crash report with a verdict, the second-machine determinism check, lens drops driven by physics | drops stay on the lens even when fast, and travel with the airflow |
 
 **Done means, per change:** its PHY requirements are met with scenarios; statistical targets are proven to fail wrong models; replay is bit-exact; performance is held; the pilot has flown it.
