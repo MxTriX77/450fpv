@@ -5,11 +5,11 @@
   "seed": 4,
   "size_m": 12,
   "output_px": 2048,
-  "soil": { "texture_set": "polyhaven/brown_mud_02", "tile_size_m": 1.3 },
-  "cover": { "texture_set": "texturecan/ground_0018", "tile_size_m": 2.0 },
+  "soil": { "texture_set": "polyhaven/brown_mud_02", "tile_size_m": 1.3, "albedo_target": "#433f37" },
+  "cover": { "texture_set": "texturecan/ground_0018", "tile_size_m": 2.0, "gap_share": 0.25 },
   "patches": {
     "bare": { "share": 0.08, "size_m": [0.5, 2.0] },
-    "green": { "share": 0.15, "width_m": [1.0, 3.0], "length_m": [3.0, 12.0], "tint": "#6a7a3a" },
+    "green": { "share": 0.15, "width_m": [1.0, 3.0], "length_m": [3.0, 12.0], "tint": "#7f8a4e" },
     "lodging": { "azimuth_deg": 25, "bias": 0.3 }
   },
   "albedo_target": "#7a7055",

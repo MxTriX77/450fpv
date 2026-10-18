@@ -253,12 +253,12 @@ MonoBehaviour:
   id: S04
   variant: S04_patch
   generator: ground_patch
-  paramsSha256: 32e2b0e6f1160cba810ffa37a57e21ff2b53382bac6fd7ef3fd7990e1ad86d59
+  paramsSha256: 40e8e0e14d58b3917e5a68a8cc3419efcee66f1d595d8c779cff07c831f41daa
   units: m
   frame: unity-lh-yup
   bounds:
-    m_Center: {x: 0, y: 0.53191996, z: 0}
-    m_Extent: {x: 6, y: 0.73192, z: 6}
+    m_Center: {x: 0, y: 0.47098503, z: 0}
+    m_Extent: {x: 6, y: 0.67098504, z: 6}
   lods:
   - mesh: S04_patch_LOD0
     tris: 6014
@@ -273,13 +273,16 @@ MonoBehaviour:
   - lod: 0
     name: S04_patch_LOD0_straw
     kind: straw
-    count: 15683
-    tris: 381672
+    count: 12144
+    tris: 294732
   cullDistanceM: 400
   materials:
   - slot: ground
     visual: belt_straw
     physics: surface:belt_straw
+  - slot: soil
+    visual: belt_soil
+    physics: surface:crater_spoil
   - slot: straw
     visual: straw
     physics: surface:belt_straw
@@ -328,7 +331,7 @@ LODGroup:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5551176185893124036}
   serializedVersion: 2
-  m_LocalReferencePoint: {x: 0, y: 0.53191996, z: 0}
+  m_LocalReferencePoint: {x: 0, y: 0.47098503, z: 0}
   m_Size: 9.237604
   m_FadeMode: 0
   m_AnimateCrossFading: 0
@@ -468,6 +471,7 @@ MeshRenderer:
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: 572284409eed265499fa83b33f4f5eb8, type: 2}
+  - {fileID: 2100000, guid: 9789df47a06e35f41ae6fabf4ad51802, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -701,6 +705,7 @@ MeshRenderer:
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: 572284409eed265499fa83b33f4f5eb8, type: 2}
+  - {fileID: 2100000, guid: 9789df47a06e35f41ae6fabf4ad51802, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0

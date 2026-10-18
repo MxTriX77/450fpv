@@ -1,7 +1,7 @@
 {
   "material": "belt_straw",
   "kind": "ground",
-  "formula": "ground v1: cover tiled at tile_size_m and at tile_size_m*phi, averaged, stretched 1+bias along the lodging azimuth and rotated to it; soil tiled at its tile_size_m; seeded blobs (an ellipse and three satellites) stamped to the bare and green shares, feathered 0.1 m (bare) and 0.5 m (green along the azimuth, counted outside bare); albedo = cover with the straw gain for albedo_target, strips tinted to the green tint, soil under bare, then a global gain against clipping; normal composited the same with the cover normals rotated by the azimuth; mask R 0, G AO, B 0, A 1 - roughness; detail albedo = the detail set's diffuse at its size with a linear mean of 0.5 per channel; 8-bit sRGB albedos",
+  "formula": "ground v2: cover tiled at tile_size_m and at tile_size_m*phi, averaged, stretched 1+bias along the lodging azimuth and rotated to it; soil tiled at its tile_size_m, gained to its albedo_target when given; seeded blobs (an ellipse and three satellites) stamped to the bare and green shares, feathered 0.3 m (bare) and 0.5 m (green along the azimuth, counted outside bare); strewn masks clamp(2 m - c), c the cover luminance high-passed at STRAW_M, blended with LOBE_M value noise and stretched to 0-1: the bare mask's feather (noise 0.5) and the gaps between straws (a flat m of sqrt(gap_share / 2), noise GAP_LOBES 0), soil under both; albedo = cover with the straw gain for albedo_target, strips tinted to the green tint, soil under bare and gaps, then a global gain against clipping; normal composited the same with the cover normals rotated by the azimuth; mask R 0, G AO, B 0, A 1 - roughness; detail albedo = the detail set's diffuse as grey at its size with a linear mean of 0.5; 8-bit sRGB albedos",
   "pillow": "12.3.0",
   "recipe": {
     "schema": 1,
@@ -12,11 +12,13 @@
     "output_px": 2048,
     "soil": {
       "texture_set": "polyhaven/brown_mud_02",
-      "tile_size_m": 1.3
+      "tile_size_m": 1.3,
+      "albedo_target": "#433f37"
     },
     "cover": {
       "texture_set": "texturecan/ground_0018",
-      "tile_size_m": 2.0
+      "tile_size_m": 2.0,
+      "gap_share": 0.25
     },
     "patches": {
       "bare": {
@@ -36,7 +38,7 @@
           3.0,
           12.0
         ],
-        "tint": "#6a7a3a"
+        "tint": "#7f8a4e"
       },
       "lodging": {
         "azimuth_deg": 25,
@@ -105,7 +107,7 @@
       "sha256": "9191758c59d352d71fc6434e78bebf01380515b13c0883e4e6f605442b67e7ec"
     }
   },
-  "inputs_sha256": "3388a934a22d7c2f6da8a369361993e34704d61205eed215cd7c023bb88b95bf",
+  "inputs_sha256": "9de5fc66cebac6d791526fa0da51e3fc34e83be3369e24433b73fe540cd416ab",
   "size": [
     2048,
     2048
@@ -122,29 +124,36 @@
   ],
   "measured": {
     "mean_linear_rgb": [
-      0.1942,
+      0.1946,
       0.1619,
-      0.0902
+      0.0908
     ],
-    "mean_luminance": 0.1636,
+    "mean_luminance": 0.1637,
     "target_luminance": 0.1638,
-    "luminance_error_pct": -0.15,
-    "bare_share": 0.0818,
-    "green_share": 0.1545,
+    "luminance_error_pct": -0.05,
+    "bare_share": 0.0783,
+    "green_share": 0.1554,
+    "gap_share": 0.2175,
+    "soil_mean_srgb": "#433f37",
+    "soil_gain": [
+      0.723,
+      0.816,
+      0.948
+    ],
     "straw_gain": [
-      0.395,
-      0.502,
-      0.931
+      0.472,
+      0.602,
+      1.056
     ],
     "final_gain": [
-      1.008,
-      1.009,
-      1.01
+      1.051,
+      1.03,
+      1.001
     ],
     "detail_gain": [
-      0.892,
-      1.47,
-      4.16
+      1.374,
+      1.374,
+      1.374
     ]
   }
 }
