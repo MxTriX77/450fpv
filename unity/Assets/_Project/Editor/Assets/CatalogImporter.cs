@@ -6,6 +6,7 @@ using System.Linq;
 using Fpv450.World;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering;
 using Object = UnityEngine.Object;
 
 namespace Fpv450.Assets
@@ -27,6 +28,8 @@ namespace Fpv450.Assets
         const string ModelsFolder = "Assets/_Project/Art/Models";
         const string MaterialsFolder = "Assets/_Project/Art/Materials";
         const string PrefabsFolder = "Assets/_Project/Prefabs";
+        const string LitShader = "Universal Render Pipeline/Lit";
+        const string LeafShader = "Fpv450/Leaf";
 
         // The metadata gives LOD distances; a LODGroup wants screen-relative heights. The conversion assumes the
         // feed's vertical field of view (design decision 7, derived: 60 degrees, 935 px/rad at 1080 px).
@@ -156,7 +159,13 @@ namespace Fpv450.Assets
         /// occlusion G, smoothness A) is read twice, as <c>_MetallicGlossMap</c> with the albedo-alpha smoothness
         /// option off and <c>_Smoothness</c> at 1 so the alpha is not scaled, and as <c>_OcclusionMap</c>; without
         /// one, smoothness is the recipe's constant. The roughness and AO sources are never assigned themselves:
-        /// URP/Lit reads those channels only from packed maps.
+        /// URP/Lit reads those channels only from packed maps. An "alpha_clip" (a cutoff in 0–1, p1-v13-shrub)
+        /// turns on URP/Lit's alpha clipping at that cutoff on an opaque surface, read from the base map's alpha:
+        /// the diffuse's own, or, when the set ships its opacity as a separate map, the <c>_base</c> map that
+        /// <c>derive.py</c> packs from both. "two_sided" renders both faces (cull off). A recipe that is both is a
+        /// leaf (p1-v13-shrub, design decision 6): it gets <c>Shaders/Leaf</c>, which reads the same properties and
+        /// lights a back face with its own normal, unless its "shader" names another than URP/Lit; and its base map
+        /// keeps its alpha coverage at the cutoff in every mip.
         /// <para>
         /// A recipe of kind <c>ground</c> (p1-s04-belt-straw) takes the maps <c>derive.py</c> composes for it as its
         /// base: <c>&lt;visual&gt;_albedo.png</c>, <c>_normal.png</c> and <c>_mask.png</c>, which span
@@ -174,14 +183,17 @@ namespace Fpv450.Assets
         /// </para>
         /// Internal for the EditMode tests, which build the belt_straw material without an asset around it.
         /// </summary>
-        internal static Material EnsureMaterial(string visual, Dictionary<string, object> manifest)
+        internal static Material EnsureMaterial(string visual, Dictionary<string, object> manifest) =>
+            EnsureMaterial(visual, manifest, $"{MaterialsFolder}/{visual}.mat");
+
+        /// <summary>The material of one recipe at an explicit path. Internal for the EditMode tests, which build one at a throwaway path.</summary>
+        internal static Material EnsureMaterial(string visual, Dictionary<string, object> manifest, string materialPath)
         {
             string recipePath = $"{RecipesFolder}/{visual}.json";
             var recipe = Json.Obj(Json.Parse(ReadRepoFile(recipePath)), recipePath);
             if ((int)Json.Num(recipe, "schema", recipePath) != 1)
                 throw new NotSupportedException($"{recipePath}: schema {recipe["schema"]}; this importer reads schema 1");
             string shaderName = Json.Str(recipe, "shader", recipePath);
-            Shader shader = Shader.Find(shaderName) ?? throw new FormatException($"{recipePath}: no shader named \"{shaderName}\"");
             string kind = recipe.TryGetValue("kind", out object kindValue)
                 ? kindValue as string ?? throw new FormatException($"{recipePath}: \"kind\" must be a string")
                 : null;
@@ -191,7 +203,7 @@ namespace Fpv450.Assets
 
             Texture2D albedo, normal, mask, detailAlbedo = null, detailNormal = null;
             Vector2 baseScale, baseOffset = Vector2.zero, detailScale = Vector2.one;
-            bool masked;
+            bool masked, separateOpacity = false;
             if (kind == "palette")
             {
                 if (recipe.ContainsKey("texture_set") || recipe.ContainsKey("mask"))
@@ -230,15 +242,27 @@ namespace Fpv450.Assets
                 if (!maps.TryGetValue("diffuse", out albedo))
                     throw new FormatException($"{recipePath}: the texture set has no diffuse map");
                 maps.TryGetValue("normal", out normal);
+                separateOpacity = maps.ContainsKey("opacity");
                 masked = recipe.ContainsKey("mask");
                 if (masked == recipe.ContainsKey("smoothness"))
                     throw new FormatException($"{recipePath}: give \"smoothness\" as a constant or a \"mask\" whose alpha carries it, not both or neither");
                 mask = masked ? Derived(visual, "mask") : null;
                 baseScale = new Vector2(1f / tile.x, 1f / tile.y);
             }
+            bool clipped = recipe.ContainsKey("alpha_clip");
+            float cutoff = clipped ? Json.Num(recipe, "alpha_clip", recipePath) : 0.5f;
+            if (cutoff < 0f || cutoff > 1f)
+                throw new FormatException($"{recipePath}: \"alpha_clip\" must be a cutoff in 0–1, not {cutoff}");
+            bool twoSided = recipe.ContainsKey("two_sided") && Json.Bool(recipe, "two_sided", recipePath);
+            if (clipped && twoSided && shaderName == LitShader)
+                shaderName = LeafShader;
+            Shader shader = Shader.Find(shaderName) ?? throw new FormatException($"{recipePath}: no shader named \"{shaderName}\"");
+            if (clipped && separateOpacity)
+                albedo = Derived(visual, "base");
+            if (clipped)
+                EnsureCoverage(albedo, cutoff);
 
-            string materialPath = $"{MaterialsFolder}/{visual}.mat";
-            EnsureFolder(MaterialsFolder);
+            EnsureFolder(Path.GetDirectoryName(materialPath).Replace('\\', '/'));
             var material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
             bool changed = false;
             if (material == null)
@@ -265,18 +289,62 @@ namespace Fpv450.Assets
             changed |= SetKeyword(material, "_SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A", false);
             changed |= SetFloat(material, "_Smoothness", masked ? 1f : Json.Num(recipe, "smoothness", recipePath));
             changed |= SetFloat(material, "_Metallic", 0f);
-            changed |= SetTexture(material, "_DetailAlbedoMap", detailAlbedo);
-            changed |= SetTextureScale(material, "_DetailAlbedoMap", detailScale);
-            changed |= SetTexture(material, "_DetailNormalMap", detailNormal);
-            changed |= SetFloat(material, "_DetailAlbedoMapScale", 1f);
-            changed |= SetFloat(material, "_DetailNormalMapScale", 1f);
-            changed |= SetKeyword(material, "_DETAIL_MULX2", ground);
+            if (material.HasProperty("_DetailAlbedoMap")) // URP/Lit's detail layer; the leaf shader has none
+            {
+                changed |= SetTexture(material, "_DetailAlbedoMap", detailAlbedo);
+                changed |= SetTextureScale(material, "_DetailAlbedoMap", detailScale);
+                changed |= SetTexture(material, "_DetailNormalMap", detailNormal);
+                changed |= SetFloat(material, "_DetailAlbedoMapScale", 1f);
+                changed |= SetFloat(material, "_DetailNormalMapScale", 1f);
+                changed |= SetKeyword(material, "_DETAIL_MULX2", ground);
+            }
+            // Opaque with clipping, as URP/Lit's own inspector sets it: the cutoff, the keyword, the alpha-test queue
+            // and render type, alpha to coverage under MSAA; two-sided is cull off, with double-sided GI to match.
+            changed |= SetFloat(material, "_AlphaClip", clipped ? 1f : 0f);
+            changed |= SetFloat(material, "_Cutoff", cutoff);
+            changed |= SetKeyword(material, "_ALPHATEST_ON", clipped);
+            changed |= SetFloat(material, "_AlphaToMask", clipped ? 1f : 0f);
+            changed |= SetFloat(material, "_Cull", (float)(twoSided ? CullMode.Off : CullMode.Back));
+            if (material.doubleSidedGI != twoSided)
+            {
+                material.doubleSidedGI = twoSided;
+                changed = true;
+            }
+            int queue = clipped ? (int)RenderQueue.AlphaTest : -1;
+            if (material.renderQueue != queue)
+            {
+                material.renderQueue = queue;
+                changed = true;
+            }
+            if (clipped && material.GetTag("RenderType", false) != "TransparentCutout")
+            {
+                material.SetOverrideTag("RenderType", "TransparentCutout");
+                changed = true;
+            }
             if (changed)
                 EditorUtility.SetDirty(material);
             return material;
         }
 
-        /// <summary>A map derived from a recipe, <c>Art/Materials/&lt;visual&gt;_&lt;role&gt;.png</c>, imported as its role needs (<see cref="ArtImportSettings"/>).</summary>
+        /// <summary>
+        /// The base map of a clipped recipe keeps its alpha coverage at the recipe's cutoff in every mip: averaged
+        /// mips of a leaf atlas fall under the cutoff, and a far card thins out or vanishes (design decision 6).
+        /// </summary>
+        static void EnsureCoverage(Texture2D baseMap, float cutoff)
+        {
+            string path = AssetDatabase.GetAssetPath(baseMap);
+            var importer = AssetImporter.GetAtPath(path) as TextureImporter
+                ?? throw new FileNotFoundException($"{path} is not a texture in the asset database");
+            if (ArtImportSettings.ApplyCoverage(importer, cutoff))
+                importer.SaveAndReimport();
+        }
+
+        /// <summary>
+        /// A map derived from a recipe, <c>Art/Materials/&lt;visual&gt;_&lt;role&gt;.png</c>, imported as its role needs
+        /// (<see cref="ArtImportSettings"/>): the packed mask, a ground recipe's maps, a palette's albedo, or the
+        /// <c>_base</c> map of an alpha-clipped recipe whose set ships its opacity separately (the diffuse's RGB, the
+        /// opacity in A, an sRGB map that keeps its alpha).
+        /// </summary>
         static Texture2D Derived(string visual, string role)
         {
             string path = $"{MaterialsFolder}/{visual}_{role}.png";
@@ -285,7 +353,7 @@ namespace Fpv450.Assets
                 ?? throw new FileNotFoundException($"{path} did not import as a texture");
         }
 
-        /// <summary>The imported textures of a manifest entry, by map name (diffuse, normal, roughness, ao, displacement).</summary>
+        /// <summary>The imported textures of a manifest entry, by map name (diffuse, normal, roughness, ao, opacity, displacement).</summary>
         static Dictionary<string, Texture2D> TextureSet(string set, Dictionary<string, object> manifest, string what)
         {
             foreach (object entryValue in Json.Arr(manifest, "entries", ManifestFile))

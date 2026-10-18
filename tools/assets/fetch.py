@@ -13,11 +13,12 @@
 `--add` resolves the download URLs through the Poly Haven API (api.polyhaven.com), the ambientCG API
 (ambientcg.com/api/v2) or, for TextureCan, which has no API, the asset's details page (one static zip link per
 resolution, `/downloads/<id>/<id>_<res>_<token>.zip`; the id and title come from the page). It downloads the maps a
-material needs (diffuse, normal (GL), roughness, AO and, on request, displacement) at the requested resolution as
-PNG when the source offers it (else JPG), hashes them and writes the manifest entry plus CREDITS.md. Files live
-under unity/Assets/_Project/Art/ThirdParty/<source>/<id>/ and go through LFS. ambientCG and TextureCan ship zips:
-the zip is pinned by its own SHA-256 and so is each extracted map. TextureCan's terms (texturecan.com/terms/, read
-2026-10-18) put every texture under CC0 1.0, so its entries carry licence CC0 and the page as the source.
+material needs (diffuse, normal (GL), roughness, AO, the opacity of an alpha atlas and, on request, displacement) at
+the requested resolution as PNG when the source offers it (else JPG), hashes them and writes the manifest entry plus
+CREDITS.md. Files live under unity/Assets/_Project/Art/ThirdParty/<source>/<id>/ and go through LFS. ambientCG and
+TextureCan ship zips: the zip is pinned by its own SHA-256 and so is each extracted map. TextureCan's terms
+(texturecan.com/terms/, read 2026-10-18) put every texture under CC0 1.0, so its entries carry licence CC0 and the
+page as the source.
 """
 import argparse
 import hashlib
@@ -42,14 +43,14 @@ ALLOWED_HOSTS = {"api.polyhaven.com", "dl.polyhaven.org", "ambientcg.com", "www.
 LICENCES = {"CC0": ("CC0 1.0", "https://creativecommons.org/publicdomain/zero/1.0/"),
             "CC-BY": ("CC-BY 4.0", "https://creativecommons.org/licenses/by/4.0/")}
 SOURCES = ("polyhaven", "ambientcg", "texturecan")
-MAPS = ("diffuse", "normal", "roughness", "ao", "displacement")
-OPTIONAL_MAPS = ("ao",)  # taken when the set has it; displacement only on request
+MAPS = ("diffuse", "normal", "roughness", "ao", "opacity", "displacement")
+OPTIONAL_MAPS = ("ao", "opacity")  # taken when the set has them; displacement only on request
 POLYHAVEN_KEYS = {"diffuse": "Diffuse", "normal": "nor_gl", "roughness": "Rough", "ao": "AO",
-                  "displacement": "Displacement"}
+                  "displacement": "Displacement"}  # no opacity: Poly Haven ships no alpha atlases
 AMBIENTCG_SUFFIXES = {"diffuse": "Color", "normal": "NormalGL", "roughness": "Roughness", "ao": "AmbientOcclusion",
-                      "displacement": "Displacement"}
+                      "opacity": "Opacity", "displacement": "Displacement"}
 TEXTURECAN_PARTS = {"diffuse": "color", "normal": "normal_opengl", "roughness": "roughness", "ao": "ao",
-                    "displacement": "height"}
+                    "displacement": "height"}  # no opacity: no TextureCan alpha set is pinned, its naming unread
 
 
 class FetchError(Exception):
@@ -235,6 +236,8 @@ def add_polyhaven(root, asset_id, res, displacement, taken):
              "author": ", ".join(sorted(info["authors"])), "page": f"https://polyhaven.com/a/{asset_id}",
              "destination": f"{THIRD_PARTY}/polyhaven/{asset_id}".replace(os.sep, "/"), "files": []}
     for map_name in wanted_maps(displacement):
+        if map_name not in POLYHAVEN_KEYS:
+            continue
         formats = files_api.get(POLYHAVEN_KEYS[map_name], {}).get(res)
         if not formats:
             if map_name in OPTIONAL_MAPS:
@@ -296,7 +299,8 @@ def add_texturecan(root, page_number, res, displacement, taken):
              "licence": "CC0", "author": "TextureCan", "page": page,
              "destination": f"{THIRD_PARTY}/texturecan/{asset_id}".replace(os.sep, "/"),
              "archive": {"name": os.path.basename(zip_path), "url": TEXTURECAN + zip_path}, "files": []}
-    members = {m: re.compile(rf"^{asset_id}_{TEXTURECAN_PARTS[m]}_{res}\.(png|jpg)$") for m in MAPS}  # not __MACOSX/
+    members = {m: re.compile(rf"^{asset_id}_{TEXTURECAN_PARTS[m]}_{res}\.(png|jpg)$")  # not __MACOSX/
+               for m in MAPS if m in TEXTURECAN_PARTS}
     pin_archive(root, entry, None, members, displacement)
     return entry
 
@@ -314,6 +318,8 @@ def pin_archive(root, entry, expected_bytes, member_patterns, displacement):
         with zipfile.ZipFile(archive) as zf:
             members = zf.namelist()
             for map_name in wanted_maps(displacement):
+                if map_name not in member_patterns:  # a map this source does not name
+                    continue
                 matches = [m for m in members if member_patterns[map_name].search(m)]
                 if not matches:
                     if map_name in OPTIONAL_MAPS:

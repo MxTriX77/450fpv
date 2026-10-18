@@ -42,6 +42,104 @@
     },
     {
       "source": "polyhaven",
+      "id": "bark_brown_02",
+      "title": "Bark Brown 02",
+      "resolution": "1k",
+      "licence": "CC0",
+      "author": "Rob Tuytel",
+      "page": "https://polyhaven.com/a/bark_brown_02",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/polyhaven/bark_brown_02",
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "bark_brown_02_diff_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/bark_brown_02/bark_brown_02_diff_1k.png",
+          "sha256": "22144dbe0e9f1cfd44de3f3c8311c898fe672f087c1e81a18baab77476dc046f",
+          "bytes": 2334535
+        },
+        {
+          "map": "normal",
+          "name": "bark_brown_02_nor_gl_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/bark_brown_02/bark_brown_02_nor_gl_1k.png",
+          "sha256": "45c632c61b642759ee935a4300b71aa1e6097d2b2d8aae42376c4661ecc518eb",
+          "bytes": 2436328
+        },
+        {
+          "map": "roughness",
+          "name": "bark_brown_02_rough_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/bark_brown_02/bark_brown_02_rough_1k.png",
+          "sha256": "346e756131c7409fef357f6aa391f1d8b2db815fd965f0f5529fe76a2baf26ae",
+          "bytes": 727782
+        },
+        {
+          "map": "ao",
+          "name": "bark_brown_02_ao_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/bark_brown_02/bark_brown_02_ao_1k.png",
+          "sha256": "d7acd48f1f2259418ae65bcc6b37add5ad38b4cc0e10ee4cc9da17d20afa8cb6",
+          "bytes": 978422
+        }
+      ]
+    },
+    {
+      "source": "ambientcg",
+      "id": "LeafSet002",
+      "title": "Leaf Set 002",
+      "resolution": "2k",
+      "licence": "CC0",
+      "author": "Lennart Demes (ambientCG)",
+      "page": "https://ambientcg.com/a/LeafSet002",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/ambientcg/LeafSet002",
+      "archive": {
+        "name": "LeafSet002_2K-PNG.zip",
+        "url": "https://ambientcg.com/get?file=LeafSet002_2K-PNG.zip",
+        "sha256": "69108f3017fa1fdf087475e2f6434cd7ea3b8a7a1e962eced9ec774099a175b1",
+        "bytes": 54822888
+      },
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "LeafSet002_2K-PNG_Color.png",
+          "member": "LeafSet002_2K-PNG_Color.png",
+          "url": "https://ambientcg.com/get?file=LeafSet002_2K-PNG.zip",
+          "sha256": "f79fc4a4831ee1114ee5984d12c7777cbb382b8156d0b0239b557bf97a50fa75",
+          "bytes": 1421043
+        },
+        {
+          "map": "normal",
+          "name": "LeafSet002_2K-PNG_NormalGL.png",
+          "member": "LeafSet002_2K-PNG_NormalGL.png",
+          "url": "https://ambientcg.com/get?file=LeafSet002_2K-PNG.zip",
+          "sha256": "aece653a0d77e6dd20d2f1543b98430a6464e3346e15fa978d969b249819808a",
+          "bytes": 21929421
+        },
+        {
+          "map": "roughness",
+          "name": "LeafSet002_2K-PNG_Roughness.png",
+          "member": "LeafSet002_2K-PNG_Roughness.png",
+          "url": "https://ambientcg.com/get?file=LeafSet002_2K-PNG.zip",
+          "sha256": "757a35195a8351430b14e601989397267ed41b25c6982605e38d5dc462326e71",
+          "bytes": 1849736
+        },
+        {
+          "map": "ao",
+          "name": "LeafSet002_2K-PNG_AmbientOcclusion.png",
+          "member": "LeafSet002_2K-PNG_AmbientOcclusion.png",
+          "url": "https://ambientcg.com/get?file=LeafSet002_2K-PNG.zip",
+          "sha256": "c83746696f3fbfb52f9d3a796daa4c539b413a109d50e2a4eb77fe711b20fa6a",
+          "bytes": 1058133
+        },
+        {
+          "map": "opacity",
+          "name": "LeafSet002_2K-PNG_Opacity.png",
+          "member": "LeafSet002_2K-PNG_Opacity.png",
+          "url": "https://ambientcg.com/get?file=LeafSet002_2K-PNG.zip",
+          "sha256": "c68f9e226d535daedb1e29ee3ca17c9645128a4165615682960b8b3bf9a6737d",
+          "bytes": 127822
+        }
+      ]
+    },
+    {
+      "source": "polyhaven",
       "id": "brown_mud_02",
       "title": "Brown Mud 02",
       "resolution": "2k",

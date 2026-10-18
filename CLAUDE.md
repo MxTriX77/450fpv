@@ -28,9 +28,9 @@
 
 ## You are the orchestrator
 - **Delegate.** The team is in [docs/team.md](docs/team.md), and each role is a subagent in `.claude/agents/`. Delegate implementation to the owner role. Do planning, specs, merges, reports and docs yourself.
-- **One subagent per logical task (D-029).** Spawn a **fresh** agent of the owning role for each logical task (one asset, one object sheet group, one shader stage, one query, one mechanism, one screen, one review), with a short brief: change id, task ids, files to read, checks to run. It commits, hands off and ends. **The next task gets a new agent.** Never reuse an agent for another task. Resume one only to finish its own task after a usage limit stopped it.
+- **One subagent per logical task (D-029).** Spawn a **fresh** agent of the owning role for each logical task (one asset, one object sheet group, one shader stage, one query, one mechanism, one screen, one review), with a short brief: change id, task ids, files to read, checks to run. It commits, hands off and ends. **The next task gets a new agent.** Never reuse an agent for another task. Resume one only to finish its own task after a usage limit stopped it. **Spawn every subagent on Opus 5.5** (`model: "opus"`, D-033).
 - **Keep the pilot able to see the team.** Announce each handoff (role, change id, goal), and summarise each returning handoff in 2–5 lines.
-- **Spec-driven.** OpenSpec, following the loop in [docs/workflow.md](docs/workflow.md): propose → assign → apply → QA review → pilot sign-off at gates → merge → archive. When the pilot changes direction, update the specs before any code.
+- **Spec-driven, scaled to the task (D-033).** Plan every piece of work as self-contained units that Opus 5.5 subagents can take in parallel, and state its tier: **Quick** (no OpenSpec change, one agent or you, read the diff, merge), **Standard** (proposal and tasks, one QA pass) or **Complex** (the full loop in [docs/workflow.md](docs/workflow.md): propose → assign → apply → owner readings → QA review → pilot sign-off at gates → merge → archive). When unsure, Standard. When the pilot changes direction, update the specs before any code.
 - **Status reports.** When the pilot asks for status, write `docs/reports/YYYY-MM-DD.md` covering every role.
 - **Decisions** go into `docs/decisions.md`.
 - **Follow the `karpathy-guidelines` skill** (`.claude/skills/`), and so does every subagent: think before coding, simplicity first, surgical changes, goal-driven execution. Simplicity applies to code, **never to physical fidelity**.
@@ -84,7 +84,7 @@
 - **Performance numbers count only on AC power,** with vsync off and the power mode printed. On battery the laptop falls back to its iGPU.
 
 ## Tokens and limits
-- **At most 2 subagents in parallel,** each with a short brief, and **one per logical task** (D-029).
+- **At most 4 subagents in parallel** (D-036), each with a short brief, and **one per logical task** (D-029).
 - **Commit early.** Start fresh agents rather than resuming huge ones; resume an agent only if a usage limit stopped it.
 - **Long jobs** (builds, batch renders, benchmarks): run them in the background and wait for the completion notice. **Never poll.**
 - **Image-heavy work happens in subagents,** which write their results to files. Don't load footage or stills into your own context.
@@ -101,6 +101,7 @@ dotnet run -c Release --project tools/worldbench -- --bench
 python -m pytest tools                       # assets, blender, hygiene, reference
 python tools/assets/fetch.py --verify         # every third-party file pinned and credited
 python tools/hygiene/precommit.py --tree HEAD # the OPSEC scan over the whole tree
+python tools/hygiene/bench.py                 # the scan's 2 s budget with its margin; counts on AC only, run it when precommit.py changes
 python tools/map/validate.py maps/<map-id>    # from phase 3
 
 # Unity

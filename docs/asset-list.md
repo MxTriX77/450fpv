@@ -133,8 +133,9 @@ Plaster recipe from research: weathered lime whitewash #c4bfb1 over clay render 
 
 | ID | Asset | Ref | Key size | Physics | Pri |
 |---|---|---|---|---|---|
-| U01 | **Stalin-era five-storey block, destroyed (exactly one)** | I, K | 15–17 m to the eaves plus a 3–4 m roof; 12–15 m deep; 40–80 m long in 3–5 stairwell sections; brick walls 0.5–0.65 m; windows 1.3 × 1.8 m. Damage kit: one end with its facade torn off and rooms open on every floor; hanging and sagging slabs; **protruding rebar**; burnt windows with soot plumes; roof down to its timbers; contents spilling out | gap (open rooms about 3–4 × 3 m; window openings 1.3 × 1.8 m), snag (rebar, cables, fabric, balcony rails), wind (strong wake, recirculation 1.5–2.5 heights, gusty to 10), land (slabs) | P1 |
+| U01 | **Stalin-era five-storey block, destroyed (exactly one)** | I, K | 16–19 m to the eaves (five storeys of 3.0–3.4 m, AST-04) plus a 3–4 m roof; 12–15 m deep; 40–80 m long in 3–5 stairwell sections; brick walls 0.5–0.65 m; windows 1.3 × 1.8 m. Damage kit: one end with its facade torn off and rooms open on every floor; hanging and sagging slabs; **protruding rebar**; burnt windows with soot plumes; roof down to its timbers; contents spilling out | gap (open rooms about 3–4 × 3 m; window openings 1.3 × 1.8 m), snag (rebar, cables, fabric, balcony rails), wind (strong wake, recirculation 1.5–2.5 heights, gusty to 10), land (slabs) | P1 |
 | U02 | Rubble mound of the block | K | 2–4 m high, spreading 15–20 m | pitfalls (voids), snag (timbers) | P1 |
+| U02b | Collapsed timber roof pile (the roof of a house or wing fallen as one heap) | I | 3–4 m high, 6–10 m across | pitfalls (voids), snag (rafters, battens, sheet) | P2 |
 | U03 | Row of garages (cooperative), damaged | R | 4–8 units, 3.5 × 6 m each | gap (open doors) | P2 |
 
 ## 8. Lines, poles and roads
@@ -143,12 +144,12 @@ Plaster recipe from research: weathered lime whitewash #c4bfb1 over clay render 
 |---|---|---|---|---|---|
 | L01 | Wooden pole | straight; leaning 5–15° with brace | H, J, L | snag, night landmark | P1 |
 | L02 | Concrete pole with crossarm and insulators | straight; leaning | R | snag | P1 |
-| L03 | Wires (generator: catenary between poles, sag) | **thin 5 mm, medium 10 mm, thick 15–20 mm cable** | C, D, J, K | **PR-6 strike physics by diameter**; nearly invisible in the feed | P1 |
+| L03 | Wires (generator: catenary between poles, sag) | **thin 3–6 mm, medium 7–12 mm, thick 13–32 mm cable** (classes from the lines sheet; a bundled insulated main line is 26–32 mm) | C, D, J, K | **PR-6 strike physics by diameter**; nearly invisible in the feed | P1 |
 | L04 | Fallen or sagging wire across a yard | 2 | D | snag | P1 |
 | L05 | Hanging cables (in ruins) | 2 | E, K | snag | P1 |
-| R01 | Asphalt road kit: straight, curve, junction; potholes, crater decals, cracked edges | kit | M, O | surface | P1 |
-| R02 | Concrete road plates (about 6 × 2 m), laid as a track | kit with gaps and tilt | PR-8 | surface, uneven joints | P1 |
-| R03 | Dirt track ruts (decal plus surface) | kit | L, R | surface | P1 |
+| RD01 | Asphalt road kit: straight, curve, junction; potholes, crater decals, cracked edges | kit | M, O | surface | P1 |
+| RD02 | Concrete road plates (about 6 × 2 m), laid as a track | kit with gaps and tilt | PR-8 | surface, uneven joints | P1 |
+| RD03 | Dirt track ruts (decal plus surface) | kit | L, R | surface | P1 |
 
 ## 9. Vehicles (9 models × 3 states)
 
@@ -161,12 +162,12 @@ Sizes from [knowledge.md](knowledge.md) §9.2. Every model is built once, as a c
 | R03 | ВАЗ 2121 Niva | R | 3.74 × 1.68 × 1.64 m | P1 |
 | R04 | Daewoo Lanos sedan | N (class) | 4.24 × 1.68 × 1.43 m | P1 |
 | R05 | Chevrolet Aveo | R | 3.92 to 4.31 × 1.68–1.71 × 1.50 m | P2 |
-| R06 | Chery Amulet | R | 4.27 × 1.69 × 1.45 m | P2 |
+| R06 | Chery Amulet | R | 4.39 × 1.68 × 1.42 m (published) | P2 |
 | R07 | VW Passat B3/B4 (or Golf II) | R | 4.58–4.68 × 1.71–1.74 × 1.43–1.46 m | P2 |
 | R08 | ЗИЛ-130 flatbed truck | R | 6.68 × 2.50 × 2.40 m | P1 |
 | R09 | Урал-4320 with canvas tilt (burnt: bare hoops) | O | 7.35 × 2.50–2.69 × 2.64–3.0 m | P1 |
 
-- **Physics for every vehicle:** a few convex pieces plus thin capsules for torn parts; snag (torn sheet edges, sprung doors, hoops); wind (bluff body; a burnt shell is porous); land (roofs, truck beds); no gaps (window openings 0.4–0.5 m are too small).
+- **Physics for every vehicle:** a few convex pieces plus thin capsules for torn parts; snag (torn sheet edges, sprung doors, hoops); wind (bluff body; a burnt shell is porous); land (roofs, truck beds); no gaps for cars (window openings 0.4–0.5 m are too small); the burnt Урал's bare bows leave real fly-through bays (vehicles sheet).
 - **Debris field per state:** 5–20 m of glass crumbs, body fragments, trim. Burnt wrecks also get a 2–6 m soot patch.
 
 ## 10. Debris kit (shared)
@@ -190,6 +191,19 @@ Sizes from [knowledge.md](knowledge.md) §9.2. Every model is built once, as a c
 |---|---|---|---|
 | D01 | **Svinoriz 10 Opto**: 10" X frame, 3-blade props, coil underneath, two battery packs, generic payload on top, 0° camera, legs | legs on / legs off (with launch stand) | phase 5 |
 | D02 | Launch stand (D-022): an X-shaped steel base with four posts about 0.25 m high, one under each motor (on the diagonals, 0.226 m from the centre), sized from `drone.json`; unanchored | — | phase 5 |
+
+## 12. Fortifications (added by D-035; an object sheet `docs/object-sheets/fortifications.md` comes first)
+
+The pilot (2026-10-18): the villages of today carry concertina wire ("єгоза"), dragon's teeth, a couple of anti-tank hedgehogs, and trenches in the fields. Built as the real thing (researched: sizes, steel sections, concrete, how they stand, sag and fall), never as game props. Sizes below are starting ranges for the sheet to confirm from published sources.
+
+| ID | Asset | Variants or states | Ref | Key size | Physics | Pri |
+|---|---|---|---|---|---|---|
+| F01 | Concertina wire (єгоза): a single coil run on pickets, a double-stacked run, a coil along a fence or wall top | I (taut) / D (torn, sagging, trampled flat in places) | R | coil Ø 0.45–0.95 m (published range, to pin), pickets every 3–5 m | the fiber's and the props' worst snag: every strand an `edge` with the barb pitch recorded, coils as wind-porous volumes, gaps none (a coil is never passable) | P1 (world) |
+| F02 | Dragon's teeth (зуби дракона): concrete pyramids in 3–5 staggered rows, some toppled or chipped | I / D | R | about 0.9–1.2 m tall (published typical, to pin), rows 1–2 m apart | `concrete` collision, not landable, `edge` snags on arrises, the spaces between teeth are real gaps measured against the drone | P1 (world) |
+| F03 | Anti-tank hedgehog (протитанковий їжак): welded angle iron or rail, singles and pairs at road approaches and checkpoints | I / D (bent, rusted) | R | 1.2–1.5 m across (published typical, to pin) | `steel` collision, `edge` snags on every member end, the spaces between arms as gaps | P1 (world) |
+| F04 | Checkpoint kit: concrete road blocks, sandbag positions, a lifting barrier | I / D | R | blocks 2.4 × 0.6 × 0.6 m (published ФБС sizes, to pin) | `concrete`, `fabric` (sandbags), landable block tops | P2 |
+
+Trenches and firing positions in the fields are E01–E04 placed by the layout (WLD-01), not new assets.
 
 ## Totals
 

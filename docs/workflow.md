@@ -1,13 +1,24 @@
 # Workflow
 
-All work is spec-driven through [OpenSpec](https://github.com/Fission-AI/OpenSpec). If a piece of work has no change folder under `openspec/changes/`, nobody works on it. The project skills in `.claude/skills/` (`openspec-explore`, `openspec-propose`, `openspec-apply-change`, `openspec-update-change`, `openspec-sync-specs`, `openspec-archive-change`) and the `/opsx:*` commands drive it. The project config is `openspec/config.yaml`. Every agent also follows the `karpathy-guidelines` skill. See [tooling.md](tooling.md).
+Work is spec-driven through [OpenSpec](https://github.com/Fission-AI/OpenSpec), scaled to the task (D-033): Standard and Complex work has a change folder under `openspec/changes/` before anyone builds it; Quick work does not. The project skills in `.claude/skills/` (`openspec-explore`, `openspec-propose`, `openspec-apply-change`, `openspec-update-change`, `openspec-sync-specs`, `openspec-archive-change`) and the `/opsx:*` commands drive it. The project config is `openspec/config.yaml`. Every agent also follows the `karpathy-guidelines` skill. See [tooling.md](tooling.md).
 
-## The loop
+## How much process (D-033)
+
+Every plan is cut into self-contained units, each one Opus 5.5 subagent's work (its files, its check, what it waits on); units that share no files run at the same time, within the parallel cap. The orchestrator states the tier when it plans:
+
+- **Quick** (wording, labels, a stale spec line, a config value, a test threshold, a one-file fix, bookkeeping): no change folder; one subagent or the orchestrator; the orchestrator reads the diff and merges; QA only as a short check when visible behaviour changes.
+- **Standard** (a contained feature or fix in one area; a mass-production asset on an established generator): a change with proposal and tasks; one QA pass.
+- **Complex** (a new generator and its first asset, the look-lock assets and gate deliverables, physics mechanisms, the feed, cross-role contracts): the full loop below, with the owner readings team.md lists.
+
+When unsure, Standard. The tech approach of CLAUDE.md and the docs is the same in every tier.
+
+## The loop (Standard and Complex)
 
 1. **Request.** The pilot asks for something or gives feedback, and the orchestrator takes it. The phase briefs in [briefs/](briefs/) seed the first changes of each phase.
 2. **Spec.** The orchestrator proposes a change: `openspec/changes/<change-id>/` with `proposal.md`, `design.md`, `specs/` and `tasks.md`.
    - The proposal cites requirement IDs from [requirements.md](requirements.md).
    - The design labels every number **pilot / measured / published / derived / assumed**.
+   - A change that extends another capability's records or fields writes a **MODIFIED** delta against that capability, so the archive leaves no stale field list behind (D-037, gap review L13).
    - Run `openspec validate <id> --strict` before committing planning artefacts.
 3. **Assign, one subagent per logical task** (D-029).
    - For **each logical task** (one reviewable unit: an asset, an object sheet group, a shader stage, a query, a mechanism, a screen, a review), the orchestrator spawns a **fresh** subagent of the owning role.

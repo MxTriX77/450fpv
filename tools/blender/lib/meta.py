@@ -105,6 +105,32 @@ def assemble(asset_id, variant, generator, params, built, visual_by_slot):
     return _rounded(meta)
 
 
+def capsule(p0, p1, radius, material):
+    """A collision capsule of `radius` along the chord p0-p1 (height the total length, caps included), rotated from
+    local +Y onto the chord, not landable; a sphere when the chord has no length."""
+    d = [p1[a] - p0[a] for a in range(3)]
+    length = math.sqrt(_dot(d, d))
+    if length == 0:
+        return {"shape": "sphere", "center": list(p0), "radius": radius, "material": material, "landable": False}
+    return {"shape": "capsule", "center": [(p0[a] + p1[a]) / 2 for a in range(3)], "radius": radius,
+            "height": length + 2 * radius, "rotation": rotation_from_y([c / length for c in d]), "material": material,
+            "landable": False}
+
+
+def rotation_from_y(d):
+    """The unit quaternion [x, y, z, w] taking local +Y onto the unit direction d (Unity's convention)."""
+    c = max(-1.0, min(1.0, d[1]))
+    if c > 1 - 1e-9:
+        return [0.0, 0.0, 0.0, 1.0]
+    if c < -1 + 1e-9:
+        return [1.0, 0.0, 0.0, 0.0]
+    length = math.sqrt(d[2] * d[2] + d[0] * d[0])
+    axis = (d[2] / length, 0.0, -d[0] / length)  # +Y x d, normalised
+    half = math.acos(c) / 2
+    s = math.sin(half)
+    return [axis[0] * s, axis[1] * s, axis[2] * s, math.cos(half)]
+
+
 def validate(meta, material_ids):
     """Problems with a metadata dict against schema 1 and its conventions, as strings naming the rule; empty when
     it conforms. `material_ids` is the closed physics-material list from load_physics_materials."""

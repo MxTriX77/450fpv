@@ -182,7 +182,7 @@ def test_a_mat_box_left_whole_fails_the_audit_by_the_step(built, s04_params, rep
     data["collision"] = [c for c in data["collision"] if c["material"] != "straw"]
     data["collision"].insert(1, {"shape": "box", "center": [0.0, -depth / 2, 0.0], "size": [size, depth, size],
                                  "rotation": [0.0, 0.0, 0.0, 1.0], "material": "straw", "landable": True})
-    problems, lines = audit.run(data, built["lods"][0], audit.soft_materials(repo_root))
+    problems, lines = audit.run(data, built["lods"][0], soft=audit.soft_materials(repo_root))
     line = next(line for line in lines if line.startswith("audit collision[1] box"))
     print(line)
     assert float(line.split("box->mesh ")[1].split(" mm")[0]) >= 120.0
