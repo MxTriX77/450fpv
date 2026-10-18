@@ -6,6 +6,12 @@
       "generator": "debris_brick",
       "variants": ["K01_whole"],
       "materials": { "brick": "brick_red" }
+    },
+    "S04": {
+      "class": "surfaces",
+      "generator": "ground_patch",
+      "variants": ["S04_patch"],
+      "materials": { "ground": "belt_straw", "straw": "straw" }
     }
   }
 }
