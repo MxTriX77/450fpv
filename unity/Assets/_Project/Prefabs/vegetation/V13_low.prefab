@@ -330,6 +330,61 @@ CapsuleCollider:
   m_Height: 0.327991
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!1 &1368351650701353827
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7952552044379049452}
+  - component: {fileID: 6333421565917442175}
+  m_Layer: 0
+  m_Name: Collision47
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7952552044379049452
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1368351650701353827}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.49999994, y: 0, z: -0.49999994, w: 0.70710695}
+  m_LocalPosition: {x: -0.19906, y: 0.622561, z: 0.223726}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5197821712859904970}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!136 &6333421565917442175
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1368351650701353827}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 0.254254
+  m_Height: 1.108508
+  m_Direction: 1
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &1467251086415701755
 GameObject:
   m_ObjectHideFlags: 0
@@ -605,6 +660,61 @@ CapsuleCollider:
   m_Height: 0.388774
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!1 &2438935517822245989
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4536119913271273134}
+  - component: {fileID: 9085146679323137174}
+  m_Layer: 0
+  m_Name: Collision44
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4536119913271273134
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2438935517822245989}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.3250579, y: 0, z: 0.3250579, w: 0.8880737}
+  m_LocalPosition: {x: -0.078331, y: 0.395766, z: 0.290865}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5197821712859904970}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!136 &9085146679323137174
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2438935517822245989}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 0.181155
+  m_Height: 0.962311
+  m_Direction: 1
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &2507058847630163553
 GameObject:
   m_ObjectHideFlags: 0
@@ -878,6 +988,61 @@ CapsuleCollider:
   serializedVersion: 2
   m_Radius: 0.005667
   m_Height: 0.40146
+  m_Direction: 1
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!1 &3132569153616508315
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 721642395855141021}
+  - component: {fileID: 6930009137186661284}
+  m_Layer: 0
+  m_Name: Collision45
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &721642395855141021
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3132569153616508315}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.105126, y: 0.697561, z: -0.08234}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5197821712859904970}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!136 &6930009137186661284
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3132569153616508315}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 0.083853
+  m_Height: 1.117706
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &3169145177699029269
@@ -2330,6 +2495,11 @@ Transform:
   - {fileID: 1056465661514399672}
   - {fileID: 2027787306909664314}
   - {fileID: 6710479603657449897}
+  - {fileID: 8216328005649876550}
+  - {fileID: 4536119913271273134}
+  - {fileID: 721642395855141021}
+  - {fileID: 1154665974949271281}
+  - {fileID: 7952552044379049452}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &7939979847424756899
@@ -2712,122 +2882,1199 @@ MonoBehaviour:
     rotation: {x: -0.050771, y: 0, z: -0.111135, w: 0.992508}
     material: bark
     landable: 0
-  - kind: 1
-    center: {x: 0.019514, y: 0.514231, z: 0.009098}
+  - kind: 2
+    center: {x: 0.253645, y: 0.66379, z: -0.123569}
     size: {x: 0, y: 0, z: 0}
-    radius: 0.774875
-    height: 0
+    radius: 0.306662
+    height: 1.163325
+    rotation: {x: 0.627963, y: 0, z: -0.627963, w: 0.459701}
+    material: twig
+    landable: 0
+  - kind: 2
+    center: {x: -0.069771, y: 0.622561, z: 0.153015}
+    size: {x: 0, y: 0, z: 0}
+    radius: 0.223988
+    height: 1.247977
+    rotation: {x: 0.5, y: 0, z: -0.5, w: 0.707107}
+    material: twig
+    landable: 0
+  - kind: 2
+    center: {x: -0.078331, y: 0.395766, z: 0.290865}
+    size: {x: 0, y: 0, z: 0}
+    radius: 0.181155
+    height: 0.962311
+    rotation: {x: 0.325058, y: 0, z: 0.325058, w: 0.888074}
+    material: twig
+    landable: 0
+  - kind: 2
+    center: {x: -0.105126, y: 0.697561, z: -0.08234}
+    size: {x: 0, y: 0, z: 0}
+    radius: 0.083853
+    height: 1.117706
     rotation: {x: 0, y: 0, z: 0, w: 1}
+    material: twig
+    landable: 0
+  - kind: 2
+    center: {x: 0.107006, y: 0.610429, z: 0.31766}
+    size: {x: 0, y: 0, z: 0}
+    radius: 0.212738
+    height: 1.025476
+    rotation: {x: 0, y: 0, z: -0.92388, w: 0.382683}
+    material: twig
+    landable: 0
+  - kind: 2
+    center: {x: -0.19906, y: 0.622561, z: 0.223726}
+    size: {x: 0, y: 0, z: 0}
+    radius: 0.254254
+    height: 1.108508
+    rotation: {x: 0.5, y: 0, z: -0.5, w: 0.707107}
     material: twig
     landable: 0
   gaps: []
   windVolumes:
   - kind: 0
-    center: {x: 0.034548, y: 0.603312, z: 0.023745}
-    size: {x: 1.509347, y: 1.206623, z: 1.442172}
+    center: {x: 0.034548, y: 0.607092, z: 0.023745}
+    size: {x: 1.509347, y: 1.199062, z: 1.442172}
     radius: 0
     height: 0
     rotation: {x: 0, y: 0, z: 0, w: 1}
     porosity: 0.35
   snag:
-  - kind: hook
+  - kind: edge
     points:
     - {x: 0.132797, y: 0, z: 0.060754}
     - {x: 0.147856, y: 0.30679, z: 0.05783}
+    radiusM: 0.008333
+  - kind: edge
+    points:
+    - {x: 0.147856, y: 0.30679, z: 0.05783}
+    - {x: 0.19303, y: 0.61358, z: 0.04906}
+    radiusM: 0.007
+  - kind: hook
+    points:
     - {x: 0.19303, y: 0.61358, z: 0.04906}
     - {x: 0.268322, y: 0.920369, z: 0.034442}
-    radiusM: 0.009
-  - kind: hook
+    radiusM: 0.005667
+  - kind: edge
     points:
     - {x: 0.087435, y: 0, z: 0.094416}
     - {x: 0.095351, y: 0.324651, z: 0.108588}
+    radiusM: 0.008333
+  - kind: edge
+    points:
+    - {x: 0.095351, y: 0.324651, z: 0.108588}
+    - {x: 0.119099, y: 0.649302, z: 0.151103}
+    radiusM: 0.007
+  - kind: hook
+    points:
     - {x: 0.119099, y: 0.649302, z: 0.151103}
     - {x: 0.158678, y: 0.973953, z: 0.221961}
-    radiusM: 0.009
-  - kind: hook
+    radiusM: 0.005667
+  - kind: edge
     points:
     - {x: 0.045637, y: 0, z: 0.107565}
     - {x: 0.050071, y: 0.312671, z: 0.122557}
+    radiusM: 0.008333
+  - kind: edge
+    points:
+    - {x: 0.050071, y: 0.312671, z: 0.122557}
+    - {x: 0.063373, y: 0.625341, z: 0.167532}
+    radiusM: 0.007
+  - kind: hook
+    points:
     - {x: 0.063373, y: 0.625341, z: 0.167532}
     - {x: 0.085542, y: 0.938012, z: 0.24249}
-    radiusM: 0.009
-  - kind: hook
+    radiusM: 0.005667
+  - kind: edge
     points:
     - {x: 0.002927, y: 0, z: 0.094053}
     - {x: -0.002338, y: 0.379586, z: 0.112287}
+    radiusM: 0.008333
+  - kind: edge
+    points:
+    - {x: -0.002338, y: 0.379586, z: 0.112287}
+    - {x: -0.018133, y: 0.759171, z: 0.16699}
+    radiusM: 0.007
+  - kind: hook
+    points:
     - {x: -0.018133, y: 0.759171, z: 0.16699}
     - {x: -0.044459, y: 1.138757, z: 0.258162}
-    radiusM: 0.009
-  - kind: hook
+    radiusM: 0.005667
+  - kind: edge
     points:
     - {x: -0.067008, y: 0, z: 0.088056}
     - {x: -0.075726, y: 0.321459, z: 0.101559}
+    radiusM: 0.008333
+  - kind: edge
+    points:
+    - {x: -0.075726, y: 0.321459, z: 0.101559}
+    - {x: -0.10188, y: 0.642919, z: 0.142069}
+    radiusM: 0.007
+  - kind: hook
+    points:
     - {x: -0.10188, y: 0.642919, z: 0.142069}
     - {x: -0.145469, y: 0.964378, z: 0.209586}
-    radiusM: 0.009
-  - kind: hook
+    radiusM: 0.005667
+  - kind: edge
     points:
     - {x: -0.015805, y: 0, z: 0.019176}
     - {x: -0.025526, y: 0.325477, z: 0.032228}
+    radiusM: 0.008333
+  - kind: edge
+    points:
+    - {x: -0.025526, y: 0.325477, z: 0.032228}
+    - {x: -0.054688, y: 0.650954, z: 0.071382}
+    radiusM: 0.007
+  - kind: hook
+    points:
     - {x: -0.054688, y: 0.650954, z: 0.071382}
     - {x: -0.103293, y: 0.976432, z: 0.13664}
-    radiusM: 0.009
-  - kind: hook
+    radiusM: 0.005667
+  - kind: edge
     points:
     - {x: -0.136204, y: 0, z: 0.038908}
     - {x: -0.152942, y: 0.344841, z: 0.043043}
+    radiusM: 0.008333
+  - kind: edge
+    points:
+    - {x: -0.152942, y: 0.344841, z: 0.043043}
+    - {x: -0.203159, y: 0.689682, z: 0.055449}
+    radiusM: 0.007
+  - kind: hook
+    points:
     - {x: -0.203159, y: 0.689682, z: 0.055449}
     - {x: -0.286853, y: 1.034522, z: 0.076125}
-    radiusM: 0.009
-  - kind: hook
+    radiusM: 0.005667
+  - kind: edge
     points:
     - {x: -0.023039, y: 0, z: -0.002451}
     - {x: -0.038436, y: 0.310936, z: -0.000299}
+    radiusM: 0.008333
+  - kind: edge
+    points:
+    - {x: -0.038436, y: 0.310936, z: -0.000299}
+    - {x: -0.084628, y: 0.621872, z: 0.006155}
+    radiusM: 0.007
+  - kind: hook
+    points:
     - {x: -0.084628, y: 0.621872, z: 0.006155}
     - {x: -0.161614, y: 0.932807, z: 0.016912}
-    radiusM: 0.009
-  - kind: hook
+    radiusM: 0.005667
+  - kind: edge
     points:
     - {x: -0.116767, y: 0, z: -0.093999}
     - {x: -0.12627, y: 0.314547, z: -0.106531}
+    radiusM: 0.008333
+  - kind: edge
+    points:
+    - {x: -0.12627, y: 0.314547, z: -0.106531}
+    - {x: -0.154776, y: 0.629095, z: -0.144128}
+    radiusM: 0.007
+  - kind: hook
+    points:
     - {x: -0.154776, y: 0.629095, z: -0.144128}
     - {x: -0.202287, y: 0.943642, z: -0.206789}
-    radiusM: 0.009
-  - kind: hook
+    radiusM: 0.005667
+  - kind: edge
     points:
     - {x: -0.035992, y: 0, z: -0.128964}
     - {x: -0.03495, y: 0.372527, z: -0.147561}
+    radiusM: 0.008333
+  - kind: edge
+    points:
+    - {x: -0.03495, y: 0.372527, z: -0.147561}
+    - {x: -0.031822, y: 0.745055, z: -0.203352}
+    radiusM: 0.007
+  - kind: hook
+    points:
     - {x: -0.031822, y: 0.745055, z: -0.203352}
     - {x: -0.02661, y: 1.117582, z: -0.296338}
-    radiusM: 0.009
-  - kind: hook
+    radiusM: 0.005667
+  - kind: edge
     points:
     - {x: 0.015691, y: 0, z: -0.132375}
     - {x: 0.014052, y: 0.378478, z: -0.151228}
+    radiusM: 0.008333
+  - kind: edge
+    points:
+    - {x: 0.014052, y: 0.378478, z: -0.151228}
+    - {x: 0.009135, y: 0.756956, z: -0.207786}
+    radiusM: 0.007
+  - kind: hook
+    points:
     - {x: 0.009135, y: 0.756956, z: -0.207786}
     - {x: 0.00094, y: 1.135434, z: -0.30205}
-    radiusM: 0.009
-  - kind: hook
+    radiusM: 0.005667
+  - kind: edge
     points:
     - {x: 0.036737, y: 0, z: -0.047718}
     - {x: 0.051878, y: 0.357212, z: -0.057192}
+    radiusM: 0.008333
+  - kind: edge
+    points:
+    - {x: 0.051878, y: 0.357212, z: -0.057192}
+    - {x: 0.097302, y: 0.714424, z: -0.085613}
+    radiusM: 0.007
+  - kind: hook
+    points:
     - {x: 0.097302, y: 0.714424, z: -0.085613}
     - {x: 0.173007, y: 1.071636, z: -0.13298}
-    radiusM: 0.009
-  - kind: hook
+    radiusM: 0.005667
+  - kind: edge
     points:
     - {x: 0.084213, y: 0, z: -0.069578}
     - {x: 0.098461, y: 0.373987, z: -0.081689}
+    radiusM: 0.008333
+  - kind: edge
+    points:
+    - {x: 0.098461, y: 0.373987, z: -0.081689}
+    - {x: 0.141204, y: 0.747973, z: -0.118021}
+    radiusM: 0.007
+  - kind: hook
+    points:
     - {x: 0.141204, y: 0.747973, z: -0.118021}
     - {x: 0.212443, y: 1.12196, z: -0.178574}
-    radiusM: 0.009
-  - kind: hook
+    radiusM: 0.005667
+  - kind: edge
     points:
     - {x: 0.133364, y: 0, z: -0.030387}
     - {x: 0.15022, y: 0.370628, z: -0.038087}
+    radiusM: 0.008333
+  - kind: edge
+    points:
+    - {x: 0.15022, y: 0.370628, z: -0.038087}
+    - {x: 0.200787, y: 0.741256, z: -0.061188}
+    radiusM: 0.007
+  - kind: hook
+    points:
     - {x: 0.200787, y: 0.741256, z: -0.061188}
     - {x: 0.285066, y: 1.111884, z: -0.09969}
-    radiusM: 0.009
+    radiusM: 0.005667
+  - kind: edge
+    points:
+    - {x: 0.135584, y: 0.131976, z: 0.060213}
+    - {x: 0.411256, y: 0.308425, z: 0.105628}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.411256, y: 0.308425, z: 0.105628}
+    - {x: 0.538041, y: 0.418031, z: 0.227341}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.411256, y: 0.308425, z: 0.105628}
+    - {x: 0.585148, y: 0.444828, z: 0.052005}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.1505, y: 0.332635, z: 0.057317}
+    - {x: 0.285814, y: 0.444054, z: -0.183374}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.285814, y: 0.444054, z: -0.183374}
+    - {x: 0.496702, y: 0.560721, z: -0.26648}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.285814, y: 0.444054, z: -0.183374}
+    - {x: 0.28075, y: 0.58336, z: -0.470469}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.170423, y: 0.484948, z: 0.053449}
+    - {x: 0.213241, y: 0.686807, z: -0.248176}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.213241, y: 0.686807, z: -0.248176}
+    - {x: 0.308105, y: 0.746334, z: -0.359071}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.213241, y: 0.686807, z: -0.248176}
+    - {x: 0.130531, y: 0.855312, z: -0.414508}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.21564, y: 0.719583, z: 0.04467}
+    - {x: 0.048214, y: 0.854641, z: -0.089585}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.048214, y: 0.854641, z: -0.089585}
+    - {x: -0.024761, y: 0.992676, z: -0.234411}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.048214, y: 0.854641, z: -0.089585}
+    - {x: -0.13521, y: 1.010049, z: -0.116272}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.087878, y: 0.076838, z: 0.09521}
+    - {x: -0.306101, y: 0.380549, z: 0.07158}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.306101, y: 0.380549, z: 0.07158}
+    - {x: -0.575248, y: 0.581781, z: -0.048645}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.306101, y: 0.380549, z: 0.07158}
+    - {x: -0.482476, y: 0.483696, z: 0.173505}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.092592, y: 0.262028, z: 0.103648}
+    - {x: -0.041234, y: 0.517718, z: 0.288261}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.041234, y: 0.517718, z: 0.288261}
+    - {x: -0.32336, y: 0.773659, z: 0.378813}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.041234, y: 0.517718, z: 0.288261}
+    - {x: -0.049529, y: 0.751176, z: 0.513584}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.109271, y: 0.5392, z: 0.133508}
+    - {x: 0.178402, y: 0.760113, z: -0.02289}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.178402, y: 0.760113, z: -0.02289}
+    - {x: 0.288943, y: 0.958428, z: -0.097026}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.178402, y: 0.760113, z: -0.02289}
+    - {x: 0.167773, y: 0.951162, z: -0.232875}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.126508, y: 0.721278, z: 0.164367}
+    - {x: -0.018323, y: 0.805839, z: 0.315595}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.018323, y: 0.805839, z: 0.315595}
+    - {x: -0.181433, y: 0.890815, z: 0.341397}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.018323, y: 0.805839, z: 0.315595}
+    - {x: -0.055815, y: 0.861622, z: 0.422946}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.045847, y: 0.068164, z: 0.108278}
+    - {x: 0.180483, y: 0.156806, z: 0.260453}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.180483, y: 0.156806, z: 0.260453}
+    - {x: 0.216631, y: 0.237044, z: 0.469695}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.180483, y: 0.156806, z: 0.260453}
+    - {x: 0.424041, y: 0.342394, z: 0.377266}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.049953, y: 0.308486, z: 0.122158}
+    - {x: 0.21722, y: 0.548424, z: 0.274278}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.21722, y: 0.548424, z: 0.274278}
+    - {x: 0.300743, y: 0.694819, z: 0.454177}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.21722, y: 0.548424, z: 0.274278}
+    - {x: 0.391264, y: 0.689584, z: 0.334414}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.057005, y: 0.500661, z: 0.146003}
+    - {x: -0.142383, y: 0.681129, z: -0.228822}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.142383, y: 0.681129, z: -0.228822}
+    - {x: -0.156517, y: 0.776356, z: -0.46947}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.142383, y: 0.681129, z: -0.228822}
+    - {x: -0.304806, y: 0.773657, z: -0.323219}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.068937, y: 0.71676, z: 0.186346}
+    - {x: 0.218513, y: 0.827889, z: 0.164736}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.218513, y: 0.827889, z: 0.164736}
+    - {x: 0.346434, y: 0.886326, z: 0.191637}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.218513, y: 0.827889, z: 0.164736}
+    - {x: 0.323975, y: 0.93483, z: 0.102752}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.002759, y: 0.067982, z: 0.094637}
+    - {x: 0.269477, y: 0.347193, z: -0.032692}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.269477, y: 0.347193, z: -0.032692}
+    - {x: 0.561231, y: 0.616655, z: -0.007704}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.269477, y: 0.347193, z: -0.032692}
+    - {x: 0.412517, y: 0.550829, z: -0.264789}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.001224, y: 0.337049, z: 0.108429}
+    - {x: -0.277047, y: 0.541708, z: 0.15884}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.277047, y: 0.541708, z: 0.15884}
+    - {x: -0.536383, y: 0.667522, z: 0.057915}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.277047, y: 0.541708, z: 0.15884}
+    - {x: -0.457057, y: 0.668464, z: 0.314542}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.007114, y: 0.524212, z: 0.128829}
+    - {x: 0.156206, y: 0.686962, z: 0.319901}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.156206, y: 0.686962, z: 0.319901}
+    - {x: 0.172125, y: 0.744459, z: 0.428862}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.156206, y: 0.686962, z: 0.319901}
+    - {x: 0.307745, y: 0.745977, z: 0.381229}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.013383, y: 0.668093, z: 0.150539}
+    - {x: 0.17574, y: 0.76553, z: 0.2583}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.17574, y: 0.76553, z: 0.2583}
+    - {x: 0.267189, y: 0.825416, z: 0.36724}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.17574, y: 0.76553, z: 0.2583}
+    - {x: 0.363707, y: 0.81963, z: 0.258158}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.024471, y: 0.865903, z: 0.18894}
+    - {x: 0.053941, y: 0.934877, z: 0.233775}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.053941, y: 0.934877, z: 0.233775}
+    - {x: 0.079914, y: 0.973256, z: 0.266185}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.053941, y: 0.934877, z: 0.233775}
+    - {x: 0.117144, y: 0.978857, z: 0.231932}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.068229, y: 0.120286, z: 0.089947}
+    - {x: -0.070597, y: 0.351185, z: 0.317628}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.070597, y: 0.351185, z: 0.317628}
+    - {x: -0.149482, y: 0.61488, z: 0.510872}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.070597, y: 0.351185, z: 0.317628}
+    - {x: 0.107362, y: 0.679595, z: 0.540573}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.075259, y: 0.312733, z: 0.100836}
+    - {x: -0.302832, y: 0.482976, z: -0.115854}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.302832, y: 0.482976, z: -0.115854}
+    - {x: -0.382733, y: 0.608344, z: -0.344637}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.302832, y: 0.482976, z: -0.115854}
+    - {x: -0.521387, y: 0.611072, z: -0.187787}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.09128, y: 0.536376, z: 0.125651}
+    - {x: -0.294589, y: 0.671305, z: -0.134138}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.294589, y: 0.671305, z: -0.134138}
+    - {x: -0.345288, y: 0.735107, z: -0.370399}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.294589, y: 0.671305, z: -0.134138}
+    - {x: -0.445861, y: 0.73398, z: -0.210436}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.112396, y: 0.733486, z: 0.158359}
+    - {x: -0.223441, y: 0.78647, z: 0.214404}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.223441, y: 0.78647, z: 0.214404}
+    - {x: -0.354501, y: 0.877751, z: 0.213626}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.223441, y: 0.78647, z: 0.214404}
+    - {x: -0.316539, y: 0.817488, z: 0.347937}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.017395, y: 0.13164, z: 0.021311}
+    - {x: 0.153924, y: 0.41531, z: 0.237064}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.153924, y: 0.41531, z: 0.237064}
+    - {x: 0.20744, y: 0.67349, z: 0.454658}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.153924, y: 0.41531, z: 0.237064}
+    - {x: 0.411701, y: 0.707984, z: 0.345274}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.024245, y: 0.303271, z: 0.030507}
+    - {x: 0.028608, y: 0.566814, z: 0.286573}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.028608, y: 0.566814, z: 0.286573}
+    - {x: -0.040471, y: 0.716738, z: 0.452158}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.028608, y: 0.566814, z: 0.286573}
+    - {x: 0.160094, y: 0.798294, z: 0.438467}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.042524, y: 0.539611, z: 0.05505}
+    - {x: -0.201447, y: 0.681419, z: -0.095718}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.201447, y: 0.681419, z: -0.095718}
+    - {x: -0.285024, y: 0.782399, z: -0.357837}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.201447, y: 0.681419, z: -0.095718}
+    - {x: -0.445353, y: 0.793468, z: -0.12073}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.060588, y: 0.698597, z: 0.079303}
+    - {x: -0.084997, y: 0.804306, z: 0.294794}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.084997, y: 0.804306, z: 0.294794}
+    - {x: -0.145826, y: 0.848464, z: 0.365839}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.084997, y: 0.804306, z: 0.294794}
+    - {x: -0.048282, y: 0.870811, z: 0.394839}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.138262, y: 0.120929, z: 0.039416}
+    - {x: -0.022758, y: 0.456431, z: -0.291296}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.022758, y: 0.456431, z: -0.291296}
+    - {x: 0.123378, y: 0.669841, z: -0.426114}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.022758, y: 0.456431, z: -0.291296}
+    - {x: -0.083277, y: 0.617716, z: -0.544458}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.150342, y: 0.316926, z: 0.042401}
+    - {x: 0.045764, y: 0.556206, z: -0.29751}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.045764, y: 0.556206, z: -0.29751}
+    - {x: 0.201756, y: 0.732391, z: -0.426902}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.045764, y: 0.556206, z: -0.29751}
+    - {x: 0.039411, y: 0.699869, z: -0.466983}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.167039, y: 0.468037, z: 0.046525}
+    - {x: -0.146756, y: 0.60692, z: -0.221428}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.146756, y: 0.60692, z: -0.221428}
+    - {x: 0.063438, y: 0.794889, z: -0.479027}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.146756, y: 0.60692, z: -0.221428}
+    - {x: -0.277262, y: 0.68454, z: -0.43228}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.204147, y: 0.694752, z: 0.055693}
+    - {x: -0.184725, y: 0.801275, z: 0.22314}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.184725, y: 0.801275, z: 0.22314}
+    - {x: -0.217, y: 0.898822, z: 0.325606}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.184725, y: 0.801275, z: 0.22314}
+    - {x: -0.126582, y: 0.881997, z: 0.33886}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.253455, y: 0.912672, z: 0.067874}
+    - {x: -0.273023, y: 0.945758, z: 0.023195}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.273023, y: 0.945758, z: 0.023195}
+    - {x: -0.270183, y: 0.974497, z: -0.030196}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.023909, y: 0.073896, z: -0.002329}
+    - {x: 0.323115, y: 0.355422, z: 0.076788}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.323115, y: 0.355422, z: 0.076788}
+    - {x: 0.497409, y: 0.625005, z: 0.274428}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.323115, y: 0.355422, z: 0.076788}
+    - {x: 0.568201, y: 0.533721, z: 0.03177}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.035847, y: 0.283586, z: -0.000661}
+    - {x: 0.257057, y: 0.411349, z: 0.139155}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.257057, y: 0.411349, z: 0.139155}
+    - {x: 0.421284, y: 0.509089, z: 0.385191}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.257057, y: 0.411349, z: 0.139155}
+    - {x: 0.543557, y: 0.496463, z: 0.078819}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.062647, y: 0.498703, z: 0.003084}
+    - {x: -0.285847, y: 0.586181, z: -0.035913}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.285847, y: 0.586181, z: -0.035913}
+    - {x: -0.467278, y: 0.660138, z: -0.226422}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.285847, y: 0.586181, z: -0.035913}
+    - {x: -0.518518, y: 0.707418, z: 0.0776}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.107271, y: 0.727256, z: 0.009319}
+    - {x: 0.053854, y: 0.854082, z: 0.116844}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.053854, y: 0.854082, z: 0.116844}
+    - {x: 0.103813, y: 0.953766, z: 0.220773}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.053854, y: 0.854082, z: 0.116844}
+    - {x: 0.260408, y: 0.965649, z: 0.120954}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.117664, y: 0.096603, z: -0.095181}
+    - {x: -0.321387, y: 0.423658, z: 0.206718}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.321387, y: 0.423658, z: 0.206718}
+    - {x: -0.469468, y: 0.621717, z: 0.305658}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.321387, y: 0.423658, z: 0.206718}
+    - {x: -0.350304, y: 0.615419, z: 0.45215}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.125216, y: 0.29659, z: -0.105141}
+    - {x: -0.19106, y: 0.5239, z: 0.179041}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.19106, y: 0.5239, z: 0.179041}
+    - {x: -0.366428, y: 0.760276, z: 0.321372}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.19106, y: 0.5239, z: 0.179041}
+    - {x: -0.096208, y: 0.819114, z: 0.443267}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.137799, y: 0.467964, z: -0.121737}
+    - {x: -0.299002, y: 0.693657, z: 0.037955}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.299002, y: 0.693657, z: 0.037955}
+    - {x: -0.420675, y: 0.807451, z: 0.075746}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.299002, y: 0.693657, z: 0.037955}
+    - {x: -0.348942, y: 0.865668, z: 0.170775}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.16276, y: 0.692021, z: -0.154658}
+    - {x: 0.001579, y: 0.852397, z: -0.25033}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.001579, y: 0.852397, z: -0.25033}
+    - {x: 0.126388, y: 0.95899, z: -0.232095}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.001579, y: 0.852397, z: -0.25033}
+    - {x: 0.027717, y: 0.926091, z: -0.319073}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.035866, y: 0.129545, z: -0.131213}
+    - {x: 0.254326, y: 0.370674, z: 0.224875}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.254326, y: 0.370674, z: 0.224875}
+    - {x: 0.309458, y: 0.512568, z: 0.457265}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.254326, y: 0.370674, z: 0.224875}
+    - {x: 0.488468, y: 0.489559, z: 0.326552}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.035141, y: 0.336617, z: -0.144148}
+    - {x: -0.288495, y: 0.535487, z: -0.273961}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.288495, y: 0.535487, z: -0.273961}
+    - {x: -0.384129, y: 0.683893, z: -0.391466}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.288495, y: 0.535487, z: -0.273961}
+    - {x: -0.470245, y: 0.646643, z: -0.294891}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.033855, y: 0.533412, z: -0.167093}
+    - {x: 0.220111, y: 0.693002, z: -0.002956}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.220111, y: 0.693002, z: -0.002956}
+    - {x: 0.336137, y: 0.792333, z: 0.232095}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.220111, y: 0.693002, z: -0.002956}
+    - {x: 0.451323, y: 0.787247, z: 0.017582}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.0326, y: 0.672046, z: -0.189488}
+    - {x: -0.190267, y: 0.737663, z: -0.241149}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.190267, y: 0.737663, z: -0.241149}
+    - {x: -0.331819, y: 0.782015, z: -0.364136}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.190267, y: 0.737663, z: -0.241149}
+    - {x: -0.430799, y: 0.801503, z: -0.197583}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: -0.030179, y: 0.879719, z: -0.232673}
+    - {x: -0.105675, y: 0.926284, z: -0.228915}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.105675, y: 0.926284, z: -0.228915}
+    - {x: -0.152345, y: 0.965979, z: -0.250288}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.105675, y: 0.926284, z: -0.228915}
+    - {x: -0.163953, y: 0.979465, z: -0.200829}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.01552, y: 0.122304, z: -0.134344}
+    - {x: -0.321578, y: 0.404429, z: 0.097388}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.321578, y: 0.404429, z: 0.097388}
+    - {x: -0.53271, y: 0.586091, z: 0.126103}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.321578, y: 0.404429, z: 0.097388}
+    - {x: -0.439096, y: 0.655975, z: 0.322154}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.014675, y: 0.297903, z: -0.144055}
+    - {x: 0.20992, y: 0.520413, z: -0.333562}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.20992, y: 0.520413, z: -0.333562}
+    - {x: 0.382482, y: 0.674824, z: -0.370855}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.20992, y: 0.520413, z: -0.333562}
+    - {x: 0.223397, y: 0.662889, z: -0.458523}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.012872, y: 0.496366, z: -0.164801}
+    - {x: -0.06174, y: 0.604448, z: -0.321166}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.06174, y: 0.604448, z: -0.321166}
+    - {x: -0.072154, y: 0.76794, z: -0.499404}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.06174, y: 0.604448, z: -0.321166}
+    - {x: -0.218695, y: 0.731608, z: -0.396849}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.010613, y: 0.666187, z: -0.190785}
+    - {x: -0.129762, y: 0.739208, z: -0.263495}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.129762, y: 0.739208, z: -0.263495}
+    - {x: -0.249754, y: 0.809354, z: -0.403998}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.129762, y: 0.739208, z: -0.263495}
+    - {x: -0.336888, y: 0.854594, z: -0.279599}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.00563, y: 0.93772, z: -0.248104}
+    - {x: 0.022209, y: 0.960568, z: -0.265664}
+    radiusM: 0.00325
+  - kind: edge
+    points:
+    - {x: 0.037422, y: 0.075969, z: -0.048147}
+    - {x: -0.011979, y: 0.243011, z: 0.2989}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.011979, y: 0.243011, z: 0.2989}
+    - {x: -0.228625, y: 0.465765, z: 0.541731}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.011979, y: 0.243011, z: 0.2989}
+    - {x: 0.090785, y: 0.318631, z: 0.556603}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.045302, y: 0.268659, z: -0.053077}
+    - {x: -0.154472, y: 0.54182, z: -0.173323}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.154472, y: 0.54182, z: -0.173323}
+    - {x: -0.247276, y: 0.767498, z: -0.325521}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.154472, y: 0.54182, z: -0.173323}
+    - {x: -0.379173, y: 0.844999, z: -0.145576}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.070493, y: 0.533359, z: -0.068839}
+    - {x: -0.130613, y: 0.787262, z: -0.148656}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.130613, y: 0.787262, z: -0.148656}
+    - {x: -0.215566, y: 0.925222, z: -0.266404}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.130613, y: 0.787262, z: -0.148656}
+    - {x: -0.271917, y: 0.945996, z: -0.138031}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.093535, y: 0.691852, z: -0.083256}
+    - {x: 0.208329, y: 0.801895, z: 0.117821}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.208329, y: 0.801895, z: 0.117821}
+    - {x: 0.209218, y: 0.870037, z: 0.30926}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.208329, y: 0.801895, z: 0.117821}
+    - {x: 0.360837, y: 0.854874, z: 0.174965}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.136283, y: 0.915924, z: -0.110003}
+    - {x: 0.181766, y: 0.958505, z: -0.103986}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.181766, y: 0.958505, z: -0.103986}
+    - {x: 0.21862, y: 0.989635, z: -0.081333}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.085589, y: 0.116211, z: -0.070747}
+    - {x: 0.271162, y: 0.421144, z: -0.278636}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.271162, y: 0.421144, z: -0.278636}
+    - {x: 0.434751, y: 0.645559, z: -0.312766}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.271162, y: 0.421144, z: -0.278636}
+    - {x: 0.342363, y: 0.593846, z: -0.464216}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.094058, y: 0.310867, z: -0.077946}
+    - {x: 0.3413, y: 0.557772, z: -0.19294}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.3413, y: 0.557772, z: -0.19294}
+    - {x: 0.48628, y: 0.733793, z: -0.155132}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.3413, y: 0.557772, z: -0.19294}
+    - {x: 0.426014, y: 0.652777, z: -0.296733}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.111344, y: 0.516075, z: -0.092639}
+    - {x: -0.01106, y: 0.628864, z: -0.336043}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: -0.01106, y: 0.628864, z: -0.336043}
+    - {x: -0.006368, y: 0.692466, z: -0.508702}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: -0.01106, y: 0.628864, z: -0.336043}
+    - {x: -0.210172, y: 0.749268, z: -0.471337}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.136463, y: 0.716185, z: -0.113991}
+    - {x: 0.055117, y: 0.787541, z: -0.270451}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.055117, y: 0.787541, z: -0.270451}
+    - {x: 0.052932, y: 0.853551, z: -0.4257}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.055117, y: 0.787541, z: -0.270451}
+    - {x: -0.101038, y: 0.904167, z: -0.368103}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.170766, y: 0.921775, z: -0.143149}
+    - {x: 0.222619, y: 0.947824, z: -0.120613}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.222619, y: 0.947824, z: -0.120613}
+    - {x: 0.264539, y: 0.973756, z: -0.065824}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.222619, y: 0.947824, z: -0.120613}
+    - {x: 0.269848, y: 0.961553, z: -0.121934}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.134061, y: 0.07537, z: -0.030705}
+    - {x: 0.33965, y: 0.218438, z: -0.121994}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.33965, y: 0.218438, z: -0.121994}
+    - {x: 0.516109, y: 0.341659, z: -0.123639}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.33965, y: 0.218438, z: -0.121994}
+    - {x: 0.477491, y: 0.36468, z: -0.277181}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.146791, y: 0.330788, z: -0.03652}
+    - {x: 0.296234, y: 0.516554, z: 0.126137}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.296234, y: 0.516554, z: 0.126137}
+    - {x: 0.326115, y: 0.725062, z: 0.41837}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.296234, y: 0.516554, z: 0.126137}
+    - {x: 0.522679, y: 0.664559, z: 0.166128}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.162289, y: 0.485515, z: -0.043601}
+    - {x: 0.123182, y: 0.615928, z: -0.289037}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.123182, y: 0.615928, z: -0.289037}
+    - {x: 0.181701, y: 0.698881, z: -0.451954}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.123182, y: 0.615928, z: -0.289037}
+    - {x: -0.001018, y: 0.760005, z: -0.509291}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.188784, y: 0.672043, z: -0.055705}
+    - {x: 0.303306, y: 0.757531, z: -0.021504}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.303306, y: 0.757531, z: -0.021504}
+    - {x: 0.382558, y: 0.873299, z: 0.067733}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.303306, y: 0.757531, z: -0.021504}
+    - {x: 0.392585, y: 0.840106, z: -0.04258}
+    radiusM: 0.002
+  - kind: edge
+    points:
+    - {x: 0.226691, y: 0.872102, z: -0.073022}
+    - {x: 0.235039, y: 0.911988, z: -0.183354}
+    radiusM: 0.00325
+  - kind: hook
+    points:
+    - {x: 0.235039, y: 0.911988, z: -0.183354}
+    - {x: 0.253078, y: 0.929773, z: -0.216737}
+    radiusM: 0.002
+  - kind: hook
+    points:
+    - {x: 0.235039, y: 0.911988, z: -0.183354}
+    - {x: 0.201402, y: 0.946078, z: -0.247972}
+    radiusM: 0.002
   sourceJson: {fileID: 4900000, guid: cead8b7e954805347b9c269592acfb33, type: 3}
 --- !u!205 &2558533850587287210
 LODGroup:
@@ -2856,6 +4103,61 @@ LODGroup:
     renderers:
     - renderer: {fileID: 7210619571673330092}
   m_Enabled: 1
+--- !u!1 &7268810887654037164
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1154665974949271281}
+  - component: {fileID: 4870604540724792046}
+  m_Layer: 0
+  m_Name: Collision46
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1154665974949271281
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7268810887654037164}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: -0.92387974, w: 0.38268292}
+  m_LocalPosition: {x: 0.107006, y: 0.610429, z: 0.31766}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5197821712859904970}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!136 &4870604540724792046
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7268810887654037164}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 0.212738
+  m_Height: 1.025476
+  m_Direction: 1
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &7524761769338298261
 GameObject:
   m_ObjectHideFlags: 0
@@ -2865,7 +4167,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6710479603657449897}
-  - component: {fileID: 6555467188848720784}
+  - component: {fileID: 6760724672997442174}
   m_Layer: 0
   m_Name: Collision42
   m_TagString: Untagged
@@ -2881,15 +4183,15 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7524761769338298261}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.019514, y: 0.514231, z: 0.009098}
+  m_LocalRotation: {x: 0.627963, y: 0, z: -0.627963, w: 0.459701}
+  m_LocalPosition: {x: 0.253645, y: 0.66379, z: -0.123569}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 5197821712859904970}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!135 &6555467188848720784
-SphereCollider:
+--- !u!136 &6760724672997442174
+CapsuleCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -2906,8 +4208,10 @@ SphereCollider:
   m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
-  serializedVersion: 3
-  m_Radius: 0.774875
+  serializedVersion: 2
+  m_Radius: 0.306662
+  m_Height: 1.163325
+  m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &7763764391646574410
 GameObject:
@@ -3072,6 +4376,61 @@ CapsuleCollider:
   serializedVersion: 2
   m_Radius: 0.007
   m_Height: 0.328414
+  m_Direction: 1
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!1 &8093525219219869252
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8216328005649876550}
+  - component: {fileID: 8729892910491293719}
+  m_Layer: 0
+  m_Name: Collision43
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8216328005649876550
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8093525219219869252}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.49999994, y: 0, z: -0.49999994, w: 0.70710695}
+  m_LocalPosition: {x: -0.069771, y: 0.622561, z: 0.153015}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5197821712859904970}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!136 &8729892910491293719
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8093525219219869252}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 0.223988
+  m_Height: 1.247977
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &8393377387125140780
