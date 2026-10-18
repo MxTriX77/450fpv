@@ -1,14 +1,15 @@
 """derive.py against the spec scenarios "Ground recipe derived and wired" and "Mean albedo hits the target"
 (p1-s04-belt-straw): the four maps of a ground recipe from two synthetic sets, the albedo's mean luminance within
-+-5 % of the target (printed), the bare and green shares within +-2 points of the recipe, the detail albedo neutral
-at a linear mean of 0.5, the recipe recorded beside the maps, identical bytes on a rerun and regeneration on a recipe
++-5 % of the target (printed), the bare and green shares within +-2 points of the recipe, the detail albedo grey
+at a linear mean of 0.5, the soil on its optional target, a bare patch's feather broken by the cover, the soil in
+the gaps between straws at the cover's gap_share, the recipe recorded beside the maps, identical bytes on a rerun and regeneration on a recipe
 or source change, and the failures named with nothing written. The last test measures the real belt_straw albedo."""
 import json
 import random
 from pathlib import Path
 
 import pytest
-from PIL import Image
+from PIL import Image, ImageChops
 
 import derive
 import fetch
@@ -121,6 +122,53 @@ def test_ground_maps_hit_the_target_and_the_shares(tmp_path, capsys):
     assert (r, b) == (0, 0) and g in (200, 240) and a in (255 - 180, 255 - 220), "metallic 0, the sets' AO, 1 - roughness"
     for channel in derive.linear_means(detail):
         assert abs(channel - 0.5) <= 0.01, "the detail albedo is neutral for URP/Lit's detail x2"
+    r, g, b = detail.split()
+    assert ImageChops.difference(r, g).getbbox() is None and ImageChops.difference(g, b).getbbox() is None,         "the detail is grey: it adds grain, never a hue"
+    assert stamp["measured"]["soil_gain"] == [1.0, 1.0, 1.0], "no soil target: the soil keeps its pinned colour"
+
+
+def test_soil_lands_on_its_target(tmp_path):
+    root = ground_root(tmp_path)
+    write_recipe(root, dict(RECIPE, soil=dict(RECIPE["soil"], albedo_target="#433f37")))
+    assert run(MATERIAL, "--root", root) == 0
+    measured = json.loads((root / MATERIALS / f"{MATERIAL}.recipe.json").read_text(encoding="utf-8"))["measured"]
+    got, want = (int(measured["soil_mean_srgb"][i:i + 2], 16) for i in (1, 3, 5)), (0x43, 0x3f, 0x37)
+    assert all(abs(a - b) <= 1 for a, b in zip(got, want)), measured["soil_mean_srgb"]
+    assert abs(measured["luminance_error_pct"]) <= 5
+
+
+def test_gaps_show_soil_between_the_straws_and_brighten_them(tmp_path):
+    """A cover with straws (bright stripes over a darker ground): gap_share 0.25 lets the soil through about a quarter
+    of the straw layer, the mean stays on the target, and the straws take a higher gain to hold it."""
+    root = ground_root(tmp_path)
+    cover = Image.new("RGB", (64, 64), (150, 125, 80))
+    for x in range(0, 64, 3):
+        cover.paste((230, 200, 140), (x, 0, x + 1, 64))
+    cover.save(root / THIRD_PARTY / "polyhaven" / COVER_ID / f"{COVER_ID}_diffuse_1k.png")
+
+    def measured(gap_share):
+        write_recipe(root, dict(RECIPE, cover=dict(RECIPE["cover"], gap_share=gap_share)))
+        assert run(MATERIAL, "--root", root) == 0
+        return json.loads((root / MATERIALS / f"{MATERIAL}.recipe.json").read_text(encoding="utf-8"))["measured"]
+
+    without, with_gaps = measured(0.0), measured(0.25)
+    print(f"gaps {100 * with_gaps['gap_share']:.1f} % (recipe 25), straw gain {without['straw_gain']} -> {with_gaps['straw_gain']}")
+    assert without["gap_share"] == 0 and 0.15 <= with_gaps["gap_share"] <= 0.35
+    assert abs(with_gaps["luminance_error_pct"]) <= 5
+    assert all(b > a for a, b in zip(without["straw_gain"], with_gaps["straw_gain"])), "brighter straws, same mean"
+
+
+def test_strewn_keeps_the_core_and_breaks_the_feather():
+    cover = Image.new("RGB", (64, 64), (40, 40, 40))
+    for x in range(0, 64, 4):  # bright straws every 4 px
+        cover.paste((220, 200, 150), (x, 0, x + 1, 64))
+    full, none, half = (Image.new("L", (64, 64), v) for v in (255, 0, 128))
+    assert derive.strewn(full, cover, random.Random(1), 100).getextrema() == (255, 255), "the core stays soil"
+    assert derive.strewn(none, cover, random.Random(1), 100).getextrema() == (0, 0), "no soil outside the patch"
+    edge = derive.strewn(half, cover, random.Random(1), 100)  # 100 px per m: the high-pass spans the stripes
+    on_straw = sum(edge.getpixel((x, y)) for x in range(0, 64, 4) for y in range(64)) / (16 * 64)
+    between = sum(edge.getpixel((x + 2, y)) for x in range(0, 64, 4) for y in range(64)) / (16 * 64)
+    assert on_straw < between - 40, f"straws lie over the feather: {on_straw:.0f} on a straw, {between:.0f} between"
 
 
 def test_coverage_and_stamped_shares():

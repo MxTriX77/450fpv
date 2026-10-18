@@ -15,15 +15,17 @@ A recipe of kind "ground" (p1-s04-belt-straw, "Ground recipes with a detail laye
 a seeded patch description and a target mean albedo, and gets four maps for one patch of size_m x size_m at
 output_px (2K at most, AST-08): <material>_albedo.png (sRGB), <material>_normal.png (GL tangent space),
 <material>_mask.png (the packed mask above: metallic 0, the sets' AO, 1 - roughness) and
-<material>_detail_albedo.png, the detail set's diffuse at its own size with its linear mean per channel moved to 0.5,
-so URP/Lit's "detail albedo x2" layer adds grain without shifting the base's mean. The cover is tiled at its
+<material>_detail_albedo.png, the detail set's diffuse as grey at its own size with its linear mean moved to 0.5,
+so URP/Lit's "detail albedo x2" layer adds grain without shifting the base's mean or hue. The cover is tiled at its
 tile_size_m and again at tile_size_m x phi, averaged, so no period repeats inside the patch; it is stretched 1 + bias
 along the lodging azimuth and rotated to it (the cover normals turn with it). Blobby bare patches (soil shows) and
 green strips along the azimuth (the cover tinted to the strip colour) are stamped from the seed until they cover
-their shares, feathered 0.1 m and 0.5 m. The straw layer takes the per-channel gain that lands the patch's linear mean colour on
-albedo_target with the soil and the strips at their own colours, then a global pass corrects clipping; the achieved
-mean, the shares and the gains are recorded in the stamp. The azimuth is degrees from +u towards +v of the map,
-which is +X towards +Z of the asset when its UVs are metres.
+their shares, feathered 0.3 m and 0.5 m; the bare feather is broken by the cover's straws (strewn), so a patch edge
+is straws over soil. The soil takes the gain to the soil's optional albedo_target. The straw layer takes the
+per-channel gain that lands the patch's linear mean colour on albedo_target with the soil and the strips at their
+own colours, then a global pass corrects clipping; the achieved mean, the shares and the gains are recorded in the
+stamp. The azimuth is degrees from +u towards +v of the map, which is +X towards +Z of the asset when its UVs are
+metres.
 
 A recipe of kind "palette" (p1-s04-belt-straw, the straw instance kit) has no texture set: its "colours" object names
 flat sRGB colours, and the build writes <material>_albedo.png, one PALETTE_BLOCK_PX square block per colour from left to
@@ -49,7 +51,7 @@ import re
 import sys
 
 import PIL
-from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageMath
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageMath, ImageOps
 
 import fetch  # the manifest, its file paths and the repo root; same folder
 
@@ -59,20 +61,27 @@ FORMULA = "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sourc
 CHANNELS = ("metallic", "occlusion", "smoothness")  # R, G, A
 MAP_EXPR = re.compile(r"^(1 - )?([a-z]+)$")
 
-GROUND_FORMULA = ("ground v1: cover tiled at tile_size_m and at tile_size_m*phi, averaged, stretched 1+bias along the "
-                  "lodging azimuth and rotated to it; soil tiled at its tile_size_m; seeded blobs (an ellipse and three "
-                  "satellites) stamped to the bare and green shares, feathered 0.1 m (bare) and 0.5 m (green along the "
-                  "azimuth, counted outside bare); albedo = cover with the straw gain for albedo_target, strips tinted "
-                  "to the green tint, soil under bare, then a global gain against clipping; normal composited the same "
-                  "with the cover normals rotated by the azimuth; mask R 0, G AO, B 0, A 1 - roughness; detail albedo "
-                  "= the detail set's diffuse at its size with a linear mean of 0.5 per channel; 8-bit sRGB albedos")
+GROUND_FORMULA = ("ground v2: cover tiled at tile_size_m and at tile_size_m*phi, averaged, stretched 1+bias along the "
+                  "lodging azimuth and rotated to it; soil tiled at its tile_size_m, gained to its albedo_target when "
+                  "given; seeded blobs (an ellipse and three satellites) stamped to the bare and green shares, feathered "
+                  "0.3 m (bare) and 0.5 m (green along the azimuth, counted outside bare); strewn masks clamp(2 m - c), c "
+                  "the cover luminance high-passed at STRAW_M, blended with LOBE_M value noise and stretched to 0-1: the bare mask's feather "
+                  "(noise 0.5) and the gaps between straws (a flat m of sqrt(gap_share / 2), noise GAP_LOBES 0), soil "
+                  "under both; albedo = cover with the straw gain for albedo_target, strips tinted to the green tint, "
+                  "soil under bare and gaps, then a global gain "
+                  "against clipping; normal composited the same with the cover normals rotated by the azimuth; mask R 0, "
+                  "G AO, B 0, A 1 - roughness; detail albedo = the detail set's diffuse as grey at its size with a "
+                  "linear mean of 0.5; 8-bit sRGB albedos")
 GROUND_MAPS = ("albedo", "normal", "mask", "detail_albedo")
 PALETTE_FORMULA = "palette v1: one PALETTE_BLOCK_PX square block per colour, left to right in the recipe's order; 8-bit sRGB"
 PALETTE_BLOCK_PX = 16  # a block survives four mip levels before its colour bleeds into its neighbour's
 MAX_OUTPUT_PX = 2048  # AST-08
 PHI = 1.618033988749895
-BARE_FEATHER_M = 0.1   # a soil patch's edge: straw thins out over about a hand's width (assumed)
+BARE_FEATHER_M = 0.3   # a soil patch's edge: straws strewn over the soil for a few hand widths (H 9-14, measured by eye)
 GREEN_FEATHER_M = 0.5  # regrowth fades into the mat over half a metre (assumed)
+LOBE_M = 0.4           # the value-noise cell that lobes a bare patch's outline (assumed from H 9-14)
+STRAW_M = 0.05         # the high-pass that keeps a cover's straws and gaps and drops its tile-sized shading
+GAP_LOBES = 0.0        # the gaps between straws follow the cover's own straws, a little thicker and thinner by area
 SHARE_TOLERANCE = 0.005
 LUMA = (0.2126, 0.7152, 0.0722)
 SRGB_TO_LINEAR = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in (v / 255 for v in range(256))]
@@ -258,6 +267,8 @@ def ground_recipe(recipe, material):
     return {
         "seed": recipe["seed"], "size_m": size_m, "output_px": output_px,
         "soil": soil, "cover": cover, "detail": detail,
+        "soil_target": _colour(soil, "albedo_target", f"{material}.soil") if "albedo_target" in soil else None,
+        "gap_share": _number(cover, "gap_share", f"{material}.cover", lo=0, hi=0.5) if "gap_share" in cover else 0.0,
         "bare_share": bare_share, "bare_size_m": _range(bare, "size_m", f"{material}.patches.bare"),
         "green_share": green_share, "green_width_m": _range(green, "width_m", f"{material}.patches.green"),
         "green_length_m": _range(green, "length_m", f"{material}.patches.green"),
@@ -381,6 +392,23 @@ def stamped(rng, out_px, px_per_m, share, length_m, width_m, angle, feather_m, w
     raise DeriveError(f"{what}: could not reach a share of {share} in 10000 stamps")
 
 
+def strewn(bare, cover, rng, px_per_m, lobes=0.5):
+    """The mask `bare` with a lobed outline and the cover's straws lying across its feather: clamp(2 bare - c), c the
+    cover's luminance high-passed at STRAW_M (only the straws and the gaps between them, never the cover's tile-sized
+    shading, which would repeat) blended with a `lobes` share of seeded value noise of LOBE_M cells, stretched to
+    0-255. Where bare is full the soil stays, its feather breaks into lobes and straws over soil, and the outer half
+    keeps soil only in the darkest gaps, so a patch has a ragged edge, never a clean ellipse (H 9-14)."""
+    cells = math.ceil(bare.size[0] / (LOBE_M * px_per_m)) + 1
+    noise = Image.new("L", (cells, cells))
+    noise.putdata([rng.randrange(256) for _ in range(cells * cells)])
+    noise = noise.resize(bare.size, Image.BICUBIC)
+    luma = cover.convert("L")
+    local = luma.filter(ImageFilter.GaussianBlur(STRAW_M * px_per_m))
+    straws = ImageMath.lambda_eval(lambda a: a["l"] - a["m"] + 128, l=luma.convert("F"), m=local.convert("F")).convert("L")
+    c = ImageOps.autocontrast(Image.blend(straws, noise, lobes), cutoff=1).convert("F")
+    return ImageMath.lambda_eval(lambda a: a["b"] * 2 - a["c"], b=bare.convert("F"), c=c).convert("L")
+
+
 def _load_set(root, manifest, texture_set, material, what):
     """The diffuse (RGB), normal (RGB), roughness (L) and AO (L, white when the set has none) of a pinned set."""
     maps = set_maps(root, manifest, texture_set, material)
@@ -431,24 +459,37 @@ def derive_ground(root, manifest, material, recipe):
                    lambda r: az + r.uniform(-45, 45), BARE_FEATHER_M, f"{material}: bare patches")
     green = stamped(rng, out_px, px_per_m, g["green_share"], g["green_length_m"], g["green_width_m"],
                     lambda r: az + r.uniform(-10, 10), GREEN_FEATHER_M, f"{material}: green strips", outside=bare)
-    bare_share, green_share = coverage(bare), coverage(green, outside=bare)
+    soil_albedo, cover_albedo = soil("diffuse"), cover("diffuse")
+    soil_gain = [1.0, 1.0, 1.0]
+    if g["soil_target"] is not None:
+        soil_albedo, soil_gain = match_mean(soil_albedo, g["soil_target"])
+    bare = strewn(bare, cover_albedo, rng, px_per_m)
+    # The mat is straws over dark soil: the soil shows through the cover's darkest gaps (strewn on a flat level
+    # whose share 2 level^2 is the cover's gap_share), so the straw layer itself is brighter for the same mean.
+    gaps = strewn(Image.new("L", (out_px, out_px), round(255 * math.sqrt(g["gap_share"] / 2))), cover_albedo, rng,
+                  px_per_m, GAP_LOBES)
+    soil_mask = ImageChops.lighter(bare, gaps)
+    bare_share, gap_share = coverage(bare), coverage(gaps, outside=bare)
+    green_share = coverage(green, outside=bare)
 
     # The straw layer takes the gain that lands the whole patch on the target with the soil and the strips at their
     # own colours; a global pass then corrects what clipping and the feathered edges moved.
-    soil_albedo, cover_albedo = soil("diffuse"), cover("diffuse")
-    straw_share = max(1e-6, 1 - bare_share - green_share)
-    straw_target = [(t - bare_share * s - green_share * tint) / straw_share
+    soil_share, strip_share = coverage(soil_mask), coverage(green, outside=soil_mask)
+    straw_share = max(1e-6, 1 - soil_share - strip_share)
+    straw_target = [(t - soil_share * s - strip_share * tint) / straw_share
                     for t, s, tint in zip(g["target"], linear_means(soil_albedo), g["green_tint"])]
     straw, straw_gain = match_mean(cover_albedo, [max(0.001, t) for t in straw_target])
     strips, _ = match_mean(cover_albedo, g["green_tint"])
-    albedo = Image.composite(soil_albedo, Image.composite(strips, straw, green), bare)
+    albedo = Image.composite(soil_albedo, Image.composite(strips, straw, green), soil_mask)
     albedo, final_gain = match_mean(albedo, g["target"])
-    normal = Image.composite(soil("normal"), rotate_normals(cover("normal"), az), bare)
-    ao = Image.composite(soil("ao"), cover("ao"), bare)
-    roughness = Image.composite(soil("roughness"), cover("roughness"), bare)
+    normal = Image.composite(soil("normal"), rotate_normals(cover("normal"), az), soil_mask)
+    ao = Image.composite(soil("ao"), cover("ao"), soil_mask)
+    roughness = Image.composite(soil("roughness"), cover("roughness"), soil_mask)
     zero = Image.new("L", (out_px, out_px), 0)
     mask = Image.merge("RGBA", (zero, ao, zero, roughness.point(lambda v: 255 - v)))
-    detail, detail_gain = match_mean(load("detail", "diffuse"), [0.5, 0.5, 0.5])
+    # Grey, so URP's "detail x2" adds the straws' grain without moving the base's hue: per-channel gains on the
+    # yellow straw set would amplify its weak blue channel into blue and lilac flecks.
+    detail, detail_gain = match_mean(load("detail", "diffuse").convert("L").convert("RGB"), [0.5, 0.5, 0.5])
 
     os.makedirs(os.path.dirname(stamp_path), exist_ok=True)
     for name, image in (("albedo", albedo), ("normal", normal), ("mask", mask), ("detail_albedo", detail)):
@@ -458,6 +499,9 @@ def derive_ground(root, manifest, material, recipe):
                 "target_luminance": round(luminance(g["target"]), 4),
                 "luminance_error_pct": round(100 * (luminance(means) / luminance(g["target"]) - 1), 2),
                 "bare_share": round(bare_share, 4), "green_share": round(green_share, 4),
+                "gap_share": round(gap_share, 4),
+                "soil_mean_srgb": "#" + "".join(f"{to_srgb8(c):02x}" for c in linear_means(soil_albedo)),
+                "soil_gain": [round(x, 3) for x in soil_gain],
                 "straw_gain": [round(x, 3) for x in straw_gain], "final_gain": [round(x, 3) for x in final_gain],
                 "detail_gain": [round(x, 3) for x in detail_gain]}
     stamp.update({"size": [out_px, out_px], "detail_size": list(detail.size),
@@ -466,7 +510,7 @@ def derive_ground(root, manifest, material, recipe):
     return (f"{fetch.relpath(root, outputs['albedo'])}: derived {out_px}x{out_px} ground from soil {sets['soil']} and "
             f"cover {sets['cover']}; mean luminance {measured['mean_luminance']:.4f} (target "
             f"{measured['target_luminance']:.4f}, {measured['luminance_error_pct']:+.1f} %), bare {100 * bare_share:.1f} %, "
-            f"green {100 * green_share:.1f} %, straw gain {measured['straw_gain']}; recipe recorded in "
+            f"green {100 * green_share:.1f} %, gaps {100 * gap_share:.1f} %, straw gain {measured['straw_gain']}; recipe recorded in "
             f"{os.path.basename(stamp_path)}")
 
 
