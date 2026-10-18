@@ -1,9 +1,10 @@
 """ground_patch: a square patch of ground surface, S04 belt_straw first (p1-s04-belt-straw, design decisions 1, 4, 6
 and 8; review-physics PR1-PR8; object sheet §S04). The origin is the patch centre and y = 0 the mean top of the mat.
 
-LOD0 is a closed slab mat_depth_m + SOIL_M deep: its top a grid of cell_m cells with seeded value-noise relief within
-+-relief_m (the mean over the grid exactly 0) and round(mounds_per_m2 * area) earth mounds as raised vertices,
-triangulated so the audit and the renderer see the same surface; four walls and a bottom close it. The cells under
+LOD0 is a closed slab mat_depth_m + SOIL_M deep: its top a grid of cell_m cells with the mat's tussock relief within
++-relief_m (lib.mat, the field the ground recipe darkens its hollows by; the mean over the grid exactly 0) and
+round(mounds_per_m2 * area) earth mounds as raised vertices, triangulated so the audit and the renderer see the same
+surface; four walls and a bottom close it. The cells under
 a mound are refined REFINE x REFINE so the grid follows the mound sphere's steep rim within the audit's tolerance;
 the refined vertices on an edge shared with a coarse cell lie on that edge (T-junctions, no cracks). Its UVs are
 metres, u = x and v = z, which is how the belt_straw ground recipe lays its unique base map (tiling 1/size_m, offset
@@ -14,17 +15,35 @@ mesh never disagree) are where the mat is missing: over each patch's convex step
 by the mat depth D to a floor that is the mat surface lowered by D, relief included (PR3). A cell the outline
 crosses is cut exactly along it: the part inside is floor, the part outside mat (ear-clipped), and one vertical
 wall quad stands on every piece of outline edge, all sharing their vertices with the neighbouring cells; a cell
-wholly inside is floor. The floor and the walls take the ground slot; a wall's UVs unfold it outward from its top,
-so it shows the mat's cut edge.
+wholly inside is floor. The floor takes the ground slot. A wall is the mat's cut edge: it takes the straw slot, UV'd
+up the litter's palette column (the mat's dark depth, the colour the ground recipe gives the gaps between its
+straws) from WALL_V[0] at the floor to WALL_V[1] at the mat's top.
 
 The straw instance kit (lib.straw) is baked as the visual-only micro mesh of LOD0 within bake_radius_m of the
-centre: lying straws, standing stems (a seed_head_share of them headed) and belt twigs on a seeded jittered grid at
-their densities, resting on the stepped surface (a floor's straws lie on the floor, review-physics N8), crosswise
-with a weak lodging bias (a `lodging.bias` share of the lying straws within +-LODGING_SPREAD_DEG of
-`lodging.azimuth_deg`, degrees from +X towards +Z, the recipe's convention). The standing stems grow in tussocks of
-stems_per_tuft within TUFT_R_M of a tuft's centre, each leaning up to stem_tilt_deg away from it (H 3-9). Over the
-last bake_feather_m of the radius every kind thins to nothing along a smoothstep, so the bake has no hard rim. The
-shared micro-detail generator replaces the bake at physics parity later (AST-10).
+centre, on seeded jittered grids at the kinds' densities, resting on the stepped surface (review-physics N8):
+- lying straws: straw_per_m2 in the mat's top layer and body_straw_per_m2 below them, visual only (the mat's body,
+  which physics carries as the straw row's compliance, not as hooks). Each rests across the tangle: its two ends at
+  depths drawn from its layer's span (TOP_LAYER, BODY_LAYER) of the local loft, loft_m on the relief's crowns and
+  loft_m * (1 - clump) in its hollows, so straws lean on straws, never above a MAT_MAX_M mat; deeper straws are
+  shaded darker (DEPTH_SHADE). Both layers gather on the crowns: kept with probability (1 + clump c) / (1 + clump)
+  of a grid (1 + clump) times denser, c the relief over relief_m. Crosswise, with a `lodging.bias` share within
+  +-LODGING_SPREAD_DEG of the local swathe direction, `lodging.azimuth_deg` (degrees from +X towards +Z, the
+  recipe's convention) turned by up to SWATHE_DEG along a SWATHE_M value noise, so near straws lie in swathes (H).
+- over a green strip the mat thins: a lying straw is kept with probability 1 - GREEN_THIN times the strips' weight.
+- over a floor, only the straws strewn on the soil: FLOOR_KEEP[1] of them at the wall, FLOOR_KEEP[0] deeper than
+  the bare feather, lying flat on it; a mat straw whose end reaches over a floor within LIP_OVERHANG_M of the
+  outline holds that end at the mat's top, overhanging the step: a ragged lip (H 9-14). Besides the scatter,
+  LIP_STRAWS_PER_M straws per metre of outline lie across it within LIP_SPREAD_DEG of square, centred on the mat
+  within LIP_OVERHANG_M of it: the short ones overhang the step, the long ones drape down to the floor.
+- standing stems in tussocks of stems_per_tuft within TUFT_R_M of a tuft's centre, each leaning up to stem_tilt_deg
+  away from it (H 3-9), the tufts gathered on the crowns like the straws and none on a floor; a seed_head_share of
+  them headed.
+- belt twigs, resting across the tangle like the straws (TWIG_LAYER).
+- green regrowth blades over the green strips (lib.mat, the strips the recipe tints): blade_per_m2 in tufts of
+  BLADE_TUFT within BLADE_TUFT_R_M, kept by the strips' weight, so they thin over the strips' feather, none on a
+  floor (H 16, H 19-21).
+Over the last bake_feather_m of the radius every kind thins to nothing along a smoothstep, so the bake has no hard
+rim. The shared micro-detail generator replaces the bake at physics parity later (AST-10).
 
 A mound is a sphere cap on the slab: radius r = min(the sphere through the mound's rim and apex, the largest sphere
 whose bottom stays inside the slab), centre sunk to y = h - r, its cap sampled on the grid; a low skirt (SKIRT_M)
@@ -48,34 +67,51 @@ import math
 import random
 
 from lib.audit import TOLERANCE_M
-from lib import patches, straw
+from lib import mat, patches, straw
 from lib.geometry import Mesh
 
 SLOT = "ground"
 SOIL_SLOT = "soil"       # a mound's bare earth
 SOIL_M = 0.3             # the soil box below the mat: F-5 behind the floors' top (carried; review-physics PR1)
 REFINE = 4               # a cell under a mound is split this many times per side
-NOISE_M = (1.0, 0.5)     # value-noise octaves of the relief: lattice spacings, the second at half amplitude (assumed)
 SKIRT_M = 0.03           # a mound's spread foot, under the audit tolerance so it sits on the slab box (assumed)
 BLEND_M = 0.1            # the relief returns over this ring past a mound's foot
 MOUND_GAP_M = 0.5        # clear ground between mounds, from the patch edge and from every bare patch's window
-LODGING_SPREAD_DEG = 20  # a lodged straw lies within this of the azimuth
-STRAW_LIFT_M = (-0.005, 0.03)  # a lying straw's centre above the mat: part buried to stacked (assumed)
-TWIG_LIFT_M = (0.0, 0.01)
+WALL_V = (0.08, 0.9)     # a step wall's v up the litter's palette column, at the floor and at the mat's top
+LODGING_SPREAD_DEG = 20  # a lodged straw lies within this of the local swathe direction
+SWATHE_M = 1.2           # the swathes' value-noise lattice (assumed from H 12-21: near straws parallel over a metre)
+SWATHE_DEG = 45.0        # the swathe direction turns by up to this from the lodging azimuth (assumed)
+TOP_LAYER = (0.35, 1.0)  # the top layer's straw ends rest between these shares of the local loft
+BODY_LAYER = (0.0, 0.5)  # the body straws' ends, deeper
+TWIG_LAYER = (0.2, 0.8)
+STRAW_SINK_M = 0.01      # a straw end at depth 0 lies this far into the mat's top: partly buried (assumed)
+DEPTH_SHADE = 0.8        # an instance's palette v shifts by this times its depth share - 0.5: deep straws darker (assumed)
+MAT_MAX_M = 0.20         # the sheet's deepest mat (5-20 cm): no straw rests higher above the soil
+FLOOR_KEEP = (0.08, 0.5)  # share of straws kept over a floor, deeper than the bare feather and at its wall (assumed, H 9-14)
+LIP_OVERHANG_M = 0.15    # a mat straw's end overhangs a step at the mat's top this far at most (assumed, H 9-14)
+LIP_STRAWS_PER_M = 30.0  # straws laid across a step's outline from the mat per metre of it (assumed, H 9-14)
+LIP_SPREAD_DEG = 35.0    # a lip straw lies within this of square across the outline (assumed)
 STEM_SINK_M = 0.02       # a stem's foot below the mat
 TUFT_R_M = 0.15          # a tussock's foot radius (assumed from H 3-9: tussocks 0.2-0.4 m across)
-STRAW_PITCH_DEG = 6.0    # extra pitch beyond the mat's slope between a straw's ends
+BLADE_TUFT = 5           # regrowth blades per tuft (assumed, H 19-21)
+BLADE_TUFT_R_M = 0.03    # a blade tuft's foot radius (assumed)
+BLADE_TILT_DEG = 40.0    # a blade leans up to this from upright (assumed)
+GREEN_THIN = 0.5         # the mat's straws thin by up to this over a green strip: regrowth comes up where the mat is
+                         # thin (assumed, H 19-21)
+STRAW_PITCH_DEG = 3.0    # extra pitch beyond the line between a straw's two resting ends
 MICRO_KIND = "straw"     # the micro mesh's kind: its count is the straw-kit instances baked
 IDENTITY = [0.0, 0.0, 0.0, 1.0]
 
 PARAMS = {
-    "seed": {"type": "int", "range": (0, 2**31 - 1), "default": 1,
-             "effect": "every draw: the relief, the bare patches, the mounds, the kit and the scatter"},
+    "seed": {"type": "int", "range": (0, 2**31 - 1), "default": 7,
+             "effect": "every draw: the relief, the bare patches, the green strips, the mounds, the kit and the "
+                     "scatter"},
     "size_m": {"type": "float", "range": (2.0, 50.0), "default": 12.0, "effect": "side of the square patch, centred"},
-    "cell_m": {"type": "float", "range": (0.05, 1.0), "default": 0.25,
+    "cell_m": {"type": "float", "range": (0.05, 1.0), "default": 0.125,
                "effect": "grid cell of the LOD0/LOD1 top; small enough to follow the mound spheres (check)"},
     "relief_m": {"type": "float", "range": (0.0, TOLERANCE_M), "default": 0.04,
-                 "effect": "the mat's unevenness, +- about the mean top y = 0, within the audit's tolerance"},
+                 "effect": "the mat's tussock relief, +- about the mean top y = 0, within the audit's tolerance; the "
+                           "ground recipe darkens its hollows (lib.mat)"},
     "mat_depth_m": {"type": "float", "range": (0.05, 0.2), "default": 0.125,
                     "effect": "the mat's depth D (sheet 5-20 cm): the mat boxes stand from -D to 0 on the soil box and "
                               "a bare patch's floor lies D below the mat; straw's 490 N/m in physics_materials.json is "
@@ -86,8 +122,16 @@ PARAMS = {
     "bare.size_m.min": {"type": "float", "range": (0.3, 3.0), "default": 0.5,
                         "effect": "shortest bare patch along the lodging; at least the cell's diagonal"},
     "bare.size_m.max": {"type": "float", "range": (0.3, 3.0), "default": 2.0, "effect": "longest bare patch"},
-    "bare.outline_vertices": {"type": "int", "range": (6, 12), "default": 8,
+    "bare.outline_vertices": {"type": "int", "range": (6, 12), "default": 12,
                               "effect": "corners of a bare patch's convex step outline; one mat edge box per edge"},
+    "green.share": {"type": "float", "range": (0.0, 0.5), "default": 0.15,
+                    "effect": "share of the patch under green regrowth strips, outside the bare patches; the ground "
+                              "recipe tints the same strips and the blades grow over them (lib.mat)"},
+    "green.width_m.min": {"type": "float", "range": (0.3, 6.0), "default": 1.0, "effect": "narrowest green strip"},
+    "green.width_m.max": {"type": "float", "range": (0.3, 6.0), "default": 3.0, "effect": "widest green strip"},
+    "green.length_m.min": {"type": "float", "range": (0.3, 20.0), "default": 3.0,
+                           "effect": "shortest green strip, along the lodging"},
+    "green.length_m.max": {"type": "float", "range": (0.3, 20.0), "default": 12.0, "effect": "longest green strip"},
     "mounds_per_m2": {"type": "float", "range": (0.0, 1.0), "default": 0.02, "effect": "earth mounds per m2 of patch"},
     "mound_w_m.min": {"type": "float", "range": (0.1, 2.0), "default": 0.3, "effect": "narrowest mound foot"},
     "mound_w_m.max": {"type": "float", "range": (0.1, 2.0), "default": 0.5, "effect": "widest mound foot"},
@@ -97,7 +141,20 @@ PARAMS = {
                       "effect": "the kit is baked within this of the centre; at most half the size"},
     "bake_feather_m": {"type": "float", "range": (0.0, 25.0), "default": 1.0,
                        "effect": "the scatter thins to nothing over this last ring of the bake radius (0: a hard rim)"},
-    "straw_per_m2": {"type": "float", "range": (0.0, 1000.0), "default": 250.0, "effect": "lying straws per m2"},
+    "straw_per_m2": {"type": "float", "range": (0.0, 1000.0), "default": 250.0,
+                     "effect": "lying straws per m2 in the mat's top layer (the hooking straws of the sheet's cover row)"},
+    "body_straw_per_m2": {"type": "float", "range": (0.0, 1000.0), "default": 90.0,
+                          "effect": "visual lying straws per m2 below the top layer: the mat's body, which physics "
+                                    "carries as the straw row's compliance, not as hooks"},
+    "loft_m": {"type": "float", "range": (0.0, 0.15), "default": 0.06,
+               "effect": "how high the lying straws stack above the mat's top on the relief's crowns (loft_m * "
+                         "(1 - clump) in its hollows), never above a MAT_MAX_M mat; visual only"},
+    "clump": {"type": "float", "range": (0.0, 1.0), "default": 0.6,
+              "effect": "how much the straws, the loft and the tussocks gather on the relief's crowns (0: even)"},
+    "blade_per_m2": {"type": "float", "range": (0.0, 5000.0), "default": 800.0,
+                     "effect": "green regrowth blades per m2 inside the green strips, thinning over their feather"},
+    "blade_h_m.min": {"type": "float", "range": (0.02, 0.5), "default": 0.05, "effect": "shortest regrowth blade"},
+    "blade_h_m.max": {"type": "float", "range": (0.02, 0.5), "default": 0.15, "effect": "tallest regrowth blade"},
     "stem_per_m2": {"type": "float", "range": (0.0, 500.0), "default": 60.0, "effect": "standing stems per m2"},
     "stems_per_tuft": {"type": "int", "range": (1, 50), "default": 10,
                        "effect": "standing stems per tussock, within TUFT_R_M of its centre (1: scattered singly)"},
@@ -107,13 +164,13 @@ PARAMS = {
     "lodging.azimuth_deg": {"type": "float", "range": (-360.0, 360.0), "default": 25.0,
                             "effect": "lodging direction, degrees from +X towards +Z; the ground recipe's"},
     "lodging.bias": {"type": "float", "range": (0.0, 1.0), "default": 0.3,
-                     "effect": "share of lying straws aligned with the azimuth, the rest crosswise; bare patches are "
-                               "1 + bias longer along it"},
+                     "effect": "share of lying straws aligned with the local swathe direction about the azimuth, "
+                               "the rest crosswise; bare patches and tussocks are 1 + bias longer along it"},
     "straw_len_m.min": {"type": "float", "range": (0.05, 2.0), "default": 0.3, "effect": "shortest lying straw"},
     "straw_len_m.max": {"type": "float", "range": (0.05, 2.0), "default": 1.0, "effect": "longest lying straw"},
     "straw_d_mm.min": {"type": "float", "range": (0.5, 10.0), "default": 2.0, "effect": "thinnest straw or stem"},
     "straw_d_mm.max": {"type": "float", "range": (0.5, 10.0), "default": 5.0, "effect": "thickest straw or stem"},
-    "straw_bend": {"type": "float", "range": (0.0, 1.0), "default": 0.3,
+    "straw_bend": {"type": "float", "range": (0.0, 1.0), "default": 0.5,
                    "effect": "curvature and kinks along a straw, 0 straight (lib.straw)"},
     "stem_h_m.min": {"type": "float", "range": (0.1, 2.0), "default": 0.5, "effect": "shortest standing stem"},
     "stem_h_m.max": {"type": "float", "range": (0.1, 2.0), "default": 1.2, "effect": "tallest standing stem"},
@@ -140,7 +197,7 @@ PARAMS = {
     "lod.cull_m": {"type": "float", "range": (1.0, 2000.0), "default": 400.0,
                    "effect": "distance beyond which the patch is culled; beyond lod2_switch_m"},
 }
-RANGES = ("mound_w_m", "mound_h_m", "straw_len_m", "straw_d_mm", "stem_h_m", "twig_len_m", "twig_d_mm")
+RANGES = ("mound_w_m", "mound_h_m", "straw_len_m", "straw_d_mm", "stem_h_m", "twig_len_m", "twig_d_mm", "blade_h_m")
 
 
 def check(params):
@@ -149,9 +206,11 @@ def check(params):
     cell can hold whole, ordered LODs."""
     problems = [f"'{key}.min' = {params[key]['min']} exceeds '{key}.max' = {params[key]['max']}"
                 for key in RANGES if params[key]["min"] > params[key]["max"]]
+    for key, span in (("bare.size_m", params["bare"]["size_m"]), ("green.width_m", params["green"]["width_m"]),
+                      ("green.length_m", params["green"]["length_m"])):
+        if span["min"] > span["max"]:
+            problems.append(f"'{key}.min' = {span['min']} exceeds '{key}.max' = {span['max']}")
     bare = params["bare"]["size_m"]
-    if bare["min"] > bare["max"]:
-        problems.append(f"'bare.size_m.min' = {bare['min']} exceeds 'bare.size_m.max' = {bare['max']}")
     if bare["min"] <= params["cell_m"] * math.sqrt(2):
         problems.append(f"'bare.size_m.min' = {bare['min']} must exceed the cell's diagonal "
                         f"{params['cell_m'] * math.sqrt(2):.3f} m, so no cell holds a whole bare patch")
@@ -189,13 +248,14 @@ def build(params):
     size, depth = params["size_m"], params["mat_depth_m"]
     slab_m = depth + SOIL_M
     n = max(1, round(size / params["cell_m"]))
-    relief = _relief(rng, n, size, params["relief_m"])
+    relief = mat.relief(**mat.relief_inputs(params))
     bare = patches.layout(**patches.inputs(params))["patches"]
     for k, patch in enumerate(bare):  # PR4's self-check: the edge boxes open the mat exactly over the outline
         misses = patches.uncovered(patch)
         if misses:
             raise ValueError(f"bare patch {k}: its edge boxes leave {len(misses)} samples of its window open, the "
                              f"first at ({misses[0][0]:.3f}, {misses[0][1]:.3f})")
+    strips = mat.green(**mat.green_inputs(params), bare_patches=bare)["strips"]
     mounds = _mounds(rng, params, bare, slab_m)
 
     def height(x, z):
@@ -216,7 +276,7 @@ def build(params):
 
     slab = _slab(n, size, height, _refined_cells(n, size, mounds), slot, slab_m, bare, depth)
     micro = Mesh()
-    count = _bake(rng, params, micro, surface)
+    count = _bake(rng, params, micro, height, surface, relief, bare, strips)
     lod = params["lod"]
     return {
         "lods": [slab, slab, _slab(2, size, lambda x, z: 0.0, set(), lambda x, z: SLOT, slab_m)],
@@ -262,34 +322,6 @@ def _edge_box(rect, depth, material):
 
 
 # --- the slab -----------------------------------------------------------------------------------------------------
-
-def _relief(rng, n, size, relief):
-    """The relief as a function (x, z) -> height: seeded value noise (NOISE_M octaves, smoothstep-interpolated),
-    shifted and scaled so that over the n x n grid's vertices the mean is exactly 0 and the largest magnitude
-    exactly `relief` (0 everywhere when relief is 0). Its extremes sit on lattice nodes, which the grid samples
-    when cell_m divides the lattice spacings."""
-    lattices = []
-    for spacing, amplitude in zip(NOISE_M, (1.0, 0.5)):
-        count = int(math.ceil(size / spacing)) + 2
-        lattices.append((spacing, amplitude, [[rng.uniform(-1, 1) for _ in range(count)] for _ in range(count)]))
-
-    def noise(x, z):
-        value = 0.0
-        for spacing, amplitude, lattice in lattices:
-            u, v = min(max((x + size / 2) / spacing, 0.0), count - 1.000001), min(max((z + size / 2) / spacing, 0.0), count - 1.000001)
-            iu, iv = int(u), int(v)
-            fu, fv = _smooth(u - iu), _smooth(v - iv)
-            row0, row1 = lattice[iu], lattice[iu + 1]
-            value += amplitude * ((row0[iv] * (1 - fu) + row1[iv] * fu) * (1 - fv)
-                                  + (row0[iv + 1] * (1 - fu) + row1[iv + 1] * fu) * fv)
-        return value
-
-    samples = [noise(-size / 2 + i * size / n, -size / 2 + j * size / n) for i in range(n + 1) for j in range(n + 1)]
-    mean = sum(samples) / len(samples)
-    peak = max(abs(s - mean) for s in samples)
-    scale = relief / peak if peak > 0 else 0.0
-    return lambda x, z: (noise(x, z) - mean) * scale
-
 
 def _smooth(t):
     return t * t * (3 - 2 * t)
@@ -404,7 +436,7 @@ def _slab(n, size, height, refined, slot, slab_m, bare=(), depth=0.0):
 
     cut = _cut_cells(n, size, k, grid, bare, refined)
     for (i, j), (p, piece) in sorted(cut.items()):
-        _cut_cell(mesh, i, j, k, grid, bare[p]["outline"], piece, point, top_face, triangles, depth)
+        _cut_cell(mesh, i, j, k, grid, bare[p]["outline"], piece, point, top_face, triangles)
     for i in range(n):
         for j in range(n):
             if (i, j) in cut:
@@ -497,10 +529,11 @@ def _clip_cell(outline, p, i, j, k, grid):
     return poly
 
 
-def _cut_cell(mesh, i, j, k, grid, outline, piece, point, top_face, triangles, depth):
+def _cut_cell(mesh, i, j, k, grid, outline, piece, point, top_face, triangles):
     """One coarse cell an outline reaches: wholly inside, two floor triangles; else the piece inside as floor (a
     fan: it is convex), each part outside as mat (ear-clipped: the mat around a convex outline is not convex) and a
-    vertical wall quad on every piece of outline edge, its normal into the patch, its UVs unfolded outward by D."""
+    vertical wall quad on every piece of outline edge, its normal into the patch, in the straw slot up WALL_V of the
+    litter's palette column."""
     corner_keys = [("g", i * k, j * k), ("g", (i + 1) * k, j * k), ("g", (i + 1) * k, (j + 1) * k), ("g", i * k, (j + 1) * k)]
     xz = {key: (grid(key[1]), grid(key[2])) for key in corner_keys}
     xz.update({key: q for key, q, _ in piece})
@@ -546,8 +579,8 @@ def _cut_cell(mesh, i, j, k, grid, outline, piece, point, top_face, triangles, d
             nx, nz = (e[1] - s[1]) / length, (s[0] - e[0]) / length  # outward of the outline
             (ka, qa), (kb, qb) = piece[c0][:2], piece[c1][:2]
             quad = [point(ka, qa, "mat"), point(kb, qb, "mat"), point(kb, qb, "floor"), point(ka, qa, "floor")]
-            uvs = [qa, qb, (qb[0] + depth * nx, qb[1] + depth * nz), (qa[0] + depth * nx, qa[1] + depth * nz)]
-            mesh.face(quad, (-nx, 0.0, -nz), SLOT, uvs)
+            top, foot = straw.palette_uv("litter", WALL_V[1]), straw.palette_uv("litter", WALL_V[0])
+            mesh.face(quad, (-nx, 0.0, -nz), straw.SLOT, [top, top, foot, foot])
 
 
 def _ear_clip(points):
@@ -587,13 +620,17 @@ def _up_normal(mesh, tri):
 
 # --- the bake -----------------------------------------------------------------------------------------------------
 
-def _bake(rng, params, micro, height):
-    """Scatters the kit into `micro` within bake_radius_m, resting on `height` (the stepped surface), and returns
-    the instance count."""
+def _bake(rng, params, micro, height, surface, relief, bare, strips):
+    """Scatters the kit into `micro` within bake_radius_m (the module docstring's kinds and rules) and returns the
+    instance count. `height` is the mat's top, `surface` the stepped top a straw rests on, `relief` the tussock
+    relief (lib.mat), `bare` the bare patches and `strips` the green strips."""
     kit = straw.build_kit(params, rng)
     radius, feather = params["bake_radius_m"], params["bake_feather_m"]
     azimuth, bias = math.radians(params["lodging"]["azimuth_deg"]), params["lodging"]["bias"]
-    spread = math.radians(LODGING_SPREAD_DEG)
+    spread, swathe_turn = math.radians(LODGING_SPREAD_DEG), math.radians(SWATHE_DEG)
+    loft, clump, relief_m = params["loft_m"], params["clump"], params["relief_m"]
+    top = MAT_MAX_M - params["mat_depth_m"]  # the highest a straw rests: on a MAT_MAX_M mat
+    swathe = mat.value_noise(rng, radius * math.sqrt(2) + SWATHE_M, SWATHE_M, SWATHE_M)
     lengths = {kind: [m.bounds()[1][0] - m.bounds()[0][0] for m in meshes] for kind, meshes in kit.items()}
     count = 0
 
@@ -605,31 +642,91 @@ def _bake(rng, params, micro, height):
             return False
         return r <= radius - feather or rng.random() < _smooth((radius - r) / feather)
 
-    def lying(kind, lift, x, z):
+    def crown(x, z):
+        """The relief over relief_m, -1 in the deepest hollow to 1 on the highest crown."""
+        return relief(x, z) / relief_m if relief_m > 0 else 0.0
+
+    def gathered(x, z):
+        """Whether a point of a grid (1 + clump) times denser stays on the crowns: probability (1 + clump c) /
+        (1 + clump), so the density is kept on average."""
+        return rng.random() < (1 + clump * crown(x, z)) / (1 + clump)
+
+    def rest(x, z, share, on_mat):
+        """The height a straw end rests at: `share` of the local loft above the mat's top (the crowns lofted most),
+        never above a MAT_MAX_M mat (on a mound, its earth), or on the soil of a floor. A mat straw's end over a floor
+        within LIP_OVERHANG_M of its outline is held at the mat's top: it overhangs the step."""
+        d = _floor_depth(bare, x, z)
+        if d is not None and not (on_mat and d <= LIP_OVERHANG_M):
+            return surface(x, z)
+        local = loft * (1 - clump + clump * (1 + crown(x, z)) / 2)
+        base = height(x, z)
+        return min(max(top, base), base - STRAW_SINK_M + share * (local + STRAW_SINK_M))
+
+    def lying(kind, layer, x, z, yaw=None):
+        """One lying straw or twig centred on (x, z), its ends resting at depths drawn from `layer`, at `yaw` or
+        else crosswise with the swathes' bias."""
         k = rng.randrange(len(kit[kind]))
-        yaw = azimuth + rng.uniform(-spread, spread) if rng.random() < bias else rng.uniform(0, 2 * math.pi)
+        if yaw is None:
+            local = azimuth + swathe_turn * swathe(x, z)
+            yaw = local + rng.uniform(-spread, spread) if rng.random() < bias else rng.uniform(0, 2 * math.pi)
         half = lengths[kind][k] / 2
         dx, dz = math.cos(yaw) * half, math.sin(yaw) * half
-        y0, y1 = height(x - dx, z - dz), height(x + dx, z + dz)
+        on_mat = _floor_depth(bare, x, z) is None
+        shares = (rng.uniform(*layer), rng.uniform(*layer)) if on_mat else (0.0, 0.0)
+        y0, y1 = rest(x - dx, z - dz, shares[0], on_mat), rest(x + dx, z + dz, shares[1], on_mat)
         pitch = math.atan2(y1 - y0, 2 * half) + math.radians(rng.uniform(-STRAW_PITCH_DEG, STRAW_PITCH_DEG))
-        origin = (x, (y0 + y1) / 2 + rng.uniform(*lift), z)
-        straw.place(micro, kit[kind][k], origin, straw.lying_axes(yaw, pitch, rng.uniform(0, 2 * math.pi)))
+        shade = DEPTH_SHADE * ((shares[0] + shares[1]) / 2 - 0.5) if on_mat else 0.0
+        straw.place(micro, kit[kind][k], (x, (y0 + y1) / 2, z),
+                    straw.lying_axes(yaw, pitch, rng.uniform(0, 2 * math.pi)), shade)
+        return 1
+
+    def strewn(layer, kind):
+        """A lying straw anywhere, kept over a floor only as the straws strewn on its soil (FLOOR_KEEP)."""
+        def place(x, z):
+            d = _floor_depth(bare, x, z)
+            if d is not None:
+                edge = 1 - _smooth(min(1.0, d / patches.FEATHER_M))
+                if rng.random() >= (FLOOR_KEEP[0] + (FLOOR_KEEP[1] - FLOOR_KEEP[0]) * edge) / (1 + clump):
+                    return 0
+            elif not gathered(x, z) or rng.random() < GREEN_THIN * mat.green_weight(strips, x, z):
+                return 0
+            return lying(kind, layer, x, z)
+        return place
 
     def tuft(x, z):
-        """A tussock: stems_per_tuft stems within TUFT_R_M of (x, z), each leaning away from the centre."""
+        """A tussock on the mat: stems_per_tuft stems within TUFT_R_M of (x, z), each leaning away from the centre."""
+        if _floor_depth(bare, x, z) is not None or not gathered(x, z):
+            return 0
         tilt_max = math.radians(params["stem_tilt_deg"])
         for _ in range(params["stems_per_tuft"]):
             kind = "stem_head" if rng.random() < params["seed_head_share"] else "stem"
             k = rng.randrange(len(kit[kind]))
             bearing, d = rng.uniform(0, 2 * math.pi), TUFT_R_M * math.sqrt(rng.random())
             sx, sz = x + d * math.cos(bearing), z + d * math.sin(bearing)
-            origin = (sx, height(sx, sz) - STEM_SINK_M, sz)
+            origin = (sx, surface(sx, sz) - STEM_SINK_M, sz)
             tilt = tilt_max * rng.uniform(0.25, 1.0)
             straw.place(micro, kit[kind][k], origin, straw.standing_axes(bearing + rng.uniform(-0.5, 0.5), tilt))
+        return params["stems_per_tuft"]
 
-    for density, per, place in ((params["straw_per_m2"], 1, lambda x, z: lying("straw", STRAW_LIFT_M, x, z)),
-                                (params["stem_per_m2"], params["stems_per_tuft"], tuft),
-                                (params["twig_per_m2"], 1, lambda x, z: lying("twig", TWIG_LIFT_M, x, z))):
+    def blades(x, z):
+        """A tuft of regrowth blades, kept by the green strips' weight and never on a floor."""
+        if _floor_depth(bare, x, z) is not None or rng.random() >= mat.green_weight(strips, x, z):
+            return 0
+        for _ in range(BLADE_TUFT):
+            k = rng.randrange(len(kit["blade"]))
+            bearing, d = rng.uniform(0, 2 * math.pi), BLADE_TUFT_R_M * math.sqrt(rng.random())
+            bx, bz = x + d * math.cos(bearing), z + d * math.sin(bearing)
+            origin = (bx, height(bx, bz) - STEM_SINK_M, bz)
+            tilt = math.radians(BLADE_TILT_DEG) * rng.random()
+            straw.place(micro, kit["blade"][k], origin, straw.standing_axes(bearing, tilt))
+        return BLADE_TUFT
+
+    for density, per, place in (
+            (params["straw_per_m2"] * (1 + clump), 1, strewn(TOP_LAYER, "straw")),
+            (params["body_straw_per_m2"] * (1 + clump), 1, strewn(BODY_LAYER, "straw")),
+            (params["stem_per_m2"] * (1 + clump), params["stems_per_tuft"], tuft),
+            (params["twig_per_m2"], 1, lambda x, z: lying("twig", TWIG_LAYER, x, z)),
+            (params["blade_per_m2"], BLADE_TUFT, blades)):
         if density <= 0 or radius <= 0:
             continue
         s = math.sqrt(per / density)
@@ -638,6 +735,27 @@ def _bake(rng, params, micro, height):
             for j in range(-k, k):
                 x, z = (i + rng.random()) * s, (j + rng.random()) * s
                 if kept(x, z):
-                    place(x, z)
-                    count += per
+                    count += place(x, z)
+    for patch in bare:  # the lip: straws laid across every outline edge from the mat, draping over the step
+        outline = patch["outline"]
+        for a, b in zip(outline, outline[1:] + outline[:1]):
+            length = math.dist(a, b)
+            dx, dz = (b[0] - a[0]) / length, (b[1] - a[1]) / length
+            for i in range(int(length * LIP_STRAWS_PER_M)):
+                t, off = (i + rng.random()) / LIP_STRAWS_PER_M, rng.uniform(0.01, LIP_OVERHANG_M)
+                x, z = a[0] + dx * t + dz * off, a[1] + dz * t - dx * off  # (dz, -dx) is outward
+                if kept(x, z):
+                    yaw = math.atan2(dx, -dz) + math.radians(rng.uniform(-LIP_SPREAD_DEG, LIP_SPREAD_DEG))
+                    count += lying("straw", TOP_LAYER, x, z, yaw)
     return count
+
+
+def _floor_depth(bare, x, z):
+    """How far (x, z) lies inside a bare patch's step outline, or None on the mat."""
+    for p in bare:
+        w = p["window"]
+        if w[0] <= x <= w[1] and w[2] <= z <= w[3]:
+            d = patches.distance((x, z), p["outline"])
+            if d <= 0:
+                return -d
+    return None

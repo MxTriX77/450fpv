@@ -1,11 +1,15 @@
-"""generators.ground_patch with the S04 params (p1-s04-belt-straw, design decisions 1, 4, 6, 8; review-physics PR1-PR8):
-the slab's top is the mean at y = 0 with the relief inside +-relief_m, the mounds' spheres sit within 5 cm of their
-raised cells, a mound's top is bare soil, the micro mesh holds the kit's scatter at density x the feathered bake
-area within 5 %, the feather thins the rim, the metadata lists it, and `check` refuses a bake radius beyond the
-patch, a feather wider than the bake, and a mound the relief or the grid cannot carry. The bare patches: the mesh
-steps down by the mat depth along each outline to a floor, no shape stands above a floor and the soil box lies
-just under it (PR7 a), the old single mat box fails the audit by the step (PR7 b), the shapes come in PR8's order,
-the mat boxes are the layout's, and the baked straws over a floor lie on it (N8)."""
+"""generators.ground_patch with the S04 params (p1-s04-belt-straw, design decisions 1, 4, 6, 8; review-physics PR1-PR8;
+task 1.7): the slab's top is the mean at y = 0 with the relief inside +-relief_m and is lib.mat's tussock relief,
+the mounds' spheres sit within 5 cm of their raised cells, a mound's top is bare soil, the micro mesh holds the
+kit's scatter at its densities over the feathered bake area within 5 % (the straws gathered on the crowns, few over
+a floor, none of the stems and blades there, the blades by the green strips' weight), the feather thins the rim,
+the metadata lists it, and `check` refuses a bake radius beyond the patch, a feather wider than the bake, and a
+mound the relief or the grid cannot carry. The bare patches: the mesh steps down by the mat depth along each
+outline to a floor whose walls are the mat's cut edge, no shape stands above a floor and the soil box lies just
+under it (PR7 a), the old single mat box fails the audit by the step (PR7 b), the shapes come in PR8's order, the
+mat boxes are the layout's, and the baked straws over a floor lie on it (N8). The loft: the lying straws stack
+above the mat's top, more on the crowns, never above a 20 cm mat; straws overhang a step's lip; the blades stand
+only over the green strips."""
 import copy
 import math
 import statistics
@@ -13,7 +17,7 @@ import statistics
 import pytest
 
 from generators import ground_patch
-from lib import audit, meta, params, patches
+from lib import audit, mat, meta, params, patches, straw
 from lib.audit import TOLERANCE_M
 
 
@@ -71,7 +75,8 @@ def test_slab_top_is_the_mean_with_the_relief_inside_its_range(built, s04_params
 def test_bare_patches_step_down_by_the_mat_depth_along_their_outlines(built, s04_params, bare):
     """PR3, spec "Bare patches are ground, not stains": inside every outline the top is the floor, the relief lowered
     by D; along every outline edge stand vertical walls exactly D tall whose widths add up to the outline's
-    perimeter; floor and walls take the ground slot."""
+    perimeter; the floor takes the ground slot, a wall the straw slot up the litter's palette column (the mat's
+    cut edge, darker at its foot)."""
     lod0 = built["lods"][0]
     depth, relief = s04_params["mat_depth_m"], s04_params["relief_m"]
     walls = {k: 0.0 for k in range(len(bare))}
@@ -85,7 +90,11 @@ def test_bare_patches_step_down_by_the_mat_depth_along_their_outlines(built, s04
                 walls[k] += math.hypot(tops[0][0] - tops[1][0], tops[0][2] - tops[1][2])
                 heights = sorted(p[1] for p in points)
                 assert heights[2] - heights[0] == pytest.approx(depth) and heights[3] - heights[1] == pytest.approx(depth)
-                assert slot == ground_patch.SLOT
+                assert slot == straw.SLOT
+                assert {u for u, _ in uvs} == {straw.palette_uv("litter")[0]}
+                for point, (_, v) in zip(points, uvs):
+                    top = point[1] == max(p[1] for p in points if abs(p[0] - point[0]) + abs(p[2] - point[2]) < 1e-9)
+                    assert v == pytest.approx(ground_patch.WALL_V[1] if top else ground_patch.WALL_V[0])
     for k, patch in enumerate(bare):
         perimeter = sum(math.dist(a, b) for a, b in zip(patch["outline"], patch["outline"][1:] + patch["outline"][:1]))
         assert walls[k] == pytest.approx(perimeter, abs=1e-6), f"patch {k}: walls {walls[k]:.4f} m, outline {perimeter:.4f} m"
@@ -189,7 +198,9 @@ def test_baked_straws_over_a_floor_lie_on_it(built, s04_params, bare):
     for x, y, z in mesh.vertices:
         if math.hypot(x, z) > s04_params["bake_radius_m"] - s04_params["bake_feather_m"]:
             continue
-        d = min(patches.distance((x, z), p["outline"]) for p in bare)
+        near = [p for p in bare if p["window"][0] - 0.6 <= x <= p["window"][1] + 0.6
+                and p["window"][2] - 0.6 <= z <= p["window"][3] + 0.6]
+        d = min([patches.distance((x, z), p["outline"]) for p in near] or [1.0])
         (on_floor if d < -0.1 else on_mat if d > 0.6 else []).append(y)
     print(f"median straw vertex: {statistics.median(on_floor):.3f} m over floors ({len(on_floor)}), "
           f"{statistics.median(on_mat):.3f} m over the mat ({len(on_mat)})")
@@ -215,20 +226,53 @@ def test_mound_spheres_sit_within_5cm_of_their_raised_cells(built, s04_params):
             assert min(to_sphere, abs(y)) <= TOLERANCE_M, f"vertex {(x, y, z)} is off the sphere and the slab top"
 
 
-def feathered_area(radius, feather):
-    """The bake's area weighted by the kept share: the full disc inside radius - feather, then the smoothstep ring
-    (the integral of 2 pi r s((R - r) / f) over the ring, with the integrals of s and u s over [0, 1] at 1/2 and 7/20)."""
-    return math.pi * (radius - feather) ** 2 + 2 * math.pi * feather * (radius * 0.5 - feather * 0.35)
+def expected_instances(p, step=0.05):
+    """The instances the bake should hold, integrated every `step` over the feathered disc: the lying straws of
+    both layers at (1 + clump c) of their density on the mat (c the relief over relief_m), thinned over the green
+    strips by GREEN_THIN, and FLOOR_KEEP of it over a floor, the lip straws along the outlines, the stems likewise on the mat only, the blades by the green strips' weight on the mat, the twigs
+    everywhere."""
+    relief = mat.relief(**mat.relief_inputs(p))
+    bare = patches.layout(**patches.inputs(p))["patches"]
+    strips = mat.green(**mat.green_inputs(p), bare_patches=bare)["strips"]
+    radius, feather, clump = p["bake_radius_m"], p["bake_feather_m"], p["clump"]
+    lying = p["straw_per_m2"] + p["body_straw_per_m2"]
+    n, total = int(math.ceil(radius / step)), 0.0
+    for i in range(-n, n):
+        for j in range(-n, n):
+            x, z = (i + 0.5) * step, (j + 0.5) * step
+            r = math.hypot(x, z)
+            if r > radius:
+                continue
+            kept = 1.0 if r <= radius - feather else ground_patch._smooth((radius - r) / feather)
+            d = ground_patch._floor_depth(bare, x, z)
+            if d is None:
+                gathered, green = 1 + clump * relief(x, z) / p["relief_m"], mat.green_weight(strips, x, z)
+                here = ((lying * (1 - ground_patch.GREEN_THIN * green) + p["stem_per_m2"]) * gathered
+                        + p["blade_per_m2"] * green)
+            else:
+                edge = 1 - ground_patch._smooth(min(1.0, d / patches.FEATHER_M))
+                keep = ground_patch.FLOOR_KEEP
+                here = lying * (keep[0] + (keep[1] - keep[0]) * edge)
+            total += kept * (here + p["twig_per_m2"]) * step * step
+    for patch in bare:  # the lip straws along every outline, kept by the bake's feather where they lie
+        for a, b in zip(patch["outline"], patch["outline"][1:] + patch["outline"][:1]):
+            for k in range(100):
+                x, z = a[0] + (b[0] - a[0]) * (k + 0.5) / 100, a[1] + (b[1] - a[1]) * (k + 0.5) / 100
+                r = math.hypot(x, z)
+                kept = 0.0 if r > radius else 1.0 if r <= radius - feather else ground_patch._smooth((radius - r) / feather)
+                total += kept * ground_patch.LIP_STRAWS_PER_M * math.dist(a, b) / 100
+    return total
 
 
 def test_micro_mesh_holds_the_scatter_at_density_times_area(built, s04_params):
     micro = built["micro"]
     assert len(micro) == 1 and micro[0]["lod"] == 0 and micro[0]["kind"] == "straw"
-    area = feathered_area(s04_params["bake_radius_m"], s04_params["bake_feather_m"])
-    expected = area * (s04_params["straw_per_m2"] + s04_params["stem_per_m2"] + s04_params["twig_per_m2"])
+    expected = expected_instances(s04_params)
+    print(f"{micro[0]['count']} instances for {expected:.0f} expected, {micro[0]['mesh'].triangles()} triangles")
     assert abs(micro[0]["count"] / expected - 1) <= 0.05, f"{micro[0]['count']} instances for {expected:.0f}"
     mesh = micro[0]["mesh"]
-    assert mesh.triangles() < 450_000 and mesh.slots() == ["straw"]
+    assert mesh.triangles() + built["lods"][0].triangles() < 450_000, "LOD0 within the task's budget"
+    assert mesh.slots() == ["straw"]
     lo, hi = mesh.bounds()
     # a lying straw reaches half its length past its scatter point, a leaning stem its tuft radius plus its height
     reach = s04_params["bake_radius_m"] + max(s04_params["straw_len_m"]["max"] / 2,
@@ -259,7 +303,10 @@ def test_metadata_lists_the_micro_mesh_and_only_the_slab_shapes(built, s04_param
     (lambda p: p["mound_w_m"].update(min=0.6), "'mound_w_m.min' = 0.6 exceeds 'mound_w_m.max' = 0.5"),
     (lambda p: p["lod"].update(lod2_switch_m=5.0), "'lod.lod1_switch_m' < 'lod.lod2_switch_m' < 'lod.cull_m' must hold"),
     (lambda p: p["bare"]["size_m"].update(min=2.5), "'bare.size_m.min' = 2.5 exceeds 'bare.size_m.max' = 2.0"),
-    (lambda p: p["bare"]["size_m"].update(min=0.35), "'bare.size_m.min' = 0.35 must exceed the cell's diagonal 0.354 m"),
+    (lambda p: (p.update(cell_m=0.25), p["bare"]["size_m"].update(min=0.35)),
+     "'bare.size_m.min' = 0.35 must exceed the cell's diagonal 0.354 m"),
+    (lambda p: p["green"]["width_m"].update(min=3.5), "'green.width_m.min' = 3.5 exceeds 'green.width_m.max' = 3.0"),
+    (lambda p: p["blade_h_m"].update(min=0.2), "'blade_h_m.min' = 0.2 exceeds 'blade_h_m.max' = 0.15"),
 ])
 def test_check_refuses_naming_the_rule(s04_params, edit, expected):
     edited = copy.deepcopy(s04_params)
@@ -280,12 +327,14 @@ def test_mound_tops_are_bare_soil_and_the_rest_is_the_mat(built):
     mounds = [c for c in built["collision"] if c["shape"] == "sphere"]
     lod0, _, lod2 = built["lods"]
     soil = []
-    for indices, _, _, slot in lod0.faces:
+    for indices, normal, _, slot in lod0.faces:
         centroid = [sum(lod0.vertices[i][k] for i in indices) / len(indices) for k in (0, 2)]
         under = [m for m in mounds if math.hypot(centroid[0] - m["center"][0], centroid[1] - m["center"][2]) < 0.25]
         if slot == ground_patch.SOIL_SLOT:
             soil.append(centroid)
             assert under, f"a soil face at {centroid} lies on no mound"
+        elif slot == straw.SLOT:
+            assert abs(normal[1]) < 1e-9, "only a step's wall takes the straw slot"
         else:
             assert slot == ground_patch.SLOT
     for m in mounds:
@@ -299,7 +348,8 @@ def test_feather_thins_the_bake_rim(s04_params):
     bake holds a small share of the inner density, without it about the same, and nothing lies past the radius."""
     def density(feather):
         p = copy.deepcopy(s04_params)
-        p.update(stem_per_m2=0.0, twig_per_m2=0.0, bake_feather_m=feather, straw_len_m={"min": 0.05, "max": 0.06})
+        p.update(stem_per_m2=0.0, twig_per_m2=0.0, body_straw_per_m2=0.0, blade_per_m2=0.0, bake_feather_m=feather,
+                 straw_len_m={"min": 0.05, "max": 0.06})
         mesh = ground_patch.build(p)["micro"][0]["mesh"]
         radius = p["bake_radius_m"]
         r = [math.hypot(x, z) for x, _, z in mesh.vertices]
@@ -310,3 +360,99 @@ def test_feather_thins_the_bake_rim(s04_params):
 
     assert density(1.0) < 0.15, "the feathered rim thins out"
     assert density(0.0) > 0.85, "without a feather the rim is as dense as the middle"
+
+
+def test_the_slab_is_the_shared_tussock_relief(built, s04_params, bare):
+    """Task 1.7: away from the mounds and the floors, the grid's vertices lie on lib.mat's relief, the field the ground
+    recipe darkens its hollows by, so the map's hollows are the mesh's."""
+    relief = mat.relief(**mat.relief_inputs(s04_params))
+    mounds = [c for c in built["collision"] if c["shape"] == "sphere"]
+    checked = 0
+    for x, y, z in built["lods"][0].vertices:
+        if y <= -slab_m(s04_params) + 1e-9 or any(math.hypot(x - m["center"][0], z - m["center"][2]) < 0.5 for m in mounds):
+            continue
+        if min(patches.distance((x, z), p["outline"]) for p in bare) < 1e-6:  # a floor, or a wall's foot
+            continue
+        assert y == pytest.approx(relief(x, z), abs=1e-9)
+        checked += 1
+    assert checked > 8000
+
+
+def lying_straws(s04_params):
+    """The lying straws' centres (x, y, z) of a build with only them (no stems, twigs or blades, which leaves the
+    straws' draws as they are: the kit draws every kind and the straws are scattered first), each the mean of its
+    24-triangle tube's 15 vertices."""
+    p = copy.deepcopy(s04_params)
+    p.update(stem_per_m2=0.0, twig_per_m2=0.0, blade_per_m2=0.0)
+    mesh, n = ground_patch.build(p)["micro"][0]["mesh"], straw.SIDES * (p["segments"] + 1)
+    centres = []
+    for start in range(0, len(mesh.faces), 2 * straw.SIDES * p["segments"]):
+        first = min(mesh.faces[start][0])
+        vertices = mesh.vertices[first:first + n]
+        centres.append(tuple(sum(v[k] for v in vertices) / n for k in range(3)))
+    return centres
+
+
+def test_lying_straws_loft_over_the_crowns_and_stay_in_a_20cm_mat(s04_params, bare):
+    """The loft: the lying straws over the mat rest above the mat's top, up to about loft_m, more of them and higher
+    on the relief's crowns than in its hollows (heaps), none above a MAT_MAX_M mat (a straw's centre may sit up to
+    its bow, BOW x straw_bend x its length x 2/pi, above the line between its ends); the mounds aside, where straws
+    lie on the earth."""
+    relief = mat.relief(**mat.relief_inputs(s04_params))
+    top = ground_patch.MAT_MAX_M - s04_params["mat_depth_m"]
+    mounds = [c["center"] for c in ground_patch.build(s04_params)["collision"] if c["shape"] == "sphere"]
+    bow = straw.BOW * s04_params["straw_bend"] * s04_params["straw_len_m"]["max"] * 2 / math.pi
+    crowns, hollows = [], []
+    for x, y, z in lying_straws(s04_params):
+        if patches.inside(bare, x, z) or math.hypot(x, z) > s04_params["bake_radius_m"] - s04_params["bake_feather_m"]:
+            continue
+        if any(math.hypot(x - m[0], z - m[2]) < 0.8 for m in mounds):
+            continue
+        c = relief(x, z) / s04_params["relief_m"]
+        assert y <= top + bow + 0.005, f"a straw at {(x, y, z)} above a {ground_patch.MAT_MAX_M} m mat"
+        (crowns if c > 0.3 else hollows if c < -0.3 else []).append((y, y - relief(x, z)))
+    heights = {name: statistics.median(y for y, _ in v) for name, v in (("crowns", crowns), ("hollows", hollows))}
+    lifts = {name: [lift for _, lift in v] for name, v in (("crowns", crowns), ("hollows", hollows))}
+    print(f"{len(crowns)} straws on crowns at {heights['crowns']:.3f} m, {len(hollows)} in hollows at "
+          f"{heights['hollows']:.3f} m; lifted {statistics.median(lifts['crowns']):.3f} / "
+          f"{statistics.median(lifts['hollows']):.3f} m above the mat")
+    assert len(crowns) > len(hollows) > 100, "gathered on the crowns"
+    assert heights["crowns"] > heights["hollows"], "heaped on the crowns"
+    assert min(statistics.median(v) for v in lifts.values()) > 0.0, "lofted over the mat everywhere"
+    assert max(lifts["crowns"] + lifts["hollows"]) > 0.6 * s04_params["loft_m"]
+
+
+def test_straws_overhang_a_steps_lip(built, s04_params, bare):
+    """A ragged lip: lying-straw vertices over a floor within LIP_OVERHANG_M of its outline, held near the mat's top
+    (not dropped to the floor D below), on every patch inside the bake."""
+    depth = s04_params["mat_depth_m"]
+    mesh = built["micro"][0]["mesh"]
+    over = {}
+    for x, y, z in mesh.vertices:
+        if math.hypot(x, z) > s04_params["bake_radius_m"] - s04_params["bake_feather_m"]:
+            continue
+        for k, patch in enumerate(bare):
+            w = patch["window"]
+            if not (w[0] <= x <= w[1] and w[2] <= z <= w[3]):
+                continue
+            d = patches.distance((x, z), patch["outline"])
+            if -ground_patch.LIP_OVERHANG_M < d < -0.02 and y > -depth / 2:
+                over[k] = over.get(k, 0) + 1
+    inside = [k for k, p in enumerate(bare) if math.hypot(*p["centre"]) < s04_params["bake_radius_m"] - 1.5]
+    print(f"overhanging vertices per patch inside the bake: {over}")
+    assert inside and all(over.get(k, 0) > 20 for k in inside)
+
+
+def test_blades_stand_only_over_the_green_strips(built, s04_params, bare):
+    """The regrowth blades (faces in the blade column) stand where the strips' weight is above 0 and never on a floor,
+    and the strips inside the bake carry them."""
+    strips = mat.green(**mat.green_inputs(s04_params), bare_patches=bare)["strips"]
+    mesh = built["micro"][0]["mesh"]
+    column = straw.palette_uv("blade")[0]
+    faces = [f for f in mesh.faces if f[2][0][0] == column]
+    per = 2 * straw.SIDES * straw.BLADE_SEGMENTS
+    assert len(faces) % per == 0 and len(faces) // per > 1000
+    for start in range(0, len(faces), per):  # the blades are scattered last, each one's faces together
+        x, _, z = mesh.vertices[min(i for f in faces[start:start + per] for i in f[0])]  # its foot
+        assert any(mat.green_weight(strips, x + dx, z + dz) > 0 for dx in (-0.03, 0, 0.03) for dz in (-0.03, 0, 0.03))
+        assert min(patches.distance((x, z), p["outline"]) for p in bare) > -0.05, f"a blade on a floor at {(x, z)}"
