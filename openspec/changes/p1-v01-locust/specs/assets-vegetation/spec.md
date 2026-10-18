@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: The H autumn belt state
-V01 and V13 SHALL each have autumn variants built from the same generators with `leaf_cover` 0.2–0.5 for V01 and 0.3–0.5 for V13 (`V13_tall` cannot be shelled below 0.3), the twig mesh kept dense, and the sheet's autumn leaf tints, so that a belt edge of V01 trees over V13 clumps copies letter H's overcast autumn view: mixed green and yellow foliage, a part-bare understory wall at 1–2 m where many dark stems and twigs show through the leaves, and no see-through at 1–2 m.
+V01 and V13 SHALL each have autumn variants built from the same generators with `leaf_cover` 0.3–0.5 for V01 and 0.3–0.5 for V13 (`V13_tall` cannot be shelled below 0.3; `V01_S` sits at the lowest cover its crown passes rule (d) at, measured and printed, unless task 1.3 thins it to pass at 0.3; `p1-v01-locust` review-physics §A.3), the twig mesh kept dense, and the sheet's autumn leaf tints, so that a belt edge of V01 trees over V13 clumps copies letter H's overcast autumn view: mixed green and yellow foliage, a part-bare understory wall at 1–2 m where many dark stems and twigs show through the leaves, and no see-through at 1–2 m.
 
 #### Scenario: Autumn variants built
 - **WHEN** `pwsh tools/build_asset.ps1 V13` and `V01` run
