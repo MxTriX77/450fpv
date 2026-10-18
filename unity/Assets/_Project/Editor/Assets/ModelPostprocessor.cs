@@ -10,13 +10,15 @@ namespace Fpv450.Assets
     /// <see cref="ModelPostprocessor"/> on every import and checked again by the catalog importer. FBX files under
     /// <c>Art/Models/</c>, and the EditMode fixtures (the X-sign probe, which must import exactly as every asset
     /// does): metres stay metres, no Unity mesh LODs (the project uses its own LOD groups, knowledge.md 14.4), no
-    /// Unity colliders, static. Textures under <c>Art/ThirdParty/</c>: typed from the Poly Haven suffix.
+    /// Unity colliders, static. Textures under <c>Art/ThirdParty/</c>: typed from the Poly Haven suffix; the packed
+    /// masks that <c>tools/assets/derive.py</c> writes under <c>Art/Materials/</c>: linear RGBA data.
     /// </summary>
     public static class ArtImportSettings
     {
         public const string ModelsFolder = "Assets/_Project/Art/Models/";
         public const string FixturesFolder = "Assets/_Project/Tests/EditMode/Fixtures/";
         public const string ThirdPartyFolder = "Assets/_Project/Art/ThirdParty/";
+        public const string MaterialsFolder = "Assets/_Project/Art/Materials/";
 
         /// <summary>Applies the model settings and reports whether any of them changed.</summary>
         public static bool ApplyModel(ModelImporter importer)
@@ -40,21 +42,25 @@ namespace Fpv450.Assets
             return changed;
         }
 
-        /// <summary>Applies the texture settings for a third-party map, by its file name, and reports whether any changed.</summary>
+        /// <summary>
+        /// Applies the texture settings of a map by its file name and reports whether any changed: a Poly Haven
+        /// suffix types the third-party maps (normal, single-channel roughness and AO, sRGB diffuse); a derived
+        /// <c>_mask</c> and anything else is a default-typed linear map. Only the diffuse is sRGB.
+        /// </summary>
         public static bool ApplyTexture(TextureImporter importer, string assetPath)
         {
             string name = Path.GetFileNameWithoutExtension(assetPath);
             bool normal = name.Contains("_nor_gl");
-            bool mask = name.Contains("_rough") || name.Contains("_ao");
+            bool single = name.Contains("_rough") || name.Contains("_ao");
             bool diffuse = name.Contains("_diff");
             TextureImporterType type = normal ? TextureImporterType.NormalMap
-                : mask ? TextureImporterType.SingleChannel
+                : single ? TextureImporterType.SingleChannel
                 : TextureImporterType.Default;
 
             bool changed = false;
             changed |= Set(importer.textureType, type, v => importer.textureType = v);
             changed |= Set(importer.sRGBTexture, diffuse, v => importer.sRGBTexture = v);
-            if (mask)
+            if (single)
             {
                 var settings = new TextureImporterSettings();
                 importer.ReadTextureSettings(settings);
@@ -81,7 +87,7 @@ namespace Fpv450.Assets
     public sealed class ModelPostprocessor : AssetPostprocessor
     {
         // Bump when ArtImportSettings changes, so Unity reimports the files it covers.
-        public override uint GetVersion() => 1;
+        public override uint GetVersion() => 2;
 
         void OnPreprocessModel()
         {
@@ -92,7 +98,8 @@ namespace Fpv450.Assets
 
         void OnPreprocessTexture()
         {
-            if (assetPath.StartsWith(ArtImportSettings.ThirdPartyFolder, StringComparison.Ordinal))
+            if (assetPath.StartsWith(ArtImportSettings.ThirdPartyFolder, StringComparison.Ordinal)
+                || assetPath.StartsWith(ArtImportSettings.MaterialsFolder, StringComparison.Ordinal))
                 ArtImportSettings.ApplyTexture((TextureImporter)assetImporter, assetPath);
         }
     }

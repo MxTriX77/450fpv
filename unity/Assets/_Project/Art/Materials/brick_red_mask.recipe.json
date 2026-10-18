@@ -1,0 +1,25 @@
+{
+  "material": "brick_red",
+  "texture_set": "polyhaven/red_brick",
+  "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
+  "mask": {
+    "metallic": 0.0,
+    "occlusion": "ao",
+    "smoothness": "1 - roughness"
+  },
+  "sources": {
+    "ao": {
+      "name": "red_brick_ao_1k.png",
+      "sha256": "6ce34cb07370e1048b41d1afa4fbc58651eae13f14e37e4ad06481f98b489a58"
+    },
+    "roughness": {
+      "name": "red_brick_rough_1k.png",
+      "sha256": "77bc9bc6897e0ddf1d2264a04eba4962dff5b0c0bec6279cc1fb715b5f1adbf7"
+    }
+  },
+  "inputs_sha256": "eec2611dc45aa554dd585d0defbd095a4716be7eb8274a9be0d5f7eeca13db98",
+  "size": [
+    1024,
+    1024
+  ]
+}

@@ -27,6 +27,12 @@ KEY_ORDER = ("schema", "id", "variant", "generator", "params_sha256", "units", "
 # The closed, physics-owned list every physics material id must come from (review R3).
 PHYSICS_MATERIALS = os.path.join("assets-src", "physics_materials.json")
 LABELS = ("pilot", "measured", "published", "derived", "assumed")
+# A shape that stands in for ground (a hole filler, a cut wall, a mound top) names a surface of the map's table
+# instead, as "surface:<id>": exactly the thirteen S01–S13 names (knowledge §7.2, the earthworks sheet; the
+# phase-3 compiler checks the same names against surfaces.json). A plain material id never shares one of them.
+SURFACE_PREFIX = "surface:"
+SURFACE_IDS = ("meadow_sod", "dry_crust", "crater_spoil", "belt_straw", "belt_bare", "tilled", "burnt_field",
+               "weeds", "yard_litter", "rubble", "asphalt", "concrete_slab", "dirt_track")
 
 
 def load_physics_materials(root):
@@ -38,16 +44,21 @@ def load_physics_materials(root):
     if table.get("schema") != 1 or not isinstance(rows, dict) or not rows:
         raise ValueError(f"{PHYSICS_MATERIALS}: expected schema 1 with a non-empty 'materials' object")
     for material_id, row in rows.items():
+        if material_id in SURFACE_IDS or ":" in material_id:
+            raise ValueError(f"{PHYSICS_MATERIALS}: {material_id!r} is a surface id; a plain material id never "
+                             f"shares a surface's name, and shapes name surfaces as {SURFACE_PREFIX}<id>")
         edge = row.get("edge_radius_m", 0)
+        break_stress = row.get("break_stress_pa", 1)
         ok = (isinstance(row, dict)
               and all(_is_num(row.get(k)) and row[k] > 0 for k in ("friction_static", "friction_kinetic"))
               and "edge_radius_m" in row and (edge is None or (_is_num(edge) and edge > 0))
               and ("stiffness_n_per_m" in row) == ("damping_ratio" in row)
+              and _is_num(break_stress) and break_stress > 0
               and row.get("label") in LABELS and isinstance(row.get("rationale"), str) and row["rationale"])
         if not ok:
             raise ValueError(f"{PHYSICS_MATERIALS}: {material_id} needs friction_static, friction_kinetic, "
                              "edge_radius_m (a number or null), stiffness_n_per_m with damping_ratio or neither, "
-                             f"a label in {', '.join(LABELS)} and a rationale")
+                             f"break_stress_pa positive if present, a label in {', '.join(LABELS)} and a rationale")
     return set(rows)
 
 
@@ -109,14 +120,14 @@ def validate(meta, material_ids):
     for i, m in enumerate(meta["materials"]):
         if not all(isinstance(m.get(k), str) and m[k] for k in ("slot", "visual", "physics")):
             problems.append(f"material entry needs slot, visual and physics: {m}")
-        elif m["physics"] not in material_ids:
-            problems.append(f"materials[{i}]: physics material {m['physics']!r} is not in {PHYSICS_MATERIALS}")
+        else:
+            problems += [f"materials[{i}]: physics {p}" for p in _material_problems(m["physics"], material_ids)]
     for i, c in enumerate(meta["collision"]):
         problems += [f"collision[{i}]: {p}" for p in _shape_problems(c)]
         if not isinstance(c.get("material"), str) or not isinstance(c.get("landable"), bool):
             problems.append(f"collision[{i}]: needs a material id and a boolean landable")
-        elif c["material"] not in material_ids:
-            problems.append(f"collision[{i}]: material {c['material']!r} is not in {PHYSICS_MATERIALS}")
+        else:
+            problems += [f"collision[{i}]: {p}" for p in _material_problems(c["material"], material_ids)]
     for i, g in enumerate(meta["gaps"]):
         polygon = g.get("polygon")
         if not (isinstance(g.get("id"), str) and isinstance(polygon, list) and len(polygon) >= 3
@@ -182,6 +193,18 @@ def _rounded(value):
     if isinstance(value, (list, tuple)):
         return [_rounded(v) for v in value]
     return value
+
+
+def _material_problems(material, material_ids):
+    """A material id is a plain id of the physics table, or surface:<id> with one of the thirteen surface ids."""
+    if material.startswith(SURFACE_PREFIX):
+        if material[len(SURFACE_PREFIX):] not in SURFACE_IDS:
+            return [f"surface material {material!r} is not one of the thirteen surface ids "
+                    f"{SURFACE_PREFIX}{{{', '.join(SURFACE_IDS)}}}"]
+        return []
+    if material not in material_ids:
+        return [f"material {material!r} is not in {PHYSICS_MATERIALS}"]
+    return []
 
 
 def _shape_problems(shape):

@@ -1,0 +1,152 @@
+"""derive.py against the spec scenario "Packed mask for a material": the mask's channels from synthetic sources
+(metallic R from the recipe, AO G from a 16-bit source scaled not clipped, smoothness A = 1 - roughness, B 0), the
+recipe recorded beside it, regeneration when the recipe or a source changes and a no-op when nothing did, --all over
+every recipe with mask-less ones skipped, and the failures named: a map the set lacks, an unknown expression, a
+malformed mask, a missing recipe; nothing is written on failure."""
+import json
+from pathlib import Path
+
+from PIL import Image
+
+import derive
+import fetch
+from conftest import SET_ID, THIRD_PARTY, make_root
+
+SET_DIR = THIRD_PARTY / "polyhaven" / SET_ID
+RECIPES = Path("assets-src/materials")
+MATERIALS = Path("unity/Assets/_Project/Art/Materials")
+SIZE = (8, 4)
+MATERIAL = "fake_mat"
+MASK = {"metallic": 0.0, "occlusion": "ao", "smoothness": "1 - roughness"}
+SOURCES = {"roughness": f"{SET_ID}_rough_1k.png", "ao": f"{SET_ID}_ao_1k.png"}
+
+
+def gradient(axis, bits):
+    """An 8-bit L or 16-bit I;16 image rising along `axis` (0 = x, 1 = y) from 0 to full scale."""
+    image = Image.new("L" if bits == 8 else "I;16", SIZE)
+    top = (1 << bits) - 1
+    for y in range(SIZE[1]):
+        for x in range(SIZE[0]):
+            t = x / (SIZE[0] - 1) if axis == 0 else y / (SIZE[1] - 1)
+            image.putpixel((x, y), round(t * top))
+    return image
+
+
+def write_recipe(root, mask):
+    recipe = {"schema": 1, "shader": "Universal Render Pipeline/Lit", "texture_set": f"polyhaven/{SET_ID}",
+              "tile_size_m": [1.0, 1.0], "tint": [1.0, 1.0, 1.0, 1.0]}
+    if mask is None:
+        recipe["smoothness"] = 0.25
+    else:
+        recipe["mask"] = mask
+    (root / RECIPES).mkdir(parents=True, exist_ok=True)
+    (root / RECIPES / f"{MATERIAL}.json").write_text(json.dumps(recipe, indent=2) + "\n", encoding="utf-8")
+
+
+def derive_root(tmp_path):
+    """conftest's fake root plus a real 8-bit roughness map (rising along x) and a 16-bit AO map (rising along y)
+    pinned in the manifest, and a recipe asking for the mask."""
+    root = make_root(tmp_path)
+    gradient(0, 8).save(root / SET_DIR / SOURCES["roughness"])
+    gradient(1, 16).save(root / SET_DIR / SOURCES["ao"])
+    manifest_path = root / "tools" / "assets" / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    for map_name, name in SOURCES.items():
+        path = root / SET_DIR / name
+        manifest["entries"][0]["files"].append({"map": map_name, "name": name, "url": f"https://dl.polyhaven.org/{name}",
+                                                "bytes": path.stat().st_size, "sha256": fetch.sha256(path)})
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    write_recipe(root, MASK)
+    return root
+
+
+def run(*argv):
+    """Run derive.main in-process; returns its exit code."""
+    try:
+        return derive.main([str(a) for a in argv])
+    except SystemExit as e:  # argparse errors
+        return e.code
+
+
+def test_mask_channels_from_synthetic_sources(tmp_path, capsys):
+    root = derive_root(tmp_path)
+    assert run(MATERIAL, "--root", root) == 0
+    out = capsys.readouterr().out
+    assert (f"{MATERIALS.as_posix()}/{MATERIAL}_mask.png: derived 8x4 from polyhaven/{SET_ID} (ao, roughness); "
+            f"recipe recorded in {MATERIAL}_mask.recipe.json") in out and "derive.py: OK" in out
+    mask = Image.open(root / MATERIALS / f"{MATERIAL}_mask.png")
+    assert mask.mode == "RGBA" and mask.size == SIZE
+    for y in range(SIZE[1]):
+        for x in range(SIZE[0]):
+            r, g, b, a = mask.getpixel((x, y))
+            assert (r, b) == (0, 0), "metallic 0 from the recipe, B unused"
+            assert g == round(y / (SIZE[1] - 1) * 255), "AO: the 16-bit gradient scaled to 8 bits"
+            assert a == 255 - round(x / (SIZE[0] - 1) * 255), "smoothness = 1 - roughness"
+    stamp = json.loads((root / MATERIALS / f"{MATERIAL}_mask.recipe.json").read_text(encoding="utf-8"))
+    assert stamp["material"] == MATERIAL and stamp["texture_set"] == f"polyhaven/{SET_ID}"
+    assert stamp["mask"] == MASK and stamp["formula"] == derive.FORMULA and stamp["size"] == [8, 4]
+    assert {k: v["name"] for k, v in stamp["sources"].items()} == SOURCES
+    for map_name, name in SOURCES.items():
+        assert stamp["sources"][map_name]["sha256"] == fetch.sha256(root / SET_DIR / name)
+    assert len(stamp["inputs_sha256"]) == 64
+
+
+def test_regenerated_on_recipe_or_source_change_and_a_no_op_otherwise(tmp_path, capsys):
+    root = derive_root(tmp_path)
+    png, stamp = root / MATERIALS / f"{MATERIAL}_mask.png", root / MATERIALS / f"{MATERIAL}_mask.recipe.json"
+    assert run(MATERIAL, "--root", root) == 0
+    first = (png.read_bytes(), stamp.read_bytes(), png.stat().st_mtime_ns, stamp.stat().st_mtime_ns)
+    assert run(MATERIAL, "--root", root) == 0
+    assert f"{MATERIAL}_mask.png: up to date" in capsys.readouterr().out
+    assert (png.read_bytes(), stamp.read_bytes(), png.stat().st_mtime_ns, stamp.stat().st_mtime_ns) == first
+
+    write_recipe(root, dict(MASK, metallic=0.5))  # a recipe change regenerates: R = 128 everywhere
+    assert run(MATERIAL, "--root", root) == 0
+    assert "derived 8x4" in capsys.readouterr().out
+    assert Image.open(png).getpixel((3, 2))[0] == 128
+    assert json.loads(stamp.read_text(encoding="utf-8"))["mask"]["metallic"] == 0.5
+
+    ao = root / SET_DIR / SOURCES["ao"]
+    Image.new("L", SIZE, 7).save(ao)  # a source change regenerates: G = 7 everywhere
+    assert run(MATERIAL, "--root", root) == 0
+    assert "derived 8x4" in capsys.readouterr().out
+    assert Image.open(png).getpixel((0, 0))[1] == 7
+
+    ao.write_bytes(ao.read_bytes())  # rewritten but identical: the stamp hashes content, not times
+    assert run(MATERIAL, "--root", root) == 0
+    assert "up to date" in capsys.readouterr().out
+
+    png.unlink()  # a missing output is rebuilt even with a current stamp
+    assert run(MATERIAL, "--root", root) == 0
+    assert "derived 8x4" in capsys.readouterr().out and png.is_file()
+
+
+def test_all_derives_every_recipe_and_skips_those_without_a_mask(tmp_path, capsys):
+    root = derive_root(tmp_path)
+    plain = {"schema": 1, "shader": "Universal Render Pipeline/Lit", "texture_set": f"polyhaven/{SET_ID}",
+             "tile_size_m": [1.0, 1.0], "tint": [1.0, 1.0, 1.0, 1.0], "smoothness": 0.25}
+    (root / RECIPES / "plain.json").write_text(json.dumps(plain), encoding="utf-8")
+    assert run("--all", "--root", root) == 0
+    out = capsys.readouterr().out
+    assert f"{MATERIAL}_mask.png: derived" in out and "plain: no mask in the recipe, nothing to derive" in out
+    assert (root / MATERIALS / f"{MATERIAL}_mask.png").is_file() and not (root / MATERIALS / "plain_mask.png").exists()
+
+
+def test_failures_name_the_cause_and_write_nothing(tmp_path, capsys):
+    root = derive_root(tmp_path)
+    cases = [
+        (dict(MASK, occlusion="displacement"),
+         f"{MATERIAL}: mask.occlusion: polyhaven/{SET_ID} has no displacement map (it has ao, diffuse, normal, roughness)"),
+        (dict(MASK, smoothness="roughness * 2"),
+         f"{MATERIAL}: mask.smoothness: 'roughness * 2' is neither a constant in [0, 1] nor '<map>' or '1 - <map>'"),
+        (dict(MASK, metallic=2), f"{MATERIAL}: mask.metallic: constant 2 is outside [0, 1]"),
+        ({"metallic": 0.0}, f"{MATERIAL}: 'mask' must hold exactly metallic, occlusion, smoothness"),
+    ]
+    for mask, message in cases:
+        write_recipe(root, mask)
+        assert run(MATERIAL, "--root", root) == 1
+        assert f"ERROR: {message}" in capsys.readouterr().out
+    assert run("no_such", "--root", root) == 1
+    assert f"ERROR: no_such: no recipe at {RECIPES.as_posix()}/no_such.json" in capsys.readouterr().out
+    assert run("--root", root) == 2  # nothing to do
+    assert not (root / MATERIALS).exists()

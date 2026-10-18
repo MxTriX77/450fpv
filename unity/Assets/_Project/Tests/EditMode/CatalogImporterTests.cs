@@ -14,6 +14,7 @@ namespace Fpv450.Tests.EditMode
     {
         const string PrefabPath = "Assets/_Project/Prefabs/debris/K01_whole.prefab";
         const string DiffusePath = "Assets/_Project/Art/ThirdParty/polyhaven/red_brick/red_brick_diff_1k.png";
+        const string MaskPath = "Assets/_Project/Art/Materials/brick_red_mask.png";
         const float Millimetre = 0.001f;
 
         static GameObject Prefab()
@@ -66,6 +67,24 @@ namespace Fpv450.Tests.EditMode
             var diffuse = AssetDatabase.LoadAssetAtPath<Texture2D>(DiffusePath);
             Assert.That(diffuse, Is.Not.Null, $"{DiffusePath} is missing: run python tools/assets/fetch.py red_brick");
             Assert.That(material.GetTexture("_BaseMap"), Is.SameAs(diffuse));
+        }
+
+        /// <summary>p1-pipeline-hardening, "Packed mask for a material": the derived mask feeds URP/Lit's metallic-gloss and occlusion slots.</summary>
+        [Test]
+        public void Material_PacksTheDerivedMaskIntoMetallicGlossAndOcclusion()
+        {
+            Material material = Prefab().GetComponent<LODGroup>().GetLODs()[0].renderers[0].sharedMaterial;
+            var mask = AssetDatabase.LoadAssetAtPath<Texture2D>(MaskPath);
+            Assert.That(mask, Is.Not.Null, $"{MaskPath} is missing: run python tools/assets/derive.py brick_red");
+            Assert.That(material.GetTexture("_MetallicGlossMap"), Is.SameAs(mask));
+            Assert.That(material.IsKeywordEnabled("_METALLICSPECGLOSSMAP"), Is.True);
+            Assert.That(material.GetTexture("_OcclusionMap"), Is.SameAs(mask));
+            Assert.That(material.IsKeywordEnabled("_OCCLUSIONMAP"), Is.True);
+            Assert.That(material.IsKeywordEnabled("_SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A"), Is.False, "smoothness reads from the mask's alpha");
+            Assert.That(material.GetFloat("_Smoothness"), Is.EqualTo(1f), "the mask's alpha is not scaled");
+            var importer = (TextureImporter)AssetImporter.GetAtPath(MaskPath);
+            Assert.That(importer.sRGBTexture, Is.False, "the mask is linear data");
+            Assert.That(importer.textureType, Is.EqualTo(TextureImporterType.Default));
         }
 
         [Test]

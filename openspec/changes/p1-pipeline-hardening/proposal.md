@@ -14,6 +14,7 @@ Phase 0 proved the pipeline on one brick and found what would bite on the second
 - `CatalogImporter`: `cylinder` primitives as a convex mesh collider (noclip only; the sim reads the metadata).
 - `Fpv450.Review.Capture`: fails with exit 1 when the asset renders no mesh in the 1.5 m view (LFS pointers, missing meshes), and prints the LOD bias it ran with.
 - Quality levels: `lodBias` 1.0 on Low, Medium and High, so the metadata distances hold (tech-artist).
+- The physics material list grows by sign-off: the ids the object sheets propose are added, mapped or declined by the physics engineer, and shapes may name a ground surface as `surface:<id>` (physics review P3-5).
 
 ## Capabilities
 ### New Capabilities

@@ -106,6 +106,11 @@ namespace Fpv450.EditorSetup
                 if (level.FindPropertyRelative("name").stringValue != QualityLevels[i])
                     throw new InvalidOperationException($"Quality level {i} is not {QualityLevels[i]}");
                 level.FindPropertyRelative("customRenderPipeline").objectReferenceValue = pipelines[i];
+                // The catalog importer turns each asset's metadata LOD and cull distances (derived from pixel
+                // sizes) into screen-relative heights on the assumption that lodBias is 1; Unity's template Low
+                // and Medium levels ship with 0.4 and 0.7, which would switch and cull at a fraction of those
+                // distances (p1-pipeline-hardening).
+                level.FindPropertyRelative("lodBias").floatValue = 1f;
             }
 
             int high = QualityLevels.Length - 1;
