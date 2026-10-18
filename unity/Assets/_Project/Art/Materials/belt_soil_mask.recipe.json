@@ -1,0 +1,25 @@
+{
+  "material": "belt_soil",
+  "texture_set": "polyhaven/brown_mud_02",
+  "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
+  "mask": {
+    "metallic": 0.0,
+    "occlusion": "ao",
+    "smoothness": "1 - roughness"
+  },
+  "sources": {
+    "ao": {
+      "name": "brown_mud_02_ao_2k.png",
+      "sha256": "16f6fa689c964651952714aedc88be4c2de3786aa271cb59000edbb3b8b0ffa4"
+    },
+    "roughness": {
+      "name": "brown_mud_02_rough_2k.png",
+      "sha256": "c2c7835ff92171d9141dd7a1884dbf3a00b5d989fe8ae05737ac6d5397c12572"
+    }
+  },
+  "inputs_sha256": "766865b4ee686f6fe53c5f8eaf54c5d2b1e81e814522ae26aeec789343262a9a",
+  "size": [
+    2048,
+    2048
+  ]
+}

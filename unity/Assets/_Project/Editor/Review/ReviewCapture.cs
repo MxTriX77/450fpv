@@ -31,6 +31,8 @@ namespace Fpv450
         const float GroundAlbedo = 0.18f;
         const float BarHeightM = 1.8f, BarPostM = 0.05f, BarBandM = 0.1f, BarGapM = 1f, BarBearingDeg = 112.5f;
         const float PilotBarGapM = 0.5f;       // the pilot-height view: the bar on the far side of the asset, inside the steep frame (design decision 2)
+        const float SurfaceLookDownDeg = 35f;  // a surfaces asset's pilot-height view: down at the mat a few metres ahead (p1-s04-belt-straw design 7, assumed)
+        const float SurfaceBarAheadM = 2.5f;   // ... with the bar planted this far ahead on +X, inside the frame
         const float MinShadowDistanceM = 12f;  // the stage's shadow distance: finer shadow texels than the game's 50 m on a small stage
         const float BoundsMarginM = 0.3f;      // a camera closer than this to the bounds is pushed outside them
         static readonly float[] DistancesM = { 1.5f, 10f, 50f, 200f };
@@ -93,7 +95,7 @@ namespace Fpv450
                 foreach ((string variant, string prefabPath, string metaPath) in inputs)
                 {
                     ReviewMeta meta = ReviewMeta.Read(ProjectPath(metaPath));
-                    Stage stage = Stage.Build(prefabPath, meta);
+                    Stage stage = Stage.Build(prefabPath, meta, assetClass);
                     try
                     {
                         foreach (LightProfile profile in profiles)
@@ -290,13 +292,16 @@ namespace Fpv450
             return material;
         }
 
-        sealed class Stage
+        internal sealed class Stage
         {
             public GameObject Root;
             public Bounds AssetBounds;  // world
             public Bounds FrameBounds;  // asset plus scale bar, world
             public LODGroup LodGroup;
             public Vector3 BarBase;     // the bar's place at the off-grid bearing, world
+            public Vector3 Origin;      // the asset's origin, world
+            public bool Surface;        // catalog class "surfaces": the pilot-height tile is shot from on the surface
+            public bool WarmedUp;       // the discarded render before this stage's first tile is done
             GameObject bar;
 
             public Vector3 BarTop => bar.transform.position + Vector3.up * BarHeightM;
@@ -304,14 +309,15 @@ namespace Fpv450
             /// <summary>Moves the scale bar so that its base stands at <paramref name="basePosition"/>.</summary>
             public void PlaceBar(Vector3 basePosition) => bar.transform.localPosition = basePosition;
 
-            public static Stage Build(string prefabPath, ReviewMeta meta)
+            public static Stage Build(string prefabPath, ReviewMeta meta, string assetClass)
             {
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath)
                     ?? throw new FileNotFoundException($"{prefabPath} did not load as a prefab");
-                var stage = new Stage { Root = new GameObject("ReviewStage") };
+                var stage = new Stage { Root = new GameObject("ReviewStage"), Surface = assetClass == "surfaces" };
                 GameObject instance = Object.Instantiate(prefab, stage.Root.transform);
                 instance.name = prefab.name;
                 instance.transform.localPosition = new Vector3(0f, -meta.Bounds.min.y, 0f); // on the ground
+                stage.Origin = instance.transform.position;
                 stage.AssetBounds = new Bounds(meta.Bounds.center + instance.transform.localPosition, meta.Bounds.size);
                 stage.LodGroup = instance.GetComponent<LODGroup>();
 
@@ -347,7 +353,7 @@ namespace Fpv450
 
         // --- the camera rig (design decision 4) ------------------------------------------------------------------
 
-        sealed class Rig : IDisposable
+        internal sealed class Rig : IDisposable
         {
             public Camera Camera;
             RenderTexture target;
@@ -502,6 +508,25 @@ namespace Fpv450
             return barBase;
         }
 
+        /// <summary>
+        /// The pilot-height tile's pose: the camera, its look-at point and the scale bar's base. An asset is shot from
+        /// beside its bounds (<see cref="PilotShot"/>, <see cref="PilotBar"/>), but a surfaces asset from on the surface
+        /// (p1-s04-belt-straw design 7): 1.5 m above its origin, the patch centre on the mat's mean top, looking 35° down
+        /// towards +X, with the bar planted 2.5 m ahead on +X inside the frame.
+        /// </summary>
+        internal static (Vector3 position, Vector3 lookAt, Vector3 barBase, bool fromBounds) PilotPose(Stage stage)
+        {
+            Bounds asset = stage.AssetBounds;
+            if (!stage.Surface)
+            {
+                Vector3 beside = PilotShot(asset, out bool fromBounds);
+                return (beside, asset.center, PilotBar(asset), fromBounds);
+            }
+            float down = SurfaceLookDownDeg * Mathf.Deg2Rad;
+            Vector3 position = stage.Origin + Vector3.up * PilotHeightM;
+            return (position, position + new Vector3(Mathf.Cos(down), -Mathf.Sin(down), 0f), stage.Origin + Vector3.right * SurfaceBarAheadM, false);
+        }
+
         /// <summary>Whether Unity's LOD group draws nothing from this camera: the metadata's cull distance, through lodBias.</summary>
         static bool Culled(LODGroup group, Camera camera)
         {
@@ -558,18 +583,32 @@ namespace Fpv450
             {
                 bool pilot = distance == DistancesM[0];
                 bool fromBounds;
-                Vector3 position = pilot ? PilotShot(asset, out fromBounds) : SlantShot(asset, distance, out fromBounds);
-                string view = pilot ? $"{distance:0.#} M PILOT HEIGHT AZ {ShotAzimuthDeg:0}" : $"{distance:0.#} M SLANT {LookDownDeg:0}° DOWN AZ {ShotAzimuthDeg:0}";
+                Vector3 position, lookAt = asset.center, barBase = stage.BarBase;
+                if (pilot)
+                    (position, lookAt, barBase, fromBounds) = PilotPose(stage);
+                else
+                    position = SlantShot(asset, distance, out fromBounds);
+                string view = !pilot ? $"{distance:0.#} M SLANT {LookDownDeg:0}° DOWN AZ {ShotAzimuthDeg:0}"
+                    : stage.Surface ? $"{distance:0.#} M PILOT HEIGHT ON SURFACE {SurfaceLookDownDeg:0}° DOWN"
+                    : $"{distance:0.#} M PILOT HEIGHT AZ {ShotAzimuthDeg:0}";
                 if (fromBounds)
                     view += $" FROM BOUNDS ({Vector3.Distance(position, asset.center):0.0} M TO CENTRE)";
                 if (pilot)
                 {
-                    stage.PlaceBar(PilotBar(asset));
-                    rig.Aim(position, asset.center);
+                    stage.PlaceBar(barBase);
+                    rig.Aim(position, lookAt);
                     if (!rig.InFrame(stage.BarTop))
                         view += "  BAR LOWER BANDS";
+                    if (stage.Surface)
+                    {
+                        Vector3 forward = rig.Camera.transform.forward;
+                        Debug.Log($"[Review] surface pilot pose: camera ({position.x:0.000}, {position.y:0.000}, {position.z:0.000}), {position.y - stage.Origin.y:0.000} m above the patch centre " +
+                                  $"({stage.Origin.x:0.000}, {stage.Origin.y:0.000}, {stage.Origin.z:0.000}), forward ({forward.x:0.0000}, {forward.y:0.0000}, {forward.z:0.0000}), " +
+                                  $"{Mathf.Asin(-forward.y) * Mathf.Rad2Deg:0.00}° down towards +X; bar base ({barBase.x:0.000}, {barBase.y:0.000}, {barBase.z:0.000}), " +
+                                  $"{barBase.x - position.x:0.00} m ahead, in frame {rig.InFrame(barBase)}");
+                    }
                 }
-                tiles.Add(Shot(rig, stage, position, asset.center, title, view, null, null));
+                tiles.Add(Shot(rig, stage, position, lookAt, title, view, null, null));
                 stage.PlaceBar(stage.BarBase);
             }
             for (int i = 0; i < 8; i++)
@@ -588,6 +627,14 @@ namespace Fpv450
 
         static ReviewCanvas Shot(Rig rig, Stage stage, Vector3 position, Vector3 lookAt, string title, string view, ReviewMeta overlay, Matrix4x4? localToWorld)
         {
+            // The first render of a session, and the first render of a stage's materials, can come out wrong (a dark
+            // ground, a pale asset, texture detail off); one discarded render of the same shot before a stage's first tile.
+            if (!stage.WarmedUp)
+            {
+                rig.Shoot(position, lookAt);
+                stage.WarmedUp = true;
+                Debug.Log($"[Review] warm-up: one discarded render of {stage.Root.transform.GetChild(0).name} before its first tile");
+            }
             ReviewCanvas tile = rig.Shoot(position, lookAt);
             bool culled = Culled(stage.LodGroup, rig.Camera);
             if (overlay != null)

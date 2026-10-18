@@ -5,7 +5,8 @@ dimensions and measure against a mesh, and narrowest_m is held to the largest in
 (p1-pipeline-hardening, "Collision audit at build time"). Compliant shells (p1-v13-shrub, review-physics PR2): two
 overlapping spheres hugging a leaf mass pass and print each piece's standoff and each slot's outside distance; a
 piece 0.3 m too large fails (a); a twig vertex 0.15 m outside fails (b); a card corner 0.35 m outside fails (c) and
-one 0.25 m outside passes; surface under the ground is ignored; a capsule off its tube by 7 cm still fails; and a
+one 0.25 m outside passes; surface under the ground is ignored; a capsule off its tube by 7 cm still fails, and so does
+one running 7 cm past its stem's tip inside a twig piece (a shell piece hides no rigid primitive); and a
 shell no slot carries or a slot no shell stands for is refused. The real V13_mid with its first, single sphere
 failing (a) is in test_shrub.py."""
 import copy
@@ -202,6 +203,141 @@ def test_a_mesh_with_no_primitive_is_refused(k01_params):
     assert audit.run(data, lod0) == (["mesh: no collision primitive stands for the LOD0 mesh"], [])
 
 
+def test_micro_mesh_far_from_any_primitive_is_skipped_and_named(k01_params):
+    """p1-s04-belt-straw, "Micro meshes skipped by the audit": a visual-only mesh is no part of the LOD0 the audit
+    measures; its name and count are printed first."""
+    data, lod0 = k01(k01_params)
+    far = Mesh()
+    for k in range(3):
+        far.vertex((5.0 + k, 5.0, 5.0 * k))
+    far.face([0, 1, 2], (0.0, 1.0, 0.0), "straw")
+    data["micro"] = [{"lod": 0, "name": "K01_whole_LOD0_straw", "kind": "straw", "count": 10000, "tris": 1}]
+    problems, lines = audit.run(data, lod0)
+    assert problems == []
+    assert lines[0] == "audit: skipped micro mesh K01_whole_LOD0_straw (10000 straw)"
+    assert lines[1].startswith("audit collision[0] box: box->mesh 3.288 mm")
+
+
+def slab(size=2.0, depth=0.2):
+    """A closed flat slab mesh: top at 0, bottom at -depth."""
+    mesh = Mesh()
+    h = size / 2
+    p = {(sx, sy, sz): mesh.vertex((sx * h, 0.0 if sy > 0 else -depth, sz * h)) for sx in (-1, 1) for sy in (-1, 1) for sz in (-1, 1)}
+    for axis in range(3):
+        for side in (-1, 1):
+            normal = tuple(side if a == axis else 0 for a in range(3))
+            indices = [p[c] for c in p if c[axis] == side]
+            from lib.geometry import ring
+            mesh.face(ring(mesh.vertices, indices, normal), normal, "ground")
+    return mesh
+
+
+def test_primitives_form_a_union_and_soft_tops_are_held_to_5cm(k01_params, repo_root):
+    """p1-s04-belt-straw, design 6: a sphere sunk into a slab box is measured only where it stands proud of the box
+    (its cap), the box top is not measured under the sphere, and soft tops add no 2 cm zone. The cap stands 8 cm
+    above a flat slab, so the sphere fails by what its cap misses; the box passes by itself."""
+    soft = audit.soft_materials(repo_root)
+    data, _ = k01(k01_params)
+    lod0 = slab()
+    data["collision"] = [
+        {"shape": "box", "center": [0.0, -0.1, 0.0], "size": [2.0, 0.2, 2.0], "rotation": [0.0, 0.0, 0.0, 1.0],
+         "material": "surface:belt_straw", "landable": True},
+        {"shape": "sphere", "center": [0.0, -0.06, 0.0], "radius": 0.14, "material": "surface:crater_spoil", "landable": True},
+    ]
+    problems, lines = audit.run(data, lod0, soft=soft)
+    assert lines[0] == ("audit: soft tops collision[0] surface:belt_straw, collision[1] surface:crater_spoil are landed "
+                        "on over their whole top, held to 50 mm there")
+    assert measured_mm(lines[1]) == pytest.approx(0.0, abs=0.5), lines[1]   # the box top under the cap is covered
+    assert measured_mm(lines[2]) == pytest.approx(80.0, abs=1.0), lines[2]  # the cap's apex over the flat slab
+    assert all("near gaps/landable" not in line for line in lines), "soft tops widen no 2 cm zone"
+    assert [p.split(" at ")[0] for p in problems] == ["collision[1] sphere: sphere->mesh 80.000 mm"]
+    data["collision"][1]["center"][1] = -0.12  # the bottom now pokes 6 cm out of the slab: an invisible wall below
+    problems, lines = audit.run(data, lod0, soft=soft)
+    assert [p.split(" at ")[0] for p in problems] == ["collision[1] sphere: sphere->mesh 60.000 mm"]
+    data["collision"][1].update(center=[0.0, -0.085, 0.0], radius=0.115)  # a 3 cm cap, the bottom on the slab's: within tolerance
+    problems, lines = audit.run(data, lod0, soft=soft)
+    assert problems == [] and measured_mm(lines[2]) == pytest.approx(30.0, abs=1.0)
+    data["collision"][0]["material"] = "masonry"  # a hard landable face: the 2 cm zone is back
+    problems, lines = audit.run(data, lod0, soft=soft)
+    assert lines[0].startswith("audit: soft tops collision[1] surface:crater_spoil ")
+    assert any("near gaps/landable" in line for line in lines)
+    assert [p.split(" at ")[0] for p in problems] == ["collision[1] sphere: near gaps/landable 30.000 mm"]
+
+
+def test_soft_materials_are_the_soft_surfaces_and_the_compliant_ids(repo_root):
+    """review-physics PR6: the three surfaces where the reference foot sinks 25 mm or more, and every plain id at
+    1000 N/m or less (foliage 200, twig 30, straw 490, fabric 600, mesh 800); rigid and stiff ids are not soft."""
+    assert audit.soft_materials(repo_root) == {"surface:belt_straw", "surface:crater_spoil", "surface:tilled",
+                                               "foliage", "twig", "straw", "fabric", "mesh"}
+
+
+def relief(size=2.0, step=0.05, depth=0.2, amplitude=0.04):
+    """A closed slab whose top is a heightfield of +-amplitude relief on a step grid (review-physics E2)."""
+    mesh = Mesh()
+    n = round(size / step)
+    h = size / 2
+    top = {}
+    for i in range(n + 1):
+        for j in range(n + 1):
+            x, z = -h + i * step, -h + j * step
+            top[i, j] = mesh.vertex((x, amplitude * math.sin(math.pi * x) * math.sin(math.pi * z), z))
+    for i in range(n):
+        for j in range(n):
+            for tri in ((top[i, j], top[i + 1, j], top[i + 1, j + 1]), (top[i, j], top[i + 1, j + 1], top[i, j + 1])):
+                mesh.face(tri, (0.0, 1.0, 0.0), "ground")
+    corners = [mesh.vertex((sx * h, -depth, sz * h)) for sx, sz in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+    mesh.face(corners, (0.0, -1.0, 0.0), "ground")
+    for k in range(n):  # the walls, one quad per top edge
+        for (a, b), normal in (((top[k, 0], top[k + 1, 0]), (0.0, 0.0, -1.0)), ((top[k, n], top[k + 1, n]), (0.0, 0.0, 1.0)),
+                               ((top[0, k], top[0, k + 1]), (-1.0, 0.0, 0.0)), ((top[n, k], top[n, k + 1]), (1.0, 0.0, 0.0))):
+            pa, pb = mesh.vertices[a], mesh.vertices[b]
+            mesh.face([a, b, mesh.vertex((pb[0], -depth, pb[2])), mesh.vertex((pa[0], -depth, pa[2]))], normal, "ground")
+    return mesh
+
+
+@pytest.mark.parametrize("material, soft", [("surface:asphalt", False), ("masonry", False), ("straw", True),
+                                            ("surface:belt_straw", True)])
+def test_a_hard_top_keeps_2cm_and_a_soft_top_is_held_at_5cm(k01_params, repo_root, material, soft):
+    """Spec "A hard top keeps 2 cm" (review-physics E2, PR6): one landable box under a +-4 cm relief stands about
+    39 mm off the mesh; a hard top fails the 2 cm zone naming the shape, a soft one passes at 5 cm."""
+    data, _ = k01(k01_params)
+    data["collision"] = [{"shape": "box", "center": [0.0, -0.1, 0.0], "size": [2.0, 0.2, 2.0],
+                          "rotation": [0.0, 0.0, 0.0, 1.0], "material": material, "landable": True}]
+    problems, lines = audit.run(data, relief(), soft=audit.soft_materials(repo_root))
+    box = next(line for line in lines if line.startswith("audit collision[0] box"))
+    assert 35.0 <= measured_mm(box) <= 40.0, box
+    if soft:
+        assert problems == [] and lines[0].startswith(f"audit: soft tops collision[0] {material} are landed on")
+    else:
+        assert any(p.startswith("collision[0] box: near gaps/landable ") and p.endswith("exceeds the tolerance 20 mm")
+                   for p in problems), problems
+        assert not any(line.startswith("audit: soft tops") for line in lines)
+
+
+def test_a_seam_where_primitives_only_touch_is_no_surface(k01_params, repo_root):
+    """review-physics §3: the mat boxes stand on the soil box, touching it. A mound sphere through that seam is
+    measured only where it stands proud of the slab: its buried part lies in the mat box above the seam and in the
+    soil box below it, no one primitive covers a strip across the seam, and the search ends there in cells of
+    SEAM_CELL_M (the run finishes, and the cap is the only deviation). A mat box that misses its neighbour by the
+    metadata's rounding (under COVERED_M) leaves no sliver either."""
+    data, _ = k01(k01_params)
+    lod0 = slab(depth=0.425)
+    data["collision"] = [
+        {"shape": "box", "center": [0.0, -0.275, 0.0], "size": [2.0, 0.3, 2.0], "rotation": [0.0, 0.0, 0.0, 1.0],
+         "material": "surface:belt_straw", "landable": True},
+        {"shape": "box", "center": [-0.5, -0.0625, 0.0], "size": [0.9999995, 0.125, 2.0], "rotation": [0.0, 0.0, 0.0, 1.0],
+         "material": "straw", "landable": True},
+        {"shape": "box", "center": [0.5, -0.0625, 0.0], "size": [1.0, 0.125, 2.0], "rotation": [0.0, 0.0, 0.0, 1.0],
+         "material": "straw", "landable": True},
+        {"shape": "sphere", "center": [0.3, -0.12, 0.2], "radius": 0.15, "material": "surface:crater_spoil", "landable": True},
+    ]
+    problems, lines = audit.run(data, lod0, soft=audit.soft_materials(repo_root))
+    assert lines[0].startswith("audit: soft tops collision[0] surface:belt_straw, collision[1..2] straw, collision[3] ")
+    assert [measured_mm(line) for line in lines[1:3]] == [pytest.approx(0.0, abs=0.5)] * 2  # the soil and the left mat
+    assert measured_mm(lines[4]) == pytest.approx(30.0, abs=1.0), lines[4]  # the cap's apex over the flat slab
+    assert problems == []
+
+
 CARD_VISUALS = {"leaf_shrub"}
 A, B = (-0.3, 1.3, 0.0), (0.3, 1.3, 0.0)  # the centres of the two leaf boxes and of the spheres hugging them
 HUG_R = 0.38
@@ -254,7 +390,7 @@ def shell_lines(lines):
 
 
 def test_two_overlapping_spheres_hugging_the_mass_pass_and_print_both_ways():
-    problems, lines = audit.run(*hugged(), CARD_VISUALS)
+    problems, lines = audit.run(*hugged(), card_visuals=CARD_VISUALS)
     assert problems == []
     # the capsule's bottom pole stands its radius under the tube's open base, r * sqrt(2) = 12.7 mm from the base
     # ring; the tip cap's centre sits the radius, 9 mm, inside the capsule's top cap
@@ -277,7 +413,7 @@ def test_two_overlapping_spheres_hugging_the_mass_pass_and_print_both_ways():
 def test_a_piece_30cm_too_large_fails_its_standoff():
     data, lod0 = hugged()
     data["collision"][1]["radius"] += 0.3
-    problems, _ = audit.run(data, lod0, CARD_VISUALS)
+    problems, _ = audit.run(data, lod0, card_visuals=CARD_VISUALS)
     assert len(problems) == 1
     assert problems[0].startswith("collision[1] sphere (twig shell): largest standoff ")
     assert problems[0].endswith(" exceeds the tolerance 100 mm")
@@ -289,7 +425,7 @@ def test_a_twig_vertex_15cm_outside_fails_naming_the_slot_the_distance_and_the_t
     data, lod0 = hugged()
     tip = math.sqrt((HUG_R + 0.15) ** 2 - 0.0015 ** 2)  # the tip ring's 1.5 mm, about an axis through the centre
     skeleton._tube(lod0, [(A, 0.0025), ((A[0], A[1], A[2] + tip), 0.0015)], 3, "twig", cap=False)
-    problems, _ = audit.run(data, lod0, CARD_VISUALS)
+    problems, _ = audit.run(data, lod0, card_visuals=CARD_VISUALS)
     assert len(problems) == 1
     assert problems[0].startswith("slot twig (geometry, twig shell): largest outside distance 150.000 mm at (")
     assert problems[0].endswith(") exceeds the tolerance 100 mm")
@@ -301,7 +437,7 @@ def test_a_card_corner_35cm_outside_fails_and_25cm_passes(outside_m, fails):
     length = math.sqrt((HUG_R + outside_m) ** 2 - 0.05 ** 2) - 0.3  # a 0.1 m wide sprig off the box's end card
     corners = [(-0.6, 1.25, 0.0), (-0.6, 1.35, 0.0), (-0.6 - length, 1.35, 0.0), (-0.6 - length, 1.25, 0.0)]
     lod0.face([lod0.vertex(c) for c in corners], (0.0, 0.0, 1.0), "leaf")
-    problems, lines = audit.run(data, lod0, CARD_VISUALS)
+    problems, lines = audit.run(data, lod0, card_visuals=CARD_VISUALS)
     text = f"slot leaf (cards, twig shell): largest outside distance {outside_m * 1000:.3f} mm at ("
     if fails:
         assert len(problems) == 1 and problems[0].startswith(text)
@@ -318,7 +454,7 @@ def test_surface_under_the_ground_is_ignored(lift):
     card_box(lod0, (-0.3, lift, -0.3), (0.3, lift + 0.3, 0.3), skip=("y-",))
     data = {"materials": [{"slot": "leaf", "visual": "leaf_shrub", "physics": "twig"}],
             "collision": [sphere((0.0, lift, 0.0), HUG_R)], "gaps": []}
-    problems, lines = audit.run(data, lod0, CARD_VISUALS)
+    problems, lines = audit.run(data, lod0, card_visuals=CARD_VISUALS)
     if lift == 0.0:
         assert problems == []
         assert measured_mm(shell_lines(lines)[1]) == pytest.approx(CORNER_STANDOFF_MM, abs=SHELL_MM)
@@ -331,17 +467,35 @@ def test_surface_under_the_ground_is_ignored(lift):
 def test_a_capsule_off_its_tube_by_7cm_still_fails():
     data, lod0 = hugged()
     data["collision"][0]["center"][0] += 0.07
-    problems, _ = audit.run(data, lod0, CARD_VISUALS)
+    problems, _ = audit.run(data, lod0, card_visuals=CARD_VISUALS)
     assert [p.split(" ")[:2] for p in problems] == [["collision[0]", "capsule:"], ["mesh:", "mesh->collision"]]
     # 70 mm, give or take the 6-sided tube's 1.2 mm between its inradius and its circumradius
     assert all(measured_mm(p) == pytest.approx(70.0, abs=1.5) and p.endswith("exceeds the tolerance 50 mm") for p in problems)
+
+
+def test_a_shell_piece_hides_no_rigid_primitive():
+    """The union requirement's "a crown shell piece hides nothing" (p1-s04-belt-straw, review R9): the stem rises
+    0.2 m into a leaf box hugged by a twig sphere, and its bark capsule runs on 70 mm past the stem's tip, inside the
+    sphere. The capsule is still measured there: only rigid primitives hide one another."""
+    lod0 = Mesh()
+    skeleton._tube(lod0, [((0.0, 0.0, 0.0), 0.009), ((0.0, 1.2, 0.0), 0.009)], 6, "stem", cap=True)
+    card_box(lod0, (-0.3, 1.0, -0.3), (0.3, 1.6, 0.3))
+    data = {"materials": [{"slot": "stem", "visual": "bark_shrub", "physics": "bark"},
+                          {"slot": "leaf", "visual": "leaf_shrub", "physics": "twig"}],
+            # from its radius under the stem's base to 70 mm over its tip cap: -0.009 .. 1.27 m
+            "collision": [{"shape": "capsule", "center": [0.0, 0.6305, 0.0], "radius": 0.009, "height": 1.279,
+                           "rotation": [0.0, 0.0, 0.0, 1.0], "material": "bark", "landable": False},
+                          sphere((0.0, 1.3, 0.0), HUG_R)],
+            "gaps": []}
+    problems, _ = audit.run(data, lod0, card_visuals=CARD_VISUALS)
+    assert problems == ["collision[0] capsule: capsule->mesh 70.000 mm at (0, 1.27, 0) exceeds the tolerance 50 mm"]
 
 
 def test_a_shell_without_a_slot_and_a_slot_without_a_shell_are_refused():
     data, lod0 = hugged()
     for piece in data["collision"][1:]:
         piece["material"] = "foliage"  # the twig and leaf slots still carry twig
-    problems, lines = audit.run(data, lod0, CARD_VISUALS)
+    problems, lines = audit.run(data, lod0, card_visuals=CARD_VISUALS)
     assert problems == ["collision[1] sphere (foliage shell): no material slot carries foliage, so it encloses nothing",
                         "collision[2] sphere (foliage shell): no material slot carries foliage, so it encloses nothing",
                         "slots leaf, twig carry twig but no twig shell stands for them"]

@@ -75,6 +75,7 @@ def server(tmp_path_factory, monkeypatch):
     monkeypatch.setattr(fetch, "ALLOWED_HOSTS", {"127.0.0.1"})
     monkeypatch.setattr(fetch, "POLYHAVEN_API", base)
     monkeypatch.setattr(fetch, "AMBIENTCG_API", f"{base}/api/v2/full_json")
+    monkeypatch.setattr(fetch, "TEXTURECAN", base)
     try:
         yield base, www
     finally:

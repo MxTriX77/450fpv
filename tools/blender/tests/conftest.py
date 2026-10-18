@@ -26,6 +26,11 @@ def k01_params():
     return json.loads((REPO_ROOT / "assets-src" / "debris" / "K01_whole.json").read_text(encoding="utf-8"))
 
 
+@pytest.fixture(scope="module")
+def s04_params():
+    return json.loads((REPO_ROOT / "assets-src" / "surfaces" / "S04_patch.json").read_text(encoding="utf-8"))
+
+
 @pytest.fixture
 def material_ids():
     """The closed physics-material list of the repo, as build.py loads it."""

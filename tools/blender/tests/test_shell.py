@@ -46,6 +46,6 @@ def test_leaf_masses_round_a_twig_are_fitted_with_pieces_that_pass_the_shell_rul
     data = {"materials": [{"slot": "twig", "visual": "bark_shrub", "physics": "twig"},
                           {"slot": "leaf", "visual": "leaf_shrub", "physics": "twig"}],
             "collision": [meta.capsule(a, b, r, "twig") for a, b, r in pieces], "gaps": []}
-    problems, lines = audit.run(data, mesh, {"leaf_shrub"})
+    problems, lines = audit.run(data, mesh, card_visuals={"leaf_shrub"})
     assert problems == []
     assert lines[0].startswith(f"audit twig shell: {len(pieces)} pieces (")

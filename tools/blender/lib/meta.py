@@ -22,8 +22,13 @@ NORMAL_TOLERANCE = 1e-6
 PERPENDICULAR_TOLERANCE = 1e-3  # |edge . normal| / |edge|, per polygon edge
 PLANAR_TOLERANCE_M = 0.010  # AST-05 gives +-2 cm around openings
 SNAG_KINDS = ("edge", "hook")  # a polyline the fiber bends over; a free-ended member from base to tip
-KEY_ORDER = ("schema", "id", "variant", "generator", "params_sha256", "units", "frame", "bounds", "lods",
+KEY_ORDER = ("schema", "id", "variant", "generator", "params_sha256", "units", "frame", "bounds", "lods", "micro",
              "cull_distance_m", "materials", "collision", "gaps", "wind_volumes", "snag")
+# Visual-only micro-detail meshes (p1-s04-belt-straw, "Visual-only micro-detail meshes"): a generator may return,
+# per LOD, meshes the importer renders with that LOD and nothing collides with (the baked straws, until the shared
+# micro-detail generator places them at physics parity, AST-10). Listed under "micro" with their kind and count;
+# the audit skips them and names them. Schema 1 stays: the key is additive and always present, [] when none.
+MICRO_KEYS = ("lod", "name", "kind", "count", "tris")
 # The closed, physics-owned list every physics material id must come from (review R3).
 PHYSICS_MATERIALS = os.path.join("assets-src", "physics_materials.json")
 LABELS = ("pilot", "measured", "published", "derived", "assumed")
@@ -64,14 +69,22 @@ def load_physics_materials(root):
 
 def assemble(asset_id, variant, generator, params, built, visual_by_slot):
     """The metadata of one variant from the generator's result `built` ({"lods": [Mesh...], "switch_distances_m",
-    "cull_distance_m", "materials": [{"slot", "physics"}], "collision", "gaps", "wind_volumes", "snag"}) and the
-    catalog's visual material per slot."""
+    "cull_distance_m", "materials": [{"slot", "physics"}], "collision", "gaps", "wind_volumes", "snag"}, and
+    optionally "micro": [{"lod", "kind", "count", "mesh": Mesh}]) and the catalog's visual material per slot. A micro
+    mesh is named <variant>_LOD<n>_<kind> and counts towards the bounds, since it is rendered."""
     lods = built["lods"]
     switches = built["switch_distances_m"]
     if len(switches) != len(lods):
         raise ValueError(f"{variant}: {len(lods)} LODs but {len(switches)} switch distances")
-    lo = [min(m.bounds()[0][a] for m in lods) for a in range(3)]
-    hi = [max(m.bounds()[1][a] for m in lods) for a in range(3)]
+    micro = []
+    for m in built.get("micro", []):
+        if not 0 <= m["lod"] < len(lods):
+            raise ValueError(f"{variant}: a micro mesh names LOD {m['lod']}, which does not exist")
+        micro.append({"lod": m["lod"], "name": f"{variant}_LOD{m['lod']}_{m['kind']}", "kind": m["kind"],
+                      "count": int(m["count"]), "tris": m["mesh"].triangles()})
+    meshes = list(lods) + [m["mesh"] for m in built.get("micro", [])]
+    lo = [min(m.bounds()[0][a] for m in meshes) for a in range(3)]
+    hi = [max(m.bounds()[1][a] for m in meshes) for a in range(3)]
     materials = []
     for m in built["materials"]:
         if m["slot"] not in visual_by_slot:
@@ -83,6 +96,7 @@ def assemble(asset_id, variant, generator, params, built, visual_by_slot):
         "bounds": {"min": lo, "max": hi},
         "lods": [{"mesh": f"{variant}_LOD{n}", "tris": mesh.triangles(), "switch_distance_m": float(switch)}
                  for n, (mesh, switch) in enumerate(zip(lods, switches))],
+        "micro": micro,
         "cull_distance_m": float(built["cull_distance_m"]),
         "materials": materials,
         "collision": built["collision"], "gaps": built["gaps"], "wind_volumes": built["wind_volumes"],
@@ -143,6 +157,13 @@ def validate(meta, material_ids):
             problems.append(f"LOD switch distances must start at 0 and increase, got {switches}")
         if not (_is_num(meta["cull_distance_m"]) and meta["cull_distance_m"] > switches[-1]):
             problems.append("cull_distance_m must lie beyond the last LOD switch")
+    for i, m in enumerate(meta["micro"]):
+        ok = (isinstance(m, dict) and all(k in m for k in MICRO_KEYS)
+              and isinstance(m["lod"], int) and 0 <= m["lod"] < len(lods)
+              and isinstance(m["name"], str) and m["name"] and isinstance(m["kind"], str) and m["kind"]
+              and isinstance(m["count"], int) and m["count"] >= 0 and isinstance(m["tris"], int) and m["tris"] >= 0)
+        if not ok:
+            problems.append(f"micro[{i}]: needs {', '.join(MICRO_KEYS)} with an existing lod and counts >= 0: {m}")
     for i, m in enumerate(meta["materials"]):
         if not all(isinstance(m.get(k), str) and m[k] for k in ("slot", "visual", "physics")):
             problems.append(f"material entry needs slot, visual and physics: {m}")
@@ -178,16 +199,16 @@ def validate(meta, material_ids):
 
 
 def check_against_fbx(meta, fbx_path):
-    """Problems where the metadata disagrees with the exported file as Unity will read it: a LOD mesh missing from
-    the FBX, or the union of the LOD bounds off the metadata bounds by more than a millimetre."""
+    """Problems where the metadata disagrees with the exported file as Unity will read it: a LOD or micro mesh
+    missing from the FBX, or the union of their bounds off the metadata bounds by more than a millimetre."""
     found = fbxread.unity_bounds(fbx_path)
     problems = []
     lo, hi = [None] * 3, [None] * 3
-    for lod in meta["lods"]:
-        if lod["mesh"] not in found:
-            problems.append(f"{lod['mesh']} is not a mesh of {fbx_path}; it holds {', '.join(sorted(found))}")
+    for name in [lod["mesh"] for lod in meta["lods"]] + [m["name"] for m in meta["micro"]]:
+        if name not in found:
+            problems.append(f"{name} is not a mesh of {fbx_path}; it holds {', '.join(sorted(found))}")
             continue
-        mesh_lo, mesh_hi = found[lod["mesh"]]
+        mesh_lo, mesh_hi = found[name]
         lo = [mesh_lo[a] if lo[a] is None else min(lo[a], mesh_lo[a]) for a in range(3)]
         hi = [mesh_hi[a] if hi[a] is None else max(hi[a], mesh_hi[a]) for a in range(3)]
     if not problems:

@@ -1,0 +1,60 @@
+{
+  "material": "straw",
+  "kind": "palette",
+  "formula": "palette v2: one column PALETTE_BLOCK_PX x PALETTE_HEIGHT_PX per colour, left to right in the recipe's order, its stops spread evenly from the bottom to the top and interpolated in linear light, padded with the last column to a power of two of columns; 8-bit sRGB",
+  "constants": {
+    "PALETTE_BLOCK_PX": 16,
+    "PALETTE_HEIGHT_PX": 64
+  },
+  "recipe": {
+    "schema": 1,
+    "kind": "palette",
+    "shader": "Universal Render Pipeline/Lit",
+    "colours": {
+      "straw_pale": [
+        "#a9966d",
+        "#cdb685",
+        "#ead099"
+      ],
+      "straw": [
+        "#766644",
+        "#b49c6a",
+        "#dec184"
+      ],
+      "straw_dark": [
+        "#635236",
+        "#977f55",
+        "#bb9e6a"
+      ],
+      "twig": [
+        "#5a4c34",
+        "#6b5a3e",
+        "#796647"
+      ],
+      "blade": [
+        "#53602c",
+        "#6a7a3a",
+        "#7c8e45"
+      ]
+    },
+    "tint": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "smoothness": 0.3
+  },
+  "inputs_sha256": "6cb0c3596be88893c64be2f56a324d3d9b7d1ccaac5f6e1dac9dbc5f3645f298",
+  "size": [
+    128,
+    64
+  ],
+  "columns": [
+    "straw_pale",
+    "straw",
+    "straw_dark",
+    "twig",
+    "blade"
+  ]
+}

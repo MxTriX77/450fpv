@@ -168,6 +168,49 @@ def test_add_ambientcg_pins_the_zip_and_its_maps(root, server):
     assert not list(folder.glob("*.zip*"))
 
 
+def test_add_texturecan_reads_the_page_and_pins_the_zip(root, server, capsys):
+    """p1-s04-belt-straw, "A set from a new source": the details page names the zip, the zip and its maps are
+    pinned with licence CC0, the __MACOSX duplicates are ignored, and the page is recorded as the source."""
+    base, www = server
+    (www / "details" / "190").mkdir(parents=True)
+    (www / "downloads" / "fake_0018").mkdir(parents=True)
+    members = {f"fake_0018_{part}_2k.{ext}": content(part) for part, ext in
+               (("ao", "jpg"), ("color", "jpg"), ("height", "png"), ("normal_directx", "png"), ("normal_opengl", "png"),
+                ("roughness", "jpg"))}
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as zf:
+        for name, data in members.items():
+            zf.writestr(name, data)
+            zf.writestr(f"__MACOSX/._{name}", b"\x00" * 8)
+    (www / "downloads" / "fake_0018" / "fake_0018_2k_krQ65t.zip").write_bytes(buffer.getvalue())
+    (www / "details" / "190" / "index.html").write_text(
+        "<html><head><title>Dry Straw Grass / Hay Texture | Free PBR | TextureCan</title></head><body>"
+        '<a href="/downloads/fake_0018/fake_0018_1k_BQmh7j.zip">1K</a> '
+        '<a href="/downloads/fake_0018/fake_0018_2k_krQ65t.zip">2K</a> '
+        '<a href="/downloads/fake_0018/fake_0018_sbsar_eW9nCh.zip">SBSAR</a></body></html>')
+    assert run("--add", "texturecan:190", "--res", "2k", "--root", root) == 0
+
+    new = [e for e in manifest(root)["entries"] if e["source"] == "texturecan"][0]
+    assert (new["id"], new["title"], new["licence"], new["author"]) == ("fake_0018", "Dry Straw Grass / Hay Texture",
+                                                                       "CC0", "TextureCan")
+    assert new["page"] == f"{base}/details/190/" and new["destination"] == f"{THIRD_PARTY.as_posix()}/texturecan/fake_0018"
+    assert new["archive"] == {"name": "fake_0018_2k_krQ65t.zip", "url": f"{base}/downloads/fake_0018/fake_0018_2k_krQ65t.zip",
+                              "sha256": hashlib.sha256(buffer.getvalue()).hexdigest(), "bytes": len(buffer.getvalue())}
+    assert [f["name"] for f in new["files"]] == ["fake_0018_color_2k.jpg", "fake_0018_normal_opengl_2k.png",
+                                                 "fake_0018_roughness_2k.jpg", "fake_0018_ao_2k.jpg"]
+    folder = root / THIRD_PARTY / "texturecan" / "fake_0018"
+    assert sorted(p.name for p in folder.iterdir()) == sorted(f["name"] for f in new["files"])  # no DirectX, height, zip
+    for f in new["files"]:
+        assert (folder / f["name"]).read_bytes() == members[f["name"]] and f["member"] == f["name"]
+    assert "Dry Straw Grass / Hay Texture (2k)" in (root / "CREDITS.md").read_text(encoding="utf-8")
+    assert run("--verify", "--root", root) == 0
+    assert run("--add", "texturecan:190", "--res", "2k", "--root", root) == 1  # the page resolves to a pinned id
+    assert "already in the manifest" in capsys.readouterr().out
+    assert run("--add", "texturecan:191", "--res", "2k", "--root", root) == 1  # no such page on the fake server
+    assert run("--add", "texturecan:hay", "--res", "2k", "--root", root) == 1
+    assert "takes the number of the asset's page" in capsys.readouterr().out
+
+
 def test_usage_errors(root):
     assert run("--root", root) == 2
     assert run("--add", "polyhaven:x", "--root", root) == 2  # --res missing
