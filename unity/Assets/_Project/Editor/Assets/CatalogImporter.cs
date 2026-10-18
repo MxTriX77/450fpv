@@ -430,6 +430,59 @@ namespace Fpv450.Assets
             return true;
         }
 
+        // --- thin wires (p1-l01-l03-pole-wires, design decision 8; tech-artist) -----------------------------------
+
+        internal const string ThinWireShader = "Fpv450/ThinWire";
+        internal const string ThinWireKeyword = "_THIN_WIRE_COVERAGE";
+
+        /// <summary>
+        /// The material of a wire tube whose slot maps to <paramref name="surface"/>, the recipe's own material from
+        /// <see cref="EnsureMaterial(string, Dictionary{string, object})"/>: <c>Shaders/ThinWire</c> with
+        /// <see cref="ThinWireKeyword"/> on and the recipe's surface (base map and its tiling, tint, smoothness or the
+        /// packed mask, occlusion), at <c>&lt;surface&gt;_thin_wire.mat</c> beside it, created or updated in place. The
+        /// recipe's own material stays URP/Lit, so one recipe still draws both a span's conductor and a pole's
+        /// grounding wire. The tube's mesh must carry its radius in uv2 and radial normals (the shader's header).
+        /// </summary>
+        internal static Material EnsureThinWireMaterial(Material surface)
+        {
+            string surfacePath = AssetDatabase.GetAssetPath(surface);
+            if (string.IsNullOrEmpty(surfacePath))
+                throw new ArgumentException($"{surface.name} is not a material asset");
+            Shader shader = Shader.Find(ThinWireShader) ?? throw new FileNotFoundException($"no shader named \"{ThinWireShader}\"");
+            string path = $"{Path.GetDirectoryName(surfacePath).Replace('\\', '/')}/{surface.name}_thin_wire.mat";
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            bool changed = false;
+            if (material == null)
+            {
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, path);
+            }
+            else if (material.shader != shader)
+            {
+                material.shader = shader;
+                changed = true;
+            }
+            foreach (string texture in new[] { "_BaseMap", "_MetallicGlossMap", "_OcclusionMap" })
+                changed |= SetTexture(material, texture, surface.GetTexture(texture));
+            changed |= SetTextureScale(material, "_BaseMap", surface.GetTextureScale("_BaseMap"));
+            changed |= SetTextureOffset(material, "_BaseMap", surface.GetTextureOffset("_BaseMap"));
+            changed |= SetColor(material, "_BaseColor", surface.GetColor("_BaseColor"));
+            foreach (string value in new[] { "_Smoothness", "_Metallic", "_OcclusionStrength" })
+                changed |= SetFloat(material, value, surface.GetFloat(value));
+            foreach (string keyword in new[] { "_METALLICSPECGLOSSMAP", "_OCCLUSIONMAP" })
+                changed |= SetKeyword(material, keyword, surface.IsKeywordEnabled(keyword));
+            changed |= SetFloat(material, "_ThinWireCoverage", 1f);
+            changed |= SetKeyword(material, ThinWireKeyword, true);
+            if (material.renderQueue != (int)RenderQueue.Transparent) // the shader's own, set so it holds without a GPU too
+            {
+                material.renderQueue = (int)RenderQueue.Transparent;
+                changed = true;
+            }
+            if (changed)
+                EditorUtility.SetDirty(material);
+            return material;
+        }
+
         // --- the prefab -------------------------------------------------------------------------------------------
 
         /// <summary>
