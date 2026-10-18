@@ -163,7 +163,7 @@ This is the pilot's seven-step plan (2026-10-17), "made right". Their order stay
    - the golden file, the concurrency tests and the benchmarks (WLD-11)
    - the physics engineer runs a contact probe (a fake drone over the API) before sign-off
 4. **Unity world builder:** terrain tiles from the heightfield, surface splatting with feathered edges, vegetation and object instancing from `objects.json`, micro-detail near the camera, impostors, streaming if needed.
-5. **The map itself:** the D-018 layout. Three villages, fields, belts with trenches, cratered, burnt and tilled fields, roads and slab tracks, the urban edge, at least 30 fly-ins, at least 6 start points.
+5. **The map itself:** the D-018 layout as refined by D-035 (WLD-01). A village, a smaller village and a somewhat larger town divided by belts and fields in the pattern of the layout reference (letter Q); fields, belts with trenches, trenches in the fields, cratered, burnt and tilled fields, roads and slab tracks, a small river and ponds, the fortifications (F01–F03), the urban edge, most houses damaged or destroyed, at least 30 fly-ins, at least 6 start points.
 6. **Performance** (PLT-02, PLT-05, PLT-06) and the night silhouette check (WLD-10).
 
 **Done means:**

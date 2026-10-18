@@ -192,6 +192,19 @@ Sizes from [knowledge.md](knowledge.md) §9.2. Every model is built once, as a c
 | D01 | **Svinoriz 10 Opto**: 10" X frame, 3-blade props, coil underneath, two battery packs, generic payload on top, 0° camera, legs | legs on / legs off (with launch stand) | phase 5 |
 | D02 | Launch stand (D-022): an X-shaped steel base with four posts about 0.25 m high, one under each motor (on the diagonals, 0.226 m from the centre), sized from `drone.json`; unanchored | — | phase 5 |
 
+## 12. Fortifications (added by D-035; an object sheet `docs/object-sheets/fortifications.md` comes first)
+
+The pilot (2026-10-18): the villages of today carry concertina wire ("єгоза"), dragon's teeth, a couple of anti-tank hedgehogs, and trenches in the fields. Built as the real thing (researched: sizes, steel sections, concrete, how they stand, sag and fall), never as game props. Sizes below are starting ranges for the sheet to confirm from published sources.
+
+| ID | Asset | Variants or states | Ref | Key size | Physics | Pri |
+|---|---|---|---|---|---|---|
+| F01 | Concertina wire (єгоза): a single coil run on pickets, a double-stacked run, a coil along a fence or wall top | I (taut) / D (torn, sagging, trampled flat in places) | R | coil Ø 0.45–0.95 m (published range, to pin), pickets every 3–5 m | the fiber's and the props' worst snag: every strand an `edge` with the barb pitch recorded, coils as wind-porous volumes, gaps none (a coil is never passable) | P1 (world) |
+| F02 | Dragon's teeth (зуби дракона): concrete pyramids in 3–5 staggered rows, some toppled or chipped | I / D | R | about 0.9–1.2 m tall (published typical, to pin), rows 1–2 m apart | `concrete` collision, not landable, `edge` snags on arrises, the spaces between teeth are real gaps measured against the drone | P1 (world) |
+| F03 | Anti-tank hedgehog (протитанковий їжак): welded angle iron or rail, singles and pairs at road approaches and checkpoints | I / D (bent, rusted) | R | 1.2–1.5 m across (published typical, to pin) | `steel` collision, `edge` snags on every member end, the spaces between arms as gaps | P1 (world) |
+| F04 | Checkpoint kit: concrete road blocks, sandbag positions, a lifting barrier | I / D | R | blocks 2.4 × 0.6 × 0.6 m (published ФБС sizes, to pin) | `concrete`, `fabric` (sandbags), landable block tops | P2 |
+
+Trenches and firing positions in the fields are E01–E04 placed by the layout (WLD-01), not new assets.
+
 ## Totals
 
 | Group | Base assets | Variants and states (approx.) |

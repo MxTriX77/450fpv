@@ -52,3 +52,9 @@ The pilot's words: "why tf are you asking me these questions if it's you whos go
 
 ## Open
 None. Ask new questions only under the rule above, at the matching gate.
+
+## Open, to ask at G1 (added by D-035)
+
+| Topic | Question (brief) | Why it is the pilot's | Default until answered |
+|---|---|---|---|
+| Water in the world | Keep a small river with tree-lined banks and a pond or two, as your layout reference (Q) shows, or dry land only? | The references show no water; it is a look and scope preference, not a number | Keep them (WLD-01) |
