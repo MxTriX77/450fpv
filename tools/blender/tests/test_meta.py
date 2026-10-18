@@ -1,6 +1,7 @@
 """lib.meta and lib.catalog: schema-1 validation, the conventions of design decision 6 (physics review R2), the
-closed physics-material list (R3), the deterministic writer, params_sha256, and the committed K01 metadata against
-the committed params."""
+closed physics-material list (R3) on shapes, slots and snag records (a record without its member's material, or with
+an unknown one, is refused: p1-v01-locust review-physics PR4), the deterministic writer, params_sha256, and the
+committed K01 metadata against the committed params."""
 import copy
 import json
 
@@ -27,7 +28,8 @@ def with_physics_features(data):
                               "rotation": [0.0, 0.0, 0.0, 1.0], "material": "steel", "landable": False})
     data["gaps"].append({"id": "door", "polygon": [[0.0, 0.0, 0.0], [0.9, 0.0, 0.0], [0.9, 2.0, 0.0], [0.0, 2.0, 0.0]],
                          "normal": [0.0, 0.0, 1.0], "narrowest_m": 0.9})
-    data["snag"].append({"kind": "edge", "points": [[0.0, 2.0, 0.0], [0.9, 2.0, 0.0]], "radius_m": 0.002})
+    data["snag"].append({"kind": "edge", "points": [[0.0, 2.0, 0.0], [0.9, 2.0, 0.0]], "radius_m": 0.002,
+                         "material": "steel"})
     return data
 
 
@@ -106,6 +108,12 @@ def test_valid_capsule_gap_and_snag_pass(k01_params, material_ids):
      "snag[0]: kind must be one of edge, hook, got 'spike'"),
     (lambda d: d["snag"][0].update(points=[[0.0, 2.0, 0.0]]),
      "snag[0]: needs at least 2 points, got 1"),
+    (lambda d: d["snag"][0].pop("material"),
+     "snag[0]: needs the material of the member it follows"),
+    (lambda d: d["snag"][0].update(material="unobtainium"),
+     "snag[0]: material 'unobtainium' is not in assets-src"),
+    (lambda d: d["snag"][0].update(material=7),
+     "snag[0]: needs the material of the member it follows"),
     (lambda d: d["collision"][0].update(material="unobtainium"),
      "collision[0]: material 'unobtainium' is not in assets-src"),
     (lambda d: d["materials"][0].update(physics="unobtainium"),

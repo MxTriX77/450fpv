@@ -1,8 +1,8 @@
 """generators.shrub with lib.skeleton, lib.cards and lib.shell (p1-v13-shrub, "V13 belt understory shrub"): the
 committed params conform and the defaults are V13_mid; the built sizes sit inside the sheet; LOD triangle counts
 under budget and halving; every stem segment a bark capsule on its chord; the twig shell as at most 24 twig spheres
-and capsules; a snag record per capsule segment and per twig (review-physics PR3, PR4); the wind box over the leafy
-mass (PR5); no gap, nothing landable; the skeleton's radii, tubes and normals; card UVs inside the atlas cells, the
+and capsules; a snag record per capsule segment and per twig (review-physics PR3, PR4), each naming its member's
+material (p1-v01-locust PR4); the wind box over the leafy mass (PR5); no gap, nothing landable; the skeleton's radii, tubes and normals; card UVs inside the atlas cells, the
 far cards over the whole atlas; sprig cards leaving their twig at the fork angle; determinism per seed; check's
 refusals; the low variant through the collision audit, and V13_mid's first, single sphere failing its standoff."""
 import copy
@@ -132,6 +132,7 @@ def test_stem_records_run_along_the_capsules_from_the_ground_to_the_tip(variant)
         for record, capsule in zip(chain, capsules):
             assert flat(record["points"]) == pytest.approx(flat(axis_ends(capsule)), abs=1e-5)
             assert record["radius_m"] == capsule["radius"]
+            assert record["material"] == capsule["material"] == "bark"  # p1-v01-locust PR4: its capsule's material
         assert chain[0]["points"][0][1] == 0.0
         assert all(a["points"][1] == b["points"][0] for a, b in zip(chain, chain[1:]))
         tip = [sum(built["lods"][0].vertices[i][a] for i in indices) / len(indices) for a in range(3)]
@@ -149,6 +150,7 @@ def test_twig_records_follow_the_tubes(variant):
         assert flat(record["points"]) == pytest.approx(flat([p0, p1]), abs=1e-5)
         assert record["radius_m"] == pytest.approx((r0 + r1) / 2, abs=1e-6)
         assert record["kind"] == ("edge" if any(math.dist(p1, tube[0]) < 1e-6 for tube in tubes) else "hook")
+        assert record["material"] == "twig"  # p1-v01-locust PR4: the twig slot's physics, inside a piece or not
     assert {r["kind"] for r in data["snag"][stems:]} == {"edge", "hook"}
 
 

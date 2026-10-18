@@ -21,7 +21,8 @@ QUATERNION_TOLERANCE = 1e-6
 NORMAL_TOLERANCE = 1e-6
 PERPENDICULAR_TOLERANCE = 1e-3  # |edge . normal| / |edge|, per polygon edge
 PLANAR_TOLERANCE_M = 0.010  # AST-05 gives +-2 cm around openings
-SNAG_KINDS = ("edge", "hook")  # a polyline the fiber bends over; a free-ended member from base to tip
+SNAG_KINDS = ("edge", "hook")  # a polyline the fiber bends over; a free-ended member from base to tip; each record
+                               # names the physics material of the member it follows (p1-v01-locust review-physics §4)
 KEY_ORDER = ("schema", "id", "variant", "generator", "params_sha256", "units", "frame", "bounds", "lods",
              "cull_distance_m", "materials", "collision", "gaps", "wind_volumes", "snag")
 # The closed, physics-owned list every physics material id must come from (review R3).
@@ -174,6 +175,11 @@ def validate(meta, material_ids):
                 problems.append(f"snag[{i}]: kind must be one of {', '.join(SNAG_KINDS)}, got {s['kind']!r}")
             if len(s["points"]) < 2:
                 problems.append(f"snag[{i}]: needs at least 2 points, got {len(s['points'])}")
+        # p1-v01-locust review-physics §4 and PR4: the physics material of the member the record follows
+        if not isinstance(s.get("material"), str):
+            problems.append(f"snag[{i}]: needs the material of the member it follows")
+        else:
+            problems += [f"snag[{i}]: {p}" for p in _material_problems(s["material"], material_ids)]
     return problems
 
 

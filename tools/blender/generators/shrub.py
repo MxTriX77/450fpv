@@ -19,8 +19,9 @@ Metadata (design decisions 4 and 7, review-physics PR1-PR5): a `bark` capsule pe
 segment's mean radius; per stem a snag record on each capsule's chord at its radius, an `edge` on the lower segments
 and a `hook` from the top segment's lower end to the tip, so the chain runs from the ground to the tip; per twig one
 record from its base to its end at its mean radius, an `edge` where other twigs leave its end and a `hook` where it
-ends free; the crown contact shell as `twig` spheres and capsules on the leaf and twig mass (lib.shell, at most
-24, which the audit holds both ways); one wind box over the LOD0 vertices of the twig and leaf slots, from the
+ends free; every record in the physics material of its member's slot (p1-v01-locust review-physics PR4); the crown
+contact shell as `twig` spheres and capsules on the leaf and twig mass (lib.shell, at most 24, which the
+audit holds both ways); one wind box over the LOD0 vertices of the twig and leaf slots, from the
 lowest of them to the top, at porosity 0.7 - 0.35 * leaf_cover (the sheet's 0.35 summer, 0.5 autumn, 0.7 bare); no
 gaps; nothing landable.
 
@@ -34,6 +35,7 @@ from lib import cards, meta, shell, skeleton
 from lib.geometry import Mesh
 
 STEM, TWIG, LEAF = "stem", "twig", "leaf"
+PHYSICS = {STEM: "bark", TWIG: "twig", LEAF: "twig"}  # per slot; a snag record takes its member's
 CARD_BUDGET_TRIS = 12000
 WAIST = 0.4
 GROUND_FADE_M = 0.3
@@ -166,7 +168,7 @@ def build(params):
         "lods": lods,
         "switch_distances_m": [0.0, lod["lod1_switch_m"], lod["lod2_switch_m"]][:len(lods)],
         "cull_distance_m": lod["cull_m"],
-        "materials": [{"slot": STEM, "physics": "bark"}, {"slot": TWIG, "physics": "twig"}, {"slot": LEAF, "physics": "twig"}],
+        "materials": [{"slot": slot, "physics": PHYSICS[slot]} for slot in (STEM, TWIG, LEAF)],
         "collision": collision,
         "gaps": [],
         "wind_volumes": wind,
@@ -176,14 +178,16 @@ def build(params):
 
 def _stem_records(stems):
     """Per stem, a record on each segment's chord at its capsule's radius: an `edge` on the lower segments, a `hook`
-    on the top one, which ends free at the tip (the sheet's rule, review-physics PR3)."""
-    return [{"kind": "hook" if k == len(stem.segments) - 1 else "edge", "points": [list(p0), list(p1)], "radius_m": (r0 + r1) / 2}
+    on the top one, which ends free at the tip (the sheet's rule, review-physics PR3), each in its capsule's material
+    (p1-v01-locust review-physics PR4)."""
+    return [{"kind": "hook" if k == len(stem.segments) - 1 else "edge", "points": [list(p0), list(p1)], "radius_m": (r0 + r1) / 2,
+             "material": PHYSICS[STEM]}
             for stem in stems for k, (p0, p1, r0, r1) in enumerate(stem.segments)]
 
 
 def _twig_records(twigs):
     """Per twig, a record from its base to its end at its mean radius: an `edge` when other twigs leave its end, a
-    `hook` when it ends free (review-physics PR4)."""
+    `hook` when it ends free (review-physics PR4), in the twig slot's physics material (p1-v01-locust PR4)."""
     forks = {twig.p0 for twig in twigs}
     return [{"kind": "edge" if twig.p1 in forks else "hook", "points": [list(twig.p0), list(twig.p1)],
-             "radius_m": (twig.r0 + twig.r1) / 2} for twig in twigs]
+             "radius_m": (twig.r0 + twig.r1) / 2, "material": PHYSICS[TWIG]} for twig in twigs]
