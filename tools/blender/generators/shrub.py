@@ -20,10 +20,10 @@ segment's mean radius; per stem a snag record on each capsule's chord at its rad
 and a `hook` from the top segment's lower end to the tip, so the chain runs from the ground to the tip; per twig one
 record from its base to its end at its mean radius, an `edge` where other twigs leave its end and a `hook` where it
 ends free; every record in the physics material of its member's slot (p1-v01-locust review-physics PR4); the crown
-contact shell as `twig` spheres and capsules on the leaf and twig mass (lib.shell, at most 24, which the
-audit holds both ways); one wind box over the LOD0 vertices of the twig and leaf slots, from the
-lowest of them to the top, at porosity 0.7 - 0.35 * leaf_cover (the sheet's 0.35 summer, 0.5 autumn, 0.7 bare); no
-gaps; nothing landable.
+contact shell as `twig` spheres and capsules on the leaf and twig mass (lib.shell, the fewest of 24 to 64 that pass,
+which the audit holds both ways, the cards within card_m plus 0.1 m); one wind box over the LOD0 vertices of the twig
+and leaf slots, from the lowest of them to the top, at porosity 0.7 - 0.35 * leaf_cover (the sheet's 0.35 summer, 0.5
+autumn, 0.7 bare); no gaps; nothing landable.
 
 Slots: stem (bark_shrub, physics bark), twig (bark_shrub, physics twig: the twigs are the shell's contact, not the
 capsules'), leaf (leaf_shrub, physics twig).
@@ -31,7 +31,7 @@ capsules'), leaf (leaf_shrub, physics twig).
 import math
 import random
 
-from lib import cards, meta, shell, skeleton
+from lib import audit, cards, meta, shell, skeleton
 from lib.geometry import Mesh
 
 STEM, TWIG, LEAF = "stem", "twig", "leaf"
@@ -158,7 +158,8 @@ def build(params):
     if crown:  # the far cards span the built crown, not the envelope, so LOD2 shows the clump LOD0 showed
         clo, chi = (tuple(f(p[a] for p in crown) for a in range(3)) for f in (min, max))
         cards.add_to(lods[2], cards.crossed(max(chi[0] - clo[0], chi[2] - clo[2]), clo[1], chi[1]), LEAF)
-        collision += [meta.capsule(a, b, r, "twig") for a, b, r in shell.fit(lods[0], (TWIG,), (LEAF,))]
+        pieces, _, _ = shell.fit(lods[0], (TWIG,), (LEAF,), audit.card_allowance(card_m))
+        collision += [meta.capsule(a, b, r, PHYSICS[TWIG]) for a, b, r in pieces]
         wind.append({"shape": "box", "center": [(clo[a] + chi[a]) / 2 for a in range(3)], "size": [chi[a] - clo[a] for a in range(3)],
                      "rotation": IDENTITY, "porosity": 0.7 - 0.35 * params["leaf_cover"]})
     else:
@@ -173,6 +174,7 @@ def build(params):
         "gaps": [],
         "wind_volumes": wind,
         "snag": _stem_records(stems) + _twig_records(twigs),
+        "card_reach_m": card_m,  # a sprig reaches its length off its twig: audit rule (c)'s allowance less 0.1 m
     }
 
 

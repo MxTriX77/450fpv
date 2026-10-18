@@ -4,8 +4,9 @@
     blender --background --factory-startup --python tools/blender/build.py -- all
 
 For every variant of each asset id in assets-src/catalog.json, it checks the variant's params
-(assets-src/<class>/<variant>.json) against the generator's PARAMS table (lib/params.py), runs the generator,
-validates the metadata (lib/meta.py) and audits the collision against the LOD0 mesh (lib/audit.py), and only then
+(assets-src/<class>/<variant>.json) against the generator's PARAMS table (lib/params.py), runs the generator and
+prints its report lines (counts and fit times), validates the metadata (lib/meta.py) and audits the collision against
+the LOD0 mesh (lib/audit.py, with the generator's stated card reach for the shell's cards), and only then
 writes unity/Assets/_Project/Art/Models/<class>/<ID>/<variant>.fbx and <variant>.assetmeta.json, both in Unity's
 frame (lib/frame.py), the FBX staged beside its final name and moved once it reads back as the metadata says. A
 rejected build changes no file. It refuses any Blender other than the pinned major.minor. Exit code 1 on any
@@ -15,6 +16,7 @@ import argparse
 import importlib
 import os
 import sys
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(os.path.dirname(HERE))
@@ -39,11 +41,15 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
     generator = importlib.import_module(f"generators.{catalog_entry['generator']}")
     _refuse(variant, params_lib.validate(generator, params), f"params {os.path.relpath(params_path, root)}: ")
     built = generator.build(params)
+    for line in built.get("report", ()):
+        print(f"{variant}: {line}")
     data = meta.assemble(asset_id, variant, catalog_entry["generator"], params, built, catalog_entry["materials"])
     _refuse(variant, meta.validate(data, material_ids))
-    problems, lines = audit.run(data, built["lods"][0], catalog.card_visuals(root))
+    started = time.perf_counter()
+    problems, lines = audit.run(data, built["lods"][0], catalog.card_visuals(root), built.get("card_reach_m"))
     for line in lines:
         print(f"{variant}: {line}")
+    print(f"{variant}: audit took {time.perf_counter() - started:.1f} s")
     _refuse(variant, problems)
     export.reset_scene()
     for n, mesh in enumerate(built["lods"]):

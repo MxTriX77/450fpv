@@ -1,9 +1,11 @@
 """generators.shrub with lib.skeleton, lib.cards and lib.shell (p1-v13-shrub, "V13 belt understory shrub"): the
 committed params conform and the defaults are V13_mid; the built sizes sit inside the sheet; LOD triangle counts
-under budget and halving; every stem segment a bark capsule on its chord; the twig shell as at most 24 twig spheres
-and capsules; a snag record per capsule segment and per twig (review-physics PR3, PR4), each naming its member's
-material (p1-v01-locust PR4); the wind box over the leafy mass (PR5); no gap, nothing landable; the skeleton's radii, tubes and normals; card UVs inside the atlas cells, the
-far cards over the whole atlas; sprig cards leaving their twig at the fork angle; determinism per seed; check's
+under budget and halving; every stem segment a bark capsule on its chord; the twig shell of twig spheres and
+capsules, the committed 6 / 15 / 24 pieces reproduced by the cap by steps, which pass at its first step and meet one
+2 m cube 6 / 15 / 24 at most (p1-v01-locust review-physics PR1, PR2); a snag record per capsule segment and per twig
+(review-physics PR3, PR4), each naming its member's material (p1-v01-locust PR4); the wind box over the leafy mass
+(PR5); no gap, nothing landable; the skeleton's radii, tubes and normals; card UVs inside the atlas cells, the far
+cards over the whole atlas; sprig cards leaving their twig at the fork angle; determinism per seed; check's
 refusals; the low variant through the collision audit, and V13_mid's first, single sphere failing its standoff."""
 import copy
 import json
@@ -17,6 +19,7 @@ from lib.geometry import Mesh
 
 VARIANTS = ("V13_low", "V13_mid", "V13_tall")
 SHEET = {"V13_low": ((1.0, 1.5), (1.0, 2.0)), "V13_mid": ((1.5, 2.5), (1.5, 3.0)), "V13_tall": ((2.5, 3.5), (2.0, 3.0))}
+COMMITTED_PIECES = {"V13_low": 6, "V13_mid": 15, "V13_tall": 24}  # the summer shells as p1-v13-shrub built them
 VISUALS = {"stem": "bark_shrub", "twig": "bark_shrub", "leaf": "leaf_shrub"}
 UP = (0.0, 1.0, 0.0)
 BUILT = {}  # one build per variant for the whole module: the shell fit takes seconds
@@ -110,7 +113,7 @@ def test_metadata_carries_capsules_and_a_shell_of_pieces(variant, material_ids):
     pieces = [c for c in data["collision"] if c["material"] == "twig"]
     assert len(bark) == p["stems"] * skeleton.SEGMENTS and all(c["shape"] == "capsule" for c in bark)
     assert all(0.005 <= c["radius"] <= p["stem_d_mm"] / 2000 and c["height"] >= 2 * c["radius"] for c in bark)
-    assert 1 <= len(pieces) <= shell.MAX_PIECES and len(data["collision"]) == len(bark) + len(pieces)
+    assert len(pieces) == COMMITTED_PIECES[name] and len(data["collision"]) == len(bark) + len(pieces)
     assert all(c["shape"] in ("sphere", "capsule") for c in pieces)
     assert data["gaps"] == [] and not any(c["landable"] for c in data["collision"])
     assert data["materials"] == [{"slot": "stem", "visual": "bark_shrub", "physics": "bark"},
@@ -152,6 +155,17 @@ def test_twig_records_follow_the_tubes(variant):
         assert record["kind"] == ("edge" if any(math.dist(p1, tube[0]) < 1e-6 for tube in tubes) else "hook")
         assert record["material"] == "twig"  # p1-v01-locust PR4: the twig slot's physics, inside a piece or not
     assert {r["kind"] for r in data["snag"][stems:]} == {"edge", "hook"}
+
+
+def test_the_committed_shells_come_back_at_the_first_step(variant, repo_root):
+    """p1-v01-locust PR1 and PR2: the cap by steps passes the summer shells at 24, so the collision equals the
+    committed metadata's, piece for piece; and rule (d) counts every piece of a clump in one 2 m cube."""
+    name, p, built, data = variant
+    path = repo_root / "unity" / "Assets" / "_Project" / "Art" / "Models" / "vegetation" / "V13" / f"{name}.assetmeta.json"
+    committed = json.loads(path.read_text(encoding="utf-8"))
+    assert data["collision"] == committed["collision"]
+    pieces = [audit._Shape(c) for c in data["collision"] if c["material"] == "twig"]
+    assert audit.neighbourhood([piece.box() for piece in pieces])[0] == len(pieces) == COMMITTED_PIECES[name]
 
 
 def test_wind_box_spans_the_leafy_mass_from_its_lowest_leaf_or_twig(variant):
@@ -285,7 +299,7 @@ def test_seed_determines_the_clump(repo_root, monkeypatch):
     again = shrub.build(p)
     assert again["lods"][0].vertices == built["lods"][0].vertices
     assert meta.assemble("V13", name, "shrub", p, again, VISUALS) == data  # the shell and records too
-    monkeypatch.setattr(shell, "fit", lambda *args: [])  # the clump's geometry is all this compares
+    monkeypatch.setattr(shell, "fit", lambda *args: ([], 24, True))  # the clump's geometry is all this compares
     assert shrub.build(dict(p, seed=p["seed"] + 1))["lods"][0].vertices != built["lods"][0].vertices
 
 
@@ -307,7 +321,8 @@ def test_low_variant_passes_the_collision_audit(repo_root):
     """The low variant's shell holds both ways: each piece within 0.1 m of a leaf or twig face, every twig vertex
     within 0.1 m of the pieces and every leaf vertex within 0.3 m (the build audits every variant)."""
     _, p, built, data = build(repo_root, "V13_low")
-    problems, lines = audit.run(data, built["lods"][0], catalog.card_visuals(repo_root))
+    assert built["card_reach_m"] == p["card_m"] == 0.2 and audit.card_allowance(built["card_reach_m"]) == 0.3
+    problems, lines = audit.run(data, built["lods"][0], catalog.card_visuals(repo_root), built["card_reach_m"])
     assert problems == []
     pieces = [c for c in data["collision"] if c["material"] == "twig"]
     shell_lines = [line for line in lines if "twig shell" in line]
@@ -326,7 +341,7 @@ def test_the_first_bounding_sphere_fails_its_standoff(repo_root):
     name, p, built, data = build(repo_root, "V13_mid")
     data = copy.deepcopy(data)
     data["collision"] = [c for c in data["collision"] if c["material"] == "bark"] + [FIRST_SPHERE]
-    problems, _ = audit.run(data, built["lods"][0], catalog.card_visuals(repo_root))
+    problems, _ = audit.run(data, built["lods"][0], catalog.card_visuals(repo_root), built["card_reach_m"])
     assert len(problems) == 1 and problems[0].startswith("collision[42] sphere (twig shell): largest standoff ")
     assert problems[0].endswith(" exceeds the tolerance 100 mm")
     assert 700 < float(problems[0].split("largest standoff ")[1].split(" mm")[0]) < 800

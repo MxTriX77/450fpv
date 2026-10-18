@@ -1,10 +1,14 @@
 """lib.shell (p1-v13-shrub, review-physics PR1): the distance transform against brute force, no faces no pieces, and
 two leaf masses with a twig, one of them on the ground, fitted with pieces that pass the audit's shell rule both
-ways. The V13 variants' shells are tested through the generator in test_shrub.py."""
+ways. The cap by steps (p1-v01-locust review-physics PR1): a mass that 24 pieces cannot hold escalates to the first
+cap that passes, and no fit returns more than 64. The V13 variants' shells, reproduced at 6 / 15 / 24 pieces, are
+tested through the generator in test_shrub.py."""
 import random
 
 from lib import audit, meta, shell, skeleton
 from lib.geometry import Mesh
+
+SPRIG_ALLOWANCE = audit.card_allowance(0.2)
 
 
 def test_the_distance_transform_matches_brute_force():
@@ -32,7 +36,7 @@ def leaf_slab(mesh, x0, x1, y0, y1, half_z):
 def test_no_faces_of_the_slots_no_pieces():
     mesh = Mesh()
     leaf_slab(mesh, 0.0, 0.4, 1.0, 1.4, 0.2)
-    assert shell.fit(mesh, ("twig",), ("bloom",)) == []
+    assert shell.fit(mesh, ("twig",), ("bloom",), SPRIG_ALLOWANCE) == ([], 24, True)
 
 
 def test_leaf_masses_round_a_twig_are_fitted_with_pieces_that_pass_the_shell_rule():
@@ -40,12 +44,37 @@ def test_leaf_masses_round_a_twig_are_fitted_with_pieces_that_pass_the_shell_rul
     leaf_slab(mesh, -0.6, 0.6, 1.0, 1.6, 0.3)
     leaf_slab(mesh, -0.3, 0.3, 0.0, 0.4, 0.3)  # on the ground: what stands under it is not measured
     skeleton._tube(mesh, [((-0.5, 1.3, 0.0), 0.003), ((0.5, 1.3, 0.1), 0.002)], 3, "twig", cap=False)
-    pieces = shell.fit(mesh, ("twig",), ("leaf",))
-    assert 2 <= len(pieces) <= shell.MAX_PIECES and all(r >= shell.MIN_RADIUS_M for _, _, r in pieces)
+    pieces, cap, passes = shell.fit(mesh, ("twig",), ("leaf",), SPRIG_ALLOWANCE)
+    assert (cap, passes) == (24, True)
+    assert 2 <= len(pieces) <= 24 and all(r >= shell.MIN_RADIUS_M for _, _, r in pieces)
     assert min(min(a[1], b[1]) - r for a, b, r in pieces) < 0  # the piece on the ground runs under it
     data = {"materials": [{"slot": "twig", "visual": "bark_shrub", "physics": "twig"},
                           {"slot": "leaf", "visual": "leaf_shrub", "physics": "twig"}],
             "collision": [meta.capsule(a, b, r, "twig") for a, b, r in pieces], "gaps": []}
-    problems, lines = audit.run(data, mesh, {"leaf_shrub"})
+    problems, lines = audit.run(data, mesh, {"leaf_shrub"}, 0.2)
     assert problems == []
     assert lines[0].startswith(f"audit twig shell: {len(pieces)} pieces (")
+
+
+def scattered_twigs(count, spacing=0.8):
+    """`count` short twigs in a row `spacing` apart: no piece within the mass reaches two of them, so each takes
+    one of its own."""
+    mesh = Mesh()
+    for n in range(count):
+        x = n * spacing
+        skeleton._tube(mesh, [((x, 1.0, 0.0), 0.003), ((x + 0.2, 1.05, 0.0), 0.002)], 3, "twig", cap=False)
+    return mesh
+
+
+def test_a_mass_that_24_pieces_do_not_hold_escalates_to_the_first_cap_that_passes():
+    mesh = scattered_twigs(30)
+    pieces, cap, passes = shell.fit(mesh, ("twig",), (), SPRIG_ALLOWANCE)
+    assert (cap, passes) == (32, True) and 24 < len(pieces) <= 32
+    data = {"materials": [{"slot": "twig", "visual": "bark_shrub", "physics": "twig"}],
+            "collision": [meta.capsule(a, b, r, "twig") for a, b, r in pieces], "gaps": []}
+    assert audit.run(data, mesh, (), None)[0] == []
+
+
+def test_no_fit_returns_more_than_64_pieces():
+    pieces, cap, passes = shell.fit(scattered_twigs(66), ("twig",), (), SPRIG_ALLOWANCE)
+    assert (cap, passes) == (64, False) and len(pieces) <= 64 == shell.MAX_PIECES
