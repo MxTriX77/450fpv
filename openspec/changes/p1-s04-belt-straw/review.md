@@ -662,3 +662,214 @@ The other numbers asserted by 1.8's tests are literals or known-wrong models: PR
 2.1 stays open: the pass on the merge with `unity/main` (handover §4) is still to come.
 
 Verdict: CHANGES REQUESTED
+
+## Pass on the merge and R7–R8
+
+**Reviewer:** qa-engineer (a fresh agent; none of the work is its own, D-034) · **Tip:** `27cb80a` · **Range:** `5deffd1..27cb80a` (the merge `773395e` of `origin/unity/main` at `222b079`, task 1.9's V13 rebuild, the orchestrator's union wording, task 1.10's four commits and its record)
+**Read:** `CLAUDE.md`, `AGENTS.md`, `tasks.md`, `design.md` (decision 15 with its task 1.10 bullet, §10), every earlier pass above, `review-physics.md`, the three spec deltas; the merge's resolution of all 11 conflicted files (`git show --remerge-diff 773395e`) and `git diff origin/unity/main...HEAD`; the full diff of task 1.10; §S04 of the object sheet as `unity/main` now has it (`cf3ae03`, after the reference analyst's numbers landed during this pass).
+
+Run by QA in its own worktree: `git lfs checkout` first (all 37 LFS files real), no `unity/Library/` before the first Unity run, Unity Hub running, no editor on the project, every Unity call piped. Unity 6000.3.26f1, Blender 5.2.2 LTS, Python 3.14.6. The mutations ran in a scratch mirror of `tools/`, `assets-src/` and the belt_straw maps and sets (the builds were running in the worktree at the time), each restored by copying the committed file back and checked with `cmp`. QA's side-by-side lives in the git-ignored `reference/_compare/` and is not committed. No performance claim is made.
+
+### Checks
+
+```
+$ git fetch origin; git switch unity/art/p1-s04-belt-straw (27cb80a); git lfs checkout   -> 37/37 LFS objects
+$ pwsh tools/build_asset.ps1 S04                         (first run: exit 0, 584 s, cold Library)
+S04_patch: audit: skipped micro mesh S04_patch_LOD0_straw (20329 straw)
+S04_patch: audit: soft tops collision[0] surface:belt_straw, collision[1..195] straw, collision[196..198] surface:crater_spoil are landed on over their whole top, held to 50 mm there
+S04_patch: audit collision[0] box: box->mesh 32.334 mm at (-1.5625, -0.125, -2.875), tolerance 50 mm
+S04_patch: audit collision[1..195] box: box->mesh 0.000 .. 39.564 mm (largest collision[1] at (-5.9594, 0, 2.7539)), tolerance 50 mm   [195 lines, condensed by QA]
+S04_patch: audit collision[196] sphere: sphere->mesh 15.876 mm at (4.1127, 0.0001, 0.0746), tolerance 50 mm
+S04_patch: audit collision[197] sphere: sphere->mesh 23.369 mm at (5.0988, 0.0001, 1.4007), tolerance 50 mm
+S04_patch: audit collision[198] sphere: sphere->mesh 17.652 mm at (2.2931, 0.0001, -2.3318), tolerance 50 mm
+S04_patch: audit mesh: mesh->collision 40.000 mm at (-6, 0.04, 2.75) nearest collision[1], tolerance 50 mm
+S04_patch: ...S04_patch.fbx  size [12.0, 1.636, 12.0] m  tris 25029 / 25029 / 26  micro S04_patch_LOD0_straw 20329 straw 405792 tris  199 collision shapes  fbx 15.8 MB  metadata written
+build_asset: [2/4] ... bark_shrub_mask, belt_soil_mask, belt_straw_albedo, brick_red_mask, leaf_shrub_mask, leaf_shrub_base, straw_albedo: up to date; derive.py: OK
+[CatalogImporter] S04_patch: ...S04_patch.prefab, 3 LODs, S04_patch_LOD0_straw (20329 straw, LOD0) micro, 199 colliders, materials ground -> belt_straw, soil -> belt_soil, straw -> straw, edge -> belt_straw, LOD heights 1.0000 / 0.1333 / 0.0200 (size 9.237604 m, fov 60 deg)
+[Review] surface pilot pose: camera (0.000, 1.925, 0.000), 1.500 m above the patch centre (0.000, 0.425, 0.000), forward (0.8192, -0.5736, 0.0000), 35.00° down towards +X; bar base (2.500, 0.425, 0.000), 2.50 m ahead, in frame True
+[Review] warm-up: one discarded render of S04_patch before its first tile
+[Review] S04_patch day: review-sheets/S04/S04_patch_day.png (4096x4096, 6.5 MB); overcast 6.2 MB
+$ git status --short                                     -> (clean)
+$ pwsh tools/build_asset.ps1 S04                         (second run: exit 0, 408 s; every audit line identical)
+$ git status --short                                     -> (clean)
+  sha256 after both runs: S04_patch.fbx f4a9bf1c… (the short pass's: the merge and task 1.10 left the mesh alone),
+  .assetmeta.json 0fd72d49…, prefab 5aca7a9f…, day sheet 08bb321e…, overcast sheet 1c19e00c… (identical between runs)
+  LOD0 25 029 + 405 792 = 430 821 triangles (< 450 k); 199 shapes, the largest 39.564 mm, the mesh 40.000 mm (< 50 mm)
+$ pwsh tools/build_asset.ps1 V13                         (exit 0, 416 s)
+V13_low:  ... tris 5850 / 2202 / 6  48 collision shapes;  twig shell 6 pieces; leaf 268.672 mm (allowance 300), twig 94.867 mm (tolerance 100)
+V13_mid:  ... tris 8380 / 3558 / 6  57 collision shapes;  twig shell 15 pieces; leaf 275.507 mm, twig 97.836 mm
+V13_tall: ... tris 10520 / 4292 / 6  66 collision shapes; twig shell 24 pieces; leaf 282.587 mm, twig 99.679 mm
+[CatalogImporter] V13_low/mid/tall: 3 LODs, 48/57/66 colliders, materials stem -> bark_shrub, twig -> bark_shrub, leaf -> leaf_shrub, sizes 1.543895 / 2.093294 / 3.003954 m
+$ git status --short                                     -> (clean: V13's FBX, metadata, prefabs and both .mat files as committed)
+$ pwsh tools/build_asset.ps1 K01                         (exit 0, 106 s)
+K01_whole: audit collision[0] box: box->mesh 3.288 mm ...; audit mesh: mesh->collision 1.869 mm ...   (the numbers of every earlier pass)
+$ git status --short                                     -> (clean)
+$ & $env:UNITY -batchmode -nographics -projectPath unity -runTests -testPlatform EditMode -testResults Logs/editmode.xml -logFile - | Out-Host
+  exit 0; result=Passed total=29 passed=29 failed=0 skipped=0 (the 25 of the earlier passes and V13's 4 AlphaClippedMaterialTests)
+$ git status --short                                     -> (clean)
+$ python -m pytest tools -q -p no:cacheprovider -rf      -> 691 passed in 1617.64s (0:26:57)
+$ python -m pytest -v tools/hygiene/tests/test_precommit.py -k existing_tree
+  test_existing_tree_is_clean[HEAD] PASSED
+  test_existing_tree_is_clean[origin/unity/main merged with HEAD] PASSED     (origin/unity/main at cf3ae03)
+$ git merge-tree --write-tree --name-only origin/unity/main HEAD          -> 52d99f6c…, exit 0 (merges cleanly)
+$ python tools/assets/fetch.py --verify                  -> OK, exit 0
+$ python tools/assets/derive.py --all                    -> all seven "up to date"; derive.py: OK, exit 0
+$ python tools/hygiene/precommit.py --tree HEAD          -> 589 files scanned, 0 findings, exit 0
+$ openspec validate p1-s04-belt-straw --strict           -> Change 'p1-s04-belt-straw' is valid, exit 0
+$ QA's scratch root (copies of assets-src, the manifest and the two pinned sets), derive.py belt_straw from scratch
+  -> albedo, normal, mask, detail albedo and the stamp byte-identical to the committed files
+```
+
+### 1. The merge (task 1.9)
+
+The remerge diff touches the 11 conflicted files and three that merged cleanly but called `audit.run` positionally (`test_ground_patch.py`, `test_shell.py`, `test_shrub.py`). Both lanes' rules are intact:
+
+| Rule | Where after the merge | Evidence |
+|---|---|---|
+| S04's union, seams, the 2 µm sliver | `audit.run`: a body primitive is not measured where it lies in another body primitive (`_covered`, `_cell_covered`, `SEAM_CELL_M`, `COVERED_M`) | S04's audit figures equal the short pass's (the soil box 32.334, the largest mat box 39.564, the spheres 15.876 / 23.369 / 17.652, the mesh 40.000 mm); `test_primitives_form_a_union…`, `test_a_seam…` pass |
+| S04's soft tops | `run(meta, lod0, *, soft, card_visuals)`; `_zone(meta, shapes, soft)` | the soft-tops line above; mutation M-d below |
+| S04's micro skip | `meta["micro"]` lines first | the first audit line above |
+| S04's ground and palette kinds, `texturecan` | `derive.py` dispatches `ground` and `palette` before the tiled recipes; `fetch.py` keeps `texturecan` in `SOURCES` and skips the maps a source does not name (`pin_archive`) | from-scratch derivation byte-identical; mutation M-e below |
+| V13's shell rules (a)–(c), `FaceIndex` | `_audit_shells` and `FaceIndex` as on `unity/main`; shell slots' faces and shell pieces are out of the body audit | V13's audit lines (below); `test_audit.py`'s shell cases and `test_shrub.py` pass |
+| V13's alpha clip, two-sided, Leaf shader, the opacity map | `EnsureMaterial` keeps all three branches; a clipped recipe whose set ships an opacity map takes the derived `_base` map; the detail layer is set only where the shader has it (`HasProperty("_DetailAlbedoMap")`: the Leaf shader has none); `ApplyTexture` types `_opacity` single-channel and `_base` sRGB | V13's two `.mat` files and three prefabs come back byte-identical from the importer; `AlphaClippedMaterialTests` pass |
+| `ModelPostprocessor` version 4 | `GetVersion() => 4` (both parents had 3) | `ModelPostprocessor.cs:114` |
+| keyword-only `audit.run` | `build.py:46` and all 33 test call sites pass `soft=` / `card_visuals=` by name | `grep "audit\.run("` |
+| only rigid primitives hide | `others = [shapes[j] for j in body if j != i]` (`audit.py:121`); mesh->collision over `body` | read; **no test can fail on it** (mutation M-c, R9) |
+
+**V13 and K01 against `unity/main`.** `git diff origin/unity/main HEAD` over their outputs: `"micro": []` in the four metadata files and the four prefabs, and the three V13 LOD groups' `m_Size` and `m_LocalReferencePoint`, which move by at most 0.3 µm (V13_mid's size 2.0932937 → 2.093294). The cause is as stated: `unity/main`'s importer set size and reference point and then called `SetLODs`, which recomputes both from the renderers' bounds; S04's importer (task 1.2, design 9) sets them from the metadata after `SetLODs`. The transition heights are computed from the metadata's size either way (they are unchanged: 0.1783 / 0.0143 / 0.0024 for V13_low), so the LOD switch distances do not move; the stored size now equals the size the heights were computed with. **Acceptable, not a hidden behaviour change.** The FBX files are the same blobs.
+
+**What the merge does change, and nobody recorded: V13_low's audit lines.** QA ran V13's three variants through `unity/main`'s `audit.py` and through the merged one on the same generator output (plain Python, QA's scratch script):
+```
+V13_low:  main 52 lines, branch 52 lines, 0 problems both; 14 lines differ:
+          collision[1, 4, 7, …, 40] capsule->mesh 6.602–6.640 mm on main, 4.637–5.437 mm merged (the stems' joints)
+V13_mid:  61 lines, identical          V13_tall: 70 lines, identical
+```
+V13_low's stem chain overlaps at its joints, and the union no longer measures the part of one stem capsule buried in the next. That is the union rule the delta states, it only ever lowers a primitive->mesh number, and the outputs are untouched; the physics reading the delta cites (`p1-v01-locust` review-physics §A.2) rules it physically right. Accepted; recorded here (suggestion 2).
+
+**Code quality (D-034).** The resolution is surgical: main's faster `_face_distance` and lazy `_Shape` tessellation kept, S04's `_FaceIndex` kept beside V13's `FaceIndex` (two face indexes with different cell rules now live in one module: suggestion 3), `_up_to_date` and `_inputs_sha256` unified so V13's mask and base stamps hash the same inputs as before (all "up to date" without a rewrite). The one rule the merge itself had to invent, which primitives may hide which, is right and untested (R9).
+
+### 2. R7 and R8 (task 1.10)
+
+**R7 closed.** `lip_layer` is now the outlines blurred and doubled, times the inverse of the outlines: no bridges, nothing on a floor (`derive.py:519-526`).
+
+| Zone (every 4th pixel of the committed albedo, linear luminance) | The test's zones (its print) | QA's own zones |
+|---|---|---|
+| floors (inside the outlines) | 0.1044 over 11.6 m² | 0.1044 |
+| bridges | 0.1703 over 4.0 m² (the hull of two cores, off the outlines) | 0.1670 over 7.8 m² (the hull of two **outlines**, off them, lip included); **0.1759** over 2.1 m² where it lies more than 0.4 m from both outlines |
+| lip ring (0–0.4 m out, off the bridges) | 0.1666 over 22.7 m² | 0.1675 over 19.9 m² |
+| mat (beyond 0.6 m) | 0.1689 over 89.5 m² | 0.1689 over 89.3 m² |
+
+The bridges read +0.8 % (the test's zone), −1.1 % and +4.2 % (QA's) of the mat, inside R7's 10 %; the stamp's `lip_soil_share` is 0.0121, the ring alone. In the 10 m day tile the dark smears between the floors of a path are gone; the mat between two floors reads as the mat.
+
+**R8 closed.** The test reads `FLOOR_STRAWS` before the first derivation patches it, asserts it is design 15's 0.2, derives at 0.2 and at 0, and asserts the covered share within 2 points of the literal 0.2: 19.7 % on the test's cover (its print). On belt_straw's own cover QA derived twice in its scratch root: floors' soil 0.8216 at `FLOOR_STRAWS` 0 and 0.6595 at 0.2, so the straws cover **19.73 %** of it. `PATH_GAP_M`'s literal (0.3, 1.5) is asserted and each bridge is checked against 0.3–1.5 m.
+
+**`floor_straws()`** (`derive.py:575-592`): deterministic (a pure function of the bare mask and the straw field, whose noise comes from the recipe's seeded stream; the from-scratch derivation is byte-identical), hashed (`LEVEL_STEPS` in `GROUND_CONSTANTS`, `FLOOR_STRAWS` already there, the formula text "ground v6" names the bisection; `test_a_changed_formula_constant_re_derives` covers `LEVEL_STEPS` 8), and sound: the soil left, coverage(bare × clamp(2m − c)), never falls as m rises, so bisection on it converges; `hi` is kept on the side that leaves at least (1 − `FLOOR_STRAWS`) of the soil, so the share approaches 0.2 from below (19.7 %, the residue being the 8-bit steps of clamp(2m − c), far coarser than 255 / 2¹⁶), and at `FLOOR_STRAWS` 0 it returns no straws. Design 15's figures match the committed output: bridges 0.170 / mat 0.169, ring 0.167, floors 0.104, floor against mat 0.62, 19.7 % on both covers, `lip_soil_share` 0.0121, and the gathering 1.03 m against 1.24 m, 79 % against 51 % (F15 closed: `test_paths_gather_the_patches` prints exactly that).
+
+**The rest of task 1.10:** `bare.share` is (0, 0.12) in `PARAMS` and `check` refuses 0.14 at once (`test_check_refuses_naming_the_rule`); the `litter` column is gone (the recipe and its stamp name five columns; QA read `straw_albedo.png` at 128 × 64: columns 1–5 the three straw shades, the twig and the blade, 6–8 repeat the blade; the FBX is unchanged, so the kit's UVs are).
+
+**The mutations, re-run by QA** (each in the scratch mirror, the belt_straw stamp removed so the albedo re-derives, then restored):
+
+| # | Mutation | Tests | Result |
+|---|---|---|---|
+| R7-a | the bridges back in the lip (task 1.8's `lip_layer` and `bridge`) | bridges / lip / floor straws | **all three fail**: bridges 0.0943 against the mat's 0.1736 (`0.457 <= 0.1`); "a lip on a floor or 0.54 m out"; floors' straws 11.4 % (`0.086 <= 0.02`) |
+| R7-b | the old uncut lip, without the bridges (the lip not cut out of the outlines) | the same | lip test **fails** ("a lip on a floor", 255 at an outline's inside); floor-straw test **fails** (11.5 %); the bridges test passes, as it should (the bridges are not in this lip) |
+| M2 | the floors' strewn straws dropped (`bare = ImageChops.multiply(bare, scatter)` removed) | `test_straws_lie_strewn_over_the_floors` | **fails** at 0.0 % (`0.2 <= 0.02`) |
+| M-a | `floor_straws()` with one bisection step instead of `LEVEL_STEPS` | the same | **fails** at 0.0 % |
+| R8-d | `PATH_GAP_M` (0.3, 1.5) → (0.4, 1.5) | `test_patches_lie_along_paths` | **fails** on the literal (`(0.4, 1.5) == (0.3, 1.5)`) |
+
+### 3. The look (REAL-03)
+
+QA read both review sheets at full size (every tile), cropped the 1.5 m, 10 m, 50 m, turntable and overlay tiles, and built its own side-by-side in `reference/_compare/`: those tiles beside H 9, 10, 11, 12, 13, 14 and G 1, 5, 8, 12, cut from the H and G contact sheets.
+
+| Tile | What QA sees | Against H 9–14 and G 1–12 |
+|---|---|---|
+| 1.5 m overcast | a dense tangle of thin pale straws, stems with seed heads leaning out of tussocks, a near floor as dark soil under strewn straws a step down, blades over a green strip on the right, two mounds beyond | H 12 and H 14 in kind (soil under strewn straws, a ragged lip); the mat paler and flatter than H's gold heaps |
+| 1.5 m day | the near floor a soil hollow whose far wall is a crisp shadowed edge; the two mounds dark smooth domes, like stones | H's floors have no wall: the mat slopes onto them; H's mounds are earth |
+| 10 m overcast | separate oval dark hollows with ragged rims in loose rows, the mat between them; tussock relief with darker hollows; olive strips | H 10, 11, 14 show one continuous trodden strip; G 1–12 show no bare soil at all in the mat |
+| 10 m day, turntables | crisp oval pits, each wall lit or shadowed and topped by an even comb of lip tufts (F16's palisade, unchanged); no smear between the pits any more | as the short pass found, minus R7's smears |
+| overlay | the edge boxes ring every floor; the bridges lie under full-depth `straw` boxes | as built |
+
+**Is the G1 stand-in list honest and complete?** Not yet. §10 item 7 says that under overcast "the patches read as trodden soil strips through the mat (H 10, H 11, H 14), not pits": since R7 took the soil off the bridges, they read as separate oval hollows in rows, which is what design 15 itself accepts and what the pilot should be told. Missing from §10: the mounds' look (F10: dark smooth domes at 1.5 m, dark bumps at 10 m; §10 item 11 mentions only their tint), the lip's palisade in sun (F16), and the 8 m LOD switch that drops every straw at once (in the design's Risks only). And `unity/main`'s §S04 moved during this pass (`cf3ae03`, ruling 14d's re-measurement): the heaps under H 12–17 are ground relief 0.2–0.8 m high, not mat (the world-builder's, phase 3, not "the reference analyst's and the physics engineer's call" of §10 item 4); the lying straws through the mat's depth are 500–1000 per m² (S04 lays 340 in two layers: §10 item 5's "a sheet row for it" now exists); and H's bare floors are dry trodden soil #59544c (#555049–#5d584f), so S04's #4a463f is now the sheet's moist soil, darker than H's floors, with the sheet's own open point moving it after G1. R10.
+
+**The G1 stand-in list as it should be shown to the pilot** (look only; each with where it is fixed):
+
+1. **Colour and contrast through the goggles.** The patch is shown without the analog feed: H's straw reads gold and G's orange-gold over near-black gaps only through it. Fixed by the feed and the look-lock (tech-artist).
+2. **The viewpoint.** The station looks 35° down from 1.5 m; H was flown 0.3–0.5 m up looking forward, so the mat's edge-on tangle and its density do not compare like for like. A low forward view is the tech-artist's (suggestion 1 of the first pass).
+3. **Low sun.** G's low warm sun and the long shadows of its tussocks are not one of the review lights (45° sun, overcast). The look-lock's light presets.
+4. **Heaps and the bank.** H 12–17's mat lies over heaped ground 0.2–0.8 m high rising into a bank along the belt; the patch is flat (±4 cm tussocks and three small mounds). Ground relief: the world-builder's, phase 3.
+5. **Straw density.** About 340 lying straws per m² in two layers, within 4 m of the centre (the triangle budget); the sheet derives 500–1000 per m² through the mat's depth, so more soil and dark litter shows between the straws than in H. The micro-detail generator's near ring (AST-10).
+6. **Straw form.** Thin separate tubes bent at four points, one pixel wide and aliased in the review render; H's near straws are thicker, bundled and curved. AST-10's kit pass.
+7. **Where the near straws stop.** Beyond 4 m from the centre the mat is texture only (most of the 1.5 m view's upper half), and the whole patch drops its straws at once 8 m from its centre. AST-10's near ring and its fade.
+8. **Bare patches.** Separate oval soil floors one mat depth (12.5 cm) down, in loose rows along paths with full mat between them; H shows continuous trodden strips with heaped mat edges sloping onto the soil, and G shows no bare soil at all at 10–13 m. Under the 45° sun every floor reads as a pit: a lit or shadowed vertical wall topped by an even comb of straw tufts. Sloped or overhanging edges and merged strips need another collision layout: the physics engineer's, after G1.
+9. **Floor colour.** The floors' soil is moist dark soil (#4a463f); H's trodden floors measure lighter (#59544c, the sheet), so a floor with its strewn straws reads 0.62 of the mat where H's read 0.65–0.78. The asset-artist moves it after G1 if the side-by-side asks (the sheet's open point).
+10. **Mounds.** The three small earth mounds read as dark smooth domes, like stones, at 1.5 m and as dark bumps at 10 m. The asset-artist, with the look-lock.
+11. **Green regrowth.** Blades only within the 4 m bake, an olive tint beyond; H 19–21 show a dense green carpet. AST-10's far layer.
+12. **Sheen.** The mat looks slightly glossy under overcast. One smoothness scale in the ground recipe, judged through the feed at the look-lock.
+13. **The patch's edge.** A 12 m square; past it is the gallery's floor, which is not a judged surface.
+
+### 4. Whole tree and hygiene
+
+- Every command above exits 0; the Python suite collects both `tools/assets` and `tools/blender` only as `pytest tools` (F5, pre-existing: `conftest` clash when the two folders are named together, seen again by QA in the mirror).
+- **`unity/main` moved twice during this pass** (`2c15810`, then `cf3ae03`: the hygiene stem-scale test and the reference analyst's S04 numbers); HEAD still merges cleanly (`git merge-tree` exit 0, the hygiene target green). The new §S04 rows are the R10 above.
+- **Commits since the short pass** (`git log --format='%h %an <%ae> | %cn <%ce> [%s] body=[%b]' 5deffd1..HEAD`, the branch's own): `13b3589`, `ba77d2a` Orchestrator; `773395e` (merge), `6dff981`, `64010d3`, `6c25d0a`, `ffbf996`, `c13aca1`, `e8cdad7`, `27cb80a` Asset Artist; author = committer, every body empty, no trailer; subjects 49–69 characters in `type(scope): lower-case summary`; the merge subject is git's own, which the hook exempts (`MERGE_SUBJECT`).
+- Nothing ignored is tracked (589 files: no path under `reference/`, `review-sheets/` or `unity/{Library,Temp,Logs,UserSettings}/`, no video); every file the branch adds under `unity/Assets/` has its `.meta`; LFS 37/37 real; `--verify` OK (no new third-party file); OPSEC scan 0 findings; the change's text cites letters and still numbers only.
+
+### 5. TST-06: two more of the change's checks by mutation
+
+| # | Mutation | Tests run | Result |
+|---|---|---|---|
+| M-c | the union lets a shell piece hide a rigid primitive (`others` over every primitive, `audit.py:121`) | `test_audit.py`, `test_shell.py`, `test_shrub.py`, `test_ground_patch.py` (109 tests) | **all pass: no check can fail on the delta's "a crown shell piece hides nothing" (R9)**. `p1-v01-locust`'s branch has no such test either (its `test_a_chain_of_capsules…` covers buried caps, not shells) |
+| M-d | a soft top widens the 2 cm zone again (`_zone` ignores `soft`) | `test_audit.py` | **4 fail**: `test_primitives_form_a_union…`, `test_a_hard_top_keeps_2cm…[straw]`, `[surface:belt_straw]`, `test_a_seam…` |
+| M-e | `fetch.pin_archive` no longer skips a map its source does not name (the merge's line for V13's `opacity` under TextureCan) | `test_fetch.py` | **fails**: `test_add_texturecan_reads_the_page_and_pins_the_zip` |
+| M-f | `derive_base`'s stamp hashes the formula only, not its sources | `test_derive.py` | all pass; the same gap is on `unity/main` (V13's base map has no "a changed source regenerates" test), so it is not this change's (suggestion 4) |
+
+### Spec scenarios (the ones the merge and task 1.10 touch; the rest are as the earlier passes found them, with the same code)
+
+| Scenario | Result | Evidence |
+|---|---|---|
+| S04 · Built from params by one command | **PASS** | two runs, exit 0, `git status` clean after each, every output and both sheets byte-identical |
+| S04 · Straws read as geometry at the pilot's height (as narrowed) | **PASS** | 20 329 instances as meshes in both 1.5 m tiles; the stand-ins are listed above (R10 for §10's own list) |
+| S04 · No visible tiling at 10 m | **PASS** | by eye on the 10 m and 50 m tiles; `cover_field` untouched since the re-review's statistic |
+| S04 · Collision follows the mat | **PASS** | 199 shapes ≤ 39.564 mm, the mesh 40.000 mm, the micro mesh named |
+| S04 · Bare patches are ground, not stains | **PASS** | floors as before; the bridges now read as the mat (R7 above) over the full-depth `straw` boxes |
+| S04 · Colour inside the sheet's range | **PASS as written** | mean +0.0 %; soil #4a463f inside the delta's 10YR 2/1–3/1; but `unity/main`'s §S04 now puts H's floors at #59544c (R10) |
+| pipeline · Ground recipe derived and wired; A formula constant changes; Mean albedo hits the target | **PASS** | from-scratch derivation byte-identical; `LEVEL_STEPS` among the re-derive cases; bare 8.07 %, green 16.12 % (±2 pp) |
+| pipeline · Straw palette | **PASS** | five gradients padded to eight (read above) |
+| pipeline · Micro meshes skipped / carry no collision | **PASS** | the audit's first line; EditMode 29/29 |
+| pipeline · Mound spheres sunk in the mat box; A hard top keeps 2 cm | **PASS** | S04's lines above; M-d |
+| pipeline · the union requirement's "a crown shell piece hides nothing" | **not tested** (no scenario, no test) | M-c (R9) |
+| review sheet · Pilot-height tile; Other classes unchanged | **PASS** | the pose line; K01's build leaves the tree clean, `ReviewCapture.cs` unchanged since the re-review |
+
+### Requirements (changed since the short pass)
+
+| ID | Status | Why |
+|---|---|---|
+| AST-05 | met | 199 shapes within 50 mm; V13's shells and S04's union both hold after the merge |
+| AST-08 | met for the task's budget | LOD0 430 821 < 450 k; 2K maps; 3 LODs; FBX 15.8 MB |
+| REAL-03 | partly met | the side-by-side was read; §10's stand-in list is not yet the honest, complete one above (R10) |
+| REAL-05 | met | R7 closed: no soil on the map over a full-depth mat beyond the lip ring |
+| TST-06 | partly met | R8 closed and every R7/R8 mutation fails its test; the merge's own hiding rule has no test (R9) |
+
+### Findings
+
+- **F13, F14 closed** (R7, R8); **F15 closed** (design 15's gathering figures are the test's).
+- **F17 (record).** The merge lowers V13_low's 14 stem-capsule audit lines from about 6.6 mm to 4.6–5.4 mm (the union over its stem joints); outputs unchanged; nowhere recorded.
+- **F18 (R9).** "A crown shell piece hides nothing" has no test: mutation M-c survives 109 tests.
+- **F19 (R10).** §10's list over-states item 7, omits F10, F16 and the LOD switch, and predates `unity/main`'s new §S04 rows (heaps as ground, 500–1000 straws per m² through the depth, the floors' dry soil #59544c).
+- **F20 (citation).** The delta cites `p1-v01-locust` review-physics §A.2, which exists only on the unmerged `unity/art/p1-v01-locust`.
+- F5 (pre-existing conftest clash), F10 and F16 (look, now in the stand-in list) and F11 (prefab fileID churn, pre-existing) stand; F6 is gone (`unity/main` moved the timing test to a bench).
+
+### Suggestions (non-blocking)
+
+1. (F20) Until V01 merges, cite the rule's reasoning in this change's own words, or name the branch.
+2. (F17) Add a task 1.9 bullet to design 15 or §9: V13's outputs unchanged but `micro: []` and the LOD group's size and reference point from the metadata (≤ 0.3 µm), and V13_low's stem lines lowered by the union.
+3. Two face indexes now live in `lib/audit.py` (`FaceIndex`, fixed 5 cm cells, for the shells; `_FaceIndex`, median-extent buckets, for the body audit); one would do, the asset-artist's when the audit is next touched.
+4. (M-f, V13's) A test that a changed opacity or diffuse source regenerates `<material>_base.png`.
+5. `unity/main`'s §S04 open point on the floors' soil and the stand-ins above should be what the orchestrator reads out at G1; after G1 the floors' soil target moves to #59544c if the pilot's side-by-side asks.
+
+### Required changes
+
+- **R9** (asset-artist; TST-06, the union requirement): add a test to `tools/blender/tests/test_audit.py` in which a rigid primitive (a `bark` capsule) stands inside a `twig` shell piece and more than 5 cm off its own LOD0 faces, and the audit must still report it; show mutation M-c (`others` over every primitive at `audit.py:121`) failing it in the handoff. No asset changes.
+- **R10** (orchestrator; REAL-03, D-028): bring design §10's "Not matched" list to the 13-item G1 stand-in list above: item 7 restated (separate oval floors in rows, pits in sun, not trodden strips), F10's mounds, F16's palisade and the 8 m LOD switch added, items 4, 5 and 8 pointed at `unity/main`'s new §S04 rows and their owners (the heaps to the world-builder, phase 3; the 500–1000 per m² to AST-10; the floors' #59544c after G1 per the sheet's open point); and make the "Colour inside the sheet's range" scenario say that the floors' 10YR 2/1–3/1 is the G1 value against the sheet's measured #59544c. `openspec validate --strict`. A re-check of R9 and R10 needs `pytest tools/blender/tests/test_audit.py`, the mutation, `design.md` and the delta; no build.
+
+Verdict: CHANGES REQUESTED
