@@ -30,6 +30,7 @@
       "switch_distance_m": 3.0
     }
   ],
+  "micro": [],
   "cull_distance_m": 120.0,
   "materials": [
     {
