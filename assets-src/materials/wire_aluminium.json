@@ -1,8 +1,8 @@
 {
   "schema": 1,
+  "kind": "palette",
   "shader": "Universal Render Pipeline/Lit",
-  "texture_set": "polyhaven/metal_plate",
-  "tile_size_m": [0.5, 0.5],
-  "tint": [2.094, 2.509, 3.897, 1.0],
-  "mask": { "metallic": 0.0, "occlusion": "ao", "smoothness": "1 - roughness" }
+  "colours": { "aluminium": "#8e9193" },
+  "tint": [1.0, 1.0, 1.0, 1.0],
+  "smoothness": 0.41
 }

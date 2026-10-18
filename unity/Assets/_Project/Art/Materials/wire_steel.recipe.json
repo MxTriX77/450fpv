@@ -1,0 +1,32 @@
+{
+  "material": "wire_steel",
+  "kind": "palette",
+  "formula": "palette v2: one column PALETTE_BLOCK_PX x PALETTE_HEIGHT_PX per colour, left to right in the recipe's order, its stops spread evenly from the bottom to the top and interpolated in linear light, padded with the last column to a power of two of columns; 8-bit sRGB",
+  "constants": {
+    "PALETTE_BLOCK_PX": 16,
+    "PALETTE_HEIGHT_PX": 64
+  },
+  "recipe": {
+    "schema": 1,
+    "kind": "palette",
+    "shader": "Universal Render Pipeline/Lit",
+    "colours": {
+      "steel": "#5e4a3a"
+    },
+    "tint": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "smoothness": 0.48
+  },
+  "inputs_sha256": "6868490e86a392db76e57cd9b1ed4c2d366a217d97bb377e03fc1d819f20d570",
+  "size": [
+    16,
+    64
+  ],
+  "columns": [
+    "steel"
+  ]
+}
