@@ -143,7 +143,7 @@ Plaster recipe from research: weathered lime whitewash #c4bfb1 over clay render 
 |---|---|---|---|---|---|
 | L01 | Wooden pole | straight; leaning 5–15° with brace | H, J, L | snag, night landmark | P1 |
 | L02 | Concrete pole with crossarm and insulators | straight; leaning | R | snag | P1 |
-| L03 | Wires (generator: catenary between poles, sag) | **thin 5 mm, medium 10 mm, thick 15–20 mm cable** | C, D, J, K | **PR-6 strike physics by diameter**; nearly invisible in the feed | P1 |
+| L03 | Wires (generator: catenary between poles, sag) | **thin 3–6 mm, medium 7–12 mm, thick 13–32 mm cable** (classes from the lines sheet; a bundled insulated main line is 26–32 mm) | C, D, J, K | **PR-6 strike physics by diameter**; nearly invisible in the feed | P1 |
 | L04 | Fallen or sagging wire across a yard | 2 | D | snag | P1 |
 | L05 | Hanging cables (in ruins) | 2 | E, K | snag | P1 |
 | RD01 | Asphalt road kit: straight, curve, junction; potholes, crater decals, cracked edges | kit | M, O | surface | P1 |
