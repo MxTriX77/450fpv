@@ -297,6 +297,7 @@ namespace Fpv450
             public Bounds FrameBounds;  // asset plus scale bar, world
             public LODGroup LodGroup;
             public Vector3 BarBase;     // the bar's place at the off-grid bearing, world
+            public bool WarmedUp;       // the discarded render before this stage's first tile is done
             GameObject bar;
 
             public Vector3 BarTop => bar.transform.position + Vector3.up * BarHeightM;
@@ -588,6 +589,14 @@ namespace Fpv450
 
         static ReviewCanvas Shot(Rig rig, Stage stage, Vector3 position, Vector3 lookAt, string title, string view, ReviewMeta overlay, Matrix4x4? localToWorld)
         {
+            // The first render of a session, and the first render of a stage's materials, can come out wrong (a dark
+            // ground, a pale asset, texture detail off); one discarded render of the same shot before a stage's first tile.
+            if (!stage.WarmedUp)
+            {
+                rig.Shoot(position, lookAt);
+                stage.WarmedUp = true;
+                Debug.Log($"[Review] warm-up: one discarded render of {stage.Root.transform.GetChild(0).name} before its first tile");
+            }
             ReviewCanvas tile = rig.Shoot(position, lookAt);
             bool culled = Culled(stage.LodGroup, rig.Camera);
             if (overlay != null)
