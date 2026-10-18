@@ -267,3 +267,222 @@ f8de5b2 Asset Artist <assets@450fpv.local> [art(surface): pin the belt_straw soi
 - **R5** (orchestrator, REAL-03): add differences 6–10 above to design §10's "Not matched" list, each with where it is fixed (the feed stage, AST-10, the sheet's visual density, a review view) or why it is accepted for G1; and settle the "Straws read as geometry" scenario, whose by-eye clause (density, bare patches, strips match H) the build does not meet: either improve the look until it does, or narrow the clause to what a G1 stand-in can show and name the change that delivers the rest.
 
 Verdict: CHANGES REQUESTED
+
+## Re-review (after 1.5–1.7)
+
+**Reviewer:** qa-engineer · **Branch:** `unity/art/p1-s04-belt-straw` · **Tip:** `347d08d` · **Range since the first pass:** `a930afc..347d08d` (18 commits: the physics reading 1.5, the rework 1.6 and 1.7, the orchestrator's records and rulings)
+**Read:** `review-physics.md` (PR1–PR8, O1–O4, N1–N9), `design.md` (decisions 6, 9–14), `tasks.md`, the three spec deltas as amended, the full diff of `tools/assets/derive.py`, `tools/blender/lib/{patches,mat,straw,audit}.py`, `tools/blender/generators/ground_patch.py`, `tools/blender/build.py`, `assets-src/{surfaces/S04_patch.json,materials/belt_straw.json,materials/straw.json,physics_materials.json}`, `GroundPatchPrefabTests.cs` and every new or changed test; §S04 of `docs/object-sheets/earthworks-and-surfaces.md` from `origin/unity/main`.
+
+Run by QA in its own fresh worktree (no `unity/Library/` before the first Unity run; `git lfs checkout`; all 22 LFS files real). Unity 6000.3.26f1 with Unity Hub running, Blender 5.2.2 LTS, Python 3.14.6 with Pillow 12.3.0, every Unity call piped. QA's scripts lived in its scratchpad and were deleted at the end; nothing was copied out of `reference/`. No performance claim is made (AC power, `BatteryStatus 2`, Balanced; no frame time is quoted). Other agents' pytest and a QA sweep ran on the machine at the same time; every run below ended normally.
+
+### Checks
+
+```
+$ python -m pytest tools -q -p no:cacheprovider
+  1 failed, 623 passed in 817.58s (0:13:37)
+  FAILED tools/hygiene/tests/test_precommit.py::test_200_files_scan_in_under_2_s
+         200 staged files: scan 4.998, 3.913, 1.972 s   (assert max(times) < 2.0)
+$ python -m pytest tools/hygiene/tests/test_precommit.py::test_200_files_scan_in_under_2_s -q -s     (alone, three times)
+  scan 4.995, 2.703, 2.687 s -> failed;  2.519, 2.656, 2.254 s -> failed;  2.531, 2.753, 2.703 s -> failed
+  (another agent's sweep and its own run of this same test were running each time)
+$ git diff --stat HEAD origin/unity/main -- tools/hygiene .githooks      -> (empty: the scanner and its test are unity/main's)
+  -> pre-existing and load-sensitive (F6 of the first pass); not caused by this branch
+$ python tools/assets/fetch.py --verify           -> OK   exit 0
+$ python tools/assets/derive.py --all             -> belt_soil_mask, belt_straw_albedo, brick_red_mask, straw_albedo: up to date; derive.py: OK  exit 0
+$ python tools/hygiene/precommit.py --tree HEAD   -> 497 files scanned, 0 findings   exit 0
+$ openspec validate p1-s04-belt-straw --strict    -> Change 'p1-s04-belt-straw' is valid   exit 0
+
+$ & $env:UNITY -batchmode -nographics -projectPath unity -runTests -testPlatform EditMode -testResults Logs/editmode.xml -logFile - | Out-Host
+  exit 0 (cold Library, 197 s); result=Passed total=25 passed=25 failed=0 skipped=0
+  the first pass's 24, plus GroundPatchPrefabTests.Collision_IsTheSoilThenTheStrawMatThenTheMounds (new: the soil box's top at -0.125,
+  the mat as straw boxes from -D to 0, then the spheres, every rotated box's collider within 0.01 deg of its rotation)
+$ git status --short                              -> (clean)
+
+$ pwsh tools/build_asset.ps1 S04                  (first run: exit 0, 348 s)
+S04_patch: audit: skipped micro mesh S04_patch_LOD0_straw (20737 straw)
+S04_patch: audit: soft tops collision[0] surface:belt_straw, collision[1..150] straw, collision[151..153] surface:crater_spoil are landed on over their whole top, held to 50 mm there
+S04_patch: audit collision[0] box: box->mesh 27.463 mm at (-0.375, -0.125, -1.25), tolerance 50 mm
+S04_patch: audit collision[1..150] box: box->mesh 0.000 .. 39.899 mm (largest collision[2] at (-4.8772, 0, -3.3738)), tolerance 50 mm   [150 lines, condensed]
+S04_patch: audit collision[151] sphere: sphere->mesh 14.545 mm at (-4.641, 0, -4.171), tolerance 50 mm
+S04_patch: audit collision[152] sphere: sphere->mesh 19.873 mm at (-3.8342, 0.0001, -2.7094), tolerance 50 mm
+S04_patch: audit collision[153] sphere: sphere->mesh 18.029 mm at (-0.1168, 0, 1.5543), tolerance 50 mm
+S04_patch: audit mesh: mesh->collision 40.000 mm at (-4.875, 0.04, -3.375) nearest collision[2], tolerance 50 mm
+S04_patch: unity\Assets\_Project\Art\Models\surfaces\S04\S04_patch.fbx  size [12.0, 1.5787, 12.0] m  tris 23792 / 23792 / 26  micro S04_patch_LOD0_straw 20737 straw 409656 tris  154 collision shapes  fbx 15.7 MB  metadata written
+build.py: OK
+build_asset: [2/4] … belt_soil_mask, belt_straw_albedo, brick_red_mask, straw_albedo: up to date; derive.py: OK
+[CatalogImporter] S04_patch: Assets/_Project/Prefabs/surfaces/S04_patch.prefab, 3 LODs, S04_patch_LOD0_straw (20737 straw, LOD0) micro, 154 colliders, materials ground -> belt_straw, soil -> belt_soil, straw -> straw, LOD heights 1.0000 / 0.1333 / 0.0200 (size 9.237604 m, fov 60 deg)
+[Review] surface pilot pose: camera (0.000, 1.925, 0.000), 1.500 m above the patch centre (0.000, 0.425, 0.000), forward (0.8192, -0.5736, 0.0000), 35.00° down towards +X; bar base (2.500, 0.425, 0.000), 2.50 m ahead, in frame True
+[Review] warm-up: one discarded render of S04_patch before its first tile          (once for the stage)
+[Review] S04_patch day: review-sheets/S04/S04_patch_day.png (4096x4096, 6.4 MB); overcast 6.2 MB
+build_asset: OK (S04)
+$ git status --short                              -> (clean)
+$ pwsh tools/build_asset.ps1 S04                  (second run: exit 0, 243 s; all 155 audit lines identical to the first run's)
+$ git status --short                              -> (clean)
+  S04_patch.fbx sha256 51da1546… (= its LFS oid), .assetmeta.json 9ea14385…, prefab 27cf08d2…, the same after both runs;
+  both sheets byte-identical between the runs. (The pose's y = 0.425 is the mat's top on the stage: the slab is now 0.425 m
+  deep, so the camera stands 1.5 m above the mat.)
+
+$ pwsh tools/build_asset.ps1 K01                  (exit 0, 46 s)
+K01_whole: audit collision[0] box: box->mesh 3.288 mm at (-0.125, 0, 0.06), tolerance 50 mm
+K01_whole: audit mesh: mesh->collision 1.869 mm at (-0.1231, 0.0019, 0.058) nearest collision[0], tolerance 50 mm
+[Review] warm-up: one discarded render of K01_whole before its first tile
+build_asset: OK (K01)
+$ git status --short                              -> (clean)
+$ git rev-parse b16fd15:…/K01_whole.fbx HEAD:…/K01_whole.fbx  -> fa32a3c0… fa32a3c0…
+$ git diff --stat 81d54e2 HEAD -- unity/Assets/_Project/Art/Models/debris unity/Assets/_Project/Prefabs/debris unity/Assets/_Project/Editor
+  -> (empty: K01, CatalogImporter.cs and ReviewCapture.cs unchanged since the first pass)
+```
+
+**AST-03 again, on the shared layout.** QA set `bare.share` 0.08 → 0.12 in `assets-src/surfaces/S04_patch.json` and ran `pwsh tools/build_asset.ps1 S04` (exit 0): the one parameter moved the map and the mesh together, `derived 2048x2048 ground … bare 11.6 % (26 outlines from assets-src/surfaces/S04_patch.json; soil shown 9.9 %) … mean luminance 0.1638 (-0.0 %)`, 385 collision shapes all within 50 mm (largest 34.13 mm), `[CatalogImporter] … 385 colliders`, the sheets re-rendered, no hand step. Restored with `git checkout HEAD -- assets-src/surfaces/S04_patch.json` and rebuilt (exit 0): the FBX, the metadata, the derived maps and their stamp came back to HEAD's bytes and the prefab did not (F11); `git checkout HEAD --` of the prefab left the tree clean.
+
+### R1–R5
+
+**R1 closed.** The ground stamp hashes the value of every named constant (`derive.py:123-128` `GROUND_CONSTANTS` and `PALETTE_CONSTANTS`; `:238-241` `_constants`; `:527-535` the stamp's `constants` and `layout`, the latter with `patches.constants()` and `mat.constants()` and their code versions, `patches.py:29,45-46` and `mat.py:28,41-48`), and the formula texts carry versions (`ground v4`, `palette v2`). The fix commit `60b2fe9` changed the two stamps and no map, as R1 asked. Tests: `test_ground.py:315` (12 constants across the three modules, each re-derives) and `test_derive.py:154` (the palette). QA's repeat of the first pass's experiment, in a throwaway root holding copies of the recipes, the manifest, the two pinned sets and the committed maps and stamps:
+```
+committed stamps, unchanged code       -> belt_straw_albedo.png: up to date; straw_albedo.png: up to date
+derive.STRAW_M 0.05 -> 0.10             -> belt_straw_albedo.png: derived 2048x2048 ground … (albedo cc9d218e…, committed 0b2fa410…)
+STRAW_M restored                        -> derived again; albedo back to the committed bytes: True
+derive.PALETTE_HEIGHT_PX 64 -> 32       -> straw_albedo.png: derived 128x32 palette …; restored -> derived 128x64
+lib.mat.SWELL_SHARE 0.5 -> 0.4          -> derived; restored -> derived
+lib.patches.EPS 1e-9 -> 1e-3            -> up to date             (not in CONSTANTS: F8, a nit)
+stamps removed, everything from scratch -> belt_straw.recipe.json, _albedo, _detail_albedo, _mask, _normal, straw.recipe.json,
+                                           straw_albedo.png: all byte-identical to the committed files
+```
+
+**R2 closed.** The scenario (`specs/asset-pipeline/spec.md:34-36`) names six gradients padded to eight. The committed `straw_albedo.png` is 128 × 64 with stamp `columns` straw_pale, straw, straw_dark, twig, blade, litter; QA read every column (bottom / middle / top): #aa976d #ccb685 #ead099 · #776745 #b39b6a #ddc084 · #645337 #967e55 #bb9e6a · #5a4c34 #6b5a3e #796647 · #53602c #6a7a3a #7c8e45 · #28231b #3a3227 #4f4535, and columns 7 and 8 repeat the litter column. The kit's `PALETTE` and `COLUMNS` (`straw.py:28-29`) match.
+
+**R3 closed.** Every number §10 added carries a label and a reason (`design.md:54-66`), and so does every number §12 and §13 add (`design.md:68-80`, `:91-107`): carried, derived, measured or assumed, each with the frames or the rule behind it. A few code constants the design does not cite carry no label there: `WALL_V` (0.08, 0.9) and `TWIG_LAYER` (0.2, 0.8) in `ground_patch.py:80,86` and `V_LIMITS` in `straw.py:32`; `BARE_LOBES` and `BLADE_LEAN` say "assumed" in their code comments only. Non-blocking (F9).
+
+**R4 closed, with the physics reading as built:**
+
+| Item | As built | Evidence |
+|---|---|---|
+| PR1 the soil one mat depth down | `collision[0]` box 12 × 0.3 × 12 m, centre y −0.275 (top −0.125, bottom −0.425), `surface:belt_straw`, landable; slab D + `SOIL_M` = 0.425 m | committed metadata; `ground_patch.py:75,299-300`; EditMode `Collision_IsTheSoil…`; audit 27.463 mm |
+| PR2 the mat as `straw` on the soil | 150 boxes `straw`, landable, centre y −0.0625, height 0.125 (30 fill + 10 × 12 edge boxes); the params `mat_material` and `mat_depth_m` with the 490 N/m note (`ground_patch.py:115-118,187-190`); the `straw` slot's physics is `straw`; the `straw` rationale replaced word for word as PR2 signed it (`physics_materials.json:114`) | metadata; `test_shapes_come_soil_fill_edges_mounds` |
+| PR3 the step | floors are the relief lowered by D; vertical wall quads exactly on the outline edges (drop width 0, design §12); convex outlines with turns ≤ 90° enforced at draw (`patches.py:185-202`) | `test_bare_patches_step_down_by_the_mat_depth_along_their_outlines` (the walls' widths sum to each perimeter, D tall) |
+| PR4 the mat opened over every floor | window = the outline's box grown by 0.3 m; one edge box per edge, its inner face on the edge, reaching ≥ 0.3 m and 0.05 m past the window; fill by a sweep with 0.05 m overlaps; placement by rejection; the 2 cm self-check runs in every build and raises on a miss (`ground_patch.py:253-257`) | `test_patches.py:46`; QA's four builds raised nothing |
+| PR4 at 12 corners (ruling 14b) | `bare.outline_vertices` 12, `RADIAL_JITTER` 0.35; the self-check and the convexity and turn rules unchanged; 154 shapes | accepted: PR3's rules hold and the reading set no cap |
+| PR5 one seeded definition | `lib/patches.py` and `lib/mat.py` (plain Python), imported by `derive.py:78` and by `ground_patch`; the recipe names the params file; the map's soil is the outlines times a ramp of each core, 0 outside | QA's measurement on the committed albedo: mean linear luminance 0.0660 inside the outlines shrunk by the feather (soil target 0.0620), 0.1007 at the outline ± 5 cm, 0.1733 from 0.6 m outside; mounds ≥ 0.5 m from every window (`test_mounds_keep_clear_of_the_bare_patches`) |
+| PR6 the soft-top bound | `SOFT_SURFACES` and ≤ 1000 N/m (`audit.py:45-55,60-67`); the line names the soft shapes (`:82-85`); every other landable top keeps 2 cm | `test_audit.py:261,294` (asphalt and masonry fail the 2 cm zone, straw and belt_straw pass at 5 cm); the S04 line above |
+| PR7 (a) | 23 359 floor samples over 10 patches: no shape above any floor, the soil under each | `test_no_shape_stands_above_a_floor` (`test_ground_patch.py:109`), QA's run |
+| PR7 (b) | one 12 m straw box in place of the mat: `audit collision[1] box: box->mesh 144.573 mm` | `test_a_mat_box_left_whole_fails_the_audit_by_the_step` (`:135`), QA's run |
+| PR7 (c) | 86 922 pixels inside the outlines shrunk by the feather, all ≥ 128; all 334 758 soil pixels within 5 cm of a floor | `test_the_bare_mask_and_the_step_outlines_agree` (`test_ground.py:335`), QA's run |
+| PR7 (d) | every shape within 50 mm and "154 collision shapes" printed | the build above |
+| PR8 the order | soil, 30 fill boxes, edge boxes by patch, 3 spheres; stated in the docstring (`ground_patch.py:55-64`) | `test_shapes_come_soil_fill_edges_mounds`, the EditMode test |
+| O1–O4 | the spec requirement and scenario, the union requirement and design §6 carry the reading | the spec deltas, `design.md:22` |
+
+*The soft-top list and `foliage`.* By the rule (a reference sink of 25 mm or more, k ≤ 1000 N/m) `foliage` at 200 N/m is soft; the reading's enumeration did not name it, and §12 records it. It reads as intended: a 20 mm branch at 200 N/m deflects 125 mm under the reference foot, so a 5 cm top is no visible float. A line from the physics engineer at the next reading would close it (suggestion 5).
+
+*The audit's two new rules (task 1.6).* `COVERED_M` 2 µm (twice the metadata's 1 µm rounding) and "a cell no longer than `SEAM_CELL_M` 1 mm with each vertex inside some other primitive is covered" (`audit.py:52-55,298-313`). QA's experiments: two straw boxes on a soil box under a flat slab, with a gap between them (the author's seam test, varied), and the real S04 with one fill box pulled back:
+```
+gap 0.5 µm, 1 µm                   -> problems 0 (the rounding the 2 µm absorbs)
+gap 3 µm, 10 µm, 0.1 mm            -> problems 2: collision[1], collision[2] box->mesh 124.939 mm (each box's face into the gap)
+gap 0.5 mm, 1 mm, 2 mm             -> problems 3: also collision[0] box->mesh 125.000 mm (the soil exposed in the gap)
+mutation COVERED_M 1e-9, gap 0.5 µm -> problems 2 (124.939 mm): the old tolerance fails the rounding
+mutation SEAM_CELL_M 0, gap 0       -> problems 0 in 80.7 s (4.2 s with the rule)
+real S04, fill box collision[1] pulled back 99 mm (1 mm overlap left)  -> 0 of 199 probes in no shape; problems 0
+real S04, pulled back 101 mm (a 1 mm gap: 168 of 199 probes in no shape) -> problems 6, box->mesh 125.3–155.9 mm
+```
+So neither rule can hide a real gap in a stacked mat: from 3 µm up, the faces of the boxes on either side stand exposed through the mat's whole depth and fail by about D. The seam rule does drop the buried soil strip inside a sub-millimetre gap (the 10 µm–0.1 mm cases report only the boxes' faces), which is harmless while those faces are measured; and on the synthetic case it is a 19× speed-up rather than what ends the search (the search ended without it). The reasoning in the docstring holds; N1's metric (min |sdf|) is unchanged and still to come.
+
+**R5 partly closed.** The look was reworked rather than only narrowed (loft, tussock relief, swathes, straws shaded along their length, blades, ragged lips, bare patches as geometry); §10's "Not matched" list was rewritten with 11 items (`design.md:42-53`); and ruling 14c narrowed the by-eye clause to what a G1 stand-in can show, with "§10 lists the rest with where each is fixed". Nine items name their fix or their acceptance. Two do not:
+- **item 7** (`design.md:49`): the bare patches at 10 m read as pits; it records the cause ("a non-convex or sloped edge needs another box decomposition (physics)") but names no owner, no change and no reason G1 accepts it;
+- **item 11** (`design.md:53`): the overcast sheen and the mounds' darker tint, no owner or acceptance.
+
+Item 7 is the largest look gap left (REAL-03 below). R6.
+
+### Spec scenarios (updated)
+
+| Capability / scenario | Result | Evidence |
+|---|---|---|
+| assets-earthworks-and-surfaces · **Built from params by one command** | **PASS** | two runs exit 0, every output written, `git status` clean after each; FBX, metadata, prefab and both sheets byte-identical between the runs |
+| … · **Straws read as geometry at the pilot's height** (as narrowed, ruling 14c) | **PASS, with one reservation (R6)** | the 1.5 m tiles, day and overcast, read at full size: separate lying straws in layers, crossing and resting on each other, standing stems with seed heads, twigs, and green blades where a strip enters the bake (the left edge), all meshes (20 737 instances, 409 656 triangles); beside H 5, 12, 14, 17 and 20 in the side-by-side, the colour family, the tangle and the strewn floors match; tussocks read weakly from this view and the straws are uniform thin tubes (§10 items 2, 4–6). Reservation: the near bare patch reads as soil under strewn straws (H 12), the far one, in the bake's feather 3–4 m out, as a cut hole with a dark wall (§10 item 7) |
+| … · **No visible tiling at 10 m** | **PASS** | the 10 m and 50 m tiles by eye: no repeat, straw grain near. QA's statistic (luminance at 4.7 cm, high-passed at 0.5 m, autocorrelation normalised over the overlap at every shift of 0.4–4 m): the derived albedo peaks at +0.192 at 0.40 m (the 0.5 m tussock lattice) and at **+0.145 at 2.01 m** beyond 1 m; the known-wrong model, the cover tiled plainly at 2 m, scores **+0.924** (at 3.98 m) |
+| … · **Collision follows the mat** | **PASS** | every shape ≤ 39.899 mm, mesh→collision 40.000 mm, the micro mesh named as skipped, the soft-tops line printed |
+| … · **Bare patches are ground, not stains** | **PASS** | a step of D = 0.125 m along convex outlines (the walls sum to each perimeter); no shape above a floor (PR7 a); the floor is the `surface:belt_straw` soil box exposed through the opened `straw` mat; the map and the mesh from one seeded layout (PR7 c, QA's albedo measurement, and the AST-03 run that moved both together) |
+| … · **Colour inside the sheet's range** | **PASS** | the stamp and QA's re-derivation: mean luminance 0.1638 vs 0.1638 (−0.0 %), linear 0.1946/0.1620/0.0908; soil #4a463f, the top of 10YR 2/1–3/1 (inclusive); the straw shades' middle stops within 3 % of #b49c6a (`test_straw_shades_average_to_the_sheets_dry_straw`); the day tiles beside H and G in the side-by-side |
+| asset-pipeline · **Ground recipe derived and wired** | **PASS** | four maps 2048², the recipe stamped beside them, byte-identical from scratch; the three `GroundMaterialTests` pass |
+| … · **A formula constant changes** | **PASS** | R1 above |
+| … · **Mean albedo hits the target** | **PASS** | −0.0 %; bare 7.94 % (on the outlines), green 15.46 %, both within ±2 pp |
+| … · **Micro meshes skipped by the audit** / **carry no collision** | **PASS** | the audit's first line; EditMode `Lod0_RendersTheSlabAndTheMicroMesh…` and `MicroMesh_HasNoCollider…`; 154 colliders for 154 primitives |
+| … · **Straw palette** | **PASS** | R2 above; bound as `_BaseMap` (the importer is unchanged); the capture's empty-stage guard passed for both sheets |
+| … · **Mound spheres sunk in the mat box** | **PASS** | `test_primitives_form_a_union_and_soft_tops_are_held_to_5cm`; S04's spheres at 14.5 / 19.9 / 18.0 mm (33.8–35.2 mm before the deeper slab) |
+| … · **A hard top keeps 2 cm** | **PASS** | `test_audit.py:294`, four cases |
+| … · **A set from a new source** | **PASS** | unchanged since the first pass; `--verify` OK |
+| … · **A source that cannot be pinned** | not testable | as before: no such source arose |
+| asset-review-sheet · **Pilot-height tile of a ground patch** | **PASS** | the pose line above; the bar's lower bands in frame in both 1.5 m tiles |
+| … · **Other classes unchanged** | **PASS** | `ReviewCapture.cs`, `CatalogImporter.cs` and K01's inputs are unchanged since the first pass, which compared K01 pixel for pixel; K01's build leaves the tree clean with its audit numbers unchanged. QA did not re-render K01 with the merge-base capture this time |
+
+### REAL-03 side-by-side and REAL-05 geometry audit
+
+QA read the local side-by-side sheet rebuilt in task 1.7 (`reference/_compare/S04.png`: the 1.5 m and 10 m tiles beside H 5, 8, 12, 14, 17, 20 and G 5, 8), the H contact sheets (stills 1–21) and the G contact sheet (stills 1–12) in place, and full-size crops of QA's own 1.5 m, 10 m, 50 m, turntable and overlay tiles, day and overcast.
+
+**Matches (improved since the first pass):** the colour family; a layered tangle at 1.5 m instead of one sparse layer (H 17); stems leaning out of tussocks, with seed heads (H 3–9); soil floors with straws strewn over them and straws hanging over the near floor's lip (H 12, H 14); blades where a strip enters the bake (H 19–21, sparse); lumpy tussock relief with darker hollows at 10 m (G 5, G 8, in form); no tiling.
+
+**Does not match (beyond what §10 accepts):**
+1. **Bare patches as pits.** At 10 m (LOD1, no straws) and in every turntable the ten patches read as clean, round, evenly scattered holes with vertical walls, the walls the darkest band in the scene (the litter column, #28231b–#4f4535) and the floors much darker than the mat. In H 9–14 a bare patch is irregular, path-like soil at the foot of a ragged, heaped mat edge, and G 1–12 at 10–13 m shows a continuous lumpy mat with no pits. The vertical step and the convex outline are what PR3 and PR4 allow; the wall's colour, the lip at LOD1, the floors' value (§10 item 8) and the patches' spacing are not bound by them. §10 item 7 records the gap without an owner (R6).
+2. The three mounds read as dark bristly balls at 10 m: the soil slot ends on the refined grid's triangle edges, a jagged rim (F10).
+3. At 1.5 m the straws render one pixel wide and aliased (the capture's MSAA 1), part of §10 items 2 and 6.
+
+**REAL-05 list of physical features:**
+
+| Feature | Physical role | As built | Status |
+|---|---|---|---|
+| mat top and tussock relief (±4 cm) | landing surface | slab top on `lib/mat.py`'s relief; 150 `straw` boxes, landable, flat tops within 39.9 mm | geometry (the slope is visual only, N4) |
+| bare soil patches (8 %) | legs on soil one mat depth down | stepped floors in the mesh, the soil box exposed through the opened mat | **geometry** (R4 closed) |
+| earth mounds (3) | uneven support | raised cells in the soil slot; `surface:crater_spoil` spheres within 19.9 mm | geometry |
+| lying straws (top 250 /m², body 90 /m²), stems, twigs, blades | hooks; the body is the mat's compliance | visual-only micro mesh; lofted up to 75 mm above the straw boxes' top on the crowns, lip straws overhanging floors by up to 0.15 m | geometry, physics deferred to AST-10 (stated; the loft accepted by N7) |
+| the lip's soil between straws (1.8 % of the patch) | none beyond the mat's | map only, the full-depth mat box under it | acceptable (the mat's cover, not its depth) |
+| green regrowth strips | none beyond the mat's | map tint plus blades | acceptable |
+
+**Ruling 14a against AST-10's parity.** AST-10 asks that drawn micro-detail come from the generator physics uses, at 0 mm parity. The G1 bake has no parity for any straw (its stated deviation, decisions 4 and 5, deleted when AST-10 lands), so a visual-only body layer adds no new deviation for G1, and its label (assumed, under the sheet's 250 /m² that physics reads) is honest. Accepted for G1. The risk comes after G1: the pilot will judge a mat of 340 straws/m², and an AST-10 generator drawing only the sheet's 250 at parity would thin it. The micro-detail change must either carry the body layer at parity (physics knowing those straws, even as non-hooking ones) or have the reference analyst's layering row (ruling 14d) settle the density first (suggestion 3).
+
+### Hygiene
+
+- 18 new commits since the first pass, 45 over `b16fd15..347d08d`: Asset Artist 35, Orchestrator 5, Tech Artist 3, Physics Engineer 1, QA Engineer 1; author = committer on every one; every body empty, no trailers; every subject matches `type(scope): lower-case summary`, the longest 71 characters.
+- Nothing ignored is tracked: no path under `reference/`, `review-sheets/` or `unity/{Library,Temp,Logs,UserSettings}/` and no video file in `git ls-files` (497 files); every new file under `unity/Assets/` has its `.meta`.
+- LFS: all 22 files real; the rebuilt maps and the FBX go through LFS.
+- Licences: no new third-party file in the rework; `--verify` OK.
+- OPSEC: the scan finds nothing; the rework's text cites letters and still numbers only.
+
+### Requirements (updated)
+
+| ID | Status | Why |
+|---|---|---|
+| AST-02 | met | §S04 drives every number; the new ones sit in its ranges or are labelled where it has none |
+| AST-03 | met | one command, twice clean; `bare.share` moved the map and the mesh together with no hand step |
+| AST-05 | met | 154 primitives within 50 mm, a material per shape, landable flags; the 5 cm top bounded to soft tops as the physics reading set; the bare patches carry their own shapes; the straw hooks deferred to AST-10 (stated) |
+| AST-07 | met | no visible tiling (by eye, by the statistic and against its known-wrong model); UVs in metres |
+| AST-08 | met for the task's budget | textures 2K at most (maps 2048², palette 128 × 64), 3 LODs at 8 / 60 / 400 m, LOD0 433 448 triangles under the task's 450 k, FBX 15.7 MB; no per-class phase-1 budget exists yet |
+| AST-10 | not in scope | the bake is the stated G1 stand-in; ruling 14a accepted for G1 (suggestion 3) |
+| AST-11 | met for belt_straw | the visual material paired with `surface:belt_straw`; the mat is `straw` per the physics reading |
+| AST-12 | met | every tile, the turntable and the overlay, day and overcast; the overlay shows the opened mat around every floor |
+| REAL-01 | partly met | the tangle, stems, strewn floors and relief now follow H and G; the bare patches' look at 10 m does not |
+| REAL-03 | partly met | the sheet exists and was read; §10 items 7 and 11 name no fix or acceptance (R6) |
+| REAL-05 | met | every physical feature is geometry; collision follows the mat, its floors and its mounds; the micro-detail's physics is AST-10's (stated) |
+| SEC-04 | met | unchanged; `--verify` OK |
+
+### Findings
+
+- **F1–F4 closed** (R1–R4); **F7 partly closed** (R5, R6).
+- **F5, F6 (pre-existing, open).** `pytest tools/assets tools/blender` still fails to collect (3 errors, as on `unity/main`); the hygiene timing test failed in all four runs under the other agents' load (largest scan 2.66–5.0 s) with code identical to `unity/main`.
+- **F8 (nit, R1).** `lib.patches.EPS` (1e-9, used by the placement tests) is not in `CONSTANTS`, so changing it reports "up to date" (experiment above). It is a numerical guard rather than a tuned value.
+- **F9 (nit, R3).** `WALL_V`, `TWIG_LAYER` and `V_LIMITS` are not labelled in the design; `BARE_LOBES` and `BLADE_LEAN` are labelled only in code.
+- **F10 (look).** The mounds' soil slot ends on a jagged triangle rim: a bristly dark ball at 10 m.
+- **F11 (importer, pre-existing).** `CatalogImporter` updates the prefab in place, so a collider whose kind changes at an index gets a new random fileID (`CatalogImporter.cs:504-509`): after the `bare.share` round trip (151–153 became boxes and spheres again) the prefab differed from HEAD by six fileID lines with identical values. Two builds from the same state stay byte-identical; a round trip does not. Not caused by the rework.
+- **F12 (test margin).** `test_baked_straws_over_a_floor_lie_on_it` passes at a median of −0.090 m against −0.125 ± 0.04 (5 mm of margin), because the lip straws held at the mat's top within 0.15 m of a wall count among the floor's vertices; with `bare.share` 0.12 (26 smaller patches) it fails at −0.084 m. Measuring only vertices deeper than `LIP_OVERHANG_M` would test what its name says with a robust margin; the known-wrong model (straws left at the mat's height) fails either way.
+
+### Suggestions (non-blocking)
+
+1. (F8, F9) Add `EPS` to `patches.CONSTANTS`, and label `WALL_V`, `TWIG_LAYER`, `V_LIMITS`, `BARE_LOBES` and `BLADE_LEAN` in design §13 the next time it is touched.
+2. (F12) Leave the lip zone out of the floor-straw test.
+3. (Ruling 14a) Put the body layer into the micro-detail change's proposal: at parity, or settled first by the reference analyst's layering row.
+4. (F11) If prefab churn matters for reviews, give each collider kind its own host name (`Collision151_sphere`), so a change of kind replaces a child rather than a component of a reused one.
+5. (`foliage`) A line from the physics engineer confirming `foliage` among the soft tops.
+6. The first pass's suggestions 1 (a low forward review view), 6 (the conftest clash) and 7 (LFS weight, now a 15.7 MB FBX) still stand.
+
+### Required changes
+
+- **R6** (orchestrator, with the asset-artist if the look changes; REAL-03, the rest of R5): §10 items 7 and 11 name no owner, change or G1 acceptance, against R5 and ruling 14c, and item 7 is the largest look gap left: the bare patches read as clean round pits at 10 m and in the turntables, and as a cut hole on the far side of the 1.5 m tile. Either improve the 10 m look within PR3 and PR4 and re-judge it against H 9–14 and G 1–12 (for example: the step walls in the mat's straw tones instead of the litter column's near-black; the ragged lip carried to LOD1; the floors' value once the reference analyst re-measures the soil, ruling 14d; patches gathered like H's paths rather than spread evenly), or rule it accepted for G1 and name in items 7 and 11 the owner and the change that fixes each. A re-review of R6 alone needs §10, plus the S04 build and its sheets only if the look changes.
+
+Verdict: CHANGES REQUESTED
