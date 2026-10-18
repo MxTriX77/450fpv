@@ -306,3 +306,27 @@ def test_a_hard_top_keeps_2cm_and_a_soft_top_is_held_at_5cm(k01_params, repo_roo
         assert any(p.startswith("collision[0] box: near gaps/landable ") and p.endswith("exceeds the tolerance 20 mm")
                    for p in problems), problems
         assert not any(line.startswith("audit: soft tops") for line in lines)
+
+
+def test_a_seam_where_primitives_only_touch_is_no_surface(k01_params, repo_root):
+    """review-physics §3: the mat boxes stand on the soil box, touching it. A mound sphere through that seam is
+    measured only where it stands proud of the slab: its buried part lies in the mat box above the seam and in the
+    soil box below it, no one primitive covers a strip across the seam, and the search ends there in cells of
+    SEAM_CELL_M (the run finishes, and the cap is the only deviation). A mat box that misses its neighbour by the
+    metadata's rounding (under COVERED_M) leaves no sliver either."""
+    data, _ = k01(k01_params)
+    lod0 = slab(depth=0.425)
+    data["collision"] = [
+        {"shape": "box", "center": [0.0, -0.275, 0.0], "size": [2.0, 0.3, 2.0], "rotation": [0.0, 0.0, 0.0, 1.0],
+         "material": "surface:belt_straw", "landable": True},
+        {"shape": "box", "center": [-0.5, -0.0625, 0.0], "size": [0.9999995, 0.125, 2.0], "rotation": [0.0, 0.0, 0.0, 1.0],
+         "material": "straw", "landable": True},
+        {"shape": "box", "center": [0.5, -0.0625, 0.0], "size": [1.0, 0.125, 2.0], "rotation": [0.0, 0.0, 0.0, 1.0],
+         "material": "straw", "landable": True},
+        {"shape": "sphere", "center": [0.3, -0.12, 0.2], "radius": 0.15, "material": "surface:crater_spoil", "landable": True},
+    ]
+    problems, lines = audit.run(data, lod0, audit.soft_materials(repo_root))
+    assert lines[0].startswith("audit: soft tops collision[0] surface:belt_straw, collision[1..2] straw, collision[3] ")
+    assert [measured_mm(line) for line in lines[1:3]] == [pytest.approx(0.0, abs=0.5)] * 2  # the soil and the left mat
+    assert measured_mm(lines[4]) == pytest.approx(30.0, abs=1.0), lines[4]  # the cap's apex over the flat slab
+    assert problems == []

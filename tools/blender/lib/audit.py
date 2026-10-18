@@ -9,7 +9,8 @@ narrowest_m is checked against the diameter of the largest circle inscribed in i
 
 Primitives form a union: the part of a primitive's surface that lies inside another primitive is not a collision
 surface (a mound sphere's lower half sunk in the ground slab, the slab's top under the mound), so it is not
-measured. A landable shape with a soft top is landed on over its whole top, so it widens no 2 cm zone: its top is
+measured; nor is a seam where primitives only touch (a cell under SEAM_CELL_M whose corners all lie in other
+primitives), nor a sliver thinner than the metadata's micrometre rounding (COVERED_M). A landable shape with a soft top is landed on over its whole top, so it widens no 2 cm zone: its top is
 held to the 5 cm tolerance everywhere, and the lines name those shapes. Soft means a reference foot (25 N on 15 mm)
 sinks at least 25 mm into it (p1-s04-belt-straw, review-physics §2 and PR6): the surfaces of SOFT_SURFACES, or a
 plain id of assets-src/physics_materials.json with stiffness_n_per_m of SOFT_STIFFNESS_N_PER_M or less
@@ -48,7 +49,10 @@ PHYSICS_MATERIALS = os.path.join("assets-src", "physics_materials.json")  # lib.
 # list from the map's table. A plain material sinks 25 mm at k = 25 N / 0.025 m = 1000 N/m.
 SOFT_SURFACES = ("surface:belt_straw", "surface:crater_spoil", "surface:tilled")
 SOFT_STIFFNESS_N_PER_M = 1000.0
-COVERED_M = 1e-9            # a point this deep inside another primitive is on no collision surface
+COVERED_M = 2e-6            # a point this close to another primitive's inside is on no collision surface: the
+                            # metadata rounds every number to a micrometre (lib.meta.DECIMALS), so shapes meant to
+                            # meet miss each other by up to that, and a sliver that thin is no surface
+SEAM_CELL_M = 0.001         # a cell this small with every corner inside some other primitive is covered (a seam)
 BOX_CELL_M = 0.25           # a box face is tessellated in cells of at most this, so the search never quarters a long
                             # thin wall (12 x 0.2 m) into slivers; a brick's faces stay one cell each
 
@@ -292,14 +296,21 @@ class _FaceIndex:
 
 
 def _covered(p, others):
-    """Whether p lies inside one of the other primitives, so no collision surface passes there."""
-    return any(shape.sdf(p) <= COVERED_M for shape in others)
+    """Whether p lies inside one of the other primitives, so no collision surface passes there. A primitive whose
+    bounding box (grown by COVERED_M) misses p is skipped without its signed distance."""
+    return any(shape.lo[0] <= p[0] <= shape.hi[0] and shape.lo[1] <= p[1] <= shape.hi[1]
+               and shape.lo[2] <= p[2] <= shape.hi[2] and shape.sdf(p) <= COVERED_M for shape in others)
 
 
 def _cell_covered(cell, others):
-    """Whether a whole triangle lies inside one other primitive: every primitive is convex, so its three vertices
-    inside the same one is enough."""
-    return any(all(shape.sdf(v) <= COVERED_M for v in cell) for shape in others)
+    """Whether a whole triangle lies inside the other primitives: its three vertices inside the same one (every
+    primitive is convex), or, for a cell no longer than SEAM_CELL_M, each vertex inside some other one. The second
+    rule ends the search at a seam where two primitives only touch (the mat boxes standing on the soil box), which
+    no single primitive covers: a strip of face under a millimetre wide there is no surface a foot could find."""
+    if any(all(shape.lo[k] <= v[k] <= shape.hi[k] for v in cell for k in range(3))
+           and all(shape.sdf(v) <= COVERED_M for v in cell) for shape in others):
+        return True
+    return _longest_edge(cell) <= SEAM_CELL_M and all(_covered(v, others) for v in cell)
 
 
 def _faces_bound(cell, which, faces):
@@ -349,6 +360,10 @@ class _Shape:
         self.half = tuple(s / 2 for s in shape["size"]) if self.kind == "box" else None
         self.h = shape["height"] / 2 - (self.r if self.kind == "capsule" else 0.0) if "height" in shape else 0.0
         self.triangles = _tessellate(self)
+        # The bounding box for _covered, grown past the tessellation's chords and by the coverage tolerance.
+        grow = (0.0 if self.kind == "box" else CHORD_M) + 2 * COVERED_M
+        self.lo = tuple(min(p[k] for t in self.triangles for p in t[:3]) - grow for k in range(3))
+        self.hi = tuple(max(p[k] for t in self.triangles for p in t[:3]) + grow for k in range(3))
 
     def local(self, p):
         x, y, z, w = self.q
