@@ -13,4 +13,4 @@ Branch `unity/art/p1-v13-shrub` off `unity/main` once `p1-pipeline-hardening` is
 
 ## 2. Review
 
-- [ ] 2.1 [qa-engineer] review against spec scenarios (first pass CHANGES REQUESTED, `review.md` R1; re-review after 1.5 and 1.6): the five V13 scenarios and the two pipeline deltas, the audit lines, the comparison sheet against H and F read by eye (REAL-03), the geometry audit (REAL-05: stems are tubes with capsules, cards inside the shell), budgets (AST-08), `fetch.py --verify`, hygiene (D-003 pins, nothing from `reference/`, subject-only commits)
+- [x] 2.1 [qa-engineer] review against spec scenarios (first pass CHANGES REQUESTED, `review.md` R1; re-review after 1.5 and 1.6): the five V13 scenarios and the two pipeline deltas, the audit lines, the comparison sheet against H and F read by eye (REAL-03), the geometry audit (REAL-05: stems are tubes with capsules, cards inside the shell), budgets (AST-08), `fetch.py --verify`, hygiene (D-003 pins, nothing from `reference/`, subject-only commits)

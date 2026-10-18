@@ -193,3 +193,256 @@ Verdict: CHANGES REQUESTED
 - R1 — the `twig` shell follows the leaf and twig mass within the sheet's 0.1 m (or a physics-set, labelled tolerance), the shell rule checks the surface-to-mass direction with a failing test, and the asset-pipeline delta is amended to match; or a recorded decision supersedes the 0.1 m rule with the physics engineer's reading.
 
 Every other scenario passes, re-run by QA with its own inputs: the one-command build twice, sizes, wall opacity and leaf scale, capsules, hooks, wind and gaps, LODs and budget, the leaf material, back faces, coverage, and the shell rule both ways. Task 2.1 stays open until R1 is resolved and re-reviewed.
+
+## Re-review (after 1.5 and 1.6)
+
+**Reviewer:** qa-engineer · **Tip reviewed:** `731e86a` · **Rework range:** `a3120e9..731e86a` (10 commits, 21 files) on top of the first pass's `5fdfcfc..bbbeed5`
+**Judged against:** R1, P-1 and P-2 above; `review-physics.md` (§2 tolerance, §3 pieces, §4 records, §5 wind, PR1–PR5, S1–S2); design decision 7 and its "as built"; the amended spec deltas.
+
+Every check was run again by QA in its own worktree: `git lfs checkout` (22 objects, all `*`), a cold `unity/Library`, Unity 6000.3.26f1 with Unity Hub running, Blender 5.2.2, every Unity call piped so the exit codes are real. The shell, the records, the wind box, the band fill, the back faces and the mip coverage were measured with QA's own scripts, kept in QA's scratch folder (deleted afterwards). QA's standoff does not reuse `lib/audit.py`: it samples each piece's surface every 2 cm, keeps the points above the ground and outside the other pieces, measures the distance to the nearest LOD0 leaf or twig triangle through its own grid, then hill-climbs from the best samples. The meshes come from the generator, and the second build below shows they equal the committed FBX. **Power:** the laptop ran on battery (`Win32_Battery` status 1, discharging), Balanced scheme. No performance claim is made, and the times below are not evidence. The reference material was not reopened: no render input changed (see the scenario table).
+
+### Checks
+
+```
+$ python -m pytest tools -q                       -> 1 failed, 594 passed in 604.16s (0:10:04)   exit=1
+  FAILED tools/hygiene/tests/test_precommit.py::test_200_files_scan_in_under_2_s   (scan 2.094, 2.342, 3.276 s)
+$ python -m pytest tools/hygiene/tests/test_precommit.py::test_200_files_scan_in_under_2_s -q -s   (alone, three times)
+  scan 3.012, 3.770, 2.485 s -> failed;  scan 1.655, 2.076, 1.594 s -> failed;  scan 1.623, 2.040, 1.710 s -> failed
+  The test builds its own 200 synthetic files; this change touches nothing under tools/hygiene or .githooks
+  (git diff --name-only 5fdfcfc..HEAD -- tools/hygiene .githooks: 0 files). It passed in the first pass on the same
+  code; here it runs on battery at 2.04-2.08 s against 2.0 s. Not a finding against this change (N-4).
+$ python -m pytest tools/blender/tests/test_audit.py tools/blender/tests/test_shell.py tools/blender/tests/test_shrub.py -v
+  68 passed in 219.40s, among them:
+  test_two_overlapping_spheres_hugging_the_mass_pass_and_print_both_ways PASSED
+  test_a_piece_30cm_too_large_fails_its_standoff PASSED
+  test_a_twig_vertex_15cm_outside_fails_naming_the_slot_the_distance_and_the_tolerance PASSED
+  test_a_card_corner_35cm_outside_fails_and_25cm_passes[0.35-True] PASSED / [0.25-False] PASSED
+  test_surface_under_the_ground_is_ignored[0.0] PASSED / [0.5] PASSED
+  test_a_shell_without_a_slot_and_a_slot_without_a_shell_are_refused PASSED
+  test_the_distance_transform_matches_brute_force PASSED; test_no_faces_of_the_slots_no_pieces PASSED
+  test_leaf_masses_round_a_twig_are_fitted_with_pieces_that_pass_the_shell_rule PASSED
+  test_metadata_carries_capsules_and_a_shell_of_pieces[V13_low|mid|tall] PASSED
+  test_stem_records_run_along_the_capsules_from_the_ground_to_the_tip[V13_low|mid|tall] PASSED
+  test_twig_records_follow_the_tubes[V13_low|mid|tall] PASSED
+  test_wind_box_spans_the_leafy_mass_from_its_lowest_leaf_or_twig[V13_low|mid|tall] PASSED
+  test_low_variant_passes_the_collision_audit PASSED; test_the_first_bounding_sphere_fails_its_standoff PASSED
+$ python tools/assets/fetch.py --verify           -> OK   exit=0
+$ python tools/hygiene/precommit.py --tree HEAD   -> 510 files scanned, 0 findings   exit=0
+$ openspec validate p1-v13-shrub --strict         -> Change 'p1-v13-shrub' is valid   exit=0
+
+$ & $env:UNITY -batchmode -nographics -projectPath unity -runTests -testPlatform EditMode -testResults Logs/editmode.xml -logFile - | Out-Host
+  exit=0 (cold Library), "Test run completed. Exiting with code 0 (Ok)"
+  unity/Logs/editmode.xml: result=Passed total=20 passed=20 failed=0 skipped=0 inconclusive=0 (the same 20 as the first pass)
+  git status after the run: clean
+
+$ pwsh tools/build_asset.ps1 V13      (run 1)   -> build_asset: OK (V13)   exit=0
+  V13_low:  audit twig shell: 6 pieces (6 capsules)
+  V13_low:  audit collision[42..47] capsule (twig shell): largest standoff 89.649 / 97.118 / 94.432 / 96.150 / 97.220 / 91.260 mm, tolerance 100 mm
+  V13_low:  audit slot leaf (cards, twig shell): largest outside distance 268.672 mm at (0.0959, 0.1741, 0.6917) over 7352 vertices, allowance 300 mm
+  V13_low:  audit slot twig (geometry, twig shell): largest outside distance 94.867 mm at (-0.276, 0.6845, -0.4331) over 1110 vertices, tolerance 100 mm
+  V13_mid:  audit twig shell: 15 pieces (15 capsules); largest standoff per piece 71.651-97.750 mm (collision[42] 97.750 at (0.0998, 1.2692, 0.2578))
+  V13_mid:  audit slot leaf (cards, twig shell): largest outside distance 275.507 mm at (-0.0865, 1.5096, 0.9675) over 12772 vertices, allowance 300 mm
+  V13_mid:  audit slot twig (geometry, twig shell): largest outside distance 97.836 mm at (0.2701, 0.8899, 0.041) over 930 vertices, tolerance 100 mm
+  V13_tall: audit twig shell: 24 pieces (23 capsules, 1 sphere); largest standoff per piece 72.483-97.461 mm (collision[53] 97.461 at (0.2202, 1.3043, 0.109))
+  V13_tall: audit slot leaf (cards, twig shell): largest outside distance 282.587 mm at (0.6282, 1.5809, -0.9737) over 15708 vertices, allowance 300 mm
+  V13_tall: audit slot twig (geometry, twig shell): largest outside distance 99.679 mm at (0.7103, 2.2, 0.7118) over 1602 vertices, tolerance 100 mm
+  capsule->mesh, 42 lines per variant (min / max): low 5.660 / 11.372, mid 6.403 / 11.371, tall 9.948 / 12.541 mm, the first pass's numbers
+  mesh->collision: 5.715 / 8.238 / 11.698 mm, the first pass's numbers
+  tris 5850 / 2202 / 6, 8380 / 3558 / 6, 10520 / 4292 / 6; sizes [1.5439, 1.2066, 1.4422], [2.0933, 2.0277, 2.0933], [2.4864, 3.004, 2.4313] m
+  [CatalogImporter] V13_low 48 colliders, V13_mid 57, V13_tall 66; LOD heights as in the first pass
+  [Review] six sheets, 4096x4096, GPU NVIDIA GeForce RTX 4050 Laptop GPU (Direct3D12), High (URP-High), LOD BIAS 1, Linear
+  git status --short --untracked-files=all: 0 lines
+$ pwsh tools/build_asset.ps1 V13      (run 2)   -> build_asset: OK (V13)   exit=0
+  all 186 variant lines identical to run 1; the six review sheets byte-identical (SHA-256); git status: 0 lines
+$ pwsh tools/build_asset.ps1 K01                -> build_asset: OK (K01)   exit=0
+  K01_whole: box->mesh 3.288 mm, mesh->collision 1.869 mm, tris 44 / 12; git status: 0 lines
+```
+
+### R1: closed
+
+**What changed** (`git diff a3120e9..HEAD`): the generator replaces the bounding sphere with `shell.fit` (`tools/blender/generators/shrub.py:159`), adds per-stem and per-twig records (`:173`, `:177-189`) and builds the wind box from the leaf and twig vertices (`:160`). The audit holds the shell both ways (`tools/blender/lib/audit.py:111-166`, tolerances at `:40-41`), telling cards from geometry by `catalog.card_visuals` (`lib/catalog.py:51`, passed in by `build.py:44`). In the committed metadata only `collision`, `snag` and `wind_volumes` changed. `bounds`, `lods`, `materials`, `gaps` and `params_sha256` are unchanged, the 42 bark capsules are identical, and no FBX, params file, recipe, texture, shader or importer file changed since the look task (`git diff --name-only bbbeed5..HEAD` over those paths is empty).
+
+**Measured by QA, against `review-physics.md` §2–§5 and the amended scenario** (`specs/assets-vegetation/spec.md:24`):
+
+| | V13_low | V13_mid | V13_tall | Limit |
+|---|---|---|---|---|
+| Pieces (kinds) | 6 (6 capsules) | 15 (15 capsules) | 24 (23 capsules, 1 sphere) | ≤ 24, spheres or capsules, `twig`, not landable |
+| Piece radii | 84–307 mm | 43–313 mm | 46–326 mm | |
+| Worst standoff (a), QA sampler / build audit | 97.45 / 97.22 mm | 97.80 / 97.75 mm | 97.50 / 97.46 mm | 100 mm |
+| Twig vertices outside (b), QA / audit | 94.87 / 94.87 mm | 97.84 / 97.84 mm | 99.68 / 99.68 mm | 100 mm |
+| Leaf vertices outside (c), QA / audit | 268.67 / 268.67 mm | 275.51 / 275.51 mm | 282.59 / 282.59 mm | 300 mm |
+| Lowest piece surface; lowest leaf or twig | 0.041; 0.008 m | 0.892; 0.816 m | 1.267; 1.251 m | no piece more than 0.1 m below the mass |
+| Records (stem `edge` / stem `hook` / twig `edge` / twig `hook`) | 28 / 14 / 62 / 123 = 227 | 28 / 14 / 52 / 103 = 197 | 28 / 14 / 89 / 178 = 309 | 227 / 197 / 309 |
+| Wind box y; porosity | 0.0076–1.2066 m; 0.35 | 0.8159–2.0277 m; 0.35 | 1.2506–3.0040 m; 0.35 | from the lowest leaf or twig |
+
+- **Standoff (a).** Over all 45 pieces, QA's value minus the audit's runs from −0.69 mm to +0.28 mm. Where QA is lower, the sampler missed the true peak, so it is a lower bound. Where QA is higher, it is inside the audit's stated 0.5 mm precision (`SHELL_PRECISION_M`). The worst exposed point of every variant stands 2.2–2.8 mm inside the tolerance.
+- **Bare-stem zone.** No piece reaches below its lowest leaf or twig. Read in QA's own orthographic plots (front and side, pieces as stadiums over the leaf and twig vertices) and in the build's overlay tiles (both lights): the pieces sit on the leaf mass, and the stems below 0.82 m (mid) and 1.25 m (tall) carry only their capsules and stem records. On `V13_low`, which is leafy to the ground, a capsule of 84 mm radius runs down among the stems to about 0.2 m. Its worst point (y 0.19 m) stands 96.2 mm off a face, because the low cards reach 0.01 m, so it is not an invisible wall.
+- **Records.** QA compared every record with the skeleton (generator spy) and the committed capsules.
+  - Each stem has `edge`, `edge`, `hook` on its capsules' chords (end points within 2 µm), at the capsules' radii (8.333 / 7.0 / 5.667 mm). The chain starts at y 0, runs continuously and ends at the stem tip.
+  - Each twig has one record from `p0` to `p1` at (r0 + r1)/2 (3.25 mm first order, 2.0 mm second order). It is an `edge` exactly when another twig starts at its end (QA: distance < 1 nm). The single first-order hook on low is the twig with no children.
+  - The prefabs carry the same colliders: low 48 capsules, mid 57 capsules, tall 65 capsules and 1 sphere.
+- **Wind box.** It spans the LOD0 leaf and twig vertices to within 1 µm on every side.
+
+**Known-wrong models fail, on the real meshes:**
+- Task 1.2's single sphere on `V13_mid`: QA's sampler measures 744.1 mm (at its bottom, y 0.15 m, among the bare stems) and fails (a). The test `test_the_first_bounding_sphere_fails_its_standoff` (`test_shrub.py:322`) passes with the audit inside 700–800 mm.
+- **(a) at its threshold**, `V13_mid` collision[42], audit / QA:
+
+  | Radius change | Audit | QA | Result |
+  |---|---|---|---|
+  | as built | 97.750 mm | 97.796 mm | pass |
+  | +5 mm | 98.550 mm | 98.653 mm | pass |
+  | +20 mm | 100.503 mm | 100.485 mm | FAIL / FAIL |
+
+  The worst point's nearest faces lie partly outward, so the standoff grows by less than the radius. The two measures agree within 0.1 mm. In the same way, `V13_tall` collision[53] grown by 5 mm still passes the full audit.
+- **(b) at its threshold.** On `V13_tall`, the piece nearest the worst twig vertex, shrunk by 1 mm, fails with `slot twig (geometry, twig shell): largest outside distance 100.679 mm at (0.7103, 2.2, 0.7118) exceeds the tolerance 100 mm`.
+- **(c).** On `V13_tall`, one leaf corner moved to 310 mm outside fails with `slot leaf (cards, twig shell): largest outside distance 310.000 mm ... exceeds the allowance 300 mm`.
+- **The card/geometry split matters.** With `card_visuals` empty, the committed `V13_tall` leaf slot is held to 100 mm and fails at 282.587 mm.
+
+**Verdict on R1:** closed. The shell follows the leaf and twig mass within the physics engineer's derived 0.1 m. The bare stems carry only their capsules. The audit measures both directions, with tests and with real-data threshold behaviour. The asset-pipeline delta is amended (`specs/asset-pipeline/spec.md:20-37`). The physics reading that R1's alternative asked for is recorded, with its derivation (`review-physics.md` §2).
+
+### P-1 and P-2, as tightened
+
+QA's probe ran in Unity batchmode with graphics, from an editor script placed in `Assets/QaScratch/` for the run and then removed (git status 0 lines afterwards).
+- **The setup.** The day profile's sun (elevation 45°, azimuth 135°, intensity 1, soft shadows) and ambient are set as the review rig sets them. The camera sits 0.5 m back along the sun's beam, with the sun behind it. The card is atlas cell 0 at 0.2 m tall (0.089 m wide). It is shown front, then turned 180° about its own vertical axis. The target is a 512² ARGBFloat linear RT with no MSAA and no post. The opaque pixels are those not on the magenta clear: 25 507.
+
+| Model | Front, sRGB of the mean | Back, sRGB of the mean | Back / front per channel | Luminance back / front |
+|---|---|---|---|---|
+| `Fpv450/Leaf` (as built) | (90.0, 93.4, 66.2) | (82.5, 86.3, 60.2) | 0.917, 0.924, 0.909: **pass** (15 %) | 0.845 |
+| URP/Lit, cull off (known wrong) | (90.0, 93.4, 66.2) | (91.9, 95.3, 93.2) | 1.021, 1.020, **1.408: fails** | 1.078 (would pass the old luminance metric) |
+| `Fpv450/Leaf`, sun off | (48.8, 52.7, 43.0) | (48.6, 52.5, 42.7) | 0.996, 0.997, 0.994 | 0.994 |
+| URP/Lit, sun off | (48.8, 52.7, 43.0) | (91.9, 95.3, 93.2) | 1.88, 1.81, 2.17 | 3.38 |
+
+- **Results.** The mean of the per-pixel sRGB gives the same verdicts (leaf 0.915 / 0.920 / 0.906). The tightened scenario (`specs/asset-pipeline/spec.md:12`) passes with a 5.9-point margin on the weakest channel, and the known-wrong model fails it on blue. This reproduces the first pass, with 0.845 here against 0.863 there, since the card is framed larger. The table records the setup, and the roughly 15 % of luminance the back loses under the sun is still unexplained against task 1.4's 0.999 (non-blocking).
+- **P-2, coverage, measured on a readable, uncompressed RGBA32 copy of the base map with the committed import settings.** The committed importer has `mipMapsPreserveCoverage` True, `alphaTestReferenceValue` 0.5, sRGB, alpha from input, box filter and max 2048. Opaque share (alpha ≥ 128) per mip:
+  - **preservation on:** 2048 px 20.35 %, 64 px 20.70 %, 8 px 21.88 %, **4 px 25.00 %**, 2 px 25.00 %, 1 px 100 %
+  - **preservation off:** 64 px 20.61 %, 8 px 18.75 %, **4 px 0.00 %**, 2 px 0.00 %, 1 px 0.00 %
+
+  The tightened scenario (`:16`) passes ("every mip down to 4 px keeps opaque texels"), and the known-wrong model fails it, as the scenario says.
+
+**P-1 and P-2: closed.** Neither has an automated test of the measured criterion (suggestion 11).
+
+### Code
+
+- **`lib/shell.py`** is a plain function of a mesh and its slot names, so V01 can call it per limb.
+  - The mass is a 5 cm grid of cells within 85 mm of a face. The distance transform (Felzenszwalb–Huttenlocher) is tested against brute force.
+  - Candidates are spheres and capsules at the transform radius. The greedy cover uses a lazy heap with a deterministic tie-break. The swap pass and the shrink pass (`_hold`) re-measure each piece with the audit's own `standoff`, and the shrink pass is conservative because no other piece hides any of it.
+  - All orderings are sorted or index-keyed. The second build reproduced every line and every byte.
+  - When the cap does not cover every target, `fit` returns its pieces anyway and the audit refuses the build, which is the right split: the audit is the gate.
+- **The audit's rule (a)** is a sound branch and bound.
+  - Each cell's bound is the lesser of two, plus the patch's sag: the distance at the nearest vertex plus the longest edge, which holds because the distance is 1-Lipschitz, and the convex distance to one candidate face at the worst vertex.
+  - The radial sag (r less the centre's distance to the flat triangle) is exact. The wall sag r·Δθ²/2 is conservative.
+  - The ground and the other pieces drop only cells that lie wholly beyond the sag.
+  - `FaceIndex` registers each face in every cell it can meet and stops the ring search once the best distance is under the searched radius. This is correct, because a point lies at least k cells from anything outside k rings. Far points fall back to every face, which is slow but correct.
+- **Card slots by `alpha_clip`** (`catalog.card_visuals`) use the same test the importer uses for clipping. A clipped recipe on a geometry slot would get the card allowance, which V01 should keep in mind.
+- **`shell.py` calls the private `audit._face_distance`** (`shell.py:94`), and `ROUNDS` serves both the outer loop and the swap rounds. These are minor (suggestion 9).
+- **Build-time cost.** The rebuild took 5 min 34 s and 4 min 59 s on battery. The audit alone took 41–47 s per run on `V13_tall` in QA's checks. The shrub, shell and audit tests take 3 min 39 s. This is acceptable for a three-variant asset. V01's crowns and V13's planned autumn variants will add to it.
+
+### Findings (non-blocking)
+
+- **N-1 `V13_tall` sits at the cap, and the planned autumn state does not fit.**
+  - The build is seeded and deterministic, so the 0.32 mm twig margin has no false-failure rate. It cannot drift between runs on this machine: it is a fragility to parameter changes.
+  - QA built the three variants at `leaf_cover` 0.4, the value `p1-v01-locust` task 1.4 plans for `V13_*_autumn` (design 7 there), and ran the fit and audit unchanged:
+    - `V13_low`: 9 pieces, passes
+    - `V13_mid`: 21 pieces, passes
+    - **`V13_tall`: 24 pieces, fails.** A twig vertex lies 227.4 mm outside (tolerance 100) and a leaf vertex 341.5 mm outside (allowance 300).
+  - So that task will hit `review-physics.md` §3's report-and-stop clause. The orchestrator should have the physics engineer revisit the cap, or the fitter's coverage of sparse twig mass, before `p1-v01-locust` 1.4, and before V01's crowns, which are sparser still.
+- **N-2 Twig records outside the shell.** Measured by QA:
+
+  | Variant | Twig records | With a point outside the union of the pieces | Farthest point outside |
+  |---|---|---|---|
+  | low | 185 | 58 | 93.8 mm |
+  | mid | 155 | 83 | 95.2 mm |
+  | tall | 267 | 162 | 98.8 mm |
+
+  `review-physics.md` §4 resolves a record's material from its capsule, "else of the shell that encloses it", which leaves these without one. The phase-7 compiler should take the slot's physics material (`twig`) instead. This goes to the physics engineer (N4) and the world-builder.
+- **N-3 Overlay legibility.** The shell pieces share the collision colour with the bark capsules, and 197–309 snag crosses cover the crown in the overlay tile. QA had to plot its own orthographic views to read the pieces against the bare stems.
+- **N-4 The hygiene timing test** fails on battery at 2.04–3.8 s against 2.0 s. It is outside this change, and QA owns it: its 2 s bound on the maximum of three runs is not sized by a false-failure rate (handoff).
+
+### The H findings after the rework
+
+The rework does not touch the look: FBX, params, materials and shader are identical, and the sheets reproduce. **H-1…H-7 stand as written**, with this coverage from `p1-v01-locust` task 1.4 on `unity/main` (design 7, the "H autumn belt state" requirement):
+
+| Finding | Status |
+|---|---|
+| **H-1 Season and state** | **covered**: `V13_*_autumn` at `leaf_cover` 0.4 with the autumn leaf tint, compared against H |
+| **H-3 Twig mesh hidden** | **covered**: stems and twigs are kept while leaves thin out, and the "Matches H" scenario asks for dark stems and twigs showing through at 1–2 m. N-1 blocks `V13_tall_autumn` as the cap stands |
+| **H-4 Colour** | **partly covered**: the autumn tints come in task 1.4. The comparison through the feed stays open (tech-artist) |
+| **H-5 Domes or a wall** | **partly covered**: task 1.4 renders a row of `V13_mid_autumn` and measures the 1–2 m band for sky. Placement in the map stays the world-builder's |
+| **H-2 / F-1 Stem structure** | **open**: task 1.4 keeps V13's stems unchanged, and V01's skeleton growth (its design 1) is the tree's |
+| **H-6 Far-card value** | **open** |
+| **H-7 Low base** | **open** |
+
+### Spec scenarios (updated)
+
+| # | Scenario | Result | Evidence |
+|---|---|---|---|
+| V13-1 | Built from params by one command | **PASS** | Runs 1 and 2: exit 0, 186 identical lines, sheets byte-identical, `git status` 0 lines |
+| V13-2 | Sizes inside the sheet | **PASS** | Bounds unchanged from the first pass (metadata `bounds` identical); the tall variant's lowest leaf or twig is at 1.251 m |
+| V13-3 | Reads as a wall at the belt edge | **PASS** (colour at albedo only, as before) | QA's band fill re-measured on the new `V13_mid` 10 m overcast tile, with camera (−6.64, 4.43, −6.63) as logged, rows 427–513, thresholds 8 / 12 / 20. The fill of the silhouette span is **0.934 / 0.934 / 0.931**, 0.49 of the bounds width, colour #5b603d. Day light gives 0.934. At 50 m: **0.924**. All are the first pass's values within its row rounding |
+| V13-4 | Stems and shell carry the contact (amended) | **PASS** | The R1 table above: capsules ≤ 12.5 mm from their tubes, records per stem and per twig, ≤ 24 pieces within 0.1 m / 0.1 m / 0.3 m, the bare-stem zone left to the capsules, the wind box from the lowest leaf or twig at 0.35, `gaps` empty, nothing landable |
+| V13-5 | Four LODs under budget | **PASS** | Unchanged: 5 850 / 8 380 / 10 520 LOD0 triangles, halving; the textures unchanged |
+| AP-1 | Leaf card material | **PASS** | EditMode `LeafRecipe_ClipsAtHalfAndCullsNoFace`; the probe reads `Fpv450/Leaf`, cull 0, cutoff 0.5 |
+| AP-2 | Back faces lit as leaves (tightened) | **PASS** | Per channel 0.917 / 0.924 / 0.909; URP/Lit with cull off fails at 1.408 on blue |
+| AP-3 | Coverage kept at distance (tightened) | **PASS** | 4 px mip 25.00 % with preservation, 0.00 % without |
+| AP-4 | Pieces hugging the mass pass | **PASS** | `test_two_overlapping_spheres_hugging_the_mass_pass_and_print_both_ways`; all three real variants pass with every piece and slot printed |
+| AP-5 | Shell too large for its mass | **PASS** | `test_a_piece_30cm_too_large_fails_its_standoff` (380 mm named); the real `V13_mid` piece +20 mm fails at 100.503 mm; the first sphere fails at 700–800 mm (QA: 744 mm) |
+| AP-6 | Twig outside the shell | **PASS** | `test_a_twig_vertex_15cm_outside_fails_...` (150.000 mm named); real `V13_tall` fails at 100.679 mm with one piece 1 mm smaller |
+| AP-7 | Card outside the shell | **PASS** | `test_a_card_corner_35cm_outside_fails_and_25cm_passes`; the real `V13_tall` corner at 310 mm fails, as built 282.587 mm passes |
+
+### Requirements (updated)
+
+| ID | Status | Notes |
+|---|---|---|
+| AST-02 | **met** | Unchanged |
+| AST-03 | **met** | Unchanged; the rebuild is byte-identical with the shell fit in the loop |
+| AST-05 | **met** | The shell follows the visual within the derived 0.1 m. A compliant 30 N/m shell is held to 0.1 m, not the ±5 cm of rigid shapes, on `review-physics.md` §2's derivation (3 N, inside the stiffness's own spread) and the sheet's group rule. Capsules are within 12.5 mm. Records follow the sheet's rule. The wind volume covers the leafy mass only |
+| AST-07 | **met** | Unchanged |
+| AST-08 | **met** | Unchanged |
+| AST-09 | **partly met** | Summer state; the autumn state is planned in `p1-v01-locust` 1.4, and N-1 blocks its tall variant |
+| AST-12 | **met** | Sheets read again, including the overlay tiles; QA's own orthographic overlays added |
+| REAL-01 | **partly met** | Unchanged: H-2, H-6 and H-7 are open, and the season goes to `p1-v01-locust` |
+| REAL-03 | **met as a process** | Unchanged |
+| REAL-05 | **met** for this asset | No invisible contact volume beyond 0.1 m of a leaf or twig face; the bare stems are capsules only; no openings; stems and twigs are geometry with capsules or records |
+| SEC-04 | **met** | No pin changed; `--verify` is OK |
+
+### Hygiene (rework)
+
+```
+$ git log --format="%h|%an <%ae>|%cn <%ce>|%s|%b|%(trailers:only)" a3120e9..HEAD
+731e86a Orchestrator <orchestrator@450fpv.local>   docs(openspec): bring the v13 proposal in line with the shell as built (70)
+98a5cfa Asset Artist <assets@450fpv.local>         docs(openspec): record the v13 shell as built and tick task 1.6 (63)
+f7b5732 Asset Artist <assets@450fpv.local>         art(vegetation): rebuild v13 with shell pieces, records and wind box (68)
+defc9cf Asset Artist <assets@450fpv.local>         art(vegetation): v13 wind box over the leafy mass only (54)
+2f2d490 Asset Artist <assets@450fpv.local>         art(vegetation): v13 stem and twig snag records (47)
+8893fe8 Asset Artist <assets@450fpv.local>         feat(assets): fit crown shells as pieces on the leaf mass (57)
+126f52c Asset Artist <assets@450fpv.local>         feat(assets): audit shells both ways with a card allowance (58)
+06fbdc9 Orchestrator <orchestrator@450fpv.local>   docs(openspec): carry the v13 physics reading into the spec (59)
+aaff29d Physics Engineer <physics@450fpv.local>    docs(physics): read the v13 shell, hook and snag metadata (57)
+abd2e6c Orchestrator <orchestrator@450fpv.local>   docs(openspec): answer the v13 qa pass with a physics reading and r1 (68)
+  every body and trailer list empty; author = committer; subject lengths in brackets (≤ 72)
+```
+- **Commits and files.** The identities are the roles from `docs/team.md`, and there is one logical step per commit. The 21 files lie under `tools/blender/`, `openspec/changes/p1-v13-shrub/`, the three V13 metadata files and the three V13 prefabs. Nothing comes from `reference/`, `Library/`, `Temp/`, `Logs/`, `UserSettings/` or `review-sheets/`, and no media changed. The OPSEC scan finds 0, and the new text names letters only.
+- **No new third-party file.** `tools/assets/manifest.json` and `CREDITS.md` are untouched.
+
+### Suggestions (non-blocking)
+
+Carried from the first pass:
+- 1 (stem structure)
+- 2 (H-6)
+- 3 (H-7)
+- 5 (belt check, now partly in `p1-v01-locust` 1.4)
+- 6: the facing test's comment still says "0.77–0.82 as tuned", at `test_shrub.py:278`
+- 7: the scenario title still says "Four LODs"
+
+Suggestion 4 is resolved by PR3 and PR4.
+
+New:
+8. **Requirement text carries review history.** The asset-pipeline requirement's last sentence ("This relaxes QA's first scenario …") is review history. Move it to the design at the archive sync, so the main spec states the rule only.
+9. **Make `audit._face_distance` public,** or have `shell.py` use `FaceIndex`, and split `ROUNDS` into its two uses.
+10. **Give shell pieces their own overlay colour** in the review capture, and draw the twig records thinner or under a toggle (N-3).
+11. **Add EditMode checks for P-1 and P-2's measured criteria** (tech-artist). For P-2, assert the base map's 4 px mip keeps opaque texels; it is cheap. For P-1, a per-channel back/front check on one card under the day light.
+12. **Before `p1-v01-locust` 1.4,** the physics engineer revisits the 24-piece cap, or the asset-artist adds fringe capsules along sparse twigs to the fitter, with `V13_tall` at `leaf_cover` 0.4 as the failing case (N-1).
+
+Verdict: APPROVED
+
+R1 is closed as `review-physics.md` and the amended deltas define it, and P-1 and P-2 are closed. Everything the first pass verified still holds, re-run by QA: the builds, sizes, wall reading, leaf material, budgets, FBX and LODs, K01 and hygiene. N-1 does not block this change, which builds the summer state, but it must be planned before `p1-v01-locust` task 1.4.
