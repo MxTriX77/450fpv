@@ -10,4 +10,4 @@
 
 ## 2. Review
 
-- [ ] 2.1 [qa-engineer] review against spec scenarios
+- [x] 2.1 [qa-engineer] review against spec scenarios
