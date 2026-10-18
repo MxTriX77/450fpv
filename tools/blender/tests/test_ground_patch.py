@@ -367,6 +367,7 @@ def test_metadata_lists_the_micro_mesh_and_only_the_slab_shapes(built, s04_param
      "'bare.size_m.min' = 0.35 must exceed the cell's diagonal 0.354 m"),
     (lambda p: p["green"]["width_m"].update(min=3.5), "'green.width_m.min' = 3.5 exceeds 'green.width_m.max' = 3.0"),
     (lambda p: p["blade_h_m"].update(min=0.2), "'blade_h_m.min' = 0.2 exceeds 'blade_h_m.max' = 0.15"),
+    (lambda p: p["bare"].update(share=0.14), "'bare.share' = 0.14 is outside [0.0, 0.12]"),
 ])
 def test_check_refuses_naming_the_rule(s04_params, edit, expected):
     edited = copy.deepcopy(s04_params)

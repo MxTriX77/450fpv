@@ -123,9 +123,11 @@ PARAMS = {
                     "effect": "the mat's depth D (sheet 5-20 cm): the mat boxes stand from -D to 0 on the soil box and "
                               "a bare patch's floor lies D below the mat; straw's 490 N/m in physics_materials.json is "
                               "derived at 0.125 m, so another depth needs a physics re-derivation"},
-    "bare.share": {"type": "float", "range": (0.0, 0.3), "default": 0.08,
+    "bare.share": {"type": "float", "range": (0.0, 0.12), "default": 0.08,
                    "effect": "share of the patch under bare soil patches, measured on their step outlines; the ground "
-                             "recipe draws its bare mask from the same layout (lib.patches)"},
+                             "recipe draws its bare mask from the same layout (lib.patches); at most 0.12, because "
+                             "PR4's windows keep about a metre of mat between two floors and the layout finds no room "
+                             "for more (0.14 fails after about two minutes of search)"},
     "bare.size_m.min": {"type": "float", "range": (0.3, 3.0), "default": 0.5,
                         "effect": "shortest bare patch along the lodging; at least the cell's diagonal"},
     "bare.size_m.max": {"type": "float", "range": (0.3, 3.0), "default": 2.0, "effect": "longest bare patch"},
