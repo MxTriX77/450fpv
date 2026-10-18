@@ -51,7 +51,7 @@ Viewpoint heights are estimated from the scene (the drone's props, tussocks, cra
 | B | a dry sun-baked field pocked with shallow craters, a lumpy earth bank with saplings on it along the left edge, a sparse strip of thin broken trees on the horizon | 1–3 m, slow forward (crater rings 2–4 m read at 5–30 m; the 1 m fragment in B 10–14) | forward, 0° tilt, the horizon at mid-frame, the bank and the strip at the left edge (B 1–6, B 9–16), the field filling the lower half | low warm sun from the side and behind, long shadows in the crater lips | early evening or morning | clear, dry, dusty |
 | F | the floor of a dense belt: bare dusty loam with twigs, then a round dug pit with branches across it | 1–2 m along the corridor (F 1–14), then 0.5–1.5 m over the pit, looking down into it (F 15–17) | forward, then forward-down into the pit | low sun through the branches, brown dust haze at 0.5–3 m | afternoon | dry, dusty |
 | G | a narrow winding trench with broad grassed parapets, between an openwork tree strip and a dark field with straw streaks | 2–5 m above the parapets, fast | forward-down; the trench from the bottom centre to the horizon, the strip on the left, the dark field on the right (G 1–12) | low warm sun, long shadows, saturated straw | early evening or morning | clear, dry |
-| H | a belt edge over a lodged straw mat on dark soil, bare soil patches and a short-grass strip | 0.3–1.5 m, slow | forward, 0° tilt; the straw mat fills the lower half, the belt wall the upper (H 1–21) | overcast, flat | daytime | overcast, dry, autumn |
+| H | a belt edge over a lodged straw mat on dark soil, bare soil patches and a short-grass strip | 0.3–0.5 m (measured, H 12–20: S04's note), slow | forward, 0° tilt; the straw mat fills the lower half, the belt wall the upper (H 1–21) | overcast, flat | daytime | overcast, dry, autumn |
 | L | open rolling fields at night; a pale dirt track running ahead; a lone tree, a bush and a pole as silhouettes on a crest | 1–3 m (the bush and the tree on the crest at 50–150 m) | forward, 0° tilt, the horizon mid-frame, the track from the bottom centre (L 1–8) | none; the sky is brighter than the ground | night | overcast |
 | P | wet stubble fields with straw windrows and drill rows, a dirt track along a belt, green patches of new growth | tens of metres, lower in P 30–42 where drill rows resolve | forward-down, the horizon in the top quarter and strongly bent by the lens | overcast, dim | daytime | rain and severe wind, wet ground |
 
@@ -921,6 +921,8 @@ Preset: `base_sets` brown_mud_02 + TextureCan Ground 0018; `albedo_target` #7a70
 
 ### Open points
 - The hook rate (21.5 % of legs) may read as "every time"; flight tuning with the pilot at the physics gate (K§7.3).
+- The heaped ground and the bank along the belt (0.2–0.8 m, measured above) are relief, not mat: the world-builder puts them in the heightfield or as placed features in phase 3; the S04 patch's ±4 cm relief and mounds do not carry them.
+- S04's floors read 0.62 of the mat in the albedo after p1-s04-belt-straw task 1.10; the bare soil measured here implies #59544c: the asset-artist moves the floors' soil toward it after G1 if the side-by-side asks.
 
 ## S05 belt_bare
 
