@@ -3,11 +3,19 @@
 ## ADDED Requirements
 
 ### Requirement: Alpha-clipped two-sided recipes
-A material recipe MAY declare `alpha_clip` (a cutoff in 0–1) and `two_sided: true`; the importer SHALL build a URP/Lit material that clips by the diffuse alpha at that cutoff and renders both faces, and the texture import SHALL keep the alpha channel.
+A material recipe MAY declare `alpha_clip` (a cutoff in 0–1) and `two_sided: true`; the importer SHALL build a lit material that clips by the diffuse alpha at that cutoff and renders both faces, a back face lit with its own (flipped) normal, and the texture import SHALL keep the alpha channel and preserve the alpha coverage at the cutoff in every mip level.
 
 #### Scenario: Leaf card material
 - **WHEN** a recipe names a LeafSet with `alpha_clip` 0.5 and `two_sided` true
 - **THEN** the imported material has alpha clipping on at 0.5 and culls no face, and a leaf card renders its silhouette from both sides in the review sheet
+
+#### Scenario: Back faces lit as leaves
+- **WHEN** a two-sided leaf card is seen from its back under the day light of the review rig
+- **THEN** its mean luminance is within 15 % of the same card seen from its front with the sun behind the camera, not the pale sky sheen of a back face lit with the front's normal
+
+#### Scenario: Coverage kept at distance
+- **WHEN** the clipped base map is imported
+- **THEN** its importer preserves mip coverage at the recipe's cutoff, and the fraction of opaque texels after clipping in the 64 px mip is within 10 % of the full-size map's
 
 ### Requirement: Compliant shells in the collision audit
 A collision shape whose material is a crown contact material (`twig` or `foliage`) is a shell. The audit SHALL require every LOD0 vertex of the shell's slots to lie inside the shell or within 5 cm outside it, and SHALL NOT require the shell's surface to lie near the mesh; it SHALL print each shell with the largest outside distance it found.
