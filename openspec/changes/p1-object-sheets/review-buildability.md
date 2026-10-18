@@ -1,6 +1,6 @@
 # Buildability review: p1-object-sheets (task 1.7)
 
-**Reviewer:** asset-artist, as the role that writes the generators from these sheets. **Reviewed:** the six sheets at `2b06a65`, then fixed on this branch in six `docs(ref)` commits (below). **Contract:** the spec's "Buildable" requirement, read against the pipeline as it exists: `tools/blender/lib/meta.py` (metadata schema 1), `assets-src/physics_materials.json` (the closed id list), `tools/blender/generators/debris_brick.py` and `openspec/specs/asset-pipeline/spec.md`. The footage was not re-read; `reference/` was not opened.
+**Reviewer:** asset-artist, as the role that writes the generators from these sheets. **Reviewed:** the six sheets at `2b06a65`, then fixed on this branch in six `docs(ref)` commits (below); U02b, added after it, was reviewed at `5fd5cd6` and fixed in a seventh. **Contract:** the spec's "Buildable" requirement, read against the pipeline as it exists: `tools/blender/lib/meta.py` (metadata schema 1), `assets-src/physics_materials.json` (the closed id list), `tools/blender/generators/debris_brick.py` and `openspec/specs/asset-pipeline/spec.md`. The footage was not re-read; `reference/` was not opened.
 
 ## How each row was judged
 
@@ -213,6 +213,7 @@ Every id H01 needs (`masonry`, `timber`, `glass`, `cable`) already exists.
 - U01 as a section-based generator: its table is complete, with every damage kit item in physical terms and the rebar sizes and density given
 - the U02 mound, from a published rubble method with its volume derived
 - U03 and P01–P06
+- U02b (added later, task 1.8) as the thin `roof_pile` generator it names: the house generator's roof and wall builders at the source preset, a seeded collapse pose, U02's core builder and the K kit. It follows H01's house generator and U02, and needs nothing new but the pose. All 28 parameter rows have a range or a discrete choice and an effect. The members are K03's sections, the scatter is the kit's λ per class, the core is bulked by U02's 1.86, and the timber and core volumes recompute from H03's defaults. The collision plan is primitives (4–8 core boxes with the voids open, 60–150 member capsules, 20–60 thin boxes, inside a tree's budget), with snag records by convention 4
 
 **Fixed (`8bb1971`):**
 - The stale notes are updated: "lines sheet not on this branch", and the U01 eaves item, which is now in the asset list.
@@ -221,8 +222,15 @@ Every id H01 needs (`masonry`, `timber`, `glass`, `cable`) already exists.
 - P05 wrote a gap between phase conductors, which breaks L01's rule that wire contacts bound that space. It no longer does.
 - The K06, K10 and L05 cross-check is recorded.
 
+**Fixed for U02b (`6c6b19e`):**
+- The default source is H03 with `wall_material` red_brick. H03 is silicate, while I's wall end and core are red brick and the colour rows author `red_brick`.
+- The pitch is H03's 25°, not 27°. The rafter is 3.86 m to the eaves line, which the timber count's 4.3 m rafters already assumed, and the high-end flank recomputes to 35°.
+- The masonry core counted the ceiling's joists and boards (4.1 m³) that the timber row counts too. They are members in the collision plan, so the core is 50 m³, 0.6 m mean.
+- `rafter_spread` set the rise even where a support holds the ridge, which put I's high-end rafter feet 1.1–1.5 m above the core. Spread now sets the ridge only where nothing holds it; a held ridge lets the feet hang to the core.
+- Two gap verdicts now follow the formula. Battened slate bays of 0.60–0.70 m pass nose-first within ±5° to ±35° (U01's rule), not "nose-first only". Crossed-member openings of 0.574–0.6 m pass nose-first within ±5°, and those of 0.5 m and over are written as polygons (convention 3, the vegetation threshold).
+
 **Open:**
-- **Sent back, for a reference-analyst:** U02b (the collapsed timber roof pile, from I) has an asset-list row but no section in any sheet. The coverage scenario cannot pass until it has one. The house X state and K03 timbers can build it once it has dimensions.
+- **U02b, no longer sent back:** the reference-analyst added its section (task 1.8, from I), so the coverage check passes, and it is judged above: buildable, with the fixes in `6c6b19e`. The physics sign-off on `p1-pipeline-hardening` covers every id it uses. `asbestos_cement`, `fabric` and `plastic` are added. `soil` maps to `surface:<id>`, so the ceiling fill stays `masonry` inside the core boxes, and `surface:rubble` on the core's top faces is accepted, as for U02. Still for the physics engineer: capsule rafters, which a leg slides off where a sawn face would hold, inside AST-05's ±5 cm.
 - **Physics engineer:**
   - the ids `fabric`, `plastic`, `asbestos_cement`, EPS `foam` and ceramic
   - `surface:rubble` on U02's top faces
@@ -313,12 +321,12 @@ Every id H01 needs (`masonry`, `timber`, `glass`, `cable`) already exists.
 | `342b8a1` | lines-roads-debris | 9 missing types and effects, K06 bar and lintel sizes, L05 length, RD03 rut parameters, the K mixture |
 | `ced52e9` | vehicles | the body profile parameters, the resolved notes |
 | `8bb1971` | urban-edge | stale notes, lintel bars, P05 insulators and conductor gaps |
+| `6c6b19e` | urban-edge (U02b) | source brick, pitch, core volume, `rafter_spread`, two gap verdicts |
 
 **Sent back, by owner:**
 
 | Owner | Item |
 |---|---|
-| Reference-analyst | U02b sheet section (from I) |
 | Physics engineer | the ids and fields above |
 | Physics engineer, with the pipeline | `surface:<id>` against `soil` |
 | World-builder, with the asset-artist (pipeline) | `ground_holes` hand-off |
