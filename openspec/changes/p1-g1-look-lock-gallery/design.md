@@ -1,0 +1,25 @@
+# Design: p1-g1-look-lock-gallery
+
+## Context
+After the six look-lock changes: prefabs under `Prefabs/{surfaces,vegetation,houses,vehicles,earthworks,lines}`, the review rig (`Settings/Review/day.json`, `overcast.json`: sun 45° at 1.0, ambient 0.28 / 0.31 / 0.36, background sRGB 0.60 / 0.70 / 0.82; equal horizontal illuminance), `NoclipCamera` (mouse look, WASD, speed by wheel), `Boot` with `-smoketest`, `Fpv450.Build.Windows` building the enabled scenes to `Builds/Windows/`. URP Forward+ (VIS-01). No sky, fog or time of day exists yet. Labels below are for the numbers this design adds.
+
+## Goals / Non-Goals
+**Goals:** a build the pilot can fly in ten minutes; stations and viewpoints that recreate the letters' framing; light good enough to judge the look and D-001.
+**Non-Goals:** see proposal; no persistent settings, no menu (phase 6), no map package.
+
+## Decisions
+1. **Layout** (assumed, from the stations' sizes): the gallery axis runs along +X on a 400 × 240 m floor plane at y = 0; stations at x = 0 (S04 patch, 12 m), 40 (the belt section: V01 L, M, S and three V13 clumps in a 20 m row along z, the H edge facing −z), 100 (H01 I, D, X along z at 15 m spacing, facades facing −z), 160 (R01 A and F, 8 m apart, noses along +X), 210 (E01, its run along +X), 270 (L01 straight at z = 0 and leaning at z = 40 with the three L03 spans between them, the stub pole at z = −20). The 200 m viewpoint is at (40, 2, −200) looking +z at the belt row. Spacing keeps each 10 m view clear of its neighbours.
+2. **Floor.** URP/Lit with the straw cover set tiled at its tile size and a 30 m macro-variation tint (assumed) so it does not read as a grid; it is stated in `docs/gallery-g1.md` as not a judged surface (the S04 patch is). Alternative rejected: a grey floor (it fights every colour judgement).
+3. **Viewpoints** (REAL-02 at G1 scale, heights from the letters' notes): S04 at 1.5 m over the patch centre looking 35° down (H); the belt at 1.5 m, 8 m from the edge clumps (H); H01 D at 1.5 m, 12 m from the facade, then 1 m at the door (E 13); R01 A at 1.2 m, 6 m from the struck side (M); E01 at 1.5 m above the lip at the run's start looking along it (G); L01 leaning at 2 m, 15 m away, with the pole against the sky (L; under night); L03 at 2 m, 20 m from the mid-span, looking up along the wire against the sky (J); the 200 m belt view. A `Viewpoint` component holds position and heading; `ViewpointKeys` moves the noclip camera on keys 1–9.
+4. **Light presets** (tech-artist): a `LookSetup` component driving the directional light and a sky material from `hour` and `cloud_cover`: the sun elevation and azimuth from the hour (a simple solar arc for a mid-latitude autumn day, assumed; the exact location is never used), the sky as a gradient (zenith, horizon, ground tones from the footage's values in `docs/reference-notes/terrain.md`), ambient from the sky, exponential height fog for aerial perspective with density and colour per preset, tuned so the H belt-to-sky contrast at 200 m holds. Presets: day (hour 12, cover 0.2), low sun (hour 17.5, cover 0.1, warm), overcast (hour 12, cover 1.0: no sun disc, ambient equal to day's horizontal illuminance, as the review rig's rule), night (hour 23, moonless: sky sRGB about 93 at the horizon as L, ground near black). Keys F1–F4; the preset name shown for 1 s by a small on-screen label. The review capture keeps its own rig (its sheets stay comparable).
+5. **Quality.** High (lodBias 1), 1080p windowed by default, vsync off for QA's measurement and on for the pilot (a `-vsync` flag, assumed), MSAA 4× (assumed: thin wires and battens alias otherwise).
+6. **Build.** `Fpv450.Build.Gallery`: the gallery scene alone, `Builds/Windows-Gallery/450fpv-gallery.exe`, Mono, `-smoketest` handled by a `GalleryBoot` that logs the scene and quits after one frame. `docs/gallery-g1.md`: how to run, the keys, what each station is, what the pilot is asked (the open questions tagged G1 in `docs/pilot-questions.md`).
+7. **After the gate** (orchestrator): the pilot's words verbatim into `docs/style-rules.md`; D-001 closed in `docs/decisions.md`; findings routed back to their asset change (a new task on its change, or a follow-up change) before mass production starts.
+
+## Risks / Trade-offs
+- [A gradient sky is not a physical sky] → enough for G1's judgement of assets and haze; the phase-4 feed work brings the measured sky model, and the preset values are recorded so they can be reproduced.
+- [Six stations in one scene at LOD0 near the camera] → one station at a time is near; QA measures the 1 % low at every viewpoint (PLT-07).
+- [The night preset depends on the feed's noise for its real look] → G1 judges the silhouette only; the feed is phase 4.
+
+## Open Questions
+- None that change the specs; the exact haze densities are tuned by the tech-artist against the H and A contact sheets.
