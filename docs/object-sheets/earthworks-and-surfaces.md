@@ -51,7 +51,7 @@ Viewpoint heights are estimated from the scene (the drone's props, tussocks, cra
 | B | a dry sun-baked field pocked with shallow craters, a lumpy earth bank with saplings on it along the left edge, a sparse strip of thin broken trees on the horizon | 1–3 m, slow forward (crater rings 2–4 m read at 5–30 m; the 1 m fragment in B 10–14) | forward, 0° tilt, the horizon at mid-frame, the bank and the strip at the left edge (B 1–6, B 9–16), the field filling the lower half | low warm sun from the side and behind, long shadows in the crater lips | early evening or morning | clear, dry, dusty |
 | F | the floor of a dense belt: bare dusty loam with twigs, then a round dug pit with branches across it | 1–2 m along the corridor (F 1–14), then 0.5–1.5 m over the pit, looking down into it (F 15–17) | forward, then forward-down into the pit | low sun through the branches, brown dust haze at 0.5–3 m | afternoon | dry, dusty |
 | G | a narrow winding trench with broad grassed parapets, between an openwork tree strip and a dark field with straw streaks | 2–5 m above the parapets, fast | forward-down; the trench from the bottom centre to the horizon, the strip on the left, the dark field on the right (G 1–12) | low warm sun, long shadows, saturated straw | early evening or morning | clear, dry |
-| H | a belt edge over a lodged straw mat on dark soil, bare soil patches and a short-grass strip | 0.3–1.5 m, slow | forward, 0° tilt; the straw mat fills the lower half, the belt wall the upper (H 1–21) | overcast, flat | daytime | overcast, dry, autumn |
+| H | a belt edge over a lodged straw mat on dark soil, bare soil patches and a short-grass strip | 0.3–0.5 m (measured, H 12–20: S04's note), slow | forward, 0° tilt; the straw mat fills the lower half, the belt wall the upper (H 1–21) | overcast, flat | daytime | overcast, dry, autumn |
 | L | open rolling fields at night; a pale dirt track running ahead; a lone tree, a bush and a pole as silhouettes on a crest | 1–3 m (the bush and the tree on the crest at 50–150 m) | forward, 0° tilt, the horizon mid-frame, the track from the bottom centre (L 1–8) | none; the sky is brighter than the ground | night | overcast |
 | P | wet stubble fields with straw windrows and drill rows, a dirt track along a belt, green patches of new growth | tens of metres, lower in P 30–42 where drill rows resolve | forward-down, the horizon in the top quarter and strongly bent by the lens | overcast, dim | daytime | rain and severe wind, wet ground |
 
@@ -834,14 +834,30 @@ Preset: `base_sets` brown_mud_dry + brown_mud_rocks_01; `albedo_target` by mix; 
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| mat depth | 5–20 cm | 12.5 cm | terrain.md T4; carried |
-| lying straws | 0.3–1.0 m long, 2–5 mm, crosswise, 250 per m² | — | terrain.md T4; carried; measured (H 1–21) |
+| mat depth | 5–20 cm | 12.5 cm | terrain.md T4; carried; checked on H 12–17: the heaps there are ground (next row) |
+| heaped ground under the mat | crests 0.2–0.8 m above the bare floors (H 12: 0.5–0.6 m, H 14: 0.45 m, H 15–17 lower), 1–3 m across, sloping onto the floors and rising into a bank along the belt; soil relief with the mat over it, not mat | 0.45 m high, 2 m across | measured (H 12, H 14; note below) |
+| lying straws, top layer | 0.3–1.0 m long, 2–5 mm, crosswise, 250 per m²: the layer the feed resolves and a leg meets (the physics row's cover) | 250 per m² | terrain.md T4; carried; measured (H 1–21; resolved crossings on H 16, H 17, H 20, note below) |
+| lying straws, all layers | the same straws stacked through the mat's depth, 500–1000 per m² | 750 per m² (the top layer and 500 per m² under it) | derived (coverage, note below) |
 | standing stems with seed heads | 0.5–1.2 m, 2–5 mm, 60 per m² | 0.8 m | terrain.md T4; carried; measured (H 3–9) |
 | twigs in the mat | 5–20 mm, 0.3–1.0 m, 2 per m² | — | carried; measured (H 13–21) |
 | bare soil patches | 0.5–2 m | 1 m | terrain.md T4; measured (H 9–14) |
 | small earth mounds | 0.3–0.5 m across | 0.4 m | terrain.md T4; measured (H 1–4) |
 | short green regrowth | 10–30 % of the area, strips 1–3 m | 15 % | measured (H 16) |
 | uneven support | one leg on a 5 cm mat, another on 20 cm | — | derived (legacy §3.1: a 12.5 cm mat compresses about 5 cm under the reference load, a 20 cm mat about 3 cm, a 5 cm mat through to the soil) |
+
+**How the H numbers above were measured** (H 10–21 through the contact sheets, 960 × 540 px per still):
+- **View geometry** (measured): the camera looks 2–3.5° down in H 10–18 (3.2° in H 12 and H 14), from the convergence of the belt's trunks across the frame after undistortion with O1's k1 0.33 and f 1.005 half-widths (video-feed.md O1, wind.md §1.2). The result moves under 0.3° at k1 0.30 and 0.36, and the method returns 7.7°, 1.5° and −2.9° on synthetic frames drawn at 8°, 1.5° and −3°. Edge trees leaning toward the open side would add their lean; the far fields' skyline at H 1's right edge would put the pitch near 7° if those fields were level, so 7° is the bound used below. The camera's eye level therefore runs about 27 px above the still's centre, and whatever stands there is as high as the camera.
+- **Scale: the camera's height** (derived): 0.3–0.5 m above the bare floors in H 12–20, default 0.35 m.
+  - The nearest straws at the frame's bottom edge (rays 32–35° below the horizontal) are about 3 px wide once the feed's edge spread (P2) is taken off: 5.9 mrad. That puts a 2–5 mm straw 0.34–0.85 m away and the camera 0.2–0.5 m up.
+  - The legs (25–35 cm, pilot) keep a flying drone at least about 0.3 m up.
+- **Heaps** (measured):
+  - H 12: the heap's foot on the bare patch lies 30–75 px below the centre and its crest 65 px above it, so the crest stands 1.4–1.7 camera heights above the floor.
+  - H 14: 1.2–1.3 camera heights (crest 55 px above the centre, foot 60–90 px below).
+  - At the default scale: 0.5–0.6 m and 0.45 m (0.35–0.85 m over the scale's range). Across, at the feet's distance (4–8 camera heights): H 12's heap 470 px, 1.6–2.9 m; H 14's 400 px, 1.2–1.6 m. Pitched 7°, H 12's crest would still stand 1.0–1.1 camera heights up, above the 20 cm mat in every reading. In H 15–17 the mat's skyline lies 10–35 px under the eye level: lower heaps.
+  - **They are ground, not straw.** The crests are smooth domes (H 12); the flanks show soil between the straws a straw or two deep (H 14); the short-grass strip behind them (H 14, H 17) and the trunks' feet (H 12–18) also stand above the camera's eye level, so the ground rises into a bank along the belt. Shelterbelts trap wind-blown soil: deposits 15–85 cm high at the belts after one dust storm (published, https://agris.fao.org/search/zh/records/6473aa7c13d110e4e7a7c72a). The mat over the heaps is the same 5–20 cm, so the mat depth and `straw`'s 490 N/m stand.
+- **Lying-straw density:**
+  - **Top layer** (measured, at the feed's limit): along the near rows of H 16, H 17 and H 20 (rays about 32° down, 510 px wide, local maxima of 10–30 levels) the feed resolves 43–61 straw crossings per row, one every four to six source samples: its resolution limit. With the camera 0.2–0.4 m above the mat's top a row spans 0.4–0.8 m, so that is 130–380 straws per m² by Buffon's n = πN/(2ℓ) with ℓ 0.65 m: the order of the sheet's 250, and all the feed can show. The same count finds 5–11 crossings per 100 px on H 14's strewn bare soil against 8–12 on the mat, so it bounds the visible layer and cannot see the layers under it.
+  - **All layers** (derived): that layer alone covers 43 % of the ground in plan (1 − e^(−nℓd), d 3.5 mm). Seen at H's 20–35°, it would show the soil through 31–45 % of the near mat, since a ray through a layer of random azimuths meets n·ℓ·d·K straws with K 2.1–1.4 at those angles. H 12–21 show soil only in the bare patches and their feathered edges (read by eye). That needs 490–720 per m² for at most 10 % soil and 630–940 per m² for at most 5 %: 500–1000 in all, default 750.
 
 ### Construction and materials
 - Moist dark loam (chernozem type) under a mat of last season's grass lodged in all directions, with standing stems through it, a few purple flowers and green regrowth, twigs from the belt, and holes hidden under the mat.
@@ -852,11 +868,23 @@ Preset: `base_sets` brown_mud_dry + brown_mud_rocks_01; `albedo_target` by mix; 
 |---|---|---|---|
 | mat, mean | #7a7055 (carried) | #777158 (H 16), terrain.md #797258, overcast | measured on H |
 | dry straw itself | #b49c6a (assumed; 0.35 in luminance, derived) | #d39641 (G 3, low sun); terrain.md #d2953f | measured on G |
-| soil patches | #33302b–#4a463f (10YR 2/1–3/1, derived) | #67675c (H 14), #686257 (H 12), #4a4841 (H 10, a damp dark path) | measured on H |
+| soil patches | #59544c, range #555049–#5d584f (about 10YR 3.5/1–4/1, dry trodden topsoil), derived from the feed ratio below; the soil profile's #33302b–#4a463f (10YR 2/1–3/1) is the moist and the tilled soil | #67675c (H 14), #686257 (H 12), #4a4841 (H 10, a damp dark path) | measured on H |
 | short green strip | #6a7a3a (assumed) | #959763 (H 16) | measured on H |
 | wet straw | — | #9d7020 (P 23, windrow straw in rain) | measured on P |
 
 **Albedo check:** a mat of dry straw over dark soil sits at 0.15–0.25 (derived from its parts); the carried mean #7a7055 is 0.17: plausible.
+
+**Soil against mat (H 12, H 14):**
+- **In the feed** (measured, linear luminance within one still, sRGB decoded):
+  - the bare soil between the strewn straws (the patch's median) reads 0.103–0.122, against the mat's mean of 0.194–0.217: a ratio of 0.53–0.61;
+  - the patch with its strewn straws (its mean) reads 0.65–0.78 of the mat (QA's boxes: 0.65–0.72).
+- **What the feed does to that ratio:**
+  - AE (C1) is one gain per frame and cancels.
+  - AWB (C2) pulls the frame toward grey with per-channel gains. For gains of 0.7–1.4 that moves a ratio of two green-weighted luminances by under 1 % (the soil reads neutral grey, b/g 0.85–0.89; the mat yellow, b/g 0.6).
+  - C3 lowers chroma only.
+  - Outside C1–C3, a black lift or flare would raise the ratio. The darkest 1–5 % of H 12–17 read 0.006–0.018, so a lift accounts for at most 0.03 of it.
+  - The camera's tone curve is taken as sRGB's (assumed; the feed port's, D-026).
+- **Photo albedo** (derived): bare soil at 0.50–0.60 of the mat's #7a7055 (luminance 0.164) is 0.082–0.098, #555049–#5d584f, default #59544c (0.55).
 
 ### Variants and states
 - Dry autumn (default, H); low-sun look (G); wet (D-021): the mat heavier and slicker (modulus × 0.6, μ 0.35/0.28, hooks hold × 1.5), the soil × 0.4, dark straw (P 23).
@@ -870,7 +898,7 @@ Preset: `base_sets` brown_mud_dry + brown_mud_rocks_01; `albedo_target` by mix; 
 - **Snag:** straws and twigs hook legs and the fiber. **Landable:** yes; springy and uneven.
 
 ### Micro-detail (AST-10)
-- Lying straws 250 /m², 0.3–1.0 m, 2–5 mm, crosswise with a weak lodging direction; standing stems 60 /m², 0.5–1.2 m, seed heads on 30–60 % (assumed from H); twigs 2 /m²; litter none. The near ring draws and simulates every one; the far layer keeps the mat's texture to 60 m and more. This is the H look at 0.3–1.5 m: the mat must read as separate straws, never as a texture (REAL-05).
+- Lying straws 250 /m² in the top layer and 500 /m² under it (Dimensions), 0.3–1.0 m, 2–5 mm, crosswise with a weak lodging direction; standing stems 60 /m², 0.5–1.2 m, seed heads on 30–60 % (assumed from H); twigs 2 /m²; litter none. The near ring draws every one and simulates the top layer, stems and twigs (the layers under it are the mat's bulk, K§7.3); the far layer keeps the mat's texture to 60 m and more. This is the H look at 0.3–1.5 m: the mat must read as separate straws, never as a texture (REAL-05).
 - **The instance kit** (asset-artist; the scatter and its densities above are the shared micro-detail generator's, AST-10): one small generator builds the meshes the generator places, each a tapered tube of a few segments.
 
 | Param | Type | Range | Default | Effect |
@@ -893,6 +921,8 @@ Preset: `base_sets` brown_mud_02 + TextureCan Ground 0018; `albedo_target` #7a70
 
 ### Open points
 - The hook rate (21.5 % of legs) may read as "every time"; flight tuning with the pilot at the physics gate (K§7.3).
+- The heaped ground and the bank along the belt (0.2–0.8 m, measured above) are relief, not mat: the world-builder puts them in the heightfield or as placed features in phase 3; the S04 patch's ±4 cm relief and mounds do not carry them.
+- S04's floors read 0.62 of the mat in the albedo after p1-s04-belt-straw task 1.10; the bare soil measured here implies #59544c: the asset-artist moves the floors' soil toward it after G1 if the side-by-side asks.
 
 ## S05 belt_bare
 
