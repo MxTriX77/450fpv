@@ -157,8 +157,18 @@ namespace Fpv450.Assets
         /// option off and <c>_Smoothness</c> at 1 so the alpha is not scaled, and as <c>_OcclusionMap</c>; without
         /// one, smoothness is the recipe's constant. The roughness and AO sources are never assigned themselves:
         /// URP/Lit reads those channels only from packed maps.
+        /// <para>
+        /// A recipe of kind <c>ground</c> (p1-s04-belt-straw) takes the maps <c>derive.py</c> composes for it as its
+        /// base: <c>&lt;visual&gt;_albedo.png</c>, <c>_normal.png</c> and <c>_mask.png</c>, which span
+        /// <c>size_m</c> × <c>size_m</c> centred on the asset origin, so the base tiling is 1/size with a half-tile
+        /// offset. The detail layer is the derived <c>_detail_albedo.png</c> (the detail set's diffuse, neutralised
+        /// to mid-grey for URP's "detail albedo ×2") and the detail set's own normal map, keyword
+        /// <c>_DETAIL_MULX2</c>. URP/Lit derives the detail UV from the base UV times the detail tiling, so the
+        /// tiling is size/tile_size_m: the detail repeats every tile_size_m metres of the asset.
+        /// </para>
+        /// Internal for the EditMode tests, which build the belt_straw material without an asset around it.
         /// </summary>
-        static Material EnsureMaterial(string visual, Dictionary<string, object> manifest)
+        internal static Material EnsureMaterial(string visual, Dictionary<string, object> manifest)
         {
             string recipePath = $"{RecipesFolder}/{visual}.json";
             var recipe = Json.Obj(Json.Parse(ReadRepoFile(recipePath)), recipePath);
@@ -166,15 +176,50 @@ namespace Fpv450.Assets
                 throw new NotSupportedException($"{recipePath}: schema {recipe["schema"]}; this importer reads schema 1");
             string shaderName = Json.Str(recipe, "shader", recipePath);
             Shader shader = Shader.Find(shaderName) ?? throw new FormatException($"{recipePath}: no shader named \"{shaderName}\"");
-            Dictionary<string, Texture2D> maps = TextureSet(Json.Str(recipe, "texture_set", recipePath), manifest, recipePath);
-            Vector2 tile = Json.Vec2(recipe, "tile_size_m", recipePath);
-            if (!maps.TryGetValue("diffuse", out Texture2D diffuse))
-                throw new FormatException($"{recipePath}: the texture set has no diffuse map");
-            maps.TryGetValue("normal", out Texture2D normal);
-            bool masked = recipe.ContainsKey("mask");
-            if (masked == recipe.ContainsKey("smoothness"))
-                throw new FormatException($"{recipePath}: give \"smoothness\" as a constant or a \"mask\" whose alpha carries it, not both or neither");
-            Texture2D mask = masked ? DerivedMask(visual) : null;
+            string kind = recipe.TryGetValue("kind", out object kindValue)
+                ? kindValue as string ?? throw new FormatException($"{recipePath}: \"kind\" must be a string")
+                : null;
+            if (kind != null && kind != "ground")
+                throw new FormatException($"{recipePath}: unknown recipe kind \"{kind}\" (omit it for a tiled set, or \"ground\")");
+            bool ground = kind == "ground";
+
+            Texture2D albedo, normal, mask, detailAlbedo = null, detailNormal = null;
+            Vector2 baseScale, baseOffset = Vector2.zero, detailScale = Vector2.one;
+            bool masked;
+            if (ground)
+            {
+                if (recipe.ContainsKey("mask") || recipe.ContainsKey("smoothness"))
+                    throw new FormatException($"{recipePath}: a ground recipe derives its own mask; it takes neither \"mask\" nor \"smoothness\"");
+                float size = Json.Num(recipe, "size_m", recipePath);
+                var detail = Json.Obj(recipe, "detail", recipePath);
+                float detailTile = Json.Num(detail, "tile_size_m", recipePath);
+                if (size <= 0f || detailTile <= 0f)
+                    throw new FormatException($"{recipePath}: size_m and detail.tile_size_m must be positive metres");
+                albedo = Derived(visual, "albedo");
+                normal = Derived(visual, "normal");
+                mask = Derived(visual, "mask");
+                detailAlbedo = Derived(visual, "detail_albedo");
+                Dictionary<string, Texture2D> detailSet = TextureSet(Json.Str(detail, "texture_set", recipePath), manifest, recipePath);
+                if (!detailSet.TryGetValue("normal", out detailNormal))
+                    throw new FormatException($"{recipePath}: the detail texture set has no normal map");
+                baseScale = new Vector2(1f / size, 1f / size);
+                baseOffset = new Vector2(0.5f, 0.5f);
+                detailScale = new Vector2(size / detailTile, size / detailTile);
+                masked = true;
+            }
+            else
+            {
+                Dictionary<string, Texture2D> maps = TextureSet(Json.Str(recipe, "texture_set", recipePath), manifest, recipePath);
+                Vector2 tile = Json.Vec2(recipe, "tile_size_m", recipePath);
+                if (!maps.TryGetValue("diffuse", out albedo))
+                    throw new FormatException($"{recipePath}: the texture set has no diffuse map");
+                maps.TryGetValue("normal", out normal);
+                masked = recipe.ContainsKey("mask");
+                if (masked == recipe.ContainsKey("smoothness"))
+                    throw new FormatException($"{recipePath}: give \"smoothness\" as a constant or a \"mask\" whose alpha carries it, not both or neither");
+                mask = masked ? Derived(visual, "mask") : null;
+                baseScale = new Vector2(1f / tile.x, 1f / tile.y);
+            }
 
             string materialPath = $"{MaterialsFolder}/{visual}.mat";
             EnsureFolder(MaterialsFolder);
@@ -190,8 +235,9 @@ namespace Fpv450.Assets
                 material.shader = shader;
                 changed = true;
             }
-            changed |= SetTexture(material, "_BaseMap", diffuse);
-            changed |= SetTextureScale(material, "_BaseMap", new Vector2(1f / tile.x, 1f / tile.y));
+            changed |= SetTexture(material, "_BaseMap", albedo);
+            changed |= SetTextureScale(material, "_BaseMap", baseScale);
+            changed |= SetTextureOffset(material, "_BaseMap", baseOffset);
             changed |= SetColor(material, "_BaseColor", Json.Rgba(recipe, "tint", recipePath));
             changed |= SetTexture(material, "_BumpMap", normal);
             changed |= SetKeyword(material, "_NORMALMAP", normal != null);
@@ -203,15 +249,21 @@ namespace Fpv450.Assets
             changed |= SetKeyword(material, "_SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A", false);
             changed |= SetFloat(material, "_Smoothness", masked ? 1f : Json.Num(recipe, "smoothness", recipePath));
             changed |= SetFloat(material, "_Metallic", 0f);
+            changed |= SetTexture(material, "_DetailAlbedoMap", detailAlbedo);
+            changed |= SetTextureScale(material, "_DetailAlbedoMap", detailScale);
+            changed |= SetTexture(material, "_DetailNormalMap", detailNormal);
+            changed |= SetFloat(material, "_DetailAlbedoMapScale", 1f);
+            changed |= SetFloat(material, "_DetailNormalMapScale", 1f);
+            changed |= SetKeyword(material, "_DETAIL_MULX2", ground);
             if (changed)
                 EditorUtility.SetDirty(material);
             return material;
         }
 
-        /// <summary>The packed mask derived from a recipe, <c>Art/Materials/&lt;visual&gt;_mask.png</c>, imported as linear data.</summary>
-        static Texture2D DerivedMask(string visual)
+        /// <summary>A map derived from a recipe, <c>Art/Materials/&lt;visual&gt;_&lt;role&gt;.png</c>, imported as its role needs (<see cref="ArtImportSettings"/>).</summary>
+        static Texture2D Derived(string visual, string role)
         {
-            string path = $"{MaterialsFolder}/{visual}_mask.png";
+            string path = $"{MaterialsFolder}/{visual}_{role}.png";
             EnsureTextureImport(path, $"run python tools/assets/derive.py {visual}");
             return AssetDatabase.LoadAssetAtPath<Texture2D>(path)
                 ?? throw new FileNotFoundException($"{path} did not import as a texture");
@@ -256,6 +308,14 @@ namespace Fpv450.Assets
             if (m.GetTextureScale(name) == value)
                 return false;
             m.SetTextureScale(name, value);
+            return true;
+        }
+
+        static bool SetTextureOffset(Material m, string name, Vector2 value)
+        {
+            if (m.GetTextureOffset(name) == value)
+                return false;
+            m.SetTextureOffset(name, value);
             return true;
         }
 

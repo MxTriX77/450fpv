@@ -43,16 +43,18 @@ namespace Fpv450.Assets
         }
 
         /// <summary>
-        /// Applies the texture settings of a map by its file name and reports whether any changed: a Poly Haven
-        /// suffix types the third-party maps (normal, single-channel roughness and AO, sRGB diffuse); a derived
-        /// <c>_mask</c> and anything else is a default-typed linear map. Only the diffuse is sRGB.
+        /// Applies the texture settings of a map by its file name and reports whether any changed. The name,
+        /// lower-cased, types the map: Poly Haven's <c>_nor_gl</c>, TextureCan's <c>_normal</c> and a derived
+        /// <c>_normal</c> are normal maps; <c>_rough</c>, <c>_ao</c> and <c>ambientocclusion</c> are single-channel;
+        /// <c>_diff</c>, <c>_color</c> and a derived <c>_albedo</c> (the ground base and detail albedos) are sRGB;
+        /// a derived <c>_mask</c> and anything else is a default-typed linear map. Only the albedos are sRGB.
         /// </summary>
         public static bool ApplyTexture(TextureImporter importer, string assetPath)
         {
-            string name = Path.GetFileNameWithoutExtension(assetPath);
-            bool normal = name.Contains("_nor_gl");
-            bool single = name.Contains("_rough") || name.Contains("_ao");
-            bool diffuse = name.Contains("_diff");
+            string name = Path.GetFileNameWithoutExtension(assetPath).ToLowerInvariant();
+            bool normal = name.Contains("_nor_gl") || name.Contains("_normal");
+            bool single = name.Contains("_rough") || name.Contains("_ao") || name.Contains("ambientocclusion");
+            bool diffuse = name.Contains("_diff") || name.Contains("_color") || name.Contains("_albedo");
             TextureImporterType type = normal ? TextureImporterType.NormalMap
                 : single ? TextureImporterType.SingleChannel
                 : TextureImporterType.Default;
@@ -87,7 +89,7 @@ namespace Fpv450.Assets
     public sealed class ModelPostprocessor : AssetPostprocessor
     {
         // Bump when ArtImportSettings changes, so Unity reimports the files it covers.
-        public override uint GetVersion() => 2;
+        public override uint GetVersion() => 3;
 
         void OnPreprocessModel()
         {
