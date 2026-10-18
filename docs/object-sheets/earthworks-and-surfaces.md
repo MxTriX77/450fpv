@@ -1,6 +1,6 @@
 # Object sheet: earthworks and surfaces (E01–E07, S01–S13)
 
-**Owner:** reference-analyst. **Reviewed for buildability by:** asset-artist (task 1.7, pending).
+**Owner:** reference-analyst. **Reviewed for buildability by:** asset-artist (task 1.7, `openspec/changes/p1-object-sheets/review-buildability.md`).
 
 **OPSEC:** cite clips and photos by letter only. Describe classes, never a specific identifiable building, place, date or person. No file names, and no OSD values.
 
@@ -261,7 +261,7 @@ Outputs: the hole-band mask (`holes.png` cells), the filler mesh and its primiti
 ### Physics role
 - **Collision:** a hole band along the trench, filled with filler primitives per 1–2 m straight segment (≤ 1 m on curves, so the faces stay within 0.05 m of the visual): a floor box, two wall boxes at the batter, level lip boxes, each at least 0.3 m thick behind its face and overlapping 0.2 m (F-1…F-6). The parapets stay terrain: the heightfield raised 0.3–0.5 m on its 1 m samples, with the surface's cover (F-7).
 - **Material ids:** walls and floor `surface:belt_bare` (F-7), its wet variant in rain; parapets `belt_straw` or `crater_spoil` terrain. Fallback id `soil` (proposed).
-- **Gaps:** the corridor: a cross-section gap polygon every metre and at every bend (the clear trapezoid from the floor to the lip), and the open top slot along the run. The drone's side-to-side span equals its nose-first span, 0.574 m, for a square X frame; its yawed span reaches 0.706 m at 45°.
+- **Gaps:** the corridor: a cross-section gap polygon every metre and at every bend (the clear trapezoid from the floor to the lip), and the open top slot along the run, written as one polygon per filler segment (1–2 m, ≤ 1 m on curves) so that each stays planar within the pipeline's 10 mm on rolling ground. A polygon's `narrowest_m` is its inscribed circle (the pipeline convention), so the table below, not `narrowest_m`, gives the drone's clear width at each height. The drone's side-to-side span equals its nose-first span, 0.574 m, for a square X frame; its yawed span reaches 0.706 m at 45°.
 
 | Cut (top / bottom / depth) | Width at the floor / at 0.35 m (props of a landed drone) / at the lip | Along it, nose-first | Yawed 45°, or through a zigzag corner |
 |---|---|---|---|
@@ -876,6 +876,19 @@ Preset: `base_sets` brown_mud_dry + brown_mud_rocks_01; `albedo_target` by mix; 
 
 ### Micro-detail (AST-10)
 - Lying straws 250 /m², 0.3–1.0 m, 2–5 mm, crosswise with a weak lodging direction; standing stems 60 /m², 0.5–1.2 m, seed heads on 30–60 % (assumed from H); twigs 2 /m²; litter none. The near ring draws and simulates every one; the far layer keeps the mat's texture to 60 m and more. This is the H look at 0.3–1.5 m: the mat must read as separate straws, never as a texture (REAL-05).
+- **The instance kit** (asset-artist; the scatter and its densities above are the shared micro-detail generator's, AST-10): one small generator builds the meshes the generator places, each a tapered tube of a few segments.
+
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `seed` | int | any | per kit | every draw (bend, length, head shape) |
+| `straw_len_m` | range | 0.3–1.0 | 0.3–1.0 | lying straw length, drawn per instance mesh |
+| `straw_d_mm` | range | 2–5 | 2–5 | straw diameter (the physics stem radius is the same number) |
+| `straw_bend` | float | 0–1 | 0.3 | curvature and kinks along a lying straw (0 straight) |
+| `stem_h_m` | range | 0.5–1.2 | 0.5–1.2 | standing stem height |
+| `seed_head_share` | float | 0–1 | 0.45 | share of standing stems with a seed head (H: 30–60 %) |
+| `twig_len_m`, `twig_d_mm` | range | 0.3–1.0, 5–20 | as the cover row | the belt twigs in the mat (≥ 10 mm are rigid rollers, K§7.3) |
+| `variants` | int | 4–16 | 8 | distinct meshes per kind, so no repeat reads at 1.5 m |
+| `segments` | int | 2–6 | 4 | tube segments per straw at LOD0; LOD1 a 2-segment tube; beyond the near ring the far layer is the texture |
 
 ### Placement rules
 - Every belt edge, 2–10 m out from the trunks and under the outer crowns (H, G); trench parapets (E01); feathers into meadow over 2–5 m and into belt_bare over 1–3 m.
@@ -1187,16 +1200,16 @@ Preset: `base_sets` concrete_debris + Ground111; `albedo_target` #8d8172; `cover
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| carriageway | 4.5 m (one lane) – 6.0 m (two lanes) | 5 m | published (SNiP 2.05.02-85, categories V and IV) |
-| shoulders | 1.75–2.0 m, soil or sod | 1.75 m | published |
-| asphalt layer | 3–6 cm over 15–30 cm crushed stone | 4 cm | assumed |
-| potholes | at least 0.15 m, typically 0.2–1.5 m across; 25–100 mm deep | 0.5 m, 50 mm | published (size and depth bands) + assumed (upper sizes) |
+| carriageway | 3.5–7.0 m: side street 3.5–5.5, main street 5.5–7.0 (roads between villages 4.5–6.0) | 6.0 m main, 4.5 m side | published (RD01 in lines-roads-debris.md, the road kit's owner: ДБН lane widths; SNiP 2.05.02-85 categories V and IV for the roads between villages) |
+| shoulders | 0.5–2.0 m, soil or sod (1.75–2.0 m on roads between villages) | 1.0 m | RD01 (assumed); published SNiP for the roads between villages |
+| asphalt layer | 40–80 mm over 150–250 mm crushed stone | 50 mm | assumed (RD01) |
+| potholes | 0.2–2.0 m across, 40–150 mm deep, often holding water | 0.6 m, 70 mm | RD01 (published threshold of at least 0.15 m and the depth bands; measured M) |
 | cracks | edge and longitudinal cracks; alligator cells 0.1–0.3 m | — | assumed (the damaged-road sets show them) |
 | ravelled edge | 0.1–0.5 m broken into the shoulder | 0.3 m | assumed |
 | patches | 0.5–3 m, darker | — | assumed |
 
 ### Construction and materials
-- A thin, old village asphalt: grey, worn to its aggregate, cracked, patched darker, its edges breaking into a soil shoulder with grass creeping in, dust and soil film along the edges, potholes. Craters in it and their rims of broken asphalt are the road kit (R01, task 1.4).
+- A thin, old village asphalt: grey, worn to its aggregate, cracked, patched darker, its edges breaking into a soil shoulder with grass creeping in, dust and soil film along the edges, potholes. Craters in it and their rims of broken asphalt are the road kit (RD01, task 1.4).
 - **Materials:** Poly Haven `road_damaged`, `road_damaged_2`, `asphalt_02`; derived masks: cracks, patches, dust film, pothole rims, glass crumbs near wrecks (K07).
 
 ### Colour
@@ -1214,7 +1227,7 @@ Preset: `base_sets` concrete_debris + Ground111; `albedo_target` #8d8172; `cover
 - Potholes, crater holes with broken plates of asphalt (RD01), fragment scars (texture only: under 1–2 cm, no physical role), burnt patches under wrecks (2–6 m, terrain.md R0).
 
 ### Physics role
-- **Proposed row `asphalt`** (physics sign-off): bearing 1.0e8, damping 2.4e5, μ 0.65/0.55 dry (assumed: hard polymer on coarse aggregate, as `masonry`), max sink 0.001 m, unload 1.5, micro-relief none (aggregate is below 1–2 cm), pitfalls as potholes 0.002–0.02 /m² by damage, 0.025–0.1 m deep, r 0.1–0.75 m; cover: dust (μ 0.55/0.45 where the dust mask is set), glass crumbs near wrecks (a slippery layer, μ 0.30/0.20, assumed). Dust 0.1. Foot 17.7 kN/m, 1.4 mm: hard bounce set by the leg (derived, the stability bound). The row matches the terrain.md §8 proposal (rigid, slides on glass crumbs).
+- **Proposed row `asphalt`** (physics sign-off): bearing 1.0e8, damping 2.4e5, μ 0.65/0.55 dry (assumed: hard polymer on coarse aggregate, as `masonry`), max sink 0.001 m, unload 1.5, micro-relief none (aggregate is below 1–2 cm), pitfalls: the potholes are RD01's placed pitfall features (0–5 per 100 m² by damage, 0.2–2.0 m, 40–150 mm deep), so the row's own hashed pitfalls are 0 and nothing is counted twice; cover: dust (μ 0.55/0.45 where the dust mask is set), glass crumbs near wrecks (a slippery layer, μ 0.30/0.20, assumed). Dust 0.1. Foot 17.7 kN/m, 1.4 mm: hard bounce set by the leg (derived, the stability bound). The row matches the terrain.md §8 proposal (rigid, slides on glass crumbs).
 - **Snag:** none. **Landable:** yes, hard.
 
 ### Micro-detail (AST-10)
@@ -1238,11 +1251,11 @@ Preset: `base_sets` road_damaged + asphalt_02; `albedo_target` #616161; `patch_m
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
 | plate | 6.0 × 2.0 × 0.14 m (ПАГ-14, ПДН); 0.18 m thick (ПАГ-18) | 6.0 × 2.0 × 0.14 m | published |
-| plate mass | 4.2 t | — | derived: 1.68 m³ × 2500 kg/m³ |
+| plate mass | about 4.1 t | — | derived: 1.68 m³ × 2450 kg/m³ (RD02) |
 | track | one row lengthwise (2 m) or two rows side by side (4 m) | 2 rows | assumed (PR-8 "tracks") |
-| joints | 0.02–0.15 m, weeds in them | 0.05 m | assumed |
+| joints | 0.02–0.30 m, weeds in them | 0.06 m | assumed (RD02, the plates' owner) |
 | edge steps between plates | 0–0.08 m | 0.02 m | assumed (settlement) |
-| plate tilt | 0–3° | 1° | assumed (RD02 "tilt") |
+| plate tilt | 0–4° | 1° | assumed (RD02 "tilt") |
 | riffled top | at least 1.5 mm deep | — | published; normal map only |
 | spalled corners | 0.1–0.4 m | 1 per 3 plates | assumed |
 
@@ -1287,11 +1300,11 @@ Preset: `base_sets` worn_concrete_floor + cracked_concrete; `albedo_target` #9a9
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| track width | 2.5–4.0 m | 3.0 m | assumed |
+| track width | 2.5–3.5 m | 3.0 m | assumed (RD03, the ruts' owner) |
 | rut centre spacing | 1.3–2.0 m | 1.6 m | published (sedan 1.30–1.35 m, truck 1.80 m, tractor 1.5–2.1 m gauges) |
 | rut width | 0.25–0.5 m | 0.35 m | published (tyres 0.15–0.47 m) + assumed wear |
-| rut depth | 0.05–0.20 m | 0.08 m (dry), 0.15 m (wet) | assumed |
-| median | 0.6–1.2 m wide, grass 0.1–0.4 m, raised 0.03–0.1 m | 0.9 m | measured (P 11–12, L 1–8) + assumed sizes |
+| rut depth | 0.05–0.30 m | 0.12 m (dry, used), deeper wet and under heavy use | assumed (RD03) |
+| median | 0.6–1.2 m wide, grass 0.1–0.4 m, raised 0.03–0.1 m | 0.8 m wide, grass 0.25 m, raised 0.05 m | measured (P 11–12, L 1–8) + assumed sizes (RD03) |
 | verges | 0.3–1 m of flattened grass | 0.5 m | assumed |
 
 ### Construction and materials
@@ -1314,7 +1327,7 @@ Preset: `base_sets` worn_concrete_floor + cracked_concrete; `albedo_target` #9a9
 ### Physics role
 - **Proposed row `dirt_track`** (physics sign-off): bearing 3.0e7 (assumed, between yard_litter's 3.5e7 and dry_crust's 5.0e7), damping 3.5e5, μ 0.65/0.55, max sink 0.01 m, unload 2, micro-relief 0.01 m @ 0.3 m, pitfalls 0.005 /m². Cover: median grass 0.1–0.4 m, 200 /m² (assumed) with the meadow's stem values. Dust 0.6. Foot 5.3 kN/m, about 5 mm.
 - **Ruts are geometry:** a placed linear feature along the track's polyline (two rut troughs and the raised median, an integer-power profile like E05's), evaluated by `SampleGround` and drawn from the same function; the 1 m heightfield can't hold a 0.35 m rut. For the world-builder and the physics engineer (open point).
-- **Snag:** median grass (weak). **Landable:** yes; a leg in a rut tilts the drone 10–20° (derived: 0.08 m over the 0.24 m leg footing).
+- **Snag:** median grass (weak). **Landable:** yes; a leg in a rut tilts the drone 12–27° for 0.05–0.12 m ruts (derived: atan(depth / 0.24), as RD03).
 
 ### Micro-detail (AST-10)
 - Median and verge stems from the meadow generator at 200 /m² and flattened; pebbles and clods 1–5 cm in the ruts (visual).
@@ -1325,13 +1338,7 @@ Preset: `base_sets` worn_concrete_floor + cracked_concrete; `albedo_target` #9a9
 ### Generator parameters
 Preset: `base_sets` grass_path_2 + dry_mud_field_001; `albedo_target` #857a6b; `directional` along the track; `patch_mask` median 0.3, ruts 0.25; `cover_channels` grass 0.5 (median and verges only).
 
-| Param (rut feature) | Type | Range | Default | Effect |
-|---|---|---|---|---|
-| `gauge_m` | float | 1.3–2.0 | 1.6 | rut centre spacing |
-| `rut_w_m` | float | 0.25–0.5 | 0.35 | rut width |
-| `rut_d_m` | float | 0.03–0.3 | 0.08 | rut depth (wet and heavy-use deeper) |
-| `median_h_m` | float | 0–0.1 | 0.05 | median rise |
-| `wander` | amplitude, wavelength | 0–0.5 m, 10–50 m | 0.2, 30 | the line's sway |
+The rut feature's geometry has one owner, the RD03 rut kit (lines-roads-debris.md): `rut_spacing_m`, `rut_width_m`, `rut_depth_m`, `median_h_m`, `median_grass_m`, `wander` and `braid_width_m` are its parameters, with the defaults of the dimension table above. This row carries only the surface preset.
 
 ### Open points
 - The rut feature in `SampleGround`: the world-builder's and the physics engineer's (a sibling of the first attempt's X-9).
@@ -1347,6 +1354,6 @@ Preset: `base_sets` grass_path_2 + dry_mud_field_001; `albedo_target` #857a6b; `
 - **World-builder:** placed features for craters 0.3–4 m (the X-9 mechanism with E05's profile), the rut feature (S13), trench hole bands with the berm they imply, crater and trench placement densities, feathered edges per the shared table.
 - **Asset-artist:** fetch and pin the CC0 sets; re-measure the photo albedos on them; lift `meadow_sod`'s carried albedo (#6f6b45, 0.14) toward 0.20–0.28; build E01 and S04 first (look-lock).
 - **Tech-artist:** the wet look (darkening, sheen) and P's wet check values; the trench must read as a dark line between pale parapets at 50–200 m (G); the night track reads at about 2.5 times the field (L).
-- **Other analysts:** lines-roads-debris (task 1.4) can reuse this sheet's road widths, pothole bands, plate sizes and wheel gauges for R01–R03; houses-and-yard (task 1.2) may refine S08 and S09 from C, D, E.
+- **Other analysts:** lines-roads-debris (task 1.4) can reuse this sheet's road widths, pothole bands, plate sizes and wheel gauges for RD01–RD03 (done: the road geometry numbers now live in RD01–RD03 and S11–S13 cite them); houses-and-yard (task 1.2) may refine S08 and S09 from C, D, E.
 - **Vegetation sheet's asks of B:** B 9–16 shows about ten thin stems over an estimated 60–100 m of strip on the horizon, most bare or broken (at least half), but the resolution does not allow a count per 100 m; no blast-lodged weeds are visible at the craters. The vegetation assumptions stand.
 - **Pilot:** nothing. Every open point is settled by research, the review sheets or a role decision.
