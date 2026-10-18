@@ -41,7 +41,7 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
     built = generator.build(params)
     data = meta.assemble(asset_id, variant, catalog_entry["generator"], params, built, catalog_entry["materials"])
     _refuse(variant, meta.validate(data, material_ids))
-    problems, lines = audit.run(data, built["lods"][0])
+    problems, lines = audit.run(data, built["lods"][0], catalog.card_visuals(root))
     for line in lines:
         print(f"{variant}: {line}")
     _refuse(variant, problems)

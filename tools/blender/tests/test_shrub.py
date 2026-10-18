@@ -4,7 +4,7 @@ and halving; every stem segment a bark capsule on its chord with a hook of half 
 enclosing every leaf and twig vertex; one wind box at porosity 0.35; no gap, nothing landable; the skeleton's
 radii, tubes and normals; card UVs inside the atlas cells, the far cards over the whole atlas; sprig cards leaving
 their twig at the fork angle; determinism per
-seed; check's refusals; and the low variant through the collision audit."""
+seed; check's refusals; and V13_mid's bounding sphere failing the audit's standoff (QA's R1)."""
 import copy
 import json
 import math
@@ -12,7 +12,7 @@ import math
 import pytest
 
 from generators import shrub
-from lib import audit, cards, meta, params, skeleton
+from lib import audit, cards, catalog, meta, params, skeleton
 from lib.geometry import Mesh
 
 VARIANTS = ("V13_low", "V13_mid", "V13_tall")
@@ -230,11 +230,17 @@ def test_check_refuses(repo_root, edit, expected):
     assert params.validate(shrub, edited) == [expected]
 
 
-def test_low_variant_passes_the_collision_audit(repo_root):
-    p = load(repo_root, "V13_low")
+FIRST_SPHERE = {"shape": "sphere", "center": [-0.007505, 1.257248, 0.022364], "radius": 1.106606, "material": "twig",
+                "landable": False}  # V13_mid's shell as task 1.2 built it: one sphere bounding every leaf and twig
+
+
+def test_the_first_bounding_sphere_fails_its_standoff(repo_root):
+    """QA's R1: the one sphere stood up to 0.78 m off the leaves, round the bare stems; rule (a) fails it."""
+    p = load(repo_root, "V13_mid")
     built = shrub.build(p)
-    problems, lines = audit.run(meta.assemble("V13", "V13_low", "shrub", p, built, VISUALS), built["lods"][0])
-    assert problems == []
-    shell = [line for line in lines if "shell" in line]
-    assert len(shell) == 1 and "sphere (twig shell): largest outside distance 0.000 mm over" in shell[0]
-    assert sum(1 for line in lines if "capsule->mesh" in line) == p["stems"] * skeleton.SEGMENTS
+    data = meta.assemble("V13", "V13_mid", "shrub", p, built, VISUALS)
+    data["collision"] = [c for c in data["collision"] if c["material"] == "bark"] + [FIRST_SPHERE]
+    problems, _ = audit.run(data, built["lods"][0], catalog.card_visuals(repo_root))
+    assert len(problems) == 1 and problems[0].startswith("collision[42] sphere (twig shell): largest standoff ")
+    assert problems[0].endswith(" exceeds the tolerance 100 mm")
+    assert 700 < float(problems[0].split("largest standoff ")[1].split(" mm")[0]) < 800
