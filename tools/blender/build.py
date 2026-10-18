@@ -3,10 +3,13 @@
     blender --background --factory-startup --python tools/blender/build.py -- <ID> [<ID> ...]
     blender --background --factory-startup --python tools/blender/build.py -- all
 
-For every variant of each asset id in assets-src/catalog.json, it runs the catalog's generator on the variant's
-params (assets-src/<class>/<variant>.json) and writes unity/Assets/_Project/Art/Models/<class>/<ID>/<variant>.fbx
-and <variant>.assetmeta.json, both in Unity's frame (lib/frame.py), then checks the metadata against the written
-FBX. It refuses any Blender other than the pinned major.minor. Exit code 1 on any problem; nothing is hand-edited.
+For every variant of each asset id in assets-src/catalog.json, it checks the variant's params
+(assets-src/<class>/<variant>.json) against the generator's PARAMS table (lib/params.py), runs the generator,
+validates the metadata (lib/meta.py) and audits the collision against the LOD0 mesh (lib/audit.py), and only then
+writes unity/Assets/_Project/Art/Models/<class>/<ID>/<variant>.fbx and <variant>.assetmeta.json, both in Unity's
+frame (lib/frame.py), the FBX staged beside its final name and moved once it reads back as the metadata says. A
+rejected build changes no file. It refuses any Blender other than the pinned major.minor. Exit code 1 on any
+problem; nothing is hand-edited.
 """
 import argparse
 import importlib
@@ -27,28 +30,47 @@ def check_version(version, pin=BLENDER_PIN):
 
 
 def build_variant(root, catalog_entry, asset_id, variant, material_ids):
-    """Builds one variant and returns its report line. Raises on any problem. `material_ids` is the closed
-    physics-material list (lib.meta.load_physics_materials)."""
-    from lib import catalog, export, meta
-    params = catalog.load_params(catalog.params_path(root, catalog_entry, variant))
+    """Builds one variant and returns its report line, printing the audit's measurements. Raises on any problem,
+    all of them found before the first file is written except the read-back of the staged FBX, which is removed
+    on failure. `material_ids` is the closed physics-material list (lib.meta.load_physics_materials)."""
+    from lib import audit, catalog, export, meta, params as params_lib
+    params_path = catalog.params_path(root, catalog_entry, variant)
+    params = catalog.load_params(params_path)
     generator = importlib.import_module(f"generators.{catalog_entry['generator']}")
+    _refuse(variant, params_lib.validate(generator, params), f"params {os.path.relpath(params_path, root)}: ")
     built = generator.build(params)
+    data = meta.assemble(asset_id, variant, catalog_entry["generator"], params, built, catalog_entry["materials"])
+    _refuse(variant, meta.validate(data, material_ids))
+    problems, lines = audit.run(data, built["lods"][0])
+    for line in lines:
+        print(f"{variant}: {line}")
+    _refuse(variant, problems)
     export.reset_scene()
     for n, mesh in enumerate(built["lods"]):
         export.add_lod(f"{variant}_LOD{n}", mesh)
     out_dir = catalog.output_dir(root, catalog_entry, asset_id)
-    os.makedirs(out_dir, exist_ok=True)
     fbx_path = os.path.join(out_dir, variant + ".fbx")
-    meta_path = os.path.join(out_dir, variant + ".assetmeta.json")
-    export.export_fbx(fbx_path)
-    data = meta.assemble(asset_id, variant, catalog_entry["generator"], params, built, catalog_entry["materials"])
-    problems = meta.validate(data, material_ids) or meta.check_against_fbx(data, fbx_path)
-    if problems:
-        raise RuntimeError(f"{variant}: " + "; ".join(problems))
-    meta.write(meta_path, data)
+    staged = os.path.join(out_dir, variant + ".staged.fbx")
+    fresh = not os.path.isdir(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
+    try:
+        export.export_fbx(staged)
+        _refuse(variant, meta.check_against_fbx(data, staged))
+        os.replace(staged, fbx_path)
+    finally:
+        if os.path.exists(staged):
+            os.remove(staged)
+        if fresh and not os.listdir(out_dir):
+            os.rmdir(out_dir)
+    meta.write(os.path.join(out_dir, variant + ".assetmeta.json"), data)
     size = [round(data["bounds"]["max"][a] - data["bounds"]["min"][a], 4) for a in range(3)]
     tris = " / ".join(str(lod["tris"]) for lod in data["lods"])
     return f"{variant}: {os.path.relpath(fbx_path, root)}  size {size} m  tris {tris}  metadata written"
+
+
+def _refuse(variant, problems, source=""):
+    if problems:
+        raise RuntimeError(f"{variant}: {source}" + "; ".join(problems))
 
 
 def main(argv):
