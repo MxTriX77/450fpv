@@ -2,6 +2,17 @@
 
 ## ADDED Requirements
 
+### Requirement: The H autumn belt state
+V01 and V13 SHALL each have autumn variants built from the same generators with `leaf_cover` 0.2–0.5, the twig mesh kept dense, and the sheet's autumn leaf tints, so that a belt edge of V01 trees over V13 clumps copies letter H's overcast autumn view: mixed green and yellow foliage, a part-bare understory wall at 1–2 m where many dark stems and twigs show through the leaves, and no see-through at 1–2 m.
+
+#### Scenario: Autumn variants built
+- **WHEN** `pwsh tools/build_asset.ps1 V13` and `V01` run
+- **THEN** each also builds its `_autumn` variants with the autumn leaf material, and every audit and budget scenario of the summer variants holds for them
+
+#### Scenario: Matches H
+- **WHEN** a row of `V13_mid_autumn` clumps in front of `V01_M_autumn` trees is rendered at the H viewpoint (1–1.5 m high, 5–10 m out, overcast) and compared side by side with letter H (stills 1–21) in the local comparison sheet
+- **THEN** the understory reads as a twiggy, part-bare wall with stems showing through, the foliage mixes green and yellow as H does, and the 1–2 m band shows no sky
+
 ### Requirement: V01 black locust belt tree
 The pipeline SHALL build asset V01 (`tree` generator; variants `V01_S`, `V01_M`, `V01_L`) from its params files into Unity prefabs that copy the belt locust of letters F, H and G: a sinuous deeply furrowed trunk (one stem for M and L, two to three for S), few main limbs from 2–5 m ascending at 25–40°, an open scraggly crown the sky reads through, pinnate leaves assembled from leaflet cards, pods in the autumn and bare states. Heights 4–7 / 8–12 / 12–16 m, trunk diameters 5–10 / 12–20 / 20–35 cm and crown widths 2–4 / 3–6 / 5–8 m SHALL sit inside `docs/object-sheets/vegetation.md` §V01; the physics metadata SHALL carry trunk capsules per 1–2 m, every limb and branch of 10 mm or more as a `bark` capsule, a `twig` shell per main limb, every inter-limb opening of 0.5 m or more as a gap polygon, a solid trunk wind column and crown wind pieces with porosity 0.55 summer / 0.75 part-bare / 0.9 bare, `hook` snags on every capsule under 30 mm, and no landable surface.
 
