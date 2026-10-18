@@ -109,9 +109,10 @@ def gap(a, b):
 
 def test_patches_lie_along_paths(layout, s04_params):
     """R6 (H 9-14: paths of soil, not pits spread evenly): a patch laid on along a path lies behind a mat bridge of
-    PATH_GAP_M from the patch it follows, measured along its own axis, on the same path and turned by at most
-    PATH_TURN_DEG from it; no path holds more than bare.path_patches; most of S04's patches lie on paths of two or
-    more."""
+    design 15's 0.3-1.5 m (PATH_GAP_M) from the patch it follows, measured along its own axis, on the same path and
+    turned by at most PATH_TURN_DEG from it; no path holds more than bare.path_patches; most of S04's patches lie on
+    paths of two or more."""
+    assert patches.PATH_GAP_M == (0.3, 1.5), "design 15's mat bridge"
     bare = layout["patches"]
     sizes = {}
     for k, p in enumerate(bare):
@@ -125,7 +126,7 @@ def test_patches_lie_along_paths(layout, s04_params):
         u = (math.cos(a), math.sin(a))
         bridge = max(min((x * s * u[0] + z * s * u[1]) for x, z in p["outline"]) -
                      max((x * s * u[0] + z * s * u[1]) for x, z in q["outline"]) for s in (1, -1))
-        assert patches.PATH_GAP_M[0] - 1e-9 <= bridge <= patches.PATH_GAP_M[1] + 1e-9, f"patch {k}: bridge {bridge:.3f} m"
+        assert 0.3 - 1e-9 <= bridge <= 1.5 + 1e-9, f"patch {k}: bridge {bridge:.3f} m"
     assert max(sizes.values()) <= s04_params["bare"]["path_patches"]
     on_paths = sum(n for n in sizes.values() if n > 1)
     print(f"S04: {len(sizes)} paths, {on_paths} of {len(bare)} patches on paths of two or more")
