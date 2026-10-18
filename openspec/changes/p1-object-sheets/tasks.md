@@ -8,7 +8,7 @@
 - [x] 1.4 [reference-analyst] `docs/object-sheets/lines-roads-debris.md` (L01–L05, RD01–RD03 roads, K01–K06, K08–K10), from C, D, E, H, J, K, L, M, O plus research; same checks, plus wire diameters and snag geometry
 - [x] 1.5 [reference-analyst] `docs/object-sheets/vehicles.md` (R01–R09, K07), from M, N, O plus published specs; same checks, plus the A/B/F state kits and debris fields
 - [x] 1.6 [reference-analyst] `docs/object-sheets/urban-edge.md` (U01–U03, P01–P06), from I, K plus research; same checks, plus the block's damage kit and rebar
-- [ ] 1.7 [asset-artist] Buildability review of all six sheets, written to `openspec/changes/p1-object-sheets/review-buildability.md`; sheets fixed where sent back; verify every generator table has ranges and effects
+- [x] 1.7 [asset-artist] Buildability review of all six sheets, written to `openspec/changes/p1-object-sheets/review-buildability.md`; sheets fixed where sent back; verify every generator table has ranges and effects
 
 ## 2. Review
 
