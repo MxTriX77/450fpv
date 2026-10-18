@@ -227,6 +227,206 @@
           "bytes": 1713134
         }
       ]
+    },
+    {
+      "source": "polyhaven",
+      "id": "rough_wood",
+      "title": "Rough Wood",
+      "resolution": "1k",
+      "licence": "CC0",
+      "author": "Rob Tuytel",
+      "page": "https://polyhaven.com/a/rough_wood",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/polyhaven/rough_wood",
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "rough_wood_diff_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/rough_wood/rough_wood_diff_1k.png",
+          "sha256": "28d3e4ec2307aa739feddd10532eb8c460f02f434dd327bbc4e663d454fb61bc",
+          "bytes": 1885420
+        },
+        {
+          "map": "normal",
+          "name": "rough_wood_nor_gl_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/rough_wood/rough_wood_nor_gl_1k.png",
+          "sha256": "acd7cfd9ebb63baed0a31e144ee60bb98d4f2b244121a0836c4dc2b7829608c8",
+          "bytes": 1910586
+        },
+        {
+          "map": "roughness",
+          "name": "rough_wood_rough_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/rough_wood/rough_wood_rough_1k.png",
+          "sha256": "0ea5fac374fa836ed284ddad6b9efa42b9677acaf9d2769b0263c00c5fe5ae67",
+          "bytes": 1789229
+        },
+        {
+          "map": "ao",
+          "name": "rough_wood_ao_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/rough_wood/rough_wood_ao_1k.png",
+          "sha256": "4d8b56eb1821c7bc4a20be0e89898e8b881f7d4f94fd63d079aa5a1fa241ed55",
+          "bytes": 811994
+        }
+      ]
+    },
+    {
+      "source": "polyhaven",
+      "id": "weathered_brown_planks",
+      "title": "Weathered Brown Planks",
+      "resolution": "1k",
+      "licence": "CC0",
+      "author": "Dimitrios Savva, Rico Cilliers",
+      "page": "https://polyhaven.com/a/weathered_brown_planks",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/polyhaven/weathered_brown_planks",
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "weathered_brown_planks_diff_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/weathered_brown_planks/weathered_brown_planks_diff_1k.png",
+          "sha256": "3ffad98780c3a025fc15466fc9e926fc158b789ef17a6cc2664bf06c848dc5c5",
+          "bytes": 6362508
+        },
+        {
+          "map": "normal",
+          "name": "weathered_brown_planks_nor_gl_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/weathered_brown_planks/weathered_brown_planks_nor_gl_1k.png",
+          "sha256": "17e74f7e4742f6b7f385b1ca57637fd448247bb1dcfcee3dbd58f4de8d32b1b2",
+          "bytes": 6305092
+        },
+        {
+          "map": "roughness",
+          "name": "weathered_brown_planks_rough_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/weathered_brown_planks/weathered_brown_planks_rough_1k.png",
+          "sha256": "b469a8792495a1b157bb85290f41c9f40caf9135cc36e567813cbb3c20762b24",
+          "bytes": 3030210
+        },
+        {
+          "map": "ao",
+          "name": "weathered_brown_planks_ao_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/weathered_brown_planks/weathered_brown_planks_ao_1k.png",
+          "sha256": "26d3a817342ffb3eacd7633c2204d5fc8d8fe756d1dcfe1c4071d60e06c5ea33",
+          "bytes": 1779368
+        }
+      ]
+    },
+    {
+      "source": "polyhaven",
+      "id": "rough_concrete",
+      "title": "Rough Concrete",
+      "resolution": "1k",
+      "licence": "CC0",
+      "author": "Dimitrios Savva",
+      "page": "https://polyhaven.com/a/rough_concrete",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/polyhaven/rough_concrete",
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "rough_concrete_diff_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/rough_concrete/rough_concrete_diff_1k.png",
+          "sha256": "5d1fc425ae5fffdd8c4b8245394301c1fedbf19b26567c43619d2ba5a40d9aff",
+          "bytes": 5917410
+        },
+        {
+          "map": "normal",
+          "name": "rough_concrete_nor_gl_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/rough_concrete/rough_concrete_nor_gl_1k.png",
+          "sha256": "36f547dc69d3cf9ea076b68e59fe6fe5af2b6281196ec913a54fcd9822fef3cf",
+          "bytes": 6069295
+        },
+        {
+          "map": "roughness",
+          "name": "rough_concrete_rough_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/rough_concrete/rough_concrete_rough_1k.png",
+          "sha256": "6bafcc1ca5646fe0b1f9da8099a835e157687bd65a50dda125d83e1c8ec7789b",
+          "bytes": 2463653
+        },
+        {
+          "map": "ao",
+          "name": "rough_concrete_ao_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/rough_concrete/rough_concrete_ao_1k.png",
+          "sha256": "82fb596855eb9af8716be9f671f2b901048cc209810f2996c35b38236817a02b",
+          "bytes": 1976274
+        }
+      ]
+    },
+    {
+      "source": "polyhaven",
+      "id": "rusty_metal",
+      "title": "Rusty Metal",
+      "resolution": "1k",
+      "licence": "CC0",
+      "author": "Rob Tuytel",
+      "page": "https://polyhaven.com/a/rusty_metal",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/polyhaven/rusty_metal",
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "rusty_metal_diff_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/rusty_metal/rusty_metal_diff_1k.png",
+          "sha256": "14dfce08fc639630e0a6b8f536187b68dbe4301fee2f1e8c519948b43a6e7418",
+          "bytes": 1733088
+        },
+        {
+          "map": "normal",
+          "name": "rusty_metal_nor_gl_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/rusty_metal/rusty_metal_nor_gl_1k.png",
+          "sha256": "985d2eb75d63fc8723834f488734a999300d7ef5457aaea9b403da911427d903",
+          "bytes": 1478263
+        },
+        {
+          "map": "roughness",
+          "name": "rusty_metal_rough_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/rusty_metal/rusty_metal_rough_1k.png",
+          "sha256": "c487a41b2d9d337b5f2a5e1ce5d38a7f2d3d3c2681ea92af87fb4c084768e626",
+          "bytes": 1811734
+        },
+        {
+          "map": "ao",
+          "name": "rusty_metal_ao_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/rusty_metal/rusty_metal_ao_1k.png",
+          "sha256": "d7ce62ddcff4a55956036909c2d7a3a3052bb7d3e3cc56accd6c54a0f55108e9",
+          "bytes": 743589
+        }
+      ]
+    },
+    {
+      "source": "polyhaven",
+      "id": "metal_plate",
+      "title": "Metal Plate",
+      "resolution": "1k",
+      "licence": "CC0",
+      "author": "Rob Tuytel",
+      "page": "https://polyhaven.com/a/metal_plate",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/polyhaven/metal_plate",
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "metal_plate_diff_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/metal_plate/metal_plate_diff_1k.png",
+          "sha256": "00401b4ce56f0ffa8b2c1e10366fa36a7a9b839199b3abac2678790a9883c2e9",
+          "bytes": 5362786
+        },
+        {
+          "map": "normal",
+          "name": "metal_plate_nor_gl_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/metal_plate/metal_plate_nor_gl_1k.png",
+          "sha256": "d858021ebc0a2a01ec13e574bc47ed58795e129904cda2868b3fb2dfd02d6741",
+          "bytes": 5359071
+        },
+        {
+          "map": "roughness",
+          "name": "metal_plate_rough_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/metal_plate/metal_plate_rough_1k.png",
+          "sha256": "aa6e4947c33559a7012e275d1600bfa6e00c2824271726a94de69f1a7b7fed2e",
+          "bytes": 1913334
+        },
+        {
+          "map": "ao",
+          "name": "metal_plate_ao_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/metal_plate/metal_plate_ao_1k.png",
+          "sha256": "70653401fb0f992daf58c7b51cc4aef469bf0e4eed484c6ad1d57c93e50ae361",
+          "bytes": 1817601
+        }
+      ]
     }
   ]
 }
