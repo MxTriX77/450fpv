@@ -4,7 +4,9 @@ recipe recorded beside it, regeneration when the recipe or a source changes and 
 every recipe with mask-less ones skipped, and the failures named: a map the set lacks, an unknown expression, a
 malformed mask, a missing recipe; nothing is written on failure. And the base map of an alpha-clipped recipe
 ("Alpha-clipped two-sided recipes"): the diffuse's RGB with the set's separate opacity map as alpha, skipped when the
-set has no opacity map, refused when the two differ in size."""
+set has no opacity map, refused when the two differ in size. And (p1-v01-locust, design decision 5) a bark's grooves
+tinted by its cavity map, each texel scaled in linear light by its weight between the recipe's levels, and the pod
+strip painted from a recipe with no texture set; malformed groove and paint recipes refused."""
 import json
 from pathlib import Path
 
@@ -191,6 +193,100 @@ def test_base_map_refuses_sources_of_different_size(tmp_path, capsys):
     assert run(MATERIAL, "--root", root) == 1
     assert f"ERROR: {MATERIAL}: the sources differ in size: diffuse 16x4, opacity 8x4" in capsys.readouterr().out
     assert not (root / MATERIALS / f"{MATERIAL}_base.png").exists()
+
+
+GROOVE = {"cavity": "ao", "from": 200, "to": 100, "tint": [2.0, 1.0, 0.5]}
+
+
+def groove_root(tmp_path, groove=GROOVE):
+    """derive_root plus a flat (100, 100, 100) diffuse, an 8-bit AO map of 255 / 150 / 50 / 0 across its columns
+    pinned as the set's AO, and a recipe with the mask and the groove."""
+    root = derive_root(tmp_path)
+    Image.new("RGB", SIZE, (100, 100, 100)).save(root / SET_DIR / MAPS["diffuse"])
+    ao = Image.new("L", SIZE)
+    for x in range(SIZE[0]):
+        for y in range(SIZE[1]):
+            ao.putpixel((x, y), (255, 150, 50, 0)[x % 4])
+    ao.save(root / SET_DIR / SOURCES["ao"])
+    manifest_path = root / "tools" / "assets" / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    for file in manifest["entries"][0]["files"]:
+        path = root / SET_DIR / file["name"]
+        file["bytes"], file["sha256"] = path.stat().st_size, fetch.sha256(path)
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    recipe = json.loads((root / RECIPES / f"{MATERIAL}.json").read_text(encoding="utf-8"))
+    recipe["groove"] = groove
+    (root / RECIPES / f"{MATERIAL}.json").write_text(json.dumps(recipe, indent=2) + "\n", encoding="utf-8")
+    return root
+
+
+def test_groove_tints_the_grooves_by_the_cavity_in_linear_light(tmp_path, capsys):
+    root = groove_root(tmp_path)
+    assert run(MATERIAL, "--root", root) == 0
+    out = capsys.readouterr().out
+    assert (f"{MATERIALS.as_posix()}/{MATERIAL}_base.png: derived 8x4 from polyhaven/{SET_ID} (diffuse, ao); "
+            f"recipe recorded in {MATERIAL}_base.recipe.json") in out
+    base = Image.open(root / MATERIALS / f"{MATERIAL}_base.png")
+    assert base.mode == "RGB" and base.size == SIZE
+    grey = derive._decode(100)
+    for x, weight in enumerate((0.0, 0.5, 1.0, 1.0)):  # AO 255 and 150 over from 200 to 100, then 50 and 0
+        expected = tuple(derive._encode(grey * (1 + (f - 1) * weight)) for f in GROOVE["tint"])
+        assert base.getpixel((x, 1)) == expected, x
+    assert base.getpixel((0, 0)) == (100, 100, 100) and base.getpixel((2, 0))[0] > 100 > base.getpixel((2, 0))[2]
+    stamp = json.loads((root / MATERIALS / f"{MATERIAL}_base.recipe.json").read_text(encoding="utf-8"))
+    assert stamp["groove"] == GROOVE and stamp["formula"] == derive.GROOVE_FORMULA
+    assert {k: v["name"] for k, v in stamp["sources"].items()} == {"diffuse": MAPS["diffuse"], "ao": SOURCES["ao"]}
+    assert run(MATERIAL, "--root", root) == 0
+    assert f"{MATERIAL}_base.png: up to date" in capsys.readouterr().out
+
+
+def paint_recipe(root, paint):
+    recipe = {"schema": 1, "shader": "Universal Render Pipeline/Lit", "paint": paint, "tile_size_m": [1.0, 1.0],
+              "tint": [1.0, 1.0, 1.0, 1.0], "smoothness": 0.2, "alpha_clip": 0.5, "two_sided": True}
+    (root / RECIPES).mkdir(parents=True, exist_ok=True)
+    (root / RECIPES / "pods.json").write_text(json.dumps(recipe, indent=2) + "\n", encoding="utf-8")
+
+
+def test_paint_draws_the_pods_with_no_texture_set(tmp_path, capsys):
+    root = make_root(tmp_path)
+    paint = {"pods": 2, "size_px": [32, 64], "colour": "#5c3d28"}
+    paint_recipe(root, paint)
+    assert run("pods", "--root", root) == 0
+    assert f"{MATERIALS.as_posix()}/pods_base.png: painted 32x64; recipe recorded in pods_base.recipe.json" in capsys.readouterr().out
+    base = Image.open(root / MATERIALS / "pods_base.png")
+    assert base.mode == "RGBA" and base.size == (32, 64)
+    assert all(base.getpixel((x, 63))[3] == 0 for x in range(32)) and base.getpixel((0, 0))[3] == 0
+    row = [base.getpixel((x, 32)) for x in range(32)]
+    assert row[0][3] == row[16][3] == row[31][3] == 0, "clear at the sides and between the pods"
+    for half in (row[:16], row[16:]):  # each pod's face, inside its darker rim, in the given colour
+        assert (0x5c, 0x3d, 0x28, 255) in half and any(p[3] == 255 and p[0] < 0x5c for p in half)
+    stamp = json.loads((root / MATERIALS / "pods_base.recipe.json").read_text(encoding="utf-8"))
+    assert stamp["paint"] == paint and stamp["formula"] == derive.PAINT_FORMULA and stamp["sources"] == {}
+    assert run("pods", "--root", root) == 0
+    assert "pods_base.png: up to date" in capsys.readouterr().out
+
+
+def test_groove_and_paint_failures_name_the_cause(tmp_path, capsys):
+    root = groove_root(tmp_path, dict(GROOVE, cavity="displacement"))
+    assert run(MATERIAL, "--root", root) == 1
+    assert (f"ERROR: {MATERIAL}: groove.cavity: polyhaven/{SET_ID} has no displacement map "
+            "(it has ao, diffuse, normal, roughness)") in capsys.readouterr().out
+    for n, (groove, message) in enumerate((
+            (dict(GROOVE, to=220), "groove needs 0 <= to < from <= 255 on the 8-bit cavity map"),
+            (dict(GROOVE, tint=[1.0, 0.0, 1.0]), "groove.tint must be three positive linear factors"),
+            ({"cavity": "ao"}, "'groove' must hold exactly cavity, from, to, tint"))):
+        groove_root(tmp_path / f"case{n}", groove)
+        assert run(MATERIAL, "--root", tmp_path / f"case{n}") == 1
+        assert f"ERROR: {MATERIAL}: {message}" in capsys.readouterr().out
+        assert not (tmp_path / f"case{n}" / MATERIALS / f"{MATERIAL}_base.png").exists()
+    paint_recipe(root, {"pods": 0, "size_px": [32, 64], "colour": "#5c3d28"})
+    assert run("pods", "--root", root) == 1
+    assert "ERROR: pods: paint needs pods >= 1, size_px [w, h] of 8-2048 px and colour '#rrggbb'" in capsys.readouterr().out
+    recipe = json.loads((root / RECIPES / "pods.json").read_text(encoding="utf-8"))
+    recipe["texture_set"] = f"polyhaven/{SET_ID}"
+    (root / RECIPES / "pods.json").write_text(json.dumps(recipe), encoding="utf-8")
+    assert run("pods", "--root", root) == 1
+    assert "ERROR: pods: give a \"texture_set\" or a \"paint\", not both or neither" in capsys.readouterr().out
 
 
 def test_failures_name_the_cause_and_write_nothing(tmp_path, capsys):
