@@ -37,6 +37,23 @@ namespace Fpv450.Tests.EditMode
             Assert.That(straws.GetComponent<MeshFilter>().sharedMesh.triangles.Length / 3, Is.GreaterThan(100000), "the baked straws are geometry");
         }
 
+        /// <summary>A 12 m patch is taller than the screen at its 8 m switch; the group's size keeps every switch distance.</summary>
+        [Test]
+        public void LodGroup_SwitchesAtTheMetadataDistances()
+        {
+            GameObject prefab = Prefab();
+            LODGroup group = prefab.GetComponent<LODGroup>();
+            AssetPhysicsMeta meta = prefab.GetComponent<AssetPhysicsMeta>();
+            LOD[] lods = group.GetLODs();
+            float[] far = { meta.lods[1].switchDistanceM, meta.lods[2].switchDistanceM, meta.cullDistanceM };
+            Assert.That(far, Is.EqualTo(new[] { 8f, 60f, 400f }));
+            for (int i = 0; i < lods.Length; i++)
+            {
+                float distance = group.size / (2f * lods[i].screenRelativeTransitionHeight * Mathf.Tan(30f * Mathf.Deg2Rad));
+                Assert.That(distance, Is.EqualTo(far[i]).Within(0.01f), $"LOD{i} ends at {distance} m");
+            }
+        }
+
         [Test]
         public void MicroMesh_HasNoCollider_AndTheMetaListsIt()
         {

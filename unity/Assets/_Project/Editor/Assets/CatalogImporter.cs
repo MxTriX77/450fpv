@@ -451,11 +451,16 @@ namespace Fpv450.Assets
         /// Unity draws LOD i while the object's screen-relative height stays above that LOD's transition height
         /// (scaled by the quality level's lodBias), and culls it below the last one. The height of an object of
         /// size s at distance d is s / (2 d tan(fov / 2)), so each metadata distance becomes that height, with s
-        /// the longest side of the bounds, which is also what the group's size is set to.
+        /// the longest side of the bounds, which is also what the group's size is set to. Unity holds transition
+        /// heights to (0, 1], so an asset taller than the screen at its first switch distance (a 12 m ground patch
+        /// switching at 8 m: 1.3) would be clamped and switch late; there s is reduced until that first height is
+        /// 1. Only the ratio s / d reaches Unity, so every switch distance is kept either way.
         /// </summary>
         static void EnsureLodGroup(GameObject root, AssetPhysicsMeta meta, Renderer[][] renderers)
         {
-            float size = Mathf.Max(meta.bounds.size.x, meta.bounds.size.y, meta.bounds.size.z);
+            float firstFar = renderers.Length > 1 ? meta.lods[1].switchDistanceM : meta.cullDistanceM;
+            float size = Mathf.Min(Mathf.Max(meta.bounds.size.x, meta.bounds.size.y, meta.bounds.size.z),
+                2f * firstFar * Mathf.Tan(VerticalFovDeg * 0.5f * Mathf.Deg2Rad));
             var lods = new LOD[renderers.Length];
             for (int i = 0; i < lods.Length; i++)
             {
@@ -464,9 +469,9 @@ namespace Fpv450.Assets
             }
             LODGroup group = Ensure<LODGroup>(root);
             group.fadeMode = LODFadeMode.None;
+            group.SetLODs(lods); // recomputes the size and reference point from the renderers, so they are set after it
             group.localReferencePoint = meta.bounds.center;
             group.size = size;
-            group.SetLODs(lods);
         }
 
         static float RelativeHeight(float size, float distance) =>
