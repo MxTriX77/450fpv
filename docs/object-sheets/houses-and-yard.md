@@ -1,6 +1,6 @@
 # Object sheet: houses and yard
 
-**Owner:** reference-analyst. **Reviewed for buildability by:** asset-artist.
+**Owner:** reference-analyst. **Reviewed for buildability by:** asset-artist (task 1.7, `openspec/changes/p1-object-sheets/review-buildability.md`).
 
 **OPSEC:** cite clips and photos by letter only. Describe classes, never a specific identifiable building, place, date or person. No file names, and no OSD values.
 
@@ -68,8 +68,10 @@ Published side-on overpressure thresholds ( https://safteng.net/?p=2300 , after 
 
 Rubble is always coloured from the house's own materials (knowledge.md §14.4): adobe tan, clay render, whitewash flecks, red tile, pale silicate or red brick, grey mortar, grey-brown timber. Never near-white.
 
+**How the generator lays the rubble (shared with the debris kit, lines-roads-debris.md "Shared: the debris kit"):** `rubble_volume` is the bulked volume of what came down: by default the solid volume the damage items remove from the house (walls, gables, slabs, roof cover) × the bulking 1.86 that urban-edge U02 derives, so a fallen gable and long wall of H01 (about 16 m³ of adobe, so about 30 m³ of rubble) and the lost upper walls of H06 (about 32 m³ of brick and slab, so about 60 m³) both come out of one rule (derived from their default dimensions). It is split by the village-house mixture (tile or slate 40 %, adobe or brick 35 %, timber 20 %, glass and contents 5 %), heaped at the wall foot and inside as a sloped core of flat-faced blocks, and its pieces (K01–K03, K08) are scattered with the debris kit's density exp(−d / λ) per class (tile shards λ 1.0 m, bricks 1.5 m, slate 4 m, timber 2 m), wider on the side away from the burst.
+
 ### Shared house generator parameters
-Every H row uses this set; a row's table lists only additions and changed defaults.
+Every H row uses this set; a row's table lists only additions and changed defaults. **"From `damage`"** means: the item takes the values the row's Variants and states give for I, D and X at `damage` 0, 0.55 and 1.0 and interpolates linearly between them; a range in the states text is drawn by `seed` inside it; any item can be set explicitly. The brick houses (H03, H04, H06, and O03) also take H03's additions (`brick_step_depth`, `rebar_out` and the cornice).
 
 | Param | Type | Range | Default | Effect |
 |---|---|---|---|---|
@@ -89,6 +91,7 @@ Every H row uses this set; a row's table lists only additions and changed defaul
 | `chimney` | pos or none | — | near the ridge, 0.3–0.4 L | Chimney position |
 | `door_side`, `door_pos` | enum, 0–1 | — | front, 0.5 | Where the door is along the wall |
 | `windows` | list | 2–8 of (side, pos, w, h) | per row | Opening positions and sizes |
+| `window_state` | enum per window | glazed, shards, frame_empty, sash_hanging, frame_gone | from `damage` | What fills each opening: the clear polygon is the opening minus the frame (70 mm a side) and any hanging sash; glass remnants are `glass` collision and snags |
 | `veranda` | size or none | 2–3 × 3–6 m | none (H04: on) | A closed glazed porch at the door |
 | `damage` | 0–1 | — | 0 / 0.55 / 1.0 | The master dial: I below 0.25, D 0.25–0.8, X above 0.8; every item below defaults from it and can be overridden |
 | `roof_strip` | 0–1 | 0–1 | from `damage` | Fraction of cover gone, patchy (the remaining cover clusters at the eaves and the lee slope, as in E) |
@@ -99,7 +102,8 @@ Every H row uses this set; a row's table lists only additions and changed defaul
 | `gable_breach` | 0–1 | 0–1 | from `damage` | How much of a gable is missing |
 | `collapse` | list | 0–2 walls to a height | from `damage` | Walls down to 0.5–1.5 m, with their rubble |
 | `soot_openings` | int | 0–all | 0 | Openings with soot plumes, mask G |
-| `rubble_volume` | m³ | 0–40 | from `damage` | Rubble at the foot and inside, from the house's own materials |
+| `burnt` | 0–1 | 0–1 | 0 | Fire on any state (step 7): this fraction of the roof timbers burnt to charred stubs 0.2–0.8 m on the plate, char on the remaining timber, whitewash blackened and brick reddened by mask G; soot plumes on `soot_openings` |
+| `rubble_volume` | m³ | 0–150 | removed solid volume × 1.86 (the rule below the failure list) | Rubble at the foot and inside, from the house's own materials |
 | `interior_debris` | 0–1 | — | from `damage` | Boards, plaster, tile and furniture on the floor |
 | `hanging_cables` | int | 0–3 | from `damage` | Cables looping from the ceiling or eaves (snag) |
 | `seed` | int | — | — | Every random choice above |
@@ -244,7 +248,7 @@ Shared table with `roof_type_*` hip, `roof_pitch` 25, `roof_cover` slate, `batte
 | Param | Type | Range | Default | Effect |
 |---|---|---|---|---|
 | `sheet_holes` | int per sheet | 0–3 | from `damage` | Jagged holes 0.1–0.5 m in surviving sheets |
-| `fragment_scatter` | m | 2–15 | 8 | Radius of the fragment field downwind |
+| `fragment_scatter` | m | 2–15 | 8 | Outer radius of the fragment field downwind; inside it the density falls as exp(−d / 4 m), the debris kit's slate λ |
 | `ridge_cap` | enum | asbestos, sheet_metal | asbestos | Cap material and its snag edge |
 
 ### Open points
@@ -300,7 +304,7 @@ Glass → slate shattered and scattered → sashes bent out of the frames → ba
 - **Collision:** as H01, brick walls 0.38 m; the jagged opening edges as stacked boxes following the stepped brick (±2 cm); lintel rebar as capsules 10 mm; the dish a thin cylinder on a capsule; porch posts capsules, porch sheet a thin box.
 - **Material ids:** brick, plinth, cornice: `masonry`; lintels: `concrete`; rebar, dish bracket: `steel`; porch sheet and ridge cap: `sheet_metal` (cuts fiber); slate: `proposed:asbestos_cement`; frames, gable boards, rafters: `timber`; glass remnants: `glass`; hanging wire: `cable`.
 - **Gaps:**
-  - door 0.8 × 1.9 m: passes at any yaw (frame off: 0.8; frame on: 0.66 → ±18°)
+  - door 0.8 × 1.9 m: passes at any yaw (the 0.8 m leaf is the clear opening inside its 0.10 × 0.08 m frame, as H01; about 0.77 m between the stops (15 mm a side, assumed) while the frame stays: still any yaw, 32 mm a side on the diagonal)
   - windows 1.3 × 1.45 m frame gone: **passes at any yaw** with 0.3 m a side; frame on (1.16 × 1.3): any yaw; with a bent sash hanging (J): the clear polygon is the frame minus the sash, typically 0.6–0.9 m wide, recorded as generated
   - the widened opening (J right centre): about 1.5–2.0 × 2.0 m after jags: passes; its jags are the snag edge
   - roof bays 0.9–1.0 m with battens gone: pass; the attic (variant 2) through the gable opening 0.4 × 0.5 m: **no**
@@ -376,7 +380,7 @@ Sheet metal tears at fixings and folds instead of shattering: long sharp edges (
 The best house on a street, set back 5–10 m with a fenced front garden (Y02) and a metal gate (Y05); one or two per village.
 
 ### Generator parameters
-Shared table with `wall_material` red_brick, `wall_thickness` 0.51, `roof_cover` sheet_metal, `veranda` 2.5 × 5.
+Shared table with `wall_material` red_brick, `wall_thickness` 0.51, `roof_cover` sheet_metal, `veranda` 2.5 × 5, plus H03's `brick_step_depth` and `rebar_out`.
 
 | Param | Type | Range | Default | Effect |
 |---|---|---|---|---|
@@ -484,7 +488,7 @@ As H03, plus the slab: it cracks at its support, hangs at 10–30° with its bar
 ### Physics role
 - **Collision:** as H03 per floor; the slab as a box per span (0.22 m) with its broken edge as a stepped box; the hanging slab at its angle; roof skeleton rafters as boxes; rubble as a sloped mesh-approximating set of boxes.
 - **Material ids:** brick and render `masonry`; slabs, stair `concrete`; rebar `steel`; timbers `timber`; glass `glass`.
-- **Gaps:** door 0.9 × 2.0 any yaw; windows 1.4 × 1.45 any yaw; the open upper floor 3–5 × 2.5 m: passes, with the slab edge and bars as the lower snag; roof bays between rafters 0.9–1.0 m: pass; the attic as a cavity 9 × 3 m under the skeleton; the stairwell 1.0 × 2.5 m between floors: passes nose-first (the flight down a stair is the sim's narrowest vertical route).
+- **Gaps:** door 0.9 × 2.0 any yaw; windows 1.4 × 1.45 any yaw; the open upper floor 3–5 × 2.5 m: passes, with the slab edge and bars as the lower snag; roof bays between rafters 0.9–1.0 m: pass; the attic as a cavity 9 × 3 m under the skeleton; the stairwell 1.0 × 2.5 m between floors: passes at any yaw in plan (1.0 ≥ 0.706 m), descending along the flight (the flight down a stair is the sim's narrowest vertical route).
 - **Wind volumes:** walls 0; the open upper floor is a cavity with strong through-flow; the roof skeleton 0.8–0.9; the rubble mound 0.
 - **Snag hazards:** rebar at the slab edge and lintels, the roof skeleton's purlins, hanging cables, bent frames, furniture edges.
 - **Landable surfaces:** **the intact part of the upper slab** (hard, flat, `concrete`, 1–2 m from the free edge; debris on it is uneven), and the ground-floor slab where the floor is clear. The sagging edge is not.
@@ -493,11 +497,12 @@ As H03, plus the slab: it cracks at its support, hangs at 10–30° with its bar
 One or two per village, on the main street or at the urban edge near U01 (I shows it in that setting), with a low masonry fence (Y04) in front and the rubble of its upper floor spreading 5–10 m.
 
 ### Generator parameters
-Shared table with `storeys` 2, `wall_thickness` 0.51/0.38, `roof_pitch` 40, plus:
+Shared table with `wall_thickness` 0.51, `roof_pitch` 40, H03's `brick_step_depth` and `rebar_out`, plus:
 
 | Param | Type | Range | Default | Effect |
 |---|---|---|---|---|
 | `storeys` | int | 1–2 | 2 | Floors; the slab between them |
+| `wall_thickness_upper` | m | 0.38–0.51 | 0.38 | Upper-storey wall (the ground storey takes `wall_thickness`, 0.51) |
 | `facade_blowout` | (side, w, h) | 0–6 m wide | from `damage` | The open upper-floor section, with its slab edge and bars |
 | `slab_sag` | deg | 0–30 | from `damage` | Hang angle of the broken slab edge |
 | `roof_skeleton` | 0–1 | — | from `damage` | Fraction of rafters still standing after the cover is gone |
@@ -1227,7 +1232,7 @@ The sheet tears from its frame at the welds and curls (sharp edges), the frame b
 ### Physics role
 - **Collision:** leaves boxes at their angles, the frame boxes, torn sheet as thin boxes at their curl, posts boxes, the fallen leaf a thin box on the ground.
 - **Material ids:** sheet `sheet_metal` (cuts fiber); frame, posts, hinges `steel`; brick piers `masonry`.
-- **Gaps:** one leaf open 1.5 m: any yaw; both open 3 m; the wicket 0.9 × 1.8: any yaw (0.19 m spare on the diagonal); a bent leaf leaves a tapered gap recorded from the real clear polygon; the fallen leaf on the ground is a hard, slippery sheet to land on (0.5 mm or 2 mm steel: flexes).
+- **Gaps:** one leaf open 1.5 m: any yaw; both open 3 m; the wicket 0.9 × 1.8: any yaw (97 mm a side on the diagonal); a bent leaf leaves a tapered gap recorded from the real clear polygon; the fallen leaf on the ground is a hard, slippery sheet to land on (0.5 mm or 2 mm steel: flexes).
 - **Wind volumes:** solid when shut (0); open leaves 1; a torn leaf 0.3–0.6.
 - **Snag hazards:** torn curled edges, hinge pins, the top bar, the latch.
 - **Landable surfaces:** the fallen leaf (1.5 × 1.9 m, sheet on the ground: pops and slides); none upright.
