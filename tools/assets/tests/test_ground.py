@@ -5,8 +5,10 @@ share within +-2 points, the detail albedo grey at a linear mean of 0.5, the soi
 patch's feather broken by the cover, the soil in the gaps between straws at the cover's gap_share, the recipe
 recorded beside the maps, identical bytes on a rerun and regeneration on a change of the recipe, a source, a
 formula constant, the patch layout's constants or the asset's layout params, and the failures named with nothing
-written. The bare mask and the step outlines agree (review-physics PR7 c). The last test measures the real
-belt_straw albedo."""
+written. The bare mask and the step outlines agree (review-physics PR7 c). The green strips are the asset's
+(lib/mat.py) at their share, the relief map is lib/mat.py's relief and darkens the hollows, a floor's lip shows soil
+just outside its outline, and the gaps take the cover's gap_albedo. The last test measures the real belt_straw
+albedo."""
 import json
 import math
 import random
@@ -18,7 +20,7 @@ from PIL import Image, ImageChops
 import derive
 import fetch
 from conftest import SET_ID, THIRD_PARTY, make_root
-from lib import patches  # tools/blender, which derive.py puts on the path
+from lib import mat, patches  # tools/blender, which derive.py puts on the path
 
 RECIPES = Path("assets-src/materials")
 MATERIALS = Path("unity/Assets/_Project/Art/Materials")
@@ -26,14 +28,16 @@ MATERIAL = "fake_ground"
 COVER_ID = "fake_cover"
 SOIL_RGB, COVER_RGB = (70, 55, 40), (210, 180, 120)
 LAYOUT_PARAMS = "assets-src/surfaces/fake_patch.json"  # the asset params the bare patches come from
-PARAMS = {"seed": 7, "size_m": 12, "bare": {"share": 0.08, "size_m": {"min": 0.5, "max": 2.0}, "outline_vertices": 8},
+PARAMS = {"seed": 7, "size_m": 12, "cell_m": 0.25, "relief_m": 0.04,
+          "bare": {"share": 0.08, "size_m": {"min": 0.5, "max": 2.0}, "outline_vertices": 8},
+          "green": {"share": 0.15, "width_m": {"min": 1.0, "max": 3.0}, "length_m": {"min": 3.0, "max": 12.0}},
           "lodging": {"azimuth_deg": 25, "bias": 0.3}}
 RECIPE = {
     "schema": 1, "kind": "ground", "shader": "Universal Render Pipeline/Lit", "seed": 7, "size_m": 12, "output_px": 256,
     "soil": {"texture_set": f"polyhaven/{SET_ID}", "tile_size_m": 1.3},
     "cover": {"texture_set": f"polyhaven/{COVER_ID}", "tile_size_m": 2.0},
     "patches": {"bare": {"params": LAYOUT_PARAMS},
-                "green": {"share": 0.15, "width_m": [1.0, 3.0], "length_m": [3.0, 12.0], "tint": "#6a7a3a"},
+                "green": {"params": LAYOUT_PARAMS, "tint": "#6a7a3a"},
                 "lodging": {"azimuth_deg": 25, "bias": 0.3}},
     "albedo_target": "#7a7055", "tint": [1.0, 1.0, 1.0, 1.0],
     "detail": {"texture_set": f"polyhaven/{COVER_ID}", "tile_size_m": 2.0},
@@ -127,7 +131,9 @@ def test_ground_maps_hit_the_target_and_the_shares(tmp_path, capsys):
                                      for m in ("diffuse", "normal", "roughness", "ao")}
     assert stamp["sources"]["soil/diffuse"]["sha256"] == fetch.sha256(root / THIRD_PARTY / "polyhaven" / SET_ID / f"{SET_ID}_diffuse_1k.png")
     assert len(stamp["inputs_sha256"]) == 64 and stamp["pillow"]
-    assert stamp["layout"] == {"params": LAYOUT_PARAMS, "inputs": patches.inputs(PARAMS), "constants": patches.constants()}
+    assert stamp["layout"] == {"params": LAYOUT_PARAMS, "inputs": patches.inputs(PARAMS), "constants": patches.constants(),
+                               "green": mat.green_inputs(PARAMS), "relief": mat.relief_inputs(PARAMS),
+                               "fields": mat.constants()}
     shares = stamp["measured"]
     print(f"bare {100 * shares['bare_share']:.2f} % on {shares['bare_patches']} outlines (params 8), soil shown "
           f"{100 * shares['bare_soil_share']:.2f} %, green {100 * shares['green_share']:.2f} % (recipe 15)")
@@ -136,7 +142,8 @@ def test_ground_maps_hit_the_target_and_the_shares(tmp_path, capsys):
     assert abs(shares["mean_luminance"] - measured) < 1e-3
 
     r, g, b, a = mask.getpixel((5, 5))
-    assert (r, b) == (0, 0) and g in (200, 240) and a in (255 - 180, 255 - 220), "metallic 0, the sets' AO, 1 - roughness"
+    assert (r, b) == (0, 0) and a in (255 - 180, 255 - 220), "metallic 0, 1 - roughness"
+    assert any(base * (1 - derive.RELIEF_AO) - 1 <= g <= base for base in (200, 240)), "the sets' AO, less in the hollows"
     for channel in derive.linear_means(detail):
         assert abs(channel - 0.5) <= 0.01, "the detail albedo is neutral for URP/Lit's detail x2"
     r, g, b = detail.split()
@@ -156,7 +163,8 @@ def test_soil_lands_on_its_target(tmp_path):
 
 def test_gaps_show_soil_between_the_straws_and_brighten_them(tmp_path):
     """A cover with straws (bright stripes over a darker ground): gap_share 0.25 lets the soil through about a quarter
-    of the straw layer, the mean stays on the target, and the straws take a higher gain to hold it."""
+    of the straw layer, the mean stays on the target, and the straws take a higher gain to hold it; with a darker
+    gap_albedo the gaps take it and the straws brighten further."""
     root = ground_root(tmp_path)
     cover = Image.new("RGB", (64, 64), (150, 125, 80))
     for x in range(0, 64, 3):
@@ -173,6 +181,11 @@ def test_gaps_show_soil_between_the_straws_and_brighten_them(tmp_path):
     assert without["gap_share"] == 0 and 0.15 <= with_gaps["gap_share"] <= 0.35
     assert abs(with_gaps["luminance_error_pct"]) <= 5
     assert all(b > a for a, b in zip(without["straw_gain"], with_gaps["straw_gain"])), "brighter straws, same mean"
+    write_recipe(root, dict(RECIPE, cover=dict(RECIPE["cover"], gap_share=0.25, gap_albedo="#201c16")))
+    assert run(MATERIAL, "--root", root) == 0
+    litter = json.loads((root / MATERIALS / f"{MATERIAL}.recipe.json").read_text(encoding="utf-8"))["measured"]
+    assert abs(litter["luminance_error_pct"]) <= 5
+    assert all(b > a for a, b in zip(with_gaps["straw_gain"], litter["straw_gain"])), "darker gaps, brighter straws"
 
 
 def test_strewn_keeps_the_core_and_breaks_the_feather():
@@ -188,16 +201,72 @@ def test_strewn_keeps_the_core_and_breaks_the_feather():
     assert on_straw < between - 40, f"straws lie over the feather: {on_straw:.0f} on a straw, {between:.0f} between"
 
 
-def test_coverage_and_stamped_shares():
+def test_coverage_and_the_strips_share():
+    """The green strips the map fills (lib/mat.py's, blurred over their feather) cover their share outside the bare
+    outlines within 2 points, as the generator's blades count them."""
     half = Image.new("L", (64, 64), 0)
     half.paste(255, (0, 0, 32, 64))
     assert derive.coverage(half) == 0.5
     assert derive.coverage(half, outside=half) == 0.0
-    layer = derive.stamped(random.Random(1), 256, 256 / 12, 0.08, [0.5, 2.0], [0.5, 2.0], lambda r: 0.0, 0.1, "bare")
-    assert abs(derive.coverage(layer) - 0.08) <= 0.005
-    strips = derive.stamped(random.Random(2), 256, 256 / 12, 0.15, [3.0, 12.0], [1.0, 3.0], lambda r: 25.0, 0.5, "green",
-                            outside=layer)
-    assert abs(derive.coverage(strips, outside=layer) - 0.15) <= 0.005
+    bare = patches.layout(**patches.inputs(PARAMS))["patches"]
+    strips = mat.green(**mat.green_inputs(PARAMS), bare_patches=bare)
+    assert abs(strips["share"] - 0.15) <= mat.SHARE_TOLERANCE + 1e-9
+    layer = derive.green_layer(strips["strips"], 512, 12)
+    floors = derive.outline_layer(bare, 512, 12)
+    print(f"strips {100 * strips['share']:.2f} % on the samples, {100 * derive.coverage(layer, outside=floors):.2f} % in the map")
+    assert abs(derive.coverage(layer, outside=floors) - 0.15) <= 0.02
+
+
+def test_the_relief_map_is_the_meshs_relief_and_darkens_the_hollows(tmp_path):
+    """One definition: the relief layer derive.py tones the map by reads lib/mat.py's relief (the generator's slab
+    top) at every pixel within a level; the albedo of a flat cover is darker in the relief's hollows than on its
+    crowns, and so is the occlusion."""
+    relief = mat.relief(**mat.relief_inputs(PARAMS))
+    layer = derive.relief_layer(relief, PARAMS["relief_m"], 256, 12)
+    for px, py in ((10, 20), (128, 128), (200, 77), (255, 0), (31, 240)):
+        x, z = ((px + 0.5) / 256 - 0.5) * 12, (0.5 - (py + 0.5) / 256) * 12
+        assert abs(layer.getpixel((px, py)) - (128 + 127 * relief(x, z) / PARAMS["relief_m"])) <= 3
+    root = ground_root(tmp_path)
+    assert run(MATERIAL, "--root", root) == 0
+    albedo = Image.open(outputs(root)["albedo"]).convert("L")
+    occlusion = Image.open(outputs(root)["mask"]).getchannel("G")
+    floors = derive.outline_layer(patches.layout(**patches.inputs(PARAMS))["patches"], 256, 12)
+    big = derive.relief_layer(relief, PARAMS["relief_m"], 256, 12)
+    crowns, hollows, ao_crowns, ao_hollows = [], [], [], []
+    for py in range(0, 256, 2):
+        for px in range(0, 256, 2):
+            if floors.getpixel((px, py)):
+                continue
+            h = big.getpixel((px, py))
+            if h > 200:
+                crowns.append(albedo.getpixel((px, py)))
+                ao_crowns.append(occlusion.getpixel((px, py)))
+            elif h < 80:
+                hollows.append(albedo.getpixel((px, py)))
+                ao_hollows.append(occlusion.getpixel((px, py)))
+    mean = lambda v: sum(v) / len(v)  # noqa: E731
+    print(f"albedo L crowns {mean(crowns):.1f}, hollows {mean(hollows):.1f}; AO {mean(ao_crowns):.1f} / {mean(ao_hollows):.1f}")
+    assert mean(hollows) < mean(crowns) - 10 and mean(ao_hollows) < mean(ao_crowns) - 10
+
+
+def test_a_floors_lip_shows_soil_just_outside_its_outline(tmp_path):
+    """The mat thins at a step's cut edge: soil shows between the cover's straws within LIP_M outside an outline, and
+    none farther out (the gaps aside, which are none here)."""
+    root = ground_root(tmp_path)
+    assert run(MATERIAL, "--root", root) == 0
+    measured = json.loads((root / MATERIALS / f"{MATERIAL}.recipe.json").read_text(encoding="utf-8"))["measured"]
+    print(f"lip soil {100 * measured['lip_soil_share']:.2f} % outside the outlines")
+    assert 0.002 < measured["lip_soil_share"] < 0.04
+    bare = patches.layout(**patches.inputs(PARAMS))["patches"]
+    lip = derive.lip_layer(bare, 256, 12)
+    for py in range(0, 256, 3):
+        for px in range(0, 256, 3):
+            x, z = ((px + 0.5) / 256 - 0.5) * 12, (0.5 - (py + 0.5) / 256) * 12
+            d = min(patches.distance((x, z), p["outline"]) for p in bare)
+            if d > derive.LIP_M + 0.1:
+                assert lip.getpixel((px, py)) == 0, f"a lip {d:.2f} m out at {(x, z)}"
+            elif -0.02 < d < 0.02:
+                assert lip.getpixel((px, py)) >= 128, f"no lip at the outline {(x, z)}"
 
 
 def test_ground_is_idempotent_and_regenerates_on_a_change(tmp_path, capsys):
@@ -239,26 +308,27 @@ def test_ground_is_idempotent_and_regenerates_on_a_change(tmp_path, capsys):
 
 
 @pytest.mark.parametrize("module, name, value", [
-    (derive, "STRAW_M", 0.1), (derive, "LOBE_M", 0.8), (derive, "GREEN_FEATHER_M", 0.4), (derive, "GAP_LOBES", 0.25),
-    (derive, "GREEN_SPREAD_DEG", 20.0), (derive, "SHARE_TOLERANCE", 0.01),
+    (derive, "STRAW_M", 0.1), (derive, "LOBE_M", 0.8), (derive, "GAP_LOBES", 0.25), (derive, "RELIEF_TONE", 0.2),
+    (derive, "LIP_M", 0.5), (derive, "GREEN_LEVEL", 0.8),
+    (mat, "GREEN_FEATHER_M", 0.4), (mat, "GREEN_SPREAD_DEG", 20.0), (mat, "TUSSOCK_M", 0.6),
     (patches, "FEATHER_M", 0.2), (patches, "RADIAL_JITTER", 0.1), (patches, "WINDOW_M", 0.4)])
 def test_a_changed_formula_constant_re_derives(tmp_path, capsys, monkeypatch, module, name, value):
-    """Spec "A formula constant changes" (review R1): the stamp records the value of every constant derive.py and
-    the patch layout read, under "constants" and "layout", and hashes them, so tuning one re-derives the maps
-    instead of reporting them up to date."""
+    """Spec "A formula constant changes" (review R1): the stamp records the value of every constant derive.py, the
+    patch layout and the mat's fields read, under "constants" and "layout", and hashes them, so tuning one
+    re-derives the maps instead of reporting them up to date."""
     root = ground_root(tmp_path)
     stamp_path = root / MATERIALS / f"{MATERIAL}.recipe.json"
     assert run(MATERIAL, "--root", root) == 0
     before = json.loads(stamp_path.read_text(encoding="utf-8"))
     assert before["constants"] == {n: list(v) if isinstance(v, tuple) else v
                                    for n, v in ((n, getattr(derive, n)) for n in derive.GROUND_CONSTANTS)}
-    assert before["layout"]["constants"] == patches.constants()
+    assert before["layout"]["constants"] == patches.constants() and before["layout"]["fields"] == mat.constants()
     assert run(MATERIAL, "--root", root) == 0 and "up to date" in capsys.readouterr().out
     monkeypatch.setattr(module, name, value)
     assert run(MATERIAL, "--root", root) == 0
     assert f"{MATERIAL}_albedo.png: derived 256x256 ground" in capsys.readouterr().out
     after = json.loads(stamp_path.read_text(encoding="utf-8"))
-    recorded = after["constants"] if module is derive else after["layout"]["constants"]
+    recorded = {derive: after["constants"], patches: after["layout"]["constants"], mat: after["layout"]["fields"]}[module]
     assert recorded[name] == value and after["inputs_sha256"] != before["inputs_sha256"]
 
 
@@ -319,7 +389,10 @@ def test_ground_failures_name_the_cause_and_write_nothing(tmp_path, capsys):
     write_params(root, {"seed": 1, "size_m": 12}, "assets-src/surfaces/no_bare.json")
 
     def bare_from(path):
-        return dict(RECIPE, patches=dict(RECIPE["patches"], bare={"params": path}))
+        return dict(RECIPE, patches=dict(RECIPE["patches"], bare={"params": path},
+                                         green=dict(RECIPE["patches"]["green"], params=path)))
+
+    write_params(root, {k: v for k, v in PARAMS.items() if k != "green"}, "assets-src/surfaces/no_green.json")
 
     bad_colour = dict(RECIPE, albedo_target="7a7055")
     cases = [
@@ -334,6 +407,10 @@ def test_ground_failures_name_the_cause_and_write_nothing(tmp_path, capsys):
         (bare_from("assets-src/surfaces/no_bare.json"),
          f"{MATERIAL}.patches.bare.params: assets-src/surfaces/no_bare.json lacks the layout key 'bare'"),
         (bad_colour, f"{MATERIAL}.albedo_target: '7a7055' is not an sRGB colour like #7a7055"),
+        (bare_from("assets-src/surfaces/no_green.json"),
+         f"{MATERIAL}.patches.green.params: assets-src/surfaces/no_green.json lacks the key 'green'"),
+        (dict(RECIPE, patches=dict(RECIPE["patches"], green={"params": "assets-src/surfaces/smaller.json", "tint": "#6a7a3a"})),
+         f"{MATERIAL}.patches.green.params: 'assets-src/surfaces/smaller.json' must name the bare patches' params file"),
         (dict(RECIPE, kind="lawn"), f"{MATERIAL}: unknown recipe kind 'lawn' (omit it for a tiled set, or 'ground' or 'palette')"),
         (dict(RECIPE, soil={"texture_set": "polyhaven/nope", "tile_size_m": 1.0}),
          f"{MATERIAL}: texture set 'polyhaven/nope' is not in {fetch.MANIFEST}"),

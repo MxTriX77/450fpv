@@ -18,31 +18,42 @@ output_px (2K at most, AST-08): <material>_albedo.png (sRGB), <material>_normal.
 <material>_detail_albedo.png, the detail set's diffuse as grey at its own size with its linear mean moved to 0.5,
 so URP/Lit's "detail albedo x2" layer adds grain without shifting the base's mean or hue. The cover is tiled at its
 tile_size_m and again at tile_size_m x phi, averaged, so no period repeats inside the patch; it is stretched 1 + bias
-along the lodging azimuth and rotated to it (the cover normals turn with it). The bare soil patches are the asset's
-own: patches.bare.params names the asset's params file, and tools/blender/lib/patches.py lays them out from it, the
-same layout the generator steps the mesh down along, so the map and the geometry never disagree (review-physics
-PR5). Each patch's core (its step outline shrunk by half the feather) is filled and blurred over half the feather
-each side, so the soil is full on the outline shrunk by the feather and fades to nothing at the outline; the bare
-share is the outlines'. Green strips along the azimuth (the cover tinted to the strip colour) are stamped from the
-recipe's seed until they cover their share outside the bare patches, feathered GREEN_FEATHER_M. The bare feather is
-broken by the cover's straws (strewn), so a patch edge is straws over soil. The soil takes the gain to the soil's
-optional albedo_target. The straw layer takes the
-per-channel gain that lands the patch's linear mean colour on albedo_target with the soil and the strips at their
+along the lodging azimuth and rotated to it (the cover normals turn with it). The bare soil patches, the green
+strips and the tussock relief are the asset's own: patches.bare.params (and patches.green.params, the same file)
+names the asset's params file, and tools/blender/lib/patches.py and lib/mat.py lay them out from it, the same
+layout the generator steps the mesh down along, grows its blades over and shapes its top by, so the map and the
+geometry never disagree (review-physics PR5). A floor (inside a step outline) is soil to its wall: FLOOR_EDGE of
+full at the outline, full at the outline shrunk by the feather, the ramp being each patch's core (its outline shrunk
+by half the feather) filled and blurred over half the feather each side, and nothing outside the outline; the bare
+share is the outlines'. The floor is broken by the cover's straws (strewn), so straws lie over its soil, more of
+them at its wall. Outside a floor the mat thins over LIP_M: the soil shows between its straws, LIP_LEVEL at the
+outline falling to nothing, so a step's lip is ragged. Elsewhere the gaps between the cover's straws (gap_share)
+show the mat's dark depth: the cover recoloured to the cover's optional gap_albedo (the litter in the straws'
+shadow, H 12-21), or the soil when it names none. The green strips (lib/mat.py) are filled and
+blurred over GREEN_FEATHER_M; the cover under them is tinted to the strip colour and its straws are strewn over
+them from GREEN_LEVEL, so a strip is regrowth with straws lying over it. The straws and the strips are
+darkened by up to RELIEF_TONE, and the occlusion by up to RELIEF_AO, in the relief's hollows (G 1-12: dark hollows
+between pale humps). The soil takes the gain to the soil's optional albedo_target. The straw layer takes the
+per-channel gain that lands the patch's linear mean colour on albedo_target with the soil, the gaps and the strips at their
 own colours, then a global pass corrects clipping; the achieved mean, the shares and the gains are recorded in the
 stamp. The azimuth is degrees from +u towards +v of the map, which is +X towards +Z of the asset when its UVs are
 metres.
 
 A recipe of kind "palette" (p1-s04-belt-straw, the straw instance kit) has no texture set: its "colours" object names
-flat sRGB colours, and the build writes <material>_albedo.png, one PALETTE_BLOCK_PX square block per colour from left to
-right in the object's order, so a generator tints a face by UV'ing it into a column (lib/straw.py's PALETTE). A tinted
-material without any texture would read to the review capture as an un-smudged LFS pointer, and a flat map is what a
-plain tint is.
+sRGB colours, each a flat "#rrggbb" or a list of stops from the bottom of the map to the top, and the build writes
+<material>_albedo.png, one column PALETTE_BLOCK_PX wide and PALETTE_HEIGHT_PX tall per colour from left to right in
+the object's order, the stops spread evenly up the column and interpolated in linear light (so a column's mean is
+its stops' mean), the columns padded with the last one to a power of two (Unity rescales other widths and would
+blur them together), so a generator tints a face by UV'ing it into a column at a height (lib/straw.py's PALETTE and
+palette_uv). A tinted material without any texture would read to the review capture as an un-smudged LFS pointer, and
+a flat map is what a plain tint is.
 
 Beside the PNGs, <material>_mask.recipe.json (masks) or <material>.recipe.json (ground, palette) records what made them: the
 formula, the recipe, each source's file name and SHA-256 as found on disk, and the SHA-256 of all of that together
 (plus the Pillow version for ground maps, whose resampling it fixes, and for ground and palette maps the value of
 every named constant their formula reads, GROUND_CONSTANTS and PALETTE_CONSTANTS, under "constants"; for a ground
-map also the bare layout's inputs and the layout module's constants and version, under "layout"). A run rewrites
+map also the bare layout's, the strips' and the relief's inputs and the layout modules' constants and versions,
+under "layout"). A run rewrites
 the files only when that hash differs from the stamp or a PNG is missing, so an unchanged recipe is a no-op and a
 changed recipe, source, constant or formula regenerates; a change to the code itself bumps the formula's version.
 Nothing is edited by hand. Derived files live under Art/Materials/, beside the .mat they feed, never
@@ -64,7 +75,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageMath, ImageOps
 import fetch  # the manifest, its file paths and the repo root; same folder
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "blender"))
-from lib import patches  # noqa: E402  the bare patch layout the ground_patch generator shares (plain Python)
+from lib import mat, patches  # noqa: E402  the layouts and fields the ground_patch generator shares (plain Python)
 
 RECIPES = os.path.join("assets-src", "materials")
 MATERIALS = os.path.join("unity", "Assets", "_Project", "Art", "Materials")
@@ -72,39 +83,49 @@ FORMULA = "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sourc
 CHANNELS = ("metallic", "occlusion", "smoothness")  # R, G, A
 MAP_EXPR = re.compile(r"^(1 - )?([a-z]+)$")
 
-GROUND_FORMULA = ("ground v3: cover tiled at tile_size_m and at tile_size_m*phi, averaged, stretched 1+bias along the "
+GROUND_FORMULA = ("ground v4: cover tiled at tile_size_m and at tile_size_m*phi, averaged, stretched 1+bias along the "
                   "lodging azimuth and rotated to it; soil tiled at its tile_size_m, gained to its albedo_target when "
-                  "given; bare = the asset's patch layout (lib/patches.py), each core filled and blurred with sigma "
-                  "patches.FEATHER_M / 6, so 255 on the outline shrunk by the feather and 0 at the outline, mapped "
-                  "u = x / size_m + 0.5, v = z / size_m + 0.5 with v up the image; seeded blobs (an ellipse and "
-                  "BLOB_SATELLITES satellites) stamped to the green share outside bare, feathered GREEN_FEATHER_M along "
-                  "the azimuth; strewn masks clamp(2 m - c), c the cover luminance high-passed at STRAW_M, blended with "
-                  "LOBE_M value noise and stretched to 0-1: the bare mask's feather (noise BARE_LOBES) and the gaps "
-                  "between straws (a flat m of sqrt(gap_share / 2), noise GAP_LOBES), soil under both; albedo = cover "
-                  "with the straw gain for albedo_target, strips tinted to the green tint, soil under bare and gaps, "
-                  "then a global gain against clipping; normal composited the same with the cover normals rotated by "
-                  "the azimuth; mask R 0, G AO, B 0, A 1 - roughness; detail albedo = the detail set's diffuse as grey "
-                  "at its size with a linear mean of 0.5; 8-bit sRGB albedos")
+                  "given; bare = the asset's patch layout (lib/patches.py): the outlines filled times FLOOR_EDGE + "
+                  "(1 - FLOOR_EDGE) * the ramp of each core filled and blurred with sigma patches.FEATHER_M / 6, so "
+                  "255 on the outline shrunk by the feather, FLOOR_EDGE at the outline and 0 outside it, mapped "
+                  "u = x / size_m + 0.5, v = z / size_m + 0.5 with v up the image; green = the asset's strips "
+                  "(lib/mat.py) filled and blurred with sigma mat.GREEN_FEATHER_M / 2; strewn masks clamp(2 m - c), c "
+                  "the cover luminance high-passed at STRAW_M, blended with LOBE_M value noise and stretched to 0-1: "
+                  "the bare mask (noise BARE_LOBES), the lip (m = LIP_LEVEL * min(1, 2 * the outlines blurred with "
+                  "sigma LIP_M / 3), noise BARE_LOBES), the gaps between straws (m = sqrt(gap_share / 2), noise "
+                  "GAP_LOBES) and the strips shown (m = GREEN_LEVEL * green, noise GAP_LOBES); relief = the asset's "
+                  "relief (lib/mat.py) sampled on RELIEF_SAMPLES^2 and resized bicubic, h01 in 0-1; albedo = the "
+                  "cover times 1 - RELIEF_TONE (1 - h01) with the straw gain for albedo_target, the strips shown "
+                  "tinted to the green tint, the gaps the cover gained to gap_albedo (the soil without one), the soil "
+                  "under bare and the lip, then a global gain against clipping; normal composited the same with the "
+                  "cover normals rotated by the azimuth; mask R 0, G AO times 1 - RELIEF_AO (1 - h01), B 0, "
+                  "A 1 - roughness; detail albedo = the detail set's diffuse as grey at its size with a linear mean "
+                  "of 0.5; 8-bit sRGB albedos")
 GROUND_MAPS = ("albedo", "normal", "mask", "detail_albedo")
-PALETTE_FORMULA = "palette v1: one PALETTE_BLOCK_PX square block per colour, left to right in the recipe's order; 8-bit sRGB"
+PALETTE_FORMULA = ("palette v2: one column PALETTE_BLOCK_PX x PALETTE_HEIGHT_PX per colour, left to right in the "
+                   "recipe's order, its stops spread evenly from the bottom to the top and interpolated in linear light, "
+                   "padded with the last column to a power of two of columns; 8-bit sRGB")
 PALETTE_BLOCK_PX = 16  # a block survives four mip levels before its colour bleeds into its neighbour's
+PALETTE_HEIGHT_PX = 64  # a column's gradient: enough rows for a smooth ramp, a power of two
 MAX_OUTPUT_PX = 2048  # AST-08
 PHI = 1.618033988749895
-GREEN_FEATHER_M = 0.5  # regrowth fades into the mat over half a metre (assumed)
 LOBE_M = 0.4           # the value-noise cell that lobes a bare patch's outline (assumed from H 9-14)
 STRAW_M = 0.05         # the high-pass that keeps a cover's straws and gaps and drops its tile-sized shading
 GAP_LOBES = 0.0        # the gaps between straws follow the cover's own straws, a little thicker and thinner by area
 BARE_LOBES = 0.5       # the share of value noise in a bare patch's strewn feather (assumed)
-GREEN_SPREAD_DEG = 10.0  # a green strip runs within this of the lodging azimuth (assumed)
-BLOB_SATELLITES = 3     # a blob is an ellipse and this many satellites (assumed)
-BLOB_OFFSET = 0.35      # a satellite's centre within this share of the blob's axes (assumed)
-BLOB_SCALE = (0.45, 0.8)  # a satellite's size as a share of the blob's (assumed)
-SHARE_TOLERANCE = 0.005
+FLOOR_EDGE = 0.55      # a floor's soil level at its wall before the straws are strewn over it (assumed, H 9-14)
+LIP_M = 0.4            # the mat thins over this outside a floor's outline (assumed, H 9-14: the ragged lip)
+LIP_LEVEL = 0.6        # the lip's level at the outline: more than half the mat's cut edge shows soil (assumed)
+RELIEF_TONE = 0.45     # the straws darken by up to this in the relief's hollows (assumed, G 1-12)
+GREEN_LEVEL = 0.6      # a strip's level before the straws are strewn over it: a third shows straws (assumed, H 19-21)
+RELIEF_AO = 0.4        # the occlusion falls by up to this in the hollows (assumed, G 1-12)
+RELIEF_SAMPLES = 256   # the relief's samples per side before the bicubic resize: 4.7 cm at 12 m
 # The named constants the ground and palette formulas read: their values go into the stamp's hash (review R1). The
-# bare feather and the patch layout's own constants are lib/patches.py's, hashed under "layout".
-GROUND_CONSTANTS = ("MAX_OUTPUT_PX", "PHI", "GREEN_FEATHER_M", "LOBE_M", "STRAW_M", "GAP_LOBES", "BARE_LOBES",
-                    "GREEN_SPREAD_DEG", "BLOB_SATELLITES", "BLOB_OFFSET", "BLOB_SCALE", "SHARE_TOLERANCE")
-PALETTE_CONSTANTS = ("PALETTE_BLOCK_PX",)
+# bare feather and the patch layout's own constants are lib/patches.py's, the strips' and the relief's lib/mat.py's,
+# hashed under "layout".
+GROUND_CONSTANTS = ("MAX_OUTPUT_PX", "PHI", "LOBE_M", "STRAW_M", "GAP_LOBES", "BARE_LOBES", "FLOOR_EDGE", "LIP_M",
+                    "LIP_LEVEL", "RELIEF_TONE", "RELIEF_AO", "RELIEF_SAMPLES", "GREEN_LEVEL")
+PALETTE_CONSTANTS = ("PALETTE_BLOCK_PX", "PALETTE_HEIGHT_PX")
 LUMA = (0.2126, 0.7152, 0.0722)
 SRGB_TO_LINEAR = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in (v / 255 for v in range(256))]
 
@@ -282,7 +303,7 @@ def _set_ref(obj, key, what):
 
 def bare_layout_inputs(root, bare, material, size_m):
     """The bare patch layout's inputs (lib/patches.py) from the asset params file that patches.bare.params names,
-    whose size_m must be the recipe's: the map spans the asset."""
+    whose size_m must be the recipe's: the map spans the asset. Returns (path, inputs, params)."""
     what = f"{material}.patches.bare.params"
     path = bare.get("params")
     if not isinstance(path, str) or not os.path.isfile(os.path.join(root, path)):
@@ -298,7 +319,7 @@ def bare_layout_inputs(root, bare, material, size_m):
         raise DeriveError(f"{what}: {path} has size_m {inputs['size_m']}, the recipe {size_m}; the map spans the asset")
     if not 0 <= inputs["share"] < 1:
         raise DeriveError(f"{what}: bare.share {inputs['share']} must lie in [0, 1)")
-    return path, inputs
+    return path, inputs, params
 
 
 def ground_recipe(root, recipe, material):
@@ -309,8 +330,18 @@ def ground_recipe(root, recipe, material):
     soil, cover, detail = (_set_ref(recipe, k, material) for k in ("soil", "cover", "detail"))
     patch_spec = _object(recipe, "patches", material)
     bare, green, lodging = (_object(patch_spec, k, f"{material}.patches") for k in ("bare", "green", "lodging"))
-    layout_params, layout_inputs = bare_layout_inputs(root, bare, material, size_m)
-    green_share = _number(green, "share", f"{material}.patches.green", lo=0, hi=1)
+    layout_params, layout_inputs, params = bare_layout_inputs(root, bare, material, size_m)
+    if green.get("params") != layout_params:
+        raise DeriveError(f"{material}.patches.green.params: {green.get('params')!r} must name the bare patches' params "
+                          f"file {layout_params!r} (the strips are the asset's, measured outside its bare patches)")
+    try:
+        green_inputs, relief_inputs = mat.green_inputs(params), mat.relief_inputs(params)
+    except (KeyError, TypeError) as e:
+        raise DeriveError(f"{material}.patches.green.params: {layout_params} lacks the key {e} (green.share, "
+                          "green.width_m, green.length_m, cell_m, relief_m)")
+    green_share = green_inputs["share"]
+    if not 0 <= green_share <= 1:
+        raise DeriveError(f"{material}.patches.green.params: green.share {green_share} must lie in [0, 1]")
     if layout_inputs["share"] + green_share > 1:
         raise DeriveError(f"{material}.patches: the bare share {layout_inputs['share']} + green.share {green_share} "
                           "exceeds 1")
@@ -319,9 +350,8 @@ def ground_recipe(root, recipe, material):
         "soil": soil, "cover": cover, "detail": detail,
         "soil_target": _colour(soil, "albedo_target", f"{material}.soil") if "albedo_target" in soil else None,
         "gap_share": _number(cover, "gap_share", f"{material}.cover", lo=0, hi=0.5) if "gap_share" in cover else 0.0,
-        "layout_params": layout_params, "layout": layout_inputs,
-        "green_share": green_share, "green_width_m": _range(green, "width_m", f"{material}.patches.green"),
-        "green_length_m": _range(green, "length_m", f"{material}.patches.green"),
+        "gap_albedo": _colour(cover, "gap_albedo", f"{material}.cover") if "gap_albedo" in cover else None,
+        "layout_params": layout_params, "layout": layout_inputs, "green": green_inputs, "relief": relief_inputs,
         "green_tint": _colour(green, "tint", f"{material}.patches.green"),
         "azimuth_deg": _number(lodging, "azimuth_deg", f"{material}.patches.lodging", lo=-360, hi=360),
         "bias": _number(lodging, "bias", f"{material}.patches.lodging", lo=0, hi=1),
@@ -400,63 +430,63 @@ def coverage(layer, outside=None):
     return sum(v * h[v] for v in range(256)) / (255 * layer.size[0] * layer.size[1])
 
 
-def blob(rng):
-    """The outline of one patch: a main ellipse and three satellites, as (dx, dy, scale) fractions of its axes, so
-    no patch is a clean ellipse."""
-    return [(0.0, 0.0, 1.0)] + [(rng.uniform(-BLOB_OFFSET, BLOB_OFFSET), rng.uniform(-BLOB_OFFSET, BLOB_OFFSET),
-                                 rng.uniform(*BLOB_SCALE)) for _ in range(BLOB_SATELLITES)]
-
-
-def stamp_blob(layer, centre, px_per_m, length_m, width_m, angle_deg, feather_m, parts):
-    """Pastes one feathered blob, length_m along angle_deg and width_m across, centred on `centre` (pixels)."""
-    feather = max(1, round(feather_m * px_per_m))
-    length, width = round(length_m * px_per_m), round(width_m * px_per_m)
-    pad = 2 * feather + max(length, width) // 2
-    size = (length + 2 * pad, width + 2 * pad)
-    shape = Image.new("L", size, 0)
-    draw = ImageDraw.Draw(shape)
-    for dx, dy, scale in parts:
-        ox, oy, half_l, half_w = size[0] / 2 + dx * length, size[1] / 2 + dy * width, length * scale / 2, width * scale / 2
-        draw.ellipse((ox - half_l, oy - half_w, ox + half_l, oy + half_w), fill=255)
-    shape = shape.filter(ImageFilter.GaussianBlur(feather / 2)).rotate(angle_deg, resample=Image.BILINEAR, expand=True)
-    layer.paste(255, (centre[0] - shape.size[0] // 2, centre[1] - shape.size[1] // 2), shape)
-
-
-def stamped(rng, out_px, px_per_m, share, length_m, width_m, angle, feather_m, what, outside=None):
-    """An L mask of random blobs (length drawn from length_m along `angle(rng)`, width from width_m, edges feathered
-    over feather_m) stamped until `share` of the area is covered (counted outside the `outside` mask), each stamp
-    scaled down when it would overshoot the share by more than SHARE_TOLERANCE, so the result lands within it."""
-    layer = Image.new("L", (out_px, out_px), 0)
-    for _ in range(10000):
-        if coverage(layer, outside) >= share - SHARE_TOLERANCE:
-            return layer
-        length, width, degrees, parts = rng.uniform(*length_m), rng.uniform(*width_m), angle(rng), blob(rng)
-        centre = (rng.randrange(out_px), rng.randrange(out_px))
-        for _ in range(12):
-            trial = layer.copy()
-            stamp_blob(trial, centre, px_per_m, length, width, degrees, feather_m, parts)
-            if coverage(trial, outside) <= share + SHARE_TOLERANCE or min(length, width) <= 0.3:
-                break
-            length, width = length * 0.75, width * 0.75
-        layer = trial
-    raise DeriveError(f"{what}: could not reach a share of {share} in 10000 stamps")
-
-
 def to_px(point, out_px, size_m):
     """The pixel of an asset point (x, z) on a map spanning size_m centred on the origin: u = x / size_m + 0.5 and
     v = z / size_m + 0.5, as the importer lays the base map (tiling 1/size_m, offset 0.5), with v up the image."""
     return ((point[0] / size_m + 0.5) * out_px, (0.5 - point[1] / size_m) * out_px)
 
 
-def bare_layer(bare_patches, out_px, size_m):
-    """The L mask of the bare soil: every patch's core filled and blurred with sigma FEATHER_M / 6 (a three-pass box
-    blur reaching about 3 sigma), so 255 on the outline shrunk by the feather and 0 at the outline (PR5)."""
+def outline_layer(bare_patches, out_px, size_m):
+    """The L mask of the floors: every step outline filled, 255 inside and 0 outside."""
     layer = Image.new("L", (out_px, out_px), 0)
     draw = ImageDraw.Draw(layer)
     for patch in bare_patches:
+        draw.polygon([to_px(p, out_px, size_m) for p in patch["outline"]], fill=255)
+    return layer
+
+
+def bare_layer(bare_patches, out_px, size_m):
+    """The L mask of the bare soil: the outlines filled, times FLOOR_EDGE + (1 - FLOOR_EDGE) * a ramp, every patch's
+    core filled and blurred with sigma FEATHER_M / 6 (a three-pass box blur reaching about 3 sigma): 255 on the
+    outline shrunk by the feather, FLOOR_EDGE at the outline and 0 outside it (PR5)."""
+    ramp = Image.new("L", (out_px, out_px), 0)
+    draw = ImageDraw.Draw(ramp)
+    for patch in bare_patches:
         if len(patch["core"]) >= 3:
             draw.polygon([to_px(p, out_px, size_m) for p in patch["core"]], fill=255)
-    return layer.filter(ImageFilter.GaussianBlur(patches.FEATHER_M / 6 * out_px / size_m))
+    ramp = ramp.filter(ImageFilter.GaussianBlur(patches.FEATHER_M / 6 * out_px / size_m))
+    floor = outline_layer(bare_patches, out_px, size_m)
+    return ImageMath.lambda_eval(lambda a: a["f"] * (FLOOR_EDGE + (1 - FLOOR_EDGE) * a["r"] / 255.0),
+                                 f=floor.convert("F"), r=ramp.convert("F")).convert("L")
+
+
+def lip_layer(bare_patches, out_px, size_m):
+    """The L mask of a floor's lip: the outlines filled and blurred with sigma LIP_M / 3, doubled: 255 on and inside
+    the outline, falling to nothing LIP_M outside it."""
+    blurred = outline_layer(bare_patches, out_px, size_m).filter(ImageFilter.GaussianBlur(LIP_M / 3 * out_px / size_m))
+    return blurred.point(lambda v: min(255, 2 * v))
+
+
+def green_layer(strips, out_px, size_m):
+    """The L mask of the green strips (lib/mat.py): their ellipses filled and blurred with sigma GREEN_FEATHER_M / 2."""
+    layer = Image.new("L", (out_px, out_px), 0)
+    draw = ImageDraw.Draw(layer)
+    for strip in strips:
+        for part in strip["parts"]:
+            draw.polygon([to_px(p, out_px, size_m) for p in mat.ellipse(part, strip["angle_deg"])], fill=255)
+    return layer.filter(ImageFilter.GaussianBlur(mat.GREEN_FEATHER_M / 2 * out_px / size_m))
+
+
+def relief_layer(relief, relief_m, out_px, size_m):
+    """The relief (lib/mat.py) as an L map, 0 at -relief_m, 128 at the mean and 255 at +relief_m: RELIEF_SAMPLES^2
+    samples at their pixel centres, resized bicubic to out_px."""
+    n = RELIEF_SAMPLES
+    small = Image.new("L", (n, n), 128)
+    if relief_m > 0:
+        small.putdata([max(0, min(255, round(128 + 127 * relief(((i + 0.5) / n - 0.5) * size_m,
+                                                                 (0.5 - (j + 0.5) / n) * size_m) / relief_m)))
+                       for j in range(n) for i in range(n)])
+    return small.resize((out_px, out_px), Image.BICUBIC)
 
 
 def strewn(bare, cover, rng, px_per_m, lobes=None):
@@ -496,7 +526,8 @@ def derive_ground(root, manifest, material, recipe):
     maps = {role: _load_set(root, manifest, texture_set, material, role) for role, texture_set in sets.items()}
     stamp = {"material": material, "kind": "ground", "formula": GROUND_FORMULA, "pillow": PIL.__version__,
              "constants": _constants(GROUND_CONSTANTS),
-             "layout": {"params": g["layout_params"], "inputs": g["layout"], "constants": patches.constants()},
+             "layout": {"params": g["layout_params"], "inputs": g["layout"], "constants": patches.constants(),
+                        "green": g["green"], "relief": g["relief"], "fields": mat.constants()},
              "recipe": recipe,
              "sources": {f"{role}/{name}": {"name": os.path.basename(path), "sha256": fetch.sha256(path)}
                          for role in ("soil", "cover", "detail") for name, path in sorted(maps[role].items())
@@ -526,37 +557,52 @@ def derive_ground(root, manifest, material, recipe):
     rng = random.Random(g["seed"])
     try:
         layout = patches.layout(**g["layout"])
+        regrowth = mat.green(**g["green"], bare_patches=layout["patches"])
     except ValueError as e:
         raise DeriveError(f"{material}: {e}")
     bare = bare_layer(layout["patches"], out_px, size_m)
-    green = stamped(rng, out_px, px_per_m, g["green_share"], g["green_length_m"], g["green_width_m"],
-                    lambda r: az + r.uniform(-GREEN_SPREAD_DEG, GREEN_SPREAD_DEG), GREEN_FEATHER_M,
-                    f"{material}: green strips", outside=bare)
+    green = green_layer(regrowth["strips"], out_px, size_m)
+    relief = relief_layer(mat.relief(**g["relief"]), g["relief"]["relief_m"], out_px, size_m)
     soil_albedo, cover_albedo = soil("diffuse"), cover("diffuse")
     soil_gain = [1.0, 1.0, 1.0]
     if g["soil_target"] is not None:
         soil_albedo, soil_gain = match_mean(soil_albedo, g["soil_target"])
     bare = strewn(bare, cover_albedo, rng, px_per_m)
-    # The mat is straws over dark soil: the soil shows through the cover's darkest gaps (strewn on a flat level
-    # whose share 2 level^2 is the cover's gap_share), so the straw layer itself is brighter for the same mean.
+    # A floor's lip: the mat thins at its cut edge and the soil shows between its straws.
+    lip = strewn(lip_layer(layout["patches"], out_px, size_m).point(lambda v: round(v * LIP_LEVEL)), cover_albedo, rng,
+                 px_per_m, BARE_LOBES)
+    # The mat's depth shows through the cover's darkest gaps (strewn on a level whose share 2 level^2 is the cover's
+    # gap_share), so the straw layer itself is brighter for the same mean.
     gaps = strewn(Image.new("L", (out_px, out_px), round(255 * math.sqrt(g["gap_share"] / 2))), cover_albedo, rng,
                   px_per_m, GAP_LOBES)
-    soil_mask = ImageChops.lighter(bare, gaps)
+    # Straws lie over the regrowth: a strip shows between the cover's straws (strewn at GREEN_LEVEL; H 19-21).
+    shown = strewn(green.point(lambda v: round(v * GREEN_LEVEL)), cover_albedo, rng, px_per_m, GAP_LOBES)
+    # The relief's hollows: darker straws and less ambient light (G 1-12).
+    tone = relief.point(lambda v: round(255 * (1 - RELIEF_TONE * (1 - v / 255))))
+    cover_albedo = ImageChops.multiply(cover_albedo, Image.merge("RGB", (tone, tone, tone)))
+    soil_mask = ImageChops.lighter(bare, lip)
     bare_share, bare_soil_share = layout["share"], coverage(bare)  # the outlines'; the soil the map shows in them
     gap_share, green_share = coverage(gaps, outside=bare), coverage(green, outside=bare)
 
-    # The straw layer takes the gain that lands the whole patch on the target with the soil and the strips at their
-    # own colours; a global pass then corrects what clipping and the feathered edges moved.
-    soil_share, strip_share = coverage(soil_mask), coverage(green, outside=soil_mask)
-    straw_share = max(1e-6, 1 - soil_share - strip_share)
-    straw_target = [(t - soil_share * s - strip_share * tint) / straw_share
-                    for t, s, tint in zip(g["target"], linear_means(soil_albedo), g["green_tint"])]
+    # The straw layer takes the gain that lands the whole patch on the target with the soil, the gaps and the strips
+    # at their own colours; a global pass then corrects what clipping and the feathered edges moved.
+    if g["gap_albedo"] is None:
+        litter = soil_albedo
+    else:
+        litter, _ = match_mean(cover_albedo, g["gap_albedo"])
+    soil_share = coverage(soil_mask)
+    litter_share = coverage(gaps, outside=soil_mask)
+    strip_share = coverage(shown, outside=ImageChops.lighter(soil_mask, gaps))
+    straw_share = max(1e-6, 1 - soil_share - litter_share - strip_share)
+    straw_target = [(t - soil_share * s - litter_share * lt - strip_share * tint) / straw_share
+                    for t, s, lt, tint in zip(g["target"], linear_means(soil_albedo), linear_means(litter), g["green_tint"])]
     straw, straw_gain = match_mean(cover_albedo, [max(0.001, t) for t in straw_target])
     strips, _ = match_mean(cover_albedo, g["green_tint"])
-    albedo = Image.composite(soil_albedo, Image.composite(strips, straw, green), soil_mask)
+    albedo = Image.composite(soil_albedo, Image.composite(litter, Image.composite(strips, straw, shown), gaps), soil_mask)
     albedo, final_gain = match_mean(albedo, g["target"])
     normal = Image.composite(soil("normal"), rotate_normals(cover("normal"), az), soil_mask)
-    ao = Image.composite(soil("ao"), cover("ao"), soil_mask)
+    ao = ImageChops.multiply(Image.composite(soil("ao"), cover("ao"), soil_mask),
+                             relief.point(lambda v: round(255 * (1 - RELIEF_AO * (1 - v / 255)))))
     roughness = Image.composite(soil("roughness"), cover("roughness"), soil_mask)
     zero = Image.new("L", (out_px, out_px), 0)
     mask = Image.merge("RGBA", (zero, ao, zero, roughness.point(lambda v: 255 - v)))
@@ -573,7 +619,7 @@ def derive_ground(root, manifest, material, recipe):
                 "luminance_error_pct": round(100 * (luminance(means) / luminance(g["target"]) - 1), 2),
                 "bare_share": round(bare_share, 4), "bare_patches": len(layout["patches"]),
                 "bare_soil_share": round(bare_soil_share, 4), "green_share": round(green_share, 4),
-                "gap_share": round(gap_share, 4),
+                "gap_share": round(gap_share, 4), "lip_soil_share": round(coverage(lip, outside=bare), 4),
                 "soil_mean_srgb": "#" + "".join(f"{to_srgb8(c):02x}" for c in linear_means(soil_albedo)),
                 "soil_gain": [round(x, 3) for x in soil_gain],
                 "straw_gain": [round(x, 3) for x in straw_gain], "final_gain": [round(x, 3) for x in final_gain],
@@ -592,13 +638,17 @@ def derive_ground(root, manifest, material, recipe):
 # --- palette recipes ----------------------------------------------------------------------------------------------
 
 def derive_palette(root, material, recipe):
-    """The flat albedo of a palette recipe: its colours as blocks, left to right in the recipe's order."""
+    """The albedo of a palette recipe: its colours as columns, left to right in the recipe's order, each flat or a
+    gradient of its stops from the bottom up."""
     colours = recipe.get("colours")
     if not isinstance(colours, dict) or not colours or not all(isinstance(k, str) for k in colours):
         raise DeriveError(f"{material}: a palette recipe needs a non-empty \"colours\" object of name -> sRGB colour")
     if "texture_set" in recipe or "mask" in recipe:
         raise DeriveError(f"{material}: a palette recipe is flat colour; it takes neither \"texture_set\" nor \"mask\"")
-    rgb = {name: _colour(colours, name, f"{material}.colours") for name in colours}
+    stops = {}
+    for name, value in colours.items():
+        listed = value if isinstance(value, list) and value else [value]
+        stops[name] = [_colour({"stop": v}, "stop", f"{material}.colours.{name}") for v in listed]
     stamp = {"material": material, "kind": "palette", "formula": PALETTE_FORMULA,
              "constants": _constants(PALETTE_CONSTANTS), "recipe": recipe}
     stamp["inputs_sha256"] = _inputs_sha256(stamp, ("formula", "constants", "recipe"))
@@ -606,16 +656,36 @@ def derive_palette(root, material, recipe):
     stamp_path = os.path.join(root, MATERIALS, f"{material}.recipe.json")
     if _up_to_date([png_path], stamp_path, stamp["inputs_sha256"]):
         return f"{fetch.relpath(root, png_path)}: up to date"
-    block = PALETTE_BLOCK_PX
-    image = Image.new("RGB", (block * len(rgb), block))
-    for i, linear in enumerate(rgb.values()):
-        image.paste(tuple(to_srgb8(c) for c in linear), (i * block, 0, (i + 1) * block, block))
+    block, height = PALETTE_BLOCK_PX, PALETTE_HEIGHT_PX
+    columns = 1 << (len(stops) - 1).bit_length()
+    image = Image.new("RGB", (block * columns, height))
+    lists = list(stops.values())
+    for i in range(columns):
+        column = lists[min(i, len(lists) - 1)]
+        for y in range(height):
+            v = 1 - (y + 0.5) / height  # up the map: row 0 is the top
+            image.paste(tuple(to_srgb8(c) for c in _gradient(column, v)), (i * block, y, (i + 1) * block, y + 1))
     os.makedirs(os.path.dirname(png_path), exist_ok=True)
     image.save(png_path, "PNG")
-    stamp.update({"size": list(image.size), "columns": list(rgb)})
+    stamp.update({"size": list(image.size), "columns": list(stops)})
     _write_stamp(stamp_path, stamp)
+
+    def shown(value):
+        return "/".join(value) if isinstance(value, list) else value
+
     return (f"{fetch.relpath(root, png_path)}: derived {image.size[0]}x{image.size[1]} palette "
-            f"({', '.join(f'{name} {colours[name]}' for name in rgb)}); recipe recorded in {os.path.basename(stamp_path)}")
+            f"({', '.join(f'{name} {shown(colours[name])}' for name in stops)}); recipe recorded in "
+            f"{os.path.basename(stamp_path)}")
+
+
+def _gradient(stops, v):
+    """The linear colour at height v in [0, 1] of stops spread evenly from 0 to 1."""
+    if len(stops) == 1:
+        return stops[0]
+    t = v * (len(stops) - 1)
+    k = min(int(t), len(stops) - 2)
+    f = t - k
+    return [a + (b - a) * f for a, b in zip(stops[k], stops[k + 1])]
 
 
 # --- main ---------------------------------------------------------------------------------------------------------
