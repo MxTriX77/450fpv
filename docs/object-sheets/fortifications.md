@@ -95,7 +95,7 @@ The soft parts fail first: tie wire and clips break, then fragments cut the tape
   - the coil body as one compliant contact volume per span between pickets: a cylinder (a capsule along the run) of the coil's diameter, material `proposed:razor_wire`, not landable; it stands for the push the airframe feels as it enters the coil (about 200 N/m, derived under the proposed ids at the end of this sheet);
   - the turns themselves carry no rigid collision; they are the snag records below (props, legs and the fiber);
   - pickets: an angle as two thin boxes (its two legs, exact), a U picket as three, rebar or a stake as a capsule of its own radius; material `steel` (`timber` for a stake);
-  - D: the sagged volume follows the slumped ellipse within ±5 cm; a trampled span is a low box (the mat) of the same material; a breach has no volume.
+  - D: the sagged volume as two capsules side by side (or a box) following the slumped ellipse within ±5 cm; a trampled span is a low box (the mat) of the same material; a breach has no volume.
 - **Material ids:** `proposed:razor_wire` for the coil volume and the tape; `steel` for pickets, clips and tie wire. If the physics reading maps the tape to `steel` instead, the fiber bends over steel's 1 mm edge radius rather than the 0.25 mm blade (open point).
 - **Gaps:** none. A coil is never passable: seen from the side, the crossing loops leave openings about one pitch across (0.27 m) and at most two pitches (0.54 m) between loops of the same lean, under the drone's 0.574 m, and the far side of every loop closes the path again (derived). The drone passes **over** a run (0.90 m single, 1.62 m double-stacked, the fence top plus 0.45 m) or through a **D breach**, which is open ground and written as no gap polygon: its clear width is the breach length less the curled ends (0.2–0.5 m each), so a 1–4 m breach clears 0–3.6 m (derived).
 - **Wind volumes:** the coil volume of each span, porosity **0.95** (I). Derivation: one turn holds π D of tape, so the one-sided tape area per coil volume is `a = 4 w / (D p)` with `w` the 8 mm projected width and `p` the pitch; across the coil the mean chord is π D / 4, so `β = exp(−(π / 2) · w / p)` averaged over the silhouette and `exp(−2 w / p)` straight through the axis, both independent of D:
@@ -196,12 +196,12 @@ Outputs: LOD0 with every turn as a tube along the core and the blade clusters as
 | Shape | a truncated square pyramid (a triangular one exists) | square frustum | published (encyclopedia, thesaurus) |
 | Base | 0.9–1.5 m square | **1.2 m** | derived: the published proportions give base / height 1.2 (the triangular pyramid, 6 ft by 5 ft) to 1.5 (the frustum, 3 ft by 2 ft); the default takes 1.2 × the height |
 | Top | 0.2–0.4 m square | 0.3 m | assumed |
-| Face angle | 61–72° from horizontal | 65.8° | derived: atan(h / ((b − t) / 2)) |
+| Face angle | 57–68° from horizontal | 65.8° | derived: atan(h / ((b − t) / 2)), over base 1.2–1.5 × the height and a 0.2–0.4 m top |
 | Volume and mass | 0.35–1.16 m³, 0.84–2.8 t | 0.630 m³, **1.51 t** | derived: V = h / 3 · (b² + b·t + t²), at 2400 kg/m³ (published) |
 | Centre of mass | — | 0.32 m above the base | derived (frustum centroid) |
 | Reinforcement | 4–8 bars Ø 10–12 mm with links Ø 6 mm at 0.2–0.3 m, 30 mm cover | 4 corner bars Ø 12 mm | assumed (published only as "reinforced") |
 | Lifting loop | a bar loop Ø 10–12 mm, 0.08–0.15 m proud of the top; or none | Ø 12 mm, 0.10 m | assumed (precast practice) |
-| Rows | 3–5, staggered | **4** | published: three or four staggered rows (bulletin), "often a second and third, sometimes a fourth" (encyclopedia); 5 from the asset list |
+| Rows | 3–5, staggered | **4** | published: three or four staggered rows (bulletin); a first row, often a second and third, sometimes a fourth (encyclopedia); 5 from the asset list |
 | Spacing in a row (centres) | 1.8–2.4 m | **2.0 m** | published (bulletin: 6–8 ft) |
 | Row spacing (centres) | 1.8–2.4 m | **2.0 m** | published (bulletin: 6–8 ft); the asset list's "rows 1–2 m apart" is the clear distance, 2.0 − 1.2 = 0.8 m at the base (derived) |
 | Stagger | half the spacing in a row | 1.0 m | published "staggered"; the half assumed |
@@ -254,7 +254,7 @@ Concrete spalls and cracks; it does not splinter. Chips and corner pieces 0.05�
 
 ### Placement rules (for the world)
 - **Across road approaches** to the settlements and **across the gaps between tree belts**, in fields of 3–5 staggered rows parallel to the defended line, each field's ends tied into an obstacle (a belt, a ditch, a trench line or a wire run, F01) so it cannot be driven round (assumed doctrine).
-- **Along trench lines and earth banks**, a field 20–100 m in front of the trench (the encyclopedia notes lines beside berms and anti-tank trenches; the distance assumed).
+- **Along trench lines and earth banks**, a field 20–100 m in front of the trench or beside the bank (assumed).
 - **On roads**, a lane left open as a dog-leg exit (published: gaps left as dog-leg exits), closable with hedgehogs (F03) or blocks (F04).
 - **Length:** 20–300 m per field (assumed). Wire (F01) often runs in front of or among the rows (the encyclopedia's barbed wire with teeth).
 - Not inside the villages (assumed). D teeth where the field crosses a shelled area or a track.
@@ -442,7 +442,7 @@ Outputs: LOD0 with welds, holes and feet; LOD1 the three members and the node; L
 
 ### Construction and materials
 - **Concrete road blocks:** ФБС foundation blocks for basement walls (ГОСТ 13579-78), the commonest heavy precast block to hand: plain heavy concrete, unreinforced but for the two lifting loops, a vertical groove in each end face, laid on the road by crane singly, end to end in lines, or two high (assumed). Arrises chipped from handling, rust bleed under the loops.
-- **Sandbag positions:** woven polypropylene bags (most modern military bags) or hessian (published), filled two thirds with sand or the local soil, laid like brickwork (published), headers across the wall and each course offset half a bag (published practice for bag walls), tamped flat. A U-shaped breastwork open at the rear with two firing ports; a variant roofed with timbers and a course of bags (assumed).
+- **Sandbag positions:** woven polypropylene bags (most modern military bags) or hessian (published), filled two thirds with sand or the local soil, laid like brickwork (published), headers across the wall and each course offset half a bag (published for flood walls; the same assumed here), tamped flat. A U-shaped breastwork open at the rear with two firing ports; a variant roofed with timbers and a course of bags (assumed).
 - **Lifting barrier:** a manual counterweighted arm on a steel post: the pivot at about 1.0 m, a 4 m tube arm striped red and white resting in a fork post on the far side, counterweights on a short tail (published construction). An improvised variant: a steel pipe on a welded pivot, hand-painted in stripes, with a block of concrete or a sandbag as the counterweight (assumed).
 - **Materials:**
   - blocks: Poly Haven `concrete_wall_003` or `rough_concrete` with a derived mask (chipped arrises, splash dirt, algae, rust bleed under the loops) (CC0: https://polyhaven.com/a/concrete_wall_003 , https://polyhaven.com/a/rough_concrete ); fresh fractures `concrete_debris` (https://polyhaven.com/a/concrete_debris ); loops `rusty_metal` (https://polyhaven.com/a/rusty_metal ).
