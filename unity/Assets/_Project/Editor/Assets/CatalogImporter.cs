@@ -165,7 +165,9 @@ namespace Fpv450.Assets
         /// <c>derive.py</c> packs from both. "two_sided" renders both faces (cull off). A recipe that is both is a
         /// leaf (p1-v13-shrub, design decision 6): it gets <c>Shaders/Leaf</c>, which reads the same properties and
         /// lights a back face with its own normal, unless its "shader" names another than URP/Lit; and its base map
-        /// keeps its alpha coverage at the cutoff in every mip.
+        /// keeps its alpha coverage at the cutoff in every mip. A "groove" (a bark's grooves tinted by its cavity) or
+        /// a "paint" in place of a "texture_set" (p1-v01-locust, design decision 5) also takes the <c>_base</c> map
+        /// that <c>derive.py</c> derives or paints; a painted recipe has no normal map.
         /// </summary>
         static Material EnsureMaterial(string visual, Dictionary<string, object> manifest) =>
             EnsureMaterial(visual, manifest, $"{MaterialsFolder}/{visual}.mat");
@@ -178,9 +180,12 @@ namespace Fpv450.Assets
             if ((int)Json.Num(recipe, "schema", recipePath) != 1)
                 throw new NotSupportedException($"{recipePath}: schema {recipe["schema"]}; this importer reads schema 1");
             string shaderName = Json.Str(recipe, "shader", recipePath);
-            Dictionary<string, Texture2D> maps = TextureSet(Json.Str(recipe, "texture_set", recipePath), manifest, recipePath);
+            bool painted = recipe.ContainsKey("paint");
+            Dictionary<string, Texture2D> maps = painted
+                ? new Dictionary<string, Texture2D>()
+                : TextureSet(Json.Str(recipe, "texture_set", recipePath), manifest, recipePath);
             Vector2 tile = Json.Vec2(recipe, "tile_size_m", recipePath);
-            if (!maps.TryGetValue("diffuse", out Texture2D diffuse))
+            if (!maps.TryGetValue("diffuse", out Texture2D diffuse) && !painted)
                 throw new FormatException($"{recipePath}: the texture set has no diffuse map");
             maps.TryGetValue("normal", out Texture2D normal);
             bool masked = recipe.ContainsKey("mask");
@@ -195,7 +200,8 @@ namespace Fpv450.Assets
             if (clipped && twoSided && shaderName == LitShader)
                 shaderName = LeafShader;
             Shader shader = Shader.Find(shaderName) ?? throw new FormatException($"{recipePath}: no shader named \"{shaderName}\"");
-            Texture2D baseMap = clipped && maps.ContainsKey("opacity") ? DerivedBase(visual) : diffuse;
+            bool derivedBase = painted || recipe.ContainsKey("groove") || (clipped && maps.ContainsKey("opacity"));
+            Texture2D baseMap = derivedBase ? DerivedBase(visual) : diffuse;
             if (clipped)
                 EnsureCoverage(baseMap, cutoff);
 
@@ -254,9 +260,9 @@ namespace Fpv450.Assets
         }
 
         /// <summary>
-        /// The base map of an alpha-clipped recipe whose set ships its opacity separately,
-        /// <c>Art/Materials/&lt;visual&gt;_base.png</c> (derive.py: the diffuse's RGB, the opacity in A), imported as
-        /// an sRGB map that keeps its alpha.
+        /// The base map <c>derive.py</c> writes for a recipe, <c>Art/Materials/&lt;visual&gt;_base.png</c>: the diffuse's
+        /// RGB with the set's separate opacity in A (an alpha-clipped recipe), the diffuse with its grooves tinted (a
+        /// "groove"), or a painted map (a "paint"); imported as an sRGB map that keeps any alpha.
         /// </summary>
         static Texture2D DerivedBase(string visual)
         {
