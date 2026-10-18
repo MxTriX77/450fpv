@@ -260,21 +260,21 @@ Publication years of historical manuals are not dates of the references.
 
 **Not clear: SEC-02 as amended by D-037.** It forbids "fortifications described tactically, … direction, extent or relation between positions", and names F01–F04. These lines break it (R1):
 
-| Line | Wording | What it is |
-|---|---|---|
-| 86 | "tied … to a picket every 3.8 m on the home side" | threat-relative direction |
-| 158 | "In front of trenches and firing positions …: a run parallel to the trench line, 30–100 m out, beyond hand-grenade throw and inside small-arms range" | direction, extent and relation between positions, and the tactical reason |
-| 159 | "to tie the dragon's-teeth rows (F02) and the checkpoint (F04) into the ditches and belts so they cannot be bypassed" | tactical purpose |
-| 163 | "along the defended line, pickets on the home side" | threat-relative direction |
-| 186 | `picket_side` values `home, enemy` | threat-relative direction |
-| 209, 605 | "the stand-off of protective wire (30–100 m)" | extent between positions |
-| 287 | "parallel to the defended line, … so it cannot be driven round (assumed doctrine)" | direction and tactical purpose |
-| 288 | "a field 20–100 m in front of the trench" | direction, extent and relation between positions |
-| 290 | "Wire (F01) often runs in front of or among the rows" | direction |
-| 466 | "(a breastwork to fire over standing)" | tactical use |
-| 467, 481, 527 | "open at the rear" | threat-relative direction |
-| 534 | "its open side away from the approach, against cover" | threat-relative direction and tactical siting |
-| 535 | "so the kit cannot be driven round" | tactical purpose |
+| Line | What it was |
+|---|---|
+| 86 | threat-relative direction |
+| 158 | direction, extent and relation between positions, and the tactical reason |
+| 159 | tactical purpose |
+| 163 | threat-relative direction |
+| 186 | threat-relative direction |
+| 209, 605 | extent between positions |
+| 287 | direction and tactical purpose |
+| 288 | direction, extent and relation between positions |
+| 290 | direction |
+| 466 | tactical use |
+| 467, 481, 527 | threat-relative direction |
+| 534 | threat-relative direction and tactical siting |
+| 535 | tactical purpose |
 
 None of these figures is published (the sheet labels them assumed), so removing them costs no sourced fact. Class-level placement stays allowed, as the template asks: where an object occurs (along field and belt edges, beside trench lines, across roads at settlement edges, on fence and wall tops), how often, in what lengths, and with which other objects of a kit.
 
@@ -382,7 +382,7 @@ All 17 sent-back items are closed where the "Closed in 1.4" lines say:
 
 ## Closed in 1.5
 
-The reference analyst closed each item in `docs/object-sheets/fortifications.md` (branch `unity/ref/p1-fortifications-sheet--qa`; line numbers after the edit):
+The reference analyst closed each item in `docs/object-sheets/fortifications.md` (branch `unity/ref/p1-fortifications-sheet`; line numbers after the edit):
 
 - **R1** → every line of the OPSEC table reworded to what an object stands on or beside, how it is laid out and how many: F01 :86, :158–159, :162–163, `picket_side` :186 (`left, right, inside, alternate` against the run's drawing direction, default `left`), open point :209; F02 :288–289, :291; F04 :467–468, :482, :528, :535–536; across the sheet :611. The 30–100 m and 20–100 m figures and every tactical reason are gone. Same kind, found on the way: :162 ("around positions"), :261 (the buried D state's reason) and :341 ("a target of"). `git grep` for R1's words finds nothing.
 - **R2 (a)** → the 0.6 m coil at 11 m and a 0.406 m loop spacing, 15 m and 0.533 m from 0.72 m (which also comes at 11 m): Dimensions :46, :47, :49, :50; the turn model items 2 and 3 (:64–65: p 0.196 m, lean 40.9°, end-on 0.60 × 0.45 m; 42.6° and 0.44 m at the loop spacing's p 0.203 m); `coil_diameter_m` :176.
@@ -436,21 +436,21 @@ Change 'p1-fortifications-sheet' is valid                       exit=0
 
 **Every line of the OPSEC table is now neutral and class-level:**
 
-| Was | Now | Reads |
+| Line (was) | Now | Reads |
 |---|---|---|
-| 86 "on the home side" | :86 "every 3.8 m on one side of the run (`picket_side`)" | neutral |
-| 158 "In front of trenches …, 30–100 m out, beyond hand-grenade throw …" | :158 "Along trench lines … and along field and belt edges: a run beside the line, following it" | neutral |
-| 159 "… so they cannot be bypassed" | :159 "Across road shoulders and verges, from the road edge to the ditch or the belt edge, often meeting the end of" F02 or F04 | kit neighbours only |
-| 163 "along the defended line, pickets on the home side" | :163 "along the trench line, edge or fence it follows, or across the verge" | neutral |
-| 186 `home, enemy` | :186 `left, right, inside, alternate` against the layout polyline's order, default `left` | neutral |
-| 209, 605 stand-off 30–100 m | :209, :611 "Where each run lies is the layout's" | neutral |
-| 287 "… so it cannot be driven round" | :288 across roads at settlement edges and across gaps between belts, its ends meeting a belt, ditch, trench line or wire run | neutral |
-| 288 "20–100 m in front of the trench" | :289 "a field beside the trench or the bank, its rows parallel to it" | neutral |
-| 290 "in front of or among the rows" | :291 "beside or among the rows" | neutral |
-| 466 "(a breastwork to fire over standing)" | :467 "assumed" | neutral |
-| 467, 481, 527 "open at the rear" | :468, :482, :528 "open on one side" | neutral |
-| 534 "away from the approach, against cover" | :535 "on the verge beside it, next to a building corner, a tree or a belt edge where one stands" | what it stands beside |
-| 535 "so the kit cannot be driven round" | :536 "wire (F01) along both verges, from the road edge to the ditch or the belt edge" | neutral |
+| 86 | :86 "every 3.8 m on one side of the run (`picket_side`)" | neutral |
+| 158 | :158 "Along trench lines … and along field and belt edges: a run beside the line, following it" | neutral |
+| 159 | :159 "Across road shoulders and verges, from the road edge to the ditch or the belt edge, often meeting the end of" F02 or F04 | kit neighbours only |
+| 163 | :163 "along the trench line, edge or fence it follows, or across the verge" | neutral |
+| 186 | :186 `left, right, inside, alternate` against the layout polyline's order, default `left` | neutral |
+| 209, 605 | :209, :611 "Where each run lies is the layout's" | neutral |
+| 287 | :288 across roads at settlement edges and across gaps between belts, its ends meeting a belt, ditch, trench line or wire run | neutral |
+| 288 | :289 "a field beside the trench or the bank, its rows parallel to it" | neutral |
+| 290 | :291 "beside or among the rows" | neutral |
+| 466 | :467 "assumed" | neutral |
+| 467, 481, 527 | :468, :482, :528 "open on one side" | neutral |
+| 534 | :535 "on the verge beside it, next to a building corner, a tree or a belt edge where one stands" | what it stands beside |
+| 535 | :536 "wire (F01) along both verges, from the road edge to the ditch or the belt edge" | neutral |
 
 The analyst's three extra finds are gone too (:162 "around positions", :261 the crossing reason, :341 "a target of").
 
