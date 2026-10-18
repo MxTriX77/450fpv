@@ -375,3 +375,329 @@ cost: map cap 96 unbinned, T 2 x 146: 15.48 us; one asset at worst + half a neig
 ```
 
 The hygiene scan and `openspec validate` output are in the handoff.
+
+## After task 1.1
+
+**Reviewer:** physics-engineer · **Task:** owner reading after 1.1 (Complex tier, D-033) · **Branch:** `unity/physics/p1-v01-locust--reading` · **From tip:** `d7931e8`
+**Read:** `CLAUDE.md`, `AGENTS.md`; this change's design 9 "as built" and `tasks.md`; `tools/blender/lib/shell.py` (3fa6d76) and `lib/audit.py` (5dec350) with their tests; `generators/tree.py`, `lib/cards.py`; the committed `V01_{S,M,L}.assetmeta.json`; `unity/Assets/_Project/Scripts/World/AssetPhysicsMeta.cs`; `openspec/specs/asset-pipeline/spec.md` ("Collision audit at build time"); knowledge §7.5, §10.4, §10.5; `api-review.md` §2.3–§2.4.
+
+"Measured" here means measured in plain Python on the committed V01 metadata, or on the committed generator and fitter run from the committed params with nothing written. The scripts lived in a scratch folder outside the repo; §A.8 has their output. The timings stay this reading's assumptions (§2.2): 5 ns per box reject, 30 ns per static narrow test, 50 ns for a part's bins, and the shells' 8.3 µs share. Sizes are S / M / L throughout.
+
+### Verdict
+
+1. **Orphan candidates: accepted as built** (§A.1).
+   - They change the fitter's candidate set, not a rule. Every piece still passes (a)–(d), and they give force to bare twigs that would otherwise give none.
+   - On the committed trees they are 1–3 of 61–70 pieces.
+   - They lower neither PR9's floor nor N-h.
+2. **Buried caps hidden: physically right** (§A.2). The drone meets an object's rigid primitives as their union.
+   - Only rigid primitives may hide a surface; a shell piece hides nothing.
+   - The requirement needs a sentence (written in §A.2), and the phase-7 law needs one matching condition (N-i).
+3. **Rule (d) stays at 64 for a tree's crown** (§A.3). The cost model has room, but three things keep it there:
+   - crowns interleave in a belt, and a V01_S belt already passes the map's 96
+   - the timings are still assumed
+   - the counts that fail come from a tube network, where the shell is the wrong model
+
+   **The binding state is autumn.**
+   - At `leaf_cover` 0.3, today's V01_S fails (d) whatever the grouping: 72 fitted per limb, 67 per stem, 68 as one whole crown.
+   - V01_M and V01_L pass with room (28 and 30).
+
+   **What task 1.3 does:**
+   - It thickens with leaves before twigs, and adds no twigs to V01_S.
+   - It either thins V01_S until 0.3 passes, or V01_S_autumn takes the lowest cover that passes: 0.5 today (PR9 amended).
+
+   **The card allowance stands as a rule, but its number for the tree is 0.361 m.** The card's far corner reaches 1.044 × `leaf_m` from its petiole.
+4. **200 / 232 / 330 colliders per tree fit the budget** with a shape-level, two-level, binned index (§A.4).
+   - The worst step in a dense V01 belt costs at most 5.6 µs.
+   - No per-tree cap and no physics LOD.
+   - Phase 3 counts density as narrow tests, not boxes (N-j).
+5. **`SnagFeature.material`: not now, and never the sim's source** (§A.5).
+   - The core reads snag records from the `.assetmeta.json`, through the compiled package.
+   - The field joins the component with its first Unity-side reader, phase 7 at the latest.
+
+### A.1 Orphan-target candidates
+
+**What the code does** (`lib/shell.py`: `fit`, `_Cover.orphans`, `_Mass.on`):
+- **Which targets are orphans.** After the lattice candidates are built and the twig targets added, the targets that no candidate reaches are the orphans. Card targets never make orphans.
+- **What each orphan gets:**
+  - a sphere at the mass's inscribed radius at its cell
+  - for every other orphan within 0.6 m, a capsule at the least inscribed radius along it
+
+  Each is kept only when that radius is 40 mm or more.
+- **They are ordinary candidates.** They come from the same mass (the cells within 85 mm of a shell face) and go through the same greedy, swap and step-5 shrink against the audit's own standoff. Nothing downstream can tell them from lattice candidates.
+- **No-op elsewhere.** The step is deterministic: the targets are sorted and the pairs taken in order. With no orphan, the candidate list is the lattice's, and V13's three shells come back piece for piece (`test_shrub`).
+
+**Physics:**
+- **The contact law reads the pieces, not how they were found.** Under PR1–PR3 the only question is whether the pieces pass (a)–(d), and the tree's audit says they do:
+
+  | Rule | Measured, S / M / L | Limit |
+  |---|---|---|
+  | (a) worst standoff | 97.9 / 97.9 / 97.8 mm | 100 mm |
+  | (b) twig outside | 96.7 / 96.5 / 93.7 mm | 100 mm |
+  | (c) leaf outside | 298.0 / 339.9 / 346.9 mm | 350 mm |
+  | (d) pieces per 2 m cube | 58 / 20 / 22 (recounted exactly from the metadata) | 64 |
+
+- **An orphan piece is a soft volume round a bare twig** (measured on the metadata):
+  - S has 1 sphere, M has 2 spheres and 1 capsule, and L has none.
+  - Their radii are 46–62 mm, round twigs of 2.4–2.9 mm radius.
+  - A part that reaches the twig has pushed at most 59 mm into the piece: 1.8 N at 30 N/m (derived). That is inside the 3 N the 0.1 m tolerance allows.
+- **Without them the twig gives no force at all.** Task 1.1 measured V01_M limb 1 leaving a twig 221 mm outside its shell at 18 pieces. Records add no part force (V13 reading §4), so a part would pass through a real twig untouched. The orphan step moves the force toward the twig's.
+- **It does not license bare crowns.**
+  - As cover falls, the step turns the shell into a tube network round the bare twigs, at about one piece per twig: in `scattered_twigs`, 30 bare twigs 0.8 m apart need more than 24 pieces.
+  - That is where 30 N/m is wrong by orders of magnitude (5 N/m at a twig's tip, kN/m at its root, §3.3), and where (d) fails first.
+  - N-h and PR9's floor stand: `V13_tall_autumn` keeps `leaf_cover` ≥ 0.3, and bare variants wait for N-a.
+- **No cost rise.** V01's shells give T 68 / 40 / 55 at the drone's worst spot (measured, §A.4), against 85–193 for V13 (§2.2).
+
+**Ruling (derived): accepted as built under PR1–PR3, and nothing changes.** QA confirms that the orphan path has a test of its own (§A.6, item 8).
+
+### A.2 Capsule chains: buried caps hidden
+
+**What the code does** (`lib/audit.py`: `_hider`, `_directed_max`):
+- The primitive → mesh direction skips the points of a body primitive's surface that lie inside another body primitive (signed distance below 0).
+- It drops the cells that lie wholly deeper than `CHORD_M` in one primitive, and closes in on the edge of the exposed surface.
+- Shell pieces are not body primitives, so they hide nothing.
+- The mesh → primitive direction already measured to the union.
+
+**Physics:**
+- **The drone meets an object's rigid primitives as their union.** A cap buried in the next capsule lies inside the union, and a part can reach it only by passing the neighbour's rigid surface first.
+- **A part goes at most one step's travel into a rigid shape:** ≤ 22 mm at cruise and ≤ 40 mm at 40 m/s (§2.1; K§7.5).
+  - The latch holds the plane of first touch, and that plane lies on the union's boundary.
+  - The trunk's buried pole, 78 mm in, can never be touched.
+  - A cap buried less than a step's travel can be crossed in an impact step, but by then the latch already sits on the outer surface.
+- **So an invisible wall is a property of the union's boundary.** Measuring it per primitive counted interior surface as walls, and both directions now measure the union. That is right (derived), on two conditions:
+  - **Only rigid primitives hide.** A shell piece can be pushed into by 0.1 m or more, so a rigid surface inside it can be touched and must be measured. This is how it is built.
+  - **The law must see the union too** (N-i, phase 7).
+    - `StaticContacts` returns one contact per (object, shape) (K§10.4). A part at a trunk joint therefore gets one contact from each capsule, both on the same surface.
+    - Summed as two springs, they would double the force at every joint, as the doubled rails did in `api-review.md` F2.
+    - Per (object, part), the earliest touch latches, and contacts within a few millimetres of each other with near-parallel normals count as one.
+    - A part wedged between two limbs, with the normals apart, keeps both contacts.
+- **A wholly buried primitive** prints "no surface outside the other primitives". It can never be the first touch, so it adds nothing to the contact, and it does no harm. The printed line is enough.
+
+**The requirement needs a sentence.**
+- "Collision audit at build time" measures "for every collision primitive, the two-sided deviation".
+- Read as written, a capsule chain fails at 78 mm, and the build no longer does what the text says.
+- The MODIFIED requirement below goes into this change's asset-pipeline delta (the orchestrator's edit); the new sentence is the bold one:
+
+> The build SHALL measure, for every collision primitive, the two-sided deviation from the LOD0 surface it stands for, and fail beyond ±5 cm, or ±2 cm within 0.3 m of a gap polygon or a landable face; it SHALL also check that `narrowest_m` equals the largest inscribed circle of each gap polygon within 5 mm. **The primitive-to-mesh direction SHALL measure only the part of a primitive's surface that lies outside every other rigid (non-shell) primitive of the asset, since the drone meets the union of the rigid primitives and a surface buried in another, such as a capsule's cap inside the next capsule of a chain, can never be touched; a shell piece hides nothing, and the mesh-to-primitive direction measures to the union.**
+>
+> #### Scenario: Buried caps of a capsule chain
+> - **WHEN** a trunk is two 80 mm capsules along a domed 12-sided tube, each one's cap at the joint buried in the other
+> - **THEN** the audit passes, measuring only the exposed surface (within 10 mm of the tube), and a capsule moved 7 cm off its tube still fails
+
+The existing scenario "Collision drift is caught" stays.
+
+### A.3 Margins for task 1.3
+
+**Rule (d): V01_S at 58 of 64.**
+- **What the cap stands for.** Rule (d) is a box count standing in for T, the narrow tests at the drone's worst spot (§2.4). With the binned cache, which §A.4 requires anyway, a step costs T × 30 ns + 0.7 µs.
+- **V01's pieces are cheaper than V13's, piece for piece** (measured):
+  - V01_S: 58 pieces in a cube and T 68
+  - `V13_tall` at 0.3: 60 pieces and T 121
+
+  So the cost model has room: V01_S's shells cost 2.7 µs binned, a third of their share.
+- **It still does not rise in this change:**
+  - The timings are assumed until the phase-3 bench (§2.5).
+  - A tree's crown is never alone in a belt; crowns interleave. Take a 4 × 3 patch of V01_S, 1.5 m apart in the row and 2.75 m between rows (the sheet's placement, assumed). There a 2 m cube meets 120 shell pieces (measured), already over the map's 96 at today's 58 per tree. At 3 m × 3 m it meets 60.
+  - Raising one tree's cap raises every belt cube with it.
+
+  The cap moves only with the bench, which then rules on a limit counted in T (N-j). V01's numbers favour that limit.
+- **How 1.3 thickens inside 64:**
+  - **Leaves first.** Cards fill the mass, so the fitter takes fewer, larger pieces: on `V13_tall` the count fell from 60 at `leaf_cover` 0.3 to 40 at 0.4 and 24 at 1.0 (measured, §3.2). More leaves per member (`LEAF_STEP_M`) and `leaf_m` within the sheet's 0.15–0.36 m are free under (d). So yes: more leaves per twig, not more twigs.
+  - **Twigs second, with (d) printed after each step.** `children_per_order`, `orders` and the upturn add twigs. At `leaf_cover` 0.6, two in five of the last two orders' members are bare. Every bare twig is a (b) target that a piece must reach within 0.1 m, and that is what raises the count.
+  - **The binding state is autumn, not the committed one.** PR9 takes the tuned crown to `leaf_cover` 0.3, where seven in ten of those members are bare. Today's crowns, fitted per limb at 0.3 (measured):
+    - V01_M: 79 pieces, (d) 28
+    - V01_L: 79 pieces, (d) 30
+    - V01_S: 83 pieces, (d) **72**
+
+    So M and L have room to thicken their twigs, and S has none.
+  - **V01_S already fails at 0.3, whatever the grouping.** Fitting the limbs together is invisible to the contact, because the audit holds the union and the law takes the deepest piece. It still does not rescue S. Measured on today's crown (pieces, then (d)):
+
+    | Fit | 0.6 (committed) | 0.5 | 0.4 | 0.3 |
+    |---|---|---|---|---|
+    | Per limb (as built) | 70, 58 | 74, 61 | 78, **65** | 83, **72** |
+    | Per stem | 68, 59 | | | 81, **67** |
+    | Whole crown, caps up to 64 | 56, 47 (296 s) | | | 64, fails (b) and (c) |
+    | Whole crown, caps 72–96 | | | | 80, **68** (447 s) |
+
+    - **The crown is crowded.** It holds 184 twigs, 2.3 times V01_M's and 4 times V01_L's, in the smallest crown: the two stems' six limbs share one 3 m crown.
+    - **At 0.3 the shell is a tube network.** 42 of its 83 pieces are spheres, against 16 of 70 at 0.6. That is the regime where the shell is the wrong model (N-h). Raising (d) there would stretch a cost proxy to keep a wrong model, so (d) does not move.
+  - **What 1.3 does with V01_S.** It adds no twigs to S. Then it either:
+    - thins S's twig crowd against F (`orders` or `children_per_order` for S) until (d) at 0.3, fitted per limb, is 64 or less, or
+    - keeps the crown, and **PR9 is amended**: V01_S_autumn takes the lowest cover at which (d) holds per limb, 0.5 on today's crown. That is inside the delta's 0.2–0.5 range for V01.
+
+    The choice is the look's, against F and H; physics accepts either.
+    - V01_M_autumn, the variant H measures, stays at 0.3.
+    - No V01 variant goes below 0.3: the delta's 0.2 floor for V01 has no shell to stand on (N-h, as for V13; not measured on V01).
+  - **Joint fits are a lever only where limbs interleave.**
+    - On S at 0.6, one fit for the whole crown gives (d) 47, against 58 per limb.
+    - But one fit is capped at 64 pieces and takes 5–9 minutes.
+    - On S at 0.3 it does not help. On M and L at 0.3 it fails (b) and (c) at 64, where the per-limb fits pass with 79 pieces each.
+
+    Per-limb fits stay the default.
+
+**Card allowance: the rule stands, and its number for the tree is 0.361 m (derived).**
+- **The card reaches past its length.** `cards._card` lays a card `leaf_m` long from its petiole, half its cell's aspect wide on either side.
+  - Its far corners stand √(`leaf_m`² + half-width²) from the petiole.
+  - Over LeafSet002's six cells (aspects 0.443–0.600) that is 1.024–1.044 × `leaf_m`: 0.261 m at the 0.25 m leaf.
+- **The rule's own derivation** (card reach plus 0.1 m, §5) then gives 0.361 m. L's 346.9 mm is 3.1 mm under the 0.35 m in use and 14.1 mm under that bound.
+- **The margin costs pieces, not physics.**
+  - No physics rides on it: cards have no contact role.
+  - A corner between 0.35 and 0.361 m makes the fitter spend pieces chasing leaf tips, and those pieces come out of the (d) headroom that V01_S lacks.
+- **So `card_reach_m` becomes the card's farthest corner from its petiole,** computed from `CELLS_UV`, not typed. It follows `leaf_m` if 1.3 tunes it.
+- **The shrub keeps `card_m`.** Its 0.3 m is stricter than its corner's 0.309 m, and a stricter allowance only costs pieces, so V13's committed shells stand.
+- **The spec text.** The delta's "0.35 m for the tree's 0.25 m leaf cards" becomes "0.361 m". The scenario "Card allowance follows the card" (0.33 m) is unchanged.
+
+### A.4 Collider count
+
+**Who tests what:**
+- The 14 drone parts test the bark capsules (rigid, swept, latched) and the shell pieces (soft, static, N-c).
+- The fiber's ≤ 32 segments test the bark capsules and the snag records, never the shells (§5).
+
+**Narrow tests at the worst spot** (measured): T over the 14 parts of knowledge §5.2, each part's box grown by 30 mm, at yaw 0° and 45°, over drone positions on a 0.1 m lattice. Belt patches are 4 × 3 trees (crown overlap assumed, as in §A.3).
+
+| | V01_S | V01_M | V01_L |
+|---|---|---|---|
+| Colliders: bark capsules, shell pieces | 130, 70 | 171, 61 | 267, 63 |
+| One tree: T for shells, bark, both | 68, 50, 99 | 40, 52, 63 | 55, 58, 86 |
+| Belt at 1.5 m × 2.75 m: T for shells and bark | ≤ 162 | ≤ 131 | ≤ 141 |
+| Belt at 3 m × 3 m | ≤ 117 | ≤ 98 | ≤ 110 |
+| Binned cost, one tree / dense belt | 3.7 / 5.6 µs | 2.6 / 4.6 µs | 3.3 / 4.9 µs |
+
+- **Binned, it fits.** The worst V01 belt step costs at most 5.6 µs.
+  - The budget is the shells' 8.3 µs plus an equal share for rigid vegetation: 16.6 µs. Both shares are assumed: the 25 µs left after the measured 34.7 µs, split in thirds among the shells, the rigid vegetation and the fiber's vegetation contacts.
+  - The swept Time search runs only on the few pairs that touch, not on all T (assumed; the bench measures it).
+- **An object-level scan does not fit, whatever the per-tree count.**
+  - It costs 14 × 200–330 × 5 ns = 14–23 µs per tree in reach, before any narrow test.
+  - A cube in a belt is within reach of 3–6 crowns: 42–139 µs, over the whole 60 µs budget.
+  - Even a per-tree cap of 150 leaves 42 µs at four crowns. A binned index needs no cap.
+- **Memory decides the index's shape** (derived).
+  - World-space copies cost 200–330 × 64 B per tree (two Double3 ends, a radius and ids; assumed layout), 13–21 KB. Ten thousand trees take 130–210 MB before their records.
+  - A two-level index costs only the variants' few hundred KB plus about 100 B per instance: instances sit in a world grid with their transform, and each variant's shapes and bins are shared in its own frame.
+- **No physics LOD:**
+  - Contact cannot depend on the camera: the core is engine-free and replays headless.
+  - Keeping only what is near the drone is already the broadphase's job.
+  - The far field of a crown is the wind grid.
+  - A fiber lying over far trees needs their real branches.
+- **The sheet's fallback** (10–15 mm segments folded into the shells) is not needed.
+
+**Ruling (derived from assumed timings, on measured counts): within budget, with a shape-level, two-level, binned index. There is no per-tree cap, and the build keeps printing the per-tree count, as it does now.** N-j carries this to phase 3.
+
+### A.5 `SnagFeature` and `material`
+
+- **Who reads a record's material:** the fiber, in phase 7d. It takes the capstan friction, `break_stress_pa` where present, and N3's modulus from it, all inside the engine-free core.
+- **The core reads the world through the package.**
+  - The phase-3 compiler builds the package from the `.assetmeta.json` files, which carry `material`, checked against the closed list.
+  - The headless replay must reproduce a flight without Unity, so the core may never read physics metadata from a prefab component. If it did, the live flight and the replay could read different copies.
+  - This withdraws the class comment's "the sim reads it through an adapter later". The sim's path is the package.
+- **`AssetPhysicsMeta` is a Unity-side view** for noclip and the review overlays. Its `sourceJson` holds the whole file. Nothing in Unity reads a snag's material today, and no physics ever will.
+
+**Ruling (derived): not now, and not as a physics requirement in phase 7.**
+- The field joins `SnagFeature`, with an importer test, together with its first Unity-side reader: a snag overlay coloured by material, or phase 7's forensics viewer at the latest.
+- The condition falls on phase 3: the compiler reads snag records, with their `material`, from the `.assetmeta.json`, never from the prefab (N-j).
+
+### A.6 What task 1.3 and QA 2.1 must do or check
+
+**Task 1.3:**
+1. Thicken with leaves first (`LEAF_STEP_M`, and `leaf_m` within 0.15–0.36 m), then with twigs (`children_per_order`, `orders`, the upturn). After each change, print rule (d) at the committed `leaf_cover` and at 0.3 (an uncommitted override: 1.4's state), and paste both lines per variant (§A.3).
+2. Keep rule (d) ≤ 64 at both covers for V01_M and V01_L. Today they stand at 20 and 22 at the committed cover, and 28 and 30 at 0.3.
+3. Add no twigs to V01_S. Either thin its twig crowd until its per-limb (d) at 0.3 is 64 or less, or keep the crown and state in the handoff that V01_S_autumn takes the lowest cover that passes (0.5 today, measured per limb). Paste the line that shows it.
+4. If (d) fails at a committed cover, try one whole-crown fit before thinning (V01_S: 47 at 0.6, measured). If nothing holds, report and stop.
+5. Set `card_reach_m` to the card's farthest corner from its petiole: `leaf_m` × the largest √(1 + (aspect/2)²) over `CELLS_UV`. At the 0.25 m leaf that is 0.261 m, an allowance of 0.361 m. Add a test, and leave the shrub unchanged.
+6. Leave the orphan step and the buried-cap hiding as built.
+
+**QA 2.1:**
+
+7. Rule (d) is 64 or less per variant in the committed audit lines and in 1.3's lines at 0.3, or for V01_S at the cover 1.3 names.
+8. The orphan path has a test of its own: a twig that no lattice candidate reaches is covered, and with no orphan the candidates are the lattice's. If none exists, request it.
+9. The capsule-chain test exists, plus a test that a rigid surface inside a shell piece is still measured (only rigid primitives hide).
+10. The printed allowance is 0.361 m for the tree's 0.25 m leaf and 0.3 m for the shrub, and the rule (c) lines pass.
+11. The deltas carry three edits (the orchestrator's; `openspec validate --strict`):
+    - asset-pipeline: §A.2's sentence and scenario
+    - both deltas: 0.361 m in place of the tree's 0.35 m
+    - assets-vegetation, "The H autumn belt state": V01's autumn cover from 0.3, and V01_S's at its measured floor (§A.3)
+
+### A.7 Notes (non-blocking), by owner
+
+- **N-i, physics-engineer (phase 7 contact law):** an object's rigid primitives act as one surface per part (§A.2).
+  - The earliest touch latches.
+  - Coincident contacts at a joint merge: points within a few millimetres, normals near-parallel.
+  - A wedge keeps both contacts.
+- **N-j, world-builder (phase 3), sharpening N-b:**
+  - **A two-level shape index** for the parts and the fiber alike: instances in a world grid, and each variant's shapes and bins shared in its own frame.
+  - **`veg_shells` runs the V01 belt patches of §A.4.**
+  - **Once that bench confirms the timings, the compiler's density check counts narrow tests, not boxes:** at the 14-part layout, over rigid and shell shapes. The 96-piece box cap refuses a 1.5 m V01_S belt (120 pieces per cube) whose shells cost only 3.6 µs binned (T 97). Rule (d) follows the same measurement.
+  - **Snag records come from the `.assetmeta.json`** (§A.5).
+
+### A.8 Evidence
+
+```
+$ git switch -c unity/physics/p1-v01-locust--reading origin/unity/art/p1-v01-locust
+Switched to a new branch 'unity/physics/p1-v01-locust--reading'
+
+$ python -I v01density.py <repo> SML belt      # committed metadata: shape sizes, rule (d) exact, T at the 14-part layout, belt patches
+V01_S: shapes 200 (bark 130, twig 70)
+  twig: radius 43-155 mm (median 62); axis length 0.10-1.20 m (median 0.30)
+  bark: radius 3-42 mm (median 9); axis length 0.03-1.27 m (median 0.30)
+  twig: most boxes meeting a 2 m cube 58 at (-1.24, 3.1, -1.07); T 68 at (-0.25, 4.77, -0.63, 'yaw0')
+  bark: most boxes meeting a 2 m cube 104 at (-1.2, 2.77, -0.86); T 50 at (-0.26, 4.04, -0.37, 'yaw0')
+  all: most boxes meeting a 2 m cube 160 at (-1.2, 3.04, -0.88); T 99 at (-0.25, 4.74, -0.63, 'yaw0')
+  orphan-step pieces (capsules off the lattice directions, spheres on a twig ring): 0 capsules, 1 spheres
+V01_M: shapes 232 (bark 171, twig 61)
+  twig: radius 43-155 mm (median 70); axis length 0.08-1.00 m (median 0.40)
+  bark: radius 3-85 mm (median 11); axis length 0.07-1.01 m (median 0.32)
+  twig: most boxes meeting a 2 m cube 20 at (-2.04, 7.15, -1.96); T 40 at (-0.91, 9.05, -0.46, 'yaw0')
+  bark: most boxes meeting a 2 m cube 47 at (-1.11, 5.04, -0.42); T 52 at (0.38, 3.0, 0.06, 'yaw0')
+  all: most boxes meeting a 2 m cube 58 at (-1.7, 5.51, -0.58); T 63 at (0.99, 7.3, 2.14, 'yaw0')
+  orphan-step pieces (capsules off the lattice directions, spheres on a twig ring): 1 capsules, 2 spheres
+V01_L: shapes 330 (bark 267, twig 63)
+  twig: radius 42-125 mm (median 56); axis length 0.15-1.00 m (median 0.45)
+  bark: radius 2-136 mm (median 14); axis length 0.14-1.34 m (median 0.33)
+  twig: most boxes meeting a 2 m cube 22 at (-2.37, 10.0, -0.65); T 55 at (-2.12, 11.01, 1.03, 'yaw0')
+  bark: most boxes meeting a 2 m cube 66 at (-1.75, 8.34, -3.05); T 58 at (-0.83, 8.84, -2.05, 'yaw0')
+  all: most boxes meeting a 2 m cube 82 at (-1.72, 8.69, -2.96); T 86 at (-1.02, 8.94, -2.17, 'yaw0')
+  orphan-step pieces (capsules off the lattice directions, spheres on a twig ring): 0 capsules, 0 spheres
+  belt V01_S 4x3, 1.5 m in the row, rows 2.75 m: 2 m cube twig 120, bark 200; T twig 97, bark 65, together <= 162
+  belt V01_S 4x3, 3.0 m in the row, rows 3.0 m: 2 m cube twig 60, bark 104; T twig 67, bark 50, together <= 117
+  belt V01_M 4x3, 1.5 m in the row, rows 2.75 m: 2 m cube twig 73, bark 172; T twig 63, bark 68, together <= 131
+  belt V01_M 4x3, 3.0 m in the row, rows 3.0 m: 2 m cube twig 40, bark 92; T twig 49, bark 49, together <= 98
+  belt V01_L 4x3, 1.5 m in the row, rows 2.75 m: 2 m cube twig 75, bark 215; T twig 70, bark 71, together <= 141
+  belt V01_L 4x3, 3.0 m in the row, rows 3.0 m: 2 m cube twig 43, bark 125; T twig 52, bark 58, together <= 110
+
+$ python -I orphans.py <repo>                  # the orphan-step pieces and what they stand round
+S orphan sphere r 62 mm on a twig of radius 2.5 mm, 0.0 mm off its ring
+M orphan sphere r 62 mm on a twig of radius 2.9 mm, 3.3 mm off its ring
+M orphan capsule r 46 mm, axis 0.08 m
+M orphan sphere r 62 mm on a twig of radius 2.4 mm, 0.7 mm off its ring
+
+$ python -I -c "...cards.CELLS_UV..."          # each cell's aspect and its far corner over leaf_m
+0.443 1.0242 / 0.577 1.0408 / 0.462 1.0264 / 0.461 1.0262 / 0.6 1.0441 / 0.481 1.0285
+
+$ python -I jointfit.py <repo> V01_S V01_S@0.3 V01_M@0.3 V01_L@0.3    # the committed generator and fitter; nothing written
+V01_S leaf_cover 0.6: as built: shell tree: 70 pieces (54 capsules, 16 spheres); most meeting one 2 m cube 58, limit 64
+  joint: shell stem 0: 32 pieces (24 capsules, 8 spheres) at cap 32, passes (b) and (c); most meeting one 2 m cube 31; fit 20.4 s
+  joint: shell stem 1: 36 pieces (26 capsules, 10 spheres) at cap 40, passes (b) and (c); most meeting one 2 m cube 32; fit 32.8 s
+  joint: shell whole crown: 56 pieces (39 capsules, 17 spheres) at cap 56, passes (b) and (c); most meeting one 2 m cube 47; fit 296.1 s
+V01_S leaf_cover 0.3: as built: shell tree: 83 pieces (41 capsules, 42 spheres); most meeting one 2 m cube 72, limit 64
+  (limbs 12, 9, 18, 12, 8, 24 pieces, all at cap 24)
+  joint: shell stem 0: 39 pieces (16 capsules, 23 spheres) at cap 40, passes (b) and (c); most meeting one 2 m cube 33; fit 20.3 s
+  joint: shell stem 1: 42 pieces (19 capsules, 23 spheres) at cap 48, passes (b) and (c); most meeting one 2 m cube 37; fit 55.7 s
+  joint: shell whole crown: 64 pieces (41 capsules, 23 spheres) at cap 64, FAILS (b) and (c); most meeting one 2 m cube 54; fit 553.1 s
+V01_M leaf_cover 0.3: as built: shell tree: 79 pieces (40 capsules, 39 spheres); most meeting one 2 m cube 28, limit 64
+  (limbs 23 at cap 24, 40 at cap 40, 16 at cap 24)
+  joint: shell stem 0: 64 pieces (31 capsules, 33 spheres) at cap 64, FAILS (b) and (c); most meeting one 2 m cube 22; fit 365.4 s
+V01_L leaf_cover 0.3: as built: shell tree: 79 pieces (36 capsules, 43 spheres); most meeting one 2 m cube 30, limit 64
+  (limbs 37 at cap 40, 10 at cap 24, 32 at cap 32)
+  joint: shell stem 0: 64 pieces (27 capsules, 37 spheres) at cap 64, FAILS (b) and (c); most meeting one 2 m cube 26; fit 462.3 s
+
+$ python -I stemfit.py <repo> V01_S V01_S@0.3   # rule (d) over the union of the two stems' fits
+V01_S leaf_cover 0.6: per-stem union: 68 pieces; most meeting one 2 m cube 59
+V01_S leaf_cover 0.3: per-stem union: 81 pieces; most meeting one 2 m cube 67
+
+$ python -I widefit.py <repo> wide V01_S 0.3 72,80,96
+V01_S leaf_cover 0.3 whole crown, caps (72, 80, 96): 80 pieces at cap 80, passes (b) and (c); most meeting one 2 m cube 68; fit 447 s
+
+$ python -I widefit.py <repo> limbs V01_S 0.4 ; python -I widefit.py <repo> limbs V01_S 0.5
+V01_S leaf_cover 0.4 per limb: shell tree: 78 pieces (45 capsules, 33 spheres); most meeting one 2 m cube 65, limit 64
+V01_S leaf_cover 0.5 per limb: shell tree: 74 pieces (51 capsules, 23 spheres); most meeting one 2 m cube 61, limit 64
+```
+
+Fit times are plain Python on the dev machine with the power state not recorded, so they are not performance claims (N-e). The hygiene scan and `openspec validate` output are in the handoff.
