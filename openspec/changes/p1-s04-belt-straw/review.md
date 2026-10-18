@@ -873,3 +873,111 @@ QA read both review sheets at full size (every tile), cropped the 1.5 m, 10 m, 5
 - **R10** (orchestrator; REAL-03, D-028): bring design §10's "Not matched" list to the 13-item G1 stand-in list above: item 7 restated (separate oval floors in rows, pits in sun, not trodden strips), F10's mounds, F16's palisade and the 8 m LOD switch added, items 4, 5 and 8 pointed at `unity/main`'s new §S04 rows and their owners (the heaps to the world-builder, phase 3; the 500–1000 per m² to AST-10; the floors' #59544c after G1 per the sheet's open point); and make the "Colour inside the sheet's range" scenario say that the floors' 10YR 2/1–3/1 is the G1 value against the sheet's measured #59544c. `openspec validate --strict`. A re-check of R9 and R10 needs `pytest tools/blender/tests/test_audit.py`, the mutation, `design.md` and the delta; no build.
 
 Verdict: CHANGES REQUESTED
+
+## Re-check of R9 and R10
+
+**Reviewer:** qa-engineer (a fresh agent; none of the work is its own, D-034) · **Tip:** `0d98627` · **Range:** `1da25de..0d98627` (`eb6f4e9` Orchestrator, R10; `63c347b` Asset Artist, R9; `0d98627` Orchestrator, R9's scenario)
+**Read:** `CLAUDE.md`, `AGENTS.md`, `docs/workflow.md`, the pass on the merge and R7–R8 above (R9, R10, the 13-item list, suggestions 1–5), `design.md` (§10, decision 15), the three spec deltas, `tasks.md`, the three commits' diffs; §S04 of `docs/object-sheets/earthworks-and-surfaces.md` as `origin/unity/main` has it (`cf3ae03`).
+
+The range touches `design.md`, the two spec deltas and `tools/blender/tests/test_audit.py` only (`git diff --stat 1da25de..HEAD`: 4 files, +41 −15). No generator, recipe, importer or output changed, so every build, audit line, sheet and scenario result of the pass above stands, and the re-check needs no build (as R10 said). `git lfs checkout` was run for the full Python suite only (22 of 37 LFS files were pointers in the fresh worktree; 37/37 real after). Both mutation runs were made in the worktree with nothing else running, each reverted and checked with `git diff --quiet` before the next command. No performance claim is made.
+
+### Checks
+
+```
+$ git fetch origin; git switch unity/art/p1-s04-belt-straw            -> 0d98627
+$ python -m pytest tools/blender/tests/test_audit.py -q -p no:cacheprovider
+36 passed in 36.58s
+$ python -m pytest "tools/blender/tests/test_audit.py::test_a_shell_piece_hides_no_rigid_primitive" -v
+tools/blender/tests/test_audit.py::test_a_shell_piece_hides_no_rigid_primitive PASSED [100%]
+
+$ # M-c (audit.py:121): the union lets every other primitive hide one, shells included
+-        others = [shapes[j] for j in body if j != i]
++        others = [shapes[j] for j in range(len(shapes)) if j != i]
+$ python -m pytest tools/blender/tests/test_audit.py -q -p no:cacheprovider
+>       assert problems == ["collision[0] capsule: capsule->mesh 70.000 mm at (0, 1.27, 0) exceeds the tolerance 50 mm"]
+E       AssertionError: assert [] == ['collision[0...erance 50 mm']
+E         Right contains one more item: 'collision[0] capsule: capsule->mesh 70.000 mm at (0, 1.27, 0) exceeds the tolerance 50 mm'
+tools\blender\tests\test_audit.py:491: AssertionError
+FAILED tools/blender/tests/test_audit.py::test_a_shell_piece_hides_no_rigid_primitive
+1 failed, 35 passed in 41.86s
+$ git restore -- tools/blender/lib/audit.py; git diff --quiet -- tools/blender/lib/audit.py   -> exit 0
+
+$ git lfs checkout                                                     -> 37/37 LFS objects
+$ python -m pytest tools -q -p no:cacheprovider -rf
+692 passed in 1222.25s (0:20:22)                                        (the pass above's 691 and the new test; exit 0)
+
+$ # M-c again, over the pass above's 109 tests and the new one
+$ python -m pytest tools/blender/tests/test_audit.py tools/blender/tests/test_shell.py tools/blender/tests/test_shrub.py tools/blender/tests/test_ground_patch.py -q -p no:cacheprovider -rf
+FAILED tools/blender/tests/test_audit.py::test_a_shell_piece_hides_no_rigid_primitive
+1 failed, 109 passed in 585.28s (0:09:45)
+$ git restore -- tools/blender/lib/audit.py; git diff --quiet -- tools/blender/lib/audit.py   -> exit 0
+$ git status --short                                                   -> (clean); audit.py:121 as committed
+
+$ python tools/hygiene/precommit.py --tree HEAD
+589 files scanned, 0 findings                                           (exit 0)
+$ openspec validate p1-s04-belt-straw --strict
+Change 'p1-s04-belt-straw' is valid                                     (exit 0)
+$ git merge-tree --write-tree --name-only origin/unity/main HEAD        -> 3f2aef6c…, exit 0 (origin/unity/main at cf3ae03)
+$ diff <(sed -n 796,808p review.md | sed 's/^ *//') <(sed -n 43,55p design.md | sed 's/^ *//')
+                                                                        (no output, exit 0: 13 lines each)
+$ git log --format='%h %an <%ae> | %cn <%ce> [%s] body=[%b] trailers=[%(trailers)]' 1da25de..HEAD
+0d98627 Orchestrator <orchestrator@450fpv.local> | Orchestrator <orchestrator@450fpv.local> [docs(openspec): a scenario for s04's shell-hides-nothing rule] body=[] trailers=[]
+63c347b Asset Artist <assets@450fpv.local> | Asset Artist <assets@450fpv.local> [test(blender): a shell piece hides no rigid primitive] body=[] trailers=[]
+eb6f4e9 Orchestrator <orchestrator@450fpv.local> | Orchestrator <orchestrator@450fpv.local> [docs(openspec): s04's g1 stand-ins as qa listed them (r10)] body=[] trailers=[]
+  subjects 61, 53 and 58 characters, lower case, type(scope): summary; each a single parent, no merge
+```
+
+### 1. R9: a shell piece hides no rigid primitive
+
+**Closed.** `test_a_shell_piece_hides_no_rigid_primitive` (`test_audit.py:476`) builds a 9 mm capped stem tube from 0 to 1.2 m, a 0.6 m leaf card box at 1.0–1.6 m (slot `leaf`, physics `twig`, so its faces are out of the body audit) hugged by a `twig` sphere of 0.38 m about (0, 1.3, 0), and a `bark` capsule from −0.009 to 1.27 m: 70 mm past the stem's flat tip, inside the sphere. It asserts the literal problem list: the capsule alone, at 70.000 mm, at (0, 1.27, 0), against 50 mm. Nothing else in the variant can fail (the sphere hugs its box as `hugged()`'s do; the stem lies inside the capsule), so the list isolates the rule. With M-c the only thing that hides the capsule's tip is the sphere, and the list comes back empty: the test fails, and it is the only one of 110 to fail, so the 109 the pass above ran under M-c still say nothing about the rule (as F18 found) and this test is the check. The module docstring names the case.
+
+**The scenario** (`0d98627`, asset-pipeline delta, "A shell piece hides no rigid primitive", `spec.md:49`): "a `bark` capsule's top stands 70 mm proud of its stem's tip, inside a `twig` shell sphere", then "fails it at 70 mm against the 50 mm tolerance, naming the capsule", citing the test by name. It matches the test's geometry, figure, tolerance and assertion.
+
+### 2. R10: the G1 stand-ins, the colour scenario, the citation, F17
+
+| R10's part | Where now | Result |
+|---|---|---|
+| §10's "Not matched" list is the 13-item list | `design.md:43-55` | **verbatim** (the `diff` above: the 13 lines of `review.md:796-808` and of the design, leading spaces stripped, are identical) |
+| item 7 restated (separate oval floors in rows, pits in sun, not trodden strips); F10's mounds, F16's palisade, the 8 m LOD switch | items 8, 10, 8 ("an even comb of straw tufts") and 7 | present, in the list's words |
+| items 4, 5 and 9 point at `unity/main`'s §S04 rows and their owners | `design.md:42` ("items 4, 5 and 9 follow … §S04 as re-measured on `unity/main`") | each matches the sheet at `cf3ae03`: item 4 the row "heaped ground under the mat", crests 0.2–0.8 m, relief not mat (sheet:838), and the world-builder's in phase 3 (sheet:924); item 5 the row "lying straws, all layers", 500–1000 per m² (sheet:840), AST-10; item 9 the row "soil patches" #59544c, #555049–#5d584f (sheet:871), "0.65–0.78 of the mat" (sheet:880), and the asset-artist moving the floors' soil after G1 if the side-by-side asks (sheet:925) |
+| "Colour inside the sheet's range" names 10YR 2/1–3/1 as the G1 value against #59544c | `assets-earthworks-and-surfaces/spec.md:32` | it says "(the G1 value; the sheet now measures H's trodden floors at #59544c, the target after G1 if the side-by-side asks)". #4a463f is the top of the sheet's moist-soil range #33302b–#4a463f, 10YR 2/1–3/1 (sheet:871) |
+| the §A.2 citation of the unmerged V01 branch is gone | the union requirement, `asset-pipeline/spec.md` | gone: `grep -rn "A\.2\|p1-v01-locust\|v01"` over the change finds only this file's history (lines 747, 821, 859). The reason stays in the delta's own words ("so a rigid stem inside the compliant crown is still measured"), as suggestion 1 asked |
+| decision 15 carries a "Task 1.9" bullet for F17 | `design.md:120` | present: `micro: []`, the LOD group's size and reference point set from the metadata after `SetLODs` (within 0.3 µm, heights unchanged), V13_low's 14 stem-capsule lines 6.6 → 4.6–5.4 mm by the union. Checked against `git diff origin/unity/main HEAD`: K01's prefab differs by `micro: []` alone and each V13 prefab by 5 lines, so "V13's and K01's outputs are unchanged except …" lists the two lanes' exceptions together, correctly |
+
+R10's own text said "items 4, 5 and 8"; by their content (the heaps, the density, the floors' #59544c) they are items 4, 5 and **9** of the list, which is what the design names. The slip was the pass above's, not the orchestrator's.
+
+**The renumbering left three cross-references behind (F21).** Decision 15 still points at the old numbers: `design.md:118` ends "the patches fill most of the area their edge boxes may reach (§10 item 7)", which now lands on "Where the near straws stop" (the bare patches are item 8); `design.md:119` and `design.md:123` end "§10 item 8", now "Bare patches" (the floor colour is item 9). `design.md:119` is task 1.8's record, so its "0.57–0.74 in H 12 and H 14's feed" is the figure of that time; item 9 now carries the sheet's 0.65–0.78. These are pointers inside the change's record, not the list the pilot is shown or a spec delta, so they do not block (suggestion 1).
+
+### Spec scenarios (the ones this range touches; the rest are as the pass above found them, with the same code and outputs)
+
+| Scenario | Result | Evidence |
+|---|---|---|
+| pipeline · A shell piece hides no rigid primitive (new) | **PASS** | the test passes; M-c fails it, and only it, among 110 |
+| pipeline · the union requirement's "a crown shell piece hides nothing" | **PASS** (was not tested) | the scenario above |
+| S04 · Colour inside the sheet's range (reworded) | **PASS** | the albedo is unchanged since the pass above (mean +0.0 %; `test_belt_straw_albedo_mean_hits_the_sheet_target` passes in the 692); the floors' #4a463f inside 10YR 2/1–3/1; #59544c named as the after-G1 target, as the sheet's open point says |
+| S04 · Straws read as geometry at the pilot's height (as narrowed) | **PASS** | its "listed in design §10 with where each is fixed" now holds for all 13 stand-ins |
+
+### Requirements (changed since the pass above)
+
+| ID | Status | Why |
+|---|---|---|
+| TST-06 | met | the union's hiding rule has a test that fails under M-c; R7's and R8's mutations fail theirs (the pass above) |
+| AST-05 | met | unchanged outputs; the rule that only rigid primitives hide one another is now tested |
+| REAL-03 | met for this change (the G1 stand-in) | the side-by-side was read in the pass above; §10 now lists every difference QA found, each with its owner; whether the patch is done is the pilot's call at G1 |
+
+### Findings
+
+- **F17 closed** (decision 15's "Task 1.9" bullet), **F18 closed** (R9), **F19 closed** (R10), **F20 closed** (the citation is gone).
+- **F21 (record).** R10's renumbering left decision 15's three pointers at the old item numbers (`design.md:118`, `:119`, `:123`).
+- F5 (the pre-existing conftest clash) and F11 (the pre-existing prefab fileID churn) stand.
+
+### Suggestions (non-blocking)
+
+1. (F21, orchestrator, Quick) In `design.md`, change "(§10 item 7)" on line 118 to "(§10 item 8)" and "§10 item 8" on lines 119 and 123 to "§10 item 9", before the archive.
+2. The pass above's suggestions 3–5 stand: one face index in `lib/audit.py`; a test that a changed opacity or diffuse source regenerates `<material>_base.png` (V13's); and at G1 the orchestrator reads out §10's 13 stand-ins and the sheet's open point on the floors' soil.
+
+### Required changes
+
+None.
+
+Verdict: APPROVED
