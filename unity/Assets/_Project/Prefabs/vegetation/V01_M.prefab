@@ -5937,8 +5937,8 @@ MonoBehaviour:
   units: m
   frame: unity-lh-yup
   bounds:
-    m_Center: {x: 0.366651, y: 4.9412255, z: 0.28258753}
-    m_Extent: {x: 2.316809, y: 5.0291047, z: 2.1531415}
+    m_Center: {x: 0.3660835, y: 4.9646683, z: 0.30607498}
+    m_Extent: {x: 2.3630223, y: 5.0525475, z: 2.176629}
   lods:
   - mesh: V01_M_LOD0
     tris: 7430
@@ -9059,21 +9059,21 @@ LODGroup:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3933851746596072919}
   serializedVersion: 2
-  m_LocalReferencePoint: {x: 0.36665154, y: 4.9412255, z: 0.28258777}
-  m_Size: 10.058209
+  m_LocalReferencePoint: {x: 0.36608362, y: 4.9646683, z: 0.30607533}
+  m_Size: 10.105095
   m_FadeMode: 0
   m_AnimateCrossFading: 0
   m_LastLODIsBillboard: 0
   m_LODs:
-  - screenRelativeHeight: 0.9316219
+  - screenRelativeHeight: 0.9359646
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 9072841471474641886}
-  - screenRelativeHeight: 0.074513815
+  - screenRelativeHeight: 0.074861154
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 4449326758922084038}
-  - screenRelativeHeight: 0.003484266
+  - screenRelativeHeight: 0.0035005077
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 3029611282991765278}
