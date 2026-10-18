@@ -13,14 +13,18 @@ The straw instance kit (lib.straw) is baked as the visual-only micro mesh of LOD
 centre: lying straws, standing stems (a seed_head_share of them headed) and belt twigs on a seeded jittered grid at
 their densities, resting on the mat's local height, crosswise with a weak lodging bias (a `lodging.bias` share of
 the lying straws within +-LODGING_SPREAD_DEG of `lodging.azimuth_deg`, degrees from +X towards +Z, the recipe's
-convention). The shared micro-detail generator replaces the bake at physics parity later (AST-10).
+convention). The standing stems grow in tussocks of stems_per_tuft within TUFT_R_M of a tuft's centre, each leaning
+up to stem_tilt_deg away from it (H 3-9). Over the last bake_feather_m of the radius every kind thins to nothing
+along a smoothstep, so the bake has no hard rim. The shared micro-detail generator replaces the bake at physics
+parity later (AST-10).
 
 A mound is a sphere cap on the slab: radius r = min(the sphere through the mound's rim and apex, the largest sphere
 whose bottom stays inside the slab), centre sunk to y = h - r, its cap sampled on the grid; a low skirt (SKIRT_M)
 spreads the foot to mound_w_m, and the relief blends back in over BLEND_M past the foot, so every vertex stays
-within the audit's tolerance of the sphere or the slab top. Collision (design 6): one box of the slab, landable,
-physics_material; one sphere per mound, landable, mound_material; no gaps, wind volumes or snags (the straws' hooks
-are the micro-detail generator's, AST-10).
+within the audit's tolerance of the sphere or the slab top. A mound is bare earth (H 1-4): the top triangles inside
+its foot take the SOIL_SLOT material. Collision (design 6): one box of the slab, landable, physics_material; one
+sphere per mound, landable, mound_material; no gaps, wind volumes or snags (the straws' hooks are the micro-detail
+generator's, AST-10).
 """
 import math
 import random
@@ -30,7 +34,8 @@ from lib import straw
 from lib.geometry import Mesh
 
 SLOT = "ground"
-SLAB_M = 0.2             # the slab's depth, the collision box of design 6 (the mat is 5-20 cm deep)
+SOIL_SLOT = "soil"       # a mound's bare earth
+SLAB_M = 0.2            # the slab's depth, the collision box of design 6 (the mat is 5-20 cm deep)
 REFINE = 4               # a cell under a mound is split this many times per side
 NOISE_M = (1.0, 0.5)     # value-noise octaves of the relief: lattice spacings, the second at half amplitude (assumed)
 SKIRT_M = 0.03           # a mound's spread foot, under the audit tolerance so it sits on the slab box (assumed)
@@ -40,7 +45,7 @@ LODGING_SPREAD_DEG = 20  # a lodged straw lies within this of the azimuth
 STRAW_LIFT_M = (-0.005, 0.03)  # a lying straw's centre above the mat: part buried to stacked (assumed)
 TWIG_LIFT_M = (0.0, 0.01)
 STEM_SINK_M = 0.02       # a stem's foot below the mat
-STEM_TILT_DEG = 12.0
+TUFT_R_M = 0.15          # a tussock's foot radius (assumed from H 3-9: tussocks 0.2-0.4 m across)
 STRAW_PITCH_DEG = 6.0    # extra pitch beyond the mat's slope between a straw's ends
 MICRO_KIND = "straw"     # the micro mesh's kind: its count is the straw-kit instances baked
 
@@ -59,8 +64,14 @@ PARAMS = {
     "mound_h_m.max": {"type": "float", "range": (0.02, 0.5), "default": 0.15, "effect": "tallest mound"},
     "bake_radius_m": {"type": "float", "range": (0.0, 25.0), "default": 4.0,
                       "effect": "the kit is baked within this of the centre; at most half the size"},
+    "bake_feather_m": {"type": "float", "range": (0.0, 25.0), "default": 1.0,
+                       "effect": "the scatter thins to nothing over this last ring of the bake radius (0: a hard rim)"},
     "straw_per_m2": {"type": "float", "range": (0.0, 1000.0), "default": 250.0, "effect": "lying straws per m2"},
     "stem_per_m2": {"type": "float", "range": (0.0, 500.0), "default": 60.0, "effect": "standing stems per m2"},
+    "stems_per_tuft": {"type": "int", "range": (1, 50), "default": 10,
+                       "effect": "standing stems per tussock, within TUFT_R_M of its centre (1: scattered singly)"},
+    "stem_tilt_deg": {"type": "float", "range": (0.0, 80.0), "default": 60.0,
+                      "effect": "largest lean of a standing stem from upright, away from its tuft's centre"},
     "twig_per_m2": {"type": "float", "range": (0.0, 50.0), "default": 2.0, "effect": "belt twigs per m2"},
     "lodging.azimuth_deg": {"type": "float", "range": (-360.0, 360.0), "default": 25.0,
                             "effect": "lodging direction, degrees from +X towards +Z; the ground recipe's"},
@@ -74,13 +85,13 @@ PARAMS = {
                    "effect": "curvature and kinks along a straw, 0 straight (lib.straw)"},
     "stem_h_m.min": {"type": "float", "range": (0.1, 2.0), "default": 0.5, "effect": "shortest standing stem"},
     "stem_h_m.max": {"type": "float", "range": (0.1, 2.0), "default": 1.2, "effect": "tallest standing stem"},
-    "seed_head_share": {"type": "float", "range": (0.0, 1.0), "default": 0.45,
+    "seed_head_share": {"type": "float", "range": (0.0, 1.0), "default": 0.35,
                         "effect": "share of standing stems with a seed head"},
     "twig_len_m.min": {"type": "float", "range": (0.05, 2.0), "default": 0.3, "effect": "shortest twig"},
     "twig_len_m.max": {"type": "float", "range": (0.05, 2.0), "default": 1.0, "effect": "longest twig"},
     "twig_d_mm.min": {"type": "float", "range": (1.0, 50.0), "default": 5.0, "effect": "thinnest twig"},
     "twig_d_mm.max": {"type": "float", "range": (1.0, 50.0), "default": 20.0, "effect": "thickest twig"},
-    "variants": {"type": "int", "range": (4, 16), "default": 8, "effect": "distinct kit meshes per kind"},
+    "variants": {"type": "int", "range": (4, 16), "default": 12, "effect": "distinct kit meshes per kind"},
     "segments": {"type": "int", "range": (2, 6), "default": 4, "effect": "tube segments per straw at LOD0"},
     "physics_material": {"type": "str", "range": "surface:<id> or an id of assets-src/physics_materials.json",
                          "default": "surface:belt_straw", "effect": "material of the slab box and both slots"},
@@ -104,6 +115,9 @@ def check(params):
     if params["bake_radius_m"] > params["size_m"] / 2:
         problems.append(f"'bake_radius_m' = {params['bake_radius_m']} reaches beyond the patch; at most size_m / 2 = "
                         f"{params['size_m'] / 2:g}")
+    if params["bake_feather_m"] > params["bake_radius_m"]:
+        problems.append(f"'bake_feather_m' = {params['bake_feather_m']} exceeds 'bake_radius_m' = "
+                        f"{params['bake_radius_m']}")
     w, h = params["mound_w_m"], params["mound_h_m"]
     if h["min"] <= params["relief_m"]:
         problems.append(f"'mound_h_m.min' = {h['min']} must rise above 'relief_m' = {params['relief_m']}, or the "
@@ -141,17 +155,21 @@ def build(params):
                 return _mound_height(m, d, y)
         return y
 
-    slab = _slab(n, size, height, _refined_cells(n, size, mounds))
+    def slot(x, z):
+        return SOIL_SLOT if any(math.hypot(x - m["x"], z - m["z"]) < m["w"] / 2 for m in mounds) else SLOT
+
+    slab = _slab(n, size, height, _refined_cells(n, size, mounds), slot)
     micro = Mesh()
     count = _bake(rng, params, micro, height)
     lod = params["lod"]
     physics = params["physics_material"]
     return {
-        "lods": [slab, slab, _slab(2, size, lambda x, z: 0.0, set())],
+        "lods": [slab, slab, _slab(2, size, lambda x, z: 0.0, set(), lambda x, z: SLOT)],
         "micro": [{"lod": 0, "kind": MICRO_KIND, "count": count, "mesh": micro}],
         "switch_distances_m": [0.0, lod["lod1_switch_m"], lod["lod2_switch_m"]],
         "cull_distance_m": lod["cull_m"],
-        "materials": [{"slot": SLOT, "physics": physics}, {"slot": straw.SLOT, "physics": physics}],
+        "materials": [{"slot": SLOT, "physics": physics}, {"slot": SOIL_SLOT, "physics": params["mound_material"]},
+                      {"slot": straw.SLOT, "physics": physics}],
         "collision": [{"shape": "box", "center": [0.0, -SLAB_M / 2, 0.0], "size": [size, SLAB_M, size],
                        "rotation": [0.0, 0.0, 0.0, 1.0], "material": physics, "landable": True}]
                      + [{"shape": "sphere", "center": [m["x"], m["h"] - m["r"], m["z"]], "radius": m["r"],
@@ -254,11 +272,12 @@ def _mound_height(m, d, relief):
     return max(cap, skirt) * (1 - f) + relief * f
 
 
-def _slab(n, size, height, refined):
+def _slab(n, size, height, refined, slot):
     """The closed slab: the top as an n x n grid of `height` samples, two triangles per cell (the diagonal
     alternating like a chequerboard, so no ridge runs across the patch), the `refined` cells split REFINE x REFINE
-    with their vertices on an edge shared with a coarse cell interpolated along it; four walls down to -SLAB_M and
-    the bottom; UVs u = x, v = z on the top and bottom and upright on the walls."""
+    with their vertices on an edge shared with a coarse cell interpolated along it, each top triangle in the
+    material slot(x, z) of its centroid; four walls down to -SLAB_M and the bottom in SLOT; UVs u = x, v = z on the
+    top and bottom and upright on the walls."""
     mesh = Mesh()
     cell, k = size / n, REFINE
     vertices = {}  # sub-grid coordinates (coarse * k + fine) -> vertex index
@@ -271,7 +290,9 @@ def _slab(n, size, height, refined):
 
     def triangles(i, j, a, b, c, d):
         for tri in ((a, b, c), (a, c, d)) if (i + j) % 2 == 0 else ((a, b, d), (b, c, d)):
-            mesh.face(tri, _up_normal(mesh, tri), SLOT, [(mesh.vertices[v][0], mesh.vertices[v][2]) for v in tri])
+            points = [mesh.vertices[v] for v in tri]
+            centroid = (sum(p[0] for p in points) / 3, sum(p[2] for p in points) / 3)
+            mesh.face(tri, _up_normal(mesh, tri), slot(*centroid), [(p[0], p[2]) for p in points])
 
     for i in range(n):
         for j in range(n):
@@ -321,11 +342,19 @@ def _up_normal(mesh, tri):
 def _bake(rng, params, micro, height):
     """Scatters the kit into `micro` within bake_radius_m and returns the instance count."""
     kit = straw.build_kit(params, rng)
-    radius = params["bake_radius_m"]
+    radius, feather = params["bake_radius_m"], params["bake_feather_m"]
     azimuth, bias = math.radians(params["lodging"]["azimuth_deg"]), params["lodging"]["bias"]
     spread = math.radians(LODGING_SPREAD_DEG)
     lengths = {kind: [m.bounds()[1][0] - m.bounds()[0][0] for m in meshes] for kind, meshes in kit.items()}
     count = 0
+
+    def kept(x, z):
+        """Whether a scatter point stays: all of them inside radius - feather, then fewer along a smoothstep to none
+        at the radius."""
+        r = math.hypot(x, z)
+        if r > radius:
+            return False
+        return r <= radius - feather or rng.random() < _smooth((radius - r) / feather)
 
     def lying(kind, lift, x, z):
         k = rng.randrange(len(kit[kind]))
@@ -337,24 +366,29 @@ def _bake(rng, params, micro, height):
         origin = (x, (y0 + y1) / 2 + rng.uniform(*lift), z)
         straw.place(micro, kit[kind][k], origin, straw.lying_axes(yaw, pitch, rng.uniform(0, 2 * math.pi)))
 
-    def standing(x, z):
-        kind = "stem_head" if rng.random() < params["seed_head_share"] else "stem"
-        k = rng.randrange(len(kit[kind]))
-        origin = (x, height(x, z) - STEM_SINK_M, z)
-        tilt = math.radians(rng.uniform(0, STEM_TILT_DEG))
-        straw.place(micro, kit[kind][k], origin, straw.standing_axes(rng.uniform(0, 2 * math.pi), tilt))
+    def tuft(x, z):
+        """A tussock: stems_per_tuft stems within TUFT_R_M of (x, z), each leaning away from the centre."""
+        tilt_max = math.radians(params["stem_tilt_deg"])
+        for _ in range(params["stems_per_tuft"]):
+            kind = "stem_head" if rng.random() < params["seed_head_share"] else "stem"
+            k = rng.randrange(len(kit[kind]))
+            bearing, d = rng.uniform(0, 2 * math.pi), TUFT_R_M * math.sqrt(rng.random())
+            sx, sz = x + d * math.cos(bearing), z + d * math.sin(bearing)
+            origin = (sx, height(sx, sz) - STEM_SINK_M, sz)
+            tilt = tilt_max * rng.uniform(0.25, 1.0)
+            straw.place(micro, kit[kind][k], origin, straw.standing_axes(bearing + rng.uniform(-0.5, 0.5), tilt))
 
-    for density, place in ((params["straw_per_m2"], lambda x, z: lying("straw", STRAW_LIFT_M, x, z)),
-                           (params["stem_per_m2"], standing),
-                           (params["twig_per_m2"], lambda x, z: lying("twig", TWIG_LIFT_M, x, z))):
+    for density, per, place in ((params["straw_per_m2"], 1, lambda x, z: lying("straw", STRAW_LIFT_M, x, z)),
+                                (params["stem_per_m2"], params["stems_per_tuft"], tuft),
+                                (params["twig_per_m2"], 1, lambda x, z: lying("twig", TWIG_LIFT_M, x, z))):
         if density <= 0 or radius <= 0:
             continue
-        s = 1 / math.sqrt(density)
+        s = math.sqrt(per / density)
         k = int(math.ceil(radius / s))
         for i in range(-k, k):
             for j in range(-k, k):
                 x, z = (i + rng.random()) * s, (j + rng.random()) * s
-                if x * x + z * z <= radius * radius:
+                if kept(x, z):
                     place(x, z)
-                    count += 1
+                    count += per
     return count

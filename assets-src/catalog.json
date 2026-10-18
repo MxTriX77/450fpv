@@ -11,7 +11,7 @@
       "class": "surfaces",
       "generator": "ground_patch",
       "variants": ["S04_patch"],
-      "materials": { "ground": "belt_straw", "straw": "straw" }
+      "materials": { "ground": "belt_straw", "soil": "belt_soil", "straw": "straw" }
     }
   }
 }
