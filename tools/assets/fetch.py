@@ -8,12 +8,16 @@
     python tools/assets/fetch.py --credits               rewrite CREDITS.md from the manifest
     python tools/assets/fetch.py --add polyhaven:<id> --res 1k|2k|4k [--displacement]
     python tools/assets/fetch.py --add ambientcg:<ID> --res 1k|2k|4k [--displacement]
+    python tools/assets/fetch.py --add texturecan:<n> --res 1k|2k|4k [--displacement]   n = texturecan.com/details/<n>/
 
-`--add` resolves the download URLs through the Poly Haven API (api.polyhaven.com) or the ambientCG API
-(ambientcg.com/api/v2), downloads the maps a material needs (diffuse, normal (GL), roughness, AO and, on request,
-displacement) at the requested resolution as PNG when the source offers it (else JPG), hashes them and writes the
-manifest entry plus CREDITS.md. Files live under unity/Assets/_Project/Art/ThirdParty/<source>/<id>/ and go through
-LFS. ambientCG ships zips: the zip is pinned by its own SHA-256 and so is each extracted map.
+`--add` resolves the download URLs through the Poly Haven API (api.polyhaven.com), the ambientCG API
+(ambientcg.com/api/v2) or, for TextureCan, which has no API, the asset's details page (one static zip link per
+resolution, `/downloads/<id>/<id>_<res>_<token>.zip`; the id and title come from the page). It downloads the maps a
+material needs (diffuse, normal (GL), roughness, AO and, on request, displacement) at the requested resolution as
+PNG when the source offers it (else JPG), hashes them and writes the manifest entry plus CREDITS.md. Files live
+under unity/Assets/_Project/Art/ThirdParty/<source>/<id>/ and go through LFS. ambientCG and TextureCan ship zips:
+the zip is pinned by its own SHA-256 and so is each extracted map. TextureCan's terms (texturecan.com/terms/, read
+2026-10-18) put every texture under CC0 1.0, so its entries carry licence CC0 and the page as the source.
 """
 import argparse
 import hashlib
@@ -33,16 +37,19 @@ THIRD_PARTY = os.path.join("unity", "Assets", "_Project", "Art", "ThirdParty")
 USER_AGENT = "450fpv-fetch/0.1 (+https://github.com/MxTriX77/450fpv)"
 POLYHAVEN_API = "https://api.polyhaven.com"
 AMBIENTCG_API = "https://ambientcg.com/api/v2/full_json"
-ALLOWED_HOSTS = {"api.polyhaven.com", "dl.polyhaven.org", "ambientcg.com"}
+TEXTURECAN = "https://www.texturecan.com"
+ALLOWED_HOSTS = {"api.polyhaven.com", "dl.polyhaven.org", "ambientcg.com", "www.texturecan.com"}
 LICENCES = {"CC0": ("CC0 1.0", "https://creativecommons.org/publicdomain/zero/1.0/"),
             "CC-BY": ("CC-BY 4.0", "https://creativecommons.org/licenses/by/4.0/")}
-SOURCES = ("polyhaven", "ambientcg")
+SOURCES = ("polyhaven", "ambientcg", "texturecan")
 MAPS = ("diffuse", "normal", "roughness", "ao", "displacement")
 OPTIONAL_MAPS = ("ao",)  # taken when the set has it; displacement only on request
 POLYHAVEN_KEYS = {"diffuse": "Diffuse", "normal": "nor_gl", "roughness": "Rough", "ao": "AO",
                   "displacement": "Displacement"}
 AMBIENTCG_SUFFIXES = {"diffuse": "Color", "normal": "NormalGL", "roughness": "Roughness", "ao": "AmbientOcclusion",
                       "displacement": "Displacement"}
+TEXTURECAN_PARTS = {"diffuse": "color", "normal": "normal_opengl", "roughness": "roughness", "ao": "ao",
+                    "displacement": "height"}
 
 
 class FetchError(Exception):
@@ -214,7 +221,14 @@ def wanted_maps(displacement):
     return [m for m in MAPS if m != "displacement" or displacement]
 
 
-def add_polyhaven(root, asset_id, res, displacement):
+def claim(taken, source, asset_id):
+    """Refuses an id this source already pins, before anything is downloaded over the pinned files."""
+    if asset_id.lower() in taken:
+        raise FetchError(f"{source}:{asset_id}: already in the manifest; remove its entry and files first to re-add it")
+
+
+def add_polyhaven(root, asset_id, res, displacement, taken):
+    claim(taken, "polyhaven", asset_id)
     files_api = api(f"{POLYHAVEN_API}/files/{asset_id}")
     info = api(f"{POLYHAVEN_API}/info/{asset_id}")
     entry = {"source": "polyhaven", "id": asset_id, "title": info["name"], "resolution": res, "licence": "CC0",
@@ -242,7 +256,8 @@ def add_polyhaven(root, asset_id, res, displacement):
     return entry
 
 
-def add_ambientcg(root, asset_id, res, displacement):
+def add_ambientcg(root, asset_id, res, displacement, taken):
+    claim(taken, "ambientcg", asset_id)
     found = api(f"{AMBIENTCG_API}?{urllib.parse.urlencode({'id': asset_id, 'include': 'downloadData'})}")
     assets = [a for a in found.get("foundAssets", []) if a["assetId"].lower() == asset_id.lower()]
     if not assets:
@@ -257,25 +272,56 @@ def add_ambientcg(root, asset_id, res, displacement):
              "licence": "CC0", "author": "Lennart Demes (ambientCG)", "page": asset["shortLink"],
              "destination": f"{THIRD_PARTY}/ambientcg/{asset['assetId']}".replace(os.sep, "/"),
              "archive": {"name": zip_info["fileName"], "url": zip_info["downloadLink"]}, "files": []}
-    archive = os.path.join(root, entry["destination"].replace("/", os.sep), zip_info["fileName"] + ".part")
+    members = {m: re.compile(rf"_{AMBIENTCG_SUFFIXES[m]}\.(png|jpg)$", re.IGNORECASE) for m in MAPS}
+    pin_archive(root, entry, zip_info["size"], members, displacement)
+    return entry
+
+
+def add_texturecan(root, page_number, res, displacement, taken):
+    """TextureCan has no API: the details page links one zip per resolution at a static path,
+    /downloads/<id>/<id>_<res>_<token>.zip; the id is the zip's folder, the title the page's. Every texture of the
+    site is CC0 1.0 by its terms page."""
+    if not page_number.isdigit():
+        raise FetchError(f"--add texturecan:<n> takes the number of the asset's page, texturecan.com/details/<n>/, not {page_number!r}")
+    page = f"{TEXTURECAN}/details/{page_number}/"
+    with request(page) as response:
+        html = response.read().decode("utf-8", "replace")
+    links = re.findall(rf'href="(/downloads/([a-z0-9_]+)/\2_{res}_[A-Za-z0-9]+\.zip)"', html)
+    if not links:
+        raise FetchError(f"{page}: no {res} zip link on the page")
+    zip_path, asset_id = links[0]
+    claim(taken, "texturecan", asset_id)
+    title = re.search(r"<title>\s*(.*?)\s*\|", html, re.DOTALL)
+    entry = {"source": "texturecan", "id": asset_id, "title": title.group(1) if title else asset_id, "resolution": res,
+             "licence": "CC0", "author": "TextureCan", "page": page,
+             "destination": f"{THIRD_PARTY}/texturecan/{asset_id}".replace(os.sep, "/"),
+             "archive": {"name": os.path.basename(zip_path), "url": TEXTURECAN + zip_path}, "files": []}
+    members = {m: re.compile(rf"^{asset_id}_{TEXTURECAN_PARTS[m]}_{res}\.(png|jpg)$") for m in MAPS}  # not __MACOSX/
+    pin_archive(root, entry, None, members, displacement)
+    return entry
+
+
+def pin_archive(root, entry, expected_bytes, member_patterns, displacement):
+    """Downloads the entry's archive, pins it by SHA-256 (and against expected_bytes when the source states a size),
+    extracts the wanted maps whose member name matches their pattern, pins each, and removes the archive."""
+    name, url = entry["archive"]["name"], entry["archive"]["url"]
+    archive = os.path.join(root, entry["destination"].replace("/", os.sep), name + ".part")
     try:
-        entry["archive"]["sha256"] = download(zip_info["downloadLink"], archive)
+        entry["archive"]["sha256"] = download(url, archive)
         entry["archive"]["bytes"] = os.path.getsize(archive)
-        if entry["archive"]["bytes"] != zip_info["size"]:
-            raise FetchError(f"{zip_info['fileName']}: {entry['archive']['bytes']} bytes, the API lists {zip_info['size']}")
+        if expected_bytes is not None and entry["archive"]["bytes"] != expected_bytes:
+            raise FetchError(f"{name}: {entry['archive']['bytes']} bytes, the API lists {expected_bytes}")
         with zipfile.ZipFile(archive) as zf:
             members = zf.namelist()
             for map_name in wanted_maps(displacement):
-                pattern = re.compile(rf"_{AMBIENTCG_SUFFIXES[map_name]}\.(png|jpg)$", re.IGNORECASE)
-                matches = [m for m in members if pattern.search(m)]
+                matches = [m for m in members if member_patterns[map_name].search(m)]
                 if not matches:
                     if map_name in OPTIONAL_MAPS:
-                        print(f"note: {asset_id} has no {map_name} map at {res}, skipped")
+                        print(f"note: {entry['id']} has no {map_name} map at {entry['resolution']}, skipped")
                         continue
-                    raise FetchError(f"{asset_id}: no {map_name} map in {zip_info['fileName']}")
+                    raise FetchError(f"{entry['id']}: no {map_name} map in {name}")
                 member = matches[0]
-                file = {"map": map_name, "name": os.path.basename(member), "member": member,
-                        "url": zip_info["downloadLink"]}
+                file = {"map": map_name, "name": os.path.basename(member), "member": member, "url": url}
                 path = file_path(root, entry, file)
                 with zf.open(member) as src, open(path, "wb") as out:
                     out.write(src.read())
@@ -285,16 +331,17 @@ def add_ambientcg(root, asset_id, res, displacement):
     finally:
         if os.path.exists(archive):
             os.remove(archive)
-    return entry
+
+
+ADDERS = {"polyhaven": add_polyhaven, "ambientcg": add_ambientcg, "texturecan": add_texturecan}
 
 
 def add(root, manifest, spec, res, displacement):
     source, _, asset_id = spec.partition(":")
     if source not in SOURCES or not asset_id:
-        raise FetchError(f"--add takes polyhaven:<id> or ambientcg:<ID>, not {spec!r}")
-    if any(e["source"] == source and e["id"].lower() == asset_id.lower() for e in manifest["entries"]):
-        raise FetchError(f"{spec}: already in the manifest; remove its entry and files first to re-add it")
-    entry = (add_polyhaven if source == "polyhaven" else add_ambientcg)(root, asset_id, res, displacement)
+        raise FetchError(f"--add takes polyhaven:<id>, ambientcg:<ID> or texturecan:<n>, not {spec!r}")
+    taken = {e["id"].lower() for e in manifest["entries"] if e["source"] == source}
+    entry = ADDERS[source](root, asset_id, res, displacement, taken)
     manifest["entries"].append(entry)
     save_manifest(root, manifest)
     write_credits(root, manifest)
