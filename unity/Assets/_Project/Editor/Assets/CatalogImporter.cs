@@ -435,8 +435,11 @@ namespace Fpv450.Assets
         /// <summary>
         /// Creates or updates the prefab in place (so its file ids stay stable): the metadata component, one child
         /// per LOD with the FBX mesh and the slot materials plus one per micro mesh of that LOD (rendered with it,
-        /// never a collider), the LODGroup, one child per collision primitive, and nothing else. Internal for the
-        /// EditMode tests, which build a prefab from a throwaway metadata.
+        /// never a collider), the LODGroup, one child per collision primitive, and nothing else. A wire's tube
+        /// (p1-l01-l03-pole-wires, "Wires are audited against their polyline") is drawn by the LOD meshes in the slot
+        /// its <c>wires</c> record names, with that slot's recipe material (a recipe naming the thin-wire shader gets
+        /// it), and no collider stands for it: conductors are map objects the sim reads from the metadata (D-007).
+        /// Internal for the EditMode tests, which build a prefab from a throwaway metadata.
         /// </summary>
         internal static void EnsurePrefab(string prefabPath, string variant, Dictionary<string, object> metaJson, TextAsset source,
             string fbxPath, Dictionary<string, Material> materialBySlot)
@@ -464,7 +467,8 @@ namespace Fpv450.Assets
                     throw new IOException($"could not save {prefabPath}");
                 string micro = meta.micro.Length == 0 ? "" : $"{string.Join(", ", meta.micro.Select(m => $"{m.name} ({m.count} {m.kind}, LOD{m.lod})"))} micro, ";
                 string ports = meta.ports.Length == 0 ? "" : $"{meta.ports.Length} ports ({string.Join(", ", meta.ports.Select(p => p.id))}), ";
-                Debug.Log($"[CatalogImporter] {variant}: {prefabPath}, {renderers.Length} LODs, {micro}{meta.collision.Length} colliders, {ports}" +
+                string wires = meta.wires.Length == 0 ? "" : $"{meta.wires.Length} wires without colliders ({string.Join(", ", meta.wires.GroupBy(w => (w.slot, w.diameterM)).Select(g => $"{g.Count()} x {g.Key.diameterM * 1000f:0.#} mm in {g.Key.slot} -> {materialBySlot[g.Key.slot].shader.name}"))}), ";
+                Debug.Log($"[CatalogImporter] {variant}: {prefabPath}, {renderers.Length} LODs, {micro}{meta.collision.Length} colliders, {ports}{wires}" +
                           $"materials {string.Join(", ", materialBySlot.Select(kv => $"{kv.Key} -> {kv.Value.name}"))}, " +
                           $"LOD heights {string.Join(" / ", root.GetComponent<LODGroup>().GetLODs().Select(l => l.screenRelativeTransitionHeight.ToString("0.0000")))} " +
                           $"(size {root.GetComponent<LODGroup>().size} m, fov {VerticalFovDeg} deg)");
@@ -769,6 +773,16 @@ namespace Fpv450.Assets
                 id = Json.Str(port, "id", at),
                 position = Json.Vec3(port, "position", at),
                 direction = Json.Vec3(port, "direction", at),
+            });
+            meta.wires = Items(json, "wires", what, (wire, at) => new AssetPhysicsMeta.Wire
+            {
+                slot = Json.Str(wire, "slot", at),
+                diameterM = Json.Num(wire, "diameter_m", at),
+                massKgPerM = Json.Num(wire, "mass_kg_per_m", at),
+                sagM = Json.Num(wire, "sag_m", at),
+                material = Json.Str(wire, "material", at),
+                damage = Json.Str(wire, "damage", at),
+                points = Json.Arr(wire, "points", at).Select(p => Json.Vec3(p, $"{at} points")).ToArray(),
             });
             meta.snag = Items(json, "snag", what, (feature, at) => new AssetPhysicsMeta.SnagFeature
             {

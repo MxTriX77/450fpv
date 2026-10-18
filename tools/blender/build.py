@@ -72,8 +72,9 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
     size = [round(data["bounds"]["max"][a] - data["bounds"]["min"][a], 4) for a in range(3)]
     tris = " / ".join(str(lod["tris"]) for lod in data["lods"])
     micro = "".join(f"  micro {m['name']} {m['count']} {m['kind']} {m['tris']} tris" for m in data["micro"])
+    wires = f"  {len(data['wires'])} wires" if data["wires"] else ""
     return (f"{variant}: {os.path.relpath(fbx_path, root)}  size {size} m  tris {tris}{micro}  "
-            f"{len(data['collision'])} collision shapes  fbx {os.path.getsize(fbx_path) / 1048576:.1f} MB  "
+            f"{len(data['collision'])} collision shapes{wires}  fbx {os.path.getsize(fbx_path) / 1048576:.1f} MB  "
             "metadata written")
 
 

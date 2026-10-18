@@ -91,6 +91,23 @@ namespace Fpv450.World
             public Vector3 direction;
         }
 
+        /// <summary>
+        /// A conductor that is a map object, not a collision shape (p1-l01-l03-pole-wires, D-007): the material slot
+        /// its tube is drawn in, its diameter, mass per metre and sag below the chord at mid-span (PHY-22's inputs),
+        /// material <c>cable</c>, its damage state and its sampled centre line. No collider stands for it.
+        /// </summary>
+        [Serializable]
+        public sealed class Wire
+        {
+            public string slot;
+            public float diameterM;
+            public float massKgPerM;
+            public float sagM;
+            public string material;
+            public string damage;
+            public Vector3[] points;
+        }
+
         [Serializable]
         public sealed class SnagFeature
         {
@@ -115,6 +132,7 @@ namespace Fpv450.World
         public Gap[] gaps;
         public WindVolume[] windVolumes;
         public Port[] ports;
+        public Wire[] wires;
         public SnagFeature[] snag;
 
         /// <summary>The <c>.assetmeta.json</c> this was filled from, for provenance and for readers that want the file.</summary>

@@ -22,6 +22,12 @@ plain id of assets-src/physics_materials.json with stiffness_n_per_m of SOFT_STI
 Visual-only micro meshes (meta["micro"]) are not part of the LOD0 mesh the audit sees; the lines name each one
 skipped.
 
+Wires (p1-l01-l03-pole-wires, "Wires are audited against their polyline"): a conductor that is a map object
+(meta["wires"]) has no primitive; the LOD0 faces of the slots its records name are its tubes and are left out of the
+primitive audit. Every vertex of those slots belongs to the wire of its slot whose envelope (the point list grown by
+the wire's radius) it lies nearest, and lies at most WIRE_TOLERANCE_M outside it; the lines print each wire's largest
+deviation, and a wire no vertex belongs to has no tube and fails.
+
 Both distances are found by branch and bound over triangles: a cell's three vertices give exact values, a lower
 bound; an upper bound comes from convexity; the cell with the largest upper bound is split in four until no cell
 can beat the best value by PRECISION_M. The bounds are tight wherever the surfaces coincide, so the search refines
@@ -67,6 +73,7 @@ NEAR_RANGE_M = 0.3
 PRECISION_M = 0.0001        # the search stops when no cell can beat the best by this; with CHORD_M, under 1 mm
 CHORD_M = 0.0004            # tessellation error allowed on spheres, capsules and cylinders
 NARROWEST_TOLERANCE_M = 0.005
+WIRE_TOLERANCE_M = 0.005    # the wire rule: a tube vertex within 5 mm plus the wire's radius of its point list
 LANDABLE_COS = math.cos(math.radians(30))
 UP = (0.0, 1.0, 0.0)
 FAR_M = 1000.0              # a cylinder's axis as a segment long enough to act as a line
@@ -107,9 +114,10 @@ def run(meta, lod0, *, soft=frozenset(), card_visuals=(), planted=False):
     not."""
     shapes = [_Shape(s) for s in meta["collision"]]
     shell_slots = {m["slot"] for m in meta["materials"] if m["physics"] in SHELL_MATERIALS}
+    wire_slots = {w["slot"] for w in meta.get("wires", [])}
     shells = [i for i, s in enumerate(meta["collision"]) if s["material"] in SHELL_MATERIALS]
     body = [i for i in range(len(shapes)) if i not in shells]
-    faces = [face for face in _mesh_faces(lod0) if face.slot not in shell_slots]
+    faces = [face for face in _mesh_faces(lod0) if face.slot not in shell_slots | wire_slots]
     index = _FaceIndex(faces)
     zone = _zone(meta, shapes, soft)
     problems, lines = [], []
@@ -124,7 +132,8 @@ def run(meta, lod0, *, soft=frozenset(), card_visuals=(), planted=False):
     for i in body:
         shape = shapes[i]
         if not faces:
-            problems.append(f"collision[{i}] {shape.kind}: no LOD0 face outside the shells' slots stands under it")
+            problems.append(f"collision[{i}] {shape.kind}: no LOD0 face outside the shells' and wires' slots stands "
+                            "under it")
             continue
         others = [shapes[j] for j in body if j != i]
         cells = [tri[:3] for tri in shape.triangles]
@@ -150,6 +159,7 @@ def run(meta, lod0, *, soft=frozenset(), card_visuals=(), planted=False):
                             lambda v: _nearest_shape(v, shapes, body), lambda cell, which: _shapes_bound(cell, which, shapes),
                             lambda which: f" nearest collision[{which}]")
     problems += _audit_shells(lines, meta, shapes, shells, lod0, set(card_visuals))
+    problems += _audit_wires(lines, meta.get("wires", []), lod0)
     for i, gap in enumerate(meta["gaps"]):
         diameter = 2 * _inscribed_radius(_flatten_polygon(gap["polygon"], gap["normal"]))
         text = f"gaps[{i}] '{gap['id']}': narrowest_m {gap['narrowest_m']:.4f}, largest inscribed circle {diameter:.4f}"
@@ -242,6 +252,37 @@ def _audit_shells(lines, meta, shapes, shells, lod0, card_visuals):
                 problems.append(f"{label}: {text} exceeds the {word} {limit * 1000:g} mm")
             lines.append(f"audit {label}: {text} over {len(vertices)} vertices, {word} {limit * 1000:g} mm")
     return problems
+
+
+def _audit_wires(lines, wires, lod0):
+    """The wire rule (module docstring): per wire, the largest distance of its tube's vertices outside its envelope,
+    every vertex of a wire's slot given to the wire of that slot it lies nearest outside of, and the problems."""
+    problems = []
+    worst = [[-math.inf, None, 0] for _ in wires]  # per wire: the largest distance less the radius, where, vertices
+    for slot in sorted({w["slot"] for w in wires}):
+        members = [i for i, w in enumerate(wires) if w["slot"] == slot]
+        vertices = sorted({lod0.vertices[k] for indices, _, _, s in lod0.faces if s == slot for k in indices})
+        for v in vertices:
+            outside, i = min((_polyline_distance(v, wires[j]["points"]) - wires[j]["diameter_m"] / 2, j) for j in members)
+            entry = worst[i]
+            entry[2] += 1
+            if outside > entry[0]:
+                entry[0], entry[1] = outside, v
+    for i, (wire, (outside, at, count)) in enumerate(zip(wires, worst)):
+        label = f"wires[{i}] {wire['diameter_m'] * 1000:g} mm (slot {wire['slot']})"
+        if at is None:
+            problems.append(f"{label}: no LOD0 vertex of its slot lies nearest to it, so it has no tube")
+            lines.append(f"audit {label}: no tube")
+            continue
+        text = f"largest deviation {max(0.0, outside) * 1000:.3f} mm at {_fmt(at)} over {count} vertices"
+        if outside > WIRE_TOLERANCE_M:
+            problems.append(f"{label}: {text} exceeds the tolerance {WIRE_TOLERANCE_M * 1000:g} mm")
+        lines.append(f"audit {label}: {text}, tolerance {WIRE_TOLERANCE_M * 1000:g} mm")
+    return problems
+
+
+def _polyline_distance(p, points):
+    return min(_segment_distance(p, a, b) for a, b in zip(points, points[1:]))
 
 
 def _standoff(shapes, i, others, index):
