@@ -84,6 +84,9 @@ namespace Fpv450.Tests.EditMode
             Assert.That(LodParity.Passes(-0.0601, 0.0), Is.False);
             Assert.That(LodParity.Passes(0.0, 0.1501), Is.False);
             Assert.That(LodParity.Passes(0.0, -0.1501), Is.False);
+            // "less than": a LOD exactly at a limit fails.
+            Assert.That(LodParity.Passes(0.06, 0.0), Is.False);
+            Assert.That(LodParity.Passes(0.0, 0.15), Is.False);
         }
     }
 }
