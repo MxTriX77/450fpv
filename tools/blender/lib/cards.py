@@ -2,15 +2,16 @@
 twigs, each mapped into one sprig cell of the LeafSet002 atlas, and the far LOD's crossed cards. Plain Python in
 asset space, drawing from the caller's seeded random.Random.
 
-A card is `card_m` long along its twig (the sprig grows along the twig, stalk toward the twig's base) and as wide
-as its cell's aspect, centred on the twig at a parameter biased toward the tip (t = 1 - u^2, the leaves sit
-outside); second-order twigs draw LEVEL_WEIGHT times as many cards as first-order ones. The leaf recipe is
-two-sided and alpha-clipped, so one quad, two triangles, shows both faces; but URP/Lit lights a back face with the
-front's normal, which faces away from the viewer and turns the leaf a pale sky sheen (seen in the first review
-sheet: half the cards, rolled at random, showed their backs). So a card faces outward: its normal is the clump's
-outward horizontal direction at the card, made perpendicular to the twig, or up when the twig itself points
-outward, rolled about the twig within ROLL_JITTER. A card whose corners would dip under the ground is lifted onto
-it.
+A card is a sprig, a short leafy shoot: `card_m` long and as wide as its cell's aspect, its stalk end on the twig
+at a parameter biased toward the tip (t = 1 - u^2, the leaves sit outside), leaving the twig at the caller's fork
+angle at a random azimuth about it (0 lays it along the twig; the shrub passes the sheet's fork_angle_deg, so the
+sprigs make a leafy mass round the twig instead of a frond along it, seen in the 1.3 look task against letter H);
+second-order twigs draw LEVEL_WEIGHT times as many cards as first-order ones. The leaf recipe is two-sided and
+alpha-clipped, so one quad, two triangles, shows both faces, and the Fpv450/Leaf shader lights a back face with its
+own normal. A card faces outward: its normal is the clump's outward horizontal direction at the card, made
+perpendicular to the sprig, or up when the sprig itself points outward, rolled about the sprig within ROLL_JITTER
+(more of a card's area faces a viewer outside the clump, so the clump reads opaque with fewer cards). A card whose
+corners would dip under the ground is lifted onto it.
 
 The far LOD is CROSSED vertical cards of the whole clump, each mapped to the dense core of one sprig, FAR_PX, the
 atlas scaled up: the whole atlas is 20 % leaf, so at the 9 px of a far clump its six thin sprigs fell under the
@@ -22,7 +23,7 @@ columns and rows, row 0 at the top, so V runs up and the stalk sits at the cell'
 """
 import math
 
-from .skeleton import add, cross, dot, norm, normalize, scale, sub
+from .skeleton import AXES, add, cross, dot, norm, normalize, scale, sub
 
 SET_PX = 2048
 CELLS_PX = (((192, 128), (560, 960)), ((784, 128), (1264, 960)), ((1472, 128), (1856, 960)),
@@ -54,8 +55,9 @@ class Card:
         self.corners, self.normal, self.uvs, self.cell = corners, normal, uvs, cell
 
 
-def place(rng, twigs, count, card_m, ground_y=0.0):
-    """`count` cards over the `twigs` (lib.skeleton.Twig), each `card_m` long."""
+def place(rng, twigs, count, card_m, ground_y=0.0, fork_deg=(0.0, 0.0)):
+    """`count` cards over the `twigs` (lib.skeleton.Twig), each `card_m` long, leaving its twig at an angle drawn
+    from `fork_deg` (lo, hi) degrees."""
     if not twigs or count <= 0:
         return []
     weights = [LEVEL_WEIGHT.get(twig.level, 1) for twig in twigs]
@@ -64,12 +66,13 @@ def place(rng, twigs, count, card_m, ground_y=0.0):
         twig = twigs[index]
         u = rng.random()
         t = max(MIN_T, 1 - u * u)
-        axis = normalize(sub(twig.p1, twig.p0))
-        centre = add(twig.p0, scale(sub(twig.p1, twig.p0), t))
+        attach = add(twig.p0, scale(sub(twig.p1, twig.p0), t))
+        axis = _off_twig(normalize(sub(twig.p1, twig.p0)), math.radians(rng.uniform(*fork_deg)), rng.uniform(0.0, 2 * math.pi))
+        half_l = card_m / 2
+        centre = add(attach, scale(axis, half_l))
         side = cross(_facing(axis, centre, rng.uniform(-ROLL_JITTER, ROLL_JITTER)), axis)
         cell = rng.randrange(len(CELLS_UV))
         (u0, v0), (u1, v1) = CELLS_UV[cell]
-        half_l = card_m / 2
         half_w = half_l * (u1 - u0) / (v1 - v0)
         a, b = scale(axis, half_l), scale(side, half_w)
         corners = [sub(sub(centre, a), b), add(sub(centre, a), b), add(add(centre, a), b), sub(add(centre, a), b)]
@@ -99,10 +102,18 @@ def add_to(mesh, cards, slot):
         mesh.face([mesh.vertex(c) for c in card.corners], card.normal, slot, card.uvs)
 
 
+def _off_twig(along, angle, azimuth):
+    """The unit direction `angle` radians off the unit twig direction `along`, at `azimuth` about it."""
+    e1 = normalize(cross(along, AXES[min(range(3), key=lambda a: abs(along[a]))]))
+    e2 = cross(along, e1)
+    around = add(scale(e1, math.cos(azimuth)), scale(e2, math.sin(azimuth)))
+    return normalize(add(scale(along, math.cos(angle)), scale(around, math.sin(angle))))
+
+
 def _facing(axis, centre, roll):
     """The unit normal of a card along the unit `axis` at `centre`: the clump's outward horizontal direction there
-    (about the Y axis), less its part along the twig, or up when the twig points within asin(MIN_OUTWARD) of
-    outward, then rolled about the twig by `roll`."""
+    (about the Y axis), less its part along the sprig, or up when the sprig points within asin(MIN_OUTWARD) of
+    outward, then rolled about the sprig by `roll`."""
     radial = (centre[0], 0.0, centre[2])
     outward = normalize(radial) if norm(radial) > 1e-6 else (1.0, 0.0, 0.0)
     for preferred in (outward, UP):

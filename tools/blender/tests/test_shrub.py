@@ -2,7 +2,8 @@
 params conform and the defaults are V13_mid; the built sizes sit inside the sheet; LOD triangle counts under budget
 and halving; every stem segment a bark capsule on its chord with a hook of half the base diameter; one twig sphere
 enclosing every leaf and twig vertex; one wind box at porosity 0.35; no gap, nothing landable; the skeleton's
-radii, tubes and normals; card UVs inside the atlas cells, the far cards over the whole atlas; determinism per
+radii, tubes and normals; card UVs inside the atlas cells, the far cards over the whole atlas; sprig cards leaving
+their twig at the fork angle; determinism per
 seed; check's refusals; and the low variant through the collision audit."""
 import copy
 import json
@@ -63,7 +64,7 @@ def test_lods_under_budget_and_halving(variant):
     name, p, built, data = variant
     tris = [lod["tris"] for lod in data["lods"]]
     assert len(tris) == 3 and tris[0] < 12000 and tris[1] <= tris[0] / 2 and tris[2] <= tris[1] / 2 and tris[2] == 6
-    assert [lod["switch_distance_m"] for lod in data["lods"]] == [0.0, 7.5, 93.5]
+    assert [lod["switch_distance_m"] for lod in data["lods"]] == [0.0, 7.5, pytest.approx(p["card_m"] * 467.5)]
     assert data["cull_distance_m"] == {"V13_low": 561.0, "V13_mid": 800.0, "V13_tall": 800.0}[name]
     assert 2 * shrub.card_count(p) == sum(1 for f in built["lods"][0].faces if f[3] == "leaf") * 2
     assert sum(1 for f in built["lods"][1].faces if f[3] == "leaf") == math.ceil(shrub.card_count(p) / 2)
@@ -166,10 +167,33 @@ def test_cards_map_into_the_atlas_cells(variant):
         assert cx0 <= x0 < x1 <= cx1 and cy0 <= y0 < y1 <= cy1
 
 
+def test_sprigs_leave_their_twig_at_the_fork_angle():
+    """A card's stalk end sits on its twig and its axis leaves the twig at an angle inside the fork range, at
+    azimuths all round it (the sprig look of the 1.3 tuning against H); fork 0 lays it along the twig."""
+    import random
+    twig = skeleton.Twig((0.0, 1.0, 0.0), (0.5, 1.5, 0.2), 0.0025, 0.0015, 2)
+    along = skeleton.normalize(skeleton.sub(twig.p1, twig.p0))
+    placed = cards.place(random.Random(7), [twig], 300, 0.25, fork_deg=(40.0, 70.0))
+    sides = set()
+    for card in placed:
+        stalk = skeleton.scale(skeleton.add(card.corners[0], card.corners[1]), 0.5)
+        rel = skeleton.sub(stalk, twig.p0)
+        t = skeleton.dot(rel, along) / skeleton.norm(skeleton.sub(twig.p1, twig.p0))
+        assert cards.MIN_T - 1e-9 <= t <= 1 + 1e-9
+        assert skeleton.norm(skeleton.sub(rel, skeleton.scale(along, skeleton.dot(rel, along)))) < 1e-9
+        axis = skeleton.normalize(skeleton.sub(card.corners[3], card.corners[0]))
+        assert 40.0 - 1e-6 <= math.degrees(math.acos(skeleton.dot(axis, along))) <= 70.0 + 1e-6
+        sides.add(skeleton.dot(skeleton.cross(along, axis), (0.0, 1.0, 0.0)) > 0)
+    assert sides == {True, False}
+    (straight,) = cards.place(random.Random(7), [twig], 1, 0.25)
+    assert skeleton.dot(skeleton.normalize(skeleton.sub(straight.corners[3], straight.corners[0])), along) == pytest.approx(1.0)
+
+
 @pytest.mark.parametrize("camera", [(-6.66, 4.37, -6.67), (-2.36, 1.5, -2.37), (4.0, 1.0, 0.5)])
 def test_cards_face_the_viewer_outside_the_clump(repo_root, camera):
-    """Most of the cards a camera outside the clump can see show it their front, whose normal URP/Lit lights
-    right (the back of a two-sided card turns pale): the review sheet's 10 m and 1.5 m cameras and one low."""
+    """Most of the cards a camera outside the clump can see show it their front, so each card covers more of the
+    clump for its two triangles (the leaf shader lights both faces right since task 1.4): the review sheet's 10 m
+    and 1.5 m cameras and one low."""
     built = shrub.build(load(repo_root, "V13_mid"))
     lod0 = built["lods"][0]
     near, front = 0, 0
@@ -182,7 +206,7 @@ def test_cards_face_the_viewer_outside_the_clump(repo_root, camera):
             continue  # on the far side of the clump from this camera
         near += 1
         front += sum(normal[k] * to_camera[k] for k in range(3)) > 0
-    assert near > 100 and front / near >= 0.8, (front, near)  # 0.84-0.86 as built; a random roll gives 0.5
+    assert near > 100 and front / near >= 0.75, (front, near)  # 0.77-0.82 as tuned (sprigs off the twig); a random roll gives 0.5
 
 
 def test_seed_determines_the_clump(repo_root):
@@ -194,6 +218,7 @@ def test_seed_determines_the_clump(repo_root):
 
 @pytest.mark.parametrize("edit, expected", [
     (lambda p: p.update(bare_base_m=1.5, height_m=1.5), "'bare_base_m' = 1.5 must stay under 'height_m' = 1.5"),
+    (lambda p: p.update(fork_angle_deg={"min": 60.0, "max": 45.0}), "'fork_angle_deg.min' = 60.0 must not exceed 'fork_angle_deg.max' = 45.0"),
     (lambda p: p.update(cards_per_m3=2000.0), "'cards_per_m3' = 2000.0 gives 7096 cards, 14192 triangles at LOD0, over the budget of 12000"),
     (lambda p: p.update(autumn=0.5), "'autumn' = 0.5 is not built yet (a per-variant leaf tint needs the importer to read one; the look-lock decides); keep 0.0"),
     (lambda p: p.update(spines=True), "'spines' = True is not built yet (no spine cell is pinned); keep False"),

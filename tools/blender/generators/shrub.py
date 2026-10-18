@@ -1,6 +1,7 @@
 """shrub: a multi-stem understory shrub, V13 of the vegetation sheet (p1-v13-shrub, AST-05, AST-08): `stems` arching
 stems from a base disc, twigs branching twice above `bare_base_m`, and a mass of leaf cards over them
-(lib.skeleton, lib.cards). The origin is the base centre on the ground.
+(lib.skeleton, lib.cards); twigs leave their stems, and the leaf sprigs their twigs, at the sheet's
+`fork_angle_deg`. The origin is the base centre on the ground.
 
 Params (assets-src/vegetation/<variant>.json) are PARAMS below (lib.params checks them). The clump envelope that the
 twigs grow out to and the cards fill is an ellipsoid of revolution of the sheet's `width_m`, from `bare_base_m` to
@@ -36,7 +37,8 @@ GROUND_FADE_M = 0.3
 GROUND_STRETCH = 0.75
 STEM_SHARE = (0.75, 0.95)
 BASE_R_SHARE, BASE_R_M = 0.1, (0.1, 0.25)
-CARD_MARGIN = 0.3           # of card_m: a card centred at a twig end reaches half its length beyond it, few do
+CARD_MARGIN = 0.8           # of card_m: a sprig at a twig end reaches up to its length beyond it; 0.8 keeps
+                            # the built width within 5 % of width_m (measured on the three variants)
 MIN_AXIS_M = 0.05
 SPHERE_ITERATIONS = 100     # Badoiu-Clarkson: the radius within about 1 % of the smallest
 IDENTITY = [0.0, 0.0, 0.0, 1.0]
@@ -50,18 +52,22 @@ PARAMS = {
     "seed": {"type": "int", "range": (0, 2**31 - 1), "default": 1, "effect": "all draws: stem places, twigs, cards"},
     "height_m": {"type": "float", "range": (0.3, 4.0), "default": 2.0, "effect": "clump height; the cull distance follows it"},
     "width_m": {"type": "float", "range": (0.3, 4.0), "default": 2.2, "effect": "clump footprint and the LOD2 cards' width"},
-    "stems": {"type": "int", "range": (1, 40), "default": 10, "effect": "stems from the base disc, a capsule chain and a hook each"},
+    "stems": {"type": "int", "range": (1, 40), "default": 14, "effect": "stems from the base disc, a capsule chain and a hook each"},
     "stem_d_mm": {"type": "float", "range": (10.0, 60.0), "default": 18.0,
                   "effect": "base diameter of every stem, tapering to 10 mm at the tip; thinner wood is a twig"},
-    "arch": {"type": "float", "range": (0.0, 1.0), "default": 0.2, "effect": "the tip's outward drift as a share of the stem's height"},
+    "arch": {"type": "float", "range": (0.0, 1.0), "default": 0.15, "effect": "the tip's outward drift as a share of the stem's height"},
+    "fork_angle_deg.min": {"type": "float", "range": (10.0, 90.0), "default": 40.0,
+                           "effect": "least angle at which a twig leaves its stem and a leaf sprig its twig"},
+    "fork_angle_deg.max": {"type": "float", "range": (10.0, 90.0), "default": 70.0,
+                           "effect": "greatest such angle; wider fills the clump's sides and underside"},
     "bare_base_m": {"type": "float", "range": (0.0, 1.5), "default": 0.6,
                     "effect": "no twigs or cards below this height; under 0.3 the leaves reach the ground"},
     "leaf_cover": {"type": "float", "range": (0.0, 1.0), "default": 1.0, "effect": "scales the card count; porosity 0.7 - 0.35 * leaf_cover"},
     "autumn": {"type": "float", "range": (0.0, 1.0), "default": 0.0, "effect": "lerps the leaf tint to the sheet's yellow (not built: see UNBUILT)"},
     "spines": {"type": "bool", "range": "true or false", "default": False, "effect": "spine cards on the stems, the silverberry look (not built)"},
     "fruit_tufts": {"type": "int", "range": (0, 60), "default": 0, "effect": "1-card berry clusters (not built)"},
-    "card_m": {"type": "float", "range": (0.1, 0.5), "default": 0.2, "effect": "a leaf card's length along its twig; its width follows the cell"},
-    "cards_per_m3": {"type": "float", "range": (1.0, 5000.0), "default": 210.0,
+    "card_m": {"type": "float", "range": (0.1, 0.5), "default": 0.2, "effect": "a leaf sprig card's length from its stalk on the twig; its width follows the cell"},
+    "cards_per_m3": {"type": "float", "range": (1.0, 5000.0), "default": 900.0,
                      "effect": "cards per m3 of the clump envelope at leaf_cover 1; under 6000 cards (12 000 triangles)"},
     "lod.lod1_switch_m": {"type": "float", "range": (0.1, 100.0), "default": 7.5,
                           "effect": "distance from which LOD1 shows: the 8 mm twigs under 1 px"},
@@ -109,9 +115,12 @@ def card_count(params):
 
 
 def check(params):
-    """Cross-parameter rules once every key is in range: a leafy zone exists, the cards fit the LOD0 budget, and
-    nothing asks for a look that is not built."""
+    """Cross-parameter rules once every key is in range: the fork angles are ordered, a leafy zone exists, the cards
+    fit the LOD0 budget, and nothing asks for a look that is not built."""
     problems = []
+    fork = params["fork_angle_deg"]
+    if fork["min"] > fork["max"]:
+        problems.append(f"'fork_angle_deg.min' = {fork['min']} must not exceed 'fork_angle_deg.max' = {fork['max']}")
     if params["bare_base_m"] >= params["height_m"]:
         problems.append(f"'bare_base_m' = {params['bare_base_m']} must stay under 'height_m' = {params['height_m']}")
     else:
@@ -131,9 +140,10 @@ def build(params):
     card_m, stem_r = params["card_m"], params["stem_d_mm"] / 2000
     envelope = Envelope(width, bare, height, CARD_MARGIN * card_m)
     base_r = min(max(BASE_R_SHARE * width, BASE_R_M[0]), BASE_R_M[1])
+    fork = (params["fork_angle_deg"]["min"], params["fork_angle_deg"]["max"])
     stems, twigs = skeleton.build(rng, params["stems"], base_r, (STEM_SHARE[0] * height, STEM_SHARE[1] * height),
-                                  stem_r, params["arch"], bare, envelope.reach)
-    leaves = cards.place(rng, twigs, card_count(params), card_m)
+                                  stem_r, params["arch"], bare, envelope.reach, fork)
+    leaves = cards.place(rng, twigs, card_count(params), card_m, fork_deg=fork)
     lods = [Mesh(), Mesh(), Mesh()]
     for lod, mesh in enumerate(lods[:2]):
         skeleton.tubes(mesh, stems, twigs, lod, STEM, TWIG)

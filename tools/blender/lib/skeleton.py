@@ -12,7 +12,8 @@ turns into capsules and hooks, so mesh and collision come from the same points. 
 arch * L / (4 SEGMENTS^2): 11 mm on a 2 m stem at arch 0.2, under the audit's 50 mm (design: risks).
 
 Twigs: a first-order twig leaves a stem at each node, NODE_SPACING_M apart along it above `bare_base`, tilted
-outward from the stem's tangent by FORK_DEG and reaching FIRST_REACH of the way to the clump's envelope along its
+from the stem's tangent by the fork angle (the sheet's fork_angle_deg; FORK_DEG unless the caller gives one) at
+any azimuth about the stem (AZIMUTH_JITTER), and reaching FIRST_REACH of the way to the clump's envelope along its
 direction; two second-order twigs fork from its end, spread by SPREAD_DEG, and reach the envelope with an outward
 bias (1 - 0.3 u^2 of the way). The envelope is the caller's `reach(p, d)`: the distance from p along the unit
 direction d to the clump's surface, 0 when p lies outside. Radii TWIG1_R 8 -> 5 mm and TWIG2_R 5 -> 3 mm, the
@@ -31,7 +32,8 @@ SEGMENTS = 3
 NODE_SPACING_M = 0.2
 NODE_JITTER = (0.3, 0.7)        # a node's place within its spacing slot
 LEAN_JITTER = 0.7               # radians about the outward azimuth, for a stem's drift direction
-AZIMUTH_JITTER = 1.0            # radians about the outward azimuth, for a first-order twig
+AZIMUTH_JITTER = math.pi        # radians about the outward azimuth, for a first-order twig: any side of its stem
+                                # (1.0 left the crown's core empty, a hole into the clump from 20 deg above)
 FORK_DEG = (30.0, 50.0)         # the sheet's fork_angle_deg default
 SPREAD_DEG = (20.0, 40.0)
 PITCH_JITTER = 0.25             # added to a second-order direction's Y before renormalising
@@ -73,10 +75,10 @@ class Twig:
         self.p0, self.p1, self.r0, self.r1, self.level = p0, p1, r0, r1, level
 
 
-def build(rng, count, base_r, lengths, stem_r, arch, bare_base, reach):
+def build(rng, count, base_r, lengths, stem_r, arch, bare_base, reach, fork_deg=FORK_DEG):
     """(stems, twigs): `count` stems on a disc of radius `base_r` at evenly spread, jittered azimuths, each of a
     length drawn from `lengths` (lo, hi), base radius `stem_r`, leaning outward by `arch`, with their twigs above
-    `bare_base` grown out to `reach`."""
+    `bare_base` grown out to `reach`, leaving their stems at an angle drawn from `fork_deg` (lo, hi) degrees."""
     stems = []
     for i in range(count):
         phi = 2 * math.pi * (i + rng.random()) / count
@@ -86,18 +88,18 @@ def build(rng, count, base_r, lengths, stem_r, arch, bare_base, reach):
                           (math.cos(tilt), 0.0, math.sin(tilt)), arch, stem_r))
     twigs = []
     for stem in stems:
-        twigs += _twigs(rng, stem, bare_base, reach)
+        twigs += _twigs(rng, stem, bare_base, reach, fork_deg)
     return stems, twigs
 
 
-def _twigs(rng, stem, bare_base, reach):
+def _twigs(rng, stem, bare_base, reach, fork_deg):
     twigs = []
     for k in range(int((stem.length - bare_base) / NODE_SPACING_M)):
         t = (bare_base + (k + rng.uniform(*NODE_JITTER)) * NODE_SPACING_M) / stem.length
         node, tangent = stem.point(t), stem.tangent(t)
         azimuth = math.atan2(node[2], node[0]) if math.hypot(node[0], node[2]) > 0.05 else rng.uniform(0, 2 * math.pi)
         azimuth += rng.uniform(-AZIMUTH_JITTER, AZIMUTH_JITTER)
-        fork = math.radians(rng.uniform(*FORK_DEG))
+        fork = math.radians(rng.uniform(*fork_deg))
         d = normalize(add(scale(tangent, math.cos(fork)), (math.cos(azimuth) * math.sin(fork), 0.0, math.sin(azimuth) * math.sin(fork))))
         distance = reach(node, d)
         if distance < MIN_TWIG_M:
