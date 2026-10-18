@@ -1,7 +1,8 @@
 """Derived textures by script (p1-pipeline-hardening, "Derived textures by script"; D-004, AST-07): the packed mask
-map of a material recipe, built from its pinned sources with the recipe recorded beside it. Pillow only.
+map of a material recipe, and the base map of an alpha-clipped one, built from its pinned sources with the recipe
+recorded beside it. Pillow only.
 
-    python tools/assets/derive.py <material>...     derive the masks of these recipes (assets-src/materials/<material>.json)
+    python tools/assets/derive.py <material>...     derive the maps of these recipes (assets-src/materials/<material>.json)
     python tools/assets/derive.py --all             every recipe under assets-src/materials/
 
 A recipe with a "mask" object gets unity/Assets/_Project/Art/Materials/<material>_mask.png, an 8-bit linear RGBA map
@@ -10,12 +11,17 @@ from G; B is unused and 0. The object holds exactly "metallic", "occlusion" and 
 [0, 1] or a map of the recipe's texture set by its manifest map name ("ao", "roughness", ...), inverted as
 "1 - roughness". The mask has the sources' size; 16-bit sources are scaled to 8 bits, never clipped.
 
-Beside the PNG, <material>_mask.recipe.json records what made it: the formula, the mask recipe, each source's file
-name and SHA-256 as found on disk, and the SHA-256 of all of that together. A run rewrites both files only when that
-hash differs from the stamp or the PNG is missing, so an unchanged recipe is a no-op and a changed recipe, source or
-formula regenerates; nothing is edited by hand. Derived files live under Art/Materials/, beside the .mat they feed,
-never under Art/ThirdParty/: they are not third-party, and fetch.py --verify keeps its "nothing unlisted under
-ThirdParty" check without an exception. Exit code 1 on any problem.
+A recipe with "alpha_clip" (p1-v13-shrub, "Alpha-clipped two-sided recipes") whose texture set ships its opacity as
+a separate map (ambientCG's atlases) gets <material>_base.png: the diffuse's RGB with the opacity map as alpha, an
+8-bit sRGB RGBA map the importer assigns as the base map in place of the diffuse, so URP/Lit clips by its alpha. A
+set without an "opacity" map needs nothing: the diffuse's own alpha clips.
+
+Beside each PNG, <material>_<map>.recipe.json records what made it: the formula, the mask recipe where there is one,
+each source's file name and SHA-256 as found on disk, and the SHA-256 of all of that together. A run rewrites both
+files only when that hash differs from the stamp or the PNG is missing, so an unchanged recipe is a no-op and a
+changed recipe, source or formula regenerates; nothing is edited by hand. Derived files live under Art/Materials/,
+beside the .mat they feed, never under Art/ThirdParty/: they are not third-party, and fetch.py --verify keeps its
+"nothing unlisted under ThirdParty" check without an exception. Exit code 1 on any problem.
 """
 import argparse
 import hashlib
@@ -31,6 +37,7 @@ import fetch  # the manifest, its file paths and the repo root; same folder
 RECIPES = os.path.join("assets-src", "materials")
 MATERIALS = os.path.join("unity", "Assets", "_Project", "Art", "Materials")
 FORMULA = "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size"
+BASE_FORMULA = "RGB diffuse, A opacity; 8-bit sRGB at the sources' size"
 CHANNELS = ("metallic", "occlusion", "smoothness")  # R, G, A
 MAP_EXPR = re.compile(r"^(1 - )?([a-z]+)$")
 
@@ -88,11 +95,20 @@ def channel(spec, sources, size):
 
 
 def derive(root, manifest, material):
-    """Derives the material's mask when its recipe asks for one and the stamp is stale. Returns a report line."""
+    """Derives the material's mask when its recipe asks for one, and its base map when the recipe is alpha-clipped,
+    each only when its stamp is stale. Returns the report lines."""
     recipe = load_recipe(root, material)
-    mask = recipe.get("mask")
-    if mask is None:
-        return f"{material}: no mask in the recipe, nothing to derive"
+    lines = []
+    if recipe.get("mask") is not None:
+        lines.append(derive_mask(root, manifest, material, recipe))
+    if "alpha_clip" in recipe:
+        lines.append(derive_base(root, manifest, material, recipe))
+    return "\n".join(lines) if lines else f"{material}: no mask in the recipe, nothing to derive"
+
+
+def derive_mask(root, manifest, material, recipe):
+    """The packed mask of a recipe with a "mask" object: metallic R, occlusion G, smoothness A from its sources."""
+    mask = recipe["mask"]
     if not isinstance(mask, dict) or set(mask) != set(CHANNELS):
         raise DeriveError(f"{material}: 'mask' must hold exactly {', '.join(CHANNELS)}")
     texture_set = recipe["texture_set"]
@@ -113,12 +129,9 @@ def derive(root, manifest, material):
                          for name in sorted(used)}}
     stamp["inputs_sha256"] = _inputs_sha256(stamp)
 
-    png_path = os.path.join(root, MATERIALS, f"{material}_mask.png")
-    stamp_path = os.path.join(root, MATERIALS, f"{material}_mask.recipe.json")
-    if os.path.isfile(png_path) and os.path.isfile(stamp_path):
-        with open(stamp_path, encoding="utf-8") as f:
-            if json.load(f).get("inputs_sha256") == stamp["inputs_sha256"]:
-                return f"{fetch.relpath(root, png_path)}: up to date"
+    png_path, stamp_path = _outputs(root, material, "mask")
+    if _up_to_date(png_path, stamp_path, stamp):
+        return f"{fetch.relpath(root, png_path)}: up to date"
 
     sources = {name: grey(Image.open(maps[name])) for name in sorted(used)}
     sizes = {image.size for image in sources.values()}
@@ -127,18 +140,62 @@ def derive(root, manifest, material):
                           + ", ".join(f"{n} {s[0]}x{s[1]}" for n, s in sorted((n, i.size) for n, i in sources.items())))
     size = sizes.pop() if sizes else (1, 1)
     r, g, a = (channel(mask[name], sources, size) for name in CHANNELS)
-    os.makedirs(os.path.dirname(png_path), exist_ok=True)
-    Image.merge("RGBA", (r, g, Image.new("L", size, 0), a)).save(png_path, "PNG")
-    stamp["size"] = list(size)
-    with open(stamp_path, "w", encoding="utf-8", newline="\n") as f:
-        f.write(json.dumps(stamp, indent=2) + "\n")
+    _write(png_path, stamp_path, Image.merge("RGBA", (r, g, Image.new("L", size, 0), a)), stamp)
     return (f"{fetch.relpath(root, png_path)}: derived {size[0]}x{size[1]} from {texture_set} "
             f"({', '.join(sorted(used)) or 'constants only'}); recipe recorded in {os.path.basename(stamp_path)}")
 
 
+def derive_base(root, manifest, material, recipe):
+    """The base map of an alpha-clipped recipe: the diffuse's RGB with the set's separate opacity map as alpha."""
+    texture_set = recipe["texture_set"]
+    maps = set_maps(root, manifest, texture_set, material)
+    if "opacity" not in maps:
+        return f"{material}: {texture_set} has no separate opacity map, the diffuse's own alpha clips"
+    for name in ("diffuse", "opacity"):
+        if not os.path.isfile(maps[name]):
+            raise DeriveError(f"{fetch.relpath(root, maps[name])}: missing; run fetch.py")
+    stamp = {"material": material, "texture_set": texture_set, "formula": BASE_FORMULA,
+             "sources": {name: {"name": os.path.basename(maps[name]), "sha256": fetch.sha256(maps[name])}
+                         for name in ("diffuse", "opacity")}}
+    stamp["inputs_sha256"] = _inputs_sha256(stamp)
+
+    png_path, stamp_path = _outputs(root, material, "base")
+    if _up_to_date(png_path, stamp_path, stamp):
+        return f"{fetch.relpath(root, png_path)}: up to date"
+
+    diffuse = Image.open(maps["diffuse"]).convert("RGB")
+    opacity = grey(Image.open(maps["opacity"]))
+    if diffuse.size != opacity.size:
+        raise DeriveError(f"{material}: the sources differ in size: diffuse {diffuse.size[0]}x{diffuse.size[1]}, "
+                          f"opacity {opacity.size[0]}x{opacity.size[1]}")
+    _write(png_path, stamp_path, Image.merge("RGBA", (*diffuse.split(), opacity)), stamp)
+    return (f"{fetch.relpath(root, png_path)}: derived {diffuse.size[0]}x{diffuse.size[1]} from {texture_set} "
+            f"(diffuse, opacity); recipe recorded in {os.path.basename(stamp_path)}")
+
+
+def _outputs(root, material, kind):
+    return (os.path.join(root, MATERIALS, f"{material}_{kind}.png"),
+            os.path.join(root, MATERIALS, f"{material}_{kind}.recipe.json"))
+
+
+def _up_to_date(png_path, stamp_path, stamp):
+    if not (os.path.isfile(png_path) and os.path.isfile(stamp_path)):
+        return False
+    with open(stamp_path, encoding="utf-8") as f:
+        return json.load(f).get("inputs_sha256") == stamp["inputs_sha256"]
+
+
+def _write(png_path, stamp_path, image, stamp):
+    os.makedirs(os.path.dirname(png_path), exist_ok=True)
+    image.save(png_path, "PNG")
+    stamp["size"] = list(image.size)
+    with open(stamp_path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(json.dumps(stamp, indent=2) + "\n")
+
+
 def _inputs_sha256(stamp):
-    """SHA-256 of what the mask depends on: the formula, the mask recipe and the sources' hashes."""
-    inputs = {k: stamp[k] for k in ("formula", "mask", "sources")}
+    """SHA-256 of what the map depends on: the formula, the mask recipe where there is one, and the sources' hashes."""
+    inputs = {k: stamp[k] for k in ("formula", "mask", "sources") if k in stamp}
     return hashlib.sha256(json.dumps(inputs, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
