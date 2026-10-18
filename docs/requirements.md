@@ -279,7 +279,7 @@ The footage is PAL and too coarse for photogrammetry, so **assets are rebuilt to
 - **wind volumes:** primitives, each with its own porosity (D-007)
 - landable-surface flags (roofs, beds, slabs)
 - LOD switch distances
-- **for every asset that cuts the ground** (a `holes` record: E01–E04, C01, C02): the hole-filler contract F-1…F-8 of the earthworks sheet, checked by its audit, including **F-1** (a downward ray on a 5 cm grid over every hole cell hits a filler) and **F-2** (every cavity face lies at least 0.25 m inside the hole cells)
+- **for every asset that cuts the ground** (a `holes` record: E01–E04, E06, C01, C02): the hole-filler contract F-1…F-8 of the earthworks sheet, checked by its audit, including **F-1** (a downward ray on a 5 cm grid over every hole cell hits a filler) and **F-2** (every cavity face lies at least 0.25 m inside the hole cells)
 
 *Accept:* a probe flies a drone-sized capsule (0.574 m nose-first) through every gap and contacts every material; the audit prints F-1…F-8 per `holes` asset. *Source:* D-012, PR-5, PR-9, K§10.6; gap review G5 (D-037).
 
