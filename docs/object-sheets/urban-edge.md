@@ -378,15 +378,15 @@ The block is built from a **section list**: each section is one stair cell with 
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| Source roof | a single-storey house of the H01–H04 classes (6–12 × 5–8 m), or a wing of one (4–6 × 4–6 m) | H03's defaults: 9 × 7 m, walls 0.38 m to 2.9 m on a 0.4 m plinth, pitch 27°, rafters at 1.0 m, battens at 0.5 m | assumed, as the houses sheet (H03's defaults); red brick measured I (the wall end and the core) |
+| Source roof | a single-storey house of the H01–H04 classes (6–12 × 5–8 m), or a wing of one (4–6 × 4–6 m) | H03's defaults with `wall_material` red_brick (I): 9 × 7 m, walls 0.38 m to 2.9 m on a 0.4 m plinth, pitch 25°, rafters at 1.0 m, battens at 0.5 m | assumed, as the houses sheet (H03's defaults); red brick measured I (the wall end and the core) |
 | Heap body footprint | 6–11 × 5–9 m | 10 × 8 m | derived: the frame's plan, 9.8 × 7.8 m (H03's 9 × 7 m plus the shared 0.4 m overhangs), with the feet's spread and the rubble at its toe, rounded. Measured I: 11.8–13.9 m across the view, which a 10 × 8 m body shows when seen 30–45° to its long axis (10 cos θ + 8 sin θ = 12.7–12.8 m). The asset list's 6–10 m across holds |
 | Frame surface at the high end | 2.5–4.0 m | 3.2 m | measured I: 2.9–3.5 m (the frame's outline at 52–54 % of the frame height, at 22–26 m); derived: the standing wall end's top (3.0 m) plus the frame's depth (0.15–0.3 m) |
 | Member tips above the frame | 0.3–1.2 m | 0.8 m (tips to 4.0 m) | measured I: broken members pointing up to 3.8–4.4 m |
 | Frame at the low end | 0.8–2.0 m | 1.3 m | measured I: 1.1–1.7 m at the left end (rough) |
-| Flank slope | 10–35°, varying along the length | 30° at the high end, 10–15° at the low end | measured I: 20–35° on the projected outline (rough; a projected outline reads steeper than the true slope). Derived: rafters 3.9 m long falling from the ridge at 3.2 m to the eaves lines on the core at about 1.0 m: atan(2.2 / √(3.93² − 2.2²)) = 34° |
+| Flank slope | 10–35°, varying along the length | 30° at the high end, 10–15° at the low end | measured I: 20–35° on the projected outline (rough; a projected outline reads steeper than the true slope). Derived: rafters 3.86 m long (3.5 m / cos 25°) falling from the ridge at 3.2 m to the eaves lines on the core at about 1.0 m: atan(2.2 / √(3.86² − 2.2²)) = 35° |
 | Standing wall end | 0–2 ends, 1–3 m long, to 0.6–1.0 of the wall height | 1 end, 2.0 m long, top at 3.0 m (0.9 of 2.9 + 0.4 m) | measured I: one red-brick end about 2.0 m long (1.9–2.2 m), its top at 2.9–3.2 m, its foot in rubble 0.4–0.6 m deep, the top broken and rounded |
 | Wall stubs elsewhere | 0–1.5 m | 0.5 m | assumed (the houses X state's 0.5–1.5 m; none shows in I above the rubble) |
-| Masonry core | 0.3–1.5 m deep | 0.7 m mean; 1.0–1.4 m along the wall lines, 0.4–0.6 m mid-house | derived: about 21 m³ of brick removed from H03's walls (30.5 m of wall × 0.38 m × 2.4 m above the stubs, less 4.9 m³ of openings and the 1.8 m³ standing end) × 1.86 = 40 m³, plus the ceiling layer (51 m² × 0.2 m fill + 4.1 m³ of joists and boards = 14 m³): 54 m³ over 80 m² |
+| Masonry core | 0.3–1.5 m deep | 0.6 m mean; 1.0–1.4 m along the wall lines, 0.4–0.6 m mid-house | derived: about 21 m³ of brick removed from H03's walls (30.5 m of wall × 0.38 m × 2.4 m above the stubs, less 4.9 m³ of openings and the 1.8 m³ standing end) × 1.86 = 40 m³, plus the ceiling's fill (51 m² × 0.2 m = 10 m³; its joists and boards are frame members, counted under timber): 50 m³ over 80 m² |
 | Timber in the heap | 5–9 m³ | 6.6 m³ | derived from H03's defaults: rafters 20 × 4.3 m × 0.015 m² = 1.3; battens 173 m × 0.0025 m² = 0.4; plates, ridge and collar ties 0.8; ceiling joists 2.5; ceiling boards 1.6 |
 | Void fraction of the timber tangle | 0.85–0.95 | 0.9 | derived: 6.6 m³ of timber through a tangle about 1 m thick over the 80 m² body: 1 − 6.6 / 80 = 0.92 |
 | Members | rafters 100 × 150 mm or round 0.10–0.16 m, 1–4.3 m; battens 50 × 50 mm, 0.3–4 m; plates 150 × 150 mm; ceiling joists 150 × 200 mm; boards 25–40 × 100–200 mm | as K03 | assumed, as K03 (its battens published); houses sheet |
@@ -456,8 +456,8 @@ How a roof comes down as one heap, in order (the houses sheet's failure order, w
   | Opening | Narrowest clear width | Passes? |
   |---|---|---|
   | Rafter bay in a frame plane, battens gone | 0.74–1.1 m (rafters at 0.9–1.2 m less 0.10–0.16 m; 0.84–0.90 m at H03's 1.0 m) | in plan any yaw (≥ 0.706 m); it opens into the cavity under the plane, 0.3–2 m deep: **fly-in, no through-route** |
-  | Rafter bay with its battens in place | tile 0.25–0.35 m; slate 0.45–0.70 m (0.45 m at H03's 0.5 m) | **no** for tile and for slate below 0.574 m; slate battens at 0.65–0.75 m: nose-first only (U01's rule) |
-  | Openings between crossed members | 0.1–0.6 m (I: 0.2–0.6 m) | **no**; left to collision, not written as gaps |
+  | Rafter bay with its battens in place | tile 0.25–0.35 m; slate 0.45–0.70 m (0.45 m at H03's 0.5 m) | **no** for tile and for slate below 0.574 m; slate battens at 0.65–0.75 m (0.60–0.70 m clear): nose-first within ±5° to ±35°, 13–63 mm a side (U01's rule) |
+  | Openings between crossed members | 0.1–0.6 m (I: 0.2–0.6 m) | **no** below 0.574 m; at 0.574–0.6 m nose-first only (±5° at 0.6 m, 13 mm a side), into the tangle (fly-in). Those of 0.5 m and over are written as polygons (the clear outline through the members' depth, the buildability review's convention 3; the vegetation sheet's 0.5 m threshold); smaller ones are left to collision |
   | Lean-to mouth at the high end, gable-ended source | a triangle about 6.5 m wide at the core and 2 m high, less the wall end and the members across it (the open triangle's inscribed circle is 1.8 m) | where the polygon admits 0.574 × 0.55 m; **dead-ended** toward the low end. A hip-ended source closes this end with the hip's rafter bays (as above) |
   | Cavity at the frame's edge | 0.5–2 × 0.3–0.9 m (I: about 1.4 × 0.5 m at the front toe) | **no** below 0.55 m high (I's); a mouth 0.6–0.9 m high admits the drone, **fly-in only**, dead-ended 1–3 m in |
   | Through-route under the frame | none in the default heap (I shows none: the far side is the core and the wall end) | the generator writes one only if its cavities happen to join; the gap probe then judges it |
@@ -494,7 +494,7 @@ How a roof comes down as one heap, in order (the houses sheet's failure order, w
 
 | Param | Type | Range | Default | Effect |
 |---|---|---|---|---|
-| `source` | preset id | H01–H04 presets | H03 | Loads the source house's `length`, `width`, `wall_height`, `wall_thickness`, `wall_material`, `roof_type_*`, `roof_pitch`, `roof_cover`, `rafter_pitch`, `batten_pitch`, `eaves_overhang`; any can be overridden here |
+| `source` | preset id | H01–H04 presets | H03, `wall_material` red_brick (I) | Loads the source house's `length`, `width`, `wall_height`, `wall_thickness`, `wall_material`, `roof_type_*`, `roof_pitch`, `roof_cover`, `rafter_pitch`, `batten_pitch`, `eaves_overhang`; any can be overridden here |
 | `extent` | enum | whole, wing | whole | wing builds the roof of a 4–6 × 4–6 m annex or house end only |
 | `wing_length` | m | 4–6 | 5 | The wing's length along the ridge when `extent` is wing |
 | `pattern` | enum | lean_to, a_frame, v_shape, pancake | lean_to | What holds the frame up: one end on a standing wall end (I), the middle on the stove or an interior wall stump, both ends with the middle down, or nothing. Sets the pose and where the large voids are |
@@ -506,7 +506,7 @@ How a roof comes down as one heap, in order (the houses sheet's failure order, w
 | `fall_bias` | −1–1 | −1 to 1 | 0.2 | Share of the walls' brick falling outboard (+1) or inboard (−1): outboard widens the toe, inboard fills under the frame |
 | `rubble_volume` | m³ | 10–120 | removed solid × 1.86 (40 for H03) | The masonry core's volume, laid by U02's core builder (the houses rule) |
 | `ceiling` | enum | boards_clay, boards_slag, none | boards_clay | The ceiling layer under the frame: joists, boards and a 0.15–0.25 m fill as a crumbly layer |
-| `rafter_spread` | m | 0–1.0 | 0.3 | How far the rafter feet slide out past the plate line; with the rafter length fixed, the rise over a support follows as √(L² − (b + spread)²) |
+| `rafter_spread` | m | 0–1.0 | 0.3 | How far the rafter feet slide out past the eaves line where nothing holds the ridge up (a lean-to's low end, the middle of a V, a pancake): the ridge then sits √(L² − (b + spread)²) above the feet, L the rafter from ridge to eaves line and b its run (3.86 and 3.5 m for H03), never below the core under it. Where a support holds the ridge, the feet hang to the core instead and the run follows as √(L² − rise²) (the 35° flank at I's high end) |
 | `ridge_breaks` | int | 0–3 | 1 | Breaks along the ridge; v_shape needs at least 1 mid-length |
 | `rafters_broken` | 0–1 | 0–0.8 | 0.4 | Fraction of rafters snapped at mid-span, at the collar or at the foot, with K03 splinter ends |
 | `tips_up` | int | 0–8 | 4 | Broken members springing up 30–70° out of the frame, 0.3–1.2 m above it (I) |
