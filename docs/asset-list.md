@@ -133,8 +133,9 @@ Plaster recipe from research: weathered lime whitewash #c4bfb1 over clay render 
 
 | ID | Asset | Ref | Key size | Physics | Pri |
 |---|---|---|---|---|---|
-| U01 | **Stalin-era five-storey block, destroyed (exactly one)** | I, K | 15–17 m to the eaves plus a 3–4 m roof; 12–15 m deep; 40–80 m long in 3–5 stairwell sections; brick walls 0.5–0.65 m; windows 1.3 × 1.8 m. Damage kit: one end with its facade torn off and rooms open on every floor; hanging and sagging slabs; **protruding rebar**; burnt windows with soot plumes; roof down to its timbers; contents spilling out | gap (open rooms about 3–4 × 3 m; window openings 1.3 × 1.8 m), snag (rebar, cables, fabric, balcony rails), wind (strong wake, recirculation 1.5–2.5 heights, gusty to 10), land (slabs) | P1 |
+| U01 | **Stalin-era five-storey block, destroyed (exactly one)** | I, K | 16–19 m to the eaves (five storeys of 3.0–3.4 m, AST-04) plus a 3–4 m roof; 12–15 m deep; 40–80 m long in 3–5 stairwell sections; brick walls 0.5–0.65 m; windows 1.3 × 1.8 m. Damage kit: one end with its facade torn off and rooms open on every floor; hanging and sagging slabs; **protruding rebar**; burnt windows with soot plumes; roof down to its timbers; contents spilling out | gap (open rooms about 3–4 × 3 m; window openings 1.3 × 1.8 m), snag (rebar, cables, fabric, balcony rails), wind (strong wake, recirculation 1.5–2.5 heights, gusty to 10), land (slabs) | P1 |
 | U02 | Rubble mound of the block | K | 2–4 m high, spreading 15–20 m | pitfalls (voids), snag (timbers) | P1 |
+| U02b | Collapsed timber roof pile (the roof of a house or wing fallen as one heap) | I | 3–4 m high, 6–10 m across | pitfalls (voids), snag (rafters, battens, sheet) | P2 |
 | U03 | Row of garages (cooperative), damaged | R | 4–8 units, 3.5 × 6 m each | gap (open doors) | P2 |
 
 ## 8. Lines, poles and roads
