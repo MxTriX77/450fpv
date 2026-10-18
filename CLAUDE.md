@@ -101,6 +101,7 @@ dotnet run -c Release --project tools/worldbench -- --bench
 python -m pytest tools                       # assets, blender, hygiene, reference
 python tools/assets/fetch.py --verify         # every third-party file pinned and credited
 python tools/hygiene/precommit.py --tree HEAD # the OPSEC scan over the whole tree
+python tools/hygiene/bench.py                 # the scan's 2 s budget with its margin; counts on AC only, run it when precommit.py changes
 python tools/map/validate.py maps/<map-id>    # from phase 3
 
 # Unity
