@@ -53,7 +53,7 @@ The houses analyst found that the white bars at mid-height are the OSD's horizon
 - their inner ends sit at the same screen columns in every still of both clips (the left ones end about 18–26 % of the width in from the left edge, the right ones start about 15–25 % in from the right edge), symmetric about the centre, with mirrored slopes;
 - they move up and down together with the drone's pitch, never across.
 
-A real wire does none of this. **Consequence:** terrain.md S1's "C: an overhead wire above the shed roof, about 3–5 m up" and the C01 row's "Wire above … measured C 1–8" in houses-and-yard.md rest on these marks; C shows no wire for certain. The real wires in this sheet's letters are: the low slack cable from the dead trunk in D (D 9–12), the cable looping from the ceiling in E (E 16–17), the service drop and a farther line in J, the hanging cables and the cable loop on the ground in K, and the leaning pole in L (its wires are invisible at night). A yard can still carry a service drop as a placement choice (L03); it is just not measured from C. (Open points: the two notes to fix.)
+A real wire does none of this. **Consequence:** C shows no wire for certain; terrain.md S1 and the C01 row of houses-and-yard.md (its "Wire above" line and C's reference view) now say so. The real wires in this sheet's letters are: the low slack cable from the dead trunk in D (D 9–12), the cable looping from the ceiling in E (E 16–17), the service drop and a farther line in J, the hanging cables and the cable loop on the ground in K, and the leaning pole in L (its wires are invisible at night). A yard can still carry a service drop as a placement choice (L03); it is just not measured from C.
 
 ## Shared: village power and wire lines (L01–L05)
 
@@ -1256,7 +1256,6 @@ Blast pulls curtains out through the window openings and strips wallpaper from t
 
 **Orchestrator:**
 - The thick wire class: 13–32 mm instead of 15–20 mm (a SIP main is 26–32 mm).
-- Two existing notes rest on OSD marks (see "A correction"): terrain.md S1 (the C bullet) and houses-and-yard.md C01 ("Wire above … measured C 1–8", and the C reference-view row's "an overhead wire crossing the sky"). Suggested fix: no measured wire in C; D's wire is the low slack cable from the dead trunk.
 
 **Other sheets:** V20 (vegetation): J's brush pile is about 1.0–1.5 m high and 3–4 m long with branches 20–60 mm across and 1–3 m long, which matches V20's defaults (no change). Vehicles sheet: the published tracks feed RD03's rut spacing; K07 sits beside the K kit on roads.
 
