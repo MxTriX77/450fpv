@@ -1,0 +1,19 @@
+{
+  "seed": 1,
+  "class": "medium",
+  "conductor_type": "bare_al",
+  "diameter_mm": 9.0,
+  "mass_kg_per_m": 0.135,
+  "conductors": 4,
+  "arrangement": "vertical_zigzag",
+  "spacing_m": 0.5,
+  "span_m": 40.0,
+  "sag_ratio": 0.02,
+  "attach_heights_m": { "start": 7.355, "end": 7.355 },
+  "offset_m": 0.250579,
+  "offset_step_m": 0.002632,
+  "twist_pitch_m": 0.45,
+  "damage": "intact",
+  "points_per_m": 2.0,
+  "lod": { "lod1_switch_m": 20.0, "cull_m": 300.0 }
+}

@@ -14,6 +14,12 @@
       "materials": { "wood": "pole_wood", "concrete": "pole_concrete", "steel": "pole_steel",
                      "insulator": "insulator_porcelain", "ground_wire": "wire_steel" }
     },
+    "L03": {
+      "class": "lines",
+      "generator": "wire_span",
+      "variants": ["L03_thin", "L03_medium", "L03_thick"],
+      "materials": { "steel": "wire_steel", "aluminium": "wire_aluminium", "insulated": "wire_sip" }
+    },
     "S04": {
       "class": "surfaces",
       "generator": "ground_patch",
