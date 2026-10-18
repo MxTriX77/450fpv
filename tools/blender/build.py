@@ -6,8 +6,9 @@
 For every variant of each asset id in assets-src/catalog.json, it checks the variant's params
 (assets-src/<class>/<variant>.json) against the generator's PARAMS table (lib/params.py), runs the generator,
 validates the metadata (lib/meta.py) and audits the collision against the LOD0 mesh (lib/audit.py, with the soft
-tops of assets-src/physics_materials.json and the card slots of the alpha-clipped recipes; a generator's visual-only
-micro meshes are exported beside their LOD and skipped by the audit), and only then
+tops of assets-src/physics_materials.json and the card slots of the alpha-clipped recipes, and the ground below y = 0
+as cover for a generator that is PLANTED; a generator's visual-only micro meshes are exported beside their LOD and
+skipped by the audit), and only then
 writes unity/Assets/_Project/Art/Models/<class>/<ID>/<variant>.fbx and <variant>.assetmeta.json, both in Unity's
 frame (lib/frame.py), the FBX staged beside its final name and moved once it reads back as the metadata says. A
 rejected build changes no file. It refuses any Blender other than the pinned major.minor. Exit code 1 on any
@@ -44,7 +45,7 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
     data = meta.assemble(asset_id, variant, catalog_entry["generator"], params, built, catalog_entry["materials"])
     _refuse(variant, meta.validate(data, material_ids))
     problems, lines = audit.run(data, built["lods"][0], soft=audit.soft_materials(root),
-                                card_visuals=catalog.card_visuals(root))
+                                card_visuals=catalog.card_visuals(root), planted=getattr(generator, "PLANTED", False))
     for line in lines:
         print(f"{variant}: {line}")
     _refuse(variant, problems)

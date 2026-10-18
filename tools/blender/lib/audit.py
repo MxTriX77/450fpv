@@ -11,7 +11,10 @@ Primitives form a union: the part of a primitive's surface that lies inside anot
 surface (a mound sphere's lower half sunk in the ground slab, the slab's top under the mound), so it is not
 measured (a compliant shell's piece, below, hides no other primitive: a stem inside the twig mass is still met);
 nor is a seam where primitives only touch (a cell under SEAM_CELL_M whose corners all lie in other
-primitives), nor a sliver thinner than the metadata's micrometre rounding (COVERED_M). A landable shape with a soft top is landed on over its whole top, so it widens no 2 cm zone: its top is
+primitives), nor a sliver thinner than the metadata's micrometre rounding (COVERED_M). An asset that stands in the
+ground (`planted`, p1-l01-l03-pole-wires) has the terrain as one more such primitive, the half-space below y = 0:
+a pole's capsule cap or a brace's foot buried there is no wall, and its mesh, never drawn below the ground, is not
+asked to follow it. A landable shape with a soft top is landed on over its whole top, so it widens no 2 cm zone: its top is
 held to the 5 cm tolerance everywhere, and the lines name those shapes. Soft means a reference foot (25 N on 15 mm)
 sinks at least 25 mm into it (p1-s04-belt-straw, review-physics §2 and PR6): the surfaces of SOFT_SURFACES, or a
 plain id of assets-src/physics_materials.json with stiffness_n_per_m of SOFT_STIFFNESS_N_PER_M or less
@@ -92,13 +95,16 @@ def soft_materials(root):
                                        and row["stiffness_n_per_m"] <= SOFT_STIFFNESS_N_PER_M}
 
 
-def run(meta, lod0, *, soft=frozenset(), card_visuals=()):
+def run(meta, lod0, *, soft=frozenset(), card_visuals=(), planted=False):
     """(problems, report lines) of one variant: `meta` as lib.meta.assemble builds it, `lod0` its first
     lib.geometry.Mesh, `soft` the material ids with soft tops (soft_materials; none by default, so every landable
     top keeps the 2 cm zone), `card_visuals` the visual materials drawn as alpha-clipped cards
-    (lib.catalog.card_visuals). Both are keywords: each is a set of names, easily swapped. Problems name the
-    primitive or slot, the deviation and the tolerance; the lines carry the measured numbers for every primitive, the
-    mesh, every shell piece and slot and every gap, success or not."""
+    (lib.catalog.card_visuals). Both are keywords: each is a set of names, easily swapped. `planted` says the asset
+    stands in the ground (its generator's PLANTED): the terrain then covers the half-space below y = 0 as another
+    primitive would, so a primitive's surface there (a log's capsule cap, a brace's buried foot) is no invisible
+    wall (p1-l01-l03-pole-wires). Problems name the primitive or slot, the deviation and the tolerance; the lines
+    carry the measured numbers for every primitive, the mesh, every shell piece and slot and every gap, success or
+    not."""
     shapes = [_Shape(s) for s in meta["collision"]]
     shell_slots = {m["slot"] for m in meta["materials"] if m["physics"] in SHELL_MATERIALS}
     shells = [i for i, s in enumerate(meta["collision"]) if s["material"] in SHELL_MATERIALS]
@@ -107,6 +113,8 @@ def run(meta, lod0, *, soft=frozenset(), card_visuals=()):
     index = _FaceIndex(faces)
     zone = _zone(meta, shapes, soft)
     problems, lines = [], []
+    if planted:
+        lines.append("audit: planted, the ground covers every primitive below y = 0")
     for m in meta.get("micro", []):
         lines.append(f"audit: skipped micro mesh {m['name']} ({m['count']} {m['kind']})")
     soft_tops = [(i, s["material"]) for i, s in enumerate(meta["collision"]) if s["landable"] and s["material"] in soft]
@@ -120,6 +128,11 @@ def run(meta, lod0, *, soft=frozenset(), card_visuals=()):
             continue
         others = [shapes[j] for j in body if j != i]
         cells = [tri[:3] for tri in shape.triangles]
+        if planted:
+            cells = _above_ground(cells)
+            if not cells:
+                lines.append(f"audit collision[{i}] {shape.kind}: wholly below the ground, covered")
+                continue
 
         def value(v, others=others):
             d, which = index.nearest(v)
@@ -595,6 +608,19 @@ def _faces_bound(cell, which, faces):
             side_a, side_b = _clip(cell, shared[0], w)
             upper = min(upper, max([_face_distance(v, a) for v in side_a] + [_face_distance(v, b) for v in side_b]))
     return upper
+
+
+def _above_ground(cells):
+    """The parts of the cells at y >= 0, fanned into triangles (slivers of no area dropped): for a planted asset the
+    terrain covers the rest, and clipping first keeps the search from refining along the ground line."""
+    out = []
+    for cell in cells:
+        part, _ = _clip(cell, (0.0, 0.0, 0.0), UP)
+        for k in range(1, len(part) - 1):
+            tri = (part[0], part[k], part[k + 1])
+            if _dot(*(2 * [_cross(_sub(tri[1], tri[0]), _sub(tri[2], tri[0]))])) > 1e-24:
+                out.append(tri)
+    return out
 
 
 def _clip(cell, origin, normal):
