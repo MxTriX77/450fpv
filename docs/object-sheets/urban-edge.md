@@ -4,11 +4,11 @@
 
 **OPSEC:** cite clips and photos by letter only. Describe classes, never a specific identifiable building, place, date or person. No file names, and no OSD values. Every sign, name or lettering on these assets is **invented** (SEC-03): no text is ever copied from a reference or a research image.
 
-**Rows:** U01–U03 (urban edge, [asset-list.md](../asset-list.md) §7) and P01–P06 (village public buildings and infrastructure, §6). **Requirements:** AST-02, AST-04, AST-05, AST-06, REAL-01…05, SEC-01, SEC-02, SEC-03, PRC-06, PRC-09 · **Decisions:** D-013, D-024, D-028 · **Change:** `p1-object-sheets`, task 1.6.
+**Rows:** U01–U03 and U02b (urban edge, [asset-list.md](../asset-list.md) §7) and P01–P06 (village public buildings and infrastructure, §6). **Requirements:** AST-02, AST-04, AST-05, AST-06, REAL-01…05, SEC-01, SEC-02, SEC-03, PRC-06, PRC-09 · **Decisions:** D-013, D-024, D-028 · **Change:** `p1-object-sheets`, tasks 1.6 and 1.8 (U02b).
 
 ## How this sheet was made
 
-- **Letters read:** the two urban-edge photos I and K, each as a single still, plus local zoom crops kept in the ignored `reference/_frames/<letter>/zoom/`: in I the block's long facade and its near end at about 3.5×; in K the open floors, the roof line, the stacked balconies, the ground floor with its wall stub, the rubble mound, the concrete pieces in it and the ground in front. No clip shows any row of this sheet (terrain.md §9), so there are no contact sheets and **no feed check values**: the REAL-03 comparison for this group is a noclip view against the photo.
+- **Letters read:** the two urban-edge photos I and K, each as a single still, plus local zoom crops kept in the ignored `reference/_frames/<letter>/zoom/`: in I the block's long facade and its near end at about 3.5×, and the roof pile (U02b) at 2.5–5×; in K the open floors, the roof line, the stacked balconies, the ground floor with its wall stub, the rubble mound, the concrete pieces in it and the ground in front. No clip shows any row of this sheet (terrain.md §9), so there are no contact sheets and **no feed check values**: the REAL-03 comparison for this group is a noclip view against the photo.
 - **Reused, not re-measured:** terrain.md §4 B4 (the block: storeys, depth, length, sections, wall thickness, windows, damage kit, wake) and B5 (the mound: 2–4 m high, spreading 15–20 m, the K rubble colour #8d8172), B6 and T8 (fence, trampled ground), §6 S1, S3–S5 (cables, masonry debris, timber and tarps, household contents); knowledge.md §9.2 and §14.4 (rubble coloured from the building's own materials, windows are empty frames or broken glass, damage masks); the houses-and-yard sheet's shared construction (brick sizes, lintels, slate, blast thresholds, the failure order) and its drone-against-an-opening arithmetic; the earthworks-and-surfaces sheet's four geometry layers and its S10 `rubble` row, which leaves the piece mix to this sheet. Where this sheet gives a number terrain.md already gives, terrain.md is the source.
 - **Shared with `lines-roads-debris.md`** (task 1.4): the debris kit **K06** (concrete chunks with protruding rebar), **K08** (household items) and **K10** (fabric and cables hanging from ruins), and the cables of **L05**, are defined there; this sheet only says where the block uses them and how densely, and gives the block-specific bar sizes, which K06 now matches.
 - **Scale cues in the photos:** the storey (AST-04: 3.0–3.4 m for this block); in K the slab edges (one per storey), the cast-iron radiator under a window (about 0.5–0.6 m high, assumed), the room doors in the back walls (about 0.8 × 2.0 m), the wardrobes (about 2.0 m, assumed), the balcony rails (about 1.0 m, assumed); in I the window rows (one per storey) and the entrance canopies.
@@ -230,7 +230,7 @@ Each kit item, what it is physically:
 
 ### Placement rules (for the world)
 - **Exactly one, at the urban edge** (pilot, terrain.md B4, §10): on the edge of the largest of the three villages, toward the fields, long axis along the street, 20–40 m back from it, the entrance facade to the yard.
-- **Both reference views must fit:** the long facade needs 60–80 m of open yard and street in front for the I view, with H06 (one or two), Y04 (the lattice-topped fence), the roof pile (an H-row in its X state, see the handoff) and a rubble field between; the torn end needs 20–25 m of clear trampled ground (T8, S10 fines) in front of the mound for the K view.
+- **Both reference views must fit:** the long facade needs 60–80 m of open yard and street in front for the I view, with H06 (one or two), Y04 (the lattice-topped fence), the roof pile (U02b) and a rubble field between; the torn end needs 20–25 m of clear trampled ground (T8, S10 fines) in front of the mound for the K view.
 - **Neighbours:** the mound U02 at the torn end; the garage row U03 within 50–150 m; trees (bare in the reference season) along the yard; poles and wires (L rows) along the street; a transformer kiosk or pole transformer (P05) by the yard; abandoned vehicles (R rows) in the yard and street.
 - **Orientation:** the torn end faces open ground (the K view), the burnt sections face the yard (the I view). No wind constraint: the wind direction is a setting, and the wake follows it.
 
@@ -368,6 +368,169 @@ The block is built from a **section list**: each section is one stair cell with 
 
 ### Open points
 - Whether the mound's top faces use `surface:rubble` from the surface table or plain `masonry` on asset shapes is the physics engineer's call (the earthworks sheet leaves the same question for fillers).
+
+## U02b Collapsed timber roof pile (the roof of a house or wing fallen as one heap)
+
+**Seen in:** I (the pile in the middle of the view: a tangle of sawn roof timbers lying on a brick rubble core, one red-brick wall end still standing at its right side with a rafter leaning on its face, dark cavities under the timbers at the front toe, a few grey-green sheet pieces, a bent steel grid and a blue-green item in the brick at the front). Read on the single still plus local zooms at 2.5–5×; no clip shows it (terrain.md B5). The earlier states of the same failure (stripped roofs, rafters off the plate) are the houses sheet's E and J, not re-read here.
+**Research sources:** the houses sheet's shared construction (roof carpentry, tile and slate, the ceiling with its fill, the failure order) and its rubble rule; U02's bulking (1.86); the debris kit (K01–K04, K08, K10) and its spread; collapse patterns of timber and brick-and-joist buildings and the voids each leaves (pancake: pockets only where contents interrupt the stack; lean-to: one end still held, a triangular void; V-shape; A-frame or tent: held up in the middle, voids near the centre), from general rescue-training references: https://www.designingbuildings.co.uk/wiki/Types_of_collapse , https://emberly.fireengineering.com/firefighter-training/collapse-search-and-rescue-operations-tactics-and-procedures-7 .
+
+**How I was measured (derived, rough, about ±15 %):** one landscape still 800 px wide; a horizontal field of about 69° (assumed: a phone's 26 mm-equivalent main lens, the same lens K's 50° portrait field implies), so f ≈ 580 px; eye height 1.6 m (the REAL-02 row). The horizon sits at about 62 % of the frame height from the top, read off the block's left end: its five 3.0 m storeys, plinth and parapet span 43 % of the frame height there, so 1.6 m is 4 % of the frame at that distance, and the horizon lies that far above the block's foot. A point at image row y and distance d then stands H = 1.6 + (y_horizon − y) · d / f above the ground. The pile's front toe, behind the fence at 71–74 % of the frame height, comes out at 17–22 m, so its body centre is at about 24 m (22–26 m), inside the 20–30 m of the reference-view row.
+
+### Dimensions
+| Part | Range | Chosen default | Label |
+|---|---|---|---|
+| Source roof | a single-storey house of the H01–H04 classes (6–12 × 5–8 m), or a wing of one (4–6 × 4–6 m) | H03's defaults: 9 × 7 m, walls 0.38 m to 2.9 m on a 0.4 m plinth, pitch 27°, rafters at 1.0 m, battens at 0.5 m | houses sheet (H03); red brick from I (the wall end and the core) |
+| Heap body footprint | 6–11 × 5–9 m | 10 × 8 m | derived: the frame's plan, 9.8 × 7.8 m (H03's 9 × 7 m plus the shared 0.4 m overhangs), with the feet's spread and the rubble at its toe, rounded. Measured I: 11.8–13.9 m across the view, which a 10 × 8 m body shows when seen 30–45° to its long axis (10 cos θ + 8 sin θ = 12.7–12.8 m). The asset list's 6–10 m across holds |
+| Frame surface at the high end | 2.5–4.0 m | 3.2 m | measured I: 2.9–3.5 m (the frame's outline at 52–54 % of the frame height, at 22–26 m); derived: the standing wall end's top (3.0 m) plus the frame's depth (0.15–0.3 m) |
+| Member tips above the frame | 0.3–1.2 m | 0.8 m (tips to 4.0 m) | measured I: broken members pointing up to 3.8–4.4 m |
+| Frame at the low end | 0.8–2.0 m | 1.3 m | measured I: 1.1–1.7 m at the left end (rough) |
+| Flank slope | 10–35°, varying along the length | 30° at the high end, 10–15° at the low end | measured I: 20–35° on the projected outline (rough; a projected outline reads steeper than the true slope). Derived: rafters 3.9 m long falling from the ridge at 3.2 m to the eaves lines on the core at about 1.0 m: atan(2.2 / √(3.93² − 2.2²)) = 34° |
+| Standing wall end | 0–2 ends, 1–3 m long, to 0.6–1.0 of the wall height | 1 end, 2.0 m long, top at 3.0 m (0.9 of 2.9 + 0.4 m) | measured I: one red-brick end about 2.0 m long (1.9–2.2 m), its top at 2.9–3.2 m, its foot in rubble 0.4–0.6 m deep, the top broken and rounded |
+| Wall stubs elsewhere | 0–1.5 m | 0.5 m | assumed (the houses X state's 0.5–1.5 m; none shows in I above the rubble) |
+| Masonry core | 0.3–1.5 m deep | 0.7 m mean; 1.0–1.4 m along the wall lines, 0.4–0.6 m mid-house | derived: about 21 m³ of brick removed from H03's walls (30.5 m of wall × 0.38 m × 2.4 m above the stubs, less 4.9 m³ of openings and the 1.8 m³ standing end) × 1.86 = 40 m³, plus the ceiling layer (51 m² × 0.2 m fill + 4.1 m³ of joists and boards = 14 m³): 54 m³ over 80 m² |
+| Timber in the heap | 5–9 m³ | 6.6 m³ | derived from H03's defaults: rafters 20 × 4.3 m × 0.015 m² = 1.3; battens 173 m × 0.0025 m² = 0.4; plates, ridge and collar ties 0.8; ceiling joists 2.5; ceiling boards 1.6 |
+| Void fraction of the timber tangle | 0.85–0.95 | 0.9 | derived: 6.6 m³ of timber through a tangle about 1 m thick over the 80 m² body: 1 − 6.6 / 80 = 0.92 |
+| Members | rafters 100 × 150 mm or round 0.10–0.16 m, 1–4.3 m; battens 50 × 50 mm, 0.3–4 m; plates 150 × 150 mm; ceiling joists 150 × 200 mm; boards 25–40 × 100–200 mm | as K03 | K03; houses sheet |
+| Cavities under the frame | 0.5–2 m wide, 0.3–0.9 m high, 1–3 m deep | 2 cavities, 1.4 × 0.5 m, 1.5 m deep | measured I: a dark cavity about 1.4 × 0.5 m at the front toe (rough); depth assumed |
+| Openings between crossed members | 0.1–0.6 m | — | measured I: dark gaps of 0.2–0.6 m over the whole frame (rough) |
+| Pitfall voids in the core | 0.3–1.0 m across, 0.2–0.8 m deep | 1 per 8 m² | as U02 (assumed) |
+| Scatter beyond the toe | per class, the debris kit's λ | tile shards λ 1 m, bricks 1.5 m, timber 2 m, slate 4 m, sheet 6 m | lines-roads-debris "Shared: the debris kit" |
+
+### Construction and materials
+- **What fell, layer by layer** (the source house's own parts, so nothing is invented for the pile):
+  - **floor and wall stubs:** the house's floor and the wall lines cut down to `wall_stub_h`, one wall end standing (I) with a broken, stepped top;
+  - **the masonry core:** the walls' brick (or adobe) fallen in and out, thickest along the wall lines, with the broken lintels as K06 pieces (bars 8–12 mm, the houses sheet), whole and halved bricks and clusters (K01), and the stove or chimney stump mid-house; S10 fines between;
+  - **the ceiling:** joists and boards down on the floor and the core, split, with the 0.15–0.25 m clay-straw or slag fill spilled as a crumbly layer (houses sheet, shared section); contents (K08) crushed under it and propping pockets;
+  - **the roof frame on top:** rafter pairs still joined at the ridge and by their collar ties over part of the length, wall plates lying along the old wall lines, battens still nailed in part of the spans, rafters snapped at mid-span or at the collar with splintered ends, some springing up out of the heap (I: tips to about 4 m);
+  - **the cover:** mostly not on the pile. Slate shatters and tiles slide before and during the drop (houses sheet, steps 2 and 6), so the cover lies in the fields around by the kit's λ; a few clusters stay on the battens at the low eaves, and whole or half slate sheets lie across the frame. I shows almost no cover on the pile: a few grey-green sheet pieces whose kind is not resolved at this size.
+- **Materials** (the K-kit candidates, CC0):
+  - frame timber: Poly Haven `rough_wood`, `raw_plank_wall`, `weathered_brown_planks`, `old_planks_02`, `roof_planks` ( https://polyhaven.com/a/rough_wood , https://polyhaven.com/a/raw_plank_wall , https://polyhaven.com/a/weathered_brown_planks , https://polyhaven.com/a/old_planks_02 , https://polyhaven.com/a/roof_planks ), as K03. The faces that were inside the roof are tinted aged pine (#a98762, below); the faces that were outside (rafter tails, gable boards) the K03 weathered grey
+  - brick: manifest `red_brick` (pinned) for red brick, Poly Haven `white_bricks` for silicate ( https://polyhaven.com/a/white_bricks ), as K01; adobe as H01
+  - ceiling fill: Poly Haven `brown_mud_dry` ( https://polyhaven.com/a/brown_mud_dry ) tinted to the clay render #97754f (houses sheet), or grey for slag
+  - tile: Poly Haven `clay_roof_tiles_02` ( https://polyhaven.com/a/clay_roof_tiles_02 ); slate: `concrete_wall_003` tinted #736767 ( https://polyhaven.com/a/concrete_wall_003 ), as K02
+  - sheet metal: Poly Haven `corrugated_iron`, `rusty_corrugated_iron`, `rusty_metal_sheet` ( https://polyhaven.com/a/corrugated_iron , https://polyhaven.com/a/rusty_corrugated_iron , https://polyhaven.com/a/rusty_metal_sheet ), as K04
+  - fines: S10 (`concrete_debris`, ambientCG `Ground111`, `Ground107`)
+  - **Derived:** grain along each member in asset space; K03's fracture-end map and char mask; the standing wall end takes the source house's facade map (upright and continuous) and damage mask.
+
+### Colour
+| Surface | Photo albedo (sRGB) | Feed check value (sRGB) | Source |
+|---|---|---|---|
+| Sawn faces that were inside the roof, lit | read #ae8555; author about #a98762 | — (photos only) | measured I; the read corrected for the warm low sun by the ratio U01's lit render needs (read about #dcca9f, authored #d6cdb8) |
+| Timber in shade | read #3d3834–#493a30; author the K03 weathered grey #8a8478 on outside faces, #a98762 on inside faces | — | measured I (blue shade); K03 |
+| Fresh breaks | #b09a78 | — | K03 (assumed) |
+| Charred (`burnt` only) | #2a2622 | — | K03 (assumed) |
+| Red-brick wall end, shade face | read #2d2426; author as `red_brick` | — | measured I |
+| Brick core at the front, part lit | read #514b4f; author as the source house's brick | — | measured I |
+| Cavities under the frame | read #0d0e11 | — | measured I (a check for the side-by-side, not a texture) |
+| Pile overall, voids included | read #4e453f | — | measured I; the houses sheet's read of a part-lit region of the same pile is #5c4f43 |
+
+### Variants and states
+- **Cover, from the source preset:** tile (H01: battens 0.33 m, shards heaped at the eaves lines at λ 1 m, a few clusters left at the low eaves); slate (H02, H03: battens 0.5–0.58 m, fragments fanned at λ 4 m, whole and half sheets lying across the frame); sheet metal (H04: sheets torn and folded over the frame, K04).
+- **With or without sheet-metal fragments:** `sheet_fragments` 0 (I, the default) or 3–12 K04 pieces over the frame and around it: torn, folded, from the roof itself or from a porch or shed roof nearby.
+- **One wing or a whole house:** `extent` whole (I, 10 × 8 m) or wing (a 4–6 × 4–6 m annex or house end; its body about 6–7 × 5–6 m, its high end at most 2.5–3 m).
+- **Collapse pattern (`pattern`):** lean-to (I: one end held up by the standing wall end, the other down on the core); A-frame (the ridge held mid-house by the stove or an interior wall stump at 1.0–1.5 m, both slopes down to the eaves lines); V-shape (the middle down, both ends held at 1.5–3 m); pancake (nothing standing: the frame flat on the core, 1.0–1.5 m high, below the asset list's 3–4 m, so not the default).
+- **Wall material:** brick (stepped wall end, brick core, K01 and K06) or adobe (a crumbled wall end, adobe blocks and clay in the core, #7d6146).
+- **States:** none; the pile is the end state past a house's X. It has no `damage` dial: its pose comes from the collapse parameters. Weathering: fresh (pale breaks, dust) or settled (grey timber, weeds through the core); `burnt` on either.
+
+### Damage pattern
+How a roof comes down as one heap, in order (the houses sheet's failure order, with the collapse patterns above):
+1. **The cover goes first:** slate shatters and tiles slide, so most of it lands around the house, not in the pile.
+2. **The walls fail** out of plane or lose their heads; the wall plates lose their bearing and **the frame drops as a unit**. A nailed lattice of rafters, battens and collar ties is stiff in its own plane, so it holds together.
+3. **Where something still stands, the frame hangs on it:** a wall end gives a lean-to (I); the stove or an interior wall gives an A-frame; the end walls give a V; with nothing standing it pancakes.
+4. **On impact:** the rafter feet slide out on the rubble (`rafter_spread`); rafters snap at mid-span or at the collar with long splinters (K03); battens break in 30–60 % of the spans; broken members spring up out of the heap (I).
+5. **Under it:** the ceiling comes down first or with it, the fill spills, and the contents are crushed into pockets that become the voids (the pancake pattern's pockets).
+6. **The walls' brick** lands in and out: the core, with lintels broken and their bars out (K06).
+- **What lies around:** the debris kit's spread from the house's walls, exp(−d / λ) per class (tile shards 1 m, bricks 1.5 m, timber 2 m, slate 4 m, sheet 6 m), 1.5–2 times wider on the side away from the burst, coloured from the house's own materials. Cables from the house's services hang over the frame (K10, L05).
+
+### Physics role
+- **Collision** (±2 cm on landable faces and around gap polygons, ±5 cm elsewhere):
+  - **the core:** 4–8 oriented boxes following its slopes (a few convex primitives), with the voids left open (U02's rule, never filled); pieces of 0.3 m and larger (K01 clusters, K06 lintels, the stove stump) are their own boxes; small pieces use the kit's own collision;
+  - **the standing wall end:** 1–3 boxes, stepped per 1–3 courses at its broken top (U01's breach rule);
+  - **the frame's members as capsules with their real section:** a 100 × 150 mm rafter r 0.065 m (within ±15 mm of its faces); a round rafter its own radius, 0.05–0.08 m; a 50 × 50 mm batten r 0.028 m; a 150 × 150 mm plate r 0.085 m; a broken member 1–3 segments; splinters 10 mm thick and over as capsules (K03). Capsules are the cheap, robust primitive for many crossing long members. The visual stays sawn and square.
+  - **boards and board panels:** thin boxes (K03: a capsule cannot hold a 150 mm wide board);
+  - **cover remnants:** thin boxes over the wave envelope (slate, K02; sheet, K04), tile clusters as thin boxes in rows (H01);
+  - **contents** (K08) and **cables** (K10) with the kit's own shapes;
+  - **budget (derived):** 20 rafters × 1–3 segments plus 20–60 batten pieces, the plates, ridge, collar ties and exposed joists give 60–150 capsules and 20–60 boxes, below a tree's 150–300 capsules (vegetation sheet).
+- **Material ids:** frame, boards, ceiling joists: `timber`; core, wall end, tile remnants: `masonry` (whether the core's top faces carry `surface:rubble` is the physics engineer's call, as U02); slate: `proposed:asbestos_cement` (fallback `masonry`, as H02); sheet remnants and fragments: `sheet_metal`; lintel pieces: `concrete` with `steel` bars; cables: `cable`; contents per K08 (`timber`, `steel`, `proposed:fabric`, `proposed:plastic`). The ceiling fill is part of the core boxes (`masonry` until `soil` exists, the houses and earthworks proposal).
+- **Gaps** (each written as the real clear polygon; the drone as in "The drone against an opening"):
+
+  | Opening | Narrowest clear width | Passes? |
+  |---|---|---|
+  | Rafter bay in a frame plane, battens gone | 0.74–1.1 m (rafters at 0.9–1.2 m less 0.10–0.16 m; 0.84–0.90 m at H03's 1.0 m) | in plan any yaw (≥ 0.706 m); it opens into the cavity under the plane, 0.3–2 m deep: **fly-in, no through-route** |
+  | Rafter bay with its battens in place | tile 0.25–0.35 m; slate 0.45–0.70 m (0.45 m at H03's 0.5 m) | **no** for tile and for slate below 0.574 m; slate battens at 0.65–0.75 m: nose-first only (U01's rule) |
+  | Openings between crossed members | 0.1–0.6 m (I: 0.2–0.6 m) | **no**; left to collision, not written as gaps |
+  | Lean-to mouth at the high end, gable-ended source | a triangle about 6.5 m wide at the core and 2 m high, less the wall end and the members across it (the open triangle's inscribed circle is 1.8 m) | where the polygon admits 0.574 × 0.55 m; **dead-ended** toward the low end. A hip-ended source closes this end with the hip's rafter bays (as above) |
+  | Cavity at the frame's edge | 0.5–2 × 0.3–0.9 m (I: about 1.4 × 0.5 m at the front toe) | **no** below 0.55 m high (I's); a mouth 0.6–0.9 m high admits the drone, **fly-in only**, dead-ended 1–3 m in |
+  | Through-route under the frame | none in the default heap (I shows none: the far side is the core and the wall end) | the generator writes one only if its cavities happen to join; the gap probe then judges it |
+
+- **Pitfalls (the asset list's "voids"):** open cavities in collision, never written as gaps or tags. A leg on the frame drops between two members to the next member or the core, 0.1–0.9 m lower (derived from the frame's depth and the cavities). A leg on the core drops 0.2–0.8 m into a 0.3–1.0 m void, as U02.
+- **Wind volumes:** the frame as 1–3 porous volumes following its envelope, porosity 0.6–0.8 (default 0.7). Derived: one battened plane is 0.77 open (battens 50 mm in 0.33 m block 15 %, rafters 0.10 m in 1.0 m block 10 %, 0.85 × 0.90), two crossing layers 0.59, and with most battens gone about 0.85. Cover clusters and sheet pieces of 1 m² and more are solid parts (K04's rule). The core and the wall end are solid (0). The flow through and under the frame is the solver's result from these volumes, not a tag (the buildability review's convention 5).
+- **Snag hazards** (the asset list's rafters, battens and sheet; records as the review's convention 4, never "the whole pile"):
+  - an `edge` along each exposed member: rafters, battens, plates, collar ties and joists, at the timber arris (2 mm) for sawn members or their own radius for round ones. Exposed means at least 30 % of its length is visible from outside the heap (the generator's ray test from above and the sides), so buried members carry none;
+  - a `hook` from base to tip on every free end pointing out of the heap: tips up, rafter tails, splinters (radius half their thickness, K03), nails 20–80 mm proud on exposed members (1.75 mm, K03);
+  - sheet metal: an `edge` along every cut and torn edge at 0.3 mm, **which cuts the fiber** (K04); petals and torn corners are `hook`s;
+  - slate rims are `edge`s at 3 mm and tile rims at 2 mm (K02); the wall end's broken top and steps are `edge`s at 2 mm (K01 clusters); hanging cables per K10 and L05;
+  - **budget (derived):** 40–120 `edge` and 10–40 `hook` records.
+- **Landable surfaces:**
+  - **no:** members, battened planes and tips. Members are 0.05–0.16 m wide, and the 0.24 m leg square needs at least 0.35 × 0.35 m within 15° (the debris kit's rule). Also no: the wall end's top (0.38 m wide, but broken and rounded in I).
+  - **yes, set from the resting pose by the kit's rule:** a deck of 0.35 × 0.35 m or more within 15°, made by a board panel, a run of ceiling boards, slate sheets on battens or a flat sheet piece. It is uneven and springy, and slate may crack (a later material property). Such decks occur at a lean-to's low end and on a pancake. In I the low end reads as a flatter layer of boards 1.2–1.6 m up; whether it is a continuous deck is not resolved at this size.
+  - **yes, with tilt:** the core's flat faces, as U02.
+
+### Placement rules (for the world)
+- **On the plot and footprint of the house whose roof it was.** That plot's H-row instance is replaced by a U02b with `source` set to the row's preset, so its size, cover and brick match its neighbours. The yard set stays: fences, gate, sheds, cellar, trees.
+- **Orientation:** as the source house, long axis along the street (the houses rule). A lean-to's high end is at the standing wall end. The scatter is wider on the side away from `burst_dir`.
+- **In the I composition:** centre of the view at 22–26 m from the viewpoint, its high end and wall end toward the two-storey house (H06) and about 3–6 m from it, the lattice-topped fence (Y04) in front of its left half, the block (U01) 60–80 m behind it (measured I, rough).
+- **In the villages:** on X plots among D and X houses. How often a destroyed plot shows a pile rather than an H-row in X is the world-builder's layout call; one in three to five is assumed until G3's world review.
+
+### Generator parameters
+**A new, thin `roof_pile` generator, not a U02 variant and not a house-generator state.**
+- **Why not U02:** U02 builds a mound of loose pieces with no linked structure. The pile's defining part is the frame: rafters still joined at the ridge, battens nailed on, an end hanging on a wall. That is the house generator's carpentry.
+- **Why not the house's X state:** the damage dial edits a standing house (walls cut to 0.5–1.5 m, rafters across them). The pile is the next step, where the walls are down and the roof came down as a unit, so it needs a collapse pose the dial does not have. It also has its own ID, catalog entry, review sheet and place in the I composition.
+- **So `roof_pile` composes, and builds nothing new but the collapse:**
+  1. the house generator's roof and wall builders at the source preset's params, so timber sizes, pitches, covers and materials match H01–H04 exactly;
+  2. a deterministic, seeded collapse transform (no physics simulation): support, spread, breaks, tips;
+  3. U02's core builder for the masonry core and its voids;
+  4. the K kit for the loose pieces and their exp(−d / λ) scatter.
+- Every random choice comes from `seed`; the same params give the same heap.
+
+| Param | Type | Range | Default | Effect |
+|---|---|---|---|---|
+| `source` | preset id | H01–H04 presets | H03 | Loads the source house's `length`, `width`, `wall_height`, `wall_thickness`, `wall_material`, `roof_type_*`, `roof_pitch`, `roof_cover`, `rafter_pitch`, `batten_pitch`, `eaves_overhang`; any can be overridden here |
+| `extent` | enum | whole, wing | whole | wing builds the roof of a 4–6 × 4–6 m annex or house end only |
+| `wing_length` | m | 4–6 | 5 | The wing's length along the ridge when `extent` is wing |
+| `pattern` | enum | lean_to, a_frame, v_shape, pancake | lean_to | What holds the frame up: one end on a standing wall end (I), the middle on the stove or an interior wall stump, both ends with the middle down, or nothing. Sets the pose and where the large voids are |
+| `standing_wall_ends` | int | 0–2 | 1 | Wall ends left standing (gable or corner piers); lean_to needs 1, v_shape 2 |
+| `standing_wall_len` | m | 1–3 | 2.0 | Length of each standing end |
+| `standing_wall_h` | × wall height plus plinth | 0.6–1.0 | 0.9 | Its height (3.0 m for H03); the lean-to's high end rests on it; the top is broken, stepped over 1–3 courses |
+| `mid_support_h` | m | 0.8–1.5 | 1.2 | Height of the stove or interior-wall stump under the ridge in a_frame; ignored otherwise |
+| `wall_stub_h` | m | 0–1.5 | 0.5 | Height left of the other wall lines |
+| `fall_bias` | −1–1 | −1 to 1 | 0.2 | Share of the walls' brick falling outboard (+1) or inboard (−1): outboard widens the toe, inboard fills under the frame |
+| `rubble_volume` | m³ | 10–120 | removed solid × 1.86 (40 for H03) | The masonry core's volume, laid by U02's core builder (the houses rule) |
+| `ceiling` | enum | boards_clay, boards_slag, none | boards_clay | The ceiling layer under the frame: joists, boards and a 0.15–0.25 m fill as a crumbly layer |
+| `rafter_spread` | m | 0–1.0 | 0.3 | How far the rafter feet slide out past the plate line; with the rafter length fixed, the rise over a support follows as √(L² − (b + spread)²) |
+| `ridge_breaks` | int | 0–3 | 1 | Breaks along the ridge; v_shape needs at least 1 mid-length |
+| `rafters_broken` | 0–1 | 0–0.8 | 0.4 | Fraction of rafters snapped at mid-span, at the collar or at the foot, with K03 splinter ends |
+| `tips_up` | int | 0–8 | 4 | Broken members springing up 30–70° out of the frame, 0.3–1.2 m above it (I) |
+| `batten_keep` | 0–1 | 0–0.8 | 0.4 | Fraction of batten spans still nailed; the broken ones irregular, never a grid |
+| `cover_keep` | 0–1 | 0–0.5 | 0.05 | Fraction of the cover still on the battens, clustered at the low eaves; the rest goes to the scatter |
+| `sheet_fragments` | int | 0–12 | 0 | K04 pieces folded over the frame and lying around it |
+| `cavities` | int | 0–4 | 2 | Cavity mouths kept open under the frame's edges (I: one at the front toe) |
+| `cavity_size` | {w, h, depth} m | 0.5–2, 0.3–0.9, 1–3 | 1.4, 0.5, 1.5 | Cavity mouth and depth; a mouth over 0.55 m high becomes a fly-in gap |
+| `void_density`, `void_size` | /m², m | 0–0.25, 0.3–1.0 | 0.12, 0.6 | Pitfall voids in the core, as U02 |
+| `contents` | 0–1 | 0–1 | 0.3 | K08 items under and in the heap; each props a pocket |
+| `hanging_cables` | int | 0–3 | 1 | Service cables over the frame (K10, L05) |
+| `burst_dir` | deg | 0–360 | seeded | The side the scatter favours, 1.5–2 times wider away from the burst (the debris kit) |
+| `burnt` | 0–1 | 0–1 | 0 | Char on the frame; at 1 the members are burnt to short pieces 0.2–1.5 m with an ash layer on the core (houses step 7) |
+| `weathering` | 0–1 | 0–1 | 0.3 | Fresh pale breaks and dust (0), or grey timber and weeds through the core (1) |
+| `seed` | int | — | — | Every random choice above |
+
+### Open points
+- **Size from I depends on the assumed lens and horizon** (±15 %). Settled at the I side-by-side: the pile's silhouette against the block and its height against the two-storey house are the check. Not a pilot question.
+- **The cover:** I shows almost none on the pile, and the grey-green pieces are not resolved (slate or painted sheet). The default H03 slate with `cover_keep` 0.05 matches the look; settled at the side-by-side.
+- **Capsules for the frame against K03's boxes for loose sawn pieces:** the frame uses capsules (this row's choice, within AST-05's tolerance). The physics engineer confirms that a leg on a capsule rafter, which slides off where a flat face would hold, is acceptable for a heap that is not landable anyway.
+- **Ids:** `proposed:asbestos_cement`, `fabric`, `plastic`, `soil`, and `surface:rubble` on the core's top faces, all already proposed (the buildability review's list).
+- **Static in phase 1:** members that would roll or shift under a leg are static catalog geometry, as K03. Runtime objects come later (the physics engineer and the world-builder).
+- **How often a destroyed plot shows a pile:** the world-builder's layout call (assumed one in three to five).
 
 ## U03 Row of garages (cooperative), damaged
 
@@ -836,7 +999,7 @@ The block is built from a **section list**: each section is one stair cell with 
 
 **For the orchestrator:**
 - **Asset-list §7, U01 eaves (resolved):** the asset list now reads 16–19 m to the eaves.
-- **The I roof pile:** the asset list now has it as U02b (P2), but no sheet has a U02b section yet (buildability review: sent back to a reference-analyst task, from I). The houses generator's X state (roof down on the floor, walls collapsed) and K03's timbers can build it once it has its dimensions.
+- **The I roof pile (resolved):** U02b now has its section (task 1.8). It is a thin `roof_pile` generator that composes the house generator's roof and wall builders, a seeded collapse transform, U02's core builder and the debris kit.
 - **K10, K06 and L05 (checked):** L05's cables (3–15 mm, diagonals to 6.5 m) cover this sheet's 5–10 mm cables across the open bays; K06's bars are now 5–14 mm, matching the slab bars here; lintel bars are 8–12 mm as the houses sheet gives, balcony bars 10–12 mm.
 
 **Settled by side-by-side or by the asset-artist, not by the pilot:** the window proportion and the roof silhouette in I, the dab interpretation in K, the storey height within AST-04's range, the P02 span and length, the P03 tank diameter. **No pilot question** comes out of this sheet: sizes are published, derived or measured, and P01–P06 and U03 are R rows the pilot sees at G2 like every other R row.

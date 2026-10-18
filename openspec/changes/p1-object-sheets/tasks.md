@@ -9,7 +9,7 @@
 - [x] 1.5 [reference-analyst] `docs/object-sheets/vehicles.md` (R01–R09, K07), from M, N, O plus published specs; same checks, plus the A/B/F state kits and debris fields
 - [x] 1.6 [reference-analyst] `docs/object-sheets/urban-edge.md` (U01–U03, P01–P06), from I, K plus research; same checks, plus the block's damage kit and rebar
 - [x] 1.7 [asset-artist] Buildability review of all six sheets, written to `openspec/changes/p1-object-sheets/review-buildability.md`; sheets fixed where sent back; verify every generator table has ranges and effects
-- [ ] 1.8 [reference-analyst] Add the U02b row (collapsed timber roof pile, letter I) to `docs/object-sheets/urban-edge.md` with every template section, consistent with U02 and the debris kit; verify the coverage check passes for every ID in asset-list §1–10 and the commit passes the hooks
+- [x] 1.8 [reference-analyst] Add the U02b row (collapsed timber roof pile, letter I) to `docs/object-sheets/urban-edge.md` with every template section, consistent with U02 and the debris kit; verify the coverage check passes for every ID in asset-list §1–10 and the commit passes the hooks
 
 ## 2. Review
 
