@@ -1211,7 +1211,7 @@ Preset: `base_sets` concrete_debris + Ground111; `albedo_target` #8d8172; `cover
 - Worn (default), cracked and potholed (damage level), wet (D-021: a sheen, darker, μ 0.50/0.40), dusty near fields.
 
 ### Damage pattern
-- Potholes, crater holes with broken plates of asphalt (R01), fragment scars (texture only: under 1–2 cm, no physical role), burnt patches under wrecks (2–6 m, terrain.md R0).
+- Potholes, crater holes with broken plates of asphalt (RD01), fragment scars (texture only: under 1–2 cm, no physical role), burnt patches under wrecks (2–6 m, terrain.md R0).
 
 ### Physics role
 - **Proposed row `asphalt`** (physics sign-off): bearing 1.0e8, damping 2.4e5, μ 0.65/0.55 dry (assumed: hard polymer on coarse aggregate, as `masonry`), max sink 0.001 m, unload 1.5, micro-relief none (aggregate is below 1–2 cm), pitfalls as potholes 0.002–0.02 /m² by damage, 0.025–0.1 m deep, r 0.1–0.75 m; cover: dust (μ 0.55/0.45 where the dust mask is set), glass crumbs near wrecks (a slippery layer, μ 0.30/0.20, assumed). Dust 0.1. Foot 17.7 kN/m, 1.4 mm: hard bounce set by the leg (derived, the stability bound). The row matches the terrain.md §8 proposal (rigid, slides on glass crumbs).
@@ -1242,12 +1242,12 @@ Preset: `base_sets` road_damaged + asphalt_02; `albedo_target` #616161; `patch_m
 | track | one row lengthwise (2 m) or two rows side by side (4 m) | 2 rows | assumed (PR-8 "tracks") |
 | joints | 0.02–0.15 m, weeds in them | 0.05 m | assumed |
 | edge steps between plates | 0–0.08 m | 0.02 m | assumed (settlement) |
-| plate tilt | 0–3° | 1° | assumed (R02 "tilt") |
+| plate tilt | 0–3° | 1° | assumed (RD02 "tilt") |
 | riffled top | at least 1.5 mm deep | — | published; normal map only |
 | spalled corners | 0.1–0.4 m | 1 per 3 plates | assumed |
 
 ### Construction and materials
-- Precast plates laid on the field soil end to end, settling unevenly; joints fill with soil and weeds; soil, straw and mud tracked onto them from the fields; dark lichen and mud stains; corners spalled. The plates themselves (geometry, collision, gaps, tilt) are R02 (task 1.4); this row is their surface material and the ground of the joints.
+- Precast plates laid on the field soil end to end, settling unevenly; joints fill with soil and weeds; soil, straw and mud tracked onto them from the fields; dark lichen and mud stains; corners spalled. The plates themselves (geometry, collision, gaps, tilt) are RD02 (task 1.4); this row is their surface material and the ground of the joints.
 - **Materials:** Poly Haven `worn_concrete_floor`, `concrete_floor_worn_001`, `cracked_concrete`; a derived riffle normal map (under 2 mm), stain and mud masks.
 
 ### Colour
@@ -1260,10 +1260,10 @@ Preset: `base_sets` road_damaged + asphalt_02; `albedo_target` #616161; `patch_m
 - Weathered (default), muddy (soil carried on), wet (darker, μ 0.45/0.38).
 
 ### Damage pattern
-- Cracked and spalled plates, a plate tipped or broken by a hit (R02), a crater beside the track.
+- Cracked and spalled plates, a plate tipped or broken by a hit (RD02), a crater beside the track.
 
 ### Physics role
-- **Plates** are R02 objects: boxes with `concrete` (μ 0.60/0.50, 3 mm arris), landable flags on their tops, the joints and steps real geometry.
+- **Plates** are RD02 objects: boxes with `concrete` (μ 0.60/0.50, 3 mm arris), landable flags on their tops, the joints and steps real geometry.
 - **Proposed row `concrete_slab`** (for terrain cells under or flush with plates, so a sample at a joint or a plate end reads hard ground): bearing 1.0e8, damping 2.4e5, μ 0.60/0.50, max sink 0.001 m, unload 1.5, no relief, no pitfalls; cover: soil and straw tracked on (μ 0.50/0.40 under the mud mask). Dust 0.2.
 - **Snag:** none. **Landable:** yes, hard and flat, a step or tilt at the joints.
 
@@ -1320,7 +1320,7 @@ Preset: `base_sets` worn_concrete_floor + cracked_concrete; `albedo_target` #9a9
 - Median and verge stems from the meadow generator at 200 /m² and flattened; pebbles and clods 1–5 cm in the ruts (visual).
 
 ### Placement rules
-- Along belts, across fields, into villages; the R03 rut kit (task 1.4) lays them; verges feather 0.3–1 m into meadow, tilled or stubble.
+- Along belts, across fields, into villages; the RD03 rut kit (task 1.4) lays them; verges feather 0.3–1 m into meadow, tilled or stubble.
 
 ### Generator parameters
 Preset: `base_sets` grass_path_2 + dry_mud_field_001; `albedo_target` #857a6b; `directional` along the track; `patch_mask` median 0.3, ruts 0.25; `cover_channels` grass 0.5 (median and verges only).

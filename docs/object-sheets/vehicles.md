@@ -13,7 +13,7 @@
 - **Scale cues in the photos:** M: the wheel (165/80R13, Ø 0.594 m, derived from the published tyre size below), the classic sedan's published wheelbase 2.424 m and its headlamp ring (about 0.18 m, assumed). N: the alloy wheel (a 14-inch fitment, Ø about 0.58 m, assumed) and the door length. O: the heavy truck's published track 2.0 m and its wheel (Ø about 1.14 m, derived).
 - **Labels:** every number is **measured** (from a letter), **published** (with its source), **derived** (with the derivation) or **assumed**. Published model data come from encyclopedia and manufacturer-type pages; where two sources disagree both are given.
 - **Colours:** the photos M, N and O are the only references, so every measured colour is a `photo` value (mean sRGB of a hand-picked region, closer to albedo than the feed). There is **no feed check value** for any vehicle: no clip shows one. The REAL-03 comparison for this group is therefore a noclip view against the photo, not a feed frame.
-- **IDs:** the asset list uses R01–R03 twice (the vehicles here, and the road kit in the lines-roads-debris sheet). This sheet's headings are the vehicles; see Open points.
+- **IDs:** the road kit was renamed RD01–RD03 by the orchestrator, so R01–R09 are the vehicles only. This sheet's headings are the vehicles; see Open points.
 
 ### Research used across the group (published)
 
@@ -892,7 +892,7 @@ Driven by the vehicle's `debris_radius`, `debris_count`, `crumb_cover`, `burst_d
 - Glass breakability (a crazed windscreen giving way under a leg, a shard in a frame snapping) stays a later property, as review P3-6 says.
 
 **For the orchestrator:**
-- **ID collision:** the asset list numbers the vehicles R01–R09 and the road kit R01–R03, so the spec's coverage scenario ("every ID appears exactly once") can't pass as written. Renaming one group (for example the roads to a new prefix) is an asset-list change, not this sheet's.
+- **ID collision (resolved by the orchestrator):** the road kit is now RD01–RD03 in the asset list; R01–R09 are the vehicles only.
 - **R06 size:** the published Chery Amulet is 4.393 × 1.682 × 1.424 m, not the asset list's 4.27 × 1.69 × 1.45 m.
 - **R09 gaps:** the burnt or bare-bow Урал has fly-through openings of 0.83 m and more (side bays, rear, top); asset-list §9's "no gaps" should read "no gaps for cars; the bare-bow cage of R09 has gaps".
 - **Fragment holes in collision:** holes ≤ 0.25 m stay closed in the collision (shared Geometry rule); this is a deliberate deviation from "collision follows the visual" and needs the physics engineer's sign-off.

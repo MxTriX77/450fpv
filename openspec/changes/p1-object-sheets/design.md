@@ -12,7 +12,7 @@
    | `earthworks-and-surfaces.md` | E01–E07, S01–S13 | A, B, F, G, H, L, P |
    | `vehicles.md` | R01–R09 (vehicles), K07 | M, N, O |
    | `urban-edge.md` | U01–U03, P01–P06 | I, K |
-   | `lines-roads-debris.md` | L01–L05, R01–R03 (roads), K01–K06, K08–K10 | C, D, E, H, J, K, L, M, O |
+   | `lines-roads-debris.md` | L01–L05, RD01–RD03 (roads), K01–K06, K08–K10 | C, D, E, H, J, K, L, M, O |
 2. **Stills:** each analyst re-extracts its letters with `extract_frames.py` at 1 fps (clips) and tiles 24-still contact sheets with `contact_sheet.py`; photos are read as single stills. Reading happens only inside the subagent; nothing from `reference/` is copied anywhere else.
 3. **The letter map** (letter → clip) is kept only in `reference/_frames/letters.md` (ignored). An analyst that needs it reads it there; one that finds it missing rebuilds it from the descriptions in knowledge.md §9.1 and writes it there.
 4. **Reuse before re-deriving:** terrain.md sizes, colours and the surface table are cited, not re-measured, unless a still shows something the note lacks.
