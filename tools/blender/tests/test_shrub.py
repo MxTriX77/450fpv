@@ -1,10 +1,10 @@
 """generators.shrub with lib.skeleton, lib.cards and lib.shell (p1-v13-shrub, "V13 belt understory shrub"): the
 committed params conform and the defaults are V13_mid; the built sizes sit inside the sheet; LOD triangle counts
-under budget and halving; every stem segment a bark capsule on its chord with a hook of half the base diameter; the
-twig shell as at most 24 twig spheres and capsules; one wind box at porosity 0.35; no gap, nothing landable; the
-skeleton's radii, tubes and normals; card UVs inside the atlas cells, the far cards over the whole atlas; sprig
-cards leaving their twig at the fork angle; determinism per seed; check's refusals; the low variant through the
-collision audit, and V13_mid's first, single sphere failing its standoff."""
+under budget and halving; every stem segment a bark capsule on its chord; the twig shell as at most 24 twig spheres
+and capsules; a snag record per capsule segment and per twig (review-physics PR3, PR4); one wind box at porosity
+0.35; no gap, nothing landable; the skeleton's radii, tubes and normals; card UVs inside the atlas cells, the
+far cards over the whole atlas; sprig cards leaving their twig at the fork angle; determinism per seed; check's
+refusals; the low variant through the collision audit, and V13_mid's first, single sphere failing its standoff."""
 import copy
 import json
 import math
@@ -90,6 +90,19 @@ def flat(points):
     return [c for p in points for c in p]
 
 
+def twig_tubes(mesh):
+    """(p0, p1, r0, r1) of every twig tube in build order, read off its LOD0 faces: TWIG_SIDES quads a tube, each
+    [ring0 j, ring0 k, ring1 k, ring1 j], whose rings centre on the axis."""
+    faces = [indices for indices, _, _, slot in mesh.faces if slot == "twig"]
+    tubes = []
+    for t in range(0, len(faces), skeleton.TWIG_SIDES):
+        rings = [[mesh.vertices[q[0]] for q in faces[t:t + skeleton.TWIG_SIDES]],
+                 [mesh.vertices[q[3]] for q in faces[t:t + skeleton.TWIG_SIDES]]]
+        centres = [tuple(sum(v[a] for v in ring) / len(ring) for a in range(3)) for ring in rings]
+        tubes.append((*centres, math.dist(centres[0], rings[0][0]), math.dist(centres[1], rings[1][0])))
+    return tubes
+
+
 def test_metadata_carries_capsules_and_a_shell_of_pieces(variant, material_ids):
     name, p, built, data = variant
     assert meta.validate(data, material_ids) == []
@@ -105,13 +118,38 @@ def test_metadata_carries_capsules_and_a_shell_of_pieces(variant, material_ids):
                                  {"slot": "leaf", "visual": "leaf_shrub", "physics": "twig"}]
 
 
-def test_a_hook_per_stem_from_base_to_tip(variant):
+def test_stem_records_run_along_the_capsules_from_the_ground_to_the_tip(variant):
+    """review-physics PR3: per stem an `edge` on each lower capsule's chord and a `hook` on the top one, ending at
+    the tip, each at its capsule's radius."""
     name, p, built, data = variant
-    hooks = data["snag"]
-    assert len(hooks) == p["stems"] and all(h["kind"] == "hook" and h["radius_m"] == p["stem_d_mm"] / 2000 for h in hooks)
-    for hook in hooks:
-        assert len(hook["points"]) == skeleton.SEGMENTS + 1 and hook["points"][0][1] == 0.0
-        assert hook["points"][-1][1] == max(pt[1] for pt in hook["points"])
+    bark = [c for c in data["collision"] if c["material"] == "bark"]
+    tips = [face for face in built["lods"][0].faces if face[3] == "stem" and len(face[0]) == skeleton.STEM_SIDES[0]]
+    assert len(tips) == p["stems"]
+    for k, (indices, _, _, _) in enumerate(tips):
+        chain = data["snag"][k * skeleton.SEGMENTS:(k + 1) * skeleton.SEGMENTS]
+        capsules = bark[k * skeleton.SEGMENTS:(k + 1) * skeleton.SEGMENTS]
+        assert [r["kind"] for r in chain] == ["edge"] * (skeleton.SEGMENTS - 1) + ["hook"]
+        for record, capsule in zip(chain, capsules):
+            assert flat(record["points"]) == pytest.approx(flat(axis_ends(capsule)), abs=1e-5)
+            assert record["radius_m"] == capsule["radius"]
+        assert chain[0]["points"][0][1] == 0.0
+        assert all(a["points"][1] == b["points"][0] for a, b in zip(chain, chain[1:]))
+        tip = [sum(built["lods"][0].vertices[i][a] for i in indices) / len(indices) for a in range(3)]
+        assert chain[-1]["points"][1] == pytest.approx(tip, abs=1e-6)
+
+
+def test_twig_records_follow_the_tubes(variant):
+    """review-physics PR4: one record per twig on its tube's axis at its mean radius, an `edge` where other twigs
+    leave its end, a `hook` where it ends free; 3 x stems + twigs records in all."""
+    name, p, built, data = variant
+    tubes = twig_tubes(built["lods"][0])
+    stems = p["stems"] * skeleton.SEGMENTS
+    assert len(data["snag"]) == stems + len(tubes) == {"V13_low": 227, "V13_mid": 197, "V13_tall": 309}[name]
+    for record, (p0, p1, r0, r1) in zip(data["snag"][stems:], tubes):
+        assert flat(record["points"]) == pytest.approx(flat([p0, p1]), abs=1e-5)
+        assert record["radius_m"] == pytest.approx((r0 + r1) / 2, abs=1e-6)
+        assert record["kind"] == ("edge" if any(math.dist(p1, tube[0]) < 1e-6 for tube in tubes) else "hook")
+    assert {r["kind"] for r in data["snag"][stems:]} == {"edge", "hook"}
 
 
 def test_one_wind_box_over_the_clump(variant):

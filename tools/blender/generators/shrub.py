@@ -15,11 +15,13 @@ cards spanning the crown LOD0 built (its twigs and cards). lod.* come from the p
 LOD1 where the thickest twig, 8 mm, drops under 1 px (7.5 m); LOD2 where a card drops under 2 px (card_m * 467);
 cull where the clump's height drops under 2 px (height_m * 467, capped at 800 m: the belt beyond is V01's band).
 
-Metadata (design decisions 4 and 7, review-physics PR1): a `bark` capsule per stem segment (3 per stem) at the
-segment's mean radius; a `hook` snag per stem from base to tip, radius half the base diameter; the crown contact
-shell as `twig` spheres and capsules on the leaf and twig mass (lib.shell, at most 24, which the audit holds both
-ways); one wind box over the clump at porosity 0.7 - 0.35 * leaf_cover (the sheet's 0.35 summer, 0.5 autumn, 0.7
-bare); no gaps; nothing landable.
+Metadata (design decisions 4 and 7, review-physics PR1-PR4): a `bark` capsule per stem segment (3 per stem) at the
+segment's mean radius; per stem a snag record on each capsule's chord at its radius, an `edge` on the lower segments
+and a `hook` from the top segment's lower end to the tip, so the chain runs from the ground to the tip; per twig one
+record from its base to its end at its mean radius, an `edge` where other twigs leave its end and a `hook` where it
+ends free; the crown contact shell as `twig` spheres and capsules on the leaf and twig mass (lib.shell, at most
+24, which the audit holds both ways); one wind box over the clump at porosity 0.7 - 0.35 * leaf_cover (the sheet's
+0.35 summer, 0.5 autumn, 0.7 bare); no gaps; nothing landable.
 
 Slots: stem (bark_shrub, physics bark), twig (bark_shrub, physics twig: the twigs are the shell's contact, not the
 capsules'), leaf (leaf_shrub, physics twig).
@@ -166,7 +168,20 @@ def build(params):
         "gaps": [],
         "wind_volumes": [{"shape": "box", "center": [(lo[a] + hi[a]) / 2 for a in range(3)], "size": [hi[a] - lo[a] for a in range(3)],
                           "rotation": IDENTITY, "porosity": 0.7 - 0.35 * params["leaf_cover"]}],
-        "snag": [{"kind": "hook", "points": [list(s[0]) for s in stem.segments] + [list(stem.segments[-1][1])], "radius_m": stem_r}
-                 for stem in stems],
+        "snag": _stem_records(stems) + _twig_records(twigs),
     }
 
+
+def _stem_records(stems):
+    """Per stem, a record on each segment's chord at its capsule's radius: an `edge` on the lower segments, a `hook`
+    on the top one, which ends free at the tip (the sheet's rule, review-physics PR3)."""
+    return [{"kind": "hook" if k == len(stem.segments) - 1 else "edge", "points": [list(p0), list(p1)], "radius_m": (r0 + r1) / 2}
+            for stem in stems for k, (p0, p1, r0, r1) in enumerate(stem.segments)]
+
+
+def _twig_records(twigs):
+    """Per twig, a record from its base to its end at its mean radius: an `edge` when other twigs leave its end, a
+    `hook` when it ends free (review-physics PR4)."""
+    forks = {twig.p0 for twig in twigs}
+    return [{"kind": "edge" if twig.p1 in forks else "hook", "points": [list(twig.p0), list(twig.p1)],
+             "radius_m": (twig.r0 + twig.r1) / 2} for twig in twigs]
