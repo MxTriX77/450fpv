@@ -1,7 +1,7 @@
 {
   "material": "belt_straw",
   "kind": "ground",
-  "formula": "ground v4: cover tiled at tile_size_m and at tile_size_m*phi, averaged, stretched 1+bias along the lodging azimuth and rotated to it; soil tiled at its tile_size_m, gained to its albedo_target when given; bare = the asset's patch layout (lib/patches.py): the outlines filled times FLOOR_EDGE + (1 - FLOOR_EDGE) * the ramp of each core filled and blurred with sigma patches.FEATHER_M / 6, so 255 on the outline shrunk by the feather, FLOOR_EDGE at the outline and 0 outside it, mapped u = x / size_m + 0.5, v = z / size_m + 0.5 with v up the image; green = the asset's strips (lib/mat.py) filled and blurred with sigma mat.GREEN_FEATHER_M / 2; strewn masks clamp(2 m - c), c the cover luminance high-passed at STRAW_M, blended with LOBE_M value noise and stretched to 0-1: the bare mask (noise BARE_LOBES), the lip (m = LIP_LEVEL * min(1, 2 * the outlines blurred with sigma LIP_M / 3), noise BARE_LOBES), the gaps between straws (m = sqrt(gap_share / 2), noise GAP_LOBES) and the strips shown (m = GREEN_LEVEL * green, noise GAP_LOBES); relief = the asset's relief (lib/mat.py) sampled on RELIEF_SAMPLES^2 and resized bicubic, h01 in 0-1; albedo = the cover times 1 - RELIEF_TONE (1 - h01) with the straw gain for albedo_target, the strips shown tinted to the green tint, the gaps the cover gained to gap_albedo (the soil without one), the soil under bare and the lip, then a global gain against clipping; normal composited the same with the cover normals rotated by the azimuth; mask R 0, G AO times 1 - RELIEF_AO (1 - h01), B 0, A 1 - roughness; detail albedo = the detail set's diffuse as grey at its size with a linear mean of 0.5; 8-bit sRGB albedos",
+  "formula": "ground v5: cover tiled at tile_size_m and at tile_size_m*phi, averaged, stretched 1+bias along the lodging azimuth and rotated to it; soil tiled at its tile_size_m, gained to its albedo_target when given; bare = the asset's patch layout (lib/patches.py): the outlines filled times FLOOR_EDGE + (1 - FLOOR_EDGE) * the ramp of each core filled and blurred with sigma patches.FEATHER_M / 6, so 255 on the outline shrunk by the feather, FLOOR_EDGE at the outline and 0 outside it, mapped u = x / size_m + 0.5, v = z / size_m + 0.5 with v up the image; green = the asset's strips (lib/mat.py) filled and blurred with sigma mat.GREEN_FEATHER_M / 2; strewn masks clamp(2 m - c), c the cover luminance high-passed at STRAW_M, blended with LOBE_M value noise and stretched to 0-1: the bare mask (noise BARE_LOBES), times the floors' strewn straws (m = 1 - sqrt(FLOOR_STRAWS / 2), noise GAP_LOBES), the lip (m = LIP_LEVEL * min(1, 2 * the outlines and each path bridge, the hull of two consecutive patches' cores, blurred with sigma LIP_M / 3), noise BARE_LOBES), the gaps between straws (m = sqrt(gap_share / 2), noise GAP_LOBES) and the strips shown (m = GREEN_LEVEL * green, noise GAP_LOBES); relief = the asset's relief (lib/mat.py) sampled on RELIEF_SAMPLES^2 and resized bicubic, h01 in 0-1; albedo = the cover times 1 - RELIEF_TONE (1 - h01) with the straw gain for albedo_target, the strips shown tinted to the green tint, the gaps the cover gained to gap_albedo (the soil without one), the soil under bare and the lip, then a global gain against clipping; normal composited the same with the cover normals rotated by the azimuth; mask R 0, G AO times 1 - RELIEF_AO (1 - h01), B 0, A 1 - roughness; detail albedo = the detail set's diffuse as grey at its size with a linear mean of 0.5; 8-bit sRGB albedos",
   "pillow": "12.3.0",
   "constants": {
     "MAX_OUTPUT_PX": 2048,
@@ -11,6 +11,7 @@
     "GAP_LOBES": 0.0,
     "BARE_LOBES": 0.5,
     "FLOOR_EDGE": 0.55,
+    "FLOOR_STRAWS": 0.2,
     "LIP_M": 0.4,
     "LIP_LEVEL": 0.6,
     "RELIEF_TONE": 0.45,
@@ -21,7 +22,7 @@
   "layout": {
     "params": "assets-src/surfaces/S04_patch.json",
     "inputs": {
-      "seed": 7,
+      "seed": 27,
       "size_m": 12.0,
       "share": 0.08,
       "size_range_m": [
@@ -30,10 +31,14 @@
       ],
       "vertices": 12,
       "azimuth_deg": 25.0,
-      "bias": 0.3
+      "aspect": [
+        1.5,
+        2.5
+      ],
+      "per_path": 3
     },
     "constants": {
-      "LAYOUT": "bare patches v1",
+      "LAYOUT": "bare patches v2",
       "FEATHER_M": 0.3,
       "ANGLE_SPREAD_DEG": 45.0,
       "RADIAL_JITTER": 0.35,
@@ -44,10 +49,23 @@
       "SHARE_TOLERANCE": 0.005,
       "SHRINK": 0.75,
       "PLACE_TRIES": 1000,
-      "SHAPE_TRIES": 200
+      "SHAPE_TRIES": 200,
+      "PATH_GAP_M": [
+        0.3,
+        1.5
+      ],
+      "PATH_GAP_STEP_M": 0.1,
+      "PATH_TURN_DEG": 20.0,
+      "PATH_SIDE": 0.5,
+      "CLUSTER": 0.85,
+      "NEAR_M": [
+        1.0,
+        2.2
+      ],
+      "EPS": 1e-09
     },
     "green": {
-      "seed": 7,
+      "seed": 27,
       "size_m": 12.0,
       "share": 0.15,
       "width_m": [
@@ -61,7 +79,7 @@
       "azimuth_deg": 25.0
     },
     "relief": {
-      "seed": 7,
+      "seed": 27,
       "size_m": 12.0,
       "cell_m": 0.125,
       "relief_m": 0.04,
@@ -180,7 +198,7 @@
       "sha256": "9191758c59d352d71fc6434e78bebf01380515b13c0883e4e6f605442b67e7ec"
     }
   },
-  "inputs_sha256": "2215e15aa6a9a094cc7a2403b69b18974a680309ef767cd924e357193bdf56d2",
+  "inputs_sha256": "3a585f9539a515fbcf1a8930ca600fb700f14b30989d1589668fb29c2ea71d2e",
   "size": [
     2048,
     2048
@@ -199,17 +217,18 @@
     "mean_linear_rgb": [
       0.1946,
       0.162,
-      0.0908
+      0.0909
     ],
     "mean_luminance": 0.1638,
     "target_luminance": 0.1638,
-    "luminance_error_pct": -0.0,
-    "bare_share": 0.0794,
-    "bare_patches": 10,
-    "bare_soil_share": 0.0695,
-    "green_share": 0.1546,
-    "gap_share": 0.2198,
-    "lip_soil_share": 0.0179,
+    "luminance_error_pct": 0.01,
+    "bare_share": 0.0807,
+    "bare_patches": 13,
+    "bare_soil_share": 0.0668,
+    "floor_soil_share": 0.8288,
+    "green_share": 0.1605,
+    "gap_share": 0.2211,
+    "lip_soil_share": 0.0528,
     "soil_mean_srgb": "#4a463f",
     "soil_gain": [
       0.882,
@@ -217,14 +236,14 @@
       1.234
     ],
     "straw_gain": [
-      0.832,
-      1.107,
-      1.809
+      0.842,
+      1.122,
+      1.821
     ],
     "final_gain": [
-      1.071,
-      1.066,
-      1.04
+      1.075,
+      1.069,
+      1.042
     ],
     "detail_gain": [
       1.374,

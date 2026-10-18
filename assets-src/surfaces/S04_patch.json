@@ -1,10 +1,11 @@
 {
-  "seed": 7,
+  "seed": 27,
   "size_m": 12.0,
   "cell_m": 0.125,
   "relief_m": 0.04,
   "mat_depth_m": 0.125,
-  "bare": { "share": 0.08, "size_m": { "min": 0.5, "max": 2.0 }, "outline_vertices": 12 },
+  "bare": { "share": 0.08, "size_m": { "min": 0.5, "max": 2.0 }, "outline_vertices": 12,
+            "aspect": { "min": 1.5, "max": 2.5 }, "path_patches": 3 },
   "green": { "share": 0.15, "width_m": { "min": 1.0, "max": 3.0 }, "length_m": { "min": 3.0, "max": 12.0 } },
   "mounds_per_m2": 0.02,
   "mound_w_m": { "min": 0.3, "max": 0.5 },
