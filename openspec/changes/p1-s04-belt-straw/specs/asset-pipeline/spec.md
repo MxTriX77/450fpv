@@ -24,6 +24,20 @@ A generator MAY return, per LOD, meshes that are visual only (lying straws, stem
 - **WHEN** the prefab is built
 - **THEN** no collider is created for a micro mesh and the physics metadata component lists it under `micro`
 
+### Requirement: Flat palette recipes
+A material recipe MAY be of kind `palette`: a short list of named sRGB colours; the build SHALL derive one small flat map with a column per colour (recorded beside it like every derived texture), and a generator SHALL UV its faces into the column of their colour, so that a flat-tinted material still has a real base map.
+
+#### Scenario: Straw palette
+- **WHEN** the `straw` recipe names straw #b49c6a and twig #6b5a3e
+- **THEN** the build writes `straw_albedo.png` with those two columns, the importer binds it as the base map, and the review capture's empty-stage guard passes
+
+### Requirement: The collision audit measures the union of the primitives
+The collision audit SHALL treat an asset's primitives as one union: the part of a primitive that lies inside another primitive is not measured against the mesh. A shape whose material is `surface:<id>` SHALL be held at 5 cm over its whole top as a landing face; the 2 cm near-zone applies to the landing faces of objects and to openings.
+
+#### Scenario: Mound spheres sunk in the mat box
+- **WHEN** three `surface:crater_spoil` spheres are sunk into a `surface:belt_straw` box over a mat with ±4 cm relief
+- **THEN** the audit measures only the spheres' exposed caps and the box's exposed top, holds both at 5 cm, prints a line saying the surface tops are held at 5 cm, and passes
+
 ### Requirement: Third-party sources are pinnable by URL
 Every third-party file SHALL enter the manifest through `fetch.py --add` with a stable download URL and a SHA-256, from a source the fetcher knows (`polyhaven`, `ambientcg`, and `texturecan` once it is added). A source whose files cannot be fetched by a stable URL SHALL NOT be used; the sheet's material line then names the substitute set and why.
 
