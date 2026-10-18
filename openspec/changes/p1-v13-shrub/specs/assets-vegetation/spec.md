@@ -23,7 +23,7 @@ The pipeline SHALL build asset V13 (`shrub` generator; variants `V13_low`, `V13_
 
 #### Scenario: Stems and shell carry the contact
 - **WHEN** the metadata of any variant is validated and audited
-- **THEN** every capsule names `bark`, lies within 5 cm of its stem tube, and has a `hook` snag of half the stem's diameter; the `twig` shell encloses every leaf card within 5 cm; the wind volume's porosity is 0.35 for the summer state; `gaps` is empty and no shape is landable
+- **THEN** every capsule names `bark`, lies within 5 cm of its stem tube, and has a `hook` snag of half the stem's diameter; the `twig` shell is made of convex pieces that enclose every leaf and twig vertex within 5 cm and whose outer surface stands within 0.1 m of the leaf and twig mass (the sheet's group rule), leaving the bare-stem zone to the capsules; the wind volume's porosity is 0.35 for the summer state; `gaps` is empty and no shape is landable
 
 #### Scenario: Four LODs under budget
 - **WHEN** the triangle counts per LOD are read from the metadata

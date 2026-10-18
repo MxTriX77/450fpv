@@ -11,18 +11,22 @@ A material recipe MAY declare `alpha_clip` (a cutoff in 0–1) and `two_sided: t
 
 #### Scenario: Back faces lit as leaves
 - **WHEN** a two-sided leaf card is seen from its back under the day light of the review rig
-- **THEN** its mean luminance is within 15 % of the same card seen from its front with the sun behind the camera, not the pale sky sheen of a back face lit with the front's normal
+- **THEN** each sRGB channel of its mean over the opaque pixels is within 15 % of the same card seen from its front with the sun behind the camera, so the back reads green like the front; a back face lit with the front's normal (URP/Lit with cull off) fails it with its grey sheen
 
 #### Scenario: Coverage kept at distance
 - **WHEN** the clipped base map is imported
-- **THEN** its importer preserves mip coverage at the recipe's cutoff, and the fraction of opaque texels after clipping in the 64 px mip is within 10 % of the full-size map's
+- **THEN** its importer preserves mip coverage at the recipe's cutoff, and every mip down to 4 px keeps opaque texels after clipping (without preservation the 4 px mip has none)
 
 ### Requirement: Compliant shells in the collision audit
-A collision shape whose material is a crown contact material (`twig` or `foliage`) is a shell. The audit SHALL require every LOD0 vertex of the shell's slots to lie inside the shell or within 5 cm outside it, and SHALL NOT require the shell's surface to lie near the mesh; it SHALL print each shell with the largest outside distance it found.
+A collision shape whose material is a crown contact material (`twig` or `foliage`) is a shell. The audit SHALL require every LOD0 vertex of the shell's slots to lie inside the union of the shell pieces or within 5 cm outside it, and every point of the shell's surface above the ground to lie within the envelope tolerance (0.1 m, the vegetation sheet's group rule, unless the physics review sets and labels another) of the nearest vertex of its slots; it SHALL print each shell with the largest outside distance and the largest surface-to-mass distance it found.
 
 #### Scenario: Shell encloses the cards
 - **WHEN** a variant's leaf cards all lie inside its `twig` sphere
 - **THEN** the audit passes the shell and prints its name with the largest outside distance 0
+
+#### Scenario: Shell too large for its mass
+- **WHEN** a `twig` piece's radius is 0.3 m larger than the leaf mass it carries
+- **THEN** the audit fails naming the shell piece, its largest surface-to-mass distance and the envelope tolerance
 
 #### Scenario: Card outside the shell
 - **WHEN** one card's corner lies 8 cm outside the `twig` shell
