@@ -20,7 +20,6 @@
 | Topic | Finding used here | Source |
 |---|---|---|
 | Stalin-era apartment blocks | Exterior brick walls about 2.5 bricks (65 cm), "60–70 cm" overall; interior bearing walls 1–1.5 bricks; ceilings 2.9–3.2 m in ordinary blocks, more in elite ones; floors of timber (spans under 6 m), reinforced concrete or mixed; stairwell walls brick; red ceramic brick before the war, silicate brick later | https://en.wikipedia.org/wiki/Stalinka |
-| Late-1950s brick five-storey series | A brick five-storey "Stalinist" block about 19 m high, with a four-slope (hipped) metal roof and two-leaf windows; facades of bare brick with rendered bands, or rendered or tiled. A sibling series: three-leaf windows, 2–5 sections, 4 flats per landing, balconies on the front facade from the 2nd floor | https://wiki.openstreetmap.org/wiki/RU:%D0%A1%D0%B0%D0%BD%D0%BA%D1%82-%D0%9F%D0%B5%D1%82%D0%B5%D1%80%D0%B1%D1%83%D1%80%D0%B3/%D0%A1%D0%B5%D1%80%D0%B8%D0%B8_%D0%B4%D0%BE%D0%BC%D0%BE%D0%B2 (a catalogue of Soviet building series) |
 | Hollow-core floor slabs | Type 1ПК: 220 mm thick with round voids 159 mm across, supported on two sides | GOST 9561-91: https://meganorm.ru/mega_doc/norm/gost_gosudarstvennyj-standart/11/gost_9561-91_plity_perekrytiy_zhelezobetonnye_mnogopustotnye.html |
 | Rebar classes | А-I: hot-rolled smooth round bar, 6–40 mm; every higher class (А-III and up) has a periodic (ribbed) profile | https://ru.wikipedia.org/wiki/Арматура_железобетонных_конструкций |
 | How masonry blocks fail | Load-bearing masonry walls fail out of plane under explosions and can trigger progressive collapse; the loss of one exterior wall panel can bring down the floors above it in a chain (a corner collapse); masonry bearing-wall buildings range from good to poor resistance to progressive collapse | https://researchgate.net/profile/Fulvio-Parisi/publication/301673947_Out-of-plane_blast_capacity_of_load-bearing_masonry_walls/links/5720c79408aefa6488a03e5e/Out-of-plane-blast-capacity-of-load-bearing-masonry-walls.pdf · https://en.wikipedia.org/wiki/Progressive_collapse · https://nvlpubs.nist.gov/nistpubs/Legacy/IR/nbsir74-526.pdf |
@@ -28,7 +27,7 @@
 | Flames out of windows | Externally venting flames carry fire to the floors above; with wide windows the flame clings to the wall above instead of projecting | https://knowledge.lancashire.ac.uk/id/eprint/31936/1/31936%20Asimakopoulou%2BEleni%2BGeometrical%2Bcharacteristics%2Bof%2Bexternally%2Bventing%2Bflames%20%281%29.pdf · https://www.atlantis-press.com/article/11190.pdf |
 | External insulation | EPS boards are bonded by a perimeter bead and central dabs (or full troweling), at least 40 % contact; then mesh and a thin render | https://www.environdec.com/library/epd27710 |
 | Rubble of a collapsed building | Debris spread l = H/4 to H/3 (the obelisk's sides at the angle of repose); rubble height h = γ·H / (100 + k·H) with γ = 40 for residential buildings (rubble m³ per 100 m³ of building) and k = 0.5; height falls linearly to the edge, h(x) = h·(1 − x/l); rubble volume V = γ·A·B·H / 100 | https://portal.tpu.ru/SHARED/s/SVETANAZ/academics/Tab5/%D1%80%D0%B0%D1%81%D1%87%D0%B5%D1%82%20%D0%B7%D0%B0%D0%B2%D0%B0%D0%BB%D0%BE%D0%B2.pdf (a civil-protection practical on building rubble) |
-| Cooperative garages | Long blocks split into standard compartments, each with its own gate; brick blocks and rows of welded metal boxes both occur | https://curbsideclassic.com/auto-biography/back-to-the-ussr-part-ii-a-few-words-on-parking · https://www.zr.ru/content/articles/932350-garazhi-v-sssr-daleko-ne-tolk/ |
+| Cooperative garages | Boxes in a cooperative, each closed by its own gate; long brick blocks and rows of welded metal boxes both occur (assumed: common practice) | https://www.zr.ru/content/articles/932350-garazhi-v-sssr-daleko-ne-tolk/ |
 | Inspection pits | 0.75–0.80 m wide, 1.7–1.8 m deep, 1.8–2.0 m long or the car's length plus about 1 m | https://news.ru/family/poleznye-sovety/smotrovaya-yama-v-garazhe-odin-raz-sdelali-godami-ekonomite-na-servise |
 | Rozhnovsky water towers | A steel tank on a steel support with a lid and inspection hatch, an external ladder with a safety cage; 10–150 m³; a standard design for steel Rozhnovsky towers of 15, 25 and 50 m³ on supports 12, 15 and 18 m high; towers 9–25 m overall; a platform only from 20 m; a 15 m³ tower on a support pipe 1020 or 1220 mm across with a 10 mm base plate, 12.5–18.5 m overall | https://ru.wikipedia.org/wiki/Водонапорная_башня · https://fb.ru/article/339172/bashnya-rojnovskogo-harakteristiki-tsena · https://productcenter.ru/products/86711/vodonapornaia-bashnia-15-m3-obshchiei-vysotoi-17-mietrov |
 | Soviet bus stops | Built to standard designs or the local authority's own, usually commissioned by road departments or collective farms; open-fronted concrete boxes are common | https://en.wikipedia.org/wiki/Soviet_bus_stops |
@@ -43,7 +42,7 @@ Viewpoint heights and distances are estimated from the scene (storeys, slab edge
 | Letter | Scene type | Viewpoint | Framing | Light | Time of day | Weather |
 |---|---|---|---|---|---|---|
 | I | The urban edge: the burnt five-storey block across the background, a collapsed timber roof pile in the middle, a damaged two-storey house at the right, a rubble field and a low masonry fence with a lattice top in front | Standing height, 1.5–1.7 m, in a yard or street; the fence 5–8 m away, the roof pile 20–30 m, the two-storey house 25–35 m, the block 60–80 m (as the houses sheet) | Landscape. The block's long facade spans the left two thirds, seen 15–30° off square and receding to the right, its roof line at about a quarter of the frame height from the top; bare trees in front of it; the roof pile centre; the house right; rubble, white sheet and timber in the lower third; the sky the upper third | Low, warm sun from the left: the facade lit, long shadows to the right, blue shade in the foreground | Morning or late afternoon | Clear, dry, cold; winter or early spring (bare trees) |
-| K | The torn-off end of the block, rooms open on every floor, the rubble mound at its foot, bare trampled ground in front | Standing height, 1.5–1.7 m, 18–22 m from the end (derived: the 13–14 m end fills about two thirds of the frame width at a phone's portrait field of about 50°, assumed), tilted up 15–25° | Portrait. The block's end fills the middle two thirds of the width from about 17 % to 62 % of the height; the mound across the whole width from about 55 % to 80 %; bare ground with cable loops and fragments in the bottom fifth; bare trees left and right with a few mistletoe clumps; dark overcast sky in the top fifth | Overcast, dark and diffuse, no shadows; the interiors in deep shade | Daytime | Overcast, threatening, dry ground; early spring (bare trees) |
+| K | The torn-off end of the block, rooms open on every floor, the rubble mound at its foot, bare trampled ground in front | Standing height, 1.5–1.7 m, 18–22 m from the end (derived: the 13–14 m end fills about two thirds of the frame width at a camera field of about 50° in portrait, the photo's lens, assumed), tilted up 15–25° | Portrait. The block's end fills the middle two thirds of the width from about 17 % to 62 % of the height; the mound across the whole width from about 55 % to 80 %; bare ground with cable loops and fragments in the bottom fifth; bare trees left and right with a few mistletoe clumps; dark overcast sky in the top fifth | Overcast, dark and diffuse, no shadows; the interiors in deep shade | Daytime | Overcast, threatening, dry ground; early spring (bare trees) |
 
 The REAL-03 side-by-side sheets for I and K are made in `reference/_compare/` once U01 and U02 exist; nothing exists to compare yet. P01–P06 and U03 are research only (R), so their check is the noclip review sheet against this sheet, and the pilot sees them at G2.
 
@@ -67,20 +66,20 @@ As the houses sheet: a master `damage` (0–1) per section or part sets defaults
 ## U01 Stalin-era five-storey block, destroyed (exactly one)
 
 **Seen in:** I (the long facade: burnt windows, soot plumes, a pale render with a painted lower band, entrance canopies, the parapet line), K (the torn-off end: five floors of open rooms, the spine wall, the end piers of the long walls in bare brick with adhesive dabs, the slab edges, stacked balconies on the long facade, the roof down to its timbers, the ground-floor wall stub, the mound).
-**Research sources:** the research table (Stalin-era blocks, the brick five-storey series, hollow-core slabs, rebar, masonry failure, venting flames, external insulation, rubble).
+**Research sources:** the research table (Stalin-era blocks, hollow-core slabs, rebar, masonry failure, venting flames, external insulation, rubble).
 
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| Storeys | 5 | 5 | asset-list; I, K |
-| Storey height (floor to floor) | 3.0–3.4 m | **3.0 m** | AST-04. 3.0 is chosen because K's depth reads 12.5–14.5 m at 3.0 m storeys (inside B4's 12–15 m) and the published total of about 19 m for the brick five-storey series fits it (below) |
+| Storeys | 5 | 5 | measured (I, K: five floors); asset list |
+| Storey height (floor to floor) | 3.0–3.4 m | **3.0 m** | AST-04 (3.0–3.4 m for the Stalin-era block). 3.0 is chosen because K's depth reads 12.5–14.5 m at 3.0 m storeys (measured K, inside B4's 12–15 m) and the eaves then sit at 16.5 m (below) |
 | Plinth above grade | 0.8–1.5 m | 1.0 m | measured K (a grey masonry plinth, partly under the mound) and I (a dark band under the ground-floor windows); rough |
 | Eaves height | 16.2–19.1 m | 16.5 m | derived: plinth + 5 × storey + a wall head of 0.4–0.6 m. **asset-list's 15–17 m holds only for storeys of 3.0–3.1 m**; 3.4 m storeys give 18–19 m (Open points) |
-| Roof rise | 3.0–4.0 m | 3.0 m | asset-list; terrain.md B4. Ridge at 19.5 m against the published "about 19 m" overall |
+| Roof rise | 3.0–4.0 m | 3.0 m | measured (terrain.md B4, I, K: a pitched roof adds 3–4 m); asset list. Ridge at 19.5 m (derived) |
 | Roof pitch | 25–31° | 25° | derived: atan(rise / half the depth) = atan(3.0 / 6.5) |
-| Eaves overhang | 0.5–0.8 m | 0.6 m | terrain.md B4 |
+| Eaves overhang | 0.5–0.8 m | 0.6 m | measured (terrain.md B4, I, K) |
 | Depth | 12–15 m | 13 m | terrain.md B4; measured K 12.5–14.5 m (the end with its spine wall, at 3.0 m storeys) |
-| Length | 40–80 m in 3–5 sections | 60 m: 4 sections × 15 m | terrain.md B4; I shows at least three entrance bays along the visible length (rough) |
+| Length | 40–80 m in 3–5 sections | 60 m: 4 sections × 15 m | measured (terrain.md B4, I, K); I shows at least three entrance bays along the visible length (rough) |
 | Section length | 13–20 m | 15 m | derived: length / sections |
 | Exterior walls | 0.51–0.65 m | 0.64 m (2.5 bricks) | published (en.wikipedia: 2.5 bricks, 65 cm); terrain.md B4 |
 | Spine wall (longitudinal, bearing) | 0.38–0.51 m | 0.51 m | published (1–1.5 bricks for interior walls); measured K: about 0.5 m in section |
@@ -90,7 +89,7 @@ As the houses sheet: a master `damage` (0–1) per section or part sets defaults
 | Clear room height | 2.72–3.12 m | 2.72 m | derived: storey − build-up |
 | Slab span | 5.5–6.0 m | facade to spine, 5.6 m | derived: (13 − 2 × 0.64 − 0.51) / 2 = 5.6 m |
 | Open bay at the torn end, per floor | 5.0–6.0 × 2.7 m | 5.6 × 2.72 m | derived (span × clear height); measured K: two bays per floor, 5–6 m each |
-| Room length along the block | 3–4 m | 3.5 m | asset-list (open rooms 3–4 m); K: the back wall with its door 3–5 m behind the slab edge |
+| Room length along the block | 3–4 m | 3.5 m | measured K: the back wall with its door 3–5 m behind the slab edge; asset list (open rooms 3–4 m) |
 | Windows | 1.3 × 1.8 m (w × h) | 1.3 × 1.8 m, sill 0.85 m | asset-list (as given). **I reads wider than tall:** three-leaf windows about 1.8 × 1.35 m and two-leaf about 1.3 × 1.35 m (measured I, rough); kept as a variant (Open points) |
 | Window pitch along the facade | 3.0–3.6 m | 3.3 m | derived: one window per room bay |
 | Window frame | 60–80 mm box, mullion 70–80 mm | timber double frame or white PVC | assumed; K's rubble is full of white PVC profiles (measured K) |
@@ -114,7 +113,7 @@ As the houses sheet: a master `damage` (0–1) per section or part sets defaults
   - around the torn end and big breaches, **bare buff brick with white adhesive dabs** about 0.10–0.15 m across on a 0.25–0.35 m grid (K). The dabs read as the adhesive left after an external insulation layer was blown off (interpreted from the published bead-and-dab method, assumed). So the default build puts that layer on every facade: EPS boards 50–100 mm, mesh and a thin render, which is the smooth pale render I shows; where it is lost, the dabs show on bare brick, and remnant boards hang at the patch edges (geometry).
 - **Floors:** hollow-core slabs 1.2 m wide side by side along the block, with a cement screed and linoleum or boards; precast lintels over openings (as the houses sheet: 0.12–0.14 × 0.25 m per leaf, 2–4 bars of 8–12 mm); a cast ring beam with 4 bars of 12 mm at the wall head (assumed). Timber-beam floors (the older Stalin-era alternative, published) are a generator option.
 - **Stairs:** precast flights and landings in the brick stair cell, steel balusters with a timber or PVC handrail, the section entrance under a canopy, a vestibule and 6–7 risers up to the ground-floor landing (derived from the 1.0 m plinth).
-- **Roof:** hipped (published for the brick five-storey series), rafters on purlins carried by posts on the spine wall, battens, cover of painted sheet steel 0.5–0.7 mm (the series' metal roof) or asbestos-cement slate (houses sheet), an attic over the top slab with its fill layer, small dormer vents; gutters and downpipes of galvanised sheet.
+- **Roof:** hipped (assumed), rafters on purlins carried by posts on the spine wall, battens, cover of painted sheet steel 0.5–0.7 mm or asbestos-cement slate (terrain.md B4: the type has both; houses sheet), an attic over the top slab with its fill layer, small dormer vents; gutters and downpipes of galvanised sheet.
 - **Openings:** windows with timber double frames painted white, many replaced by white PVC; balcony doors; radiators (cast iron, 0.5–0.6 m high) under every window; ground-floor windows with steel grilles in places (K: one on the long facade).
 - **Services:** heating risers (steel pipe 20–32 mm), wiring in the walls, TV and phone cables on the facade, gas pipe on the yard facade (assumed).
 - **Contents (K):** wardrobes and shelving of chipboard, beds and mattresses, sofas and armchairs, tables, appliances and TVs, curtains and sheets, carpets, radiators; wallpaper and painted plaster in pink, blue, green, cream and red (K).
@@ -292,7 +291,7 @@ The block is built from a **section list**: each section is one stair cell with 
 | `seed` | int | — | — | Every random choice above |
 
 ### Open points
-- **Eaves height:** asset-list §7 gives 15–17 m, which holds for 3.0–3.1 m storeys on a 1 m plinth; 3.4 m storeys (AST-04's top) give 18–19 m. The default 3.0 m keeps both and matches the published ≈ 19 m overall. The asset list now reads "16–19 m to the eaves".
+- **Eaves height:** asset-list §7 gives 15–17 m, which holds for 3.0–3.1 m storeys on a 1 m plinth; 3.4 m storeys (AST-04's top) give 18–19 m. The default 3.0 m keeps both; with a 3 m roof rise the ridge is at 19.5 m (derived). The asset list now reads "16–19 m to the eaves".
 - **Windows:** the given 1.3 × 1.8 m (taller than wide) is the default; I reads wider than tall (1.8 × 1.35 m three-leaf). Both pass the drone only with the frame gone. Settled at the I side-by-side, not by the pilot.
 - **I's flat roof line:** from the I viewpoint a 25° hip would show its ridge 1–2° above the eaves line (derived: eaves 16.5 m and ridge 19.5 m at 70–76 m), and none shows. The default explains it with the roof burnt down over the burnt sections; `roof_type` flat_attic is the alternative. Settled at the I side-by-side.
 - **The white dabs** on K's brick are interpreted as insulation adhesive; if the side-by-side reads them as something else (tile adhesive, render keys), only the facade map changes.
@@ -314,7 +313,7 @@ The block is built from a **section list**: each section is one stair cell with 
 | Profile | linear wedge, h(x) = h·(1 − x/l) | — | published; the peak follows from the volume: h = 2V / (l × W) = 2 × 230 / (8 × 18) = 3.2 m |
 | Void fraction | 0.40–0.50 | 0.46 | derived: 1 − 1/1.86 |
 | Scatter beyond the toe | 5–15 m | 10 m | measured K (bricks, white plastic bits and cable loops out to the bottom of the frame); I (the rubble field) |
-| Pieces | 0.05–3 m | — | terrain.md B5; K |
+| Pieces | 0.05–3 m | — | measured (terrain.md B5, K) |
 | Pitfall voids | 0.3–1.0 m across, 0.2–0.8 m deep | 1 per 8 m² | assumed (cavities under a leaning slab or between large pieces) |
 
 ### Construction and materials
@@ -374,12 +373,12 @@ The block is built from a **section list**: each section is one stair cell with 
 **Seen in:** I (the pile in the middle of the view: a tangle of sawn roof timbers lying on a brick rubble core, one red-brick wall end still standing at its right side with a rafter leaning on its face, dark cavities under the timbers at the front toe, a few grey-green sheet pieces, a bent steel grid and a blue-green item in the brick at the front). Read on the single still plus local zooms at 2.5–5×; no clip shows it (terrain.md B5). The earlier states of the same failure (stripped roofs, rafters off the plate) are the houses sheet's E and J, not re-read here.
 **Research sources:** the houses sheet's shared construction (roof carpentry, tile and slate, the ceiling with its fill, the failure order) and its rubble rule; U02's bulking (1.86); the debris kit (K01–K04, K08, K10) and its spread; collapse patterns of timber and brick-and-joist buildings and the voids each leaves (pancake: pockets only where contents interrupt the stack; lean-to: one end still held, a triangular void; V-shape; A-frame or tent: held up in the middle, voids near the centre), from general rescue-training references: https://www.designingbuildings.co.uk/wiki/Types_of_collapse , https://emberly.fireengineering.com/firefighter-training/collapse-search-and-rescue-operations-tactics-and-procedures-7 .
 
-**How I was measured (derived, rough, about ±15 %):** one landscape still 800 px wide; a horizontal field of about 69° (assumed: a phone's 26 mm-equivalent main lens, the same lens K's 50° portrait field implies), so f ≈ 580 px; eye height 1.6 m (the REAL-02 row). The horizon sits at about 62 % of the frame height from the top, read off the block's left end: its five 3.0 m storeys, plinth and parapet span 43 % of the frame height there, so 1.6 m is 4 % of the frame at that distance, and the horizon lies that far above the block's foot. A point at image row y and distance d then stands H = 1.6 + (y_horizon − y) · d / f above the ground. The pile's front toe, behind the fence at 71–74 % of the frame height, comes out at 17–22 m, so its body centre is at about 24 m (22–26 m), inside the 20–30 m of the reference-view row.
+**How I was measured (derived, rough, about ±15 %):** one landscape still 800 px wide; a horizontal field of about 69° (the photo's lens, assumed: the same lens K's 50° portrait field implies), so f ≈ 580 px; eye height 1.6 m (the REAL-02 row). The horizon sits at about 62 % of the frame height from the top, read off the block's left end: its five 3.0 m storeys, plinth and parapet span 43 % of the frame height there, so 1.6 m is 4 % of the frame at that distance, and the horizon lies that far above the block's foot. A point at image row y and distance d then stands H = 1.6 + (y_horizon − y) · d / f above the ground. The pile's front toe, behind the fence at 71–74 % of the frame height, comes out at 17–22 m, so its body centre is at about 24 m (22–26 m), inside the 20–30 m of the reference-view row.
 
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| Source roof | a single-storey house of the H01–H04 classes (6–12 × 5–8 m), or a wing of one (4–6 × 4–6 m) | H03's defaults: 9 × 7 m, walls 0.38 m to 2.9 m on a 0.4 m plinth, pitch 27°, rafters at 1.0 m, battens at 0.5 m | houses sheet (H03); red brick from I (the wall end and the core) |
+| Source roof | a single-storey house of the H01–H04 classes (6–12 × 5–8 m), or a wing of one (4–6 × 4–6 m) | H03's defaults: 9 × 7 m, walls 0.38 m to 2.9 m on a 0.4 m plinth, pitch 27°, rafters at 1.0 m, battens at 0.5 m | assumed, as the houses sheet (H03's defaults); red brick measured I (the wall end and the core) |
 | Heap body footprint | 6–11 × 5–9 m | 10 × 8 m | derived: the frame's plan, 9.8 × 7.8 m (H03's 9 × 7 m plus the shared 0.4 m overhangs), with the feet's spread and the rubble at its toe, rounded. Measured I: 11.8–13.9 m across the view, which a 10 × 8 m body shows when seen 30–45° to its long axis (10 cos θ + 8 sin θ = 12.7–12.8 m). The asset list's 6–10 m across holds |
 | Frame surface at the high end | 2.5–4.0 m | 3.2 m | measured I: 2.9–3.5 m (the frame's outline at 52–54 % of the frame height, at 22–26 m); derived: the standing wall end's top (3.0 m) plus the frame's depth (0.15–0.3 m) |
 | Member tips above the frame | 0.3–1.2 m | 0.8 m (tips to 4.0 m) | measured I: broken members pointing up to 3.8–4.4 m |
@@ -390,11 +389,11 @@ The block is built from a **section list**: each section is one stair cell with 
 | Masonry core | 0.3–1.5 m deep | 0.7 m mean; 1.0–1.4 m along the wall lines, 0.4–0.6 m mid-house | derived: about 21 m³ of brick removed from H03's walls (30.5 m of wall × 0.38 m × 2.4 m above the stubs, less 4.9 m³ of openings and the 1.8 m³ standing end) × 1.86 = 40 m³, plus the ceiling layer (51 m² × 0.2 m fill + 4.1 m³ of joists and boards = 14 m³): 54 m³ over 80 m² |
 | Timber in the heap | 5–9 m³ | 6.6 m³ | derived from H03's defaults: rafters 20 × 4.3 m × 0.015 m² = 1.3; battens 173 m × 0.0025 m² = 0.4; plates, ridge and collar ties 0.8; ceiling joists 2.5; ceiling boards 1.6 |
 | Void fraction of the timber tangle | 0.85–0.95 | 0.9 | derived: 6.6 m³ of timber through a tangle about 1 m thick over the 80 m² body: 1 − 6.6 / 80 = 0.92 |
-| Members | rafters 100 × 150 mm or round 0.10–0.16 m, 1–4.3 m; battens 50 × 50 mm, 0.3–4 m; plates 150 × 150 mm; ceiling joists 150 × 200 mm; boards 25–40 × 100–200 mm | as K03 | K03; houses sheet |
+| Members | rafters 100 × 150 mm or round 0.10–0.16 m, 1–4.3 m; battens 50 × 50 mm, 0.3–4 m; plates 150 × 150 mm; ceiling joists 150 × 200 mm; boards 25–40 × 100–200 mm | as K03 | assumed, as K03 (its battens published); houses sheet |
 | Cavities under the frame | 0.5–2 m wide, 0.3–0.9 m high, 1–3 m deep | 2 cavities, 1.4 × 0.5 m, 1.5 m deep | measured I: a dark cavity about 1.4 × 0.5 m at the front toe (rough); depth assumed |
 | Openings between crossed members | 0.1–0.6 m | — | measured I: dark gaps of 0.2–0.6 m over the whole frame (rough) |
 | Pitfall voids in the core | 0.3–1.0 m across, 0.2–0.8 m deep | 1 per 8 m² | as U02 (assumed) |
-| Scatter beyond the toe | per class, the debris kit's λ | tile shards λ 1 m, bricks 1.5 m, timber 2 m, slate 4 m, sheet 6 m | lines-roads-debris "Shared: the debris kit" |
+| Scatter beyond the toe | per class, the debris kit's λ | tile shards λ 1 m, bricks 1.5 m, timber 2 m, slate 4 m, sheet 6 m | assumed, as lines-roads-debris "Shared: the debris kit" (λ anchored on measured E, J, K) |
 
 ### Construction and materials
 - **What fell, layer by layer** (the source house's own parts, so nothing is invented for the pile):
@@ -540,8 +539,8 @@ How a roof comes down as one heap, in order (the houses sheet's failure order, w
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| Units | 4–8 | 6 | asset-list |
-| Box, outside | 3.5 × 6 m | 3.5 × 6.0 m | asset-list |
+| Units | 4–8 | 6 | assumed (asset list, R: research only) |
+| Box, outside | 3.5 × 6 m | 3.5 × 6.0 m | assumed (asset list, R: research only) |
 | Box, inside | 3.2–3.3 × 5.5–5.8 m | 3.25 × 5.6 m | derived: party walls 0.25 m, front and back 0.25–0.38 m |
 | Inside height | 2.4–2.9 m | 2.6 m | assumed (O06 2.4 m for a metal box; brick rows taller) |
 | Party walls | 0.25 m (one brick) or 0.19–0.20 m block | 0.25 m | assumed |
@@ -616,7 +615,7 @@ How a roof comes down as one heap, in order (the houses sheet's failure order, w
 |---|---|---|---|
 | Footprint | 8–14 × 6–10 m | 10 × 8 m | assumed |
 | Wall height | 3.0–3.6 m | 3.3 m | assumed (a commercial storey) |
-| Walls | 0.38–0.51 m brick | 0.38 m | houses sheet |
+| Walls | 0.38–0.51 m brick | 0.38 m | derived, as the houses sheet (1.5 or 2 bricks) |
 | Roof | flat slab with felt and a parapet, or gable slate | flat | assumed |
 | Display windows | 1.5–2.4 × 1.4–1.6 m, sill 0.8 m, 1–3 on the front | 2 × (2.0 × 1.5 m) | assumed |
 | Window grilles | steel bars Ø 12–16 at 0.12–0.15 m | on | assumed |
