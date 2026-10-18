@@ -142,3 +142,117 @@ Subject-only, ≤ 72, QA identity, one logical step per commit, only the files t
 Everything else in the branch is correct, minimal and well tested; the three commits are clean and can stay as they are. A fourth commit on this branch with A and B and their tests is enough for re-review.
 
 Verdict: CHANGES REQUESTED
+
+## Re-review (task 2.1, after task 1.2)
+
+**Branch:** `unity/qa/enforce-commit-format` at `6c8516b` (8 commits on `bd9e95e`) · **Reviewer:** qa-engineer, a fresh agent independent of the one that wrote the fix (`09a5aaa`, `e6ffafd`) and of the one that wrote the first review · **Contract:** the spec delta as revised by the orchestrator in `507adc4` (merge scenario widened to every `fmt-merge-msg` shape, new scenario "Comment-like subject is not a bypass", "the subject is the first non-blank line").
+**Environment:** Python 3.14.6, pytest 9.1.1, git 2.55.0.windows.3, Windows 11. Every check below was run by me in this worktree, on a throwaway repo whose `core.hooksPath` is this worktree's `.githooks` (so this branch's `precommit.py` runs; the main checkout sits on `unity/main`, whose `precommit.py` has no `commit_format` at all, which is why the fixer's own commits went through no format check; I checked them by hand below).
+
+### What the fix changes
+
+`git show 09a5aaa --stat`: `tools/hygiene/precommit.py` (+13 −4), `tools/hygiene/tests/test_precommit.py` (+69 −7).
+
+- `MERGE_SUBJECT` is now `^Merge (?:(?:remote-tracking )?branch(?:es)?|tags?|commits?) '` or `^Merge pull request #\d+ from `. That is every title `fmt-merge-msg` writes (`Merge <kind> '<name>'`, kinds joined by `, `, then ` of <url>` and ` into <branch>`), and GitHub's PR shape. The hand-written near misses (`Merge the thing`, `Merge branch main`, `Merge pull request from x`) stay rejected because the quote and the `#N from` are required.
+- `commit_format` takes the first non-blank line as the subject whatever it starts with, drops `#` lines only after it (git's editor template), and returns `(1, "the message has no subject")` for an empty or all-blank message.
+- Tests: `test_git_merge_commit_passes` now runs a real `git merge --no-ff --no-edit` for branch, branches (octopus), remote-tracking (local bare remote), tag and bare sha, plus the PR shape; `test_comment_like_or_empty_subject_is_rejected` (3 real commits); 13 exempt merge subjects and 5 more near misses in the unit tests; `test_commit_format_takes_the_first_non_blank_line_as_the_subject`.
+
+### Finding A (merge subjects): PASS
+
+Real merges in the throwaway repo, each `rc=0`, HEAD moved, the subject exactly what git wrote, the parent count right:
+
+| Command | Subject stored | Parents |
+|---|---|---|
+| `git merge --no-ff --no-edit topic` | `Merge branch 'topic'` | 2 |
+| `git merge --no-ff --no-edit origin/rt` (local bare remote) | `Merge remote-tracking branch 'origin/rt'` | 2 |
+| `git merge --no-ff --no-edit v1` (lightweight tag) | `Merge tag 'v1'` | 2 |
+| `git merge --no-ff --no-edit v2` (annotated tag; the tag message becomes the body) | `Merge tag 'v2'` + body | 2 |
+| `git merge --no-ff --no-edit <40-char sha>` | `Merge commit '<sha>'` | 2 |
+| `git merge --no-ff --no-edit o1 o2` | `Merge branches 'o1' and 'o2'` | 3 |
+| on `feature`: `git merge --no-ff --no-edit main` | `Merge branch 'main' into feature` | 2 |
+| conflicted merge, resolved, `git commit --no-edit` | `Merge branch 'cf'` | 2 |
+| `-m "Merge pull request #7 from x/unity/y" -m "feat(x): add y"` | `Merge pull request #7 from x/unity/y` + body | 1 |
+
+Rejected, HEAD unchanged, reason "must read type(scope): summary": `-m "Merge the thing"`, `-m "Merge branch main"`, `-m "Merge pull request from x"`, and a real `git merge --no-ff -m "Merge the thing" mm` ("Not committing merge", `MERGE_HEAD` left for a proper subject).
+
+Trunk: the rule over `%B` of all 126 commits on `origin/unity/main` (`9c06593`) finds the same four long subjects as before and nothing else; all 18 merge commits are exempt.
+
+### Finding B (comment-like subject): PASS
+
+Real commits through the hook, each `rc=1`, HEAD unchanged:
+
+| Command | Reason printed |
+|---|---|
+| `git commit --allow-empty-message -m "# just a comment"` | `commit message:1 (the subject must read type(scope): summary …)` |
+| `git commit -m "#123 fix the thing"` | same, line 1 |
+| `git commit --allow-empty-message -m ""` | `commit message:1 (the message has no subject)` |
+| `git commit -m ""` (no flag) | same; the hook runs before git's own abort |
+| `git commit -F <file>` with `# a comment above` on line 1 and `fix(x): thing` on line 2 | line 1 shape, line 2 "nothing may follow the subject" (git keeps the `#` line under `cleanup=whitespace`, so line 1 would have been the subject) |
+
+Editor path still works: a fake `GIT_EDITOR` that writes `fix(x): editor path` above git's template and leaves the 8 template lines in place commits with no body (the hook ignores `#` lines after the subject). A `#` line typed above the subject in the editor is rejected, by the spec's "whatever it starts with"; git would have stripped it, so this is the accepted trade-off.
+
+### Test suite
+
+```
+$ python -m pytest tools/hygiene -q
+........................................................................ [ 17%]
+........................................................................ [ 35%]
+........................................................................ [ 53%]
+........................................................................ [ 70%]
+........................................................................ [ 88%]
+..............................................                           [100%]
+406 passed in 127.55s (0:02:07)
+```
+
+### Spec scenarios
+
+Each run twice: as a real commit through the hook in the throwaway repo, and as `python tools/hygiene/precommit.py --commit-msg <file>` on this branch (rc and reason identical both ways).
+
+| Scenario | Evidence | Result |
+|---|---|---|
+| Long subject is rejected | `fix(review): ` + 60 × `a` (73 chars) → `rc=1`, `commit message:1 (the subject is 73 characters, the limit is 72)`; `test_long_subject_is_rejected` | **PASS** |
+| Wrong shape is rejected | `Added the thing`, `feature(x): thing` → shape reason; `fix(x): Thing` → `the summary must not start with an upper-case letter`; `test_wrong_shape_is_rejected` ×3 | **PASS** |
+| Body or trailer is rejected | `-m "fix(x): thing" -m "Explains why."` and `… -m "Co-Authored-By: Someone <someone@example.invalid>"` → `commit message:3 (nothing may follow the subject …)`; `test_body_or_trailer_is_rejected` ×2 | **PASS** |
+| Conforming subject passes | `fix(review): keep the bar in frame` → `rc=0`, committed, no output; `test_conforming_subject_passes` ×2 | **PASS** |
+| Git merge commit passes | the nine real merges above; `test_git_merge_commit_passes` ×6; `test_commit_format_exempts_every_git_merge_subject` ×13; 18/18 trunk merges exempt | **PASS** |
+| Comment-like subject is not a bypass | `# just a comment`, `#123 fix the thing`, `""`, `"\n\n"` → `rc=1`, line 1; `test_comment_like_or_empty_subject_is_rejected` ×3 | **PASS** |
+
+### Hygiene
+
+```
+$ git log --format='%h %an <%ae> | %s' bd9e95e..HEAD
+6c8516b Orchestrator <orchestrator@450fpv.local> | docs(openspec): align the commit-format proposal with the spec
+e6ffafd QA Engineer <qa@450fpv.local> | docs(openspec): tick task 1.2 of enforce-commit-format
+09a5aaa QA Engineer <qa@450fpv.local> | fix(hygiene): accept every git merge subject, close the comment bypass
+507adc4 Orchestrator <orchestrator@450fpv.local> | docs(openspec): widen the merge and subject rules after review
+4db0779 QA Engineer <qa@450fpv.local> | docs(openspec): review enforce-commit-format
+261aa16 QA Engineer <qa@450fpv.local> | docs(openspec): tick task 1.1 of enforce-commit-format
+6ab0949 QA Engineer <qa@450fpv.local> | docs(agents): say the commit-msg hook enforces the format
+d243582 QA Engineer <qa@450fpv.local> | feat(hygiene): enforce the commit format in the commit-msg hook
+$ git log --format='%s' bd9e95e..HEAD | awk '{ print length($0) }'
+62 54 70 62 44 54 57 63
+$ git log --format='%B' bd9e95e..HEAD | cat -A        # subject, blank, nothing else, all eight
+$ git diff bd9e95e..HEAD --name-only | grep -iE '^reference/|Library/|/Temp/|/Logs/'   # nothing
+$ git ls-files --eol .githooks/commit-msg tools/hygiene/precommit.py tools/hygiene/tests/test_precommit.py
+i/lf    w/lf    attr/text eol=lf      	(all three)
+$ python tools/hygiene/precommit.py --tree HEAD
+324 files scanned, 0 findings
+$ openspec validate enforce-commit-format --strict
+Change 'enforce-commit-format' is valid
+```
+
+Each commit touches only the files its subject names (`09a5aaa`: the hook and its tests; `e6ffafd`: `tasks.md`; the orchestrator's two: proposal and spec). No OPSEC strings (tree scan clean; the new tests use `example.invalid` and a temp bare remote). No third-party files, so D-003 does not apply.
+
+### Residuals, no change required
+
+- **R1.** A `#`-leading line **after** the subject given with `-m`, `-F` or `--cleanup=verbatim` is stored as a body: `git commit -m "fix(x): thing" -m "#12 see the issue"` commits with body `#12 see the issue`, likewise `-m "#Co-Authored-By: …"` and an `-F` file with `# Conflicts:` lines. The hook cannot see the cleanup mode, and it must ignore `#` lines after the subject for every editor commit (above), so this is the price of the editor path; an indented ` # x` line is rejected. Only reachable on purpose (`--no-verify` is easier), and the realistic threats (a prose body, a real `Co-Authored-By:` trailer) are caught. Suggest one sentence in the requirement text, "`#` lines after the subject are git's editor template and are ignored", so the spec says what the code does. Optional.
+- **R2.** `git pull <url>` with no branch named merges a remote HEAD, and `fmt-merge-msg` writes `Merge <url>` (no kind word, no quotes): rejected (length and shape). Not among the six shapes the spec lists and not a project flow (agents merge `origin/unity/main`; PRs merge on GitHub). Widen `MERGE_SUBJECT` only if that flow is ever wanted.
+- **R3.** After a conflicted merge, `git commit --no-edit` stores git's own `# Conflicts:` / `#<tab>file` lines as the merge body (git keeps them under `cleanup=whitespace`; observed). The hook exempts the merge subject, so it passes; this is git's doing, like finding C. A line in `docs/workflow.md` ("after resolving, `git commit` with the editor or `--cleanup=strip`") would avoid it.
+- **D** from the first review stands: a BOM-prefixed `-F` message is rejected with the shape reason (safe direction, misleading text). Optional.
+
+### Requirements
+
+- **PRC-03:** **met.** Every hand-written message is held to the format; git's own merge subjects pass; no `#` or empty bypass of the subject.
+- **SEC-06:** **met.** The OPSEC line rules on the message run unchanged, the format findings are appended.
+- **Spec requirement "Commit message format":** **met**, scenarios 6/6 pass.
+
+Verdict: APPROVED
