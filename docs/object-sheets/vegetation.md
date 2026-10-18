@@ -484,7 +484,7 @@ Columnar preset: `height_m` 20, `dbh_m` 0.55, `first_fork_m` 1–2, `main_limbs`
 - Variants M, L; states summer, autumn brown-yellow, bare, bare with held brown leaves (M only); damaged → V07; a shell-split oak is V09's strongest case (the hardest wood splinters longest).
 
 ### Damage pattern
-- Thick bark takes fragment scars without dying; limbs snap and hang; a direct hit splits the trunk into standing halves (V09).
+- Thick bark takes fragment scars without dying; limbs snap and hang; a blast at the trunk splits it into standing halves (V09).
 
 ### Physics role
 - **Collision:** as V01 with thick low limbs (15–30 cm capsules the drone can hit at 2–4 m height).

@@ -693,7 +693,7 @@ Craters in the track (E05), tracks detouring around them in a widened, braided b
 
 ## K01 Bricks: whole, halves, chunks; brick clusters
 
-**Seen in:** C 1–8 (red brick bits at the foot of the cellar head's piers); D 12–14 (a pile of flat pale stone slabs with red brick beside them, the dive target); E (the chimney's brick, the adobe heap is H01's); J (silicate bricks and blocks heaped along the right house's wall, pieces 0.1–0.3 m with many smaller); K (the mound's main material: sandy-red bricks, many of them perforated, single and in mortared clusters 0.5–0.8 m); I (terrain.md B5).
+**Seen in:** C 1–8 (red brick bits at the foot of the cellar head's piers); D 12–14 (a pile of flat pale stone slabs with red brick beside them, the pile D's flight dives onto); E (the chimney's brick, the adobe heap is H01's); J (silicate bricks and blocks heaped along the right house's wall, pieces 0.1–0.3 m with many smaller); K (the mound's main material: sandy-red bricks, many of them perforated, single and in mortared clusters 0.5–0.8 m); I (terrain.md B5).
 **Research sources:** AST-04 (brick 250 × 120 × 65 mm), the thickened 88 mm brick (published, houses-and-yard.md shared section); the existing generator `tools/blender/generators/debris_brick.py` and `assets-src/debris/K01_whole.json`.
 
 ### Dimensions

@@ -28,9 +28,9 @@
 | Moist against dry soil colour | Soil colour is read moist and dry; the moist colour is 1–2 Munsell value steps darker | USDA Soil Survey Manual, ch. 3: https://www.nrcs.usda.gov/resources/guides-and-instructions/soil-survey-manual |
 | Angle of repose | Soil 30–45°; wet excavated clay 15° | https://en.wikipedia.org/wiki/Angle_of_repose |
 | Explosion craters | Depth about a quarter of the apparent diameter, varying with soil; the apparent rim stands above the old surface; ejecta settles back into the bowl | https://amcaonline.org.ar/ojs/index.php/mc/article/download/569/542 · https://armamentresearch.com/an-introduction-to-crater-analysis/ |
-| Field trenches | Slit: 1.0–1.2 m wide at the top, 0.8 m at the bottom, about 1.5 m deep, straight legs no longer than 4–5 m, zigzag, an entrance of 5–6 steps at 90°; a battle trench about 0.75 m wide and 1.5 m deep; recent ones about 2 m deep and about 1 m wide, revetted with panels of sawn timber and steel mesh (75 mm) over geotextile | https://dic.academic.ru/dic.nsf/ruwiki/1589715 · https://thinkdefence.co.uk/?p=67262 |
+| Field trenches | Slit: 1.0–1.2 m wide at the top, 0.8 m at the bottom, about 1.5 m deep, straight legs no longer than 4–5 m, zigzag, an entrance of 5–6 steps at 90°; a narrow trench about 0.75 m wide and 1.5 m deep; recent ones about 2 m deep and about 1 m wide, revetted with panels of sawn timber and steel mesh (75 mm) over geotextile | https://dic.academic.ru/dic.nsf/ruwiki/1589715 · https://thinkdefence.co.uk/?p=67262 |
 | Revetment | Hurdles of woven saplings about 0.9–1.2 m high and 1.8–2.7 m long between upright poles, anchored by pickets driven into the parapet | https://tnsos.net/TSLA/cwsourcebook/glossary.php?alph=h |
-| Dugouts | A covered shelter against plunging fire, its cover on timber or earth supports; a frame of round timber 16–22 cm across, a roof of one or more layers of logs, roofing felt or polyethylene film over them, then an earth cushion; the entrance turns 90° | https://booksite.ru/fulltext/1/001/007/012/12818.htm · https://ru.wikipedia.org/wiki/Блиндаж |
+| Dugouts | A covered shelter, its cover on timber or earth supports; a frame of round timber 16–22 cm across, a roof of one or more layers of logs, roofing felt or polyethylene film over them, then an earth cushion; the entrance turns 90° | https://booksite.ru/fulltext/1/001/007/012/12818.htm · https://ru.wikipedia.org/wiki/Блиндаж |
 | Trench flow | A narrow cavity under a cross-wind skims: one primary vortex fills it, with a secondary vortex under it at depth/width ≥ 2 | https://en.wikipedia.org/wiki/Street_canyon |
 | Field tillage | Mouldboard bodies 0.30–0.50 m wide (the furrow pitch), working depth 0.15–0.35 m; grain drill rows 15 cm on a 3.6 m drill; a combine's straw falls through a 1.5 m window into a windrow behind a 5–6 m header; wheat stubble 10–20 cm (13–35 cm in trials) | https://agro-masz.eu/en/strona-glowna/555-pj-single-beam-plough.html · https://learn.ztu.edu.ua/mod/resource/view.php?id=234541 · https://rep.bsatu.by/bitstream/doc/16458/1/2009_6.1.opredelenie.pdf · https://rae.agriculturejournals.cz/artkey/rae-201503-0004_evaluation-of-wheat-stubble-management-practices-in-terms-of-the-fuel-consumption-and-field-capacity.php · https://cigrjournal.org/index.php/Ejounral/article/view/3360 |
 | Stubble burning | Stubble burns to gases and light-coloured ash; windrows burn hotter than the stubble between them | https://eupdate.agronomy.ksu.edu/article/factors-to-consider-before-baling-or-burning-wheat-residue-289 · https://www.agric.wa.gov.au/grains/windrow-burning-tips-experts |
@@ -203,7 +203,7 @@ One generator builds the trench along a map polyline; E02 and E03 are its parame
 | `revet_height_m` | float | 0.8–depth | depth | lined height, from the lip down |
 | `collapse` | float | 0–1 | 0 | E03: walls slump toward 35°, the floor fills, the parapets flatten |
 | `overgrowth` | float | 0–1 | 0 | E03: weeds and saplings in and over it |
-| `dugouts_per_100m` | float | 0–3 | 1.5 | E04 fittings along the belt side |
+| `dugouts` | int | 0–3 | 1 | E04 entrances off the run's belt side, at seeded points unless the layout (phase 3) gives them |
 | `seed` | int | any | per run | every draw |
 
 Outputs: the hole-band mask (`holes.png` cells), the filler mesh and its primitives with `surface:<id>`, the parapet height deltas for the heightfield and their cover weights, gap polygons every metre and at every bend, the revetment parts with their collision and snag flags, and the LOD ladder. At 50–200 m the trench must read as G shows it: a dark winding line 1–3 px wide on the feed between two pale parapet bands (G 1–12).
@@ -216,7 +216,7 @@ Outputs: the hole-band mask (`holes.png` cells), the filler mesh and its primiti
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| top width, lip to lip | 0.6–1.0 m | 0.8 m | measured (terrain.md W2, G); published 0.75 m (battle trench) to 1.0–1.2 m (slit) |
+| top width, lip to lip | 0.6–1.0 m | 0.8 m | measured (terrain.md W2, G); published 0.75 m (narrow) to 1.0–1.2 m (slit) |
 | bottom width | 0.5–0.8 m | 0.6 m | published (slit 0.8 m); default derived from a near-vertical spade cut |
 | depth below the lip | 1.2–1.8 m (recent runs to 2.0 m) | 1.5 m | measured (terrain.md W2, G); published 1.5 m, about 2 m for recent ones |
 | wall batter | 80–90° | 86° | derived: (0.8 − 0.6)/2 = 0.1 m of batter over 1.5 m |
@@ -271,7 +271,7 @@ Outputs: the hole-band mask (`holes.png` cells), the filler mesh and its primiti
 
 ### Placement rules (for the world)
 - Along the field side of belts and narrow strips, 1–5 m out from the outer trunk line, following the belt's line with its own wander (G; terrain.md §10). Also along field edges and between belts (assumed).
-- Runs of 50–300 m, several per belt system, with dugouts (E04) on the belt side every 30–100 m and side niches facing the open field (assumed).
+- Runs of 50–300 m, several per belt system (assumed). The run's fittings, E04 entrances and side niches, are counts in the generator table; the layout (phase 3) sets the rest.
 - The parapets blend into the local surface over 1–2 m; their cover is the local meadow or straw.
 
 ### Generator parameters
@@ -332,7 +332,7 @@ The shared trench-family table, with `revetment` none, `collapse` 0, `overgrowth
 - **Landable surfaces:** none.
 
 ### Placement rules
-- Runs that are held long: near dugouts, at belt corners, in soft or sandy ground (assumed). 20–40 % of trench length (assumed), the rest open (E01).
+- Long-lived runs, at belt corners and in soft or sandy ground (assumed): 20–40 % of trench length (assumed), the rest open (E01).
 
 ### Generator parameters
 The shared trench-family table with `revetment` boards or wattle (or mesh), `revet_height_m`, plus:
@@ -353,7 +353,7 @@ The shared trench-family table with `revetment` boards or wattle (or mesh), `rev
 
 ## E03 Trench, collapsed and overgrown
 
-**Seen in:** **R**. H's small earth mounds and bare soil hollows at the belt edge (H 1–4, H 9–14) are of this scale, but no letter shows an abandoned trench line.
+**Seen in:** **R**. H's small earth mounds and bare soil hollows at the belt edge (H 1–4, H 9–14) are of this scale, but no letter shows an abandoned trench.
 **Research sources:** the angle-of-repose row (soil 30–45°).
 
 ### Dimensions
@@ -392,7 +392,7 @@ The shared trench-family table with `revetment` boards or wattle (or mesh), `rev
 - **Landable surfaces:** none flagged; a hidden pitfall under the weeds for a landing (a leg drops 0.4–1.0 m on one side).
 
 ### Placement rules
-- Older positions away from the current lines: along belts and field edges, 10–30 % of all trench length (assumed); often beside an E01 run that replaced it.
+- Along belts and field edges, 10–30 % of all trench length (assumed); the layout (phase 3) sets where.
 
 ### Generator parameters
 The shared trench-family table with `collapse` 0.5–1, `overgrowth` 0.3–1, `age` 1.
@@ -434,7 +434,7 @@ The shared trench-family table with `collapse` 0.5–1, `overgrowth` 0.3–1, `a
 - One variant; states intact and damaged (the frame's lintel cracked and sagging 0.1–0.3 m, earth spilled on the steps, the tarp torn).
 
 ### Damage pattern
-- A hit near the entrance: the lintel and the first roof logs break, earth slides onto the steps, the clear height drops to 1.0–1.3 m (assumed).
+- A blast near the entrance: the lintel and the first roof logs break, earth slides onto the steps, the clear height drops to 1.0–1.3 m (assumed).
 
 ### Physics role
 - **Collision:** the trench fillers continue down the stair: step boxes, wall boxes, a ceiling box under the roof; frame logs as capsules (`timber`); roof logs only where they show at the entrance face (their ends, capsules); the chamber as a box room. **Holes:** a `holes` record of its own, a footprint over the stair and the chamber, under F-1…F-8 as the cellar C01's (houses-and-yard.md, Holes): the chamber lies below the ground, so its cells are holes too and the ground over them is filler (`surface:meadow_sod`, or `surface:belt_straw` under the crowns); the mound is heightfield only outside the band.
@@ -445,7 +445,7 @@ The shared trench-family table with `collapse` 0.5–1, `overgrowth` 0.3–1, `a
 - **Landable surfaces:** the mound top (ordinary ground).
 
 ### Placement rules
-- On the belt side of E01 runs, every 30–100 m (assumed), the mound partly under the outer crowns.
+- Off the belt side of an E01 run, the mound partly under the outer crowns (assumed); how many per run is the trench generator's `dugouts`, and the layout (phase 3) sets where.
 
 ### Generator parameters
 | Param | Type | Range | Default | Effect |
@@ -521,8 +521,8 @@ The shared trench-family table with `collapse` 0.5–1, `overgrowth` 0.3–1, `a
 ### Placement rules (for the world)
 - **Cratered field (B type):** 1 per 100–400 m² (derived from the 5–20 m spacing); size mix medium 50 %, small 30 %, large 20 % (assumed from B 4–12); most weathered.
 - **Meadow (A type):** small craters with scorch discs and old hollows, 1 per 1,000–5,000 m² (assumed: one to three dark hollows per A frame).
-- Clusters near belts, trench lines, tracks and yards (assumed: where the targets are); craters cut parapets (E01) and tracks.
-- Elongated craters orient downrange by draw (assumed for oblique hits).
+- Clusters near belts, trenches, tracks and yards (assumed); craters cut parapets (E01) and tracks.
+- Elongated craters take a seeded azimuth (assumed: an oblique impact elongates the bowl).
 
 ### Generator parameters
 | Param | Type | Range | Default | Effect |
@@ -531,7 +531,7 @@ The shared trench-family table with `collapse` 0.5–1, `overgrowth` 0.3–1, `a
 | `depth_ratio` | float | 0.2–0.35 | 0.25 | d/D |
 | `rim_ratio` | float | 0.03–0.1 | 0.05 | h/D |
 | `apron_ratio` | float | 1.5–2.5 | 2.0 | Re/R |
-| `ellipticity` | float, azimuth | 0–0.3, 0–360° | 0 | elongation of an oblique hit |
+| `ellipticity` | float, azimuth | 0–0.3, 0–360° | 0 | elongation from an oblique impact |
 | `age` | float | 0–1 | 0.5 | fresh → weathered → grassed: slump, rim softening, crust, regrowth |
 | `scorch_m` | float | 0–6 | 3 (small class), 0 otherwise | scorch disc diameter |
 | `rays` | int | 0–12 | 6 when fresh | spoil rays on the apron |
@@ -1268,7 +1268,7 @@ Preset: `base_sets` road_damaged + asphalt_02; `albedo_target` #616161; `patch_m
 - Weathered (default), muddy (soil carried on), wet (darker, μ 0.45/0.38).
 
 ### Damage pattern
-- Cracked and spalled plates, a plate tipped or broken by a hit (RD02), a crater beside the track.
+- Cracked and spalled plates, a plate tipped or broken by a blast (RD02), a crater beside the track.
 
 ### Physics role
 - **Plates** are RD02 objects: boxes with `concrete` (μ 0.60/0.50, 3 mm arris), landable flags on their tops, the joints and steps real geometry.

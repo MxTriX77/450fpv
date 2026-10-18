@@ -618,7 +618,7 @@ Blocks and bricks come out in stepped jags as H03; the light roof lifts first. R
 - **Gaps:** door 0.8 × 1.8: any yaw. Window 0.4 × 0.5: **no**. A D corner breach 0.5–0.9 m: passes nose-first when ≥ 0.6 m clear. Interior 3.6 × 2.6 × 2.0 m: hover room.
 - **Wind volumes:** solid (0); the interior a cavity through the door.
 - **Snag hazards:** the felt edge, the door frame, the window frame, nails in a dropped roof.
-- **Landable surfaces:** **the flat roof** (4 × 3 m, ≤ 8°, felt on boards or a slab, 2.2 m up): the yard's best rooftop target when sound.
+- **Landable surfaces:** **the flat roof** (4 × 3 m, ≤ 8°, felt on boards or a slab, 2.2 m up): the yard's best rooftop landing spot when sound.
 
 ### Placement rules
 One per yard, along a side boundary or facing the cellar (C), 5–15 m from the house.
@@ -1198,7 +1198,7 @@ Lattice panels break first (thin concrete), then the brick panel in stepped jags
 - **Gaps:** none when intact; a missing lattice panel (2.4 × 0.5 m): the slot is 0.5 m high, **no** (0.55 m envelope); a missing precast panel row: no; a pier and panel down (2.8 m): any yaw.
 - **Wind volumes:** solid below the lattice (0); the lattice 0.4; precast and brick walls 0; the stone pile 0.1.
 - **Snag hazards:** lattice balusters and their broken stubs, pier caps, the coping edge, stone edges.
-- **Landable surfaces:** the pier cap (0.45 m square) and the coping (0.12–0.25 m): the legs sit 0.24 m apart, so a cap holds the drone only if centred within ±10 cm: flagged `land` as an expert target; the coping no. The stone pile: uneven `rubble`.
+- **Landable surfaces:** the pier cap (0.45 m square) and the coping (0.12–0.25 m): the legs sit 0.24 m apart, so a cap holds the drone only if centred within ±10 cm: flagged `land` as an expert landing spot; the coping no. The stone pile: uneven `rubble`.
 
 ### Placement rules
 Variant 1 in front of H06 and street-side plots at the urban edge (I); variant 2 along newer plots; variant 3 around a shop or the farm; variant 4 on abandoned plots (D) and as old boundary walls in the south of the map.
@@ -1568,7 +1568,7 @@ Props tip and scatter; the line breaks and lies in the weeds (then it is L04's c
 - **Gaps:** none; the kennel door 0.35 × 0.4: no.
 - **Wind volumes:** negligible; the tank a 1 m cube (0).
 - **Snag hazards:** **the laundry line at 1.6–1.8 m, nearly invisible on the feed: the yard's own thin-wire trap (PR-6 thin class)**; the basin post; chair backs.
-- **Landable surfaces:** the barrel top (0.58 m, `steel`, 0.88 m up): the legs sit within 0.24 m, so it holds the drone when centred within ±15 cm, an expert target; the tank top (1 m, flat): yes; the bench seat (0.35 m): no; the kennel roof (0.8 × 1.0, felt): yes.
+- **Landable surfaces:** the barrel top (0.58 m, `steel`, 0.88 m up): the legs sit within 0.24 m, so it holds the drone when centred within ±15 cm, an expert landing spot; the tank top (1 m, flat): yes; the bench seat (0.35 m): no; the kennel roof (0.8 × 1.0, felt): yes.
 
 ### Placement rules
 The bench by the house door or the gate; the line between the house and a fruit tree or the shed; the barrel at a downpipe; the bucket and basin by the well; the kennel by the gate.
