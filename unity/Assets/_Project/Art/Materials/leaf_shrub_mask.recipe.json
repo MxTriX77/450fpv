@@ -1,0 +1,25 @@
+{
+  "material": "leaf_shrub",
+  "texture_set": "ambientcg/LeafSet002",
+  "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
+  "mask": {
+    "metallic": 0.0,
+    "occlusion": "ao",
+    "smoothness": "1 - roughness"
+  },
+  "sources": {
+    "ao": {
+      "name": "LeafSet002_2K-PNG_AmbientOcclusion.png",
+      "sha256": "c83746696f3fbfb52f9d3a796daa4c539b413a109d50e2a4eb77fe711b20fa6a"
+    },
+    "roughness": {
+      "name": "LeafSet002_2K-PNG_Roughness.png",
+      "sha256": "757a35195a8351430b14e601989397267ed41b25c6982605e38d5dc462326e71"
+    }
+  },
+  "inputs_sha256": "ad7f1daa77d5f700b133796182456e37369904b459ddaeb18407882052539e66",
+  "size": [
+    2048,
+    2048
+  ]
+}
