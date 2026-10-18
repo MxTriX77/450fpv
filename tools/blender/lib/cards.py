@@ -13,9 +13,12 @@ perpendicular to the sprig, or up when the sprig itself points outward, rolled a
 (more of a card's area faces a viewer outside the clump, so the clump reads opaque with fewer cards). A card whose
 corners would dip under the ground is lifted onto it.
 
-The far LOD is CROSSED vertical cards of the whole clump, each mapped to the dense core of one sprig, FAR_PX, the
+The far LOD is CROSSED vertical cards of the whole clump, each mapped to a dense box of one sprig, FAR_PX, the
 atlas scaled up: the whole atlas is 20 % leaf, so at the 9 px of a far clump its six thin sprigs fell under the
-clip and the card vanished (measured on the first review sheet at 200 m).
+clip and the card vanished (measured on the first review sheet at 200 m). Each card is the ellipse that covers what
+LOD0's leaves and wood cover seen square to it (`outline`), and its box's colour is the leaves' mean, so LOD2 neither
+pops brighter nor grows at its switch (p1-v01-locust task 1.2b). The nearer LODs keep every other or every fourth
+card, scaled to hold all the cards' silhouette and that of the thin wood the LOD drops (`thinned`).
 
 Trees (p1-v01-locust, design decision 2): `along` lays a pinnate leaf card every step along a member's polyline,
 alternate sides, each a whole sprig cell (a stalk with 12-20 small oval leaves, which at a 0.25 m leaf are the
@@ -32,9 +35,23 @@ from .skeleton import AXES, add, cross, dot, norm, normalize, scale, sub
 SET_PX = 2048
 CELLS_PX = (((192, 128), (560, 960)), ((784, 128), (1264, 960)), ((1472, 128), (1856, 960)),
             ((192, 1152), (560, 1952)), ((784, 1152), (1264, 1952)), ((1472, 1152), (1856, 1952)))
-# The densest box of 0.6 x 0.5 of a cell in cells 3, 5 and 2: 95, 92 and 91 % of its texels opaque (alpha >= 0.5,
-# measured on leaf_shrub_base.png), against 30-52 % for a whole cell and 20 % for the atlas.
-FAR_PX = (((288, 1312), (495, 1711)), ((1568, 1296), (1791, 1695)), ((1568, 352), (1791, 767)))
+# The far cards' boxes, 128 x 256 px in cells 5 and 1, 90 % of their texels opaque (alpha >= 0.5) so they hold at a
+# far mip, whose colour is the leaves' mean: the opaque texels' linear colour times the mask's occlusion over the
+# six cells, each weighted by its opaque texels as a card draws a cell at random, is luminance 0.249 with r/g 0.751
+# and b/g 0.224; the boxes come to +1.2 and +3.9 % of it, r/g 0.758 and 0.738, b/g 0.170 and 0.277, the closest of
+# every such box of the atlas (measured on leaf_shrub_base.png and leaf_shrub_mask.png; p1-v01-locust task 1.2b,
+# where the densest cores task 1.3 of p1-v13-shrub took came out 26-42 % bright by day against LOD0).
+FAR_PX = (((1696, 1184), (1823, 1439)), ((936, 680), (1063, 935)))
+FAR_OPAQUE = 0.9            # the boxes' opaque share: a far card covers this of its outline
+FAR_SIDES = 12              # a far card's outline, a polygon round its ellipse
+FAR_GRID_M = 0.05           # the raster LOD0's leaves are measured on for the far cards
+# The share of each cell's texels at alpha 0.5 or more (measured on leaf_shrub_base.png; leaf_locust_base.png is the
+# same map): what of a card's area its leaves cover.
+CELL_OPAQUE = (0.394, 0.406, 0.453, 0.518, 0.305, 0.499)
+# The cells a thinned LOD's cards take in turn: cells 1 and 5, whose opaque texels' mean linear colour, (0.2095,
+# 0.2887, 0.0758) and (0.2201, 0.2767, 0.0533), average to the six cells' (0.2117, 0.2826, 0.0634) within 2 %, where
+# single cells run from 0.133 to 0.335 in luminance (measured on leaf_shrub_base.png; p1-v01-locust task 1.2b).
+MEAN_CELLS = (1, 5)
 CROSSED = 3
 LEVEL_WEIGHT = {1: 1, 2: 3}
 MIN_T = 0.15
@@ -128,17 +145,129 @@ def _card(rng, attach, axis, card_m, ground_y, crown=(0.0, 0.0)):
     return Card(corners, cross(axis, side), [(u0, v0), (u1, v0), (u1, v1), (u0, v1)], cell)
 
 
-def crossed(width, y0, y1, count=CROSSED):
-    """The far LOD: `count` vertical cards of the clump, `width` wide from y0 to y1, crossed about the axis at even
-    azimuths, card k mapped to the sprig core FAR_PX[k]."""
+def crossed(leaves, wood=(), count=CROSSED):
+    """The far LOD of the leaf `leaves` and the `wood` it drops, segments (p0, p1, r0, r1) (p1-v01-locust task
+    1.2b): `count` vertical cards crossed at even azimuths about the vertical through the leaves' centre, card k a
+    FAR_SIDES-gon round the ellipse that stands for them seen square to it (`outline`), mapped over the box
+    FAR_PX[k mod 2] (the box's frame on the ellipse's). So it covers what LOD0's leaves and wood cover there, where
+    the leaves are, in the leaves' colour. None without leaves."""
+    if not leaves:
+        return None
+    points = [c for card in leaves for c in card.corners]
+    axis = (sum(p[0] for p in points) / len(points), sum(p[2] for p in points) / len(points))
     cards = []
     for k in range(count):
         azimuth = math.pi * k / count
-        b = scale((math.cos(azimuth), 0.0, math.sin(azimuth)), width / 2)
-        corners = [(-b[0], y0, -b[2]), (b[0], y0, b[2]), (b[0], y1, b[2]), (-b[0], y1, -b[2])]
+        across = (math.cos(azimuth), 0.0, math.sin(azimuth))
+        (cu, cv), (a, b) = outline(leaves, wood, axis, across)
         (u0, v0), (u1, v1) = cell_uv(FAR_PX[k % len(FAR_PX)])
-        cards.append(Card(corners, cross(UP, normalize(b)), [(u0, v0), (u1, v0), (u1, v1), (u0, v1)], None))
+        corners, uvs = [], []
+        for j in range(FAR_SIDES):
+            t = 2 * math.pi * (j + 0.5) / FAR_SIDES
+            x, y = math.cos(t), math.sin(t)
+            corners.append((axis[0] + across[0] * (cu + a * x), cv + b * y, axis[1] + across[2] * (cu + a * x)))
+            uvs.append((u0 + (x + 1) / 2 * (u1 - u0), v0 + (y + 1) / 2 * (v1 - v0)))
+        cards.append(Card(corners, cross(UP, across), uvs, None))
     return cards
+
+
+def outline(leaves, wood, axis, across):
+    """The ellipse that stands for the leaf cards and the wood segments seen square to the vertical plane through
+    `axis` (x, z) along the horizontal `across`: ((centre along across, centre height), (half width, half height)).
+    Both are projected on the plane (a segment as the strip of its diameters) and rasterised at FAR_GRID_M, a card
+    covering its cell's CELL_OPAQUE share of the points inside it and wood all of them (a point under pieces of shares
+    o_i is covered 1 - prod(1 - o_i)); the ellipse has the centre of the leaves' coverage and the shape of a uniform
+    ellipse of its second moments (half axes twice the deviations), scaled so that FAR_OPAQUE of its area is the area
+    the leaves and the wood cover together."""
+    g = FAR_GRID_M
+    pieces = [([(_dot2(c, axis, across), c[1]) for c in card.corners], CELL_OPAQUE[card.cell], True) for card in leaves]
+    for p0, p1, r0, r1 in wood:
+        (u0, v0), (u1, v1) = (_dot2(p0, axis, across), p0[1]), (_dot2(p1, axis, across), p1[1])
+        length = math.hypot(u1 - u0, v1 - v0)
+        if length > 1e-9:
+            nu, nv = (v0 - v1) / length, (u1 - u0) / length
+            pieces.append(([(u0 + nu * r0, v0 + nv * r0), (u1 + nu * r1, v1 + nv * r1), (u1 - nu * r1, v1 - nv * r1),
+                            (u0 - nu * r0, v0 - nv * r0)], 1.0, False))
+    lo_u = min(u for q, _, _ in pieces for u, _ in q)
+    lo_v = min(v for q, _, _ in pieces for _, v in q)
+    clear, clear_leaves = {}, {}
+    for quad, share, leaf in pieces:
+        us, vs = [u for u, _ in quad], [v for _, v in quad]
+        for i in range(math.ceil((min(us) - lo_u) / g - 0.5), math.floor((max(us) - lo_u) / g - 0.5) + 1):
+            for j in range(math.ceil((min(vs) - lo_v) / g - 0.5), math.floor((max(vs) - lo_v) / g - 0.5) + 1):
+                if _inside(quad, (lo_u + (i + 0.5) * g, lo_v + (j + 0.5) * g)):
+                    clear[i, j] = clear.get((i, j), 1.0) * (1.0 - share)
+                    if leaf:
+                        clear_leaves[i, j] = clear_leaves.get((i, j), 1.0) * (1.0 - share)
+    covered = sum(1.0 - c for c in clear.values())
+    weight = {key: 1.0 - c for key, c in clear_leaves.items()}
+    total = sum(weight.values())
+    mu = sum(w * (lo_u + (i + 0.5) * g) for (i, _), w in weight.items()) / total
+    mv = sum(w * (lo_v + (j + 0.5) * g) for (_, j), w in weight.items()) / total
+    su = math.sqrt(sum(w * (lo_u + (i + 0.5) * g - mu) ** 2 for (i, _), w in weight.items()) / total + g * g / 12)
+    sv = math.sqrt(sum(w * (lo_v + (j + 0.5) * g - mv) ** 2 for (_, j), w in weight.items()) / total + g * g / 12)
+    a, b = 2 * su, 2 * sv
+    fit = math.sqrt(covered * g * g / (FAR_OPAQUE * math.pi * a * b))
+    return (mu, mv), (a * fit, b * fit)
+
+
+def _dot2(p, axis, across):
+    return (p[0] - axis[0]) * across[0] + (p[2] - axis[1]) * across[2]
+
+
+def _inside(polygon, point):
+    """Whether the point lies in the convex polygon (either winding), its edges included."""
+    sign = 0
+    for (x0, y0), (x1, y1) in zip(polygon, polygon[1:] + polygon[:1]):
+        side = (x1 - x0) * (point[1] - y0) - (y1 - y0) * (point[0] - x0)
+        if side:
+            if sign and (side > 0) != (sign > 0):
+                return False
+            sign = side
+    return True
+
+
+def silhouette(cards):
+    """The cards' mean silhouette, m2: half the opaque area of each (a flat card seen from every side shows half its
+    area on average), its cell's CELL_OPAQUE share of it (a cell-less card, a pod strip, whole)."""
+    total = 0.0
+    for card in cards:
+        a, b, c, _ = card.corners
+        area = norm(cross(sub(b, a), sub(c, b)))
+        total += area * (CELL_OPAQUE[card.cell] if card.cell is not None else 1.0) / 2
+    return total
+
+
+def thinned(cards, keep, dropped_m2=0.0, ground_y=0.0):
+    """Every `keep`-th card, standing for `keep` of them (p1-v01-locust task 1.2b): mapped to the MEAN_CELLS in turn
+    (as long as before, as wide as its new cell), so the kept cards show the leaves' mean colour rather than the luck
+    of the cells they drew, and scaled about its centre so that their silhouette (`silhouette`) is all the cards' plus
+    `dropped_m2`, the mean silhouette of what the LOD drops besides (its thin wood): a far LOD keeps its crown's
+    coverage and colour. A card dipping under the ground is lifted onto it; `keep` 1 returns the cards as they are."""
+    if keep == 1 and not dropped_m2:
+        return list(cards)
+    kept = [_recelled(card, MEAN_CELLS[i % len(MEAN_CELLS)]) for i, card in enumerate(cards[::keep])]
+    s = math.sqrt((silhouette(cards) + dropped_m2) / silhouette(kept)) if kept else 1.0
+    out = []
+    for card in kept:
+        centre = scale(tuple(sum(c[a] for c in card.corners) for a in range(3)), 1.0 / len(card.corners))
+        corners = [add(centre, scale(sub(c, centre), s)) for c in card.corners]
+        lift = ground_y - min(c[1] for c in corners)
+        if lift > 0:
+            corners = [(x, y + lift, z) for x, y, z in corners]
+        out.append(Card(corners, card.normal, card.uvs, card.cell))
+    return out
+
+
+def _recelled(card, cell):
+    """The leaf card mapped to `cell`: the same centre, length and facing, as wide as the cell's aspect."""
+    c0, c1, _, c3 = card.corners
+    centre = scale(tuple(sum(c[a] for c in card.corners) for a in range(3)), 1.0 / len(card.corners))
+    a = scale(sub(c3, c0), 0.5)
+    (u0, v0), (u1, v1) = CELLS_UV[cell]
+    b = scale(normalize(sub(c1, c0)), norm(a) * (u1 - u0) / (v1 - v0))
+    corners = [sub(sub(centre, a), b), add(sub(centre, a), b), add(add(centre, a), b), sub(add(centre, a), b)]
+    return Card(corners, card.normal, [(u0, v0), (u1, v0), (u1, v1), (u0, v1)], cell)
 
 
 def add_to(mesh, cards, slot):

@@ -366,6 +366,16 @@ def tree_tubes(mesh, members, lod, slot_of):
             _dome(mesh, rings[-1], normalize(sub(member.points[-1], member.points[-2])), sides, slot_of(member), frame[1])
 
 
+def dropped_silhouette(members, lod):
+    """The mean silhouette, m2, of the tubes LOD0 draws and `lod` does not (tree_tubes): pi / 4 * length * diameter
+    per straight segment, a long cylinder's projected area averaged over every direction of view."""
+    total = 0.0
+    for member in members:
+        if TREE_SIDES[3 if member.twig else min(member.order, 2)][lod] is None:
+            total += sum(math.pi / 4 * norm(sub(b, a)) * (ra + rb) for a, b, ra, rb in member.segments())
+    return total
+
+
 def _dome(mesh, ring, outward, sides, slot, u):
     """A hemisphere of the ring's radius beyond its centre along the unit `outward`, DOME_RINGS rings and a pole,
     its seam at the tube's frame vector `u`."""

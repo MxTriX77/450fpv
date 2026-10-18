@@ -1,7 +1,7 @@
 """generators.tree with lib.skeleton, lib.cards and lib.shell (p1-v01-locust, "V01 black locust belt tree"; design
 decisions 1, 2, 4 and 6; review-physics PR4-PR8): the committed params conform and the defaults are V01_M; check's
 refusals; sizes inside the sheet's rows; the capsule count printed, V01_M's between 150 and 300; LODs under budget
-and halving; every wood segment a bark capsule on its chord; twig rings at every kink at most 0.1 m apart with
+and halving, the far ones' leaves holding LOD0's silhouette and the wood's they drop (task 1.2b); every wood segment a bark capsule on its chord; twig rings at every kink at most 0.1 m apart with
 polyline records through them; records naming their material by the sheet's rule; leaves on the last two orders and
 pods on the share of twig tips; one crown wind box over the twig, leaf and pod mass above trunk columns, never
 overlapping; shells fitted per main limb and a limb that fails split into its child subtrees; the gap search keeping
@@ -127,6 +127,21 @@ def test_lods_under_budget_and_halving(variant):
     assert slots[0] == {"bark", "twig", "leaf"} and slots[1] == {"bark", "leaf"} and slots[2] == {"bark", "leaf"}
     leaves = [sum(1 for f in mesh.faces if f[3] == "leaf") for mesh in built["lods"]]
     assert leaves[1] == math.ceil(leaves[0] / 2) and leaves[2] == math.ceil(leaves[0] / 4)
+
+
+def test_far_lods_hold_the_leaves_and_the_wood_they_drop(variant):
+    """p1-v01-locust task 1.2b (LOD2 had 43-52 % of LOD0's crown pixels): LOD1 and LOD2 keep every other and every
+    fourth leaf, on the two cells of the leaves' mean colour, scaled so that their leaves' mean silhouette is all of
+    LOD0's plus that of the wood they draw no more (LOD1 the twigs, LOD2 the branches too)."""
+    name, p, built, data = variant
+    lods = [[cards.Card([m.vertices[i] for i in f], n, uvs, cards.CELLS_UV.index((uvs[0], uvs[2])))
+             for f, n, uvs, s in m.faces if s == "leaf"] for m in built["lods"]]
+    assert {c.cell for c in lods[1] + lods[2]} == set(cards.MEAN_CELLS) and len({c.cell for c in lods[0]}) == 6
+    members = built["members"]
+    for lod in (1, 2):
+        dropped = skeleton.dropped_silhouette(members, lod)
+        assert dropped > skeleton.dropped_silhouette(members, lod - 1)
+        assert cards.silhouette(lods[lod]) == pytest.approx(cards.silhouette(lods[0]) + dropped)
 
 
 def axis_ends(capsule):

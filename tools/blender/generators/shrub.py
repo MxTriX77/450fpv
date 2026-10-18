@@ -10,8 +10,11 @@ lower half stretches below the ground, which cuts it, so the leaves reach the gr
 Stems run STEM_SHARE of the height, inside the crown, from a base disc of BASE_R_SHARE * width_m within BASE_R_M.
 The card count is cards_per_m3 * the envelope's volume * leaf_cover.
 
-LODs: LOD0 6-sided stems, 3-sided twigs and every card; LOD1 4-sided stems and every other card; LOD2 three crossed
-cards spanning the crown LOD0 built (its twigs and cards). lod.* come from the pixel rule (935 px/rad, setup-asset-pipeline design decision 7):
+LODs: LOD0 6-sided stems, 3-sided twigs and every card; LOD1 4-sided stems and every other card, on the cells of the
+leaves' mean colour and grown to hold LOD0's cards' and twigs' silhouette (lib.cards.thinned); LOD2 three crossed
+ellipses covering what LOD0's cards, stems and twigs cover, in the leaves' mean colour (lib.cards.crossed; p1-v01-locust
+task 1.2b: every LOD within 6 % of LOD0's luminance and 15 % of its coverage, as far as crossed cards can). lod.* come
+from the pixel rule (935 px/rad, setup-asset-pipeline design decision 7):
 LOD1 where the thickest twig, 8 mm, drops under 1 px (7.5 m); LOD2 where a card drops under 2 px (card_m * 467);
 cull where the clump's height drops under 2 px (height_m * 467, capped at 800 m: the belt beyond is V01's band).
 
@@ -148,22 +151,26 @@ def build(params):
     stems, twigs = skeleton.build(rng, params["stems"], base_r, (STEM_SHARE[0] * height, STEM_SHARE[1] * height),
                                   stem_r, params["arch"], bare, envelope.reach, fork)
     leaves = cards.place(rng, twigs, card_count(params), card_m, fork_deg=fork)
+    twig_m2 = sum(math.pi / 4 * math.dist(t.p0, t.p1) * (t.r0 + t.r1) for t in twigs)  # mean silhouette; LOD1 drops them
     lods = [Mesh(), Mesh(), Mesh()]
     for lod, mesh in enumerate(lods[:2]):
         skeleton.tubes(mesh, stems, twigs, lod, STEM, TWIG)
-        cards.add_to(mesh, leaves[::lod + 1], LEAF)
+        cards.add_to(mesh, cards.thinned(leaves, lod + 1, lod * twig_m2), LEAF)
+    wood = [s for stem in stems for s in stem.segments] + [(t.p0, t.p1, t.r0, t.r1) for t in twigs]
+    far = cards.crossed(leaves, wood)  # what LOD0 covers, in the leaves' colour; a clump without leaves has no LOD2
+    if far:
+        cards.add_to(lods[2], far, LEAF)
+    else:
+        lods.pop()
     crown = sorted({lods[0].vertices[i] for indices, _, _, slot in lods[0].faces if slot in (TWIG, LEAF) for i in indices})
     collision = [meta.capsule(p0, p1, (r0 + r1) / 2, "bark") for stem in stems for p0, p1, r0, r1 in stem.segments]
     wind = []
-    if crown:  # the far cards span the built crown, not the envelope, so LOD2 shows the clump LOD0 showed
+    if crown:
         clo, chi = (tuple(f(p[a] for p in crown) for a in range(3)) for f in (min, max))
-        cards.add_to(lods[2], cards.crossed(max(chi[0] - clo[0], chi[2] - clo[2]), clo[1], chi[1]), LEAF)
         pieces, _, _ = shell.fit(lods[0], (TWIG,), (LEAF,), audit.card_allowance(card_m))
         collision += [meta.capsule(a, b, r, PHYSICS[TWIG]) for a, b, r in pieces]
         wind.append({"shape": "box", "center": [(clo[a] + chi[a]) / 2 for a in range(3)], "size": [chi[a] - clo[a] for a in range(3)],
                      "rotation": IDENTITY, "porosity": 0.7 - 0.35 * params["leaf_cover"]})
-    else:
-        lods.pop()
     lod = params["lod"]
     return {
         "lods": lods,

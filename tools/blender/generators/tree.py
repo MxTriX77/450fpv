@@ -13,7 +13,9 @@ sheet: the share of twig tips that carry leaves); pod strips (lib.cards.hanging)
 of the last order's tips.
 
 LODs (design decision 1): LOD0 the trunk 12-sided, limbs 8, branches 6, twigs 3, every leaf and pod; LOD1 halves the
-sides, drops the twigs, keeps every other leaf and pod strip; LOD2 keeps the trunk and limbs and every fourth leaf.
+sides, drops the twigs, keeps every other leaf and pod strip; LOD2 keeps the trunk and limbs and every fourth leaf. The
+kept leaves take the cells of the leaves' mean colour and grow to hold the silhouette of every leaf and of the wood
+the LOD drops (lib.cards.thinned; task 1.2b: LOD2 had half LOD0's crown pixels and was 13-20 % dark by day).
 lod.* come from the pixel rule (935 px/rad): LOD1 where the 10 mm twigs drop under 1 px (9.35 m), LOD2 where a leaf
 drops under 2 px (leaf_m * 467.5), cull where the tree's height drops under 2 px (height_m * 467.5), at most 2 500 m.
 
@@ -55,6 +57,7 @@ STEM_SPLAY_DEG = 5.0        # a clump's stems lean out this much more than a lon
 LEAF_STEP_M = 0.05          # a leaf every this along a leafy member (assumed: the shoot's internodes)
 LEAF_START = 0.2            # of a member's length, bare at its base (assumed)
 LEAF_ANGLE_DEG = (45.0, 70.0)   # a leaf's angle off its shoot (assumed)
+LEAF_KEEP = (1, 2, 4)       # every this-th leaf per LOD (lib.cards.thinned)
 POD_M, POD_ASPECT = 0.08, 0.5   # a pod strip's length (the sheet's 7 cm pods on their stalk) and the painted map's aspect
 SNAG_EDGE_M = 0.030         # the sheet: every segment under 30 mm is an edge
 GAP_MEMBER_M = 0.030        # the sheet's gap rule: two members of 30 mm or more leaving one fork
@@ -198,7 +201,7 @@ def build(params):
     lods = [Mesh(), Mesh(), Mesh()]
     for lod, mesh in enumerate(lods):
         skeleton.tree_tubes(mesh, members, lod, slot_of)
-        cards.add_to(mesh, leaf_cards[::(1, 2, 4)[lod]], LEAF)
+        cards.add_to(mesh, cards.thinned(leaf_cards, LEAF_KEEP[lod], skeleton.dropped_silhouette(members, lod)), LEAF)
         if lod < 2:
             cards.add_to(mesh, [card for pair in pod_pairs[::lod + 1] for card in pair], POD)
     wood = [(i, m) for i, m in enumerate(members) if not m.twig]

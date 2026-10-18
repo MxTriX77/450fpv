@@ -4,9 +4,11 @@ under budget and halving; every stem segment a bark capsule on its chord; the tw
 capsules, the committed 6 / 15 / 24 pieces reproduced by the cap by steps, which pass at its first step and meet one
 2 m cube 6 / 15 / 24 at most (p1-v01-locust review-physics PR1, PR2); a snag record per capsule segment and per twig
 (review-physics PR3, PR4), each naming its member's material (p1-v01-locust PR4); the wind box over the leafy mass
-(PR5); no gap, nothing landable; the skeleton's radii, tubes and normals; card UVs inside the atlas cells, the far
-cards over the whole atlas; sprig cards leaving their twig at the fork angle; determinism per seed; check's
-refusals; the low variant through the collision audit, and V13_mid's first, single sphere failing its standoff."""
+(PR5); no gap, nothing landable; the skeleton's radii, tubes and normals; card UVs inside the atlas cells, LOD1's
+cards scaled to hold LOD0's silhouette and its twigs', the far cards' ellipses over the mean-coloured boxes and
+covering what LOD0 covers (p1-v01-locust task 1.2b); sprig cards leaving their twig at the fork angle; determinism per
+seed; check's refusals; the low variant through the collision audit, and V13_mid's first, single sphere failing its
+standoff."""
 import copy
 import json
 import math
@@ -74,7 +76,8 @@ def test_sizes_inside_the_sheet(variant):
 def test_lods_under_budget_and_halving(variant):
     name, p, built, data = variant
     tris = [lod["tris"] for lod in data["lods"]]
-    assert len(tris) == 3 and tris[0] < 12000 and tris[1] <= tris[0] / 2 and tris[2] <= tris[1] / 2 and tris[2] == 6
+    assert len(tris) == 3 and tris[0] < 12000 and tris[1] <= tris[0] / 2 and tris[2] <= tris[1] / 2
+    assert tris[2] == cards.CROSSED * (cards.FAR_SIDES - 2)
     assert [lod["switch_distance_m"] for lod in data["lods"]] == [0.0, 7.5, pytest.approx(p["card_m"] * 467.5)]
     assert data["cull_distance_m"] == {"V13_low": 561.0, "V13_mid": 800.0, "V13_tall": 800.0}[name]
     assert 2 * shrub.card_count(p) == sum(1 for f in built["lods"][0].faces if f[3] == "leaf") * 2
@@ -237,20 +240,58 @@ def test_cards_map_into_the_atlas_cells(variant):
     name, p, built, data = variant
     cells = cards.CELLS_UV
     assert all(0 <= u0 < u1 <= 1 and 0 <= v0 < v1 <= 1 for (u0, v0), (u1, v1) in cells) and len(cells) == 6
+    lengths = []
     for mesh in built["lods"][:2]:
+        lengths.append(set())
         for indices, _, uvs, slot in mesh.faces:
             if slot != "leaf":
                 continue
             (u0, v0), (u1, v1) = next(c for c in cells if c[0] == uvs[0])
             assert uvs == [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
             corners = [mesh.vertices[i] for i in indices]
-            assert math.dist(corners[0], corners[3]) == pytest.approx(p["card_m"])
-            assert math.dist(corners[0], corners[1]) == pytest.approx(p["card_m"] * (u1 - u0) / (v1 - v0))
+            length = math.dist(corners[0], corners[3])
+            assert math.dist(corners[0], corners[1]) == pytest.approx(length * (u1 - u0) / (v1 - v0))
+            lengths[-1].add(round(length, 9))
+    assert lengths[0] == {round(p["card_m"], 9)}
+    assert len(lengths[1]) == 1 and lengths[1].pop() > p["card_m"] * math.sqrt(2) * 0.95  # every other card, grown
     far = [cards.cell_uv(box) for box in cards.FAR_PX]
-    assert [uvs for _, _, uvs, _ in built["lods"][2].faces] == [[(u0, v0), (u1, v0), (u1, v1), (u0, v1)] for (u0, v0), (u1, v1) in far]
-    for ((x0, y0), (x1, y1)), cell in zip(cards.FAR_PX, (3, 5, 2)):  # each far core lies inside its sprig's cell
+    for k, (indices, normal, uvs, slot) in enumerate(built["lods"][2].faces):
+        (u0, v0), (u1, v1) = far[k % len(far)]
+        assert slot == "leaf" and len(indices) == cards.FAR_SIDES and normal[1] == 0.0
+        assert all(u0 <= u <= u1 and v0 <= v <= v1 for u, v in uvs)
+    for ((x0, y0), (x1, y1)), cell in zip(cards.FAR_PX, (5, 1)):  # each far box lies inside its sprig's cell
         (cx0, cy0), (cx1, cy1) = cards.CELLS_PX[cell]
         assert cx0 <= x0 < x1 <= cx1 and cy0 <= y0 < y1 <= cy1
+
+
+def test_lod1_holds_the_silhouette_of_lod0s_cards_and_twigs(variant):
+    """LOD1 keeps every other card, on the two cells of the leaves' mean colour, scaled so that its cards' mean
+    silhouette is all of LOD0's plus that of the twigs it drops (p1-v01-locust task 1.2b: LOD1 had 10-19 % fewer crown
+    pixels than LOD0)."""
+    name, p, built, data = variant
+    lod0, lod1 = ([cards.Card([m.vertices[i] for i in f], n, uvs, cards.CELLS_UV.index((uvs[0], uvs[2])))
+                   for f, n, uvs, s in m.faces if s == "leaf"] for m in built["lods"][:2])
+    twig_m2 = sum(math.pi / 4 * math.dist(p0, p1) * (r0 + r1) for p0, p1, r0, r1 in twig_tubes(built["lods"][0]))
+    assert twig_m2 > 0 and len(lod1) == math.ceil(len(lod0) / 2)
+    assert {c.cell for c in lod1} == set(cards.MEAN_CELLS)  # the leaves' mean colour, whichever cells they drew
+    assert cards.silhouette(lod1) == pytest.approx(cards.silhouette(lod0) + twig_m2)
+
+
+def test_far_cards_cover_what_their_leaves_and_wood_cover():
+    """One square card of cell 0 (0.394 of it opaque) 1 m wide facing a far card's plane, and a 1 m stem 20 mm thick
+    beside it: the ellipse is centred on the card and FAR_OPAQUE of its area is the 0.394 m2 plus 0.02 m2 they cover
+    (to the raster's 5 cm)."""
+    (u0, v0), (u1, v1) = cards.CELLS_UV[0]
+    card = cards.Card([(-0.5, 1.0, 0.0), (0.5, 1.0, 0.0), (0.5, 2.0, 0.0), (-0.5, 2.0, 0.0)], (0.0, 0.0, 1.0),
+                      [(u0, v0), (u1, v0), (u1, v1), (u0, v1)], 0)
+    stem = ((1.0, 0.0, 0.0), (1.0, 1.0, 0.0), 0.01, 0.01)
+    (cu, cv), (a, b) = cards.outline([card], [stem], (0.0, 0.0), (1.0, 0.0, 0.0))
+    assert (cu, cv) == pytest.approx((0.0, 1.5), abs=1e-9)
+    assert a == pytest.approx(b)  # a square's moments make a circle
+    assert cards.FAR_OPAQUE * math.pi * a * b == pytest.approx(0.394 + 0.02, rel=0.08)
+    (far,) = cards.crossed([card], count=1)
+    assert len(far.corners) == cards.FAR_SIDES and far.normal == pytest.approx((0.0, 0.0, -1.0))  # either side: two-sided
+    assert cards.crossed([]) is None
 
 
 def test_sprigs_leave_their_twig_at_the_fork_angle():
