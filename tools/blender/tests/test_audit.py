@@ -5,7 +5,8 @@ dimensions and measure against a mesh, and narrowest_m is held to the largest in
 (p1-pipeline-hardening, "Collision audit at build time"). Compliant shells (p1-v13-shrub, review-physics PR2): two
 overlapping spheres hugging a leaf mass pass and print each piece's standoff and each slot's outside distance; a
 piece 0.3 m too large fails (a); a twig vertex 0.15 m outside fails (b); a card corner 0.35 m outside fails (c) and
-one 0.25 m outside passes; surface under the ground is ignored; a capsule off its tube by 7 cm still fails; and a
+one 0.25 m outside passes; surface under the ground is ignored; a capsule off its tube by 7 cm still fails, and so does
+one running 7 cm past its stem's tip inside a twig piece (a shell piece hides no rigid primitive); and a
 shell no slot carries or a slot no shell stands for is refused. The real V13_mid with its first, single sphere
 failing (a) is in test_shrub.py."""
 import copy
@@ -470,6 +471,24 @@ def test_a_capsule_off_its_tube_by_7cm_still_fails():
     assert [p.split(" ")[:2] for p in problems] == [["collision[0]", "capsule:"], ["mesh:", "mesh->collision"]]
     # 70 mm, give or take the 6-sided tube's 1.2 mm between its inradius and its circumradius
     assert all(measured_mm(p) == pytest.approx(70.0, abs=1.5) and p.endswith("exceeds the tolerance 50 mm") for p in problems)
+
+
+def test_a_shell_piece_hides_no_rigid_primitive():
+    """The union requirement's "a crown shell piece hides nothing" (p1-s04-belt-straw, review R9): the stem rises
+    0.2 m into a leaf box hugged by a twig sphere, and its bark capsule runs on 70 mm past the stem's tip, inside the
+    sphere. The capsule is still measured there: only rigid primitives hide one another."""
+    lod0 = Mesh()
+    skeleton._tube(lod0, [((0.0, 0.0, 0.0), 0.009), ((0.0, 1.2, 0.0), 0.009)], 6, "stem", cap=True)
+    card_box(lod0, (-0.3, 1.0, -0.3), (0.3, 1.6, 0.3))
+    data = {"materials": [{"slot": "stem", "visual": "bark_shrub", "physics": "bark"},
+                          {"slot": "leaf", "visual": "leaf_shrub", "physics": "twig"}],
+            # from its radius under the stem's base to 70 mm over its tip cap: -0.009 .. 1.27 m
+            "collision": [{"shape": "capsule", "center": [0.0, 0.6305, 0.0], "radius": 0.009, "height": 1.279,
+                           "rotation": [0.0, 0.0, 0.0, 1.0], "material": "bark", "landable": False},
+                          sphere((0.0, 1.3, 0.0), HUG_R)],
+            "gaps": []}
+    problems, _ = audit.run(data, lod0, card_visuals=CARD_VISUALS)
+    assert problems == ["collision[0] capsule: capsule->mesh 70.000 mm at (0, 1.27, 0) exceeds the tolerance 50 mm"]
 
 
 def test_a_shell_without_a_slot_and_a_slot_without_a_shell_are_refused():
