@@ -15,7 +15,7 @@
 - **Scale cues:** brick 250 × 120 × 65 mm, door leaf 0.8 × 1.9 m, storey 2.8 m (AST-04); the car wheel in M (a 165/80 R13 tyre is 0.59 m across, derived from the size code: 13 × 25.4 + 2 × 0.8 × 165 mm); a slate sheet 1.13 m wide (J); the drone's own prop line (0.574 m) in the lower corners of every clip still.
 - **Labels:** every number is **measured** (from a letter, with still numbers), **published** (with its source), **derived** (with the derivation) or **assumed**.
 - **Feed check values** are mean sRGB of hand-picked regions on the extracted stills, as in the other sheets: warm and saturated in sun (C, D, E), flat and grey in overcast (H), black and white at night (L). `photo` values come from J, K, M, O and are closer to albedo. Textures are authored at photo albedo; the feed effect adds the shift.
-- **Physics ids** are the closed list in [physics_materials.json](../../assets-src/physics_materials.json): `steel`, `sheet_metal`, `timber`, `masonry`, `concrete`, `glass`, `cable`, `foliage`. `proposed:<id>` marks a new id for physics sign-off; `fabric` and `asbestos_cement` are already proposed by the houses sheet and reused here. Snag features use the pipeline's two kinds: `edge` (a polyline the fiber bends over, with its radius) and `hook` (a free-ended member from base to tip, radius half its thickness).
+- **Physics ids** are the 17 of [physics_materials.json](../../assets-src/physics_materials.json), as the physics sign-off settled them (`review-materials.md` of the archived change `p1-pipeline-hardening`): `steel`, `sheet_metal`, `timber`, `masonry`, `concrete`, `glass`, `cable`, `foliage`, `bark`, `twig`, `deadwood`, `asbestos_cement`, `straw`, `fabric`, `rubber`, `plastic`, `mesh`. A shape that stands in for ground takes `surface:<id>`, one of the thirteen surface ids of the earthworks sheet; `asphalt` is a surface id only. `proposed:<id>` marks an id not in the table, for that sign-off. Snag features use the pipeline's two kinds: `edge` (a polyline the fiber bends over, with its radius) and `hook` (a free-ended member from base to tip, radius half its thickness).
 - **The drone against an opening:** 0.574 m nose-first, 0.706 m on the diagonal, the yaw formula and the 0.55 m vertical envelope are as in houses-and-yard.md ("How to read this sheet"). **The legs** are taken as a 0.24 m square under the frame (assumed, as in the houses and vegetation sheets, until `drone.json` fixes it in phase 5). A piece of height h under one leg tilts the drone by atan(h / 0.24) along a side and atan(h / 0.34) along the diagonal (derived).
 
 ### How thin objects read on the feed (derived, used by every L row)
@@ -187,7 +187,7 @@ Outputs: LOD0 with hooks, insulators and bands; LOD1 the pole, stub, brace and c
 Fragments gouge the log on the blast side; a near miss snaps a dry log at the ground line or at the stub's top band, where the section changes. The fallen top keeps its hooks and drags its wires across whatever lies downhill of it. Around a broken pole: porcelain shards, splinters, cut wire ends.
 
 ### Physics role
-- **Collision:** the log as 2–3 stacked capsules with their real radius tapering 0.13 → 0.08 m (within 10 mm of the visual), the stub as a box, the brace as a capsule, the crossarm as a box, each hook a capsule of radius 8–9 mm, each insulator a cylinder r 0.0375 m × 0.108 m. Material: `timber` (log, brace, crossarm), `concrete` (stub), `steel` (hooks, bands), `masonry` for porcelain until a ceramic id exists (glass insulators `glass`).
+- **Collision:** the log as 2–3 stacked capsules with their real radius tapering 0.13 → 0.08 m (within 10 mm of the visual), the stub as a box, the brace as a capsule, the crossarm as a box, each hook a capsule of radius 8–9 mm, each insulator a cylinder r 0.0375 m × 0.108 m. Material: `timber` (log, brace, crossarm), `concrete` (stub), `steel` (hooks, bands), `glass` for the insulators, porcelain or glass (the physics sign-off maps porcelain to `glass`, review-materials.md §2).
 - **Gaps:** the triangle between the pole, the brace and the ground (variant 2): with the defaults (attachment 4.9 m up, 25°) the base is 2.3 m wide and the largest inscribed circle 1.78 m; the clear width passes the drone **at any yaw below about 3.0 m above the ground and nose-first up to about 3.3 m**, closed above (derived: clear width 2.28 · (1 − y / 4.9) − 0.18 m). The generator writes this triangle as a gap polygon. Between conductors: no gap is written; the wire contacts bound that space.
 - **Wind volumes:** the pole a single solid part (porosity 0); it is far below the 2 m wind grid and the grid dilutes it (knowledge.md §10.3).
 - **Snag hazards:** every hook (`hook`, radius 8 mm), the insulator necks (`edge`, radius 5 mm), the crossarm ends (`edge`, timber 2 mm), the bands on the stub (`edge`, 2 mm), splinters on a snapped pole (`hook`), the grounding wire (`edge`, 3 mm).
@@ -204,7 +204,7 @@ Shared pole table, with these defaults: `pole_kind` wood_log, `length_m` 9.5, `t
 
 ### Open points
 - The L pole's crossarm and lean are copied; its material is unreadable at night. Settled at the L side-by-side, not by the pilot.
-- A ceramic physics id for porcelain (hard, glazed, low friction, chips): physics sign-off; `masonry` until then.
+- Porcelain's physics id: settled by the physics sign-off (review-materials.md §2): `glass`, since a glaze has glass's friction and an insulator is a cylinder, so the fiber bends over its own radius.
 
 ## L02 Concrete pole with crossarm and insulators
 
@@ -244,7 +244,7 @@ Shared pole table, with these defaults: `pole_kind` wood_log, `length_m` 9.5, `t
 Concrete does not splinter: it spalls in flakes 20–150 mm and crushes at the break, leaving 6–10 longitudinal bars of 10–14 mm (assumed) bent through the gap. The folded pole is the characteristic shape: an arch of bars a drone can fly into. Fragments: grey concrete chips at the foot, porcelain shards, a twisted crossarm.
 
 ### Physics role
-- **Collision:** the stand as 2–3 stacked boxes following the taper within 10 mm (`concrete`, its 3 mm arris is the fiber's bend edge); the crossarm a box (`steel`); pins and hooks capsules (`steel`); insulators cylinders (`masonry` until a ceramic id); the lamp bracket a capsule (`steel`) and the fitting a box. X state: the two pole pieces as boxes and every exposed bar a capsule with its real radius (`steel`).
+- **Collision:** the stand as 2–3 stacked boxes following the taper within 10 mm (`concrete`, its 3 mm arris is the fiber's bend edge); the crossarm a box (`steel`); pins and hooks capsules (`steel`); insulators cylinders (`glass`, porcelain or glass: the physics sign-off); the lamp bracket a capsule (`steel`) and the fitting a box. X state: the two pole pieces as boxes and every exposed bar a capsule with its real radius (`steel`).
 - **Gaps:** none intact; in X the space under a folded-over pole is open where it is ≥ 0.574 m (generated from the actual fold, written as a polygon if it is a fly-under).
 - **Wind volumes:** one solid part, porosity 0 (as L01).
 - **Snag hazards:** crossarm ends (`edge`, 1 mm, steel angle), pins and hooks (`hook`), insulator necks (`edge`, 5 mm), the lamp bracket (`edge`), the grounding strip, exposed bars at spalls and breaks (`hook`, radius 5–7 mm).
@@ -1003,7 +1003,7 @@ Tarps tear at the grommets first, then along the weave; film shreds into strips 
 | `seed` | int | — | — | Drape, tears |
 
 ### Open points
-- `fabric` (soft, wraps, no bounce): physics sign-off, shared with the houses sheet. Physical flutter (a tarp that wraps a prop) is phase 7.
+- `fabric` (soft, wraps, no bounce): settled by the physics sign-off (review-materials.md §2). Physical flutter (a tarp that wraps a prop) is phase 7.
 
 ## K06 Concrete chunks with protruding rebar
 
@@ -1120,7 +1120,7 @@ Contents spill out of open rooms and down the rubble slope (K); light items (cus
 | `seed`, `physics_material`, `lod` | — | — | by item | As K01 |
 
 ### Open points
-- `plastic` (PVC, housings, crates): physics sign-off.
+- `plastic` (PVC, housings, crates): settled by the physics sign-off (review-materials.md §2).
 
 ## K09 Tyres, metal barrel, bucket, crates
 
@@ -1177,7 +1177,7 @@ Fire leaves tyres as bead rings and wire tangles in a black ash patch; fragments
 | `seed`, `physics_material`, `lod` | — | — | by item | As K01; barrel and bucket reuse the Y11 meshes |
 
 ### Open points
-- `rubber` (high friction, compliant) and `plastic`: physics sign-off. Rolling barrels and tyres: runtime objects (shared open point).
+- `rubber` (high friction, compliant) and `plastic`: settled by the physics sign-off (review-materials.md §2). Rolling barrels and tyres: runtime objects (shared open point).
 
 ## K10 Fabric and cables hanging from ruins
 
@@ -1242,12 +1242,12 @@ Blast pulls curtains out through the window openings and strips wallpaper from t
 
 ## Open points for the whole sheet
 
-**Proposed physics material ids** (none invented in a generator; the physics engineer adds them to `physics_materials.json` with values):
-- `asphalt`: lifted asphalt slabs and broken edges (RD01); friction near `concrete`, edge radius 3–5 mm.
-- `rubber`: tyres (K09); high friction on the polymer feet (μs about 0.8, assumed), compliant.
-- `plastic`: crates, PVC frames, appliance housings (K08, K09); μs 0.3–0.4, rigid thin shells (assumed).
-- `fabric` and `asbestos_cement`: as proposed in houses-and-yard.md; here for tarps, film, curtains, carpets, mattresses and sofas (`fabric`) and slate (`asbestos_cement`).
-- A ceramic id for porcelain insulators (L01, L02); `masonry` until then.
+**Physics material ids: settled** by the physics sign-off (review-materials.md §2, §6; none is invented in a generator):
+- lifted asphalt slabs and broken edges (RD01): `concrete`; `asphalt` is a surface id only.
+- `rubber`: tyres (K09); high friction on the polymer feet, compliant.
+- `plastic`: crates, PVC frames, appliance housings (K08, K09); rigid thin shells.
+- `fabric` and `asbestos_cement`: tarps, film, curtains, carpets, mattresses and sofas (`fabric`) and slate (`asbestos_cement`).
+- Porcelain insulators (L01, L02): `glass`.
 
 **Physics engineer:** the PHY-22 inputs are in "Sag, tension and sway" (D, mass, sag → T, k, sway); tension-free lines (L04, L05) wrap whatever their diameter; whether spans sway with the wind; which debris pieces become runtime objects that rock, slide and roll (planks, sheets, tyres, barrels); L04's support points (anchors with a release force, or friction only).
 

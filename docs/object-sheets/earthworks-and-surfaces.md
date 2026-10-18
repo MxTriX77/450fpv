@@ -106,22 +106,18 @@ Normal maps, parallax and decals carry only detail below 1–2 cm with no physic
 | `max_sink` | × 1.6 (soils); × 1 (hard) | softer ground, deeper prints |
 | `unload_ratio` | × 1.5 | wet loam is more plastic: prints stay |
 | `μs / μk` (soil) | → 0.45/0.35 on loam; 0.40/0.30 on crust turned to a slick film; asphalt 0.50/0.40; slab 0.45/0.38 | a water film on a fine surface |
-| **`adhesion`** (proposed new field) | pull-off per foot 2–10 N, default 4 N, released over 10–30 mm of lift (derived: wet-loam adhesion and suction of 2–10 kPa, assumed, over the 1.6e-3 m² that a 15 mm foot sunk 30 mm wets on its sole and sides) | the pilot's "legs stick most of the time in rain" (D-021); K's deferred X-5 |
+| **`adhesion`** (accepted as the surface table's field `adhesion_pa`, phase 3: the physics sign-off, review-materials.md §3) | pull-off per foot 2–10 N, default 4 N, released over 10–30 mm of lift (derived: wet-loam adhesion and suction of 2–10 kPa, assumed, over the 1.6e-3 m² that a 15 mm foot sunk 30 mm wets on its sole and sides) | the pilot's "legs stick most of the time in rain" (D-021); K's deferred X-5 |
 | mats (straw, thatch, litter) | modulus × 0.6, μ → 0.35/0.28 (straw, thatch), 0.25/0.18 (wet leaves), hook release × 1.5 | wet straw softens and clings; wet leaves slide |
 | `dust_emission` | → 0 | no dust from wet ground |
 | visual | albedo × 0.55–0.7 in luminance, +10–20 % saturation, roughness −0.2 on soils, a thin wet sheen on asphalt and slab | wet darkening, above; P's wet ground stays dark and keeps its colour (K§8.7 R4) |
 
   `wetness` is proposed as 0.6 for Rain and 1.0 for Severe rain (assumed). No reference shows standing water (terrain.md §9), so the wet variant has no puddles; ruts and crater bottoms go to mud through their lower factors.
-- **Physics ids for earthwork shapes.** `assets-src/physics_materials.json` is closed and has no soil. Two ways, for the physics engineer:
-  - **Preferred: `surface:<id>`** as the material of filler shapes (the first attempt's TH-4): a trench wall then follows the same elasto-plastic soil law, sink and ploughing as the terrain, with the 0.02 m soil lip radius as a physics constant.
-  - **Fallback: two new ids,** if the pipeline keeps object materials only:
+- **Physics ids for earthwork shapes** (settled by the physics sign-off, review-materials.md §1, §6, in the archived change `p1-pipeline-hardening`):
+  - **`surface:<id>`** is the material of every shape that stands in for ground (the first attempt's TH-4): a filler wall then follows the same elasto-plastic soil law, sink and ploughing as the terrain, with the 0.02 m soil lip radius as a physics constant.
+  - **`soil` is mapped, not added:** cut walls, floors and stairs `surface:belt_bare` (F-7); loose spoil and fresh mounds `surface:crater_spoil`; a grassed mound `surface:meadow_sod`.
+  - **`straw` is an object id** for straw carried by a mesh or a shape: windrows built as geometry, straw on a dugout roof, straw spread in a trench (490 N/m, belt_straw's mat at 12.5 cm under the reference foot, surfaces-review §3.1). Straw over ground is `surface:belt_straw`.
 
-| Proposed id | For | Suggested values | Why |
-|---|---|---|---|
-| `soil` | cut walls, floors, banks, dugout earth covers built as shapes | μs 0.5, μk 0.4; stiffness 2.5e3 N/m, ζ 0.5; edge radius 0.02 m | belt_bare's foot stiffness (2474 N/m) and friction; the soil lip radius |
-| `straw` | straw layers carried by a mesh: windrows built as geometry, straw on a dugout roof, straw spread in a trench | μs 0.45, μk 0.35; stiffness 490 N/m, ζ 0.3 | belt_straw's mat at 12.5 cm under the reference foot (surfaces-review §3.1: ≈ 490 N/m) |
-
-  Timber revetment, posts, boards and logs use `timber`; wattle rods use `deadwood` (proposed in vegetation.md); welded mesh uses `steel`; a hanging tarp or blanket uses the tarp id of the debris kit (K05, task 1.4).
+  Timber revetment, posts, boards and logs use `timber`; wattle rods use `deadwood`; welded mesh uses `steel`; a hanging tarp or blanket uses `fabric`.
 
 ### Feathered transitions (PR-11, WLD-03, AST-11)
 
@@ -259,7 +255,7 @@ Outputs: the hole-band mask (`holes.png` cells), the filler mesh and its primiti
 
 ### Physics role
 - **Collision:** a hole band along the trench, filled with filler primitives per 1–2 m straight segment (≤ 1 m on curves, so the faces stay within 0.05 m of the visual): a floor box, two wall boxes at the batter, level lip boxes, each at least 0.3 m thick behind its face and overlapping 0.2 m (F-1…F-6). The parapets stay terrain: the heightfield raised 0.3–0.5 m on its 1 m samples, with the surface's cover (F-7).
-- **Material ids:** walls and floor `surface:belt_bare` (F-7), its wet variant in rain; parapets `belt_straw` or `crater_spoil` terrain. Fallback id `soil` (proposed).
+- **Material ids:** walls and floor `surface:belt_bare` (F-7), its wet variant in rain; parapets `belt_straw` or `crater_spoil` terrain (the physics sign-off's mapping of soil, review-materials.md §6).
 - **Gaps:** the corridor: a cross-section gap polygon every metre and at every bend (the clear trapezoid from the floor to the lip), and the open top slot along the run, written as one polygon per filler segment (1–2 m, ≤ 1 m on curves) so that each stays planar within the pipeline's 10 mm on rolling ground. A polygon's `narrowest_m` is its inscribed circle (the pipeline convention), so the table below, not `narrowest_m`, gives the drone's clear width at each height. The drone's side-to-side span equals its nose-first span, 0.574 m, for a square X frame; its yawed span reaches 0.706 m at 45°.
 
 | Cut (top / bottom / depth) | Width at the floor / at 0.35 m (props of a landed drone) / at the lip | Along it, nose-first | Yawed 45°, or through a zigzag corner |
@@ -329,7 +325,7 @@ The shared trench-family table, with `revetment` none, `collapse` 0, `overgrowth
 
 ### Physics role
 - **Collision:** the E01 fillers behind the lining (F-5 thickness behind the revetment face); posts as capsules, boards and pallets as thin boxes per board or per panel, wattle panels as one box per panel for the contact plane plus capsules for the protruding rod ends, mesh as one box.
-- **Material ids:** `timber` (posts, boards, pallets), `deadwood` (wattle rods, proposed in vegetation.md), `steel` (mesh), fallback `soil` behind.
+- **Material ids:** `timber` (posts, boards, pallets), `deadwood` (wattle rods), `steel` (mesh), the E01 fillers' `surface:belt_bare` behind.
 - **Gaps:** the clear width between the lining faces, written per metre; vertical walls make it constant with height. Boards (0.74 m): nose-first 83 mm a side, yawed 45° only 17 mm a side: PR-9's "barely" at the diagonal. Wattle (0.84 m): 133 and 67 mm. A leaning post or a fallen panel narrows it locally; the generator writes the narrowest width.
 - **Wind volumes:** none (as E01).
 - **Snag hazards:** post tops proud of the lip and wattle rod ends (the fiber, at the lip), splintered board ends, cut mesh wires at the top edge (steel). A fiber dragged along boards meets `timber`'s 2 mm arris.
@@ -442,7 +438,7 @@ The shared trench-family table with `collapse` 0.5–1, `overgrowth` 0.3–1, `a
 
 ### Physics role
 - **Collision:** the trench fillers continue down the stair: step boxes, wall boxes, a ceiling box under the roof; frame logs as capsules (`timber`); roof logs only where they show at the entrance face (their ends, capsules); the chamber as a box room. The mound is heightfield.
-- **Material ids:** `surface:belt_bare` (stair walls and steps, floor), `timber` (frame, logs, boards), the tarp id (doorway).
+- **Material ids:** `surface:belt_bare` (stair walls and steps, floor), `timber` (frame, logs, boards), `fabric` (the doorway tarp).
 - **Gaps:** the doorway polygon in the frame plane, 0.8 × 1.6 m: nose-first 113 mm a side, yawed 45° 47 mm a side, so passable at any yaw, barely on the diagonal; the stair corridor's cross-sections every 0.5 m (0.85 × 1.7 m, descending about 40°); the chamber door if any. A damaged state's sagging lintel lowers the doorway; the generator re-measures it. The vent is not passable.
 - **Wind volumes:** none; a doorway draft is the physics engineer's (as the cellar door, terrain.md W4).
 - **Snag hazards:** log ends at the entrance face, the tarp (soft, flutters), splintered lintel ends in the damaged state.
@@ -586,7 +582,7 @@ The shared trench-family table with `collapse` 0.5–1, `overgrowth` 0.3–1, `a
 
 ### Physics role
 - **Collision:** a hole (about 3–3.5 m of cells, with the F-2 margin) filled with a ring of 12–16 wall boxes, each at least 0.3 m thick and within 0.05 m of the visual (F-5, F-6), a floor box and level lip boxes; the mound is heightfield; branches as V19 capsules.
-- **Material ids:** `surface:belt_bare`; branches `deadwood` (proposed, vegetation.md).
+- **Material ids:** `surface:belt_bare`; branches `deadwood`.
 - **Gaps:** the opening (2–3 m: passable at any yaw); the branch grille: every opening of 0.5 m or more is written as a gap polygon, passable nose-first where at least 0.574 m and at any yaw where at least 0.706 m.
 - **Wind volumes:** none. Inside, a cylindrical cavity (depth/diameter 0.4–0.75) holds one recirculating vortex (derived from the cavity model); rotor rays see the walls, so wall and ground effect in a pit come from the physics rays.
 - **Snag hazards:** the branches over and in it.
@@ -991,7 +987,7 @@ Preset: `base_sets` dirt_floor + forest_ground_04; `albedo_target` #7e6a55; `pat
 ### Physics role
 - **Row `tilled`** (carried): 4.0e6 · 3.3e5 · 0.75/0.6 · 0.10 m · 8 · 0.02 m @ 0.3 m, plus ridges 0.05 m every 0.5 m at the field's azimuth · 0.01 /m². Cover straw 0.1–0.3 m, 80 /m², 2–4 mm, 5 N/m, hook p 0.05 at 0.5–2 N. Dust 0.4. Foot 707 N/m, 35 mm: soft, uneven sink 2–5 cm; a clod under one leg tilts the drone at liftoff and landing across the furrows rocks it (terrain.md T3a).
 - **Ridge parameters by variant:** ploughed 0.10 m half-height every 0.35 m; disked 0.04 m every 0.5 m; stubble none.
-- **Stubble variant (proposed row `stubble`, for physics sign-off):** untilled firm soil (bearing 1.4e7, max sink 0.03 m, as belt_bare), stubble cover 0.10–0.20 m, 500 /m², 3–4 mm, 5 N/m (the dry-straw stiffness of the carried tilled row), hook p 0.05; windrows as a straw mat 0.05–0.15 m deep (belt_straw's mat values) where the windrow mask is set. Derived and assumed.
+- **Stubble variant** (a `tilled` variant, not its own surface row: the physics sign-off, review-materials.md §2, which refuses `surface:stubble`; the variant lives in the surface table's cover block, phase 3): untilled firm soil (bearing 1.4e7, max sink 0.03 m, as belt_bare), stubble cover 0.10–0.20 m, 500 /m², 3–4 mm, 5 N/m (the dry-straw stiffness of the carried tilled row), hook p 0.05; windrows as a straw mat 0.05–0.15 m deep (belt_straw's mat values) where the windrow mask is set. Derived and assumed.
 - **Snag:** stubble and straw hooks (weak). **Landable:** yes.
 
 ### Micro-detail (AST-10)
@@ -1089,7 +1085,7 @@ Preset: `base_sets` burned_ground_01 + the host's; `albedo_target` #3f3d3a char,
 - **Snag:** stalks hook legs and the fiber; props clipping the tops add drag. **Landable:** no.
 
 ### Micro-detail (AST-10)
-- Physical stalks within 3 m of the drone from the same generator as vegetation.md's `forb_stem` (proposed there); lying dead stalks 0.3–1 m, 20 /m² (assumed).
+- Physical stalks within 3 m of the drone from the shared micro-detail generator, the cover's own stems (`MicroDetailNear`; vegetation.md V17, where `forb_stem` was declined as an id); lying dead stalks 0.3–1 m, 20 /m² (assumed).
 
 ### Placement rules
 - Abandoned plots, yard margins, wall feet, crater fields' margins, collapsed trenches (E03); feathers 0.5–2 m into yard and meadow.
@@ -1226,7 +1222,7 @@ Preset: `base_sets` concrete_debris + Ground111; `albedo_target` #8d8172; `cover
 - Potholes, crater holes with broken plates of asphalt (RD01), fragment scars (texture only: under 1–2 cm, no physical role), burnt patches under wrecks (2–6 m, terrain.md R0).
 
 ### Physics role
-- **Proposed row `asphalt`** (physics sign-off): bearing 1.0e8, damping 2.4e5, μ 0.65/0.55 dry (assumed: hard polymer on coarse aggregate, as `masonry`), max sink 0.001 m, unload 1.5, micro-relief none (aggregate is below 1–2 cm), pitfalls: the potholes are RD01's placed pitfall features (0–5 per 100 m² by damage, 0.2–2.0 m, 40–150 mm deep), so the row's own hashed pitfalls are 0 and nothing is counted twice; cover: dust (μ 0.55/0.45 where the dust mask is set), glass crumbs near wrecks (a slippery layer, μ 0.30/0.20, assumed). Dust 0.1. Foot 17.7 kN/m, 1.4 mm: hard bounce set by the leg (derived, the stability bound). The row matches the terrain.md §8 proposal (rigid, slides on glass crumbs).
+- **Proposed row `asphalt`** (the id accepted by the physics sign-off, review-materials.md §2; the values are signed off with `surfaces.json` in phase 3): bearing 1.0e8, damping 2.4e5, μ 0.65/0.55 dry (assumed: hard polymer on coarse aggregate, as `masonry`), max sink 0.001 m, unload 1.5, micro-relief none (aggregate is below 1–2 cm), pitfalls: the potholes are RD01's placed pitfall features (0–5 per 100 m² by damage, 0.2–2.0 m, 40–150 mm deep), so the row's own hashed pitfalls are 0 and nothing is counted twice; cover: dust (μ 0.55/0.45 where the dust mask is set), glass crumbs near wrecks (a slippery layer, μ 0.30/0.20, assumed). Dust 0.1. Foot 17.7 kN/m, 1.4 mm: hard bounce set by the leg (derived, the stability bound). The row matches the terrain.md §8 proposal (rigid, slides on glass crumbs).
 - **Snag:** none. **Landable:** yes, hard.
 
 ### Micro-detail (AST-10)
@@ -1239,7 +1235,7 @@ Preset: `base_sets` concrete_debris + Ground111; `albedo_target` #8d8172; `cover
 Preset: `base_sets` road_damaged + asphalt_02; `albedo_target` #616161; `patch_mask` patches 0.1, cracks by damage, dust film 0.3 at the edges; `cover_channels` litter 0.1 (glass and grit near wrecks).
 
 ### Open points
-- The proposed row's friction values: the physics engineer's; the lines-roads-debris analyst (task 1.4) owns the road kit's geometry.
+- The proposed row's friction values: the physics engineer's, with `surfaces.json` in phase 3 (the id is accepted, review-materials.md §2); the lines-roads-debris analyst (task 1.4) owns the road kit's geometry.
 
 ## S12 concrete_slab
 
@@ -1324,7 +1320,7 @@ Preset: `base_sets` worn_concrete_floor + cracked_concrete; `albedo_target` #9a9
 - Craters on and beside the track; deep ruts where heavy vehicles passed in mud (0.2–0.3 m, assumed).
 
 ### Physics role
-- **Proposed row `dirt_track`** (physics sign-off): bearing 3.0e7 (assumed, between yard_litter's 3.5e7 and dry_crust's 5.0e7), damping 3.5e5, μ 0.65/0.55, max sink 0.01 m, unload 2, micro-relief 0.01 m @ 0.3 m, pitfalls 0.005 /m². Cover: median grass 0.1–0.4 m, 200 /m² (assumed) with the meadow's stem values. Dust 0.6. Foot 5.3 kN/m, about 5 mm.
+- **Proposed row `dirt_track`** (the id accepted by the physics sign-off, review-materials.md §2; the values are signed off with `surfaces.json` in phase 3): bearing 3.0e7 (assumed, between yard_litter's 3.5e7 and dry_crust's 5.0e7), damping 3.5e5, μ 0.65/0.55, max sink 0.01 m, unload 2, micro-relief 0.01 m @ 0.3 m, pitfalls 0.005 /m². Cover: median grass 0.1–0.4 m, 200 /m² (assumed) with the meadow's stem values. Dust 0.6. Foot 5.3 kN/m, about 5 mm.
 - **Ruts are geometry:** a placed linear feature along the track's polyline (two rut troughs and the raised median, an integer-power profile like E05's), evaluated by `SampleGround` and drawn from the same function; the 1 m heightfield can't hold a 0.35 m rut. For the world-builder and the physics engineer (open point).
 - **Snag:** median grass (weak). **Landable:** yes; a leg in a rut tilts the drone 12–27° for 0.05–0.12 m ruts (derived: atan(depth / 0.24), as RD03).
 
@@ -1345,9 +1341,9 @@ The rut feature's geometry has one owner, the RD03 rut kit (lines-roads-debris.m
 ## Open points for other roles (summary)
 
 - **Physics engineer:**
-  - adopt `surface:<id>` for earthwork filler shapes (preferred), or add the proposed `soil` and `straw` ids;
-  - sign off or amend the three proposed rows `asphalt`, `concrete_slab`, `dirt_track` and the `stubble` variant of `tilled`;
-  - the D-021 wet rules and the new `adhesion` field (pull-off 2–10 N per foot); `wetness` 0.6 / 1.0 for Rain / Severe rain;
+  - `surface:<id>` on earthwork filler shapes: adopted, `soil` mapped to it and `straw` added (settled by the physics sign-off, review-materials.md §1, §6);
+  - the rows `asphalt`, `concrete_slab`, `dirt_track`: the ids are accepted, their values signed off with the map's `surfaces.json` in phase 3; `stubble` is a variant of `tilled`, not a row (settled, review-materials.md §2);
+  - the D-021 wet rules and the `adhesion` field (accepted as the surface table's `adhesion_pa`, review-materials.md §3; pull-off 2–10 N per foot); `wetness` 0.6 / 1.0 for Rain / Severe rain: phase 3, with the surface table;
   - the trench cavity model's in-cavity wind fraction; whether the pit's overhanging lip breaks (X-8);
   - clods as rigid pieces or micro-relief (X-1).
 - **World-builder:** placed features for craters 0.3–4 m (the X-9 mechanism with E05's profile), the rut feature (S13), trench hole bands with the berm they imply, crater and trench placement densities, feathered edges per the shared table.
