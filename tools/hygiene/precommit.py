@@ -165,7 +165,11 @@ SCISSORS = re.compile(r"^\S -{24} >8 -{24}\r?$", re.MULTILINE)
 COMMIT_TYPES = ("feat", "fix", "perf", "refactor", "test", "docs", "chore", "art")
 SUBJECT_LIMIT = 72
 SUBJECT = re.compile(r"^(?:" + "|".join(COMMIT_TYPES) + r")(?:\([^\s()]+\))?: (\S.*)$")
-MERGE_SUBJECT = re.compile(r"^Merge (?:branch|pull request) ")
+# What git's fmt-merge-msg writes: `Merge branch 'x'` (with ` into y` or ` of <url>`),
+# `Merge branches 'a' and 'b'`, `Merge remote-tracking branch 'origin/x'`, `Merge tag 'v1'`,
+# `Merge commit '<sha>'`, their plurals and mixes; and GitHub's `Merge pull request #N from`.
+MERGE_SUBJECT = re.compile(r"^Merge (?:(?:remote-tracking )?branch(?:es)?|tags?|commits?) '"
+                           r"|^Merge pull request #\d+ from ")
 
 
 # --- path rules: (path) -> bool ---------------------------------------------------------------
@@ -254,16 +258,19 @@ def footage_text(line):
 def commit_format(text):
     """(line number, reason) for every way the message breaks the commit format of AGENTS.md.
 
-    The subject is the first line that is neither blank nor a `#` comment: at most 72
-    characters, `type(scope): summary` with a known type, the summary not starting with an
-    upper-case letter, and no non-empty line after it (a body, a trailer, a co-author line).
-    Git's own merge commits (`Merge branch`, `Merge pull request`) are exempt.
+    The subject is the first non-blank line, whatever it starts with (`git commit -m` keeps a
+    `#` line, so it is not a comment there): at most 72 characters, `type(scope): summary`
+    with a known type, the summary not starting with an upper-case letter, and no non-empty
+    line after it (a body, a trailer, a co-author line). The `#` lines after the subject are
+    git's editor template and are ignored. Git's own merge commits (MERGE_SUBJECT) are exempt.
     """
     lines = [(number, line.rstrip()) for number, line in enumerate(text.split("\n"), 1)]
-    lines = [(number, line) for number, line in lines if line and not line.startswith("#")]
-    if not lines or MERGE_SUBJECT.match(lines[0][1]):
+    lines = [(number, line) for number, line in lines if line]
+    if not lines:
+        return [(1, "the message has no subject")]
+    (number, subject), rest = lines[0], [(n, line) for n, line in lines[1:] if not line.startswith("#")]
+    if MERGE_SUBJECT.match(subject):
         return []
-    (number, subject), rest = lines[0], lines[1:]
     findings = []
     if len(subject) > SUBJECT_LIMIT:
         findings.append((number, f"the subject is {len(subject)} characters, the limit is {SUBJECT_LIMIT}"))

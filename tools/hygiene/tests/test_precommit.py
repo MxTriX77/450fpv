@@ -457,9 +457,17 @@ def test_conforming_subject_passes(repo, subject):
     assert_passes(commit(repo, {"docs/notes.md": "# Notes\n"}, message=subject), repo)
 
 
-@pytest.mark.parametrize("kind", ["branch", "pull-request"])
+def side_branch(repo, name, file):
+    """One commit on a new branch off main, then back on main."""
+    assert git(repo, "switch", "-q", "-c", name).returncode == 0
+    assert commit(repo, {file: f"# {file}\n"}).returncode == 0
+    assert git(repo, "switch", "-q", "main").returncode == 0
+
+
+@pytest.mark.parametrize("kind", ["branch", "branches", "remote-tracking", "tag", "commit", "pull-request"])
 def test_git_merge_commit_passes(repo, kind):
-    """A real `git merge` (git runs commit-msg for it too) and GitHub's merge shape, body included."""
+    """A real `git merge` of each kind fmt-merge-msg names (git runs commit-msg for merges
+    too), and GitHub's merge shape with the PR title as its body."""
     assert commit(repo, {"a.md": "# A\n"}).returncode == 0
     if kind == "pull-request":
         message = "Merge pull request #1 from someone/unity/x/y\n\nfeat(x): add y\n"
@@ -467,13 +475,44 @@ def test_git_merge_commit_passes(repo, kind):
         assert result.returncode == 0, result.stderr
         assert git(repo, "log", "-1", "--format=%s").stdout.startswith("Merge pull request ")
         return
-    assert git(repo, "switch", "-q", "-c", "feature").returncode == 0
-    assert commit(repo, {"b.md": "# B\n"}).returncode == 0
-    assert git(repo, "switch", "-q", "main").returncode == 0
-    merged = git(repo, "merge", "--no-ff", "--no-edit", "feature")
+    side_branch(repo, "topic", "b.md")
+    targets, expected = ["topic"], "Merge branch 'topic'"
+    if kind == "branches":
+        side_branch(repo, "other", "c.md")
+        targets, expected = ["topic", "other"], "Merge branches 'topic' and 'other'"
+    elif kind == "remote-tracking":
+        remote = repo.parent / (repo.name + "-remote.git")
+        remote.mkdir()
+        assert git(remote, "init", "-q", "--bare").returncode == 0
+        assert git(repo, "remote", "add", "origin", remote.as_posix()).returncode == 0
+        assert git(repo, "push", "-q", "origin", "topic").returncode == 0
+        assert git(repo, "branch", "-q", "-D", "topic").returncode == 0
+        targets, expected = ["origin/topic"], "Merge remote-tracking branch 'origin/topic'"
+    elif kind == "tag":
+        assert git(repo, "tag", "v1", "topic").returncode == 0
+        assert git(repo, "branch", "-q", "-D", "topic").returncode == 0
+        targets, expected = ["v1"], "Merge tag 'v1'"
+    elif kind == "commit":
+        sha = git(repo, "rev-parse", "topic").stdout.strip()
+        assert git(repo, "branch", "-q", "-D", "topic").returncode == 0
+        targets, expected = [sha], f"Merge commit '{sha}'"
+    merged = git(repo, "merge", "--no-ff", "--no-edit", *targets)
     assert merged.returncode == 0, merged.stderr
-    assert git(repo, "log", "-1", "--format=%s").stdout.startswith("Merge branch ")
-    assert len(git(repo, "rev-list", "--parents", "-1", "HEAD").stdout.split()) == 3
+    assert git(repo, "log", "-1", "--format=%s").stdout.rstrip("\n") == expected
+    assert len(git(repo, "rev-list", "--parents", "-1", "HEAD").stdout.split()) == 2 + len(targets)
+
+
+@pytest.mark.parametrize("message", ["# just a comment", "#123 fix the thing", ""],
+                         ids=["comment", "issue-number", "empty"])
+def test_comment_like_or_empty_subject_is_rejected(repo, message):
+    """`git commit -m` keeps a `#` line (cleanup=whitespace), so it is the subject, not a comment."""
+    write(repo, {"docs/notes.md": "# Notes\n"})
+    assert git(repo, "add", "--", "docs/notes.md").returncode == 0
+    result = git(repo, "commit", "-q", "--allow-empty-message", "-m", message)
+    assert_blocked(result, repo, "commit-format")
+    assert "commit message:1" in result.stderr
+    if not message:
+        assert "no subject" in result.stderr
 
 
 # --- rules, case by case (no git) -----------------------------------------------------------
@@ -731,10 +770,29 @@ def test_commit_format_accepts_every_type_and_scope_shape(subject):
 
 @pytest.mark.parametrize("subject", [
     "fix:x", "fix(): x", "fix (x): x", "Fix: x", "fix: ", "fix(x) x", "feature: x", "fix(a b): x",
-    "Merge the thing", "merge: x",
+    "Merge the thing", "merge: x", "Merge branch main", "Merged branch 'x'", "Merge pull request from x",
+    "# just a comment", "#123 fix the thing",
 ])
 def test_commit_format_rejects_near_misses(subject):
     assert [line for line, _ in precommit.commit_format(subject)] == [1]
+
+
+@pytest.mark.parametrize("subject", [
+    "Merge branch 'x'", "Merge branch 'x' into y", "Merge branch 'x' of https://example.invalid/r",
+    "Merge branches 'a' and 'b'", "Merge branches 'a', 'b' and 'c'", "Merge branch 'a', tag 'v1'",
+    "Merge remote-tracking branch 'origin/x'", "Merge remote-tracking branches 'origin/a' and 'origin/b'",
+    "Merge tag 'v1'", "Merge tags 'v1' and 'v2'", "Merge commit '0123abc'", "Merge commits '01' and '23'",
+    "Merge pull request #12 from someone/unity/x/y\n\nfeat(x): add y\n",
+])
+def test_commit_format_exempts_every_git_merge_subject(subject):
+    assert precommit.commit_format(subject) == []
+
+
+def test_commit_format_takes_the_first_non_blank_line_as_the_subject():
+    assert precommit.commit_format("") == [(1, "the message has no subject")]
+    assert precommit.commit_format("\n\n") == [(1, "the message has no subject")]
+    assert [line for line, _ in precommit.commit_format("\n# not a comment\n\nfix(x): y\n")] == [2, 4]
+    assert precommit.commit_format("fix(x): y\n\n# a comment after the subject\n") == []
 
 
 def test_commit_format_ignores_comment_lines_and_the_scissors_diff(tmp_path):
