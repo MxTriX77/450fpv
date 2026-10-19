@@ -7,7 +7,7 @@ The metadata schema MAY carry `holes`: for each cut an ordered centre-line point
 
 #### Scenario: A trench writes its hole
 - **WHEN** a trench variant of 24 m is built
-- **THEN** its metadata holds one `holes` record whose centre line has at least one point per metre and whose band width is at least the top width plus 0.5 m, and the prefab's metadata component exposes it
+- **THEN** its metadata holds a `holes` record of the run whose centre line has at least one point per metre and whose band (every point within half its width of the centre line in plan) holds the cavity's widest outline, the crumbled lip included, 0.65 m inside its edge, one record per niche holding the niche the same way, and the prefab's metadata component exposes them
 
 #### Scenario: Hole validated
 - **WHEN** a `holes` record has fewer than two points or a band narrower than its top width
