@@ -4,7 +4,7 @@
 
 **OPSEC:** cite clips and photos by letter only. Describe classes, never a specific identifiable building, place, date or person. No file names, and no OSD values.
 
-**Rows:** H01–H06 (village houses), O01–O06 (outbuildings), C01–C02 (cellars), Y01–Y11 (yard elements), from [asset-list.md](../asset-list.md) §4–5. **Letters read:** E, J, C, D, I (contact sheets E 24 stills, C 19, D 21; photos J and I as single stills; a few native stills for measurements). Research fills what the footage can't show; every URL is a general, non-identifying source.
+**Rows:** H01–H06 (village houses), O01–O06 (outbuildings), C01–C02 (cellars), Y01–Y11 (yard elements), from [asset-list.md](../asset-list.md) §4–5. **Letters read:** E, J, C, D, I (contact sheets E 24 stills, C 19, D 21; photos J and I as single stills; a few native stills for measurements). S was added by `p1-letter-s-village-street` (D-038): its three contact sheets (50 stills at 2/s) and single stills, seen from about 12 m up; its full reading is [terrain.md](../reference-notes/terrain.md) §12, and its sizes are derived from the scene through the pinned feed intrinsics, never from the display. Research fills what the footage can't show; every URL is a general, non-identifying source.
 
 ## How to read this sheet
 
@@ -25,6 +25,7 @@ These are the scenes the gallery and the world recreate for the side-by-side she
 | C | A village yard with a cellar entrance, then entered | A hover 1–1.5 m up, 6–8 m from the cellar head (C 1–8); the approach into the doorway (9–12) | The old fruit tree left, the cellar head centre-right with its brick piers and the tarp on its right flank, leaf litter below, a grey shed wall far left; no wire (the straight lines high in the sky are OSD marks) | Bright sun from the front-right, shadows toward the camera; autumn; dry |
 | D | An overgrown plot: weeds, a dead tree, a stone pile | A hover 1–2 m up moving through the weeds (D 1–12), then a dive onto the stone pile (13–14) | Looking into the sun: the dead trunk centre, weeds to 1.5 m, young trees and a belt behind, a thin dark wire from the dead trunk, a pile of pale stones right | Strong backlight and lens flare; late summer; dry |
 | I | The urban edge: a burnt five-storey block, a collapsed roof pile, a damaged two-storey house, a low masonry fence | Standing height in a yard or street, the fence 5–8 m away, the roof pile 20–30 m, the two-storey house 25–35 m, the block 60–80 m | The block left and far, the roof pile centre, the two-storey house right with its roof skeleton and open upper floor, rubble between, the lattice-topped fence in the near foreground | Low sun from the left, long shadows, blue shade; winter or early spring (bare trees) |
+| S | A village street from the air (the typical village, D-038): back gardens, a flattened plot, a row of damaged houses behind their front gardens | About 12.5 m (11–14 m) up, camera about 30° below the horizon, 10–12 m/s along the street over its far edge (S 43–50); earlier across the back gardens and the flattened plot (S 7–19) (derived, terrain.md §12.2) | Key frame S 47: the houses in the right half 12–16 m back from the road at 15–35 m, pale rendered walls with white frames and red-brick annexes, roofs stripped to the ceiling with the debris lying on it, a red-brick chimney; mesh fences, front gardens thick with shrubs and trees, back gardens open to the fields. S 18: the flattened, burnt plot with its stove block standing. S 50: looking down onto a stripped roof | Bright high overcast, no shadows; daytime; damp; autumn |
 
 Note for everyone reading C, D and E: the bright white bars at mid-height left and right of the picture are the OSD's artificial-horizon bars, not wires. The real wires are the thin dark lines.
 
@@ -65,6 +66,10 @@ Published side-on overpressure thresholds ( https://safteng.net/?p=2300 , after 
 5. **Masonry:** adobe cracks and sheds its render in 0.5–2 m patches, corners and wall heads crumble into blocks; brick comes out whole or halved along the bed joints, so a breach edge is **stepped**: 65 + 12 mm courses and 125 or 250 mm bricks jutting 0.1–0.4 m (PR-5, J right house's central opening); lintels crack and drop, rebar bends out 0.2–0.5 m.
 6. **Collapse:** a gable falls in, then the roof sits on the floor (I: the roof skeleton still up, the upper facade gone); walls stand to 0.5–1.5 m with sloped rubble inboard and outboard.
 7. **Fire** (optional on any state): soot plumes 0.5–1.5 m above openings, roof timbers burnt to charred stubs, adobe survives, brick spalls and reddens, the whitewash blackens.
+
+**What S adds (measured, S 15–19 and S 45–50; terrain.md §12.4):**
+- **D, a house with a ceiling:** the slate and most rafters go, the wall plate and a few hip rafters stay, and the slate, boards and debris lie on the intact ceiling instead of sliding to the ground; the chimney and a TV mast stand above it; the white frames mostly stay in their openings with the glass and sashes gone (S 45–50). Rubble at the foot is light: the roof's debris is up on the ceiling.
+- **X, flattened and burnt:** walls down to stubs under 1 m over the whole footprint, the masonry stove and its chimney base standing 1–1.5 m as the one upright block, slate sheets, boards, a heap of white window frames and a rusted steel frame on top, a char patch about 4–6 m where it burnt, weeds to the rubble's edge (S 15–19). Flatter than X's "walls to 0.5–1.5 m with sloped rubble" above.
 
 Rubble is always coloured from the house's own materials (knowledge.md §14.4): adobe tan, clay render, whitewash flecks, red tile, pale silicate or red brick, grey mortar, grey-brown timber. Never near-white.
 
@@ -198,7 +203,7 @@ Shared table, with these defaults: `wall_material` adobe, `wall_height` 2.4, `wa
 
 ## H02 Adobe house, hip roof, asbestos-cement slate (шифер)
 
-**Seen in:** J (the roofs and the stripped rafters, on brick walls), R for the adobe-plus-slate combination.
+**Seen in:** J (the roofs and the stripped rafters, on brick walls), R for the adobe-plus-slate combination. S 45–50: the typical village's houses (D-038): hip slate roofs stripped to the ceiling with the slate lying on it, pale rendered walls (the core can't be read under the render), white frames, a red-brick annex at the street end, a red-brick chimney and a TV mast standing; about 12 × 8–9 m (variant 3).
 **Research sources:** shared section (slate sheet sizes, batten pitch, blast fracture of asbestos-cement).
 
 ### Dimensions
@@ -210,6 +215,9 @@ Shared table, with these defaults: `wall_material` adobe, `wall_height` 2.4, `wa
 | Slate sheet | 1750 × 1130 × 5.8 mm, wave 150 / 40 mm | as published | published |
 | Batten pitch | 0.5–0.75 m | 0.58 m (3 battens per sheet) | assumed from the sheet length |
 | Door, windows | as H01 | as H01 | measured, as H01 (E 7); AST-04's exact door and window |
+| Footprint, variant 3 (the S house) | 11–13 × 8–9.5 m, long side along the street, of which a red-brick annex about 4–5 m at the street end | 12 × 8.5 m | derived (S 49–50: the eaves corners projected to a 2.8 m plane at the 12.5 m camera height, terrain.md §12.3) |
+| Windows, variant 3 | three on the street side of the rendered part, one or two in the annex, white frames | 1.3 × 1.45 m | measured count (S 47–50); size as H03 (AST-04 brick), assumed |
+| Setback, variant 3 | front 12–16 m from the road edge, 4–7 m behind the street fence | 14 m, 5.5 m | derived (S 46–47, terrain.md §12.3) |
 
 ### Construction and materials
 - As H01 for the walls; a four-slope hip roof (вальмовий) of шифер on battens, with a sheet-metal or asbestos ridge cap; eaves 0.2–0.3 m; a brick chimney through the slope with a lead or cement flashing.
@@ -221,9 +229,12 @@ Shared table, with these defaults: `wall_material` adobe, `wall_height` 2.4, `wa
 | Weathered slate | #736767 | — (no slate roof in a clip) | measured J (terrain.md B2) |
 | Slate fragments on the ground | #81776e | — | measured J |
 | Walls | as H01 | as H01 | — |
+| Pale render (variant 3), overcast | about #c4c2bc (assumed: a greyed lime render) | #a8a8a8, #9e9ea4 | measured S 49, 50 |
+| Red-brick annex; chimney (variant 3) | as `red_brick` | #9f7a6e; #936765 | measured S 49; S 50 |
+| Slate, boards and debris on the stripped ceiling | as the parts | #93949a | measured S 50 |
 
 ### Variants and states
-- Variants: 1 = 9 × 6 hip; 2 = 11 × 7 hip with a веранда 2.5 × 4 m.
+- Variants: 1 = 9 × 6 hip; 2 = 11 × 7 hip with a веранда 2.5 × 4 m; 3 (proposed by S, D-038) = the S house: 12 × 8.5 m, pale render, white frames, a red-brick annex at the street end, a TV mast, its D state as "What S adds" in the shared section.
 - **I:** slate grey-green with lichen, 1–3 sheets cracked, a slipped ridge cap; walls as H01-I.
 - **D:** 40–80 % of sheets shattered and gone, the rest cracked and holed (holes 0.1–0.5 m with jagged edges), fragments 0.1–0.6 m scattered 5–15 m downwind and piled at the eaves, battens exposed and 10–30 % broken, joinery as H01-D.
 - **X:** as H01-X with slate fragments in the rubble instead of tiles.
@@ -256,7 +267,7 @@ Shared table with `roof_type_*` hip, `roof_pitch` 25, `roof_cover` slate, `batte
 
 ## H03 Silicate-brick house, slate roof, painted window frames, satellite dish
 
-**Seen in:** J (two houses; the right house is the model, the left house gives the plank gable, the light-blue door and the red-brick band).
+**Seen in:** J (two houses; the right house is the model, the left house gives the plank gable, the light-blue door and the red-brick band). S 15–19 for the X state of a pale-walled brick house: walls down to stubs under 1 m of pale brick or block with red brick among them, the stove block standing, burnt (see "What S adds" in the shared section).
 **Research sources:** shared section (brick sizes, cornice, lintels, slate).
 
 ### Dimensions
@@ -333,7 +344,7 @@ Shared table with `wall_material` silicate, `wall_height` 2.9, `wall_thickness` 
 
 ## H04 Red-brick 1980s house, larger, with veranda, metal or slate roof
 
-**Seen in:** R. The brick construction is as H03; the veranda and sheet roof are research.
+**Seen in:** R. The brick construction is as H03; the veranda and sheet roof are research. S shows the red brick of the class as annexes at the street ends of rendered houses (S 45–50, H02 variant 3) and a red-brick single-storey building stripped to its roof skeleton far along the street (S 41–44); white window frames, as this row assumes, are measured in S 47–50.
 **Research sources:** shared section; sheet-metal roof practice (assumed standard).
 
 ### Dimensions
@@ -356,7 +367,7 @@ Shared table with `wall_material` silicate, `wall_height` 2.9, `wall_thickness` 
 ### Colour
 | Surface | Photo albedo (sRGB) | Feed check value (sRGB) | Source |
 |---|---|---|---|
-| Red brick | as `red_brick` (about #9a5a44) | — | assumed from the set |
+| Red brick | as `red_brick` (about #9a5a44) | #9f7a6e (annex, S 49), #895b45 (street wall, S 48) | assumed from the set; measured S 48–49 |
 | Painted roof sheet | faded red-brown #7a4a3a or green #4f6a4a | — | assumed (typical paints) |
 | Frames | white #d8d5cc | — | assumed |
 
@@ -450,7 +461,7 @@ Shared table with `wall_material` wattle or adobe, `wall_height` 2.1, `wall_thic
 
 ## H06 Two-storey brick house
 
-**Seen in:** I (the house at the right: roof skeleton standing, upper facade blown out, ground-floor openings widened, rubble in front).
+**Seen in:** I (the house at the right: roof skeleton standing, upper facade blown out, ground-floor openings widened, rubble in front). S 22–24 (far) and 31–42: a two-storey building of the same construction in pale brick, but a public building with a flat roof partly torn off, every window blown to its bare opening and an entrance canopy fallen onto its props; about 6.5–7.5 m to the roof edge (2 storeys of 2.8–3.0 m, AST-04). Its own row is proposed in the change's implications (`openspec/changes/p1-letter-s-village-street/implications.md`).
 **Research sources:** shared section (brick, slabs, roofs); the steep attic roof is read from I.
 
 ### Dimensions
@@ -476,6 +487,7 @@ Shared table with `wall_material` wattle or adobe, `wall_height` 2.1, `wall_thic
 | Exposed corner brick (deep shade) | #282d32 | — | measured I; a shadow read, albedo as H03 |
 | Rubble field in front (shade) | #3a5062 | — | measured I; blue shade, albedo as H03 rubble |
 | Roof timber pile (nearby, part lit) | #5c4f43 | — | measured I |
+| Pale brick walls of the S public building, overcast | as H03 silicate (#a0968b) | #c9bcca, #c7bfce | measured S 39, 40 |
 
 ### Variants and states
 - Variants: 1 = rendered, half-hip roof; 2 = bare red brick with a balcony.
@@ -517,6 +529,8 @@ Shared table with `wall_thickness` 0.51, `roof_pitch` 40, H03's `brick_step_dept
 ## Shared: the yard
 
 A village plot is 20–30 m wide along the street and 60–100 m deep (assumed, a typical 0.15–0.25 ha plot). From the street inward: the street fence (Y01, Y03 or Y04) with the gate (Y05 or Y06) at one side; a front garden (палісадник) with a picket fence (Y02) and 1–2 fruit trees (V10, V11); the house (H) 5–15 m back, long side along the street; the summer kitchen (O03) 3–8 m from the house door; sheds (O01, O02) along a side boundary; the well (Y07) near the house; the cellar (C01 or C02) 10–15 m behind the house; the woodpile (Y08) against a shed; the garage (O06) at the street side next to the gate; the toilet (O05) at a far corner 15–25 m from the house; the greenhouse (Y10) and the haystack (Y09) at the back; a laundry line (Y11) between the house and a tree; leaf litter (S09) under the trees, weeds (V17) along every wall. The E house with the C yard set is the first yard (terrain.md B1); abandoned plots become D (weeds, dead trees, a stone pile).
+
+**The S street (the typical village, D-038; derived at the 12.5 m camera height, terrain.md §12.3):** the street fence 7–9 m from the road edge; the house front 12–16 m from it, so a front garden 4–7 m deep, grown into a thicket of shrubs and one to three yard trees (60–90 % crown cover by eye, S 46–50); houses 20–25 m apart along the street (S 46); the back gardens open grass with weed patches and no inner fences readable, running out to the fields, with bare greenhouse hoop frames, sheds and a small red-brick outbuilding at the back (S 7–16, 49–50).
 
 ## O01 Plank shed
 
@@ -581,7 +595,7 @@ Two or three per yard (B3): against the house's end wall (E), along a side bound
 
 ## O02 Brick or block shed with a small window
 
-**Seen in:** C (the grey low structure at the far left of stills 1–4, with a dark door opening and a flat roof about 2 m up). terrain.md B3.
+**Seen in:** C (the grey low structure at the far left of stills 1–4, with a dark door opening and a flat roof about 2 m up). terrain.md B3. S: outbuildings at the backs of the plots whose corrugated sheet roofs are peeled and curled into arcs, walls red-brown (brick or paint, not readable) (S 16–20); a small flat-roofed pale shed on the green (S 21–24); a small red-brick outbuilding with a pitched sheet roof and a dark doorway behind a house (S 49–50).
 **Research sources:** brick sizes (shared section); cinder block 390 × 190 × 188 mm (assumed standard).
 
 ### Dimensions
@@ -1109,7 +1123,7 @@ Around the front garden between the house and the street fence, 5–8 m long run
 
 ## Y03 Chain-link mesh on metal posts
 
-**Seen in:** R.
+**Seen in:** R. S 47–49: the front fences of the houses, mesh (chain-link or welded, not readable from 12 m) on thin posts with a top rail, the mesh itself invisible and only posts and rail reading; a green-painted mesh or sheet panel at the street edge (S 33, 44).
 **Research sources:** 50 × 50 mm mesh, wire 1.7–2.5 mm, rolls 1.5 m high and 10 m long ( https://epicentrk.ua/shop/setka-rabitsa/ ).
 
 ### Dimensions
@@ -1162,7 +1176,7 @@ Between yards and along gardens, 10–40 m runs; around the farm (P02).
 
 ## Y04 Brick or concrete-panel fence
 
-**Seen in:** I (a low brick fence with piers and a precast lattice top, soot-darkened, in the near foreground); D (a pile of pale stone blocks, stills 13–14, read as a dry-stone wall base or a rubble-stone foundation). terrain.md B6.
+**Seen in:** I (a low brick fence with piers and a precast lattice top, soot-darkened, in the near foreground); D (a pile of pale stone blocks, stills 13–14, read as a dry-stone wall base or a rubble-stone foundation). terrain.md B6. S 45–48: a red-brick wall 2.0–2.5 m high along a street front with slate and boards piled behind it, read as variant 3 or as the street wall of a building whose roof fell in (not readable); a red-brick pier among red-painted sheets (S 44–45). S 21–22: a panel fence of pale grey and pinkish panels partly down at the roadside (variant 2 or painted sheet, not readable). S 31–36: a fence of corrugated slate sheets knocked flat beside its line of thin dark posts (no row has it: listed in the change's implications).
 **Research sources:** brick sizes (shared); precast panel fences are common practice (assumed sizes).
 
 ### Dimensions
@@ -1173,7 +1187,7 @@ Between yards and along gardens, 10–40 m runs; around the farm (P02).
 | Brick base panel | 0.5–0.7 m high, 0.12–0.25 m thick | 0.6 m, 0.12 m | measured I |
 | Lattice panel on top | 0.4–0.6 m high, balusters 0.05–0.08 m with 0.05 m gaps | 0.5 m | measured I |
 | Variant 2: precast panels | 2.0 × 0.5 × 0.04–0.05 m, 3–4 high, posts 0.12 × 0.12 m | 2.0 × 0.5, 3 high (1.5 m) | assumed (common precast sizes) |
-| Variant 3: brick wall | 1.5–2 m, 0.25 m thick, piers 0.38 m | 1.8 m | assumed (asset list; I shows only variant 1) |
+| Variant 3: brick wall | 1.5–2.5 m, 0.25 m thick, piers 0.38 m | 1.8 m | assumed (asset list; I shows only variant 1); S 47 gives 2.0–2.5 m for a red-brick street wall (derived: its top and foot at 12.5 m camera height), if it is a fence |
 | Variant 4 (D): dry stone | blocks 0.3–0.5 m, a wall 0.6–1.0 m high or a pile 1 m high × 2–3 m | pile | measured D 14 |
 
 ### Construction and materials
@@ -1185,6 +1199,7 @@ Between yards and along gardens, 10–40 m runs; around the farm (P02).
 |---|---|---|---|
 | Piers and base (I, in blue shade, sooted) | #1c3849 pillar, #283b4b base: shadow reads; author at about #7a766f with soot | — | measured I |
 | Stone blocks (D, backlit) | about #a09486 | #8d766a | assumed; measured D 14 |
+| Red-brick wall (S, overcast) | as `red_brick` | #895b45 | measured S 48 |
 
 ### Variants and states
 - Four variants above; `damage` 0–1: panels cracked and missing (I shows several lattice panels broken and the piers chipped), a pier down, soot and dust over everything near a burnt block.
@@ -1382,7 +1397,7 @@ One per two or three yards, 3–8 m from the house or at the street verge as a s
 
 ## Y08 Woodpile
 
-**Seen in:** R.
+**Seen in:** R. S 18–19: sawn log rounds lying in the rubble of the flattened plot, the remains of a woodpile.
 **Research sources:** none needed; sizes are the asset list's plus firewood practice (assumed).
 
 ### Dimensions
@@ -1484,7 +1499,7 @@ At the back of a plot or beside the barn (O04); one per three or four yards; row
 
 ## Y10 Greenhouse frame (film torn)
 
-**Seen in:** R.
+**Seen in:** R. S 7–12: several bare hoop frames side by side in the back gardens, the film entirely gone (`film_loss` 1.0), grass and weeds through them; pale thin arches against the green, the clearest yard object at 30–60 m.
 **Research sources:** none found with sizes; a common hobby size is 3 × 6 m (assumed, asset-list).
 
 ### Dimensions
@@ -1536,7 +1551,7 @@ At the back of a lived-in plot, long axis north–south; one per three or four y
 
 ## Y11 Yard props: bench, laundry line, barrel, bucket, washbasin
 
-**Seen in:** R.
+**Seen in:** R. S 47–49: a blue-painted metal item (a bench or a table frame, not readable) in a front garden.
 **Research sources:** none; sizes are everyday objects (assumed).
 
 ### Dimensions
