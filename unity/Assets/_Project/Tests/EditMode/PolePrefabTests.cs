@@ -57,7 +57,11 @@ namespace Fpv450.Tests.EditMode
             Assert.That(gap.narrowestM, Is.EqualTo(1.6109f).Within(0.0005f));
             Assert.That(meta.collision.Any(c => c.landable), Is.False);
             Assert.That(meta.ports.Length, Is.EqualTo(4));
-            Assert.That(meta.windVolumes.Single().porosity, Is.EqualTo(0f));
+            Assert.That(meta.windVolumes.Length, Is.EqualTo(2), "the log's box and the brace's (review S11)");
+            Assert.That(meta.windVolumes.All(w => w.porosity == 0f), Is.True, "both solid");
+            AssetPhysicsMeta.CollisionShape brace = meta.collision.Single(c => c.kind == AssetPhysicsMeta.ShapeKind.Capsule
+                && Mathf.Approximately(c.radius, 0.08f));
+            Assert.That(Vector3.Distance(meta.windVolumes[1].center, brace.center), Is.LessThan(1e-4f), "the brace's box on the brace");
         }
 
         [TestCase(Straight)]

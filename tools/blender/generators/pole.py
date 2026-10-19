@@ -48,7 +48,8 @@ Metadata (design decision 3, the sheet's physics role):
   and the ground, in the brace's plane, with `narrowest_m` the diameter of its inscribed circle; its id records the
   heights above the ground under which the drone passes (0.706 m at any yaw, 0.574 m nose-first, the houses sheet's
   spans; on a leaned pole the in-plane heights times the lean's cosine, task 1.5's reading §4);
-- one solid wind box around the log (porosity 0); nothing landable;
+- one solid wind box around the log and, on a braced pole, one around the brace log, square to it (porosity 0);
+  the brace triangle between them stays open to the wind; nothing landable;
 - snags, each with the material of the member it follows: a `hook` per hook and pin (8.5 mm, the bar's half
   thickness, steel), an `edge` ring round each insulator's skirt drip edge (5 mm, its reach flush with the cylinder,
   glass), the crossarm's end faces (2 mm, timber), each band on the strap's centre line (3 mm, flush with its faces,
@@ -331,13 +332,18 @@ def build(params):
         a, b = pole.place((0.0, k * step - sink, 0.0)), pole.place((0.0, (k + 1) * step - sink, 0.0))
         r = pole.radius((k + 0.5) * step - sink)
         collision.append(meta.capsule(a, b, r, PHYSICS[WOOD]) if k < n - 1 else _cylinder(a, b, r, PHYSICS[WOOD]))
+    wind = [{"shape": "box", "center": list(pole.place((0.0, pole.height / 2, 0.0))),
+             "size": [2 * pole.radius(0.0), pole.height, 2 * pole.radius(0.0)], "rotation": list(pole.q), "porosity": 0.0}]
     if p["brace"] == "single":
         foot = (pole.attach_s * math.tan(pole.beta), 0.0, 0.0)
         length = pole.attach_s / math.cos(pole.beta)
         brace = _Rod(foot, (-math.sin(pole.beta), math.cos(pole.beta), 0.0), pole.brace_r, 0.0, (0.0, 0.0, 1.0))
         for lod in (0, 1):
             _rod_mesh(lods[lod], pole, brace, length, LOG_SIDES[lod], WOOD, offset, cap=False, thin=lod > 0)
-        collision.append(meta.capsule(pole.place(foot), pole.place((0.0, pole.attach_s, 0.0)), pole.brace_r, PHYSICS[WOOD]))
+        a, b = pole.place(foot), pole.place((0.0, pole.attach_s, 0.0))
+        collision.append(meta.capsule(a, b, pole.brace_r, PHYSICS[WOOD]))
+        wind.append({"shape": "box", "center": list(scale(add(a, b), 0.5)), "size": [BRACE_D_M, length, BRACE_D_M],
+                     "rotation": meta.rotation_from_y(normalize(sub(b, a))), "porosity": 0.0})  # review S11
         gaps.append(_brace_gap(pole))
     if pole.stub:
         _stub(lods, pole, collision, snag)
@@ -354,7 +360,6 @@ def build(params):
             ports.append(port)
     _ground_wire(lods[0], pole, head_low - GROUND_WIRE_GAP_M, snag)
     lod = p["lod"]
-    centre = pole.place((0.0, pole.height / 2, 0.0))
     return {
         "lods": lods,
         "switch_distances_m": [0.0, lod["lod1_switch_m"], lod["lod2_switch_m"]],
@@ -362,9 +367,7 @@ def build(params):
         "materials": [{"slot": slot, "physics": PHYSICS[slot]} for slot in lods[0].slots()],
         "collision": collision,
         "gaps": gaps,
-        "wind_volumes": [{"shape": "box", "center": list(centre), "size": [2 * pole.radius(0.0), pole.height,
-                                                                          2 * pole.radius(0.0)],
-                          "rotation": list(pole.q), "porosity": 0.0}],
+        "wind_volumes": wind,
         "ports": ports,
         "snag": snag,
     }

@@ -1392,6 +1392,13 @@ MonoBehaviour:
     height: 0
     rotation: {x: 0, y: 0, z: 0, w: 1}
     porosity: 0
+  - kind: 0
+    center: {x: 1.136625, y: 2.4375, z: 0}
+    size: {x: 0.16, y: 5.378967, z: 0.16}
+    radius: 0
+    height: 0
+    rotation: {x: 0, y: 0, z: 0.21644, w: 0.976296}
+    porosity: 0
   ports:
   - id: hook_0
     position: {x: 0, y: 7.355, z: 0.250579}

@@ -341,7 +341,8 @@ def test_snag_records_carry_the_sheets_kinds_radii_and_materials(repo_root):
             counts.setdefault(name, {}).setdefault(key, 0)
             counts[name][key] += 1
         assert all(not c["landable"] for c in data["collision"])
-        assert [(w["shape"], w["porosity"]) for w in data["wind_volumes"]] == [("box", 0.0)]
+        boxes = 2 if name == "L01_braced" else 1  # the log's, and the brace's (next test)
+        assert [(w["shape"], w["porosity"]) for w in data["wind_volumes"]] == [("box", 0.0)] * boxes
         hooks = [c["radius"] for c in data["collision"] if c["material"] == "steel"]
         assert set(hooks) == {pole.HOOK_D_M / 2}, "a hook record's reach is its capsule's"
     assert counts["L01_straight"] == {("hook", 0.0085, "steel"): 4, ("edge", 0.005, "glass"): 4,
@@ -350,6 +351,23 @@ def test_snag_records_carry_the_sheets_kinds_radii_and_materials(repo_root):
                                      ("edge", 0.002, "timber"): 2, ("edge", 0.003, "cable"): 1}
     assert counts["L01_braced"] == counts["L01_straight"]
     assert counts["L01_stub"][("edge", 0.003, "steel")] == 2
+
+
+def test_the_brace_has_its_own_solid_wind_box(repo_root):
+    """Review S11: L01_braced's brace log stands in the wind as the log does, so it has its own solid box, on the
+    brace's capsule: 0.16 m square and 5.379 m long (its axis from the foot to the pole's axis at 0.65 of 7.5 m, at 25
+    degrees: 4.875 / cos 25 degrees), its +Y along the brace. The log's box is unchanged and the triangle between
+    them stays open."""
+    _, _, data = build(repo_root, "L01_braced")
+    log, brace = data["wind_volumes"]
+    assert log == build(repo_root, "L01_straight")[2]["wind_volumes"][0]
+    capsule = next(c for c in data["collision"] if c["shape"] == "capsule" and c["radius"] == pole.BRACE_D_M / 2)
+    assert brace["center"] == pytest.approx(capsule["center"], abs=1e-6)
+    assert brace["size"] == pytest.approx([0.16, 5.379, 0.16], abs=1e-3)
+    assert brace["size"][1] == pytest.approx(capsule["height"] - pole.BRACE_D_M, abs=1e-6)
+    assert brace["rotation"] == pytest.approx(capsule["rotation"], abs=1e-6)
+    assert brace["porosity"] == 0.0
+    print(f"brace wind box {brace['size']} m at {brace['center']}")
 
 
 def test_drip_edges_and_bands_lie_where_the_fiber_meets_them(repo_root):
