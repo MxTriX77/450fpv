@@ -93,6 +93,8 @@ COVERED_M = 2e-6            # a point this close to another primitive's inside i
 SEAM_CELL_M = 0.001         # a cell this small with every corner inside some other primitive is covered (a seam)
 BOX_CELL_M = 0.25           # a box face is tessellated in cells of at most this, so the search never quarters a long
                             # thin wall (12 x 0.2 m) into slivers; a brick's faces stay one cell each
+SHAPE_BUCKET_M = 0.5        # _ShapeIndex's buckets, and how far past a primitive's box it is listed (SHAPE_REACH_M):
+SHAPE_REACH_M = 0.25        # pruning only, the audit's numbers are unchanged
 
 
 def soft_materials(root):
@@ -138,7 +140,9 @@ def run(meta, lod0, *, soft=frozenset(), card_visuals=(), planted=False):
             problems.append(f"collision[{i}] {shape.kind}: no LOD0 face outside the shells' and wires' slots stands "
                             "under it")
             continue
-        others = [shapes[j] for j in body if j != i]
+        # Only a primitive whose bounding box meets this one's can cover a point of its surface: _covered and
+        # _cell_covered skip every other by its box anyway, so the result is the same (p1-e01-trench: 489 shapes).
+        others = [shapes[j] for j in body if j != i and _boxes_meet(shapes[j], shape)]
         cells = [tri[:3] for tri in shape.triangles]
         if planted:
             cells = _above_ground(cells)
@@ -158,8 +162,9 @@ def run(meta, lod0, *, soft=frozenset(), card_visuals=(), planted=False):
         problems.append("mesh: no collision primitive stands for the LOD0 mesh")
     elif faces:
         cells = [tuple(face.points[i] for i in tri) for face in faces for tri in face.fan()]
+        nearest = _ShapeIndex(shapes, body)
         problems += _report(lines, "mesh", "mesh->collision", cells, zone,
-                            lambda v: _nearest_shape(v, shapes, body), lambda cell, which: _shapes_bound(cell, which, shapes),
+                            nearest.nearest, lambda cell, which: _shapes_bound(cell, which, shapes),
                             lambda which: f" nearest collision[{which}]")
     problems += _audit_shells(lines, meta, shapes, shells, lod0, set(card_visuals))
     problems += _audit_wires(lines, meta.get("wires", []), lod0)
@@ -774,6 +779,37 @@ def _nearest_shape(p, shapes, indices=None):
     return min((abs(shapes[i].sdf(p)), i) for i in (range(len(shapes)) if indices is None else indices))
 
 
+def _boxes_meet(a, b):
+    """Whether two primitives' bounding boxes (lo, hi) meet."""
+    return all(a.lo[k] <= b.hi[k] and b.lo[k] <= a.hi[k] for k in range(3))
+
+
+class _ShapeIndex:
+    """The primitives of `indices` bucketed by their bounding boxes grown by SHAPE_REACH_M, for _nearest_shape at a
+    point: a primitive outside the point's bucket lies more than SHAPE_REACH_M from it (outside its box), so when the
+    nearest in the bucket is no farther than that it is the nearest of all, tie-breaks included; else every primitive is
+    tried. The result is _nearest_shape's (p1-e01-trench: a mesh vertex tried against 489 primitives)."""
+
+    def __init__(self, shapes, indices):
+        self.shapes, self.indices, self.buckets = shapes, list(indices), {}
+        for i in self.indices:
+            s = shapes[i]
+            lo = [math.floor((s.lo[k] - SHAPE_REACH_M) / SHAPE_BUCKET_M) for k in range(3)]
+            hi = [math.floor((s.hi[k] + SHAPE_REACH_M) / SHAPE_BUCKET_M) for k in range(3)]
+            for x in range(lo[0], hi[0] + 1):
+                for y in range(lo[1], hi[1] + 1):
+                    for z in range(lo[2], hi[2] + 1):
+                        self.buckets.setdefault((x, y, z), []).append(i)
+
+    def nearest(self, p):
+        candidates = self.buckets.get(tuple(math.floor(p[k] / SHAPE_BUCKET_M) for k in range(3)))
+        if candidates:
+            best = min((abs(self.shapes[i].sdf(p)), i) for i in candidates)
+            if best[0] <= SHAPE_REACH_M:
+                return best
+        return _nearest_shape(p, self.shapes, self.indices)
+
+
 def _shapes_bound(cell, which, shapes):
     return min(shapes[i].bound(cell) for i in set(which))
 
@@ -840,23 +876,51 @@ def _zone(meta, shapes, soft):
     faces = [_Face([a, b, c], [0, 1, 2], n) for shape, entry in zip(shapes, meta["collision"])
              if entry["landable"] and entry["material"] not in soft
              for a, b, c, n in shape.triangles if _dot(n, UP) >= LANDABLE_COS]
-    polygons = [(tuple(tuple(p) for p in g["polygon"]), tuple(g["normal"])) for g in meta["gaps"]]
+    polygons = [_GapPolygon(tuple(tuple(p) for p in g["polygon"]), tuple(g["normal"])) for g in meta["gaps"]]
     return (faces, polygons) if faces or polygons else None
 
 
 def _zone_distance(p, zone):
+    """The least distance from p to a landing face or a gap polygon. Each is skipped when its bounding box lies no
+    nearer than the best so far (the distance to a box is a lower bound), so the result is the plain minimum's."""
     faces, polygons = zone
-    return min([_face_distance(p, face) for face in faces] + [_gap_distance(p, *g) for g in polygons])
+    best = math.inf
+    for item in faces:
+        if _box_distance2(p, item.lo, item.hi) < best * best:
+            best = min(best, _face_distance(p, item))
+    for item in polygons:
+        if _box_distance2(p, item.lo, item.hi) < best * best:
+            best = min(best, item.distance(p))
+    return best
+
+
+def _box_distance2(p, lo, hi):
+    dx = lo[0] - p[0] if p[0] < lo[0] else p[0] - hi[0] if p[0] > hi[0] else 0.0
+    dy = lo[1] - p[1] if p[1] < lo[1] else p[1] - hi[1] if p[1] > hi[1] else 0.0
+    dz = lo[2] - p[2] if p[2] < lo[2] else p[2] - hi[2] if p[2] > hi[2] else 0.0
+    return dx * dx + dy * dy + dz * dz
+
+
+class _GapPolygon:
+    """A gap polygon with its plane basis, flattened outline and bounding box computed once (_gap_distance's)."""
+
+    def __init__(self, polygon, normal):
+        self.polygon, self.normal = polygon, normal
+        self.u, self.v = _plane_basis(normal)
+        self.flat = [(_dot(q, self.u), _dot(q, self.v)) for q in polygon]
+        self.lo = tuple(min(q[k] for q in polygon) for k in range(3))
+        self.hi = tuple(max(q[k] for q in polygon) for k in range(3))
+
+    def distance(self, p):
+        if _inside_polygon2((_dot(p, self.u), _dot(p, self.v)), self.flat):
+            return abs(_dot(_sub(p, self.polygon[0]), self.normal))
+        return min(_segment_distance(p, a, b) for a, b in zip(self.polygon, self.polygon[1:] + self.polygon[:1]))
 
 
 def _gap_distance(p, polygon, normal):
     """Distance from p to a planar, possibly concave polygon: to its plane when p projects inside it, else to its
     nearest edge."""
-    u, v = _plane_basis(normal)
-    flat = [(_dot(q, u), _dot(q, v)) for q in polygon]
-    if _inside_polygon2((_dot(p, u), _dot(p, v)), flat):
-        return abs(_dot(_sub(p, polygon[0]), normal))
-    return min(_segment_distance(p, a, b) for a, b in zip(polygon, polygon[1:] + polygon[:1]))
+    return _GapPolygon(polygon, normal).distance(p)
 
 
 # --- gaps: the largest inscribed circle -------------------------------------------------------------------------
