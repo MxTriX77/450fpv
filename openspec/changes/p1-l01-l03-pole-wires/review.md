@@ -247,3 +247,116 @@ git merge-tree --write-tree origin/unity/main HEAD -> CONFLICT tools/blender/tes
 trial merge in a scratch worktree -> precommit 768 files, 0 findings; 159 passed (test_meta, test_audit, test_pole, test_wire_span)
 mutations M1-M5 -> each caught, each reverted (git diff --quiet: 0)
 ```
+
+## Re-check of task 1.9
+
+**Reviewer:** qa-engineer, fresh (did none of 1.9, D-034) · **Tip:** `39cedee` · **Range:** `f1f8c51..39cedee`, the merge `4bbeccd` read against its first parent · **Read:** this review's R1, R2 and S1–S12; task 1.9 and its as-built note; design 3, 4, 7 and 10's "As built (task 1.9)" notes; both spec deltas as 1.9 left them; the diff of `pole.py`, `wire_span.py`, `lib/audit.py`, `lib/meta.py`, `CatalogImporter.cs`, `AssetPhysicsMeta.cs`, every changed test, and every changed metadata and prefab.
+
+Every check was run by QA in its own worktree (`git lfs checkout` first, 63/63 objects). QA's scripts (`qa_r1.py`, `qa_s1.py`, `qa_flags.py`, `qa_hash.py`) ran from the scratchpad. The one scratch worktree, for the old-code test run, was removed after (`git worktree list` shows it gone). Tools: Unity 6000.3.26f1 (Hub running, no editor on the project, every call piped), Blender 5.2.2 LTS, Python 3.14.6. **No performance claim is made** (the laptop was on AC, `BatteryStatus 2`, but nothing here is timed).
+
+### Verdict: APPROVED
+
+R1 and R2 are closed. S1, S2, S6, S10 and S11 each close the item asked, and nothing else. S5 was closed by the orchestrator in `f1f8c51`. Three non-blocking notes for the orchestrator are listed below (N1–N3), plus one for the V01 branch (N4). Task 2.1 can be ticked.
+
+### R2: closed
+- `git merge-base --is-ancestor origin/unity/main HEAD` gives exit 0 (`35ea833`). `git merge-tree --write-tree origin/unity/main HEAD` gives exit 0, and its tree `22cff0c` is HEAD's own tree.
+- `git show --remerge-diff 4bbeccd` names one hand-resolved file, `tools/blender/tests/test_meta.py`. The resolution keeps main's `"razor_wire", "sandbag"` and the branch's `WIRE_FIELDS` and `WIRE_POSITIVE`, both sides whole. Nothing else was edited in the merge.
+- `git diff --stat f1f8c51 4bbeccd` is the same as `git diff --stat 5ef4206 35ea833` (16 files, 602 insertions, 33 deletions): the merge brings in main's change exactly.
+- The merge is under `Asset Artist <assets@450fpv.local>`, author and committer, subject only, as task 1.9 asked.
+- Both hygiene targets pass: `test_existing_tree_is_clean[HEAD]` and `[origin/unity/main merged with HEAD]`.
+
+### R1: closed
+**The depth, re-derived.** In the upright frame, the 12-gon's corner on the trailing side lies at axial −s, g·r(−s) out, with g = 2 / (1 + cos 15°) = 1.017332 and r(−s) = r(0) − slope·s (slope signed, negative up the log). After the lean θ, its height is −s cos θ + g r(−s) sin θ. Setting it to 0 gives s = g r(0) tan θ / (1 + g·slope·tan θ), which is `Pole.sink()`. QA solved it independently by fixed-point iteration from the params alone, and measured it on the built mesh (the lowest axial coordinate of the log's ground vertices). The three agree to 0.1 µm: **19.2671 mm** at 9° (QA's earlier 0.019267 m) and **32.6145 mm** at 15°. At azimuths between the 12-gon's corners (15°, 45°, 200°), the mesh meets the ground less deep (31.50–32.12 mm) than `sink()` (32.61 mm). Starting deeper is safe: the planted rule covers everything below y = 0, and the log stays within 8.68 mm.
+
+**The log alone, both ways** (QA's `qa_r1.py`, the first review's `qa_lean.py` method: the log's 13 LOD0 faces against its segments, planted). The full build audit gave 0 problems in every case.
+
+| Case | Segments | Sink (mm) | Worst (mm) | Before 1.9 (mm) |
+|---|---|---|---|---|
+| `L01_straight`, `L01_braced` (upright) | 3 | 0 | 8.649 | 8.649 |
+| `L01_stub` (upright) | 4 | 0 | 8.503 | 8.503 |
+| `L01_leaning` 9° (and straight, braced at 9°) | 3 | 19.267 | **8.669** | 10.269 |
+| any of `straight` / `leaning` / `braced` at 15°, az 90 | 3 | 32.615 | **8.681** | 13.119 (straight, leaning) |
+| `L01_stub` at 9° / 15° | 4 | 20.969 / 35.502 | 8.524 / 8.537 | not run |
+| `L01_leaning` 15° at az 0 / 15 / 45 / 200 / 270 | 3 | 32.615 | 8.674–8.681 | not run |
+
+All four variants hold the 10 mm at 9° and at 15°, with at least 1.319 mm of margin. The worst point is now the log's own corner at the ground, (0, 0, −0.1232), 8.669 mm from the lowest capsule's side. Before, it was 10.269 mm from that capsule's cap.
+
+**The test.** `test_the_log_collision_is_within_10mm_of_the_log_both_ways` is parametrized over six cases: the four variants, and `L01_straight` and `L01_leaning` at 15°. Its numbers are literal:
+- the segment counts 3 / 4
+- the sinks 0.019267 / 0.032615 m (to 1 µm)
+- the 10.0 mm bound
+- the lowest segment's foot at `place((0, −sink, 0))` (to 2 µm)
+
+QA ran it against the old `pole.py` (from `4bbeccd`, in a scratch worktree): **6 failed**. Three of those failures are the real check: the leaned cases fail the 10 mm at 10.269, 13.119 and 13.119 mm. The three upright cases fail only on `AttributeError: 'Pole' object has no attribute 'sink'`. They passed the 10 mm before, as they should. So "6 of 6" is true, and 3 of 6 is the meaningful count. The test leaves out the braced and stub variants at 15°. QA ran both: 8.681 and 8.537 mm. Not blocking.
+
+**Outputs.** Only `L01_leaning`'s three log records moved. For example, the lowest capsule moved from r 0.112895 to 0.112979 m and from h 2.725789 to 2.732381 m. Its cylinder asset was renamed to `r0.086596_h2.506422`, which is (7.5 + 0.019267) / 3. Every other L01 change is S2's flag or S11's box.
+
+### S1, S2, S6, S10, S11
+- **S1, the wire audit both ways: closed as asked.**
+  - Each wire's farthest vertex must reach the record's radius within min(5 mm, D/2), and the line prints the reach. The build lines: 2.500 of 2.5, 4.500 of 4.5, 7.743 of 7.5 mm.
+  - The new test fails a 20 mm record on the 9 mm tube and passes an 18 mm one, both by literal message.
+  - Read with QA's `qa_s1.py`, the guard holds the invisible wall to the reading's 5 mm drone bound. It cannot catch a doubled record on a wire of 10 mm or less. On a 5 mm tube a 12 mm record passes, and on the 9 mm tube anything up to 19 mm passes (19.1 mm fails). That is N-5's own wording. The committed records are pinned by literal diameters in `test_wire_span.py` (0.009, 0.015) and in EditMode (uv2 4.5 mm). See N2.
+- **S2, an explicit thin-wire flag: closed.**
+  - `meta.assemble` writes `thin_wire` on every LOD entry. It is false unless the generator returns `"thin_wire"`; `pole` sets `[F, T, T]` and `wire_span` `[T, T]`.
+  - `validate` refuses a missing or non-boolean flag, and `assemble` refuses a list of the wrong length.
+  - The importer reads it with `Json.Bool`, which is required. `MeshChild` picks `EnsureThinWireMaterial` by `thinWire` alone. `CarriesRadius` is now only a check inside a flagged LOD, and micro meshes always pass `false`. No other `uv2` read picks a material (grep over `unity/Assets/_Project`).
+  - EditMode `ThinWireFlag_NotTheUv2_PicksTheMaterial` passed. With its LODs unflagged, the real `L03_medium` FBX draws URP/Lit while uv2 still holds the radius, and with its wires the import fails, naming `slot aluminium`. Its throwaway folder is gone after the run (`git status` clean).
+  - **K01, S04 and V13 change by the field alone.** Over their 5 metadata and 5 prefab files, the only added lines are 14 × `"thin_wire": false` and 14 × `thinWire: 0`, plus the trailing commas on the `switch_distance_m` lines they follow. Their FBX, materials and review inputs are untouched. Every committed metadata carries the flag: K01, S04, V13 false; L01 `[F, T, T]`; L03 `[T, T]`.
+- **S6, clearance at the underside: closed.** `check` subtracts `diameter_mm / 2000` from the lowest centre. The literal test refuses the 5 mm wire at 4.3015 m (underside 3.499 m) and builds it at 4.303 m. The changed message (2.695 m) is updated. The committed spans keep their margins.
+- **S10, stale as-built lines: closed.** Design 4 and 10, and tasks 1.4 and 1.7, mark the "no shadow caster" and brace-on-`L01_leaning` lines superseded, and name the task that superseded them. The proposal was fixed by the orchestrator in `f1f8c51`, along with S5's 0.113 / 0.163 m. A grep of the change folder finds no unmarked line left.
+- **S11, the brace's wind volume: closed.** `L01_braced` has a second solid box on the brace capsule. QA recomputed it:
+  - centre (1.136625, 2.4375, 0), the midpoint of the foot (4.875 tan 25°, 0) and (0, 4.875)
+  - size 0.16 × 5.378967 × 0.16 m (4.875 / cos 25°)
+  - rotation 25° about +Z (sin 12.5° = 0.21644)
+  
+  The log's box is unchanged, and the EditMode braced-pole test checks both.
+
+### The spec wording (the orchestrator's)
+Both deltas match the code. The "Record wider than its tube" and "The flag, not uv2" scenarios pass, and the "a solid wind volume per log" and underside lines hold. Two points:
+- **N1, the flag is misplaced.** `thin_wire` is a field of every LOD entry of every asset, and it drives the importer for the pole's far LODs, which have no wires. It sits under "Wires are audited against their polyline", a collision-audit requirement. Move the sentence and its scenario before archive. They belong under a MODIFIED "Asset metadata contract" ("LODs with triangle counts, switch distances and a `thin_wire` flag"), with the material rule beside "Import to a prefab", or under an ADDED requirement of their own, such as "Thin-wire LODs are named in the metadata". The rule itself is right.
+- **N2, one parenthetical claims too much.** "(so no record is wider than the wire drawn)" should read "so no record stands more than that tolerance beyond the wire drawn". As built, and as N-5 asked, a record of 10 mm or less always passes the reach check.
+
+### Other notes (non-blocking)
+- **N3, a typo from `f1f8c51`** (proposal, Physics metadata): "`glass` (porcelain, the physics sign-off) and `glass`" names glass twice.
+- **N4, what `p1-v01-locust` must do when it merges.**
+  - It is not yet up to date with `unity/main`. A trial `git merge-tree` of it into this tip conflicts in:
+    - `build.py`, `lib/audit.py`, `lib/export.py`, `lib/geometry.py`, `lib/meta.py`, `test_meta.py`
+    - `CatalogImporter.cs`
+    - all three `V13_*.assetmeta.json`
+  - Its `V01_*.assetmeta.json` LOD entries carry no `thin_wire`, so after this change the importer refuses them (`"thin_wire" must be true or false`).
+  - Neither it nor its `--farcards` or `--impostor2` sub-branches use a second UV (grep), so `false` everywhere is right for V01 and V13.
+  - **When it merges:**
+    - keep this change's `thin_wire` lines in `meta.py` (the default, the validator, the `lods` entry) and `CatalogImporter.cs` (`MeshChild`'s `thinWire`, with `false` for micro meshes)
+    - pass the LOD's flag or `false` in any new renderer path of its own (far cards, impostors)
+    - **never hand-resolve the metadata JSON:** rebuild V13 and V01 with `pwsh tools/build_asset.ps1` on the merged tree, so each LOD gains `"thin_wire": false` and each prefab `thinWire: 0`, and nothing else moves on V13 beyond V01's own changes
+  - Its QA re-check should diff V13's prefabs for exactly that.
+
+### Commands run (key lines)
+```
+git fetch origin; git checkout -B qa-l01-recheck origin/unity/art/p1-l01-l03-pole-wires (39cedee); git lfs checkout -> 63/63 objects
+git merge-base --is-ancestor origin/unity/main HEAD -> exit 0
+git merge-tree --write-tree origin/unity/main HEAD -> 22cff0c6e1029d5e1e325fc542159df030c0b368 (= HEAD^{tree}), exit 0
+git show --remerge-diff 4bbeccd -> one file, tools/blender/tests/test_meta.py, both sides kept
+python -I qa_r1.py -> sink code = QA's = mesh (19.2671 / 32.6145 mm); log-only worst 8.669 (9 deg), 8.681 (15 deg), 8.524 / 8.537 (stub); full audit 0 problems everywhere
+old pole.py (4bbeccd) under the new test -> 6 failed: 10.269, 13.119, 13.119 mm (leaned) and 3 x AttributeError 'sink' (upright)
+python -I qa_s1.py -> thin 12 mm record passes, medium 19 mm passes / 19.1 mm fails, thick 25.1 mm passes (the 5 mm bound)
+python -m pytest tools -q -p no:cacheprovider -> 775 passed in 1545.17s, exit 0
+python -m pytest tools -q -k test_existing_tree_is_clean -rA -> PASSED [HEAD], PASSED [origin/unity/main merged with HEAD]
+pwsh tools/build_asset.ps1 L01 (x2) -> build_asset: OK (L01), exit 0 both (2:35, 2:19); git status clean after each;
+    146 files (L01 models, prefabs, every material, review sheets) sha256-identical run 1 -> run 2;
+    L01_braced gaps[0] narrowest_m 1.6109, largest inscribed circle 1.6107; importer "thin wire L01_*_LOD1 wood, L01_*_LOD2 wood"
+pwsh tools/build_asset.ps1 L03 (once) -> build_asset: OK (L03), exit 0 (1:01); git status: only this review.md modified;
+    L03_thin wires[0] 5 mm: largest deviation 0.000 mm ..., its tube reaches 2.500 mm of the record's 2.5 mm radius, tolerance 2.5 mm
+    L03_medium wires[0..3] 9 mm: 0.000 mm, reaches 4.500 mm of 4.5 mm, tolerance 4.5 mm
+    L03_thick wires[0] 15 mm: 0.243 mm, reaches 7.743 mm of 7.5 mm, tolerance 5 mm
+    importer: "thin wire L03_*_LOD0 <slot>, L03_*_LOD1 <slot>", "wires without colliders (... -> Fpv450/ThinWire)"
+    L03's second build skipped: L01's two runs match, and L03's outputs are unchanged since 31ff8a1, inside 1.9's own double build
+pwsh tools/build_asset.ps1 K01 (spot check) -> build_asset: OK (K01), exit 0; git status: only this review.md modified (no "thin wire" on K01)
+Unity -batchmode -nographics -runTests -testPlatform EditMode -testResults Logs/editmode.xml -> exit 0;
+    result="Passed" total="46" passed="46" failed="0" skipped="0", incl. ThinWireFlag_NotTheUv2_PicksTheMaterial, BracedPole_*, FarLods_* (4)
+python tools/assets/fetch.py --verify -> OK, exit 0
+python tools/hygiene/precommit.py --tree HEAD -> 769 files scanned, 0 findings, exit 0
+openspec validate p1-l01-l03-pole-wires --strict -> Change 'p1-l01-l03-pole-wires' is valid, exit 0
+git log 1fb2499..39cedee --first-parent -> 8 commits, all subject-only, no trailers; Asset Artist (7), Orchestrator (f1f8c51)
+git diff --name-only f1f8c51..39cedee | reference/ Library/ Temp/ Logs/ UserSettings/ -> 0 paths
+```
