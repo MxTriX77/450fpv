@@ -214,6 +214,32 @@ def test_base_map_packs_the_opacity_into_the_diffuse_alpha(tmp_path, capsys):
     assert not (root / MATERIALS / f"{MATERIAL}_base.png").exists()
 
 
+def test_mask_of_an_alpha_clipped_recipe_fills_the_clipped_texels(tmp_path, capsys):
+    """p1-v01-locust task 1.2g: the opacity (rising along x: 0, 36, 73, 109, 146, 182, 219, 255) clips columns 0-3 at
+    alpha_clip 0.5 (alpha under 128); those texels take each channel's mean over the kept columns 4-7, so no mip
+    averages in what lies under them: AO (0, 85, 170, 255 down the rows) 127.5 -> 128, smoothness (109, 73, 36, 0)
+    54.5 -> 54, metallic 0. The kept texels stay as they were; the stamp records the cutoff and the opacity."""
+    root = base_root(tmp_path)
+    assert run(MATERIAL, "--root", root) == 0
+    assert (f"{MATERIAL}_mask.png: derived 8x4 from polyhaven/{SET_ID} (ao, opacity, roughness)"
+            in capsys.readouterr().out)
+    mask = Image.open(root / MATERIALS / f"{MATERIAL}_mask.png")
+    for y in range(SIZE[1]):
+        for x in range(SIZE[0]):
+            if x >= 4:
+                assert mask.getpixel((x, y)) == (0, round(y / 3 * 255), 0, 255 - round(x / 7 * 255)), (x, y)
+            else:
+                assert mask.getpixel((x, y)) == (0, 128, 0, 54), (x, y)
+    stamp = json.loads((root / MATERIALS / f"{MATERIAL}_mask.recipe.json").read_text(encoding="utf-8"))
+    assert stamp["formula"] == derive.CLIP_FORMULA and stamp["alpha_clip"] == 0.5
+    assert stamp["sources"]["opacity"] == {"name": OPACITY, "sha256": fetch.sha256(root / SET_DIR / OPACITY)}
+
+    write_recipe(root, MASK, alpha_clip=0.75)  # a new cutoff regenerates: alpha under 192 clips columns 0-5
+    assert run(MATERIAL, "--root", root) == 0 and f"{MATERIAL}_mask.png: derived 8x4" in capsys.readouterr().out
+    mask = Image.open(root / MATERIALS / f"{MATERIAL}_mask.png")
+    assert mask.getpixel((5, 0)) == (0, 128, 0, 18) and mask.getpixel((6, 0)) == (0, 0, 0, 36)
+
+
 def test_base_map_refuses_sources_of_different_size(tmp_path, capsys):
     root = base_root(tmp_path)
     Image.new("RGB", (SIZE[0] * 2, SIZE[1]), DIFFUSE_RGB).save(root / SET_DIR / MAPS["diffuse"])

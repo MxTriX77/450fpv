@@ -9,7 +9,10 @@ A recipe with a "mask" object gets unity/Assets/_Project/Art/Materials/<material
 that URP/Lit reads twice: _MetallicGlossMap takes metallic from R and smoothness from A, _OcclusionMap takes occlusion
 from G; B is unused and 0. The object holds exactly "metallic", "occlusion" and "smoothness", each a constant in
 [0, 1] or a map of the recipe's texture set by its manifest map name ("ao", "roughness", ...), inverted as
-"1 - roughness". The mask has the sources' size; 16-bit sources are scaled to 8 bits, never clipped.
+"1 - roughness". The mask has the sources' size; 16-bit sources are scaled to 8 bits, never clipped. In the mask of
+an alpha-clipped recipe whose set ships an opacity map, every texel the opacity clips takes each channel's mean over
+the texels it keeps, so the mips of a minified card average its leaves' values, not what lies under the clipped
+texels (p1-v01-locust task 1.2g).
 
 A recipe with "alpha_clip" (p1-v13-shrub, "Alpha-clipped two-sided recipes") whose texture set ships its opacity as
 a separate map (ambientCG's atlases) gets <material>_base.png: the diffuse's RGB with the opacity map as alpha, an
@@ -88,7 +91,7 @@ import re
 import sys
 
 import PIL
-from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageMath, ImageOps
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageMath, ImageOps, ImageStat
 
 import fetch  # the manifest, its file paths and the repo root; same folder
 
@@ -98,6 +101,7 @@ from lib import mat, patches  # noqa: E402  the layouts and fields the ground_pa
 RECIPES = os.path.join("assets-src", "materials")
 MATERIALS = os.path.join("unity", "Assets", "_Project", "Art", "Materials")
 FORMULA = "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size"
+CLIP_FORMULA = FORMULA + "; every texel the opacity map clips takes each channel's mean over the texels it keeps"
 BASE_FORMULA = "RGB diffuse, A opacity; 8-bit sRGB at the sources' size"
 GROOVE_FORMULA = ("RGB diffuse x (1 + (tint - 1) x weight) in linear light, the weight 0 where the cavity map reads "
                   "from or more and 1 where it reads to or less, linear between; 8-bit sRGB at the sources' size")
@@ -259,13 +263,20 @@ def derive_mask(root, manifest, material, recipe):
                 raise DeriveError(f"{material}: mask.{name}: {texture_set} has no {parsed[1]} map "
                                   f"(it has {', '.join(sorted(maps))})")
             used.add(parsed[1])
+    clipped = "alpha_clip" in recipe and "opacity" in maps  # the base map clips by this opacity (derive_base)
+    if clipped:
+        used.add("opacity")
     for name in sorted(used):
         if not os.path.isfile(maps[name]):
             raise DeriveError(f"{fetch.relpath(root, maps[name])}: missing; run fetch.py")
-    stamp = {"material": material, "texture_set": texture_set, "formula": FORMULA, "mask": mask,
-             "sources": {name: {"name": os.path.basename(maps[name]), "sha256": fetch.sha256(maps[name])}
-                         for name in sorted(used)}}
-    stamp["inputs_sha256"] = _inputs_sha256(stamp, ("formula", "mask", "sources"))
+    stamp = {"material": material, "texture_set": texture_set, "formula": CLIP_FORMULA if clipped else FORMULA,
+             "mask": mask, "sources": {name: {"name": os.path.basename(maps[name]), "sha256": fetch.sha256(maps[name])}
+                                       for name in sorted(used)}}
+    keys = ("formula", "mask", "sources")
+    if clipped:
+        stamp["alpha_clip"] = recipe["alpha_clip"]
+        keys += ("alpha_clip",)
+    stamp["inputs_sha256"] = _inputs_sha256(stamp, keys)
 
     png_path = os.path.join(root, MATERIALS, f"{material}_mask.png")
     stamp_path = os.path.join(root, MATERIALS, f"{material}_mask.recipe.json")
@@ -279,12 +290,27 @@ def derive_mask(root, manifest, material, recipe):
                           + ", ".join(f"{n} {s[0]}x{s[1]}" for n, s in sorted((n, i.size) for n, i in sources.items())))
     size = sizes.pop() if sizes else (1, 1)
     r, g, a = (channel(mask[name], sources, size) for name in CHANNELS)
+    if clipped:
+        r, g, a = _fill_clipped((r, g, a), sources["opacity"], recipe["alpha_clip"])
     os.makedirs(os.path.dirname(png_path), exist_ok=True)
     Image.merge("RGBA", (r, g, Image.new("L", size, 0), a)).save(png_path, "PNG")
     stamp["size"] = list(size)
     _write_stamp(stamp_path, stamp)
     return (f"{fetch.relpath(root, png_path)}: derived {size[0]}x{size[1]} from {texture_set} "
             f"({', '.join(sorted(used)) or 'constants only'}); recipe recorded in {os.path.basename(stamp_path)}")
+
+
+def _fill_clipped(images, opacity, cutoff):
+    """The 8-bit L `images` with every texel the alpha test clips (opacity under `cutoff`: the shader drops alpha <
+    cutoff) set to the image's mean over the texels it keeps (p1-v01-locust task 1.2g). Those texels never show at
+    full resolution, but every mip averages them in: LeafSet002's AO reads 0.82 under its clipped texels against 0.97
+    under its leaves, so a minified leaf card took a lower occlusion the farther it was, and its ambient light with
+    it. Unchanged when the map keeps nothing."""
+    keep = opacity.point(lambda v: 255 if v >= math.ceil(cutoff * 255) else 0)
+    if not keep.getbbox():
+        return images
+    return tuple(Image.composite(image, Image.new("L", image.size, round(ImageStat.Stat(image, keep).mean[0])), keep)
+                 for image in images)
 
 
 def derive_base(root, manifest, material, recipe):
