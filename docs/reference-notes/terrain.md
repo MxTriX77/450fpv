@@ -618,7 +618,8 @@ Derived values scale with the camera height (12.5 m; ±12 % over 11–14 m).
 | Fallow, pale grass heads | #8d8e8a, #7a8173 | S 10, 8 |
 | Fallow, rust-brown seed stands | #8f7363; mixed with grass #77695e | S 12, 14 |
 | Mown strip at the field edge | #738d74, #5f896e | S 1, 3 |
-| Green and verge grass | #5f8d4c, #6d864d; back gardens #638648 | S 36, 24; S 50 |
+| Green and verge grass: picks of pure grass | #5f8d4c, #6d864d; back gardens #638648 | S 36, 24; S 50 |
+| Green, whole-patch means (dry stems and litter included): match these, not the picks, so the grass isn't over-saturated | #648b55–#708657 (down to #617c4e) | S 24, 36 |
 | Yellow-topped verge weeds | #6b7842 | S 46 |
 | Weed fringe at the fence, rust-brown | #68562d | S 47 |
 | Yard tree crown | #506425 | S 48 |

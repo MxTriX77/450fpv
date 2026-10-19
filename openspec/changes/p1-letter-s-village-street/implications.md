@@ -133,7 +133,7 @@ Not proposed, too uncertain to class:
 
 ## Other roles
 - **Tech-artist (the feed):**
-  - S is the first overcast daylight clip with strong colour. The feed renders it cool and saturated: road #bbb7c8, pale brick #c7bfce, grass #5f8d4c, char #323c51 (terrain.md §12.5).
+  - S is the first overcast daylight clip with strong colour. The feed renders it cool and saturated: road #bbb7c8, pale brick #c7bfce, grass #5f8d4c, char #323c51 (terrain.md §12.5). The grass value is a pick of pure grass; the green's whole-patch means are greyer, #648b55–#708657, and they are the check.
   - This is unlike B and G (warm, low sun) and A and H (flat grey).
   - The feed setup should reproduce S's grade from neutral albedos. S's colour table is its check.
 - **World-builder (WLD-01, WLD-14, REAL-04):** the typical village copies S's look, never its layout (terrain.md §12.6).

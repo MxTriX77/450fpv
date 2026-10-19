@@ -705,7 +705,7 @@ How each surface row reads:
 | sod far | — | #9da094 (A 7); terrain.md #9b987b | measured on A |
 | yellow-green patch | #6a7a2a (assumed) | #7a8332 (A 7); terrain.md #696d1b | measured on A |
 | pale matted grass | #a89a6a (assumed) | #948651 (A 4) | measured on A |
-| short village grass, damp, overcast (S's cool, saturated feed) | #4e6a2c (assumed) | #5f8d4c (S 36), #6d864d (S 24), back gardens #638648 (S 50) | measured on S |
+| short village grass, damp, overcast (S's cool, saturated feed) | #4e6a2c (assumed) | picks of pure grass #5f8d4c (S 36), #6d864d (S 24), back gardens #638648 (S 50); whole-patch means with dry stems and litter #648b55–#708657, down to #617c4e (S 24, 36): the check is the patch mean, not the pick | measured on S |
 | mown strip at a field edge | as above | #738d74 (S 1), #5f896e (S 3) | measured on S |
 | dark hollow | under-sod soil #4a463f (derived) | #3c4213 (A 1), sod around it #848321 | measured on A |
 | night ground | — | #0c0c0c–#0d0e0d (L 2), sky #4d4e4c | measured on L |

@@ -185,7 +185,7 @@ No set is in `tools/assets/manifest.json` yet for this group (the manifest holds
 | lone tree and bushes at night | — | silhouette #444543 against sky #595a58, ground #171717 (L 1) | measured on L |
 | fallow: pale grass heads, overcast (S's feed is cool: neutrals go lilac, greens saturate) | #a69c84 (assumed) | #8d8e8a (S 10), #7a8173 (S 8) | measured on S |
 | fallow: rust-brown seed stands (dock-like) | #7a4e33 (assumed) | #8f7363 (S 12); mixed with grass #77695e (S 14) | measured on S |
-| short grass, village green and verges, damp | #4e6a2c (assumed) | #5f8d4c (S 36), #6d864d (S 24), #638648 (S 50) | measured on S |
+| short grass, village green and verges, damp | #4e6a2c (assumed) | picks of pure grass #5f8d4c (S 36), #6d864d (S 24), #638648 (S 50); whole-patch means with dry stems and litter #648b55–#708657, down to #617c4e (S 24, 36): the check is the patch mean, not the pick | measured on S |
 | yellow-topped verge weeds (goldenrod-like), autumn | #8a8a3a (assumed) | #6b7842 (S 46) | measured on S |
 | weed fringe at a fence, rust-brown | #6a5236 (assumed) | #68562d (S 47) | measured on S |
 | yard tree crown in leaf, overcast | #4a5a2a (assumed) | #506425 (S 48) | measured on S |
