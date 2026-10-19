@@ -173,7 +173,10 @@ namespace Fpv450.Assets
         /// offset. The detail layer is the derived <c>_detail_albedo.png</c> (the detail set's diffuse, neutralised
         /// to mid-grey for URP's "detail albedo ×2") and the detail set's own normal map, keyword
         /// <c>_DETAIL_MULX2</c>. URP/Lit derives the detail UV from the base UV times the detail tiling, so the
-        /// tiling is size/tile_size_m: the detail repeats every tile_size_m metres of the asset.
+        /// tiling is size/tile_size_m: the detail repeats every tile_size_m metres of the asset. A ground recipe in
+        /// wall space (<c>"space": "wall"</c>, p1-e01-trench) is a cut's strip: its <c>size_m</c> is [u, v] metres
+        /// from the strip's corner (the generator UVs the cut's faces in metres along the run and up the strip), so
+        /// the base tiling is 1/u by 1/v with no offset and the detail tiling u/tile by v/tile.
         /// </para>
         /// <para>
         /// A recipe of kind <c>palette</c> (the straw instance kit's tints) has no texture set: its base map is the
@@ -218,10 +221,16 @@ namespace Fpv450.Assets
             {
                 if (recipe.ContainsKey("mask") || recipe.ContainsKey("smoothness"))
                     throw new FormatException($"{recipePath}: a ground recipe derives its own mask; it takes neither \"mask\" nor \"smoothness\"");
-                float size = Json.Num(recipe, "size_m", recipePath);
+                string space = recipe.TryGetValue("space", out object spaceValue)
+                    ? spaceValue as string ?? throw new FormatException($"{recipePath}: \"space\" must be a string")
+                    : null;
+                if (space != null && space != "wall")
+                    throw new FormatException($"{recipePath}: unknown ground space \"{space}\" (omit it for a patch, or \"wall\")");
+                bool wall = space == "wall";
+                Vector2 size = wall ? Json.Vec2(recipe, "size_m", recipePath) : Vector2.one * Json.Num(recipe, "size_m", recipePath);
                 var detail = Json.Obj(recipe, "detail", recipePath);
                 float detailTile = Json.Num(detail, "tile_size_m", recipePath);
-                if (size <= 0f || detailTile <= 0f)
+                if (size.x <= 0f || size.y <= 0f || detailTile <= 0f)
                     throw new FormatException($"{recipePath}: size_m and detail.tile_size_m must be positive metres");
                 albedo = Derived(visual, "albedo");
                 normal = Derived(visual, "normal");
@@ -230,9 +239,9 @@ namespace Fpv450.Assets
                 Dictionary<string, Texture2D> detailSet = TextureSet(Json.Str(detail, "texture_set", recipePath), manifest, recipePath);
                 if (!detailSet.TryGetValue("normal", out detailNormal))
                     throw new FormatException($"{recipePath}: the detail texture set has no normal map");
-                baseScale = new Vector2(1f / size, 1f / size);
-                baseOffset = new Vector2(0.5f, 0.5f);
-                detailScale = new Vector2(size / detailTile, size / detailTile);
+                baseScale = new Vector2(1f / size.x, 1f / size.y);
+                baseOffset = wall ? Vector2.zero : new Vector2(0.5f, 0.5f);
+                detailScale = new Vector2(size.x / detailTile, size.y / detailTile);
                 masked = true;
             }
             else
