@@ -563,7 +563,7 @@ Over the dead-wood generator: `break_height_m` 2–6 (default 4), `splinter_len_
 
 ## V08 Dead tree, bare and leaning
 
-**Seen in:** D (1–12: a bare dead trunk in the weeds, leaning, a thin fan of limbs at the top), G (1–13: leafless thin trees in the strip), H (9–10: a dead sapling with dry leaves). Also B, I, J (terrain.md V2). S 40–43: upright dead trees on a village square, bark stripped so trunk and limbs read pale against the grass, 4.7–5.9 m (derived: S 42, foot and top at the 11–14 m camera height), a few stout limbs forking from about 1.5–2.5 m (by eye), no twigs left.
+**Seen in:** D (1–12: a bare dead trunk in the weeds, leaning, a thin fan of limbs at the top), G (1–13: leafless thin trees in the strip), H (9–10: a dead sapling with dry leaves). Also B, I, J (terrain.md V2). S 40–43: upright dead trees on a village square, bark stripped so trunk and limbs read pale against the grass, 5.7–7.5 m, about 6.5 m (derived: one tree's foot and top in S 41 and S 43, ratio 2.1–2.2, at the 11–14 m camera height; S 42 isn't used, its foot is in shrubs and a pale line behind runs on above its top), a few stout limbs forking from about 1.5–2.5 m (by eye), no twigs left.
 **Research sources:** elm lifespan (https://en.wikipedia.org/wiki/Ulmus_pumila: rarely over 60 years); the locust heart-rot note (https://en.wikipedia.org/wiki/Robinia_pseudoacacia).
 
 ### Dimensions

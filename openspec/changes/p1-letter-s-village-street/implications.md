@@ -37,7 +37,7 @@ S shows no vehicle and no person. Its feed renders the scene cool and saturated:
   - If V01 is also the village's street and yard locust, it needs a single-tree form: a clean bole and a compact crown. Otherwise V05 or V10–V12 take that role.
   - Its placement rules need single trees in yards and along the street.
 - **Season:** S's trees are in full leaf with the first yellowing. That is between V01's G1 states (0.6 part-bare, 0.9 summer), closest to 0.9 with a little autumn tint.
-- The pale, bark-stripped dead trees on the square (S 40–43, 4.7–5.9 m, derived) are V08's, a V01 non-goal.
+- The pale, bark-stripped dead trees on the square (S 40–43, 5.7–7.5 m, derived S 41, 43) are V08's, a V01 non-goal.
 
 ### L01 wooden pole (merged)
 - **S's street line is concrete (L02), and L02 isn't built.**
