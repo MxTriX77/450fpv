@@ -1158,7 +1158,7 @@ Between yards and along gardens, 10–40 m runs; around the farm (P02).
 | `seed` | int | — | — | Random choices |
 
 ### Open points
-- Mesh contact: settled by the physics sign-off (review-materials.md §2): `mesh` answers a drone-sized load as a membrane (about 800 N/m, derived there), so a drone hitting chain-link is caught, not bounced; its 1 mm wire is a cut risk for the fiber.
+- Mesh contact: settled by the physics sign-off (review-materials.md §2): `mesh` answers one touching part as a membrane (430 N/m per part, derived in `p1-materials-per-part`; the sign-off's 800 N/m was the whole drone), so a drone hitting chain-link is caught, not bounced; its 1 mm wire is a cut risk for the fiber.
 
 ## Y04 Brick or concrete-panel fence
 

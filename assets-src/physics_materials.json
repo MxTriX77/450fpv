@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "owner": "physics-engineer",
-  "about": "The closed list of physics material ids (AST-05, setup-asset-pipeline design decision 6, physics review R3). Every collision shape's 'material' and every material slot's 'physics' must be an id of 'materials', or 'surface:<id>' naming one of the thirteen ground surfaces (S01-S13, knowledge §7.2) for a shape that stands in for ground; lib/meta.validate refuses anything else. New ids are added here with physics sign-off, never in a generator: the phase-1 sign-off is openspec/changes/p1-pipeline-hardening/review-materials.md. A plain id never shares a surface's name. The values are the physics engineer's to tune in phases 3 and 6.",
+  "about": "The closed list of physics material ids (AST-05, setup-asset-pipeline design decision 6, physics review R3). Every collision shape's 'material' and every material slot's 'physics' must be an id of 'materials', or 'surface:<id>' naming one of the thirteen ground surfaces (S01-S13, knowledge §7.2) for a shape that stands in for ground; lib/meta.validate refuses anything else. New ids are added here with physics sign-off, never in a generator: the phase-1 sign-off is openspec/changes/archive/2026-10-18-p1-pipeline-hardening/review-materials.md. A plain id never shares a surface's name. The values are the physics engineer's to tune in phases 3 and 6.",
   "fields": {
     "friction_static": "mu_s of the drone's polymer parts on the dry material",
     "friction_kinetic": "mu_k, same pairing",
