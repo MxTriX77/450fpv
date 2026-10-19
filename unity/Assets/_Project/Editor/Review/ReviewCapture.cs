@@ -416,7 +416,12 @@ namespace Fpv450
                 return ReviewCanvas.FromTexture(Render());
             }
 
-            /// <summary>Renders the camera as it is aimed into the tile and reads the pixels back into the readback texture it returns.</summary>
+            /// <summary>
+            /// Renders the camera as it is aimed into the tile and reads the pixels back into the readback texture it
+            /// returns, on the CPU side only: its callers read them with GetPixels32, and an Apply uploading them again
+            /// left 4 MB with the graphics driver per render until the batch method returned (p1-v01-locust task 1.2m:
+            /// the parity measure past 6 GB within a minute, measured).
+            /// </summary>
             public Texture2D Render()
             {
                 var request = new RenderPipeline.StandardRequest { destination = target };
@@ -434,7 +439,6 @@ namespace Fpv450
                 }
                 RenderTexture.active = target;
                 readback.ReadPixels(new Rect(0, 0, Tile, Tile), 0, 0, false);
-                readback.Apply(false);
                 RenderTexture.active = null;
                 return readback;
             }
