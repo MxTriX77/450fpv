@@ -775,7 +775,7 @@ Bricks come out whole or halved along the bed joints where mortar is weak (house
 
 ## K02 Clay tile shards; slate (шифер) fragments
 
-**Seen in:** E 7, 10 (tile shards 0.1–0.35 m heaped along the wall foot, a few nearly whole tiles among them; more inside, E 16); J (asbestos-cement slate: whole and half sheets about 1.1 m wide stacked and leaning in the debris, fragments 0.1–0.6 m scattered between the houses and the street). S: pale slate fragments 0.2–1 m scattered over a village green, about one per 20–40 m² and several per m² along a slate fence knocked flat (S 29–36, measured roughly); the slate of stripped hip roofs lying on the houses' intact ceilings instead of on the ground (S 45–50); whole slate sheets on the flattened plot (S 17–19).
+**Seen in:** E 7, 10 (tile shards 0.1–0.35 m heaped along the wall foot, a few nearly whole tiles among them; more inside, E 16); J (asbestos-cement slate: whole and half sheets about 1.1 m wide stacked and leaning in the debris, fragments 0.1–0.6 m scattered between the houses and the street). S: pale slate fragments 0.2–1 m scattered over a village green, about one per 20–40 m² and several per m² along a slate fence knocked flat (S 29–36, measured roughly); the slate of stripped hip roofs lying on the houses' ceilings, mostly intact but holed (S 50), instead of on the ground (S 45–50); whole slate sheets on the flattened plot (S 17–19).
 **Research sources:** houses-and-yard.md shared section (tile and slate sizes, the blast fracture of asbestos-cement sheet).
 
 ### Dimensions

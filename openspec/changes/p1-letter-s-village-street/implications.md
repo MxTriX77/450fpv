@@ -84,7 +84,7 @@ H01 stays E's copy. The difference is the shared `house` generator that H01's ch
   - The houses sheet proposes them as H02 variant 3. No adobe-and-tile house appears in S.
 - **D state with a ceiling, which the shared table lacks (S 45–50):**
   - The slate and most rafters are gone; the wall plate and a few hip rafters stand.
-  - The ceiling is intact and carries the fallen slate, boards and debris.
+  - The ceiling is mostly intact, holed in places (S 50), and carries the fallen slate, boards and debris.
   - The chimney and a TV mast stand above it.
   - The rubble at the foot is light.
   - The table has `interior_ceiling_down` but no item that keeps roof debris on the ceiling, and no mast. Proposed: `ceiling_debris` (0–1, the share of roof debris resting on the ceiling instead of the ground) and `tv_mast` (position, height).
