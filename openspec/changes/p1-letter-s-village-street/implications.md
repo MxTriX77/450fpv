@@ -135,5 +135,9 @@ Not proposed, too uncertain to class:
   - S is the first overcast daylight clip with strong colour. The feed renders it cool and saturated: road #bbb7c8, pale brick #c7bfce, grass #5f8d4c, char #323c51 (terrain.md §12.5).
   - This is unlike B and G (warm, low sun) and A and H (flat grey).
   - The feed setup should reproduce S's grade from neutral albedos. S's colour table is its check.
-- **World-builder:** the typical village takes S's cross-section (terrain.md §12.3) and its sequence: fallow and back gardens, a flattened plot, the street, a green with the square and the public building, a row of D-state houses. The S path (§12.2, §12.6) can then be flown for the REAL-03 side-by-side.
+- **World-builder (WLD-01, WLD-14, REAL-04):** the typical village copies S's look, never its layout (terrain.md §12.6).
+  - **Copied:** the street's cross-section (§12.3), the classes and states along it (§12.4) and the look (§12.5).
+  - **S's views as scene types,** each where the composite map puts it: a street of D-state houses (S 47), back gardens with greenhouse hoops (S 10), a flattened, burnt plot (S 18), a green with craters (S 33–36), a paved square with a public building (S 40), a stripped roof from above (S 50).
+  - **Never copied:** S's order of parts, the street's curve, the turn, and the relative positions of the green, the square, the public building and the flattened plot. The square's shape, size and orientation and the building's footprint are invented.
+  - **The recreated views** fly the §12.2 height, pitch and speed (about 12.5 m, 30° down, 10–12 m/s) over any street built to §12.3, for the REAL-03 side-by-side.
 - **Not touched, none seen:** fortifications (F01–F04), the urban-edge rows U01–U03 and P01–P06, and the vehicles sheet.
