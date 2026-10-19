@@ -77,7 +77,8 @@ def test_params_conform_and_the_defaults_are_the_m_variant(repo_root):
      "'fork_angle_deg.min' = 40.0 must not exceed 'fork_angle_deg.max' = 25.0"),
     (lambda p: p.update(autumn=0.5), "'autumn' = 0.5 is not built yet (a per-variant leaf tint is task 1.4's variant_materials); keep 0.0"),
     (lambda p: p.update(spines=True), "'spines' = True is not built yet (no thorn cell is pinned; thorns on suckers are V16's); keep False"),
-    (lambda p: p.update(impostor=True), "'impostor' = True is not built yet (the impostor LOD is task 1.2's); keep False"),
+    (lambda p: p["lod"].update(impostor_switch_m=116.9),
+     "'lod.impostor_switch_m' = 116.9 must lie past 'lod.lod2_switch_m' = 116.9 and before 'lod.cull_m' = 2500.0"),
 ])
 def test_check_refuses(repo_root, edit, expected):
     edited = copy.deepcopy(load(repo_root, "V01_M"))

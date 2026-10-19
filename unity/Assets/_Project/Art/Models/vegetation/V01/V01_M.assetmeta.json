@@ -3,7 +3,7 @@
   "id": "V01",
   "variant": "V01_M",
   "generator": "tree",
-  "params_sha256": "029be78fe0c5a6f05acf02cc824a557f633a156970ea529c3023875c8ff96d67",
+  "params_sha256": "cbec6a5e3f0732e18a4c89daf01f34baf649613f8c10784e177ae272a3655851",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
@@ -33,6 +33,31 @@
       "mesh": "V01_M_LOD2",
       "tris": 1004,
       "switch_distance_m": 116.9
+    },
+    {
+      "mesh": "V01_M_impostor",
+      "tris": 2,
+      "switch_distance_m": 190.0,
+      "impostor": {
+        "atlas": "V01_M_impostor.png",
+        "normals": "V01_M_impostor_normal.png",
+        "size_px": [
+          1024,
+          1024
+        ],
+        "views": 8,
+        "columns": 4,
+        "rows": 2,
+        "elevation_deg": 15.0,
+        "card": {
+          "width_m": 5.724716,
+          "height_m": 11.853324,
+          "bottom_m": -0.27432
+        },
+        "inputs_sha256": "a854242d8b49afdabd12595f024439a6ef748a59a5e965c64f035737dacaeee4",
+        "atlas_sha256": "2355c276b8d142d4906aa2eabdf1c95a2de003503e0dc22aedd83cf9e11553b8",
+        "normals_sha256": "c8f263b8963bca2938bd97ab25d279f797b4cc8a880dcb13612b595c9e8c5043"
+      }
     }
   ],
   "micro": [],

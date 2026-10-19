@@ -5915,6 +5915,7 @@ Transform:
   - {fileID: 1212524669459805092}
   - {fileID: 3141261741029408762}
   - {fileID: 1420170055537065124}
+  - {fileID: 5228364630323874443}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &6604242313392124882
@@ -5933,7 +5934,7 @@ MonoBehaviour:
   id: V01
   variant: V01_M
   generator: tree
-  paramsSha256: 029be78fe0c5a6f05acf02cc824a557f633a156970ea529c3023875c8ff96d67
+  paramsSha256: cbec6a5e3f0732e18a4c89daf01f34baf649613f8c10784e177ae272a3655851
   units: m
   frame: unity-lh-yup
   bounds:
@@ -5949,6 +5950,9 @@ MonoBehaviour:
   - mesh: V01_M_LOD2
     tris: 1004
     switchDistanceM: 116.9
+  - mesh: V01_M_impostor
+    tris: 2
+    switchDistanceM: 190
   micro: []
   cullDistanceM: 2500
   materials:
@@ -9074,10 +9078,14 @@ LODGroup:
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 4449326758922084038}
-  - screenRelativeHeight: 0.0034979351
+  - screenRelativeHeight: 0.046025462
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 3029611282991765278}
+  - screenRelativeHeight: 0.0034979351
+    fadeTransitionWidth: 0
+    renderers:
+    - renderer: {fileID: 820350162980377685}
   m_Enabled: 1
 --- !u!1 &3968286631731510442
 GameObject:
@@ -9189,6 +9197,96 @@ CapsuleCollider:
   m_Height: 0.409185
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!1 &4089388435649222626
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5228364630323874443}
+  - component: {fileID: 1853481139476135636}
+  - component: {fileID: 820350162980377685}
+  m_Layer: 0
+  m_Name: V01_M_impostor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5228364630323874443
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4089388435649222626}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 8201630633143035153}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &1853481139476135636
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4089388435649222626}
+  m_Mesh: {fileID: 4300000, guid: 0a18abc2dd8504a4388de06992091abe, type: 2}
+--- !u!23 &820350162980377685
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4089388435649222626}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: aabbaf3e3dea7c547ae58194ab2beaf2, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_AdditionalVertexStreams: {fileID: 0}
 --- !u!1 &4156081946146304696
 GameObject:
   m_ObjectHideFlags: 0

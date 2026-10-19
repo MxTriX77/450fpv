@@ -17,6 +17,6 @@
   "autumn": 0.0,
   "spines": false,
   "fruit_share": 0.0,
-  "impostor": false,
-  "lod": { "lod1_switch_m": 9.35, "lod2_switch_m": 116.9, "cull_m": 2500.0 }
+  "impostor": true,
+  "lod": { "lod1_switch_m": 9.35, "lod2_switch_m": 116.9, "cull_m": 2500.0, "impostor_switch_m": 230.0 }
 }

@@ -22,7 +22,10 @@ colour (lib.skeleton.tree_tubes, task 1.2g). Every tube is shaded smooth, so a t
 stands for (task 1.2g: flat, the 4-sided limbs of LOD1 turned a face to the review's camera that its side sun missed,
 a fifth of the wood's light by day).
 lod.* come from the pixel rule (935 px/rad): LOD1 where the 10 mm twigs drop under 1 px (9.35 m), LOD2 where a leaf
-drops under 2 px (leaf_m * 467.5), cull where the tree's height drops under 2 px (height_m * 467.5), at most 2 500 m.
+drops under 2 px (leaf_m * 467.5), the impostor (`impostor`, lib.impostor, built by build.py) where the crown's width
+drops under 24 px (crown_width_m * 935 / 24, rounded down to 10 m; design decision 3), cull where the tree's height
+drops under 2 px (height_m * 467.5), at most 2 500 m. V01_S's 24 px fall at its LOD2 switch, 116.9 m (3 m over 24 px is
+0.25 m over 2), which would leave LOD2 no range, so V01_S keeps its LOD2 to the cull (task 1.3).
 
 Metadata (design decision 4, review-physics PR4-PR8):
 - every segment of wood of 10 mm or more a `bark` capsule on its chord at its mean radius, the count reported;
@@ -77,8 +80,7 @@ POROSITY = ((0.0, 0.9), (0.6, 0.75), (0.9, 0.55))  # leaf_cover to crown porosit
 LOD_RULE = "pixel rule, 935 px/rad"
 # Params the sheet gives the generator that nothing can draw yet: a non-default value is refused, not ignored.
 UNBUILT = (("autumn", 0.0, "a per-variant leaf tint is task 1.4's variant_materials"),
-           ("spines", False, "no thorn cell is pinned; thorns on suckers are V16's"),
-           ("impostor", False, "the impostor LOD is task 1.2's"))
+           ("spines", False, "no thorn cell is pinned; thorns on suckers are V16's"))
 # The object sheet's shared tree table and §V01's preset; defaults are V01_M.
 PARAMS = {
     "seed": {"type": "int", "range": (0, 2**31 - 1), "default": 1, "effect": "all draws: lean, forks, limbs, leaves, pods"},
@@ -106,11 +108,15 @@ PARAMS = {
     "autumn": {"type": "float", "range": (0.0, 1.0), "default": 0.0, "effect": "lerps the leaf tint to the sheet's yellow (not built: see UNBUILT)"},
     "spines": {"type": "bool", "range": "true or false", "default": False, "effect": "thorn cards on suckers and low branches (not built)"},
     "fruit_share": {"type": "float", "range": (0.0, 0.5), "default": 0.0, "effect": "share of the last order's tips carrying a pod strip"},
-    "impostor": {"type": "bool", "range": "true or false", "default": False, "effect": "the baked far LOD (task 1.2; not built)"},
+    "impostor": {"type": "bool", "range": "true or false", "default": True,
+                 "effect": "the baked far LOD, a camera-facing card from lod.impostor_switch_m (lib.impostor)"},
     "lod.lod1_switch_m": {"type": "float", "range": (0.1, 100.0), "default": 9.35,
                           "effect": "distance from which LOD1 shows: the 10 mm twigs under 1 px"},
     "lod.lod2_switch_m": {"type": "float", "range": (1.0, 500.0), "default": 116.9,
                           "effect": "distance from which LOD2 shows: a leaf under 2 px, leaf_m * 467.5"},
+    "lod.impostor_switch_m": {"type": "float", "range": (1.0, 2500.0), "default": 190.0,
+                              "effect": "distance from which the impostor shows, when asked for: the crown's width under 24 px, "
+                                        "crown_width_m * 935 / 24 rounded down to 10 m (design decision 3)"},
     "lod.cull_m": {"type": "float", "range": (1.0, 2500.0), "default": 2500.0,
                    "effect": "distance beyond which the tree is culled: its height under 2 px, height_m * 467.5, at most 2 500"},
 }
@@ -178,6 +184,10 @@ def check(params):
     for key, idle, why in UNBUILT:
         if params[key] != idle:
             problems.append(f"'{key}' = {params[key]!r} is not built yet ({why}); keep {idle!r}")
+    lod = params["lod"]
+    if params["impostor"] and not lod["lod2_switch_m"] < lod["impostor_switch_m"] < lod["cull_m"]:
+        problems.append(f"'lod.impostor_switch_m' = {lod['impostor_switch_m']} must lie past 'lod.lod2_switch_m' = "
+                        f"{lod['lod2_switch_m']} and before 'lod.cull_m' = {lod['cull_m']}")
     return problems
 
 
