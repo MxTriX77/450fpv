@@ -26,8 +26,10 @@ Wires (p1-l01-l03-pole-wires, "Wires are audited against their polyline"): a con
 (meta["wires"]) has no primitive; the LOD0 faces of the slots its records name are its tubes and are left out of the
 primitive audit. Every vertex of those slots belongs to the wire of its slot whose envelope (the point list grown by
 the wire's radius) it lies nearest, and lies at most min(WIRE_TOLERANCE_M, half the wire's diameter) outside it, so a
-drawn thin wire always overlaps its physical one (task 1.5's reading §3); the lines print each wire's largest
-deviation and its tolerance, and a wire no vertex belongs to has no tube and fails.
+drawn thin wire always overlaps its physical one (task 1.5's reading §3); the farthest of them reaches the record's
+radius within the same tolerance, so no record is wider than the tube drawn for it, an invisible wall round a wire
+(the reading's N-5, review S1). The lines print each wire's largest deviation, how far its tube reaches and the
+tolerance, and a wire no vertex belongs to has no tube and fails.
 
 Both distances are found by branch and bound over triangles: a cell's three vertices give exact values, a lower
 bound; an upper bound comes from convexity; the cell with the largest upper bound is split in four until no cell
@@ -256,8 +258,9 @@ def _audit_shells(lines, meta, shapes, shells, lod0, card_visuals):
 
 
 def _audit_wires(lines, wires, lod0):
-    """The wire rule (module docstring): per wire, the largest distance of its tube's vertices outside its envelope,
-    every vertex of a wire's slot given to the wire of that slot it lies nearest outside of, and the problems."""
+    """The wire rule (module docstring): per wire, the largest distance of its tube's vertices outside its envelope
+    (its farthest vertex, which must also reach the record's radius), every vertex of a wire's slot given to the wire
+    of that slot it lies nearest outside of, and the problems."""
     problems = []
     worst = [[-math.inf, None, 0] for _ in wires]  # per wire: the largest distance less the radius, where, vertices
     for slot in sorted({w["slot"] for w in wires}):
@@ -276,10 +279,15 @@ def _audit_wires(lines, wires, lod0):
             lines.append(f"audit {label}: no tube")
             continue
         tolerance = min(WIRE_TOLERANCE_M, wire["diameter_m"] / 2)
+        radius = wire["diameter_m"] / 2
         text = f"largest deviation {max(0.0, outside) * 1000:.3f} mm at {_fmt(at)} over {count} vertices"
         if outside > tolerance:
             problems.append(f"{label}: {text} exceeds the tolerance {tolerance * 1000:g} mm")
-        lines.append(f"audit {label}: {text}, tolerance {tolerance * 1000:g} mm")
+        reach = f"its tube reaches {(radius + outside) * 1000:.3f} mm of the record's {radius * 1000:g} mm radius"
+        if -outside > tolerance:
+            problems.append(f"{label}: {reach}, {-outside * 1000:.3f} mm short, more than the tolerance "
+                            f"{tolerance * 1000:g} mm: the record is wider than the wire drawn")
+        lines.append(f"audit {label}: {text}, {reach}, tolerance {tolerance * 1000:g} mm")
     return problems
 
 

@@ -146,7 +146,8 @@ def test_polyline_audit_passes_the_built_tubes_under_5_mm(repo_root):
     for line in lines:
         deviation = float(line.split("largest deviation ")[1].split(" mm")[0])
         assert deviation == 0.0  # every corner on the conductor's circle (the thin-wire contract)
-        assert line.endswith(" over 486 vertices, tolerance 4.5 mm")  # 81 rings of 6
+        assert line.endswith(" over 486 vertices, its tube reaches 4.500 mm of the record's 4.5 mm radius, "
+                             "tolerance 4.5 mm")  # 81 rings of 6, every corner on the circle
 
 
 def test_polyline_audit_fails_a_vertex_20_mm_off_naming_the_wire(repo_root):
@@ -194,6 +195,30 @@ def test_the_tolerance_is_half_a_thin_wires_diameter(repo_root):
         print(line)
         if fails:
             assert problems[0].endswith(f"exceeds the tolerance {tolerance:g} mm")
+
+
+def test_a_record_wider_than_its_tube_fails(repo_root):
+    """Review S1, the reading's N-5: each wire's farthest tube vertex reaches the record's radius within the tolerance
+    min(5 mm, D/2), so a record wider than the wire drawn (an invisible wall round it) fails. The third 9 mm
+    conductor's record widened to 20 mm stands 5.5 mm proud of its 4.5 mm tube and fails naming the wire; widened to
+    18 mm it stands 4.5 mm proud, inside its 5 mm, and passes. The built spans reach their radius (the drop's cores
+    0.243 mm beyond its 7.5 mm, so the record stands nowhere beyond its tube)."""
+    _, built, data = build(repo_root, "L03_medium")
+    for diameter, fails in ((0.020, True), (0.018, False)):
+        wide = copy.deepcopy(data)
+        wide["wires"][2]["diameter_m"] = diameter
+        problems, lines = audit.run(wide, built["lods"][0])
+        line = next(q for q in lines if q.startswith("audit wires[2] "))
+        print(line)
+        assert f"its tube reaches 4.500 mm of the record's {diameter * 500:g} mm radius, tolerance 5 mm" in line
+        assert problems == ([f"wires[2] {diameter * 1000:g} mm (slot aluminium): its tube reaches 4.500 mm of the "
+                             "record's 10 mm radius, 5.500 mm short, more than the tolerance 5 mm: the record is "
+                             "wider than the wire drawn"] if fails else [])
+    for name, reach in (("L03_thin", "2.500 mm of the record's 2.5 mm"), ("L03_thick", "7.743 mm of the record's 7.5 mm")):
+        _, built, data = build(repo_root, name)
+        problems, lines = audit.run(data, built["lods"][0])
+        assert problems == [] and f"its tube reaches {reach} radius" in lines[0], lines
+        print(lines[0])
 
 
 def test_wire_tubes_stay_out_of_the_primitive_audit(repo_root, k01_params):
