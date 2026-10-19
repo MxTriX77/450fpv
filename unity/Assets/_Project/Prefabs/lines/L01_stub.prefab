@@ -1118,12 +1118,15 @@ MonoBehaviour:
   - mesh: L01_stub_LOD0
     tris: 1206
     switchDistanceM: 0
+    thinWire: 0
   - mesh: L01_stub_LOD1
     tris: 32
     switchDistanceM: 35
+    thinWire: 1
   - mesh: L01_stub_LOD2
     tris: 16
     switchDistanceM: 120
+    thinWire: 1
   micro: []
   cullDistanceM: 1200
   materials:

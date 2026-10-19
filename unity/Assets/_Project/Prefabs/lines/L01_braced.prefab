@@ -1226,12 +1226,15 @@ MonoBehaviour:
   - mesh: L01_braced_LOD0
     tris: 916
     switchDistanceM: 0
+    thinWire: 0
   - mesh: L01_braced_LOD1
     tris: 38
     switchDistanceM: 35
+    thinWire: 1
   - mesh: L01_braced_LOD2
     tris: 16
     switchDistanceM: 120
+    thinWire: 1
   micro: []
   cullDistanceM: 1200
   materials:

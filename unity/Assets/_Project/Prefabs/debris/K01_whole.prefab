@@ -152,9 +152,11 @@ MonoBehaviour:
   - mesh: K01_whole_LOD0
     tris: 44
     switchDistanceM: 0
+    thinWire: 0
   - mesh: K01_whole_LOD1
     tris: 12
     switchDistanceM: 3
+    thinWire: 0
   micro: []
   cullDistanceM: 120
   materials:

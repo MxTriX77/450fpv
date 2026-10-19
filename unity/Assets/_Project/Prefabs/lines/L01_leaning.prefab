@@ -239,12 +239,15 @@ MonoBehaviour:
   - mesh: L01_leaning_LOD0
     tris: 808
     switchDistanceM: 0
+    thinWire: 0
   - mesh: L01_leaning_LOD1
     tris: 34
     switchDistanceM: 35
+    thinWire: 1
   - mesh: L01_leaning_LOD2
     tris: 16
     switchDistanceM: 120
+    thinWire: 1
   micro: []
   cullDistanceM: 1200
   materials:

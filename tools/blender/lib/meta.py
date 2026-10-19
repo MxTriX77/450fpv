@@ -27,6 +27,10 @@ SNAG_KINDS = ("edge", "hook")  # a polyline the fiber bends over; a free-ended m
 # fortifications reading §1, first used by p1-l01-l03-pole-wires' wires).
 KEY_ORDER = ("schema", "id", "variant", "generator", "params_sha256", "units", "frame", "bounds", "lods", "micro",
              "cull_distance_m", "materials", "collision", "gaps", "wind_volumes", "ports", "wires", "snag")
+# Each LOD entry: its mesh, triangles, switch distance and `thin_wire`, whether every slot of that LOD's mesh draws
+# with the thin-wire material (p1-l01-l03-pole-wires, task 1.4), which reads each vertex's radius from its second UV:
+# a wire's tube, a pole's far LODs. The generator says so explicitly ("thin_wire", one bool per LOD, false when it
+# returns none), so a second UV, which is also Unity's lightmap channel, never decides it (review S2).
 # Named attachment points (p1-l01-l03-pole-wires, "Ports and wires in the metadata"): where a generator lets other
 # generators and the map attach, a pole's insulators for the wires. Each: a unique id, a position, a unit direction
 # and the largest conductor diameter its seat holds (task 1.5's reading §1: the compiler refuses a thicker one).
@@ -89,13 +93,15 @@ def load_physics_materials(root):
 def assemble(asset_id, variant, generator, params, built, visual_by_slot):
     """The metadata of one variant from the generator's result `built` ({"lods": [Mesh...], "switch_distances_m",
     "cull_distance_m", "materials": [{"slot", "physics"}], "collision", "gaps", "wind_volumes", "snag"}, and
-    optionally "micro": [{"lod", "kind", "count", "mesh": Mesh}], "ports": [{PORT_KEYS}] and "wires":
-    [{WIRE_KEYS}]) and the catalog's visual material per slot. A micro mesh is named <variant>_LOD<n>_<kind>
+    optionally "thin_wire": [bool per LOD], "micro": [{"lod", "kind", "count", "mesh": Mesh}], "ports": [{PORT_KEYS}]
+    and "wires": [{WIRE_KEYS}]) and the catalog's visual material per slot. A micro mesh is named <variant>_LOD<n>_<kind>
     and counts towards the bounds, since it is rendered."""
     lods = built["lods"]
     switches = built["switch_distances_m"]
-    if len(switches) != len(lods):
-        raise ValueError(f"{variant}: {len(lods)} LODs but {len(switches)} switch distances")
+    thin_wire = built.get("thin_wire", [False] * len(lods))
+    if len(switches) != len(lods) or len(thin_wire) != len(lods):
+        raise ValueError(f"{variant}: {len(lods)} LODs but {len(switches)} switch distances and {len(thin_wire)} "
+                         "thin_wire flags")
     micro = []
     for m in built.get("micro", []):
         if not 0 <= m["lod"] < len(lods):
@@ -114,8 +120,8 @@ def assemble(asset_id, variant, generator, params, built, visual_by_slot):
         "schema": SCHEMA, "id": asset_id, "variant": variant, "generator": generator,
         "params_sha256": catalog.params_sha256(params), "units": UNITS, "frame": FRAME,
         "bounds": {"min": lo, "max": hi},
-        "lods": [{"mesh": f"{variant}_LOD{n}", "tris": mesh.triangles(), "switch_distance_m": float(switch)}
-                 for n, (mesh, switch) in enumerate(zip(lods, switches))],
+        "lods": [{"mesh": f"{variant}_LOD{n}", "tris": mesh.triangles(), "switch_distance_m": float(switch),
+                  "thin_wire": bool(thin)} for n, (mesh, switch, thin) in enumerate(zip(lods, switches, thin_wire))],
         "micro": micro,
         "cull_distance_m": float(built["cull_distance_m"]),
         "materials": materials,
@@ -169,8 +175,9 @@ def validate(meta, material_ids):
         problems.append("bounds need min <= max as two 3-vectors")
     lods = meta["lods"]
     if not lods or any(not (isinstance(l.get("mesh"), str) and isinstance(l.get("tris"), int)
-                            and _is_num(l.get("switch_distance_m"))) for l in lods):
-        problems.append("lods need at least one entry with mesh, tris and switch_distance_m")
+                            and _is_num(l.get("switch_distance_m")) and isinstance(l.get("thin_wire"), bool))
+                       for l in lods):
+        problems.append("lods need at least one entry with mesh, tris, switch_distance_m and a boolean thin_wire")
     else:
         switches = [l["switch_distance_m"] for l in lods]
         if switches[0] != 0 or switches != sorted(switches) or len(set(switches)) != len(switches):

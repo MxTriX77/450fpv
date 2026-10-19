@@ -1,4 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using Fpv450.Assets;
 using Fpv450.World;
 using NUnit.Framework;
 using UnityEditor;
@@ -17,6 +21,10 @@ namespace Fpv450.Tests.EditMode
     {
         const string Medium = "Assets/_Project/Prefabs/lines/L03_medium.prefab";
         const string Thick = "Assets/_Project/Prefabs/lines/L03_thick.prefab";
+        const string MediumFbx = "Assets/_Project/Art/Models/lines/L03/L03_medium.fbx";
+        const string MediumMeta = "Assets/_Project/Art/Models/lines/L03/L03_medium.assetmeta.json";
+        const string Aluminium = "Assets/_Project/Art/Materials/wire_aluminium.mat";
+        const string Throwaway = "Assets/_Project/Tests/EditMode/ThrowawayThinWireFlag";
 
         static GameObject Prefab(string path)
         {
@@ -73,6 +81,56 @@ namespace Fpv450.Tests.EditMode
                 Assert.That(uv2.All(r => Mathf.Abs(r.x - 0.0045f) < 1e-6f && r.y == 0f), Is.True, $"{mesh.name}: uv2 is (4.5 mm, 0)");
                 // the tubes run along X, sloping at most 0.08 rad at the poles: a radial normal is square to them
                 Assert.That(mesh.normals.All(n => Mathf.Abs(n.magnitude - 1f) < 1e-3f && Mathf.Abs(n.x) < 0.1f), Is.True, $"{mesh.name}: radial normals");
+            }
+        }
+
+        /// <summary>
+        /// Review S2: the metadata's <c>thin_wire</c> flag, not uv2 (also Unity's lightmap channel), picks the
+        /// thin-wire material. The medium span's own FBX, whose tubes carry their radius in uv2, built from its own
+        /// metadata with both LODs unflagged: without its wires every slot draws URP/Lit; with them the import fails
+        /// naming the wire's slot. Everything it writes goes under <see cref="Throwaway"/>, deleted after.
+        /// </summary>
+        [Test]
+        public void ThinWireFlag_NotTheUv2_PicksTheMaterial()
+        {
+            var source = AssetDatabase.LoadAssetAtPath<TextAsset>(MediumMeta);
+            Assert.That(source, Is.Not.Null, $"{MediumMeta} is missing: run pwsh tools/build_asset.ps1 L03");
+            var materials = new Dictionary<string, Material> { ["aluminium"] = AssetDatabase.LoadAssetAtPath<Material>(Aluminium) };
+            Assert.That(materials["aluminium"], Is.Not.Null, Aluminium);
+            Dictionary<string, object> Unflagged(bool wires)
+            {
+                Dictionary<string, object> json = Json.Obj(Json.Parse(source.text), MediumMeta);
+                foreach (object lod in Json.Arr(json, "lods", MediumMeta))
+                    ((Dictionary<string, object>)lod)["thin_wire"] = false;
+                if (!wires)
+                    json["wires"] = new List<object>();
+                return json;
+            }
+
+            if (AssetDatabase.IsValidFolder(Throwaway))
+                AssetDatabase.DeleteAsset(Throwaway);
+            AssetDatabase.CreateFolder(Path.GetDirectoryName(Throwaway).Replace('\\', '/'), Path.GetFileName(Throwaway));
+            try
+            {
+                string lit = $"{Throwaway}/L03_medium_unflagged.prefab";
+                CatalogImporter.EnsurePrefab(lit, "L03_medium_unflagged", Unflagged(false), source, MediumFbx, materials);
+                MeshRenderer[] renderers = AssetDatabase.LoadAssetAtPath<GameObject>(lit).GetComponentsInChildren<MeshRenderer>(true);
+                Assert.That(renderers.Length, Is.EqualTo(2), "one renderer per LOD");
+                foreach (MeshRenderer renderer in renderers)
+                {
+                    var uv2 = new List<Vector2>();
+                    renderer.GetComponent<MeshFilter>().sharedMesh.GetUVs(1, uv2);
+                    Assert.That(uv2.Count > 0 && uv2.All(r => r.x > 0f), Is.True, $"{renderer.name}: the radius is still in uv2");
+                    Assert.That(renderer.sharedMaterials.Select(m => m.shader.name), Is.EqualTo(new[] { "Universal Render Pipeline/Lit" }),
+                        $"{renderer.name}: unflagged, so lit whatever uv2 holds");
+                }
+                var error = Assert.Throws<FormatException>(() => CatalogImporter.EnsurePrefab($"{Throwaway}/L03_medium_wires.prefab",
+                    "L03_medium_wires", Unflagged(true), source, MediumFbx, materials));
+                Assert.That(error.Message, Does.Contain("slot aluminium: a wire's tube draws only in a LOD whose metadata entry is thin_wire"));
+            }
+            finally
+            {
+                AssetDatabase.DeleteAsset(Throwaway);
             }
         }
 

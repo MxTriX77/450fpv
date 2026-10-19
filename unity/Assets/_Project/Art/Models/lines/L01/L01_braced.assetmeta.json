@@ -22,17 +22,20 @@
     {
       "mesh": "L01_braced_LOD0",
       "tris": 916,
-      "switch_distance_m": 0.0
+      "switch_distance_m": 0.0,
+      "thin_wire": false
     },
     {
       "mesh": "L01_braced_LOD1",
       "tris": 38,
-      "switch_distance_m": 35.0
+      "switch_distance_m": 35.0,
+      "thin_wire": true
     },
     {
       "mesh": "L01_braced_LOD2",
       "tris": 16,
-      "switch_distance_m": 120.0
+      "switch_distance_m": 120.0,
+      "thin_wire": true
     }
   ],
   "micro": [],

@@ -6553,12 +6553,15 @@ MonoBehaviour:
   - mesh: S04_patch_LOD0
     tris: 25029
     switchDistanceM: 0
+    thinWire: 0
   - mesh: S04_patch_LOD1
     tris: 25029
     switchDistanceM: 8
+    thinWire: 0
   - mesh: S04_patch_LOD2
     tris: 26
     switchDistanceM: 60
+    thinWire: 0
   micro:
   - lod: 0
     name: S04_patch_LOD0_straw

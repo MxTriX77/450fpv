@@ -307,10 +307,12 @@ def test_check_refuses_a_long_drop_and_idle_keys_on_a_single_conductor(repo_root
 def test_lods_records_and_snags(repo_root):
     """LOD0 6-sided tubes, LOD1 4-sided from 20 m, culled where the line's column sum 935 D / d falls under 1 % of a
     pixel (5 mm: 467.5 m, 9 mm: 841.5 m, 15 mm: 1 402.5 m); per conductor a cable `wires` record and an `edge` snag
-    along the same points with the wire's radius; no collision, gap, wind volume or port."""
+    along the same points with the wire's radius; no collision, gap, wind volume or port. Both LODs are flagged
+    thin_wire, so the importer draws them with the thin-wire material (review S2)."""
     for name, cull in zip(VARIANTS, (467.5, 841.5, 1402.5)):
         _, built, data = build(repo_root, name)
         assert [lod["switch_distance_m"] for lod in data["lods"]] == [0.0, 20.0]
+        assert [lod["thin_wire"] for lod in data["lods"]] == [True, True]
         assert data["cull_distance_m"] == pytest.approx(cull, abs=1e-6)
         assert 935 * data["wires"][0]["diameter_m"] / data["cull_distance_m"] == pytest.approx(0.01)
         assert data["collision"] == data["gaps"] == data["wind_volumes"] == data["ports"] == []

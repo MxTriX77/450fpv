@@ -135,6 +135,25 @@ def test_wires_are_carried_from_the_generator(k01_params, material_ids):
     assert '"wires": []' in meta.dumps(k01_meta(k01_params))
 
 
+def test_thin_wire_lods_are_named_by_the_generator(k01_params, material_ids):
+    """p1-l01-l03-pole-wires review S2: each LOD entry says whether the importer draws it with the thin-wire material,
+    as the generator names it ("thin_wire", one bool per LOD), never inferred from a second UV; a generator that names
+    none writes false on every LOD; a missing or non-boolean flag, or one too few, is refused."""
+    assert [lod["thin_wire"] for lod in k01_meta(k01_params)["lods"]] == [False, False]
+    built = debris_brick.build(k01_params)
+    built["thin_wire"] = [False, True]
+    data = meta.assemble("K01", "K01_whole", "debris_brick", k01_params, built, VISUALS)
+    assert [list(lod) for lod in data["lods"]] == [["mesh", "tris", "switch_distance_m", "thin_wire"]] * 2
+    assert [lod["thin_wire"] for lod in data["lods"]] == [False, True] and meta.validate(data, material_ids) == []
+    for flag in (None, 1):
+        bad = copy.deepcopy(data)
+        bad["lods"][1].pop("thin_wire") if flag is None else bad["lods"][1].update(thin_wire=flag)
+        assert meta.validate(bad, material_ids) == [
+            "lods need at least one entry with mesh, tris, switch_distance_m and a boolean thin_wire"]
+    with pytest.raises(ValueError, match="2 LODs but 2 switch distances and 1 thin_wire flags"):
+        meta.assemble("K01", "K01_whole", "debris_brick", k01_params, dict(built, thin_wire=[True]), VISUALS)
+
+
 def test_ports_are_carried_from_the_generator(k01_params, material_ids):
     """p1-l01-l03-pole-wires, "Ports and wires in the metadata": a generator's ports land under `ports` in schema
     order, rounded like every number; without any the key is still written, empty."""

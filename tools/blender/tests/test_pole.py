@@ -232,11 +232,12 @@ def test_check_refuses_what_is_not_built_or_does_not_hold(repo_root, edit, expec
 
 def test_lods_and_the_night_silhouette(repo_root):
     """The scenario "Night silhouette kept to 1 km": LOD1 at 35 m (a 0.075 m insulator under 2 px at 935 px/rad),
-    LOD2 a 6-sided prism of the log alone, culled beyond 1 000 m."""
+    LOD2 a 6-sided prism of the log alone, culled beyond 1 000 m; LOD1 and LOD2 flagged thin_wire (review S2)."""
     assert 0.075 * 935 / 35.0 == pytest.approx(2.0, abs=0.01)
     for name in VARIANTS:
         _, built, data = build(repo_root, name)
         assert [lod["switch_distance_m"] for lod in data["lods"]] == [0.0, 35.0, 120.0]
+        assert [lod["thin_wire"] for lod in data["lods"]] == [False, True, True]
         assert data["cull_distance_m"] == 1200.0 >= 1000.0
         lod1, lod2 = built["lods"][1], built["lods"][2]
         assert set(lod1.slots()) <= {"wood", "concrete"} and lod2.slots() == ["wood"]

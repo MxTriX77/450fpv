@@ -61,9 +61,11 @@ MonoBehaviour:
   - mesh: L03_thick_LOD0
     tris: 8656
     switchDistanceM: 0
+    thinWire: 1
   - mesh: L03_thick_LOD1
     tris: 324
     switchDistanceM: 20
+    thinWire: 1
   micro: []
   cullDistanceM: 1402.5
   materials:

@@ -22,17 +22,20 @@
     {
       "mesh": "S04_patch_LOD0",
       "tris": 25029,
-      "switch_distance_m": 0.0
+      "switch_distance_m": 0.0,
+      "thin_wire": false
     },
     {
       "mesh": "S04_patch_LOD1",
       "tris": 25029,
-      "switch_distance_m": 8.0
+      "switch_distance_m": 8.0,
+      "thin_wire": false
     },
     {
       "mesh": "S04_patch_LOD2",
       "tris": 26,
-      "switch_distance_m": 60.0
+      "switch_distance_m": 60.0,
+      "thin_wire": false
     }
   ],
   "micro": [

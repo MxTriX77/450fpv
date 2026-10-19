@@ -24,9 +24,10 @@ where the thin-wire material's line weighs under CULL_COVERAGE of a pixel (its c
 for 5 mm, 842 m for 9 mm, 1 403 m for the 15 mm drop). Rings stand square to the bisected tangent, framed by parallel transport,
 every corner on the conductor's circle, both ends capped. For the thin-wire shader (task 1.4's contract) every vertex
 carries its radial unit normal (smooth shading) and its tube's radius as its second UV, (r, 0) in metres (Unity's
-uv2). A SIP bundle is CORES cores of D sin(pi / k) / (1 + sin(pi / k)) twisted at `twist_pitch_m` about the bundle's
-axis at LOD0 (their centre lines sampled TWIST_RINGS times a turn, each core its own tube and radius), one tube of
-the bundle's diameter at LOD1. UVs are metres: U along the conductor from a `seed` offset, V around.
+uv2), and both LODs are flagged `thin_wire` (lib.meta), which is what has the importer draw them so. A SIP bundle
+is CORES cores of D sin(pi / k) / (1 + sin(pi / k)) twisted at `twist_pitch_m` about the bundle's axis at LOD0
+(their centre lines sampled TWIST_RINGS times a turn, each core its own tube and radius), one tube of the bundle's
+diameter at LOD1. UVs are metres: U along the conductor from a `seed` offset, V around.
 
 Metadata (the sheet's physics role): no collision primitive (conductors are map objects, D-007), no gap, no wind
 volume, nothing landable; per conductor a `wires` record (its slot, diameter, mass per metre, sag, axial stiffness
@@ -291,6 +292,7 @@ def build(params):
     return {
         "lods": lods,
         "switch_distances_m": [0.0, p["lod"]["lod1_switch_m"]],
+        "thin_wire": [True, True],
         "cull_distance_m": cull_distance(p),
         "materials": [{"slot": slot, "physics": PHYSICS}],
         "collision": [], "gaps": [], "wind_volumes": [], "ports": [],

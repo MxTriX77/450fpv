@@ -504,16 +504,16 @@ namespace Fpv450.Assets
         /// <summary>
         /// Creates or updates the prefab in place (so its file ids stay stable): the metadata component, one child
         /// per LOD with the FBX mesh and the slot materials plus one per micro mesh of that LOD (rendered with it,
-        /// never a collider), the LODGroup, one child per collision primitive, and nothing else. A slot of a mesh
-        /// whose every vertex carries a radius in uv2 (the thin-wire shader's input, written by lib/export from the
-        /// generator's second UV and by nothing else) draws with the thin-wire material made from its recipe's
-        /// (<see cref="EnsureThinWireMaterial"/>): a wire's tube, and a pole's far LODs (p1-l01-l03-pole-wires,
-        /// "Night silhouette kept to 1 km"); every other slot draws with the recipe's own. A wire's tube ("Wires are
-        /// audited against their polyline") is the faces of the slot its <c>wires</c> record names: every vertex of it
-        /// must carry its radius, a renderer drawing only wires casts no shadow (any other casts one, the thin-wire
-        /// shader's at the member's true radius), and no collider stands for a wire: conductors are
-        /// map objects the sim reads from the metadata (D-007). Internal for the EditMode tests, which build a prefab
-        /// from a throwaway metadata.
+        /// never a collider), the LODGroup, one child per collision primitive, and nothing else. Every slot of a LOD
+        /// whose metadata entry is <c>thin_wire</c> draws with the thin-wire material made from its recipe's
+        /// (<see cref="EnsureThinWireMaterial"/>), and every vertex of it must carry its radius in uv2, the shader's
+        /// input: a wire's tube, and a pole's far LODs (p1-l01-l03-pole-wires, "Night silhouette kept to 1 km"). Every
+        /// other slot, and every micro mesh, draws with the recipe's own, whatever its uv2 holds (Unity's lightmap
+        /// channel; review S2). A wire's tube ("Wires are audited against their polyline") is the faces of the slot
+        /// its <c>wires</c> record names: it draws only in a <c>thin_wire</c> LOD, a renderer drawing only wires casts
+        /// no shadow (any other casts one, the thin-wire shader's at the member's true radius), and no collider
+        /// stands for a wire: conductors are map objects the sim reads from the metadata (D-007). Internal for the
+        /// EditMode tests, which build a prefab from a throwaway metadata.
         /// </summary>
         internal static void EnsurePrefab(string prefabPath, string variant, Dictionary<string, object> metaJson, TextAsset source,
             string fbxPath, Dictionary<string, Material> materialBySlot)
@@ -569,17 +569,17 @@ namespace Fpv450.Assets
             var renderers = new Renderer[meta.lods.Length][];
             for (int i = 0; i < meta.lods.Length; i++)
             {
-                var lod = new List<Renderer> { MeshChild(root, meta.lods[i].mesh, filters, fbxPath, materialBySlot, wireSlots, keep, thin) };
+                var lod = new List<Renderer> { MeshChild(root, meta.lods[i].mesh, meta.lods[i].thinWire, filters, fbxPath, materialBySlot, wireSlots, keep, thin) };
                 foreach (AssetPhysicsMeta.MicroMesh micro in meta.micro)
                     if (micro.lod == i)
-                        lod.Add(MeshChild(root, micro.name, filters, fbxPath, materialBySlot, wireSlots, keep, thin));
+                        lod.Add(MeshChild(root, micro.name, false, filters, fbxPath, materialBySlot, wireSlots, keep, thin));
                 renderers[i] = lod.ToArray();
             }
             return renderers;
         }
 
-        static Renderer MeshChild(GameObject root, string meshName, MeshFilter[] filters, string fbxPath, Dictionary<string, Material> materialBySlot,
-            HashSet<string> wireSlots, HashSet<string> keep, List<string> thin)
+        static Renderer MeshChild(GameObject root, string meshName, bool thinWire, MeshFilter[] filters, string fbxPath,
+            Dictionary<string, Material> materialBySlot, HashSet<string> wireSlots, HashSet<string> keep, List<string> thin)
         {
             MeshFilter filter = filters.FirstOrDefault(f => f.sharedMesh != null && f.sharedMesh.name == meshName)
                 ?? throw new FormatException($"{fbxPath} has no mesh named {meshName}");
@@ -591,12 +591,13 @@ namespace Fpv450.Assets
             {
                 if (!materialBySlot.TryGetValue(slots[i], out Material material))
                     throw new FormatException($"{meshName}: the FBX slot \"{slots[i]}\" has no material in the metadata");
-                bool radius = CarriesRadius(filter.sharedMesh, uv2, i);
-                if (wireSlots.Contains(slots[i]) && !radius)
-                    throw new FormatException($"{meshName} slot {slots[i]}: a wire's tube needs its radius (> 0 m) in uv2 on every vertex for the " +
+                if (wireSlots.Contains(slots[i]) && !thinWire)
+                    throw new FormatException($"{meshName} slot {slots[i]}: a wire's tube draws only in a LOD whose metadata entry is thin_wire");
+                if (thinWire && !CarriesRadius(filter.sharedMesh, uv2, i))
+                    throw new FormatException($"{meshName} slot {slots[i]}: a thin_wire LOD needs its radius (> 0 m) in uv2 on every vertex for the " +
                                               $"thin-wire shader ({uv2.Count} uv2 values over {filter.sharedMesh.vertexCount} vertices)");
-                slotMaterials[i] = radius ? EnsureThinWireMaterial(material) : material;
-                if (radius)
+                slotMaterials[i] = thinWire ? EnsureThinWireMaterial(material) : material;
+                if (thinWire)
                     thin.Add($"{meshName} {slots[i]}");
             }
 
@@ -613,7 +614,8 @@ namespace Fpv450.Assets
 
         /// <summary>
         /// Whether every vertex of a submesh carries a radius (> 0 m) in uv2, the thin-wire shader's input (written by
-        /// lib/export from the generator's second UV): without it the shader draws a tube of radius 0, nothing.
+        /// lib/export from the generator's second UV): without it the shader draws a tube of radius 0, nothing. A
+        /// check on a <c>thin_wire</c> LOD only, never what picks the material.
         /// </summary>
         static bool CarriesRadius(Mesh mesh, List<Vector2> uv2, int submesh)
         {
@@ -822,6 +824,7 @@ namespace Fpv450.Assets
                 mesh = Json.Str(lod, "mesh", at),
                 tris = (int)Json.Num(lod, "tris", at),
                 switchDistanceM = Json.Num(lod, "switch_distance_m", at),
+                thinWire = Json.Bool(lod, "thin_wire", at),
             });
             if (meta.lods.Length == 0)
                 throw new FormatException($"{what}: no LODs");

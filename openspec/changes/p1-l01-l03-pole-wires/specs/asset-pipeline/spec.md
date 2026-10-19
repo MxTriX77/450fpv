@@ -21,7 +21,7 @@ A generator MAY declare its asset planted (`PLANTED`): its members stand in the 
 - **THEN** the audit passes it (the buried end is not measured), and the same capsule on an asset not declared planted fails, naming the end and its distance
 
 ### Requirement: Wires are audited against their polyline
-For an asset with `wires`, the collision audit SHALL check that every LOD0 vertex of a wire's tube lies within min(5 mm, half the diameter) plus the wire's radius of its point list (so a drawn thin wire always overlaps its physical one) and that its farthest vertex reaches the wire's radius within the same tolerance (so no record is wider than the wire drawn), SHALL exclude those vertices from the primitive audit, and SHALL print each wire with the largest deviation it found and how far its tube reaches; the importer SHALL render the tube with the thin-wire material and SHALL create no collider for a wire.
+For an asset with `wires`, the collision audit SHALL check that every LOD0 vertex of a wire's tube lies within min(5 mm, half the diameter) plus the wire's radius of its point list (so a drawn thin wire always overlaps its physical one) and that its farthest vertex reaches the wire's radius within the same tolerance (so no record is wider than the wire drawn), SHALL exclude those vertices from the primitive audit, and SHALL print each wire with the largest deviation it found and how far its tube reaches; the importer SHALL render the tube with the thin-wire material and SHALL create no collider for a wire. Each LOD entry of the metadata SHALL carry `thin_wire`, set by the generator (false unless it names the LOD): the importer SHALL draw every slot of a `thin_wire` LOD, and no other, with the thin-wire material, its radius read from uv2, never choosing that material from a second UV (also Unity's lightmap channel), and SHALL draw a wire's tube only in a `thin_wire` LOD.
 
 #### Scenario: Tube follows the polyline
 - **WHEN** a 40 m conductor of 9 mm is audited
@@ -34,3 +34,7 @@ For an asset with `wires`, the collision audit SHALL check that every LOD0 verte
 #### Scenario: Record wider than its tube
 - **WHEN** the record of a 9 mm tube gives a 20 mm diameter
 - **THEN** the audit fails naming the wire, how far its tube reaches (4.5 mm of the record's 10 mm radius) and the tolerance
+
+#### Scenario: The flag, not uv2, picks the thin-wire material
+- **WHEN** a span whose tubes carry their radius in uv2 is imported with its LODs not flagged `thin_wire`
+- **THEN** without its `wires` every slot draws with the recipe's own material, and with them the import fails naming the wire's slot

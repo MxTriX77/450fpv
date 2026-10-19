@@ -19,6 +19,8 @@ namespace Fpv450.World
             public string mesh;
             public int tris;
             public float switchDistanceM;
+            /// <summary>Every slot of this LOD's mesh draws with the thin-wire material, its radius in uv2 (a wire's tube, a pole's far LODs).</summary>
+            public bool thinWire;
         }
 
         [Serializable]

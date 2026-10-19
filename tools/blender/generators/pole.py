@@ -17,10 +17,11 @@ Parts, with the sheet's numbers (published or assumed as labelled at each consta
   `burial_m` under the ground (wood_log) or on the ground line beside the stub (wood_on_stub, the sheet's 1.6 m
   overlap: the stub shows `stub_above_m`); 12 sides at LOD0 (within 2.3 mm of round at the 0.26 m butt, design 2),
   8 at LOD1, a 6-sided prism at LOD2; its top a flat saw cut;
-- LOD1 and LOD2 are drawn with the thin-wire coverage (task 1.4's material, design decision 4), so the far pole
-  fades as its width over the distance instead of breaking into dashes once it is under a pixel across: every
-  member there is a round bar whose corners lie on its circle at the local radius, each with its radial unit normal
-  and that radius as its second UV (the shader's inputs), all of it triangles (lib.export keeps a custom normal only
+- LOD1 and LOD2 are drawn with the thin-wire coverage (task 1.4's material, design decision 4; both flagged
+  `thin_wire` in the metadata, which is what has the importer draw them so), so the far pole fades as its width
+  over the distance instead of breaking into dashes once it is under a pixel across: every member there is a round
+  bar whose corners lie on its circle at the local radius, each with its radial unit normal and that radius as its
+  second UV (the shader's inputs), all of it triangles (lib.export keeps a custom normal only
   through triangles, as wire_span's tubes); the crossarm and the stub, boxes at LOD0, are 4-sided round bars there
   of half their narrower side (the width a level look sees across the crossarm, and the stub's across the line),
   so the far pole is never drawn wider than it is;
@@ -363,6 +364,7 @@ def build(params):
     return {
         "lods": lods,
         "switch_distances_m": [0.0, lod["lod1_switch_m"], lod["lod2_switch_m"]],
+        "thin_wire": [False, True, True],  # the far LODs (module docstring)
         "cull_distance_m": lod["cull_m"],
         "materials": [{"slot": slot, "physics": PHYSICS[slot]} for slot in lods[0].slots()],
         "collision": collision,

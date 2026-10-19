@@ -31,7 +31,7 @@ namespace Fpv450.Tests.EditMode
   ""schema"": 1, ""id"": ""T00"", ""variant"": ""cylinder_probe"", ""generator"": ""test"",
   ""params_sha256"": ""0"", ""units"": ""m"", ""frame"": ""unity-lh-yup"",
   ""bounds"": { ""min"": [0.0, 0.0, 0.0], ""max"": [0.3, 0.1, 0.2] },
-  ""lods"": [ { ""mesh"": ""xsign_probe"", ""tris"": 12, ""switch_distance_m"": 0.0 } ],
+  ""lods"": [ { ""mesh"": ""xsign_probe"", ""tris"": 12, ""switch_distance_m"": 0.0, ""thin_wire"": false } ],
   ""micro"": [],
   ""cull_distance_m"": 50.0,
   ""materials"": [ { ""slot"": ""probe"", ""visual"": ""brick_red"", ""physics"": ""masonry"" } ],

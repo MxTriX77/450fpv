@@ -22,12 +22,14 @@
     {
       "mesh": "L03_thick_LOD0",
       "tris": 8656,
-      "switch_distance_m": 0.0
+      "switch_distance_m": 0.0,
+      "thin_wire": true
     },
     {
       "mesh": "L03_thick_LOD1",
       "tris": 324,
-      "switch_distance_m": 20.0
+      "switch_distance_m": 20.0,
+      "thin_wire": true
     }
   ],
   "micro": [],
