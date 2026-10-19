@@ -276,11 +276,22 @@ def test_sip_drop_is_two_twisted_cores_within_its_bundle(repo_root, material_ids
     ({"twist_pitch_m": 0.3}, "'twist_pitch_m' = 0.3 is not read here (4 conductor(s) of bare_al); keep 0.45"),
     ({"sag_ratio": 0.06}, "'sag_ratio' = 0.06 is over the intact 0.05"),
     ({"attach_heights_m": {"start": 4.0, "end": 4.0}},
-     "conductor 1's lowest point 2.700 m is under the 3.5 m clearance of bare_al"),
+     "conductor 1's underside 2.695 m at its lowest point is under the 3.5 m clearance of bare_al"),
 ])
 def test_check_refuses_what_is_not_built_or_does_not_hold(repo_root, edit, expected):
     problems = params.validate(wire_span, dict(load(repo_root, "L03_medium"), **edit))
     assert any(q.startswith(expected) for q in problems), problems
+
+
+def test_the_clearance_is_held_at_the_wires_underside(repo_root):
+    """Review S6: check holds the ПУЕ clearance at the conductor's underside, its centre line less its radius. The
+    5 mm steel wire hung at 4.3015 m sags 0.8 m to a centre line 3.5015 m up, clear of the 3.5 m by its centre but
+    1 mm under it by its underside (3.499 m): refused. Hung at 4.303 m its underside is 3.5005 m: built."""
+    thin = load(repo_root, "L03_thin")
+    assert params.validate(wire_span, dict(thin, attach_heights_m={"start": 4.3015, "end": 4.3015})) == [
+        "conductor 0's underside 3.499 m at its lowest point is under the 3.5 m clearance of steel_wire (the sheet's "
+        "ПУЕ figures): raise 'attach_heights_m' or lower 'sag_ratio'"]
+    assert params.validate(wire_span, dict(thin, attach_heights_m={"start": 4.303, "end": 4.303})) == []
 
 
 def test_check_refuses_a_long_drop_and_idle_keys_on_a_single_conductor(repo_root):

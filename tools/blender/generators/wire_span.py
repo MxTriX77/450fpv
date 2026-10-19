@@ -57,7 +57,8 @@ DAMAGES = ("intact",)                          # cut, down: not built (G1 shows 
 # The lowest point an intact conductor may reach (published, Ukrainian ПУЕ cl. 2.4.50 via the sheet): bare wires 6.0 m
 # over a street but 3.5 m in hard-to-reach terrain, SIP 5.0 and 2.5 m, a service drop 2.75 m at the house entry. The
 # village lines the sheet copies hang under the street figures (L01's lowest hook is at 5.855 m), so check holds the
-# lowest figure the rules allow anywhere: nothing intact sags lower.
+# lowest figure the rules allow anywhere: nothing intact sags lower. The clearance is to the wire's underside, its
+# centre line less its radius (review S6: up to 16 mm on the thickest conductor).
 CLEARANCE_M = {"steel_wire": 3.5, "bare_al": 3.5, "acsr": 3.5, "sip_main": 2.5, "insulated": 2.5, "sip_drop": 2.75}
 DROP_SPAN_M = 25.0      # published, ПУЕ cl. 2.4.17 via the sheet: a service drop longer than this needs a pole
 INTACT_SAG_RATIO = 0.05  # the sheet: a sag ratio above this only on a damaged span
@@ -119,8 +120,8 @@ PARAMS = {
 def check(params):
     """Cross-parameter rules once every key is in range: the built types, arrangements and damage; the class holding
     the diameter; a type with its stiffness and strength in MECHANICS; a SIP as one bundle and nothing else bundled;
-    idle keys at their defaults; a service drop within its 25 m; an intact sag ratio; every conductor's lowest point
-    above its type's clearance."""
+    idle keys at their defaults; a service drop within its 25 m; an intact sag ratio; every conductor's underside at
+    its lowest point above its type's clearance."""
     p = params
     problems = []
     for key, allowed, why in (("conductor_type", TYPES, "the sheet's conductor types"),
@@ -158,11 +159,11 @@ def check(params):
         return problems
     floor = CLEARANCE_M[p["conductor_type"]]
     for n, (a, b) in enumerate(attachments(p)):
-        low = Catenary(a, b, sag(p)).lowest()
+        low = Catenary(a, b, sag(p)).lowest() - p["diameter_mm"] / 2000  # the clearance is to the wire's underside
         if low < floor:
-            problems.append(f"conductor {n}'s lowest point {low:.3f} m is under the {floor} m clearance of "
-                            f"{p['conductor_type']} (the sheet's ПУЕ figures): raise 'attach_heights_m' or lower "
-                            "'sag_ratio'")
+            problems.append(f"conductor {n}'s underside {low:.3f} m at its lowest point is under the {floor} m "
+                            f"clearance of {p['conductor_type']} (the sheet's ПУЕ figures): raise 'attach_heights_m' "
+                            "or lower 'sag_ratio'")
     return problems
 
 

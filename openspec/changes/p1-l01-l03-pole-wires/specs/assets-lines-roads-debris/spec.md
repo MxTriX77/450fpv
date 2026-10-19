@@ -34,7 +34,7 @@ The pipeline SHALL build asset L03 (`wire_span` generator; variants `L03_thin`, 
 
 #### Scenario: Catenary and clearance
 - **WHEN** `L03_medium` (40 m span, 4 bare conductors hung from `L01_straight`'s four ports, 7.355 m stepping down 0.5 m, sag 2 %) is built
-- **THEN** every conductor's lowest point is within 10 mm of its port's height minus 0.8 m, the lowest conductor's lowest point is 5.055 m (derived: `L01_straight`'s lowest port at 5.855 m less the 0.8 m sag; the generator's `check` refuses any span whose lowest point falls under the published minimum clearances for village lines, 3.5 m bare, 2.5 m SIP, 2.75 m at a service drop, task 1.2), and the `wires` record's points reproduce the tube's centre line within 5 mm
+- **THEN** every conductor's lowest point is within 10 mm of its port's height minus 0.8 m, the lowest conductor's lowest point is 5.055 m (derived: `L01_straight`'s lowest port at 5.855 m less the 0.8 m sag; the generator's `check` refuses any span whose conductor's underside (its centre line less its radius) at its lowest point falls under the published minimum clearances for village lines, 3.5 m bare, 2.5 m SIP, 2.75 m at a service drop, task 1.2), and the `wires` record's points reproduce the tube's centre line within 5 mm
 
 #### Scenario: Nearly invisible, never shimmering
 - **WHEN** the 10 m, 50 m and 200 m tiles of `L03_thin` are read with the thin-wire material
