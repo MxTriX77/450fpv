@@ -73,6 +73,8 @@ FACE_CELL_M = 0.05          # FaceIndex grid cell
 FACE_RINGS = 3              # rings of cells searched before a far point falls back to every face
 NEAR_TOLERANCE_M = 0.02     # +-2 cm around openings and landing surfaces
 NEAR_RANGE_M = 0.3
+ZONE_EDGE_CELL_M = 0.001    # a cell this small at the 2 cm zone's edge is not split; its bound counts (p1-e01-trench
+                            # task 1.4: the edge is resolved to a millimetre, so a covered edge lying on it ends there)
 PRECISION_M = 0.0001        # the search stops when no cell can beat the best by this; with CHORD_M, under 1 mm
 CHORD_M = 0.0004            # tessellation error allowed on spheres, capsules and cylinders
 NARROWEST_TOLERANCE_M = 0.005
@@ -494,7 +496,11 @@ def _directed_max(cells, value, bound, zone=None):
     """The largest value over the surface of the `cells` triangles, within PRECISION_M, as (value, point, which):
     `value(vertex)` gives the exact (distance, which) at a point and `bound(cell, [which per vertex])` an upper
     bound over a cell. Only the points within NEAR_RANGE_M of `zone` count when it is given (point None when no
-    such point exists)."""
+    such point exists). A cell at the zone's edge (a vertex past NEAR_RANGE_M) no longer than ZONE_EDGE_CELL_M is not
+    split: its bound counts, at its vertex nearest the zone. Its bound covers its part just outside the zone too, so a
+    covered edge on the zone's edge (no vertex inside can match the uncovered part outside) or a surface that meets the
+    zone along a line only would otherwise split its cells along that line without end; counted, the edge errs
+    towards the larger value, by what lies within a millimetre outside the zone."""
     cache, near = {}, {}
     best, at, which = -1.0, None, None
     heap = []
@@ -513,8 +519,13 @@ def _directed_max(cells, value, bound, zone=None):
             if d > best and (not zone or near[v] <= NEAR_RANGE_M):
                 best, at, which = d, v, w
         upper = bound(cell, [cache[v][1] for v in cell])
-        if upper > best + PRECISION_M:
-            heapq.heappush(heap, (-upper, len(heap), cell))
+        if upper <= best + PRECISION_M:
+            return
+        if zone and max(near[v] for v in cell) > NEAR_RANGE_M and _longest_edge(cell) <= ZONE_EDGE_CELL_M:
+            v = min(cell, key=lambda p: near[p])
+            best, at, which = upper, v, cache[v][1]
+            return
+        heapq.heappush(heap, (-upper, len(heap), cell))
 
     for cell in cells:
         push(cell)

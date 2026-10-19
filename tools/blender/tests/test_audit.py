@@ -318,6 +318,47 @@ def test_uncovered_parts_are_the_cell_outside_the_boxes():
     assert audit._uncovered(((-0.4, 0.0, 0.0), (0.4, 0.0, 0.0), (0.0, 0.4, 0.0)), [box]) == []
 
 
+SEARCH_CELLS = 300_000  # the time box: the guarded search below takes a few thousand cells
+
+
+def test_a_covered_edge_on_the_zones_edge_ends_the_search(k01_params, monkeypatch):
+    """p1-e01-trench task 1.4: a box 10 mm under a slab's top, covered up to x = 0 by a second box level with it, and
+    a gap 0.3 m from x = 0, so the 2 cm zone ends exactly on the covered edge (E01's parapet toe with the lip crumble
+    at 0). Inside the zone the top is covered; past it the cells hold the 10 mm no vertex inside can match, so before
+    the guard the cells along the edge split without end. With it a cell at the zone's edge no longer than
+    ZONE_EDGE_CELL_M is not split and counts at its bound: the box's search ends at 10 mm on the edge (the mesh's has
+    no jump there: past x = 0 it lies within x of the second box's corner). The run is boxed at SEARCH_CELLS cells, so
+    a hang fails the test instead of filling the memory."""
+    data, _ = k01(k01_params)
+    lod0 = slab(size=0.4)
+    data["collision"] = [
+        {"shape": "box", "center": [0.0, -0.105, 0.0], "size": [0.4, 0.19, 0.4], "rotation": [0.0, 0.0, 0.0, 1.0],
+         "material": "masonry", "landable": False},
+        {"shape": "box", "center": [-0.1, -0.05, 0.0], "size": [0.2, 0.1, 0.4], "rotation": [0.0, 0.0, 0.0, 1.0],
+         "material": "masonry", "landable": False},
+    ]
+    data["gaps"] = [{"id": "edge", "polygon": [[-0.3, -1.0, -1.0], [-0.3, -1.0, 1.0], [-0.3, 1.0, 1.0], [-0.3, 1.0, -1.0]],
+                     "normal": [1.0, 0.0, 0.0], "narrowest_m": 2.0}]
+    cells = [0]
+    longest_edge = audit._longest_edge
+
+    def boxed(cell):
+        cells[0] += 1
+        if cells[0] > SEARCH_CELLS:
+            raise RuntimeError(f"the search did not end within {SEARCH_CELLS} cells")
+        return longest_edge(cell)
+
+    monkeypatch.setattr(audit, "_longest_edge", boxed)
+    problems, lines = audit.run(data, lod0, clip_boxes=True)
+    assert problems == []
+    near = {line.split(":")[0]: line.split("near gaps/landable ")[1] for line in lines if "near gaps/landable" in line}
+    assert set(near) == {"audit collision[0] box", "audit collision[1] box", "audit mesh"}
+    edge = near["audit collision[0] box"]
+    assert measured_mm(edge) == pytest.approx(10.0, abs=0.01), edge
+    x = float(edge.split(" at (")[1].split(",")[0])
+    assert 0.0 <= x <= audit.ZONE_EDGE_CELL_M, f"counted on the covered edge, within a millimetre: {edge}"
+
+
 def test_soft_materials_are_the_soft_surfaces_and_the_compliant_ids(repo_root):
     """review-physics PR6: the three surfaces where the reference foot sinks 25 mm or more, and every plain id at
     1000 N/m or less (foliage 200, twig 30, straw 490, fabric 160, mesh 430, razor_wire 60, sandbag 900); rigid and
