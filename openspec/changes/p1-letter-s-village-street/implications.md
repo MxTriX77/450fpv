@@ -79,7 +79,7 @@ H01 stays E's copy. The difference is the shared `house` generator that H01's ch
 - **S's houses are not H01.** The typical village (D-038) is houses that are:
   - single-storey, pale rendered, with white frames;
   - hip slate roofs;
-  - a red-brick annex at the street end;
+  - a red-brick annex at one end of the street side (part of the long facade, not a gable facing the street, S 47, 49);
   - about 12 × 8.5 m (derived, S 49–50).
   - The houses sheet proposes them as H02 variant 3. No adobe-and-tile house appears in S.
 - **D state with a ceiling, which the shared table lacks (S 45–50):**

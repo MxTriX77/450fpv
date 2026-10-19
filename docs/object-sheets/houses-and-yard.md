@@ -203,7 +203,7 @@ Shared table, with these defaults: `wall_material` adobe, `wall_height` 2.4, `wa
 
 ## H02 Adobe house, hip roof, asbestos-cement slate (шифер)
 
-**Seen in:** J (the roofs and the stripped rafters, on brick walls), R for the adobe-plus-slate combination. S 45–50: the typical village's houses (D-038): hip slate roofs stripped to the ceiling with the slate lying on it, pale rendered walls (the core can't be read under the render), white frames, a red-brick annex at the street end, a red-brick chimney and a TV mast standing; about 12 × 8–9 m (variant 3).
+**Seen in:** J (the roofs and the stripped rafters, on brick walls), R for the adobe-plus-slate combination. S 45–50: the typical village's houses (D-038): hip slate roofs stripped to the ceiling with the slate lying on it, pale rendered walls (the core can't be read under the render), white frames, a red-brick annex at one end of the street side, a red-brick chimney and a TV mast standing; about 12 × 8–9 m (variant 3).
 **Research sources:** shared section (slate sheet sizes, batten pitch, blast fracture of asbestos-cement).
 
 ### Dimensions
@@ -215,7 +215,7 @@ Shared table, with these defaults: `wall_material` adobe, `wall_height` 2.4, `wa
 | Slate sheet | 1750 × 1130 × 5.8 mm, wave 150 / 40 mm | as published | published |
 | Batten pitch | 0.5–0.75 m | 0.58 m (3 battens per sheet) | assumed from the sheet length |
 | Door, windows | as H01 | as H01 | measured, as H01 (E 7); AST-04's exact door and window |
-| Footprint, variant 3 (the S house) | 11–13 × 8–9.5 m, long side along the street, of which a red-brick annex about 4–5 m at the street end | 12 × 8.5 m | derived (S 49–50: the eaves corners projected to a 2.8 m plane at the 12.5 m camera height, terrain.md §12.3) |
+| Footprint, variant 3 (the S house) | 11–13 × 8–9.5 m, long side along the street, of which a red-brick annex about 4–5 m at one end of the street side (part of the long facade, S 47, 49) | 12 × 8.5 m | derived (S 49–50: the eaves corners projected to a 2.8 m plane at the 12.5 m camera height, terrain.md §12.3) |
 | Windows, variant 3 | three on the street side of the rendered part, one or two in the annex, white frames | 1.3 × 1.45 m | measured count (S 47–50); size as H03 (AST-04 brick), assumed |
 | Setback, variant 3 | front 12–16 m from the road edge, 4–7 m behind the street fence | 14 m, 5.5 m | derived (S 46–47, terrain.md §12.3) |
 
@@ -234,7 +234,7 @@ Shared table, with these defaults: `wall_material` adobe, `wall_height` 2.4, `wa
 | Slate, boards and debris on the stripped ceiling | as the parts | #93949a | measured S 50 |
 
 ### Variants and states
-- Variants: 1 = 9 × 6 hip; 2 = 11 × 7 hip with a веранда 2.5 × 4 m; 3 (proposed by S, D-038) = the S house: 12 × 8.5 m, pale render, white frames, a red-brick annex at the street end, a TV mast, its D state as "What S adds" in the shared section.
+- Variants: 1 = 9 × 6 hip; 2 = 11 × 7 hip with a веранда 2.5 × 4 m; 3 (proposed by S, D-038) = the S house: 12 × 8.5 m, pale render, white frames, a red-brick annex at one end of the street side, a TV mast, its D state as "What S adds" in the shared section.
 - **I:** slate grey-green with lichen, 1–3 sheets cracked, a slipped ridge cap; walls as H01-I.
 - **D:** 40–80 % of sheets shattered and gone, the rest cracked and holed (holes 0.1–0.5 m with jagged edges), fragments 0.1–0.6 m scattered 5–15 m downwind and piled at the eaves, battens exposed and 10–30 % broken, joinery as H01-D.
 - **X:** as H01-X with slate fragments in the rubble instead of tiles.
@@ -344,7 +344,7 @@ Shared table with `wall_material` silicate, `wall_height` 2.9, `wall_thickness` 
 
 ## H04 Red-brick 1980s house, larger, with veranda, metal or slate roof
 
-**Seen in:** R. The brick construction is as H03; the veranda and sheet roof are research. S shows the red brick of the class as annexes at the street ends of rendered houses (S 45–50, H02 variant 3) and a red-brick single-storey building stripped to its roof skeleton far along the street (S 41–44); white window frames, as this row assumes, are measured in S 47–50.
+**Seen in:** R. The brick construction is as H03; the veranda and sheet roof are research. S shows the red brick of the class as annexes at one end of the street side of rendered houses (S 45–50, H02 variant 3) and a red-brick single-storey building stripped to its roof skeleton far along the street (S 41–44); white window frames, as this row assumes, are measured in S 47–50.
 **Research sources:** shared section; sheet-metal roof practice (assumed standard).
 
 ### Dimensions
