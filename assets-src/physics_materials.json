@@ -62,7 +62,7 @@
       "friction_kinetic": 0.25,
       "edge_radius_m": null,
       "label": "assumed",
-      "rationale": "carried; rigid locally, the span compliance T = w·L²/(8·sag) comes from the wire geometry: one part on a span meets 4T/L at mid-span, about 55 N/m for a 12 mm wire on a 30 m span at 416 N (knowledge §7.4, derived); the edge radius is the wire's own"
+      "rationale": "carried; rigid locally, the span compliance comes from the wire geometry, T = w·L²/(8·sag): the row's span is a 12 mm bare stranded aluminium conductor (84 mm², 0.226 kg/m, derived from its T and sag; the top of L03's 7–12 mm medium class) on a 30 m street span (the short end of L03's 30–45 m) at L03's 2 % sag, 0.6 m, so T ≈ 416 N (knowledge §7.4, derived); per part at mid-span: a sideways push meets the taut-string 4T/L ≈ 55 N/m, so a foot's 11.8 N share (a quarter of 4.8 kg) swings the span P·L/(4T) = 0.21 m (derived; 0.20 m with the span's fixed length); a part pressing down also raises T, since the sagged span barely stretches: k = (T/L)/(1/4 − (3/16)/(1 + 12/λ²)) ≈ 200 N/m at small load (Irvine's linear theory, λ² ≈ 310 at an assumed E 60 GPa), stiffening as T rises, so the share sinks it 0.044 m (derived); the edge radius is the wire's own"
     },
     "foliage": {
       "friction_static": 0.50,
@@ -136,7 +136,7 @@
       "friction_kinetic": 0.25,
       "edge_radius_m": 0.0015,
       "label": "assumed",
-      "rationale": "PVC frames, crates, housings, trim, bumper covers, packaging, EPS remnants: polymer on polymer in the published 0.2–0.4 band; profiles and crates are rigid under a foot or an arm, and a 3 mm bumper cover that flexes (≈ 1e2 N/m over 0.5 m) has the steel beam behind it; a moulded edge 1–2 mm; EPS yields at 70–100 kPa (published grades): a foot's 11.8 N share presses 67 kPa and holds, the 141 kPa of the 25 N reference foot crushes it, a deviation accepted for remnants (review-materials.md)"
+      "rationale": "PVC frames, crates, housings, trim, bumper covers, packaging, EPS remnants: polymer on polymer in the published 0.2–0.4 band; rigid per part: the reference part is a 3 mm PP or ABS wall 50 mm across between its ribs or webs (assumed; a PVC profile's webs sit closer), which a 15 mm foot bends as a centre-loaded plate at 1.2–4.9e5 N/m (simply supported to clamped, E 1.3–2.4 GPa published, derived; the local punch E·b/(1−ν²) ≈ 2–4e7 N/m in series takes off about 1 %), so a foot's 11.8 N share (a quarter of 4.8 kg) sinks 0.02–0.1 mm and the series stiffness with the leg's own spring (2e4 N/m in the first attempt's probe, assumed) differs by 4–15 %, as on glass; past 55–100 mm between ribs a wall falls below five times the leg's spring and its bending is the shape's, not this row's: a 3 mm PP bumper cover 0.5 m across answers a foot at 1.2–4e3 N/m as a flat plate (derived; its curve only stiffens it), so the share sinks it 3–10 mm, and the car asset that carries one writes that as its own shape stiffness_n_per_m, as a timber batten does (the ≈ 1e2 N/m read before was a 0.1 m beam strip, which ignores the plate's two-way bending); a moulded edge 1–2 mm; EPS yields at 70–100 kPa (published grades): a foot's 11.8 N share presses 67 kPa and holds, the 141 kPa of the 25 N reference foot crushes it, a deviation accepted for remnants (review-materials.md)"
     },
     "mesh": {
       "friction_static": 0.35,
