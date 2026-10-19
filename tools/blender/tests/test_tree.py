@@ -130,18 +130,25 @@ def test_lods_under_budget_and_halving(variant):
     assert leaves[1] == math.ceil(leaves[0] / 2) and leaves[2] == math.ceil(leaves[0] / 4)
 
 
-def test_far_lods_hold_the_leaves_and_the_wood(variant):
+def test_far_lods_hold_the_leaves_and_the_wood(variant, monkeypatch):
     """p1-v01-locust task 1.2b (LOD2 had 43-52 % of LOD0's crown pixels): LOD1 and LOD2 keep every other and every
     fourth leaf, on the two cells of the leaves' mean colour, scaled so that their leaves' mean silhouette is all of
     LOD0's; and (task 1.2g: leaf cards standing for the wood a far LOD dropped took V01's LOD2 10-14 % over LOD0)
-    their wood holds LOD0's wood's mean silhouette, a convex tube's surface area over 4, within 2 %: fewer sides
-    on grown radii, LOD1's twigs on their chords, every other one at LOD2 standing for two."""
+    their wood's tubes hold LOD0's tubes' mean silhouette, a convex tube's surface area over 4, within 2 %: fewer
+    rings on grown radii (task 1.3), LOD1's twigs on their chords, every other one at LOD2 standing for two. The
+    domes are left out: LOD0's bases lie buried, and a far LOD drops them (test_far_tubes_keep_lod0s_sides_over_fewer_rings)."""
     name, p, built, data = variant
     lods = [[cards.Card([m.vertices[i] for i in f], n, uvs, cards.CELLS_UV.index((uvs[0], uvs[2])))
              for f, n, uvs, s in m.faces if s == "leaf"] for m in built["lods"]]
     assert {c.cell for c in lods[1] + lods[2]} == set(cards.MEAN_CELLS) and len({c.cell for c in lods[0]}) == 6
     for lod in (1, 2):
         assert cards.silhouette(lods[lod]) == pytest.approx(cards.silhouette(lods[0]))
+    monkeypatch.setattr(skeleton, "_dome", lambda *args: None)
+    tubes = []
+    for lod in range(3):
+        mesh = geometry.Mesh()
+        skeleton.tree_tubes(mesh, built["members"], lod, lambda m: "twig" if m.twig else "bark")
+        tubes.append(mesh)
 
     def wood(mesh, slot):
         total = 0.0
@@ -154,7 +161,57 @@ def test_far_lods_hold_the_leaves_and_the_wood(variant):
 
     for slot in ("bark", "twig"):
         for lod in (1, 2):
-            assert wood(built["lods"][lod], slot) == pytest.approx(wood(built["lods"][0], slot), rel=0.02), (slot, lod)
+            assert wood(tubes[lod], slot) == pytest.approx(wood(tubes[0], slot), rel=0.02), (slot, lod)
+
+
+def test_far_tubes_keep_lod0s_sides_over_fewer_rings(variant, monkeypatch):
+    """p1-v01-locust task 1.3: a far LOD's tube of fewer sides than LOD0's, shaded smooth, showed each face's normals
+    over 360/n degrees, so more of it faced the camera at a grazing angle, where URP's Fresnel term is whole (V01_M's
+    LOD2 wood specular 70 % over LOD0's at 50 and 190 m, measured), and LOD0's spread of normals on 3 and 4 sides left
+    the few large trunk and limbs lit by how their faces turned (its wood 16 % dark by day): every LOD keeps LOD0's
+    sides (trunk 12, limb 8, branch 6, twig 3) over every RING_STEP-th ring and the last, a branch at LOD2 its chord,
+    the radii grown by the member's length over the kept polyline, smooth, with no normals of their own, each
+    starting its frame where LOD0's starts (from its own first chord the frame of V01_M's trunk turned a quarter turn
+    from LOD0's, and its bark showed other texels: the far LODs' wood 7-8 % dark unlit, measured); LOD1 domes only the
+    trunk's and the limbs' free ends, LOD2 nothing."""
+    name, p, built, data = variant
+    members = built["members"]
+    calls = {lod: [] for lod in range(3)}
+    tube, dome = skeleton._tube, skeleton._dome
+
+    def record(mesh, rings, sides, slot, cap, tangents=None, uv0=(0.0, 0.0), first=None):
+        calls[lod].append((uv0, sides, rings, first))
+        return tube(mesh, rings, sides, slot, cap, tangents, uv0, first)
+
+    def record_dome(mesh, ring, outward, sides, slot, u):
+        calls[lod].append(("dome", sides, ring, None))
+        return dome(mesh, ring, outward, sides, slot, u)
+
+    monkeypatch.setattr(skeleton, "_tube", record)
+    monkeypatch.setattr(skeleton, "_dome", record_dome)
+    for lod in range(3):
+        mesh = geometry.Mesh()
+        mesh.smooth = {"bark", "twig"}
+        skeleton.tree_tubes(mesh, members, lod, lambda m: "twig" if m.twig else "bark")
+        assert not mesh.normals
+    by_patch = {skeleton.bark_patch(i): m for i, m in enumerate(members)}
+    for lod in (1, 2):
+        domes = [c for c in calls[lod] if c[0] == "dome"]
+        assert len(domes) == (sum(1 for m in members if not m.twig and m.order < 2) if lod == 1 else 0)
+        for uv0, sides, rings, first in (c for c in calls[lod] if c[0] != "dome"):
+            m = by_patch[uv0]
+            kind = 3 if m.twig else min(m.order, 2)
+            assert sides == skeleton.TREE_SIDES[kind] == (12, 8, 6, 3)[kind]
+            start = skeleton.normalize(skeleton.sub(m.points[1], m.points[0]))  # LOD0's frame, so LOD0's texels
+            assert first == skeleton.cross(start, skeleton._helper(start))
+            if m.twig:
+                assert len(rings) == 2
+                continue
+            step = skeleton.RING_STEP[kind][lod] or len(m.points) - 1
+            assert [r[0] for r in rings] == m.points[::step] + ([m.points[-1]] if (len(m.points) - 1) % step else [])
+            kept = sum(skeleton.norm(skeleton.sub(b[0], a[0])) for a, b in zip(rings, rings[1:]))
+            assert rings[0][1] == pytest.approx(m.radii[0] * m.length() / kept)
+    assert skeleton.RING_STEP == ((1, 2, 8), (1, 2, 8), (1, 2, None))
 
 
 def test_each_member_takes_its_own_bark_patch_at_every_lod(variant, monkeypatch):
@@ -166,9 +223,9 @@ def test_each_member_takes_its_own_bark_patch_at_every_lod(variant, monkeypatch)
     calls = {lod: [] for lod in range(3)}
     tube = skeleton._tube
 
-    def record(mesh, rings, sides, slot, cap, tangents=None, uv0=(0.0, 0.0)):
+    def record(mesh, rings, sides, slot, cap, tangents=None, uv0=(0.0, 0.0), first=None):
         calls[lod].append((rings[0][0], uv0))
-        return tube(mesh, rings, sides, slot, cap, tangents, uv0)
+        return tube(mesh, rings, sides, slot, cap, tangents, uv0, first)
 
     monkeypatch.setattr(skeleton, "_tube", record)
     for lod in range(3):

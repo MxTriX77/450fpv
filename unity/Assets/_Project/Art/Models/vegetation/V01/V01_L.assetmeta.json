@@ -9,7 +9,7 @@
   "bounds": {
     "min": [
       -2.834124,
-      -0.15681,
+      -0.142804,
       -2.610155
     ],
     "max": [
@@ -26,12 +26,12 @@
     },
     {
       "mesh": "V01_L_LOD1",
-      "tris": 4616,
+      "tris": 2962,
       "switch_distance_m": 9.35
     },
     {
       "mesh": "V01_L_LOD2",
-      "tris": 2144,
+      "tris": 1350,
       "switch_distance_m": 116.9
     }
   ],

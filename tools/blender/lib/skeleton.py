@@ -83,7 +83,10 @@ MIN_STEP_M = 0.02           # a last step shorter than this to the crown's surfa
 GOLDEN = math.radians(137.5)
 AZIMUTH_SPREAD = math.radians(25.0)
 MIN_MEMBER_M = 0.08         # a child that would be shorter is not grown
-TREE_SIDES = ((12, 6, 4), (8, 4, 3), (6, 3, 3), (3, 3, 3))  # trunk, limb, branch, twig per LOD
+TREE_SIDES = (12, 8, 6, 3)  # trunk, limb, branch, twig, at every LOD (p1-v01-locust task 1.3)
+RING_STEP = ((1, 2, 8), (1, 2, 8), (1, 2, None))  # trunk, limb, branch: every this-th ring per LOD, None the chord:
+                            # a dropped ring stands about a pixel or less off the kept polyline at the LOD's switch
+                            # (derived: the 4.7 deg wander a 0.35 m joint and the 5 deg a metre upturn at 9.35 and 116.9 m)
 TWIG_KEEP = (1, 1, 2)       # every this-th twig per LOD, from LOD1 on its chord (p1-v01-locust task 1.2g)
 DOME_RINGS = 2              # rings between a dome's rim and its pole: facets within r (1 - cos 15 deg), 3.5 % of r
 BARK_STEP = (0.7548776662466927, 0.5698402909980532)  # the R2 sequence's steps, 1/g and 1/g^2 for g the plastic
@@ -353,41 +356,54 @@ def _off(along, angle, azimuth):
 
 
 def tree_tubes(mesh, members, lod, slot_of):
-    """Adds the tree's tubes for `lod` to a lib.geometry.Mesh, in TREE_SIDES[kind][lod] sides: a member's rings at
-    its points; a capsule member closed at both ends by domes of its end radii, its capsules' own caps (the base's
-    buried in its parent, or a trunk's in the ground; a trunk's top the crotch the limbs leave); a twig open at both
-    ends, and from LOD2 on a branch too (its two 3-sided domes would cost more triangles than its tube).
-    `slot_of(member)` names the slot. Every LOD holds LOD0's wood, in its own colour (p1-v01-locust task 1.2g: the
-    leaf cards that stood for the wood a far LOD dropped were 1.5-1.8 times as bright per pixel as the wood, so V01's
-    LOD2 came out 10-14 % over LOD0): from LOD1 on, a tube's radii grow by the ratio of LOD0's perimeter to its own
-    (a convex tube's mean silhouette is its perimeter times its length over 4), and a twig is one band along its
-    chord, its radii grown by its length over its chord, every TWIG_KEEP[lod]-th twig standing for the rest, its
-    radii grown again by the twigs' summed length times mean radius over the kept ones'. Each member's UVs start at
-    its own patch of the bark tile (`bark_patch`), the same at every LOD (p1-v01-locust task 1.2l): from one corner, a
-    twig of 1-3 cm round mapped only the tile's first columns, which in bark_brown_01 read 40 % darker than the tile
-    (linear luminance 0.096 against 0.163), and its far mips the whole tile, so every mesh LOD's wood brightened with
-    distance (V01_M's LOD0 wood albedo 23 % from 9.4 to 190 m, unlit, measured) while the impostor's bake kept the
-    corner."""
+    """Adds the tree's tubes for `lod` to a lib.geometry.Mesh, each in its kind's TREE_SIDES at every LOD: a member's
+    rings at its points, from LOD1 on every RING_STEP-th of them and its last, a branch at LOD2 its chord; at LOD0 a
+    capsule member closed at both ends by domes of its end radii, its capsules' own caps (the base's buried in its
+    parent, or a trunk's in the ground; a trunk's top the crotch the limbs leave), at LOD1 the trunk and the limbs at
+    their free end only, from LOD2 on nothing; a twig open at both ends. `slot_of(member)` names the slot. Every LOD
+    holds LOD0's wood, in its own colour (p1-v01-locust task 1.2g: the leaf cards that stood for the wood a far LOD
+    dropped were 1.5-1.8 times as bright per pixel as the wood, so V01's LOD2 came out 10-14 % over LOD0): from LOD1 on
+    a tube's radii grow by its length over its kept rings' polyline, and a twig is one band along its chord, its radii
+    grown by its length over its chord, every TWIG_KEEP[lod]-th twig standing for the rest, its radii grown again by
+    the twigs' summed length times mean radius over the kept ones'. A far LOD keeps LOD0's sides and drops rings
+    instead (task 1.3): with fewer sides, shaded smooth, a 3-sided tube shows each face's normals over 120 degrees, so
+    more of its visible surface faces the camera at a grazing angle, where URP's Fresnel term Pow4(1 - N.V) is whole
+    (its projected-area mean over the tube's roll 0.192, against 0.072 for 6 sides, 0.057 for 8 and 0.045 for 12;
+    derived), and V01_M's LOD2 wood took 70 % more specular than LOD0's at 50 and 190 m (measured); given LOD0's
+    spread of normals instead, the 3- and 4-sided trunk and limbs, few and large, took the review's sun by how their
+    faces happened to turn (V01_M's LOD2 wood 16 % dark by day, measured): a tube of few sides cannot shade as a round
+    one from every side. A far tube starts its frame, and so its U, where LOD0's starts: from its own first chord the
+    world axis that seeds the frame can change, a quarter turn, and V01_M's trunk then showed other texels of its
+    bark (the far LODs' wood 7-8 % dark unlit, measured). Each member's UVs start at its own patch of the bark tile (`bark_patch`), the same at every
+    LOD (p1-v01-locust task 1.2l): from one corner, a twig of 1-3 cm round mapped only the tile's first columns, which
+    in bark_brown_01 read 40 % darker than the tile (linear luminance 0.096 against 0.163), and its far mips the whole
+    tile, so every mesh LOD's wood brightened with distance (V01_M's LOD0 wood albedo 23 % from 9.4 to 190 m, unlit,
+    measured) while the impostor's bake kept the corner."""
     twigs = [m for m in members if m.twig]
     kept = twigs[::TWIG_KEEP[lod]]
     share = sum(_twig_size(m) for m in twigs) / sum(_twig_size(m) for m in kept) if kept else 1.0
     kept = {id(m) for m in kept}
     for index, member in enumerate(members):
         kind = 3 if member.twig else min(member.order, 2)
-        sides = TREE_SIDES[kind][lod]
-        rings = list(zip(member.points, member.radii))
+        sides, rings = TREE_SIDES[kind], list(zip(member.points, member.radii))
         if lod:
-            grow = _perimeter(TREE_SIDES[kind][0]) / _perimeter(sides)
             if member.twig:
                 if id(member) not in kept:
                     continue
-                grow *= share * member.length() / norm(sub(member.points[-1], member.points[0]))
-                rings = [rings[0], rings[-1]]
-            rings = [(p, r * grow) for p, r in rings]
-        frame = _tube(mesh, rings, sides, slot_of(member), cap=False, uv0=bark_patch(index))
-        if not member.twig and not (kind == 2 and lod >= 2):
-            _dome(mesh, rings[0], scale(normalize(sub(member.points[1], member.points[0])), -1.0), sides, slot_of(member), frame[0])
-            _dome(mesh, rings[-1], normalize(sub(member.points[-1], member.points[-2])), sides, slot_of(member), frame[1])
+                kept_rings, grow = [rings[0], rings[-1]], share
+            else:
+                step = RING_STEP[kind][lod] or len(rings) - 1
+                kept_rings, grow = rings[::step] + ([rings[-1]] if (len(rings) - 1) % step else []), 1.0
+            grow *= member.length() / sum(norm(sub(q[0], p[0])) for p, q in zip(kept_rings, kept_rings[1:]))
+            rings = [(p, r * grow) for p, r in kept_rings]
+        start = normalize(sub(member.points[1], member.points[0]))  # LOD0's first tangent, whose frame a far LOD takes
+        frame = _tube(mesh, rings, sides, slot_of(member), cap=False, uv0=bark_patch(index),
+                      first=cross(start, _helper(start)) if lod else None)
+        if not member.twig and (not lod or (lod == 1 and kind < 2)):
+            if not lod:
+                _dome(mesh, rings[0], scale(normalize(sub(member.points[1], member.points[0])), -1.0), sides,
+                      slot_of(member), frame[0])
+            _dome(mesh, rings[-1], normalize(sub(rings[-1][0], rings[-2][0])), sides, slot_of(member), frame[1])
 
 
 def bark_patch(index):
@@ -399,11 +415,6 @@ def bark_patch(index):
 def _twig_size(member):
     """A twig's length times the sum of its end radii (twice its mean): what its silhouette goes with."""
     return member.length() * (member.radii[0] + member.radii[-1])
-
-
-def _perimeter(sides):
-    """A regular polygon's perimeter over its circumradius, halved: sides * sin(pi / sides)."""
-    return sides * math.sin(math.pi / sides)
 
 
 def _dome(mesh, ring, outward, sides, slot, u):
@@ -447,17 +458,21 @@ def tubes(mesh, stems, twigs, lod, stem_slot, twig_slot):
             _tube(mesh, [(twig.p0, twig.r0), (twig.p1, twig.r1)], TWIG_SIDES, twig_slot, cap=False)
 
 
-def _tube(mesh, rings, sides, slot, cap, tangents=None, uv0=(0.0, 0.0)):
+def _tube(mesh, rings, sides, slot, cap, tangents=None, uv0=(0.0, 0.0), first=None):
     """A tube over [(point, radius)] rings, each ring perpendicular to its tangent (given, or the chord through its
     neighbours): one quad per side and band with its outward normal and metre UVs (U around, V along) from `uv0`,
-    and a polygon cap over the last ring when `cap`. Returns the frame's first and last vector across the tube, where
-    its rings' first vertices lie."""
+    and a polygon cap over the last ring when `cap`. Its frame starts at `first` made square to the first tangent, or
+    from the world axis least along it. Returns the frame's first and last vector across the tube, where its rings'
+    first vertices lie."""
     u0, v0 = uv0
     points = [p for p, _ in rings]
     last = len(points) - 1
     if tangents is None:
         tangents = [normalize(sub(points[min(i + 1, last)], points[max(i - 1, 0)])) for i in range(len(points))]
-    u = normalize(cross(tangents[0], _helper(tangents[0])))
+    if first is None:
+        u = normalize(cross(tangents[0], _helper(tangents[0])))
+    else:
+        u = normalize(sub(first, scale(tangents[0], dot(first, tangents[0]))))
     first = u
     ring_ids, along = [], [0.0]
     for i, ((p, r), tangent) in enumerate(zip(rings, tangents)):
