@@ -83,7 +83,8 @@ MIN_STEP_M = 0.02           # a last step shorter than this to the crown's surfa
 GOLDEN = math.radians(137.5)
 AZIMUTH_SPREAD = math.radians(25.0)
 MIN_MEMBER_M = 0.08         # a child that would be shorter is not grown
-TREE_SIDES = ((12, 6, 4), (8, 4, 3), (6, 3, None), (3, None, None))  # trunk, limb, branch, twig per LOD
+TREE_SIDES = ((12, 6, 4), (8, 4, 3), (6, 3, 3), (3, 3, 3))  # trunk, limb, branch, twig per LOD
+TWIG_KEEP = (1, 1, 2)       # every this-th twig per LOD, from LOD1 on its chord (p1-v01-locust task 1.2g)
 DOME_RINGS = 2              # rings between a dome's rim and its pole: facets within r (1 - cos 15 deg), 3.5 % of r
 
 
@@ -350,30 +351,46 @@ def _off(along, angle, azimuth):
 
 
 def tree_tubes(mesh, members, lod, slot_of):
-    """Adds the tree's tubes for `lod` to a lib.geometry.Mesh, in TREE_SIDES[kind][lod] sides (no tube when None):
-    a member's rings at its points; a capsule member closed at both ends by domes of its end radii, its capsules'
-    own caps (the base's buried in its parent, or a trunk's in the ground; a trunk's top the crotch the limbs leave);
-    a twig open at both ends. `slot_of(member)` names the slot."""
+    """Adds the tree's tubes for `lod` to a lib.geometry.Mesh, in TREE_SIDES[kind][lod] sides: a member's rings at
+    its points; a capsule member closed at both ends by domes of its end radii, its capsules' own caps (the base's
+    buried in its parent, or a trunk's in the ground; a trunk's top the crotch the limbs leave); a twig open at both
+    ends, and from LOD2 on a branch too (its two 3-sided domes would cost more triangles than its tube).
+    `slot_of(member)` names the slot. Every LOD holds LOD0's wood, in its own colour (p1-v01-locust task 1.2g: the
+    leaf cards that stood for the wood a far LOD dropped were 1.5-1.8 times as bright per pixel as the wood, so V01's
+    LOD2 came out 10-14 % over LOD0): from LOD1 on, a tube's radii grow by the ratio of LOD0's perimeter to its own
+    (a convex tube's mean silhouette is its perimeter times its length over 4), and a twig is one band along its
+    chord, its radii grown by its length over its chord, every TWIG_KEEP[lod]-th twig standing for the rest, its
+    radii grown again by the twigs' summed length times mean radius over the kept ones'."""
+    twigs = [m for m in members if m.twig]
+    kept = twigs[::TWIG_KEEP[lod]]
+    share = sum(_twig_size(m) for m in twigs) / sum(_twig_size(m) for m in kept) if kept else 1.0
+    kept = {id(m) for m in kept}
     for member in members:
         kind = 3 if member.twig else min(member.order, 2)
-        sides = TREE_SIDES[kind][lod] if lod < 3 else None
-        if sides is None:
-            continue
+        sides = TREE_SIDES[kind][lod]
         rings = list(zip(member.points, member.radii))
+        if lod:
+            grow = _perimeter(TREE_SIDES[kind][0]) / _perimeter(sides)
+            if member.twig:
+                if id(member) not in kept:
+                    continue
+                grow *= share * member.length() / norm(sub(member.points[-1], member.points[0]))
+                rings = [rings[0], rings[-1]]
+            rings = [(p, r * grow) for p, r in rings]
         frame = _tube(mesh, rings, sides, slot_of(member), cap=False)
-        if not member.twig:
+        if not member.twig and not (kind == 2 and lod >= 2):
             _dome(mesh, rings[0], scale(normalize(sub(member.points[1], member.points[0])), -1.0), sides, slot_of(member), frame[0])
             _dome(mesh, rings[-1], normalize(sub(member.points[-1], member.points[-2])), sides, slot_of(member), frame[1])
 
 
-def dropped_silhouette(members, lod):
-    """The mean silhouette, m2, of the tubes LOD0 draws and `lod` does not (tree_tubes): pi / 4 * length * diameter
-    per straight segment, a long cylinder's projected area averaged over every direction of view."""
-    total = 0.0
-    for member in members:
-        if TREE_SIDES[3 if member.twig else min(member.order, 2)][lod] is None:
-            total += sum(math.pi / 4 * norm(sub(b, a)) * (ra + rb) for a, b, ra, rb in member.segments())
-    return total
+def _twig_size(member):
+    """A twig's length times the sum of its end radii (twice its mean): what its silhouette goes with."""
+    return member.length() * (member.radii[0] + member.radii[-1])
+
+
+def _perimeter(sides):
+    """A regular polygon's perimeter over its circumradius, halved: sides * sin(pi / sides)."""
+    return sides * math.sin(math.pi / sides)
 
 
 def _dome(mesh, ring, outward, sides, slot, u):

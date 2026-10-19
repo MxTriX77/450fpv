@@ -148,7 +148,8 @@ def lod(variant, switch, mesh, materials):
 
 def inputs_sha256(mesh, record, materials):
     """SHA-256 of everything the render reads: the formula and the render's constants, the card, the LOD0 mesh
-    (vertices, faces, UVs and slots, to the metadata's micrometre), and per slot its recipe and base map bytes."""
+    (vertices, faces, UVs and slots, to the metadata's micrometre), and per slot its recipe, base map bytes and
+    whether it is shaded smooth."""
     digest = hashlib.sha256()
 
     def put(value):
@@ -159,7 +160,7 @@ def inputs_sha256(mesh, record, materials):
     put([[indices, [[round(c, 6) for c in uv] for uv in uvs], slot] for indices, _, uvs, slot in mesh.faces])
     for slot in sorted(materials):
         m = materials[slot]
-        put({"slot": slot, "visual": m["visual"], "recipe": m["recipe"]})
+        put({"slot": slot, "visual": m["visual"], "recipe": m["recipe"], "smooth": slot in mesh.smooth})
         for path in (m["texture"], m.get("mask")):
             digest.update((file_sha256(path) if path else "-").encode("ascii"))
     return digest.hexdigest()
@@ -222,6 +223,7 @@ def render(mesh, record, materials, path, normals_path):
     me.from_pydata(vertices, [], faces)
     if me.validate(verbose=True):
         raise RuntimeError("impostor: Blender had to correct the laid-out mesh")
+    me.polygons.foreach_set("use_smooth", [slot in mesh.smooth for slot in slots])  # shaded as the FBX is
     order = sorted(set(slots))
     for slot in order:
         me.materials.append(_material(slot, materials[slot], "albedo"))

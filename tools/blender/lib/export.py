@@ -9,7 +9,7 @@ from . import frame
 
 FIXED_CLOCK = datetime.datetime(2000, 1, 1)
 # Design decision 5: Unity-friendly axes with the transform and the units baked into the vertices (lib.frame).
-# Static meshes only; normals per corner (flat unless a generator smooths); triangles, so the file holds exactly
+# Static meshes only; normals per corner (flat but a mesh's `smooth` slots); triangles, so the file holds exactly
 # what Unity renders.
 FBX_OPTIONS = dict(
     axis_forward='-Z', axis_up='Y', bake_space_transform=True, apply_unit_scale=True,
@@ -25,7 +25,8 @@ def reset_scene():
 
 def add_lod(name, mesh):
     """One mesh object `name` from a lib.geometry.Mesh: vertices in Blender's frame, every face wound
-    counter-clockwise about its outward normal, a UV map in metres, and one material per slot named by the slot."""
+    counter-clockwise about its outward normal, a UV map in metres, one material per slot named by the slot, and the
+    faces of the mesh's `smooth` slots shaded smooth."""
     verts = [frame.unity_to_blender(v) for v in mesh.vertices]
     loops, uvs, slots = [], [], mesh.slots()
     for indices, outward, face_uvs, _ in mesh.faces:
@@ -39,6 +40,7 @@ def add_lod(name, mesh):
         raise RuntimeError(f"{name}: Blender had to correct the geometry; the generator produced an invalid mesh")
     for slot in slots:
         me.materials.append(bpy.data.materials.get(slot) or bpy.data.materials.new(slot))
+    me.polygons.foreach_set("use_smooth", [slot in mesh.smooth for _, _, _, slot in mesh.faces])
     layer = me.uv_layers.new(name="UVMap")
     for poly, face_uvs, (_, _, _, slot) in zip(me.polygons, uvs, mesh.faces):
         poly.material_index = slots.index(slot)

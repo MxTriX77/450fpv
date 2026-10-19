@@ -154,6 +154,7 @@ def build(params):
     twig_m2 = sum(math.pi / 4 * math.dist(t.p0, t.p1) * (t.r0 + t.r1) for t in twigs)  # mean silhouette; LOD1 drops them
     lods = [Mesh(), Mesh(), Mesh()]
     for lod, mesh in enumerate(lods[:2]):
+        mesh.smooth = {STEM, TWIG}  # the tubes shade round (p1-v01-locust task 1.2g)
         skeleton.tubes(mesh, stems, twigs, lod, STEM, TWIG)
         cards.add_to(mesh, cards.thinned(leaves, lod + 1, lod * twig_m2), LEAF)
     wood = [s for stem in stems for s in stem.segments] + [(t.p0, t.p1, t.r0, t.r1) for t in twigs]

@@ -124,24 +124,37 @@ def test_lods_under_budget_and_halving(variant):
     assert data["cull_distance_m"] == lod["cull_m"] == min(2500.0, p["height_m"] * 467.5)
     assert lod["lod1_switch_m"] == pytest.approx(0.010 * 935, abs=0.01) and lod["lod2_switch_m"] == pytest.approx(p["leaf_m"] * 467.5, abs=0.1)
     slots = [{f[3] for f in mesh.faces} for mesh in built["lods"]]
-    assert slots[0] == {"bark", "twig", "leaf"} and slots[1] == {"bark", "leaf"} and slots[2] == {"bark", "leaf"}
+    assert slots[0] == slots[1] == slots[2] == {"bark", "twig", "leaf"}
+    assert all(mesh.smooth == {"bark", "twig"} for mesh in built["lods"])  # the tubes shade round (task 1.2g)
     leaves = [sum(1 for f in mesh.faces if f[3] == "leaf") for mesh in built["lods"]]
     assert leaves[1] == math.ceil(leaves[0] / 2) and leaves[2] == math.ceil(leaves[0] / 4)
 
 
-def test_far_lods_hold_the_leaves_and_the_wood_they_drop(variant):
+def test_far_lods_hold_the_leaves_and_the_wood(variant):
     """p1-v01-locust task 1.2b (LOD2 had 43-52 % of LOD0's crown pixels): LOD1 and LOD2 keep every other and every
     fourth leaf, on the two cells of the leaves' mean colour, scaled so that their leaves' mean silhouette is all of
-    LOD0's plus that of the wood they draw no more (LOD1 the twigs, LOD2 the branches too)."""
+    LOD0's; and (task 1.2g: leaf cards standing for the wood a far LOD dropped took V01's LOD2 10-14 % over LOD0)
+    their wood holds LOD0's wood's mean silhouette, a convex tube's surface area over 4, within 2 %: fewer sides
+    on grown radii, LOD1's twigs on their chords, every other one at LOD2 standing for two."""
     name, p, built, data = variant
     lods = [[cards.Card([m.vertices[i] for i in f], n, uvs, cards.CELLS_UV.index((uvs[0], uvs[2])))
              for f, n, uvs, s in m.faces if s == "leaf"] for m in built["lods"]]
     assert {c.cell for c in lods[1] + lods[2]} == set(cards.MEAN_CELLS) and len({c.cell for c in lods[0]}) == 6
-    members = built["members"]
     for lod in (1, 2):
-        dropped = skeleton.dropped_silhouette(members, lod)
-        assert dropped > skeleton.dropped_silhouette(members, lod - 1)
-        assert cards.silhouette(lods[lod]) == pytest.approx(cards.silhouette(lods[0]) + dropped)
+        assert cards.silhouette(lods[lod]) == pytest.approx(cards.silhouette(lods[0]))
+
+    def wood(mesh, slot):
+        total = 0.0
+        for f, _, _, s in mesh.faces:
+            if s == slot:
+                c = [mesh.vertices[i] for i in f]
+                total += sum(skeleton.norm(skeleton.cross(skeleton.sub(c[k], c[0]), skeleton.sub(c[k + 1], c[0])))
+                             for k in range(1, len(c) - 1)) / 2
+        return total / 4
+
+    for slot in ("bark", "twig"):
+        for lod in (1, 2):
+            assert wood(built["lods"][lod], slot) == pytest.approx(wood(built["lods"][0], slot), rel=0.02), (slot, lod)
 
 
 def axis_ends(capsule):

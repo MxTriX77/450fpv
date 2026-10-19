@@ -4,11 +4,14 @@ import math
 
 class Mesh:
     """One LOD: vertices, polygon faces with an outward normal, per-corner UVs in metres and a material slot per
-    face. Winding is not the generator's business: lib.export orients every face by its outward normal."""
+    face. Winding is not the generator's business: lib.export orients every face by its outward normal. The faces
+    of a slot in `smooth` are shaded smooth: a corner takes the mean normal of the faces that share its vertex, so a
+    tube of few sides shades as the round wood it stands for (p1-v01-locust task 1.2g); every other face is flat."""
 
     def __init__(self):
         self.vertices = []
         self.faces = []  # (indices, outward normal, uvs, slot)
+        self.smooth = set()  # slots shaded smooth
 
     def vertex(self, p):
         """Adds a vertex and returns its index."""

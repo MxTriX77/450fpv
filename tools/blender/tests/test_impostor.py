@@ -130,6 +130,9 @@ def test_inputs_hash_follows_the_mesh_the_recipe_and_the_map(tmp_path):
     tinted = copy.deepcopy(materials)
     tinted["wood"]["recipe"]["tint"][0] = 0.9
     assert impostor.inputs_sha256(mesh, record, tinted) != first
+    smoothed = copy.deepcopy(mesh)
+    smoothed.smooth = {"wood"}  # shaded smooth, the normal atlas changes (task 1.2g)
+    assert impostor.inputs_sha256(smoothed, record, materials) != first
     texture.write_bytes(b"two")
     assert impostor.inputs_sha256(mesh, record, materials) != first
 
