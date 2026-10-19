@@ -12,7 +12,8 @@ namespace Fpv450.Tests.EditMode
     /// whose renderers have no mesh or whose materials have no texture asset, as an un-smudged LFS pointer leaves
     /// them, is refused by name before any tile is rendered. The exit path is <see cref="Review.Capture"/>'s catch;
     /// here the check is exercised through the method on throwaway objects. And the pilot-height pose
-    /// (p1-s04-belt-straw design 7): a surfaces asset is shot from on the surface, every other class as before.
+    /// (p1-s04-belt-straw design 7): a surfaces asset is shot from on the surface, every other class as before. And the
+    /// stage's shadow-distance fit, shared with the LOD parity measure (p1-v01-locust task 1.2h).
     /// </summary>
     public sealed class ReviewCaptureTests
     {
@@ -132,6 +133,34 @@ namespace Fpv450.Tests.EditMode
             finally
             {
                 Object.DestroyImmediate(stage.Root);
+            }
+        }
+
+        /// <summary>
+        /// The stage's shadow-distance fit, which the LOD parity measure shares (p1-v01-locust task 1.2h): four turntable
+        /// distances, at least 12 m, never over the game's. The numbers were computed apart from the code, in double
+        /// precision, from each stage's bounds and the bar 1 m outside them at 112.5°: K01's frame, extents (0.6110, 0.9,
+        /// 0.2645) m, gives a 2.462894 m turntable and the 12 m floor; S04's, (6.4860, 0.9, 6.0) m, a 19.538929 m
+        /// turntable, whose four, 78.155714 m, the game's 50 m caps. Needs prior builds of K01 and S04.
+        /// </summary>
+        [Test]
+        public void ShadowDistance_IsFourTurntableDistances_AtLeast12M_NeverOverTheGames()
+        {
+            Review.Stage k01 = BuildStage("Assets/_Project/Prefabs/debris/K01_whole.prefab", "_Project/Art/Models/debris/K01/K01_whole.assetmeta.json", "debris", "K01");
+            Review.Stage s04 = BuildStage("Assets/_Project/Prefabs/surfaces/S04_patch.prefab", "_Project/Art/Models/surfaces/S04/S04_patch.assetmeta.json", "surfaces", "S04");
+            try
+            {
+                Assert.That(Review.TurntableDistance(k01), Is.EqualTo(2.462894f).Within(1e-4f));
+                Assert.That(Review.ShadowDistance(k01, 50f), Is.EqualTo(12f));
+                Assert.That(Review.ShadowDistance(k01, 10f), Is.EqualTo(10f));
+                Assert.That(Review.TurntableDistance(s04), Is.EqualTo(19.538929f).Within(1e-4f));
+                Assert.That(Review.ShadowDistance(s04, 50f), Is.EqualTo(50f));
+                Assert.That(Review.ShadowDistance(s04, 100f), Is.EqualTo(78.155714f).Within(1e-3f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(k01.Root);
+                Object.DestroyImmediate(s04.Root);
             }
         }
 

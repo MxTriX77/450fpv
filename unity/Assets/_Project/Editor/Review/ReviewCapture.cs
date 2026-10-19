@@ -19,10 +19,12 @@ namespace Fpv450
     /// Batchmode, with graphics: <c>-batchmode -quit -executeMethod Fpv450.Review.Capture -asset &lt;ID&gt;</c>;
     /// exit code 1 on any error, and nothing written when the id, a prefab or its metadata is missing, or when a
     /// prefab would render nothing (<see cref="RequireRenderable"/>).
+    /// The stage, the camera, the light profiles, the shadow-distance fit and the warm-up render are internal, and the
+    /// LOD parity measure (<c>LodParity.cs</c>) shoots on them as they are defined here.
     /// </summary>
     public static class Review
     {
-        const int Tile = 1024;
+        internal const int Tile = 1024;
         const float VerticalFovDeg = 60f;      // the noclip default (design decision 4, assumed)
         const float LookDownDeg = 20f;         // the far shots and the turntable (assumed typical approach)
         const float ShotAzimuthDeg = 225f;     // distance and overlay shots: camera to the south-west, so the +X scale bar sits right and behind
@@ -35,8 +37,8 @@ namespace Fpv450
         const float SurfaceBarAheadM = 2.5f;   // ... with the bar planted this far ahead on +X, inside the frame
         const float MinShadowDistanceM = 12f;  // the stage's shadow distance: finer shadow texels than the game's 50 m on a small stage
         const float BoundsMarginM = 0.3f;      // a camera closer than this to the bounds is pushed outside them
-        static readonly float[] DistancesM = { 1.5f, 10f, 50f, 200f };
-        static readonly string[] Lights = { "day", "overcast" };
+        internal static readonly float[] DistancesM = { 1.5f, 10f, 50f, 200f };
+        internal static readonly string[] Lights = { "day", "overcast" };
         const string CatalogFile = "assets-src/catalog.json";
         const string ProfilesFolder = "Assets/_Project/Settings/Review";
         const string ModelsFolder = "Assets/_Project/Art/Models";
@@ -71,8 +73,8 @@ namespace Fpv450
             var inputs = new List<(string variant, string prefabPath, string metaPath)>();
             foreach (string variant in variants)
             {
-                string prefabPath = $"{PrefabsFolder}/{assetClass}/{variant}.prefab";
-                string metaPath = $"{ModelsFolder}/{assetClass}/{id}/{variant}.assetmeta.json";
+                string prefabPath = PrefabPath(assetClass, variant);
+                string metaPath = MetaPath(id, assetClass, variant);
                 foreach (string path in new[] { prefabPath, metaPath })
                     if (!File.Exists(ProjectPath(path)))
                         throw new FileNotFoundException($"{path} is missing: run the catalog import first");
@@ -155,9 +157,13 @@ namespace Fpv450
 
         static string RepoRoot => Path.GetFullPath(Path.Combine(Application.dataPath, "..", ".."));
 
-        static string ProjectPath(string assetPath) => Path.Combine(RepoRoot, "unity", assetPath);
+        internal static string ProjectPath(string assetPath) => Path.Combine(RepoRoot, "unity", assetPath);
 
-        static (string assetClass, string[] variants) CatalogEntry(string id)
+        internal static string PrefabPath(string assetClass, string variant) => $"{PrefabsFolder}/{assetClass}/{variant}.prefab";
+
+        internal static string MetaPath(string id, string assetClass, string variant) => $"{ModelsFolder}/{assetClass}/{id}/{variant}.assetmeta.json";
+
+        internal static (string assetClass, string[] variants) CatalogEntry(string id)
         {
             string path = Path.Combine(RepoRoot, CatalogFile);
             if (!File.Exists(path))
@@ -178,7 +184,7 @@ namespace Fpv450
         // --- light profiles (Settings/Review/<light>.json, design decision 3) -------------------------------------
 
         [Serializable]
-        sealed class LightProfile
+        internal sealed class LightProfile
         {
             public string name;
             public bool sun;
@@ -205,7 +211,7 @@ namespace Fpv450
             static Color Rgb(float[] c) => new Color(c[0], c[1], c[2], 1f);
         }
 
-        static LightProfile LoadProfile(string light)
+        internal static LightProfile LoadProfile(string light)
         {
             string path = ProjectPath($"{ProfilesFolder}/{light}.json");
             if (!File.Exists(path))
@@ -224,7 +230,7 @@ namespace Fpv450
         /// <summary>Unity's Color fields (lights, ambient, material colours) are sRGB-encoded in a linear project.</summary>
         static Color Encoded(Color linear) => QualitySettings.activeColorSpace == ColorSpace.Linear ? linear.gamma : linear;
 
-        static void ApplyLight(LightProfile profile, Rig rig)
+        internal static void ApplyLight(LightProfile profile, Rig rig)
         {
             foreach (GameObject stale in Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None).Where(go => go.name == "ReviewSun"))
                 Object.DestroyImmediate(stale);
@@ -308,6 +314,9 @@ namespace Fpv450
 
             /// <summary>Moves the scale bar so that its base stands at <paramref name="basePosition"/>.</summary>
             public void PlaceBar(Vector3 basePosition) => bar.transform.localPosition = basePosition;
+
+            /// <summary>Hides the scale bar, for renders of the asset alone; its place stays in <see cref="FrameBounds"/>.</summary>
+            public void HideBar() => bar.SetActive(false);
 
             public static Stage Build(string prefabPath, ReviewMeta meta, string assetClass)
             {
@@ -404,6 +413,12 @@ namespace Fpv450
             public ReviewCanvas Shoot(Vector3 position, Vector3 lookAt)
             {
                 Aim(position, lookAt);
+                return ReviewCanvas.FromTexture(Render());
+            }
+
+            /// <summary>Renders the camera as it is aimed into the tile and reads the pixels back into the readback texture it returns.</summary>
+            public Texture2D Render()
+            {
                 var request = new RenderPipeline.StandardRequest { destination = target };
                 if (requestSupported == null)
                 {
@@ -421,7 +436,7 @@ namespace Fpv450
                 readback.ReadPixels(new Rect(0, 0, Tile, Tile), 0, 0, false);
                 readback.Apply(false);
                 RenderTexture.active = null;
-                return ReviewCanvas.FromTexture(readback);
+                return readback;
             }
 
             public void Dispose()
@@ -460,7 +475,7 @@ namespace Fpv450
         /// The far shots: the slant distance to the bounds centre from a 20° look-down. A camera that lands inside the
         /// (expanded) bounds is pushed out along the same ray to the nominal distance from where the ray leaves them.
         /// </summary>
-        static Vector3 SlantShot(Bounds bounds, float distance, out bool fromBounds)
+        internal static Vector3 SlantShot(Bounds bounds, float distance, out bool fromBounds)
         {
             Vector3 c = bounds.center;
             Vector3 position = Orbit(c, distance, ShotAzimuthDeg, LookDownDeg);
@@ -540,19 +555,42 @@ namespace Fpv450
             return relativeHeight < lods[lods.Length - 1].screenRelativeTransitionHeight;
         }
 
+        /// <summary>The turntable's distance: the frame bounds (the asset and the scale bar) fill the 60° frame with a 10 % margin.</summary>
+        internal static float TurntableDistance(Stage stage) =>
+            Mathf.Max(0.5f, stage.FrameBounds.extents.magnitude / Mathf.Sin(VerticalFovDeg * 0.5f * Mathf.Deg2Rad) * 1.1f);
+
+        /// <summary>
+        /// The stage's shadow distance: the game's (50 m at High) gives 2.4 cm shadow texels, too coarse for a small stage,
+        /// so four turntable distances, at least 12 m, and never more than <paramref name="projectShadowDistance"/>.
+        /// </summary>
+        internal static float ShadowDistance(Stage stage, float projectShadowDistance) =>
+            Mathf.Min(projectShadowDistance, Mathf.Max(MinShadowDistanceM, 4f * TurntableDistance(stage)));
+
+        /// <summary>
+        /// The first render of a session, and the first render of a stage's materials, can come out wrong (a dark ground,
+        /// a pale asset, texture detail off): one discarded render of the same shot before a stage's first tile.
+        /// </summary>
+        internal static void WarmUp(Rig rig, Stage stage, Vector3 position, Vector3 lookAt)
+        {
+            if (stage.WarmedUp)
+                return;
+            rig.Shoot(position, lookAt);
+            stage.WarmedUp = true;
+            Debug.Log($"[Review] warm-up: one discarded render of {stage.Root.transform.GetChild(0).name} before its first tile");
+        }
+
         // --- the sheet (design decisions 5 and 6) ------------------------------------------------------------------
 
         static ReviewCanvas Sheet(Stage stage, ReviewMeta meta, LightProfile profile, Rig rig, string variant, string gpu, string quality)
         {
             string title = $"{variant}  {profile.name}";
-            float turntableDistance = Mathf.Max(0.5f, stage.FrameBounds.extents.magnitude / Mathf.Sin(VerticalFovDeg * 0.5f * Mathf.Deg2Rad) * 1.1f);
+            float turntableDistance = TurntableDistance(stage);
             var tiles = new List<ReviewCanvas>();
 
-            // The game's shadow distance (50 m at High) gives 2.4 cm shadow texels, too coarse for a small stage; fit it to
-            // the stage for the capture and put it back afterwards. The value never exceeds the project's.
+            // The stage's shadow distance (ShadowDistance) for the capture, the project's put back afterwards.
             UniversalRenderPipelineAsset pipeline = UniversalRenderPipeline.asset;
             float projectShadowDistance = pipeline != null ? pipeline.shadowDistance : 0f;
-            float shadowDistance = pipeline != null ? Mathf.Min(projectShadowDistance, Mathf.Max(MinShadowDistanceM, 4f * turntableDistance)) : 0f;
+            float shadowDistance = pipeline != null ? ShadowDistance(stage, projectShadowDistance) : 0f;
             string shadows = pipeline != null
                 ? $"SHADOWS {pipeline.mainLightShadowmapResolution} PX, {pipeline.shadowCascadeCount} CASCADE(S), {shadowDistance:0.#} M (GAME {projectShadowDistance:0.#} M)"
                 : "SHADOWS: NO URP ASSET";
@@ -627,14 +665,7 @@ namespace Fpv450
 
         static ReviewCanvas Shot(Rig rig, Stage stage, Vector3 position, Vector3 lookAt, string title, string view, ReviewMeta overlay, Matrix4x4? localToWorld)
         {
-            // The first render of a session, and the first render of a stage's materials, can come out wrong (a dark
-            // ground, a pale asset, texture detail off); one discarded render of the same shot before a stage's first tile.
-            if (!stage.WarmedUp)
-            {
-                rig.Shoot(position, lookAt);
-                stage.WarmedUp = true;
-                Debug.Log($"[Review] warm-up: one discarded render of {stage.Root.transform.GetChild(0).name} before its first tile");
-            }
+            WarmUp(rig, stage, position, lookAt);
             ReviewCanvas tile = rig.Shoot(position, lookAt);
             bool culled = Culled(stage.LodGroup, rig.Camera);
             if (overlay != null)
