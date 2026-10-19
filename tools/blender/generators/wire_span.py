@@ -294,11 +294,17 @@ def _tube(mesh, centre, radius, sides, slot, u0):
         for j in range(sides):
             k = (j + 1) % sides
             quad = [rings[i][j], rings[i][k], rings[i + 1][k], rings[i + 1][j]]
-            mesh.face(quad, _outward(mesh, quad, mid), slot,
-                      [(along[i], j * step), (along[i], (j + 1) * step), (along[i + 1], (j + 1) * step),
-                       (along[i + 1], j * step)])
-    mesh.face(rings[0], scale(tangents[0], -1.0), slot)
-    mesh.face(rings[last], tangents[last], slot)
+            uvs = [(along[i], j * step), (along[i], (j + 1) * step), (along[i + 1], (j + 1) * step),
+                   (along[i + 1], j * step)]
+            outward = _outward(mesh, quad, mid)
+            for a, b, c in ((0, 1, 2), (0, 2, 3)):  # triangles here: see below
+                mesh.face([quad[a], quad[b], quad[c]], outward, slot, [uvs[a], uvs[b], uvs[c]])
+    # The caps fanned too. Blender keeps a custom normal relative to its corner fan, and the FBX export's own
+    # triangulation would re-cut the fans: at an end ring, whose radial normal stands far from the fan's average with
+    # the cap, the re-cut turns it by up to 45 degrees. A mesh that is all triangles is exported as it is.
+    for ring, outward in ((rings[0], scale(tangents[0], -1.0)), (rings[last], tangents[last])):
+        for j in range(1, sides - 1):
+            mesh.face([ring[0], ring[j], ring[j + 1]], outward, slot)
 
 
 def _outward(mesh, indices, inside):
