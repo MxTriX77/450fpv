@@ -6,7 +6,9 @@ capsules, the committed 6 / 15 / 24 pieces reproduced by the cap by steps, which
 (review-physics PR3, PR4), each naming its member's material (p1-v01-locust PR4); the wind box over the leafy mass
 (PR5); no gap, nothing landable; the skeleton's radii, tubes and normals; card UVs inside the atlas cells, LOD1's
 cards scaled to hold LOD0's silhouette and its twigs', the far cards' ellipses over the mean-coloured boxes and
-covering what LOD0 covers (p1-v01-locust task 1.2b); sprig cards leaving their twig at the fork angle; determinism per
+covering what LOD0 covers (p1-v01-locust task 1.2b), each two faces back to back in the far slot, shaded with their
+side's normal leaning up as the leaves' visible normal does (task 1.2j); sprig cards leaving their twig at the fork
+angle; determinism per
 seed; check's refusals; the low variant through the collision audit, and V13_mid's first, single sphere failing its
 standoff."""
 import copy
@@ -22,7 +24,7 @@ from lib.geometry import Mesh
 VARIANTS = ("V13_low", "V13_mid", "V13_tall")
 SHEET = {"V13_low": ((1.0, 1.5), (1.0, 2.0)), "V13_mid": ((1.5, 2.5), (1.5, 3.0)), "V13_tall": ((2.5, 3.5), (2.0, 3.0))}
 COMMITTED_PIECES = {"V13_low": 6, "V13_mid": 15, "V13_tall": 24}  # the summer shells as p1-v13-shrub built them
-VISUALS = {"stem": "bark_shrub", "twig": "bark_shrub", "leaf": "leaf_shrub"}
+VISUALS = {"stem": "bark_shrub", "twig": "bark_shrub", "leaf": "leaf_shrub", "far": "leaf_shrub_far"}
 UP = (0.0, 1.0, 0.0)
 BUILT = {}  # one build per variant for the whole module: the shell fit takes seconds
 
@@ -77,12 +79,12 @@ def test_lods_under_budget_and_halving(variant):
     name, p, built, data = variant
     tris = [lod["tris"] for lod in data["lods"]]
     assert len(tris) == 3 and tris[0] < 12000 and tris[1] <= tris[0] / 2 and tris[2] <= tris[1] / 2
-    assert tris[2] == cards.CROSSED * (cards.FAR_SIDES - 2)
+    assert tris[2] == 2 * cards.CROSSED * (cards.FAR_SIDES - 2)  # two faces a card
     assert [lod["switch_distance_m"] for lod in data["lods"]] == [0.0, 7.5, pytest.approx(p["card_m"] * 467.5)]
     assert data["cull_distance_m"] == {"V13_low": 561.0, "V13_mid": 800.0, "V13_tall": 800.0}[name]
     assert 2 * shrub.card_count(p) == sum(1 for f in built["lods"][0].faces if f[3] == "leaf") * 2
     assert sum(1 for f in built["lods"][1].faces if f[3] == "leaf") == math.ceil(shrub.card_count(p) / 2)
-    assert not any(f[3] == "twig" for f in built["lods"][1].faces) and all(f[3] == "leaf" for f in built["lods"][2].faces)
+    assert not any(f[3] == "twig" for f in built["lods"][1].faces) and all(f[3] == "far" for f in built["lods"][2].faces)
 
 
 def axis_ends(capsule):
@@ -121,7 +123,8 @@ def test_metadata_carries_capsules_and_a_shell_of_pieces(variant, material_ids):
     assert data["gaps"] == [] and not any(c["landable"] for c in data["collision"])
     assert data["materials"] == [{"slot": "stem", "visual": "bark_shrub", "physics": "bark"},
                                  {"slot": "twig", "visual": "bark_shrub", "physics": "twig"},
-                                 {"slot": "leaf", "visual": "leaf_shrub", "physics": "twig"}]
+                                 {"slot": "leaf", "visual": "leaf_shrub", "physics": "twig"},
+                                 {"slot": "far", "visual": "leaf_shrub_far", "physics": "twig"}]
 
 
 def test_stem_records_run_along_the_capsules_from_the_ground_to_the_tip(variant):
@@ -256,8 +259,8 @@ def test_cards_map_into_the_atlas_cells(variant):
     assert len(lengths[1]) == 1 and lengths[1].pop() > p["card_m"] * math.sqrt(2) * 0.95  # every other card, grown
     far = [cards.cell_uv(box) for box in cards.FAR_PX]
     for k, (indices, normal, uvs, slot) in enumerate(built["lods"][2].faces):
-        (u0, v0), (u1, v1) = far[k % len(far)]
-        assert slot == "leaf" and len(indices) == cards.FAR_SIDES and normal[1] == 0.0
+        (u0, v0), (u1, v1) = far[k // 2 % len(far)]  # two faces a card
+        assert slot == "far" and len(indices) == cards.FAR_SIDES and normal[1] == 0.0
         assert all(u0 <= u <= u1 and v0 <= v <= v1 for u, v in uvs)
     for ((x0, y0), (x1, y1)), cell in zip(cards.FAR_PX, (5, 1)):  # each far box lies inside its sprig's cell
         (cx0, cy0), (cx1, cy1) = cards.CELLS_PX[cell]
@@ -289,9 +292,55 @@ def test_far_cards_cover_what_their_leaves_and_wood_cover():
     assert (cu, cv) == pytest.approx((0.0, 1.5), abs=1e-9)
     assert a == pytest.approx(b)  # a square's moments make a circle
     assert cards.FAR_OPAQUE * math.pi * a * b == pytest.approx(0.394 + 0.02, rel=0.08)
-    (far,) = cards.crossed([card], count=1)
-    assert len(far.corners) == cards.FAR_SIDES and far.normal == pytest.approx((0.0, 0.0, -1.0))  # either side: two-sided
+    front, back = cards.crossed([card], count=1)
+    assert len(front.corners) == cards.FAR_SIDES and back.corners == front.corners and back.uvs == front.uvs
+    assert front.normal == pytest.approx((0.0, 0.0, -1.0)) and back.normal == pytest.approx((0.0, 0.0, 1.0))
     assert cards.crossed([]) is None
+
+
+def test_far_cards_lean_as_the_leaves_seen_from_the_review_look_down(variant):
+    """Task 1.2j: each far card is two faces back to back (for the one-sided far material, since the leaf shader
+    turns a back face's normal round), every corner of a face shaded with its side's horizontal normal leaning up by
+    `visible_lean`: the leaves' mean visible normal from 20 degrees above the horizon leans 11.4-11.9 degrees on the
+    three variants, where a vertical plane's has no up share."""
+    name, p, built, data = variant
+    lod2 = built["lods"][2]
+    lean = math.degrees(cards.visible_lean(leaf_cards(built["lods"][0])))
+    assert lean == pytest.approx({"V13_low": 11.88, "V13_mid": 11.81, "V13_tall": 11.37}[name], abs=0.01)
+    assert sorted(lod2.normals) == list(range(len(lod2.faces)))
+    for f in range(0, len(lod2.faces), 2):
+        (front, n_front, _, _), (back, n_back, _, _) = lod2.faces[f], lod2.faces[f + 1]
+        assert [lod2.vertices[i] for i in front] == [lod2.vertices[i] for i in back]
+        assert n_back == pytest.approx(tuple(-c for c in n_front))
+        for k, side in ((f, n_front), (f + 1, n_back)):
+            for n in lod2.normals[k]:
+                assert math.degrees(math.asin(n[1])) == pytest.approx(lean, abs=1e-6)
+                assert skeleton.dot(skeleton.normalize((n[0], 0.0, n[2])), side) == pytest.approx(1.0)
+    assert data["lods"][2]["tris"] == 60
+
+
+def leaf_cards(lod0):
+    """LOD0's leaf faces as lib.cards.Card, their cells read back from the UVs."""
+    return [cards.Card([lod0.vertices[i] for i in f], n, uvs, cards.CELLS_UV.index((uvs[0], uvs[2])))
+            for f, n, uvs, s in lod0.faces if s == "leaf"]
+
+
+def test_visible_lean_turns_each_card_to_the_viewer():
+    """A level card faces up from every azimuth (90 degrees); a vertical one is turned to each viewer and has no up
+    share (0); the two together, of equal opaque area, lean as their mean normal does from 20 degrees down."""
+    (u0, v0), (u1, v1) = cards.CELLS_UV[0]
+    uvs = [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
+    level = cards.Card([(0, 1, 0), (1, 1, 0), (1, 1, 1), (0, 1, 1)], (0.0, 1.0, 0.0), uvs, 0)
+    upright = cards.Card([(0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0)], (0.0, 0.0, 1.0), uvs, 0)
+    assert math.degrees(cards.visible_lean([level])) == pytest.approx(90.0)
+    assert math.degrees(cards.visible_lean([upright])) == pytest.approx(0.0, abs=1e-9)
+    down, want = math.radians(20.0), 0.0
+    for k in range(8):
+        az = 2 * math.pi * (k + 0.5) / 8
+        towards_z = math.cos(az)
+        # level: up x sin(down); upright: +z x (cos(down) cos(az)), whose part towards the viewer is cos(down) cos(az)^2
+        want += math.atan2(math.sin(down), math.cos(down) * towards_z * towards_z) / 8
+    assert cards.visible_lean([level, upright]) == pytest.approx(want)
 
 
 def test_sprigs_leave_their_twig_at_the_fork_angle():
@@ -370,7 +419,9 @@ def test_low_variant_passes_the_collision_audit(repo_root):
     shell_lines = [line for line in lines if "twig shell" in line]
     assert sum(1 for line in shell_lines if "largest standoff" in line) == len(pieces)
     assert [line.split(":")[0] for line in shell_lines if line.startswith("audit slot")] == \
-        ["audit slot leaf (cards, twig shell)", "audit slot twig (geometry, twig shell)"]
+        ["audit slot far (cards, twig shell)", "audit slot leaf (cards, twig shell)",
+         "audit slot twig (geometry, twig shell)"]
+    assert "over 0 vertices" in next(line for line in shell_lines if line.startswith("audit slot far"))  # LOD2's only
     assert sum(1 for line in lines if "capsule->mesh" in line) == p["stems"] * skeleton.SEGMENTS
 
 

@@ -13,8 +13,9 @@ The card count is cards_per_m3 * the envelope's volume * leaf_cover.
 LODs: LOD0 6-sided stems, 3-sided twigs and every card; LOD1 4-sided stems and every other card, on the cells of the
 leaves' mean colour and grown to hold LOD0's cards' and twigs' silhouette (lib.cards.thinned); LOD2 three crossed
 ellipses covering what LOD0's cards, stems and twigs cover, in the leaves' mean colour (lib.cards.crossed; p1-v01-locust
-task 1.2b: every LOD within 6 % of LOD0's luminance and 15 % of its coverage, as far as crossed cards can). lod.* come
-from the pixel rule (935 px/rad, setup-asset-pipeline design decision 7):
+task 1.2b: every LOD within 6 % of LOD0's luminance and 15 % of its coverage, as far as crossed cards can), each two
+faces in the far slot lit with the leaves' visible lean (task 1.2j: no pop at the LOD2 switch by day or overcast).
+lod.* come from the pixel rule (935 px/rad, setup-asset-pipeline design decision 7):
 LOD1 where the thickest twig, 8 mm, drops under 1 px (7.5 m); LOD2 where a card drops under 2 px (card_m * 467);
 cull where the clump's height drops under 2 px (height_m * 467, capped at 800 m: the belt beyond is V01's band).
 
@@ -29,7 +30,8 @@ and leaf slots, from the lowest of them to the top, at porosity 0.7 - 0.35 * lea
 autumn, 0.7 bare); no gaps; nothing landable.
 
 Slots: stem (bark_shrub, physics bark), twig (bark_shrub, physics twig: the twigs are the shell's contact, not the
-capsules'), leaf (leaf_shrub, physics twig).
+capsules'), leaf (leaf_shrub, physics twig), far (leaf_shrub_far, LOD2's far cards: the leaf recipe one-sided without
+its normal map, physics twig as the leaves they stand for; no LOD0 face, so the audit reads it over 0 vertices).
 """
 import math
 import random
@@ -37,8 +39,8 @@ import random
 from lib import audit, cards, meta, shell, skeleton
 from lib.geometry import Mesh
 
-STEM, TWIG, LEAF = "stem", "twig", "leaf"
-PHYSICS = {STEM: "bark", TWIG: "twig", LEAF: "twig"}  # per slot; a snag record takes its member's
+STEM, TWIG, LEAF, FAR = "stem", "twig", "leaf", "far"
+PHYSICS = {STEM: "bark", TWIG: "twig", LEAF: "twig", FAR: "twig"}  # per slot; a snag record takes its member's
 CARD_BUDGET_TRIS = 12000
 WAIST = 0.4
 GROUND_FADE_M = 0.3
@@ -160,7 +162,7 @@ def build(params):
     wood = [s for stem in stems for s in stem.segments] + [(t.p0, t.p1, t.r0, t.r1) for t in twigs]
     far = cards.crossed(leaves, wood)  # what LOD0 covers, in the leaves' colour; a clump without leaves has no LOD2
     if far:
-        cards.add_to(lods[2], far, LEAF)
+        cards.add_to(lods[2], far, FAR)
     else:
         lods.pop()
     crown = sorted({lods[0].vertices[i] for indices, _, _, slot in lods[0].faces if slot in (TWIG, LEAF) for i in indices})
@@ -177,7 +179,7 @@ def build(params):
         "lods": lods,
         "switch_distances_m": [0.0, lod["lod1_switch_m"], lod["lod2_switch_m"]][:len(lods)],
         "cull_distance_m": lod["cull_m"],
-        "materials": [{"slot": slot, "physics": PHYSICS[slot]} for slot in (STEM, TWIG, LEAF)],
+        "materials": [{"slot": slot, "physics": PHYSICS[slot]} for slot in (STEM, TWIG, LEAF, FAR)],
         "collision": collision,
         "gaps": [],
         "wind_volumes": wind,
