@@ -363,8 +363,18 @@ namespace Fpv450
             }
             TimeSpan took = watch.Elapsed;
             Debug.Log($"[LodParity] {variant}: {Outcome(ExitCode(failed, notJudgeable))}, {failed} of {judgedRows} judged rows outside the limits, {notJudgeable} not judgeable; {info} info rows; " +
-                      $"{refined} of {profiles.Length * tiles.Length} tiles on 16x16; {(int)took.TotalMinutes} min {took.Seconds} s");
+                      $"{refined} of {profiles.Length * tiles.Length} tiles on 16x16; {(int)took.TotalMinutes} min {took.Seconds} s; process peak working set {PeakWorkingSetMb()} MB");
             return (judgedRows, failed, notJudgeable, info);
+        }
+
+        /// <summary>
+        /// The Unity process's peak working set since it started, in MB (task 1.2m: a refined V01 variant makes about
+        /// 8 000 renders on a machine other agents share).
+        /// </summary>
+        static long PeakWorkingSetMb()
+        {
+            using (var process = System.Diagnostics.Process.GetCurrentProcess())
+                return process.PeakWorkingSet64 >> 20;
         }
 
         /// <summary>Every LOD's crown from the aimed camera, each averaged over <paramref name="offsets"/> (<see cref="Average"/>).</summary>
