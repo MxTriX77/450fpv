@@ -17,7 +17,7 @@ The metadata schema MAY carry `ports` (named attachment points: id, position, di
 A generator MAY declare its asset planted (`PLANTED`): its members stand in the ground, which covers everything below y = 0. For such an asset the audit SHALL treat every point below the ground plane as covered: a primitive's surface below y = 0 is not measured against the mesh, and no mesh is drawn there, since the drone can never touch it; everything at or above the ground is audited as before.
 
 #### Scenario: A buried capsule end on a planted pole
-- **WHEN** a planted log's lowest capsule ends 0.17 m below the ground, beneath the open log mesh
+- **WHEN** a planted log's lowest capsule ends 0.113 m below the ground, 0.163 m from the open log mesh
 - **THEN** the audit passes it (the buried end is not measured), and the same capsule on an asset not declared planted fails, naming the end and its distance
 
 ### Requirement: Wires are audited against their polyline
