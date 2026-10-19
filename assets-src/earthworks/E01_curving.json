@@ -2,7 +2,7 @@
   "seed": 1,
   "shape": "curving",
   "run_m": 24.0,
-  "bend_deg": 25.0,
+  "bend_deg": 30.0,
   "bend_every_m": 5.0,
   "top_w_m": 0.8,
   "bottom_w_m": 0.6,

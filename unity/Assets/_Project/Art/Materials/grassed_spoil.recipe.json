@@ -1,7 +1,7 @@
 {
   "material": "grassed_spoil",
   "kind": "ground",
-  "formula": "ground cover v1: ground v6 with patches naming only the lodging, so no bare patch, no lip, no green strip and no relief: albedo = the cover with its gaps (the cover gained to gap_albedo, the soil without one) and the straw gain for albedo_target, then a global gain against clipping; normal = the cover's rotated by the azimuth; mask R 0, G the cover's AO, B 0, A 1 - roughness; detail albedo as ground v6",
+  "formula": "ground cover v2: ground v6 with patches naming only the lodging, so no bare patch, no lip, no green strip and no relief: albedo = the cover with its gaps (the cover gained to gap_albedo, the soil without one) and the straw gain for albedo_target, then a global gain against clipping; normal = the cover's rotated by the azimuth; mask R 0, G the cover's AO, B 0, A (1 - roughness) times the cover's smoothness_scale (1 without one); detail albedo as ground v6",
   "pillow": "12.3.0",
   "constants": {
     "MAX_OUTPUT_PX": 2048,
@@ -36,8 +36,9 @@
     "cover": {
       "texture_set": "texturecan/ground_0018",
       "tile_size_m": 2.0,
-      "gap_share": 0.25,
-      "gap_albedo": "#3a3227"
+      "gap_share": 0.35,
+      "gap_albedo": "#3a3227",
+      "smoothness_scale": 0.2
     },
     "patches": {
       "lodging": {
@@ -107,7 +108,7 @@
       "sha256": "9191758c59d352d71fc6434e78bebf01380515b13c0883e4e6f605442b67e7ec"
     }
   },
-  "inputs_sha256": "2f723d94d348bf0c26ffe9d91616e0fd4d4223a413c7fb2f38b10f24f6d3c31f",
+  "inputs_sha256": "e91be93fdd39d3593c9306a440b24cdd4ba96593c90097a5d384f6ed1ee32de6",
   "size": [
     2048,
     2048
@@ -124,19 +125,19 @@
   ],
   "measured": {
     "mean_linear_rgb": [
-      0.4564,
-      0.3326,
+      0.4563,
+      0.3324,
       0.1441
     ],
-    "mean_luminance": 0.3453,
+    "mean_luminance": 0.3452,
     "target_luminance": 0.3452,
-    "luminance_error_pct": 0.02,
+    "luminance_error_pct": -0.01,
     "bare_share": 0.0,
     "bare_patches": 0,
     "bare_soil_share": 0.0,
     "floor_soil_share": 0.0,
     "green_share": 0.0,
-    "gap_share": 0.2434,
+    "gap_share": 0.3664,
     "lip_soil_share": 0.0,
     "soil_mean_srgb": "#4a463f",
     "soil_gain": [
@@ -145,14 +146,14 @@
       1.256
     ],
     "straw_gain": [
-      1.076,
-      1.301,
-      1.626
+      1.267,
+      1.536,
+      1.908
     ],
     "final_gain": [
-      1.13,
-      1.117,
-      1.085
+      1.232,
+      1.208,
+      1.154
     ],
     "detail_gain": [
       1.374,
