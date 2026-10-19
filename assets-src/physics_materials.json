@@ -5,7 +5,7 @@
   "fields": {
     "friction_static": "mu_s of the drone's polymer parts on the dry material",
     "friction_kinetic": "mu_k, same pairing",
-    "stiffness_n_per_m": "contact compliance of the surface; absent means rigid",
+    "stiffness_n_per_m": "contact compliance of the material under one touching part of the drone (a leg's foot, an arm, the body, the coil), in series with that part's own compliance; the contact law applies it to each part that touches, so four feet on it meet four times this; the rationale names the part it was derived for (the 15 mm reference foot unless it says otherwise) and the sink it gives; absent means rigid",
     "damping_ratio": "zeta of that compliance; present with stiffness_n_per_m",
     "edge_radius_m": "the radius the fiber bends over at a box's arris; a capsule, cylinder or sphere always uses its own radius, and a snag's radius_m overrides both; null means the material never carries an arris (it is only used on round shapes)",
     "break_stress_pa": "optional: the bending rupture stress of a member on a capsule or cylinder; the contact law derives the break moment from the shape's own radius, M_b = break_stress_pa * pi * r^3 / 4, past which the shape stops resisting for the rest of the flight and a 'break' event is logged, and a hook snag of the material lets go at the same moment; absent means the member never breaks",
@@ -18,7 +18,7 @@
       "friction_kinetic": 0.28,
       "edge_radius_m": 0.001,
       "label": "assumed",
-      "rationale": "carried from surfaces-review §5 (polymer on dry mild steel, rolled or sawn edge)"
+      "rationale": "carried from surfaces-review §5 (polymer on dry mild steel, rolled or sawn edge); rigid per part: a 15 mm foot or an arm on a 40 × 2 mm tube meets its wall as a ring at ≈ 7e6 N/m (derived), far above a leg's own spring (2e4 N/m in the first attempt's probe, assumed), so a foot's 11.8 N share (a quarter of 4.8 kg) sinks under 0.01 mm and the part sets the bounce; a slender member's bending over its span (a 20 × 1.5 mm square tube over 1 m, 48EI/L³ ≈ 6e4 N/m) belongs to the shape, not this row"
     },
     "sheet_metal": {
       "friction_static": 0.30,
@@ -27,42 +27,42 @@
       "damping_ratio": 0.03,
       "edge_radius_m": 0.0003,
       "label": "assumed",
-      "rationale": "carried: 0.5 mm corrugated sheet over a 1 m purlin span; its half-thickness edge cuts the fiber"
+      "rationale": "carried: 0.5 mm corrugated sheet over a 1 m purlin span; per part: one part's load on mid-span, carried by a 0.2–0.3 m strip of an 18 mm sine profile (assumed), bends it at 4–7e4 N/m (48EI/L³, derived) and the crest dents under a 15 mm foot, so 2e4: a foot's 11.8 N share sinks 0.6 mm (1.2 mm at 25 N) and, in series with the leg, drums; its half-thickness edge cuts the fiber"
     },
     "timber": {
       "friction_static": 0.45,
       "friction_kinetic": 0.35,
       "edge_radius_m": 0.002,
       "label": "assumed",
-      "rationale": "carried; a batten asset may override with ≈ 1e5 N/m"
+      "rationale": "carried; rigid per part: a 15 mm foot presses sawn softwood across the grain (E 0.3–0.9 GPa, the published radial and tangential ratios) as a punch of 5–16e6 N/m (E·b/(1−ν²), derived), so a foot's 11.8 N share sinks under 0.01 mm and the leg sets the bounce; a member that bends under a part is the shape's: a 50 × 25 mm batten over 0.6 m answers a foot at ≈ 1.4e5 N/m (48EI/L³, E 10 GPa), so a batten asset may override with ≈ 1e5 N/m"
     },
     "masonry": {
       "friction_static": 0.65,
       "friction_kinetic": 0.55,
       "edge_radius_m": 0.002,
       "label": "assumed",
-      "rationale": "carried: brick, block, render; a worn arris"
+      "rationale": "carried: brick, block, render; a worn arris; rigid per part: a 15 mm foot on brick (E ≥ 5 GPa, assumed) is a punch of ≥ 8e7 N/m (E·b/(1−ν²), derived), so a foot's 11.8 N share sinks under 1 µm and the part's own spring sets the bounce"
     },
     "concrete": {
       "friction_static": 0.60,
       "friction_kinetic": 0.50,
       "edge_radius_m": 0.003,
       "label": "assumed",
-      "rationale": "plastic feet on cast concrete sit in the published 0.5–0.7 band; a cast arris. Broken edges and rebar are 'edge' snags with their own radius. Also lifted asphalt slabs and kerbs (review-materials.md: 'asphalt' is a surface id only)"
+      "rationale": "plastic feet on cast concrete sit in the published 0.5–0.7 band; a cast arris. Broken edges and rebar are 'edge' snags with their own radius. Also lifted asphalt slabs and kerbs (review-materials.md: 'asphalt' is a surface id only). Rigid per part: a 15 mm foot on concrete (E ≈ 25 GPa, assumed) is a punch of ≈ 4e8 N/m (derived), so a foot's 11.8 N share sinks under 1 µm and the part's own spring sets the bounce"
     },
     "glass": {
       "friction_static": 0.40,
       "friction_kinetic": 0.30,
       "edge_radius_m": 0.0001,
       "label": "assumed",
-      "rationale": "plastic on glass; a broken pane edge is a blade. Also glazed porcelain (insulators: cylinders, so the edge is their own radius). Breakability of a pane is a later plate model (review P3-6)"
+      "rationale": "plastic on glass; a broken pane edge is a blade. Also glazed porcelain (insulators: cylinders, so the edge is their own radius). Breakability of a pane is a later plate model (review P3-6). Rigid per part: a 4 mm pane 0.5 m square bends under a 15 mm foot at ≈ 1.4e5 N/m (a simply supported plate under a centre load, E 70 GPa, derived), seven times a leg's own spring (2e4 N/m in the first attempt's probe, assumed), so a foot's 11.8 N share sinks 0.09 mm and the series stiffness differs by 13 %"
     },
     "cable": {
       "friction_static": 0.30,
       "friction_kinetic": 0.25,
       "edge_radius_m": null,
       "label": "assumed",
-      "rationale": "carried; rigid locally, the span compliance T = w·L²/(8·sag) comes from the wire geometry; the edge radius is the wire's own"
+      "rationale": "carried; rigid locally, the span compliance T = w·L²/(8·sag) comes from the wire geometry: one part on a span meets 4T/L at mid-span, about 55 N/m for a 12 mm wire on a 30 m span at 416 N (knowledge §7.4, derived); the edge radius is the wire's own"
     },
     "foliage": {
       "friction_static": 0.50,
@@ -71,14 +71,14 @@
       "damping_ratio": 0.3,
       "edge_radius_m": null,
       "label": "derived",
-      "rationale": "a 20 mm green branch at 1 m, E ≈ 10 GPa (published 8–12 GPa for green wood), I = πd⁴/64 = 7.85e-9 m⁴, k = 3EI/L³ ≈ 236 N/m; ζ assumed for a leafy branch; the edge radius is the branch's own"
+      "rationale": "per part: one 20 mm green branch at 1 m under it, E ≈ 10 GPa (published 8–12 GPa for green wood), I = πd⁴/64 = 7.85e-9 m⁴, k = 3EI/L³ ≈ 236 N/m, so a foot's 11.8 N share (a quarter of 4.8 kg) bends it 59 mm and four feet on four branches meet 800 N/m; ζ assumed for a leafy branch; the edge radius is the branch's own"
     },
     "bark": {
       "friction_static": 0.55,
       "friction_kinetic": 0.45,
       "edge_radius_m": null,
       "label": "assumed",
-      "rationale": "live trunks and limbs: furrowed or plated bark interlocks with a printed foot's layer ridges, so above sawn timber (0.45/0.35); the published 0.2–0.5 of polymers on wood is for planed faces, and bark is not planed; rigid; trunks and limbs are capsules, so the fiber bends over the member's own radius, never an arris"
+      "rationale": "live trunks and limbs: furrowed or plated bark interlocks with a printed foot's layer ridges, so above sawn timber (0.45/0.35); the published 0.2–0.5 of polymers on wood is for planed faces, and bark is not planed; rigid per part locally: a 15 mm foot on bark and sapwood across the grain (E ≈ 0.5 GPa, assumed) is a punch of ≈ 9e6 N/m (derived), so a foot's 11.8 N share sinks under 0.01 mm; a slender member still bends as a cantilever from its root (a 30 mm limb at 1 m: 3EI/L³ ≈ 1.2e3 N/m at E 10 GPa), which the phase-7 contact law derives from the capsule chain, not this row (p1-v13-shrub review-physics N3); trunks and limbs are capsules, so the fiber bends over the member's own radius, never an arris"
     },
     "twig": {
       "friction_static": 0.50,
@@ -87,7 +87,7 @@
       "damping_ratio": 0.2,
       "edge_radius_m": 0.0025,
       "label": "derived",
-      "rationale": "the crown contact shell over the 5–10 mm twig cards (no capsules): one 10 mm green twig 0.8 m long, E ≈ 10 GPa, I = πd⁴/64 = 4.91e-10 m⁴, k = 3EI/L³ ≈ 29 N/m, so a 20 N push goes through the shell to the branch capsules, which is the point; μ as foliage, ζ assumed lower for bare twigs; the fiber bends over the thinnest twig the shell stands for, radius 2.5 mm"
+      "rationale": "the crown contact shell over the 5–10 mm twig cards (no capsules): per part, one 10 mm green twig 0.8 m long under it, E ≈ 10 GPa, I = πd⁴/64 = 4.91e-10 m⁴, k = 3EI/L³ ≈ 29 N/m, so a foot's 11.8 N share (a quarter of 4.8 kg) or a 20 N push goes 0.4–0.7 m through the shell to the branch capsules, which is the point; μ as foliage, ζ assumed lower for bare twigs; the fiber bends over the thinnest twig the shell stands for, radius 2.5 mm"
     },
     "deadwood": {
       "friction_static": 0.45,
@@ -95,14 +95,14 @@
       "edge_radius_m": null,
       "break_stress_pa": 4.0e7,
       "label": "assumed",
-      "rationale": "dead trees, broken tops, fallen branches, brush, logs, wattle rods: friction as weathered timber; rigid until it snaps at M_b = σ_b·π·r³/4 from the member's own radius (a 10 mm dead twig: 3.9 N·m, 8 N at a 0.5 m tip), σ_b 40 MPa assumed under the published 60–110 MPa rupture of dry hardwood for checking and decay; members are capsules, so the fiber bends over their own radius"
+      "rationale": "dead trees, broken tops, fallen branches, brush, logs, wattle rods: friction as weathered timber; rigid until it snaps at M_b = σ_b·π·r³/4 from the member's own radius (a 10 mm dead twig: 3.9 N·m, 8 N at a 0.5 m tip, so one foot's 11.8 N share snaps it), σ_b 40 MPa assumed under the published 60–110 MPa rupture of dry hardwood for checking and decay; locally rigid per part as bark, and a slender member bends before it snaps as bark's do (p1-v13-shrub review-physics N3); members are capsules, so the fiber bends over their own radius"
     },
     "asbestos_cement": {
       "friction_static": 0.60,
       "friction_kinetic": 0.50,
       "edge_radius_m": 0.003,
       "label": "assumed",
-      "rationale": "slate sheets and fragments: a cement-bound surface under a polymer foot, as concrete; a 5.8 mm 8-wave sheet (published) with E ≈ 15 GPa and I ≈ t·a²/2 per metre of 40 mm waves answers a foot over a 0.6 m batten span at ≈ 1e6 N/m, so it is rigid and the leg sets the bounce; the edge is the sheet's half thickness; a landing loads a sound sheet to ≈ 0.4 MPa against a published rupture ≥ 16 MPa, so plate breakage is a crash case for a later plate model (review P3-6)"
+      "rationale": "slate sheets and fragments: a cement-bound surface under a polymer foot, as concrete; a 5.8 mm 8-wave sheet (published) with E ≈ 15 GPa and I ≈ t·a²/2 per metre of 40 mm waves answers a foot over a 0.6 m batten span at ≈ 1e6 N/m, so it is rigid per part (a foot's 11.8 N share sinks 0.01 mm) and the leg sets the bounce; the edge is the sheet's half thickness; a landing loads a sound sheet to ≈ 0.4 MPa against a published rupture ≥ 16 MPa, so plate breakage is a crash case for a later plate model (review P3-6)"
     },
     "straw": {
       "friction_static": 0.45,
@@ -111,16 +111,16 @@
       "damping_ratio": 0.3,
       "edge_radius_m": 0.02,
       "label": "derived",
-      "rationale": "thatch, hay, a stack, straw carried by a mesh or a roof: the belt_straw mat (modulus 4 kPa, surfaces.json) 0.125 m deep under the 15 mm reference foot, km = modulus·π(b/2 + D/2)²/D ≈ 490 N/m; μ and ζ carried from that mat; the fiber sinks into a straw edge, so the bend radius is the soil-lip figure 0.02 m (assumed); bundle ends are hook snags the generator writes. Straw lying on terrain is the surface's mat (surface:belt_straw's cover), never this id; a straw layer over a shape, a surface shape standing in for ground included, is this id (p1-s04-belt-straw review-physics §3)."
+      "rationale": "thatch, hay, a stack, straw carried by a mesh or a roof: the belt_straw mat (modulus 4 kPa, surfaces.json) 0.125 m deep (S04's mat, re-measured unchanged) under the 15 mm reference foot, km = modulus·π(b/2 + D/2)²/D ≈ 490 N/m, per part as the ground mat's own law reads it: a foot's 11.8 N share (a quarter of 4.8 kg) sinks 24 mm and the 25 N reference foot 51 mm, under the 80 % cap of 0.1 m; μ and ζ carried from that mat; the fiber sinks into a straw edge, so the bend radius is the soil-lip figure 0.02 m (assumed); bundle ends are hook snags the generator writes. Straw lying on terrain is the surface's mat (surface:belt_straw's cover), never this id; a straw layer over a shape, a surface shape standing in for ground included, is this id (p1-s04-belt-straw review-physics §3)."
     },
     "fabric": {
       "friction_static": 0.40,
       "friction_kinetic": 0.30,
-      "stiffness_n_per_m": 600.0,
+      "stiffness_n_per_m": 160.0,
       "damping_ratio": 0.8,
       "edge_radius_m": 0.005,
       "label": "assumed",
-      "rationale": "tarps, curtains, mattresses, sofas, seats, a canvas tilt, greenhouse film: a polymer foot on woven PE or canvas, above the published 0.2–0.4 of plastic on plastic for the weave; stiffness from the sheets' 50–100 mm sink of a mattress or seat under the drone's 49 N (490–980 N/m); ζ for a damped cushion that does not bounce; the edge is a hem or a fold"
+      "rationale": "tarps, curtains, mattresses, sofas, seats, a canvas tilt, greenhouse film: a polymer foot on woven PE or canvas, above the published 0.2–0.4 of plastic on plastic for the weave; per part: the sheets' 50–100 mm sink of a mattress or seat is each foot's under its quarter of 4.8 kg (11.8 N), 118–235 N/m, so 160 N/m: a foot sinks 74 mm (55–100 mm over the 3.6–6.5 kg loadouts) and four feet meet 640 N/m (the 600 N/m read for the whole drone sank them 20 mm); checked as a flat punch into comfort foam of E ≈ 10 kPa (E·b/(1−ν²) ≈ 165 N/m; the published 25 % ILD grades of 10–30 lbf give 5–17 kPa) and as a slack tarp at T ≈ 100 N/m (assumed) over a 1 m span, 2πT/ln(a/r) ≈ 150 N/m under the foot; ζ for a damped cushion that does not bounce; the edge is a hem or a fold"
     },
     "rubber": {
       "friction_static": 0.70,
@@ -129,23 +129,23 @@
       "damping_ratio": 0.3,
       "edge_radius_m": 0.01,
       "label": "assumed",
-      "rationale": "tyres: a polymer foot on tread rubber sits in the published 0.6–0.9 band; tread rubber (E ≈ 5 MPa, 10 mm) under the 15 mm foot compresses at EA/t ≈ 9e4 N/m and the carcass flexes under it, 5e4 N/m together; ζ for rubber hysteresis; a tyre is a cylinder, so the fiber bends over its own radius, and 10 mm stands for a rubber box's rounded shoulder"
+      "rationale": "tyres: a polymer foot on tread rubber sits in the published 0.6–0.9 band; tread rubber (E ≈ 5 MPa, 10 mm) under the 15 mm foot compresses at EA/t ≈ 9e4 N/m and the carcass flexes under it, 5e4 N/m together, per part: a foot's 11.8 N share sinks 0.24 mm; ζ for rubber hysteresis; a tyre is a cylinder, so the fiber bends over its own radius, and 10 mm stands for a rubber box's rounded shoulder"
     },
     "plastic": {
       "friction_static": 0.30,
       "friction_kinetic": 0.25,
       "edge_radius_m": 0.0015,
       "label": "assumed",
-      "rationale": "PVC frames, crates, housings, trim, bumper covers, packaging, EPS remnants: polymer on polymer in the published 0.2–0.4 band; profiles and crates are rigid under a foot, and a 3 mm bumper cover that flexes (≈ 1e2 N/m over 0.5 m) has the steel beam behind it; a moulded edge 1–2 mm; EPS yields at 70–100 kPa (published grades), under the 141 kPa of the 25 N reference foot, a deviation accepted for remnants (review-materials.md)"
+      "rationale": "PVC frames, crates, housings, trim, bumper covers, packaging, EPS remnants: polymer on polymer in the published 0.2–0.4 band; profiles and crates are rigid under a foot or an arm, and a 3 mm bumper cover that flexes (≈ 1e2 N/m over 0.5 m) has the steel beam behind it; a moulded edge 1–2 mm; EPS yields at 70–100 kPa (published grades): a foot's 11.8 N share presses 67 kPa and holds, the 141 kPa of the 25 N reference foot crushes it, a deviation accepted for remnants (review-materials.md)"
     },
     "mesh": {
       "friction_static": 0.35,
       "friction_kinetic": 0.28,
-      "stiffness_n_per_m": 800.0,
+      "stiffness_n_per_m": 430.0,
       "damping_ratio": 0.5,
       "edge_radius_m": 0.001,
       "label": "derived",
-      "rationale": "chain-link bays as thin boxes: a 2 mm galvanised mesh strung at ≈ 200 N/m (assumed) over a 3 m bay answers a drone-sized point load as a membrane, k ≈ 2πT/ln(a/r) ≈ 800 N/m, so the drone is caught, not bounced; ζ assumed for link friction; μ as steel; the fiber bends over a 1 mm wire, a cut risk"
+      "rationale": "chain-link bays as thin boxes: a 2 mm galvanised mesh strung at ≈ 200 N/m (assumed) over a 3 × 1.5 m bay (Y03; conformal radius 0.95 m at its centre, derived) answers one part as a membrane, k ≈ 2πT/ln(a/r): r 0.05 m for an arm across the cells or the body's plates gives ≈ 430 N/m (a foot on one 50 mm cell, r 0.025 m, 350), so a part pushed at the drone's 47 N bows the bay 0.11 m and is caught, not bounced; three parts broadside meet 1300 N/m against 1100 for the whole drone as one load (r 0.3 m), so the per-part sum holds where the 800 N/m read for the whole drone did not; ζ assumed for link friction; μ as steel; the fiber bends over a 1 mm wire, a cut risk"
     }
   }
 }
