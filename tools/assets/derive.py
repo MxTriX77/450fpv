@@ -46,7 +46,9 @@ own colours, then a global pass corrects clipping; the achieved mean, the shares
 stamp. The azimuth is degrees from +u towards +v of the map, which is +X towards +Z of the asset when its UVs are
 metres. A ground recipe whose patches name only the lodging (p1-e01-trench task 1.4, a trench's grassed spoil) is a
 cover: no bare patch, no lip, no green strip and no relief tone, so no stain lies where the asset's mesh has no relief
-to make it (REAL-05); its map is the cover with its gaps on the target (COVER_FORMULA), its stamp's layout null.
+to make it (REAL-05); its map is the cover with its gaps on the target (COVER_FORMULA), its stamp's layout null. A
+cover may give cover.smoothness_scale (0-1, p1-e01-trench task 1.2): the mask's smoothness is the set's 1 - roughness
+times it, for a dry straw mat that the set's roughness leaves too glossy at grazing view (G 1-12: no sheen).
 
 A ground recipe in wall space ("space": "wall", p1-e01-trench design 7) is a cut's map: the strip of
 tools/blender/lib/strip.py, size_m [u, v] metres at output_px [w, h] (2K at most), u along the run and v up the map,
@@ -125,10 +127,11 @@ GROUND_FORMULA = ("ground v6: cover tiled at tile_size_m and at tile_size_m*phi,
                   "cover normals rotated by the azimuth; mask R 0, G AO times 1 - RELIEF_AO (1 - h01), B 0, "
                   "A 1 - roughness; detail albedo = the detail set's diffuse as grey at its size with a linear mean "
                   "of 0.5; 8-bit sRGB albedos")
-COVER_FORMULA = ("ground cover v1: ground v6 with patches naming only the lodging, so no bare patch, no lip, no green "
+COVER_FORMULA = ("ground cover v2: ground v6 with patches naming only the lodging, so no bare patch, no lip, no green "
                  "strip and no relief: albedo = the cover with its gaps (the cover gained to gap_albedo, the soil without "
                  "one) and the straw gain for albedo_target, then a global gain against clipping; normal = the cover's "
-                 "rotated by the azimuth; mask R 0, G the cover's AO, B 0, A 1 - roughness; detail albedo as ground v6")
+                 "rotated by the azimuth; mask R 0, G the cover's AO, B 0, A (1 - roughness) times the cover's "
+                 "smoothness_scale (1 without one); detail albedo as ground v6")
 GROUND_MAPS = ("albedo", "normal", "mask", "detail_albedo")
 PALETTE_FORMULA = ("palette v2: one column PALETTE_BLOCK_PX x PALETTE_HEIGHT_PX per colour, left to right in the "
                    "recipe's order, its stops spread evenly from the bottom to the top and interpolated in linear light, "
@@ -409,6 +412,8 @@ def ground_recipe(root, recipe, material):
     lodging = _object(patch_spec, "lodging", f"{material}.patches")
     if "bare" not in patch_spec and "green" not in patch_spec:  # a cover: no patch, no strip, no relief tone
         layout_params = layout_inputs = green_inputs = relief_inputs = green_tint = None
+    elif "smoothness_scale" in cover:
+        raise DeriveError(f"{material}.cover.smoothness_scale: only a cover (patches naming only the lodging) takes it")
     else:
         bare, green = (_object(patch_spec, k, f"{material}.patches") for k in ("bare", "green"))
         layout_params, layout_inputs, params = bare_layout_inputs(root, bare, material, size_m)
@@ -434,6 +439,8 @@ def ground_recipe(root, recipe, material):
         "soil_target": _colour(soil, "albedo_target", f"{material}.soil") if "albedo_target" in soil else None,
         "gap_share": _number(cover, "gap_share", f"{material}.cover", lo=0, hi=0.5) if "gap_share" in cover else 0.0,
         "gap_albedo": _colour(cover, "gap_albedo", f"{material}.cover") if "gap_albedo" in cover else None,
+        "smoothness_scale": (_number(cover, "smoothness_scale", f"{material}.cover", lo=0, hi=1)
+                             if "smoothness_scale" in cover else 1.0),
         "layout_params": layout_params, "layout": layout_inputs, "green": green_inputs, "relief": relief_inputs,
         "green_tint": green_tint,
         "azimuth_deg": _number(lodging, "azimuth_deg", f"{material}.patches.lodging", lo=-360, hi=360),
@@ -728,7 +735,8 @@ def derive_ground(root, manifest, material, recipe):
         ao = ImageChops.multiply(ao, relief.point(lambda v: round(255 * (1 - RELIEF_AO * (1 - v / 255)))))
     roughness = Image.composite(soil("roughness"), cover("roughness"), soil_mask)
     zero = Image.new("L", (out_px, out_px), 0)
-    mask = Image.merge("RGBA", (zero, ao, zero, roughness.point(lambda v: 255 - v)))
+    scale = g["smoothness_scale"]
+    mask = Image.merge("RGBA", (zero, ao, zero, roughness.point(lambda v: round((255 - v) * scale))))
     # Grey, so URP's "detail x2" adds the straws' grain without moving the base's hue: per-channel gains on the
     # yellow straw set would amplify its weak blue channel into blue and lilac flecks.
     detail, detail_gain = match_mean(load("detail", "diffuse").convert("L").convert("RGB"), [0.5, 0.5, 0.5])

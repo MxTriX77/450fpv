@@ -210,6 +210,27 @@ def test_a_cover_stamps_no_patch_strip_or_relief_tone(tmp_path, capsys):
     assert (stamp["measured"]["bare_share"], stamp["measured"]["bare_patches"], stamp["measured"]["green_share"]) == (0, 0, 0)
 
 
+def test_a_cover_scales_its_smoothness(tmp_path):
+    """p1-e01-trench task 1.2: a cover's smoothness_scale multiplies the mask's smoothness (A = (1 - roughness) times
+    the scale), the dry straw's grazing sheen; the albedo and the occlusion do not move, and the recipe is recorded."""
+    root = ground_root(tmp_path)
+    recipe = dict(RECIPE, patches={"lodging": RECIPE["patches"]["lodging"]})
+    write_recipe(root, recipe)
+    assert run(MATERIAL, "--root", root) == 0
+    maps = outputs(root)
+    plain_albedo, plain_mask = maps["albedo"].read_bytes(), Image.open(maps["mask"])
+    assert plain_mask.getchannel("A").getextrema() == (255 - 220, 255 - 220), "no scale: 1 - roughness"
+    scaled = dict(recipe, cover=dict(recipe["cover"], smoothness_scale=0.2))
+    write_recipe(root, scaled)
+    assert run(MATERIAL, "--root", root) == 0
+    mask = Image.open(maps["mask"])
+    assert mask.getchannel("A").getextrema() == (7, 7), "round((255 - 220) * 0.2)"
+    assert mask.getchannel("G").getextrema() == plain_mask.getchannel("G").getextrema()
+    assert maps["albedo"].read_bytes() == plain_albedo
+    stamp = json.loads((root / MATERIALS / f"{MATERIAL}.recipe.json").read_text(encoding="utf-8"))
+    assert stamp["formula"] == derive.COVER_FORMULA and stamp["recipe"] == scaled
+
+
 def test_strewn_keeps_the_core_and_breaks_the_feather():
     cover = Image.new("RGB", (64, 64), (40, 40, 40))
     for x in range(0, 64, 4):  # bright straws every 4 px
@@ -524,6 +545,11 @@ def test_ground_failures_name_the_cause_and_write_nothing(tmp_path, capsys):
         (dict(RECIPE, kind="lawn"), f"{MATERIAL}: unknown recipe kind 'lawn' (omit it for a tiled set, or 'ground' or 'palette')"),
         (dict(RECIPE, soil={"texture_set": "polyhaven/nope", "tile_size_m": 1.0}),
          f"{MATERIAL}: texture set 'polyhaven/nope' is not in {fetch.MANIFEST}"),
+        (dict(RECIPE, cover=dict(RECIPE["cover"], smoothness_scale=0.5)),
+         f"{MATERIAL}.cover.smoothness_scale: only a cover (patches naming only the lodging) takes it"),
+        (dict(RECIPE, patches={"lodging": RECIPE["patches"]["lodging"]},
+              cover=dict(RECIPE["cover"], smoothness_scale=1.5)),
+         f"{MATERIAL}.cover.smoothness_scale: 1.5 must be a number in [0, 1]"),
     ]
     for recipe, message in cases:
         write_recipe(root, recipe)
