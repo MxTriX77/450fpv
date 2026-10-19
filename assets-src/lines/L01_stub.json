@@ -16,6 +16,7 @@
   "head": "hooks_0p4",
   "hooks": 4,
   "crossarm_len_m": 0.7,
+  "crossarm_below_m": 1.5,
   "insulator": "porcelain",
   "lamp": false,
   "damage": 0.0,

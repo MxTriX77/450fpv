@@ -78,6 +78,24 @@ def test_sizes_are_the_sheets(repo_root, material_ids):
     assert math.degrees(math.atan2(top[2], top[1])) == pytest.approx(9.0) and top[0] == pytest.approx(0.0)
 
 
+def test_the_leaning_poles_crossarm_hangs_15_m_under_the_top_with_its_hooks_above(repo_root):
+    """Task 1.3's look against L 1-3 (the crossarm 16-28 % of the visible pole under the top, 1.2-2 m): on
+    L01_leaning `crossarm_below_m` puts the crossarm's top 1.5 m under the 7.5 m top, and its two hooks stand above it,
+    0.3 and 0.8 m under the top; ports run from the top, the hooks' first, then the crossarm's two pins."""
+    p, _, data = build(repo_root, "L01_leaning")
+    assert p["crossarm_below_m"] == 1.5 and p["hooks"] == 2
+    shape = pole.Pole(p)
+    box = next(c for c in data["collision"] if c["shape"] == "box")
+    centre = shape.place((-(shape.radius(5.95) + 0.05), 7.5 - 1.5 - 0.05, 0.0))
+    assert box["center"] == pytest.approx(list(centre), abs=1e-6)
+    unlean = pole.Pole(dict(p, lean_azimuth_deg=270.0))  # the same lean about the opposite axis: the inverse
+    heights = [unlean.place(q["position"])[1] for q in data["ports"]]
+    assert heights == pytest.approx([7.355, 6.855, 6.125, 6.125], abs=1e-6)
+    assert min(heights[:2]) - 0.075 - 0.08 - pole.HOOK_D_M / 2 > 6.0 + 0.05 + 0.108  # hooks over the insulators
+    print(f"L01_leaning: crossarm top at 6.000 m (upright), its pins' ports at 6.125 m, the hooks' at "
+          f"{heights[0]:.3f} and {heights[1]:.3f} m")
+
+
 def clear_triangle_by_hand(p):
     """The brace triangle's clear space from the sheet's construction, independently of the generator: in the
     brace's plane, the pole's inner surface (radius from the butt's 0.13 m to the top's 0.08 m over the 9.5 m log),
@@ -182,6 +200,10 @@ def test_four_ports_sit_on_the_insulator_necks_outward(repo_root, material_ids):
     ({"head": "none"}, "'hooks' = 4 needs a head; head none is a bare pole"),
     ({"brace": "single", "top_section_m": 0.14, "brace_attach": 0.8},
      "the brace's end (0.16 m) would show beside the pole"),
+    ({"crossarm_below_m": 1.0}, "'crossarm_below_m' = 1.0 is not read here (wood_log, brace none, head hooks_0p4); "
+                                "keep 1.5"),
+    ({"head": "crossarm_0p4", "hooks": 2, "crossarm_below_m": 0.25},
+     "'hooks' = 2: the lowest hook (6.692 m) would not clear the crossarm's insulators (7.408 m)"),
 ])
 def test_check_refuses_what_is_not_built_or_does_not_hold(repo_root, edit, expected):
     problems = params.validate(pole, dict(load(repo_root, "L01_straight"), **edit))

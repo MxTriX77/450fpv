@@ -20,9 +20,10 @@ Parts, with the sheet's numbers (published or assumed as labelled at each consta
 - the brace (`brace` single): a 0.16 m log at `brace_angle_deg` from the pole, its axis meeting the pole's axis at
   `brace_attach` of the height above ground, its foot in the ground, its top end hidden inside the pole;
 - the head: `hooks_0p4` is `hooks` hooks; `crossarm_0p4` a 0.10 x 0.10 m bar `crossarm_len_m` long whose top lies
-  CROSSARM_BELOW_M under the pole's top, with a pin and insulator near each end, and `hooks` hooks below it; `none`
-  is a bare pole. A hook is a bent 17 mm bar screwed into the log, out HOOK_REACH_M and up HOOK_RISE_M to its pin
-  insulator; the top hook is TOP_HOOK_BELOW_M under the top, each next one HOOK_STEP_M lower on the other side;
+  `crossarm_below_m` under the pole's top (L 1-3: 1.2-2 m), with a pin and insulator near each end, and `hooks` hooks
+  above it; `none` is a bare pole. A hook is a bent 17 mm bar screwed into the log, out HOOK_REACH_M and up
+  HOOK_RISE_M to its pin insulator; the top hook is TOP_HOOK_BELOW_M under the top, each next one HOOK_STEP_M lower on
+  the other side;
 - insulators (`insulator` porcelain): the TF-20 pin insulator, 0.108 m high and 0.075 m across, an 8-sided lathe;
 - wood_on_stub: the stub, a 0.17 x 0.20 m concrete post `stub_length_m` long of which `stub_above_m` shows, and
   `bands` wire bands binding the log to it, each a flat strap round both;
@@ -85,7 +86,6 @@ HOOK_STEP_M = 0.5                             # the sheet: 0.4-0.6 m, 0.5 m
 TOP_HOOK_BELOW_M = 0.3                        # the sheet: the top hook 0.2-0.4 m under the top
 PIN_IN_M = 0.05                               # a pin's end inside the insulator's bore (assumed)
 CROSSARM_M = 0.10                             # the sheet's 0.10 x 0.10 m bar
-CROSSARM_BELOW_M = 0.25                       # its top under the pole's top (assumed: L 1, near the top)
 PIN_INSET_M = 0.06                            # a pin from the crossarm's end (assumed)
 PIN_RISE_M = 0.05                             # crossarm top to the insulator's base (assumed)
 INSULATOR_H_M, INSULATOR_R_M = 0.108, 0.0375  # TF-20 (published)
@@ -123,7 +123,8 @@ UNBUILT = (("lamp", False, "no lamp fitting is modelled"),
                                "needs per-variant tints, which the look task decides"))
 # Keys a kind, brace or head does not read: they keep their default, so an edit to them cannot silently do nothing.
 IDLE = {"wood_log": ("stub_length_m", "stub_above_m", "bands"), "wood_on_stub": ("burial_m",),
-        "brace none": ("brace_angle_deg", "brace_attach"), "head not crossarm_0p4": ("crossarm_len_m",)}
+        "brace none": ("brace_angle_deg", "brace_attach"),
+        "head not crossarm_0p4": ("crossarm_len_m", "crossarm_below_m")}
 # The object sheet's shared pole table and §L01; defaults are L01_straight.
 PARAMS = {
     "seed": {"type": "int", "range": (0, 2**31 - 1), "default": 1,
@@ -153,9 +154,13 @@ PARAMS = {
     "head": {"type": "str", "range": "hooks_0p4, crossarm_0p4, none (sip_bracket, crossarm_10kv: not built)",
              "default": "hooks_0p4", "effect": "what carries the wires"},
     "hooks": {"type": "int", "range": (0, 6), "default": 4,
-              "effect": "hooks with pin insulators zig-zag down the log (below the crossarm with crossarm_0p4)"},
+              "effect": "hooks with pin insulators zig-zag down the log from the top (above the crossarm with "
+                        "crossarm_0p4)"},
     "crossarm_len_m": {"type": "float", "range": (0.6, 2.2), "default": 0.7,
                        "effect": "crossarm_0p4: its length, 0.6-1.2 m (L 1: 0.6-0.8)"},
+    "crossarm_below_m": {"type": "float", "range": (0.1, 2.0), "default": 1.5,
+                         "effect": "crossarm_0p4: its top's distance under the pole's top, the hooks above it "
+                                   "(measured L 1-3: 1.2-2 m, 16-28 % of the visible pole)"},
     "insulator": {"type": "str", "range": "porcelain, none (glass: no recipe yet)", "default": "porcelain",
                   "effect": "the pin insulators' material, or bare pins (which seat no conductor: no ports)"},
     "lamp": {"type": "bool", "range": "true or false", "default": False, "effect": "a street-lamp bracket (not built)"},
@@ -212,6 +217,14 @@ def check(params):
         problems.append(f"'hooks' = {p['hooks']} needs a head; head none is a bare pole")
     if p["head"] == "crossarm_0p4" and p["crossarm_len_m"] > 1.2:
         problems.append(f"'crossarm_len_m' = {p['crossarm_len_m']} is over a 0.4 kV crossarm's 1.2 m")
+    if p["head"] == "crossarm_0p4" and p["hooks"]:
+        pole = Pole(p)
+        lowest = pole.levels[-1][0] - HOOK_D_M / 2
+        reach = pole.crossarm_top() + PIN_RISE_M + INSULATOR_H_M  # the crossarm's insulators' tops
+        if lowest <= reach:
+            problems.append(f"'hooks' = {p['hooks']}: the lowest hook ({lowest:.3f} m) would not clear the crossarm's "
+                            f"insulators ({reach:.3f} m); the hooks stand above the crossarm, so fewer hooks or a "
+                            "larger 'crossarm_below_m'")
     if p["brace"] == "single":
         if stub:
             problems.append("a brace on wood_on_stub is not built (the brace and the stub share +X)")
@@ -267,17 +280,13 @@ class Pole:
         return (p[0] + w * tx + (y * tz - z * ty), p[1] + w * ty + (z * tx - x * tz), p[2] + w * tz + (x * ty - y * tx))
 
     def _levels(self):
-        """(screw-in height, side) of every hook from the top; a crossarm's own two insulators come first in ports."""
-        p = self.p
-        if p["head"] == "crossarm_0p4":
-            neck = self.crossarm_top() + PIN_RISE_M + NECK_H_M
-            first = neck - HOOK_STEP_M - HOOK_RISE_M - NECK_H_M
-        else:
-            first = self.height - TOP_HOOK_BELOW_M
-        return [(first - n * HOOK_STEP_M, 1.0 if n % 2 == 0 else -1.0) for n in range(p["hooks"])]
+        """(screw-in height, side) of every hook from the top, above a crossarm; the crossarm's own two insulators
+        come after them in ports."""
+        first = self.height - TOP_HOOK_BELOW_M
+        return [(first - n * HOOK_STEP_M, 1.0 if n % 2 == 0 else -1.0) for n in range(self.p["hooks"])]
 
     def crossarm_top(self):
-        return self.height - CROSSARM_BELOW_M
+        return self.height - self.p["crossarm_below_m"]
 
     def segments(self):
         """The log's collision segments: at least LOG_SEGMENTS, and enough that a mid-radius segment and the 12-sided
@@ -314,11 +323,12 @@ def build(params):
     if pole.stub:
         _stub(lods, pole, collision, snag)
     head_low, bases = pole.height, []  # the head's lowest point; each insulator's (base, side) from the top
-    if p["head"] == "crossarm_0p4":
-        head_low, bases = _crossarm(lods, pole, offset, collision, snag)
     for s, side in pole.levels:
         head_low = min(head_low, s)
         bases.append(_hook(lods[0], pole, s, side, collision, snag))
+    if p["head"] == "crossarm_0p4":
+        low, pins = _crossarm(lods, pole, offset, collision, snag)
+        head_low, bases = min(head_low, low), bases + pins
     for i, (base, side) in enumerate(bases):
         port = _insulator(lods[0], pole, base, side, i, collision, snag)
         if port:
