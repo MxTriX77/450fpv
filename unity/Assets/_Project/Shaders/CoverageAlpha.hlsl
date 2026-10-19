@@ -17,21 +17,38 @@
 
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/SurfaceInput.hlsl"
 
-// The base map's alpha at `uv` for a map of `mapSize` texels: read with the pixel's own uv gradients, as the colour
-// is, until the pixel's footprint passes a texel 1/1024 of the map wide; beyond it with both gradients shrunk to that
-// footprint, so the read stays at that mip (gradients, not a level of detail, which ps_4_0 cannot compute).
-half CoverageAlpha(float2 uv, float2 mapSize)
+// The base map at `uv` for a map of `mapSize` texels: read with the pixel's own uv gradients, as the colour is, until
+// the pixel's footprint passes a texel 1/1024 of the map wide; beyond it with both gradients shrunk to that footprint,
+// so the read stays at that mip (gradients, not a level of detail, which ps_4_0 cannot compute).
+half4 CoverageSample(float2 uv, float2 mapSize)
 {
     float2 dx = ddx(uv), dy = ddy(uv);
     float footprint = sqrt(max(dot(dx * mapSize, dx * mapSize), dot(dy * mapSize, dy * mapSize)));
     float shrink = min(1.0, max(mapSize.x / 1024.0, 1.0) / max(footprint, 1e-6));
-    return SAMPLE_TEXTURE2D_GRAD(_BaseMap, sampler_BaseMap, uv, dx * shrink, dy * shrink).a;
+    return SAMPLE_TEXTURE2D_GRAD(_BaseMap, sampler_BaseMap, uv, dx * shrink, dy * shrink);
+}
+
+// The base map's alpha, read where the map resolves the leaves (CoverageSample).
+half CoverageAlpha(float2 uv, float2 mapSize)
+{
+    return CoverageSample(uv, mapSize).a;
 }
 
 // URP's SampleAlbedoAlpha(uv, TEXTURE2D_ARGS(_BaseMap, sampler_BaseMap)), which every URP Lit pass calls with the
-// base map: the colour at the pixel's mip, the alpha CoverageAlpha's. A macro, as LitInput.hlsl declares
-// _BaseMap_TexelSize after this file.
+// base map: the alpha CoverageAlpha's, the colour at the pixel's mip. A shader that defines FPV450_COVERAGE_COLOUR
+// before this file (the impostor, p1-v01-locust task 1.2l) reads its colour with its alpha, in one fetch: a texel of
+// its atlas holds whichever leaf, twig or limb the bake saw there, and the card's normal is read at full resolution
+// too, so a covered pixel shows the surface under its centre in that surface's colour and lit at its normal, as a
+// mesh LOD's pixel shows the leaf or the twig the raster put there. At the pixel's mip the colour mixed the surfaces
+// round it, and the empty atlas Unity dilates between them, into a pixel lit as one of them, and the card's crown
+// darkened the coarser the mip (V01_M's albedo, unlit: 0.1178, 0.1094 and 0.1096 at 50, 116.9 and 190 m, against
+// 0.1195, 0.1197 and 0.1198 read with its alpha, measured). A macro, as LitInput.hlsl declares _BaseMap_TexelSize
+// after this file.
+#ifdef FPV450_COVERAGE_COLOUR
+#define SampleAlbedoAlpha(uv, textureArgs) CoverageSample(uv, _BaseMap_TexelSize.zw)
+#else
 #define SampleAlbedoAlpha(uv, textureArgs) \
     half4(SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uv).rgb, CoverageAlpha(uv, _BaseMap_TexelSize.zw))
+#endif
 
 #endif

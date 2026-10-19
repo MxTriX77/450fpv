@@ -126,6 +126,19 @@ namespace Fpv450.Tests.EditMode
         }
 
         [Test]
+        public void CardAndLeafShaders_CompileWithTheirCoverageReads()
+        {
+            // CoverageAlpha.hlsl's two SampleAlbedoAlpha forms (p1-v01-locust task 1.2l): the impostor reads its colour
+            // with its alpha (FPV450_COVERAGE_COLOUR), the leaf its colour at the pixel's mip.
+            foreach (string name in new[] { "Fpv450/Impostor", "Fpv450/Leaf" })
+            {
+                Shader shader = Shader.Find(name);
+                Assert.That(shader, Is.Not.Null, name);
+                Assert.That(ShaderUtil.ShaderHasError(shader), Is.False, $"{name} compiles");
+            }
+        }
+
+        [Test]
         public void CardSet_SecondBuildWithTheSameInputsChangesNoFile()
         {
             Prefab();

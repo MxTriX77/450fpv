@@ -14,7 +14,8 @@
 // shadows facing the light and receives none (the material sets _RECEIVE_SHADOWS_OFF): the light-facing caster would
 // shadow the camera-facing card along their shared axis. Its alpha, the coverage the render found per texel, clips as
 // the leaves' does, read where the atlas resolves the crown (CoverageAlpha.hlsl, task 1.2i: read at the pixel's mip,
-// the card lost 14-22 % of V01's baked crowns at 116.9-230 m, measured). Each pass includes URP's own Lit pass and
+// the card lost 14-22 % of V01's baked crowns at 116.9-230 m, measured), and its albedo with it, as its normal is
+// (FPV450_COVERAGE_COLOUR, task 1.2l: at the pixel's mip V01_M's card darkened 7 % from 50 to 116.9 m). Each pass includes URP's own Lit pass and
 // wraps its vertex function (and the forward pass its fragment), as Fpv450/Leaf does; the extra vectors stand outside
 // URP/Lit's per-material buffer, so the SRP batcher draws the card on its own, and the material instances it. No wind.
 Shader "Fpv450/Impostor"
@@ -54,6 +55,7 @@ Shader "Fpv450/Impostor"
         LOD 300
 
         HLSLINCLUDE
+        #define FPV450_COVERAGE_COLOUR  // the albedo read with the alpha (CoverageAlpha.hlsl)
         float4 _ImpostorGrid;   // x: views, y: columns, z: rows, w: the views' elevation in degrees
         float4 _ImpostorCard;   // x: width, y: height, z: bottom, in the card's frame
 
