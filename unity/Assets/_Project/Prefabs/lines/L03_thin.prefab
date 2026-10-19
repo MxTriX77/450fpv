@@ -259,6 +259,8 @@ MonoBehaviour:
     diameterM: 0.005
     massKgPerM: 0.154
     sagM: 0.8
+    axialStiffnessN: 3926990.8
+    breakingForceN: 7657.6323
     material: cable
     damage: intact
     points:

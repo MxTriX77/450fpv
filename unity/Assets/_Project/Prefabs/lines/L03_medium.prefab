@@ -169,6 +169,8 @@ MonoBehaviour:
     diameterM: 0.009
     massKgPerM: 0.135
     sagM: 0.8
+    axialStiffnessN: 3118500
+    breakingForceN: 8198
     material: cable
     damage: intact
     points:
@@ -257,6 +259,8 @@ MonoBehaviour:
     diameterM: 0.009
     massKgPerM: 0.135
     sagM: 0.8
+    axialStiffnessN: 3118500
+    breakingForceN: 8198
     material: cable
     damage: intact
     points:
@@ -345,6 +349,8 @@ MonoBehaviour:
     diameterM: 0.009
     massKgPerM: 0.135
     sagM: 0.8
+    axialStiffnessN: 3118500
+    breakingForceN: 8198
     material: cable
     damage: intact
     points:
@@ -433,6 +439,8 @@ MonoBehaviour:
     diameterM: 0.009
     massKgPerM: 0.135
     sagM: 0.8
+    axialStiffnessN: 3118500
+    breakingForceN: 8198
     material: cable
     damage: intact
     points:

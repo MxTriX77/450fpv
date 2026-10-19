@@ -49,6 +49,8 @@
       "diameter_m": 0.005,
       "mass_kg_per_m": 0.154,
       "sag_m": 0.8,
+      "axial_stiffness_n": 3926990.816987,
+      "breaking_force_n": 7657.632093,
       "material": "cable",
       "damage": "intact",
       "points": [

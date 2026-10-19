@@ -49,6 +49,8 @@
       "diameter_m": 0.009,
       "mass_kg_per_m": 0.135,
       "sag_m": 0.8,
+      "axial_stiffness_n": 3118500.0,
+      "breaking_force_n": 8198.0,
       "material": "cable",
       "damage": "intact",
       "points": [
@@ -464,6 +466,8 @@
       "diameter_m": 0.009,
       "mass_kg_per_m": 0.135,
       "sag_m": 0.8,
+      "axial_stiffness_n": 3118500.0,
+      "breaking_force_n": 8198.0,
       "material": "cable",
       "damage": "intact",
       "points": [
@@ -879,6 +883,8 @@
       "diameter_m": 0.009,
       "mass_kg_per_m": 0.135,
       "sag_m": 0.8,
+      "axial_stiffness_n": 3118500.0,
+      "breaking_force_n": 8198.0,
       "material": "cable",
       "damage": "intact",
       "points": [
@@ -1294,6 +1300,8 @@
       "diameter_m": 0.009,
       "mass_kg_per_m": 0.135,
       "sag_m": 0.8,
+      "axial_stiffness_n": 3118500.0,
+      "breaking_force_n": 8198.0,
       "material": "cable",
       "damage": "intact",
       "points": [
@@ -2116,6 +2124,7 @@
         ]
       ],
       "radius_m": 0.0045,
+      "edge_radius_m": 0.0015,
       "material": "cable"
     },
     {
@@ -2528,6 +2537,7 @@
         ]
       ],
       "radius_m": 0.0045,
+      "edge_radius_m": 0.0015,
       "material": "cable"
     },
     {
@@ -2940,6 +2950,7 @@
         ]
       ],
       "radius_m": 0.0045,
+      "edge_radius_m": 0.0015,
       "material": "cable"
     },
     {
@@ -3352,6 +3363,7 @@
         ]
       ],
       "radius_m": 0.0045,
+      "edge_radius_m": 0.0015,
       "material": "cable"
     }
   ]
