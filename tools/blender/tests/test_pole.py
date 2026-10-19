@@ -285,24 +285,45 @@ def test_the_far_lods_carry_the_thin_wire_inputs(repo_root):
     print(f"far LODs: every triangle's centre lines colinear within {worst:.1e} m")
 
 
-def test_the_log_collision_is_within_10mm_of_the_log_both_ways(repo_root):
+LEANS = (("L01_straight", None, 3, 0.0), ("L01_leaning", None, 3, 0.019267), ("L01_braced", None, 3, 0.0),
+         ("L01_stub", None, 4, 0.0), ("L01_straight", {"lean_deg": 15.0, "lean_azimuth_deg": 90.0}, 3, 0.032615),
+         ("L01_leaning", {"lean_deg": 15.0}, 3, 0.032615))
+
+
+@pytest.mark.parametrize("name, edit, segments, sink", LEANS)
+def test_the_log_collision_is_within_10mm_of_the_log_both_ways(repo_root, name, edit, segments, sink):
     """§L01: the log as stacked segments with their real radius, within 10 mm of the visual: the audit run on the
-    log's own faces and segments (the brace, head and wire left out) measures both directions."""
-    for name in ("L01_straight", "L01_stub"):
-        p, built, data = build(repo_root, name)
-        n = pole.Pole(p).segments()
-        assert n == {"L01_straight": 3, "L01_stub": 4}[name]
-        log = Mesh()
-        log.vertices = built["lods"][0].vertices
-        log.faces = [f for f in built["lods"][0].faces if f[3] == "wood"]
-        segments = data["collision"][:n]
-        assert [c["shape"] for c in segments] == ["capsule"] * (n - 1) + ["cylinder"]
-        assert all(c["material"] == "timber" for c in segments)
-        problems, lines = audit.run(dict(data, collision=segments, gaps=[]), log, planted=True)
-        assert problems == []
-        worst = max(float(x) for line in lines[1:] for x in [line.split("->")[1].split(" mm")[0].split()[-1]])
-        assert worst <= 10.0, lines
-        print(f"{name}: the log's {n} segments within {worst:.3f} mm of its faces (margin {10 - worst:.3f} mm)")
+    log's own LOD0 faces (its 12 sides and its top, the first faces built; the brace, head, stub and wire left out)
+    and its segments measures both directions, on every variant and leaned 15 degrees, the params' largest lean
+    (review R1). A leaned log meets the ground lowest on the side it leans from, its 12-gon corner there g r tan(lean)
+    under the foot along the axis (g = 2 / (1 + cos 15 degrees), r the radius there: 19.267 mm at 9 degrees, 32.615 mm
+    at 15), so the segments start that deep, and the cylinder of the lowest capsule, not its buried cap, meets the
+    ground on every side (before: 10.269 mm at 9 degrees, 13.119 mm at 15)."""
+    p = load(repo_root, name) if edit is None else dict(load(repo_root, name), **edit)
+    assert pole.check(p) == []
+    built = pole.build(p)
+    data = meta.assemble("L01", name, "pole", p, built, VISUALS)
+    n = segments
+    log = Mesh()
+    log.vertices = built["lods"][0].vertices
+    log.faces = built["lods"][0].faces[:pole.LOG_SIDES[0] + 1]
+    assert all(f[3] == "wood" for f in log.faces)
+    assert min(log.vertices[i][1] for f in log.faces for i in f[0]) == 0.0  # cut by the ground, open there
+    problems, lines = audit.run(dict(data, collision=data["collision"][:n], gaps=[]), log, planted=True)
+    worst = max(float(line.split("->")[1].split(" mm")[0].split()[-1]) for line in lines[1:])
+    label = name if edit is None else f"{name} {edit}"
+    assert problems == [] and worst <= 10.0, (label, lines)
+    shape = pole.Pole(p)
+    assert shape.segments() == n
+    assert [c["shape"] for c in data["collision"][:n]] == ["capsule"] * (n - 1) + ["cylinder"]
+    assert all(c["material"] == "timber" for c in data["collision"][:n])
+    assert shape.sink() == pytest.approx(sink, abs=1e-6)
+    lowest = data["collision"][0]
+    foot = [lowest["center"][a] - (lowest["height"] / 2 - lowest["radius"]) * shape.place((0.0, 1.0, 0.0))[a]
+            for a in range(3)]
+    assert foot == pytest.approx(list(shape.place((0.0, -sink, 0.0))), abs=2e-6)  # the lowest segment starts that deep
+    print(f"{label}: the log's {n} segments from {sink * 1000:.3f} mm under the foot within {worst:.3f} mm of its "
+          f"faces (margin {10 - worst:.3f} mm of 10)")
 
 
 def test_snag_records_carry_the_sheets_kinds_radii_and_materials(repo_root):

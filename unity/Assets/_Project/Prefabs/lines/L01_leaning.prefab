@@ -26,7 +26,7 @@ Transform:
   m_GameObject: {fileID: 217069744307906574}
   serializedVersion: 2
   m_LocalRotation: {x: 0.07845903, y: 0, z: 0, w: 0.99691737}
-  m_LocalPosition: {x: 0, y: 3.703831, z: 0.586629}
+  m_LocalPosition: {x: 0, y: 3.694316, z: 0.585122}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -51,8 +51,8 @@ CapsuleCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Radius: 0.099737
-  m_Height: 2.699474
+  m_Radius: 0.099788
+  m_Height: 2.705997
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &265290185518651634
@@ -262,26 +262,26 @@ MonoBehaviour:
     physics: timber
   collision:
   - kind: 2
-    center: {x: 0, y: 1.23461, z: 0.195543}
+    center: {x: 0, y: 1.218752, z: 0.193031}
     size: {x: 0, y: 0, z: 0}
-    radius: 0.112895
-    height: 2.725789
+    radius: 0.112979
+    height: 2.732381
     rotation: {x: 0.078459, y: 0, z: 0, w: 0.996917}
     material: timber
     landable: 0
   - kind: 2
-    center: {x: 0, y: 3.703831, z: 0.586629}
+    center: {x: 0, y: 3.694316, z: 0.585122}
     size: {x: 0, y: 0, z: 0}
-    radius: 0.099737
-    height: 2.699474
+    radius: 0.099788
+    height: 2.705997
     rotation: {x: 0.078459, y: 0, z: 0, w: 0.996917}
     material: timber
     landable: 0
   - kind: 3
-    center: {x: 0, y: 6.173052, z: 0.977715}
+    center: {x: 0, y: 6.16988, z: 0.977213}
     size: {x: 0, y: 0, z: 0}
-    radius: 0.086579
-    height: 2.5
+    radius: 0.086596
+    height: 2.506422
     rotation: {x: 0.078459, y: 0, z: 0, w: 0.996917}
     material: timber
     landable: 0
@@ -655,7 +655,7 @@ Transform:
   m_GameObject: {fileID: 3365635527296569014}
   serializedVersion: 2
   m_LocalRotation: {x: 0.07845903, y: 0, z: 0, w: 0.99691737}
-  m_LocalPosition: {x: 0, y: 6.173052, z: 0.977715}
+  m_LocalPosition: {x: 0, y: 6.16988, z: 0.977213}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -682,7 +682,7 @@ MeshCollider:
   serializedVersion: 5
   m_Convex: 1
   m_CookingOptions: 30
-  m_Mesh: {fileID: 4300000, guid: 4a9326a0d2bd7544e9b9047d5214e30c, type: 2}
+  m_Mesh: {fileID: 4300000, guid: deaae6cfd5ead3244b87af00d5941c06, type: 2}
 --- !u!1 &3460391862055332132
 GameObject:
   m_ObjectHideFlags: 0
@@ -1162,7 +1162,7 @@ Transform:
   m_GameObject: {fileID: 7238721951441253458}
   serializedVersion: 2
   m_LocalRotation: {x: 0.07845903, y: 0, z: 0, w: 0.99691737}
-  m_LocalPosition: {x: 0, y: 1.23461, z: 0.195543}
+  m_LocalPosition: {x: 0, y: 1.218752, z: 0.193031}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1187,8 +1187,8 @@ CapsuleCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Radius: 0.112895
-  m_Height: 2.725789
+  m_Radius: 0.112979
+  m_Height: 2.732381
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &8942268441340333234

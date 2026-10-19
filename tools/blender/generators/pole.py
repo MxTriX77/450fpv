@@ -38,10 +38,11 @@ Parts, with the sheet's numbers (published or assumed as labelled at each consta
 
 Metadata (design decision 3, the sheet's physics role):
 - collision: the log as equal stacked segments above the ground at their mid radius, three, or more when the taper
-  needs them to stay within the sheet's 10 mm (the 7.5 m log on a stub: four), the lower ones capsules (their caps
-  buried in the ground or in the next segment) and the top one a cylinder, because the top is a flat saw cut a
-  capsule's cap would stand 25-35 mm off; the brace a capsule from its foot to the pole's axis; the stub
-  and the crossarm boxes; each hook two capsules (its two legs), each pin one, each insulator a cylinder of
+  needs them to stay within the sheet's 10 mm (the 7.5 m log on a stub: four), starting as deep under the foot as
+  a leaned log's mesh meets the ground on the side it leans from (`Pole.sink`, 19 mm at 9 degrees), the lower ones
+  capsules (their caps buried in the ground or in the next segment) and the top one a cylinder, because the top is
+  a flat saw cut a capsule's cap would stand 25-35 mm off; the brace a capsule from its foot to the pole's axis;
+  the stub and the crossarm boxes; each hook two capsules (its two legs), each pin one, each insulator a cylinder of
   0.0375 x 0.108 m; materials timber, concrete, steel and glass (porcelain is glass, the physics sign-off);
 - the brace triangle as one gap polygon: the real clear space between the pole's and the brace's inner surfaces
   and the ground, in the brace's plane, with `narrowest_m` the diameter of its inscribed circle; its id records the
@@ -296,12 +297,22 @@ class Pole:
     def crossarm_top(self):
         return self.height - self.p["crossarm_below_m"]
 
+    def sink(self):
+        """How far under the foot, along the axis, the leaned log's LOD0 mesh meets the ground on the side it leans
+        from: its corner there, g r out (g = 2 / (1 + cos(pi / 12)), r the radius at that depth), stands g r tan(lean)
+        under the foot, solved with the taper. 0 upright. The collision segments start this deep, so the lowest
+        capsule's cylinder, not its buried cap, meets the ground on every side (review R1)."""
+        g = 2 / (1 + math.cos(math.pi / LOG_SIDES[0]))
+        t = math.tan(math.radians(self.p["lean_deg"]))
+        return g * self.radius(0.0) * t / (1 + g * self.slope * t)
+
     def segments(self):
-        """The log's collision segments: at least LOG_SEGMENTS, and enough that a mid-radius segment and the 12-sided
-        mesh (its faces 2.3 mm about the true radius at most) stay within LOG_TOLERANCE_M of each other."""
+        """The log's collision segments from `sink` under the foot to the top: at least LOG_SEGMENTS, and enough that
+        a mid-radius segment and the 12-sided mesh (its faces 2.3 mm about the true radius at most) stay within
+        LOG_TOLERANCE_M of each other."""
         sagitta = self.rb * (1 - math.cos(math.pi / LOG_SIDES[0])) / (1 + math.cos(math.pi / LOG_SIDES[0]))
         longest = 2 * (LOG_TOLERANCE_M - sagitta) / abs(self.slope)
-        return max(LOG_SEGMENTS, math.ceil(self.height / longest - 1e-9))
+        return max(LOG_SEGMENTS, math.ceil((self.height + self.sink()) / longest - 1e-9))
 
 
 def build(params):
@@ -314,11 +325,11 @@ def build(params):
     log = _Rod((0.0, 0.0, 0.0), (0.0, 1.0, 0.0), pole.radius(0.0), pole.slope, (1.0, 0.0, 0.0))
     for lod, sides in enumerate(LOG_SIDES):
         _rod_mesh(lods[lod], pole, log, pole.height, sides, WOOD, offset, cap=True, thin=lod > 0)
-    n = pole.segments()
-    step = pole.height / n
+    n, sink = pole.segments(), pole.sink()
+    step = (pole.height + sink) / n
     for k in range(n):
-        a, b = pole.place((0.0, k * step, 0.0)), pole.place((0.0, (k + 1) * step, 0.0))
-        r = pole.radius((k + 0.5) * step)
+        a, b = pole.place((0.0, k * step - sink, 0.0)), pole.place((0.0, (k + 1) * step - sink, 0.0))
+        r = pole.radius((k + 0.5) * step - sink)
         collision.append(meta.capsule(a, b, r, PHYSICS[WOOD]) if k < n - 1 else _cylinder(a, b, r, PHYSICS[WOOD]))
     if p["brace"] == "single":
         foot = (pole.attach_s * math.tan(pole.beta), 0.0, 0.0)
