@@ -316,7 +316,8 @@ namespace Fpv450
                 var stage = new Stage { Root = new GameObject("ReviewStage"), Surface = assetClass == "surfaces" };
                 GameObject instance = Object.Instantiate(prefab, stage.Root.transform);
                 instance.name = prefab.name;
-                instance.transform.localPosition = new Vector3(0f, -meta.Bounds.min.y, 0f); // on the ground
+                // Onto the ground when its bounds reach below it; an asset above it (a wire span) stays at its own height.
+                instance.transform.localPosition = new Vector3(0f, Mathf.Max(0f, -meta.Bounds.min.y), 0f);
                 stage.Origin = instance.transform.position;
                 stage.AssetBounds = new Bounds(meta.Bounds.center + instance.transform.localPosition, meta.Bounds.size);
                 stage.LodGroup = instance.GetComponent<LODGroup>();

@@ -19,6 +19,8 @@ namespace Fpv450.World
             public string mesh;
             public int tris;
             public float switchDistanceM;
+            /// <summary>Every slot of this LOD's mesh draws with the thin-wire material, its radius in uv2 (a wire's tube, a pole's far LODs).</summary>
+            public bool thinWire;
         }
 
         [Serializable]
@@ -79,6 +81,40 @@ namespace Fpv450.World
             public float narrowestM;
         }
 
+        /// <summary>
+        /// A named attachment point another generator or the map attaches to (p1-l01-l03-pole-wires): a pole's
+        /// insulator for its wire, at the neck groove on the outward side, with the outward unit direction and the
+        /// largest conductor diameter its seat holds.
+        /// </summary>
+        [Serializable]
+        public sealed class Port
+        {
+            public string id;
+            public Vector3 position;
+            public Vector3 direction;
+            public float maxDiameterM;
+        }
+
+        /// <summary>
+        /// A conductor that is a map object, not a collision shape (p1-l01-l03-pole-wires, D-007): the material slot
+        /// its tube is drawn in, its diameter, mass per metre and sag below the chord at mid-span, its axial stiffness
+        /// EA and rated breaking force (PHY-22's inputs), material <c>cable</c>, its damage state and its sampled centre
+        /// line. No collider stands for it.
+        /// </summary>
+        [Serializable]
+        public sealed class Wire
+        {
+            public string slot;
+            public float diameterM;
+            public float massKgPerM;
+            public float sagM;
+            public float axialStiffnessN;
+            public float breakingForceN;
+            public string material;
+            public string damage;
+            public Vector3[] points;
+        }
+
         [Serializable]
         public sealed class SnagFeature
         {
@@ -102,6 +138,8 @@ namespace Fpv450.World
         public CollisionShape[] collision;
         public Gap[] gaps;
         public WindVolume[] windVolumes;
+        public Port[] ports;
+        public Wire[] wires;
         public SnagFeature[] snag;
 
         /// <summary>The <c>.assetmeta.json</c> this was filled from, for provenance and for readers that want the file.</summary>

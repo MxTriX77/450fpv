@@ -22,12 +22,14 @@
     {
       "mesh": "K01_whole_LOD0",
       "tris": 44,
-      "switch_distance_m": 0.0
+      "switch_distance_m": 0.0,
+      "thin_wire": false
     },
     {
       "mesh": "K01_whole_LOD1",
       "tris": 12,
-      "switch_distance_m": 3.0
+      "switch_distance_m": 3.0,
+      "thin_wire": false
     }
   ],
   "micro": [],
@@ -64,5 +66,7 @@
   ],
   "gaps": [],
   "wind_volumes": [],
+  "ports": [],
+  "wires": [],
   "snag": []
 }

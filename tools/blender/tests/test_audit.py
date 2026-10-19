@@ -135,6 +135,28 @@ def test_cylinder_primitive_follows_a_cylinder_mesh_and_a_longer_capsule_does_no
                for p in problems), problems
 
 
+def test_a_planted_log_buried_below_the_ground_is_no_wall_and_unplanted_it_is(k01_params):
+    """p1-l01-l03-pole-wires: a log standing in the ground is drawn from y = 0 up (an open tube with its top cut);
+    its cylinder runs 0.2 m on below the ground. Planted, the terrain covers that part and the log measures as its
+    tube; unplanted, the buried bottom is an invisible wall 0.2 m off the mesh."""
+    data, _ = k01(k01_params)
+    lod0 = cylinder_mesh(0.12, 1.0)
+    lod0.vertices = [(x, y + 0.5, z) for x, y, z in lod0.vertices]
+    lod0.faces = [f for f in lod0.faces if f[1] != (0.0, -1.0, 0.0)]  # no face under the ground
+    log = round_shape("cylinder", 0.12, 1.2)
+    log["center"] = [0.0, 0.4, 0.0]
+    data["collision"] = [log]
+    problems, lines = audit.run(data, lod0, planted=True)
+    assert problems == [] and lines[0] == "audit: planted, the ground covers every primitive below y = 0"
+    assert measured_mm(lines[1]) < 0.5 and measured_mm(lines[2]) < 0.5, lines
+    print(f"planted: cylinder->mesh {measured_mm(lines[1]):.3f} mm, mesh->cylinder {measured_mm(lines[2]):.3f} mm, "
+          "tolerance 50 mm")
+    problems, _ = audit.run(data, lod0)
+    assert len(problems) == 1 and problems[0].startswith("collision[0] cylinder: cylinder->mesh ")
+    assert measured_mm(problems[0]) == pytest.approx(math.hypot(0.2, 0.12) * 1000, abs=0.5), problems
+    print(f"unplanted: {problems[0]}")
+
+
 @pytest.mark.parametrize("shape, lo, hi", [
     ({"shape": "sphere", "center": [0.0, 0.0, 0.0], "radius": 0.05}, (-0.05, -0.05, -0.05), (0.05, 0.05, 0.05)),
     (round_shape("capsule", 0.05, 1.0), (-0.05, -0.5, -0.05), (0.05, 0.5, 0.05)),

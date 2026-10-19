@@ -31,13 +31,13 @@ namespace Fpv450.Tests.EditMode
   ""schema"": 1, ""id"": ""T00"", ""variant"": ""cylinder_probe"", ""generator"": ""test"",
   ""params_sha256"": ""0"", ""units"": ""m"", ""frame"": ""unity-lh-yup"",
   ""bounds"": { ""min"": [0.0, 0.0, 0.0], ""max"": [0.3, 0.1, 0.2] },
-  ""lods"": [ { ""mesh"": ""xsign_probe"", ""tris"": 12, ""switch_distance_m"": 0.0 } ],
+  ""lods"": [ { ""mesh"": ""xsign_probe"", ""tris"": 12, ""switch_distance_m"": 0.0, ""thin_wire"": false } ],
   ""micro"": [],
   ""cull_distance_m"": 50.0,
   ""materials"": [ { ""slot"": ""probe"", ""visual"": ""brick_red"", ""physics"": ""masonry"" } ],
   ""collision"": [ { ""shape"": ""cylinder"", ""center"": [0.15, 0.05, 0.1], ""radius"": 0.1, ""height"": 0.4,
                    ""rotation"": [0.0, 0.0, 0.7071068, 0.7071068], ""material"": ""masonry"", ""landable"": false } ],
-  ""gaps"": [], ""wind_volumes"": [], ""snag"": []
+  ""gaps"": [], ""wind_volumes"": [], ""ports"": [], ""wires"": [], ""snag"": []
 }
 ";
 

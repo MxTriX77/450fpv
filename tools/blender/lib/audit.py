@@ -11,13 +11,25 @@ Primitives form a union: the part of a primitive's surface that lies inside anot
 surface (a mound sphere's lower half sunk in the ground slab, the slab's top under the mound), so it is not
 measured (a compliant shell's piece, below, hides no other primitive: a stem inside the twig mass is still met);
 nor is a seam where primitives only touch (a cell under SEAM_CELL_M whose corners all lie in other
-primitives), nor a sliver thinner than the metadata's micrometre rounding (COVERED_M). A landable shape with a soft top is landed on over its whole top, so it widens no 2 cm zone: its top is
+primitives), nor a sliver thinner than the metadata's micrometre rounding (COVERED_M). An asset that stands in the
+ground (`planted`, p1-l01-l03-pole-wires) has the terrain as one more such primitive, the half-space below y = 0:
+a pole's capsule cap or a brace's foot buried there is no wall, and its mesh, never drawn below the ground, is not
+asked to follow it. A landable shape with a soft top is landed on over its whole top, so it widens no 2 cm zone: its top is
 held to the 5 cm tolerance everywhere, and the lines name those shapes. Soft means a reference foot (25 N on 15 mm)
 sinks at least 25 mm into it (p1-s04-belt-straw, review-physics §2 and PR6): the surfaces of SOFT_SURFACES, or a
 plain id of assets-src/physics_materials.json with stiffness_n_per_m of SOFT_STIFFNESS_N_PER_M or less
 (soft_materials). On hard ground a 5 cm float would show, so every other landable top keeps the 2 cm zone.
 Visual-only micro meshes (meta["micro"]) are not part of the LOD0 mesh the audit sees; the lines name each one
 skipped.
+
+Wires (p1-l01-l03-pole-wires, "Wires are audited against their polyline"): a conductor that is a map object
+(meta["wires"]) has no primitive; the LOD0 faces of the slots its records name are its tubes and are left out of the
+primitive audit. Every vertex of those slots belongs to the wire of its slot whose envelope (the point list grown by
+the wire's radius) it lies nearest, and lies at most min(WIRE_TOLERANCE_M, half the wire's diameter) outside it, so a
+drawn thin wire always overlaps its physical one (task 1.5's reading §3); the farthest of them reaches the record's
+radius within the same tolerance, so no record is wider than the tube drawn for it, an invisible wall round a wire
+(the reading's N-5, review S1). The lines print each wire's largest deviation, how far its tube reaches and the
+tolerance, and a wire no vertex belongs to has no tube and fails.
 
 Both distances are found by branch and bound over triangles: a cell's three vertices give exact values, a lower
 bound; an upper bound comes from convexity; the cell with the largest upper bound is split in four until no cell
@@ -64,6 +76,7 @@ NEAR_RANGE_M = 0.3
 PRECISION_M = 0.0001        # the search stops when no cell can beat the best by this; with CHORD_M, under 1 mm
 CHORD_M = 0.0004            # tessellation error allowed on spheres, capsules and cylinders
 NARROWEST_TOLERANCE_M = 0.005
+WIRE_TOLERANCE_M = 0.005    # the wire rule: a tube vertex within 5 mm (or D/2 if less) plus the radius of its points
 LANDABLE_COS = math.cos(math.radians(30))
 UP = (0.0, 1.0, 0.0)
 FAR_M = 1000.0              # a cylinder's axis as a segment long enough to act as a line
@@ -92,21 +105,27 @@ def soft_materials(root):
                                        and row["stiffness_n_per_m"] <= SOFT_STIFFNESS_N_PER_M}
 
 
-def run(meta, lod0, *, soft=frozenset(), card_visuals=()):
+def run(meta, lod0, *, soft=frozenset(), card_visuals=(), planted=False):
     """(problems, report lines) of one variant: `meta` as lib.meta.assemble builds it, `lod0` its first
     lib.geometry.Mesh, `soft` the material ids with soft tops (soft_materials; none by default, so every landable
     top keeps the 2 cm zone), `card_visuals` the visual materials drawn as alpha-clipped cards
-    (lib.catalog.card_visuals). Both are keywords: each is a set of names, easily swapped. Problems name the
-    primitive or slot, the deviation and the tolerance; the lines carry the measured numbers for every primitive, the
-    mesh, every shell piece and slot and every gap, success or not."""
+    (lib.catalog.card_visuals). Both are keywords: each is a set of names, easily swapped. `planted` says the asset
+    stands in the ground (its generator's PLANTED): the terrain then covers the half-space below y = 0 as another
+    primitive would, so a primitive's surface there (a log's capsule cap, a brace's buried foot) is no invisible
+    wall (p1-l01-l03-pole-wires). Problems name the primitive or slot, the deviation and the tolerance; the lines
+    carry the measured numbers for every primitive, the mesh, every shell piece and slot and every gap, success or
+    not."""
     shapes = [_Shape(s) for s in meta["collision"]]
     shell_slots = {m["slot"] for m in meta["materials"] if m["physics"] in SHELL_MATERIALS}
+    wire_slots = {w["slot"] for w in meta.get("wires", [])}
     shells = [i for i, s in enumerate(meta["collision"]) if s["material"] in SHELL_MATERIALS]
     body = [i for i in range(len(shapes)) if i not in shells]
-    faces = [face for face in _mesh_faces(lod0) if face.slot not in shell_slots]
+    faces = [face for face in _mesh_faces(lod0) if face.slot not in shell_slots | wire_slots]
     index = _FaceIndex(faces)
     zone = _zone(meta, shapes, soft)
     problems, lines = [], []
+    if planted:
+        lines.append("audit: planted, the ground covers every primitive below y = 0")
     for m in meta.get("micro", []):
         lines.append(f"audit: skipped micro mesh {m['name']} ({m['count']} {m['kind']})")
     soft_tops = [(i, s["material"]) for i, s in enumerate(meta["collision"]) if s["landable"] and s["material"] in soft]
@@ -116,10 +135,16 @@ def run(meta, lod0, *, soft=frozenset(), card_visuals=()):
     for i in body:
         shape = shapes[i]
         if not faces:
-            problems.append(f"collision[{i}] {shape.kind}: no LOD0 face outside the shells' slots stands under it")
+            problems.append(f"collision[{i}] {shape.kind}: no LOD0 face outside the shells' and wires' slots stands "
+                            "under it")
             continue
         others = [shapes[j] for j in body if j != i]
         cells = [tri[:3] for tri in shape.triangles]
+        if planted:
+            cells = _above_ground(cells)
+            if not cells:
+                lines.append(f"audit collision[{i}] {shape.kind}: wholly below the ground, covered")
+                continue
 
         def value(v, others=others):
             d, which = index.nearest(v)
@@ -137,6 +162,7 @@ def run(meta, lod0, *, soft=frozenset(), card_visuals=()):
                             lambda v: _nearest_shape(v, shapes, body), lambda cell, which: _shapes_bound(cell, which, shapes),
                             lambda which: f" nearest collision[{which}]")
     problems += _audit_shells(lines, meta, shapes, shells, lod0, set(card_visuals))
+    problems += _audit_wires(lines, meta.get("wires", []), lod0)
     for i, gap in enumerate(meta["gaps"]):
         diameter = 2 * _inscribed_radius(_flatten_polygon(gap["polygon"], gap["normal"]))
         text = f"gaps[{i}] '{gap['id']}': narrowest_m {gap['narrowest_m']:.4f}, largest inscribed circle {diameter:.4f}"
@@ -229,6 +255,44 @@ def _audit_shells(lines, meta, shapes, shells, lod0, card_visuals):
                 problems.append(f"{label}: {text} exceeds the {word} {limit * 1000:g} mm")
             lines.append(f"audit {label}: {text} over {len(vertices)} vertices, {word} {limit * 1000:g} mm")
     return problems
+
+
+def _audit_wires(lines, wires, lod0):
+    """The wire rule (module docstring): per wire, the largest distance of its tube's vertices outside its envelope
+    (its farthest vertex, which must also reach the record's radius), every vertex of a wire's slot given to the wire
+    of that slot it lies nearest outside of, and the problems."""
+    problems = []
+    worst = [[-math.inf, None, 0] for _ in wires]  # per wire: the largest distance less the radius, where, vertices
+    for slot in sorted({w["slot"] for w in wires}):
+        members = [i for i, w in enumerate(wires) if w["slot"] == slot]
+        vertices = sorted({lod0.vertices[k] for indices, _, _, s in lod0.faces if s == slot for k in indices})
+        for v in vertices:
+            outside, i = min((_polyline_distance(v, wires[j]["points"]) - wires[j]["diameter_m"] / 2, j) for j in members)
+            entry = worst[i]
+            entry[2] += 1
+            if outside > entry[0]:
+                entry[0], entry[1] = outside, v
+    for i, (wire, (outside, at, count)) in enumerate(zip(wires, worst)):
+        label = f"wires[{i}] {wire['diameter_m'] * 1000:g} mm (slot {wire['slot']})"
+        if at is None:
+            problems.append(f"{label}: no LOD0 vertex of its slot lies nearest to it, so it has no tube")
+            lines.append(f"audit {label}: no tube")
+            continue
+        tolerance = min(WIRE_TOLERANCE_M, wire["diameter_m"] / 2)
+        radius = wire["diameter_m"] / 2
+        text = f"largest deviation {max(0.0, outside) * 1000:.3f} mm at {_fmt(at)} over {count} vertices"
+        if outside > tolerance:
+            problems.append(f"{label}: {text} exceeds the tolerance {tolerance * 1000:g} mm")
+        reach = f"its tube reaches {(radius + outside) * 1000:.3f} mm of the record's {radius * 1000:g} mm radius"
+        if -outside > tolerance:
+            problems.append(f"{label}: {reach}, {-outside * 1000:.3f} mm short, more than the tolerance "
+                            f"{tolerance * 1000:g} mm: the record is wider than the wire drawn")
+        lines.append(f"audit {label}: {text}, {reach}, tolerance {tolerance * 1000:g} mm")
+    return problems
+
+
+def _polyline_distance(p, points):
+    return min(_segment_distance(p, a, b) for a, b in zip(points, points[1:]))
 
 
 def _standoff(shapes, i, others, index):
@@ -595,6 +659,19 @@ def _faces_bound(cell, which, faces):
             side_a, side_b = _clip(cell, shared[0], w)
             upper = min(upper, max([_face_distance(v, a) for v in side_a] + [_face_distance(v, b) for v in side_b]))
     return upper
+
+
+def _above_ground(cells):
+    """The parts of the cells at y >= 0, fanned into triangles (slivers of no area dropped): for a planted asset the
+    terrain covers the rest, and clipping first keeps the search from refining along the ground line."""
+    out = []
+    for cell in cells:
+        part, _ = _clip(cell, (0.0, 0.0, 0.0), UP)
+        for k in range(1, len(part) - 1):
+            tri = (part[0], part[k], part[k + 1])
+            if _dot(*(2 * [_cross(_sub(tri[1], tri[0]), _sub(tri[2], tri[0]))])) > 1e-24:
+                out.append(tri)
+    return out
 
 
 def _clip(cell, origin, normal):

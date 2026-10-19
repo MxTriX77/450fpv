@@ -22,17 +22,20 @@
     {
       "mesh": "V13_mid_LOD0",
       "tris": 8380,
-      "switch_distance_m": 0.0
+      "switch_distance_m": 0.0,
+      "thin_wire": false
     },
     {
       "mesh": "V13_mid_LOD1",
       "tris": 3558,
-      "switch_distance_m": 7.5
+      "switch_distance_m": 7.5,
+      "thin_wire": false
     },
     {
       "mesh": "V13_mid_LOD2",
       "tris": 6,
-      "switch_distance_m": 93.5
+      "switch_distance_m": 93.5,
+      "thin_wire": false
     }
   ],
   "micro": [],
@@ -1105,6 +1108,8 @@
       "porosity": 0.35
     }
   ],
+  "ports": [],
+  "wires": [],
   "snag": [
     {
       "kind": "edge",

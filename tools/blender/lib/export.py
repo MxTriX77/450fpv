@@ -25,7 +25,10 @@ def reset_scene():
 
 def add_lod(name, mesh):
     """One mesh object `name` from a lib.geometry.Mesh: vertices in Blender's frame, every face wound
-    counter-clockwise about its outward normal, a UV map in metres, and one material per slot named by the slot."""
+    counter-clockwise about its outward normal, a UV map in metres, and one material per slot named by the slot. When
+    the mesh's vertices carry them (p1-l01-l03-pole-wires): a second UV map of their second UVs ((0, 0) elsewhere),
+    which Unity reads as uv2, and their normals as custom normals on the faces whose every vertex has one, those faces
+    smooth-shaded; every other face keeps its flat normal. A mesh without either exports as before."""
     verts = [frame.unity_to_blender(v) for v in mesh.vertices]
     loops, uvs, slots = [], [], mesh.slots()
     for indices, outward, face_uvs, _ in mesh.faces:
@@ -44,6 +47,21 @@ def add_lod(name, mesh):
         poly.material_index = slots.index(slot)
         for loop_index, uv in zip(poly.loop_indices, face_uvs):
             layer.data[loop_index].uv = uv
+    if mesh.uv2:
+        second = me.uv_layers.new(name="UVMap2")
+        for loop in me.loops:
+            second.data[loop.index].uv = mesh.uv2.get(loop.vertex_index, (0.0, 0.0))
+    if mesh.normals:
+        normals = {i: frame.unity_to_blender(n) for i, n in mesh.normals.items()}
+        smooth = [all(v in normals for v in poly.vertices) for poly in me.polygons]
+        for poly, flag in zip(me.polygons, smooth):
+            poly.use_smooth = flag
+        corner = [(0.0, 0.0, 0.0)] * len(me.loops)  # zero: keep the face's own normal
+        for poly, flag in zip(me.polygons, smooth):
+            if flag:
+                for loop_index in poly.loop_indices:
+                    corner[loop_index] = normals[me.loops[loop_index].vertex_index]
+        me.normals_split_custom_set(corner)
     obj = bpy.data.objects.new(name, me)
     bpy.context.scene.collection.objects.link(obj)
     return obj
