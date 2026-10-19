@@ -556,7 +556,7 @@ These are the parts to include, each tied to its reference. This is a content li
 | Item | Value | Label |
 |---|---|---|
 | Attitude | The horizon rides the top edge of the frame through the whole clip (rows 0–4 % of the height at the centre column, S 1–50), bent down at the sides by the lens. The frame centre looks about **30° below the horizon**; with the 0° camera uptilt the pilot flies, that is a steady nose-down cruise of about 30° | derived (S 1–50, horizon row against FEED-02) |
-| Height | **11–14 m, about 12.5 m**, from S 7 to S 50 | derived: the street poles' feet and tops put the camera at 1.6–2.0 × the pole's 7.0–7.5 m above ground (S 22, 46, 47, 49); the two-storey building's base and roof edge put it at 1.8 × its 6.5–7.5 m (S 40) |
+| Height | **11–14 m, about 12.5 m**, from S 7 to S 50. The two kinds of read disagree a little: the street pole read twice, at S 46 and S 47, gives 13–14.5 m, the building 12–13 m. 12.5 m stays the default; if the poles are right, every derived length in 12.3 runs 5–15 % longer, and the S 47 side-by-side settles it | derived: the street poles' feet and tops put the camera at 1.6–2.0 × the pole's 7.0–7.5 m above ground (S 22, 46, 47, 49); the two-storey building's base and roof edge put it at 1.8 × its 6.5–7.5 m (S 40) |
 | Start | Low over a mown strip, single grass stems resolving across the lower half (S 1–3), climbing to cruise height by S 7 | measured (S 1–7), height not derivable |
 | Ground speed | **10–12 m/s** along the street | derived: one pole foot closes 5–6 m per 0.5 s at 12.5 m (S 45–48) |
 | Path length | about 250–300 m | derived (speed × 25 s) |
