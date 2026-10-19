@@ -17,7 +17,18 @@ Branch `unity/art/p1-l01-l03-pole-wires` off `unity/main` once `p1-s04-belt-stra
 - [x] 1.4 [tech-artist] The thin-wire material (design 8): `Shaders/ThinWire.shader` and its material, assigned by the importer to wire renderers, with an EditMode test that the material and keyword exist and a capture of `L03_thin` at 10 / 50 / 200 m; verify the three tiles show one continuous fading line with no broken segments (attach the tiles), and that K01's capture is unchanged
   **As built:** `Fpv450/ThinWire` reads URP/Lit's surface (base map × tint, the packed mask) in one alpha-blended forward pass, no shadow caster, no depth write. With `_THIN_WIRE_COVERAGE` the vertex stage widens the tube about its centre line to (r + 1 px) / cos 45°, and each pixel takes the round conductor's coverage under a tent one pixel in radius, so a column's coverage sums to the true width in pixels wherever the line falls: the wire fades as D / d with no gap, no crawl and no minimum width, its normal the round conductor's (not "widen to one pixel, alpha = width", which keeps a line whose weight jumps between one and two pixels per column at the project's MSAA 1). The mesh carries the radius in uv2 with radial normals; `CatalogImporter.EnsureThinWireMaterial` builds `<recipe>_thin_wire.mat` beside the recipe's URP/Lit material for 1.2's wire renderers. Checked on an uncommitted 3 / 8 / 32 mm catenary at 10 / 50 / 200 m: no gap column, column sums within 9 % along the wire and 4 % over sub-pixel shifts (coverage off: up to 712 gap columns); K01's sheets byte-identical. The `L03_thin` capture is repeated in 1.3.
 
-- [ ] 1.5 [physics-engineer] Read the pipeline contracts this change adds (after 1.2): `ports`, the `wires` record and its audit, the brace gap as the real clear space (1.611 m), and the `planted` rule (a primitive's surface below y = 0 not audited on a planted asset); rule each with a number and its label in `openspec/changes/p1-l01-l03-pole-wires/review-physics.md`, and say what the phase-3 compiler and the phase-7 wire model need from the records; verify by reading, no build
+- [x] 1.5 [physics-engineer] Read the pipeline contracts this change adds (after 1.2): `ports`, the `wires` record and its audit, the brace gap as the real clear space (1.611 m), and the `planted` rule (a primitive's surface below y = 0 not audited on a planted asset); rule each with a number and its label in `openspec/changes/p1-l01-l03-pole-wires/review-physics.md`, and say what the phase-3 compiler and the phase-7 wire model need from the records; verify by reading, no build
+  **Read:**
+  - The contracts are sound; 1.611 m and `planted` are confirmed.
+  - Eight items are sent back (review-physics §8):
+    - the `wires` record gains EA and the breaking force (a cruise strike can break a rigidly held span)
+    - wire snags gain `edge_radius_m` (strand or core)
+    - ports gain `max_diameter_m`
+    - `L03_thick` 0.244 kg/m
+    - the gap id in heights above the ground (2.91 / 3.20 m)
+    - hook, band and insulator record radii and places
+    - the wire tolerance min(5 mm, D/2)
+  - The phase-3 compiler's and phase-7 model's needs are in §1, §5, §7 and §9.
 ## 2. Review
 
 - [ ] 2.1 [qa-engineer] review against spec scenarios: the seven L01 and L03 scenarios and the pipeline delta, the audit lines (capsules within 10 mm, the gap circle, the wire polyline), the comparison sheet against L, J and D read by eye (REAL-03), the geometry audit (REAL-05: wires are tubes, hooks and insulators are geometry), budgets (AST-08), `fetch.py --verify`, hygiene (D-003 pins, nothing from `reference/`, subject-only commits)
