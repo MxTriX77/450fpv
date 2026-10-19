@@ -23,6 +23,14 @@ Branch `unity/ref/p1-letter-s-village-street` off `unity/main`. Tier: Standard (
   - **New objects** with no row are listed in `implications.md`; they need asset-list IDs first.
   - **Implications:** `implications.md`, per asset.
 
+- [ ] 1.2 [reference-analyst] QA's R1–R4 and S1–S6, S8 (`review.md`):
+  - R1: S's whole sequence and path (§12.6, `implications.md`) out of the world's instructions; keep the cross-section, classes, states and look, recreate its views as scene types, and leave the square and the building footprint to be invented (REAL-04)
+  - R2: S03 `crater_spoil` cites S (spoil discs, S 29–37) with its shallow-spoil feed value
+  - R3: L01's 0.5–1.5 m placement rule against S's 3–5 m stated in the sheet, the merged L01 left as built and the difference routed in `implications.md`
+  - R4: poles on both sides where S 33 and S 42 show them
+  - the suggestions S1–S6 and S8 (S7, the requirement rows, is the orchestrator's)
+  Verify the hygiene scan and `openspec validate p1-letter-s-village-street --strict`
+
 ## 2. Review
 
 - [ ] 2.1 [qa-engineer] Review against the delta's scenarios:
