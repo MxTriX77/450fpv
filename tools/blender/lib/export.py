@@ -25,15 +25,18 @@ def reset_scene():
 
 def add_lod(name, mesh):
     """One mesh object `name` from a lib.geometry.Mesh: vertices in Blender's frame, every face wound
-    counter-clockwise about its outward normal, a UV map in metres, one material per slot named by the slot, and the
-    faces of the mesh's `smooth` slots shaded smooth."""
+    counter-clockwise about its outward normal, a UV map in metres, one material per slot named by the slot, the
+    faces of the mesh's `smooth` slots shaded smooth, and the corners of faces with normals of their own given them
+    as custom split normals (zero, Blender's own, elsewhere)."""
     verts = [frame.unity_to_blender(v) for v in mesh.vertices]
-    loops, uvs, slots = [], [], mesh.slots()
-    for indices, outward, face_uvs, _ in mesh.faces:
+    loops, uvs, normals, slots = [], [], [], mesh.slots()
+    for f, (indices, outward, face_uvs, _) in enumerate(mesh.faces):
+        corner_normals = [frame.unity_to_blender(n) for n in mesh.normals.get(f, [(0.0, 0.0, 0.0)] * len(indices))]
         if _dot(_newell(verts, indices), frame.unity_to_blender(outward)) < 0:
-            indices, face_uvs = indices[::-1], face_uvs[::-1]
+            indices, face_uvs, corner_normals = indices[::-1], face_uvs[::-1], corner_normals[::-1]
         loops.append(indices)
         uvs.append(face_uvs)
+        normals += corner_normals
     me = bpy.data.meshes.new(name)
     me.from_pydata(verts, [], loops)
     if me.validate(verbose=True):
@@ -42,6 +45,8 @@ def add_lod(name, mesh):
         me.materials.append(bpy.data.materials.get(slot) or bpy.data.materials.new(slot))
     if mesh.smooth:  # a mesh with none stays exactly as before
         me.polygons.foreach_set("use_smooth", [slot in mesh.smooth for _, _, _, slot in mesh.faces])
+    if mesh.normals:  # likewise
+        me.normals_split_custom_set(normals)
     layer = me.uv_layers.new(name="UVMap")
     for poly, face_uvs, (_, _, _, slot) in zip(me.polygons, uvs, mesh.faces):
         poly.material_index = slots.index(slot)
