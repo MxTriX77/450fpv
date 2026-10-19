@@ -786,7 +786,7 @@ Preset: `base_sets` dry_ground_01 + mud_cracked_dry_03; `albedo_target` #9a7d5a;
 
 ## S03 crater_spoil
 
-**Seen in:** B (1–6: pale lumpy spoil of the bank; 4–12: crater rims and bowls), F (16: the spoil mound beside the pit).
+**Seen in:** B (1–6: pale lumpy spoil of the bank; 4–12: crater rims and bowls), F (16: the spoil mound beside the pit). S 29–37: dark spoil discs 3.5–6.5 m across (derived, S 36) around small fresh craters on a village green, damp, no regrowth (E05).
 **Research sources:** the soil-profile and repose rows.
 
 ### Dimensions
@@ -804,7 +804,7 @@ Preset: `base_sets` dry_ground_01 + mud_cracked_dry_03; `albedo_target` #9a7d5a;
 | Surface | Photo albedo (sRGB) | Feed check value (sRGB) | Source |
 |---|---|---|---|
 | deep spoil, pale mix | #a88f70 (10YR 6/4, derived) | #bc853d sunlit, #9b6f39 shaded (B 1) | measured on B |
-| shallow spoil, dark | #514535 (10YR 3/2, derived); carried #6e5a44 | — | derived |
+| shallow spoil, dark | #514535 (10YR 3/2, derived); carried #6e5a44 | #5b4f5c (S 36, damp, on grass) | derived; measured on S |
 | belt-floor spoil | #8a7660 (10YR 5/3, derived) | #927e61 (F 16) | measured on F |
 | weathered crater floor | as S02 | #b87728 (B 12) | measured on B |
 
