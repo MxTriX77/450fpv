@@ -111,8 +111,19 @@ def test_layout_puts_each_view_in_its_cell_and_scales_the_uvs():
             assert x0 + pad - 1e-9 <= x <= x0 + cell_w - pad + 1e-9
             assert y0 + pad - 1e-9 <= y <= y0 + cell_h - pad + 1e-9
     assert len(faces) == impostor.VIEWS * len(mesh.faces) and set(slots) == {"wood"}
-    first = mesh.faces[0][2]
-    assert uvs[0] == pytest.approx([(u / 2.0, v / 0.5) for u, v in first])
+    # view 0: every face wound counter-clockwise about its outward normal in the atlas plane, as the FBX is, so a
+    # normal map tilts as in Unity (task 1.2i), each corner keeping its UV
+    for (indices, outward, face_uvs, _), laid, laid_uvs in zip(mesh.faces, faces, uvs):
+        assert sorted(laid) == sorted(indices)
+        normal = [0.0, 0.0, 0.0]
+        for i, j in zip(laid, laid[1:] + laid[:1]):
+            a, b = vertices[i], vertices[j]
+            normal = [normal[0] + (a[1] - b[1]) * (a[2] + b[2]), normal[1] + (a[2] - b[2]) * (a[0] + b[0]),
+                      normal[2] + (a[0] - b[0]) * (a[1] + b[1])]
+        out = [sum(a * b for a, b in zip(outward, axis)) for axis in impostor.basis(0)]
+        assert sum(a * b for a, b in zip(normal, out)) > 0
+        corner = dict(zip(indices, face_uvs))
+        assert laid_uvs == pytest.approx([(corner[i][0] / 2.0, corner[i][1] / 0.5) for i in laid])
 
 
 def test_inputs_hash_follows_the_mesh_the_recipe_and_the_map(tmp_path):
@@ -124,6 +135,11 @@ def test_inputs_hash_follows_the_mesh_the_recipe_and_the_map(tmp_path):
               "card": impostor.frame(mesh)}
     first = impostor.inputs_sha256(mesh, record, materials)
     assert impostor.inputs_sha256(copy.deepcopy(mesh), copy.deepcopy(record), copy.deepcopy(materials)) == first
+    normal_map = tmp_path / "normal.png"
+    normal_map.write_bytes(b"flat")
+    mapped = copy.deepcopy(materials)
+    mapped["wood"]["normal"] = str(normal_map)  # the normal render reads it (task 1.2i)
+    assert impostor.inputs_sha256(mesh, record, mapped) != first
     moved = copy.deepcopy(mesh)
     moved.vertices[0] = (0.0, 0.0, 0.001)
     assert impostor.inputs_sha256(moved, record, materials) != first
@@ -148,6 +164,10 @@ def test_slot_materials_pick_the_importers_base_maps(repo_root):
     assert got["leaf"]["cutoff"] == 0.5 and got["bark"]["cutoff"] is None
     assert got["bark"]["mask"].replace("\\", "/").endswith("Art/Materials/bark_locust_mask.png")  # its occlusion
     assert got["pod"]["mask"] is None  # no mask: URP/Lit's occlusion is 1
+    normals = {slot: m["normal"] and m["normal"].replace("\\", "/").rsplit("/", 1)[-1] for slot, m in got.items()}
+    assert normals == {"bark": "bark_brown_01_nor_gl_2k.png", "leaf": "LeafSet002_2K-PNG_NormalGL.png",
+                       "pod": None,  # painted: the importer gives it no normal map
+                       "stem": "bark_brown_02_nor_gl_1k.png"}
     assert got["bark"]["tint"] == pytest.approx([impostor.gamma_to_linear(0.845), impostor.gamma_to_linear(0.928),
                                                  1.252 ** 2.2])
     assert got["bark"]["tile_m"] == [1.0, 1.0]
