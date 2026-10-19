@@ -8,7 +8,7 @@
 
 ## How this sheet was made
 
-- **Letters read:** F, H, G, D, C, A, L, through contact sheets only (F 24 stills at 2/s, H 24 at 1/s, G 15 at 4/s, D 20 at 2/s, C 18 at 2/s, A 16 at 1/s, L 14 at 2/s), plus four single stills (F 14, H 9, C 2, D 4) for colour sampling. Letters B, E and J are cited where the asset list cites them, from `docs/reference-notes/terrain.md`, not re-read here.
+- **Letters read:** F, H, G, D, C, A, L, through contact sheets only (F 24 stills at 2/s, H 24 at 1/s, G 15 at 4/s, D 20 at 2/s, C 18 at 2/s, A 16 at 1/s, L 14 at 2/s), plus four single stills (F 14, H 9, C 2, D 4) for colour sampling. Letters B, E and J are cited where the asset list cites them, from `docs/reference-notes/terrain.md`, not re-read here. S (50 stills at 2/s, added by `p1-letter-s-village-street`, D-038) through its three contact sheets and single stills, seen from about 12 m up; its full reading is terrain.md §12, its sizes derived from the scene through the pinned feed intrinsics, never from the display. Species are read from the look only: none can be told apart at the feed's resolution.
 - **Reused, not re-measured:** terrain.md §1 (T4, T5, T7 surfaces), §2 (V1–V4), §7 (micro-detail) and §8 (surface ids); knowledge.md §9.2 and §14.4; `pilot-requirements.md` PR-10. Where this sheet gives a number that terrain.md already gives, terrain.md is the source.
 - **Scale cues:** trunks and shrubs against the door leaf (0.8 × 1.9 m) and brick courses (65 mm) of the cellar head in C, the pole (0.20–0.25 m, 7–9 m) in H and L, the trench width (0.6–1.0 m, terrain.md W2) in G, and the drone's own prop line (0.574 m) in the lower corners of every still.
 - **Labels:** every number is **measured** (from a letter, with still numbers), **published** (with its source), **derived** (with the derivation) or **assumed**.
@@ -27,6 +27,7 @@ Viewpoint heights are estimated from the scene (trunk, shrub and pole heights in
 | C | a village yard: an old fruit tree, a brick-and-plank cellar head, sheds, leaf litter | 1.5–3 m, slow, into the cellar | forward, 0° tilt, the fruit tree at the left edge, the cellar head centre-right | bright sun from the left-behind, hard shadows | midday to afternoon | clear, autumn (sparse yellow leaves, litter) |
 | A | open rolling meadow with belts on the horizon, then a long descent to the grass | 30–60 m descending to 1 m | forward-down over the meadow; belts as thin bands at the top of frame | overcast, flat, aerial haze | daytime | overcast, dry |
 | L | night over open fields: a pole, a lone tree, bushes and a belt line as silhouettes | 2–5 m | forward, 0° tilt, the horizon mid-frame, the sky brighter than the ground | none (feed in black and white) | night | overcast |
+| S | a village from the air: a fallow of tall pale-headed grass and rust-brown seed stands, back gardens, a green with lone shrubs, dead trees on a square, front gardens thick with shrubs and yard trees | about 12.5 m (11–14 m), 10–12 m/s; low over a mown strip at the start (S 1–3) (derived, terrain.md §12.2) | 0° uptilt on a drone pitched about 30° down: the horizon on the top edge, ground 95 % of the frame; S 10: the fallow filling the frame, the village edge along the top; S 40–42: dead pale trees on the square; S 47: front-garden crowns in the right half | bright high overcast, no shadows | daytime | damp after rain; autumn (green regrowth, bleached grass heads, first yellow leaves) |
 
 The side-by-side sheets for these views (REAL-03) are made in `reference/_compare/` once the first vegetation assets exist; nothing exists to compare yet.
 
@@ -182,10 +183,17 @@ No set is in `tools/assets/manifest.json` yet for this group (the manifest holds
 | belt as a band at 150–300 m (K§14.4) | — | dark band; backlit haze #7f7d74 (D 4) | K§14.4, measured on D |
 | belt band at about 1 km, overcast | — | #9c9b87–#a2a292 against the field #9b997a (A 1–2, horizon rows) | measured on A: at that range the belt is a shape, 5–10 % darker than the field, not a dark band |
 | lone tree and bushes at night | — | silhouette #444543 against sky #595a58, ground #171717 (L 1) | measured on L |
+| fallow: pale grass heads, overcast (S's feed is cool: neutrals go lilac, greens saturate) | #a69c84 (assumed) | #8d8e8a (S 10), #7a8173 (S 8) | measured on S |
+| fallow: rust-brown seed stands (dock-like) | #7a4e33 (assumed) | #8f7363 (S 12); mixed with grass #77695e (S 14) | measured on S |
+| short grass, village green and verges, damp | #4e6a2c (assumed) | picks of pure grass #5f8d4c (S 36), #6d864d (S 24), #638648 (S 50); whole-patch means with dry stems and litter #648b55–#708657, down to #617c4e (S 24, 36): the check is the patch mean, not the pick | measured on S |
+| yellow-topped verge weeds (goldenrod-like), autumn | #8a8a3a (assumed) | #6b7842 (S 46) | measured on S |
+| weed fringe at a fence, rust-brown | #6a5236 (assumed) | #68562d (S 47) | measured on S |
+| yard tree crown in leaf, overcast | #4a5a2a (assumed) | #506425 (S 48) | measured on S |
+| dead tree, bark-stripped, pale | #a8a499 (assumed) | #9ab0b7 (S 43), #98a6a0 (S 42) | measured on S |
 
 ## V01 Belt tree: black locust (робінія / "акація")
 
-**Seen in:** F (stills 1–17, the corridor and the pit), H (1–21, the belt wall behind the bushes), G (1–13, the openwork strip). Also B, D and A, L as the horizon band.
+**Seen in:** F (stills 1–17, the corridor and the pit), H (1–21, the belt wall behind the bushes), G (1–13, the openwork strip). Also B, D and A, L as the horizon band. S 43–47: tall village trees with a bare trunk to about 4–6 m (measured, rough) and a compact, tufted crown beside the houses fit the class as single street and yard trees (species not readable); S has no belt inside the village, only belt bands at the horizon.
 **Research sources:** https://en.wikipedia.org/wiki/Robinia_pseudoacacia (size, bark, leaves, pods, suckers). The belt structure under Placement rules (rows, spacing, construction classes) is assumed from common shelterbelt practice: no generic source with these figures was found.
 
 ### Dimensions
@@ -555,7 +563,7 @@ Over the dead-wood generator: `break_height_m` 2–6 (default 4), `splinter_len_
 
 ## V08 Dead tree, bare and leaning
 
-**Seen in:** D (1–12: a bare dead trunk in the weeds, leaning, a thin fan of limbs at the top), G (1–13: leafless thin trees in the strip), H (9–10: a dead sapling with dry leaves). Also B, I, J (terrain.md V2).
+**Seen in:** D (1–12: a bare dead trunk in the weeds, leaning, a thin fan of limbs at the top), G (1–13: leafless thin trees in the strip), H (9–10: a dead sapling with dry leaves). Also B, I, J (terrain.md V2). S 40–43: upright dead trees on a village square, bark stripped so trunk and limbs read pale against the grass, 5.7–7.5 m, about 6.5 m (derived: one tree's foot and top in S 41 and S 43, ratio 2.1–2.2, at the 11–14 m camera height; S 42 isn't used, its foot is in shrubs and a pale line behind runs on above its top), a few stout limbs forking from about 1.5–2.5 m (measured, rough), no twigs left.
 **Research sources:** elm lifespan (https://en.wikipedia.org/wiki/Ulmus_pumila: rarely over 60 years); the locust heart-rot note (https://en.wikipedia.org/wiki/Robinia_pseudoacacia).
 
 ### Dimensions
@@ -657,7 +665,7 @@ Over the dead-wood generator: `break_height_m` 1–4 / 0.3–1.5, `split_depth_m
 
 ## V10 Yard fruit tree: apple
 
-**Seen in:** C (1–6: an old tree at the left edge, and the row behind it), J (per the asset list: a bare yard tree; not re-read here).
+**Seen in:** C (1–6: an old tree at the left edge, and the row behind it), J (per the asset list: a bare yard tree; not re-read here). S 45–50: rounded yard and front-garden crowns in leaf, one to three per plot, about 5–7 m (derived, rough: S 48, crown top against its visible foot), overlapping the fences and the verge (species not readable; V10–V12 by placement).
 **Research sources:** https://en.wikipedia.org/wiki/Malus_domestica (standard trees 2–10 m, to 15 m wild; dark grey or grey-brown trunk, smooth reddish young branches; fruit 2.5–12 cm).
 
 ### Dimensions
@@ -757,7 +765,7 @@ Cherry preset: `height_m` 4, `dbh_m` 0.18, `first_fork_m` 1.2, `main_limbs` 4, `
 
 ## V12 Walnut (large yard tree)
 
-**Seen in:** **R**.
+**Seen in:** **R**. S 47–50: the largest rounded crown beside a house (S 48–50) fits the class; the species is not readable.
 **Research sources:** https://en.wikipedia.org/wiki/Juglans_regia (10–25 m, trunk to 2 m, smooth olive-brown bark young, silvery-grey with broad fissures old, broad crown on a short trunk, leaves 20–45 cm with 5–9 leaflets 10–20 cm, slow-growing, over 200 years).
 
 ### Dimensions
@@ -807,7 +815,7 @@ Preset: `height_m` 12, `dbh_m` 0.55, `first_fork_m` 2, `main_limbs` 4, `orders` 
 
 ## V13 Belt understory shrub
 
-**Seen in:** H (1–21: the continuous bush layer 1.5–3 m in front of and under the trees, thicker at the edge), F (1–12: green shrubs 1–2 m in the mid-ground under the canopy), G (1–15: shrubs 1–2 m beside the trench, the last stills inside one). PR-10.
+**Seen in:** H (1–21: the continuous bush layer 1.5–3 m in front of and under the trees, thicker at the edge), F (1–12: green shrubs 1–2 m in the mid-ground under the canopy), G (1–15: shrubs 1–2 m beside the trench, the last stills inside one). PR-10. S 25–27, 38–41: the same kind of shrub standing alone on a village green, rounded clumps about 2–3 m across, one turning yellow (S 25–26), a free-standing shrub or young tree every 15–25 m (measured, rough, S 24–40).
 **Research sources:** https://en.wikipedia.org/wiki/Lonicera_tatarica (Tatar honeysuckle to about 3 m, leaves 3–6 cm, forms thickets and a dense understory, orange or red berries); https://en.wikipedia.org/wiki/Caragana_arborescens (peashrub 2–6 m, a standard shelterbelt shrub, pods twist open); https://en.wikipedia.org/wiki/Elaeagnus_angustifolia (silverberry to 11 m, thorns 2–7 cm, silvery leaves). The shrub-layer mix (honeysuckle, caragana, silverberry, box elder) and its role (planted to help the main trees and shade out weeds) are assumed from common practice.
 
 ### Dimensions
@@ -860,7 +868,7 @@ Over the shrub generator: `height_m` 1.2/2/3, `width_m` 1.5/2.2/2.5, `stems` 5�
 
 ## V14 Elder / lilac clump
 
-**Seen in:** **R**; the dense green clumps 2–3 m at the yard edges in D (1–12) fit the class.
+**Seen in:** **R**; the dense green clumps 2–3 m at the yard edges in D (1–12) fit the class. S 46–50: front gardens grown into thickets of shrubs 2–4 m under the yard trees, 60–90 % covered (measured, rough).
 **Research sources:** https://en.wikipedia.org/wiki/Sambucus_nigra (6–10 m, hollow young stems, coarse yellowish-grey deeply furrowed bark with lenticels, pinnate leaves 10–30 cm with 5–7 leaflets, black berries in drooping clusters, waste ground); https://en.wikipedia.org/wiki/Syringa_vulgaris (6–7 m, multi-stemmed, suckering into a clonal thicket, stems to 20 cm, grey furrowed flaking bark, heart-shaped leaves 4–12 cm, near past or present habitation: a lilac thicket marks a vanished house).
 
 ### Dimensions
@@ -963,7 +971,7 @@ Blackthorn preset: `height_m` 1.8, `width_m` 2.5, `stems` 20, `stem_d_mm` 8–30
 
 ## V16 Self-seeded saplings
 
-**Seen in:** D (1–14: thickets of leafy saplings 1.5–3 m among the forbs), H (7–12: young whips at the clearing edge, one dead with brown leaves), F (1–3: suckers at the belt margin).
+**Seen in:** D (1–14: thickets of leafy saplings 1.5–3 m among the forbs), H (7–12: young whips at the clearing edge, one dead with brown leaves), F (1–3: suckers at the belt margin). S 37–43: thin young trees 2–4 m scattered over a village square and green; S 17–19: saplings at the edge of a flattened plot.
 **Research sources:** https://en.wikipedia.org/wiki/Acer_negundo (box elder, the commonest self-seeded tree in disturbed ground); https://en.wikipedia.org/wiki/Robinia_pseudoacacia (root suckers, spiny, in dense colonies).
 
 ### Dimensions
@@ -1011,7 +1019,7 @@ Over the shrub generator: `height_m` 1–3, `stems` 1–3, `stem_d_mm` 10–40, 
 
 ## V17 Tall weeds: mixed forbs
 
-**Seen in:** D (1–14: the dominant cover, 0.5–1.5 m, green-yellow with seed heads), C (1–6: dry yellow-brown weeds 0.5–1 m along the cellar wall), E (per the asset list; terrain.md T7: patches along the walls). Also the margins in B and the standing stems in H (13–21).
+**Seen in:** D (1–14: the dominant cover, 0.5–1.5 m, green-yellow with seed heads), C (1–6: dry yellow-brown weeds 0.5–1 m along the cellar wall), E (per the asset list; terrain.md T7: patches along the walls). Also the margins in B and the standing stems in H (13–21). S 1–16: an old fallow and abandoned back plots as a closed stand 0.5–1.2 m, grass-dominated with pale feathery heads (read as wood small-reed, assumed: it takes old fallows in Ukraine, https://ecology.dp.ua/index.php/ECO/article/view/1064 ) broken by patches of rust-brown, dock-like seed stands; S 43–48: a weed fringe 0.5–1.5 m wide along the fences and 1–3 m at the road edge, goldenrod-like yellow tops in flower among rust-brown stalks.
 **Research sources:** https://en.wikipedia.org/wiki/Artemisia_vulgaris (mugwort to 1.5 m, purplish angular stems, dark green leaves white below, waste places); https://en.wikipedia.org/wiki/Ambrosia_artemisiifolia (ragweed to 0.7 m, much-branched; https://zaxid.net/ambroziya_chim_nebezpechna_yak_borotisya_koli_znishhuvati_poradi_n1640701 : on roadsides, waste ground, yards and abandoned plots); https://en.wikipedia.org/wiki/Chenopodium_album (fat-hen 0.1–1.5 m, mealy leaves, recumbent after seeding, nitrogen-rich wasteland); https://en.wikipedia.org/wiki/Solidago_canadensis (goldenrod 0.6–1.8 m, dense clonal stands, yellow plumes in late summer, invasive in Europe); https://en.wikipedia.org/wiki/Cirsium_arvense (creeping thistle 0.3–1.5 m, clonal colonies, spiny leaves 15–20 cm); https://en.wikipedia.org/wiki/Ruderal_species (ruderals are the first to colonise disturbed land, abandoned fields among it). Tall perennial ruderals as the abandoned-yard cover is assumed.
 
 ### Dimensions

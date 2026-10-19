@@ -9,6 +9,7 @@
 ## How this sheet was made
 
 - **Letters read,** through contact sheets only: A (16 stills at 1/s, 1–15 usable), B (24 at 2/s, re-extracted; 1–16 used), F (24 at 2/s; 1–17 usable), G (15 at 4/s; 1–12 used), H (24 at 1/s; 1–21 usable), L (14 at 2/s), P (48 at 1/s on two sheets, re-extracted). Single stills for measurement and colour: A 1, A 7; B 1, B 4, B 5, B 10, B 12; F 16, F 17; G 3, G 9; H 16; L 2; P 12, P 23, P 40. Colour regions were also sampled on A 4, A 12, B 16, F 4, F 8, F 10, H 10, H 12, H 14, P 3, P 36 and P 47 without viewing them. The stills not used show signal loss or nothing of this group.
+- **S** (50 stills at 2/s, added by `p1-letter-s-village-street`, D-038), read through its three contact sheets and single stills from about 12 m up: its full reading is `docs/reference-notes/terrain.md` §12, its sizes derived from the scene through the pinned feed intrinsics, never from the display. S is the first clip with village surfaces: a green, verges, a street, a flattened plot.
 - **Letters cited, not re-read:** C, D, E, I–K, M–O (surfaces S08–S11). Their values come from `docs/reference-notes/terrain.md` (T6–T8, B5, R0) and `docs/object-sheets/vegetation.md`; the houses-and-yard and lines-roads-debris analysts read those letters.
 - **Reused, not re-measured:** terrain.md §1 (T1–T8), §3 (W1–W3), §7 (micro-detail) and §8 (surface ids); knowledge.md §7.1–7.4 (the contact law, the surface table, stems and hooks, object materials), §9.2 and §10.1–10.6 (map package, queries, holes); the first attempt's `docs/legacy/map-and-world/surfaces.json` (cover blocks, albedos), `surfaces-review.md` and `terrain-holes-review.md` (the hole-filler contract F-1…F-8, the soil lip, the trench cavity wind model). Where this sheet gives a number terrain.md or knowledge.md already gives, they are the source.
 - **Scale cues:** the drone's own arms and props in the lower corners of every still (0.574 m tip to tip), the trench width (0.6–1.0 m, terrain.md W2) in G, the light fragment about 1 m long in B (terrain.md S4), the 3–8 cm branches over the pit in F (vegetation.md V19), the 15 cm drill rows of a grain stubble (published, below) in P, thin poles and belt trunks on the horizon.
@@ -54,6 +55,7 @@ Viewpoint heights are estimated from the scene (the drone's props, tussocks, cra
 | H | a belt edge over a lodged straw mat on dark soil, bare soil patches and a short-grass strip | 0.3–0.5 m (measured, H 12–20: S04's note), slow | forward, 0° tilt; the straw mat fills the lower half, the belt wall the upper (H 1–21) | overcast, flat | daytime | overcast, dry, autumn |
 | L | open rolling fields at night; a pale dirt track running ahead; a lone tree, a bush and a pole as silhouettes on a crest | 1–3 m (the bush and the tree on the crest at 50–150 m) | forward, 0° tilt, the horizon mid-frame, the track from the bottom centre (L 1–8) | none; the sky is brighter than the ground | night | overcast |
 | P | wet stubble fields with straw windrows and drill rows, a dirt track along a belt, green patches of new growth | tens of metres, lower in P 30–42 where drill rows resolve | forward-down, the horizon in the top quarter and strongly bent by the lens | overcast, dim | daytime | rain and severe wind, wet ground |
+| S | a village from the air: a fallow, a flattened and burnt plot, a pale asphalt street, a green with small fresh craters, a turned strip and tyre arcs, verges and yards | about 12.5 m (11–14 m), 10–12 m/s; low over a mown strip at the start (S 1–3) (derived, terrain.md §12.2) | forward-down at about 30° below the horizon (0° uptilt), the horizon on the top edge; S 22: the street across the frame; S 33–36: the turned strip and craters on the green; S 47: the street from the bottom centre to the upper left | bright high overcast, no shadows | daytime | damp after rain: puddles, dark wet soil; autumn |
 
 The REAL-03 side-by-side sheets for these views are made in `reference/_compare/` once the first surfaces and earthworks are built; nothing exists to compare yet.
 
@@ -465,7 +467,7 @@ The shared trench-family table with `collapse` 0.5–1, `overgrowth` 0.3–1, `a
 
 ## E05 Craters (generator)
 
-**Seen in:** B (1–16: shallow, weathered craters 1–5 m over the crusted field, pale rims catching the low sun; B 12: a ring about 4–5 m across, four to five times the length of the 1 m fragment); A (1, 6–7: dark grassed hollows 1–3 m in the sod: the old, overgrown state and the small scorch spots, terrain.md T1, T3b). The pilot names strikes and fallen drones that explode as the source of scorched ground (terrain.md T3).
+**Seen in:** B (1–16: shallow, weathered craters 1–5 m over the crusted field, pale rims catching the low sun; B 12: a ring about 4–5 m across, four to five times the length of the 1 m fragment); A (1, 6–7: dark grassed hollows 1–3 m in the sod: the old, overgrown state and the small scorch spots, terrain.md T1, T3b). The pilot names strikes and fallen drones that explode as the source of scorched ground (terrain.md T3). S 29–37: fresh small craters in the short grass of a village green: bowls about 1–2 m (measured, rough) inside dark spoil discs 3.5–6.5 m across (derived, S 36), no regrowth on the spoil, one small pit 0.5–1 m in a turned strip (S 33).
 **Research sources:** the explosion-crater row of the research table (depth about a quarter of the apparent diameter).
 
 ### Dimensions
@@ -499,7 +501,7 @@ The shared trench-family table with `collapse` 0.5–1, `overgrowth` 0.3–1, `a
 | weathered rim with tufts, sunlit | #a39280 (10YR 6/3, derived) | #de9a43 (B 12) | measured on B |
 | old grassed hollow in sod, overcast | #4a463f under grass (derived) | #3c4213 (A 1) against sod #848321 | measured on A |
 | fresh deep spoil (pale mix) | #a88f70 (10YR 6/4, derived) | #bc853d (B 1, bank spoil) | measured on B |
-| fresh shallow spoil (dark) | #514535 (10YR 3/2, derived) | — | derived |
+| fresh shallow spoil (dark) | #514535 (10YR 3/2, derived) | #5b4f5c (S 36, damp, on grass #5f8d4c) | derived; measured on S |
 | scorch | as S07 | — | S07 |
 
 ### Variants and states
@@ -676,7 +678,7 @@ How each surface row reads:
 
 ## S01 meadow_sod
 
-**Seen in:** A (1–15: mottled olive-khaki sod, green and straw-dry mixed, pale matted patches, small dark hollows), L (1–14: the same land at night). The far fields of B and G. PR-8's pale matted grass with green showing through.
+**Seen in:** A (1–15: mottled olive-khaki sod, green and straw-dry mixed, pale matted patches, small dark hollows), L (1–14: the same land at night). The far fields of B and G. PR-8's pale matted grass with green showing through. S 22–42, 43–50: the village form: a green and street verges of short grass 0.1–0.3 m (measured, rough), vivid green regrowth after rain with almost no straw share, back gardens of the same with weed patches; S 1–4: a mown strip at a field edge.
 **Research sources:** the albedo row (green grass 0.25); the material table (TextureCan Ground 0018, ambientCG Grass001/004, Poly Haven brown_mud_leaves_01, burned_ground_01).
 
 ### Dimensions
@@ -703,6 +705,8 @@ How each surface row reads:
 | sod far | — | #9da094 (A 7); terrain.md #9b987b | measured on A |
 | yellow-green patch | #6a7a2a (assumed) | #7a8332 (A 7); terrain.md #696d1b | measured on A |
 | pale matted grass | #a89a6a (assumed) | #948651 (A 4) | measured on A |
+| short village grass, damp, overcast (S's cool, saturated feed) | #4e6a2c (assumed) | picks of pure grass #5f8d4c (S 36), #6d864d (S 24), back gardens #638648 (S 50); whole-patch means with dry stems and litter #648b55–#708657, down to #617c4e (S 24, 36): the check is the patch mean, not the pick | measured on S |
+| mown strip at a field edge | as above | #738d74 (S 1), #5f896e (S 3) | measured on S |
 | dark hollow | under-sod soil #4a463f (derived) | #3c4213 (A 1), sod around it #848321 | measured on A |
 | night ground | — | #0c0c0c–#0d0e0d (L 2), sky #4d4e4c | measured on L |
 
@@ -782,7 +786,7 @@ Preset: `base_sets` dry_ground_01 + mud_cracked_dry_03; `albedo_target` #9a7d5a;
 
 ## S03 crater_spoil
 
-**Seen in:** B (1–6: pale lumpy spoil of the bank; 4–12: crater rims and bowls), F (16: the spoil mound beside the pit).
+**Seen in:** B (1–6: pale lumpy spoil of the bank; 4–12: crater rims and bowls), F (16: the spoil mound beside the pit). S 29–37: dark spoil discs 3.5–6.5 m across (derived, S 36) around small fresh craters on a village green, damp, no regrowth (E05).
 **Research sources:** the soil-profile and repose rows.
 
 ### Dimensions
@@ -800,7 +804,7 @@ Preset: `base_sets` dry_ground_01 + mud_cracked_dry_03; `albedo_target` #9a7d5a;
 | Surface | Photo albedo (sRGB) | Feed check value (sRGB) | Source |
 |---|---|---|---|
 | deep spoil, pale mix | #a88f70 (10YR 6/4, derived) | #bc853d sunlit, #9b6f39 shaded (B 1) | measured on B |
-| shallow spoil, dark | #514535 (10YR 3/2, derived); carried #6e5a44 | — | derived |
+| shallow spoil, dark | #514535 (10YR 3/2, derived); carried #6e5a44 | #5b4f5c (S 36, damp, on grass) | derived; measured on S |
 | belt-floor spoil | #8a7660 (10YR 5/3, derived) | #927e61 (F 16) | measured on F |
 | weathered crater floor | as S02 | #b87728 (B 12) | measured on B |
 
@@ -975,7 +979,7 @@ Preset: `base_sets` dirt_floor + forest_ground_04; `albedo_target` #7e6a55; `pat
 
 ## S06 tilled
 
-**Seen in:** G (1–12: a bare dark field with pale straw streaks in rows beside the trench), P (1–48: wet stubble fields with drill rows, straw windrows, wheel lines and green patches of new growth). Dark fields are both tilled and burnt (pilot, terrain.md T3).
+**Seen in:** G (1–12: a bare dark field with pale straw streaks in rows beside the trench), P (1–48: wet stubble fields with drill rows, straw windrows, wheel lines and green patches of new growth). Dark fields are both tilled and burnt (pilot, terrain.md T3). S 31–35: a garden-scale form on a village green: a strip of freshly turned dark soil 5–10 m wide and 25–30 m long (derived, S 33) with a narrow groove along its fence side, no furrow pattern readable (`feed` #725b6a, S 33).
 **Research sources:** the field-tillage row (plough bodies, drill rows, windrows, stubble height); the soil-profile row.
 
 ### Dimensions
@@ -1034,7 +1038,7 @@ Preset: `base_sets` dry_mud_field_001 + aerial_mud_1 (+ brown_mud_02 wet); `albe
 
 ## S07 burnt_field
 
-**Seen in:** the pilot (terrain.md T3: burnt by strikes and by fallen drones that explode); A (1, 6–7) for the small scorch spots only. No letter shows a burnt field close up (terrain.md §9).
+**Seen in:** the pilot (terrain.md T3: burnt by strikes and by fallen drones that explode); A (1, 6–7) for the small scorch spots only. No letter shows a burnt field close up (terrain.md §9). S 16–18: a char patch about 5 × 9 m (derived, S 17) in the rubble of a burnt house, blue-black on the feed (#323c51, S 17): the char look, not a field.
 **Research sources:** the stubble-burning row; the material table (Poly Haven burned_ground_01).
 
 ### Dimensions
@@ -1084,7 +1088,7 @@ Preset: `base_sets` burned_ground_01 + the host's; `albedo_target` #3f3d3a char,
 
 ## S08 weeds
 
-**Seen in:** D (dense tall forbs on an overgrown plot; cited from terrain.md T7 and vegetation.md V17–V18, not re-read here). Also C and E foregrounds, B margins.
+**Seen in:** D (dense tall forbs on an overgrown plot; cited from terrain.md T7 and vegetation.md V17–V18, not re-read here). Also C and E foregrounds, B margins. S 1–16: an old fallow and abandoned back plots under a closed stand 0.5–1.2 m; S 43–48: the weed fringe along fences and the road edge (vegetation.md V17).
 **Research sources:** vegetation.md V17, V18 (the forbs themselves).
 
 ### Dimensions
@@ -1128,7 +1132,7 @@ Preset: `base_sets` forest_ground_04 + dry_decay_leaves; `albedo_target` #4a463f
 
 ## S09 yard_litter
 
-**Seen in:** C (leaf litter and brick bits in the yard), E (tile shards and planks); cited from terrain.md T6, not re-read here.
+**Seen in:** C (leaf litter and brick bits in the yard), E (tile shards and planks); cited from terrain.md T6, not re-read here. S 47–50: yards seen from above only, debris-strewn ground under shrubs and weeds (`feed` #6c695c, S 49).
 **Research sources:** the material table (leaf-litter sets).
 
 ### Dimensions
@@ -1174,7 +1178,7 @@ Preset: `base_sets` brown_mud_leaves_01 + leaves_forest_ground; `albedo_target` 
 
 ## S10 rubble
 
-**Seen in:** E (tile heaps), I, J, K (rubble fields and the mound), N (debris ground around the wreck); cited from terrain.md B5, T8 and R0, not re-read here.
+**Seen in:** E (tile heaps), I, J, K (rubble fields and the mound), N (debris ground around the wreck); cited from terrain.md B5, T8 and R0, not re-read here. S 15–19: the footprint of a flattened village house, red brick, pale wall stubs, slate and boards, thinning into the weeds within 2–5 m (measured, rough) (`feed` red brick #957266, mixed #908188; S 17–18).
 **Research sources:** the material table (Poly Haven concrete_debris; ambientCG Ground111, Ground107).
 
 ### Dimensions
@@ -1219,13 +1223,13 @@ Preset: `base_sets` concrete_debris + Ground111; `albedo_target` #8d8172; `cover
 
 ## S11 asphalt
 
-**Seen in:** M (dusty asphalt under the sedan), O (slush on the road), N (paved ground under the debris); cited from terrain.md R0, not re-read here. No clip shows asphalt (terrain.md §9).
+**Seen in:** M (dusty asphalt under the sedan), O (slush on the road), N (paved ground under the debris); cited from terrain.md R0, not re-read here. S 17–24, 43–50: the first clip with asphalt: a village main street about 6 m wide (derived, lines-roads-debris.md RD01), pale and worn, ravelled into gravel-and-mud shoulders, shallow potholes and puddles after rain, no kerb.
 **Research sources:** the road-width, pothole and albedo rows; the material table (Poly Haven road_damaged, road_damaged_2, asphalt_02).
 
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| carriageway | 3.5–7.0 m: side street 3.5–5.5, main street 5.5–7.0 (roads between villages 4.5–6.0) | 6.0 m main, 4.5 m side | published (RD01 in lines-roads-debris.md, the road kit's owner: ДБН lane widths; SNiP 2.05.02-85 categories V and IV for the roads between villages) |
+| carriageway | 3.5–7.0 m: side street 3.5–5.5, main street 5.5–7.0 (roads between villages 4.5–6.0) | 6.0 m main, 4.5 m side | published (RD01 in lines-roads-debris.md, the road kit's owner: ДБН lane widths; SNiP 2.05.02-85 categories V and IV for the roads between villages); S's main street 5–7 m, about 6 m (derived, S 22, 46–47; RD01) |
 | shoulders | 0.5–2.0 m, soil or sod (1.75–2.0 m on roads between villages) | 1.0 m | RD01 (assumed); published SNiP for the roads between villages |
 | asphalt layer | 40–80 mm over 150–250 mm crushed stone | 50 mm | assumed (RD01) |
 | potholes | 0.2–2.0 m across, 40–150 mm deep, often holding water | 0.6 m, 70 mm | RD01 (published threshold of at least 0.15 m and the depth bands; measured M) |
@@ -1243,6 +1247,8 @@ Preset: `base_sets` concrete_debris + Ground111; `albedo_target` #8d8172; `cover
 | worn asphalt | #616161 (derived: albedo 0.12, published) | — | derived |
 | fresh patch | #383838–#454545 (derived: albedo 0.04–0.06) | — | derived |
 | dusty asphalt, sunlit (photo) | #b7b2aa (M) | — | terrain.md R0 (photo, exposure included) |
+| worn asphalt, damp, overcast, from 12 m | as worn asphalt | near #bbb7c8, #bac1d3; about 45 m #a9a0a1; far #bebbca | measured on S 46, 48; S 45; S 43 |
+| puddle; muddy gravel shoulder | — | #9da4b4; #aba4ad | measured on S 48; S 47 |
 | wet slush on a road (photo) | #525256 (O) | — | terrain.md R0 |
 
 ### Variants and states
@@ -1319,7 +1325,7 @@ Preset: `base_sets` worn_concrete_floor + cracked_concrete; `albedo_target` #9a9
 
 ## S13 dirt_track
 
-**Seen in:** L (1–8: a pale track running ahead at night, the only ground feature that reads), P (4–5: a track across a field; 11–12: a track along a belt, two ruts and a grassed median). **R** for the dimensions.
+**Seen in:** L (1–8: a pale track running ahead at night, the only ground feature that reads), P (4–5: a track across a field; 11–12: a track along a belt, two ruts and a grassed median). S 28–30: paired tyre arcs pressed into the short grass of a village green, no ruts yet (RD03). **R** for the dimensions.
 **Research sources:** the wheel-gauge row; the material table (Poly Haven grass_path_2, grass_path_3, dry_mud_field_001).
 
 ### Dimensions
