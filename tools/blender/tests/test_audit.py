@@ -286,6 +286,38 @@ def test_primitives_form_a_union_and_soft_tops_are_held_to_5cm(k01_params, repo_
     assert [p.split(" at ")[0] for p in problems] == ["collision[1] sphere: near gaps/landable 30.000 mm"]
 
 
+def test_clipping_by_boxes_finds_the_same_maxima(k01_params):
+    """p1-e01-trench: with clip_boxes, a cell partly inside other boxes is bounded by its parts outside them, clipped
+    exactly, so the search stops early along a box's face running on under another; the maxima are the default
+    search's within its precision (two boxes making a slab, the second's top 10 mm low)."""
+    data, _ = k01(k01_params)
+    lod0 = slab()
+    data["collision"] = [
+        {"shape": "box", "center": [-0.4, -0.1, 0.0], "size": [1.2, 0.2, 2.0], "rotation": [0.0, 0.0, 0.0, 1.0],
+         "material": "masonry", "landable": False},
+        {"shape": "box", "center": [0.4, -0.105, 0.0], "size": [1.2, 0.19, 2.0], "rotation": [0.0, 0.0, 0.0, 1.0],
+         "material": "masonry", "landable": False},
+    ]
+    plain = audit.run(data, lod0)
+    clipped = audit.run(data, lod0, clip_boxes=True)
+    assert plain[0] == clipped[0] == []
+    assert [measured_mm(line) for line in clipped[1]] == pytest.approx([measured_mm(line) for line in plain[1]],
+                                                                       abs=audit.PRECISION_M * 1000)
+    assert measured_mm(clipped[1][1]) == pytest.approx(10.0, abs=0.1)
+
+
+def test_uncovered_parts_are_the_cell_outside_the_boxes():
+    """_uncovered clips a triangle by a box exactly: the half-space x <= 0.5 covered leaves the corner beyond it."""
+    box = audit._Shape({"shape": "box", "center": [0.0, 0.0, 0.0], "size": [1.0, 4.0, 4.0],
+                        "rotation": [0.0, 0.0, 0.0, 1.0]})
+    cell = ((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0))
+    parts = audit._uncovered(cell, [box])
+    area = sum(math.sqrt(audit._dot(*(2 * [audit._newell(p)]))) / 2 for p in parts)
+    assert area == pytest.approx(0.125, abs=1e-5)
+    assert audit._uncovered(cell, []) is None
+    assert audit._uncovered(((-0.4, 0.0, 0.0), (0.4, 0.0, 0.0), (0.0, 0.4, 0.0)), [box]) == []
+
+
 def test_soft_materials_are_the_soft_surfaces_and_the_compliant_ids(repo_root):
     """review-physics PR6: the three surfaces where the reference foot sinks 25 mm or more, and every plain id at
     1000 N/m or less (foliage 200, twig 30, straw 490, fabric 160, mesh 430, razor_wire 60, sandbag 900); rigid and

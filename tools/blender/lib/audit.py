@@ -107,16 +107,20 @@ def soft_materials(root):
                                        and row["stiffness_n_per_m"] <= SOFT_STIFFNESS_N_PER_M}
 
 
-def run(meta, lod0, *, soft=frozenset(), card_visuals=(), planted=False):
+def run(meta, lod0, *, soft=frozenset(), card_visuals=(), planted=False, clip_boxes=False):
     """(problems, report lines) of one variant: `meta` as lib.meta.assemble builds it, `lod0` its first
     lib.geometry.Mesh, `soft` the material ids with soft tops (soft_materials; none by default, so every landable
     top keeps the 2 cm zone), `card_visuals` the visual materials drawn as alpha-clipped cards
     (lib.catalog.card_visuals). Both are keywords: each is a set of names, easily swapped. `planted` says the asset
     stands in the ground (its generator's PLANTED): the terrain then covers the half-space below y = 0 as another
     primitive would, so a primitive's surface there (a log's capsule cap, a brace's buried foot) is no invisible
-    wall (p1-l01-l03-pole-wires). Problems name the primitive or slot, the deviation and the tolerance; the lines
-    carry the measured numbers for every primitive, the mesh, every shell piece and slot and every gap, success or
-    not."""
+    wall (p1-l01-l03-pole-wires). `clip_boxes` (p1-e01-trench: an asset that cuts the ground, whose hundreds of
+    filler boxes run on under one another along every crease) bounds a primitive's cell by its parts outside the
+    boxes that cover part of it, clipped exactly (_uncovered), instead of refining the cell down to the search's
+    precision along each such line: the same maximum within PRECISION_M, found in minutes instead of an hour; off,
+    every other asset's lines stay as recorded. Problems name the primitive or slot, the deviation and the
+    tolerance; the lines carry the measured numbers for every primitive, the mesh, every shell piece and slot and
+    every gap, success or not."""
     shapes = [_Shape(s) for s in meta["collision"]]
     shell_slots = {m["slot"] for m in meta["materials"] if m["physics"] in SHELL_MATERIALS}
     wire_slots = {w["slot"] for w in meta.get("wires", [])}
@@ -154,8 +158,16 @@ def run(meta, lod0, *, soft=frozenset(), card_visuals=(), planted=False):
             d, which = index.nearest(v)
             return (0.0 if _covered(v, others) else d), which
 
-        def bound(cell, which, others=others):
-            return 0.0 if _cell_covered(cell, others) else _faces_bound(cell, which, faces)
+        boxes = [s for s in others if s.kind == "box"] if clip_boxes else []
+
+        def bound(cell, which, others=others, boxes=boxes):
+            if _cell_covered(cell, others):
+                return 0.0
+            parts = _uncovered(cell, boxes) if boxes else None
+            if parts is None:
+                return _faces_bound(cell, which, faces)
+            return max((_faces_bound(tri, [index.nearest(v)[1] for v in tri], faces)
+                        for part in parts for tri in _fan(part)), default=0.0)
 
         problems += _report(lines, f"collision[{i}] {shape.kind}", f"{shape.kind}->mesh", cells, zone, value, bound)
     if faces and not body:
@@ -646,6 +658,81 @@ def _cell_covered(cell, others):
     return _longest_edge(cell) <= SEAM_CELL_M and all(_covered(v, others) for v in cell)
 
 
+def _uncovered(cell, boxes):
+    """The parts of a cell outside every box of `boxes` (each grown by COVERED_M, as _covered counts a point covered),
+    as convex polygons in the cell's plane, slivers thinner than COVERED_M dropped (no surface, as the module
+    says); None when no box cuts the cell, so the caller keeps its own bound. Exact: a box is six half-spaces."""
+    lo = [min(v[k] for v in cell) for k in range(3)]
+    hi = [max(v[k] for v in cell) for k in range(3)]
+    pieces, cut = [list(cell)], False
+    for box in boxes:
+        if not all(box.lo[k] <= hi[k] and lo[k] <= box.hi[k] for k in range(3)):
+            continue
+        out = []
+        for piece in pieces:
+            parts = _outside_box(piece, box)
+            if parts is None:
+                out.append(piece)
+            else:
+                cut = True
+                out += parts
+        pieces = out
+        if not pieces:
+            return []
+    return pieces if cut else None
+
+
+def _outside_box(polygon, box):
+    """The parts of a convex polygon outside a box grown by COVERED_M, or None when it lies wholly outside one of
+    the box's planes (untouched)."""
+    planes = []
+    for k, axis in enumerate(box.axes):
+        for s in (-1.0, 1.0):
+            planes.append(((s * axis[0], s * axis[1], s * axis[2]),
+                           s * _dot(box.centre, axis) + box.half[k] + COVERED_M))
+    distances = [[_dot(p, n) - d for p in polygon] for n, d in planes]
+    if any(min(h) >= 0 for h in distances):
+        return None
+    parts, rest = [], polygon
+    for n, d in planes:
+        outside = _clip_plane(rest, n, d, keep_outside=True)
+        if _thick(outside):
+            parts.append(outside)
+        rest = _clip_plane(rest, n, d, keep_outside=False)
+        if not _thick(rest):
+            break
+    return parts
+
+
+def _clip_plane(polygon, n, d, keep_outside):
+    """Sutherland-Hodgman against the plane n.p = d: the part with n.p >= d (outside) or <= d."""
+    out = []
+    for p, q in zip(polygon, polygon[1:] + polygon[:1]):
+        hp, hq = _dot(p, n) - d, _dot(q, n) - d
+        if not keep_outside:
+            hp, hq = -hp, -hq
+        if hp >= 0:
+            out.append(p)
+        if (hp > 0 > hq) or (hp < 0 < hq):
+            t = hp / (hp - hq)
+            out.append((p[0] + t * (q[0] - p[0]), p[1] + t * (q[1] - p[1]), p[2] + t * (q[2] - p[2])))
+    return out
+
+
+def _thick(polygon):
+    """Whether a planar polygon is more than a COVERED_M sliver: its area over half its perimeter (its mean width)."""
+    if len(polygon) < 3:
+        return False
+    n = _newell(polygon)
+    area = math.sqrt(_dot(n, n)) / 2
+    perimeter = sum(_dist(a, b) for a, b in zip(polygon, polygon[1:] + polygon[:1]))
+    return area > COVERED_M * perimeter / 2
+
+
+def _fan(polygon):
+    return [(polygon[0], polygon[k], polygon[k + 1]) for k in range(1, len(polygon) - 1)]
+
+
 def _faces_bound(cell, which, faces):
     """An upper bound of the distance to the mesh over a cell, from the faces nearest to its vertices: the largest
     vertex distance to one face (convex, so its maximum sits at a vertex); when two candidate faces share an edge,
@@ -726,6 +813,11 @@ class _Shape:
 
     def _grow(self):
         return (0.0 if self.kind == "box" else CHORD_M) + 2 * COVERED_M
+
+    @functools.cached_property
+    def axes(self):
+        """The shape's local axes in asset space (a box's face normals, _uncovered)."""
+        return tuple(_rotate(self.q, e) for e in ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)))
 
     def reach(self):
         """The radius of a sphere about the centre that holds the whole shape."""
