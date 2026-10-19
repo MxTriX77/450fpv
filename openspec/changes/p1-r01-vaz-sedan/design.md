@@ -1,7 +1,7 @@
 # Design: p1-r01-vaz-sedan
 
 ## Context
-The pipeline after `p1-h01-adobe-house`: generator-written mask atlases under `textures` roles, composed kit pieces, micro meshes, shells, impostors, cylinder colliders, `rubber` and `fabric` in the material table (`rubber` 0.70 / 0.60, 5e4 N/m; `fabric` 0.40 / 0.30, 600 N/m). The sheet gives the published 2101 dimensions, M's measured damage (hole sizes and halos, the flap 0.35–0.45 × 0.6 m, the 0.05 m corner drop), the shared car collision plan, the kit items, the F drop derivation (0.282 − 0.183 + spring sag = 0.15–0.20 m, default 0.17), the colours and the `vehicle` table. Labels below are for the numbers this design adds.
+The pipeline after `p1-h01-adobe-house`: generator-written mask atlases under `textures` roles, composed kit pieces, micro meshes, shells, impostors, cylinder colliders, `rubber` and `fabric` in the material table (`rubber` 0.70 / 0.60, 5e4 N/m; `fabric` 0.40 / 0.30, 160 N/m per touching part, `p1-materials-per-part`). The sheet gives the published 2101 dimensions, M's measured damage (hole sizes and halos, the flap 0.35–0.45 × 0.6 m, the 0.05 m corner drop), the shared car collision plan, the kit items, the F drop derivation (0.282 − 0.183 + spring sag = 0.15–0.20 m, default 0.17), the colours and the `vehicle` table. Labels below are for the numbers this design adds.
 
 ## Goals / Non-Goals
 **Goals:** the M car in A and the same car burnt, from two params files; the `vehicle` generator and its kits for R02–R09; torn steel as geometry the fiber can cut on.

@@ -8,7 +8,7 @@
 The contact law applies a material row's `stiffness_n_per_m` to each part of the drone that touches it, not to the whole drone. The fortifications reading found two rows derived for the whole drone: `fabric` (600 N/m) and `mesh` (800 N/m), so four legs on a mattress sink 20 mm where the row meant 50–100 mm. It also accepted two new ids with per-part values, `razor_wire` and `sandbag`, to be added before their assets. Every row must be read the same way before the micro-detail generator and the phase-7 contact model rely on them.
 
 ## What Changes
-- Every row of `assets-src/physics_materials.json` re-derived or confirmed per touching part (a leg foot, an arm, a prop guard), each with its label and rationale; the `fields` text for `stiffness_n_per_m` says it is per touching part.
+- Every row of `assets-src/physics_materials.json` re-derived or confirmed per touching part (a leg foot, an arm, the body or the coil), each with its label and rationale; the `fields` text for `stiffness_n_per_m` says it is per touching part.
 - `razor_wire` and `sandbag` added with the fortifications reading's rows.
 - `straw` checked against S04's re-measured mat (12.5 cm stands, `docs/object-sheets/earthworks-and-surfaces.md` §S04).
 - Consumers checked: the audit's soft-top rule (a plain id at 1000 N/m or less is held at 5 cm), the object sheets that quote a sink or a stiffness, the fortifications sheet's sink numbers.
