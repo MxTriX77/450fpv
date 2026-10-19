@@ -19,7 +19,7 @@ The pilot's words: "why tf are you asking me these questions if it's you whos go
 | Batteries | Li-ion, 20–35 Ah, 6S4P to 6S5P ±; **"a couple of batteries"** on the drone. The OTU class runs 8S Li-ion (FpvPrep profiles) | pilot, fc-profiles |
 | Coil | about 1 kg | pilot |
 | Payload | on **top** of the drone | 2026-10-17 |
-| Water in the world | yes: a pond or a small river; fiber laid on water cuts the signal; graphics mildly realistic; wind makes waves | 2026-10-18 (D-036) |
+| Water in the world | yes: a pond or a small river; fiber on water keeps the signal (corrected by the pilot, D-039); graphics mildly realistic; wind makes waves | 2026-10-18 (D-036), 2026-10-19 (D-039) |
 | Parallel subagents | 4 | 2026-10-18 (D-036) |
 | Legs | plastic, 25–35 cm, a little soft; sometimes stumble on landing; pilots land slowly and level the horizon just before touchdown | pilot |
 | **Launch stand** | about **25 cm high, "like a chair upside down"**: one post under each motor, on a base; sized to the Svinoriz (D-022) | 2026-10-17 |
