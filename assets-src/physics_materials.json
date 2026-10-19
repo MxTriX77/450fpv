@@ -146,6 +146,24 @@
       "edge_radius_m": 0.001,
       "label": "derived",
       "rationale": "chain-link bays as thin boxes: a 2 mm galvanised mesh strung at ≈ 200 N/m (assumed) over a 3 × 1.5 m bay (Y03; conformal radius 0.95 m at its centre, derived) answers one part as a membrane, k ≈ 2πT/ln(a/r): r 0.05 m for an arm across the cells or the body's plates gives ≈ 430 N/m (a foot on one 50 mm cell, r 0.025 m, 350), so a part pushed at the drone's 47 N bows the bay 0.11 m and is caught, not bounced; three parts broadside meet 1300 N/m against 1100 for the whole drone as one load (r 0.3 m), so the per-part sum holds where the 800 N/m read for the whole drone did not; ζ assumed for link friction; μ as steel; the fiber bends over a 1 mm wire, a cut risk"
+    },
+    "razor_wire": {
+      "friction_static": 0.35,
+      "friction_kinetic": 0.28,
+      "stiffness_n_per_m": 60.0,
+      "damping_ratio": 0.3,
+      "edge_radius_m": 0.00025,
+      "label": "derived",
+      "rationale": "concertina razor tape (F01): the coil body, a sagged coil and a trampled mat; μ as steel (the barbs hold through the turn records, not μ); one loop under a part as a ring under a diametral load, k = f·EI/((π/4 − 2/π)R³) with the 2.5 mm core (EI 0.383 N·m² at an assumed 200 GPa) and f = 2 for the crimped tape (assumed, 2–3.8): 57 N/m for a 0.90 m coil, so a drone on four legs meets about 240 N/m and sinks 0.20 m; a coil of another diameter writes its own shape stiffness_n_per_m = 60·(0.45/R)³; ζ assumed for loop-on-loop friction and the clips; the edge is half the published 0.5 mm blade; the core (7.4 kN at an assumed 1500 MPa) never breaks under the drone; the fiber ignores razor_wire shapes and bends over the turn records' edge_radius_m (review-physics.md of p1-fortifications-sheet)"
+    },
+    "sandbag": {
+      "friction_static": 0.40,
+      "friction_kinetic": 0.30,
+      "stiffness_n_per_m": 900.0,
+      "damping_ratio": 0.9,
+      "edge_radius_m": 0.05,
+      "label": "derived",
+      "rationale": "filled sandbags (F04): μ as fabric (a polymer foot on woven polypropylene or hessian, assumed); a 15 mm foot at 67 kPa punches into loose fill (surface bearing capacity 2–4 kPa), so the fill acts as a loose-soil row: tamped fill at 5e6 N/m³ (assumed, between tilled and meadow_sod) under the 15 mm reference foot, k = bearing·A = 884 N/m, so a leg sinks 13 mm static and 28 mm at 25 N; ζ from those rows' damping at a quarter of 4.8 kg, 0.94; the edge is the rounded shoulder of a 0.12 m bag (derived), so a line over a wall top never cuts; elastic, so no footprint stays (a deviation from the soil law, accepted); no wet adhesion on polypropylene (review-physics.md of p1-fortifications-sheet)"
     }
   }
 }
