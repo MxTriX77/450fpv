@@ -15,7 +15,7 @@ import math
 import pytest
 
 from generators import tree
-from lib import audit, cards, meta, params, shell, skeleton
+from lib import audit, cards, geometry, meta, params, shell, skeleton
 
 VARIANTS = ("V01_S", "V01_M", "V01_L")
 ROWS = {"V01_S": ((4.0, 7.0), (0.05, 0.10), (2.0, 4.0)), "V01_M": ((8.0, 12.0), (0.12, 0.20), (3.0, 6.0)),
@@ -155,6 +155,35 @@ def test_far_lods_hold_the_leaves_and_the_wood(variant):
     for slot in ("bark", "twig"):
         for lod in (1, 2):
             assert wood(built["lods"][lod], slot) == pytest.approx(wood(built["lods"][0], slot), rel=0.02), (slot, lod)
+
+
+def test_each_member_takes_its_own_bark_patch_at_every_lod(variant, monkeypatch):
+    """p1-v01-locust task 1.2l: every member's tube starts its UVs at its own patch of the bark tile, the R2
+    sequence by its index, the same at every LOD, so between them the members sample the whole tile (as the far mips
+    do), not its first columns; the shrub's tubes still start at the corner."""
+    name, p, built, data = variant
+    members = built["members"]
+    calls = {lod: [] for lod in range(3)}
+    tube = skeleton._tube
+
+    def record(mesh, rings, sides, slot, cap, tangents=None, uv0=(0.0, 0.0)):
+        calls[lod].append((rings[0][0], uv0))
+        return tube(mesh, rings, sides, slot, cap, tangents, uv0)
+
+    monkeypatch.setattr(skeleton, "_tube", record)
+    for lod in range(3):
+        skeleton.tree_tubes(geometry.Mesh(), members, lod, lambda m: "twig" if m.twig else "bark")
+    patches = [skeleton.bark_patch(i) for i in range(len(members))]
+    assert [uv for _, uv in calls[0]] == patches
+    starts = {}
+    for m, uv in zip(members, patches):
+        starts.setdefault(m.points[0], set()).add(uv)
+    for lod in (1, 2):  # a far LOD drops twigs, never moves a member's patch
+        assert calls[lod] and all(uv in starts[point] for point, uv in calls[lod])
+    assert len(set(patches)) == len(members) and all(0.0 <= c < 1.0 for uv in patches for c in uv)
+    for axis in (0, 1):  # spread over the tile: a quarter of the members in each half of each axis at least
+        assert 0.25 < sum(uv[axis] < 0.5 for uv in patches) / len(patches) < 0.75
+    assert skeleton.bark_patch(0) == pytest.approx((0.2548776662466927, 0.0698402909980532))
 
 
 def axis_ends(capsule):
