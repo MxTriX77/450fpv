@@ -8,4 +8,4 @@ Standard tier (D-033). Branch `unity/physics/p1-materials-per-part` off `unity/m
 
 ## 2. Review
 
-- [ ] 2.1 [qa-engineer] review against spec scenarios: every row read per touching part with its label and rationale, the two new rows as the reading gave them, the consumers listed and checked, the builds, hygiene
+- [x] 2.1 [qa-engineer] review against spec scenarios: every row read per touching part with its label and rationale, the two new rows as the reading gave them, the consumers listed and checked, the builds, hygiene

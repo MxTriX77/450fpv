@@ -255,3 +255,193 @@ OK                                        exit 0
 
   The `razor_wire` rationale already refers to the first two; today the validator does not check them.
 - **S6 · At archive.** `docs/plan.md` phase 1 step 7 still describes this sign-off as pending (orchestrator).
+
+## Re-check of R1 and R2
+
+**Reviewer:** a fresh qa-engineer (did none of the work, D-034) · **Tip:** `624f024` · **Range:** `35a61c6..624f024` (3 commits, 6 files)
+**Sources read:** `CLAUDE.md`, `AGENTS.md`; the review above (R1, R2, S1–S6); this change's proposal, spec delta and tasks; the `cable`, `plastic`, `sheet_metal`, `timber`, `glass`, `steel` and `rubber` rows; `docs/object-sheets/lines-roads-debris.md` (the conductor table and L03); `docs/object-sheets/vehicles.md`; `docs/knowledge.md` §7.4; `tools/blender/lib/meta.py`.
+
+No build was run. No value changed since the builds above (check 3 proves it by script), so the S04, V13 and K01 audit comparisons still hold. The arithmetic ran in plain Python scripts (no numpy) in QA's scratchpad, with `python -I`. They are not committed.
+
+### Verdict
+
+**APPROVED.** R1 and R2 are fixed, and so is S3:
+- Every rationale now names its part and gives that part's sink or deflection, with a label.
+- The cable's two deflections recompute. The downward one is also confirmed by an exact elastic catenary, not only by Irvine's linear theory.
+- The diff holds only what the review asked for, and no value or key moved.
+
+There are three new suggestions, S7–S9. None blocks.
+
+### Check 1 · R1: the roof dent per foot (`f2dde94`)
+
+```
+$ git diff 35a61c6..HEAD -- docs/object-sheets/vehicles.md      (line 124, Landable surfaces)
+- `sheet_metal` gives 2e4 N/m, so the drone's 49 N weight (5 kg class) dents a roof about 2.5 mm before it holds (derived from the material row)
++ `sheet_metal` gives 2e4 N/m per touching part, so each foot's quarter of the drone's 49 N weight (5 kg class, 12.3 N) dents a roof about 0.6 mm before it holds (derived from the material row, `p1-materials-per-part`)
+49 / 4 = 12.25 N ; 12.25 / 2e4 = 0.61 mm
+sheet_metal row: "a foot's 11.8 N share sinks 0.6 mm (1.2 mm at 25 N)"     (11.8 / 2e4 = 0.59 mm)
+```
+
+**Met.** The clause is now per part and agrees with the row. Its 5 kg class and the row's 4.8 kg differ by 4 %, so both round to 0.6 mm.
+
+### Check 2 · R2: `cable` and `plastic` (`49d91c9`)
+
+**`cable`.** The rationale now gives:
+- the reference span, a 12 mm bare stranded aluminium conductor on a 30 m span at 2 % sag;
+- the sideways deflection: 4T/L ≈ 55 N/m, and 0.21 m at a foot's share (0.20 m with the span's fixed length);
+- the downward stiffness: ≈ 200 N/m at small load (Irvine), stiffening, so the share sinks 0.044 m.
+
+Each figure carries its label. I checked the span against L03:
+- 12 mm is the top of its 7–12 mm medium class;
+- 30 m is the short end of its 30–45 m street spans;
+- its default sag is 2 %.
+
+The recompute:
+
+```
+$ python -I cable.py              # excerpt: the P = 1 and 5 N lines and the inextensible block's other lines left out
+w = 2.2187 N/m -> 0.2262 kg/m -> area 83.8 mm2 (Al 2700); 7-strand 12 mm 88.0, 19-strand 86.0 mm2
+T = w L^2/(8 sag) = 416.0 N
+sideways 4T/L = 55.47 N/m ; P L/(4T) = 0.2122 m at P = 11.772 N
+Irvine E 6e+10: lambda^2 309.2, k 199.5 N/m, linear sink 0.0590 m, h/H 0.255
+Irvine E 5.5e+10: lambda^2 283.4, k 197.8 N/m, linear sink 0.0595 m, h/H 0.255
+Irvine E 6e+09: lambda^2 30.9, k 120.7 N/m, linear sink 0.0976 m, h/H 0.191
+inextensible limit 16T/L = 221.9 N/m
+
+exact catenary, E 6e+10: S0 30.029494 m, unloaded H 416.19 N, sag 0.6000 m
+  down P   0.100 N: sink 0.0005 m, secant k  200.2 N/m, H 417.1 N (+0.2 %)
+  down P  11.772 N: sink 0.0437 m, secant k  269.4 N/m, H 525.1 N (+26.2 %)
+  down P  23.544 N: sink 0.0696 m, secant k  338.1 N/m, H 636.7 N (+53.0 %)
+  down P  47.088 N: sink 0.1011 m, secant k  465.6 N/m, H 859.9 N (+106.6 %)
+  side P   0.100 N: swing 0.0018 m, secant k   55.5 N/m, mid rises 0.0000 m, H 416.2 N
+  side P  11.772 N: swing 0.2032 m, secant k   57.9 N/m, mid rises 0.0253 m, H 434.6 N
+exact catenary, E 1e+30: S0 30.031976 m, unloaded H 416.22 N, sag 0.6000 m
+  down P  11.772 N: sink 0.0373 m, secant k  316.0 N/m, H 530.5 N (+27.4 %)
+  side P  11.772 N: swing 0.2028 m, secant k   58.0 N/m, mid rises 0.0263 m, H 435.4 N
+```
+
+How the script works:
+- **Irvine:** λ² = (wL/H)²·L/(H·Le/EA), and k = (T/L)/(1/4 − (3/16)/(1 + 12/λ²)). I derived the formula from the linearised cable equation with a mid-span point load and the compatibility condition; it is the row's formula.
+- **Exact model:** Irvine's parametric elastic catenary. Each half-span is solved by bisection, with the unstretched length fixed by the unloaded 0.6 m sag. For the sideways case, each half lies in its own vertical plane, with Hy = P/2 at mid-span.
+
+**Rulings on `cable`:**
+- T ≈ 416 N, 4T/L = 55.5 N/m and 0.21 m all recompute.
+- **0.20 m with the fixed length:** the exact catenary gives 0.203 m.
+- **λ² ≈ 310:** 309.2 at 84 mm² and E 60 GPa.
+- **The downward figure is sound.** Irvine's small-load 199.5 N/m matches the exact catenary's 200.2 N/m. The share's 0.044 m is the nonlinear result (exact 0.0437 m). The linear 0.059 m would be wrong here: the share raises H by 26 %, beyond linear theory's small-h assumption (h/H 0.26). So "stiffening with load" is right, and the row gives the right number for it.
+- **E barely matters:** 55 GPa gives 197.8 N/m. The inextensible limit is 222 N/m with a 0.037 m sink. Only a tenfold softer E (6 GPa) would drop it to 121 N/m.
+- **For phase 7, which reads compliance from each wire's geometry:**
+  - λ² does not depend on the conductor's section. It is (8d/L)²·8(d/L)·E/(ρ·g·L)·L/Le.
+  - So every aluminium conductor at 2 % sag on 30 m has λ² ≈ 310. Its downward stiffness is 3.6 times its sideways one, and both scale with the wire's weight.
+
+The knowledge §7.4 line (`624f024`) states the same 55 N/m sideways, about 200 N/m pressed down, stiffening with load. **Met.**
+
+**`plastic`.** The rationale now gives:
+- the reference part (assumed): a 3 mm PP or ABS wall, 50 mm across between its ribs or webs;
+- one 15 mm foot on it: 1.2–4.9e5 N/m (published E 1.3–2.4 GPa, derived), a sink of 0.02–0.1 mm at the share, and a 4–15 % series difference with the leg, as on glass;
+- the local punch, 2–4e7 N/m, about 1 % off;
+- the bumper cover, moved out of the row as the car asset's own shape `stiffness_n_per_m`: 1.2–4e3 N/m, sinking 3–10 mm, derived. This follows the `timber` batten precedent, whose rationale reads "a batten asset may override with ≈ 1e5 N/m".
+
+The rationale also explains the old 1e2 N/m as a 0.1 m beam strip. The recompute:
+
+```
+$ python -I plastic.py            # excerpt; circle: point-load deflection averaged over a 7.5 mm patch (reciprocity); square: Navier, equal-area patch
+wall 50 mm across
+  E 1.3 GPa nu 0.35: circle SS   1.2e+05 clamped  3.25e+05 | square SS  1.28e+05 clamped ~ 3.01e+05 N/m
+  E 2.4 GPa nu 0.35: circle SS  2.21e+05 clamped  6.01e+05 | square SS  2.36e+05 clamped ~ 5.55e+05 N/m
+  E 2.4 GPa nu 0.40: circle SS  2.36e+05 clamped  6.27e+05 | square SS  2.46e+05 clamped ~  5.8e+05 N/m
+wall 500 mm across
+  E 1.3 GPa nu 0.35: circle SS  1.08e+03 clamped  2.69e+03 | square SS  1.15e+03 clamped ~ 2.39e+03 N/m
+  E 1.8 GPa nu 0.40: circle SS   1.6e+03 clamped  3.89e+03 | square SS  1.67e+03 clamped ~ 3.46e+03 N/m
+point load, no patch, 50 mm: square SS nu 0.4 E 1.3 = 1.2e+05 ; circle clamped nu 0.35 E 2.4 = 4.95e+05 N/m
+row band 1.2e+05-4.9e+05 N/m: sink 0.024-0.098 mm; series with the leg's 2e4 differs 3.9-14.3 %
+  punch E b/(1-nu^2), E 1.3 nu 0.35: 2.22e+07 N/m; relief on 1.2e+05: 0.54 %, on 4.9e+05: 2.21 %
+  punch E b/(1-nu^2), E 2.4 nu 0.4: 4.29e+07 N/m; relief on 1.2e+05: 0.28 %, on 4.9e+05: 1.14 %
+five times the leg's spring (1e5 N/m) is reached at a span of 56 mm (SS, E 1.3) to 114 mm (clamped, E 2.4)
+bumper strip 0.1 m x 3 mm over 0.5 m, SS beam 48EI/L^3 at E 1.3: 112 N/m
+  bumper 1.2e+03 N/m: share sinks 9.8 mm
+  bumper 4e+03 N/m: share sinks 2.9 mm
+```
+
+**Rulings on `plastic`:**
+- The row's band is the point-load band, and it recomputes (1.20e5 and 4.95e5).
+- With the foot as a 15 mm patch, the clamped end is stiffer: 5.6–6.3e5. So the band errs soft at the top, and the conclusion "rigid per part, as glass" only gets stronger.
+- The sink, the series difference, the punch and the bumper figures all recompute.
+- **Met.** One band edge is noted in S8.
+
+### Check 3 · The diff since the review
+
+```
+$ git diff --stat 35a61c6..HEAD
+ assets-src/physics_materials.json                                   | 4 ++--
+ docs/knowledge.md                                                   | 2 +-
+ docs/object-sheets/vehicles.md                                      | 2 +-
+ openspec/changes/p1-materials-per-part/proposal.md                  | 2 +-
+ openspec/changes/p1-materials-per-part/specs/asset-pipeline/spec.md | 2 +-
+ openspec/changes/p1-materials-per-part/tasks.md                     | 2 +-
+ 6 files changed, 7 insertions(+), 7 deletions(-)
+
+$ python -I table_diff.py <35a61c6 table> <HEAD table>      # order-preserving walk (object_pairs_hook), every key and value
+rows: 19 ids: ['steel', 'sheet_metal', 'timber', 'masonry', 'concrete', 'glass', 'cable', 'foliage', 'bark', 'twig', 'deadwood', 'asbestos_cement', 'straw', 'fabric', 'rubber', 'plastic', 'mesh', 'razor_wire', 'sandbag']
+paths that differ: ['/materials/cable/rationale', '/materials/plastic/rationale']
+every differing path is a rationale: True
+
+$ grep -rni "prop guard" openspec/changes/p1-materials-per-part/ assets-src/physics_materials.json docs/knowledge.md
+openspec/changes/p1-materials-per-part/review.md:249   (S3's own text only)
+```
+
+**As briefed.** Every file and line in the diff is allowed:
+- **The table:** only the two rationales changed. No value moved, and no key changed its order or set.
+- **`vehicles.md`:** one line, R1.
+- **The change folder:** one line each in the proposal, the spec delta and task 1.1. "a prop guard" became "the body or the coil", which closes S3.
+- **`knowledge.md` §7.4:** the wire line only.
+
+Nothing is under `reference/` or `unity/{Library,Temp,Logs}/`.
+
+### Check 4 · Gates and commits
+
+```
+$ python -m pytest tools/blender/tests/test_meta.py tools/blender/tests/test_audit.py -q
+85 passed in 35.26s                          exit 0
+$ python tools/hygiene/precommit.py --tree HEAD
+599 files scanned, 0 findings                exit 0
+$ openspec validate p1-materials-per-part --strict
+Change 'p1-materials-per-part' is valid      exit 0
+$ git log --format='%h | %an <%ae> | %cn <%ce> | %s | body:[%b]' 35a61c6..HEAD
+624f024 | Orchestrator <orchestrator@450fpv.local> | Orchestrator <orchestrator@450fpv.local> | docs(knowledge): a wire span is stiffer pressed down than pushed aside | body:[]
+49d91c9 | Physics Engineer <physics@450fpv.local> | Physics Engineer <physics@450fpv.local> | docs(physics): give cable and plastic the deflection one part makes | body:[]
+f2dde94 | Orchestrator <orchestrator@450fpv.local> | Orchestrator <orchestrator@450fpv.local> | docs: the roof dent per foot (r1), no prop guard in the change | body:[]
+subject lengths 70 / 67 / 62 (limit 72)
+```
+
+All three commits pass:
+- each is subject-only, with no body and no trailer;
+- each is under its role's identity from `docs/team.md`, with author equal to committer;
+- each matches the hook's format;
+- each was made by the owner the review named: the orchestrator for the docs fix, the physics engineer for the rows.
+
+### Spec scenarios and requirements (updated)
+
+| Item | Result |
+|---|---|
+| Scenario "A soft row read per part" (`fabric`) | **Passed** (unchanged since the review; `fabric` is untouched by this range). |
+| Requirement "Physics material rows are per touching part" | **Met:** all 19 rows name the part and give its sink or deflection with a label. |
+| AST-05 | **Met** (unchanged). |
+| PHY-01, PHY-03, PHY-05 | **Not testable here** (phase 7), as above. |
+
+### S items (new, non-blocking)
+
+- **S7 · `vehicles.md`'s tyre sink against `rubber`.**
+  - **Where:** "Open points for the whole sheet", `rubber`: "a leg on a tyre sinks a few millimetres".
+  - **The row:** 5e4 N/m, 0.24 mm at a foot's share. Even the whole drone's 47 N on one foot gives 0.94 mm.
+  - **Why it is not R:** the value is unchanged on this branch, and the line is the analyst's reading, as in S2.
+  - **Fix:** the sheet line follows the row (orchestrator, docs). If a soft or deflated tyre is meant, the R asset's change writes that tyre's own shape stiffness.
+- **S8 · `plastic`'s five-times span.**
+  - **The gap:** "past 55–100 mm between ribs a wall falls below five times the leg's spring" recomputes to 56–114 mm. The row's own 4.9e5 at 50 mm, scaled by 1/a², gives 111 mm.
+  - **Effect today:** none on the row.
+  - **When it matters:** if the five-times line becomes the rule for when a shape writes its own stiffness, record it with its recomputed band in the `fields` text or knowledge §7.4. That falls to the physics engineer, at the first asset that uses it.
+- **S9 · The bumper cover needs S5's per-shape override.**
+  - **The gap:** the rationale says a car asset with a bumper cover writes its own shape `stiffness_n_per_m`. `meta.validate` has no per-shape rule today: `meta.py` line 60 only pairs a row's stiffness with its damping.
+  - **Fix:** whichever comes first, F01 (S5) or the first R asset with a bumper cover, adds the rule.
+  - **Audit impact:** none. 1.2–4e3 N/m is above the 1000 N/m soft line, so that asset's audit zone does not change.
+- **Still open from the review:** S1, S2, S4, S5 and S6 (S6 at archive). S3 is done.
