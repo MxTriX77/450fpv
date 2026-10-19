@@ -46,6 +46,8 @@ def test_committed_params_validate(e01_params):
     (lambda p: p.update(age=0.2), "'age' = 0.2 is the fresh state"),
     (lambda p: p["lod"].update(lod2_switch_m=5.0), "'lod.lod1_switch_m' < 'lod.lod2_switch_m' < 'lod.cull_m' must hold"),
     (lambda p: p.update(bend_deg=40.0, bend_every_m=3.0), "bends of 40.0 +- 5.0 degrees"),
+    (lambda p: p.update(leg_jitter_m=1.5), "do not fit legs of 5.0 +- 1.5 m"),
+    (lambda p: p.update(bend_radius_m=3.5), "past a bend's radius 'bend_radius_m' = 3.5 m less 0.5 m"),
     (lambda p: p.update(margin_m=8.0), "the patch spans up to 40.50 m"),
 ])
 def test_check_refuses(e01_params, edit, expected):
@@ -235,10 +237,42 @@ def test_every_face_carries_its_own_planes_normal(e01):
                     assert abs(sum(e * n for e, n in zip(edge, normal))) / length < 1e-6, (slot, points, normal)
 
 
+def test_the_grass_is_visual_only_and_clear_of_the_corridor(e01):
+    """Task 1.5: the lips' and parapets' grass is one mesh drawn on LOD0 and LOD1, its tongues and hummocks in the
+    ground slot and its stems in the straw slot, with no shape of
+    its own (the collision is the cut's, the parapets', the margins' and the clods'); the audit skips every micro mesh
+    listed in the metadata (lib.audit). Away from the
+    run's ends, no part of it stands inside the half-span of a drone flown nose-first down the middle (0.287 m) or
+    under the floor, and every lip sheaf's tip hangs off its wall."""
+    params, built, data, run = e01
+    grass = [m for m in built["micro"] if m["kind"] == trench.GRASS_KIND]
+    assert [m["lod"] for m in grass] == [0, 1] and grass[0]["mesh"] is grass[1]["mesh"] and grass[0]["count"] > 400
+    mesh = grass[0]["mesh"]
+    assert {slot for *_, slot in mesh.faces} == {trench.GROUND_SLOT, trench.straw.SLOT}
+    assert len(data["collision"]) == len(trench._collision(run, trench._clods(params, run))[0])
+    assert [m["name"] for m in data["micro"] if m["kind"] == "grass"] == ["E01_curving_LOD0_grass", "E01_curving_LOD1_grass"]
+    ends = [run.points[0], run.points[-1]]
+    hanging = 0
+    for x, y, z in mesh.vertices:
+        assert y >= -trench.LIP_HANG_M[1] - 1e-9, (x, y, z)
+        if min(math.hypot(x - e[0], z - e[1]) for e in ends) <= 0.6:
+            continue
+        d = run.distance(x, z)
+        assert y > -0.02 or d > 0.287, (x, y, z)
+        if y < -0.01 and d < run.top + run.crumble_m + 0.02:  # a tongue hanging in the cut, in front of its wall
+            hanging += 1
+            wall = run.top + run.crumble_m - (run.top + run.crumble_m - run.bottom) * (-y) / run.depth
+            assert d < wall, (x, y, z, d, wall)
+    assert hanging, "the lip's tongues hang down the walls"
+
+
 def test_budget_and_determinism(e01, e01_params):
-    """LOD0 with its micro mesh under the design's 60 000 triangles, and a rebuild draws the same."""
+    """LOD0 with its micro meshes (the floor's straws and the grass) under the design's 60 000 triangles, LOD1 with
+    the grass alone, and a rebuild draws the same."""
     _, built, data, _ = e01
-    assert data["lods"][0]["tris"] + data["micro"][0]["tris"] < 60000
+    per_lod = [lod["tris"] + sum(m["tris"] for m in data["micro"] if m["lod"] == n) for n, lod in enumerate(data["lods"])]
+    assert per_lod[0] < 60000 and per_lod[1] < per_lod[0] and per_lod[2] == data["lods"][2]["tris"]
+    assert [(m["lod"], m["kind"]) for m in data["micro"]] == [(0, "straw"), (0, "grass"), (1, "grass")]
     assert len(data["lods"]) == 3 and [lod["switch_distance_m"] for lod in data["lods"]] == [0.0, 8.0, 60.0]
     again = meta.assemble("E01", "E01_curving", "trench", e01_params, trench.build(e01_params), VISUALS)
     assert meta.dumps(again) == meta.dumps(data)

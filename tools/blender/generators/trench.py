@@ -8,8 +8,8 @@ direction t, and the field parapet (parapet_h_m.field) is on its right (G: the s
 right; the review capture stands on the right). A lateral offset d is positive to the left.
 
 The centre line (design 1). Bends of bend_deg (+- BEND_JITTER_DEG) alternate left and right every bend_every_m
-(+- LEG_JITTER_M) along the run, the first to a seeded side, the run starting at half the first bend so it wanders
-about +X; each bend is an arc of BEND_RADIUS_M, and the first and last END_STRAIGHT_M of the run are straight. The
+(+- leg_jitter_m) along the run, the first to a seeded side, the run starting at half the first bend so it wanders
+about +X; each bend is an arc of bend_radius_m, and the first and last END_STRAIGHT_M of the run are straight. The
 samples: every metre on the straights (STRAIGHT_STEP_M, shorter to divide a stretch evenly), arcs in an even number
 of equal pieces (so a sample stands at the bend vertex, the arc's middle) no longer than ARC_STEP_M and turning at
 most JOINT_DEG each, and each niche's segment as one piece. The polyline through the samples is the run: every face,
@@ -40,8 +40,10 @@ here would be stains with no relief under them) with UVs in metres from the patc
 z, so that recipe's map, GROUND_MAP_M across and centred on the UVs' origin, is laid once over the whole patch, never
 wrapped (check: the patch fits it); the block's sides and bottom the section slot (the wall map, a soil section). Every
 cut face takes the wall slot (trench_wall) with UVs on lib.strip's strip. LOD0 adds the clods (low sphere caps, clods_per_m, in the clod slot) and, as its visual-only micro
-mesh, straws and twigs blown onto the floor at FLOOR_STRAW of S04's densities (lib.straw's kit); LOD1 is LOD0 without
-the micro mesh; LOD2 the patch at 1 m with the cut as a plain slot, no niches, no clods.
+meshes, straws and twigs blown onto the floor at FLOOR_STRAW of S04's densities (lib.straw's kit) and the grass of the
+lips and the parapets (_grass, task 1.5: tongues over the lips, tussock hummocks with lib.straw's stems); LOD1 is LOD0
+with the grass but not the floor's straws; LOD2 the patch at 1 m with the cut as a plain slot, no niches, no clods, no
+grass (from 60 m the grassed_spoil map's mottle carries it).
 
 Collision (design 4, the hole contract F-1...F-8), in this order: per segment the floor box, then per side the wall box
 and the lip box (on a niche's segment the belt wall below the sill and above the ceiling and the lip box above and
@@ -79,9 +81,8 @@ GROUND = "surface:belt_straw"    # parapets and margins (S04's surface)
 SPOIL = "surface:crater_spoil"   # loose spoil: the clods
 SIDES = (1, -1)           # +1 the belt side (the run's left), -1 the field side (its right)
 
-BEND_RADIUS_M = 4.0       # a bend's arc (assumed: G's bends read as curves over 1-2 m of run, not kinks)
 BEND_JITTER_DEG = 5.0     # design 1, assumed
-LEG_JITTER_M = 1.0        # design 1, assumed
+PARAPET_BEND_CLEAR_M = 0.5  # check: the parapets' reach stays this far inside a bend's radius (their boxes follow it)
 END_STRAIGHT_M = 1.5      # the run's first and last metres are straight (assumed: the end walls and caps stand square)
 MIN_STRAIGHT_M = 0.5      # the least straight between two arcs
 STRAIGHT_STEP_M = 1.0     # design 2: 1 m segments on the straights
@@ -139,8 +140,33 @@ S04_TWIG_PER_M2 = 2.0     # S04's twigs (carried)
 STRAW_CLEAR_M = 0.02      # a floor straw's ends this far inside the floor
 KIT = {"straw_len_m": {"min": 0.3, "max": 1.0}, "straw_d_mm": {"min": 2.0, "max": 5.0}, "straw_bend": 0.5,
        "stem_h_m": {"min": 0.5, "max": 1.2}, "twig_len_m": {"min": 0.3, "max": 1.0}, "twig_d_mm": {"min": 5.0, "max": 20.0},
-       "blade_h_m": {"min": 0.05, "max": 0.15}, "variants": 12, "segments": 4}  # S04's kit (carried, S04_patch.json)
+       "blade_h_m": {"min": 0.05, "max": 0.15}, "variants": 12, "segments": 2}
+# S04's kit (carried, S04_patch.json) but in 2 segments, not 4: the floor's straws bend once, which leaves the grass its
+# share of LOD0's 60 000 triangles (task 1.5)
 MICRO_KIND = "straw"
+GRASS_KIND = "grass"      # task 1.5: the lips' and parapets' standing dry grass, visual only, on LOD0 and LOD1
+LIP_TUFT_GAP_M = (0.1, 0.3)    # measured: G's grass breaks the lips every 0.1-0.3 m (G 3, 6, 9)
+LIP_TONGUE_W_M = (0.08, 0.18)  # a tongue of grass over the lip, along it (assumed from G 6: 5-15 cm)
+LIP_BACK_M = (0.04, 0.1)       # it starts this far behind the lip (assumed)
+LIP_REACH_M = (0.01, 0.04)     # reaches this far past it (assumed; inside the 113 mm a side at the lip, sheet)
+LIP_RISE_M = (0.005, 0.025)    # this high over it (assumed)
+LIP_HANG_M = (0.03, 0.12)      # and hangs this far down the wall (assumed from G 3, 6: the wall's top hidden in places)
+LIP_OFF_WALL_M = (0.005, 0.015)  # its hanging edge this far off the wall
+TUSSOCK_PER_M2 = 2.3      # tussocks on the berm and the parapets (assumed from G 3-6: clumps 0.4-0.8 m across, close set;
+                          # as many as LOD0's 60 000 triangles leave the grass)
+TUSSOCK_CLEAR_M = 0.1     # a tussock's centre this far past the widest lip, its hummock clear of the cut
+GRASS_FEATHER_M = 0.5     # past the parapets' outer toe the tussocks thin to none over this
+HUMMOCK_R_M = (0.2, 0.4)  # a tussock's hummock's radius (assumed from G 3-6)
+HUMMOCK_H_M = (0.1, 0.25)  # its crown over the ground (assumed: G's dry grass stands 0.1-0.4 m, partly lodged, G 3-6)
+HUMMOCK_STEEP = 0.8       # its crown at most this times its radius up
+HUMMOCK_LOBES = 6         # lobes round it, a notch between each two
+HUMMOCK_LOBE = (0.95, 1.25)  # a lobe's tip, and a notch, as shares of the radius (assumed)
+HUMMOCK_NOTCH = (0.7, 0.85)
+HUMMOCK_SINK_M = 0.01     # the lobes' tips and the notches this far into the ground
+STEMS_PER_TUSSOCK = 2     # up to this many of lib.straw's stems out of a hummock's crown
+STEM_LEN_M = (0.15, 0.35)  # a stem's length (assumed: G's grass stands 0.1-0.4 m)
+STEM_R_M = (0.003, 0.006)  # its radius at the foot (S04's straws 2-5 mm across, a few together)
+STEM_TILT_DEG = (10.0, 50.0)  # its lean from upright
 SHAPES = ("straight", "zigzag", "curving")
 REVETMENTS = ("none", "boards", "wattle", "mesh")
 EPS = 1e-9
@@ -156,7 +182,13 @@ PARAMS = {
     "bend_deg": {"type": "float", "range": (15.0, 40.0), "default": 25.0,
                  "effect": "each bend's turn, +-5 degrees seeded, alternating left and right (sheet 15-40)"},
     "bend_every_m": {"type": "float", "range": (3.0, 8.0), "default": 5.0,
-                     "effect": "the run between bends, +-1 m seeded (sheet 3-8)"},
+                     "effect": "the run between bends, +- leg_jitter_m seeded (sheet 3-8)"},
+    "bend_radius_m": {"type": "float", "range": (2.0, 6.0), "default": 4.0,
+                      "effect": "each bend's arc (read by eye on G 1-12: bends of 25-45 degrees over 1.5-2.5 m of run, "
+                                "radii of about 2-6 m); check keeps the parapets' reach 0.5 m inside it"},
+    "leg_jitter_m": {"type": "float", "range": (0.0, 1.5), "default": 1.0,
+                     "effect": "each bend's place, +- this about bend_every_m seeded (G 1-12: bends come irregularly, "
+                               "up to a metre early or late)"},
     "top_w_m": {"type": "float", "range": (0.6, 1.0), "default": 0.8, "effect": "lip to lip, before the crumble"},
     "bottom_w_m": {"type": "float", "range": (0.5, 0.8), "default": 0.6, "effect": "the floor's width"},
     "depth_m": {"type": "float", "range": (1.2, 2.0), "default": 1.5, "effect": "the floor below the lip"},
@@ -243,13 +275,14 @@ def check(params):
         problems.append(f"the patch spans up to {span:.2f} m ('run_m' + 2 'margin_m' + 2 cells), more than the "
                         f"grassed_spoil map's {GROUND_MAP_M} m")
     reach = top / 2 + params["berm_m"] + base
-    if reach > BEND_RADIUS_M - 0.5:
+    radius, jitter = params["bend_radius_m"], params["leg_jitter_m"]
+    if reach > radius - PARAPET_BEND_CLEAR_M:
         problems.append(f"the parapets reach {reach:.2f} m from the centre line, past a bend's radius "
-                        f"{BEND_RADIUS_M} m less 0.5 m")
+                        f"'bend_radius_m' = {radius} m less {PARAPET_BEND_CLEAR_M} m")
     turn = math.radians(params["bend_deg"] + BEND_JITTER_DEG)
-    if params["shape"] == "curving" and BEND_RADIUS_M * turn + MIN_STRAIGHT_M > params["bend_every_m"] - 2 * LEG_JITTER_M:
-        problems.append(f"bends of {params['bend_deg']} +- {BEND_JITTER_DEG} degrees on a {BEND_RADIUS_M} m radius do "
-                        f"not fit legs of {params['bend_every_m']} +- {LEG_JITTER_M} m")
+    if params["shape"] == "curving" and radius * turn + MIN_STRAIGHT_M > params["bend_every_m"] - 2 * jitter:
+        problems.append(f"bends of {params['bend_deg']} +- {BEND_JITTER_DEG} degrees on a {radius} m radius do "
+                        f"not fit legs of {params['bend_every_m']} +- {jitter} m")
     niche = params["niche_m"]
     if SILL_M + niche["h"] > depth - FILLER_M:
         problems.append(f"a niche's top ({SILL_M + niche['h']:.2f} m above the floor) leaves under {FILLER_M} m of wall "
@@ -276,11 +309,15 @@ def build(params):
     _cavity(lod2, run, niches=False)
     micro = Mesh()
     count = _floor_straws(params, run, clods, micro)
+    grass = Mesh()
+    pieces = _grass(params, run, grass)
     lod = params["lod"]
     collision, joints = _collision(run, clods)
     return {
         "lods": [lod0, lod0, lod2],
-        "micro": [{"lod": 0, "kind": MICRO_KIND, "count": count, "mesh": micro}],
+        "micro": [{"lod": 0, "kind": MICRO_KIND, "count": count, "mesh": micro},
+                  {"lod": 0, "kind": GRASS_KIND, "count": pieces, "mesh": grass},
+                  {"lod": 1, "kind": GRASS_KIND, "count": pieces, "mesh": grass}],
         "switch_distances_m": [0.0, lod["lod1_switch_m"], lod["lod2_switch_m"]],
         "cull_distance_m": lod["cull_m"],
         "materials": [{"slot": GROUND_SLOT, "physics": GROUND}, {"slot": WALL_SLOT, "physics": CUT},
@@ -343,9 +380,9 @@ class Run:
             return []
         arcs, sign, k = [], (1 if rng.random() < 0.5 else -1), 1
         while True:
-            mid = p["bend_every_m"] * k + rng.uniform(-LEG_JITTER_M, LEG_JITTER_M)
+            mid = p["bend_every_m"] * k + rng.uniform(-p["leg_jitter_m"], p["leg_jitter_m"])
             turn = sign * math.radians(p["bend_deg"] + rng.uniform(-BEND_JITTER_DEG, BEND_JITTER_DEG))
-            half = BEND_RADIUS_M * abs(turn) / 2
+            half = p["bend_radius_m"] * abs(turn) / 2
             if mid + half > self.length - END_STRAIGHT_M:
                 return arcs
             low = (arcs[-1][1] + MIN_STRAIGHT_M) if arcs else END_STRAIGHT_M
@@ -1002,6 +1039,142 @@ def _on_floor(run, p):
             best = d
             along = run.chainage[i] + max(0.0, min(run.seg_len[i], _dot2(_sub2(p, a), run.t[i])))
     return best <= run.bottom - STRAW_CLEAR_M and run.run_in + STRAW_CLEAR_M <= along <= run.length - run.run_in - STRAW_CLEAR_M
+
+
+def _grass(params, run, mesh):
+    """The dry grass of the lips and the parapets (task 1.5; G 3, 6, 9), visual only (AST-10): no collision, and the
+    audit skips it, so the landable 2 cm zone keeps the ground's own relief; returns the number of tongues and
+    tussocks. The tongues and hummocks are the grass's mass in the ground slot, their UVs on the top's (metres from the
+    patch's centre), so the grassed_spoil map runs on over them; the stems are lib.straw's tubes in the straw palette.
+    - The lips: along each lip, the side lips' and the end walls', a tongue every LIP_TUFT_GAP_M (_tongue).
+    - The tussocks: on a jittered grid of TUSSOCK_PER_M2 from TUSSOCK_CLEAR_M past the widest lip to the parapets'
+      outer toe, thinning to none over GRASS_FEATHER_M past it: each a hummock (_hummock) no wider than keeps it off
+      the cut, with up to STEMS_PER_TUSSOCK stems out of its crown, leaning STEM_TILT_DEG."""
+    rng = random.Random(f"trench grass {params['seed']}")
+    height = _height_fn(run, params)
+    lip_max = run.top + run.crumble_m
+    x0, z0, nx, nz, cx, cz = _patch(run)
+    origin = (x0 + nx * cx / 2, z0 + nz * cz / 2)  # the top's UV origin (_top)
+    count = 0
+
+    def face(points, anchor):
+        ids = [mesh.vertex(p) for p in points]
+        mesh.face(ids, _outward(mesh, ids, anchor), GROUND_SLOT, [(p[0] - origin[0], p[2] - origin[1]) for p in points])
+
+    # the lips: (polyline, per-segment inward direction, per-point wall run-in per metre of depth)
+    lips = []
+    for side in SIDES:
+        line = [run.lip(j, side) for j in range(run.n + 1)]
+        inward = [(-side * n[0], 0.0, -side * n[1]) for n in run.normal]
+        slope = [(run.top + run.crumble[side][j] - run.bottom) / run.depth for j in range(run.n + 1)]
+        lips.append((line, inward, slope))
+    for j, sign in ((0, 1.0), (run.n, -1.0)):
+        t = run.t[0] if j == 0 else run.t[-1]
+        lips.append(([run.lip(j, -1), run.lip(j, 1)], [(sign * t[0], 0.0, sign * t[1])],
+                     [run.run_in / run.depth] * 2))
+    for line, inward, slope in lips:
+        lengths = [_dist(a, b) for a, b in zip(line, line[1:])]
+        total = sum(lengths)
+        s = OVERLAP_M + rng.uniform(0.0, LIP_TUFT_GAP_M[1])
+        while s < total - OVERLAP_M:
+            i, start = 0, 0.0
+            while start + lengths[i] < s:
+                start, i = start + lengths[i], i + 1
+            f = (s - start) / lengths[i]
+            p = _add(_scale(line[i], 1 - f), _scale(line[i + 1], f))
+            _tongue(height, rng, p, _unit(_sub(line[i + 1], line[i])), inward[i], slope[i] * (1 - f) + slope[i + 1] * f,
+                    face)
+            count += 1
+            s += rng.uniform(*LIP_TUFT_GAP_M)
+
+    # the tussocks
+    step = 1.0 / math.sqrt(TUSSOCK_PER_M2)
+    inner, outer = lip_max + TUSSOCK_CLEAR_M, run.toe + run.base
+    identity = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
+    for i in range(math.ceil(nx * cx / step)):
+        for j in range(math.ceil(nz * cz / step)):
+            centre = (x0 + (i + rng.random()) * step, z0 + (j + rng.random()) * step)
+            keep = rng.random()
+            d = run.distance(*centre)
+            if d < inner or d > outer + GRASS_FEATHER_M or (d > outer and keep < _smooth((d - outer) / GRASS_FEATHER_M)):
+                continue
+            radius = min(rng.uniform(*HUMMOCK_R_M), (d - lip_max - 0.03) / HUMMOCK_LOBE[1])
+            crown = _hummock(height, rng, centre, radius, face)
+            for _ in range(rng.randint(0, STEMS_PER_TUSSOCK)):
+                bearing = rng.uniform(0, 2 * math.pi)
+                tilt = math.radians(rng.uniform(*STEM_TILT_DEG))
+                length = rng.uniform(*STEM_LEN_M)
+                dx, dz = math.cos(bearing), math.sin(bearing)
+                foot = (crown[0] - dx * 0.02, crown[1] - 0.03, crown[2] - dz * 0.02)
+                tip = _add(foot, (dx * math.sin(tilt) * length, math.cos(tilt) * length, dz * math.sin(tilt) * length))
+                tube = straw.tube([foot, tip], rng.uniform(*STEM_R_M), straw.TIP, (-dz, 0.0, dx),
+                                  straw.SHADES[rng.randrange(len(straw.SHADES))])
+                straw.place(mesh, tube, (0.0, 0.0, 0.0), identity)
+            count += 1
+    return count
+
+
+def _tongue(height, rng, p, along, inward, run_in, face):
+    """A tongue of grass over the lip at its point p: LIP_TONGUE_W_M wide along it, from LIP_BACK_M behind it on the
+    berm up over its edge (LIP_REACH_M past it, LIP_RISE_M up) and down the battered wall (run_in a metre of depth),
+    its hanging edge LIP_OFF_WALL_M off the wall, rounded: its middle hangs LIP_HANG_M, its sides 40-80 % of that.
+    Three rows of three points, eight triangles facing out of the soil."""
+    half = rng.uniform(*LIP_TONGUE_W_M) / 2
+    back, reach, rise = rng.uniform(*LIP_BACK_M), rng.uniform(*LIP_REACH_M), rng.uniform(*LIP_RISE_M)
+    hang = rng.uniform(*LIP_HANG_M)
+    rows = []
+    for r in range(3):
+        row = []
+        for c in (-1.0, 0.0, 1.0):
+            a = c * half * rng.uniform(0.8, 1.1)
+            if r == 0:
+                q = _sub(p, _scale(inward, back + rng.uniform(-0.015, 0.015)))
+                q = (q[0], height(q[0], q[2]) - 0.005, q[2])
+            elif r == 1:
+                q = _add(_add(p, _scale(inward, reach)), (0.0, rise + rng.uniform(-0.005, 0.005), 0.0))
+            else:
+                h = hang * (1.0 if c == 0.0 else rng.uniform(0.4, 0.8))
+                q = _add(_add(p, _scale(inward, run_in * h + rng.uniform(*LIP_OFF_WALL_M))), (0.0, -h, 0.0))
+            row.append(_add(q, _scale(along, a)))
+        rows.append(row)
+    anchor = _add(_sub(p, _scale(inward, 0.3)), (0.0, -0.3, 0.0))  # in the soil behind the lip
+    for r in range(2):
+        for c in range(2):
+            a, b, cc, d = rows[r][c], rows[r][c + 1], rows[r + 1][c + 1], rows[r + 1][c]
+            face([a, b, cc], anchor)
+            face([a, cc, d], anchor)
+
+
+def _hummock(height, rng, centre, radius, face):
+    """A tussock's hummock of `radius`: a crown HUMMOCK_H_M up (at most HUMMOCK_STEEP times the radius), a ring of
+    HUMMOCK_LOBES shoulders round it, and a star of as many lobes reaching HUMMOCK_LOBE of the radius with a notch
+    between each two at HUMMOCK_NOTCH of it, lobes and notches HUMMOCK_SINK_M into the ground; 4 HUMMOCK_LOBES triangles
+    facing out of the hummock. Returns the crown."""
+    k = HUMMOCK_LOBES
+    ground = height(*centre)
+    top = min(rng.uniform(*HUMMOCK_H_M), radius * HUMMOCK_STEEP)
+    spin = rng.uniform(0, 2 * math.pi)
+    crown = (centre[0] + rng.uniform(-0.15, 0.15) * radius, ground + top, centre[1] + rng.uniform(-0.15, 0.15) * radius)
+
+    def at(angle, share, lift):
+        x, z = centre[0] + math.cos(angle) * radius * share, centre[1] + math.sin(angle) * radius * share
+        return (x, height(x, z) + lift, z)
+
+    step = 2 * math.pi / k
+    shoulders = [at(spin + step * (j + rng.uniform(-0.2, 0.2)), rng.uniform(0.45, 0.65), top * rng.uniform(0.7, 0.95))
+                 for j in range(k)]
+    rim = []
+    for j in range(k):
+        rim.append(at(spin + step * (j + rng.uniform(-0.15, 0.15)), rng.uniform(*HUMMOCK_LOBE), -HUMMOCK_SINK_M))
+        rim.append(at(spin + step * (j + 0.5), rng.uniform(*HUMMOCK_NOTCH), -HUMMOCK_SINK_M))
+    anchor = (centre[0], ground - radius, centre[1])
+    for j in range(k):
+        n = (j + 1) % k
+        face([crown, shoulders[j], shoulders[n]], anchor)
+        face([shoulders[j], rim[2 * j], rim[2 * j + 1]], anchor)
+        face([shoulders[j], rim[2 * j + 1], shoulders[n]], anchor)
+        face([shoulders[n], rim[2 * j + 1], rim[(2 * j + 2) % (2 * k)]], anchor)
+    return crown
 
 
 # --- collision ------------------------------------------------------------------------------------------------------
