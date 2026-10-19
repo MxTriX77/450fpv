@@ -52,7 +52,7 @@ The pilot, 2026-10-17: "when i say realism i mean more than just abstract realis
 | M | the abandoned classic sedan on asphalt |
 | N | the blast-wrecked hatchback in its debris field |
 | O | the burnt-out bonneted truck (no snow: season isn't a setting) |
-| S | a damaged village street from about 13 m in damp autumn overcast: stripped hip roofs over standing walls, ragged verges and fences, whitewashed pole butts, an open green (S's look as a scene type, never its sequence) |
+| S | a damaged village street from about 12.5 m (11–14 m) in damp autumn overcast: stripped hip roofs over standing walls, ragged verges and fences, whitewashed pole butts, an open green (S's look as a scene type, never its sequence) |
 
 *Accept:* every view exists. The review controls cycle through them (GAL-05, WLD-14).
 
