@@ -17,7 +17,10 @@ texels (p1-v01-locust task 1.2g).
 A recipe with "alpha_clip" (p1-v13-shrub, "Alpha-clipped two-sided recipes") whose texture set ships its opacity as
 a separate map (ambientCG's atlases) gets <material>_base.png: the diffuse's RGB with the opacity map as alpha, an
 8-bit sRGB RGBA map the importer assigns as the base map in place of the diffuse, so URP/Lit clips by its alpha. A
-set without an "opacity" map needs nothing: the diffuse's own alpha clips.
+set without an "opacity" map needs nothing: the diffuse's own alpha clips. Every texel the opacity clips takes the
+kept texels' mean colour, averaged in linear light, as the mask's do (p1-v01-locust task 1.2l): the mips of a
+minified card average its leaves' colour, not what lies under the clipped texels, and the importer leaves Unity's
+dilation off for a derived base map, which would paint over them.
 
 A far-card recipe {"schema": 1, "far_card_of": <recipe>} (p1-v01-locust task 1.2j) is that leaf recipe for far
 cards drawn as two faces with normals of their own: the importer builds it from the leaf recipe and its derived maps,
@@ -31,7 +34,8 @@ Two more base maps (p1-v01-locust, design decision 5), assigned the same way:
   RGB map; a channel past white clips);
 - a "paint" object, in place of a texture set, paints the base map by script: {"pods": <count>, "size_px": [w, h],
   "colour": "#rrggbb"}, the locust's hanging pods side by side from one stalk at the top, flat strips with their
-  seeds' bulges, darker at the rims, alpha outside (an 8-bit sRGB RGBA map).
+  seeds' bulges, darker at the rims, alpha outside (an 8-bit sRGB RGBA map); with an "alpha_clip", every texel it
+  clips takes the kept texels' mean colour, as above.
 
 A recipe of kind "ground" (p1-s04-belt-straw, "Ground recipes with a detail layer") names a soil set and a cover set,
 a seeded patch description and a target mean albedo, and gets four maps for one patch of size_m x size_m at
@@ -106,11 +110,13 @@ RECIPES = os.path.join("assets-src", "materials")
 MATERIALS = os.path.join("unity", "Assets", "_Project", "Art", "Materials")
 FORMULA = "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size"
 CLIP_FORMULA = FORMULA + "; every texel the opacity map clips takes each channel's mean over the texels it keeps"
-BASE_FORMULA = "RGB diffuse, A opacity; 8-bit sRGB at the sources' size"
+CLIP_COLOUR = "; every texel the alpha_clip clips takes the kept texels' mean colour in linear light"
+BASE_FORMULA = "RGB diffuse, A opacity; 8-bit sRGB at the sources' size" + CLIP_COLOUR
 GROOVE_FORMULA = ("RGB diffuse x (1 + (tint - 1) x weight) in linear light, the weight 0 where the cavity map reads "
                   "from or more and 1 where it reads to or less, linear between; 8-bit sRGB at the sources' size")
 PAINT_FORMULA = ("pods side by side from one stalk at the top, each a flat strip of rounded ends with its seeds' "
-                 "bulges, the rim at 0.7 of the colour; 4x supersampled, alpha clear outside; 8-bit sRGB RGBA")
+                 "bulges, the rim at 0.7 of the colour; 4x supersampled, alpha clear outside; 8-bit sRGB RGBA"
+                 + CLIP_COLOUR)
 CHANNELS = ("metallic", "occlusion", "smoothness")  # R, G, A
 MAP_EXPR = re.compile(r"^(1 - )?([a-z]+)$")
 HEX = re.compile(r"^#[0-9a-f]{6}$")
@@ -323,15 +329,39 @@ def _fill_clipped(images, opacity, cutoff):
     full resolution, but every mip averages them in: LeafSet002's AO reads 0.82 under its clipped texels against 0.97
     under its leaves, so a minified leaf card took a lower occlusion the farther it was, and its ambient light with
     it. Unchanged when the map keeps nothing."""
-    keep = opacity.point(lambda v: 255 if v >= math.ceil(cutoff * 255) else 0)
+    keep = _kept(opacity, cutoff)
     if not keep.getbbox():
         return images
     return tuple(Image.composite(image, Image.new("L", image.size, round(ImageStat.Stat(image, keep).mean[0])), keep)
                  for image in images)
 
 
+def _kept(opacity, cutoff):
+    """The 8-bit L mask of the texels the alpha test keeps: 255 where the opacity is at least `cutoff` (the shader
+    drops alpha < cutoff), else 0."""
+    return opacity.point(lambda v: 255 if v >= math.ceil(cutoff * 255) else 0)
+
+
+def _fill_clipped_colour(rgb, opacity, cutoff):
+    """The 8-bit sRGB `rgb` with every texel the alpha test clips (opacity under `cutoff`) set to the kept texels'
+    mean colour, each channel averaged in linear light and encoded back (p1-v01-locust task 1.2l). Those texels never
+    show at full resolution, but every mip averages them in: under LeafSet002's clipped texels the diffuse reads 18 %
+    darker than under its leaves (linear luminance 0.206 against 0.252), and Unity's dilation, which fills them from
+    the leaves' edges, would paint over them. Unchanged when the map keeps nothing."""
+    keep = _kept(opacity, cutoff)
+    if not keep.getbbox():
+        return rgb
+    counts = rgb.histogram(keep)  # 256 levels per channel, R, G, B, over the kept texels
+    mean = []
+    for c in range(3):
+        levels = counts[256 * c:256 * (c + 1)]
+        mean.append(_encode(sum(n * SRGB_TO_LINEAR[v] for v, n in enumerate(levels)) / sum(levels)))
+    return Image.composite(rgb, Image.new("RGB", rgb.size, tuple(mean)), keep)
+
+
 def derive_base(root, manifest, material, recipe):
-    """The base map of an alpha-clipped recipe: the diffuse's RGB with the set's separate opacity map as alpha."""
+    """The base map of an alpha-clipped recipe: the diffuse's RGB with the set's separate opacity map as alpha, every
+    texel the opacity clips at the recipe's cutoff given the kept texels' mean colour (`_fill_clipped_colour`)."""
     texture_set = recipe["texture_set"]
     maps = set_maps(root, manifest, texture_set, material)
     if "opacity" not in maps:
@@ -340,9 +370,10 @@ def derive_base(root, manifest, material, recipe):
         if not os.path.isfile(maps[name]):
             raise DeriveError(f"{fetch.relpath(root, maps[name])}: missing; run fetch.py")
     stamp = {"material": material, "texture_set": texture_set, "formula": BASE_FORMULA,
+             "alpha_clip": recipe["alpha_clip"],
              "sources": {name: {"name": os.path.basename(maps[name]), "sha256": fetch.sha256(maps[name])}
                          for name in ("diffuse", "opacity")}}
-    stamp["inputs_sha256"] = _inputs_sha256(stamp, ("formula", "sources"))
+    stamp["inputs_sha256"] = _inputs_sha256(stamp, ("formula", "alpha_clip", "sources"))
 
     png_path = os.path.join(root, MATERIALS, f"{material}_base.png")
     stamp_path = os.path.join(root, MATERIALS, f"{material}_base.recipe.json")
@@ -355,7 +386,8 @@ def derive_base(root, manifest, material, recipe):
         raise DeriveError(f"{material}: the sources differ in size: diffuse {diffuse.size[0]}x{diffuse.size[1]}, "
                           f"opacity {opacity.size[0]}x{opacity.size[1]}")
     os.makedirs(os.path.dirname(png_path), exist_ok=True)
-    Image.merge("RGBA", (*diffuse.split(), opacity)).save(png_path, "PNG")
+    rgb = _fill_clipped_colour(diffuse, opacity, recipe["alpha_clip"])
+    Image.merge("RGBA", (*rgb.split(), opacity)).save(png_path, "PNG")
     stamp["size"] = list(diffuse.size)
     _write_stamp(stamp_path, stamp)
     return (f"{fetch.relpath(root, png_path)}: derived {diffuse.size[0]}x{diffuse.size[1]} from {texture_set} "
@@ -416,13 +448,18 @@ def derive_paint(root, material, recipe):
             and all(isinstance(s, int) and 8 <= s <= 2048 for s in size)
             and isinstance(paint["colour"], str) and HEX.match(paint["colour"])):
         raise DeriveError(f"{material}: paint needs pods >= 1, size_px [w, h] of 8-2048 px and colour '#rrggbb'")
-    stamp = {"material": material, "formula": PAINT_FORMULA, "paint": paint, "sources": {}}
-    stamp["inputs_sha256"] = _inputs_sha256(stamp, ("formula", "paint", "sources"))
+    cutoff = recipe.get("alpha_clip")
+    stamp = {"material": material, "formula": PAINT_FORMULA, "paint": paint, "alpha_clip": cutoff, "sources": {}}
+    stamp["inputs_sha256"] = _inputs_sha256(stamp, ("formula", "paint", "alpha_clip", "sources"))
 
     png_path, stamp_path = _outputs(root, material, "base")
     if _up_to_date([png_path], stamp_path, stamp["inputs_sha256"]):
         return f"{fetch.relpath(root, png_path)}: up to date"
-    _write(png_path, stamp_path, _pods(paint["pods"], size, paint["colour"]), stamp)
+    image = _pods(paint["pods"], size, paint["colour"])
+    if cutoff is not None:
+        rgb, alpha = image.convert("RGB"), image.getchannel("A")
+        image = Image.merge("RGBA", (*_fill_clipped_colour(rgb, alpha, cutoff).split(), alpha))
+    _write(png_path, stamp_path, image, stamp)
     return f"{fetch.relpath(root, png_path)}: painted {size[0]}x{size[1]}; recipe recorded in {os.path.basename(stamp_path)}"
 
 

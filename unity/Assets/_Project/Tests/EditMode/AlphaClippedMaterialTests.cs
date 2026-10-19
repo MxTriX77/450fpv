@@ -68,7 +68,8 @@ namespace Fpv450.Tests.EditMode
             var importer = (TextureImporter)AssetImporter.GetAtPath(BasePath);
             Assert.That(importer.DoesSourceTextureHaveAlpha(), Is.True);
             Assert.That(importer.alphaSource, Is.EqualTo(TextureImporterAlphaSource.FromInput), "the alpha as packed, not from grey or premultiplied");
-            Assert.That(importer.alphaIsTransparency, Is.True);
+            Assert.That(importer.alphaIsTransparency, Is.False,
+                "derive.py gives the clipped texels the kept mean colour, which Unity's dilation would paint over (task 1.2l)");
             Assert.That(importer.sRGBTexture, Is.True, "the base map is colour");
         }
 

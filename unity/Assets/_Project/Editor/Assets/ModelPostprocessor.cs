@@ -13,7 +13,7 @@ namespace Fpv450.Assets
     /// Unity colliders, static. Textures under <c>Art/ThirdParty/</c>: typed from the Poly Haven, ambientCG or
     /// TextureCan suffix; the maps that <c>tools/assets/derive.py</c> writes under <c>Art/Materials/</c>: the packed
     /// masks as linear RGBA data, the ground and palette albedos as sRGB, the <c>_base</c> maps of alpha-clipped
-    /// recipes as sRGB diffuse with their alpha; the impostor atlases the Blender build writes beside the FBX under
+    /// recipes as sRGB diffuse with their alpha, undilated; the impostor atlases the Blender build writes beside the FBX under
     /// <c>Art/Models/</c> (p1-v01-locust): the albedo (<c>_impostor</c>) sRGB diffuse with its alpha, the normals
     /// (<c>_impostor_normal</c>) linear data. The base map of an alpha-clipped recipe and an impostor atlas also keep
     /// their mip coverage at the cutoff (<see cref="ApplyCoverage"/>, applied by the catalog importer).
@@ -55,13 +55,17 @@ namespace Fpv450.Assets
         /// derived <c>_albedo</c> (the ground base and detail albedos, the palettes), a derived <c>_base</c> map (the
         /// alpha-clipped, groove and paint recipes') and an <c>_impostor</c> atlas are sRGB diffuse; a derived
         /// <c>_mask</c> and anything else is a default-typed linear map. Only the diffuse maps are sRGB, and only a
-        /// diffuse whose source carries an alpha channel (a leaf atlas, an impostor) is imported as transparency, its
-        /// alpha kept as given, never premultiplied. An impostor's normal atlas (<c>_impostor_normal</c>) is no
-        /// normal map but linear data without mips: its shader reads it raw at full resolution.
+        /// diffuse whose source carries an alpha channel (an impostor) is imported as transparency, its alpha kept as
+        /// given, never premultiplied; a derived <c>_base</c> map with alpha (a leaf atlas, the pods) is not, as
+        /// <c>derive.py</c> gives every texel its alpha clips the kept texels' mean colour, which Unity's dilation
+        /// would paint over with the colours at the leaves' edges (p1-v01-locust task 1.2l). An impostor's normal
+        /// atlas (<c>_impostor_normal</c>) is no normal map but linear data without mips: its shader reads it raw at
+        /// full resolution.
         /// </summary>
         public static bool ApplyTexture(TextureImporter importer, string assetPath)
         {
             string name = Path.GetFileNameWithoutExtension(assetPath).ToLowerInvariant();
+            bool derivedBase = assetPath.StartsWith(MaterialsFolder, StringComparison.Ordinal) && name.EndsWith("_base");
             bool impostorNormals = name.EndsWith("_impostor_normal");
             bool normal = !impostorNormals && (name.Contains("_nor_gl") || name.Contains("_normal"));
             bool single = name.Contains("_rough") || name.Contains("_ao") || name.Contains("ambientocclusion")
@@ -75,7 +79,7 @@ namespace Fpv450.Assets
             bool changed = false;
             changed |= Set(importer.textureType, type, v => importer.textureType = v);
             changed |= Set(importer.sRGBTexture, diffuse, v => importer.sRGBTexture = v);
-            changed |= Set(importer.alphaIsTransparency, diffuse && importer.DoesSourceTextureHaveAlpha(), v => importer.alphaIsTransparency = v);
+            changed |= Set(importer.alphaIsTransparency, diffuse && !derivedBase && importer.DoesSourceTextureHaveAlpha(), v => importer.alphaIsTransparency = v);
             if (impostorNormals)
                 changed |= Set(importer.mipmapEnabled, false, v => importer.mipmapEnabled = v);
             if (single)
@@ -118,7 +122,7 @@ namespace Fpv450.Assets
     public sealed class ModelPostprocessor : AssetPostprocessor
     {
         // Bump when ArtImportSettings changes, so Unity reimports the files it covers.
-        public override uint GetVersion() => 6;
+        public override uint GetVersion() => 7;
 
         void OnPreprocessModel()
         {

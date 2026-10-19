@@ -1,7 +1,8 @@
 {
   "material": "leaf_locust",
   "texture_set": "ambientcg/LeafSet002",
-  "formula": "RGB diffuse, A opacity; 8-bit sRGB at the sources' size",
+  "formula": "RGB diffuse, A opacity; 8-bit sRGB at the sources' size; every texel the alpha_clip clips takes the kept texels' mean colour in linear light",
+  "alpha_clip": 0.5,
   "sources": {
     "diffuse": {
       "name": "LeafSet002_2K-PNG_Color.png",
@@ -12,7 +13,7 @@
       "sha256": "c68f9e226d535daedb1e29ee3ca17c9645128a4165615682960b8b3bf9a6737d"
     }
   },
-  "inputs_sha256": "55140b012eeae5721a0d65f70804f72ad4000cbba540d5a29bbd417f41579a95",
+  "inputs_sha256": "4770c8011366818fbac66937122f36f8fe4020f552d7e54f237f2c63c490befc",
   "size": [
     2048,
     2048

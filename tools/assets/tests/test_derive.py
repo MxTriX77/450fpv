@@ -241,6 +241,36 @@ def test_mask_of_an_alpha_clipped_recipe_fills_the_clipped_texels(tmp_path, caps
     assert mask.getpixel((5, 0)) == (0, 128, 0, 18) and mask.getpixel((6, 0)) == (0, 0, 0, 36)
 
 
+def test_base_map_of_an_alpha_clipped_recipe_fills_the_clipped_texels(tmp_path, capsys):
+    """p1-v01-locust task 1.2l: the opacity (rising along x) clips columns 0-3 at alpha_clip 0.5; their RGB, black
+    here, takes the kept columns' mean colour, each channel averaged in linear light (R of 50 and 250: linear 0.0319
+    and 0.9560, mean 0.4940 -> 186; G 100 throughout; B of 200 and 0: 0.5776 and 0, mean 0.2888 -> 146). The kept
+    texels and the alpha stay as they were; the stamp records the cutoff, and a new cutoff regenerates."""
+    root = base_root(tmp_path)
+    diffuse = Image.new("RGB", SIZE, (0, 0, 0))
+    for y in range(SIZE[1]):
+        for x in range(4, 8):
+            diffuse.putpixel((x, y), (50, 100, 200) if x < 6 else (250, 100, 0))
+    diffuse.save(root / SET_DIR / MAPS["diffuse"])
+    assert run(MATERIAL, "--root", root) == 0
+    assert f"{MATERIAL}_base.png: derived 8x4" in capsys.readouterr().out
+    base = Image.open(root / MATERIALS / f"{MATERIAL}_base.png")
+    expected = tuple(derive._encode((derive._decode(a) + derive._decode(b)) / 2) for a, b in ((50, 250), (100, 100), (200, 0)))
+    assert expected == (186, 100, 146)
+    for y in range(SIZE[1]):
+        for x in range(SIZE[0]):
+            alpha = round(x / (SIZE[0] - 1) * 255)
+            rgb = expected if x < 4 else diffuse.getpixel((x, y))
+            assert base.getpixel((x, y)) == rgb + (alpha,), (x, y)
+    stamp = json.loads((root / MATERIALS / f"{MATERIAL}_base.recipe.json").read_text(encoding="utf-8"))
+    assert stamp["formula"] == derive.BASE_FORMULA and stamp["alpha_clip"] == 0.5
+
+    write_recipe(root, MASK, alpha_clip=0.75)  # alpha under 192 clips columns 0-5: the kept mean is (250, 100, 0)
+    assert run(MATERIAL, "--root", root) == 0 and f"{MATERIAL}_base.png: derived 8x4" in capsys.readouterr().out
+    base = Image.open(root / MATERIALS / f"{MATERIAL}_base.png")
+    assert base.getpixel((5, 0)) == (250, 100, 0, 182) and base.getpixel((6, 0)) == (250, 100, 0, 219)
+
+
 def test_base_map_refuses_sources_of_different_size(tmp_path, capsys):
     root = base_root(tmp_path)
     Image.new("RGB", (SIZE[0] * 2, SIZE[1]), DIFFUSE_RGB).save(root / SET_DIR / MAPS["diffuse"])
@@ -314,8 +344,13 @@ def test_paint_draws_the_pods_with_no_texture_set(tmp_path, capsys):
     assert row[0][3] == row[16][3] == row[31][3] == 0, "clear at the sides and between the pods"
     for half in (row[:16], row[16:]):  # each pod's face, inside its darker rim, in the given colour
         assert (0x5c, 0x3d, 0x28, 255) in half and any(p[3] == 255 and p[0] < 0x5c for p in half)
+    pixels = [base.getpixel((x, y)) for y in range(64) for x in range(32)]
+    kept = [p for p in pixels if p[3] >= 128]
+    fill = tuple(derive._encode(sum(derive._decode(p[c]) for p in kept) / len(kept)) for c in range(3))
+    assert all(p[:3] == fill for p in pixels if p[3] < 128), "every clipped texel takes the kept mean (task 1.2l)"
     stamp = json.loads((root / MATERIALS / "pods_base.recipe.json").read_text(encoding="utf-8"))
     assert stamp["paint"] == paint and stamp["formula"] == derive.PAINT_FORMULA and stamp["sources"] == {}
+    assert stamp["alpha_clip"] == 0.5
     assert run("pods", "--root", root) == 0
     assert "pods_base.png: up to date" in capsys.readouterr().out
 
