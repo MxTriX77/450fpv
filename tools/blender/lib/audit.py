@@ -1017,6 +1017,12 @@ def _gap_distance(p, polygon, normal):
 
 # --- gaps: the largest inscribed circle -------------------------------------------------------------------------
 
+def inscribed_diameter(polygon, normal):
+    """The diameter of the largest circle inscribed in a planar gap polygon, as the audit measures it (a generator's
+    narrowest_m)."""
+    return 2 * _inscribed_radius(_flatten_polygon(polygon, normal))
+
+
 def _flatten_polygon(polygon, normal):
     u, v = _plane_basis(normal)
     return [(_dot(p, u), _dot(p, v)) for p in polygon]
