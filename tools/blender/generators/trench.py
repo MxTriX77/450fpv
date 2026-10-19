@@ -89,8 +89,8 @@ ARC_STEP_M = 0.5          # design 2: 0.5 m on bends
 JOINT_DEG = 5.0           # derived: a box's 0.1 m past a joint on a bend's inside stands 0.1 sin(turn + the lip's kink)
                           # into the next segment's cut: 5 degrees and the crumble's 3.4 keep it under 15 mm (2 cm zone)
 CRUMBLE_MIN_M = 0.01      # assumed: a spade-cut lip always crumbles a little (the soil lip radius is 2 cm, a physics
-                          # constant); it keeps the parapet's toe (berm_m 0.3 from the lip) 1 cm inside the gaps' 0.3 m
-                          # zone, where the audit's search would otherwise refine along the toe without end
+                          # constant), so an established lip never runs on its clean spade line (G); lip_crumble_m 0, a
+                          # fresh trench's sharp lip, takes it to 0 (the audit's zone-edge guard then ends on the toe)
 CRUMBLE_SLOPE = 0.03      # assumed: the lip's inset changes by at most this per metre of run, so the lip line kinks by
                           # at most 2 x 1.7 degrees at a joint and a wall's twisted quad stays within a centimetre of its box
 NICHE_PILLAR_M = 0.1      # wall left either side of a niche in its segment (assumed)
