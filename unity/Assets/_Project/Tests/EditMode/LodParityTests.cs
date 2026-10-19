@@ -15,10 +15,12 @@ namespace Fpv450.Tests.EditMode
     /// pixels of (70, 95, 40). The expected numbers were computed apart from the code, in double precision, with the
     /// sRGB decoding of IEC 61966-2-1; the limits are the spec's 6 % and 15 %. The averaging over the camera offsets
     /// (tasks 1.2c and 1.2d) on 64 literal crowns, one per offset of the 8 × 8 grid, with their numbers computed apart
-    /// from the code too, in exact fractions and 40-digit square roots. The judged rows (task 1.2f): which pair each tile
-    /// judges for V13's three LODs and V01's four, and the verdicts on grey crowns (r = g = b, so the luminance is the
-    /// grey) with the luminances, coverages and standard errors of task 1.2b's rows, the differences computed apart from
-    /// the code in exact fractions. And the stage (task 1.2h): the review capture's, with the scale bar hidden.
+    /// from the code too, in exact fractions and 40-digit square roots; the 16 × 16 grid a noisy tile is measured on
+    /// again, and the rule that picks such a tile, on task 1.2i's standard errors (task 1.2k). The judged rows (task
+    /// 1.2f): which pair each tile judges for V13's three LODs and V01's four, and the verdicts on grey crowns
+    /// (r = g = b, so the luminance is the grey) with the luminances, coverages and standard errors of task 1.2b's rows,
+    /// the differences computed apart from the code in exact fractions. And the stage (task 1.2h): the review capture's,
+    /// with the scale bar hidden.
     /// </summary>
     public sealed class LodParityTests
     {
@@ -97,6 +99,43 @@ namespace Fpv450.Tests.EditMode
             Assert.That(LodParity.Offsets[31], Is.EqualTo(new Vector2(0.4375f, -0.0625f)));
             Assert.That(LodParity.Offsets[32], Is.EqualTo(new Vector2(-0.4375f, 0.0625f)));
             Assert.That(LodParity.Offsets[63], Is.EqualTo(new Vector2(0.4375f, 0.4375f)));
+        }
+
+        [Test]
+        public void FineOffsets_AreA16x16GridASixteenthPixelApartAroundTheReviewsFraming()
+        {
+            float[] steps =
+            {
+                -0.46875f, -0.40625f, -0.34375f, -0.28125f, -0.21875f, -0.15625f, -0.09375f, -0.03125f,
+                0.03125f, 0.09375f, 0.15625f, 0.21875f, 0.28125f, 0.34375f, 0.40625f, 0.46875f,
+            };
+            var grid = new List<Vector2>();
+            foreach (float y in steps)
+                foreach (float x in steps)
+                    grid.Add(new Vector2(x, y));
+            Assert.That(LodParity.FineOffsets, Is.EqualTo(grid.ToArray()));
+            Assert.That(LodParity.FineOffsets.Length, Is.EqualTo(256));
+            Assert.That(LodParity.FineOffsets[0], Is.EqualTo(new Vector2(-0.46875f, -0.46875f)));
+            Assert.That(LodParity.FineOffsets[15], Is.EqualTo(new Vector2(0.46875f, -0.46875f)));
+            Assert.That(LodParity.FineOffsets[127], Is.EqualTo(new Vector2(0.46875f, -0.03125f)));
+            Assert.That(LodParity.FineOffsets[128], Is.EqualTo(new Vector2(-0.46875f, 0.03125f)));
+            Assert.That(LodParity.FineOffsets[255], Is.EqualTo(new Vector2(0.46875f, 0.46875f)));
+            // None of the 8 × 8 grid's offsets: a refined tile is 256 new renders per LOD and light, not 192 more.
+            Assert.That(LodParity.FineOffsets.Intersect(LodParity.Offsets), Is.Empty);
+        }
+
+        [Test]
+        public void Refine_ATileWhereAnyLodsStandardErrorOn8x8IsAtOrOver1Percent()
+        {
+            // Task 1.2i's V01_M by day, (luminance, coverage) per LOD0, LOD1, LOD2 and the impostor: at its 190 m switch
+            // LOD2's coverage carries 1.12 %, so every LOD is measured again; at 116.9 m the worst is 0.67 % and the tile
+            // keeps its 8 × 8 numbers.
+            Assert.That(LodParity.Refine(new[] { (0.0075, 0.0087), (0.0072, 0.0091), (0.0070, 0.0112), (0.0074, 0.0094) }), Is.True);
+            Assert.That(LodParity.Refine(new[] { (0.0040, 0.0067), (0.0034, 0.0058), (0.0034, 0.0039), (0.0032, 0.0051) }), Is.False);
+            // "At or over": 1 % in either value of any LOD refines the tile, 0.99 % everywhere does not.
+            Assert.That(LodParity.Refine(new[] { (0.0099, 0.0099), (0.0100, 0.0050) }), Is.True);
+            Assert.That(LodParity.Refine(new[] { (0.0099, 0.0099), (0.0050, 0.0100) }), Is.True);
+            Assert.That(LodParity.Refine(new[] { (0.0099, 0.0099), (0.0099, 0.0099) }), Is.False);
         }
 
         [Test]
