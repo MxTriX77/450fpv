@@ -835,6 +835,7 @@ MeshRenderer:
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: 2346172a7bd6d4149ba705ed4cc3f46e, type: 2}
+  - {fileID: 2100000, guid: 2346172a7bd6d4149ba705ed4cc3f46e, type: 2}
   - {fileID: 2100000, guid: 75ccfea23ee6a2745bc500f371ee6c18, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
@@ -3948,6 +3949,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
+  - {fileID: 2100000, guid: 2346172a7bd6d4149ba705ed4cc3f46e, type: 2}
   - {fileID: 2100000, guid: 2346172a7bd6d4149ba705ed4cc3f46e, type: 2}
   - {fileID: 2100000, guid: 75ccfea23ee6a2745bc500f371ee6c18, type: 2}
   m_StaticBatchInfo:
@@ -9120,17 +9122,17 @@ MonoBehaviour:
   units: m
   frame: unity-lh-yup
   bounds:
-    m_Center: {x: -0.558129, y: 6.833281, z: 0.30457997}
-    m_Extent: {x: 2.309476, y: 6.976085, z: 2.914735}
+    m_Center: {x: -0.5413886, y: 6.81104, z: 0.30457997}
+    m_Extent: {x: 2.2927356, y: 6.9678497, z: 2.914735}
   lods:
   - mesh: V01_L_LOD0
     tris: 9862
     switchDistanceM: 0
   - mesh: V01_L_LOD1
-    tris: 4346
+    tris: 4616
     switchDistanceM: 9.35
   - mesh: V01_L_LOD2
-    tris: 872
+    tris: 2144
     switchDistanceM: 116.9
   micro: []
   cullDistanceM: 2500
@@ -13007,7 +13009,7 @@ LODGroup:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4687923983965885791}
   serializedVersion: 2
-  m_LocalReferencePoint: {x: -0.558129, y: 6.833281, z: 0.30457997}
+  m_LocalReferencePoint: {x: -0.5413886, y: 6.81104, z: 0.30457997}
   m_Size: 10.796451
   m_FadeMode: 0
   m_AnimateCrossFading: 0

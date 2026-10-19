@@ -778,6 +778,7 @@ MeshRenderer:
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: 2346172a7bd6d4149ba705ed4cc3f46e, type: 2}
+  - {fileID: 2100000, guid: 2346172a7bd6d4149ba705ed4cc3f46e, type: 2}
   - {fileID: 2100000, guid: 75ccfea23ee6a2745bc500f371ee6c18, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
@@ -1661,17 +1662,17 @@ MonoBehaviour:
   units: m
   frame: unity-lh-yup
   bounds:
-    m_Center: {x: -0.17801249, y: 2.9696035, z: 0.1701265}
-    m_Extent: {x: 1.5180055, y: 3.0131755, z: 1.4595654}
+    m_Center: {x: -0.1778785, y: 2.9605606, z: 0.1701265}
+    m_Extent: {x: 1.5040505, y: 3.0084054, z: 1.4595654}
   lods:
   - mesh: V01_S_LOD0
     tris: 8334
     switchDistanceM: 0
   - mesh: V01_S_LOD1
-    tris: 2604
+    tris: 3708
     switchDistanceM: 9.35
   - mesh: V01_S_LOD2
-    tris: 782
+    tris: 1808
     switchDistanceM: 116.9
   micro: []
   cullDistanceM: 2500
@@ -5113,21 +5114,21 @@ LODGroup:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 996956398032518268}
   serializedVersion: 2
-  m_LocalReferencePoint: {x: -0.17801249, y: 2.9696035, z: 0.1701265}
-  m_Size: 6.026351
+  m_LocalReferencePoint: {x: -0.1778785, y: 2.9605606, z: 0.1701265}
+  m_Size: 6.016811
   m_FadeMode: 0
   m_AnimateCrossFading: 0
   m_LastLODIsBillboard: 0
   m_LODs:
-  - screenRelativeHeight: 0.5581789
+  - screenRelativeHeight: 0.55729526
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 2541971650383902328}
-  - screenRelativeHeight: 0.044644766
+  - screenRelativeHeight: 0.04457409
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 3117938585367157551}
-  - screenRelativeHeight: 0.0020875894
+  - screenRelativeHeight: 0.0020842846
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 3085486057450564433}
@@ -7608,6 +7609,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
+  - {fileID: 2100000, guid: 2346172a7bd6d4149ba705ed4cc3f46e, type: 2}
   - {fileID: 2100000, guid: 2346172a7bd6d4149ba705ed4cc3f46e, type: 2}
   - {fileID: 2100000, guid: 75ccfea23ee6a2745bc500f371ee6c18, type: 2}
   m_StaticBatchInfo:
