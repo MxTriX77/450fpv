@@ -1,0 +1,179 @@
+{
+  "material": "trench_wall",
+  "kind": "ground",
+  "space": "wall",
+  "formula": "wall v1: the strip of lib/strip.py, size_m [u, v] at output_px [w, h], v up the map; base = the loam and soil sets each tiled at its tile_size_m along u and v, blended at soil.share, gained to albedo_target; per wall row the topsoil band (the params' topsoil_m below the row's top, its edge moved by up to TOPSOIL_EDGE_M of value noise on TOPSOIL_LOBE_M cells, feathered over TOPSOIL_FEATHER_M) blended to topsoil at TOPSOIL_LEVEL, ROOTS_PER_M root lines per metre hanging ROOT_LEN_M from the lip within lib.strip.TOPSOIL_ROOTS_M, ROOT_PX wide, in roots, the clod spill (lib.strip.SPILL_M at the row's foot, its top moved by SPILL_EDGE_M of noise, feathered over SPILL_FEATHER_M) blended to spill at SPILL_LEVEL; the floor row gained to floor_albedo; normal = the sets' normals blended at soil.share, plus on the wall rows spade facets: a lattice of facets.size_m cells jittered by FACET_JITTER, each tilted by a seeded tangent of at most 2 relief_m / size_m across u and v, added to the normals' x and y; mask R 0, G the sets' AO, B 0, A 1 - roughness; detail albedo = the detail set's diffuse as grey at its size with a linear mean of 0.5; 8-bit sRGB albedos",
+  "pillow": "12.3.0",
+  "constants": {
+    "MAX_OUTPUT_PX": 2048,
+    "TOPSOIL_LEVEL": 0.85,
+    "TOPSOIL_EDGE_M": 0.08,
+    "TOPSOIL_LOBE_M": 0.6,
+    "TOPSOIL_FEATHER_M": 0.06,
+    "ROOTS_PER_M": 14,
+    "ROOT_LEN_M": [
+      0.05,
+      0.2
+    ],
+    "ROOT_PX": 2,
+    "SPILL_LEVEL": 0.6,
+    "SPILL_EDGE_M": 0.06,
+    "SPILL_FEATHER_M": 0.08,
+    "FACET_JITTER": 0.25
+  },
+  "layout": {
+    "strip": {
+      "U_M": 27.0,
+      "V_M": 4.0,
+      "FLOOR_ROW": [
+        0.0,
+        0.8
+      ],
+      "FIELD_ROW": [
+        0.8,
+        2.4
+      ],
+      "BELT_ROW": [
+        2.4,
+        4.0
+      ],
+      "SPILL_M": 0.2,
+      "TOPSOIL_ROOTS_M": 0.2
+    },
+    "params": "assets-src/earthworks/E01_curving.json",
+    "topsoil_m": 0.5
+  },
+  "recipe": {
+    "schema": 1,
+    "kind": "ground",
+    "space": "wall",
+    "shader": "Universal Render Pipeline/Lit",
+    "seed": 3,
+    "size_m": [
+      27.0,
+      4.0
+    ],
+    "output_px": [
+      2048,
+      1024
+    ],
+    "params": "assets-src/earthworks/E01_curving.json",
+    "loam": {
+      "texture_set": "polyhaven/dirt_floor",
+      "tile_size_m": 2.07
+    },
+    "soil": {
+      "texture_set": "polyhaven/brown_mud_02",
+      "tile_size_m": 1.3,
+      "share": 0.5
+    },
+    "albedo_target": "#4a463f",
+    "topsoil": "#33302b",
+    "roots": "#5e4f3e",
+    "spill": "#8a7660",
+    "floor_albedo": "#4a463f",
+    "facets": {
+      "size_m": [
+        0.2,
+        0.3
+      ],
+      "relief_m": 0.02
+    },
+    "tint": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "detail": {
+      "texture_set": "polyhaven/dirt_floor",
+      "tile_size_m": 2.07
+    }
+  },
+  "sources": {
+    "loam/ao": {
+      "name": "dirt_floor_ao_1k.png",
+      "sha256": "8ca3fcc1c65f7b13d732af9746989f864b1f4aed4c50b87b9861d0fa3a61ab2e"
+    },
+    "loam/diffuse": {
+      "name": "dirt_floor_diff_1k.png",
+      "sha256": "93ab3485c6d4de3a04ded4035dd9eecd268087e62ca88f30578630ae1bbd5eba"
+    },
+    "loam/normal": {
+      "name": "dirt_floor_nor_gl_1k.png",
+      "sha256": "be9a1f51360e7bd44e65b34840408a1dfc48f8d1f3d5d9de79b658dfe83d21cc"
+    },
+    "loam/roughness": {
+      "name": "dirt_floor_rough_1k.png",
+      "sha256": "b4232b4e0cf8a8c5f88ac3925b8dcc4f1b20784f4369f7c53af301a09b1abaf4"
+    },
+    "soil/ao": {
+      "name": "brown_mud_02_ao_2k.png",
+      "sha256": "16f6fa689c964651952714aedc88be4c2de3786aa271cb59000edbb3b8b0ffa4"
+    },
+    "soil/diffuse": {
+      "name": "brown_mud_02_diff_2k.png",
+      "sha256": "a00bad20b2c339bd3d2837b8ae80903c4646876bb4ec0cc960846a97b2d3d737"
+    },
+    "soil/normal": {
+      "name": "brown_mud_02_nor_gl_2k.png",
+      "sha256": "78e01270b222a96cc1433c8d4ba2b6fbbe24b296934b45d1ff6aa30cad647888"
+    },
+    "soil/roughness": {
+      "name": "brown_mud_02_rough_2k.png",
+      "sha256": "c2c7835ff92171d9141dd7a1884dbf3a00b5d989fe8ae05737ac6d5397c12572"
+    },
+    "detail/ao": {
+      "name": "dirt_floor_ao_1k.png",
+      "sha256": "8ca3fcc1c65f7b13d732af9746989f864b1f4aed4c50b87b9861d0fa3a61ab2e"
+    },
+    "detail/diffuse": {
+      "name": "dirt_floor_diff_1k.png",
+      "sha256": "93ab3485c6d4de3a04ded4035dd9eecd268087e62ca88f30578630ae1bbd5eba"
+    },
+    "detail/normal": {
+      "name": "dirt_floor_nor_gl_1k.png",
+      "sha256": "be9a1f51360e7bd44e65b34840408a1dfc48f8d1f3d5d9de79b658dfe83d21cc"
+    },
+    "detail/roughness": {
+      "name": "dirt_floor_rough_1k.png",
+      "sha256": "b4232b4e0cf8a8c5f88ac3925b8dcc4f1b20784f4369f7c53af301a09b1abaf4"
+    }
+  },
+  "inputs_sha256": "d351f8f13553150db19aae1f1817149d342b0df4d89e1f7d6d189bddb225d2b6",
+  "size": [
+    2048,
+    1024
+  ],
+  "detail_size": [
+    1024,
+    1024
+  ],
+  "outputs": [
+    "trench_wall_albedo.png",
+    "trench_wall_normal.png",
+    "trench_wall_mask.png",
+    "trench_wall_detail_albedo.png"
+  ],
+  "measured": {
+    "wall_mean_srgb": "#4c463d",
+    "wall_luminance": 0.0622,
+    "floor_mean_srgb": "#4a463f",
+    "target_luminance": 0.062,
+    "wall_gain": [
+      0.307,
+      0.442,
+      0.661
+    ],
+    "floor_gain": [
+      0.307,
+      0.442,
+      0.661
+    ],
+    "detail_gain": [
+      1.672,
+      1.672,
+      1.672
+    ]
+  }
+}
