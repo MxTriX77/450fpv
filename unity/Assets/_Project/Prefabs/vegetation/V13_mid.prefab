@@ -673,7 +673,7 @@ MonoBehaviour:
     tris: 3558
     switchDistanceM: 7.5
   - mesh: V13_mid_LOD2
-    tris: 30
+    tris: 60
     switchDistanceM: 93.5
   micro: []
   cullDistanceM: 800
@@ -686,6 +686,9 @@ MonoBehaviour:
     physics: twig
   - slot: leaf
     visual: leaf_shrub
+    physics: twig
+  - slot: far
+    visual: leaf_shrub_far
     physics: twig
   collision:
   - kind: 2
@@ -2544,7 +2547,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: e08eae33725367d4582c60b469231174, type: 2}
+  - {fileID: 2100000, guid: 7c72a86f48bf24045a6607c6b3520b85, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0

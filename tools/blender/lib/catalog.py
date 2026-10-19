@@ -50,14 +50,19 @@ def load_params(path):
 
 def card_visuals(root):
     """The visual materials drawn as cards: the recipes in assets-src/materials with an `alpha_clip` (p1-v13-shrub,
-    "Compliant shells in the collision audit": the audit holds card slots to the card allowance)."""
+    "Compliant shells in the collision audit": the audit holds card slots to the card allowance), and the far-card
+    recipes of such a recipe (`far_card_of`, p1-v01-locust task 1.2j)."""
     folder = os.path.join(root, RECIPES)
+
+    def recipe(name):
+        with open(os.path.join(folder, name + ".json"), encoding="utf-8") as f:
+            return json.load(f)
+
     names = set()
-    for name in sorted(os.listdir(folder)):
-        if name.endswith(".json"):
-            with open(os.path.join(folder, name), encoding="utf-8") as f:
-                if "alpha_clip" in json.load(f):
-                    names.add(name[:-len(".json")])
+    for name in sorted(n[:-len(".json")] for n in os.listdir(folder) if n.endswith(".json")):
+        r = recipe(name)
+        if "alpha_clip" in (recipe(r["far_card_of"]) if "far_card_of" in r else r):
+            names.add(name)
     return names
 
 

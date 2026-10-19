@@ -31,7 +31,7 @@
     },
     {
       "mesh": "V13_mid_LOD2",
-      "tris": 30,
+      "tris": 60,
       "switch_distance_m": 93.5
     }
   ],
@@ -51,6 +51,11 @@
     {
       "slot": "leaf",
       "visual": "leaf_shrub",
+      "physics": "twig"
+    },
+    {
+      "slot": "far",
+      "visual": "leaf_shrub_far",
       "physics": "twig"
     }
   ],

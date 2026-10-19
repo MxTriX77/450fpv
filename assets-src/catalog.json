@@ -23,7 +23,7 @@
       "class": "vegetation",
       "generator": "shrub",
       "variants": ["V13_low", "V13_mid", "V13_tall"],
-      "materials": { "stem": "bark_shrub", "twig": "bark_shrub", "leaf": "leaf_shrub" }
+      "materials": { "stem": "bark_shrub", "twig": "bark_shrub", "leaf": "leaf_shrub", "far": "leaf_shrub_far" }
     }
   }
 }

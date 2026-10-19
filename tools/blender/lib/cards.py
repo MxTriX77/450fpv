@@ -17,8 +17,12 @@ The far LOD is CROSSED vertical cards of the whole clump, each mapped to a dense
 atlas scaled up: the whole atlas is 20 % leaf, so at the 9 px of a far clump its six thin sprigs fell under the
 clip and the card vanished (measured on the first review sheet at 200 m). Each card is the ellipse that covers what
 LOD0's leaves and wood cover seen square to it (`outline`), and its box's colour is the leaves' mean, so LOD2 neither
-pops brighter nor grows at its switch (p1-v01-locust task 1.2b). The nearer LODs keep every other or every fourth
-card, scaled to hold all the cards' silhouette and that of the thin wood the LOD drops (`thinned`).
+pops brighter nor grows at its switch (p1-v01-locust task 1.2b). Its faces are lit with normals of their own, not
+their planes': each card is two faces back to back on a one-sided material (the leaf shader would turn a back face's
+normal round, so one leaning up would lean down), each face's normal its side's horizontal leaning up as the leaves'
+mean visible normal does from the review's far look-down (`visible_lean`, task 1.2j: a vertical plane has no normal
+towards the sun's half vector and took 35-40 % less of the leaves' specular). The nearer LODs keep every other or
+every fourth card, scaled to hold all the cards' silhouette and that of the thin wood the LOD drops (`thinned`).
 
 Trees (p1-v01-locust, design decision 2): `along` lays a pinnate leaf card every step along a member's polyline,
 alternate sides, each a whole sprig cell (a stalk with 12-20 small oval leaves, which at a 0.25 m leaf are the
@@ -45,6 +49,7 @@ FAR_PX = (((1696, 1184), (1823, 1439)), ((936, 680), (1063, 935)))
 FAR_OPAQUE = 0.9            # the boxes' opaque share: a far card covers this of its outline
 FAR_SIDES = 12              # a far card's outline, a polygon round its ellipse
 FAR_GRID_M = 0.05           # the raster LOD0's leaves are measured on for the far cards
+FAR_LOOK_DOWN_DEG = 20.0    # the far cards' normals are the leaves' seen from this look-down: the review's far shots'
 # The share of each cell's texels at alpha 0.5 or more (measured on leaf_shrub_base.png; leaf_locust_base.png is the
 # same map): what of a card's area its leaves cover.
 CELL_OPAQUE = (0.394, 0.406, 0.453, 0.518, 0.305, 0.499)
@@ -70,10 +75,11 @@ CELLS_UV = tuple(cell_uv(c) for c in CELLS_PX)
 
 
 class Card:
-    """A quad: `corners` in cyclic order (stalk end first), one face `normal`, the `uvs` per corner, its `cell`."""
+    """A quad: `corners` in cyclic order (stalk end first), one face `normal`, the `uvs` per corner, its `cell`; a far
+    card's face also its corners' shading `normals`."""
 
-    def __init__(self, corners, normal, uvs, cell):
-        self.corners, self.normal, self.uvs, self.cell = corners, normal, uvs, cell
+    def __init__(self, corners, normal, uvs, cell, normals=None):
+        self.corners, self.normal, self.uvs, self.cell, self.normals = corners, normal, uvs, cell, normals
 
 
 def place(rng, twigs, count, card_m, ground_y=0.0, fork_deg=(0.0, 0.0)):
@@ -150,9 +156,13 @@ def crossed(leaves, wood=(), count=CROSSED):
     1.2b): `count` vertical cards crossed at even azimuths about the vertical through the leaves' centre, card k a
     FAR_SIDES-gon round the ellipse that stands for them seen square to it (`outline`), mapped over the box
     FAR_PX[k mod 2] (the box's frame on the ellipse's). So it covers what LOD0's leaves and wood cover there, where
-    the leaves are, in the leaves' colour. None without leaves."""
+    the leaves are, in the leaves' colour. Each card is two faces back to back, for a one-sided material, each
+    shaded with one normal of its own (task 1.2j): its side's horizontal, leaning up by the leaves' visible lean
+    (`visible_lean`), so the sun and the sky light it as they light the leaves the camera sees, not as they light a
+    vertical plane. None without leaves."""
     if not leaves:
         return None
+    lean = visible_lean(leaves)
     points = [c for card in leaves for c in card.corners]
     axis = (sum(p[0] for p in points) / len(points), sum(p[2] for p in points) / len(points))
     cards = []
@@ -167,8 +177,31 @@ def crossed(leaves, wood=(), count=CROSSED):
             x, y = math.cos(t), math.sin(t)
             corners.append((axis[0] + across[0] * (cu + a * x), cv + b * y, axis[1] + across[2] * (cu + a * x)))
             uvs.append((u0 + (x + 1) / 2 * (u1 - u0), v0 + (y + 1) / 2 * (v1 - v0)))
-        cards.append(Card(corners, cross(UP, across), uvs, None))
+        plane = cross(UP, across)
+        for side in (plane, scale(plane, -1.0)):
+            normal = add(scale(side, math.cos(lean)), scale(UP, math.sin(lean)))
+            cards.append(Card(corners, side, uvs, None, [normal] * FAR_SIDES))
     return cards
+
+
+def visible_lean(leaves, down_deg=FAR_LOOK_DOWN_DEG, azimuths=8):
+    """The lean above the horizontal, radians, of the leaf cards' mean visible normal seen from `down_deg` above the
+    horizon, averaged over `azimuths` even azimuths: each card's normal turned to the viewer, as the leaf shader lights
+    a back face with its own normal, and weighted by its opaque area seen from there; the lean of the mean is its
+    angle above the horizontal towards the viewer."""
+    down = math.radians(down_deg)
+    total = 0.0
+    for k in range(azimuths):
+        az = 2 * math.pi * (k + 0.5) / azimuths
+        towards = (math.sin(az), 0.0, math.cos(az))
+        view = add(scale(towards, math.cos(down)), scale(UP, math.sin(down)))
+        mean = (0.0, 0.0, 0.0)
+        for card in leaves:
+            n = normalize(card.normal)
+            a, b, c, _ = card.corners
+            mean = add(mean, scale(n, norm(cross(sub(b, a), sub(c, b))) * CELL_OPAQUE[card.cell] * dot(n, view)))
+        total += math.atan2(mean[1], dot(mean, towards))
+    return total / azimuths
 
 
 def outline(leaves, wood, axis, across):
@@ -273,7 +306,7 @@ def _recelled(card, cell):
 def add_to(mesh, cards, slot):
     """Adds the cards to a lib.geometry.Mesh as faces of `slot`."""
     for card in cards:
-        mesh.face([mesh.vertex(c) for c in card.corners], card.normal, slot, card.uvs)
+        mesh.face([mesh.vertex(c) for c in card.corners], card.normal, slot, card.uvs, card.normals)
 
 
 def _off_twig(along, angle, azimuth):
