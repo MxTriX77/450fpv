@@ -467,7 +467,7 @@ The shared trench-family table with `collapse` 0.5–1, `overgrowth` 0.3–1, `a
 
 ## E05 Craters (generator)
 
-**Seen in:** B (1–16: shallow, weathered craters 1–5 m over the crusted field, pale rims catching the low sun; B 12: a ring about 4–5 m across, four to five times the length of the 1 m fragment); A (1, 6–7: dark grassed hollows 1–3 m in the sod: the old, overgrown state and the small scorch spots, terrain.md T1, T3b). The pilot names strikes and fallen drones that explode as the source of scorched ground (terrain.md T3). S 29–37: fresh small craters in the short grass of a village green: bowls about 1–2 m (by eye) inside dark spoil discs 3.5–6.5 m across (derived, S 36), no regrowth on the spoil, one small pit 0.5–1 m in a turned strip (S 33).
+**Seen in:** B (1–16: shallow, weathered craters 1–5 m over the crusted field, pale rims catching the low sun; B 12: a ring about 4–5 m across, four to five times the length of the 1 m fragment); A (1, 6–7: dark grassed hollows 1–3 m in the sod: the old, overgrown state and the small scorch spots, terrain.md T1, T3b). The pilot names strikes and fallen drones that explode as the source of scorched ground (terrain.md T3). S 29–37: fresh small craters in the short grass of a village green: bowls about 1–2 m (measured, rough) inside dark spoil discs 3.5–6.5 m across (derived, S 36), no regrowth on the spoil, one small pit 0.5–1 m in a turned strip (S 33).
 **Research sources:** the explosion-crater row of the research table (depth about a quarter of the apparent diameter).
 
 ### Dimensions
@@ -678,7 +678,7 @@ How each surface row reads:
 
 ## S01 meadow_sod
 
-**Seen in:** A (1–15: mottled olive-khaki sod, green and straw-dry mixed, pale matted patches, small dark hollows), L (1–14: the same land at night). The far fields of B and G. PR-8's pale matted grass with green showing through. S 22–42, 43–50: the village form: a green and street verges of short grass 0.1–0.3 m (by eye), vivid green regrowth after rain with almost no straw share, back gardens of the same with weed patches; S 1–4: a mown strip at a field edge.
+**Seen in:** A (1–15: mottled olive-khaki sod, green and straw-dry mixed, pale matted patches, small dark hollows), L (1–14: the same land at night). The far fields of B and G. PR-8's pale matted grass with green showing through. S 22–42, 43–50: the village form: a green and street verges of short grass 0.1–0.3 m (measured, rough), vivid green regrowth after rain with almost no straw share, back gardens of the same with weed patches; S 1–4: a mown strip at a field edge.
 **Research sources:** the albedo row (green grass 0.25); the material table (TextureCan Ground 0018, ambientCG Grass001/004, Poly Haven brown_mud_leaves_01, burned_ground_01).
 
 ### Dimensions
@@ -1178,7 +1178,7 @@ Preset: `base_sets` brown_mud_leaves_01 + leaves_forest_ground; `albedo_target` 
 
 ## S10 rubble
 
-**Seen in:** E (tile heaps), I, J, K (rubble fields and the mound), N (debris ground around the wreck); cited from terrain.md B5, T8 and R0, not re-read here. S 15–19: the footprint of a flattened village house, red brick, pale wall stubs, slate and boards, thinning into the weeds within 2–5 m (by eye) (`feed` red brick #957266, mixed #908188; S 17–18).
+**Seen in:** E (tile heaps), I, J, K (rubble fields and the mound), N (debris ground around the wreck); cited from terrain.md B5, T8 and R0, not re-read here. S 15–19: the footprint of a flattened village house, red brick, pale wall stubs, slate and boards, thinning into the weeds within 2–5 m (measured, rough) (`feed` red brick #957266, mixed #908188; S 17–18).
 **Research sources:** the material table (Poly Haven concrete_debris; ambientCG Ground111, Ground107).
 
 ### Dimensions

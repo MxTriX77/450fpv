@@ -193,7 +193,7 @@ No set is in `tools/assets/manifest.json` yet for this group (the manifest holds
 
 ## V01 Belt tree: black locust (робінія / "акація")
 
-**Seen in:** F (stills 1–17, the corridor and the pit), H (1–21, the belt wall behind the bushes), G (1–13, the openwork strip). Also B, D and A, L as the horizon band. S 43–47: tall village trees with a bare trunk to about 4–6 m (by eye) and a compact, tufted crown beside the houses fit the class as single street and yard trees (species not readable); S has no belt inside the village, only belt bands at the horizon.
+**Seen in:** F (stills 1–17, the corridor and the pit), H (1–21, the belt wall behind the bushes), G (1–13, the openwork strip). Also B, D and A, L as the horizon band. S 43–47: tall village trees with a bare trunk to about 4–6 m (measured, rough) and a compact, tufted crown beside the houses fit the class as single street and yard trees (species not readable); S has no belt inside the village, only belt bands at the horizon.
 **Research sources:** https://en.wikipedia.org/wiki/Robinia_pseudoacacia (size, bark, leaves, pods, suckers). The belt structure under Placement rules (rows, spacing, construction classes) is assumed from common shelterbelt practice: no generic source with these figures was found.
 
 ### Dimensions
@@ -563,7 +563,7 @@ Over the dead-wood generator: `break_height_m` 2–6 (default 4), `splinter_len_
 
 ## V08 Dead tree, bare and leaning
 
-**Seen in:** D (1–12: a bare dead trunk in the weeds, leaning, a thin fan of limbs at the top), G (1–13: leafless thin trees in the strip), H (9–10: a dead sapling with dry leaves). Also B, I, J (terrain.md V2). S 40–43: upright dead trees on a village square, bark stripped so trunk and limbs read pale against the grass, 5.7–7.5 m, about 6.5 m (derived: one tree's foot and top in S 41 and S 43, ratio 2.1–2.2, at the 11–14 m camera height; S 42 isn't used, its foot is in shrubs and a pale line behind runs on above its top), a few stout limbs forking from about 1.5–2.5 m (by eye), no twigs left.
+**Seen in:** D (1–12: a bare dead trunk in the weeds, leaning, a thin fan of limbs at the top), G (1–13: leafless thin trees in the strip), H (9–10: a dead sapling with dry leaves). Also B, I, J (terrain.md V2). S 40–43: upright dead trees on a village square, bark stripped so trunk and limbs read pale against the grass, 5.7–7.5 m, about 6.5 m (derived: one tree's foot and top in S 41 and S 43, ratio 2.1–2.2, at the 11–14 m camera height; S 42 isn't used, its foot is in shrubs and a pale line behind runs on above its top), a few stout limbs forking from about 1.5–2.5 m (measured, rough), no twigs left.
 **Research sources:** elm lifespan (https://en.wikipedia.org/wiki/Ulmus_pumila: rarely over 60 years); the locust heart-rot note (https://en.wikipedia.org/wiki/Robinia_pseudoacacia).
 
 ### Dimensions
@@ -815,7 +815,7 @@ Preset: `height_m` 12, `dbh_m` 0.55, `first_fork_m` 2, `main_limbs` 4, `orders` 
 
 ## V13 Belt understory shrub
 
-**Seen in:** H (1–21: the continuous bush layer 1.5–3 m in front of and under the trees, thicker at the edge), F (1–12: green shrubs 1–2 m in the mid-ground under the canopy), G (1–15: shrubs 1–2 m beside the trench, the last stills inside one). PR-10. S 25–27, 38–41: the same kind of shrub standing alone on a village green, rounded clumps about 2–3 m across, one turning yellow (S 25–26), a free-standing shrub or young tree every 15–25 m (S 24–40, rough).
+**Seen in:** H (1–21: the continuous bush layer 1.5–3 m in front of and under the trees, thicker at the edge), F (1–12: green shrubs 1–2 m in the mid-ground under the canopy), G (1–15: shrubs 1–2 m beside the trench, the last stills inside one). PR-10. S 25–27, 38–41: the same kind of shrub standing alone on a village green, rounded clumps about 2–3 m across, one turning yellow (S 25–26), a free-standing shrub or young tree every 15–25 m (measured, rough, S 24–40).
 **Research sources:** https://en.wikipedia.org/wiki/Lonicera_tatarica (Tatar honeysuckle to about 3 m, leaves 3–6 cm, forms thickets and a dense understory, orange or red berries); https://en.wikipedia.org/wiki/Caragana_arborescens (peashrub 2–6 m, a standard shelterbelt shrub, pods twist open); https://en.wikipedia.org/wiki/Elaeagnus_angustifolia (silverberry to 11 m, thorns 2–7 cm, silvery leaves). The shrub-layer mix (honeysuckle, caragana, silverberry, box elder) and its role (planted to help the main trees and shade out weeds) are assumed from common practice.
 
 ### Dimensions
@@ -868,7 +868,7 @@ Over the shrub generator: `height_m` 1.2/2/3, `width_m` 1.5/2.2/2.5, `stems` 5�
 
 ## V14 Elder / lilac clump
 
-**Seen in:** **R**; the dense green clumps 2–3 m at the yard edges in D (1–12) fit the class. S 46–50: front gardens grown into thickets of shrubs 2–4 m under the yard trees, 60–90 % covered (by eye).
+**Seen in:** **R**; the dense green clumps 2–3 m at the yard edges in D (1–12) fit the class. S 46–50: front gardens grown into thickets of shrubs 2–4 m under the yard trees, 60–90 % covered (measured, rough).
 **Research sources:** https://en.wikipedia.org/wiki/Sambucus_nigra (6–10 m, hollow young stems, coarse yellowish-grey deeply furrowed bark with lenticels, pinnate leaves 10–30 cm with 5–7 leaflets, black berries in drooping clusters, waste ground); https://en.wikipedia.org/wiki/Syringa_vulgaris (6–7 m, multi-stemmed, suckering into a clonal thicket, stems to 20 cm, grey furrowed flaking bark, heart-shaped leaves 4–12 cm, near past or present habitation: a lilac thicket marks a vanished house).
 
 ### Dimensions

@@ -480,7 +480,7 @@ A cable hangs wherever a ceiling, slab edge or eave was torn open: one per room 
 | Crossfall | 1.5–3 % | 2 % | assumed |
 | Edge drop to the shoulder | 0–100 mm | 50 mm | derived (the layer thickness where the shoulder has eroded) |
 | Ravelled edge | 0.1–0.6 m into the lane, broken into plates 0.1–0.4 m | 0.3 m | assumed; M shows a broken edge at the verge; S 45–48: 0.2–0.5 m on both edges (measured against the road width) |
-| Patches | 0.5–3 m rectangles, 5–20 % of the area, a shade darker or lighter | 10 % | measured M (a lighter patched area), sizes assumed; S 22, 45–48: patches and shallow potholes over much of the surface, more than the default (by eye) |
+| Patches | 0.5–3 m rectangles, 5–20 % of the area, a shade darker or lighter | 10 % | measured M (a lighter patched area), sizes assumed; S 22, 45–48: patches and shallow potholes over much of the surface, more than the default (measured, rough) |
 | Cracks | 2–20 mm wide, in cells of 0.3–1.5 m and along the edges | — | measured M (fine dark cracks), sizes assumed |
 | Potholes | 0.2–2.0 m across, 40–150 mm deep, often holding water | 0.6 m, 70 mm | published threshold (above); measured M: a shallow depression about 1.3 m across the view and 1.5–2.2 m along it (scaled from the 0.59 m wheel: about 2.2 wheel widths) |
 | Crater in asphalt (with the E05 crater) | 1–4 m across, the asphalt lifted in slabs 0.2–0.8 m around the rim, radial cracks to 1–3 radii | 2 m | E05 in the earthworks sheet; ring assumed |
@@ -897,7 +897,7 @@ Battens and rafters snap at mid-span or at the plate with long splinters (houses
 
 ## K04 Corrugated sheet, bent sheet metal
 
-**Seen in:** N per the asset list (the vehicles sheet; terrain.md S4). In this sheet's letters no steel sheet is certain: the wavy grey sheets in J read as asbestos-cement slate (K02). S, the first steel sheet in a clip: corrugated roof sheets peeled from outbuildings and curled into arcs about 1–3 m across (by eye), still attached at one edge (S 16–20); a red-painted roof sheet lying on the street verge (S 21–22); red-painted sheets among yard buildings (S 44–45). **R** for the rest.
+**Seen in:** N per the asset list (the vehicles sheet; terrain.md S4). In this sheet's letters no steel sheet is certain: the wavy grey sheets in J read as asbestos-cement slate (K02). S, the first steel sheet in a clip: corrugated roof sheets peeled from outbuildings and curled into arcs about 1–3 m across (measured, rough), still attached at one edge (S 16–20); a red-painted roof sheet lying on the street verge (S 21–22); red-painted sheets among yard buildings (S 44–45). **R** for the rest.
 **Research sources:** corrugated galvanised iron from about 0.3 mm upward, today nearly always at a 76 mm pitch (published, https://en.wikipedia.org/wiki/Corrugated_galvanised_iron ); corrugated panels fail at 7–14 kPa (published, houses-and-yard.md's blast thresholds).
 
 ### Dimensions

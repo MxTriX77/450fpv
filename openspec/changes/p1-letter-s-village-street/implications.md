@@ -24,7 +24,7 @@ S shows no vehicle and no person. Its feed renders the scene cool and saturated:
 - **Out of the belt.** S shows the same kind of shrub standing alone on a village green: rounded, closed leafy clumps about 2–3 m across (S 25–27, 38–41).
   - These are V13's summer domes (`V13_mid`, 2.0 × 2.2 m), the form H's twiggy wall did not want.
   - So the green's lone shrubs reuse `V13_mid` and `V13_tall` as built.
-- **Placement V13 lacks:** a free-standing shrub or young tree every 15–25 m on a green (S 24–40, rough). V13's placement rules cover belts only.
+- **Placement V13 lacks:** a free-standing shrub or young tree every 15–25 m on a green (measured, rough, S 24–40). V13's placement rules cover belts only.
 - **Autumn, S's form:** one clump yellowing while still fully leaved (S 25–26).
   - This differs from the autumn variants `p1-v01-locust` adds for H, which are part-bare (`leaf_cover` 0.2–0.5).
   - S wants `leaf_cover` about 0.9 with the sheet's autumn tint on a share of the clumps.
@@ -32,7 +32,7 @@ S shows no vehicle and no person. Its feed renders the scene cool and saturated:
 
 ### V01 black locust (in flight)
 - **No belt in the village.** At S, V01 appears only as the horizon belt band, which is its impostor's job.
-- **Village trees differ from the belt tree.** S's tall trees beside the houses have a clean trunk to about 4–6 m (by eye) and a compact, tufted crown (S 43–47; species not readable).
+- **Village trees differ from the belt tree.** S's tall trees beside the houses have a clean trunk to about 4–6 m (measured, rough) and a compact, tufted crown (S 43–47; species not readable).
   - That is not V01's open, scraggly belt crown.
   - If V01 is also the village's street and yard locust, it needs a single-tree form: a clean bole and a compact crown. Otherwise V05 or V10–V12 take that role.
   - Its placement rules need single trees in yards and along the street.
@@ -67,7 +67,7 @@ S shows no vehicle and no person. Its feed renders the scene cool and saturated:
 
 ### K01 bricks (merged)
 - **Read as heaps, not bricks.** At 10–20 m a 0.25 m brick is 2–3 feed px. The flattened plot reads by colour and heap shape (S 16–19), carried by K01 clusters, the `rubble` surface and their colour: red-brick rubble #957266 (S 18), mixed #908188 (S 17).
-- **A piece K01 lacks:** the masonry stove block standing about 1–1.5 m in the flattened plot (S 17–18). It is a bonded brick block of roughly 1 × 0.8 m (by eye) with its flue, larger than K01's 0.5–0.8 m clusters. It is the one upright thing in an X-state footprint.
+- **A piece K01 lacks:** the masonry stove block standing about 1–1.5 m in the flattened plot (S 17–18). It is a bonded brick block of roughly 1 × 0.8 m (measured, rough) with its flue, larger than K01's 0.5–0.8 m clusters. It is the one upright thing in an X-state footprint.
 - **Two brick colours:** pale wall stubs lie among the red brick (S 17), so the X heap needs K01 in silicate as well as red.
 
 ### E01 trench (in flight)
@@ -114,7 +114,7 @@ H01 stays E's copy. The difference is the shared `house` generator that H01's ch
 None has an ID in the asset list, so each needs one before it can have a row. All are proposals for the orchestrator.
 1. **Village memorial on a paved square (S 31–42).**
    - A dark sculpture on a pale stone pedestal, its facing partly broken off.
-   - A square paved with concrete tiles of about 0.3–0.4 m (by eye), grown through with weeds, with narrow kerbs and a low border.
+   - A square paved with concrete tiles of about 0.3–0.4 m (measured, rough, S 39–42), grown through with weeds, with narrow kerbs and a low border.
    - Pale dead trees and thin young trees around it.
    - Proposed as urban-edge P07. OPSEC: built as a generic class (a plain pedestal with a generic figure), never a copy of a particular memorial.
 2. **Two-storey public building (S 22–24 far, 31–42).**
