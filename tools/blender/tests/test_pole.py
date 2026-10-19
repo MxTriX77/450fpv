@@ -225,9 +225,10 @@ def test_the_log_collision_is_within_10mm_of_the_log_both_ways(repo_root):
 
 
 def test_snag_records_carry_the_sheets_kinds_radii_and_materials(repo_root):
-    """Hooks and pins `hook` 8 mm steel, necks `edge` 5 mm glass, crossarm ends 2 mm timber, bands 2 mm steel, the
-    grounding wire 3 mm cable; every record names its material (p1-v01-locust's rule, written now)."""
-    want = {("hook", 0.008, "steel"), ("edge", 0.005, "glass"), ("edge", 0.002, "timber"), ("edge", 0.002, "steel"),
+    """Hooks and pins `hook` 8.5 mm steel (the bar's half thickness, task 1.5's reading §6), the insulators' drip
+    edges `edge` 5 mm glass, crossarm ends 2 mm timber, bands 3 mm steel, the grounding wire 3 mm cable; every record
+    names its material (p1-v01-locust's rule, written now)."""
+    want = {("hook", 0.0085, "steel"), ("edge", 0.005, "glass"), ("edge", 0.002, "timber"), ("edge", 0.003, "steel"),
             ("edge", 0.003, "cable")}
     counts = {}
     for name in VARIANTS:
@@ -239,10 +240,43 @@ def test_snag_records_carry_the_sheets_kinds_radii_and_materials(repo_root):
             counts[name][key] += 1
         assert all(not c["landable"] for c in data["collision"])
         assert [(w["shape"], w["porosity"]) for w in data["wind_volumes"]] == [("box", 0.0)]
-    assert counts["L01_straight"] == {("hook", 0.008, "steel"): 4, ("edge", 0.005, "glass"): 4, ("edge", 0.003, "cable"): 1}
-    assert counts["L01_leaning"] == {("hook", 0.008, "steel"): 4, ("edge", 0.005, "glass"): 4,
+        hooks = [c["radius"] for c in data["collision"] if c["material"] == "steel"]
+        assert set(hooks) == {pole.HOOK_D_M / 2}, "a hook record's reach is its capsule's"
+    assert counts["L01_straight"] == {("hook", 0.0085, "steel"): 4, ("edge", 0.005, "glass"): 4,
+                                      ("edge", 0.003, "cable"): 1}
+    assert counts["L01_leaning"] == {("hook", 0.0085, "steel"): 4, ("edge", 0.005, "glass"): 4,
                                      ("edge", 0.002, "timber"): 2, ("edge", 0.003, "cable"): 1}
-    assert counts["L01_stub"][("edge", 0.002, "steel")] == 2
+    assert counts["L01_stub"][("edge", 0.003, "steel")] == 2
+
+
+def test_drip_edges_and_bands_lie_where_the_fiber_meets_them(repo_root):
+    """Task 1.5's reading §6, items 6 and 7: each insulator's ring runs round its skirt's drip edge, 32.5 mm from its
+    axis and 5 mm up its base, so its 5 mm reach is flush with the 37.5 mm cylinder's side and bottom (the old neck
+    ring lay 13.5 mm inside it); each band's record runs on the strap's centre line, half its 6 mm out of the outline
+    it is wrapped on, so its 3 mm reach is flush with both faces."""
+    _, _, data = build(repo_root, "L01_straight")
+    cylinders = [c for c in data["collision"] if c["shape"] == "cylinder" and c["material"] == "glass"]
+    rings = [s for s in data["snag"] if s["material"] == "glass"]
+    assert len(rings) == len(cylinders) == 4
+    for ring, cyl in zip(rings, cylinders):
+        base = cyl["center"][1] - cyl["height"] / 2
+        for q in ring["points"]:
+            reach = math.hypot(q[0] - cyl["center"][0], q[2] - cyl["center"][2]) + ring["radius_m"]
+            assert reach == pytest.approx(cyl["radius"], abs=1e-6)  # flush with the side at the ring's corners
+            assert q[1] - ring["radius_m"] == pytest.approx(base, abs=1e-6)  # and with the bottom
+    p, built, stub = build(repo_root, "L01_stub")
+    shape = pole.Pole(p)
+    bands = [s for s in stub["snag"] if s["material"] == "steel" and s["kind"] == "edge"]
+    assert len(bands) == 2
+    for band in bands:
+        height = band["points"][0][1]
+        on_log = [q for q in band["points"] if q[0] < -0.01]  # the -X half wraps the log alone
+        assert on_log
+        for q in on_log:  # the outline's 32-gon corners plus half the strap, its thickness square to the edges
+            out = math.hypot(q[0], q[2]) - shape.radius(height)
+            assert out == pytest.approx(pole.BAND_T_M / 2 / math.cos(math.pi / 32), abs=1e-6)
+    print(f"drip rings at r {pole.INSULATOR_R_M - 0.005:.4f} m, 0.005 m up; band centre lines "
+          f"{pole.BAND_T_M / 2 / math.cos(math.pi / 32) * 1000:.3f} mm out")
 
 
 def test_build_is_deterministic_and_the_seed_moves_only_the_wood_uvs(repo_root):

@@ -39,9 +39,10 @@ Metadata (design decision 3, the sheet's physics role):
   and the ground, in the brace's plane, with `narrowest_m` the diameter of its inscribed circle; its id records the
   heights under which the drone passes (0.706 m at any yaw, 0.574 m nose-first, the houses sheet's spans);
 - one solid wind box around the log (porosity 0); nothing landable;
-- snags, each with the material of the member it follows: a `hook` per hook and pin (8 mm, steel), an `edge` ring
-  round each insulator neck (5 mm, glass), the crossarm's end faces (2 mm, timber), each band (2 mm, steel) and the
-  grounding wire (3 mm, cable);
+- snags, each with the material of the member it follows: a `hook` per hook and pin (8.5 mm, the bar's half
+  thickness, steel), an `edge` ring round each insulator's skirt drip edge (5 mm, its reach flush with the cylinder,
+  glass), the crossarm's end faces (2 mm, timber), each band on the strap's centre line (3 mm, flush with its faces,
+  steel) and the grounding wire (3 mm, cable);
 - ports: one per insulator, `hook_<n>` from the top, at the bottom of the neck groove on the side away from the pole
   (where a conductor rests), with the outward unit direction and the groove's width, 0.014 m, as the largest
   conductor it seats; a conductor's centre lies one radius further out. A bare pin seats none and has no port.
@@ -104,7 +105,10 @@ BAND_SPAN_M = (0.3, 0.15)                     # lowest band above the ground, hi
 GROUND_WIRE_D_M = 0.006                       # assumed: the usual 6 mm descent
 GROUND_WIRE_SIDES = 4
 GROUND_WIRE_GAP_M = 0.05                      # its top under the lowest point of the head
-SNAG_R = {"hook": 0.008, "neck": 0.005, "crossarm": 0.002, "band": 0.002, "ground_wire": 0.003}  # the sheet
+# Snag radii (the sheet, as task 1.5's reading §6 rules them): a hook or pin its bar's half thickness; the insulator's
+# skirt drip edge 5 mm; a crossarm end timber's 2 mm arris; a band the strap's half thickness, on its centre line, so
+# its reach is flush with the strap's faces; the grounding wire its own radius.
+SNAG_R = {"hook": HOOK_D_M / 2, "drip": 0.005, "crossarm": 0.002, "band": BAND_T_M / 2, "ground_wire": 0.003}
 DRONE_M = {"any_yaw": 0.706, "nose_first": 0.574}  # the drone's spans (houses sheet, "How to read this sheet")
 # Params the sheet gives the generator that nothing builds yet: anything but this value is refused, so no edit is
 # silently ignored (G1 shows the intact pole, the proposal's non-goals).
@@ -460,7 +464,7 @@ def _hook(mesh, pole, s, side, collision, snag):
 
 
 def _insulator(mesh, pole, base, side, n, collision, snag):
-    """The pin insulator standing on `base` (upright frame, axis +Y before the lean): its lathe, cylinder, neck
+    """The pin insulator standing on `base` (upright frame, axis +Y before the lean): its lathe, cylinder, drip-edge
     record and port, which seats a conductor up to the groove's width; with insulator none a bare pin, which seats
     no conductor and has no port (None)."""
     if pole.p["insulator"] == "none":
@@ -484,9 +488,13 @@ def _insulator(mesh, pole, base, side, n, collision, snag):
     axis = pole.place((0.0, 1.0, 0.0))
     foot = pole.place(base)
     collision.append(_cylinder(foot, add(foot, scale(axis, INSULATOR_H_M)), INSULATOR_R_M, PHYSICS[INSULATOR]))
-    ring = [(base[0] + NECK_R_M * math.cos(a), base[1] + NECK_H_M, base[2] + NECK_R_M * math.sin(a))
+    # The skirt's drip edge, where the fiber bends over the insulator (the neck groove lies inside the cylinder,
+    # where no fiber reaches): a ring through the rounded corner's centre, its reach flush with the cylinder's side
+    # and bottom at the ring's corners.
+    r, h = INSULATOR_R_M - SNAG_R["drip"], SNAG_R["drip"]
+    ring = [(base[0] + r * math.cos(a), base[1] + h, base[2] + r * math.sin(a))
             for a in (2 * math.pi * j / INSULATOR_SIDES for j in range(INSULATOR_SIDES + 1))]
-    snag.append(_record("edge", ring, SNAG_R["neck"], INSULATOR, pole))
+    snag.append(_record("edge", ring, SNAG_R["drip"], INSULATOR, pole))
     port = (base[0], base[1] + NECK_H_M, base[2] + side * NECK_R_M)
     return {"id": f"hook_{n}", "position": list(pole.place(port)), "direction": list(pole.place((0.0, 0.0, side))),
             "max_diameter_m": GROOVE_W_M}
@@ -560,7 +568,9 @@ def _stub(lods, pole, collision, snag):
         s = low + (high - low) * k / (p["bands"] - 1)
         path = _band_path(pole.radius(s), lo, hi)
         _band(lods[0], pole, path, s)
-        snag.append(_record("edge", [(x, s, z) for x, z in path + path[:1]], SNAG_R["band"], STEEL, pole))
+        middle = [(x + reach / 2 * nx, s, z + reach / 2 * nz)  # the strap's centre line
+                  for (x, z), (nx, nz, reach) in zip(path, _band_offsets(path))]
+        snag.append(_record("edge", middle + middle[:1], SNAG_R["band"], STEEL, pole))
 
 
 def _band_path(r, lo, hi, points=32):
@@ -582,21 +592,29 @@ def _band_path(r, lo, hi, points=32):
     return lower[:-1] + upper[:-1]
 
 
-def _band(mesh, pole, path, s):
-    """A flat strap BAND_H_M tall and BAND_T_M thick on the outline at height s: outer, top, inner, bottom faces."""
+def _band_offsets(path):
+    """Per outline vertex, the unit bisector (nx, nz) the strap's thickness is laid along and how far along it the
+    strap's outer face stands (BAND_T_M square to both adjacent edges)."""
     n = len(path)
     normals = []
     for i in range(n):
         (ax, az), (bx, bz) = path[i], path[(i + 1) % n]
         length = math.hypot(bx - ax, bz - az)
         normals.append(((bz - az) / length, -(bx - ax) / length))  # outward of a counter-clockwise edge in (x, z)
-    rows = []
+    offsets = []
     for i in range(n):
         nx, nz = normals[i - 1][0] + normals[i][0], normals[i - 1][1] + normals[i][1]
         k = math.hypot(nx, nz)
         nx, nz = nx / k, nz / k
-        reach = BAND_T_M / max(0.2, nx * normals[i][0] + nz * normals[i][1])
-        x, z = path[i]
+        offsets.append((nx, nz, BAND_T_M / max(0.2, nx * normals[i][0] + nz * normals[i][1])))
+    return offsets
+
+
+def _band(mesh, pole, path, s):
+    """A flat strap BAND_H_M tall and BAND_T_M thick on the outline at height s: outer, top, inner, bottom faces."""
+    n = len(path)
+    rows = []
+    for (x, z), (nx, nz, reach) in zip(path, _band_offsets(path)):
         rows.append([mesh.vertex(pole.place((x + d * nx, s + h, z + d * nz)))
                      for d, h in ((0.0, -BAND_H_M / 2), (reach, -BAND_H_M / 2), (reach, BAND_H_M / 2), (0.0, BAND_H_M / 2))])
     centre = pole.place((0.0, s, 0.0))
