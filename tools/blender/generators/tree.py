@@ -100,7 +100,8 @@ PARAMS = {
     "leaf_cover": {"type": "float", "range": (0.0, 1.0), "default": 0.6,
                    "effect": "share of the last two orders' members that carry leaves; summer 0.9, part-bare 0.6, autumn 0.3"},
     "leaf_m": {"type": "float", "range": (0.15, 0.36), "default": 0.25,
-               "effect": "a pinnate leaf card's length from its petiole (the sheet's 15-36 cm); rule (c)'s card reach"},
+               "effect": "a pinnate leaf card's length from its petiole (the sheet's 15-36 cm); its far corner, 1.044 times "
+                         "it, is rule (c)'s card reach"},
     "autumn": {"type": "float", "range": (0.0, 1.0), "default": 0.0, "effect": "lerps the leaf tint to the sheet's yellow (not built: see UNBUILT)"},
     "spines": {"type": "bool", "range": "true or false", "default": False, "effect": "thorn cards on suckers and low branches (not built)"},
     "fruit_share": {"type": "float", "range": (0.0, 0.5), "default": 0.0, "effect": "share of the last order's tips carrying a pod strip"},
@@ -220,7 +221,8 @@ def build(params):
                   f"{sum(len(m.segments()) for _, m in wood if m.order == 0)}, limbs "
                   f"{sum(len(m.segments()) for _, m in wood if m.order == 1)}, branches "
                   f"{sum(len(m.segments()) for _, m in wood if m.order >= 2)})")
-    pieces = _shells(members, leaves, pods, audit.card_allowance(leaf_m), report)
+    reach = cards.card_reach(leaf_m)
+    pieces = _shells(members, leaves, pods, audit.card_allowance(reach), report)
     collision += [meta.capsule(a, b, r, PHYSICS[TWIG]) for a, b, r in pieces]
     snag = _records(members)
     report.append("records: " + ", ".join(f"{sum(1 for s in snag if (s['material'], s['kind']) == key)} {key[0]} {key[1]}"
@@ -237,7 +239,7 @@ def build(params):
         "gaps": gaps,
         "wind_volumes": wind,
         "snag": snag,
-        "card_reach_m": leaf_m,  # a leaf reaches its length off its shoot: audit rule (c)'s allowance less 0.1 m
+        "card_reach_m": reach,  # a leaf card's far corner from its petiole: audit rule (c)'s allowance less 0.1 m
         "report": report,
         "members": members,  # the skeleton the meshes and the metadata came from (the tests read it)
     }

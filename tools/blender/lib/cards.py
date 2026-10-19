@@ -74,6 +74,13 @@ def cell_uv(cell_px, set_px=SET_PX):
 CELLS_UV = tuple(cell_uv(c) for c in CELLS_PX)
 
 
+def card_reach(card_m):
+    """How far a card `card_m` long reaches from its stalk end: its far corners, card_m * sqrt(1 + (aspect / 2)^2) at
+    the widest of the cells it may map (`_card` lays it as wide as its cell's aspect, centred on its axis), 1.044 *
+    card_m at cell 4's 0.600 (p1-v01-locust review-physics §A.3: audit rule (c)'s card reach)."""
+    return card_m * max(math.hypot(1.0, (u1 - u0) / (v1 - v0) / 2) for (u0, v0), (u1, v1) in CELLS_UV)
+
+
 class Card:
     """A quad: `corners` in cyclic order (stalk end first), one face `normal`, the `uvs` per corner, its `cell`; a far
     card's face also its corners' shading `normals`."""

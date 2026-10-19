@@ -272,6 +272,22 @@ def test_leaves_on_the_last_two_orders(variant):
         assert min(min(math.sqrt(shell._segment_distance2(stalk, a, b)) for a, b, _, _ in m.segments()) for m in leafy) < 1e-6
 
 
+def test_card_reach_is_the_far_corner_of_the_widest_card(variant):
+    """review-physics §A.3 and §A.6 item 5: rule (c)'s card reach is a leaf card's farthest corner from its petiole,
+    leaf_m * sqrt(1 + (aspect / 2)^2) at the widest cell, 0.261 m at the 0.25 m leaf (an allowance of 0.361 m), and
+    the built cards reach exactly that far, no farther."""
+    name, p, built, data = variant
+    vertices = built["lods"][0].vertices
+    reach = 0.0
+    for indices, _, _, slot in built["lods"][0].faces:
+        if slot == "leaf":
+            c = [vertices[i] for i in indices]
+            petiole = [(c[0][a] + c[1][a]) / 2 for a in range(3)]
+            reach = max(reach, *(math.dist(petiole, corner) for corner in c))
+    assert built["card_reach_m"] == cards.card_reach(p["leaf_m"]) == pytest.approx(reach, abs=1e-9)
+    assert cards.card_reach(0.25) == pytest.approx(0.261026, abs=1e-6) and audit.card_allowance(cards.card_reach(0.25)) == 0.361026
+
+
 def test_pods_hang_from_the_share_of_twig_tips(repo_root):
     p, built, data = quick(repo_root, "V01_M", fruit_share=0.2)
     members = built["members"]
@@ -357,7 +373,7 @@ def test_shells_are_fitted_per_main_limb_and_a_failing_limb_split_into_its_child
     fitted = [g for g in groups if twig_faces(g) or any(members[i].order >= p["orders"] - 1 for i in g)]
     assert [c[0] for c in calls] == [twig_faces(g) for g in fitted]
     assert calls[0][1] == sum(c[1] for c in calls[1:1 + len(members[first].children)])  # the children hold its leaves
-    assert all(c[2] == audit.card_allowance(p["leaf_m"]) == 0.35 for c in calls)
+    assert all(c[2] == audit.card_allowance(cards.card_reach(p["leaf_m"])) == 0.361026 for c in calls)
     pieces = [c for c in built["collision"] if c["material"] == "twig"]
     assert len(pieces) == len(calls) - 1 and any("split into its child subtrees" in line for line in built["report"])
 
