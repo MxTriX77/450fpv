@@ -1187,7 +1187,7 @@ Between yards and along gardens, 10–40 m runs; around the farm (P02).
 | Brick base panel | 0.5–0.7 m high, 0.12–0.25 m thick | 0.6 m, 0.12 m | measured I |
 | Lattice panel on top | 0.4–0.6 m high, balusters 0.05–0.08 m with 0.05 m gaps | 0.5 m | measured I |
 | Variant 2: precast panels | 2.0 × 0.5 × 0.04–0.05 m, 3–4 high, posts 0.12 × 0.12 m | 2.0 × 0.5, 3 high (1.5 m) | assumed (common precast sizes) |
-| Variant 3: brick wall | 1.5–2.5 m, 0.25 m thick, piers 0.38 m | 1.8 m | assumed (asset list; I shows only variant 1); S 47 gives 2.0–2.5 m for a red-brick street wall (derived: its top and foot at 12.5 m camera height), if it is a fence |
+| Variant 3: brick wall | 1.5–2 m, 0.25 m thick, piers 0.38 m | 1.8 m | assumed (asset list; I shows only variant 1). S 47's red-brick street wall reads 2.0–2.5 m (derived: its top and foot at 12.5 m camera height), but it isn't classed: it may be the street wall of a building whose roof fell in, so the range stays until it is |
 | Variant 4 (D): dry stone | blocks 0.3–0.5 m, a wall 0.6–1.0 m high or a pile 1 m high × 2–3 m | pile | measured D 14 |
 
 ### Construction and materials
