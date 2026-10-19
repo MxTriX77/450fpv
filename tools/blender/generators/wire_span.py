@@ -21,7 +21,7 @@ off the curve at a 2 % sag).
 
 Mesh: LOD0 a 6-sided tube per conductor along the record's points, LOD1 4-sided from `lod.lod1_switch_m`, culled
 where the thin-wire material's line weighs under CULL_COVERAGE of a pixel (its column sum, PX_PER_RAD * D / d: 468 m
-for 5 mm, 842 m for 9 mm, 1 870 m for 20 mm). Rings stand square to the bisected tangent, framed by parallel transport,
+for 5 mm, 842 m for 9 mm, 1 403 m for the 15 mm drop). Rings stand square to the bisected tangent, framed by parallel transport,
 every corner on the conductor's circle, both ends capped. For the thin-wire shader (task 1.4's contract) every vertex
 carries its radial unit normal (smooth shading) and its tube's radius as its second UV, (r, 0) in metres (Unity's
 uv2). A SIP bundle is CORES cores of D sin(pi / k) / (1 + sin(pi / k)) twisted at `twist_pitch_m` about the bundle's

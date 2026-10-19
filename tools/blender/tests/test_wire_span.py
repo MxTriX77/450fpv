@@ -45,7 +45,8 @@ def test_params_conform_and_the_defaults_are_the_medium_variant(repo_root):
     thin, thick = load(repo_root, "L03_thin"), load(repo_root, "L03_thick")
     assert (thin["diameter_mm"], thin["conductor_type"], thin["conductors"]) == (5.0, "steel_wire", 1)
     assert (thick["diameter_mm"], thick["conductor_type"], thick["arrangement"], thick["span_m"]) == \
-        (20.0, "sip_drop", "bundle", 20.0)
+        (15.0, "sip_drop", "bundle", 20.0)  # the sheet's 2 x 16 mm² drop
+    assert thick["mass_kg_per_m"] == 0.1285  # published 2 x 16: 12.85 kg a 100 m coil (task 1.5's reading)
 
 
 def test_catalog_entry(repo_root):
@@ -96,8 +97,8 @@ def test_records_reproduce_the_tubes_centre_line(repo_root):
 def test_tube_vertices_carry_the_thin_wire_inputs(repo_root):
     """Task 1.4's contract: every tube vertex lies on its ring the conductor's radius from the centre line, with its
     radial unit normal (square to the wire, pointing from the centre to the vertex) and (r, 0) as its second UV, at
-    both LODs; a SIP core's radius is the core's (5 mm in the 20 mm drop) at LOD0 and the bundle's at LOD1."""
-    for name, radii in (("L03_medium", (0.0045, 0.0045)), ("L03_thick", (0.005, 0.010))):
+    both LODs; a SIP core's radius is the core's (3.75 mm in the 15 mm drop) at LOD0 and the bundle's at LOD1."""
+    for name, radii in (("L03_medium", (0.0045, 0.0045)), ("L03_thick", (0.00375, 0.0075))):
         _, built, _ = build(repo_root, name)
         for lod, radius in zip(built["lods"], radii):
             assert len(lod.normals) == len(lod.uv2) == len(lod.vertices)
@@ -220,21 +221,23 @@ def test_a_wire_without_a_tube_fails(repo_root):
 
 
 def test_sip_drop_is_two_twisted_cores_within_its_bundle(repo_root, material_ids):
-    """L03_thick: a 20 mm SIP drop (two 10 mm cores 5 mm off the axis, twisted at 0.45 m) from L01_straight's hook_2
-    at 6.355 m to a house at 3.5 m over 20 m; the audit holds both cores to the bundle's 10 mm envelope; its lowest
-    point is the house end, over the 2.75 m a drop keeps at the house entry."""
+    """L03_thick: the sheet's 2 x 16 mm² SIP drop, 15 mm (two 7.5 mm cores 3.75 mm off the axis, twisted at
+    0.45 m) from L01_straight's hook_2 at 6.355 m to a house at 3.5 m over 20 m; the audit holds both cores to the
+    bundle's 7.5 mm envelope; its lowest point is the house end, over the 2.75 m a drop keeps at the house entry. Its
+    15 mm is over the TF-20 groove's 14 mm: it waits for a clamp port (sip_bracket, not built)."""
     p, built, data = build(repo_root, "L03_thick")
     assert meta.validate(data, material_ids) == []
     lines, core_r = wire_span.twisted_cores([(0.0, 5.0, 0.0), (1.0, 5.0, 0.0)], 0.020, 2, 0.45, 0.0)
     assert core_r == pytest.approx(0.005) and math.dist(lines[0][0], (0.0, 5.0, 0.0)) == pytest.approx(0.005)
     assert math.dist(lines[0][0], lines[1][0]) == pytest.approx(0.010)
     wire = data["wires"][0]
-    assert wire["slot"] == "insulated" and wire["diameter_m"] == 0.02 and len(wire["points"]) == 41
-    assert wire["points"][0] == pytest.approx([0.0, 6.355, 0.255842 + 0.010], abs=1e-6)
+    assert wire["slot"] == "insulated" and wire["diameter_m"] == 0.015 and len(wire["points"]) == 41
+    assert wire["points"][0] == pytest.approx([0.0, 6.355, 0.255842 + 0.0075], abs=1e-6)
+    assert wire["diameter_m"] > pole.GROOVE_W_M  # no TF-20 port seats it (task 1.5's reading §1)
     assert min(q[1] for q in wire["points"]) == 3.5 >= wire_span.CLEARANCE_M["sip_drop"]
     problems, report = audit.run(data, built["lods"][0])
     print(report[0])
-    assert problems == [] and report[0].startswith("audit wires[0] 20 mm (slot insulated): largest deviation 0.")
+    assert problems == [] and report[0].startswith("audit wires[0] 15 mm (slot insulated): largest deviation 0.")
     arc = sum(math.dist(q, r) for q, r in zip(wire["points"][1:], wire["points"]))
     assert math.ceil(arc / (0.45 / 8)) == 360  # 8 rings a turn of the 20.2 m bundle
     assert data["lods"][0]["tris"] == 2 * (360 * 6 * 2 + 2 * 4)  # two 6-sided cores, capped
@@ -267,9 +270,9 @@ def test_check_refuses_a_long_drop_and_idle_keys_on_a_single_conductor(repo_root
 
 def test_lods_records_and_snags(repo_root):
     """LOD0 6-sided tubes, LOD1 4-sided from 20 m, culled where the line's column sum 935 D / d falls under 1 % of a
-    pixel (5 mm: 467.5 m, 9 mm: 841.5 m, 20 mm: 1 870 m); per conductor a cable `wires` record and an `edge` snag
+    pixel (5 mm: 467.5 m, 9 mm: 841.5 m, 15 mm: 1 402.5 m); per conductor a cable `wires` record and an `edge` snag
     along the same points with the wire's radius; no collision, gap, wind volume or port."""
-    for name, cull in zip(VARIANTS, (467.5, 841.5, 1870.0)):
+    for name, cull in zip(VARIANTS, (467.5, 841.5, 1402.5)):
         _, built, data = build(repo_root, name)
         assert [lod["switch_distance_m"] for lod in data["lods"]] == [0.0, 20.0]
         assert data["cull_distance_m"] == pytest.approx(cull, abs=1e-6)
@@ -277,7 +280,7 @@ def test_lods_records_and_snags(repo_root):
         assert data["collision"] == data["gaps"] == data["wind_volumes"] == data["ports"] == []
         assert [m["physics"] for m in data["materials"]] == ["cable"]
         assert len(data["snag"]) == len(data["wires"])
-        edge = {"L03_thin": None, "L03_medium": 0.0015, "L03_thick": 0.005}[name]  # solid, D / 6, the core
+        edge = {"L03_thin": None, "L03_medium": 0.0015, "L03_thick": 0.00375}[name]  # solid, D / 6, the core
         for wire, snag in zip(data["wires"], data["snag"]):
             want = {"kind": "edge", "points": wire["points"], "radius_m": wire["diameter_m"] / 2}
             want.update({"edge_radius_m": edge} if edge else {})
