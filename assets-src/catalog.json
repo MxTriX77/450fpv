@@ -10,7 +10,7 @@
     "L01": {
       "class": "lines",
       "generator": "pole",
-      "variants": ["L01_straight", "L01_leaning", "L01_stub"],
+      "variants": ["L01_straight", "L01_leaning", "L01_braced", "L01_stub"],
       "materials": { "wood": "pole_wood", "concrete": "pole_concrete", "steel": "pole_steel",
                      "insulator": "insulator_porcelain", "ground_wire": "wire_steel" }
     },

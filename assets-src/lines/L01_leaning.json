@@ -10,7 +10,7 @@
   "bands": 2,
   "lean_deg": 9.0,
   "lean_azimuth_deg": 90.0,
-  "brace": "single",
+  "brace": "none",
   "brace_angle_deg": 25.0,
   "brace_attach": 0.65,
   "head": "crossarm_0p4",

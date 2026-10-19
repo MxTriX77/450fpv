@@ -3,7 +3,8 @@ conform and the defaults are L01_straight; the sizes are the sheet's; the brace 
 inscribed circle checked by hand and by the audit (and the sheet's 1.78 m traced to the axes' triangle at 4.9 m); the
 four ports sit on the insulators' necks, outward; check refuses concrete_sv and everything else not built; the LODs
 and the 1 km cull; the log's collision within 10 mm of the log both ways; every snag record names its material
-(forward-compatible with p1-v01-locust); the leaning variant through the full audit. Margins are printed (TST-06)."""
+(forward-compatible with p1-v01-locust); the braced and the leaning variants through the full audit. Margins are
+printed (TST-06)."""
 import copy
 import json
 import math
@@ -14,7 +15,7 @@ from generators import pole
 from lib import audit, catalog, meta, params
 from lib.geometry import Mesh
 
-VARIANTS = ("L01_straight", "L01_leaning", "L01_stub")
+VARIANTS = ("L01_straight", "L01_leaning", "L01_braced", "L01_stub")
 VISUALS = {"wood": "pole_wood", "concrete": "pole_concrete", "steel": "pole_steel", "insulator": "insulator_porcelain",
            "ground_wire": "wire_steel"}
 BUILT = {}
@@ -42,8 +43,10 @@ def test_params_conform_and_the_defaults_are_the_straight_variant(repo_root):
         assert spec["default"] == flat[key], key
         if spec["type"] in ("int", "float"):
             assert spec["range"][0] <= spec["default"] <= spec["range"][1], key
-    leaning, stub = load(repo_root, "L01_leaning"), load(repo_root, "L01_stub")
-    assert (leaning["lean_deg"], leaning["brace"], leaning["head"]) == (9.0, "single", "crossarm_0p4")
+    leaning, braced, stub = (load(repo_root, n) for n in ("L01_leaning", "L01_braced", "L01_stub"))
+    assert (leaning["lean_deg"], leaning["brace"], leaning["head"]) == (9.0, "none", "crossarm_0p4")  # L 1-3: no brace
+    assert (braced["lean_deg"], braced["brace"], braced["head"]) == (0.0, "single", "hooks_0p4")  # a line's end pole
+    assert dict(braced, seed=1, brace="none") == load(repo_root, "L01_straight")
     assert stub["pole_kind"] == "wood_on_stub" and stub["length_m"] == 7.5
 
 
@@ -125,14 +128,16 @@ def test_brace_gap_is_the_real_clear_space_and_its_circle_checks(repo_root):
     """The scenario "Brace gap against the drone": one gap polygon, the triangle between pole, brace and ground, with
     narrowest_m the inscribed circle, and the audit's check agreeing within 5 mm. The polygon is the real clear space
     between the members' surfaces (the pipeline's gap convention), so its circle is 1.611 m, not the sheet's 1.78 m:
-    that number is the triangle of the members' axes with the attachment rounded to 4.9 m (next test)."""
-    p, built, data = build(repo_root, "L01_leaning")
+    that number is the triangle of the members' axes with the attachment rounded to 4.9 m (next test). It is
+    L01_braced's, the end pole; L01_leaning, which L 1-3 show without a brace, has no gap."""
+    assert build(repo_root, "L01_leaning")[2]["gaps"] == []
+    p, built, data = build(repo_root, "L01_braced")
     assert len(data["gaps"]) == 1
     gap = data["gaps"][0]
     corners, by_hand = clear_triangle_by_hand(p)
     assert gap["narrowest_m"] == pytest.approx(by_hand, abs=1e-5)
     assert gap["narrowest_m"] == pytest.approx(1.611, abs=0.0005)
-    for got, want in zip(gap["polygon"], corners):  # the upright corners, leaned 9 degrees about X
+    for got, want in zip(gap["polygon"], corners):  # the upright corners
         assert got == pytest.approx(list(pole.Pole(p).place((want[0], want[1], 0.0))), abs=1e-6)
     circle = 2 * audit._inscribed_radius(audit._flatten_polygon(gap["polygon"], gap["normal"]))
     assert abs(circle - gap["narrowest_m"]) <= audit.NARROWEST_TOLERANCE_M
@@ -146,6 +151,20 @@ def test_brace_gap_is_the_real_clear_space_and_its_circle_checks(repo_root):
     problems, _ = audit.run(dict(wrong, collision=[]), Mesh())
     assert problems == [f"gaps[0] '{gap['id']}': narrowest_m 1.7800, largest inscribed circle {circle:.4f}: "
                         "they differ by more than 5 mm"]
+
+
+def test_the_brace_gaps_id_gives_its_heights_above_the_ground(repo_root):
+    """Task 1.5's reading §4: the drone passes the brace triangle at any yaw where its clear width holds 0.706 m and
+    nose-first where it holds 0.574 m, 2.9488 and 3.2351 m up the triangle's plane. On the upright end pole those are
+    the heights above the ground, 2.95 and 3.24 m; leaned 9 degrees across the brace they are 2.91 and 3.20 m (the
+    in-plane heights times cos 9 degrees, the gap normal's sqrt(1 - n_y^2)), and the circle stays 1.611 m."""
+    p = load(repo_root, "L01_braced")
+    leaned = pole.build(dict(p, lean_deg=9.0, lean_azimuth_deg=90.0))["gaps"][0]
+    assert leaned["id"] == "brace_triangle_any_yaw_below_2.91m_nose_first_below_3.20m"
+    assert leaned["narrowest_m"] == pytest.approx(build(repo_root, "L01_braced")[2]["gaps"][0]["narrowest_m"], abs=1e-6)
+    n_y = leaned["normal"][1]
+    assert 2.9488 * math.sqrt(1 - n_y * n_y) == pytest.approx(2.912, abs=0.0005)
+    print(f"brace gap id upright {build(repo_root, 'L01_braced')[2]['gaps'][0]['id']}, leaned 9 deg {leaned['id']}")
 
 
 def test_the_sheets_178_is_the_axes_triangle_at_49_m():
@@ -268,6 +287,7 @@ def test_snag_records_carry_the_sheets_kinds_radii_and_materials(repo_root):
                                       ("edge", 0.003, "cable"): 1}
     assert counts["L01_leaning"] == {("hook", 0.0085, "steel"): 4, ("edge", 0.005, "glass"): 4,
                                      ("edge", 0.002, "timber"): 2, ("edge", 0.003, "cable"): 1}
+    assert counts["L01_braced"] == counts["L01_straight"]
     assert counts["L01_stub"][("edge", 0.003, "steel")] == 2
 
 
@@ -311,13 +331,14 @@ def test_build_is_deterministic_and_the_seed_moves_only_the_wood_uvs(repo_root):
     assert [f[2] for f in a["lods"][0].faces if f[3] == "steel"] == [f[2] for f in c["lods"][0].faces if f[3] == "steel"]
 
 
-def test_the_leaning_variant_passes_the_full_audit_planted(repo_root):
-    """L01_leaning through lib.audit as build.py runs it: every primitive within 50 mm, within 20 mm near the brace
-    gap (the log, the brace, its buried foot), the gap's circle agreeing; the lines are printed."""
-    p, built, data = build(repo_root, "L01_leaning")
-    problems, lines = audit.run(data, built["lods"][0], soft=audit.soft_materials(repo_root), planted=True)
-    for line in lines:
-        print(line)
-    assert problems == []
-    near = [line for line in lines if "near gaps/landable" in line]
-    assert len(near) >= 4  # the two lower log capsules, the brace and the mesh
+def test_the_braced_and_leaning_variants_pass_the_full_audit_planted(repo_root):
+    """L01_braced and L01_leaning through lib.audit as build.py runs it: every primitive within 50 mm, within 20 mm
+    near the brace gap (the log, the brace, its buried foot), the gap's circle agreeing; the lines are printed."""
+    for name in ("L01_braced", "L01_leaning"):
+        p, built, data = build(repo_root, name)
+        problems, lines = audit.run(data, built["lods"][0], soft=audit.soft_materials(repo_root), planted=True)
+        for line in lines:
+            print(f"{name}: {line}")
+        assert problems == []
+        near = [line for line in lines if "near gaps/landable" in line]
+        assert len(near) >= (4 if name == "L01_braced" else 0)  # the two lower log capsules, the brace and the mesh

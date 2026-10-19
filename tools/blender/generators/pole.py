@@ -38,7 +38,8 @@ Metadata (design decision 3, the sheet's physics role):
   0.0375 x 0.108 m; materials timber, concrete, steel and glass (porcelain is glass, the physics sign-off);
 - the brace triangle as one gap polygon: the real clear space between the pole's and the brace's inner surfaces
   and the ground, in the brace's plane, with `narrowest_m` the diameter of its inscribed circle; its id records the
-  heights under which the drone passes (0.706 m at any yaw, 0.574 m nose-first, the houses sheet's spans);
+  heights above the ground under which the drone passes (0.706 m at any yaw, 0.574 m nose-first, the houses sheet's
+  spans; on a leaned pole the in-plane heights times the lean's cosine, task 1.5's reading §4);
 - one solid wind box around the log (porosity 0); nothing landable;
 - snags, each with the material of the member it follows: a `hook` per hook and pin (8.5 mm, the bar's half
   thickness, steel), an `edge` ring round each insulator's skirt drip edge (5 mm, its reach flush with the cylinder,
@@ -680,7 +681,7 @@ def _brace_gap(pole):
     heights = {}
     for name, span in DRONE_M.items():  # w(y) falls linearly: the height where it equals the span
         w0, w1 = width(0.0), width(1.0)
-        heights[name] = (w0 - span) / (w0 - w1)
+        heights[name] = pole.place((0.0, (w0 - span) / (w0 - w1), 0.0))[1]  # above the ground, leaned
     gap_id = f"brace_triangle_any_yaw_below_{heights['any_yaw']:.2f}m_nose_first_below_{heights['nose_first']:.2f}m"
     return {"id": gap_id, "polygon": [list(pole.place(v)) for v in vertices], "normal": list(pole.place((0.0, 0.0, 1.0))),
             "narrowest_m": inscribed_diameter(vertices)}
