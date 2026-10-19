@@ -347,6 +347,7 @@ MonoBehaviour:
     - {x: 39, y: 7.276963, z: 0.253079}
     - {x: 39.5, y: 7.31548, z: 0.253079}
     - {x: 40, y: 7.355, z: 0.253079}
+  holes: []
   snag:
   - kind: edge
     points:
