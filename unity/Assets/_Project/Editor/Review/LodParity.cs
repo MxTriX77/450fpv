@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using Fpv450.World;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -368,14 +369,30 @@ namespace Fpv450
         }
 
         /// <summary>
-        /// The Unity process's peak working set since it started, in MB (task 1.2m: a refined V01 variant makes about
-        /// 8 000 renders on a machine other agents share).
+        /// The Unity process's peak working set since it started, in MB, from Windows (task 1.2m: a refined V01 variant
+        /// makes about 8 000 renders on a machine other agents share); Mono's Process.PeakWorkingSet64 reads 0 in the
+        /// editor (measured). -1 when Windows does not answer.
         /// </summary>
         static long PeakWorkingSetMb()
         {
-            using (var process = System.Diagnostics.Process.GetCurrentProcess())
-                return process.PeakWorkingSet64 >> 20;
+            var counters = new ProcessMemoryCounters { cb = (uint)Marshal.SizeOf<ProcessMemoryCounters>() };
+            return GetProcessMemoryInfo(GetCurrentProcess(), ref counters, counters.cb) ? (long)(counters.PeakWorkingSetSize.ToUInt64() >> 20) : -1;
         }
+
+        // PROCESS_MEMORY_COUNTERS (psapi.h).
+        [StructLayout(LayoutKind.Sequential)]
+        struct ProcessMemoryCounters
+        {
+            public uint cb, PageFaultCount;
+            public UIntPtr PeakWorkingSetSize, WorkingSetSize, QuotaPeakPagedPoolUsage, QuotaPagedPoolUsage,
+                QuotaPeakNonPagedPoolUsage, QuotaNonPagedPoolUsage, PagefileUsage, PeakPagefileUsage;
+        }
+
+        [DllImport("kernel32.dll", EntryPoint = "K32GetProcessMemoryInfo")]
+        static extern bool GetProcessMemoryInfo(IntPtr process, ref ProcessMemoryCounters counters, uint size);
+
+        [DllImport("kernel32.dll")]
+        static extern IntPtr GetCurrentProcess();
 
         /// <summary>Every LOD's crown from the aimed camera, each averaged over <paramref name="offsets"/> (<see cref="Average"/>).</summary>
         static (Crown[] crowns, (double luminance, double coverage)[] spreads, (double luminance, double coverage)[] errors) MeasureLods(LODGroup group, Review.Rig rig, Vector2[] offsets)
