@@ -341,3 +341,10 @@ The fresh-context review of D-034 and D-035 ([reviews/godot-openspec-gaps.md](re
 - **From the review's notes:** INP-02 detects expo or dual rates left on the radio; INP-03 names airmode and motor idle from the pilot's profile.
 - **Open changes touched:** `p1-e01-trench` checks F-1 and F-2 as well. The C01 cellar's `holes` record and filler contract go into its sheet as a Quick unit.
 - **Phase 3's map-format and world-query specs** take G1–G4, G6 and G8–G11 in full when they are written (plan phase 3 step 1).
+
+## D-038 The typical village copies letter S; references are read for their look and feel · Accepted
+The pilot, 2026-10-19, adding a clip of a village street (letter S, local only): "let's say one village looks something like this (but add cars somewhere)" and "when you do - don't forget to thoroughly review references to copy their looks and feels". On a second thought about more Stalin-era blocks in the other settlement: "nvm let it be one stalinka. i dont want to make the work even longer much".
+- **The typical village copies letter S** (WLD-01): its street, houses, yards, fences, verges, poles and wires, road and vegetation, read from S's stills; **cars** on the street and in yards (the vehicles sheet, R01). The smaller village is of the same kind. A pattern to copy, never a place (REAL-04).
+- **The Stalin-era block stays one** (U01 "exactly one", D-018, D-035): the pilot weighed more of them for training through holes and basements and kept the scope as it is.
+- **Every reference is read for its look and feel** (REAL-01–REAL-03), the pilot's words: not only which objects it shows but its composition, light, colour, wear and the density of its clutter and vegetation, so the recreated view feels like the reference, not only contains its parts. Letter S is read into the reference notes and the object sheets by `p1-letter-s-village-street` (Standard).
+- **Letter R is skipped:** the object sheets' "Seen in: **R**" means research only, so a letter R would read as that.

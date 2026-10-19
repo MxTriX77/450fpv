@@ -375,7 +375,7 @@ Every terrain patch is at least 60 m across. The relief patch rises at least 2 m
 ## 7. World (WLD): phase 3
 
 **WLD-01 Composition** (D-018 as refined by D-035), about 4 × 4 km:
-- **three settlements:** a typical village (linear, along its roads, about 0.6–1.2 km of street), a smaller village nearby, and a somewhat larger town that holds the destroyed Stalin-era block, its rubble and garages, a farm complex and the larger public buildings; divided by **tree belts and fields** in the pattern the layout reference (letter Q) shows: a pattern to copy, never a place
+- **three settlements:** a typical village (linear, along its roads, about 0.6–1.2 km of street) that copies the village street of letter S, with cars on the street and in yards (D-038), a smaller village nearby of the same kind, and a somewhat larger town that holds the destroyed Stalin-era block, its rubble and garages, a farm complex and the larger public buildings; divided by **tree belts and fields** in the pattern the layout reference (letter Q) shows: a pattern to copy, never a place
 - fields: meadow, tilled, burnt, cratered; **trenches and firing positions in the fields** as well as along belts
 - **tree belts** crossing the fields, several with trenches along them
 - a **small river with tree-lined banks and a pond or two**, as the layout reference shows (the pilot, D-036): the fiber laid on water cuts the signal, the water looks mildly realistic, and wind raises waves on it
@@ -383,7 +383,7 @@ Every terrain patch is at least 60 m across. The relief patch rises at least 2 m
 - vehicles on roads, in yards and at field edges
 - **the settlements read as frontline today:** most houses damaged or destroyed (WLD-05), not a peaceful village with a few ruins
 
-*Source:* B plan 2–3, K§4.5, the pilot 2026-10-18 (D-035).
+*Source:* B plan 2–3, K§4.5, the pilot 2026-10-18 (D-035) and 2026-10-19 (D-038).
 
 **WLD-02 Relief.** Real rolling ground: 2–5 m over hundreds of metres, crests, dips, a gully, road embankments, spoil banks. Never a flat plane. Crests hide what is behind them. *Source:* PR-8.
 
@@ -450,7 +450,7 @@ Along the street: wires and poles. The damage mix is a frontline village's today
 
 *Source:* K§10.1, D-007; gap review G1–G3, G6 (D-037).
 
-**WLD-14 Reference views in the world.** Every letter (A–H, L, P, I–K, M–O) has at least one place in the world that recreates its scene type (REAL-02, REAL-04), reachable from the review controls. The world is judged against the references through these views before G3.
+**WLD-14 Reference views in the world.** Every letter (A–H, L, P, S, I–K, M–O) has at least one place in the world that recreates its scene type (REAL-02, REAL-04), reachable from the review controls. The world is judged against the references through these views before G3.
 
 **WLD-15 Water** (D-036). The world holds a small river and a pond or two where the layout reference puts them.
 - **Signal:** fiber lying on or in water cuts the feed: the video drops to the no-signal state while any part of the line is in the water, and a line laid across water stays cut for the sortie (the physics logs where the line entered the water).
