@@ -1,7 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace Fpv450.Tests.EditMode
 {
@@ -16,7 +18,7 @@ namespace Fpv450.Tests.EditMode
     /// from the code too, in exact fractions and 40-digit square roots. The judged rows (task 1.2f): which pair each tile
     /// judges for V13's three LODs and V01's four, and the verdicts on grey crowns (r = g = b, so the luminance is the
     /// grey) with the luminances, coverages and standard errors of task 1.2b's rows, the differences computed apart from
-    /// the code in exact fractions.
+    /// the code in exact fractions. And the stage (task 1.2h): the review capture's, with the scale bar hidden.
     /// </summary>
     public sealed class LodParityTests
     {
@@ -220,6 +222,39 @@ namespace Fpv450.Tests.EditMode
             Assert.That(worstError, Is.EqualTo(0.0120).Within(1e-12));
             Assert.That(verdict, Is.EqualTo(LodParity.Verdict.NotJudgeable));
         }
+
+        /// <summary>
+        /// K01's stage as the parity builds it: the review capture's, the asset on the ground and the scale bar hidden, its
+        /// place still in the frame bounds that the shadow-distance fit reads. The numbers were computed apart from the
+        /// code, in double precision: the bounds 0.25 × 0.065 × 0.12 m stood on the ground, the bar's base 1.025 m past
+        /// where the 112.5° bearing leaves them, at (1.0720, 0, −0.4440), and the frame round both. Needs a prior build of
+        /// K01.
+        /// </summary>
+        [Test]
+        public void Stage_IsTheReviewsWithTheScaleBarHidden()
+        {
+            Assert.That(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Prefabs/debris/K01_whole.prefab"), Is.Not.Null, "run pwsh tools/build_asset.ps1 K01");
+            Review.Stage stage = LodParity.Stage("K01", "debris", "K01_whole");
+            try
+            {
+                Transform asset = stage.Root.transform.GetChild(0), bar = stage.Root.transform.Find("ScaleBar");
+                Assert.That(asset.name, Is.EqualTo("K01_whole"));
+                Assert.That(asset.gameObject.activeInHierarchy, Is.True);
+                Assert.That(bar, Is.Not.Null);
+                Assert.That(bar.gameObject.activeInHierarchy, Is.False);
+                AssertNear(stage.AssetBounds.center, new Vector3(0f, 0.0325f, 0f), "asset centre");
+                AssertNear(stage.AssetBounds.size, new Vector3(0.25f, 0.065f, 0.12f), "asset size");
+                AssertNear(stage.FrameBounds.center, new Vector3(0.485988f, 0.9f, -0.204514f), "frame centre");
+                AssertNear(stage.FrameBounds.extents, new Vector3(0.610988f, 0.9f, 0.264514f), "frame extents");
+            }
+            finally
+            {
+                Object.DestroyImmediate(stage.Root);
+            }
+        }
+
+        static void AssertNear(Vector3 actual, Vector3 expected, string what) =>
+            Assert.That(Vector3.Distance(actual, expected), Is.LessThan(1e-5f), $"{what} {actual:F6}, expected {expected:F6}");
 
         [Test]
         public void ExitCode_ComesFromTheJudgedRows()

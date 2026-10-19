@@ -2,12 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Fpv450.Assets;
 using Fpv450.World;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
-using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using Object = UnityEngine.Object;
 
@@ -17,7 +15,9 @@ namespace Fpv450
     /// The LOD parity measure (p1-v01-locust tasks 1.2a and 1.2f, design decision 3 as amended; asset-pipeline "Baked
     /// impostor LOD", scenario "No LOD switch pops"). For every variant of an asset id, or the one <c>-variant</c> names, by
     /// the review's day and overcast light (<c>Settings/Review/</c>): the review sheet's 50 m tile and a tile at each
-    /// LOD's switch distance, from the review's far-shot camera, with each LOD forced in turn. Each LOD's crown comes
+    /// LOD's switch distance, from the review's far-shot camera, with each LOD forced in turn. The stage, the camera,
+    /// the light profiles, the shadow-distance fit and the warm-up render are the review capture's
+    /// (<c>ReviewCapture.cs</c>, task 1.2h), with the scale bar hidden (<see cref="Stage"/>). Each LOD's crown comes
     /// from two renders, over black and over white, with no ground and no scale bar: a pixel's coverage is one less the
     /// mean over the linear channels of white minus black, and the render over black is its colour times that coverage.
     /// Each value is the mean over an 8 × 8 grid of camera offsets, an eighth of a pixel apart from 1/16 to 7/16 px
@@ -25,7 +25,7 @@ namespace Fpv450
     /// the sub-pixel phase, like noise, so the error of the mean falls as 1/√N (tasks 1.2c and 1.2d). Each row also
     /// prints the spread of its luminance and coverage over the 64 (max − min) and their standard error of the mean
     /// (the sample standard deviation over √64), each as a percentage of the mean; the offsets are made on the
-    /// projection, see <see cref="Rig.Offset"/>.
+    /// projection, see <see cref="Offset"/>.
     /// Per LOD it prints the coverage-weighted mean linear colour and its Rec. 709 luminance and the crown's coverage in
     /// pixels. Each tile judges one row, the scenario's pair (<see cref="Tiles"/>): at a LOD's switch distance the
     /// incoming LOD against the outgoing one, at the 50 m tile the LOD Unity shows there against LOD0. The judged row
@@ -47,16 +47,8 @@ namespace Fpv450
         // standard error under 1 %.
         internal const double LuminanceLimit = 0.06, CoverageLimit = 0.15, ErrorLimit = 0.01;
 
-        // The review sheet's stage, light and far shots as ReviewCapture.cs sets them; kept in step by hand, since that
-        // file keeps them private. The scale bar is never built here, but its place enters the stage's shadow distance.
-        const int Tile = 1024;
-        const float VerticalFovDeg = 60f, LookDownDeg = 20f, ShotAzimuthDeg = 225f, ReviewTileM = 50f, FarClipM = 1000f;
-        const float BarHeightM = 1.8f, BarPostM = 0.05f, BarGapM = 1f, BarBearingDeg = 112.5f;
-        const float MinShadowDistanceM = 12f, BoundsMarginM = 0.3f;
-        static readonly string[] Lights = { "day", "overcast" };
-        const string CatalogFile = "assets-src/catalog.json";
-        const string ProfilesFolder = "unity/Assets/_Project/Settings/Review";
-        const string PrefabsFolder = "Assets/_Project/Prefabs";
+        // The review sheet's 50 m tile.
+        static readonly float ReviewTileM = Review.DistancesM[2];
 
         // sRGB byte to linear (IEC 61966-2-1), as the readback holds the target's encoded bytes.
         static readonly double[] Linear = Enumerable.Range(0, 256).Select(v =>
@@ -200,48 +192,43 @@ namespace Fpv450
             return at >= 0 && at + 1 < args.Length ? args[at + 1] : null;
         }
 
-        static string RepoRoot => Path.GetFullPath(Path.Combine(Application.dataPath, "..", ".."));
-
         static int Run(string id, string onlyVariant)
         {
             AssetDatabase.Refresh();
-            (string assetClass, string[] variants) = CatalogEntry(id);
+            (string assetClass, string[] variants) = Review.CatalogEntry(id);
             if (onlyVariant != null)
             {
                 if (!variants.Contains(onlyVariant))
                     throw new ArgumentException($"{onlyVariant} is not a variant of {id} ({string.Join(", ", variants)})");
                 variants = new[] { onlyVariant };
             }
-            var prefabs = variants.Select(variant =>
+            foreach (string variant in variants)
             {
-                string path = $"{PrefabsFolder}/{assetClass}/{variant}.prefab";
-                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path) ?? throw new FileNotFoundException($"{path} is missing: run the catalog import first");
-                Review.RequireRenderable(prefab, variant);
-                return prefab;
-            }).ToArray();
-            Profile[] profiles = Lights.Select(LoadProfile).ToArray();
+                string path = Review.PrefabPath(assetClass, variant);
+                Review.RequireRenderable(AssetDatabase.LoadAssetAtPath<GameObject>(path) ?? throw new FileNotFoundException($"{path} is missing: run the catalog import first"), variant);
+            }
+            Review.LightProfile[] profiles = Review.Lights.Select(Review.LoadProfile).ToArray();
             UniversalRenderPipelineAsset pipeline = UniversalRenderPipeline.asset ?? throw new InvalidOperationException("no URP asset is active");
 
             ShaderUtil.allowAsyncCompilation = false; // or the first renders show the "compiling" placeholder
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            Debug.Log($"[LodParity] {id}: {variants.Length} variant(s), lights {string.Join("/", Lights)}, GPU {SystemInfo.graphicsDeviceName} ({SystemInfo.graphicsDeviceType}), " +
+            Debug.Log($"[LodParity] {id}: {variants.Length} variant(s), lights {string.Join("/", Review.Lights)}, GPU {SystemInfo.graphicsDeviceName} ({SystemInfo.graphicsDeviceType}), " +
                       $"quality {QualitySettings.names[QualitySettings.GetQualityLevel()]} ({pipeline.name}), LOD bias {QualitySettings.lodBias:0.##}, MSAA {Mathf.Max(1, pipeline.msaaSampleCount)}, " +
                       $"colour space {QualitySettings.activeColorSpace}; limits luminance {LuminanceLimit * 100:0} %, coverage {CoverageLimit * 100:0} %, standard error under {ErrorLimit * 100:0} %; " +
                       "judged: at each switch the incoming LOD against the outgoing one, at the review tile the LOD shown there against LOD0, every other row info; " +
                       $"each value the mean over {Offsets.Length} projection offsets ({string.Join(", ", Offsets.Select(o => $"{o.x:+0.####;-0.####} {o.y:+0.####;-0.####}"))} px), spread max - min of the {Offsets.Length}, se their sample standard deviation over sqrt({Offsets.Length}), both as a percentage of the mean");
 
-            var rig = new Rig(Mathf.Max(1, pipeline.msaaSampleCount));
+            Review.Rig rig = Review.Rig.Create();
             float projectShadowDistance = pipeline.shadowDistance;
             int judged = 0, failed = 0, notJudgeable = 0, info = 0;
             try
             {
-                for (int v = 0; v < variants.Length; v++)
+                foreach (string variant in variants)
                 {
-                    GameObject instance = Object.Instantiate(prefabs[v]);
-                    instance.name = variants[v];
+                    Review.Stage stage = Stage(id, assetClass, variant);
                     try
                     {
-                        (int variantJudged, int variantFailed, int variantNotJudgeable, int variantInfo) = MeasureVariant(instance, profiles, rig, pipeline, projectShadowDistance);
+                        (int variantJudged, int variantFailed, int variantNotJudgeable, int variantInfo) = MeasureVariant(stage, variant, profiles, rig, pipeline, projectShadowDistance);
                         judged += variantJudged;
                         failed += variantFailed;
                         notJudgeable += variantNotJudgeable;
@@ -250,7 +237,7 @@ namespace Fpv450
                     finally
                     {
                         pipeline.shadowDistance = projectShadowDistance;
-                        Object.DestroyImmediate(instance);
+                        Object.DestroyImmediate(stage.Root);
                     }
                 }
             }
@@ -265,20 +252,19 @@ namespace Fpv450
             return code;
         }
 
-        static (int judged, int failed, int notJudgeable, int info) MeasureVariant(GameObject instance, Profile[] profiles, Rig rig, UniversalRenderPipelineAsset pipeline, float projectShadowDistance)
+        static (int judged, int failed, int notJudgeable, int info) MeasureVariant(Review.Stage stage, string variant, Review.LightProfile[] profiles, Review.Rig rig, UniversalRenderPipelineAsset pipeline, float projectShadowDistance)
         {
-            string variant = instance.name;
+            GameObject instance = stage.Root.transform.GetChild(0).gameObject;
             AssetPhysicsMeta meta = instance.GetComponent<AssetPhysicsMeta>() ?? throw new InvalidOperationException($"{variant}: the prefab has no AssetPhysicsMeta");
-            LODGroup group = instance.GetComponent<LODGroup>() ?? throw new InvalidOperationException($"{variant}: the prefab has no LODGroup");
+            LODGroup group = stage.LodGroup ?? throw new InvalidOperationException($"{variant}: the prefab has no LODGroup");
             int lodCount = group.lodCount;
             if (lodCount != meta.lods.Length)
                 throw new InvalidOperationException($"{variant}: the LOD group has {lodCount} LODs, the metadata {meta.lods.Length}");
             string[] names = meta.lods.Select(l => l.mesh.StartsWith(variant + "_", StringComparison.Ordinal) ? l.mesh.Substring(variant.Length + 1) : l.mesh).ToArray();
 
-            // On the ground, as the review stage stands it, and the shadow distance the review fits to its stage.
-            instance.transform.position = new Vector3(0f, -meta.bounds.min.y, 0f);
-            var asset = new Bounds(meta.bounds.center + instance.transform.position, meta.bounds.size);
-            pipeline.shadowDistance = ReviewShadowDistance(asset, projectShadowDistance);
+            // The review's stage and the shadow distance it fits to it.
+            Bounds asset = stage.AssetBounds;
+            pipeline.shadowDistance = Review.ShadowDistance(stage, projectShadowDistance);
 
             // Each tile names the LODs Unity shows there, the one in range at 50 m, the two that meet at a switch, and judges them.
             (float distance, int judged, int against)[] tiles = Tiles(meta.lods.Select(l => l.switchDistanceM).ToArray(), meta.cullDistanceM);
@@ -290,18 +276,18 @@ namespace Fpv450
             int judgedRows = 0, failed = 0, notJudgeable = 0, info = 0;
             try
             {
-                foreach (Profile profile in profiles)
+                foreach (Review.LightProfile profile in profiles)
                 {
-                    ApplyLight(profile);
-                    rig.Shoot(Color.black); // a warm-up: the first render after a light change can read the previous ambient
+                    Review.ApplyLight(profile, rig);
                     for (int t = 0; t < tiles.Length; t++)
                     {
                         string label = labels[t];
                         (float distance, int judged, int against) = tiles[t];
-                        Vector3 position = SlantShot(asset, distance, out bool fromBounds);
+                        Vector3 position = Review.SlantShot(asset, distance, out bool fromBounds);
                         float toCentre = Vector3.Distance(position, asset.center);
-                        if (toCentre + asset.extents.magnitude > FarClipM)
-                            throw new InvalidOperationException($"{variant} {label}: the crown lies past the {FarClipM:0} m far plane");
+                        if (toCentre + asset.extents.magnitude > rig.Camera.farClipPlane)
+                            throw new InvalidOperationException($"{variant} {label}: the crown lies past the {rig.Camera.farClipPlane:0} m far plane");
+                        Review.WarmUp(rig, stage, position, asset.center);
                         rig.Aim(position, asset.center);
                         var crowns = new Crown[lodCount];
                         var spreads = new (double luminance, double coverage)[lodCount];
@@ -312,8 +298,8 @@ namespace Fpv450
                             var samples = new Crown[Offsets.Length];
                             for (int k = 0; k < Offsets.Length; k++)
                             {
-                                rig.Offset(Offsets[k]);
-                                samples[k] = Find(rig.Shoot(Color.black), rig.Shoot(Color.white));
+                                Offset(rig.Camera, Offsets[k]);
+                                samples[k] = Find(Shoot(rig, Color.black), Shoot(rig, Color.white));
                             }
                             (crowns[i], spreads[i].luminance, spreads[i].coverage, errors[i].luminance, errors[i].coverage) = Average(samples);
                         }
@@ -364,186 +350,37 @@ namespace Fpv450
             return (judgedRows, failed, notJudgeable, info);
         }
 
-        // --- the review stage, as ReviewCapture.cs builds it ------------------------------------------------------
+        // --- the review's stage and camera (ReviewCapture.cs) -----------------------------------------------------
 
-        static (string assetClass, string[] variants) CatalogEntry(string id)
+        /// <summary>
+        /// The review capture's stage for a variant, the scale bar hidden: the crown is rendered alone, and the bar's
+        /// place still enters the stage's shadow distance (<see cref="Review.ShadowDistance"/>).
+        /// </summary>
+        internal static Review.Stage Stage(string id, string assetClass, string variant)
         {
-            string path = Path.Combine(RepoRoot, CatalogFile);
-            var assets = Json.Obj(Json.Obj(Json.Parse(File.ReadAllText(path)), CatalogFile), "assets", CatalogFile);
-            if (!assets.TryGetValue(id, out object entryValue))
-                throw new ArgumentException($"{id} is not an asset of {CatalogFile}");
-            var entry = Json.Obj(entryValue, $"{CatalogFile} {id}");
-            string[] variants = Json.Arr(entry, "variants", $"{CatalogFile} {id}").Select(v => (string)v).ToArray();
-            return (Json.Str(entry, "class", $"{CatalogFile} {id}"), variants);
+            ReviewMeta meta = ReviewMeta.Read(Review.ProjectPath(Review.MetaPath(id, assetClass, variant)));
+            Review.Stage stage = Review.Stage.Build(Review.PrefabPath(assetClass, variant), meta, assetClass);
+            stage.HideBar();
+            return stage;
         }
 
         /// <summary>
-        /// The review sheet's shadow distance: four turntable distances, at least 12 m, never over the game's. The
-        /// turntable frames the asset and the scale bar, which stands 1 m outside the bounds at 112.5°.
+        /// Shifts the image by a fraction of a pixel from the review's framing: a translation in clip space on the
+        /// projection, as URP's TAA jitters it. The eye point stays, so every depth moves by the same fraction of a
+        /// pixel and the light and shadows are the same view's; moving the camera in its own plane instead is exact
+        /// at one depth only, and at a 7.5 m switch a crown 2 m deep would see its near and far leaves move apart.
         /// </summary>
-        static float ReviewShadowDistance(Bounds asset, float projectShadowDistance)
+        static void Offset(Camera camera, Vector2 pixels)
         {
-            float bearing = BarBearingDeg * Mathf.Deg2Rad;
-            var towardsBar = new Vector3(Mathf.Sin(bearing), 0f, Mathf.Cos(bearing));
-            Vector3 barBase = asset.center + towardsBar * (ExitDistance(asset, asset.center, towardsBar) + BarGapM + BarPostM * 0.5f);
-            barBase.y = 0f;
-            Bounds frame = asset;
-            frame.Encapsulate(new Bounds(barBase + Vector3.up * (BarHeightM * 0.5f), new Vector3(BarPostM, BarHeightM, BarPostM)));
-            float turntable = Mathf.Max(0.5f, frame.extents.magnitude / Mathf.Sin(VerticalFovDeg * 0.5f * Mathf.Deg2Rad) * 1.1f);
-            return Mathf.Min(projectShadowDistance, Mathf.Max(MinShadowDistanceM, 4f * turntable));
+            camera.ResetProjectionMatrix();
+            camera.projectionMatrix = Matrix4x4.Translate(new Vector3(pixels.x, pixels.y, 0f) * (2f / Review.Tile)) * camera.projectionMatrix;
         }
 
-        static float ExitDistance(Bounds b, Vector3 from, Vector3 dir)
+        /// <summary>The review camera's render, as it is aimed, over a background of <paramref name="background"/>.</summary>
+        static Color32[] Shoot(Review.Rig rig, Color background)
         {
-            float t = float.PositiveInfinity;
-            for (int i = 0; i < 3; i++)
-                if (Mathf.Abs(dir[i]) > 1e-6f)
-                    t = Mathf.Min(t, (dir[i] > 0f ? b.max[i] - from[i] : from[i] - b.min[i]) / Mathf.Abs(dir[i]));
-            return float.IsInfinity(t) ? 0f : t;
-        }
-
-        /// <summary>The review's far shot: the distance to the bounds centre from a 20° look-down at 225°, pushed out along the ray when it lands within 0.3 m of the bounds.</summary>
-        static Vector3 SlantShot(Bounds bounds, float distance, out bool fromBounds)
-        {
-            Vector3 c = bounds.center;
-            float az = ShotAzimuthDeg * Mathf.Deg2Rad, down = LookDownDeg * Mathf.Deg2Rad;
-            Vector3 position = c + distance * new Vector3(Mathf.Sin(az) * Mathf.Cos(down), Mathf.Sin(down), Mathf.Cos(az) * Mathf.Cos(down));
-            Bounds safe = bounds;
-            safe.Expand(BoundsMarginM * 2f);
-            fromBounds = safe.Contains(position);
-            if (!fromBounds)
-                return position;
-            Vector3 dir = (position - c).normalized;
-            return c + dir * (ExitDistance(safe, c, dir) + distance);
-        }
-
-        [Serializable]
-        sealed class Profile
-        {
-            public string name;
-            public bool sun;
-            public float sun_elevation_deg, sun_azimuth_deg, sun_intensity;
-            public float[] sun_color_linear, ambient_linear;
-            public bool shadows;
-        }
-
-        static Profile LoadProfile(string light)
-        {
-            string path = Path.Combine(RepoRoot, ProfilesFolder, light + ".json");
-            var profile = JsonUtility.FromJson<Profile>(File.ReadAllText(path));
-            if (profile == null || profile.name != light || profile.ambient_linear?.Length != 3 || profile.sun_color_linear?.Length != 3)
-                throw new FormatException($"{ProfilesFolder}/{light}.json: \"name\" must be \"{light}\", the colours 3 numbers each");
-            return profile;
-        }
-
-        /// <summary>Unity's Color fields (lights, ambient) are sRGB-encoded in a linear project.</summary>
-        static Color Encoded(Color linear) => QualitySettings.activeColorSpace == ColorSpace.Linear ? linear.gamma : linear;
-
-        static void ApplyLight(Profile profile)
-        {
-            foreach (GameObject stale in Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None).Where(go => go.name == "ReviewSun"))
-                Object.DestroyImmediate(stale);
-            var ambient = new Color(profile.ambient_linear[0], profile.ambient_linear[1], profile.ambient_linear[2]);
-            RenderSettings.skybox = null;
-            RenderSettings.fog = false;
-            RenderSettings.ambientMode = AmbientMode.Flat;
-            RenderSettings.ambientLight = Encoded(ambient);
-            RenderSettings.ambientIntensity = 1f;
-            RenderSettings.defaultReflectionMode = DefaultReflectionMode.Custom;
-            var cube = new Cubemap(8, TextureFormat.RGBA32, false);
-            Color[] face = Enumerable.Repeat(Encoded(ambient), 64).ToArray();
-            for (int i = 0; i < 6; i++)
-                cube.SetPixels(face, (CubemapFace)i);
-            cube.Apply(false, false);
-            RenderSettings.customReflectionTexture = cube;
-            RenderSettings.reflectionIntensity = 1f;
-            Light sun = null;
-            if (profile.sun)
-            {
-                var go = new GameObject("ReviewSun");
-                sun = go.AddComponent<Light>();
-                sun.type = LightType.Directional;
-                sun.color = Encoded(new Color(profile.sun_color_linear[0], profile.sun_color_linear[1], profile.sun_color_linear[2]));
-                sun.intensity = profile.sun_intensity;
-                sun.shadows = profile.shadows ? LightShadows.Soft : LightShadows.None;
-                go.transform.rotation = Quaternion.Euler(profile.sun_elevation_deg, profile.sun_azimuth_deg + 180f, 0f);
-                sun.GetUniversalAdditionalLightData();
-            }
-            RenderSettings.sun = sun;
-            DynamicGI.UpdateEnvironment();
-        }
-
-        /// <summary>The review's camera: 60° vertical, square 1024 px tiles, no post-processing, no anti-aliasing but the pipeline's MSAA.</summary>
-        sealed class Rig : IDisposable
-        {
-            readonly Camera camera;
-            readonly RenderTexture target;
-            readonly Texture2D readback;
-
-            public Rig(int msaa)
-            {
-                camera = new GameObject("LodParityCamera").AddComponent<Camera>();
-                camera.fieldOfView = VerticalFovDeg;
-                camera.aspect = 1f;
-                camera.nearClipPlane = 0.05f;
-                camera.farClipPlane = FarClipM;
-                camera.clearFlags = CameraClearFlags.SolidColor;
-                camera.allowHDR = true;
-                camera.enabled = false;
-                UniversalAdditionalCameraData data = camera.GetUniversalAdditionalCameraData();
-                data.renderType = CameraRenderType.Base;
-                data.renderPostProcessing = false;
-                data.antialiasing = AntialiasingMode.None;
-                data.renderShadows = true;
-                target = new RenderTexture(Tile, Tile, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = msaa };
-                target.Create();
-                readback = new Texture2D(Tile, Tile, TextureFormat.RGB24, false, false);
-            }
-
-            public void Aim(Vector3 position, Vector3 lookAt)
-            {
-                camera.transform.position = position;
-                camera.transform.LookAt(lookAt, Vector3.up);
-            }
-
-            /// <summary>
-            /// Shifts the image by a fraction of a pixel from the review's framing: a translation in clip space on the
-            /// projection, as URP's TAA jitters it. The eye point stays, so every depth moves by the same fraction of a
-            /// pixel and the light and shadows are the same view's; moving the camera in its own plane instead is exact
-            /// at one depth only, and at a 7.5 m switch a crown 2 m deep would see its near and far leaves move apart.
-            /// </summary>
-            public void Offset(Vector2 pixels)
-            {
-                camera.ResetProjectionMatrix();
-                camera.projectionMatrix = Matrix4x4.Translate(new Vector3(pixels.x, pixels.y, 0f) * (2f / Tile)) * camera.projectionMatrix;
-            }
-
-            public Color32[] Shoot(Color background)
-            {
-                camera.backgroundColor = background;
-                var request = new RenderPipeline.StandardRequest { destination = target };
-                if (RenderPipeline.SupportsRenderRequest(camera, request))
-                    RenderPipeline.SubmitRenderRequest(camera, request);
-                else
-                {
-                    camera.targetTexture = target;
-                    camera.Render();
-                }
-                RenderTexture.active = target;
-                readback.ReadPixels(new Rect(0, 0, Tile, Tile), 0, 0, false);
-                readback.Apply(false);
-                RenderTexture.active = null;
-                return readback.GetPixels32();
-            }
-
-            public void Dispose()
-            {
-                camera.targetTexture = null;
-                target.Release();
-                Object.DestroyImmediate(target);
-                Object.DestroyImmediate(readback);
-                Object.DestroyImmediate(camera.gameObject);
-            }
+            rig.Camera.backgroundColor = background;
+            return rig.Render().GetPixels32();
         }
     }
 }
