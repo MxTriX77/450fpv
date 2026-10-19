@@ -11,7 +11,7 @@ The pipeline SHALL build asset L01 (`pole` generator; variants `L01_straight`, `
 
 #### Scenario: Built from params by one command
 - **WHEN** `pwsh tools/build_asset.ps1 L01` runs on a clean checkout
-- **THEN** it exits 0 for the three variants, writes their FBX, metadata, prefabs and review sheets, and a second run leaves `git status` clean
+- **THEN** it exits 0 for the four variants, writes their FBX, metadata, prefabs and review sheets, and a second run leaves `git status` clean
 
 #### Scenario: Brace gap against the drone
 - **WHEN** `L01_braced`'s metadata is read
