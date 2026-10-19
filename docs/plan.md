@@ -98,7 +98,7 @@ This is the pilot's seven-step plan (2026-10-17), "made right". Their order stay
 3. **Look setup** (tech-artist): URP lighting, sky per time of day and rain setting (VIS-02/03), wet-material variants, aerial perspective (VIS-04), the vegetation wind shader.
 4. **Look-lock assets:** S04, V01 + V13, H01 in I/D/X, R01 in A/F, E01, L01 + L03.
 5. **G1 look-lock:** a quick gallery build with those six stations. The pilot looks for about 10 minutes. Their feedback becomes style rules in `docs/style-rules.md`, and the URP-vs-HDRP check of D-001 is settled here.
-6. **Mass production** in the asset-list order, P1 first. Each asset needs:
+6. **Mass production** in the asset-list order, P1 first. First from letter S (D-038, the S read-in's `implications.md` (archive/2026-10-19-p1-letter-s-village-street)): H02 variant 3, the typical village's street house, as params on the shared `house` generator that H01 writes; L02 with the shared whitewashed butt band (L01's too); K01's standing stove block and silicate bricks. Each asset needs:
    - its generator and params
    - LODs and impostors
    - collision, materials, gaps, wind volumes and snag flags
@@ -165,6 +165,7 @@ This is the pilot's seven-step plan (2026-10-17), "made right". Their order stay
    - from the fortifications and V01 readings (archive/2026-10-18-p1-fortifications-sheet/review-physics.md §6–§7, p1-v01-locust review-physics §A.4): a `convex` shape (a face and edge list per hull, a swept separating-axis contact test, ray clipping, geometry lookup, golden cases, a `teeth_field` benchmark); a spatial index over snag records and gaps with a record query, a cap of 2,048 record segments per 2 m cube per asset and per map, a `wire_runs` benchmark; a two-level shape index for belts of trees; density counted as narrow tests
 4. **Unity world builder:** terrain tiles from the heightfield, surface splatting with feathered edges, vegetation and object instancing from `objects.json`, micro-detail near the camera, impostors, streaming if needed. The compiler writes the gaps between separately placed objects (between dragon's teeth, between road blocks) as the layout places them, sizes long thin wind volumes (wire runs, hedges, porous fences) by their thickness across the wind, not by footprint perimeter / π, and re-derives gap verdicts per instance scale (a 0.706 m gap at scale 0.9 is nose-first only).
 5. **The map itself:** the D-018 layout as refined by D-035 (WLD-01). A village copying letter S's street with cars on it (D-038), a smaller village and a somewhat larger town divided by belts and fields in the pattern of the layout reference (letter Q); fields, belts with trenches, trenches in the fields, cratered, burnt and tilled fields, roads and slab tracks, a small river and ponds, the fortifications (F01–F03), the urban edge, most houses damaged or destroyed, at least 30 fly-ins, at least 6 start points.
+   - The typical village's placement from letter S (the S read-in's `implications.md` (archive/2026-10-19-p1-letter-s-village-street)): the street line in the house-side verge 3–5 m off the road with lamps on some poles, drops of 8–12 m and 21–27 m; a lone shrub (V13) every 15–25 m on greens; single trees in yards and along the street; cars on the verges by the gates, in yards, on the green and at the road edge.
 6. **Performance** (PLT-02, PLT-05, PLT-06) and the night silhouette check (WLD-10).
 
 **Done means:**
@@ -187,7 +188,7 @@ This is the pilot's seven-step plan (2026-10-17), "made right". Their order stay
 2. **Port the Godot feed faithfully** (FEED-00, D-026, [legacy/video-feed-godot/](legacy/video-feed-godot/)): the shader pipeline, `FeedEvents`, `FeedLoss`, `FeedOsd` and `FeedFont`, with the A/B against the Godot original (same seed: identical schedule, matching stills). Then the `IFeedSignals` interface and its labelled stubs (FEED-03).
 3. The pipeline stages in K§11.7 order, at field resolution, 50 fields/s (FEED-02, FEED-04).
 4. The receiver state machines: staged loss, hard cut, N12 dropouts with clean recovery (FEED-05/06/07).
-5. AE and AWB loops, and night (C1–C5, FEED-08).
+5. AE and AWB loops, and night (C1–C5, FEED-08). Letter S is the overcast-daylight check of the grade: its colour table (terrain.md §12.5, the whole-patch means) from neutral albedos.
 6. The exact OSD: grid, font, crosshair, strings and the analog path (OSD-01…04).
 7. Review tools and the local A/B comparison sheet (FEED-11/12). Before it, a Standard change to the reference tools: the frame-metrics tool run alike on footage and captured feed output, burst extraction and the stable letter index (FEED-12, D-037).
 8. The performance budget (FEED-10).

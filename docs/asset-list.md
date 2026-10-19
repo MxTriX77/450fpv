@@ -62,12 +62,12 @@ The phase-1 research confirms the species against the footage and typical Ukrain
 | V05 | Poplar (roadside, tall) | 2 sizes | R | 15–25 m | wind, snag | P2 |
 | V06 | Oak | 2 sizes | R | 10–18 m | wind, snag | P2 |
 | V07 | Damaged tree, broken top | 2 | B | 4–10 m | snag | P1 |
-| V08 | Dead tree, bare and leaning | 2 | D | 4–10 m, bare fans 3–6 m | snag | P1 |
+| V08 | Dead tree, bare and leaning | 2 | D, S | 4–10 m, bare fans 3–6 m | snag | P1 |
 | V09 | Shell-split trunk / charred stump | 2 | R | — | — | P2 |
 | V10 | Yard fruit tree: apple | 2 | C, J | 4–7 m, low spreading crown from 1.5 m | snag, wind | P1 |
 | V11 | Yard fruit tree: cherry / apricot | 2 | C | 3–6 m | snag, wind | P1 |
 | V12 | Walnut (large yard tree) | 1 | R | 10–15 m | snag, wind | P2 |
-| V13 | Belt understory shrub | 3 | F, H, PR-10 | 1–3 m | snag, wind | P1 |
+| V13 | Belt understory shrub; also lone on village greens (S) | 3 | F, H, S, PR-10 | 1–3 m | snag, wind | P1 |
 | V14 | Elder / lilac clump | 2 | R | 2–4 m | snag, wind | P1 |
 | V15 | Blackthorn / rose-hip thicket | 2 | R | 1–2.5 m | snag | P2 |
 | V16 | Self-seeded saplings | 2 | D | 1–3 m | snag | P1 |
@@ -76,6 +76,7 @@ The phase-1 research confirms the species against the footage and typical Ukrain
 | V19 | Fallen branch set | 4 pieces | F, H | 1–4 m, 2–8 cm | snag, uneven support | P1 |
 | V20 | Brush pile | 2 | J | 1–2 m high, 2–4 m across | snag | P1 |
 | V21 | Fallen log | 1 | R | 4–8 m, 20–40 cm | land | P2 |
+| V22 | Front-garden conifer (an uncertain read) | 1 | S | 4–8 m (assumed) | snag, wind | P2 |
 | — | Far impostors | one per tree variant | — | at 200 m+ a belt reads as a dark band | — | P1 |
 | — | Micro-detail (grass, straw, twigs, litter) | generator | A, H, C | K§7, K§10.4 | physics parity | P1 |
 
@@ -86,7 +87,7 @@ Plaster recipe from research: weathered lime whitewash #c4bfb1 over clay render 
 | ID | House | Ref | Key size | States | Physics | Pri |
 |---|---|---|---|---|---|---|
 | H01 | Adobe (саман) house, lime-whitewashed, gable roof, clay tiles | E | 8–12 × 5–7 m, walls 2.3–2.6 m, 0.4–0.5 m thick, ridge about 5 m, door 0.8 × 1.8, windows 0.8 × 1.0 | I / D / X | gap (door, windows, roof bay, gable breach), snag (battens, rafters, hanging cable), wind (solid walls, open roof), land (none) | P1 |
-| H02 | Adobe house, hip roof, asbestos-cement slate (шифер) | J, R | as H01 | I / D / X | gap, snag, wind | P1 |
+| H02 | Adobe house, hip roof, asbestos-cement slate (шифер); variant 3 the typical village's street house (white frames, a red-brick annex) | J, S | as H01 | I / D / X | gap, snag, wind | P1 |
 | H03 | Silicate-brick house, slate roof, painted window frames, satellite dish | J | 8–10 × 6–8 m, ridge 5–6 m | I / D / X | gap, snag, wind | P1 |
 | H04 | Red-brick 1980s house, larger, with veranda, metal or slate roof | R | 10–12 × 8–10 m | I / D / X | gap, snag, wind | P1 |
 | H05 | Small old clay hut (мазанка), whitewashed, low roof | R | 6–8 × 4–5 m | I / D / X | gap, snag | P2 |
@@ -117,6 +118,7 @@ Plaster recipe from research: weathered lime whitewash #c4bfb1 over clay render 
 | Y09 | Straw or hay stack | 1 | R | 3–5 m | — | P2 |
 | Y10 | Greenhouse frame (film torn) | 1 | R | 3 × 6 m | snag (film), gap | P2 |
 | Y11 | Yard props: bench, laundry line, barrel, bucket, washbasin | set | R | — | snag (line) | P2 |
+| Y12 | Slate-sheet fence: corrugated asbestos-cement sheets upright on rails and thin posts, standing or knocked flat | I / D | S | — | snag (sheet edges), wind | P2 |
 
 ## 6. Village public buildings and infrastructure
 
@@ -128,6 +130,8 @@ Plaster recipe from research: weathered lime whitewash #c4bfb1 over clay render 
 | P04 | Bus stop (Soviet concrete shelter) | I / D | R | land | P2 |
 | P05 | Transformer kiosk / pole-mounted transformer | I / D | R | snag | P2 |
 | P06 | Village name sign (**invented name**), road signs | 2 | R | — | P2 |
+| P07 | Village memorial on a paved square: a **generic** figure on a plain pedestal, tiled paving with kerbs, never a copy of a particular memorial | I / D | S | land (paving) | P2 |
+| P08 | Two-storey public building (village council or club class), pale brick, flat roof | I / D | S | gap, snag, wind, land | P2 |
 
 ## 7. Urban edge
 
@@ -142,12 +146,12 @@ Plaster recipe from research: weathered lime whitewash #c4bfb1 over clay render 
 
 | ID | Asset | Variants | Ref | Physics | Pri |
 |---|---|---|---|---|---|
-| L01 | Wooden pole | straight; leaning 5–15° with brace | H, J, L | snag, night landmark | P1 |
-| L02 | Concrete pole with crossarm and insulators | straight; leaning | R | snag | P1 |
+| L01 | Wooden pole | straight; leaning 5–15° with brace | H, J, L, S | snag, night landmark | P1 |
+| L02 | Concrete pole with crossarm and insulators, a whitewashed butt | straight; leaning | S | snag | P1 |
 | L03 | Wires (generator: catenary between poles, sag) | **thin 3–6 mm, medium 7–12 mm, thick 13–32 mm cable** (classes from the lines sheet; a bundled insulated main line is 26–32 mm) | C, D, J, K | **PR-6 strike physics by diameter**; nearly invisible in the feed | P1 |
 | L04 | Fallen or sagging wire across a yard | 2 | D | snag | P1 |
 | L05 | Hanging cables (in ruins) | 2 | E, K | snag | P1 |
-| RD01 | Asphalt road kit: straight, curve, junction; potholes, crater decals, cracked edges | kit | M, O | surface | P1 |
+| RD01 | Asphalt road kit: straight, curve, junction; potholes, crater decals, cracked edges; a concrete-slab footpath with narrow kerbs | kit | M, O, S | surface | P1 |
 | RD02 | Concrete road plates (about 6 × 2 m), laid as a track | kit with gaps and tilt | PR-8 | surface, uneven joints | P1 |
 | RD03 | Dirt track ruts (decal plus surface) | kit | L, R | surface | P1 |
 
@@ -174,7 +178,7 @@ Sizes from [knowledge.md](knowledge.md) §9.2. Every model is built once, as a c
 
 | ID | Pieces | Ref | Physics | Pri |
 |---|---|---|---|---|
-| K01 | Bricks: whole, halves, chunks; brick clusters | C, E, D, I, K | rigid small obstacles; tilt at liftoff | P1 |
+| K01 | Bricks: whole, halves, chunks; brick clusters; red and silicate; a standing stove block | C, E, D, I, K, S | rigid small obstacles; tilt at liftoff | P1 |
 | K02 | Clay tile shards; slate (шифер) fragments | E, J | as K01 | P1 |
 | K03 | Planks, beams, broken rafters | C, E, I, J, K | rock and slide under the legs; snag | P1 |
 | K04 | Corrugated sheet, bent sheet metal | N | sharp edge (cuts fiber), sheet_metal material | P1 |
