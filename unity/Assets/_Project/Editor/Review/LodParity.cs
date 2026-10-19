@@ -22,10 +22,13 @@ namespace Fpv450
     /// mean over the linear channels of white minus black, and the render over black is its colour times that coverage.
     /// Each value is the mean over an 8 × 8 grid of camera offsets, an eighth of a pixel apart from 1/16 to 7/16 px
     /// either way of the review's framing, LOD0's too: single renders of a crown of about 100 px scatter by 5–16 % with
-    /// the sub-pixel phase, like noise, so the error of the mean falls as 1/√N (tasks 1.2c and 1.2d). Each row also
-    /// prints the spread of its luminance and coverage over the 64 (max − min) and their standard error of the mean
-    /// (the sample standard deviation over √64), each as a percentage of the mean; the offsets are made on the
-    /// projection, see <see cref="Offset"/>.
+    /// the sub-pixel phase, like noise, so the error of the mean falls as 1/√N (tasks 1.2c and 1.2d). A tile where any
+    /// LOD's standard error on that grid is 1 % or more is measured again, every LOD, on a 16 × 16 grid a sixteenth of
+    /// a pixel apart from 1/32 to 15/32 px (<see cref="Refine"/>, task 1.2k): true coverage at MSAA 1 point-samples a
+    /// crown of 85–100 px's sub-pixel leaves and wood as geometry is, 1.10–1.47 % on 64 offsets (task 1.2i). Each row
+    /// prints the grid it used, the spread of its luminance and coverage over the grid's offsets (max − min) and their
+    /// standard error of the mean (the sample standard deviation over √N), each as a percentage of the mean; the
+    /// offsets are made on the projection, see <see cref="Offset"/>.
     /// Per LOD it prints the coverage-weighted mean linear colour and its Rec. 709 luminance and the crown's coverage in
     /// pixels. Each tile judges one row, the scenario's pair (<see cref="Tiles"/>): at a LOD's switch distance the
     /// incoming LOD against the outgoing one, at the 50 m tile the LOD Unity shows there against LOD0. The judged row
@@ -95,11 +98,25 @@ namespace Fpv450
             return a > 0 ? new Crown(a, r / a, g / a, b / a) : new Crown(0, double.NaN, double.NaN, double.NaN);
         }
 
-        // Declared before Offsets: static fields are initialised in the order they are written.
-        static readonly float[] GridSteps = { -7f / 16f, -5f / 16f, -3f / 16f, -1f / 16f, 1f / 16f, 3f / 16f, 5f / 16f, 7f / 16f };
+        /// <summary>The camera offsets of an n × n grid, in pixels: 1/n px apart, ±1/2n to ±(n − 1)/2n, centred on the review's framing, x the faster.</summary>
+        internal static Vector2[] OffsetGrid(int n)
+        {
+            float[] steps = Enumerable.Range(0, n).Select(k => (2 * k + 1 - n) / (2f * n)).ToArray();
+            return steps.SelectMany(y => steps.Select(x => new Vector2(x, y))).ToArray();
+        }
 
-        /// <summary>The camera offsets each value is averaged over, in pixels: an 8 × 8 grid an eighth of a pixel apart, centred on the review's framing, x the faster.</summary>
-        internal static readonly Vector2[] Offsets = GridSteps.SelectMany(y => GridSteps.Select(x => new Vector2(x, y))).ToArray();
+        /// <summary>
+        /// The camera offsets each value is averaged over: the 8 × 8 grid (±1/16 to ±7/16 px), and the 16 × 16 grid
+        /// (±1/32 to ±15/32 px) of a tile that <see cref="Refine"/> measures again.
+        /// </summary>
+        internal static readonly Vector2[] Offsets = OffsetGrid(8), FineOffsets = OffsetGrid(16);
+
+        /// <summary>
+        /// Whether a tile is measured again on the 16 × 16 grid: when any of its LODs' standard errors on the 8 × 8 grid,
+        /// in luminance or coverage, as fractions of the mean, is 1 % or more (task 1.2k).
+        /// </summary>
+        internal static bool Refine((double luminance, double coverage)[] errors) =>
+            errors.Any(e => e.luminance >= ErrorLimit || e.coverage >= ErrorLimit);
 
         /// <summary>
         /// A LOD's crown over the offsets: the mean of the samples' coverages and colours, so its luminance is the mean of
@@ -216,7 +233,10 @@ namespace Fpv450
                       $"quality {QualitySettings.names[QualitySettings.GetQualityLevel()]} ({pipeline.name}), LOD bias {QualitySettings.lodBias:0.##}, MSAA {Mathf.Max(1, pipeline.msaaSampleCount)}, " +
                       $"colour space {QualitySettings.activeColorSpace}; limits luminance {LuminanceLimit * 100:0} %, coverage {CoverageLimit * 100:0} %, standard error under {ErrorLimit * 100:0} %; " +
                       "judged: at each switch the incoming LOD against the outgoing one, at the review tile the LOD shown there against LOD0, every other row info; " +
-                      $"each value the mean over {Offsets.Length} projection offsets ({string.Join(", ", Offsets.Select(o => $"{o.x:+0.####;-0.####} {o.y:+0.####;-0.####}"))} px), spread max - min of the {Offsets.Length}, se their sample standard deviation over sqrt({Offsets.Length}), both as a percentage of the mean");
+                      $"each value the mean over {Offsets.Length} projection offsets ({string.Join(", ", Offsets.Select(o => $"{o.x:+0.####;-0.####} {o.y:+0.####;-0.####}"))} px), " +
+                      $"at a tile where any LOD's se on them is at or over {ErrorLimit * 100:0} % every LOD's again over the {FineOffsets.Length} of a 16x16 grid " +
+                      $"({FineOffsets[0].x:+0.#####;-0.#####} to {FineOffsets[FineOffsets.Length - 1].x:+0.#####;-0.#####} px in x and y, {FineOffsets[1].x - FineOffsets[0].x:0.#####} px apart), " +
+                      "each row naming its grid, spread max - min over the grid's offsets, se their sample standard deviation over sqrt(their number), both as a percentage of the mean");
 
             Review.Rig rig = Review.Rig.Create();
             float projectShadowDistance = pipeline.shadowDistance;
@@ -273,7 +293,8 @@ namespace Fpv450
             Debug.Log($"[LodParity] {variant}: LODs {string.Join(", ", names.Select((n, i) => $"{n} {meta.lods[i].tris} tris" + (i == 0 ? "" : $" @ {meta.lods[i].switchDistanceM:0.#} m")))}, " +
                       $"cull {meta.cullDistanceM:0.#} m; bounds centre {asset.center}, size {asset.size}; shadow distance {pipeline.shadowDistance:0.#} m (game {projectShadowDistance:0.#} m)");
 
-            int judgedRows = 0, failed = 0, notJudgeable = 0, info = 0;
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            int judgedRows = 0, failed = 0, notJudgeable = 0, info = 0, refined = 0;
             try
             {
                 foreach (Review.LightProfile profile in profiles)
@@ -289,30 +310,24 @@ namespace Fpv450
                             throw new InvalidOperationException($"{variant} {label}: the crown lies past the {rig.Camera.farClipPlane:0} m far plane");
                         Review.WarmUp(rig, stage, position, asset.center);
                         rig.Aim(position, asset.center);
-                        var crowns = new Crown[lodCount];
-                        var spreads = new (double luminance, double coverage)[lodCount];
-                        var errors = new (double luminance, double coverage)[lodCount];
-                        for (int i = 0; i < lodCount; i++)
+                        (Crown[] crowns, (double luminance, double coverage)[] spreads, (double luminance, double coverage)[] errors) = MeasureLods(group, rig, Offsets);
+                        string grid = "8x8", refinedFrom = "";
+                        if (Refine(errors))
                         {
-                            group.ForceLOD(i);
-                            var samples = new Crown[Offsets.Length];
-                            for (int k = 0; k < Offsets.Length; k++)
-                            {
-                                Offset(rig.Camera, Offsets[k]);
-                                samples[k] = Find(Shoot(rig, Color.black), Shoot(rig, Color.white));
-                            }
-                            (crowns[i], spreads[i].luminance, spreads[i].coverage, errors[i].luminance, errors[i].coverage) = Average(samples);
+                            refinedFrom = $"; worst se on 8x8 {errors.Max(e => Math.Max(e.luminance, e.coverage)) * 100:0.00} %, every LOD again on 16x16";
+                            (crowns, spreads, errors) = MeasureLods(group, rig, FineOffsets);
+                            grid = "16x16";
+                            refined++;
                         }
-                        group.ForceLOD(-1);
                         if (crowns[0].Coverage <= 0)
                             throw new InvalidOperationException($"{variant} {profile.name} {label}: LOD0 covers no pixel");
-                        Debug.Log($"[LodParity] {variant} {profile.name}, {label}: camera {toCentre:0.00} m from the bounds centre{(fromBounds ? " (pushed out of the bounds)" : "")}");
+                        Debug.Log($"[LodParity] {variant} {profile.name}, {label}: camera {toCentre:0.00} m from the bounds centre{(fromBounds ? " (pushed out of the bounds)" : "")}{refinedFrom}");
                         for (int i = 0; i < lodCount; i++)
                         {
                             Crown c = crowns[i];
                             string row = $"[LodParity]   {names[i],-9} Y {c.Luminance:0.0000}  coverage {c.Coverage,9:0.0} px  linear rgb {c.R:0.0000} {c.G:0.0000} {c.B:0.0000}" +
                                          $"  spread Y {spreads[i].luminance * 100:0.00} %, coverage {spreads[i].coverage * 100:0.00} %" +
-                                         $"  se Y {errors[i].luminance * 100:0.00} %, coverage {errors[i].coverage * 100:0.00} %";
+                                         $"  se Y {errors[i].luminance * 100:0.00} %, coverage {errors[i].coverage * 100:0.00} %  grid {grid}";
                             if (i == judged)
                             {
                                 (double y, double cover, double worst, Verdict verdict) = Judge(c, errors[i], crowns[against], errors[against]);
@@ -346,8 +361,32 @@ namespace Fpv450
             {
                 group.ForceLOD(-1);
             }
-            Debug.Log($"[LodParity] {variant}: {Outcome(ExitCode(failed, notJudgeable))}, {failed} of {judgedRows} judged rows outside the limits, {notJudgeable} not judgeable; {info} info rows");
+            TimeSpan took = watch.Elapsed;
+            Debug.Log($"[LodParity] {variant}: {Outcome(ExitCode(failed, notJudgeable))}, {failed} of {judgedRows} judged rows outside the limits, {notJudgeable} not judgeable; {info} info rows; " +
+                      $"{refined} of {profiles.Length * tiles.Length} tiles on 16x16; {(int)took.TotalMinutes} min {took.Seconds} s");
             return (judgedRows, failed, notJudgeable, info);
+        }
+
+        /// <summary>Every LOD's crown from the aimed camera, each averaged over <paramref name="offsets"/> (<see cref="Average"/>).</summary>
+        static (Crown[] crowns, (double luminance, double coverage)[] spreads, (double luminance, double coverage)[] errors) MeasureLods(LODGroup group, Review.Rig rig, Vector2[] offsets)
+        {
+            int lodCount = group.lodCount;
+            var crowns = new Crown[lodCount];
+            var spreads = new (double luminance, double coverage)[lodCount];
+            var errors = new (double luminance, double coverage)[lodCount];
+            for (int i = 0; i < lodCount; i++)
+            {
+                group.ForceLOD(i);
+                var samples = new Crown[offsets.Length];
+                for (int k = 0; k < offsets.Length; k++)
+                {
+                    Offset(rig.Camera, offsets[k]);
+                    samples[k] = Find(Shoot(rig, Color.black), Shoot(rig, Color.white));
+                }
+                (crowns[i], spreads[i].luminance, spreads[i].coverage, errors[i].luminance, errors[i].coverage) = Average(samples);
+            }
+            group.ForceLOD(-1);
+            return (crowns, spreads, errors);
         }
 
         // --- the review's stage and camera (ReviewCapture.cs) -----------------------------------------------------
