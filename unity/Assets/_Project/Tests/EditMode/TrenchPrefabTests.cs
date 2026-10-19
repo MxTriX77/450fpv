@@ -10,7 +10,8 @@ namespace Fpv450.Tests.EditMode
     /// The E01 prefab as the catalog importer builds it (p1-e01-trench, "A trench writes its hole" and "Parapets and
     /// clods are ground"): the metadata component exposes the run's hole first and one per niche, a collider stands for
     /// every primitive, the cut's are not landable and the parapets' and margins' are, no wind volume, no snag; the
-    /// trench_wall material tiles its wall-space strip, and the grassed_spoil cover spans the patch (task 1.4). Needs a
+    /// trench_wall material tiles its wall-space strip, the grassed_spoil cover spans the patch (task 1.4), and the
+    /// grass draws on LOD0 and LOD1 without a collider (task 1.5). Needs a
     /// prior <c>pwsh tools/build_asset.ps1 E01</c>.
     /// </summary>
     public sealed class TrenchPrefabTests
@@ -60,7 +61,21 @@ namespace Fpv450.Tests.EditMode
             Assert.That(meta.collision.Count(c => c.material == "surface:crater_spoil"), Is.GreaterThan(0));
             Assert.That(meta.windVolumes, Is.Empty);
             Assert.That(meta.snag, Is.Empty);
-            Assert.That(meta.micro.Select(m => m.kind), Is.EqualTo(new[] { "straw" }));
+            Assert.That(meta.micro.Select(m => (m.kind, m.lod)), Is.EqualTo(new[] { ("straw", 0), ("grass", 0), ("grass", 1) }));
+        }
+
+        /// <summary>Task 1.5: the lips' and parapets' grass draws on LOD0 and LOD1 (the 1.5 m and 10 m views lie past
+        /// LOD0's 8 m from the patch's centre) and not on LOD2, and no collider stands for it.</summary>
+        [Test]
+        public void Grass_DrawsOnLod0AndLod1_WithoutColliders()
+        {
+            GameObject prefab = Prefab();
+            LOD[] lods = prefab.GetComponent<LODGroup>().GetLODs();
+            Assert.That(lods[0].renderers.Select(r => r.name), Does.Contain("E01_curving_LOD0_grass"));
+            Assert.That(lods[1].renderers.Select(r => r.name), Does.Contain("E01_curving_LOD1_grass"));
+            Assert.That(lods[2].renderers.Any(r => r.name.Contains("grass")), Is.False);
+            foreach (Renderer grass in lods[0].renderers.Concat(lods[1].renderers).Where(r => r.name.Contains("grass")))
+                Assert.That(grass.GetComponentsInChildren<Collider>(true), Is.Empty, grass.name);
         }
 
         [Test]
