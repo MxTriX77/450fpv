@@ -269,7 +269,7 @@ def _material_problems(material, material_ids):
 def _impostor_problems(lod, index, count):
     """The impostor LOD (lib.impostor; asset-pipeline "Baked impostor LOD"): the last LOD, before the cull; an albedo
     and a normal PNG atlas of IMPOSTOR_MAX_PX at most with their views on a grid; the card's size, one quad; the
-    crown's occlusion; the hashes of the render's inputs and of both atlases."""
+    hashes of the render's inputs and of both atlases."""
     problems = [] if index == count - 1 else ["the impostor must be the last LOD, before the cull"]
     record = lod["impostor"]
     if not isinstance(record, dict):
@@ -291,8 +291,6 @@ def _impostor_problems(lod, index, count):
         problems.append("impostor card needs width_m and height_m above 0 and bottom_m")
     if lod["tris"] != 2:
         problems.append(f"impostor tris {lod['tris']} must be 2: the card is one quad")
-    if not (_is_num(record.get("occlusion")) and 0 < record["occlusion"] <= 1):
-        problems.append("impostor occlusion must lie in (0, 1]")
     for key in ("inputs_sha256", "atlas_sha256", "normals_sha256"):
         if not _is_hex(record.get(key), 64):
             problems.append(f"impostor {key} is not a 64-digit hex string")

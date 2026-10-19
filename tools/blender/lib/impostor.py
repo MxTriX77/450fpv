@@ -20,18 +20,21 @@ whole frame turned to the viewer, as the leaf shader lights a leaf), in that vie
 camera) mapped into 0-1, which the shader turns into object space with the same view's axes. So every leaf, limb and
 trunk takes the sun at its own angle, from any sun, and its own relief takes the highlights and the sky's grazing
 reflection as LOD0's does (the geometric normal alone left the card's specular about 40 % under the leaves', task
-1.2g); the texels no surface covers are filled from the covered ones (push_pull), so neither the filter at the
-crown's edge nor a mip mixes in a normal that no surface has. One albedo card with one normal for every sun left a
-sunlit crown 8-18 % dark at 50 m (measured in task 1.2, design 3).
+1.2g). Its alpha is the occlusion of the surface under the texel, its recipe's derived occlusion (the mask's G, which
+URP/Lit applies to the ambient light and its reflections only; 1 for a recipe without a mask), which the shader sets
+as the surface's occlusion, so a leaf's ambient and sky reflection are occluded as the mesh LODs' leaf is and a limb's
+as its bark is (one crown-wide occlusion, the albedo-weighted mean, took the bark's 0.56 into the leaves' 0.97 and left
+V01_M's card 4-6 % under the mesh LODs' light at equal albedo, task 1.2l). The texels no surface covers are filled
+from the covered ones (push_pull), so neither the filter at the crown's edge nor a mip mixes in a normal or an
+occlusion that no surface has. One albedo card with one normal for every sun left a sunlit crown 8-18 % dark at 50 m
+(measured in task 1.2, design 3).
 
 The renders are flat: each slot's base map, as the importer picks it (a groove, paint or separate-opacity recipe's
 derived _base map, else the set's diffuse), times its tint, both linear as Unity takes them, clipped at the recipe's
 cutoff and emitted, so the albedo atlas holds albedo and the gallery's light shades the card (design 3); the normal
-render emits the mapped normal through the Raw view transform, so its PNG holds the values, linear, each texel's the
-mean of the surfaces under it (straight alpha), and the atlas is written from it, filled, as 8-bit RGB. One more
-render of the same views measures the crown's occlusion, the luminance of the base maps times their recipes' derived
-occlusion (the mask's G, which URP/Lit applies to ambient light only) over that of the albedo atlas, which the card's
-material applies to its ambient light, since one albedo card cannot carry it per pixel. Cycles on the CPU with fixed
+render emits the mapped normal and the occlusion render the mask's G as grey, both clipped the same way and through
+the Raw view transform, so their PNGs hold the values, linear, each texel's the mean of the surfaces under it
+(straight alpha), and the normal atlas is written from the two, filled, as 8-bit RGBA. Cycles on the CPU with fixed
 samples and seed, no denoiser, the Standard view transform for albedo and no dither, so a render repeats; each PNG
 keeps only its critical chunks. The metadata records the hash of everything the render reads (`inputs_sha256`) and
 of each atlas (`atlas_sha256`, `normals_sha256`): atlases whose hashes all match are up to date and are not rendered
@@ -50,12 +53,12 @@ ELEVATION_DEG = 15.0        # design 3 (assumed)
 PAD_PX = 8                  # an empty margin round every view: a texel still at mip 3, where a card switched in at
                             # 24 px of crown samples, so no cell bleeds into the next (assumed: the bleed past it is
                             # a texel at 400 m and more)
-FACING = (0.5, 0.5, 1.0)    # a normal atlas cell no surface covers: the view's own direction, (0, 0, 1) in 0-1
-LUMA = (0.2126, 0.7152, 0.0722)          # linear Rec. 709 luminance
+EMPTY = (0.5, 0.5, 1.0, 1.0)  # a normal atlas cell no surface covers: the view's own direction, (0, 0, 1) in 0-1,
+                              # unoccluded
 SAMPLES = 32               # Cycles samples per pixel: anti-aliasing and the texture average under a pixel
 TRANSPARENT_BOUNCES = 256   # alpha-clipped cards a ray may pass through; a dense clump stacks dozens
-FORMULA = "impostor 3: flat albedo x tint and the visible side's mapped normal, Cycles CPU"  # change when the render
-                            # changes, so every atlas is redone
+FORMULA = ("impostor 4: flat albedo x tint, the visible side's mapped normal and its occlusion in the normal atlas's "
+           "alpha, Cycles CPU")  # change when the render changes, so every atlas is redone
 NO_ATLAS = "0" * 64         # an atlas's sha256 until it is rendered or found up to date
 UV_MAP = "UVMap"            # the laid-out mesh's one UV layer, which the normal maps' tangent frames follow
 MATERIALS = os.path.join("unity", "Assets", "_Project", "Art", "Materials")
@@ -148,7 +151,6 @@ def lod(variant, switch, mesh, materials):
               "elevation_deg": ELEVATION_DEG, "card": frame(mesh)}
     record["inputs_sha256"] = inputs_sha256(mesh, record, materials)
     record["atlas_sha256"] = record["normals_sha256"] = NO_ATLAS
-    record["occlusion"] = 1.0  # the render measures it
     return {"mesh": f"{variant}_impostor", "tris": 2, "switch_distance_m": float(switch), "impostor": record}
 
 
@@ -227,9 +229,10 @@ def layout(mesh, record, materials):
 
 
 def render(mesh, record, materials, path, normals_path):
-    """Renders the albedo atlas to `path` and the normal atlas to `normals_path` in this Blender (module docstring),
-    replacing the scene, and returns what one more render of the same views measures: the crown's occlusion."""
+    """Renders the albedo atlas to `path` and the normal atlas, the occlusion in its alpha, to `normals_path` in this
+    Blender (module docstring), replacing the scene."""
     import bpy
+    import numpy as np
     vertices, faces, uvs, slots, side = layout(mesh, record, materials)
     bpy.ops.wm.read_factory_settings(use_empty=True)
     scene = bpy.context.scene
@@ -257,26 +260,26 @@ def render(mesh, record, materials, path, normals_path):
     scene.collection.objects.link(camera_object)
     scene.camera = camera_object
     _shoot(scene, path, 6)
-    occlusion, scratch = 1.0, path[:-len(".png")] + ".measure.png"
+    scene.view_settings.view_transform = 'Raw'  # the PNGs hold the emitted values, linear: the occlusion, the normal
+    scratch = path[:-len(".png")] + ".measure.png"
     try:
+        occlusion = None  # 1 everywhere when no slot has a mask
         if any(materials[slot]["mask"] for slot in order):
             for i, slot in enumerate(order):
                 me.materials[i] = _material(slot, materials[slot], "occlusion")
             _shoot(scene, scratch, 6)
-            occlusion = _luminance(_pixels(scratch)) / _luminance(_pixels(path))
-    finally:
-        if os.path.exists(scratch):
-            os.remove(scratch)
-    for i, slot in enumerate(order):
-        me.materials[i] = _material(slot, materials[slot], "normal")
-    scene.view_settings.view_transform = 'Raw'  # the PNG holds the emitted values: the normal, linear
-    try:
+            occlusion = _pixels(scratch)[:, :1]  # grey: R = G = B
+        for i, slot in enumerate(order):
+            me.materials[i] = _material(slot, materials[slot], "normal")
         _shoot(scene, scratch, 6)
-        _write_rgb(normals_path, _filled(_pixels(scratch)))
+        normals = _pixels(scratch)
     finally:
         if os.path.exists(scratch):
             os.remove(scratch)
-    return occlusion
+    if occlusion is None:
+        occlusion = np.ones((len(normals), 1))
+    # the same views, cutoffs and samples: both renders cover the same texels, those of the normal render's alpha
+    _write_rgba(normals_path, _filled(np.concatenate([normals[:, :3], occlusion], axis=1), normals[:, 3] > 0))
 
 
 def _shoot(scene, path, colour_type):
@@ -303,16 +306,6 @@ def _pixels(path):
     finally:
         bpy.data.images.remove(image)
     return pixels.reshape(-1, 4).astype(np.float64)
-
-
-def _linear(encoded):
-    import numpy as np
-    return np.where(encoded <= 0.04045, encoded / 12.92, ((encoded + 0.055) / 1.055) ** 2.4)
-
-
-def _luminance(pixels):
-    """The pixels' coverage-weighted linear luminance, summed."""
-    return float((pixels[:, 3] * (_linear(pixels[:, :3]) @ LUMA)).sum())
 
 
 def _settings(scene):
@@ -345,30 +338,32 @@ def _settings(scene):
     image.file_format, image.color_mode, image.color_depth, image.compression = 'PNG', 'RGBA', '8', 15
 
 
-def _filled(pixels):
-    """The normal render's rows (r, g, b, a, bottom row first, straight alpha) as SIZE_PX x SIZE_PX x 3 bytes, top row
-    first, every texel no surface covers filled from its cell's covered ones (`push_pull`), so neither the bilinear
-    filter nor a mip ever mixes in a normal no surface has."""
+def _filled(values, covered):
+    """A render's rows of `values` (bottom row first, c channels in 0-1, straight alpha) as SIZE_PX x SIZE_PX x c
+    bytes, top row first, every texel no surface covers (where `covered` is False) filled from its cell's covered ones
+    (`push_pull`), so neither the bilinear filter nor a mip ever mixes in a normal or an occlusion no surface has."""
     import numpy as np
-    image = pixels.reshape(SIZE_PX, SIZE_PX, 4)[::-1]
-    out = np.empty((SIZE_PX, SIZE_PX, 3))
+    channels = values.shape[1]
+    image = values.reshape(SIZE_PX, SIZE_PX, channels)[::-1]
+    known = covered.reshape(SIZE_PX, SIZE_PX)[::-1]
+    out = np.empty((SIZE_PX, SIZE_PX, channels))
     for row in range(ROWS):
         for column in range(COLUMNS):
             cell = (slice(row * CELL_PX[1], (row + 1) * CELL_PX[1]), slice(column * CELL_PX[0], (column + 1) * CELL_PX[0]))
-            out[cell] = push_pull(image[cell][..., :3], image[cell][..., 3] > 0)
+            out[cell] = push_pull(image[cell], known[cell])
     return np.clip(np.round(out * 255.0), 0, 255).astype(np.uint8)
 
 
 def push_pull(values, known):
     """`values` (h x w x c, numpy) with every texel where `known` is False filled: from the means of the known ones
     over 2 x 2 blocks, level by level up to one texel, then back down, so a hole takes the mean of the nearest known
-    texels at the finest level that has any; FACING when none is known."""
+    texels at the finest level that has any; EMPTY when none is known."""
     import numpy as np
     h, w = known.shape
     if known.all():
         return values
     if not known.any():
-        return np.broadcast_to(np.array(FACING[:values.shape[2]], dtype=float), values.shape).copy()
+        return np.broadcast_to(np.array(EMPTY[:values.shape[2]], dtype=float), values.shape).copy()
     if h % 2 or w % 2:
         mean = values[known].mean(axis=0)
         return np.where(known[..., None], values, mean)
@@ -378,27 +373,27 @@ def push_pull(values, known):
     return np.where(known[..., None], values, coarse.repeat(2, axis=0).repeat(2, axis=1))
 
 
-def _write_rgb(path, rgb):
-    """An 8-bit RGB PNG of `rgb` (h x w x 3 bytes, top row first): IHDR, one IDAT of unfiltered rows at zlib level 9,
-    IEND, so the same texels always make the same bytes."""
+def _write_rgba(path, rgba):
+    """An 8-bit RGBA PNG of `rgba` (h x w x 4 bytes, top row first): IHDR, one IDAT of unfiltered rows at zlib level
+    9, IEND, so the same texels always make the same bytes."""
     import zlib
-    h, w, _ = rgb.shape
-    raw = b"".join(b"\x00" + rgb[y].tobytes() for y in range(h))
+    h, w, _ = rgba.shape
+    raw = b"".join(b"\x00" + rgba[y].tobytes() for y in range(h))
 
     def chunk(kind, data):
         return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
 
     with open(path, "wb") as f:
-        f.write(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0))
+        f.write(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0))
                 + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
 
 
 def _material(slot, m, mode):
-    """Emission of the base map times the tint ("albedo"), times the mask's occlusion as well ("occlusion"), or of the
-    visible side's normal mapped into 0-1 ("normal"): the slot's normal map applied in the UVs' tangent frame, as
-    URP/Lit applies it (Cycles' tangent-space normal map node: MikkTSpace tangents, B = sign x cross(N, T), and a
-    back face's whole frame turned, as the leaf shader turns it), else the shading normal; a clipped recipe is
-    transparent where its alpha falls under the cutoff."""
+    """Emission of the base map times the tint ("albedo"), of the recipe's occlusion as grey ("occlusion": the mask's
+    G, as URP/Lit reads its occlusion map, else 1), or of the visible side's normal mapped into 0-1 ("normal"): the
+    slot's normal map applied in the UVs' tangent frame, as URP/Lit applies it (Cycles' tangent-space normal map node:
+    MikkTSpace tangents, B = sign x cross(N, T), and a back face's whole frame turned, as the leaf shader turns it),
+    else the shading normal; a clipped recipe is transparent where its alpha falls under the cutoff."""
     import bpy
     material = bpy.data.materials.new(f"{slot}_{mode}")
     nodes, links = material.node_tree.nodes, material.node_tree.links
@@ -410,13 +405,15 @@ def _material(slot, m, mode):
     tint.inputs[1].default_value = m["tint"]
     links.new(texture.outputs["Color"], tint.inputs[0])
     colour = tint.outputs["Vector"]
-    if mode == "occlusion" and m["mask"]:
-        channels = nodes.new("ShaderNodeSeparateColor")
-        links.new(_texture(nodes, m["mask"], 'Non-Color').outputs["Color"], channels.inputs["Color"])
+    if mode == "occlusion":
         occlusion = nodes.new("ShaderNodeVectorMath")
         occlusion.operation = 'SCALE'
-        links.new(colour, occlusion.inputs[0])
-        links.new(channels.outputs["Green"], occlusion.inputs["Scale"])
+        occlusion.inputs[0].default_value = (1.0, 1.0, 1.0)
+        occlusion.inputs["Scale"].default_value = 1.0
+        if m["mask"]:
+            channels = nodes.new("ShaderNodeSeparateColor")
+            links.new(_texture(nodes, m["mask"], 'Non-Color').outputs["Color"], channels.inputs["Color"])
+            links.new(channels.outputs["Green"], occlusion.inputs["Scale"])
         colour = occlusion.outputs["Vector"]
     elif mode == "normal":  # Cycles turns a back face's normal to the viewer, as the leaf shader does
         mapped = nodes.new("ShaderNodeVectorMath")

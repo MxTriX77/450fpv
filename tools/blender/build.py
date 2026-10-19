@@ -12,10 +12,11 @@ meshes are exported beside their LOD and skipped by the audit), and only then
 writes unity/Assets/_Project/Art/Models/<class>/<ID>/<variant>.fbx and <variant>.assetmeta.json, both in Unity's
 frame (lib/frame.py), the FBX staged beside its final name and moved once it reads back as the metadata says. A
 variant whose params set `impostor: true` (p1-v01-locust design decision 3) also gets <variant>_impostor.png and
-<variant>_impostor_normal.png, the albedo and normal atlases lib/impostor.py renders from LOD0 after the FBX, staged
-the same way, and its metadata lists the impostor as the last LOD; atlases the metadata records as up to date are not
-rendered again, and those the params no longer ask for are removed. A rejected build changes no file. It refuses any Blender other than the pinned major.minor. Exit code 1
-on any problem; nothing is hand-edited.
+<variant>_impostor_normal.png, the albedo atlas and the normal atlas with the occlusion in its alpha that
+lib/impostor.py renders from LOD0 after the FBX, staged the same way, and its metadata lists the impostor as the last
+LOD; atlases the metadata records as up to date are not rendered again, and those the params no longer ask for are
+removed. A rejected build changes no file. It refuses any Blender other than the pinned major.minor. Exit code 1 on
+any problem; nothing is hand-edited.
 """
 import argparse
 import importlib
@@ -60,8 +61,8 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
         impostor_lod = impostor.lod(variant, switch, lod0, materials)
         record = impostor_lod["impostor"]
         old = impostor.recorded(meta_path, atlas_path, normals_path, record["inputs_sha256"])
-        if old:  # up to date: the atlases and what their render measured stand
-            record.update({key: old[key] for key in ("atlas_sha256", "normals_sha256", "occlusion")})
+        if old:  # up to date: the atlases stand
+            record.update({key: old[key] for key in ("atlas_sha256", "normals_sha256")})
     data = meta.assemble(asset_id, variant, catalog_entry["generator"], params, built, catalog_entry["materials"],
                          impostor_lod)
     _refuse(variant, meta.validate(data, material_ids))
@@ -90,7 +91,7 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
             record = data["lods"][-1]["impostor"]
             if record["atlas_sha256"] == impostor.NO_ATLAS:
                 started = time.perf_counter()
-                record["occlusion"] = impostor.render(built["lods"][0], record, materials, staged_atlas, staged_normals)
+                impostor.render(built["lods"][0], record, materials, staged_atlas, staged_normals)
                 record["atlas_sha256"] = impostor.file_sha256(staged_atlas)
                 record["normals_sha256"] = impostor.file_sha256(staged_normals)
                 _refuse(variant, meta.validate(data, material_ids))
@@ -98,8 +99,8 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
             card = record["card"]
             print(f"{variant}: impostor {record['atlas']} and {record['normals']} {record['size_px'][0]}x"
                   f"{record['size_px'][1]}, {record['views']} views at {record['elevation_deg']:g} deg, card "
-                  f"{card['width_m']:.3f} x {card['height_m']:.3f} m from {card['bottom_m']:.3f} m, occlusion "
-                  f"{record['occlusion']:.3f}, switch {data['lods'][-1]['switch_distance_m']:g} m, cull "
+                  f"{card['width_m']:.3f} x {card['height_m']:.3f} m from {card['bottom_m']:.3f} m, switch "
+                  f"{data['lods'][-1]['switch_distance_m']:g} m, cull "
                   f"{data['cull_distance_m']:g} m")
         os.replace(staged, fbx_path)
         for staged_path, path in ((staged_atlas, atlas_path), (staged_normals, normals_path)):

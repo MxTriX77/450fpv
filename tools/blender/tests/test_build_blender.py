@@ -1,7 +1,8 @@
 """build.py end to end in headless Blender, when the pinned Blender is installed: K01 builds into a scratch root
 with its audit printed, the outputs agree with the spec scenarios, a second run writes byte-identical files, an
 out-of-range param and a mesh grown beyond its box are refused before anything is written, and an impostor asked for
-is rendered once as a 1k albedo and a 1k normal atlas. The version pin is checked without Blender."""
+is rendered once as a 1k albedo and a 1k normal atlas, the occlusion per texel in its alpha. The version pin is
+checked without Blender."""
 import hashlib
 import json
 import os
@@ -74,7 +75,7 @@ def test_out_of_range_bevel_is_refused_and_the_outputs_stay_untouched(blender, r
 def test_impostor_atlases_are_rendered_at_1k_once_and_removed_when_off(blender, repo_root, tmp_path):
     """p1-v01-locust design decision 3 (asset-pipeline "Baked impostor LOD"): K01 with its params asking for an
     impostor (the brick generator taught the two keys inside this Blender) gets a 1k RGBA albedo atlas beside its FBX
-    with every view inside its cell and a 1k RGB normal atlas whose texels face their view (but the under 1 % the
+    with every view inside its cell and a 1k RGBA normal atlas whose texels face their view (but the under 1 % the
     brick's normal map tilts past it), and the impostor as its last LOD at the params' switch distance; a rebuild finds
     the atlases up to date and writes identical bytes; a deleted atlas renders both again to the same bytes; params
     that stop asking remove them."""
@@ -117,7 +118,7 @@ def test_impostor_atlases_are_rendered_at_1k_once_and_removed_when_off(blender, 
 
     assert impostor.png_header(str(atlas)) == (1024, 1024, 8, 6), "a 1k 8-bit RGBA atlas"
     normals = tmp_path / OUT / names[3]
-    assert impostor.png_header(str(normals)) == (1024, 1024, 8, 2), "a 1k 8-bit RGB normal atlas"
+    assert impostor.png_header(str(normals)) == (1024, 1024, 8, 6), "a 1k 8-bit RGBA normal atlas, occlusion in alpha"
     blue = Image.open(normals).getchannel("B").histogram()
     away = sum(blue[:127]) / sum(blue)
     assert away < 0.01, (f"the visible side's normal faces its view's camera ({away:.2%} of the texels lean away: the "
@@ -191,6 +192,46 @@ def test_the_normal_atlas_tilts_a_card_as_unity_maps_its_normal_map(blender, tmp
             texel = normals.getpixel((int(x / side * impostor.SIZE_PX), int((1 - y / side) * impostor.SIZE_PX)))
             got = [c / 255 * 2 - 1 for c in texel]
             assert got == pytest.approx(expected, abs=0.03), f"view {k}, card {card}: {got} against {expected}"
+
+
+def test_the_normal_atlas_alpha_holds_each_surfaces_occlusion(blender, tmp_path):
+    """p1-v01-locust task 1.2m: the normal atlas's alpha is the occlusion of the surface under each texel, its mask's
+    G as URP/Lit reads it, not one crown-wide value: two cards of one upright plane facing +Z, an alpha-clipped leaf
+    whose mask holds 0.97 and an opaque bark whose mask holds 0.56 (task 1.2l's V01_M: its leaves' and its bark's),
+    read 0.97 and 0.56 at their centres in views 0 and 4 (front and back)."""
+    Image.new("RGBA", (8, 8), (255, 255, 255, 255)).save(tmp_path / "base.png")
+    occlusion = {"leaf": 247, "bark": 143}  # 0.969 and 0.561
+    mesh, materials = Mesh(), {}
+    for x0, slot in ((-0.5, "leaf"), (0.0, "bark")):
+        Image.new("RGBA", (8, 8), (0, occlusion[slot], 0, 128)).save(tmp_path / f"{slot}_mask.png")
+        corners = [(x0, 0.0, 0.0), (x0 + 0.5, 0.0, 0.0), (x0 + 0.5, 1.0, 0.0), (x0, 1.0, 0.0)]
+        mesh.face([mesh.vertex(c) for c in corners], (0.0, 0.0, 1.0), slot, [(c[0] + 0.5, c[1]) for c in corners])
+        materials[slot] = {"visual": slot, "recipe": {}, "texture": str(tmp_path / "base.png"),
+                           "mask": str(tmp_path / f"{slot}_mask.png"), "normal": None, "tile_m": [1.0, 1.0],
+                           "tint": [1.0, 1.0, 1.0], "alpha": 1.0, "cutoff": 0.5 if slot == "leaf" else None}
+    record = {"card": impostor.frame(mesh)}
+    driver = textwrap.dedent(f"""
+        import sys
+        sys.path.insert(0, {build.HERE!r})
+        from lib import impostor
+        from lib.geometry import Mesh
+        mesh = Mesh()
+        mesh.vertices, mesh.faces = {mesh.vertices!r}, {mesh.faces!r}
+        impostor.render(mesh, {record!r}, {materials!r}, {str(tmp_path / "atlas.png")!r},
+                        {str(tmp_path / "normals.png")!r})
+        """)
+    code, output = run_build(blender, tmp_path, driver)
+    assert code == 0, output
+    assert impostor.png_header(str(tmp_path / "normals.png")) == (impostor.SIZE_PX, impostor.SIZE_PX, 8, 6)
+    vertices, _, _, _, side = impostor.layout(mesh, record, materials)
+    alpha = Image.open(tmp_path / "normals.png").getchannel("A")
+    n = len(mesh.vertices)
+    for k in (0, 4):
+        for card, slot in ((range(0, 4), "leaf"), (range(4, 8), "bark")):
+            x = sum(vertices[k * n + i][0] for i in card) / 4
+            y = sum(vertices[k * n + i][1] for i in card) / 4
+            got = alpha.getpixel((int(x / side * impostor.SIZE_PX), int((1 - y / side) * impostor.SIZE_PX)))
+            assert abs(got - occlusion[slot]) <= 1, f"view {k}, the {slot}: occlusion {got} / 255, its mask's {occlusion[slot]}"
 
 
 def test_mesh_grown_beyond_its_box_fails_the_audit_and_writes_nothing(blender, repo_root, tmp_path):

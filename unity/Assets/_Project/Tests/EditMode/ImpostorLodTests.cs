@@ -43,8 +43,7 @@ namespace Fpv450.Tests.EditMode
                     ""card"": { ""width_m"": 0.4, ""height_m"": 0.6, ""bottom_m"": -0.05 },
                     ""inputs_sha256"": ""0000000000000000000000000000000000000000000000000000000000000000"",
                     ""atlas_sha256"": ""0000000000000000000000000000000000000000000000000000000000000000"",
-                    ""normals_sha256"": ""0000000000000000000000000000000000000000000000000000000000000000"",
-                    ""occlusion"": 0.75 } }
+                    ""normals_sha256"": ""0000000000000000000000000000000000000000000000000000000000000000"" } }
   ],
   ""micro"": [],
   ""cull_distance_m"": 100.0,
@@ -110,8 +109,7 @@ namespace Fpv450.Tests.EditMode
             Assert.That(material.GetVector("_ImpostorCard"), Is.EqualTo(new Vector4(0.4f, 0.6f, -0.05f, 0f)), "the card's width, height and bottom");
             Assert.That(material.IsKeywordEnabled("_NORMALMAP"), Is.False, "the shader reads the normal atlas itself");
             Assert.That(material.enableInstancing, Is.True, "a belt's cards draw instanced");
-            Assert.That(material.IsKeywordEnabled("_OCCLUSIONMAP"), Is.True);
-            Assert.That(material.GetFloat("_OcclusionStrength"), Is.EqualTo(0.25f), "the black occlusion map at 1 - occlusion: the ambient light times 0.75");
+            Assert.That(material.IsKeywordEnabled("_OCCLUSIONMAP"), Is.False, "the shader takes the occlusion per texel from the normal atlas's alpha");
 
             var importer = (TextureImporter)AssetImporter.GetAtPath($"{Folder}/{Card}.png");
             Assert.That(importer.sRGBTexture, Is.True, "the atlas holds albedo");
@@ -122,6 +120,8 @@ namespace Fpv450.Tests.EditMode
             Assert.That(normalImporter.sRGBTexture, Is.False, "the normal atlas is linear data");
             Assert.That(normalImporter.textureType, Is.EqualTo(TextureImporterType.Default), "not a tangent-space normal map");
             Assert.That(normalImporter.mipmapEnabled, Is.False, "read at full resolution");
+            Assert.That(normalImporter.alphaSource, Is.EqualTo(TextureImporterAlphaSource.FromInput), "its alpha, the occlusion per texel, kept");
+            Assert.That(normalImporter.alphaIsTransparency, Is.False, "the alpha is data, not coverage");
             Assert.That(material.GetFloat("_Smoothness"), Is.EqualTo(0.2f), "the leaves' smoothness");
         }
 
@@ -160,7 +160,7 @@ namespace Fpv450.Tests.EditMode
                 AssetDatabase.CreateFolder(Path.GetDirectoryName(Folder).Replace('\\', '/'), Path.GetFileName(Folder));
             WriteAtlas($"{Folder}/{Card}.png", TextureFormat.RGBA32, (x, y) => x % 256 is > 64 and < 192 && y % 512 is > 16 and < 400
                 ? new Color32(70, 90, 40, 255) : new Color32(0, 0, 0, 0));
-            WriteAtlas($"{Folder}/{Normals}.png", TextureFormat.RGB24, (x, y) => new Color32(128, 128, 255, 255));
+            WriteAtlas($"{Folder}/{Normals}.png", TextureFormat.RGBA32, (x, y) => new Color32(128, 128, 255, 191)); // occlusion 0.75
             string metaPath = $"{Folder}/{Variant}.assetmeta.json";
             File.WriteAllText(FullPath(metaPath), Metadata);
             AssetDatabase.ImportAsset(metaPath, ImportAssetOptions.ForceSynchronousImport);

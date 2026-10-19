@@ -9,8 +9,10 @@
 // _ImpostorGrid.w degrees above the horizon) mapped into 0-1, which the forward pass samples at the cell's uv, at full
 // resolution, and turns into object space with the same axes; URP's _NORMALMAP stays off, as the fragment sets the
 // normal itself. The card has the leaves' smoothness, since it shows their normals (the catalog importer sets it). The
-// crown's occlusion reaches URP/Lit's
-// ambient term as an occlusion map does, through the default black _OcclusionMap at strength 1 - occlusion. It casts
+// normal atlas's alpha holds the occlusion of the surface under each texel, its recipe's (the mask's G), which URP/Lit
+// applies to the ambient light and its reflections only, read with the normal and set as the surface's occlusion
+// (task 1.2m: one crown-wide occlusion of 0.78, the bark's 0.56 in it, darkened the leaves' ambient and specular,
+// which the mesh LODs occlude at 0.97, and left V01_M's card 23 % under LOD2's specular at 190 m by day). It casts
 // shadows facing the light and receives none (the material sets _RECEIVE_SHADOWS_OFF): the light-facing caster would
 // shadow the camera-facing card along their shared axis. Its alpha, the coverage the render found per texel, clips as
 // the leaves' does, read where the atlas resolves the crown (CoverageAlpha.hlsl, task 1.2i: read at the pixel's mip,
@@ -27,9 +29,7 @@ Shader "Fpv450/Impostor"
         _Cutoff("Alpha Cutoff", Range(0.0, 1.0)) = 0.5
         _Smoothness("Smoothness", Range(0.0, 1.0)) = 0.0
         _Metallic("Metallic", Range(0.0, 1.0)) = 0.0
-        _OcclusionStrength("Strength", Range(0.0, 1.0)) = 0.0
-        _OcclusionMap("Occlusion", 2D) = "black" {}
-        [NoScaleOffset] _BumpMap("Normal atlas", 2D) = "bump" {}
+        [NoScaleOffset] _BumpMap("Normal atlas, occlusion in alpha", 2D) = "bump" {}
         _ImpostorGrid("Views, columns, rows, elevation", Vector) = (8, 4, 2, 15)
         _ImpostorCard("Card width, height, bottom", Vector) = (1, 2, 0, 0)
 
@@ -114,7 +114,6 @@ Shader "Fpv450/Impostor"
             #pragma fragment ImpostorPassFragment
 
             #pragma shader_feature_local_fragment _ALPHATEST_ON
-            #pragma shader_feature_local_fragment _OCCLUSIONMAP
             #pragma shader_feature_local _RECEIVE_SHADOWS_OFF
 
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
@@ -146,7 +145,19 @@ Shader "Fpv450/Impostor"
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
 
             #include "CoverageAlpha.hlsl"
+            // URP's surface under its own name, so LitPassFragment calls the one below.
+            #define InitializeStandardLitSurfaceData UrpInitializeStandardLitSurfaceData
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
+            #undef InitializeStandardLitSurfaceData
+
+            // URP/Lit's surface with the occlusion of the surface under the pixel: the normal atlas's alpha, read
+            // where the fragment reads its normal, the same texel at full resolution.
+            inline void InitializeStandardLitSurfaceData(float2 uv, out SurfaceData outSurfaceData)
+            {
+                UrpInitializeStandardLitSurfaceData(uv, outSurfaceData);
+                outSurfaceData.occlusion = SAMPLE_TEXTURE2D_LOD(_BumpMap, sampler_BumpMap, uv, 0).a;
+            }
+
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitForwardPass.hlsl"
 
             Varyings ImpostorPassVertex(Attributes input)

@@ -218,7 +218,8 @@ def test_impostor_lod_is_the_last_before_the_cull(k01_params, material_ids):
     assert last["tris"] == 2  # one quad
     record = last["impostor"]
     assert record["atlas"] == "K01_whole_impostor.png" and record["size_px"] == [1024, 1024]
-    assert record["normals"] == "K01_whole_impostor_normal.png" and record["occlusion"] == 1.0
+    assert record["normals"] == "K01_whole_impostor_normal.png"
+    assert "occlusion" not in record  # per texel, in the normal atlas's alpha (task 1.2m)
     assert (record["views"], record["columns"], record["rows"], record["elevation_deg"]) == (8, 4, 2, 15.0)
     assert json.loads(meta.dumps(data))["lods"][-1] == last
 
@@ -239,7 +240,6 @@ def test_metadata_without_impostor_is_unchanged(k01_params):
     (lambda d: d["lods"][-1]["impostor"].pop("normals"), "normals must name a .png"),
     (lambda d: d["lods"][-1]["impostor"].update(views=9), "views <= columns * rows"),
     (lambda d: d["lods"][-1].update(tris=32), "must be 2: the card is one quad"),
-    (lambda d: d["lods"][-1]["impostor"].update(occlusion=0.0), "occlusion must lie in (0, 1]"),
     (lambda d: d["lods"][-1]["impostor"].update(atlas_sha256="none"), "atlas_sha256 is not a 64-digit hex"),
     (lambda d: d["lods"][-1]["impostor"].update(normals_sha256="none"), "normals_sha256 is not a 64-digit hex"),
 ])
@@ -261,10 +261,10 @@ def test_recorded_atlases_are_up_to_date_only_with_every_hash(tmp_path):
     normals.write_bytes(b"normals")
     meta_path = tmp_path / "V.assetmeta.json"
     record = {"inputs_sha256": "1" * 64, "atlas_sha256": impostor.file_sha256(str(atlas)),
-              "normals_sha256": impostor.file_sha256(str(normals)), "occlusion": 0.8}
+              "normals_sha256": impostor.file_sha256(str(normals))}
     meta_path.write_text(json.dumps({"lods": [{"mesh": "V_LOD0"}, {"mesh": "V_impostor", "impostor": record}]}))
     paths = (str(meta_path), str(atlas), str(normals))
-    assert impostor.recorded(*paths, "1" * 64) == record  # with what its render measured
+    assert impostor.recorded(*paths, "1" * 64) == record
     assert impostor.recorded(*paths, "2" * 64) is None  # the params or materials changed
     normals.write_bytes(b"hand-edited")
     assert impostor.recorded(*paths, "1" * 64) is None  # never hand-edited: rendered over

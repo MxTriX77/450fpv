@@ -613,8 +613,7 @@ namespace Fpv450.Assets
 
             string folder = Path.GetDirectoryName(prefabPath).Replace('\\', '/');
             Mesh mesh = ImpostorMesh($"{folder}/{root.name}_impostor.asset", lod.mesh, card.x, card.y, card.z);
-            Material material = ImpostorMaterial($"{folder}/{root.name}_impostor.mat", atlas, normals, grid, card,
-                Json.Num(record, "occlusion", what));
+            Material material = ImpostorMaterial($"{folder}/{root.name}_impostor.mat", atlas, normals, grid, card);
 
             GameObject child = Child(root, lod.mesh, keep);
             child.transform.localPosition = Vector3.zero;
@@ -682,11 +681,11 @@ namespace Fpv450.Assets
 
         /// <summary>
         /// The card's material: <c>Fpv450/Impostor</c> over the atlas, untinted, clipped at the cutoff with alpha to
-        /// coverage as the leaves are, no face culled, receiving no shadow (the shader says why), the normal atlas, the
-        /// views' grid and elevation and the card's size for the shader, and the crown's occlusion on the ambient
-        /// light: the shader's default black occlusion map at strength 1 − occlusion.
+        /// coverage as the leaves are, no face culled, receiving no shadow (the shader says why), the normal atlas with
+        /// the occlusion per texel in its alpha (the shader applies it), and the views' grid and elevation and the
+        /// card's size for the shader.
         /// </summary>
-        static Material ImpostorMaterial(string path, Texture2D atlas, Texture2D normals, Vector4 grid, Vector4 card, float occlusion)
+        static Material ImpostorMaterial(string path, Texture2D atlas, Texture2D normals, Vector4 grid, Vector4 card)
         {
             Shader shader = Shader.Find(ImpostorShader) ?? throw new FormatException($"no shader named \"{ImpostorShader}\"");
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
@@ -710,8 +709,6 @@ namespace Fpv450.Assets
             changed |= SetFloat(material, "_Cull", (float)CullMode.Off);
             changed |= SetFloat(material, "_ReceiveShadows", 0f);
             changed |= SetKeyword(material, "_RECEIVE_SHADOWS_OFF", true);
-            changed |= SetFloat(material, "_OcclusionStrength", 1f - occlusion);
-            changed |= SetKeyword(material, "_OCCLUSIONMAP", true);
             changed |= SetTexture(material, "_BumpMap", normals); // read by the shader itself; _NORMALMAP stays off
             if (!material.enableInstancing)
             {
