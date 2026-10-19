@@ -167,3 +167,104 @@ The scripts are throwaway files in the scratchpad.
 - **S8:** Y04 variant 3's range was widened to 2.5 m on a read the sheet itself calls unclassed ("if it is a fence"). Keep 1.5–2 m until it is classed.
 
 **Verdict: CHANGES REQUESTED** (R1–R4).
+
+## Re-check of task 1.2
+
+**Reviewer:** qa-engineer, a fresh agent that wrote neither task 1.1, task 1.2 nor the first review (D-034) · **Branch:** `unity/ref/p1-letter-s-village-street` at `41743b5`.
+
+**Scope:**
+- `git diff cb3c9c1..41743b5`: the analyst's 12 commits. They touch 7 files (+74 −49): `terrain.md`, the four object sheets, `implications.md` and `tasks.md`.
+- `891b4af`: the orchestrator's S7 commit, `docs/decisions.md` (D-038) and `docs/requirements.md` (REAL-02, GAL-05, WLD-01).
+
+**What I read and checked:**
+- the whole of terrain.md §12, `implications.md`, and every S reference-view row in the four sheets, not only the diff;
+- S 33 and S 42 against R4, and S 31 for context.
+
+I opened no clip, no index and no letters file. I wrote two crops to `reference/_compare/` and deleted them; nothing from `reference/` is in this file.
+
+### Checks run
+
+```
+$ git fetch origin && git checkout -B qa-s2 origin/unity/ref/p1-letter-s-village-street
+Switched to a new branch 'qa-s2'
+41743b5 docs(ref): tick task 1.2 of p1-letter-s-village-street
+
+$ python tools/hygiene/precommit.py --tree HEAD
+776 files scanned, 0 findings                                   exit=0
+
+$ openspec validate p1-letter-s-village-street --strict
+Change 'p1-letter-s-village-street' is valid                    exit=0
+
+$ git ls-files reference/ | wc -l
+0
+
+$ git merge-tree --write-tree origin/unity/main HEAD
+41eb98cc70df916fd9952169168d7c0506a63101                        exit=0
+  (no conflict; equal to HEAD^{tree}: origin/unity/main d51264c is already an ancestor of HEAD)
+
+$ git diff cb3c9c1..41743b5 | grep -cE "S_[0-9]{4}|\.png|\.jpg|\.mp4|_frames|index\.md|letters\.md"
+0
+
+$ git log --format='%h|%an <%ae>|%s|body=[%b]' cb3c9c1..41743b5
+  12 commits, each "Reference Analyst <reference@450fpv.local>", subject only, body=[]
+  (891b4af and cb3c9c1: "Orchestrator <orchestrator@450fpv.local>", body=[])
+```
+
+### Required changes
+
+**R1 (OPSEC, REAL-04): closed.**
+- **§12.6 "For the world" and the world-builder item in `implications.md`** now say what the world copies:
+  - the cross-section (12.3);
+  - the classes and states (12.4);
+  - the look (12.5);
+  - six scene types, each placed by the composite map.
+- **They also say what it never copies:** the order of parts, the curve, the turn, and the relative positions of the green, the square, the building and the plot.
+- **Invented:** the square's shape, size and orientation and the building's footprint. REAL-04 is cited.
+- **The rest of §12:**
+  - §12.2's path is now explicitly "for the viewpoint only: the world never copies this order, the curve or the turn".
+  - §12.1, §12.4 and the sheets' S reference-view rows describe S; none of them instructs the world.
+  - §10's S row is "the S cross-section and its look".
+  - A grep for sequence, order, turn, curve, layout and "laid out" finds no instruction to copy S's arrangement.
+- **891b4af** applies the same rule:
+  - D-038 now reads "its look, never its sequence or layout (REAL-04)";
+  - WLD-01 reads "never its sequence or layout: REAL-04";
+  - the REAL-02 row reads "never its sequence".
+
+**R2: closed.**
+- S03 `crater_spoil` cites S 29–37 (spoil discs 3.5–6.5 m, derived S 36, cross-referenced to E05).
+- Its shallow-spoil feed cell holds #5b4f5c (S 36), matching E05 and §12.5.
+
+**R3: closed.**
+- L01's placement rules now carry a sub-bullet with S's 3–5 m from the road and 3–5 m in front of the fence (derived S 46–47).
+- That bullet points to L02, RD01 and the L01 item in `implications.md`, and says the typical village follows S until the rule is settled.
+- `implications.md` routes one rule. L01 as merged is untouched, which is right: placement isn't a generator parameter.
+
+**R4: closed.**
+- The fixes:
+  - §12.3's Poles row and §12.4's S 33 sentence ("on the green's side, not the houses'");
+  - L02's "Position across the street" row and its "Seen in" line;
+  - RD01's placement rule and the L01 item.
+- All now give the line in the house-side verge (S 43–50) with poles on the green side by the square (S 33, 42).
+- **Spot-checked:**
+  - **S 42:** a thin dark pole stands in the green-side verge, between the road edge and the pale kerbed footpath. This holds.
+  - **S 33 (and S 31):** the lamp pole stands at the road edge on the green side, and the thin dark wooden pole also stands on the green side. Both hold for the side. See N1 for the wooden pole's distance from the road.
+
+### Suggestions
+
+| # | Status | Where |
+|---|---|---|
+| S1 | applied | §12.2 Height: the pole reads give 13–14.5 m (S 46–47) and the building 12–13 m. The 12.5 m default stays, lengths would run 5–15 % longer, and the S 47 side-by-side settles it. Argued, and acceptable |
+| S2 | applied | §12.5, S01 and the vegetation table label the grass values as picks of pure grass. The whole-patch means are the check: #648b55–#708657, down to #617c4e (S 24, 36). My first-review means (#617c4e, #66784f, #758760) sit at or near that range's edges; the band is wide enough for a check |
+| S3 | applied | Re-derived from S 41 and S 43 with a top-to-foot ratio of 2.1–2.2. I recomputed H = h·(1 − 1/r): 5.8–7.6 m over 11–14 m, matching V08's 5.7–7.5 m. §12.4 and the V2 entry round this to "about 6–7.5 m", which is consistent. S 42 is dropped with a stated reason |
+| S4 | applied | No S value says "(by eye)" any more. The remaining "by eye" hits belong to other letters (I, J, K, H) |
+| S5 | applied | "At one end of the street side (part of the long facade)", in §12.4, H02 (Seen in, footprint, variants), H04 and `implications.md` |
+| S6 | applied | "Mostly intact but holed (S 50)", in the H shared section, §12.4, K02 and `implications.md` |
+| S7 | applied (orchestrator, 891b4af) | REAL-02 has an S row, and GAL-05 lists S. WLD-14 already listed S |
+| S8 | applied | Y04 variant 3 is back to 1.5–2 m. S 47's 2.0–2.5 m read is kept as a note until the wall is classed |
+
+### Non-blocking notes (for the orchestrator to route; none blocks the merge)
+
+- **N1, the S 33 wooden pole's distance.** §12.3, §12.4 and the L01 item in `implications.md` place the thin dark wooden pole "at the green's street edge" or "at the street edge". In S 31 and S 33 its foot stands on the green, beside the end of the knocked-down slate fence, with grass between it and the road. Only the lamp pole stands at the road edge. The side is right; the distance is not. "On the green, back from the road, by the slate fence" would be accurate. It can ride with the routed L01 placement task.
+- **N2, REAL-02's height.** REAL-02's S row says "from about 13 m", but §12.6's default is 12.5 m (11–14 m). 13 m sits inside the range and S1 leans that way, so one of the two should name the other's number.
+
+**Verdict: APPROVED.** R1–R4 are closed, S1–S8 are applied or argued, both scenarios now pass, and the hygiene, OPSEC, validation and merge checks are clean.

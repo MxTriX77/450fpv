@@ -46,7 +46,7 @@ Branch `unity/ref/p1-letter-s-village-street` off `unity/main`. Tier: Standard (
 
 ## 2. Review
 
-- [ ] 2.1 [qa-engineer] Review against the delta's scenarios:
+- [x] 2.1 [qa-engineer] Review against the delta's scenarios:
   - S's reading is complete: scene, viewpoint, layout, objects, look and feel, colours labelled
   - every S citation in a sheet carries its still numbers, and every number taken from S is labelled
   - the implications list is concrete, each item with its stills
