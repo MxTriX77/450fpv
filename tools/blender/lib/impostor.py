@@ -23,11 +23,11 @@ reflection as LOD0's does (the geometric normal alone left the card's specular a
 1.2g). Its alpha is the occlusion of the surface under the texel, its recipe's derived occlusion (the mask's G, which
 URP/Lit applies to the ambient light and its reflections only; 1 for a recipe without a mask), which the shader sets
 as the surface's occlusion, so a leaf's ambient and sky reflection are occluded as the mesh LODs' leaf is and a limb's
-as its bark is (one crown-wide occlusion, the albedo-weighted mean, took the bark's 0.56 into the leaves' 0.97 and left
-V01_M's card 4-6 % under the mesh LODs' light at equal albedo, task 1.2l). The texels no surface covers are filled
-from the covered ones (push_pull), so neither the filter at the crown's edge nor a mip mixes in a normal or an
-occlusion that no surface has. One albedo card with one normal for every sun left a sunlit crown 8-18 % dark at 50 m
-(measured in task 1.2, design 3).
+as its bark is (one crown-wide occlusion, the albedo-weighted mean, gave the leaves the bark's 0.56 in part and the bark
+the leaves' 0.97: per texel V01_M's card gains 1.0 point against LOD2 at 190 m by day, task 1.2m, measured). The
+texels no surface covers are filled from the covered ones (push_pull), so neither the filter at the crown's edge nor a
+mip mixes in a normal or an occlusion that no surface has. One albedo card with one normal for every sun left a sunlit
+crown 8-18 % dark at 50 m (measured in task 1.2, design 3).
 
 The renders are flat: each slot's base map, as the importer picks it (a groove, paint or separate-opacity recipe's
 derived _base map, else the set's diffuse), times its tint, both linear as Unity takes them, clipped at the recipe's

@@ -11,8 +11,8 @@
 // normal itself. The card has the leaves' smoothness, since it shows their normals (the catalog importer sets it). The
 // normal atlas's alpha holds the occlusion of the surface under each texel, its recipe's (the mask's G), which URP/Lit
 // applies to the ambient light and its reflections only, read with the normal and set as the surface's occlusion
-// (task 1.2m: one crown-wide occlusion of 0.78, the bark's 0.56 in it, darkened the leaves' ambient and specular,
-// which the mesh LODs occlude at 0.97, and left V01_M's card 23 % under LOD2's specular at 190 m by day). It casts
+// (task 1.2m: one crown-wide occlusion of 0.78 gave the leaves, 0.97 on the mesh LODs, part of the bark's 0.56 and the
+// bark part of theirs; per texel V01_M's card gains 1.0 point against LOD2 at 190 m by day, measured). It casts
 // shadows facing the light and receives none (the material sets _RECEIVE_SHADOWS_OFF): the light-facing caster would
 // shadow the camera-facing card along their shared axis. Its alpha, the coverage the render found per texel, clips as
 // the leaves' does, read where the atlas resolves the crown (CoverageAlpha.hlsl, task 1.2i: read at the pixel's mip,
