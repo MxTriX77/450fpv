@@ -40,7 +40,8 @@ def add_lod(name, mesh):
         raise RuntimeError(f"{name}: Blender had to correct the geometry; the generator produced an invalid mesh")
     for slot in slots:
         me.materials.append(bpy.data.materials.get(slot) or bpy.data.materials.new(slot))
-    me.polygons.foreach_set("use_smooth", [slot in mesh.smooth for _, _, _, slot in mesh.faces])
+    if mesh.smooth:  # a mesh with none stays exactly as before
+        me.polygons.foreach_set("use_smooth", [slot in mesh.smooth for _, _, _, slot in mesh.faces])
     layer = me.uv_layers.new(name="UVMap")
     for poly, face_uvs, (_, _, _, slot) in zip(me.polygons, uvs, mesh.faces):
         poly.material_index = slots.index(slot)

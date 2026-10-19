@@ -223,7 +223,8 @@ def render(mesh, record, materials, path, normals_path):
     me.from_pydata(vertices, [], faces)
     if me.validate(verbose=True):
         raise RuntimeError("impostor: Blender had to correct the laid-out mesh")
-    me.polygons.foreach_set("use_smooth", [slot in mesh.smooth for slot in slots])  # shaded as the FBX is
+    if mesh.smooth:  # shaded as the FBX is
+        me.polygons.foreach_set("use_smooth", [slot in mesh.smooth for slot in slots])
     order = sorted(set(slots))
     for slot in order:
         me.materials.append(_material(slot, materials[slot], "albedo"))
