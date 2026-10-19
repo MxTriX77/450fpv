@@ -26,7 +26,7 @@ SNAG_KINDS = ("edge", "hook")  # a polyline the fiber bends over; a free-ended m
 # radius_m (a stranded conductor's outer strand, a SIP bundle's core): optional, positive, at most radius_m (the
 # fortifications reading §1, first used by p1-l01-l03-pole-wires' wires).
 KEY_ORDER = ("schema", "id", "variant", "generator", "params_sha256", "units", "frame", "bounds", "lods", "micro",
-             "cull_distance_m", "materials", "collision", "gaps", "wind_volumes", "ports", "wires", "snag")
+             "cull_distance_m", "materials", "collision", "gaps", "wind_volumes", "ports", "wires", "holes", "snag")
 # Each LOD entry: its mesh, triangles, switch distance and `thin_wire`, whether every slot of that LOD's mesh draws
 # with the thin-wire material (p1-l01-l03-pole-wires, task 1.4), which reads each vertex's radius from its second UV:
 # a wire's tube, a pole's far LODs. The generator says so explicitly ("thin_wire", one bool per LOD, false when it
@@ -47,6 +47,12 @@ WIRE_KEYS = ("slot", "diameter_m", "mass_kg_per_m", "sag_m", "axial_stiffness_n"
 WIRE_NUMBERS = ("diameter_m", "mass_kg_per_m", "sag_m", "axial_stiffness_n", "breaking_force_n")
 WIRE_MATERIAL = "cable"
 WIRE_DAMAGE = ("intact", "cut", "down")  # the lines sheet's states per conductor (§L03)
+# Cuts in the ground (p1-e01-trench, "Holes in the metadata"): per cut an id, its ordered centre line ([x, y, z] in
+# asset space, y the ground), its top width, its depth and its band's width, the band being every point within
+# band_width_m / 2 of the centre line in plan; the map compiler marks the hole cells from the band and the asset's
+# fillers carry the cut. A trench writes its run first, then one record per niche. Schema 1 stays: the key is
+# additive and always present, [] when the asset cuts nothing.
+HOLE_KEYS = ("id", "centre_line", "top_width_m", "depth_m", "band_width_m")
 # Visual-only micro-detail meshes (p1-s04-belt-straw, "Visual-only micro-detail meshes"): a generator may return,
 # per LOD, meshes the importer renders with that LOD and nothing collides with (the baked straws, until the shared
 # micro-detail generator places them at physics parity, AST-10). Listed under "micro" with their kind and count;
@@ -93,8 +99,8 @@ def load_physics_materials(root):
 def assemble(asset_id, variant, generator, params, built, visual_by_slot):
     """The metadata of one variant from the generator's result `built` ({"lods": [Mesh...], "switch_distances_m",
     "cull_distance_m", "materials": [{"slot", "physics"}], "collision", "gaps", "wind_volumes", "snag"}, and
-    optionally "thin_wire": [bool per LOD], "micro": [{"lod", "kind", "count", "mesh": Mesh}], "ports": [{PORT_KEYS}]
-    and "wires": [{WIRE_KEYS}]) and the catalog's visual material per slot. A micro mesh is named <variant>_LOD<n>_<kind>
+    optionally "thin_wire": [bool per LOD], "micro": [{"lod", "kind", "count", "mesh": Mesh}], "ports": [{PORT_KEYS}],
+    "wires": [{WIRE_KEYS}] and "holes": [{HOLE_KEYS}]) and the catalog's visual material per slot. A micro mesh is named <variant>_LOD<n>_<kind>
     and counts towards the bounds, since it is rendered."""
     lods = built["lods"]
     switches = built["switch_distances_m"]
@@ -126,7 +132,8 @@ def assemble(asset_id, variant, generator, params, built, visual_by_slot):
         "cull_distance_m": float(built["cull_distance_m"]),
         "materials": materials,
         "collision": built["collision"], "gaps": built["gaps"], "wind_volumes": built["wind_volumes"],
-        "ports": built.get("ports", []), "wires": built.get("wires", []), "snag": built["snag"],
+        "ports": built.get("ports", []), "wires": built.get("wires", []), "holes": built.get("holes", []),
+        "snag": built["snag"],
     }
     return _rounded(meta)
 
@@ -249,6 +256,7 @@ def validate(meta, material_ids):
             problems.append(f"wires[{i}]: damage must be one of {', '.join(WIRE_DAMAGE)}, got {w['damage']!r}")
         if slots.get(w["slot"]) != WIRE_MATERIAL:
             problems.append(f"wires[{i}]: slot {w['slot']!r} must be a material slot of physics {WIRE_MATERIAL!r}")
+    problems += _hole_problems(meta["holes"])
     for i, s in enumerate(meta["snag"]):
         if not (isinstance(s.get("kind"), str) and isinstance(s.get("points"), list)
                 and all(_is_vec(p) for p in s["points"]) and _is_num(s.get("radius_m"))):
@@ -262,6 +270,31 @@ def validate(meta, material_ids):
             if "edge_radius_m" in s and not (_is_num(edge) and 0 < edge <= s["radius_m"]):
                 problems.append(f"snag[{i}]: edge_radius_m must be positive and at most radius_m {s['radius_m']}, "
                                 f"got {edge!r}")
+    return problems
+
+
+def _hole_problems(holes):
+    """The holes rule: each record a unique non-empty id, a centre line of at least two 3-vectors, a positive top
+    width and depth, and a band no narrower than its top width."""
+    problems, ids = [], set()
+    for i, h in enumerate(holes):
+        if not (isinstance(h, dict) and all(k in h for k in HOLE_KEYS) and isinstance(h["id"], str) and h["id"]
+                and isinstance(h["centre_line"], list) and all(_is_vec(p) for p in h["centre_line"])
+                and all(_is_num(h[k]) for k in ("top_width_m", "depth_m", "band_width_m"))):
+            problems.append(f"holes[{i}]: needs {', '.join(HOLE_KEYS)}: a non-empty id, a list of 3-vectors and three "
+                            f"numbers: {h}")
+            continue
+        label = f"holes[{i}] {h['id']!r}"
+        if h["id"] in ids:
+            problems.append(f"{label}: id is not unique")
+        ids.add(h["id"])
+        if len(h["centre_line"]) < 2:
+            problems.append(f"{label}: needs a centre line of at least 2 points, got {len(h['centre_line'])}")
+        if not (h["top_width_m"] > 0 and h["depth_m"] > 0):
+            problems.append(f"{label}: top_width_m and depth_m must be positive")
+        if h["band_width_m"] < h["top_width_m"]:
+            problems.append(f"{label}: band_width_m {h['band_width_m']} is narrower than its top_width_m "
+                            f"{h['top_width_m']}")
     return problems
 
 

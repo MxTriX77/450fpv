@@ -545,7 +545,8 @@ namespace Fpv450.Assets
                 string ports = meta.ports.Length == 0 ? "" : $"{meta.ports.Length} ports ({string.Join(", ", meta.ports.Select(p => p.id))}), ";
                 string wires = meta.wires.Length == 0 ? "" : $"{meta.wires.Length} wires without colliders ({string.Join(", ", meta.wires.GroupBy(w => (w.slot, w.diameterM)).Select(g => $"{g.Count()} x {g.Key.diameterM * 1000f:0.#} mm in {g.Key.slot} -> {ThinWireShader}"))}), ";
                 string thinWire = thin.Count == 0 ? "" : $"thin wire {string.Join(", ", thin)}, ";
-                Debug.Log($"[CatalogImporter] {variant}: {prefabPath}, {renderers.Length} LODs, {micro}{meta.collision.Length} colliders, {ports}{wires}{thinWire}" +
+                string holes = meta.holes.Length == 0 ? "" : $"{meta.holes.Length} holes ({string.Join(", ", meta.holes.Select(h => $"{h.id} {h.centreLine.Length} points, band {h.bandWidthM:0.###} m"))}), ";
+                Debug.Log($"[CatalogImporter] {variant}: {prefabPath}, {renderers.Length} LODs, {micro}{meta.collision.Length} colliders, {ports}{wires}{holes}{thinWire}" +
                           $"materials {string.Join(", ", materialBySlot.Select(kv => $"{kv.Key} -> {kv.Value.name}"))}, " +
                           $"LOD heights {string.Join(" / ", root.GetComponent<LODGroup>().GetLODs().Select(l => l.screenRelativeTransitionHeight.ToString("0.0000")))} " +
                           $"(size {root.GetComponent<LODGroup>().size} m, fov {VerticalFovDeg} deg)");
@@ -890,6 +891,14 @@ namespace Fpv450.Assets
                 material = Json.Str(wire, "material", at),
                 damage = Json.Str(wire, "damage", at),
                 points = Json.Arr(wire, "points", at).Select(p => Json.Vec3(p, $"{at} points")).ToArray(),
+            });
+            meta.holes = Items(json, "holes", what, (hole, at) => new AssetPhysicsMeta.Hole
+            {
+                id = Json.Str(hole, "id", at),
+                centreLine = Json.Arr(hole, "centre_line", at).Select(p => Json.Vec3(p, $"{at} centre_line")).ToArray(),
+                topWidthM = Json.Num(hole, "top_width_m", at),
+                depthM = Json.Num(hole, "depth_m", at),
+                bandWidthM = Json.Num(hole, "band_width_m", at),
             });
             meta.snag = Items(json, "snag", what, (feature, at) => new AssetPhysicsMeta.SnagFeature
             {

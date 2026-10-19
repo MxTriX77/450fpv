@@ -168,6 +168,40 @@ def test_ports_are_carried_from_the_generator(k01_params, material_ids):
     assert '"ports": []' in meta.dumps(k01_meta(k01_params))
 
 
+RUN_HOLE = {"id": "run", "centre_line": [[0.0, 0.0, 0.0], [1.0000004, 0.0, 0.5]], "top_width_m": 0.8, "depth_m": 1.5,
+            "band_width_m": 2.3}
+HOLE_FIELDS = "id, centre_line, top_width_m, depth_m, band_width_m"
+
+
+def test_holes_are_carried_from_the_generator(k01_params, material_ids):
+    """p1-e01-trench, "Holes in the metadata": a generator's holes land under `holes` right after `wires`, rounded
+    like every number; without any the key is still written, empty."""
+    built = debris_brick.build(k01_params)
+    built["holes"] = [dict(RUN_HOLE)]
+    data = meta.assemble("K01", "K01_whole", "debris_brick", k01_params, built, VISUALS)
+    assert meta.validate(data, material_ids) == []
+    assert data["holes"][0]["centre_line"] == [[0.0, 0.0, 0.0], [1.0, 0.0, 0.5]]
+    assert list(data).index("holes") == list(data).index("wires") + 1
+    assert '"holes": []' in meta.dumps(k01_meta(k01_params))
+
+
+@pytest.mark.parametrize("edit, expected", [
+    # "Hole validated": fewer than two points, or a band narrower than its top width, names the record and the rule
+    (lambda h: h[0].update(centre_line=[[0.0, 0.0, 0.0]]), "holes[0] 'run': needs a centre line of at least 2 points, got 1"),
+    (lambda h: h[0].update(band_width_m=0.5), "holes[0] 'run': band_width_m 0.5 is narrower than its top_width_m 0.8"),
+    (lambda h: h[0].update(centre_line=[[0.0, 0.0], [1.0, 0.5]]), f"holes[0]: needs {HOLE_FIELDS}"),
+    (lambda h: h[0].pop("depth_m"), f"holes[0]: needs {HOLE_FIELDS}"),
+    (lambda h: h[0].update(depth_m=0.0), "holes[0] 'run': top_width_m and depth_m must be positive"),
+    (lambda h: h.append(dict(h[0])), "holes[1] 'run': id is not unique"),
+])
+def test_holes_validated(k01_params, material_ids, edit, expected):
+    data = k01_meta(k01_params)
+    data["holes"] = [copy.deepcopy(RUN_HOLE)]
+    edit(data["holes"])
+    assert meta.validate(data, material_ids) == [next(p for p in meta.validate(data, material_ids))]
+    assert meta.validate(data, material_ids)[0].startswith(expected), meta.validate(data, material_ids)
+
+
 @pytest.mark.parametrize("edit, expected", [
     (lambda d: d["collision"][1].update(rotation=[0.0, 0.0, 0.0, 2.0]),
      "collision[1]: capsule rotation must be a unit quaternion within 1e-06, |q| = 2.000000"),
