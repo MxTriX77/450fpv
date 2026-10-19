@@ -197,6 +197,7 @@ Fragments gouge the log on the blast side; a near miss snaps a dry log at the gr
 
 ### Placement rules
 - Street lines: one side of the street, 0.5–1.5 m in from the road edge or along the fence line, every 30–45 m; brace or guy at every angle and at the line ends; a service drop from each pole or every other pole to the houses on both sides.
+  - **S conflicts with this rule (the typical village, D-038):** S measures the street line 3–5 m from the road edge and 3–5 m in front of the fence, in the house-side verge (derived S 46–47, terrain.md §12.3), as L02 ("Position across the street") and RD01 (placement) now give. L01 as merged stays as built; the difference is routed in `openspec/changes/p1-letter-s-village-street/implications.md` (L01), and until it is settled the typical village places its line as S.
 - Wood is the older class: on side streets, lanes and field edges; mixed with L02 along the main street (about one wooden pole in three, assumed).
 - Field lines: in a row along a belt edge or a field road, 40–60 m apart, often leaning (L).
 - Night landmarks: keep at least one pole on a skyline crest near each start point and along each field road (L): a pole is one of the few silhouettes readable at night.

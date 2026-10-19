@@ -49,8 +49,9 @@ S shows no vehicle and no person. Its feed renders the scene cool and saturated:
   - The shared pole table has no such item. Add a butt whitewash band (height 0.5–1 m) for L01 and L02.
 - **Placement, which S contradicts:**
   - S puts the line in the house-side verge, 3–5 m from the road edge and 3–5 m in front of the fence (derived S 46–47).
-  - L01's rule says 0.5–1.5 m in from the road edge or along the fence line.
-  - The typical village's placement should follow S.
+  - L01's rule says 0.5–1.5 m in from the road edge or along the fence line (lines-roads-debris.md, L01 placement rules, which now flags the conflict).
+  - L02 and RD01 already give S's 3–5 m. L01 as merged stays as built: placement isn't a generator parameter, so no asset changes.
+  - **To route:** one rule for the typical village's street line, S's 3–5 m, written into L01's placement rules (reference analyst) and applied when the world-builder places the lines (phase 3). The 0.5–1.5 m rule can stay for side streets and lanes, where S shows nothing.
 - **Already covered:**
   - The lean (about 10°, S 49) matches `L01_leaning` (9°).
   - The raking strut (S 43–44) is on a concrete pole: `L01_braced` is the wood form; the concrete form is L02's.
