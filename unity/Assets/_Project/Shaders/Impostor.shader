@@ -5,16 +5,18 @@
 // The views are _ImpostorGrid.x orthographic views from the azimuths k * 360 / views (from +Z towards +X, object
 // space), view k in cell (k mod columns, k div columns) from the atlas's top left, in both atlases. The albedo atlas
 // (_BaseMap) holds albedo; the card is lit as URP/Lit lights a surface, with the normal atlas's normal per pixel
-// (_BumpMap, linear): the visible side's normal as view k saw it, in its axes (right, up, towards its camera,
+// (_BumpMap, linear): the visible side's mapped normal as view k saw it, in its axes (right, up, towards its camera,
 // _ImpostorGrid.w degrees above the horizon) mapped into 0-1, which the forward pass samples at the cell's uv, at full
 // resolution, and turns into object space with the same axes; URP's _NORMALMAP stays off, as the fragment sets the
 // normal itself. The card has the leaves' smoothness, since it shows their normals (the catalog importer sets it). The
 // crown's occlusion reaches URP/Lit's
 // ambient term as an occlusion map does, through the default black _OcclusionMap at strength 1 - occlusion. It casts
 // shadows facing the light and receives none (the material sets _RECEIVE_SHADOWS_OFF): the light-facing caster would
-// shadow the camera-facing card along their shared axis. Each pass includes URP's own Lit pass and wraps its vertex
-// function (and the forward pass its fragment), as Fpv450/Leaf does; the extra vectors stand outside URP/Lit's
-// per-material buffer, so the SRP batcher draws the card on its own, and the material instances it. No wind.
+// shadow the camera-facing card along their shared axis. Its alpha, the coverage the render found per texel, clips as
+// the leaves' does, read where the atlas resolves the crown (CoverageAlpha.hlsl, task 1.2i: read at the pixel's mip,
+// the card lost 14-22 % of V01's baked crowns at 116.9-230 m, measured). Each pass includes URP's own Lit pass and
+// wraps its vertex function (and the forward pass its fragment), as Fpv450/Leaf does; the extra vectors stand outside
+// URP/Lit's per-material buffer, so the SRP batcher draws the card on its own, and the material instances it. No wind.
 Shader "Fpv450/Impostor"
 {
     Properties
@@ -141,6 +143,7 @@ Shader "Fpv450/Impostor"
             #pragma instancing_options renderinglayer
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
 
+            #include "CoverageAlpha.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitForwardPass.hlsl"
 
@@ -202,6 +205,7 @@ Shader "Fpv450/Impostor"
 
             #pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
 
+            #include "CoverageAlpha.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/ShadowCasterPass.hlsl"
 
@@ -242,6 +246,7 @@ Shader "Fpv450/Impostor"
             #pragma multi_compile_instancing
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
 
+            #include "CoverageAlpha.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/DepthOnlyPass.hlsl"
 
@@ -273,6 +278,7 @@ Shader "Fpv450/Impostor"
             #pragma multi_compile_instancing
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
 
+            #include "CoverageAlpha.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitDepthNormalsPass.hlsl"
 
