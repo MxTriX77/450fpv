@@ -197,7 +197,7 @@ Fragments gouge the log on the blast side; a near miss snaps a dry log at the gr
 
 ### Placement rules
 - Street lines: one side of the street, 0.5–1.5 m in from the road edge or along the fence line, every 30–45 m; brace or guy at every angle and at the line ends; a service drop from each pole or every other pole to the houses on both sides.
-  - **S conflicts with this rule (the typical village, D-038):** S measures the street line 3–5 m from the road edge and 3–5 m in front of the fence, in the house-side verge (derived S 46–47, terrain.md §12.3), as L02 ("Position across the street") and RD01 (placement) now give. L01 as merged stays as built; the difference is routed in `openspec/changes/p1-letter-s-village-street/implications.md` (L01), and until it is settled the typical village places its line as S.
+  - **S conflicts with this rule (the typical village, D-038):** S measures the street line 3–5 m from the road edge and 3–5 m in front of the fence, in the house-side verge (derived S 46–47, terrain.md §12.3), with a few poles on the other side where the street passes a green (S 33, 42), as L02 ("Position across the street") and RD01 (placement) now give. L01 as merged stays as built; the difference is routed in `openspec/changes/p1-letter-s-village-street/implications.md` (L01), and until it is settled the typical village places its line as S.
 - Wood is the older class: on side streets, lanes and field edges; mixed with L02 along the main street (about one wooden pole in three, assumed).
 - Field lines: in a row along a belt edge or a field road, 40–60 m apart, often leaning (L).
 - Night landmarks: keep at least one pole on a skyline crest near each start point and along each field road (L): a pole is one of the few silhouettes readable at night.
@@ -211,7 +211,7 @@ Shared pole table, with these defaults: `pole_kind` wood_log, `length_m` 9.5, `t
 
 ## L02 Concrete pole with crossarm and insulators
 
-**Seen in:** H 1–4 (a straight grey pole passing 3–4 m to the right: two flat faces meeting at a sharp vertical arris, a clear taper from the butt, and a round through-hole on the lit face at mid-frame, H 2–3; so a vibrated rectangular СВ-type pole, not a round log). O shows a lamp post with a curved arm (the urban class). S 43–50: the village street's line, pale concrete poles in the house-side verge with their butts whitewashed (S 47–49), one leaning about 10° (S 49), one braced by a raking strut (S 43–44), a crossarm or bracket near the top (S 47); S 33: a concrete pole with a street lamp on a short bracket. **R** for the head.
+**Seen in:** H 1–4 (a straight grey pole passing 3–4 m to the right: two flat faces meeting at a sharp vertical arris, a clear taper from the butt, and a round through-hole on the lit face at mid-frame, H 2–3; so a vibrated rectangular СВ-type pole, not a round log). O shows a lamp post with a curved arm (the urban class). S 43–50: the village street's line, pale concrete poles in the house-side verge with their butts whitewashed (S 47–49), one leaning about 10° (S 49), one braced by a raking strut (S 43–44), a crossarm or bracket near the top (S 47); S 33: a concrete pole with a street lamp on a short bracket, on the other side of the street from the line. **R** for the head.
 **Research sources:** the СВ-95 pole: 9.5 m long, 0.36 m³, 0.9 t, for lines from 0.4 kV (published, https://productcenter.ru/products/124963/stoika-sv95-3 ); the СВ-105 stand: 10.5 m long, 0.47 m³, 1.18 t, for lines up to 10 kV (published, https://productcenter.ru/products/124965/sv105-5 ); ПУЕ clauses above.
 
 ### Dimensions
@@ -226,7 +226,7 @@ Shared pole table, with these defaults: `pole_kind` wood_log, `length_m` 9.5, `t
 | Street lamp | a 1.0–1.5 m bracket at 6–6.5 m on every 2nd–3rd pole | none | assumed; O shows the urban form; S 33 shows a short bracket with a lamp on a village pole (measured presence) |
 | Lean | 0–15° | 0 (variant 2 of the asset list: leaning 8°) | asset list; measured L 1 for the magnitude; S 49: about 10° |
 | Whitewashed butt | lime whitewash on the bottom 0.5–1 m | 0.7 m | measured S 47–49 (a white band at the foot, about a fifth of the visible pole in S 47) |
-| Position across the street | in the house-side verge, 3–5 m from the road edge and 3–5 m in front of the fence line | 4 m | derived (S 46–47 at the 12.5 m camera height, terrain.md §12.3) |
+| Position across the street | in the house-side verge, 3–5 m from the road edge and 3–5 m in front of the fence line; where the street passes an open green, some poles stand on the other side too (a lamp pole at the road edge, S 33; a thin pole in the verge, S 42) | 4 m | derived (S 46–47 at the 12.5 m camera height, terrain.md §12.3); measured S 33, 42 |
 
 ### Construction and materials
 - Vibrated reinforced concrete (B30, published), cast as a tapered rectangular stand with longitudinal bars, through-holes for the crossarm bolts and the grounding conductor, a grounding wire or strip down one face. Steel angle crossarms bolted through, pin insulators on steel pins or hooks, SIP fittings on a bracket. Grey with rust streaks below every steel part, lichen on the shaded face, chipped arrises at the foot.
@@ -524,7 +524,7 @@ Asphalt fails by cracking (fatigue and frost), then the cracked cells lose their
 
 ### Placement rules
 - One asphalt main street through each village, joining the next village; side streets are dirt or gravel (RD03); the asphalt ends in a crumbled edge where it meets a field road.
-- Houses 5–15 m back behind their fences; L01/L02 poles along one side (S, the typical village: the fence 7–9 m, the house front 12–16 m and the poles 3–5 m from the road edge, derived S 46–47, terrain.md §12.3); abandoned and destroyed vehicles on and beside it (the vehicles sheet), with K07 debris around them; damage concentrated near the village centre and the junctions (assumed).
+- Houses 5–15 m back behind their fences; L01/L02 poles along one side (S, the typical village: the fence 7–9 m, the house front 12–16 m and the poles 3–5 m from the road edge, derived S 46–47, terrain.md §12.3; a few poles on the other side where the street passes a green, S 33, 42); abandoned and destroyed vehicles on and beside it (the vehicles sheet), with K07 debris around them; damage concentrated near the village centre and the junctions (assumed).
 
 ### Generator parameters
 | Param | Type | Range | Default | Effect |
