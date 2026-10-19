@@ -5,7 +5,7 @@
       "class": "earthworks",
       "generator": "trench",
       "variants": ["E01_curving"],
-      "materials": { "ground": "belt_straw", "wall": "trench_wall", "clod": "trench_wall", "section": "trench_wall", "straw": "straw" }
+      "materials": { "ground": "grassed_spoil", "wall": "trench_wall", "clod": "trench_wall", "section": "trench_wall", "straw": "straw" }
     },
     "K01": {
       "class": "debris",

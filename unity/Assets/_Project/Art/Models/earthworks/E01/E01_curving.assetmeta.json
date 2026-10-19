@@ -51,7 +51,7 @@
   "materials": [
     {
       "slot": "ground",
-      "visual": "belt_straw",
+      "visual": "grassed_spoil",
       "physics": "surface:belt_straw"
     },
     {

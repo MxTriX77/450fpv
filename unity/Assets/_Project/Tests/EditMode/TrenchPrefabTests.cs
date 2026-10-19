@@ -9,14 +9,17 @@ namespace Fpv450.Tests.EditMode
     /// <summary>
     /// The E01 prefab as the catalog importer builds it (p1-e01-trench, "A trench writes its hole" and "Parapets and
     /// clods are ground"): the metadata component exposes the run's hole first and one per niche, a collider stands for
-    /// every primitive, the cut's are not landable and the parapets' and margins' are, no wind volume, no snag; and the
-    /// trench_wall material tiles its wall-space strip. Needs a prior <c>pwsh tools/build_asset.ps1 E01</c>.
+    /// every primitive, the cut's are not landable and the parapets' and margins' are, no wind volume, no snag; the
+    /// trench_wall material tiles its wall-space strip, and the grassed_spoil cover spans the patch (task 1.4). Needs a
+    /// prior <c>pwsh tools/build_asset.ps1 E01</c>.
     /// </summary>
     public sealed class TrenchPrefabTests
     {
         const string PrefabPath = "Assets/_Project/Prefabs/earthworks/E01_curving.prefab";
         const string WallPath = "Assets/_Project/Art/Materials/trench_wall.mat";
         const float StripU = 27f, StripV = 4f, DetailTileM = 2.07f; // assets-src/materials/trench_wall.json
+        const string GroundPath = "Assets/_Project/Art/Materials/grassed_spoil.mat";
+        const float GroundMapM = 40f, GroundDetailTileM = 2f; // assets-src/materials/grassed_spoil.json
 
         static GameObject Prefab()
         {
@@ -71,6 +74,25 @@ namespace Fpv450.Tests.EditMode
             Assert.That(wall.GetTextureScale("_DetailAlbedoMap"), Is.EqualTo(new Vector2(StripU / DetailTileM, StripV / DetailTileM)));
             Assert.That(wall.IsKeywordEnabled("_DETAIL_MULX2"), Is.True);
             Assert.That(wall.GetTexture("_BaseMap").name, Is.EqualTo("trench_wall_albedo"));
+        }
+
+        /// <summary>Task 1.4: the parapets, berm and margins take the grassed-spoil cover (no bare patch or strip, so
+        /// no stain without relief under it), its one map centred on the patch, which the generator UVs from its
+        /// centre; S04's belt_straw is not on the trench at all.</summary>
+        [Test]
+        public void GroundMaterial_IsTheGrassedSpoilCoverLaidOnceOverThePatch()
+        {
+            GameObject prefab = Prefab();
+            var ground = AssetDatabase.LoadAssetAtPath<Material>(GroundPath);
+            Assert.That(ground, Is.Not.Null, $"{GroundPath} is missing");
+            Assert.That(ground.GetTextureScale("_BaseMap"), Is.EqualTo(new Vector2(1f / GroundMapM, 1f / GroundMapM)));
+            Assert.That(ground.GetTextureOffset("_BaseMap"), Is.EqualTo(new Vector2(0.5f, 0.5f)), "centred on the UVs' origin");
+            Assert.That(ground.GetTextureScale("_DetailAlbedoMap"), Is.EqualTo(Vector2.one * (GroundMapM / GroundDetailTileM)));
+            Assert.That(ground.GetTexture("_BaseMap").name, Is.EqualTo("grassed_spoil_albedo"));
+            string[] used = prefab.GetComponentsInChildren<Renderer>(true).SelectMany(r => r.sharedMaterials)
+                .Where(m => m != null).Select(m => m.name).Distinct().ToArray();
+            Assert.That(used, Does.Contain("grassed_spoil"));
+            Assert.That(used, Does.Not.Contain("belt_straw"));
         }
     }
 }

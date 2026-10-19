@@ -35,9 +35,11 @@ a ridge along its own centre polyline (the run's offset to the middle of its bas
 parapet_slope_deg from the inner toe (top_w_m / 2 + berm_m out) to its height and falls the same way to its outer toe
 parapet_base_m out, ending in a cone round each end of the run (the cross-section turned about the ridge's end); plus
 S04's tussock relief (lib.mat, RELIEF_M) faded in over the parapets at RELIEF_PARAPET of it and in full past them, none
-on the berm. The top takes the ground slot (belt_straw) with UVs in metres, u = x and v = z; the block's sides and
-bottom the section slot (the wall map, a soil section). Every cut face takes the wall slot (trench_wall) with UVs on
-lib.strip's strip. LOD0 adds the clods (low sphere caps, clods_per_m, in the clod slot) and, as its visual-only micro
+on the berm. The top takes the ground slot (grassed_spoil: a cover with no bare patch, green strip or relief tone, which
+here would be stains with no relief under them) with UVs in metres from the patch's centre, u = x - its x and v = z - its
+z, so that recipe's map, GROUND_MAP_M across and centred on the UVs' origin, is laid once over the whole patch, never
+wrapped (check: the patch fits it); the block's sides and bottom the section slot (the wall map, a soil section). Every
+cut face takes the wall slot (trench_wall) with UVs on lib.strip's strip. LOD0 adds the clods (low sphere caps, clods_per_m, in the clod slot) and, as its visual-only micro
 mesh, straws and twigs blown onto the floor at FLOOR_STRAW of S04's densities (lib.straw's kit); LOD1 is LOD0 without
 the micro mesh; LOD2 the patch at 1 m with the cut as a plain slot, no niches, no clods.
 
@@ -68,7 +70,7 @@ from lib import mat, strip, straw
 from lib.audit import inscribed_diameter
 from lib.geometry import Mesh
 
-GROUND_SLOT = "ground"    # the patch's top: berm, parapets, margins (belt_straw)
+GROUND_SLOT = "ground"    # the patch's top: berm, parapets, margins (grassed_spoil)
 WALL_SLOT = "wall"        # every cut face: walls, floor, end walls, niches (trench_wall)
 CLOD_SLOT = "clod"        # the clods on the floor (trench_wall's spill band)
 SECTION_SLOT = "section"  # the block's sides and bottom: a soil section in the wall map, the ground's physics
@@ -111,6 +113,7 @@ COLUMN_M = 2.0            # the margin columns' width (assumed)
 COLUMN_SEAM_M = 0.05      # columns overlap by this (S04's SEAM_M)
 CLEAR_M = 1.0             # a margin column stays this far from the run's centre line (inside the lip boxes' reach)
 CELL_M = 0.25             # design 1: the patch grid
+GROUND_MAP_M = 40.0       # the grassed_spoil map's span (carried, its size_m): the patch centred in it, 51 px/m at 2K
 FINE_D_M = 1.0            # cells within this of the run (the lips, the berm, the inner toes, in the gaps' 2 cm zone)
 MEDIUM = 2                # and over the parapets split 2 x 2 (12.5 cm), so the toe's crease is followed within 2 cm and the
                           # crests' within the 5 cm soft top (design 1: 0.1 m near the lips)
@@ -235,6 +238,10 @@ def check(params):
         problems.append(f"the parapets hold {area:.3f} m3/m, the cut's {cut:.3f} m3/m at a swell of {SWELL} gives "
                         f"{cut * SWELL:.3f}: off by {100 * (area / (cut * SWELL) - 1):+.0f} %, more than "
                         f"{100 * SWELL_TOLERANCE:.0f} %")
+    span = params["run_m"] + 2 * params["margin_m"] + 2 * CELL_M  # the patch's longest side at most, snapped to the grid
+    if span > GROUND_MAP_M:
+        problems.append(f"the patch spans up to {span:.2f} m ('run_m' + 2 'margin_m' + 2 cells), more than the "
+                        f"grassed_spoil map's {GROUND_MAP_M} m")
     reach = top / 2 + params["berm_m"] + base
     if reach > BEND_RADIUS_M - 0.5:
         problems.append(f"the parapets reach {reach:.2f} m from the centre line, past a bend's radius "
@@ -625,6 +632,7 @@ def _top(run, params, refined):
     height = _height_fn(run, params)
     cell = CELL_M if refined else 1.0
     x0, z0, nx, nz, cx, cz = _patch(run, cell)
+    uc, vc = x0 + nx * cx / 2, z0 + nz * cz / 2  # the UVs' origin, the patch's centre at either cell size
     mesh = Mesh()
     quads = _slot_quads(run)
     caps = [pts[j] for side in SIDES for pts in (run.parapet_line[side],) for j in (0, -1)]
@@ -686,7 +694,7 @@ def _top(run, params, refined):
 
     def tri(ids):
         p = [mesh.vertices[v] for v in ids]
-        mesh.face(ids, _up(p), GROUND_SLOT, [(q[0], q[2]) for q in p])
+        mesh.face(ids, _up(p), GROUND_SLOT, [(q[0] - uc, q[2] - vc) for q in p])
 
     for (i, j), lv in sorted(levels.items()):
         step = f // lv

@@ -12,7 +12,7 @@ import pytest
 from generators import trench
 from lib import audit, holes, meta, params as params_lib
 
-VISUALS = {"ground": "belt_straw", "wall": "trench_wall", "clod": "trench_wall", "section": "trench_wall",
+VISUALS = {"ground": "grassed_spoil", "wall": "trench_wall", "clod": "trench_wall", "section": "trench_wall",
            "straw": "straw"}
 REPO_ROOT = Path(__file__).resolve().parents[3]  # module-scoped fixtures cannot take conftest's repo_root
 
@@ -46,6 +46,7 @@ def test_committed_params_validate(e01_params):
     (lambda p: p.update(age=0.2), "'age' = 0.2 is the fresh state"),
     (lambda p: p["lod"].update(lod2_switch_m=5.0), "'lod.lod1_switch_m' < 'lod.lod2_switch_m' < 'lod.cull_m' must hold"),
     (lambda p: p.update(bend_deg=40.0, bend_every_m=3.0), "bends of 40.0 +- 5.0 degrees"),
+    (lambda p: p.update(margin_m=8.0), "the patch spans up to 40.50 m"),
 ])
 def test_check_refuses(e01_params, edit, expected):
     p = copy.deepcopy(e01_params)
@@ -202,6 +203,22 @@ def test_sides_follow_the_capture(e01):
     for i in run.niche_segments:
         foot, ex, ey, ez, *_ = run.niche_frame(i)
         assert ez[0] * right[0] + ez[2] * right[1] < 0
+
+
+def test_the_ground_map_is_laid_once_over_the_patch(e01):
+    """Task 1.4: on every LOD the top's UVs are metres from the patch's centre and stay inside the grassed_spoil map,
+    size_m across and centred on the UVs' origin (the importer's half-tile offset): the map is laid once over the whole
+    patch, never wrapped, so nothing of it repeats or seams across the parapets."""
+    recipe = json.loads((REPO_ROOT / "assets-src" / "materials" / "grassed_spoil.json").read_text(encoding="utf-8"))
+    assert recipe["size_m"] == trench.GROUND_MAP_M and "bare" not in recipe["patches"] and "green" not in recipe["patches"]
+    _, built, _, run = e01
+    x0, z0, nx, nz, cx, cz = trench._patch(run)
+    centre = (x0 + nx * cx / 2, z0 + nz * cz / 2)
+    for mesh in built["lods"][0::2]:
+        ground = [(mesh.vertices[i], uv) for indices, _, uvs, slot in mesh.faces if slot == trench.GROUND_SLOT
+                  for i, uv in zip(indices, uvs)]
+        assert all(uv == pytest.approx((p[0] - centre[0], p[2] - centre[1]), abs=1e-9) for p, uv in ground)
+        assert max(abs(c) for _, uv in ground for c in uv) <= trench.GROUND_MAP_M / 2
 
 
 def test_every_face_carries_its_own_planes_normal(e01):

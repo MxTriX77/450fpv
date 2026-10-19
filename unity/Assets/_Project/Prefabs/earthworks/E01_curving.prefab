@@ -2293,7 +2293,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 572284409eed265499fa83b33f4f5eb8, type: 2}
+  - {fileID: 2100000, guid: a736707b02402f94e953cd3951dec04d, type: 2}
   - {fileID: 2100000, guid: 46df93959d42d8a489e76f28346b6e51, type: 2}
   - {fileID: 2100000, guid: 46df93959d42d8a489e76f28346b6e51, type: 2}
   m_StaticBatchInfo:
@@ -4539,7 +4539,7 @@ MonoBehaviour:
   cullDistanceM: 400
   materials:
   - slot: ground
-    visual: belt_straw
+    visual: grassed_spoil
     physics: surface:belt_straw
   - slot: wall
     visual: trench_wall
@@ -21644,7 +21644,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 572284409eed265499fa83b33f4f5eb8, type: 2}
+  - {fileID: 2100000, guid: a736707b02402f94e953cd3951dec04d, type: 2}
   - {fileID: 2100000, guid: 46df93959d42d8a489e76f28346b6e51, type: 2}
   - {fileID: 2100000, guid: 46df93959d42d8a489e76f28346b6e51, type: 2}
   - {fileID: 2100000, guid: 46df93959d42d8a489e76f28346b6e51, type: 2}
@@ -25643,7 +25643,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 572284409eed265499fa83b33f4f5eb8, type: 2}
+  - {fileID: 2100000, guid: a736707b02402f94e953cd3951dec04d, type: 2}
   - {fileID: 2100000, guid: 46df93959d42d8a489e76f28346b6e51, type: 2}
   - {fileID: 2100000, guid: 46df93959d42d8a489e76f28346b6e51, type: 2}
   - {fileID: 2100000, guid: 46df93959d42d8a489e76f28346b6e51, type: 2}
