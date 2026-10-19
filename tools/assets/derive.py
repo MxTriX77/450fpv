@@ -44,7 +44,9 @@ between pale humps). The soil takes the gain to the soil's optional albedo_targe
 per-channel gain that lands the patch's linear mean colour on albedo_target with the soil, the gaps and the strips at their
 own colours, then a global pass corrects clipping; the achieved mean, the shares and the gains are recorded in the
 stamp. The azimuth is degrees from +u towards +v of the map, which is +X towards +Z of the asset when its UVs are
-metres.
+metres. A ground recipe whose patches name only the lodging (p1-e01-trench task 1.4, a trench's grassed spoil) is a
+cover: no bare patch, no lip, no green strip and no relief tone, so no stain lies where the asset's mesh has no relief
+to make it (REAL-05); its map is the cover with its gaps on the target (COVER_FORMULA), its stamp's layout null.
 
 A ground recipe in wall space ("space": "wall", p1-e01-trench design 7) is a cut's map: the strip of
 tools/blender/lib/strip.py, size_m [u, v] metres at output_px [w, h] (2K at most), u along the run and v up the map,
@@ -123,6 +125,10 @@ GROUND_FORMULA = ("ground v6: cover tiled at tile_size_m and at tile_size_m*phi,
                   "cover normals rotated by the azimuth; mask R 0, G AO times 1 - RELIEF_AO (1 - h01), B 0, "
                   "A 1 - roughness; detail albedo = the detail set's diffuse as grey at its size with a linear mean "
                   "of 0.5; 8-bit sRGB albedos")
+COVER_FORMULA = ("ground cover v1: ground v6 with patches naming only the lodging, so no bare patch, no lip, no green "
+                 "strip and no relief: albedo = the cover with its gaps (the cover gained to gap_albedo, the soil without "
+                 "one) and the straw gain for albedo_target, then a global gain against clipping; normal = the cover's "
+                 "rotated by the azimuth; mask R 0, G the cover's AO, B 0, A 1 - roughness; detail albedo as ground v6")
 GROUND_MAPS = ("albedo", "normal", "mask", "detail_albedo")
 PALETTE_FORMULA = ("palette v2: one column PALETTE_BLOCK_PX x PALETTE_HEIGHT_PX per colour, left to right in the "
                    "recipe's order, its stops spread evenly from the bottom to the top and interpolated in linear light, "
@@ -400,22 +406,28 @@ def ground_recipe(root, recipe, material):
     output_px = _number(recipe, "output_px", material, lo=16, hi=MAX_OUTPUT_PX, integer=True)
     soil, cover, detail = (_set_ref(recipe, k, material) for k in ("soil", "cover", "detail"))
     patch_spec = _object(recipe, "patches", material)
-    bare, green, lodging = (_object(patch_spec, k, f"{material}.patches") for k in ("bare", "green", "lodging"))
-    layout_params, layout_inputs, params = bare_layout_inputs(root, bare, material, size_m)
-    if green.get("params") != layout_params:
-        raise DeriveError(f"{material}.patches.green.params: {green.get('params')!r} must name the bare patches' params "
-                          f"file {layout_params!r} (the strips are the asset's, measured outside its bare patches)")
-    try:
-        green_inputs, relief_inputs = mat.green_inputs(params), mat.relief_inputs(params)
-    except (KeyError, TypeError) as e:
-        raise DeriveError(f"{material}.patches.green.params: {layout_params} lacks the key {e} (green.share, "
-                          "green.width_m, green.length_m, cell_m, relief_m)")
-    green_share = green_inputs["share"]
-    if not 0 <= green_share <= 1:
-        raise DeriveError(f"{material}.patches.green.params: green.share {green_share} must lie in [0, 1]")
-    if layout_inputs["share"] + green_share > 1:
-        raise DeriveError(f"{material}.patches: the bare share {layout_inputs['share']} + green.share {green_share} "
-                          "exceeds 1")
+    lodging = _object(patch_spec, "lodging", f"{material}.patches")
+    if "bare" not in patch_spec and "green" not in patch_spec:  # a cover: no patch, no strip, no relief tone
+        layout_params = layout_inputs = green_inputs = relief_inputs = green_tint = None
+    else:
+        bare, green = (_object(patch_spec, k, f"{material}.patches") for k in ("bare", "green"))
+        layout_params, layout_inputs, params = bare_layout_inputs(root, bare, material, size_m)
+        if green.get("params") != layout_params:
+            raise DeriveError(f"{material}.patches.green.params: {green.get('params')!r} must name the bare patches' "
+                              f"params file {layout_params!r} (the strips are the asset's, measured outside its bare "
+                              "patches)")
+        try:
+            green_inputs, relief_inputs = mat.green_inputs(params), mat.relief_inputs(params)
+        except (KeyError, TypeError) as e:
+            raise DeriveError(f"{material}.patches.green.params: {layout_params} lacks the key {e} (green.share, "
+                              "green.width_m, green.length_m, cell_m, relief_m)")
+        green_share = green_inputs["share"]
+        if not 0 <= green_share <= 1:
+            raise DeriveError(f"{material}.patches.green.params: green.share {green_share} must lie in [0, 1]")
+        if layout_inputs["share"] + green_share > 1:
+            raise DeriveError(f"{material}.patches: the bare share {layout_inputs['share']} + green.share {green_share} "
+                              "exceeds 1")
+        green_tint = _colour(green, "tint", f"{material}.patches.green")
     return {
         "seed": recipe["seed"], "size_m": size_m, "output_px": output_px,
         "soil": soil, "cover": cover, "detail": detail,
@@ -423,7 +435,7 @@ def ground_recipe(root, recipe, material):
         "gap_share": _number(cover, "gap_share", f"{material}.cover", lo=0, hi=0.5) if "gap_share" in cover else 0.0,
         "gap_albedo": _colour(cover, "gap_albedo", f"{material}.cover") if "gap_albedo" in cover else None,
         "layout_params": layout_params, "layout": layout_inputs, "green": green_inputs, "relief": relief_inputs,
-        "green_tint": _colour(green, "tint", f"{material}.patches.green"),
+        "green_tint": green_tint,
         "azimuth_deg": _number(lodging, "azimuth_deg", f"{material}.patches.lodging", lo=-360, hi=360),
         "bias": _number(lodging, "bias", f"{material}.patches.lodging", lo=0, hi=1),
         "target": _colour(recipe, "albedo_target", material),
@@ -623,10 +635,12 @@ def derive_ground(root, manifest, material, recipe):
     g = ground_recipe(root, recipe, material)
     sets = {"soil": g["soil"]["texture_set"], "cover": g["cover"]["texture_set"], "detail": g["detail"]["texture_set"]}
     maps = {role: _load_set(root, manifest, texture_set, material, role) for role, texture_set in sets.items()}
-    stamp = {"material": material, "kind": "ground", "formula": GROUND_FORMULA, "pillow": PIL.__version__,
-             "constants": _constants(GROUND_CONSTANTS),
-             "layout": {"params": g["layout_params"], "inputs": g["layout"], "constants": patches.constants(),
-                        "green": g["green"], "relief": g["relief"], "fields": mat.constants()},
+    cover_only = g["layout"] is None
+    stamp = {"material": material, "kind": "ground", "formula": COVER_FORMULA if cover_only else GROUND_FORMULA,
+             "pillow": PIL.__version__, "constants": _constants(GROUND_CONSTANTS),
+             "layout": None if cover_only else {
+                 "params": g["layout_params"], "inputs": g["layout"], "constants": patches.constants(),
+                 "green": g["green"], "relief": g["relief"], "fields": mat.constants()},
              "recipe": recipe,
              "sources": {f"{role}/{name}": {"name": os.path.basename(path), "sha256": fetch.sha256(path)}
                          for role in ("soil", "cover", "detail") for name, path in sorted(maps[role].items())
@@ -655,13 +669,13 @@ def derive_ground(root, manifest, material, recipe):
 
     rng = random.Random(g["seed"])
     try:
-        layout = patches.layout(**g["layout"])
-        regrowth = mat.green(**g["green"], bare_patches=layout["patches"])
+        layout = {"patches": [], "share": 0.0} if cover_only else patches.layout(**g["layout"])
+        regrowth = {"strips": []} if cover_only else mat.green(**g["green"], bare_patches=layout["patches"])
     except ValueError as e:
         raise DeriveError(f"{material}: {e}")
     bare = bare_layer(layout["patches"], out_px, size_m)
     green = green_layer(regrowth["strips"], out_px, size_m)
-    relief = relief_layer(mat.relief(**g["relief"]), g["relief"]["relief_m"], out_px, size_m)
+    relief = None if cover_only else relief_layer(mat.relief(**g["relief"]), g["relief"]["relief_m"], out_px, size_m)
     soil_albedo, cover_albedo = soil("diffuse"), cover("diffuse")
     soil_gain = [1.0, 1.0, 1.0]
     if g["soil_target"] is not None:
@@ -683,8 +697,9 @@ def derive_ground(root, manifest, material, recipe):
     bare_soil_share = coverage(bare)  # the soil the bare mask shows in the floors, before the strewn straws
     bare = ImageChops.multiply(bare, scatter)
     # The relief's hollows: darker straws and less ambient light (G 1-12).
-    tone = relief.point(lambda v: round(255 * (1 - RELIEF_TONE * (1 - v / 255))))
-    cover_albedo = ImageChops.multiply(cover_albedo, Image.merge("RGB", (tone, tone, tone)))
+    if relief is not None:
+        tone = relief.point(lambda v: round(255 * (1 - RELIEF_TONE * (1 - v / 255))))
+        cover_albedo = ImageChops.multiply(cover_albedo, Image.merge("RGB", (tone, tone, tone)))
     soil_mask = ImageChops.lighter(bare, lip)
     bare_share = layout["share"]  # the outlines'
     floor_soil_share = coverage(ImageChops.multiply(soil_mask, floors)) / max(1e-6, coverage(floors))
@@ -700,15 +715,17 @@ def derive_ground(root, manifest, material, recipe):
     litter_share = coverage(gaps, outside=soil_mask)
     strip_share = coverage(shown, outside=ImageChops.lighter(soil_mask, gaps))
     straw_share = max(1e-6, 1 - soil_share - litter_share - strip_share)
+    tints = [0.0, 0.0, 0.0] if cover_only else g["green_tint"]  # a cover has no strip: strip_share is 0
     straw_target = [(t - soil_share * s - litter_share * lt - strip_share * tint) / straw_share
-                    for t, s, lt, tint in zip(g["target"], linear_means(soil_albedo), linear_means(litter), g["green_tint"])]
+                    for t, s, lt, tint in zip(g["target"], linear_means(soil_albedo), linear_means(litter), tints)]
     straw, straw_gain = match_mean(cover_albedo, [max(0.001, t) for t in straw_target])
-    strips, _ = match_mean(cover_albedo, g["green_tint"])
+    strips = straw if cover_only else match_mean(cover_albedo, g["green_tint"])[0]
     albedo = Image.composite(soil_albedo, Image.composite(litter, Image.composite(strips, straw, shown), gaps), soil_mask)
     albedo, final_gain = match_mean(albedo, g["target"])
     normal = Image.composite(soil("normal"), rotate_normals(cover("normal"), az), soil_mask)
-    ao = ImageChops.multiply(Image.composite(soil("ao"), cover("ao"), soil_mask),
-                             relief.point(lambda v: round(255 * (1 - RELIEF_AO * (1 - v / 255)))))
+    ao = Image.composite(soil("ao"), cover("ao"), soil_mask)
+    if relief is not None:
+        ao = ImageChops.multiply(ao, relief.point(lambda v: round(255 * (1 - RELIEF_AO * (1 - v / 255)))))
     roughness = Image.composite(soil("roughness"), cover("roughness"), soil_mask)
     zero = Image.new("L", (out_px, out_px), 0)
     mask = Image.merge("RGBA", (zero, ao, zero, roughness.point(lambda v: 255 - v)))
@@ -734,12 +751,14 @@ def derive_ground(root, manifest, material, recipe):
     stamp.update({"size": [out_px, out_px], "detail_size": list(detail.size),
                   "outputs": [os.path.basename(outputs[name]) for name in GROUND_MAPS], "measured": measured})
     _write_stamp(stamp_path, stamp)
+    shares = ("a cover: no bare patch, green strip or relief tone" if cover_only else
+              f"bare {100 * bare_share:.1f} % ({len(layout['patches'])} outlines from {g['layout_params']}; soil shown "
+              f"{100 * bare_soil_share:.1f} %, {100 * floor_soil_share:.1f} % of the floors with the straws strewn over "
+              f"them), green {100 * green_share:.1f} %")
     return (f"{fetch.relpath(root, outputs['albedo'])}: derived {out_px}x{out_px} ground from soil {sets['soil']} and "
             f"cover {sets['cover']}; mean luminance {measured['mean_luminance']:.4f} (target "
-            f"{measured['target_luminance']:.4f}, {measured['luminance_error_pct']:+.1f} %), bare {100 * bare_share:.1f} % "
-            f"({len(layout['patches'])} outlines from {g['layout_params']}; soil shown {100 * bare_soil_share:.1f} %, "
-            f"{100 * floor_soil_share:.1f} % of the floors with the straws strewn over them), "
-            f"green {100 * green_share:.1f} %, gaps {100 * gap_share:.1f} %, straw gain {measured['straw_gain']}; recipe recorded in "
+            f"{measured['target_luminance']:.4f}, {measured['luminance_error_pct']:+.1f} %), {shares}, "
+            f"gaps {100 * gap_share:.1f} %, straw gain {measured['straw_gain']}; recipe recorded in "
             f"{os.path.basename(stamp_path)}")
 
 

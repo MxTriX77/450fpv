@@ -190,6 +190,26 @@ def test_gaps_show_soil_between_the_straws_and_brighten_them(tmp_path):
     assert all(b > a for a, b in zip(with_gaps["straw_gain"], litter["straw_gain"])), "darker gaps, brighter straws"
 
 
+def test_a_cover_stamps_no_patch_strip_or_relief_tone(tmp_path, capsys):
+    """p1-e01-trench task 1.4: a ground recipe whose patches name only the lodging is a cover (a trench's grassed
+    spoil): from a flat cover set its albedo and occlusion are flat, so no bare patch, green strip or relief hollow is
+    stamped where the asset's mesh has no relief to make it; the mean is on the target and the stamp records the cover
+    formula with no layout."""
+    root = ground_root(tmp_path)
+    recipe = dict(RECIPE, patches={"lodging": RECIPE["patches"]["lodging"]})
+    write_recipe(root, recipe)
+    assert run(MATERIAL, "--root", root) == 0
+    assert "a cover: no bare patch, green strip or relief tone" in capsys.readouterr().out
+    maps = outputs(root)
+    albedo, mask = Image.open(maps["albedo"]), Image.open(maps["mask"])
+    assert all(hi - lo <= 1 for lo, hi in albedo.getextrema()), albedo.getextrema()
+    assert mask.getchannel("G").getextrema() == (240, 240), "the cover's AO, no hollow"
+    assert abs(mean_luminance(maps["albedo"]) / TARGET_LUMINANCE - 1) <= 0.05
+    stamp = json.loads((root / MATERIALS / f"{MATERIAL}.recipe.json").read_text(encoding="utf-8"))
+    assert stamp["formula"] == derive.COVER_FORMULA and stamp["layout"] is None and stamp["recipe"] == recipe
+    assert (stamp["measured"]["bare_share"], stamp["measured"]["bare_patches"], stamp["measured"]["green_share"]) == (0, 0, 0)
+
+
 def test_strewn_keeps_the_core_and_breaks_the_feather():
     cover = Image.new("RGB", (64, 64), (40, 40, 40))
     for x in range(0, 64, 4):  # bright straws every 4 px
