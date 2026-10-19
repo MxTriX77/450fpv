@@ -52,6 +52,7 @@ The pilot, 2026-10-17: "when i say realism i mean more than just abstract realis
 | M | the abandoned classic sedan on asphalt |
 | N | the blast-wrecked hatchback in its debris field |
 | O | the burnt-out bonneted truck (no snow: season isn't a setting) |
+| S | a damaged village street from about 13 m in damp autumn overcast: stripped hip roofs over standing walls, ragged verges and fences, whitewashed pole butts, an open green (S's look as a scene type, never its sequence) |
 
 *Accept:* every view exists. The review controls cycle through them (GAL-05, WLD-14).
 
@@ -353,7 +354,7 @@ The footage is PAL and too coarse for photogrammetry, so **assets are rebuilt to
 
 Every terrain patch is at least 60 m across. The relief patch rises at least 2 m from crest to dip at tens-of-metres scale and **carries a tree-belt run and an object station**, so assets are judged on ground that isn't level. The gallery is generated from one station list, so feedback is an edit and a re-run. Unbuilt items keep a reserved station labelled "not built yet". *Source:* B plan 2, old D-017; gap review G21 (D-037).
 
-**GAL-05 Reference views in the gallery.** The gallery holds a recreated reference view (REAL-02) for every letter its contents cover (B, C, D, E, F, G, H, I, J, K, M, N, O). **R** cycles through them, framed as in the reference. The same views produce the REAL-03 comparison sheets.
+**GAL-05 Reference views in the gallery.** The gallery holds a recreated reference view (REAL-02) for every letter its contents cover (B, C, D, E, F, G, H, I, J, K, M, N, O, S). **R** cycles through them, framed as in the reference. The same views produce the REAL-03 comparison sheets.
 
 **GAL-02 Review controls.**
 - PRD-07 movement
@@ -375,7 +376,7 @@ Every terrain patch is at least 60 m across. The relief patch rises at least 2 m
 ## 7. World (WLD): phase 3
 
 **WLD-01 Composition** (D-018 as refined by D-035), about 4 × 4 km:
-- **three settlements:** a typical village (linear, along its roads, about 0.6–1.2 km of street) that copies the village street of letter S, with cars on the street and in yards (D-038), a smaller village nearby of the same kind, and a somewhat larger town that holds the destroyed Stalin-era block, its rubble and garages, a farm complex and the larger public buildings; divided by **tree belts and fields** in the pattern the layout reference (letter Q) shows: a pattern to copy, never a place
+- **three settlements:** a typical village (linear, along its roads, about 0.6–1.2 km of street) that copies the look of letter S's street (its cross-section, house and yard classes, states and feel, never its sequence or layout: REAL-04), with cars on the street and in yards (D-038), a smaller village nearby of the same kind, and a somewhat larger town that holds the destroyed Stalin-era block, its rubble and garages, a farm complex and the larger public buildings; divided by **tree belts and fields** in the pattern the layout reference (letter Q) shows: a pattern to copy, never a place
 - fields: meadow, tilled, burnt, cratered; **trenches and firing positions in the fields** as well as along belts
 - **tree belts** crossing the fields, several with trenches along them
 - a **small river with tree-lined banks and a pond or two**, as the layout reference shows (the pilot, D-036): the water looks mildly realistic and wind raises waves on it; fiber lying on the water keeps the signal (D-039)
