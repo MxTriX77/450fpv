@@ -331,7 +331,7 @@ The pilot, 2026-10-18, restating the project's demanding work and adding scope. 
 
 ## D-036 Water in the world; four parallel subagents · Accepted
 The pilot, 2026-10-18: "water - i mean you can create a pound or a small river. the requirment here would obviously be - if you lay opto on water signal gets cut (also part of realism). graphics - mildly realistic. effect of win - yeah, there should be waves. parallel agents - raise to 4."
-- **Water stays in the world** (WLD-01, new WLD-15): a pond or a small river where the layout reference (letter Q) puts them. The fiber laid on water cuts the signal; the look is mildly realistic; wind raises waves. The physics treats the surface as its own row (`water`): a touch is a crash, nothing lands on it. Phase 3 builds it with the layout; the feed's cut and the wave look are phase 4 and the look setup; the physics-engineer sets the cut rule's details in phase 7 (which part of the line, how it is logged).
+- **Water stays in the world** (WLD-01, new WLD-15): a pond or a small river where the layout reference (letter Q) puts them. The fiber laid on water cuts the signal (superseded by D-039: it does not); the look is mildly realistic; wind raises waves. The physics treats the surface as its own row (`water`): a touch is a crash, nothing lands on it. Phase 3 builds it with the layout; the wave look is phase 4 and the look setup (the feed's cut and its phase-7 rule were dropped by D-039).
 - **PRC-09's cap is 4 parallel subagents** (was 2). CLAUDE.md and D-033 follow. The handoff discipline is unchanged: one fresh agent per unit, each in its own worktree, two writers never on the same files.
 
 ## D-037 The Godot OpenSpec gap review, folded in · Accepted
@@ -348,3 +348,9 @@ The pilot, 2026-10-19, adding a clip of a village street (letter S, local only):
 - **The Stalin-era block stays one** (U01 "exactly one", D-018, D-035): the pilot weighed more of them for training through holes and basements and kept the scope as it is.
 - **Every reference is read for its look and feel** (REAL-01–REAL-03), the pilot's words: not only which objects it shows but its composition, light, colour, wear and the density of its clutter and vegetation, so the recreated view feels like the reference, not only contains its parts. Letter S is read into the reference notes and the object sheets by `p1-letter-s-village-street` (Standard).
 - **Letter R is skipped:** the object sheets' "Seen in: **R**" means research only, so a letter R would read as that.
+
+## D-039 Fiber on water keeps the signal · Accepted
+The pilot, 2026-10-19: "that req about opto being cut if laid on water - disregard. it's simply false, water doesn't hinder opto from transferring signal."
+- **Supersedes D-036's signal rule.** Fiber lying on or in water carries the feed as anywhere else: water never cuts the signal and never ends a sortie. WLD-01 and WLD-15 drop the cut; the feed has no water event (phase 4); the physics has no cut rule to set (phase 7).
+- **What stays from D-036:** the river and the ponds, their mildly realistic look, the waves from the wind, and the `water` surface row (a touch is a crash, nothing lands on it).
+- **The line on the water stays a physical line:** where it lies on or in the water, and the drag a current puts on it, are the tether physics' to model with the rest of the line (phase 7d); none of it touches the feed.

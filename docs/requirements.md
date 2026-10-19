@@ -378,7 +378,7 @@ Every terrain patch is at least 60 m across. The relief patch rises at least 2 m
 - **three settlements:** a typical village (linear, along its roads, about 0.6–1.2 km of street) that copies the village street of letter S, with cars on the street and in yards (D-038), a smaller village nearby of the same kind, and a somewhat larger town that holds the destroyed Stalin-era block, its rubble and garages, a farm complex and the larger public buildings; divided by **tree belts and fields** in the pattern the layout reference (letter Q) shows: a pattern to copy, never a place
 - fields: meadow, tilled, burnt, cratered; **trenches and firing positions in the fields** as well as along belts
 - **tree belts** crossing the fields, several with trenches along them
-- a **small river with tree-lined banks and a pond or two**, as the layout reference shows (the pilot, D-036): the fiber laid on water cuts the signal, the water looks mildly realistic, and wind raises waves on it
+- a **small river with tree-lined banks and a pond or two**, as the layout reference shows (the pilot, D-036): the water looks mildly realistic and wind raises waves on it; fiber lying on the water keeps the signal (D-039)
 - **fortifications** at road approaches, field edges and between the settlements: concertina-wire runs (F01), dragon's-teeth rows (F02), a couple of anti-tank hedgehogs (F03), built and placed as the real thing is, never as game props
 - vehicles on roads, in yards and at field edges
 - **the settlements read as frontline today:** most houses damaged or destroyed (WLD-05), not a peaceful village with a few ruins
@@ -452,8 +452,8 @@ Along the street: wires and poles. The damage mix is a frontline village's today
 
 **WLD-14 Reference views in the world.** Every letter (A–H, L, P, S, I–K, M–O) has at least one place in the world that recreates its scene type (REAL-02, REAL-04), reachable from the review controls. The world is judged against the references through these views before G3.
 
-**WLD-15 Water** (D-036). The world holds a small river and a pond or two where the layout reference puts them.
-- **Signal:** fiber lying on or in water cuts the feed: the video drops to the no-signal state while any part of the line is in the water, and a line laid across water stays cut for the sortie (the physics logs where the line entered the water).
+**WLD-15 Water** (D-036, D-039). The world holds a small river and a pond or two where the layout reference puts them.
+- **Signal:** fiber lying on or in the water carries the feed as anywhere else; water never cuts the signal (the pilot, D-039). Where the line lies on the water and the drag a current puts on it belong to the tether physics (phase 7d).
 - **Look:** mildly realistic: a reflective surface with the sky and the banks in it, mud and reeds at the edge, no feature beyond what the feed resolves.
 - **Wind:** waves follow the wind level and direction (ripples in Calm, wavelets in Windy, short breaking crests in Severe), driven by the same wind field as the vegetation (VIS-05).
 - **Physics:** the water surface is a surface row of its own (`water`): a drone that touches it is down (the sortie ends as a crash into water); legs do not land on it.
