@@ -1,8 +1,8 @@
 """build.py end to end in headless Blender, when the pinned Blender is installed: K01 builds into a scratch root
 with its audit printed, the outputs agree with the spec scenarios, a second run writes byte-identical files, an
 out-of-range param and a mesh grown beyond its box are refused before anything is written, and an impostor asked for
-is rendered once as a 1k albedo and a 1k normal atlas, the occlusion per texel in its alpha. The version pin is
-checked without Blender."""
+is rendered once as a 1k albedo and a 1k normal atlas, the occlusion per texel in its alpha. The version pin and the
+staged file's retried replace are checked without Blender."""
 import hashlib
 import json
 import os
@@ -26,6 +26,32 @@ def test_version_pin():
         build.check_version((4, 2, 0))
     with pytest.raises(RuntimeError):
         build.check_version((5, 3, 0))
+
+
+def test_replace_tries_again_while_windows_denies_access(tmp_path, monkeypatch):
+    """p1-v01-locust task 1.2l: replacing a staged FBX failed with "Access is denied" while another process held the
+    target; the build tries again, and raises the denial once its tries are spent."""
+    staged, final = tmp_path / "V.staged.fbx", tmp_path / "V.fbx"
+    staged.write_bytes(b"new")
+    final.write_bytes(b"old")
+    real, denials, waits = os.replace, [2], []
+
+    def held(src, dst):
+        if denials[0] > 0:
+            denials[0] -= 1
+            raise PermissionError(13, "Access is denied")
+        real(src, dst)
+
+    monkeypatch.setattr(build.os, "replace", held)
+    monkeypatch.setattr(build.time, "sleep", waits.append)
+    build.replace(str(staged), str(final))
+    assert final.read_bytes() == b"new" and not staged.exists()
+    assert waits == [build.REPLACE_WAIT_S] * 2
+    staged.write_bytes(b"newer")
+    denials[0], waits[:] = 99, []
+    with pytest.raises(PermissionError):
+        build.replace(str(staged), str(final), tries=3, wait_s=0.25)
+    assert waits == [0.25, 0.25] and final.read_bytes() == b"new"
 
 
 def run_build(blender, root, python_expr=None):

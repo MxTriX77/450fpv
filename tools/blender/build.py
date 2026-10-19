@@ -15,8 +15,9 @@ variant whose params set `impostor: true` (p1-v01-locust design decision 3) also
 <variant>_impostor_normal.png, the albedo atlas and the normal atlas with the occlusion in its alpha that
 lib/impostor.py renders from LOD0 after the FBX, staged the same way, and its metadata lists the impostor as the last
 LOD; atlases the metadata records as up to date are not rendered again, and those the params no longer ask for are
-removed. A rejected build changes no file. It refuses any Blender other than the pinned major.minor. Exit code 1 on
-any problem; nothing is hand-edited.
+removed. A staged file replaces its final name, tried again for a few seconds while Windows denies access to it. A
+rejected build changes no file. It refuses any Blender other than the pinned major.minor. Exit code 1 on any problem;
+nothing is hand-edited.
 """
 import argparse
 import importlib
@@ -27,6 +28,9 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(os.path.dirname(HERE))
 BLENDER_PIN = (5, 2)  # the major.minor of docs/environment.md's pinned Blender; change both together
+REPLACE_TRIES, REPLACE_WAIT_S = 20, 0.5  # Windows denies replacing a file another process holds open (task 1.2l: the
+                                        # second build of V13 hit "Access is denied" on V13_low.fbx); assumed: an
+                                        # indexer's or a scanner's hold on a fresh file ends within 10 s
 sys.path.insert(0, HERE)  # lib/ and generators/ import from here inside Blender
 
 
@@ -102,12 +106,12 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
                   f"{card['width_m']:.3f} x {card['height_m']:.3f} m from {card['bottom_m']:.3f} m, switch "
                   f"{data['lods'][-1]['switch_distance_m']:g} m, cull "
                   f"{data['cull_distance_m']:g} m")
-        os.replace(staged, fbx_path)
+        replace(staged, fbx_path)
         for staged_path, path in ((staged_atlas, atlas_path), (staged_normals, normals_path)):
             if impostor_lod is None and os.path.exists(path):
                 os.remove(path)  # the params no longer ask for one
             elif os.path.exists(staged_path):
-                os.replace(staged_path, path)
+                replace(staged_path, path)
     finally:
         for path in (staged, staged_atlas, staged_normals):
             if os.path.exists(path):
@@ -121,6 +125,19 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
     return (f"{variant}: {os.path.relpath(fbx_path, root)}  size {size} m  tris {tris}{micro}  "
             f"{len(data['collision'])} collision shapes  fbx {os.path.getsize(fbx_path) / 1048576:.1f} MB  "
             "metadata written")
+
+
+def replace(staged, path, tries=REPLACE_TRIES, wait_s=REPLACE_WAIT_S):
+    """os.replace(staged, path), tried again every `wait_s` seconds while Windows denies access (PermissionError), up
+    to `tries` times; the last denial is raised."""
+    for attempt in range(1, tries + 1):
+        try:
+            os.replace(staged, path)
+            return
+        except PermissionError:
+            if attempt == tries:
+                raise
+            time.sleep(wait_s)
 
 
 def _refuse(variant, problems, source=""):
