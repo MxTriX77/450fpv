@@ -578,7 +578,7 @@ Missing and still needed: **asphalt** (rigid, slides on glass crumbs), **concret
 | cable | 0.30/0.25 | rigid locally | — | own radius | wires |
 
 - There is **no restitution field**. On rigid materials the drone's own compliance sets the bounce.
-- **Wire compliance** comes from span tension, T = w·L²/(8·sag). For example, a 12 mm wire on a 30 m span with 0.6 m sag gives T ≈ 416 N, about 55 N/m at mid-span.
+- **Wire compliance** comes from span tension, T = w·L²/(8·sag). For example, a 12 mm wire on a 30 m span with 0.6 m sag gives T ≈ 416 N, about 55 N/m at mid-span to a sideways push; pressed down, the sagged span barely stretches and its tension rises, so it answers about 200 N/m and stiffens with load (Irvine; `p1-materials-per-part`, the `cable` row).
 - **Torn metal is sharp,** so a fiber dragged across it is more likely to cut than on branches.
 
 ### 7.5 Swept contacts: the Time < 1 rule
