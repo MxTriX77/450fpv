@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Ports and wires in the metadata
-The metadata schema MAY carry `ports` (named attachment points: id, position, direction) that a generator writes for other generators and the map to use, and `wires` (per conductor: an ordered point list, `diameter_m`, `mass_kg_per_m`, `sag_m`, `material`, `damage`) for conductors that are map objects rather than collision shapes. Both SHALL be written as empty arrays when absent, the validator SHALL check their fields, and the physics-metadata component SHALL expose them.
+The metadata schema MAY carry `ports` (named attachment points: id, position, direction, and `max_diameter_m`, the largest conductor the fitting holds) that a generator writes for other generators and the map to use, and `wires` (per conductor or bundle: `slot`, an ordered point list, `diameter_m`, `mass_kg_per_m`, `sag_m`, `axial_stiffness_n` (EA) and `breaking_force_n`, both positive, `material`, `damage`) for conductors that are map objects rather than collision shapes. Both SHALL be written as empty arrays when absent, the validator SHALL check their fields, and the physics-metadata component SHALL expose them. A snag record MAY carry `edge_radius_m`, the arris the fiber bends over where it is smaller than the record's reach (`radius_m`): positive and at most `radius_m` (the strand of a stranded conductor, a barb's blade; task 1.5's reading).
 
 #### Scenario: Ports written and read
 - **WHEN** a pole variant with four hooks is built
@@ -21,7 +21,7 @@ A generator MAY declare its asset planted (`PLANTED`): its members stand in the 
 - **THEN** the audit passes it (the buried end is not measured), and the same capsule on an asset not declared planted fails, naming the end and its distance
 
 ### Requirement: Wires are audited against their polyline
-For an asset with `wires`, the collision audit SHALL check that every LOD0 vertex of a wire's tube lies within 5 mm plus the wire's radius of its point list, SHALL exclude those vertices from the primitive audit, and SHALL print each wire with the largest deviation it found; the importer SHALL render the tube with the thin-wire material and SHALL create no collider for a wire.
+For an asset with `wires`, the collision audit SHALL check that every LOD0 vertex of a wire's tube lies within min(5 mm, half the diameter) plus the wire's radius of its point list (so a drawn thin wire always overlaps its physical one), SHALL exclude those vertices from the primitive audit, and SHALL print each wire with the largest deviation it found; the importer SHALL render the tube with the thin-wire material and SHALL create no collider for a wire.
 
 #### Scenario: Tube follows the polyline
 - **WHEN** a 40 m conductor of 9 mm is audited
