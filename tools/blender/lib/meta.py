@@ -22,18 +22,25 @@ NORMAL_TOLERANCE = 1e-6
 PERPENDICULAR_TOLERANCE = 1e-3  # |edge . normal| / |edge|, per polygon edge
 PLANAR_TOLERANCE_M = 0.010  # AST-05 gives +-2 cm around openings
 SNAG_KINDS = ("edge", "hook")  # a polyline the fiber bends over; a free-ended member from base to tip
+# A snag record may carry edge_radius_m, the arris the fiber bends over where it is sharper than the record's reach
+# radius_m (a stranded conductor's outer strand, a SIP bundle's core): optional, positive, at most radius_m (the
+# fortifications reading §1, first used by p1-l01-l03-pole-wires' wires).
 KEY_ORDER = ("schema", "id", "variant", "generator", "params_sha256", "units", "frame", "bounds", "lods", "micro",
              "cull_distance_m", "materials", "collision", "gaps", "wind_volumes", "ports", "wires", "snag")
 # Named attachment points (p1-l01-l03-pole-wires, "Ports and wires in the metadata"): where a generator lets other
-# generators and the map attach, a pole's insulators for the wires. Each: a unique id, a position and a unit
-# direction. Schema 1 stays: the key is additive and always present, [] when none.
-PORT_KEYS = ("id", "position", "direction")
+# generators and the map attach, a pole's insulators for the wires. Each: a unique id, a position, a unit direction
+# and the largest conductor diameter its seat holds (task 1.5's reading §1: the compiler refuses a thicker one).
+# Schema 1 stays: the key is additive and always present, [] when none.
+PORT_KEYS = ("id", "position", "direction", "max_diameter_m")
 # Conductors that are map objects rather than collision shapes (same requirement; D-007): per conductor the material
 # slot its tube is drawn in (a slot of physics `cable`), its diameter, mass per metre and sag below the chord at
-# mid-span (PHY-22 derives T = w L^2 / 8 f and k = 4 T / L from them), material `cable`, its damage state and the
-# sampled centre line, two points at least. The map compiler copies them into objects.json; the audit holds the tube
-# to the points. Schema 1 stays: the key is additive and always present, [] when none.
-WIRE_KEYS = ("slot", "diameter_m", "mass_kg_per_m", "sag_m", "material", "damage", "points")
+# mid-span (PHY-22 derives T = w L^2 / 8 f and k = 4 T / L from them), its axial stiffness EA and rated breaking
+# force (past the slack the span stretches, then breaks: task 1.5's reading §2.2), material `cable`, its damage state
+# and the sampled centre line, two points at least. The map compiler copies them into objects.json; the audit holds
+# the tube to the points. Schema 1 stays: the key is additive and always present, [] when none.
+WIRE_KEYS = ("slot", "diameter_m", "mass_kg_per_m", "sag_m", "axial_stiffness_n", "breaking_force_n", "material",
+             "damage", "points")
+WIRE_NUMBERS = ("diameter_m", "mass_kg_per_m", "sag_m", "axial_stiffness_n", "breaking_force_n")
 WIRE_MATERIAL = "cable"
 WIRE_DAMAGE = ("intact", "cut", "down")  # the lines sheet's states per conductor (§L03)
 # Visual-only micro-detail meshes (p1-s04-belt-straw, "Visual-only micro-detail meshes"): a generator may return,
@@ -82,8 +89,8 @@ def load_physics_materials(root):
 def assemble(asset_id, variant, generator, params, built, visual_by_slot):
     """The metadata of one variant from the generator's result `built` ({"lods": [Mesh...], "switch_distances_m",
     "cull_distance_m", "materials": [{"slot", "physics"}], "collision", "gaps", "wind_volumes", "snag"}, and
-    optionally "micro": [{"lod", "kind", "count", "mesh": Mesh}], "ports": [{"id", "position", "direction"}] and
-    "wires": [{WIRE_KEYS}]) and the catalog's visual material per slot. A micro mesh is named <variant>_LOD<n>_<kind>
+    optionally "micro": [{"lod", "kind", "count", "mesh": Mesh}], "ports": [{PORT_KEYS}] and "wires":
+    [{WIRE_KEYS}]) and the catalog's visual material per slot. A micro mesh is named <variant>_LOD<n>_<kind>
     and counts towards the bounds, since it is rendered."""
     lods = built["lods"]
     switches = built["switch_distances_m"]
@@ -202,8 +209,10 @@ def validate(meta, material_ids):
     ids = set()
     for i, port in enumerate(meta["ports"]):
         if not (isinstance(port, dict) and isinstance(port.get("id"), str) and port["id"]
-                and _is_vec(port.get("position")) and _is_vec(port.get("direction"))):
-            problems.append(f"ports[{i}]: needs {', '.join(PORT_KEYS)}: a non-empty id and two 3-vectors: {port}")
+                and _is_vec(port.get("position")) and _is_vec(port.get("direction"))
+                and _is_num(port.get("max_diameter_m"))):
+            problems.append(f"ports[{i}]: needs {', '.join(PORT_KEYS)}: a non-empty id, two 3-vectors and a number: "
+                            f"{port}")
             continue
         if port["id"] in ids:
             problems.append(f"ports[{i}]: id {port['id']!r} is not unique")
@@ -212,20 +221,23 @@ def validate(meta, material_ids):
         if abs(length - 1) > NORMAL_TOLERANCE:
             problems.append(f"ports[{i}] {port['id']!r}: direction must be a unit vector within {NORMAL_TOLERANCE:g}, "
                             f"|d| = {length:.6f}")
+        if not port["max_diameter_m"] > 0:
+            problems.append(f"ports[{i}] {port['id']!r}: max_diameter_m must be positive, got {port['max_diameter_m']}")
     slots = {m.get("slot"): m.get("physics") for m in meta["materials"] if isinstance(m, dict)}
     for i, w in enumerate(meta["wires"]):
         if not (isinstance(w, dict) and all(k in w for k in WIRE_KEYS) and isinstance(w["points"], list)
                 and all(_is_vec(p) for p in w["points"]) and all(isinstance(w[k], str) for k in ("slot", "material", "damage"))
-                and all(_is_num(w[k]) for k in ("diameter_m", "mass_kg_per_m", "sag_m"))):
-            problems.append(f"wires[{i}]: needs {', '.join(WIRE_KEYS)}: a slot, three numbers, a material, a damage "
-                            "state and a list of 3-vectors")
+                and all(_is_num(w[k]) for k in WIRE_NUMBERS)):
+            problems.append(f"wires[{i}]: needs {', '.join(WIRE_KEYS)}: a slot, {len(WIRE_NUMBERS)} numbers, a "
+                            "material, a damage state and a list of 3-vectors")
             continue
         if len(w["points"]) < 2:
             problems.append(f"wires[{i}]: needs a point list of at least 2 points, got {len(w['points'])}")
         if w["material"] != WIRE_MATERIAL:
             problems.append(f"wires[{i}]: material must be {WIRE_MATERIAL!r}, got {w['material']!r}")
-        if not (w["diameter_m"] > 0 and w["mass_kg_per_m"] > 0 and w["sag_m"] >= 0):
-            problems.append(f"wires[{i}]: diameter_m and mass_kg_per_m must be positive and sag_m at least 0")
+        if not (all(w[k] > 0 for k in WIRE_NUMBERS if k != "sag_m") and w["sag_m"] >= 0):
+            problems.append(f"wires[{i}]: diameter_m, mass_kg_per_m, axial_stiffness_n and breaking_force_n must be "
+                            "positive and sag_m at least 0")
         if w["damage"] not in WIRE_DAMAGE:
             problems.append(f"wires[{i}]: damage must be one of {', '.join(WIRE_DAMAGE)}, got {w['damage']!r}")
         if slots.get(w["slot"]) != WIRE_MATERIAL:
@@ -239,6 +251,10 @@ def validate(meta, material_ids):
                 problems.append(f"snag[{i}]: kind must be one of {', '.join(SNAG_KINDS)}, got {s['kind']!r}")
             if len(s["points"]) < 2:
                 problems.append(f"snag[{i}]: needs at least 2 points, got {len(s['points'])}")
+            edge = s.get("edge_radius_m")
+            if "edge_radius_m" in s and not (_is_num(edge) and 0 < edge <= s["radius_m"]):
+                problems.append(f"snag[{i}]: edge_radius_m must be positive and at most radius_m {s['radius_m']}, "
+                                f"got {edge!r}")
     return problems
 
 

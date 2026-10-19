@@ -867,6 +867,7 @@ namespace Fpv450.Assets
                 id = Json.Str(port, "id", at),
                 position = Json.Vec3(port, "position", at),
                 direction = Json.Vec3(port, "direction", at),
+                maxDiameterM = Json.Num(port, "max_diameter_m", at),
             });
             meta.wires = Items(json, "wires", what, (wire, at) => new AssetPhysicsMeta.Wire
             {
@@ -874,6 +875,8 @@ namespace Fpv450.Assets
                 diameterM = Json.Num(wire, "diameter_m", at),
                 massKgPerM = Json.Num(wire, "mass_kg_per_m", at),
                 sagM = Json.Num(wire, "sag_m", at),
+                axialStiffnessN = Json.Num(wire, "axial_stiffness_n", at),
+                breakingForceN = Json.Num(wire, "breaking_force_n", at),
                 material = Json.Str(wire, "material", at),
                 damage = Json.Str(wire, "damage", at),
                 points = Json.Arr(wire, "points", at).Select(p => Json.Vec3(p, $"{at} points")).ToArray(),

@@ -29,8 +29,10 @@ axis at LOD0 (their centre lines sampled TWIST_RINGS times a turn, each core its
 the bundle's diameter at LOD1. UVs are metres: U along the conductor from a `seed` offset, V around.
 
 Metadata (the sheet's physics role): no collision primitive (conductors are map objects, D-007), no gap, no wind
-volume, nothing landable; per conductor a `wires` record (its slot, diameter, mass per metre, sag, material cable,
-damage, the points) and an `edge` snag along the same points with the wire's radius (the whole wire, cable).
+volume, nothing landable; per conductor a `wires` record (its slot, diameter, mass per metre, sag, axial stiffness
+and rated breaking force from MECHANICS, material cable, damage, the points) and an `edge` snag along the same points
+with the wire's radius (the whole wire, cable) and, on a stranded or bundled conductor, the outer strand's or the
+core's radius as its `edge_radius_m`.
 
 Slots, each physics cable: steel (wire_steel: steel_wire), aluminium (wire_aluminium: bare_al, acsr), insulated
 (wire_sip: sip_drop, sip_main, insulated). Only intact spans on vertical_zigzag and bundle heads are built (G1):
@@ -63,6 +65,18 @@ SIDES = (6, 4)          # per LOD (design decision 5: a 9 mm wire at 6 sides sta
 TWIST_RINGS = 8         # rings per turn of a bundle's cores (assumed: a core's centre within 0.4 mm of its helix)
 PX_PER_RAD = 935.0      # derived (pipeline design decision 7): the 60 degree vertical view on 1 080 px
 CULL_COVERAGE = 0.01    # assumed (task 1.4): culled once the line's column sum falls under 1 % of a pixel
+# The record's axial stiffness EA and rated breaking force (task 1.5's reading §2.2 and §8 item 1): per type, Young's
+# modulus, the metallic section (from the diameter D, or the type's own) and the rated strength over that section.
+# A type without a row is refused by check until its data is read.
+E_STEEL_PA, E_ALUMINIUM_PA = 200e9, 63e9               # assumed (textbook 200-210 and 60-70 GPa, stranding lowers Al)
+A50_M2, A50_D_M, A50_BREAK_N = 49.5e-6, 0.009, 8198.0  # published, ГОСТ 839-80 Table 2, mark A-50: 49.5 mm² in 9.0 mm
+STEEL_STRENGTH_PA = 390e6                             # published, ГОСТ 3282-74 Table 2: 4.5-6.0 mm unannealed 390-830
+SIP_DROP_M2 = 2 * 16e-6                               # the sheet's drop: two 16 mm² aluminium cores (published nominal)
+MECHANICS = {  # type: (E, the metallic section of a conductor of diameter D m, the rated strength over it)
+    "steel_wire": (E_STEEL_PA, lambda d: math.pi * d * d / 4, STEEL_STRENGTH_PA),  # solid: the whole section
+    "bare_al": (E_ALUMINIUM_PA, lambda d: A50_M2 * (d / A50_D_M) ** 2, A50_BREAK_N / A50_M2),  # A-50's 0.778 fill
+    "sip_drop": (E_ALUMINIUM_PA, lambda d: SIP_DROP_M2, A50_BREAK_N / A50_M2),  # the cores; A-50's strength assumed
+}
 IDLE = {"single": ("spacing_m", "offset_step_m"), "not sip": ("twist_pitch_m",)}
 PARAMS = {
     "seed": {"type": "int", "range": (0, 2**31 - 1), "default": 1,
@@ -104,8 +118,9 @@ PARAMS = {
 
 def check(params):
     """Cross-parameter rules once every key is in range: the built types, arrangements and damage; the class holding
-    the diameter; a SIP as one bundle and nothing else bundled; idle keys at their defaults; a service drop within
-    its 25 m; an intact sag ratio; every conductor's lowest point above its type's clearance."""
+    the diameter; a type with its stiffness and strength in MECHANICS; a SIP as one bundle and nothing else bundled;
+    idle keys at their defaults; a service drop within its 25 m; an intact sag ratio; every conductor's lowest point
+    above its type's clearance."""
     p = params
     problems = []
     for key, allowed, why in (("conductor_type", TYPES, "the sheet's conductor types"),
@@ -119,6 +134,9 @@ def check(params):
     lo, hi = CLASSES[p["class"]]
     if not lo <= p["diameter_mm"] <= hi:
         problems.append(f"'diameter_mm' = {p['diameter_mm']} is outside [{lo}, {hi}] for class {p['class']}")
+    if p["conductor_type"] not in MECHANICS:
+        problems.append(f"'conductor_type' = {p['conductor_type']!r} has no axial stiffness or breaking force read "
+                        f"yet; use one of {', '.join(MECHANICS)}")
     sip = p["conductor_type"] in CORES
     if sip != (p["arrangement"] == "bundle"):
         problems.append(f"'arrangement' = {p['arrangement']!r} with {p['conductor_type']}: a SIP hangs as a bundle, "
@@ -150,6 +168,32 @@ def check(params):
 
 def sag(p):
     return p["sag_ratio"] * p["span_m"]
+
+
+def mechanics(p):
+    """(axial stiffness EA, rated breaking force), both in N, of one conductor or bundle of the span (MECHANICS):
+    5 mm steel 3.93 MN and 7 658 N, 9 mm A-50 3.12 MN and 8 198 N, the 2 x 16 mm² drop 2.02 MN and 5 300 N."""
+    modulus, section, strength = MECHANICS[p["conductor_type"]]
+    area = section(p["diameter_mm"] / 1000)
+    return modulus * area, strength * area
+
+
+def edge_radius(p):
+    """The arris the fiber bends over on this conductor where it is sharper than the conductor (task 1.5's reading
+    §6), or None: a 7-strand bare conductor's outer strand, D / 6 (A-50: 1.5 mm); a SIP bundle's core; solid steel
+    none (its own radius)."""
+    d = p["diameter_mm"] / 1000
+    if p["conductor_type"] == "bare_al":
+        return d / 6
+    if p["conductor_type"] in CORES:
+        return core_diameter(d, CORES[p["conductor_type"]]) / 2
+    return None
+
+
+def core_diameter(diameter, cores):
+    """Each of `cores` equal cores packed in a bundle of `diameter`: D sin(pi / k) / (1 + sin(pi / k))."""
+    s = math.sin(math.pi / cores)
+    return diameter * s / (1 + s)
 
 
 def cull_distance(p):
@@ -219,6 +263,8 @@ def build(params):
     cores = CORES.get(p["conductor_type"], 1)
     lods = [Mesh(), Mesh()]
     wires, snag = [], []
+    stiffness, strength = mechanics(p)
+    edge = edge_radius(p)
     for a, b in attachments(p):
         u0, phase = rng.uniform(0.0, 1.0), rng.uniform(0.0, 2 * math.pi)
         curve = Catenary(a, b, sag(p))
@@ -234,8 +280,13 @@ def build(params):
         _tube(lods[1], points, radius, SIDES[1], slot, u0)
         record = [list(q) for q in points]
         wires.append({"slot": slot, "diameter_m": 2 * radius, "mass_kg_per_m": p["mass_kg_per_m"], "sag_m": sag(p),
-                      "material": PHYSICS, "damage": p["damage"], "points": record})
-        snag.append({"kind": "edge", "points": [list(q) for q in record], "radius_m": radius, "material": PHYSICS})
+                      "axial_stiffness_n": stiffness, "breaking_force_n": strength, "material": PHYSICS,
+                      "damage": p["damage"], "points": record})
+        feature = {"kind": "edge", "points": [list(q) for q in record], "radius_m": radius}
+        if edge is not None:
+            feature["edge_radius_m"] = edge
+        feature["material"] = PHYSICS
+        snag.append(feature)
     return {
         "lods": lods,
         "switch_distances_m": [0.0, p["lod"]["lod1_switch_m"]],
@@ -251,8 +302,7 @@ def twisted_cores(axis, diameter, cores, pitch, phase):
     """The centre lines of `cores` equal cores packed in a bundle of `diameter` and twisted about the `axis`
     polyline at `pitch` (each core D sin(pi / k) / (1 + sin(pi / k)) across, its centre (D - d) / 2 off the axis,
     turning by arc length from `phase`), and the cores' radius."""
-    s = math.sin(math.pi / cores)
-    core_d = diameter * s / (1 + s)
+    core_d = core_diameter(diameter, cores)
     rho = (diameter - core_d) / 2
     along = normalize((axis[-1][0] - axis[0][0], 0.0, axis[-1][2] - axis[0][2]))
     side = (-along[2], 0.0, along[0])  # horizontal, square to the span

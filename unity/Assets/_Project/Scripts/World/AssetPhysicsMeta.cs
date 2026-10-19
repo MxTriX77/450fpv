@@ -81,7 +81,8 @@ namespace Fpv450.World
 
         /// <summary>
         /// A named attachment point another generator or the map attaches to (p1-l01-l03-pole-wires): a pole's
-        /// insulator for its wire, at the neck groove on the outward side, with the outward unit direction.
+        /// insulator for its wire, at the neck groove on the outward side, with the outward unit direction and the
+        /// largest conductor diameter its seat holds.
         /// </summary>
         [Serializable]
         public sealed class Port
@@ -89,12 +90,14 @@ namespace Fpv450.World
             public string id;
             public Vector3 position;
             public Vector3 direction;
+            public float maxDiameterM;
         }
 
         /// <summary>
         /// A conductor that is a map object, not a collision shape (p1-l01-l03-pole-wires, D-007): the material slot
-        /// its tube is drawn in, its diameter, mass per metre and sag below the chord at mid-span (PHY-22's inputs),
-        /// material <c>cable</c>, its damage state and its sampled centre line. No collider stands for it.
+        /// its tube is drawn in, its diameter, mass per metre and sag below the chord at mid-span, its axial stiffness
+        /// EA and rated breaking force (PHY-22's inputs), material <c>cable</c>, its damage state and its sampled centre
+        /// line. No collider stands for it.
         /// </summary>
         [Serializable]
         public sealed class Wire
@@ -103,6 +106,8 @@ namespace Fpv450.World
             public float diameterM;
             public float massKgPerM;
             public float sagM;
+            public float axialStiffnessN;
+            public float breakingForceN;
             public string material;
             public string damage;
             public Vector3[] points;

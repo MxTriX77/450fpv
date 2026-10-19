@@ -43,7 +43,8 @@ Metadata (design decision 3, the sheet's physics role):
   round each insulator neck (5 mm, glass), the crossarm's end faces (2 mm, timber), each band (2 mm, steel) and the
   grounding wire (3 mm, cable);
 - ports: one per insulator, `hook_<n>` from the top, at the bottom of the neck groove on the side away from the pole
-  (where a conductor rests), with the outward unit direction; a conductor's centre lies one radius further out.
+  (where a conductor rests), with the outward unit direction and the groove's width, 0.014 m, as the largest
+  conductor it seats; a conductor's centre lies one radius further out. A bare pin seats none and has no port.
 
 Slots: wood (pole_wood, timber: log, brace, crossarm), concrete (pole_concrete), steel (pole_steel: hooks, pins,
 bands), insulator (insulator_porcelain, glass), ground_wire (wire_steel, cable), each listed only when LOD0 has
@@ -88,11 +89,13 @@ PIN_INSET_M = 0.06                            # a pin from the crossarm's end (a
 PIN_RISE_M = 0.05                             # crossarm top to the insulator's base (assumed)
 INSULATOR_H_M, INSULATOR_R_M = 0.108, 0.0375  # TF-20 (published)
 INSULATOR_SIDES = 8
-NECK_R_M, NECK_H_M = 0.019, 0.075             # the side groove (assumed from the TF form)
+NECK_R_M, GROOVE_M = 0.019, (0.068, 0.082)    # the side groove's radius and its heights (assumed from the TF form)
+NECK_H_M = 0.075                              # the groove's middle, where a conductor rests
+GROOVE_W_M = GROOVE_M[1] - GROOVE_M[0]        # 0.014 m: the largest conductor the groove seats (task 1.5's reading §1)
 # The TF-20 profile (radius, height) from the bore's edge out along the bottom, up the skirt, through the neck groove
 # and over the head to the apex (assumed from the published form: a skirt, a waist, the groove, a domed head).
 INSULATOR_PROFILE = ((0.010, 0.0), (INSULATOR_R_M, 0.0), (INSULATOR_R_M, 0.010), (0.030, 0.040), (0.024, 0.060),
-                     (NECK_R_M, 0.068), (NECK_R_M, 0.082), (0.026, 0.090), (0.026, 0.098), (0.015, 0.106),
+                     (NECK_R_M, GROOVE_M[0]), (NECK_R_M, GROOVE_M[1]), (0.026, 0.090), (0.026, 0.098), (0.015, 0.106),
                      (0.0, INSULATOR_H_M))
 STUB_M = (0.17, 0.20)                         # the stub's section, across X and Z (the sheet: 0.16-0.18 x 0.18-0.22)
 STUB_BURIED_M = 0.3                           # its collision box below the ground, covered by the terrain
@@ -150,7 +153,7 @@ PARAMS = {
     "crossarm_len_m": {"type": "float", "range": (0.6, 2.2), "default": 0.7,
                        "effect": "crossarm_0p4: its length, 0.6-1.2 m (L 1: 0.6-0.8)"},
     "insulator": {"type": "str", "range": "porcelain, none (glass: no recipe yet)", "default": "porcelain",
-                  "effect": "the pin insulators' material, or bare pins"},
+                  "effect": "the pin insulators' material, or bare pins (which seat no conductor: no ports)"},
     "lamp": {"type": "bool", "range": "true or false", "default": False, "effect": "a street-lamp bracket (not built)"},
     "damage": {"type": "float", "range": (0.0, 1.0), "default": 0.0,
                "effect": "I below 0.25 (built), D 0.25-0.8 and X above 0.8 (not built)"},
@@ -313,7 +316,9 @@ def build(params):
         head_low = min(head_low, s)
         bases.append(_hook(lods[0], pole, s, side, collision, snag))
     for i, (base, side) in enumerate(bases):
-        ports.append(_insulator(lods[0], pole, base, side, i, collision, snag))
+        port = _insulator(lods[0], pole, base, side, i, collision, snag)
+        if port:
+            ports.append(port)
     _ground_wire(lods[0], pole, head_low - GROUND_WIRE_GAP_M, snag)
     lod = p["lod"]
     centre = pole.place((0.0, pole.height / 2, 0.0))
@@ -456,10 +461,10 @@ def _hook(mesh, pole, s, side, collision, snag):
 
 def _insulator(mesh, pole, base, side, n, collision, snag):
     """The pin insulator standing on `base` (upright frame, axis +Y before the lean): its lathe, cylinder, neck
-    record and port, or with insulator none the bare pin's top as the port."""
+    record and port, which seats a conductor up to the groove's width; with insulator none a bare pin, which seats
+    no conductor and has no port (None)."""
     if pole.p["insulator"] == "none":
-        top = (base[0], base[1] + PIN_IN_M, base[2])
-        return {"id": f"hook_{n}", "position": list(pole.place(top)), "direction": list(pole.place((0.0, 0.0, side)))}
+        return None
     rings = []
     for radius, h in INSULATOR_PROFILE:
         if radius == 0.0:
@@ -483,7 +488,8 @@ def _insulator(mesh, pole, base, side, n, collision, snag):
             for a in (2 * math.pi * j / INSULATOR_SIDES for j in range(INSULATOR_SIDES + 1))]
     snag.append(_record("edge", ring, SNAG_R["neck"], INSULATOR, pole))
     port = (base[0], base[1] + NECK_H_M, base[2] + side * NECK_R_M)
-    return {"id": f"hook_{n}", "position": list(pole.place(port)), "direction": list(pole.place((0.0, 0.0, side)))}
+    return {"id": f"hook_{n}", "position": list(pole.place(port)), "direction": list(pole.place((0.0, 0.0, side))),
+            "max_diameter_m": GROOVE_W_M}
 
 
 def _crossarm(lods, pole, offset, collision, snag):

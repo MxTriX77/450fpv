@@ -143,12 +143,14 @@ def test_the_sheets_178_is_the_axes_triangle_at_49_m():
 def test_four_ports_sit_on_the_insulator_necks_outward(repo_root, material_ids):
     """The scenario "Ports written and read": a pole with four hooks lists four ports at the insulators, outward:
     hook_0 the top one on +Z, each next 0.5 m lower on the other side, at the neck groove 0.019 m off the insulator's
-    axis (the top hook 0.3 m under the 7.5 m top, the insulator 0.08 m up the hook, its neck 0.075 m up it)."""
+    axis (the top hook 0.3 m under the 7.5 m top, the insulator 0.08 m up the hook, its neck 0.075 m up it), each
+    seating a conductor up to the groove's 14 mm (task 1.5's reading §1); bare pins seat none and have no port."""
     _, built, data = build(repo_root, "L01_straight")
     ports = data["ports"]
     assert [q["id"] for q in ports] == ["hook_0", "hook_1", "hook_2", "hook_3"]
     assert [q["position"][1] for q in ports] == pytest.approx([7.355, 6.855, 6.355, 5.855], abs=1e-6)
     assert [q["direction"] for q in ports] == [[0.0, 0.0, 1.0], [0.0, 0.0, -1.0], [0.0, 0.0, 1.0], [0.0, 0.0, -1.0]]
+    assert [q["max_diameter_m"] for q in ports] == [0.014] * 4  # the TF-20 groove, 0.068-0.082 m up the insulator
     cylinders = [c for c in data["collision"] if c["shape"] == "cylinder" and c["material"] == "glass"]
     assert len(cylinders) == 4
     for port, cyl in zip(ports, cylinders):
@@ -156,6 +158,7 @@ def test_four_ports_sit_on_the_insulator_necks_outward(repo_root, material_ids):
         assert axis_off == pytest.approx(pole.NECK_R_M, abs=1e-6)
         assert port["position"][2] * port["direction"][2] > abs(cyl["center"][2]) * 0.99  # outward of its insulator
         assert cyl["radius"] == pytest.approx(0.0375) and cyl["height"] == pytest.approx(0.108)
+    assert pole.build(dict(load(repo_root, "L01_straight"), insulator="none"))["ports"] == []
     _, _, leaning = build(repo_root, "L01_leaning")
     assert len(leaning["ports"]) == 4 and meta.validate(leaning, material_ids) == []
     for q in leaning["ports"]:  # leaned with the pole: still unit, tipped 9 degrees

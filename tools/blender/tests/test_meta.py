@@ -13,6 +13,8 @@ VISUALS = {"brick": "brick_red"}
 # Review R3's eight rows plus the nine signed off in p1-pipeline-hardening/review-materials.md.
 REVIEW_MATERIALS = {"steel", "sheet_metal", "timber", "masonry", "concrete", "glass", "cable", "foliage",
                     "bark", "twig", "deadwood", "asbestos_cement", "straw", "fabric", "rubber", "plastic", "mesh"}
+WIRE_FIELDS = "slot, diameter_m, mass_kg_per_m, sag_m, axial_stiffness_n, breaking_force_n, material, damage, points"
+WIRE_POSITIVE = "diameter_m, mass_kg_per_m, axial_stiffness_n and breaking_force_n must be positive and sag_m at least 0"
 SURFACE_RULE = "is not one of the thirteen surface ids surface:{meadow_sod, dry_crust, crater_spoil, belt_straw, " \
                "belt_bare, tilled, burnt_field, weeds, yard_litter, rubble, asphalt, concrete_slab, dirt_track}"
 
@@ -22,15 +24,20 @@ def k01_meta(params):
 
 
 def with_physics_features(data):
-    """K01's metadata plus one valid capsule, gap and snag, so every convention rule has something to check."""
+    """K01's metadata plus one valid capsule, gap, port and wire and two snags (the second a wire's, with its edge
+    radius), so every convention rule has something to check."""
     data["collision"].append({"shape": "capsule", "center": [0.0, 0.5, 0.0], "radius": 0.05, "height": 1.0,
                               "rotation": [0.0, 0.0, 0.0, 1.0], "material": "steel", "landable": False})
     data["gaps"].append({"id": "door", "polygon": [[0.0, 0.0, 0.0], [0.9, 0.0, 0.0], [0.9, 2.0, 0.0], [0.0, 2.0, 0.0]],
                          "normal": [0.0, 0.0, 1.0], "narrowest_m": 0.9})
     data["snag"].append({"kind": "edge", "points": [[0.0, 2.0, 0.0], [0.9, 2.0, 0.0]], "radius_m": 0.002})
-    data["ports"].append({"id": "hook_0", "position": [0.0, 7.0, 0.3], "direction": [0.0, 0.0, 1.0]})
+    data["snag"].append({"kind": "edge", "points": [[0.0, 7.0, 0.3], [40.0, 7.0, 0.3]], "radius_m": 0.0045,
+                         "edge_radius_m": 0.0015, "material": "cable"})
+    data["ports"].append({"id": "hook_0", "position": [0.0, 7.0, 0.3], "direction": [0.0, 0.0, 1.0],
+                          "max_diameter_m": 0.014})
     data["materials"].append({"slot": "wire", "visual": "wire_steel", "physics": "cable"})
-    data["wires"].append({"slot": "wire", "diameter_m": 0.005, "mass_kg_per_m": 0.154, "sag_m": 0.8, "material": "cable",
+    data["wires"].append({"slot": "wire", "diameter_m": 0.005, "mass_kg_per_m": 0.154, "sag_m": 0.8,
+                          "axial_stiffness_n": 3.93e6, "breaking_force_n": 7660.0, "material": "cable",
                           "damage": "intact", "points": [[0.0, 7.0, 0.3], [20.0, 6.2, 0.3], [40.0, 7.0, 0.3]]})
     return data
 
@@ -116,7 +123,8 @@ def test_wires_are_carried_from_the_generator(k01_params, material_ids):
     """p1-l01-l03-pole-wires, "Ports and wires in the metadata": a generator's wires land under `wires` right after
     `ports`, rounded like every number; without any the key is still written, empty."""
     built = debris_brick.build(k01_params)
-    built["wires"] = [{"slot": "brick", "diameter_m": 0.009, "mass_kg_per_m": 0.135, "sag_m": 0.8, "material": "cable",
+    built["wires"] = [{"slot": "brick", "diameter_m": 0.009, "mass_kg_per_m": 0.135, "sag_m": 0.8,
+                       "axial_stiffness_n": 3.12e6, "breaking_force_n": 8198.0, "material": "cable",
                        "damage": "intact", "points": [[0.0, 7.0000004, 0.3], [40.0, 7.0, 0.3]]}]
     data = meta.assemble("K01", "K01_whole", "debris_brick", k01_params, built, VISUALS)
     assert data["wires"][0]["points"] == [[0.0, 7.0, 0.3], [40.0, 7.0, 0.3]]
@@ -129,10 +137,12 @@ def test_ports_are_carried_from_the_generator(k01_params, material_ids):
     """p1-l01-l03-pole-wires, "Ports and wires in the metadata": a generator's ports land under `ports` in schema
     order, rounded like every number; without any the key is still written, empty."""
     built = debris_brick.build(k01_params)
-    built["ports"] = [{"id": "hook_0", "position": [0.1, 7.0000004, -0.2], "direction": [0.0, 0.0, -1.0]}]
+    built["ports"] = [{"id": "hook_0", "position": [0.1, 7.0000004, -0.2], "direction": [0.0, 0.0, -1.0],
+                       "max_diameter_m": 0.014}]
     data = meta.assemble("K01", "K01_whole", "debris_brick", k01_params, built, VISUALS)
     assert meta.validate(data, material_ids) == []
-    assert data["ports"] == [{"id": "hook_0", "position": [0.1, 7.0, -0.2], "direction": [0.0, 0.0, -1.0]}]
+    assert data["ports"] == [{"id": "hook_0", "position": [0.1, 7.0, -0.2], "direction": [0.0, 0.0, -1.0],
+                              "max_diameter_m": 0.014}]
     assert list(data).index("ports") == list(data).index("wind_volumes") + 1
     assert '"ports": []' in meta.dumps(k01_meta(k01_params))
 
@@ -179,17 +189,37 @@ def test_ports_are_carried_from_the_generator(k01_params, material_ids):
      "ports[0]: needs id, position, direction"),
     (lambda d: d["ports"].append(dict(d["ports"][0])),
      "ports[1]: id 'hook_0' is not unique"),
+    (lambda d: d["ports"][0].pop("max_diameter_m"),
+     "ports[0]: needs id, position, direction, max_diameter_m"),
+    (lambda d: d["ports"][0].update(max_diameter_m=0.0),
+     "ports[0] 'hook_0': max_diameter_m must be positive, got 0.0"),
+    # task 1.5's reading §6: an edge radius is optional, positive and at most the record's reach
+    (lambda d: d["snag"][1].update(edge_radius_m=0.0),
+     "snag[1]: edge_radius_m must be positive and at most radius_m 0.0045, got 0.0"),
+    (lambda d: d["snag"][1].update(edge_radius_m=0.005),
+     "snag[1]: edge_radius_m must be positive and at most radius_m 0.0045, got 0.005"),
+    (lambda d: d["snag"][1].update(edge_radius_m="strand"),
+     "snag[1]: edge_radius_m must be positive and at most radius_m 0.0045, got 'strand'"),
     # "Wires validated": a material other than cable, or fewer than two points, names the record and the rule
     (lambda d: d["wires"][0].update(material="steel"),
      "wires[0]: material must be 'cable', got 'steel'"),
     (lambda d: d["wires"][0].update(points=[[0.0, 7.0, 0.3]]),
      "wires[0]: needs a point list of at least 2 points, got 1"),
     (lambda d: d["wires"][0].update(points=[[0.0, 7.0], [40.0, 7.0]]),
-     "wires[0]: needs slot, diameter_m, mass_kg_per_m, sag_m, material, damage, points"),
+     f"wires[0]: needs {WIRE_FIELDS}"),
     (lambda d: d["wires"][0].pop("sag_m"),
-     "wires[0]: needs slot, diameter_m, mass_kg_per_m, sag_m, material, damage, points"),
+     f"wires[0]: needs {WIRE_FIELDS}"),
     (lambda d: d["wires"][0].update(diameter_m=0.0),
-     "wires[0]: diameter_m and mass_kg_per_m must be positive and sag_m at least 0"),
+     f"wires[0]: {WIRE_POSITIVE}"),
+    # task 1.5's reading §2.2: the stiffness and the breaking force are required and positive
+    (lambda d: d["wires"][0].pop("axial_stiffness_n"),
+     f"wires[0]: needs {WIRE_FIELDS}"),
+    (lambda d: d["wires"][0].pop("breaking_force_n"),
+     f"wires[0]: needs {WIRE_FIELDS}"),
+    (lambda d: d["wires"][0].update(axial_stiffness_n=0.0),
+     f"wires[0]: {WIRE_POSITIVE}"),
+    (lambda d: d["wires"][0].update(breaking_force_n=-8198.0),
+     f"wires[0]: {WIRE_POSITIVE}"),
     (lambda d: d["wires"][0].update(damage="frayed"),
      "wires[0]: damage must be one of intact, cut, down, got 'frayed'"),
     (lambda d: d["wires"][0].update(slot="brick"),

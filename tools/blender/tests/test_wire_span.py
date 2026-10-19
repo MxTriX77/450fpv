@@ -248,15 +248,40 @@ def test_lods_records_and_snags(repo_root):
         assert data["collision"] == data["gaps"] == data["wind_volumes"] == data["ports"] == []
         assert [m["physics"] for m in data["materials"]] == ["cable"]
         assert len(data["snag"]) == len(data["wires"])
+        edge = {"L03_thin": None, "L03_medium": 0.0015, "L03_thick": 0.005}[name]  # solid, D / 6, the core
         for wire, snag in zip(data["wires"], data["snag"]):
-            assert snag == {"kind": "edge", "points": wire["points"], "radius_m": wire["diameter_m"] / 2,
-                            "material": "cable"}
+            want = {"kind": "edge", "points": wire["points"], "radius_m": wire["diameter_m"] / 2}
+            want.update({"edge_radius_m": edge} if edge else {})
+            assert snag == dict(want, material="cable")
+            assert list(snag) == ["kind", "points", "radius_m"] + (["edge_radius_m"] if edge else []) + ["material"]
             assert wire["material"] == "cable" and wire["damage"] == "intact"
         tris = [lod["tris"] for lod in data["lods"]]
         assert tris[0] > tris[1]
         print(f"{name}: triangles per LOD {tris}")
     assert [build(repo_root, n)[2]["lods"][0]["tris"] for n in VARIANTS] == [968, 3872, 8656]
     assert [build(repo_root, n)[2]["lods"][1]["tris"] for n in VARIANTS] == [644, 2576, 324]
+
+
+def test_records_carry_the_conductors_stiffness_and_breaking_force(repo_root, material_ids):
+    """Task 1.5's reading §2.2 and §8 item 1: every record carries EA and the rated breaking force from the
+    per-type table: 5 mm solid steel 200 GPa over its whole 19.63 mm² and ГОСТ 3282's 390 N/mm² floor (3.93 MN,
+    7 658 N); 9 mm A-50 63 GPa over its published 49.5 mm² and its published 8 198 N (3.12 MN); a SIP drop 63 GPa over
+    its two 16 mm² cores at A-50's 165.6 N/mm² (assumed: 2.02 MN, 5 300 N). A type without a row is refused."""
+    want = {"L03_thin": (3.927e6, 7657.6), "L03_medium": (3.1185e6, 8198.0), "L03_thick": (2.016e6, 5299.7)}
+    for name, (stiffness, strength) in want.items():
+        _, _, data = build(repo_root, name)
+        assert meta.validate(data, material_ids) == []
+        for wire in data["wires"]:
+            assert wire["axial_stiffness_n"] == pytest.approx(stiffness, rel=1e-4)
+            assert wire["breaking_force_n"] == pytest.approx(strength, abs=0.1)
+            assert list(wire) == list(meta.WIRE_KEYS)
+        print(f"{name}: EA {data['wires'][0]['axial_stiffness_n'] / 1e6:.4f} MN, breaking force "
+              f"{data['wires'][0]['breaking_force_n']:.1f} N")
+    assert wire_span.mechanics(load(repo_root, "L03_medium"))[1] == 8198.0  # A-50 exactly, its own published figure
+    for kind in ("acsr", "insulated"):
+        problems = params.validate(wire_span, dict(load(repo_root, "L03_medium"), conductor_type=kind))
+        assert f"'conductor_type' = '{kind}' has no axial stiffness or breaking force read yet; use one of " \
+               "steel_wire, bare_al, sip_drop" in problems, problems
 
 
 def test_build_is_deterministic_and_the_seed_moves_only_uvs_and_the_twist(repo_root):
