@@ -17,6 +17,13 @@ Parts, with the sheet's numbers (published or assumed as labelled at each consta
   `burial_m` under the ground (wood_log) or on the ground line beside the stub (wood_on_stub, the sheet's 1.6 m
   overlap: the stub shows `stub_above_m`); 12 sides at LOD0 (within 2.3 mm of round at the 0.26 m butt, design 2),
   8 at LOD1, a 6-sided prism at LOD2; its top a flat saw cut;
+- LOD1 and LOD2 are drawn with the thin-wire coverage (task 1.4's material, design decision 4), so the far pole
+  fades as its width over the distance instead of breaking into dashes once it is under a pixel across: every
+  member there is a round bar whose corners lie on its circle at the local radius, each with its radial unit normal
+  and that radius as its second UV (the shader's inputs), all of it triangles (lib.export keeps a custom normal only
+  through triangles, as wire_span's tubes); the crossarm and the stub, boxes at LOD0, are 4-sided round bars there
+  of half their narrower side (the width a level look sees across the crossarm, and the stub's across the line),
+  so the far pole is never drawn wider than it is;
 - the brace (`brace` single): a 0.16 m log at `brace_angle_deg` from the pole, its axis meeting the pole's axis at
   `brace_attach` of the height above ground, its foot in the ground, its top end hidden inside the pole;
 - the head: `hooks_0p4` is `hooks` hooks; `crossarm_0p4` a 0.10 x 0.10 m bar `crossarm_len_m` long whose top lies
@@ -306,7 +313,7 @@ def build(params):
     collision, snag, ports, gaps = [], [], [], []
     log = _Rod((0.0, 0.0, 0.0), (0.0, 1.0, 0.0), pole.radius(0.0), pole.slope, (1.0, 0.0, 0.0))
     for lod, sides in enumerate(LOG_SIDES):
-        _rod_mesh(lods[lod], pole, log, pole.height, sides, WOOD, offset, cap=True)
+        _rod_mesh(lods[lod], pole, log, pole.height, sides, WOOD, offset, cap=True, thin=lod > 0)
     n = pole.segments()
     step = pole.height / n
     for k in range(n):
@@ -318,7 +325,7 @@ def build(params):
         length = pole.attach_s / math.cos(pole.beta)
         brace = _Rod(foot, (-math.sin(pole.beta), math.cos(pole.beta), 0.0), pole.brace_r, 0.0, (0.0, 0.0, 1.0))
         for lod in (0, 1):
-            _rod_mesh(lods[lod], pole, brace, length, LOG_SIDES[lod], WOOD, offset, cap=False)
+            _rod_mesh(lods[lod], pole, brace, length, LOG_SIDES[lod], WOOD, offset, cap=False, thin=lod > 0)
         collision.append(meta.capsule(pole.place(foot), pole.place((0.0, pole.attach_s, 0.0)), pole.brace_r, PHYSICS[WOOD]))
         gaps.append(_brace_gap(pole))
     if pole.stub:
@@ -363,10 +370,12 @@ class _Rod:
         self.e1 = normalize(sub(e1, scale(self.axis, dot(e1, self.axis))))
         self.e2 = cross(self.axis, self.e1)
 
+    def across(self, phi):
+        return add(scale(self.e1, math.cos(phi)), scale(self.e2, math.sin(phi)))
+
     def at(self, s, phi, grow=1.0):
         r = (self.r0 + self.slope * s) * grow
-        across = add(scale(self.e1, math.cos(phi)), scale(self.e2, math.sin(phi)))
-        return add(add(self.base, scale(self.axis, s)), scale(across, r))
+        return add(add(self.base, scale(self.axis, s)), scale(self.across(phi), r))
 
 
 def _ground_s(pole, rod, phi, top, grow=1.0):
@@ -375,26 +384,48 @@ def _ground_s(pole, rod, phi, top, grow=1.0):
     return -1.0 + (top + 1.0) * a / (a - b)
 
 
-def _rod_mesh(mesh, pole, rod, top, sides, slot, offset, cap):
+def _rod_mesh(mesh, pole, rod, top, sides, slot, offset, cap, thin=False, ground=True):
     """A rod from the ground (cut by y = 0, open there) to `top` along its axis (a cut square to it, capped when
     `cap`): one quad per side, U around a whole number of the wood tile, V along the grain, plus the offset. Its
     corners stand 2 / (1 + cos(pi / sides)) of the radius out, so its faces' distance from the axis averages the
-    true radius (12 sides: within 2.3 mm of round at the 0.26 m butt)."""
-    grow = 2 / (1 + math.cos(math.pi / sides))
+    true radius (12 sides: within 2.3 mm of round at the 0.26 m butt).
+    With `thin` (the thin-wire LODs, module docstring): its corners on the circle at the local radius, each with its
+    radial unit normal and (radius, 0) as its second UV, every face a triangle. Without `ground` it starts at s = 0
+    instead of the ground, capped there too."""
+    grow = 1.0 if thin else 2 / (1 + math.cos(math.pi / sides))
     wrap = max(1, round(2 * math.pi * (rod.r0 + rod.slope * top / 2) / WOOD_TILE_M[0])) * WOOD_TILE_M[0]
     phis = [2 * math.pi * j / sides for j in range(sides)]
-    lows = [_ground_s(pole, rod, phi, top, grow) for phi in phis]
-    bottom = [mesh.vertex(_ground(pole.place(rod.at(s, phi, grow)))) for s, phi in zip(lows, phis)]
-    upper = [mesh.vertex(pole.place(rod.at(top, phi, grow))) for phi in phis]
+    lows = [_ground_s(pole, rod, phi, top, grow) for phi in phis] if ground else [0.0] * sides
+
+    def corner(s, phi, on_ground=False):
+        point = pole.place(rod.at(s, phi, grow))
+        point = _ground(point) if on_ground else point
+        if not thin:
+            return mesh.vertex(point)
+        return mesh.vertex(point, normal=pole.place(rod.across(phi)), uv2=(rod.r0 + rod.slope * s, 0.0))
+
+    bottom = [corner(s, phi, ground) for s, phi in zip(lows, phis)]
+    upper = [corner(top, phi) for phi in phis]
     axis_mid = pole.place(add(rod.base, scale(rod.axis, top / 2)))
     for j in range(sides):
         k = (j + 1) % sides
         quad = [bottom[j], bottom[k], upper[k], upper[j]]
         u0, u1 = offset[0] + wrap * j / sides, offset[0] + wrap * (j + 1) / sides
         uvs = [(u0, offset[1] + lows[j]), (u1, offset[1] + lows[k]), (u1, offset[1] + top), (u0, offset[1] + top)]
-        mesh.face(quad, _outward(mesh, quad, axis_mid), slot, uvs)
-    if cap:
-        mesh.face(upper, pole.place(rod.axis), slot)
+        outward = _outward(mesh, quad, axis_mid)
+        if not thin:
+            mesh.face(quad, outward, slot, uvs)
+            continue
+        for a, b, c in ((0, 1, 2), (0, 2, 3)):
+            mesh.face([quad[a], quad[b], quad[c]], outward, slot, [uvs[a], uvs[b], uvs[c]])
+    ends = [(upper, rod.axis)] if cap else []
+    ends += [] if ground else [(bottom, scale(rod.axis, -1.0))]
+    for ring, normal in ends:
+        if not thin:
+            mesh.face(ring, pole.place(normal), slot)
+            continue
+        for j in range(1, sides - 1):
+            mesh.face([ring[0], ring[j], ring[j + 1]], pole.place(normal), slot)
 
 
 def _ground(point):
@@ -519,8 +550,9 @@ def _crossarm(lods, pole, offset, collision, snag):
     centre_s = top - CROSSARM_M / 2
     x = -(pole.radius(centre_s) + CROSSARM_M / 2)
     lo, hi = (x - CROSSARM_M / 2, top - CROSSARM_M, -length / 2), (x + CROSSARM_M / 2, top, length / 2)
-    for lod in (0, 1):
-        _box_mesh(lods[lod], pole, lo, hi, WOOD, offset, along=2)
+    _box_mesh(lods[0], pole, lo, hi, WOOD, offset, along=2)
+    bar = _Rod((x, centre_s, -length / 2), (0.0, 0.0, 1.0), CROSSARM_M / 2, 0.0, (1.0, 1.0, 0.0))  # corners diagonal
+    _rod_mesh(lods[1], pole, bar, length, 4, WOOD, offset, cap=True, thin=True, ground=False)
     collision.append(_box(pole, (x, centre_s, 0.0), (CROSSARM_M, CROSSARM_M, length), PHYSICS[WOOD]))
     for z in (lo[2], hi[2]):
         loop = [(lo[0], lo[1], z), (hi[0], lo[1], z), (hi[0], hi[1], z), (lo[0], hi[1], z), (lo[0], lo[1], z)]
@@ -570,8 +602,9 @@ def _stub(lods, pole, collision, snag):
     p = pole.p
     x0 = pole.radius(0.0)
     lo, hi = (x0, 0.0, -STUB_M[1] / 2), (x0 + STUB_M[0], p["stub_above_m"], STUB_M[1] / 2)
-    for lod in (0, 1):
-        _box_mesh(lods[lod], pole, lo, hi, CONCRETE, (0.0, 0.0), along=1, bottom=False)
+    _box_mesh(lods[0], pole, lo, hi, CONCRETE, (0.0, 0.0), along=1, bottom=False)
+    post = _Rod((x0 + STUB_M[0] / 2, 0.0, 0.0), (0.0, 1.0, 0.0), min(STUB_M) / 2, 0.0, (1.0, 0.0, 1.0))
+    _rod_mesh(lods[1], pole, post, p["stub_above_m"], 4, CONCRETE, (0.0, 0.0), cap=True, thin=True)
     centre = (x0 + STUB_M[0] / 2, (p["stub_above_m"] - STUB_BURIED_M) / 2, 0.0)
     collision.append(_box(pole, centre, (STUB_M[0], p["stub_above_m"] + STUB_BURIED_M, STUB_M[1]), PHYSICS[CONCRETE]))
     low, high = BAND_SPAN_M[0], p["stub_above_m"] - BAND_SPAN_M[1]

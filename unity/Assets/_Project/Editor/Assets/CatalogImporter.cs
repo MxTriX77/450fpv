@@ -504,12 +504,16 @@ namespace Fpv450.Assets
         /// <summary>
         /// Creates or updates the prefab in place (so its file ids stay stable): the metadata component, one child
         /// per LOD with the FBX mesh and the slot materials plus one per micro mesh of that LOD (rendered with it,
-        /// never a collider), the LODGroup, one child per collision primitive, and nothing else. A wire's tube
-        /// (p1-l01-l03-pole-wires, "Wires are audited against their polyline") is the faces of the slot its
-        /// <c>wires</c> record names: that slot draws with the thin-wire material made from its recipe's
-        /// (<see cref="EnsureThinWireMaterial"/>), every vertex of it must carry its radius in uv2, a renderer drawing
-        /// only wires casts no shadow, and no collider stands for a wire: conductors are map objects the sim reads from
-        /// the metadata (D-007). Internal for the EditMode tests, which build a prefab from a throwaway metadata.
+        /// never a collider), the LODGroup, one child per collision primitive, and nothing else. A slot of a mesh
+        /// whose every vertex carries a radius in uv2 (the thin-wire shader's input, written by lib/export from the
+        /// generator's second UV and by nothing else) draws with the thin-wire material made from its recipe's
+        /// (<see cref="EnsureThinWireMaterial"/>): a wire's tube, and a pole's far LODs (p1-l01-l03-pole-wires,
+        /// "Night silhouette kept to 1 km"); every other slot draws with the recipe's own. A wire's tube ("Wires are
+        /// audited against their polyline") is the faces of the slot its <c>wires</c> record names: every vertex of it
+        /// must carry its radius, a renderer drawing only wires casts no shadow (any other asks for shadows, and the
+        /// thin-wire shader, which has no shadow caster, gives none), and no collider stands for a wire: conductors are
+        /// map objects the sim reads from the metadata (D-007). Internal for the EditMode tests, which build a prefab
+        /// from a throwaway metadata.
         /// </summary>
         internal static void EnsurePrefab(string prefabPath, string variant, Dictionary<string, object> metaJson, TextAsset source,
             string fbxPath, Dictionary<string, Material> materialBySlot)
@@ -522,10 +526,9 @@ namespace Fpv450.Assets
                 AssetPhysicsMeta meta = Ensure<AssetPhysicsMeta>(root);
                 Fill(meta, metaJson, source, prefabPath);
                 var wireSlots = new HashSet<string>(meta.wires.Select(w => w.slot));
-                materialBySlot = materialBySlot.ToDictionary(kv => kv.Key,
-                    kv => wireSlots.Contains(kv.Key) ? EnsureThinWireMaterial(kv.Value) : kv.Value);
                 var keep = new HashSet<string>();
-                Renderer[][] renderers = EnsureLods(root, meta, fbxPath, materialBySlot, wireSlots, keep);
+                var thin = new List<string>();
+                Renderer[][] renderers = EnsureLods(root, meta, fbxPath, materialBySlot, wireSlots, keep, thin);
                 EnsureLodGroup(root, meta, renderers);
                 EnsureColliders(root, meta, keep, prefabPath);
                 for (int i = root.transform.childCount - 1; i >= 0; i--)
@@ -540,8 +543,9 @@ namespace Fpv450.Assets
                     throw new IOException($"could not save {prefabPath}");
                 string micro = meta.micro.Length == 0 ? "" : $"{string.Join(", ", meta.micro.Select(m => $"{m.name} ({m.count} {m.kind}, LOD{m.lod})"))} micro, ";
                 string ports = meta.ports.Length == 0 ? "" : $"{meta.ports.Length} ports ({string.Join(", ", meta.ports.Select(p => p.id))}), ";
-                string wires = meta.wires.Length == 0 ? "" : $"{meta.wires.Length} wires without colliders ({string.Join(", ", meta.wires.GroupBy(w => (w.slot, w.diameterM)).Select(g => $"{g.Count()} x {g.Key.diameterM * 1000f:0.#} mm in {g.Key.slot} -> {materialBySlot[g.Key.slot].shader.name}"))}), ";
-                Debug.Log($"[CatalogImporter] {variant}: {prefabPath}, {renderers.Length} LODs, {micro}{meta.collision.Length} colliders, {ports}{wires}" +
+                string wires = meta.wires.Length == 0 ? "" : $"{meta.wires.Length} wires without colliders ({string.Join(", ", meta.wires.GroupBy(w => (w.slot, w.diameterM)).Select(g => $"{g.Count()} x {g.Key.diameterM * 1000f:0.#} mm in {g.Key.slot} -> {ThinWireShader}"))}), ";
+                string thinWire = thin.Count == 0 ? "" : $"thin wire {string.Join(", ", thin)}, ";
+                Debug.Log($"[CatalogImporter] {variant}: {prefabPath}, {renderers.Length} LODs, {micro}{meta.collision.Length} colliders, {ports}{wires}{thinWire}" +
                           $"materials {string.Join(", ", materialBySlot.Select(kv => $"{kv.Key} -> {kv.Value.name}"))}, " +
                           $"LOD heights {string.Join(" / ", root.GetComponent<LODGroup>().GetLODs().Select(l => l.screenRelativeTransitionHeight.ToString("0.0000")))} " +
                           $"(size {root.GetComponent<LODGroup>().size} m, fov {VerticalFovDeg} deg)");
@@ -557,7 +561,7 @@ namespace Fpv450.Assets
 
         /// <summary>Per LOD, its mesh's renderer followed by those of the micro meshes listed for it.</summary>
         static Renderer[][] EnsureLods(GameObject root, AssetPhysicsMeta meta, string fbxPath, Dictionary<string, Material> materialBySlot,
-            HashSet<string> wireSlots, HashSet<string> keep)
+            HashSet<string> wireSlots, HashSet<string> keep, List<string> thin)
         {
             var imported = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath)
                 ?? throw new FileNotFoundException($"{fbxPath} did not import as a model");
@@ -565,29 +569,36 @@ namespace Fpv450.Assets
             var renderers = new Renderer[meta.lods.Length][];
             for (int i = 0; i < meta.lods.Length; i++)
             {
-                var lod = new List<Renderer> { MeshChild(root, meta.lods[i].mesh, filters, fbxPath, materialBySlot, wireSlots, keep) };
+                var lod = new List<Renderer> { MeshChild(root, meta.lods[i].mesh, filters, fbxPath, materialBySlot, wireSlots, keep, thin) };
                 foreach (AssetPhysicsMeta.MicroMesh micro in meta.micro)
                     if (micro.lod == i)
-                        lod.Add(MeshChild(root, micro.name, filters, fbxPath, materialBySlot, wireSlots, keep));
+                        lod.Add(MeshChild(root, micro.name, filters, fbxPath, materialBySlot, wireSlots, keep, thin));
                 renderers[i] = lod.ToArray();
             }
             return renderers;
         }
 
         static Renderer MeshChild(GameObject root, string meshName, MeshFilter[] filters, string fbxPath, Dictionary<string, Material> materialBySlot,
-            HashSet<string> wireSlots, HashSet<string> keep)
+            HashSet<string> wireSlots, HashSet<string> keep, List<string> thin)
         {
             MeshFilter filter = filters.FirstOrDefault(f => f.sharedMesh != null && f.sharedMesh.name == meshName)
                 ?? throw new FormatException($"{fbxPath} has no mesh named {meshName}");
             string[] slots = filter.GetComponent<MeshRenderer>().sharedMaterials.Select(slot => slot.name).ToArray();
-            Material[] slotMaterials = slots
-                .Select(slot => materialBySlot.TryGetValue(slot, out Material material)
-                    ? material
-                    : throw new FormatException($"{meshName}: the FBX slot \"{slot}\" has no material in the metadata"))
-                .ToArray();
+            var uv2 = new List<Vector2>();
+            filter.sharedMesh.GetUVs(1, uv2);
+            var slotMaterials = new Material[slots.Length];
             for (int i = 0; i < slots.Length; i++)
-                if (wireSlots.Contains(slots[i]))
-                    RequireWireRadius(filter.sharedMesh, i, $"{meshName} slot {slots[i]}");
+            {
+                if (!materialBySlot.TryGetValue(slots[i], out Material material))
+                    throw new FormatException($"{meshName}: the FBX slot \"{slots[i]}\" has no material in the metadata");
+                bool radius = CarriesRadius(filter.sharedMesh, uv2, i);
+                if (wireSlots.Contains(slots[i]) && !radius)
+                    throw new FormatException($"{meshName} slot {slots[i]}: a wire's tube needs its radius (> 0 m) in uv2 on every vertex for the " +
+                                              $"thin-wire shader ({uv2.Count} uv2 values over {filter.sharedMesh.vertexCount} vertices)");
+                slotMaterials[i] = radius ? EnsureThinWireMaterial(material) : material;
+                if (radius)
+                    thin.Add($"{meshName} {slots[i]}");
+            }
 
             GameObject child = Child(root, meshName, keep);
             child.transform.localPosition = Vector3.zero;
@@ -601,17 +612,13 @@ namespace Fpv450.Assets
         }
 
         /// <summary>
-        /// A wire tube's submesh carries its radius in uv2 on every vertex (the thin-wire shader's input, written by
-        /// lib/export from the generator's second UV): without it the shader draws a wire of radius 0, nothing.
+        /// Whether every vertex of a submesh carries a radius (> 0 m) in uv2, the thin-wire shader's input (written by
+        /// lib/export from the generator's second UV): without it the shader draws a tube of radius 0, nothing.
         /// </summary>
-        static void RequireWireRadius(Mesh mesh, int submesh, string what)
+        static bool CarriesRadius(Mesh mesh, List<Vector2> uv2, int submesh)
         {
-            var uv2 = new List<Vector2>();
-            mesh.GetUVs(1, uv2);
             int[] indices = mesh.GetIndices(submesh);
-            if (indices.Length == 0 || uv2.Count == 0 || indices.Any(i => !(uv2[i].x > 0f)))
-                throw new FormatException($"{what}: a wire's tube needs its radius (> 0 m) in uv2 on every vertex for the thin-wire shader " +
-                                          $"({uv2.Count} uv2 values over {mesh.vertexCount} vertices)");
+            return indices.Length > 0 && uv2.Count > 0 && indices.All(i => uv2[i].x > 0f);
         }
 
         /// <summary>

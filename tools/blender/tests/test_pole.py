@@ -14,6 +14,7 @@ import pytest
 from generators import pole
 from lib import audit, catalog, meta, params
 from lib.geometry import Mesh
+from lib.skeleton import cross, sub
 
 VARIANTS = ("L01_straight", "L01_leaning", "L01_braced", "L01_stub")
 VISUALS = {"wood": "pole_wood", "concrete": "pole_concrete", "steel": "pole_steel", "insulator": "insulator_porcelain",
@@ -243,6 +244,45 @@ def test_lods_and_the_night_silhouette(repo_root):
         tris = [lod["tris"] for lod in data["lods"]]
         assert tris[0] > tris[1] > tris[2], tris
         print(f"{name}: triangles per LOD {tris}")
+
+
+def centre(mesh, k):
+    """Where the thin-wire shader puts vertex k's centre line: the vertex less its radius along its normal."""
+    v, n, r = mesh.vertices[k], mesh.normals[k], mesh.uv2[k][0]
+    return tuple(v[a] - n[a] * r for a in range(3))
+
+
+def test_the_far_lods_carry_the_thin_wire_inputs(repo_root):
+    """The scenario "Night silhouette kept to 1 km": LOD1 and LOD2 are drawn with task 1.4's thin-wire coverage, so
+    every vertex there carries its radial unit normal and its local radius (> 0) as its second UV, every face is a
+    triangle, and the three centre lines of a triangle's corners lie on one line (the shader finds the line's
+    direction from the centre's screen derivatives); LOD2's centres lie on the log's leaned axis at the log's radius
+    there; LOD1's crossarm and stub are round bars of half their narrower side (0.05 and 0.085 m). LOD0 carries
+    neither: it stays URP/Lit."""
+    for name in VARIANTS:
+        p, built, _ = build(repo_root, name)
+        lod0, lod1, lod2 = built["lods"]
+        assert lod0.normals == {} and lod0.uv2 == {}
+        worst = 0.0
+        for mesh in (lod1, lod2):
+            assert set(mesh.normals) == set(mesh.uv2) == set(range(len(mesh.vertices)))
+            assert all(math.hypot(*n) == pytest.approx(1.0, abs=1e-12) for n in mesh.normals.values())
+            assert all(r > 0 and v == 0.0 for r, v in mesh.uv2.values())
+            for indices, _, _, _ in mesh.faces:
+                assert len(indices) == 3
+                a, b, c = (centre(mesh, k) for k in indices)
+                worst = max(worst, math.hypot(*cross(sub(b, a), sub(c, a))))
+        assert worst < 1e-9, (name, worst)
+        shape = pole.Pole(p)
+        axis = shape.place((0.0, 1.0, 0.0))
+        for k in range(len(lod2.vertices)):
+            q = centre(lod2, k)
+            along = sum(q[a] * axis[a] for a in range(3))
+            assert math.dist(q, tuple(axis[a] * along for a in range(3))) < 1e-9
+            assert lod2.uv2[k][0] == pytest.approx(shape.radius(along), abs=1e-12)
+        radii = {round(r, 6) for r, _ in lod1.uv2.values()}
+        assert ({0.05} <= radii) == (p["head"] == "crossarm_0p4") and ({0.085} <= radii) == (name == "L01_stub")
+    print(f"far LODs: every triangle's centre lines colinear within {worst:.1e} m")
 
 
 def test_the_log_collision_is_within_10mm_of_the_log_both_ways(repo_root):

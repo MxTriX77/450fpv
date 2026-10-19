@@ -60,6 +60,36 @@ namespace Fpv450.Tests.EditMode
             Assert.That(meta.windVolumes.Single().porosity, Is.EqualTo(0f));
         }
 
+        [TestCase(Straight)]
+        [TestCase(Leaning)]
+        [TestCase(Braced)]
+        [TestCase("Assets/_Project/Prefabs/lines/L01_stub.prefab")]
+        public void FarLods_DrawWithTheThinWireCoverageAndLodZeroStaysLit(string path)
+        {
+            LOD[] lods = Prefab(path).GetComponent<LODGroup>().GetLODs();
+            Assert.That(lods.Length, Is.EqualTo(3));
+            for (int i = 0; i < lods.Length; i++)
+            {
+                MeshRenderer renderer = (MeshRenderer)lods[i].renderers.Single();
+                string[] shaders = renderer.sharedMaterials.Select(m => m.shader.name).Distinct().ToArray();
+                Mesh mesh = renderer.GetComponent<MeshFilter>().sharedMesh;
+                var uv2 = new System.Collections.Generic.List<Vector2>();
+                mesh.GetUVs(1, uv2);
+                if (i == 0)
+                {
+                    Assert.That(shaders, Is.EqualTo(new[] { "Universal Render Pipeline/Lit" }), $"{mesh.name}: hooks, insulators and bands lit");
+                    Assert.That(uv2, Is.Empty, $"{mesh.name}: no radius");
+                    continue;
+                }
+                Assert.That(shaders, Is.EqualTo(new[] { "Fpv450/ThinWire" }), $"{mesh.name}: fades as its width instead of breaking into dashes");
+                Assert.That(renderer.sharedMaterials.Select(m => m.name), Has.All.EndsWith("_thin_wire"), mesh.name);
+                Assert.That(uv2.Count, Is.EqualTo(mesh.vertexCount), $"{mesh.name}: a radius per vertex");
+                Assert.That(uv2.All(r => r.x >= 0.05f - 1e-6f && r.x <= 0.13f && r.y == 0f), Is.True, $"{mesh.name}: the members' radii");
+                Assert.That(mesh.normals.All(n => Mathf.Abs(n.magnitude - 1f) < 1e-3f), Is.True, $"{mesh.name}: unit radial normals");
+                Assert.That(renderer.shadowCastingMode, Is.EqualTo(UnityEngine.Rendering.ShadowCastingMode.On), $"{mesh.name}: shadows as the shader allows");
+            }
+        }
+
         [Test]
         public void LeaningPole_HasNoBraceAndItsCrossarmUnderItsHooks()
         {
