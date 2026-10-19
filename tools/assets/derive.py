@@ -19,6 +19,10 @@ a separate map (ambientCG's atlases) gets <material>_base.png: the diffuse's RGB
 8-bit sRGB RGBA map the importer assigns as the base map in place of the diffuse, so URP/Lit clips by its alpha. A
 set without an "opacity" map needs nothing: the diffuse's own alpha clips.
 
+A far-card recipe {"schema": 1, "far_card_of": <recipe>} (p1-v01-locust task 1.2j) is that leaf recipe for far
+cards drawn as two faces with normals of their own: the importer builds it from the leaf recipe and its derived maps,
+one-sided and without the normal map, so nothing is derived for it.
+
 Two more base maps (p1-v01-locust, design decision 5), assigned the same way:
 - a "groove" object tints a bark's grooves: {"cavity": <map>, "from": <level>, "to": <level>, "tint": [r, g, b]}.
   The cavity weight runs linearly from 0 where the cavity map (8-bit, AO dark in the grooves) reads "from" or more
@@ -225,6 +229,8 @@ def derive(root, manifest, material):
     palette recipe's set; a tiled set's mask when the recipe has one and its base map when it is alpha-clipped,
     groove-tinted or painted. Returns the report lines."""
     recipe = load_recipe(root, material)
+    if "far_card_of" in recipe:
+        return far_card(root, material, recipe)
     kind = recipe.get("kind")
     if kind == "ground":
         return derive_ground(root, manifest, material, recipe)
@@ -246,6 +252,17 @@ def derive(root, manifest, material):
     elif "alpha_clip" in recipe:
         lines.append(derive_base(root, manifest, material, recipe))
     return "\n".join(lines) if lines else f"{material}: no mask in the recipe, nothing to derive"
+
+
+def far_card(root, material, recipe):
+    """A far-card recipe {"schema": 1, "far_card_of": <recipe>} (p1-v01-locust task 1.2j) reads its leaf recipe's
+    derived maps, so it derives nothing."""
+    leaf = recipe["far_card_of"]
+    if set(recipe) != {"schema", "far_card_of"} or not isinstance(leaf, str):
+        raise DeriveError(f"{material}: a \"far_card_of\" recipe names one leaf recipe and holds nothing else")
+    if "far_card_of" in load_recipe(root, leaf):
+        raise DeriveError(f"{material}: {leaf} is itself a far-card recipe; name the leaf recipe")
+    return f"{material}: far cards of {leaf}, whose derived maps it reads; nothing to derive"
 
 
 def derive_mask(root, manifest, material, recipe):

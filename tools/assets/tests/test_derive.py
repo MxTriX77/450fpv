@@ -6,7 +6,8 @@ malformed mask, a missing recipe; nothing is written on failure. And the base ma
 ("Alpha-clipped two-sided recipes"): the diffuse's RGB with the set's separate opacity map as alpha, skipped when the
 set has no opacity map, refused when the two differ in size. And (p1-v01-locust, design decision 5) a bark's grooves
 tinted by its cavity map, each texel scaled in linear light by its weight between the recipe's levels, and the pod
-strip painted from a recipe with no texture set; malformed groove and paint recipes refused."""
+strip painted from a recipe with no texture set; malformed groove and paint recipes refused. And (task 1.2j) a far-card
+recipe derives nothing."""
 import json
 from pathlib import Path
 
@@ -384,3 +385,23 @@ def test_palette_gradients_run_up_their_columns_padded_to_a_power_of_two(tmp_pat
     got = [sum(row[k] for row in linear) / 64 for k in range(3)]
     assert all(abs(g - w) <= 0.01 for g, w in zip(got, want)), (got, want)
     assert image.getpixel((56, 10)) == image.getpixel((40, 10)), "the padding column repeats the last colour"
+
+
+def test_far_card_recipe_derives_nothing_and_names_its_leaf_recipe(tmp_path, capsys):
+    """Task 1.2j: {"schema": 1, "far_card_of": <recipe>} reads its leaf recipe's derived maps, so nothing is derived
+    for it; one that holds anything else, or names a far-card recipe, is refused and writes nothing."""
+    root = base_root(tmp_path)
+    (root / RECIPES / "far.json").write_text(json.dumps({"schema": 1, "far_card_of": MATERIAL}), encoding="utf-8")
+    assert run("--all", "--root", root) == 0
+    out = capsys.readouterr().out
+    assert f"far: far cards of {MATERIAL}, whose derived maps it reads; nothing to derive" in out
+    assert f"{MATERIAL}_base.png: derived" in out
+    (root / RECIPES / "far2.json").write_text(json.dumps({"schema": 1, "far_card_of": MATERIAL}), encoding="utf-8")
+    for recipe, message in (({"schema": 1, "far_card_of": MATERIAL, "alpha_clip": 0.5},
+                             'far: a "far_card_of" recipe names one leaf recipe and holds nothing else'),
+                            ({"schema": 1, "far_card_of": "far2"},
+                             "far: far2 is itself a far-card recipe; name the leaf recipe")):
+        (root / RECIPES / "far.json").write_text(json.dumps(recipe), encoding="utf-8")
+        assert run("far", "--root", root) == 1
+        assert f"ERROR: {message}" in capsys.readouterr().out
+    assert [p.name for p in (root / MATERIALS).glob("far*")] == []

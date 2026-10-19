@@ -176,7 +176,10 @@ namespace Fpv450.Assets
         /// lights a back face with its own normal, unless its "shader" names another than URP/Lit; and its base map
         /// keeps its alpha coverage at the cutoff in every mip. A "groove" (a bark's grooves tinted by its cavity) or
         /// a "paint" in place of a "texture_set" (p1-v01-locust, design decision 5) also takes the <c>_base</c> map
-        /// that <c>derive.py</c> derives or paints; a painted recipe has no normal map.
+        /// that <c>derive.py</c> derives or paints; a painted recipe has no normal map. A far-card recipe, holding only
+        /// <c>"far_card_of": &lt;recipe&gt;</c> (p1-v01-locust task 1.2j), is that leaf recipe, its maps and settings,
+        /// for far cards drawn as two faces with normals of their own: URP/Lit with back faces culled (no back face
+        /// shows) and no normal map (the leaf atlas's relief, stretched over a far card, is no relief of the crown).
         /// <para>
         /// A recipe of kind <c>ground</c> (p1-s04-belt-straw) takes the maps <c>derive.py</c> composes for it as its
         /// base: <c>&lt;visual&gt;_albedo.png</c>, <c>_normal.png</c> and <c>_mask.png</c>, which span
@@ -201,9 +204,23 @@ namespace Fpv450.Assets
         internal static Material EnsureMaterial(string visual, Dictionary<string, object> manifest, string materialPath)
         {
             string recipePath = $"{RecipesFolder}/{visual}.json";
-            var recipe = Json.Obj(Json.Parse(ReadRepoFile(recipePath)), recipePath);
-            if ((int)Json.Num(recipe, "schema", recipePath) != 1)
-                throw new NotSupportedException($"{recipePath}: schema {recipe["schema"]}; this importer reads schema 1");
+            var recipe = Recipe(recipePath);
+            // A far-card recipe (p1-v01-locust task 1.2j): its leaf recipe and that recipe's derived maps, for far
+            // cards drawn as two faces back to back with normals of their own; one-sided, since the leaf shader would
+            // light a back face with its front's normal turned round (one leaning up would lean down), and without the
+            // normal map, whose relief on a far card depends on the face's tangent frame, not on the crown.
+            bool farCard = recipe.ContainsKey("far_card_of");
+            string mapsOf = visual;
+            if (farCard)
+            {
+                if (recipe.Count != 2)
+                    throw new FormatException($"{recipePath}: a \"far_card_of\" recipe names one leaf recipe and holds nothing else");
+                mapsOf = Json.Str(recipe, "far_card_of", recipePath);
+                recipePath = $"{RecipesFolder}/{mapsOf}.json";
+                recipe = Recipe(recipePath);
+                if (recipe.ContainsKey("far_card_of"))
+                    throw new FormatException($"{recipePath}: is itself a far-card recipe; name the leaf recipe");
+            }
             string shaderName = Json.Str(recipe, "shader", recipePath);
             string kind = recipe.TryGetValue("kind", out object kindValue)
                 ? kindValue as string ?? throw new FormatException($"{recipePath}: \"kind\" must be a string")
@@ -219,7 +236,7 @@ namespace Fpv450.Assets
             {
                 if (recipe.ContainsKey("texture_set") || recipe.ContainsKey("mask"))
                     throw new FormatException($"{recipePath}: a palette recipe is flat colour; it takes neither \"texture_set\" nor \"mask\"");
-                albedo = Derived(visual, "albedo");
+                albedo = Derived(mapsOf, "albedo");
                 normal = null;
                 mask = null;
                 masked = false;
@@ -234,10 +251,10 @@ namespace Fpv450.Assets
                 float detailTile = Json.Num(detail, "tile_size_m", recipePath);
                 if (size <= 0f || detailTile <= 0f)
                     throw new FormatException($"{recipePath}: size_m and detail.tile_size_m must be positive metres");
-                albedo = Derived(visual, "albedo");
-                normal = Derived(visual, "normal");
-                mask = Derived(visual, "mask");
-                detailAlbedo = Derived(visual, "detail_albedo");
+                albedo = Derived(mapsOf, "albedo");
+                normal = Derived(mapsOf, "normal");
+                mask = Derived(mapsOf, "mask");
+                detailAlbedo = Derived(mapsOf, "detail_albedo");
                 Dictionary<string, Texture2D> detailSet = TextureSet(Json.Str(detail, "texture_set", recipePath), manifest, recipePath);
                 if (!detailSet.TryGetValue("normal", out detailNormal))
                     throw new FormatException($"{recipePath}: the detail texture set has no normal map");
@@ -255,25 +272,28 @@ namespace Fpv450.Assets
                 Vector2 tile = Json.Vec2(recipe, "tile_size_m", recipePath);
                 if (!maps.TryGetValue("diffuse", out albedo) && !painted)
                     throw new FormatException($"{recipePath}: the texture set has no diffuse map");
-                maps.TryGetValue("normal", out normal);
+                if (!farCard)
+                    maps.TryGetValue("normal", out normal);
+                else
+                    normal = null;
                 separateOpacity = maps.ContainsKey("opacity");
                 derivedBase = painted || recipe.ContainsKey("groove");
                 masked = recipe.ContainsKey("mask");
                 if (masked == recipe.ContainsKey("smoothness"))
                     throw new FormatException($"{recipePath}: give \"smoothness\" as a constant or a \"mask\" whose alpha carries it, not both or neither");
-                mask = masked ? Derived(visual, "mask") : null;
+                mask = masked ? Derived(mapsOf, "mask") : null;
                 baseScale = new Vector2(1f / tile.x, 1f / tile.y);
             }
             bool clipped = recipe.ContainsKey("alpha_clip");
             float cutoff = clipped ? Json.Num(recipe, "alpha_clip", recipePath) : 0.5f;
             if (cutoff < 0f || cutoff > 1f)
                 throw new FormatException($"{recipePath}: \"alpha_clip\" must be a cutoff in 0–1, not {cutoff}");
-            bool twoSided = recipe.ContainsKey("two_sided") && Json.Bool(recipe, "two_sided", recipePath);
+            bool twoSided = !farCard && recipe.ContainsKey("two_sided") && Json.Bool(recipe, "two_sided", recipePath);
             if (clipped && twoSided && shaderName == LitShader)
                 shaderName = LeafShader;
             Shader shader = Shader.Find(shaderName) ?? throw new FormatException($"{recipePath}: no shader named \"{shaderName}\"");
             if (derivedBase || (clipped && separateOpacity))
-                albedo = Derived(visual, "base");
+                albedo = Derived(mapsOf, "base");
             if (clipped)
                 EnsureCoverage(albedo, cutoff);
 
@@ -352,6 +372,14 @@ namespace Fpv450.Assets
                 ?? throw new FileNotFoundException($"{path} is not a texture in the asset database");
             if (ArtImportSettings.ApplyCoverage(importer, cutoff))
                 importer.SaveAndReimport();
+        }
+
+        static Dictionary<string, object> Recipe(string recipePath)
+        {
+            var recipe = Json.Obj(Json.Parse(ReadRepoFile(recipePath)), recipePath);
+            if ((int)Json.Num(recipe, "schema", recipePath) != 1)
+                throw new NotSupportedException($"{recipePath}: schema {recipe["schema"]}; this importer reads schema 1");
+            return recipe;
         }
 
         /// <summary>
