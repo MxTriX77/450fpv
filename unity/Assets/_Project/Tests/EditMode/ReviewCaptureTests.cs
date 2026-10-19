@@ -135,6 +135,32 @@ namespace Fpv450.Tests.EditMode
             }
         }
 
+        /// <summary>
+        /// p1-l01-l03-pole-wires task 1.6: the stage lifts an asset whose bounds reach below y = 0 onto the ground and
+        /// leaves one whose lowest point is above it at its own height (a lift of max(0, -min.y)). The placement reads
+        /// only the metadata's bounds, so literal bounds on K01's prefab: S04's 0.425 m below the ground, and a span
+        /// from 3.5 m to 6.5 m up like L03's.
+        /// </summary>
+        [TestCase(-0.425f, 0.425f, 0f, TestName = "StageBuild_BoundsBelowTheGround_AreLiftedOntoIt")]
+        [TestCase(3.5f, 0f, 3.5f, TestName = "StageBuild_BoundsAboveTheGround_StayAtTheirHeight")]
+        public void StageBuild_LiftsOnlyWhatReachesBelowTheGround(float minY, float lift, float lowestOnStage)
+        {
+            const string prefabPath = "Assets/_Project/Prefabs/debris/K01_whole.prefab";
+            Assert.That(AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath), Is.Not.Null, $"{prefabPath} is missing: run pwsh tools/build_asset.ps1 K01");
+            var meta = new ReviewMeta { Bounds = new Bounds(new Vector3(10f, minY + 1.5f, 0f), new Vector3(20f, 3f, 0.5f)) };
+            Review.Stage stage = Review.Stage.Build(prefabPath, meta, "lines");
+            try
+            {
+                AssertNear(stage.Origin, new Vector3(0f, lift, 0f), "asset origin");
+                Assert.That(stage.AssetBounds.min.y, Is.EqualTo(lowestOnStage).Within(1e-5f), "lowest point on the stage");
+                AssertNear(stage.AssetBounds.size, new Vector3(20f, 3f, 0.5f), "bounds size");
+            }
+            finally
+            {
+                Object.DestroyImmediate(stage.Root);
+            }
+        }
+
         static Review.Stage BuildStage(string prefabPath, string metaPath, string assetClass, string id)
         {
             Assert.That(AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath), Is.Not.Null, $"{prefabPath} is missing: run pwsh tools/build_asset.ps1 {id}");
