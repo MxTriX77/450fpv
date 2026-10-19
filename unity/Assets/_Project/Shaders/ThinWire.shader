@@ -1,7 +1,7 @@
 // A conductor's tube (p1-l01-l03-pole-wires, design decision 8): URP/Lit's surface, read from the same properties
-// (base map and tint, the packed mask's smoothness and occlusion), alpha-blended, casting no shadow. A tube thinner
-// than a pixel misses most pixel centres and breaks into dots and dashes that crawl as the camera moves; this one stays
-// one continuous line that fades with its true width.
+// (base map and tint, the packed mask's smoothness and occlusion), alpha-blended, casting its shadow at its true
+// radius. A tube thinner than a pixel misses most pixel centres and breaks into dots and dashes that crawl as the
+// camera moves; this one stays one continuous line that fades with its true width.
 //
 // _THIN_WIRE_COVERAGE (the catalog importer enables it on every wire material): the vertex stage widens the tube about
 // its centre line until even its narrowest projection (a 4-sided tube seen across a face) spans the true width plus
@@ -16,6 +16,16 @@
 // The mesh (wire_span's tubes): every vertex lies on its ring the conductor's radius r from the centre line, its normal
 // radial (smooth shading), and UV channel 1 (Unity's uv2, full precision under the project's vertex compression)
 // holds (r, 0) in metres. A uniform scale only.
+//
+// The shadow (task 1.8): the round member at its radius from uv2, alpha-tested, so a pole's far LODs cast the shadow
+// its URP/Lit LOD0 casts. The vertex stage pushes the tube out to the circle's circumscribed polygon and the fragment
+// stage keeps the shadow-map texels within the member's half-width of its centre line, both seen along the light: the
+// round member's shadow whatever the mesh's sides, without the forward pass's widening (that is screen coverage).
+// URP's depth bias as URP/Lit's caster applies it; its normal bias as an inset of the half-width. URP/Lit's caster moves
+// each vertex in along its own normal by up to the bias (a shadow texel, 4 cm at the game's 50 m), so LOD0's flat
+// 12-sided faces give up about 0.6 of it at the silhouette (derived for the day profile's 45° sun; 0.5 at 20°, 0.8 at
+// 70°), while the far LODs' radial normals would give up all of it: a fifth less shadow at the 35 m switch. A
+// renderer drawing only wires casts none: the importer turns its shadows off.
 Shader "Fpv450/ThinWire"
 {
     Properties
@@ -213,6 +223,96 @@ Shader "Fpv450/ThinWire"
                 color.rgb = MixFog(color.rgb, inputData.fogCoord);
                 color.a = surfaceData.alpha * coverage;
                 return color;
+            }
+            ENDHLSL
+        }
+
+        Pass
+        {
+            Name "ShadowCaster"
+            Tags { "LightMode" = "ShadowCaster" }
+
+            ZWrite On
+            ZTest LEqual
+            ColorMask 0
+            Cull Back
+
+            HLSLPROGRAM
+            #pragma target 3.0 // ddx/ddy
+            #pragma vertex ThinWireShadowVertex
+            #pragma fragment ThinWireShadowFragment
+
+            #pragma multi_compile_instancing
+            #pragma multi_compile _ _CASTING_PUNCTUAL_LIGHT_SHADOW
+
+            // URP's caster globals (_LightDirection, _LightPosition, _ShadowBias) and clamping
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/ShadowCasterPass.hlsl"
+
+            #define THIN_WIRE_NARROWEST 0.70710678 // as the forward pass
+            #define THIN_WIRE_SHADOW_INSET 0.6      // of URP's normal bias, at the silhouette (the header)
+
+            struct ThinWireShadowAttributes
+            {
+                float4 positionOS : POSITION;
+                float3 normalOS   : NORMAL;
+                float2 wire       : TEXCOORD1; // x: the member's radius in metres
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            struct ThinWireShadowVaryings
+            {
+                float3 centreWS   : TEXCOORD0; // the centre line abreast of this point
+                float3 offsetWS   : TEXCOORD1; // this point from it
+                float  radius     : TEXCOORD2; // the shadow's half-width
+                float4 positionCS : SV_POSITION;
+            };
+
+            float3 ThinWireLightDirection(float3 positionWS)
+            {
+            #if _CASTING_PUNCTUAL_LIGHT_SHADOW
+                return normalize(_LightPosition - positionWS);
+            #else
+                return _LightDirection;
+            #endif
+            }
+
+            ThinWireShadowVaryings ThinWireShadowVertex(ThinWireShadowAttributes input)
+            {
+                ThinWireShadowVaryings output;
+                UNITY_SETUP_INSTANCE_ID(input);
+
+                float3 normalOS = normalize(input.normalOS);
+                float radius = input.wire.x * length(GetObjectToWorldMatrix()._m00_m10_m20);
+                float3 centreWS = TransformObjectToWorld(input.positionOS.xyz - normalOS * input.wire.x);
+                // Out to the circle's circumscribed polygon, so the round member's whole shadow is rasterised.
+                float3 offsetWS = TransformObjectToWorldNormal(normalOS) * (radius / THIN_WIRE_NARROWEST);
+                float3 positionWS = centreWS + offsetWS + ThinWireLightDirection(centreWS) * _ShadowBias.x; // URP's depth bias
+
+                output.centreWS = centreWS;
+                output.offsetWS = offsetWS;
+                output.radius = max(radius + THIN_WIRE_SHADOW_INSET * _ShadowBias.y, 0.0); // _ShadowBias.y <= 0
+                output.positionCS = ApplyShadowClamping(TransformWorldToHClip(positionWS));
+                return output;
+            }
+
+            half4 ThinWireShadowFragment(ThinWireShadowVaryings input) : SV_Target
+            {
+                // The round member seen along the light: within its half-width of its centre line, both projected on
+                // the plane square to the light. Within a triangle the centre moves only along the line, so its
+                // derivatives lie on it; a cap's centre does not move, and the cap's shadow is a disc.
+                float3 light = ThinWireLightDirection(input.centreWS);
+                float3 offset = input.offsetWS - light * dot(input.offsetWS, light);
+                float3 dx = ddx(input.centreWS), dy = ddy(input.centreWS);
+                float3 along = dot(dx, dx) > dot(dy, dy) ? dx : dy;
+                along -= light * dot(along, light);
+                if (dot(along, along) > 1e-12)
+                {
+                    along = normalize(along);
+                    offset -= along * dot(offset, along);
+                }
+                clip(input.radius * input.radius - dot(offset, offset));
+                return 0;
             }
             ENDHLSL
         }

@@ -10,9 +10,9 @@ namespace Fpv450.Tests.EditMode
     /// <summary>
     /// The thin-wire material (p1-l01-l03-pole-wires, design decision 8, scenario "Nearly invisible, never
     /// shimmering"): <c>Shaders/ThinWire</c> compiles, declares its coverage keyword and draws in one alpha-blended
-    /// forward pass with no shadow caster; the importer turns a wire recipe's URP/Lit material into a thin-wire
-    /// material beside it with the keyword on and the recipe's surface, and a second build changes no file. Built from
-    /// <c>wire_steel</c> (a tiled set with a packed mask) and <c>wire_sip</c> (a flat palette) under
+    /// forward pass plus a shadow caster (task 1.8); the importer turns a wire recipe's URP/Lit material into a
+    /// thin-wire material beside it with the keyword on and the recipe's surface, and a second build changes no file.
+    /// Built from <c>wire_steel</c> (a tiled set with a packed mask) and <c>wire_sip</c> (a flat palette) under
     /// <see cref="Folder"/>, deleted before and after.
     /// </summary>
     public sealed class ThinWireMaterialTests
@@ -43,7 +43,7 @@ namespace Fpv450.Tests.EditMode
         }
 
         [Test]
-        public void Shader_CompilesWithItsKeywordAndNoShadowCaster()
+        public void Shader_CompilesWithItsKeywordAndAShadowCaster()
         {
             Shader shader = Shader.Find(CatalogImporter.ThinWireShader);
             Assert.That(shader, Is.Not.Null, "Shaders/ThinWire.shader");
@@ -52,8 +52,10 @@ namespace Fpv450.Tests.EditMode
             // The declared subshader (the fallback's follow it), not the active one: batchmode without a GPU falls back.
             Assert.That(shader.FindSubshaderTagValue(0, new ShaderTagId("RenderPipeline")).name, Is.EqualTo("UniversalPipeline"));
             Assert.That(shader.FindSubshaderTagValue(0, new ShaderTagId("Queue")).name, Is.EqualTo("Transparent"));
-            Assert.That(shader.GetPassCountInSubshader(0), Is.EqualTo(1), "one pass: no shadow caster, no depth");
+            Assert.That(shader.GetPassCountInSubshader(0), Is.EqualTo(2), "the forward pass and the shadow caster, no depth");
             Assert.That(shader.FindPassTagValue(0, 0, new ShaderTagId("LightMode")).name, Is.EqualTo("UniversalForward"));
+            Assert.That(shader.FindPassTagValue(0, 1, new ShaderTagId("LightMode")).name, Is.EqualTo("ShadowCaster").IgnoreCase,
+                "a pole's far LODs cast their shadow at the true radius (task 1.8; Unity returns this tag upper case)");
         }
 
         [TestCase("wire_steel")]

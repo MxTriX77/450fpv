@@ -510,8 +510,8 @@ namespace Fpv450.Assets
         /// (<see cref="EnsureThinWireMaterial"/>): a wire's tube, and a pole's far LODs (p1-l01-l03-pole-wires,
         /// "Night silhouette kept to 1 km"); every other slot draws with the recipe's own. A wire's tube ("Wires are
         /// audited against their polyline") is the faces of the slot its <c>wires</c> record names: every vertex of it
-        /// must carry its radius, a renderer drawing only wires casts no shadow (any other asks for shadows, and the
-        /// thin-wire shader, which has no shadow caster, gives none), and no collider stands for a wire: conductors are
+        /// must carry its radius, a renderer drawing only wires casts no shadow (any other casts one, the thin-wire
+        /// shader's at the member's true radius), and no collider stands for a wire: conductors are
         /// map objects the sim reads from the metadata (D-007). Internal for the EditMode tests, which build a prefab
         /// from a throwaway metadata.
         /// </summary>
