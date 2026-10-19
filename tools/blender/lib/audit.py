@@ -25,8 +25,9 @@ skipped.
 Wires (p1-l01-l03-pole-wires, "Wires are audited against their polyline"): a conductor that is a map object
 (meta["wires"]) has no primitive; the LOD0 faces of the slots its records name are its tubes and are left out of the
 primitive audit. Every vertex of those slots belongs to the wire of its slot whose envelope (the point list grown by
-the wire's radius) it lies nearest, and lies at most WIRE_TOLERANCE_M outside it; the lines print each wire's largest
-deviation, and a wire no vertex belongs to has no tube and fails.
+the wire's radius) it lies nearest, and lies at most min(WIRE_TOLERANCE_M, half the wire's diameter) outside it, so a
+drawn thin wire always overlaps its physical one (task 1.5's reading §3); the lines print each wire's largest
+deviation and its tolerance, and a wire no vertex belongs to has no tube and fails.
 
 Both distances are found by branch and bound over triangles: a cell's three vertices give exact values, a lower
 bound; an upper bound comes from convexity; the cell with the largest upper bound is split in four until no cell
@@ -73,7 +74,7 @@ NEAR_RANGE_M = 0.3
 PRECISION_M = 0.0001        # the search stops when no cell can beat the best by this; with CHORD_M, under 1 mm
 CHORD_M = 0.0004            # tessellation error allowed on spheres, capsules and cylinders
 NARROWEST_TOLERANCE_M = 0.005
-WIRE_TOLERANCE_M = 0.005    # the wire rule: a tube vertex within 5 mm plus the wire's radius of its point list
+WIRE_TOLERANCE_M = 0.005    # the wire rule: a tube vertex within 5 mm (or D/2 if less) plus the radius of its points
 LANDABLE_COS = math.cos(math.radians(30))
 UP = (0.0, 1.0, 0.0)
 FAR_M = 1000.0              # a cylinder's axis as a segment long enough to act as a line
@@ -274,10 +275,11 @@ def _audit_wires(lines, wires, lod0):
             problems.append(f"{label}: no LOD0 vertex of its slot lies nearest to it, so it has no tube")
             lines.append(f"audit {label}: no tube")
             continue
+        tolerance = min(WIRE_TOLERANCE_M, wire["diameter_m"] / 2)
         text = f"largest deviation {max(0.0, outside) * 1000:.3f} mm at {_fmt(at)} over {count} vertices"
-        if outside > WIRE_TOLERANCE_M:
-            problems.append(f"{label}: {text} exceeds the tolerance {WIRE_TOLERANCE_M * 1000:g} mm")
-        lines.append(f"audit {label}: {text}, tolerance {WIRE_TOLERANCE_M * 1000:g} mm")
+        if outside > tolerance:
+            problems.append(f"{label}: {text} exceeds the tolerance {tolerance * 1000:g} mm")
+        lines.append(f"audit {label}: {text}, tolerance {tolerance * 1000:g} mm")
     return problems
 
 

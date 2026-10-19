@@ -133,8 +133,8 @@ def test_catenary_holds_its_sag_between_unequal_ends():
 
 
 def test_polyline_audit_passes_the_built_tubes_under_5_mm(repo_root):
-    """The scenario "Tube follows the polyline": the 40 m, 9 mm conductors pass with a largest deviation under 5 mm,
-    printed per wire; the tubes leave nothing to the primitive audit."""
+    """The scenario "Tube follows the polyline": the 40 m, 9 mm conductors pass with a largest deviation under their
+    4.5 mm tolerance (min(5 mm, D/2)), printed per wire; the tubes leave nothing to the primitive audit."""
     _, built, data = build(repo_root, "L03_medium")
     problems, lines = audit.run(data, built["lods"][0], soft=audit.soft_materials(repo_root))
     for line in lines:
@@ -145,7 +145,7 @@ def test_polyline_audit_passes_the_built_tubes_under_5_mm(repo_root):
     for line in lines:
         deviation = float(line.split("largest deviation ")[1].split(" mm")[0])
         assert deviation == 0.0  # every corner on the conductor's circle (the thin-wire contract)
-        assert line.endswith(" over 486 vertices, tolerance 5 mm")  # 81 rings of 6
+        assert line.endswith(" over 486 vertices, tolerance 4.5 mm")  # 81 rings of 6
 
 
 def test_polyline_audit_fails_a_vertex_20_mm_off_naming_the_wire(repo_root):
@@ -162,8 +162,37 @@ def test_polyline_audit_fails_a_vertex_20_mm_off_naming_the_wire(repo_root):
     problems, lines = audit.run(data, lod0)
     assert len(problems) == 1
     assert problems[0].startswith("wires[2] 9 mm (slot aluminium): largest deviation 20.000 mm at (20, ")
-    assert problems[0].endswith(" over 486 vertices exceeds the tolerance 5 mm")
+    assert problems[0].endswith(" over 486 vertices exceeds the tolerance 4.5 mm")
     print(problems[0])
+
+
+def moved_out(built, data, wire, ring, by):
+    """LOD0 of a built span with the first corner of `wire`'s ring `ring` moved `by` metres out from its centre line
+    (single-strand conductors laid down one after another, 6 corners a ring)."""
+    lod0 = copy.deepcopy(built["lods"][0])
+    rings = len(data["wires"][0]["points"])
+    k = (wire * rings + ring) * 6
+    centre = data["wires"][wire]["points"][ring]
+    v = lod0.vertices[k]
+    out = [v[a] - centre[a] for a in range(3)]
+    reach = math.hypot(*out)
+    lod0.vertices[k] = tuple(v[a] + by * out[a] / reach for a in range(3))
+    return lod0
+
+
+def test_the_tolerance_is_half_a_thin_wires_diameter(repo_root):
+    """Task 1.5's reading §3, §8 item 8: the tolerance is min(5 mm, D/2), so a drawn thin wire always overlaps its
+    physical one: a corner 3 mm out fails the 5 mm wire (2.5 mm) and passes the 9 mm one (4.5 mm); each wire's line
+    prints its own tolerance."""
+    for name, wire, tolerance, fails in (("L03_thin", 0, 2.5, True), ("L03_medium", 1, 4.5, False)):
+        _, built, data = build(repo_root, name)
+        problems, lines = audit.run(data, moved_out(built, data, wire, 40, 0.003))
+        line = next(q for q in lines if q.startswith(f"audit wires[{wire}] "))
+        assert line.endswith(f", tolerance {tolerance:g} mm")
+        assert ("largest deviation 3.000 mm" in line) and (len(problems) == (1 if fails else 0)), (line, problems)
+        print(line)
+        if fails:
+            assert problems[0].endswith(f"exceeds the tolerance {tolerance:g} mm")
 
 
 def test_wire_tubes_stay_out_of_the_primitive_audit(repo_root, k01_params):
