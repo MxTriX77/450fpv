@@ -891,7 +891,7 @@ Driven by the vehicle's `debris_radius`, `debris_count`, `crumb_cover`, `burst_d
 ## Open points for the whole sheet
 
 **Physics material ids: settled** by the physics sign-off (review-materials.md §2, §6; none is invented in a generator; the values are in `physics_materials.json`):
-- `rubber`: tyres (R01–R09, K07). Compliant: a leg on a tyre sinks a few millimetres; μ high; the edge radius is the tyre's own.
+- `rubber`: tyres (R01–R09, K07). Compliant, but barely for a leg: a foot on a tyre sinks about 0.24 mm at its quarter of the weight (5e4 N/m per touching part, `p1-materials-per-part`); μ high; the edge radius is the tyre's own.
 - `plastic`: bumper covers, lamp housings, dashboards, trim (R02–R07, K07). Rigid at drone loads, cracked edges blunt (r 1–2 mm).
 - `fabric`: seats, headliners and the canvas tilt (R01–R09), the id of the houses-and-yard sheet's tarps: soft, wraps, no bounce; a torn canvas flap is a soft snag.
 - The K07 crumb layer: the `asphalt` surface's cover, μ 0.30/0.20 (the earthworks sheet's S11 cover); `glass_crumbs` is mapped there, not added.
