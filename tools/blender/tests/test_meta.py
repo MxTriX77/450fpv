@@ -10,9 +10,11 @@ from generators import debris_brick
 from lib import catalog, meta
 
 VISUALS = {"brick": "brick_red"}
-# Review R3's eight rows plus the nine signed off in p1-pipeline-hardening/review-materials.md.
+# Review R3's eight rows, the nine signed off in p1-pipeline-hardening/review-materials.md and the two of the
+# fortifications physics reading (p1-fortifications-sheet review-physics §4).
 REVIEW_MATERIALS = {"steel", "sheet_metal", "timber", "masonry", "concrete", "glass", "cable", "foliage",
-                    "bark", "twig", "deadwood", "asbestos_cement", "straw", "fabric", "rubber", "plastic", "mesh"}
+                    "bark", "twig", "deadwood", "asbestos_cement", "straw", "fabric", "rubber", "plastic", "mesh",
+                    "razor_wire", "sandbag"}
 WIRE_FIELDS = "slot, diameter_m, mass_kg_per_m, sag_m, axial_stiffness_n, breaking_force_n, material, damage, points"
 WIRE_POSITIVE = "diameter_m, mass_kg_per_m, axial_stiffness_n and breaking_force_n must be positive and sag_m at least 0"
 SURFACE_RULE = "is not one of the thirteen surface ids surface:{meadow_sod, dry_crust, crater_spoil, belt_straw, " \

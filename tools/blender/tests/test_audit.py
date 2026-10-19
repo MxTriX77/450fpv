@@ -288,9 +288,10 @@ def test_primitives_form_a_union_and_soft_tops_are_held_to_5cm(k01_params, repo_
 
 def test_soft_materials_are_the_soft_surfaces_and_the_compliant_ids(repo_root):
     """review-physics PR6: the three surfaces where the reference foot sinks 25 mm or more, and every plain id at
-    1000 N/m or less (foliage 200, twig 30, straw 490, fabric 600, mesh 800); rigid and stiff ids are not soft."""
+    1000 N/m or less (foliage 200, twig 30, straw 490, fabric 160, mesh 430, razor_wire 60, sandbag 900); rigid and
+    stiff ids are not soft."""
     assert audit.soft_materials(repo_root) == {"surface:belt_straw", "surface:crater_spoil", "surface:tilled",
-                                               "foliage", "twig", "straw", "fabric", "mesh"}
+                                               "foliage", "twig", "straw", "fabric", "mesh", "razor_wire", "sandbag"}
 
 
 def relief(size=2.0, step=0.05, depth=0.2, amplitude=0.04):
