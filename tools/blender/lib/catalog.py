@@ -1,5 +1,6 @@
-"""assets-src/catalog.json: asset id -> class, generator, variants and the visual material per slot; and the params
-file per variant, assets-src/<class>/<variant>.json (design decision 1)."""
+"""assets-src/catalog.json: asset id -> class, generator, variants and the visual material per slot, which a variant
+may override slot by slot (`variant_materials`: variant -> {slot: material}, p1-v01-locust design decision 7); and
+the params file per variant, assets-src/<class>/<variant>.json (design decision 1)."""
 import hashlib
 import json
 import os
@@ -22,7 +23,33 @@ def load(root):
         for key in ("class", "generator", "variants", "materials"):
             if key not in entry:
                 raise CatalogError(f"{CATALOG}: {asset_id} lacks '{key}'")
+        _check_overrides(asset_id, entry)
     return catalog
+
+
+def visuals(entry, variant):
+    """The visual material per slot of one variant: the asset's `materials`, with each slot that the variant's
+    `variant_materials` names taking that material instead (p1-v01-locust design decision 7)."""
+    return {**entry["materials"], **entry.get("variant_materials", {}).get(variant, {})}
+
+
+def _check_overrides(asset_id, entry):
+    """`variant_materials`, when present, maps variants of the entry to slots of its `materials`, each to a
+    material name; anything else is refused, named."""
+    overrides = entry.get("variant_materials", {})
+    if not isinstance(overrides, dict):
+        raise CatalogError(f"{CATALOG}: {asset_id} variant_materials must be an object of variant -> {{slot: material}}")
+    for variant, slots in overrides.items():
+        if variant not in entry["variants"]:
+            raise CatalogError(f"{CATALOG}: {asset_id} variant_materials names '{variant}', which is not one of its variants")
+        if not isinstance(slots, dict) or not slots:
+            raise CatalogError(f"{CATALOG}: {asset_id} variant_materials['{variant}'] must be a non-empty object of slot -> material")
+        for slot, material in slots.items():
+            if slot not in entry["materials"]:
+                raise CatalogError(f"{CATALOG}: {asset_id} variant_materials['{variant}'] names slot '{slot}', which "
+                                   f"{asset_id}'s materials do not ({', '.join(entry['materials'])})")
+            if not isinstance(material, str) or not material:
+                raise CatalogError(f"{CATALOG}: {asset_id} variant_materials['{variant}']['{slot}'] must be a material name")
 
 
 def asset_ids(catalog, wanted):

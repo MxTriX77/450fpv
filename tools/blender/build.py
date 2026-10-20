@@ -5,7 +5,8 @@
 
 For every variant of each asset id in assets-src/catalog.json, it checks the variant's params
 (assets-src/<class>/<variant>.json) against the generator's PARAMS table (lib/params.py), runs the generator and
-prints its report lines (counts and fit times), validates the metadata (lib/meta.py) and audits the collision against
+prints its report lines (counts and fit times), validates the metadata (lib/meta.py; each slot's visual material the
+variant's, the asset's `materials` overridden by its `variant_materials`, lib/catalog.py) and audits the collision against
 the LOD0 mesh (lib/audit.py, with the soft tops of assets-src/physics_materials.json, the card slots of the
 alpha-clipped recipes and the generator's stated card reach for the shell's cards; a generator's visual-only micro
 meshes are exported beside their LOD and skipped by the audit), and only then
@@ -58,17 +59,17 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
     meta_path = os.path.join(out_dir, variant + ".assetmeta.json")
     atlas_path = os.path.join(out_dir, variant + "_impostor.png")
     normals_path = os.path.join(out_dir, variant + "_impostor_normal.png")
+    visual_by_slot = catalog.visuals(catalog_entry, variant)
     switch, materials, impostor_lod = impostor.switch_distance(params), None, None
     if switch is not None:  # the impostor step (p1-v01-locust design decision 3): the record now, the render after
         lod0 = built["lods"][0]
-        materials = impostor.slot_materials(root, catalog_entry["materials"], lod0.slots())
+        materials = impostor.slot_materials(root, visual_by_slot, lod0.slots())
         impostor_lod = impostor.lod(variant, switch, lod0, materials)
         record = impostor_lod["impostor"]
         old = impostor.recorded(meta_path, atlas_path, normals_path, record["inputs_sha256"])
         if old:  # up to date: the atlases stand
             record.update({key: old[key] for key in ("atlas_sha256", "normals_sha256")})
-    data = meta.assemble(asset_id, variant, catalog_entry["generator"], params, built, catalog_entry["materials"],
-                         impostor_lod)
+    data = meta.assemble(asset_id, variant, catalog_entry["generator"], params, built, visual_by_slot, impostor_lod)
     _refuse(variant, meta.validate(data, material_ids))
     started = time.perf_counter()
     problems, lines = audit.run(data, built["lods"][0], soft=audit.soft_materials(root),

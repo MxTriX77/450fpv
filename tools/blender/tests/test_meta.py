@@ -1,7 +1,7 @@
 """lib.meta and lib.catalog: schema-1 validation, the conventions of design decision 6 (physics review R2), the
 closed physics-material list (R3) on shapes, slots and snag records (a record without its member's material, or with
-an unknown one, is refused: p1-v01-locust review-physics PR4), the deterministic writer, params_sha256, and the
-committed K01 metadata against the committed params."""
+an unknown one, is refused: p1-v01-locust review-physics PR4), the deterministic writer, params_sha256, a variant's
+material overrides (p1-v01-locust design decision 7), and the committed K01 metadata against the committed params."""
 import copy
 import json
 
@@ -84,6 +84,43 @@ def test_params_sha256_ignores_formatting_and_key_order(k01_params):
 def test_catalog_slot_without_visual_is_refused(k01_params):
     with pytest.raises(ValueError, match="slot 'brick'"):
         meta.assemble("K01", "K01_whole", "debris_brick", k01_params, debris_brick.build(k01_params), {})
+
+
+SHRUB = {"class": "vegetation", "generator": "shrub", "variants": ["V13_mid", "V13_mid_autumn"],
+         "materials": {"stem": "bark_shrub", "leaf": "leaf_shrub"}}
+
+
+def test_a_variant_override_takes_its_slot_and_leaves_the_rest():
+    """p1-v01-locust design decision 7, asset-pipeline "Per-variant material overrides": the autumn variant's leaf
+    slot takes its own material, its other slots and every other variant keep the asset's."""
+    entry = dict(SHRUB, variant_materials={"V13_mid_autumn": {"leaf": "leaf_shrub_autumn"}})
+    assert catalog.visuals(entry, "V13_mid_autumn") == {"stem": "bark_shrub", "leaf": "leaf_shrub_autumn"}
+    assert catalog.visuals(entry, "V13_mid") == {"stem": "bark_shrub", "leaf": "leaf_shrub"}
+    assert catalog.visuals(SHRUB, "V13_mid_autumn") == SHRUB["materials"]
+
+
+@pytest.mark.parametrize("overrides, expected", [
+    ({"V13_tall_autumn": {"leaf": "leaf_shrub_autumn"}}, "names 'V13_tall_autumn', which is not one of its variants"),
+    ({"V13_mid_autumn": {"pod": "pod_locust"}}, "names slot 'pod', which V13's materials do not"),
+    ({"V13_mid_autumn": {"leaf": ""}}, r"\['leaf'\] must be a material name"),
+    ({"V13_mid_autumn": {}}, "must be a non-empty object"),
+    (["V13_mid_autumn"], "must be an object"),
+])
+def test_a_malformed_override_is_refused_named(tmp_path, overrides, expected):
+    (tmp_path / "assets-src").mkdir()
+    entry = dict(SHRUB, variant_materials=overrides)
+    (tmp_path / catalog.CATALOG).write_text(json.dumps({"schema": 1, "assets": {"V13": entry}}), encoding="utf-8")
+    with pytest.raises(catalog.CatalogError, match=expected):
+        catalog.load(tmp_path)
+
+
+def test_the_committed_overrides_name_recipes_that_exist(repo_root):
+    """Every material a committed variant takes, its overrides included, is a recipe in assets-src/materials."""
+    cat = catalog.load(repo_root)
+    for asset_id, entry in cat["assets"].items():
+        for variant in entry["variants"]:
+            for slot, visual in catalog.visuals(entry, variant).items():
+                assert (repo_root / catalog.RECIPES / f"{visual}.json").is_file(), f"{variant} {slot}: no recipe {visual}"
 
 
 @pytest.mark.parametrize("edit, expected", [
