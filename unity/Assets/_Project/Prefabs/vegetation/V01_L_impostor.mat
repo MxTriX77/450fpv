@@ -45,7 +45,7 @@ Material:
     - _Surface: 0
     m_Colors:
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
-    - _ImpostorCard: {r: 7.043282, g: 14.583485, b: -0.372671, a: 0}
+    - _ImpostorCard: {r: 7.984262, g: 16.531834, b: -0.403114, a: 0}
     - _ImpostorGrid: {r: 8, g: 4, b: 2, a: 15}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
