@@ -1,7 +1,7 @@
 {
   "material": "grassed_spoil",
   "kind": "ground",
-  "formula": "ground cover v2: ground v6 with patches naming only the lodging, so no bare patch, no lip, no green strip and no relief: albedo = the cover with its gaps (the cover gained to gap_albedo, the soil without one) and the straw gain for albedo_target, then a global gain against clipping; normal = the cover's rotated by the azimuth; mask R 0, G the cover's AO, B 0, A (1 - roughness) times the cover's smoothness_scale (1 without one); detail albedo as ground v6",
+  "formula": "ground cover v3: ground v6 with patches naming only the lodging and, optionally, the asset's relief (patches.relief: its params and generator, whose relief_inputs give lib/mat.py's relief), so no bare patch, no lip and no green strip: albedo = the cover times 1 - RELIEF_TONE (1 - h01) where a relief is named (h01 as ground v6's), with its gaps (the cover gained to gap_albedo, the soil without one) and the straw gain for albedo_target, then a global gain against clipping; normal = the cover's rotated by the azimuth; mask R 0, G the cover's AO times 1 - RELIEF_AO (1 - h01) where a relief is named, B 0, A (1 - roughness) times the cover's smoothness_scale (1 without one); detail albedo as ground v6",
   "pillow": "12.3.0",
   "constants": {
     "MAX_OUTPUT_PX": 2048,
@@ -20,7 +20,35 @@
     "RELIEF_SAMPLES": 256,
     "GREEN_LEVEL": 0.6
   },
-  "layout": null,
+  "layout": {
+    "params": "assets-src/earthworks/E01_curving.json",
+    "relief": {
+      "seed": 1,
+      "size_m": 35.25,
+      "cell_m": 0.25,
+      "relief_m": 0.04,
+      "azimuth_deg": 25.0,
+      "bias": 0.3
+    },
+    "fields": {
+      "FIELDS": "mat fields v1",
+      "TUSSOCK_M": 0.5,
+      "SWELL_M": 1.5,
+      "SWELL_SHARE": 0.5,
+      "GREEN_FEATHER_M": 0.5,
+      "GREEN_SPREAD_DEG": 10.0,
+      "BLOB_SATELLITES": 3,
+      "BLOB_OFFSET": 0.35,
+      "BLOB_SCALE": [
+        0.45,
+        0.8
+      ],
+      "GREEN_SAMPLE_M": 0.1,
+      "SHARE_TOLERANCE": 0.005,
+      "SHRINK": 0.75,
+      "STRIP_TRIES": 10000
+    }
+  },
   "recipe": {
     "schema": 1,
     "kind": "ground",
@@ -44,6 +72,10 @@
       "lodging": {
         "azimuth_deg": 25,
         "bias": 0.3
+      },
+      "relief": {
+        "params": "assets-src/earthworks/E01_curving.json",
+        "generator": "trench"
       }
     },
     "albedo_target": "#b49c6a",
@@ -108,7 +140,7 @@
       "sha256": "9191758c59d352d71fc6434e78bebf01380515b13c0883e4e6f605442b67e7ec"
     }
   },
-  "inputs_sha256": "e91be93fdd39d3593c9306a440b24cdd4ba96593c90097a5d384f6ed1ee32de6",
+  "inputs_sha256": "65a0df636a0b535ea290c5e5713a2aebc21857a742ce05ea07ad021ae8b40248",
   "size": [
     2048,
     2048
@@ -125,13 +157,13 @@
   ],
   "measured": {
     "mean_linear_rgb": [
-      0.4563,
+      0.4564,
       0.3324,
       0.1441
     ],
     "mean_luminance": 0.3452,
     "target_luminance": 0.3452,
-    "luminance_error_pct": -0.01,
+    "luminance_error_pct": -0.0,
     "bare_share": 0.0,
     "bare_patches": 0,
     "bare_soil_share": 0.0,
@@ -146,13 +178,13 @@
       1.256
     ],
     "straw_gain": [
-      1.267,
-      1.536,
-      1.908
+      2.225,
+      2.663,
+      3.23
     ],
     "final_gain": [
-      1.232,
-      1.208,
+      1.242,
+      1.209,
       1.154
     ],
     "detail_gain": [

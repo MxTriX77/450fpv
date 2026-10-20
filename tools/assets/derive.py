@@ -47,6 +47,10 @@ stamp. The azimuth is degrees from +u towards +v of the map, which is +X towards
 metres. A ground recipe whose patches name only the lodging (p1-e01-trench task 1.4, a trench's grassed spoil) is a
 cover: no bare patch, no lip, no green strip and no relief tone, so no stain lies where the asset's mesh has no relief
 to make it (REAL-05); its map is the cover with its gaps on the target (COVER_FORMULA), its stamp's layout null. A
+cover may also name its asset's relief (patches.relief: {"params", "generator"}, p1-e01-trench task 1.6): the
+generator's relief_inputs(params) give the lib/mat.py relief its mesh is shaped by and its baked straws gather on,
+and the map darkens the cover and the occlusion in that relief's hollows as a ground recipe does, the dark crevices
+between the mat's tussocks (G 1-12); the stamp's layout records that relief and its params. A
 cover may give cover.smoothness_scale (0-1, p1-e01-trench task 1.2): the mask's smoothness is the set's 1 - roughness
 times it, for a dry straw mat that the set's roughness leaves too glossy at grazing view (G 1-12: no sheen).
 
@@ -85,6 +89,7 @@ check without an exception. Exit code 1 on any problem.
 """
 import argparse
 import hashlib
+import importlib
 import json
 import math
 import os
@@ -127,11 +132,14 @@ GROUND_FORMULA = ("ground v6: cover tiled at tile_size_m and at tile_size_m*phi,
                   "cover normals rotated by the azimuth; mask R 0, G AO times 1 - RELIEF_AO (1 - h01), B 0, "
                   "A 1 - roughness; detail albedo = the detail set's diffuse as grey at its size with a linear mean "
                   "of 0.5; 8-bit sRGB albedos")
-COVER_FORMULA = ("ground cover v2: ground v6 with patches naming only the lodging, so no bare patch, no lip, no green "
-                 "strip and no relief: albedo = the cover with its gaps (the cover gained to gap_albedo, the soil without "
-                 "one) and the straw gain for albedo_target, then a global gain against clipping; normal = the cover's "
-                 "rotated by the azimuth; mask R 0, G the cover's AO, B 0, A (1 - roughness) times the cover's "
-                 "smoothness_scale (1 without one); detail albedo as ground v6")
+COVER_FORMULA = ("ground cover v3: ground v6 with patches naming only the lodging and, optionally, the asset's relief "
+                 "(patches.relief: its params and generator, whose relief_inputs give lib/mat.py's relief), so no bare "
+                 "patch, no lip and no green strip: albedo = the cover times 1 - RELIEF_TONE (1 - h01) where a relief "
+                 "is named (h01 as ground v6's), with its gaps (the cover gained to gap_albedo, the soil without one) "
+                 "and the straw gain for albedo_target, then a global gain against clipping; normal = the cover's "
+                 "rotated by the azimuth; mask R 0, G the cover's AO times 1 - RELIEF_AO (1 - h01) where a relief is "
+                 "named, B 0, A (1 - roughness) times the cover's smoothness_scale (1 without one); detail albedo as "
+                 "ground v6")
 GROUND_MAPS = ("albedo", "normal", "mask", "detail_albedo")
 PALETTE_FORMULA = ("palette v2: one column PALETTE_BLOCK_PX x PALETTE_HEIGHT_PX per colour, left to right in the "
                    "recipe's order, its stops spread evenly from the bottom to the top and interpolated in linear light, "
@@ -402,6 +410,31 @@ def bare_layout_inputs(root, bare, material, size_m):
     return path, inputs, params
 
 
+def cover_relief_inputs(root, spec, material):
+    """(the params path, lib.mat.relief's inputs) of a cover's patches.relief: {"params": the asset's params file,
+    "generator": its generator under tools/blender/generators}, the generator's relief_inputs(params) giving the
+    same relief its mesh and its baked straws are shaped by, in metres from the map's centre."""
+    what = f"{material}.patches.relief"
+    path, name = spec.get("params"), spec.get("generator")
+    if not isinstance(path, str) or not isinstance(name, str) or not re.fullmatch(r"[a-z_]+", name):
+        raise DeriveError(f"{what}: needs \"params\" (the asset's params file) and \"generator\" (its generator)")
+    full = os.path.join(root, path)
+    if not os.path.isfile(full):
+        raise DeriveError(f"{what}.params: no file at {path}")
+    with open(full, encoding="utf-8") as f:
+        params = json.load(f)
+    try:
+        generator = importlib.import_module(f"generators.{name}")
+    except ImportError:
+        raise DeriveError(f"{what}.generator: no generator {name!r} in tools/blender/generators")
+    if not hasattr(generator, "relief_inputs"):
+        raise DeriveError(f"{what}.generator: {name} defines no relief_inputs(params)")
+    try:
+        return path, generator.relief_inputs(params)
+    except (KeyError, TypeError, ValueError) as e:
+        raise DeriveError(f"{what}.params: {path} does not give {name}'s relief ({e})")
+
+
 def ground_recipe(root, recipe, material):
     """Validates a ground recipe and returns its numbers as plain values (shares, sizes, colours in linear RGB)."""
     _number(recipe, "seed", material, integer=True)
@@ -410,9 +443,16 @@ def ground_recipe(root, recipe, material):
     soil, cover, detail = (_set_ref(recipe, k, material) for k in ("soil", "cover", "detail"))
     patch_spec = _object(recipe, "patches", material)
     lodging = _object(patch_spec, "lodging", f"{material}.patches")
-    if "bare" not in patch_spec and "green" not in patch_spec:  # a cover: no patch, no strip, no relief tone
+    relief_params = None
+    if "bare" not in patch_spec and "green" not in patch_spec:  # a cover: no patch, no strip
         layout_params = layout_inputs = green_inputs = relief_inputs = green_tint = None
-    elif "smoothness_scale" in cover:
+        if "relief" in patch_spec:  # the tone of the asset's own relief, from its generator (p1-e01-trench task 1.6)
+            relief_params, relief_inputs = cover_relief_inputs(root, _object(patch_spec, "relief",
+                                                                              f"{material}.patches"), material)
+    elif "smoothness_scale" in cover or "relief" in patch_spec:
+        if "relief" in patch_spec:
+            raise DeriveError(f"{material}.patches.relief: only a cover names its relief; a ground recipe's is its "
+                              "bare patches' params file's")
         raise DeriveError(f"{material}.cover.smoothness_scale: only a cover (patches naming only the lodging) takes it")
     else:
         bare, green = (_object(patch_spec, k, f"{material}.patches") for k in ("bare", "green"))
@@ -442,7 +482,7 @@ def ground_recipe(root, recipe, material):
         "smoothness_scale": (_number(cover, "smoothness_scale", f"{material}.cover", lo=0, hi=1)
                              if "smoothness_scale" in cover else 1.0),
         "layout_params": layout_params, "layout": layout_inputs, "green": green_inputs, "relief": relief_inputs,
-        "green_tint": green_tint,
+        "relief_params": relief_params, "green_tint": green_tint,
         "azimuth_deg": _number(lodging, "azimuth_deg", f"{material}.patches.lodging", lo=-360, hi=360),
         "bias": _number(lodging, "bias", f"{material}.patches.lodging", lo=0, hi=1),
         "target": _colour(recipe, "albedo_target", material),
@@ -643,11 +683,15 @@ def derive_ground(root, manifest, material, recipe):
     sets = {"soil": g["soil"]["texture_set"], "cover": g["cover"]["texture_set"], "detail": g["detail"]["texture_set"]}
     maps = {role: _load_set(root, manifest, texture_set, material, role) for role, texture_set in sets.items()}
     cover_only = g["layout"] is None
+    if not cover_only:
+        layout_stamp = {"params": g["layout_params"], "inputs": g["layout"], "constants": patches.constants(),
+                        "green": g["green"], "relief": g["relief"], "fields": mat.constants()}
+    elif g["relief"] is not None:  # a cover toned by its asset's relief
+        layout_stamp = {"params": g["relief_params"], "relief": g["relief"], "fields": mat.constants()}
+    else:
+        layout_stamp = None
     stamp = {"material": material, "kind": "ground", "formula": COVER_FORMULA if cover_only else GROUND_FORMULA,
-             "pillow": PIL.__version__, "constants": _constants(GROUND_CONSTANTS),
-             "layout": None if cover_only else {
-                 "params": g["layout_params"], "inputs": g["layout"], "constants": patches.constants(),
-                 "green": g["green"], "relief": g["relief"], "fields": mat.constants()},
+             "pillow": PIL.__version__, "constants": _constants(GROUND_CONSTANTS), "layout": layout_stamp,
              "recipe": recipe,
              "sources": {f"{role}/{name}": {"name": os.path.basename(path), "sha256": fetch.sha256(path)}
                          for role in ("soil", "cover", "detail") for name, path in sorted(maps[role].items())
@@ -682,7 +726,8 @@ def derive_ground(root, manifest, material, recipe):
         raise DeriveError(f"{material}: {e}")
     bare = bare_layer(layout["patches"], out_px, size_m)
     green = green_layer(regrowth["strips"], out_px, size_m)
-    relief = None if cover_only else relief_layer(mat.relief(**g["relief"]), g["relief"]["relief_m"], out_px, size_m)
+    relief = (None if g["relief"] is None
+              else relief_layer(mat.relief(**g["relief"]), g["relief"]["relief_m"], out_px, size_m))
     soil_albedo, cover_albedo = soil("diffuse"), cover("diffuse")
     soil_gain = [1.0, 1.0, 1.0]
     if g["soil_target"] is not None:
@@ -759,7 +804,9 @@ def derive_ground(root, manifest, material, recipe):
     stamp.update({"size": [out_px, out_px], "detail_size": list(detail.size),
                   "outputs": [os.path.basename(outputs[name]) for name in GROUND_MAPS], "measured": measured})
     _write_stamp(stamp_path, stamp)
-    shares = ("a cover: no bare patch, green strip or relief tone" if cover_only else
+    shares = (f"a cover: no bare patch or green strip, the relief tone of {g['relief_params']}"
+              if cover_only and relief is not None else
+              "a cover: no bare patch, green strip or relief tone" if cover_only else
               f"bare {100 * bare_share:.1f} % ({len(layout['patches'])} outlines from {g['layout_params']}; soil shown "
               f"{100 * bare_soil_share:.1f} %, {100 * floor_soil_share:.1f} % of the floors with the straws strewn over "
               f"them), green {100 * green_share:.1f} %")

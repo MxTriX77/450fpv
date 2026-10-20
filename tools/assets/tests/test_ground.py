@@ -210,6 +210,43 @@ def test_a_cover_stamps_no_patch_strip_or_relief_tone(tmp_path, capsys):
     assert (stamp["measured"]["bare_share"], stamp["measured"]["bare_patches"], stamp["measured"]["green_share"]) == (0, 0, 0)
 
 
+def test_a_cover_takes_its_assets_relief_tone(tmp_path, capsys):
+    """p1-e01-trench task 1.6: a cover may name its asset's relief (patches.relief: the params and the generator,
+    whose relief_inputs give lib/mat.py's relief, the one the trench's top and its baked mat are shaped by): from a
+    flat cover set the albedo and the occlusion fall in the relief's hollows by up to RELIEF_TONE and RELIEF_AO, the
+    mean stays on the target, and the stamp records the relief and its params."""
+    from generators import trench  # tools/blender, which derive.py puts on the path
+    root = ground_root(tmp_path)
+    trench_params = json.loads((Path(fetch.REPO_ROOT) / "assets-src" / "earthworks" / "E01_curving.json").read_text(
+        encoding="utf-8"))
+    path = "assets-src/earthworks/fake_trench.json"
+    write_params(root, trench_params, path)
+    recipe = dict(RECIPE, patches={"lodging": RECIPE["patches"]["lodging"],
+                                   "relief": {"params": path, "generator": "trench"}})
+    write_recipe(root, recipe)
+    assert run(MATERIAL, "--root", root) == 0
+    assert f"a cover: no bare patch or green strip, the relief tone of {path}" in capsys.readouterr().out
+    stamp = json.loads((root / MATERIALS / f"{MATERIAL}.recipe.json").read_text(encoding="utf-8"))
+    inputs = trench.relief_inputs(trench_params)
+    assert stamp["formula"] == derive.COVER_FORMULA and stamp["layout"] == {
+        "params": path, "relief": inputs, "fields": mat.constants()}
+    maps = outputs(root)
+    albedo, ao = Image.open(maps["albedo"]).convert("L"), Image.open(maps["mask"]).getchannel("G")
+    assert abs(mean_luminance(maps["albedo"]) / TARGET_LUMINANCE - 1) <= 0.05
+    relief, n, size = mat.relief(**inputs), 256, RECIPE["size_m"]
+    samples = sorted((relief(((i + 0.5) / n - 0.5) * size, (0.5 - (j + 0.5) / n) * size), (i, j))
+                     for i in range(0, n, 4) for j in range(0, n, 4))
+    hollows, crowns = samples[:len(samples) // 10], samples[-len(samples) // 10:]
+
+    def mean(image, cells):
+        return sum(image.getpixel(p) for _, p in cells) / len(cells)
+
+    print(f"albedo L hollows {mean(albedo, hollows):.1f} crowns {mean(albedo, crowns):.1f}; "
+          f"AO hollows {mean(ao, hollows):.1f} crowns {mean(ao, crowns):.1f}")
+    assert mean(albedo, hollows) < 0.85 * mean(albedo, crowns) and mean(ao, hollows) < 0.85 * mean(ao, crowns)
+    assert min(ao.getextrema()) >= round(240 * (1 - derive.RELIEF_AO)) - 1
+
+
 def test_a_cover_scales_its_smoothness(tmp_path):
     """p1-e01-trench task 1.2: a cover's smoothness_scale multiplies the mask's smoothness (A = (1 - roughness) times
     the scale), the dry straw's grazing sheen; the albedo and the occlusion do not move, and the recipe is recorded."""
@@ -550,6 +587,19 @@ def test_ground_failures_name_the_cause_and_write_nothing(tmp_path, capsys):
         (dict(RECIPE, patches={"lodging": RECIPE["patches"]["lodging"]},
               cover=dict(RECIPE["cover"], smoothness_scale=1.5)),
          f"{MATERIAL}.cover.smoothness_scale: 1.5 must be a number in [0, 1]"),
+        (dict(RECIPE, patches=dict(RECIPE["patches"], relief={"params": LAYOUT_PARAMS, "generator": "trench"})),
+         f"{MATERIAL}.patches.relief: only a cover names its relief"),
+        (dict(RECIPE, patches={"lodging": RECIPE["patches"]["lodging"], "relief": {"params": LAYOUT_PARAMS}}),
+         f"{MATERIAL}.patches.relief: needs \"params\" (the asset's params file) and \"generator\" (its generator)"),
+        (dict(RECIPE, patches={"lodging": RECIPE["patches"]["lodging"],
+                               "relief": {"params": LAYOUT_PARAMS, "generator": "nope"}}),
+         f"{MATERIAL}.patches.relief.generator: no generator 'nope' in tools/blender/generators"),
+        (dict(RECIPE, patches={"lodging": RECIPE["patches"]["lodging"],
+                               "relief": {"params": LAYOUT_PARAMS, "generator": "shrub"}}),
+         f"{MATERIAL}.patches.relief.generator: shrub defines no relief_inputs(params)"),
+        (dict(RECIPE, patches={"lodging": RECIPE["patches"]["lodging"],
+                               "relief": {"params": LAYOUT_PARAMS, "generator": "trench"}}),
+         f"{MATERIAL}.patches.relief.params: {LAYOUT_PARAMS} does not give trench's relief"),
     ]
     for recipe, message in cases:
         write_recipe(root, recipe)
