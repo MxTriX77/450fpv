@@ -948,6 +948,7 @@
   ],
   "ports": [],
   "wires": [],
+  "holes": [],
   "snag": [
     {
       "kind": "edge",

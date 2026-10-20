@@ -115,6 +115,22 @@ namespace Fpv450.World
             public Vector3[] points;
         }
 
+        /// <summary>
+        /// A cut in the ground (p1-e01-trench, "Holes in the metadata"): its ordered centre line in asset space (y the
+        /// ground), its top width, its depth and its band's width. The band is every point within half the band's width
+        /// of the centre line in plan; the map compiler marks the hole cells from it, and the asset's fillers carry the
+        /// cut. A trench lists its run first, then one record per niche.
+        /// </summary>
+        [Serializable]
+        public sealed class Hole
+        {
+            public string id;
+            public Vector3[] centreLine;
+            public float topWidthM;
+            public float depthM;
+            public float bandWidthM;
+        }
+
         [Serializable]
         public sealed class SnagFeature
         {
@@ -140,6 +156,7 @@ namespace Fpv450.World
         public WindVolume[] windVolumes;
         public Port[] ports;
         public Wire[] wires;
+        public Hole[] holes;
         public SnagFeature[] snag;
 
         /// <summary>The <c>.assetmeta.json</c> this was filled from, for provenance and for readers that want the file.</summary>

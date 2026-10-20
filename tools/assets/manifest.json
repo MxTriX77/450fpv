@@ -347,6 +347,46 @@
           "bytes": 743589
         }
       ]
+    },
+    {
+      "source": "polyhaven",
+      "id": "dirt_floor",
+      "title": "Dirt Floor",
+      "resolution": "1k",
+      "licence": "CC0",
+      "author": "eye-candy.xyz",
+      "page": "https://polyhaven.com/a/dirt_floor",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/polyhaven/dirt_floor",
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "dirt_floor_diff_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/dirt_floor/dirt_floor_diff_1k.png",
+          "sha256": "93ab3485c6d4de3a04ded4035dd9eecd268087e62ca88f30578630ae1bbd5eba",
+          "bytes": 5746384
+        },
+        {
+          "map": "normal",
+          "name": "dirt_floor_nor_gl_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/dirt_floor/dirt_floor_nor_gl_1k.png",
+          "sha256": "be9a1f51360e7bd44e65b34840408a1dfc48f8d1f3d5d9de79b658dfe83d21cc",
+          "bytes": 5892641
+        },
+        {
+          "map": "roughness",
+          "name": "dirt_floor_rough_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/dirt_floor/dirt_floor_rough_1k.png",
+          "sha256": "b4232b4e0cf8a8c5f88ac3925b8dcc4f1b20784f4369f7c53af301a09b1abaf4",
+          "bytes": 2336546
+        },
+        {
+          "map": "ao",
+          "name": "dirt_floor_ao_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/dirt_floor/dirt_floor_ao_1k.png",
+          "sha256": "8ca3fcc1c65f7b13d732af9746989f864b1f4aed4c50b87b9861d0fa3a61ab2e",
+          "bytes": 2542347
+        }
+      ]
     }
   ]
 }

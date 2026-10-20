@@ -1,0 +1,196 @@
+{
+  "material": "grassed_spoil",
+  "kind": "ground",
+  "formula": "ground cover v3: ground v6 with patches naming only the lodging and, optionally, the asset's relief (patches.relief: its params and generator, whose relief_inputs give lib/mat.py's relief), so no bare patch, no lip and no green strip: albedo = the cover times 1 - RELIEF_TONE (1 - h01) where a relief is named (h01 as ground v6's), with its gaps (the cover gained to gap_albedo, the soil without one) and the straw gain for albedo_target, then a global gain against clipping; normal = the cover's rotated by the azimuth; mask R 0, G the cover's AO times 1 - RELIEF_AO (1 - h01) where a relief is named, B 0, A (1 - roughness) times the cover's smoothness_scale (1 without one); detail albedo as ground v6",
+  "pillow": "12.3.0",
+  "constants": {
+    "MAX_OUTPUT_PX": 2048,
+    "PHI": 1.618033988749895,
+    "LOBE_M": 0.4,
+    "STRAW_M": 0.05,
+    "GAP_LOBES": 0.0,
+    "BARE_LOBES": 0.5,
+    "FLOOR_EDGE": 0.55,
+    "FLOOR_STRAWS": 0.2,
+    "LEVEL_STEPS": 16,
+    "LIP_M": 0.4,
+    "LIP_LEVEL": 0.6,
+    "RELIEF_TONE": 0.45,
+    "RELIEF_AO": 0.4,
+    "RELIEF_SAMPLES": 256,
+    "GREEN_LEVEL": 0.6
+  },
+  "layout": {
+    "params": "assets-src/earthworks/E01_curving.json",
+    "relief": {
+      "seed": 1,
+      "size_m": 35.25,
+      "cell_m": 0.25,
+      "relief_m": 0.04,
+      "azimuth_deg": 25.0,
+      "bias": 0.3
+    },
+    "fields": {
+      "FIELDS": "mat fields v1",
+      "TUSSOCK_M": 0.5,
+      "SWELL_M": 1.5,
+      "SWELL_SHARE": 0.5,
+      "GREEN_FEATHER_M": 0.5,
+      "GREEN_SPREAD_DEG": 10.0,
+      "BLOB_SATELLITES": 3,
+      "BLOB_OFFSET": 0.35,
+      "BLOB_SCALE": [
+        0.45,
+        0.8
+      ],
+      "GREEN_SAMPLE_M": 0.1,
+      "SHARE_TOLERANCE": 0.005,
+      "SHRINK": 0.75,
+      "STRIP_TRIES": 10000
+    }
+  },
+  "recipe": {
+    "schema": 1,
+    "kind": "ground",
+    "shader": "Universal Render Pipeline/Lit",
+    "seed": 5,
+    "size_m": 40,
+    "output_px": 2048,
+    "soil": {
+      "texture_set": "polyhaven/brown_mud_02",
+      "tile_size_m": 1.3,
+      "albedo_target": "#4a463f"
+    },
+    "cover": {
+      "texture_set": "texturecan/ground_0018",
+      "tile_size_m": 2.0,
+      "gap_share": 0.35,
+      "gap_albedo": "#3a3227",
+      "smoothness_scale": 0.2
+    },
+    "patches": {
+      "lodging": {
+        "azimuth_deg": 25,
+        "bias": 0.3
+      },
+      "relief": {
+        "params": "assets-src/earthworks/E01_curving.json",
+        "generator": "trench"
+      }
+    },
+    "albedo_target": "#b49c6a",
+    "tint": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "detail": {
+      "texture_set": "texturecan/ground_0018",
+      "tile_size_m": 2.0
+    }
+  },
+  "sources": {
+    "soil/ao": {
+      "name": "brown_mud_02_ao_2k.png",
+      "sha256": "16f6fa689c964651952714aedc88be4c2de3786aa271cb59000edbb3b8b0ffa4"
+    },
+    "soil/diffuse": {
+      "name": "brown_mud_02_diff_2k.png",
+      "sha256": "a00bad20b2c339bd3d2837b8ae80903c4646876bb4ec0cc960846a97b2d3d737"
+    },
+    "soil/normal": {
+      "name": "brown_mud_02_nor_gl_2k.png",
+      "sha256": "78e01270b222a96cc1433c8d4ba2b6fbbe24b296934b45d1ff6aa30cad647888"
+    },
+    "soil/roughness": {
+      "name": "brown_mud_02_rough_2k.png",
+      "sha256": "c2c7835ff92171d9141dd7a1884dbf3a00b5d989fe8ae05737ac6d5397c12572"
+    },
+    "cover/ao": {
+      "name": "ground_0018_ao_2k.jpg",
+      "sha256": "3a0ead2c87dc8e3ba337f2a0d134604c26547bcb765155946745377c05380633"
+    },
+    "cover/diffuse": {
+      "name": "ground_0018_color_2k.jpg",
+      "sha256": "8b50f97b98a90f276d4e62c855037540ef1358a030e25b3045bcabfded669886"
+    },
+    "cover/normal": {
+      "name": "ground_0018_normal_opengl_2k.png",
+      "sha256": "2418eba61f9966ef34bae4899c96d845a4865e6489a592317d2b07fa9f007498"
+    },
+    "cover/roughness": {
+      "name": "ground_0018_roughness_2k.jpg",
+      "sha256": "9191758c59d352d71fc6434e78bebf01380515b13c0883e4e6f605442b67e7ec"
+    },
+    "detail/ao": {
+      "name": "ground_0018_ao_2k.jpg",
+      "sha256": "3a0ead2c87dc8e3ba337f2a0d134604c26547bcb765155946745377c05380633"
+    },
+    "detail/diffuse": {
+      "name": "ground_0018_color_2k.jpg",
+      "sha256": "8b50f97b98a90f276d4e62c855037540ef1358a030e25b3045bcabfded669886"
+    },
+    "detail/normal": {
+      "name": "ground_0018_normal_opengl_2k.png",
+      "sha256": "2418eba61f9966ef34bae4899c96d845a4865e6489a592317d2b07fa9f007498"
+    },
+    "detail/roughness": {
+      "name": "ground_0018_roughness_2k.jpg",
+      "sha256": "9191758c59d352d71fc6434e78bebf01380515b13c0883e4e6f605442b67e7ec"
+    }
+  },
+  "inputs_sha256": "65a0df636a0b535ea290c5e5713a2aebc21857a742ce05ea07ad021ae8b40248",
+  "size": [
+    2048,
+    2048
+  ],
+  "detail_size": [
+    2048,
+    2048
+  ],
+  "outputs": [
+    "grassed_spoil_albedo.png",
+    "grassed_spoil_normal.png",
+    "grassed_spoil_mask.png",
+    "grassed_spoil_detail_albedo.png"
+  ],
+  "measured": {
+    "mean_linear_rgb": [
+      0.4564,
+      0.3324,
+      0.1441
+    ],
+    "mean_luminance": 0.3452,
+    "target_luminance": 0.3452,
+    "luminance_error_pct": -0.0,
+    "bare_share": 0.0,
+    "bare_patches": 0,
+    "bare_soil_share": 0.0,
+    "floor_soil_share": 0.0,
+    "green_share": 0.0,
+    "gap_share": 0.3664,
+    "lip_soil_share": 0.0,
+    "soil_mean_srgb": "#4a463f",
+    "soil_gain": [
+      0.897,
+      1.025,
+      1.256
+    ],
+    "straw_gain": [
+      2.225,
+      2.663,
+      3.23
+    ],
+    "final_gain": [
+      1.242,
+      1.209,
+      1.154
+    ],
+    "detail_gain": [
+      1.374,
+      1.374,
+      1.374
+    ]
+  }
+}

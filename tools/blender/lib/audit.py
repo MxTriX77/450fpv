@@ -73,6 +73,8 @@ FACE_CELL_M = 0.05          # FaceIndex grid cell
 FACE_RINGS = 3              # rings of cells searched before a far point falls back to every face
 NEAR_TOLERANCE_M = 0.02     # +-2 cm around openings and landing surfaces
 NEAR_RANGE_M = 0.3
+ZONE_EDGE_CELL_M = 0.001    # a cell this small at the 2 cm zone's edge is not split; its bound counts (p1-e01-trench
+                            # task 1.4: the edge is resolved to a millimetre, so a covered edge lying on it ends there)
 PRECISION_M = 0.0001        # the search stops when no cell can beat the best by this; with CHORD_M, under 1 mm
 CHORD_M = 0.0004            # tessellation error allowed on spheres, capsules and cylinders
 NARROWEST_TOLERANCE_M = 0.005
@@ -93,6 +95,8 @@ COVERED_M = 2e-6            # a point this close to another primitive's inside i
 SEAM_CELL_M = 0.001         # a cell this small with every corner inside some other primitive is covered (a seam)
 BOX_CELL_M = 0.25           # a box face is tessellated in cells of at most this, so the search never quarters a long
                             # thin wall (12 x 0.2 m) into slivers; a brick's faces stay one cell each
+SHAPE_BUCKET_M = 0.5        # _ShapeIndex's buckets, and how far past a primitive's box it is listed (SHAPE_REACH_M):
+SHAPE_REACH_M = 0.25        # pruning only, the audit's numbers are unchanged
 
 
 def soft_materials(root):
@@ -105,16 +109,20 @@ def soft_materials(root):
                                        and row["stiffness_n_per_m"] <= SOFT_STIFFNESS_N_PER_M}
 
 
-def run(meta, lod0, *, soft=frozenset(), card_visuals=(), planted=False):
+def run(meta, lod0, *, soft=frozenset(), card_visuals=(), planted=False, clip_boxes=False):
     """(problems, report lines) of one variant: `meta` as lib.meta.assemble builds it, `lod0` its first
     lib.geometry.Mesh, `soft` the material ids with soft tops (soft_materials; none by default, so every landable
     top keeps the 2 cm zone), `card_visuals` the visual materials drawn as alpha-clipped cards
     (lib.catalog.card_visuals). Both are keywords: each is a set of names, easily swapped. `planted` says the asset
     stands in the ground (its generator's PLANTED): the terrain then covers the half-space below y = 0 as another
     primitive would, so a primitive's surface there (a log's capsule cap, a brace's buried foot) is no invisible
-    wall (p1-l01-l03-pole-wires). Problems name the primitive or slot, the deviation and the tolerance; the lines
-    carry the measured numbers for every primitive, the mesh, every shell piece and slot and every gap, success or
-    not."""
+    wall (p1-l01-l03-pole-wires). `clip_boxes` (p1-e01-trench: an asset that cuts the ground, whose hundreds of
+    filler boxes run on under one another along every crease) bounds a primitive's cell by its parts outside the
+    boxes that cover part of it, clipped exactly (_uncovered), instead of refining the cell down to the search's
+    precision along each such line: the same maximum within PRECISION_M, found in minutes instead of an hour; off,
+    every other asset's lines stay as recorded. Problems name the primitive or slot, the deviation and the
+    tolerance; the lines carry the measured numbers for every primitive, the mesh, every shell piece and slot and
+    every gap, success or not."""
     shapes = [_Shape(s) for s in meta["collision"]]
     shell_slots = {m["slot"] for m in meta["materials"] if m["physics"] in SHELL_MATERIALS}
     wire_slots = {w["slot"] for w in meta.get("wires", [])}
@@ -138,7 +146,9 @@ def run(meta, lod0, *, soft=frozenset(), card_visuals=(), planted=False):
             problems.append(f"collision[{i}] {shape.kind}: no LOD0 face outside the shells' and wires' slots stands "
                             "under it")
             continue
-        others = [shapes[j] for j in body if j != i]
+        # Only a primitive whose bounding box meets this one's can cover a point of its surface: _covered and
+        # _cell_covered skip every other by its box anyway, so the result is the same (p1-e01-trench: 489 shapes).
+        others = [shapes[j] for j in body if j != i and _boxes_meet(shapes[j], shape)]
         cells = [tri[:3] for tri in shape.triangles]
         if planted:
             cells = _above_ground(cells)
@@ -150,16 +160,25 @@ def run(meta, lod0, *, soft=frozenset(), card_visuals=(), planted=False):
             d, which = index.nearest(v)
             return (0.0 if _covered(v, others) else d), which
 
-        def bound(cell, which, others=others):
-            return 0.0 if _cell_covered(cell, others) else _faces_bound(cell, which, faces)
+        boxes = [s for s in others if s.kind == "box"] if clip_boxes else []
+
+        def bound(cell, which, others=others, boxes=boxes):
+            if _cell_covered(cell, others):
+                return 0.0
+            parts = _uncovered(cell, boxes) if boxes else None
+            if parts is None:
+                return _faces_bound(cell, which, faces)
+            return max((_faces_bound(tri, [index.nearest(v)[1] for v in tri], faces)
+                        for part in parts for tri in _fan(part)), default=0.0)
 
         problems += _report(lines, f"collision[{i}] {shape.kind}", f"{shape.kind}->mesh", cells, zone, value, bound)
     if faces and not body:
         problems.append("mesh: no collision primitive stands for the LOD0 mesh")
     elif faces:
         cells = [tuple(face.points[i] for i in tri) for face in faces for tri in face.fan()]
+        nearest = _ShapeIndex(shapes, body)
         problems += _report(lines, "mesh", "mesh->collision", cells, zone,
-                            lambda v: _nearest_shape(v, shapes, body), lambda cell, which: _shapes_bound(cell, which, shapes),
+                            nearest.nearest, lambda cell, which: _shapes_bound(cell, which, shapes),
                             lambda which: f" nearest collision[{which}]")
     problems += _audit_shells(lines, meta, shapes, shells, lod0, set(card_visuals))
     problems += _audit_wires(lines, meta.get("wires", []), lod0)
@@ -477,7 +496,11 @@ def _directed_max(cells, value, bound, zone=None):
     """The largest value over the surface of the `cells` triangles, within PRECISION_M, as (value, point, which):
     `value(vertex)` gives the exact (distance, which) at a point and `bound(cell, [which per vertex])` an upper
     bound over a cell. Only the points within NEAR_RANGE_M of `zone` count when it is given (point None when no
-    such point exists)."""
+    such point exists). A cell at the zone's edge (a vertex past NEAR_RANGE_M) no longer than ZONE_EDGE_CELL_M is not
+    split: its bound counts, at its vertex nearest the zone. Its bound covers its part just outside the zone too, so a
+    covered edge on the zone's edge (no vertex inside can match the uncovered part outside) or a surface that meets the
+    zone along a line only would otherwise split its cells along that line without end; counted, the edge errs
+    towards the larger value, by what lies within a millimetre outside the zone."""
     cache, near = {}, {}
     best, at, which = -1.0, None, None
     heap = []
@@ -496,8 +519,13 @@ def _directed_max(cells, value, bound, zone=None):
             if d > best and (not zone or near[v] <= NEAR_RANGE_M):
                 best, at, which = d, v, w
         upper = bound(cell, [cache[v][1] for v in cell])
-        if upper > best + PRECISION_M:
-            heapq.heappush(heap, (-upper, len(heap), cell))
+        if upper <= best + PRECISION_M:
+            return
+        if zone and max(near[v] for v in cell) > NEAR_RANGE_M and _longest_edge(cell) <= ZONE_EDGE_CELL_M:
+            v = min(cell, key=lambda p: near[p])
+            best, at, which = upper, v, cache[v][1]
+            return
+        heapq.heappush(heap, (-upper, len(heap), cell))
 
     for cell in cells:
         push(cell)
@@ -641,6 +669,81 @@ def _cell_covered(cell, others):
     return _longest_edge(cell) <= SEAM_CELL_M and all(_covered(v, others) for v in cell)
 
 
+def _uncovered(cell, boxes):
+    """The parts of a cell outside every box of `boxes` (each grown by COVERED_M, as _covered counts a point covered),
+    as convex polygons in the cell's plane, slivers thinner than COVERED_M dropped (no surface, as the module
+    says); None when no box cuts the cell, so the caller keeps its own bound. Exact: a box is six half-spaces."""
+    lo = [min(v[k] for v in cell) for k in range(3)]
+    hi = [max(v[k] for v in cell) for k in range(3)]
+    pieces, cut = [list(cell)], False
+    for box in boxes:
+        if not all(box.lo[k] <= hi[k] and lo[k] <= box.hi[k] for k in range(3)):
+            continue
+        out = []
+        for piece in pieces:
+            parts = _outside_box(piece, box)
+            if parts is None:
+                out.append(piece)
+            else:
+                cut = True
+                out += parts
+        pieces = out
+        if not pieces:
+            return []
+    return pieces if cut else None
+
+
+def _outside_box(polygon, box):
+    """The parts of a convex polygon outside a box grown by COVERED_M, or None when it lies wholly outside one of
+    the box's planes (untouched)."""
+    planes = []
+    for k, axis in enumerate(box.axes):
+        for s in (-1.0, 1.0):
+            planes.append(((s * axis[0], s * axis[1], s * axis[2]),
+                           s * _dot(box.centre, axis) + box.half[k] + COVERED_M))
+    distances = [[_dot(p, n) - d for p in polygon] for n, d in planes]
+    if any(min(h) >= 0 for h in distances):
+        return None
+    parts, rest = [], polygon
+    for n, d in planes:
+        outside = _clip_plane(rest, n, d, keep_outside=True)
+        if _thick(outside):
+            parts.append(outside)
+        rest = _clip_plane(rest, n, d, keep_outside=False)
+        if not _thick(rest):
+            break
+    return parts
+
+
+def _clip_plane(polygon, n, d, keep_outside):
+    """Sutherland-Hodgman against the plane n.p = d: the part with n.p >= d (outside) or <= d."""
+    out = []
+    for p, q in zip(polygon, polygon[1:] + polygon[:1]):
+        hp, hq = _dot(p, n) - d, _dot(q, n) - d
+        if not keep_outside:
+            hp, hq = -hp, -hq
+        if hp >= 0:
+            out.append(p)
+        if (hp > 0 > hq) or (hp < 0 < hq):
+            t = hp / (hp - hq)
+            out.append((p[0] + t * (q[0] - p[0]), p[1] + t * (q[1] - p[1]), p[2] + t * (q[2] - p[2])))
+    return out
+
+
+def _thick(polygon):
+    """Whether a planar polygon is more than a COVERED_M sliver: its area over half its perimeter (its mean width)."""
+    if len(polygon) < 3:
+        return False
+    n = _newell(polygon)
+    area = math.sqrt(_dot(n, n)) / 2
+    perimeter = sum(_dist(a, b) for a, b in zip(polygon, polygon[1:] + polygon[:1]))
+    return area > COVERED_M * perimeter / 2
+
+
+def _fan(polygon):
+    return [(polygon[0], polygon[k], polygon[k + 1]) for k in range(1, len(polygon) - 1)]
+
+
 def _faces_bound(cell, which, faces):
     """An upper bound of the distance to the mesh over a cell, from the faces nearest to its vertices: the largest
     vertex distance to one face (convex, so its maximum sits at a vertex); when two candidate faces share an edge,
@@ -722,6 +825,11 @@ class _Shape:
     def _grow(self):
         return (0.0 if self.kind == "box" else CHORD_M) + 2 * COVERED_M
 
+    @functools.cached_property
+    def axes(self):
+        """The shape's local axes in asset space (a box's face normals, _uncovered)."""
+        return tuple(_rotate(self.q, e) for e in ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)))
+
     def reach(self):
         """The radius of a sphere about the centre that holds the whole shape."""
         if self.kind == "box":
@@ -772,6 +880,37 @@ class _Shape:
 
 def _nearest_shape(p, shapes, indices=None):
     return min((abs(shapes[i].sdf(p)), i) for i in (range(len(shapes)) if indices is None else indices))
+
+
+def _boxes_meet(a, b):
+    """Whether two primitives' bounding boxes (lo, hi) meet."""
+    return all(a.lo[k] <= b.hi[k] and b.lo[k] <= a.hi[k] for k in range(3))
+
+
+class _ShapeIndex:
+    """The primitives of `indices` bucketed by their bounding boxes grown by SHAPE_REACH_M, for _nearest_shape at a
+    point: a primitive outside the point's bucket lies more than SHAPE_REACH_M from it (outside its box), so when the
+    nearest in the bucket is no farther than that it is the nearest of all, tie-breaks included; else every primitive is
+    tried. The result is _nearest_shape's (p1-e01-trench: a mesh vertex tried against 489 primitives)."""
+
+    def __init__(self, shapes, indices):
+        self.shapes, self.indices, self.buckets = shapes, list(indices), {}
+        for i in self.indices:
+            s = shapes[i]
+            lo = [math.floor((s.lo[k] - SHAPE_REACH_M) / SHAPE_BUCKET_M) for k in range(3)]
+            hi = [math.floor((s.hi[k] + SHAPE_REACH_M) / SHAPE_BUCKET_M) for k in range(3)]
+            for x in range(lo[0], hi[0] + 1):
+                for y in range(lo[1], hi[1] + 1):
+                    for z in range(lo[2], hi[2] + 1):
+                        self.buckets.setdefault((x, y, z), []).append(i)
+
+    def nearest(self, p):
+        candidates = self.buckets.get(tuple(math.floor(p[k] / SHAPE_BUCKET_M) for k in range(3)))
+        if candidates:
+            best = min((abs(self.shapes[i].sdf(p)), i) for i in candidates)
+            if best[0] <= SHAPE_REACH_M:
+                return best
+        return _nearest_shape(p, self.shapes, self.indices)
 
 
 def _shapes_bound(cell, which, shapes):
@@ -840,26 +979,60 @@ def _zone(meta, shapes, soft):
     faces = [_Face([a, b, c], [0, 1, 2], n) for shape, entry in zip(shapes, meta["collision"])
              if entry["landable"] and entry["material"] not in soft
              for a, b, c, n in shape.triangles if _dot(n, UP) >= LANDABLE_COS]
-    polygons = [(tuple(tuple(p) for p in g["polygon"]), tuple(g["normal"])) for g in meta["gaps"]]
+    polygons = [_GapPolygon(tuple(tuple(p) for p in g["polygon"]), tuple(g["normal"])) for g in meta["gaps"]]
     return (faces, polygons) if faces or polygons else None
 
 
 def _zone_distance(p, zone):
+    """The least distance from p to a landing face or a gap polygon. Each is skipped when its bounding box lies no
+    nearer than the best so far (the distance to a box is a lower bound), so the result is the plain minimum's."""
     faces, polygons = zone
-    return min([_face_distance(p, face) for face in faces] + [_gap_distance(p, *g) for g in polygons])
+    best = math.inf
+    for item in faces:
+        if _box_distance2(p, item.lo, item.hi) < best * best:
+            best = min(best, _face_distance(p, item))
+    for item in polygons:
+        if _box_distance2(p, item.lo, item.hi) < best * best:
+            best = min(best, item.distance(p))
+    return best
+
+
+def _box_distance2(p, lo, hi):
+    dx = lo[0] - p[0] if p[0] < lo[0] else p[0] - hi[0] if p[0] > hi[0] else 0.0
+    dy = lo[1] - p[1] if p[1] < lo[1] else p[1] - hi[1] if p[1] > hi[1] else 0.0
+    dz = lo[2] - p[2] if p[2] < lo[2] else p[2] - hi[2] if p[2] > hi[2] else 0.0
+    return dx * dx + dy * dy + dz * dz
+
+
+class _GapPolygon:
+    """A gap polygon with its plane basis, flattened outline and bounding box computed once (_gap_distance's)."""
+
+    def __init__(self, polygon, normal):
+        self.polygon, self.normal = polygon, normal
+        self.u, self.v = _plane_basis(normal)
+        self.flat = [(_dot(q, self.u), _dot(q, self.v)) for q in polygon]
+        self.lo = tuple(min(q[k] for q in polygon) for k in range(3))
+        self.hi = tuple(max(q[k] for q in polygon) for k in range(3))
+
+    def distance(self, p):
+        if _inside_polygon2((_dot(p, self.u), _dot(p, self.v)), self.flat):
+            return abs(_dot(_sub(p, self.polygon[0]), self.normal))
+        return min(_segment_distance(p, a, b) for a, b in zip(self.polygon, self.polygon[1:] + self.polygon[:1]))
 
 
 def _gap_distance(p, polygon, normal):
     """Distance from p to a planar, possibly concave polygon: to its plane when p projects inside it, else to its
     nearest edge."""
-    u, v = _plane_basis(normal)
-    flat = [(_dot(q, u), _dot(q, v)) for q in polygon]
-    if _inside_polygon2((_dot(p, u), _dot(p, v)), flat):
-        return abs(_dot(_sub(p, polygon[0]), normal))
-    return min(_segment_distance(p, a, b) for a, b in zip(polygon, polygon[1:] + polygon[:1]))
+    return _GapPolygon(polygon, normal).distance(p)
 
 
 # --- gaps: the largest inscribed circle -------------------------------------------------------------------------
+
+def inscribed_diameter(polygon, normal):
+    """The diameter of the largest circle inscribed in a planar gap polygon, as the audit measures it (a generator's
+    narrowest_m)."""
+    return 2 * _inscribed_radius(_flatten_polygon(polygon, normal))
+
 
 def _flatten_polygon(polygon, normal):
     u, v = _plane_basis(normal)

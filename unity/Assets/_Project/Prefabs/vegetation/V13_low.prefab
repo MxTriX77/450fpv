@@ -2945,6 +2945,7 @@ MonoBehaviour:
     porosity: 0.35
   ports: []
   wires: []
+  holes: []
   snag:
   - kind: edge
     points:

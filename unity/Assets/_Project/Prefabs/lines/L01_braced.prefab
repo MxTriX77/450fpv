@@ -1420,6 +1420,7 @@ MonoBehaviour:
     direction: {x: 0, y: 0, z: -1}
     maxDiameterM: 0.014
   wires: []
+  holes: []
   snag:
   - kind: hook
     points:

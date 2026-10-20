@@ -68,5 +68,6 @@
   "wind_volumes": [],
   "ports": [],
   "wires": [],
+  "holes": [],
   "snag": []
 }

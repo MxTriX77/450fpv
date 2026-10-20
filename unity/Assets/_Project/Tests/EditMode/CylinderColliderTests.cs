@@ -37,7 +37,7 @@ namespace Fpv450.Tests.EditMode
   ""materials"": [ { ""slot"": ""probe"", ""visual"": ""brick_red"", ""physics"": ""masonry"" } ],
   ""collision"": [ { ""shape"": ""cylinder"", ""center"": [0.15, 0.05, 0.1], ""radius"": 0.1, ""height"": 0.4,
                    ""rotation"": [0.0, 0.0, 0.7071068, 0.7071068], ""material"": ""masonry"", ""landable"": false } ],
-  ""gaps"": [], ""wind_volumes"": [], ""ports"": [], ""wires"": [], ""snag"": []
+  ""gaps"": [], ""wind_volumes"": [], ""ports"": [], ""wires"": [], ""holes"": [], ""snag"": []
 }
 ";
 

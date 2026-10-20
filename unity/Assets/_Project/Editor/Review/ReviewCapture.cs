@@ -33,6 +33,9 @@ namespace Fpv450
         const float PilotBarGapM = 0.5f;       // the pilot-height view: the bar on the far side of the asset, inside the steep frame (design decision 2)
         const float SurfaceLookDownDeg = 35f;  // a surfaces asset's pilot-height view: down at the mat a few metres ahead (p1-s04-belt-straw design 7, assumed)
         const float SurfaceBarAheadM = 2.5f;   // ... with the bar planted this far ahead on +X, inside the frame
+        const float EarthworkLookDownDeg = 20f;    // an earthwork's pilot-height view: along the run from above the lip (p1-e01-trench design 9, assumed: G flies along the trench low)
+        const float EarthworkBarAlongM = 3f;       // ... with the bar planted this far along the run
+        const float EarthworkBarBesideLipM = 0.2f; // ... and this far out from the lip on the field side: on the berm, past the 0.1 m lip crumble, inside the 0.3 m berm (design 2)
         const float MinShadowDistanceM = 12f;  // the stage's shadow distance: finer shadow texels than the game's 50 m on a small stage
         const float BoundsMarginM = 0.3f;      // a camera closer than this to the bounds is pushed outside them
         static readonly float[] DistancesM = { 1.5f, 10f, 50f, 200f };
@@ -95,7 +98,8 @@ namespace Fpv450
                 foreach ((string variant, string prefabPath, string metaPath) in inputs)
                 {
                     ReviewMeta meta = ReviewMeta.Read(ProjectPath(metaPath));
-                    Stage stage = Stage.Build(prefabPath, meta, assetClass);
+                    EarthworkRun run = assetClass == "earthworks" ? EarthworkRun.Read(File.ReadAllText(ProjectPath(metaPath)), metaPath) : null;
+                    Stage stage = Stage.Build(prefabPath, meta, assetClass, run);
                     try
                     {
                         foreach (LightProfile profile in profiles)
@@ -301,6 +305,7 @@ namespace Fpv450
             public Vector3 BarBase;     // the bar's place at the off-grid bearing, world
             public Vector3 Origin;      // the asset's origin, world
             public bool Surface;        // catalog class "surfaces": the pilot-height tile is shot from on the surface
+            public EarthworkRun Run;    // catalog class "earthworks" with a holes record: the pilot-height tile is shot along the run
             public bool WarmedUp;       // the discarded render before this stage's first tile is done
             GameObject bar;
 
@@ -309,11 +314,11 @@ namespace Fpv450
             /// <summary>Moves the scale bar so that its base stands at <paramref name="basePosition"/>.</summary>
             public void PlaceBar(Vector3 basePosition) => bar.transform.localPosition = basePosition;
 
-            public static Stage Build(string prefabPath, ReviewMeta meta, string assetClass)
+            public static Stage Build(string prefabPath, ReviewMeta meta, string assetClass, EarthworkRun run = null)
             {
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath)
                     ?? throw new FileNotFoundException($"{prefabPath} did not load as a prefab");
-                var stage = new Stage { Root = new GameObject("ReviewStage"), Surface = assetClass == "surfaces" };
+                var stage = new Stage { Root = new GameObject("ReviewStage"), Surface = assetClass == "surfaces", Run = run };
                 GameObject instance = Object.Instantiate(prefab, stage.Root.transform);
                 instance.name = prefab.name;
                 // Onto the ground when its bounds reach below it; an asset above it (a wire span) stays at its own height.
@@ -350,6 +355,43 @@ namespace Fpv450
             }
 
             public Matrix4x4 LocalToWorld => Root.transform.GetChild(0).localToWorldMatrix;
+        }
+
+        /// <summary>
+        /// An earthwork's run (p1-e01-trench design 9), in the asset's frame, from the metadata's first <c>holes</c> record
+        /// (the niches' records follow it, square to the run, and are ignored): the first point of its
+        /// <c>centre_line</c> on the lip at y = 0, the plan direction of the line's first segment, and half its
+        /// <c>top_width_m</c>.
+        /// </summary>
+        internal sealed class EarthworkRun
+        {
+            public Vector3 Start;
+            public Vector3 Along;
+            public float HalfTopWidth;
+
+            /// <summary>The run of an <c>.assetmeta.json</c> text; null when it has no <c>holes</c> record.</summary>
+            public static EarthworkRun Read(string metaJson, string what)
+            {
+                var meta = Json.Obj(Json.Parse(metaJson), what);
+                if (!meta.TryGetValue("holes", out object value))
+                    return null;
+                List<object> holes = Json.Arr(value, $"{what} \"holes\"");
+                if (holes.Count == 0)
+                    return null;
+                string record = $"{what} holes[0]";
+                var hole = Json.Obj(holes[0], record);
+                List<object> line = Json.Arr(hole, "centre_line", record);
+                Vector3 a = Json.Vec3(line[0], $"{record} centre_line[0]"), b = Json.Vec3(line[1], $"{record} centre_line[1]");
+                return new EarthworkRun
+                {
+                    Start = new Vector3(a.x, 0f, a.z),
+                    Along = new Vector3(b.x - a.x, 0f, b.z - a.z).normalized,
+                    HalfTopWidth = Json.Num(hole, "top_width_m", record) * 0.5f,
+                };
+            }
+
+            /// <summary>The field side: the run's right, as in G, where the field lies right of the trench and the strip left.</summary>
+            public Vector3 Field => Vector3.Cross(Vector3.up, Along);
         }
 
         // --- the camera rig (design decision 4) ------------------------------------------------------------------
@@ -513,11 +555,24 @@ namespace Fpv450
         /// The pilot-height tile's pose: the camera, its look-at point and the scale bar's base. An asset is shot from
         /// beside its bounds (<see cref="PilotShot"/>, <see cref="PilotBar"/>), but a surfaces asset from on the surface
         /// (p1-s04-belt-straw design 7): 1.5 m above its origin, the patch centre on the mat's mean top, looking 35° down
-        /// towards +X, with the bar planted 2.5 m ahead on +X inside the frame.
+        /// towards +X, with the bar planted 2.5 m ahead on +X inside the frame; and an earthwork with a <c>holes</c> record
+        /// along its run (p1-e01-trench design 9): 1.5 m above the lip at the run's start, half the top width out on the
+        /// field side, looking along the first segment 20° down, with the bar planted 3 m along the run, 0.2 m out from
+        /// the lip.
         /// </summary>
         internal static (Vector3 position, Vector3 lookAt, Vector3 barBase, bool fromBounds) PilotPose(Stage stage)
         {
             Bounds asset = stage.AssetBounds;
+            if (stage.Run != null)
+            {
+                EarthworkRun run = stage.Run;
+                Matrix4x4 local = stage.LocalToWorld;
+                float lookDown = EarthworkLookDownDeg * Mathf.Deg2Rad;
+                Vector3 camera = local.MultiplyPoint3x4(run.Start + run.Field * run.HalfTopWidth + Vector3.up * PilotHeightM);
+                Vector3 forward = local.MultiplyVector(run.Along * Mathf.Cos(lookDown) + Vector3.down * Mathf.Sin(lookDown));
+                Vector3 bar = local.MultiplyPoint3x4(run.Start + run.Along * EarthworkBarAlongM + run.Field * (run.HalfTopWidth + EarthworkBarBesideLipM));
+                return (camera, camera + forward, bar, false);
+            }
             if (!stage.Surface)
             {
                 Vector3 beside = PilotShot(asset, out bool fromBounds);
@@ -590,6 +645,7 @@ namespace Fpv450
                 else
                     position = SlantShot(asset, distance, out fromBounds);
                 string view = !pilot ? $"{distance:0.#} M SLANT {LookDownDeg:0}° DOWN AZ {ShotAzimuthDeg:0}"
+                    : stage.Run != null ? $"{distance:0.#} M PILOT HEIGHT ALONG THE RUN {EarthworkLookDownDeg:0}° DOWN"
                     : stage.Surface ? $"{distance:0.#} M PILOT HEIGHT ON SURFACE {SurfaceLookDownDeg:0}° DOWN"
                     : $"{distance:0.#} M PILOT HEIGHT AZ {ShotAzimuthDeg:0}";
                 if (fromBounds)
@@ -607,6 +663,16 @@ namespace Fpv450
                                   $"({stage.Origin.x:0.000}, {stage.Origin.y:0.000}, {stage.Origin.z:0.000}), forward ({forward.x:0.0000}, {forward.y:0.0000}, {forward.z:0.0000}), " +
                                   $"{Mathf.Asin(-forward.y) * Mathf.Rad2Deg:0.00}° down towards +X; bar base ({barBase.x:0.000}, {barBase.y:0.000}, {barBase.z:0.000}), " +
                                   $"{barBase.x - position.x:0.00} m ahead, in frame {rig.InFrame(barBase)}");
+                    }
+                    if (stage.Run != null)
+                    {
+                        Vector3 forward = rig.Camera.transform.forward, along = stage.Run.Along;
+                        Vector3 lip = stage.LocalToWorld.MultiplyPoint3x4(stage.Run.Start);
+                        Debug.Log($"[Review] earthwork pilot pose: camera ({position.x:0.000}, {position.y:0.000}, {position.z:0.000}), {position.y - lip.y:0.000} m above the lip, " +
+                                  $"{stage.Run.HalfTopWidth:0.000} m to the field side (right) of the run's start ({lip.x:0.000}, {lip.y:0.000}, {lip.z:0.000}), " +
+                                  $"forward ({forward.x:0.0000}, {forward.y:0.0000}, {forward.z:0.0000}), {Mathf.Asin(-forward.y) * Mathf.Rad2Deg:0.00}° down along the first segment " +
+                                  $"({along.x:0.0000}, {along.y:0.0000}, {along.z:0.0000}); bar base ({barBase.x:0.000}, {barBase.y:0.000}, {barBase.z:0.000}), " +
+                                  $"{EarthworkBarAlongM:0.00} m along the run, in frame {rig.InFrame(barBase)}, top in frame {rig.InFrame(stage.BarTop)}");
                     }
                 }
                 tiles.Add(Shot(rig, stage, position, lookAt, title, view, null, null));

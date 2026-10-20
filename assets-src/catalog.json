@@ -1,6 +1,12 @@
 {
   "schema": 1,
   "assets": {
+    "E01": {
+      "class": "earthworks",
+      "generator": "trench",
+      "variants": ["E01_curving"],
+      "materials": { "ground": "grassed_spoil", "wall": "trench_wall", "clod": "trench_wall", "section": "trench_wall", "straw": "straw" }
+    },
     "K01": {
       "class": "debris",
       "generator": "debris_brick",
