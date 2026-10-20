@@ -6,8 +6,10 @@ asset's card allowance (lib.audit.card_allowance). A plain function of a mesh an
 shells fit the same way. Plain Python in asset space (the ground at y 0); deterministic.
 
 The cap by steps (p1-v01-locust review-physics §2.4 and PR1): the fit runs at each of CAPS pieces in turn and keeps
-the first whose pieces hold (b) and (c), else the last; the fewest pieces that pass are also the cheapest for the
-narrow phase, and the fitter is not monotone in its cap. The mass and the candidates are built once, and the pieces'
+the first whose pieces hold (b) and (c), else the caps again at RETRY_ROUNDS of steps 3 to 5 (task 1.5: step 5 had
+shrunk the last round's pieces off a twig fork of V13_tall's thicket, which no round was left to cover again), else
+the last; the fewest pieces that pass are also the cheapest for the narrow phase, and the fitter is not monotone in
+its cap. The mass and the candidates are built once, and the pieces'
 measured standoffs are shared between the steps.
 
 How, at one cap:
@@ -52,13 +54,16 @@ DIRECTIONS = tuple(tuple(c / math.sqrt(sum(x * x for x in d)) for c in d) for d 
 BIN_M = 0.2                 # target bins for the cover sets
 CLUSTER_M = 0.01            # vertices closer than this (a twig tube's ring) are one target
 ROUNDS = 4                  # of steps 3 to 5, and of swaps within step 4
+RETRY_ROUNDS = 16           # of steps 3 to 5 when every cap failed: step 5 can shrink the last round's pieces off a
+                            # target that no later round covers again (p1-v01-locust task 1.5)
 
 
 def fit(mesh, geometry_slots, card_slots, card_allowance, caps=CAPS):
     """The shell over the faces of `geometry_slots` and `card_slots` of `mesh` (a lib.geometry.Mesh, LOD0) as
     (pieces, cap, passes): pieces [(a, b, radius)], a capsule along a-b, a sphere when a == b, from the first of
     `caps` whose pieces hold every geometry vertex within the tolerance and every card vertex within `card_allowance`
-    (lib.audit.card_allowance), else from the last cap, whose misses the audit then names."""
+    (lib.audit.card_allowance); when none does, the caps once more at RETRY_ROUNDS of steps 3 to 5; else from the last
+    cap, whose misses the audit then names. A fit that passes at some cap never takes the retry."""
     index = audit.FaceIndex(mesh, set(geometry_slots) | set(card_slots))
     if not index.faces:
         return [], caps[0], True
@@ -68,18 +73,19 @@ def fit(mesh, geometry_slots, card_slots, card_allowance, caps=CAPS):
     start.add(geometry, audit.ENVELOPE_TOLERANCE_M - TARGET_MARGIN_M)
     start.extend(mass.on([start.targets[t][0] for t in start.orphans()]))
     standoffs = {}
-    for cap in caps:
-        pieces = _fit(start.copy(), index, cards, card_allowance - TARGET_MARGIN_M, cap, standoffs)
-        if (all(_outside(v, pieces) <= audit.ENVELOPE_TOLERANCE_M for v in geometry)
-                and all(_outside(v, pieces) <= card_allowance for v in cards)):
-            return pieces, cap, True
+    for rounds in (ROUNDS, RETRY_ROUNDS):
+        for cap in caps:
+            pieces = _fit(start.copy(), index, cards, card_allowance - TARGET_MARGIN_M, cap, standoffs, rounds)
+            if (all(_outside(v, pieces) <= audit.ENVELOPE_TOLERANCE_M for v in geometry)
+                    and all(_outside(v, pieces) <= card_allowance for v in cards)):
+                return pieces, cap, True
     return pieces, cap, False
 
 
-def _fit(cover, index, cards, card_reach, max_pieces, standoffs):
-    """Steps 3 to 5 at one cap, from a fresh cover of the geometry targets."""
+def _fit(cover, index, cards, card_reach, max_pieces, standoffs, rounds=ROUNDS):
+    """Steps 3 to 5 at one cap, from a fresh cover of the geometry targets, `rounds` times at most."""
     pieces, carded = [], set()
-    for _ in range(ROUNDS):
+    for _ in range(rounds):
         cover.greedy(pieces, max_pieces)
         missed = [v for v in cards if v not in carded and _outside(v, pieces) > card_reach]
         carded.update(missed)

@@ -78,3 +78,21 @@ def test_a_mass_that_24_pieces_do_not_hold_escalates_to_the_first_cap_that_passe
 def test_no_fit_returns_more_than_64_pieces():
     pieces, cap, passes = shell.fit(scattered_twigs(66), ("twig",), (), SPRIG_ALLOWANCE)
     assert (cap, passes) == (64, False) and len(pieces) <= 64 == shell.MAX_PIECES
+
+
+def test_only_a_fit_that_fails_at_every_cap_takes_the_caps_again_at_more_rounds(monkeypatch):
+    """p1-v01-locust task 1.5: step 5 can shrink the last round's pieces off a target that no round is left to cover
+    (a twig fork of V13_tall's thicket), so when every cap fails the caps run again at RETRY_ROUNDS; a fit that passes
+    at some cap never does, so every shell that passed before is the same."""
+    calls, real = [], shell._fit
+
+    def record(cover, index, cards, card_reach, max_pieces, standoffs, rounds=shell.ROUNDS):
+        calls.append((max_pieces, rounds))
+        return real(cover, index, cards, card_reach, max_pieces, standoffs, rounds)
+
+    monkeypatch.setattr(shell, "_fit", record)
+    assert shell.fit(scattered_twigs(30), ("twig",), (), SPRIG_ALLOWANCE)[1:] == (32, True)
+    assert calls == [(24, shell.ROUNDS), (32, shell.ROUNDS)]
+    calls.clear()
+    assert shell.fit(scattered_twigs(66), ("twig",), (), SPRIG_ALLOWANCE)[1:] == (64, False)
+    assert calls == [(cap, shell.ROUNDS) for cap in shell.CAPS] + [(cap, shell.RETRY_ROUNDS) for cap in shell.CAPS]
