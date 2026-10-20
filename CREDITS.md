@@ -18,5 +18,14 @@ the manifest.
 | Rough Concrete (1k) | CC0 1.0 | Dimitrios Savva | [polyhaven.com/a/rough_concrete](https://polyhaven.com/a/rough_concrete) | `unity/Assets/_Project/Art/ThirdParty/polyhaven/rough_concrete/` (4 files, 16.4 MB) |
 | Rusty Metal (1k) | CC0 1.0 | Rob Tuytel | [polyhaven.com/a/rusty_metal](https://polyhaven.com/a/rusty_metal) | `unity/Assets/_Project/Art/ThirdParty/polyhaven/rusty_metal/` (4 files, 5.8 MB) |
 | Dirt Floor (1k) | CC0 1.0 | eye-candy.xyz | [polyhaven.com/a/dirt_floor](https://polyhaven.com/a/dirt_floor) | `unity/Assets/_Project/Art/ThirdParty/polyhaven/dirt_floor/` (4 files, 16.5 MB) |
+| Painted Metal 006 (1k) | CC0 1.0 | Lennart Demes (ambientCG) | [ambientcg.com/a/PaintedMetal006](https://ambientcg.com/a/PaintedMetal006) | `unity/Assets/_Project/Art/ThirdParty/ambientcg/PaintedMetal006/` (4 files, 9.1 MB) |
+| Green Metal Rust (1k) | CC0 1.0 | Rob Tuytel | [polyhaven.com/a/green_metal_rust](https://polyhaven.com/a/green_metal_rust) | `unity/Assets/_Project/Art/ThirdParty/polyhaven/green_metal_rust/` (4 files, 6.6 MB) |
+| Rust 007 (1k) | CC0 1.0 | Lennart Demes (ambientCG) | [ambientcg.com/a/Rust007](https://ambientcg.com/a/Rust007) | `unity/Assets/_Project/Art/ThirdParty/ambientcg/Rust007/` (4 files, 8.0 MB) |
+| Metal 046 B (1k) | CC0 1.0 | Lennart Demes (ambientCG) | [ambientcg.com/a/Metal046B](https://ambientcg.com/a/Metal046B) | `unity/Assets/_Project/Art/ThirdParty/ambientcg/Metal046B/` (3 files, 6.8 MB) |
+| Metal 049 A (1k) | CC0 1.0 | Lennart Demes (ambientCG) | [ambientcg.com/a/Metal049A](https://ambientcg.com/a/Metal049A) | `unity/Assets/_Project/Art/ThirdParty/ambientcg/Metal049A/` (3 files, 2.7 MB) |
+| Fabric 030 (1k) | CC0 1.0 | Lennart Demes (ambientCG) | [ambientcg.com/a/Fabric030](https://ambientcg.com/a/Fabric030) | `unity/Assets/_Project/Art/ThirdParty/ambientcg/Fabric030/` (4 files, 10.2 MB) |
+| Leather 014 (1k) | CC0 1.0 | Lennart Demes (ambientCG) | [ambientcg.com/a/Leather014](https://ambientcg.com/a/Leather014) | `unity/Assets/_Project/Art/ThirdParty/ambientcg/Leather014/` (3 files, 8.1 MB) |
+| Burned Ground 01 (1k) | CC0 1.0 | Rob Tuytel | [polyhaven.com/a/burned_ground_01](https://polyhaven.com/a/burned_ground_01) | `unity/Assets/_Project/Art/ThirdParty/polyhaven/burned_ground_01/` (4 files, 11.3 MB) |
+| Rubber 004 (1k) | CC0 1.0 | Lennart Demes (ambientCG) | [ambientcg.com/a/Rubber004](https://ambientcg.com/a/Rubber004) | `unity/Assets/_Project/Art/ThirdParty/ambientcg/Rubber004/` (3 files, 8.2 MB) |
 
 Licences: [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/), [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/). CC0 needs no attribution; the authors are named as thanks.
