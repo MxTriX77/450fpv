@@ -8,8 +8,8 @@ For every variant of each asset id in assets-src/catalog.json, it checks the var
 validates the metadata (lib/meta.py) and audits the collision against the LOD0 mesh (lib/audit.py, with the soft
 tops of assets-src/physics_materials.json and the card slots of the alpha-clipped recipes, and the ground below y = 0
 as cover for a generator that is PLANTED; a generator's visual-only micro meshes are exported beside their LOD and
-skipped by the audit), checks the hole-filler contract of an asset that cuts the ground (lib/holes.py), prints the
-generator's own lines (its "lines", if any), and only then
+skipped by the audit), checks the hole-filler contract of an asset that cuts the ground (lib/holes.py, with the
+generator's "joints" if it reports them), prints the generator's own lines (its "lines", if any), and only then
 writes unity/Assets/_Project/Art/Models/<class>/<ID>/<variant>.fbx and <variant>.assetmeta.json, both in Unity's
 frame (lib/frame.py), the FBX staged beside its final name and moved once it reads back as the metadata says. A
 rejected build changes no file. It refuses any Blender other than the pinned major.minor. Exit code 1 on any
@@ -48,7 +48,7 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
     problems, lines = audit.run(data, built["lods"][0], soft=audit.soft_materials(root),
                                 card_visuals=catalog.card_visuals(root), planted=getattr(generator, "PLANTED", False),
                                 clip_boxes=bool(data["holes"]))
-    hole_problems, hole_lines = holes.audit(data, built["lods"][0])
+    hole_problems, hole_lines = holes.audit(data, built["lods"][0], built.get("joints"))
     for line in lines + hole_lines + built.get("lines", []):
         print(f"{variant}: {line}")
     _refuse(variant, problems + hole_problems)

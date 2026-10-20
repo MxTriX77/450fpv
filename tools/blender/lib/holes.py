@@ -13,7 +13,9 @@ line per rule:
   the highest filler point lies within LIP_TOLERANCE_M of the ground, y = 0.
 - F-4 nothing proud: no filler rises above PROUD_M.
 - F-5 thick: every filler box at least FILLER_M across in every dimension (each one carries an open face or backs
-  one); the generator prints how far its boxes overlap at every joint.
+  one); and, when the generator reports its joints (how far the boxes along the run reach past each joint's plane),
+  every joint overlapped by at least JOINT_OVERLAP_M, this module's own figure, never the generator's (p1-e01-trench
+  review S3), one line per joint.
 - F-7 surfaces: every filler is a cut's surface and not landable; the other shapes are listed by surface.
 - F-8 no wind obstacle: no wind volume.
 
@@ -27,14 +29,16 @@ BAND_MARGIN_M = 0.65      # settled: 0.25 m plus half a 0.5 m cell's diagonal, r
 LIP_TOLERANCE_M = 0.03    # F-3
 PROUD_M = 0.01            # F-4
 FILLER_M = 0.3            # F-5
+JOINT_OVERLAP_M = 0.2     # F-5: neighbouring boxes overlap this across every joint (terrain-holes-review §3, carried)
 EDGE_INSET_M = 0.01       # F-3 samples the band this far inside its edge
 BUCKET_M = 0.5            # the fillers' plan index
 TOLERANCE = 1e-6          # rounding: the metadata keeps micrometres
 
 
-def audit(meta, lod0):
-    """(problems, lines) of the hole contract for `meta` (lib.meta) with its LOD0 mesh; nothing when it has no
-    holes."""
+def audit(meta, lod0, joints=None):
+    """(problems, lines) of the hole contract for `meta` (lib.meta) with its LOD0 mesh and the generator's `joints`
+    ([{"joint", "chainage_m", "turn_deg", "before_m", "after_m", "overlap_m"}], or None when it reports none); nothing
+    when it has no holes."""
     records = meta["holes"]
     if not records:
         return [], []
@@ -115,6 +119,8 @@ def audit(meta, lod0):
     if thinnest < FILLER_M - TOLERANCE or others:
         problems.append(text)
     lines.append(text)
+    if joints is not None:
+        problems += _joints(joints, lines)
 
     # F-7
     landable = sum(1 for s in fillers if s["landable"])
@@ -138,6 +144,22 @@ def audit(meta, lod0):
     lines.append("F-6 faces within 5 cm of the visual (2 cm near the gaps and hard landing faces): the collision audit's "
                  "lines above")
     return problems, ["holes " + line for line in lines]
+
+
+def _joints(joints, lines):
+    """F-5's overlap: a line per joint and a summary; a problem when any joint overlaps less than JOINT_OVERLAP_M."""
+    for j in joints:
+        lines.append(f"F-5 joint {j['joint']} at {j['chainage_m']:.2f} m (turn {j['turn_deg']:+.2f} deg): the boxes "
+                     f"reach {j['before_m']:.3f} m and {j['after_m']:.3f} m past it, overlap {j['overlap_m']:.3f} m")
+    overlaps = [j["overlap_m"] for j in joints]
+    text = (f"F-5 overlap: {len(joints)} joints, the boxes along the run overlap "
+            + (f"{min(overlaps):.3f}-{max(overlaps):.3f} m" if overlaps else "nothing") + f", at least {JOINT_OVERLAP_M} m")
+    lines.append(text)
+    short = [j for j in joints if j["overlap_m"] < JOINT_OVERLAP_M - TOLERANCE]
+    if short:
+        return [text + f"; {len(short)} short, the first joint {short[0]['joint']} at {short[0]['chainage_m']:.2f} m "
+                       f"overlapping {short[0]['overlap_m']:.3f} m"]
+    return []
 
 
 class _Band:
