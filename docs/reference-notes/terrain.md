@@ -581,7 +581,7 @@ Derived values scale with the camera height (12.5 m; ±12 % over 11–14 m).
 | Potholes and puddles | shallow potholes and patches over much of the surface; puddles 1–3 m long in the lower ones; dark tyre lines along the lanes | measured (S 22, 45–48) |
 | Ditch | none seen on either side | measured (S 22, 43–48) |
 | House-side verge | **7–9 m** of short grass (0.1–0.3 m), a weed fringe 0.5–1.5 m wide along the fence | derived (S 46–47); fringe measured (S 45–48) |
-| Poles | the line: concrete, in the house-side verge **3–5 m from the road edge** (S 43–50). By the square, poles stand on the green side too: a thin dark wooden pole and a concrete pole with a street lamp at the green's street edge (S 33), a thin dark pole in the green-side verge (S 42) | derived (S 46–47); measured (S 33, 42, 43–50) |
+| Poles | the line: concrete, in the house-side verge **3–5 m from the road edge** (S 43–50). By the square, poles stand on the green side too: a concrete pole with a street lamp at the road edge and a thin dark wooden pole set back on the green beside the end of a flattened fence (S 33), a thin dark pole in the green-side verge (S 42) | derived (S 46–47); measured (S 33, 42, 43–50) |
 | Fence line | **7–9 m** from the road edge | derived (S 46–47) |
 | Front garden (палісадник) | **4–7 m** deep, filled with shrubs and yard trees | derived: house front 12–16 m from the road edge less the fence line (S 46–47) |
 | House | long side along the street, about **12 × 8–9 m**: three windows and a red-brick annex along the street | derived (S 49–50: the eaves corners projected to a 2.8 m plane give 12.2 m along the street and 8–9.5 m deep) |
