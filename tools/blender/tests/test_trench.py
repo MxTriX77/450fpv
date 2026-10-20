@@ -148,6 +148,18 @@ def test_a_short_joint_fails_the_build(e01, monkeypatch):
     assert [p.split(":")[0] for p in problems] == ["F-5 overlap"] and "overlapping 0.100 m" in problems[0], problems
 
 
+def test_joints_are_checked_whether_or_not_reported(e01):
+    """S13: the overlap check runs for every asset with holes: a generator that reports no joints, or misses one of
+    its holes' centre lines' interior points, fails the hole contract on F-5's overlap."""
+    _, built, data, run = e01
+    problems, _ = holes.audit(data, built["lods"][0])
+    assert [p.split(":")[0] for p in problems] == ["F-5 overlap"], problems
+    for joints in (None, [], built["joints"][1:]):
+        problems = holes._joints(data["holes"], joints, [])
+        assert problems == [f"F-5 overlap: the generator reports {len(joints or [])} joints, the holes' centre lines "
+                            f"have {run.n - 1}"], problems
+
+
 def test_cross_sections_span_the_cut(e01):
     """Every cross-section gap runs from the floor to the lips with the walls at the batter, and its narrowest_m is
     the audit's inscribed circle within 5 mm."""

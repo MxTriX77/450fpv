@@ -13,9 +13,9 @@ line per rule:
   the highest filler point lies within LIP_TOLERANCE_M of the ground, y = 0.
 - F-4 nothing proud: no filler rises above PROUD_M.
 - F-5 thick: every filler box at least FILLER_M across in every dimension (each one carries an open face or backs
-  one); and, when the generator reports its joints (how far the boxes along the run reach past each joint's plane),
-  every joint overlapped by at least JOINT_OVERLAP_M, this module's own figure, never the generator's (p1-e01-trench
-  review S3), one line per joint.
+  one); and every joint overlapped by at least JOINT_OVERLAP_M, this module's own figure, never the generator's
+  (p1-e01-trench review S3), one line per joint: a joint is an interior point of a record's centre line, and the
+  generator must report each (how far the boxes along the run reach past its plane), or the build fails (S13).
 - F-7 surfaces: every filler is a cut's surface and not landable; the other shapes are listed by surface.
 - F-8 no wind obstacle: no wind volume.
 
@@ -37,8 +37,8 @@ TOLERANCE = 1e-6          # rounding: the metadata keeps micrometres
 
 def audit(meta, lod0, joints=None):
     """(problems, lines) of the hole contract for `meta` (lib.meta) with its LOD0 mesh and the generator's `joints`
-    ([{"joint", "chainage_m", "turn_deg", "before_m", "after_m", "overlap_m"}], or None when it reports none); nothing
-    when it has no holes."""
+    ([{"joint", "chainage_m", "turn_deg", "before_m", "after_m", "overlap_m"}], or None when it reports none: a
+    problem when the holes' centre lines have joints); nothing when it has no holes."""
     records = meta["holes"]
     if not records:
         return [], []
@@ -119,8 +119,7 @@ def audit(meta, lod0, joints=None):
     if thinnest < FILLER_M - TOLERANCE or others:
         problems.append(text)
     lines.append(text)
-    if joints is not None:
-        problems += _joints(joints, lines)
+    problems += _joints(records, joints, lines)
 
     # F-7
     landable = sum(1 for s in fillers if s["landable"])
@@ -146,8 +145,16 @@ def audit(meta, lod0, joints=None):
     return problems, ["holes " + line for line in lines]
 
 
-def _joints(joints, lines):
-    """F-5's overlap: a line per joint and a summary; a problem when any joint overlaps less than JOINT_OVERLAP_M."""
+def _joints(records, joints, lines):
+    """F-5's overlap: a line per joint and a summary; a problem when the generator reports fewer or more joints than
+    the records' centre lines have interior points (none reported included), or when any joint overlaps less than
+    JOINT_OVERLAP_M."""
+    expected = sum(max(0, len(r["centre_line"]) - 2) for r in records)
+    joints = joints or []
+    problems = []
+    if len(joints) != expected:
+        problems.append(f"F-5 overlap: the generator reports {len(joints)} joints, the holes' centre lines have "
+                        f"{expected}")
     for j in joints:
         lines.append(f"F-5 joint {j['joint']} at {j['chainage_m']:.2f} m (turn {j['turn_deg']:+.2f} deg): the boxes "
                      f"reach {j['before_m']:.3f} m and {j['after_m']:.3f} m past it, overlap {j['overlap_m']:.3f} m")
@@ -157,9 +164,9 @@ def _joints(joints, lines):
     lines.append(text)
     short = [j for j in joints if j["overlap_m"] < JOINT_OVERLAP_M - TOLERANCE]
     if short:
-        return [text + f"; {len(short)} short, the first joint {short[0]['joint']} at {short[0]['chainage_m']:.2f} m "
-                       f"overlapping {short[0]['overlap_m']:.3f} m"]
-    return []
+        problems.append(text + f"; {len(short)} short, the first joint {short[0]['joint']} at "
+                               f"{short[0]['chainage_m']:.2f} m overlapping {short[0]['overlap_m']:.3f} m")
+    return problems
 
 
 class _Band:

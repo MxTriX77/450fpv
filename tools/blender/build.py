@@ -9,7 +9,7 @@ validates the metadata (lib/meta.py) and audits the collision against the LOD0 m
 tops of assets-src/physics_materials.json and the card slots of the alpha-clipped recipes, and the ground below y = 0
 as cover for a generator that is PLANTED; a generator's visual-only micro meshes are exported beside their LOD and
 skipped by the audit), checks the hole-filler contract of an asset that cuts the ground (lib/holes.py, with the
-generator's "joints" if it reports them), prints the generator's own lines (its "lines", if any), and only then
+generator's "joints", which it must report for every interior point of its holes' centre lines), prints the generator's own lines (its "lines", if any), and only then
 writes unity/Assets/_Project/Art/Models/<class>/<ID>/<variant>.fbx and <variant>.assetmeta.json, both in Unity's
 frame (lib/frame.py), the FBX staged beside its final name and moved once it reads back as the metadata says. A
 rejected build changes no file. It refuses any Blender other than the pinned major.minor. Exit code 1 on any
