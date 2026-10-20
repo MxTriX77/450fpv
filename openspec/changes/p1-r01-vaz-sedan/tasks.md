@@ -1,6 +1,6 @@
 # Tasks: p1-r01-vaz-sedan
 
-Branch `unity/art/p1-r01-vaz-sedan` off `unity/main` once `p1-h01-adobe-house` is merged (lane B). Tasks 1.1, 1.2 and 1.4 run sequentially on the branch; 1.3 runs on the sub-branch `unity/art/p1-r01-vaz-sedan--glass` in parallel with 1.1 (it touches only `Shaders/`, its material and test) and is merged before 1.2. Wreck work: spawn 1.2 and 1.4 on Opus.
+Branch `unity/art/p1-r01-vaz-sedan` off `unity/main` after `p1-e01-trench` merged (lane A; moved from lane B after H01 by the orchestrator to shorten the way to G1, so R01 and H01 run in parallel). Tasks 1.1, 1.2 and 1.4 run sequentially on the branch; 1.3 runs on the sub-branch `unity/art/p1-r01-vaz-sedan--glass` in parallel with 1.1 (it touches only `Shaders/`, its material and test) and is merged before 1.2. Wreck work: spawn 1.2 and 1.4 on Opus.
 
 ## 1. Build
 
