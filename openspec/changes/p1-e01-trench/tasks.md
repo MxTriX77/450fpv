@@ -142,6 +142,16 @@ Branch `unity/art/p1-e01-trench` off `unity/main` once `p1-l01-l03-pole-wires` i
     - `python -m pytest tools -q`: 823 passed. The new trench tests cover the grass (visual only, clear of the 0.287 m nose-first half-span, the tongues in front of the walls), the budget per LOD and the bend params' refusals.
     - `fetch.py --verify` OK; the hygiene scan 0 findings; `openspec validate p1-e01-trench --strict` valid.
 
+- [ ] 1.6 [asset-artist] QA's R1–R2 and suggestions (`review.md`):
+  - R1, the look ("The G look", D-038): G's parapets, berm and lip carry one continuous lodged grass mat; ours read as faceted rock, a row of pale pegs and a bare path. Replace the hummocks and the lip tongues with S04's straw kit (`lib/straw`) laid as that mat over the parapets, the berm and the lip, lodged along the slope, hanging irregularly over the lip with dark soil notches under it (G 3, 6, 9), at S04's density, as a micro-mesh bake like S04's (design 8's amended budget: under 450 000 triangles, a stand-in for AST-10), drawn on the LODs the review's 1.5 m and 10 m views use (S1: the floor straws too); the floor clods no longer pale loaves (S6)
+  - R2: the open top as one slot polygon per metre of run (merge the short arc pieces), each niche's mouth a gap polygon (S5), with tests (no slot under the lip-to-lip opening less its crumble)
+  - S2: the as-built corridor verdicts (nose-first 13 mm a side at the floor, 141–186 mm at the lip; yawed 45° from the lip down to 0.88–1.04 m) accepted and written into design decision 3's as-built note
+  - S3: the build fails when a joint overlaps less than 0.2 m (F-5)
+  - S4: the berm's top as `surface:belt_straw` (the grassed ground it is, F-7), the cut faces `belt_bare`, each box still 0.3 m thick behind its face
+  - S8: `width_jitter_m` built (the sheet's 0–0.15 m, 0.05), and the generator's parameter names listed against the sheet's table in the as-built note
+  - S7: the design's text brought to the six as-built deviations QA found sound
+  Verify the 1.5 m and 10 m tiles against G in the local `reference/_compare/E01.png` by eye (the mat reads as lodged grass, never rock), `pwsh tools/build_asset.ps1 E01` twice byte-identical with the F-1…F-8 and gap lines, the triangle counts per LOD with the bake's, the EditMode run, `python -m pytest tools -q`, the hygiene scan, `openspec validate p1-e01-trench --strict`
+
 ## 2. Review
 
 - [ ] 2.1 [qa-engineer] review against spec scenarios: the five E01 scenarios and the two deltas, the audit lines against the hole contract (F-1…F-8), the gap list against the sheet's width table, the comparison sheet against G and B read by eye (REAL-03), the geometry audit (REAL-05: lips crumbled as geometry, clods as geometry, fillers follow the faces), budgets (AST-08), `fetch.py --verify`, hygiene (D-003 pins, nothing from `reference/`, subject-only commits)
