@@ -335,7 +335,7 @@ Task 2.1 stays unticked.
 ### R1: what QA saw
 **Views** (all 1024 px, review stage, day and overcast):
 - the sheet's 1.5 m, 10 m, 50 m and 200 m tiles, the turntable and the overlay
-- six of QA's own: pilot height mid-run on LOD0, inside the trench, the far lip and the near lip from 1–2 m, a parapet close-up, and two G-like vantages, higher and behind the run's start, looking along it (16.0 m and 20.8 m from the LOD reference point, LOD0)
+- seven of QA's own: pilot height mid-run on LOD0, inside the trench, the far lip and the near lip from 1–2 m, a parapet close-up, and two G-like vantages, higher and behind the run's start, looking along it (16.0 m and 20.8 m from the LOD reference point, LOD0)
 - G 1–12 from its contact sheets; G 3, 6 and 9 beside the 1.5 m tile, the 10 m tile and the nearer G-like vantage in the local side-by-side
 
 **The parapets and the berm** read as a lodged dry-grass mat at every distance up to LOD1, in both lights:
@@ -410,6 +410,7 @@ The berm is grassed ground to the lip along the whole run. R3 is the run's ends.
   - `patches.relief` names a params file and a generator; `relief_inputs(params)` gives the same `lib/mat` relief the top's mesh and the mat are shaped by.
   - The stamp records the relief inputs and the params path, so a change to either re-derives.
   - The refusals are tested: relief on a non-cover, a missing key, an unknown generator, one without `relief_inputs`, params that do not give it.
+  - Re-derived from scratch (QA deleted the `grassed_spoil` stamp and ran `derive.py --all`): the four maps and the stamp byte-identical, `git status` clean; the line reads `a cover: no bare patch or green strip, the relief tone of assets-src/earthworks/E01_curving.json, gaps 36.6 %`.
 - **The tone sits under the mesh's own relief.** `qa_build.py` reads 3 231 top vertices on the plain margins (relief at full) and samples the shipped albedo at their UVs as the importer tiles it (1/40, offset 0.5):
   ```
   their UVs are metres from the relief's centre within 0.00e+00 m
@@ -431,7 +432,7 @@ The berm is grassed ground to the lip along the whole run. R3 is the run's ends.
 - **The surface rows differ where it counts for a landing:**
   - `belt_bare`: bearing 1.4e7 N/m³, sink at most 3 cm, cover of twigs and litter
   - `belt_straw`: 4.7e6 N/m³, 8 cm, a straw mat with hooks (0.15) and grass
-- **Where it is:** a heavy drone set down on the visible mat just past a trench's end would sink less, slide on loam, and never meet the straw that hooks props.
+- **Where it is:** a heavy drone set down on the visible mat just past a trench's end would meet a soil three times firmer, with no straw mat to cushion it and no straw to hook its props (rows from the legacy surface table).
 - **AST-05** wants "a material id per shape" that is the ground's. **REAL-05:** the physics must follow what the drone sees.
 - **The spec scenario** "Parapets and clods are ground" names the parapets and margins as `belt_straw`. S4 made the berm `belt_straw` for the same reason, and the run's end is the same berm.
 - **Since when:** the end blocks date from task 1.1, and task 1.6's as-built note records them ("stays the end block's `belt_bare` top (F-3 needs a filler top at the band's end)").
@@ -491,8 +492,8 @@ git fetch origin; git checkout -B qa-e01b origin/unity/art/p1-e01-trench; git lf
 (Get-CimInstance -Namespace root/wmi -ClassName BatteryStatus).PowerOnline                    -> True before every Unity run; Balanced
 pwsh tools/build_asset.ps1 E01   (twice)                                                       -> build_asset: OK (E01), exit=0 (18:04, 18:19); git status --short empty after each
 & $env:UNITY -batchmode -nographics -projectPath unity -runTests -testPlatform EditMode ...    -> testcasecount="55" result="Passed" passed="55" failed="0"; exit 0
-python -m pytest tools -q                                                                      -> (running)
-python -m pytest tools/hygiene -k test_existing_tree_is_clean -rA                              -> (running)
+python -m pytest tools -q                                                                      -> 833 passed in 1285.28s (0:21:25)
+python -m pytest tools/hygiene -k test_existing_tree_is_clean -rA                              -> PASSED [HEAD]; PASSED [origin/unity/main merged with HEAD]
 python tools/assets/fetch.py --verify                                                          -> OK, exit 0
 python tools/hygiene/precommit.py --tree HEAD                                                  -> 827 files scanned, 0 findings, exit 0
 openspec validate p1-e01-trench --strict                                                       -> Change 'p1-e01-trench' is valid
