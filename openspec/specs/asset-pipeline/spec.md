@@ -256,3 +256,14 @@ Every LOD entry of every asset's metadata SHALL carry `thin_wire`, set by the ge
 #### Scenario: The flag, not uv2, picks the thin-wire material
 - **WHEN** a span whose tubes carry their radius in uv2 is imported with its LODs not flagged `thin_wire`
 - **THEN** without its `wires` every slot draws with the recipe's own material, and with them the import fails naming the wire's slot
+
+### Requirement: Holes in the metadata
+The metadata schema MAY carry `holes`: for each cut an ordered centre-line point list, `top_width_m`, `depth_m` and `band_width_m`, so the map compiler can mark the hole cells and raise or lower the heightfield without re-reading the mesh. The array SHALL be written empty when the asset cuts nothing, the validator SHALL check its fields, and the physics-metadata component SHALL expose it.
+
+#### Scenario: A trench writes its hole
+- **WHEN** a trench variant of 24 m is built
+- **THEN** its metadata holds a `holes` record of the run whose centre line has at least one point per metre and whose band (every point within half its width of the centre line in plan) holds the cavity's widest outline, the crumbled lip included, 0.65 m inside its edge, one record per niche holding the niche the same way, and the prefab's metadata component exposes them
+
+#### Scenario: Hole validated
+- **WHEN** a `holes` record has fewer than two points or a band narrower than its top width
+- **THEN** the validator rejects the metadata naming the record and the rule
