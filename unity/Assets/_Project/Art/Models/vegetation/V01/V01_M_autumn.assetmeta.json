@@ -3,19 +3,19 @@
   "id": "V01",
   "variant": "V01_M_autumn",
   "generator": "tree",
-  "params_sha256": "09f7b9c8940573966e3d7f79e2913d4a736289c73e5bc6cc65d23f4de9c1e6e2",
+  "params_sha256": "ab53765da5f799decafb3cdc5e6ecfa5a82c424bf873c12e9cfbd61649d99654",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
     "min": [
-      -2.987135,
+      -2.94698,
       -0.087879,
-      -2.481975
+      -2.449633
     ],
     "max": [
-      2.700141,
-      9.57057,
-      3.095961
+      2.686037,
+      9.521432,
+      3.118421
     ]
   },
   "lods": [
@@ -26,12 +26,12 @@
     },
     {
       "mesh": "V01_M_autumn_LOD1",
-      "tris": 3848,
+      "tris": 3850,
       "switch_distance_m": 9.35
     },
     {
       "mesh": "V01_M_autumn_LOD2",
-      "tris": 1704,
+      "tris": 1706,
       "switch_distance_m": 116.9
     },
     {
@@ -54,8 +54,8 @@
           "height_m": 13.252342,
           "bottom_m": -0.296128
         },
-        "inputs_sha256": "430546ceeb03abdb5d28dd50cef442fdc5334dede7b0a9b452accb0fbdbaf617",
-        "atlas_sha256": "0e0cfcbb08797a1276f27763778f5054f547f79e6b87cfba7a94e04c138200e7",
+        "inputs_sha256": "0042d46423da68de68d1e2dd549ff6cf9adf06b6f814672fb1df2ac1da294e1f",
+        "atlas_sha256": "29b73a790c58500eb64a8c441600ec5b56d84805ea86ee95bcd460870f74df86",
         "normals_sha256": "a2baaf083777ab0be0be0d2472d0ba8ef8ebbee975dab81ae763ae82b842955b"
       }
     }
@@ -75,6 +75,11 @@
     },
     {
       "slot": "leaf",
+      "visual": "leaf_locust",
+      "physics": "twig"
+    },
+    {
+      "slot": "leaf_autumn",
       "visual": "leaf_locust_autumn",
       "physics": "twig"
     },

@@ -3,19 +3,19 @@
   "id": "V01",
   "variant": "V01_S_autumn",
   "generator": "tree",
-  "params_sha256": "c189dc365d61ef304432163ff5d6dfb08d1fa997cac0d6a27d00d51d82bbf00f",
+  "params_sha256": "3c40cbba824ffe309c41e9a05a6aade2c30f6ddfdbd18066369be200fb6f868c",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
     "min": [
-      -1.661061,
+      -1.727657,
       -0.043572,
-      -1.359769
+      -1.359495
     ],
     "max": [
-      1.193193,
-      5.999538,
-      1.69537
+      1.2369,
+      5.985238,
+      1.705776
     ]
   },
   "lods": [
@@ -50,6 +50,11 @@
     },
     {
       "slot": "leaf",
+      "visual": "leaf_locust",
+      "physics": "twig"
+    },
+    {
+      "slot": "leaf_autumn",
       "visual": "leaf_locust_autumn",
       "physics": "twig"
     },

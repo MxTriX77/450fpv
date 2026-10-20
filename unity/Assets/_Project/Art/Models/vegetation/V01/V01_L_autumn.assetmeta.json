@@ -3,18 +3,18 @@
   "id": "V01",
   "variant": "V01_L_autumn",
   "generator": "tree",
-  "params_sha256": "45b46c71d7fa61651a8d6977270de907839aa0809b8951bcbadb43c56030b60b",
+  "params_sha256": "2eba6dff22cf0358d1c4634f5217dc2cea0412a538480cee74a494448c562099",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
     "min": [
-      -3.776895,
+      -3.70143,
       -0.142804,
-      -3.262566
+      -3.307333
     ],
     "max": [
-      3.833276,
-      13.070767,
+      3.886459,
+      13.069616,
       3.402735
     ]
   },
@@ -31,7 +31,7 @@
     },
     {
       "mesh": "V01_L_autumn_LOD2",
-      "tris": 1912,
+      "tris": 1914,
       "switch_distance_m": 116.9
     },
     {
@@ -54,8 +54,8 @@
           "height_m": 16.721435,
           "bottom_m": -0.406076
         },
-        "inputs_sha256": "be2f2681aaf8d1cef7a2437693354cef23b0e2166060c39a33ebf27908207544",
-        "atlas_sha256": "cfb5282c704ad1d107c3da70a9c4190ffbcccc88c8a90de6ee852229e3ba2014",
+        "inputs_sha256": "4b138755855144c152161a31e16e2cf5c0e82ad2ea641a0517134d3d92976641",
+        "atlas_sha256": "fb94dd75221d3533812dbf704d1157270a1121d41a1815568a58fcc2c6b8e28f",
         "normals_sha256": "0a8ca348146bd0e5533f0457337b702a684d0f3abe839e5cacf5bbdbe5b2d16c"
       }
     }
@@ -75,6 +75,11 @@
     },
     {
       "slot": "leaf",
+      "visual": "leaf_locust",
+      "physics": "twig"
+    },
+    {
+      "slot": "leaf_autumn",
       "visual": "leaf_locust_autumn",
       "physics": "twig"
     },
