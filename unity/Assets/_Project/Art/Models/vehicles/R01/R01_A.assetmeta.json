@@ -1,0 +1,2054 @@
+{
+  "schema": 1,
+  "id": "R01",
+  "variant": "R01_A",
+  "generator": "vehicle",
+  "params_sha256": "3e9fefd8eeedde2279bb4023e2f94becd38ea135dc09d43e17477a7edc345692",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -2.0365,
+      0.0,
+      -0.811924
+    ],
+    "max": [
+      2.0365,
+      1.55,
+      0.811924
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "R01_A_LOD0",
+      "tris": 32376,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "R01_A_LOD1",
+      "tris": 8136,
+      "switch_distance_m": 20.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "R01_A_LOD2",
+      "tris": 3228,
+      "switch_distance_m": 80.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "R01_A_LOD3",
+      "tris": 72,
+      "switch_distance_m": 300.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 1500.0,
+  "materials": [
+    {
+      "slot": "chrome",
+      "visual": "chrome",
+      "physics": "steel"
+    },
+    {
+      "slot": "glass",
+      "visual": "car_glass",
+      "physics": "glass"
+    },
+    {
+      "slot": "lamp",
+      "visual": "car_lamps",
+      "physics": "glass"
+    },
+    {
+      "slot": "lens",
+      "visual": "car_lamps",
+      "physics": "plastic"
+    },
+    {
+      "slot": "paint",
+      "visual": "car_paint",
+      "physics": "sheet_metal"
+    },
+    {
+      "slot": "rack",
+      "visual": "car_soot",
+      "physics": "steel"
+    },
+    {
+      "slot": "seat",
+      "visual": "seat_fabric",
+      "physics": "fabric"
+    },
+    {
+      "slot": "tyre",
+      "visual": "tyre",
+      "physics": "rubber"
+    },
+    {
+      "slot": "under",
+      "visual": "car_soot",
+      "physics": "sheet_metal"
+    },
+    {
+      "slot": "vinyl",
+      "visual": "car_vinyl",
+      "physics": "plastic"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "box",
+      "center": [
+        -1.6545,
+        0.4995,
+        0.0
+      ],
+      "size": [
+        0.566,
+        0.507,
+        1.328
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.648199,
+        0.4995,
+        -0.69262
+      ],
+      "size": [
+        0.568008,
+        0.507,
+        0.15
+      ],
+      "rotation": [
+        0.0,
+        0.042045,
+        0.0,
+        0.999116
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.648199,
+        0.4995,
+        0.69262
+      ],
+      "size": [
+        0.568008,
+        0.507,
+        0.15
+      ],
+      "rotation": [
+        0.0,
+        -0.042045,
+        0.0,
+        0.999116
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.378,
+        0.5305,
+        0.0
+      ],
+      "size": [
+        2.087,
+        0.569,
+        1.568
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.663522,
+        0.61929,
+        -0.699832
+      ],
+      "size": [
+        0.47918,
+        0.28,
+        0.2
+      ],
+      "rotation": [
+        -0.382703,
+        0.923833,
+        -0.003231,
+        0.007799
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.992969,
+        0.717,
+        -0.691507
+      ],
+      "size": [
+        0.47918,
+        0.196,
+        0.2
+      ],
+      "rotation": [
+        0.0,
+        0.998861,
+        0.0,
+        0.047708
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.327414,
+        0.61929,
+        -0.649793
+      ],
+      "size": [
+        0.47918,
+        0.28,
+        0.2
+      ],
+      "rotation": [
+        0.383726,
+        0.921364,
+        0.023836,
+        0.057233
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.663522,
+        0.61929,
+        0.699832
+      ],
+      "size": [
+        0.47918,
+        0.28,
+        0.2
+      ],
+      "rotation": [
+        0.007799,
+        -0.003231,
+        0.923833,
+        -0.382703
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.992969,
+        0.717,
+        0.691507
+      ],
+      "size": [
+        0.47918,
+        0.196,
+        0.2
+      ],
+      "rotation": [
+        0.047708,
+        0.0,
+        0.998861,
+        0.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.327414,
+        0.61929,
+        0.649793
+      ],
+      "size": [
+        0.47918,
+        0.28,
+        0.2
+      ],
+      "rotation": [
+        0.057233,
+        0.023836,
+        0.921364,
+        0.383726
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.484272,
+        0.522387,
+        -0.642111
+      ],
+      "size": [
+        0.399447,
+        0.552773,
+        0.2
+      ],
+      "rotation": [
+        0.0,
+        -0.023647,
+        0.0,
+        0.99972
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.484272,
+        0.522387,
+        0.642111
+      ],
+      "size": [
+        0.399447,
+        0.552773,
+        0.2
+      ],
+      "rotation": [
+        0.0,
+        0.023647,
+        0.0,
+        0.99972
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.79314,
+        0.491599,
+        -0.629667
+      ],
+      "size": [
+        0.316179,
+        0.491198,
+        0.2
+      ],
+      "rotation": [
+        0.0,
+        -0.016803,
+        0.0,
+        0.999859
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.79314,
+        0.491599,
+        0.629667
+      ],
+      "size": [
+        0.316179,
+        0.491198,
+        0.2
+      ],
+      "rotation": [
+        0.0,
+        0.016803,
+        0.0,
+        0.999859
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.31,
+        0.474,
+        0.0
+      ],
+      "size": [
+        1.289,
+        0.456,
+        1.24
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.450329,
+        0.781959,
+        0.0
+      ],
+      "size": [
+        0.967445,
+        0.22,
+        1.32
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.07691,
+        0.997038
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.459966,
+        0.896841,
+        0.0
+      ],
+      "size": [
+        0.951254,
+        0.02,
+        1.288
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.07691,
+        0.997038
+      ],
+      "material": "sheet_metal",
+      "landable": true
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.586172,
+        0.72864,
+        0.0
+      ],
+      "size": [
+        0.690256,
+        0.27,
+        1.24
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.10162,
+        0.994823
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.636478,
+        0.861207,
+        0.0
+      ],
+      "size": [
+        0.633075,
+        0.02,
+        1.249
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.10162,
+        0.994823
+      ],
+      "material": "sheet_metal",
+      "landable": true
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -1.657609,
+        0.755741,
+        -0.667093
+      ],
+      "radius": 0.1,
+      "height": 0.538822,
+      "rotation": [
+        -0.054993,
+        0.0,
+        -0.652248,
+        0.756008
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -1.2065,
+        0.8215,
+        -0.6865
+      ],
+      "radius": 0.1,
+      "height": 0.494592,
+      "rotation": [
+        0.001521,
+        0.0,
+        -0.653847,
+        0.756625
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -0.0065,
+        0.835,
+        -0.69
+      ],
+      "radius": 0.1,
+      "height": 2.030016,
+      "rotation": [
+        -0.002871,
+        0.0,
+        -0.707101,
+        0.707107
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        1.1735,
+        0.8275,
+        -0.669
+      ],
+      "radius": 0.1,
+      "height": 0.453478,
+      "rotation": [
+        0.091617,
+        0.0,
+        -0.71461,
+        0.693498
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        1.637353,
+        0.76762,
+        -0.634961
+      ],
+      "radius": 0.1,
+      "height": 0.608114,
+      "rotation": [
+        0.025931,
+        0.0,
+        -0.771292,
+        0.635953
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -1.657609,
+        0.755741,
+        0.667093
+      ],
+      "radius": 0.1,
+      "height": 0.538822,
+      "rotation": [
+        0.054993,
+        0.0,
+        -0.652248,
+        0.756008
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -1.2065,
+        0.8215,
+        0.6865
+      ],
+      "radius": 0.1,
+      "height": 0.494592,
+      "rotation": [
+        -0.001521,
+        0.0,
+        -0.653847,
+        0.756625
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -0.0065,
+        0.835,
+        0.69
+      ],
+      "radius": 0.1,
+      "height": 2.030016,
+      "rotation": [
+        0.002871,
+        0.0,
+        -0.707101,
+        0.707107
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        1.1735,
+        0.8275,
+        0.669
+      ],
+      "radius": 0.1,
+      "height": 0.453478,
+      "rotation": [
+        -0.091617,
+        0.0,
+        -0.71461,
+        0.693498
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        1.637353,
+        0.76762,
+        0.634961
+      ],
+      "radius": 0.1,
+      "height": 0.608114,
+      "rotation": [
+        -0.025931,
+        0.0,
+        -0.771292,
+        0.635953
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.1685,
+        0.588,
+        0.0
+      ],
+      "size": [
+        2.42,
+        0.684,
+        1.26
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.1885,
+        1.1,
+        0.0
+      ],
+      "size": [
+        1.58,
+        0.4,
+        1.2
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.644547,
+        1.007009,
+        -0.625124
+      ],
+      "size": [
+        0.582871,
+        0.390812,
+        0.12
+      ],
+      "rotation": [
+        0.925223,
+        0.373582,
+        0.01229,
+        -0.065183
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.058853,
+        1.078221,
+        -0.618913
+      ],
+      "size": [
+        1.261541,
+        0.54257,
+        0.12
+      ],
+      "rotation": [
+        0.997881,
+        -6.1e-05,
+        0.000993,
+        -0.06506
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.767169,
+        1.057918,
+        -0.621306
+      ],
+      "size": [
+        0.298086,
+        0.525069,
+        0.12
+      ],
+      "rotation": [
+        0.989718,
+        -0.127052,
+        0.000868,
+        -0.065697
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.029664,
+        0.98162,
+        -0.61049
+      ],
+      "size": [
+        0.491457,
+        0.333678,
+        0.12
+      ],
+      "rotation": [
+        0.921527,
+        -0.378044,
+        0.031603,
+        -0.082898
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.644547,
+        1.007009,
+        0.625124
+      ],
+      "size": [
+        0.582871,
+        0.390812,
+        0.12
+      ],
+      "rotation": [
+        0.925223,
+        0.373582,
+        -0.01229,
+        0.065183
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.058853,
+        1.078221,
+        0.618913
+      ],
+      "size": [
+        1.261541,
+        0.54257,
+        0.12
+      ],
+      "rotation": [
+        0.997881,
+        -6.1e-05,
+        -0.000993,
+        0.06506
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.767169,
+        1.057918,
+        0.621306
+      ],
+      "size": [
+        0.298086,
+        0.525069,
+        0.12
+      ],
+      "rotation": [
+        0.989718,
+        -0.127052,
+        -0.000868,
+        0.065697
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.029664,
+        0.98162,
+        0.61049
+      ],
+      "size": [
+        0.491457,
+        0.333678,
+        0.12
+      ],
+      "rotation": [
+        0.921527,
+        -0.378044,
+        -0.031603,
+        0.082898
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.638738,
+        1.056971,
+        0.0
+      ],
+      "size": [
+        0.599709,
+        0.4,
+        1.24
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.387079,
+        0.922046
+      ],
+      "material": "glass",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.002985,
+        1.003299,
+        0.0
+      ],
+      "size": [
+        0.531507,
+        0.4,
+        1.16
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.413216,
+        0.910633
+      ],
+      "material": "glass",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.393303,
+        1.338064,
+        0.0
+      ],
+      "size": [
+        0.35028,
+        0.16,
+        1.174
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.019988,
+        0.9998
+      ],
+      "material": "sheet_metal",
+      "landable": true
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.202841,
+        1.341503,
+        0.0
+      ],
+      "size": [
+        0.850029,
+        0.16,
+        1.181
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.004118,
+        0.999992
+      ],
+      "material": "sheet_metal",
+      "landable": true
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.785041,
+        1.298659,
+        0.0
+      ],
+      "size": [
+        0.359707,
+        0.16,
+        1.181
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.116158,
+        0.993231
+      ],
+      "material": "sheet_metal",
+      "landable": true
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -0.765516,
+        1.169299,
+        -0.615475
+      ],
+      "radius": 0.035,
+      "height": 0.580139,
+      "rotation": [
+        0.057391,
+        0.0,
+        -0.391032,
+        0.918586
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.059269,
+        1.355,
+        -0.588179
+      ],
+      "radius": 0.055,
+      "height": 1.301541,
+      "rotation": [
+        -0.001321,
+        0.0,
+        -0.707106,
+        0.707107
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.824592,
+        1.320016,
+        -0.59144
+      ],
+      "radius": 0.055,
+      "height": 0.318085,
+      "rotation": [
+        -0.012241,
+        0.0,
+        -0.790982,
+        0.611717
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        1.136579,
+        1.108371,
+        -0.603839
+      ],
+      "radius": 0.035,
+      "height": 0.507099,
+      "rotation": [
+        -0.058899,
+        0.0,
+        -0.929497,
+        0.364097
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -0.765516,
+        1.169299,
+        0.615475
+      ],
+      "radius": 0.035,
+      "height": 0.580139,
+      "rotation": [
+        -0.057391,
+        0.0,
+        -0.391032,
+        0.918586
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.059269,
+        1.355,
+        0.588179
+      ],
+      "radius": 0.055,
+      "height": 1.301541,
+      "rotation": [
+        0.001321,
+        0.0,
+        -0.707106,
+        0.707107
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.824592,
+        1.320016,
+        0.59144
+      ],
+      "radius": 0.055,
+      "height": 0.318085,
+      "rotation": [
+        0.012241,
+        0.0,
+        -0.790982,
+        0.611717
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        1.136579,
+        1.108371,
+        0.603839
+      ],
+      "radius": 0.035,
+      "height": 0.507099,
+      "rotation": [
+        0.058899,
+        0.0,
+        -0.929497,
+        0.364097
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -1.4215,
+        0.282,
+        -0.6745
+      ],
+      "radius": 0.297,
+      "height": 0.165,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "rubber",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -1.4215,
+        0.282,
+        0.6745
+      ],
+      "radius": 0.297,
+      "height": 0.165,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "rubber",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        1.0025,
+        0.282,
+        -0.6525
+      ],
+      "radius": 0.297,
+      "height": 0.165,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "rubber",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        1.0025,
+        0.282,
+        0.6525
+      ],
+      "radius": 0.297,
+      "height": 0.165,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "rubber",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -1.4215,
+        0.282,
+        -0.6745
+      ],
+      "radius": 0.319,
+      "height": 0.205,
+      "rotation": [
+        -0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "rubber",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -1.4215,
+        0.282,
+        0.6745
+      ],
+      "radius": 0.319,
+      "height": 0.205,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "rubber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.948556,
+        0.44,
+        0.0
+      ],
+      "radius": 0.07,
+      "height": 1.478965,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.878076,
+        0.44,
+        -0.699326
+      ],
+      "radius": 0.07,
+      "height": 0.293077,
+      "rotation": [
+        -0.275711,
+        0.0,
+        -0.65114,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.878076,
+        0.44,
+        0.699326
+      ],
+      "radius": 0.07,
+      "height": 0.293077,
+      "rotation": [
+        0.275711,
+        0.0,
+        -0.65114,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -2.0115,
+        0.435,
+        -0.385
+      ],
+      "radius": 0.035,
+      "height": 0.19,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -2.0115,
+        0.435,
+        0.385
+      ],
+      "radius": 0.035,
+      "height": 0.19,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.951704,
+        0.45,
+        0.0
+      ],
+      "radius": 0.07,
+      "height": 1.440585,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.884574,
+        0.45,
+        -0.679988
+      ],
+      "radius": 0.07,
+      "height": 0.28681,
+      "rotation": [
+        -0.286055,
+        0.0,
+        0.646663,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.884574,
+        0.45,
+        0.679988
+      ],
+      "radius": 0.07,
+      "height": 0.28681,
+      "rotation": [
+        0.286055,
+        0.0,
+        0.646663,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        2.0115,
+        0.435,
+        -0.385
+      ],
+      "radius": 0.035,
+      "height": 0.19,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        2.0115,
+        0.435,
+        0.385
+      ],
+      "radius": 0.035,
+      "height": 0.19,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.3015,
+        0.425,
+        -0.33
+      ],
+      "size": [
+        0.47,
+        0.25,
+        0.48
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "fabric",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.051781,
+        0.767001,
+        -0.33
+      ],
+      "size": [
+        0.1,
+        0.538516,
+        0.46
+      ],
+      "rotation": [
+        0.131119,
+        0.991367,
+        0.0,
+        0.0
+      ],
+      "material": "fabric",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.3015,
+        0.425,
+        0.33
+      ],
+      "size": [
+        0.47,
+        0.25,
+        0.48
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "fabric",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.051781,
+        0.767001,
+        0.33
+      ],
+      "size": [
+        0.1,
+        0.538516,
+        0.46
+      ],
+      "rotation": [
+        0.131119,
+        0.991367,
+        0.0,
+        0.0
+      ],
+      "material": "fabric",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.4935,
+        0.4,
+        0.0
+      ],
+      "size": [
+        0.42,
+        0.24,
+        1.24
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "fabric",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.84499,
+        0.721598,
+        0.0
+      ],
+      "size": [
+        0.1,
+        0.516236,
+        1.22
+      ],
+      "rotation": [
+        0.187341,
+        0.982295,
+        0.0,
+        0.0
+      ],
+      "material": "fabric",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.8515,
+        0.81,
+        0.0
+      ],
+      "size": [
+        0.27,
+        0.3,
+        1.32
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -0.6065,
+        0.86,
+        -0.33
+      ],
+      "radius": 0.208,
+      "height": 0.05,
+      "rotation": [
+        0.0,
+        0.0,
+        -0.5373,
+        0.843391
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.4465,
+        1.54,
+        0.0
+      ],
+      "radius": 0.01,
+      "height": 1.02,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.2035,
+        1.54,
+        0.5
+      ],
+      "radius": 0.01,
+      "height": 1.32,
+      "rotation": [
+        0.0,
+        0.0,
+        -0.707107,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": true
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.8535,
+        1.54,
+        0.0
+      ],
+      "radius": 0.01,
+      "height": 1.02,
+      "rotation": [
+        -0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.2035,
+        1.54,
+        -0.5
+      ],
+      "radius": 0.01,
+      "height": 1.32,
+      "rotation": [
+        0.0,
+        0.0,
+        0.707107,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": true
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.3865,
+        1.4535,
+        -0.575746
+      ],
+      "radius": 0.01,
+      "height": 0.249955,
+      "rotation": [
+        0.351907,
+        0.0,
+        0.0,
+        0.936035
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.3865,
+        1.4535,
+        0.575746
+      ],
+      "radius": 0.01,
+      "height": 0.249955,
+      "rotation": [
+        -0.351907,
+        0.0,
+        0.0,
+        0.936035
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.7935,
+        1.44005,
+        -0.575479
+      ],
+      "radius": 0.01,
+      "height": 0.270496,
+      "rotation": [
+        0.317793,
+        0.0,
+        0.0,
+        0.94816
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.7935,
+        1.44005,
+        0.575479
+      ],
+      "radius": 0.01,
+      "height": 0.270496,
+      "rotation": [
+        -0.317793,
+        0.0,
+        0.0,
+        0.94816
+      ],
+      "material": "steel",
+      "landable": false
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [
+    {
+      "shape": "box",
+      "center": [
+        0.0085,
+        0.5905,
+        0.0
+      ],
+      "size": [
+        3.88,
+        0.689,
+        1.611
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.1685,
+        1.1875,
+        0.0
+      ],
+      "size": [
+        2.32,
+        0.505,
+        1.411
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    }
+  ],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "snag": [
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.4465,
+          1.54,
+          -0.5
+        ],
+        [
+          -0.4465,
+          1.54,
+          0.5
+        ]
+      ],
+      "radius_m": 0.01
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.4465,
+          1.54,
+          0.5
+        ],
+        [
+          0.8535,
+          1.54,
+          0.5
+        ]
+      ],
+      "radius_m": 0.01
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.8535,
+          1.54,
+          0.5
+        ],
+        [
+          0.8535,
+          1.54,
+          -0.5
+        ]
+      ],
+      "radius_m": 0.01
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.8535,
+          1.54,
+          -0.5
+        ],
+        [
+          -0.4465,
+          1.54,
+          -0.5
+        ]
+      ],
+      "radius_m": 0.01
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.3865,
+          1.367,
+          -0.651493
+        ],
+        [
+          -0.3865,
+          1.54,
+          -0.5
+        ]
+      ],
+      "radius_m": 0.01
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.3865,
+          1.367,
+          0.651493
+        ],
+        [
+          -0.3865,
+          1.54,
+          0.5
+        ]
+      ],
+      "radius_m": 0.01
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.7935,
+          1.3401,
+          -0.650958
+        ],
+        [
+          0.7935,
+          1.54,
+          -0.5
+        ]
+      ],
+      "radius_m": 0.01
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.7935,
+          1.3401,
+          0.650958
+        ],
+        [
+          0.7935,
+          1.54,
+          0.5
+        ]
+      ],
+      "radius_m": 0.01
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -1.8115,
+          0.44,
+          -0.774
+        ],
+        [
+          -1.867688,
+          0.44,
+          -0.769106
+        ],
+        [
+          -1.918376,
+          0.44,
+          -0.754902
+        ],
+        [
+          -1.958603,
+          0.44,
+          -0.732779
+        ]
+      ],
+      "radius_m": 0.006,
+      "edge_radius_m": 0.002
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -1.958603,
+          0.44,
+          0.732779
+        ],
+        [
+          -1.918376,
+          0.44,
+          0.754902
+        ],
+        [
+          -1.867688,
+          0.44,
+          0.769106
+        ],
+        [
+          -1.8115,
+          0.44,
+          0.774
+        ]
+      ],
+      "radius_m": 0.006,
+      "edge_radius_m": 0.002
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.8215,
+          0.45,
+          -0.7545
+        ],
+        [
+          1.87558,
+          0.45,
+          -0.749606
+        ],
+        [
+          1.924367,
+          0.45,
+          -0.735402
+        ],
+        [
+          1.963084,
+          0.45,
+          -0.713279
+        ]
+      ],
+      "radius_m": 0.006,
+      "edge_radius_m": 0.002
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.963084,
+          0.45,
+          0.713279
+        ],
+        [
+          1.924367,
+          0.45,
+          0.735402
+        ],
+        [
+          1.87558,
+          0.45,
+          0.749606
+        ],
+        [
+          1.8215,
+          0.45,
+          0.7545
+        ]
+      ],
+      "radius_m": 0.006,
+      "edge_radius_m": 0.002
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.9415,
+          1.046071,
+          -0.5
+        ],
+        [
+          -0.9115,
+          1.076714,
+          -0.08
+        ]
+      ],
+      "radius_m": 0.005
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.9415,
+          1.046071,
+          -0.05
+        ],
+        [
+          -0.9115,
+          1.076714,
+          0.37
+        ]
+      ],
+      "radius_m": 0.005
+    }
+  ]
+}

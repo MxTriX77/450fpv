@@ -32,6 +32,14 @@
       "variants": ["L03_thin", "L03_medium", "L03_thick"],
       "materials": { "steel": "wire_steel", "aluminium": "wire_aluminium", "insulated": "wire_sip" }
     },
+    "R01": {
+      "class": "vehicles",
+      "generator": "vehicle",
+      "variants": ["R01_A"],
+      "materials": { "paint": "car_paint", "under": "car_soot", "chrome": "chrome", "glass": "car_glass", "tyre": "tyre",
+                     "seat": "seat_fabric", "vinyl": "car_vinyl", "lamp": "car_lamps", "lens": "car_lamps",
+                     "rack": "car_soot" }
+    },
     "S04": {
       "class": "surfaces",
       "generator": "ground_patch",
