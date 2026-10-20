@@ -1,0 +1,25 @@
+{
+  "material": "car_rust",
+  "texture_set": "ambientcg/Rust007",
+  "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
+  "mask": {
+    "metallic": 0.0,
+    "occlusion": "ao",
+    "smoothness": "1 - roughness"
+  },
+  "sources": {
+    "ao": {
+      "name": "Rust007_1K-PNG_AmbientOcclusion.png",
+      "sha256": "74f0d8968a16a50fd1e27c4d84b8c10e18bdae7739120743f8622c725f558267"
+    },
+    "roughness": {
+      "name": "Rust007_1K-PNG_Roughness.png",
+      "sha256": "06bfe545b867460a128395454621ee7b6b5307edf10e0c5405cf845689e4c3e8"
+    }
+  },
+  "inputs_sha256": "94355a375d0d26d2dde97de6032184634b1bda443b004a5e15034f181c9b0e0c",
+  "size": [
+    1024,
+    1024
+  ]
+}

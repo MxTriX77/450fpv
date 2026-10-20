@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "shader": "Universal Render Pipeline/Lit",
+  "texture_set": "polyhaven/green_metal_rust",
+  "tile_size_m": [2.0, 2.0],
+  "tint": [0.57, 0.923, 1.495, 1.0],
+  "mask": { "metallic": 0.0, "occlusion": "ao", "smoothness": "1 - roughness" }
+}

@@ -1,0 +1,21 @@
+{
+  "material": "tyre",
+  "texture_set": "ambientcg/Rubber004",
+  "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
+  "mask": {
+    "metallic": 0.0,
+    "occlusion": 1.0,
+    "smoothness": "1 - roughness"
+  },
+  "sources": {
+    "roughness": {
+      "name": "Rubber004_1K-PNG_Roughness.png",
+      "sha256": "3969d0cd375fa94f849bcbc7fe836ebc619aed4b80673cb59ce823e1423db699"
+    }
+  },
+  "inputs_sha256": "8a7f2ca1073118bca65bf37ed7ed283ec3981b18bccd2574f29f5472e85b1d29",
+  "size": [
+    1024,
+    1024
+  ]
+}
