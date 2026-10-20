@@ -294,3 +294,243 @@ git merge-tree --write-tree origin/unity/main HEAD                              
 5. **Weeds and shrubs** on and beside the parapets (G 4, 8, 11, 12: green patches among the straw). Not in E01.
 6. **The setting:** the belt's trees and shrubs on one side and the field beyond the other parapet. These are the world's (phase 3); E01's margins are plain cover.
 7. **The floor:** unseen in G's shade. E01's pale clods and floor straws need a recheck under the G1 light (S6).
+
+---
+
+# Re-check of task 1.6
+
+**Reviewer:** qa-engineer, fresh (did none of the work, D-034) · **Tip:** `0269a1f` · **Range:** `5c8baff..0269a1f` (8 commits, 20 files)
+**Read:** this review's R1–R2 and S1–S11; task 1.6 and its as-built note; design decisions 1–11 (8 amended, 11 new); the proposal and spec delta as amended; the full diff of `generators/trench.py`, `lib/holes.py`, `lib/strip.py`, `build.py`, `tools/assets/derive.py`, the params, the `grassed_spoil` recipe, `test_trench.py`, `test_ground.py` and `TrenchPrefabTests.cs`; the sheet's trench-family table; the `belt_bare` and `belt_straw` rows of the legacy surface table.
+
+QA ran every check below in its own worktree (`git lfs checkout`: 76/76 objects; no `unity/Library/` before the first Unity run). Nothing from the handoff was reused.
+- **QA's own scripts** (scratchpad, never committed): `qa_meta.py` reads the shipped metadata only (slots, mouths, corridor, berm boxes, a top-surface map); `qa_build.py` rebuilds E01 in plain Python (F-2 by its own band distance, the mat's corridor, the relief tone, the S3 mutation through `build.build_variant`).
+- **Extra Unity views:** an uncommitted editor script on the review stage and lights, copied into `unity/Assets/_Project/Editor/QaScratch/` for its run and deleted after (`git status` clean).
+- **The side-by-side:** composed in `reference/_compare/` from G's contact sheets and deleted after.
+- **Power and GPU:** every Unity run on AC (`BatteryStatus.PowerOnline` True before each, Balanced plan), on the RTX 4050 (`GPU NVIDIA GeForce RTX 4050 Laptop GPU (Direct3D12)` in each log). **No performance claim is made.**
+
+## Verdict: CHANGES REQUESTED
+
+R1 and R2 are closed. One new blocking item, from the overlap task 1.6 reports:
+- **R3. Past each run end, a contact sees `belt_bare` under the lodged mat (AST-05, REAL-05).** 3.73 m² of level grassed ground there has a `belt_bare` box as its only top, 3.22 m² of it inside the run's band. Another 7.86 m² has a `belt_bare` top co-planar with a `belt_straw` one. S4 fixed the same mismatch on the berm; it stops where the berm turns round the run's ends.
+
+Task 2.1 stays unticked.
+
+## The items
+
+| Item | Result | Evidence |
+|---|---|---|
+| R1 the look | **Closed** at the minimum R1 asked | §R1 below: no rock, no pegs, no path; the lips broken by grass in clusters, at 1.5 m, 10 m and two G-like vantages, day and overcast |
+| R2 the slots | **Closed** | 21 slots, `narrowest_m` 0.903–0.981, each at least its own least lip-to-lip width; mouths 0.6038 and 0.6031; tests pass |
+| S1 bake on LOD0, LOD1 at 24 m | **Sound alternative**, with a caveat (S12) | the review's views and a pilot over the run see LOD0; the switch at 24 m shows (S12) |
+| S2 corridor verdicts | **Done**, QA's numbers agree | design 5's figures to the millimetre (below) |
+| S3 joint overlap fails the build | **Done**, mutation caught | `build.build_variant` refuses `OVERLAP_M` 0.05 on "F-5 overlap"; caveat in S13 |
+| S4 berm boxes `belt_straw` | **Done on the berm**; the run's ends are R3 | 98 berm boxes; no hole in the berm's top |
+| S5 niche mouths | **Done** | `mouth_3.16`, `mouth_16.97`, planar, in the wall's plane |
+| S6 clods | **Done** | dark lumps of the wall's soil on the floor, both lights |
+| S7 design text | **Done**, with a residue (S15) | decisions 1, 2, 4, 6, 7, 8 state the as-built; the proposal is the orchestrator's (`0269a1f`) |
+| S8 `width_jitter_m` and names | **Done** | 0.05, only widens (QA: floor ≥ 0.6, lip ≥ 0.8 at every section); every row of the sheet's table is named |
+| S9, S10 | Open, outside task 1.6 | unchanged |
+| S11 | **Resolved** | `reference/_compare/qa_e01/` is gone |
+
+### R1: what QA saw
+**Views** (all 1024 px, review stage, day and overcast):
+- the sheet's 1.5 m, 10 m, 50 m and 200 m tiles, the turntable and the overlay
+- six of QA's own: pilot height mid-run on LOD0, inside the trench, the far lip and the near lip from 1–2 m, a parapet close-up, and two G-like vantages, higher and behind the run's start, looking along it (16.0 m and 20.8 m from the LOD reference point, LOD0)
+- G 1–12 from its contact sheets; G 3, 6 and 9 beside the 1.5 m tile, the 10 m tile and the nearer G-like vantage in the local side-by-side
+
+**The parapets and the berm** read as a lodged dry-grass mat at every distance up to LOD1, in both lights:
+- straws combed down the slopes; no facet, no solid; no rock, no stump
+- the berm is covered to the lip; there is no pale path
+- task 1.5's hummocks and tongues are gone (`_hummock` and `_tongue` deleted; the micro list holds `straw` and `mat` only)
+
+**The lips** are broken by grass:
+- clusters of straws jut over the edge and hang down the wall, with bare runs between them where the dark wall shows; no regular comb
+- from 1–2 m the clusters read as a fringe hanging from the lip, and between them the soil edge is a clean, straight line (G1 stand-in 2)
+- at 10 m in overcast the hanging straws read as fine pale ticks, irregular and clustered, never pegs
+
+**The floor (S6):** the clods are dark rounded lumps of the wall's soil, read as clods in shade. The floor's straws are pale thin lines.
+
+**The numbers:** the handoff's dark shares on the 1.5 m day tile (0.0 % and 5.0 %) are now under G's 4.6–15.5 %; QA did not repeat them. QA judged by eye, as R1 asked. The softer crevices are the 45° review sun's and go to G1.
+
+### R2 and S5: the slots and the mouths (QA's `qa_meta.py`, `qa_slots.py`)
+```
+48 cross-sections, 21 slots, 2 mouths
+slot starts 0.00 ... 22.86, chainage steps 1.14-1.15 m (24 m / 21 = 1.143 m)
+narrowest_m 0.903018-0.980621; QA's brute-force inscribed circle (6 mm grid) within 3.2 mm of every slot's
+least (narrowest_m - its least lip-to-lip width): +0.5 mm (slot_3.43); slots under 0.574 m: 0
+consecutive slots sharing their end edge: 20 of 20; their area 22.5717 m2 = the opening QA's 5 cm grid finds (22.57 m2)
+mouth_3.16  sides 0.8 x 0.6038, planarity 5.0e-07, narrowest 0.6038 (QA 0.6038)
+mouth_16.97 sides 0.8 x 0.6031, planarity 2.1e-07, narrowest 0.6031 (QA 0.6031)
+```
+The slots tile the opening exactly; each one's circle is the opening's width, not a piece's length. `test_slots_are_the_openings_throat` and `test_niche_mouths_are_gaps` pass in QA's `pytest` run.
+
+### S1: the bake on LOD0, LOD1 at 24 m
+- **What it fixes:** the review's 1.5 m and 10 m views (10–12 m from the LOD reference point) and a pilot anywhere over the run see LOD0. The floor's straws no longer pop at 8 m. The FBX holds the bake once (18.8 MB).
+- **What it costs:** LOD0, 39 172 + 411 276 triangles, draws within 24 m of the patch's centre, which is the whole run and some metres past its ends. That is S04's precedent (design 8, amended).
+- **The switch** (QA's views from beyond the run's start, 4 m up, at 22.0, 23.5, 24.5 and 26.0 m from the reference point): LOD0 at 23.5 m, LOD1 at 24.5 m, as logged.
+  - Straws more than about 15 m from the camera alias into a pale grainy band over the parapets. The URP asset's MSAA is 1, per the capture log.
+  - Just inside 24 m most of the parapets are that far, and at 24 m the band gives way to LOD1's smooth shaded humps, in both lights.
+  - It reads as dry stubble, not rock, but the change shows (S12). From the two G-like vantages (16.0 m and 20.8 m) the parapets still read as straw.
+- **So:** a sound alternative for this asset; the pop moved from 8 m to 24 m and changed kind.
+
+### S2: the corridor, from the 48 cross-sections in their planes
+```
+    floor: 0.6118-0.6435 m, nose-first 19-35 mm a side
+at 0.35 m: 0.6775-0.7168 m, nose-first 52-71 mm a side
+      lip: 0.8905-0.9750 m, nose-first 158-200 mm a side
+yawed 45 (0.706 m) fits from the lip down to 0.998-1.200 m
+batter 82.40-85.80 deg; floor >= 0.6: True; lip >= 0.8: True
+```
+Design 5's numbers hold. Its 19–34 mm rounds 34.75 mm down. PR-9 holds.
+
+### S3: the joint check, run as a mutation through `build.py`
+`qa_build.py` imports `build.py` with a stub `bpy` and calls `build.build_variant` for E01 as the build does, with the collision audit stubbed (17 minutes, and F-6 has nothing to do with the overlap):
+```
+OVERLAP_M 0.1 (as built): passes every check and reaches the export (the stub bpy stops it there)
+OVERLAP_M 0.05: CAUGHT by build_variant: ...F-5 overlap: 48 joints, the boxes along the run overlap 0.100-0.100 m,
+                at least 0.2 m; 48 short, the first joint 1 at 0.89 m overlapping 0.100 m
+```
+The build itself prints `holes F-5 overlap: 48 joints, ... 0.200-0.200 m, at least 0.2 m` and one line per joint. Caveat in S13.
+
+### S4 and the top of the collision (QA's top-surface map)
+On a 5 cm grid over the patch, QA takes the highest shape top of every vertical line outside the opening, and the shapes whose tops lie within 0.5 mm of it:
+```
+98 level belt_straw boxes 0.3 thick, top at y = 0, within 0.6 m of the centre line, all landable
+outside the opening: no top below -5 cm anywhere (no hole in the berm's top)
+along the sides: belt_bare is the top only on the lip's edge (0.010 m2: a wall box's corner, 0.8 mm proud, F-4),
+                 and ties within 0.5 mm only along the lip's edge and the parapets' inner toe (0.375 m2 of slivers)
+past the run ends: belt_bare the only top   3.730 m2 (1.725 / 2.015 per end), 3.223 m2 inside the run's band
+                   belt_bare tied with belt_straw within 0.5 mm   7.855 m2, 0.165 m2 inside the band
+```
+The berm is grassed ground to the lip along the whole run. R3 is the run's ends.
+
+### Code outside the proposal
+- **`lib/holes.py`, the joint check:** sound. It takes `JOINT_OVERLAP_M` 0.2, its own constant, and prints a line per joint and a summary. A joint short by more than 1 µm is a problem that `build.py` refuses. The generator's `_reach` measures the boxes it emits, the ones in the metadata.
+- **`tools/assets/derive.py`, a cover with its asset's relief:** sound.
+  - `patches.relief` names a params file and a generator; `relief_inputs(params)` gives the same `lib/mat` relief the top's mesh and the mat are shaped by.
+  - The stamp records the relief inputs and the params path, so a change to either re-derives.
+  - The refusals are tested: relief on a non-cover, a missing key, an unknown generator, one without `relief_inputs`, params that do not give it.
+- **The tone sits under the mesh's own relief.** `qa_build.py` reads 3 231 top vertices on the plain margins (relief at full) and samples the shipped albedo at their UVs as the importer tiles it (1/40, offset 0.5):
+  ```
+  their UVs are metres from the relief's centre within 0.00e+00 m
+  correlation of the albedo's luminance with the mesh's relief: as Unity samples it +0.368; v flipped -0.015; u and v swapped -0.010
+  ```
+- **`lib/strip.spill_uv`** is gone with its last caller (`git grep` finds none).
+- **The rebuild in plain Python** is identical to the shipped metadata in `collision`, `gaps`, `holes`, `lods`, `micro`, `materials` and `bounds`. F-2 by QA's own band distance: 139 022 samples, the least 0.65000 m inside the bands.
+- **The mat's corridor:** away from the ends, the nearest mat vertex below the lip stands 0.3256 m from the centre line (the drone's half-span 0.287 m). Of 12 117 vertices below the berm's sink and within 5 cm of the lip, 72 lie more than 2 mm behind their wall's face (straw ends at the lip's corner); the hanging straws are in front of their walls.
+
+## R3. Past each run end, a contact sees `belt_bare` under the lodged mat
+**Measured** (QA's top-surface map above, from the shipped metadata):
+- **The defect:** past each end wall the berm turns round the run's end as level ground under the mat. There the top of the collision is the end block's top, `surface:belt_bare` and not landable.
+  - 1.725 m² and 2.015 m² at the two ends, within 1.56 m of the end point
+  - 3.22 m² of it inside the run's band, the hole cells where the asset's own collision is the only ground in the world (design 6)
+- **The ambiguity:** past the parapet caps, out to the end block's far edge 1.925 m past the end, the margin columns' `belt_straw` tops lie on the end block's `belt_bare` top within 0.5 mm, over another 7.86 m².
+  - The metadata contract does not say which surface a contact takes when tops tie, so the answer depends on the contact's resolution order. The end blocks come before the columns in the shape list.
+
+**Why it matters:**
+- **The surface rows differ where it counts for a landing:**
+  - `belt_bare`: bearing 1.4e7 N/m³, sink at most 3 cm, cover of twigs and litter
+  - `belt_straw`: 4.7e6 N/m³, 8 cm, a straw mat with hooks (0.15) and grass
+- **Where it is:** a heavy drone set down on the visible mat just past a trench's end would sink less, slide on loam, and never meet the straw that hooks props.
+- **AST-05** wants "a material id per shape" that is the ground's. **REAL-05:** the physics must follow what the drone sees.
+- **The spec scenario** "Parapets and clods are ground" names the parapets and margins as `belt_straw`. S4 made the berm `belt_straw` for the same reason, and the run's end is the same berm.
+- **Since when:** the end blocks date from task 1.1, and task 1.6's as-built note records them ("stays the end block's `belt_bare` top (F-3 needs a filler top at the band's end)").
+
+**To close it** (asset-artist, with the physics engineer's ruling where needed):
+- under every level grassed ground past the run's ends, a landable `belt_straw` top, as on the berm
+- no `belt_bare` top co-planar with a `belt_straw` one under the mat
+- F-3 still met at the band's edge. Two ways:
+  - keep a filler's top at y = 0 only on F-3's ring
+  - or the physics engineer rules that F-3 may read a `belt_straw` top there, and `lib/holes` follows
+- **Or** the physics engineer accepts `belt_bare` past the ends (a trampled trench mouth) and sets the rule for tied tops, and the orchestrator records both in design 4.
+
+**QA re-checks with the same map:** outside the opening, `belt_bare` is the top only on the cut's own edges, and on F-3's ring if the rule keeps it there.
+
+## Spec scenarios (updated)
+| Scenario | Result | Evidence |
+|---|---|---|
+| E01: built from params by one command | **Passed** | two runs (18:04, 18:19), exit 0; the FBX (`ec11183a…`, the committed LFS object), metadata, prefab, derived maps and both review sheets byte-identical between them; 946 audit, hole and joint lines identical; `git status --short` empty after each |
+| E01: the corridor against the drone | **Passed**, with design 5's accepted numbers | 48 sections, floor to lip at the batter; each `narrowest_m` on the audit's circle (48 lines, 0.8134–0.8705); verdicts in S2 |
+| E01: fillers under the hole contract | **Passed** | F-1…F-8 below; R3 is a surface, not a filler, defect |
+| E01: the G look | **Passed for G1**, with the stand-ins below | R1 |
+| E01: parapets and clods are ground | **Partly met** | parapets, margins, berm and caps `belt_straw` landable; clods `crater_spoil`; `wind_volumes` and `snag` empty; the run's ends R3 |
+| Pipeline: a trench writes its hole | **Passed** | `run` 50 points, band 2.35 m; `niche_0`, `niche_1` 2.1 m; importer line `3 holes (run 50 points, band 2.35 m, ...)`; EditMode `Meta_ExposesTheRunsHoleThenTheNiches` passed |
+| Pipeline: hole validated | **Passed** | `test_holes_validated` in QA's `pytest` run |
+| Review sheet: pilot-height tile of a trench | **Passed** | `[Review] earthwork pilot pose: camera (0.133, 3.350, -0.377), 1.500 m above the lip, 0.400 m to the field side (right) ... in frame True, top in frame True` |
+| Review sheet: other classes unchanged | **Not re-run** | `ReviewCapture.cs` is outside task 1.6's diff (`git diff 5c8baff..0269a1f` touches no capture code) |
+
+**The build's hole lines** (both runs):
+```
+holes F-1 sealed below: 42388 vertical rays on a 5 cm grid over the bands and 0.71 m past their edges, 0 miss every filler
+holes F-2 the cavity inside the bands: 139022 samples of the cut's faces (slots wall), the least 0.6500 m inside the bands at (3.1826, -0.9245, 1.6769), at least 0.65 m
+holes F-3 level lips: 1290 samples along the bands' edges, the fillers' top within 0.0 mm of the ground, tolerance 30 mm
+holes F-4 nothing proud: the highest filler point at y = 0.0008 m, at most 0.01 m
+holes F-5 thick: 367 fillers, every box at least 0.300 m across, at least 0.3 m
+holes F-5 overlap: 48 joints, the boxes along the run overlap 0.200-0.200 m, at least 0.2 m
+holes F-7 surfaces: 367 fillers surface:belt_bare, 0 landable; 422 surface:belt_straw, 422 landable; 24 surface:crater_spoil, 0 landable
+holes F-8 no wind obstacle: 0 wind volumes
+F-6: 813 collision lines, 0 problems; worst box->mesh 38.699 mm (collision[788], tolerance 50 mm); near gaps/landable 16.067 mm (collision[630], tolerance 20 mm)
+71 gap lines, each narrowest_m on the audit's circle
+E01_curving: ... size [35.25, 2.3838, 13.75] m  tris 39172 / 39172 / 1835  micro E01_curving_LOD0_straw 483 straw 5796 tris
+  micro E01_curving_LOD0_mat 63109 mat 405480 tris  813 collision shapes  fbx 18.8 MB  metadata written
+```
+
+**Requirement IDs (updated):**
+- **Met:** AST-02, AST-03 (one command, twice), AST-12, SEC-04, D-003, PR-9.
+- **Partly met:**
+  - AST-05: R2 is closed and the mouths are recorded; R3 is a wrong surface past the run's ends.
+  - AST-07: as in the first review.
+  - AST-08: the ground 39 172 under 60 000 and the bake 411 276 under 450 000 by test, not by the build (S9); textures 2K at most.
+  - AST-10: the mat is a baked stand-in until the shared generator.
+  - REAL-01, REAL-03: the G1 stand-ins below; no feed yet.
+  - REAL-05: R3.
+
+## Commands (QA's runs)
+```
+git fetch origin; git checkout -B qa-e01b origin/unity/art/p1-e01-trench; git lfs checkout   -> 76/76 LFS objects
+(Get-CimInstance -Namespace root/wmi -ClassName BatteryStatus).PowerOnline                    -> True before every Unity run; Balanced
+pwsh tools/build_asset.ps1 E01   (twice)                                                       -> build_asset: OK (E01), exit=0 (18:04, 18:19); git status --short empty after each
+& $env:UNITY -batchmode -nographics -projectPath unity -runTests -testPlatform EditMode ...    -> testcasecount="55" result="Passed" passed="55" failed="0"; exit 0
+python -m pytest tools -q                                                                      -> (running)
+python -m pytest tools/hygiene -k test_existing_tree_is_clean -rA                              -> (running)
+python tools/assets/fetch.py --verify                                                          -> OK, exit 0
+python tools/hygiene/precommit.py --tree HEAD                                                  -> 827 files scanned, 0 findings, exit 0
+openspec validate p1-e01-trench --strict                                                       -> Change 'p1-e01-trench' is valid
+git merge-tree --write-tree origin/unity/main HEAD                                             -> a tree, no conflict
+```
+- **Commits** `5c8baff..0269a1f`: 8, each subject-only, lower case, 55–70 characters, no body, no trailer.
+  - Identities: Asset Artist `assets@450fpv.local` (code, art, task text) and Orchestrator `orchestrator@450fpv.local` (task text, proposal).
+- **Committed paths:** nothing under `reference/`, `Library/`, `Temp/` or `Logs/`. The changed PNGs and the FBX go through LFS (`filter: lfs`).
+- **Licences:** no new third-party file. `grassed_spoil` keeps the pinned sets.
+- **OPSEC:** no file names, places, dates or OSD values in the branch (the scan) or in this review.
+
+## New suggestions (not blocking)
+- **S12. The LOD switch at 24 m shows.**
+  - Straws more than about 15 m from the camera alias into a pale grainy band over the parapets. Seen from just inside 24 m of the patch's centre, at 24 m that band gives way to smooth shaded humps.
+  - For the tech-artist at G1: judge it through the feed (its blur may hide it), or cross-fade the LODs.
+  - AST-10's near-ring fade replaces the bake in phase 3.
+- **S13. F-5's overlap is checked only when the generator reports joints.** An asset with `holes` whose generator returns no `joints` passes without a line. Either `lib/holes` requires joints when there are holes, or it measures the overlaps from the metadata's boxes itself.
+- **S14. `grassed_spoil` carries E01_curving's relief.** Its `patches.relief` names one variant's params, so the map's tone fits that patch alone. E02–E04, or a second E01 variant, need their own cover recipe or a per-asset derivation.
+- **S15. Stale text, for archive:**
+  - design 10 still lists `bend_deg` 25 (built 35) and omits `bend_radius_m` and `leg_jitter_m`
+  - `trench.py`'s module docstring still calls `grassed_spoil` a cover with "no ... relief tone"
+  - `TrenchPrefabTests`' class summary says the mat draws "on LOD0 and LOD1"
+  - Risks still say 85 px/m (76 as built)
+  - the names list leaves out the range differences: the sheet's `top_width_m` 0.6–1.2 against `top_w_m` 0.6–1.0, and `bottom_width_m` 0.5–1.0 against 0.5–0.8
+  - the run's ends carry no test like `test_the_berm_is_grassed_ground` (R3)
+
+## The G1 stand-ins (updated): what E01 does not yet copy from G
+1. **The mat's mass.** G's grass is a deep, tufted golden mat 0.1–0.4 m thick, with strong crevices. E01's is a thin layer of fine straws over a mottled map: hay strewn on a pale ground at 1–2 m, dry stubble beyond. It is AST-10's density (phase 3).
+2. **The lip's soil edge.** G's lip is hidden under grass over most of its length, with dark notches and crumbs. E01's grass breaks it in clusters, but between them the soil edge is the 1–10 cm crumble walk, a clean straight line from 1–2 m.
+3. **Colour and light:**
+   - G's golden-orange straw and dark inside under a low sun; the sheet's 45° sun gives beige parapets and a lit far wall
+   - E01's tussock tone shows a regular dappled mottle on the margins at 10 m and more, which G does not have
+   - The look setup's (G1) and the feed's (phase 4).
+4. **The trench's irregularity:**
+   - width jitter of 0–2.5 cm a wall is now built
+   - G's bends are tighter and less regular than the regular 3.7 m arcs
+   - the walls read smooth and plaster-like at 1.5 m, where G's are rough and in shade
+5. **Weeds and shrubs** on and beside the parapets (G 4, 8, 11, 12). Not in E01.
+6. **The setting:** the belt's trees and shrubs on one side and the field on the other. These are the world's (phase 3).
+7. **The floor:** dark clods and pale floor straws, unseen in G's shade. Recheck under the G1 light.
+8. **Far views:** the LOD switch at 24 m (S12), and the run's squared-off ends on the patch, which the world's placement hides.
