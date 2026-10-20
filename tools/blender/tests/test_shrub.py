@@ -1,5 +1,5 @@
 """generators.shrub with lib.skeleton, lib.cards and lib.shell (p1-v13-shrub, "V13 belt understory shrub"): the
-committed params conform and the defaults are V13_mid; the built sizes sit inside the sheet; LOD triangle counts
+committed params conform and the defaults are V13_mid, and the autumn and yellowing variants are their summer variant at another cover (p1-v01-locust task 1.4); the built sizes sit inside the sheet; LOD triangle counts
 under budget and halving; every stem segment a bark capsule on its chord; the twig shell of twig spheres and
 capsules, the committed 6 / 15 / 24 pieces reproduced by the cap by steps, which pass at its first step and meet one
 2 m cube 6 / 15 / 24 at most (p1-v01-locust review-physics PR1, PR2); a snag record per capsule segment and per twig
@@ -60,6 +60,30 @@ def test_params_conform_and_the_defaults_are_the_mid_variant(repo_root):
         assert spec["default"] == flat[key], key
         if spec["type"] in ("int", "float"):
             assert spec["range"][0] <= spec["default"] <= spec["range"][1], key
+
+
+# p1-v01-locust design decision 7 and task 1.4: the H autumn state at the sheet's autumn cover, each its summer variant
+# with only the cover changed, so the stems and twigs stay as they are; and S's lone yellowing clump, V13_mid fully
+# leaved and leafy from 0.3 m (S 25-26, 38-39: lone clumps on a green are leafy near the ground).
+AUTUMN = {"V13_low_autumn": ("V13_low", {"leaf_cover": 0.4}), "V13_mid_autumn": ("V13_mid", {"leaf_cover": 0.4}),
+          "V13_tall_autumn": ("V13_tall", {"leaf_cover": 0.4}),
+          "V13_mid_yellowing": ("V13_mid", {"leaf_cover": 0.9, "bare_base_m": 0.3})}
+
+
+@pytest.mark.parametrize("name", sorted(AUTUMN))
+def test_autumn_variants_are_their_summer_variant_at_another_cover(repo_root, name, monkeypatch):
+    summer, edits = AUTUMN[name]
+    p = load(repo_root, name)
+    assert params.validate(shrub, p) == []
+    assert p == dict(load(repo_root, summer), **edits)
+    base = build(repo_root, summer)[2]
+    monkeypatch.setattr(shell, "fit", lambda *args, **kwargs: ([], shell.CAPS[0], True))  # the build's audit holds the shell
+    autumn = shrub.build(p)
+    stems = 3 * p["stems"]  # each stem's three segments' records lead the list
+    assert autumn["snag"][:stems] == base["snag"][:stems], "the stems are the summer variant's"
+    if "bare_base_m" not in edits:
+        assert autumn["snag"] == base["snag"], "and so are the twigs"
+        assert len(slot_vertices(autumn["lods"][0], ("leaf",))) < len(slot_vertices(base["lods"][0], ("leaf",)))
 
 
 def test_sizes_inside_the_sheet(variant):
@@ -397,7 +421,6 @@ def test_seed_determines_the_clump(repo_root, monkeypatch):
     (lambda p: p.update(bare_base_m=1.5, height_m=1.5), "'bare_base_m' = 1.5 must stay under 'height_m' = 1.5"),
     (lambda p: p.update(fork_angle_deg={"min": 60.0, "max": 45.0}), "'fork_angle_deg.min' = 60.0 must not exceed 'fork_angle_deg.max' = 45.0"),
     (lambda p: p.update(cards_per_m3=2000.0), "'cards_per_m3' = 2000.0 gives 7096 cards, 14192 triangles at LOD0, over the budget of 12000"),
-    (lambda p: p.update(autumn=0.5), "'autumn' = 0.5 is not built yet (a per-variant leaf tint needs the importer to read one; the look-lock decides); keep 0.0"),
     (lambda p: p.update(spines=True), "'spines' = True is not built yet (no spine cell is pinned); keep False"),
     (lambda p: p.update(fruit_tufts=3), "'fruit_tufts' = 3 is not built yet (no berry cell is pinned); keep 0"),
 ])

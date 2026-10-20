@@ -1,5 +1,5 @@
 """generators.tree with lib.skeleton, lib.cards and lib.shell (p1-v01-locust, "V01 black locust belt tree"; design
-decisions 1, 2, 4 and 6; review-physics PR4-PR8): the committed params conform and the defaults are V01_M; check's
+decisions 1, 2, 4 and 6; review-physics PR4-PR8): the committed params conform and the defaults are V01_M, and the autumn variants are their summer variant at the autumn cover with pods (task 1.4); check's
 refusals; sizes inside the sheet's rows; the capsule count printed, V01_M's between 150 and 300; LODs under budget
 and halving, the far ones' leaves holding LOD0's silhouette and the wood's they drop (task 1.2b); every wood segment a bark capsule on its chord; twig rings at every kink at most 0.1 m apart with
 polyline records through them; records naming their material by the sheet's rule; leaves on the last two orders and
@@ -68,6 +68,24 @@ def test_params_conform_and_the_defaults_are_the_m_variant(repo_root):
         assert spec["default"] == flat[key], key
 
 
+# p1-v01-locust design decision 7 and task 1.4: the H autumn state, each its summer variant at the autumn cover (V01_S
+# at the lowest its crown passes rule (d) at, review-physics §A.3) with the sheet's autumn pods on a fifth of the tips,
+# so the skeleton stays as it is.
+AUTUMN = {"V01_S_autumn": ("V01_S", 0.5), "V01_M_autumn": ("V01_M", 0.3), "V01_L_autumn": ("V01_L", 0.3)}
+
+
+@pytest.mark.parametrize("name", sorted(AUTUMN))
+def test_autumn_variants_are_their_summer_variant_at_the_autumn_cover_with_pods(repo_root, name):
+    summer, cover = AUTUMN[name]
+    p = load(repo_root, name)
+    assert params.validate(tree, p) == []
+    assert p == dict(load(repo_root, summer), leaf_cover=cover, fruit_share=0.2)
+    _, autumn, _ = quick(repo_root, name)
+    _, base, _ = quick(repo_root, summer)
+    assert autumn["snag"] == base["snag"], "the skeleton is the summer variant's"
+    assert "pod" in autumn["lods"][0].slots()
+
+
 @pytest.mark.parametrize("edit, expected", [
     (lambda p: p.update(first_fork_m=6.0, height_m=6.0, crown_width_m=3.0), "'first_fork_m' = 6.0 must stay under 'height_m' = 6.0"),
     (lambda p: p.update(crown_width_m=7.0), "'crown_width_m' = 7.0 lies outside the sheet's 3-6 m for a tree 10 m tall"),
@@ -75,7 +93,6 @@ def test_params_conform_and_the_defaults_are_the_m_variant(repo_root):
     (lambda p: p.update(crown_shape="dome"), "'crown_shape' = 'dome' is not built; the generator builds scraggly"),
     (lambda p: p.update(fork_angle_deg={"min": 40.0, "max": 25.0}),
      "'fork_angle_deg.min' = 40.0 must not exceed 'fork_angle_deg.max' = 25.0"),
-    (lambda p: p.update(autumn=0.5), "'autumn' = 0.5 is not built yet (a per-variant leaf tint is task 1.4's variant_materials); keep 0.0"),
     (lambda p: p.update(spines=True), "'spines' = True is not built yet (no thorn cell is pinned; thorns on suckers are V16's); keep False"),
     (lambda p: p["lod"].update(impostor_switch_m=116.9),
      "'lod.impostor_switch_m' = 116.9 must lie past 'lod.lod2_switch_m' = 116.9 and before 'lod.cull_m' = 2500.0"),
@@ -486,9 +503,10 @@ def test_a_shell_piece_in_the_opening_closes_it_where_it_begins():
 
 def test_the_committed_gaps_are_clear_of_every_piece_and_capsule(repo_root):
     """PR7 on the built trees: no shell piece or capsule meets a written polygon's interior (points 1 cm inside its
-    boundary on a 2 cm lattice lie outside every one), and each narrowest_m is its inscribed circle within 5 mm."""
+    boundary on a 2 cm lattice lie outside every one), and each narrowest_m is its inscribed circle within 5 mm; the
+    autumn variants' too, whose sparser crowns take other pieces."""
     seen = 0
-    for name in VARIANTS:
+    for name in VARIANTS + tuple(sorted(AUTUMN)):
         data = committed(repo_root, name)
         shapes = [audit._Shape(c) for c in data["collision"]]
         for gap in data["gaps"]:

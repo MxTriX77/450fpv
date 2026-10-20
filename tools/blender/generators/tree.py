@@ -42,7 +42,8 @@ Metadata (design decision 4, review-physics PR4-PR8):
   from the ground to that box's base; nothing landable.
 
 Slots: bark (bark_locust, physics bark), twig (bark_locust, physics twig: the twigs are the shell's), leaf
-(leaf_locust, physics twig) and pod (pod_locust, physics twig), each only when LOD0 has faces of it.
+(leaf_locust, physics twig; an autumn variant's leaf_locust_autumn, the catalog's variant_materials, design decision 7)
+and pod (pod_locust, physics twig), each only when LOD0 has faces of it.
 """
 import math
 import random
@@ -79,8 +80,7 @@ GAP_STEPS = 14              # bisections of the closing chord's place
 POROSITY = ((0.0, 0.9), (0.6, 0.75), (0.9, 0.55))  # leaf_cover to crown porosity: the sheet's bare, part-bare, summer
 LOD_RULE = "pixel rule, 935 px/rad"
 # Params the sheet gives the generator that nothing can draw yet: a non-default value is refused, not ignored.
-UNBUILT = (("autumn", 0.0, "a per-variant leaf tint is task 1.4's variant_materials"),
-           ("spines", False, "no thorn cell is pinned; thorns on suckers are V16's"))
+UNBUILT = (("spines", False, "no thorn cell is pinned; thorns on suckers are V16's"),)
 # The object sheet's shared tree table and §V01's preset; defaults are V01_M.
 PARAMS = {
     "seed": {"type": "int", "range": (0, 2**31 - 1), "default": 11, "effect": "all draws: lean, forks, limbs, leaves, pods"},
@@ -105,7 +105,6 @@ PARAMS = {
     "leaf_m": {"type": "float", "range": (0.15, 0.36), "default": 0.25,
                "effect": "a pinnate leaf card's length from its petiole (the sheet's 15-36 cm); its far corner, 1.044 times "
                          "it, is rule (c)'s card reach"},
-    "autumn": {"type": "float", "range": (0.0, 1.0), "default": 0.0, "effect": "lerps the leaf tint to the sheet's yellow (not built: see UNBUILT)"},
     "spines": {"type": "bool", "range": "true or false", "default": False, "effect": "thorn cards on suckers and low branches (not built)"},
     "fruit_share": {"type": "float", "range": (0.0, 0.5), "default": 0.0, "effect": "share of the last order's tips carrying a pod strip"},
     "impostor": {"type": "bool", "range": "true or false", "default": True,

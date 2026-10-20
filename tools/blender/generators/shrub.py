@@ -31,7 +31,9 @@ autumn, 0.7 bare); no gaps; nothing landable.
 
 Slots: stem (bark_shrub, physics bark), twig (bark_shrub, physics twig: the twigs are the shell's contact, not the
 capsules'), leaf (leaf_shrub, physics twig), far (leaf_shrub_far, LOD2's far cards: the leaf recipe one-sided without
-its normal map, physics twig as the leaves they stand for; no LOD0 face, so the audit reads it over 0 vertices).
+its normal map, physics twig as the leaves they stand for; no LOD0 face, so the audit reads it over 0 vertices). An
+autumn variant's leaf and far slots take leaf_shrub_autumn and leaf_shrub_autumn_far (the catalog's
+variant_materials, p1-v01-locust design decision 7).
 """
 import math
 import random
@@ -53,8 +55,7 @@ MIN_AXIS_M = 0.05
 IDENTITY = [0.0, 0.0, 0.0, 1.0]
 # Params the sheet gives the generator that nothing can draw yet: a non-default value is refused rather than
 # silently ignored (the proposal: the parameters exist, G1 shows summer).
-UNBUILT = (("autumn", 0.0, "a per-variant leaf tint needs the importer to read one; the look-lock decides"),
-           ("spines", False, "no spine cell is pinned"),
+UNBUILT = (("spines", False, "no spine cell is pinned"),
            ("fruit_tufts", 0, "no berry cell is pinned"))
 # The object sheet's shared shrub table and §V13; defaults are V13_mid.
 PARAMS = {
@@ -72,7 +73,6 @@ PARAMS = {
     "bare_base_m": {"type": "float", "range": (0.0, 1.5), "default": 0.6,
                     "effect": "no twigs or cards below this height; under 0.3 the leaves reach the ground"},
     "leaf_cover": {"type": "float", "range": (0.0, 1.0), "default": 1.0, "effect": "scales the card count; porosity 0.7 - 0.35 * leaf_cover"},
-    "autumn": {"type": "float", "range": (0.0, 1.0), "default": 0.0, "effect": "lerps the leaf tint to the sheet's yellow (not built: see UNBUILT)"},
     "spines": {"type": "bool", "range": "true or false", "default": False, "effect": "spine cards on the stems, the silverberry look (not built)"},
     "fruit_tufts": {"type": "int", "range": (0, 60), "default": 0, "effect": "1-card berry clusters (not built)"},
     "card_m": {"type": "float", "range": (0.1, 0.5), "default": 0.2, "effect": "a leaf sprig card's length from its stalk on the twig; its width follows the cell"},
