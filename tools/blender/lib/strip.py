@@ -31,9 +31,3 @@ def wall_uv(side, u, depth):
 def floor_uv(u, lateral):
     """The UV of a point on the floor: `lateral` metres from the floor's centre line, positive to the belt side."""
     return (u, (FLOOR_ROW[0] + FLOOR_ROW[1]) / 2 + lateral)
-
-
-def spill_uv(side, u, height):
-    """The UV of a point on a clod: the spill band at the foot of a wall row, `height` metres above its bottom."""
-    bottom = (BELT_ROW if side > 0 else FIELD_ROW)[0] + 0.1
-    return (u, bottom + min(SPILL_M, max(0.0, height)))

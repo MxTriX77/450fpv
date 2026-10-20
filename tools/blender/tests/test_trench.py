@@ -1,10 +1,12 @@
-"""generators/trench and lib/holes (p1-e01-trench, task 1.1): the committed E01 params, check's refusals, the hole
-contract on the built E01 (sealed from below on a 5 cm grid over the bands and 0.71 m past them, the cavity's faces,
-the crumbled lip and the niches 0.65 m inside the bands, level lips, nothing proud, thickness and the 0.2 m overlaps),
-the cross-section gaps' inscribed circle, the holes records and the shapes' surfaces."""
+"""generators/trench and lib/holes (p1-e01-trench, tasks 1.1-1.6): the committed E01 params, check's refusals, the
+hole contract on the built E01 (sealed from below on a 5 cm grid over the bands and 0.71 m past them, the cavity's
+faces, the crumbled lip and the niches 0.65 m inside the bands, level lips, nothing proud, thickness and the 0.2 m
+overlaps, held by lib.holes), the cross-section gaps' inscribed circle, the slots and the niches' mouths, the width
+jitter, the holes records, the shapes' surfaces and the berm's, the lodged mat and the budget."""
 import copy
 import json
 import math
+import random
 from pathlib import Path
 
 import pytest
@@ -49,6 +51,9 @@ def test_committed_params_validate(e01_params):
     (lambda p: p.update(leg_jitter_m=1.5), "do not fit legs of 5.0 +- 1.5 m"),
     (lambda p: p.update(bend_radius_m=3.5), "past a bend's radius 'bend_radius_m' = 3.5 m less 0.5 m"),
     (lambda p: p.update(margin_m=8.0), "the patch spans up to 40.50 m"),
+    (lambda p: p.update(width_jitter_m=0.16), "'width_jitter_m' = 0.16 is outside [0.0, 0.15]"),
+    (lambda p: p.update(top_w_m=1.0, width_jitter_m=0.15), "than the trench_wall strip's end slot (1.2 m)"),
+    (lambda p: p.update(bottom_w_m=0.8, width_jitter_m=0.05), "than the trench_wall strip's floor row (0.8 m)"),
 ])
 def test_check_refuses(e01_params, edit, expected):
     p = copy.deepcopy(e01_params)
@@ -125,31 +130,100 @@ def test_neighbours_overlap_at_every_joint(e01):
             behind = (p[0] - 0.099 * t[0], p[1], p[2] - 0.099 * t[1])
             both = [b for b in boxes if inside(b, ahead) and inside(b, behind)]
             assert len(both) >= 2, f"joint {j} at {run.chainage[j]:.2f} m, probe {p}: {len(both)} boxes straddle it"
-    assert len(built["lines"]) == run.n - 1
-    assert all(float(line.split("overlap ")[1].split(" m")[0]) >= 0.2 for line in built["lines"])
+    assert [j["joint"] for j in built["joints"]] == list(range(1, run.n))
+    assert all(j["overlap_m"] >= holes.JOINT_OVERLAP_M - 1e-9 for j in built["joints"])
+
+
+def test_a_short_joint_fails_the_build(e01, monkeypatch):
+    """S3: lib.holes holds the joints to its own 0.2 m, whatever the generator's constant: with OVERLAP_M at 0.05
+    the boxes overlap 0.1 m and the hole contract fails on F-5's overlap (QA's mutation M3)."""
+    params, built, data, run = e01
+    problems, lines = holes.audit(data, built["lods"][0], built["joints"])
+    assert problems == [] and any(line.startswith(f"holes F-5 overlap: {run.n - 1} joints") for line in lines), lines
+    monkeypatch.setattr(trench, "OVERLAP_M", 0.05)
+    _, joints = trench._collision(run, trench._clods(params, run))
+    problems, _ = holes.audit(data, built["lods"][0], joints)
+    assert [p.split(":")[0] for p in problems] == ["F-5 overlap"] and "overlapping 0.100 m" in problems[0], problems
 
 
 def test_cross_sections_span_the_cut(e01):
     """Every cross-section gap runs from the floor to the lips with the walls at the batter, and its narrowest_m is
-    the audit's inscribed circle within 5 mm; every slot lies at y = 0."""
+    the audit's inscribed circle within 5 mm."""
     _, built, data, run = e01
     sections = [g for g in data["gaps"] if g["id"].startswith("xs_")]
-    slots = [g for g in data["gaps"] if g["id"].startswith("slot_")]
-    assert len(sections) == run.n - 1 and len(slots) == run.n
+    assert len(sections) == run.n - 1
     for g in sections:
         ys = sorted(p[1] for p in g["polygon"])
         assert ys[0] == pytest.approx(-1.5) and ys[-1] == pytest.approx(0.0)
         assert g["narrowest_m"] == pytest.approx(audit.inscribed_diameter(g["polygon"], g["normal"]), abs=0.005)
-        assert 0.75 - 0.005 <= g["narrowest_m"] <= 0.9
-    assert all(p[1] == 0.0 for g in slots for p in g["polygon"])
+        assert 0.75 - 0.005 <= g["narrowest_m"] <= 0.75 + 0.05 + 0.2
     assert meta.validate(data, meta.load_physics_materials(REPO_ROOT)) == []
 
 
+def test_slots_are_the_openings_throat(e01):
+    """R2: the open top is one slot per stretch of about a metre, the stretches tiling the run end to end, each at
+    least as long along the centre line as the cut is wide there, so no slot's narrowest_m (the audit's inscribed
+    circle) falls under its own lip-to-lip width less 5 mm, nor under the drone's 0.574 m; every slot lies at y = 0."""
+    _, built, data, run = e01
+    slots = [g for g in data["gaps"] if g["id"].startswith("slot_")]
+    stretches = trench._slot_stretches(run)
+    assert [g["id"] for g in slots] == [f"slot_{a:.2f}" for a, _ in stretches]
+    assert stretches[0][0] == 0 and stretches[-1][1] == pytest.approx(run.length)
+    assert all(b == c for (_, b), (c, _) in zip(stretches, stretches[1:]))
+    assert len(slots) == 21 and all(1.0 < b - a < 1.2 for a, b in stretches), stretches  # 24 m / 1.143 m
+    for g, (a, b) in zip(slots, stretches):
+        assert all(p[1] == 0.0 for p in g["polygon"])
+        ends = [(trench._lip_at(run, s, -1), trench._lip_at(run, s, 1)) for s in (a, b)]
+        widths = [math.dist(p, q) for p, q in ends] + [math.dist(run.lip(j, -1), run.lip(j, 1))
+                                                      for j in range(run.n + 1) if a < run.chainage[j] < b]
+        assert b - a >= max(widths), g["id"]
+        assert g["narrowest_m"] == pytest.approx(audit.inscribed_diameter(g["polygon"], g["normal"]), abs=0.005)
+        assert g["narrowest_m"] >= min(widths) - 0.005 and g["narrowest_m"] > 0.574, (g["id"], g["narrowest_m"], widths)
+    area = sum(trench._area2([(p[0], p[2]) for p in g["polygon"]]) for g in slots)
+    assert area == pytest.approx(sum(trench._area2(q) for q, _ in trench._slot_quads(run)), rel=1e-6), \
+        "the slots tile the opening the top is cut by"
+
+
+def test_niche_mouths_are_gaps(e01):
+    """S5: each niche's mouth is a gap polygon in the belt wall's plane, the niche's width by its height on the
+    battered wall, its narrowest_m the inscribed circle (the height, 0.6 m / sin 86 degrees)."""
+    _, built, data, run = e01
+    mouths = [g for g in data["gaps"] if g["id"].startswith("mouth_")]
+    assert len(mouths) == len(run.niche_segments) == 2
+    for g, i in zip(mouths, run.niche_segments):
+        foot, ex, ey, ez, sill, ceiling, _ = run.niche_frame(i)
+        assert g["id"] == f"mouth_{run.chainage[i] + run.niche_axis(i):.2f}"
+        for p in g["polygon"]:
+            assert abs(sum((p[k] - foot[k]) * ez[k] for k in range(3))) < 1e-5, "on the wall's plane"
+        assert g["narrowest_m"] == pytest.approx(min(run.niche["w"], ceiling - sill), abs=0.002)
+        assert g["narrowest_m"] == pytest.approx(audit.inscribed_diameter(g["polygon"], g["normal"]), abs=0.005)
+
+
+def test_width_jitter_only_widens(e01):
+    """S8: each wall stands out by 0 to width_jitter_m / 2, drawn per metre, floor and lip together (the batter
+    kept), held over a niche's segment on the belt side; so the floor and the lip are never narrower than
+    bottom_w_m and top_w_m (the sheet's corridor verdicts hold everywhere)."""
+    params, built, data, run = e01
+    half = params["width_jitter_m"] / 2
+    for side in trench.SIDES:
+        assert all(0.0 <= v <= half + 1e-12 for v in run.jitter[side])
+        assert max(run.jitter[side]) - min(run.jitter[side]) > half / 2, "it varies along the run"
+        for j in range(run.n + 1):
+            assert run.lip_offset(j, side) - run.crumble[side][j] - run.jitter[side][j] == pytest.approx(run.top)
+    for i in run.niche_segments:
+        assert run.jitter[1][i] == run.jitter[1][i + 1]
+    for j in range(run.n + 1):
+        assert math.dist(run.foot(j, -1), run.foot(j, 1)) >= params["bottom_w_m"] - 1e-9
+        assert math.dist(run.lip(j, -1), run.lip(j, 1)) >= params["top_w_m"] - 1e-9
+
+
 def test_default_section_inscribes_0_75(e01_params):
-    """The default cut (0.8 m lip, 0.6 m floor, 1.5 m deep) without crumble: every cross-section's inscribed circle
-    is 0.75 m within 5 mm (the circle touches both walls where the width equals its diameter, and the lip line)."""
+    """The default cut (0.8 m lip, 0.6 m floor, 1.5 m deep) without crumble or width jitter: every cross-section's
+    inscribed circle is 0.75 m within 5 mm (the circle touches both walls where the width equals its diameter, and
+    the lip line)."""
     p = copy.deepcopy(e01_params)
     p["lip_crumble_m"] = 0.0
+    p["width_jitter_m"] = 0.0
     p["shape"] = "straight"
     sections = [g for g in trench._gaps(trench.Run(p)) if g["id"].startswith("xs_")]
     assert sections and all(abs(g["narrowest_m"] - 0.75) <= 0.005 for g in sections), \
@@ -157,8 +231,9 @@ def test_default_section_inscribes_0_75(e01_params):
 
 
 def test_holes_records(e01):
-    """The run's record: a point per metre at least, [x, 0, z], the cut's top width and depth, a 2.3 m band; then one
-    record per niche from the run's centre line square to its back, 0.8 m wide, 1.35 m deep, a 2.1 m band."""
+    """The run's record: a point per metre at least, [x, 0, z], the cut's top width and depth, a 2.35 m band (the lip,
+    its widest jitter and crumble, 0.65 m a side); then one record per niche from the run's centre line square to its
+    back, 0.8 m wide, 1.35 m deep, a 2.1 m band."""
     _, built, data, run = e01
     records = data["holes"]
     assert [r["id"] for r in records] == ["run", "niche_0", "niche_1"]
@@ -166,7 +241,7 @@ def test_holes_records(e01):
     assert all(p[1] == 0.0 for p in line) and line[0] == [0.0, 0.0, 0.0]
     spacing = [math.dist(a, b) for a, b in zip(line, line[1:])]
     assert max(spacing) <= 1.0 + 1e-5 and sum(spacing) == pytest.approx(24.0, abs=0.02)
-    assert (records[0]["top_width_m"], records[0]["depth_m"], records[0]["band_width_m"]) == (0.8, 1.5, 2.3)
+    assert (records[0]["top_width_m"], records[0]["depth_m"], records[0]["band_width_m"]) == (0.8, 1.5, 2.35)
     for k, record in enumerate(records[1:]):
         i = run.niche_segments[k]
         (x0, _, z0), (x1, _, z1) = record["centre_line"]
@@ -191,6 +266,28 @@ def test_surfaces_and_flags(e01):
         left, right = run.foot(j, 1), run.foot(j, -1)
         middle = ((left[0] + right[0]) / 2, (left[2] + right[2]) / 2)
         assert run.distance(*middle) < 0.05
+
+
+def test_the_berm_is_grassed_ground(e01):
+    """S4: on every segment and side, a vertical line through the berm (between the lip and the parapet's inner
+    toe) meets first a landable belt_straw box with its top at y = 0, at least 0.3 m thick, and under it the cut's
+    fillers; the parapets' outer reach keeps a filler's top at y = 0 for F-3."""
+    _, built, data, run = e01
+    boxes = [(holes._Box(s), s) for s in data["collision"] if s["shape"] == "box"]
+    for i in range(run.n):
+        for side in trench.SIDES:
+            for f in (0.25, 0.5, 0.75):
+                d = (run.lip_offset(i, side) + run.toe) / 2
+                o = (run.points[i][0] + (run.points[i + 1][0] - run.points[i][0]) * f,
+                     run.points[i][1] + (run.points[i + 1][1] - run.points[i][1]) * f)
+                n = run.normal[i]
+                x, z = o[0] + side * n[0] * d, o[1] + side * n[1] * d
+                spans = [(b.span(x, z), s) for b, s in boxes]
+                spans = sorted(((sp[1], sp[0], s) for sp, s in spans if sp is not None), key=lambda t: -t[0])
+                top, bottom, shape = spans[0]
+                assert top == pytest.approx(0.0, abs=1e-5) and shape["material"] == trench.GROUND and shape["landable"]
+                assert top - bottom >= 0.3 - 1e-6
+                assert any(s["material"] == trench.CUT for _, _, s in spans[1:]), (i, side, f)
 
 
 def test_sides_follow_the_capture(e01):
@@ -237,42 +334,65 @@ def test_every_face_carries_its_own_planes_normal(e01):
                     assert abs(sum(e * n for e, n in zip(edge, normal))) / length < 1e-6, (slot, points, normal)
 
 
-def test_the_grass_is_visual_only_and_clear_of_the_corridor(e01):
-    """Task 1.5: the lips' and parapets' grass is one mesh drawn on LOD0 and LOD1, its tongues and hummocks in the
-    ground slot and its stems in the straw slot, with no shape of
-    its own (the collision is the cut's, the parapets', the margins' and the clods'); the audit skips every micro mesh
-    listed in the metadata (lib.audit). Away from the
-    run's ends, no part of it stands inside the half-span of a drone flown nose-first down the middle (0.287 m) or
-    under the floor, and every lip sheaf's tip hangs off its wall."""
+def test_the_mat_is_visual_only_and_clear_of_the_corridor(e01):
+    """Task 1.6 (R1): the lodged mat (the berm's, the parapets' and the lips' straws) and the floor's straws are
+    LOD0's micro meshes, all of it lib.straw's kit in the straw slot, with no shape of its own (the audit skips every
+    micro mesh listed in the metadata, lib.audit). It covers the berm and the parapets from the lip to the outer toe.
+    Away from the run's ends, nothing of it stands inside the half-span of a drone flown nose-first down the middle
+    (0.287 m) below the lip; a lip straw hangs at most LIP_HANG_M down, in front of its wall. LOD0 lasts until every
+    straw is at least S04's 8 m from the camera (S1: the review's views, 10-12 m from the reference point, see it)."""
     params, built, data, run = e01
-    grass = [m for m in built["micro"] if m["kind"] == trench.GRASS_KIND]
-    assert [m["lod"] for m in grass] == [0, 1] and grass[0]["mesh"] is grass[1]["mesh"] and grass[0]["count"] > 400
-    mesh = grass[0]["mesh"]
-    assert {slot for *_, slot in mesh.faces} == {trench.GROUND_SLOT, trench.straw.SLOT}
+    micro = {(m["lod"], m["kind"]): m for m in built["micro"]}
+    assert sorted(micro) == [(0, "mat"), (0, "straw")]
+    mesh = micro[(0, "mat")]["mesh"]
+    centre = [(data["bounds"]["min"][k] + data["bounds"]["max"][k]) / 2 for k in range(3)]  # the LOD reference point
+    farthest = max(math.dist(p, centre) for m in built["micro"] for p in m["mesh"].vertices)
+    assert farthest + 8.0 <= params["lod"]["lod1_switch_m"] < farthest + 9.0, farthest
+    assert {slot for *_, slot in mesh.faces} == {trench.straw.SLOT}
     assert len(data["collision"]) == len(trench._collision(run, trench._clods(params, run))[0])
-    assert [m["name"] for m in data["micro"] if m["kind"] == "grass"] == ["E01_curving_LOD0_grass", "E01_curving_LOD1_grass"]
     ends = [run.points[0], run.points[-1]]
-    hanging = 0
+    x0, z0, nx, nz, cx, cz = trench._patch(run)
+    near = trench._Near(run.points, (x0, z0, x0 + nx * cx, z0 + nz * cz))
+    opening = trench._Cut(trench._slot_quads(run), 0.0)
+    hanging, cover = 0, {}
     for x, y, z in mesh.vertices:
-        assert y >= -trench.LIP_HANG_M[1] - 1e-9, (x, y, z)
-        if min(math.hypot(x - e[0], z - e[1]) for e in ends) <= 0.6:
+        assert y >= -trench.LIP_HANG_M[1] - 0.01, (x, y, z)
+        d = near.distance(x, z)
+        if y > 0:
+            cover[min(int((d - run.top) / 0.25), 13)] = cover.get(min(int((d - run.top) / 0.25), 13), 0) + 1
+        if min(math.hypot(x - e[0], z - e[1]) for e in ends) <= 0.8:
             continue
-        d = run.distance(x, z)
-        assert y > -0.02 or d > 0.287, (x, y, z)
-        if y < -0.01 and d < run.top + run.crumble_m + 0.02:  # a tongue hanging in the cut, in front of its wall
+        assert y > -0.01 or d > 0.287, (x, y, z)
+        if y < -0.005 and opening.near(x, z):  # a lip straw hanging in the cut, in front of the widest wall there
             hanging += 1
-            wall = run.top + run.crumble_m - (run.top + run.crumble_m - run.bottom) * (-y) / run.depth
-            assert d < wall, (x, y, z, d, wall)
-    assert hanging, "the lip's tongues hang down the walls"
+            lip = run.top + run.jitter_m + run.crumble_m
+            assert d < lip - (lip - run.bottom - run.jitter_m) * (-y) / run.depth, (x, y, z, d)
+    assert hanging > 1000, "the lip's straws hang down the walls"
+    reach = int((run.toe + run.base - run.top) / 0.25)
+    assert all(cover.get(k, 0) > 1000 for k in range(reach)), cover  # the berm and the parapets, every 25 cm band
+
+
+def test_near_gives_the_runs_own_distance(e01):
+    """_Near (the height's and the mat's faster lookup) gives exactly Run.distance's number, inside its bounds and
+    out of them, so the ground's top is the same surface either way."""
+    _, _, _, run = e01
+    x0, z0, nx, nz, cx, cz = trench._patch(run)
+    near = trench._Near(run.parapet_line[-1], (x0, z0, x0 + nx * cx, z0 + nz * cz))
+    rng = random.Random(3)
+    for _ in range(3000):
+        x, z = rng.uniform(x0 - 2, x0 + nx * cx + 2), rng.uniform(z0 - 2, z0 + nz * cz + 2)
+        assert near.distance(x, z) == run.distance(x, z, run.parapet_line[-1])
 
 
 def test_budget_and_determinism(e01, e01_params):
-    """LOD0 with its micro meshes (the floor's straws and the grass) under the design's 60 000 triangles, LOD1 with
-    the grass alone, and a rebuild draws the same."""
+    """Per LOD: the ground (the grid, the lip's refinement, the clods) under design 8's 60 000 triangles and LOD0's
+    bake (the mat and the floor's straws) under its 450 000, LOD1 LOD0's ground without the bake, LOD2 the 1 m patch;
+    and a rebuild draws the same."""
     _, built, data, _ = e01
-    per_lod = [lod["tris"] + sum(m["tris"] for m in data["micro"] if m["lod"] == n) for n, lod in enumerate(data["lods"])]
-    assert per_lod[0] < 60000 and per_lod[1] < per_lod[0] and per_lod[2] == data["lods"][2]["tris"]
-    assert [(m["lod"], m["kind"]) for m in data["micro"]] == [(0, "straw"), (0, "grass"), (1, "grass")]
-    assert len(data["lods"]) == 3 and [lod["switch_distance_m"] for lod in data["lods"]] == [0.0, 8.0, 60.0]
+    bake = [sum(m["tris"] for m in data["micro"] if m["lod"] == n) for n in range(3)]
+    assert all(lod["tris"] < 60000 for lod in data["lods"]) and 300000 < bake[0] < 450000 and bake[1:] == [0, 0]
+    assert data["lods"][1]["tris"] == data["lods"][0]["tris"] > data["lods"][2]["tris"]
+    assert [(m["lod"], m["kind"]) for m in data["micro"]] == [(0, "straw"), (0, "mat")]
+    assert len(data["lods"]) == 3 and [lod["switch_distance_m"] for lod in data["lods"]] == [0.0, 24.0, 60.0]
     again = meta.assemble("E01", "E01_curving", "trench", e01_params, trench.build(e01_params), VISUALS)
     assert meta.dumps(again) == meta.dumps(data)

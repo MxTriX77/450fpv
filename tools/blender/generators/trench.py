@@ -16,13 +16,16 @@ most JOINT_DEG each, and each niche's segment as one piece. The polyline through
 box and gap is built per segment between two samples, mitred at the samples.
 
 The cut (design 2). Floor at -depth_m, bottom_w_m wide; each wall from the floor edge to the lip, the lip
-top_w_m / 2 + c out, c the lip crumble: per side a walk over the samples in [CRUMBLE_MIN_M, lip_crumble_m],
+top_w_m / 2 + w + c out, w the width jitter and c the lip crumble. The jitter (task 1.6, S8) stands each wall out by
+0 to width_jitter_m / 2, drawn per metre and linear between, floor and lip together, so the batter is kept and the
+cut is never narrower than its widths. The crumble: per side a walk over the samples in [CRUMBLE_MIN_M, lip_crumble_m],
 changing by at most CRUMBLE_SLOPE per metre (so a wall's twisted quad stays within 1 cm of its box's plane), the inset
-held at each sample so the lip stays within top_w_m / 2 + lip_crumble_m of the centre line on a bend's outside (the
-band's margin). The end walls have the side walls' batter: the floor ends (top_w_m - bottom_w_m) / 2 in from the run's ends. Two niches (one
-per niche_every_m, NICHE_PILLAR_M in from their segment's ends) are cut into the belt wall in the wall's own frame:
-their sill SILL_M above the floor at the mouth, niche_m.h up the wall, niche_m.d into it, niche_m.w along the run;
-their crumble is held over their segment so that wall is planar.
+held at each sample so the lip stays within top_w_m / 2 + width_jitter_m / 2 + lip_crumble_m of the centre line on a
+bend's outside (the band's margin). The end walls have the side walls' batter: the floor ends (top_w_m - bottom_w_m) / 2
+in from the run's ends. Two niches (one per niche_every_m, NICHE_PILLAR_M in from their segment's ends) are cut into
+the belt wall in the wall's own frame: their sill SILL_M above the floor at the mouth, niche_m.h up the wall,
+niche_m.d into it, niche_m.w along the run; their jitter and crumble are held over their segment so that wall is
+planar and square to the run.
 
 The ground (design 1). The patch is the run's bounding box plus margin_m, snapped to CELL_M, built as a closed block
 from y = 0 down to FLOOR_BOX_M under the floor (the floor boxes' bottom), so its collision is one solid; its top is a
@@ -39,31 +42,38 @@ on the berm. The top takes the ground slot (grassed_spoil: a cover with no bare 
 here would be stains with no relief under them) with UVs in metres from the patch's centre, u = x - its x and v = z - its
 z, so that recipe's map, GROUND_MAP_M across and centred on the UVs' origin, is laid once over the whole patch, never
 wrapped (check: the patch fits it); the block's sides and bottom the section slot (the wall map, a soil section). Every
-cut face takes the wall slot (trench_wall) with UVs on lib.strip's strip. LOD0 adds the clods (low sphere caps, clods_per_m, in the clod slot) and, as its visual-only micro
-meshes, straws and twigs blown onto the floor at FLOOR_STRAW of S04's densities (lib.straw's kit) and the grass of the
-lips and the parapets (_grass, task 1.5: tongues over the lips, tussock hummocks with lib.straw's stems); LOD1 is LOD0
-with the grass but not the floor's straws; LOD2 the patch at 1 m with the cut as a plain slot, no niches, no clods, no
-grass (from 60 m the grassed_spoil map's mottle carries it).
+cut face takes the wall slot (trench_wall) with UVs on lib.strip's strip. LOD0 adds the clods (low sphere caps,
+clods_per_m, in the clod slot, UV'd to the wall's own soil at the depth each fell from) and, as its visual-only micro
+meshes in lib.straw's kit, straws and twigs blown onto the floor at FLOOR_STRAW of S04's densities and the lodged mat
+of the berm, the parapets and the lips (_mat, task 1.6); LOD1 is LOD0 without them, from lod1_switch_m off the LOD
+group's reference point, the bounds' centre: 24 m for E01_curving puts every straw at least S04's 8 m from the camera
+when they go, and the review's 1.5 m and 10 m views (about 12 m and 10 m from that point) on LOD0 (S1); LOD2 the patch
+at 1 m with the cut as a plain slot, no niches, no clods (from 60 m the grassed_spoil map's mottle and tussock tone
+carry the grass).
 
 Collision (design 4, the hole contract F-1...F-8), in this order: per segment the floor box, then per side the wall box
-and the lip box (on a niche's segment the belt wall below the sill and above the ceiling and the lip box above and
-below the niche, then the niche's sill, ceiling, back and side boxes and the lip box's middle behind and beside it);
-then the two end walls and the two end blocks; then the parapets (per straight stretch or arc piece and side: inner
-slope, crest, outer slope; then per parapet end CAP_SECTORS cone sectors and a crest cylinder); then the margin
-columns; then the clods. Every cut shape (floor, walls, lips, ends, niches) is surface:belt_bare, not landable, at least
-FILLER_M thick, its open face on the visual; a box along a segment reaches past each of its joints so that every corner
-of its end face stands OVERLAP_M past the joint's mitre plane (_span), so neighbours overlap 0.2 m on every line across
-the joint, the wedge on a bend's outside included. The lip boxes are level, their top y = 0, and reach from the lip down
-to the block's bottom and out to BACKING_M past every band's edge (F-1: a cell marked by touch reaches 0.71 m past a
-band): they are the backing as well; nothing of the cut stands above y = 0 (F-4). The parapets, their caps and the
-margins are surface:belt_straw, landable. The clods are surface:crater_spoil spheres, not landable, each under its own
-cap of a mesh. No wind volume (F-8), no snag.
+and the level boxes by the lip (_lip_boxes: under the berm the lip box and over it the berm's box, then the lip box
+beyond the parapet's toe; on a niche's segment the belt wall below the sill and above the ceiling, those level boxes
+above the niche and the lip box below it, then the niche's sill, ceiling, back and side boxes and the lip box's middle
+behind and beside it); then the two end walls and the two end blocks; then the parapets (per straight stretch or arc
+piece and side: inner slope, crest, outer slope; then per parapet end CAP_SECTORS cone sectors and a crest
+cylinder); then the margin columns; then the clods. Every cut shape (floor, walls, lips, ends, niches) is
+surface:belt_bare, not landable, at least FILLER_M thick, its open face on the visual; a box along a segment reaches
+past each of its joints so that every corner of its end face stands OVERLAP_M past the joint's mitre plane (_span), so
+neighbours overlap 0.2 m on every line across the joint, the wedge on a bend's outside included (lib.holes holds the
+joints to 0.2 m). The lip boxes are level and reach from the lip down to the block's bottom and out to BACKING_M past
+every band's edge (F-1: a cell marked by touch reaches 0.71 m past a band): they are the backing as well; under the
+berm their top is BERM_BOX_M down, under the berm's box, and beyond the toe it is y = 0, under the parapet (F-3);
+nothing of the cut stands above y = 0 (F-4). The berm's boxes (S4: the berm is grassed ground), the parapets, their
+caps and the margins are surface:belt_straw, landable. The clods are surface:crater_spoil spheres, not landable,
+each under its own cap of a mesh. No wind volume (F-8), no snag.
 
 Gaps (design 5): at every interior sample the clear cross-section from the floor to the lips in the mitre plane,
-`xs_<chainage>`, and per segment the top slot between the lips at y = 0, `slot_<chainage of its start>`; narrowest_m
-the inscribed circle (lib.audit). Holes (design 6): the run's record (its samples as [x, 0, z], top_w_m, depth_m, its
-band top_w_m + 2 lip_crumble_m + 2 BAND_MARGIN_M) first, then one per niche from the run's centre line square to its
-farthest back point, the niche's width and sill depth, a band 2 (niche_m.w / 2 + BAND_MARGIN_M) wide.
+`xs_<chainage>`; the open top in slots of about a metre at y = 0 (_slot_stretches, R2), `slot_<chainage of its
+start>`; and each niche's mouth in the belt wall's plane, `mouth_<chainage of its middle>` (S5); narrowest_m the
+inscribed circle (lib.audit). Holes (design 6): the run's record (its samples as [x, 0, z], top_w_m, depth_m, its band
+top_w_m + width_jitter_m + 2 lip_crumble_m + 2 BAND_MARGIN_M) first, then one per niche from the run's centre line
+square to its farthest back point, the niche's width and sill depth, a band 2 (niche_m.w / 2 + BAND_MARGIN_M) wide.
 """
 import math
 import random
@@ -104,6 +114,9 @@ WALL_DOWN_M = 0.15        # a wall box reaches this far below the floor, into th
 FLOOR_SPREAD_M = 0.35     # the floor box reaches this past the floor's edges, under the wall boxes (derived: 0.3 + 0.05)
 BAND_MARGIN_M = 0.65      # F-2, settled: every cavity face this far inside the bands (0.25 + half a 0.5 m cell's diagonal)
 BACKING_M = 0.75          # settled: the lip boxes reach this past every band's edge (a cell marked by touch: 0.71 m)
+BERM_BOX_M = FILLER_M     # S4: the berm's box of grassed ground, this thick under its top (F-5, carried)
+BERM_OVER_M = 0.15        # the berm's boxes reach this past the parapet's inner toe, under its slope (assumed: at least
+                          # FILLER_M wide with the widest lip, 0.7 - 0.525 + 0.15 = 0.325 m)
 PARAPET_T_M = 0.5         # a slope box's thickness under its face: its bottom stays under y = 0 below a 0.45 m crest
 CREST_DOWN_M = 0.3        # a crest box reaches this below y = 0
 CAP_SECTORS = 16          # a parapet's end cone in sectors of 11.25 degrees: a sector box's corner stands at most 25 mm
@@ -132,6 +145,8 @@ CLOD_D_M = (0.1, 0.4)     # the sheet's clods (S03, E01), across
 CLOD_H = (0.25, 0.4)      # a clod's height over its width (assumed: low, G's floor lumpy)
 CLOD_NOISE_M = 0.008      # a clod's surface off its sphere (within the 2 cm zone of the gaps)
 CLOD_AROUND, CLOD_RINGS = 10, 3
+CLOD_SOURCE_M = (0.05, 1.1)  # a clod takes the wall's map from this deep below the lip: the topsoil band and the subsoil
+                             # it fell from, above the foot's spill band (S6: rubble in its own material's colours)
 CLOD_CLEAR_M = 0.02       # a clod clear of the walls and of every cross-section's plane (the gaps stay clear)
 CLOD_TRIES = 200
 FLOOR_STRAW = 0.1         # design 3: a tenth of S04's densities on the floor
@@ -144,29 +159,46 @@ KIT = {"straw_len_m": {"min": 0.3, "max": 1.0}, "straw_d_mm": {"min": 2.0, "max"
 # S04's kit (carried, S04_patch.json) but in 2 segments, not 4: the floor's straws bend once, which leaves the grass its
 # share of LOD0's 60 000 triangles (task 1.5)
 MICRO_KIND = "straw"
-GRASS_KIND = "grass"      # task 1.5: the lips' and parapets' standing dry grass, visual only, on LOD0 and LOD1
-LIP_TUFT_GAP_M = (0.1, 0.3)    # measured: G's grass breaks the lips every 0.1-0.3 m (G 3, 6, 9)
-LIP_TONGUE_W_M = (0.08, 0.18)  # a tongue of grass over the lip, along it (assumed from G 6: 5-15 cm)
-LIP_BACK_M = (0.04, 0.1)       # it starts this far behind the lip (assumed)
-LIP_REACH_M = (0.01, 0.04)     # reaches this far past it (assumed; inside the 113 mm a side at the lip, sheet)
-LIP_RISE_M = (0.005, 0.025)    # this high over it (assumed)
-LIP_HANG_M = (0.03, 0.12)      # and hangs this far down the wall (assumed from G 3, 6: the wall's top hidden in places)
-LIP_OFF_WALL_M = (0.005, 0.015)  # its hanging edge this far off the wall
-TUSSOCK_PER_M2 = 2.3      # tussocks on the berm and the parapets (assumed from G 3-6: clumps 0.4-0.8 m across, close set;
-                          # as many as LOD0's 60 000 triangles leave the grass)
-TUSSOCK_CLEAR_M = 0.1     # a tussock's centre this far past the widest lip, its hummock clear of the cut
-GRASS_FEATHER_M = 0.5     # past the parapets' outer toe the tussocks thin to none over this
-HUMMOCK_R_M = (0.2, 0.4)  # a tussock's hummock's radius (assumed from G 3-6)
-HUMMOCK_H_M = (0.1, 0.25)  # its crown over the ground (assumed: G's dry grass stands 0.1-0.4 m, partly lodged, G 3-6)
-HUMMOCK_STEEP = 0.8       # its crown at most this times its radius up
-HUMMOCK_LOBES = 6         # lobes round it, a notch between each two
-HUMMOCK_LOBE = (0.95, 1.25)  # a lobe's tip, and a notch, as shares of the radius (assumed)
-HUMMOCK_NOTCH = (0.7, 0.85)
-HUMMOCK_SINK_M = 0.01     # the lobes' tips and the notches this far into the ground
-STEMS_PER_TUSSOCK = 2     # up to this many of lib.straw's stems out of a hummock's crown
-STEM_LEN_M = (0.15, 0.35)  # a stem's length (assumed: G's grass stands 0.1-0.4 m)
-STEM_R_M = (0.003, 0.006)  # its radius at the foot (S04's straws 2-5 mm across, a few together)
-STEM_TILT_DEG = (10.0, 50.0)  # its lean from upright
+MAT_KIND = "mat"          # task 1.6 (R1): the lodged grass mat of the berm, the parapets and the lips, visual only, LOD0
+MAT_LAYERS = ((250.0, (0.35, 1.0)), (90.0, (0.0, 0.5)))
+# S04's two layers of lying straws, per m2 and the shares of the local loft their ends rest at: the top layer, the
+# sheet's 250 (straw_per_m2, TOP_LAYER), and the mat's body under it, 90 (body_straw_per_m2, BODY_LAYER) (carried)
+MAT_SEGMENTS = 1          # the mat's straws are straight tubes: S04's 340 a m2 over the 178 m2 of the berm, the parapets
+                          # and the feather fit the 450 000 triangles only at 6 triangles a straw (2 segments: 640 000)
+MAT_CLUMP = 0.9           # the straws gather on the relief's crowns, the hollows left as the mat's dark crevices
+                          # (assumed from G 3-6; S04's level mat takes 0.6)
+MAT_LOFT_M = 0.06         # S04's loft on the crowns, (1 - clump) of it in the hollows (carried)
+MAT_TOP_M = 0.075         # no straw rests higher over the ground: S04's MAT_MAX_M less its mat depth (carried)
+MAT_SINK_M = 0.01        # an end at share 0 lies this far into the ground (S04's STRAW_SINK_M, carried)
+MAT_SHADE = 0.8           # a straw's palette v shifts by this times its depth share - 0.5 (S04's DEPTH_SHADE, carried)
+MAT_PITCH_DEG = 3.0       # pitch beyond the line between its ends (S04's STRAW_PITCH_DEG, carried)
+MAT_ALIGN = 0.75          # share of the straws lodged along the local combing, the rest crosswise (assumed from G 3, 6:
+                          # the mat combed down the parapets; S04's level mat takes the sheet's 0.3)
+MAT_SPREAD_DEG = 20.0     # a combed straw lies within this of it (S04's LODGING_SPREAD_DEG, carried)
+MAT_FALL_SLOPE = 0.2      # where the ground falls more steeply than this (11 degrees: the parapets' 22, not the relief)
+                          # the straws are combed down its fall line, tip downhill (assumed: lodged grass on a bank)
+MAT_GRADIENT_M = 0.05     # the fall line's finite difference
+SWATHE_M, SWATHE_DEG = 1.2, 45.0  # on the level, the lodging azimuth turned by up to this along a value noise of this
+                          # lattice (S04's swathes, carried)
+MAT_FEATHER_M = 0.5       # past the parapets' outer toe the mat thins to none over this (task 1.5's feather, carried)
+MAT_LIP_CLEAR_M = 0.01    # a mat straw stays this far off the cut's opening; the lip's own straws hang over it
+LIP_STRAWS_PER_M = 100.0  # straws laid over the lip per metre of it, before the clusters thin them (assumed: G 3, 6, 9's
+                          # grass is thick where it hangs over; S04's step outlines take 30 a metre)
+LIP_CLUSTER_M = 0.25      # they hang in clusters: a value noise along the lip on this lattice (assumed, G 3, 6, 9: the
+                          # lips broken every 0.1-0.3 m, task 1.2)
+LIP_BARE_LEVEL = 0.0      # below this noise the lip is bare, its dark soil showing under the mat's edge (assumed, G 3, 6, 9)
+LIP_THICKEN = 0.6         # the straws thicken from none to the full density over this much noise above it
+LIP_ROOT_M = (0.05, 0.3)  # a lip straw's root rests on the berm this far behind the lip (assumed)
+LIP_OVER_M = (0.0, 0.03)  # it crosses the lip this far past it (assumed; inside the 141 mm a side at the lip, S2)
+LIP_RISE_M = (0.004, 0.03)  # this high over it, clear of the soil's corner (assumed)
+LIP_HANG_M = (0.03, 0.25)  # its tip hangs this far down the wall, the long ones rarer (the square of a uniform draw)
+                          # (assumed from G 3, 6: the wall's top hidden in places)
+LIP_OFF_WALL_M = (0.005, 0.04)  # its tip this far off the wall
+LIP_DRIFT = 0.4           # its tip drifts along the lip by up to this share of its hang, so the hanging straws cross
+LIP_SHADE = -0.2          # its palette v shifts by this: the mat's lower straws bent over the edge, never a pale comb
+LIP_SPREAD_DEG = 35.0     # a lip straw lies within this of square across the lip (S04's LIP_SPREAD_DEG, carried)
+NEAR_CELL_M = 0.5         # _Near's and _Cut's plan cells (lookups only: the distances are exact)
+SLOT_MARGIN_M = 0.05      # R2: a slot runs at least this much longer than the cut is wide (assumed)
 SHAPES = ("straight", "zigzag", "curving")
 REVETMENTS = ("none", "boards", "wattle", "mesh")
 EPS = 1e-9
@@ -189,8 +221,13 @@ PARAMS = {
     "leg_jitter_m": {"type": "float", "range": (0.0, 1.5), "default": 1.0,
                      "effect": "each bend's place, +- this about bend_every_m seeded (G 1-12: bends come irregularly, "
                                "up to a metre early or late)"},
-    "top_w_m": {"type": "float", "range": (0.6, 1.0), "default": 0.8, "effect": "lip to lip, before the crumble"},
-    "bottom_w_m": {"type": "float", "range": (0.5, 0.8), "default": 0.6, "effect": "the floor's width"},
+    "top_w_m": {"type": "float", "range": (0.6, 1.0), "default": 0.8,
+                "effect": "lip to lip, before the width jitter and the crumble"},
+    "bottom_w_m": {"type": "float", "range": (0.5, 0.8), "default": 0.6,
+                   "effect": "the floor's width, before the width jitter"},
+    "width_jitter_m": {"type": "float", "range": (0.0, 0.15), "default": 0.05,
+                       "effect": "spade-dug irregularity: each wall stands out by 0 to half this, drawn per metre "
+                                 "and walked between (sheet 0-0.15); it only widens, so the widths are the least"},
     "depth_m": {"type": "float", "range": (1.2, 2.0), "default": 1.5, "effect": "the floor below the lip"},
     "batter_deg": {"type": "float", "range": (75.0, 90.0), "default": 86.0,
                    "effect": "the walls' batter; must agree with the widths and depth within 0.5 degrees (check)"},
@@ -223,7 +260,8 @@ PARAMS = {
     "collapse": {"type": "float", "range": (0.0, 1.0), "default": 0.0, "effect": "E03's slump; only 0 is built"},
     "overgrowth": {"type": "float", "range": (0.0, 1.0), "default": 0.0, "effect": "E03's weeds; only 0 is built"},
     "lod.lod1_switch_m": {"type": "float", "range": (0.1, 100.0), "default": 8.0,
-                          "effect": "distance from which LOD1, without the floor's straws, shows"},
+                          "effect": "distance from the patch's centre from which LOD1, LOD0's ground without the mat "
+                                    "and the floor's straws, shows: at least 8 m (S04's) past the farthest straw"},
     "lod.lod2_switch_m": {"type": "float", "range": (0.1, 500.0), "default": 60.0,
                           "effect": "distance from which LOD2, the patch at 1 m with the cut as a plain slot, shows"},
     "lod.cull_m": {"type": "float", "range": (1.0, 2000.0), "default": 400.0, "effect": "distance beyond which it is culled"},
@@ -270,6 +308,13 @@ def check(params):
         problems.append(f"the parapets hold {area:.3f} m3/m, the cut's {cut:.3f} m3/m at a swell of {SWELL} gives "
                         f"{cut * SWELL:.3f}: off by {100 * (area / (cut * SWELL) - 1):+.0f} %, more than "
                         f"{100 * SWELL_TOLERANCE:.0f} %")
+    widest = top + params["width_jitter_m"] + 2 * params["lip_crumble_m"]
+    if widest > strip.END_SLOT_M:
+        problems.append(f"the widest lip ('top_w_m' + 'width_jitter_m' + 2 'lip_crumble_m' = {widest:.3f} m) is wider "
+                        f"than the trench_wall strip's end slot ({strip.END_SLOT_M} m)")
+    if bottom + params["width_jitter_m"] > strip.FLOOR_ROW[1] - strip.FLOOR_ROW[0]:
+        problems.append(f"the widest floor ('bottom_w_m' + 'width_jitter_m' = {bottom + params['width_jitter_m']:.3f} m) "
+                        f"is wider than the trench_wall strip's floor row ({strip.FLOOR_ROW[1] - strip.FLOOR_ROW[0]} m)")
     span = params["run_m"] + 2 * params["margin_m"] + 2 * CELL_M  # the patch's longest side at most, snapped to the grid
     if span > GROUND_MAP_M:
         problems.append(f"the patch spans up to {span:.2f} m ('run_m' + 2 'margin_m' + 2 cells), more than the "
@@ -309,15 +354,14 @@ def build(params):
     _cavity(lod2, run, niches=False)
     micro = Mesh()
     count = _floor_straws(params, run, clods, micro)
-    grass = Mesh()
-    pieces = _grass(params, run, grass)
+    lodged = Mesh()
+    pieces = _mat(params, run, lodged)
     lod = params["lod"]
     collision, joints = _collision(run, clods)
     return {
         "lods": [lod0, lod0, lod2],
         "micro": [{"lod": 0, "kind": MICRO_KIND, "count": count, "mesh": micro},
-                  {"lod": 0, "kind": GRASS_KIND, "count": pieces, "mesh": grass},
-                  {"lod": 1, "kind": GRASS_KIND, "count": pieces, "mesh": grass}],
+                  {"lod": 0, "kind": MAT_KIND, "count": pieces, "mesh": lodged}],
         "switch_distances_m": [0.0, lod["lod1_switch_m"], lod["lod2_switch_m"]],
         "cull_distance_m": lod["cull_m"],
         "materials": [{"slot": GROUND_SLOT, "physics": GROUND}, {"slot": WALL_SLOT, "physics": CUT},
@@ -327,7 +371,7 @@ def build(params):
         "gaps": _gaps(run),
         "holes": run.holes(),
         "wind_volumes": [], "snag": [],
-        "lines": joints,
+        "joints": joints,
     }
 
 
@@ -343,12 +387,13 @@ class Run:
         self.top, self.bottom, self.depth = params["top_w_m"] / 2, params["bottom_w_m"] / 2, params["depth_m"]
         self.run_in = self.top - self.bottom  # the walls' (and end walls') horizontal batter
         self.crumble_m = params["lip_crumble_m"]
+        self.jitter_m = params["width_jitter_m"] / 2  # the most a wall stands out
         self.block = self.depth + FLOOR_BOX_M
         self.toe = self.top + params["berm_m"]
         self.base = params["parapet_base_m"]
         self.slope = math.radians(params["parapet_slope_deg"])
         self.h = {1: params["parapet_h_m"]["belt"], -1: params["parapet_h_m"]["field"]}
-        self.band = self.top + self.crumble_m + BAND_MARGIN_M  # the run's band, half its width
+        self.band = self.top + self.jitter_m + self.crumble_m + BAND_MARGIN_M  # the run's band, half its width
         rng = random.Random(f"trench path {params['seed']}")
         self.arcs = self._bends(rng)
         self.niche_spans = self._niche_spans()
@@ -363,6 +408,7 @@ class Run:
                              for j in range(1, n)] + [0.0]
         self.niche_segments = [i for i in range(n) for a, b in self.niche_spans
                                if abs(self.chainage[i] - a) < 1e-9 and abs(self.chainage[i + 1] - b) < 1e-9]
+        self.jitter = self._jitter(random.Random(f"trench width {params['seed']}"))
         self.crumble = self._crumble(rng)
         niche = params["niche_m"]
         self.niche = {"w": niche["w"], "h": niche["h"], "d": niche["d"]}
@@ -458,11 +504,28 @@ class Run:
             points.append((x, z))
         return chain, points
 
+    def _jitter(self, rng):
+        """Per side, how far the wall stands out at each sample (S8, the sheet's width_jitter_m): a value in
+        [0, width_jitter_m / 2] drawn at every whole metre of chainage, linear between them, so the cut's width varies
+        by up to width_jitter_m, drawn per metre; held over each niche's segment on the belt side (its wall planar and
+        square to the run). Floor and lip move out together: the batter is kept."""
+        jitter = {}
+        for side in SIDES:
+            knots = [rng.uniform(0.0, self.jitter_m) for _ in range(math.floor(self.length) + 2)]
+            values = []
+            for j, s in enumerate(self.chainage):
+                k = min(math.floor(s), len(knots) - 2)
+                values.append(knots[k] + (knots[k + 1] - knots[k]) * (s - k))
+            for i in self.niche_segments if side == 1 else ():
+                values[i + 1] = values[i]
+            jitter[side] = values
+        return jitter
+
     def _crumble(self, rng):
         """Per side, the lip's inset at each sample: a walk in [CRUMBLE_MIN_M, lip_crumble_m] changing by at most
         CRUMBLE_SLOPE a metre,
-        held over each niche's segment, and at a joint at most what keeps the lip within top + lip_crumble_m of the
-        centre line (the mitred corner on a bend's outside lies 1 / cos(turn / 2) out)."""
+        held over each niche's segment, and at a joint at most what keeps the lip within top + width_jitter_m / 2 +
+        lip_crumble_m of the centre line (the mitred corner on a bend's outside lies 1 / cos(turn / 2) out)."""
         crumble = {}
         for side in SIDES:
             floor = min(CRUMBLE_MIN_M, self.crumble_m)
@@ -473,7 +536,8 @@ class Run:
                     c = min(self.crumble_m, max(floor, c + rng.uniform(-step, step)))
                 if side == 1 and j - 1 in self.niche_segments:
                     c = values[-1]
-                limit = (self.top + self.crumble_m) * math.cos(self.turn[j] / 2) - self.top
+                limit = ((self.top + self.jitter_m + self.crumble_m) * math.cos(self.turn[j] / 2) - self.top
+                         - self.jitter[side][j])
                 values.append(min(c, limit))
             for i in self.niche_segments if side == 1 else ():
                 values[i + 1] = values[i]
@@ -504,12 +568,17 @@ class Run:
             return self.t[-1]
         return _unit2(_add2(self.t[j - 1], self.t[j]))
 
+    def lip_offset(self, j, side):
+        """The lip's lateral offset at sample j, before the mitre's scale: the top width's half, the width jitter and
+        the crumble."""
+        return self.top + self.jitter[side][j] + self.crumble[side][j]
+
     def lip(self, j, side):
-        return self.side_point(j, side, self.top + self.crumble[side][j], 0.0)
+        return self.side_point(j, side, self.lip_offset(j, side), 0.0)
 
     def foot(self, j, side):
         """The floor's edge at sample j: at the run's ends the floor ends run_in in from the end."""
-        return self.side_point(j, side, self.bottom, -self.depth, along=self._end_run(j))
+        return self.side_point(j, side, self.bottom + self.jitter[side][j], -self.depth, along=self._end_run(j))
 
     def side_point(self, j, side, d, y, along=0.0):
         x, z = self.at(j, side * d)
@@ -629,22 +698,68 @@ def _patch(run, cell=CELL_M):
     return x0, z0, nx, nz, (x1 - x0) / nx, (z1 - z0) / nz
 
 
-def _height_fn(run, params):
-    relief = mat.relief(seed=params["seed"], size_m=_relief_size(run), cell_m=CELL_M, relief_m=RELIEF_M,
-                        azimuth_deg=RELIEF_AZIMUTH_DEG, bias=RELIEF_BIAS)
+def relief_inputs(params):
+    """lib.mat.relief's inputs for a trench's params, in metres from the patch's centre: the one relief the top is
+    shaped by, the mat's straws gather on and the grassed_spoil map darkens the hollows of (tools/assets/derive.py,
+    a cover's patches.relief)."""
+    return _relief_inputs(Run(params), params)
+
+
+def _relief_inputs(run, params):
+    return {"seed": params["seed"], "size_m": _relief_size(run), "cell_m": CELL_M, "relief_m": RELIEF_M,
+            "azimuth_deg": RELIEF_AZIMUTH_DEG, "bias": RELIEF_BIAS}
+
+
+def _relief(run, params):
+    """S04's tussock relief over the patch (lib.mat), a function of metres from the patch's centre, and the centre."""
+    relief = mat.relief(**_relief_inputs(run, params))
     x0, z0, nx, nz, cx, cz = _patch(run)
-    centre = (x0 + nx * cx / 2, z0 + nz * cz / 2)
+    return relief, (x0 + nx * cx / 2, z0 + nz * cz / 2)
+
+
+def _height_fn(run, params):
+    relief, centre = _relief(run, params)
+    x0, z0, nx, nz, cx, cz = _patch(run)
+    bounds = (x0, z0, x0 + nx * cx, z0 + nz * cz)
+    near = {key: _Near(line, bounds) for key, line in ((0, run.points), (1, run.parapet_line[1]),
+                                                        (-1, run.parapet_line[-1]))}
     cache = {}
 
     def height(x, z):
         key = (x, z)
         if key not in cache:
-            y = max(run.parapet(side, run.distance(x, z, run.parapet_line[side])) for side in SIDES)
-            w = run.relief_weight(run.distance(x, z))
+            y = max(run.parapet(side, near[side].distance(x, z)) for side in SIDES)
+            w = run.relief_weight(near[0].distance(x, z))
             cache[key] = y + (w * relief(x - centre[0], z - centre[1]) if w else 0.0)
         return cache[key]
 
     return height
+
+
+class _Near:
+    """The plan distance to a polyline, its ends included, as Run.distance gives it, found faster: per NEAR_CELL_M
+    cell of `bounds` (x0, z0, x1, z1), the segments that can be the nearest to any point of the cell (those within
+    the cell centre's least distance plus the cell's diagonal); a point outside the bounds tries every segment. The
+    nearest segment is always among a cell's, so the distance is the same number."""
+
+    def __init__(self, points, bounds):
+        self.segments = list(zip(points, points[1:]))
+        self.x0, self.z0 = bounds[0], bounds[1]
+        self.ni = max(1, math.ceil((bounds[2] - bounds[0]) / NEAR_CELL_M))
+        self.nj = max(1, math.ceil((bounds[3] - bounds[1]) / NEAR_CELL_M))
+        reach = NEAR_CELL_M * math.sqrt(2) + 1e-9
+        self.cells = []
+        for i in range(self.ni):
+            for j in range(self.nj):
+                c = (self.x0 + (i + 0.5) * NEAR_CELL_M, self.z0 + (j + 0.5) * NEAR_CELL_M)
+                d = [_seg_dist2(c, a, b) for a, b in self.segments]
+                least = min(d)
+                self.cells.append([s for s, v in zip(self.segments, d) if v <= least + reach])
+
+    def distance(self, x, z):
+        i, j = math.floor((x - self.x0) / NEAR_CELL_M), math.floor((z - self.z0) / NEAR_CELL_M)
+        segments = self.cells[i * self.nj + j] if 0 <= i < self.ni and 0 <= j < self.nj else self.segments
+        return min(_seg_dist2((x, z), a, b) for a, b in segments)
 
 
 def _relief_size(run):
@@ -857,8 +972,9 @@ def _cavity(mesh, run, niches):
         f = [run.foot(i, -1), run.foot(i, 1), run.foot(i + 1, 1), run.foot(i + 1, -1)]
         u0 = s0 + (run.run_in if i == 0 else 0.0)
         u1 = s1 - (run.run_in if i == run.n - 1 else 0.0)
-        uv = [strip.floor_uv(u0, -run.bottom), strip.floor_uv(u0, run.bottom), strip.floor_uv(u1, run.bottom),
-              strip.floor_uv(u1, -run.bottom)]
+        w = {side: [run.bottom + run.jitter[side][j] for j in (i, i + 1)] for side in SIDES}
+        uv = [strip.floor_uv(u0, -w[-1][0]), strip.floor_uv(u0, w[1][0]), strip.floor_uv(u1, w[1][1]),
+              strip.floor_uv(u1, -w[-1][1])]
         mesh.face([mesh.vertex(p) for p in f], (0.0, 1.0, 0.0), WALL_SLOT, uv)
         for side in SIDES:
             if niches and side == 1 and i in run.niche_segments:
@@ -877,9 +993,9 @@ def _cavity(mesh, run, niches):
         inward = (sign * t[0], 0.0, sign * t[1])
         corners = [run.lip(j, -1), run.lip(j, 1), run.foot(j, 1), run.foot(j, -1)]
         u = strip.END_U_M + strip.END_SLOT_M * (0.5 if j == 0 else 1.5)
-        uv = [strip.wall_uv(1, u - run.top - run.crumble[-1][j], 0.0),
-              strip.wall_uv(1, u + run.top + run.crumble[1][j], 0.0),
-              strip.wall_uv(1, u + run.bottom, run.depth), strip.wall_uv(1, u - run.bottom, run.depth)]
+        uv = [strip.wall_uv(1, u - run.lip_offset(j, -1), 0.0), strip.wall_uv(1, u + run.lip_offset(j, 1), 0.0),
+              strip.wall_uv(1, u + run.bottom + run.jitter[1][j], run.depth),
+              strip.wall_uv(1, u - run.bottom - run.jitter[-1][j], run.depth)]
         ids = [mesh.vertex(p) for p in corners]
         mesh.face(ids, _facing(mesh, ids[:3], inward), WALL_SLOT, uv)  # battered: its own plane's normal
 
@@ -984,8 +1100,11 @@ def _clod_mesh(mesh, clod):
         rings.append(ring)
     apex = _add(centre, (0.0, r + rng.uniform(-CLOD_NOISE_M, CLOD_NOISE_M), 0.0))
 
-    def uv(p):
-        return strip.spill_uv(clod["side"], clod["u"] + (p[0] - clod["x"]) + (p[2] - clod["z"]), p[1] + clod["h"] - clod["y"] - r)
+    source = CLOD_SOURCE_M[0] + (CLOD_SOURCE_M[1] - CLOD_SOURCE_M[0]) * clod["seed"]
+
+    def uv(p):  # the wall's own soil at the depth it fell from, never the pale spill band (S6)
+        return strip.wall_uv(clod["side"], clod["u"] + (p[0] - clod["x"]) + (p[2] - clod["z"]),
+                             source + clod["y"] + r - p[1])
 
     top = mesh.vertex(apex)
     ids = [[mesh.vertex(p) for p in ring] for ring in rings]
@@ -1041,147 +1160,163 @@ def _on_floor(run, p):
     return best <= run.bottom - STRAW_CLEAR_M and run.run_in + STRAW_CLEAR_M <= along <= run.length - run.run_in - STRAW_CLEAR_M
 
 
-def _grass(params, run, mesh):
-    """The dry grass of the lips and the parapets (task 1.5; G 3, 6, 9), visual only (AST-10): no collision, and the
-    audit skips it, so the landable 2 cm zone keeps the ground's own relief; returns the number of tongues and
-    tussocks. The tongues and hummocks are the grass's mass in the ground slot, their UVs on the top's (metres from the
-    patch's centre), so the grassed_spoil map runs on over them; the stems are lib.straw's tubes in the straw palette.
-    - The lips: along each lip, the side lips' and the end walls', a tongue every LIP_TUFT_GAP_M (_tongue).
-    - The tussocks: on a jittered grid of TUSSOCK_PER_M2 from TUSSOCK_CLEAR_M past the widest lip to the parapets'
-      outer toe, thinning to none over GRASS_FEATHER_M past it: each a hummock (_hummock) no wider than keeps it off
-      the cut, with up to STEMS_PER_TUSSOCK stems out of its crown, leaning STEM_TILT_DEG."""
-    rng = random.Random(f"trench grass {params['seed']}")
+def _mat(params, run, mesh):
+    """The lodged grass mat (task 1.6, R1; G 3, 6, 9: one continuous combed mat over the parapets, the berm and up
+    to the lip and over it), lib.straw's kit baked as a visual-only micro mesh like S04's (AST-10's stand-in): no
+    collision, the audit skips it, the ground's mesh and its zones untouched. Returns the number of straws.
+    - The lying straws, S04's two layers (MAT_LAYERS), each on a jittered grid (1 + MAT_CLUMP) times denser, kept on
+      the relief's crowns with probability (1 + clump c) / (1 + clump) (S04's gathering on the same relief the top
+      carries), from MAT_LIP_CLEAR_M off the cut's opening to the parapets' outer toe, thinning to none over
+      MAT_FEATHER_M past it; the kit's straws in MAT_SEGMENTS. MAT_ALIGN of them are combed within MAT_SPREAD_DEG of
+      the local lodging, the rest crosswise: down the fall line, tip downhill, where the ground falls more steeply
+      than MAT_FALL_SLOPE (the parapets' slopes), else along S04's swathes. Each rests across the tangle as S04's do:
+      its ends at its layer's shares of the local loft (MAT_LOFT_M on the crowns, (1 - clump) of it in the hollows)
+      above the ground, never MAT_TOP_M over it, its palette shaded by its depth.
+    - The lip's straws (_lip_straws): laid across every lip from the berm, over its edge and down the wall."""
+    rng = random.Random(f"trench mat {params['seed']}")
+    kit = straw.build_kit({**KIT, "segments": MAT_SEGMENTS}, rng)
+    lengths = [m.bounds()[1][0] - m.bounds()[0][0] for m in kit["straw"]]
     height = _height_fn(run, params)
-    lip_max = run.top + run.crumble_m
+    relief, centre = _relief(run, params)
     x0, z0, nx, nz, cx, cz = _patch(run)
-    origin = (x0 + nx * cx / 2, z0 + nz * cz / 2)  # the top's UV origin (_top)
+    near = _Near(run.points, (x0, z0, x0 + nx * cx, z0 + nz * cz))
+    cut = _Cut(_slot_quads(run), MAT_LIP_CLEAR_M)
+    outer = run.toe + run.base
+    swathe = mat.value_noise(rng, max(nx * cx, nz * cz), SWATHE_M, SWATHE_M)
+    spread = math.radians(MAT_SPREAD_DEG)
+
+    def crown(x, z):
+        """The relief over its amplitude: -1 in the deepest hollow, 1 on the highest crown."""
+        return relief(x - centre[0], z - centre[1]) / RELIEF_M
+
+    def rest(x, z, share):
+        local = MAT_LOFT_M * (1 - MAT_CLUMP + MAT_CLUMP * (1 + crown(x, z)) / 2)
+        base = height(x, z)
+        return min(base + MAT_TOP_M, base - MAT_SINK_M + share * (local + MAT_SINK_M))
+
+    def combing(x, z):
+        """The direction the straws are combed at (x, z), radians from +X towards +Z."""
+        e = MAT_GRADIENT_M
+        gx = (height(x + e, z) - height(x - e, z)) / (2 * e)
+        gz = (height(x, z + e) - height(x, z - e)) / (2 * e)
+        if math.hypot(gx, gz) > MAT_FALL_SLOPE:
+            return math.atan2(-gz, -gx)
+        return math.radians(RELIEF_AZIMUTH_DEG + SWATHE_DEG * swathe(x - centre[0], z - centre[1]))
+
     count = 0
+    for density, layer in MAT_LAYERS:
+        step = 1.0 / math.sqrt(density * (1 + MAT_CLUMP))
+        for i in range(math.ceil(nx * cx / step)):
+            for j in range(math.ceil(nz * cz / step)):
+                x, z = x0 + (i + rng.random()) * step, z0 + (j + rng.random()) * step
+                d = near.distance(x, z)
+                if d > outer + MAT_FEATHER_M or (d > outer and rng.random() < _smooth((d - outer) / MAT_FEATHER_M)):
+                    continue
+                if rng.random() >= (1 + MAT_CLUMP * crown(x, z)) / (1 + MAT_CLUMP):
+                    continue
+                k = rng.randrange(len(kit["straw"]))
+                yaw = (combing(x, z) + rng.uniform(-spread, spread) if rng.random() < MAT_ALIGN
+                       else rng.uniform(0, 2 * math.pi))
+                dx, dz = math.cos(yaw) * lengths[k] / 2, math.sin(yaw) * lengths[k] / 2
+                if any(cut.near(x + c * dx, z + c * dz) for c in (-1, 0, 1)):
+                    continue
+                shares = (rng.uniform(*layer), rng.uniform(*layer))
+                y0, y1 = rest(x - dx, z - dz, shares[0]), rest(x + dx, z + dz, shares[1])
+                pitch = math.atan2(y1 - y0, lengths[k]) + math.radians(rng.uniform(-MAT_PITCH_DEG, MAT_PITCH_DEG))
+                straw.place(mesh, kit["straw"][k], (x, (y0 + y1) / 2, z),
+                            straw.lying_axes(yaw, pitch, rng.uniform(0, 2 * math.pi)),
+                            MAT_SHADE * ((shares[0] + shares[1]) / 2 - 0.5))
+                count += 1
+    return count + _lip_straws(rng, run, mesh, cut, rest)
 
-    def face(points, anchor):
-        ids = [mesh.vertex(p) for p in points]
-        mesh.face(ids, _outward(mesh, ids, anchor), GROUND_SLOT, [(p[0] - origin[0], p[2] - origin[1]) for p in points])
 
-    # the lips: (polyline, per-segment inward direction, per-point wall run-in per metre of depth)
-    lips = []
+def _lip_straws(rng, run, mesh, cut, rest):
+    """Straws laid over the lips (G 3, 6, 9: the mat hangs over the lip irregularly, dark soil notches under it):
+    along each lip, the side lips' and the end walls', LIP_STRAWS_PER_M a metre, thickened and thinned by a value
+    noise along the lip on a LIP_CLUSTER_M lattice, none where it falls under LIP_BARE_LEVEL (there the wall's dark
+    topsoil shows under the mat's edge). Each is one of lib.straw's tubes on a spine of three points: its root on the
+    berm LIP_ROOT_M behind the lip, resting in the mat's top layer; over the lip LIP_OVER_M past it and LIP_RISE_M up;
+    its tip LIP_HANG_M down the battered wall (the long ones rarer), LIP_OFF_WALL_M off it (in front of the wall along
+    its whole length) and drifting along the lip by up to LIP_DRIFT of its hang, within LIP_SPREAD_DEG of square
+    across the lip, shaded LIP_SHADE darker. Returns their number."""
+    lips = []  # (polyline, per-segment inward direction, per-point wall run-in per metre of depth)
     for side in SIDES:
         line = [run.lip(j, side) for j in range(run.n + 1)]
         inward = [(-side * n[0], 0.0, -side * n[1]) for n in run.normal]
-        slope = [(run.top + run.crumble[side][j] - run.bottom) / run.depth for j in range(run.n + 1)]
+        slope = [(run.lip_offset(j, side) - run.bottom - run.jitter[side][j]) / run.depth for j in range(run.n + 1)]
         lips.append((line, inward, slope))
     for j, sign in ((0, 1.0), (run.n, -1.0)):
         t = run.t[0] if j == 0 else run.t[-1]
-        lips.append(([run.lip(j, -1), run.lip(j, 1)], [(sign * t[0], 0.0, sign * t[1])],
-                     [run.run_in / run.depth] * 2))
+        lips.append(([run.lip(j, -1), run.lip(j, 1)], [(sign * t[0], 0.0, sign * t[1])], [run.run_in / run.depth] * 2))
+    spread = math.radians(LIP_SPREAD_DEG)
+    identity = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
+    radius = (KIT["straw_d_mm"]["min"] / 2000, KIT["straw_d_mm"]["max"] / 2000)
+    count = 0
     for line, inward, slope in lips:
         lengths = [_dist(a, b) for a, b in zip(line, line[1:])]
         total = sum(lengths)
-        s = OVERLAP_M + rng.uniform(0.0, LIP_TUFT_GAP_M[1])
-        while s < total - OVERLAP_M:
-            i, start = 0, 0.0
+        knots = [rng.uniform(-1.0, 1.0) for _ in range(math.ceil(total / LIP_CLUSTER_M) + 2)]
+        i, start = 0, 0.0
+        for q in range(int(total * LIP_STRAWS_PER_M)):
+            s = (q + rng.random()) / LIP_STRAWS_PER_M
+            f = s / LIP_CLUSTER_M
+            k = int(f)
+            noise = knots[k] + (knots[k + 1] - knots[k]) * _smooth(f - k)
+            if rng.random() >= _smooth(min(1.0, max(0.0, (noise - LIP_BARE_LEVEL) / LIP_THICKEN))):
+                continue
             while start + lengths[i] < s:
                 start, i = start + lengths[i], i + 1
-            f = (s - start) / lengths[i]
-            p = _add(_scale(line[i], 1 - f), _scale(line[i + 1], f))
-            _tongue(height, rng, p, _unit(_sub(line[i + 1], line[i])), inward[i], slope[i] * (1 - f) + slope[i + 1] * f,
-                    face)
-            count += 1
-            s += rng.uniform(*LIP_TUFT_GAP_M)
-
-    # the tussocks
-    step = 1.0 / math.sqrt(TUSSOCK_PER_M2)
-    inner, outer = lip_max + TUSSOCK_CLEAR_M, run.toe + run.base
-    identity = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
-    for i in range(math.ceil(nx * cx / step)):
-        for j in range(math.ceil(nz * cz / step)):
-            centre = (x0 + (i + rng.random()) * step, z0 + (j + rng.random()) * step)
-            keep = rng.random()
-            d = run.distance(*centre)
-            if d < inner or d > outer + GRASS_FEATHER_M or (d > outer and keep < _smooth((d - outer) / GRASS_FEATHER_M)):
+            a = (s - start) / lengths[i]
+            p = _add(_scale(line[i], 1 - a), _scale(line[i + 1], a))
+            into, along = inward[i], _unit(_sub(line[i + 1], line[i]))
+            phi = rng.uniform(-spread, spread)
+            ahead = _add(_scale(into, math.cos(phi)), _scale(along, math.sin(phi)))
+            back, over = rng.uniform(*LIP_ROOT_M), rng.uniform(*LIP_OVER_M)
+            hang = LIP_HANG_M[0] + (LIP_HANG_M[1] - LIP_HANG_M[0]) * rng.random() ** 2  # many short, a few long
+            off, drift = rng.uniform(*LIP_OFF_WALL_M), rng.uniform(-LIP_DRIFT, LIP_DRIFT)
+            root = _sub(p, _scale(ahead, back))
+            if cut.near(root[0], root[2]):
                 continue
-            radius = min(rng.uniform(*HUMMOCK_R_M), (d - lip_max - 0.03) / HUMMOCK_LOBE[1])
-            crown = _hummock(height, rng, centre, radius, face)
-            for _ in range(rng.randint(0, STEMS_PER_TUSSOCK)):
-                bearing = rng.uniform(0, 2 * math.pi)
-                tilt = math.radians(rng.uniform(*STEM_TILT_DEG))
-                length = rng.uniform(*STEM_LEN_M)
-                dx, dz = math.cos(bearing), math.sin(bearing)
-                foot = (crown[0] - dx * 0.02, crown[1] - 0.03, crown[2] - dz * 0.02)
-                tip = _add(foot, (dx * math.sin(tilt) * length, math.cos(tilt) * length, dz * math.sin(tilt) * length))
-                tube = straw.tube([foot, tip], rng.uniform(*STEM_R_M), straw.TIP, (-dz, 0.0, dx),
-                                  straw.SHADES[rng.randrange(len(straw.SHADES))])
-                straw.place(mesh, tube, (0.0, 0.0, 0.0), identity)
+            root = (root[0], rest(root[0], root[2], rng.uniform(*MAT_LAYERS[0][1])), root[2])  # in the top layer
+            edge = _add(p, _add(_scale(ahead, over), (0.0, rng.uniform(*LIP_RISE_M), 0.0)))
+            run_in = slope[i] * (1 - a) + slope[i + 1] * a
+            tip = _add(edge, _add(_scale(into, run_in * hang + off),
+                                  _add(_scale(along, (math.sin(phi) / 2 + drift) * hang), (0.0, -hang - edge[1], 0.0))))
+            tube = straw.tube([root, edge, tip], rng.uniform(*radius), straw.TIP, along,
+                              straw.SHADES[rng.randrange(len(straw.SHADES))])
+            straw.place(mesh, tube, (0.0, 0.0, 0.0), identity, LIP_SHADE)
             count += 1
     return count
 
 
-def _tongue(height, rng, p, along, inward, run_in, face):
-    """A tongue of grass over the lip at its point p: LIP_TONGUE_W_M wide along it, from LIP_BACK_M behind it on the
-    berm up over its edge (LIP_REACH_M past it, LIP_RISE_M up) and down the battered wall (run_in a metre of depth),
-    its hanging edge LIP_OFF_WALL_M off the wall, rounded: its middle hangs LIP_HANG_M, its sides 40-80 % of that.
-    Three rows of three points, eight triangles facing out of the soil."""
-    half = rng.uniform(*LIP_TONGUE_W_M) / 2
-    back, reach, rise = rng.uniform(*LIP_BACK_M), rng.uniform(*LIP_REACH_M), rng.uniform(*LIP_RISE_M)
-    hang = rng.uniform(*LIP_HANG_M)
-    rows = []
-    for r in range(3):
-        row = []
-        for c in (-1.0, 0.0, 1.0):
-            a = c * half * rng.uniform(0.8, 1.1)
-            if r == 0:
-                q = _sub(p, _scale(inward, back + rng.uniform(-0.015, 0.015)))
-                q = (q[0], height(q[0], q[2]) - 0.005, q[2])
-            elif r == 1:
-                q = _add(_add(p, _scale(inward, reach)), (0.0, rise + rng.uniform(-0.005, 0.005), 0.0))
-            else:
-                h = hang * (1.0 if c == 0.0 else rng.uniform(0.4, 0.8))
-                q = _add(_add(p, _scale(inward, run_in * h + rng.uniform(*LIP_OFF_WALL_M))), (0.0, -h, 0.0))
-            row.append(_add(q, _scale(along, a)))
-        rows.append(row)
-    anchor = _add(_sub(p, _scale(inward, 0.3)), (0.0, -0.3, 0.0))  # in the soil behind the lip
-    for r in range(2):
-        for c in range(2):
-            a, b, cc, d = rows[r][c], rows[r][c + 1], rows[r + 1][c + 1], rows[r + 1][c]
-            face([a, b, cc], anchor)
-            face([a, cc, d], anchor)
+class _Cut:
+    """The cut's top opening (the slot quads, convex and counter-clockwise in plan), bucketed per NEAR_CELL_M cell:
+    whether a plan point lies in it or within `clear` of it."""
 
+    def __init__(self, quads, clear):
+        self.clear = clear
+        self.buckets = {}
+        for poly, (qx0, qx1, qz0, qz1) in quads:
+            for i in range(math.floor((qx0 - clear) / NEAR_CELL_M), math.floor((qx1 + clear) / NEAR_CELL_M) + 1):
+                for j in range(math.floor((qz0 - clear) / NEAR_CELL_M), math.floor((qz1 + clear) / NEAR_CELL_M) + 1):
+                    self.buckets.setdefault((i, j), []).append(poly)
 
-def _hummock(height, rng, centre, radius, face):
-    """A tussock's hummock of `radius`: a crown HUMMOCK_H_M up (at most HUMMOCK_STEEP times the radius), a ring of
-    HUMMOCK_LOBES shoulders round it, and a star of as many lobes reaching HUMMOCK_LOBE of the radius with a notch
-    between each two at HUMMOCK_NOTCH of it, lobes and notches HUMMOCK_SINK_M into the ground; 4 HUMMOCK_LOBES triangles
-    facing out of the hummock. Returns the crown."""
-    k = HUMMOCK_LOBES
-    ground = height(*centre)
-    top = min(rng.uniform(*HUMMOCK_H_M), radius * HUMMOCK_STEEP)
-    spin = rng.uniform(0, 2 * math.pi)
-    crown = (centre[0] + rng.uniform(-0.15, 0.15) * radius, ground + top, centre[1] + rng.uniform(-0.15, 0.15) * radius)
-
-    def at(angle, share, lift):
-        x, z = centre[0] + math.cos(angle) * radius * share, centre[1] + math.sin(angle) * radius * share
-        return (x, height(x, z) + lift, z)
-
-    step = 2 * math.pi / k
-    shoulders = [at(spin + step * (j + rng.uniform(-0.2, 0.2)), rng.uniform(0.45, 0.65), top * rng.uniform(0.7, 0.95))
-                 for j in range(k)]
-    rim = []
-    for j in range(k):
-        rim.append(at(spin + step * (j + rng.uniform(-0.15, 0.15)), rng.uniform(*HUMMOCK_LOBE), -HUMMOCK_SINK_M))
-        rim.append(at(spin + step * (j + 0.5), rng.uniform(*HUMMOCK_NOTCH), -HUMMOCK_SINK_M))
-    anchor = (centre[0], ground - radius, centre[1])
-    for j in range(k):
-        n = (j + 1) % k
-        face([crown, shoulders[j], shoulders[n]], anchor)
-        face([shoulders[j], rim[2 * j], rim[2 * j + 1]], anchor)
-        face([shoulders[j], rim[2 * j + 1], shoulders[n]], anchor)
-        face([shoulders[n], rim[2 * j + 1], rim[(2 * j + 2) % (2 * k)]], anchor)
-    return crown
+    def near(self, x, z):
+        for poly in self.buckets.get((math.floor(x / NEAR_CELL_M), math.floor(z / NEAR_CELL_M)), ()):
+            edges = list(zip(poly, poly[1:] + poly[:1]))
+            if all(_cross2(_sub2(b, a), _sub2((x, z), a)) >= 0 for a, b in edges):
+                return True
+            if min(_seg_dist2((x, z), a, b) for a, b in edges) < self.clear:
+                return True
+        return False
 
 
 # --- collision ------------------------------------------------------------------------------------------------------
 
 def _collision(run, clods):
-    """The shapes in the module docstring's order, and the per-joint F-5 lines: at every joint, how far the cut's
-    boxes of the segments before and after it reach past its mitre plane (the least over each box's end face)."""
+    """The shapes in the module docstring's order, and the joints for F-5 (lib.holes holds them to its own 0.2 m, S3):
+    at every joint, how far the boxes along the segments before and after it reach past its mitre plane (the least
+    over each box's end face) and their sum, the overlap."""
     shapes, joints = [], []
     cut_boxes = {}  # segment -> its cut boxes that run along it
 
@@ -1202,7 +1337,7 @@ def _collision(run, clods):
                 shapes_niche = niche
                 continue
             segment.append(_wall_box(run, i, side))
-            segment.append(_lip_box(run, i, side, -run.block, 0.0))
+            segment += _lip_boxes(run, i, side, -run.block)
         shapes += segment
         if i in run.niche_segments:
             shapes += shapes_niche
@@ -1219,11 +1354,8 @@ def _collision(run, clods):
     for j in range(1, run.n):
         before = min(_reach(run, j, box, 1.0) for box in cut_boxes[j - 1])
         after = min(_reach(run, j, box, -1.0) for box in cut_boxes[j])
-        overlap = before + after
-        if overlap < 2 * OVERLAP_M - 1e-6:
-            raise ValueError(f"joint {j}: the cut's boxes overlap {overlap:.3f} m, under {2 * OVERLAP_M} m (F-5)")
-        joints.append(f"F-5 joint {j} at {run.chainage[j]:.2f} m (turn {math.degrees(run.turn[j]):+.2f} deg): the cut's "
-                      f"boxes reach {before:.3f} m and {after:.3f} m past it, overlap {overlap:.3f} m")
+        joints.append({"joint": j, "chainage_m": run.chainage[j], "turn_deg": math.degrees(run.turn[j]),
+                       "before_m": before, "after_m": after, "overlap_m": before + after})
     return shapes, joints
 
 
@@ -1294,18 +1426,33 @@ def _wall_box(run, i, side):
     return _box(centre, ex, ey, ez, (u0, v[0], w[0]), (u1, v[1], w[1]), CUT, False)
 
 
-def _lip_box(run, i, side, y0, y1):
-    """A lip box: level, its inner face on the lip line, out to the side's backing, from y0 to y1, past both joints
-    (_span)."""
+def _lip_boxes(run, i, side, y0):
+    """Segment i's level boxes on one side, from y0 up (S4): under the berm, the lip box from y0 to BERM_BOX_M below
+    the ground and the berm box over it to y = 0 (GROUND, landable: the berm is grassed ground), both from the lip
+    line to BERM_OVER_M past the parapet's inner toe (at least FILLER_M), under the parapet's slope; beyond the toe
+    the lip box out to the side's backing, from y0 to y = 0, its top under the parapet and never on the berm (F-3:
+    the fillers' top level at the bands' edges). The cut's (CUT) are the backing as well."""
+    toe = run.toe - min(run.lip_offset(i, side), run.lip_offset(i + 1, side))  # the toe's farthest from the lip line
+    reach = max(toe + BERM_OVER_M, FILLER_M)
+    top = max(-BERM_BOX_M, min(y0 + FILLER_M, -EPS))  # a lip box under a niche's ceiling stays FILLER_M tall
+    return [_lip_box(run, i, side, y0, top, 0.0, reach, CUT, False),
+            _lip_box(run, i, side, -BERM_BOX_M, 0.0, 0.0, reach, GROUND, True),
+            _lip_box(run, i, side, y0, 0.0, toe, None, CUT, False)]
+
+
+def _lip_box(run, i, side, y0, y1, w0, w1, material, landable):
+    """A level box along segment i's lip line, its faces w0 and w1 out from it (w1 None: to the side's backing), from
+    y0 to y1, past both joints (_span)."""
     lip0, lip1 = run.lip(i, side), run.lip(i + 1, side)
     ex = _unit((lip1[0] - lip0[0], 0.0, lip1[2] - lip0[2]))
     ey = (0.0, 1.0, 0.0)
     ez = _cross(ex, ey)
     n = run.normal[i]
-    back = run.backing[side] - run.top - min(run.crumble[side][i], run.crumble[side][i + 1])
-    w = (0.0, back) if _dot(ez, (side * n[0], 0.0, side * n[1])) > 0 else (-back, 0.0)
+    if w1 is None:
+        w1 = run.backing[side] - min(run.lip_offset(i, side), run.lip_offset(i + 1, side))
+    w = (w0, w1) if _dot(ez, (side * n[0], 0.0, side * n[1])) > 0 else (-w1, -w0)
     u0, u1 = _span(run, i, lip0, ex, ey, ez, (y0, y1), w)
-    return _box(lip0, ex, ey, ez, (u0, y0, w[0]), (u1, y1, w[1]), CUT, False)
+    return _box(lip0, ex, ey, ez, (u0, y0, w[0]), (u1, y1, w[1]), material, landable)
 
 
 def _niche_boxes(run, i):
@@ -1337,8 +1484,8 @@ def _niche_boxes(run, i):
 
     y_ceiling = (y(ceiling, 0.0) + y(ceiling + FILLER_M, d + FILLER_M)) / 2
     y_sill = (y(sill, d) + y(sill - FILLER_M, 0.0)) / 2
-    along.append(_lip_box(run, i, 1, y_ceiling, 0.0))
-    along.append(_lip_box(run, i, 1, -run.block, y_sill))
+    along += _lip_boxes(run, i, 1, y_ceiling)
+    along.append(_lip_box(run, i, 1, -run.block, y_sill, 0.0, None, CUT, False))
     # behind the back box, and beside the niche: the lip box's middle, cut at the niche's sides
     lip0 = run.lip(i, 1)
     behind = run.lateral(i, _add(foot, _add(_scale(ey, ceiling), _scale(ez, d + FILLER_M / 2))))
@@ -1368,7 +1515,7 @@ def _end_wall(run, j):
     ez = _cross(ex, ey)
     soil = (-t[0], 0.0, -t[1]) if j == 0 else (t[0], 0.0, t[1])
     w = (0.0, FILLER_M) if _dot(ez, soil) > 0 else (-FILLER_M, 0.0)
-    half = run.top + run.crumble_m + OVERLAP_M
+    half = run.top + run.jitter_m + run.crumble_m + OVERLAP_M
     height = _dist(top_mid, foot_mid)
     return _box(foot_mid, ex, ey, ez, (-half, -WALL_DOWN_M / ey[1], w[0]), (half, height, w[1]), CUT, False)
 
@@ -1568,7 +1715,8 @@ def _quaternion(ex, ey, ez):
 # --- gaps -----------------------------------------------------------------------------------------------------------
 
 def _gaps(run):
-    """The cross-section at every interior sample and the top slot per segment (design 5)."""
+    """The cross-section at every interior sample, the open top as slots of about a metre (R2) and each niche's
+    mouth (S5) (design 5)."""
     gaps = []
     for j in range(1, run.n):
         polygon = [run.foot(j, -1), run.foot(j, 1), run.lip(j, 1), run.lip(j, -1)]
@@ -1576,11 +1724,40 @@ def _gaps(run):
         normal = [t[0], 0.0, t[1]]
         gaps.append({"id": f"xs_{run.chainage[j]:.2f}", "polygon": [list(p) for p in polygon], "normal": normal,
                      "narrowest_m": inscribed_diameter(polygon, normal)})
-    for i in range(run.n):
-        polygon = [run.lip(i, -1), run.lip(i + 1, -1), run.lip(i + 1, 1), run.lip(i, 1)]
-        gaps.append({"id": f"slot_{run.chainage[i]:.2f}", "polygon": [list(p) for p in polygon],
+    for a, b in _slot_stretches(run):
+        inner = [j for j in range(run.n + 1) if a + EPS < run.chainage[j] < b - EPS]
+        polygon = ([_lip_at(run, a, -1)] + [run.lip(j, -1) for j in inner] + [_lip_at(run, b, -1), _lip_at(run, b, 1)]
+                   + [run.lip(j, 1) for j in reversed(inner)] + [_lip_at(run, a, 1)])
+        gaps.append({"id": f"slot_{a:.2f}", "polygon": [list(p) for p in polygon],
                      "normal": [0.0, 1.0, 0.0], "narrowest_m": inscribed_diameter(polygon, [0.0, 1.0, 0.0])})
+    for i in run.niche_segments:
+        foot, ex, ey, ez, sill, ceiling, _ = run.niche_frame(i)
+        a0 = run.niche_axis(i) - run.niche["w"] / 2
+        polygon = [_add(foot, _add(_scale(ex, u), _scale(ey, v)))
+                   for u, v in ((a0, sill), (a0 + run.niche["w"], sill), (a0 + run.niche["w"], ceiling), (a0, ceiling))]
+        normal = list(ez)
+        gaps.append({"id": f"mouth_{run.chainage[i] + run.niche_axis(i):.2f}", "polygon": [list(p) for p in polygon],
+                     "normal": normal, "narrowest_m": inscribed_diameter(polygon, normal)})
     return gaps
+
+
+def _slot_stretches(run):
+    """The top slot's stretches as (start, end) chainages (R2): the run in equal stretches, as many as fit at least
+    as long as the widest opening the params allow (top_w_m + width_jitter_m + 2 lip_crumble_m) plus SLOT_MARGIN_M,
+    so each is about a metre and its inscribed circle is the opening's width, never a short piece's length.
+    Independent of the samples: every slot lies at y = 0, so nothing asks for it to be cut finer."""
+    widest = 2 * (run.top + run.jitter_m + run.crumble_m) + SLOT_MARGIN_M
+    k = max(1, math.floor(run.length / widest))
+    return [(run.length * m / k, run.length * (m + 1) / k) for m in range(k)]
+
+
+def _lip_at(run, s, side):
+    """The lip's point at chainage s: on the straight lip line between the samples either side, at s's share of
+    their segment, so the slots meet one another and the opening's outline exactly."""
+    i = next((i for i in range(run.n) if s <= run.chainage[i + 1] + EPS), run.n - 1)
+    f = min(1.0, max(0.0, (s - run.chainage[i]) / (run.chainage[i + 1] - run.chainage[i])))
+    a, b = run.lip(i, side), run.lip(i + 1, side)
+    return tuple(a[k] + (b[k] - a[k]) * f for k in range(3))
 
 
 # --- small vector helpers -------------------------------------------------------------------------------------------
