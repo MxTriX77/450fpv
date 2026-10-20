@@ -19,8 +19,8 @@ surfaces under the texel as its view saw them, each its geometric shading normal
 as the leaf shader turns a leaf's), in that view's axes (right, up, towards the camera) mapped into 0-1. A texel holds
 their mean, unnormalised: its direction is where the surfaces face, its length R (1 for one flat surface, less the
 more they differ) their spread, which the shader lights as a distribution of normals and not as their mean (task
-1.2n: lit at its mean direction, V01_M's texels took 5 % less of the review's sun than their surfaces lit point by
-point and 60 % less of the sky's grazing reflection, measured). The normals are the geometry's, not the slots' normal
+1.2n: lit at its mean direction, V01_M's texels took 7 % less of the review's sun than their surfaces lit point by
+point and 67 % less of the sky's grazing reflection, measured). The normals are the geometry's, not the slots' normal
 maps: wherever the card is shown the mesh LODs read a leaf's or a bark's normal map at a mip far coarser than its
 relief, which flattens it to the surface's own normal (task 1.3: V01_M's LOD0 at 50 m moved 0.1 % with the leaves'
 normal maps off; task 1.2n: at 230 m its LOD0 and LOD2 reflect the sky at grazing angles as the geometric normals

@@ -9,19 +9,21 @@
 // degrees above the horizon) mapped into 0-1: the forward pass samples it at the cell's uv, at full resolution, turns
 // it into object space with the same axes, and lights the texel as a distribution of normals round that mean's
 // direction, as wide as its length R says (task 1.2n; URP's _NORMALMAP stays off, as the fragment sets the normal
-// itself). URP/Lit lights a surface at one normal; lit so at the mean's direction a texel of leaves, twigs and limbs
-// facing apart took 5 % less of the review's sun than its surfaces lit point by point, and 60 % less of the sky's
-// grazing reflection (V01_M, measured), the card 9 % dark by day against LOD2 at its switch. The distribution is
-// the von Mises-Fisher one of mean resultant length R, the usual model of a texel's normals (HDRP's normal map
-// filtering takes it): its concentration kappa = R (3 - R^2) / (1 - R^2) (Banerjee et al. 2005, as HDRP's
+// itself). URP/Lit lights a surface at one normal; lit so at the mean's direction V01_M's texels of leaves, twigs and
+// limbs facing apart took 7 % less of the review's sun than their surfaces lit point by point, and 67 % less of the
+// sky's grazing reflection (measured), the card 9 % dark by day against LOD2 at its switch. The distribution is the
+// von Mises-Fisher one of mean resultant length R, the usual model of a texel's normals (HDRP's normal map filtering
+// takes it): its concentration kappa = R (3 - R^2) / (1 - R^2) (Banerjee et al. 2005, as HDRP's
 // TextureNormalVariance). Each light's diffuse is the clamped cosine averaged over it, Hill's fitted irradiance of a
-// normalised spherical Gaussian (the cosine and the lobe swap roles; within 0.02 of the exact average for R >= 0.4,
+// normalised spherical Gaussian (the cosine and the lobe swap roles; within 0.015 of the exact average for R >= 0.4,
 // derived); the sky's reflection takes URP's Fresnel term Pow4(1 - saturate(n.v)) averaged over it, n.v taken as a
-// normal variable with the distribution's own mean and variance and integrated exactly; the specular highlight stays
-// URP's at the mean's direction, which its lobe is wide enough to hold (the distribution's own within 3 % at the
-// card's smoothness, measured). Over V01_M's texels these took the review's sun and sky reflection within 1 and 3 % of
-// the surfaces lit point by point (measured). The card has the leaves' smoothness, since it shows their normals (the
-// catalog importer sets it). The
+// normal variable with the distribution's own mean and variance and integrated exactly (within 0.04 of the exact
+// average at R 0.5, 0.01 at 0.9, derived); the specular highlight stays URP's at the mean's direction, its lobe at
+// the card's smoothness wide enough to hold the texel's spread (within 3 % of the surfaces' own, measured). Over
+// V01_M's texels these took the review's sun and the sky's grazing reflection within 2.2 and 0.8 % of the surfaces lit
+// point by point (measured). The normal atlas is imported as BC7 and read at the nearest texel, so each pixel takes
+// one texel's mean and spread as the bake wrote them (ModelPostprocessor). The card has the leaves' smoothness, since
+// it shows their normals (the catalog importer sets it). The
 // normal atlas's alpha holds the occlusion of the surface under each texel, its recipe's (the mask's G), which URP/Lit
 // applies to the ambient light and its reflections only, read with the normal and set as the surface's occlusion
 // (task 1.2m: one crown-wide occlusion of 0.78 gave the leaves, 0.97 on the mesh LODs, part of the bark's 0.56 and the
@@ -31,7 +33,8 @@
 // the leaves' does, read where the atlas resolves the crown (CoverageAlpha.hlsl, task 1.2i: read at the pixel's mip,
 // the card lost 14-22 % of V01's baked crowns at 116.9-230 m, measured), and its albedo with it, as its normal is
 // (FPV450_COVERAGE_COLOUR, task 1.2l: at the pixel's mip V01_M's card darkened 7 % from 50 to 116.9 m). Each pass includes URP's own Lit pass and
-// wraps its vertex function (and the forward pass its fragment), as Fpv450/Leaf does; the extra vectors stand outside
+// wraps its vertex function, as Fpv450/Leaf does, and the forward pass runs URP's fragment with the distribution's
+// terms in its lighting (ImpostorPassFragment); the extra vectors stand outside
 // URP/Lit's per-material buffer, so the SRP batcher draws the card on its own, and the material instances it. No wind.
 Shader "Fpv450/Impostor"
 {
