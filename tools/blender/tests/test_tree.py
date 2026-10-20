@@ -20,7 +20,8 @@ from lib import audit, cards, geometry, meta, params, shell, skeleton
 VARIANTS = ("V01_S", "V01_M", "V01_L")
 ROWS = {"V01_S": ((4.0, 7.0), (0.05, 0.10), (2.0, 4.0)), "V01_M": ((8.0, 12.0), (0.12, 0.20), (3.0, 6.0)),
         "V01_L": ((12.0, 16.0), (0.20, 0.35), (5.0, 8.0))}  # §V01: height, trunk diameter and crown width per size
-VISUALS = {"bark": "bark_locust", "twig": "bark_locust", "leaf": "leaf_locust", "pod": "pod_locust"}
+VISUALS = {"bark": "bark_locust", "twig": "bark_locust", "leaf": "leaf_locust", "leaf_autumn": "leaf_locust_autumn",
+           "pod": "pod_locust"}
 MODELS = ("unity", "Assets", "_Project", "Art", "Models", "vegetation", "V01")
 QUICK = {}
 
@@ -70,8 +71,9 @@ def test_params_conform_and_the_defaults_are_the_m_variant(repo_root):
 
 # p1-v01-locust design decision 7 and task 1.4: the H autumn state, each its summer variant at the autumn cover (V01_S
 # at the lowest its crown passes rule (d) at, review-physics §A.3) with the sheet's autumn pods on a fifth of the tips,
-# so the skeleton stays as it is.
+# so the skeleton stays as it is; task 1.5: a share of its leaves in the autumn slot, one crown mixing green and yellow.
 AUTUMN = {"V01_S_autumn": ("V01_S", 0.5), "V01_M_autumn": ("V01_M", 0.3), "V01_L_autumn": ("V01_L", 0.3)}
+AUTUMN_SHARE = 0.15
 
 
 @pytest.mark.parametrize("name", sorted(AUTUMN))
@@ -79,11 +81,31 @@ def test_autumn_variants_are_their_summer_variant_at_the_autumn_cover_with_pods(
     summer, cover = AUTUMN[name]
     p = load(repo_root, name)
     assert params.validate(tree, p) == []
-    assert p == dict(load(repo_root, summer), leaf_cover=cover, fruit_share=0.2)
+    assert p == dict(load(repo_root, summer), leaf_cover=cover, fruit_share=0.2, autumn_share=AUTUMN_SHARE)
     _, autumn, _ = quick(repo_root, name)
     _, base, _ = quick(repo_root, summer)
     assert autumn["snag"] == base["snag"], "the skeleton is the summer variant's"
-    assert "pod" in autumn["lods"][0].slots()
+    assert {"pod", "leaf", "leaf_autumn"} <= set(autumn["lods"][0].slots())
+
+
+@pytest.mark.parametrize("name", sorted(AUTUMN))
+def test_the_autumn_share_moves_leaves_between_the_slots_and_nothing_else(repo_root, name):
+    """Task 1.5: each leaf drawn into leaf_autumn at autumn_share from a stream of its own, so at any share the faces
+    are the share-0 build's, face for face, only their slots differ, about the share of them autumn's at LOD0, and
+    every LOD thins each slot on its own (LOD1 every other card, LOD2 every fourth)."""
+    _, mixed, _ = quick(repo_root, name)
+    _, plain, _ = quick(repo_root, name, autumn_share=0.0)
+    assert "leaf_autumn" not in plain["lods"][0].slots()
+    lod0 = [f[3] for f in mixed["lods"][0].faces]
+    assert [f[:3] for f in mixed["lods"][0].faces] == [f[:3] for f in plain["lods"][0].faces]
+    assert [s if s != "leaf_autumn" else "leaf" for s in lod0] == [f[3] for f in plain["lods"][0].faces]
+    leaves = [s for s in lod0 if s in ("leaf", "leaf_autumn")]
+    assert lod0.count("leaf_autumn") / len(leaves) == pytest.approx(AUTUMN_SHARE, abs=0.03)
+    for lod, keep in ((1, 2), (2, 4)):
+        counts = {s: sum(1 for f in mixed["lods"][lod].faces if f[3] == s) for s in ("leaf", "leaf_autumn")}
+        assert counts == {s: math.ceil(lod0.count(s) / keep) for s in counts}
+    assert mixed["collision"] == plain["collision"] and mixed["snag"] == plain["snag"] and mixed["gaps"] == plain["gaps"]
+    assert [m["slot"] for m in mixed["materials"]] == ["bark", "twig", "leaf", "leaf_autumn", "pod"]
 
 
 @pytest.mark.parametrize("edit, expected", [

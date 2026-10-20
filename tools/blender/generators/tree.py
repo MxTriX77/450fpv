@@ -10,11 +10,14 @@ diameters from `dbh_m` by Leonardo's rule at the first fork and halving per orde
 ringed at every kink at most 0.1 m apart. Pinnate leaf cards (lib.cards.along, `leaf_m` long, every LEAF_STEP_M from
 LEAF_START of the member) grow along the members of the last two orders, on the share `leaf_cover` of them (the
 sheet: the share of twig tips that carry leaves); pod strips (lib.cards.hanging) hang from the share `fruit_share`
-of the last order's tips.
+of the last order's tips. `autumn_share` of the leaves, each drawn from a stream of its own seed so the tree is the
+same at any share, take the leaf_autumn slot: one crown mixing green and yellow leaves (p1-v01-locust task 1.5,
+letter H), each slot its own recipe.
 
 LODs (design decision 1): LOD0 the trunk 12-sided, limbs 8, branches 6, twigs 3, every leaf and pod; LOD1 the same
-sides over every other ring, each twig one band along its chord, every other leaf and pod strip; LOD2 the trunk and
-limbs over every eighth ring, each branch its chord, every other twig's chord standing for two, every fourth leaf
+sides over every other ring, each twig one band along its chord, every other leaf of each leaf slot and pod strip;
+LOD2 the trunk and limbs over every eighth ring, each branch its chord, every other twig's chord standing for two,
+every fourth leaf of each leaf slot
 (task 1.3: with fewer sides the far LODs' wood took 70 % more specular than LOD0's, lib.skeleton.tree_tubes). The
 kept leaves take the cells of the leaves' mean colour and grow to hold every leaf's silhouette (lib.cards.thinned;
 task 1.2b: LOD2 had half LOD0's crown pixels and was 13-20 % dark by day), and the wood holds LOD0's wood in its own
@@ -42,8 +45,8 @@ Metadata (design decision 4, review-physics PR4-PR8):
   from the ground to that box's base; nothing landable.
 
 Slots: bark (bark_locust, physics bark), twig (bark_locust, physics twig: the twigs are the shell's), leaf
-(leaf_locust, physics twig; an autumn variant's leaf_locust_autumn, the catalog's variant_materials, design decision 7)
-and pod (pod_locust, physics twig), each only when LOD0 has faces of it.
+(leaf_locust, physics twig), leaf_autumn (leaf_locust_autumn, physics twig; design decision 7, task 1.5) and pod
+(pod_locust, physics twig), each only when LOD0 has faces of it.
 """
 import math
 import random
@@ -52,8 +55,8 @@ import time
 from lib import audit, cards, meta, shell, skeleton
 from lib.geometry import Mesh
 
-BARK, TWIG, LEAF, POD = "bark", "twig", "leaf", "pod"
-PHYSICS = {BARK: "bark", TWIG: "twig", LEAF: "twig", POD: "twig"}  # per slot; a snag record takes its member's
+BARK, TWIG, LEAF, LEAF_AUTUMN, POD = "bark", "twig", "leaf", "leaf_autumn", "pod"
+PHYSICS = {BARK: "bark", TWIG: "twig", LEAF: "twig", LEAF_AUTUMN: "twig", POD: "twig"}  # per slot; a snag record takes its member's
 CROWN_SHAPES = ("scraggly",)
 # §V01's rows, height to crown width (the sheet's S / M / L): check holds a variant's crown to its row.
 SHEET_ROWS = (((4.0, 7.0), (2.0, 4.0)), ((8.0, 12.0), (3.0, 6.0)), ((12.0, 16.0), (5.0, 8.0)))
@@ -102,6 +105,8 @@ PARAMS = {
     "lean_deg": {"type": "float", "range": (0.0, 15.0), "default": 3.0, "effect": "lean of the trunk (edge trees 8)"},
     "leaf_cover": {"type": "float", "range": (0.0, 1.0), "default": 0.6,
                    "effect": "share of the last two orders' members that carry leaves; summer 0.9, part-bare 0.6, autumn 0.3"},
+    "autumn_share": {"type": "float", "range": (0.0, 1.0), "default": 0.0,
+                     "effect": "share of the leaves in the leaf_autumn slot (its own recipe), drawn per leaf"},
     "leaf_m": {"type": "float", "range": (0.15, 0.36), "default": 0.25,
                "effect": "a pinnate leaf card's length from its petiole (the sheet's 15-36 cm); its far corner, 1.044 times "
                          "it, is rule (c)'s card reach"},
@@ -212,12 +217,21 @@ def build(params):
         return TWIG if member.twig else BARK
 
     leaf_cards = [card for i in sorted(leaves) for card in leaves[i]]
+    autumn = random.Random(f"autumn {params['seed']}")  # its own stream: the tree is the same at any share
+    is_autumn = [autumn.random() < params["autumn_share"] for _ in leaf_cards]
+    by_slot = {LEAF: [c for c, a in zip(leaf_cards, is_autumn) if not a],
+               LEAF_AUTUMN: [c for c, a in zip(leaf_cards, is_autumn) if a]}
     pod_pairs = [pods[i] for i in sorted(pods)]
     lods = [Mesh(), Mesh(), Mesh()]
     for lod, mesh in enumerate(lods):
         mesh.smooth = {BARK, TWIG}  # the tubes shade round (module docstring)
         skeleton.tree_tubes(mesh, members, lod, slot_of)
-        cards.add_to(mesh, cards.thinned(leaf_cards, LEAF_KEEP[lod]), LEAF)
+        if lod == 0:  # every leaf in its own order, so the faces are the same at any share, only their slots differ
+            for card, fallen in zip(leaf_cards, is_autumn):
+                cards.add_to(mesh, [card], LEAF_AUTUMN if fallen else LEAF)
+        else:
+            for slot, slot_cards in by_slot.items():
+                cards.add_to(mesh, cards.thinned(slot_cards, LEAF_KEEP[lod]), slot)
         if lod < 2:
             cards.add_to(mesh, [card for pair in pod_pairs[::lod + 1] for card in pair], POD)
     wood = [(i, m) for i, m in enumerate(members) if not m.twig]
@@ -226,7 +240,8 @@ def build(params):
     report.append(f"tree: {len(members)} members ({params['stems']} trunk{'s' * (params['stems'] > 1)}, "
                   f"{sum(m.order == 1 for m in members)} limbs, {len(wood) - params['stems'] - sum(m.order == 1 for m in members)} "
                   f"branches of 10 mm or more, {len(twigs)} twigs), {len(leaf_cards)} leaves on {len(leafy)} members, "
-                  f"{len(pod_pairs)} pod strips")
+                  f"{len(pod_pairs)} pod strips" + (f"; {sum(is_autumn)} leaves in leaf_autumn "
+                                                    f"({100 * sum(is_autumn) / len(leaf_cards):.1f} %)" if any(is_autumn) else ""))
     report.append(f"capsules: {len(collision)} bark capsules of 10 mm or more (trunk "
                   f"{sum(len(m.segments()) for _, m in wood if m.order == 0)}, limbs "
                   f"{sum(len(m.segments()) for _, m in wood if m.order == 1)}, branches "
@@ -244,7 +259,8 @@ def build(params):
         "lods": lods,
         "switch_distances_m": [0.0, lod["lod1_switch_m"], lod["lod2_switch_m"]],
         "cull_distance_m": lod["cull_m"],
-        "materials": [{"slot": slot, "physics": PHYSICS[slot]} for slot in (BARK, TWIG, LEAF, POD) if slot in lods[0].slots()],
+        "materials": [{"slot": slot, "physics": PHYSICS[slot]} for slot in (BARK, TWIG, LEAF, LEAF_AUTUMN, POD)
+                      if slot in lods[0].slots()],
         "collision": collision,
         "gaps": gaps,
         "wind_volumes": wind,
@@ -573,7 +589,7 @@ WIND_CLEARANCE_M = 0.001    # a trunk column's highest corner stands this under 
 def _wind(members, lod0, dbh, leaf_cover, report):
     """One crown box over the LOD0 twig, leaf and pod vertices at the state's porosity, and per trunk a solid column
     of width dbh along its chord from the ground to WIND_CLEARANCE_M under the box (review-physics PR8)."""
-    crown = {lod0.vertices[i] for indices, _, _, slot in lod0.faces if slot in (TWIG, LEAF, POD) for i in indices}
+    crown = {lod0.vertices[i] for indices, _, _, slot in lod0.faces if slot in (TWIG, LEAF, LEAF_AUTUMN, POD) for i in indices}
     if not crown:
         return []
     lo, hi = ([f(v[a] for v in crown) for a in range(3)] for f in (min, max))

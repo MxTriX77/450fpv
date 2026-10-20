@@ -13,6 +13,7 @@
   "crown_width_m": 6.0,
   "lean_deg": 3.0,
   "leaf_cover": 0.3,
+  "autumn_share": 0.15,
   "leaf_m": 0.25,
   "spines": false,
   "fruit_share": 0.2,

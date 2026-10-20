@@ -1,8 +1,11 @@
 """generators.shrub with lib.skeleton, lib.cards and lib.shell (p1-v13-shrub, "V13 belt understory shrub"): the
-committed params conform and the defaults are V13_mid, and the autumn and yellowing variants are their summer variant at another cover (p1-v01-locust task 1.4); the built sizes sit inside the sheet; LOD triangle counts
-under budget and halving; every stem segment a bark capsule on its chord; the twig shell of twig spheres and
-capsules, the committed 6 / 15 / 24 pieces reproduced by the cap by steps, which pass at its first step and meet one
-2 m cube 6 / 15 / 24 at most (p1-v01-locust review-physics PR1, PR2); a snag record per capsule segment and per twig
+committed params conform and the defaults are V13_mid, and the autumn and yellowing variants are their summer variant at
+another cover (p1-v01-locust task 1.4), the autumn ones mixing half their cards into the autumn slot (task 1.5); the
+thicket's stems fanning, leaning and forking from a narrow base, every diameter by Leonardo's rule, leaf_cover the
+share of leafy twig tips, and the autumn share splitting the cards and the far wedges (task 1.5); the built sizes sit
+inside the sheet; LOD triangle counts under budget and halving; every stem segment a bark capsule on its chord; the
+twig shell of twig spheres and capsules, the committed 6 / 19 / 40 pieces reproduced by the cap by steps, which meet
+one 2 m cube 6 / 19 / 40 at most (p1-v01-locust review-physics PR1, PR2); a snag record per capsule segment and per twig
 (review-physics PR3, PR4), each naming its member's material (p1-v01-locust PR4); the wind box over the leafy mass
 (PR5); no gap, nothing landable; the skeleton's radii, tubes and normals; card UVs inside the atlas cells, LOD1's
 cards scaled to hold LOD0's silhouette and its twigs', the far cards' ellipses over the mean-coloured boxes and
@@ -23,7 +26,7 @@ from lib.geometry import Mesh
 
 VARIANTS = ("V13_low", "V13_mid", "V13_tall")
 SHEET = {"V13_low": ((1.0, 1.5), (1.0, 2.0)), "V13_mid": ((1.5, 2.5), (1.5, 3.0)), "V13_tall": ((2.5, 3.5), (2.0, 3.0))}
-COMMITTED_PIECES = {"V13_low": 6, "V13_mid": 15, "V13_tall": 24}  # the summer shells as p1-v13-shrub built them
+COMMITTED_PIECES = {"V13_low": 6, "V13_mid": 19, "V13_tall": 40}  # the summer thickets' shells (p1-v01-locust task 1.5)
 VISUALS = {"stem": "bark_shrub", "twig": "bark_shrub", "leaf": "leaf_shrub", "far": "leaf_shrub_far"}
 UP = (0.0, 1.0, 0.0)
 BUILT = {}  # one build per variant for the whole module: the shell fit takes seconds
@@ -65,8 +68,10 @@ def test_params_conform_and_the_defaults_are_the_mid_variant(repo_root):
 # p1-v01-locust design decision 7 and task 1.4: the H autumn state at the sheet's autumn cover, each its summer variant
 # with only the cover changed, so the stems and twigs stay as they are; and S's lone yellowing clump, V13_mid fully
 # leaved and leafy from 0.3 m (S 25-26, 38-39: lone clumps on a green are leafy near the ground).
-AUTUMN = {"V13_low_autumn": ("V13_low", {"leaf_cover": 0.4}), "V13_mid_autumn": ("V13_mid", {"leaf_cover": 0.4}),
-          "V13_tall_autumn": ("V13_tall", {"leaf_cover": 0.4}),
+# Task 1.5: half the autumn clumps' cards in the autumn slot, one crown mixing green and yellow (letter H).
+AUTUMN = {"V13_low_autumn": ("V13_low", {"leaf_cover": 0.4, "autumn_share": 0.5}),
+          "V13_mid_autumn": ("V13_mid", {"leaf_cover": 0.4, "autumn_share": 0.5}),
+          "V13_tall_autumn": ("V13_tall", {"leaf_cover": 0.4, "autumn_share": 0.5}),
           "V13_mid_yellowing": ("V13_mid", {"leaf_cover": 0.9, "bare_base_m": 0.3})}
 
 
@@ -79,9 +84,11 @@ def test_autumn_variants_are_their_summer_variant_at_another_cover(repo_root, na
     base = build(repo_root, summer)[2]
     monkeypatch.setattr(shell, "fit", lambda *args, **kwargs: ([], shell.CAPS[0], True))  # the build's audit holds the shell
     autumn = shrub.build(p)
-    stems = 3 * p["stems"]  # each stem's three segments' records lead the list
-    assert autumn["snag"][:stems] == base["snag"][:stems], "the stems are the summer variant's"
+    bark = [r for r in autumn["snag"] if r["material"] == "bark"]
+    summer_bark = [r for r in base["snag"] if r["material"] == "bark"]
+    assert [(r["kind"], r["points"]) for r in bark] == [(r["kind"], r["points"]) for r in summer_bark], "the stems' axes"
     if "bare_base_m" not in edits:
+        assert bark == summer_bark, "and their radii: the same twigs share the same sections (Leonardo's rule)"
         assert autumn["snag"] == base["snag"], "and so are the twigs"
         assert len(slot_vertices(autumn["lods"][0], ("leaf",))) < len(slot_vertices(base["lods"][0], ("leaf",)))
 
@@ -96,7 +103,9 @@ def test_sizes_inside_the_sheet(variant):
     leaves = slot_vertices(built["lods"][0], ("leaf",))
     lowest = min(v[1] for v in leaves)
     assert lowest >= p["bare_base_m"] and (name != "V13_tall" or lowest >= 0.9)
-    assert data["bounds"]["min"][1] == 0.0
+    # a leaning stem's base ring, square to its axis, dips up to its radius (15 mm at most) times the sine of its lean
+    # (36 degrees at most) into the ground, buried as a leaning trunk's is
+    assert -0.015 * math.sin(math.radians(36.0)) <= data["bounds"]["min"][1] <= 0.0
 
 
 def test_lods_under_budget_and_halving(variant):
@@ -140,8 +149,10 @@ def test_metadata_carries_capsules_and_a_shell_of_pieces(variant, material_ids):
     assert meta.validate(data, material_ids) == []
     bark = [c for c in data["collision"] if c["material"] == "bark"]
     pieces = [c for c in data["collision"] if c["material"] == "twig"]
-    assert len(bark) == p["stems"] * skeleton.SEGMENTS and all(c["shape"] == "capsule" for c in bark)
-    assert all(0.005 <= c["radius"] <= p["stem_d_mm"] / 2000 and c["height"] >= 2 * c["radius"] for c in bark)
+    assert len(bark) % skeleton.SEGMENTS == 0 and all(c["shape"] == "capsule" for c in bark)
+    assert p["stems"] + 1 <= len(bark) // skeleton.SEGMENTS <= p["stems"] + 2  # a fork or two
+    assert all(skeleton.TIP_D_M / 2 <= c["radius"] <= p["stem_d_mm"]["max"] / 2000 and c["height"] >= 2 * c["radius"]
+               for c in bark)
     assert len(pieces) == COMMITTED_PIECES[name] and len(data["collision"]) == len(bark) + len(pieces)
     assert all(c["shape"] in ("sphere", "capsule") for c in pieces)
     assert data["gaps"] == [] and not any(c["landable"] for c in data["collision"])
@@ -157,7 +168,7 @@ def test_stem_records_run_along_the_capsules_from_the_ground_to_the_tip(variant)
     name, p, built, data = variant
     bark = [c for c in data["collision"] if c["material"] == "bark"]
     tips = [face for face in built["lods"][0].faces if face[3] == "stem" and len(face[0]) == skeleton.STEM_SIDES[0]]
-    assert len(tips) == p["stems"]
+    assert len(tips) == len(bark) // skeleton.SEGMENTS
     for k, (indices, _, _, _) in enumerate(tips):
         chain = data["snag"][k * skeleton.SEGMENTS:(k + 1) * skeleton.SEGMENTS]
         capsules = bark[k * skeleton.SEGMENTS:(k + 1) * skeleton.SEGMENTS]
@@ -166,7 +177,7 @@ def test_stem_records_run_along_the_capsules_from_the_ground_to_the_tip(variant)
             assert flat(record["points"]) == pytest.approx(flat(axis_ends(capsule)), abs=1e-5)
             assert record["radius_m"] == capsule["radius"]
             assert record["material"] == capsule["material"] == "bark"  # p1-v01-locust PR4: its capsule's material
-        assert chain[0]["points"][0][1] == 0.0
+        assert (chain[0]["points"][0][1] == 0.0) == (k < p["stems"])  # from the ground, or a fork from its stem
         assert all(a["points"][1] == b["points"][0] for a, b in zip(chain, chain[1:]))
         tip = [sum(built["lods"][0].vertices[i][a] for i in indices) / len(indices) for a in range(3)]
         assert chain[-1]["points"][1] == pytest.approx(tip, abs=1e-6)
@@ -177,8 +188,8 @@ def test_twig_records_follow_the_tubes(variant):
     leave its end, a `hook` where it ends free; 3 x stems + twigs records in all."""
     name, p, built, data = variant
     tubes = twig_tubes(built["lods"][0])
-    stems = p["stems"] * skeleton.SEGMENTS
-    assert len(data["snag"]) == stems + len(tubes) == {"V13_low": 227, "V13_mid": 197, "V13_tall": 309}[name]
+    stems = sum(1 for c in data["collision"] if c["material"] == "bark")
+    assert len(data["snag"]) == stems + len(tubes) == {"V13_low": 226, "V13_mid": 226, "V13_tall": 321}[name]
     for record, (p0, p1, r0, r1) in zip(data["snag"][stems:], tubes):
         assert flat(record["points"]) == pytest.approx(flat([p0, p1]), abs=1e-5)
         assert record["radius_m"] == pytest.approx((r0 + r1) / 2, abs=1e-6)
@@ -187,8 +198,8 @@ def test_twig_records_follow_the_tubes(variant):
     assert {r["kind"] for r in data["snag"][stems:]} == {"edge", "hook"}
 
 
-def test_the_committed_shells_come_back_at_the_first_step(variant, repo_root):
-    """p1-v01-locust PR1 and PR2: the cap by steps passes the summer shells at 24, so the collision equals the
+def test_the_committed_shells_come_back(variant, repo_root):
+    """p1-v01-locust PR1 and PR2: the cap by steps fits the summer shells again, so the collision equals the
     committed metadata's, piece for piece; and rule (d) counts every piece of a clump in one 2 m cube."""
     name, p, built, data = variant
     path = repo_root / "unity" / "Assets" / "_Project" / "Art" / "Models" / "vegetation" / "V13" / f"{name}.assetmeta.json"
@@ -199,8 +210,8 @@ def test_the_committed_shells_come_back_at_the_first_step(variant, repo_root):
 
 
 def test_wind_box_spans_the_leafy_mass_from_its_lowest_leaf_or_twig(variant):
-    """review-physics PR5: the box over the LOD0 leaf and twig vertices, its bottom at the lowest of them (0.82 m on
-    V13_mid and 1.25 m on V13_tall as measured), not the ground."""
+    """review-physics PR5: the box over the LOD0 leaf and twig vertices, its bottom at the lowest of them (0.77 m on
+    V13_mid and 1.10 m on V13_tall as measured on task 1.5's thickets), not the ground."""
     name, p, built, data = variant
     (wind,) = data["wind_volumes"]
     crown = slot_vertices(built["lods"][0], ("leaf", "twig"))
@@ -209,7 +220,7 @@ def test_wind_box_spans_the_leafy_mass_from_its_lowest_leaf_or_twig(variant):
     assert [wind["center"][a] - wind["size"][a] / 2 for a in range(3)] == pytest.approx(lo, abs=2e-6)
     assert [wind["center"][a] + wind["size"][a] / 2 for a in range(3)] == pytest.approx(hi, abs=2e-6)
     if name != "V13_low":
-        assert lo[1] == pytest.approx({"V13_mid": 0.82, "V13_tall": 1.25}[name], abs=0.006)
+        assert lo[1] == pytest.approx({"V13_mid": 0.77, "V13_tall": 1.10}[name], abs=0.006)
 
 
 def test_capsule_lies_on_its_segment():
@@ -226,29 +237,148 @@ def test_capsule_lies_on_its_segment():
     assert audit._rotate(tuple(meta.rotation_from_y((0.0, -1.0, 0.0))), UP) == pytest.approx((0.0, -1.0, 0.0))
 
 
-def test_skeleton_radii_segments_and_branching(repo_root):
+def thicket(repo_root, seed=1):
+    """V13_mid's skeleton as the generator grows it, with its envelope."""
     import random
     p = load(repo_root, "V13_mid")
-    envelope = shrub.Envelope(p["width_m"], p["bare_base_m"], p["height_m"], 0.06)
-    stems, twigs = skeleton.build(random.Random(1), 10, 0.22, (1.5, 1.9), 0.009, 0.2, 0.6, envelope.reach)
-    assert len(stems) == 10
-    for stem in stems:
-        radii = [r for _, r in stem.rings]
-        assert len(stem.rings) == skeleton.RINGS + 1 and radii[0] == 0.009 and radii[-1] == skeleton.STEM_TIP_R
-        assert radii == sorted(radii, reverse=True) and len(stem.segments) == skeleton.SEGMENTS
-        assert stem.segments[0][0] == stem.rings[0][0] and stem.segments[-1][1] == stem.rings[-1][0]
-        tip, base = stem.rings[-1][0], stem.rings[0][0]
-        assert math.hypot(tip[0] - base[0], tip[2] - base[2]) == pytest.approx(0.2 * stem.length)
-        assert tip[1] == pytest.approx(stem.length) and 1.5 <= stem.length <= 1.9
-        assert math.hypot(base[0], base[2]) <= 0.22
+    envelope = shrub.Envelope(p["width_m"], p["bare_base_m"], p["height_m"], shrub.CARD_MARGIN * p["card_m"])
+    stems, twigs = skeleton.build(random.Random(seed), 14, 0.22, (1.5, 1.9), (0.010, 0.030), 0.15, 0.6, envelope.reach,
+                                  p["width_m"] / 2)
+    return p, envelope, stems, twigs
+
+
+def test_stems_fan_out_lean_and_fork_from_a_narrow_base(repo_root):
+    """p1-v13-shrub review item 1 (H-2, F-1; task 1.5): a thicket, not a bundle of stilts. The stems leave a base disc
+    of 0.22 m and lean to tips spread over TIP_SPREAD of the clump's half-width, at leans of a few to about 35 degrees,
+    so no two run parallel; their base diameters are mixed within 10-30 mm; one or two of the thickest fork
+    at 25-50 % of their rise, leaving at an angle off their parent; every stem bows inside its chord by arch * rise / 4."""
+    p, _, stems, twigs = thicket(repo_root)
+    rooted = [s for s in stems if s.parent is None]
+    forks = [s for s in stems if s.parent is not None]
+    assert len(rooted) == 14 and 1 <= len(forks) <= 2
+    assert all(math.hypot(s.base[0], s.base[2]) <= 0.22 and s.base[1] == 0.0 for s in rooted)
+    tips = [math.hypot(s.tip[0], s.tip[2]) for s in rooted]
+    assert all(r <= skeleton.TIP_SPREAD * p["width_m"] / 2 + 1e-9 for r in tips)
+    assert max(tips) > 0.6 > 0.22  # the fan: tips spread far wider than the base
+    leans = sorted(s.lean_deg() for s in stems)
+    assert leans[0] < 8.0 and 25.0 < leans[-1] < 40.0 and len({round(x) for x in leans}) >= 10
+    base_mm = sorted(2000 * s.rings[0][1] for s in rooted)
+    assert 10.0 <= base_mm[0] < 13.0 and 22.0 < base_mm[-1] <= 30.0
+    thickest = sorted(rooted, key=lambda s: -s.rings[0][1])[:len(forks)]
+    for fork in forks:
+        parent = stems[fork.parent]
+        assert parent in thickest
+        (t, section), = [c for c in parent.carried if c[1] == pytest.approx(4 * fork.rings[0][1] ** 2)]
+        assert skeleton.FORK_AT[0] <= t <= skeleton.FORK_AT[1]
+        assert fork.base == pytest.approx(parent.point(t))
+        angle = math.degrees(math.acos(skeleton.dot(parent.tangent(t), fork.tangent(0.0))))
+        assert 5.0 < angle < 60.0, angle
+        assert 2 * fork.rings[0][1] >= skeleton.TWIG_D_M
+    for s in stems:
+        mid, chord = s.point(0.5), skeleton.scale(skeleton.add(s.base, s.tip), 0.5)
+        assert skeleton.dot(skeleton.sub(chord, mid), s.out) == pytest.approx(p["arch"] * s.rise / 4)
+
+
+def test_leonardos_rule_at_every_node(repo_root):
+    """The sheet's group rule (d_parent^2 = sum of d_child^2): a stem's section at every ring is its tip's plus those
+    of the first-order twigs and the forked stem that leave above it, so between two rings it loses exactly what
+    leaves between them, and its base section is the sum of everything it carries; a first-order twig keeps its section
+    to its end, where its forks share it; the twigs within the sheet's 3-8 mm and the tips at 3 mm or more."""
+    p, _, stems, twigs = thicket(repo_root)
     first = [t for t in twigs if t.level == 1]
-    second = [t for t in twigs if t.level == 2]
-    assert first and second and len(second) <= 2 * len(first)
-    assert all(0.0015 <= t.r1 < t.r0 <= 0.004 for t in twigs)  # the sheet's 3-8 mm twigs
+    for s in stems:
+        assert s.tip_d >= skeleton.TIP_D_M - 1e-12
+        for k, (_, r) in enumerate(s.rings):
+            above = s.tip_d ** 2 + sum(sq for at, sq in s.carried if at > k / skeleton.RINGS)
+            assert (2 * r) ** 2 == pytest.approx(above, rel=1e-12)
+        assert (2 * s.rings[0][1]) ** 2 == pytest.approx(s.tip_d ** 2 + sum(sq for _, sq in s.carried), rel=1e-12)
+        for at, sq in s.carried:  # each is one first-order twig or one forked stem leaving there, of that section
+            node = s.point(at)
+            leaving = [(2 * t.r0) ** 2 for t in first if math.dist(t.p0, node) < 1e-9]
+            leaving += [(2 * f.rings[0][1]) ** 2 for f in stems if f.parent is not None and math.dist(f.base, node) < 1e-9]
+            assert leaving == [pytest.approx(sq, rel=1e-12)]
+    assert sum(len(s.carried) for s in stems) == len(first) + sum(s.parent is not None for s in stems)
+    for i, t in enumerate(twigs):
+        forks = [f for f in twigs if f.parent == i]
+        if t.level == 1:
+            assert skeleton.TWIG1_D[0] - 1e-12 <= 2 * t.r0 <= skeleton.TWIG1_D[1] + 1e-12
+            if forks:
+                assert t.r1 == t.r0 and sum(f.r0 ** 2 for f in forks) == pytest.approx(t.r0 ** 2, rel=1e-12)
+            else:
+                assert 2 * t.r1 == skeleton.TIP_D_M
+        else:
+            assert 0.003 <= 2 * t.r0 <= 0.008 and 2 * t.r1 == skeleton.TIP_D_M and twigs[t.parent].p1 == t.p0
     assert all(t.p0[1] >= 0.6 for t in first)
-    ends = {t.p1 for t in first}
-    assert all(t.p0 in ends for t in second)
-    assert all(envelope.inside(t.p1) or envelope.reach(t.p0, skeleton.normalize(skeleton.sub(t.p1, t.p0))) >= 0 for t in twigs)
+
+
+def test_leaf_cover_is_the_share_of_twig_tips_with_leaves(repo_root):
+    """The sheet's leaf_cover (task 1.5, H-3): about that share of the second-order twigs carry cards, a first-order
+    twig with a leafy fork does too and one without forks is drawn itself, so bare twigs and the stems show between
+    leafy shoots; one draw per twig at any cover; at 1.0 every twig is leafy."""
+    import random
+    _, _, stems, twigs = thicket(repo_root)
+    rng = random.Random(5)
+    leafy = shrub._leafy(rng, twigs, 0.4)
+    same = random.Random(5)
+    assert rng.random() == [same.random() for _ in range(len(twigs) + 1)][-1]  # one draw a twig
+    tips = [t for t in twigs if t.level == 2]
+    assert sum(t in leafy for t in tips) / len(tips) == pytest.approx(0.4, abs=0.1)
+    for i, t in enumerate(twigs):
+        if t.level == 1 and any(f.parent == i and f in leafy for f in twigs):
+            assert t in leafy
+        if t.level == 1 and any(f.parent == i for f in twigs) and not any(f.parent == i and f in leafy for f in twigs):
+            assert t not in leafy
+    assert shrub._leafy(random.Random(5), twigs, 1.0) == twigs
+
+
+def test_the_autumn_share_splits_the_cards_and_the_far_wedges(repo_root, monkeypatch):
+    """Task 1.5: one crown mixing green and yellow leaves. Each card drawn into leaf_autumn at autumn_share from a stream
+    of its own, so the LOD0 faces are the share-0 build's face for face, only the slots differ; LOD1 thins each slot on
+    its own; LOD2's far cards are cut into wedges, about the share of them in far_autumn; the skeleton, shell and
+    records are untouched; and the slots are listed as they have faces."""
+    monkeypatch.setattr(shell, "fit", lambda *args, **kwargs: ([], shell.CAPS[0], True))
+    p = load(repo_root, "V13_mid_autumn")
+    mixed, plain = shrub.build(p), shrub.build(dict(p, autumn_share=0.0))
+    lod0 = [f[3] for f in mixed["lods"][0].faces]
+    assert [f[:3] for f in mixed["lods"][0].faces] == [f[:3] for f in plain["lods"][0].faces]
+    assert [s if s != "leaf_autumn" else "leaf" for s in lod0] == [f[3] for f in plain["lods"][0].faces]
+    share = lod0.count("leaf_autumn") / (lod0.count("leaf") + lod0.count("leaf_autumn"))
+    assert share == pytest.approx(p["autumn_share"], abs=0.04)
+    lod1 = [f[3] for f in mixed["lods"][1].faces]
+    assert lod1.count("leaf") == math.ceil(lod0.count("leaf") / 2) and lod1.count("leaf_autumn") == math.ceil(lod0.count("leaf_autumn") / 2)
+    far = [f for f in mixed["lods"][2].faces]
+    assert all(len(f[0]) == 3 for f in far) and len(far) == 2 * cards.CROSSED * cards.FAR_SIDES
+    assert sum(f[3] == "far_autumn" for f in far) / len(far) == pytest.approx(p["autumn_share"], abs=1 / cards.FAR_SIDES)
+    assert mixed["snag"] == plain["snag"] and mixed["collision"] == plain["collision"]
+    assert [m["slot"] for m in mixed["materials"]] == ["stem", "twig", "leaf", "far", "leaf_autumn", "far_autumn"]
+    assert [m["slot"] for m in plain["materials"]] == ["stem", "twig", "leaf", "far"]
+
+
+def test_wedges_cut_each_far_card_by_the_share():
+    """lib.cards.wedges: without a mix the cards pass whole; with one, each 12-gon becomes 12 triangles about its centre
+    with the box's centre UV and the card's normals, and of each card's wedges the share goes autumn's, within one of its
+    due, the same on its two faces."""
+    (u0, v0), (u1, v1) = cards.CELLS_UV[0]
+    card = cards.Card([(-0.5, 1.0, 0.0), (0.5, 1.0, 0.0), (0.5, 2.0, 0.0), (-0.5, 2.0, 0.0)], (0.0, 0.0, 1.0),
+                      [(u0, v0), (u1, v0), (u1, v1), (u0, v1)], 0)
+    far = cards.crossed([card], count=3)
+    assert cards.wedges(far, 0.0) == (far, []) and cards.wedges(far, 1.0) == ([], far)
+    for share in (0.15, 0.3, 0.5, 0.7):
+        summer, autumn = cards.wedges(far, share)
+        assert len(summer) + len(autumn) == len(far) * cards.FAR_SIDES
+        due = cards.FAR_SIDES * share
+        for k, face in enumerate(far):
+            mine = [w for w in summer + autumn if w.normal == face.normal and w.corners[1] in face.corners]
+            assert len(mine) == cards.FAR_SIDES
+            for w in mine:
+                assert len(w.corners) == 3 and w.normals == [face.normals[0]] * 3
+                assert w.corners[0] == pytest.approx(tuple(sum(c[a] for c in face.corners) / cards.FAR_SIDES for a in range(3)))
+                assert w.uvs[0] == pytest.approx(tuple(sum(uv[a] for uv in face.uvs) / cards.FAR_SIDES for a in range(2)))
+            fallen = {w.corners[1] for w in mine if w in autumn}
+            assert math.floor(due) <= len(fallen) <= math.ceil(due)
+            if k % 2:  # the back face falls where its front does
+                assert fallen == {w.corners[1] for w in summer + autumn if w.normal == far[k - 1].normal
+                                  and w.corners[1] in far[k - 1].corners and w in autumn}
 
 
 def test_tubes_face_outward_with_metre_uvs():
@@ -325,12 +455,12 @@ def test_far_cards_cover_what_their_leaves_and_wood_cover():
 def test_far_cards_lean_as_the_leaves_seen_from_the_review_look_down(variant):
     """Task 1.2j: each far card is two faces back to back (for the one-sided far material, since the leaf shader
     turns a back face's normal round), every corner of a face shaded with its side's horizontal normal leaning up by
-    `visible_lean`: the leaves' mean visible normal from 20 degrees above the horizon leans 11.4-11.9 degrees on the
+    `visible_lean`: the leaves' mean visible normal from 20 degrees above the horizon leans 11.5-11.6 degrees on the
     three variants, where a vertical plane's has no up share."""
     name, p, built, data = variant
     lod2 = built["lods"][2]
     lean = math.degrees(cards.visible_lean(leaf_cards(built["lods"][0])))
-    assert lean == pytest.approx({"V13_low": 11.88, "V13_mid": 11.81, "V13_tall": 11.37}[name], abs=0.01)
+    assert lean == pytest.approx({"V13_low": 11.60, "V13_mid": 11.46, "V13_tall": 11.46}[name], abs=0.01)
     assert sorted(lod2.normals) == list(range(len(lod2.faces)))
     for f in range(0, len(lod2.faces), 2):
         (front, n_front, _, _), (back, n_back, _, _) = lod2.faces[f], lod2.faces[f + 1]
@@ -420,6 +550,7 @@ def test_seed_determines_the_clump(repo_root, monkeypatch):
 @pytest.mark.parametrize("edit, expected", [
     (lambda p: p.update(bare_base_m=1.5, height_m=1.5), "'bare_base_m' = 1.5 must stay under 'height_m' = 1.5"),
     (lambda p: p.update(fork_angle_deg={"min": 60.0, "max": 45.0}), "'fork_angle_deg.min' = 60.0 must not exceed 'fork_angle_deg.max' = 45.0"),
+    (lambda p: p.update(stem_d_mm={"min": 25.0, "max": 20.0}), "'stem_d_mm.min' = 25.0 must not exceed 'stem_d_mm.max' = 20.0"),
     (lambda p: p.update(cards_per_m3=2000.0), "'cards_per_m3' = 2000.0 gives 7096 cards, 14192 triangles at LOD0, over the budget of 12000"),
     (lambda p: p.update(spines=True), "'spines' = True is not built yet (no spine cell is pinned); keep False"),
     (lambda p: p.update(fruit_tufts=3), "'fruit_tufts' = 3 is not built yet (no berry cell is pinned); keep 0"),
@@ -445,7 +576,7 @@ def test_low_variant_passes_the_collision_audit(repo_root):
         ["audit slot far (cards, twig shell)", "audit slot leaf (cards, twig shell)",
          "audit slot twig (geometry, twig shell)"]
     assert "over 0 vertices" in next(line for line in shell_lines if line.startswith("audit slot far"))  # LOD2's only
-    assert sum(1 for line in lines if "capsule->mesh" in line) == p["stems"] * skeleton.SEGMENTS
+    assert sum(1 for line in lines if "capsule->mesh" in line) == sum(c["material"] == "bark" for c in data["collision"])
 
 
 FIRST_SPHERE = {"shape": "sphere", "center": [-0.007505, 1.257248, 0.022364], "radius": 1.106606, "material": "twig",
@@ -453,12 +584,14 @@ FIRST_SPHERE = {"shape": "sphere", "center": [-0.007505, 1.257248, 0.022364], "r
 
 
 def test_the_first_bounding_sphere_fails_its_standoff(repo_root):
-    """QA's R1: the one sphere stood up to 0.78 m off the leaves, round the bare stems; rule (a) fails it."""
+    """QA's R1: the one sphere stood up to 0.78 m off the leaves, round the bare stems; rule (a) fails it (on task 1.5's
+    thicket too, whose leaves fill less of it)."""
     name, p, built, data = build(repo_root, "V13_mid")
     data = copy.deepcopy(data)
     data["collision"] = [c for c in data["collision"] if c["material"] == "bark"] + [FIRST_SPHERE]
     problems, _ = audit.run(data, built["lods"][0], card_visuals=catalog.card_visuals(repo_root),
                             card_reach_m=built["card_reach_m"])
-    assert len(problems) == 1 and problems[0].startswith("collision[42] sphere (twig shell): largest standoff ")
+    bark = sum(c["material"] == "bark" for c in data["collision"])  # the sphere's index: after the stems' capsules
+    assert len(problems) == 1 and problems[0].startswith(f"collision[{bark}] sphere (twig shell): largest standoff ")
     assert problems[0].endswith(" exceeds the tolerance 100 mm")
     assert 700 < float(problems[0].split("largest standoff ")[1].split(" mm")[0]) < 800

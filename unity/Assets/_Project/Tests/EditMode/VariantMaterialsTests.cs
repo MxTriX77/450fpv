@@ -11,8 +11,9 @@ namespace Fpv450.Tests.EditMode
     /// <summary>
     /// Per-variant material overrides (asset-pipeline "Per-variant material overrides", scenario "Autumn leaf on one
     /// variant"; p1-v01-locust design decision 7): the catalog importer resolves a variant's slot through the entry's
-    /// <c>variant_materials</c> first, and the autumn variants' prefabs take the autumn leaf while every other variant
-    /// keeps the summer one. The prefab tests need a prior <c>pwsh tools/build_asset.ps1 V13</c> and <c>V01</c>.
+    /// <c>variant_materials</c> first, and the autumn variants' prefabs take the autumn leaf (beside the summer one in a
+    /// mixed crown, task 1.5) while every summer variant keeps only the summer one. The prefab tests need a prior
+    /// <c>pwsh tools/build_asset.ps1 V13</c> and <c>V01</c>.
     /// </summary>
     public sealed class VariantMaterialsTests
     {
@@ -46,23 +47,26 @@ namespace Fpv450.Tests.EditMode
             StringAssert.Contains(message, e.Message);
         }
 
-        [TestCase("V13_mid_autumn", "V13_mid", "leaf_shrub_autumn", "leaf_shrub")]
-        [TestCase("V13_low_autumn", "V13_low", "leaf_shrub_autumn", "leaf_shrub")]
-        [TestCase("V13_tall_autumn", "V13_tall", "leaf_shrub_autumn", "leaf_shrub")]
-        [TestCase("V13_mid_yellowing", "V13_mid", "leaf_shrub_autumn", "leaf_shrub")]
-        [TestCase("V01_S_autumn", "V01_S", "leaf_locust_autumn", "leaf_locust")]
-        [TestCase("V01_M_autumn", "V01_M", "leaf_locust_autumn", "leaf_locust")]
-        [TestCase("V01_L_autumn", "V01_L", "leaf_locust_autumn", "leaf_locust")]
-        public void AutumnPrefab_TakesTheAutumnLeafAndTheSummerOneKeepsItsOwn(string autumn, string summer, string autumnLeaf, string summerLeaf)
+        // p1-v01-locust task 1.5: an autumn crown mixes both leaves, a share of its cards in the leaf_autumn slot (and
+        // the shrub's far cards in far_autumn), while the yellowing clump takes the autumn leaf through its override.
+        [TestCase("V13_mid_autumn", "V13_mid", "leaf_shrub_autumn", "leaf_shrub", true)]
+        [TestCase("V13_low_autumn", "V13_low", "leaf_shrub_autumn", "leaf_shrub", true)]
+        [TestCase("V13_tall_autumn", "V13_tall", "leaf_shrub_autumn", "leaf_shrub", true)]
+        [TestCase("V13_mid_yellowing", "V13_mid", "leaf_shrub_autumn", "leaf_shrub", false)]
+        [TestCase("V01_S_autumn", "V01_S", "leaf_locust_autumn", "leaf_locust", true)]
+        [TestCase("V01_M_autumn", "V01_M", "leaf_locust_autumn", "leaf_locust", true)]
+        [TestCase("V01_L_autumn", "V01_L", "leaf_locust_autumn", "leaf_locust", true)]
+        public void AutumnPrefab_TakesTheAutumnLeafAndTheSummerOneKeepsItsOwn(string autumn, string summer, string autumnLeaf, string summerLeaf, bool mixed)
         {
             string[] autumnMaterials = MeshLodMaterials(autumn), summerMaterials = MeshLodMaterials(summer);
             Assert.That(autumnMaterials, Does.Contain(autumnLeaf));
-            Assert.That(autumnMaterials, Does.Not.Contain(summerLeaf));
+            Assert.That(autumnMaterials.Contains(summerLeaf), Is.EqualTo(mixed), mixed ? "a mixed crown keeps the summer leaf too" : "the override takes the slot");
             Assert.That(summerMaterials, Does.Contain(summerLeaf));
             Assert.That(summerMaterials.Where(m => m.Contains("autumn")), Is.Empty);
-            if (autumnLeaf == "leaf_shrub_autumn") // LOD2's far cards follow the leaf
+            if (autumnLeaf == "leaf_shrub_autumn") // LOD2's far cards follow the leaves
             {
                 Assert.That(autumnMaterials, Does.Contain("leaf_shrub_autumn_far"));
+                Assert.That(autumnMaterials.Contains("leaf_shrub_far"), Is.EqualTo(mixed));
                 Assert.That(summerMaterials, Does.Contain("leaf_shrub_far"));
             }
         }

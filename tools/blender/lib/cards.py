@@ -191,6 +191,30 @@ def crossed(leaves, wood=(), count=CROSSED):
     return cards
 
 
+def wedges(far, share):
+    """(summer, autumn): the far cards of a crown mixing two leaf recipes (p1-v01-locust task 1.5). Without a mix (share
+    0 or 1) the cards as they are, all in one list. Otherwise each face is cut into FAR_SIDES triangles about its
+    centre (the box's centre in UV, its corners' normal), and the wedges of each card go to the autumn list where the
+    running count of `share` over them steps up, from an offset that turns by the golden ratio card by card: about
+    `share` of every card's wedges, evenly spread, the same on both its faces."""
+    if share <= 0.0:
+        return list(far), []
+    if share >= 1.0:
+        return [], list(far)
+    summer, autumn = [], []
+    for k, card in enumerate(far):
+        offset = (k // 2) * 0.6180339887498949 % 1.0  # the two faces of a card share it
+        centre = scale(tuple(sum(c[a] for c in card.corners) for a in range(3)), 1.0 / len(card.corners))
+        uv = tuple(sum(uv[a] for uv in card.uvs) / len(card.uvs) for a in range(2))
+        n = len(card.corners)
+        for j in range(n):
+            wedge = Card([centre, card.corners[j], card.corners[(j + 1) % n]], card.normal,
+                         [uv, card.uvs[j], card.uvs[(j + 1) % n]], None,
+                         [card.normals[0]] * 3 if card.normals else None)
+            (autumn if math.floor(offset + (j + 1) * share) > math.floor(offset + j * share) else summer).append(wedge)
+    return summer, autumn
+
+
 def visible_lean(leaves, down_deg=FAR_LOOK_DOWN_DEG, azimuths=8):
     """The lean above the horizontal, radians, of the leaf cards' mean visible normal seen from `down_deg` above the
     horizon, averaged over `azimuths` even azimuths: each card's normal turned to the viewer, as the leaf shader lights

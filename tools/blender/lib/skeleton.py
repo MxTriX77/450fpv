@@ -1,28 +1,45 @@
 """Stem skeletons for the vegetation generators (p1-v13-shrub, design decision 1; V01 grows the same module):
-`count` stems rising from a base disc, each a tapered, arching tube that branches twice above `bare_base` into
-twigs, and the tube meshes of both per LOD. Plain Python in asset space (lib.frame: +Y up, metres), drawing from the
-caller's seeded random.Random.
+`count` stems fanning out of a base disc, each a leaning, arching tube that branches twice above `bare_base` into
+twigs, a stem-level fork or two, and the tube meshes of both per LOD. Plain Python in asset space (lib.frame: +Y up,
+metres), drawing from the caller's seeded random.Random.
 
-A stem is the quadratic curve p(t) = base + (0, L t, 0) + lean * arch * L * t^2 for t in [0, 1]: its tip has
-drifted arch * L horizontally (the sheet's arch, the tip's drift as a share of height) along `lean`, a horizontal
-direction outward from the base disc. Its radius tapers from `stem_r` at the base to STEM_TIP_R (a 10 mm stem) at
-the tip; thinner wood is a twig. RINGS + 1 samples of the curve carry the LOD0 tube; the chords between every
-(RINGS / SEGMENTS)-th sample are the stem's straight `segments`, which carry the LOD1 tube and which the generator
-turns into capsules and hooks, so mesh and collision come from the same points. A chord's sag off the curve is
-arch * L / (4 SEGMENTS^2): 11 mm on a 2 m stem at arch 0.2, under the audit's 50 mm (design: risks).
+The stems are a thicket's, not a bundle of stilts (p1-v13-shrub review H-2 and F-1, its item 1; p1-v01-locust task
+1.5, after letter H): each leaves a random place on the base disc and leans to a tip of its own, anywhere within
+TIP_SPREAD of the clump's half-width (the caller's `tip_r`) at up to TIP_AZIMUTH either side of its base's azimuth, so
+the stems fan out from a narrow base and some cross, the leaning ones' tips reaching out of the leafy envelope. A stem from s to its tip T is the
+curve p(t) = s + t (T - s) + arch * R * (t^2 - t) * e for t in [0, 1], R its rise T_y - s_y and e the horizontal
+unit from s towards T: it leans along e and bows arch * R / 4 inside its chord at mid-height, rising steeper at the
+base and leaning out towards the tip (the sheet's arch: how far stems bow outward). Its height is linear in t. Base
+diameters are mixed within the caller's `stem_d` (lo, hi), lo + (hi - lo) u^2 (more young thin stems than old thick
+ones, assumed), the thicker stems the taller. The thickest one or two stems fork (STEM_FORKS): a forked stem leaves
+its parent at FORK_AT of its rise towards a tip of its own, its azimuth turned FORK_TURN off its parent's, taking
+FORK_SHARE of its parent's base section.
 
-Twigs: a first-order twig leaves a stem at each node, NODE_SPACING_M apart along it above `bare_base`, tilted
+Diameters follow Leonardo's rule (the sheet's group rule; the pipe model): a stem's section at any height is the sum
+of the sections of everything it carries above it, its tip, the first-order twigs that leave higher up and a forked
+stem that leaves higher up; a first-order twig's section is its forks' (a twig with one fork passes it on whole, one
+with none ends at TIP_D_M). A stem shares its base section out: its first-order twigs as many as fit at TWIG1_D's
+least (evenly spread over its nodes, the rest left off), each about the stem's even share of it within TWIG1_D, the
+remainder its tip, at least TIP_D_M. RINGS + 1 samples of the curve carry the LOD0 tube, its radius at each the
+section above it; the chords between every (RINGS / SEGMENTS)-th sample are the stem's straight `segments`, which
+carry the LOD1 tube and which the generator turns into capsules and hooks, so mesh and collision come from the same
+points. A chord's sag off the curve is arch * R / (4 SEGMENTS^2): 9 mm on a 1.9 m stem at arch 0.15, under the
+audit's 50 mm (design: risks).
+
+Twigs: a first-order twig leaves a stem at each node, NODE_SPACING_M apart in height above `bare_base`, tilted
 from the stem's tangent by the fork angle (the sheet's fork_angle_deg; FORK_DEG unless the caller gives one) at
 any azimuth about the stem (AZIMUTH_JITTER), and reaching FIRST_REACH of the way to the clump's envelope along its
 direction; two second-order twigs fork from its end, spread by SPREAD_DEG, and reach the envelope with an outward
 bias (1 - 0.3 u^2 of the way). The envelope is the caller's `reach(p, d)`: the distance from p along the unit
-direction d to the clump's surface, 0 when p lies outside. Radii TWIG1_R 8 -> 5 mm and TWIG2_R 5 -> 3 mm, the
-sheet's 3-8 mm twigs.
+direction d to the clump's surface, 0 when p lies outside. A first-order twig of TWIG1_D (the sheet's 3-8 mm twigs)
+keeps its diameter to its end, where its forks share its section, each 3 mm or more, and taper to TIP_D_M.
 
 Tubes (`tubes`): stems STEM_SIDES[lod]-sided, 6 at LOD0 over the rings and 4 at LOD1 over the segment ends, the tip
 closed by a cap; twigs TWIG_SIDES-sided (3) at LOD0 only; nothing from LOD2 on. The rings of a tube share a
 parallel-transported frame, so it does not twist. UVs are metres along and around the member, V up the member
-(AST-07: the bark recipe tiles at 1 m), a tree member's from its own patch of the tile (`bark_patch`).
+(AST-07: the bark recipe tiles at 1 m), each member's from its own patch of the tile (`bark_patch`; a shrub's too
+since p1-v01-locust task 1.5: from the tile's corner every 1-3 cm stem mapped bark_brown_02's first 5 cm of columns,
+whose linear luminance 0.146 is 37 % over the tile's 0.107, so the stems read pale).
 
 Trees (p1-v01-locust, design decision 1; `grow` and `tree_tubes`): every member is a polyline of straight segments,
 its rings at the points, so a capsule per segment is the tube's own axis. `stems` trunks from a base disc rise to
@@ -41,12 +58,20 @@ a zigzag of steps of at most TWIG_STEP_M, each turned TWIG_KINK_DEG the other wa
 """
 import math
 
-STEM_TIP_R = 0.005
 RINGS = 6
 SEGMENTS = 3
 NODE_SPACING_M = 0.2
 NODE_JITTER = (0.3, 0.7)        # a node's place within its spacing slot
-LEAN_JITTER = 0.7               # radians about the outward azimuth, for a stem's drift direction
+TIP_SPREAD = 0.9                # a stem's tip within this share of the clump's half-width (assumed, H)
+TIP_AZIMUTH = 1.2               # radians either side of its base's azimuth: the stems fan out and some cross (H, F)
+STEM_FORKS = (1, 2)             # stem-level forks per clump, on its thickest stems (p1-v13-shrub review item 1)
+FORK_SHARE = (0.35, 0.5)        # a forked stem's share of its parent's base section (Leonardo's rule)
+FORK_AT = (0.25, 0.5)           # of its parent's rise, where it leaves
+FORK_TURN = (0.6, 1.4)          # radians its tip's azimuth turns off its parent's, either way
+FORK_TOP = (0.85, 1.0)          # its tip's height over its parent's
+TWIG1_D = (0.0045, 0.008)       # a first-order twig's base diameter: the sheet's 3-8 mm twigs, its two forks then
+                                # 3.2 mm or more (d / sqrt 2)
+SHARE_JITTER = (0.7, 1.3)       # a first-order twig's section over its stem's even share
 AZIMUTH_JITTER = math.pi        # radians about the outward azimuth, for a first-order twig: any side of its stem
                                 # (1.0 left the crown's core empty, a hole into the clump from 20 deg above)
 FORK_DEG = (30.0, 50.0)         # the sheet's fork_angle_deg default
@@ -54,8 +79,6 @@ SPREAD_DEG = (20.0, 40.0)
 PITCH_JITTER = 0.25             # added to a second-order direction's Y before renormalising
 FIRST_REACH = (0.45, 0.65)
 MIN_TWIG_M = 0.05
-TWIG1_R = (0.004, 0.0025)
-TWIG2_R = (0.0025, 0.0015)
 STEM_SIDES = {0: 6, 1: 4}
 TWIG_SIDES = 3
 AXES = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
@@ -94,55 +117,128 @@ BARK_STEP = (0.7548776662466927, 0.5698402909980532)  # the R2 sequence's steps,
 
 
 class Stem:
-    """One stem: `rings` [(point, radius)] from base to tip and `segments` [(p0, p1, r0, r1)], the straight pieces
-    between every (RINGS / SEGMENTS)-th ring."""
+    """One stem from `base` to `tip` bowing by `arch` (module docstring), `parent` the index of the stem it forks
+    from (None from the ground). Once `thicken`ed: `rings` [(point, radius)] from base to tip and `segments`
+    [(p0, p1, r0, r1)], the straight pieces between every (RINGS / SEGMENTS)-th ring."""
 
-    def __init__(self, base, length, lean, arch, radius0):
-        self.base, self.length, self.lean, self.arch, self.radius0 = base, length, lean, arch, radius0
-        self.rings = [(self.point(k / RINGS), self.radius(k / RINGS)) for k in range(RINGS + 1)]
+    def __init__(self, base, tip, arch, parent=None):
+        self.base, self.tip, self.arch, self.parent = base, tip, arch, parent
+        self.rise = tip[1] - base[1]
+        across = (tip[0] - base[0], 0.0, tip[2] - base[2])
+        self.out = normalize(across) if norm(across) > 1e-9 else (0.0, 0.0, 0.0)
+        self.rings, self.segments, self.carried, self.tip_d = [], [], [], None
+
+    def point(self, t):
+        bow = self.arch * self.rise * (t * t - t)
+        return tuple(self.base[a] + t * (self.tip[a] - self.base[a]) + bow * self.out[a] for a in range(3))
+
+    def tangent(self, t):
+        bow = self.arch * self.rise * (2 * t - 1)
+        return normalize(tuple(self.tip[a] - self.base[a] + bow * self.out[a] for a in range(3)))
+
+    def at_height(self, y):
+        """The t at which the stem stands at height y (its height is linear in t)."""
+        return (y - self.base[1]) / self.rise
+
+    def lean_deg(self):
+        """The chord's lean off the vertical, degrees."""
+        return math.degrees(math.atan2(math.hypot(self.tip[0] - self.base[0], self.tip[2] - self.base[2]), self.rise))
+
+    def section(self, t):
+        """Its section, as a squared diameter, at t: its tip's and those of everything that leaves above t."""
+        return self.tip_d ** 2 + sum(s for at, s in self.carried if at > t)
+
+    def thicken(self, tip_d, carried):
+        """Sets the diameters by Leonardo's rule: `carried` [(t, squared diameter)] of what leaves it, its tip
+        `tip_d`; then its rings and segments."""
+        self.tip_d, self.carried = tip_d, sorted(carried)
+        self.rings = [(self.point(k / RINGS), math.sqrt(self.section(k / RINGS)) / 2) for k in range(RINGS + 1)]
         ends = self.rings[::RINGS // SEGMENTS]
         self.segments = [(a[0], b[0], a[1], b[1]) for a, b in zip(ends, ends[1:])]
 
-    def point(self, t):
-        d = self.arch * self.length * t * t
-        return (self.base[0] + self.lean[0] * d, self.base[1] + self.length * t, self.base[2] + self.lean[2] * d)
-
-    def tangent(self, t):
-        d = 2 * self.arch * self.length * t
-        return normalize((self.lean[0] * d, self.length, self.lean[2] * d))
-
-    def radius(self, t):
-        return self.radius0 + (STEM_TIP_R - self.radius0) * t
-
 
 class Twig:
-    """A straight twig from p0 (radius r0) to p1 (radius r1); `level` 1 leaves a stem, 2 leaves a level-1 twig."""
+    """A straight twig from p0 (radius r0) to p1 (radius r1); `level` 1 leaves a stem, 2 leaves a level-1 twig, whose
+    index in the build's twigs is `parent`."""
 
-    def __init__(self, p0, p1, r0, r1, level):
-        self.p0, self.p1, self.r0, self.r1, self.level = p0, p1, r0, r1, level
+    def __init__(self, p0, p1, r0, r1, level, parent=None):
+        self.p0, self.p1, self.r0, self.r1, self.level, self.parent = p0, p1, r0, r1, level, parent
 
 
-def build(rng, count, base_r, lengths, stem_r, arch, bare_base, reach, fork_deg=FORK_DEG):
-    """(stems, twigs): `count` stems on a disc of radius `base_r` at evenly spread, jittered azimuths, each of a
-    length drawn from `lengths` (lo, hi), base radius `stem_r`, leaning outward by `arch`, with their twigs above
-    `bare_base` grown out to `reach`, leaving their stems at an angle drawn from `fork_deg` (lo, hi) degrees."""
-    stems = []
+def build(rng, count, base_r, lengths, stem_d, arch, bare_base, reach, tip_r, fork_deg=FORK_DEG):
+    """(stems, twigs) of a thicket clump (module docstring): `count` stems from a disc of radius `base_r`, each
+    rising a height drawn from `lengths` (lo, hi), of a base diameter drawn from `stem_d` (lo, hi) metres, leaning to
+    a tip within TIP_SPREAD of `tip_r` from the axis, bowing by `arch`; the thickest one or two forked; their
+    twigs above `bare_base` grown out to `reach`, leaving their stems at an angle drawn from `fork_deg` (lo, hi)
+    degrees; every diameter by Leonardo's rule. The stems from the ground come first, the forked ones after them."""
+    stems, base_d = [], []
     for i in range(count):
         phi = 2 * math.pi * (i + rng.random()) / count
         rho = base_r * math.sqrt(rng.random())
-        tilt = phi + rng.uniform(-LEAN_JITTER, LEAN_JITTER)
-        stems.append(Stem((rho * math.cos(phi), 0.0, rho * math.sin(phi)), rng.uniform(*lengths),
-                          (math.cos(tilt), 0.0, math.sin(tilt)), arch, stem_r))
+        u = rng.random()
+        base_d.append(stem_d[0] + (stem_d[1] - stem_d[0]) * u * u)
+        y = lengths[0] + (lengths[1] - lengths[0]) * (u + rng.random()) / 2
+        psi = phi + rng.uniform(-TIP_AZIMUTH, TIP_AZIMUTH)
+        stems.append(Stem((rho * math.cos(phi), 0.0, rho * math.sin(phi)), _tip(rng, psi, y, tip_r), arch))
+    budget = [d * d for d in base_d]  # each stem's base section, shared out below
+    thickest = sorted(range(count), key=lambda i: -base_d[i])
+    for i in [i for i in thickest if budget[i] * FORK_SHARE[0] >= TWIG_D_M ** 2][:rng.randint(*STEM_FORKS)]:
+        parent = stems[i]
+        share = rng.uniform(*FORK_SHARE)
+        t = rng.uniform(*FORK_AT)
+        psi = math.atan2(parent.tip[2], parent.tip[0]) + rng.choice((-1, 1)) * rng.uniform(*FORK_TURN)
+        fork = Stem(parent.point(t), _tip(rng, psi, parent.tip[1] * rng.uniform(*FORK_TOP), tip_r), arch, i)
+        parent.carried.append((t, share * budget[i]))
+        budget.append(share * budget[i])
+        budget[i] -= share * budget[i]
+        stems.append(fork)
     twigs = []
-    for stem in stems:
-        twigs += _twigs(rng, stem, bare_base, reach, fork_deg)
+    for stem, section in zip(stems, budget):
+        groups = _twigs(rng, stem, bare_base, reach, fork_deg)
+        twigs += _share(rng, stem, section, groups, len(twigs))
     return stems, twigs
 
 
-def _twigs(rng, stem, bare_base, reach, fork_deg):
+def _tip(rng, azimuth, y, tip_r):
+    """A stem's tip at height y, at the azimuth, within TIP_SPREAD of `tip_r` from the axis (uniform over the disc)."""
+    rho = TIP_SPREAD * tip_r * math.sqrt(rng.random())
+    return (rho * math.cos(azimuth), y, rho * math.sin(azimuth))
+
+
+def _share(rng, stem, section, groups, first):
+    """Leonardo's rule on one stem: its own base `section` (squared diameter; a forked stem's already counted in
+    `carried`) shared out over the first-order twigs of `groups` [(t, twig1, [twig2])] that fit at TWIG1_D's least,
+    evenly spread, and its tip. Thickens the stem and returns the kept twigs, each first-order one followed by its
+    forks, `parent` the index of a fork's twig counting from `first`."""
+    lo, hi = TWIG1_D[0] ** 2, TWIG1_D[1] ** 2
+    spare = section - TIP_D_M ** 2
+    keep = min(len(groups), max(0, int(spare / lo)))
+    kept = [groups[int((k + 0.5) * len(groups) / keep)] for k in range(keep)]
+    want = [min(hi, max(lo, spare / keep * rng.uniform(*SHARE_JITTER))) for _ in kept] if keep else []
+    if sum(want) > spare:  # held to the stem's section: the excess over the least shrinks evenly
+        k = (spare - lo * keep) / (sum(want) - lo * keep)
+        want = [lo + (w - lo) * k for w in want]
     twigs = []
-    for k in range(int((stem.length - bare_base) / NODE_SPACING_M)):
-        t = (bare_base + (k + rng.uniform(*NODE_JITTER)) * NODE_SPACING_M) / stem.length
+    for (t, twig, forks), s in zip(kept, want):
+        d = math.sqrt(s)
+        twig.r0 = d / 2
+        twig.r1 = d / 2 if forks else TIP_D_M / 2
+        index = first + len(twigs)
+        twigs.append(twig)
+        for fork in forks:
+            fork.r0, fork.r1, fork.parent = d / math.sqrt(len(forks)) / 2, TIP_D_M / 2, index
+            twigs.append(fork)
+    stem.thicken(math.sqrt(section - sum(want)), stem.carried + [(t, s) for (t, _, _), s in zip(kept, want)])
+    return twigs
+
+
+def _twigs(rng, stem, bare_base, reach, fork_deg):
+    """[(t, first-order twig, [its forks])] at the stem's nodes, NODE_SPACING_M apart in height from `bare_base` or
+    its base, whichever is higher; their diameters are set by `_share`."""
+    groups = []
+    y0 = max(bare_base, stem.base[1])
+    for k in range(int((stem.tip[1] - y0) / NODE_SPACING_M)):
+        t = stem.at_height(y0 + (k + rng.uniform(*NODE_JITTER)) * NODE_SPACING_M)
         node, tangent = stem.point(t), stem.tangent(t)
         azimuth = math.atan2(node[2], node[0]) if math.hypot(node[0], node[2]) > 0.05 else rng.uniform(0, 2 * math.pi)
         azimuth += rng.uniform(-AZIMUTH_JITTER, AZIMUTH_JITTER)
@@ -152,7 +248,7 @@ def _twigs(rng, stem, bare_base, reach, fork_deg):
         if distance < MIN_TWIG_M:
             continue
         end = add(node, scale(d, rng.uniform(*FIRST_REACH) * distance))
-        twigs.append(Twig(node, end, *TWIG1_R, 1))
+        forks = []
         for side in (-1, 1):
             d2 = _rotate_y(d, side * math.radians(rng.uniform(*SPREAD_DEG)))
             d2 = normalize((d2[0], d2[1] + rng.uniform(-PITCH_JITTER, PITCH_JITTER), d2[2]))
@@ -160,8 +256,9 @@ def _twigs(rng, stem, bare_base, reach, fork_deg):
             u = rng.random()
             if distance < MIN_TWIG_M:
                 continue
-            twigs.append(Twig(end, add(end, scale(d2, (1 - 0.3 * u * u) * distance)), *TWIG2_R, 2))
-    return twigs
+            forks.append(Twig(end, add(end, scale(d2, (1 - 0.3 * u * u) * distance)), 0.0, 0.0, 2))
+        groups.append((t, Twig(node, end, 0.0, 0.0, 1), forks))
+    return groups
 
 
 class Member:
@@ -445,17 +542,18 @@ def _mean(points):
 
 def tubes(mesh, stems, twigs, lod, stem_slot, twig_slot):
     """Adds the skeleton's tubes for `lod` to a lib.geometry.Mesh: stems STEM_SIDES[lod]-sided over their rings
-    (LOD0) or their segment ends (LOD1), capped at the tip; twigs TWIG_SIDES-sided at LOD0. Nothing from LOD2 on."""
+    (LOD0) or their segment ends (LOD1), capped at the tip; twigs TWIG_SIDES-sided at LOD0. Nothing from LOD2 on.
+    Each stem, then each twig, takes its own patch of the bark tile (`bark_patch`), the same at every LOD."""
     sides = STEM_SIDES.get(lod)
     if sides is None:
         return
     step = 1 if lod == 0 else RINGS // SEGMENTS
-    for stem in stems:
+    for k, stem in enumerate(stems):
         _tube(mesh, stem.rings[::step], sides, stem_slot, cap=True,
-              tangents=[stem.tangent(k / RINGS) for k in range(0, RINGS + 1, step)])
+              tangents=[stem.tangent(j / RINGS) for j in range(0, RINGS + 1, step)], uv0=bark_patch(k))
     if lod == 0:
-        for twig in twigs:
-            _tube(mesh, [(twig.p0, twig.r0), (twig.p1, twig.r1)], TWIG_SIDES, twig_slot, cap=False)
+        for k, twig in enumerate(twigs, len(stems)):
+            _tube(mesh, [(twig.p0, twig.r0), (twig.p1, twig.r1)], TWIG_SIDES, twig_slot, cap=False, uv0=bark_patch(k))
 
 
 def _tube(mesh, rings, sides, slot, cap, tangents=None, uv0=(0.0, 0.0), first=None):
