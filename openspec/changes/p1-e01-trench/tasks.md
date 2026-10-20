@@ -142,7 +142,7 @@ Branch `unity/art/p1-e01-trench` off `unity/main` once `p1-l01-l03-pole-wires` i
     - `python -m pytest tools -q`: 823 passed. The new trench tests cover the grass (visual only, clear of the 0.287 m nose-first half-span, the tongues in front of the walls), the budget per LOD and the bend params' refusals.
     - `fetch.py --verify` OK; the hygiene scan 0 findings; `openspec validate p1-e01-trench --strict` valid.
 
-- [ ] 1.6 [asset-artist] QA's R1–R2 and suggestions (`review.md`):
+- [x] 1.6 [asset-artist] QA's R1–R2 and suggestions (`review.md`):
   - R1, the look ("The G look", D-038): G's parapets, berm and lip carry one continuous lodged grass mat; ours read as faceted rock, a row of pale pegs and a bare path. Replace the hummocks and the lip tongues with S04's straw kit (`lib/straw`) laid as that mat over the parapets, the berm and the lip, lodged along the slope, hanging irregularly over the lip with dark soil notches under it (G 3, 6, 9), at S04's density, as a micro-mesh bake like S04's (design 8's amended budget: under 450 000 triangles, a stand-in for AST-10), drawn on the LODs the review's 1.5 m and 10 m views use (S1: the floor straws too); the floor clods no longer pale loaves (S6)
   - R2: the open top as one slot polygon per metre of run (merge the short arc pieces), each niche's mouth a gap polygon (S5), with tests (no slot under the lip-to-lip opening less its crumble)
   - S2: the as-built corridor verdicts (nose-first 13 mm a side at the floor, 141–186 mm at the lip; yawed 45° from the lip down to 0.88–1.04 m) accepted and written into design decision 3's as-built note
@@ -151,6 +151,65 @@ Branch `unity/art/p1-e01-trench` off `unity/main` once `p1-l01-l03-pole-wires` i
   - S8: `width_jitter_m` built (the sheet's 0–0.15 m, 0.05), and the generator's parameter names listed against the sheet's table in the as-built note
   - S7: the design's text brought to the six as-built deviations QA found sound
   Verify the 1.5 m and 10 m tiles against G in the local `reference/_compare/E01.png` by eye (the mat reads as lodged grass, never rock), `pwsh tools/build_asset.ps1 E01` twice byte-identical with the F-1…F-8 and gap lines, the triangle counts per LOD with the bake's, the EditMode run, `python -m pytest tools -q`, the hygiene scan, `openspec validate p1-e01-trench --strict`
+  **As built:**
+  - **R1, the mat** (design 11): the hummocks and tongues are gone. LOD0 carries `mat`, S04's kit baked over the berm and the parapets, from 1 cm off the opening to the outer toe and thinning over 0.5 m past it.
+    - S04's two layers, 250 over 90 /m² (58 638 straight straws), gathered on the top's own relief (clump 0.9), lofted as S04's.
+    - 75 % combed: down the fall line on the parapets' slopes, along S04's swathes on the level.
+    - 4 471 straws over the lips: clustered on a 0.25 m noise, about half of each lip bare (the wall's dark topsoil shows there). They jut 0–6 cm out and hang 3–25 cm down the wall in front of it, shaded darker.
+    - The berm is covered to the lip; no path is left.
+    - **Tried and dropped, by eye:**
+      - The straws over the old pale map read as hay on sand.
+      - A darker map under them (#7a7055, then #907c52) made the straws pop but read grey or sandy, and would have darkened the far LOD.
+      - The mat on LOD1 too aliased into a grey gravel band round the run at 50 m (no MSAA).
+      - 100 lip straws a metre, 0–3 cm out, read as a clean edge with hairs.
+  - **The map** (`grassed_spoil`, still #b49c6a): `derive.py` now lets a cover name its asset's relief (`patches.relief`: params and generator; `trench.relief_inputs`). The map darkens in the hollows of the relief the top carries and the straws gather on, at S04's tone 0.45 and AO 0.4, so the tussocks' crevices read at 10 m and beyond LOD0.
+  - **S1:** the mat and the floor's straws are LOD0's, and LOD1 switches at 24 m (`lod1_switch_m`, derived: the farthest straw is 15.6 m from the LOD reference point, plus S04's 8 m). The review's 1.5 m and 10 m views (10–12 m from it) and a pilot over the run see LOD0; the FBX holds the bake once (18.8 MB).
+  - **S6:** the clods take the wall's map at the depth they fell from (5–110 cm), never the pale spill band: dark lumps on the floor at 1.5 m. `lib.strip.spill_uv` went with it.
+  - **R2:** the open top is 21 slots of 1.143 m, equal stretches as many as fit at least the widest opening plus 5 cm, independent of the segments, their vertices on the lip lines, so they tile the opening exactly. `narrowest_m` is 0.903–0.981, every slot at least its own lip-to-lip width less 5 mm and over 0.574 m (test).
+  - **S5:** each niche's mouth is a gap in the wall's plane, `mouth_3.16` and `mouth_16.97`, `narrowest_m` 0.603 (test).
+  - **S2, accepted** (design 5; with the jitter, square to the run): floor 0.612–0.643 m (19–34 mm a side nose-first), 0.677–0.716 m at 0.35 m (52–71 mm), lip 0.891–0.975 m (158–200 mm); yawed 45° from the lip down to 1.00–1.20 m. QA's pre-jitter figures were 13, 43–54 and 141–186 mm and 0.88–1.04 m. Decision 5 holds them; decision 3 is the floor's.
+  - **S3:** the generator reports its joints, and `lib/holes` holds each to its own `JOINT_OVERLAP_M` 0.2 m with one line per joint and a summary. With `OVERLAP_M` at 0.05 the build fails on "F-5 overlap" (test).
+  - **S4:** per segment and side, the lip box under the berm tops at −0.3 m, and a 0.3 m berm box (`surface:belt_straw`, landable) carries the berm to y = 0. Both reach 0.15 m past the toe and at least 0.3 m. Beyond the toe the lip box keeps its top at y = 0 under the parapet (F-3). 98 berm boxes; 813 shapes (617 before).
+    - The level ground past each end wall stays the end block's `belt_bare` top (F-3 needs a filler top at the band's end), as before.
+  - **S8:** `width_jitter_m` 0.05 (0–0.15): each wall stands out 0–2.5 cm, drawn per metre, floor and lip together (batter kept), held on a niche's segment, so the cut is never narrower than its widths (test). `check` refuses a lip or floor wider than the strip's end slot or floor row; the run's band is 2.35 m.
+    - **Names against the sheet's table:**
+      - `path` → the run from `shape`, `run_m` and the bends (the map's polyline in phase 3)
+      - `shape` = `shape`; `leg_m`, `turn_deg` → zigzag, refused
+      - `sinuosity` → `bend_deg`, `bend_every_m`, `bend_radius_m`, `leg_jitter_m`
+      - `top_width_m` → `top_w_m`; `bottom_width_m` → `bottom_w_m`
+      - `depth_m`, `width_jitter_m`, `berm_m`, `age`, `topsoil_m`, `revetment`, `collapse`, `overgrowth`, `seed` the same
+      - `parapet_h_m` → `parapet_h_m.field` / `.belt`; `parapet_w_m` → `parapet_base_m` (one for both sides)
+      - `swell` → the constant `SWELL` 1.25 that `check` holds within 30 %
+      - `niches_per_10m` → `niche_every_m` with `niche_m.w/h/d`
+      - `revet_height_m`, `dugouts` → not built (E02, E04)
+      - the generator's own: `lip_crumble_m` (the sheet's crumble row), `batter_deg`, `parapet_slope_deg`, `clods_per_m`, `margin_m`, `lod.*`
+  - **S7:** design 1, 2, 4, 6, 7 and 8 now state the as-built: the trench's own grid, the crumble walk, the full-depth lip boxes and the margin columns, the ids, the 27 × 4 m strip, LOD1. The proposal's 30 × 16 m patch and `ground_patch` line are left to the orchestrator.
+  - **Measured** (task 1.5's way: linear Y after a 3 px blur, dark under half the box's mean):
+    - 1.5 m day: field parapet 0.0 % dark, cv 0.21; belt parapet 5.0 %, cv 0.26
+    - 10 m day, near parapet: 0.2 %, cv 0.22
+    - G 3, 6: 4.6–15.5 %, cv 0.28–0.50
+    - The crevices are softer than G's: the 45° review sun against G's low sun, and no feed.
+  - **Matches G:**
+    - A continuous combed straw mat over both parapets and the berm, up to the lip, with tussock crevices at 10 m; no rock, no pegs, no path.
+    - The lip broken by clustered grass jutting over it and hanging down the wall, the dark wall showing in the gaps.
+    - The dark winding slot between pale parapets at 50 m and in the turntable.
+  - **Still not G:**
+    - The mat is thinner and finer than G's 0.1–0.4 m tussocky mass; AST-10's density.
+    - The crevices are softer, and the colour is beige, not G's golden orange (the low sun and the feed: G1, phase 4).
+    - The lip's soil edge is still the 1–10 cm crumble walk under the straws.
+    - The bends are still regular; weeds and the setting are the world's.
+  - **Build:** two runs byte-identical (FBX, metadata, prefab, derived maps, both review sheets), `git status` clean after the second; 946 lines identical.
+    - F-1: 42 388 rays, 0 miss. F-2: the least 0.6500 m. F-3: 0.0 mm. F-4: 0.0008 m.
+    - F-5: 367 fillers at least 0.300 m; 48 joints at 0.200 m.
+    - F-6: 814 lines, 0 problems; worst 38.8 mm (tolerance 50), 16.1 mm in the 2 cm zone (tolerance 20).
+    - F-7: 367 `belt_bare`, 422 `belt_straw` landable, 24 `crater_spoil`. F-8: 0 wind volumes.
+    - Gaps: 48 cross-sections (0.813–0.871), 21 slots, 2 mouths, each on the audit's circle.
+    - Triangles: LOD0 39 172 + the bake 411 276 (the mat 405 480, the floor's straws 5 796); LOD1 39 172; LOD2 1 835.
+    - Every capture ran on AC on the RTX 4050.
+  - **Verified:**
+    - EditMode 55 of 55; `TrenchPrefabTests` expects the band 2.35 m and the mat and floor straws on LOD0 alone, LOD1 at 24 m.
+    - `python -m pytest tools -q`: 833 passed. New tests cover the slots, the mouths, the jitter, the berm's boxes, a short joint failing the build, `_Near`, the mat's reach and corridor, the bake's budget, a cover's relief tone and its refusals.
+    - `fetch.py --verify` OK; the hygiene scan 0 findings; `openspec validate p1-e01-trench --strict` valid.
 
 ## 2. Review
 
