@@ -249,4 +249,4 @@ Branch `unity/art/p1-e01-trench` off `unity/main` once `p1-l01-l03-pole-wires` i
 
 ## 2. Review
 
-- [ ] 2.1 [qa-engineer] review against spec scenarios: the five E01 scenarios and the two deltas, the audit lines against the hole contract (F-1…F-8), the gap list against the sheet's width table, the comparison sheet against G and B read by eye (REAL-03), the geometry audit (REAL-05: lips crumbled as geometry, clods as geometry, fillers follow the faces), budgets (AST-08), `fetch.py --verify`, hygiene (D-003 pins, nothing from `reference/`, subject-only commits)
+- [x] 2.1 [qa-engineer] review against spec scenarios: the five E01 scenarios and the two deltas, the audit lines against the hole contract (F-1…F-8), the gap list against the sheet's width table, the comparison sheet against G and B read by eye (REAL-03), the geometry audit (REAL-05: lips crumbled as geometry, clods as geometry, fillers follow the faces), budgets (AST-08), `fetch.py --verify`, hygiene (D-003 pins, nothing from `reference/`, subject-only commits)

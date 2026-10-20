@@ -535,3 +535,165 @@ git merge-tree --write-tree origin/unity/main HEAD                              
 6. **The setting:** the belt's trees and shrubs on one side and the field on the other. These are the world's (phase 3).
 7. **The floor:** dark clods and pale floor straws, unseen in G's shade. Recheck under the G1 light.
 8. **Far views:** the LOD switch at 24 m (S12), and the run's squared-off ends on the patch, which the world's placement hides.
+
+---
+
+# Re-check of task 1.7
+
+**Reviewer:** qa-engineer, fresh (did none of the work, D-034) · **Tip:** `3e68ac1` · **Range:** `e280d60..3e68ac1` (4 commits, 9 files)
+**Read:** this review's R3, S13 and S15; task 1.7 and its as-built note; design decisions 4 and 10 as amended; the full diff of `generators/trench.py`, `lib/holes.py`, `build.py`, `test_trench.py` and `TrenchPrefabTests.cs`, and the prefab's diff by field; for the physics points, `terrain-holes-review.md` §2.3 and §3 (F-1…F-8, the merge at the lip) and `knowledge.md` §7.1–7.2 (the leg–ground solve, the `belt_straw` and `belt_bare` rows).
+
+QA ran every check below in its own worktree (`git lfs checkout`: 76/76 objects; no `unity/Library/` before the first Unity run). Nothing from the handoff was reused.
+- **QA's own scripts** (scratchpad, never committed):
+  - `qa_top.py`: the top-surface map. It reads the shipped metadata only (collision, slot gaps, holes) with its own quaternion maths, vertical-line clipping and point-in-polygon, none of `lib/holes` or the generator. It also runs F-1, F-3 and F-4 on its own geometry.
+  - `qa_s13.py`: S13's mutations through `build.build_variant`, with a stub `bpy` and the collision audit stubbed, so nothing is written.
+  - `qa_mut17.py`: task 1.7's new constants mutated, then the new test and `lib/holes` run on the mutated build.
+- **Power and GPU:** both builds' Unity steps and the EditMode run on AC (`BatteryStatus.PowerOnline` True before each, Balanced); both captures on the RTX 4050 (`GPU NVIDIA GeForce RTX 4050 Laptop GPU (Direct3D12)` in each capture log). **No performance claim is made.**
+
+## Verdict: APPROVED
+
+- R3, S13 and S15 are closed.
+- The two points the asset-artist leaves for the physics engineer are phase-7a contact-law notes, not blockers (S16).
+- Task 2.1 is ticked.
+
+| Item | Result | Evidence |
+|---|---|---|
+| R3 the run's ends | **Closed** | QA's map on three 5 cm grids and a 1 cm grid: outside the opening every top a contact meets first is a landable `belt_straw` shape's, and no other surface tops within 1 mm of it. The same map on `e280d60`'s metadata finds the old defect |
+| S13 the joint check | **Closed** | a generator that reports no joints, an empty list or one short fails `build_variant` on "F-5 overlap"; a count-only caveat (S17) |
+| S15 stale text | **Closed** | all six items (below) |
+
+### R3: QA's top-surface map (`qa_top.py`, the shipped metadata)
+```
+grid               points outside the opening   belt_bare the top   another surface within 1 mm   no shape / top < -5 cm
+5 cm               184 847 (462.12 m2)          0                   0                             0 / 0
+5 cm +2.5 cm       183 857 (459.64 m2)          0                   0                             0 / 0
+5 cm +(1.37, 3.11) cm 183 875 (459.69 m2)       0                   0                             0 / 0
+1 cm +(0.37, 0.61) cm 4 616 251 (461.63 m2)     1 (see below)       0                             0 / 0
+past each end, within 1.925 m and 1 m of the band: 7.08 and 7.09 m2 sampled
+control, e280d60's metadata, 5 cm: belt_bare the top (or first of a tie) 4 628 points, 11.57 m2;
+                                   another surface within 1 mm 3 410 points, 8.53 m2
+```
+- **The control** agrees with the re-check of task 1.6 (3.73 m² + 7.86 m² = 11.59 m²) and, to the point, with the as-built's "before" row (3 410 points), so the map is not blind to the defect.
+- **The one 1 cm point** lies 0.36 µm from `slot_5.71`'s edge. 1 µm to the field side the berm box is its top; 1 µm the other way it is in the opening. That is the metadata's micrometre rounding, not a sliver: a 0.5 mm scan of 4 cm round it finds no other.
+
+**Mutations of task 1.7's constants** (`qa_mut17.py`, the new test and `lib/holes` on each build):
+```
+K0 as built:                         the new test passes; F-3 25.0 mm, F-4 0.0000 m; no lib.holes problem
+K1 RING_DROP_M 0 (ring level):       the new test FAILS (a belt_bare top tied at y = 0 past the end); F-3 0.0 mm
+K2 LIP_DROP_M 0 (walls to the lip):  the new test FAILS (belt_bare tops 0.27 and 0.50 mm under the berm's)
+K3 RING_DROP_M 0.035:                the new test passes; lib.holes REFUSES on F-3 (35.0 mm)
+```
+The test and F-3 bracket the ring's drop: more than 1 mm, at most 30 mm.
+
+### Task 1.7's shapes against F-1…F-8
+The new shapes: per run end, the end block lowered to −0.3 m, the end's berm box over it (`belt_straw`, landable, `collision[464]` and `[474]`), and 8 ring sectors 0.507 × 0.3 × 0.3 m topping at −0.025 m (`[465–472]`, `[475–482]`). Along the sides: the walls', end walls' and niche walls' boxes topping 3 mm under the lip, and the lip box beyond the toe starting 5 cm inside the berm box's reach.
+
+| Rule | Result |
+|---|---|
+| F-1 sealed below | **Holds.** Build: 42 388 rays, 0 miss. QA: 42 372–42 388 rays on the three 5 cm grids and 1 059 640 on the 1 cm grid, 0 miss a `belt_bare` shape. The lowered end block still seals under the end's berm box |
+| F-2 the cavity | **Holds**, the mesh unchanged: the least 0.6500 m inside the bands |
+| F-3 level lips | **Holds by the letter, with 5 mm to spare.** Build: 25.0 mm. QA: 2 568 samples 1 cm inside the bands' edge, 25.00 mm past the ends, 0.00 mm beside the run. Its reason ("no false step where a foot slides off the terrain onto the lip") is met by the end's berm box at y = 0, which is the top a contact meets there; the ring lies under it (S16) |
+| F-4 nothing proud | **Holds, better:** 0.0000 m (0.0008 before; the 3 mm drop removed a twisted wall's proud corner) |
+| F-5 thick, overlap | **Holds:** 383 fillers, every box at least 0.300 m; 48 joints at 0.200 m |
+| F-6 the visual | **Holds:** 831 collision lines, 0 problems; worst 38.699 mm (tolerance 50), 16.067 mm in the 2 cm zone (tolerance 20). The end berm boxes: 11.9 and 16.6 mm, in the zone 11.6 and 14.1 mm. A wall box at the lip (`collision[119]`): 2.752 mm |
+| F-7 surfaces | **Holds:** 383 `belt_bare` (+16, the rings), 0 landable; 424 `belt_straw` landable (+2, the end berm boxes); 24 `crater_spoil`. The top 3 mm of each cut wall is now the berm box's face on the lip line (`belt_straw`): a grassed lip, which the look shows |
+| F-8 no wind obstacle | **Holds:** 0 wind volumes |
+
+### The two points left for the physics engineer
+**The law in force** (terrain-holes-review §2.3, reused by the sheet): per foot, soil-shape contacts whose normals lie within 45° count as one contact and the deepest wins; past `max_sink`, a firm layer at 1e8 N/m³ takes over.
+
+**How deep `belt_bare` lies under the top a contact meets** (`qa_top.py`, the depth from the highest top to the highest `belt_bare` top under it):
+```
+                         now (1 cm grid)                 before (e280d60, 5 cm grid)
+<= 1 mm (tied)           0                               0.685 m2
+1-3.5 mm                 0.257 m2                        1.423 m2
+3.5-25.5 mm             12.214 m2 (ends 1.965: rings)   12.448 m2
+25.5-80 mm               8.612 m2                        7.793 m2
+buried ties within 80 mm 2.563 m2, 39.6-80.0 mm under    8.935 m2, 0.0-80.0 mm under
+```
+- 1–25.5 mm is mostly the wall boxes' tops under the berm (3 mm under at the wall's face, deeper towards their back 0.3 m in, their tops tilted with the batter) and the rings.
+- 25.5–80 mm is mostly the lip boxes under the parapets' inner slopes, where they have topped at y = 0 since task 1.1.
+- The buried ties are the 5 cm seam.
+- `belt_straw`'s static sink at the reference foot is 30 mm and its `max_sink` 80 mm, so a foot reaches these depths.
+
+1. **The ring, 25 mm under the straw. Not a blocker; a phase-7a note.**
+   - Under the merge rule the berm box's penetration exceeds the ring's by 25 mm at any sink, so `belt_straw` governs and the ring never acts as ground.
+   - Geometry alone cannot lift it out of reach while F-3 reads fillers only: F-3 needs a `belt_bare` top within 30 mm under the grassed ground at the band's edge.
+   - It is no new kind: the wall boxes have lain just under the berm's boxes along every lip since task 1.6 put those boxes there, tied at the lip until this task and 3 mm under it now.
+2. **The buried tie in the 5 cm seam under the parapet slope. Not a blocker; a phase-7a note.**
+   - The berm box and the lip box beyond the toe both top at y = 0, 39.6–80 mm under the slope's top.
+   - Under the merge rule the slope box's penetration exceeds both, so the tie is never read while the foot is in the slope box. Before this task such ties lay from 0 mm, over 8.9 m²; now 2.6 m², at least 39.6 mm down.
+
+## Spec scenarios (updated)
+| Scenario | Result | Evidence |
+|---|---|---|
+| E01: built from params by one command | **Passed** | two runs (21:28, 21:51), exit 0; the FBX (`ec11183a…`, the committed object), metadata (`5863afd2…`), prefab (`f0d1d5cc…`) and both review sheets (day `543f87f3…`, overcast `4b7c1821…`) byte-identical between them; 964 audit, hole, joint and gap lines identical; `git status --short` empty after the first and showing only this review after the second |
+| E01: fillers under the hole contract | **Passed** | F-1…F-8 above |
+| E01: parapets and clods are ground | **Passed** | QA's map: outside the opening every top a contact meets first is a landable `belt_straw` shape's, the run's ends included; clods `crater_spoil`; `wind_volumes` and `snag` empty; the `holes` records unchanged (importer: `3 holes (run 50 points, band 2.35 m, ...)`) |
+| E01: the corridor, the G look; the pipeline and review-sheet scenarios | **Unchanged since the re-check of task 1.6** | Task 1.7 changes the collision only: the FBX is the committed object (`ec11183a…`, as at `e280d60`), the prefab's diff touches colliders and the metadata component only (no renderer, LOD or material field), and the metadata differs from `e280d60`'s in `collision` alone (bounds, LODs, micro, materials, gaps, holes identical); the pilot pose line is unchanged. QA read the new sheet's tiles and its overlay |
+
+**Requirement IDs (updated):**
+- **Met:** AST-02, AST-03 (one command, twice), AST-05 (R3 closed: the ground's material on every top outside the cut), AST-12, SEC-04, D-003, PR-9, REAL-05 (the collision follows what the drone sees, the run's ends included).
+- **Partly met, as in the re-check of task 1.6:** AST-07; AST-08 (by test, not by the build, S9); AST-10 (the mat a baked stand-in); REAL-01 and REAL-03 (the G1 stand-ins; no feed yet).
+
+### S13: the joint check, run as a mutation through `build.py` (`qa_s13.py`)
+```
+generator built in 47 s; it reports 48 joints
+M0 as built:                       passed every check, reached the export (the stub bpy stops it there)
+M1 no 'joints' key:                CAUGHT by build_variant: F-5 overlap: the generator reports 0 joints, the holes' centre lines have 48
+M2 joints []:                      CAUGHT by build_variant: F-5 overlap: the generator reports 0 joints, the holes' centre lines have 48
+M3 one joint missing (47):         CAUGHT by build_variant: F-5 overlap: the generator reports 47 joints, the holes' centre lines have 48
+M4 joint 2 a copy of joint 1 (48): passed every check, reached the export
+```
+`test_joints_are_checked_whether_or_not_reported` covers M1–M3 in `pytest`. M4 is S17.
+
+### S15: the stale text
+- design 10: `bend_deg` 35 (with its history), `bend_radius_m` 3.7 and `leg_jitter_m` 0.75
+- `trench.py`'s module docstring: `grassed_spoil` takes this relief's tone
+- `TrenchPrefabTests`' summary: the mat draws on LOD0 alone
+- the risks: 76 px/m
+- task 1.6's names list: the sheet's 0.6–1.2 m and 0.5–1.0 m against the built 0.6–1.0 m and 0.5–0.8 m, with the strip's reason
+- the run's ends: `test_the_top_outside_the_cut_is_grassed_ground` (K1 and K2 above make it fail)
+
+`git grep` finds the old wording only in earlier tasks' as-built notes and in this review, which are history.
+
+## Commands (QA's runs)
+```
+git fetch origin; git checkout -B qa-e01c origin/unity/art/p1-e01-trench; git lfs checkout   -> 76/76 LFS objects
+(Get-CimInstance -Namespace root/wmi -ClassName BatteryStatus).PowerOnline                    -> True before every Unity run; Balanced
+pwsh tools/build_asset.ps1 E01   (twice)                                                       -> build_asset: OK (E01), exit=0 (21:28, 21:51)
+  E01_curving: holes F-1 sealed below: 42388 vertical rays on a 5 cm grid over the bands and 0.71 m past their edges, 0 miss every filler
+  E01_curving: holes F-2 the cavity inside the bands: 139022 samples of the cut's faces (slots wall), the least 0.6500 m inside the bands at (3.1826, -0.9245, 1.6769), at least 0.65 m
+  E01_curving: holes F-3 level lips: 1290 samples along the bands' edges, the fillers' top within 25.0 mm of the ground (worst at (-0.523, 1.041)), tolerance 30 mm
+  E01_curving: holes F-4 nothing proud: the highest filler point at y = 0.0000 m, at most 0.01 m
+  E01_curving: holes F-5 thick: 383 fillers, every box at least 0.300 m across, at least 0.3 m
+  E01_curving: holes F-5 overlap: 48 joints, the boxes along the run overlap 0.200-0.200 m, at least 0.2 m
+  E01_curving: holes F-7 surfaces: 383 fillers surface:belt_bare, 0 landable; 424 surface:belt_straw, 424 landable; 24 surface:crater_spoil, 0 landable
+  E01_curving: holes F-8 no wind obstacle: 0 wind volumes
+  F-6: 831 collision lines, 0 problems; worst box->mesh 38.699 mm (collision[806], tolerance 50 mm); near gaps/landable 16.067 mm (collision[648], tolerance 20 mm)
+  71 gap lines (48 xs, 21 slots, 2 mouths), each narrowest_m on the audit's circle
+  E01_curving: ... size [35.25, 2.3838, 13.75] m  tris 39172 / 39172 / 1835  micro E01_curving_LOD0_straw 483 straw 5796 tris
+    micro E01_curving_LOD0_mat 63109 mat 405480 tris  831 collision shapes  fbx 18.8 MB  metadata written
+  [CatalogImporter] E01_curving: ... 831 colliders, 3 holes (run 50 points, band 2.35 m, niche_0 2 points, band 2.1 m, niche_1 2 points, band 2.1 m) ...
+  [Review] E01: 1 variant(s), lights day/overcast, GPU NVIDIA GeForce RTX 4050 Laptop GPU (Direct3D12), quality High (URP-High) ...
+& $env:UNITY -batchmode -nographics -projectPath unity -runTests -testPlatform EditMode ...    -> testcasecount=55 result=Passed passed=55 failed=0 skipped=0; exit 0
+python -m pytest tools -q                                                                      -> 835 passed in 1658.63s (0:27:38)
+python -m pytest tools/hygiene -k test_existing_tree_is_clean -rA                              -> PASSED [HEAD]; PASSED [origin/unity/main merged with HEAD]
+python tools/assets/fetch.py --verify                                                          -> OK, exit 0
+python tools/hygiene/precommit.py --tree HEAD                                                  -> 827 files scanned, 0 findings, exit 0 (at 3e68ac1; this review scanned staged before its commit)
+openspec validate p1-e01-trench --strict                                                       -> Change 'p1-e01-trench' is valid
+git merge-tree --write-tree origin/unity/main HEAD                                             -> a tree, no conflict
+```
+- **Commits** `e280d60..3e68ac1`: 4, each subject-only, lower case, 59–68 characters, no body, no trailer.
+  - Identities: Asset Artist `assets@450fpv.local` (code, metadata, prefab, task text) and Orchestrator `orchestrator@450fpv.local` (the task's text).
+- **Committed paths:** nothing under `reference/`, `Library/`, `Temp/` or `Logs/`; no new binary (the FBX is unchanged).
+- **Licences:** no new third-party file.
+- **OPSEC:** no file names, places, dates or OSD values in the branch (the scan) or in this review.
+
+## New suggestions (not blocking)
+- **S16. Phase 7a: the contact law on an asset's overlapping shapes.** The hole contract keeps `belt_bare` fillers under the grassed ground (the rings 25 mm under, the wall boxes from 3 mm, the lip boxes under the slopes; about 21 m² of E01 within `belt_straw`'s 80 mm). For the physics engineer to state in 7a:
+  - the merge at the lip holds among an asset's own soil shapes, not only between the terrain and a shape: the top a contact meets sets the surface, a buried top never does;
+  - a buried shape's own side faces: past a buried top, a foot closer to that shape's vertical face than to its top finds that face nearest (`StaticContacts` reports the nearest face), a normal more than 45° from up, which "both act" would add as a sideways push. F-4's reason ("the merge rule takes the deepest contact") does not cover it;
+  - or F-3 restated to read the top a contact meets on the hole side, whatever its surface, so the rings can go (R3's second way).
+- **S17. `lib/holes` counts the joints and does not identify them.** A generator that reports 48 joints with one twice and one missing passes (M4). Check that each interior point is reported once, by its index or chainage, or measure the overlaps from the metadata's boxes. E01 reports all 48 correctly.
+- **S9, S10, S12, S14** stay open, outside task 1.7.
