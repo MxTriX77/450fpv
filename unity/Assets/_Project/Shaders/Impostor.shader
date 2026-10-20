@@ -4,11 +4,24 @@
 // The card mesh, built by the catalog importer, holds the quad in its own frame: x across it, y up it, 0 on the axis.
 // The views are _ImpostorGrid.x orthographic views from the azimuths k * 360 / views (from +Z towards +X, object
 // space), view k in cell (k mod columns, k div columns) from the atlas's top left, in both atlases. The albedo atlas
-// (_BaseMap) holds albedo; the card is lit as URP/Lit lights a surface, with the normal atlas's normal per pixel
-// (_BumpMap, linear): the visible side's mapped normal as view k saw it, in its axes (right, up, towards its camera,
-// _ImpostorGrid.w degrees above the horizon) mapped into 0-1, which the forward pass samples at the cell's uv, at full
-// resolution, and turns into object space with the same axes; URP's _NORMALMAP stays off, as the fragment sets the
-// normal itself. The card has the leaves' smoothness, since it shows their normals (the catalog importer sets it). The
+// (_BaseMap) holds albedo. The normal atlas (_BumpMap, linear) holds per texel the mean of the visible surfaces'
+// geometric normals as view k saw them, unnormalised, in its axes (right, up, towards its camera, _ImpostorGrid.w
+// degrees above the horizon) mapped into 0-1: the forward pass samples it at the cell's uv, at full resolution, turns
+// it into object space with the same axes, and lights the texel as a distribution of normals round that mean's
+// direction, as wide as its length R says (task 1.2n; URP's _NORMALMAP stays off, as the fragment sets the normal
+// itself). URP/Lit lights a surface at one normal; lit so at the mean's direction a texel of leaves, twigs and limbs
+// facing apart took 5 % less of the review's sun than its surfaces lit point by point, and 60 % less of the sky's
+// grazing reflection (V01_M, measured), the card 9 % dark by day against LOD2 at its switch. The distribution is
+// the von Mises-Fisher one of mean resultant length R, the usual model of a texel's normals (HDRP's normal map
+// filtering takes it): its concentration kappa = R (3 - R^2) / (1 - R^2) (Banerjee et al. 2005, as HDRP's
+// TextureNormalVariance). Each light's diffuse is the clamped cosine averaged over it, Hill's fitted irradiance of a
+// normalised spherical Gaussian (the cosine and the lobe swap roles; within 0.02 of the exact average for R >= 0.4,
+// derived); the sky's reflection takes URP's Fresnel term Pow4(1 - saturate(n.v)) averaged over it, n.v taken as a
+// normal variable with the distribution's own mean and variance and integrated exactly; the specular highlight stays
+// URP's at the mean's direction, which its lobe is wide enough to hold (the distribution's own within 3 % at the
+// card's smoothness, measured). Over V01_M's texels these took the review's sun and sky reflection within 1 and 3 % of
+// the surfaces lit point by point (measured). The card has the leaves' smoothness, since it shows their normals (the
+// catalog importer sets it). The
 // normal atlas's alpha holds the occlusion of the surface under each texel, its recipe's (the mask's G), which URP/Lit
 // applies to the ambient light and its reflections only, read with the normal and set as the surface's occlusion
 // (task 1.2m: one crown-wide occlusion of 0.78 gave the leaves, 0.97 on the mesh LODs, part of the bark's 0.56 and the
@@ -89,14 +102,14 @@ Shader "Fpv450/Impostor"
             positionOS = right * positionOS.x + float3(0.0, positionOS.y, 0.0);
         }
 
-        // An encoded texel of the normal atlas in object space: view k's right, up and towards-the-camera axes
-        // (lib/impostor.py basis) weighted by its components.
-        float3 ImpostorNormal(float3 encoded, float k)
+        // An encoded texel of the normal atlas in object space, unnormalised: view k's right, up and
+        // towards-the-camera axes (lib/impostor.py basis) weighted by its components. Its length is the texel's R.
+        float3 ImpostorMean(float3 encoded, float k)
         {
             float a = k * 6.28318530718 / _ImpostorGrid.x, e = radians(_ImpostorGrid.w);
             float sa = sin(a), ca = cos(a), se = sin(e), ce = cos(e);
             float3 n = encoded * 2.0 - 1.0;
-            return normalize(n.x * float3(-ca, 0.0, sa) + n.y * float3(-se * sa, ce, -se * ca) + n.z * float3(ce * sa, se, ce * ca));
+            return n.x * float3(-ca, 0.0, sa) + n.y * float3(-se * sa, ce, -se * ca) + n.z * float3(ce * sa, se, ce * ca);
         }
         ENDHLSL
 
@@ -160,6 +173,139 @@ Shader "Fpv450/Impostor"
 
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitForwardPass.hlsl"
 
+            // --- a texel's normals as a von Mises-Fisher distribution of mean resultant length R (the header) -----
+
+            // The concentration (Banerjee et al. 2005, HDRP's TextureNormalVariance); 1e4 for one flat surface.
+            float ImpostorKappa(float R)
+            {
+                R = min(R, 0.9999);
+                return R * (3.0 - R * R) / (1.0 - R * R);
+            }
+
+            // The clamped cosine max(0, n.l) averaged over the distribution, t = l's cosine to the mean direction:
+            // S. Hill's fitted irradiance of a normalised spherical Gaussian of sharpness kappa, as M. Pettineo gives
+            // it ("SG Series Part 3: Diffuse Lighting From an SG", 2016), the lobe and the cosine swapping roles. The
+            // fit holds from a sharpness of 1 (R 0.31); a wider texel is lit as that one.
+            float ImpostorDiffuse(float t, float kappa)
+            {
+                float lambda = max(kappa, 1.0);
+                float eml = exp(-lambda), em2l = eml * eml, rl = 1.0 / lambda;
+                float scale = 1.0 + 2.0 * em2l - rl;
+                float bias = (eml - em2l) * rl - em2l;
+                float x = sqrt(1.0 - scale);
+                float x0 = 0.36 * t, x1 = x / (4.0 * 0.36);
+                float n = x0 + x1;
+                float y = abs(x0) <= x1 ? n * n / x : saturate(t);
+                return scale * y + bias;
+            }
+
+            // The standard normal's distribution function (erf by Abramowitz and Stegun 7.1.26, within 1.5e-7).
+            float ImpostorNormalCdf(float z)
+            {
+                float x = abs(z) * 0.70710678;
+                float k = 1.0 / (1.0 + 0.3275911 * x);
+                float erfx = 1.0 - (((((1.061405429 * k - 1.453152027) * k) + 1.421413741) * k - 0.284496736) * k + 0.254829592) * k * exp(-x * x);
+                return 0.5 + 0.5 * (z < 0.0 ? -erfx : erfx);
+            }
+
+            // URP's Fresnel term Pow4(1 - saturate(n.v)) averaged over the distribution, t = v's cosine to the mean
+            // direction: n.v taken as a normal variable of the distribution's own mean R t and second moment
+            // 1/3 + A2 (t^2 - 1/3), A2 = 2 R^2 / (3 - R^2) (the vMF's second Legendre moment, 1 - 3 R / kappa), and
+            // Pow4(1 - x) integrated over it exactly: 1 below x = 0, y^4 for y = 1 - x in (0, 1] by the normal's
+            // partial moments, 0 past x = 1.
+            float ImpostorFresnel(float t, float R)
+            {
+                float a2 = 2.0 * R * R / (3.0 - R * R);
+                float m = R * t;
+                float s = sqrt(max(1.0 / 3.0 + a2 * (t * t - 1.0 / 3.0) - m * m, 1e-6));
+                float mu = 1.0 - m;
+                float a = -mu / s, b = (1.0 - mu) / s;
+                float pa = exp(-0.5 * a * a) * 0.39894228, pb = exp(-0.5 * b * b) * 0.39894228;
+                float cb = ImpostorNormalCdf(b);
+                float m0 = cb - ImpostorNormalCdf(a);
+                float m1 = pa - pb;
+                float m2 = m0 + a * pa - b * pb;
+                float m3 = 2.0 * m1 + a * a * pa - b * b * pb;
+                float m4 = 3.0 * m2 + a * a * a * pa - b * b * b * pb;
+                float mu2 = mu * mu, s2 = s * s;
+                return mu2 * mu2 * m0 + 4.0 * mu2 * mu * s * m1 + 6.0 * mu2 * s2 * m2 + 4.0 * mu * s2 * s * m3 + s2 * s2 * m4 + (1.0 - cb);
+            }
+
+            // A light on the distribution: URP's LightingPhysicallyBased with the diffuse's cosine averaged over it.
+            half3 ImpostorLight(BRDFData brdfData, Light light, float3 normalWS, half3 viewDirectionWS, float kappa)
+            {
+                float t = dot(normalWS, light.direction);
+                half3 brdf = brdfData.diffuse * ImpostorDiffuse(t, kappa);
+            #ifndef _SPECULARHIGHLIGHTS_OFF
+                brdf += brdfData.specular * DirectBRDFSpecular(brdfData, normalWS, light.direction, viewDirectionWS) * saturate(t);
+            #endif
+                return brdf * light.color * (light.distanceAttenuation * light.shadowAttenuation);
+            }
+
+            // URP 17.3's UniversalFragmentPBR (Lighting.hlsl) without clear coat, each light by ImpostorLight and the
+            // sky's reflection with the distribution's Fresnel term (GlobalIllumination.hlsl's GlobalIllumination).
+            half4 ImpostorFragmentPBR(InputData inputData, SurfaceData surfaceData, float R)
+            {
+                float kappa = ImpostorKappa(R);
+                BRDFData brdfData;
+                InitializeBRDFData(surfaceData, brdfData);
+            #if defined(DEBUG_DISPLAY)
+                half4 debugColor;
+                if (CanDebugOverrideOutputColor(inputData, surfaceData, brdfData, debugColor))
+                    return debugColor;
+            #endif
+                half4 shadowMask = CalculateShadowMask(inputData);
+                AmbientOcclusionFactor aoFactor = CreateAmbientOcclusionFactor(inputData, surfaceData);
+                uint meshRenderingLayers = GetMeshRenderingLayer();
+                Light mainLight = GetMainLight(inputData, shadowMask, aoFactor);
+                MixRealtimeAndBakedGI(mainLight, inputData.normalWS, inputData.bakedGI);
+                LightingData lightingData = CreateLightingData(inputData, surfaceData);
+
+                half3 reflectVector = reflect(-inputData.viewDirectionWS, inputData.normalWS);
+                half fresnelTerm = ImpostorFresnel(dot(inputData.normalWS, inputData.viewDirectionWS), R);
+                half3 indirectSpecular = GlossyEnvironmentReflection(reflectVector, inputData.positionWS, brdfData.perceptualRoughness, 1.0h, inputData.normalizedScreenSpaceUV);
+                half3 giColor = EnvironmentBRDF(brdfData, inputData.bakedGI, indirectSpecular, fresnelTerm);
+                if (IsOnlyAOLightingFeatureEnabled())
+                    giColor = half3(1, 1, 1);
+                lightingData.giColor = giColor * aoFactor.indirectAmbientOcclusion;
+
+            #ifdef _LIGHT_LAYERS
+                if (IsMatchingLightLayer(mainLight.layerMask, meshRenderingLayers))
+            #endif
+                    lightingData.mainLightColor = ImpostorLight(brdfData, mainLight, inputData.normalWS, inputData.viewDirectionWS, kappa);
+
+            #if defined(_ADDITIONAL_LIGHTS)
+                uint pixelLightCount = GetAdditionalLightsCount();
+            #if USE_CLUSTER_LIGHT_LOOP
+                [loop] for (uint lightIndex = 0; lightIndex < min(URP_FP_DIRECTIONAL_LIGHTS_COUNT, MAX_VISIBLE_LIGHTS); lightIndex++)
+                {
+                    CLUSTER_LIGHT_LOOP_SUBTRACTIVE_LIGHT_CHECK
+                    Light light = GetAdditionalLight(lightIndex, inputData, shadowMask, aoFactor);
+            #ifdef _LIGHT_LAYERS
+                    if (IsMatchingLightLayer(light.layerMask, meshRenderingLayers))
+            #endif
+                        lightingData.additionalLightsColor += ImpostorLight(brdfData, light, inputData.normalWS, inputData.viewDirectionWS, kappa);
+                }
+            #endif
+                LIGHT_LOOP_BEGIN(pixelLightCount)
+                    Light light = GetAdditionalLight(lightIndex, inputData, shadowMask, aoFactor);
+            #ifdef _LIGHT_LAYERS
+                    if (IsMatchingLightLayer(light.layerMask, meshRenderingLayers))
+            #endif
+                        lightingData.additionalLightsColor += ImpostorLight(brdfData, light, inputData.normalWS, inputData.viewDirectionWS, kappa);
+                LIGHT_LOOP_END
+            #endif
+
+            #if defined(_ADDITIONAL_LIGHTS_VERTEX)
+                lightingData.vertexLightingColor += inputData.vertexLighting * brdfData.diffuse;
+            #endif
+            #if REAL_IS_HALF
+                return min(CalculateFinalColor(lightingData, surfaceData.alpha), HALF_MAX);
+            #else
+                return CalculateFinalColor(lightingData, surfaceData.alpha);
+            #endif
+            }
+
             Varyings ImpostorPassVertex(Attributes input)
             {
                 UNITY_SETUP_INSTANCE_ID(input);
@@ -172,6 +318,7 @@ Shader "Fpv450/Impostor"
                 return LitPassVertex(input);
             }
 
+            // URP 17.3's LitPassFragment (LitForwardPass.hlsl) with the texel's mean normal and its spread.
             void ImpostorPassFragment(
                 Varyings input
                 , out half4 outColor : SV_Target0
@@ -181,17 +328,36 @@ Shader "Fpv450/Impostor"
             )
             {
                 UNITY_SETUP_INSTANCE_ID(input);
+                UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
                 float3 facing, right;
                 ImpostorFrame(TransformWorldToObject(GetCameraPositionWS()), facing, right);
-                // At full resolution: each pixel is lit by the normal of the surface under it, as each of LOD0's pixels
-                // is by one leaf's; a mip's mean normal leans towards the viewer and lost 10-20 % of the sun (measured).
+                // At full resolution: each pixel shows the surfaces under its texel, as each of LOD0's pixels shows the
+                // leaf or the twig under it; a mip mixes the texels round it.
                 float3 encoded = SAMPLE_TEXTURE2D_LOD(_BumpMap, sampler_BumpMap, input.uv, 0).rgb;
-                input.normalWS = TransformObjectToWorldNormal(ImpostorNormal(encoded, ImpostorView(facing)));
-                LitPassFragment(input, outColor
-            #ifdef _WRITE_RENDERING_LAYERS
-                    , outRenderingLayers
+                float3 mean = ImpostorMean(encoded, ImpostorView(facing));
+                float R = saturate(length(mean));
+                input.normalWS = TransformObjectToWorldNormal(mean);
+
+                SurfaceData surfaceData;
+                InitializeStandardLitSurfaceData(input.uv, surfaceData);
+            #ifdef LOD_FADE_CROSSFADE
+                LODFadeCrossFade(input.positionCS);
             #endif
-                );
+                InputData inputData;
+                InitializeInputData(input, surfaceData.normalTS, inputData);
+                SETUP_DEBUG_TEXTURE_DATA(inputData, UNDO_TRANSFORM_TEX(input.uv, _BaseMap));
+            #if defined(_DBUFFER)
+                ApplyDecalToSurfaceData(input.positionCS, surfaceData, inputData);
+            #endif
+                InitializeBakedGIData(input, inputData);
+
+                half4 color = ImpostorFragmentPBR(inputData, surfaceData, R);
+                color.rgb = MixFog(color.rgb, inputData.fogCoord);
+                color.a = OutputAlpha(color.a, IsSurfaceTypeTransparent(_Surface));
+                outColor = color;
+            #ifdef _WRITE_RENDERING_LAYERS
+                outRenderingLayers = EncodeMeshRenderingLayer();
+            #endif
             }
             ENDHLSL
         }

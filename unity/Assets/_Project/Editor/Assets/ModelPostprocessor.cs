@@ -60,7 +60,12 @@ namespace Fpv450.Assets
         /// <c>derive.py</c> gives every texel its alpha clips the kept texels' mean colour, which Unity's dilation
         /// would paint over with the colours at the leaves' edges (p1-v01-locust task 1.2l). An impostor's normal
         /// atlas (<c>_impostor_normal</c>) is no normal map but linear data without mips: its shader reads it raw at
-        /// full resolution.
+        /// full resolution, each texel's mean normal and, as that mean's length, the spread of the normals under it
+        /// (p1-v01-locust task 1.2n). So it keeps its texels: compressed at high quality (BC7 on the PC, at DXT5's
+        /// size), as DXT5's block colours shorten the means (V01_M's card reflected the sky at grazing angles 13 %
+        /// more than from the texels uncompressed, with BC7 3 %, measured), and read at the nearest texel, since a
+        /// texel's mean and length say how one texel's normals spread and the bilinear filter's blend of two texels is
+        /// not their two spreads (7 % more of that reflection, measured).
         /// </summary>
         public static bool ApplyTexture(TextureImporter importer, string assetPath)
         {
@@ -81,7 +86,11 @@ namespace Fpv450.Assets
             changed |= Set(importer.sRGBTexture, diffuse, v => importer.sRGBTexture = v);
             changed |= Set(importer.alphaIsTransparency, diffuse && !derivedBase && importer.DoesSourceTextureHaveAlpha(), v => importer.alphaIsTransparency = v);
             if (impostorNormals)
+            {
                 changed |= Set(importer.mipmapEnabled, false, v => importer.mipmapEnabled = v);
+                changed |= Set(importer.textureCompression, TextureImporterCompression.CompressedHQ, v => importer.textureCompression = v);
+                changed |= Set(importer.filterMode, UnityEngine.FilterMode.Point, v => importer.filterMode = v);
+            }
             if (single)
             {
                 var settings = new TextureImporterSettings();

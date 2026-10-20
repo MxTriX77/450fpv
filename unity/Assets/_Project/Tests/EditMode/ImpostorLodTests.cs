@@ -120,6 +120,8 @@ namespace Fpv450.Tests.EditMode
             Assert.That(normalImporter.sRGBTexture, Is.False, "the normal atlas is linear data");
             Assert.That(normalImporter.textureType, Is.EqualTo(TextureImporterType.Default), "not a tangent-space normal map");
             Assert.That(normalImporter.mipmapEnabled, Is.False, "read at full resolution");
+            Assert.That(normalImporter.textureCompression, Is.EqualTo(TextureImporterCompression.CompressedHQ), "the means' lengths, the spread, kept (task 1.2n)");
+            Assert.That(normalImporter.filterMode, Is.EqualTo(FilterMode.Point), "each pixel one texel's spread, not a blend of two (task 1.2n)");
             Assert.That(normalImporter.alphaSource, Is.EqualTo(TextureImporterAlphaSource.FromInput), "its alpha, the occlusion per texel, kept");
             Assert.That(normalImporter.alphaIsTransparency, Is.False, "the alpha is data, not coverage");
             Assert.That(material.GetFloat("_Smoothness"), Is.EqualTo(0.2f), "the leaves' smoothness");
