@@ -54,9 +54,9 @@
           "height_m": 13.366987,
           "bottom_m": -0.297919
         },
-        "inputs_sha256": "f6ebf9d38d9261725df847dd135878fd9f03596a4542111dffb5b2af42aea26c",
+        "inputs_sha256": "5cb2f5d1b266ddc056f6b960e1e1d343ad669e6890f678c9123aa00a32384553",
         "atlas_sha256": "7b2417f442436e6950b2f7560920b6e8b455409e433ec694d3655a9b25cd3007",
-        "normals_sha256": "f77d0b5d057be0fe1ab37db2b3e9a04448ed7a3476adb8117a08df37975ec35d"
+        "normals_sha256": "1d3df66f9ad58e194068434a3f9a7bd29c83df4fda80d244c7338f758cb0dff4"
       }
     }
   ],

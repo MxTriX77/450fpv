@@ -14,13 +14,19 @@ origin at the cell's horizontal centre.
 The card: the shader turns an upright quad about that axis to face the camera (or, for shadows, the light) and maps
 the nearest view onto it. The card's height is the image's up axis over cos e, so a viewer ELEVATION_DEG above the
 horizon sees each view exactly, and a level one sees a point in front of the axis lowered by its depth times tan e
-(a quarter of the crown's radius at most). Its normal, per pixel, is the normal atlas's: the visible side of the
-surface under the pixel as its view saw it, with the slot's normal map applied as URP/Lit applies it (a back face's
-whole frame turned to the viewer, as the leaf shader lights a leaf), in that view's axes (right, up, towards the
-camera) mapped into 0-1, which the shader turns into object space with the same view's axes. So every leaf, limb and
-trunk takes the sun at its own angle, from any sun, and its own relief takes the highlights and the sky's grazing
-reflection as LOD0's does (the geometric normal alone left the card's specular about 40 % under the leaves', task
-1.2g). Its alpha is the occlusion of the surface under the texel, its recipe's derived occlusion (the mask's G, which
+(a quarter of the crown's radius at most). Its normals, per pixel, are the normal atlas's: the visible sides of the
+surfaces under the texel as its view saw them, each its geometric shading normal (a back face's turned to the viewer,
+as the leaf shader turns a leaf's), in that view's axes (right, up, towards the camera) mapped into 0-1. A texel holds
+their mean, unnormalised: its direction is where the surfaces face, its length R (1 for one flat surface, less the
+more they differ) their spread, which the shader lights as a distribution of normals and not as their mean (task
+1.2n: lit at its mean direction, V01_M's texels took 5 % less of the review's sun than their surfaces lit point by
+point and 60 % less of the sky's grazing reflection, measured). The normals are the geometry's, not the slots' normal
+maps: wherever the card is shown the mesh LODs read a leaf's or a bark's normal map at a mip far coarser than its
+relief, which flattens it to the surface's own normal (task 1.3: V01_M's LOD0 at 50 m moved 0.1 % with the leaves'
+normal maps off; task 1.2n: at 230 m its LOD0 and LOD2 reflect the sky at grazing angles as the geometric normals
+do, 0.075 and 0.070 of Pow4(1 - n.v) against their 0.071, where the mapped normals' relief gives 0.177, measured; the
+maps' relief was most of a texel's spread, R 0.78 against the geometry's 0.93). Its alpha is the occlusion of the
+surface under the texel, its recipe's derived occlusion (the mask's G, which
 URP/Lit applies to the ambient light and its reflections only; 1 for a recipe without a mask), which the shader sets
 as the surface's occlusion, so a leaf's ambient and sky reflection are occluded as the mesh LODs' leaf is and a limb's
 as its bark is (one crown-wide occlusion, the albedo-weighted mean, gave the leaves the bark's 0.56 in part and the bark
@@ -32,7 +38,7 @@ crown 8-18 % dark at 50 m (measured in task 1.2, design 3).
 The renders are flat: each slot's base map, as the importer picks it (a groove, paint or separate-opacity recipe's
 derived _base map, else the set's diffuse), times its tint, both linear as Unity takes them, clipped at the recipe's
 cutoff and emitted, so the albedo atlas holds albedo and the gallery's light shades the card (design 3); the normal
-render emits the mapped normal and the occlusion render the mask's G as grey, both clipped the same way and through
+render emits the shading normal and the occlusion render the mask's G as grey, both clipped the same way and through
 the Raw view transform, so their PNGs hold the values, linear, each texel's the mean of the surfaces under it
 (straight alpha), and the normal atlas is written from the two, filled, as 8-bit RGBA. Cycles on the CPU with fixed
 samples and seed, no denoiser, the Standard view transform for albedo and no dither, so a render repeats; each PNG
@@ -57,10 +63,11 @@ EMPTY = (0.5, 0.5, 1.0, 1.0)  # a normal atlas cell no surface covers: the view'
                               # unoccluded
 SAMPLES = 32               # Cycles samples per pixel: anti-aliasing and the texture average under a pixel
 TRANSPARENT_BOUNCES = 256   # alpha-clipped cards a ray may pass through; a dense clump stacks dozens
-FORMULA = ("impostor 4: flat albedo x tint, the visible side's mapped normal and its occlusion in the normal atlas's "
-           "alpha, Cycles CPU")  # change when the render changes, so every atlas is redone
+FORMULA = ("impostor 5: flat albedo x tint, the visible sides' geometric normals' mean, its length their spread, and "
+           "their occlusion in the normal atlas's alpha, Cycles CPU")  # change when the render changes, so every atlas
+                                                                       # is redone
 NO_ATLAS = "0" * 64         # an atlas's sha256 until it is rendered or found up to date
-UV_MAP = "UVMap"            # the laid-out mesh's one UV layer, which the normal maps' tangent frames follow
+UV_MAP = "UVMap"            # the laid-out mesh's one UV layer, which the base maps and masks read
 MATERIALS = os.path.join("unity", "Assets", "_Project", "Art", "Materials")
 RECIPES = os.path.join("assets-src", "materials")
 MANIFEST = os.path.join("tools", "assets", "manifest.json")
@@ -100,9 +107,9 @@ def frame(mesh):
 
 def slot_materials(root, visual_by_slot, slots):
     """What the render reads per slot, as the importer builds the material (CatalogImporter.EnsureMaterial): the
-    visual name, its recipe, the base map's path, the derived mask's and the set's normal map's (None without one),
-    the tile size, the tint linear as Unity takes it, the tint's alpha and the alpha cutoff (None for an opaque
-    recipe). Raises ValueError naming a missing recipe, set or map."""
+    visual name, its recipe, the base map's path, the derived mask's (None without one), the tile size, the tint
+    linear as Unity takes it, the tint's alpha and the alpha cutoff (None for an opaque recipe). Raises ValueError
+    naming a missing recipe, set or map."""
     with open(os.path.join(root, MANIFEST), encoding="utf-8") as f:
         manifest = json.load(f)
     out = {}
@@ -121,12 +128,10 @@ def slot_materials(root, visual_by_slot, slots):
             raise ValueError(f"{visual}: texture set {recipe['texture_set']} has no diffuse map")
         _require_file(texture, visual)
         mask = os.path.join(root, MATERIALS, f"{visual}_mask.png") if "mask" in recipe else None
-        normal = maps.get("normal")  # a painted recipe has none
-        for path in (mask, normal):
-            if path:
-                _require_file(path, visual)
+        if mask:
+            _require_file(mask, visual)
         tint = recipe["tint"]
-        out[slot] = {"visual": visual, "recipe": recipe, "texture": texture, "mask": mask, "normal": normal,
+        out[slot] = {"visual": visual, "recipe": recipe, "texture": texture, "mask": mask,
                      "tile_m": list(recipe["tile_size_m"]), "tint": [gamma_to_linear(c) for c in tint[:3]],
                      "alpha": tint[3], "cutoff": recipe["alpha_clip"] if clipped else None}
     return out
@@ -156,8 +161,8 @@ def lod(variant, switch, mesh, materials):
 
 def inputs_sha256(mesh, record, materials):
     """SHA-256 of everything the render reads: the formula and the render's constants, the card, the LOD0 mesh
-    (vertices, faces, UVs and slots, to the metadata's micrometre), and per slot its recipe, the bytes of its base map,
-    mask and normal map, and whether it is shaded smooth."""
+    (vertices, faces, UVs and slots, to the metadata's micrometre), and per slot its recipe, the bytes of its base map
+    and mask, and whether it is shaded smooth (its normals, and so their mean and spread)."""
     digest = hashlib.sha256()
 
     def put(value):
@@ -169,7 +174,7 @@ def inputs_sha256(mesh, record, materials):
     for slot in sorted(materials):
         m = materials[slot]
         put({"slot": slot, "visual": m["visual"], "recipe": m["recipe"], "smooth": slot in mesh.smooth})
-        for path in (m["texture"], m.get("mask"), m.get("normal")):
+        for path in (m["texture"], m.get("mask")):
             digest.update((file_sha256(path) if path else "-").encode("ascii"))
     return digest.hexdigest()
 
@@ -199,7 +204,7 @@ def layout(mesh, record, materials):
     faces, per-face UVs in tiles of each slot's base map, per-face slots, the atlas's side in metres). A vertex is
     (x right, y up, z towards the camera), metres, the atlas's lower-left corner at the origin. Every face is wound
     counter-clockwise about its outward normal there, as the FBX is (lib.export), so Blender's front face is Unity's
-    and a normal map tilts the way it does in Unity (each view is view 0 turned about the vertical axis, so one
+    and a smooth slot's vertex normals are the FBX's (each view is view 0 turned about the vertical axis, so one
     winding holds for all)."""
     card = record["card"]
     scale = CELL_PX[0] / card["width_m"]
@@ -390,10 +395,8 @@ def _write_rgba(path, rgba):
 
 def _material(slot, m, mode):
     """Emission of the base map times the tint ("albedo"), of the recipe's occlusion as grey ("occlusion": the mask's
-    G, as URP/Lit reads its occlusion map, else 1), or of the visible side's normal mapped into 0-1 ("normal"): the
-    slot's normal map applied in the UVs' tangent frame, as URP/Lit applies it (Cycles' tangent-space normal map node:
-    MikkTSpace tangents, B = sign x cross(N, T), and a back face's whole frame turned, as the leaf shader turns it),
-    else the shading normal; a clipped recipe is transparent where its alpha falls under the cutoff."""
+    G, as URP/Lit reads its occlusion map, else 1), or of the visible side's shading normal mapped into 0-1 ("normal",
+    no normal map: module docstring); a clipped recipe is transparent where its alpha falls under the cutoff."""
     import bpy
     material = bpy.data.materials.new(f"{slot}_{mode}")
     nodes, links = material.node_tree.nodes, material.node_tree.links
@@ -420,13 +423,7 @@ def _material(slot, m, mode):
         mapped.operation = 'MULTIPLY_ADD'
         mapped.inputs[1].default_value = (0.5, 0.5, 0.5)
         mapped.inputs[2].default_value = (0.5, 0.5, 0.5)
-        if m["normal"]:
-            normal_map = nodes.new("ShaderNodeNormalMap")
-            normal_map.space, normal_map.uv_map = 'TANGENT', UV_MAP
-            links.new(_texture(nodes, m["normal"], 'Non-Color').outputs["Color"], normal_map.inputs["Color"])
-            links.new(normal_map.outputs["Normal"], mapped.inputs[0])
-        else:
-            links.new(nodes.new("ShaderNodeNewGeometry").outputs["Normal"], mapped.inputs[0])
+        links.new(nodes.new("ShaderNodeNewGeometry").outputs["Normal"], mapped.inputs[0])
         colour = mapped.outputs["Vector"]
     emission = nodes.new("ShaderNodeEmission")
     emission.inputs["Strength"].default_value = 1.0

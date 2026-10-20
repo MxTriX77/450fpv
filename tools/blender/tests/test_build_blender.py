@@ -5,6 +5,7 @@ is rendered once as a 1k albedo and a 1k normal atlas, the occlusion per texel i
 staged file's retried replace are checked without Blender."""
 import hashlib
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -101,13 +102,12 @@ def test_out_of_range_bevel_is_refused_and_the_outputs_stay_untouched(blender, r
 def test_impostor_atlases_are_rendered_at_1k_once_and_removed_when_off(blender, repo_root, tmp_path):
     """p1-v01-locust design decision 3 (asset-pipeline "Baked impostor LOD"): K01 with its params asking for an
     impostor (the brick generator taught the two keys inside this Blender) gets a 1k RGBA albedo atlas beside its FBX
-    with every view inside its cell and a 1k RGBA normal atlas whose texels face their view (but the under 1 % the
-    brick's normal map tilts past it), and the impostor as its last LOD at the params' switch distance; a rebuild finds
+    with every view inside its cell and a 1k RGBA normal atlas whose texels face their view (the visible sides'
+    geometric normals), and the impostor as its last LOD at the params' switch distance; a rebuild finds
     the atlases up to date and writes identical bytes; a deleted atlas renders both again to the same bytes; params
     that stop asking remove them."""
     shutil.copytree(repo_root / "assets-src", tmp_path / "assets-src")
     for path in ("tools/assets/manifest.json", "unity/Assets/_Project/Art/ThirdParty/polyhaven/red_brick/red_brick_diff_1k.png",
-                 "unity/Assets/_Project/Art/ThirdParty/polyhaven/red_brick/red_brick_nor_gl_1k.png",
                  "unity/Assets/_Project/Art/Materials/brick_red_mask.png"):
         (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(repo_root / path, tmp_path / path)
@@ -147,8 +147,7 @@ def test_impostor_atlases_are_rendered_at_1k_once_and_removed_when_off(blender, 
     assert impostor.png_header(str(normals)) == (1024, 1024, 8, 6), "a 1k 8-bit RGBA normal atlas, occlusion in alpha"
     blue = Image.open(normals).getchannel("B").histogram()
     away = sum(blue[:127]) / sum(blue)
-    assert away < 0.01, (f"the visible side's normal faces its view's camera ({away:.2%} of the texels lean away: the "
-                         "brick's normal map tilts a few of its grazing faces past the view, as it does in Unity)")
+    assert away < 0.01, f"the visible side's normal faces its view's camera ({away:.2%} of the texels lean away)"
     data = json.loads((tmp_path / OUT / names[1]).read_text(encoding="utf-8"))
     last = data["lods"][-1]
     assert [lod["mesh"] for lod in data["lods"]] == ["K01_whole_LOD0", "K01_whole_LOD1", "K01_whole_impostor"]
@@ -174,32 +173,39 @@ def test_impostor_atlases_are_rendered_at_1k_once_and_removed_when_off(blender, 
     assert [lod["mesh"] for lod in data["lods"]] == ["K01_whole_LOD0", "K01_whole_LOD1"]
 
 
-def test_the_normal_atlas_tilts_a_card_as_unity_maps_its_normal_map(blender, tmp_path):
-    """p1-v01-locust task 1.2i: the normal atlas carries the slot's normal map as URP/Lit applies it. Two cards of one
-    upright plane facing +Z, u along +X and v along +Y, given one clockwise and one counter-clockwise (the generators'
-    winding is free), under a flat tangent-space normal (0.36, 0.48, 0.8): URP/Lit lights the front with
-    0.36 u + 0.48 v + 0.8 n and the leaf shader the back with its negation, and both cards read that in views 0 and 4
-    (front and back), each texel in its view's axes."""
+def test_the_normal_atlas_holds_the_geometric_normals_mean_and_its_length_their_spread(blender, tmp_path):
+    """p1-v01-locust task 1.2n: a texel of the normal atlas is the mean of the geometric normals under it,
+    unnormalised, so its length is their spread. Two cards side by side on an upright plane facing +Z: a flat one, and
+    one corrugated about +Y into strips 0.5 mm wide (about 8 to a texel) tilted +40 and -40 degrees in turn, the two
+    tilts covering equal shares of every view. In views 0 and 4 (front and back, a back face turned to the viewer) the
+    flat card's texel is the plane's normal in its view's axes, of length 1, and the corrugated card's the same
+    direction at length cos 40 = 0.766."""
     Image.new("RGBA", (8, 8), (255, 255, 255, 255)).save(tmp_path / "base.png")
-    tangent_space = (0.36, 0.48, 0.8)
-    Image.new("RGB", (8, 8), tuple(round((c + 1) / 2 * 255) for c in tangent_space)).save(tmp_path / "normal.png")
+    tilt, strip = math.radians(40.0), 0.0005
     mesh = Mesh()
-    for x0, order in ((-0.5, (0, 1, 2, 3)), (0.0, (3, 2, 1, 0))):
-        corners = [(x0, 0.0, 0.0), (x0 + 0.5, 0.0, 0.0), (x0 + 0.5, 1.0, 0.0), (x0, 1.0, 0.0)]
-        index = [mesh.vertex(c) for c in corners]
-        mesh.face([index[i] for i in order], (0.0, 0.0, 1.0), "leaf",
-                  [(corners[i][0] + 0.5, corners[i][1]) for i in order])
+    corners = [(-0.5, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 1.0, 0.0), (-0.5, 1.0, 0.0)]
+    mesh.face([mesh.vertex(c) for c in corners], (0.0, 0.0, 1.0), "leaf", [(c[0] + 0.5, c[1]) for c in corners])
+    strips = round(0.5 / strip)
+    for i in range(strips):
+        x0, x1 = i * strip, (i + 1) * strip
+        z0, z1 = (i % 2) * strip * math.tan(tilt), ((i + 1) % 2) * strip * math.tan(tilt)
+        outward = (math.sin(tilt) * (1 if i % 2 else -1), 0.0, math.cos(tilt))
+        quad = [(x0, 0.0, z0), (x1, 0.0, z1), (x1, 1.0, z1), (x0, 1.0, z0)]
+        mesh.face([mesh.vertex(c) for c in quad], outward, "leaf", [(c[0] + 0.5, c[1]) for c in quad])
     materials = {"leaf": {"visual": "card", "recipe": {}, "texture": str(tmp_path / "base.png"), "mask": None,
-                          "normal": str(tmp_path / "normal.png"), "tile_m": [1.0, 1.0], "tint": [1.0, 1.0, 1.0],
-                          "alpha": 1.0, "cutoff": 0.5}}
+                          "tile_m": [1.0, 1.0], "tint": [1.0, 1.0, 1.0], "alpha": 1.0, "cutoff": 0.5}}
     record = {"card": impostor.frame(mesh)}
+    (tmp_path / "mesh.json").write_text(json.dumps({"vertices": mesh.vertices, "faces": mesh.faces}), encoding="utf-8")
     driver = textwrap.dedent(f"""
-        import sys
+        import json, sys
         sys.path.insert(0, {build.HERE!r})
         from lib import impostor
         from lib.geometry import Mesh
+        with open({str(tmp_path / "mesh.json")!r}, encoding="utf-8") as f:
+            data = json.load(f)
         mesh = Mesh()
-        mesh.vertices, mesh.faces = {mesh.vertices!r}, {mesh.faces!r}
+        mesh.vertices = [tuple(v) for v in data["vertices"]]
+        mesh.faces = [(f[0], tuple(f[1]), [tuple(uv) for uv in f[2]], f[3]) for f in data["faces"]]
         impostor.render(mesh, {record!r}, {materials!r}, {str(tmp_path / "atlas.png")!r},
                         {str(tmp_path / "normals.png")!r})
         """)
@@ -209,15 +215,15 @@ def test_the_normal_atlas_tilts_a_card_as_unity_maps_its_normal_map(blender, tmp
     normals = Image.open(tmp_path / "normals.png").convert("RGB")
     n = len(mesh.vertices)
     for k, facing in ((0, 1.0), (4, -1.0)):
-        right, up, toward = impostor.basis(k)
-        # u, v and the outward normal are asset space's +X, +Y and +Z
-        expected = [facing * sum(t * a for t, a in zip(tangent_space, axis)) for axis in (right, up, toward)]
-        for card in (range(0, 4), range(4, 8)):
-            x = sum(vertices[k * n + i][0] for i in card) / 4
-            y = sum(vertices[k * n + i][1] for i in card) / 4
-            texel = normals.getpixel((int(x / side * impostor.SIZE_PX), int((1 - y / side) * impostor.SIZE_PX)))
-            got = [c / 255 * 2 - 1 for c in texel]
-            assert got == pytest.approx(expected, abs=0.03), f"view {k}, card {card}: {got} against {expected}"
+        plane = [facing * axis[2] for axis in impostor.basis(k)]  # +Z (its back: -Z) in the view's axes
+        for card, length in ((range(0, 4), 1.0), (range(4, n), math.cos(tilt))):
+            x = sum(vertices[k * n + i][0] for i in card) / len(card)
+            y = sum(vertices[k * n + i][1] for i in card) / len(card)
+            u, v = int(x / side * impostor.SIZE_PX), int((1 - y / side) * impostor.SIZE_PX)
+            block = [normals.getpixel((u + du, v + dv)) for du in range(-2, 3) for dv in range(-2, 3)]
+            got = [sum(texel[c] for texel in block) / len(block) / 255 * 2 - 1 for c in range(3)]
+            assert got == pytest.approx([length * c for c in plane], abs=0.02), \
+                f"view {k}, the {'flat' if length == 1.0 else 'corrugated'} card: {got} against {plane} at length {length:.3f}"
 
 
 def test_the_normal_atlas_alpha_holds_each_surfaces_occlusion(blender, tmp_path):
@@ -233,7 +239,7 @@ def test_the_normal_atlas_alpha_holds_each_surfaces_occlusion(blender, tmp_path)
         corners = [(x0, 0.0, 0.0), (x0 + 0.5, 0.0, 0.0), (x0 + 0.5, 1.0, 0.0), (x0, 1.0, 0.0)]
         mesh.face([mesh.vertex(c) for c in corners], (0.0, 0.0, 1.0), slot, [(c[0] + 0.5, c[1]) for c in corners])
         materials[slot] = {"visual": slot, "recipe": {}, "texture": str(tmp_path / "base.png"),
-                           "mask": str(tmp_path / f"{slot}_mask.png"), "normal": None, "tile_m": [1.0, 1.0],
+                           "mask": str(tmp_path / f"{slot}_mask.png"), "tile_m": [1.0, 1.0],
                            "tint": [1.0, 1.0, 1.0], "alpha": 1.0, "cutoff": 0.5 if slot == "leaf" else None}
     record = {"card": impostor.frame(mesh)}
     driver = textwrap.dedent(f"""

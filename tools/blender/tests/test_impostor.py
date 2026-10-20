@@ -138,8 +138,8 @@ def test_inputs_hash_follows_the_mesh_the_recipe_and_the_map(tmp_path):
     normal_map = tmp_path / "normal.png"
     normal_map.write_bytes(b"flat")
     mapped = copy.deepcopy(materials)
-    mapped["wood"]["normal"] = str(normal_map)  # the normal render reads it (task 1.2i)
-    assert impostor.inputs_sha256(mesh, record, mapped) != first
+    mapped["wood"]["normal"] = str(normal_map)  # the normal render reads the geometry, not a normal map (task 1.2n)
+    assert impostor.inputs_sha256(mesh, record, mapped) == first
     moved = copy.deepcopy(mesh)
     moved.vertices[0] = (0.0, 0.0, 0.001)
     assert impostor.inputs_sha256(moved, record, materials) != first
@@ -164,10 +164,7 @@ def test_slot_materials_pick_the_importers_base_maps(repo_root):
     assert got["leaf"]["cutoff"] == 0.5 and got["bark"]["cutoff"] is None
     assert got["bark"]["mask"].replace("\\", "/").endswith("Art/Materials/bark_locust_mask.png")  # its occlusion
     assert got["pod"]["mask"] is None  # no mask: URP/Lit's occlusion is 1
-    normals = {slot: m["normal"] and m["normal"].replace("\\", "/").rsplit("/", 1)[-1] for slot, m in got.items()}
-    assert normals == {"bark": "bark_brown_01_nor_gl_2k.png", "leaf": "LeafSet002_2K-PNG_NormalGL.png",
-                       "pod": None,  # painted: the importer gives it no normal map
-                       "stem": "bark_brown_02_nor_gl_1k.png"}
+    assert all("normal" not in m for m in got.values()), "the normal render reads no normal map (task 1.2n)"
     assert got["bark"]["tint"] == pytest.approx([impostor.gamma_to_linear(0.845), impostor.gamma_to_linear(0.928),
                                                  1.252 ** 2.2])
     assert got["bark"]["tile_m"] == [1.0, 1.0]
