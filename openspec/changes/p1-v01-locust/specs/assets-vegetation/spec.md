@@ -10,7 +10,7 @@ V01 and V13 SHALL each have autumn variants built from the same generators with 
 - **THEN** each also builds its `_autumn` variants with the autumn leaf material, and every audit and budget scenario of the summer variants holds for them
 
 #### Scenario: Matches H
-- **WHEN** a row of `V13_mid_autumn` clumps in front of `V01_M_autumn` trees is rendered at the H viewpoint (1–1.5 m high, 5–10 m out, overcast) and compared side by side with letter H (stills 1–21) in the local comparison sheet
+- **WHEN** the sheet's belt edge in its autumn state (two staggered rows of `V13_mid_autumn` 1.4 m apart in front of `V01_M_autumn` trees, `V13_tall_autumn` among their trunks; task 1.4 measured a single row 1.8 m apart at 21 % sky, which no belt edge in H shows) is rendered at the H viewpoint (1–1.5 m high, 5–10 m out, overcast) and compared side by side with letter H (stills 1–21) in the local comparison sheet
 - **THEN** the understory reads as a twiggy, part-bare wall with stems showing through, the foliage mixes green and yellow as H does, and the 1–2 m band shows no sky
 
 ### Requirement: V01 black locust belt tree
