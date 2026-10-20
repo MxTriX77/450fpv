@@ -13,6 +13,12 @@
       "variants": ["K01_whole"],
       "materials": { "brick": "brick_red" }
     },
+    "K07": {
+      "class": "debris",
+      "generator": "debris_car",
+      "variants": ["K07_lamp_bowl", "K07_bezel_ring", "K07_trim_plate", "K07_bead_wire"],
+      "materials": { "chrome": "chrome", "rust": "car_rust" }
+    },
     "L01": {
       "class": "lines",
       "generator": "pole",

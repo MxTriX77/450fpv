@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "id": "K07",
+  "variant": "K07_trim_plate",
+  "generator": "debris_car",
+  "params_sha256": "ed8a4a982d1d47f1a2dcd21922c038b1823e4220b3ae22c089d5f2de031e858d",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -0.175,
+      2e-05,
+      -0.1
+    ],
+    "max": [
+      0.175,
+      0.011,
+      0.1
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "K07_trim_plate_LOD0",
+      "tris": 516,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "K07_trim_plate_LOD1",
+      "tris": 24,
+      "switch_distance_m": 8.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 165.0,
+  "materials": [
+    {
+      "slot": "chrome",
+      "visual": "chrome",
+      "physics": "steel"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.0055,
+        0.0
+      ],
+      "size": [
+        0.35,
+        0.011,
+        0.2
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "snag": [
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.175,
+          0.0005,
+          -0.1
+        ],
+        [
+          0.175,
+          0.0005,
+          -0.1
+        ],
+        [
+          0.175,
+          0.0005,
+          0.1
+        ],
+        [
+          -0.175,
+          0.0005,
+          0.1
+        ],
+        [
+          -0.175,
+          0.0005,
+          -0.1
+        ]
+      ],
+      "radius_m": 0.0005
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "piece": "trim_plate",
+  "seed": 1,
+  "diameter_m": 0.0,
+  "section_m": 0.001,
+  "length_m": 0.35,
+  "width_m": 0.2,
+  "bend_m": 0.01,
+  "physics_material": "steel",
+  "lod": { "lod1_switch_m": 8.0, "cull_m": 165.0 }
+}
