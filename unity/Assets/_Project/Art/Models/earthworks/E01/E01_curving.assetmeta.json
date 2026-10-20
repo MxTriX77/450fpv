@@ -50,8 +50,8 @@
       "lod": 0,
       "name": "E01_curving_LOD0_mat",
       "kind": "mat",
-      "count": 60144,
-      "tris": 369900
+      "count": 63109,
+      "tris": 405480
     }
   ],
   "cull_distance_m": 400.0,

@@ -182,18 +182,19 @@ SWATHE_M, SWATHE_DEG = 1.2, 45.0  # on the level, the lodging azimuth turned by 
                           # lattice (S04's swathes, carried)
 MAT_FEATHER_M = 0.5       # past the parapets' outer toe the mat thins to none over this (task 1.5's feather, carried)
 MAT_LIP_CLEAR_M = 0.01    # a mat straw stays this far off the cut's opening; the lip's own straws hang over it
-LIP_STRAWS_PER_M = 100.0  # straws laid over the lip per metre of it, before the clusters thin them (assumed: G 3, 6, 9's
+LIP_STRAWS_PER_M = 240.0  # straws laid over the lip per metre of it, before the clusters thin them (assumed: G 3, 6, 9's
                           # grass is thick where it hangs over; S04's step outlines take 30 a metre)
 LIP_CLUSTER_M = 0.25      # they hang in clusters: a value noise along the lip on this lattice (assumed, G 3, 6, 9: the
                           # lips broken every 0.1-0.3 m, task 1.2)
 LIP_BARE_LEVEL = 0.0      # below this noise the lip is bare, its dark soil showing under the mat's edge (assumed, G 3, 6, 9)
 LIP_THICKEN = 0.6         # the straws thicken from none to the full density over this much noise above it
 LIP_ROOT_M = (0.05, 0.3)  # a lip straw's root rests on the berm this far behind the lip (assumed)
-LIP_OVER_M = (0.0, 0.03)  # it crosses the lip this far past it (assumed; inside the 141 mm a side at the lip, S2)
+LIP_OVER_M = (0.0, 0.06)  # it reaches out over the lip this far past it before it droops (assumed from G 3, 6, 9: the
+                          # grass juts over the edge; its tip stays 0.29 m off the centre line, past the drone's 0.287 m)
 LIP_RISE_M = (0.004, 0.03)  # this high over it, clear of the soil's corner (assumed)
 LIP_HANG_M = (0.03, 0.25)  # its tip hangs this far down the wall, the long ones rarer (the square of a uniform draw)
                           # (assumed from G 3, 6: the wall's top hidden in places)
-LIP_OFF_WALL_M = (0.005, 0.04)  # its tip this far off the wall
+LIP_OFF_WALL_M = (0.005, 0.03)  # its tip this far off the wall
 LIP_DRIFT = 0.4           # its tip drifts along the lip by up to this share of its hang, so the hanging straws cross
 LIP_SHADE = -0.2          # its palette v shifts by this: the mat's lower straws bent over the edge, never a pale comb
 LIP_SPREAD_DEG = 35.0     # a lip straw lies within this of square across the lip (S04's LIP_SPREAD_DEG, carried)
