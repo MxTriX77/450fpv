@@ -739,12 +739,34 @@ namespace Fpv450
                          $"QUALITY {quality}",
                          $"GPU {gpu}",
                      })
-            {
-                panel.Text(24, y, line, 3, White);
-                y += step;
-            }
+                foreach (string row in Wrap(line, (Tile - 48) / ReviewCanvas.TextWidth("X", 3)))
+                {
+                    panel.Text(24, y, row, 3, White);
+                    y += step;
+                }
             panel.Outline(0, 0, Tile, Tile, Frame, 2);
             return panel;
+        }
+
+        /// <summary>
+        /// A legend line broken after its commas into rows of at most <paramref name="columns"/> characters, each
+        /// following row indented (an item longer than that stays whole), so a variant's every slot material and LOD
+        /// shows: an autumn variant's leaf material fell past the panel's edge (p1-v01-locust task 1.4).
+        /// </summary>
+        internal static IEnumerable<string> Wrap(string line, int columns)
+        {
+            string row = "";
+            foreach (string item in line.Split(new[] { ", " }, StringSplitOptions.None))
+            {
+                if (row.Length > 0 && row.Length + 2 + item.Length > columns)
+                {
+                    yield return row + ",";
+                    row = "  " + item;
+                }
+                else
+                    row = row.Length == 0 ? item : $"{row}, {item}";
+            }
+            yield return row;
         }
 
         static string Kinds(List<ReviewMeta.Shape> shapes) =>

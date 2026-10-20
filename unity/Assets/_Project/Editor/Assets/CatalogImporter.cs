@@ -13,7 +13,9 @@ namespace Fpv450.Assets
 {
     /// <summary>
     /// Catalog plus metadata to prefab (setup-asset-pipeline, design decision 8). For every variant of an asset id:
-    /// the URP materials from <c>assets-src/materials/&lt;visual&gt;.json</c>, assigned by the FBX's slot names; the
+    /// the URP materials from <c>assets-src/materials/&lt;visual&gt;.json</c>, assigned by the FBX's slot names, each
+    /// slot's visual the catalog's for that variant (<see cref="Visuals"/>: its <c>variant_materials</c> first, then the
+    /// asset's <c>materials</c>), which the metadata must name too or the import stops, asking for the Blender build; the
     /// prefab under <c>Prefabs/&lt;class&gt;/&lt;variant&gt;.prefab</c> with a LODGroup over the FBX's LOD meshes,
     /// colliders from the metadata primitives and an <see cref="AssetPhysicsMeta"/> filled from the
     /// <c>.assetmeta.json</c>. Idempotent: with unchanged inputs a second run changes no file.
@@ -95,11 +97,17 @@ namespace Fpv450.Assets
 
                 EnsureModelImport(fbxPath);
                 var metaJson = Json.Obj(Json.Parse(File.ReadAllText(FullPath(metaPath))), metaPath);
+                Dictionary<string, string> visuals = Visuals(entry, variant, $"{CatalogFile} {id}");
                 var materialBySlot = new Dictionary<string, Material>();
                 foreach (object slotValue in Json.Arr(metaJson, "materials", metaPath))
                 {
                     var slot = Json.Obj(slotValue, $"{metaPath} materials");
-                    materialBySlot[Json.Str(slot, "slot", metaPath)] = EnsureMaterial(Json.Str(slot, "visual", metaPath), manifest);
+                    string slotName = Json.Str(slot, "slot", metaPath), visual = Json.Str(slot, "visual", metaPath);
+                    if (!visuals.TryGetValue(slotName, out string expected))
+                        throw new FormatException($"{metaPath}: slot \"{slotName}\" has no material in {CatalogFile} {id}");
+                    if (visual != expected)
+                        throw new FormatException($"{metaPath}: slot \"{slotName}\" is {visual}, but {CatalogFile} gives {variant} {expected}: run the Blender build");
+                    materialBySlot[slotName] = EnsureMaterial(expected, manifest);
                 }
 
                 string prefabPath = $"{PrefabsFolder}/{assetClass}/{variant}.prefab";
@@ -129,6 +137,42 @@ namespace Fpv450.Assets
             if ((int)Json.Num(catalog, "schema", CatalogFile) != 1)
                 throw new NotSupportedException($"{CatalogFile}: schema {catalog["schema"]}; this importer reads schema 1");
             return Json.Obj(catalog, "assets", CatalogFile);
+        }
+
+        /// <summary>
+        /// The visual material per slot of one variant (asset-pipeline "Per-variant material overrides", p1-v01-locust
+        /// design decision 7): the entry's <c>materials</c>, each slot that <c>variant_materials[variant]</c> names
+        /// taking that material instead. Refuses an override of a variant the entry does not list or of a slot its
+        /// <c>materials</c> do not map, for any variant. Internal for the EditMode tests, which pass a throwaway entry.
+        /// </summary>
+        internal static Dictionary<string, string> Visuals(Dictionary<string, object> entry, string variant, string what)
+        {
+            var visuals = Json.Obj(entry, "materials", what).ToDictionary(kv => kv.Key,
+                kv => kv.Value as string ?? throw new FormatException($"{what}: materials.{kv.Key} must be a material name"));
+            if (!entry.TryGetValue("variant_materials", out object overridesValue))
+                return visuals;
+            List<object> variants = Json.Arr(entry, "variants", what);
+            Dictionary<string, string> own = null;
+            foreach (KeyValuePair<string, object> overrides in Json.Obj(overridesValue, $"{what} variant_materials"))
+            {
+                if (!variants.Contains(overrides.Key))
+                    throw new FormatException($"{what}: variant_materials names {overrides.Key}, which is not one of its variants");
+                var slots = new Dictionary<string, string>();
+                foreach (KeyValuePair<string, object> slot in Json.Obj(overrides.Value, $"{what} variant_materials.{overrides.Key}"))
+                {
+                    if (!visuals.ContainsKey(slot.Key))
+                        throw new FormatException($"{what}: variant_materials.{overrides.Key} names slot \"{slot.Key}\", which its materials do not map");
+                    slots[slot.Key] = slot.Value as string is { Length: > 0 } name
+                        ? name
+                        : throw new FormatException($"{what}: variant_materials.{overrides.Key}.{slot.Key} must be a material name");
+                }
+                if (overrides.Key == variant)
+                    own = slots;
+            }
+            if (own != null)
+                foreach (KeyValuePair<string, string> slot in own)
+                    visuals[slot.Key] = slot.Value;
+            return visuals;
         }
 
         static void EnsureFolder(string assetFolder)

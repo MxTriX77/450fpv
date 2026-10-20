@@ -19,6 +19,22 @@ namespace Fpv450.Tests.EditMode
     {
         const string BrickMaterialPath = "Assets/_Project/Art/Materials/brick_red.mat";
 
+        /// <summary>
+        /// asset-pipeline "Per-variant material overrides": the review capture shows a variant's materials, so a legend
+        /// line longer than the panel breaks after its commas and keeps every slot (p1-v01-locust task 1.4).
+        /// </summary>
+        [Test]
+        public void Legend_BreaksALongLineAfterItsCommasAndKeepsEverySlot()
+        {
+            const string line = "MATERIALS bark > bark_locust / bark, twig > bark_locust / twig, leaf > leaf_locust_autumn / twig, pod > pod_locust / twig";
+            string[] rows = System.Linq.Enumerable.ToArray(Review.Wrap(line, 54));
+            Assert.That(rows.Length, Is.GreaterThan(1));
+            Assert.That(rows, Has.All.Length.LessThanOrEqualTo(54));
+            Assert.That(string.Join(" ", rows).Replace(",   ", ", "), Is.EqualTo(line));
+            Assert.That(rows, Has.Some.Contains("leaf > leaf_locust_autumn / twig"));
+            Assert.That(Review.Wrap("BOUNDS 1 X 2 X 3 M", 54), Is.EqualTo(new[] { "BOUNDS 1 X 2 X 3 M" }));
+        }
+
         [Test]
         public void RequireRenderable_NamesTheMissingMeshAndTexture()
         {
