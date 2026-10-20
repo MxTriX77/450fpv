@@ -146,7 +146,7 @@ Outputs: LOD0 with hooks, insulators and bands; LOD1 the pole, stub, brace and c
 
 ## L01 Wooden pole
 
-**Seen in:** L 1–3 (a pole silhouette leaning about 9° with a short crossarm near the top; its material can't be read at night). H's pole reads as concrete and is L02's. J shows no pole, only a drop from one out of frame. S 33: a thin dark wooden pole at the street edge of the green, beside a concrete one (wood mixed with L02 on one street, as placed below). S 20–22: a pale pole leaning about 10° at the street's near verge with a dark stub or band at its foot (variant 3 on a stub, or concrete: not readable from 12 m). **R** for the construction.
+**Seen in:** L 1–3 (a pole silhouette leaning about 9° with a short crossarm near the top; its material can't be read at night). H's pole reads as concrete and is L02's. J shows no pole, only a drop from one out of frame. S 33: a thin dark wooden pole set back on the green beside the end of a flattened fence, near a concrete lamp pole at the road edge (wood mixed with L02 on one street, as placed below). S 20–22: a pale pole leaning about 10° at the street's near verge with a dark stub or band at its foot (variant 3 on a stub, or concrete: not readable from 12 m). **R** for the construction.
 **Research sources:** pole types and braces (Ukrainian ПУЕ cl. 2.4.45–2.4.47, https://dnaop.com/html/41440_3.html ); reinforced-concrete stubs for wooden poles exist as standard products of the ПТ series (published listing, https://satu.kz/Pt-43.html ); pin insulator ТФ-20 108 mm high, 75 mm across (published table, https://dnaop.com/html/54346_2.html ).
 
 ### Dimensions
@@ -196,8 +196,8 @@ Fragments gouge the log on the blast side; a near miss snaps a dry log at the gr
 - **Landable surfaces:** none (a 0.16 m top).
 
 ### Placement rules
-- Street lines: one side of the street, 0.5–1.5 m in from the road edge or along the fence line, every 30–45 m; brace or guy at every angle and at the line ends; a service drop from each pole or every other pole to the houses on both sides.
-  - **S conflicts with this rule (the typical village, D-038):** S measures the street line 3–5 m from the road edge and 3–5 m in front of the fence, in the house-side verge (derived S 46–47, terrain.md §12.3), with a few poles on the other side where the street passes a green (S 33, 42), as L02 ("Position across the street") and RD01 (placement) now give. L01 as merged stays as built; the difference is routed in `openspec/changes/p1-letter-s-village-street/implications.md` (L01), and until it is settled the typical village places its line as S.
+- Street lines, the typical village (D-038, letter S): in the house-side verge, 3–5 m from the road edge and 3–5 m in front of the fence line (derived S 46–47, terrain.md §12.3); where the street passes an open green, a few poles stand on the other side too (a lamp pole at the road edge, S 33; a thin pole in the verge, S 42); every 30–45 m; brace or guy at every angle and at the line ends; a service drop from each pole or every other pole to the houses on both sides.
+- Side streets and lanes (no letter shows them): one side, 0.5–1.5 m in from the road edge or along the fence line. L01 as merged carries no placement parameter, so the rule is the world-builder's (phase 3).
 - Wood is the older class: on side streets, lanes and field edges; mixed with L02 along the main street (about one wooden pole in three, assumed).
 - Field lines: in a row along a belt edge or a field road, 40–60 m apart, often leaning (L).
 - Night landmarks: keep at least one pole on a skyline crest near each start point and along each field road (L): a pole is one of the few silhouettes readable at night.

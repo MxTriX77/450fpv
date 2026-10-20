@@ -189,12 +189,15 @@ One generator builds the trench along a map polyline; E02 and E03 are its parame
 | `shape` | enum | straight, zigzag, curving | curving | how the axis is rebuilt between the path points (E01 variants) |
 | `leg_m` | float | 1.5–5 | 3 | zigzag leg length |
 | `turn_deg` | float | 30–90 | 60 | zigzag turn at each corner |
-| `sinuosity` | amplitude, wavelength | 0–2 m, 3–15 m | 0.6 m, 8 m | the curving variant's wander |
+| `bend_deg` | float | 15–40 | 35 | the curving variant's bend at each corner (G) |
+| `bend_every_m` | float | 3–8 | 5 | the distance between bends (G) |
+| `bend_radius_m` | float | 2–6 | 3.7 | each bend's arc radius, read by eye on G 1–12 (E01 task 1.5); under 3.7 m the inner parapet's boxes need rework |
+| `leg_jitter_m` | float | 0–1.5 | 0.75 | seeded jitter of each leg's length (E01 task 1.5) |
 | `top_width_m` | float | 0.6–1.2 | 0.8 | lip to lip (the cut, before any revetment) |
 | `bottom_width_m` | float | 0.5–1.0 | 0.6 | the floor |
 | `depth_m` | float | 1.2–2.0 | 1.5 | below the lip |
 | `width_jitter_m` | float | 0–0.15 | 0.05 | spade-dug irregularity along the run, drawn per metre |
-| `berm_m` | float | 0.2–0.6 | 0.3 | lip to the parapet's inner toe; never less than the hole margin |
+| `berm_m` | float | 0.2–0.6 | 0.3 | lip to the parapet's inner toe; a look value: the asset draws its own ground over the hole cells (the shared rules' band margin) |
 | `parapet_h_m` | per side | 0–0.6 | 0.45 field side, 0.3 belt side | parapet height |
 | `parapet_w_m` | per side | 1–3.5 | from the spoil volume | parapet base width; derived from `swell` unless set |
 | `swell` | float | 1.1–1.4 | 1.25 | loose spoil volume per cut volume |
