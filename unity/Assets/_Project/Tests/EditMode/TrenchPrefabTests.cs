@@ -11,7 +11,7 @@ namespace Fpv450.Tests.EditMode
     /// clods are ground"): the metadata component exposes the run's hole first and one per niche, a collider stands for
     /// every primitive, the cut's are not landable and the parapets' and margins' are, no wind volume, no snag; the
     /// trench_wall material tiles its wall-space strip, the grassed_spoil cover spans the patch (task 1.4), and the
-    /// lodged mat and the floor's straws draw on LOD0 and LOD1 without a collider (task 1.6). Needs a
+    /// lodged mat and the floor's straws draw on LOD0 alone without a collider (task 1.6). Needs a
     /// prior <c>pwsh tools/build_asset.ps1 E01</c>.
     /// </summary>
     public sealed class TrenchPrefabTests

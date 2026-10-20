@@ -176,7 +176,7 @@ Branch `unity/art/p1-e01-trench` off `unity/main` once `p1-l01-l03-pole-wires` i
       - `path` → the run from `shape`, `run_m` and the bends (the map's polyline in phase 3)
       - `shape` = `shape`; `leg_m`, `turn_deg` → zigzag, refused
       - `sinuosity` → `bend_deg`, `bend_every_m`, `bend_radius_m`, `leg_jitter_m`
-      - `top_width_m` → `top_w_m`; `bottom_width_m` → `bottom_w_m`
+      - `top_width_m` → `top_w_m`, the sheet's 0.6–1.2 m against the built 0.6–1.0 m (`check` also holds the widest lip to the trench_wall strip's 1.2 m end slot); `bottom_width_m` → `bottom_w_m`, 0.5–1.0 m against 0.5–0.8 m (the strip's 0.8 m floor row)
       - `depth_m`, `width_jitter_m`, `berm_m`, `age`, `topsoil_m`, `revetment`, `collapse`, `overgrowth`, `seed` the same
       - `parapet_h_m` → `parapet_h_m.field` / `.belt`; `parapet_w_m` → `parapet_base_m` (one for both sides)
       - `swell` → the constant `SWELL` 1.25 that `check` holds within 30 %
@@ -211,7 +211,41 @@ Branch `unity/art/p1-e01-trench` off `unity/main` once `p1-l01-l03-pole-wires` i
     - `python -m pytest tools -q`: 833 passed. New tests cover the slots, the mouths, the jitter, the berm's boxes, a short joint failing the build, `_Near`, the mat's reach and corridor, the bake's budget, a cover's relief tone and its refusals.
     - `fetch.py --verify` OK; the hygiene scan 0 findings; `openspec validate p1-e01-trench --strict` valid.
 
-- [ ] 1.7 [asset-artist] QA's re-check R3 and its S13, S15 (`review.md`, "Re-check of task 1.6"): past each run end the berm wraps round as level grassed ground but its collision top is the end block's `belt_bare` (3.73 m² with `belt_bare` as the only top, 3.22 m² of it inside the band, and 7.86 m² where the end block's top ties the margin columns' `belt_straw` tops within 0.5 mm); give that ground the berm's treatment (0.3 m `surface:belt_straw` landable boxes over a lowered end block, F-3 kept at the band's edge) so every top a contact can meet there is the one surface the look shows, with no two tops level-tied; S13: the joint-overlap check runs whether or not the generator reports its joints (for every asset with `holes`); S15: the stale text QA lists; verify a test that no point of the patch's top has `belt_bare` as its uppermost collision outside the cut and that no two collision tops tie within 1 mm, `pwsh tools/build_asset.ps1 E01` twice byte-identical with the F-1…F-8 lines, the EditMode run, `python -m pytest tools -q`, the hygiene scan, `openspec validate p1-e01-trench --strict`
+- [x] 1.7 [asset-artist] QA's re-check R3 and its S13, S15 (`review.md`, "Re-check of task 1.6"): past each run end the berm wraps round as level grassed ground but its collision top is the end block's `belt_bare` (3.73 m² with `belt_bare` as the only top, 3.22 m² of it inside the band, and 7.86 m² where the end block's top ties the margin columns' `belt_straw` tops within 0.5 mm); give that ground the berm's treatment (0.3 m `surface:belt_straw` landable boxes over a lowered end block, F-3 kept at the band's edge) so every top a contact can meet there is the one surface the look shows, with no two tops level-tied; S13: the joint-overlap check runs whether or not the generator reports its joints (for every asset with `holes`); S15: the stale text QA lists; verify a test that no point of the patch's top has `belt_bare` as its uppermost collision outside the cut and that no two collision tops tie within 1 mm, `pwsh tools/build_asset.ps1 E01` twice byte-identical with the F-1…F-8 lines, the EditMode run, `python -m pytest tools -q`, the hygiene scan, `openspec validate p1-e01-trench --strict`
+  **As built:**
+  - **R3, past each run end** (design 4): the berm turns round the end as level grassed ground, and now has the berm's boxes.
+    - The end block's top drops to −0.3 m under a 0.3 m end berm box (`surface:belt_straw`, landable) over the block's whole footprint: 1.925 m past the end, out to each side's backing.
+    - **F-3's ring:** round the band's end, 8 filler boxes (22.5° each, 0.3 m across inward from the band's edge, 0.3 m tall) top 25 mm under the berm box (`RING_DROP_M`, assumed: inside F-3's 30 mm with 5 mm to spare). F-3 reads them: "within 25.0 mm" (it read 0.0 mm off the old end block's top).
+  - **The same tie along the sides, found by the same map:**
+    - **At the parapets' toes,** the lip box beyond the toe topped at y = 0 where the slope starts. It now starts 5 cm inside the berm box's reach (`BERM_SEAM_M`), where the slope already stands 4 cm over it.
+    - **At the lips,** the walls' boxes topped level with the berm, a corner 0.8 mm proud of it (F-4's 0.0008 m). The walls', end walls' and niche walls' boxes now top 3 mm under the lip (`LIP_DROP_M`); the berm box's face on the lip line carries the face's top 3 mm within 0.4 mm. F-4 now reads 0.0000 m.
+    - Without this, a 2 cm strip excluded along the lips still left ties beyond it: an end wall's box reaches 0.1 m past the side lips onto the berm.
+  - **The top-surface map** (QA's, on a grid over the whole patch, at every point outside the opening: the highest collision top, and any shape of another surface topping within 1 mm of it):
+
+    | | `belt_bare` the top | another surface within 1 mm |
+    |---|---|---|
+    | before (`92fbab5`), 5 cm grid | 1 527 points, 3.82 m² (3.76 m² past the ends) | 3 410 points, 8.53 m² |
+    | now, 5 cm grid (184 847 points, 462.1 m²) | 0 | 0 |
+    | now, 1 cm grid (4 621 186 points) | 0 | 0 |
+
+    The test `test_the_top_outside_the_cut_is_grassed_ground` holds the 5 cm grid: every top a contact meets first is a landable `belt_straw` shape's, with 10.2 m² sampled past each end. Tops of the same surface still meet at seams (the columns' 5 cm, the joints' 0.2 m overlaps); tops under the highest are not tested.
+  - **S13:** `lib/holes` counts a joint at every interior point of the holes' centre lines (48 for E01). A generator that reports none, or misses one, fails the build on "F-5 overlap" (test).
+  - **S15:**
+    - design 10's params (`bend_deg` 35, `bend_radius_m` 3.7, `leg_jitter_m` 0.75) and the risks' 76 px/m
+    - the generator's docstring: `grassed_spoil` now takes this relief's tone
+    - `TrenchPrefabTests`' summary: the mat draws on LOD0 alone
+    - task 1.6's names list: the sheet's width ranges against the built ones
+    - the run's ends: the test above
+  - **Collision:** 831 shapes (813 before): 383 `belt_bare` fillers, 424 `belt_straw` landable, 24 `crater_spoil`. The FBX is unchanged (`ec11183a…`); the metadata and the prefab changed.
+  - **Not changed:** the mesh, the mat, the maps, the gaps and the holes. The review sheets show the same look.
+  - **Build:** two runs byte-identical (the metadata, the prefab, the FBX and both review sheets); the second left `git status` as the first had; 963 audit, hole and joint lines identical.
+    - F-1: 42 388 rays, 0 miss. F-2: the least 0.6500 m. F-3: within 25.0 mm (the ring). F-4: 0.0000 m.
+    - F-5: 383 fillers at least 0.300 m; 48 joints at 0.200 m.
+    - F-6: 832 lines, 0 problems; worst 38.8 mm (tolerance 50), 16.1 mm in the 2 cm zone (tolerance 20).
+    - F-7: 383 `belt_bare`, 424 `belt_straw` landable, 24 `crater_spoil`. F-8: 0 wind volumes.
+    - Gaps: 48 cross-sections, 21 slots and 2 mouths, each on the audit's circle.
+    - Both captures ran on AC on the RTX 4050.
+  - **Verified:** EditMode 55 of 55; `python -m pytest tools -q`: 835 passed; `fetch.py --verify` OK; the hygiene scan 0 findings; `openspec validate p1-e01-trench --strict` valid.
 
 ## 2. Review
 

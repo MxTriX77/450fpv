@@ -38,11 +38,12 @@ a ridge along its own centre polyline (the run's offset to the middle of its bas
 parapet_slope_deg from the inner toe (top_w_m / 2 + berm_m out) to its height and falls the same way to its outer toe
 parapet_base_m out, ending in a cone round each end of the run (the cross-section turned about the ridge's end); plus
 S04's tussock relief (lib.mat, RELIEF_M) faded in over the parapets at RELIEF_PARAPET of it and in full past them, none
-on the berm. The top takes the ground slot (grassed_spoil: a cover with no bare patch, green strip or relief tone, which
-here would be stains with no relief under them) with UVs in metres from the patch's centre, u = x - its x and v = z - its
-z, so that recipe's map, GROUND_MAP_M across and centred on the UVs' origin, is laid once over the whole patch, never
-wrapped (check: the patch fits it); the block's sides and bottom the section slot (the wall map, a soil section). Every
-cut face takes the wall slot (trench_wall) with UVs on lib.strip's strip. LOD0 adds the clods (low sphere caps,
+on the berm. The top takes the ground slot (grassed_spoil: a cover with no bare patch or green strip, which here would
+be stains with no relief under them, its tone darkening the hollows of this relief, relief_inputs) with UVs in metres
+from the patch's centre, u = x - its x and v = z - its z, so that recipe's map, GROUND_MAP_M across and centred on the
+UVs' origin, is laid once over the whole patch, never wrapped (check: the patch fits it); the block's sides and bottom
+the section slot (the wall map, a soil section). Every cut face takes the wall slot (trench_wall) with UVs on
+lib.strip's strip. LOD0 adds the clods (low sphere caps,
 clods_per_m, in the clod slot, UV'd to the wall's own soil at the depth each fell from) and, as its visual-only micro
 meshes in lib.straw's kit, straws and twigs blown onto the floor at FLOOR_STRAW of S04's densities and the lodged mat
 of the berm, the parapets and the lips (_mat, task 1.6); LOD1 is LOD0 without them, from lod1_switch_m off the LOD
