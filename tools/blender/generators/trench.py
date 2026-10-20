@@ -55,18 +55,23 @@ Collision (design 4, the hole contract F-1...F-8), in this order: per segment th
 and the level boxes by the lip (_lip_boxes: under the berm the lip box and over it the berm's box, then the lip box
 beyond the parapet's toe; on a niche's segment the belt wall below the sill and above the ceiling, those level boxes
 above the niche and the lip box below it, then the niche's sill, ceiling, back and side boxes and the lip box's middle
-behind and beside it); then the two end walls and the two end blocks; then the parapets (per straight stretch or arc
-piece and side: inner slope, crest, outer slope; then per parapet end CAP_SECTORS cone sectors and a crest
-cylinder); then the margin columns; then the clods. Every cut shape (floor, walls, lips, ends, niches) is
-surface:belt_bare, not landable, at least FILLER_M thick, its open face on the visual; a box along a segment reaches
-past each of its joints so that every corner of its end face stands OVERLAP_M past the joint's mitre plane (_span), so
-neighbours overlap 0.2 m on every line across the joint, the wedge on a bend's outside included (lib.holes holds the
-joints to 0.2 m). The lip boxes are level and reach from the lip down to the block's bottom and out to BACKING_M past
-every band's edge (F-1: a cell marked by touch reaches 0.71 m past a band): they are the backing as well; under the
-berm their top is BERM_BOX_M down, under the berm's box, and beyond the toe it is y = 0, under the parapet (F-3);
-nothing of the cut stands above y = 0 (F-4). The berm's boxes (S4: the berm is grassed ground), the parapets, their
-caps and the margins are surface:belt_straw, landable. The clods are surface:crater_spoil spheres, not landable,
-each under its own cap of a mesh. No wind volume (F-8), no snag.
+behind and beside it); then the two end walls, and per run end its end block, the end's berm box and F-3's ring of
+RING_SECTORS boxes; then the parapets (per straight stretch or arc piece and side: inner slope, crest, outer slope;
+then per parapet end CAP_SECTORS cone sectors and a crest cylinder); then the margin columns; then the clods. Every
+cut shape (floor, walls, lips, ends, niches, rings) is surface:belt_bare, not landable, at least FILLER_M thick, its
+open face on the visual; a box along a segment reaches past each of its joints so that every corner of its end face
+stands OVERLAP_M past the joint's mitre plane (_span), so neighbours overlap 0.2 m on every line across the joint, the
+wedge on a bend's outside included (lib.holes holds the joints to 0.2 m). The walls' and end walls' boxes top
+LIP_DROP_M under the lip. The lip boxes are level and reach from the lip down to the block's bottom and out to
+BACKING_M past every band's edge (F-1: a cell marked by touch reaches 0.71 m past a band): they are the backing as
+well; under the berm their top is BERM_BOX_M down, under the berm's box, and beyond the toe, from BERM_SEAM_M inside
+the berm box's reach, it is y = 0, under the parapet's slope (F-3). Past each run end the berm turns round it as level
+grassed ground (task 1.7, R3): the end block's top is BERM_BOX_M down under the end's berm box, and round the band's
+end F-3's ring tops RING_DROP_M under that box, inside F-3's tolerance; so outside the cut every top a contact meets
+first is surface:belt_straw, never level with a belt_bare one. Nothing of the cut stands above y = 0 (F-4). The berm's
+boxes (S4: the berm is grassed ground), the end's, the parapets, their caps and the margins are surface:belt_straw,
+landable. The clods are surface:crater_spoil spheres, not landable, each under its own cap of a mesh. No wind volume
+(F-8), no snag.
 
 Gaps (design 5): at every interior sample the clear cross-section from the floor to the lips in the mitre plane,
 `xs_<chainage>`; the open top in slots of about a metre at y = 0 (_slot_stretches, R2), `slot_<chainage of its
@@ -117,6 +122,16 @@ BACKING_M = 0.75          # settled: the lip boxes reach this past every band's 
 BERM_BOX_M = FILLER_M     # S4: the berm's box of grassed ground, this thick under its top (F-5, carried)
 BERM_OVER_M = 0.15        # the berm's boxes reach this past the parapet's inner toe, under its slope (assumed: at least
                           # FILLER_M wide with the widest lip, 0.7 - 0.525 + 0.15 = 0.325 m)
+BERM_SEAM_M = 0.05        # task 1.7: the lip box beyond the toe starts this far inside the berm's boxes' reach, where the
+                          # slope already stands (BERM_OVER_M - BERM_SEAM_M) tan(slope) over its level top (4 cm at 22
+                          # degrees): no belt_bare top level with the berm's or the slope's at the toe
+RING_SECTORS = 8          # task 1.7 (R3): F-3's ring round each end of the run's band, in sectors of 22.5 degrees (each
+                          # at least FILLER_M along the ring: 16 sectors would be 0.23 m)
+RING_DROP_M = 0.025       # the ring's top this far under the grassed ground past the run's ends (assumed: inside F-3's
+                          # 30 mm with 5 mm to spare, so the end's berm box is the top a contact meets, never tied with it)
+LIP_DROP_M = 0.003        # task 1.7: a cut face's box (walls, end walls) tops this far under the lip, so its top never
+                          # lies level with the berm's boxes or stands on the lip (a wall's twist stood its corner 0.8 mm
+                          # proud); the berm box's face on the lip line carries the face's top 3 mm within 0.4 mm
 PARAPET_T_M = 0.5         # a slope box's thickness under its face: its bottom stays under y = 0 below a 0.45 m crest
 CREST_DOWN_M = 0.3        # a crest box reaches this below y = 0
 CAP_SECTORS = 16          # a parapet's end cone in sectors of 11.25 degrees: a sector box's corner stands at most 25 mm
@@ -330,9 +345,9 @@ def check(params):
         problems.append(f"bends of {params['bend_deg']} +- {BEND_JITTER_DEG} degrees on a {radius} m radius do "
                         f"not fit legs of {params['bend_every_m']} +- {jitter} m")
     niche = params["niche_m"]
-    if SILL_M + niche["h"] > depth - FILLER_M:
+    if SILL_M + niche["h"] > depth - FILLER_M - LIP_DROP_M:
         problems.append(f"a niche's top ({SILL_M + niche['h']:.2f} m above the floor) leaves under {FILLER_M} m of wall "
-                        f"to the lip")
+                        f"to {LIP_DROP_M * 1000:g} mm under the lip")
     lod = params["lod"]
     if not lod["lod1_switch_m"] < lod["lod2_switch_m"] < lod["cull_m"]:
         problems.append("'lod.lod1_switch_m' < 'lod.lod2_switch_m' < 'lod.cull_m' must hold")
@@ -1346,7 +1361,7 @@ def _collision(run, clods):
     for j in (0, run.n):
         shapes.append(_end_wall(run, j))
     for j in (0, run.n):
-        shapes.append(_end_block(run, j))
+        shapes += _end_block(run, j)
     shapes += _parapets(run)
     shapes += _caps(run)
     shapes += _columns(run)
@@ -1406,7 +1421,7 @@ def _rotate(q, v):
 
 def _wall_box(run, i, side):
     """A wall's box: its face the best plane of the wall's quad (a crumbled lip twists it by under a centimetre),
-    FILLER_M into the soil, from WALL_DOWN_M under the floor to the lip, past both joints (_span)."""
+    FILLER_M into the soil, from WALL_DOWN_M under the floor to LIP_DROP_M under the lip, past both joints (_span)."""
     lip0, lip1, foot1, foot0 = run.lip(i, side), run.lip(i + 1, side), run.foot(i + 1, side), run.foot(i, side)
     corners = [lip0, lip1, foot1, foot0]
     centre = tuple(sum(p[k] for p in corners) / 4 for k in range(3))
@@ -1422,7 +1437,7 @@ def _wall_box(run, i, side):
     else:
         ez, w = normal, (0.0, FILLER_M)
     v_values = [_dot(_sub(p, centre), ey) for p in corners]
-    v = (min(v_values[2:]) - WALL_DOWN_M / ey[1], max(v_values[:2]))
+    v = (min(v_values[2:]) - WALL_DOWN_M / ey[1], (-LIP_DROP_M - centre[1]) / ey[1])  # its top edge level at -LIP_DROP_M
     u0, u1 = _span(run, i, centre, ex, ey, ez, v, w)
     return _box(centre, ex, ey, ez, (u0, v[0], w[0]), (u1, v[1], w[1]), CUT, False)
 
@@ -1431,14 +1446,15 @@ def _lip_boxes(run, i, side, y0):
     """Segment i's level boxes on one side, from y0 up (S4): under the berm, the lip box from y0 to BERM_BOX_M below
     the ground and the berm box over it to y = 0 (GROUND, landable: the berm is grassed ground), both from the lip
     line to BERM_OVER_M past the parapet's inner toe (at least FILLER_M), under the parapet's slope; beyond the toe
-    the lip box out to the side's backing, from y0 to y = 0, its top under the parapet and never on the berm (F-3:
-    the fillers' top level at the bands' edges). The cut's (CUT) are the backing as well."""
+    the lip box from BERM_SEAM_M inside their reach out to the side's backing, from y0 to y = 0, its top under the
+    parapet's slope and never level with the berm (F-3: the fillers' top level at the bands' edges; task 1.7). The
+    cut's (CUT) are the backing as well."""
     toe = run.toe - min(run.lip_offset(i, side), run.lip_offset(i + 1, side))  # the toe's farthest from the lip line
     reach = max(toe + BERM_OVER_M, FILLER_M)
     top = max(-BERM_BOX_M, min(y0 + FILLER_M, -EPS))  # a lip box under a niche's ceiling stays FILLER_M tall
     return [_lip_box(run, i, side, y0, top, 0.0, reach, CUT, False),
             _lip_box(run, i, side, -BERM_BOX_M, 0.0, 0.0, reach, GROUND, True),
-            _lip_box(run, i, side, y0, 0.0, toe, None, CUT, False)]
+            _lip_box(run, i, side, y0, 0.0, reach - BERM_SEAM_M, None, CUT, False)]
 
 
 def _lip_box(run, i, side, y0, y1, w0, w1, material, landable):
@@ -1469,7 +1485,7 @@ def _niche_boxes(run, i):
     over = 0.2  # the niche's boxes reach this past it along the run (into the pillars and the neighbours)
     lo_v = -WALL_DOWN_M / ey[1]
     along = []
-    for v in ((lo_v, sill), (ceiling, top)):  # the wall below the sill and above the ceiling
+    for v in ((lo_v, sill), (ceiling, top - LIP_DROP_M / ey[1])):  # the wall below the sill and above the ceiling
         u0, u1 = _span(run, i, foot, ex, ey, ez, v, (0.0, FILLER_M))
         along.append(_box(foot, ex, ey, ez, (u0, v[0], 0.0), (u1, v[1], FILLER_M), CUT, False))
     shapes = [
@@ -1506,7 +1522,7 @@ def _niche_boxes(run, i):
 
 def _end_wall(run, j):
     """An end wall's box: its face the end wall's plane, FILLER_M into the soil, across the cut and OVERLAP_M past
-    its lips, from WALL_DOWN_M under the floor to the lip."""
+    its lips, from WALL_DOWN_M under the floor to LIP_DROP_M under the lip."""
     t = run.t[0] if j == 0 else run.t[-1]
     n = run.normal[0] if j == 0 else run.normal[-1]
     top_mid = (run.points[j][0], 0.0, run.points[j][1])
@@ -1517,13 +1533,15 @@ def _end_wall(run, j):
     soil = (-t[0], 0.0, -t[1]) if j == 0 else (t[0], 0.0, t[1])
     w = (0.0, FILLER_M) if _dot(ez, soil) > 0 else (-FILLER_M, 0.0)
     half = run.top + run.jitter_m + run.crumble_m + OVERLAP_M
-    height = _dist(top_mid, foot_mid)
+    height = _dist(top_mid, foot_mid) - LIP_DROP_M / ey[1]
     return _box(foot_mid, ex, ey, ez, (-half, -WALL_DOWN_M / ey[1], w[0]), (half, height, w[1]), CUT, False)
 
 
 def _end_block(run, j):
-    """The level block beyond a run's end: from its end back BACKING_M past the band's end, out to each side's
-    backing, from the block's bottom to y = 0."""
+    """The level ground beyond a run's end (task 1.7, R3: the berm turns round the end as grassed ground), from its
+    end back BACKING_M past the band's end and out to each side's backing: the end block from the block's bottom to
+    BERM_BOX_M below the ground and the end's berm box over it to y = 0 (GROUND, landable), as the berm's boxes along
+    the run; then F-3's ring (_end_ring)."""
     t = run.t[0] if j == 0 else run.t[-1]
     origin = (run.points[j][0], 0.0, run.points[j][1])
     ex = (t[0], 0.0, t[1])
@@ -1533,7 +1551,32 @@ def _end_block(run, j):
     lat = sorted((left * run.backing[1], -left * run.backing[-1]))
     back = run.band + BACKING_M
     along = (-back, 0.0) if j == 0 else (0.0, back)
-    return _box(origin, ex, (0.0, 1.0, 0.0), ez, (along[0], -run.block, lat[0]), (along[1], 0.0, lat[1]), CUT, False)
+    return [_box(origin, ex, (0.0, 1.0, 0.0), ez, (along[0], -run.block, lat[0]), (along[1], -BERM_BOX_M, lat[1]),
+                 CUT, False),
+            _box(origin, ex, (0.0, 1.0, 0.0), ez, (along[0], -BERM_BOX_M, lat[0]), (along[1], 0.0, lat[1]),
+                 GROUND, True)] + _end_ring(run, j)
+
+
+def _end_ring(run, j):
+    """F-3's ring past a run's end (task 1.7): RING_SECTORS filler boxes round the half of the band's end turned away
+    from the run, each FILLER_M across the ring inward from the band's edge and FILLER_M tall, its top RING_DROP_M
+    under the end's berm box, so the fillers' top stays within F-3's tolerance of the ground along the band's edge
+    while the grassed ground's box is the top a contact meets."""
+    t = run.t[0] if j == 0 else run.t[-1]
+    n = run.normal[0] if j == 0 else run.normal[-1]
+    back = -1.0 if j == 0 else 1.0
+    b = (back * t[0], back * t[1])
+    origin = (run.points[j][0], 0.0, run.points[j][1])
+    half = run.band * math.tan(math.pi / (2 * RING_SECTORS)) + CAP_SEAM_M  # each sector's chord, and a seam
+    shapes = []
+    for k in range(RING_SECTORS):
+        a = -math.pi / 2 + (k + 0.5) * math.pi / RING_SECTORS
+        radial = (b[0] * math.cos(a) + n[0] * math.sin(a), 0.0, b[1] * math.cos(a) + n[1] * math.sin(a))
+        tangent = _cross((0.0, 1.0, 0.0), radial)
+        shapes.append(_box(origin, tangent, (0.0, 1.0, 0.0), radial,
+                           (-half, -RING_DROP_M - FILLER_M, run.band - FILLER_M), (half, -RING_DROP_M, run.band),
+                           CUT, False))
+    return shapes
 
 
 def _parapets(run):

@@ -1,8 +1,9 @@
-"""generators/trench and lib/holes (p1-e01-trench, tasks 1.1-1.6): the committed E01 params, check's refusals, the
+"""generators/trench and lib/holes (p1-e01-trench, tasks 1.1-1.7): the committed E01 params, check's refusals, the
 hole contract on the built E01 (sealed from below on a 5 cm grid over the bands and 0.71 m past them, the cavity's
 faces, the crumbled lip and the niches 0.65 m inside the bands, level lips, nothing proud, thickness and the 0.2 m
-overlaps, held by lib.holes), the cross-section gaps' inscribed circle, the slots and the niches' mouths, the width
-jitter, the holes records, the shapes' surfaces and the berm's, the lodged mat and the budget."""
+overlaps at every joint, held by lib.holes), the cross-section gaps' inscribed circle, the slots and the niches'
+mouths, the width jitter, the holes records, the shapes' surfaces, the berm's and the top outside the cut, the lodged
+mat and the budget."""
 import copy
 import json
 import math
@@ -67,13 +68,14 @@ def test_hole_contract_holds(e01):
     filler, every face of the cut (the crumbled lip and the niches included) at least 0.65 m inside the bands, the
     fillers' top level with the ground along the bands' edges, none proud, every one 0.3 m thick, the surfaces."""
     _, built, data, _ = e01
-    problems, lines = holes.audit(data, built["lods"][0])
+    problems, lines = holes.audit(data, built["lods"][0], built["joints"])
     assert problems == [], problems
     text = "\n".join(lines)
     assert ", 0 miss every filler" in text and "0.71 m past their edges" in text
     margin = float(text.split("the least ")[1].split(" m inside")[0])
     assert 0.65 - 1e-6 <= margin < 0.66, "the band is 0.65 m wider than the widest crumble on each side"
     assert "0 landable;" in text and "F-8 no wind obstacle: 0 wind volumes" in text
+    assert f"the fillers' top within {trench.RING_DROP_M * 1000:.1f} mm" in text, "past the ends F-3 reads the ring"
 
 
 def test_the_crumbled_lip_and_the_niches_are_tested(e01):
@@ -93,7 +95,7 @@ def test_a_ray_off_the_fillers_is_found(e01):
     broken = copy.deepcopy(data)
     lip = next(k for k, s in enumerate(broken["collision"]) if s["material"] == trench.CUT and s["size"][1] > 1.7)
     del broken["collision"][lip]
-    problems, _ = holes.audit(broken, built["lods"][0])
+    problems, _ = holes.audit(broken, built["lods"][0], built["joints"])
     assert any(p.startswith("F-1 sealed below") and "miss every filler" in p for p in problems), problems
 
 
@@ -102,7 +104,7 @@ def test_a_proud_or_thin_filler_is_refused(e01):
     broken = copy.deepcopy(data)
     broken["collision"].append({"shape": "box", "center": [0.0, 0.1, 5.0], "size": [1.0, 0.25, 1.0],
                                 "rotation": [0.0, 0.0, 0.0, 1.0], "material": trench.CUT, "landable": True})
-    problems, _ = holes.audit(broken, built["lods"][0])
+    problems, _ = holes.audit(broken, built["lods"][0], built["joints"])
     assert [p.split(":")[0] for p in problems] == ["F-4 nothing proud", "F-5 thick", "F-7 surfaces"], problems
 
 
@@ -288,6 +290,57 @@ def test_the_berm_is_grassed_ground(e01):
                 assert top == pytest.approx(0.0, abs=1e-5) and shape["material"] == trench.GROUND and shape["landable"]
                 assert top - bottom >= 0.3 - 1e-6
                 assert any(s["material"] == trench.CUT for _, _, s in spans[1:]), (i, side, f)
+
+
+def test_the_top_outside_the_cut_is_grassed_ground(e01):
+    """Task 1.7 (R3, QA's top-surface map): on a 5 cm grid over the whole patch, wherever a vertical line misses the
+    cut's opening, the highest collision top it meets (the one a contact meets first) is a landable belt_straw
+    shape's, never belt_bare, and no shape of another surface tops within 1 mm of it: at the lips, along the berm, at
+    the parapets' toes and past the run's ends, where the berm turns round them as level grassed ground over the
+    lowered end block and F-3's ring."""
+    _, built, data, run = e01
+    index = {}
+    for s in data["collision"]:
+        box = holes._Box(s) if s["shape"] == "box" else None
+        c, r = s["center"], s.get("radius", 0.0)
+        lo, hi = (box.lo, box.hi) if box else ((c[0] - r, c[2] - r), (c[0] + r, c[2] + r))
+        for i in range(math.floor(lo[0] / 0.5), math.floor(hi[0] / 0.5) + 1):
+            for j in range(math.floor(lo[1] / 0.5), math.floor(hi[1] / 0.5) + 1):
+                index.setdefault((i, j), []).append((box, s))
+
+    def top(box, s, x, z):
+        if box:
+            span = box.span(x, z)
+            return None if span is None else span[1]
+        d2 = (x - s["center"][0]) ** 2 + (z - s["center"][2]) ** 2
+        if d2 > s["radius"] ** 2:
+            return None
+        if s["shape"] == "cylinder":
+            assert s["rotation"] == [0.0, 0.0, 0.0, 1.0]
+            return s["center"][1] + s["height"] / 2
+        return s["center"][1] + math.sqrt(s["radius"] ** 2 - d2)
+
+    opening = trench._Cut(trench._slot_quads(run), 0.0)
+    x0, z0, nx, nz, cx, cz = trench._patch(run)
+    ends = [(run.points[0], run.t[0], -1.0), (run.points[-1], run.t[-1], 1.0)]
+    step, outside, past = 0.05, 0, [0, 0]
+    for a in range(round(nx * cx / step)):
+        x = x0 + (a + 0.5) * step
+        for b in range(round(nz * cz / step)):
+            z = z0 + (b + 0.5) * step
+            if opening.near(x, z):
+                continue
+            tops = sorted(((t, s) for box, s in index.get((math.floor(x / 0.5), math.floor(z / 0.5)), ())
+                           for t in (top(box, s, x, z),) if t is not None), key=lambda ts: -ts[0])
+            highest, shape = tops[0]
+            assert shape["material"] == trench.GROUND and shape["landable"], (x, z, highest, shape)
+            tied = [(t, s["material"]) for t, s in tops[1:] if highest - t <= 0.001 and s["material"] != trench.GROUND]
+            assert not tied, (x, z, highest, tied)
+            outside += 1
+            for k, (p, t, sign) in enumerate(ends):
+                along = sign * ((x - p[0]) * t[0] + (z - p[1]) * t[1])
+                past[k] += 0.0 < along < run.band + trench.BACKING_M and run.distance(x, z) < run.backing[1]
+    assert outside * step * step > 400 and min(past) * step * step > 8.0, (outside, past)
 
 
 def test_sides_follow_the_capture(e01):
