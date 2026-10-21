@@ -899,12 +899,15 @@ MonoBehaviour:
   - mesh: V13_mid_LOD0
     tris: 8670
     switchDistanceM: 0
+    thinWire: 0
   - mesh: V13_mid_LOD1
     tris: 3610
     switchDistanceM: 7.5
+    thinWire: 0
   - mesh: V13_mid_LOD2
     tris: 60
     switchDistanceM: 93.5
+    thinWire: 0
   micro: []
   cullDistanceM: 800
   materials:
@@ -1466,6 +1469,9 @@ MonoBehaviour:
     height: 0
     rotation: {x: 0, y: 0, z: 0, w: 1}
     porosity: 0.35
+  ports: []
+  wires: []
+  holes: []
   snag:
   - kind: edge
     points:
