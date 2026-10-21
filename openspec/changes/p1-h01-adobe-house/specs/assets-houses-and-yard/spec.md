@@ -19,7 +19,7 @@ The pipeline SHALL build asset H01 (`house` generator; variants `H01_I`, `H01_D`
 
 #### Scenario: Openings against the drone in the D state
 - **WHEN** `H01_D`'s gaps are read
-- **THEN** the door passes at any yaw (113 mm a side nose-first, 47 mm on the diagonal), a window with its frame gone is 0.80 × 1.00 m and with its frame 0.66 × 0.86 m (passable within ±18° yaw, 43 mm a side), every roof bay without battens is 0.9–1.1 m wide and passes, no bay with intact battens (0.33 m) is a gap, and every opening's polygon is its real clear space after jags, with `narrowest_m` agreeing with the audit within 5 mm
+- **THEN** the door passes at any yaw (113 mm a side nose-first, 47 mm on the diagonal), a window with its frame gone is 0.80 × 1.00 m and with its frame 0.66 × 0.86 m (passable within ±18° yaw, 43 mm a side), a roof bay is a gap only where its battens are gone, its polygon the real opening between the battens and rafters left (a fully stripped bay 0.9–1.1 m wide passes; a partial opening takes its own verdict), no bay with intact battens (0.33 m) is a gap, and every opening's polygon is its real clear space after jags, with `narrowest_m` agreeing with the audit within 5 mm
 
 #### Scenario: The E facade
 - **WHEN** the review sheet's 1.5 m and 10 m tiles of `H01_D` are compared side by side with letter E (frames 1–12 for the facade, 13–15 for the door, 16–18 for the interior) in the local comparison sheet
