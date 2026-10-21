@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The engine-free input layer (p6-input-app), compiled from the Unity project's own sources (never a copy).
+       netstandard2.1 is Unity's API level, so an API Unity lacks fails this build too. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>Fpv450.Input.Radio</AssemblyName>
+    <RootNamespace>Fpv450.Input.Radio</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../../unity/Assets/_Project/Scripts/Input/Radio/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../simcore/simcore.csproj" />
+  </ItemGroup>
+</Project>
