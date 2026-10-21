@@ -14,7 +14,9 @@ namespace Fpv450.Sim.Tests
 
         static DroneSpec _spec;
 
-        public static DroneSpec Spec() => _spec ?? (_spec = DroneSpec.Parse(File.ReadAllText(TestFiles.Find(RelativePath))));
+        public static string Text() => File.ReadAllText(TestFiles.Find(RelativePath));
+
+        public static DroneSpec Spec() => _spec ?? (_spec = DroneSpec.Parse(Text()));
     }
 
     // p6-flight-core's bootstrap drone.json on K§5.2's assumed layout, kept as a fixture when p5-drone replaced the
@@ -26,7 +28,9 @@ namespace Fpv450.Sim.Tests
 
         static DroneSpec _spec;
 
-        public static DroneSpec Spec() => _spec ?? (_spec = DroneSpec.Parse(File.ReadAllText(TestFiles.Find(RelativePath))));
+        public static string Text() => File.ReadAllText(TestFiles.Find(RelativePath));
+
+        public static DroneSpec Spec() => _spec ?? (_spec = DroneSpec.Parse(Text()));
     }
 
     // A repository file, found from this file's own path (the .NET tools compile it in place) or from Unity's project
