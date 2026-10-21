@@ -8,30 +8,34 @@ The controller SHALL mirror Betaflight 4.5 (D-023): ACTUAL rates, the throttle c
 - **THEN** each setpoint equals Betaflight 4.5's ACTUAL formula within 0.1 °/s
 
 #### Scenario: The builder's PIDs hold a stable loop
-- **WHEN** the bootstrap drone at nominal mass takes a 200 °/s roll-rate step at hover throttle
+- **WHEN** the drone at nominal mass takes a 200 °/s roll-rate step at hover throttle
 - **THEN** the rate settles within 5 % of the setpoint, overshoots by less than 25 % and shows no sustained oscillation over 2 s
 
 ### Requirement: An X mixer that saturates honestly
-The mixer SHALL map collective, roll, pitch and yaw to four motor commands for an X quad, clip each command to [0, 1] and then desaturate the collective, so that yaw saturates first, as on the real drone (K§5.3).
+The mixer SHALL map collective, roll, pitch and yaw to four motor commands for an X quad as Betaflight 4.5's does: limit the PID sums, scale the mix into range, then desaturate the collective so that no motor clips, so that yaw saturates first, as on the real drone (K§5.3).
 
-#### Scenario: Yaw saturates past three-quarter collective
-- **WHEN** full yaw is commanded at collectives from 0.5 to 0.9 on the bootstrap drone
-- **THEN** the achieved yaw moment falls below the commanded one once the collective passes about 0.72 (K§5.3, derived), and roll and pitch authority are kept
+#### Scenario: Yaw saturates first and the collective yields
+- **WHEN** the wind clip's maximum yaw and roll demands (288 and 412 °/s², wind.md §5.5) are set against the nominal drone's full thrust, and full yaw is commanded at mixer throttles from 0.45 to 0.85
+- **THEN** yaw runs out of mix past a collective of about 0.84 of full thrust and roll only past about 0.98 (K§5.3's 0.72 re-derived with κ = 0.0144 m and a fixed yaw moment), and above a mixer throttle of about 0.625 (1 less the yaw P term's 0.375 of the mix) the collective delivered falls below the commanded one while yaw, roll and pitch keep their authority, with a MixerSaturation event naming the collective
 
 ### Requirement: ESC, motor and rotor
-Each rotor SHALL follow its command through an ESC filter and the motor-rotor first-order lag, updated exactly without transcendental functions, and produce thrust T = k_T·n² and torque Q = κ·T (κ 0.015–0.02, assumed). The thrust SHALL be derated by the axial inflow through the tilted disc from momentum theory, never by a flat factor (PHB-03).
+Each rotor SHALL follow its command through an ESC filter and the motor's first-order lag, a DC motor whose lag follows from its resistance, its rotor's inertia and the prop's load, updated without transcendental functions, and produce thrust T = k_T·n² and torque Q = κ·T with k_T and κ from `drone.json`'s prop, varying with rpm as its published table says (κ = 0.0144 m, derived, for the APC 10x4.5MR). The thrust SHALL be derated by the axial inflow through the tilted disc from momentum theory, never by a flat factor (PHB-03).
+
+#### Scenario: The motor's lag is its physics
+- **WHEN** one motor's duty steps by 0.02 near idle, at hover and near full
+- **THEN** its speed reaches 63 % of the change within τ_m + τ_esc ± 10 %, with τ_m = J / (Kt·Ke/R + ∂Q/∂ω) from `drone.json` (about 40 ms at hover, inside design 5's 40–60 ms), and never within one step
 
 #### Scenario: Hover and liftoff as the real drone
-- **WHEN** the bootstrap drone is flown at nominal 4.8 kg on a full pack, and again loaded at 6.5 kg
-- **THEN** the maximum total thrust lies in K§5.3's 9.0–12.5 kgf (derived), and the loaded drone lifts off between 50 and 65 % motor power (pilot: about 62 % on a real heavy quad)
+- **WHEN** the drone is held at a hover through the Betaflight throttle path at its nominal 4.8 kg and loaded at 6.2 and 6.5 kg, on a full and a half pack
+- **THEN** the loaded drone lifts off between 50 and 65 % motor power (pilot: about 62 % on a real heavy quad), at 6.2 kg on both packs and at 6.5 kg on the full one, and the maximum total thrust is the motor model's steady state at full duty within 1 % (derived from n_max on the published bench and the prop's table: about 14 kgf on a full pack, where K§5.3's 9.0–12.5 kgf assumed a 40 A cap)
 
 #### Scenario: Fast flight loses thrust to inflow
 - **WHEN** the drone holds 25 m/s level with its disc tilted 22.7°
-- **THEN** the axial inflow through the disc is 9.6 m/s within 10 %, and the available thrust is momentum theory's at that inflow (PHB-03)
+- **THEN** the axial inflow through the disc is 9.6 m/s within 10 %, and the available thrust is momentum theory's at that inflow within 10 % (PHB-03), where design 5's assumed linear derate misses by more
 
 ### Requirement: Battery sag
-Two packs SHALL supply the motors with a loaded voltage V = n_s·(OCV(SoC) − I_cell·R_cell), with R_cell ≈ 15 mΩ (assumed) and n_s from `drone.json` (6S or 8S Li-ion, set by `p5-drone`). The state of charge SHALL be integrated over the flight, and the motors' maximum speed SHALL follow V.
+Two packs SHALL supply the motors with a loaded voltage V = n_s·(OCV(SoC) − I_cell·R_cell), with R_cell and n_s from `drone.json` (6S4P at 12 mΩ a cell under load, assumed: 18 mΩ for the pack, set by `p5-drone`). The state of charge SHALL be integrated over the flight, and the motors' maximum speed SHALL follow V.
 
 #### Scenario: A full-collective pull on a sagged pack
 - **WHEN** full collective is held for 3 s at 20 % state of charge
-- **THEN** the loaded pack voltage is V = n_s·(OCV(0.2) − I_cell·R_cell) within 1 %, and the maximum thrust is T_full at full charge scaled by (V / V_full)² within 1 %
+- **THEN** the loaded pack voltage is V = n_s·(OCV(SoC) − I_cell·R_cell) within 1 %, and the maximum thrust is the motor model's steady state at that loaded voltage within 1 %, above (V / V_full)² of T_full (the motor's own I·R drop falls with its current)
