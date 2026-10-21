@@ -65,6 +65,11 @@ MICRO_KEYS = ("lod", "name", "kind", "count", "tris")
 # its lower-left and upper-right corners. The importer binds a crack_mask to its pane's slot; a damage_mask waits for
 # its layered shader. Schema 1 stays: the key is additive and always present, [] when none.
 TEXTURE_KEYS = ("role", "slot", "file", "uv_min", "uv_max")
+# The LOD group's frame (p1-r01-vaz-sedan, QA 2.1's S2): "bounds" holds every mesh drawn, and a
+# generator whose LOD meshes carry what lies round the object (a vehicle's K07 scatter, its micro crumbs or soot
+# patch) returns "lod_bounds", the object's own box, written as bounds.lod; the importer centres the LOD group on it and
+# sizes it by its longest side, so switches are measured from the object, not its scatter. Optional: absent, the
+# bounds serve; schema 1 stays.
 TEXTURE_ROLES = ("crack_mask", "damage_mask")
 # The closed, physics-owned list every physics material id must come from (review R3).
 PHYSICS_MATERIALS = os.path.join("assets-src", "physics_materials.json")
@@ -127,6 +132,9 @@ def assemble(asset_id, variant, generator, params, built, visual_by_slot):
     meshes = list(lods) + [m["mesh"] for m in built.get("micro", [])]
     lo = [min(m.bounds()[0][a] for m in meshes) for a in range(3)]
     hi = [max(m.bounds()[1][a] for m in meshes) for a in range(3)]
+    bounds = {"min": lo, "max": hi}
+    if "lod_bounds" in built:  # the object's own box, without what lies round it: the LOD group's frame
+        bounds["lod"] = {"min": list(built["lod_bounds"][0]), "max": list(built["lod_bounds"][1])}
     materials = []
     for m in built["materials"]:
         if m["slot"] not in visual_by_slot:
@@ -135,7 +143,7 @@ def assemble(asset_id, variant, generator, params, built, visual_by_slot):
     meta = {
         "schema": SCHEMA, "id": asset_id, "variant": variant, "generator": generator,
         "params_sha256": catalog.params_sha256(params), "units": UNITS, "frame": FRAME,
-        "bounds": {"min": lo, "max": hi},
+        "bounds": bounds,
         "lods": [{"mesh": f"{variant}_LOD{n}", "tris": mesh.triangles(), "switch_distance_m": float(switch),
                   "thin_wire": bool(thin)} for n, (mesh, switch, thin) in enumerate(zip(lods, switches, thin_wire))],
         "micro": micro,
@@ -197,6 +205,11 @@ def validate(meta, material_ids):
     b = meta["bounds"]
     if not (_is_vec(b.get("min")) and _is_vec(b.get("max"))) or any(b["min"][a] > b["max"][a] for a in range(3)):
         problems.append("bounds need min <= max as two 3-vectors")
+    elif "lod" in b:
+        lod = b["lod"]
+        if not (isinstance(lod, dict) and _is_vec(lod.get("min")) and _is_vec(lod.get("max"))
+                and all(b["min"][a] <= lod["min"][a] <= lod["max"][a] <= b["max"][a] for a in range(3))):
+            problems.append("bounds.lod needs min <= max as two 3-vectors inside the bounds")
     lods = meta["lods"]
     if not lods or any(not (isinstance(l.get("mesh"), str) and isinstance(l.get("tris"), int)
                             and _is_num(l.get("switch_distance_m")) and isinstance(l.get("thin_wire"), bool))

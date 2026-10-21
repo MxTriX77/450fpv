@@ -865,7 +865,7 @@ namespace Fpv450.Assets
                 var keep = new HashSet<string>();
                 var thin = new List<string>();
                 Renderer[][] renderers = EnsureLods(root, meta, fbxPath, materialBySlot, wireSlots, keep, thin);
-                EnsureLodGroup(root, meta, renderers);
+                EnsureLodGroup(root, meta, renderers, LodBounds(metaJson, meta.bounds, prefabPath));
                 EnsureColliders(root, meta, keep, prefabPath);
                 for (int i = root.transform.childCount - 1; i >= 0; i--)
                 {
@@ -967,12 +967,14 @@ namespace Fpv450.Assets
         /// the longest side of the bounds, which is also what the group's size is set to. Unity holds transition
         /// heights to (0, 1], so an asset taller than the screen at its first switch distance (a 12 m ground patch
         /// switching at 8 m: 1.3) would be clamped and switch late; there s is reduced until that first height is
-        /// 1. Only the ratio s / d reaches Unity, so every switch distance is kept either way.
+        /// 1. Only the ratio s / d reaches Unity, so every switch distance is kept either way. The bounds are
+        /// <paramref name="frame"/>, the object's own (<see cref="LodBounds"/>), and the group's reference point their
+        /// centre, so the switches are measured from the object.
         /// </summary>
-        static void EnsureLodGroup(GameObject root, AssetPhysicsMeta meta, Renderer[][] renderers)
+        static void EnsureLodGroup(GameObject root, AssetPhysicsMeta meta, Renderer[][] renderers, Bounds frame)
         {
             float firstFar = renderers.Length > 1 ? meta.lods[1].switchDistanceM : meta.cullDistanceM;
-            float size = Mathf.Min(Mathf.Max(meta.bounds.size.x, meta.bounds.size.y, meta.bounds.size.z),
+            float size = Mathf.Min(Mathf.Max(frame.size.x, frame.size.y, frame.size.z),
                 2f * firstFar * Mathf.Tan(VerticalFovDeg * 0.5f * Mathf.Deg2Rad));
             var lods = new LOD[renderers.Length];
             for (int i = 0; i < lods.Length; i++)
@@ -983,8 +985,22 @@ namespace Fpv450.Assets
             LODGroup group = Ensure<LODGroup>(root);
             group.fadeMode = LODFadeMode.None;
             group.SetLODs(lods); // recomputes the size and reference point from the renderers, so they are set after it
-            group.localReferencePoint = meta.bounds.center;
+            group.localReferencePoint = frame.center;
             group.size = size;
+        }
+
+        /// <summary>
+        /// The box the LOD group measures from: the metadata's optional <c>bounds.lod</c>, the object's own box
+        /// without what its meshes lay round it (a vehicle's scatter; p1-r01-vaz-sedan, QA 2.1's S2), else the bounds.
+        /// </summary>
+        static Bounds LodBounds(Dictionary<string, object> json, Bounds bounds, string what)
+        {
+            var all = Json.Obj(json, "bounds", what);
+            if (!all.ContainsKey("lod"))
+                return bounds;
+            var lod = Json.Obj(all, "lod", what);
+            Vector3 min = Json.Vec3(lod, "min", what), max = Json.Vec3(lod, "max", what);
+            return new Bounds((min + max) * 0.5f, max - min);
         }
 
         static float RelativeHeight(float size, float distance) =>

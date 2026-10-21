@@ -1000,7 +1000,15 @@ def build(params):
     kit = Kit(body, params)
     pieces = _pieces(body, kit)
     snags = []
-    lods = [_lod(body, q, kit, pieces, snags if n == 0 else None) for n, q in enumerate(QUALITY)]
+    lods = []
+    for n, q in enumerate(QUALITY):
+        mesh = _lod(body, q, kit, snags if n == 0 else None)
+        if n == 0:  # the car's own bounds, without what lies round it: the LOD group's frame (QA 2.1's S2)
+            lod_bounds = mesh.bounds()
+        if q["detail"] >= 1:
+            for piece in pieces:
+                kits.append_mesh(mesh, piece["lods"][0 if q["thick"] else 1], piece["rigid"], piece["slots"])
+        lods.append(mesh)
     lods.append(_box_hull(body, kit))
     lod = params["lod"]
     plan = collision_plan(body, kit, pieces)
@@ -1013,6 +1021,7 @@ def build(params):
         lines.append(f"kit: {_kit_summary(body, kit)}")
     return {
         "lods": lods,
+        "lod_bounds": lod_bounds,
         "switch_distances_m": [0.0, lod["lod1_switch_m"], lod["lod2_switch_m"], lod["lod3_switch_m"]],
         "thin_wire": [False] * 4,
         "cull_distance_m": lod["cull_m"],
@@ -1028,9 +1037,9 @@ def build(params):
     }
 
 
-def _lod(body, q, kit, pieces, snags):
-    """One LOD: the body's parts in its own frame, moved by the kit's transform, the wheels and the pieces on the
-    ground in theirs. `snags` collects the kit's torn edges (LOD0's)."""
+def _lod(body, q, kit, snags):
+    """One LOD of the car itself: the body's parts in its own frame, moved by the kit's transform, the wheels on the
+    ground in theirs (build adds the pieces round it). `snags` collects the kit's torn edges (LOD0's)."""
     mesh = Mesh()
     extra_levels = _kit_levels(body, kit, q)
     for side in (-1, 1):
@@ -1062,9 +1071,6 @@ def _lod(body, q, kit, pieces, snags):
     end = (len(mesh.vertices), len(mesh.faces))
     for (v0, f0), (v1, f1) in (((0, 0), wheels), (wheels_end, end)):
         kits.transform_range(mesh, (v0, v1), (f0, f1), kit.T)
-    if q["detail"] >= 1:
-        for piece in pieces:
-            kits.append_mesh(mesh, piece["lods"][0 if q["thick"] else 1], piece["rigid"], piece["slots"])
     return mesh
 
 

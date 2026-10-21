@@ -78,6 +78,22 @@ def test_micro_meshes_are_named_counted_and_bounded(k01_params, material_ids):
         meta.assemble("K01", "K01_whole", "debris_brick", k01_params, built, dict(VISUALS, straw="straw"))
 
 
+def test_lod_bounds_are_written_under_the_bounds(k01_params, material_ids):
+    """p1-r01-vaz-sedan, QA 2.1's S2: a generator's "lod_bounds", the object's own box without what its meshes lay
+    round it, lands as bounds.lod (the LOD group's frame); one outside the bounds, or turned inside out, is refused;
+    without it nothing is written."""
+    built = debris_brick.build(k01_params)
+    built["lod_bounds"] = ((-0.1, 0.0, -0.05), (0.1, 0.06, 0.05))
+    data = meta.assemble("K01", "K01_whole", "debris_brick", k01_params, built, VISUALS)
+    assert data["bounds"]["lod"] == {"min": [-0.1, 0.0, -0.05], "max": [0.1, 0.06, 0.05]}
+    assert meta.validate(data, material_ids) == []
+    assert json.loads(meta.dumps(data))["bounds"]["lod"] == data["bounds"]["lod"]
+    for lo, hi in (([-0.2, 0.0, -0.05], [0.1, 0.06, 0.05]), ([0.1, 0.0, -0.05], [-0.1, 0.06, 0.05])):
+        data["bounds"]["lod"] = {"min": lo, "max": hi}
+        assert meta.validate(data, material_ids) == ["bounds.lod needs min <= max as two 3-vectors inside the bounds"]
+    assert "lod" not in k01_meta(k01_params)["bounds"]
+
+
 def test_writer_is_deterministic_and_lf_terminated(k01_params):
     text = meta.dumps(k01_meta(k01_params))
     assert text == meta.dumps(k01_meta(json.loads(json.dumps(k01_params))))

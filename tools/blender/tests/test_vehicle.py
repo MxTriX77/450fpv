@@ -320,6 +320,20 @@ def test_a_flat_corner_drop_and_lean(r01_a, built_a):
     assert flat["height"] == pytest.approx(0.165, abs=0.0005)
 
 
+def test_a_published_dimensions(r01_a, built_a):
+    """The scenario "Published dimensions" on R01_A's metadata: the body's bounds without its scatter (bounds.lod,
+    the LOD group's frame, QA 2.1's S2) 4.073 x 1.611 m in plan within 2 %, and its roof 1.40-1.44 m over the ground
+    once settled on its flat corner (QA 2.1's R1; the rack's rails stand 0.10 m over it)."""
+    data = meta.assemble("R01", "R01_A", "vehicle", r01_a, built_a, {m["slot"]: "x" for m in built_a["materials"]})
+    lod, full = data["bounds"]["lod"], data["bounds"]
+    assert lod["max"][0] - lod["min"][0] == pytest.approx(4.073, rel=0.02)
+    assert lod["max"][2] - lod["min"][2] == pytest.approx(1.611, rel=0.02)
+    assert full["max"][0] - full["min"][0] > 6.0  # the scatter's, which the LOD group no longer measures from
+    roof = vehicle.build(dict(r01_a, roof_rack=False))["lod_bounds"][1][1]
+    assert 1.40 <= roof <= 1.44
+    print(f"R01_A roof {roof:.4f} m, body {lod['max'][0] - lod['min'][0]:.3f} x {lod['max'][2] - lod['min'][2]:.3f} m")
+
+
 def named(params):
     """The kit's collision plan with its names (build's "collision" is its shapes, in order)."""
     body = vehicle.Body(params)
