@@ -16987,15 +16987,19 @@ MonoBehaviour:
   - mesh: V01_M_autumn_LOD0
     tris: 12558
     switchDistanceM: 0
+    thinWire: 0
   - mesh: V01_M_autumn_LOD1
     tris: 3850
     switchDistanceM: 9.35
+    thinWire: 0
   - mesh: V01_M_autumn_LOD2
     tris: 1706
     switchDistanceM: 116.9
+    thinWire: 0
   - mesh: V01_M_autumn_impostor
     tris: 2
     switchDistanceM: 230
+    thinWire: 0
   micro: []
   cullDistanceM: 2500
   materials:
@@ -20425,6 +20429,9 @@ MonoBehaviour:
     height: 0
     rotation: {x: 0.011424, y: 0, z: 0.015193, w: 0.999819}
     porosity: 0
+  ports: []
+  wires: []
+  holes: []
   snag:
   - kind: hook
     points:

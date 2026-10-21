@@ -1668,12 +1668,15 @@ MonoBehaviour:
   - mesh: V01_S_LOD0
     tris: 8334
     switchDistanceM: 0
+    thinWire: 0
   - mesh: V01_S_LOD1
     tris: 2920
     switchDistanceM: 9.35
+    thinWire: 0
   - mesh: V01_S_LOD2
     tris: 1324
     switchDistanceM: 116.9
+    thinWire: 0
   micro: []
   cullDistanceM: 2500
   materials:
@@ -3332,6 +3335,9 @@ MonoBehaviour:
     height: 0
     rotation: {x: 0.021477, y: 0, z: 0.078435, w: 0.996688}
     porosity: 0
+  ports: []
+  wires: []
+  holes: []
   snag:
   - kind: hook
     points:

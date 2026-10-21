@@ -22,17 +22,20 @@
     {
       "mesh": "V01_S_autumn_LOD0",
       "tris": 8292,
-      "switch_distance_m": 0.0
+      "switch_distance_m": 0.0,
+      "thin_wire": false
     },
     {
       "mesh": "V01_S_autumn_LOD1",
       "tris": 2900,
-      "switch_distance_m": 9.35
+      "switch_distance_m": 9.35,
+      "thin_wire": false
     },
     {
       "mesh": "V01_S_autumn_LOD2",
       "tris": 1286,
-      "switch_distance_m": 116.9
+      "switch_distance_m": 116.9,
+      "thin_wire": false
     }
   ],
   "micro": [],
@@ -3718,6 +3721,9 @@
       "porosity": 0.0
     }
   ],
+  "ports": [],
+  "wires": [],
+  "holes": [],
   "snag": [
     {
       "kind": "hook",

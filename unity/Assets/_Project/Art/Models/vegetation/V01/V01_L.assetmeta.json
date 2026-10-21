@@ -22,22 +22,26 @@
     {
       "mesh": "V01_L_LOD0",
       "tris": 15538,
-      "switch_distance_m": 0.0
+      "switch_distance_m": 0.0,
+      "thin_wire": false
     },
     {
       "mesh": "V01_L_LOD1",
       "tris": 4790,
-      "switch_distance_m": 9.35
+      "switch_distance_m": 9.35,
+      "thin_wire": false
     },
     {
       "mesh": "V01_L_LOD2",
       "tris": 2136,
-      "switch_distance_m": 116.9
+      "switch_distance_m": 116.9,
+      "thin_wire": false
     },
     {
       "mesh": "V01_L_impostor",
       "tris": 2,
       "switch_distance_m": 290.0,
+      "thin_wire": false,
       "impostor": {
         "atlas": "V01_L_impostor.png",
         "normals": "V01_L_impostor_normal.png",
@@ -9596,6 +9600,9 @@
       "porosity": 0.0
     }
   ],
+  "ports": [],
+  "wires": [],
+  "holes": [],
   "snag": [
     {
       "kind": "hook",
