@@ -8,9 +8,14 @@ piece 0.3 m too large fails (a); a twig vertex 0.15 m outside fails (b); a card 
 one 0.25 m outside passes; surface under the ground is ignored; a capsule off its tube by 7 cm still fails, and so does
 one running 7 cm past its stem's tip inside a twig piece (a shell piece hides no rigid primitive); and a
 shell no slot carries or a slot no shell stands for is refused. The real V13_mid with its first, single sphere
-failing (a) is in test_shrub.py."""
+failing (a) is in test_shrub.py. p1-v01-locust review-physics PR2 and PR3: rule (d), 65 pieces in one 2 m cube fail
+and the same 65 spread along 8 m pass, the count exact against brute force; rule (c)'s allowance follows the
+generator's card reach (a corner 0.33 m out passes for 0.25 m leaves, fails for 0.2 m sprigs), and cards with no
+stated reach are refused."""
 import copy
+import itertools
 import math
+import random
 import re
 
 import pytest
@@ -435,6 +440,7 @@ def test_a_seam_where_primitives_only_touch_is_no_surface(k01_params, repo_root)
 
 
 CARD_VISUALS = {"leaf_shrub"}
+SPRIG_M = 0.2  # the shrub's card reach: an allowance of 0.3 m
 A, B = (-0.3, 1.3, 0.0), (0.3, 1.3, 0.0)  # the centres of the two leaf boxes and of the spheres hugging them
 HUG_R = 0.38
 CORNER_STANDOFF_MM = (0.3 - HUG_R / math.sqrt(3)) * 1000  # a hugging sphere's surface along a box diagonal
@@ -486,7 +492,7 @@ def shell_lines(lines):
 
 
 def test_two_overlapping_spheres_hugging_the_mass_pass_and_print_both_ways():
-    problems, lines = audit.run(*hugged(), card_visuals=CARD_VISUALS)
+    problems, lines = audit.run(*hugged(), card_visuals=CARD_VISUALS, card_reach_m=SPRIG_M)
     assert problems == []
     # the capsule's bottom pole stands its radius under the tube's open base, r * sqrt(2) = 12.7 mm from the base
     # ring; the tip cap's centre sits the radius, 9 mm, inside the capsule's top cap
@@ -494,14 +500,16 @@ def test_two_overlapping_spheres_hugging_the_mass_pass_and_print_both_ways():
     assert lines[1].startswith("audit mesh: mesh->collision 9.000 mm at (0, 1, 0) nearest collision[0]")
     shell = shell_lines(lines)
     assert shell[0] == "audit twig shell: 2 pieces (2 spheres)"
-    for line, piece in zip(shell[1:3], (1, 2)):
+    # the lowest cube meeting both boxes touches their low corners
+    assert shell[1] == "audit twig shell: most pieces meeting one 2 m cube 2, the cube from (-2.08, -1.08, -2.38), limit 64"
+    for line, piece in zip(shell[2:4], (1, 2)):
         assert line.startswith(f"audit collision[{piece}] sphere (twig shell): largest standoff ")
         assert line.endswith(", tolerance 100 mm")
         assert measured_mm(line) == pytest.approx(CORNER_STANDOFF_MM, abs=SHELL_MM)
     corner = (math.sqrt(3) * 0.3 - HUG_R) * 1000
-    assert shell[3].startswith(f"audit slot leaf (cards, twig shell): largest outside distance {corner:.3f} mm at (")
-    assert shell[3].endswith(") over 12 vertices, allowance 300 mm")
-    assert shell[4] == ("audit slot twig (geometry, twig shell): largest outside distance 0.000 mm over 6 vertices, "
+    assert shell[4].startswith(f"audit slot leaf (cards, twig shell): largest outside distance {corner:.3f} mm at (")
+    assert shell[4].endswith(") over 12 vertices, allowance 300 mm")
+    assert shell[5] == ("audit slot twig (geometry, twig shell): largest outside distance 0.000 mm over 6 vertices, "
                         "tolerance 100 mm")
     assert len(lines) == 2 + len(shell)
 
@@ -509,7 +517,7 @@ def test_two_overlapping_spheres_hugging_the_mass_pass_and_print_both_ways():
 def test_a_piece_30cm_too_large_fails_its_standoff():
     data, lod0 = hugged()
     data["collision"][1]["radius"] += 0.3
-    problems, _ = audit.run(data, lod0, card_visuals=CARD_VISUALS)
+    problems, _ = audit.run(data, lod0, card_visuals=CARD_VISUALS, card_reach_m=SPRIG_M)
     assert len(problems) == 1
     assert problems[0].startswith("collision[1] sphere (twig shell): largest standoff ")
     assert problems[0].endswith(" exceeds the tolerance 100 mm")
@@ -521,25 +529,88 @@ def test_a_twig_vertex_15cm_outside_fails_naming_the_slot_the_distance_and_the_t
     data, lod0 = hugged()
     tip = math.sqrt((HUG_R + 0.15) ** 2 - 0.0015 ** 2)  # the tip ring's 1.5 mm, about an axis through the centre
     skeleton._tube(lod0, [(A, 0.0025), ((A[0], A[1], A[2] + tip), 0.0015)], 3, "twig", cap=False)
-    problems, _ = audit.run(data, lod0, card_visuals=CARD_VISUALS)
+    problems, _ = audit.run(data, lod0, card_visuals=CARD_VISUALS, card_reach_m=SPRIG_M)
     assert len(problems) == 1
     assert problems[0].startswith("slot twig (geometry, twig shell): largest outside distance 150.000 mm at (")
     assert problems[0].endswith(") exceeds the tolerance 100 mm")
 
 
-@pytest.mark.parametrize("outside_m, fails", [(0.35, True), (0.25, False)])
-def test_a_card_corner_35cm_outside_fails_and_25cm_passes(outside_m, fails):
+def with_sprig(outside_m):
+    """The hugged mass with a 0.1 m wide sprig off the box's end card whose far corners stand `outside_m` outside."""
     data, lod0 = hugged()
-    length = math.sqrt((HUG_R + outside_m) ** 2 - 0.05 ** 2) - 0.3  # a 0.1 m wide sprig off the box's end card
+    length = math.sqrt((HUG_R + outside_m) ** 2 - 0.05 ** 2) - 0.3
     corners = [(-0.6, 1.25, 0.0), (-0.6, 1.35, 0.0), (-0.6 - length, 1.35, 0.0), (-0.6 - length, 1.25, 0.0)]
     lod0.face([lod0.vertex(c) for c in corners], (0.0, 0.0, 1.0), "leaf")
-    problems, lines = audit.run(data, lod0, card_visuals=CARD_VISUALS)
+    return data, lod0
+
+
+@pytest.mark.parametrize("outside_m, fails", [(0.35, True), (0.25, False)])
+def test_a_card_corner_35cm_outside_fails_and_25cm_passes(outside_m, fails):
+    problems, lines = audit.run(*with_sprig(outside_m), card_visuals=CARD_VISUALS, card_reach_m=SPRIG_M)
     text = f"slot leaf (cards, twig shell): largest outside distance {outside_m * 1000:.3f} mm at ("
     if fails:
         assert len(problems) == 1 and problems[0].startswith(text)
         assert problems[0].endswith(") exceeds the allowance 300 mm")
     else:
         assert problems == [] and any(line.startswith("audit " + text) for line in lines)
+
+
+@pytest.mark.parametrize("card_reach_m, allowance_mm, fails", [(0.25, 350, False), (0.2, 300, True)])
+def test_card_allowance_follows_the_card(card_reach_m, allowance_mm, fails):
+    """PR3: a card corner 0.33 m outside passes for a tree's 0.25 m leaf (0.35 m) and fails for a shrub's 0.2 m
+    sprig (0.3 m)."""
+    problems, lines = audit.run(*with_sprig(0.33), card_visuals=CARD_VISUALS, card_reach_m=card_reach_m)
+    text = f"slot leaf (cards, twig shell): largest outside distance 330.000 mm at ("
+    assert any(line.startswith("audit " + text) and line.endswith(f"allowance {allowance_mm} mm") for line in lines)
+    if fails:
+        assert len(problems) == 1 and problems[0].startswith(text) and problems[0].endswith(") exceeds the allowance 300 mm")
+    else:
+        assert problems == []
+
+
+def test_cards_with_no_stated_reach_are_refused():
+    problems, _ = audit.run(*hugged(), card_visuals=CARD_VISUALS)
+    assert problems == ["slot leaf (cards, twig shell): the generator states no card reach, so rule (c) has no allowance"]
+
+
+def spheres_in_card_boxes(centres, radius=0.1):
+    """A twig sphere of `radius` at each centre, each in the leaf cards of the cube it is inscribed in."""
+    lod0 = Mesh()
+    for c in centres:
+        card_box(lod0, tuple(x - radius for x in c), tuple(x + radius for x in c))
+    data = {"materials": [{"slot": "leaf", "visual": "leaf_shrub", "physics": "twig"}],
+            "collision": [sphere(c, radius) for c in centres], "gaps": []}
+    return data, lod0
+
+
+def test_65_pieces_in_one_2m_cube_fail_and_spread_along_8m_pass():
+    """PR2: 65 spheres of 0.1 m radius inside one 2 m cube fail rule (d), naming the count, the cube and the limit;
+    the same 65 spread along 8 m pass (any 2 m cube meets at most 18 of their boxes)."""
+    packed = list(itertools.product((0.1, 0.55, 1.0, 1.45, 1.9), (0.6, 1.05, 1.5, 1.95, 2.4), (0.1, 0.55, 1.0, 1.45, 1.9)))[:65]
+    problems, lines = audit.run(*spheres_in_card_boxes(packed), card_visuals=CARD_VISUALS, card_reach_m=SPRIG_M)
+    # the lowest such cube: it touches the far boxes' low faces
+    assert problems == ["twig shell: most pieces meeting one 2 m cube 65, the cube from (-1.1, 0.3, -0.2) exceeds the limit 64"]
+    spread = [(0.125 * n, 1.0, 0.0) for n in range(65)]
+    problems, lines = audit.run(*spheres_in_card_boxes(spread), card_visuals=CARD_VISUALS, card_reach_m=SPRIG_M)
+    assert problems == []
+    assert "audit twig shell: most pieces meeting one 2 m cube 18, the cube from (0.025, -1.1, -2.1), limit 64" in lines
+
+
+def test_the_neighbourhood_count_is_exact():
+    """Rule (d)'s sweep against brute force over every cube corner the boxes' low faces could set."""
+    rng = random.Random(5)
+    boxes = []
+    for _ in range(14):
+        lo = tuple(rng.uniform(0.0, 4.0) for _ in range(3))
+        boxes.append((lo, tuple(c + rng.uniform(0.05, 1.0) for c in lo)))
+    count, corner = audit.neighbourhood(boxes)
+
+    def meets(c, box):
+        return all(box[0][a] - 2.0 <= c[a] <= box[1][a] for a in range(3))
+
+    lows = [sorted({box[0][a] - 2.0 for box in boxes}) for a in range(3)]
+    brute = max(sum(meets(c, box) for box in boxes) for c in itertools.product(*lows))
+    assert count == brute and sum(meets(corner, box) for box in boxes) == count and count >= 3
 
 
 @pytest.mark.parametrize("lift", [0.0, 0.5])
@@ -550,20 +621,34 @@ def test_surface_under_the_ground_is_ignored(lift):
     card_box(lod0, (-0.3, lift, -0.3), (0.3, lift + 0.3, 0.3), skip=("y-",))
     data = {"materials": [{"slot": "leaf", "visual": "leaf_shrub", "physics": "twig"}],
             "collision": [sphere((0.0, lift, 0.0), HUG_R)], "gaps": []}
-    problems, lines = audit.run(data, lod0, card_visuals=CARD_VISUALS)
+    problems, lines = audit.run(data, lod0, card_visuals=CARD_VISUALS, card_reach_m=SPRIG_M)
     if lift == 0.0:
         assert problems == []
-        assert measured_mm(shell_lines(lines)[1]) == pytest.approx(CORNER_STANDOFF_MM, abs=SHELL_MM)
+        assert measured_mm(shell_lines(lines)[2]) == pytest.approx(CORNER_STANDOFF_MM, abs=SHELL_MM)
     else:
         # the bottom pole, 0.38 m under the box's open base, whose edges lie 0.3 m to its sides
         assert len(problems) == 1 and problems[0].startswith("collision[0] sphere (twig shell): largest standoff ")
         assert measured_mm(problems[0]) == pytest.approx(math.hypot(0.3, HUG_R) * 1000, abs=SHELL_MM)
 
 
+def test_a_chain_of_capsules_is_measured_outside_its_buried_caps():
+    """p1-v01-locust: a trunk of two 80 mm capsules along a 12-sided tube domed at both ends, as the tree builds
+    it. The caps where they meet lie inside each other, 80 mm off the tube's wall at their poles: no invisible wall.
+    The exposed surface follows the mesh within its facets."""
+    trunk = skeleton.Member([(0.0, 0.5, 0.0), (0.0, 1.5, 0.0), (0.0, 2.5, 0.0)], [0.08, 0.08, 0.08], 0)
+    lod0 = Mesh()
+    skeleton.tree_tubes(lod0, [trunk], 0, lambda member: "bark")
+    data = {"materials": [{"slot": "bark", "visual": "bark_locust", "physics": "bark"}],
+            "collision": [meta.capsule(p0, p1, 0.08, "bark") for p0, p1, _, _ in trunk.segments()], "gaps": []}
+    problems, lines = audit.run(data, lod0)
+    assert problems == [] and len(lines) == 3
+    assert all(measured_mm(line) < 10.0 for line in lines)  # the dome's 22.5 deg facets: 6 mm
+
+
 def test_a_capsule_off_its_tube_by_7cm_still_fails():
     data, lod0 = hugged()
     data["collision"][0]["center"][0] += 0.07
-    problems, _ = audit.run(data, lod0, card_visuals=CARD_VISUALS)
+    problems, _ = audit.run(data, lod0, card_visuals=CARD_VISUALS, card_reach_m=SPRIG_M)
     assert [p.split(" ")[:2] for p in problems] == [["collision[0]", "capsule:"], ["mesh:", "mesh->collision"]]
     # 70 mm, give or take the 6-sided tube's 1.2 mm between its inradius and its circumradius
     assert all(measured_mm(p) == pytest.approx(70.0, abs=1.5) and p.endswith("exceeds the tolerance 50 mm") for p in problems)
@@ -583,7 +668,7 @@ def test_a_shell_piece_hides_no_rigid_primitive():
                            "rotation": [0.0, 0.0, 0.0, 1.0], "material": "bark", "landable": False},
                           sphere((0.0, 1.3, 0.0), HUG_R)],
             "gaps": []}
-    problems, _ = audit.run(data, lod0, card_visuals=CARD_VISUALS)
+    problems, _ = audit.run(data, lod0, card_visuals=CARD_VISUALS, card_reach_m=SPRIG_M)
     assert problems == ["collision[0] capsule: capsule->mesh 70.000 mm at (0, 1.27, 0) exceeds the tolerance 50 mm"]
 
 
@@ -591,7 +676,7 @@ def test_a_shell_without_a_slot_and_a_slot_without_a_shell_are_refused():
     data, lod0 = hugged()
     for piece in data["collision"][1:]:
         piece["material"] = "foliage"  # the twig and leaf slots still carry twig
-    problems, lines = audit.run(data, lod0, card_visuals=CARD_VISUALS)
+    problems, lines = audit.run(data, lod0, card_visuals=CARD_VISUALS, card_reach_m=SPRIG_M)
     assert problems == ["collision[1] sphere (foliage shell): no material slot carries foliage, so it encloses nothing",
                         "collision[2] sphere (foliage shell): no material slot carries foliage, so it encloses nothing",
                         "slots leaf, twig carry twig but no twig shell stands for them"]

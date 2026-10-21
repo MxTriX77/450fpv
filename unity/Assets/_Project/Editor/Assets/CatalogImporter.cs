@@ -13,7 +13,9 @@ namespace Fpv450.Assets
 {
     /// <summary>
     /// Catalog plus metadata to prefab (setup-asset-pipeline, design decision 8). For every variant of an asset id:
-    /// the URP materials from <c>assets-src/materials/&lt;visual&gt;.json</c>, assigned by the FBX's slot names; the
+    /// the URP materials from <c>assets-src/materials/&lt;visual&gt;.json</c>, assigned by the FBX's slot names, each
+    /// slot's visual the catalog's for that variant (<see cref="Visuals"/>: its <c>variant_materials</c> first, then the
+    /// asset's <c>materials</c>), which the metadata must name too or the import stops, asking for the Blender build; the
     /// prefab under <c>Prefabs/&lt;class&gt;/&lt;variant&gt;.prefab</c> with a LODGroup over the FBX's LOD meshes,
     /// colliders from the metadata primitives and an <see cref="AssetPhysicsMeta"/> filled from the
     /// <c>.assetmeta.json</c>. Idempotent: with unchanged inputs a second run changes no file.
@@ -30,6 +32,13 @@ namespace Fpv450.Assets
         const string PrefabsFolder = "Assets/_Project/Prefabs";
         const string LitShader = "Universal Render Pipeline/Lit";
         const string LeafShader = "Fpv450/Leaf";
+        const string ImpostorShader = "Fpv450/Impostor";
+
+        // The impostor card's material (p1-v01-locust, design decision 3): the atlas, whose alpha is the coverage
+        // the Blender render found per texel (tools/blender/lib/impostor.py), clipped where half of it is covered.
+        // Its smoothness is the smoothness atlas's per texel, the surfaces' own (task 1.6b: the leaves' 0.2 for the
+        // whole card gave V01_L's wood twice its bark's), at _Smoothness 1 as every masked material holds it.
+        const float ImpostorCutoff = 0.5f;
 
         // The metadata gives LOD distances; a LODGroup wants screen-relative heights. The conversion assumes the
         // feed's vertical field of view (design decision 7, derived: 60 degrees, 935 px/rad at 1080 px).
@@ -86,11 +95,17 @@ namespace Fpv450.Assets
 
                 EnsureModelImport(fbxPath);
                 var metaJson = Json.Obj(Json.Parse(File.ReadAllText(FullPath(metaPath))), metaPath);
+                Dictionary<string, string> visuals = Visuals(entry, variant, $"{CatalogFile} {id}");
                 var materialBySlot = new Dictionary<string, Material>();
                 foreach (object slotValue in Json.Arr(metaJson, "materials", metaPath))
                 {
                     var slot = Json.Obj(slotValue, $"{metaPath} materials");
-                    materialBySlot[Json.Str(slot, "slot", metaPath)] = EnsureMaterial(Json.Str(slot, "visual", metaPath), manifest);
+                    string slotName = Json.Str(slot, "slot", metaPath), visual = Json.Str(slot, "visual", metaPath);
+                    if (!visuals.TryGetValue(slotName, out string expected))
+                        throw new FormatException($"{metaPath}: slot \"{slotName}\" has no material in {CatalogFile} {id}");
+                    if (visual != expected)
+                        throw new FormatException($"{metaPath}: slot \"{slotName}\" is {visual}, but {CatalogFile} gives {variant} {expected}: run the Blender build");
+                    materialBySlot[slotName] = EnsureMaterial(expected, manifest);
                 }
 
                 string prefabPath = $"{PrefabsFolder}/{assetClass}/{variant}.prefab";
@@ -120,6 +135,42 @@ namespace Fpv450.Assets
             if ((int)Json.Num(catalog, "schema", CatalogFile) != 1)
                 throw new NotSupportedException($"{CatalogFile}: schema {catalog["schema"]}; this importer reads schema 1");
             return Json.Obj(catalog, "assets", CatalogFile);
+        }
+
+        /// <summary>
+        /// The visual material per slot of one variant (asset-pipeline "Per-variant material overrides", p1-v01-locust
+        /// design decision 7): the entry's <c>materials</c>, each slot that <c>variant_materials[variant]</c> names
+        /// taking that material instead. Refuses an override of a variant the entry does not list or of a slot its
+        /// <c>materials</c> do not map, for any variant. Internal for the EditMode tests, which pass a throwaway entry.
+        /// </summary>
+        internal static Dictionary<string, string> Visuals(Dictionary<string, object> entry, string variant, string what)
+        {
+            var visuals = Json.Obj(entry, "materials", what).ToDictionary(kv => kv.Key,
+                kv => kv.Value as string ?? throw new FormatException($"{what}: materials.{kv.Key} must be a material name"));
+            if (!entry.TryGetValue("variant_materials", out object overridesValue))
+                return visuals;
+            List<object> variants = Json.Arr(entry, "variants", what);
+            Dictionary<string, string> own = null;
+            foreach (KeyValuePair<string, object> overrides in Json.Obj(overridesValue, $"{what} variant_materials"))
+            {
+                if (!variants.Contains(overrides.Key))
+                    throw new FormatException($"{what}: variant_materials names {overrides.Key}, which is not one of its variants");
+                var slots = new Dictionary<string, string>();
+                foreach (KeyValuePair<string, object> slot in Json.Obj(overrides.Value, $"{what} variant_materials.{overrides.Key}"))
+                {
+                    if (!visuals.ContainsKey(slot.Key))
+                        throw new FormatException($"{what}: variant_materials.{overrides.Key} names slot \"{slot.Key}\", which its materials do not map");
+                    slots[slot.Key] = slot.Value as string is { Length: > 0 } name
+                        ? name
+                        : throw new FormatException($"{what}: variant_materials.{overrides.Key}.{slot.Key} must be a material name");
+                }
+                if (overrides.Key == variant)
+                    own = slots;
+            }
+            if (own != null)
+                foreach (KeyValuePair<string, string> slot in own)
+                    visuals[slot.Key] = slot.Value;
+            return visuals;
         }
 
         static void EnsureFolder(string assetFolder)
@@ -165,7 +216,12 @@ namespace Fpv450.Assets
         /// <c>derive.py</c> packs from both. "two_sided" renders both faces (cull off). A recipe that is both is a
         /// leaf (p1-v13-shrub, design decision 6): it gets <c>Shaders/Leaf</c>, which reads the same properties and
         /// lights a back face with its own normal, unless its "shader" names another than URP/Lit; and its base map
-        /// keeps its alpha coverage at the cutoff in every mip.
+        /// keeps its alpha coverage at the cutoff in every mip. A "groove" (a bark's grooves tinted by its cavity) or
+        /// a "paint" in place of a "texture_set" (p1-v01-locust, design decision 5) also takes the <c>_base</c> map
+        /// that <c>derive.py</c> derives or paints; a painted recipe has no normal map. A far-card recipe, holding only
+        /// <c>"far_card_of": &lt;recipe&gt;</c> (p1-v01-locust task 1.2j), is that leaf recipe, its maps and settings,
+        /// for far cards drawn as two faces with normals of their own: URP/Lit with back faces culled (no back face
+        /// shows) and no normal map (the leaf atlas's relief, stretched over a far card, is no relief of the crown).
         /// <para>
         /// A recipe of kind <c>ground</c> (p1-s04-belt-straw) takes the maps <c>derive.py</c> composes for it as its
         /// base: <c>&lt;visual&gt;_albedo.png</c>, <c>_normal.png</c> and <c>_mask.png</c>, which span
@@ -205,9 +261,23 @@ namespace Fpv450.Assets
         internal static Material EnsureMaterial(string visual, Dictionary<string, object> manifest, string materialPath)
         {
             string recipePath = $"{RecipesFolder}/{visual}.json";
-            var recipe = Json.Obj(Json.Parse(ReadRepoFile(recipePath)), recipePath);
-            if ((int)Json.Num(recipe, "schema", recipePath) != 1)
-                throw new NotSupportedException($"{recipePath}: schema {recipe["schema"]}; this importer reads schema 1");
+            var recipe = Recipe(recipePath);
+            // A far-card recipe (p1-v01-locust task 1.2j): its leaf recipe and that recipe's derived maps, for far
+            // cards drawn as two faces back to back with normals of their own; one-sided, since the leaf shader would
+            // light a back face with its front's normal turned round (one leaning up would lean down), and without the
+            // normal map, whose relief on a far card depends on the face's tangent frame, not on the crown.
+            bool farCard = recipe.ContainsKey("far_card_of");
+            string mapsOf = visual;
+            if (farCard)
+            {
+                if (recipe.Count != 2)
+                    throw new FormatException($"{recipePath}: a \"far_card_of\" recipe names one leaf recipe and holds nothing else");
+                mapsOf = Json.Str(recipe, "far_card_of", recipePath);
+                recipePath = $"{RecipesFolder}/{mapsOf}.json";
+                recipe = Recipe(recipePath);
+                if (recipe.ContainsKey("far_card_of"))
+                    throw new FormatException($"{recipePath}: is itself a far-card recipe; name the leaf recipe");
+            }
             string shaderName = Json.Str(recipe, "shader", recipePath);
             string kind = recipe.TryGetValue("kind", out object kindValue)
                 ? kindValue as string ?? throw new FormatException($"{recipePath}: \"kind\" must be a string")
@@ -229,12 +299,12 @@ namespace Fpv450.Assets
 
             Texture2D albedo, normal, mask, detailAlbedo = null, detailNormal = null;
             Vector2 baseScale, baseOffset = Vector2.zero, detailScale = Vector2.one;
-            bool masked, separateOpacity = false;
+            bool masked, separateOpacity = false, derivedBase = false;
             if (kind == "palette")
             {
                 if (recipe.ContainsKey("texture_set") || recipe.ContainsKey("mask"))
                     throw new FormatException($"{recipePath}: a palette recipe is flat colour; it takes neither \"texture_set\" nor \"mask\"");
-                albedo = Derived(visual, "albedo");
+                albedo = Derived(mapsOf, "albedo");
                 normal = null;
                 mask = null;
                 masked = false;
@@ -255,10 +325,10 @@ namespace Fpv450.Assets
                 float detailTile = Json.Num(detail, "tile_size_m", recipePath);
                 if (size.x <= 0f || size.y <= 0f || detailTile <= 0f)
                     throw new FormatException($"{recipePath}: size_m and detail.tile_size_m must be positive metres");
-                albedo = Derived(visual, "albedo");
-                normal = Derived(visual, "normal");
-                mask = Derived(visual, "mask");
-                detailAlbedo = Derived(visual, "detail_albedo");
+                albedo = Derived(mapsOf, "albedo");
+                normal = Derived(mapsOf, "normal");
+                mask = Derived(mapsOf, "mask");
+                detailAlbedo = Derived(mapsOf, "detail_albedo");
                 Dictionary<string, Texture2D> detailSet = TextureSet(Json.Str(detail, "texture_set", recipePath), manifest, recipePath);
                 if (!detailSet.TryGetValue("normal", out detailNormal))
                     throw new FormatException($"{recipePath}: the detail texture set has no normal map");
@@ -269,28 +339,35 @@ namespace Fpv450.Assets
             }
             else
             {
-                Dictionary<string, Texture2D> maps = TextureSet(Json.Str(recipe, "texture_set", recipePath), manifest, recipePath);
+                bool painted = recipe.ContainsKey("paint");
+                Dictionary<string, Texture2D> maps = painted
+                    ? new Dictionary<string, Texture2D>()
+                    : TextureSet(Json.Str(recipe, "texture_set", recipePath), manifest, recipePath);
                 Vector2 tile = Json.Vec2(recipe, "tile_size_m", recipePath);
-                if (!maps.TryGetValue("diffuse", out albedo))
+                if (!maps.TryGetValue("diffuse", out albedo) && !painted)
                     throw new FormatException($"{recipePath}: the texture set has no diffuse map");
-                maps.TryGetValue("normal", out normal);
+                if (!farCard)
+                    maps.TryGetValue("normal", out normal);
+                else
+                    normal = null;
                 separateOpacity = maps.ContainsKey("opacity");
+                derivedBase = painted || recipe.ContainsKey("groove");
                 masked = recipe.ContainsKey("mask");
                 if (masked == recipe.ContainsKey("smoothness"))
                     throw new FormatException($"{recipePath}: give \"smoothness\" as a constant or a \"mask\" whose alpha carries it, not both or neither");
-                mask = masked ? Derived(visual, "mask") : null;
+                mask = masked ? Derived(mapsOf, "mask") : null;
                 baseScale = new Vector2(1f / tile.x, 1f / tile.y);
             }
             bool clipped = recipe.ContainsKey("alpha_clip");
             float cutoff = clipped ? Json.Num(recipe, "alpha_clip", recipePath) : 0.5f;
             if (cutoff < 0f || cutoff > 1f)
                 throw new FormatException($"{recipePath}: \"alpha_clip\" must be a cutoff in 0–1, not {cutoff}");
-            bool twoSided = recipe.ContainsKey("two_sided") && Json.Bool(recipe, "two_sided", recipePath);
+            bool twoSided = !farCard && recipe.ContainsKey("two_sided") && Json.Bool(recipe, "two_sided", recipePath);
             if (clipped && twoSided && shaderName == LitShader)
                 shaderName = LeafShader;
             Shader shader = Shader.Find(shaderName) ?? throw new FormatException($"{recipePath}: no shader named \"{shaderName}\"");
-            if (clipped && separateOpacity)
-                albedo = Derived(visual, "base");
+            if (derivedBase || (clipped && separateOpacity))
+                albedo = Derived(mapsOf, "base");
             if (clipped)
                 EnsureCoverage(albedo, cutoff);
 
@@ -380,11 +457,19 @@ namespace Fpv450.Assets
                 importer.SaveAndReimport();
         }
 
+        static Dictionary<string, object> Recipe(string recipePath)
+        {
+            var recipe = Json.Obj(Json.Parse(ReadRepoFile(recipePath)), recipePath);
+            if ((int)Json.Num(recipe, "schema", recipePath) != 1)
+                throw new NotSupportedException($"{recipePath}: schema {recipe["schema"]}; this importer reads schema 1");
+            return recipe;
+        }
+
         /// <summary>
         /// A map derived from a recipe, <c>Art/Materials/&lt;visual&gt;_&lt;role&gt;.png</c>, imported as its role needs
         /// (<see cref="ArtImportSettings"/>): the packed mask, a ground recipe's maps, a palette's albedo, or the
-        /// <c>_base</c> map of an alpha-clipped recipe whose set ships its opacity separately (the diffuse's RGB, the
-        /// opacity in A, an sRGB map that keeps its alpha).
+        /// <c>_base</c> map, an sRGB map that keeps any alpha: the diffuse's RGB with the set's separate opacity in A
+        /// (an alpha-clipped recipe), the diffuse with its grooves tinted (a "groove"), or a painted map (a "paint").
         /// </summary>
         static Texture2D Derived(string visual, string role)
         {
@@ -465,6 +550,14 @@ namespace Fpv450.Assets
             if (m.GetColor(name) == value)
                 return false;
             m.SetColor(name, value);
+            return true;
+        }
+
+        static bool SetVector(Material m, string name, Vector4 value)
+        {
+            if (m.GetVector(name) == value)
+                return false;
+            m.SetVector(name, value);
             return true;
         }
 
@@ -809,14 +902,6 @@ namespace Fpv450.Assets
         static Vector2 MetallicSmoothness(Material m) =>
             new Vector2(m.IsKeywordEnabled("_METALLICSPECGLOSSMAP") ? 1f : m.GetFloat("_Metallic"), m.GetFloat("_Smoothness"));
 
-        static bool SetVector(Material m, string name, Vector4 value)
-        {
-            if (m.GetVector(name) == value)
-                return false;
-            m.SetVector(name, value);
-            return true;
-        }
-
         /// <summary>A crack mask, imported as linear data and clamped, so the pane outside the mask has no cracks.</summary>
         static Texture2D CrackMask(string path)
         {
@@ -837,12 +922,14 @@ namespace Fpv450.Assets
         /// <summary>
         /// Creates or updates the prefab in place (so its file ids stay stable): the metadata component, one child
         /// per LOD with the FBX mesh and the slot materials plus one per micro mesh of that LOD (rendered with it,
-        /// never a collider), the LODGroup, one child per collision primitive, and nothing else. Every slot of a LOD
-        /// whose metadata entry is <c>thin_wire</c> draws with the thin-wire material made from its recipe's
+        /// never a collider), or, for an impostor LOD, the card set (<see cref="EnsureImpostor"/>), the LODGroup, one
+        /// child per collision primitive, and nothing else. Every slot of a mesh LOD whose metadata entry is
+        /// <c>thin_wire</c> draws with the thin-wire material made from its recipe's
         /// (<see cref="EnsureThinWireMaterial"/>), and every vertex of it must carry its radius in uv2, the shader's
         /// input: a wire's tube, and a pole's far LODs (p1-l01-l03-pole-wires, "Night silhouette kept to 1 km"). Every
         /// other slot, and every micro mesh, draws with the recipe's own, whatever its uv2 holds (Unity's lightmap
-        /// channel; review S2). A wire's tube ("Wires are audited against their polyline") is the faces of the slot
+        /// channel; review S2); an impostor's card, never <c>thin_wire</c>, with its own. A wire's tube ("Wires are
+        /// audited against their polyline") is the faces of the slot
         /// its <c>wires</c> record names: it draws only in a <c>thin_wire</c> LOD, a renderer drawing only wires casts
         /// no shadow (any other casts one, the thin-wire shader's at the member's true radius), and no collider
         /// stands for a wire: conductors are map objects the sim reads from the metadata (D-007). A slot with a crack mask
@@ -864,7 +951,8 @@ namespace Fpv450.Assets
                 var wireSlots = new HashSet<string>(meta.wires.Select(w => w.slot));
                 var keep = new HashSet<string>();
                 var thin = new List<string>();
-                Renderer[][] renderers = EnsureLods(root, meta, fbxPath, materialBySlot, wireSlots, keep, thin);
+                Renderer[][] renderers = EnsureLods(root, meta, metaJson, AssetDatabase.GetAssetPath(source), fbxPath, materialBySlot, wireSlots, keep, thin,
+                    prefabPath);
                 EnsureLodGroup(root, meta, renderers, LodBounds(metaJson, meta.bounds, prefabPath));
                 EnsureColliders(root, meta, keep, prefabPath);
                 for (int i = root.transform.childCount - 1; i >= 0; i--)
@@ -896,22 +984,37 @@ namespace Fpv450.Assets
             }
         }
 
-        /// <summary>Per LOD, its mesh's renderer followed by those of the micro meshes listed for it.</summary>
-        static Renderer[][] EnsureLods(GameObject root, AssetPhysicsMeta meta, string fbxPath, Dictionary<string, Material> materialBySlot,
-            HashSet<string> wireSlots, HashSet<string> keep, List<string> thin)
+        /// <summary>
+        /// Per LOD, its mesh's renderer followed by those of the micro meshes listed for it; an impostor LOD's card set
+        /// (<see cref="EnsureImpostor"/>) alone.
+        /// </summary>
+        static Renderer[][] EnsureLods(GameObject root, AssetPhysicsMeta meta, Dictionary<string, object> metaJson, string metaPath, string fbxPath,
+            Dictionary<string, Material> materialBySlot, HashSet<string> wireSlots, HashSet<string> keep, List<string> thin, string prefabPath)
         {
             var imported = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath)
                 ?? throw new FileNotFoundException($"{fbxPath} did not import as a model");
             MeshFilter[] filters = imported.GetComponentsInChildren<MeshFilter>(true);
+            List<object> lodsJson = Json.Arr(metaJson, "lods", metaPath);
             var renderers = new Renderer[meta.lods.Length][];
+            bool impostor = false;
             for (int i = 0; i < meta.lods.Length; i++)
             {
+                var lodJson = Json.Obj(lodsJson[i], $"{metaPath} lods[{i}]");
+                if (lodJson.ContainsKey("impostor"))
+                {
+                    renderers[i] = new[] { EnsureImpostor(root, meta.lods[i], Json.Obj(lodJson, "impostor", $"{metaPath} lods[{i}]"),
+                        Path.GetDirectoryName(metaPath).Replace('\\', '/'), prefabPath, keep) };
+                    impostor = true;
+                    continue;
+                }
                 var lod = new List<Renderer> { MeshChild(root, meta.lods[i].mesh, meta.lods[i].thinWire, filters, fbxPath, materialBySlot, wireSlots, keep, thin) };
                 foreach (AssetPhysicsMeta.MicroMesh micro in meta.micro)
                     if (micro.lod == i)
                         lod.Add(MeshChild(root, micro.name, false, filters, fbxPath, materialBySlot, wireSlots, keep, thin));
                 renderers[i] = lod.ToArray();
             }
+            if (!impostor)
+                DeleteImpostorAssets(prefabPath, root.name);
             return renderers;
         }
 
@@ -947,6 +1050,169 @@ namespace Fpv450.Assets
             renderer.sharedMaterials = slotMaterials;
             renderer.shadowCastingMode = slots.Length > 0 && slots.All(wireSlots.Contains) ? ShadowCastingMode.Off : ShadowCastingMode.On;
             return renderer;
+        }
+
+        // --- the impostor (p1-v01-locust, design decision 3) -----------------------------------------------------
+
+        /// <summary>
+        /// The impostor LOD: a camera-facing card set reading the albedo, normal and smoothness atlases the Blender
+        /// build renders beside the metadata (tools/blender/lib/impostor.py), one child named as the LOD's mesh with
+        /// the card mesh and its material. The card is one quad of the record's size, x across and y up in its own
+        /// frame (<see cref="ImpostorMesh"/>); the shader <c>Fpv450/Impostor</c> turns it to the camera, picks the
+        /// nearest view and gives each pixel the normal and the smoothness its view saw. The albedo atlas is imported
+        /// as a diffuse that keeps its alpha coverage at the cutoff in every mip, the normal and smoothness atlases as
+        /// linear data (<see cref="ArtImportSettings"/>).
+        /// The mesh and the material are assets beside the prefab, <c>&lt;variant&gt;_impostor.asset</c> and
+        /// <c>.mat</c>, rewritten only when they change.
+        /// </summary>
+        static Renderer EnsureImpostor(GameObject root, AssetPhysicsMeta.LodEntry lod, Dictionary<string, object> record, string atlasFolder,
+            string prefabPath, HashSet<string> keep)
+        {
+            string what = $"{root.name} {lod.mesh}";
+            Vector2 size = Json.Vec2(record, "size_px", what);
+            Texture2D atlas = ImpostorAtlas($"{atlasFolder}/{Json.Str(record, "atlas", what)}", size);
+            EnsureCoverage(atlas, ImpostorCutoff);
+            Texture2D normals = ImpostorAtlas($"{atlasFolder}/{Json.Str(record, "normals", what)}", size);
+            Texture2D smoothness = ImpostorAtlas($"{atlasFolder}/{Json.Str(record, "smoothness", what)}", size);
+
+            if (lod.tris != 2)
+                throw new FormatException($"{what}: the card is one quad, 2 triangles; the metadata says {lod.tris}");
+            var cardJson = Json.Obj(record, "card", what);
+            var card = new Vector4(Json.Num(cardJson, "width_m", what), Json.Num(cardJson, "height_m", what), Json.Num(cardJson, "bottom_m", what), 0f);
+            var grid = new Vector4(Json.Num(record, "views", what), Json.Num(record, "columns", what), Json.Num(record, "rows", what),
+                Json.Num(record, "elevation_deg", what));
+
+            string folder = Path.GetDirectoryName(prefabPath).Replace('\\', '/');
+            Mesh mesh = ImpostorMesh($"{folder}/{root.name}_impostor.asset", lod.mesh, card.x, card.y, card.z);
+            Material material = ImpostorMaterial($"{folder}/{root.name}_impostor.mat", atlas, normals, smoothness, grid, card);
+
+            GameObject child = Child(root, lod.mesh, keep);
+            child.transform.localPosition = Vector3.zero;
+            child.transform.localRotation = Quaternion.identity;
+            child.transform.localScale = Vector3.one;
+            Ensure<MeshFilter>(child).sharedMesh = mesh;
+            MeshRenderer renderer = Ensure<MeshRenderer>(child);
+            renderer.sharedMaterials = new[] { material };
+            return renderer;
+        }
+
+        /// <summary>One of the impostor's atlases beside the metadata, imported by the art settings and as large as the record says.</summary>
+        static Texture2D ImpostorAtlas(string path, Vector2 size)
+        {
+            EnsureTextureImport(path, "run the Blender build of the asset (tools/blender/build.py)");
+            var atlas = AssetDatabase.LoadAssetAtPath<Texture2D>(path)
+                ?? throw new FileNotFoundException($"{path} did not import as a texture");
+            if (atlas.width != (int)size.x || atlas.height != (int)size.y)
+                throw new FormatException($"{path} is {atlas.width}x{atlas.height} px; the metadata says {size.x}x{size.y}");
+            return atlas;
+        }
+
+        /// <summary>
+        /// The card mesh: one quad <paramref name="width"/> wide and <paramref name="height"/> tall from
+        /// <paramref name="bottom"/>, x across and y up with the asset's vertical axis at x = 0, UVs 0–1 over it (the
+        /// shader moves them into a view's cell), wound clockwise seen from +z. Its bounds are what the card sweeps
+        /// turning about the axis, so Unity never culls it as it turns.
+        /// </summary>
+        static Mesh ImpostorMesh(string path, string name, float width, float height, float bottom)
+        {
+            float x = width / 2f, top = bottom + height;
+            var vertices = new[] { new Vector3(-x, bottom, 0f), new Vector3(-x, top, 0f), new Vector3(x, top, 0f), new Vector3(x, bottom, 0f) };
+            var uvs = new[] { new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(1f, 0f) };
+            var normals = new[] { Vector3.back, Vector3.back, Vector3.back, Vector3.back };
+            var triangles = new[] { 0, 1, 2, 0, 2, 3 };
+            var bounds = new Bounds(new Vector3(0f, bottom + height / 2f, 0f), new Vector3(width, height, width));
+
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            if (mesh == null)
+            {
+                mesh = new Mesh { name = name };
+                SetCard(mesh, vertices, uvs, normals, triangles, bounds);
+                AssetDatabase.CreateAsset(mesh, path);
+            }
+            else if (mesh.name != name || !SameVertices(mesh.vertices, vertices) || !mesh.uv.SequenceEqual(uvs) || !mesh.triangles.SequenceEqual(triangles)
+                     || mesh.bounds != bounds)
+            {
+                mesh.name = name;
+                SetCard(mesh, vertices, uvs, normals, triangles, bounds);
+                EditorUtility.SetDirty(mesh);
+                AssetDatabase.SaveAssetIfDirty(mesh);
+            }
+            return mesh;
+        }
+
+        static void SetCard(Mesh mesh, Vector3[] vertices, Vector2[] uvs, Vector3[] normals, int[] triangles, Bounds bounds)
+        {
+            mesh.Clear();
+            mesh.vertices = vertices;
+            mesh.uv = uvs;
+            mesh.normals = normals;
+            mesh.triangles = triangles;
+            mesh.bounds = bounds; // after the triangles, which recompute them
+        }
+
+        /// <summary>
+        /// The card's material: <c>Fpv450/Impostor</c> over the atlas, untinted, clipped at the cutoff with alpha to
+        /// coverage as the leaves are, no face culled, receiving no shadow (the shader says why), the normal atlas with
+        /// the occlusion per texel in its alpha and the smoothness atlas (the shader applies both), and the views' grid
+        /// and elevation and the card's size for the shader.
+        /// </summary>
+        static Material ImpostorMaterial(string path, Texture2D atlas, Texture2D normals, Texture2D smoothness, Vector4 grid, Vector4 card)
+        {
+            Shader shader = Shader.Find(ImpostorShader) ?? throw new FormatException($"no shader named \"{ImpostorShader}\"");
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            bool created = material == null, changed = false;
+            if (created)
+                material = new Material(shader);
+            else if (material.shader != shader)
+            {
+                material.shader = shader;
+                changed = true;
+            }
+            changed |= SetTexture(material, "_BaseMap", atlas);
+            changed |= SetTextureScale(material, "_BaseMap", Vector2.one);
+            changed |= SetColor(material, "_BaseColor", Color.white);
+            changed |= SetFloat(material, "_Smoothness", 1f); // the smoothness atlas's texels, unscaled
+            changed |= SetTexture(material, "_SmoothnessMap", smoothness);
+            changed |= SetFloat(material, "_Metallic", 0f);
+            changed |= SetFloat(material, "_AlphaClip", 1f);
+            changed |= SetFloat(material, "_Cutoff", ImpostorCutoff);
+            changed |= SetKeyword(material, "_ALPHATEST_ON", true);
+            changed |= SetFloat(material, "_AlphaToMask", 1f);
+            changed |= SetFloat(material, "_Cull", (float)CullMode.Off);
+            changed |= SetFloat(material, "_ReceiveShadows", 0f);
+            changed |= SetKeyword(material, "_RECEIVE_SHADOWS_OFF", true);
+            changed |= SetTexture(material, "_BumpMap", normals); // read by the shader itself; _NORMALMAP stays off
+            if (!material.enableInstancing)
+            {
+                material.enableInstancing = true; // a belt's cards draw instanced: the SRP batcher cannot take them
+                changed = true;
+            }
+            changed |= SetVector(material, "_ImpostorGrid", grid);
+            changed |= SetVector(material, "_ImpostorCard", card);
+            if (material.renderQueue != (int)RenderQueue.AlphaTest)
+            {
+                material.renderQueue = (int)RenderQueue.AlphaTest;
+                changed = true;
+            }
+            // Written whole and at once: a material created empty and filled after was found reloaded from its empty
+            // file by the prefab's save (the EditMode test's second build).
+            if (created)
+                AssetDatabase.CreateAsset(material, path);
+            else if (changed)
+            {
+                EditorUtility.SetDirty(material);
+                AssetDatabase.SaveAssetIfDirty(material);
+            }
+            return material;
+        }
+
+        /// <summary>Removes a variant's card mesh and material when its metadata no longer lists an impostor.</summary>
+        static void DeleteImpostorAssets(string prefabPath, string variant)
+        {
+            string folder = Path.GetDirectoryName(prefabPath).Replace('\\', '/');
+            foreach (string stale in new[] { $"{folder}/{variant}_impostor.asset", $"{folder}/{variant}_impostor.mat" })
+                if (AssetDatabase.LoadMainAssetAtPath(stale) != null)
+                    AssetDatabase.DeleteAsset(stale);
         }
 
         /// <summary>

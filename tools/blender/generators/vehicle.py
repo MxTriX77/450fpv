@@ -1204,7 +1204,7 @@ def _body_side(mesh, body, side, q, kit, extra_levels, snags):
             loop = kits.boundary_loop(quads)
             outer = [(sheet_grid[i][j], (rows[i0 + i], sheet_grid[i][j][1]), sheet_uvs[i][j]) for i, j in loop]
             hole_snags = kits.emit_patch(mesh, h, outer, surf, flank_uv, t, {"paint": PAINT, "torn": RUST},
-                                         rim_points=48 if q["thick"] else 16, petals=q["thick"])
+                                         PHYSICS[PAINT], rim_points=48 if q["thick"] else 16, petals=q["thick"])
             if snags is not None:
                 snags += hole_snags
     if q["thick"]:  # the uncut holes' dark openings; every hole's halo is the damage mask's (_damage_mask)
@@ -1247,7 +1247,8 @@ def _notch_side(body, q, kit, side, rows, levels, grid, mask, snags):
         grid[i][j_n] = body.P(s, side * body.hw(s), y)
     if snags is not None:
         edge = [grid[i][j_n] for i in range(i_end + 1)] + [grid[i_end][j] for j in range(j_n + 1, len(grid[0]))]
-        snags.append({"kind": "edge", "points": [list(p) for p in edge], "radius_m": kits.EDGE_SNAG_R_M})
+        snags.append({"kind": "edge", "points": [list(p) for p in edge], "radius_m": kits.EDGE_SNAG_R_M,
+                      "material": PHYSICS[PAINT]})
 
 
 def _side_outward(body, side):
@@ -1333,8 +1334,9 @@ def _flap(mesh, body, q, flap, snags):
     if snags is not None:  # the tear (A-B) and the flap's free edges
         tear = [row[-1] for row in grid]
         side = [row[0] for row in grid]
-        snags.append({"kind": "edge", "points": [list(p) for p in tear], "radius_m": kits.EDGE_SNAG_R_M})
-        snags.append({"kind": "edge", "points": [list(p) for p in side], "radius_m": kits.EDGE_SNAG_R_M})
+        for edge in (tear, side):
+            snags.append({"kind": "edge", "points": [list(p) for p in edge], "radius_m": kits.EDGE_SNAG_R_M,
+                          "material": PHYSICS[PAINT]})
 
 
 def _deck_box(body, kit):
@@ -1412,7 +1414,7 @@ def _ends(mesh, body, q, kit, extra_levels, snags):
                 mesh.face(ids, n, RUST, [uv(wa, ya), uv(wb, yb), uv(wb, yb - GAUGE_M), uv(wa, ya - GAUGE_M)])
         if cut and snags is not None:
             snags.append({"kind": "edge", "points": [list(body.P(s, w, y)) for w, y in cut],
-                          "radius_m": kits.EDGE_SNAG_R_M})
+                          "radius_m": kits.EDGE_SNAG_R_M, "material": PHYSICS[PAINT]})
         if cut:
             _notch_pocket(mesh, body, q, kit)
 
@@ -1689,7 +1691,7 @@ def _crazed_pane(mesh, body, q, kit, s0, s1, um, thick, snags):
         p = body.cap_point_w(a / kit.ws_k, w)
         return (p[0], p[2])
     rim = kits.emit_patch(mesh, hole, outer, surf, uv, thick, {"paint": WINDSCREEN, "torn": WINDSCREEN},
-                          rim_points=40 if q["thick"] else 16, petals=False)
+                          PHYSICS[WINDSCREEN], rim_points=40 if q["thick"] else 16, petals=False)
     if snags is not None:
         snags += rim
 
@@ -3963,20 +3965,21 @@ def _wind(body, kit):
 
 def _snags(body, kit, pieces=()):
     """The snag records: the clean base's (the rack, the bumpers' ends, the wipers) and F's seat springs (hooks)
-    moved with the body; F's rim flanges (edges) at the hubs; the composed pieces' where they lie."""
+    moved with the body; F's rim flanges (edges) at the hubs; the composed pieces' where they lie. Each names the
+    physics material of the member it follows (PHYSICS of its slot; lib.meta's snag rule), as the kits' torn edges do."""
     out = [kits.transform_snag(s, kit.T) for s in _base_snags(body, wipers=not kit.F)]
     if kit.F:
         for _, _, _, _, springs in _burnt_seats(body):
             for pts in springs:
                 out.append(kits.transform_snag({"kind": "hook", "points": [list(p) for p in pts],
-                                                "radius_m": SPRING_R_M}, kit.T))
+                                                "radius_m": SPRING_R_M, "material": PHYSICS[WIRE]}, kit.T))
         for corner, hub in sorted(kit.hubs.items()):
             side = -1 if corner.endswith("left") else 1
             for e in (-1, 1):
                 ring = [[hub[0] + RIM_FLANGE_R_M * math.cos(2 * math.pi * k / 24),
                          hub[1] + RIM_FLANGE_R_M * math.sin(2 * math.pi * k / 24), hub[2] + e * side * RIM_WIDTH_M / 2]
                         for k in range(25)]
-                out.append({"kind": "edge", "points": ring, "radius_m": 0.003})
+                out.append({"kind": "edge", "points": ring, "radius_m": 0.003, "material": PHYSICS[CHROME_DULL]})
     for piece in pieces:
         out += [kits.transform_snag(s, piece["rigid"]) for s in piece["snag"]]
     return out
@@ -3988,15 +3991,16 @@ def _base_snags(body, wipers=True):
     if body.p["roof_rack"]:
         corners, posts = _rack_points(body)
         for a, b in zip(corners, corners[1:] + corners[:1]):
-            out.append({"kind": "edge", "points": [list(a), list(b)], "radius_m": RACK_R_M})
+            out.append({"kind": "edge", "points": [list(a), list(b)], "radius_m": RACK_R_M, "material": PHYSICS[RACK]})
         for foot, top in posts:
-            out.append({"kind": "edge", "points": [list(foot), list(top)], "radius_m": RACK_R_M})
+            out.append({"kind": "edge", "points": [list(foot), list(top)], "radius_m": RACK_R_M,
+                        "material": PHYSICS[RACK]})
     for front in (True, False):
         path, (bottom, top, depth) = _bumper_path(body, front)
         y = (bottom + top) / 2
         for end in (path[:4], path[-4:]):  # the blade's wrapped ends
             out.append({"kind": "edge", "points": [list(body.P(s, w, y)) for s, w in end], "radius_m": 0.006,
-                        "edge_radius_m": 0.002})
-    for pivot, tip in _wiper_arms(body) if wipers else ():
-        out.append({"kind": "hook", "points": [list(pivot), list(tip)], "radius_m": 0.005})
+                        "edge_radius_m": 0.002, "material": PHYSICS[CHROME]})
+    for pivot, tip in _wiper_arms(body) if wipers else ():  # tubes of the rack's steel (_lod)
+        out.append({"kind": "hook", "points": [list(pivot), list(tip)], "radius_m": 0.005, "material": PHYSICS[RACK]})
     return out

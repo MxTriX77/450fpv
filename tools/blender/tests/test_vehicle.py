@@ -509,6 +509,22 @@ def test_k07_pieces_match_their_params_files(repo_root_module):
         assert vehicle.K07[params["piece"]] == sizes, variant
 
 
+@pytest.mark.parametrize("which, params", [("built", "r01"), ("built_a", "r01_a"), ("built_f", "r01_f")])
+def test_every_snag_names_the_material_of_its_member(which, params, request, material_ids):
+    """lib.meta's snag rule (p1-v01-locust review-physics §4), met by R01 at the V01/R01 merge: the torn sheet's
+    edges (hole rims, petals, the flap, the lamp tear) are sheet metal, the crazed pane's rim glass, and the rack, the
+    bumpers' ends, the wiper arms, F's springs and rim flanges and every K07 piece steel; the metadata validates."""
+    built = request.getfixturevalue(which)
+    materials = [s["material"] for s in built["snag"]]
+    assert set(materials) == ({"sheet_metal", "glass", "steel"} if which == "built_a" else {"steel"})
+    assert materials.count("glass") == (1 if which == "built_a" else 0)  # the crazed pane's rim (no petals)
+    assert all(s["radius_m"] == kits.EDGE_SNAG_R_M for s in built["snag"] if s["material"] != "steel")
+    assert {s["material"] for s in built["snag"] if s["kind"] == "hook" or s["radius_m"] > 0.001} == {"steel"}
+    data =meta.assemble("R01", params.upper(), "vehicle", request.getfixturevalue(params), built,
+                         {m["slot"]: "x" for m in built["materials"]})
+    assert meta.validate(data, material_ids) == []
+
+
 # The plans the audit's 2 cm zone asks of the A and F cars (the counts are its to set, not a budget; pinned by group
 # so a change is seen). The open cabin's door tops, trims, wheel tubs and boot; A's torn bonnet edge, its folded
 # flap's strips, the crazed pane in six and the K07 scatter; F's open front arches, frames and bead wires.

@@ -74,7 +74,7 @@ def test_sampled_holes_sizes_and_room():
 def test_patch_closes_the_sheet_round_a_petalled_hole():
     """A 0.15 m hole in a flat sheet: the quads of its square removed, the patch from their border to the jagged
     rim, the rim a closed edge snag, each petal's tip 10-30 mm behind the skin and its open centre within AST-05's
-    5 cm of a tip."""
+    5 cm of a tip; every snag names the sheet's physics material."""
     rng = random.Random(1)
     hole = kits.Hole(1, 0.5, 0.5, 0.15, 1.8, rng)
     step = 0.025
@@ -93,8 +93,10 @@ def test_patch_closes_the_sheet_round_a_petalled_hole():
 
     def surf(s, y):
         return (s, y, 0.0), (0.0, 0.0, 1.0)
-    snags = kits.emit_patch(mesh, hole, outer, surf, lambda s, y: (s, y), 0.0008, {"paint": "paint", "torn": "rust"})
+    snags = kits.emit_patch(mesh, hole, outer, surf, lambda s, y: (s, y), 0.0008, {"paint": "paint", "torn": "rust"},
+                            "sheet_metal")
     assert snags[0]["points"][0] == snags[0]["points"][-1] and len(snags) == 1 + len(hole.petals)
+    assert all(s["material"] == "sheet_metal" for s in snags), "the rim and every petal name the sheet's material"
     petal_points = [v for v in mesh.vertices if v[2] < -0.002]
     depths = [-v[2] for v in petal_points]
     assert max(depths) <= kits.PETAL_DEPTH_M[1] + 0.001 and max(depths) >= kits.PETAL_DEPTH_M[0] * 0.8

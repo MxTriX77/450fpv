@@ -14,8 +14,9 @@ namespace Fpv450.Tests.EditMode
     /// LeafSet with <c>alpha_clip</c> 0.5 and <c>two_sided</c>. The material built from it is the leaf shader
     /// (design decision 6), clips at 0.5 on an opaque surface, culls no face, and reads its alpha from the derived
     /// base map (the set ships its opacity separately), whose import keeps the alpha channel and its coverage at the
-    /// cutoff in every mip. Recipes that are not clipped and two-sided keep URP/Lit. The materials are written under
-    /// <see cref="Folder"/>, deleted before and after.
+    /// cutoff in every mip. Recipes that are not clipped and two-sided keep URP/Lit, and so does the leaf recipe's
+    /// far-card recipe (p1-v01-locust task 1.2j), its maps and settings with back faces culled and no normal map. The
+    /// materials are written under <see cref="Folder"/>, deleted before and after.
     /// </summary>
     public sealed class AlphaClippedMaterialTests
     {
@@ -67,7 +68,8 @@ namespace Fpv450.Tests.EditMode
             var importer = (TextureImporter)AssetImporter.GetAtPath(BasePath);
             Assert.That(importer.DoesSourceTextureHaveAlpha(), Is.True);
             Assert.That(importer.alphaSource, Is.EqualTo(TextureImporterAlphaSource.FromInput), "the alpha as packed, not from grey or premultiplied");
-            Assert.That(importer.alphaIsTransparency, Is.True);
+            Assert.That(importer.alphaIsTransparency, Is.False,
+                "derive.py gives the clipped texels the kept mean colour, which Unity's dilation would paint over (task 1.2l)");
             Assert.That(importer.sRGBTexture, Is.True, "the base map is colour");
         }
 
@@ -84,6 +86,31 @@ namespace Fpv450.Tests.EditMode
             importer = (TextureImporter)AssetImporter.GetAtPath(BasePath);
             Assert.That(importer.mipMapsPreserveCoverage, Is.True, "the mips keep the alpha coverage");
             Assert.That(importer.alphaTestReferenceValue, Is.EqualTo(0.5f), "at the recipe's cutoff");
+        }
+
+        [Test]
+        public void FarCardRecipe_IsTheLeafMaterialOneSidedWithoutItsNormalMap()
+        {
+            // leaf_shrub_far.json holds only "far_card_of": "leaf_shrub" (p1-v01-locust task 1.2j): V13's far cards
+            // are two faces back to back, each with normals of its own, which the leaf shader would turn round.
+            Material leaf = Build(Recipe);
+            Material far = Build("leaf_shrub_far");
+
+            Assert.That(far.shader.name, Is.EqualTo("Universal Render Pipeline/Lit"), "no back face shows, so no leaf shader");
+            Assert.That(far.GetFloat("_Cull"), Is.EqualTo((float)CullMode.Back), "back faces culled");
+            Assert.That(far.doubleSidedGI, Is.False);
+            Assert.That(leaf.GetTexture("_BumpMap"), Is.Not.Null);
+            Assert.That(far.GetTexture("_BumpMap"), Is.Null, "the far card's normals are its own");
+            Assert.That(far.IsKeywordEnabled("_NORMALMAP"), Is.False);
+            foreach (string map in new[] { "_BaseMap", "_MetallicGlossMap", "_OcclusionMap" })
+                Assert.That(far.GetTexture(map), Is.SameAs(leaf.GetTexture(map)), $"{map}: the leaf recipe's own map");
+            Assert.That(AssetDatabase.GetAssetPath(far.GetTexture("_BaseMap")), Is.EqualTo(BasePath));
+            Assert.That(far.GetColor("_BaseColor"), Is.EqualTo(leaf.GetColor("_BaseColor")), "the leaf recipe's tint");
+            Assert.That(far.GetTextureScale("_BaseMap"), Is.EqualTo(leaf.GetTextureScale("_BaseMap")));
+            Assert.That(far.GetFloat("_Smoothness"), Is.EqualTo(leaf.GetFloat("_Smoothness")));
+            Assert.That(far.IsKeywordEnabled("_ALPHATEST_ON"), Is.True, "clipped as the leaves");
+            Assert.That(far.GetFloat("_Cutoff"), Is.EqualTo(0.5f));
+            Assert.That(far.renderQueue, Is.EqualTo((int)RenderQueue.AlphaTest));
         }
 
         [TestCase("bark_shrub")]

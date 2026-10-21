@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "shader": "Universal Render Pipeline/Lit",
+  "texture_set": "ambientcg/LeafSet002",
+  "tile_size_m": [1.0, 1.0],
+  "tint": [0.925, 0.762, 0.713, 1.0],
+  "mask": { "metallic": 0.0, "occlusion": "ao", "smoothness": 0.2 },
+  "alpha_clip": 0.5,
+  "two_sided": true
+}

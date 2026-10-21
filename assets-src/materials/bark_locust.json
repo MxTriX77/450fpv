@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "shader": "Universal Render Pipeline/Lit",
+  "texture_set": "polyhaven/bark_brown_01",
+  "tile_size_m": [1.0, 1.0],
+  "tint": [0.845, 0.928, 1.252, 1.0],
+  "groove": { "cavity": "ao", "from": 148, "to": 65, "tint": [2.833, 1.91, 1.716] },
+  "mask": { "metallic": 0.0, "occlusion": "ao", "smoothness": "1 - roughness" }
+}

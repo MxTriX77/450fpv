@@ -22,7 +22,7 @@ sphere).
   (free to lift and catch, the sheet).
 
 Slots: chrome (the bowl, the ring, the bare plate: K07's #9e9d9b and #c9c8c5) and rust (the burnt wire), physics
-`physics_material` (steel for all four, design 9). UVs are metres: the bowl and rings round and along, the plate on
+`physics_material` (steel for all four, design 9), which each snag record names as its material. UVs are metres: the bowl and rings round and along, the plate on
 its top. LOD1 drops the thickness and halves the segments; the cull distances follow the pixel rule (935 px/rad,
 the piece's longest size under two pixels).
 """
@@ -122,7 +122,7 @@ def _bowl(params, rng, material):
     around = SEGMENTS[0][0]
     rim = [[(r - t / 2) * math.cos(2 * math.pi * j / around), 0.0, (r - t / 2) * math.sin(2 * math.pi * j / around)]
            for j in range(around)]
-    return lods, collision, [{"kind": "edge", "points": rim + rim[:1], "radius_m": t / 2}]
+    return lods, collision, [{"kind": "edge", "points": rim + rim[:1], "radius_m": t / 2, "material": material}]
 
 
 def _ring_centre(params, rng):
@@ -166,7 +166,7 @@ def _ring(params, rng, material):
     corners = centre[::4]
     collision = [meta.capsule(a, b, rs, material) for a, b in zip(corners, corners[1:] + corners[:1])]
     kind = "hook" if params["piece"] == "bead_wire" else "edge"
-    snag = [{"kind": kind, "points": [list(p) for p in centre + centre[:1]], "radius_m": rs}]
+    snag = [{"kind": kind, "points": [list(p) for p in centre + centre[:1]], "radius_m": rs, "material": material}]
     return lods, collision, snag
 
 
@@ -200,5 +200,5 @@ def _plate(params, rng, material):
     pts = [(x, t / 2 + bend * math.sin(math.pi * (x / length + 0.5)), z) for x, z in
            [(-length / 2, -width / 2), (length / 2, -width / 2), (length / 2, width / 2), (-length / 2, width / 2),
             (-length / 2, -width / 2)]]
-    snag = [{"kind": "edge", "points": [list(p) for p in pts], "radius_m": t / 2}]
+    snag = [{"kind": "edge", "points": [list(p) for p in pts], "radius_m": t / 2, "material": material}]
     return lods, collision, snag

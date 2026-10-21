@@ -1,18 +1,23 @@
 """build.py end to end in headless Blender, when the pinned Blender is installed: K01 builds into a scratch root
 with its audit printed, the outputs agree with the spec scenarios, a second run writes byte-identical files, an
-out-of-range param and a mesh grown beyond its box are refused before anything is written. The version pin is
-checked without Blender."""
+out-of-range param and a mesh grown beyond its box are refused before anything is written, and an impostor asked for
+is rendered once as a 1k albedo, a 1k normal atlas, the occlusion per texel in its alpha, and a 1k smoothness atlas.
+The version pin, the
+staged file's retried replace and the textures a build writes and removes are checked without Blender."""
 import hashlib
 import json
+import math
 import os
 import shutil
 import subprocess
 import textwrap
 
 import pytest
+from PIL import Image
 
 import build
-from lib import meta
+from lib import impostor, meta
+from lib.geometry import Mesh
 
 OUT = "unity/Assets/_Project/Art/Models/debris/K01"
 
@@ -23,6 +28,64 @@ def test_version_pin():
         build.check_version((4, 2, 0))
     with pytest.raises(RuntimeError):
         build.check_version((5, 3, 0))
+
+
+def test_replace_tries_again_while_windows_denies_access(tmp_path, monkeypatch):
+    """p1-v01-locust task 1.2l: replacing a staged FBX failed with "Access is denied" while another process held the
+    target; the build tries again, and raises the denial once its tries are spent."""
+    staged, final = tmp_path / "V.staged.fbx", tmp_path / "V.fbx"
+    staged.write_bytes(b"new")
+    final.write_bytes(b"old")
+    real, denials, waits = os.replace, [2], []
+
+    def held(src, dst):
+        if denials[0] > 0:
+            denials[0] -= 1
+            raise PermissionError(13, "Access is denied")
+        real(src, dst)
+
+    monkeypatch.setattr(build.os, "replace", held)
+    monkeypatch.setattr(build.time, "sleep", waits.append)
+    build.replace(str(staged), str(final))
+    assert final.read_bytes() == b"new" and not staged.exists()
+    assert waits == [build.REPLACE_WAIT_S] * 2
+    staged.write_bytes(b"newer")
+    denials[0], waits[:] = 99, []
+    with pytest.raises(PermissionError):
+        build.replace(str(staged), str(final), tries=3, wait_s=0.25)
+    assert waits == [0.25, 0.25] and final.read_bytes() == b"new"
+
+
+def test_a_build_removes_only_the_textures_its_old_metadata_listed(tmp_path):
+    """p1-r01-vaz-sedan QA 2.1, S1, at the V01/R01 merge: a V01 build keeps its impostor atlases and their .meta (the
+    GUIDs the prefabs and materials hold), which are no generator textures, and V01_M's build keeps V01_M_autumn's,
+    whose names start with its own; R01_A's build rewrites its damage mask and removes, with its .meta, only the crack
+    mask its old metadata listed and this build no longer writes."""
+    atlases = [f"{v}_impostor{kind}.png{meta_ext}" for v in ("V01_M", "V01_M_autumn")
+               for kind in ("", "_normal", "_smoothness") for meta_ext in ("", ".meta")]
+    for name in atlases:
+        (tmp_path / name).write_bytes(name.encode())
+    (tmp_path / "V01_M.assetmeta.json").write_text(json.dumps({"textures": []}), encoding="utf-8")
+    assert build.listed_textures(str(tmp_path / "V01_M.assetmeta.json")) == set()
+    assert build.write_textures(str(tmp_path), "V01_M", [], set()) == set()
+    assert all((tmp_path / name).read_bytes() == name.encode() for name in atlases)
+
+    old = [{"role": "crack_mask", "slot": "windscreen", "file": "R01_A_windscreen_cracks.png"},
+           {"role": "damage_mask", "slot": "paint", "file": "R01_A_damage.png"}]
+    (tmp_path / "R01_A.assetmeta.json").write_text(json.dumps({"textures": old}), encoding="utf-8")
+    for name in ("R01_A_windscreen_cracks.png", "R01_A_windscreen_cracks.png.meta", "R01_A_damage.png",
+                 "R01_A_damage.png.meta", "R01_A_other.png"):
+        (tmp_path / name).write_bytes(b"old")
+    listed = build.listed_textures(str(tmp_path / "R01_A.assetmeta.json"))
+    assert listed == {"R01_A_windscreen_cracks.png", "R01_A_damage.png"}
+    written = build.write_textures(str(tmp_path), "R01_A", [{"name": "damage", "png": b"new"}], listed)
+    assert written == {"R01_A_damage.png"}
+    assert not (tmp_path / "R01_A_windscreen_cracks.png").exists()
+    assert not (tmp_path / "R01_A_windscreen_cracks.png.meta").exists()
+    assert (tmp_path / "R01_A_damage.png").read_bytes() == b"new" and (tmp_path / "R01_A_damage.png.meta").exists()
+    assert (tmp_path / "R01_A_other.png").exists(), "a file no metadata listed is not the build's to remove"
+    assert all((tmp_path / name).exists() for name in atlases)
+    assert build.listed_textures(str(tmp_path / "V01_S.assetmeta.json")) == set(), "no metadata yet, nothing listed"
 
 
 def run_build(blender, root, python_expr=None):
@@ -67,6 +130,226 @@ def test_out_of_range_bevel_is_refused_and_the_outputs_stay_untouched(blender, r
             "'bevel_mm.max' = 200 is outside [0.0, 10.0]") in output
     assert "FBX export" not in output and "audit" not in output
     assert {p.name: p.read_bytes() for p in (tmp_path / OUT).iterdir()} == before
+
+
+def test_impostor_atlases_are_rendered_at_1k_once_and_removed_when_off(blender, repo_root, tmp_path):
+    """p1-v01-locust design decision 3 (asset-pipeline "Baked impostor LOD"): K01 with its params asking for an
+    impostor (the brick generator taught the two keys inside this Blender) gets a 1k RGBA albedo atlas beside its FBX
+    with every view inside its cell, a 1k RGBA normal atlas whose texels face their view (the visible sides'
+    geometric normals) and a 1k grey smoothness atlas, and the impostor as its last LOD at the params' switch
+    distance; a rebuild finds
+    the atlases up to date and writes identical bytes; a deleted atlas renders both again to the same bytes; params
+    that stop asking remove them."""
+    shutil.copytree(repo_root / "assets-src", tmp_path / "assets-src")
+    for path in ("tools/assets/manifest.json", "unity/Assets/_Project/Art/ThirdParty/polyhaven/red_brick/red_brick_diff_1k.png",
+                 "unity/Assets/_Project/Art/Materials/brick_red_mask.png"):
+        (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(repo_root / path, tmp_path / path)
+    params_path = tmp_path / "assets-src" / "debris" / "K01_whole.json"
+    params = json.loads(params_path.read_text(encoding="utf-8"))
+    params["impostor"], params["lod"]["impostor_switch_m"] = True, 60.0
+    params_path.write_text(json.dumps(params), encoding="utf-8")
+    driver = textwrap.dedent(f"""
+        import sys
+        sys.path.insert(0, {build.HERE!r})
+        import build
+        from generators import debris_brick
+        debris_brick.PARAMS["impostor"] = {{"type": "bool", "range": "true or false", "default": False, "effect": "test"}}
+        debris_brick.PARAMS["lod.impostor_switch_m"] = {{"type": "float", "range": (1.0, 2000.0), "default": 60.0,
+                                                        "effect": "test"}}
+        sys.exit(build.main(["K01", "--root", {str(tmp_path)!r}]))
+        """)
+    names = ("K01_whole.fbx", "K01_whole.assetmeta.json", "K01_whole_impostor.png", "K01_whole_impostor_normal.png",
+             "K01_whole_impostor_smoothness.png")
+    atlas = tmp_path / OUT / names[2]
+    outputs, digests = [], []
+    for step in ("first", "again", "deleted"):
+        if step == "deleted":
+            atlas.unlink()
+        code, output = run_build(blender, tmp_path, driver)
+        assert code == 0 and "build.py: OK" in output, output
+        outputs.append(output)
+        digests.append({name: hashlib.sha256((tmp_path / OUT / name).read_bytes()).hexdigest() for name in names})
+    assert "K01_whole: impostor rendered in" in outputs[0]
+    assert "impostor rendered" not in outputs[1], "an up-to-date atlas is not rendered again"
+    assert "K01_whole: impostor rendered in" in outputs[2]
+    assert digests[0] == digests[1] == digests[2], "the same inputs render the same bytes"
+    assert ("K01_whole: impostor K01_whole_impostor.png, K01_whole_impostor_normal.png and "
+            "K01_whole_impostor_smoothness.png 1024x1024, 8 views at 15 deg" in outputs[0])
+
+    assert impostor.png_header(str(atlas)) == (1024, 1024, 8, 6), "a 1k 8-bit RGBA atlas"
+    normals = tmp_path / OUT / names[3]
+    assert impostor.png_header(str(normals)) == (1024, 1024, 8, 6), "a 1k 8-bit RGBA normal atlas, occlusion in alpha"
+    blue = Image.open(normals).getchannel("B").histogram()
+    away = sum(blue[:127]) / sum(blue)
+    assert away < 0.01, f"the visible side's normal faces its view's camera ({away:.2%} of the texels lean away)"
+    smoothness = tmp_path / OUT / names[4]
+    assert impostor.png_header(str(smoothness)) == (1024, 1024, 8, 0), "a 1k 8-bit grey smoothness atlas"
+    data = json.loads((tmp_path / OUT / names[1]).read_text(encoding="utf-8"))
+    last = data["lods"][-1]
+    assert [lod["mesh"] for lod in data["lods"]] == ["K01_whole_LOD0", "K01_whole_LOD1", "K01_whole_impostor"]
+    assert last["switch_distance_m"] == 60.0 and data["cull_distance_m"] == 120.0
+    assert last["impostor"]["atlas_sha256"] == digests[0][names[2]]
+    assert last["impostor"]["normals_sha256"] == digests[0][names[3]]
+    assert last["impostor"]["smoothness_sha256"] == digests[0][names[4]]
+    alpha = Image.open(atlas).getchannel("A")
+    pad = impostor.PAD_PX
+    for k in range(impostor.VIEWS):
+        x0, y0 = (k % 4) * 256, (k // 4) * 512
+        cell = alpha.crop((x0, y0, x0 + 256, y0 + 512))
+        assert cell.getbbox() is not None, f"view {k} is empty"
+        left, top, right, bottom = cell.getbbox()
+        assert left >= pad - 1 and top >= pad - 1 and right <= 256 - pad + 1 and bottom <= 512 - pad + 1, \
+            f"view {k} reaches {cell.getbbox()} into its {pad} px pad"
+
+    params["impostor"] = False
+    params_path.write_text(json.dumps(params), encoding="utf-8")
+    code, output = run_build(blender, tmp_path, driver)
+    assert code == 0, output
+    assert not atlas.exists() and not normals.exists() and not smoothness.exists(), \
+        "atlases the params no longer ask for are removed"
+    data = json.loads((tmp_path / OUT / names[1]).read_text(encoding="utf-8"))
+    assert [lod["mesh"] for lod in data["lods"]] == ["K01_whole_LOD0", "K01_whole_LOD1"]
+
+
+def test_the_normal_atlas_holds_the_geometric_normals_mean_and_its_length_their_spread(blender, tmp_path):
+    """p1-v01-locust task 1.2n: a texel of the normal atlas is the mean of the geometric normals under it,
+    unnormalised, so its length is their spread. Two cards side by side on an upright plane facing +Z: a flat one, and
+    one corrugated about +Y into strips 0.5 mm wide (about 8 to a texel) tilted +40 and -40 degrees in turn, the two
+    tilts covering equal shares of every view. In views 0 and 4 (front and back, a back face turned to the viewer) the
+    flat card's texel is the plane's normal in its view's axes, of length 1, and the corrugated card's the same
+    direction at length cos 40 = 0.766."""
+    Image.new("RGBA", (8, 8), (255, 255, 255, 255)).save(tmp_path / "base.png")
+    tilt, strip = math.radians(40.0), 0.0005
+    mesh = Mesh()
+    corners = [(-0.5, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 1.0, 0.0), (-0.5, 1.0, 0.0)]
+    mesh.face([mesh.vertex(c) for c in corners], (0.0, 0.0, 1.0), "leaf", [(c[0] + 0.5, c[1]) for c in corners])
+    strips = round(0.5 / strip)
+    for i in range(strips):
+        x0, x1 = i * strip, (i + 1) * strip
+        z0, z1 = (i % 2) * strip * math.tan(tilt), ((i + 1) % 2) * strip * math.tan(tilt)
+        outward = (math.sin(tilt) * (1 if i % 2 else -1), 0.0, math.cos(tilt))
+        quad = [(x0, 0.0, z0), (x1, 0.0, z1), (x1, 1.0, z1), (x0, 1.0, z0)]
+        mesh.face([mesh.vertex(c) for c in quad], outward, "leaf", [(c[0] + 0.5, c[1]) for c in quad])
+    materials = {"leaf": {"visual": "card", "recipe": {}, "texture": str(tmp_path / "base.png"), "mask": None,
+                          "tile_m": [1.0, 1.0], "tint": [1.0, 1.0, 1.0], "alpha": 1.0, "cutoff": 0.5,
+                          "smoothness": 0.2}}
+    record = {"card": impostor.frame(mesh)}
+    (tmp_path / "mesh.json").write_text(json.dumps({"vertices": mesh.vertices, "faces": mesh.faces}), encoding="utf-8")
+    driver = textwrap.dedent(f"""
+        import json, sys
+        sys.path.insert(0, {build.HERE!r})
+        from lib import impostor
+        from lib.geometry import Mesh
+        with open({str(tmp_path / "mesh.json")!r}, encoding="utf-8") as f:
+            data = json.load(f)
+        mesh = Mesh()
+        mesh.vertices = [tuple(v) for v in data["vertices"]]
+        mesh.faces = [(f[0], tuple(f[1]), [tuple(uv) for uv in f[2]], f[3]) for f in data["faces"]]
+        impostor.render(mesh, {record!r}, {materials!r}, {str(tmp_path / "atlas.png")!r},
+                        {str(tmp_path / "normals.png")!r}, {str(tmp_path / "smoothness.png")!r})
+        """)
+    code, output = run_build(blender, tmp_path, driver)
+    assert code == 0, output
+    vertices, _, _, _, side = impostor.layout(mesh, record, materials)
+    normals = Image.open(tmp_path / "normals.png").convert("RGB")
+    n = len(mesh.vertices)
+    for k, facing in ((0, 1.0), (4, -1.0)):
+        plane = [facing * axis[2] for axis in impostor.basis(k)]  # +Z (its back: -Z) in the view's axes
+        for card, length in ((range(0, 4), 1.0), (range(4, n), math.cos(tilt))):
+            x = sum(vertices[k * n + i][0] for i in card) / len(card)
+            y = sum(vertices[k * n + i][1] for i in card) / len(card)
+            u, v = int(x / side * impostor.SIZE_PX), int((1 - y / side) * impostor.SIZE_PX)
+            block = [normals.getpixel((u + du, v + dv)) for du in range(-2, 3) for dv in range(-2, 3)]
+            got = [sum(texel[c] for texel in block) / len(block) / 255 * 2 - 1 for c in range(3)]
+            assert got == pytest.approx([length * c for c in plane], abs=0.02), \
+                f"view {k}, the {'flat' if length == 1.0 else 'corrugated'} card: {got} against {plane} at length {length:.3f}"
+
+
+def test_the_normal_atlas_alpha_holds_each_surfaces_occlusion(blender, tmp_path):
+    """p1-v01-locust task 1.2m: the normal atlas's alpha is the occlusion of the surface under each texel, its mask's
+    G as URP/Lit reads it, not one crown-wide value: two cards of one upright plane facing +Z, an alpha-clipped leaf
+    whose mask holds 0.97 and an opaque bark whose mask holds 0.56 (task 1.2l's V01_M: its leaves' and its bark's),
+    read 0.97 and 0.56 at their centres in views 0 and 4 (front and back)."""
+    Image.new("RGBA", (8, 8), (255, 255, 255, 255)).save(tmp_path / "base.png")
+    occlusion = {"leaf": 247, "bark": 143}  # 0.969 and 0.561
+    mesh, materials = Mesh(), {}
+    for x0, slot in ((-0.5, "leaf"), (0.0, "bark")):
+        Image.new("RGBA", (8, 8), (0, occlusion[slot], 0, 128)).save(tmp_path / f"{slot}_mask.png")
+        corners = [(x0, 0.0, 0.0), (x0 + 0.5, 0.0, 0.0), (x0 + 0.5, 1.0, 0.0), (x0, 1.0, 0.0)]
+        mesh.face([mesh.vertex(c) for c in corners], (0.0, 0.0, 1.0), slot, [(c[0] + 0.5, c[1]) for c in corners])
+        materials[slot] = {"visual": slot, "recipe": {}, "texture": str(tmp_path / "base.png"),
+                           "mask": str(tmp_path / f"{slot}_mask.png"), "tile_m": [1.0, 1.0],
+                           "tint": [1.0, 1.0, 1.0], "alpha": 1.0, "cutoff": 0.5 if slot == "leaf" else None,
+                           "smoothness": None}
+    record = {"card": impostor.frame(mesh)}
+    driver = textwrap.dedent(f"""
+        import sys
+        sys.path.insert(0, {build.HERE!r})
+        from lib import impostor
+        from lib.geometry import Mesh
+        mesh = Mesh()
+        mesh.vertices, mesh.faces = {mesh.vertices!r}, {mesh.faces!r}
+        impostor.render(mesh, {record!r}, {materials!r}, {str(tmp_path / "atlas.png")!r},
+                        {str(tmp_path / "normals.png")!r}, {str(tmp_path / "smoothness.png")!r})
+        """)
+    code, output = run_build(blender, tmp_path, driver)
+    assert code == 0, output
+    assert impostor.png_header(str(tmp_path / "normals.png")) == (impostor.SIZE_PX, impostor.SIZE_PX, 8, 6)
+    vertices, _, _, _, side = impostor.layout(mesh, record, materials)
+    alpha = Image.open(tmp_path / "normals.png").getchannel("A")
+    n = len(mesh.vertices)
+    for k in (0, 4):
+        for card, slot in ((range(0, 4), "leaf"), (range(4, 8), "bark")):
+            x = sum(vertices[k * n + i][0] for i in card) / 4
+            y = sum(vertices[k * n + i][1] for i in card) / 4
+            got = alpha.getpixel((int(x / side * impostor.SIZE_PX), int((1 - y / side) * impostor.SIZE_PX)))
+            assert abs(got - occlusion[slot]) <= 1, f"view {k}, the {slot}: occlusion {got} / 255, its mask's {occlusion[slot]}"
+
+
+def test_the_smoothness_atlas_holds_each_surfaces_smoothness(blender, tmp_path):
+    """p1-v01-locust task 1.6b: the smoothness atlas holds the smoothness of the surface under each texel as URP/Lit
+    reads it, not the leaves' one value for the card: three cards of one upright plane facing +Z, an alpha-clipped
+    leaf whose mask's A holds 0.2 and an opaque bark whose mask's A holds 0.094 (V01's leaves' and their bark's mean,
+    0.096), and an unmasked card of a recipe's constant 0.6, read 0.2, 0.094 and 0.6 at their centres in views 0 and 4
+    (front and back), a grey 8-bit 1k PNG."""
+    Image.new("RGBA", (8, 8), (255, 255, 255, 255)).save(tmp_path / "base.png")
+    smoothness = {"leaf": 51, "bark": 24, "pod": 153}  # 0.2, 0.094 and 0.6
+    mesh, materials = Mesh(), {}
+    for x0, slot in ((-0.75, "leaf"), (-0.25, "bark"), (0.25, "pod")):
+        mask = None
+        if slot != "pod":
+            mask = tmp_path / f"{slot}_mask.png"
+            Image.new("RGBA", (8, 8), (0, 200, 0, smoothness[slot])).save(mask)
+        corners = [(x0, 0.0, 0.0), (x0 + 0.5, 0.0, 0.0), (x0 + 0.5, 1.0, 0.0), (x0, 1.0, 0.0)]
+        mesh.face([mesh.vertex(c) for c in corners], (0.0, 0.0, 1.0), slot, [(c[0] + 0.75, c[1]) for c in corners])
+        materials[slot] = {"visual": slot, "recipe": {}, "texture": str(tmp_path / "base.png"),
+                           "mask": str(mask) if mask else None, "tile_m": [1.0, 1.0], "tint": [1.0, 1.0, 1.0],
+                           "alpha": 1.0, "cutoff": None if slot == "bark" else 0.5,
+                           "smoothness": smoothness[slot] / 255 if slot == "pod" else None}
+    record = {"card": impostor.frame(mesh)}
+    driver = textwrap.dedent(f"""
+        import sys
+        sys.path.insert(0, {build.HERE!r})
+        from lib import impostor
+        from lib.geometry import Mesh
+        mesh = Mesh()
+        mesh.vertices, mesh.faces = {mesh.vertices!r}, {mesh.faces!r}
+        impostor.render(mesh, {record!r}, {materials!r}, {str(tmp_path / "atlas.png")!r},
+                        {str(tmp_path / "normals.png")!r}, {str(tmp_path / "smoothness.png")!r})
+        """)
+    code, output = run_build(blender, tmp_path, driver)
+    assert code == 0, output
+    assert impostor.png_header(str(tmp_path / "smoothness.png")) == (impostor.SIZE_PX, impostor.SIZE_PX, 8, 0)
+    vertices, _, _, _, side = impostor.layout(mesh, record, materials)
+    grey = Image.open(tmp_path / "smoothness.png")
+    n = len(mesh.vertices)
+    for k in (0, 4):
+        for card, slot in ((range(0, 4), "leaf"), (range(4, 8), "bark"), (range(8, 12), "pod")):
+            x = sum(vertices[k * n + i][0] for i in card) / 4
+            y = sum(vertices[k * n + i][1] for i in card) / 4
+            got = grey.getpixel((int(x / side * impostor.SIZE_PX), int((1 - y / side) * impostor.SIZE_PX)))
+            assert abs(got - smoothness[slot]) <= 1, f"view {k}, the {slot}: smoothness {got} / 255, its {smoothness[slot]}"
 
 
 def test_mesh_grown_beyond_its_box_fails_the_audit_and_writes_nothing(blender, repo_root, tmp_path):

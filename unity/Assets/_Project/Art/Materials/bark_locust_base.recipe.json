@@ -1,0 +1,30 @@
+{
+  "material": "bark_locust",
+  "texture_set": "polyhaven/bark_brown_01",
+  "formula": "RGB diffuse x (1 + (tint - 1) x weight) in linear light, the weight 0 where the cavity map reads from or more and 1 where it reads to or less, linear between; 8-bit sRGB at the sources' size",
+  "groove": {
+    "cavity": "ao",
+    "from": 148,
+    "to": 65,
+    "tint": [
+      2.833,
+      1.91,
+      1.716
+    ]
+  },
+  "sources": {
+    "diffuse": {
+      "name": "bark_brown_01_diff_2k.png",
+      "sha256": "617985520504f73226bb54d7f64891687c8073b6efd30348008c7a1d241e04ca"
+    },
+    "ao": {
+      "name": "bark_brown_01_ao_2k.png",
+      "sha256": "02bb9025280895c00e4d93a7849bff005295207dbed1e398962b0e2a64750286"
+    }
+  },
+  "inputs_sha256": "7a1abfe6f2a23175fe31a21db6a1b2a5c29d261675ec97e416b0755de579ceb6",
+  "size": [
+    2048,
+    2048
+  ]
+}

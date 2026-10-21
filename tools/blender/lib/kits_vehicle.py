@@ -319,12 +319,12 @@ def boundary_loop(quads):
     return loop
 
 
-def emit_patch(mesh, hole, outer, surf, uv, thickness, slots, rim_points=48, petals=True):
+def emit_patch(mesh, hole, outer, surf, uv, thickness, slots, material, rim_points=48, petals=True):
     """Stitches the patch of `hole` into `mesh`: from `outer` (the border loop of the removed quads, as
     [(point, (s, y), uv)]) to the hole's jagged rim in slots["paint"], the rim's edge strip and, when `thickness`
     > 0, the inner surface; and the large hole's petals in slots["torn"]. `surf(s, y)` gives (point, outward unit
     normal) on the sheet, `uv(s, y)` its UV. Returns the edge snags (the rim's closed polyline and each petal's
-    torn outline)."""
+    torn outline), each naming `material`, the sheet's physics material (lib.meta's snag rule)."""
     c = (hole.s, hole.y)
 
     def angle(q):
@@ -355,10 +355,10 @@ def emit_patch(mesh, hole, outer, surf, uv, thickness, slots, rim_points=48, pet
             k += 1
     front.rim_edge(rim_ids, c, slots["torn"])
     snags = [{"kind": "edge", "points": [list(front.points[v]) for v in rim_ids + rim_ids[:1]],
-              "radius_m": EDGE_SNAG_R_M}]
+              "radius_m": EDGE_SNAG_R_M, "material": material}]
     if petals and hole.large:
         for petal in hole.petals:
-            snags.append(_petal(mesh, hole, petal, surf, uv, thickness, slots["torn"]))
+            snags.append(_petal(mesh, hole, petal, surf, uv, thickness, slots["torn"], material))
     return snags
 
 
@@ -444,9 +444,10 @@ class _Sheet:
                            [ua, ub, (ub[0], ub[1] - self.t), (ua[0], ua[1] - self.t)])
 
 
-def _petal(mesh, hole, petal, surf, uv, thickness, slot):
+def _petal(mesh, hole, petal, surf, uv, thickness, slot, material):
     """One petal: the sheet of its sector between the rim and its tip, bent about the rim inward (into the body,
-    along -normal) so its tip lies petal["depth"] behind the skin. Returns its edge snag (side, tip, side)."""
+    along -normal) so its tip lies petal["depth"] behind the skin. Returns its edge snag (side, tip, side), of
+    `material`."""
     from .loft import sheet  # the double-sided sheet with its edges (a petal is a small lofted grid)
     flat_tip, bend = hole.petal_tip(petal)
     c = (hole.s, hole.y)
@@ -473,7 +474,7 @@ def _petal(mesh, hole, petal, surf, uv, thickness, slot):
     _, n_mid = surf(*c)
     sheet(mesh, rows, uvs, slot, lambda p, n=n_mid: n, thickness)
     outline = [rows[0][0]] + [rows[r][0] for r in range(1, steps + 1)] + [rows[r][-1] for r in range(steps - 1, -1, -1)]
-    return {"kind": "edge", "points": [list(p) for p in outline], "radius_m": EDGE_SNAG_R_M}
+    return {"kind": "edge", "points": [list(p) for p in outline], "radius_m": EDGE_SNAG_R_M, "material": material}
 
 
 def _signed_area(points):

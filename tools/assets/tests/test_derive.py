@@ -4,7 +4,10 @@ recipe recorded beside it, regeneration when the recipe or a source changes and 
 every recipe with mask-less ones skipped, and the failures named: a map the set lacks, an unknown expression, a
 malformed mask, a missing recipe; nothing is written on failure. And the base map of an alpha-clipped recipe
 ("Alpha-clipped two-sided recipes"): the diffuse's RGB with the set's separate opacity map as alpha, skipped when the
-set has no opacity map, refused when the two differ in size."""
+set has no opacity map, refused when the two differ in size. And (p1-v01-locust, design decision 5) a bark's grooves
+tinted by its cavity map, each texel scaled in linear light by its weight between the recipe's levels, and the pod
+strip painted from a recipe with no texture set; malformed groove and paint recipes refused. And (task 1.2j) a far-card
+recipe derives nothing."""
 import json
 from pathlib import Path
 
@@ -212,12 +215,167 @@ def test_base_map_packs_the_opacity_into_the_diffuse_alpha(tmp_path, capsys):
     assert not (root / MATERIALS / f"{MATERIAL}_base.png").exists()
 
 
+def test_mask_of_an_alpha_clipped_recipe_fills_the_clipped_texels(tmp_path, capsys):
+    """p1-v01-locust task 1.2g: the opacity (rising along x: 0, 36, 73, 109, 146, 182, 219, 255) clips columns 0-3 at
+    alpha_clip 0.5 (alpha under 128); those texels take each channel's mean over the kept columns 4-7, so no mip
+    averages in what lies under them: AO (0, 85, 170, 255 down the rows) 127.5 -> 128, smoothness (109, 73, 36, 0)
+    54.5 -> 54, metallic 0. The kept texels stay as they were; the stamp records the cutoff and the opacity."""
+    root = base_root(tmp_path)
+    assert run(MATERIAL, "--root", root) == 0
+    assert (f"{MATERIAL}_mask.png: derived 8x4 from polyhaven/{SET_ID} (ao, opacity, roughness)"
+            in capsys.readouterr().out)
+    mask = Image.open(root / MATERIALS / f"{MATERIAL}_mask.png")
+    for y in range(SIZE[1]):
+        for x in range(SIZE[0]):
+            if x >= 4:
+                assert mask.getpixel((x, y)) == (0, round(y / 3 * 255), 0, 255 - round(x / 7 * 255)), (x, y)
+            else:
+                assert mask.getpixel((x, y)) == (0, 128, 0, 54), (x, y)
+    stamp = json.loads((root / MATERIALS / f"{MATERIAL}_mask.recipe.json").read_text(encoding="utf-8"))
+    assert stamp["formula"] == derive.CLIP_FORMULA and stamp["alpha_clip"] == 0.5
+    assert stamp["sources"]["opacity"] == {"name": OPACITY, "sha256": fetch.sha256(root / SET_DIR / OPACITY)}
+
+    write_recipe(root, MASK, alpha_clip=0.75)  # a new cutoff regenerates: alpha under 192 clips columns 0-5
+    assert run(MATERIAL, "--root", root) == 0 and f"{MATERIAL}_mask.png: derived 8x4" in capsys.readouterr().out
+    mask = Image.open(root / MATERIALS / f"{MATERIAL}_mask.png")
+    assert mask.getpixel((5, 0)) == (0, 128, 0, 18) and mask.getpixel((6, 0)) == (0, 0, 0, 36)
+
+
+def test_base_map_of_an_alpha_clipped_recipe_fills_the_clipped_texels(tmp_path, capsys):
+    """p1-v01-locust task 1.2l: the opacity (rising along x) clips columns 0-3 at alpha_clip 0.5; their RGB, black
+    here, takes the kept columns' mean colour, each channel averaged in linear light (R of 50 and 250: linear 0.0319
+    and 0.9560, mean 0.4940 -> 186; G 100 throughout; B of 200 and 0: 0.5776 and 0, mean 0.2888 -> 146). The kept
+    texels and the alpha stay as they were; the stamp records the cutoff, and a new cutoff regenerates."""
+    root = base_root(tmp_path)
+    diffuse = Image.new("RGB", SIZE, (0, 0, 0))
+    for y in range(SIZE[1]):
+        for x in range(4, 8):
+            diffuse.putpixel((x, y), (50, 100, 200) if x < 6 else (250, 100, 0))
+    diffuse.save(root / SET_DIR / MAPS["diffuse"])
+    assert run(MATERIAL, "--root", root) == 0
+    assert f"{MATERIAL}_base.png: derived 8x4" in capsys.readouterr().out
+    base = Image.open(root / MATERIALS / f"{MATERIAL}_base.png")
+    expected = tuple(derive._encode((derive._decode(a) + derive._decode(b)) / 2) for a, b in ((50, 250), (100, 100), (200, 0)))
+    assert expected == (186, 100, 146)
+    for y in range(SIZE[1]):
+        for x in range(SIZE[0]):
+            alpha = round(x / (SIZE[0] - 1) * 255)
+            rgb = expected if x < 4 else diffuse.getpixel((x, y))
+            assert base.getpixel((x, y)) == rgb + (alpha,), (x, y)
+    stamp = json.loads((root / MATERIALS / f"{MATERIAL}_base.recipe.json").read_text(encoding="utf-8"))
+    assert stamp["formula"] == derive.BASE_FORMULA and stamp["alpha_clip"] == 0.5
+
+    write_recipe(root, MASK, alpha_clip=0.75)  # alpha under 192 clips columns 0-5: the kept mean is (250, 100, 0)
+    assert run(MATERIAL, "--root", root) == 0 and f"{MATERIAL}_base.png: derived 8x4" in capsys.readouterr().out
+    base = Image.open(root / MATERIALS / f"{MATERIAL}_base.png")
+    assert base.getpixel((5, 0)) == (250, 100, 0, 182) and base.getpixel((6, 0)) == (250, 100, 0, 219)
+
+
 def test_base_map_refuses_sources_of_different_size(tmp_path, capsys):
     root = base_root(tmp_path)
     Image.new("RGB", (SIZE[0] * 2, SIZE[1]), DIFFUSE_RGB).save(root / SET_DIR / MAPS["diffuse"])
     assert run(MATERIAL, "--root", root) == 1
     assert f"ERROR: {MATERIAL}: the sources differ in size: diffuse 16x4, opacity 8x4" in capsys.readouterr().out
     assert not (root / MATERIALS / f"{MATERIAL}_base.png").exists()
+
+
+GROOVE = {"cavity": "ao", "from": 200, "to": 100, "tint": [2.0, 1.0, 0.5]}
+
+
+def groove_root(tmp_path, groove=GROOVE):
+    """derive_root plus a flat (100, 100, 100) diffuse, an 8-bit AO map of 255 / 150 / 50 / 0 across its columns
+    pinned as the set's AO, and a recipe with the mask and the groove."""
+    root = derive_root(tmp_path)
+    Image.new("RGB", SIZE, (100, 100, 100)).save(root / SET_DIR / MAPS["diffuse"])
+    ao = Image.new("L", SIZE)
+    for x in range(SIZE[0]):
+        for y in range(SIZE[1]):
+            ao.putpixel((x, y), (255, 150, 50, 0)[x % 4])
+    ao.save(root / SET_DIR / SOURCES["ao"])
+    manifest_path = root / "tools" / "assets" / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    for file in manifest["entries"][0]["files"]:
+        path = root / SET_DIR / file["name"]
+        file["bytes"], file["sha256"] = path.stat().st_size, fetch.sha256(path)
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    recipe = json.loads((root / RECIPES / f"{MATERIAL}.json").read_text(encoding="utf-8"))
+    recipe["groove"] = groove
+    (root / RECIPES / f"{MATERIAL}.json").write_text(json.dumps(recipe, indent=2) + "\n", encoding="utf-8")
+    return root
+
+
+def test_groove_tints_the_grooves_by_the_cavity_in_linear_light(tmp_path, capsys):
+    root = groove_root(tmp_path)
+    assert run(MATERIAL, "--root", root) == 0
+    out = capsys.readouterr().out
+    assert (f"{MATERIALS.as_posix()}/{MATERIAL}_base.png: derived 8x4 from polyhaven/{SET_ID} (diffuse, ao); "
+            f"recipe recorded in {MATERIAL}_base.recipe.json") in out
+    base = Image.open(root / MATERIALS / f"{MATERIAL}_base.png")
+    assert base.mode == "RGB" and base.size == SIZE
+    grey = derive._decode(100)
+    for x, weight in enumerate((0.0, 0.5, 1.0, 1.0)):  # AO 255 and 150 over from 200 to 100, then 50 and 0
+        expected = tuple(derive._encode(grey * (1 + (f - 1) * weight)) for f in GROOVE["tint"])
+        assert base.getpixel((x, 1)) == expected, x
+    assert base.getpixel((0, 0)) == (100, 100, 100) and base.getpixel((2, 0))[0] > 100 > base.getpixel((2, 0))[2]
+    stamp = json.loads((root / MATERIALS / f"{MATERIAL}_base.recipe.json").read_text(encoding="utf-8"))
+    assert stamp["groove"] == GROOVE and stamp["formula"] == derive.GROOVE_FORMULA
+    assert {k: v["name"] for k, v in stamp["sources"].items()} == {"diffuse": MAPS["diffuse"], "ao": SOURCES["ao"]}
+    assert run(MATERIAL, "--root", root) == 0
+    assert f"{MATERIAL}_base.png: up to date" in capsys.readouterr().out
+
+
+def paint_recipe(root, paint):
+    recipe = {"schema": 1, "shader": "Universal Render Pipeline/Lit", "paint": paint, "tile_size_m": [1.0, 1.0],
+              "tint": [1.0, 1.0, 1.0, 1.0], "smoothness": 0.2, "alpha_clip": 0.5, "two_sided": True}
+    (root / RECIPES).mkdir(parents=True, exist_ok=True)
+    (root / RECIPES / "pods.json").write_text(json.dumps(recipe, indent=2) + "\n", encoding="utf-8")
+
+
+def test_paint_draws_the_pods_with_no_texture_set(tmp_path, capsys):
+    root = make_root(tmp_path)
+    paint = {"pods": 2, "size_px": [32, 64], "colour": "#5c3d28"}
+    paint_recipe(root, paint)
+    assert run("pods", "--root", root) == 0
+    assert f"{MATERIALS.as_posix()}/pods_base.png: painted 32x64; recipe recorded in pods_base.recipe.json" in capsys.readouterr().out
+    base = Image.open(root / MATERIALS / "pods_base.png")
+    assert base.mode == "RGBA" and base.size == (32, 64)
+    assert all(base.getpixel((x, 63))[3] == 0 for x in range(32)) and base.getpixel((0, 0))[3] == 0
+    row = [base.getpixel((x, 32)) for x in range(32)]
+    assert row[0][3] == row[16][3] == row[31][3] == 0, "clear at the sides and between the pods"
+    for half in (row[:16], row[16:]):  # each pod's face, inside its darker rim, in the given colour
+        assert (0x5c, 0x3d, 0x28, 255) in half and any(p[3] == 255 and p[0] < 0x5c for p in half)
+    pixels = [base.getpixel((x, y)) for y in range(64) for x in range(32)]
+    kept = [p for p in pixels if p[3] >= 128]
+    fill = tuple(derive._encode(sum(derive._decode(p[c]) for p in kept) / len(kept)) for c in range(3))
+    assert all(p[:3] == fill for p in pixels if p[3] < 128), "every clipped texel takes the kept mean (task 1.2l)"
+    stamp = json.loads((root / MATERIALS / "pods_base.recipe.json").read_text(encoding="utf-8"))
+    assert stamp["paint"] == paint and stamp["formula"] == derive.PAINT_FORMULA and stamp["sources"] == {}
+    assert stamp["alpha_clip"] == 0.5
+    assert run("pods", "--root", root) == 0
+    assert "pods_base.png: up to date" in capsys.readouterr().out
+
+
+def test_groove_and_paint_failures_name_the_cause(tmp_path, capsys):
+    root = groove_root(tmp_path, dict(GROOVE, cavity="displacement"))
+    assert run(MATERIAL, "--root", root) == 1
+    assert (f"ERROR: {MATERIAL}: groove.cavity: polyhaven/{SET_ID} has no displacement map "
+            "(it has ao, diffuse, normal, roughness)") in capsys.readouterr().out
+    for n, (groove, message) in enumerate((
+            (dict(GROOVE, to=220), "groove needs 0 <= to < from <= 255 on the 8-bit cavity map"),
+            (dict(GROOVE, tint=[1.0, 0.0, 1.0]), "groove.tint must be three positive linear factors"),
+            ({"cavity": "ao"}, "'groove' must hold exactly cavity, from, to, tint"))):
+        groove_root(tmp_path / f"case{n}", groove)
+        assert run(MATERIAL, "--root", tmp_path / f"case{n}") == 1
+        assert f"ERROR: {MATERIAL}: {message}" in capsys.readouterr().out
+        assert not (tmp_path / f"case{n}" / MATERIALS / f"{MATERIAL}_base.png").exists()
+    paint_recipe(root, {"pods": 0, "size_px": [32, 64], "colour": "#5c3d28"})
+    assert run("pods", "--root", root) == 1
+    assert "ERROR: pods: paint needs pods >= 1, size_px [w, h] of 8-2048 px and colour '#rrggbb'" in capsys.readouterr().out
+    recipe = json.loads((root / RECIPES / "pods.json").read_text(encoding="utf-8"))
+    recipe["texture_set"] = f"polyhaven/{SET_ID}"
+    (root / RECIPES / "pods.json").write_text(json.dumps(recipe), encoding="utf-8")
+    assert run("pods", "--root", root) == 1
+    assert "ERROR: pods: give a \"texture_set\" or a \"paint\", not both or neither" in capsys.readouterr().out
 
 
 def test_failures_name_the_cause_and_write_nothing(tmp_path, capsys):
@@ -262,3 +420,23 @@ def test_palette_gradients_run_up_their_columns_padded_to_a_power_of_two(tmp_pat
     got = [sum(row[k] for row in linear) / 64 for k in range(3)]
     assert all(abs(g - w) <= 0.01 for g, w in zip(got, want)), (got, want)
     assert image.getpixel((56, 10)) == image.getpixel((40, 10)), "the padding column repeats the last colour"
+
+
+def test_far_card_recipe_derives_nothing_and_names_its_leaf_recipe(tmp_path, capsys):
+    """Task 1.2j: {"schema": 1, "far_card_of": <recipe>} reads its leaf recipe's derived maps, so nothing is derived
+    for it; one that holds anything else, or names a far-card recipe, is refused and writes nothing."""
+    root = base_root(tmp_path)
+    (root / RECIPES / "far.json").write_text(json.dumps({"schema": 1, "far_card_of": MATERIAL}), encoding="utf-8")
+    assert run("--all", "--root", root) == 0
+    out = capsys.readouterr().out
+    assert f"far: far cards of {MATERIAL}, whose derived maps it reads; nothing to derive" in out
+    assert f"{MATERIAL}_base.png: derived" in out
+    (root / RECIPES / "far2.json").write_text(json.dumps({"schema": 1, "far_card_of": MATERIAL}), encoding="utf-8")
+    for recipe, message in (({"schema": 1, "far_card_of": MATERIAL, "alpha_clip": 0.5},
+                             'far: a "far_card_of" recipe names one leaf recipe and holds nothing else'),
+                            ({"schema": 1, "far_card_of": "far2"},
+                             "far: far2 is itself a far-card recipe; name the leaf recipe")):
+        (root / RECIPES / "far.json").write_text(json.dumps(recipe), encoding="utf-8")
+        assert run("far", "--root", root) == 1
+        assert f"ERROR: {message}" in capsys.readouterr().out
+    assert [p.name for p in (root / MATERIALS).glob("far*")] == []

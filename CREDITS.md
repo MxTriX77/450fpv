@@ -12,6 +12,7 @@ the manifest.
 | Red Brick (1k) | CC0 1.0 | Rob Tuytel | [polyhaven.com/a/red_brick](https://polyhaven.com/a/red_brick) | `unity/Assets/_Project/Art/ThirdParty/polyhaven/red_brick/` (4 files, 11.1 MB) |
 | Bark Brown 02 (1k) | CC0 1.0 | Rob Tuytel | [polyhaven.com/a/bark_brown_02](https://polyhaven.com/a/bark_brown_02) | `unity/Assets/_Project/Art/ThirdParty/polyhaven/bark_brown_02/` (4 files, 6.5 MB) |
 | Leaf Set 002 (2k) | CC0 1.0 | Lennart Demes (ambientCG) | [ambientcg.com/a/LeafSet002](https://ambientcg.com/a/LeafSet002) | `unity/Assets/_Project/Art/ThirdParty/ambientcg/LeafSet002/` (5 files, 26.4 MB) |
+| Bark Brown 01 (2k) | CC0 1.0 | Rob Tuytel | [polyhaven.com/a/bark_brown_01](https://polyhaven.com/a/bark_brown_01) | `unity/Assets/_Project/Art/ThirdParty/polyhaven/bark_brown_01/` (4 files, 28.6 MB) |
 | Brown Mud 02 (2k) | CC0 1.0 | Rob Tuytel | [polyhaven.com/a/brown_mud_02](https://polyhaven.com/a/brown_mud_02) | `unity/Assets/_Project/Art/ThirdParty/polyhaven/brown_mud_02/` (4 files, 21.9 MB) |
 | Dry Straw Grass / Hay Texture (2k) | CC0 1.0 | TextureCan | [www.texturecan.com/details/190/](https://www.texturecan.com/details/190/) | `unity/Assets/_Project/Art/ThirdParty/texturecan/ground_0018/` (4 files, 30.4 MB) |
 | Rough Wood (1k) | CC0 1.0 | Rob Tuytel | [polyhaven.com/a/rough_wood](https://polyhaven.com/a/rough_wood) | `unity/Assets/_Project/Art/ThirdParty/polyhaven/rough_wood/` (4 files, 6.4 MB) |

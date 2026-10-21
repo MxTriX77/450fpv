@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -13,11 +14,51 @@ namespace Fpv450.Tests.EditMode
     /// them, is refused by name before any tile is rendered. The exit path is <see cref="Review.Capture"/>'s catch;
     /// here the check is exercised through the method on throwaway objects. And the pilot-height pose
     /// (p1-s04-belt-straw design 7): a surfaces asset is shot from on the surface, an earthwork with a holes record
-    /// along its run (p1-e01-trench design 9), every other class as before.
+    /// along its run (p1-e01-trench design 9), every other class as before. And the stage's shadow-distance fit,
+    /// shared with the LOD parity measure (p1-v01-locust task 1.2h).
     /// </summary>
     public sealed class ReviewCaptureTests
     {
         const string BrickMaterialPath = "Assets/_Project/Art/Materials/brick_red.mat";
+
+        /// <summary>
+        /// asset-pipeline "Per-variant material overrides": the review capture shows a variant's materials, so a legend
+        /// line longer than the panel breaks after its commas and keeps every slot (p1-v01-locust task 1.4).
+        /// </summary>
+        [Test]
+        public void Legend_BreaksALongLineAfterItsCommasAndKeepsEverySlot()
+        {
+            const string line = "MATERIALS bark > bark_locust / bark, twig > bark_locust / twig, leaf > leaf_locust_autumn / twig, pod > pod_locust / twig";
+            string[] rows = System.Linq.Enumerable.ToArray(Review.Wrap(line, 54));
+            Assert.That(rows.Length, Is.GreaterThan(1));
+            Assert.That(rows, Has.All.Length.LessThanOrEqualTo(54));
+            Assert.That(string.Join(" ", rows).Replace(",   ", ", "), Is.EqualTo(line));
+            Assert.That(rows, Has.Some.Contains("leaf > leaf_locust_autumn / twig"));
+            Assert.That(Review.Wrap("BOUNDS 1 X 2 X 3 M", 54), Is.EqualTo(new[] { "BOUNDS 1 X 2 X 3 M" }));
+        }
+
+        /// <summary>
+        /// p1-v01-locust QA 2.1 S6 (p1-v13-shrub QA N-3): a compliant shell's pieces, in the <c>twig</c> or
+        /// <c>foliage</c> material, are drawn in a colour of their own and keyed apart from the rigid primitives; a
+        /// legend without a shell keeps its four keys.
+        /// </summary>
+        [Test]
+        public void Overlay_DrawsShellPiecesInAColourOfTheirOwn()
+        {
+            var meta = new ReviewMeta();
+            meta.Collision.Add(new ReviewMeta.Shape { kind = "capsule", material = "bark", radius = 0.1f, height = 1f });
+            meta.Collision.Add(new ReviewMeta.Shape { kind = "sphere", material = "twig", center = Vector3.up * 3f, radius = 0.3f });
+            meta.Collision.Add(new ReviewMeta.Shape { kind = "capsule", material = "foliage", center = Vector3.up * 4f, radius = 0.2f, height = 1f });
+            var others = new[] { ReviewMeta.CollisionColor, ReviewMeta.GapColor, ReviewMeta.WindColor, ReviewMeta.SnagColor };
+            Assert.That(others, Has.None.EqualTo(ReviewMeta.ShellColor));
+            Assert.That(meta.Segments(Matrix4x4.identity).Select(s => s.Color).Distinct(),
+                        Is.EquivalentTo(new[] { ReviewMeta.CollisionColor, ReviewMeta.ShellColor }));
+            var keys = Review.LegendKeys(meta);
+            Assert.That(keys[0], Is.EqualTo((ReviewMeta.CollisionColor, "COLLISION (1): capsule")));
+            Assert.That(keys[1], Is.EqualTo((ReviewMeta.ShellColor, "SHELL PIECES (2, FOLIAGE / TWIG): sphere, capsule")));
+            meta.Collision.RemoveRange(1, 2);
+            Assert.That(Review.LegendKeys(meta).Select(k => k.color), Is.EqualTo(others));
+        }
 
         [Test]
         public void RequireRenderable_NamesTheMissingMeshAndTexture()
@@ -133,6 +174,34 @@ namespace Fpv450.Tests.EditMode
             finally
             {
                 Object.DestroyImmediate(stage.Root);
+            }
+        }
+
+        /// <summary>
+        /// The stage's shadow-distance fit, which the LOD parity measure shares (p1-v01-locust task 1.2h): four turntable
+        /// distances, at least 12 m, never over the game's. The numbers were computed apart from the code, in double
+        /// precision, from each stage's bounds and the bar 1 m outside them at 112.5°: K01's frame, extents (0.6110, 0.9,
+        /// 0.2645) m, gives a 2.462894 m turntable and the 12 m floor; S04's, (6.4860, 0.9, 6.0) m, a 19.538929 m
+        /// turntable, whose four, 78.155714 m, the game's 50 m caps. Needs prior builds of K01 and S04.
+        /// </summary>
+        [Test]
+        public void ShadowDistance_IsFourTurntableDistances_AtLeast12M_NeverOverTheGames()
+        {
+            Review.Stage k01 = BuildStage("Assets/_Project/Prefabs/debris/K01_whole.prefab", "_Project/Art/Models/debris/K01/K01_whole.assetmeta.json", "debris", "K01");
+            Review.Stage s04 = BuildStage("Assets/_Project/Prefabs/surfaces/S04_patch.prefab", "_Project/Art/Models/surfaces/S04/S04_patch.assetmeta.json", "surfaces", "S04");
+            try
+            {
+                Assert.That(Review.TurntableDistance(k01), Is.EqualTo(2.462894f).Within(1e-4f));
+                Assert.That(Review.ShadowDistance(k01, 50f), Is.EqualTo(12f));
+                Assert.That(Review.ShadowDistance(k01, 10f), Is.EqualTo(10f));
+                Assert.That(Review.TurntableDistance(s04), Is.EqualTo(19.538929f).Within(1e-4f));
+                Assert.That(Review.ShadowDistance(s04, 50f), Is.EqualTo(50f));
+                Assert.That(Review.ShadowDistance(s04, 100f), Is.EqualTo(78.155714f).Within(1e-3f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(k01.Root);
+                Object.DestroyImmediate(s04.Root);
             }
         }
 

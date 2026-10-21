@@ -1,6 +1,7 @@
 """lib.meta and lib.catalog: schema-1 validation, the conventions of design decision 6 (physics review R2), the
-closed physics-material list (R3), the deterministic writer, params_sha256, and the committed K01 metadata against
-the committed params."""
+closed physics-material list (R3) on shapes, slots and snag records (a record without its member's material, or with
+an unknown one, is refused: p1-v01-locust review-physics PR4), the deterministic writer, params_sha256, a variant's
+material overrides (p1-v01-locust design decision 7), and the committed K01 metadata against the committed params."""
 import copy
 import json
 
@@ -32,7 +33,8 @@ def with_physics_features(data):
                               "rotation": [0.0, 0.0, 0.0, 1.0], "material": "steel", "landable": False})
     data["gaps"].append({"id": "door", "polygon": [[0.0, 0.0, 0.0], [0.9, 0.0, 0.0], [0.9, 2.0, 0.0], [0.0, 2.0, 0.0]],
                          "normal": [0.0, 0.0, 1.0], "narrowest_m": 0.9})
-    data["snag"].append({"kind": "edge", "points": [[0.0, 2.0, 0.0], [0.9, 2.0, 0.0]], "radius_m": 0.002})
+    data["snag"].append({"kind": "edge", "points": [[0.0, 2.0, 0.0], [0.9, 2.0, 0.0]], "radius_m": 0.002,
+                         "material": "steel"})
     data["snag"].append({"kind": "edge", "points": [[0.0, 7.0, 0.3], [40.0, 7.0, 0.3]], "radius_m": 0.0045,
                          "edge_radius_m": 0.0015, "material": "cable"})
     data["ports"].append({"id": "hook_0", "position": [0.0, 7.0, 0.3], "direction": [0.0, 0.0, 1.0],
@@ -112,6 +114,43 @@ def test_params_sha256_ignores_formatting_and_key_order(k01_params):
 def test_catalog_slot_without_visual_is_refused(k01_params):
     with pytest.raises(ValueError, match="slot 'brick'"):
         meta.assemble("K01", "K01_whole", "debris_brick", k01_params, debris_brick.build(k01_params), {})
+
+
+SHRUB = {"class": "vegetation", "generator": "shrub", "variants": ["V13_mid", "V13_mid_autumn"],
+         "materials": {"stem": "bark_shrub", "leaf": "leaf_shrub"}}
+
+
+def test_a_variant_override_takes_its_slot_and_leaves_the_rest():
+    """p1-v01-locust design decision 7, asset-pipeline "Per-variant material overrides": the autumn variant's leaf
+    slot takes its own material, its other slots and every other variant keep the asset's."""
+    entry = dict(SHRUB, variant_materials={"V13_mid_autumn": {"leaf": "leaf_shrub_autumn"}})
+    assert catalog.visuals(entry, "V13_mid_autumn") == {"stem": "bark_shrub", "leaf": "leaf_shrub_autumn"}
+    assert catalog.visuals(entry, "V13_mid") == {"stem": "bark_shrub", "leaf": "leaf_shrub"}
+    assert catalog.visuals(SHRUB, "V13_mid_autumn") == SHRUB["materials"]
+
+
+@pytest.mark.parametrize("overrides, expected", [
+    ({"V13_tall_autumn": {"leaf": "leaf_shrub_autumn"}}, "names 'V13_tall_autumn', which is not one of its variants"),
+    ({"V13_mid_autumn": {"pod": "pod_locust"}}, "names slot 'pod', which V13's materials do not"),
+    ({"V13_mid_autumn": {"leaf": ""}}, r"\['leaf'\] must be a material name"),
+    ({"V13_mid_autumn": {}}, "must be a non-empty object"),
+    (["V13_mid_autumn"], "must be an object"),
+])
+def test_a_malformed_override_is_refused_named(tmp_path, overrides, expected):
+    (tmp_path / "assets-src").mkdir()
+    entry = dict(SHRUB, variant_materials=overrides)
+    (tmp_path / catalog.CATALOG).write_text(json.dumps({"schema": 1, "assets": {"V13": entry}}), encoding="utf-8")
+    with pytest.raises(catalog.CatalogError, match=expected):
+        catalog.load(tmp_path)
+
+
+def test_the_committed_overrides_name_recipes_that_exist(repo_root):
+    """Every material a committed variant takes, its overrides included, is a recipe in assets-src/materials."""
+    cat = catalog.load(repo_root)
+    for asset_id, entry in cat["assets"].items():
+        for variant in entry["variants"]:
+            for slot, visual in catalog.visuals(entry, variant).items():
+                assert (repo_root / catalog.RECIPES / f"{visual}.json").is_file(), f"{variant} {slot}: no recipe {visual}"
 
 
 @pytest.mark.parametrize("edit, expected", [
@@ -239,6 +278,12 @@ def test_holes_validated(k01_params, material_ids, edit, expected):
      "snag[0]: kind must be one of edge, hook, got 'spike'"),
     (lambda d: d["snag"][0].update(points=[[0.0, 2.0, 0.0]]),
      "snag[0]: needs at least 2 points, got 1"),
+    (lambda d: d["snag"][0].pop("material"),
+     "snag[0]: needs the material of the member it follows"),
+    (lambda d: d["snag"][0].update(material="unobtainium"),
+     "snag[0]: material 'unobtainium' is not in assets-src"),
+    (lambda d: d["snag"][0].update(material=7),
+     "snag[0]: needs the material of the member it follows"),
     (lambda d: d["collision"][0].update(material="unobtainium"),
      "collision[0]: material 'unobtainium' is not in assets-src"),
     (lambda d: d["materials"][0].update(physics="unobtainium"),

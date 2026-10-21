@@ -140,6 +140,46 @@
     },
     {
       "source": "polyhaven",
+      "id": "bark_brown_01",
+      "title": "Bark Brown 01",
+      "resolution": "2k",
+      "licence": "CC0",
+      "author": "Rob Tuytel",
+      "page": "https://polyhaven.com/a/bark_brown_01",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/polyhaven/bark_brown_01",
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "bark_brown_01_diff_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/bark_brown_01/bark_brown_01_diff_2k.png",
+          "sha256": "617985520504f73226bb54d7f64891687c8073b6efd30348008c7a1d241e04ca",
+          "bytes": 8393792
+        },
+        {
+          "map": "normal",
+          "name": "bark_brown_01_nor_gl_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/bark_brown_01/bark_brown_01_nor_gl_2k.png",
+          "sha256": "c5d2c162ee3e30a36dfb717fde6703e0202ab9c49fbfe205da521a48d7a5a595",
+          "bytes": 8953179
+        },
+        {
+          "map": "roughness",
+          "name": "bark_brown_01_rough_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/bark_brown_01/bark_brown_01_rough_2k.png",
+          "sha256": "d7990a8319db5beb185d6fd36b1d9acef82556e2d942d68583ce3a505907cab2",
+          "bytes": 7228983
+        },
+        {
+          "map": "ao",
+          "name": "bark_brown_01_ao_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/bark_brown_01/bark_brown_01_ao_2k.png",
+          "sha256": "02bb9025280895c00e4d93a7849bff005295207dbed1e398962b0e2a64750286",
+          "bytes": 4022617
+        }
+      ]
+    },
+    {
+      "source": "polyhaven",
       "id": "brown_mud_02",
       "title": "Brown Mud 02",
       "resolution": "2k",
