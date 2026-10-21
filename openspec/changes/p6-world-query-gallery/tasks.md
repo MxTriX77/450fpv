@@ -10,13 +10,13 @@ Branch `unity/world/p6-world-query-gallery` off `unity/main` once `p1-g1-look-lo
 - [ ] 1.2 [physics-engineer] Sign off the interface by reading, with a contact probe (a fake drone over the API: four feet, four arms, a coil, four prop discs) in `tools/flightbench`.
   - **Verify:** the probe passes on the stub, and the sign-off goes into `review-physics.md` in this change, with the PHB-05 lessons checked.
 - [ ] 1.3 [world-builder] The station data (design 3):
-  - **What:** `maps/gallery-g1/stations.json` from `GalleryStations.cs`, the scene builder reading it, and the sim loader placing every variant's `.assetmeta.json` at its pose.
-  - **Verify:** the gallery scene test passes unchanged, and the "sim sees what the scene shows" scenario (pose parity within 1 mm; the hash moves with a 1 mm pose change).
-- [ ] 1.4 [world-builder] The queries over the gallery (design 4, 5):
+  - **What:** `maps/gallery-g1/stations.json` from `GalleryStations.cs` in `p6-test-range`'s placement form (its design 7, D-044), the scene builder reading it, and the sim loader placing every variant's `.assetmeta.json` at its pose, for the gallery and for `maps/test-range/placements.json` alike.
+  - **Verify:** the gallery scene test passes unchanged, and the "sim sees what the scene shows" scenario on both maps (pose parity within 1 mm; the hash moves with a 1 mm pose change).
+- [ ] 1.4 [world-builder] The queries over the gallery and the test range (design 4, 5; D-044):
   - **What:** `SampleGround` with the floor, the patches and holes; `StaticContacts` over primitives, wire capsule chains and runtime objects with the Time < 1 latch on a deterministic 2 m grid; `Raycast`; `Geometry`; the launch stand as a runtime object with reset.
   - **Verify:** the swept-arm, foot-in-the-trench and batched-equals-single scenarios, the golden file, and a concurrency test.
 - [ ] 1.5 [world-builder] Budgets (design 7):
-  - **What:** `tools/worldbench --bench` at the three spots, on AC with the power mode printed.
+  - **What:** `tools/worldbench --bench` at the three spots, plus the test range's posadka at 2 m (its densest step, D-044), on AC with the power mode printed.
   - **Verify:** the worst-case-step scenario, plus 100 000 capsules and 100 000 rays under 100 ms each.
 
 ## 2. Review
