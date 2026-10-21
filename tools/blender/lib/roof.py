@@ -25,8 +25,15 @@ clay set's clean cells (lib.debris_tile.CELLS_M), seeded per tile, so the roof n
 gable's verge (or a hip slope's centre) at the covering width less a 2 mm joint, cut along the hips HIP_MARGIN_M short
 of the hip line and round the chimney; a cut face is `tile_fracture`, the fresh clay. The eaves course overhangs the
 rafter tails by `e`, at least TAIL_MIN_M, set so every batten keeps the gauge and the top course's head stops
-RIDGE_GAP_M short of the ridge. `roof_strip` takes that share of the tiles away, seeded and scattered (the clusters
-of the D state are task 1.4's).
+RIDGE_GAP_M short of the ridge. `roof_strip` takes that share of the tiles away (_strip): up to SLIP of them slipped,
+seeded and scattered, the rest stripped so the tiles left cluster at the eaves, the lee end and in seeded patches.
+
+The D state (task 1.4), each item from its own named stream: `rafters_broken` commons off the plate, fallen into the
+attic with their collars; `batten_break` of the spans between two commons broken where the tiles over them are gone,
+each leaving a stub on either rafter that ends in K03's splinters, the middle fallen; each run of broken rows in a bay
+a gap between the rafters' faces and the battens left standing, less the stubs (a bay is a gap only where no batten
+stands); `interior_ceiling_down` of the ceiling down in strips between its joists, the boards broken over their
+joists, each hole a gap. What fell is listed in the result's "fallen" and "holes" for lib.rubble.
 
 Collision: plates, rafters, collars, the ridge board, battens and joists one box each; a tile course one box per run of
 whole tiles in the tile's own tilt, a box per tile cut round the chimney, and the tiles cut along a hip as strips along
@@ -36,10 +43,12 @@ ridge and each hip one box over their arches; the chimney a box per wall of its 
 import math
 
 from generators import debris_brick
-from lib import audit, debris_tile, kits_vehicle, prism, walls
+from lib import audit, debris_tile, debris_timber, kits_vehicle, masks, prism, rects, rubble, walls
+from lib.geometry import Mesh
 
 TIMBER, MASONRY = "timber", "masonry"
 TIMBER_SLOT, TILE_SLOT, CUT_SLOT, BRICK_SLOT, CLAY_SLOT = "timber", "tile", "tile_fracture", "brick", "clay"
+CUT_TIMBER_SLOT = debris_timber.FRACTURE_SLOT  # a broken member's fresh wood (K03's)
 BATTEN_M = (0.05, 0.05)        # the sheet: battens 50 x 50 mm
 HIP_RAFTER_M = (0.10, 0.20)    # wide, deep (assumed: a hip deeper than the commons)
 RIDGE_BOARD_M = (0.04, 0.25)   # thick, deep (assumed)
@@ -70,6 +79,17 @@ CLAY_M = 0.15                  # the clay-straw layer on the boards (the sheet: 
 MIN_JOIST_M = 0.3              # a joist cut by the chimney shorter than this is left out (assumed)
 EDGE_SNAG_R_M = 0.002          # sawn and brick arrises (K03's, K01's chamfer)
 ROOF_FIELD_POROSITY = 0.775    # the sheet: a stripped field passes 0.7-0.85 (its battens and rafters block 15-30 %)
+# The D state (task 1.4)
+SLIP = 0.05                    # the sheet: I's 2-5 % of tiles slipped, scattered; a stripped roof's own slips
+CLUSTER_CELL_M = 1.2           # the tiles left lie in patches of a few tiles (assumed: E shows clusters 1-2 m across)
+STUB_BODY_M = (0.03, 0.25)     # a broken batten's stub from its rafter's face to its splinters' root (assumed)
+STUB_SPLINTER_M = (0.04, 0.12) # their reach past it (assumed; K03's 0.05-0.4 m, short on a 50 mm batten)
+SPLINTERS = 3                  # per broken end of a batten or a ceiling board (K03: 2-10)
+MIN_FALLEN_M = 0.15            # a broken span's fallen middle is at least this (assumed)
+CEILING_CELL_BOARDS = 4        # the ceiling falls in strips of this many boards between two joists (assumed)
+BOARD_SPLINTER_M = (0.02, 0.04)  # a ceiling board's splinters over its joist (derived: within the joist's top)
+BOARD_SPLINTERS = 2
+CLAY_SETBACK_M = (0.0, 0.08)   # the clay crumbles back from a broken board's end (assumed)
 
 
 class Slope:
@@ -195,7 +215,8 @@ def rafter_layout(plan, pitch):
 
 def build(plan, params, lods, rngs):
     """Every roof member, tile, ridge tile, the chimney and the ceiling into `lods` (four meshes); returns
-    {"collision", "wind_volumes", "snag", "gaps", "lines", "chimney", "tiles"}."""
+    {"collision", "wind_volumes", "snag", "gaps", "lines", "chimney", "tiles", "layout", "commons"} and the damage's
+    "gone_tiles", "fallen" (battens, rafters, collars, boards, clay) and "holes" (the ceiling's, per room)."""
     out = {"collision": [], "wind_volumes": [], "snag": [], "gaps": [], "lines": []}
     pitch = params["rafter_pitch"]
     commons, forced, ref = rafter_layout(plan, pitch)
@@ -203,15 +224,27 @@ def build(plan, params, lods, rngs):
     slopes = [Slope(plan, "front"), Slope(plan, "back")] + [Slope(plan, f"end{e}") for e in (-1, 1)
                                                                if plan.ends[e] == "hip"]
     layout = Layout(plan, params, slopes[0].S)
+    out["fallen"], out["holes"] = [], []
+    pieces = _tile_pieces(plan, slopes, layout, chimney, rngs)
+    gone = _strip(plan, params, pieces, rngs)
+    out["gone_tiles"] = [pieces[i] for i in sorted(gone)]
+    broken = _pick_rafters(plan, params, slopes, commons, forced, chimney, pieces, gone, rngs)
+    bays = _bays(plan, slopes, layout, commons, broken, chimney)
+    breaks = _pick_breaks(params, layout, bays, pieces, gone, rngs)
     _plates(plan, lods, out)
-    _rafters(plan, slopes, commons, forced, ref, pitch, chimney, lods, out)
-    _battens(plan, slopes, layout, chimney, lods, out)
-    tiles = _tiles(plan, params, slopes, layout, chimney, lods, out, rngs)
+    _rafters(plan, slopes, commons, forced, ref, pitch, chimney, lods, out, broken)
+    _battens(plan, slopes, layout, chimney, lods, out, breaks, rngs)
+    tiles = _tiles(plan, slopes, layout, chimney, lods, out, pieces, gone)
+    out["gaps"] += _bay_gaps(plan, layout, bays, breaks, pieces, gone)
     _ridge_tiles(plan, slopes, layout, lods, out, rngs)
     if chimney:
         _chimney(plan, slopes, layout, chimney, lods, out, rngs)
-    _ceiling(plan, chimney, lods, out)
-    _far_cover(plan, slopes, layout, lods)
+    if params["interior_ceiling_down"] > 0:
+        _ceiling_down(plan, params, chimney, lods, out, rngs)
+    else:
+        _ceiling(plan, chimney, lods, out)
+    _far_cover(plan, slopes, layout, lods, None if params["roof_strip"] <= SLIP else out["regions"])
+    tiles["breaks"], tiles["spans"], tiles["rafters_off"] = len(breaks), sum(len(b["rows"]) for b in bays), len(broken)
     porosity = params["roof_strip"] * ROOF_FIELD_POROSITY
     for slope in slopes:
         lo = min(slope.a_range(0.0)[0], slope.a_range(slope.S)[0])
@@ -226,6 +259,83 @@ def build(plan, params, lods, rngs):
         out["wind_volumes"].append(box)
     out["chimney"], out["tiles"], out["layout"], out["commons"] = chimney, tiles, layout, commons
     return out
+
+
+def _pick_rafters(plan, params, slopes, commons, forced, chimney, pieces, gone, rngs):
+    """The `rafters_broken` commons knocked off the plate, as (slope, x): on the side slopes, not a hip's or a gable's
+    pair nor the chimney's trimmers, those with the most of their tiles gone (within a pitch either side), ties broken
+    by the seeded stream "rafters broken"."""
+    if not params["rafters_broken"]:
+        return frozenset()
+    rng = rngs("rafters broken")
+    pitch = params["rafter_pitch"]
+    ch_slope = None if not chimney else ("front" if chimney["z1"] <= 0 else "back")
+    candidates = []
+    for slope in slopes[:2]:
+        for x in commons:
+            key = rng.random()
+            if any(abs(x - f) < 1e-9 for f in forced):
+                continue
+            if slope.name == ch_slope and chimney["x0"] - pitch < x < chimney["x1"] + pitch:
+                continue
+            near = [i for i, pc in enumerate(pieces) if pc["slope"] is slope
+                    and abs(sum(q[0] for q in pc["poly"]) / len(pc["poly"]) - x) < pitch]
+            share = sum(i in gone for i in near) / max(1, len(near))
+            candidates.append((-share, key, slope.name, x))
+    return frozenset((name, x) for _, _, name, x in sorted(candidates)[:params["rafters_broken"]])
+
+
+def _bays(plan, slopes, layout, commons, broken, chimney):
+    """The regular bays of the side slopes, between two neighbouring commons still on the plate (the bays a batten
+    breaks in and a gap opens through; the hip's jacks, a gable's verge and the chimney's bay are not), each with its
+    rafters' centres `x`, its clear `a` between their faces and its batten rows."""
+    w = plan.rafter_w
+    ch_slope = None if not chimney else ("front" if chimney["z1"] <= 0 else "back")
+    out = []
+    for slope in slopes[:2]:
+        xs = sorted(x for x in commons if (slope.name, x) not in broken)
+        for x0, x1 in zip(xs, xs[1:]):
+            if slope.name == ch_slope and x0 < chimney["x1"] and chimney["x0"] < x1:
+                continue
+            out.append({"slope": slope, "x": (x0, x1), "a": (x0 + w / 2, x1 - w / 2),
+                        "rows": list(range(len(layout.battens)))})
+    return out
+
+
+def _over(pieces, gone, name, k, a0, a1):
+    """Whether every tile of course k on slope `name` over a0-a1 is gone."""
+    return all(i in gone for i, pc in enumerate(pieces) if pc["slope"].name == name and pc["k"] == k
+               and max(q[0] for q in pc["poly"]) > a0 and min(q[0] for q in pc["poly"]) < a1)
+
+
+def _pick_breaks(params, layout, bays, pieces, gone, rngs):
+    """`batten_break` of the regular bays' batten spans broken (task 1.4: of the spans that can break), drawn by the
+    stream "batten break" among the spans whose tiles are gone from their own course and the course above (a tile
+    hangs on its batten and the next course laps over it), never the eaves or the top row. Each break leaves a stub
+    of STUB_BODY_M on each rafter, splintered by STUB_SPLINTER_M; the middle fell. Returns the breaks, by bay and
+    row."""
+    total = sum(len(b["rows"]) for b in bays)
+    target = round(params["batten_break"] * total)
+    if not target:
+        return []
+    n = len(layout.battens)
+    candidates = [(bi, k) for bi, b in enumerate(bays) for k in range(1, n - 1)
+                  if _over(pieces, gone, b["slope"].name, k, *b["a"]) and _over(pieces, gone, b["slope"].name, k + 1, *b["a"])]
+    chosen = sorted(rngs("batten break").sample(candidates, min(target, len(candidates))))
+    breaks = []
+    for bi, k in chosen:
+        b = bays[bi]
+        a0, a1 = b["a"]
+        name = f"batten break {b['slope'].name} {bi} {k}"
+        r = rngs(name)
+        body = [r.uniform(*STUB_BODY_M), r.uniform(*STUB_BODY_M)]
+        reach = [r.uniform(*STUB_SPLINTER_M), r.uniform(*STUB_SPLINTER_M)]
+        room = (a1 - a0) - MIN_FALLEN_M - sum(reach)
+        if sum(body) > room:
+            body = [v * max(0.0, room) / sum(body) for v in body]
+        breaks.append({"bay": bi, "slope": b["slope"], "k": k, "roots": (a0 + body[0], a1 - body[1]),
+                       "reach": reach, "name": name, "notches": []})
+    return breaks
 
 
 def _plates(plan, lods, out):
@@ -262,8 +372,9 @@ def _tail_snag(member, out):
     out["snag"].append({"kind": "edge", "radius_m": EDGE_SNAG_R_M, "points": [list(p) for p in face[0] + face[0][:1]]})
 
 
-def _rafters(plan, slopes, commons, forced, ref, pitch, chimney, lods, out):
-    """Commons (with collars and the ridge board), jacks, hip rafters and a hip end's king common and jacks."""
+def _rafters(plan, slopes, commons, forced, ref, pitch, chimney, lods, out, broken=frozenset()):
+    """Commons (with collars and the ridge board), jacks, hip rafters and a hip end's king common and jacks; the
+    commons in `broken` ((slope, x)) are off the plate, fallen inside with their collar (out["fallen"])."""
     w, d = plan.rafter_w, plan.rafter_d
     front, back = slopes[0], slopes[1]
     ridge_planes = {s.name: [prism.plane((0.0, 0.0, s.side * RIDGE_BOARD_M[0] / 2), (0.0, 0.0, -s.side))]
@@ -295,6 +406,13 @@ def _rafters(plan, slopes, commons, forced, ref, pitch, chimney, lods, out):
     reach = plan.eaves + plan.T / 2 - walls.PLATE_M[0] / 2 + 0.1
     for slope in (front, back):
         for x in commons:
+            if (slope.name, x) in broken:
+                m = prism.Member(_rafter_frame(slope, x), (0.0, -d, -w / 2), (slope.S + 0.5, 0.0, w / 2),
+                                 ridge_planes[slope.name])
+                lo, hi = m.local_bounds()
+                out["fallen"].append({"kind": "rafter", "slope": slope.name, "x": x, "length": hi[0] - lo[0],
+                                      "section": (w, d), "volume_m3": (hi[0] - lo[0]) * w * d})
+                continue
             emit(slope, x, ridge_planes[slope.name])
         for (e, sz), (r, c, p) in hips.items():
             if sz != slope.side:
@@ -309,6 +427,10 @@ def _rafters(plan, slopes, commons, forced, ref, pitch, chimney, lods, out):
     yc = plan.apex - COLLAR_DROP * (plan.apex - plan.H)
     for x in commons:
         if any(abs(x - f) < 1e-9 for f in forced):
+            continue
+        if (front.name, x) in broken or (back.name, x) in broken:  # the collar came down with its rafter
+            out["fallen"].append({"kind": "collar", "x": x, "length": 2 * plan.Z, "section": COLLAR_M,
+                                  "volume_m3": 2 * plan.Z * COLLAR_M[0] * COLLAR_M[1]})
             continue
         frame = prism.Frame((x + w / 2 + COLLAR_M[0] / 2, yc, 0.0), (0.0, 0.0, 1.0), (0.0, 1.0, 0.0), (-1.0, 0.0, 0.0))
         planes = [prism.plane(s.origin, s.en) for s in (front, back)]
@@ -347,12 +469,17 @@ def _rafters(plan, slopes, commons, forced, ref, pitch, chimney, lods, out):
             emit(slope, z, planes)
 
 
-def _battens(plan, slopes, layout, chimney, lods, out):
-    """Every batten on every slope, the tilting fillet under the eaves course."""
+def _battens(plan, slopes, layout, chimney, lods, out, breaks=(), rngs=None):
+    """Every batten on every slope, the tilting fillet under the eaves course; a broken span's two stubs end at
+    their splinters' roots, a fracture face and K03's splinters (lib.debris_timber.broken_end), the middle fallen
+    (out["fallen"]), and each break keeps its stubs' reach in the slope's (a, s) for its bay's gap."""
     bw, bh = BATTEN_M
+    by_row = {}
+    for brk in breaks:
+        by_row.setdefault((brk["slope"].name, brk["k"]), []).append(brk)
     for slope in slopes:
         rows = [(s, bh) for s in layout.battens] + [(bw / 2, layout.fillet)]
-        for s, height in rows:
+        for k, (s, height) in enumerate(rows):
             lo, hi = slope.a_range(s)
             planes, ext = [], [0.0, 0.0]
             for which, kind, hip in slope.bounds():
@@ -365,22 +492,94 @@ def _battens(plan, slopes, layout, chimney, lods, out):
             spans = [(lo - ext[0], hi + ext[1])]
             if chimney and slope.end is None:
                 spans = _round_chimney(spans, chimney, slope, s, height)
-            for a0, a1 in spans:
+            segments = [(a0, a1, None, None) for a0, a1 in spans]
+            for brk in sorted(by_row.get((slope.name, k), []), key=lambda b: b["roots"][0]):
+                r0, r1 = brk["roots"]
+                segments = [seg for a0, a1, e0, e1 in segments
+                            for seg in (((a0, r0, e0, brk), (r1, a1, brk, e1)) if a0 < r0 < r1 < a1 else
+                                        ((a0, a1, e0, e1),))]
+                out["fallen"].append({"kind": "batten", "slope": slope.name, "k": k, "a": (r0, r1), "s": s,
+                                      "length": r1 - r0, "section": BATTEN_M, "volume_m3": (r1 - r0) * bw * bh})
+            for a0, a1, e0, e1 in segments:
                 box = member = None
+                kinds = {key: CUT_TIMBER_SLOT for key, end in (("x-", e0), ("x+", e1)) if end}
                 for n, mesh in enumerate(lods[:2]):
                     m, b = prism.member(mesh, frame, (a0, 0.0, -bw / 2), (a1, height, bw / 2), TIMBER_SLOT, TIMBER,
-                                        planes, offset=(0.17 * s, 0.29 * s))
+                                        planes, offset=(0.17 * s, 0.29 * s), slot_by_kind=kinds)
                     if n == 0:
                         box, member = b, m
                 if box is None:
                     continue
                 out["collision"].append(box)
+                for root, end, brk in ((a0, -1, e0), (a1, 1, e1)):
+                    if brk:
+                        _stub_end(slope, frame, s, height, root, end, brk, lods, out, rngs)
                 for which, kind, _ in slope.bounds():  # a batten's end at a gable's verge
                     if kind == "verge" and abs((a0 if which == "lo" else a1) - (lo if which == "lo" else hi)) < 1e-9:
                         end = min(member.faces, key=lambda f, sg=(-1 if which == "lo" else 1):
                                   -sg * prism.dot(f[1], slope.ea))
                         out["snag"].append({"kind": "edge", "radius_m": EDGE_SNAG_R_M,
                                             "points": [list(q) for q in end[0] + end[0][:1]]})
+
+
+def _stub_end(slope, frame, s, height, root, end, brk, lods, out, rngs):
+    """A broken batten's stub end: K03's splinters from its root at a = `root` towards `end`, placed on the batten
+    (whose frame is K03's piece frame: x along, y up from its underside, z across), and its notch, the stub with its
+    splinters' reach, in the slope's (a, s) for the bay's clear polygon."""
+    bw = BATTEN_M[0]
+    side = 0 if end > 0 else 1
+    rows = tuple(tuple((frame.ex, frame.ey, frame.ez)[j][i] for j in range(3)) for i in range(3))
+    rigid = kits_vehicle.Rigid(rows, frame.origin)
+    tmp = [Mesh(), Mesh()]
+    uv = debris_timber.UV(bw, height, (0.17 * s, 0.29 * s))  # the batten's own grain offset, V along a
+    collision, snag, splinters = debris_timber.broken_end(tmp, uv, rngs(f"{brk['name']} {side}"), bw, height, root,
+                                                         end, brk["reach"][side], SPLINTERS)
+    for mesh, piece in zip(lods[:2], tmp):
+        kits_vehicle.append_mesh(mesh, piece, rigid)
+    out["collision"] += [kits_vehicle.transform_shape(c, rigid) for c in collision]
+    out["snag"] += [kits_vehicle.transform_snag(n, rigid) for n in snag]
+    sign = prism.dot(frame.ez, slope.es)
+    zs = [z for sp in splinters for z in (sp["tip"][0] - sp["tip_half"][0], sp["tip"][0] + sp["tip_half"][0])]
+    s_lo, s_hi = sorted((s + sign * min(-bw / 2, *zs), s + sign * max(bw / 2, *zs)))
+    tip = root + end * max(sp["length"] for sp in splinters)
+    # the stub from its rafter (the bay's rect clips the notch at the rafter's face) to its longest splinter's tip
+    brk["notches"].append((root - 10.0, tip, s_lo, s_hi) if end > 0 else (tip, root + 10.0, s_lo, s_hi))
+
+
+def _bay_gaps(plan, layout, bays, breaks, pieces, gone):
+    """A roof bay is a gap only where no batten stands (design decision 9): per bay, each run of neighbouring broken
+    rows opens between the two rafters' faces and the battens left below and above it (or the tiles lying on them),
+    less its stubs and their splinters; its polygon in the slope's plane at the battens' mid-height, narrowest_m its
+    inscribed circle. A bay whose battens all stand (0.33 m apart) is no gap."""
+    bw = BATTEN_M[0]
+    out = []
+    by_bay = {}
+    for brk in breaks:
+        by_bay.setdefault(brk["bay"], []).append(brk)
+    for bi, found in sorted(by_bay.items()):
+        bay, slope = bays[bi], bays[bi]["slope"]
+        a0, a1 = bay["a"]
+        rows = sorted(found, key=lambda b: b["k"])
+        runs = []
+        for brk in rows:
+            if runs and brk["k"] == runs[-1][-1]["k"] + 1:
+                runs[-1].append(brk)
+            else:
+                runs.append([brk])
+        for run in runs:
+            k1, k2 = run[0]["k"], run[-1]["k"]
+            bottom = layout.battens[k1 - 1] + bw / 2
+            if not _over(pieces, gone, slope.name, k1 - 1, a0, a1):
+                bottom = max(bottom, layout.heads[k1 - 1])
+            top = layout.battens[k2 + 1] - bw / 2
+            if k2 + 2 < len(layout.tails) and not _over(pieces, gone, slope.name, k2 + 2, a0, a1):
+                top = min(top, layout.tails[k2 + 2])
+            cells = rects.free((a0, a1, bottom, top), [n for brk in run for n in brk["notches"]])
+            points = [list(slope.point(a, s_, bw / 2)) for a, s_ in rects.outline(cells)]
+            normal = list(slope.en)
+            out.append({"id": f"roof_{slope.name}_bay{bi}_row{k1}", "polygon": points, "normal": normal,
+                        "narrowest_m": round(audit.inscribed_diameter(points, normal), 6)})
+    return out
 
 
 def _round_chimney(spans, chimney, slope, s, height):
@@ -475,11 +674,11 @@ def _chimney_rect(slope, layout, chimney):
     return rect if rect[3] > lo and rect[1] < hi else None
 
 
-def _tiles(plan, params, slopes, layout, chimney, lods, out, rngs):
-    """Every tile (pieces where cut), the courses' collision and LOD1 strips; returns the tile counts."""
-    cell_rng, strip_rng = rngs("tile cells"), rngs("roof strip")
+def _tile_pieces(plan, slopes, layout, chimney, rngs):
+    """Every tile's place on the roof (pieces where cut): its polygon in its slope's (a, s), its full width, its cuts,
+    its clay cell, its slope and course."""
+    cell_rng = rngs("tile cells")
     width = layout.cover - TILE_JOINT_M
-    counts = {"whole": 0, "cut": 0, "removed": 0, "boxes": 0}
     pieces_all = []
     for slope in slopes:
         bounds = _bound_planes(slope, layout)
@@ -537,9 +736,47 @@ def _tiles(plan, params, slopes, layout, chimney, lods, out, rngs):
             for piece in course:
                 piece.update(slope=slope, k=k)
             pieces_all += course
-    # roof_strip: that share of the tiles taken away, seeded and scattered (task 1.4 clusters them)
-    gone = set(strip_rng.sample(range(len(pieces_all)), round(params["roof_strip"] * len(pieces_all))))
-    counts["removed"] = len(gone)
+    return pieces_all
+
+
+def _strip(plan, params, pieces, rngs):
+    """The tiles `roof_strip` takes away (indices into `pieces`): up to SLIP of them slipped, seeded and scattered (the
+    I state's 2-5 %), and the rest stripped where the tiles left cluster: each tile scored by how near the eaves and
+    the lee end it lies (lib.rubble.travel) and by a smooth seeded noise of CLUSTER_CELL_M cells, weighted by
+    `tile_cluster_bias`, the lowest scores gone first."""
+    n = len(pieces)
+    n_gone = round(params["roof_strip"] * n)
+    n_slip = min(n_gone, round(SLIP * n))
+    gone = set(rngs("roof strip").sample(range(n), n_slip))
+    if n_gone == n_slip:
+        return gone
+    tx, tz = rubble.travel(params)
+    centres = []
+    for pc in pieces:
+        a = sum(q[0] for q in pc["poly"]) / len(pc["poly"])
+        s_ = sum(q[1] for q in pc["poly"]) / len(pc["poly"])
+        x, _, z = pc["slope"].point(a, s_)
+        centres.append((x, z, 1 - s_ / pc["slope"].S))
+    reach = max(abs(x * tx + z * tz) for x, z, _ in centres) or 1.0
+    span = 2 * (plan.X + plan.eaves) + 2 * CLUSTER_CELL_M
+    noise = masks.PeriodicNoise(rngs("roof clusters"), 2 * span, CLUSTER_CELL_M, span)
+    bias = params["tile_cluster_bias"]
+
+    def score(i):
+        x, z, eaves = centres[i]
+        lee = 0.5 + 0.5 * (x * tx + z * tz) / reach
+        patch = 0.5 + 0.5 * noise(x + span / 2, z + span / 2)
+        return bias * (eaves + lee) / 2 + (1 - bias) * patch
+
+    order = sorted((score(i), i) for i in range(n) if i not in gone)
+    return gone | {i for _, i in order[:n_gone - n_slip]}
+
+
+def _tiles(plan, slopes, layout, chimney, lods, out, pieces_all, gone):
+    """Every tile left (pieces where cut), the courses' collision and LOD1 strips; returns the tile counts and keeps
+    the course regions (for the far LODs) in out["regions"]."""
+    counts = {"whole": 0, "cut": 0, "removed": len(gone), "boxes": 0}
+    out["regions"] = []
     kept = [pc for i, pc in enumerate(pieces_all) if i not in gone]
     by_course = {}
     for pc in kept:
@@ -554,6 +791,7 @@ def _tiles(plan, params, slopes, layout, chimney, lods, out, rngs):
             counts["cut" if pc["cut"] else "whole"] += 1
         for region in _regions(slope, layout, course, chimney):
             boxes = _region_boxes(frame, sign, s_mid, layout, region)
+            out["regions"].append((slope, region["poly"]))
             out["collision"] += boxes
             counts["boxes"] += len(boxes)
             _region_body(lods[1], frame, sign, s_mid, layout, region["poly"])
@@ -1043,8 +1281,177 @@ def _ceiling(plan, ch, lods, out):
         prism.member(mesh, xf, (x_in0, H, z_in0), (x_in1, y1, z_in1), TIMBER_SLOT, TIMBER)
 
 
-def _far_cover(plan, slopes, layout, lods):
-    """LOD2 and LOD3: each slope's cover as one slab over its polygon, UV'd in the slope's metres."""
+def _ceiling_down(plan, params, ch, lods, out, rngs):
+    """The ceiling with `interior_ceiling_down` of it fallen (design decision 6; the sheet: the ceiling still in place
+    over the door room, boards and clay down in the others): in each room but the hall, strips of CEILING_CELL_BOARDS
+    boards between two joists (or a joist and a wall) fall, the lowest of a smooth seeded noise (stream "ceiling
+    down") first, until that share of the whole ceiling's area is down. Joists and beams stay. A board left breaks over
+    its joist, K03's splinters reaching no farther than the joist's top (BOARD_SPLINTER_M), so the clear space
+    between the joists' faces is the hole's; its clay crumbles back by CLAY_SETBACK_M, the stub bare. Each hole between
+    two joists, split by a beam under it, is a gap; what fell goes to the rubble (out["fallen"], out["holes"]) and the
+    rooms' joists to out["joists"]."""
+    x_in0, x_in1, z_in0, z_in1 = plan.inner
+    H = plan.H
+    jw, jh = JOIST_M
+    clear = 0.03
+    hole = (ch["x0"] - clear, ch["x1"] + clear, ch["z0"] - clear, ch["z1"] + clear) if ch else None
+    xf = prism.Frame((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
+    zf = prism.Frame((0.0, 0.0, 0.0), (0.0, 0.0, 1.0), (0.0, 1.0, 0.0), (-1.0, 0.0, 0.0))
+    joists, beams = {}, {}
+    for si, space in enumerate(plan.spaces):  # the joists and beams, as the intact ceiling's
+        n = int((space.z1 - space.z0) / JOIST_PITCH_M)
+        zs = [((k + 0.5) - n / 2) * JOIST_PITCH_M + (space.z0 + space.z1) / 2 for k in range(n)]
+        joists[si] = zs
+        for z in zs:
+            spans = [(space.x0, space.x1)]
+            if hole and hole[2] < z + jw / 2 and hole[3] > z - jw / 2:
+                spans = [(a, b) for a, b in ((space.x0, min(space.x1, hole[0])), (max(space.x0, hole[1]), space.x1))
+                         if b - a >= MIN_JOIST_M]
+            for a, b in spans:
+                for mesh in lods[:2]:
+                    _, box = prism.member(mesh, xf, (a, H - jh, z - jw / 2), (b, H, z + jw / 2), TIMBER_SLOT,
+                                          TIMBER, offset=(0.3 * z, 0.1 * a))
+                out["collision"].append(box)
+        if space.x1 - space.x0 > 2.5:
+            xc = (space.x0 + space.x1) / 2
+            bw, bh = BEAM_M
+            beams[si] = (xc - bw / 2, xc + bw / 2)
+            for mesh in lods[:2]:
+                _, box = prism.member(mesh, zf, (space.z0, H - jh - bh, -xc - bw / 2), (space.z1, H - jh, -xc + bw / 2),
+                                      TIMBER_SLOT, TIMBER, offset=(0.4, 0.2))
+            out["collision"].append(box)
+    out["joists"] = {plan.spaces[si].name: zs for si, zs in joists.items()}
+    bw, bt, gap = BOARD_M
+    count = int((x_in1 - x_in0 + gap) / (bw + gap))
+    pitch = (x_in1 - x_in0 + gap) / count
+    columns = [(x_in0 + k * pitch, x_in0 + k * pitch + pitch - gap) for k in range(count)]
+    cells = []
+    for si, space in enumerate(plan.spaces):
+        if space.name == "hall":
+            continue
+        cols = [k for k, (a, b) in enumerate(columns) if a >= space.x0 - 1e-9 and b <= space.x1 + 1e-9]
+        edges = [space.z0] + joists[si] + [space.z1]
+        for g in range(0, len(cols), CEILING_CELL_BOARDS):
+            group = cols[g:g + CEILING_CELL_BOARDS]
+            xa, xb = columns[group[0]][0], min(columns[group[-1]][0] + pitch, x_in1)
+            for za, zb in zip(edges, edges[1:]):
+                if hole and hole[0] < xb and xa < hole[1] and hole[2] < zb and za < hole[3]:
+                    continue
+                cells.append({"space": si, "cols": group, "x": (xa, xb), "z": (za, zb)})
+    want = params["interior_ceiling_down"] * (x_in1 - x_in0) * (z_in1 - z_in0)
+    span = 2 * (plan.X + plan.Z) + 4.0
+    noise = masks.PeriodicNoise(rngs("ceiling down"), 2 * span, 1.5, span)
+    order = sorted((noise(sum(c["x"]) / 2 + span / 2, sum(c["z"]) / 2 + span / 2), i) for i, c in enumerate(cells))
+    down, area = [], 0.0
+    for _, i in order:
+        if area >= want - 1e-9:
+            break
+        down.append(cells[i])
+        area += (cells[i]["x"][1] - cells[i]["x"][0]) * (cells[i]["z"][1] - cells[i]["z"][0])
+    out["ceiling_down_m2"], out["ceiling_m2"] = area, (x_in1 - x_in0) * (z_in1 - z_in0)
+    lines = {z for zs in joists.values() for z in zs}
+    clay_rects = []
+    rows = ((0.0, 0.0, 1.0), (0.0, 1.0, 0.0), (-1.0, 0.0, 0.0))  # a board's K03 frame: along z, up, across -x
+    for k, (a, b) in enumerate(columns):
+        merged = []  # this column's holes, neighbouring bays down as one hole over the joist between them
+        for za, zb in sorted(c["z"] for c in down if k in c["cols"]):
+            if merged and abs(merged[-1][1] - za) < 1e-9:
+                merged[-1] = (merged[-1][0], zb)
+            else:
+                merged.append((za, zb))
+        cuts = list(merged) + ([(hole[2], hole[3])] if hole and hole[0] < b and hole[1] > a else [])
+        kept, z = [], z_in0
+        for za, zb in sorted(cuts):
+            if za - z > 0.05:
+                kept.append((z, za))
+            z = max(z, zb)
+        if z_in1 - z > 0.05:
+            kept.append((z, z_in1))
+        rigid = kits_vehicle.Rigid(tuple(tuple(rows[j][i] for j in range(3)) for i in range(3)), ((a + b) / 2, H, 0.0))
+        for c0, c1 in kept:
+            ends = []  # per end: (the board's end, its clay's end, its break or None)
+            for zz, dirn in ((c0, -1), (c1, 1)):
+                broken = any(abs(zz - j) < 1e-9 for j in lines) and any(
+                    abs((za if dirn > 0 else zb) - zz) < 1e-9 for za, zb in merged)
+                if not broken:
+                    ends.append((zz, zz, None))
+                    continue
+                r = rngs(f"ceiling board {k} {zz:.4f}")
+                reach = r.uniform(*BOARD_SPLINTER_M)
+                end = zz + dirn * r.uniform(0.0, max(0.0, jw / 2 - reach - 0.005))
+                ends.append((end, end - dirn * r.uniform(*CLAY_SETBACK_M), (r, reach, dirn)))
+            (z0, cz0, brk0), (z1, cz1, brk1) = ends
+            kinds = {key: CUT_TIMBER_SLOT for key, brk in (("x-", brk0), ("x+", brk1)) if brk}
+            for mesh in lods[:2]:
+                prism.member(mesh, zf, (z0, H, -b), (z1, H + bt, -a), TIMBER_SLOT, TIMBER, offset=(0.21 * k, 0.37 * k),
+                             slot_by_kind=kinds)
+            clay_rects.append((a, min(a + pitch, x_in1), cz0, cz1))
+            for zz, cz, brk in ((z0, cz0, brk0), (z1, cz1, brk1)):
+                if not brk:
+                    continue
+                r, reach, dirn = brk
+                tmp = [Mesh(), Mesh()]
+                collision, snag, _ = debris_timber.broken_end(tmp, debris_timber.UV(bw, bt, (0.21 * k, 0.37 * k)), r,
+                                                              bw, bt, zz, dirn, reach, BOARD_SPLINTERS)
+                for mesh, piece in zip(lods[:2], tmp):
+                    kits_vehicle.append_mesh(mesh, piece, rigid)
+                out["collision"] += [kits_vehicle.transform_shape(c, rigid) for c in collision]
+                out["snag"] += [kits_vehicle.transform_snag(n, rigid) for n in snag]
+                if abs(zz - cz) > 1e-4:  # the bare stub past its clay
+                    out["collision"].append(prism.axis_box((a, H, min(zz, cz)), (b, H + bt, max(zz, cz)), TIMBER))
+        for za, zb in merged:  # what fell of this column: its board between the joists, and its clay
+            si = next(c["space"] for c in down if k in c["cols"])
+            out["fallen"].append({"kind": "board", "space": si, "x": (a, b), "z": (za, zb), "length": zb - za,
+                                  "section": (bw, bt), "volume_m3": (zb - za) * bw * bt})
+            out["fallen"].append({"kind": "clay", "space": si, "rect": (a, min(a + pitch, x_in1), za, zb),
+                                  "volume_m3": (min(a + pitch, x_in1) - a) * (zb - za) * CLAY_M})
+    y0, y1 = H, H + bt + CLAY_M
+    for xa, xb, za, zb in rects.merge(clay_rects):
+        for mesh in lods[:2]:
+            prism.member(mesh, xf, (xa, H + bt, za), (xb, y1, zb), CLAY_SLOT, MASONRY, offset=(0.0, 0.0))
+        out["collision"].append(prism.axis_box((xa, y0, za), (xb, y1, zb), MASONRY))
+        wind = prism.axis_box((xa, y0, za), (xb, y1, zb), MASONRY)
+        wind.pop("material")
+        wind.pop("landable")
+        wind["porosity"] = 0.0
+        out["wind_volumes"].append(wind)
+        prism.member(lods[2], xf, (xa, H, za), (xb, y1, zb), TIMBER_SLOT, TIMBER)  # far: the ceiling left, as slabs
+    for si, space in enumerate(plan.spaces):  # the holes: per bay between two joists, runs of strips, a beam between
+        edges = [space.z0] + joists[si] + [space.z1]
+        for za, zb in zip(edges, edges[1:]):
+            runs = []
+            for xa, xb in sorted(c["x"] for c in down if c["space"] == si and c["z"] == (za, zb)):
+                if runs and xa - runs[-1][1] < 1e-6:
+                    runs[-1][1] = xb
+                else:
+                    runs.append([xa, xb])
+            z_lo = za + (jw / 2 if za in joists[si] else 0.0)
+            z_hi = zb - (jw / 2 if zb in joists[si] else 0.0)
+            for xa, xb in runs:
+                out["holes"].append({"space": si, "rect": (xa, xb, za, zb)})
+                parts = [(xa, xb)]
+                if si in beams and xa < beams[si][1] and beams[si][0] < xb:
+                    parts = [(p0, p1) for p0, p1 in ((xa, beams[si][0]), (beams[si][1], xb)) if p1 - p0 > 0.05]
+                for p0, p1 in parts:
+                    poly = [[p0, H, z_lo], [p1, H, z_lo], [p1, H, z_hi], [p0, H, z_hi]]
+                    out["gaps"].append({"id": f"ceiling_{space.name}_x{p0 + plan.X:.2f}_z{za + plan.Z:.2f}",
+                                        "polygon": poly, "normal": [0.0, 1.0, 0.0],
+                                        "narrowest_m": round(audit.inscribed_diameter(poly, [0.0, 1.0, 0.0]), 6)})
+
+
+def _far_cover(plan, slopes, layout, lods, regions=None):
+    """LOD2 and LOD3: each slope's cover as one slab over its polygon, UV'd in the slope's metres; a stripped roof's
+    (`regions`, its courses' regions of tiles left, (slope, polygon in (a, s))) as those regions only, top and
+    underside at LOD2 and the top at LOD3, so the far roof shows the same holes."""
+    if regions is not None:
+        n0, n1 = layout.n_head, layout.n_tail + layout.t
+        for slope, poly in regions:
+            for mesh, faces in ((lods[2], ((n1, 1), (n0, -1))), (lods[3], ((n1, 1),))):
+                for n, sgn in faces:
+                    verts = [slope.point(a, s_, n) for a, s_ in poly]
+                    mesh.face([mesh.vertex(v) for v in verts], tuple(sgn * c for c in slope.en), TILE_SLOT,
+                              [(a, s_) for a, s_ in poly])
+        return
     for slope in slopes:
         s0, s1 = -layout.e, slope.S
         lo0, hi0 = slope.a_range(0.0)
