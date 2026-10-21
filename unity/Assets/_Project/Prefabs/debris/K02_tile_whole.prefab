@@ -115,8 +115,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5851020095086453098}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0.044238005, w: 0.99902105}
-  m_LocalPosition: {x: -0.090508, y: 0.015951, z: 0}
+  m_LocalRotation: {x: 0, y: 0, z: 0.039706014, w: 0.99921143}
+  m_LocalPosition: {x: -0.100455, y: 0.015932, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -141,7 +141,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.180799, y: 0.015984, z: 0.22}
+  m_Size: {x: 0.200719, y: 0.015987, z: 0.22}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &5966898242282861764
 GameObject:
@@ -168,8 +168,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5966898242282861764}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: -0.000163, w: 1}
-  m_LocalPosition: {x: 0.089736, y: 0.015952, z: 0}
+  m_LocalRotation: {x: 0, y: 0, z: -0.000263, w: 1}
+  m_LocalPosition: {x: 0.099765, y: 0.01593, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -194,7 +194,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.181465, y: 0.031857, z: 0.22}
+  m_Size: {x: 0.201319, y: 0.031775, z: 0.22}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &7092957294323625287
 GameObject:
@@ -249,12 +249,12 @@ MonoBehaviour:
   id: K02
   variant: K02_tile_whole
   generator: debris_tile
-  paramsSha256: a36af1a8bb2f79b5b334e20af6279ed4ecef8cc2c0b034cac35fce0e1931bd9a
+  paramsSha256: fea3d4e289c544e28cd0eaa7e904b847613f87bc1a21106e8cba765a308b8366
   units: m
   frame: unity-lh-yup
   bounds:
-    m_Center: {x: 0, y: 0.0159405, z: 0}
-    m_Extent: {x: 0.180464, y: 0.0159405, z: 0.11}
+    m_Center: {x: 0, y: 0.0159085, z: 0}
+    m_Extent: {x: 0.200416, y: 0.0159085, z: 0.11}
   lods:
   - mesh: K02_tile_whole_LOD0
     tris: 78
@@ -265,26 +265,26 @@ MonoBehaviour:
     switchDistanceM: 8
     thinWire: 0
   micro: []
-  cullDistanceM: 170
+  cullDistanceM: 190
   materials:
   - slot: tile
     visual: clay_tile
     physics: masonry
   collision:
   - kind: 0
-    center: {x: -0.090508, y: 0.015951, z: 0}
-    size: {x: 0.180799, y: 0.015984, z: 0.22}
+    center: {x: -0.100455, y: 0.015932, z: 0}
+    size: {x: 0.200719, y: 0.015987, z: 0.22}
     radius: 0
     height: 0
-    rotation: {x: 0, y: 0, z: 0.044238, w: 0.999021}
+    rotation: {x: 0, y: 0, z: 0.039706, w: 0.999211}
     material: masonry
     landable: 0
   - kind: 0
-    center: {x: 0.089736, y: 0.015952, z: 0}
-    size: {x: 0.181465, y: 0.031857, z: 0.22}
+    center: {x: 0.099765, y: 0.01593, z: 0}
+    size: {x: 0.201319, y: 0.031775, z: 0.22}
     radius: 0
     height: 0
-    rotation: {x: 0, y: 0, z: -0.000163, w: 1}
+    rotation: {x: 0, y: 0, z: -0.000263, w: 1}
     material: masonry
     landable: 0
   gaps: []
@@ -302,17 +302,17 @@ LODGroup:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7092957294323625287}
   serializedVersion: 2
-  m_LocalReferencePoint: {x: 0, y: 0.0159405, z: 0}
-  m_Size: 0.360928
+  m_LocalReferencePoint: {x: 0, y: 0.0159085, z: 0}
+  m_Size: 0.400832
   m_FadeMode: 0
   m_AnimateCrossFading: 0
   m_LastLODIsBillboard: 0
   m_LODs:
-  - screenRelativeHeight: 0.0390716
+  - screenRelativeHeight: 0.043391336
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 3223786580696519097}
-  - screenRelativeHeight: 0.0018386637
+  - screenRelativeHeight: 0.0018270037
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 3541474314526477364}
