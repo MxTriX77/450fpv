@@ -8,6 +8,11 @@
   - body: x right, y up, z forward, origin at the arm-plane centre
   - Euler angles ZYX for logging only
 - The physics engineer may refine D-019 here, before code, as D-019 allows.
+- **Refined in task 1.1** (no change to D-019's axes), stated once in `DetMath.cs`'s "Frames and units":
+  - the attitude is the unit quaternion body → world, Hamilton product, components = Unity's `Quaternion` (x, y, z, w)
+  - the body rate ω is in body axes, rad/s; q̇ = ½·q·(0, ω)
+  - pilot axes: roll right p = −ω_z, nose up q = −ω_x, yaw right r = +ω_y; the sticks: roll +1 right, pitch +1 forward (nose down), yaw +1 right
+  - per-corner values in Betaflight's Quad X motor order: rear right, front right, rear left, front left
 
 ## Goals / Non-Goals
 **Goals:**
