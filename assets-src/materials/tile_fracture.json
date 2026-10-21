@@ -3,6 +3,6 @@
   "shader": "Universal Render Pipeline/Lit",
   "texture_set": "polyhaven/clay_roof_tiles_02",
   "tile_size_m": [2.5, 2.5],
-  "tint": [1.099, 1.209, 1.342, 1.0],
+  "tint": [0.988, 1.129, 1.363, 1.0],
   "smoothness": 0.05
 }

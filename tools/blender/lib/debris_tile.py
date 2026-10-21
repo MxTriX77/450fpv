@@ -44,10 +44,11 @@ MARGIN_M = 0.02                # a fracture keeps this far inside the tile's own
 SHORT_SIDE = (0.45, 0.9)       # a shard's short side as a share of its long one (assumed)
 CAMBER_SEGMENTS = (8, 2)       # a whole tile's strips along its length per LOD
 # Clean tile faces on the 1k diffuse of polyhaven/clay_roof_tiles_02, inclusive pixel boxes (x0, y0), (x1, y1) with
-# rows from the top, inset from the joints: three orange, a pale one, two weathered (measured on the map). The
+# rows from the top, inset from the joints: five orange and one weathered (measured on the map; task 1.5 took two
+# weathered ones out, whose dark faces made a two-tone chequer at 10 m where E's tiles read one orange). The
 # clay_tile recipe's tint lands the mean of the six on the sheet's #a0613f.
-CELLS_PX = (((48, 14), (80, 86)), ((135, 95), (166, 150)), ((94, 98), (122, 150)), ((180, 8), (210, 78)),
-            ((440, 268), (472, 350)), ((390, 322), (424, 400)))
+CELLS_PX = (((48, 14), (80, 86)), ((135, 95), (166, 150)), ((306, 256), (334, 326)), ((180, 8), (210, 78)),
+            ((268, 312), (296, 380)), ((390, 322), (424, 400)))
 SET_PX, SET_M = 1024, 2.5  # the map's size and its published 2.5 m (recipe clay_tile, tile_size_m)
 
 
