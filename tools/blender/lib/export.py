@@ -34,7 +34,11 @@ def add_lod(name, mesh):
     sideways; p1-v01-locust task 1.2j). When the mesh's vertices carry them (p1-l01-l03-pole-wires): a second UV map
     of their second UVs ((0, 0) elsewhere), which Unity reads as uv2, and their normals as custom normals on the faces
     whose every vertex has one, those faces smooth-shaded; every other face keeps its flat normal. A mesh with none of
-    these exports as before."""
+    these exports as before. A mesh whose vertices carry normals and that also has `corner_normals` or `smooth` slots
+    is refused: the vertices' block would replace the corners' normals and reset every face's smoothing (QA 2.1, S7)."""
+    if mesh.normals and (mesh.corner_normals or mesh.smooth):
+        mixed = "per-corner normals" if mesh.corner_normals else f"smooth slots {sorted(mesh.smooth)}"
+        raise ValueError(f"{name}: a mesh takes per-vertex normals or {mixed}, not both")
     verts = [frame.unity_to_blender(v) for v in mesh.vertices]
     loops, uvs, corners, slots = [], [], [], mesh.slots()
     for f, (indices, outward, face_uvs, _) in enumerate(mesh.faces):
