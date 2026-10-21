@@ -4518,7 +4518,8 @@
           0.575833
         ]
       ],
-      "radius_m": 0.01
+      "radius_m": 0.01,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -4534,7 +4535,8 @@
           0.575704
         ]
       ],
-      "radius_m": 0.01
+      "radius_m": 0.01,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -4550,7 +4552,8 @@
           -0.624076
         ]
       ],
-      "radius_m": 0.01
+      "radius_m": 0.01,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -4566,7 +4569,8 @@
           -0.623947
         ]
       ],
-      "radius_m": 0.01
+      "radius_m": 0.01,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -4582,7 +4586,8 @@
           -0.623953
         ]
       ],
-      "radius_m": 0.01
+      "radius_m": 0.01,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -4598,7 +4603,8 @@
           0.575827
         ]
       ],
-      "radius_m": 0.01
+      "radius_m": 0.01,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -4614,7 +4620,8 @@
           -0.62407
         ]
       ],
-      "radius_m": 0.01
+      "radius_m": 0.01,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -4630,7 +4637,8 @@
           0.57571
         ]
       ],
-      "radius_m": 0.01
+      "radius_m": 0.01,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -4657,7 +4665,8 @@
         ]
       ],
       "radius_m": 0.006,
-      "edge_radius_m": 0.002
+      "edge_radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -4684,7 +4693,8 @@
         ]
       ],
       "radius_m": 0.006,
-      "edge_radius_m": 0.002
+      "edge_radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -4711,7 +4721,8 @@
         ]
       ],
       "radius_m": 0.006,
-      "edge_radius_m": 0.002
+      "edge_radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -4738,7 +4749,8 @@
         ]
       ],
       "radius_m": 0.006,
-      "edge_radius_m": 0.002
+      "edge_radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -4754,7 +4766,8 @@
           -0.095129
         ]
       ],
-      "radius_m": 0.005
+      "radius_m": 0.005,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -4770,7 +4783,8 @@
           0.354789
         ]
       ],
-      "radius_m": 0.005
+      "radius_m": 0.005,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -4941,7 +4955,8 @@
           -0.524511
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -5112,7 +5127,8 @@
           -2.126883
         ]
       ],
-      "radius_m": 0.006
+      "radius_m": 0.006,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -5143,7 +5159,8 @@
           -2.597142
         ]
       ],
-      "radius_m": 0.0005
+      "radius_m": 0.0005,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -5174,7 +5191,8 @@
           -1.645418
         ]
       ],
-      "radius_m": 0.0005
+      "radius_m": 0.0005,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -5205,7 +5223,8 @@
           -1.711382
         ]
       ],
-      "radius_m": 0.0005
+      "radius_m": 0.0005,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -5236,7 +5255,8 @@
           -2.676473
         ]
       ],
-      "radius_m": 0.0005
+      "radius_m": 0.0005,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -5267,7 +5287,8 @@
           -0.264563
         ]
       ],
-      "radius_m": 0.0005
+      "radius_m": 0.0005,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -5298,7 +5319,8 @@
           -1.438327
         ]
       ],
-      "radius_m": 0.0005
+      "radius_m": 0.0005,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -5329,7 +5351,8 @@
           -1.758584
         ]
       ],
-      "radius_m": 0.0005
+      "radius_m": 0.0005,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -5360,7 +5383,8 @@
           -1.837895
         ]
       ],
-      "radius_m": 0.0005
+      "radius_m": 0.0005,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -5391,7 +5415,8 @@
           0.052243
         ]
       ],
-      "radius_m": 0.0005
+      "radius_m": 0.0005,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -5422,7 +5447,8 @@
           -2.365129
         ]
       ],
-      "radius_m": 0.0005
+      "radius_m": 0.0005,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -5513,7 +5539,8 @@
           -0.663574
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -5764,7 +5791,8 @@
           -0.79139
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -5815,7 +5843,8 @@
           -0.792778
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -5866,7 +5895,8 @@
           -0.792016
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -5917,7 +5947,8 @@
           -0.7914
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -5968,7 +5999,8 @@
           -0.790678
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -6019,7 +6051,8 @@
           -0.791332
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -6070,7 +6103,8 @@
           -0.79252
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -6121,7 +6155,8 @@
           -0.79322
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -6372,7 +6407,8 @@
           -0.799889
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -6423,7 +6459,8 @@
           -0.804514
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -6474,7 +6511,8 @@
           -0.802914
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -6525,7 +6563,8 @@
           -0.800385
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -6576,7 +6615,8 @@
           -0.799736
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -6627,7 +6667,8 @@
           -0.801344
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -6678,7 +6719,8 @@
           -0.803504
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -6929,7 +6971,8 @@
           -0.809103
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -6980,7 +7023,8 @@
           -0.808513
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -7031,7 +7075,8 @@
           -0.807848
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -7082,7 +7127,8 @@
           -0.808061
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -7133,7 +7179,8 @@
           -0.808935
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -7184,7 +7231,8 @@
           -0.809907
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -7235,7 +7283,8 @@
           -0.810163
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -7286,7 +7335,8 @@
           -0.809616
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -7537,7 +7587,8 @@
           -0.809054
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -7588,7 +7639,8 @@
           -0.809018
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -7639,7 +7691,8 @@
           -0.808224
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -7690,7 +7743,8 @@
           -0.808504
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -7741,7 +7795,8 @@
           -0.809551
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -7792,7 +7847,8 @@
           -0.809867
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -8043,7 +8099,8 @@
           -0.811652
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -8094,7 +8151,8 @@
           -0.81146
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -8145,7 +8203,8 @@
           -0.812193
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -8196,7 +8255,8 @@
           -0.812286
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -8247,7 +8307,8 @@
           -0.811603
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -8298,7 +8359,8 @@
           -0.810801
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -8349,7 +8411,8 @@
           -0.810763
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -8405,7 +8468,8 @@
           -0.095017
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -8461,7 +8525,8 @@
           -0.694361
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -8522,7 +8587,8 @@
           -0.748763
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "sheet_metal"
     },
     {
       "kind": "edge",
@@ -8733,7 +8799,8 @@
           -0.556799
         ]
       ],
-      "radius_m": 0.0004
+      "radius_m": 0.0004,
+      "material": "glass"
     }
   ]
 }
