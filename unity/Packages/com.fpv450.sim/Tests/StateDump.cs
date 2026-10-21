@@ -5,8 +5,8 @@ using Fpv450.Sim.Flight;
 
 namespace Fpv450.Sim.Tests
 {
-    // A minimal flight record until task 1.2's log: one FNV-1a 64 hash of every step's state and stick bits, and
-    // the hitches. Preallocated, so recording allocates nothing.
+    // A minimal flight record for the scheduler's tests (the log is Log.FlightRecorder): one FNV-1a 64 hash of every
+    // step's state and stick bits, and the hitches. Preallocated, so recording allocates nothing.
     public sealed class StateDump : IFlightRecorder
     {
         readonly ulong[] _steps;
@@ -17,7 +17,7 @@ namespace Fpv450.Sim.Tests
 
         public ulong this[int i] => _steps[i];
 
-        public void RecordStep(in FlightState state, in StickSample stick)
+        public void RecordStep(in FlightState state, in StickSample stick, in StepTrace trace, StepEvents events)
         {
             if (Count < _steps.Length) _steps[Count] = Hash(state, stick);
             Count++;

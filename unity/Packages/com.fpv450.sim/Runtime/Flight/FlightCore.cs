@@ -51,6 +51,8 @@ namespace Fpv450.Sim.Flight
         FlightState _state;
         FcSettings _settings;
         readonly MassModel _mass;
+        StepTrace _trace;
+        readonly StepEvents _events = new StepEvents();
 
         public FlightCore(FlightSetup setup)
         {
@@ -78,10 +80,17 @@ namespace Fpv450.Sim.Flight
         /// <summary>The flight's seed, streams and per-flight draws (design 9).</summary>
         public FlightRandom Random { get; }
 
+        /// <summary>What the last step computed beside the state (StepTrace), for the log.</summary>
+        public ref readonly StepTrace Trace => ref _trace;
+
+        /// <summary>The events the last step made, for the log; a producer adds to them inside Advance.</summary>
+        public StepEvents Events => _events;
+
         /// <summary>One 1 ms step with the stick sample in force (StickSample, "the timing contract").</summary>
         public void Advance(in StickSample stick)
         {
             ref FlightState s = ref _state;
+            _events.Clear();
             s.Armed = stick.Arm;
 
             // The net force (world, N) and the net moment about the CoM (body, N·m): none until 1.4–1.6.
@@ -91,6 +100,8 @@ namespace Fpv450.Sim.Flight
 
             // Semi-implicit Euler (RigidBody): the velocities first, then the positions with the new velocities.
             RigidBody.Step(ref s, in body, Gravity + force * body.InverseMass, moment, Dt);
+            _trace.NetForce = force + Gravity * body.Mass;
+            _trace.NetMoment = moment;
             s.Step++;
         }
 

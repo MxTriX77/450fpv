@@ -79,7 +79,7 @@ namespace Fpv450.Sim.Flight
             {
                 _sticks.Consume(StepHostUs(k), out StickSample stick);
                 _core.Advance(stick);
-                _recorder?.RecordStep(_core.State, stick);
+                _recorder?.RecordStep(_core.State, stick, _core.Trace, _core.Events);
                 _core.GetPose(out PoseFrame pose);
                 _core.GetSignals(out FeedSignals signals);
                 _poses.Publish(pose, signals);
