@@ -2,8 +2,8 @@
 with its audit printed, the outputs agree with the spec scenarios, a second run writes byte-identical files, an
 out-of-range param and a mesh grown beyond its box are refused before anything is written, and an impostor asked for
 is rendered once as a 1k albedo, a 1k normal atlas, the occlusion per texel in its alpha, and a 1k smoothness atlas.
-The version pin and the
-staged file's retried replace are checked without Blender."""
+The version pin, the
+staged file's retried replace and the textures a build writes and removes are checked without Blender."""
 import hashlib
 import json
 import math
@@ -54,6 +54,38 @@ def test_replace_tries_again_while_windows_denies_access(tmp_path, monkeypatch):
     with pytest.raises(PermissionError):
         build.replace(str(staged), str(final), tries=3, wait_s=0.25)
     assert waits == [0.25, 0.25] and final.read_bytes() == b"new"
+
+
+def test_a_build_removes_only_the_textures_its_old_metadata_listed(tmp_path):
+    """p1-r01-vaz-sedan QA 2.1, S1, at the V01/R01 merge: a V01 build keeps its impostor atlases and their .meta (the
+    GUIDs the prefabs and materials hold), which are no generator textures, and V01_M's build keeps V01_M_autumn's,
+    whose names start with its own; R01_A's build rewrites its damage mask and removes, with its .meta, only the crack
+    mask its old metadata listed and this build no longer writes."""
+    atlases = [f"{v}_impostor{kind}.png{meta_ext}" for v in ("V01_M", "V01_M_autumn")
+               for kind in ("", "_normal", "_smoothness") for meta_ext in ("", ".meta")]
+    for name in atlases:
+        (tmp_path / name).write_bytes(name.encode())
+    (tmp_path / "V01_M.assetmeta.json").write_text(json.dumps({"textures": []}), encoding="utf-8")
+    assert build.listed_textures(str(tmp_path / "V01_M.assetmeta.json")) == set()
+    assert build.write_textures(str(tmp_path), "V01_M", [], set()) == set()
+    assert all((tmp_path / name).read_bytes() == name.encode() for name in atlases)
+
+    old = [{"role": "crack_mask", "slot": "windscreen", "file": "R01_A_windscreen_cracks.png"},
+           {"role": "damage_mask", "slot": "paint", "file": "R01_A_damage.png"}]
+    (tmp_path / "R01_A.assetmeta.json").write_text(json.dumps({"textures": old}), encoding="utf-8")
+    for name in ("R01_A_windscreen_cracks.png", "R01_A_windscreen_cracks.png.meta", "R01_A_damage.png",
+                 "R01_A_damage.png.meta", "R01_A_other.png"):
+        (tmp_path / name).write_bytes(b"old")
+    listed = build.listed_textures(str(tmp_path / "R01_A.assetmeta.json"))
+    assert listed == {"R01_A_windscreen_cracks.png", "R01_A_damage.png"}
+    written = build.write_textures(str(tmp_path), "R01_A", [{"name": "damage", "png": b"new"}], listed)
+    assert written == {"R01_A_damage.png"}
+    assert not (tmp_path / "R01_A_windscreen_cracks.png").exists()
+    assert not (tmp_path / "R01_A_windscreen_cracks.png.meta").exists()
+    assert (tmp_path / "R01_A_damage.png").read_bytes() == b"new" and (tmp_path / "R01_A_damage.png.meta").exists()
+    assert (tmp_path / "R01_A_other.png").exists(), "a file no metadata listed is not the build's to remove"
+    assert all((tmp_path / name).exists() for name in atlases)
+    assert build.listed_textures(str(tmp_path / "V01_S.assetmeta.json")) == set(), "no metadata yet, nothing listed"
 
 
 def run_build(blender, root, python_expr=None):

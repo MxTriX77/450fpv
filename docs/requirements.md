@@ -854,7 +854,7 @@ The design to start from is [legacy/flight-model/](legacy/flight-model/), conden
 **PHY-17a Cruise in wind.** The pilot flies strong wind at **normal cruise speed** and works on correcting course drift ("i cant say speed is different"). So the airframe drag is tuned so that clip P's 22.7° pitch at about 4.8 kg gives the published cruise, **17–22 m/s**. That is the low-drag reading of K§8.2, a crosswind of about 6.5–8.5 m/s.
 
 ### 15.4 Fiber tether
-**PHY-18 The spool** pays out one way (it never retracts). The span uses ≤ 32 lumped nodes with gravity, wind drag and ground and vegetation contact (hooks, twig capstans). Tension acts at the spool exit, below the CoM. Coil mass leaves the airframe. A wedged span never goes non-finite or gains energy (gap review L10).
+**PHY-18 The spool** pays out one way (it never retracts). The span uses ≤ 32 lumped nodes with gravity, wind drag and ground and vegetation contact (hooks, twig capstans, and the wedge of a fork: a node touching two members at once takes both contacts together). Tension acts at the spool exit, below the CoM. Coil mass leaves the airframe. A wedged span never goes non-finite or gains energy (gap review L10).
 
 **PHY-19 Cut risk, never certainty.**
 - Tension, bend radius over edges (material `edge_radius_m`) and abrasion are compared against a **per-flight fiber-strength draw**.

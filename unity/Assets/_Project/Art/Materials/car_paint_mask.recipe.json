@@ -1,0 +1,25 @@
+{
+  "material": "car_paint",
+  "texture_set": "polyhaven/green_metal_rust",
+  "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
+  "mask": {
+    "metallic": 0.0,
+    "occlusion": "ao",
+    "smoothness": "1 - roughness"
+  },
+  "sources": {
+    "ao": {
+      "name": "green_metal_rust_ao_1k.png",
+      "sha256": "bd86ee2e4fffed84a31b2dee47901a1e2040d4a32667155a472047b6c369b65a"
+    },
+    "roughness": {
+      "name": "green_metal_rust_rough_1k.png",
+      "sha256": "73676292d636cdd9d6c99c519b825e7a2886b1d6b42b3e2c4640d134c79506e9"
+    }
+  },
+  "inputs_sha256": "fa0f637da6e5cba225114cf551440d6f993ece3837d7547edc6321b6617bb20b",
+  "size": [
+    1024,
+    1024
+  ]
+}

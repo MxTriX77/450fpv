@@ -37,7 +37,8 @@ Metadata (design decision 4, review-physics PR4-PR8):
 - the crown's `twig` shell fitted per main limb by lib.shell's cap by steps over the limb's twig, leaf and pod faces,
   a limb that 64 pieces do not pass split into its child subtrees; the audit holds the tree's union;
 - snag records by the sheet's rule, each in its member's material: a `bark` segment under 30 mm an `edge`, the top
-  segment of every member (all end free) a `hook`, and every twig one `hook` polyline through its rings in `twig`;
+  segment of every member with a free tip (no child leaves there; a trunk's top, where the limbs leave, is a crotch
+  and no hook: review-physics §B.3) a `hook`, and every twig one `hook` polyline through its rings in `twig`;
 - gaps: the opening between every two members of 30 mm or more that leave one fork (the trunks of a clump from the
   ground, the limbs at the first fork, a branch and its parent), in the plane of their axes, bounded by their
   surfaces and closed by the chord at the first child fork of either, shrunk until no capsule, shell piece or twig
@@ -340,20 +341,24 @@ def _kinds(pieces):
 
 
 def _records(members):
-    """The sheet's snag rule (design decision 4, review-physics PR4 and PR6): per wood member, an `edge` on every
-    segment under SNAG_EDGE_M but its top one and a `hook` on the top one to its free tip, each at its capsule's
-    radius in `bark`; per twig one `hook` through its rings at its mean radius in `twig`."""
+    """The sheet's snag rule (design decision 4, review-physics PR4, PR6 and §B.3): per wood member, a `hook` on the
+    top segment when its tip is free and an `edge` on every other segment under SNAG_EDGE_M, each at its capsule's
+    radius in `bark`; per twig one record through its rings at its mean radius in `twig`, a `hook` when its tip is
+    free, else an `edge`. A tip is free when no child leaves there: a crotch, such as a trunk's top where the limbs
+    leave, is no hook, and takes only the record its width gives."""
     records = []
     for m in members:
+        free = all(members[c].attach < m.length() for c in m.children)
         if m.twig:
-            records.append({"kind": "hook", "points": [list(p) for p in m.points], "radius_m": (m.radii[0] + m.radii[-1]) / 2,
-                            "material": PHYSICS[TWIG]})
+            records.append({"kind": "hook" if free else "edge", "points": [list(p) for p in m.points],
+                            "radius_m": (m.radii[0] + m.radii[-1]) / 2, "material": PHYSICS[TWIG]})
             continue
         segments = m.segments()
         for k, (p0, p1, r0, r1) in enumerate(segments):
             r = (r0 + r1) / 2
-            if k == len(segments) - 1 or 2 * r < SNAG_EDGE_M:
-                records.append({"kind": "hook" if k == len(segments) - 1 else "edge", "points": [list(p0), list(p1)],
+            hook = free and k == len(segments) - 1
+            if hook or 2 * r < SNAG_EDGE_M:
+                records.append({"kind": "hook" if hook else "edge", "points": [list(p0), list(p1)],
                                 "radius_m": r, "material": PHYSICS[BARK]})
     return records
 

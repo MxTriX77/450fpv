@@ -13,7 +13,8 @@ class Mesh:
     A vertex may carry a unit normal and a second UV (p1-l01-l03-pole-wires: a wire tube's radial normal and its
     radius, which the thin-wire shader reads). A face whose every vertex carries a normal is smooth-shaded with them;
     every other face stays flat. The second UV map is exported only when some vertex carries one, (0, 0) elsewhere.
-    A mesh takes its normals per vertex or per face corner, not both (lib.export would apply the vertices' last)."""
+    A mesh takes its normals per vertex or per face corner, not both, and per-vertex normals without smooth slots
+    (lib.export refuses either mix: the vertices' would replace the others)."""
 
     def __init__(self):
         self.vertices = []

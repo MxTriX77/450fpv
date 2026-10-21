@@ -1,0 +1,16 @@
+{
+  "material": "car_soot",
+  "texture_set": "ambientcg/Metal046B",
+  "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
+  "mask": {
+    "metallic": 0.0,
+    "occlusion": 1.0,
+    "smoothness": 0.2
+  },
+  "sources": {},
+  "inputs_sha256": "1f502c9245d9dde834be48d27130ae327504a4321694acafa41c3fcc407fde8e",
+  "size": [
+    1,
+    1
+  ]
+}

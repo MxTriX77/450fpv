@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "kind": "palette",
+  "shader": "Universal Render Pipeline/Lit",
+  "colours": { "glass": "#3a4745" },
+  "tint": [1.0, 1.0, 1.0, 1.0],
+  "smoothness": 0.95
+}

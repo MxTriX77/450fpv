@@ -240,6 +240,18 @@ namespace Fpv450.Assets
         /// at tiling 1 (a generator UVs each face into its column), with the recipe's constant smoothness and no
         /// normal or mask.
         /// </para>
+        /// <para>
+        /// A transparent recipe (<c>"blend": "transparent"</c>, p1-r01-vaz-sedan design decision 6) is a palette drawn
+        /// with <c>Shaders/CrazedGlass</c>: the palette's albedo times the tint, whose alpha is the share of the
+        /// background each face of the pane stops, its constant smoothness and its index of refraction (<c>"ior"</c>), in the
+        /// transparent queue. That material is the plain glass of every intact pane; a crazed pane draws with its own
+        /// (<see cref="EnsureCrazedPaneMaterial"/>).
+        /// </para>
+        /// <para>
+        /// A recipe may list <c>"layers"</c> (p1-r01-vaz-sedan design decision 5): what a damage mask lays over it. Its own
+        /// material ignores them and stays URP/Lit; a slot whose metadata gives it a damage mask draws with its own
+        /// layered material (<see cref="EnsureLayeredMaterial"/>).
+        /// </para>
         /// Internal for the EditMode tests, which build the belt_straw material without an asset around it.
         /// </summary>
         internal static Material EnsureMaterial(string visual, Dictionary<string, object> manifest) =>
@@ -272,6 +284,17 @@ namespace Fpv450.Assets
                 : null;
             if (kind != null && kind != "ground" && kind != "palette")
                 throw new FormatException($"{recipePath}: unknown recipe kind \"{kind}\" (omit it for a tiled set, or \"ground\" or \"palette\")");
+            string blend = recipe.TryGetValue("blend", out object blendValue)
+                ? blendValue as string ?? throw new FormatException($"{recipePath}: \"blend\" must be a string")
+                : null;
+            if (blend != null && blend != "transparent")
+                throw new FormatException($"{recipePath}: unknown blend \"{blend}\" (omit it for an opaque surface, or \"transparent\")");
+            bool transparent = blend == "transparent";
+            if (transparent && (kind != "palette" || shaderName != CrazedGlassShader || recipe.ContainsKey("alpha_clip") || recipe.ContainsKey("two_sided")))
+                throw new FormatException($"{recipePath}: a transparent recipe is a palette drawn with {CrazedGlassShader}, which is two-sided and never clipped");
+            float ior = transparent ? Json.Num(recipe, "ior", recipePath) : 0f;
+            if (transparent && ior < 1f)
+                throw new FormatException($"{recipePath}: \"ior\" must be an index of refraction of 1 or more, not {ior}");
             bool ground = kind == "ground";
 
             Texture2D albedo, normal, mask, detailAlbedo = null, detailNormal = null;
@@ -365,6 +388,15 @@ namespace Fpv450.Assets
             changed |= SetTextureScale(material, "_BaseMap", baseScale);
             changed |= SetTextureOffset(material, "_BaseMap", baseOffset);
             changed |= SetColor(material, "_BaseColor", Json.Rgba(recipe, "tint", recipePath));
+            if (transparent) // the plain glass: CrazedGlass reads only these, and no crack mask (a crazed pane gets its own)
+            {
+                changed |= SetFloat(material, "_Smoothness", Json.Num(recipe, "smoothness", recipePath));
+                changed |= SetFloat(material, "_IOR", ior);
+                changed |= SetQueue(material, (int)RenderQueue.Transparent);
+                if (changed)
+                    EditorUtility.SetDirty(material);
+                return material;
+            }
             changed |= SetTexture(material, "_BumpMap", normal);
             changed |= SetKeyword(material, "_NORMALMAP", normal != null);
             changed |= SetTexture(material, "_MetallicGlossMap", mask);
@@ -548,6 +580,14 @@ namespace Fpv450.Assets
             return true;
         }
 
+        static bool SetQueue(Material m, int queue)
+        {
+            if (m.renderQueue == queue)
+                return false;
+            m.renderQueue = queue;
+            return true;
+        }
+
         // --- thin wires (p1-l01-l03-pole-wires, design decision 8; tech-artist) -----------------------------------
 
         internal const string ThinWireShader = "Fpv450/ThinWire";
@@ -601,6 +641,282 @@ namespace Fpv450.Assets
             return material;
         }
 
+        // --- crazed panes (p1-r01-vaz-sedan, design decision 6; tech-artist) ----------------------------------------
+
+        internal const string CrazedGlassShader = "Fpv450/CrazedGlass";
+        internal const string CrackMaskRole = "crack_mask";
+        internal const string DamageMaskRole = "damage_mask";
+
+        /// <summary>
+        /// The slot materials with each crazed pane's and each layered surface's own. The metadata's optional
+        /// <c>textures</c> lists the textures a generator wrote beside it, each naming a <c>slot</c> (its faces in the
+        /// FBX), the mask's <c>file</c> beside the metadata, and where the mask lies in that slot's UVs, which stay the
+        /// asset's metres (AST-07): <c>uv_min</c> and <c>uv_max</c>, its lower-left and upper-right corners; every mask is
+        /// imported as linear, clamped data. A slot with a <c>crack_mask</c> draws with its own pane material,
+        /// <c>&lt;variant&gt;_&lt;slot&gt;_crazed.mat</c> beside the prefab (<see cref="EnsureCrazedPaneMaterial"/>). A slot with
+        /// a <c>damage_mask</c> (p1-r01-vaz-sedan task 1.2: the vehicle's damage mask over its paint's UV canvas; a
+        /// house's over its walls, p1-h01-adobe-house) draws with its own layered material,
+        /// <c>&lt;variant&gt;_&lt;slot&gt;_layered.mat</c> beside the prefab, its recipe's surface under the layers the recipe
+        /// lists (<see cref="EnsureLayeredMaterial"/>). Every other slot keeps its recipe's material, so an intact pane
+        /// draws with the plain glass and an unmasked paint with the plain paint, and a pane or layered material left
+        /// from a build in which that slot had its mask is deleted. Refused: another role, a slot without a material in
+        /// the metadata, two masks of one role on one slot, a crack mask on a slot whose recipe is not transparent, and a
+        /// damage mask on a slot whose recipe lists no layers.
+        /// </summary>
+        static Dictionary<string, Material> WithMaskedSlots(string prefabPath, string variant, Dictionary<string, object> metaJson,
+            string metaPath, Dictionary<string, Material> materialBySlot)
+        {
+            var crackMasks = new Dictionary<string, Dictionary<string, object>>();
+            var damageMasks = new Dictionary<string, Dictionary<string, object>>();
+            string folder = Path.GetDirectoryName(prefabPath).Replace('\\', '/');
+            string metaFolder = Path.GetDirectoryName(metaPath).Replace('\\', '/');
+            if (metaJson.TryGetValue("textures", out object texturesValue))
+                foreach (object item in Json.Arr(texturesValue, $"{metaPath} \"textures\""))
+                {
+                    var entry = Json.Obj(item, $"{metaPath} textures");
+                    string role = Json.Str(entry, "role", $"{metaPath} textures");
+                    if (role != CrackMaskRole && role != DamageMaskRole)
+                        throw new FormatException($"{metaPath}: unknown texture role \"{role}\" (the importer knows \"{CrackMaskRole}\" and \"{DamageMaskRole}\")");
+                    string slot = Json.Str(entry, "slot", $"{metaPath} textures");
+                    if (!materialBySlot.ContainsKey(slot))
+                        throw new FormatException($"{metaPath}: a {role} names slot \"{slot}\", which has no material in the metadata");
+                    if (!(role == CrackMaskRole ? crackMasks : damageMasks).TryAdd(slot, entry))
+                        throw new FormatException($"{metaPath}: two {(role == CrackMaskRole ? "crack" : "damage")} masks on slot \"{slot}\"");
+                }
+
+            Dictionary<string, object> manifest = damageMasks.Count == 0 ? null : Json.Obj(Json.Parse(ReadRepoFile(ManifestFile)), ManifestFile);
+            var result = new Dictionary<string, Material>();
+            foreach (KeyValuePair<string, Material> slot in materialBySlot)
+            {
+                string panePath = $"{folder}/{variant}_{slot.Key}_crazed.mat";
+                string layeredPath = $"{folder}/{variant}_{slot.Key}_layered.mat";
+                bool crazed = crackMasks.TryGetValue(slot.Key, out Dictionary<string, object> crack);
+                bool layered = damageMasks.TryGetValue(slot.Key, out Dictionary<string, object> damage);
+                if (crazed)
+                {
+                    string what = $"{metaPath} crack mask of slot {slot.Key}";
+                    result[slot.Key] = EnsureCrazedPaneMaterial(slot.Value, CrackMask($"{metaFolder}/{Json.Str(crack, "file", what)}"),
+                        Json.Vec2(crack, "uv_min", what), Json.Vec2(crack, "uv_max", what), panePath, what);
+                }
+                else if (layered)
+                {
+                    string what = $"{metaPath} damage mask of slot {slot.Key}";
+                    result[slot.Key] = EnsureLayeredMaterial(slot.Value, RecipeLayers(VisualOf(metaJson, slot.Key, metaPath), what), manifest,
+                        CrackMask($"{metaFolder}/{Json.Str(damage, "file", what)}"), Json.Vec2(damage, "uv_min", what), Json.Vec2(damage, "uv_max", what),
+                        layeredPath, what);
+                }
+                else
+                    result[slot.Key] = slot.Value;
+                foreach ((string path, bool kept) in new[] { (panePath, crazed), (layeredPath, layered) })
+                    if (!kept && AssetDatabase.LoadAssetAtPath<Material>(path) != null)
+                        AssetDatabase.DeleteAsset(path);
+            }
+            return result;
+        }
+
+        /// <summary>The recipe the metadata names for a slot (its <c>materials</c> entry's <c>visual</c>).</summary>
+        static string VisualOf(Dictionary<string, object> metaJson, string slot, string metaPath)
+        {
+            foreach (object item in Json.Arr(metaJson, "materials", metaPath))
+            {
+                var entry = Json.Obj(item, $"{metaPath} materials");
+                if (Json.Str(entry, "slot", metaPath) == slot)
+                    return Json.Str(entry, "visual", metaPath);
+            }
+            throw new FormatException($"{metaPath}: slot \"{slot}\" has no materials entry");
+        }
+
+        /// <summary>A recipe's <c>"layers"</c>, the list a damage mask composes over it (<see cref="EnsureLayeredMaterial"/>).</summary>
+        static List<object> RecipeLayers(string visual, string what)
+        {
+            string recipePath = $"{RecipesFolder}/{visual}.json";
+            var recipe = Json.Obj(Json.Parse(ReadRepoFile(recipePath)), recipePath);
+            if (!recipe.TryGetValue("layers", out object layers))
+                throw new FormatException($"{what}: its recipe {visual} lists no \"layers\"; a damage mask needs a layered recipe");
+            return Json.Arr(layers, $"{recipePath} \"layers\"");
+        }
+
+        /// <summary>
+        /// A crazed pane's material at <paramref name="path"/>, created or updated in place: its slot's plain glass (the
+        /// transparent recipe's material) with the crack mask on <c>_CrackMask</c>, scaled and offset so the pane's UVs
+        /// <paramref name="uvMin"/> and <paramref name="uvMax"/> fall on the mask's corners.
+        /// </summary>
+        static Material EnsureCrazedPaneMaterial(Material glass, Texture2D mask, Vector2 uvMin, Vector2 uvMax, string path, string what)
+        {
+            if (glass.shader.name != CrazedGlassShader)
+                throw new FormatException($"{what}: its recipe {glass.name} is not transparent; a crack mask needs a \"blend\": \"transparent\" recipe");
+            Vector2 size = uvMax - uvMin;
+            if (size.x <= 0f || size.y <= 0f)
+                throw new FormatException($"{what}: uv_max must lie above and right of uv_min, not {uvMin} to {uvMax}");
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            bool changed = false;
+            if (material == null)
+            {
+                material = new Material(glass.shader);
+                AssetDatabase.CreateAsset(material, path);
+            }
+            else if (material.shader != glass.shader)
+            {
+                material.shader = glass.shader;
+                changed = true;
+            }
+            changed |= SetTexture(material, "_BaseMap", glass.GetTexture("_BaseMap"));
+            changed |= SetTextureScale(material, "_BaseMap", glass.GetTextureScale("_BaseMap"));
+            changed |= SetTextureOffset(material, "_BaseMap", glass.GetTextureOffset("_BaseMap"));
+            foreach (string colour in new[] { "_BaseColor", "_CrackColor" })
+                changed |= SetColor(material, colour, glass.GetColor(colour));
+            foreach (string value in new[] { "_Smoothness", "_IOR", "_CrackOpacity", "_CrackDepth" })
+                changed |= SetFloat(material, value, glass.GetFloat(value));
+            var scale = new Vector2(1f / size.x, 1f / size.y);
+            changed |= SetTexture(material, "_CrackMask", mask);
+            changed |= SetTextureScale(material, "_CrackMask", scale);
+            changed |= SetTextureOffset(material, "_CrackMask", -Vector2.Scale(uvMin, scale));
+            changed |= SetQueue(material, (int)RenderQueue.Transparent);
+            if (changed)
+                EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        // --- layered surfaces (p1-r01-vaz-sedan, design decision 5; p1-h01-adobe-house, design decision 2; tech-artist) ---
+
+        internal const string LayeredSurfaceShader = "Fpv450/LayeredSurface";
+        internal const int MaxLayers = 5; // the shader's: a facade's band, render, adobe, soot and dirt
+        static readonly string[] LayerChannels = { "r", "g", "b", "a" };
+        static readonly HashSet<string> LayerKeys = new HashSet<string> { "channel", "recipe", "threshold", "feather" };
+
+        /// <summary>
+        /// A layered surface's material at <paramref name="path"/>, created or updated in place, for
+        /// <c>Shaders/LayeredSurface</c> (its header gives the rule): the slot's recipe material <paramref name="surface"/>
+        /// as the base (its albedo and tiling, tint, normal map, and packed mask with its metallic and smoothness, as
+        /// URP/Lit holds them); the damage mask scaled and offset so the slot's UVs <paramref name="uvMin"/> and
+        /// <paramref name="uvMax"/> fall on its corners; and over the base, in order, the recipe's layers, 1 to
+        /// <see cref="MaxLayers"/> of <c>{"channel": "r" | "g" | "b" | "a", "recipe": &lt;recipe&gt;, "threshold": 0–1,
+        /// "feather": 0–1}</c>, each that recipe's own material's surface covering the share its channel of the mask
+        /// sets: by default (threshold 0.5, feather 1) the channel's value. The base and every layer are opaque recipes
+        /// drawn with URP/Lit, a tiled set or a palette (of one colour: its columns would stripe the metres), never clipped,
+        /// transparent or ground. Internal for the EditMode tests, which give a layer list of their own.
+        /// </summary>
+        internal static Material EnsureLayeredMaterial(Material surface, List<object> layers, Dictionary<string, object> manifest,
+            Texture2D mask, Vector2 uvMin, Vector2 uvMax, string path, string what)
+        {
+            CheckLayerSurface(surface, what);
+            if (layers.Count == 0 || layers.Count > MaxLayers)
+                throw new FormatException($"{what}: {layers.Count} layers; a layered surface takes 1 to {MaxLayers}");
+            Vector2 size = uvMax - uvMin;
+            if (size.x <= 0f || size.y <= 0f)
+                throw new FormatException($"{what}: uv_max must lie above and right of uv_min, not {uvMin} to {uvMax}");
+            var parsed = new List<(Material source, Vector4 channel, Vector4 coverage)>();
+            for (int i = 0; i < layers.Count; i++)
+            {
+                string at = $"{what} layers[{i}]";
+                var layer = Json.Obj(layers[i], at);
+                foreach (string key in layer.Keys)
+                    if (!LayerKeys.Contains(key))
+                        throw new FormatException($"{at}: unknown key \"{key}\" (a layer takes {string.Join(", ", LayerKeys)})");
+                int channel = Array.IndexOf(LayerChannels, Json.Str(layer, "channel", at));
+                if (channel < 0)
+                    throw new FormatException($"{at}: \"channel\" must be one of {string.Join(", ", LayerChannels)}");
+                float threshold = layer.ContainsKey("threshold") ? Json.Num(layer, "threshold", at) : 0.5f;
+                float feather = layer.ContainsKey("feather") ? Json.Num(layer, "feather", at) : 1f;
+                if (threshold < 0f || threshold > 1f || feather <= 0f || feather > 1f)
+                    throw new FormatException($"{at}: \"threshold\" must lie in 0–1 and \"feather\" in (0, 1], not {threshold} and {feather}");
+                Material source = EnsureMaterial(Json.Str(layer, "recipe", at), manifest);
+                CheckLayerSurface(source, at);
+                var oneHot = Vector4.zero;
+                oneHot[channel] = 1f;
+                parsed.Add((source, oneHot, new Vector4(threshold, feather, 0f, 0f)));
+            }
+
+            Shader shader = Shader.Find(LayeredSurfaceShader) ?? throw new FileNotFoundException($"no shader named \"{LayeredSurfaceShader}\"");
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            bool changed = false;
+            if (material == null)
+            {
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, path);
+            }
+            else if (material.shader != shader)
+            {
+                material.shader = shader;
+                changed = true;
+            }
+            changed |= CopySurface(material, surface, "_BaseMap", "_BaseColor", "_BumpMap", "_MetallicGlossMap");
+            Vector2 baseScales = MetallicSmoothness(surface);
+            changed |= SetFloat(material, "_Metallic", baseScales.x);
+            changed |= SetFloat(material, "_Smoothness", baseScales.y);
+            var scale = new Vector2(1f / size.x, 1f / size.y);
+            changed |= SetTexture(material, "_DamageMask", mask);
+            changed |= SetTextureScale(material, "_DamageMask", scale);
+            changed |= SetTextureOffset(material, "_DamageMask", -Vector2.Scale(uvMin, scale));
+
+            for (int k = 1; k <= MaxLayers; k++)
+            {
+                string prefix = $"_Layer{k}";
+                if (k > parsed.Count) // unused: covers nothing, binds nothing
+                {
+                    foreach (string texture in new[] { "Map", "BumpMap", "MaskMap" })
+                        changed |= SetTexture(material, prefix + texture, null);
+                    changed |= SetTextureScale(material, prefix + "Map", Vector2.one);
+                    changed |= SetTextureOffset(material, prefix + "Map", Vector2.zero);
+                    changed |= SetColor(material, prefix + "Color", Color.white);
+                    changed |= SetVector(material, prefix + "Channel", Vector4.zero);
+                    changed |= SetVector(material, prefix + "Coverage", new Vector4(1f, 1f, 0f, 0f));
+                    changed |= SetVector(material, prefix + "Surface", new Vector4(0f, 0.5f, 0f, 0f));
+                    continue;
+                }
+                (Material source, Vector4 channel, Vector4 coverage) = parsed[k - 1];
+                Vector2 scales = MetallicSmoothness(source);
+                changed |= CopySurface(material, source, prefix + "Map", prefix + "Color", prefix + "BumpMap", prefix + "MaskMap");
+                changed |= SetVector(material, prefix + "Channel", channel);
+                changed |= SetVector(material, prefix + "Coverage", coverage);
+                changed |= SetVector(material, prefix + "Surface", new Vector4(scales.x, scales.y, 0f, 0f));
+            }
+            if (changed)
+                EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        static void CheckLayerSurface(Material m, string what)
+        {
+            if (m.shader.name != LitShader || m.IsKeywordEnabled("_ALPHATEST_ON") || m.IsKeywordEnabled("_DETAIL_MULX2"))
+                throw new FormatException($"{what}: {m.name} is not an opaque tiled set or palette drawn with {LitShader}, which a layered surface takes");
+        }
+
+        /// <summary>A URP/Lit material's surface onto a layered one's properties of the given names.</summary>
+        static bool CopySurface(Material to, Material from, string albedo, string tint, string normal, string mask)
+        {
+            bool changed = SetTexture(to, albedo, from.GetTexture("_BaseMap"));
+            changed |= SetTextureScale(to, albedo, from.GetTextureScale("_BaseMap"));
+            changed |= SetTextureOffset(to, albedo, from.GetTextureOffset("_BaseMap"));
+            changed |= SetColor(to, tint, from.GetColor("_BaseColor"));
+            changed |= SetTexture(to, normal, from.GetTexture("_BumpMap"));
+            changed |= SetTexture(to, mask, from.GetTexture("_MetallicGlossMap"));
+            return changed;
+        }
+
+        /// <summary>
+        /// What scales a URP/Lit material's packed mask into its metallic and smoothness: with the mask, 1 and its
+        /// smoothness (1, <see cref="EnsureMaterial(string, Dictionary{string, object}, string)"/> sets); without, its
+        /// constants, which the shader's white default mask passes through.
+        /// </summary>
+        static Vector2 MetallicSmoothness(Material m) =>
+            new Vector2(m.IsKeywordEnabled("_METALLICSPECGLOSSMAP") ? 1f : m.GetFloat("_Metallic"), m.GetFloat("_Smoothness"));
+
+        /// <summary>A crack mask, imported as linear data and clamped, so the pane outside the mask has no cracks.</summary>
+        static Texture2D CrackMask(string path)
+        {
+            var importer = AssetImporter.GetAtPath(path) as TextureImporter
+                ?? throw new FileNotFoundException($"{path} is not a texture in the asset database: run the Blender build first");
+            if (importer.textureType != TextureImporterType.Default || importer.sRGBTexture || importer.wrapMode != TextureWrapMode.Clamp)
+            {
+                importer.textureType = TextureImporterType.Default;
+                importer.sRGBTexture = false;
+                importer.wrapMode = TextureWrapMode.Clamp;
+                importer.SaveAndReimport();
+            }
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(path) ?? throw new FileNotFoundException($"{path} did not import as a texture");
+        }
+
         // --- the prefab -------------------------------------------------------------------------------------------
 
         /// <summary>
@@ -616,8 +932,10 @@ namespace Fpv450.Assets
         /// audited against their polyline") is the faces of the slot
         /// its <c>wires</c> record names: it draws only in a <c>thin_wire</c> LOD, a renderer drawing only wires casts
         /// no shadow (any other casts one, the thin-wire shader's at the member's true radius), and no collider
-        /// stands for a wire: conductors are map objects the sim reads from the metadata (D-007). Internal for the
-        /// EditMode tests, which build a prefab from a throwaway metadata.
+        /// stands for a wire: conductors are map objects the sim reads from the metadata (D-007). A slot with a crack mask
+        /// or a damage mask under the metadata's <c>textures</c> draws with its crazed pane's or its layered surface's
+        /// own material (<see cref="WithMaskedSlots"/>).
+        /// Internal for the EditMode tests, which build a prefab from a throwaway metadata.
         /// </summary>
         internal static void EnsurePrefab(string prefabPath, string variant, Dictionary<string, object> metaJson, TextAsset source,
             string fbxPath, Dictionary<string, Material> materialBySlot)
@@ -629,12 +947,13 @@ namespace Fpv450.Assets
                 root.name = variant;
                 AssetPhysicsMeta meta = Ensure<AssetPhysicsMeta>(root);
                 Fill(meta, metaJson, source, prefabPath);
+                materialBySlot = WithMaskedSlots(prefabPath, variant, metaJson, AssetDatabase.GetAssetPath(source), materialBySlot);
                 var wireSlots = new HashSet<string>(meta.wires.Select(w => w.slot));
                 var keep = new HashSet<string>();
                 var thin = new List<string>();
                 Renderer[][] renderers = EnsureLods(root, meta, metaJson, AssetDatabase.GetAssetPath(source), fbxPath, materialBySlot, wireSlots, keep, thin,
                     prefabPath);
-                EnsureLodGroup(root, meta, renderers);
+                EnsureLodGroup(root, meta, renderers, LodBounds(metaJson, meta.bounds, prefabPath));
                 EnsureColliders(root, meta, keep, prefabPath);
                 for (int i = root.transform.childCount - 1; i >= 0; i--)
                 {
@@ -914,12 +1233,14 @@ namespace Fpv450.Assets
         /// the longest side of the bounds, which is also what the group's size is set to. Unity holds transition
         /// heights to (0, 1], so an asset taller than the screen at its first switch distance (a 12 m ground patch
         /// switching at 8 m: 1.3) would be clamped and switch late; there s is reduced until that first height is
-        /// 1. Only the ratio s / d reaches Unity, so every switch distance is kept either way.
+        /// 1. Only the ratio s / d reaches Unity, so every switch distance is kept either way. The bounds are
+        /// <paramref name="frame"/>, the object's own (<see cref="LodBounds"/>), and the group's reference point their
+        /// centre, so the switches are measured from the object.
         /// </summary>
-        static void EnsureLodGroup(GameObject root, AssetPhysicsMeta meta, Renderer[][] renderers)
+        static void EnsureLodGroup(GameObject root, AssetPhysicsMeta meta, Renderer[][] renderers, Bounds frame)
         {
             float firstFar = renderers.Length > 1 ? meta.lods[1].switchDistanceM : meta.cullDistanceM;
-            float size = Mathf.Min(Mathf.Max(meta.bounds.size.x, meta.bounds.size.y, meta.bounds.size.z),
+            float size = Mathf.Min(Mathf.Max(frame.size.x, frame.size.y, frame.size.z),
                 2f * firstFar * Mathf.Tan(VerticalFovDeg * 0.5f * Mathf.Deg2Rad));
             var lods = new LOD[renderers.Length];
             for (int i = 0; i < lods.Length; i++)
@@ -930,8 +1251,22 @@ namespace Fpv450.Assets
             LODGroup group = Ensure<LODGroup>(root);
             group.fadeMode = LODFadeMode.None;
             group.SetLODs(lods); // recomputes the size and reference point from the renderers, so they are set after it
-            group.localReferencePoint = meta.bounds.center;
+            group.localReferencePoint = frame.center;
             group.size = size;
+        }
+
+        /// <summary>
+        /// The box the LOD group measures from: the metadata's optional <c>bounds.lod</c>, the object's own box
+        /// without what its meshes lay round it (a vehicle's scatter; p1-r01-vaz-sedan, QA 2.1's S2), else the bounds.
+        /// </summary>
+        static Bounds LodBounds(Dictionary<string, object> json, Bounds bounds, string what)
+        {
+            var all = Json.Obj(json, "bounds", what);
+            if (!all.ContainsKey("lod"))
+                return bounds;
+            var lod = Json.Obj(all, "lod", what);
+            Vector3 min = Json.Vec3(lod, "min", what), max = Json.Vec3(lod, "max", what);
+            return new Bounds((min + max) * 0.5f, max - min);
         }
 
         static float RelativeHeight(float size, float distance) =>

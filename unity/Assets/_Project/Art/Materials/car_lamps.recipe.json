@@ -1,0 +1,38 @@
+{
+  "material": "car_lamps",
+  "kind": "palette",
+  "formula": "palette v2: one column PALETTE_BLOCK_PX x PALETTE_HEIGHT_PX per colour, left to right in the recipe's order, its stops spread evenly from the bottom to the top and interpolated in linear light, padded with the last column to a power of two of columns; 8-bit sRGB",
+  "constants": {
+    "PALETTE_BLOCK_PX": 16,
+    "PALETTE_HEIGHT_PX": 64
+  },
+  "recipe": {
+    "schema": 1,
+    "kind": "palette",
+    "shader": "Universal Render Pipeline/Lit",
+    "colours": {
+      "clear": "#cfd6d4",
+      "red": "#7a1712",
+      "amber": "#b8661a",
+      "plate": "#d9dad6"
+    },
+    "tint": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "smoothness": 0.85
+  },
+  "inputs_sha256": "b657a17b1bd748ba43b2ec85958a638cec0467eee870f28bb33ae6ca3ae21e0b",
+  "size": [
+    64,
+    64
+  ],
+  "columns": [
+    "clear",
+    "red",
+    "amber",
+    "plate"
+  ]
+}

@@ -1260,6 +1260,7 @@
   "ports": [],
   "wires": [],
   "holes": [],
+  "textures": [],
   "snag": [
     {
       "kind": "edge",

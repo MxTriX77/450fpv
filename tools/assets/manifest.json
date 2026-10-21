@@ -427,6 +427,354 @@
           "bytes": 2542347
         }
       ]
+    },
+    {
+      "source": "polyhaven",
+      "id": "green_metal_rust",
+      "title": "Green Metal Rust",
+      "resolution": "1k",
+      "licence": "CC0",
+      "author": "Rob Tuytel",
+      "page": "https://polyhaven.com/a/green_metal_rust",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/polyhaven/green_metal_rust",
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "green_metal_rust_diff_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/green_metal_rust/green_metal_rust_diff_1k.png",
+          "sha256": "ba0583e7331e507b1e0aadbc0ed6fa5de265fa86472577fb0441cd60c4bf9f69",
+          "bytes": 1040616
+        },
+        {
+          "map": "normal",
+          "name": "green_metal_rust_nor_gl_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/green_metal_rust/green_metal_rust_nor_gl_1k.png",
+          "sha256": "7d6cdd15a058eda5992643696a9d422191239364de4ab33f945bba0e6e1e2cc4",
+          "bytes": 3138439
+        },
+        {
+          "map": "roughness",
+          "name": "green_metal_rust_rough_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/green_metal_rust/green_metal_rust_rough_1k.png",
+          "sha256": "73676292d636cdd9d6c99c519b825e7a2886b1d6b42b3e2c4640d134c79506e9",
+          "bytes": 1693090
+        },
+        {
+          "map": "ao",
+          "name": "green_metal_rust_ao_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/green_metal_rust/green_metal_rust_ao_1k.png",
+          "sha256": "bd86ee2e4fffed84a31b2dee47901a1e2040d4a32667155a472047b6c369b65a",
+          "bytes": 691114
+        }
+      ]
+    },
+    {
+      "source": "ambientcg",
+      "id": "Rust007",
+      "title": "Rust 007",
+      "resolution": "1k",
+      "licence": "CC0",
+      "author": "Lennart Demes (ambientCG)",
+      "page": "https://ambientcg.com/a/Rust007",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/ambientcg/Rust007",
+      "archive": {
+        "name": "Rust007_1K-PNG.zip",
+        "url": "https://ambientcg.com/get?file=Rust007_1K-PNG.zip",
+        "sha256": "d6e932d44d3211d25f8473a78a4cac620aa5934067193b0c4d5ea0396b1e7278",
+        "bytes": 16727461
+      },
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "Rust007_1K-PNG_Color.png",
+          "member": "Rust007_1K-PNG_Color.png",
+          "url": "https://ambientcg.com/get?file=Rust007_1K-PNG.zip",
+          "sha256": "ca884fbf5f8e0078279c738bfa526d97885fdfbc8917a5572501743a5d670f45",
+          "bytes": 1501692
+        },
+        {
+          "map": "normal",
+          "name": "Rust007_1K-PNG_NormalGL.png",
+          "member": "Rust007_1K-PNG_NormalGL.png",
+          "url": "https://ambientcg.com/get?file=Rust007_1K-PNG.zip",
+          "sha256": "b27c7f16708b4347ff20b49ce2866f27342e9f5fa38c75f34be9f5bb6673b6b0",
+          "bytes": 5365327
+        },
+        {
+          "map": "roughness",
+          "name": "Rust007_1K-PNG_Roughness.png",
+          "member": "Rust007_1K-PNG_Roughness.png",
+          "url": "https://ambientcg.com/get?file=Rust007_1K-PNG.zip",
+          "sha256": "06bfe545b867460a128395454621ee7b6b5307edf10e0c5405cf845689e4c3e8",
+          "bytes": 555040
+        },
+        {
+          "map": "ao",
+          "name": "Rust007_1K-PNG_AmbientOcclusion.png",
+          "member": "Rust007_1K-PNG_AmbientOcclusion.png",
+          "url": "https://ambientcg.com/get?file=Rust007_1K-PNG.zip",
+          "sha256": "74f0d8968a16a50fd1e27c4d84b8c10e18bdae7739120743f8622c725f558267",
+          "bytes": 607823
+        }
+      ]
+    },
+    {
+      "source": "ambientcg",
+      "id": "Metal046B",
+      "title": "Metal 046 B",
+      "resolution": "1k",
+      "licence": "CC0",
+      "author": "Lennart Demes (ambientCG)",
+      "page": "https://ambientcg.com/a/Metal046B",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/ambientcg/Metal046B",
+      "archive": {
+        "name": "Metal046B_1K-PNG.zip",
+        "url": "https://ambientcg.com/get?file=Metal046B_1K-PNG.zip",
+        "sha256": "a2cd9a5f17c9b0550dd3e855791b47c5060cf11e15163519117b7c1ed766786b",
+        "bytes": 16006884
+      },
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "Metal046B_1K-PNG_Color.png",
+          "member": "Metal046B_1K-PNG_Color.png",
+          "url": "https://ambientcg.com/get?file=Metal046B_1K-PNG.zip",
+          "sha256": "3317cde97991f755d02630d993037e185768ea63cfb6127d6633741785e2726c",
+          "bytes": 1255703
+        },
+        {
+          "map": "normal",
+          "name": "Metal046B_1K-PNG_NormalGL.png",
+          "member": "Metal046B_1K-PNG_NormalGL.png",
+          "url": "https://ambientcg.com/get?file=Metal046B_1K-PNG.zip",
+          "sha256": "dbf106390be078e89247f2d7a1dff599be26f0888bb1a54f23c89e6fa9e90f62",
+          "bytes": 5086161
+        },
+        {
+          "map": "roughness",
+          "name": "Metal046B_1K-PNG_Roughness.png",
+          "member": "Metal046B_1K-PNG_Roughness.png",
+          "url": "https://ambientcg.com/get?file=Metal046B_1K-PNG.zip",
+          "sha256": "28086a4e7039fead59a82c2d7b6bc3078aa7faa152952ac7cf7f7c9508f9a57a",
+          "bytes": 461356
+        }
+      ]
+    },
+    {
+      "source": "ambientcg",
+      "id": "Metal049A",
+      "title": "Metal 049 A",
+      "resolution": "1k",
+      "licence": "CC0",
+      "author": "Lennart Demes (ambientCG)",
+      "page": "https://ambientcg.com/a/Metal049A",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/ambientcg/Metal049A",
+      "archive": {
+        "name": "Metal049A_1K-PNG.zip",
+        "url": "https://ambientcg.com/get?file=Metal049A_1K-PNG.zip",
+        "sha256": "802ac78fec292e86642630a510f9e6f869bd702fc2f2e81ad3a2160e80047880",
+        "bytes": 6456067
+      },
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "Metal049A_1K-PNG_Color.png",
+          "member": "Metal049A_1K-PNG_Color.png",
+          "url": "https://ambientcg.com/get?file=Metal049A_1K-PNG.zip",
+          "sha256": "3c5be68c8a56534f120e88cff835a321ca51459c8f31482f984958c7fbfda8e6",
+          "bytes": 535253
+        },
+        {
+          "map": "normal",
+          "name": "Metal049A_1K-PNG_NormalGL.png",
+          "member": "Metal049A_1K-PNG_NormalGL.png",
+          "url": "https://ambientcg.com/get?file=Metal049A_1K-PNG.zip",
+          "sha256": "5b80adcc8092618a127bb7dfa547e3a35d156efd027c9daa579ac26f9098a678",
+          "bytes": 1791977
+        },
+        {
+          "map": "roughness",
+          "name": "Metal049A_1K-PNG_Roughness.png",
+          "member": "Metal049A_1K-PNG_Roughness.png",
+          "url": "https://ambientcg.com/get?file=Metal049A_1K-PNG.zip",
+          "sha256": "a42d9eaba9bc232739c7cb86dee03805e66f50a065cecfbbfe906aaeb6b3ded2",
+          "bytes": 325089
+        }
+      ]
+    },
+    {
+      "source": "ambientcg",
+      "id": "Fabric030",
+      "title": "Fabric 030",
+      "resolution": "1k",
+      "licence": "CC0",
+      "author": "Lennart Demes (ambientCG)",
+      "page": "https://ambientcg.com/a/Fabric030",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/ambientcg/Fabric030",
+      "archive": {
+        "name": "Fabric030_1K-PNG.zip",
+        "url": "https://ambientcg.com/get?file=Fabric030_1K-PNG.zip",
+        "sha256": "1f213d70f235716ba3034aec5b0ae0a2fcfa1e2e915532e08a06a3f171fbbcf3",
+        "bytes": 19846784
+      },
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "Fabric030_1K-PNG_Color.png",
+          "member": "Fabric030_1K-PNG_Color.png",
+          "url": "https://ambientcg.com/get?file=Fabric030_1K-PNG.zip",
+          "sha256": "23e34d9cdebbab8e8b3f6d90c3385db5484c1d21cad0ebf126d420d91173c550",
+          "bytes": 2495795
+        },
+        {
+          "map": "normal",
+          "name": "Fabric030_1K-PNG_NormalGL.png",
+          "member": "Fabric030_1K-PNG_NormalGL.png",
+          "url": "https://ambientcg.com/get?file=Fabric030_1K-PNG.zip",
+          "sha256": "34b86ebe2b3ad89760b3197df672ce999289a02cfe685182db73ea88ea19cc2a",
+          "bytes": 6151467
+        },
+        {
+          "map": "roughness",
+          "name": "Fabric030_1K-PNG_Roughness.png",
+          "member": "Fabric030_1K-PNG_Roughness.png",
+          "url": "https://ambientcg.com/get?file=Fabric030_1K-PNG.zip",
+          "sha256": "9b9bcde3487826c7a6bb589c8865c2fda0c1a7ba90115daf36cea47d005eee7c",
+          "bytes": 844403
+        },
+        {
+          "map": "ao",
+          "name": "Fabric030_1K-PNG_AmbientOcclusion.png",
+          "member": "Fabric030_1K-PNG_AmbientOcclusion.png",
+          "url": "https://ambientcg.com/get?file=Fabric030_1K-PNG.zip",
+          "sha256": "1991f98056164440d19fc1af7003aa05600d19dd23d53c072cb42711bb76d16a",
+          "bytes": 731795
+        }
+      ]
+    },
+    {
+      "source": "ambientcg",
+      "id": "Leather014",
+      "title": "Leather 014",
+      "resolution": "1k",
+      "licence": "CC0",
+      "author": "Lennart Demes (ambientCG)",
+      "page": "https://ambientcg.com/a/Leather014",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/ambientcg/Leather014",
+      "archive": {
+        "name": "Leather014_1K-PNG.zip",
+        "url": "https://ambientcg.com/get?file=Leather014_1K-PNG.zip",
+        "sha256": "0971bd486b02ea31e1168693f423b42770be55fce92eace700549485d8a6dead",
+        "bytes": 16814259
+      },
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "Leather014_1K-PNG_Color.png",
+          "member": "Leather014_1K-PNG_Color.png",
+          "url": "https://ambientcg.com/get?file=Leather014_1K-PNG.zip",
+          "sha256": "c96cc5395e7b73188c546837834162bd369ca09def4675abaae3054a6f070395",
+          "bytes": 1955301
+        },
+        {
+          "map": "normal",
+          "name": "Leather014_1K-PNG_NormalGL.png",
+          "member": "Leather014_1K-PNG_NormalGL.png",
+          "url": "https://ambientcg.com/get?file=Leather014_1K-PNG.zip",
+          "sha256": "5bd49971e185b6d38346b71ae4199da5c73b1951589f1848990a502cb82bab18",
+          "bytes": 5588433
+        },
+        {
+          "map": "roughness",
+          "name": "Leather014_1K-PNG_Roughness.png",
+          "member": "Leather014_1K-PNG_Roughness.png",
+          "url": "https://ambientcg.com/get?file=Leather014_1K-PNG.zip",
+          "sha256": "54b6bb8aeae043471c9c48a30d72403760ab9f30c914817479a49c8132e22c60",
+          "bytes": 527793
+        }
+      ]
+    },
+    {
+      "source": "polyhaven",
+      "id": "burned_ground_01",
+      "title": "Burned Ground 01",
+      "resolution": "1k",
+      "licence": "CC0",
+      "author": "Rob Tuytel",
+      "page": "https://polyhaven.com/a/burned_ground_01",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/polyhaven/burned_ground_01",
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "burned_ground_01_diff_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/burned_ground_01/burned_ground_01_diff_1k.png",
+          "sha256": "d66dba8dedc3b71a6255d00afd4a5d7931cb776939902657ff71f02bf72a1c85",
+          "bytes": 2677855
+        },
+        {
+          "map": "normal",
+          "name": "burned_ground_01_nor_gl_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/burned_ground_01/burned_ground_01_nor_gl_1k.png",
+          "sha256": "116bb3d2daed538e6b3f0a9bf6c5a8c4180331d877a6efe1ff7db5e019ff0b56",
+          "bytes": 5862393
+        },
+        {
+          "map": "roughness",
+          "name": "burned_ground_01_rough_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/burned_ground_01/burned_ground_01_rough_1k.png",
+          "sha256": "75aecfc2b9f82627acbe3357b1279a7d250eb2f544e95b8951b3b5619fd77e62",
+          "bytes": 1866554
+        },
+        {
+          "map": "ao",
+          "name": "burned_ground_01_ao_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/burned_ground_01/burned_ground_01_ao_1k.png",
+          "sha256": "0740cf1d1305b8f0b01ebe7f0df088f04b39baf425bec5ba4ea386bcaef8690c",
+          "bytes": 903998
+        }
+      ]
+    },
+    {
+      "source": "ambientcg",
+      "id": "Rubber004",
+      "title": "Rubber 004",
+      "resolution": "1k",
+      "licence": "CC0",
+      "author": "Lennart Demes (ambientCG)",
+      "page": "https://ambientcg.com/a/Rubber004",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/ambientcg/Rubber004",
+      "archive": {
+        "name": "Rubber004_1K-PNG.zip",
+        "url": "https://ambientcg.com/get?file=Rubber004_1K-PNG.zip",
+        "sha256": "73b8a1e4655bd4b6bb29492ca158e5ca43da52a2fc4e2b46eaacafbd96d17901",
+        "bytes": 17516740
+      },
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "Rubber004_1K-PNG_Color.png",
+          "member": "Rubber004_1K-PNG_Color.png",
+          "url": "https://ambientcg.com/get?file=Rubber004_1K-PNG.zip",
+          "sha256": "559ddef0d43572ff96015da9a12a218d8fcff3be9fb2a1febf00731d5b31e121",
+          "bytes": 1569886
+        },
+        {
+          "map": "normal",
+          "name": "Rubber004_1K-PNG_NormalGL.png",
+          "member": "Rubber004_1K-PNG_NormalGL.png",
+          "url": "https://ambientcg.com/get?file=Rubber004_1K-PNG.zip",
+          "sha256": "3a20ce99ec4cb929d96c0f4643c5484bdede6537b3448900d841f94fb20def70",
+          "bytes": 5899900
+        },
+        {
+          "map": "roughness",
+          "name": "Rubber004_1K-PNG_Roughness.png",
+          "member": "Rubber004_1K-PNG_Roughness.png",
+          "url": "https://ambientcg.com/get?file=Rubber004_1K-PNG.zip",
+          "sha256": "3969d0cd375fa94f849bcbc7fe836ebc619aed4b80673cb59ce823e1423db699",
+          "bytes": 750731
+        }
+      ]
     }
   ]
 }

@@ -7345,24 +7345,8 @@
   "ports": [],
   "wires": [],
   "holes": [],
+  "textures": [],
   "snag": [
-    {
-      "kind": "hook",
-      "points": [
-        [
-          -0.077826,
-          1.999582,
-          0.042367
-        ],
-        [
-          -0.091209,
-          3.0,
-          0.068582
-        ]
-      ],
-      "radius_m": 0.072617,
-      "material": "bark"
-    },
     {
       "kind": "hook",
       "points": [

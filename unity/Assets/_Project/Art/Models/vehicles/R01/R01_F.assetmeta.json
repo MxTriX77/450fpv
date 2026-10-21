@@ -1,0 +1,11422 @@
+{
+  "schema": 1,
+  "id": "R01",
+  "variant": "R01_F",
+  "generator": "vehicle",
+  "params_sha256": "d5c588722931e387859f810f4111341a7b9dc3eb860fdb51346b309cee14c944",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -3.089533,
+      -0.004577,
+      -1.951945
+    ],
+    "max": [
+      2.0365,
+      1.38,
+      1.825169
+    ],
+    "lod": {
+      "min": [
+        -2.0315,
+        0.0,
+        -0.811924
+      ],
+      "max": [
+        2.0315,
+        1.38,
+        0.811924
+      ]
+    }
+  },
+  "lods": [
+    {
+      "mesh": "R01_F_LOD0",
+      "tris": 41102,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "R01_F_LOD1",
+      "tris": 8642,
+      "switch_distance_m": 20.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "R01_F_LOD2",
+      "tris": 2964,
+      "switch_distance_m": 80.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "R01_F_LOD3",
+      "tris": 72,
+      "switch_distance_m": 300.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [
+    {
+      "lod": 0,
+      "name": "R01_F_LOD0_soot_patch",
+      "kind": "soot_patch",
+      "count": 135,
+      "tris": 799
+    },
+    {
+      "lod": 1,
+      "name": "R01_F_LOD1_soot_patch",
+      "kind": "soot_patch",
+      "count": 74,
+      "tris": 447
+    },
+    {
+      "lod": 2,
+      "name": "R01_F_LOD2_soot_patch",
+      "kind": "soot_patch",
+      "count": 35,
+      "tris": 193
+    }
+  ],
+  "cull_distance_m": 1500.0,
+  "materials": [
+    {
+      "slot": "chrome_dull",
+      "visual": "chrome_burnt",
+      "physics": "steel"
+    },
+    {
+      "slot": "rack",
+      "visual": "car_soot",
+      "physics": "steel"
+    },
+    {
+      "slot": "soot",
+      "visual": "car_burnt",
+      "physics": "sheet_metal"
+    },
+    {
+      "slot": "soot_patch",
+      "visual": "soot_patch",
+      "physics": "surface:burnt_field"
+    },
+    {
+      "slot": "under",
+      "visual": "car_soot",
+      "physics": "sheet_metal"
+    },
+    {
+      "slot": "wire",
+      "visual": "car_rust",
+      "physics": "steel"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "box",
+      "center": [
+        -1.848,
+        0.3295,
+        0.0
+      ],
+      "size": [
+        0.179,
+        0.507,
+        1.328
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.841699,
+        0.3295,
+        -0.676305
+      ],
+      "size": [
+        0.179635,
+        0.507,
+        0.15
+      ],
+      "rotation": [
+        0.0,
+        0.042045,
+        0.0,
+        0.999116
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.766166,
+        0.333502,
+        -0.650284
+      ],
+      "size": [
+        0.250598,
+        0.16,
+        0.214552
+      ],
+      "rotation": [
+        -0.500221,
+        0.864877,
+        0.02105,
+        -0.036396
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.620447,
+        0.473133,
+        -0.656112
+      ],
+      "size": [
+        0.280598,
+        0.16,
+        0.227421
+      ],
+      "rotation": [
+        -0.259331,
+        0.964873,
+        0.010913,
+        -0.040604
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.416482,
+        0.547,
+        -0.664603
+      ],
+      "size": [
+        0.280598,
+        0.196,
+        0.245
+      ],
+      "rotation": [
+        0.0,
+        0.99979,
+        0.0,
+        -0.020484
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.213284,
+        0.473133,
+        -0.664258
+      ],
+      "size": [
+        0.280598,
+        0.16,
+        0.244515
+      ],
+      "rotation": [
+        0.258819,
+        0.965925,
+        0.000301,
+        0.001123
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.073151,
+        0.342151,
+        -0.664109
+      ],
+      "size": [
+        0.230598,
+        0.16,
+        0.24416
+      ],
+      "rotation": [
+        0.5,
+        0.866025,
+        0.000581,
+        0.001007
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.609982,
+        0.518924,
+        -0.642072
+      ],
+      "size": [
+        0.387325,
+        0.149847,
+        0.245
+      ],
+      "rotation": [
+        0.0,
+        0.020484,
+        0.0,
+        0.99979
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.222982,
+        0.547,
+        -0.657936
+      ],
+      "size": [
+        0.387325,
+        0.206,
+        0.245
+      ],
+      "rotation": [
+        0.0,
+        0.020484,
+        0.0,
+        0.99979
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.841699,
+        0.3295,
+        0.676305
+      ],
+      "size": [
+        0.179635,
+        0.507,
+        0.15
+      ],
+      "rotation": [
+        0.0,
+        -0.042045,
+        0.0,
+        0.999116
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.766166,
+        0.333502,
+        0.650284
+      ],
+      "size": [
+        0.250598,
+        0.16,
+        0.214552
+      ],
+      "rotation": [
+        0.036396,
+        -0.02105,
+        -0.864877,
+        0.500221
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.620447,
+        0.473133,
+        0.656112
+      ],
+      "size": [
+        0.280598,
+        0.16,
+        0.227421
+      ],
+      "rotation": [
+        -0.040604,
+        0.010913,
+        0.964873,
+        -0.259331
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.416482,
+        0.547,
+        0.664603
+      ],
+      "size": [
+        0.280598,
+        0.196,
+        0.245
+      ],
+      "rotation": [
+        -0.020484,
+        0.0,
+        0.99979,
+        0.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.213284,
+        0.473133,
+        0.664258
+      ],
+      "size": [
+        0.280598,
+        0.16,
+        0.244515
+      ],
+      "rotation": [
+        0.001123,
+        0.000301,
+        0.965925,
+        0.258819
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.073151,
+        0.342151,
+        0.664109
+      ],
+      "size": [
+        0.230598,
+        0.16,
+        0.24416
+      ],
+      "rotation": [
+        0.001007,
+        0.000581,
+        0.866025,
+        0.5
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.609982,
+        0.518924,
+        0.642072
+      ],
+      "size": [
+        0.387325,
+        0.149847,
+        0.245
+      ],
+      "rotation": [
+        0.0,
+        -0.020484,
+        0.0,
+        0.99979
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.222982,
+        0.547,
+        0.657936
+      ],
+      "size": [
+        0.387325,
+        0.206,
+        0.245
+      ],
+      "rotation": [
+        0.0,
+        -0.020484,
+        0.0,
+        0.99979
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.4215,
+        0.3295,
+        0.0
+      ],
+      "size": [
+        0.774,
+        0.507,
+        1.144
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.0355,
+        0.3605,
+        0.0
+      ],
+      "size": [
+        0.098,
+        0.569,
+        1.568
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.664366,
+        0.44929,
+        -0.749825
+      ],
+      "size": [
+        0.47918,
+        0.28,
+        0.1
+      ],
+      "rotation": [
+        -0.382703,
+        0.923833,
+        -0.003231,
+        0.007799
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.997735,
+        0.577,
+        -0.741279
+      ],
+      "size": [
+        0.47918,
+        0.256,
+        0.1
+      ],
+      "rotation": [
+        0.0,
+        0.998861,
+        0.0,
+        0.047708
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.326067,
+        0.44929,
+        -0.638989
+      ],
+      "size": [
+        0.47918,
+        0.28,
+        0.221775
+      ],
+      "rotation": [
+        0.383726,
+        0.921364,
+        0.023836,
+        0.057233
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.671187,
+        0.200775,
+        -0.629854
+      ],
+      "size": [
+        0.220598,
+        0.012,
+        0.179707
+      ],
+      "rotation": [
+        -0.608761,
+        0.793353,
+        0.0,
+        0.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.759962,
+        0.354538,
+        -0.629029
+      ],
+      "size": [
+        0.220598,
+        0.012,
+        0.178059
+      ],
+      "rotation": [
+        -0.382683,
+        0.92388,
+        0.0,
+        0.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.913725,
+        0.443313,
+        -0.627601
+      ],
+      "size": [
+        0.220598,
+        0.012,
+        0.175203
+      ],
+      "rotation": [
+        -0.130526,
+        0.991445,
+        0.0,
+        0.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.664366,
+        0.44929,
+        0.749825
+      ],
+      "size": [
+        0.47918,
+        0.28,
+        0.1
+      ],
+      "rotation": [
+        0.007799,
+        -0.003231,
+        0.923833,
+        -0.382703
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.997735,
+        0.577,
+        0.741279
+      ],
+      "size": [
+        0.47918,
+        0.256,
+        0.1
+      ],
+      "rotation": [
+        0.047708,
+        0.0,
+        0.998861,
+        0.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.326067,
+        0.44929,
+        0.638989
+      ],
+      "size": [
+        0.47918,
+        0.28,
+        0.221775
+      ],
+      "rotation": [
+        0.057233,
+        0.023836,
+        0.921364,
+        0.383726
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.671187,
+        0.200775,
+        0.629854
+      ],
+      "size": [
+        0.220598,
+        0.012,
+        0.179707
+      ],
+      "rotation": [
+        -0.608761,
+        0.793353,
+        0.0,
+        0.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.759962,
+        0.354538,
+        0.629029
+      ],
+      "size": [
+        0.220598,
+        0.012,
+        0.178059
+      ],
+      "rotation": [
+        -0.382683,
+        0.92388,
+        0.0,
+        0.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.913725,
+        0.443313,
+        0.627601
+      ],
+      "size": [
+        0.220598,
+        0.012,
+        0.175203
+      ],
+      "rotation": [
+        -0.130526,
+        0.991445,
+        0.0,
+        0.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.509272,
+        0.352387,
+        -0.640927
+      ],
+      "size": [
+        0.349391,
+        0.552773,
+        0.2
+      ],
+      "rotation": [
+        0.0,
+        -0.023647,
+        0.0,
+        0.99972
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.509272,
+        0.352387,
+        0.640927
+      ],
+      "size": [
+        0.349391,
+        0.552773,
+        0.2
+      ],
+      "rotation": [
+        0.0,
+        0.023647,
+        0.0,
+        0.99972
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.79314,
+        0.321599,
+        -0.629667
+      ],
+      "size": [
+        0.316179,
+        0.491198,
+        0.2
+      ],
+      "rotation": [
+        0.0,
+        -0.016803,
+        0.0,
+        0.999859
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.79314,
+        0.321599,
+        0.629667
+      ],
+      "size": [
+        0.316179,
+        0.491198,
+        0.2
+      ],
+      "rotation": [
+        0.0,
+        0.016803,
+        0.0,
+        0.999859
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.309,
+        0.304,
+        0.0
+      ],
+      "size": [
+        0.061,
+        0.456,
+        1.08
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.642,
+        0.304,
+        0.0
+      ],
+      "size": [
+        0.625,
+        0.456,
+        1.24
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.094775,
+        0.2625,
+        0.0
+      ],
+      "size": [
+        0.567451,
+        0.373,
+        1.08
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.156389,
+        0.582,
+        0.0
+      ],
+      "size": [
+        0.344222,
+        0.346,
+        1.442
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.761049,
+        0.212,
+        -0.545
+      ],
+      "size": [
+        0.1,
+        0.2,
+        0.01
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.761049,
+        0.212,
+        0.545
+      ],
+      "size": [
+        0.1,
+        0.2,
+        0.01
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.188,
+        0.066,
+        0.0
+      ],
+      "size": [
+        1.707,
+        0.02,
+        1.408
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.713275,
+        0.066,
+        0.0
+      ],
+      "size": [
+        0.195549,
+        0.02,
+        1.08
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.445639,
+        0.3905,
+        -0.745394
+      ],
+      "size": [
+        1.090162,
+        0.629,
+        0.1
+      ],
+      "rotation": [
+        0.0,
+        0.00861,
+        0.0,
+        0.999963
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.356668,
+        0.3905,
+        -0.751863
+      ],
+      "size": [
+        0.617014,
+        0.629,
+        0.1
+      ],
+      "rotation": [
+        0.0,
+        -0.003322,
+        0.0,
+        0.999994
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.005868,
+        0.695,
+        -0.729747
+      ],
+      "size": [
+        1.994749,
+        0.06,
+        0.08
+      ],
+      "rotation": [
+        0.0,
+        0.001878,
+        0.0,
+        0.999998
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.005868,
+        0.73095,
+        -0.718447
+      ],
+      "size": [
+        1.994749,
+        0.0319,
+        0.0574
+      ],
+      "rotation": [
+        0.0,
+        0.001878,
+        0.0,
+        0.999998
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.010016,
+        0.746237,
+        -0.714743
+      ],
+      "size": [
+        0.043425,
+        0.0319,
+        0.0574
+      ],
+      "rotation": [
+        -8.5e-05,
+        -0.00116,
+        0.072674,
+        0.997355
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.445639,
+        0.3905,
+        0.745394
+      ],
+      "size": [
+        1.090162,
+        0.629,
+        0.1
+      ],
+      "rotation": [
+        0.0,
+        -0.00861,
+        0.0,
+        0.999963
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.356668,
+        0.3905,
+        0.751863
+      ],
+      "size": [
+        0.617014,
+        0.629,
+        0.1
+      ],
+      "rotation": [
+        0.0,
+        0.003322,
+        0.0,
+        0.999994
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.005868,
+        0.695,
+        0.729747
+      ],
+      "size": [
+        1.994749,
+        0.06,
+        0.08
+      ],
+      "rotation": [
+        0.0,
+        -0.001878,
+        0.0,
+        0.999998
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.005868,
+        0.73095,
+        0.718447
+      ],
+      "size": [
+        1.994749,
+        0.0319,
+        0.0574
+      ],
+      "rotation": [
+        0.0,
+        -0.001878,
+        0.0,
+        0.999998
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.010016,
+        0.746237,
+        0.714743
+      ],
+      "size": [
+        0.043425,
+        0.0319,
+        0.0574
+      ],
+      "rotation": [
+        8.5e-05,
+        0.00116,
+        0.072674,
+        0.997355
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.500329,
+        0.604199,
+        0.0
+      ],
+      "size": [
+        0.866248,
+        0.22,
+        1.32
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.07691,
+        0.997038
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.0415,
+        0.684667,
+        0.0
+      ],
+      "size": [
+        0.1,
+        0.22,
+        1.32
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.459966,
+        0.726841,
+        0.0
+      ],
+      "size": [
+        0.951254,
+        0.02,
+        1.288
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.07691,
+        0.997038
+      ],
+      "material": "sheet_metal",
+      "landable": true
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.586172,
+        0.55864,
+        0.0
+      ],
+      "size": [
+        0.690256,
+        0.27,
+        1.24
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.10162,
+        0.994823
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.636478,
+        0.691207,
+        0.0
+      ],
+      "size": [
+        0.633075,
+        0.02,
+        1.249
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.10162,
+        0.994823
+      ],
+      "material": "sheet_metal",
+      "landable": true
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -1.657609,
+        0.585741,
+        -0.667093
+      ],
+      "radius": 0.1,
+      "height": 0.538822,
+      "rotation": [
+        -0.054993,
+        0.0,
+        -0.652248,
+        0.756008
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -1.216394,
+        0.65005,
+        -0.686523
+      ],
+      "radius": 0.1,
+      "height": 0.474592,
+      "rotation": [
+        0.001521,
+        0.0,
+        -0.653847,
+        0.756625
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        1.190735,
+        0.656921,
+        -0.666802
+      ],
+      "radius": 0.1,
+      "height": 0.418709,
+      "rotation": [
+        0.091684,
+        0.0,
+        -0.714765,
+        0.693329
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        1.637353,
+        0.59762,
+        -0.634961
+      ],
+      "radius": 0.1,
+      "height": 0.608114,
+      "rotation": [
+        0.025931,
+        0.0,
+        -0.771292,
+        0.635953
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -1.657609,
+        0.585741,
+        0.667093
+      ],
+      "radius": 0.1,
+      "height": 0.538822,
+      "rotation": [
+        0.054993,
+        0.0,
+        -0.652248,
+        0.756008
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -1.216394,
+        0.65005,
+        0.686523
+      ],
+      "radius": 0.1,
+      "height": 0.474592,
+      "rotation": [
+        -0.001521,
+        0.0,
+        -0.653847,
+        0.756625
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        1.190735,
+        0.656921,
+        0.666802
+      ],
+      "radius": 0.1,
+      "height": 0.418709,
+      "rotation": [
+        -0.091684,
+        0.0,
+        -0.714765,
+        0.693329
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        1.637353,
+        0.59762,
+        0.634961
+      ],
+      "radius": 0.1,
+      "height": 0.608114,
+      "rotation": [
+        -0.025931,
+        0.0,
+        -0.771292,
+        0.635953
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.013549,
+        0.759116,
+        -0.685686
+      ],
+      "size": [
+        1.620032,
+        0.03926,
+        0.018
+      ],
+      "rotation": [
+        0.997878,
+        0.00269,
+        0.000752,
+        -0.065052
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.773862,
+        0.975219,
+        -0.655091
+      ],
+      "size": [
+        0.582871,
+        0.021373,
+        0.018
+      ],
+      "rotation": [
+        0.925223,
+        0.373582,
+        0.01229,
+        -0.065183
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.059213,
+        1.169131,
+        -0.63618
+      ],
+      "size": [
+        1.261541,
+        0.029651,
+        0.018
+      ],
+      "rotation": [
+        0.997881,
+        -6.1e-05,
+        0.000993,
+        -0.06506
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.830496,
+        1.132569,
+        -0.639536
+      ],
+      "size": [
+        0.298086,
+        0.028699,
+        0.018
+      ],
+      "rotation": [
+        0.989718,
+        -0.127052,
+        0.000868,
+        -0.065697
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.481283,
+        0.969632,
+        -0.663314
+      ],
+      "size": [
+        0.021181,
+        0.018,
+        0.372754
+      ],
+      "rotation": [
+        -0.65957,
+        0.009125,
+        0.008008,
+        0.751545
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.058448,
+        0.969631,
+        -0.667979
+      ],
+      "size": [
+        0.060286,
+        0.018,
+        0.372755
+      ],
+      "rotation": [
+        -0.659602,
+        -0.002211,
+        -0.00194,
+        0.751609
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.615948,
+        0.969631,
+        -0.6647
+      ],
+      "size": [
+        0.025285,
+        0.018,
+        0.372755
+      ],
+      "rotation": [
+        -0.659602,
+        -0.002211,
+        -0.00194,
+        0.751609
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.845016,
+        0.814993,
+        -0.67421
+      ],
+      "size": [
+        0.097884,
+        0.018,
+        0.103194
+      ],
+      "rotation": [
+        -0.659565,
+        0.00984,
+        0.008636,
+        0.751534
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.820641,
+        0.891734,
+        -0.664799
+      ],
+      "size": [
+        0.048942,
+        0.018,
+        0.051597
+      ],
+      "rotation": [
+        -0.659565,
+        0.00984,
+        0.008636,
+        0.751534
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.918141,
+        0.789412,
+        -0.675645
+      ],
+      "size": [
+        0.048942,
+        0.018,
+        0.051597
+      ],
+      "rotation": [
+        -0.659565,
+        0.00984,
+        0.008636,
+        0.751534
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.900834,
+        0.936332,
+        -0.663928
+      ],
+      "size": [
+        0.155866,
+        0.018,
+        0.347945
+      ],
+      "rotation": [
+        -0.659584,
+        -0.006978,
+        -0.006124,
+        0.751573
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.064912,
+        0.85009,
+        -0.663097
+      ],
+      "size": [
+        0.17907,
+        0.018,
+        0.173951
+      ],
+      "rotation": [
+        -0.658733,
+        -0.045892,
+        -0.040313,
+        0.749893
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.021162,
+        0.979465,
+        -0.65153
+      ],
+      "size": [
+        0.089535,
+        0.018,
+        0.086975
+      ],
+      "rotation": [
+        -0.658733,
+        -0.045892,
+        -0.040313,
+        0.749893
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.196162,
+        0.806965,
+        -0.652619
+      ],
+      "size": [
+        0.089535,
+        0.018,
+        0.086975
+      ],
+      "rotation": [
+        -0.658733,
+        -0.045892,
+        -0.040313,
+        0.749893
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.138256,
+        0.921938,
+        -0.634518
+      ],
+      "size": [
+        0.491457,
+        0.037444,
+        0.018
+      ],
+      "rotation": [
+        0.921527,
+        -0.378044,
+        0.031603,
+        -0.082898
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.779427,
+        1.011398,
+        -0.645407
+      ],
+      "size": [
+        0.595755,
+        0.012,
+        0.045563
+      ],
+      "rotation": [
+        -0.420594,
+        -0.213398,
+        0.319326,
+        0.821945
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.059277,
+        1.219648,
+        -0.622827
+      ],
+      "size": [
+        1.261539,
+        0.012,
+        0.045563
+      ],
+      "rotation": [
+        -0.382683,
+        0.000863,
+        0.000358,
+        0.923879
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.833284,
+        1.182344,
+        -0.626162
+      ],
+      "size": [
+        0.298083,
+        0.012,
+        0.045563
+      ],
+      "rotation": [
+        -0.387019,
+        0.056438,
+        -0.113832,
+        0.913276
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.151184,
+        0.954595,
+        -0.636845
+      ],
+      "size": [
+        0.519811,
+        0.012,
+        0.045563
+      ],
+      "rotation": [
+        -0.428029,
+        0.205905,
+        -0.34777,
+        0.808363
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.013549,
+        0.759116,
+        0.685686
+      ],
+      "size": [
+        1.620032,
+        0.03926,
+        0.018
+      ],
+      "rotation": [
+        0.997878,
+        0.00269,
+        -0.000752,
+        0.065052
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.773862,
+        0.975219,
+        0.655091
+      ],
+      "size": [
+        0.582871,
+        0.021373,
+        0.018
+      ],
+      "rotation": [
+        0.925223,
+        0.373582,
+        -0.01229,
+        0.065183
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.059213,
+        1.169131,
+        0.63618
+      ],
+      "size": [
+        1.261541,
+        0.029651,
+        0.018
+      ],
+      "rotation": [
+        0.997881,
+        -6.1e-05,
+        -0.000993,
+        0.06506
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.830496,
+        1.132569,
+        0.639536
+      ],
+      "size": [
+        0.298086,
+        0.028699,
+        0.018
+      ],
+      "rotation": [
+        0.989718,
+        -0.127052,
+        -0.000868,
+        0.065697
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.481283,
+        0.969632,
+        0.663314
+      ],
+      "size": [
+        0.021181,
+        0.018,
+        0.372754
+      ],
+      "rotation": [
+        0.65957,
+        -0.009125,
+        0.008008,
+        0.751545
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.058448,
+        0.969631,
+        0.667979
+      ],
+      "size": [
+        0.060286,
+        0.018,
+        0.372755
+      ],
+      "rotation": [
+        0.659602,
+        0.002211,
+        -0.00194,
+        0.751609
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.615948,
+        0.969631,
+        0.6647
+      ],
+      "size": [
+        0.025285,
+        0.018,
+        0.372755
+      ],
+      "rotation": [
+        0.659602,
+        0.002211,
+        -0.00194,
+        0.751609
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.845016,
+        0.814993,
+        0.67421
+      ],
+      "size": [
+        0.097884,
+        0.018,
+        0.103194
+      ],
+      "rotation": [
+        0.659565,
+        -0.00984,
+        0.008636,
+        0.751534
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.820641,
+        0.891734,
+        0.664799
+      ],
+      "size": [
+        0.048942,
+        0.018,
+        0.051597
+      ],
+      "rotation": [
+        0.659565,
+        -0.00984,
+        0.008636,
+        0.751534
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.918141,
+        0.789412,
+        0.675645
+      ],
+      "size": [
+        0.048942,
+        0.018,
+        0.051597
+      ],
+      "rotation": [
+        0.659565,
+        -0.00984,
+        0.008636,
+        0.751534
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.900834,
+        0.936332,
+        0.663928
+      ],
+      "size": [
+        0.155866,
+        0.018,
+        0.347945
+      ],
+      "rotation": [
+        0.659584,
+        0.006978,
+        -0.006124,
+        0.751573
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.064912,
+        0.85009,
+        0.663097
+      ],
+      "size": [
+        0.17907,
+        0.018,
+        0.173951
+      ],
+      "rotation": [
+        0.658733,
+        0.045892,
+        -0.040313,
+        0.749893
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.021162,
+        0.979465,
+        0.65153
+      ],
+      "size": [
+        0.089535,
+        0.018,
+        0.086975
+      ],
+      "rotation": [
+        0.658733,
+        0.045892,
+        -0.040313,
+        0.749893
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.196162,
+        0.806965,
+        0.652619
+      ],
+      "size": [
+        0.089535,
+        0.018,
+        0.086975
+      ],
+      "rotation": [
+        0.658733,
+        0.045892,
+        -0.040313,
+        0.749893
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.138256,
+        0.921938,
+        0.634518
+      ],
+      "size": [
+        0.491457,
+        0.037444,
+        0.018
+      ],
+      "rotation": [
+        0.921527,
+        -0.378044,
+        -0.031603,
+        0.082898
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.779427,
+        1.011398,
+        0.645407
+      ],
+      "size": [
+        0.595755,
+        0.012,
+        0.045563
+      ],
+      "rotation": [
+        0.420594,
+        0.213398,
+        0.319326,
+        0.821945
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.059277,
+        1.219648,
+        0.622827
+      ],
+      "size": [
+        1.261539,
+        0.012,
+        0.045563
+      ],
+      "rotation": [
+        0.382683,
+        -0.000863,
+        0.000358,
+        0.923879
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.833284,
+        1.182344,
+        0.626162
+      ],
+      "size": [
+        0.298083,
+        0.012,
+        0.045563
+      ],
+      "rotation": [
+        0.387019,
+        -0.056438,
+        -0.113832,
+        0.913276
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.151184,
+        0.954595,
+        0.636845
+      ],
+      "size": [
+        0.519811,
+        0.012,
+        0.045563
+      ],
+      "rotation": [
+        0.428029,
+        -0.205905,
+        -0.34777,
+        0.808363
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.396503,
+        1.245337,
+        -0.306662
+      ],
+      "size": [
+        0.350031,
+        0.012,
+        0.613294
+      ],
+      "rotation": [
+        -0.00244,
+        -1e-05,
+        0.001419,
+        0.999996
+      ],
+      "material": "sheet_metal",
+      "landable": true
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.396503,
+        1.245337,
+        0.306662
+      ],
+      "size": [
+        0.350031,
+        0.012,
+        0.613294
+      ],
+      "rotation": [
+        0.00244,
+        1e-05,
+        0.001419,
+        0.999996
+      ],
+      "material": "sheet_metal",
+      "landable": true
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.008894,
+        1.239644,
+        -0.306536
+      ],
+      "size": [
+        0.425639,
+        0.012,
+        0.61324
+      ],
+      "rotation": [
+        0.005329,
+        -0.000197,
+        -0.012303,
+        0.99991
+      ],
+      "material": "sheet_metal",
+      "landable": true
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.008894,
+        1.239644,
+        0.306536
+      ],
+      "size": [
+        0.425639,
+        0.012,
+        0.61324
+      ],
+      "rotation": [
+        -0.005329,
+        0.000197,
+        -0.012303,
+        0.99991
+      ],
+      "material": "sheet_metal",
+      "landable": true
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.415966,
+        1.236009,
+        -0.305331
+      ],
+      "size": [
+        0.425241,
+        0.012,
+        0.611082
+      ],
+      "rotation": [
+        0.011094,
+        0.000136,
+        0.004119,
+        0.99993
+      ],
+      "material": "sheet_metal",
+      "landable": true
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.415966,
+        1.236009,
+        0.305331
+      ],
+      "size": [
+        0.425241,
+        0.012,
+        0.611082
+      ],
+      "rotation": [
+        -0.011094,
+        -0.000136,
+        0.004119,
+        0.99993
+      ],
+      "material": "sheet_metal",
+      "landable": true
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.803872,
+        1.205828,
+        -0.305731
+      ],
+      "size": [
+        0.358555,
+        0.012,
+        0.61159
+      ],
+      "rotation": [
+        0.004027,
+        -0.000342,
+        -0.098518,
+        0.995127
+      ],
+      "material": "sheet_metal",
+      "landable": true
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.803872,
+        1.205828,
+        0.305731
+      ],
+      "size": [
+        0.358555,
+        0.012,
+        0.61159
+      ],
+      "rotation": [
+        -0.004027,
+        0.000342,
+        -0.098518,
+        0.995127
+      ],
+      "material": "sheet_metal",
+      "landable": true
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.9715,
+        0.833429,
+        0.0
+      ],
+      "size": [
+        0.057178,
+        0.012,
+        1.307286
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.387575,
+        0.921838
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.591049,
+        1.221113,
+        -1e-06
+      ],
+      "size": [
+        0.057182,
+        0.012,
+        1.183074
+      ],
+      "rotation": [
+        0.000553,
+        0.000236,
+        0.381835,
+        0.924231
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.781891,
+        1.026854,
+        -0.603787
+      ],
+      "size": [
+        0.606151,
+        0.012,
+        0.034658
+      ],
+      "rotation": [
+        0.019803,
+        -0.050151,
+        0.385907,
+        0.920961
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.781891,
+        1.026854,
+        0.603787
+      ],
+      "size": [
+        0.606151,
+        0.012,
+        0.034658
+      ],
+      "rotation": [
+        -0.019803,
+        0.050151,
+        0.385907,
+        0.920961
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.9985,
+        1.142086,
+        0.0
+      ],
+      "size": [
+        0.06083,
+        0.012,
+        1.200941
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.41378,
+        0.910377
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.308314,
+        0.787248,
+        0.0
+      ],
+      "size": [
+        0.06008,
+        0.012,
+        1.302
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.408791,
+        0.912628
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.153387,
+        0.964754,
+        -0.597586
+      ],
+      "size": [
+        0.539449,
+        0.012,
+        0.051924
+      ],
+      "rotation": [
+        0.021253,
+        0.046836,
+        -0.412669,
+        0.909428
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.153387,
+        0.964754,
+        0.597586
+      ],
+      "size": [
+        0.539449,
+        0.012,
+        0.051924
+      ],
+      "rotation": [
+        -0.021253,
+        -0.046836,
+        -0.412669,
+        0.909428
+      ],
+      "material": "sheet_metal",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.948556,
+        0.27,
+        0.0
+      ],
+      "radius": 0.07,
+      "height": 1.478965,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.878076,
+        0.27,
+        -0.699326
+      ],
+      "radius": 0.07,
+      "height": 0.293077,
+      "rotation": [
+        -0.275711,
+        0.0,
+        -0.65114,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.878076,
+        0.27,
+        0.699326
+      ],
+      "radius": 0.07,
+      "height": 0.293077,
+      "rotation": [
+        0.275711,
+        0.0,
+        -0.65114,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -2.0115,
+        0.265,
+        -0.385
+      ],
+      "radius": 0.035,
+      "height": 0.15,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -2.0115,
+        0.265,
+        0.385
+      ],
+      "radius": 0.035,
+      "height": 0.15,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.951704,
+        0.28,
+        0.0
+      ],
+      "radius": 0.07,
+      "height": 1.440585,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.884574,
+        0.28,
+        -0.679988
+      ],
+      "radius": 0.07,
+      "height": 0.28681,
+      "rotation": [
+        -0.286055,
+        0.0,
+        0.646663,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.884574,
+        0.28,
+        0.679988
+      ],
+      "radius": 0.07,
+      "height": 0.28681,
+      "rotation": [
+        0.286055,
+        0.0,
+        0.646663,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        2.0115,
+        0.265,
+        -0.385
+      ],
+      "radius": 0.035,
+      "height": 0.15,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        2.0115,
+        0.265,
+        0.385
+      ],
+      "radius": 0.035,
+      "height": 0.15,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.635637,
+        0.752483,
+        -0.163557
+      ],
+      "radius": 0.006,
+      "height": 0.161247,
+      "rotation": [
+        -0.199633,
+        0.0,
+        0.203684,
+        0.958467
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.676842,
+        0.840849,
+        -0.261057
+      ],
+      "radius": 0.006,
+      "height": 0.161247,
+      "rotation": [
+        -0.562917,
+        0.0,
+        0.098541,
+        0.820618
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.676842,
+        0.840849,
+        -0.398943
+      ],
+      "radius": 0.006,
+      "height": 0.161247,
+      "rotation": [
+        -0.808327,
+        0.0,
+        -0.141501,
+        0.571477
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.635637,
+        0.752483,
+        -0.496443
+      ],
+      "radius": 0.006,
+      "height": 0.161247,
+      "rotation": [
+        -0.670898,
+        0.0,
+        -0.684511,
+        0.285202
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.577363,
+        0.627517,
+        -0.496443
+      ],
+      "radius": 0.006,
+      "height": 0.161247,
+      "rotation": [
+        0.670898,
+        0.0,
+        -0.684511,
+        0.285202
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.536158,
+        0.539151,
+        -0.398943
+      ],
+      "radius": 0.006,
+      "height": 0.161247,
+      "rotation": [
+        0.808327,
+        0.0,
+        -0.141501,
+        0.571477
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.536158,
+        0.539151,
+        -0.261057
+      ],
+      "radius": 0.006,
+      "height": 0.161247,
+      "rotation": [
+        0.562917,
+        0.0,
+        0.098541,
+        0.820618
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.577363,
+        0.627517,
+        -0.163557
+      ],
+      "radius": 0.006,
+      "height": 0.161247,
+      "rotation": [
+        0.199633,
+        0.0,
+        0.203684,
+        0.958467
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.599345,
+        0.674656,
+        -0.426019
+      ],
+      "radius": 0.006,
+      "height": 0.207,
+      "rotation": [
+        -0.758613,
+        0.0,
+        -0.056531,
+        0.649084
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.599345,
+        0.674656,
+        -0.233981
+      ],
+      "radius": 0.006,
+      "height": 0.207,
+      "rotation": [
+        0.758613,
+        0.0,
+        -0.056531,
+        0.649084
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.680563,
+        0.615774,
+        -0.33
+      ],
+      "radius": 0.02,
+      "height": 0.212686,
+      "rotation": [
+        0.0,
+        0.0,
+        0.938555,
+        0.345129
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.3015,
+        0.1934,
+        -0.33
+      ],
+      "size": [
+        0.47,
+        0.2332,
+        0.46
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.051781,
+        0.597001,
+        -0.33
+      ],
+      "size": [
+        0.03,
+        0.538516,
+        0.46
+      ],
+      "rotation": [
+        0.131119,
+        0.991367,
+        0.0,
+        0.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.3015,
+        0.1934,
+        0.33
+      ],
+      "size": [
+        0.47,
+        0.2332,
+        0.46
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.051781,
+        0.597001,
+        0.33
+      ],
+      "size": [
+        0.03,
+        0.538516,
+        0.46
+      ],
+      "rotation": [
+        0.131119,
+        0.991367,
+        0.0,
+        0.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.4935,
+        0.1784,
+        0.0
+      ],
+      "size": [
+        0.42,
+        0.2032,
+        1.31
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.84499,
+        0.551598,
+        0.0
+      ],
+      "size": [
+        0.03,
+        0.516236,
+        1.31
+      ],
+      "rotation": [
+        0.187341,
+        0.982295,
+        0.0,
+        0.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -0.8515,
+        0.57,
+        0.0
+      ],
+      "radius": 0.025,
+      "height": 1.379333,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.4465,
+        1.37,
+        0.0
+      ],
+      "radius": 0.01,
+      "height": 1.22,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.2035,
+        1.37,
+        0.6
+      ],
+      "radius": 0.01,
+      "height": 1.32,
+      "rotation": [
+        0.0,
+        0.0,
+        -0.707107,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": true
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.8535,
+        1.37,
+        0.0
+      ],
+      "radius": 0.01,
+      "height": 1.22,
+      "rotation": [
+        -0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.2035,
+        1.37,
+        -0.6
+      ],
+      "radius": 0.01,
+      "height": 1.32,
+      "rotation": [
+        0.0,
+        0.0,
+        0.707107,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": true
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.3865,
+        1.2835,
+        -0.625746
+      ],
+      "radius": 0.01,
+      "height": 0.200501,
+      "rotation": [
+        0.144144,
+        0.0,
+        0.0,
+        0.989557
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.3865,
+        1.2835,
+        0.625746
+      ],
+      "radius": 0.01,
+      "height": 0.200501,
+      "rotation": [
+        -0.144144,
+        0.0,
+        0.0,
+        0.989557
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.7935,
+        1.27005,
+        -0.625479
+      ],
+      "radius": 0.01,
+      "height": 0.226293,
+      "rotation": [
+        0.124478,
+        0.0,
+        0.0,
+        0.992222
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.7935,
+        1.27005,
+        0.625479
+      ],
+      "radius": 0.01,
+      "height": 0.226293,
+      "rotation": [
+        -0.124478,
+        0.0,
+        0.0,
+        0.992222
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -1.4215,
+        0.183,
+        -0.6745
+      ],
+      "radius": 0.183,
+      "height": 0.13,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -1.4215,
+        0.183,
+        0.6745
+      ],
+      "radius": 0.183,
+      "height": 0.13,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        1.0025,
+        0.183,
+        -0.6525
+      ],
+      "radius": 0.183,
+      "height": 0.13,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        1.0025,
+        0.183,
+        0.6525
+      ],
+      "radius": 0.183,
+      "height": 0.13,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.292812,
+        0.07346,
+        -0.7015
+      ],
+      "radius": 0.003,
+      "height": 0.145794,
+      "rotation": [
+        0.940088,
+        -0.300625,
+        0.153165,
+        0.04898
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.403896,
+        0.012496,
+        -0.7015
+      ],
+      "radius": 0.003,
+      "height": 0.147284,
+      "rotation": [
+        0.596398,
+        -0.563244,
+        0.415784,
+        0.39267
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.529696,
+        0.051697,
+        -0.7015
+      ],
+      "radius": 0.003,
+      "height": 0.146351,
+      "rotation": [
+        0.247911,
+        -0.508675,
+        0.361215,
+        0.741157
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.590182,
+        0.164982,
+        -0.7015
+      ],
+      "radius": 0.003,
+      "height": 0.146484,
+      "rotation": [
+        0.006836,
+        -0.183959,
+        0.036499,
+        0.982232
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.549352,
+        0.285314,
+        -0.7015
+      ],
+      "radius": 0.003,
+      "height": 0.142358,
+      "rotation": [
+        0.080015,
+        0.205866,
+        -0.353326,
+        0.909053
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.435046,
+        0.348511,
+        -0.7015
+      ],
+      "radius": 0.003,
+      "height": 0.144947,
+      "rotation": [
+        0.330162,
+        0.39848,
+        -0.545939,
+        0.658906
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.317988,
+        0.312273,
+        -0.7015
+      ],
+      "radius": 0.003,
+      "height": 0.144519,
+      "rotation": [
+        0.793552,
+        0.327005,
+        -0.474465,
+        0.195516
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.260724,
+        0.196754,
+        -0.7015
+      ],
+      "radius": 0.003,
+      "height": 0.13981,
+      "rotation": [
+        0.975758,
+        0.062005,
+        -0.209465,
+        0.01331
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.292808,
+        0.003,
+        -1.212879
+      ],
+      "radius": 0.003,
+      "height": 0.145794,
+      "rotation": [
+        0.656443,
+        0.457615,
+        -0.262835,
+        0.539063
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.21766,
+        0.003,
+        -1.110855
+      ],
+      "radius": 0.003,
+      "height": 0.147284,
+      "rotation": [
+        0.615817,
+        0.457615,
+        0.347519,
+        0.539063
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.239843,
+        0.003,
+        -0.980969
+      ],
+      "radius": 0.003,
+      "height": 0.146351,
+      "rotation": [
+        0.233171,
+        0.457615,
+        0.667556,
+        0.539063
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.344112,
+        0.003,
+        -0.906002
+      ],
+      "radius": 0.003,
+      "height": 0.146484,
+      "rotation": [
+        -0.336926,
+        0.457615,
+        0.621676,
+        0.539063
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.468794,
+        0.003,
+        -0.930525
+      ],
+      "radius": 0.003,
+      "height": 0.142358,
+      "rotation": [
+        -0.683622,
+        0.457615,
+        0.180723,
+        0.539063
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.546583,
+        0.003,
+        -1.035447
+      ],
+      "radius": 0.003,
+      "height": 0.144947,
+      "rotation": [
+        -0.65562,
+        0.457615,
+        -0.264881,
+        0.539063
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.526179,
+        0.003,
+        -1.156275
+      ],
+      "radius": 0.003,
+      "height": 0.144519,
+      "rotation": [
+        -0.147965,
+        0.457615,
+        -0.691452,
+        0.539063
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.419268,
+        0.003,
+        -1.228343
+      ],
+      "radius": 0.003,
+      "height": 0.13981,
+      "rotation": [
+        0.303752,
+        0.457615,
+        -0.638541,
+        0.539063
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.280109,
+        0.090622,
+        0.7075
+      ],
+      "radius": 0.003,
+      "height": 0.145794,
+      "rotation": [
+        0.957261,
+        -0.240403,
+        0.155963,
+        0.039168
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.382582,
+        0.016088,
+        0.7075
+      ],
+      "radius": 0.003,
+      "height": 0.147284,
+      "rotation": [
+        0.630916,
+        -0.524288,
+        0.439849,
+        0.365512
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.512332,
+        0.03905,
+        0.7075
+      ],
+      "radius": 0.003,
+      "height": 0.146351,
+      "rotation": [
+        0.27967,
+        -0.491929,
+        0.40749,
+        0.716758
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.586671,
+        0.143768,
+        0.7075
+      ],
+      "radius": 0.003,
+      "height": 0.146484,
+      "rotation": [
+        0.018488,
+        -0.183155,
+        0.098715,
+        0.977941
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.561401,
+        0.2683,
+        0.7075
+      ],
+      "radius": 0.003,
+      "height": 0.142358,
+      "rotation": [
+        0.066799,
+        0.210526,
+        -0.294966,
+        0.92963
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.456013,
+        0.345458,
+        0.7075
+      ],
+      "radius": 0.003,
+      "height": 0.144947,
+      "rotation": [
+        0.304227,
+        0.418615,
+        -0.503055,
+        0.692201
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.33531,
+        0.324328,
+        0.7075
+      ],
+      "radius": 0.003,
+      "height": 0.144519,
+      "rotation": [
+        0.771217,
+        0.376671,
+        -0.461111,
+        0.225212
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.263885,
+        0.216986,
+        0.7075
+      ],
+      "radius": 0.003,
+      "height": 0.13981,
+      "rotation": [
+        0.969861,
+        0.123759,
+        -0.208199,
+        0.026567
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.259401,
+        0.003,
+        1.194537
+      ],
+      "radius": 0.003,
+      "height": 0.145794,
+      "rotation": [
+        0.580534,
+        -0.198552,
+        0.403708,
+        0.678658
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.382815,
+        0.003,
+        1.223262
+      ],
+      "radius": 0.003,
+      "height": 0.147284,
+      "rotation": [
+        0.048428,
+        -0.198552,
+        0.705446,
+        0.678658
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.493369,
+        0.003,
+        1.151567
+      ],
+      "radius": 0.003,
+      "height": 0.146351,
+      "rotation": [
+        -0.429304,
+        -0.198552,
+        0.56187,
+        0.678658
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.521041,
+        0.003,
+        1.026162
+      ],
+      "radius": 0.003,
+      "height": 0.146484,
+      "rotation": [
+        -0.704514,
+        -0.198552,
+        0.060498,
+        0.678658
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.449253,
+        0.003,
+        0.921313
+      ],
+      "radius": 0.003,
+      "height": 0.142358,
+      "rotation": [
+        -0.526902,
+        -0.198552,
+        -0.471566,
+        0.678658
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.322133,
+        0.003,
+        0.891306
+      ],
+      "radius": 0.003,
+      "height": 0.144947,
+      "rotation": [
+        -0.139337,
+        -0.198552,
+        -0.693243,
+        0.678658
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.219197,
+        0.003,
+        0.957789
+      ],
+      "radius": 0.003,
+      "height": 0.144519,
+      "rotation": [
+        0.496121,
+        -0.198552,
+        -0.503849,
+        0.678658
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.195232,
+        0.003,
+        1.084475
+      ],
+      "radius": 0.003,
+      "height": 0.13981,
+      "rotation": [
+        0.700356,
+        -0.198552,
+        -0.097479,
+        0.678658
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.145103,
+        0.092524,
+        -0.6795
+      ],
+      "radius": 0.003,
+      "height": 0.145794,
+      "rotation": [
+        0.958849,
+        -0.233985,
+        0.156222,
+        0.038122
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.043637,
+        0.016624,
+        -0.6795
+      ],
+      "radius": 0.003,
+      "height": 0.147284,
+      "rotation": [
+        0.634414,
+        -0.520051,
+        0.442287,
+        0.362558
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.913591,
+        0.037846,
+        -0.6795
+      ],
+      "radius": 0.003,
+      "height": 0.146351,
+      "rotation": [
+        0.282959,
+        -0.490045,
+        0.412282,
+        0.714013
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.837856,
+        0.141558,
+        -0.6795
+      ],
+      "radius": 0.003,
+      "height": 0.146484,
+      "rotation": [
+        0.019715,
+        -0.183027,
+        0.105264,
+        0.977257
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.861456,
+        0.266418,
+        -0.6795
+      ],
+      "radius": 0.003,
+      "height": 0.142358,
+      "rotation": [
+        0.065387,
+        0.210969,
+        -0.288732,
+        0.931585
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.9658,
+        0.344981,
+        -0.6795
+      ],
+      "radius": 0.003,
+      "height": 0.144947,
+      "rotation": [
+        0.301417,
+        0.420644,
+        -0.498407,
+        0.695555
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.086775,
+        0.32547,
+        -0.6795
+      ],
+      "radius": 0.003,
+      "height": 0.144519,
+      "rotation": [
+        0.768677,
+        0.381828,
+        -0.459592,
+        0.228295
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.159632,
+        0.219095,
+        -0.6795
+      ],
+      "radius": 0.003,
+      "height": 0.13981,
+      "rotation": [
+        0.969011,
+        0.130253,
+        -0.208016,
+        0.027961
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.024527,
+        0.003,
+        -0.880752
+      ],
+      "radius": 0.003,
+      "height": 0.145794,
+      "rotation": [
+        0.445849,
+        -0.378925,
+        0.548834,
+        0.597006
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.904782,
+        0.003,
+        -0.922192
+      ],
+      "radius": 0.003,
+      "height": 0.147284,
+      "rotation": [
+        -0.149054,
+        -0.378925,
+        0.691218,
+        0.597006
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.849419,
+        0.003,
+        -1.041764
+      ],
+      "radius": 0.003,
+      "height": 0.146351,
+      "rotation": [
+        -0.568252,
+        -0.378925,
+        0.420821,
+        0.597006
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.892813,
+        0.003,
+        -1.162632
+      ],
+      "radius": 0.003,
+      "height": 0.146484,
+      "rotation": [
+        -0.693669,
+        -0.378925,
+        -0.137199,
+        0.597006
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.009424,
+        0.003,
+        -1.213117
+      ],
+      "radius": 0.003,
+      "height": 0.142358,
+      "rotation": [
+        -0.375506,
+        -0.378925,
+        -0.599162,
+        0.597006
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.132987,
+        0.003,
+        -1.170786
+      ],
+      "radius": 0.003,
+      "height": 0.144947,
+      "rotation": [
+        0.058325,
+        -0.378925,
+        -0.704697,
+        0.597006
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.184679,
+        0.003,
+        -1.059684
+      ],
+      "radius": 0.003,
+      "height": 0.144519,
+      "rotation": [
+        0.616364,
+        -0.378925,
+        -0.346549,
+        0.597006
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.137467,
+        0.003,
+        -0.939706
+      ],
+      "radius": 0.003,
+      "height": 0.13981,
+      "rotation": [
+        0.699926,
+        -0.378925,
+        0.100514,
+        0.597006
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.157508,
+        0.116318,
+        0.6855
+      ],
+      "radius": 0.003,
+      "height": 0.145794,
+      "rotation": [
+        0.974447,
+        -0.156825,
+        0.158763,
+        0.025551
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.06939,
+        0.025261,
+        0.6855
+      ],
+      "radius": 0.003,
+      "height": 0.147284,
+      "rotation": [
+        0.673842,
+        -0.467837,
+        0.469775,
+        0.326156
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.937624,
+        0.025551,
+        0.6855
+      ],
+      "radius": 0.003,
+      "height": 0.146351,
+      "rotation": [
+        0.321113,
+        -0.465936,
+        0.467874,
+        0.678885
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.846373,
+        0.115913,
+        0.6855
+      ],
+      "radius": 0.003,
+      "height": 0.146484,
+      "rotation": [
+        0.034238,
+        -0.180874,
+        0.182812,
+        0.96576
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.849835,
+        0.242936,
+        0.6855
+      ],
+      "radius": 0.003,
+      "height": 0.142358,
+      "rotation": [
+        0.048366,
+        0.215509,
+        -0.213571,
+        0.951632
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.940371,
+        0.337079,
+        0.6855
+      ],
+      "radius": 0.003,
+      "height": 0.144947,
+      "rotation": [
+        0.266934,
+        0.443327,
+        -0.441389,
+        0.733064
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.06291,
+        0.337037,
+        0.6855
+      ],
+      "radius": 0.003,
+      "height": 0.144519,
+      "rotation": [
+        0.735802,
+        0.441874,
+        -0.439936,
+        0.264196
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.151742,
+        0.243589,
+        0.6855
+      ],
+      "radius": 0.003,
+      "height": 0.13981,
+      "rotation": [
+        0.955548,
+        0.207064,
+        -0.205126,
+        0.04445
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.096231,
+        0.003,
+        1.07869
+      ],
+      "radius": 0.003,
+      "height": 0.145794,
+      "rotation": [
+        0.688226,
+        0.064547,
+        0.162309,
+        0.704155
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.025728,
+        0.003,
+        1.183978
+      ],
+      "radius": 0.003,
+      "height": 0.147284,
+      "rotation": [
+        0.304107,
+        0.064547,
+        0.638372,
+        0.704155
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.896015,
+        0.003,
+        1.207146
+      ],
+      "radius": 0.003,
+      "height": 0.146351,
+      "rotation": [
+        -0.192971,
+        0.064547,
+        0.680266,
+        0.704155
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.790137,
+        0.003,
+        1.134468
+      ],
+      "radius": 0.003,
+      "height": 0.146484,
+      "rotation": [
+        -0.633072,
+        0.064547,
+        0.314991,
+        0.704155
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.770934,
+        0.003,
+        1.008857
+      ],
+      "radius": 0.003,
+      "height": 0.142358,
+      "rotation": [
+        -0.663261,
+        0.064547,
+        -0.245122,
+        0.704155
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.843269,
+        0.003,
+        0.900102
+      ],
+      "radius": 0.003,
+      "height": 0.144947,
+      "rotation": [
+        -0.384183,
+        0.064547,
+        -0.593636,
+        0.704155
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.963858,
+        0.003,
+        0.878333
+      ],
+      "radius": 0.003,
+      "height": 0.144519,
+      "rotation": [
+        0.276427,
+        0.064547,
+        -0.650836,
+        0.704155
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.067905,
+        0.003,
+        0.954478
+      ],
+      "radius": 0.003,
+      "height": 0.13981,
+      "rotation": [
+        0.615624,
+        0.064547,
+        -0.347862,
+        0.704155
+      ],
+      "material": "steel",
+      "landable": false
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [
+    {
+      "shape": "box",
+      "center": [
+        0.0085,
+        0.4205,
+        0.0
+      ],
+      "size": [
+        3.88,
+        0.689,
+        1.611
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.1685,
+        1.0175,
+        0.0
+      ],
+      "size": [
+        2.32,
+        0.505,
+        1.411
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.55
+    }
+  ],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [
+    {
+      "role": "damage_mask",
+      "slot": "soot",
+      "file": "R01_F_damage.png",
+      "uv_min": [
+        -2.2,
+        0.0
+      ],
+      "uv_max": [
+        6.8,
+        5.0
+      ]
+    }
+  ],
+  "snag": [
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.4465,
+          1.37,
+          -0.6
+        ],
+        [
+          -0.4465,
+          1.37,
+          0.6
+        ]
+      ],
+      "radius_m": 0.01,
+      "material": "steel"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.4465,
+          1.37,
+          0.6
+        ],
+        [
+          0.8535,
+          1.37,
+          0.6
+        ]
+      ],
+      "radius_m": 0.01,
+      "material": "steel"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.8535,
+          1.37,
+          0.6
+        ],
+        [
+          0.8535,
+          1.37,
+          -0.6
+        ]
+      ],
+      "radius_m": 0.01,
+      "material": "steel"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.8535,
+          1.37,
+          -0.6
+        ],
+        [
+          -0.4465,
+          1.37,
+          -0.6
+        ]
+      ],
+      "radius_m": 0.01,
+      "material": "steel"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.3865,
+          1.197,
+          -0.651493
+        ],
+        [
+          -0.3865,
+          1.37,
+          -0.6
+        ]
+      ],
+      "radius_m": 0.01,
+      "material": "steel"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.3865,
+          1.197,
+          0.651493
+        ],
+        [
+          -0.3865,
+          1.37,
+          0.6
+        ]
+      ],
+      "radius_m": 0.01,
+      "material": "steel"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.7935,
+          1.1701,
+          -0.650958
+        ],
+        [
+          0.7935,
+          1.37,
+          -0.6
+        ]
+      ],
+      "radius_m": 0.01,
+      "material": "steel"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.7935,
+          1.1701,
+          0.650958
+        ],
+        [
+          0.7935,
+          1.37,
+          0.6
+        ]
+      ],
+      "radius_m": 0.01,
+      "material": "steel"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -1.8115,
+          0.27,
+          -0.774
+        ],
+        [
+          -1.867688,
+          0.27,
+          -0.769106
+        ],
+        [
+          -1.918376,
+          0.27,
+          -0.754902
+        ],
+        [
+          -1.958603,
+          0.27,
+          -0.732779
+        ]
+      ],
+      "radius_m": 0.006,
+      "edge_radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -1.958603,
+          0.27,
+          0.732779
+        ],
+        [
+          -1.918376,
+          0.27,
+          0.754902
+        ],
+        [
+          -1.867688,
+          0.27,
+          0.769106
+        ],
+        [
+          -1.8115,
+          0.27,
+          0.774
+        ]
+      ],
+      "radius_m": 0.006,
+      "edge_radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.8215,
+          0.28,
+          -0.7545
+        ],
+        [
+          1.87558,
+          0.28,
+          -0.749606
+        ],
+        [
+          1.924367,
+          0.28,
+          -0.735402
+        ],
+        [
+          1.963084,
+          0.28,
+          -0.713279
+        ]
+      ],
+      "radius_m": 0.006,
+      "edge_radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.963084,
+          0.28,
+          0.713279
+        ],
+        [
+          1.924367,
+          0.28,
+          0.735402
+        ],
+        [
+          1.87558,
+          0.28,
+          0.749606
+        ],
+        [
+          1.8215,
+          0.28,
+          0.7545
+        ]
+      ],
+      "radius_m": 0.006,
+      "edge_radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.5165,
+          0.31,
+          -0.539667
+        ],
+        [
+          -0.480667,
+          0.306118,
+          -0.503667
+        ],
+        [
+          -0.444833,
+          0.3025,
+          -0.539667
+        ],
+        [
+          -0.409,
+          0.299393,
+          -0.503667
+        ],
+        [
+          -0.373167,
+          0.29701,
+          -0.539667
+        ],
+        [
+          -0.337333,
+          0.295511,
+          -0.503667
+        ],
+        [
+          -0.3015,
+          0.295,
+          -0.539667
+        ],
+        [
+          -0.265667,
+          0.295511,
+          -0.503667
+        ],
+        [
+          -0.229833,
+          0.29701,
+          -0.539667
+        ],
+        [
+          -0.194,
+          0.299393,
+          -0.503667
+        ],
+        [
+          -0.158167,
+          0.3025,
+          -0.539667
+        ],
+        [
+          -0.122333,
+          0.306118,
+          -0.503667
+        ],
+        [
+          -0.0865,
+          0.31,
+          -0.539667
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.5165,
+          0.31,
+          -0.463
+        ],
+        [
+          -0.480667,
+          0.306118,
+          -0.427
+        ],
+        [
+          -0.444833,
+          0.3025,
+          -0.463
+        ],
+        [
+          -0.409,
+          0.299393,
+          -0.427
+        ],
+        [
+          -0.373167,
+          0.29701,
+          -0.463
+        ],
+        [
+          -0.337333,
+          0.295511,
+          -0.427
+        ],
+        [
+          -0.3015,
+          0.295,
+          -0.463
+        ],
+        [
+          -0.265667,
+          0.295511,
+          -0.427
+        ],
+        [
+          -0.229833,
+          0.29701,
+          -0.463
+        ],
+        [
+          -0.194,
+          0.299393,
+          -0.427
+        ],
+        [
+          -0.158167,
+          0.3025,
+          -0.463
+        ],
+        [
+          -0.122333,
+          0.306118,
+          -0.427
+        ],
+        [
+          -0.0865,
+          0.31,
+          -0.463
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.5165,
+          0.31,
+          -0.386333
+        ],
+        [
+          -0.480667,
+          0.306118,
+          -0.350333
+        ],
+        [
+          -0.444833,
+          0.3025,
+          -0.386333
+        ],
+        [
+          -0.409,
+          0.299393,
+          -0.350333
+        ],
+        [
+          -0.373167,
+          0.29701,
+          -0.386333
+        ],
+        [
+          -0.337333,
+          0.295511,
+          -0.350333
+        ],
+        [
+          -0.3015,
+          0.295,
+          -0.386333
+        ],
+        [
+          -0.265667,
+          0.295511,
+          -0.350333
+        ],
+        [
+          -0.229833,
+          0.29701,
+          -0.386333
+        ],
+        [
+          -0.194,
+          0.299393,
+          -0.350333
+        ],
+        [
+          -0.158167,
+          0.3025,
+          -0.386333
+        ],
+        [
+          -0.122333,
+          0.306118,
+          -0.350333
+        ],
+        [
+          -0.0865,
+          0.31,
+          -0.386333
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.5165,
+          0.31,
+          -0.309667
+        ],
+        [
+          -0.480667,
+          0.306118,
+          -0.273667
+        ],
+        [
+          -0.444833,
+          0.3025,
+          -0.309667
+        ],
+        [
+          -0.409,
+          0.299393,
+          -0.273667
+        ],
+        [
+          -0.373167,
+          0.29701,
+          -0.309667
+        ],
+        [
+          -0.337333,
+          0.295511,
+          -0.273667
+        ],
+        [
+          -0.3015,
+          0.295,
+          -0.309667
+        ],
+        [
+          -0.265667,
+          0.295511,
+          -0.273667
+        ],
+        [
+          -0.229833,
+          0.29701,
+          -0.309667
+        ],
+        [
+          -0.194,
+          0.299393,
+          -0.273667
+        ],
+        [
+          -0.158167,
+          0.3025,
+          -0.309667
+        ],
+        [
+          -0.122333,
+          0.306118,
+          -0.273667
+        ],
+        [
+          -0.0865,
+          0.31,
+          -0.309667
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.5165,
+          0.31,
+          -0.233
+        ],
+        [
+          -0.480667,
+          0.306118,
+          -0.197
+        ],
+        [
+          -0.444833,
+          0.3025,
+          -0.233
+        ],
+        [
+          -0.409,
+          0.299393,
+          -0.197
+        ],
+        [
+          -0.373167,
+          0.29701,
+          -0.233
+        ],
+        [
+          -0.337333,
+          0.295511,
+          -0.197
+        ],
+        [
+          -0.3015,
+          0.295,
+          -0.233
+        ],
+        [
+          -0.265667,
+          0.295511,
+          -0.197
+        ],
+        [
+          -0.229833,
+          0.29701,
+          -0.233
+        ],
+        [
+          -0.194,
+          0.299393,
+          -0.197
+        ],
+        [
+          -0.158167,
+          0.3025,
+          -0.233
+        ],
+        [
+          -0.122333,
+          0.306118,
+          -0.197
+        ],
+        [
+          -0.0865,
+          0.31,
+          -0.233
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.5165,
+          0.31,
+          -0.156333
+        ],
+        [
+          -0.480667,
+          0.306118,
+          -0.120333
+        ],
+        [
+          -0.444833,
+          0.3025,
+          -0.156333
+        ],
+        [
+          -0.409,
+          0.299393,
+          -0.120333
+        ],
+        [
+          -0.373167,
+          0.29701,
+          -0.156333
+        ],
+        [
+          -0.337333,
+          0.295511,
+          -0.120333
+        ],
+        [
+          -0.3015,
+          0.295,
+          -0.156333
+        ],
+        [
+          -0.265667,
+          0.295511,
+          -0.120333
+        ],
+        [
+          -0.229833,
+          0.29701,
+          -0.156333
+        ],
+        [
+          -0.194,
+          0.299393,
+          -0.120333
+        ],
+        [
+          -0.158167,
+          0.3025,
+          -0.156333
+        ],
+        [
+          -0.122333,
+          0.306118,
+          -0.120333
+        ],
+        [
+          -0.0865,
+          0.31,
+          -0.156333
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.01042,
+          0.36597,
+          -0.539667
+        ],
+        [
+          0.001946,
+          0.403937,
+          -0.503667
+        ],
+        [
+          0.014176,
+          0.44194,
+          -0.539667
+        ],
+        [
+          0.026143,
+          0.480015,
+          -0.503667
+        ],
+        [
+          0.037737,
+          0.51819,
+          -0.539667
+        ],
+        [
+          0.048876,
+          0.556487,
+          -0.503667
+        ],
+        [
+          0.059506,
+          0.594922,
+          -0.539667
+        ],
+        [
+          0.069609,
+          0.633498,
+          -0.503667
+        ],
+        [
+          0.079204,
+          0.672211,
+          -0.539667
+        ],
+        [
+          0.088344,
+          0.711046,
+          -0.503667
+        ],
+        [
+          0.09711,
+          0.749982,
+          -0.539667
+        ],
+        [
+          0.105614,
+          0.788989,
+          -0.503667
+        ],
+        [
+          0.113982,
+          0.828033,
+          -0.539667
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.01042,
+          0.36597,
+          -0.463
+        ],
+        [
+          0.001946,
+          0.403937,
+          -0.427
+        ],
+        [
+          0.014176,
+          0.44194,
+          -0.463
+        ],
+        [
+          0.026143,
+          0.480015,
+          -0.427
+        ],
+        [
+          0.037737,
+          0.51819,
+          -0.463
+        ],
+        [
+          0.048876,
+          0.556487,
+          -0.427
+        ],
+        [
+          0.059506,
+          0.594922,
+          -0.463
+        ],
+        [
+          0.069609,
+          0.633498,
+          -0.427
+        ],
+        [
+          0.079204,
+          0.672211,
+          -0.463
+        ],
+        [
+          0.088344,
+          0.711046,
+          -0.427
+        ],
+        [
+          0.09711,
+          0.749982,
+          -0.463
+        ],
+        [
+          0.105614,
+          0.788989,
+          -0.427
+        ],
+        [
+          0.113982,
+          0.828033,
+          -0.463
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.01042,
+          0.36597,
+          -0.386333
+        ],
+        [
+          0.001946,
+          0.403937,
+          -0.350333
+        ],
+        [
+          0.014176,
+          0.44194,
+          -0.386333
+        ],
+        [
+          0.026143,
+          0.480015,
+          -0.350333
+        ],
+        [
+          0.037737,
+          0.51819,
+          -0.386333
+        ],
+        [
+          0.048876,
+          0.556487,
+          -0.350333
+        ],
+        [
+          0.059506,
+          0.594922,
+          -0.386333
+        ],
+        [
+          0.069609,
+          0.633498,
+          -0.350333
+        ],
+        [
+          0.079204,
+          0.672211,
+          -0.386333
+        ],
+        [
+          0.088344,
+          0.711046,
+          -0.350333
+        ],
+        [
+          0.09711,
+          0.749982,
+          -0.386333
+        ],
+        [
+          0.105614,
+          0.788989,
+          -0.350333
+        ],
+        [
+          0.113982,
+          0.828033,
+          -0.386333
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.01042,
+          0.36597,
+          -0.309667
+        ],
+        [
+          0.001946,
+          0.403937,
+          -0.273667
+        ],
+        [
+          0.014176,
+          0.44194,
+          -0.309667
+        ],
+        [
+          0.026143,
+          0.480015,
+          -0.273667
+        ],
+        [
+          0.037737,
+          0.51819,
+          -0.309667
+        ],
+        [
+          0.048876,
+          0.556487,
+          -0.273667
+        ],
+        [
+          0.059506,
+          0.594922,
+          -0.309667
+        ],
+        [
+          0.069609,
+          0.633498,
+          -0.273667
+        ],
+        [
+          0.079204,
+          0.672211,
+          -0.309667
+        ],
+        [
+          0.088344,
+          0.711046,
+          -0.273667
+        ],
+        [
+          0.09711,
+          0.749982,
+          -0.309667
+        ],
+        [
+          0.105614,
+          0.788989,
+          -0.273667
+        ],
+        [
+          0.113982,
+          0.828033,
+          -0.309667
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.01042,
+          0.36597,
+          -0.233
+        ],
+        [
+          0.001946,
+          0.403937,
+          -0.197
+        ],
+        [
+          0.014176,
+          0.44194,
+          -0.233
+        ],
+        [
+          0.026143,
+          0.480015,
+          -0.197
+        ],
+        [
+          0.037737,
+          0.51819,
+          -0.233
+        ],
+        [
+          0.048876,
+          0.556487,
+          -0.197
+        ],
+        [
+          0.059506,
+          0.594922,
+          -0.233
+        ],
+        [
+          0.069609,
+          0.633498,
+          -0.197
+        ],
+        [
+          0.079204,
+          0.672211,
+          -0.233
+        ],
+        [
+          0.088344,
+          0.711046,
+          -0.197
+        ],
+        [
+          0.09711,
+          0.749982,
+          -0.233
+        ],
+        [
+          0.105614,
+          0.788989,
+          -0.197
+        ],
+        [
+          0.113982,
+          0.828033,
+          -0.233
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.01042,
+          0.36597,
+          -0.156333
+        ],
+        [
+          0.001946,
+          0.403937,
+          -0.120333
+        ],
+        [
+          0.014176,
+          0.44194,
+          -0.156333
+        ],
+        [
+          0.026143,
+          0.480015,
+          -0.120333
+        ],
+        [
+          0.037737,
+          0.51819,
+          -0.156333
+        ],
+        [
+          0.048876,
+          0.556487,
+          -0.120333
+        ],
+        [
+          0.059506,
+          0.594922,
+          -0.156333
+        ],
+        [
+          0.069609,
+          0.633498,
+          -0.120333
+        ],
+        [
+          0.079204,
+          0.672211,
+          -0.156333
+        ],
+        [
+          0.088344,
+          0.711046,
+          -0.120333
+        ],
+        [
+          0.09711,
+          0.749982,
+          -0.156333
+        ],
+        [
+          0.105614,
+          0.788989,
+          -0.120333
+        ],
+        [
+          0.113982,
+          0.828033,
+          -0.156333
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.5165,
+          0.31,
+          0.120333
+        ],
+        [
+          -0.480667,
+          0.306118,
+          0.156333
+        ],
+        [
+          -0.444833,
+          0.3025,
+          0.120333
+        ],
+        [
+          -0.409,
+          0.299393,
+          0.156333
+        ],
+        [
+          -0.373167,
+          0.29701,
+          0.120333
+        ],
+        [
+          -0.337333,
+          0.295511,
+          0.156333
+        ],
+        [
+          -0.3015,
+          0.295,
+          0.120333
+        ],
+        [
+          -0.265667,
+          0.295511,
+          0.156333
+        ],
+        [
+          -0.229833,
+          0.29701,
+          0.120333
+        ],
+        [
+          -0.194,
+          0.299393,
+          0.156333
+        ],
+        [
+          -0.158167,
+          0.3025,
+          0.120333
+        ],
+        [
+          -0.122333,
+          0.306118,
+          0.156333
+        ],
+        [
+          -0.0865,
+          0.31,
+          0.120333
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.5165,
+          0.31,
+          0.197
+        ],
+        [
+          -0.480667,
+          0.306118,
+          0.233
+        ],
+        [
+          -0.444833,
+          0.3025,
+          0.197
+        ],
+        [
+          -0.409,
+          0.299393,
+          0.233
+        ],
+        [
+          -0.373167,
+          0.29701,
+          0.197
+        ],
+        [
+          -0.337333,
+          0.295511,
+          0.233
+        ],
+        [
+          -0.3015,
+          0.295,
+          0.197
+        ],
+        [
+          -0.265667,
+          0.295511,
+          0.233
+        ],
+        [
+          -0.229833,
+          0.29701,
+          0.197
+        ],
+        [
+          -0.194,
+          0.299393,
+          0.233
+        ],
+        [
+          -0.158167,
+          0.3025,
+          0.197
+        ],
+        [
+          -0.122333,
+          0.306118,
+          0.233
+        ],
+        [
+          -0.0865,
+          0.31,
+          0.197
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.5165,
+          0.31,
+          0.273667
+        ],
+        [
+          -0.480667,
+          0.306118,
+          0.309667
+        ],
+        [
+          -0.444833,
+          0.3025,
+          0.273667
+        ],
+        [
+          -0.409,
+          0.299393,
+          0.309667
+        ],
+        [
+          -0.373167,
+          0.29701,
+          0.273667
+        ],
+        [
+          -0.337333,
+          0.295511,
+          0.309667
+        ],
+        [
+          -0.3015,
+          0.295,
+          0.273667
+        ],
+        [
+          -0.265667,
+          0.295511,
+          0.309667
+        ],
+        [
+          -0.229833,
+          0.29701,
+          0.273667
+        ],
+        [
+          -0.194,
+          0.299393,
+          0.309667
+        ],
+        [
+          -0.158167,
+          0.3025,
+          0.273667
+        ],
+        [
+          -0.122333,
+          0.306118,
+          0.309667
+        ],
+        [
+          -0.0865,
+          0.31,
+          0.273667
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.5165,
+          0.31,
+          0.350333
+        ],
+        [
+          -0.480667,
+          0.306118,
+          0.386333
+        ],
+        [
+          -0.444833,
+          0.3025,
+          0.350333
+        ],
+        [
+          -0.409,
+          0.299393,
+          0.386333
+        ],
+        [
+          -0.373167,
+          0.29701,
+          0.350333
+        ],
+        [
+          -0.337333,
+          0.295511,
+          0.386333
+        ],
+        [
+          -0.3015,
+          0.295,
+          0.350333
+        ],
+        [
+          -0.265667,
+          0.295511,
+          0.386333
+        ],
+        [
+          -0.229833,
+          0.29701,
+          0.350333
+        ],
+        [
+          -0.194,
+          0.299393,
+          0.386333
+        ],
+        [
+          -0.158167,
+          0.3025,
+          0.350333
+        ],
+        [
+          -0.122333,
+          0.306118,
+          0.386333
+        ],
+        [
+          -0.0865,
+          0.31,
+          0.350333
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.5165,
+          0.31,
+          0.427
+        ],
+        [
+          -0.480667,
+          0.306118,
+          0.463
+        ],
+        [
+          -0.444833,
+          0.3025,
+          0.427
+        ],
+        [
+          -0.409,
+          0.299393,
+          0.463
+        ],
+        [
+          -0.373167,
+          0.29701,
+          0.427
+        ],
+        [
+          -0.337333,
+          0.295511,
+          0.463
+        ],
+        [
+          -0.3015,
+          0.295,
+          0.427
+        ],
+        [
+          -0.265667,
+          0.295511,
+          0.463
+        ],
+        [
+          -0.229833,
+          0.29701,
+          0.427
+        ],
+        [
+          -0.194,
+          0.299393,
+          0.463
+        ],
+        [
+          -0.158167,
+          0.3025,
+          0.427
+        ],
+        [
+          -0.122333,
+          0.306118,
+          0.463
+        ],
+        [
+          -0.0865,
+          0.31,
+          0.427
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.5165,
+          0.31,
+          0.503667
+        ],
+        [
+          -0.480667,
+          0.306118,
+          0.539667
+        ],
+        [
+          -0.444833,
+          0.3025,
+          0.503667
+        ],
+        [
+          -0.409,
+          0.299393,
+          0.539667
+        ],
+        [
+          -0.373167,
+          0.29701,
+          0.503667
+        ],
+        [
+          -0.337333,
+          0.295511,
+          0.539667
+        ],
+        [
+          -0.3015,
+          0.295,
+          0.503667
+        ],
+        [
+          -0.265667,
+          0.295511,
+          0.539667
+        ],
+        [
+          -0.229833,
+          0.29701,
+          0.503667
+        ],
+        [
+          -0.194,
+          0.299393,
+          0.539667
+        ],
+        [
+          -0.158167,
+          0.3025,
+          0.503667
+        ],
+        [
+          -0.122333,
+          0.306118,
+          0.539667
+        ],
+        [
+          -0.0865,
+          0.31,
+          0.503667
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.01042,
+          0.36597,
+          0.120333
+        ],
+        [
+          0.001946,
+          0.403937,
+          0.156333
+        ],
+        [
+          0.014176,
+          0.44194,
+          0.120333
+        ],
+        [
+          0.026143,
+          0.480015,
+          0.156333
+        ],
+        [
+          0.037737,
+          0.51819,
+          0.120333
+        ],
+        [
+          0.048876,
+          0.556487,
+          0.156333
+        ],
+        [
+          0.059506,
+          0.594922,
+          0.120333
+        ],
+        [
+          0.069609,
+          0.633498,
+          0.156333
+        ],
+        [
+          0.079204,
+          0.672211,
+          0.120333
+        ],
+        [
+          0.088344,
+          0.711046,
+          0.156333
+        ],
+        [
+          0.09711,
+          0.749982,
+          0.120333
+        ],
+        [
+          0.105614,
+          0.788989,
+          0.156333
+        ],
+        [
+          0.113982,
+          0.828033,
+          0.120333
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.01042,
+          0.36597,
+          0.197
+        ],
+        [
+          0.001946,
+          0.403937,
+          0.233
+        ],
+        [
+          0.014176,
+          0.44194,
+          0.197
+        ],
+        [
+          0.026143,
+          0.480015,
+          0.233
+        ],
+        [
+          0.037737,
+          0.51819,
+          0.197
+        ],
+        [
+          0.048876,
+          0.556487,
+          0.233
+        ],
+        [
+          0.059506,
+          0.594922,
+          0.197
+        ],
+        [
+          0.069609,
+          0.633498,
+          0.233
+        ],
+        [
+          0.079204,
+          0.672211,
+          0.197
+        ],
+        [
+          0.088344,
+          0.711046,
+          0.233
+        ],
+        [
+          0.09711,
+          0.749982,
+          0.197
+        ],
+        [
+          0.105614,
+          0.788989,
+          0.233
+        ],
+        [
+          0.113982,
+          0.828033,
+          0.197
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.01042,
+          0.36597,
+          0.273667
+        ],
+        [
+          0.001946,
+          0.403937,
+          0.309667
+        ],
+        [
+          0.014176,
+          0.44194,
+          0.273667
+        ],
+        [
+          0.026143,
+          0.480015,
+          0.309667
+        ],
+        [
+          0.037737,
+          0.51819,
+          0.273667
+        ],
+        [
+          0.048876,
+          0.556487,
+          0.309667
+        ],
+        [
+          0.059506,
+          0.594922,
+          0.273667
+        ],
+        [
+          0.069609,
+          0.633498,
+          0.309667
+        ],
+        [
+          0.079204,
+          0.672211,
+          0.273667
+        ],
+        [
+          0.088344,
+          0.711046,
+          0.309667
+        ],
+        [
+          0.09711,
+          0.749982,
+          0.273667
+        ],
+        [
+          0.105614,
+          0.788989,
+          0.309667
+        ],
+        [
+          0.113982,
+          0.828033,
+          0.273667
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.01042,
+          0.36597,
+          0.350333
+        ],
+        [
+          0.001946,
+          0.403937,
+          0.386333
+        ],
+        [
+          0.014176,
+          0.44194,
+          0.350333
+        ],
+        [
+          0.026143,
+          0.480015,
+          0.386333
+        ],
+        [
+          0.037737,
+          0.51819,
+          0.350333
+        ],
+        [
+          0.048876,
+          0.556487,
+          0.386333
+        ],
+        [
+          0.059506,
+          0.594922,
+          0.350333
+        ],
+        [
+          0.069609,
+          0.633498,
+          0.386333
+        ],
+        [
+          0.079204,
+          0.672211,
+          0.350333
+        ],
+        [
+          0.088344,
+          0.711046,
+          0.386333
+        ],
+        [
+          0.09711,
+          0.749982,
+          0.350333
+        ],
+        [
+          0.105614,
+          0.788989,
+          0.386333
+        ],
+        [
+          0.113982,
+          0.828033,
+          0.350333
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.01042,
+          0.36597,
+          0.427
+        ],
+        [
+          0.001946,
+          0.403937,
+          0.463
+        ],
+        [
+          0.014176,
+          0.44194,
+          0.427
+        ],
+        [
+          0.026143,
+          0.480015,
+          0.463
+        ],
+        [
+          0.037737,
+          0.51819,
+          0.427
+        ],
+        [
+          0.048876,
+          0.556487,
+          0.463
+        ],
+        [
+          0.059506,
+          0.594922,
+          0.427
+        ],
+        [
+          0.069609,
+          0.633498,
+          0.463
+        ],
+        [
+          0.079204,
+          0.672211,
+          0.427
+        ],
+        [
+          0.088344,
+          0.711046,
+          0.463
+        ],
+        [
+          0.09711,
+          0.749982,
+          0.427
+        ],
+        [
+          0.105614,
+          0.788989,
+          0.463
+        ],
+        [
+          0.113982,
+          0.828033,
+          0.427
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.01042,
+          0.36597,
+          0.503667
+        ],
+        [
+          0.001946,
+          0.403937,
+          0.539667
+        ],
+        [
+          0.014176,
+          0.44194,
+          0.503667
+        ],
+        [
+          0.026143,
+          0.480015,
+          0.539667
+        ],
+        [
+          0.037737,
+          0.51819,
+          0.503667
+        ],
+        [
+          0.048876,
+          0.556487,
+          0.539667
+        ],
+        [
+          0.059506,
+          0.594922,
+          0.503667
+        ],
+        [
+          0.069609,
+          0.633498,
+          0.539667
+        ],
+        [
+          0.079204,
+          0.672211,
+          0.503667
+        ],
+        [
+          0.088344,
+          0.711046,
+          0.539667
+        ],
+        [
+          0.09711,
+          0.749982,
+          0.503667
+        ],
+        [
+          0.105614,
+          0.788989,
+          0.539667
+        ],
+        [
+          0.113982,
+          0.828033,
+          0.503667
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.3035,
+          0.28,
+          -0.634471
+        ],
+        [
+          0.335167,
+          0.276118,
+          -0.598471
+        ],
+        [
+          0.366833,
+          0.2725,
+          -0.634471
+        ],
+        [
+          0.3985,
+          0.269393,
+          -0.598471
+        ],
+        [
+          0.430167,
+          0.26701,
+          -0.634471
+        ],
+        [
+          0.461833,
+          0.265511,
+          -0.598471
+        ],
+        [
+          0.4935,
+          0.265,
+          -0.634471
+        ],
+        [
+          0.525167,
+          0.265511,
+          -0.598471
+        ],
+        [
+          0.556833,
+          0.26701,
+          -0.634471
+        ],
+        [
+          0.5885,
+          0.269393,
+          -0.598471
+        ],
+        [
+          0.620167,
+          0.2725,
+          -0.634471
+        ],
+        [
+          0.651833,
+          0.276118,
+          -0.598471
+        ],
+        [
+          0.6835,
+          0.28,
+          -0.634471
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.3035,
+          0.28,
+          -0.557412
+        ],
+        [
+          0.335167,
+          0.276118,
+          -0.521412
+        ],
+        [
+          0.366833,
+          0.2725,
+          -0.557412
+        ],
+        [
+          0.3985,
+          0.269393,
+          -0.521412
+        ],
+        [
+          0.430167,
+          0.26701,
+          -0.557412
+        ],
+        [
+          0.461833,
+          0.265511,
+          -0.521412
+        ],
+        [
+          0.4935,
+          0.265,
+          -0.557412
+        ],
+        [
+          0.525167,
+          0.265511,
+          -0.521412
+        ],
+        [
+          0.556833,
+          0.26701,
+          -0.557412
+        ],
+        [
+          0.5885,
+          0.269393,
+          -0.521412
+        ],
+        [
+          0.620167,
+          0.2725,
+          -0.557412
+        ],
+        [
+          0.651833,
+          0.276118,
+          -0.521412
+        ],
+        [
+          0.6835,
+          0.28,
+          -0.557412
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.3035,
+          0.28,
+          -0.480353
+        ],
+        [
+          0.335167,
+          0.276118,
+          -0.444353
+        ],
+        [
+          0.366833,
+          0.2725,
+          -0.480353
+        ],
+        [
+          0.3985,
+          0.269393,
+          -0.444353
+        ],
+        [
+          0.430167,
+          0.26701,
+          -0.480353
+        ],
+        [
+          0.461833,
+          0.265511,
+          -0.444353
+        ],
+        [
+          0.4935,
+          0.265,
+          -0.480353
+        ],
+        [
+          0.525167,
+          0.265511,
+          -0.444353
+        ],
+        [
+          0.556833,
+          0.26701,
+          -0.480353
+        ],
+        [
+          0.5885,
+          0.269393,
+          -0.444353
+        ],
+        [
+          0.620167,
+          0.2725,
+          -0.480353
+        ],
+        [
+          0.651833,
+          0.276118,
+          -0.444353
+        ],
+        [
+          0.6835,
+          0.28,
+          -0.480353
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.3035,
+          0.28,
+          -0.403294
+        ],
+        [
+          0.335167,
+          0.276118,
+          -0.367294
+        ],
+        [
+          0.366833,
+          0.2725,
+          -0.403294
+        ],
+        [
+          0.3985,
+          0.269393,
+          -0.367294
+        ],
+        [
+          0.430167,
+          0.26701,
+          -0.403294
+        ],
+        [
+          0.461833,
+          0.265511,
+          -0.367294
+        ],
+        [
+          0.4935,
+          0.265,
+          -0.403294
+        ],
+        [
+          0.525167,
+          0.265511,
+          -0.367294
+        ],
+        [
+          0.556833,
+          0.26701,
+          -0.403294
+        ],
+        [
+          0.5885,
+          0.269393,
+          -0.367294
+        ],
+        [
+          0.620167,
+          0.2725,
+          -0.403294
+        ],
+        [
+          0.651833,
+          0.276118,
+          -0.367294
+        ],
+        [
+          0.6835,
+          0.28,
+          -0.403294
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.3035,
+          0.28,
+          -0.326235
+        ],
+        [
+          0.335167,
+          0.276118,
+          -0.290235
+        ],
+        [
+          0.366833,
+          0.2725,
+          -0.326235
+        ],
+        [
+          0.3985,
+          0.269393,
+          -0.290235
+        ],
+        [
+          0.430167,
+          0.26701,
+          -0.326235
+        ],
+        [
+          0.461833,
+          0.265511,
+          -0.290235
+        ],
+        [
+          0.4935,
+          0.265,
+          -0.326235
+        ],
+        [
+          0.525167,
+          0.265511,
+          -0.290235
+        ],
+        [
+          0.556833,
+          0.26701,
+          -0.326235
+        ],
+        [
+          0.5885,
+          0.269393,
+          -0.290235
+        ],
+        [
+          0.620167,
+          0.2725,
+          -0.326235
+        ],
+        [
+          0.651833,
+          0.276118,
+          -0.290235
+        ],
+        [
+          0.6835,
+          0.28,
+          -0.326235
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.3035,
+          0.28,
+          -0.249176
+        ],
+        [
+          0.335167,
+          0.276118,
+          -0.213176
+        ],
+        [
+          0.366833,
+          0.2725,
+          -0.249176
+        ],
+        [
+          0.3985,
+          0.269393,
+          -0.213176
+        ],
+        [
+          0.430167,
+          0.26701,
+          -0.249176
+        ],
+        [
+          0.461833,
+          0.265511,
+          -0.213176
+        ],
+        [
+          0.4935,
+          0.265,
+          -0.249176
+        ],
+        [
+          0.525167,
+          0.265511,
+          -0.213176
+        ],
+        [
+          0.556833,
+          0.26701,
+          -0.249176
+        ],
+        [
+          0.5885,
+          0.269393,
+          -0.213176
+        ],
+        [
+          0.620167,
+          0.2725,
+          -0.249176
+        ],
+        [
+          0.651833,
+          0.276118,
+          -0.213176
+        ],
+        [
+          0.6835,
+          0.28,
+          -0.249176
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.3035,
+          0.28,
+          -0.172118
+        ],
+        [
+          0.335167,
+          0.276118,
+          -0.136118
+        ],
+        [
+          0.366833,
+          0.2725,
+          -0.172118
+        ],
+        [
+          0.3985,
+          0.269393,
+          -0.136118
+        ],
+        [
+          0.430167,
+          0.26701,
+          -0.172118
+        ],
+        [
+          0.461833,
+          0.265511,
+          -0.136118
+        ],
+        [
+          0.4935,
+          0.265,
+          -0.172118
+        ],
+        [
+          0.525167,
+          0.265511,
+          -0.136118
+        ],
+        [
+          0.556833,
+          0.26701,
+          -0.172118
+        ],
+        [
+          0.5885,
+          0.269393,
+          -0.136118
+        ],
+        [
+          0.620167,
+          0.2725,
+          -0.172118
+        ],
+        [
+          0.651833,
+          0.276118,
+          -0.136118
+        ],
+        [
+          0.6835,
+          0.28,
+          -0.172118
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.3035,
+          0.28,
+          -0.095059
+        ],
+        [
+          0.335167,
+          0.276118,
+          -0.059059
+        ],
+        [
+          0.366833,
+          0.2725,
+          -0.095059
+        ],
+        [
+          0.3985,
+          0.269393,
+          -0.059059
+        ],
+        [
+          0.430167,
+          0.26701,
+          -0.095059
+        ],
+        [
+          0.461833,
+          0.265511,
+          -0.059059
+        ],
+        [
+          0.4935,
+          0.265,
+          -0.095059
+        ],
+        [
+          0.525167,
+          0.265511,
+          -0.059059
+        ],
+        [
+          0.556833,
+          0.26701,
+          -0.095059
+        ],
+        [
+          0.5885,
+          0.269393,
+          -0.059059
+        ],
+        [
+          0.620167,
+          0.2725,
+          -0.095059
+        ],
+        [
+          0.651833,
+          0.276118,
+          -0.059059
+        ],
+        [
+          0.6835,
+          0.28,
+          -0.095059
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.3035,
+          0.28,
+          -0.018
+        ],
+        [
+          0.335167,
+          0.276118,
+          0.018
+        ],
+        [
+          0.366833,
+          0.2725,
+          -0.018
+        ],
+        [
+          0.3985,
+          0.269393,
+          0.018
+        ],
+        [
+          0.430167,
+          0.26701,
+          -0.018
+        ],
+        [
+          0.461833,
+          0.265511,
+          0.018
+        ],
+        [
+          0.4935,
+          0.265,
+          -0.018
+        ],
+        [
+          0.525167,
+          0.265511,
+          0.018
+        ],
+        [
+          0.556833,
+          0.26701,
+          -0.018
+        ],
+        [
+          0.5885,
+          0.269393,
+          0.018
+        ],
+        [
+          0.620167,
+          0.2725,
+          -0.018
+        ],
+        [
+          0.651833,
+          0.276118,
+          0.018
+        ],
+        [
+          0.6835,
+          0.28,
+          -0.018
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.3035,
+          0.28,
+          0.059059
+        ],
+        [
+          0.335167,
+          0.276118,
+          0.095059
+        ],
+        [
+          0.366833,
+          0.2725,
+          0.059059
+        ],
+        [
+          0.3985,
+          0.269393,
+          0.095059
+        ],
+        [
+          0.430167,
+          0.26701,
+          0.059059
+        ],
+        [
+          0.461833,
+          0.265511,
+          0.095059
+        ],
+        [
+          0.4935,
+          0.265,
+          0.059059
+        ],
+        [
+          0.525167,
+          0.265511,
+          0.095059
+        ],
+        [
+          0.556833,
+          0.26701,
+          0.059059
+        ],
+        [
+          0.5885,
+          0.269393,
+          0.095059
+        ],
+        [
+          0.620167,
+          0.2725,
+          0.059059
+        ],
+        [
+          0.651833,
+          0.276118,
+          0.095059
+        ],
+        [
+          0.6835,
+          0.28,
+          0.059059
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.3035,
+          0.28,
+          0.136118
+        ],
+        [
+          0.335167,
+          0.276118,
+          0.172118
+        ],
+        [
+          0.366833,
+          0.2725,
+          0.136118
+        ],
+        [
+          0.3985,
+          0.269393,
+          0.172118
+        ],
+        [
+          0.430167,
+          0.26701,
+          0.136118
+        ],
+        [
+          0.461833,
+          0.265511,
+          0.172118
+        ],
+        [
+          0.4935,
+          0.265,
+          0.136118
+        ],
+        [
+          0.525167,
+          0.265511,
+          0.172118
+        ],
+        [
+          0.556833,
+          0.26701,
+          0.136118
+        ],
+        [
+          0.5885,
+          0.269393,
+          0.172118
+        ],
+        [
+          0.620167,
+          0.2725,
+          0.136118
+        ],
+        [
+          0.651833,
+          0.276118,
+          0.172118
+        ],
+        [
+          0.6835,
+          0.28,
+          0.136118
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.3035,
+          0.28,
+          0.213176
+        ],
+        [
+          0.335167,
+          0.276118,
+          0.249176
+        ],
+        [
+          0.366833,
+          0.2725,
+          0.213176
+        ],
+        [
+          0.3985,
+          0.269393,
+          0.249176
+        ],
+        [
+          0.430167,
+          0.26701,
+          0.213176
+        ],
+        [
+          0.461833,
+          0.265511,
+          0.249176
+        ],
+        [
+          0.4935,
+          0.265,
+          0.213176
+        ],
+        [
+          0.525167,
+          0.265511,
+          0.249176
+        ],
+        [
+          0.556833,
+          0.26701,
+          0.213176
+        ],
+        [
+          0.5885,
+          0.269393,
+          0.249176
+        ],
+        [
+          0.620167,
+          0.2725,
+          0.213176
+        ],
+        [
+          0.651833,
+          0.276118,
+          0.249176
+        ],
+        [
+          0.6835,
+          0.28,
+          0.213176
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.3035,
+          0.28,
+          0.290235
+        ],
+        [
+          0.335167,
+          0.276118,
+          0.326235
+        ],
+        [
+          0.366833,
+          0.2725,
+          0.290235
+        ],
+        [
+          0.3985,
+          0.269393,
+          0.326235
+        ],
+        [
+          0.430167,
+          0.26701,
+          0.290235
+        ],
+        [
+          0.461833,
+          0.265511,
+          0.326235
+        ],
+        [
+          0.4935,
+          0.265,
+          0.290235
+        ],
+        [
+          0.525167,
+          0.265511,
+          0.326235
+        ],
+        [
+          0.556833,
+          0.26701,
+          0.290235
+        ],
+        [
+          0.5885,
+          0.269393,
+          0.326235
+        ],
+        [
+          0.620167,
+          0.2725,
+          0.290235
+        ],
+        [
+          0.651833,
+          0.276118,
+          0.326235
+        ],
+        [
+          0.6835,
+          0.28,
+          0.290235
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.3035,
+          0.28,
+          0.367294
+        ],
+        [
+          0.335167,
+          0.276118,
+          0.403294
+        ],
+        [
+          0.366833,
+          0.2725,
+          0.367294
+        ],
+        [
+          0.3985,
+          0.269393,
+          0.403294
+        ],
+        [
+          0.430167,
+          0.26701,
+          0.367294
+        ],
+        [
+          0.461833,
+          0.265511,
+          0.403294
+        ],
+        [
+          0.4935,
+          0.265,
+          0.367294
+        ],
+        [
+          0.525167,
+          0.265511,
+          0.403294
+        ],
+        [
+          0.556833,
+          0.26701,
+          0.367294
+        ],
+        [
+          0.5885,
+          0.269393,
+          0.403294
+        ],
+        [
+          0.620167,
+          0.2725,
+          0.367294
+        ],
+        [
+          0.651833,
+          0.276118,
+          0.403294
+        ],
+        [
+          0.6835,
+          0.28,
+          0.367294
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.3035,
+          0.28,
+          0.444353
+        ],
+        [
+          0.335167,
+          0.276118,
+          0.480353
+        ],
+        [
+          0.366833,
+          0.2725,
+          0.444353
+        ],
+        [
+          0.3985,
+          0.269393,
+          0.480353
+        ],
+        [
+          0.430167,
+          0.26701,
+          0.444353
+        ],
+        [
+          0.461833,
+          0.265511,
+          0.480353
+        ],
+        [
+          0.4935,
+          0.265,
+          0.444353
+        ],
+        [
+          0.525167,
+          0.265511,
+          0.480353
+        ],
+        [
+          0.556833,
+          0.26701,
+          0.444353
+        ],
+        [
+          0.5885,
+          0.269393,
+          0.480353
+        ],
+        [
+          0.620167,
+          0.2725,
+          0.444353
+        ],
+        [
+          0.651833,
+          0.276118,
+          0.480353
+        ],
+        [
+          0.6835,
+          0.28,
+          0.444353
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.3035,
+          0.28,
+          0.521412
+        ],
+        [
+          0.335167,
+          0.276118,
+          0.557412
+        ],
+        [
+          0.366833,
+          0.2725,
+          0.521412
+        ],
+        [
+          0.3985,
+          0.269393,
+          0.557412
+        ],
+        [
+          0.430167,
+          0.26701,
+          0.521412
+        ],
+        [
+          0.461833,
+          0.265511,
+          0.557412
+        ],
+        [
+          0.4935,
+          0.265,
+          0.521412
+        ],
+        [
+          0.525167,
+          0.265511,
+          0.557412
+        ],
+        [
+          0.556833,
+          0.26701,
+          0.521412
+        ],
+        [
+          0.5885,
+          0.269393,
+          0.557412
+        ],
+        [
+          0.620167,
+          0.2725,
+          0.521412
+        ],
+        [
+          0.651833,
+          0.276118,
+          0.557412
+        ],
+        [
+          0.6835,
+          0.28,
+          0.521412
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.3035,
+          0.28,
+          0.598471
+        ],
+        [
+          0.335167,
+          0.276118,
+          0.634471
+        ],
+        [
+          0.366833,
+          0.2725,
+          0.598471
+        ],
+        [
+          0.3985,
+          0.269393,
+          0.634471
+        ],
+        [
+          0.430167,
+          0.26701,
+          0.598471
+        ],
+        [
+          0.461833,
+          0.265511,
+          0.634471
+        ],
+        [
+          0.4935,
+          0.265,
+          0.598471
+        ],
+        [
+          0.525167,
+          0.265511,
+          0.634471
+        ],
+        [
+          0.556833,
+          0.26701,
+          0.598471
+        ],
+        [
+          0.5885,
+          0.269393,
+          0.634471
+        ],
+        [
+          0.620167,
+          0.2725,
+          0.598471
+        ],
+        [
+          0.651833,
+          0.276118,
+          0.634471
+        ],
+        [
+          0.6835,
+          0.28,
+          0.598471
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.761032,
+          0.339492,
+          -0.634471
+        ],
+        [
+          0.77695,
+          0.374081,
+          -0.598471
+        ],
+        [
+          0.792737,
+          0.408722,
+          -0.634471
+        ],
+        [
+          0.808271,
+          0.443463,
+          -0.598471
+        ],
+        [
+          0.823446,
+          0.478346,
+          -0.634471
+        ],
+        [
+          0.838182,
+          0.513403,
+          -0.598471
+        ],
+        [
+          0.852429,
+          0.548653,
+          -0.634471
+        ],
+        [
+          0.866168,
+          0.584104,
+          -0.598471
+        ],
+        [
+          0.879418,
+          0.61975,
+          -0.634471
+        ],
+        [
+          0.892229,
+          0.655568,
+          -0.598471
+        ],
+        [
+          0.904682,
+          0.691529,
+          -0.634471
+        ],
+        [
+          0.916881,
+          0.72759,
+          -0.598471
+        ],
+        [
+          0.928949,
+          0.763703,
+          -0.634471
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.761032,
+          0.339492,
+          -0.557412
+        ],
+        [
+          0.77695,
+          0.374081,
+          -0.521412
+        ],
+        [
+          0.792737,
+          0.408722,
+          -0.557412
+        ],
+        [
+          0.808271,
+          0.443463,
+          -0.521412
+        ],
+        [
+          0.823446,
+          0.478346,
+          -0.557412
+        ],
+        [
+          0.838182,
+          0.513403,
+          -0.521412
+        ],
+        [
+          0.852429,
+          0.548653,
+          -0.557412
+        ],
+        [
+          0.866168,
+          0.584104,
+          -0.521412
+        ],
+        [
+          0.879418,
+          0.61975,
+          -0.557412
+        ],
+        [
+          0.892229,
+          0.655568,
+          -0.521412
+        ],
+        [
+          0.904682,
+          0.691529,
+          -0.557412
+        ],
+        [
+          0.916881,
+          0.72759,
+          -0.521412
+        ],
+        [
+          0.928949,
+          0.763703,
+          -0.557412
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.761032,
+          0.339492,
+          -0.480353
+        ],
+        [
+          0.77695,
+          0.374081,
+          -0.444353
+        ],
+        [
+          0.792737,
+          0.408722,
+          -0.480353
+        ],
+        [
+          0.808271,
+          0.443463,
+          -0.444353
+        ],
+        [
+          0.823446,
+          0.478346,
+          -0.480353
+        ],
+        [
+          0.838182,
+          0.513403,
+          -0.444353
+        ],
+        [
+          0.852429,
+          0.548653,
+          -0.480353
+        ],
+        [
+          0.866168,
+          0.584104,
+          -0.444353
+        ],
+        [
+          0.879418,
+          0.61975,
+          -0.480353
+        ],
+        [
+          0.892229,
+          0.655568,
+          -0.444353
+        ],
+        [
+          0.904682,
+          0.691529,
+          -0.480353
+        ],
+        [
+          0.916881,
+          0.72759,
+          -0.444353
+        ],
+        [
+          0.928949,
+          0.763703,
+          -0.480353
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.761032,
+          0.339492,
+          -0.403294
+        ],
+        [
+          0.77695,
+          0.374081,
+          -0.367294
+        ],
+        [
+          0.792737,
+          0.408722,
+          -0.403294
+        ],
+        [
+          0.808271,
+          0.443463,
+          -0.367294
+        ],
+        [
+          0.823446,
+          0.478346,
+          -0.403294
+        ],
+        [
+          0.838182,
+          0.513403,
+          -0.367294
+        ],
+        [
+          0.852429,
+          0.548653,
+          -0.403294
+        ],
+        [
+          0.866168,
+          0.584104,
+          -0.367294
+        ],
+        [
+          0.879418,
+          0.61975,
+          -0.403294
+        ],
+        [
+          0.892229,
+          0.655568,
+          -0.367294
+        ],
+        [
+          0.904682,
+          0.691529,
+          -0.403294
+        ],
+        [
+          0.916881,
+          0.72759,
+          -0.367294
+        ],
+        [
+          0.928949,
+          0.763703,
+          -0.403294
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.761032,
+          0.339492,
+          -0.326235
+        ],
+        [
+          0.77695,
+          0.374081,
+          -0.290235
+        ],
+        [
+          0.792737,
+          0.408722,
+          -0.326235
+        ],
+        [
+          0.808271,
+          0.443463,
+          -0.290235
+        ],
+        [
+          0.823446,
+          0.478346,
+          -0.326235
+        ],
+        [
+          0.838182,
+          0.513403,
+          -0.290235
+        ],
+        [
+          0.852429,
+          0.548653,
+          -0.326235
+        ],
+        [
+          0.866168,
+          0.584104,
+          -0.290235
+        ],
+        [
+          0.879418,
+          0.61975,
+          -0.326235
+        ],
+        [
+          0.892229,
+          0.655568,
+          -0.290235
+        ],
+        [
+          0.904682,
+          0.691529,
+          -0.326235
+        ],
+        [
+          0.916881,
+          0.72759,
+          -0.290235
+        ],
+        [
+          0.928949,
+          0.763703,
+          -0.326235
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.761032,
+          0.339492,
+          -0.249176
+        ],
+        [
+          0.77695,
+          0.374081,
+          -0.213176
+        ],
+        [
+          0.792737,
+          0.408722,
+          -0.249176
+        ],
+        [
+          0.808271,
+          0.443463,
+          -0.213176
+        ],
+        [
+          0.823446,
+          0.478346,
+          -0.249176
+        ],
+        [
+          0.838182,
+          0.513403,
+          -0.213176
+        ],
+        [
+          0.852429,
+          0.548653,
+          -0.249176
+        ],
+        [
+          0.866168,
+          0.584104,
+          -0.213176
+        ],
+        [
+          0.879418,
+          0.61975,
+          -0.249176
+        ],
+        [
+          0.892229,
+          0.655568,
+          -0.213176
+        ],
+        [
+          0.904682,
+          0.691529,
+          -0.249176
+        ],
+        [
+          0.916881,
+          0.72759,
+          -0.213176
+        ],
+        [
+          0.928949,
+          0.763703,
+          -0.249176
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.761032,
+          0.339492,
+          -0.172118
+        ],
+        [
+          0.77695,
+          0.374081,
+          -0.136118
+        ],
+        [
+          0.792737,
+          0.408722,
+          -0.172118
+        ],
+        [
+          0.808271,
+          0.443463,
+          -0.136118
+        ],
+        [
+          0.823446,
+          0.478346,
+          -0.172118
+        ],
+        [
+          0.838182,
+          0.513403,
+          -0.136118
+        ],
+        [
+          0.852429,
+          0.548653,
+          -0.172118
+        ],
+        [
+          0.866168,
+          0.584104,
+          -0.136118
+        ],
+        [
+          0.879418,
+          0.61975,
+          -0.172118
+        ],
+        [
+          0.892229,
+          0.655568,
+          -0.136118
+        ],
+        [
+          0.904682,
+          0.691529,
+          -0.172118
+        ],
+        [
+          0.916881,
+          0.72759,
+          -0.136118
+        ],
+        [
+          0.928949,
+          0.763703,
+          -0.172118
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.761032,
+          0.339492,
+          -0.095059
+        ],
+        [
+          0.77695,
+          0.374081,
+          -0.059059
+        ],
+        [
+          0.792737,
+          0.408722,
+          -0.095059
+        ],
+        [
+          0.808271,
+          0.443463,
+          -0.059059
+        ],
+        [
+          0.823446,
+          0.478346,
+          -0.095059
+        ],
+        [
+          0.838182,
+          0.513403,
+          -0.059059
+        ],
+        [
+          0.852429,
+          0.548653,
+          -0.095059
+        ],
+        [
+          0.866168,
+          0.584104,
+          -0.059059
+        ],
+        [
+          0.879418,
+          0.61975,
+          -0.095059
+        ],
+        [
+          0.892229,
+          0.655568,
+          -0.059059
+        ],
+        [
+          0.904682,
+          0.691529,
+          -0.095059
+        ],
+        [
+          0.916881,
+          0.72759,
+          -0.059059
+        ],
+        [
+          0.928949,
+          0.763703,
+          -0.095059
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.761032,
+          0.339492,
+          -0.018
+        ],
+        [
+          0.77695,
+          0.374081,
+          0.018
+        ],
+        [
+          0.792737,
+          0.408722,
+          -0.018
+        ],
+        [
+          0.808271,
+          0.443463,
+          0.018
+        ],
+        [
+          0.823446,
+          0.478346,
+          -0.018
+        ],
+        [
+          0.838182,
+          0.513403,
+          0.018
+        ],
+        [
+          0.852429,
+          0.548653,
+          -0.018
+        ],
+        [
+          0.866168,
+          0.584104,
+          0.018
+        ],
+        [
+          0.879418,
+          0.61975,
+          -0.018
+        ],
+        [
+          0.892229,
+          0.655568,
+          0.018
+        ],
+        [
+          0.904682,
+          0.691529,
+          -0.018
+        ],
+        [
+          0.916881,
+          0.72759,
+          0.018
+        ],
+        [
+          0.928949,
+          0.763703,
+          -0.018
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.761032,
+          0.339492,
+          0.059059
+        ],
+        [
+          0.77695,
+          0.374081,
+          0.095059
+        ],
+        [
+          0.792737,
+          0.408722,
+          0.059059
+        ],
+        [
+          0.808271,
+          0.443463,
+          0.095059
+        ],
+        [
+          0.823446,
+          0.478346,
+          0.059059
+        ],
+        [
+          0.838182,
+          0.513403,
+          0.095059
+        ],
+        [
+          0.852429,
+          0.548653,
+          0.059059
+        ],
+        [
+          0.866168,
+          0.584104,
+          0.095059
+        ],
+        [
+          0.879418,
+          0.61975,
+          0.059059
+        ],
+        [
+          0.892229,
+          0.655568,
+          0.095059
+        ],
+        [
+          0.904682,
+          0.691529,
+          0.059059
+        ],
+        [
+          0.916881,
+          0.72759,
+          0.095059
+        ],
+        [
+          0.928949,
+          0.763703,
+          0.059059
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.761032,
+          0.339492,
+          0.136118
+        ],
+        [
+          0.77695,
+          0.374081,
+          0.172118
+        ],
+        [
+          0.792737,
+          0.408722,
+          0.136118
+        ],
+        [
+          0.808271,
+          0.443463,
+          0.172118
+        ],
+        [
+          0.823446,
+          0.478346,
+          0.136118
+        ],
+        [
+          0.838182,
+          0.513403,
+          0.172118
+        ],
+        [
+          0.852429,
+          0.548653,
+          0.136118
+        ],
+        [
+          0.866168,
+          0.584104,
+          0.172118
+        ],
+        [
+          0.879418,
+          0.61975,
+          0.136118
+        ],
+        [
+          0.892229,
+          0.655568,
+          0.172118
+        ],
+        [
+          0.904682,
+          0.691529,
+          0.136118
+        ],
+        [
+          0.916881,
+          0.72759,
+          0.172118
+        ],
+        [
+          0.928949,
+          0.763703,
+          0.136118
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.761032,
+          0.339492,
+          0.213176
+        ],
+        [
+          0.77695,
+          0.374081,
+          0.249176
+        ],
+        [
+          0.792737,
+          0.408722,
+          0.213176
+        ],
+        [
+          0.808271,
+          0.443463,
+          0.249176
+        ],
+        [
+          0.823446,
+          0.478346,
+          0.213176
+        ],
+        [
+          0.838182,
+          0.513403,
+          0.249176
+        ],
+        [
+          0.852429,
+          0.548653,
+          0.213176
+        ],
+        [
+          0.866168,
+          0.584104,
+          0.249176
+        ],
+        [
+          0.879418,
+          0.61975,
+          0.213176
+        ],
+        [
+          0.892229,
+          0.655568,
+          0.249176
+        ],
+        [
+          0.904682,
+          0.691529,
+          0.213176
+        ],
+        [
+          0.916881,
+          0.72759,
+          0.249176
+        ],
+        [
+          0.928949,
+          0.763703,
+          0.213176
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.761032,
+          0.339492,
+          0.290235
+        ],
+        [
+          0.77695,
+          0.374081,
+          0.326235
+        ],
+        [
+          0.792737,
+          0.408722,
+          0.290235
+        ],
+        [
+          0.808271,
+          0.443463,
+          0.326235
+        ],
+        [
+          0.823446,
+          0.478346,
+          0.290235
+        ],
+        [
+          0.838182,
+          0.513403,
+          0.326235
+        ],
+        [
+          0.852429,
+          0.548653,
+          0.290235
+        ],
+        [
+          0.866168,
+          0.584104,
+          0.326235
+        ],
+        [
+          0.879418,
+          0.61975,
+          0.290235
+        ],
+        [
+          0.892229,
+          0.655568,
+          0.326235
+        ],
+        [
+          0.904682,
+          0.691529,
+          0.290235
+        ],
+        [
+          0.916881,
+          0.72759,
+          0.326235
+        ],
+        [
+          0.928949,
+          0.763703,
+          0.290235
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.761032,
+          0.339492,
+          0.367294
+        ],
+        [
+          0.77695,
+          0.374081,
+          0.403294
+        ],
+        [
+          0.792737,
+          0.408722,
+          0.367294
+        ],
+        [
+          0.808271,
+          0.443463,
+          0.403294
+        ],
+        [
+          0.823446,
+          0.478346,
+          0.367294
+        ],
+        [
+          0.838182,
+          0.513403,
+          0.403294
+        ],
+        [
+          0.852429,
+          0.548653,
+          0.367294
+        ],
+        [
+          0.866168,
+          0.584104,
+          0.403294
+        ],
+        [
+          0.879418,
+          0.61975,
+          0.367294
+        ],
+        [
+          0.892229,
+          0.655568,
+          0.403294
+        ],
+        [
+          0.904682,
+          0.691529,
+          0.367294
+        ],
+        [
+          0.916881,
+          0.72759,
+          0.403294
+        ],
+        [
+          0.928949,
+          0.763703,
+          0.367294
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.761032,
+          0.339492,
+          0.444353
+        ],
+        [
+          0.77695,
+          0.374081,
+          0.480353
+        ],
+        [
+          0.792737,
+          0.408722,
+          0.444353
+        ],
+        [
+          0.808271,
+          0.443463,
+          0.480353
+        ],
+        [
+          0.823446,
+          0.478346,
+          0.444353
+        ],
+        [
+          0.838182,
+          0.513403,
+          0.480353
+        ],
+        [
+          0.852429,
+          0.548653,
+          0.444353
+        ],
+        [
+          0.866168,
+          0.584104,
+          0.480353
+        ],
+        [
+          0.879418,
+          0.61975,
+          0.444353
+        ],
+        [
+          0.892229,
+          0.655568,
+          0.480353
+        ],
+        [
+          0.904682,
+          0.691529,
+          0.444353
+        ],
+        [
+          0.916881,
+          0.72759,
+          0.480353
+        ],
+        [
+          0.928949,
+          0.763703,
+          0.444353
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.761032,
+          0.339492,
+          0.521412
+        ],
+        [
+          0.77695,
+          0.374081,
+          0.557412
+        ],
+        [
+          0.792737,
+          0.408722,
+          0.521412
+        ],
+        [
+          0.808271,
+          0.443463,
+          0.557412
+        ],
+        [
+          0.823446,
+          0.478346,
+          0.521412
+        ],
+        [
+          0.838182,
+          0.513403,
+          0.557412
+        ],
+        [
+          0.852429,
+          0.548653,
+          0.521412
+        ],
+        [
+          0.866168,
+          0.584104,
+          0.557412
+        ],
+        [
+          0.879418,
+          0.61975,
+          0.521412
+        ],
+        [
+          0.892229,
+          0.655568,
+          0.557412
+        ],
+        [
+          0.904682,
+          0.691529,
+          0.521412
+        ],
+        [
+          0.916881,
+          0.72759,
+          0.557412
+        ],
+        [
+          0.928949,
+          0.763703,
+          0.521412
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.761032,
+          0.339492,
+          0.598471
+        ],
+        [
+          0.77695,
+          0.374081,
+          0.634471
+        ],
+        [
+          0.792737,
+          0.408722,
+          0.598471
+        ],
+        [
+          0.808271,
+          0.443463,
+          0.634471
+        ],
+        [
+          0.823446,
+          0.478346,
+          0.598471
+        ],
+        [
+          0.838182,
+          0.513403,
+          0.634471
+        ],
+        [
+          0.852429,
+          0.548653,
+          0.598471
+        ],
+        [
+          0.866168,
+          0.584104,
+          0.634471
+        ],
+        [
+          0.879418,
+          0.61975,
+          0.598471
+        ],
+        [
+          0.892229,
+          0.655568,
+          0.634471
+        ],
+        [
+          0.904682,
+          0.691529,
+          0.598471
+        ],
+        [
+          0.916881,
+          0.72759,
+          0.634471
+        ],
+        [
+          0.928949,
+          0.763703,
+          0.598471
+        ]
+      ],
+      "radius_m": 0.002,
+      "material": "steel"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -1.2385,
+          0.183,
+          -0.6095
+        ],
+        [
+          -1.244736,
+          0.230364,
+          -0.6095
+        ],
+        [
+          -1.263017,
+          0.2745,
+          -0.6095
+        ],
+        [
+          -1.292099,
+          0.312401,
+          -0.6095
+        ],
+        [
+          -1.33,
+          0.341483,
+          -0.6095
+        ],
+        [
+          -1.374136,
+          0.359764,
+          -0.6095
+        ],
+        [
+          -1.4215,
+          0.366,
+          -0.6095
+        ],
+        [
+          -1.468864,
+          0.359764,
+          -0.6095
+        ],
+        [
+          -1.513,
+          0.341483,
+          -0.6095
+        ],
+        [
+          -1.550901,
+          0.312401,
+          -0.6095
+        ],
+        [
+          -1.579983,
+          0.2745,
+          -0.6095
+        ],
+        [
+          -1.598264,
+          0.230364,
+          -0.6095
+        ],
+        [
+          -1.6045,
+          0.183,
+          -0.6095
+        ],
+        [
+          -1.598264,
+          0.135636,
+          -0.6095
+        ],
+        [
+          -1.579983,
+          0.0915,
+          -0.6095
+        ],
+        [
+          -1.550901,
+          0.053599,
+          -0.6095
+        ],
+        [
+          -1.513,
+          0.024517,
+          -0.6095
+        ],
+        [
+          -1.468864,
+          0.006236,
+          -0.6095
+        ],
+        [
+          -1.4215,
+          0.0,
+          -0.6095
+        ],
+        [
+          -1.374136,
+          0.006236,
+          -0.6095
+        ],
+        [
+          -1.33,
+          0.024517,
+          -0.6095
+        ],
+        [
+          -1.292099,
+          0.053599,
+          -0.6095
+        ],
+        [
+          -1.263017,
+          0.0915,
+          -0.6095
+        ],
+        [
+          -1.244736,
+          0.135636,
+          -0.6095
+        ],
+        [
+          -1.2385,
+          0.183,
+          -0.6095
+        ]
+      ],
+      "radius_m": 0.003,
+      "material": "steel"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -1.2385,
+          0.183,
+          -0.7395
+        ],
+        [
+          -1.244736,
+          0.230364,
+          -0.7395
+        ],
+        [
+          -1.263017,
+          0.2745,
+          -0.7395
+        ],
+        [
+          -1.292099,
+          0.312401,
+          -0.7395
+        ],
+        [
+          -1.33,
+          0.341483,
+          -0.7395
+        ],
+        [
+          -1.374136,
+          0.359764,
+          -0.7395
+        ],
+        [
+          -1.4215,
+          0.366,
+          -0.7395
+        ],
+        [
+          -1.468864,
+          0.359764,
+          -0.7395
+        ],
+        [
+          -1.513,
+          0.341483,
+          -0.7395
+        ],
+        [
+          -1.550901,
+          0.312401,
+          -0.7395
+        ],
+        [
+          -1.579983,
+          0.2745,
+          -0.7395
+        ],
+        [
+          -1.598264,
+          0.230364,
+          -0.7395
+        ],
+        [
+          -1.6045,
+          0.183,
+          -0.7395
+        ],
+        [
+          -1.598264,
+          0.135636,
+          -0.7395
+        ],
+        [
+          -1.579983,
+          0.0915,
+          -0.7395
+        ],
+        [
+          -1.550901,
+          0.053599,
+          -0.7395
+        ],
+        [
+          -1.513,
+          0.024517,
+          -0.7395
+        ],
+        [
+          -1.468864,
+          0.006236,
+          -0.7395
+        ],
+        [
+          -1.4215,
+          0.0,
+          -0.7395
+        ],
+        [
+          -1.374136,
+          0.006236,
+          -0.7395
+        ],
+        [
+          -1.33,
+          0.024517,
+          -0.7395
+        ],
+        [
+          -1.292099,
+          0.053599,
+          -0.7395
+        ],
+        [
+          -1.263017,
+          0.0915,
+          -0.7395
+        ],
+        [
+          -1.244736,
+          0.135636,
+          -0.7395
+        ],
+        [
+          -1.2385,
+          0.183,
+          -0.7395
+        ]
+      ],
+      "radius_m": 0.003,
+      "material": "steel"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -1.2385,
+          0.183,
+          0.6095
+        ],
+        [
+          -1.244736,
+          0.230364,
+          0.6095
+        ],
+        [
+          -1.263017,
+          0.2745,
+          0.6095
+        ],
+        [
+          -1.292099,
+          0.312401,
+          0.6095
+        ],
+        [
+          -1.33,
+          0.341483,
+          0.6095
+        ],
+        [
+          -1.374136,
+          0.359764,
+          0.6095
+        ],
+        [
+          -1.4215,
+          0.366,
+          0.6095
+        ],
+        [
+          -1.468864,
+          0.359764,
+          0.6095
+        ],
+        [
+          -1.513,
+          0.341483,
+          0.6095
+        ],
+        [
+          -1.550901,
+          0.312401,
+          0.6095
+        ],
+        [
+          -1.579983,
+          0.2745,
+          0.6095
+        ],
+        [
+          -1.598264,
+          0.230364,
+          0.6095
+        ],
+        [
+          -1.6045,
+          0.183,
+          0.6095
+        ],
+        [
+          -1.598264,
+          0.135636,
+          0.6095
+        ],
+        [
+          -1.579983,
+          0.0915,
+          0.6095
+        ],
+        [
+          -1.550901,
+          0.053599,
+          0.6095
+        ],
+        [
+          -1.513,
+          0.024517,
+          0.6095
+        ],
+        [
+          -1.468864,
+          0.006236,
+          0.6095
+        ],
+        [
+          -1.4215,
+          0.0,
+          0.6095
+        ],
+        [
+          -1.374136,
+          0.006236,
+          0.6095
+        ],
+        [
+          -1.33,
+          0.024517,
+          0.6095
+        ],
+        [
+          -1.292099,
+          0.053599,
+          0.6095
+        ],
+        [
+          -1.263017,
+          0.0915,
+          0.6095
+        ],
+        [
+          -1.244736,
+          0.135636,
+          0.6095
+        ],
+        [
+          -1.2385,
+          0.183,
+          0.6095
+        ]
+      ],
+      "radius_m": 0.003,
+      "material": "steel"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -1.2385,
+          0.183,
+          0.7395
+        ],
+        [
+          -1.244736,
+          0.230364,
+          0.7395
+        ],
+        [
+          -1.263017,
+          0.2745,
+          0.7395
+        ],
+        [
+          -1.292099,
+          0.312401,
+          0.7395
+        ],
+        [
+          -1.33,
+          0.341483,
+          0.7395
+        ],
+        [
+          -1.374136,
+          0.359764,
+          0.7395
+        ],
+        [
+          -1.4215,
+          0.366,
+          0.7395
+        ],
+        [
+          -1.468864,
+          0.359764,
+          0.7395
+        ],
+        [
+          -1.513,
+          0.341483,
+          0.7395
+        ],
+        [
+          -1.550901,
+          0.312401,
+          0.7395
+        ],
+        [
+          -1.579983,
+          0.2745,
+          0.7395
+        ],
+        [
+          -1.598264,
+          0.230364,
+          0.7395
+        ],
+        [
+          -1.6045,
+          0.183,
+          0.7395
+        ],
+        [
+          -1.598264,
+          0.135636,
+          0.7395
+        ],
+        [
+          -1.579983,
+          0.0915,
+          0.7395
+        ],
+        [
+          -1.550901,
+          0.053599,
+          0.7395
+        ],
+        [
+          -1.513,
+          0.024517,
+          0.7395
+        ],
+        [
+          -1.468864,
+          0.006236,
+          0.7395
+        ],
+        [
+          -1.4215,
+          0.0,
+          0.7395
+        ],
+        [
+          -1.374136,
+          0.006236,
+          0.7395
+        ],
+        [
+          -1.33,
+          0.024517,
+          0.7395
+        ],
+        [
+          -1.292099,
+          0.053599,
+          0.7395
+        ],
+        [
+          -1.263017,
+          0.0915,
+          0.7395
+        ],
+        [
+          -1.244736,
+          0.135636,
+          0.7395
+        ],
+        [
+          -1.2385,
+          0.183,
+          0.7395
+        ]
+      ],
+      "radius_m": 0.003,
+      "material": "steel"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.1855,
+          0.183,
+          -0.5875
+        ],
+        [
+          1.179264,
+          0.230364,
+          -0.5875
+        ],
+        [
+          1.160983,
+          0.2745,
+          -0.5875
+        ],
+        [
+          1.131901,
+          0.312401,
+          -0.5875
+        ],
+        [
+          1.094,
+          0.341483,
+          -0.5875
+        ],
+        [
+          1.049864,
+          0.359764,
+          -0.5875
+        ],
+        [
+          1.0025,
+          0.366,
+          -0.5875
+        ],
+        [
+          0.955136,
+          0.359764,
+          -0.5875
+        ],
+        [
+          0.911,
+          0.341483,
+          -0.5875
+        ],
+        [
+          0.873099,
+          0.312401,
+          -0.5875
+        ],
+        [
+          0.844017,
+          0.2745,
+          -0.5875
+        ],
+        [
+          0.825736,
+          0.230364,
+          -0.5875
+        ],
+        [
+          0.8195,
+          0.183,
+          -0.5875
+        ],
+        [
+          0.825736,
+          0.135636,
+          -0.5875
+        ],
+        [
+          0.844017,
+          0.0915,
+          -0.5875
+        ],
+        [
+          0.873099,
+          0.053599,
+          -0.5875
+        ],
+        [
+          0.911,
+          0.024517,
+          -0.5875
+        ],
+        [
+          0.955136,
+          0.006236,
+          -0.5875
+        ],
+        [
+          1.0025,
+          0.0,
+          -0.5875
+        ],
+        [
+          1.049864,
+          0.006236,
+          -0.5875
+        ],
+        [
+          1.094,
+          0.024517,
+          -0.5875
+        ],
+        [
+          1.131901,
+          0.053599,
+          -0.5875
+        ],
+        [
+          1.160983,
+          0.0915,
+          -0.5875
+        ],
+        [
+          1.179264,
+          0.135636,
+          -0.5875
+        ],
+        [
+          1.1855,
+          0.183,
+          -0.5875
+        ]
+      ],
+      "radius_m": 0.003,
+      "material": "steel"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.1855,
+          0.183,
+          -0.7175
+        ],
+        [
+          1.179264,
+          0.230364,
+          -0.7175
+        ],
+        [
+          1.160983,
+          0.2745,
+          -0.7175
+        ],
+        [
+          1.131901,
+          0.312401,
+          -0.7175
+        ],
+        [
+          1.094,
+          0.341483,
+          -0.7175
+        ],
+        [
+          1.049864,
+          0.359764,
+          -0.7175
+        ],
+        [
+          1.0025,
+          0.366,
+          -0.7175
+        ],
+        [
+          0.955136,
+          0.359764,
+          -0.7175
+        ],
+        [
+          0.911,
+          0.341483,
+          -0.7175
+        ],
+        [
+          0.873099,
+          0.312401,
+          -0.7175
+        ],
+        [
+          0.844017,
+          0.2745,
+          -0.7175
+        ],
+        [
+          0.825736,
+          0.230364,
+          -0.7175
+        ],
+        [
+          0.8195,
+          0.183,
+          -0.7175
+        ],
+        [
+          0.825736,
+          0.135636,
+          -0.7175
+        ],
+        [
+          0.844017,
+          0.0915,
+          -0.7175
+        ],
+        [
+          0.873099,
+          0.053599,
+          -0.7175
+        ],
+        [
+          0.911,
+          0.024517,
+          -0.7175
+        ],
+        [
+          0.955136,
+          0.006236,
+          -0.7175
+        ],
+        [
+          1.0025,
+          0.0,
+          -0.7175
+        ],
+        [
+          1.049864,
+          0.006236,
+          -0.7175
+        ],
+        [
+          1.094,
+          0.024517,
+          -0.7175
+        ],
+        [
+          1.131901,
+          0.053599,
+          -0.7175
+        ],
+        [
+          1.160983,
+          0.0915,
+          -0.7175
+        ],
+        [
+          1.179264,
+          0.135636,
+          -0.7175
+        ],
+        [
+          1.1855,
+          0.183,
+          -0.7175
+        ]
+      ],
+      "radius_m": 0.003,
+      "material": "steel"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.1855,
+          0.183,
+          0.5875
+        ],
+        [
+          1.179264,
+          0.230364,
+          0.5875
+        ],
+        [
+          1.160983,
+          0.2745,
+          0.5875
+        ],
+        [
+          1.131901,
+          0.312401,
+          0.5875
+        ],
+        [
+          1.094,
+          0.341483,
+          0.5875
+        ],
+        [
+          1.049864,
+          0.359764,
+          0.5875
+        ],
+        [
+          1.0025,
+          0.366,
+          0.5875
+        ],
+        [
+          0.955136,
+          0.359764,
+          0.5875
+        ],
+        [
+          0.911,
+          0.341483,
+          0.5875
+        ],
+        [
+          0.873099,
+          0.312401,
+          0.5875
+        ],
+        [
+          0.844017,
+          0.2745,
+          0.5875
+        ],
+        [
+          0.825736,
+          0.230364,
+          0.5875
+        ],
+        [
+          0.8195,
+          0.183,
+          0.5875
+        ],
+        [
+          0.825736,
+          0.135636,
+          0.5875
+        ],
+        [
+          0.844017,
+          0.0915,
+          0.5875
+        ],
+        [
+          0.873099,
+          0.053599,
+          0.5875
+        ],
+        [
+          0.911,
+          0.024517,
+          0.5875
+        ],
+        [
+          0.955136,
+          0.006236,
+          0.5875
+        ],
+        [
+          1.0025,
+          0.0,
+          0.5875
+        ],
+        [
+          1.049864,
+          0.006236,
+          0.5875
+        ],
+        [
+          1.094,
+          0.024517,
+          0.5875
+        ],
+        [
+          1.131901,
+          0.053599,
+          0.5875
+        ],
+        [
+          1.160983,
+          0.0915,
+          0.5875
+        ],
+        [
+          1.179264,
+          0.135636,
+          0.5875
+        ],
+        [
+          1.1855,
+          0.183,
+          0.5875
+        ]
+      ],
+      "radius_m": 0.003,
+      "material": "steel"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          1.1855,
+          0.183,
+          0.7175
+        ],
+        [
+          1.179264,
+          0.230364,
+          0.7175
+        ],
+        [
+          1.160983,
+          0.2745,
+          0.7175
+        ],
+        [
+          1.131901,
+          0.312401,
+          0.7175
+        ],
+        [
+          1.094,
+          0.341483,
+          0.7175
+        ],
+        [
+          1.049864,
+          0.359764,
+          0.7175
+        ],
+        [
+          1.0025,
+          0.366,
+          0.7175
+        ],
+        [
+          0.955136,
+          0.359764,
+          0.7175
+        ],
+        [
+          0.911,
+          0.341483,
+          0.7175
+        ],
+        [
+          0.873099,
+          0.312401,
+          0.7175
+        ],
+        [
+          0.844017,
+          0.2745,
+          0.7175
+        ],
+        [
+          0.825736,
+          0.230364,
+          0.7175
+        ],
+        [
+          0.8195,
+          0.183,
+          0.7175
+        ],
+        [
+          0.825736,
+          0.135636,
+          0.7175
+        ],
+        [
+          0.844017,
+          0.0915,
+          0.7175
+        ],
+        [
+          0.873099,
+          0.053599,
+          0.7175
+        ],
+        [
+          0.911,
+          0.024517,
+          0.7175
+        ],
+        [
+          0.955136,
+          0.006236,
+          0.7175
+        ],
+        [
+          1.0025,
+          0.0,
+          0.7175
+        ],
+        [
+          1.049864,
+          0.006236,
+          0.7175
+        ],
+        [
+          1.094,
+          0.024517,
+          0.7175
+        ],
+        [
+          1.131901,
+          0.053599,
+          0.7175
+        ],
+        [
+          1.160983,
+          0.0915,
+          0.7175
+        ],
+        [
+          1.179264,
+          0.135636,
+          0.7175
+        ],
+        [
+          1.1855,
+          0.183,
+          0.7175
+        ]
+      ],
+      "radius_m": 0.003,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.252256,
+          0.130388,
+          -0.7015
+        ],
+        [
+          -1.263256,
+          0.097116,
+          -0.7015
+        ],
+        [
+          -1.280823,
+          0.066202,
+          -0.7015
+        ],
+        [
+          -1.304449,
+          0.038943,
+          -0.7015
+        ],
+        [
+          -1.333369,
+          0.016532,
+          -0.7015
+        ],
+        [
+          -1.36778,
+          0.003964,
+          -0.7015
+        ],
+        [
+          -1.403691,
+          -0.001591,
+          -0.7015
+        ],
+        [
+          -1.4397,
+          -3.4e-05,
+          -0.7015
+        ],
+        [
+          -1.474422,
+          0.00846,
+          -0.7015
+        ],
+        [
+          -1.507708,
+          0.021286,
+          -0.7015
+        ],
+        [
+          -1.538006,
+          0.040463,
+          -0.7015
+        ],
+        [
+          -1.564111,
+          0.065314,
+          -0.7015
+        ],
+        [
+          -1.584969,
+          0.094934,
+          -0.7015
+        ],
+        [
+          -1.597998,
+          0.128744,
+          -0.7015
+        ],
+        [
+          -1.604148,
+          0.164283,
+          -0.7015
+        ],
+        [
+          -1.603247,
+          0.200171,
+          -0.7015
+        ],
+        [
+          -1.595395,
+          0.235031,
+          -0.7015
+        ],
+        [
+          -1.579995,
+          0.267018,
+          -0.7015
+        ],
+        [
+          -1.558862,
+          0.29507,
+          -0.7015
+        ],
+        [
+          -1.532933,
+          0.31819,
+          -0.7015
+        ],
+        [
+          -1.503308,
+          0.335597,
+          -0.7015
+        ],
+        [
+          -1.47275,
+          0.351851,
+          -0.7015
+        ],
+        [
+          -1.438957,
+          0.36196,
+          -0.7015
+        ],
+        [
+          -1.403176,
+          0.36528,
+          -0.7015
+        ],
+        [
+          -1.366783,
+          0.361426,
+          -0.7015
+        ],
+        [
+          -1.334605,
+          0.343994,
+          -0.7015
+        ],
+        [
+          -1.307058,
+          0.32103,
+          -0.7015
+        ],
+        [
+          -1.285039,
+          0.293654,
+          -0.7015
+        ],
+        [
+          -1.269193,
+          0.263121,
+          -0.7015
+        ],
+        [
+          -1.255246,
+          0.232165,
+          -0.7015
+        ],
+        [
+          -1.247565,
+          0.198872,
+          -0.7015
+        ],
+        [
+          -1.246527,
+          0.164506,
+          -0.7015
+        ],
+        [
+          -1.252256,
+          0.130388,
+          -0.7015
+        ]
+      ],
+      "radius_m": 0.003,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.354609,
+          0.003,
+          -1.245533
+        ],
+        [
+          -1.320174,
+          0.003,
+          -1.239039
+        ],
+        [
+          -1.287203,
+          0.003,
+          -1.225725
+        ],
+        [
+          -1.257054,
+          0.003,
+          -1.205919
+        ],
+        [
+          -1.231008,
+          0.003,
+          -1.180225
+        ],
+        [
+          -1.21399,
+          0.003,
+          -1.147783
+        ],
+        [
+          -1.203725,
+          0.003,
+          -1.112925
+        ],
+        [
+          -1.200496,
+          0.003,
+          -1.077027
+        ],
+        [
+          -1.204313,
+          0.003,
+          -1.041485
+        ],
+        [
+          -1.212615,
+          0.003,
+          -1.006793
+        ],
+        [
+          -1.227607,
+          0.003,
+          -0.974221
+        ],
+        [
+          -1.248778,
+          0.003,
+          -0.945053
+        ],
+        [
+          -1.275373,
+          0.003,
+          -0.920453
+        ],
+        [
+          -1.307158,
+          0.003,
+          -0.903058
+        ],
+        [
+          -1.341568,
+          0.003,
+          -0.892252
+        ],
+        [
+          -1.377259,
+          0.003,
+          -0.888389
+        ],
+        [
+          -1.412852,
+          0.003,
+          -0.891552
+        ],
+        [
+          -1.446598,
+          0.003,
+          -0.902577
+        ],
+        [
+          -1.477203,
+          0.003,
+          -0.919805
+        ],
+        [
+          -1.503557,
+          0.003,
+          -0.942441
+        ],
+        [
+          -1.524736,
+          0.003,
+          -0.969498
+        ],
+        [
+          -1.544896,
+          0.003,
+          -0.997632
+        ],
+        [
+          -1.559394,
+          0.003,
+          -1.029788
+        ],
+        [
+          -1.567428,
+          0.003,
+          -1.064813
+        ],
+        [
+          -1.568431,
+          0.003,
+          -1.101396
+        ],
+        [
+          -1.555417,
+          0.003,
+          -1.1356
+        ],
+        [
+          -1.536307,
+          0.003,
+          -1.165948
+        ],
+        [
+          -1.51209,
+          0.003,
+          -1.1914
+        ],
+        [
+          -1.483927,
+          0.003,
+          -1.211153
+        ],
+        [
+          -1.455092,
+          0.003,
+          -1.22908
+        ],
+        [
+          -1.423111,
+          0.003,
+          -1.241105
+        ],
+        [
+          -1.389186,
+          0.003,
+          -1.246689
+        ],
+        [
+          -1.354609,
+          0.003,
+          -1.245533
+        ]
+      ],
+      "radius_m": 0.003,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.247084,
+          0.152225,
+          0.7075
+        ],
+        [
+          -1.253784,
+          0.117829,
+          0.7075
+        ],
+        [
+          -1.267297,
+          0.08494,
+          0.7075
+        ],
+        [
+          -1.287283,
+          0.05491,
+          0.7075
+        ],
+        [
+          -1.313133,
+          0.029018,
+          0.7075
+        ],
+        [
+          -1.345677,
+          0.012196,
+          0.7075
+        ],
+        [
+          -1.380596,
+          0.00214,
+          0.7075
+        ],
+        [
+          -1.416512,
+          -0.000873,
+          0.7075
+        ],
+        [
+          -1.45203,
+          0.003157,
+          0.7075
+        ],
+        [
+          -1.486672,
+          0.011667,
+          0.7075
+        ],
+        [
+          -1.519153,
+          0.026855,
+          0.7075
+        ],
+        [
+          -1.548194,
+          0.048201,
+          0.7075
+        ],
+        [
+          -1.572633,
+          0.074942,
+          0.7075
+        ],
+        [
+          -1.589837,
+          0.106832,
+          0.7075
+        ],
+        [
+          -1.600437,
+          0.141306,
+          0.7075
+        ],
+        [
+          -1.604086,
+          0.17702,
+          0.7075
+        ],
+        [
+          -1.600709,
+          0.212593,
+          0.7075
+        ],
+        [
+          -1.589481,
+          0.246272,
+          0.7075
+        ],
+        [
+          -1.57207,
+          0.276773,
+          0.7075
+        ],
+        [
+          -1.549275,
+          0.30299,
+          0.7075
+        ],
+        [
+          -1.522092,
+          0.324007,
+          0.7075
+        ],
+        [
+          -1.493837,
+          0.343998,
+          0.7075
+        ],
+        [
+          -1.461595,
+          0.358302,
+          0.7075
+        ],
+        [
+          -1.426522,
+          0.366125,
+          0.7075
+        ],
+        [
+          -1.389934,
+          0.366908,
+          0.7075
+        ],
+        [
+          -1.355809,
+          0.35369,
+          0.7075
+        ],
+        [
+          -1.325576,
+          0.334397,
+          0.7075
+        ],
+        [
+          -1.30027,
+          0.310029,
+          0.7075
+        ],
+        [
+          -1.280686,
+          0.281747,
+          0.7075
+        ],
+        [
+          -1.262933,
+          0.252805,
+          0.7075
+        ],
+        [
+          -1.2511,
+          0.220753,
+          0.7075
+        ],
+        [
+          -1.24572,
+          0.186795,
+          0.7075
+        ],
+        [
+          -1.247084,
+          0.152225,
+          0.7075
+        ]
+      ],
+      "radius_m": 0.003,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.204987,
+          0.003,
+          1.150665
+        ],
+        [
+          -1.224557,
+          0.003,
+          1.179734
+        ],
+        [
+          -1.249815,
+          0.003,
+          1.204761
+        ],
+        [
+          -1.279921,
+          0.003,
+          1.224632
+        ],
+        [
+          -1.313816,
+          0.003,
+          1.238408
+        ],
+        [
+          -1.350342,
+          0.003,
+          1.241223
+        ],
+        [
+          -1.38642,
+          0.003,
+          1.236881
+        ],
+        [
+          -1.420672,
+          0.003,
+          1.225665
+        ],
+        [
+          -1.451814,
+          0.003,
+          1.208116
+        ],
+        [
+          -1.480404,
+          0.003,
+          1.186783
+        ],
+        [
+          -1.504402,
+          0.003,
+          1.160141
+        ],
+        [
+          -1.522833,
+          0.003,
+          1.129168
+        ],
+        [
+          -1.534924,
+          0.003,
+          1.095018
+        ],
+        [
+          -1.538346,
+          0.003,
+          1.058947
+        ],
+        [
+          -1.534677,
+          0.003,
+          1.023067
+        ],
+        [
+          -1.524125,
+          0.003,
+          0.988753
+        ],
+        [
+          -1.507157,
+          0.003,
+          0.957305
+        ],
+        [
+          -1.483696,
+          0.003,
+          0.930661
+        ],
+        [
+          -1.455778,
+          0.003,
+          0.909353
+        ],
+        [
+          -1.424571,
+          0.003,
+          0.894087
+        ],
+        [
+          -1.391348,
+          0.003,
+          0.88532
+        ],
+        [
+          -1.357538,
+          0.003,
+          0.877916
+        ],
+        [
+          -1.32227,
+          0.003,
+          0.877302
+        ],
+        [
+          -1.28692,
+          0.003,
+          0.88376
+        ],
+        [
+          -1.252918,
+          0.003,
+          0.897293
+        ],
+        [
+          -1.226638,
+          0.003,
+          0.922761
+        ],
+        [
+          -1.206309,
+          0.003,
+          0.952307
+        ],
+        [
+          -1.192496,
+          0.003,
+          0.984609
+        ],
+        [
+          -1.185477,
+          0.003,
+          1.018285
+        ],
+        [
+          -1.180401,
+          0.003,
+          1.051857
+        ],
+        [
+          -1.181989,
+          0.003,
+          1.085987
+        ],
+        [
+          -1.190264,
+          0.003,
+          1.119358
+        ],
+        [
+          -1.204987,
+          0.003,
+          1.150665
+        ]
+      ],
+      "radius_m": 0.003,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.177299,
+          0.154565,
+          -0.6795
+        ],
+        [
+          1.171061,
+          0.120082,
+          -0.6795
+        ],
+        [
+          1.15799,
+          0.087014,
+          -0.6795
+        ],
+        [
+          1.138408,
+          0.056719,
+          -0.6795
+        ],
+        [
+          1.112907,
+          0.030484,
+          -0.6795
+        ],
+        [
+          1.080591,
+          0.013227,
+          -0.6795
+        ],
+        [
+          1.04581,
+          0.002704,
+          -0.6795
+        ],
+        [
+          1.009937,
+          -0.00079,
+          -0.6795
+        ],
+        [
+          0.974368,
+          0.002764,
+          -0.6795
+        ],
+        [
+          0.939616,
+          0.010809,
+          -0.6795
+        ],
+        [
+          0.906934,
+          0.02556,
+          -0.6795
+        ],
+        [
+          0.87761,
+          0.046516,
+          -0.6795
+        ],
+        [
+          0.852814,
+          0.072927,
+          -0.6795
+        ],
+        [
+          0.835185,
+          0.104583,
+          -0.6795
+        ],
+        [
+          0.824125,
+          0.138912,
+          -0.6795
+        ],
+        [
+          0.819997,
+          0.174574,
+          -0.6795
+        ],
+        [
+          0.822897,
+          0.210189,
+          -0.6795
+        ],
+        [
+          0.833673,
+          0.244016,
+          -0.6795
+        ],
+        [
+          0.850674,
+          0.274748,
+          -0.6795
+        ],
+        [
+          0.873115,
+          0.301268,
+          -0.6795
+        ],
+        [
+          0.900014,
+          0.322646,
+          -0.6795
+        ],
+        [
+          0.927999,
+          0.343014,
+          -0.6795
+        ],
+        [
+          0.960047,
+          0.35775,
+          -0.6795
+        ],
+        [
+          0.995012,
+          0.366042,
+          -0.6795
+        ],
+        [
+          1.031586,
+          0.367315,
+          -0.6795
+        ],
+        [
+          1.065885,
+          0.354555,
+          -0.6795
+        ],
+        [
+          1.096374,
+          0.335669,
+          -0.6795
+        ],
+        [
+          1.122004,
+          0.311641,
+          -0.6795
+        ],
+        [
+          1.141965,
+          0.283625,
+          -0.6795
+        ],
+        [
+          1.160104,
+          0.254923,
+          -0.6795
+        ],
+        [
+          1.172366,
+          0.223032,
+          -0.6795
+        ],
+        [
+          1.1782,
+          0.189149,
+          -0.6795
+        ],
+        [
+          1.177299,
+          0.154565,
+          -0.6795
+        ]
+      ],
+      "radius_m": 0.003,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.093949,
+          0.003,
+          -0.888889
+        ],
+        [
+          1.0619,
+          0.003,
+          -0.874716
+        ],
+        [
+          1.027192,
+          0.003,
+          -0.866992
+        ],
+        [
+          0.991128,
+          0.003,
+          -0.866215
+        ],
+        [
+          0.955105,
+          0.003,
+          -0.872615
+        ],
+        [
+          0.922694,
+          0.003,
+          -0.889692
+        ],
+        [
+          0.894476,
+          0.003,
+          -0.912587
+        ],
+        [
+          0.871464,
+          0.003,
+          -0.940327
+        ],
+        [
+          0.854459,
+          0.003,
+          -0.97177
+        ],
+        [
+          0.84163,
+          0.003,
+          -1.005054
+        ],
+        [
+          0.835514,
+          0.003,
+          -1.040386
+        ],
+        [
+          0.836418,
+          0.003,
+          -1.076416
+        ],
+        [
+          0.84438,
+          0.003,
+          -1.111758
+        ],
+        [
+          0.860702,
+          0.003,
+          -1.144107
+        ],
+        [
+          0.882921,
+          0.003,
+          -1.172517
+        ],
+        [
+          0.910132,
+          0.003,
+          -1.195934
+        ],
+        [
+          0.941246,
+          0.003,
+          -1.213507
+        ],
+        [
+          0.975295,
+          0.003,
+          -1.223556
+        ],
+        [
+          1.010274,
+          0.003,
+          -1.226715
+        ],
+        [
+          1.044816,
+          0.003,
+          -1.223008
+        ],
+        [
+          1.077602,
+          0.003,
+          -1.212727
+        ],
+        [
+          1.110159,
+          0.003,
+          -1.200981
+        ],
+        [
+          1.140333,
+          0.003,
+          -1.182711
+        ],
+        [
+          1.166807,
+          0.003,
+          -1.158412
+        ],
+        [
+          1.188373,
+          0.003,
+          -1.128845
+        ],
+        [
+          1.197044,
+          0.003,
+          -1.093292
+        ],
+        [
+          1.198506,
+          0.003,
+          -1.057458
+        ],
+        [
+          1.192987,
+          0.003,
+          -1.022762
+        ],
+        [
+          1.180986,
+          0.003,
+          -0.990524
+        ],
+        [
+          1.167396,
+          0.003,
+          -0.959409
+        ],
+        [
+          1.147868,
+          0.003,
+          -0.931372
+        ],
+        [
+          1.123087,
+          0.003,
+          -0.907539
+        ],
+        [
+          1.093949,
+          0.003,
+          -0.888889
+        ]
+      ],
+      "radius_m": 0.003,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.179438,
+          0.182686,
+          0.6855
+        ],
+        [
+          1.178757,
+          0.14765,
+          0.6855
+        ],
+        [
+          1.171106,
+          0.112925,
+          0.6855
+        ],
+        [
+          1.156586,
+          0.079904,
+          0.6855
+        ],
+        [
+          1.135578,
+          0.04995,
+          0.6855
+        ],
+        [
+          1.106414,
+          0.027778,
+          0.6855
+        ],
+        [
+          1.073747,
+          0.011863,
+          0.6855
+        ],
+        [
+          1.038885,
+          0.002713,
+          0.6855
+        ],
+        [
+          1.003203,
+          0.000571,
+          0.6855
+        ],
+        [
+          0.967614,
+          0.002993,
+          0.6855
+        ],
+        [
+          0.933003,
+          0.012364,
+          0.6855
+        ],
+        [
+          0.900723,
+          0.028394,
+          0.6855
+        ],
+        [
+          0.872046,
+          0.05053,
+          0.6855
+        ],
+        [
+          0.84961,
+          0.078983,
+          0.6855
+        ],
+        [
+          0.833236,
+          0.111119,
+          0.6855
+        ],
+        [
+          0.823496,
+          0.145672,
+          0.6855
+        ],
+        [
+          0.8207,
+          0.181295,
+          0.6855
+        ],
+        [
+          0.825964,
+          0.216404,
+          0.6855
+        ],
+        [
+          0.837867,
+          0.249447,
+          0.6855
+        ],
+        [
+          0.855809,
+          0.279195,
+          0.6855
+        ],
+        [
+          0.87897,
+          0.304576,
+          0.6855
+        ],
+        [
+          0.903363,
+          0.329132,
+          0.6855
+        ],
+        [
+          0.932662,
+          0.348772,
+          0.6855
+        ],
+        [
+          0.965866,
+          0.362514,
+          0.6855
+        ],
+        [
+          1.001773,
+          0.369582,
+          0.6855
+        ],
+        [
+          1.037664,
+          0.362434,
+          0.6855
+        ],
+        [
+          1.070766,
+          0.348632,
+          0.6855
+        ],
+        [
+          1.099888,
+          0.328982,
+          0.6855
+        ],
+        [
+          1.124047,
+          0.304493,
+          0.6855
+        ],
+        [
+          1.146516,
+          0.279038,
+          0.6855
+        ],
+        [
+          1.163689,
+          0.2495,
+          0.6855
+        ],
+        [
+          1.174832,
+          0.216974,
+          0.6855
+        ],
+        [
+          1.179438,
+          0.182686,
+          0.6855
+        ]
+      ],
+      "radius_m": 0.003,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.105998,
+          0.003,
+          1.009479
+        ],
+        [
+          1.111565,
+          0.003,
+          1.044077
+        ],
+        [
+          1.110217,
+          0.003,
+          1.079608
+        ],
+        [
+          1.101806,
+          0.003,
+          1.114687
+        ],
+        [
+          1.086464,
+          0.003,
+          1.147902
+        ],
+        [
+          1.061713,
+          0.003,
+          1.17491
+        ],
+        [
+          1.0324,
+          0.003,
+          1.196386
+        ],
+        [
+          0.999724,
+          0.003,
+          1.211595
+        ],
+        [
+          0.964993,
+          0.003,
+          1.220054
+        ],
+        [
+          0.929541,
+          0.003,
+          1.224006
+        ],
+        [
+          0.893815,
+          0.003,
+          1.220944
+        ],
+        [
+          0.859196,
+          0.003,
+          1.210916
+        ],
+        [
+          0.827037,
+          0.003,
+          1.194237
+        ],
+        [
+          0.799896,
+          0.003,
+          1.170232
+        ],
+        [
+          0.778063,
+          0.003,
+          1.141524
+        ],
+        [
+          0.762328,
+          0.003,
+          1.109256
+        ],
+        [
+          0.753236,
+          0.003,
+          1.074699
+        ],
+        [
+          0.752167,
+          0.003,
+          1.039214
+        ],
+        [
+          0.757999,
+          0.003,
+          1.00458
+        ],
+        [
+          0.77036,
+          0.003,
+          0.972113
+        ],
+        [
+          0.788633,
+          0.003,
+          0.943015
+        ],
+        [
+          0.808266,
+          0.003,
+          0.91451
+        ],
+        [
+          0.833602,
+          0.003,
+          0.889969
+        ],
+        [
+          0.863829,
+          0.003,
+          0.870536
+        ],
+        [
+          0.897905,
+          0.003,
+          0.85719
+        ],
+        [
+          0.934495,
+          0.003,
+          0.857836
+        ],
+        [
+          0.969525,
+          0.003,
+          0.865525
+        ],
+        [
+          1.00168,
+          0.003,
+          0.879678
+        ],
+        [
+          1.029811,
+          0.003,
+          0.899476
+        ],
+        [
+          1.056452,
+          0.003,
+          0.920526
+        ],
+        [
+          1.078608,
+          0.003,
+          0.946535
+        ],
+        [
+          1.095363,
+          0.003,
+          0.976558
+        ],
+        [
+          1.105998,
+          0.003,
+          1.009479
+        ]
+      ],
+      "radius_m": 0.003,
+      "material": "steel"
+    }
+  ]
+}
