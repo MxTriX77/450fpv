@@ -64,5 +64,22 @@ namespace Fpv450.Sim
 
         /// <summary>The larger of a and b: a unless b &gt; a (the rule of Min).</summary>
         public static double Max(double a, double b) => b > a ? b : a;
+
+        /// <summary>
+        /// The cube root, by Newton's iteration on the basic operations, so every runtime gives the same bits
+        /// (System.Math.Cbrt is not). x = m·8^k with m in [1, 8) by exact steps of 8; eight Newton steps from 1.5
+        /// take m's root to within an ulp, and the root's 2^k goes back on exactly. 0, NaN and ±∞ are their own roots.
+        /// </summary>
+        public static double Cbrt(double x)
+        {
+            if (x < 0) return -Cbrt(-x);
+            if (!(x > 0) || x > double.MaxValue) return x;
+            double m = x, scale = 1;
+            while (m >= 8) { m *= 0.125; scale *= 2; }
+            while (m < 1) { m *= 8; scale *= 0.5; }
+            double y = 1.5;
+            for (int i = 0; i < 8; i++) y += (m / (y * y) - y) / 3;
+            return y * scale;
+        }
     }
 }
