@@ -75,6 +75,8 @@ Each line is a known gap: it is listed so you judge the rest, and each is fixed 
 - By day the windscreen reads clear with faint cracks; M's is frosted pale with dark hit marks.
 - The wheels read as flat pale discs; the chrome bumpers as flat grey; the grille as a coarse lattice; no door mirror; the rack is plain tubes.
 - Burnt car: the shell is dark grey rather than O's soot-black; the soot patch is hard-edged; the roof sag doesn't show; the doors and rack stay as they were.
+- The trim plates and chips read stark white by day and mirror-blue under the low sun; the wheels and the scatter stay bright at night.
+- The car fills less of the view than in M's photo (the gallery's lens is narrower than a phone's), and it stands on straw where M's stands on asphalt.
 - Blank plates, always (no characters).
 
 **5 E01, the trench (G)**
