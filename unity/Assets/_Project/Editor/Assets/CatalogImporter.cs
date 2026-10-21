@@ -184,6 +184,13 @@ namespace Fpv450.Assets
         /// at tiling 1 (a generator UVs each face into its column), with the recipe's constant smoothness and no
         /// normal or mask.
         /// </para>
+        /// <para>
+        /// A transparent recipe (<c>"blend": "transparent"</c>, p1-r01-vaz-sedan design decision 6) is a palette drawn
+        /// with <c>Shaders/CrazedGlass</c>: the palette's albedo times the tint, whose alpha is the share of the
+        /// background each face of the pane stops, its constant smoothness and its index of refraction (<c>"ior"</c>), in the
+        /// transparent queue. That material is the plain glass of every intact pane; a crazed pane draws with its own
+        /// (<see cref="EnsureCrazedPaneMaterial"/>).
+        /// </para>
         /// Internal for the EditMode tests, which build the belt_straw material without an asset around it.
         /// </summary>
         internal static Material EnsureMaterial(string visual, Dictionary<string, object> manifest) =>
@@ -202,6 +209,17 @@ namespace Fpv450.Assets
                 : null;
             if (kind != null && kind != "ground" && kind != "palette")
                 throw new FormatException($"{recipePath}: unknown recipe kind \"{kind}\" (omit it for a tiled set, or \"ground\" or \"palette\")");
+            string blend = recipe.TryGetValue("blend", out object blendValue)
+                ? blendValue as string ?? throw new FormatException($"{recipePath}: \"blend\" must be a string")
+                : null;
+            if (blend != null && blend != "transparent")
+                throw new FormatException($"{recipePath}: unknown blend \"{blend}\" (omit it for an opaque surface, or \"transparent\")");
+            bool transparent = blend == "transparent";
+            if (transparent && (kind != "palette" || shaderName != CrazedGlassShader || recipe.ContainsKey("alpha_clip") || recipe.ContainsKey("two_sided")))
+                throw new FormatException($"{recipePath}: a transparent recipe is a palette drawn with {CrazedGlassShader}, which is two-sided and never clipped");
+            float ior = transparent ? Json.Num(recipe, "ior", recipePath) : 0f;
+            if (transparent && ior < 1f)
+                throw new FormatException($"{recipePath}: \"ior\" must be an index of refraction of 1 or more, not {ior}");
             bool ground = kind == "ground";
 
             Texture2D albedo, normal, mask, detailAlbedo = null, detailNormal = null;
@@ -288,6 +306,15 @@ namespace Fpv450.Assets
             changed |= SetTextureScale(material, "_BaseMap", baseScale);
             changed |= SetTextureOffset(material, "_BaseMap", baseOffset);
             changed |= SetColor(material, "_BaseColor", Json.Rgba(recipe, "tint", recipePath));
+            if (transparent) // the plain glass: CrazedGlass reads only these, and no crack mask (a crazed pane gets its own)
+            {
+                changed |= SetFloat(material, "_Smoothness", Json.Num(recipe, "smoothness", recipePath));
+                changed |= SetFloat(material, "_IOR", ior);
+                changed |= SetQueue(material, (int)RenderQueue.Transparent);
+                if (changed)
+                    EditorUtility.SetDirty(material);
+                return material;
+            }
             changed |= SetTexture(material, "_BumpMap", normal);
             changed |= SetKeyword(material, "_NORMALMAP", normal != null);
             changed |= SetTexture(material, "_MetallicGlossMap", mask);
@@ -455,6 +482,14 @@ namespace Fpv450.Assets
             return true;
         }
 
+        static bool SetQueue(Material m, int queue)
+        {
+            if (m.renderQueue == queue)
+                return false;
+            m.renderQueue = queue;
+            return true;
+        }
+
         // --- thin wires (p1-l01-l03-pole-wires, design decision 8; tech-artist) -----------------------------------
 
         internal const string ThinWireShader = "Fpv450/ThinWire";
@@ -508,6 +543,117 @@ namespace Fpv450.Assets
             return material;
         }
 
+        // --- crazed panes (p1-r01-vaz-sedan, design decision 6; tech-artist) ----------------------------------------
+
+        internal const string CrazedGlassShader = "Fpv450/CrazedGlass";
+        internal const string CrackMaskRole = "crack_mask";
+
+        /// <summary>
+        /// The slot materials with each crazed pane's own. The metadata's optional <c>textures</c> lists the textures a
+        /// generator wrote beside it. One of role <c>crack_mask</c> names a <c>slot</c> (the pane's faces in the FBX), the
+        /// mask's <c>file</c> beside the metadata, and where the mask lies in that slot's UVs, which stay the asset's
+        /// metres (AST-07): <c>uv_min</c> and <c>uv_max</c>, its lower-left and upper-right corners. That slot draws with
+        /// its own material, <c>&lt;variant&gt;_&lt;slot&gt;_crazed.mat</c> beside the prefab (<see cref="EnsureCrazedPaneMaterial"/>).
+        /// Every other slot keeps its recipe's material, so an intact pane draws with the plain glass, and a pane
+        /// material left from a build in which that slot was crazed is deleted. Refused: another role, a slot without a
+        /// material in the metadata, two masks on one slot, and a mask on a slot whose recipe is not transparent.
+        /// </summary>
+        static Dictionary<string, Material> WithCrazedPanes(string prefabPath, string variant, Dictionary<string, object> metaJson,
+            string metaPath, Dictionary<string, Material> materialBySlot)
+        {
+            var masks = new Dictionary<string, Dictionary<string, object>>();
+            if (metaJson.TryGetValue("textures", out object texturesValue))
+                foreach (object item in Json.Arr(texturesValue, $"{metaPath} \"textures\""))
+                {
+                    var entry = Json.Obj(item, $"{metaPath} textures");
+                    string role = Json.Str(entry, "role", $"{metaPath} textures");
+                    if (role != CrackMaskRole)
+                        throw new FormatException($"{metaPath}: unknown texture role \"{role}\" (the importer binds \"{CrackMaskRole}\")");
+                    string slot = Json.Str(entry, "slot", $"{metaPath} textures");
+                    if (!materialBySlot.ContainsKey(slot))
+                        throw new FormatException($"{metaPath}: a crack mask names slot \"{slot}\", which has no material in the metadata");
+                    if (!masks.TryAdd(slot, entry))
+                        throw new FormatException($"{metaPath}: two crack masks on slot \"{slot}\"");
+                }
+
+            string folder = Path.GetDirectoryName(prefabPath).Replace('\\', '/');
+            string metaFolder = Path.GetDirectoryName(metaPath).Replace('\\', '/');
+            var result = new Dictionary<string, Material>();
+            foreach (KeyValuePair<string, Material> slot in materialBySlot)
+            {
+                string panePath = $"{folder}/{variant}_{slot.Key}_crazed.mat";
+                if (masks.TryGetValue(slot.Key, out Dictionary<string, object> entry))
+                {
+                    string what = $"{metaPath} crack mask of slot {slot.Key}";
+                    result[slot.Key] = EnsureCrazedPaneMaterial(slot.Value, CrackMask($"{metaFolder}/{Json.Str(entry, "file", what)}"),
+                        Json.Vec2(entry, "uv_min", what), Json.Vec2(entry, "uv_max", what), panePath, what);
+                }
+                else
+                {
+                    result[slot.Key] = slot.Value;
+                    if (AssetDatabase.LoadAssetAtPath<Material>(panePath) != null)
+                        AssetDatabase.DeleteAsset(panePath);
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// A crazed pane's material at <paramref name="path"/>, created or updated in place: its slot's plain glass (the
+        /// transparent recipe's material) with the crack mask on <c>_CrackMask</c>, scaled and offset so the pane's UVs
+        /// <paramref name="uvMin"/> and <paramref name="uvMax"/> fall on the mask's corners.
+        /// </summary>
+        static Material EnsureCrazedPaneMaterial(Material glass, Texture2D mask, Vector2 uvMin, Vector2 uvMax, string path, string what)
+        {
+            if (glass.shader.name != CrazedGlassShader)
+                throw new FormatException($"{what}: its recipe {glass.name} is not transparent; a crack mask needs a \"blend\": \"transparent\" recipe");
+            Vector2 size = uvMax - uvMin;
+            if (size.x <= 0f || size.y <= 0f)
+                throw new FormatException($"{what}: uv_max must lie above and right of uv_min, not {uvMin} to {uvMax}");
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            bool changed = false;
+            if (material == null)
+            {
+                material = new Material(glass.shader);
+                AssetDatabase.CreateAsset(material, path);
+            }
+            else if (material.shader != glass.shader)
+            {
+                material.shader = glass.shader;
+                changed = true;
+            }
+            changed |= SetTexture(material, "_BaseMap", glass.GetTexture("_BaseMap"));
+            changed |= SetTextureScale(material, "_BaseMap", glass.GetTextureScale("_BaseMap"));
+            changed |= SetTextureOffset(material, "_BaseMap", glass.GetTextureOffset("_BaseMap"));
+            foreach (string colour in new[] { "_BaseColor", "_CrackColor" })
+                changed |= SetColor(material, colour, glass.GetColor(colour));
+            foreach (string value in new[] { "_Smoothness", "_IOR", "_CrackOpacity", "_CrackDepth" })
+                changed |= SetFloat(material, value, glass.GetFloat(value));
+            var scale = new Vector2(1f / size.x, 1f / size.y);
+            changed |= SetTexture(material, "_CrackMask", mask);
+            changed |= SetTextureScale(material, "_CrackMask", scale);
+            changed |= SetTextureOffset(material, "_CrackMask", -Vector2.Scale(uvMin, scale));
+            changed |= SetQueue(material, (int)RenderQueue.Transparent);
+            if (changed)
+                EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        /// <summary>A crack mask, imported as linear data and clamped, so the pane outside the mask has no cracks.</summary>
+        static Texture2D CrackMask(string path)
+        {
+            var importer = AssetImporter.GetAtPath(path) as TextureImporter
+                ?? throw new FileNotFoundException($"{path} is not a texture in the asset database: run the Blender build first");
+            if (importer.textureType != TextureImporterType.Default || importer.sRGBTexture || importer.wrapMode != TextureWrapMode.Clamp)
+            {
+                importer.textureType = TextureImporterType.Default;
+                importer.sRGBTexture = false;
+                importer.wrapMode = TextureWrapMode.Clamp;
+                importer.SaveAndReimport();
+            }
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(path) ?? throw new FileNotFoundException($"{path} did not import as a texture");
+        }
+
         // --- the prefab -------------------------------------------------------------------------------------------
 
         /// <summary>
@@ -521,8 +667,9 @@ namespace Fpv450.Assets
         /// channel; review S2). A wire's tube ("Wires are audited against their polyline") is the faces of the slot
         /// its <c>wires</c> record names: it draws only in a <c>thin_wire</c> LOD, a renderer drawing only wires casts
         /// no shadow (any other casts one, the thin-wire shader's at the member's true radius), and no collider
-        /// stands for a wire: conductors are map objects the sim reads from the metadata (D-007). Internal for the
-        /// EditMode tests, which build a prefab from a throwaway metadata.
+        /// stands for a wire: conductors are map objects the sim reads from the metadata (D-007). A slot with a crack mask
+        /// under the metadata's <c>textures</c> draws with its crazed pane's own material (<see cref="WithCrazedPanes"/>).
+        /// Internal for the EditMode tests, which build a prefab from a throwaway metadata.
         /// </summary>
         internal static void EnsurePrefab(string prefabPath, string variant, Dictionary<string, object> metaJson, TextAsset source,
             string fbxPath, Dictionary<string, Material> materialBySlot)
@@ -534,6 +681,7 @@ namespace Fpv450.Assets
                 root.name = variant;
                 AssetPhysicsMeta meta = Ensure<AssetPhysicsMeta>(root);
                 Fill(meta, metaJson, source, prefabPath);
+                materialBySlot = WithCrazedPanes(prefabPath, variant, metaJson, AssetDatabase.GetAssetPath(source), materialBySlot);
                 var wireSlots = new HashSet<string>(meta.wires.Select(w => w.slot));
                 var keep = new HashSet<string>();
                 var thin = new List<string>();
