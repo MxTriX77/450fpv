@@ -26,7 +26,8 @@ SNAG_KINDS = ("edge", "hook")  # a polyline the fiber bends over; a free-ended m
 # radius_m (a stranded conductor's outer strand, a SIP bundle's core): optional, positive, at most radius_m (the
 # fortifications reading §1, first used by p1-l01-l03-pole-wires' wires).
 KEY_ORDER = ("schema", "id", "variant", "generator", "params_sha256", "units", "frame", "bounds", "lods", "micro",
-             "cull_distance_m", "materials", "collision", "gaps", "wind_volumes", "ports", "wires", "holes", "snag")
+             "cull_distance_m", "materials", "collision", "gaps", "wind_volumes", "ports", "wires", "holes", "textures",
+             "snag")
 # Each LOD entry: its mesh, triangles, switch distance and `thin_wire`, whether every slot of that LOD's mesh draws
 # with the thin-wire material (p1-l01-l03-pole-wires, task 1.4), which reads each vertex's radius from its second UV:
 # a wire's tube, a pole's far LODs. The generator says so explicitly ("thin_wire", one bool per LOD, false when it
@@ -58,6 +59,13 @@ HOLE_KEYS = ("id", "centre_line", "top_width_m", "depth_m", "band_width_m")
 # micro-detail generator places them at physics parity, AST-10). Listed under "micro" with their kind and count;
 # the audit skips them and names them. Schema 1 stays: the key is additive and always present, [] when none.
 MICRO_KEYS = ("lod", "name", "kind", "count", "tris")
+# Textures a generator writes beside the metadata (p1-r01-vaz-sedan, "Per-pane crack masks on a transparent
+# material"; p1-h01-adobe-house's damage-mask atlas): per texture its role, the material slot it belongs to, its file
+# beside the metadata (<variant>_<name>.png) and where it lies in that slot's UVs (metres, AST-07): uv_min and uv_max,
+# its lower-left and upper-right corners. The importer binds a crack_mask to its pane's slot; a damage_mask waits for
+# its layered shader. Schema 1 stays: the key is additive and always present, [] when none.
+TEXTURE_KEYS = ("role", "slot", "file", "uv_min", "uv_max")
+TEXTURE_ROLES = ("crack_mask", "damage_mask")
 # The closed, physics-owned list every physics material id must come from (review R3).
 PHYSICS_MATERIALS = os.path.join("assets-src", "physics_materials.json")
 LABELS = ("pilot", "measured", "published", "derived", "assumed")
@@ -100,8 +108,10 @@ def assemble(asset_id, variant, generator, params, built, visual_by_slot):
     """The metadata of one variant from the generator's result `built` ({"lods": [Mesh...], "switch_distances_m",
     "cull_distance_m", "materials": [{"slot", "physics"}], "collision", "gaps", "wind_volumes", "snag"}, and
     optionally "thin_wire": [bool per LOD], "micro": [{"lod", "kind", "count", "mesh": Mesh}], "ports": [{PORT_KEYS}],
-    "wires": [{WIRE_KEYS}] and "holes": [{HOLE_KEYS}]) and the catalog's visual material per slot. A micro mesh is named <variant>_LOD<n>_<kind>
-    and counts towards the bounds, since it is rendered."""
+    "wires": [{WIRE_KEYS}], "holes": [{HOLE_KEYS}] and "textures": [{"role", "slot", "name", "uv_min", "uv_max",
+    "png"}]) and the catalog's visual material per slot. A micro mesh is named <variant>_LOD<n>_<kind> and counts
+    towards the bounds, since it is rendered; a texture's file is texture_file(variant, name), which build.py
+    writes from its "png" bytes."""
     lods = built["lods"]
     switches = built["switch_distances_m"]
     thin_wire = built.get("thin_wire", [False] * len(lods))
@@ -133,9 +143,16 @@ def assemble(asset_id, variant, generator, params, built, visual_by_slot):
         "materials": materials,
         "collision": built["collision"], "gaps": built["gaps"], "wind_volumes": built["wind_volumes"],
         "ports": built.get("ports", []), "wires": built.get("wires", []), "holes": built.get("holes", []),
+        "textures": [{"role": t["role"], "slot": t["slot"], "file": texture_file(variant, t["name"]),
+                      "uv_min": list(t["uv_min"]), "uv_max": list(t["uv_max"])} for t in built.get("textures", [])],
         "snag": built["snag"],
     }
     return _rounded(meta)
+
+
+def texture_file(variant, name):
+    """The file name of a generator-written texture beside the metadata."""
+    return f"{variant}_{name}.png"
 
 
 def capsule(p0, p1, radius, material):
@@ -257,6 +274,7 @@ def validate(meta, material_ids):
         if slots.get(w["slot"]) != WIRE_MATERIAL:
             problems.append(f"wires[{i}]: slot {w['slot']!r} must be a material slot of physics {WIRE_MATERIAL!r}")
     problems += _hole_problems(meta["holes"])
+    problems += _texture_problems(meta["textures"], slots)
     for i, s in enumerate(meta["snag"]):
         if not (isinstance(s.get("kind"), str) and isinstance(s.get("points"), list)
                 and all(_is_vec(p) for p in s["points"]) and _is_num(s.get("radius_m"))):
@@ -270,6 +288,28 @@ def validate(meta, material_ids):
             if "edge_radius_m" in s and not (_is_num(edge) and 0 < edge <= s["radius_m"]):
                 problems.append(f"snag[{i}]: edge_radius_m must be positive and at most radius_m {s['radius_m']}, "
                                 f"got {edge!r}")
+    return problems
+
+
+def _texture_problems(textures, slots):
+    """The textures rule: each record a known role, a slot of the metadata's materials, a .png file name, and
+    uv_min below and left of uv_max; one record per role and slot."""
+    problems, seen = [], set()
+    for i, t in enumerate(textures):
+        ok = (isinstance(t, dict) and all(k in t for k in TEXTURE_KEYS) and isinstance(t["file"], str)
+              and t["file"].endswith(".png") and _is_vec(t["uv_min"], 2) and _is_vec(t["uv_max"], 2))
+        if not ok:
+            problems.append(f"textures[{i}]: needs {', '.join(TEXTURE_KEYS)}: a .png file and two 2-vectors: {t}")
+            continue
+        if t["role"] not in TEXTURE_ROLES:
+            problems.append(f"textures[{i}]: role must be one of {', '.join(TEXTURE_ROLES)}, got {t['role']!r}")
+        if t["slot"] not in slots:
+            problems.append(f"textures[{i}]: slot {t['slot']!r} is not a material slot of the metadata")
+        if not all(t["uv_min"][a] < t["uv_max"][a] for a in range(2)):
+            problems.append(f"textures[{i}]: uv_min {t['uv_min']} must lie below and left of uv_max {t['uv_max']}")
+        if (t["role"], t["slot"]) in seen:
+            problems.append(f"textures[{i}]: a second {t['role']} on slot {t['slot']!r}")
+        seen.add((t["role"], t["slot"]))
     return problems
 
 

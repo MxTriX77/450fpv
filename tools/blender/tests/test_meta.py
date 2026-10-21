@@ -326,6 +326,36 @@ def test_malformed_physics_material_table_is_refused(repo_root, tmp_path, edit, 
         meta.load_physics_materials(tmp_path)
 
 
+def test_textures_are_carried_from_the_generator(k01_params, material_ids):
+    """p1-r01-vaz-sedan, "Per-pane crack masks on a transparent material": a generator's textures land under
+    `textures` as <variant>_<name>.png with their role, slot and UV rectangle (the bytes stay out of the file); without
+    any the key is still written, empty."""
+    assert k01_meta(k01_params)["textures"] == []
+    built = debris_brick.build(k01_params)
+    built["textures"] = [{"role": "crack_mask", "slot": "brick", "name": "cracks", "uv_min": (0.0, -0.5),
+                          "uv_max": (0.4, 0.5), "png": b"\x89PNG"}]
+    data = meta.assemble("K01", "K01_whole", "debris_brick", k01_params, built, VISUALS)
+    assert data["textures"] == [{"role": "crack_mask", "slot": "brick", "file": "K01_whole_cracks.png",
+                                 "uv_min": [0.0, -0.5], "uv_max": [0.4, 0.5]}]
+    assert meta.validate(data, material_ids) == []
+    assert list(data).index("textures") == list(data).index("holes") + 1
+
+
+@pytest.mark.parametrize("edit, expected", [
+    (lambda t: t.update(role="normal_map"), "role must be one of crack_mask, damage_mask"),
+    (lambda t: t.update(slot="glass"), "slot 'glass' is not a material slot"),
+    (lambda t: t.update(uv_max=[0.0, 0.5]), "must lie below and left of uv_max"),
+    (lambda t: t.update(file="cracks.jpg"), "needs role, slot, file, uv_min, uv_max"),
+])
+def test_textures_validated(k01_params, material_ids, edit, expected):
+    data = k01_meta(k01_params)
+    data["textures"] = [{"role": "crack_mask", "slot": "brick", "file": "K01_whole_cracks.png",
+                         "uv_min": [0.0, -0.5], "uv_max": [0.4, 0.5]}]
+    edit(data["textures"][0])
+    problems = meta.validate(data, material_ids)
+    assert any(expected in p for p in problems), problems
+
+
 def test_committed_metadata_matches_committed_params(k01_params, material_ids, k01_out):
     path = k01_out / "K01_whole.assetmeta.json"
     committed = json.loads(path.read_text(encoding="utf-8"))

@@ -17,7 +17,8 @@ namespace Fpv450.Tests.EditMode
     /// prefab step over the X-sign probe fixture, a pane whose metadata lists a crack mask draws with its own transparent
     /// material reading the mask over its UV rectangle, while an intact pane draws with the plain glass itself. A second
     /// build changes no file, a pane that is intact again loses its material, and a crack mask on an opaque recipe is
-    /// refused. Everything is written under <see cref="Folder"/>, deleted before and after.
+    /// refused; a damage mask is imported as data and binds nothing (task 1.2). Everything is written under
+    /// <see cref="Folder"/>, deleted before and after.
     /// </summary>
     public sealed class CrazedGlassMaterialTests
     {
@@ -87,10 +88,12 @@ namespace Fpv450.Tests.EditMode
         }
 
         /// <summary>Writes the metadata and runs the importer's prefab step over the probe FBX with its slot on <paramref name="glass"/>.</summary>
-        static GameObject Build(string variant, bool crazed, Material glass)
+        static GameObject Build(string variant, bool crazed, Material glass) => Build(variant, crazed ? Textures : "", glass);
+
+        static GameObject Build(string variant, string textures, Material glass)
         {
             string metaPath = $"{Folder}/{variant}.assetmeta.json";
-            File.WriteAllText(FullPath(metaPath), Metadata.Replace("VARIANT", variant).Replace("TEXTURES", crazed ? Textures : ""));
+            File.WriteAllText(FullPath(metaPath), Metadata.Replace("VARIANT", variant).Replace("TEXTURES", textures));
             AssetDatabase.ImportAsset(metaPath, ImportAssetOptions.ForceSynchronousImport);
             var source = AssetDatabase.LoadAssetAtPath<TextAsset>(metaPath);
             Assert.That(source, Is.Not.Null, "the metadata imported as a TextAsset");
@@ -195,6 +198,30 @@ namespace Fpv450.Tests.EditMode
 
             var refused = Assert.Throws<FormatException>(() => Build("pane_opaque", true, opaque));
             Assert.That(refused.Message, Does.Contain("not transparent"));
+        }
+
+        /// <summary>
+        /// A damage mask (p1-r01-vaz-sedan task 1.2: the vehicle's mask over its paint's canvas, for a layered shader
+        /// still to come) is imported as linear, clamped data and binds nothing: its slot keeps its recipe's material.
+        /// Another role is refused.
+        /// </summary>
+        [Test]
+        public void DamageMask_IsImportedAsDataAndLeftUnbound_AnUnknownRoleRefused()
+        {
+            Material opaque = Recipe("wire_sip");
+            WriteMask();
+            const string damage = @",
+  ""textures"": [ { ""role"": ""damage_mask"", ""slot"": ""probe"", ""file"": ""probe_cracks.png"",
+                  ""uv_min"": [0.1, -0.05], ""uv_max"": [0.5, 0.15] } ]";
+
+            Material material = PaneMaterial(Build("pane_damage", damage, opaque));
+            Assert.That(material, Is.EqualTo(opaque), "the slot keeps its recipe's material");
+            var importer = (TextureImporter)AssetImporter.GetAtPath(MaskPath);
+            Assert.That(importer.sRGBTexture, Is.False, "the mask is linear data");
+            Assert.That(importer.wrapMode, Is.EqualTo(TextureWrapMode.Clamp));
+
+            var refused = Assert.Throws<FormatException>(() => Build("pane_other", damage.Replace("damage_mask", "normal_map"), opaque));
+            Assert.That(refused.Message, Does.Contain("unknown texture role \"normal_map\""));
         }
 
         static Dictionary<string, byte[]> Snapshot() =>

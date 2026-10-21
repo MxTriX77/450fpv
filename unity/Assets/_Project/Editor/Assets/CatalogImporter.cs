@@ -547,6 +547,7 @@ namespace Fpv450.Assets
 
         internal const string CrazedGlassShader = "Fpv450/CrazedGlass";
         internal const string CrackMaskRole = "crack_mask";
+        internal const string DamageMaskRole = "damage_mask";
 
         /// <summary>
         /// The slot materials with each crazed pane's own. The metadata's optional <c>textures</c> lists the textures a
@@ -555,29 +556,37 @@ namespace Fpv450.Assets
         /// metres (AST-07): <c>uv_min</c> and <c>uv_max</c>, its lower-left and upper-right corners. That slot draws with
         /// its own material, <c>&lt;variant&gt;_&lt;slot&gt;_crazed.mat</c> beside the prefab (<see cref="EnsureCrazedPaneMaterial"/>).
         /// Every other slot keeps its recipe's material, so an intact pane draws with the plain glass, and a pane
-        /// material left from a build in which that slot was crazed is deleted. Refused: another role, a slot without a
-        /// material in the metadata, two masks on one slot, and a mask on a slot whose recipe is not transparent.
+        /// material left from a build in which that slot was crazed is deleted. A texture of role <c>damage_mask</c>
+        /// (p1-r01-vaz-sedan task 1.2, the vehicle's damage mask over its paint's UV canvas) is imported as linear,
+        /// clamped data beside the metadata and left unbound: its layered shader is the tech-artist's (p1-h01-adobe-house
+        /// extends this check with the binding). Refused: another role, a slot without a material in the metadata, two
+        /// masks on one slot, and a crack mask on a slot whose recipe is not transparent.
         /// </summary>
         static Dictionary<string, Material> WithCrazedPanes(string prefabPath, string variant, Dictionary<string, object> metaJson,
             string metaPath, Dictionary<string, Material> materialBySlot)
         {
             var masks = new Dictionary<string, Dictionary<string, object>>();
+            string folder = Path.GetDirectoryName(prefabPath).Replace('\\', '/');
+            string metaFolder = Path.GetDirectoryName(metaPath).Replace('\\', '/');
             if (metaJson.TryGetValue("textures", out object texturesValue))
                 foreach (object item in Json.Arr(texturesValue, $"{metaPath} \"textures\""))
                 {
                     var entry = Json.Obj(item, $"{metaPath} textures");
                     string role = Json.Str(entry, "role", $"{metaPath} textures");
-                    if (role != CrackMaskRole)
-                        throw new FormatException($"{metaPath}: unknown texture role \"{role}\" (the importer binds \"{CrackMaskRole}\")");
+                    if (role != CrackMaskRole && role != DamageMaskRole)
+                        throw new FormatException($"{metaPath}: unknown texture role \"{role}\" (the importer knows \"{CrackMaskRole}\" and \"{DamageMaskRole}\")");
                     string slot = Json.Str(entry, "slot", $"{metaPath} textures");
                     if (!materialBySlot.ContainsKey(slot))
-                        throw new FormatException($"{metaPath}: a crack mask names slot \"{slot}\", which has no material in the metadata");
+                        throw new FormatException($"{metaPath}: a {role} names slot \"{slot}\", which has no material in the metadata");
+                    if (role == DamageMaskRole)
+                    {
+                        CrackMask($"{metaFolder}/{Json.Str(entry, "file", $"{metaPath} damage mask")}"); // linear, clamped
+                        continue;
+                    }
                     if (!masks.TryAdd(slot, entry))
                         throw new FormatException($"{metaPath}: two crack masks on slot \"{slot}\"");
                 }
 
-            string folder = Path.GetDirectoryName(prefabPath).Replace('\\', '/');
-            string metaFolder = Path.GetDirectoryName(metaPath).Replace('\\', '/');
             var result = new Dictionary<string, Material>();
             foreach (KeyValuePair<string, Material> slot in materialBySlot)
             {
