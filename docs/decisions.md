@@ -362,3 +362,10 @@ The pilot, 2026-10-21, after three days with three of G1's six stations merged: 
 - **Moved to after the pilot's G1 look, which steers them:** V01's crown net and the H belt edge (QA 2.1's R1 and R2 in `p1-v01-locust`'s `review.md`), H01's X state and letter S's items (task 1.4b), and any polishing of a number already inside its spec limit.
 - **Unchanged:** the physics rules (real geometry with thickness, collision following the visual, every audit), D-028's definition of realism, and the side-by-side reading of every station against its letters.
 - **Mass production:** a variant that is only a params file on an existing generator takes the Quick or Standard tier (D-033): one build, one look, one QA pass.
+
+## D-041 Efficiency: look first, shared pieces first, lean notes · Accepted
+The pilot, 2026-10-21: "the fact that it's slow - separate topic, dont care. what i care about is efficiency. if you tell me that all the work behind the scenes to create world and objects preparations will help achieve tremendous good quality down the line - works". Spend goes to what compounds (generators, the metadata contract, audits, shared shaders, physics rulings), not to what does not.
+- **Look first inside every asset task.** A rough build, then the side-by-side against its letters (REAL-03, D-038), then the numbers. A wrong shape is found before parity, budgets or tuning are spent on it (E01's and V01's looks failed QA after every number passed).
+- **Shared pieces are planned up front.** A proposal names every library, shader, importer role or metadata key it shares with another change in flight, and the change that builds it first; nothing waits mid-change on a piece nobody owns (R01's layered paint and H01's `textures` key were found mid-change).
+- **Lean notes and briefs.** An As built note gives the numbers and the decisions, not the story of the tries; a brief names the exact sections to read. Every fresh agent re-reads the change, so its length is paid on every task.
+- With D-040: no polishing of a number already inside its limit, and a variant that is only a params file takes the Quick or Standard tier (D-033).
