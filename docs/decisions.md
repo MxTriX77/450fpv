@@ -389,3 +389,16 @@ The pilot, 2026-10-21, after flying the G1 preview (five of six stations): "VAZ 
   - The H belt edge (R2) waits with G3.
   - H01 finishes (its look pass, its merge, its QA), joins the gallery, and closes G1.
 
+## D-043 The drone copies letter T; legs-off flights launch from the upside-down chair · Accepted
+The pilot, 2026-10-21, sharing a photo of a typical heavy fiber-optic quad, filed as letter T: "this is what our drone, a typical optical fiber, should look like. as you can see, it has legs, but for some missions there are no legs, this is exactly when you lift off from that "upside-down" chair - so it stays on something, coz you can't balance on the spool".
+- **The Svinoriz 10 Opto copies letter T's look** (D-028):
+  - an X frame of carbon plates and tube arms, with four motors
+  - the fiber spool in its housing on top
+  - the payload slung below, between the legs
+  - the two packs strapped along the frame's sides
+  - four carbon tube legs with feet
+  - The object sheet (`p5-drone` task 1.1) reads every detail T shows.
+- **Copy the look, never the markings:** no logo, text or QR code on any part (SEC rules). The payload stays a generic body of T's size and the class's mass, with no functional detail (DRN-01).
+- **What it supersedes:** the 2026-10-17 note "the payload sits on top" and DRN-01's "the fiber coil underneath", for the legs-on build. `p5-drone` re-derives K§5.2 on T's layout.
+- **Legs-off:** the drone rests by its arms on the upside-down chair, the four-post stand of D-022, because it cannot stand on the spool. The orchestrator reads this, with D-022's "the coil hangs clear", as the spool hanging underneath on the legs-off build. That reading is confirmed at G5.
+

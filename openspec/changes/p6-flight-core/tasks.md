@@ -24,7 +24,7 @@ Branch `unity/physics/p6-flight-core` off `unity/main` (D-042). The sim work is 
     - every propulsion scenario (ACTUAL rates within 0.1 °/s, the builder PIDs' step response, yaw saturation past about 0.72 collective, hover margin and liftoff at 50–65 %, the 25 m/s inflow, sag)
     - the defaults read from `fc-profiles.md` per D-023
 - [ ] 1.5 [physics-engineer] Aero basics and the stand-in wind (design 6, 8):
-  - **What:** body drag with along and across areas, the rotor H-force, coil drag below the CoM, the stand-in mean and turbulence per level, labelled.
+  - **What:** body drag with along and across areas, the rotor H-force, coil drag at the coil as `drone.json` places it, the stand-in mean and turbulence per level, labelled.
   - **Verify:** the crosswind-lean scenario with a simple closed-loop pilot in `tools/flightbench`, and both wind-field scenarios.
 - [ ] 1.6 [physics-engineer] Contacts (design 7), after `p6-world-query-gallery` 1.1:
   - **What:** legs on `SampleGround`, the four-post stand, swept shapes on `StaticContacts` with the Time < 1 latch, prop strikes, crash and tunnel events.

@@ -13,7 +13,7 @@ Branch `unity/art/p5-drone` off `unity/main`.
   - **What:** `docs/object-sheets/drone.md` from public sources: every part's dimensions, mass, material and colour, labelled; the generic payload; the packs' options; the stand.
   - **Verify:** the `object-sheets` scenarios, and the OPSEC scan clean.
 - [ ] 1.2 [physics-engineer] `drone.json` (design 2):
-  - **What:** written from the sheet in `p6-flight-core`'s schema, with K§5.2 re-derived for the payload on top and two packs, and the packs set.
+  - **What:** written from the sheet in `p6-flight-core`'s schema, with K§5.2 re-derived for letter T's layout (D-043), and the packs set.
   - **Verify:** the re-derivation scenario at seven loadouts, and `p6-flight-core`'s mass-build test re-pinned with each figure labelled.
 - [ ] 1.3 [asset-artist] The drone generator (design 3):
   - **What:** `drone.py` reading `drone.json` and the look params, both variants, LODs, and the review sheet at 1.5 / 10 / 50 / 200 m.

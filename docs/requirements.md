@@ -614,9 +614,9 @@ Train mode shows what the pilot needs; the layout positions come from the footag
 
 **DRN-01 The model.** "Svinoriz 10 Opto", researched from typical Ukrainian fiber-optic heavy quads:
 - 10-inch X frame (452 mm wheelbase class), 3115-class motors, **3-blade 10" props**
-- **the fiber coil underneath**
+- **the fiber spool in its housing on top**, as letter T shows it (D-043); underneath on the legs-off build, which rests on the stand
 - **two battery packs**
-- **a payload on top**, generic and without functional detail
+- **a payload slung below**, between the legs (letter T, D-043), generic and without functional detail
 - FPV camera at **0° uptilt**
 - fiber transceiver, flight-controller stack, wiring
 - **plastic legs 25–35 cm** in the legs-on variant, and a legs-off variant
@@ -629,7 +629,7 @@ Train mode shows what the pilot needs; the layout positions come from the footag
 - The visual model **and** the physics mass and inertia build both read it.
 - Payload mass scales the payload part.
 - The coil mass falls with payout, and the CoM shift is computed.
-- The inertia ranges are checked against K§5.2, after re-deriving for payload on top and two packs.
+- The inertia ranges are checked against K§5.2, after re-deriving for letter T's layout: the spool on top, the payload below, two packs along the sides (D-043).
 
 **DRN-04 In-view parts.** Prop blades and airframe parts visible from the FPV camera match the reference set-up (VIS-07). Props show motion blur and spin with rpm.
 
@@ -744,7 +744,7 @@ Phase 7 adds mechanisms and never rewrites this.
   - **a loaded drone lifts off near 50–65 % motor power** (a real heavy quad: about 62 %)
   - **the real builder PIDs give a stable, well-damped loop** on the sim plant: a check that the plant is realistic
 
-**PHB-04 Aero basics.** Body drag with along and across areas on the relative wind, rotor H-force, and coil drag below the CoM.
+**PHB-04 Aero basics.** Body drag with along and across areas on the relative wind, rotor H-force, and coil drag at the coil, where `drone.json` puts it (above the CoM on the legs-on build of D-043, below on the legs-off).
 
 **PHB-05 Contact basics:**
 - legs as spring-dampers on `SampleGround`
