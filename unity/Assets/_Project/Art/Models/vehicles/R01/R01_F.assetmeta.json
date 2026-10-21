@@ -16,7 +16,19 @@
       2.0365,
       1.38,
       1.825169
-    ]
+    ],
+    "lod": {
+      "min": [
+        -2.0315,
+        0.0,
+        -0.811924
+      ],
+      "max": [
+        2.0315,
+        1.38,
+        0.811924
+      ]
+    }
   },
   "lods": [
     {
@@ -73,11 +85,6 @@
       "slot": "chrome_dull",
       "visual": "chrome_burnt",
       "physics": "steel"
-    },
-    {
-      "slot": "glass_hull",
-      "visual": "car_glass",
-      "physics": "glass"
     },
     {
       "slot": "rack",

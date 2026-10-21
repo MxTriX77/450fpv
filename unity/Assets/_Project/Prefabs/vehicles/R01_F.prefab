@@ -1406,9 +1406,6 @@ MonoBehaviour:
   - slot: chrome_dull
     visual: chrome_burnt
     physics: steel
-  - slot: glass_hull
-    visual: car_glass
-    physics: glass
   - slot: rack
     visual: car_soot
     physics: steel
@@ -4754,28 +4751,28 @@ LODGroup:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 927482485762129770}
   serializedVersion: 2
-  m_LocalReferencePoint: {x: -0.52651656, y: 0.6877115, z: -0.06338799}
-  m_Size: 5.126033
+  m_LocalReferencePoint: {x: 0, y: 0.69, z: 0}
+  m_Size: 4.063
   m_FadeMode: 0
   m_AnimateCrossFading: 0
   m_LastLODIsBillboard: 0
   m_LODs:
-  - screenRelativeHeight: 0.22196373
+  - screenRelativeHeight: 0.17593308
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 1275862966904095076}
     - renderer: {fileID: 8064687718056661902}
-  - screenRelativeHeight: 0.055490933
+  - screenRelativeHeight: 0.04398327
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 8293305533395704062}
     - renderer: {fileID: 4300935391070139868}
-  - screenRelativeHeight: 0.014797582
+  - screenRelativeHeight: 0.011728872
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 745916412869827096}
     - renderer: {fileID: 446846698129966091}
-  - screenRelativeHeight: 0.0029595166
+  - screenRelativeHeight: 0.0023457743
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 3756709509472896154}
@@ -15159,7 +15156,7 @@ MeshRenderer:
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: 491afbf90749c184d855dac988cee984, type: 2}
-  - {fileID: 2100000, guid: fc0e041e20aa7b64a8c7b8b287723cfc, type: 2}
+  - {fileID: 2100000, guid: c78ada16cdb7bde4c9ced921b1de671b, type: 2}
   - {fileID: 2100000, guid: c78ada16cdb7bde4c9ced921b1de671b, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
