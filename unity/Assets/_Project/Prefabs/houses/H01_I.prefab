@@ -13919,7 +13919,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 2.675025, y: 0.15, z: 0.05}
+  m_Size: {x: 2.296519, y: 0.15, z: 0.05}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &1967666679514223068
 GameObject:
@@ -17364,7 +17364,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 2.675025, y: 0.15, z: 0.05}
+  m_Size: {x: 2.296519, y: 0.15, z: 0.05}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &2519500964327307283
 GameObject:
@@ -24572,7 +24572,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 2.675025, y: 0.15, z: 0.05}
+  m_Size: {x: 2.296519, y: 0.15, z: 0.05}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &3580417397388889480
 GameObject:
@@ -36709,7 +36709,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 2.675025, y: 0.15, z: 0.05}
+  m_Size: {x: 2.296519, y: 0.15, z: 0.05}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &5214121742426930737
 GameObject:
@@ -57667,7 +57667,7 @@ MonoBehaviour:
   id: H01
   variant: H01_I
   generator: house
-  paramsSha256: 5918766f6072f9f3f474de02352a08b517b2f43de0e4ecd741dd21373bd70eb6
+  paramsSha256: 8609a98ab8e9e1bafa2e7191e72ed7f3711e42227c7086a139a4f84e708f3bae
   units: m
   frame: unity-lh-yup
   bounds:
@@ -60718,7 +60718,7 @@ MonoBehaviour:
     landable: 0
   - kind: 0
     center: {x: -3.975, y: 4.015184, z: 0}
-    size: {x: 2.675025, y: 0.15, z: 0.05}
+    size: {x: 2.296519, y: 0.15, z: 0.05}
     radius: 0
     height: 0
     rotation: {x: 0, y: -0.707107, z: 0, w: 0.707107}
@@ -60726,7 +60726,7 @@ MonoBehaviour:
     landable: 0
   - kind: 0
     center: {x: -2.975, y: 4.015184, z: 0}
-    size: {x: 2.675025, y: 0.15, z: 0.05}
+    size: {x: 2.296519, y: 0.15, z: 0.05}
     radius: 0
     height: 0
     rotation: {x: 0, y: -0.707107, z: 0, w: 0.707107}
@@ -60734,7 +60734,7 @@ MonoBehaviour:
     landable: 0
   - kind: 0
     center: {x: -1.975, y: 4.015184, z: 0}
-    size: {x: 2.675025, y: 0.15, z: 0.05}
+    size: {x: 2.296519, y: 0.15, z: 0.05}
     radius: 0
     height: 0
     rotation: {x: 0, y: -0.707107, z: 0, w: 0.707107}
@@ -60742,7 +60742,7 @@ MonoBehaviour:
     landable: 0
   - kind: 0
     center: {x: -0.975, y: 4.015184, z: 0}
-    size: {x: 2.675025, y: 0.15, z: 0.05}
+    size: {x: 2.296519, y: 0.15, z: 0.05}
     radius: 0
     height: 0
     rotation: {x: 0, y: -0.707107, z: 0, w: 0.707107}
@@ -60750,7 +60750,7 @@ MonoBehaviour:
     landable: 0
   - kind: 0
     center: {x: 0.025, y: 4.015184, z: 0}
-    size: {x: 2.675025, y: 0.15, z: 0.05}
+    size: {x: 2.296519, y: 0.15, z: 0.05}
     radius: 0
     height: 0
     rotation: {x: 0, y: -0.707107, z: 0, w: 0.707107}
@@ -60758,7 +60758,7 @@ MonoBehaviour:
     landable: 0
   - kind: 0
     center: {x: 1.025, y: 4.015184, z: 0}
-    size: {x: 2.675025, y: 0.15, z: 0.05}
+    size: {x: 2.296519, y: 0.15, z: 0.05}
     radius: 0
     height: 0
     rotation: {x: 0, y: -0.707107, z: 0, w: 0.707107}
@@ -71593,7 +71593,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 2.675025, y: 0.15, z: 0.05}
+  m_Size: {x: 2.296519, y: 0.15, z: 0.05}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &8258966199226234795
 GameObject:
@@ -74826,7 +74826,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 2.675025, y: 0.15, z: 0.05}
+  m_Size: {x: 2.296519, y: 0.15, z: 0.05}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &8852139649295239158
 GameObject:
