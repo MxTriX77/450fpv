@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Runs the input layer's NUnit tests (unity/Assets/_Project/Tests/EditMode/Radio) outside Unity, as simtests
+       does for the sim core. NUnit stays on 3.x, Unity's. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>Fpv450.Tests.Radio</AssemblyName>
+    <RootNamespace>Fpv450.Tests.Radio</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../../unity/Assets/_Project/Tests/EditMode/Radio/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="NUnit" Version="3.14.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="5.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../simcore/simcore.csproj" />
+    <ProjectReference Include="../inputcore/inputcore.csproj" />
+  </ItemGroup>
+</Project>
