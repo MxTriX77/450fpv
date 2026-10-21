@@ -41,8 +41,9 @@ Branch `unity/techart/p4-feed` off `unity/main`, once `p1-g1-look-lock-gallery` 
 - [ ] 1.7 [tech-artist] AE/AWB, night and lens drops (design 6, FEED-13):
   - **Verify:** the night scenario, and the AE and AWB τ against K§11.
 - [ ] 1.8 [tech-artist] Performance and G4's build (design 8):
-  - **What:** the feed's GPU time on AC at 1080p, and the gallery player with the feed toggle and the review overlay.
-  - **Verify:** the cost scenario, PLT-02 in the FPV view, and `Fpv450.Build.Gallery` with its smoke test.
+  - **What:** the feed's GPU time on AC at 1080p, and the test range player (`p6-test-range`, D-044) with the feed toggle and the review overlay.
+  - **Verify:** the cost scenario, PLT-02 in the FPV view over the test range's posadka, and `Fpv450.Build.TestRange` with its smoke test.
+  - **The render size (from 1.2):** keeping Godot's fine structure forced the full-resolution read, so the FPV render is 2754 × 1549 (D-017's reduced render lost 19–54 % of it; 1.2's curve in its as-built note). 1.8 measures that cost and the 1600 and 1280 widths, and keeps the full read if PLT-02's FPV row holds; otherwise it picks the widest width that holds, and the pilot judges the noise at G4. `ProjectSetup` calls `FeedSetup.Apply` so the settings rebuild the feed feature too.
 
 ## 2. Review and gate
 
@@ -52,4 +53,4 @@ Branch `unity/techart/p4-feed` off `unity/main`, once `p1-g1-look-lock-gallery` 
   - the metrics against two letters, read on the local sheets (REAL-03)
   - the cost on AC
   - hygiene: nothing from `reference/`; OSD strings and invented values only
-- [ ] 2.2 [user-review] **G4:** the pilot flies noclip through the gallery, looking through the feed, and judges noise, losses, colour and the OSD. The orchestrator records their words in `docs/style-rules.md` and asks only the G4-tagged question in `docs/pilot-questions.md`.
+- [ ] 2.2 [user-review] **G4:** the pilot flies noclip through the test range (D-044), looking through the feed, and judges noise, losses, colour and the OSD. The orchestrator records their words in `docs/style-rules.md` and asks only the G4-tagged question in `docs/pilot-questions.md`.
