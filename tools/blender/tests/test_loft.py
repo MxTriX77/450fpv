@@ -52,6 +52,15 @@ def test_mask_cuts_an_opening_with_its_edges():
     assert len(mesh.faces) == 8 + 8 + 12 + 4  # 8 quads each side, 12 border segments, the hole's 4
 
 
+def test_seams_leave_a_patched_opening_without_edges():
+    """A masked quad another surface fills (a hole's patch, lib.kits_vehicle) gets no edge strip toward it."""
+    mesh = Mesh()
+    grid = flat_grid(4, 4)
+    mask = [[not (i == 1 and j == 1) for j in range(3)] for i in range(3)]
+    loft.sheet(mesh, grid, uvs_of(grid), "a", up, thickness=0.001, mask=mask, seams={(1, 1)})
+    assert len(mesh.faces) == 8 + 8 + 12  # the border's 12 segments only, none round the seam
+
+
 def test_merged_corners_make_a_triangle_and_drop_a_line():
     mesh = Mesh()
     grid = [[(0.0, 0.0, 0.0), (0.0, 0.0, 1.0)], [(1.0, 0.0, 0.0), (1.0, 0.0, 0.0)], [(2.0, 0.0, 0.0), (2.0, 0.0, 0.0)]]

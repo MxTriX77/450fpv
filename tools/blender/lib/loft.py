@@ -40,10 +40,11 @@ def samples(lo, hi, step, extra=()):
     return out
 
 
-def sheet(mesh, grid, uvs, slot, outward, thickness=0.0, mask=None, edge_slot=None, slots=None):
+def sheet(mesh, grid, uvs, slot, outward, thickness=0.0, mask=None, edge_slot=None, slots=None, seams=()):
     """Emits the grid's quads into mesh (see the module docstring). `slots`, if given, names a slot per quad
-    (overriding `slot`); `edge_slot` the edge strips' slot (default: the quad's). Returns the number of quads
-    emitted on the outer surface."""
+    (overriding `slot`); `edge_slot` the edge strips' slot (default: the quad's). `seams` names masked quads that
+    another surface fills (a hole's patch, lib.kits_vehicle): no edge strip is drawn against them. Returns the
+    number of quads emitted on the outer surface."""
     rows, cols = len(grid), len(grid[0])
     quads = [(i, j) for i in range(rows - 1) for j in range(cols - 1) if mask is None or mask[i][j]]
     if not quads:
@@ -66,7 +67,7 @@ def sheet(mesh, grid, uvs, slot, outward, thickness=0.0, mask=None, edge_slot=No
         if inner is not None:
             _face(mesh, inner, grid, uvs, corners, lambda p, n=normal: (-n[0], -n[1], -n[2]), quad_slot)
     if inner is not None:
-        present = set(quads)
+        present = set(quads) | set(seams)
         for i, j in quads:
             for a, b, nb in (((i, j), (i, j + 1), (i - 1, j)), ((i, j + 1), (i + 1, j + 1), (i, j + 1)),
                              ((i + 1, j + 1), (i + 1, j), (i + 1, j)), ((i + 1, j), (i, j), (i, j - 1))):
