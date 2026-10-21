@@ -4,7 +4,7 @@ glazing bar as a member with real thickness and its own collision box, glass as 
 space as a gap polygon. Plain Python on lib.prism; an opening is lib.walls' Opening, its side lib.walls' Side.
 
 Depths `d` run in from a wall's outer face. The door (AST-04's 0.8 x 1.9 m clear): a frame of 80 mm members 100 mm
-deep flush with the inner face, its threshold 100 mm high set half below grade with its top at the floor, and a plank
+deep flush with the inner face, standing on grade, its threshold's top at the floor (yard level, E 7), and a plank
 leaf (five boards with 3 mm joints, two ledges and a brace on its inner face, strap hinges on the ledges) hung inward
 on the left jamb as seen from outside. `door_leaf_state`: closed (in the frame), ajar (AJAR_DEG in), hanging
 (HANGING_DEG in and sagged on its lower hinge until its free corner rests on the floor), gone; `inside` (the leaf
@@ -29,7 +29,7 @@ TIMBER, GLASS, STEEL = "timber", "glass", "steel"
 FRAME_SLOT, DOOR_SLOT, GLASS_SLOT, IRON_SLOT = "timber", "door", "glass", "iron"
 DOOR_FRAME_M = (0.08, 0.08)      # jamb face width, head height (the sheet: a 0.10 x 0.08 m frame)
 DOOR_DEPTH_M = 0.10              # the frame's depth in the wall, flush with the inner face
-THRESHOLD_M = (0.10, 0.05)       # its height and how far below grade its foot is set (the sheet: 0.1-0.15 m)
+GRADE_M = 0.0                    # the frame stands on grade: no mesh below it, so the review stage does not lift it
 BOARDS = 5                       # the sheet: 3-5 boards
 BOARD_M = (0.032, 0.003)         # thickness (the sheet: 25-40 mm) and the joint between boards (assumed)
 LEDGE_M = (0.10, 0.025)          # ledge and brace width and thickness (assumed)
@@ -92,10 +92,10 @@ def door(plan, o, lods, rng):
     c0, c1 = o.a0 + jamb, o.a1 - jamb
     y_top = plan.F + h
     for mesh in lods[:2]:
-        boxes = [wall_member(mesh, side, (o.a0, c0), (-THRESHOLD_M[1], y_top + head), d, "y", FRAME_SLOT, TIMBER),
-                 wall_member(mesh, side, (c1, o.a1), (-THRESHOLD_M[1], y_top + head), d, "y", FRAME_SLOT, TIMBER),
+        boxes = [wall_member(mesh, side, (o.a0, c0), (GRADE_M, y_top + head), d, "y", FRAME_SLOT, TIMBER),
+                 wall_member(mesh, side, (c1, o.a1), (GRADE_M, y_top + head), d, "y", FRAME_SLOT, TIMBER),
                  wall_member(mesh, side, (c0, c1), (y_top, y_top + head), d, "a", FRAME_SLOT, TIMBER),
-                 wall_member(mesh, side, (c0, c1), (-THRESHOLD_M[1], plan.F), d, "a", FRAME_SLOT, TIMBER)]
+                 wall_member(mesh, side, (c0, c1), (GRADE_M, plan.F), d, "a", FRAME_SLOT, TIMBER)]
     res.collision += [b for _, b in boxes]
     state = o.state
     if state == "gone":
