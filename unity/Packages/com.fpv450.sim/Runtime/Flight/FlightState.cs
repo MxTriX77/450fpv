@@ -1,3 +1,5 @@
+using Fpv450.Sim.Control;
+
 namespace Fpv450.Sim.Flight
 {
     /// <summary>
@@ -6,9 +8,8 @@ namespace Fpv450.Sim.Flight
     /// copying it is a snapshot.
     ///
     /// Slots the later tasks fill, so the log layout and the pose have one home:
-    /// - this change: the flight controller's integrators and filter states (1.4); the stand-in wind's turbulence
-    ///   state (1.5); per-leg contact anchors and the swept-contact latches (1.6), whose tables live with the contact
-    ///   model and are snapshotted with this state
+    /// - this change: the stand-in wind's turbulence state (1.5); per-leg contact anchors and the swept-contact
+    ///   latches (1.6), whose tables live with the contact model and are snapshotted with this state
     /// - phase 7: per-leg plastic sink and stick anchors (7a), hooks by element Id (7a), the spool's paid-out length
     ///   and the tether's node positions and velocities (7d)
     /// </summary>
@@ -29,16 +30,20 @@ namespace Fpv450.Sim.Flight
         /// <summary>ω in body axes, rad/s.</summary>
         public Double3 BodyRate;
 
-        /// <summary>The flight controller's armed state. Follows the stick's arm switch until 1.4 adds Betaflight's arming rules.</summary>
+        /// <summary>The flight controller's armed state, by Betaflight's arming rules (FlightController.Frame); a body
+        /// without propulsion follows the stick's arm switch.</summary>
         public bool Armed;
 
-        /// <summary>Rotor speed per corner, rad/s (1.4).</summary>
+        /// <summary>Rotor speed per corner, rad/s.</summary>
         public Corners RotorSpeed;
 
-        /// <summary>The ESC's command filter state per corner, 0–1 (1.4).</summary>
+        /// <summary>The ESC's command filter state per corner: the duty it drives its motor at, 0–1.</summary>
         public Corners EscCommand;
 
-        /// <summary>State of charge of the two packs, 0–1 (1.4).</summary>
+        /// <summary>State of charge of the two packs, 0–1 (0 is the cells' 3.0 V warning, below which they still run).</summary>
         public double PackCharge0, PackCharge1;
+
+        /// <summary>The flight controller's filters, integrators and latches (FlightController).</summary>
+        public FcState Fc;
     }
 }

@@ -8,8 +8,8 @@
     "labelled number": "{\"value\": <number, or [x, y, z], or a list>, \"label\": \"pilot\" | \"measured\" | \"published\" | \"derived\" | \"assumed\", \"note\": \"<source or calculation>\"}; the note is optional, the label is not",
     "bootstrap": "true for p6-flight-core's stand-in (now a test fixture); this researched file sets false",
     "parts": "every rigid part the mass build sums (PHB-02): name (unique), kind (box | cylinder), material (carbon | aluminium | steel | polymer | li_ion | electronics), mass_kg (above 0), position_m (the part's centre); a box has size_m, its extents along body x, y, z; a cylinder is solid, with diameter_m, length_m and axis (the direction of its length, normalised when read). A part is a mass shape: its inertia, not its look (the props and arms say how they map)",
-    "motors": "four, in Betaflight's Quad X order (rear right, front right, rear left, front left): position_m (the prop hub, where the thrust acts), spin (cw | ccw seen from above; cw is a positive rotation about body +y), kv_rpm_per_v, tau_s (the motor and rotor's first-order lag), esc_tau_s (the ESC's command filter)",
-    "props": "the four props, alike: diameter_m, blades, pitch_m (geometric, per revolution), k_t_n_per_rad2_s2 (T = k_T·n², n in rad/s), kappa_m (Q = κ·T)",
+    "motors": "four, in Betaflight's Quad X order (rear right, front right, rear left, front left): position_m (the prop hub, where the thrust acts), spin (cw | ccw seen from above; cw is a positive rotation about body +y), kv_rpm_per_v, resistance_ohm (the DC model's resistance: winding, ESC and leads), no_load_current_a (the bearings' and iron's loss, as the torque Kt·I0), rotor_inertia_kg_m2 (bell, shaft and prop about the shaft), magnet_poles, esc_tau_s (the ESC's command filter); the motor's lag τ_m = J/(Kt·Ke/R + ∂Q/∂ω) follows from these and the load",
+    "props": "the four props, alike: diameter_m, blades, pitch_m (geometric, per revolution), k_t_n_per_rad2_s2 (T = k_T·n², n in rad/s) and kappa_m (Q = κ·T), both static at reference_rpm (one of static_rpm's points); static_rpm with static_thrust_ratio and static_torque_ratio (C_T and C_P there over their values at reference_rpm: the coefficients' change with rpm); inflow_advance_ratio (J = V_a/(n·D) of the axial inflow, from 0) with inflow_thrust_ratio and inflow_torque_ratio (C_T and C_P there over their static values); linear between points, held at the ends",
     "packs": "two (PHB-03): part (the pack's mass part), series and parallel cells, cell_capacity_ah, r_cell_ohm, ocv_v (one cell's open-circuit voltage at states of charge 0, 1/(n−1), …, 1)",
     "legs": "parts (the four leg parts, in Betaflight's corner order; a leg's length is its part's, its foot the part's lower end, where it meets level ground), stiffness_n_per_m and damping_n_s_per_m (each leg's own spring and damper, in series with the ground), foot_radius_m (the foot's curvature); legs off is legs_off's build",
     "legs_off": "the legs-off build (D-043), added by p5-drone for letter T's layout: removed (every part that comes off with the legs, the four leg parts among them; they weigh 0 kg), moved ({part name: its labelled centre on the legs-off build}); every other part stays as it is",
@@ -256,28 +256,40 @@
       "position_m": {"value": [0.15981, 0.035, -0.15981], "label": "derived", "note": "the prop hub over the motor's axis on the 452 mm wheelbase (published), in the prop plane 0.03 m above the arm top (T): with the 0.254 m props the tips span 0.574 m nose-first and 0.706 m on the diagonal (DRN-02)"},
       "spin": "cw",
       "kv_rpm_per_v": {"value": 900, "label": "published", "note": "3115 900 KV (Surpass Hobby Bat S3115, K§5.1; Flash Hobby Arthur, rated 3–6S)"},
-      "tau_s": {"value": 0.05, "label": "assumed", "note": "design 5: τ_m 40–60 ms, the middle; 1.4 re-derives it for this rotor, a 16 g 2-blade prop and the bell"},
+      "resistance_ohm": {"value": 0.11, "label": "derived", "note": "the Flash Hobby Arthur 3115 900 KV bench on 6S (published, flyingtech.co.uk, its FH1050 rows): (d·V − Ke·ω)/(I/d) = 0.106 Ω at 50 % (25.12 V, 9027 rpm, 11.93 A), 0.107 at 70 %, 0.110 at 80 %, 0.127 at 100 % (24.62 V, 14 691 rpm, 65.26 A); 0.11, a warm winding through the hover-to-cruise range: the winding's own 0.046 Ω (published) plus the ESC, the leads and heat. At full throttle the model then turns about 4 % fast against the 100 % row"},
+      "no_load_current_a": {"value": 1.0, "label": "assumed", "note": "a 3115-class 900 KV motor's idle current, about 1 A at 10 V; not published for these motors. Its torque Kt·I0, 0.011 N·m, is 6 % of the hover drag torque"},
+      "rotor_inertia_kg_m2": {"value": 6.0e-5, "label": "derived", "note": "±30 %: the 16 g prop about 4.7e-5 (UMN's measured APC 12x3.8SF with its motor and adaptor, 1.12e-4, scaled by m·D² to 16 g and 10 inches; a uniform rod would be 8.6e-5) plus the bell, about 35 g of magnets and can at 17 mm, 1.2e-5. With R and the prop's load it makes τ_m about 40 ms at hover (design 5's 40–60 ms)"},
+      "magnet_poles": {"value": 14, "label": "published", "note": "12N14P (Flash Hobby Arthur 3115, the sheet's research table): 7 pole pairs"},
       "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "design 5: τ_esc ≈ 5 ms"}
     },
     {
       "position_m": {"value": [0.15981, 0.035, 0.15981], "label": "derived", "note": "as motors[0]"},
       "spin": "ccw",
       "kv_rpm_per_v": {"value": 900, "label": "published", "note": "as motors[0]"},
-      "tau_s": {"value": 0.05, "label": "assumed", "note": "as motors[0]"},
+      "resistance_ohm": {"value": 0.11, "label": "derived", "note": "as motors[0]"},
+      "no_load_current_a": {"value": 1.0, "label": "assumed", "note": "as motors[0]"},
+      "rotor_inertia_kg_m2": {"value": 6.0e-5, "label": "derived", "note": "as motors[0]"},
+      "magnet_poles": {"value": 14, "label": "published", "note": "as motors[0]"},
       "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "as motors[0]"}
     },
     {
       "position_m": {"value": [-0.15981, 0.035, -0.15981], "label": "derived", "note": "as motors[0]"},
       "spin": "ccw",
       "kv_rpm_per_v": {"value": 900, "label": "published", "note": "as motors[0]"},
-      "tau_s": {"value": 0.05, "label": "assumed", "note": "as motors[0]"},
+      "resistance_ohm": {"value": 0.11, "label": "derived", "note": "as motors[0]"},
+      "no_load_current_a": {"value": 1.0, "label": "assumed", "note": "as motors[0]"},
+      "rotor_inertia_kg_m2": {"value": 6.0e-5, "label": "derived", "note": "as motors[0]"},
+      "magnet_poles": {"value": 14, "label": "published", "note": "as motors[0]"},
       "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "as motors[0]"}
     },
     {
       "position_m": {"value": [-0.15981, 0.035, 0.15981], "label": "derived", "note": "as motors[0]"},
       "spin": "cw",
       "kv_rpm_per_v": {"value": 900, "label": "published", "note": "as motors[0]"},
-      "tau_s": {"value": 0.05, "label": "assumed", "note": "as motors[0]"},
+      "resistance_ohm": {"value": 0.11, "label": "derived", "note": "as motors[0]"},
+      "no_load_current_a": {"value": 1.0, "label": "assumed", "note": "as motors[0]"},
+      "rotor_inertia_kg_m2": {"value": 6.0e-5, "label": "derived", "note": "as motors[0]"},
+      "magnet_poles": {"value": 14, "label": "published", "note": "as motors[0]"},
       "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "as motors[0]"}
     }
   ],
@@ -286,7 +298,14 @@
     "blades": {"value": 2, "label": "measured", "note": "2-blade on every motor (T; PRD-02, DRN-01)"},
     "pitch_m": {"value": 0.1143, "label": "assumed", "note": "4.5 inches: the prop whose published table gives k_T and κ, inside the sheet's 10 × 4.5–5 class"},
     "k_t_n_per_rad2_s2": {"value": 1.40e-5, "label": "derived", "note": "APC 10x4.5MR, 2-blade, its published static performance data (apcprop.com, PER3_10x45MR.dat, v2022-0915): 12.43 N at 9000 rpm, C_T 0.1079–0.1097 over 8000–12 000 rpm, so k_T = T/n² = 1.394–1.418e-5 there, 1.400e-5 at 9000 rpm, the hover (8800–9100 rpm at 4.8–5.2 kg). The table is APC's computation; the Flash Hobby 3115 900 KV bench (published) gives 1.55–1.69e-5 with its own 10 × 5 of unstated blade count, and UIUC's measured static C_T of 2-blade 10-inch APC props is 0.091–0.130 below 6700 rpm (m-selig.ae.illinois.edu)"},
-    "kappa_m": {"value": 0.0144, "label": "derived", "note": "the same table's static torque over thrust: 0.01454 at 8000, 0.01443 at 9000 and 0.01436 m at 10 000 rpm (C_P 0.0387, κ = C_P·D/(2π·C_T)); below design 5's assumed 0.015–0.02, which was for a 3-blade: a 4.5-inch 2-blade turns less torque per newton, so yaw authority is a little weaker"}
+    "kappa_m": {"value": 0.0144, "label": "derived", "note": "the same table's static torque over thrust: 0.01454 at 8000, 0.01443 at 9000 and 0.01436 m at 10 000 rpm (C_P 0.0387, κ = C_P·D/(2π·C_T)); below design 5's assumed 0.015–0.02, which was for a 3-blade: a 4.5-inch 2-blade turns less torque per newton, so yaw authority is a little weaker"},
+    "reference_rpm": {"value": 9000, "label": "derived", "note": "k_T and κ are the table's static values at 9000 rpm, the hover of 4.8–5.2 kg"},
+    "static_rpm": {"value": [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 11000, 12000, 13000, 14000, 15000, 16000, 17000, 18000, 19000, 20000], "label": "published", "note": "the APC 10x4.5MR table's static rows (PER3_10x45MR.dat, v2022-0915)"},
+    "static_thrust_ratio": {"value": [0.9788, 0.9815, 0.9843, 0.9861, 0.988, 0.9908, 0.9935, 0.9963, 1, 1.0037, 1.0083, 1.0129, 1.0185, 1.024, 1.0314, 1.0388, 1.0462, 1.0554, 1.0656, 1.0766], "label": "derived", "note": "C_T over its 0.1083 at 9000 rpm: C_T rises from 0.106 at 1000 to 0.111 at 14 000 rpm (the blades' Reynolds number), which a constant k_T leaves out"},
+    "static_torque_ratio": {"value": [1.2274, 1.1214, 1.0749, 1.0465, 1.0284, 1.0155, 1.0078, 1.0026, 1, 0.9974, 0.9974, 1, 1.0026, 1.0052, 1.0129, 1.0181, 1.0284, 1.0388, 1.0517, 1.0749], "label": "derived", "note": "C_P over its 0.0387 at 9000 rpm: the drag torque per n² is 23 % higher at 1000 rpm (idle), 1–3 % between 6000 and 17 000"},
+    "inflow_advance_ratio": {"value": [0, 0.0405, 0.0811, 0.1216, 0.1621, 0.2027, 0.2432, 0.2837, 0.3242, 0.3648, 0.4053, 0.4458, 0.4864, 0.5269, 0.5674, 0.5877], "label": "published", "note": "the same table at 9000 rpm, every second row to zero thrust at J 0.588 (linear between them within 0.06 % of C_T and 0.26 % of C_P)"},
+    "inflow_thrust_ratio": {"value": [1, 0.9612, 0.9178, 0.8689, 0.8163, 0.7581, 0.6944, 0.626, 0.5522, 0.4737, 0.3924, 0.3075, 0.2207, 0.132, 0.0443, 0], "label": "derived", "note": "C_T(J) over the static C_T at 9000 rpm: APC's blade-element and momentum computation of the axial-inflow derate (PHB-03); the same ratios hold within 0.5 % from 4000 to 18 000 rpm"},
+    "inflow_torque_ratio": {"value": [1, 1.0026, 1.0026, 0.9974, 0.9819, 0.9587, 0.9276, 0.8889, 0.8372, 0.7752, 0.7054, 0.6253, 0.5349, 0.4367, 0.3307, 0.2765], "label": "derived", "note": "C_P(J) over the static C_P at 9000 rpm: the torque falls more slowly than the thrust, so the inflow costs power as momentum theory says (within 2 % to J 0.3 from 4000 to 18 000 rpm, 5 % by J 0.5)"}
   },
   "packs": [
     {

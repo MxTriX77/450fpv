@@ -13,10 +13,10 @@ using NUnit.Framework;
 namespace Fpv450.Sim.Tests
 {
     // physics-log (LOG-01, LOG-02, LOG-05): "Replay matches the flight" and "A truncated log still reads" on the
-    // bootstrap drone flown as a free body (the forces arrive with 1.4–1.6) by a scripted pilot, through the scheduler,
-    // the ring and the flush worker; the refusals, a divergence named by step and field, a full ring that waits and
-    // logs a hitch, the header's round trip, and the guards that keep the record and the header covering the state
-    // and the setup as later tasks extend them.
+    // bootstrap drone with its flight controller and propulsion (1.4), launched into the air and flown by a scripted
+    // pilot, through the scheduler, the ring and the flush worker; the refusals, a divergence named by step and field,
+    // a full ring that waits and logs a hitch, the header's round trip, and the guards that keep the record and the
+    // header covering the state and the setup as later tasks extend them.
     public sealed class FlightLogTests
     {
         const long StartUs = 1000000;
@@ -36,9 +36,11 @@ namespace Fpv450.Sim.Tests
             Seed = 0x450F,
             World = FlightWorld.Floor(),
             Mass = spec.BuildMass(spec.Nominal),
+            Propulsion = spec.BuildPropulsion(),
             StartPosition = new Double3(0, 100, 0),
             StartVelocity = new Double3(3, 20, -1),
             StartBodyRate = new Double3(2, -1, 0.5),
+            StartPackCharge = 0.8,
         };
 
         static LogHeader Header(FlightSetup setup, FlightCore core, DroneSpec spec)
@@ -51,14 +53,15 @@ namespace Fpv450.Sim.Tests
             return h;
         }
 
-        // A ~250 Hz report stream with jitter, armed from the 50th report, every axis moving.
+        // A ~250 Hz report stream with jitter, armed from the 50th report with the throttle low (Betaflight's rule), every
+        // axis moving from the 60th.
         static StickSample Report(int i, long hostUs) => new StickSample
         {
             HostUs = hostUs,
             Roll = (i * 37 % 1001 - 500) / 500.0,
             Pitch = (i * 53 % 1001 - 500) / 500.0,
             Yaw = (i * 71 % 1001 - 500) / 500.0,
-            Throttle = i * 29 % 1001 / 1000.0,
+            Throttle = i < 60 ? 0 : i * 29 % 1001 / 1000.0,
             Arm = i >= 50,
         };
 
@@ -116,10 +119,11 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void ReplayMatchesTheFlight()
         {
-            // 120 s of 356 B steps: 43 MB, kept in memory.
+            // 120 s of 916 B steps: 110 MB, kept in memory.
             var log = new MemoryStream();
             Record(log, 120000);
             DroneSpec spec = BootstrapDrone.Spec();
+            Assert.That(log.Length, Is.GreaterThan(120000L * (LogFormat.BlockHeaderSize + LogFormat.StepSize)));
 
             log.Position = 0;
             ReplayResult r = FlightReplay.Run(log, OpenWorld, spec.ContentHash);
@@ -130,8 +134,16 @@ namespace Fpv450.Sim.Tests
             FlightSummary summary = FlightSummary.Read(log);
             Assert.That(summary.Complete, Is.True);
             Assert.That(summary.Gaps, Is.EqualTo(0));
-            Assert.That(summary.Count(EventKind.Hitch), Is.EqualTo(1), "the stall's hitch");
+            // The stall's Late hitch; the virtual clock runs unpaced, so a slow flush worker (Unity's Mono) may also
+            // fill the ring, and each wait for it is a LogFull hitch with nothing dropped.
+            Assert.That(summary.Events.FindAll(e => e.Event.Kind == EventKind.Hitch && e.Event.Index == (byte)HitchCause.Late).Count,
+                Is.EqualTo(1), "the stall's hitch");
+            Assert.That(summary.Count(EventKind.Hitch), Is.EqualTo(1 + summary.End.LogWaits), "every other hitch is a wait for the ring");
             Assert.That(summary.End.Steps, Is.EqualTo(120000));
+            Assert.That(summary.Last.State.Armed, Is.True, "the flight armed and flew");
+            Assert.That(summary.Last.State.RotorSpeed.RearRight, Is.GreaterThan(100), "the motors turn");
+            Assert.That(summary.Last.State.PackCharge0, Is.LessThan(0.8), "the packs drained");
+            Assert.That(summary.Count(EventKind.MixerSaturation), Is.GreaterThan(0), "the random sticks saturate the mixer");
 
             // One motor 1 g heavier: a valid drone.json of another hash, refused before the first step.
             string text = BootstrapDrone.Text();
@@ -172,7 +184,7 @@ namespace Fpv450.Sim.Tests
             long block = BlockOf(bytes, 1234);
             var cuts = new[]
             {
-                (at: block + LogFormat.BlockHeaderSize + 100, reason: "cut inside a step block, 100 of its 352 bytes"),
+                (at: block + LogFormat.BlockHeaderSize + 100, reason: "cut inside a step block, 100 of its 912 bytes"),
                 (at: block + 2, reason: "cut inside a block's header"),
                 (at: block, reason: "ends after a whole block, without its end block"),
             };
@@ -290,7 +302,7 @@ namespace Fpv450.Sim.Tests
             var core = new FlightCore(setup);
             var disk = new GateStream();
             var recorder = new FlightRecorder(disk, Header(setup, core, spec), FlightRecorder.MinCapacity, ownsStream: false);
-            disk.Shut(); // a 16 KiB ring holds 46 steps
+            disk.Shut(); // a 16 KiB ring holds 17 steps
 
             var opener = new Thread(() =>
             {
@@ -369,6 +381,23 @@ namespace Fpv450.Sim.Tests
             Assert.That(back.Body, Is.EqualTo(core.Body));
             Assert.That(new MassModel(back.Parts).Properties, Is.EqualTo(core.Body), "the logged parts rebuild the body");
 
+            // The propulsion, every field and curve point, and the packs' start charge.
+            Assert.That(back.StartPackCharge, Is.EqualTo(setup.StartPackCharge));
+            PropulsionSpec a = setup.Propulsion, b = back.Propulsion;
+            Assert.That(b, Is.Not.Null);
+            Assert.That(b.Motors, Is.EqualTo(a.Motors));
+            foreach (string f in LogHeader.PropsFieldsLogged)
+            {
+                FieldInfo info = typeof(DroneProps).GetField(f);
+                Assert.That(info.GetValue(b.Props), Is.EqualTo(info.GetValue(a.Props)), "props." + f);
+            }
+            for (int k = 0; k < 2; k++)
+                foreach (string f in LogHeader.PackFieldsLogged)
+                {
+                    FieldInfo info = typeof(DronePack).GetField(f);
+                    Assert.That(info.GetValue(b.Packs[k]), Is.EqualTo(info.GetValue(a.Packs[k])), "packs[" + k + "]." + f);
+                }
+
             // LOG-05: no user, machine or path in the log.
             string text = Encoding.UTF8.GetString(bytes);
             foreach (string personal in new[]
@@ -390,6 +419,13 @@ namespace Fpv450.Sim.Tests
             Assert.That(InstanceFields(typeof(FlightSetup)), Is.EquivalentTo(LogHeader.SetupFieldsLogged),
                 "a new FlightSetup field goes into the header, so a replay rebuilds it");
             Assert.That(InstanceFields(typeof(DronePart)), Is.EquivalentTo(LogHeader.PartFieldsLogged));
+            Assert.That(InstanceFields(typeof(FcState)), Is.EquivalentTo(LogFormat.FcFieldsLogged),
+                "a new FcState field is logged: extend the step record (a new LogFormat.Version)");
+            Assert.That(InstanceFields(typeof(Axes3)), Is.EquivalentTo(new[] { "Roll", "Pitch", "Yaw" }));
+            Assert.That(InstanceFields(typeof(PropulsionSpec)), Is.EquivalentTo(LogHeader.PropulsionFieldsLogged));
+            Assert.That(InstanceFields(typeof(DroneMotor)), Is.EquivalentTo(LogHeader.MotorFieldsLogged));
+            Assert.That(InstanceFields(typeof(DroneProps)), Is.EquivalentTo(LogHeader.PropsFieldsLogged));
+            Assert.That(InstanceFields(typeof(DronePack)), Is.EquivalentTo(LogHeader.PackFieldsLogged));
 
             foreach ((LogField[] fields, int size) in new[] { (LogFormat.StepFields, LogFormat.StepSize), (LogFormat.EventFields, LogFormat.EventSize),
                          (LogFormat.EndFields, LogFormat.EndSize) })
@@ -412,6 +448,18 @@ namespace Fpv450.Sim.Tests
                 EscCommand = new Corners { RearRight = 0.14, FrontRight = 0.15, RearLeft = 0.16, FrontLeft = 0.17 },
                 PackCharge0 = 0.18, PackCharge1 = 0.19,
             };
+            // Every FcState double a distinct value through reflection, its flags every bit.
+            object fc = default(FcState);
+            double v = 100;
+            foreach (FieldInfo f in typeof(FcState).GetFields(BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (f.FieldType == typeof(double)) f.SetValue(fc, v++);
+                else if (f.FieldType == typeof(Axes3)) f.SetValue(fc, new Axes3 { Roll = v++, Pitch = v++, Yaw = v++ });
+                else if (f.FieldType == typeof(FcFlags)) f.SetValue(fc, (FcFlags)0x3FF);
+                else Assert.Fail("FcState." + f.Name + " has a type the log does not encode");
+            }
+            s.Fc = (FcState)fc;
+            Assert.That(v, Is.EqualTo(100 + 69), "the record's 69 controller doubles");
             var k = new StickSample { HostUs = -987654321, Roll = -0.2, Pitch = 0.21, Yaw = -0.22, Throttle = 0.23, Arm = false };
             var t = new StepTrace
             {

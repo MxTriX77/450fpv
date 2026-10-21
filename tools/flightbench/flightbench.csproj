@@ -7,4 +7,9 @@
   <ItemGroup>
     <ProjectReference Include="../simcore/simcore.csproj" />
   </ItemGroup>
+
+  <!-- The powered golden flight the suite pins too, so .NET Release here and the suite on .NET and Mono share it. -->
+  <ItemGroup>
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/GoldenFlights.cs" Link="GoldenFlights.cs" />
+  </ItemGroup>
 </Project>

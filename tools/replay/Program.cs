@@ -15,7 +15,7 @@ namespace Fpv450.Replay
             + "  replay <log> [--drone <drone.json>]   replay the flight; compare every record bit for bit\n"
             + "  replay --summary <log>                 the flight's summary; a cut log reads to its last whole record\n"
             + "  replay --record <log> [--seconds S] [--realtime] [--drone <drone.json>]\n"
-            + "                                         fly the scripted free-body flight (120 s) and log it\n"
+            + "                                         fly the scripted flight (120 s) and log it\n"
             + "exit: 0 match, 1 diverged, 2 usage, 3 refused, 4 unreadable, 5 matched a cut log\n"
             + "drone.json defaults to the repository's assets-src/drone/drone.json";
 

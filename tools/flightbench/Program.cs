@@ -10,14 +10,17 @@ namespace Fpv450.FlightBench
         {
             if (args.Length == 1 && args[0] == "--golden")
             {
-                Console.WriteLine("flightbench: 1 golden case registered");
-                return FreeBodyCase.Golden() ? 0 : 1;
+                Console.WriteLine("flightbench: 2 golden cases registered");
+                bool ok = FreeBodyCase.Golden();
+                ok &= PoweredFlightCase.Golden();
+                return ok ? 0 : 1;
             }
             if (args.Length == 1 && args[0] == "--bench")
             {
-                Console.WriteLine("flightbench: 3 bench cases registered; " + Power.Describe());
+                Console.WriteLine("flightbench: 4 bench cases registered; " + Power.Describe());
                 bool ok = FreeBodyCase.Bench();
                 ok &= MassRebuildCase.Bench();
+                ok &= PoweredFlightCase.Bench();
                 ok &= LoggedStepCase.Bench();
                 if (!Power.OnAc) Console.WriteLine("flightbench: not on AC power, so these numbers are not evidence (PLT-07)");
                 return ok ? 0 : 1;
