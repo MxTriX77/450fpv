@@ -1,0 +1,25 @@
+{
+  "material": "adobe",
+  "texture_set": "polyhaven/rough_plaster_brick_02",
+  "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
+  "mask": {
+    "metallic": 0.0,
+    "occlusion": "ao",
+    "smoothness": "1 - roughness"
+  },
+  "sources": {
+    "ao": {
+      "name": "rough_plaster_brick_02_ao_2k.png",
+      "sha256": "9f73aa3fe8e68e513d0d1d0346c66db7941ebb657f8e2dfa5823b8d3e6fede12"
+    },
+    "roughness": {
+      "name": "rough_plaster_brick_02_rough_2k.png",
+      "sha256": "5c7210c706b210cf6301a2b9207c4fb98a6c8dd28d23337a01e4e74b6c61b246"
+    }
+  },
+  "inputs_sha256": "6fc7af4d9738dbb7b15e61bd78de36bd3f45a4392c31d9e68295547ac6c9ee55",
+  "size": [
+    2048,
+    2048
+  ]
+}

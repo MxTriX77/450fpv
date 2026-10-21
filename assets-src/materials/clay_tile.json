@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "shader": "Universal Render Pipeline/Lit",
+  "texture_set": "polyhaven/clay_roof_tiles_02",
+  "tile_size_m": [2.5, 2.5],
+  "tint": [0.977, 1.081, 1.205, 1.0],
+  "mask": { "metallic": 0.0, "occlusion": "ao", "smoothness": "1 - roughness" }
+}
