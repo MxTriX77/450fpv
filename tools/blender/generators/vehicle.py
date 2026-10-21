@@ -2862,11 +2862,11 @@ def _bumper_axis(body, path, point, front, y):
     return body.P(point[0] + inward[0] * d, point[1] + inward[1] * d, y)
 
 
-def _flank_box(body, s0, s1, side, y0, y1, a, b, depth, inset=0.0):
+def _flank_box(body, s0, s1, side, y0, y1, a, b, depth):
     """A level box per side over [s0, s1] whose outer face is the flank's plan line through the stations a and b
-    (yawed with the taper), `inset` inside it, from y0 to y1, `depth` deep."""
-    pa = body.P(a, side * (body.hw(a) - inset), 0.0)
-    pb = body.P(b, side * (body.hw(b) - inset), 0.0)
+    (yawed with the taper), from y0 to y1, `depth` deep."""
+    pa = body.P(a, side * body.hw(a), 0.0)
+    pb = body.P(b, side * body.hw(b), 0.0)
     e0 = normalize(sub(pb, pa))
     e1 = (0.0, 1.0, 0.0)
     e2 = cross(e0, e1)
