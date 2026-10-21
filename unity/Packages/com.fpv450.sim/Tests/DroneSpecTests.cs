@@ -5,8 +5,8 @@ using NUnit.Framework;
 
 namespace Fpv450.Sim.Tests
 {
-    // drone.json's schema and validator (DRN-03, design 3): a small valid drone of the test's own passes, and the same
-    // drone, mutated one fault at a time, is refused with the fault named.
+    // drone.json's schema and validator (DRN-03, design 3): the bootstrap file passes, and a small valid drone of the
+    // test's own, mutated one fault at a time, is refused with the fault named.
     public sealed class DroneSpecTests
     {
         // A minimal valid drone, written with ' for " so it reads as JSON. Every number is labelled.
@@ -55,6 +55,17 @@ namespace Fpv450.Sim.Tests
             + " 'stand': {'material': 'steel', 'post_radius_m': " + L("0.226") + ", 'post_height_m': " + L("0.25")
             + ", 'post_diameter_m': " + L("0.025") + ", 'mass_kg': " + L("2.9") + "}}"
         ).Replace('\'', '"');
+
+        [Test]
+        public void TheBootstrapFileIsValidAndMarked()
+        {
+            DroneSpec spec = BootstrapDrone.Spec();
+            Assert.That(spec.Bootstrap, Is.True, "the bootstrap file is marked as the bootstrap until p5-drone replaces it");
+            Assert.That(spec.Name, Is.EqualTo("Svinoriz 10 Opto"));
+            Assert.That(spec.Motors.Length, Is.EqualTo(4));
+            Assert.That(spec.Packs.Length, Is.EqualTo(2));
+            Assert.That(spec.Legs.Parts.Length, Is.EqualTo(4));
+        }
 
         [Test]
         public void TheTestDroneIsValid()
