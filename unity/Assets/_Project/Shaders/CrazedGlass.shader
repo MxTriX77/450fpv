@@ -24,7 +24,7 @@ Shader "Fpv450/CrazedGlass"
     Properties
     {
         [MainTexture] _BaseMap("Albedo", 2D) = "white" {}
-        [MainColor] _BaseColor("Tint (A: each face's opacity)", Color) = (0.15, 0.15, 0.15, 0.02)
+        [MainColor] _BaseColor("Tint (A: each face's opacity)", Color) = (0.4236, 0.4236, 0.4236, 0.02) // sRGB: a gain of 0.15
         _Smoothness("Smoothness", Range(0.0, 1.0)) = 0.95
         _IOR("Index of refraction", Range(1.0, 2.0)) = 1.52
 

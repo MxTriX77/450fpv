@@ -132,7 +132,8 @@ namespace Fpv450.Tests.EditMode
             Assert.That(glass.mainTexture, Is.Not.Null.And.EqualTo(AssetDatabase.LoadAssetAtPath<Texture2D>(GlassAlbedoPath)),
                 "the palette's albedo (the review refuses a material without one)");
             Color tint = glass.GetColor("_BaseColor"); // the recipe's tint, its alpha each face's opacity (stored through a colour-space round trip)
-            Assert.That(new[] { tint.r, tint.g, tint.b, tint.a }, Is.EqualTo(new[] { 0.15f, 0.15f, 0.15f, 0.02f }).Within(1e-5f), "the recipe's tint");
+            Assert.That(new[] { tint.r, tint.g, tint.b, tint.a }, Is.EqualTo(new[] { 0.4236f, 0.4236f, 0.4236f, 0.02f }).Within(1e-5f), "the recipe's tint");
+            Assert.That(tint.linear.r, Is.EqualTo(0.15f).Within(1e-4f), "the tint sRGB-encoded: the GPU gets the 0.15 gain");
             Assert.That(glass.GetFloat("_Smoothness"), Is.EqualTo(0.95f));
             Assert.That(glass.GetFloat("_IOR"), Is.EqualTo(1.52f));
             Assert.That(glass.GetTexture("_CrackMask"), Is.Null, "no cracks on the plain glass");
