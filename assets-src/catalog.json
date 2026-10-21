@@ -19,6 +19,12 @@
       "variants": ["K02_tile_shard", "K02_tile_whole"],
       "materials": { "tile": "clay_tile", "tile_fracture": "tile_fracture" }
     },
+    "K03": {
+      "class": "debris",
+      "generator": "debris_timber",
+      "variants": ["K03_batten_broken", "K03_board", "K03_rafter_broken"],
+      "materials": { "timber": "roof_timber", "timber_fracture": "timber_fracture", "nail": "car_rust" }
+    },
     "K07": {
       "class": "debris",
       "generator": "debris_car",

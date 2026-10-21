@@ -1,0 +1,13 @@
+{
+  "piece": "batten",
+  "seed": 1,
+  "section_m": { "w": 0.05, "h": 0.05 },
+  "length_m": 1.2,
+  "break_ends": 2,
+  "splinter_len_m": 0.2,
+  "splinter_count": 5,
+  "nails": 2,
+  "nail_proud_mm": 50.0,
+  "physics_material": "timber",
+  "lod": { "lod1_switch_m": 6.0, "cull_m": 115.0 }
+}
