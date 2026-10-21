@@ -219,7 +219,9 @@ def facade_atlas(regions, render_loss, whitewash_loss, base_band_height, soot_op
     base band's cover to `base_band_height` with a wandering top and its paint worn in patches (facade only); B dirt
     streaks under the sills and down from the wall head, peaking at DIRT_PEAK (facade only); G soot plumes over the
     first `soot_openings` openings in a seeded order, peaking at SOOT_PEAK. Each of A, G and B is the cover of its
-    layer. Periodic in each loop's U, so a loop meets itself where its U restarts. Returns (Raster, lines)."""
+    layer. Periodic in each loop's U, so a loop meets itself where its U restarts. A region's `bare` rects (its own
+    (u0, u1, v0, v1): a crumbled opening's or a breach's edges, task 1.4) read bare adobe, R 1, whatever the patches.
+    Returns (Raster, lines)."""
     w_px, h_px = ATLAS_PX
     ppm = w_px / atlas_m[0]
     raster = Raster(w_px, h_px, 4)
@@ -236,6 +238,7 @@ def facade_atlas(regions, render_loss, whitewash_loss, base_band_height, soot_op
         streak = PeriodicNoise(rng, reg.period, STREAK_M[1], 1.0)
         wear = PeriodicNoise(rng, reg.period, BAND_WEAR[1], 1.0)
         foot, head = raw["foot"], raw["head"]
+        bare = raw.get("bare", [])
 
         def field(noise, u, v, reg=reg, foot=foot, head=head):
             f = sum(wt * n(u, v) for wt, n in zip(OCTAVE_WEIGHTS, noise))
@@ -279,6 +282,7 @@ def facade_atlas(regions, render_loss, whitewash_loss, base_band_height, soot_op
             fy = gy - j0
             row = py * w_px
             f_row0, f_row1, g_row0, g_row1 = fg[j0], fg[j0 + 1], gg[j0], gg[j0 + 1]
+            row_bare = [(b0, b1) for b0, b1, c0, c1 in bare if c0 <= v <= c1]
             for px in range(i_lo, i_hi):
                 u = (px + 0.5) / ppm - reg.u_off
                 t = reg.top(u)
@@ -294,6 +298,8 @@ def facade_atlas(regions, render_loss, whitewash_loss, base_band_height, soot_op
                 g = (g_row0[i0] * (1 - fx) + g_row0[i0 + 1] * fx) * (1 - fy) + \
                     (g_row1[i0] * (1 - fx) + g_row1[i0 + 1] * fx) * fy
                 r = max(_smooth(t_r - w_r, t_r + w_r, f), 0.5 * _smooth(t_w - w_w, t_w + w_w, g))
+                if row_bare and any(b0 <= u <= b1 for b0, b1 in row_bare):
+                    r = 1.0
                 r_plane[row + px] = int(round(255 * r))
                 if inside and not hole:
                     area += 1

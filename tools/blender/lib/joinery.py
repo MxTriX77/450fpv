@@ -362,7 +362,7 @@ def doorway_gap(plan, d):
 def extent(gap):
     """(width, height) of a gap's polygon in its plane, horizontal first."""
     n = gap["normal"]
-    h = (n[2], 0.0, -n[0]) if abs(n[1]) < 0.9 else (1.0, 0.0, 0.0)
+    h = prism.unit((n[2], 0.0, -n[0])) if abs(n[1]) < 0.9 else (1.0, 0.0, 0.0)  # a roof slope's too
     v = prism.cross(n, h)
     us = [prism.dot(p, h) for p in gap["polygon"]]
     vs = [prism.dot(p, v) for p in gap["polygon"]]

@@ -19,10 +19,22 @@ own offset, so one damage-mask atlas serves the facade and the interior slots.
 Collision (design decision 9): each wall a box per segment between openings, 0.45 m thick, from just below the ground
 (PLANTED: the ground covers the 50 mm below y = 0) to the plate; a gable as two boxes laid along its slopes, their
 lower parts inside the wall below; each partition a box per segment round its doorway.
+
+Damaged edges (task 1.4, PR-5), seeded by `damage` (each opening from its own named stream), as geometry with their
+own boxes, the adobe showing in the blocks of its courses (COURSE_M high, BLOCK_M along a head or a sill):
+- a crumbled window (`opening_jag` above 0, its frame kept): round the frame, on each face, the wall broken back from
+  the rough opening by CRUMBLE x `opening_jag` per course up each jamb and per block along the head and the sill (the
+  sheet's 0.1-0.3 m at 0.2), through the reveal's depth to the frame; the frame's clear opening stays the gap. The
+  wall's boxes there split in depth: the frame's zone keeps the rough opening, each face's layer is the band round
+  it less the crumble, as boxes.
+- a breach (`wall_breaches`): a hole through the wall `w` x `h` about its middle, centred on the wall's height
+  (assumed), its edge a course or block at a time either flush with the hole grown by half the jag (FLUSH_CHANCE)
+  or a block jutting in by JUT x `opening_jag`, through the wall's depth; each jutting block is a box, the hole's
+  clear polygon (lib.rects) the gap.
 """
 import math
 
-from lib import joinery, prism
+from lib import audit, joinery, prism, rects
 
 FACADE_SLOT, INTERIOR_SLOT = "facade", "interior"
 MASONRY = "masonry"
@@ -36,6 +48,13 @@ PIER_M = 0.3               # an opening keeps this much wall to a corner, a part
 ATLAS_M = (32.0, 16.0)     # the mask atlas in UV metres (2048 x 1024 px at 64 px/m)
 ROW_GAP_M = 0.25           # between atlas rows and loops
 SIDES = ("back", "left", "front", "right")  # the facade loop's order from its origin at the north-east corner
+COURSE_M = 0.2             # an adobe course (the sheet: blocks 250 x 400 x 200 mm, laid 200 mm high)
+BLOCK_M = 0.25             # a block's face along a head or a sill (the sheet's 250 mm side, assumed laid so)
+MIN_STEP_M = 0.04          # a course or block shorter than this merges with its neighbour (no slivers)
+CRUMBLE = (0.5, 1.5)       # a crumbled window's setback per course or block, as a share of opening_jag
+JUT = (0.25, 1.0)          # a breach's jutting block, as a share of opening_jag (assumed)
+FLUSH_CHANCE = 0.3         # a breach's course or block broken flush with its edge (assumed)
+CRUMBLE_STATES = ("glazed", "shards", "frame_empty", "sash_hanging")  # the frame stays: its face crumbles round it
 
 
 class Side:
@@ -67,6 +86,21 @@ class Opening:
         self.name, self.kind, self.side = name, kind, side
         self.a0, self.a1, self.y0, self.y1 = a0, a1, y0, y1
         self.zones, self.state, self.params = zones, state, params or {}
+        # damage (lib.walls.damage): a crumbled window's {"outer", "inner": its face holes as cells, "band": the rect
+        # its crumble may reach}; a breach's jutting `blocks` and its `clear` cells
+        self.crumble, self.blocks, self.clear = None, [], None
+
+    def rect(self):
+        return (self.a0, self.a1, self.y0, self.y1)
+
+    def face_cells(self, face, damaged):
+        """The opening's hole through a face ("outer" or "inner") as cells: its crumbled or jagged outline when
+        `damaged`, else its rough rect."""
+        if damaged and self.crumble:
+            return self.crumble[face]
+        if damaged and self.clear is not None:
+            return self.clear
+        return [self.rect()]
 
 
 class Space:
@@ -123,6 +157,14 @@ class Plan:
                 (self.T / 2, self.T / 2)
             self.openings.append(Opening(f"window_{name}", "window", w["side"], c - w["w"] / 2, c + w["w"] / 2,
                                          w["sill"], w["sill"] + w["h"], zones, w["state"], w))
+        for name in sorted(p["wall_breaches"]):  # a breach's hole: w x h grown by half the jag, its edge's reach
+            b = p["wall_breaches"][name]
+            if b["side"] == "none":
+                continue
+            c, yc, grow = b["pos"] * self.sides[b["side"]].length, self.H / 2, p["opening_jag"] / 2
+            self.openings.append(Opening(f"breach_{name}", "breach", b["side"], c - b["w"] / 2 - grow,
+                                         c + b["w"] / 2 + grow, yc - b["h"] / 2 - grow, yc + b["h"] / 2 + grow,
+                                         (self.T / 2, self.T / 2), params=b))
         # The hall at the door and a room each side (design decision 6): the partitions' centre lines
         x_door = self.sides[p["door_side"]].point(centre, 0, 0)[0]
         half = p["hall_width"] / 2
@@ -208,16 +250,94 @@ class Plan:
         return (side.u0 + a, v)
 
 
+# --- damaged edges --------------------------------------------------------------------------------------------------
+
+def damage(plan, params, rngs):
+    """Seeds the D state's jagged edges onto the plan's openings (module docstring): each crumbled window's two faces
+    and each breach's blocks, from the streams "crumble <opening> <face>" and "breach <opening>"."""
+    jag = params["opening_jag"]
+    for o in plan.openings:
+        if o.kind == "window" and o.state in CRUMBLE_STATES and jag > 0:
+            reach = CRUMBLE[1] * jag
+            o.crumble = {"band": (o.a0 - reach, o.a1 + reach, o.y0 - reach, o.y1 + reach)}
+            for face in ("outer", "inner"):
+                rng = rngs(f"crumble {o.name} {face}")
+                notches = []
+                for c0, c1 in _runs(o.y0, o.y1, COURSE_M):
+                    e0, e1 = (jag * rng.uniform(*CRUMBLE) for _ in range(2))
+                    notches += [(o.a0 - e0, o.a0, c0, c1), (o.a1, o.a1 + e1, c0, c1)]
+                for b0, b1 in _runs(o.a0, o.a1, BLOCK_M):
+                    e0, e1 = (jag * rng.uniform(*CRUMBLE) for _ in range(2))
+                    notches += [(b0, b1, o.y1, o.y1 + e0), (b0, b1, o.y0 - e1, o.y0)]
+                o.crumble[face] = rects.union([o.rect()] + notches)
+        elif o.kind == "breach":
+            rng = rngs(f"breach {o.name}")
+            blocks = []
+
+            def jut():
+                return 0.0 if rng.random() < FLUSH_CHANCE else jag * rng.uniform(*JUT)
+
+            for c0, c1 in _runs(o.y0, o.y1, COURSE_M):
+                e0, e1 = jut(), jut()
+                blocks += [(o.a0, o.a0 + e0, c0, c1), (o.a1 - e1, o.a1, c0, c1)]
+            for b0, b1 in _runs(o.a0, o.a1, BLOCK_M):
+                e0, e1 = jut(), jut()
+                blocks += [(b0, b1, o.y1 - e0, o.y1), (b0, b1, o.y0, o.y0 + e1)]
+            o.blocks = [b for b in blocks if b[1] - b[0] > 1e-9 and b[3] - b[2] > 1e-9]
+            o.clear = rects.free(o.rect(), o.blocks)
+            rects.outline(o.clear)  # one simply connected hole, or the build stops here
+
+
+def _runs(lo, hi, step):
+    """[lo, hi] cut at the multiples of `step` (the wall's courses or blocks, from the ground or the wall's end), no
+    run shorter than MIN_STEP_M."""
+    cuts = [lo] + [k * step for k in range(math.floor(lo / step) + 1, math.ceil(hi / step))
+                   if k * step - lo >= MIN_STEP_M and hi - k * step >= MIN_STEP_M] + [hi]
+    return list(zip(cuts, cuts[1:]))
+
+
+def removed(plan):
+    """What the damaged edges took out of the walls, for the rubble: per crumbled face and per breach, its adobe's
+    solid volume and the wall foot it falls at, {"opening", "side", "face" (outer or inner), "a": (a0, a1),
+    "volume_m3"}."""
+    out = []
+    for o in plan.openings:
+        if o.crumble:
+            d0, d1 = o.zones
+            for face, depth in (("outer", d0), ("inner", plan.T - d1)):
+                area = rects.area(o.crumble[face]) - (o.a1 - o.a0) * (o.y1 - o.y0)
+                out.append({"opening": o.name, "side": o.side, "face": face, "a": (o.a0, o.a1),
+                            "volume_m3": area * depth})
+        elif o.clear is not None:
+            for face in ("outer", "inner"):
+                out.append({"opening": o.name, "side": o.side, "face": face, "a": (o.a0, o.a1),
+                            "volume_m3": rects.area(o.clear) * plan.T / 2})
+    return out
+
+
+def breach_gap(plan, o):
+    """A breach's gap: its clear polygon after the jutting blocks, in the wall's middle plane."""
+    side = plan.sides[o.side]
+    points = [list(side.point(a, y, plan.T / 2)) for a, y in rects.outline(o.clear)]
+    normal = list(side.outward())
+    return {"id": o.name, "polygon": points, "normal": normal,
+            "narrowest_m": round(audit.inscribed_diameter(points, normal), 6)}
+
+
 # --- surfaces -------------------------------------------------------------------------------------------------------
 
-def build(plan, mesh):
+def build(plan, mesh, damaged=True):
     """Emits every wall surface into `mesh`: the outer faces, the rooms' inner faces, the reveals, the wall tops and
-    the gable's top and attic face. Returns the canvas regions the damage mask is drawn on (lib.masks.facade_atlas)."""
-    regions = [_outer_faces(plan, mesh)]
+    the gable's top and attic face, the openings' damaged edges when `damaged` (a far LOD keeps the rough openings).
+    Returns the canvas regions the damage mask is drawn on (lib.masks.facade_atlas)."""
+    regions = [_outer_faces(plan, mesh, damaged)]
     for space in plan.spaces:
-        regions.append(_inner_faces(plan, mesh, space))
+        regions.append(_inner_faces(plan, mesh, space, damaged))
     for o in plan.openings:
-        _reveals(plan, mesh, o)
+        if damaged and (o.crumble or o.clear is not None):
+            _damaged_reveals(plan, mesh, o, regions)
+        else:
+            _reveals(plan, mesh, o)
     for d in plan.doorways:
         _doorway_reveals(plan, mesh, d)
     _tops(plan, mesh)
@@ -251,15 +371,17 @@ def _grid_faces(mesh, slot, origin_fn, normal, breaks_a, top_fn, holes, uv_fn, b
     return area
 
 
-def _outer_faces(plan, mesh):
-    """Every side's outer face in the facade loop, and the facade's canvas region."""
+def _outer_faces(plan, mesh, damaged=False):
+    """Every side's outer face in the facade loop, and the facade's canvas region; its holes the openings' outer
+    cells when `damaged` (Opening.face_cells)."""
     region = {"name": "facade", "kind": "facade", "u_off": 0.0, "v_off": 0.0, "period": plan.perimeter,
               "spans": [], "openings": [], "corners": [plan.sides[s].u0 for s in SIDES], "foot": 0.0,
-              "head": plan.H, "base_band": True}
+              "head": plan.H, "base_band": True, "bare": []}
     for name in SIDES:
         side = plan.sides[name]
         holes = [(o.a0, o.a1, o.y0, o.y1) for o in plan.openings_on(name)]
-        breaks = [0.0, side.length] + [b for h in holes for b in h[:2]]
+        cells = [c for o in plan.openings_on(name) for c in o.face_cells("outer", damaged)]
+        breaks = [0.0, side.length] + [b for h in cells for b in h[:2]]
         gable = plan.is_gable(name)
         if gable:
             breaks.append(side.length / 2)
@@ -270,7 +392,7 @@ def _outer_faces(plan, mesh):
                 breaks.append(a)
                 blocks.append((0.0, a) if a < side.length / 2 else (a, side.length))
         top = (lambda a, s=side: plan.side_top(s, a)) if gable else (lambda a: plan.H)
-        _grid_faces(mesh, FACADE_SLOT, lambda a, y, s=side: s.point(a, y, 0.0), side.outward(), breaks, top, holes,
+        _grid_faces(mesh, FACADE_SLOT, lambda a, y, s=side: s.point(a, y, 0.0), side.outward(), breaks, top, cells,
                     lambda a, y, s=side: (s.u0 + a, y), 0.0)
         for a0, a1 in blocks:
             pts = [(a0, plan.H), (a1, plan.H), (a1, plan.side_top(side, a1 - 1e-9)), (a0, plan.side_top(side, a0 + 1e-9))]
@@ -302,27 +424,29 @@ def inner_walls(plan, space):
     return out
 
 
-def _inner_holes(plan, space, wall):
-    """The openings in one inner face, in its own a coordinate: an outer side's windows and door, or a partition's
-    doorway."""
+def _inner_holes(plan, space, wall, damaged=False):
+    """The openings in one inner face, in its own a coordinate: an outer side's windows and door (as their inner
+    cells when `damaged`), or a partition's doorway."""
     name, start, along, inward, length, _ = wall
     holes = []
     if name in ("front", "back"):
         side = plan.sides[name]
         for o in plan.openings_on(name):
-            xs = [side.point(a, 0, 0)[0] for a in (o.a0, o.a1)]
-            a_in = sorted(((x - start[0]) / along[0]) for x in xs)
-            if a_in[1] > 1e-9 and a_in[0] < length - 1e-9:
-                holes.append((a_in[0], a_in[1], o.y0, o.y1, o))
+            for c in o.face_cells("inner", damaged):
+                xs = [side.point(a, 0, 0)[0] for a in c[:2]]
+                a_in = sorted(((x - start[0]) / along[0]) for x in xs)
+                if a_in[1] > 1e-9 and a_in[0] < length - 1e-9:
+                    holes.append((a_in[0], a_in[1], c[2], c[3], o))
     else:
         x = start[0]
         outer = "left" if name == "left" else "right"
         if abs(abs(x) - (plan.X - plan.T)) < 1e-9 and (x < 0) == (outer == "left"):
             side = plan.sides[outer]
             for o in plan.openings_on(outer):
-                zs = [side.point(a, 0, 0)[2] for a in (o.a0, o.a1)]
-                a_in = sorted(((z - start[1]) / along[1]) for z in zs)
-                holes.append((a_in[0], a_in[1], o.y0, o.y1, o))
+                for c in o.face_cells("inner", damaged):
+                    zs = [side.point(a, 0, 0)[2] for a in c[:2]]
+                    a_in = sorted(((z - start[1]) / along[1]) for z in zs)
+                    holes.append((a_in[0], a_in[1], c[2], c[3], o))
         else:
             for d in plan.doorways:
                 if abs(abs(d.params["x"] - x) - PARTITION_M / 2) < 1e-9:
@@ -331,16 +455,16 @@ def _inner_holes(plan, space, wall):
     return holes
 
 
-def _inner_faces(plan, mesh, space):
+def _inner_faces(plan, mesh, space, damaged=False):
     """A room's inner faces, from the floor to the ceiling (to the gable's slope where the room stands against a
     gable: its attic face, wall to wall over the corner blocks), and its canvas region."""
     region = {"name": space.name, "kind": "interior", "u_off": space.u_off, "v_off": space.v_off,
               "period": space.loop, "spans": [], "openings": [], "corners": [], "foot": 0.0,
-              "head": plan.H - plan.F, "base_band": False}
+              "head": plan.H - plan.F, "base_band": False, "bare": []}
     gable = plan._gable_of(space)
     for wall in inner_walls(plan, space):
         name, start, along, inward, length, a_loop = wall
-        holes = _inner_holes(plan, space, wall)
+        holes = _inner_holes(plan, space, wall, damaged)
         region["corners"].append(space.u_off + a_loop)
 
         def point(a, y, start=start, along=along):
@@ -413,6 +537,56 @@ def _reveals(plan, mesh, o):
                 (u, v), depth = uv(a, y, d)
                 uvs.append(_fold(kind, u, v, depth, part))
             mesh.face(ids, n, slot, uvs)
+
+
+def _damaged_reveals(plan, mesh, o, regions):
+    """A crumbled window's or a breach's reveals (module docstring): along each face's outline the jagged sides,
+    through the face's depth (a crumbled window's to its frame, a breach's to the wall's middle from each side),
+    folded from the face as _reveals folds them; a crumbled window's notch floors against its frame; and the bare
+    adobe they show, marked in the mask's regions (`bare`, the region's own UV)."""
+    side = plan.sides[o.side]
+    across, up = side.across(), (0.0, 1.0, 0.0)
+    inner_uv = _inner_side_coords(plan, o)
+    su = round((inner_uv(o.a0 + 0.01, o.y0)[0] - inner_uv(o.a0, o.y0)[0]) / 0.01)  # the room's U along the side's a
+    k_room = next(k for k, s in enumerate(plan.spaces) if s.x0 - 1e-6 <= side.point((o.a0 + o.a1) / 2, 0, plan.T)[0]
+                  <= s.x1 + 1e-6 and s.z0 - 1e-6 <= side.point((o.a0 + o.a1) / 2, 0, plan.T)[2] <= s.z1 + 1e-6)
+    facade, room = regions[0], regions[1 + k_room]
+    zones = o.zones if o.crumble else (plan.T / 2, plan.T / 2)
+    for face, (da, db) in (("outer", (0.0, zones[0])), ("inner", (zones[1], plan.T))):
+        cells = o.face_cells(face, True)
+        loop = rects.outline(cells)
+        slot = FACADE_SLOT if face == "outer" else INTERIOR_SLOT
+
+        def uv(a, y, d, na=0.0, ny=0.0, face=face):
+            if face == "outer":
+                return (side.u0 + a + na * d, y + ny * d)
+            u, v = inner_uv(a, y)
+            return (u + su * na * (plan.T - d), v + ny * (plan.T - d))
+
+        for p, q in zip(loop, loop[1:] + loop[:1]):
+            length = math.dist(p, q)
+            na, ny = -(q[1] - p[1]) / length, (q[0] - p[0]) / length  # into the hole: the loop runs counter-clockwise
+            normal = tuple(na * across[k] + ny * up[k] for k in range(3))
+            quad = [(p, da), (q, da), (q, db), (p, db)]
+            mesh.face([mesh.vertex(side.point(a, y, d)) for (a, y), d in quad], normal, slot,
+                      [uv(a, y, d, na, ny) for (a, y), d in quad])
+        if o.crumble:  # the floors of the notches, against the frame's faces
+            d, normal = (da if face == "inner" else db), (side.outward() if face == "outer" else
+                                                         tuple(-c for c in side.outward()))
+            for c in cells:
+                if rects.inside(c, o.rect()):
+                    continue
+                pts = [(c[0], c[2]), (c[1], c[2]), (c[1], c[3]), (c[0], c[3])]
+                mesh.face([mesh.vertex(side.point(a, y, d)) for a, y in pts], normal, slot,
+                          [uv(a, y, plan.T if face == "inner" else 0.0) for a, y in pts])
+        bare = cells if o.crumble else [o.rect()]
+        for c in bare:
+            if face == "outer":
+                facade["bare"].append((side.u0 + c[0], side.u0 + c[1], c[2], c[3]))
+            else:
+                us, vs = zip(*(inner_uv(a, y) for a in c[:2] for y in c[2:]))
+                room["bare"].append((min(us) - room["u_off"], max(us) - room["u_off"],
+                                     min(vs) - room["v_off"], max(vs) - room["v_off"]))
 
 
 def _fold(kind, u, v, depth, part):
@@ -549,10 +723,12 @@ def outer_and_liner(plan, mesh):
 
 # --- collision --------------------------------------------------------------------------------------------------
 
-def boxes(plan):
+def boxes(plan, damaged=True):
     """The wall boxes (design decision 9): per side the piers between openings from BELOW_M under the ground to the
     head, and the wall under and over each opening; the long sides over their whole length, the ends between them;
-    a gable's triangle as two boxes along its slopes; the partitions round their doorways."""
+    a gable's triangle as two boxes along its slopes; the partitions round their doorways. When `damaged`, the
+    crumbled windows' layers and a breach's jutting blocks (module docstring); else the rough openings (the wind's
+    walls)."""
     out = []
     for name in SIDES:
         side = plan.sides[name]
@@ -567,9 +743,18 @@ def boxes(plan):
             if o.y0 > 1e-9:
                 segments.append((o.a0, o.a1, -BELOW_M, o.y0))
             segments.append((o.a0, o.a1, o.y1, plan.H))
+        crumbled = [o for o in plan.openings_on(name) if o.crumble] if damaged else []
         for a0, a1, y0, y1 in segments:
             if a1 - a0 > 1e-9 and y1 - y0 > 1e-9:
-                out.append(_side_box(side, a0, a1, y0, y1, 0.0, plan.T))
+                out += _segment_boxes(plan, side, (a0, a1, y0, y1), crumbled)
+        for o in crumbled:  # each face's band round the frame, less its crumble
+            d0, d1 = o.zones
+            for face, (da, db) in (("outer", (0.0, d0)), ("inner", (d1, plan.T))):
+                for c in rects.merge(rects.free(o.crumble["band"], o.crumble[face])):
+                    if not rects.inside(c, o.rect()):
+                        out.append(_side_box(side, *c, da, db))
+        for o in (plan.openings_on(name) if damaged else []):  # a breach's jutting blocks, through the wall
+            out += [_side_box(side, *b, 0.0, plan.T) for b in o.blocks]
         if plan.is_gable(name):
             out += _gable_boxes(plan, side)
         for end in (-1, 1):  # a long side's corner block over the head, up to the roof's plane at its outer face
@@ -582,6 +767,22 @@ def boxes(plan):
         z0, z1 = plan.inner[2], plan.inner[3]
         for zz0, zz1, y0, y1 in ((z0, d.a0, 0.0, plan.H), (d.a1, z1, 0.0, plan.H), (d.a0, d.a1, d.y1, plan.H)):
             out.append(_axis_box((xp - t2, y0, zz0), (xp + t2, y1, zz1)))
+    return out
+
+
+def _segment_boxes(plan, side, seg, crumbled):
+    """A wall segment's boxes: one through the wall, or, where a crumbled window's band reaches into it, split in
+    depth: the frame's zone whole and each face's layer less the band (the band's own boxes follow the crumble)."""
+    bands = [o for o in crumbled if rects.minus(seg, o.crumble["band"]) != [seg]]
+    if not bands:
+        return [_side_box(side, *seg, 0.0, plan.T)]
+    d0, d1 = bands[0].zones
+    out = [_side_box(side, *seg, d0, d1)]
+    for da, db in ((0.0, d0), (d1, plan.T)):
+        parts = [seg]
+        for o in bands:
+            parts = [r for part in parts for r in rects.minus(part, o.crumble["band"])]
+        out += [_side_box(side, *r, da, db) for r in parts]
     return out
 
 
