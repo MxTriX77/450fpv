@@ -23,7 +23,7 @@ The pipeline SHALL build asset R01 (`vehicle` generator, preset R01; variants `R
 
 #### Scenario: Collision and landing surfaces
 - **WHEN** the metadata of either state is audited
-- **THEN** it holds 20–35 primitives with every face the drone can touch within 2 cm of the visual (roof, bonnet, boot lid, door edges, pillars, the flap), the roof, bonnet and boot lid boxes are landable and the flap is not, fragment holes of 0.25 m or less stay closed in collision with their petals as `edge` snags, the tyres name `rubber` and the seats `fabric` in A, and in F the body sits 0.15–0.20 m lower with the wheel cylinders at the rim radius
+- **THEN** it holds the collision plan the 2 cm audit needs, its count per group pinned by the generator's test (84 primitives in the clean base), with every face the drone can touch within 2 cm of the visual (roof, bonnet, boot lid, door edges, pillars, the flap), the roof, bonnet and boot lid boxes and the rack's side rails are landable and the flap is not, fragment holes of 0.25 m or less stay closed in collision with their petals as `edge` snags, the tyres name `rubber` and the seats `fabric` in A, and in F the body sits 0.15–0.20 m lower with the wheel cylinders at the rim radius
 
 #### Scenario: Burnt look
 - **WHEN** `R01_F`'s 1.5 m tile is read against the sheet's F description and letter O's burnt cab
