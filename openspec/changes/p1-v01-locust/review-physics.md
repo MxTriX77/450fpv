@@ -701,3 +701,423 @@ V01_S leaf_cover 0.5 per limb: shell tree: 74 pieces (51 capsules, 23 spheres); 
 ```
 
 Fit times are plain Python on the dev machine with the power state not recorded, so they are not performance claims (N-e). The hygiene scan and `openspec validate` output are in the handoff.
+
+## After QA 2.1 (§B: task 1.8, the rulings for R1, R5 and R2)
+
+**Reviewer:** physics-engineer · **Task:** 1.8 · **Branch:** `unity/art/p1-v01-locust` · **From tip:** `2fa7f20`
+**Against:** QA 2.1's R1, R2 and R5 (`review.md`); AST-05, AST-06, AST-09, REAL-05, PHY-05, PHY-18, PHY-19, PR-10; this reading's §3.3, PR9, N-a, N-h, §A.1, §A.3, §A.4, N-i and N-j
+**Read:** `CLAUDE.md`, `AGENTS.md`, VISION §2; `review.md` (R1, R2 and R5 in full); this file; design 3, 4 and 9 and tasks 1.3–1.5 as built; both deltas; the sheet's group rules, §V01 and §V13; `docs/requirements.md` for the IDs above; `tools/blender/lib/{shell,skeleton,audit,cards}.py`, `generators/{tree,shrub}.py`; the committed V01, V13, L01 and L03 metadata; the archived `p1-v13-shrub` review-physics §4 and N3; knowledge §5.2–§5.4, §6.8, §7.3 and §10.4–§10.5; `surfaces-review.md` §5 and §6.4; `api-review.md` §7; `docs/plan.md` phase 7
+
+"Measured" here is plain Python on the committed generators, skeleton, cards, fitter and audit, from the committed params with the overrides named and nothing written, or on the committed metadata. The scripts lived in a scratch folder outside the repo; §B.8 has their output.
+- **The timings stay §2.2's assumptions:** 5 ns per box reject, 30 ns per narrow test, 50 ns for a part's bins, the shells' 8.3 µs share.
+- **No bench was run.** The rulings rest on counts of one kind of narrow test (a part against a segment or a piece, closed form), not on its nanoseconds. The laptop was on battery for most of this reading and shared with other agents' jobs throughout, so a timing would not have counted anyway. N-m carries the timing to phase 3's `veg_shells`.
+- **T** is §2.2's measure. Over drone positions on a 0.1 m lattice, at yaw 0° and 45°, it is the sum over the 14 parts of the shapes whose boxes meet the part's box grown by 30 mm, at knowledge §5.2's assumed layout. Rebuilt here, it gives the committed V01_S shell 65–67, against §A.4's 68 on 1.1's crown.
+- **The dense crown is task 1.3's denser try on today's V01_M params,** `orders` 6 and `children_per_order` 3 ("try13" below).
+  - On seed 11 it grows 1 238 twigs (1.3's note counts 1 056 on the seed of that day): 294 m of twig in 3 834 ring segments, and 2 899 leaves at `leaf_cover` 0.6.
+  - Its LOD0 is 37 558 triangles (measured, no pods), against the tree's 40 000, so it is about the densest net the budget lets R1's crown work build. On V01_L the same rule gives 44 988, over the budget.
+  - A bound past the budget: children every 0.3 m along every member ("spaced") grows 7 068 twigs and 2 124 m of twig, 279 346 triangles.
+
+### Verdict
+
+1. **(i) A twig net of F's density is carried member by member, by its records, and V01's crown carries no shell** (§B.2).
+   - Twigs stay geometry with one record each, as built. No twig becomes a card: in the sheet's 3–10 mm band there is no X below which a twig loses a physical role (§B.1).
+   - **A shell is the wrong model for an open twig net, even over its leaves alone.** On try13 at 0.3, a shell over the leaf mass only takes 275 pieces and rule (d) 85 of 64 (measured): a piece or more per leaf tuft, the tube network again. At the committed 0.6, three of its four limbs alone already meet 78. Holding every twig took 68 and 89 (task 1.3, on its seed).
+   - **So V01 drops its `twig` shell.** Its crown's contact is its bark capsules and its twig records. Its leaves have no contact role (§A.3), and its wind volume stays as built.
+   - **Every `twig` record carries `radii_m`,** its member's taper, because the cantilever it stands for goes as d⁴.
+   - **Phase 7 (7a, PHY-05) pushes the parts with the records** as rooted, tapered cantilever chains (N-a, now a requirement), and the props strike every record. Its narrow phase is of the shells' order: T 166 for try13's records and 219 in a dense belt (measured), against 47–105 for today's shells and up to 193 for V13's in §2.2, 7.3 µs binned at the assumed 30 ns, inside the shells' 8.3 µs.
+   - **Where a shell remains** (a closed leaf mass, V13's clumps), rule (b) holds only the twigs in its leaf mass, and the rest are their records'. Rule (d) stays at 64.
+   - Physics needs no stand-in: F's full net fits the triangle budget and these rules whenever it is built. D-040 moves it to after G1, so this ruling lands with that work, and ruling (ii) with task 1.9 at G1 (§B.5).
+2. **(ii) A crotch is no record: not a `hook`, and no kind of its own** (§B.3).
+   - A line pressed into a fork is held by both members at once, as a wedge. The members' own capsules and records already give the two contacts, and the phase-7 fiber law resolves them together.
+   - A `hook` goes only on a free tip, a member end from which nothing leaves. V01's trunk tops lose theirs.
+3. **(iii) R2's sparser band meets no shell floor** (§B.4).
+   - With rule (b) on the leaf mass, `V13_tall_autumn`'s shell passes at every cover down to the sheet's bare 0.1, rule (d) at most 55 of 64 (at 0.2): a margin of 9 pieces (14 %). With no leaves there is no shell at all.
+   - Under the committed rule the floor was PR9's 0.3, and today's thicket at 0.4 already takes 62 of 64.
+   - V01 has no shell, so its covers have no floor either: `V01_S_autumn` may come back to 0.3 if the look asks.
+
+### B.1 What one twig does to the drone, and what carries it
+
+Each twig of the sheet's band at the generator's length, 70 times its base diameter (`SLENDERNESS`):
+- **The push:** a cantilever 3EI/s³ at its base diameter (E 10 GPa, published 8–12; derived).
+- **The fiber:** the bend stress E·r/(R + coating) (E 73 GPa, r 62.5 µm, coating 62.5 µm, published) against the 0.69 GPa proof test.
+- **A prop:** one cut, and a twig fed into the disc (assumed: a rotor of 1.0 × 10⁻⁴ kg·m² at 8 200 rpm in the hover, from 2.6 kgf at 12 000 rpm with thrust as n²; wood across the grain 10⁴ J/m², the published order).
+
+| Twig | 3 mm × 0.21 m | 5 mm × 0.35 m | 8 mm × 0.56 m | 10 mm × 0.70 m | Carried by |
+|---|---|---|---|---|---|
+| Push: k at the tip; at mid-length | 13; 103 N/m | 22; 172 N/m | 34; 275 N/m | 43; 343 N/m | the shell's uniform 30 N/m, or the record |
+| The fiber bent over it | 2.92 GPa, 4.2 × proof | 1.78 GPa, 2.6 × | 1.12 GPa, 1.6 × | 0.90 GPa, 1.3 × | the record |
+| A prop: one cut (of the rotor's 37 J); fed in, a cut every blade pass | 0.07 J (0.19 %); 29 W | 0.20 J (0.53 %); 81 W | 0.50 J (1.4 %); 207 W | 0.79 J (2.1 %); 322 W | the record (PHY-05) |
+| The wind | the crown box's porosity | | | | the wind volume |
+
+What it shows:
+- **Every twig of the band has a physical role at every diameter, and the thinnest is the fiber's worst.** A 3 mm twig bends the line to 4.2 times the proof stress, and the stress falls under proof only past 13 mm (0.30 GPa at the sheet's 30 mm edge threshold).
+- **A prop that meets a twig strikes it.** One cut costs the rotor 0.2–2 % of its energy. A twig fed into the disc at the drone's speed is cut at every blade pass, 410 a second: 29–322 W of the motor's 870 W at 40 A on the loaded pack. A shell cannot make a strike: it is a soft volume, not a member in the disc.
+- **The shell's 30 N/m is a twig's tip.** Halfway along, every twig of the band is 3–11 times stiffer. At a 2 cm push, one step at cruise, a 5 mm twig's middle already gives 3.4 N, past the shell's 3 N tolerance.
+- **So the record carries every role a lone twig has:** the fiber's capstan, hook and bend, the prop's strike and, given its taper, the push. It carries them only because it lies on the axis of the tube the pilot sees.
+
+### B.2 Ruling (i): a twig net of F's density
+
+**The dense net, measured** (V01_M; T at the worst spot, yaw 0° / 45°; the belt a 4 × 3 patch of the same tree at 1.5 × 2.75 m, each a quarter turn on from its neighbour):
+
+| | Committed, 0.6 | try13, 0.6 | try13, 0.3 | spaced, 0.6 (a bound) |
+|---|---|---|---|---|
+| Twigs; twig length; ring segments | 194; 62 m; 721 | 1 238; 294 m; 3 834 | the same | 7 068; 2 124 m; 25 821 |
+| Leaves; LOD0 triangles | 817; 13 084 | 2 899; 37 558 | 1 412; fewer | 16 582; 279 346 |
+| Twig length with a ring more than 0.1 m from every leaf face | 8.8 m (14 %) | 13.7 m (5 %) | 69.5 m (24 %) | 114 m (5 %) |
+| T, every twig-record segment | 74 / 70 | 166 / 137 | 166 / 137 | 231 / 204 |
+| T, the segments outside the leaf mass | 34 / 36 | 44 / 37 | 79 / 71 | 55 / 48 |
+| T, bark capsules | 56 / 55 | 56 / 55 | 56 / 55 | 101 / 93 |
+| Belt: T for every record; for bark | 87; 76 | 219; 68 | | 595; 207 |
+| Record segments meeting one 2 m cube: tree; belt | 149; 477 | 883; 2 215 | | 4 372; 15 421 |
+| A 1 m fiber segment through the densest metre: record segments | 11 | 18 | | |
+| The shell, every twig held (committed rule (b)) | 130 pieces, (d) 34 | (d) 68, every limb split (task 1.3, 1 056 twigs) | (d) 89 (the same) | |
+| The shell over the leaf mass only (below) | | three limbs of four: 202 pieces, (d) **78** or more | 275 pieces, (d) **85** | |
+
+On the same layout, the committed shells give T 47–75 (V01) and 100–105 (V13_tall and its autumn twin), and V13_tall's twig records 146.
+
+**The shell over the leaf mass, measured.** The committed fitter on try13's V01_M, per main limb, a limb that 64 pieces do not pass split into its child subtrees as `tree._shells` does. (b)'s targets are the twig ring stretches within 0.1 m of a leaf face of their fit's members, and the cards are held under the 0.361 m allowance. A last fit covers the ring centres that lie within 0.1 m of another limb's leaves, with the leaves near them as mass only. Pods are left out (a summer crown).
+- **At 0.3:** limbs 1 and 4 pass whole (58 and 64 pieces), limbs 2 and 3 fail at 64 and split (69 and 68 pieces), and the last fit adds 16: **275 pieces, rule (d) 85**: a third over the limit, against 89 with every twig held on 1.3's seed.
+- **At 0.6,** the committed cover and F's part-bare state: limbs 1 and 4 pass at 64 pieces each, and limb 3 fails and splits (74). Those three alone meet **78** in one 2 m cube, so the tree's (d) is at least that. Limb 2's fit was stopped there, since it can only add.
+- **Today's V01_S at 0.3 passes the same way** (49 pieces, (d) 44, where every twig held took 83 and 72). So the density of the net decides, not the variant, and F's is past what a shell carries under (d). V01_S drops its shell too: there it would pass, but it would add nothing the records do not carry, and a second contact law on one asset.
+- **Why:** on F's net the leaves follow the twigs. They are tufts along 294 m of twig through the whole crown, not a closed mass. Holding them within 0.1 m takes 64 pieces or more per limb, and four limbs' pieces crowd the crown's middle cubes. At 0.3 the tufts stand apart, and at 0.6 there are more of them; either way the fit becomes a web of pieces round the net. That is N-h's regime, with leaves in it.
+
+**The options on record:**
+
+1. **Per-member contact through the records (N-a): adopted, for the whole of V01's twig net.** V01 drops its shell.
+   - **It is force-faithful at any cover** by construction. Each segment pushes with its own cantilever through its taper, 13–343 N/m over the band (§B.1), in series with its parent at its first point. A shell gives 30 N/m whatever the twig.
+   - **Its cost is of the shells' order.**
+     - Every record of try13 together gives T 166 for the tree and 219 in a dense belt: 219 × 30 ns + 0.7 µs = 7.3 µs binned, inside the shells' 8.3 µs (assumed timings). Today's shells give 47–105 on the same layout.
+     - The triangle budget stops the net before the cost does: "spaced" reaches 595 only at seven times the budget.
+     - The fiber meets at most 18 record segments in a metre of line through try13's densest metre, against 11 today.
+   - **It is the law the micro-detail stems already have** (knowledge §7.3, PHY-05): a rooted cantilever pushed through and capped at slide-off, served from the prefetched binned cache by `Id`. `surfaces-review.md` §6.4 counts 100–300 such element tests per part in a meadow.
+   - **The records are complete data.** If phase 7's bench ever wants a coarser model, the compiler can derive it from the records with no asset rebuilt; a shell cannot give the records back.
+   - **What it needs from the asset, so what G1 carries:**
+     - the axis: the ring centres, as built
+     - the material, as built
+     - the radius at each point, `radii_m` (new). The mean radius is not enough: for a 2:1 taper, a cantilever at the mean radius is 1.6 times too soft at the tip and 3.0 times at a tenth of its length (derived).
+     - the parent: the member whose axis passes through its first point. The generator starts every child on its parent's axis, so the compiler finds it without a field. R1's crown work tests that one member's does, within 0.01 mm, and no other's.
+   - **What waits for phase 7** (7a):
+     - the law, and `elastic_modulus_pa` on `twig` and `bark` (N3, N-a)
+     - a side latch at first touch: a 3–10 mm twig is thinner than the 22 mm a part moves in a step at cruise, so a static depth would let it through. The test is the part's swept volume against the segment, the same closed form.
+     - the slide-off cap
+     - prop strikes with the cut energy (X-6)
+   - **Nothing is counted twice where a shell remains.** A record segment with both ends inside the shell or within its 0.1 m tolerance is the shell's, every other segment the record's, a static split per variant. On V01 every segment is the record's.
+2. **Rule (b) narrowed to the leaf mass: adopted for the shells that remain, and not enough for V01.** A bare twig away from every leaf is its record's wherever there is a shell (this reading's own first form of the ruling). It keeps V13's closed clumps in the shell's regime (§B.4), but on F's net it still gives (d) 85 (above).
+3. **Rule (b) relaxed beyond §3.3's cantilever bound: not adopted.** At try13's own taper, 3 N bends only 28 % of its twig length (83 of 294 m) more than 0.1 m. The shell would still chase the other 72 %, so the network stays, at the shell's wrong stiffness.
+4. **Twigs as cards inside the crown: not adopted. There is no X.**
+   - Every twig of the band has a role (§B.1), and the thinnest is the fiber's worst.
+   - The record carries those roles only because it lies on the tube the pilot sees. A card is a picture of a twig, and edge-on it is gone, so the line and the props would meet a member the pilot cannot see there. That is what REAL-05 bars ("no alpha cards for anything with a physical role"), and it breaks AST-05's collision following the visual.
+   - On the audit, cards would only move the twigs from rule (b) to (c), from 0.1 m to 0.361 m: a weaker form of option 2, bought with a visual fake, and the measured (d) shows option 2 is not enough anyway.
+5. **Rule (d) raised after the `veg_shells` bench: not adopted.** At F's density the shell is a piece-per-tuft network (275 pieces), the regime where 30 N/m is wrong by orders of magnitude. Raising (d) past 85 would stretch a cost proxy, on assumed timings, to keep a wrong model. (d) stays at 64 for the shells that remain, and N-j's re-ruling of (d) in T terms after the bench stands.
+
+**What V01's metadata carries with F's net** (after G1 by D-040; at G1 V01 keeps today's crowns and shells, which pass today's rules):
+- every twig a 3-sided tube ringed at every kink at most 0.1 m apart, with one polyline record through its rings (as built), and `radii_m` on every `twig` record (new)
+- every limb and branch of 10 mm or more a `bark` capsule, as built
+- no crown shell, so the shell rule's (a)–(d) have nothing to audit on V01, and no fit runs (task 1.3's dense limbs took 10–20 min a fit)
+- gaps bounded by capsules and twig records, as the gap search already draws them in, and the wind volumes as built
+- so the net's whole contact is in the metadata, and nothing about it waits for a rebuild
+
+**What waits:** the law and its rows (above) in 7a, the fiber's wedge (§B.3) in 7d, and a records case for `veg_shells` in phase 3 (N-m).
+
+**Requirements:**
+- **Kept:**
+  - REAL-05: twigs stay geometry, and "the crown's physics is its wind volume plus twig and branch snags" now holds for V01 to the letter.
+  - AST-05: the metadata the law reads is authored with the asset.
+  - AST-09, "fine twig crowns that read at distance": the net is no longer bounded by (d).
+  - The V01 requirement's look, F's net.
+- **Changed** (§B.6 has the text):
+  - the V01 requirement's shell clause (no shell; gaps bounded by capsules and records) and its record clause (`radii_m`)
+  - the metadata contract (`radii_m`)
+  - the shell rule (b) and its scenario, for the shells that remain
+  - PHY-05: the records as stems
+  - the sheet's Geometry rule (twigs are geometry, not cards; a shell only over a closed leaf mass) and V01's physics role
+- **Superseded:**
+  - N-h's "bare variants wait for N-a", for the metadata: a bare crown has no leaf mass, so no shell, and its records carry it. Its contact law waits for phase 7, as every contact law does.
+  - §A.3's V01 margins and §A.4's shell columns, for V01: it has no shell pieces left to count.
+
+### B.3 Ruling (ii): a crotch
+
+**Where.** V01's trunk tops, where the limbs leave the trunk's last point (`skeleton.branches` starts every limb at `trunk.points[-1]`): 76, 145 and 219 mm wide (S, M, L; QA's R5).
+- Wood and twig children leave their parent at 0.2–0.95 of its length, so a limb's, a branch's or a twig's tip is free.
+- V13's first-order twigs whose children leave at their end are already `edge`s, so V13 has no crotch hook.
+
+**What the line meets there** (measured on the committed skeletons): neighbouring limbs leave a trunk top 40–56° apart, half-angles 20–28°, and wood children leave their parent at 19–47°.
+- **A line pressed into a fork is held by both walls.** At half-angle α each wall gives it a normal force P/(2 sin α), so the friction holding it is μP/sin α: 2.1–2.9 times a single member's at these angles (the V-belt effect). Over a quarter wrap on bark (μs 0.55, assumed) the capstan's e^(μθ) of 2.4 becomes 6–12.
+- **It jams when μ > tan α.** Bark's 0.55 is above tan 28° = 0.53, so every V01 trunk crotch and wood fork holds a line pressed into it until the line is drawn back out the way it came. That is one of the pilot's "snagging on trees" (PHY-19).
+
+**Ruling (derived): no record.**
+- **Not a `hook`.** A hook is a free tip: the line catches near the end and can slide off over it. At a crotch the members go on, so there is nothing to slide off, and a hook would release a line that should stay wedged. On V01 it also makes the trunk's top 1.0–1.3 m a hook at 38–110 mm radius.
+- **No kind of its own.** The wedge is two contacts at once, and the metadata already holds both: the members' capsules (10 mm or more) or their records (twigs). A third kind would duplicate them, and double the force where they meet (N-i). Every fork can be recovered from the metadata, since a member starts on its parent's axis, so 7d's compiler can list the apexes if its node placement wants them.
+- **The trunk's top takes the record its width gives:** an `edge` under 30 mm, none at 30 mm or more. On V01 that is none, so each trunk-top hook goes (two on S, one on M and on L, and the same on the autumn twins) and nothing else changes. V13 is unchanged.
+- **Phase 7d:** a line node touching two members at once resolves both normals and frictions together, the fiber's form of N-i's wedge rule (N-k).
+
+**Requirements.**
+- **Kept:** the V01 requirement's and the sheet's "every free tip a `hook`", with the free tip now defined as a member end from which nothing leaves.
+- **Changed:** PHY-18 names the wedge (§B.6).
+
+**The test (task 1.9):** every `hook`'s last point is no member's first point, and no trunk carries a hook.
+
+### B.4 Ruling (iii): R2's floor
+
+**What R2 asks of V13:** a 1–2 m band of many thin dark stems through sparse leaves, with leaves along the stems. That is fewer leaves in the band and more bare twig there.
+
+**The floor under the committed rule (b) is PR9's.**
+- `V13_tall_autumn` never below 0.3: 60 pieces at 0.3, and at 0.2 a plateau failing (b), measured on the skeleton before task 1.5 (§3.2).
+- Today's thicket takes 62 pieces at the committed 0.4, (d) 62 (measured: the build's own fit, reproduced): a margin of 2 pieces (3 %).
+- So under the committed rule R2 had no room. Every bare twig the band shows is one more (b) target, and N-h's tube network starts there.
+
+**With rule (b) on the leaf mass (ruling (i), option 2), a sparser band takes no more pieces.** V13's clumps are a closed leaf mass, the shell's own regime, so V13 keeps its shell under that rule. Measured on `V13_tall_autumn`: the committed shrub generator at each cover, one fit over the clump with every face in the mass, (b)'s targets the twig vertices within 0.1 m of a leaf face, and each of them checked afterwards as the audit would.
+
+| `leaf_cover` | 0.4 (built) | 0.3 | 0.2 | 0.1 |
+|---|---|---|---|---|
+| Leaf faces | 1 571 | 1 178 | 785 | 393 |
+| Twig vertices in the leaf mass, of 1 638 | 1 502 | 1 413 | 1 257 | 740 |
+| Pieces (capsules, spheres) at cap | 47 (43, 4) at 48 | 48 (40, 8) at 48 | 55 (49, 6) at 56 | 37 (34, 3) at 40 |
+| Rule (d), of 64 | 47 | 48 | 55 | 37 |
+| Farthest leaf-mass twig vertex outside the union | 97.4 mm | 97.6 mm | 97.9 mm | 95.8 mm |
+| The committed rule, every twig held | 62, (d) 62 | 60 before the thicket | fails (before the thicket) | |
+
+**Ruling (derived): the band meets no shell floor.**
+- With rule (b) on the leaf mass the shell passes (a)–(d) at every cover down to the sheet's bare state, 0.1. Rule (d) peaks at 55 at 0.2: the margin is 9 pieces (14 %). A clump with no leaves has no shell, and its stems and records carry it.
+- The floors left are not the shell's:
+  - PR-10 and the scenario "Matches H", no sky through the 1–2 m band: the look's, and the staging's
+  - the wind porosity, 0.7 − 0.35 × `leaf_cover` (the sheet's points), which follows the cover by itself
+- **R2's work (after G1, D-040) builds V13 under rule (b) on the leaf mass** if its band needs more bare twig than the committed fit can hold; at the committed rule it has 2 pieces of room. It reports and stops only if a variant's (d) then passes 64, not at a cover.
+- **V01 has no floor at all,** since it has no shell (§B.2). So `V01_S_autumn` may come back to H's 0.3 if the look asks, and §A.3's 0.5 for it lapses.
+
+**Requirements:** PR-10 and the scenario "Matches H" are kept. The H autumn requirement's covers change (§B.6, edit 17). PR9's floor and N-h are superseded for the shell.
+
+### B.5 When each ruling lands, and what QA 2.2 checks
+
+D-040 moves R1 (the crown net) and R2 (the H belt edge) to after the pilot's G1 look, with these rulings (`tasks.md`). So:
+
+**At G1, task 1.9 (R5, ruling (ii)):**
+1. Put a `hook` only on a free tip. Test that every `hook`'s last point is no member's first point, and that no trunk carries one.
+2. V01 keeps today's crowns and their shells, which pass today's rules. Physics needs no other change for G1.
+
+**With R1's crown, after G1 (ruling (i)):**
+1. Grow F's net inside the triangle budget. try13 puts V01_M's LOD0 at 37 558 triangles and V01_L's at 44 988, over the 40 000.
+2. Fit no shell on V01. The tree generator keeps the shell as an option for a closed crown (the sheet's V03 maple), switched off for V01, and the V01 audit then runs no shell rule. Gaps are bounded by capsules and twig records.
+3. Write `radii_m` on every `twig` record, one radius per point (the ring radii). `meta.validate` refuses a `twig` record without it, so V13 is rebuilt with it in the same change.
+4. Test that every twig record's first point lies within 0.01 mm of its parent member's axis (its record, and its capsule when the parent is wood) and of no other member's.
+5. Print per V01 variant the twig records, their segments and the most segments meeting one 2 m cube, the numbers phase 3's cache and N-m read.
+
+**With R2's belt edge, after G1 (ruling (iii)):**
+1. Rule (b) on the leaf mass in `lib/audit.py` and `lib/shell.py`, with §B.6's two scenarios (items 11 and 12) as tests. V13's committed shells pass it unchanged, since they hold more than it asks.
+2. V13's shell takes that rule if the band needs more bare twig than the committed fit holds (§B.4). The work reports and stops only if a variant's (d) passes 64, not at a cover.
+
+**QA 2.2 (at G1):** R5's free hooks and their test, and §B.6's first group in the deltas and the sheet. The rest goes with the work after G1: V01 with no shell and its gaps bounded by capsules and records, the `radii_m` refusal, the unique parents, V13's (b) lines and their print of what is left to the records, and (d) per variant.
+
+### B.6 Edits for the orchestrator (the code follows the spec)
+
+Each edit gives the file, the old text and the new text. Then run `openspec validate p1-v01-locust --strict`. They come in two groups, so that the spec says what each build does: the first with task 1.9 at G1, the second with R1's and R2's work after G1 (D-040).
+
+**First group, with task 1.9 (ruling (ii)):**
+
+1. Asset-pipeline delta (`openspec/changes/p1-v01-locust/specs/asset-pipeline/spec.md`), "Asset metadata contract", the conventions.
+   - Old: `` `snag[].kind` is `edge` or `hook`, each with at least two points, ``
+   - New: `` `snag[].kind` is `edge` or `hook` (a `hook` is a free tip: no other member leaves its last point), each with at least two points, ``
+2. Assets-vegetation delta (`openspec/changes/p1-v01-locust/specs/assets-vegetation/spec.md`), "V01 black locust belt tree", the snag clause.
+   - Old: `every free tip a `hook`, one polyline record per twig through its rings),`
+   - New: `every free tip (a member end from which no other member leaves) a `hook` and a crotch, such as a trunk's top where the limbs leave, no record of its own, one polyline record per twig through its rings),`
+3. Vegetation sheet (`docs/object-sheets/vegetation.md`), Geometry, the snag rule (its open point was settled by `p1-v13-shrub` review-physics §4).
+   - Old: `every free tip (a twig end, a splinter, a broken stub) is a `hook` from its base to its tip. The "whole crown shell" as a snag is not a record: it is the `twig` material's hook behaviour (open point for the physics engineer).`
+   - New: `every free tip (a twig end, a splinter, a broken stub: a member end from which no other member leaves) is a `hook` from its base to its tip. A crotch, where members leave a member's end (a trunk's top at the first fork), is no record of its own: the members' capsules and records meet there, and a line pressed into it is held by both at once, a wedge the phase-7 fiber law resolves (`p1-v01-locust` review-physics §B.3). A crown shell is no snag: every twig the line can catch is a record (`p1-v13-shrub` review-physics §4).`
+4. Vegetation sheet, §V01, Physics role, the snag line.
+   - Old: `- **Snag hazards:** every capsule under 30 mm and the whole crown shell; thorns on suckers are visual only (cards).`
+   - New: `- **Snag hazards:** every segment under 30 mm (an `edge`), every free tip (a `hook`) and every twig (one record through its rings); a crotch, such as the trunk's top, is no record of its own (Geometry, snag rule); thorns on suckers are visual only (cards).`
+5. Requirements (`docs/requirements.md`), PHY-18.
+   - Old: `ground and vegetation contact (hooks, twig capstans).`
+   - New: `ground and vegetation contact (hooks, twig capstans, and the wedge of a fork: a node touching two members at once takes both contacts together).`
+
+**Second group, with R1's crown and R2's belt edge after G1 (rulings (i) and (iii)):**
+
+6. Asset-pipeline delta, "Asset metadata contract", the field list.
+   - Old: `snag records, each with a kind, at least two points, a radius and the physics material of the member it follows.`
+   - New: `snag records, each with a kind, at least two points, a radius and the physics material of the member it follows, and a record in the `twig` material also with the radius at each point.`
+7. Asset-pipeline delta, "Asset metadata contract", the conventions (after edit 1).
+   - Old: `a `radius_m` and a `material` (`bark` on stems, limbs and branches, the twig slot's physics on twigs);`
+   - New: `a `radius_m` and a `material` (`bark` on stems, limbs and branches, the twig slot's physics on twigs), and a `twig` record also carries `radii_m`, one positive radius per point, its member's taper, which the phase-7 cantilever law reads (`p1-v01-locust` review-physics §B.2);`
+8. Asset-pipeline delta, "Asset metadata contract", a new scenario after "A snag record without its material is rejected":
+   ```
+   #### Scenario: A twig record without its radii is rejected
+   - **WHEN** a `twig` snag record carries no `radii_m`, or one whose length is not its points' or with a radius of 0 or less
+   - **THEN** the build's validator rejects it, naming the record and the rule
+   ```
+9. Asset-pipeline delta, "Compliant shells in the collision audit", rule (b).
+   - Old: `(b) every LOD0 vertex of a geometry slot (an opaque recipe, such as twig tubes) to lie inside the union or within 0.1 m outside it;`
+   - New: `(b) every LOD0 vertex of a geometry slot (an opaque recipe, such as twig tubes) within the envelope tolerance of a card face of the shell's slots (the leaf mass) to lie inside the union or within 0.1 m outside it (a geometry vertex farther than that from every card face is bare wood, which the snag record on its member's axis carries: `p1-v01-locust` review-physics §B.2);`
+10. Asset-pipeline delta, "Compliant shells in the collision audit", the print.
+    - Old: `It SHALL print each piece's largest standoff and where it is, per slot the largest outside distance, and the largest count of pieces meeting one 2 m cube and where,`
+    - New: `It SHALL print each piece's largest standoff and where it is, per slot the largest outside distance and the number of geometry vertices left to their records, and the largest count of pieces meeting one 2 m cube and where,`
+11. Asset-pipeline delta, "Compliant shells in the collision audit", scenario "Twig outside the shell".
+    - Old: `- **WHEN** one twig vertex lies 0.15 m outside the `twig` shell`
+    - New: `- **WHEN** one twig vertex within 0.1 m of a leaf face lies 0.15 m outside the `twig` shell`
+12. Asset-pipeline delta, "Compliant shells in the collision audit", a new scenario after "Twig outside the shell":
+    ```
+    #### Scenario: A bare twig is left to its record
+    - **WHEN** every vertex of a bare twig lies 0.3 m or more from every leaf face and 0.25 m outside the `twig` shell
+    - **THEN** rule (b) passes and the audit prints the twig's vertices as left to their records
+    ```
+13. Assets-vegetation delta, "V01 black locust belt tree", the crown's contact.
+    - Old: `a `twig` shell of sphere and capsule pieces fitted per main limb (the fewest of 24 to 64 per fit, a limb split by its child subtrees when 64 do not pass) and audited per tree under the shell rule (standoff within 0.1 m, twigs within 0.1 m, leaf and pod cards within the tree's card allowance, 0.361 m (the 0.25 m card's far corner plus 0.1 m), at most 64 pieces meeting any 2 m cube), every twig a tube ringed at each kink at most 0.1 m apart, every inter-limb opening of 0.5 m or more as a gap polygon bounded by capsules and shell pieces and crossed by none,`
+    - New: `no crown shell, since an open twig net is carried member by member by its records (`p1-v01-locust` review-physics §B.2: a shell over F's net, even over its leaves alone, takes 275 pieces and 85 meeting one 2 m cube at 0.3, and 78 or more at 0.6), every twig a tube ringed at each kink at most 0.1 m apart, every inter-limb opening of 0.5 m or more as a gap polygon bounded by capsules and twig records and crossed by none,`
+14. Assets-vegetation delta, "V01 black locust belt tree", the twig record (after edit 2).
+    - Old: `one polyline record per twig through its rings),`
+    - New: `one polyline record per twig through its rings with its radius at each ring),`
+15. Assets-vegetation delta, "V13 belt understory shrub" (MODIFIED), the record and shell clauses.
+    - Old: `one snag record per twig (an `edge` where other twigs leave its end, a `hook` where its end is free, at its mean radius), the leafy mass as a `twig` shell of sphere or capsule pieces that follows the leaf and twig mass (the fewest`
+    - New: `one snag record per twig (an `edge` where other twigs leave its end, a `hook` where its end is free, at its mean radius, with its radius at each point), the leafy mass as a `twig` shell of sphere or capsule pieces that follows the leaves and the twigs among them, every other twig left to its record (the fewest`
+16. Assets-vegetation delta, "V13 belt understory shrub", scenario "Stems and shell carry the contact", two clauses.
+    - Old: `each twig one record (`edge` where other twigs leave its end, `hook` where it is free, at its mean radius);`
+    - New: `each twig one record (`edge` where other twigs leave its end, `hook` where it is free, at its mean radius, with its radius at each point);`
+    - Old: `with every twig vertex inside it or within 0.1 m outside and every leaf-card vertex inside it or within 0.3 m outside,`
+    - New: `with every twig vertex within 0.1 m of a leaf face inside it or within 0.1 m outside, every other twig left to its record, and every leaf-card vertex inside it or within 0.3 m outside,`
+17. Assets-vegetation delta, "The H autumn belt state", the covers.
+    - Old: `` with `leaf_cover` 0.3–0.5 for V01 and 0.3–0.5 for V13 (`V13_tall` cannot be shelled below 0.3; `V01_S` sits at the lowest cover its crown passes rule (d) at, measured and printed, unless task 1.3 thins it to pass at 0.3; `p1-v01-locust` review-physics §A.3) ``
+    - New: `` with `leaf_cover` 0.3–0.5 for V01 and 0.1–0.5 for V13 (V01 has no shell; V13's shell over its leaf mass passes rule (d) at each cover, `V13_tall_autumn` 37–55 pieces at 0.1–0.4 against 62 at 0.4 when it held every twig, each variant's pieces and rule (d) printed; `p1-v01-locust` review-physics §B.4) ``
+18. Vegetation sheet, Geometry, the twig rule.
+    - Old: `- **Twigs 3–10 mm and leaves are cards** (leaf and twig atlases) inside the crown; they have no capsules. Their physics is the crown volume: a porous wind volume plus a compliant contact shell (`foliage` or `twig`, below). A card must never be the only thing that stops the drone.`
+    - New: `- **Twigs 3–10 mm are geometry, leaves are cards.** A twig is a 3-sided tube ringed at every kink at most 0.1 m apart, with no capsule and one snag record through its rings with its radius at each ring: the record carries the fiber's bend and hook, the props' strike and, from phase 7, its push on the drone (`p1-v01-locust` review-physics §B.1–§B.2). Leaf cards sit inside the crown. The crown's other physics is a porous wind volume, and, only where the leaves make a closed mass (V13's clumps, a dense crown such as V03's), a compliant contact shell (`foliage` or `twig`, below) over the leaves and the twigs among them; an open twig net (V01) has no shell, and a bare twig is always its record's. A card must never be the only thing that stops the drone.`
+19. Vegetation sheet, Geometry, the taper.
+    - Old: `the last 10 mm segment ends in cards.`
+    - New: `the last 10 mm segment ends in twigs.`
+20. Vegetation sheet, Shared generator: trees, the `twig_threshold_mm` row.
+    - Old: `below this a segment is a card (REAL-05 fixes 10; the range is for review only)`
+    - New: `below this a segment is a twig: a 3-sided tube with one snag record and no capsule (REAL-05 fixes 10; the range is for review only)`
+21. Vegetation sheet, Shared generator: trees, the outputs.
+    - Old: `capsules for every segment ≥ 10 mm; a crown shell (convex pieces per main limb) with `twig` contact; wind volume parts (trunk column, crown pieces) with porosity; snag flags on every capsule under 30 mm;`
+    - New: `capsules for every segment ≥ 10 mm; a crown shell (pieces per main limb) with `twig` contact only for a closed crown, none for an open twig net (V01); wind volumes (a trunk column under one crown box, never overlapping) with porosity; snag records by the rule above, one per twig with its radius at each ring;`
+22. Vegetation sheet, §V01, Physics role, the collision and material lines.
+    - Old: `crown shell per main limb with `twig` contact.`
+    - New: `no crown shell: the open twig net is carried member by member by its records (`p1-v01-locust` review-physics §B.2).`
+    - Old: `- **Material ids:** `bark` on trunk and limbs, else `timber`; crown shells `twig` or `foliage`.`
+    - New: `- **Material ids:** `bark` on trunk, limbs and branches, else `timber`; `twig` on the twig records.`
+23. Requirements, PHY-05.
+    - Old: `Cantilever forces giving touchdown jitter and drag when skimming weeds; twigs as rollers; prop strikes logged, with the stem's cut energy (deferred X-6, decided in 7a's design).`
+    - New: `Cantilever forces giving touchdown jitter and drag when skimming weeds; twigs as rollers; prop strikes logged, with the stem's cut energy (deferred X-6, decided in 7a's design). The same law carries an asset's twig records wherever no shell does (every record of an asset with no shell, such as V01; outside a shell's tolerance elsewhere): each a tapered cantilever through its `radii_m` from its parent at its first point, in series with the parent's chain; a record segment in a prop disc is a strike (`p1-v01-locust` review-physics §B.2).`
+
+Design 4 and 9 and the proposal still describe V01's shell. They are the orchestrator's to bring in line with edits 2, 13 and 14 when those land, and the after-G1 work's as-built note replaces design 9's.
+
+### B.7 Notes (non-blocking), by owner
+
+- **N-k, physics-engineer (7d, the fiber): a crotch is a wedge, not a record** (§B.3).
+  - A line node touching two members at once resolves both normals and frictions together, so the holding friction comes to μP/sin α and the line jams below α = atan μ (28.8° on bark).
+  - Every V01 crotch measured here jams. The forks are recoverable from the metadata if the node placement wants apexes.
+- **N-l, physics-engineer (7a, PHY-05): the twig records as stems** (§B.2).
+  - Each record segment outside a shell's tolerance (on V01, every one) is a tapered cantilever from its parent, latched on its side at first touch by the part's swept volume and capped at slide-off, its `Id` keying the state.
+  - A segment in a prop disc is a strike, with the cut energy (§B.1, X-6).
+  - 7a also decides whether V13's shell gives way to the same law (§3.3 measured 4.7–11.6 N inside its tolerance band).
+- **N-m, world-builder (phase 3, `veg_shells`, sharpening N-j): add a records case.**
+  - The per-member narrow test (a part's swept volume against a twig-record segment) along a path through a belt of try13-density V01_M, against T 219 and the shells' 8.3 µs.
+  - The compiler's density check counts record segments beside the shell pieces: 883 per 2 m cube in one try13 tree, 2 215 in its belt.
+- **N-n, asset-artist (R1's crown, wind):** the sheet's crown porosity, 0.75 part-bare, is assumed, and F's net lowers it. Print the crown box's side-on coverage from LOD0 next to the porosity written (the wind grid reads porosity side-on, V13 reading N5), so the denser crown's wind volume follows what it grew.
+
+### B.8 Evidence
+
+```
+$ git checkout unity/art/p1-v01-locust                       # 2fa7f20; no LFS content read (no FBX, no texture)
+$ (Get-CimInstance -Namespace root/wmi -ClassName BatteryStatus).PowerOnline; powercfg /getactivescheme
+False
+Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)        # False at every check before the fits, True for a while
+                                                                            # during them, other agents' jobs throughout: no timing taken
+
+$ python -I net.py <repo> committed 0.6 belt      # the committed generator's skeleton and leaves, no fit; T at the 14-part layout
+committed V01_M cover 0.6: members 254, twigs 194, wood 60, leaves 817 on 131 members          (the build's own counts)
+  twig length 61.9 m, record segments 721; base diameters (mm: count) 3: 27, 4: 48, 5: 41, 6: 29, 7: 22, 8: 11, 9: 14, 10: 2
+  twig ring centres beyond 0.1 m of every leaf face: 108 of 915; segments with an end there 101 (8.8 m of 61.9 m)
+  bark capsules 256
+  twig records, all segments: T 74 (yaw 0), 70 (yaw 45); outside the leaf mass: T 34, 36; bark capsules: T 56, 55
+  twig record segments meeting one 2 m cube: 149
+  belt 4x3 at 1.5 x 2.75 m: twig records T 87, 81; bark T 76, 74; record segments meeting one 2 m cube 477
+$ python -I net.py <repo> try13 0.6 belt ; net.py <repo> try13 0.3      # orders 6, children_per_order 3
+try13 V01_M cover 0.6: members 1313, twigs 1238, wood 75, leaves 2899 on 705 members
+  twig length 293.9 m, record segments 3834; base diameters (mm: count) 3: 914, 4: 129, 5: 80, 6: 38, 7: 28, 8: 22, 9: 22, 10: 5
+  twig ring centres beyond 0.1 m of every leaf face: 160 of 5072; segments with an end there 166 (13.7 m of 293.9 m)
+  bark capsules 317
+  twig records, all segments: T 166, 137; outside the leaf mass: T 44, 37; bark capsules: T 56, 55
+  twig record segments meeting one 2 m cube: 883
+  belt: twig records T 218, 219; bark T 66, 68; record segments meeting one 2 m cube 2215
+try13 V01_M cover 0.3: leaves 1412 on 344 members
+  twig ring centres beyond 0.1 m of every leaf face: 989 of 5072; segments with an end there 890 (69.5 m of 293.9 m)
+  twig records, all segments: T 166, 137; outside the leaf mass: T 79, 71
+$ python -I net.py <repo> spaced 0.6 belt          # children every 0.3 m along every member, orders 6 (a bound only)
+spaced V01_M cover 0.6: members 7974, twigs 7068, wood 906, leaves 16582 on 3556 members
+  twig length 2124.0 m, record segments 25821
+  twig records, all segments: T 231, 204; outside the leaf mass: T 55, 48; bark capsules: T 101, 93
+  twig record segments meeting one 2 m cube: 4372; belt: twig records T 595, 526; bark T 207, 205; per 2 m cube 15421
+
+$ python -I -c "...tree_tubes + cards.add_to at LOD0..."     # LOD0 triangles, no pods
+committed V01_M 13084, V01_L 15538 (the build's); try13 V01_M 37558, V01_L 44988; spaced V01_M 279346, V01_L 1097598
+
+$ python -I metaT.py <repo> V01_S V01_M V01_L V01_M_autumn V13_tall V13_tall_autumn    # the committed metadata
+V01_S: shell pieces 70: T 65, 67; twig record segments 521: T 110, 99
+V01_M: shell pieces 130: T 58, 54; twig record segments 721: T 74, 69
+V01_L: shell pieces 147: T 75, 71; twig record segments 592: T 54, 50
+V01_M_autumn: shell pieces 160: T 47, 46
+V13_tall: shell pieces 40: T 105, 103; twig record segments 273: T 146, 146
+V13_tall_autumn: shell pieces 62: T 103, 100
+
+$ python -I -c "...a 1 m segment along x, y, z against the twig records' boxes..."
+committed V01_M: 8 / 8 / 11; try13: 18 / 15 / 18
+
+$ python -I arith.py <repo>
+1. d 3 mm, L 0.21 m: k tip 12.9 N/m, mid 103 N/m; s* 0.158 m, free beyond it 25% of L
+   d 5 mm, L 0.35 m: k tip 21.5 N/m, mid 172 N/m; s* 0.313 m, 11%
+   d 8 mm, L 0.56 m: k tip 34.3 N/m, mid 275 N/m; s* 0.586 m, 0%
+   d 10 mm, L 0.70 m: k tip 42.9 N/m, mid 343 N/m; s* 0.789 m, 0%
+2. fiber over d 3 / 5 / 8 / 10 / 30 mm: 2.92 / 1.78 / 1.12 / 0.90 / 0.30 GPa (4.2 / 2.6 / 1.6 / 1.3 / 0.4 x proof)
+3. rotor energy 37 J, tip speed 109 m/s, blade passes 410/s
+   d 3 mm: one cut 0.07 J = 0.19%; fed in 29 W      d 5 mm: 0.20 J = 0.53%; 81 W      d 10 mm: 0.79 J = 2.13%; 322 W
+   (d 8 mm: 0.50 J = 1.36%; 207 W)
+4. try13, 1238 twigs, 293.9 m: 82.6 m (28%) lies where 3 N bends the twig more than 0.1 m (taper kept, parent rigid)
+5. V01_S: trunk top, each limb to its nearest neighbour 42-56 deg; wood forks, child off its parent 19-47 deg
+   V01_M: 40-47 deg; 23-47 deg          V01_L: 49-55 deg; 23-47 deg
+   half-angle 20 / 24 / 28.8 deg: tan 0.36 / 0.45 / 0.55; 1/sin 2.92 / 2.46 / 2.08; a quarter wrap on bark 2.37 -> 12.50 / 8.37 / 6.01
+$ python -I -c "...a linear taper against a uniform cantilever at its mean radius..."
+taper 0.5: at s = 0.1 L the mean-radius cantilever is 3.00 x too soft; at 0.5 L 2.37 x; at L 1.58 x
+taper 0.6: 2.34 x; 1.95 x; 1.46 x
+
+$ python -I snags.py <repo>         # which committed assets carry snag records, and their fields
+L01 9-11 (edge, hook; cable, glass, steel, timber), L03 1-4 (edge; cable; some with edge_radius_m), V01 287-374, V13 226-321;
+K01, E01, S04 none; every record: kind, material, points, radius_m
+$ python -I narrow.py <repo> try13 0.3        # the committed fitter per limb, (b) on the leaf mass, split as tree._shells
+limb 1: 301 leaves, 655 twig segments in the leaf mass, 383 twig ring centres left to their records; 58 pieces (47 capsules, 11 spheres) at cap 64, passes (b) and (c); most meeting one 2 m cube 34; fit 199 s
+limb 2: 383 leaves, 752 twig segments in the leaf mass, 301 twig ring centres left to their records; 64 pieces (53 capsules, 11 spheres) at cap 64, FAILS (b) and (c); most meeting one 2 m cube 37; fit 721 s
+limb 2: 64 pieces do not pass; split into its child subtrees
+limb 2 child 8: 133 leaves, 245 twig segments in the leaf mass, 169 twig ring centres left to their records; 27 pieces (20 capsules, 7 spheres) at cap 32, passes (b) and (c); most meeting one 2 m cube 27; fit 4 s
+limb 2 child 9: 123 leaves, 240 twig segments in the leaf mass, 94 twig ring centres left to their records; 24 pieces (16 capsules, 8 spheres) at cap 24, passes (b) and (c); most meeting one 2 m cube 24; fit 2 s
+limb 2 child 10: 127 leaves, 267 twig segments in the leaf mass, 38 twig ring centres left to their records; 18 pieces (16 capsules, 2 spheres) at cap 24, passes (b) and (c); most meeting one 2 m cube 18; fit 2 s
+limb 3: 410 leaves, 741 twig segments in the leaf mass, 227 twig ring centres left to their records; 64 pieces (51 capsules, 13 spheres) at cap 64, FAILS (b) and (c); most meeting one 2 m cube 49; fit 1641 s
+limb 3: 64 pieces do not pass; split into its child subtrees
+limb 3 child 11: 187 leaves, 305 twig segments in the leaf mass, 74 twig ring centres left to their records; 32 pieces (25 capsules, 7 spheres) at cap 32, passes (b) and (c); most meeting one 2 m cube 25; fit 16 s
+limb 3 child 12: 120 leaves, 224 twig segments in the leaf mass, 127 twig ring centres left to their records; 18 pieces (16 capsules, 2 spheres) at cap 24, passes (b) and (c); most meeting one 2 m cube 18; fit 3 s
+limb 3 child 13: 103 leaves, 212 twig segments in the leaf mass, 26 twig ring centres left to their records; 18 pieces (15 capsules, 3 spheres) at cap 24, passes (b) and (c); most meeting one 2 m cube 18; fit 4 s
+limb 4: 318 leaves, 688 twig segments in the leaf mass, 206 twig ring centres left to their records; 64 pieces (51 capsules, 13 spheres) at cap 64, passes (b) and (c); most meeting one 2 m cube 52; fit 555 s
+try13 V01_M cover 0.3: tree 259 pieces (206 capsules, 53 spheres); rule (d) 77 of 64; 3150 s
+  ring centres in the tree's leaf mass: farthest outside the union 241.8 mm; 47 beyond 0.1 m
+  residual pass: 16 pieces (11 capsules, 5 spheres) at cap 24, passes (b); fit 14 s; tree now 275 pieces, rule (d) 85 of 64; leaf-mass ring centres beyond 0.1 m 0, farthest 96.3 mm
+$ python -I narrow.py <repo> try13 0.6 V01_M 1,2 / 3 / 4    # one process per limb, the pieces saved; limb 2 stopped
+limb 1: 713 leaves, 924 twig segments in the leaf mass, 62 twig ring centres left to their records; 64 pieces (57 capsules, 7 spheres) at cap 64, passes (b) and (c); most meeting one 2 m cube 33; fit 789 s
+limb 3: 734 leaves, 912 twig segments in the leaf mass, 35 twig ring centres left to their records; 64 pieces (55 capsules, 9 spheres) at cap 64, FAILS (b) and (c); most meeting one 2 m cube 48; fit 1922 s
+limb 3: 64 pieces do not pass; split into its child subtrees
+limb 3 child 11: 296 leaves, 357 twig segments in the leaf mass, 20 twig ring centres left to their records; 32 pieces (25 capsules, 7 spheres) at cap 32, passes (b) and (c); most meeting one 2 m cube 24; fit 42 s
+limb 3 child 12: 247 leaves, 321 twig segments in the leaf mass, 13 twig ring centres left to their records; 27 pieces (26 capsules, 1 spheres) at cap 32, passes (b) and (c); most meeting one 2 m cube 27; fit 26 s
+limb 3 child 13: 191 leaves, 234 twig segments in the leaf mass, 2 twig ring centres left to their records; 15 pieces (14 capsules, 1 spheres) at cap 24, passes (b) and (c); most meeting one 2 m cube 15; fit 6 s
+limb 4: 709 leaves, 855 twig segments in the leaf mass, 21 twig ring centres left to their records; 64 pieces (59 capsules, 5 spheres) at cap 64, passes (b) and (c); most meeting one 2 m cube 55; fit 981 s
+$ python -I -c "...tree._neighbourhood over the saved pieces of limbs 1, 3 and 4..."
+limbs 1, 3, 4 at 0.6: 202 pieces; rule (d) over their union 78 of 64
+$ python -I narrow.py <repo> committed 0.3 V01_S
+committed V01_S cover 0.3: tree 44 pieces (25 capsules, 19 spheres); rule (d) 39 of 64
+  ring centres in the tree's leaf mass: farthest outside the union 264.6 mm; 19 beyond 0.1 m
+  residual pass: 5 pieces (4 capsules, 1 spheres) at cap 24, passes (b); tree now 49 pieces, rule (d) 44 of 64; leaf-mass ring centres beyond 0.1 m 0, farthest 95.8 mm
+
+$ python -I v13.py <repo> V13_tall_autumn 0.4 committed        # the build's fit reproduced
+V13_tall_autumn leaf_cover 0.4: LOD0 twig faces 819, leaf faces 1571
+  committed rule (b), every twig: 62 pieces (45 capsules, 17 spheres) at cap 64, passes (b) and (c); rule (d) 62; fit 423 s
+$ for c in 0.4 0.2 0.1 0.3: python -I v13.py <repo> V13_tall_autumn $c narrowed     # (b) on the leaf-mass vertices
+0.4: 1502 of 1638 twig vertices in the leaf mass; 47 pieces (43 capsules, 4 spheres) at cap 48, passes (b) and (c); rule (d) 47; fit 166 s; farthest outside 97.4 mm
+0.2: 1257 of 1638; 55 pieces (49 capsules, 6 spheres) at cap 56, passes; rule (d) 55; fit 288 s; farthest outside 97.9 mm
+0.1: 740 of 1638; 37 pieces (34 capsules, 3 spheres) at cap 40, passes; rule (d) 37; fit 21 s; farthest outside 95.8 mm
+0.3: 1413 of 1638; 48 pieces (40 capsules, 8 spheres) at cap 48, passes; rule (d) 48; fit 199 s; farthest outside 97.6 mm
+```
