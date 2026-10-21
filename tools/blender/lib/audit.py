@@ -123,6 +123,45 @@ def soft_materials(root):
                                        and row["stiffness_n_per_m"] <= SOFT_STIFFNESS_N_PER_M}
 
 
+def stand_in(meta, lod0):
+    """(problems, report lines) of a Godot stand-in (p6-test-range design 3, "The metadata survives the port"): every
+    collision shape's exact axis-aligned box (_Shape.box for boxes, spheres and capsules, _cylinder_box for cylinders)
+    within the LOD0 mesh's bounds plus TOLERANCE_M, and each gap's narrowest_m against
+    its largest inscribed circle as the full audit holds it. The full audit's 5 cm both ways is not asked of the first
+    attempt's collision (D-040: no rework); its review sheet's overlay shows the two together. One line for the
+    shapes, naming the one that reaches farthest past the mesh (negative: inside it), and one per gap."""
+    lo, hi = lod0.bounds()
+    problems, worst, at = [], -math.inf, None
+    for i, shape in enumerate(meta["collision"]):
+        s_lo, s_hi = _cylinder_box(_Shape(shape)) if shape["shape"] == "cylinder" else _Shape(shape).box()
+        past = max(max(lo[a] - s_lo[a], s_hi[a] - hi[a]) for a in range(3))
+        if past > worst:
+            worst, at = past, i
+        if past > TOLERANCE_M + COVERED_M:
+            problems.append(f"collision[{i}] {shape['shape']} reaches {past:.4f} m past the LOD0 bounds, tolerance "
+                            f"{TOLERANCE_M:g} m")
+    bounds = f"[{', '.join(f'{v:.3f}' for v in lo)}]..[{', '.join(f'{v:.3f}' for v in hi)}]"
+    lines = [f"stand-in audit: {len(meta['collision'])} collision shapes against the LOD0 bounds {bounds} + "
+             f"{TOLERANCE_M:g} m: " + (f"the farthest, collision[{at}] {meta['collision'][at]['shape']}, at "
+                                       f"{worst:+.4f} m past them" if at is not None else "none") +
+             (f", {len(problems)} beyond" if problems else ", every one within")]
+    for i, gap in enumerate(meta["gaps"]):
+        diameter = inscribed_diameter(gap["polygon"], gap["normal"])
+        text = f"gaps[{i}] '{gap['id']}': narrowest_m {gap['narrowest_m']:.4f}, largest inscribed circle {diameter:.4f}"
+        if abs(gap["narrowest_m"] - diameter) > NARROWEST_TOLERANCE_M:
+            problems.append(f"{text}: they differ by more than {NARROWEST_TOLERANCE_M * 1000:g} mm")
+        lines.append(f"stand-in audit {text}, tolerance {NARROWEST_TOLERANCE_M * 1000:g} mm")
+    return problems, lines
+
+
+def _cylinder_box(shape):
+    """(lo, hi) of a cylinder's exact axis-aligned box: along each asset axis its half height times the axis's share
+    plus its radius times the caps' reach, sqrt(1 - share^2)."""
+    d = _rotate(shape.q, (0.0, 1.0, 0.0))
+    reach = [shape.h * abs(d[a]) + shape.r * math.sqrt(max(0.0, 1.0 - d[a] * d[a])) for a in range(3)]
+    return (tuple(shape.centre[a] - reach[a] for a in range(3)), tuple(shape.centre[a] + reach[a] for a in range(3)))
+
+
 def run(meta, lod0, *, soft=frozenset(), card_visuals=(), card_reach_m=None, planted=False, clip_boxes=False):
     """(problems, report lines) of one variant: `meta` as lib.meta.assemble builds it, `lod0` its first
     lib.geometry.Mesh, `soft` the material ids with soft tops (soft_materials; none by default, so every landable
