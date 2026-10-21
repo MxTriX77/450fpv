@@ -17,8 +17,8 @@ The look setup of the G1 gallery (`Scripts/Feed/LookSetup.cs`, `LookModel.cs`, `
 |---|---|---|---|---|---|
 | day | 12.0 | 0.2 | 45.0° up, due south | 0.20 /km | C, M |
 | low sun | 17.5 | 0.1 | 5.3° up, west, warm | 0.25 /km | G, B |
-| overcast | 12.0 | 1.0 | none | 0.30 /km | A, H |
-| night | 23.0 | 1.0 | none (moonless) | 0.30 /km | L |
+| overcast | 12.0 | 1.0 | none | 0.25 /km | A, H |
+| night | 23.0 | 1.0 | none (moonless) | 0.25 /km | L |
 
 ## The sky model (`../Sky/sky_model.json`)
 
@@ -36,4 +36,4 @@ Every colour is linear RGB in the review rig's units: a 0.18 grey under its day 
 
 **Cloud cover keeps the horizontal illuminance** (the review rig's rule): the overcast gradient's level is set so that the sky gives back the sun the clouds hide and the clear sky they cover, on an up-facing surface. Day and overcast therefore light a horizontal grey alike, and night's overcast keeps the clear night's level. **The ambient** is the sky (and the ground's bounce) projected onto the ambient probe; **the reflection** is the same gradient in a 32 px cubemap; **the fog** is URP's exponential fog in the horizon's colour.
 
-**Where the values come from.** The 45° row's sun is the review rig's day sun; its sky is tuned so that sun plus sky light a flat surface as the rig's day does (0.976). The low-sun row copies G and B's look (a deep blue zenith over a near-white horizon, warm raking light), taken nearer neutral than the feed shows it, since the feed's warm, saturated colour is phase 4's. The night row is set so that night's overcast horizon reads about sRGB 93 over near-black ground, as L. The overcast tint is J's pale, slightly cool sky; its gradient is near flat (H and J; P is darker at the horizon). The haze is weak, as the footage measures it (A: about 0.2 /km; P under rain at most 0.29 /km): a belt at 200 m keeps over 94 % of its contrast. Rows between 5° and -18° are interpolated and not judged: no letter shows dusk.
+**Where the values come from.** The 45° row's sun is the review rig's day sun; its sky is tuned so that sun plus sky light a flat surface as the rig's day does (0.972 against the rig's 0.976; overcast the same by the rule above). The low-sun row copies G and B's look (a deep blue zenith over a near-white horizon, warm raking light), taken nearer neutral than the feed shows it, since the feed's warm, saturated colour is phase 4's; its sun is bright for its elevation (horizontal illuminance 0.575, a sunlit face 3.3), as the camera has adapted to it. The night row is set so that night's overcast reads about sRGB 93 at the horizon and 66 overhead (twice as bright at the horizon, as L's cloud base) over ground near sRGB 25, as L. The overcast tint is J's pale, slightly cool sky; its gradient is near flat (H and J; P is darker at the horizon). The haze is weak, as the footage measures it (A: about 0.25 /km from its far ground against its near; P under rain at most 0.29 /km): a belt at 200 m keeps 95 % of its contrast. Rows between 5° and -18° are interpolated and not judged: no letter shows dusk.
