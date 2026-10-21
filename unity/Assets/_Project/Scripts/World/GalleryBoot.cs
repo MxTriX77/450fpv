@@ -25,9 +25,14 @@ namespace Fpv450.World
         public ViewpointKeys keys;
         public LookSetup look;
 
-        void Awake()
+        void Awake() => ApplyScreen(Environment.GetCommandLineArgs());
+
+        /// <summary>
+        /// Vsync from <c>-vsync &lt;n&gt;</c> (on by default), and full screen at the display's resolution or a
+        /// 1920 x 1080 window with <c>-windowed</c>; the test range's boot shares it.
+        /// </summary>
+        internal static void ApplyScreen(string[] args)
         {
-            string[] args = Environment.GetCommandLineArgs();
             int at = Array.IndexOf(args, "-vsync");
             QualitySettings.vSyncCount = at >= 0 && at + 1 < args.Length && int.TryParse(args[at + 1], out int count) ? count : 1;
             // Set on every launch: the player otherwise reopens in the mode its last run saved under its product name
@@ -53,7 +58,7 @@ namespace Fpv450.World
                 prefabs += names.Length;
                 Debug.Log($"[Gallery] station {marker.name} at ({marker.position.x:0}, {marker.position.y:0}, {marker.position.z:0}): " +
                           (names.Length > 0 ? string.Join(", ", names) : "empty marker"));
-                problems += Check(marker);
+                problems += Check(marker, $"[Gallery] station {marker.name}");
             }
             Debug.Log($"[Gallery] {prefabs} prefabs placed, {problems} missing meshes, materials, textures or unsupported shaders");
 
@@ -94,30 +99,34 @@ namespace Fpv450.World
                 Application.Quit();
         }
 
-        static int Check(Transform marker)
+        /// <summary>
+        /// Every renderer under <paramref name="root"/> checked for a missing mesh, material or texture and for a
+        /// shader the GPU cannot run (pink), each problem logged as an error after <paramref name="where"/>.
+        /// </summary>
+        internal static int Check(Transform root, string where)
         {
             int problems = 0;
-            foreach (MeshRenderer renderer in marker.GetComponentsInChildren<MeshRenderer>(true))
+            foreach (MeshRenderer renderer in root.GetComponentsInChildren<MeshRenderer>(true))
             {
                 var filter = renderer.GetComponent<MeshFilter>();
                 if (filter == null || filter.sharedMesh == null || filter.sharedMesh.vertexCount == 0)
-                    problems += Problem(marker, renderer, "no mesh");
+                    problems += Problem(where, renderer, "no mesh");
                 foreach (Material material in renderer.sharedMaterials)
                 {
                     if (material == null)
-                        problems += Problem(marker, renderer, "no material");
+                        problems += Problem(where, renderer, "no material");
                     else if (material.shader == null || !material.shader.isSupported || material.shader.name == "Hidden/InternalErrorShader")
-                        problems += Problem(marker, renderer, $"{material.name} has no supported shader (pink)");
+                        problems += Problem(where, renderer, $"{material.name} has no supported shader (pink)");
                     else if (material.mainTexture == null)
-                        problems += Problem(marker, renderer, $"{material.name} has no texture");
+                        problems += Problem(where, renderer, $"{material.name} has no texture");
                 }
             }
             return problems;
         }
 
-        static int Problem(Transform marker, Renderer renderer, string what)
+        static int Problem(string where, Renderer renderer, string what)
         {
-            Debug.LogError($"[Gallery] station {marker.name}: {renderer.name}: {what}");
+            Debug.LogError($"{where}: {renderer.name}: {what}");
             return 1;
         }
     }

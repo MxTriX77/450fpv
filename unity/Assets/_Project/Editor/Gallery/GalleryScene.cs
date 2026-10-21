@@ -81,9 +81,30 @@ namespace Fpv450
             int prefabs = 0;
             foreach (GalleryStations.Station station in GalleryStations.Stations)
                 prefabs += Place(station, stations, holes);
-            Floor(holes);
+            Floor(holes, FloorCentre, FloorHalfM, FloorMeshPath);
 
-            var look = new GameObject("Look").AddComponent<LookSetup>();
+            GameObject go = Rig(out LookSetup look, out ViewpointKeys keys);
+            var boot = go.AddComponent<GalleryBoot>();
+            boot.stations = stations;
+            boot.keys = keys;
+            boot.look = look;
+            GalleryStations.Viewpoint start = GalleryStations.Viewpoints[0];
+            go.transform.SetPositionAndRotation(start.Position, start.Rotation);
+
+            if (!EditorSceneManager.SaveScene(scene, ScenePath))
+                throw new InvalidOperationException($"could not save {ScenePath}");
+            AssetDatabase.SaveAssets();
+            Debug.Log($"[GalleryScene] wrote {ScenePath}: {GalleryStations.Stations.Length} stations, {prefabs} prefabs, {GalleryStations.Viewpoints.Length} viewpoints, " +
+                      $"floor {2f * FloorHalfM:0} m with {holes.Count} holes");
+        }
+
+        /// <summary>
+        /// The look setup with G1's four presets, and the camera (design 5) with the noclip, the number keys and the
+        /// preset keys; the test range's scene builder shares it. The caller adds its boot and the start pose.
+        /// </summary>
+        internal static GameObject Rig(out LookSetup look, out ViewpointKeys keys)
+        {
+            look = new GameObject("Look").AddComponent<LookSetup>();
             look.skyModel = Load<TextAsset>(LookSetup.SkyModelPath);
             look.presets = LookSetup.PresetPaths.Select(Load<TextAsset>).ToArray();
             look.skyShader = Load<Shader>(LookSetup.SkyShaderPath);
@@ -100,22 +121,11 @@ namespace Fpv450
             data.antialiasing = AntialiasingMode.None;
             go.AddComponent<AudioListener>();
             var noclip = go.AddComponent<NoclipCamera>();
-            var keys = go.AddComponent<ViewpointKeys>();
+            keys = go.AddComponent<ViewpointKeys>();
             keys.noclip = noclip;
             go.AddComponent<LightPresets>().look = look;
-            var boot = go.AddComponent<GalleryBoot>();
-            boot.stations = stations;
-            boot.keys = keys;
-            boot.look = look;
-            GalleryStations.Viewpoint start = GalleryStations.Viewpoints[0];
-            go.transform.SetPositionAndRotation(start.Position, start.Rotation);
             look.viewCamera = camera;
-
-            if (!EditorSceneManager.SaveScene(scene, ScenePath))
-                throw new InvalidOperationException($"could not save {ScenePath}");
-            AssetDatabase.SaveAssets();
-            Debug.Log($"[GalleryScene] wrote {ScenePath}: {GalleryStations.Stations.Length} stations, {prefabs} prefabs, {GalleryStations.Viewpoints.Length} viewpoints, " +
-                      $"floor {2f * FloorHalfM:0} m with {holes.Count} holes");
+            return go;
         }
 
         // --- the stations ------------------------------------------------------------------------------------------
@@ -141,7 +151,7 @@ namespace Fpv450
                 placed[i].transform.localRotation = Quaternion.Euler(0f, placement.YawDeg, 0f);
                 // A surface or earthwork patch is its own ground: the floor leaves a hole over its bounds.
                 if (placement.Prefab.StartsWith("surfaces/", StringComparison.Ordinal) || placement.Prefab.StartsWith("earthworks/", StringComparison.Ordinal))
-                    holes.Add(Footprint(placed[i], placement));
+                    holes.Add(Footprint(placed[i], placement.Prefab, placement.YawDeg));
             }
             foreach (GalleryStations.Hanging hanging in station.Hangings)
                 Hang(hanging, marker, placed, station.Placements);
@@ -152,7 +162,7 @@ namespace Fpv450
             return marker.childCount;
         }
 
-        static GameObject Instantiate(string prefab, Transform parent)
+        internal static GameObject Instantiate(string prefab, Transform parent)
         {
             string path = $"{GalleryStations.PrefabsFolder}{prefab}.prefab";
             var asset = AssetDatabase.LoadAssetAtPath<GameObject>(path)
@@ -164,13 +174,14 @@ namespace Fpv450
             return (GameObject)PrefabUtility.InstantiatePrefab(asset, parent);
         }
 
-        static AssetPhysicsMeta Meta(GameObject instance) =>
+        internal static AssetPhysicsMeta Meta(GameObject instance) =>
             instance.GetComponent<AssetPhysicsMeta>() ?? throw new InvalidOperationException($"{instance.name} has no AssetPhysicsMeta");
 
-        static Rect Footprint(GameObject instance, GalleryStations.Placement placement)
+        /// <summary>A patch's plan footprint in the scene: its metadata bounds under its placement, at a multiple of 90°.</summary>
+        internal static Rect Footprint(GameObject instance, string prefab, float yawDeg)
         {
-            if (Mathf.Repeat(placement.YawDeg, 90f) != 0f)
-                throw new InvalidOperationException($"{placement.Prefab}: a patch that cuts the floor must stand at a multiple of 90°, not {placement.YawDeg}°");
+            if (Mathf.Repeat(yawDeg, 90f) != 0f)
+                throw new InvalidOperationException($"{prefab}: a patch that cuts the floor must stand at a multiple of 90°, not {yawDeg}°");
             Bounds bounds = Meta(instance).bounds;
             Vector3 a = instance.transform.TransformPoint(bounds.min), b = instance.transform.TransformPoint(bounds.max);
             return Rect.MinMaxRect(Mathf.Min(a.x, b.x), Mathf.Min(a.z, b.z), Mathf.Max(a.x, b.x), Mathf.Max(a.z, b.z));
@@ -212,15 +223,27 @@ namespace Fpv450
                 turn = Quaternion.LookRotation(Seat(to, hanging.ToPorts[0], first) - start) * Quaternion.Inverse(Quaternion.LookRotation(chordLocal));
             }
             span.transform.SetPositionAndRotation(start - turn * p0, turn);
+            CheckEnds("[GalleryScene]", hanging.Name, span, from, placements[hanging.From].Name, hanging.FromPorts,
+                      to, free ? null : placements[hanging.To].Name, hanging.ToPorts);
+        }
 
+        /// <summary>
+        /// Logs where each conductor of a placed span ends against its ports, and throws when one ends more than 5 mm
+        /// off its seat or leaves it back across its pole; <paramref name="to"/> null is a free end. The test range's
+        /// scene builder checks its spans, placed from their data, with it.
+        /// </summary>
+        internal static void CheckEnds(string tag, string spanName, GameObject span, GameObject from, string fromName, string[] fromPorts,
+                                       GameObject to, string toName, string[] toPorts)
+        {
+            AssetPhysicsMeta.Wire[] wires = Meta(span).wires;
             for (int i = 0; i < wires.Length; i++)
             {
                 AssetPhysicsMeta.Wire wire = wires[i];
                 Vector3 a = span.transform.TransformPoint(wire.points[0]), b = span.transform.TransformPoint(wire.points[wire.points.Length - 1]);
-                string line = $"[GalleryScene] {hanging.Name} conductor {i} ({1000f * wire.diameterM:0} mm): " +
-                              End(from, placements[hanging.From].Name, hanging.FromPorts[i], wire, a, b - a);
-                if (!free)
-                    line += "; " + End(to, placements[hanging.To].Name, hanging.ToPorts[i], wire, b, a - b);
+                string line = $"{tag} {spanName} conductor {i} ({1000f * wire.diameterM:0} mm): " +
+                              End(from, fromName, fromPorts[i], wire, a, b - a);
+                if (to != null)
+                    line += "; " + End(to, toName, toPorts[i], wire, b, a - b);
                 else
                     line += $"; free end at ({b.x:0.000}, {b.y:0.000}, {b.z:0.000}), its house not on this station";
                 Debug.Log(line);
@@ -251,20 +274,26 @@ namespace Fpv450
 
         // --- the floor ---------------------------------------------------------------------------------------------
 
-        static void Floor(List<Rect> holes)
+        /// <summary>
+        /// The floor (design 2): the straw cover over a square of half side <paramref name="halfM"/> about
+        /// <paramref name="floorCentre"/>, less the holes, its mesh written to <paramref name="meshPath"/>; the test range
+        /// shares it and its material.
+        /// </summary>
+        internal static GameObject Floor(List<Rect> holes, Vector2 floorCentre, float halfM, string meshPath)
         {
             var go = new GameObject("Floor");
-            go.AddComponent<MeshFilter>().sharedMesh = FloorMesh(holes);
+            go.AddComponent<MeshFilter>().sharedMesh = FloorMesh(holes, floorCentre, halfM, meshPath);
             var renderer = go.AddComponent<MeshRenderer>();
             renderer.sharedMaterial = FloorMaterial();
             // As the review's ground: it only receives, so it never sets the sun's shadow depth range.
             renderer.shadowCastingMode = ShadowCastingMode.Off;
+            return go;
         }
 
         /// <summary>The floor's rectangle less the holes, as the cells of the grid their edges cut it into; UVs in metres.</summary>
-        static Mesh FloorMesh(List<Rect> holes)
+        static Mesh FloorMesh(List<Rect> holes, Vector2 floorCentre, float halfM, string meshPath)
         {
-            var floor = Rect.MinMaxRect(FloorCentre.x - FloorHalfM, FloorCentre.y - FloorHalfM, FloorCentre.x + FloorHalfM, FloorCentre.y + FloorHalfM);
+            var floor = Rect.MinMaxRect(floorCentre.x - halfM, floorCentre.y - halfM, floorCentre.x + halfM, floorCentre.y + halfM);
             float[] xs = holes.SelectMany(h => new[] { h.xMin, h.xMax }).Append(floor.xMin).Append(floor.xMax).Distinct().OrderBy(x => x).ToArray();
             float[] zs = holes.SelectMany(h => new[] { h.yMin, h.yMax }).Append(floor.yMin).Append(floor.yMax).Distinct().OrderBy(z => z).ToArray();
             var vertices = new List<Vector3>();
@@ -282,11 +311,11 @@ namespace Fpv450
                     vertices.Add(new Vector3(xs[i + 1], 0f, zs[j]));
                     triangles.AddRange(new[] { n, n + 1, n + 2, n, n + 2, n + 3 }); // clockwise from above: facing up
                 }
-            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(FloorMeshPath);
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(meshPath);
             if (mesh == null)
             {
                 mesh = new Mesh { name = "Floor" };
-                AssetDatabase.CreateAsset(mesh, FloorMeshPath);
+                AssetDatabase.CreateAsset(mesh, meshPath);
             }
             mesh.Clear();
             mesh.SetVertices(vertices);
@@ -299,7 +328,7 @@ namespace Fpv450
             return mesh;
         }
 
-        static Material FloorMaterial()
+        internal static Material FloorMaterial()
         {
             Shader lit = Shader.Find("Universal Render Pipeline/Lit") ?? throw new InvalidOperationException("no URP/Lit shader");
             var material = AssetDatabase.LoadAssetAtPath<Material>(FloorMaterialPath);
@@ -383,7 +412,7 @@ namespace Fpv450
             return (h & 0xffffffu) / 8388607.5f - 1f;
         }
 
-        static T Load<T>(string path) where T : Object =>
+        internal static T Load<T>(string path) where T : Object =>
             AssetDatabase.LoadAssetAtPath<T>(path) ?? throw new FileNotFoundException($"{path} is missing");
     }
 }
