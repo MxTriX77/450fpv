@@ -4,9 +4,16 @@ Branch `unity/techart/p4-feed` off `unity/main`, once `p1-g1-look-lock-gallery` 
 
 ## 1. Build
 
-- [ ] 1.1 [tech-artist] The scheduler and loss machine (design 1, 2):
+- [x] 1.1 [tech-artist] The scheduler and loss machine (design 1, 2):
   - **What:** `FeedEvents` and `FeedLoss` ported in C# with `System.Random(seed)`, `IFeedSignals` with labelled stubs, and a headless schedule dump.
   - **Verify:** the "same seed, the same schedule" scenario over 15 000 fields against the legacy C#'s dump.
+
+  **As built:**
+  - *Where:* the engine-free core is `unity/Assets/_Project/Scripts/Feed/Core/` (asmdef `Fpv450.Feed.Core`, `noEngineReferences`, namespace `Fpv450.Feed`). `tools/feedcore` compiles those files for .NET. `tools/feedbench schedule --seed <n> [--fields <n>] [--current <0-1>] [--cut <field>[:abrupt]]` writes one row per field, and prints the summary, the digest and the stubbed signals to stderr. `tools/feedtests` runs `Tests/EditMode/Feed/` (asmdef `Fpv450.Feed.Tests`) outside Unity.
+  - *The port:* `FeedEvents` and `FeedLoss` keep Godot's constants, draw order and structure. Each literal names its line in the verbatim copy. Godot 4.7.2's float `Mathf.Sin` and `Mathf.Pi` are `MathF.Sin` and `MathF.PI` (read off its GodotSharp).
+  - *Unity's Mono:* it draws the same `System.Random` sequence. It evaluates float expressions in double precision, though, so the first port drifted a few ulps per field, and `N3Roll` accumulated the drift: the events matched, the bits did not. Every float operation is now cast to `float` (no-op on CoreCLR), and Unity matches bit for bit. New C# float math in the feed needs the same casts.
+  - *The A/B:* the verbatim legacy files, compiled in a scratch project against Godot 4.7.2's own GodotSharp, dump the same rows. 12 runs of 15 000 fields: seeds 1–3, each timer-only at motor current 0 and 0.6, and with a faded and an abrupt cut at field 7500. Every diff is empty. The runs reach every state (Picture, PartialSnow, Blue, Snow, Black) and every tell (brightening, top tear, bottom tear, grain rise). EditMode pins ten of those digests (`FeedScheduleTests`). The Godot code gives 6.4–8.8 quality drops/min and 3.6–4.4 dropouts/min at seeds 1–3. Each drop's gap counts from its end, so the README's "about 10/min" reads high. The code stays unchanged.
+  - *Signals:* `IFeedSignals` carries the K§11.8 list in its units (A, V, rad/s, dB, cd/m²…), with `SourceOf` per signal and `FeedSignalLog.Describe` for the log. Every signal on `StubFeedSignals` is a settable stub: a parked drone, no fiber (infinite margin and bend radius), a 6S pack at 25.2 V (Godot's), noon, no rain, a blank OSD. `FeedEvents.AdvanceTo` still takes Godot's 0–1 motor current. The amps-to-fraction scale and the dB-to-0–1 link margin are 1.2's.
 - [ ] 1.2 [tech-artist] The camera rig and the pass (design 1, 3):
   - **What:** the FPV camera at field resolution with extra FOV and the intrinsics, and `video_feed.gdshader` as the HLSL full-screen pass, stage by stage, constants literal.
   - **Verify:**
