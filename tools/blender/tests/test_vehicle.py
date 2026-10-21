@@ -285,26 +285,22 @@ def test_a_petals_reach_the_open_centre(r01_a):
 
 
 def test_a_flat_corner_drop_and_lean(r01_a, built_a):
-    """The flat front tyre (measured M): its corner 0.04-0.08 m lower, the body turned about the opposite diagonal,
-    so it leans 1-2 degrees: atan(drop / track) across and atan(drop / wheelbase) along (the sheet's derivation)."""
+    """The flat front tyre (measured M): its hub 0.04-0.08 m lower, the body settled on its four springs (QA 2.1's
+    R1): down a quarter of the drop at its centre, its corners -3/4, -1/4, -1/4 and +1/4 of it (the flat one first,
+    the opposite one last; the tracks differ, so within 1 mm), leaning 1-2 degrees across and tilting 1-2 in all."""
     body = vehicle.Body(r01_a)
     kit = vehicle.Kit(body, r01_a)
     drop = body.z_wc - kit.hubs["front_left"][1]
     assert 0.04 <= drop <= 0.08 and drop == pytest.approx(kits.FLAT_DROP_M, abs=1e-6)
     for corner in ("front_right", "rear_left", "rear_right"):
         assert kit.hubs[corner][1] == pytest.approx(body.z_wc, abs=1e-9)
-    # the body's own hubs: the diagonal stays, the far corner rises as the near one drops
-    hub = {c: body.P(a, s * t / 2, body.z_wc) for c, a, s, t in (
-        ("front_left", body.axle[0], -1, body.track[0]), ("front_right", body.axle[0], 1, body.track[0]),
-        ("rear_left", body.axle[1], -1, body.track[1]), ("rear_right", body.axle[1], 1, body.track[1]))}
-    for corner in ("front_right", "rear_left"):
-        assert kit.T.point(hub[corner]) == pytest.approx(hub[corner], abs=1e-9)
-    assert kit.T.point(hub["rear_right"])[1] - body.z_wc == pytest.approx(drop, abs=0.005)
-    across = math.degrees(math.asin(kit.T.vector((0.0, 0.0, 1.0))[1]))
-    along = math.degrees(math.asin(kit.T.vector((1.0, 0.0, 0.0))[1]))
-    assert across == pytest.approx(math.degrees(math.atan(drop / body.track[0])), abs=0.1)
-    assert along == pytest.approx(math.degrees(math.atan(drop / r01_a["wheelbase"])), abs=0.1)
-    assert 1.0 <= abs(along) <= 2.2 and 1.0 <= abs(across) <= 2.2
+    settled = vehicle._settle(body, kit)
+    want = {"front_left": -0.75, "front_right": -0.25, "rear_left": -0.25, "rear_right": 0.25, "centre": -0.25}
+    for corner, share in want.items():
+        assert settled[corner] == pytest.approx(share * drop, abs=0.001), corner
+    assert 1.0 <= settled["across"] <= 2.0 and 1.0 <= settled["tilt"] <= 2.0
+    assert settled["along"] == pytest.approx(math.degrees(math.atan(drop / 2 / r01_a["wheelbase"])), abs=0.02)
+    print(f"R01_A settled: across {settled['across']:.2f}, along {settled['along']:.2f}, tilt {settled['tilt']:.2f} deg")
     # the flat wheel's cylinder: over its dropped hub, from the tread flattened on the ground up to the published
     # 0.594 m tyre's top, 0.165 m wide
     flat = dict(named(r01_a))["wheel_front_left"]

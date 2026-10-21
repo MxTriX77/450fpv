@@ -722,8 +722,9 @@ class Kit:
     - The burst (burst_dir): the side facing it is holed (`side`), its front corner struck.
     - Glass per side and window pair (0 the front door's vent and window, 1 the rear door's window and quarter),
       the windscreen, the rear screen (gone in F); the cabin is `open` once any pane is gone.
-    - The body's transform `T`: A's lean about the diagonal opposite its flat tyre, F's drop onto the rims; the hubs
-      in the ground frame (the flat one moves with the body, F's sit at the rim's flange radius).
+    - The body's transform `T`: A's body settled on its four springs over its flat tyre (kits.lean), F's drop onto
+      the rims; the hubs in the ground frame (the flat one the tyre's drop down, moved by `W`; F's at the rim's
+      flange radius).
     - A: the holes on the burst side, the struck corner's lamp tear (`notch`), the bonnet's folded corner (`flap`)
       and the windscreen's hole where its edge struck.
     - F: the burnt-off steel's reach (`burnt`)."""
@@ -758,7 +759,11 @@ class Kit:
         self.hubs = {}
         for corner, h in hubs.items():
             if corner == self.flat:
-                self.hubs[corner] = self.T.point(h)
+                # the flat wheel hangs on its unloaded spring under the settled body, its hub the tyre's whole drop
+                # down; `W` moves it there with the body's tilt
+                moved = self.T.point(h)
+                self.hubs[corner] = (moved[0], h[1] - kits.FLAT_DROP_M, moved[2])
+                self.W = self.T.then(kits.translation((0.0, self.hubs[corner][1] - moved[1], 0.0)))
             elif self.F:
                 self.hubs[corner] = (h[0], RIM_FLANGE_R_M, h[2])
             else:
@@ -2003,17 +2008,17 @@ def _wheel(mesh, body, s_axle, w, side, q, kit):
         dome = [dome[0], dome[-1]]
     _revolve(mesh, centre, axis, dome, seg, CHROME)
     _revolve(mesh, centre, axis, [(RIM_R_M, -h + 0.025), (0.0, -h + 0.03)], seg, UNDER, facing=-1.0)
-    if corner == kit.flat:  # the wheel moves with the body (its hub down by the corner's drop), the tyre flattened
-        hub = kit.hubs[corner]  # on the ground over a longer patch, its sidewall bulging out near the ground
+    if corner == kit.flat:  # the wheel tilts with the body, its hub down by the tyre's drop (kit.W), the tyre
+        hub = kit.hubs[corner]  # flattened on the ground over a longer patch, its sidewall bulging out near the ground
         for i in range(v0, len(mesh.vertices)):
-            p = kit.T.point(mesh.vertices[i])
+            p = kit.W.point(mesh.vertices[i])
             if i < v1 and p[1] < FLAT_BULGE_REACH_M:
                 f = 1 - p[1] / FLAT_BULGE_REACH_M
                 p = (p[0], max(p[1], 0.0), hub[2] + (p[2] - hub[2]) * (1 + FLAT_BULGE * f))
             mesh.vertices[i] = p
         for k in range(f0, len(mesh.faces)):
             indices, normal, uvs, slot = mesh.faces[k]
-            mesh.faces[k] = (indices, kit.T.vector(normal), uvs, slot)
+            mesh.faces[k] = (indices, kit.W.vector(normal), uvs, slot)
 
 
 def _rim(mesh, hub, side, q):
@@ -3322,13 +3327,13 @@ def _kit_wheels(body, kit):
             else:
                 h = body.w_tyre / 2
                 if _corner(body, a, side) == kit.flat:
-                    # it leans with the body, on its dropped hub, from its tread flattened on the ground to its top:
+                    # it tilts with the body, on its dropped hub, from its tread flattened on the ground to its top:
                     # the round tyre would sink its drop into the ground the mesh stands on
                     centre = body.P(a, side * body.track[k] / 2, body.z_wc)
-                    hub_y = kit.T.point(centre)[1]
+                    hub_y = hub[1]
                     r = (hub_y + body.r_tyre) / 2
                     shape = kits.transform_shape(_cylinder(sub(centre, (0.0, 0.0, h)), add(centre, (0.0, 0.0, h)),
-                                                           r, "rubber"), kit.T)
+                                                           r, "rubber"), kit.W)
                     shape["center"][1] += r - hub_y
                 else:
                     shape = _cylinder(sub(hub, (0.0, 0.0, h)), add(hub, (0.0, 0.0, h)), body.r_tyre, "rubber")
@@ -3857,10 +3862,31 @@ def _kit_summary(body, kit):
     if kit.ws_hole:
         parts.append("windscreen crazed with its slit")
     if kit.flat:
-        parts.append(f"flat {kit.flat}: hub {body.z_wc - kit.hubs[kit.flat][1]:.3f} m down")
+        settled = _settle(body, kit)
+        parts.append(f"flat {kit.flat}: hub {body.z_wc - kit.hubs[kit.flat][1]:.3f} m down, the body on its springs "
+                     + " / ".join(f"{c} {settled[c] * 1000:+.1f}" for c in CORNERS)
+                     + f" mm (centre {settled['centre'] * 1000:+.1f}), across {settled['across']:.2f} deg, "
+                     f"along {settled['along']:.2f} deg, tilt {settled['tilt']:.2f} deg")
     if kit.F:
         parts.append(f"on its rims {kit.p['ride_drop']:.3f} m down, roof sag {body.sag_m:.3f} m")
     return "; ".join(parts)
+
+
+def _settle(body, kit):
+    """How the body settled over its flat tyre: per corner the body's point over its hub moved up (m), the same at
+    the hubs' centre, and its lean across and along and its whole tilt (degrees)."""
+    out = {}
+    pts = {}
+    for k, a in enumerate(body.axle):
+        for side, tag in ((-1, "left"), (1, "right")):
+            pts[f"{('front', 'rear')[k]}_{tag}"] = body.P(a, side * body.track[k] / 2, body.z_wc)
+    pts["centre"] = tuple(sum(p[i] for p in pts.values()) / 4 for i in range(3))
+    for name, p in pts.items():
+        out[name] = kit.T.point(p)[1] - p[1]
+    out["across"] = abs(math.degrees(math.asin(kit.T.vector((0.0, 0.0, 1.0))[1])))
+    out["along"] = abs(math.degrees(math.asin(kit.T.vector((1.0, 0.0, 0.0))[1])))
+    out["tilt"] = math.degrees(math.acos(min(1.0, kit.T.vector((0.0, 1.0, 0.0))[1])))
+    return out
 
 
 def _plan_summary(plan):

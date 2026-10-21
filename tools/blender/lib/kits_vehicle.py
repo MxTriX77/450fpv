@@ -2,7 +2,8 @@
 docs/object-sheets/vehicles.md, "How vehicles fail"): plain Python helpers the `vehicle` generator calls, with no
 Blender and no import of the generator (a body is duck-typed: s, w and y as generators.vehicle.Body names them).
 
-- Rigid transforms of meshes and collision shapes (the A lean about a diagonal, the F drop on the rims).
+- Rigid transforms of meshes and collision shapes (the A body settled on its springs over a flat tyre, the F drop
+  on the rims).
 - The burst: its direction from `burst_dir`, the side it holes and the end it strikes.
 - Fragment holes: seeded sizes and places on the burst side's flank, and the patch that cuts one from a lofted
   sheet: the sheet's quads round the hole are removed (lib.loft.sheet's `seams`, so no edge strip shows there) and a
@@ -167,24 +168,27 @@ def burst_vector(azimuth_deg, elevation_deg=0.0):
 
 
 def lean(hubs, flat, drop=FLAT_DROP_M):
-    """The rigid rotation of the body about the diagonal opposite the flat corner (design decision 3), through the
-    other diagonal's two hub centres, that lowers the flat corner's hub by `drop`. `hubs` maps the CORNERS to
-    their hub centres."""
-    other = {"front_left": ("front_right", "rear_left"), "rear_right": ("front_right", "rear_left"),
-             "front_right": ("front_left", "rear_right"), "rear_left": ("front_left", "rear_right")}[flat]
-    a, b = hubs[other[0]], hubs[other[1]]
-    axis = _unit(tuple(b[k] - a[k] for k in range(3)))
-    target = hubs[flat][1] - drop
-    lo, hi = -0.3, 0.3
-    if axis_rotation(a, axis, lo).point(hubs[flat])[1] < axis_rotation(a, axis, hi).point(hubs[flat])[1]:
-        lo, hi = hi, lo
-    for _ in range(80):  # bisection on the angle: the hub's height is monotonic over +-0.3 rad
-        mid = (lo + hi) / 2
-        if axis_rotation(a, axis, mid).point(hubs[flat])[1] > target:
-            lo = mid
-        else:
-            hi = mid
-    return axis_rotation(a, axis, (lo + hi) / 2)
+    """The body settled on its four springs, of equal rate, once the flat corner's support has dropped by `drop`
+    (QA 2.1's R1): the plane fitted by least squares through the four supports' displacements, which is the springs'
+    equilibrium (the load and both moments balance; the warp, which no plane follows, is the springs'), taken as a
+    tilt about the hubs' centroid and a heave. On a rectangle the body goes down drop / 4 at its centre and its
+    corners -3/4, -1/4, -1/4 and +1/4 of the drop (the flat corner first, the opposite one last), half the rigid turn
+    about the diagonal. `hubs` maps the CORNERS to their hub centres (at one height); returns the rigid transform."""
+    rows = [(1.0, hubs[c][0], hubs[c][2], -drop if c == flat else 0.0) for c in CORNERS]
+    # the normal equations of y = a + b x + c z over the four supports, solved by Cramer's rule
+    m = [[sum(r[i] * r[j] for r in rows) for j in range(3)] for i in range(3)]
+    v = [sum(r[i] * r[3] for r in rows) for i in range(3)]
+    det = _det3(m)
+    a, b, c = (_det3([[v[i] if j == k else m[i][j] for j in range(3)] for i in range(3)]) / det for k in range(3))
+    n = _unit((-b, 1.0, -c))
+    pivot = tuple(sum(hubs[corner][k] for corner in CORNERS) / 4 for k in range(3))
+    tilt = axis_rotation(pivot, (n[2], 0.0, -n[0]), math.acos(n[1]))  # the minimal turn taking up (+Y) onto n
+    return tilt.then(translation((0.0, a + b * pivot[0] + c * pivot[2], 0.0)))
+
+
+def _det3(m):
+    return (m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+            + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]))
 
 
 # --- fragment holes ----------------------------------------------------------------------------------------------
