@@ -4,7 +4,7 @@ Branch `unity/physics/p6-flight-core` off `unity/main` (D-042). The sim work is 
 
 ## 1. Build
 
-- [ ] 1.1 [physics-engineer] The core and the interfaces (design 1, 2, 9):
+- [x] 1.1 [physics-engineer] The core and the interfaces (design 1, 2, 9):
   - **What:** the step on its own thread with the scheduler, the state, the double-buffered `PoseFrame`, the named seed streams, and `StickSample`, `FcSettings`, `FeedSignals` and the flat-ground `IWorldQuery` stub in `Runtime/{Flight,Control}/`. A `tools/flightbench` case that steps a free body. The frame stated once (D-019, refined if needed with a note).
   - **Verify:**
     - the "Nothing outside the state enters a step" scenario as a suite test
@@ -12,6 +12,16 @@ Branch `unity/physics/p6-flight-core` off `unity/main` (D-042). The sim work is 
     - the "Adding a stream shifts nothing" scenario
     - `dotnet test tools/simtests`
     - Unity's EditMode run compiles the package
+  - **As built:**
+    - **`StickSample`** (`Fpv450.Sim.Control`): `long HostUs` (`HostClock` µs on arrival), `double Roll, Pitch, Yaw` in −1…1 (+1 = right, forward/nose down, right), `double Throttle` 0…1, `bool Arm`; `Neutral` = centred, throttle 0, disarmed. Written to `StickInbox` (lock-free SPSC ring, 1024, `TryWrite`, `Dropped`). Step k's host time is `StartUs + k·1000 µs`; the sample in force is the latest with `HostUs ≤` it; the recorder gets it every step.
+    - **`FcSettings`** (struct, CLI names in CLI units, `FcSettings.Default`): the sim default column (rates 5.5 / 22.5 / 34 roll and pitch, 8.5 / 26 / 15 yaw, held as doubles since Betaflight keeps ×10 integers; `thr_mid` 50, `thr_expo` 10, deadband 2 / 2, `rc_smoothing_auto_factor` 50, `f_*` 50 / 50 / 0, sag compensation 0); the builder's PIDs, `d_min` 60, `iterm_relax_cutoff` 8, `throttle_boost` 5; Betaflight 4.5 defaults for the rest (`p_yaw` 45, `d_min_gain` 37, `d_min_advance` 20, `iterm_limit` 400, the RC smoothing and feedforward defaults, `dshot_idle_value` 550; 1.4 re-checks them); `airmode` on (assumed).
+    - **`PoseFrame`** (`Fpv450.Sim.Flight`): `Step`, `Position`, `Attitude` (`Quat`), `Velocity`, `BodyRate`, `RotorSpeed`, `Armed`, `LegCompression` (1.6), `FiberPaidOut` (7d). `PoseBuffer` is a wait-free triple buffer of `PosePair` {`Previous`, `Current`, `Signals`, `StartUs`}, published after every step; `PosePair.Interpolate(hostUs, out PoseFrame)` is linear plus nlerp, held at the ends, never extrapolated. Per-corner values (`Corners`) follow Betaflight's Quad X motor order.
+    - **`FeedSignals`**: p4-feed's `IFeedSignals` names and SI units field for field (`MotorElectricalHz`, `MotorCurrentA`, `MotorCurrentTotalA`, `MotorCurrentTotalMaxA`, `MotorCurrentStepAPerS`, `PackVolts`, `CameraAngularVelocity`, `CameraVibration` with X < 50 Hz, Y 50–200 Hz, Z > 200 Hz, `ImpactCount`, `ImpactPeakAccel`, `ImpactImpulse`, `FiberTensionN`, `FiberMinBendRadiusM`, `LinkState` {`Intact`, `Broken`}, `LinkMarginDb`, `AirVelocityAtCamera`), plus `Step` and `Crashed`. `Live` (`FeedSignalSet`) puts each signal at bit 1 << its `FeedSignal` index; only `CameraAngularVelocity` is filled (the body rate), the rest are labelled stubs with the task that fills them. The scene's, app's and setup's rows are not physics fields.
+    - **Precision:** the core is `double` throughout, with no `float` anywhere in `Runtime/{Flight,Control,Math}`; the purity scan now refuses `float` in the step (Mono evaluates float expressions in double, CoreCLR does not). The feed's adapter narrows on the Unity side.
+    - **The world:** `FlightWorld` wraps `Fpv450.Sim.World.IWorldQuery`, merged from `p6-world-query-gallery`'s 1.1 (`afd554b`); the core's tests run on its `FloorWorld`. No second stub or vector type (D-041).
+    - **The step:** `FlightCore.Advance(in StickSample)`, 1 ms, semi-implicit Euler, the quaternion first-order then renormalised; gravity 9.806 65 m/s² (published) is its only force until 1.3. `FlightScheduler` alone reads the clock (`Begin`, `RunDue`, `Start`, `Stop`); a pass with two or more steps due logs one `Hitch` {`Step`, `Steps`, `LateUs`}; the thread sleeps 1 ms with more than 2 ms to go and yields otherwise. `IFlightRecorder` {`RecordStep(state, stick)`, `RecordHitch`} is 1.2's seam.
+    - **Randomness:** key = Mix64(seed + Mix64(FNV-1a 64 of the ASCII name)); draw i = SplitMix64's output at key + (i + 1)·γ; units from the top 53 bits. `FlightRandom.Open` once per name, `Draw` records each per-flight draw with its bound. Pinned values match an independent Python implementation.
+    - **Numbers:** the free body over 10 s: position 5.0e-11 m from the exact discrete solution, quaternion norm within 2.2e-16, attitude 1.0e-5 rad from the exact rotation (the first-order update's (|ω|·dt)³/12 per step); golden `0xAECE29900A37638B` in Debug and Release. Bench on AC: p50 0.20 µs, p99 0.30 µs, 0 B.
 - [ ] 1.2 [physics-engineer] The log and replay (design 10):
   - **What:** the header, the 1 kHz records and events, the ring buffer and flush worker, `tools/replay`, the summary reader.
   - **Verify:** both physics-log scenarios on a free-body flight, and the truncation case.
