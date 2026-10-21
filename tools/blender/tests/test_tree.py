@@ -372,17 +372,20 @@ def test_twig_rings_at_every_kink_and_polyline_records(variant):
 
 
 def test_records_name_their_material_by_the_sheet_rule(variant):
-    """PR4 and the sheet: a wood segment under 30 mm an edge, every wood member's top segment a hook to its free
-    tip, each on its capsule's axis at its radius in bark; every twig one hook in twig."""
+    """PR4, §B.3 and the sheet: a wood segment under 30 mm an edge, a wood member's top segment a hook when no child
+    leaves its tip (a trunk's top, where the limbs leave, takes only the edge its width gives), each on its capsule's
+    axis at its radius in bark; every twig one hook in twig."""
     name, p, built, data = variant
+    members = built["members"]
     expected = []
-    for m in built["members"]:
+    for m in members:
         if m.twig:
             expected.append(("hook", "twig", len(m.points)))
             continue
         segments = m.segments()
+        crotch = m.order == 0  # every limb leaves a trunk's last point; other children leave at 0.2-0.95
         for k, (p0, p1, r0, r1) in enumerate(segments):
-            if k == len(segments) - 1:
+            if k == len(segments) - 1 and not crotch:
                 expected.append(("hook", "bark", 2))
             elif r0 + r1 < tree.SNAG_EDGE_M:
                 expected.append(("edge", "bark", 2))
@@ -393,6 +396,27 @@ def test_records_name_their_material_by_the_sheet_rule(variant):
             points = flat(record["points"])
             assert any(radius == record["radius_m"] and max(abs(a - b) for a, b in zip(ends, points)) < 2e-6 for ends, radius in bark)
     assert {r["material"] for r in data["snag"]} == {"bark", "twig"}
+
+
+def test_every_hook_ends_on_a_free_tip_and_no_trunk_carries_one(variant):
+    """Review-physics §B.3 (QA 2.1's R5): a hook is a free tip, a member end from which no other member leaves.
+    Every hook's last point is no member's first point, no hook lies on a trunk, and (QA's check) no bark capsule
+    starts within 3 cm of a bark hook's tip but its own and a child's leaving its axis short of the tip (V01_L's
+    0.205 m branch at 11.67 m, whose child leaves at 0.90 of it, 21 mm before its free tip)."""
+    name, p, built, data = variant
+    members = built["members"]
+    hooks = [r for r in data["snag"] if r["kind"] == "hook"]
+    starts = [m.points[0] for m in members]
+    assert hooks and all(min(math.dist(r["points"][-1], s) for s in starts) > 1e-3 for r in hooks)
+    trunk = [(p0, p1) for m in members if m.order == 0 for p0, p1, _, _ in m.segments()]
+    assert not [r for r in hooks if any(math.dist(r["points"][0], a) < 2e-6 and math.dist(r["points"][-1], b) < 2e-6
+                                        for a, b in trunk)]
+    capsules = [axis_ends(c) for c in data["collision"] if c["material"] == "bark"]
+    for record in (r for r in hooks if r["material"] == "bark"):
+        tip, own = record["points"][-1], record["points"][0]
+        near = [a for a, b in capsules if math.dist(a, tip) < 0.03 and math.dist(a, own) > 2e-6
+                and shell._segment_distance2(a, own, tip) > 2e-6 ** 2]
+        assert not near, f"{name}: a bark hook's tip at {tip} has {len(near)} capsules starting within 3 cm"
 
 
 def test_leaves_on_the_last_two_orders(variant):
