@@ -19,11 +19,14 @@
 // derived); the sky's reflection takes URP's Fresnel term Pow4(1 - saturate(n.v)) averaged over it, n.v taken as a
 // normal variable with the distribution's own mean and variance and integrated exactly (within 0.04 of the exact
 // average at R 0.5, 0.01 at 0.9, derived); the specular highlight stays URP's at the mean's direction, its lobe at
-// the card's smoothness wide enough to hold the texel's spread (within 3 % of the surfaces' own, measured). Over
+// the leaves' smoothness 0.2 wide enough to hold the texel's spread (within 3 % of the surfaces' own, measured). Over
 // V01_M's texels these took the review's sun and the sky's grazing reflection within 2.2 and 0.8 % of the surfaces lit
 // point by point (measured). The normal atlas is imported as BC7 and read at the nearest texel, so each pixel takes
-// one texel's mean and spread as the bake wrote them (ModelPostprocessor). The card has the leaves' smoothness, since
-// it shows their normals (the catalog importer sets it). The
+// one texel's mean and spread as the bake wrote them (ModelPostprocessor). The smoothness atlas (_SmoothnessMap, one
+// linear channel, read the same way) holds the smoothness of the surfaces under each texel, their recipes' as URP/Lit
+// reads them (the mask's A, else the recipe's constant), set as the surface's smoothness times _Smoothness (1, as on
+// every masked material) in place of one card-wide value (task 1.6b: the leaves' 0.2 on every texel gave V01_L's wood
+// twice its bark's mean of 0.096, most of the card's excess overcast, measured in task 1.2n). The
 // normal atlas's alpha holds the occlusion of the surface under each texel, its recipe's (the mask's G), which URP/Lit
 // applies to the ambient light and its reflections only, read with the normal and set as the surface's occlusion
 // (task 1.2m: one crown-wide occlusion of 0.78 gave the leaves, 0.97 on the mesh LODs, part of the bark's 0.56 and the
@@ -46,6 +49,7 @@ Shader "Fpv450/Impostor"
         _Smoothness("Smoothness", Range(0.0, 1.0)) = 0.0
         _Metallic("Metallic", Range(0.0, 1.0)) = 0.0
         [NoScaleOffset] _BumpMap("Normal atlas, occlusion in alpha", 2D) = "bump" {}
+        [NoScaleOffset] _SmoothnessMap("Smoothness atlas", 2D) = "black" {}
         _ImpostorGrid("Views, columns, rows, elevation", Vector) = (8, 4, 2, 15)
         _ImpostorCard("Card width, height, bottom", Vector) = (1, 2, 0, 0)
 
@@ -166,12 +170,17 @@ Shader "Fpv450/Impostor"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
             #undef InitializeStandardLitSurfaceData
 
-            // URP/Lit's surface with the occlusion of the surface under the pixel: the normal atlas's alpha, read
-            // where the fragment reads its normal, the same texel at full resolution.
+            TEXTURE2D(_SmoothnessMap);
+            SAMPLER(sampler_SmoothnessMap);
+
+            // URP/Lit's surface with the occlusion and the smoothness of the surfaces under the pixel: the normal
+            // atlas's alpha and the smoothness atlas, read where the fragment reads its normal, the same texel at
+            // full resolution.
             inline void InitializeStandardLitSurfaceData(float2 uv, out SurfaceData outSurfaceData)
             {
                 UrpInitializeStandardLitSurfaceData(uv, outSurfaceData);
                 outSurfaceData.occlusion = SAMPLE_TEXTURE2D_LOD(_BumpMap, sampler_BumpMap, uv, 0).a;
+                outSurfaceData.smoothness = SAMPLE_TEXTURE2D_LOD(_SmoothnessMap, sampler_SmoothnessMap, uv, 0).r * _Smoothness;
             }
 
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitForwardPass.hlsl"

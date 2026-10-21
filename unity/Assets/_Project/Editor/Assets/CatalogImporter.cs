@@ -35,12 +35,10 @@ namespace Fpv450.Assets
         const string ImpostorShader = "Fpv450/Impostor";
 
         // The impostor card's material (p1-v01-locust, design decision 3): the atlas, whose alpha is the coverage
-        // the Blender render found per texel (tools/blender/lib/impostor.py), clipped where half of it is covered;
-        // the leaf recipes' smoothness (assets-src/materials/leaf_*.json), since the card shows the leaves' own normals
-        // from its normal atlas (task 1.2b: matte, it lost 8-11 % of LOD0's light at the switch distances by day and
-        // overcast; the 0 task 1.2 measured stood for an ellipsoid's normal, whose grazing rim the leaves never have).
+        // the Blender render found per texel (tools/blender/lib/impostor.py), clipped where half of it is covered.
+        // Its smoothness is the smoothness atlas's per texel, the surfaces' own (task 1.6b: the leaves' 0.2 for the
+        // whole card gave V01_L's wood twice its bark's), at _Smoothness 1 as every masked material holds it.
         const float ImpostorCutoff = 0.5f;
-        const float ImpostorSmoothness = 0.2f;
 
         // The metadata gives LOD distances; a LODGroup wants screen-relative heights. The conversion assumes the
         // feed's vertical field of view (design decision 7, derived: 60 degrees, 935 px/rad at 1080 px).
@@ -630,12 +628,13 @@ namespace Fpv450.Assets
         // --- the impostor (p1-v01-locust, design decision 3) -----------------------------------------------------
 
         /// <summary>
-        /// The impostor LOD: a camera-facing card set reading the albedo and normal atlases the Blender build renders
-        /// beside the metadata (tools/blender/lib/impostor.py), one child named as the LOD's mesh with the card mesh
-        /// and its material. The card is one quad of the record's size, x across and y up in its own frame
-        /// (<see cref="ImpostorMesh"/>); the shader <c>Fpv450/Impostor</c> turns it to the camera, picks the nearest
-        /// view and gives each pixel the normal its view saw. The albedo atlas is imported as a diffuse that keeps its
-        /// alpha coverage at the cutoff in every mip, the normal atlas as linear data (<see cref="ArtImportSettings"/>).
+        /// The impostor LOD: a camera-facing card set reading the albedo, normal and smoothness atlases the Blender
+        /// build renders beside the metadata (tools/blender/lib/impostor.py), one child named as the LOD's mesh with
+        /// the card mesh and its material. The card is one quad of the record's size, x across and y up in its own
+        /// frame (<see cref="ImpostorMesh"/>); the shader <c>Fpv450/Impostor</c> turns it to the camera, picks the
+        /// nearest view and gives each pixel the normal and the smoothness its view saw. The albedo atlas is imported
+        /// as a diffuse that keeps its alpha coverage at the cutoff in every mip, the normal and smoothness atlases as
+        /// linear data (<see cref="ArtImportSettings"/>).
         /// The mesh and the material are assets beside the prefab, <c>&lt;variant&gt;_impostor.asset</c> and
         /// <c>.mat</c>, rewritten only when they change.
         /// </summary>
@@ -647,6 +646,7 @@ namespace Fpv450.Assets
             Texture2D atlas = ImpostorAtlas($"{atlasFolder}/{Json.Str(record, "atlas", what)}", size);
             EnsureCoverage(atlas, ImpostorCutoff);
             Texture2D normals = ImpostorAtlas($"{atlasFolder}/{Json.Str(record, "normals", what)}", size);
+            Texture2D smoothness = ImpostorAtlas($"{atlasFolder}/{Json.Str(record, "smoothness", what)}", size);
 
             if (lod.tris != 2)
                 throw new FormatException($"{what}: the card is one quad, 2 triangles; the metadata says {lod.tris}");
@@ -657,7 +657,7 @@ namespace Fpv450.Assets
 
             string folder = Path.GetDirectoryName(prefabPath).Replace('\\', '/');
             Mesh mesh = ImpostorMesh($"{folder}/{root.name}_impostor.asset", lod.mesh, card.x, card.y, card.z);
-            Material material = ImpostorMaterial($"{folder}/{root.name}_impostor.mat", atlas, normals, grid, card);
+            Material material = ImpostorMaterial($"{folder}/{root.name}_impostor.mat", atlas, normals, smoothness, grid, card);
 
             GameObject child = Child(root, lod.mesh, keep);
             child.transform.localPosition = Vector3.zero;
@@ -726,10 +726,10 @@ namespace Fpv450.Assets
         /// <summary>
         /// The card's material: <c>Fpv450/Impostor</c> over the atlas, untinted, clipped at the cutoff with alpha to
         /// coverage as the leaves are, no face culled, receiving no shadow (the shader says why), the normal atlas with
-        /// the occlusion per texel in its alpha (the shader applies it), and the views' grid and elevation and the
-        /// card's size for the shader.
+        /// the occlusion per texel in its alpha and the smoothness atlas (the shader applies both), and the views' grid
+        /// and elevation and the card's size for the shader.
         /// </summary>
-        static Material ImpostorMaterial(string path, Texture2D atlas, Texture2D normals, Vector4 grid, Vector4 card)
+        static Material ImpostorMaterial(string path, Texture2D atlas, Texture2D normals, Texture2D smoothness, Vector4 grid, Vector4 card)
         {
             Shader shader = Shader.Find(ImpostorShader) ?? throw new FormatException($"no shader named \"{ImpostorShader}\"");
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
@@ -744,7 +744,8 @@ namespace Fpv450.Assets
             changed |= SetTexture(material, "_BaseMap", atlas);
             changed |= SetTextureScale(material, "_BaseMap", Vector2.one);
             changed |= SetColor(material, "_BaseColor", Color.white);
-            changed |= SetFloat(material, "_Smoothness", ImpostorSmoothness);
+            changed |= SetFloat(material, "_Smoothness", 1f); // the smoothness atlas's texels, unscaled
+            changed |= SetTexture(material, "_SmoothnessMap", smoothness);
             changed |= SetFloat(material, "_Metallic", 0f);
             changed |= SetFloat(material, "_AlphaClip", 1f);
             changed |= SetFloat(material, "_Cutoff", ImpostorCutoff);

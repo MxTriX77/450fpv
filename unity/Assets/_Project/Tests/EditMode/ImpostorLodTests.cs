@@ -12,9 +12,9 @@ namespace Fpv450.Tests.EditMode
     /// <summary>
     /// The impostor LOD through the catalog importer (p1-v01-locust design decision 3; asset-pipeline "Baked impostor
     /// LOD", scenario "Impostor built and switched"): a throwaway metadata over the X-sign probe fixture with one mesh
-    /// LOD and an impostor LOD switching at 30 m before a 100 m cull, its 1k albedo and normal atlases throwaway PNGs
-    /// beside it. The prefab's LOD group must end with the card set before the cull: the mesh LOD until the switch,
-    /// the card from the switch to the cull, the card a camera-facing set of strips reading both atlases. Everything it
+    /// LOD and an impostor LOD switching at 30 m before a 100 m cull, its 1k albedo, normal and smoothness atlases
+    /// throwaway PNGs beside it. The prefab's LOD group must end with the card set before the cull: the mesh LOD until
+    /// the switch, the card from the switch to the cull, the card a camera-facing set of strips reading the atlases. Everything it
     /// writes goes under <see cref="Folder"/>, deleted before and after.
     /// </summary>
     public sealed class ImpostorLodTests
@@ -25,6 +25,7 @@ namespace Fpv450.Tests.EditMode
         const string Variant = "impostor_probe";
         const string Card = Variant + "_impostor";
         const string Normals = Card + "_normal";
+        const string Smoothness = Card + "_smoothness";
         const float SwitchM = 30f, CullM = 100f;
         const int AtlasPx = 1024;          // the spec's 1k atlas
         const float VerticalFovDeg = 60f;  // the importer's distance-to-height conversion
@@ -39,11 +40,12 @@ namespace Fpv450.Tests.EditMode
     { ""mesh"": ""xsign_probe"", ""tris"": 12, ""switch_distance_m"": 0.0 },
     { ""mesh"": ""impostor_probe_impostor"", ""tris"": 2, ""switch_distance_m"": 30.0,
       ""impostor"": { ""atlas"": ""impostor_probe_impostor.png"", ""normals"": ""impostor_probe_impostor_normal.png"",
-                    ""size_px"": [1024, 1024], ""views"": 8, ""columns"": 4, ""rows"": 2, ""elevation_deg"": 15.0,
+                    ""smoothness"": ""impostor_probe_impostor_smoothness.png"", ""size_px"": [1024, 1024], ""views"": 8, ""columns"": 4, ""rows"": 2, ""elevation_deg"": 15.0,
                     ""card"": { ""width_m"": 0.4, ""height_m"": 0.6, ""bottom_m"": -0.05 },
                     ""inputs_sha256"": ""0000000000000000000000000000000000000000000000000000000000000000"",
                     ""atlas_sha256"": ""0000000000000000000000000000000000000000000000000000000000000000"",
-                    ""normals_sha256"": ""0000000000000000000000000000000000000000000000000000000000000000"" } }
+                    ""normals_sha256"": ""0000000000000000000000000000000000000000000000000000000000000000"",
+                    ""smoothness_sha256"": ""0000000000000000000000000000000000000000000000000000000000000000"" } }
   ],
   ""micro"": [],
   ""cull_distance_m"": 100.0,
@@ -94,6 +96,9 @@ namespace Fpv450.Tests.EditMode
             var normals = (Texture2D)material.GetTexture("_BumpMap");
             Assert.That(AssetDatabase.GetAssetPath(normals), Is.EqualTo($"{Folder}/{Normals}.png"), "the normal atlas beside the metadata");
             Assert.That((normals.width, normals.height), Is.EqualTo((AtlasPx, AtlasPx)), "a 1k normal atlas");
+            var smoothness = (Texture2D)material.GetTexture("_SmoothnessMap");
+            Assert.That(AssetDatabase.GetAssetPath(smoothness), Is.EqualTo($"{Folder}/{Smoothness}.png"), "the smoothness atlas beside the metadata");
+            Assert.That((smoothness.width, smoothness.height), Is.EqualTo((AtlasPx, AtlasPx)), "a 1k smoothness atlas");
         }
 
         [Test]
@@ -124,7 +129,16 @@ namespace Fpv450.Tests.EditMode
             Assert.That(normalImporter.filterMode, Is.EqualTo(FilterMode.Point), "each pixel one texel's spread, not a blend of two (task 1.2n)");
             Assert.That(normalImporter.alphaSource, Is.EqualTo(TextureImporterAlphaSource.FromInput), "its alpha, the occlusion per texel, kept");
             Assert.That(normalImporter.alphaIsTransparency, Is.False, "the alpha is data, not coverage");
-            Assert.That(material.GetFloat("_Smoothness"), Is.EqualTo(0.2f), "the leaves' smoothness");
+            var smoothnessImporter = (TextureImporter)AssetImporter.GetAtPath($"{Folder}/{Smoothness}.png");
+            Assert.That(smoothnessImporter.sRGBTexture, Is.False, "the smoothness atlas is linear data");
+            Assert.That(smoothnessImporter.textureType, Is.EqualTo(TextureImporterType.SingleChannel), "one channel");
+            var channel = new TextureImporterSettings();
+            smoothnessImporter.ReadTextureSettings(channel);
+            Assert.That(channel.singleChannelComponent, Is.EqualTo(TextureImporterSingleChannelComponent.Red), "the shader reads R");
+            Assert.That(smoothnessImporter.mipmapEnabled, Is.False, "read at full resolution, as the normal atlas");
+            Assert.That(smoothnessImporter.textureCompression, Is.EqualTo(TextureImporterCompression.CompressedHQ));
+            Assert.That(smoothnessImporter.filterMode, Is.EqualTo(FilterMode.Point), "each pixel its texel's surfaces, as the normal atlas (task 1.6b)");
+            Assert.That(material.GetFloat("_Smoothness"), Is.EqualTo(1f), "the smoothness atlas's texels unscaled, as a masked material's");
         }
 
         [Test]
@@ -163,6 +177,7 @@ namespace Fpv450.Tests.EditMode
             WriteAtlas($"{Folder}/{Card}.png", TextureFormat.RGBA32, (x, y) => x % 256 is > 64 and < 192 && y % 512 is > 16 and < 400
                 ? new Color32(70, 90, 40, 255) : new Color32(0, 0, 0, 0));
             WriteAtlas($"{Folder}/{Normals}.png", TextureFormat.RGBA32, (x, y) => new Color32(128, 128, 255, 191)); // occlusion 0.75
+            WriteAtlas($"{Folder}/{Smoothness}.png", TextureFormat.RGBA32, (x, y) => x < 512 ? new Color32(51, 51, 51, 255) : new Color32(24, 24, 24, 255)); // a leaf's 0.2, a bark's 0.096
             string metaPath = $"{Folder}/{Variant}.assetmeta.json";
             File.WriteAllText(FullPath(metaPath), Metadata);
             AssetDatabase.ImportAsset(metaPath, ImportAssetOptions.ForceSynchronousImport);

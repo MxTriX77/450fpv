@@ -15,8 +15,8 @@ namespace Fpv450.Assets
     /// masks as linear RGBA data, the ground and palette albedos as sRGB, the <c>_base</c> maps of alpha-clipped
     /// recipes as sRGB diffuse with their alpha, undilated; the impostor atlases the Blender build writes beside the FBX under
     /// <c>Art/Models/</c> (p1-v01-locust): the albedo (<c>_impostor</c>) sRGB diffuse with its alpha, the normals
-    /// (<c>_impostor_normal</c>) linear data. The base map of an alpha-clipped recipe and an impostor atlas also keep
-    /// their mip coverage at the cutoff (<see cref="ApplyCoverage"/>, applied by the catalog importer).
+    /// (<c>_impostor_normal</c>) and the smoothness (<c>_impostor_smoothness</c>) linear data. The base map of an
+    /// alpha-clipped recipe and an impostor atlas also keep their mip coverage at the cutoff (<see cref="ApplyCoverage"/>, applied by the catalog importer).
     /// </summary>
     public static class ArtImportSettings
     {
@@ -65,16 +65,19 @@ namespace Fpv450.Assets
         /// size), as DXT5's block colours shorten the means (V01_M's card reflected the sky at grazing angles 13 %
         /// more than from the texels uncompressed, with BC7 3 %, measured), and read at the nearest texel, since a
         /// texel's mean and length say how one texel's normals spread and the bilinear filter's blend of two texels is
-        /// not their two spreads (7 % more of that reflection, measured).
+        /// not their two spreads (7 % more of that reflection, measured). An impostor's smoothness atlas
+        /// (<c>_impostor_smoothness</c>, p1-v01-locust task 1.6b) is single-channel linear data read the same way, at
+        /// full resolution and the nearest texel, beside the normal atlas's texel of the same surfaces.
         /// </summary>
         public static bool ApplyTexture(TextureImporter importer, string assetPath)
         {
             string name = Path.GetFileNameWithoutExtension(assetPath).ToLowerInvariant();
             bool derivedBase = assetPath.StartsWith(MaterialsFolder, StringComparison.Ordinal) && name.EndsWith("_base");
             bool impostorNormals = name.EndsWith("_impostor_normal");
+            bool impostorSmoothness = name.EndsWith("_impostor_smoothness");
             bool normal = !impostorNormals && (name.Contains("_nor_gl") || name.Contains("_normal"));
             bool single = name.Contains("_rough") || name.Contains("_ao") || name.Contains("ambientocclusion")
-                || name.Contains("_opacity");
+                || name.Contains("_opacity") || impostorSmoothness;
             bool diffuse = name.Contains("_diff") || name.Contains("_color") || name.Contains("_albedo")
                 || name.EndsWith("_base") || name.EndsWith("_impostor");
             TextureImporterType type = normal ? TextureImporterType.NormalMap
@@ -85,7 +88,7 @@ namespace Fpv450.Assets
             changed |= Set(importer.textureType, type, v => importer.textureType = v);
             changed |= Set(importer.sRGBTexture, diffuse, v => importer.sRGBTexture = v);
             changed |= Set(importer.alphaIsTransparency, diffuse && !derivedBase && importer.DoesSourceTextureHaveAlpha(), v => importer.alphaIsTransparency = v);
-            if (impostorNormals)
+            if (impostorNormals || impostorSmoothness)
             {
                 changed |= Set(importer.mipmapEnabled, false, v => importer.mipmapEnabled = v);
                 changed |= Set(importer.textureCompression, TextureImporterCompression.CompressedHQ, v => importer.textureCompression = v);
@@ -131,7 +134,7 @@ namespace Fpv450.Assets
     public sealed class ModelPostprocessor : AssetPostprocessor
     {
         // Bump when ArtImportSettings changes, so Unity reimports the files it covers.
-        public override uint GetVersion() => 7;
+        public override uint GetVersion() => 8;
 
         void OnPreprocessModel()
         {

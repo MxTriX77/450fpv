@@ -33,6 +33,10 @@ Material:
         m_Texture: {fileID: 2800000, guid: eb045cdb94f5fdb49967685139eb7207, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _SmoothnessMap:
+        m_Texture: {fileID: 2800000, guid: 36c6597d3d9309d45aa2651ed8504cf0, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
     - _AlphaClip: 1
@@ -41,7 +45,7 @@ Material:
     - _Cutoff: 0.5
     - _Metallic: 0
     - _ReceiveShadows: 0
-    - _Smoothness: 0.2
+    - _Smoothness: 1
     - _Surface: 0
     m_Colors:
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
