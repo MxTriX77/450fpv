@@ -11,7 +11,7 @@ The sim package SHALL provide, engine-free, allocation-free, reentrant and calla
 
 #### Scenario: A swept arm meets the pole
 - **WHEN** a 0.02 m capsule is swept 0.5 m in one step through `L01_straight`'s collision at the gallery pose
-- **THEN** `StaticContacts` returns one contact with `Time` in (0, 1), the material `wood`, the object `L01_straight` and a signed distance within 1 mm of the analytic one
+- **THEN** `StaticContacts` returns one contact with `Time` in (0, 1), the material `timber`, the object `L01_straight` and a signed distance within 1 mm of the analytic one
 
 #### Scenario: Batched equals single
 - **WHEN** the golden set of 10 000 ground samples, 10 000 swept capsules and 10 000 rays is run batched and one by one, in Debug and in Release

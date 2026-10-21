@@ -19,4 +19,4 @@ A contact whose impulse or acceleration passes the crash threshold SHALL end the
 
 #### Scenario: Into a pole
 - **WHEN** the drone flies at 10 m/s into the gallery's straight L01 pole
-- **THEN** the flight ends in a crash naming the part that hit, `L01_straight` and `wood`, with the peak acceleration and the impulse, and no tunnel event is logged
+- **THEN** the flight ends in a crash naming the part that hit, `L01_straight` and `timber`, with the peak acceleration and the impulse, and no tunnel event is logged
