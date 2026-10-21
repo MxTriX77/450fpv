@@ -6,8 +6,8 @@
 A catalog entry MAY give a variant its own slot-to-material map (`variant_materials`: variant → {slot: material}) that overrides the asset's `materials` for that variant only; the importer SHALL apply it and the review capture SHALL show it.
 
 #### Scenario: Autumn leaf on one variant
-- **WHEN** `V13_mid_autumn` maps its `leaf` slot to `leaf_shrub_autumn` while the asset maps `leaf` to `leaf_shrub`
-- **THEN** the autumn variant's prefab uses `leaf_shrub_autumn`, every other variant keeps `leaf_shrub`, and rebuilding leaves no diff
+- **WHEN** `V13_mid_yellowing` maps its `leaf` slot to `leaf_shrub_autumn` while the asset maps `leaf` to `leaf_shrub`
+- **THEN** the yellowing variant's prefab uses `leaf_shrub_autumn` on its `leaf` slot, every other variant keeps `leaf_shrub` there, and rebuilding leaves no diff
 
 ### Requirement: Baked impostor LOD
 A generator MAY ask for an impostor: the build SHALL render the LOD0 mesh with its materials from a fixed set of views in headless Blender into an albedo atlas with coverage in alpha, a normal atlas with occlusion in alpha and a grey smoothness atlas holding each texel's mean surface smoothness (1k each at most), write them beside the FBX as derived textures, and the importer SHALL build it as the last LOD before the cull: a camera-facing card set reading the atlas. Its LOD entry carries `thin_wire` false, as every LOD entry carries the flag, and the validator SHALL refuse it true. The atlas is regenerated whenever the params or materials change and is never hand-edited.
