@@ -14,6 +14,12 @@ namespace Fpv450.Sim.Flight
 
         public FlightWorld World;
 
+        /// <summary>
+        /// The body's mass model: drone.json's parts at the pilot's loadout (DroneSpec.BuildMass), or a bench's own
+        /// body. The flight keeps its own copy and rebuilds it as parts' masses change.
+        /// </summary>
+        public MassModel Mass;
+
         /// <summary>The initial state. A flight starts at rest; a bench may launch a free body.</summary>
         public Double3 StartPosition;
         public Quat StartAttitude = Quat.Identity;
@@ -27,9 +33,9 @@ namespace Fpv450.Sim.Flight
     /// code or collection order), so a flight replays bit for bit from its log. The FlightScheduler runs it on its
     /// own thread; a replay or a bench calls Advance directly.
     ///
-    /// The step's forces and moments arrive with the later tasks: the mass, inertia and the rigid body's moments
-    /// (1.3), the controller and propulsion (1.4), aero and the stand-in wind (1.5), contacts (1.6). Until then a body
-    /// is a free one: gravity, and the attitude carried by its body rate.
+    /// The body is RigidBody's, with the mass, centre of mass and inertia of the setup's MassModel (1.3). The forces
+    /// and moments arrive with the later tasks: the controller and propulsion (1.4), aero and the stand-in wind (1.5),
+    /// contacts (1.6). Until then a body is a free one: gravity, and the torque-free motion of its inertia.
     /// </summary>
     public sealed class FlightCore
     {
@@ -44,12 +50,14 @@ namespace Fpv450.Sim.Flight
 
         FlightState _state;
         FcSettings _settings;
+        readonly MassModel _mass;
 
         public FlightCore(FlightSetup setup)
         {
             if (setup == null) throw new ArgumentNullException(nameof(setup));
             World = setup.World ?? throw new ArgumentException("the setup needs a world", nameof(setup));
             _settings = setup.Settings;
+            _mass = (setup.Mass ?? throw new ArgumentException("the setup needs a mass model", nameof(setup))).Clone();
             Random = new FlightRandom(setup.Seed);
             _state = new FlightState
             {
@@ -64,6 +72,9 @@ namespace Fpv450.Sim.Flight
         public ref readonly FcSettings Settings => ref _settings;
         public FlightWorld World { get; }
 
+        /// <summary>The body's mass, centre of mass and inertia now (design 3).</summary>
+        public ref readonly MassProperties Body => ref _mass.Properties;
+
         /// <summary>The flight's seed, streams and per-flight draws (design 9).</summary>
         public FlightRandom Random { get; }
 
@@ -73,15 +84,13 @@ namespace Fpv450.Sim.Flight
             ref FlightState s = ref _state;
             s.Armed = stick.Arm;
 
-            // Net force per unit mass (world) and angular acceleration (body): gravity alone until 1.3–1.6.
-            Double3 accel = Gravity;
-            Double3 angularAccel = default;
+            // The net force (world, N) and the net moment about the CoM (body, N·m): none until 1.4–1.6.
+            ref readonly MassProperties body = ref _mass.Properties;
+            Double3 force = default;
+            Double3 moment = default;
 
-            // Semi-implicit Euler: the velocities first, then the positions with the new velocities.
-            s.Velocity = s.Velocity + accel * Dt;
-            s.BodyRate = s.BodyRate + angularAccel * Dt;
-            s.Position = s.Position + s.Velocity * Dt;
-            s.Attitude = Quat.Integrate(s.Attitude, s.BodyRate, Dt);
+            // Semi-implicit Euler (RigidBody): the velocities first, then the positions with the new velocities.
+            RigidBody.Step(ref s, in body, Gravity + force * body.InverseMass, moment, Dt);
             s.Step++;
         }
 

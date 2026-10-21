@@ -7,15 +7,19 @@ using Fpv450.Sim.Flight;
 namespace Fpv450.FlightBench
 {
     // A free body (task 1.1): launched with a velocity and a spin under gravity, no forces or moments otherwise, the
-    // sticks neutral. The golden check pins every step's state bits and compares the flight with its exact solution;
-    // the bench times the step.
+    // sticks neutral. Since 1.3 it is a rigid body of its own, a uniform 0.25 m cube of 4.8 kg (I = 0.05 kg·m² on every
+    // axis), so a constant body rate is still its exact torque-free motion. The golden check pins every step's state
+    // bits and compares the flight with its exact solution; the bench times the step.
     internal static class FreeBodyCase
     {
         public const string Name = "free-body";
         const int GoldenSteps = 10000; // 10 s
 
         // FNV-1a 64 over every step's state bits. A re-record is audited case by case (CLAUDE.md).
-        const ulong GoldenHash = 0xAECE29900A37638BUL;
+        // 1.3: 0xAECE29900A37638B → 0x50ED4B05A5D02F20. Against 1.1's step the position and velocity are bit-identical
+        // at all 10 000 steps; the attitude differs by at most 4.5e-12 rad and the body rate by 1.0e-12 rad/s, the
+        // rounding of the momentum's way through I, I⁻¹ and the two rotations (RigidBody).
+        const ulong GoldenHash = 0x50ED4B05A5D02F20UL;
 
         static FlightSetup Setup() => new FlightSetup
         {
@@ -24,6 +28,7 @@ namespace Fpv450.FlightBench
             StartPosition = new Double3(0, 100, 0),
             StartVelocity = new Double3(3, 2, -1),
             StartBodyRate = new Double3(2, -1, 0.5),
+            Mass = new MassModel(new[] { new DronePart { Name = "cube", Kind = PartKind.Box, Mass = 4.8, Size = new Double3(0.25, 0.25, 0.25) } }),
         };
 
         public static bool Golden()
@@ -31,12 +36,13 @@ namespace Fpv450.FlightBench
             FlightSetup setup = Setup();
             var core = new FlightCore(setup);
             ulong hash = 0xCBF29CE484222325UL;
-            double worstNorm = 0;
+            double worstNorm = 0, worstRate = 0;
             for (int k = 0; k < GoldenSteps; k++)
             {
                 core.Advance(StickSample.Neutral);
                 hash = Hash(hash, core.State);
                 worstNorm = Math.Max(worstNorm, Math.Abs(core.State.Attitude.Norm() - 1));
+                worstRate = Math.Max(worstRate, (core.State.BodyRate - setup.StartBodyRate).Length());
             }
 
             // Semi-implicit Euler's exact discrete solution: x_n = x0 + n·dt·v0 + g·dt²·n(n+1)/2.
@@ -51,10 +57,10 @@ namespace Fpv450.FlightBench
             double angleError = 2 * Math.Acos(Math.Min(1, Math.Abs(Quat.Dot(exact, core.State.Attitude))));
 
             bool hashOk = hash == GoldenHash;
-            bool ok = hashOk && positionError < 1e-9 && worstNorm < 1e-12 && angleError < 1e-4;
+            bool ok = hashOk && positionError < 1e-9 && worstNorm < 1e-12 && angleError < 1e-4 && worstRate < 1e-10;
             Console.WriteLine($"{Name}: {GoldenSteps} steps, hash 0x{hash:X16} ({(hashOk ? "matches" : $"golden 0x{GoldenHash:X16}")}), "
                 + $"position error {positionError:E2} m (< 1e-9), quaternion norm error {worstNorm:E2} (< 1e-12), "
-                + $"attitude error {angleError:E2} rad (< 1e-4): {(ok ? "PASS" : "FAIL")}");
+                + $"attitude error {angleError:E2} rad (< 1e-4), body-rate drift {worstRate:E2} rad/s (< 1e-10): {(ok ? "PASS" : "FAIL")}");
             return ok;
         }
 
