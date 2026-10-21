@@ -346,3 +346,164 @@ openspec validate p1-r01-vaz-sedan --strict                                     
   - no file names from `reference/`, places, dates or OSD values in the branch (the scan) or in this review
   - M's photographed plate characters appear nowhere: the built plates are blank
   - the side-by-side was local and is deleted
+
+## Re-check (task 2.3)
+
+**Reviewer:** qa-engineer, fresh (did neither 2.1 nor 2.2, D-034) · **Tip:** `30bb78c` · **Range:** `351fe55..30bb78c` (14 commits, 42 files)
+**Scope:** QA 2.1's R1–R4 and the S items 2.2 took (S2–S4, S6, the lamp bowl's rim, the glass tint), by their tests, the metadata, the audit and the review sheets. This is not a second full review (D-041).
+**How:** every check was run by QA in its own worktree (`git lfs checkout`: 128/128). QA's scripts stayed in its scratchpad and were never committed:
+- `qa23_lean.py`: the settle, recomputed with its own least squares, and the roof by quadrant
+- `qa23_meta.py`: the shipped metadata
+- `qa23_clean_audit.py`: the clean base through `build.py`'s own validate and audit, in plain Python
+- `qa23_panes2.py`: what a ray meets first at every pane face
+- `qa23_mutate.py`: the new tests run against QA 2.1's wrong builds
+
+M was read from its still and its zoom crops only. Every Blender and Unity run started on AC (Balanced plan), and each capture log names `NVIDIA GeForce RTX 4050 Laptop GPU (Direct3D12)`.
+
+### Verdict: APPROVED
+
+| Item | Result | Evidence (sections below) |
+|---|---|---|
+| R1 the lean | **Closed** | the body settled on four equal springs, recomputed independently to 0.01 mm; across 1.10°, tilt 1.25°; A's roof 1.425–1.428 m; the tests fail the rigid model |
+| R2 the budget | **Closed** | LOD0 54 467 + 4 000 crumbs = **58 467**; the test counts the micro meshes and fails 1 000 crumbs per window; by eye a few specks, as M shows |
+| R3 the glass | **Closed** | 5 mm `glass` boxes on every pane still in (13 on A's far side, 26 on the clean base); a ray from outside meets glass first on 100 % of the pane area; the audit is clean on 110 / 212 / 224 |
+| R4 the spec | **Closed** | (a)–(d) and the counts match the build; the new `bounds.lod` requirement matches the importer and the prefab |
+| Lamp bowl rim | **Closed** | a closed `edge`, radius 0.4 mm, at r 0.0846 m on the ground |
+| Glass tint | **Closed** | 0.4236 everywhere it is stored, which decodes to 0.15000 |
+| S2 | **Closed as scoped** | the LOD group sits on `bounds.lod` (4.0748 m). The sheet's framing was not in 2.2's scope: T1 |
+| S3 | **Closed** | 0.20 and 0.17 are 2.98σ and 3.04σ, and both wrong models still fail |
+| S4 | **Closed** | unpinned, no file left, CREDITS regenerated, `fetch.py --verify` OK |
+| S6 | **Closed** | F has no glass slot and no `glass` physics id |
+
+- **G1 stand-ins (D-040):** stand-in 10 (the crumb carpet) is retired by R2. QA finds no new look miss in what 2.2 touched: the crumbs, the lean and the glass. Stand-ins 1–9 and 11–21 were not re-read (D-041) and stand as listed.
+- **Ticks:** tasks 2.1 and 2.3 are ticked with this re-check.
+
+### R1. The lean
+```
+hubs (generator, R01_A): front x -1.4215 z +-0.6745, rear x +1.0025 z +-0.6525, y 0.2820; flat front_left, support drop d 0.050 m
+QA's own least squares, y = a + b x + c z through the supports' displacements:
+    body over the hubs  front_left -37.91  front_right -12.09  rear_left -12.49  rear_right +12.49 mm   centre -12.50 mm
+kit.T (kits.lean)       front_left -37.91  front_right -12.09  rear_left -12.49  rear_right +12.49 mm   centre -12.50 mm
+spring changes (k = 1)  -12.09 / +12.09 / +12.49 / -12.49 mm;  sum F, sum F x, sum F z: 5e-15, 3e-15, 3e-15
+angles                  own: across 1.097, along 0.591, tilt 1.246 deg;  kit.T: the same;  shipped body rotation: 1.097 / 0.591 / 1.245
+build line              flat front_left: hub 0.050 m down, the body on its springs -37.9 / -12.1 / -12.5 / +12.5 mm (centre -12.5),
+                        across 1.10 deg, along 0.59 deg, tilt 1.25 deg
+flat wheel (shipped)    hub y 0.2320 (0.0500 down); cylinder r 0.2645 from the ground to 0.529 m; the other three r 0.2970 h 0.165 at y 0.2820
+roof, LOD0 without the rack, highest point per quadrant (front_left / front_right / rear_left / rear_right):
+    clean 1.4367 / 1.4400 / 1.4301 / 1.4326 m     R01_A 1.4271 / 1.4276 / 1.4246 / 1.4258 m
+roof boxes (landable, shipped): top corners at most 1.4331 m (QA 2.1: 1.4612)
+```
+- **The physics holds.** The least-squares plane is the equilibrium of four equal linear springs: the residual forces balance the load and both moments, as printed. The trapezoid's tracks move the front corners by 0.4 mm from the rectangle's −3d/4 and −d/4. The flat hub drops the tyre's full 0.050 m, and its spring extends by 12.1 mm.
+- **Against the spec:**
+  - Across 1.10° and tilt 1.25° are inside "a 1–2° lean".
+  - The roof over the three unflat corners is 1.4246–1.4276 m, and the landable roof boxes reach 1.4331 m. Both are inside 1.40–1.44 m.
+  - "The flat corner 0.04–0.08 m lower" is read on the hub, at 0.050 m, as QA 2.1 read it and as 2.2's brief defines d.
+- **The tests hold it:**
+  - `test_lean_settles_the_body_on_four_equal_springs` (three flat corners on a rectangle: the shares to 10⁻⁵, the centre at −d/4, the load balance, the half turn)
+  - `test_a_flat_corner_drop_and_lean` (the corners within 1 mm of the shares, across and tilt in 1–2°, along atan(d/2/wheelbase) ± 0.02°)
+  - `test_a_published_dimensions` (A's roof 1.40–1.44 m, `bounds.lod` within 2 %)
+- **The tests fail the wrong model.** With `351fe55`'s rigid turn put back (`qa23_mutate.py rigid`), all five fail. The corners come out at −50 / 0 / 0 / +50 mm, and the roof at `1.4490604 <= 1.44` fails, matching QA 2.1's 1.4491.
+
+### R2. The budget and the crumbs
+```
+R01_A: tris 54467 / 12335 / 3460 / 72  micro R01_A_LOD0_glass_crumbs 400 glass_crumbs 4000 tris  212 collision shapes   -> LOD0 draws 58 467 (1 533 under 60 000)
+R01_F: tris 41102 / 8642 / 2964 / 72   micro soot_patch 799 / 447 / 193                                          -> LOD0 draws 41 901
+qa23_mutate.py crumbs (CRUMBS_PER_WINDOW 1 000): FAILED test_lod_budget[built_a]: assert (54467 + 20000) < 60000
+```
+- **The test.** `test_lod_budget` now adds each LOD0 micro mesh to LOD0. `test_a_glass_and_cabin` pins the ground's share (2 × 20 crumbs) and its spread past 2 m from the sill.
+- **By eye:** the A sheets by day and overcast (the 1.5 m tile, the 10 m tile, turntables 1, 7 and 8), beside M's still and its debris crop.
+  - On the ground beside the burst side, about forty small specks spread over 3 m, never a band or a patch. M shows a few pale chips scattered on the asphalt.
+  - The rest lie on the seats, seen through the far side's windows.
+  - The lean reads as M's: a gentle settle onto the flat front corner, with no rear corner lifted.
+
+### R3. The glass
+```
+shipped R01_A: 22 glass boxes: 13 band_pane_*_right at 5.0 mm (none on the burst side), the windscreen's 6, the rear screen's 3
+               the far side's outboard sheet_metal boxes are now frame members (posts 0.021-0.060 x 0.373 m, tops and sills
+               0.012-0.037 m thick); none is pane-sized (QA 2.1: band_a/mid/drop/c_right up to 1.262 x 0.443 m)
+               audit, glass boxes: far side at most 7.0 mm, screens 19.235 mm
+clean base (qa23_clean_audit.py, build.py's validate and audit.run in plain Python):
+               validate [], 110 primitives, 28 glass boxes (26 panes at 5.0 mm, the two screens), audit 0 problems:
+               worst primitive -> mesh 49.598 mm, in the 2 cm zone 18.263 mm; mesh -> collision 44.722 mm, in the zone 18.974 mm
+first shape entered by a ray from 3 cm off each broad pane face, along its normal (qa23_panes2.py, by area):
+               clean base, outer faces:  each side 7 077 cm2 glass (100 %), screens 7 912 cm2 glass (100 %)
+               R01_A far side:           outer 6 734 cm2, inner 6 734 cm2: glass (100 %), so from the open cabin as from outside
+               R01_A screens:            outer 8 309 cm2, inner 8 308 cm2: glass (100 %)
+               R01_A screens' burst-side corners: outer 1 248 cm2, inner 1 572 cm2 glass; on the windscreen the folded flap's
+                                         strips (308 cm2) and the frame (16 cm2) first, where the flap lies on the pane
+```
+The clean base's inner faces face the closed cabin, which no drone reaches, so they are not counted.
+
+### R4. The spec
+- **(a) The cull:** `cull_distance_m` 1 500, pinned by `test_lod_budget`. The scenario's reason holds: 935 × 1.44 / 2 = 673 m, and 935 × 4.07 / 1 500 = 2.54 px.
+- **(b) AST-05's tolerance:** it matches `lib/audit.py`'s rule (20 mm within 0.3 m of a gap polygon or a landable face, 50 mm elsewhere). R01 has no gaps. The audit has 0 problems:
+  - A: 49.590 mm, 19.646 mm in the zone
+  - F: 49.589 mm, 19.539 mm in the zone
+  - clean base: 49.598 mm, 18.263 mm in the zone
+- **(c) K07:** the build matches the text.
+  - the bowl: one `steel` sphere and the rim's `edge`
+  - the ring: 8 `steel` capsules and an `edge` 6 mm
+  - the plate: a `steel` box and an `edge` 0.5 mm
+  - the bead wire: 8 `steel` capsules and a `hook` 3 mm
+- **(d) The body's bounds without the scatter:** `bounds.lod` is 4.0748 × 1.6267 m, +0.04 % and +0.97 % of 4.073 × 1.611 m. `test_a_published_dimensions` reads it.
+- **The counts:** 110 / 212 / 224 in the scenario, in the build lines, in the clean audit, and in the tests' `PLAN_COUNTS`, `A_COUNTS` and `F_COUNTS`.
+- **The new requirement, "A LOD frame inside the bounds":** matched.
+  - `meta.validate` refuses a `bounds.lod` outside the bounds or turned inside out (`test_lod_bounds_are_written_under_the_bounds`).
+  - The importer centres the group on the box and sizes it by its longest side. The cap at 2 × 20 m × tan 30° = 23.1 m does not bite.
+  - R01_A's prefab: `m_LocalReferencePoint {x: -0.0015889, y: 0.779823, z: -0.008433}` and `m_Size: 4.0748243`, which are `bounds.lod`'s centre and its longest side; the full bounds are 6.632 m.
+  - R01_F's prefab: (0, 0.69, 0) and 4.063.
+  - K07_lamp_bowl, which has no `bounds.lod`, frames on its bounds (0.17 m, centre y 0.0425).
+  - EditMode `LodBox_CentresAndSizesTheGroup` and `WithoutALodBox_TheBoundsServe`: both passed.
+
+### The S items and the two fixes
+- **The lamp bowl's rim:**
+  - The snag is an `edge` of radius 0.4 mm, a closed ring of 33 points on the ground at r 0.08460 m (0.085 less half the 0.8 mm wall).
+  - R01_A's scatter carries it: `edge` 0.4 mm ×42, against QA 2.1's 41.
+  - Of K07's sheets, only the bowl's move. The other three hash as in QA 2.1 (bead wire `C43DAB0F`/`D913EE9A`, ring `05F54098`/`817A9A2F`, plate `D8D1EB89`/`0EBBEBF6`).
+- **The glass tint:**
+  - 0.4236 is stored in `glass.json`, `glass.recipe.json`, `glass.mat` and CrazedGlass's default, and as 0.42359996 in `R01_A_windscreen_crazed.mat`. Alpha 0.02 is unchanged.
+  - ((0.4236 + 0.055) / 1.055)^2.4 = 0.15000, so the GPU gets the 0.15 gain.
+  - `CrazedGlassMaterialTests` asserts `tint.linear.r` 0.15.
+- **S2, the LOD group:** as in R4. The review sheet still frames on `bounds` (T1).
+- **S3, the scatter-density test:**
+  - At n = 80 the mean of ln r has σ 0.0671 and the share has σ 0.0559, so 0.20 and 0.17 are 2.98σ and 3.04σ.
+  - The wrong models still fail: uniform areal density gives a mean ln r of 1.612 and uniform in r gives 1.377, against 1.040 ± 0.20.
+- **S4, the unpin:**
+  - `PaintedMetal006` is in neither `manifest.json` nor `CREDITS.md`, in no recipe, and has no tracked file.
+  - 17 sets remain pinned.
+  - `fetch.py --verify` is OK.
+- **S6, F's far hulls:** R01_F's materials hold no `glass` slot, no `glass_hull` and no `glass` physics id. `test_f_burnt_surfaces` asserts it.
+
+### The repeats and hygiene
+```
+git fetch origin; git checkout unity/art/p1-r01-vaz-sedan; git merge --ff-only (30bb78c); git lfs checkout      -> Checking out LFS objects: 100% (128/128)
+(Get-CimInstance -Namespace root/wmi -ClassName BatteryStatus).PowerOnline before each run -> True; powercfg: Balanced; free RAM 2.75-4.99 GB
+pwsh tools/build_asset.ps1 K07   -> build_asset: OK, exit=0 in 2.4 min   git status --short: 0 lines
+pwsh tools/build_asset.ps1 R01   -> build_asset: OK, exit=0 in 9.2 min   git status --short: 0 lines
+pwsh tools/build_asset.ps1 K07   -> build_asset: OK, exit=0 in 0.8 min   git status --short: 0 lines
+pwsh tools/build_asset.ps1 R01   -> build_asset: OK, exit=0 in 7.2 min   git status --short: 0 lines
+  build 1 == build 2: R01's 452 generator and audit lines, K07's 30, the importer lines; sheets byte-identical
+  (R01_A day 338B948ACC804C05, overcast 5963288D127C36A1; R01_F day 2334BFC862F279BC, overcast 650B7372B876F705; K07 8 of 8)
+  [CatalogImporter] R01_A: ... 4 LODs, R01_A_LOD0_glass_crumbs (400 glass_crumbs, LOD0) micro, 212 colliders, ...
+                    LOD heights 0.1764 / 0.0441 / 0.0118 / 0.0024 (size 4.074824 m, fov 60 deg)
+  [CatalogImporter] R01_F: ... 224 colliders, ... LOD heights 0.1759 / 0.0440 / 0.0117 / 0.0023 (size 4.063 m, fov 60 deg)
+  [Review] R01: 2 variant(s), lights day/overcast, GPU NVIDIA GeForce RTX 4050 Laptop GPU (Direct3D12), quality High (URP-High)
+  no compile error, exception or aborted batchmode in any build output
+& $env:UNITY -batchmode -nographics -projectPath unity -runTests -testPlatform EditMode ... | Out-Host  (on AC)
+                                 -> testcasecount="68" result="Passed" passed="68" failed="0" (66 + the two LodGroupFrameTests)
+python -m pytest tools -q        -> 912 passed in 791.46s (QA 2.1: 908; + the lean's 3 cases for 1, test_lod_bounds_..., test_a_published_dimensions)
+python tools/assets/fetch.py --verify                 -> OK, exit 0
+python tools/hygiene/precommit.py --tree HEAD         -> 1112 files scanned, 0 findings, exit 0
+openspec validate p1-r01-vaz-sedan --strict           -> Change 'p1-r01-vaz-sedan' is valid
+python qa23_mutate.py rigid      -> 5 failed (the lean's 3 cases, test_a_flat_corner_drop_and_lean, test_a_published_dimensions)
+python qa23_mutate.py crumbs     -> 1 failed (test_lod_budget[built_a]), 2 passed
+```
+- **Commits:** 14 since `351fe55`, each subject-only and lower case, 42–69 characters, no body, no trailer, no co-author line.
+  - Identities: Asset Artist `assets@450fpv.local` (12) and Orchestrator `orchestrator@450fpv.local` (2).
+- **Committed paths:** none under `reference/`, `Library/`, `Temp/`, `Logs/`, `UserSettings/` or `review-sheets/`. The two rebuilt FBX go through LFS (`filter: lfs`).
+- **OPSEC:**
+  - no file name from `reference/`, and no place, date or OSD value, in the branch (the scan) or in this re-check
+  - M's plate characters appear nowhere
+
+### Suggestions (not blocking)
+- **T1. Frame the review sheet on `bounds.lod` too** (S2's second half, outside 2.2's brief). With the crumbs spread 3 m from the sill, A's bounds grew to 6.632 × 4.481 m. Its "1.5 m" tile is now taken 5.1 m from the bounds' centre (QA 2.1: 4.6 m), and the turntables 9.91 m out, so the car's near look is still never read near.
