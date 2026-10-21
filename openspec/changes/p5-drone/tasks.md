@@ -9,9 +9,10 @@ Branch `unity/art/p5-drone` off `unity/main`.
 
 ## 1. Build
 
-- [ ] 1.1 [reference-analyst] The object sheet (design 1):
+- [x] 1.1 [reference-analyst] The object sheet (design 1):
   - **What:** `docs/object-sheets/drone.md` from public sources: every part's dimensions, mass, material and colour, labelled; the generic payload; the packs' options; the stand.
   - **Verify:** the `object-sheets` scenarios, and the OPSEC scan clean.
+  - **As built:** letter T scaled as a square 452 mm X (1.37 px/mm, the 3115 can and the 10-inch prop agree). T reads as a rear-port three-quarter view: the spool fore-aft on top, its cap aft; the packs along the sides; the payload slung below **crosswise**; carbon tube legs on two fore-aft **skids**. T's props are **2-blade** (DRN-01 says 3), its arms plates (D-043 said tubes). The 10 km, 1 kg coil (pilot) is T's drum scaled 1.25×; legs 0.25 m (pilot) where T scales to 0.18 m. K§5.2 re-derived at seven loadouts: legs-on 3.46–6.46 kg, roll 0.039–0.083, pitch 0.038–0.072, yaw 0.055–0.082 kg·m² (nominal 4.81 kg: 0.056 / 0.053 / 0.062), the coil 0.09–0.13 m above the CoM (legs-off 0.03–0.07 m below). Packs: two 6S2P (6S4P, 1.82 kg) default, 6S3P and 8S2P options. Stand: posts at r 0.200 m, 0.25 m, 1.6 kg, the legs-off spool 0.135 m clear of the base.
 - [ ] 1.2 [physics-engineer] `drone.json` (design 2):
   - **What:** written from the sheet in `p6-flight-core`'s schema, with K§5.2 re-derived for letter T's layout (D-043), and the packs set.
   - **Verify:** the re-derivation scenario at seven loadouts, and `p6-flight-core`'s mass-build test re-pinned with each figure labelled.
