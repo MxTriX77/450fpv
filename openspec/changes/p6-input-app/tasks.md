@@ -14,7 +14,7 @@ Branch `unity/game/p6-input-app` off `unity/main`, after `p6-flight-core`'s task
   - **What:** the Calibrate screen's ACTUAL rates and throttle curve with previews from the core's rate function, `FcSettings` under CLI names, the sim default column as defaults, and persistence.
   - **Verify:** the defaults scenario and the persistence scenario.
 - [ ] 1.4 [game-developer] The app and the flight session (design 6, 7):
-  - **What:** the menu (Train, Calibrate, Exit; Explore in review builds), the setup, the flight session over the gallery with the world loader, the physics thread, the stand-in drone, the FEED-02 camera and the launch stand; arm and disarm, pause and restart, the end conditions, and the post-flight summary.
+  - **What:** the menu (Train, Calibrate, Exit; Explore in review builds), the setup, the flight session over the test range (D-044) with the world loader, the physics thread, the stand-in drone, the FEED-02 camera and the launch stand; arm and disarm, pause and restart, the end conditions, and the post-flight summary.
   - **Verify:** every `app-flow` scenario, and a built player flying the stand-in from the stand and from the ground with the keyboard fallback.
 - [ ] 1.5 [game-developer] Latency (design 3):
   - **What:** the latency test mode.

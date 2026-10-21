@@ -29,7 +29,7 @@ Branch `unity/physics/p6-flight-core` off `unity/main` (D-042). The sim work is 
 - [ ] 1.6 [physics-engineer] Contacts (design 7), after `p6-world-query-gallery` 1.1:
   - **What:** legs on `SampleGround`, the four-post stand, swept shapes on `StaticContacts` with the Time < 1 latch, prop strikes, crash and tunnel events.
   - **Verify:**
-    - the ground-contact scenarios on the stub, and on the gallery world once `p6-world-query-gallery` lands it: the bounce with throttle held and cut, liftoff from the stand, into L01 at 10 m/s
+    - the ground-contact scenarios on the stub, and on the test range (D-044) once `p6-world-query-gallery` lands its queries: the bounce with throttle held and cut, liftoff from the stand, into L01 at 10 m/s, into the posadka
     - the replay scenario on a 120 s flight with contacts and a landing
 - [ ] 1.7 [physics-engineer] The budget and determinism (PLT-04):
   - **What:** `tools/flightbench --bench` on AC with the power mode printed: p50 and p99 step times, steady-state allocations, the world-query share.
