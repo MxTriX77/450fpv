@@ -9,11 +9,11 @@ using Fpv450.Sim.Log;
 
 namespace Fpv450.Replay
 {
-    // The scripted flight that exercises the log end to end (physics-log, "Replay matches the flight"): the bootstrap
-    // drone.json at its nominal loadout, launched as a free body (a climb and a tumble off its principal axes; the
-    // forces arrive with tasks 1.4–1.6), with a scripted pilot on the sticks. It is flown either through the scheduler
-    // on a virtual clock, with three 40 ms process stalls for the hitches, or in real time on the flight thread with
-    // the stick reports from an input thread. Both log through the ring and the flush worker.
+    // The scripted flight that exercises the log end to end (physics-log, "Replay matches the flight"): drone.json at
+    // its nominal loadout with its Betaflight 4.5 controller and propulsion (1.4), started 300 m up in still air (the
+    // contacts arrive with 1.6), with a scripted pilot on the sticks. It is flown either through the scheduler on a
+    // virtual clock, with three 40 ms process stalls for the hitches, or in real time on the flight thread with the
+    // stick reports from an input thread. Both log through the ring and the flush worker.
     internal static class ScriptedFlight
     {
         public const ulong Seed = 0x450F;
@@ -72,12 +72,12 @@ namespace Fpv450.Replay
         }
 
         // The pilot's sticks t µs into the flight, at the TX12's resolution (1 µs of a 1000–2000 µs channel): armed from
-        // 0.2 s, the throttle up over 2 s and then cycling, a roll weave, pitch reversals with a full sharp reverse every
-        // 15 s, a slow yaw.
+        // 0.2 s with the throttle low (Betaflight's rule), the throttle up to about hover over 2 s from 0.5 s and then
+        // cycling around it, a roll weave, pitch reversals with a full sharp reverse every 15 s, a slow yaw.
         static StickSample Stick(long tUs, long hostUs)
         {
             double t = tUs * 1e-6;
-            double throttle = t < 2 ? 0.3 * t : 0.55 + 0.25 * Triangle(t / 7);
+            double throttle = t < 0.5 ? 0 : t < 2.5 ? 0.235 * (t - 0.5) : 0.47 + 0.15 * Triangle(t / 7);
             double roll = 0.6 * Math.Sin(2 * Math.PI * 0.5 * t) + (t % 10 < 0.3 ? 0.4 : 0);
             double pitch = t % 15 >= 7 && t % 15 < 7.5 ? -1 : (int)(t / 3) % 2 == 0 ? 0.4 : -0.4;
             double yaw = 0.3 * Math.Sin(2 * Math.PI * 0.2 * t);
@@ -105,9 +105,8 @@ namespace Fpv450.Replay
                 Seed = Seed,
                 World = OpenWorld("floor"),
                 Mass = spec.BuildMass(loadout),
-                StartPosition = new Double3(0, 100, 0),
-                StartVelocity = new Double3(3, 20, -1),
-                StartBodyRate = new Double3(2, -1, 0.5),
+                Propulsion = spec.BuildPropulsion(),
+                StartPosition = new Double3(0, 300, 0),
             };
             var core = new FlightCore(setup);
             LogHeader header = LogHeader.For(setup, core);
