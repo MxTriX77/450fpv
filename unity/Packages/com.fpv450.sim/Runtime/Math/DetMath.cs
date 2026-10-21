@@ -30,6 +30,18 @@
 //   about body +x it puts the nose down, and about body +z it lifts the right side.
 //   omega x r, r x F and quaternion products all use this one convention; nothing in
 //   the core is right-handed.
+// - Attitude (Quat): the unit quaternion that takes body vectors to world vectors,
+//   v_world = q v_body q*, with the Hamilton product. Its (X, Y, Z, W) are Unity's
+//   Quaternion (x, y, z, w) one to one, so a pose crosses to Unity with no conversion.
+// - Body rate (omega): body axes, rad/s, positive by the rule above; q' = q (0, omega) / 2.
+// - Pilot axes, for the controller, the sticks and the logs (aerospace p, q, r):
+//       p, roll right (right side down)  = -omega.z
+//       q, pitch up (nose up)            = -omega.x
+//       r, yaw right (heading grows)     = +omega.y
+//   The sticks (StickSample) use the pilot's directions: roll +1 = stick right, pitch
+//   +1 = stick forward (nose down, so -q), yaw +1 = stick right.
+// - Euler angles exist only for logging and the simulated pilot: ZYX yaw-pitch-roll,
+//   with the wind study's tracker definitions (reference-notes/wind.md section 6.2).
 
 namespace Fpv450.Sim
 {
