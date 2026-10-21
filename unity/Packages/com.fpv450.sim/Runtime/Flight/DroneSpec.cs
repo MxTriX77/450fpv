@@ -71,6 +71,17 @@ namespace Fpv450.Sim.Flight
         public double FootRadius;
     }
 
+    /// <summary>The legs-off build (D-043): the parts that come off with the legs, and the parts that move.</summary>
+    public sealed class DroneLegsOff
+    {
+        /// <summary>Indices into DroneSpec.Parts: every leg part, and whatever comes off with them (feet, skids).</summary>
+        public int[] Removed;
+
+        /// <summary>Indices into DroneSpec.Parts of the parts that move, and each one's centre there, body m.</summary>
+        public int[] Moved;
+        public Double3[] MovedTo;
+    }
+
     /// <summary>The fiber spool: its part, whose mass falls as the line pays out.</summary>
     public struct DroneCoil
     {
@@ -114,7 +125,7 @@ namespace Fpv450.Sim.Flight
         /// <summary>The payload, kg (APP-03: 0–2.0).</summary>
         public double Payload;
 
-        /// <summary>Legs on; off means the legs' parts weigh nothing and the flight starts on the stand.</summary>
+        /// <summary>Legs on; off is drone.json's legs-off build (the legs' parts off, the spool moved), started on the stand.</summary>
         public bool Legs;
 
         /// <summary>Line paid out, m: 0 at take-off.</summary>
@@ -163,6 +174,7 @@ namespace Fpv450.Sim.Flight
         public DronePack[] Packs;
 
         public DroneLegs Legs;
+        public DroneLegsOff LegsOff;
         public DroneCoil Coil;
         public DronePayload Payload;
         public DroneStand Stand;
@@ -178,7 +190,12 @@ namespace Fpv450.Sim.Flight
         /// <summary>The coil's mass with paidOut metres of line gone.</summary>
         public double CoilMass(double paidOut) => Coil.SpoolMass + Coil.FiberMass * (1 - paidOut / Coil.FiberLength);
 
-        /// <summary>The mass model at a loadout (the payload, the legs and the coil set on the file's parts).</summary>
+        /// <summary>
+        /// The mass model at a loadout: the payload, the legs and the coil set on the file's parts. Legs off is the
+        /// file's legs_off build: its removed parts weigh nothing and its moved parts move. The payload part is the
+        /// file's body at the file's payload mass; another mass scales it uniformly by the cube root of the ratio,
+        /// growing away from the arm plane (DRN-03: the face toward the frame stays where the file puts it).
+        /// </summary>
         public MassModel BuildMass(in Loadout loadout)
         {
             if (!(loadout.Payload >= Payload.MinMass && loadout.Payload <= Payload.MaxMass))
@@ -186,12 +203,40 @@ namespace Fpv450.Sim.Flight
             if (!(loadout.CoilPaidOut >= 0 && loadout.CoilPaidOut <= Coil.FiberLength))
                 throw new ArgumentOutOfRangeException(nameof(loadout), "the paid-out line is outside 0–" + Coil.FiberLength + " m");
             var parts = (DronePart[])Parts.Clone();
-            parts[Payload.Part].Mass = loadout.Payload;
-            parts[Coil.Part].Mass = CoilMass(loadout.CoilPaidOut);
             if (!loadout.Legs)
-                foreach (int leg in Legs.Parts)
-                    parts[leg].Mass = 0;
+            {
+                foreach (int part in LegsOff.Removed)
+                    parts[part].Mass = 0;
+                for (int i = 0; i < LegsOff.Moved.Length; i++)
+                    parts[LegsOff.Moved[i]].Position = LegsOff.MovedTo[i];
+            }
+            parts[Coil.Part].Mass = CoilMass(loadout.CoilPaidOut);
+            ref DronePart payload = ref parts[Payload.Part];
+            ScaleAwayFromArmPlane(ref payload, DetMath.Cbrt(loadout.Payload / payload.Mass));
+            payload.Mass = loadout.Payload;
             return new MassModel(parts);
+        }
+
+        // A part scaled uniformly by s about the middle of its face toward the arm plane: its sizes times s, and its
+        // centre moved away from the plane by its half-extent along y times (s − 1). s = 1 leaves every bit as it was.
+        static void ScaleAwayFromArmPlane(ref DronePart p, double s)
+        {
+            double half;
+            if (p.Kind == PartKind.Box)
+            {
+                half = p.Size.Y / 2;
+                p.Size = p.Size * s;
+            }
+            else
+            {
+                double ay = DetMath.Abs(p.Axis.Y);
+                half = p.Length / 2 * ay + p.Diameter / 2 * DetMath.Sqrt(1 - ay * ay);
+                p.Diameter *= s;
+                p.Length *= s;
+            }
+            double away = half * (s - 1);
+            if (p.Position.Y < 0) p.Position.Y -= away;
+            else if (p.Position.Y > 0) p.Position.Y += away;
         }
 
         /// <summary>The index of the part named name, or −1.</summary>
@@ -242,13 +287,14 @@ namespace Fpv450.Sim.Flight
                     Motors = new DroneMotor[4],
                     Packs = new DronePack[2],
                     Legs = new DroneLegs { Parts = new int[0] },
+                    LegsOff = new DroneLegsOff { Removed = new int[0], Moved = new int[0], MovedTo = new Double3[0] },
                     Coil = new DroneCoil { Part = -1 },
                     Payload = new DronePayload { Part = -1 },
                 };
                 const string top = "drone.json";
                 if (!IsObject(root, top)) return spec;
                 Members(root, top, "schema", "owner", "name", "bootstrap", "about", "fields",
-                    "parts", "motors", "props", "packs", "legs", "coil", "payload", "stand");
+                    "parts", "motors", "props", "packs", "legs", "legs_off", "coil", "payload", "stand");
 
                 JsonNode schema = Required(root, "schema", top);
                 if (schema != null && !(schema.Kind == JsonKind.Number && schema.Number == Schema))
@@ -276,6 +322,7 @@ namespace Fpv450.Sim.Flight
                 if ((n = Required(root, "legs", top)) != null) ReadLegs(n, spec);
                 if ((n = Required(root, "coil", top)) != null) spec.Coil = ReadCoil(n, spec);
                 if ((n = Required(root, "payload", top)) != null) spec.Payload = ReadPayload(n, spec);
+                if ((n = Required(root, "legs_off", top)) != null) ReadLegsOff(n, spec);
                 if ((n = Required(root, "stand", top)) != null) spec.Stand = ReadStand(n);
                 return spec;
             }
@@ -450,6 +497,50 @@ namespace Fpv450.Sim.Flight
                 if (!double.IsNaN(m + payload.MinMass + payload.MaxMass) && !(m >= payload.MinMass && m <= payload.MaxMass))
                     Fail("payload", "the payload part's mass, " + m + " kg, is outside the setting's range");
                 return payload;
+            }
+
+            // After the legs, the coil and the payload, which it checks against.
+            void ReadLegsOff(JsonNode p, DroneSpec spec)
+            {
+                DroneLegsOff off = spec.LegsOff;
+                if (!IsObject(p, "legs_off")) return;
+                Members(p, "legs_off", "removed", "moved");
+                JsonNode removed = Required(p, "removed", "legs_off");
+                if (removed != null && IsArray(removed, "legs_off.removed", 1))
+                {
+                    off.Removed = new int[removed.Items.Count];
+                    for (int i = 0; i < off.Removed.Length; i++) off.Removed[i] = -1;
+                    for (int i = 0; i < off.Removed.Length; i++)
+                    {
+                        string path = "legs_off.removed[" + i + "]";
+                        JsonNode n = removed.Items[i];
+                        if (n.Kind != JsonKind.String) { Fail(path, "must name a part"); continue; }
+                        int index = spec.PartIndex(n.Text);
+                        if (index < 0) { Fail(path, "no part is named '" + n.Text + "'"); continue; }
+                        if (System.Array.IndexOf(off.Removed, index) >= 0) { Fail(path, "names a part twice"); continue; }
+                        if (index == spec.Coil.Part || index == spec.Payload.Part)
+                            Fail(path, "the coil and the payload are the loadout's to set, not the legs'");
+                        off.Removed[i] = index;
+                    }
+                    foreach (int leg in spec.Legs.Parts)
+                        if (leg >= 0 && System.Array.IndexOf(off.Removed, leg) < 0)
+                            Fail("legs_off.removed", "must take off the leg '" + spec.Parts[leg].Name + "'");
+                }
+                JsonNode moved = Required(p, "moved", "legs_off");
+                if (moved != null && IsObject(moved, "legs_off.moved"))
+                {
+                    int count = moved.Keys.Count;
+                    off.Moved = new int[count];
+                    off.MovedTo = new Double3[count];
+                    for (int i = 0; i < count; i++)
+                    {
+                        string name = moved.Keys[i], path = "legs_off.moved." + name;
+                        int index = off.Moved[i] = spec.PartIndex(name);
+                        if (index < 0) Fail(path, "no part is named '" + name + "'");
+                        else if (System.Array.IndexOf(off.Removed, index) >= 0) Fail(path, "is removed as well");
+                        Vector(moved, name, "legs_off.moved", out off.MovedTo[i]);
+                    }
+                }
             }
 
             DroneStand ReadStand(JsonNode p)

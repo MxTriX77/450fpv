@@ -3,7 +3,7 @@
   "owner": "physics-engineer",
   "name": "Svinoriz 10 Opto",
   "bootstrap": true,
-  "about": "The BOOTSTRAP component spec (DRN-03; p6-flight-core design 3, task 1.3): docs/knowledge.md §5.2's assumed layout (from reference-notes/wind.md §5.5) at its nominal in-flight loadout, 4.8 kg with the coil half paid out and 1 kg of payload aboard, so the flight core has a body until p5-drone task 1.2 replaces this file with letter T's researched layout (D-043: the spool on top, the payload slung below, the two packs along the sides). K§5.2 writes its layout with x forward and z up; this file is in the body frame of DetMath.cs: x right, y up, z forward, metres from the arm-plane centre. Positions are data: nothing in the code knows where a part sits. Every number is labelled where it stands (pilot, measured, published, derived or assumed) and the note gives its source or its calculation.",
+  "about": "The BOOTSTRAP component spec (DRN-03; p6-flight-core design 3, task 1.3): docs/knowledge.md §5.2's assumed layout (from reference-notes/wind.md §5.5) at its nominal in-flight loadout, 4.8 kg with the coil half paid out and 1 kg of payload aboard. p5-drone task 1.2 replaced the repository's drone.json with letter T's researched layout (D-043), and this file became a test fixture, so the K§5.2 cross-check and the rigid-body tests still run on it; its legs_off block is the bootstrap's own rule, the legs alone off. K§5.2 writes its layout with x forward and z up; this file is in the body frame of DetMath.cs: x right, y up, z forward, metres from the arm-plane centre. Positions are data: nothing in the code knows where a part sits. Every number is labelled where it stands (pilot, measured, published, derived or assumed) and the note gives its source or its calculation.",
   "fields": {
     "labelled number": "{\"value\": <number, or [x, y, z], or a list>, \"label\": \"pilot\" | \"measured\" | \"published\" | \"derived\" | \"assumed\", \"note\": \"<source or calculation>\"}; the note is optional, the label is not",
     "bootstrap": "true for p6-flight-core's stand-in; p5-drone's researched file sets false",
@@ -11,9 +11,10 @@
     "motors": "four, in Betaflight's Quad X order (rear right, front right, rear left, front left): position_m (the prop hub, where the thrust acts), spin (cw | ccw seen from above; cw is a positive rotation about body +y), kv_rpm_per_v, tau_s (the motor and rotor's first-order lag), esc_tau_s (the ESC's command filter)",
     "props": "the four props, alike: diameter_m, blades, pitch_m (geometric, per revolution), k_t_n_per_rad2_s2 (T = k_T·n², n in rad/s), kappa_m (Q = κ·T)",
     "packs": "two (PHB-03): part (the pack's mass part), series and parallel cells, cell_capacity_ah, r_cell_ohm, ocv_v (one cell's open-circuit voltage at states of charge 0, 1/(n−1), …, 1)",
-    "legs": "parts (the four leg parts, in Betaflight's corner order; a leg's length is its part's, its foot the part's lower end), stiffness_n_per_m and damping_n_s_per_m (each leg's own spring and damper, in series with the ground), foot_radius_m; legs off sets the leg parts to 0 kg",
+    "legs": "parts (the four leg parts, in Betaflight's corner order; a leg's length is its part's, its foot the part's lower end), stiffness_n_per_m and damping_n_s_per_m (each leg's own spring and damper, in series with the ground), foot_radius_m; legs off is legs_off's build",
+    "legs_off": "the legs-off build: removed (every part that comes off with the legs, the four leg parts among them), moved ({part name: its labelled centre on the legs-off build})",
     "coil": "part (the spool's mass part, whose mass falls as the line pays out), spool_mass_kg (empty, with its housing), fiber_mass_kg and fiber_length_m (the line on a full spool); the part's mass here is this file's loadout",
-    "payload": "part (the payload's mass part, set to the pilot's payload), mass_min_kg and mass_max_kg (the setting's range, APP-03); the part's mass here is this file's loadout",
+    "payload": "part (the payload's mass part, set to the pilot's payload), mass_min_kg and mass_max_kg (the setting's range, APP-03); the part is the body at its mass here, this file's loadout, and another payload scales it by the cube root of the mass ratio, growing away from the arm plane",
     "stand": "the legs-off launch stand (D-022, D-043): material, post_radius_m (each post on a motor diagonal, from the stand's centre), post_height_m (the post tops above the ground), post_diameter_m, mass_kg"
   },
   "parts": [
@@ -212,6 +213,10 @@
     "stiffness_n_per_m": {"value": 20000, "label": "assumed", "note": "a leg's own spring, the first attempt's probe (physics_materials.json, steel); 1.6 tunes it against the bounce scenario"},
     "damping_n_s_per_m": {"value": 40, "label": "assumed", "note": "ζ ≈ 0.13 for a quarter of 4.8 kg on 2e4 N/m (c = 2ζ·√(k·m), derived); 1.6 tunes it against the bounce scenario"},
     "foot_radius_m": {"value": 0.0075, "label": "assumed", "note": "the 15 mm reference foot of physics_materials.json"}
+  },
+  "legs_off": {
+    "removed": ["leg_rr", "leg_fr", "leg_rl", "leg_fl"],
+    "moved": {}
   },
   "coil": {
     "part": "coil",

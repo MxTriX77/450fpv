@@ -49,6 +49,7 @@ namespace Fpv450.Sim.Tests
             + " 'packs': [" + Pack("pack_a") + ", " + Pack("pack_b") + "],"
             + " 'legs': {'parts': ['leg_rr', 'leg_fr', 'leg_rl', 'leg_fl'], 'stiffness_n_per_m': " + L("20000")
             + ", 'damping_n_s_per_m': " + L("40") + ", 'foot_radius_m': " + L("0.0075") + "},"
+            + " 'legs_off': {'removed': ['leg_rr', 'leg_fr', 'leg_rl', 'leg_fl'], 'moved': {'spool': " + L("[0, 0.1, 0]") + "}},"
             + " 'coil': {'part': 'spool', 'spool_mass_kg': " + L("0.2") + ", 'fiber_mass_kg': " + L("0.8")
             + ", 'fiber_length_m': " + L("10000") + "},"
             + " 'payload': {'part': 'cargo', 'mass_min_kg': " + L("0") + ", 'mass_max_kg': " + L("2") + "},"
@@ -56,15 +57,44 @@ namespace Fpv450.Sim.Tests
             + ", 'post_diameter_m': " + L("0.025") + ", 'mass_kg': " + L("2.9") + "}}"
         ).Replace('\'', '"');
 
+        // The repository's file is p5-drone's researched drone (task 1.2): letter T's 2-blade props, the 3115 900 KV
+        // motors, two 6S2P packs of 5 Ah cells in parallel (the pilot's 6S4P, 20 Ah), the legs-off build.
         [Test]
-        public void TheBootstrapFileIsValidAndMarked()
+        public void TheRepositoryFileIsTheResearchedDrone()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            Assert.That(spec.Bootstrap, Is.False, "p5-drone's file replaces the bootstrap");
+            Assert.That(spec.Name, Is.EqualTo("Svinoriz 10 Opto"));
+            Assert.That(spec.Props.Blades, Is.EqualTo(2), "letter T's props");
+            Assert.That(spec.Props.Diameter, Is.EqualTo(0.254));
+            double ah = 0;
+            foreach (DronePack pack in spec.Packs)
+            {
+                Assert.That(pack.Series, Is.EqualTo(6), "6S: the motors are rated 3–6S");
+                Assert.That(spec.Parts[pack.Part].Material, Is.EqualTo("li_ion"));
+                ah += pack.Parallel * pack.CellCapacity;
+            }
+            Assert.That(ah, Is.InRange(20.0, 35.0), "inside the pilot's 20–35 Ah");
+            foreach (DroneMotor motor in spec.Motors) Assert.That(motor.Kv, Is.EqualTo(900));
+            Assert.That(spec.LegsOff.Removed.Length, Is.EqualTo(10), "4 legs, 4 T-joints, 2 skids");
+            Assert.That(spec.LegsOff.Moved.Length, Is.EqualTo(2), "the coil and the payload move");
+
+            // DRN-02: prop tip to tip 0.574 m nose-first and 0.706 m on the diagonal, ±5 mm.
+            Double3 fr = spec.Motors[1].Position, fl = spec.Motors[3].Position, rl = spec.Motors[2].Position;
+            Assert.That(fr.X - fl.X + spec.Props.Diameter, Is.EqualTo(0.574).Within(0.005), "nose-first");
+            Assert.That((fr - rl).Length() + spec.Props.Diameter, Is.EqualTo(0.706).Within(0.005), "on the diagonal");
+        }
+
+        [Test]
+        public void TheBootstrapFixtureIsValidAndMarked()
         {
             DroneSpec spec = BootstrapDrone.Spec();
-            Assert.That(spec.Bootstrap, Is.True, "the bootstrap file is marked as the bootstrap until p5-drone replaces it");
+            Assert.That(spec.Bootstrap, Is.True, "the fixture is p6-flight-core's bootstrap");
             Assert.That(spec.Name, Is.EqualTo("Svinoriz 10 Opto"));
             Assert.That(spec.Motors.Length, Is.EqualTo(4));
             Assert.That(spec.Packs.Length, Is.EqualTo(2));
             Assert.That(spec.Legs.Parts.Length, Is.EqualTo(4));
+            Assert.That(spec.LegsOff.Removed, Is.EquivalentTo(spec.Legs.Parts), "the bootstrap's legs-off: the legs alone");
         }
 
         [Test]
@@ -96,6 +126,11 @@ namespace Fpv450.Sim.Tests
         [TestCase("'ocv_v': {'value': [3.0, 3.7, 4.2]", "'ocv_v': {'value': [3.0, 4.2, 3.7]", "packs[0].ocv_v: the voltage must not fall", TestName = "A falling OCV curve is refused")]
         [TestCase("'pitch_m': {'value': 0.127", "'pitch_m': {'value': 0.12345678901234567", "a number with more significant digits than an exact read allows", TestName = "A number past an exact read is refused")]
         [TestCase("'schema': 1,", "'schema': 1", "line 1: ", TestName = "Broken JSON is refused with its line")]
+        [TestCase(" 'legs_off': {'removed': ['leg_rr', 'leg_fr', 'leg_rl', 'leg_fl'], 'moved': {'spool': {'value': [0, 0.1, 0], 'label': 'assumed'}}},", "", "drone.json.legs_off: missing", TestName = "A drone with no legs-off build is refused")]
+        [TestCase("'removed': ['leg_rr', 'leg_fr', 'leg_rl', 'leg_fl']", "'removed': ['leg_rr', 'leg_fr', 'leg_rl']", "legs_off.removed: must take off the leg 'leg_fl'", TestName = "A legs-off build that keeps a leg is refused")]
+        [TestCase("'removed': ['leg_rr', 'leg_fr', 'leg_rl', 'leg_fl']", "'removed': ['leg_rr', 'leg_fr', 'leg_rl', 'leg_fl', 'cargo']", "legs_off.removed[4]: the coil and the payload are the loadout's", TestName = "A legs-off build that removes the payload is refused")]
+        [TestCase("'moved': {'spool'", "'moved': {'leg_rr'", "legs_off.moved.leg_rr: is removed as well", TestName = "A legs-off build that moves a removed part is refused")]
+        [TestCase("'moved': {'spool'", "'moved': {'reel'", "legs_off.moved.reel: no part is named 'reel'", TestName = "A legs-off move of no part is refused")]
         public void TheValidatorRefuses(string find, string replace, string expected)
         {
             find = find.Replace('\'', '"');
