@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "shader": "Universal Render Pipeline/Lit",
+  "texture_set": "polyhaven/green_metal_rust",
+  "tile_size_m": [2.0, 2.0],
+  "tint": [0.794, 0.954, 1.404, 1.0],
+  "mask": { "metallic": 0.0, "occlusion": "ao", "smoothness": "1 - roughness" },
+  "layers": [
+    { "channel": "g", "recipe": "car_burnt" },
+    { "channel": "a", "recipe": "car_bare" },
+    { "channel": "r", "recipe": "car_rust" },
+    { "channel": "b", "recipe": "car_dust" }
+  ]
+}

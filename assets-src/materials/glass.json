@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "kind": "palette",
+  "blend": "transparent",
+  "shader": "Fpv450/CrazedGlass",
+  "colours": { "glass": "#a9bdb4" },
+  "tint": [0.4236, 0.4236, 0.4236, 0.02],
+  "smoothness": 0.95,
+  "ior": 1.52
+}

@@ -1,0 +1,16 @@
+{
+  "material": "car_bare",
+  "texture_set": "ambientcg/Metal049A",
+  "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
+  "mask": {
+    "metallic": 0.0,
+    "occlusion": 1.0,
+    "smoothness": 0.25
+  },
+  "sources": {},
+  "inputs_sha256": "8069f3c22ebb12e7d14d1c52455a43864d51f8ee2c9a67448d0170554f9f6a2d",
+  "size": [
+    1,
+    1
+  ]
+}

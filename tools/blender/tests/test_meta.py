@@ -80,6 +80,22 @@ def test_micro_meshes_are_named_counted_and_bounded(k01_params, material_ids):
         meta.assemble("K01", "K01_whole", "debris_brick", k01_params, built, dict(VISUALS, straw="straw"))
 
 
+def test_lod_bounds_are_written_under_the_bounds(k01_params, material_ids):
+    """p1-r01-vaz-sedan, QA 2.1's S2: a generator's "lod_bounds", the object's own box without what its meshes lay
+    round it, lands as bounds.lod (the LOD group's frame); one outside the bounds, or turned inside out, is refused;
+    without it nothing is written."""
+    built = debris_brick.build(k01_params)
+    built["lod_bounds"] = ((-0.1, 0.0, -0.05), (0.1, 0.06, 0.05))
+    data = meta.assemble("K01", "K01_whole", "debris_brick", k01_params, built, VISUALS)
+    assert data["bounds"]["lod"] == {"min": [-0.1, 0.0, -0.05], "max": [0.1, 0.06, 0.05]}
+    assert meta.validate(data, material_ids) == []
+    assert json.loads(meta.dumps(data))["bounds"]["lod"] == data["bounds"]["lod"]
+    for lo, hi in (([-0.2, 0.0, -0.05], [0.1, 0.06, 0.05]), ([0.1, 0.0, -0.05], [-0.1, 0.06, 0.05])):
+        data["bounds"]["lod"] = {"min": lo, "max": hi}
+        assert meta.validate(data, material_ids) == ["bounds.lod needs min <= max as two 3-vectors inside the bounds"]
+    assert "lod" not in k01_meta(k01_params)["bounds"]
+
+
 def test_writer_is_deterministic_and_lf_terminated(k01_params):
     text = meta.dumps(k01_meta(k01_params))
     assert text == meta.dumps(k01_meta(json.loads(json.dumps(k01_params))))
@@ -369,6 +385,36 @@ def test_malformed_physics_material_table_is_refused(repo_root, tmp_path, edit, 
     write_table(repo_root, tmp_path, edit)
     with pytest.raises(ValueError, match=expected):
         meta.load_physics_materials(tmp_path)
+
+
+def test_textures_are_carried_from_the_generator(k01_params, material_ids):
+    """p1-r01-vaz-sedan, "Per-pane crack masks on a transparent material": a generator's textures land under
+    `textures` as <variant>_<name>.png with their role, slot and UV rectangle (the bytes stay out of the file); without
+    any the key is still written, empty."""
+    assert k01_meta(k01_params)["textures"] == []
+    built = debris_brick.build(k01_params)
+    built["textures"] = [{"role": "crack_mask", "slot": "brick", "name": "cracks", "uv_min": (0.0, -0.5),
+                          "uv_max": (0.4, 0.5), "png": b"\x89PNG"}]
+    data = meta.assemble("K01", "K01_whole", "debris_brick", k01_params, built, VISUALS)
+    assert data["textures"] == [{"role": "crack_mask", "slot": "brick", "file": "K01_whole_cracks.png",
+                                 "uv_min": [0.0, -0.5], "uv_max": [0.4, 0.5]}]
+    assert meta.validate(data, material_ids) == []
+    assert list(data).index("textures") == list(data).index("holes") + 1
+
+
+@pytest.mark.parametrize("edit, expected", [
+    (lambda t: t.update(role="normal_map"), "role must be one of crack_mask, damage_mask"),
+    (lambda t: t.update(slot="glass"), "slot 'glass' is not a material slot"),
+    (lambda t: t.update(uv_max=[0.0, 0.5]), "must lie below and left of uv_max"),
+    (lambda t: t.update(file="cracks.jpg"), "needs role, slot, file, uv_min, uv_max"),
+])
+def test_textures_validated(k01_params, material_ids, edit, expected):
+    data = k01_meta(k01_params)
+    data["textures"] = [{"role": "crack_mask", "slot": "brick", "file": "K01_whole_cracks.png",
+                         "uv_min": [0.0, -0.5], "uv_max": [0.4, 0.5]}]
+    edit(data["textures"][0])
+    problems = meta.validate(data, material_ids)
+    assert any(expected in p for p in problems), problems
 
 
 def test_committed_metadata_matches_committed_params(k01_params, material_ids, k01_out):

@@ -20,12 +20,15 @@ variant whose params set `impostor: true` (p1-v01-locust design decision 3) also
 occlusion in its alpha and the smoothness atlas that lib/impostor.py renders from LOD0 after the FBX, staged the same
 way, and its metadata lists the impostor as the last
 LOD; atlases the metadata records as up to date are not rendered again, and those the params no longer ask for are
-removed. A staged file replaces its final name, tried again for a few seconds while Windows denies access to it. A
-rejected build changes no file. It refuses any Blender other than the pinned major.minor. Exit code 1 on any problem;
-nothing is hand-edited.
+removed. A generator's textures (its "textures", lib.meta) are written beside the metadata as <variant>_<name>.png,
+and a texture the variant's previous metadata listed under "textures" that the build no longer writes is removed with
+its .meta; no other file is (write_textures). A staged file replaces its final name, tried again for a few seconds
+while Windows denies access to it. A rejected build changes no file. It refuses any Blender other than the pinned
+major.minor. Exit code 1 on any problem; nothing is hand-edited.
 """
 import argparse
 import importlib
+import json
 import os
 import sys
 import time
@@ -132,14 +135,43 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
                 os.remove(path)
         if fresh and not os.listdir(out_dir):
             os.rmdir(out_dir)
+    listed = listed_textures(meta_path)  # read before the metadata it lists them in is replaced
     meta.write(meta_path, data)
-    size = [round(data["bounds"]["max"][a] - data["bounds"]["min"][a], 4) for a in range(3)]
+    write_textures(out_dir, variant, built.get("textures", []), listed)
+    size =[round(data["bounds"]["max"][a] - data["bounds"]["min"][a], 4) for a in range(3)]
     tris = " / ".join(str(lod["tris"]) for lod in data["lods"])
     micro = "".join(f"  micro {m['name']} {m['count']} {m['kind']} {m['tris']} tris" for m in data["micro"])
     wires = f"  {len(data['wires'])} wires" if data["wires"] else ""
     return (f"{variant}: {os.path.relpath(fbx_path, root)}  size {size} m  tris {tris}{micro}  "
             f"{len(data['collision'])} collision shapes{wires}  fbx {os.path.getsize(fbx_path) / 1048576:.1f} MB  "
             "metadata written")
+
+
+def listed_textures(meta_path):
+    """The files a variant's metadata lists under "textures" (lib.meta), none when it has no metadata yet."""
+    if not os.path.exists(meta_path):
+        return set()
+    with open(meta_path, encoding="utf-8") as f:
+        return {texture["file"] for texture in json.load(f).get("textures", [])}
+
+
+def write_textures(out_dir, variant, textures, listed):
+    """Writes a generator's textures beside the metadata as <variant>_<name>.png and removes, with its .meta, each
+    file of `listed` (the previous metadata's "textures") this build no longer writes. No other file goes: the
+    impostor's atlases are not textures (lib.impostor), and a variant whose name another's starts with (V01_M beside
+    V01_M_autumn) keeps its files (p1-r01-vaz-sedan QA 2.1, S1). Returns the names written."""
+    from lib import meta
+    written = set()
+    for texture in textures:
+        name = meta.texture_file(variant, texture["name"])
+        with open(os.path.join(out_dir, name), "wb") as f:
+            f.write(texture["png"])
+        written.add(name)
+    for name in sorted(listed - written):
+        for stale in (name, name + ".meta"):
+            if os.path.exists(os.path.join(out_dir, stale)):
+                os.remove(os.path.join(out_dir, stale))
+    return written
 
 
 def replace(staged, path, tries=REPLACE_TRIES, wait_s=REPLACE_WAIT_S):

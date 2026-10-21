@@ -1,0 +1,34 @@
+{
+  "material": "glass",
+  "kind": "palette",
+  "formula": "palette v2: one column PALETTE_BLOCK_PX x PALETTE_HEIGHT_PX per colour, left to right in the recipe's order, its stops spread evenly from the bottom to the top and interpolated in linear light, padded with the last column to a power of two of columns; 8-bit sRGB",
+  "constants": {
+    "PALETTE_BLOCK_PX": 16,
+    "PALETTE_HEIGHT_PX": 64
+  },
+  "recipe": {
+    "schema": 1,
+    "kind": "palette",
+    "blend": "transparent",
+    "shader": "Fpv450/CrazedGlass",
+    "colours": {
+      "glass": "#a9bdb4"
+    },
+    "tint": [
+      0.4236,
+      0.4236,
+      0.4236,
+      0.02
+    ],
+    "smoothness": 0.95,
+    "ior": 1.52
+  },
+  "inputs_sha256": "83e48da863ac9af2de6878d3780bef7b012bf01cc917f69ab0730a412f1cce1f",
+  "size": [
+    16,
+    64
+  ],
+  "columns": [
+    "glass"
+  ]
+}

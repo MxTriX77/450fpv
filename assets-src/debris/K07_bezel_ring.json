@@ -1,0 +1,11 @@
+{
+  "piece": "bezel_ring",
+  "seed": 1,
+  "diameter_m": 0.18,
+  "section_m": 0.012,
+  "length_m": 0.0,
+  "width_m": 0.0,
+  "bend_m": 0.0,
+  "physics_material": "steel",
+  "lod": { "lod1_switch_m": 8.0, "cull_m": 85.0 }
+}

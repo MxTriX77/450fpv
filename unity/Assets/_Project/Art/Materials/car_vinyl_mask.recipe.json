@@ -1,0 +1,21 @@
+{
+  "material": "car_vinyl",
+  "texture_set": "ambientcg/Leather014",
+  "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
+  "mask": {
+    "metallic": 0.0,
+    "occlusion": 1.0,
+    "smoothness": "1 - roughness"
+  },
+  "sources": {
+    "roughness": {
+      "name": "Leather014_1K-PNG_Roughness.png",
+      "sha256": "54b6bb8aeae043471c9c48a30d72403760ab9f30c914817479a49c8132e22c60"
+    }
+  },
+  "inputs_sha256": "956a8f846331bbdd56c147f0d8cb7859f5a6008dc9f4f548f05cfaae119e0f6c",
+  "size": [
+    1024,
+    1024
+  ]
+}

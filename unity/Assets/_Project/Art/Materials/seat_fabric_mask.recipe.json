@@ -1,0 +1,25 @@
+{
+  "material": "seat_fabric",
+  "texture_set": "ambientcg/Fabric030",
+  "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
+  "mask": {
+    "metallic": 0.0,
+    "occlusion": "ao",
+    "smoothness": "1 - roughness"
+  },
+  "sources": {
+    "ao": {
+      "name": "Fabric030_1K-PNG_AmbientOcclusion.png",
+      "sha256": "1991f98056164440d19fc1af7003aa05600d19dd23d53c072cb42711bb76d16a"
+    },
+    "roughness": {
+      "name": "Fabric030_1K-PNG_Roughness.png",
+      "sha256": "9b9bcde3487826c7a6bb589c8865c2fda0c1a7ba90115daf36cea47d005eee7c"
+    }
+  },
+  "inputs_sha256": "037d971e1e7975407c653caf1f89359ef3610b98f1e83b889438968875c93430",
+  "size": [
+    1024,
+    1024
+  ]
+}

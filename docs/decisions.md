@@ -354,3 +354,18 @@ The pilot, 2026-10-19: "that req about opto being cut if laid on water - disrega
 - **Supersedes D-036's signal rule.** Fiber lying on or in water carries the feed as anywhere else: water never cuts the signal and never ends a sortie. WLD-01 and WLD-15 drop the cut; the feed has no water event (phase 4); the physics has no cut rule to set (phase 7).
 - **What stays from D-036:** the river and the ponds, their mildly realistic look, the waves from the wind, and the `water` surface row (a touch is a crash, nothing lands on it).
 - **The line on the water stays a physical line:** where it lies on or in the water, and the drag a current puts on it, are the tether physics' to model with the rest of the line (phase 7d); none of it touches the feed.
+
+## D-040 Gallery first: G1 on the original timeline · Accepted
+The pilot, 2026-10-21, after three days with three of G1's six stations merged: "we were supposed to have a gallery in 2-3 days", then, to the orchestrator's gallery-first proposal: "sure we should be on track with the original plan. im waiting for gallery".
+- **The gallery is built now and fills its stations as each lands.** G1's look setup starts at once; the scene takes every merged station and a numbered empty marker for each one still on its branch; the build goes to the pilot as soon as R01 and H01's intact house are in, and the damaged house follows.
+- **Before G1, each station keeps to one fresh QA pass (D-034).** A look miss QA finds becomes a named stand-in read out to the pilot at G1, not a rework round. A QA item on physics, tests, metadata or spec text still blocks the merge.
+- **Moved to after the pilot's G1 look, which steers them:** V01's crown net and the H belt edge (QA 2.1's R1 and R2 in `p1-v01-locust`'s `review.md`), H01's X state and letter S's items (task 1.4b), and any polishing of a number already inside its spec limit.
+- **Unchanged:** the physics rules (real geometry with thickness, collision following the visual, every audit), D-028's definition of realism, and the side-by-side reading of every station against its letters.
+- **Mass production:** a variant that is only a params file on an existing generator takes the Quick or Standard tier (D-033): one build, one look, one QA pass.
+
+## D-041 Efficiency: look first, shared pieces first, lean notes · Accepted
+The pilot, 2026-10-21: "the fact that it's slow - separate topic, dont care. what i care about is efficiency. if you tell me that all the work behind the scenes to create world and objects preparations will help achieve tremendous good quality down the line - works". Spend goes to what compounds (generators, the metadata contract, audits, shared shaders, physics rulings), not to what does not.
+- **Look first inside every asset task.** A rough build, then the side-by-side against its letters (REAL-03, D-038), then the numbers. A wrong shape is found before parity, budgets or tuning are spent on it (E01's and V01's looks failed QA after every number passed).
+- **Shared pieces are planned up front.** A proposal names every library, shader, importer role or metadata key it shares with another change in flight, and the change that builds it first; nothing waits mid-change on a piece nobody owns (R01's layered paint and H01's `textures` key were found mid-change).
+- **Lean notes and briefs.** An As built note gives the numbers and the decisions, not the story of the tries; a brief names the exact sections to read. Every fresh agent re-reads the change, so its length is paid on every task.
+- With D-040: no polishing of a number already inside its limit, and a variant that is only a params file takes the Quick or Standard tier (D-033).
