@@ -7,8 +7,9 @@ target is listed, not failed. The table is printed (pytest -s shows it).
 
 The base map is the one CatalogImporter assigns: the set's diffuse, or the derived _base map of a groove, a paint or
 an alpha-clipped set with a separate opacity (its mean over the texels the cutoff keeps), the derived _albedo of a
-ground (a wall strip's floor row) or a palette. Ground, palette and paint recipes carry their targets themselves;
-the tinted sets' targets are their notes', in TARGETS."""
+ground (a wall strip's floor row) or a palette. Ground, palette and paint recipes carry their targets themselves
+(a palette times its documented gain, in GAINS, where that is not 1); the tinted sets' targets are their notes', in
+TARGETS."""
 import json
 import math
 from pathlib import Path
@@ -37,6 +38,11 @@ TARGETS = {
     "pole_concrete": ("#9a978e", "p1-l01-l03-pole-wires design", None),
     "pole_steel": ("#5e4a3a", "p1-l01-l03-pole-wires design", None),
     "pole_wood": ("#8a8478", "p1-l01-l03-pole-wires design", None),
+}
+
+# A palette recipe's documented linear gain over its colours, where it is not 1: (gain, where it is written).
+GAINS = {
+    "glass": (0.15, "p1-r01-vaz-sedan task 1.3: #a9bdb4 x tint 0.15"),
 }
 
 
@@ -124,11 +130,12 @@ def rows():
         tint = r["tint"][:3]
         kind = r.get("kind")
         if kind == "palette":
+            gain, source = GAINS.get(name, (1.0, "its colours"))
             for colour, stops in r["colours"].items():
                 stops = stops if isinstance(stops, list) else [stops]
                 linear = [sum(c) / len(c) for c in zip(*(hex_linear(s) for s in stops))]
-                target = hex_of(linear)
-                out.append((f"{label}:{colour}", "palette", target, *check(linear, tint, target), "its colours"))
+                target = hex_of([c * gain for c in linear])
+                out.append((f"{label}:{colour}", "palette", target, *check(linear, tint, target), source))
         elif kind == "ground" and r.get("space") == "wall":
             albedo = image(MATERIALS / f"{name}_albedo.png")
             px_v = albedo.size[1] / strip.V_M
@@ -173,3 +180,13 @@ def test_the_check_fails_a_linear_gain_and_passes_its_encoding():
     assert check(mean, gains, target)[3] == "FAIL (linear gain)"
     encoded = [1.055 * g ** (1 / 2.4) - 0.055 for g in gains]  # each below 1, so the sRGB curve
     assert check(mean, encoded, target)[3] == "pass"
+
+
+def test_the_check_fails_glass_with_its_gain_stored_linear():
+    """Glass's documented 0.15 written as the tint as-is fails as a linear gain; the recipe's encoded tint passes."""
+    r = recipe("glass")
+    linear = hex_linear(r["colours"]["glass"])
+    gain = GAINS["glass"][0]
+    target = hex_of([c * gain for c in linear])
+    assert check(linear, [gain] * 3, target)[3] == "FAIL (linear gain)"
+    assert check(linear, r["tint"][:3], target)[3] == "pass"
