@@ -12,3 +12,10 @@ A generator MAY write a crack mask per glass pane (a derived texture under `text
 #### Scenario: Intact pane
 - **WHEN** a pane is `intact`
 - **THEN** no crack mask is written for it and the pane's material is the plain transparent glass
+
+### Requirement: A LOD frame inside the bounds
+An asset's metadata MAY carry `bounds.lod`, an axis-aligned box (min and max, metres, Unity's frame) round the body its LOD switches are judged on, for an asset whose bounds also hold loose pieces, such as a vehicle's scatter. The importer SHALL put the LOD group's reference point at that box's centre and size it by the box, and SHALL use the bounds when `bounds.lod` is absent.
+
+#### Scenario: A car's LOD group frames the body, not its scatter
+- **WHEN** `R01_A`'s metadata carries bounds 6.63 m long with its scatter and a `bounds.lod` round the body
+- **THEN** the prefab's LOD group sits at the body's centre with the body's size (4.07 m), and an asset with no `bounds.lod` frames its LOD group on its bounds as before
