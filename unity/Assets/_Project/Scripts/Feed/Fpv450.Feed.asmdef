@@ -1,7 +1,11 @@
 {
     "name": "Fpv450.Feed",
     "rootNamespace": "Fpv450.Feed",
-    "references": [],
+    "references": [
+        "Fpv450.Feed.Core",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.Universal.Runtime"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
