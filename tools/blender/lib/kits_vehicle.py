@@ -6,8 +6,8 @@ Blender and no import of the generator (a body is duck-typed: s, w and y as gene
 - The burst: its direction from `burst_dir`, the side it holes and the end it strikes.
 - Fragment holes: seeded sizes and places on the burst side's flank, and the patch that cuts one from a lofted
   sheet: the sheet's quads round the hole are removed (lib.loft.sheet's `seams`, so no edge strip shows there) and a
-  ring is stitched from their border to the hole's jagged rim, double-sided with its edge, its halo in the rust slot,
-  and petals of the torn sheet bent inward for the large ones.
+  ring is stitched from their border to the hole's jagged rim, double-sided with its edge in the rust slot, and
+  petals of the torn sheet bent inward for the large ones; its halo is the damage mask's (lib.masks).
 - Placement of glass crumbs and of the K07 scatter (1/r^2 areal density).
 
 Numbers are the sheet's (measured M, published) or labelled assumed / derived where this module adds them.
@@ -28,7 +28,8 @@ APERTURE_M = 0.045                      # derived: the open centre's reach from 
                                         # collision, closed over a hole of 0.25 m or less (the sheet's stated
                                         # deviation), stays within AST-05's 5 cm of the visual
 RIM_JITTER = 0.12                       # the rim's radius varies +-12 % round the hole (assumed: a torn outline)
-HALO_JITTER = 0.35                      # a halo's reach varies +-35 % round it (assumed: rust creeps unevenly)
+HALO_JITTER = 0.6                       # a halo's reach varies +-60 % round it (task 1.4, measured M: blotches,
+                                        # not the rings 35 % drew)
 PATCH_RING_M = 0.03                     # a cut hole's patch reaches at least this far past its rim
 EDGE_SNAG_R_M = 0.0004                  # the sheet: a torn edge's radius, half the 0.8 mm gauge
 ZONE_CLEAR_M = 0.32                     # derived: seeded holes keep their patch this far from the bonnet's and the boot
@@ -357,38 +358,30 @@ def emit_patch(mesh, hole, outer, surf, uv, thickness, slots, rim_points=48, pet
     return snags
 
 
-DECAL_OFFSET_M = 0.0005   # a halo decal stands this far proud of its panel (LOD0 only: under 20 m the depth buffer
-                          # parts it from the paint)
+DECAL_OFFSET_M = 0.0005   # a decal stands this far proud of its panel (LOD0 only: under 20 m the depth buffer parts
+                          # it from the paint)
 
 
-def emit_decal(mesh, hole, surf, uv, slots, points=32):
-    """The hole's rust halo as a decal (the sheet: halos are decal or mask, no physical role): a ring from just
-    outside the rim to the jagged halo, DECAL_OFFSET_M proud of the sheet, in slots["halo"]; for a hole too small
-    to cut (under CUT_MIN_M) also its dark opening, a disc in slots["dark"]."""
+def emit_dark(mesh, hole, surf, uv, slot, points=16):
+    """The dark opening of a hole too small to cut (under CUT_MIN_M; the sheet: a decal, no physical role): a jagged
+    disc DECAL_OFFSET_M proud of the sheet in `slot`. Its halo is the damage mask's (task 1.4: one halo, not a
+    decal ring over the mask's)."""
     c = (hole.s, hole.y)
-    ring_in, ring_out, centre = [], [], None
 
     def at(q):
         p, n = surf(*q)
         return mesh.vertex(tuple(p[k] + DECAL_OFFSET_M * n[k] for k in range(3))), n
 
-    inner_r = (lambda a: hole.rim_radius(a) * 1.02) if hole.cut else (lambda a: hole.r * (1 + 0.5 * RIM_JITTER *
-                                                                                             _noise(a, hole.phase)))
+    (centre, n) = at(c)
+    ring = []
     for k in range(points):
         a = 2 * math.pi * k / points
-        q_in = (c[0] + inner_r(a) * math.cos(a), c[1] + inner_r(a) * math.sin(a))
-        q_out = (c[0] + hole.halo_radius(a) * math.cos(a), c[1] + hole.halo_radius(a) * math.sin(a))
-        ring_in.append((at(q_in), uv(*q_in)))
-        ring_out.append((at(q_out), uv(*q_out)))
+        r = hole.r * (1 + 0.5 * RIM_JITTER * _noise(a, hole.phase))
+        q = (c[0] + r * math.cos(a), c[1] + r * math.sin(a))
+        ring.append((at(q)[0], uv(*q)))
     for k in range(points):
-        a, b = ring_in[k], ring_in[(k + 1) % points]
-        d, e = ring_out[k], ring_out[(k + 1) % points]
-        mesh.face([a[0][0], b[0][0], e[0][0], d[0][0]], a[0][1], slots["halo"], [a[1], b[1], e[1], d[1]])
-    if not hole.cut:
-        (centre, n) = at(c)
-        for k in range(points):
-            a, b = ring_in[k], ring_in[(k + 1) % points]
-            mesh.face([centre, a[0][0], b[0][0]], n, slots["dark"], [uv(*c), a[1], b[1]])
+        a, b = ring[k], ring[(k + 1) % points]
+        mesh.face([centre, a[0], b[0]], n, slot, [uv(*c), a[1], b[1]])
 
 
 class _Sheet:

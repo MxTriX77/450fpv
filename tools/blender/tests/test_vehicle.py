@@ -329,6 +329,7 @@ def test_a_scatter_density(r01_a):
     # 80 pieces for the statistics, over 8 m: so many do not fit apart within the sheet's 4 m
     params = copy.deepcopy(r01_a)
     params["debris_count"], params["debris_radius"] = 80, 8.0
+    params["seed"] = 186  # the statistics' own seed, whose 80 pieces fit apart (R01_A's seed is set by M's holes)
     body = vehicle.Body(params)
     kit = vehicle.Kit(body, params)
     pieces = vehicle._pieces(body, kit)
@@ -358,6 +359,9 @@ def test_a_glass_and_cabin(r01_a, built_a):
     assert not left_glass and right_glass
     assert "windscreen" in lod0.slots() and "windscreen" in built_a["lods"][1].slots()
     assert "windscreen" not in built_a["lods"][2].slots()
+    # the panes with the cabin behind them are the transparent glass, the far hulls' glass the opaque (task 1.4)
+    assert "glass" in built_a["lods"][1].slots() and "glass_hull" not in built_a["lods"][1].slots()
+    assert {"glass_hull"} <= set(built_a["lods"][2].slots()) and "glass" not in built_a["lods"][2].slots()
     crumbs = [m for m in built_a["micro"] if m["kind"] == "glass_crumbs"]
     assert len(crumbs) == 1 and crumbs[0]["count"] == 2 * vehicle.CRUMBS_PER_WINDOW
     assert [w["porosity"] for w in built_a["wind_volumes"]] == [0.0, 0.35]
@@ -391,8 +395,12 @@ def test_a_textures(r01_a, built_a):
     assert crack["slot"] == "windscreen" and damage["slot"] == "paint"
     w, h, channels, planes = masks.read_png(crack["png"])
     assert (w, h, channels) == (512, 1024, 1)
-    lit = sum(1 for v in planes[0] if v) / (w * h)
-    assert 0.005 < lit < 0.3
+    lines = sum(1 for v in planes[0] if v == 255) / (w * h)
+    assert 0.005 < lines < 0.3
+    # under the lines, the haze of the finer cracks over the whole pane (task 1.4: M's pane is crazed across)
+    haze = 255 * vehicle.CRACK_HAZE
+    assert all(v >= int(haze * vehicle.CRACK_HAZE_FLOOR) for v in planes[0])
+    assert max(v for v in planes[0] if v < 255) == pytest.approx(haze, abs=2)  # at the impacts (under a line there)
     body = vehicle.Body(r01_a)
     assert tuple(crack["uv_min"]) == pytest.approx(vehicle._pane_extent(body)[0])
     assert tuple(crack["uv_max"]) == pytest.approx(vehicle._pane_extent(body)[1])
@@ -428,22 +436,33 @@ def test_f_drop_and_rims(r01_f, built_f):
     assert lowest == pytest.approx(min(y for _, y in body.underbody) - 0.17, abs=0.002)
 
 
-def test_f_burnt_surfaces(built_f):
-    """Soot-black paint, bare steel over the engine bay and the roof, dulled chrome, no glass, rubber or lenses;
-    the seats as frames with springs (hooks); the soot patch a micro mesh in LOD0-LOD2; porosity 0.55."""
+def test_f_burnt_surfaces(r01_f, built_f):
+    """Soot-black paint, bare steel over the engine bay and the roof (the damage mask's A on the one soot slot, task
+    1.4), dulled chrome, no glass, rubber or lenses; the seats as frames with springs (hooks); the soot patch a micro
+    mesh in LOD0-LOD2; porosity 0.55."""
     lod0 = built_f["lods"][0]
     slots = lod0.slots()
-    assert {"soot", "bare", "chrome_dull", "rack", "wire"} <= set(slots)
-    assert not {"paint", "chrome", "glass", "windscreen", "tyre", "lens", "seat", "vinyl", "plate"} & set(slots)
-    bare = [lod0.vertices[f[0][0]] for f in lod0.faces if f[3] == "bare"]
-    assert any(v[0] < -1.0 and v[1] > 0.6 for v in bare) and any(v[1] > 1.2 for v in bare)  # bonnet and roof
+    assert {"soot", "chrome_dull", "rack", "wire"} <= set(slots)
+    assert not {"paint", "bare", "chrome", "glass", "windscreen", "tyre", "lens", "seat", "vinyl", "plate"} & set(slots)
     assert [m["lod"] for m in built_f["micro"] if m["kind"] == "soot_patch"] == [0, 1, 2]
     assert [w["porosity"] for w in built_f["wind_volumes"]] == [0.0, 0.55]
     hooks = [s for s in built_f["snag"] if s["kind"] == "hook"]
     assert len([s for s in hooks if s["radius_m"] == vehicle.SPRING_R_M]) >= 6 * 3
     by_role = {t["role"]: t for t in built_f["textures"]}
-    _, _, _, planes = masks.read_png(by_role["damage_mask"]["png"])
+    assert by_role["damage_mask"]["slot"] == "soot"
+    width, height, _, planes = masks.read_png(by_role["damage_mask"]["png"])
     assert min(planes[1]) == 255 and 0 < sum(1 for v in planes[3] if v) < len(planes[3])
+    body = vehicle.Body(r01_f)
+    (u0, v0), (u1, v1) = vehicle.CANVAS_MIN, vehicle.CANVAS_MAX
+    du, dv = vehicle.CANVAS["top"]
+
+    def burnt_off(s):  # the top group's texel on the centre line at station s
+        x = int((body.x(s) + du - u0) / (u1 - u0) * width)
+        y = int((v1 - dv) / (v1 - v0) * height)
+        return planes[3][y * width + x]
+    assert burnt_off(body.axle[0] + 0.15) == 255  # the bonnet over the engine bay
+    assert burnt_off((body.st["roof_front"] + body.st["roof_rear"]) / 2) == 255  # the cabin roof
+    assert burnt_off(body.s_rear - 0.1) == 0  # the boot lid stays sooted
 
 
 def test_k07_pieces_match_their_params_files(repo_root_module):

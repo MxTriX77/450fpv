@@ -72,13 +72,17 @@ PLANTED = True
 PAINT, UNDER, CHROME, GLASS, TYRE, SEAT, VINYL, LAMP, LENS, RACK, PLATE = (
     "paint", "under", "chrome", "glass", "tyre", "seat", "vinyl", "lamp", "lens", "rack", "plate")
 # the kits' slots (task 1.2): the crazed windscreen's own (the transparent glass, design 6), torn steel rusting, a
-# burnt tyre's bead wires, soot-black and burnt-off paint, dulled chrome, the soot patch
-WINDSCREEN, RUST, WIRE, SOOT, BARE, CHROME_DULL, SOOT_PATCH = (
-    "windscreen", "rust", "wire", "soot", "bare", "chrome_dull", "soot_patch")
+# burnt tyre's bead wires, the soot-black paint (its damage mask's A burns it to bare steel), dulled chrome, the soot
+# patch
+WINDSCREEN, RUST, WIRE, SOOT, CHROME_DULL, SOOT_PATCH = (
+    "windscreen", "rust", "wire", "soot", "chrome_dull", "soot_patch")
+# the far LODs' glass (task 1.4): LOD0-1's panes are the transparent glass with the cabin behind them, the LOD2 and
+# LOD3 hulls have no cabin, so their glass is the opaque car_glass
+GLASS_HULL = "glass_hull"
 PHYSICS = {PAINT: "sheet_metal", UNDER: "sheet_metal", CHROME: "steel", GLASS: "glass", TYRE: "rubber",
            SEAT: "fabric", VINYL: "plastic", LAMP: "glass", LENS: "plastic", RACK: "steel", PLATE: "sheet_metal",
-           WINDSCREEN: "glass", RUST: "sheet_metal", WIRE: "steel", SOOT: "sheet_metal", BARE: "sheet_metal",
-           CHROME_DULL: "steel", SOOT_PATCH: "surface:burnt_field"}
+           WINDSCREEN: "glass", RUST: "sheet_metal", WIRE: "steel", SOOT: "sheet_metal",
+           CHROME_DULL: "steel", SOOT_PATCH: "surface:burnt_field", GLASS_HULL: "glass"}
 # car_lamps' palette columns (assets-src/materials/car_lamps.json), left to right: the lenses and the blank plate
 LAMP_COLUMNS = ("clear", "red", "amber", "plate")
 LAMP_UV = {c: ((k + 0.5) / 4, 0.5) for k, c in enumerate(LAMP_COLUMNS)}
@@ -143,8 +147,10 @@ PRESETS = {
         # "is installed on the bumper", https://www.vazbook.ru/en/01/2101/main/system/fonari-vnutrennego-i-naruzhnogo-
         # osvescheniya); the heights assumed from the bumpers
         "plates": (0.49, 0.515),
-        # roof rack (the sheet: 1.3 x 1.0 m, rails 0.10 m over the roof, 20 mm tubes): s from-to, half-width, posts' s
-        "rack": (1.59, 2.89, 0.50, (1.65, 2.83)),
+        # roof rack (the sheet: 1.3 m long, rails 0.10 m over the roof, 20 mm tubes): s from-to, half-width, posts' s;
+        # 1.2 m across (task 1.4, measured M: the posts rise nearly upright from the drip rails, leaning in 18 degrees,
+        # where the sheet's assumed 1.0 m leant them in 41)
+        "rack": (1.59, 2.89, 0.60, (1.65, 2.83)),
         # interior (assumed, the class; the drawing's seat outlines for s)
         "front_seat": {"s": (1.50, 1.97), "y": (0.30, 0.55), "w": 0.33, "half": 0.24,
                        "back": ((1.97, 0.52), (2.11, 1.04)), "back_t": 0.10},
@@ -183,7 +189,7 @@ RIM_R_M = 0.1651          # a 13-inch rim's bead seat (published: 13 in)
 HUBCAP_R_M, HUBCAP_DOME_M = 0.155, 0.025  # the sheet's domed hubcap, K07's 0.30-0.33 m, its crown at the tyre's
                                           # sidewall (assumed)
 TYRE_LOADED_R_M = 0.282   # the sheet's loaded radius of a 165/80 R13 (derived): the wheel centre's height
-TYRE_SEGMENTS = (32, 16, 8)
+TYRE_SEGMENTS = (48, 16, 8)  # the wheels' sides per LOD (task 1.4: 32 showed as facets at 1.5 m)
 RACK_R_M = 0.01           # 20 mm tubes (the sheet)
 RACK_RISE_M = 0.10        # rails over the roof (the sheet, measured M)
 PLATE_M = (0.52, 0.112)   # a plate's width and height (published: the standard Ukrainian plate, en.wikipedia
@@ -272,6 +278,10 @@ CANVAS = {"side": {-1: (0.0, 0.0), 1: (0.0, 2.0)}, "band": {-1: (4.0, 0.0), 1: (
 # same), so no two panels share a UV and the damage mask (2048 x 1024 over CANVAS_MIN..CANVAS_MAX) is one atlas.
 CANVAS_MIN, CANVAS_MAX, CANVAS_PX = (-2.2, 0.0), (6.8, 5.0), (2048, 1024)
 CRACK_PX = (512, 1024)    # design decision 5: the crack mask, 1k on its long side (across the pane), along x 512
+CRACK_HITS = (3, 4)       # seeded fragment hits on the pane besides the flap's strike, and the radial cracks per
+CRACK_RAYS = (14, 22)     # impact (task 1.4, measured M: three or four small holes, each a web, crazing the whole pane)
+CRACK_HAZE, CRACK_HAZE_FLOOR, CRACK_REACH_M = 0.45, 0.4, 0.8  # the fine cracks under a texel as a haze (task 1.4,
+                          # measured M: the pane reads pale #b9cbd3 across, not as clear glass with a few lines)
 
 # --- the parameter table (vehicles.md, shared table and R01) --------------------------------------------------------
 
@@ -1179,10 +1189,10 @@ def _body_side(mesh, body, side, q, kit, extra_levels, snags):
                                          rim_points=48 if q["thick"] else 16, petals=q["thick"])
             if snags is not None:
                 snags += hole_snags
-    if q["thick"]:
+    if q["thick"]:  # the uncut holes' dark openings; every hole's halo is the damage mask's (_damage_mask)
         for h in kit.holes:
-            if h.side == side:
-                kits.emit_decal(mesh, h, surf, flank_uv, {"halo": RUST, "dark": UNDER})
+            if h.side == side and not h.cut:
+                kits.emit_dark(mesh, h, surf, flank_uv, UNDER)
 
 
 def _flank_surface(body, side):
@@ -1511,7 +1521,7 @@ def _band(mesh, body, side, q, kit):
             if q["detail"] == 0:  # the hull: an empty window is a dark opening, an intact one its glass
                 empty = inside and any(a < sm < b and g for (a, b), g in zip(windows, gone))
                 mrow.append(True)
-                srow.append(UNDER if empty else GLASS if inside else PAINT)
+                srow.append(UNDER if empty else GLASS_HULL if inside else PAINT)
             else:
                 mrow.append(not inside)
                 srow.append(CHROME if frame and not inside else PAINT)
@@ -1561,7 +1571,7 @@ def _cap(mesh, body, q, kit):
             if q["detail"] == 0:  # the hull: an empty screen is a dark opening
                 empty = any(a < sm < b and um < u and g for (a, b, u), g in zip(panes, gone))
                 mrow.append(True)
-                srow.append(UNDER if empty else GLASS if inside else PAINT)
+                srow.append(UNDER if empty else GLASS_HULL if inside else PAINT)
             else:
                 mrow.append(not inside)
                 srow.append(CHROME if frame and not inside else PAINT)
@@ -2016,11 +2026,11 @@ def _rim(mesh, hub, side, q):
               (RIM_FLANGE_R_M - 0.006, h - 0.006), (RIM_FLANGE_R_M, h)]
     if q["detail"] == 0:
         barrel = [barrel[0], barrel[-1]]
-    _revolve(mesh, hub, axis, barrel, seg, RACK, core=(0.0, 0.0))
+    _revolve(mesh, hub, axis, barrel, seg, CHROME_DULL, core=(0.0, 0.0))
     # the wheel's disc near the outer flange (a steel wheel's offset; within its cylinder's end, AST-05)
     disc = [(RIM_R_M, h - 0.02), (0.10, h - 0.012), (0.06, h - 0.004), (0.0, h - 0.002)]
-    _revolve(mesh, hub, axis, disc, seg, RACK)
-    _revolve(mesh, hub, axis, [(RIM_R_M, h - 0.022), (0.0, h - 0.022)], seg, RACK, facing=-1.0)
+    _revolve(mesh, hub, axis, disc, seg, CHROME_DULL)
+    _revolve(mesh, hub, axis, [(RIM_R_M, h - 0.022), (0.0, h - 0.022)], seg, CHROME_DULL, facing=-1.0)
 
 
 # --- interior -------------------------------------------------------------------------------------------------------
@@ -2312,12 +2322,13 @@ def _rack_points(body):
 
 
 def _rack(mesh, body, q):
+    """The tube rack, bright steel like the bumpers (measured M: it reads pale grey; F dulls it with the chrome)."""
     corners, posts = _rack_points(body)
     sides = 8 if q["detail"] >= 2 else 4
     for a, b in zip(corners, corners[1:] + corners[:1]):
-        _tube(mesh, [a, b], RACK_R_M, sides, RACK)
+        _tube(mesh, [a, b], RACK_R_M, sides, CHROME)
     for foot, top in posts:
-        _tube(mesh, [foot, top], RACK_R_M, sides, RACK)
+        _tube(mesh, [foot, top], RACK_R_M, sides, CHROME)
 
 
 # --- LOD3 ----------------------------------------------------------------------------------------------------------
@@ -2329,7 +2340,7 @@ def _box_hull(body, kit):
     _box(mesh, body.P((body.s_front + body.s_rear) / 2, 0.0, (body.z_bot(1.0) + body.belt) / 2),
          (body.s_rear - body.s_front, body.belt - body.z_bot(1.0), 2 * hw), paint)
     _box(mesh, body.P((body.s_ws_top + body.s_rs_top) / 2, 0.0, (body.belt + body.H) / 2),
-         (body.s_rs_top - body.s_ws_top, body.H - body.belt, 2 * body.w_e(body.s_ws_top)), GLASS)
+         (body.s_rs_top - body.s_ws_top, body.H - body.belt, 2 * body.w_e(body.s_ws_top)), GLASS_HULL)
     kits.transform_range(mesh, (0, len(mesh.vertices)), (0, len(mesh.faces)), kit.T)
     for k, a in enumerate(body.axle):
         for side in (-1, 1):
@@ -2350,7 +2361,8 @@ K07 = {"lamp_bowl": {"diameter_m": 0.17, "section_m": 0.0008, "length_m": 0.0, "
        "trim_plate": {"diameter_m": 0.0, "section_m": 0.001, "length_m": 0.35, "width_m": 0.2, "bend_m": 0.01},
        "bead_wire": {"diameter_m": BEAD_DIAMETER_M, "section_m": BEAD_SECTION_M, "length_m": 0.0, "width_m": 0.0,
                      "bend_m": 0.01}}
-SHARD_SCALE = (0.5, 1.0)  # a scatter shard's size against the trim plate (assumed)
+SHARD_SCALE = (0.15, 0.45)  # a scatter chip's size against the trim plate (task 1.4, measured M: chips of 5-15 cm
+                            # round the one whole plate; 0.5-1.0 laid ten plates)
 SCATTER_MIN_M = 1.0       # the sheet: the A scatter lies 1-4 m from the struck corner
 SCATTER_WEDGE_DEG = 150.0 # on the struck side: a wedge about the corner's outward diagonal (measured M: ahead of and
                           # beside the struck corner; the wedge's width assumed)
@@ -2380,6 +2392,9 @@ def _pieces(body, kit):
                 built, reach = _piece("lamp_bowl", k), K07["lamp_bowl"]["diameter_m"] / 2
             elif k == 1:
                 built, reach = _piece("bezel_ring", k), K07["bezel_ring"]["diameter_m"] / 2
+            elif k == 2:  # the trim plate whole (measured M: one 0.35 x 0.2 m plate), the rest chips of trim
+                plate = K07["trim_plate"]
+                built, reach = _piece("trim_plate", k), math.hypot(plate["length_m"], plate["width_m"]) / 2
             else:
                 f = rng.uniform(*SHARD_SCALE)
                 length, width = 0.35 * f, 0.2 * rng.uniform(SHARD_SCALE[0], 1.0)
@@ -2543,8 +2558,9 @@ def _pane_extent(body):
 
 def _crack_mask(body, kit):
     """The windscreen's crack mask (CRACK_PX, R: 1 on a crack): from each impact (the flap's strike at the hole and
-    one or two seeded fragment hits) 10-16 radial cracks wandering out 0.2-0.7 m and concentric rings of chords
-    between them, 1-3 px wide (design decision 5), drawn in the pane's metric (metres up the glass and across)."""
+    CRACK_HITS seeded fragment hits) CRACK_RAYS radial cracks wandering out 0.3-0.9 m and concentric rings of chords
+    between them out to 0.46 m, 1-3 px wide (design decision 5), drawn in the pane's metric (metres up the glass and
+    across), over a haze of the cracks too fine for a texel (CRACK_HAZE)."""
     rng = kits.rng_for(kit.p, "cracks")
     (u0, v0), (u1, v1) = _pane_extent(body)
     width, height = CRACK_PX
@@ -2556,14 +2572,15 @@ def _crack_mask(body, kit):
     hole = kit.ws_hole
     s0, s1, _ = _cap_glass(body)[0]
     impacts = [(hole.s, hole.y, 1.0)]
-    for _ in range(rng.randint(1, 2)):
+    for _ in range(rng.randint(*CRACK_HITS)):
         impacts.append((rng.uniform(s0 * kit.ws_k + 0.1, s1 * kit.ws_k - 0.1), rng.uniform(v0 + 0.15, v1 - 0.15),
-                        rng.uniform(0.4, 0.7)))
+                        rng.uniform(0.6, 1.0)))
     for a0, w0, strength in impacts:
         rays = []
-        for k in range(rng.randint(10, 16)):
-            angle = 2 * math.pi * k / 13 + rng.uniform(-0.2, 0.2)
-            length = rng.uniform(0.2, 0.7) * strength
+        n_rays = rng.randint(*CRACK_RAYS)
+        for k in range(n_rays):
+            angle = 2 * math.pi * k / n_rays + rng.uniform(-0.2, 0.2)
+            length = rng.uniform(0.3, 0.9) * strength
             pts = [(a0, w0)]
             step = 0.02
             heading = angle
@@ -2574,7 +2591,7 @@ def _crack_mask(body, kit):
             lw = rng.uniform(1.0, 3.0)
             for p, q in zip(pts, pts[1:]):
                 raster.line(0, *px(*p), *px(*q), lw, 255)
-        for ring_r in (0.03, 0.06, 0.1, 0.15, 0.22, 0.3):
+        for ring_r in (0.03, 0.06, 0.1, 0.15, 0.22, 0.3, 0.38, 0.46):
             if ring_r > 0.6 * strength:
                 break
             idx = max(1, int(ring_r / 0.02))
@@ -2583,16 +2600,54 @@ def _crack_mask(body, kit):
                 if len(a) <= idx or len(b) <= idx or rng.random() < 0.25:
                     continue
                 raster.line(0, *px(*a[idx]), *px(*b[idx]), rng.uniform(1.0, 2.0), 255)
+    # the web's fine cracks under a texel as a haze: CRACK_HAZE near each impact, thinning out to its reach, never
+    # under CRACK_HAZE_FLOOR of it (the pane is crazed across, measured M); in 2 x 2 texel blocks (it is smooth)
+    for by in range(0, height, 2):
+        w = v1 - (by + 1) / height * (v1 - v0)
+        for bx in range(0, width, 2):
+            a = ((bx + 1) / width * (u1 - u0) + u0 + body.L / 2) * kit.ws_k
+            near = max(st * (1 - math.hypot(a - a0, w - w0) / CRACK_REACH_M) for a0, w0, st in impacts)
+            raster.rect(0, bx, by, bx + 2, by + 2, 255 * CRACK_HAZE * max(near, CRACK_HAZE_FLOOR))
     uv_min, uv_max = _pane_extent(body)
     return {"role": "crack_mask", "slot": WINDSCREEN, "name": "windscreen_cracks", "uv_min": uv_min, "uv_max": uv_max,
             "png": raster.png()}
 
 
+RUST_RIM = 1.12           # a hole's torn rim rusts out to this times its radius (mask R full; measured M: the thin
+                          # orange lips of the torn holes)
+HALO_FLAKE = (0.40, 0.60) # its halo out to rust_halo: the paint flaked to the primer (B, the dust recipe's #bcab93 is
+                          # M's primer #bdb092) over rust (R): M's halo #887465 is about 2 : 3 primer to rust stain
+                          # over the paint (derived from the sheet's colours)
+HALO_SPREAD = (0.7, 1.3)  # each hole's halo is rust_halo times this (seeded; measured M: the 0.09 m hole's 0.21 m
+                          # halo, the 0.15-0.18 m hole's under 1.5 x)
+CHIP_R_M = (0.005, 0.025) # the sheet: primer chips 10-50 mm across where the paint flaked (measured M), a jagged blob
+DUST_BASE = 0.05          # the dust film on upward faces before months_abandoned and paint_fade add theirs (task 1.4:
+                          # 0.15 left M's lit bonnet beige; M reads green with a light film)
+BARE_RUST_WEEKS = 12.0    # F: the bare steel fully rust-brown after this many weeks (assumed; the sheet: grey-white
+                          # oxide turning rust-brown "within weeks"), blotchy before
+
+
+def _blob(raster, channel, cx, cy, radius, value, feather, phase):
+    """Raises `channel` over a jagged disc about (cx, cy) px: radius(a) px at angle a (kits' noise with `phase` when
+    `radius` is a number), `value` inside, falling to 0 over the outer `feather` px."""
+    reach = radius if callable(radius) else (lambda a, r=radius: r * (1 + kits.HALO_JITTER * kits._noise(a, phase)))
+    top = max(reach(2 * math.pi * k / 16) for k in range(16)) * 1.1 + 1
+    for y in range(max(0, int(cy - top)), min(raster.height, int(cy + top) + 2)):
+        for x in range(max(0, int(cx - top)), min(raster.width, int(cx + top) + 2)):
+            dx, dy = x + 0.5 - cx, y + 0.5 - cy
+            r = reach(math.atan2(-dy, dx))
+            d = math.hypot(dx, dy)
+            if d < r:
+                raster.put(channel, x, y, value * min(1.0, (r - d) / max(feather, 1e-6)))
+
+
 def _damage_mask(body, kit):
-    """The damage mask over the paint's UV canvas (CANVAS, CANVAS_PX, RGBA): R rust (every hole's halo, its rust
-    streaks running down 0.05-0.3 m and the sills' rust with months_abandoned), G soot (F: all over), B dust and
-    chalk on upward faces (months_abandoned, paint_fade), A burnt-off steel (F: Kit.burnt). Its shader layers it
-    over the paint later (design decision 5; tech-artist's)."""
+    """The damage mask over the paint's UV canvas (CANVAS, CANVAS_PX, RGBA): R rust (every hole's torn rim, the
+    stain under its flaked halo, its rust streaks running down and the sills' rust spots with months_abandoned), G
+    soot (F: all over), B dust and chalk on upward faces (months_abandoned, paint_fade; fading over the shoulder's
+    roll, so no line stands at its top) and the primer where the paint flaked (each hole's halo and the A kit's chips
+    round the struck front), A burnt-off steel (F: Kit.burnt, rusting in R with weeks_since_fire). Fpv450/LayeredSurface
+    layers it over the paint (design decision 5)."""
     width, height = CANVAS_PX
     raster = masks.Raster(width, height, 4)
     (cu0, cv0), (cu1, cv1) = CANVAS_MIN, CANVAS_MAX
@@ -2602,32 +2657,88 @@ def _damage_mask(body, kit):
         off = CANVAS[group][side] if isinstance(CANVAS[group], dict) else CANVAS[group]
         return (u + off[0] - cu0) * kx, (cv1 - (v + off[1])) * ky
     rng = kits.rng_for(kit.p, "damage mask")
+    seed = kit.p["seed"]
     months = kit.p["months_abandoned"] / 36.0
     for h in kit.holes:
         x, y = px("side", h.side, body.x(h.s), h.y)
-        raster.disc(0, x, y, h.r * h.halo * kx, 230, feather=h.r * 0.6 * kx)
-        for _ in range(1 + int(3 * min(1.0, months * 4))):  # streaks down from the hole's foot
+        spread = rng.uniform(*HALO_SPREAD)
+        def rim(a, h=h):  # the rusted lip, along the jagged rim of a cut hole
+            return (h.rim_radius(a) if h.cut else h.r) * RUST_RIM * kx
+
+        def halo(a, h=h, k=spread):  # lobed round the hole, never inside its rusted lip
+            return max(h.halo_radius(a) * k, h.r * RUST_RIM * 1.2) * kx
+        _blob(raster, 0, x, y, rim, 255, 1.5, None)
+        # the halo's flaked paint between the rim and the halo: primer over a rust stain, mottled by a 1 cm noise
+        top = max(halo(2 * math.pi * k / 16) for k in range(16)) * 1.1 + 1
+        for py in range(max(0, int(y - top)), min(height, int(y + top) + 2)):
+            for qx in range(max(0, int(x - top)), min(width, int(x + top) + 2)):
+                dx, dy = qx + 0.5 - x, py + 0.5 - y
+                a, d = math.atan2(-dy, dx), math.hypot(dx, dy)
+                r_out, r_in = halo(a), rim(a)
+                if r_in <= d < r_out:
+                    edge = min(1.0, (r_out - d) / (0.25 * (r_out - r_in) + 1e-6))
+                    mottle = 0.6 + 0.4 * _value_noise(qx / kx * 100.0, py / ky * 100.0, 0.0, seed)
+                    raster.put(2, qx, py, 255 * HALO_FLAKE[0] * edge * mottle)
+                    raster.put(0, qx, py, 255 * HALO_FLAKE[1] * edge)
+        for _ in range(1 + int(2 * min(1.0, months * 4))):  # faint streaks down from the hole's foot
             sx = x + rng.uniform(-0.6, 0.6) * h.r * kx
             length = rng.uniform(0.05, 0.3) * min(1.0, 0.3 + months * 3)
             raster.line(0, sx, y + h.r * ky, sx + rng.uniform(-2, 2), y + (h.r + length) * ky,
-                        rng.uniform(2.0, 4.0), 150)
-    for side in (-1, 1):  # the sills' rust
+                        rng.uniform(1.5, 3.0), 100)
+        if not h.cut:  # a small hit flakes a chip of paint round it (measured M: the primer splashes by the arch)
+            r_chip = rng.uniform(1.5, 3.0) * h.r * kx
+            _blob(raster, 2, x + rng.uniform(-0.5, 0.5) * h.r * kx, y + rng.uniform(-0.5, 0.5) * h.r * ky,
+                  max(r_chip, CHIP_R_M[0] * kx), 255, 1.5, [rng.uniform(0, 2 * math.pi) for _ in range(6)])
+    for side in (-1, 1):  # the sills' rust: spots, more with months_abandoned
         for s in loft.samples(body.s_front, body.s_rear, 0.05):
+            if rng.random() > 0.15 + 0.5 * min(1.0, months * 2):
+                continue
             x, y = px("side", side, body.x(s), body.z_bot(s) + TUCK_H_M)
-            raster.rect(0, x - 0.03 * kx, y - 0.04 * ky * (0.5 + rng.random()), x + 0.03 * kx, y + 0.06 * ky,
-                        int(200 * min(1.0, months * 2)))
-    dust = int(255 * min(1.0, 0.15 + 0.5 * months + 0.3 * kit.p["paint_fade"]))
+            cx, radius = x + rng.uniform(-0.02, 0.02) * kx, rng.uniform(0.01, 0.035) * kx
+            value = rng.uniform(120, 230) * min(1.0, 0.3 + months * 3)
+            _blob(raster, 0, cx, y, radius, value, 3.0, [rng.uniform(0, 2 * math.pi) for _ in range(6)])
+    if kit.holes:  # chips where the paint flaked round the struck front: the wing and door tops, the bonnet's edge
+        side = kit.side
+        for k in range(len(kit.holes) + 1):
+            phase = [rng.uniform(0, 2 * math.pi) for _ in range(6)]
+            r_chip = rng.uniform(*CHIP_R_M) * kx
+            if k % 2:
+                s = rng.uniform(body.s_front + NOTCH_DEPTH_M, body.s_scuttle - 0.05)
+                w = side * (body.w_t(s) - rng.uniform(0.0, 0.12))
+                x, y = px("top", 0, body.x(s), w)
+            else:
+                s = rng.uniform(body.s_front + NOTCH_DEPTH_M, body.doors[1])
+                yc = body.z_c(s)
+                x, y = px("side", side, body.x(s), rng.uniform(yc - 0.15, yc + ROLL_R_M * math.pi / 2))
+            _blob(raster, 2, x, y, r_chip, 255, 1.5, phase)
+    dust = 255 * min(1.0, DUST_BASE + 0.5 * months + 0.3 * kit.p["paint_fade"])
     x0, y1 = px("top", 0, -body.L / 2, -body.W / 2)
     x1, y0 = px("top", 0, body.L / 2, body.W / 2)
     raster.rect(2, x0, y0, x1, y1, dust)
+    for side in (-1, 1):  # over the shoulder's roll the film thins with the face's upward share (sin^2 of its angle)
+        xa, _ = px("side", side, -body.L / 2, 0.0)
+        xb, _ = px("side", side, body.L / 2, 0.0)
+        for qx in range(max(0, int(xa)), min(width, int(xb) + 1)):
+            s = (qx + 0.5) / kx + cu0 - CANVAS["side"][side][0] + body.L / 2
+            yc = body.z_c(s)
+            _, ya = px("side", side, 0.0, yc + ROLL_R_M * math.pi / 2)
+            _, yb = px("side", side, 0.0, yc)
+            for py in range(max(0, int(ya)), min(height, int(yb) + 1)):
+                v = cv1 - (py + 0.5) / ky - CANVAS["side"][side][1]
+                t = min(max((v - yc) / ROLL_R_M, 0.0), math.pi / 2)
+                raster.put(2, qx, py, dust * math.sin(t) ** 2)
     if kit.F:
         raster.fill(1, 255)
         block = 4
+        rusted = min(1.0, kit.p["weeks_since_fire"] / BARE_RUST_WEEKS)
         for by in range(0, height, block):
             for bx in range(0, width, block):
                 p = _canvas_point(body, cu0 + (bx + block / 2) / kx, cv1 - (by + block / 2) / ky)
                 if p is not None and kit.burnt(p):
                     raster.rect(3, bx, by, bx + block, by + block, 255)
+                    # the bare steel rusting with weeks_since_fire, in blotches (a 5 cm noise)
+                    n = 0.5 + 0.5 * _value_noise(p[0] * 20.0, p[1] * 20.0, p[2] * 20.0, seed + 1)
+                    raster.rect(0, bx, by, bx + block, by + block, 255 * rusted * n * n)
     return {"role": "damage_mask", "slot": SOOT if kit.F else PAINT, "name": "damage", "uv_min": CANVAS_MIN,
             "uv_max": CANVAS_MAX, "png": raster.png()}
 
@@ -2656,19 +2767,14 @@ def _canvas_point(body, u, v):
 
 
 def _burnt_slots(mesh, kit, ranges):
-    """F's surfaces after the fire: the paint soot-black (SOOT) or burnt to bare steel where hottest (BARE, Kit.burnt
-    at each face's centre), chrome and the lamps' reflectors dulled, the blank plates sooted."""
-    rename = {CHROME: CHROME_DULL, LAMP: CHROME_DULL, PLATE: SOOT}
+    """F's surfaces after the fire: the paint's faces all on SOOT, whose damage mask's A burns them to bare steel
+    where hottest (Kit.burnt, in 1.76 cm texels: task 1.4, no longer per 5 cm face), chrome and the lamps' reflectors
+    dulled, the blank plates sooted."""
+    rename = {PAINT: SOOT, CHROME: CHROME_DULL, LAMP: CHROME_DULL, PLATE: SOOT}
     for f0, f1 in ranges:
         for k in range(f0, f1):
             indices, normal, uvs, slot = mesh.faces[k]
-            if slot == PAINT:
-                c = scale(add(add(mesh.vertices[indices[0]], mesh.vertices[indices[1]]), mesh.vertices[indices[2]]),
-                          1 / 3)
-                slot = BARE if kit.burnt(c) else SOOT
-            else:
-                slot = rename.get(slot, slot)
-            mesh.faces[k] = (indices, normal, uvs, slot)
+            mesh.faces[k] = (indices, normal, uvs, rename.get(slot, slot))
 
 
 # --- collision ------------------------------------------------------------------------------------------------------
