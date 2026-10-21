@@ -13,7 +13,7 @@ from generators import debris_tile as generator
 from lib import audit, catalog, debris_tile, kits_vehicle, meta, params as params_lib
 from lib.geometry import Mesh
 
-TILE = debris_tile.Tile(0.36, 0.22, 0.014, 0.008)
+TILE = debris_tile.Tile(0.40, 0.22, 0.014, 0.008)
 VISUALS = {"tile": "clay_tile", "tile_fracture": "tile_fracture"}
 CASES = [(seed, size, breaks) for seed in range(1, 7) for size in (0.05, 0.12, 0.2, 0.3) for breaks in range(2, 7)
          if not (breaks >= 4 and size > TILE.length - 2 * debris_tile.MARGIN_M)]
@@ -56,7 +56,7 @@ def test_catalog_lists_the_two_pieces(k02):
         assert params_lib.validate(generator, params) == [], variant
         assert params["piece"] == variant[len("K02_"):] and params["physics_material"] == "masonry"
     assert k02["K02_tile_shard"]["size_m"] == 0.15 and k02["K02_tile_shard"]["fracture_count"] == 3
-    assert k02["K02_tile_whole"]["tile_m"] == {"length": 0.36, "width": 0.22, "thickness": 0.014, "camber": 0.008}
+    assert k02["K02_tile_whole"]["tile_m"] == {"length": 0.40, "width": 0.22, "thickness": 0.014, "camber": 0.008}
 
 
 @pytest.mark.parametrize("seed, size, breaks", CASES)
@@ -154,15 +154,15 @@ def test_shard_piece(k02):
 
 
 def test_whole_tile(k02):
-    """0.36 x 0.22 m in plan within 5 mm, 14 mm of clay on an 8 mm camber, the nib under the head; resting on the
+    """0.40 x 0.22 m in plan within 5 mm (ГОСТ 1808-71's strip tile), 14 mm of clay on an 8 mm camber, the nib under the head; resting on the
     tail's edge and the nib's foot, the head lifted by the nib; two boxes, one per half along its chord; no snag."""
     built = generator.build(k02["K02_tile_whole"])
     lod0, lod1 = built["lods"]
     lo, hi = lod0.bounds()
-    assert hi[0] - lo[0] == pytest.approx(0.36, abs=0.005) and hi[2] - lo[2] == pytest.approx(0.22, abs=1e-9)
+    assert hi[0] - lo[0] == pytest.approx(0.40, abs=0.005) and hi[2] - lo[2] == pytest.approx(0.22, abs=1e-9)
     assert lo[1] == pytest.approx(0.0, abs=1e-12)
     lifted = debris_tile.rest_angle(TILE)
-    assert lifted == pytest.approx(math.atan2(0.015, 0.34))
+    assert lifted == pytest.approx(math.atan2(0.015, 0.38))
     tail = [v for v in lod0.vertices if v[0] < lo[0] + 0.002]
     assert min(v[1] for v in tail) == pytest.approx(0.0, abs=1e-9)
     nib_foot = [v for v in lod0.vertices if v[0] > 0.15 and abs(v[2]) <= debris_tile.NIB_M[1] / 2 + EPS]
@@ -187,7 +187,7 @@ def test_whole_tile(k02):
      "slate_stack"),
     (lambda p: p.update(size_m=0.4), "'size_m' = 0.4 must lie in [0.05, 0.35] for a tile_shard"),
     (lambda p: p.update(fracture_count=1), "'fracture_count' = 1 must lie in [2, 6] for a tile_shard"),
-    (lambda p: p.update(fracture_count=4, size_m=0.34),
+    (lambda p: (p.update(fracture_count=4, size_m=0.34), p["tile_m"].update(length=0.36)),
      "'size_m' = 0.34 does not fit inside its tile with 4 breaks (at most 0.32)"),
     (lambda p: p.update(physics_material="asbestos_cement"), "'physics_material' = 'asbestos_cement' must be 'masonry'"),
 ])
