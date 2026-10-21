@@ -2831,16 +2831,6 @@ MonoBehaviour:
   wires: []
   holes: []
   snag:
-  - kind: hook
-    points:
-    - {x: 0.325037, y: 1.245519, z: -0.002454}
-    - {x: 0.349653, y: 2.5, z: 0.084908}
-    radiusM: 0.038238
-  - kind: hook
-    points:
-    - {x: -0.325503, y: 1.255287, z: 0.024441}
-    - {x: -0.545697, y: 2.5, z: 0.119697}
-    radiusM: 0.038223
   - kind: edge
     points:
     - {x: 0.575503, y: 3.388744, z: 0.542413}
