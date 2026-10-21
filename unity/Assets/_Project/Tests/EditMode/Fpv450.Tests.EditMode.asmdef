@@ -6,6 +6,9 @@
         "Fpv450.Feed",
         "Fpv450.Input",
         "Fpv450.World",
+        "Unity.InputSystem",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.Universal.Runtime",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],
