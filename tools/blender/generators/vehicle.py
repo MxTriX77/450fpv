@@ -225,6 +225,10 @@ BAND_BELOW_M = 0.12       # the band's boxes reach this far under the belt, into
 BAND_DEPTH_M = 0.12       # and this far in from the band's plane
 BAND_C_INSET_M = 0.01     # the C pillar's box 1 cm inside the band: its plane, yawed with the tail's taper, runs
                           # outside the band where it reaches ahead of the rear screen
+PANE_BACK_M = GLASS_INSET_M + GLASS_T_M - 0.001  # the closed car's band boxes over the windows: their outer face 1 mm
+                          # inside each pane's glass box and within the band's 15 mm sheet, so a pane is met as glass
+PANE_RISE_M = 0.025       # a pane's glass box per stretch over which its top edge rises at most this: under the
+                          # frame's 2.9 cm over the pane (derived: WINDOW_V's 7 % of the 0.42 m band)
 
 # --- the kits' numbers (task 1.2; the sheet's, or labelled) ----------------------------------------------------------
 RIM_FLANGE_R_M = 0.183    # the sheet: a 13-inch rim's flange radius (the F drop's 0.282 - 0.183 m)
@@ -2859,7 +2863,8 @@ def _clean_plan(body):
     - The shoulder's roll: per side and stretch a cylinder on the roll's centre line, radius ROLL_R_M, flat-ended
       at the body's faces and overlapping its neighbours.
     - The greenhouse, solid with its glass in: the cabin's lower and upper cores; per side four boxes on the band
-      (along the A pillar, under the level drip, under the falling drip, along the C pillar); the windscreen's and
+      (along the A pillar, under the level drip, under the falling drip, along the C pillar; the first three set in
+      PANE_BACK_M, behind GLASS_T_M glass boxes over each pane, QA 2.1's R3); the windscreen's and
       the rear screen's wedges; the roof's three landable boxes; per side cylinders on the cap's edge roll along the
       A pillar, the level and falling drip and the C pillar.
     - Wheels: four rubber cylinders (the spec's 0.594 x 0.165 m). Bumpers: per bumper three capsules along the
@@ -3041,10 +3046,12 @@ def _greenhouse(body, yb):
                                       UPPER_TOP_M)))
     s_d = body.s_drip_end
     for side, tag in ((-1, "left"), (1, "right")):
-        for name, s0, s1, inset in (("band_a", body.s_cowl, body.s_ws_top, 0.0), ("band_mid", body.s_ws_top, s_d, 0.0),
-                                    ("band_drop", s_d, body.s_rs_top, 0.0),
+        for name, s0, s1, inset in (("band_a", body.s_cowl, body.s_ws_top, PANE_BACK_M),
+                                    ("band_mid", body.s_ws_top, s_d, PANE_BACK_M),
+                                    ("band_drop", s_d, body.s_rs_top, PANE_BACK_M),
                                     ("band_c", body.s_rs_top, body.s_rs_base, BAND_C_INSET_M)):
             out.append((f"{name}_{tag}", _band_box(body, side, s0, s1, inset)))
+        out += _pane_boxes(body, side, tag, lambda pair: True)
     t_ws, t_rs = body.preset["windscreen_glass"][1], body.preset["rear_glass"][1]
     out.append(("windscreen", _cap_box(body, body.s_cowl, body.s_ws_top, gl, False, WEDGE_DEPTH_M, t_ws, WS_HALF_M, 0.5)))
     out.append(("rear_screen", _cap_box(body, body.s_rs_top, body.s_rs_base, gl, False, WEDGE_DEPTH_M, t_rs, RS_HALF_M,
@@ -3072,6 +3079,37 @@ def _greenhouse(body, yb):
             after = {"pillar_a": 0.02, "roof_edge": 0.02, "roof_edge_drop": 0.0, "pillar_c": -0.03}[name]
             p0, p1 = _extend(body.P(s0, side * w0, y0), body.P(s1, side * w1, y1), before, after)
             out.append((f"{name}_{tag}", _cylinder(p0, p1, radius, sm)))
+    return out
+
+
+def _pane_boxes(body, side, tag, intact):
+    """Per side window whose pane is in (`intact(pair)`, its glass_side pair) GLASS_T_M `glass` boxes fitted to the
+    pane's slab, their outer face on the pane's (QA 2.1's R3: the sheet's thin glass boxes): one per stretch of the
+    window over which its top edge rises or falls at most PANE_RISE_M, so under the A pillar's slope (the vent) or
+    the drip's fall (the quarter) each box's top corner stays on the band's frame over the pane."""
+    out = []
+    v0, v1 = WINDOW_V
+    for k, ((a, b), pair) in enumerate(zip(_windows(body), _window_pairs(body))):
+        if not intact(pair):
+            continue
+
+        def pt(s, v):
+            return _inset(body.band_point(s, v, side), _band_normal(body, s, v, side))
+        n = max(1, math.ceil((b - a) / 0.005))
+        ss = [a + (b - a) * i / n for i in range(n + 1)]
+        tops = [pt(s, v1)[1] for s in ss]
+        pieces, start, lo, hi = [], 0, tops[0], tops[0]
+        for i in range(1, n + 1):
+            if max(hi, tops[i]) - min(lo, tops[i]) > PANE_RISE_M:
+                pieces.append((ss[start], ss[i - 1]))
+                start, lo, hi = i - 1, tops[i - 1], tops[i - 1]
+            lo, hi = min(lo, tops[i]), max(hi, tops[i])
+        pieces.append((ss[start], b))
+        for j, (s0, s1) in enumerate(pieces):
+            samples = [pt(s0 + (s1 - s0) * i / 4, v0 + (v1 - v0) * m / 2) for i in range(5) for m in range(3)]
+            corners = [pt(s0, v0), pt(s1, v0), pt(s1, v1), pt(s0, v1)]
+            out.append((f"band_pane_{k}_{j}_{tag}", _fitted_box(samples, corners, (0.0, 0.3, float(side)), GLASS_T_M,
+                                                                "glass")))
     return out
 
 
@@ -3130,11 +3168,11 @@ def _kit_plan(body, kit):
       crease, the door tops' roll as steps from the trim out (DOOR_TOP_STEPS; at the cowl, where the wing's roll steps
       down to the door's, one more on the wing's line), thin boxes on the rear wheel tubs and their inner walls, the
       firewall (the lower front's face) and, behind the rear seat, the boot from its bulkheads (its sides as the clean
-      base's arch boxes); over the belt per side the band's frame (round each gone pane) or its thin boxes (its glass
-      in), one 45-degree chamfer per stretch of the cap's edge roll, the roof as thin halves fitted to its crown (and
-      its sag), each screen's frame and its remaining pane as thin glass boxes (the crazed windscreen in two across,
-      closed over its slit); the seats, the dashboard and the steering wheel as their own shapes (rim, spokes, hub
-      and column).
+      base's arch boxes); over the belt per side the band's frame round its windows and GLASS_T_M glass boxes over
+      each pane still in, one 45-degree chamfer per stretch of the cap's edge roll, the roof as thin halves fitted to
+      its crown (and its sag), each screen's frame and its remaining pane as thin glass boxes (the crazed windscreen
+      in two across, closed over its slit); the seats, the dashboard and the steering wheel as their own shapes (rim,
+      spokes, hub and column).
     - F: the front arches open as the rear ones (the tyres burnt, the rims well inside), with a core between the
       wheelhouses; the seats as their frames (the cushion's frame on the floor, the back's round its springs), the
       steering wheel's core, the dashboard's beam."""
@@ -3603,24 +3641,19 @@ def _plan_rack(body):
 
 
 def _greenhouse_open(body, kit):
-    """The open cabin's greenhouse (see _kit_plan): per side the band's thin frame or boxes, the cap's edge roll's
-    chamfers, the roof's fitted halves, the remaining panes' glass boxes."""
+    """The open cabin's greenhouse (see _kit_plan): per side the band's thin frame and glass boxes over each pane still
+    in (either face of a pane is met as glass, from the cabin as from outside), the cap's edge roll's chamfers, the
+    roof's fitted halves, the screens' remaining panes' glass boxes."""
     out = []
     s_d = body.s_drip_end
     windows = _windows(body)
-    pairs = _window_pairs(body)
     v0, v1 = WINDOW_V
     fv = FRAME_M / body.H_band
     stretches = (("a", body.s_cowl, body.s_ws_top), ("mid", body.s_ws_top, s_d), ("drop", s_d, body.s_rs_top),
                  ("c", body.s_rs_top, body.s_rs_base))
     for side, tag in ((-1, "left"), (1, "right")):
-        gone = [kit.glass[side, p] == "gone" for p in pairs]
-        if any(gone):
-            out += _band_open(body, side, tag)
-        else:
-            for name, s0, s1 in stretches:
-                inset = BAND_C_INSET_M if name == "c" else 0.0
-                out.append((f"band_{name}_{tag}", _band_box(body, side, s0, s1, inset, BAND_SHELL_M, 0.02)))
+        out += _band_open(body, side, tag)
+        out += _pane_boxes(body, side, tag, lambda pair, side=side: kit.glass[side, pair] != "gone")
         for name, s0, s1 in stretches:
             out.append((f"cap_edge_{name}_{tag}", _chamfer_box(body, side, s0 + 1e-6, s1 - 1e-6, 45.0, _cap_roll,
                                                                _cap_r, SHELL_T_M)))
@@ -3708,10 +3741,10 @@ def _band_triangle(body, side, s_corner, s_far, h_top, name):
 
 
 def _band_open(body, side, tag):
-    """The band's frame on a side whose glass is gone (see _kit_plan): the sill under the windows and the strips over
-    them (along the A pillar's slope, the drip and its fall), the posts between the windows, the A pillar's triangle
-    in front of the vent, and behind the quarter the C pillar's front part and its triangle under the pillar's
-    slope, with a strip along that slope."""
+    """The band's frame in the open cabin (see _kit_plan), round its windows: the sill under the windows and the
+    strips over them (along the A pillar's slope, the drip and its fall), the posts between the windows, the A
+    pillar's triangle in front of the vent, and behind the quarter the C pillar's front part and its triangle under
+    the pillar's slope, with a strip along that slope."""
     out = []
     windows = _windows(body)
     v0, v1 = WINDOW_V

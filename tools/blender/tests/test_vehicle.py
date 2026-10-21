@@ -115,7 +115,7 @@ def test_published_dimensions(r01, built):
 
 # The plan the audit's 2 cm zone round the roof, bonnet and boot lid asks of the clean base (design decision 7's
 # note: the count is the audit's to set, not a budget).
-PLAN_COUNTS = {"lower body": 15, "tops": 4, "shoulder rolls": 10, "greenhouse": 23, "wheels": 6, "bumpers": 10,
+PLAN_COUNTS = {"lower body": 15, "tops": 4, "shoulder rolls": 10, "greenhouse": 49, "wheels": 6, "bumpers": 10,
                "interior": 8, "rack": 8}
 
 
@@ -124,7 +124,7 @@ def test_collision_plan(r01):
     names = [n for n, _ in plan]
     assert len(names) == len(set(names))
     assert groups(plan) == PLAN_COUNTS
-    assert len(plan) == sum(PLAN_COUNTS.values()) == 84
+    assert len(plan) == sum(PLAN_COUNTS.values()) == 110
 
 
 def test_landable_and_materials(built, r01):
@@ -133,6 +133,12 @@ def test_landable_and_materials(built, r01):
     assert landable == ["bonnet", "boot_lid", "rack_tube_1", "rack_tube_3", "roof_front", "roof_mid", "roof_rear"]
     by_name = dict(plan)
     assert by_name["windscreen"]["material"] == "glass" and by_name["rear_screen"]["material"] == "glass"
+    # QA 2.1's R3: the eight side panes are 5 mm glass boxes, the band's boxes set in behind them; per side the vent
+    # in nine under the A pillar's slope, the front and rear windows in one, the quarter in two under the drip's fall
+    panes = [n for n in by_name if n.startswith("band_pane_")]
+    assert len(panes) == 2 * 13 and {by_name[n]["material"] for n in panes} == {"glass"}
+    assert sorted({n.split("_")[2] for n in panes}) == ["0", "1", "2", "3"]
+    assert all(by_name[n]["size"][1] == pytest.approx(vehicle.GLASS_T_M) for n in panes)
     assert {by_name[n]["material"] for n in by_name if n.startswith("seat_")} == {"fabric"}
     assert {by_name[n]["material"] for n in by_name if n.startswith(("bumper_", "rack_"))} == {"steel"}
     assert by_name["dashboard"]["material"] == "plastic"
@@ -380,6 +386,10 @@ def test_a_glass_and_cabin(r01_a, built_a):
         assert len(panes) == count and {plan[n]["material"] for n in panes} == {"glass"}
         assert len(frames) == 4 and {plan[n]["material"] for n in frames} == {"sheet_metal"}
     assert not any(n.startswith("cabin_") for n in plan)
+    # QA 2.1's R3: the far side's panes in as 5 mm glass boxes, the burst side's none
+    far = [n for n in plan if n.startswith("band_pane_") and n.endswith("_right")]
+    assert len(far) == 13 and {plan[n]["material"] for n in far} == {"glass"}
+    assert not any(n.startswith("band_pane_") and n.endswith("_left") for n in plan)
 
 
 def test_a_landable_and_materials(r01_a):
@@ -483,7 +493,7 @@ def test_k07_pieces_match_their_params_files(repo_root_module):
 # The plans the audit's 2 cm zone asks of the A and F cars (the counts are its to set, not a budget; pinned by group
 # so a change is seen). The open cabin's door tops, trims, wheel tubs and boot; A's torn bonnet edge, its folded
 # flap's strips, the crazed pane in six and the K07 scatter; F's open front arches, frames and bead wires.
-A_COUNTS = {"lower body": 39, "tops": 11, "shoulder rolls": 13, "greenhouse": 50, "bumpers": 10, "interior": 19,
+A_COUNTS = {"lower body": 39, "tops": 11, "shoulder rolls": 13, "greenhouse": 74, "bumpers": 10, "interior": 19,
             "rack": 8, "flap": 13, "wheels": 6, "scatter": 19}
 F_COUNTS = {"lower body": 53, "tops": 5, "shoulder rolls": 8, "greenhouse": 54, "bumpers": 10, "interior": 18,
             "rack": 8, "wheels": 4, "bead wires": 64}
