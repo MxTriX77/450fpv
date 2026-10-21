@@ -785,6 +785,206 @@
           "bytes": 750731
         }
       ]
+    },
+    {
+      "source": "polyhaven",
+      "id": "white_stucco_02",
+      "title": "White Stucco 02",
+      "resolution": "2k",
+      "licence": "CC0",
+      "author": "Dimitrios Savva",
+      "page": "https://polyhaven.com/a/white_stucco_02",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/polyhaven/white_stucco_02",
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "white_stucco_02_diff_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/white_stucco_02/white_stucco_02_diff_2k.png",
+          "sha256": "c1d34a64fa62b613e62d24a81c20e9d1f612e555525a1476742fea6b98e563ac",
+          "bytes": 22160774
+        },
+        {
+          "map": "normal",
+          "name": "white_stucco_02_nor_gl_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/white_stucco_02/white_stucco_02_nor_gl_2k.png",
+          "sha256": "a57f60005c969cc694d02486e394a93d9695680813a133a4222c57674f32a91a",
+          "bytes": 23365103
+        },
+        {
+          "map": "roughness",
+          "name": "white_stucco_02_rough_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/white_stucco_02/white_stucco_02_rough_2k.png",
+          "sha256": "b3a3c8bade062b810713bee49399e563d4ce83721e80b4434706e6b28319bc2b",
+          "bytes": 6978774
+        },
+        {
+          "map": "ao",
+          "name": "white_stucco_02_ao_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/white_stucco_02/white_stucco_02_ao_2k.png",
+          "sha256": "4079fb952f8433f38479e2e168856be1d9bc6bbd4bb5a7e868d54b82e050b4e7",
+          "bytes": 7828322
+        }
+      ]
+    },
+    {
+      "source": "polyhaven",
+      "id": "worn_cracked_plaster",
+      "title": "Worn Cracked Plaster",
+      "resolution": "2k",
+      "licence": "CC0",
+      "author": "Amal Kumar",
+      "page": "https://polyhaven.com/a/worn_cracked_plaster",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/polyhaven/worn_cracked_plaster",
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "worn_cracked_plaster_diff_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/worn_cracked_plaster/worn_cracked_plaster_diff_2k.png",
+          "sha256": "ddad23d06f6eb64d8f3986018f12d07fea2507b2a46efe99873d6e551e76f58b",
+          "bytes": 23103265
+        },
+        {
+          "map": "normal",
+          "name": "worn_cracked_plaster_nor_gl_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/worn_cracked_plaster/worn_cracked_plaster_nor_gl_2k.png",
+          "sha256": "8f3eac6fc83ec3703441455cc62df750fd221b3e43dfe2487a30dbf733e3a8ae",
+          "bytes": 22047497
+        },
+        {
+          "map": "roughness",
+          "name": "worn_cracked_plaster_rough_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/worn_cracked_plaster/worn_cracked_plaster_rough_2k.png",
+          "sha256": "24b13973a956c5a0674039520af5ff12071f14a241a4e3a7a9257f2f1783b692",
+          "bytes": 7078575
+        },
+        {
+          "map": "ao",
+          "name": "worn_cracked_plaster_ao_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/worn_cracked_plaster/worn_cracked_plaster_ao_2k.png",
+          "sha256": "0bd8d42cca872807934dd091b5bff50cd98ab94af42edd821964e869911f2f2c",
+          "bytes": 4112544
+        }
+      ]
+    },
+    {
+      "source": "polyhaven",
+      "id": "rough_plaster_brick_02",
+      "title": "Rough Plaster Brick 02",
+      "resolution": "2k",
+      "licence": "CC0",
+      "author": "Rob Tuytel",
+      "page": "https://polyhaven.com/a/rough_plaster_brick_02",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/polyhaven/rough_plaster_brick_02",
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "rough_plaster_brick_02_diff_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/rough_plaster_brick_02/rough_plaster_brick_02_diff_2k.png",
+          "sha256": "bd8d5f76182490c2c10617ce08fd801227ea8014296f118cbbb4e06785c52e2f",
+          "bytes": 10248612
+        },
+        {
+          "map": "normal",
+          "name": "rough_plaster_brick_02_nor_gl_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/rough_plaster_brick_02/rough_plaster_brick_02_nor_gl_2k.png",
+          "sha256": "562ec45de01c5b68b545a20943947969b38d3e5684e82f94407e48047a9dc271",
+          "bytes": 4614333
+        },
+        {
+          "map": "roughness",
+          "name": "rough_plaster_brick_02_rough_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/rough_plaster_brick_02/rough_plaster_brick_02_rough_2k.png",
+          "sha256": "5c7210c706b210cf6301a2b9207c4fb98a6c8dd28d23337a01e4e74b6c61b246",
+          "bytes": 3944036
+        },
+        {
+          "map": "ao",
+          "name": "rough_plaster_brick_02_ao_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/rough_plaster_brick_02/rough_plaster_brick_02_ao_2k.png",
+          "sha256": "9f73aa3fe8e68e513d0d1d0346c66db7941ebb657f8e2dfa5823b8d3e6fede12",
+          "bytes": 2684840
+        }
+      ]
+    },
+    {
+      "source": "polyhaven",
+      "id": "blue_plaster_weathered",
+      "title": "Blue Plaster Weathered",
+      "resolution": "2k",
+      "licence": "CC0",
+      "author": "Amal Kumar",
+      "page": "https://polyhaven.com/a/blue_plaster_weathered",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/polyhaven/blue_plaster_weathered",
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "blue_plaster_weathered_diff_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/blue_plaster_weathered/blue_plaster_weathered_diff_2k.png",
+          "sha256": "8800e1b2694590f0309a3b44c9f45507e854773465d71ca5d045c62f195a3baa",
+          "bytes": 24595078
+        },
+        {
+          "map": "normal",
+          "name": "blue_plaster_weathered_nor_gl_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/blue_plaster_weathered/blue_plaster_weathered_nor_gl_2k.png",
+          "sha256": "3b2c16107407bc091d6ef40bb9983a0df3ed3fb8cc96614df1f3411f686e26e6",
+          "bytes": 21634516
+        },
+        {
+          "map": "roughness",
+          "name": "blue_plaster_weathered_rough_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/blue_plaster_weathered/blue_plaster_weathered_rough_2k.png",
+          "sha256": "32042651535e985ce1bdb8207aec47bc9530923a05f7a978f51879a51cf62d60",
+          "bytes": 6390412
+        },
+        {
+          "map": "ao",
+          "name": "blue_plaster_weathered_ao_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/blue_plaster_weathered/blue_plaster_weathered_ao_2k.png",
+          "sha256": "22dd32a5bfaa347dbacf4b1d558930e3722247561193e3a9347fffd0de75b75e",
+          "bytes": 5232057
+        }
+      ]
+    },
+    {
+      "source": "polyhaven",
+      "id": "clay_roof_tiles_02",
+      "title": "Clay Roof Tiles 02",
+      "resolution": "1k",
+      "licence": "CC0",
+      "author": "Amal Kumar",
+      "page": "https://polyhaven.com/a/clay_roof_tiles_02",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/polyhaven/clay_roof_tiles_02",
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "clay_roof_tiles_02_diff_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/clay_roof_tiles_02/clay_roof_tiles_02_diff_1k.png",
+          "sha256": "cb3d276d93a904e1163ed1613f58023b586c420e9770f908b45cfee7022110e4",
+          "bytes": 5607741
+        },
+        {
+          "map": "normal",
+          "name": "clay_roof_tiles_02_nor_gl_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/clay_roof_tiles_02/clay_roof_tiles_02_nor_gl_1k.png",
+          "sha256": "c7b859bf83efb4d431536337e737435e324d95a3c8cdf06f04e384c21e941809",
+          "bytes": 5640394
+        },
+        {
+          "map": "roughness",
+          "name": "clay_roof_tiles_02_rough_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/clay_roof_tiles_02/clay_roof_tiles_02_rough_1k.png",
+          "sha256": "f1aa2cd527bf0afd67a60461fc7aa6a02ae637d3d9a72e10eed6feb8843a67e9",
+          "bytes": 1657874
+        },
+        {
+          "map": "ao",
+          "name": "clay_roof_tiles_02_ao_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/clay_roof_tiles_02/clay_roof_tiles_02_ao_1k.png",
+          "sha256": "e1deee3304e46886b0827a1acd5fae1f0d51bdcff141f08efe69ef2b35d9a944",
+          "bytes": 1365275
+        }
+      ]
     }
   ]
 }

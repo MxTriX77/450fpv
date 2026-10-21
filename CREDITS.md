@@ -27,5 +27,10 @@ the manifest.
 | Leather 014 (1k) | CC0 1.0 | Lennart Demes (ambientCG) | [ambientcg.com/a/Leather014](https://ambientcg.com/a/Leather014) | `unity/Assets/_Project/Art/ThirdParty/ambientcg/Leather014/` (3 files, 8.1 MB) |
 | Burned Ground 01 (1k) | CC0 1.0 | Rob Tuytel | [polyhaven.com/a/burned_ground_01](https://polyhaven.com/a/burned_ground_01) | `unity/Assets/_Project/Art/ThirdParty/polyhaven/burned_ground_01/` (4 files, 11.3 MB) |
 | Rubber 004 (1k) | CC0 1.0 | Lennart Demes (ambientCG) | [ambientcg.com/a/Rubber004](https://ambientcg.com/a/Rubber004) | `unity/Assets/_Project/Art/ThirdParty/ambientcg/Rubber004/` (3 files, 8.2 MB) |
+| White Stucco 02 (2k) | CC0 1.0 | Dimitrios Savva | [polyhaven.com/a/white_stucco_02](https://polyhaven.com/a/white_stucco_02) | `unity/Assets/_Project/Art/ThirdParty/polyhaven/white_stucco_02/` (4 files, 60.3 MB) |
+| Worn Cracked Plaster (2k) | CC0 1.0 | Amal Kumar | [polyhaven.com/a/worn_cracked_plaster](https://polyhaven.com/a/worn_cracked_plaster) | `unity/Assets/_Project/Art/ThirdParty/polyhaven/worn_cracked_plaster/` (4 files, 56.3 MB) |
+| Rough Plaster Brick 02 (2k) | CC0 1.0 | Rob Tuytel | [polyhaven.com/a/rough_plaster_brick_02](https://polyhaven.com/a/rough_plaster_brick_02) | `unity/Assets/_Project/Art/ThirdParty/polyhaven/rough_plaster_brick_02/` (4 files, 21.5 MB) |
+| Blue Plaster Weathered (2k) | CC0 1.0 | Amal Kumar | [polyhaven.com/a/blue_plaster_weathered](https://polyhaven.com/a/blue_plaster_weathered) | `unity/Assets/_Project/Art/ThirdParty/polyhaven/blue_plaster_weathered/` (4 files, 57.9 MB) |
+| Clay Roof Tiles 02 (1k) | CC0 1.0 | Amal Kumar | [polyhaven.com/a/clay_roof_tiles_02](https://polyhaven.com/a/clay_roof_tiles_02) | `unity/Assets/_Project/Art/ThirdParty/polyhaven/clay_roof_tiles_02/` (4 files, 14.3 MB) |
 
 Licences: [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/), [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/). CC0 needs no attribution; the authors are named as thanks.
