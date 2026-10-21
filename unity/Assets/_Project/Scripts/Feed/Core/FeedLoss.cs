@@ -11,7 +11,8 @@ namespace Fpv450.Feed
     /// tag <c>godot-final</c>, copied verbatim in <c>docs/legacy/video-feed-godot/src/FeedLoss.cs</c>. The state
     /// machine, constants, draw order and structure are kept as they are; <c>FeedLoss.cs:N</c> after a literal names
     /// its line there. It draws from the scheduler's own <see cref="Random"/>, as in Godot, so the two share one
-    /// seeded stream.
+    /// seeded stream. As in <see cref="FeedEvents"/>, every float operation is cast to <c>float</c>, so that Unity's
+    /// Mono, which evaluates float expressions in double precision, rounds as CoreCLR (Godot's runtime) does.
     /// </para>
     /// <para>
     /// The first Godot cut snapped to flat snow and snapped back; the pilot flew it and said the cut is "too sharp
@@ -159,7 +160,7 @@ namespace Fpv450.Feed
             _count = 0;
             if (_rng.NextDouble() < (abrupt ? StagedChanceAbrupt : StagedChanceFaded))
             {
-                Split = SplitMin + (SplitMax - SplitMin) * (float)_rng.NextDouble();
+                Split = (float)(SplitMin + (float)((SplitMax - SplitMin) * (float)_rng.NextDouble()));
                 TopStrip = _rng.NextDouble() < TopStripChance ? TopStripHeight : 0f;
                 Push(new Stage { S = State.PartialSnow, Fields = Draw(PartialMinFields, PartialMaxFields) });
                 Push(new Stage { S = State.Blue, Fields = Draw(InterludeMinFields, InterludeMaxFields) });
@@ -194,16 +195,17 @@ namespace Fpv450.Feed
             {
                 if (--_snowLevelLeft <= 0)
                 {
-                    SnowLevel = SnowLevelMin + (SnowLevelMax - SnowLevelMin) * (float)_rng.NextDouble();
+                    SnowLevel = (float)(SnowLevelMin
+                        + (float)((SnowLevelMax - SnowLevelMin) * (float)_rng.NextDouble()));
                     _snowLevelLeft = 1 + _rng.Next(2); // FeedLoss.cs:179
                 }
                 // The first snow field is coloured (chroma 7–10 levels), the second paler (4–7), then killed. The
                 // full snow of stage 3 is already colour-killed when it starts.
                 SnowChroma = s.S == State.PartialSnow
-                    ? Math.Max(SnowChromaFloor, 1f - 0.5f * _fieldsInStage) // FeedLoss.cs:184
+                    ? Math.Max(SnowChromaFloor, (float)(1f - (float)(0.5f * _fieldsInStage))) // FeedLoss.cs:184
                     : SnowChromaFloor;
                 if (s.S == State.PartialSnow && _fieldsInStage > 0)
-                    Split = Math.Min(0.97f, Split + SplitDriftPerField); // FeedLoss.cs:187
+                    Split = Math.Min(0.97f, (float)(Split + SplitDriftPerField)); // FeedLoss.cs:187
             }
             else if (s.S == State.Black)
             {
@@ -237,7 +239,7 @@ namespace Fpv450.Feed
             bool tear = _rng.NextDouble() < (terminal ? HardCutTearChance : TellTearChance);
             if (tear)
             {
-                s.Tear = TearMin + (TearMax - TearMin) * (float)_rng.NextDouble();
+                s.Tear = (float)(TearMin + (float)((TearMax - TearMin) * (float)_rng.NextDouble()));
                 s.TearTop = terminal ? 0f : 1f; // FeedLoss.cs:222
             }
             else if (terminal)
@@ -246,12 +248,13 @@ namespace Fpv450.Feed
             }
             else
             {
-                s.Tell = TellLumaMin + (TellLumaMax - TellLumaMin) * (float)_rng.NextDouble();
+                s.Tell = (float)(TellLumaMin + (float)((TellLumaMax - TellLumaMin) * (float)_rng.NextDouble()));
             }
             return s;
         }
 
-        float BlackEdge() => BlackEdgeMin + (BlackEdgeMax - BlackEdgeMin) * (float)_rng.NextDouble();
+        float BlackEdge()
+            => (float)(BlackEdgeMin + (float)((BlackEdgeMax - BlackEdgeMin) * (float)_rng.NextDouble()));
 
         void Push(Stage s)
         {

@@ -16,10 +16,19 @@ namespace Fpv450.Feed
     /// literal names its line there. Retuning is the pilot's call, never the port's.
     /// </para>
     /// <para>
-    /// The one change: Godot's <c>Mathf.Sin</c> and <c>Mathf.Pi</c> are written as <see cref="MathF.Sin"/> and
+    /// Two changes, neither of which moves a value:
+    /// <list type="bullet">
+    /// <item>Godot's <c>Mathf.Sin</c> and <c>Mathf.Pi</c> are written as <see cref="MathF.Sin"/> and
     /// <see cref="MathF.PI"/>, which is what they are in Godot 4.7.2's GodotSharp (its float <c>Sin</c> calls
-    /// <c>MathF.Sin</c>, and its <c>Pi</c> has the bits of <c>MathF.PI</c>). The randomness stays .NET's seeded
-    /// <see cref="Random"/>, whose legacy seeded algorithm is what makes the schedule A/B exact.
+    /// <c>MathF.Sin</c>, and its <c>Pi</c> has the bits of <c>MathF.PI</c>).</item>
+    /// <item><b>Every float operation is cast to <c>float</c>.</b> Godot ran on CoreCLR, which rounds each float
+    /// operation to single precision; Unity's Mono evaluates float expressions in double precision and rounds only
+    /// at the end, so the same code drifts by a few ulps a field, and <see cref="N3Roll"/> accumulates it. An
+    /// explicit cast forces the rounding (<c>conv.r4</c>), a no-op on CoreCLR, so both runtimes give Godot's bits.
+    /// Keep the casts on any new float arithmetic here.</item>
+    /// </list>
+    /// The randomness stays .NET's seeded <see cref="Random"/>, whose legacy seeded algorithm Unity's Mono shares
+    /// (checked draw by draw), and which is what makes the schedule A/B exact.
     /// </para>
     /// </remarks>
     public sealed class FeedEvents
@@ -114,17 +123,21 @@ namespace Fpv450.Feed
                 if (_n3Left > 0)
                 {
                     _n3Left--;
-                    N3Roll = (N3Roll + _n3RollRate / N3Spacing) % 1f; // FeedEvents.cs:99
+                    N3Roll = (float)((float)(N3Roll + (float)(_n3RollRate / N3Spacing)) % 1f); // FeedEvents.cs:99
                 }
                 else if (_rng.NextDouble() < N3OnsetPerField)
                 {
                     _n3Left = _rng.Next(N3MinFields, N3MaxFields + 1);
-                    N3Spacing = 39f + 3f * (float)_rng.NextDouble(); // FeedEvents.cs:104, 150–157 px of picture height
-                    _n3RollRate = 2f + 7f * (float)_rng.NextDouble(); // FeedEvents.cs:105, field lines per field
+                    // FeedEvents.cs:104, 150–157 px of picture height
+                    N3Spacing = (float)(39f + (float)(3f * (float)_rng.NextDouble()));
+                    // FeedEvents.cs:105, field lines per field
+                    _n3RollRate = (float)(2f + (float)(7f * (float)_rng.NextDouble()));
                 }
                 // Motor current only modulates depth; the pilot says throttle coupling is rare (U6). A quality drop
                 // makes the lines heavier, which is how the footage's worst stretches read.
-                N3Amp = _n3Left > 0 ? (0.045f + 0.05f * motorCurrent) * (1f + Degrade) : 0f; // FeedEvents.cs:109
+                N3Amp = _n3Left > 0 // FeedEvents.cs:109
+                    ? (float)((float)(0.045f + (float)(0.05f * motorCurrent)) * (float)(1f + Degrade))
+                    : 0f;
             }
 
             if (HasN4)
@@ -134,9 +147,11 @@ namespace Fpv450.Feed
                 else if (_rng.NextDouble() < N4OnsetPerField)
                 {
                     _n4Left = _rng.Next(N4MinFields, N4MaxFields + 1);
-                    N4Span = 0.20f + 0.30f * (float)_rng.NextDouble(); // FeedEvents.cs:119
+                    N4Span = (float)(0.20f + (float)(0.30f * (float)_rng.NextDouble())); // FeedEvents.cs:119
                 }
-                N4Amp = _n4Left > 0 ? (0.022f + 0.02f * motorCurrent) * (1f + 1.5f * Degrade) : 0f; // FeedEvents.cs:121
+                N4Amp = _n4Left > 0 // FeedEvents.cs:121
+                    ? (float)((float)(0.022f + (float)(0.02f * motorCurrent)) * (float)(1f + (float)(1.5f * Degrade)))
+                    : 0f;
             }
         }
 
@@ -147,15 +162,16 @@ namespace Fpv450.Feed
                 _dropLeft--;
                 // One sine arch over the whole event: it slides in and back out, and no two are the same shape
                 // because the depth and the length are both drawn.
-                float t = 1f - (float)_dropLeft / _dropTotal; // FeedEvents.cs:132
-                Degrade = _dropDepth * MathF.Sin(MathF.PI * t); // FeedEvents.cs:133 (Godot Mathf.Sin, Mathf.Pi)
+                float t = (float)(1f - (float)((float)_dropLeft / _dropTotal)); // FeedEvents.cs:132
+                // FeedEvents.cs:133 (Godot's Mathf.Sin and Mathf.Pi)
+                Degrade = (float)(_dropDepth * MathF.Sin((float)(MathF.PI * t)));
                 return;
             }
             Degrade = 0f;
             if (--_dropWait > 0)
                 return;
             _dropTotal = _dropLeft = DrawFields(DropMinSeconds, DropMaxSeconds);
-            _dropDepth = DropMinDepth + (DropMaxDepth - DropMinDepth) * (float)_rng.NextDouble();
+            _dropDepth = (float)(DropMinDepth + (float)((DropMaxDepth - DropMinDepth) * (float)_rng.NextDouble()));
             _dropWait = DrawGap(DropGapMinSeconds, DropGapMaxSeconds);
         }
 
