@@ -18,23 +18,22 @@ namespace Fpv450
         }
 
         /// <summary>
-        /// The G1 gallery (p1-g1-look-lock-gallery design 5 and 6): its scene alone, 1080p windowed by default under
-        /// its own product name (so its window settings are its own). The project's settings are restored after.
+        /// The G1 gallery (p1-g1-look-lock-gallery design 5 and 6): its scene alone, full screen at the display's
+        /// resolution by default (task 1.3: a 1080p window does not fit a 1080p display with its title bar;
+        /// <c>GalleryBoot</c> gives <c>-windowed</c>), under its own product name (so its window settings are its own).
+        /// The project's settings are restored after.
         /// </summary>
         public static void Gallery()
         {
             string product = PlayerSettings.productName;
             FullScreenMode mode = PlayerSettings.fullScreenMode;
             bool native = PlayerSettings.defaultIsNativeResolution;
-            int width = PlayerSettings.defaultScreenWidth, height = PlayerSettings.defaultScreenHeight;
             bool built;
             try
             {
                 PlayerSettings.productName = "450fpv gallery";
-                PlayerSettings.fullScreenMode = FullScreenMode.Windowed;
-                PlayerSettings.defaultIsNativeResolution = false;
-                PlayerSettings.defaultScreenWidth = 1920;
-                PlayerSettings.defaultScreenHeight = 1080;
+                PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow;
+                PlayerSettings.defaultIsNativeResolution = true;
                 built = Player("Gallery", new[] { GalleryScene.ScenePath }, "Builds/Windows-Gallery/450fpv-gallery.exe");
             }
             finally
@@ -42,8 +41,6 @@ namespace Fpv450
                 PlayerSettings.productName = product;
                 PlayerSettings.fullScreenMode = mode;
                 PlayerSettings.defaultIsNativeResolution = native;
-                PlayerSettings.defaultScreenWidth = width;
-                PlayerSettings.defaultScreenHeight = height;
             }
             if (!built)
                 EditorApplication.Exit(1);

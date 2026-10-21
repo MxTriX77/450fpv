@@ -9,7 +9,8 @@ using UnityEngine.SceneManagement;
 namespace Fpv450.World
 {
     /// <summary>
-    /// The gallery build's boot (p1-g1-look-lock-gallery design 5 and 6): vsync from <c>-vsync &lt;n&gt;</c> (on by
+    /// The gallery build's boot (p1-g1-look-lock-gallery design 5 and 6): full screen at the display's resolution, or
+    /// a 1920 x 1080 window with <c>-windowed</c>, vsync from <c>-vsync &lt;n&gt;</c> (on by
     /// default, for the pilot; QA measures with <c>-vsync 0</c>), then a log line per station listing its placed
     /// prefabs, each renderer checked for a missing mesh, material or texture and for a shader the GPU cannot run
     /// (the pink error shader). With <c>-smoketest</c> the player quits after one frame, with exit code 1 if any check
@@ -29,10 +30,17 @@ namespace Fpv450.World
             string[] args = Environment.GetCommandLineArgs();
             int at = Array.IndexOf(args, "-vsync");
             QualitySettings.vSyncCount = at >= 0 && at + 1 < args.Length && int.TryParse(args[at + 1], out int count) ? count : 1;
+            // Set on every launch: the player otherwise reopens in the mode its last run saved under its product name
+            // (a -windowed run or an Alt+Enter would leave the next double-click windowed).
+            if (Array.IndexOf(args, "-windowed") >= 0)
+                Screen.SetResolution(1920, 1080, FullScreenMode.Windowed);
+            else
+                Screen.SetResolution(Display.main.systemWidth, Display.main.systemHeight, FullScreenMode.FullScreenWindow);
         }
 
         IEnumerator Start()
         {
+            yield return null; // the screen mode applies at the end of the first frame
             Debug.Log($"[Gallery] {SceneManager.GetActiveScene().name} loaded: GPU {SystemInfo.graphicsDeviceName} ({SystemInfo.graphicsDeviceType}), " +
                       $"{Screen.width}x{Screen.height} {Screen.fullScreenMode}, quality {QualitySettings.names[QualitySettings.GetQualityLevel()]}, " +
                       $"LOD bias {QualitySettings.lodBias:0.##}, vsync {QualitySettings.vSyncCount}");
