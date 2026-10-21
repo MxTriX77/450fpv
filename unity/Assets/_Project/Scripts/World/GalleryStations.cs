@@ -115,8 +115,13 @@ namespace Fpv450.World
             }),
             // Task 1.3, as p1-h01-adobe-house merges: H01_I at (-15, 0) and H01_D at (0, 0), facades to -Z, 15 m apart (H01_X at (15, 0) after G1).
             new Station(3, "H01", "E", new Vector3(100f, 0f, 0f), new Placement[0]),
-            // Task 1.3, as p1-r01-vaz-sedan merges: R01_A at (-4, 0) and R01_F at (4, 0), 8 m apart, noses along +X.
-            new Station(4, "R01", "M", new Vector3(160f, 0f, 0f), new Placement[0]),
+            // The sedans 8 m apart, noses along +X: the asset's nose is at -X and its left side, R01_A's burst side
+            // (burst_dir 290°), at -Z (tools/blender/generators/vehicle.py), so turned 180° that side faces +Z, north.
+            new Station(4, "R01", "M", new Vector3(160f, 0f, 0f), new[]
+            {
+                new Placement("vehicles/R01_A", -4f, 0f, 180f),
+                new Placement("vehicles/R01_F", 4f, 0f, 180f),
+            }),
             new Station(5, "E01", "G", new Vector3(210f, 0f, 0f), new[]
             {
                 new Placement("earthworks/E01_curving", 0f, 0f, 0f),
@@ -138,9 +143,8 @@ namespace Fpv450.World
         };
 
         /// <summary>
-        /// One per station at its letter's height and framing (design 3), the 200 m belt view last. H01's and R01's
-        /// assume the facade and the struck side face -Z; task 1.3 checks them against the placed prefabs and adds
-        /// H01_D's 1 m door view as key 9.
+        /// One per station at its letter's height and framing (design 3), the 200 m belt view last. H01's assumes the
+        /// facade faces -Z; task 1.3 checks it against the placed prefab and adds H01_D's 1 m door view as key 9.
         /// </summary>
         public static readonly Viewpoint[] Viewpoints =
         {
@@ -150,8 +154,10 @@ namespace Fpv450.World
             new Viewpoint("V01 V13", "H", new Vector3(52f, 1.5f, -9.5f), 300f, 0f),
             // 1.5 m up, 12 m from H01_D's facade (E).
             new Viewpoint("H01", "E", new Vector3(100f, 1.5f, -15.5f), 0f, 0f),
-            // 1.2 m up, 6 m from R01_A's struck side (M).
-            new Viewpoint("R01", "M", new Vector3(156f, 1.2f, -6.8f), 0f, 0f),
+            // M's front three-quarter of R01_A's struck side: 1.35 m up (the roof line just over the horizon), 5.5 m from
+            // its middle at 40° off the side's normal towards the nose (the front wheel 4.1 m away), 17° down, nose left;
+            // the day sun stands beyond the car, so the near side is in shade and the bonnet and roof are lit.
+            new Viewpoint("R01", "M", new Vector3(159.5f, 1.35f, 4.2f), 220f, 17f),
             // 1.5 m above the field-side lip at the run's start, along its first segment 20° down (G), as the review's earthwork pose.
             new Viewpoint("E01", "G", new Vector3(210.133f, 1.5f, -0.377f), 70.62f, 20f),
             // 2 m up, 15 m from the leaning pole, 5° up so the pole stands against the sky (L, under night).
