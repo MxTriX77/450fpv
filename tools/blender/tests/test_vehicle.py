@@ -1,7 +1,9 @@
-"""generators.vehicle, the clean base of R01 (p1-r01-vaz-sedan task 1.1): the published dimensions in the metadata's
-terms (plan bounds, wheelbase, tracks, wheel cylinders, roof height), the collision plan, the landable and material
-assignments, the "not built yet" refusals, the blank plates, the LOD budget, determinism, and params edits moving the
-geometry (AST-03). The collision audit itself runs in the Blender build (build.py), where it takes minutes."""
+"""generators.vehicle: R01's clean base (p1-r01-vaz-sedan task 1.1) and its A and F kits (task 1.2): the published
+dimensions in the metadata's terms (plan bounds, wheelbase, tracks, wheel cylinders, roof height), the collision
+plans by group, the landable and material assignments, the "not built yet" refusals, the blank plates, the LOD
+budget, determinism, params edits moving the geometry (AST-03); the A kit's holes by side and size, its flat corner's
+drop and lean, its scatter's 1/r^2 density and its masks; the F kit's drop onto its rims, its bead wires, its burnt
+slots and its soot patch. The collision audit itself runs in the Blender build (build.py), where it takes minutes."""
 import copy
 import json
 import math
@@ -9,15 +11,9 @@ import math
 import pytest
 
 from generators import vehicle
-from lib import catalog, meta, params as params_lib
+from lib import catalog, kits_vehicle as kits, masks, meta, params as params_lib
 
 MM5 = 0.005
-
-
-@pytest.fixture(scope="module")
-def r01(repo_root_module):
-    entry = catalog.load(repo_root_module)["assets"]["R01"]
-    return catalog.load_params(catalog.params_path(repo_root_module, entry, "R01_A"))
 
 
 @pytest.fixture(scope="module")
@@ -26,19 +22,74 @@ def repo_root_module():
     return Path(__file__).resolve().parents[3]
 
 
+def load(root, variant):
+    entry = catalog.load(root)["assets"]["R01"]
+    return catalog.load_params(catalog.params_path(root, entry, variant))
+
+
+def set_key(params, key, value):
+    *path, last = key.split(".")
+    node = params
+    for k in path:
+        node = node[k]
+    node[last] = value
+
+
+@pytest.fixture(scope="module")
+def r01_a(repo_root_module):
+    return load(repo_root_module, "R01_A")
+
+
+@pytest.fixture(scope="module")
+def r01_f(repo_root_module):
+    return load(repo_root_module, "R01_F")
+
+
+@pytest.fixture(scope="module")
+def r01(r01_a):
+    """The clean base: R01_A's file with every kit item neutral (severity 0)."""
+    params = copy.deepcopy(r01_a)
+    for key, value in vehicle.NEUTRAL.items():
+        set_key(params, key, value)
+    return params
+
+
 @pytest.fixture(scope="module")
 def built(r01):
     return vehicle.build(r01)
 
 
+@pytest.fixture(scope="module")
+def built_a(r01_a):
+    return vehicle.build(r01_a)
+
+
+@pytest.fixture(scope="module")
+def built_f(r01_f):
+    return vehicle.build(r01_f)
+
+
 def wheels(params):
     """The four wheel cylinders of the plan (the front wheelhouses' cylinders are rubber too)."""
-    return [c for n, c in vehicle.collision_plan(vehicle.Body(params)) if n.startswith("wheel_")]
+    return [c for n, c in vehicle.collision_plan(vehicle.Body(params)) if n.startswith(("wheel_", "rim_"))]
 
 
-def test_params_file_is_valid_and_the_clean_base(r01):
-    assert params_lib.validate(vehicle, r01) == []
-    assert (r01["model"], r01["state"], r01["severity"], r01["plate"]) == ("R01", "A", 0.0, "blank")
+def groups(plan):
+    out = {}
+    for name, _ in plan:
+        group = vehicle.plan_group(name)
+        out[group] = out.get(group, 0) + 1
+    return out
+
+
+# --- the clean base (task 1.1) --------------------------------------------------------------------------------------
+
+def test_params_files_are_valid(r01, r01_a, r01_f):
+    for params in (r01, r01_a, r01_f):
+        assert params_lib.validate(vehicle, params) == []
+    assert (r01["state"], r01["severity"], r01["plate"]) == ("A", 0.0, "blank")
+    assert (r01_a["model"], r01_a["state"], r01_a["severity"], r01_a["plate"]) == ("R01", "A", 0.5, "blank")
+    assert (r01_f["state"], r01_f["ride_drop"], r01_f["plate"]) == ("F", 0.17, "blank")
 
 
 def test_published_dimensions(r01, built):
@@ -62,27 +113,18 @@ def test_published_dimensions(r01, built):
     assert hi[1] == pytest.approx(1.44 + vehicle.RACK_RISE_M + vehicle.RACK_R_M, abs=0.002)
 
 
+# The plan the audit's 2 cm zone round the roof, bonnet and boot lid asks of the clean base (design decision 7's
+# note: the count is the audit's to set, not a budget).
+PLAN_COUNTS = {"lower body": 15, "tops": 4, "shoulder rolls": 10, "greenhouse": 23, "wheels": 6, "bumpers": 10,
+               "interior": 8, "rack": 8}
+
+
 def test_collision_plan(r01):
     plan = vehicle.collision_plan(vehicle.Body(r01))
     names = [n for n, _ in plan]
     assert len(names) == len(set(names))
-    groups = {}
-    for name, _ in plan:
-        key = next(g for g in PLAN_GROUPS if name.startswith(PLAN_GROUPS[g]))
-        groups[key] = groups.get(key, 0) + 1
-    assert groups == PLAN_COUNTS
-    assert len(plan) == sum(PLAN_COUNTS.values())
-
-
-PLAN_GROUPS = {"lower body": ("nose_", "lower_mid", "arch_", "tail_"),
-               "tops": ("front_wedge", "bonnet", "rear_wedge", "boot_lid"), "shoulder rolls": ("roll_",),
-               "greenhouse": ("cabin_", "band_", "windscreen", "rear_screen", "roof_", "pillar_"),
-               "wheels": ("wheel_", "wheelhouse_"), "bumpers": ("bumper_", "overrider_"),
-               "interior": ("seat_", "dashboard", "steering"), "rack": ("rack_",)}
-# The plan the audit's 2 cm zone round the roof, bonnet and boot lid asks of this shape (generators.vehicle,
-# collision_plan): design decision 7's 28 is not reachable with the audit passing (task 1.1's as-built note).
-PLAN_COUNTS = {"lower body": 15, "tops": 4, "shoulder rolls": 10, "greenhouse": 23, "wheels": 6, "bumpers": 10,
-               "interior": 8, "rack": 8}
+    assert groups(plan) == PLAN_COUNTS
+    assert len(plan) == sum(PLAN_COUNTS.values()) == 84
 
 
 def test_landable_and_materials(built, r01):
@@ -97,7 +139,7 @@ def test_landable_and_materials(built, r01):
     physics = {m["slot"]: m["physics"] for m in built["materials"]}
     assert physics["tyre"] == "rubber" and physics["seat"] == "fabric" and physics["paint"] == "sheet_metal"
     assert physics["plate"] == "sheet_metal"
-    assert built["gaps"] == [] and built["holes"] == []
+    assert built["gaps"] == [] and built["holes"] == [] and built["textures"] == [] and built["micro"] == []
     assert [w["porosity"] for w in built["wind_volumes"]] == [0.0, 0.0]
     kinds = sorted({s["kind"] for s in built["snag"]})
     assert kinds == ["edge", "hook"]
@@ -105,18 +147,38 @@ def test_landable_and_materials(built, r01):
 
 @pytest.mark.parametrize("key, value, text", [
     ("state", "B", "'state' = 'B' is not built yet"),
-    ("state", "F", "'state' = 'F' is not built yet: the F kit is task 1.2's"),
     ("pose", "on_side", "'pose' = 'on_side' is not built yet"),
     ("front", "2105_2107", "'front' = '2105_2107' is not built yet"),
     ("model", "R02", "'model' = 'R02' is not built yet"),
-    ("severity", 0.5, "not built yet: the A kit and the damage mask are task 1.2's"),
-    ("frag_holes", 16, "'frag_holes' = 0"),
+    ("frag_holes", 16, "'severity' = 0 is the clean base, so it needs 'frag_holes' = 0"),
     ("bonnet", "corner_folded", "'bonnet' = 'closed'"),
     ("paint", "beige", "'paint' = 'beige' is not built yet"),
 ])
 def test_not_built_yet_refusals(r01, key, value, text):
     params = copy.deepcopy(r01)
-    params[key] = value
+    set_key(params, key, value)
+    problems = params_lib.validate(vehicle, params)
+    assert any(text in p for p in problems), problems
+
+
+@pytest.mark.parametrize("variant, key, value, text", [
+    ("A", "burn", 0.5, "'burn' = 0.5 is the F kit's: state A needs 0"),
+    ("A", "flat_tyres.rear_right", True, "more than one flat tyre is not built yet"),
+    ("A", "glass_side.front_right", "crazed_shards", "'crazed_shards' is not built yet"),
+    ("A", "burst_dir.azimuth", 160.0, "a struck rear corner) is not built yet"),
+    ("A", "frag_hole_size", 0.1, "must stay under the large holes' 0.08 m"),
+    ("A", "bonnet", "standing", "'bonnet' = 'standing' is not built yet in state A"),
+    ("A", "doors.front_left", "open", "'doors.front_left' = 'open' is not built yet"),
+    ("A", "frag_holes", 60, "no room on the burst side's panels"),
+    ("F", "glass_side.rear_left", "intact", "must be 'gone' in state F"),
+    ("F", "ride_drop", 0.05, "is under the tyre's own loss"),
+    ("F", "frag_holes", 5, "'frag_holes' = 5 is not built yet in state F"),
+    ("F", "rims_melted", True, "'rims_melted' = True is not built yet"),
+    ("F", "burn_origin", "cargo", "'burn_origin' = 'cargo' is not built yet in state F"),
+])
+def test_kit_refusals(r01_a, r01_f, variant, key, value, text):
+    params = copy.deepcopy(r01_a if variant == "A" else r01_f)
+    set_key(params, key, value)
     problems = params_lib.validate(vehicle, params)
     assert any(text in p for p in problems), problems
 
@@ -157,17 +219,22 @@ def test_dimension_checks(r01):
     assert any("must make 'length' 4.073 within 1 mm" in p for p in problems)
 
 
-def test_lod_budget(built):
-    tris = [m.triangles() for m in built["lods"]]
+@pytest.mark.parametrize("which", ["built", "built_a", "built_f"])
+def test_lod_budget(which, request):
+    result = request.getfixturevalue(which)
+    tris = [m.triangles() for m in result["lods"]]
     assert tris[0] < 60000
     assert all(b * 2 <= a for a, b in zip(tris, tris[1:])), tris
-    assert built["switch_distances_m"] == [0.0, 20.0, 80.0, 300.0] and built["cull_distance_m"] == 1500.0
-    assert built["thin_wire"] == [False] * 4
+    assert result["switch_distances_m"] == [0.0, 20.0, 80.0, 300.0] and result["cull_distance_m"] == 1500.0
+    assert result["thin_wire"] == [False] * 4
 
 
-def test_deterministic(r01, built):
-    again = vehicle.build(r01)
-    assert again["lods"][0].vertices == built["lods"][0].vertices and again["collision"] == built["collision"]
+@pytest.mark.parametrize("which", ["r01", "r01_a", "r01_f"])
+def test_deterministic(which, request):
+    params = request.getfixturevalue(which)
+    one, two = vehicle.build(params), vehicle.build(params)
+    assert one["lods"][0].vertices == two["lods"][0].vertices and one["collision"] == two["collision"]
+    assert [t["png"] for t in one["textures"]] == [t["png"] for t in two["textures"]]
 
 
 def test_params_edits_move_the_geometry(r01):
@@ -179,3 +246,227 @@ def test_params_edits_move_the_geometry(r01):
     wider["track_rear"] = 1.32
     w = [c for c in wheels(wider) if c["center"][0] > 0]
     assert abs(w[0]["center"][2] - w[1]["center"][2]) == pytest.approx(1.32, abs=1e-9)
+
+
+# --- the A kit (letter M) ---------------------------------------------------------------------------------------------
+
+def test_a_holes_by_side_and_size(r01_a, built_a):
+    """The sheet's M: about 6 large holes (0.08-0.25 m, the struck corner's lamp tear one of them) and 10 small
+    (10-30 mm), all on the burst side (the left, the burst from 290 degrees); 30 mm or more cut in the mesh."""
+    kit = vehicle.Kit(vehicle.Body(r01_a), r01_a)
+    assert kit.side == -1 and kit.notch is not None
+    assert {h.side for h in kit.holes} == {-1}
+    large = [h for h in kit.holes if h.d >= kits.LARGE_MIN_M]
+    small = [h for h in kit.holes if h.d < kits.CUT_MIN_M]
+    assert len(kit.holes) + 1 == r01_a["frag_holes"] == 16  # the lamp tear is the sixteenth
+    assert len(large) + 1 == round(16 * 6 / 16) == 6 and len(small) == 10
+    assert all(kits.LARGE_MIN_M <= h.d <= kits.LARGE_MAX_M and h.cut and len(h.petals) >= 5 for h in large)
+    assert all(kits.SMALL_MIN_M <= h.d < r01_a["frag_hole_size"] and not h.cut for h in small)
+    # each cut hole's rim is a closed edge snag, its petals' torn outlines too; the far side carries none
+    rims = [s for s in built_a["snag"] if s["kind"] == "edge" and s["points"][0] == s["points"][-1]
+            and len(s["points"]) == 49]
+    assert len(rims) == len(large)
+    assert all(p[2] < 0 for s in rims for p in s["points"])
+
+
+def test_a_petals_reach_the_open_centre(r01_a):
+    """A large hole stays closed in collision (the sheet's deviation for holes of 0.25 m or less): its petals,
+    bent 10-30 mm in (measured M), reach to within AST-05's 5 cm of the open centre."""
+    kit = vehicle.Kit(vehicle.Body(r01_a), r01_a)
+    for h in kit.holes:
+        for petal in h.petals:
+            flat, bend = h.petal_tip(petal)
+            rim = h.rim_radius(petal["tip"])
+            length = (rim - flat)
+            depth = length * math.sin(bend)
+            reach = rim - length * math.cos(bend)
+            assert 0.0 < depth <= kits.PETAL_DEPTH_M[1] + 1e-9
+            assert math.hypot(reach, depth) <= kits.APERTURE_M + 1e-9
+
+
+def test_a_flat_corner_drop_and_lean(r01_a, built_a):
+    """The flat front tyre (measured M): its corner 0.04-0.08 m lower, the body turned about the opposite diagonal,
+    so it leans 1-2 degrees: atan(drop / track) across and atan(drop / wheelbase) along (the sheet's derivation)."""
+    body = vehicle.Body(r01_a)
+    kit = vehicle.Kit(body, r01_a)
+    drop = body.z_wc - kit.hubs["front_left"][1]
+    assert 0.04 <= drop <= 0.08 and drop == pytest.approx(kits.FLAT_DROP_M, abs=1e-6)
+    for corner in ("front_right", "rear_left", "rear_right"):
+        assert kit.hubs[corner][1] == pytest.approx(body.z_wc, abs=1e-9)
+    # the body's own hubs: the diagonal stays, the far corner rises as the near one drops
+    hub = {c: body.P(a, s * t / 2, body.z_wc) for c, a, s, t in (
+        ("front_left", body.axle[0], -1, body.track[0]), ("front_right", body.axle[0], 1, body.track[0]),
+        ("rear_left", body.axle[1], -1, body.track[1]), ("rear_right", body.axle[1], 1, body.track[1]))}
+    for corner in ("front_right", "rear_left"):
+        assert kit.T.point(hub[corner]) == pytest.approx(hub[corner], abs=1e-9)
+    assert kit.T.point(hub["rear_right"])[1] - body.z_wc == pytest.approx(drop, abs=0.005)
+    across = math.degrees(math.asin(kit.T.vector((0.0, 0.0, 1.0))[1]))
+    along = math.degrees(math.asin(kit.T.vector((1.0, 0.0, 0.0))[1]))
+    assert across == pytest.approx(math.degrees(math.atan(drop / body.track[0])), abs=0.1)
+    assert along == pytest.approx(math.degrees(math.atan(drop / r01_a["wheelbase"])), abs=0.1)
+    assert 1.0 <= abs(along) <= 2.2 and 1.0 <= abs(across) <= 2.2
+    # the flat wheel's cylinder: over its dropped hub, from the tread flattened on the ground up to the published
+    # 0.594 m tyre's top, 0.165 m wide
+    flat = dict(named(r01_a))["wheel_front_left"]
+    hub = kit.hubs["front_left"]
+    assert 2 * body.r_tyre == pytest.approx(0.594, abs=0.0005)
+    assert flat["center"][1] - flat["radius"] == pytest.approx(0.0, abs=1e-6)
+    assert flat["center"][1] + flat["radius"] == pytest.approx(hub[1] + body.r_tyre, abs=1e-6)
+    assert (flat["center"][0], flat["center"][2]) == pytest.approx((hub[0], hub[2]), abs=1e-6)
+    assert flat["height"] == pytest.approx(0.165, abs=0.0005)
+
+
+def named(params):
+    """The kit's collision plan with its names (build's "collision" is its shapes, in order)."""
+    body = vehicle.Body(params)
+    kit = vehicle.Kit(body, params)
+    return vehicle.collision_plan(body, kit, vehicle._pieces(body, kit))
+
+
+def test_a_scatter_density(r01_a):
+    """K07's scatter round the struck corner (the sheet: 1-4 m, densest within 2 m, 1/r^2): a lamp bowl, a bezel
+    ring and shards of trim, at distances log-uniform between 1 m and debris_radius, none inside the car."""
+    # 80 pieces for the statistics, over 8 m: so many do not fit apart within the sheet's 4 m
+    params = copy.deepcopy(r01_a)
+    params["debris_count"], params["debris_radius"] = 80, 8.0
+    body = vehicle.Body(params)
+    kit = vehicle.Kit(body, params)
+    pieces = vehicle._pieces(body, kit)
+    corner = (body.x(0.0), kit.side * body.hw(body.s_front))
+    r = [math.hypot(p["rigid"].t[0] - corner[0], p["rigid"].t[2] - corner[1]) for p in pieces]
+    assert len(pieces) == 80 and all(1.0 - 1e-9 <= d <= 8.0 + 1e-9 for d in r)
+    # 1/r^2 areal density: ln r uniform between ln 1 and ln 8 (mean ln sqrt 8, half within sqrt 8 m)
+    assert sum(math.log(d) for d in r) / len(r) == pytest.approx(math.log(8.0) / 2, abs=0.12)
+    assert sum(d < math.sqrt(8.0) for d in r) / len(r) == pytest.approx(0.5, abs=0.12)
+    for p in pieces:
+        x, z = p["rigid"].t[0], p["rigid"].t[2]
+        assert abs(x) > body.L / 2 or abs(z) > body.W / 2
+    a_pieces = vehicle._pieces(vehicle.Body(r01_a), vehicle.Kit(vehicle.Body(r01_a), r01_a))
+    kinds = [p["collision"][0]["shape"] for p in a_pieces]
+    assert len(a_pieces) == 12 and kinds.count("sphere") == 1 and kinds[1] == "capsule" and kinds.count("box") == 10
+
+
+def test_a_glass_and_cabin(r01_a, built_a):
+    """Side glass gone on the burst side (crumbs inside and under the doors), the far side's in, the crazed
+    windscreen its own slot over the transparent glass, the rear screen in; the greenhouse's porosity 0.35."""
+    lod0 = built_a["lods"][0]
+    rear_screen_x = vehicle.Body(r01_a).x(vehicle.Body(r01_a).s_rs_top)
+    side_glass = [f for f in lod0.faces if f[3] == "glass" and abs(f[1][2]) > 0.5  # facing out, ahead of the screen
+                  and all(lod0.vertices[i][0] < rear_screen_x for i in f[0])]
+    left_glass = [f for f in side_glass if lod0.vertices[f[0][0]][2] < -0.4]
+    right_glass = [f for f in side_glass if lod0.vertices[f[0][0]][2] > 0.4]
+    assert not left_glass and right_glass
+    assert "windscreen" in lod0.slots() and "windscreen" in built_a["lods"][1].slots()
+    assert "windscreen" not in built_a["lods"][2].slots()
+    crumbs = [m for m in built_a["micro"] if m["kind"] == "glass_crumbs"]
+    assert len(crumbs) == 1 and crumbs[0]["count"] == 2 * vehicle.CRUMBS_PER_WINDOW
+    assert [w["porosity"] for w in built_a["wind_volumes"]] == [0.0, 0.35]
+    plan = dict(named(r01_a))
+    assert [c for _, c in named(r01_a)] == built_a["collision"]
+    for screen, count in (("windscreen", 6), ("rear_screen", 3)):  # the crazed pane in two across, the other in one
+        panes = [n for n in plan if n.startswith(screen + "_") and not n.startswith(screen + "_frame")]
+        frames = [n for n in plan if n.startswith(screen + "_frame")]
+        assert len(panes) == count and {plan[n]["material"] for n in panes} == {"glass"}
+        assert len(frames) == 4 and {plan[n]["material"] for n in frames} == {"sheet_metal"}
+    assert not any(n.startswith("cabin_") for n in plan)
+
+
+def test_a_landable_and_materials(r01_a):
+    plan = named(r01_a)
+    landable = sorted(n for n, c in plan if c["landable"])
+    assert landable == ["bonnet_front", "bonnet_side", "bonnet_tear", "boot_lid", "rack_tube_1", "rack_tube_3",
+                        "roof_0_left", "roof_0_right", "roof_1_left", "roof_1_right", "roof_2_left", "roof_2_right"]
+    by_name = dict(plan)
+    assert not any(by_name[n]["landable"] for n in by_name if n.startswith(("flap_", "scuttle_")))
+    assert {by_name[n]["material"] for n in by_name if n.startswith("wheel_")} == {"rubber"}
+    assert {by_name[n]["material"] for n in by_name if n.startswith("seat_")} == {"fabric"}
+    assert {by_name[n]["material"] for n in by_name if n.startswith("scatter_")} == {"steel"}
+
+
+def test_a_textures(r01_a, built_a):
+    """The crack mask (1k on its long side) over the crazed pane's UVs, its lines drawn; the damage mask over the
+    paint's canvas (2048 x 1024, RGBA): halos in R, dust in B, no soot or burn in A."""
+    by_role = {t["role"]: t for t in built_a["textures"]}
+    crack, damage = by_role["crack_mask"], by_role["damage_mask"]
+    assert crack["slot"] == "windscreen" and damage["slot"] == "paint"
+    w, h, channels, planes = masks.read_png(crack["png"])
+    assert (w, h, channels) == (512, 1024, 1)
+    lit = sum(1 for v in planes[0] if v) / (w * h)
+    assert 0.005 < lit < 0.3
+    body = vehicle.Body(r01_a)
+    assert tuple(crack["uv_min"]) == pytest.approx(vehicle._pane_extent(body)[0])
+    assert tuple(crack["uv_max"]) == pytest.approx(vehicle._pane_extent(body)[1])
+    w, h, channels, planes = masks.read_png(damage["png"])
+    assert (w, h, channels) == (2048, 1024, 4)
+    assert max(planes[0]) > 0 and max(planes[2]) > 0 and max(planes[1]) == 0 and max(planes[3]) == 0
+    data = meta.assemble("R01", "R01_A", "vehicle", r01_a, built_a, {m["slot"]: "x" for m in built_a["materials"]})
+    assert sorted(t["file"] for t in data["textures"]) == ["R01_A_damage.png", "R01_A_windscreen_cracks.png"]
+
+
+# --- the F kit ---------------------------------------------------------------------------------------------------------
+
+def test_f_drop_and_rims(r01_f, built_f):
+    """On its steel rims (the sheet's F drop 0.17 m, 0.15-0.20): the body 0.17 m down, each wheel a steel cylinder at
+    the rim's flange radius on the ground, two bead-wire rings per wheel, the roof sagging 0.04 m with its crease."""
+    body = vehicle.Body(r01_f)
+    kit = vehicle.Kit(body, r01_f)
+    assert kit.T.t == pytest.approx((0.0, -0.17, 0.0), abs=MM5) and kit.T.is_identity() is False
+    assert 0.15 <= -kit.T.t[1] <= 0.20
+    plan = named(r01_f)
+    assert [c for _, c in plan] == built_f["collision"]
+    rims = [c for n, c in plan if n.startswith("rim_")]
+    assert len(rims) == 4 and not any(n.startswith(("wheel_", "wheelhouse_")) for n, _ in plan)
+    for c in rims:
+        assert c["radius"] == pytest.approx(vehicle.RIM_FLANGE_R_M) and c["material"] == "steel"
+        assert c["center"][1] == pytest.approx(vehicle.RIM_FLANGE_R_M)
+    beads = [n for n, _ in plan if n.startswith("bead_")]
+    assert len(beads) == 8 * 8  # eight rings of K07's eight capsules
+    crown = body.cap_section(body.s_crease, 0.0)[1]
+    flat = vehicle.Body(dict(r01_f, roof_push=0.0)).cap_section(body.s_crease, 0.0)[1]
+    assert flat - crown == pytest.approx(0.04, abs=1e-6)
+    lowest = min(v[1] for v in built_f["lods"][0].vertices if abs(v[0]) < 1.0 and abs(v[2]) < 0.4)
+    assert lowest == pytest.approx(min(y for _, y in body.underbody) - 0.17, abs=0.002)
+
+
+def test_f_burnt_surfaces(built_f):
+    """Soot-black paint, bare steel over the engine bay and the roof, dulled chrome, no glass, rubber or lenses;
+    the seats as frames with springs (hooks); the soot patch a micro mesh in LOD0-LOD2; porosity 0.55."""
+    lod0 = built_f["lods"][0]
+    slots = lod0.slots()
+    assert {"soot", "bare", "chrome_dull", "rack", "wire"} <= set(slots)
+    assert not {"paint", "chrome", "glass", "windscreen", "tyre", "lens", "seat", "vinyl", "plate"} & set(slots)
+    bare = [lod0.vertices[f[0][0]] for f in lod0.faces if f[3] == "bare"]
+    assert any(v[0] < -1.0 and v[1] > 0.6 for v in bare) and any(v[1] > 1.2 for v in bare)  # bonnet and roof
+    assert [m["lod"] for m in built_f["micro"] if m["kind"] == "soot_patch"] == [0, 1, 2]
+    assert [w["porosity"] for w in built_f["wind_volumes"]] == [0.0, 0.55]
+    hooks = [s for s in built_f["snag"] if s["kind"] == "hook"]
+    assert len([s for s in hooks if s["radius_m"] == vehicle.SPRING_R_M]) >= 6 * 3
+    by_role = {t["role"]: t for t in built_f["textures"]}
+    _, _, _, planes = masks.read_png(by_role["damage_mask"]["png"])
+    assert min(planes[1]) == 255 and 0 < sum(1 for v in planes[3] if v) < len(planes[3])
+
+
+def test_k07_pieces_match_their_params_files(repo_root_module):
+    entry = catalog.load(repo_root_module)["assets"]["K07"]
+    for variant in entry["variants"]:
+        params = catalog.load_params(catalog.params_path(repo_root_module, entry, variant))
+        sizes = {k: params[k] for k in ("diameter_m", "section_m", "length_m", "width_m", "bend_m")}
+        assert vehicle.K07[params["piece"]] == sizes, variant
+
+
+# The plans the audit's 2 cm zone asks of the A and F cars (the counts are its to set, not a budget; pinned by group
+# so a change is seen). The open cabin's door tops, trims, wheel tubs and boot; A's torn bonnet edge, its folded
+# flap's strips, the crazed pane in six and the K07 scatter; F's open front arches, frames and bead wires.
+A_COUNTS = {"lower body": 39, "tops": 11, "shoulder rolls": 13, "greenhouse": 50, "bumpers": 10, "interior": 19,
+            "rack": 8, "flap": 13, "wheels": 6, "scatter": 19}
+F_COUNTS = {"lower body": 53, "tops": 5, "shoulder rolls": 8, "greenhouse": 54, "bumpers": 10, "interior": 18,
+            "rack": 8, "wheels": 4, "bead wires": 64}
+
+
+@pytest.mark.parametrize("which, counts", [("r01_a", "A"), ("r01_f", "F")])
+def test_kit_plans_by_group(which, counts, request):
+    plan = named(request.getfixturevalue(which))
+    pinned = A_COUNTS if counts == "A" else F_COUNTS
+    assert len({n for n, _ in plan}) == len(plan)
+    assert groups(plan) == pinned
+    assert len(plan) == sum(pinned.values())

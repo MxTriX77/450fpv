@@ -35,10 +35,12 @@
     "R01": {
       "class": "vehicles",
       "generator": "vehicle",
-      "variants": ["R01_A"],
+      "variants": ["R01_A", "R01_F"],
       "materials": { "paint": "car_paint", "under": "car_soot", "chrome": "chrome", "glass": "car_glass", "tyre": "tyre",
                      "seat": "seat_fabric", "vinyl": "car_vinyl", "lamp": "car_lamps", "lens": "car_lamps",
-                     "rack": "car_soot", "plate": "car_lamps" }
+                     "rack": "car_soot", "plate": "car_lamps", "windscreen": "glass", "rust": "car_rust",
+                     "wire": "car_rust", "soot": "car_burnt", "bare": "car_bare", "chrome_dull": "chrome_burnt",
+                     "soot_patch": "soot_patch" }
     },
     "S04": {
       "class": "surfaces",

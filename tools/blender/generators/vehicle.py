@@ -59,7 +59,8 @@ interior as boxes, wheels 16-sided; LOD2 a coarse hull with the glass in its sur
 """
 import math
 
-from lib import loft, meta
+from lib import kits_vehicle as kits
+from lib import loft, masks, meta
 from lib.geometry import Mesh
 from lib.skeleton import add, cross, dot, norm, normalize, scale, sub
 
@@ -70,8 +71,14 @@ PLANTED = True
 # --- slots and materials ------------------------------------------------------------------------------------------
 PAINT, UNDER, CHROME, GLASS, TYRE, SEAT, VINYL, LAMP, LENS, RACK, PLATE = (
     "paint", "under", "chrome", "glass", "tyre", "seat", "vinyl", "lamp", "lens", "rack", "plate")
+# the kits' slots (task 1.2): the crazed windscreen's own (the transparent glass, design 6), torn steel rusting, a
+# burnt tyre's bead wires, soot-black and burnt-off paint, dulled chrome, the soot patch
+WINDSCREEN, RUST, WIRE, SOOT, BARE, CHROME_DULL, SOOT_PATCH = (
+    "windscreen", "rust", "wire", "soot", "bare", "chrome_dull", "soot_patch")
 PHYSICS = {PAINT: "sheet_metal", UNDER: "sheet_metal", CHROME: "steel", GLASS: "glass", TYRE: "rubber",
-           SEAT: "fabric", VINYL: "plastic", LAMP: "glass", LENS: "plastic", RACK: "steel", PLATE: "sheet_metal"}
+           SEAT: "fabric", VINYL: "plastic", LAMP: "glass", LENS: "plastic", RACK: "steel", PLATE: "sheet_metal",
+           WINDSCREEN: "glass", RUST: "sheet_metal", WIRE: "steel", SOOT: "sheet_metal", BARE: "sheet_metal",
+           CHROME_DULL: "steel", SOOT_PATCH: "surface:burnt_field"}
 # car_lamps' palette columns (assets-src/materials/car_lamps.json), left to right: the lenses and the blank plate
 LAMP_COLUMNS = ("clear", "red", "amber", "plate")
 LAMP_UV = {c: ((k + 0.5) / 4, 0.5) for k, c in enumerate(LAMP_COLUMNS)}
@@ -141,7 +148,9 @@ PRESETS = {
         # interior (assumed, the class; the drawing's seat outlines for s)
         "front_seat": {"s": (1.50, 1.97), "y": (0.30, 0.55), "w": 0.33, "half": 0.24,
                        "back": ((1.97, 0.52), (2.11, 1.04)), "back_t": 0.10},
-        "rear_seat": {"s": (2.32, 2.74), "y": (0.28, 0.52), "w": 0.0, "half": 0.62,
+        # the rear bench spans between the quarters' trims (task 1.2: 0.665 m, 3.5 cm off the trim, assumed; task 1.1
+        # had 0.62 m between the wheel arches, which left the arches' tops bare beside it once a door's glass goes)
+        "rear_seat": {"s": (2.32, 2.74), "y": (0.28, 0.52), "w": 0.0, "half": 0.665,
                       "back": ((2.74, 0.50), (2.93, 0.98)), "back_t": 0.10},
         "dashboard": {"s": (1.05, 1.32), "y": (0.66, 0.96), "half": 0.66},
         "steering": {"s": 1.43, "w": -0.33, "y": 0.86, "tilt_deg": 25.0, "r": 0.195, "tube": 0.013},
@@ -211,6 +220,59 @@ BAND_DEPTH_M = 0.12       # and this far in from the band's plane
 BAND_C_INSET_M = 0.01     # the C pillar's box 1 cm inside the band: its plane, yawed with the tail's taper, runs
                           # outside the band where it reaches ahead of the rear screen
 
+# --- the kits' numbers (task 1.2; the sheet's, or labelled) ----------------------------------------------------------
+RIM_FLANGE_R_M = 0.183    # the sheet: a 13-inch rim's flange radius (the F drop's 0.282 - 0.183 m)
+RIM_WIDTH_M = 0.13        # a 5J rim over its flanges (assumed: 165-section tyres)
+DOOR_T_M = 0.10           # a door's depth from its skin to its trim at the belt (assumed: the class), and the cabin's
+                          # inner side walls this far in from the flank
+SILL_T_M = 0.02           # the cabin floor's and the thin shells' collision boxes (the bonnet's 0.02 m lids)
+SHELL_T_M = 0.012         # the open cabin's thin boxes over the roof's halves, the panes and the rolls
+BAND_SHELL_M = 0.018      # and over the band (its frame sheet is BAND_T_M deep)
+NOTCH_DEPTH_M = 0.10      # the struck corner's lamp tear: how far back along the wing (derived: the tear 0.20 x 0.25 m,
+                          # measured M, round a lamp bezel of 0.18 m)
+NOTCH_LEVEL = 0.55        # its floor on the section level under the lamp (the lamp's foot, 0.595 m, less its ring)
+FLAP_ACROSS = 0.6 / 0.45  # measured M: the flap 0.35-0.45 x 0.6 m; bonnet_flap is the 0.45, along the side
+DECK_DROP_M = 0.045       # the engine bay's contents under the torn corner stand this far under the bonnet's mean line
+                          # (assumed: the class's master cylinder and heater box under the scuttle; M's "engine bay
+                          # under the flap"); the pocket's walls stay within AST-05's 2 cm of it or the bonnet
+LID_KIT_M = 0.012         # the torn bonnet's boxes, thin over that pocket
+COWL_LEVEL_M = 0.1        # the open cabin's wedge under the bonnet ends level this far ahead of the cowl
+COWL_STEP_M = 0.002       # the open cabin's body sides step from the wing's crease to the door's over this
+# the open cabin's door tops: (width out from the trim, bottom, top over the roll's centre line) of two steps whose
+# outer-top corners lie on the shoulder's 0.1 m roll at 36.9 and 55 degrees, so the inner corner between them
+# keeps 8.3 cm from the roll's centre (1.7 cm under the skin) and the arc keeps within 2 cm of the steps
+DOOR_TOP_STEPS = ((0.08, 0.0, 0.06), (0.0574, 0.05, 0.0819))
+# and under the bonnet's torn side edge the wing's roll the same, over the flank's top 0.1 m from the inner wing out
+WING_STEPS = ((0.1, -0.1, 0.0),) + DOOR_TOP_STEPS
+# the rear wheel tubs' tops in the open cabin, from the arch's front to the upper bulkhead (at 93 degrees): three
+# 30-degree pieces, the arc within 1.2 cm of them and their corners 2.4 cm off it (AST-05's 5 cm there)
+TUB_PHI_DEG = (165.0, 135.0, 105.0)
+TUB_SPAN_DEG = 30.0
+TUB_T_M = 0.012
+# and a plate (length, height) on each inner wall's cabin face ahead of the lower bulkhead, from the axle's height:
+# where the wall lies over 5 cm from the tubs' boxes and the bulkhead's (its top corner 3 cm over the arch)
+ARCH_WALL_M = (0.10, 0.20)
+FLAP_STRIP_M = 0.035      # the folded flap's collision strips (their square ends within 2 cm of the torn diagonal)
+WS_HOLE_M = (0.20, 0.03)  # the windscreen's hole where the flap's edge struck it, up the pane and across: a slit cut by
+                          # the sheet's edge (design decision 3 assumed 0.1 x 0.2 m; a slit closes in the pane's glass
+                          # collision, as a fragment hole of 0.25 m or less does, and this one within AST-05's 2 cm:
+                          # its half-width with the rim's jitter 1.7 cm)
+WS_BULGE_M = 0.012        # the crazed pane bulged inward round the hole (assumed; within AST-05's 2 cm of its box)
+WS_BULGE_R_M = 0.30
+CRUMB_M = (0.010, 0.010, 0.004)   # design decision 9: crumbs 10 x 10 x 4 mm
+CRUMBS_PER_WINDOW = 1000  # design decision 9: the sheet's 3 600 capped at 1 000 per window at G1 (assumed)
+CRUMB_INSIDE = 0.7        # the sheet: 70 % inside and within 1 m below the pane
+BEAD_SECTION_M = 0.006    # K07's bead wire: a 6 mm bundle (the sheet: 5-8 mm)
+BEAD_DIAMETER_M = 0.37    # K07_bead_wire's Ø (the sheet: 0.33-0.41 m)
+SPRING_R_M = 0.002        # the sheet: burnt seat springs, wire r 2 mm
+FRAME_TUBE_R_M = 0.008    # a seat frame's tubes (assumed: 16 mm)
+CANVAS = {"side": {-1: (0.0, 0.0), 1: (0.0, 2.0)}, "band": {-1: (4.0, 0.0), 1: (4.0, 2.0)}, "top": (0.0, 4.0),
+          "front": (4.0, 4.0), "rear": (6.0, 4.0)}
+# The paint's UV canvas: each panel group's metres moved by whole 2 m tiles of car_paint (so the paint looks the
+# same), so no two panels share a UV and the damage mask (2048 x 1024 over CANVAS_MIN..CANVAS_MAX) is one atlas.
+CANVAS_MIN, CANVAS_MAX, CANVAS_PX = (-2.2, 0.0), (6.8, 5.0), (2048, 1024)
+CRACK_PX = (512, 1024)    # design decision 5: the crack mask, 1k on its long side (across the pane), along x 512
+
 # --- the parameter table (vehicles.md, shared table and R01) --------------------------------------------------------
 
 def _params():
@@ -254,20 +316,21 @@ def _params():
         "paint": {"type": "str", "range": ", ".join(PAINTS), "default": "dark_green",
                   "effect": "body colour, by its recipe (only dark_green, car_paint, is built)"},
         "paint_fade": {"type": "float", "range": (0.0, 1.0), "default": 0.3,
-                       "effect": "chroma loss and chalk on upward faces (with the damage mask, task 1.2)"},
+                       "effect": "chroma loss and chalk on upward faces: the damage mask's B (its shader binds it later)"},
         "state": {"type": "str", "range": ", ".join(STATES), "default": "A", "effect": "which kit runs"},
         "severity": {"type": "float", "range": (0.0, 1.0), "default": 0.5,
-                     "effect": "the kit's master dial; 0 is the clean base"},
+                     "effect": "the kit's master dial: 0 is the clean base (every item neutral); above 0 the state's kit runs with its items as the file sets them"},
         "burst_dir.azimuth": {"type": "float", "range": (0.0, 360.0), "default": 0.0,
-                              "effect": "the burst's bearing (deg): hole side, petals, fold, debris bias"},
+                              "effect": "where the burst came from (deg clockwise from the nose seen from above: 90 right, 270 left): the holed side, the struck front corner, the fold, the scatter"},
         "burst_dir.elevation": {"type": "float", "range": (-10.0, 60.0), "default": 0.0,
-                                "effect": "the burst's height (deg)"},
-        "frag_holes": {"type": "int", "range": (0, 60), "default": 16, "effect": "fragment holes on the burst side"},
+                                "effect": "the burst's height (deg): the holes' heights (low for a burst on the ground)"},
+        "frag_holes": {"type": "int", "range": (0, 60), "default": 16,
+                       "effect": "fragment holes on the burst side, 6 in 16 large (measured M); the struck corner's lamp tear is one of them"},
         "frag_hole_size": {"type": "float", "range": (0.01, 0.25), "default": 0.03,
-                           "effect": "the holes' median diameter (log-uniform)"},
+                           "effect": "the small holes' largest diameter (log-uniform from 0.01 m; the large are 0.08-0.18 m): with the 6 in 16 large, the median of all"},
         "rust_halo": {"type": "float", "range": (1.2, 2.5), "default": 1.8, "effect": "halo size per hole"},
         "months_abandoned": {"type": "int", "range": (0, 36), "default": 6,
-                             "effect": "dust, streaks, fade, litter, flat tyres"},
+                             "effect": "dust and rust streaks in the damage mask (B, R)"},
         "flat_tyres.front_left": {"type": "bool", "range": "true or false", "default": False, "effect": "flat"},
         "flat_tyres.front_right": {"type": "bool", "range": "true or false", "default": False, "effect": "flat"},
         "flat_tyres.rear_left": {"type": "bool", "range": "true or false", "default": False, "effect": "flat"},
@@ -356,12 +419,13 @@ def check(params):
         problems.append(f"'body' = {flat['body']!r} is not built yet: R01 is a sedan (the estate is a later option)")
     if flat["state"] == "B":
         problems.append("'state' = 'B' is not built yet (not in this change)")
-    elif flat["state"] == "F":
-        problems.append("'state' = 'F' is not built yet: the F kit is task 1.2's")
-    kit = [k for k, v in NEUTRAL.items() if flat[k] != v]
-    if kit:
-        problems.append("not built yet: the A kit and the damage mask are task 1.2's, so the clean base needs "
-                        + ", ".join(f"'{k}' = {NEUTRAL[k]!r}" for k in kit))
+    elif flat["severity"] == 0:
+        kit = [k for k, v in NEUTRAL.items() if flat[k] != v]
+        if kit:
+            problems.append("'severity' = 0 is the clean base, so it needs "
+                            + ", ".join(f"'{k}' = {NEUTRAL[k]!r}" for k in kit))
+    else:
+        problems += _kit_problems(flat)
     if problems or flat["model"] not in PRESETS:
         return problems
     published = PRESETS[flat["model"]]["published"]
@@ -381,6 +445,73 @@ def check(params):
     if not lod["lod1_switch_m"] < lod["lod2_switch_m"] < lod["lod3_switch_m"] < lod["cull_m"]:
         problems.append(f"'lod.*' must increase: {lod['lod1_switch_m']}, {lod['lod2_switch_m']}, "
                         f"{lod['lod3_switch_m']}, {lod['cull_m']}")
+    if not problems and flat["state"] == "A" and flat["frag_holes"] > 0:
+        try:
+            Kit(Body(params), params)
+        except ValueError as e:  # the holes do not fit on the burst side's panels
+            problems.append(f"'frag_holes' = {flat['frag_holes']}: {e}")
+    return problems
+
+
+A_BUILT = {"interior": ("intact", "crumbs"), "windscreen": ("intact", "crazed_holed"),
+           "bonnet": ("closed", "corner_folded"), "burn_origin": BURN_ORIGINS}
+F_BUILT = {"interior": ("burnt_frames",), "windscreen": ("gone",), "bonnet": ("closed",),
+           "burn_origin": ("engine", "cabin")}
+# kit items neither kit of this change moves (B's, or later options): they must stay at their neutral value
+UNBUILT = ("door_bulge", "panel_tears", "hanging_wiring", "bumper.front", "bumper.rear", "soot_film", "overgrowth",
+           "rims_melted") + tuple(f"doors.{c}" for c in CORNERS)
+
+
+def _kit_problems(flat):
+    """The A and F kits' rules (design decisions 3 and 4): what each builds, and that every other item stays
+    neutral ("not built yet")."""
+    problems = []
+    state = flat["state"]
+    built = A_BUILT if state == "A" else F_BUILT
+    for key, values in built.items():
+        if flat[key] not in values:
+            problems.append(f"'{key}' = {flat[key]!r} is not built yet in state {state} "
+                            f"({', '.join(values)})")
+    for key in UNBUILT:
+        if flat[key] != NEUTRAL[key]:
+            problems.append(f"'{key}' = {flat[key]!r} is not built yet: the A and F kits need {NEUTRAL[key]!r}")
+    if flat["ground"] != "soil":
+        problems.append(f"'ground' = {flat['ground']!r} is not built yet: the gallery's soil only")
+    glass = [flat[f"glass_side.{c}"] for c in CORNERS]
+    if any(g == "crazed_shards" for g in glass):
+        problems.append("'glass_side.*' = 'crazed_shards' is not built yet (intact or gone)")
+    flats = [c for c in CORNERS if flat[f"flat_tyres.{c}"]]
+    if state == "A":
+        for key in ("burn", "ride_drop", "soot_patch", "roof_push"):
+            if flat[key] != 0:
+                problems.append(f"'{key}' = {flat[key]} is the F kit's: state A needs 0")
+        if len(flats) > 1:
+            problems.append(f"'flat_tyres' = {', '.join(flats)}: more than one flat tyre is not built yet")
+        if flat["windscreen"] == "crazed_holed" and flat["bonnet"] != "corner_folded":
+            problems.append("'windscreen' = 'crazed_holed' needs 'bonnet' = 'corner_folded': the hole is where the "
+                            "flap's edge struck it")
+        if flat["frag_hole_size"] >= kits.LARGE_MIN_M:
+            problems.append(f"'frag_hole_size' = {flat['frag_hole_size']} must stay under the large holes' "
+                            f"{kits.LARGE_MIN_M} m (it is the small holes' largest diameter)")
+        bv = kits.burst_vector(flat["burst_dir.azimuth"], flat["burst_dir.elevation"])
+        if (flat["frag_holes"] > 0 or flat["debris_count"] > 0) and bv[0] >= 0:
+            problems.append(f"'burst_dir.azimuth' = {flat['burst_dir.azimuth']}: a burst from behind the car's "
+                            "middle (a struck rear corner) is not built yet")
+        if flat["bonnet"] == "corner_folded" and flat["frag_holes"] == 0:
+            problems.append("'bonnet' = 'corner_folded' needs 'frag_holes' > 0: the fold is the struck front's")
+    else:
+        if flat["burn"] <= 0:
+            problems.append("'burn' must be above 0 in state F")
+        if any(g != "gone" for g in glass):
+            problems.append("'glass_side.*' must be 'gone' in state F: the fire takes the glass")
+        if flats:
+            problems.append("'flat_tyres.*' must be false in state F: the tyres are burnt away, the car is on its rims")
+        if flat["ride_drop"] < TYRE_LOADED_R_M - RIM_FLANGE_R_M:
+            problems.append(f"'ride_drop' = {flat['ride_drop']} is under the tyre's own loss "
+                            f"{TYRE_LOADED_R_M - RIM_FLANGE_R_M:.3f} m (loaded radius less the rim's flange)")
+        for key in ("frag_holes", "debris_count", "crumb_cover"):
+            if flat[key] != 0:
+                problems.append(f"'{key}' = {flat[key]} is not built yet in state F (no strike fragments at G1)")
     return problems
 
 
@@ -437,6 +568,23 @@ class Body:
         self.edge_line = [(self.s_cowl, self.z_sh(self.s_cowl)), (self.s_a_top, self.z_re),
                           (self.s_drip_end, self.z_re), (self.s_c_top, min(self.z_re, z1)),
                           (self.s_rs_base, self.belt)]
+        # the F kit's sagged roof (roof_push): a dish over the flat crown, deepest on the crease across the roof
+        # halfway between the windscreen's and the rear screen's tops, where the profile along the car kinks
+        self.sag_m = params["roof_push"]
+        self.s_crease = (self.s_ws_top + self.s_rs_top) / 2
+
+    def sag(self, s, f):
+        """The roof's sag at station s and section fraction f of the flat crown (0 centre, 1 its edge)."""
+        if self.sag_m <= 0 or not self.s_ws_top < s < self.s_rs_top or f >= 1:
+            return 0.0
+        a, b = (self.s_ws_top, self.s_crease) if s <= self.s_crease else (self.s_rs_top, self.s_crease)
+        along = math.sin(math.pi / 2 * (s - a) / (b - a))
+        return self.sag_m * along * math.cos(math.pi / 2 * f) ** 2
+
+    def uv(self, group, side=0):
+        """The paint's UV in its canvas (CANVAS): (u, v) in metres moved by the group's whole tiles."""
+        off = CANVAS[group][side] if isinstance(CANVAS[group], dict) else CANVAS[group]
+        return lambda u, v: (u + off[0], v + off[1])
 
     def x(self, s):
         return s - self.L / 2
@@ -526,7 +674,7 @@ class Body:
         wf = we - r
         if t <= CAP_FLAT:
             f = t / CAP_FLAT
-            return f * wf, ze + r + (crown - r) * (1 - f * f)
+            return f * wf, ze + r + (crown - r) * (1 - f * f) - self.sag(s, f)
         a = math.pi / 2 * (t - CAP_FLAT) / (1 - CAP_FLAT)
         return wf + r * math.sin(a), ze + r * math.cos(a)
 
@@ -537,11 +685,284 @@ class Body:
         wf = we - min(EDGE_R_M, crown)
         return self.cap_point(s, math.copysign(CAP_FLAT * min(abs(w) / wf, 1.0), w))
 
+    def cap_height(self, s, w):
+        """The cap's height over lateral w at station s: its flat crown, then its edge roll down to the drip line;
+        None beyond the drip."""
+        ze, we = self.z_e(s), self.w_e(s)
+        r = min(EDGE_R_M, max(0.0, self.z_top(s) - ze))
+        wf = we - r
+        if abs(w) <= wf:
+            return self.cap_section(s, CAP_FLAT * abs(w) / wf)[1]
+        if abs(w) >= we:
+            return None
+        return ze + math.sqrt(max(r * r - (abs(w) - wf) ** 2, 0.0))
+
     def roof_edge(self, s):
         """(lateral, height, radius) of the roof's edge roll's centre line at s."""
         ze, we = self.z_e(s), self.w_e(s)
         r = min(EDGE_R_M, max(0.0, self.z_top(s) - ze))
         return we - r, ze, r
+
+# --- the state kit's decisions ---------------------------------------------------------------------------------------
+
+class Kit:
+    """The decisions of one variant's state kit (design decisions 3, 4 and 7), all from its params and seed. The
+    clean base (severity 0) decides nothing: no glass gone, no hole, the identity transform.
+
+    - The burst (burst_dir): the side facing it is holed (`side`), its front corner struck.
+    - Glass per side and window pair (0 the front door's vent and window, 1 the rear door's window and quarter),
+      the windscreen, the rear screen (gone in F); the cabin is `open` once any pane is gone.
+    - The body's transform `T`: A's lean about the diagonal opposite its flat tyre, F's drop onto the rims; the hubs
+      in the ground frame (the flat one moves with the body, F's sit at the rim's flange radius).
+    - A: the holes on the burst side, the struck corner's lamp tear (`notch`), the bonnet's folded corner (`flap`)
+      and the windscreen's hole where its edge struck.
+    - F: the burnt-off steel's reach (`burnt`)."""
+
+    def __init__(self, body, params):
+        flat = _flat(params)
+        self.body, self.p = body, params
+        self.state = params["state"]
+        self.clean = params["severity"] == 0
+        self.A = not self.clean and self.state == "A"
+        self.F = not self.clean and self.state == "F"
+        self.burst = kits.burst_vector(flat["burst_dir.azimuth"], flat["burst_dir.elevation"])
+        self.side = -1 if self.burst[2] < 0 else 1
+        self.glass = {}
+        for corner in CORNERS:
+            side = -1 if corner.endswith("left") else 1
+            self.glass[side, 0 if corner.startswith("front") else 1] = flat[f"glass_side.{corner}"]
+        self.windscreen = params["windscreen"]
+        self.rear_screen = "gone" if self.F else "intact"
+        self.open = ("gone" in self.glass.values() or self.windscreen == "gone" or self.rear_screen == "gone")
+        hubs = {}
+        for k, a in enumerate(body.axle):
+            for side, tag in ((-1, "left"), (1, "right")):
+                hubs[f"{('front', 'rear')[k]}_{tag}"] = body.P(a, side * body.track[k] / 2, body.z_wc)
+        self.flat = next((c for c in CORNERS if flat[f"flat_tyres.{c}"]), None) if self.A else None
+        if self.F:
+            self.T = kits.translation((0.0, -params["ride_drop"], 0.0))
+        elif self.flat:
+            self.T = kits.lean(hubs, self.flat)
+        else:
+            self.T = kits.Rigid()
+        self.hubs = {}
+        for corner, h in hubs.items():
+            if corner == self.flat:
+                self.hubs[corner] = self.T.point(h)
+            elif self.F:
+                self.hubs[corner] = (h[0], RIM_FLANGE_R_M, h[2])
+            else:
+                self.hubs[corner] = h
+        self.holes, self.notch, self.flap, self.ws_hole = [], None, None, None
+        if self.A and params["frag_holes"] > 0:
+            self.notch = self._notch(body)
+            n_large = int(round(params["frag_holes"] * kits.LARGE_SHARE))
+            bias = 2.0 ** (1 - flat["burst_dir.elevation"] / 30.0)
+            self.holes = kits.sample_holes(max(n_large - 1, 0), params["frag_holes"] - n_large,
+                                           params["frag_hole_size"], params["rust_halo"], self.side,
+                                           kits.rng_for(params, "holes"), _HoleRegion(body, self), bias)
+        # the windscreen's metric along the car: a metre of s is ws_k metres up the raked pane
+        rise = body.z_top(body.s_ws_top) - body.z_top(body.s_cowl)
+        self.ws_k = math.hypot(1.0, rise / (body.s_ws_top - body.s_cowl))
+        if self.A and params["bonnet"] == "corner_folded":
+            self.flap = _Flap(body, self, params["bonnet_flap"])
+            if self.windscreen == "crazed_holed":  # where the flap struck: (s ws_k, w), elongated up the pane
+                s, w = self.flap.contact
+                along, across = WS_HOLE_M
+                hole = kits.Hole(0, s * self.ws_k, w, along, 1.0, kits.rng_for(params, "windscreen hole"),
+                                 cut=True, ellipse=(along / 2, across / 2))
+                hole.large, hole.petals = False, []
+                self.ws_hole = hole
+
+    def _notch(self, body):
+        """The struck front corner's lamp tear (the sheet's torn wing round the headlamp, 0.20 x 0.25 m): the lamp,
+        its ring and the wing round it gone back NOTCH_DEPTH_M, from the section's NOTCH_LEVEL up through the roll,
+        inboard to the lamp's inner edge."""
+        lw, ly, lr = body.preset["headlamp"]
+        return {"s0": body.s_front, "s1": body.s_front + NOTCH_DEPTH_M, "w_in": lw - lr, "side": self.side,
+                "level": NOTCH_LEVEL}
+
+    def notch_y(self, s):
+        """The notch's floor height at station s (on its section level)."""
+        b = self.body
+        y1 = b.z_bot(s) + TUCK_H_M
+        return y1 + NOTCH_LEVEL * (b.z_c(s) - y1)
+
+    def in_notch(self, s, w, y):
+        n = self.notch
+        return (n is not None and n["s0"] - 1e-9 <= s <= n["s1"] + 1e-9 and w * n["side"] >= n["w_in"] - 1e-9
+                and y >= self.notch_y(s) - 1e-9)
+
+    def burnt(self, p):
+        """F: whether the body's point p (body frame) is burnt to bare steel: within reach of the hottest place
+        (burn_origin) or on the cabin roof's crown, its border ragged by a seeded noise; the reach scales with
+        `burn` (assumed shapes: the sheet's engine bay, cabin roof and the like)."""
+        b, burn = self.body, self.p["burn"]
+        s, w, y = p[0] + b.L / 2, p[2], p[1]
+        rough = 0.08 * _value_noise(s * 6.0, y * 6.0, w * 6.0, self.p["seed"])
+        if self.p["burn_origin"] == "engine":
+            centre, reach = (b.axle[0] + 0.15, 0.75, 0.0), 0.62 * burn
+        else:
+            centre, reach = ((b.s_cowl + b.s_rs_base) / 2, 1.1, 0.0), 0.70 * burn
+        d = math.sqrt(((s - centre[0]) / 1.15) ** 2 + (y - centre[1]) ** 2 + (w - centre[2]) ** 2)
+        if d < reach + rough:
+            return True
+        roof = b.s_ws_top - 0.05 < s < b.s_rs_top + 0.05 and y > b.z_re + 0.01 and abs(w) < 0.62 * burn + rough
+        return roof
+
+
+def _value_noise(x, y, z, seed):
+    """A smooth seeded noise in [-1, 1] (trilinear value noise on the integer lattice)."""
+    def h(i, j, k):
+        n = (i * 73856093) ^ (j * 19349663) ^ (k * 83492791) ^ (seed * 2654435761)
+        n = (n ^ (n >> 13)) * 1274126177
+        return ((n ^ (n >> 16)) & 0xFFFF) / 32767.5 - 1.0
+    i, j, k = math.floor(x), math.floor(y), math.floor(z)
+    fx, fy, fz = x - i, y - j, z - k
+    sx, sy, sz = fx * fx * (3 - 2 * fx), fy * fy * (3 - 2 * fy), fz * fz * (3 - 2 * fz)
+    out = 0.0
+    for di in (0, 1):
+        for dj in (0, 1):
+            for dk in (0, 1):
+                wgt = (sx if di else 1 - sx) * (sy if dj else 1 - sy) * (sz if dk else 1 - sz)
+                out += wgt * h(i + di, j + dj, k + dk)
+    return out
+
+
+class _HoleRegion:
+    """Where a seeded hole's patch of radius R fits on the burst side's flank (kits.sample_holes): inside the flank's
+    vertical band, clear of the wheel arches, the door lines and the sill's shut line, behind the struck corner's
+    tear, and ZONE_CLEAR_M from the bonnet's and the boot lid's landing faces (where a hole closed in collision
+    would stand more than AST-05's 2 cm off the visual)."""
+
+    def __init__(self, body, kit):
+        self.b, self.kit = body, kit
+        s_lo = body.s_front + NOTCH_DEPTH_M + 0.05
+        self.bounds = (s_lo, body.s_rear - 0.10, body.z_bot(1.0) + TUCK_H_M, body.belt)
+
+    def __call__(self, s, y, r):
+        b = self.b
+        for ds in (-r, 0.0, r):
+            q = s + ds
+            if not b.s_front + NOTCH_DEPTH_M + 0.03 < q < b.s_rear - 0.05:
+                return False
+            if y - r < b.z_bot(q) + TUCK_H_M + 0.01 or y + r > b.z_c(q) - 0.01:
+                return False
+        for a in b.axle:  # the square's corner reaches r sqrt(2)
+            if math.hypot(s - a, y - b.z_wc) < b.r_arch + 1.42 * r + 0.03:
+                return False
+        g = DOOR_GAP_M
+        for d in b.doors:
+            if abs(s - d) < r + g + 0.01:
+                return False
+        if b.doors[0] - g < s < b.doors[2] + g and abs(y - b.sill) < r + g + 0.01:
+            return False
+        point = (s, y, self.kit.side * b.hw(s))
+        for s0, s1, half in ((b.s_front, b.s_cowl, b.w_t(b.s_front)), (b.s_rs_base, b.s_rear, b.w_t(b.s_rear))):
+            cs = min(max(point[0], s0), s1)
+            cw = min(max(point[2], -half), half)
+            d = math.sqrt((point[0] - cs) ** 2 + (point[1] - _top_mean(b, cs)) ** 2 + (point[2] - cw) ** 2)
+            if d < ZONE_CLEAR + r:
+                return False
+        return True
+
+
+ZONE_CLEAR = kits.ZONE_CLEAR_M
+
+
+def _ws_hole_reach(body, s):
+    """How far out across the windscreen the centre of its hole may lie at station s: the pane's edge (the cap's
+    glass reach) less the half-width of the hole's patch (kits.Hole.patch_half) and 5 mm."""
+    ze, we = body.z_e(s), body.w_e(s)
+    wf = we - min(EDGE_R_M, max(0.0, body.z_top(s) - ze))
+    half = WS_HOLE_M[1] / 2 * (1 + kits.RIM_JITTER) + kits.PATCH_RING_M + 0.01
+    return body.preset["windscreen_glass"][1] / CAP_FLAT * wf - half - 0.005
+
+
+class _Flap:
+    """The bonnet's rear corner on the burst side, torn along a diagonal and folded up about the bonnet's rear edge
+    until it leans on the windscreen (design decision 3; measured M: about 0.35-0.45 x 0.6 m). In the bonnet's
+    (s, u) terms: the corner C at its rear edge and side edge, A on the rear edge `across` m in, B on the side edge
+    `along` m forward; the hinge C-A, the tear A-B. `angle` is the fold (from the bonnet's plane), found where the
+    flap first meets the windscreen, plus what puts the contact 1 cm through the pane, into its hole."""
+
+    def __init__(self, body, kit, along):
+        self.b, self.side = body, kit.side
+        across = along * FLAP_ACROSS
+        g = DOOR_GAP_M / 2
+        self.s_b = body.s_scuttle - g             # the bonnet's rear edge
+        self.s_B = self.s_b - along
+        self.u_max = 1 - DOOR_GAP_M / body.w_t(body.s_front)
+        self.u_C = self.side * self.u_max          # signed: the burst side's edge
+        self.u_A = self.side * (self.u_max - across / body.w_t(self.s_b))
+        self.hinge = (body.top_point(self.s_b, self.u_C), body.top_point(self.s_b, self.u_A))
+        self.angle = self._fold()
+
+    def u_tear(self, s):
+        """The tear's u at station s (s_B..s_b): from the side edge at B to A on the rear edge."""
+        t = (s - self.s_B) / (self.s_b - self.s_B)
+        return self.u_C + (self.u_A - self.u_C) * t
+
+    def flat_point(self, s, f):
+        """A point of the flap before folding: at station s, fraction f from the side edge (0) to the tear (1)."""
+        u = self.u_C + (self.u_tear(s) - self.u_C) * f
+        return self.b.top_point(s, u)
+
+    def rigid(self, angle=None):
+        a, c = self.hinge
+        axis = normalize(sub(c, a))
+        # positive angle lifts the flap's front (the -X side of the hinge) up: choose the sign that raises B
+        rot = kits.axis_rotation(a, axis, angle if angle is not None else self.angle)
+        return rot
+
+    def _fold(self):
+        b = self.b
+        a, c = self.hinge
+        axis = normalize(sub(c, a))
+        tip = self.flat_point(self.s_B, 0.0)
+        sign = 1.0 if kits.axis_rotation(a, axis, 0.3).point(tip)[1] > tip[1] else -1.0
+        samples = [self.flat_point(self.s_B + (self.s_b - self.s_B) * i / 8, j / 6) for i in range(8) for j in range(7)]
+
+        def depth(angle):
+            """How far the deepest flap sample lies under the windscreen's glass or its frame (positive: through)."""
+            rot = kits.axis_rotation(a, axis, sign * angle)
+            worst, where = -1.0, None
+            for q in samples:
+                p = rot.point(q)
+                s, w = p[0] + b.L / 2, p[2]
+                if not b.s_cowl + 0.03 < s < b.s_ws_top - 0.03:
+                    continue
+                height = b.cap_height(s, w)
+                if height is None:
+                    continue
+                glass = height - GLASS_INSET_M
+                if glass - p[1] > worst:
+                    worst, where = glass - p[1], p
+            return worst, where
+
+        lo, hi = math.radians(60), math.radians(179)
+        if depth(hi)[0] < 0:
+            raise ValueError("the bonnet's flap does not reach the windscreen: a larger 'bonnet_flap'")
+        for _ in range(60):
+            mid = (lo + hi) / 2
+            if depth(mid)[0] > 0:
+                hi = mid
+            else:
+                lo = mid
+        _, point = depth(hi)
+        self.sign = sign
+        # the windscreen's hole: where the flap struck, moved in across the pane until the hole lies in the glass
+        s = point[0] + b.L / 2
+        reach = _ws_hole_reach(b, s)
+        self.contact = (s, max(-reach, min(reach, point[2])))
+        return sign * hi
+
+    def outline(self):
+        """The folded flap's corners C, A, B in asset space (body frame)."""
+        rot = self.rigid()
+        c = self.hinge[0]
+        return [c, self.hinge[1], rot.point(self.flat_point(self.s_B, 0.0))]
+
 
 # --- build --------------------------------------------------------------------------------------------------------
 
@@ -554,49 +975,98 @@ QUALITY = (  # per LOD: s step, roll steps, thickness on, details on, wheel segm
 
 def build(params):
     body = Body(params)
-    lods = [_lod(body, q) for q in QUALITY] + [_box_hull(body)]
+    kit = Kit(body, params)
+    pieces = _pieces(body, kit)
+    snags = []
+    lods = [_lod(body, q, kit, pieces, snags if n == 0 else None) for n, q in enumerate(QUALITY)]
+    lods.append(_box_hull(body, kit))
     lod = params["lod"]
-    plan = collision_plan(body)
+    plan = collision_plan(body, kit, pieces)
+    micro = _micro(body, kit)
+    slots = sorted({slot for m in lods for slot in m.slots()} | {slot for m in micro for slot in m["mesh"].slots()})
+    textures = _textures(body, kit)
+    lines = [f"collision plan: {len(plan)} primitives ({_plan_summary(plan)})"]
+    if not kit.clean:
+        lines.append(f"collision plan by group: {_plan_groups(plan)}")
+        lines.append(f"kit: {_kit_summary(body, kit)}")
     return {
         "lods": lods,
         "switch_distances_m": [0.0, lod["lod1_switch_m"], lod["lod2_switch_m"], lod["lod3_switch_m"]],
         "thin_wire": [False] * 4,
         "cull_distance_m": lod["cull_m"],
-        "materials": [{"slot": s, "physics": PHYSICS[s]} for s in sorted({slot for m in lods for slot in m.slots()})],
+        "materials": [{"slot": s, "physics": PHYSICS[s]} for s in slots],
         "collision": [shape for _, shape in plan],
         "gaps": [],
-        "wind_volumes": _wind(body),
+        "wind_volumes": _wind(body, kit),
         "holes": [],
-        "snag": _snags(body),
-        "lines": [f"collision plan: {len(plan)} primitives ({_plan_summary(plan)})"],
+        "micro": micro,
+        "textures": textures,
+        "snag": _snags(body, kit, pieces) + [kits.transform_snag(s, kit.T) for s in snags],
+        "lines": lines,
     }
 
 
-def _lod(body, q):
+def _lod(body, q, kit, pieces, snags):
+    """One LOD: the body's parts in its own frame, moved by the kit's transform, the wheels and the pieces on the
+    ground in theirs. `snags` collects the kit's torn edges (LOD0's)."""
     mesh = Mesh()
+    extra_levels = _kit_levels(body, kit, q)
     for side in (-1, 1):
-        _body_side(mesh, body, side, q)
+        _body_side(mesh, body, side, q, kit, extra_levels, snags)
         _wheelhouses(mesh, body, side, q)
-        _band(mesh, body, side, q)
-    _tops(mesh, body, q)
-    _ends(mesh, body, q)
+        _band(mesh, body, side, q, kit)
+    _tops(mesh, body, q, kit, snags)
+    _ends(mesh, body, q, kit, extra_levels, snags)
     _underbody(mesh, body, q)
-    _cap(mesh, body, q)
-    _glass(mesh, body, q)
-    _bumpers(mesh, body, q)
-    _front_details(mesh, body, q)
-    _rear_details(mesh, body, q)
-    if q["detail"] >= 2:
+    _cap(mesh, body, q, kit)
+    _glass(mesh, body, q, kit, snags)
+    _bumpers(mesh, body, q, kit)
+    _front_details(mesh, body, q, kit)
+    _rear_details(mesh, body, q, kit)
+    if q["detail"] >= 2 and not kit.F:  # F: the wiper arms fell with the windscreen
         for pivot, tip in _wiper_arms(body):
             _tube(mesh, [pivot, tip], 0.005, 4, RACK)
+    wheels = (len(mesh.vertices), len(mesh.faces))
     for k, a in enumerate(body.axle):
         for side in (-1, 1):
-            _wheel(mesh, body, a, side * body.track[k] / 2, side, q)
+            _wheel(mesh, body, a, side * body.track[k] / 2, side, q, kit)
+    wheels_end = (len(mesh.vertices), len(mesh.faces))
     if q["detail"] >= 1:
-        _interior(mesh, body, q)
+        _interior(mesh, body, q, kit)
     if body.p["roof_rack"] and q["detail"] >= 1:
         _rack(mesh, body, q)
+    if kit.F:
+        _burnt_slots(mesh, kit, ((0, wheels[1]), (wheels_end[1], len(mesh.faces))))
+    end = (len(mesh.vertices), len(mesh.faces))
+    for (v0, f0), (v1, f1) in (((0, 0), wheels), (wheels_end, end)):
+        kits.transform_range(mesh, (v0, v1), (f0, f1), kit.T)
+    if q["detail"] >= 1:
+        for piece in pieces:
+            kits.append_mesh(mesh, piece["lods"][0 if q["thick"] else 1], piece["rigid"], piece["slots"])
     return mesh
+
+
+def _kit_levels(body, kit, q):
+    """The section levels the kit adds (fractions, as _section_levels): each cut hole's square's top and bottom on
+    its flank, and the struck corner's tear's floor."""
+    out = []
+    for h in _cut_holes(kit, q):
+        y1 = body.z_bot(h.s) + TUCK_H_M
+        yc = body.z_c(h.s)
+        r = h.patch_radius()
+        out += [(h.y - r - y1) / (yc - y1), (h.y + r - y1) / (yc - y1)]
+    if kit.notch is not None:
+        out.append(NOTCH_LEVEL)
+    return out
+
+
+def _cut_holes(kit, q, side=None):
+    """The holes cut in the mesh at this LOD: every one of 30 mm or more at LOD0, those of 0.08 m or more at LOD1
+    (design decision 8), none further."""
+    if q["detail"] < 1:
+        return []
+    limit = kits.CUT_MIN_M if q["thick"] else kits.LARGE_MIN_M
+    return [h for h in kit.holes if h.cut and h.d >= limit and (side is None or h.side == side)]
 
 
 # --- the body side ------------------------------------------------------------------------------------------------
@@ -612,13 +1082,14 @@ def _s_rows(body, lo, hi, step, extra=()):
     return sorted({round(s, 9) for s in rows + [f for f in fine if lo <= f <= hi]})
 
 
-def _section_levels(body, q):
-    """The section's vertical fractions (from the tuck's top to the crease), with the door gap's rows."""
+def _section_levels(body, q, extra=()):
+    """The section's vertical fractions (from the tuck's top to the crease), with the door gap's rows and the
+    kit's (holes' squares, the tear's floor)."""
     y1 = body.z_bot(body.doors[0]) + TUCK_H_M
     yc = body.z_c(body.doors[0])
     g = DOOR_GAP_M / 2
     f_lo, f_hi = (body.sill - g - y1) / (yc - y1), (body.sill + g - y1) / (yc - y1)
-    base = [0.0, f_lo, f_hi, 1.0] + ([0.3, 0.55, 0.8] if q["thick"] else [0.5])
+    base = [0.0, f_lo, f_hi, 1.0] + ([0.3, 0.55, 0.8] if q["thick"] else [0.5]) + list(extra)
     return sorted(set(round(f, 9) for f in base)), f_lo, f_hi
 
 
@@ -641,14 +1112,24 @@ def _section(body, s, q, levels):
     return pts
 
 
-def _body_side(mesh, body, side, q):
-    levels, f_lo, f_hi = _section_levels(body, q)
-    rows = _s_rows(body, body.s_front, body.s_rear, q["step"])
+def _body_side(mesh, body, side, q, kit, extra_levels, snags):
+    """One side's body panel and its two doors, lofted through the sections; on the burst side the kit's cut holes
+    (each a square of the sheet replaced by its patch, kits.emit_patch) and the struck corner's lamp tear."""
+    holes = _cut_holes(kit, q, side)
+    notch = kit.notch if kit.notch is not None and kit.notch["side"] == side and q["detail"] >= 1 else None
+    extra_rows = [h.s + e * h.patch_radius() for h in holes for e in (-1, 1)]
+    if notch:
+        extra_rows.append(notch["s1"])
+    if kit.open:  # the wing's roll steps down to the door's at the cowl in a row, not over the next row's spacing
+        extra_rows.append(body.s_cowl + COWL_STEP_M)
+    levels, f_lo, f_hi = _section_levels(body, q, extra_levels)
+    rows = _s_rows(body, body.s_front, body.s_rear, q["step"], extra_rows)
+    uv = body.uv("side", side)
     grid, uvs = [], []
     for s in rows:
         sec = _section(body, s, q, levels)
         grid.append([body.P(s, side * w, y) for w, y, _ in sec])
-        uvs.append([(body.x(s), v) for _, _, v in sec])
+        uvs.append([uv(body.x(s), v) for _, _, v in sec])
     j_lo = 1 + levels.index(round(f_lo, 9))
     j_hi = 1 + levels.index(round(f_hi, 9))
     d0, d1, d3 = body.doors
@@ -657,18 +1138,88 @@ def _body_side(mesh, body, side, q):
              for j in range(len(grid[0]) - 1)] for i in range(len(rows) - 1)]
     outward = _side_outward(body, side)
     t = GAUGE_M if q["thick"] else 0.0
-    loft.sheet(mesh, grid, uvs, PAINT, outward, t, mask)
+    if notch:
+        _notch_side(body, q, kit, side, rows, levels, grid, mask, snags)
+    sheets = [(grid, uvs, mask, 0, 0)]
     for a, b in ((d0 + g, d1 - g), (d1 + g, d3 - g)):  # the doors
+        i0 = next(i for i, s in enumerate(rows) if s >= a - 1e-9)
         door_rows = [s for s in rows if a - 1e-9 <= s <= b + 1e-9]
         dg, du = [], []
         for s in door_rows:
             sec = _section(body, s, q, levels)[j_hi:]
             dg.append([body.P(s, side * w, y) for w, y, _ in sec])
-            du.append([(body.x(s), v) for _, _, v in sec])
-        loft.sheet(mesh, dg, du, PAINT, outward, t)
+            du.append([uv(body.x(s), v) for _, _, v in sec])
+        sheets.append((dg, du, [[True] * (len(dg[0]) - 1) for _ in range(len(dg) - 1)], i0, j_hi))
         if q["detail"] >= 2:  # the handle near the door's rear edge, under the crease
             yc = body.z_c(b)
             _box(mesh, body.P(b - 0.09, side * (body.hw(b) + 0.003), yc - 0.045), (0.12, 0.025, HANDLE_PROUD_M), CHROME)
+    surf = _flank_surface(body, side)
+    flank_uv = lambda s, y: uv(body.x(s), y)  # noqa: E731
+    for sheet_grid, sheet_uvs, sheet_mask, i0, j0 in sheets:
+        seams, patches = set(), []
+        for h in holes:
+            r = h.patch_radius()
+            lo, hi = h.s - r - 1e-9, h.s + r + 1e-9
+            y1, yc = body.z_bot(h.s) + TUCK_H_M, body.z_c(h.s)
+            f0, f1 = (h.y - r - y1) / (yc - y1) - 1e-7, (h.y + r - y1) / (yc - y1) + 1e-7
+            quads = {(i, j) for i in range(len(sheet_grid) - 1) for j in range(len(sheet_grid[0]) - 1)
+                     if lo <= rows[i0 + i] and rows[i0 + i + 1] <= hi and sheet_mask[i][j]
+                     and 1 <= j + j0 <= len(levels) - 1 and f0 <= levels[j + j0 - 1] and levels[j + j0] <= f1}
+            if not quads:
+                continue
+            for i, j in quads:
+                sheet_mask[i][j] = False
+            seams |= quads
+            patches.append((h, quads))
+        loft.sheet(mesh, sheet_grid, sheet_uvs, PAINT, outward, t, sheet_mask, seams=seams)
+        for h, quads in patches:
+            loop = kits.boundary_loop(quads)
+            outer = [(sheet_grid[i][j], (rows[i0 + i], sheet_grid[i][j][1]), sheet_uvs[i][j]) for i, j in loop]
+            hole_snags = kits.emit_patch(mesh, h, outer, surf, flank_uv, t, {"paint": PAINT, "torn": RUST},
+                                         rim_points=48 if q["thick"] else 16, petals=q["thick"])
+            if snags is not None:
+                snags += hole_snags
+    if q["thick"]:
+        for h in kit.holes:
+            if h.side == side:
+                kits.emit_decal(mesh, h, surf, flank_uv, {"halo": RUST, "dark": UNDER})
+
+
+def _flank_surface(body, side):
+    """(point, outward unit normal) of the flank at station s and height y (the vertical part of the section)."""
+    def surf(s, y):
+        p = body.P(s, side * body.hw(s), y)
+        e = 1e-4
+        slope = (body.hw(s + e) - body.hw(s - e)) / (2 * e)
+        n = normalize((-side * slope, 0.0, float(side)))
+        return p, n
+    return surf
+
+
+def _notch_side(body, q, kit, side, rows, levels, grid, mask, snags):
+    """The struck corner's lamp tear on the wing: the quads from the front face back to the tear's row and from its
+    floor level up over the roll are cut (with their edges), and the cut's points jittered along the sheet so the
+    edge is torn, not machined. Its torn edge is an `edge` snag."""
+    n = kit.notch
+    j_n = 1 + levels.index(round(NOTCH_LEVEL, 9))
+    i_end = next(i for i, s in enumerate(rows) if s >= n["s1"] - 1e-9)
+    for i in range(i_end):
+        for j in range(j_n, len(grid[0]) - 1):
+            mask[i][j] = False
+    rng = kits.rng_for(kit.p, f"notch {q['step']}")
+    s1 = rows[i_end]
+    for j in range(j_n + 1, len(grid[0])):  # the cut up the wing at the tear's row: jittered along s
+        ds = rng.uniform(-0.012, 0.012)
+        w, y, _ = _section(body, s1 + ds, q, levels)[j]
+        grid[i_end][j] = body.P(s1 + ds, side * w, y)
+    for i in range(1, i_end):  # the cut along the floor: jittered in height
+        s = rows[i]
+        y1 = body.z_bot(s) + TUCK_H_M
+        y = y1 + NOTCH_LEVEL * (body.z_c(s) - y1) + rng.uniform(-0.012, 0.012)
+        grid[i][j_n] = body.P(s, side * body.hw(s), y)
+    if snags is not None:
+        edge = [grid[i][j_n] for i in range(i_end + 1)] + [grid[i_end][j] for j in range(j_n + 1, len(grid[0]))]
+        snags.append({"kind": "edge", "points": [list(p) for p in edge], "radius_m": kits.EDGE_SNAG_R_M})
 
 
 def _side_outward(body, side):
@@ -706,26 +1257,105 @@ def _u_levels(q, extra=()):
     return [-u for u in reversed(half) if u > 0] + half
 
 
-def _top_sheet(mesh, body, s0, s1, u_max, q):
-    rows = loft.samples(s0, s1, q["step"])
-    us = [u * u_max for u in _u_levels(q)]
-    grid = [[body.top_point(s, u) for u in us] for s in rows]
-    uvs = [[(p[0], p[2]) for p in row] for row in grid]
+def _top_sheet(mesh, body, s0, s1, u_max, q, flap=None):
+    """A crowned top from s0 to s1 across +-u_max; with the bonnet's `flap`, its torn corner left out: from the
+    flap's foot back each row runs from the tear to the far edge, through the same column fractions."""
+    uv = body.uv("top")
+    rows = loft.samples(s0, s1, q["step"], [flap.s_B] if flap else ())
+    grid = []
+    for s in rows:
+        lo, hi = -u_max, u_max
+        if flap and s >= flap.s_B - 1e-9:
+            if flap.side < 0:
+                lo = flap.u_tear(s)
+            else:
+                hi = flap.u_tear(s)
+        grid.append([body.top_point(s, lo + (hi - lo) * (u + 1) / 2) for u in _u_levels(q)])
+    uvs = [[uv(p[0], p[2]) for p in row] for row in grid]
     loft.sheet(mesh, grid, uvs, PAINT, lambda p: (0.0, 1.0, 0.0), GAUGE_M if q["thick"] else 0.0)
 
 
-def _tops(mesh, body, q):
+FLAP_COLUMNS = (0.0, 0.03, 0.07, 0.13, 0.22, 0.4, 0.7, 1.0)  # the flap's columns from its side edge to the tear,
+                                                             # dense where the crown rolls over the edge
+
+
+def _tops(mesh, body, q, kit, snags):
     g = DOOR_GAP_M / 2
     gu = DOOR_GAP_M / body.w_t(body.s_front)
-    _top_sheet(mesh, body, body.s_front, body.s_scuttle - g, 1 - gu, q)          # bonnet
+    flap = kit.flap if q["detail"] >= 1 else None
+    _top_sheet(mesh, body, body.s_front, body.s_scuttle - g, 1 - gu, q, flap)      # bonnet
     _top_sheet(mesh, body, body.s_scuttle + g, body.s_cowl, 1.0, q)              # scuttle
     _top_sheet(mesh, body, body.s_rs_base, body.s_boot - g, 1.0, q)              # behind the rear screen
     _top_sheet(mesh, body, body.s_boot + g, body.s_rear, 1 - gu, q)              # boot lid
+    if flap:
+        _flap(mesh, body, q, flap, snags)
+        _deck(mesh, body, kit)
 
 
-def _end_outline(body, s, q):
+def _flap(mesh, body, q, flap, snags):
+    """The folded corner: the bonnet's sheet of the corner (its crown as it was), turned about the hinge."""
+    uv = body.uv("top")
+    rot = flap.rigid()
+    rows = loft.samples(flap.s_B, flap.s_b, q["step"])
+    flat = [[flap.flat_point(s, f) for f in FLAP_COLUMNS] for s in rows]
+    grid = [[rot.point(p) for p in row] for row in flat]
+    uvs = [[uv(p[0], p[2]) for p in row] for row in flat]
+    normal = rot.vector((0.0, 1.0, 0.0))
+    loft.sheet(mesh, grid, uvs, PAINT, lambda p: normal, GAUGE_M if q["thick"] else 0.0, edge_slot=RUST)
+    if snags is not None:  # the tear (A-B) and the flap's free edges
+        tear = [row[-1] for row in grid]
+        side = [row[0] for row in grid]
+        snags.append({"kind": "edge", "points": [list(p) for p in tear], "radius_m": kits.EDGE_SNAG_R_M})
+        snags.append({"kind": "edge", "points": [list(p) for p in side], "radius_m": kits.EDGE_SNAG_R_M})
+
+
+def _deck_box(body, kit):
+    """(s0, s1, w0, w1, top, bottom) of the engine bay's contents under the torn corner (DECK_DROP_M under the
+    bonnet's mean line, down to the wedge's foot), w signed: from the side edge to 1 cm past the tear's far end on
+    the rear edge, and from 1 cm ahead of the corner's foot (its block overlaps the wedges beside it)."""
+    flap = kit.flap
+    w_edge = body.w_t(flap.s_b) * flap.u_C
+    w_far = body.w_t(flap.s_b) * flap.u_A - flap.side * 0.01
+    s0, s1 = flap.s_B - 0.01, body.s_cowl
+    top = min(_top_mean(body, s0), _top_mean(body, s1)) - DECK_DROP_M
+    bottom = max(_top_mean(body, s0), _top_mean(body, s1)) - LID_T_M - 0.2 - 0.015
+    return s0, s1, min(w_edge, w_far), max(w_edge, w_far), top, bottom
+
+
+def _deck(mesh, body, kit):
+    """The engine bay's contents under the torn corner as one dark block (assumed: the class's master cylinder,
+    heater box and battery under the corner; M's engine bay under the flap, #50545b); its box is its collision."""
+    s0, s1, w0, w1, top, bottom = _deck_box(body, kit)
+    _box(mesh, body.P((s0 + s1) / 2, (w0 + w1) / 2, (top + bottom) / 2), (s1 - s0, top - bottom, w1 - w0), UNDER)
+    # the pocket over it closed where the bay stays full (its boxes' faces): up from the block to the sheet's
+    # underside at the corner's foot and along A's line under the bonnet left whole, and the inner wing under the
+    # roll's top on the burst side
+    flap, side = kit.flap, kit.flap.side
+    w_a = body.w_t(flap.s_b) * flap.u_A
+
+    def under(s, w):
+        return body.top_point(s, w / body.w_t(s))[1] - GAUGE_M
+
+    def wall(pts, normal):
+        mesh.face([mesh.vertex(p) for p in pts], normal, UNDER)
+    n = 8
+    sB = flap.s_B
+    ws = [side * body.w_t(sB) + (w_a - side * body.w_t(sB)) * k / n for k in range(n + 1)]
+    for wa, wb in zip(ws, ws[1:]):
+        wall([body.P(sB, wa, top), body.P(sB, wb, top), body.P(sB, wb, under(sB, wb)), body.P(sB, wa, under(sB, wa))],
+             (1.0, 0.0, 0.0))
+    ss = [sB + (body.s_cowl - sB) * k / n for k in range(n + 1)]
+    for sa, sb in zip(ss, ss[1:]):
+        wall([body.P(sa, w_a, top), body.P(sb, w_a, top), body.P(sb, w_a, under(sb, w_a)), body.P(sa, w_a, under(sa, w_a))],
+             (0.0, 0.0, float(side)))
+        wa, wb = side * body.w_t(sa), side * body.w_t(sb)
+        wall([body.P(sa, wa, top), body.P(sb, wb, top), body.P(sb, wb, body.z_sh(sb)), body.P(sa, wa, body.z_sh(sa))],
+             (0.0, 0.0, -float(side)))
+
+
+def _end_outline(body, s, q, extra_levels=()):
     """The closed outline of the body's section at s (right half up, over the top, left half down)."""
-    levels, _, _ = _section_levels(body, q)
+    levels, _, _ = _section_levels(body, q, extra_levels)
     right = [(w, y) for w, y, _ in _section(body, s, q, levels)]
     top = [(u * body.w_t(s), body.z_sh(s) + body.crown(s) * (1 - abs(u) ** CROWN_POWER))
            for u in reversed(_u_levels(q)) if abs(u) < 1.0]
@@ -733,14 +1363,88 @@ def _end_outline(body, s, q):
     return right + top + left
 
 
-def _ends(mesh, body, q):
-    for s, sign in ((body.s_front, -1.0), (body.s_rear, 1.0)):
-        outline = _end_outline(body, s, q)
+def _ends(mesh, body, q, kit, extra_levels, snags):
+    for s, sign, group in ((body.s_front, -1.0, "front"), (body.s_rear, 1.0, "rear")):
+        outline = _end_outline(body, s, q, extra_levels)
+        cut = []
+        if sign < 0 and kit.notch is not None and q["detail"] >= 1:
+            outline, cut = _notch_outline(body, q, kit, outline)
+        uv = body.uv(group)
         outer = [mesh.vertex(body.P(s, w, y)) for w, y in outline]
-        mesh.face(outer, (sign, 0.0, 0.0), PAINT, [(w, y) for w, y in outline])
+        mesh.face(outer, (sign, 0.0, 0.0), PAINT, [uv(w, y) for w, y in outline])
         if q["thick"]:
             inner = [mesh.vertex(body.P(s - sign * GAUGE_M, w, y)) for w, y in outline]
-            mesh.face(inner, (-sign, 0.0, 0.0), PAINT, [(w, y) for w, y in outline])
+            mesh.face(inner, (-sign, 0.0, 0.0), PAINT, [uv(w, y) for w, y in outline])
+            for (wa, ya), (wb, yb) in zip(cut, cut[1:]):  # the tear's edge strip, facing into the notch
+                ids = [mesh.vertex(body.P(s, wa, ya)), mesh.vertex(body.P(s, wb, yb)),
+                       mesh.vertex(body.P(s + GAUGE_M, wb, yb)), mesh.vertex(body.P(s + GAUGE_M, wa, ya))]
+                n = normalize((0.0, wb - wa, -(yb - ya)))
+                if n[1] * 1.0 + n[2] * kit.notch["side"] < 0:
+                    n = scale(n, -1)
+                mesh.face(ids, n, RUST, [uv(wa, ya), uv(wb, yb), uv(wb, yb - GAUGE_M), uv(wa, ya - GAUGE_M)])
+        if cut and snags is not None:
+            snags.append({"kind": "edge", "points": [list(body.P(s, w, y)) for w, y in cut],
+                          "radius_m": kits.EDGE_SNAG_R_M})
+        if cut:
+            _notch_pocket(mesh, body, q, kit)
+
+
+def _notch_outline(body, q, kit, outline):
+    """The front face's outline with the struck corner's tear cut from it: the points in the notch (outboard of its
+    inner edge and over its floor) replaced by the torn edge, down from the top at the inner edge and out along the
+    floor to the flank. Returns (outline, the cut's polyline from the top to the flank)."""
+    n, s = kit.notch, body.s_front
+    side, w_in = n["side"], n["w_in"]
+    y_n = kit.notch_y(s)
+    inside = [side * w > w_in + 1e-9 and y > y_n + 1e-9 for w, y in outline]
+    k = len(outline)
+    start = next(i for i in range(k) if inside[i] and not inside[i - 1])  # the run's first point (cyclic)
+    end = start
+    while inside[(end + 1) % k]:
+        end = (end + 1) % k
+    before, after = outline[start - 1], outline[(end + 1) % k]
+    rng = kits.rng_for(kit.p, f"notch face {q['step']}")
+    top = max(before, after, key=lambda p: p[1])
+    flank = min(before, after, key=lambda p: p[1])
+    path = []
+    steps = 6
+    for i in range(1, steps):  # down the inner edge
+        y = top[1] + (y_n - top[1]) * i / steps
+        path.append((side * (w_in + rng.uniform(-0.01, 0.01)), y))
+    path.append((side * w_in, y_n))
+    for i in range(1, 4):  # out along the floor
+        w = w_in + (abs(flank[0]) - w_in) * i / 4
+        path.append((side * w, y_n + rng.uniform(-0.01, 0.01)))
+    if before is flank:
+        path = path[::-1]
+    run = [i % k for i in range(start, start + ((end - start) % k) + 1)]
+    kept = [p for i, p in enumerate(outline) if i not in run]
+    at = kept.index(before) + 1
+    new = kept[:at] + path + kept[at:]
+    cut = [top] + (path if before is top else path[::-1]) + [flank]
+    return new, cut
+
+
+def _notch_pocket(mesh, body, q, kit):
+    """The pocket behind the struck corner's tear (dark, the lamp's housing and the inner wing): its back wall at the
+    tear's row, its inner wall at the lamp's inner edge and its floor, each facing into the pocket."""
+    n = kit.notch
+    side, w_in, s0, s1 = n["side"], n["w_in"], n["s0"], n["s1"]
+    levels, _, _ = _section_levels(body, q, [NOTCH_LEVEL])
+    j_n = 1 + levels.index(round(NOTCH_LEVEL, 9))
+    sec = _section(body, s1, q, levels)[j_n:]
+    y_top = body.top_point(s1, w_in / body.w_t(s1))[1] - GAUGE_M
+    back = [(w_in, kit.notch_y(s1))] + [(w, y) for w, y, _ in sec] + [(w_in, y_top)]
+    ids = [mesh.vertex(body.P(s1, side * w, y)) for w, y in back]
+    mesh.face(ids, (-1.0, 0.0, 0.0), UNDER, [(side * w, y) for w, y in back])
+    y0f, y1f = kit.notch_y(s0), kit.notch_y(s1)
+    y_top0 = body.top_point(s0, w_in / body.w_t(s0))[1] - GAUGE_M
+    wall = [body.P(s0, side * w_in, y0f), body.P(s1, side * w_in, y1f), body.P(s1, side * w_in, y_top),
+            body.P(s0, side * w_in, y_top0)]
+    mesh.face([mesh.vertex(p) for p in wall], (0.0, 0.0, float(side)), UNDER)
+    floor = [body.P(s0, side * w_in, y0f), body.P(s1, side * w_in, y1f), body.P(s1, side * body.hw(s1), y1f),
+             body.P(s0, side * body.hw(s0), y0f)]
+    mesh.face([mesh.vertex(p) for p in floor], (0.0, 1.0, 0.0), UNDER)
 
 
 def _underbody(mesh, body, q):
@@ -779,8 +1483,14 @@ def _windows(body):
     return [(a * ks, b * ks) for a, b in spans]
 
 
-def _band(mesh, body, side, q):
+def _window_pairs(body):
+    """Per window of _windows, its glass_side pair: 0 the front door's (vent and window), 1 the rear door's."""
+    return [0, 0, 1, 1] if body.p["vent_panes"] else [0, 1, 1]
+
+
+def _band(mesh, body, side, q, kit):
     windows = _windows(body)
+    gone = [kit.glass[side, pair] == "gone" for pair in _window_pairs(body)]
     v0, v1 = WINDOW_V
     fv = FRAME_M / body.H_band
     extra = [e for a, b in windows for e in (a - FRAME_M, a, b, b + FRAME_M)]
@@ -788,7 +1498,8 @@ def _band(mesh, body, side, q):
     rows = loft.samples(body.s_cowl, body.s_rs_base, q["step"], extra)
     vs = [0.0, v0 - fv, v0, v1, v1 + fv, 1.0] if q["detail"] else [0.0, v0, v1, 1.0]
     grid = [[body.band_point(s, v, side) for v in vs] for s in rows]
-    uvs = [[(p[0], p[1]) for p in row] for row in grid]
+    uv = body.uv("band", side)
+    uvs = [[uv(p[0], p[1]) for p in row] for row in grid]
     mask, slots = [], []
     for i in range(len(rows) - 1):
         sm = (rows[i] + rows[i + 1]) / 2
@@ -797,9 +1508,10 @@ def _band(mesh, body, side, q):
             vm = (vs[j] + vs[j + 1]) / 2
             inside = any(a < sm < b for a, b in windows) and v0 < vm < v1
             frame = any(a - FRAME_M < sm < b + FRAME_M for a, b in windows) and v0 - fv < vm < v1 + fv
-            if q["detail"] == 0:
+            if q["detail"] == 0:  # the hull: an empty window is a dark opening, an intact one its glass
+                empty = inside and any(a < sm < b and g for (a, b), g in zip(windows, gone))
                 mrow.append(True)
-                srow.append(GLASS if inside else PAINT)
+                srow.append(UNDER if empty else GLASS if inside else PAINT)
             else:
                 mrow.append(not inside)
                 srow.append(CHROME if frame and not inside else PAINT)
@@ -825,15 +1537,19 @@ def _cap_levels(q, extra=()):
     return [-u for u in reversed(half) if u > 0] + half
 
 
-def _cap(mesh, body, q):
+def _cap(mesh, body, q, kit):
     panes = _cap_glass(body)
+    gone = (kit.windscreen == "gone", kit.rear_screen == "gone")
     ft = 0.03
     extra_s = [e for a, b, _ in panes for e in (a - FRAME_M, a, b, b + FRAME_M)]
     extra_s += [body.s_ws_top, body.s_rs_top, body.s_drip_end, body.st["roof_front"], body.st["roof_rear"]]
+    if body.sag_m > 0:
+        extra_s.append(body.s_crease)
     rows = loft.samples(body.s_cowl, body.s_rs_base, q["step"], extra_s)
     us = _cap_levels(q, [u for _, _, um in panes for u in ((um, um + ft) if q["detail"] else (um,))])
     grid = [[body.cap_point(s, u) for u in us] for s in rows]
-    uvs = [[(p[0], p[2]) for p in row] for row in grid]
+    uv = body.uv("top")
+    uvs = [[uv(p[0], p[2]) for p in row] for row in grid]
     mask, slots = [], []
     for i in range(len(rows) - 1):
         sm = (rows[i] + rows[i + 1]) / 2
@@ -842,9 +1558,10 @@ def _cap(mesh, body, q):
             um = abs((us[j] + us[j + 1]) / 2)
             inside = any(a < sm < b and um < u for a, b, u in panes)
             frame = any(a - FRAME_M < sm < b + FRAME_M and um < u + ft for a, b, u in panes)
-            if q["detail"] == 0:
+            if q["detail"] == 0:  # the hull: an empty screen is a dark opening
+                empty = any(a < sm < b and um < u and g for (a, b, u), g in zip(panes, gone))
                 mrow.append(True)
-                srow.append(GLASS if inside else PAINT)
+                srow.append(UNDER if empty else GLASS if inside else PAINT)
             else:
                 mrow.append(not inside)
                 srow.append(CHROME if frame and not inside else PAINT)
@@ -853,24 +1570,100 @@ def _cap(mesh, body, q):
     loft.sheet(mesh, grid, uvs, PAINT, lambda p: (0.0, 1.0, 0.0), GAUGE_M if q["thick"] else 0.0, mask, slots=slots)
 
 
-def _glass(mesh, body, q):
-    """The intact panes, GLASS_T_M slabs GLASS_INSET_M behind their openings; from LOD2 on they are the hull's."""
+def _glass(mesh, body, q, kit, snags):
+    """The panes that remain, GLASS_T_M slabs GLASS_INSET_M behind their openings; from LOD2 on they are the
+    hull's. The kit's gone panes are left out; the crazed windscreen (crazed_holed) is its own slot, bulged in round
+    its hole, which is cut from the slab (the hole's patch, its torn rim an `edge` snag)."""
     if q["detail"] == 0:
         return
     thick = GLASS_T_M if q["thick"] else 0.0
     v0, v1 = WINDOW_V
     for side in (-1, 1):
-        for a, b in _windows(body):
+        for (a, b), pair in zip(_windows(body), _window_pairs(body)):
+            if kit.glass[side, pair] == "gone":
+                continue
             rows = loft.samples(a, b, q["step"])
             grid = [[_inset(body.band_point(s, v, side), _band_normal(body, s, v, side)) for v in (v0, v1)]
                     for s in rows]
             loft.sheet(mesh, grid, [[(p[0], p[1]) for p in r] for r in grid], GLASS,
                        lambda p, side=side: (0.0, 0.3, float(side)), thick)
-    for a, b, um in _cap_glass(body):
+    for k, (a, b, um) in enumerate(_cap_glass(body)):
+        state = kit.windscreen if k == 0 else kit.rear_screen
+        if state == "gone":
+            continue
+        if k == 0 and state == "crazed_holed":
+            _crazed_pane(mesh, body, q, kit, a, b, um, thick, snags)
+            continue
         rows = loft.samples(a, b, q["step"])
         us = [u for u in _cap_levels(q, [um]) if abs(u) <= um + 1e-9]
         grid = [[_inset(body.cap_point(s, u), _cap_normal(body, s, u)) for u in us] for s in rows]
         loft.sheet(mesh, grid, [[(p[0], p[2]) for p in r] for r in grid], GLASS, lambda p: (0.0, 1.0, 0.0), thick)
+
+
+def _pane_surface(body, kit):
+    """(point, outward unit normal) on the crazed windscreen at (s ws_k, w): the cap's point at lateral w, set in
+    by the glass's inset and bulged inward round the hole."""
+    hole = kit.ws_hole
+
+    def surf(a, w):
+        s = a / kit.ws_k
+        u = math.copysign(CAP_FLAT * min(abs(w) / _flat_reach(body, s), 1.0), w)
+        n = _cap_normal(body, s, u)
+        p = _inset(body.cap_point(s, u), n)
+        d = math.hypot(a - hole.s, w - hole.y)
+        bulge = WS_BULGE_M * max(0.0, 1 - (d / WS_BULGE_R_M) ** 2) ** 2
+        return sub(p, scale(n, bulge)), n
+    return surf
+
+
+def _flat_reach(body, s):
+    """The cap's flat crown's half-width at s (where its edge roll begins)."""
+    ze, we = body.z_e(s), body.w_e(s)
+    return we - min(EDGE_R_M, max(0.0, body.z_top(s) - ze))
+
+
+def _crazed_pane(mesh, body, q, kit, s0, s1, um, thick, snags):
+    """The crazed windscreen: the pane's grid with rows and columns on its hole's rectangle, those quads replaced by
+    the hole's patch, every point bulged by _pane_surface; slot WINDSCREEN (the transparent glass with the crack
+    mask of _textures)."""
+    hole = kit.ws_hole
+    ha, hb = hole.patch_half()
+    sc = hole.s / kit.ws_k
+    s_lo, s_hi = sc - ha / kit.ws_k, sc + ha / kit.ws_k
+    rows = loft.samples(s0, s1, q["step"], [s_lo, s_hi])
+    reach = _flat_reach(body, sc)
+    u_lo = CAP_FLAT * (hole.y - hb) / reach
+    u_hi = CAP_FLAT * (hole.y + hb) / reach
+    us = sorted(set(u for u in _cap_levels(q, [um]) if abs(u) <= um + 1e-9) | {round(u_lo, 9), round(u_hi, 9)})
+    surf = _pane_surface(body, kit)
+    grid, uvs, params = [], [], []
+    for s in rows:
+        row, row_uv, row_p = [], [], []
+        for u in us:
+            w = math.copysign(_flat_reach(body, s) * abs(u) / CAP_FLAT, u)
+            p, _ = surf(s * kit.ws_k, w)
+            row.append(p)
+            flat = body.cap_point(s, u)
+            row_uv.append((flat[0], flat[2]))
+            row_p.append((s * kit.ws_k, w))
+        grid.append(row)
+        uvs.append(row_uv)
+        params.append(row_p)
+    quads = {(i, j) for i in range(len(rows) - 1) for j in range(len(us) - 1)
+             if s_lo - 1e-9 <= rows[i] and rows[i + 1] <= s_hi + 1e-9 and u_lo - 1e-9 <= us[j]
+             and us[j + 1] <= u_hi + 1e-9}
+    mask = [[(i, j) not in quads for j in range(len(us) - 1)] for i in range(len(rows) - 1)]
+    loft.sheet(mesh, grid, uvs, WINDSCREEN, lambda p: (0.0, 1.0, 0.0), thick, mask, seams=quads)
+    loop = kits.boundary_loop(quads)
+    outer = [(grid[i][j], params[i][j], uvs[i][j]) for i, j in loop]
+
+    def uv(a, w):
+        p = body.cap_point_w(a / kit.ws_k, w)
+        return (p[0], p[2])
+    rim = kits.emit_patch(mesh, hole, outer, surf, uv, thick, {"paint": WINDSCREEN, "torn": WINDSCREEN},
+                          rim_points=40 if q["thick"] else 16, petals=False)
+    if snags is not None:
+        snags += rim
 
 def _inset(p, n):
     return sub(p, scale(n, GLASS_INSET_M))
@@ -1050,7 +1843,7 @@ def _bumper_inward(body, path, i, front):
     return inward
 
 
-def _bumpers(mesh, body, q):
+def _bumpers(mesh, body, q, kit):
     for front in (True, False):
         path, (bottom, top, depth) = _bumper_path(body, front)
         sign = 1.0 if front else -1.0
@@ -1076,6 +1869,8 @@ def _bumpers(mesh, body, q):
             w = side * lateral
             _box(mesh, body.P(s + sign * 0.0025, w, (o_bottom + o_top) / 2), (0.045, o_top - o_bottom - 0.04, 0.05),
                  CHROME)
+            if kit.F:  # the overriders' rubber tips burn away
+                continue
             for y in (o_top - 0.02, o_bottom + 0.02):
                 _box(mesh, body.P(s, w, y), (0.05, 0.04, 0.055), TYRE)
 
@@ -1086,7 +1881,7 @@ def _bumper_outward(body, front):
     return outward
 
 
-def _front_details(mesh, body, q):
+def _front_details(mesh, body, q, kit):
     s = body.s_front
     gw, g0, g1 = body.preset["grille"]
     _box(mesh, body.P(s - 0.003, 0.0, (g0 + g1) / 2), (0.004, g1 - g0, 2 * gw), UNDER)  # the dark backing
@@ -1105,6 +1900,12 @@ def _front_details(mesh, body, q):
     lw, ly, lr = body.preset["headlamp"]
     seg = 16 if q["detail"] >= 2 else 8
     for side in (-1, 1):
+        a, b, y0, y1 = body.preset["indicator"]
+        if not kit.F:  # the plastic indicators melt in F
+            _box(mesh, body.P(s - 0.007, side * (a + b) / 2, (y0 + y1) / 2), (0.014, y1 - y0, b - a), LENS,
+                 uvs=lambda p, n: LAMP_UV["amber"])
+        if kit.notch is not None and kit.notch["side"] == side and q["detail"] >= 1:
+            continue  # the struck lamp: its bowl and ring lie in the scatter, its socket is the tear
         centre = body.P(s, side * lw, ly)
         axis = (-1.0, 0.0, 0.0)
         _revolve(mesh, centre, axis, [(0.0, 0.018), (lr * 0.6, 0.015), (lr, 0.008)], seg, LAMP,
@@ -1115,17 +1916,14 @@ def _front_details(mesh, body, q):
             ring = [(p[0], p[1], p[2]) for p in ring]
             _tube(mesh, [(p[0], centre[1] + (p[1] - centre[1]), centre[2] + (p[2] - centre[2])) for p in ring],
                   0.008, 6 if q["detail"] >= 2 else 4, CHROME, closed=True)
-        a, b, y0, y1 = body.preset["indicator"]
-        _box(mesh, body.P(s - 0.007, side * (a + b) / 2, (y0 + y1) / 2), (0.014, y1 - y0, b - a), LENS,
-             uvs=lambda p, n: LAMP_UV["amber"])
     if q["detail"] >= 1:  # the front plate on the blade's middle, its top at the blade's top
         _plate(mesh, body, BLADE_SET_M - PLATE_OFF_M - PLATE_T_M / 2, body.preset["plates"][0] - PLATE_M[1] / 2)
 
 
-def _rear_details(mesh, body, q):
+def _rear_details(mesh, body, q, kit):
     s = body.s_rear
     a, b, y0, y1 = body.preset["tail_lamp"]
-    for side in (-1, 1):
+    for side in () if kit.F else (-1, 1):  # the plastic tail lamps melt in F
         for k, colour in enumerate(("amber", "clear", "red")):
             w0, w1 = a + (b - a) * k / 3, a + (b - a) * (k + 1) / 3
             _box(mesh, body.P(s + 0.006, side * (w0 + w1) / 2, (y0 + y1) / 2), (0.012, y1 - y0, w1 - w0), LENS,
@@ -1162,15 +1960,29 @@ def _tyre_profile(body):
             (0.20 * r / 0.297, h - 0.001), (RIM_R_M, h - 0.025)]
 
 
-def _wheel(mesh, body, s_axle, w, side, q):
+FLAT_BULGE = 0.12         # a flat tyre's sidewall bulges out by this share of its half-width at the ground (assumed)
+FLAT_BULGE_REACH_M = 0.08 # and the bulge fades out this high (assumed: the folded sidewall at the patch)
+
+
+def _corner(body, s_axle, side):
+    return f"{'front' if s_axle == body.axle[0] else 'rear'}_{'left' if side < 0 else 'right'}"
+
+
+def _wheel(mesh, body, s_axle, w, side, q, kit):
+    corner = _corner(body, s_axle, side)
+    if kit.F:
+        _rim(mesh, kit.hubs[corner], side, q)
+        return
     centre = body.P(s_axle, w, body.z_wc)
     axis = (0.0, 0.0, float(side))  # outboard
     seg = q["seg"]
     profile = _tyre_profile(body)
     if q["detail"] == 0:
         profile = [profile[0], profile[4], profile[5], profile[-1]]
-    _revolve(mesh, centre, axis, profile, seg, TYRE, core=((RIM_R_M + body.r_tyre) / 2, 0.0), flatten_y=0.0,
-             uv_scale=2 * math.pi * body.r_tyre)
+    v0, f0 = len(mesh.vertices), len(mesh.faces)
+    _revolve(mesh, centre, axis, profile, seg, TYRE, core=((RIM_R_M + body.r_tyre) / 2, 0.0),
+             flatten_y=None if corner == kit.flat else 0.0, uv_scale=2 * math.pi * body.r_tyre)
+    v1 = len(mesh.vertices)
     h = body.w_tyre / 2
     # the rim's outer face and flange, the domed hubcap, and the inner face
     _revolve(mesh, centre, axis, [(RIM_R_M, h - 0.025), (RIM_R_M - 0.008, h - 0.015), (HUBCAP_R_M + 0.002, h - 0.022),
@@ -1181,6 +1993,34 @@ def _wheel(mesh, body, s_axle, w, side, q):
         dome = [dome[0], dome[-1]]
     _revolve(mesh, centre, axis, dome, seg, CHROME)
     _revolve(mesh, centre, axis, [(RIM_R_M, -h + 0.025), (0.0, -h + 0.03)], seg, UNDER, facing=-1.0)
+    if corner == kit.flat:  # the wheel moves with the body (its hub down by the corner's drop), the tyre flattened
+        hub = kit.hubs[corner]  # on the ground over a longer patch, its sidewall bulging out near the ground
+        for i in range(v0, len(mesh.vertices)):
+            p = kit.T.point(mesh.vertices[i])
+            if i < v1 and p[1] < FLAT_BULGE_REACH_M:
+                f = 1 - p[1] / FLAT_BULGE_REACH_M
+                p = (p[0], max(p[1], 0.0), hub[2] + (p[2] - hub[2]) * (1 + FLAT_BULGE * f))
+            mesh.vertices[i] = p
+        for k in range(f0, len(mesh.faces)):
+            indices, normal, uvs, slot = mesh.faces[k]
+            mesh.faces[k] = (indices, kit.T.vector(normal), uvs, slot)
+
+
+def _rim(mesh, hub, side, q):
+    """F's bare steel wheel on the ground (the tyre burnt away, the hubcap gone): the rim's barrel between its two
+    flanges and the wheel's disc with its hub, dark burnt steel."""
+    axis = (0.0, 0.0, float(side))
+    seg = q["seg"]
+    h = RIM_WIDTH_M / 2
+    barrel = [(RIM_FLANGE_R_M, -h), (RIM_FLANGE_R_M - 0.006, -h + 0.006), (RIM_R_M, -h + 0.012), (RIM_R_M, h - 0.012),
+              (RIM_FLANGE_R_M - 0.006, h - 0.006), (RIM_FLANGE_R_M, h)]
+    if q["detail"] == 0:
+        barrel = [barrel[0], barrel[-1]]
+    _revolve(mesh, hub, axis, barrel, seg, RACK, core=(0.0, 0.0))
+    # the wheel's disc near the outer flange (a steel wheel's offset; within its cylinder's end, AST-05)
+    disc = [(RIM_R_M, h - 0.02), (0.10, h - 0.012), (0.06, h - 0.004), (0.0, h - 0.002)]
+    _revolve(mesh, hub, axis, disc, seg, RACK)
+    _revolve(mesh, hub, axis, [(RIM_R_M, h - 0.022), (0.0, h - 0.022)], seg, RACK, facing=-1.0)
 
 
 # --- interior -------------------------------------------------------------------------------------------------------
@@ -1213,7 +2053,12 @@ def _seat_boxes(body):
 _AXES = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
 
 
-def _interior(mesh, body, q):
+def _interior(mesh, body, q, kit):
+    if kit.open:
+        _cabin_shell(mesh, body, q, kit)
+    if kit.F:
+        _burnt_interior(mesh, body, q)
+        return
     for centre, size, axes, slot, _ in _seat_boxes(body):
         _box(mesh, centre, size, slot, axes)
     d = body.preset["dashboard"]
@@ -1233,6 +2078,209 @@ def _interior(mesh, body, q):
         _revolve(mesh, hub, axis, [(0.045, -0.01), (0.04, 0.02), (0.0, 0.03)], 12, VINYL)
         column_end = body.P(d["s"][1] - 0.02, st["w"], d["y"][0] + 0.06)
         _tube(mesh, [sub(hub, scale(axis, 0.02)), column_end], 0.025, 8, VINYL)
+
+
+def _seat_back_station(body, y):
+    """The station of the rear seat back's rear face at height y (the boot's front behind it)."""
+    (bs0, by0), (bs1, by1) = body.preset["rear_seat"]["back"]
+    along = math.hypot(bs1 - bs0, by1 - by0)
+    rear = body.preset["rear_seat"]["back_t"] * along / (by1 - by0)  # the back's thickness, measured along s
+    return bs0 + (y - by0) * (bs1 - bs0) / (by1 - by0) + rear
+
+
+def _liner_top(body, s):
+    """The rear wheelhouse's liner height at s over its arch (the floor elsewhere)."""
+    a = body.axle[1]
+    d = s - a
+    if abs(d) >= body.r_arch:
+        return body.z_bot(s) + GAUGE_M
+    return body.z_wc + math.sqrt(body.r_arch ** 2 - d * d)
+
+
+def _bulkhead_station(body):
+    """The boot's lower front wall behind the rear seat, between the wheelhouses: at the seat back's rear face where
+    the back meets the cushion."""
+    return _seat_back_station(body, body.preset["rear_seat"]["back"][0][1])
+
+
+def _upper_bulkhead_station(body):
+    """The boot's upper front wall, over the wheelhouses' liners: behind the leaning seat back at the shelf."""
+    return _seat_back_station(body, body.belt - 0.01) + 0.005
+
+
+def _cabin_shell(mesh, body, q, kit):
+    """The cabin's inside, which the closed car never shows (task 1.1 left it to the kits): per side the inner wall
+    DOOR_T_M in from the flank, from the floor (over the rear arch, from its liner) to the belt (the door trims, the
+    kick panel, the quarter's trim), the firewall at the cowl, the boot's bulkhead behind the rear seat (between the
+    wheelhouses below their liners, between the trims above) and the parcel shelf from it to the rear screen.
+    Two-sided (seen from the cabin and through the doors' holes). Trim vinyl, the walls dark; F's bare sooted steel."""
+    trim = SOOT if kit.F else VINYL
+    wall = SOOT if kit.F else UNDER
+    s_end = _seat_back_station(body, body.belt) + 0.01
+    rows = loft.samples(body.s_cowl, s_end, q["step"] * 2, [body.axle[1] - body.r_arch])
+    floor = lambda s: body.z_bot(s) + GAUGE_M  # noqa: E731
+    for side in (-1, 1):
+        grid = [[body.P(s, side * (body.hw(s) - DOOR_T_M), _liner_top(body, s)),
+                 body.P(s, side * (body.hw(s) - DOOR_T_M), body.belt)] for s in rows]
+        uvs = [[(body.x(s), _liner_top(body, s)), (body.x(s), body.belt)] for s in rows]
+        for facing in (-side, side):
+            loft.surface(mesh, grid, uvs, trim, lambda p, f=facing: (0.0, 0.0, float(f)))
+        # the rear wheel tub's top in the cabin, from the wheelhouse's inner wall to the trim: the liner seen from
+        # above, from the arch's front up to the upper bulkhead (the wheelhouse's liner faces the wheel only)
+        a, r = body.axle[1], body.r_arch
+        t_up = math.acos(max(-1.0, min(1.0, (a - _upper_bulkhead_station(body)) / r)))
+        m = max(2, int(math.ceil(t_up / math.pi * (24 if q["thick"] else 12 if q["detail"] else 6))))
+        tub, tub_uv = [], []
+        for i in range(m + 1):
+            t = t_up * i / m
+            s, y = a - r * math.cos(t), body.z_wc + r * math.sin(t)
+            tub.append([body.P(s, side * body.w_in[1], y), body.P(s, side * (body.hw(s) - DOOR_T_M), y)])
+            tub_uv.append([(body.x(s), body.w_in[1]), (body.x(s), body.hw(s) - DOOR_T_M)])
+        loft.surface(mesh, tub, tub_uv, wall, lambda p, a=a: (p[0] - body.x(a), p[1] - body.z_wc, 0.0))
+        # and its inner wall's cabin face ahead of the lower bulkhead (the wheelhouse's faces the wheel only)
+        t_bh = math.acos(max(-1.0, min(1.0, (a - _bulkhead_station(body)) / r)))
+        m = max(2, int(math.ceil(t_bh / t_up * m)))
+        inner, inner_uv = [], []
+        for i in range(m + 1):
+            t = t_bh * i / m
+            s, y = a - r * math.cos(t), body.z_wc + r * math.sin(t)
+            inner.append([body.P(s, side * body.w_in[1], body.z_wc), body.P(s, side * body.w_in[1], y)])
+            inner_uv.append([(body.x(s), body.z_wc), (body.x(s), y)])
+        loft.surface(mesh, inner, inner_uv, wall, lambda p, f=-float(side): (0.0, 0.0, f))
+    # the firewall, up to 1 cm under the crowned top's edge at the cowl (the scuttle's plenum closes the bay)
+    s = body.s_cowl + 0.005
+    half = body.hw(s) - DOOR_T_M
+    crown = body.crown(body.s_cowl)
+    us = [-1.0 + 2.0 * k / 16 for k in range(17)]
+    for u0, u1 in zip(us, us[1:]):
+        quad = [body.P(s, u0 * half, floor(s)), body.P(s, u1 * half, floor(s))]
+        quad += [body.P(s, u * half, body.z_sh(s) + crown * (1 - abs(u) ** CROWN_POWER) - 0.01) for u in (u1, u0)]
+        for facing in (1.0, -1.0):
+            mesh.face([mesh.vertex(p) for p in quad], (facing, 0.0, 0.0), wall)
+    y = body.belt - 0.01
+    s_bh, s_up = _bulkhead_station(body), _upper_bulkhead_station(body)
+    w_low, w_high = body.w_in[1] - 0.01, body.hw(s_up) - 0.03
+    y_liner = body.z_wc + body.r_arch
+    for quad, n in (([body.P(s_bh, -w_low, floor(s_bh)), body.P(s_bh, w_low, floor(s_bh)),
+                      body.P(s_bh, w_low, y_liner), body.P(s_bh, -w_low, y_liner)], (1.0, 0.0, 0.0)),
+                    ([body.P(s_bh, -w_low, y_liner), body.P(s_up, -w_low, y_liner), body.P(s_up, w_low, y_liner),
+                      body.P(s_bh, w_low, y_liner)], (0.0, 1.0, 0.0)),
+                    ([body.P(s_up, -w_high, y_liner), body.P(s_up, w_high, y_liner), body.P(s_up, w_high, y),
+                      body.P(s_up, -w_high, y)], (1.0, 0.0, 0.0))):
+        for facing in (1.0, -1.0):
+            mesh.face([mesh.vertex(p) for p in quad], scale(n, facing), wall)
+    s1 = body.s_rs_base
+    shelf = [body.P(s_up, -(body.hw(s_up) - DOOR_T_M), y), body.P(s1, -(body.hw(s1) - DOOR_T_M), y),
+             body.P(s1, body.hw(s1) - DOOR_T_M, y), body.P(s_up, body.hw(s_up) - DOOR_T_M, y)]
+    for facing in (1.0, -1.0):
+        mesh.face([mesh.vertex(p) for p in shelf], (0.0, facing, 0.0), trim)
+
+
+def _burnt_seats(body):
+    """F's seats as what a fire leaves (the sheet: frames and springs): per cushion its frame from the floor to the
+    spring mat (side plates, rails front and back) with its zigzag springs, per back its frame round the springs
+    in the back's mid-plane. [(kind, centre, size, axes, springs)], springs as polylines; the boxes are their
+    collision."""
+    out = []
+    pre = body.preset
+    for key, sides in (("front_seat", (-1, 1)), ("rear_seat", (0,))):
+        seat = pre[key]
+        for side in sides:
+            w = side * seat["w"]
+            (s0, s1), (_, y1) = seat["s"], seat["y"]
+            half = seat["half"] - 0.01
+            y_floor = body.z_bot((s0 + s1) / 2) + GAUGE_M
+            y_mat = y1 - 0.07  # the springs sit 7 cm under the burnt cushion's top (assumed)
+            springs = []
+            n = max(3, int(round(2 * half / 0.075)))
+            for k in range(n):
+                wk = w - half + 2 * half * (k + 0.5) / n
+                pts = []
+                steps = 12
+                for i in range(steps + 1):
+                    f = i / steps
+                    s = s0 + 0.02 + (s1 - s0 - 0.04) * f
+                    sag = 0.015 * math.sin(math.pi * f)
+                    pts.append(body.P(s, wk + (0.018 if i % 2 else -0.018), y_mat - sag))
+                springs.append(pts)
+            out.append(("cushion", body.P((s0 + s1) / 2, w, (y_floor + y_mat) / 2), (s1 - s0, y_mat - y_floor, 2 * half),
+                        _AXES, springs))
+            (bs0, by0), (bs1, by1) = seat["back"]
+            a, b = body.P(bs0, w, by0), body.P(bs1, w, by1)
+            e1 = normalize(sub(b, a))
+            e0 = normalize(cross(e1, (0.0, 0.0, 1.0)))
+            if e0[0] > 0:
+                e0 = scale(e0, -1)
+            mid = sub(scale(add(a, b), 0.5), scale(e0, seat["back_t"] / 2))
+            length = norm(sub(b, a))
+            springs = []
+            for k in range(n):
+                wk = w - half + 2 * half * (k + 0.5) / n
+                pts = []
+                steps = 12
+                for i in range(steps + 1):
+                    f = i / steps
+                    base = add(sub(mid, scale(e1, length / 2 - 0.03)), scale(e1, (length - 0.06) * f))
+                    pts.append(add((base[0], base[1], wk + (0.018 if i % 2 else -0.018)),
+                                   scale(e0, -0.008 * math.sin(math.pi * f))))
+                springs.append(pts)
+            out.append(("back", mid, (0.03, length, 2 * half), (e0, e1, (0.0, 0.0, 1.0)), springs))
+    return out
+
+
+def _burnt_interior(mesh, body, q):
+    """F's interior: the seat frames with their springs, the steering wheel's steel core and the dashboard's steel
+    cross-beam (the sheet: plastics gone, frames and springs left)."""
+    for kind, centre, size, axes, springs in _burnt_seats(body):
+        h = [v / 2 for v in size]
+
+        def at(a, b, c, centre=centre, axes=axes):
+            return add(centre, add(scale(axes[0], a), add(scale(axes[1], b), scale(axes[2], c))))
+        if kind == "cushion":  # side plates and four rails front and back
+            for sz in (-1, 1):
+                plate = [at(-h[0], -h[1], sz * h[2]), at(h[0], -h[1], sz * h[2]), at(h[0], h[1], sz * h[2]),
+                         at(-h[0], h[1], sz * h[2])]
+                for facing in (1, -1):
+                    mesh.face([mesh.vertex(p) for p in plate], scale(axes[2], sz * facing), RACK)
+            a, b = h[0] - FRAME_TUBE_R_M, h[1] - FRAME_TUBE_R_M  # the rails inside the frame's box, on the floor
+            for sx in (-1, 1):
+                for f in (-1.0, -1 / 3, 1 / 3, 1.0):
+                    _tube(mesh, [at(sx * a, f * b, -h[2]), at(sx * a, f * b, h[2])], FRAME_TUBE_R_M,
+                          6 if q["thick"] else 4, RACK)
+        else:  # the back's frame round its springs
+            corners = [at(0, -h[1], -h[2]), at(0, h[1], -h[2]), at(0, h[1], h[2]), at(0, -h[1], h[2])]
+            _tube(mesh, corners, FRAME_TUBE_R_M, 6 if q["thick"] else 4, RACK, closed=True)
+        if q["thick"]:
+            for pts in springs:
+                _tube(mesh, pts, SPRING_R_M, 4, RACK)
+    st = body.preset["steering"]
+    hub, axis, e1, e2 = _steering_frame(body)
+    seg = 16 if q["thick"] else 8
+    ring = [add(hub, add(scale(e1, st["r"] * math.cos(2 * math.pi * k / seg)),
+                         scale(e2, st["r"] * math.sin(2 * math.pi * k / seg)))) for k in range(seg)]
+    _tube(mesh, ring, STEEL_CORE_R_M, 6 if q["thick"] else 4, RACK, closed=True)
+    for side in (-1, 1):
+        tip = add(hub, add(scale(e1, side * st["r"] * math.cos(math.radians(10))),
+                           scale(e2, -st["r"] * math.sin(math.radians(10)))))
+        _tube(mesh, [hub, tip], 0.006, 6, RACK)
+    d = body.preset["dashboard"]
+    column_end = body.P(d["s"][1] - 0.02, st["w"], d["y"][0] + 0.06)
+    _tube(mesh, [sub(hub, scale(axis, 0.02)), column_end], 0.02, 8, RACK)
+    beam = _dash_beam(body)
+    _tube(mesh, list(beam), DASH_BEAM_R_M, 8, RACK)
+
+
+STEEL_CORE_R_M = 0.006    # the steering wheel rim's steel core (assumed)
+DASH_BEAM_R_M = 0.025     # the dashboard's steel cross-beam left by the fire (assumed)
+
+
+def _dash_beam(body):
+    """The cross-beam's ends: on the trims, where it is bolted (its collision a flat-ended cylinder like its tube)."""
+    d = body.preset["dashboard"]
+    s = (d["s"][0] + d["s"][1]) / 2
+    y = d["y"][0] + 0.08
+    half = body.hw(s) - DOOR_T_M
+    return body.P(s, -half, y), body.P(s, half, y)
 
 
 def _steering_frame(body):
@@ -1274,17 +2322,353 @@ def _rack(mesh, body, q):
 
 # --- LOD3 ----------------------------------------------------------------------------------------------------------
 
-def _box_hull(body):
+def _box_hull(body, kit):
     mesh = Mesh()
     hw = body.hw(body.s_ws_top)
+    paint = SOOT if kit.F else PAINT
     _box(mesh, body.P((body.s_front + body.s_rear) / 2, 0.0, (body.z_bot(1.0) + body.belt) / 2),
-         (body.s_rear - body.s_front, body.belt - body.z_bot(1.0), 2 * hw), PAINT)
+         (body.s_rear - body.s_front, body.belt - body.z_bot(1.0), 2 * hw), paint)
     _box(mesh, body.P((body.s_ws_top + body.s_rs_top) / 2, 0.0, (body.belt + body.H) / 2),
          (body.s_rs_top - body.s_ws_top, body.H - body.belt, 2 * body.w_e(body.s_ws_top)), GLASS)
+    kits.transform_range(mesh, (0, len(mesh.vertices)), (0, len(mesh.faces)), kit.T)
     for k, a in enumerate(body.axle):
         for side in (-1, 1):
-            _box(mesh, body.P(a, side * body.track[k] / 2, body.z_wc), (2 * body.r_tyre, 2 * body.z_wc, body.w_tyre), TYRE)
+            hub = kit.hubs[_corner(body, a, side)]
+            if kit.F:
+                _box(mesh, hub, (2 * RIM_FLANGE_R_M, 2 * hub[1], RIM_WIDTH_M), RACK)
+            else:
+                _box(mesh, hub, (2 * body.r_tyre, 2 * hub[1], body.w_tyre), TYRE)
     return mesh
+
+
+# --- the K07 pieces composed into the car (design decision 9) ------------------------------------------------------
+
+# K07's params (assets-src/debris/K07_*.json; tests/test_vehicle checks they match): the scatter's shards vary round
+# the trim plate's 0.35 x 0.2 m (the sheet: 0.1-0.6 m)
+K07 = {"lamp_bowl": {"diameter_m": 0.17, "section_m": 0.0008, "length_m": 0.0, "width_m": 0.0, "bend_m": 0.0},
+       "bezel_ring": {"diameter_m": 0.18, "section_m": 0.012, "length_m": 0.0, "width_m": 0.0, "bend_m": 0.0},
+       "trim_plate": {"diameter_m": 0.0, "section_m": 0.001, "length_m": 0.35, "width_m": 0.2, "bend_m": 0.01},
+       "bead_wire": {"diameter_m": BEAD_DIAMETER_M, "section_m": BEAD_SECTION_M, "length_m": 0.0, "width_m": 0.0,
+                     "bend_m": 0.01}}
+SHARD_SCALE = (0.5, 1.0)  # a scatter shard's size against the trim plate (assumed)
+SCATTER_MIN_M = 1.0       # the sheet: the A scatter lies 1-4 m from the struck corner
+SCATTER_WEDGE_DEG = 150.0 # on the struck side: a wedge about the corner's outward diagonal (measured M: ahead of and
+                          # beside the struck corner; the wedge's width assumed)
+
+
+def _piece(kind, seed, **sizes):
+    from generators import debris_car
+    params = {"piece": kind, "seed": seed, **K07[kind], **sizes, "physics_material": "steel",
+              "lod": {"lod1_switch_m": 8.0, "cull_m": 80.0}}
+    return debris_car.build(params)
+
+
+def _pieces(body, kit):
+    """The K07 pieces the kit lays on the ground (each {"kind", "lods", "rigid", "slots", "collision", "snag"} in its
+    own frame, placed by "rigid"): A's scatter from the struck corner (a lamp bowl, a bezel ring and shards of trim)
+    at 1/r^2 areal density from SCATTER_MIN_M to debris_radius, outside the car; F's two bead-wire rings per wheel,
+    one round the rim on the ground and one flat beside the wheel."""
+    out = []
+    slots = {"chrome": CHROME, "rust": WIRE}
+    if kit.A and kit.p["debris_count"] > 0:
+        rng = kits.rng_for(kit.p, "scatter")
+        corner = (body.x(0.0), 0.0, kit.side * body.hw(body.s_front))
+        outward = math.atan2(kit.side, -1.0)  # the struck corner's outward diagonal (ahead and to its side)
+        placed = []
+        for k in range(kit.p["debris_count"]):
+            if k == 0:
+                built, reach = _piece("lamp_bowl", k), K07["lamp_bowl"]["diameter_m"] / 2
+            elif k == 1:
+                built, reach = _piece("bezel_ring", k), K07["bezel_ring"]["diameter_m"] / 2
+            else:
+                f = rng.uniform(*SHARD_SCALE)
+                length, width = 0.35 * f, 0.2 * rng.uniform(SHARD_SCALE[0], 1.0)
+                built = _piece("trim_plate", k, length_m=round(length, 4), width_m=round(width, 4),
+                               bend_m=round(rng.uniform(0.0, 0.02), 4))
+                reach = math.hypot(length, width) / 2
+            r = kits.scatter_radius(rng, SCATTER_MIN_M, kit.p["debris_radius"])
+            for _ in range(400):  # a new bearing at the same distance, so the 1/r^2 law holds
+                a = outward + math.radians(SCATTER_WEDGE_DEG) * (rng.random() - 0.5)
+                x, z = corner[0] + r * math.cos(a), corner[2] + r * math.sin(a)
+                clear_car = abs(x) > body.L / 2 + 0.1 + reach or abs(z) > body.W / 2 + 0.1 + reach
+                if clear_car and all(math.hypot(x - px, z - pz) > reach + pr + 0.02 for px, pz, pr in placed):
+                    break
+            else:
+                raise ValueError("no room for the scatter's pieces: fewer or a larger debris_radius")
+            placed.append((x, z, reach))
+            rigid = kits.axis_rotation((0.0, 0.0, 0.0), (0.0, 1.0, 0.0), rng.uniform(0, 2 * math.pi)).then(
+                kits.translation((x, 0.0, z)))
+            out.append({"kind": f"scatter_{k}", "lods": built["lods"], "rigid": rigid, "slots": slots,
+                        "collision": built["collision"], "snag": built["snag"], "r": r})
+    if kit.F:
+        rng = kits.rng_for(kit.p, "bead wires")
+        ring = _piece("bead_wire", 1)
+        for corner, hub in sorted(kit.hubs.items()):
+            side = -1 if corner.endswith("left") else 1
+            stand = kits.axis_rotation((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), math.pi / 2).then(
+                kits.axis_rotation((0.0, 0.0, 0.0), (0.0, 0.0, 1.0), rng.uniform(-0.3, 0.3))).then(
+                kits.translation((hub[0], BEAD_DIAMETER_M / 2 - BEAD_SECTION_M / 2, hub[2] + side * 0.03)))
+            lie = kits.axis_rotation((0.0, 0.0, 0.0), (0.0, 1.0, 0.0), rng.uniform(0, 2 * math.pi)).then(
+                kits.translation((hub[0] + rng.uniform(-0.15, 0.15), 0.0,
+                                  hub[2] + side * (RIM_WIDTH_M / 2 + BEAD_DIAMETER_M / 2 + rng.uniform(0.05, 0.15)))))
+            for name, rigid in (("rim", stand), ("ground", lie)):
+                out.append({"kind": f"bead_{corner}_{name}", "lods": ring["lods"], "rigid": rigid, "slots": slots,
+                            "collision": ring["collision"], "snag": ring["snag"]})
+    return out
+
+
+def _micro(body, kit):
+    """The visual-only micro meshes (lib.meta "micro"; the audit skips them): A's glass crumbs (design decision 9),
+    F's soot patch (the G1 stand-in for the terrain's soot mask, design decision 4) in LOD0 to LOD2."""
+    out = []
+    count = 0
+    crumbs = Mesh()
+    rng = kits.rng_for(kit.p, "crumbs")
+    if kit.A:
+        per = int(round(CRUMBS_PER_WINDOW * kit.p["crumb_cover"]))
+        windows = _windows(body)
+        for side in (-1, 1):
+            for pair in (0, 1):
+                if kit.glass[side, pair] != "gone" or per == 0:
+                    continue
+                spans = [w for w, p in zip(windows, _window_pairs(body)) if p == pair]
+                s0, s1 = spans[0][0], spans[-1][1]
+                inside = int(round(per * CRUMB_INSIDE))
+                seat = body.preset["front_seat" if pair == 0 else "rear_seat"]
+                body_frame = Mesh()
+                for _ in range(inside):
+                    _crumb_inside(body_frame, body, side, seat, s0, s1, rng)
+                kits.append_mesh(crumbs, body_frame, kit.T)
+                for _ in range(per - inside):  # on the ground under the door, densest at the car
+                    s = rng.uniform(s0 - 0.1, s1 + 0.1)
+                    w = side * (body.hw(s) + 1.0 * rng.random() ** 1.5)
+                    _crumb(crumbs, rng, (body.x(s), 0.0, w))
+                count += per
+        if count:
+            out.append({"lod": 0, "kind": "glass_crumbs", "count": count, "mesh": crumbs})
+    if kit.F and kit.p["soot_patch"] > 0:
+        for lod, sectors in ((0, 64), (1, 32), (2, 16)):
+            patch, cells = _soot_patch(body, kit, sectors)
+            out.append({"lod": lod, "kind": "soot_patch", "count": cells, "mesh": patch})
+    return out
+
+
+def _crumb(mesh, rng, ground):
+    size = tuple(c * rng.uniform(0.7, 1.3) for c in CRUMB_M)
+    kits.crumb_box(mesh, (ground[0], ground[1] + size[1] / 2 + 0.0005, ground[2]), size, rng.uniform(0, math.pi),
+                   LAMP, LAMP_UV["clear"])
+
+
+def _crumb_inside(mesh, body, side, seat, s0, s1, rng):
+    """A crumb inside the car under a broken pane (body frame): on the seat cushion by the door or on the floor
+    between the cushion and the door's trim."""
+    (c0, c1), (_, top) = seat["s"], seat["y"]
+    outer = seat["w"] + seat["half"] if seat["w"] else seat["half"]
+    if rng.random() < 0.6:
+        s = rng.uniform(max(c0, s0), min(c1, s1))
+        w = side * rng.uniform(outer - 0.25, outer - 0.02)
+        y = top
+    else:
+        s = rng.uniform(s0, s1)
+        w = side * rng.uniform(outer, body.hw(s) - DOOR_T_M - 0.01)
+        y = body.z_bot(s) + GAUGE_M
+    _crumb(mesh, rng, (body.x(s), y, w))
+
+
+SOOT_CORE = 0.62          # the soot patch's solid core reaches this share of its radius; past it, blotches thin out
+SOOT_FEATHER = 1.1        # to this share (assumed: a feathered edge 0.5 R wide, no hard rim)
+
+
+def _soot_patch(body, kit, sectors):
+    """F's burnt ground: soot_patch across, 2 mm over the ground, centred under the burn's origin: a solid core with
+    a ragged outline, then seeded blotches (irregular polygons, 0.04-0.2 m) thinning and shrinking out to
+    SOOT_FEATHER of the radius (a feathered edge as geometry). `sectors` sets the detail per LOD. Returns the mesh
+    and its blotch count."""
+    mesh = Mesh()
+    rng = kits.rng_for(kit.p, f"soot patch {sectors}")
+    r_max = kit.p["soot_patch"] / 2
+    s_c = body.axle[0] + 0.3 if kit.p["burn_origin"] == "engine" else (body.s_cowl + body.s_rs_base) / 2
+    cx = body.x(s_c)
+    phase = [rng.uniform(0, 2 * math.pi) for _ in range(6)]
+    outline = []
+    for k in range(sectors):
+        a = 2 * math.pi * k / sectors
+        r = r_max * SOOT_CORE * (1 + 0.18 * kits._noise(a, phase))
+        outline.append((cx + r * math.cos(a), 0.002, r * math.sin(a)))
+    centre = mesh.vertex((cx, 0.002, 0.0))
+    ids = [mesh.vertex(p) for p in outline]
+    for k in range(sectors):
+        a, b = outline[k], outline[(k + 1) % sectors]
+        mesh.face([centre, ids[k], ids[(k + 1) % sectors]], (0.0, 1.0, 0.0), SOOT_PATCH,
+                  [(cx, 0.0), (a[0], a[2]), (b[0], b[2])])
+    count = 0
+    for _ in range(sectors * 5):
+        f = rng.random()
+        rho = r_max * (SOOT_CORE * 0.9 + (SOOT_FEATHER - SOOT_CORE * 0.9) * f)
+        if rng.random() > (1 - f) ** 1.5:  # thinning outward
+            continue
+        count += 1
+        a = rng.uniform(0, 2 * math.pi)
+        bx, bz = cx + rho * math.cos(a), rho * math.sin(a)
+        size = rng.uniform(0.04, 0.2) * (1 - 0.6 * f)
+        n = rng.randint(6, 9)
+        pts = []
+        for k in range(n):
+            t = 2 * math.pi * k / n
+            r = size * rng.uniform(0.6, 1.0)
+            pts.append((bx + r * math.cos(t), 0.002 + 0.0001 * (1 + f), bz + r * math.sin(t)))
+        mesh.face([mesh.vertex(p) for p in pts], (0.0, 1.0, 0.0), SOOT_PATCH, [(p[0], p[2]) for p in pts])
+    return mesh, count
+
+
+# --- the masks (design decision 5) --------------------------------------------------------------------------------
+
+def _textures(body, kit):
+    """The generator's textures (lib.meta "textures"): the crazed windscreen's crack mask on its slot, and the
+    damage mask over the paint's canvas (the A and F kits; on SOOT in F, where the paint is soot)."""
+    out = []
+    if kit.ws_hole is not None:
+        out.append(_crack_mask(body, kit))
+    if not kit.clean:
+        out.append(_damage_mask(body, kit))
+    return out
+
+
+def _pane_extent(body):
+    """The windscreen pane's UV rectangle (its x along the car, its z across): uv_min, uv_max."""
+    s0, s1, um = _cap_glass(body)[0]
+    half = max(abs(body.cap_point(s, um)[2]) for s in (s0, s1))
+    return (body.x(s0), -half), (body.x(s1), half)
+
+
+def _crack_mask(body, kit):
+    """The windscreen's crack mask (CRACK_PX, R: 1 on a crack): from each impact (the flap's strike at the hole and
+    one or two seeded fragment hits) 10-16 radial cracks wandering out 0.2-0.7 m and concentric rings of chords
+    between them, 1-3 px wide (design decision 5), drawn in the pane's metric (metres up the glass and across)."""
+    rng = kits.rng_for(kit.p, "cracks")
+    (u0, v0), (u1, v1) = _pane_extent(body)
+    width, height = CRACK_PX
+    raster = masks.Raster(width, height, 1)
+
+    def px(a, w):  # (metres up the pane from the car's front, metres across) -> pixels; row 0 is v1
+        x = a / kit.ws_k - body.L / 2
+        return (x - u0) / (u1 - u0) * width, (v1 - w) / (v1 - v0) * height
+    hole = kit.ws_hole
+    s0, s1, _ = _cap_glass(body)[0]
+    impacts = [(hole.s, hole.y, 1.0)]
+    for _ in range(rng.randint(1, 2)):
+        impacts.append((rng.uniform(s0 * kit.ws_k + 0.1, s1 * kit.ws_k - 0.1), rng.uniform(v0 + 0.15, v1 - 0.15),
+                        rng.uniform(0.4, 0.7)))
+    for a0, w0, strength in impacts:
+        rays = []
+        for k in range(rng.randint(10, 16)):
+            angle = 2 * math.pi * k / 13 + rng.uniform(-0.2, 0.2)
+            length = rng.uniform(0.2, 0.7) * strength
+            pts = [(a0, w0)]
+            step = 0.02
+            heading = angle
+            for _ in range(int(length / step)):
+                heading += rng.uniform(-0.25, 0.25)
+                pts.append((pts[-1][0] + step * math.cos(heading), pts[-1][1] + step * math.sin(heading)))
+            rays.append(pts)
+            lw = rng.uniform(1.0, 3.0)
+            for p, q in zip(pts, pts[1:]):
+                raster.line(0, *px(*p), *px(*q), lw, 255)
+        for ring_r in (0.03, 0.06, 0.1, 0.15, 0.22, 0.3):
+            if ring_r > 0.6 * strength:
+                break
+            idx = max(1, int(ring_r / 0.02))
+            for k in range(len(rays)):
+                a, b = rays[k], rays[(k + 1) % len(rays)]
+                if len(a) <= idx or len(b) <= idx or rng.random() < 0.25:
+                    continue
+                raster.line(0, *px(*a[idx]), *px(*b[idx]), rng.uniform(1.0, 2.0), 255)
+    uv_min, uv_max = _pane_extent(body)
+    return {"role": "crack_mask", "slot": WINDSCREEN, "name": "windscreen_cracks", "uv_min": uv_min, "uv_max": uv_max,
+            "png": raster.png()}
+
+
+def _damage_mask(body, kit):
+    """The damage mask over the paint's UV canvas (CANVAS, CANVAS_PX, RGBA): R rust (every hole's halo, its rust
+    streaks running down 0.05-0.3 m and the sills' rust with months_abandoned), G soot (F: all over), B dust and
+    chalk on upward faces (months_abandoned, paint_fade), A burnt-off steel (F: Kit.burnt). Its shader layers it
+    over the paint later (design decision 5; tech-artist's)."""
+    width, height = CANVAS_PX
+    raster = masks.Raster(width, height, 4)
+    (cu0, cv0), (cu1, cv1) = CANVAS_MIN, CANVAS_MAX
+    kx, ky = width / (cu1 - cu0), height / (cv1 - cv0)
+
+    def px(group, side, u, v):
+        off = CANVAS[group][side] if isinstance(CANVAS[group], dict) else CANVAS[group]
+        return (u + off[0] - cu0) * kx, (cv1 - (v + off[1])) * ky
+    rng = kits.rng_for(kit.p, "damage mask")
+    months = kit.p["months_abandoned"] / 36.0
+    for h in kit.holes:
+        x, y = px("side", h.side, body.x(h.s), h.y)
+        raster.disc(0, x, y, h.r * h.halo * kx, 230, feather=h.r * 0.6 * kx)
+        for _ in range(1 + int(3 * min(1.0, months * 4))):  # streaks down from the hole's foot
+            sx = x + rng.uniform(-0.6, 0.6) * h.r * kx
+            length = rng.uniform(0.05, 0.3) * min(1.0, 0.3 + months * 3)
+            raster.line(0, sx, y + h.r * ky, sx + rng.uniform(-2, 2), y + (h.r + length) * ky,
+                        rng.uniform(2.0, 4.0), 150)
+    for side in (-1, 1):  # the sills' rust
+        for s in loft.samples(body.s_front, body.s_rear, 0.05):
+            x, y = px("side", side, body.x(s), body.z_bot(s) + TUCK_H_M)
+            raster.rect(0, x - 0.03 * kx, y - 0.04 * ky * (0.5 + rng.random()), x + 0.03 * kx, y + 0.06 * ky,
+                        int(200 * min(1.0, months * 2)))
+    dust = int(255 * min(1.0, 0.15 + 0.5 * months + 0.3 * kit.p["paint_fade"]))
+    x0, y1 = px("top", 0, -body.L / 2, -body.W / 2)
+    x1, y0 = px("top", 0, body.L / 2, body.W / 2)
+    raster.rect(2, x0, y0, x1, y1, dust)
+    if kit.F:
+        raster.fill(1, 255)
+        block = 4
+        for by in range(0, height, block):
+            for bx in range(0, width, block):
+                p = _canvas_point(body, cu0 + (bx + block / 2) / kx, cv1 - (by + block / 2) / ky)
+                if p is not None and kit.burnt(p):
+                    raster.rect(3, bx, by, bx + block, by + block, 255)
+    return {"role": "damage_mask", "slot": SOOT if kit.F else PAINT, "name": "damage", "uv_min": CANVAS_MIN,
+            "uv_max": CANVAS_MAX, "png": raster.png()}
+
+
+def _canvas_point(body, u, v):
+    """The body-frame point a canvas UV stands for (roughly: on the panel group whose rectangle holds it), or None
+    off the panels."""
+    for side in (-1, 1):
+        du, dv = CANVAS["side"][side]
+        if -body.L / 2 <= u - du <= body.L / 2 and 0.2 <= v - dv <= 1.05:
+            s = u - du + body.L / 2
+            return body.P(s, side * body.hw(s), v - dv)
+        du, dv = CANVAS["band"][side]
+        if -body.L / 2 <= u - du <= body.L / 2 and body.belt - 0.01 <= v - dv <= body.H:
+            s = u - du + body.L / 2
+            return body.P(s, side * (body.hw(s) - ROLL_R_M), v - dv)
+    du, dv = CANVAS["top"]
+    if -body.L / 2 <= u - du <= body.L / 2 and -body.W / 2 <= v - dv <= body.W / 2:
+        s = u - du + body.L / 2
+        return body.P(s, v - dv, body.z_top(s))
+    for group, s in (("front", body.s_front), ("rear", body.s_rear)):
+        du, dv = CANVAS[group]
+        if -body.W / 2 <= u - du <= body.W / 2 and 0.2 <= v - dv <= 1.0:
+            return body.P(s, u - du, v - dv)
+    return None
+
+
+def _burnt_slots(mesh, kit, ranges):
+    """F's surfaces after the fire: the paint soot-black (SOOT) or burnt to bare steel where hottest (BARE, Kit.burnt
+    at each face's centre), chrome and the lamps' reflectors dulled, the blank plates sooted."""
+    rename = {CHROME: CHROME_DULL, LAMP: CHROME_DULL, PLATE: SOOT}
+    for f0, f1 in ranges:
+        for k in range(f0, f1):
+            indices, normal, uvs, slot = mesh.faces[k]
+            if slot == PAINT:
+                c = scale(add(add(mesh.vertices[indices[0]], mesh.vertices[indices[1]]), mesh.vertices[indices[2]]),
+                          1 / 3)
+                slot = BARE if kit.burnt(c) else SOOT
+            else:
+                slot = rename.get(slot, slot)
+            mesh.faces[k] = (indices, normal, uvs, slot)
 
 
 # --- collision ------------------------------------------------------------------------------------------------------
@@ -1329,7 +2713,21 @@ def _box_on(p0, p1, side_dir, width, depth, material, landable=False):
     return _cbox(centre, (norm(sub(p1, p0)), depth, width), material, landable, (e0, e1, e2))
 
 
-def collision_plan(body):
+def collision_plan(body, kit=None, pieces=()):
+    """[(name, primitive)] in asset space: the clean base's plan (_clean_plan), or a kit's (_kit_plan) moved by the
+    kit's transform, then its wheels on the ground and the composed K07 pieces where they lie."""
+    kit = kit or Kit(body, body.p)
+    if kit.clean:
+        return _clean_plan(body)
+    plan = [(name, kits.transform_shape(shape, kit.T)) for name, shape in _kit_plan(body, kit)]
+    plan += _kit_wheels(body, kit)
+    for piece in pieces:
+        for k, shape in enumerate(piece["collision"]):
+            plan.append((f"{piece['kind']}_{k}", kits.transform_shape(shape, piece["rigid"])))
+    return plan
+
+
+def _clean_plan(body):
     """[(name, primitive)]: the clean base's collision, a union of convex primitives whose exposed faces lie on the
     skin and whose other faces lie inside a neighbour, so no invisible wall stands inside the closed car. Built to the
     audit's 5 cm, and its 2 cm within 0.3 m of the landable roof, bonnet and boot lid:
@@ -1414,20 +2812,7 @@ def collision_plan(body):
         add_((f"wheelhouse_front_{tag}", _cylinder(body.P(af, side * w0, body.z_wc), body.P(af, side * w1, body.z_wc),
                                                    body.r_tyre + WHEELHOUSE_GAP_M, "rubber")))
     # bumpers: a capsule across the end and one round each wrapped corner, and the overriders
-    for front in (True, False):
-        path, (bottom, top, depth) = _bumper_path(body, front)
-        y = (bottom + top) / 2
-        n = len(path)
-        for a, b, tag in ((path[5], path[n - 6], "end"), (path[5], path[0], "left"), (path[n - 6], path[-1], "right")):
-            pa = _bumper_axis(body, path, a, front, y)
-            pb = _bumper_axis(body, path, b, front, y)
-            add_((f"bumper_{'front' if front else 'rear'}_{tag}", meta.capsule(pa, pb, BUMPER_R_M, "steel")))
-        lateral, o_bottom, o_top = body.preset["overrider"]
-        s = (0.0 if front else body.L) + (1.0 if front else -1.0) * 0.025  # the overriders' middle
-        for side, tag in sides:
-            add_((f"overrider_{'front' if front else 'rear'}_{tag}",
-                  meta.capsule(body.P(s, side * lateral, o_bottom + OVERRIDER_R_M),
-                               body.P(s, side * lateral, o_top - OVERRIDER_R_M), OVERRIDER_R_M, "steel")))
+    plan += _plan_bumpers(body)
     # interior: seats, dashboard, steering wheel (inside the solid cabin, for its mesh)
     for k, (centre, size, axes, slot, kind) in enumerate(_seat_boxes(body)):
         add_((f"seat_{k}_{kind}", _cbox(centre, size, PHYSICS[slot], False, axes)))
@@ -1438,14 +2823,7 @@ def collision_plan(body):
     st = body.preset["steering"]
     add_(("steering_wheel", _cylinder(sub(hub, scale(axis, 0.025)), add(hub, scale(axis, 0.025)),
                                       st["r"] + st["tube"], "plastic")))
-    if body.p["roof_rack"]:
-        corners, posts = _rack_points(body)
-        for k, (a, b) in enumerate(zip(corners, corners[1:] + corners[:1])):
-            cap = meta.capsule(a, b, RACK_R_M, "steel")
-            cap["landable"] = k in (1, 3)  # the side rails: the legs' touch points (the sheet)
-            add_((f"rack_tube_{k}", cap))
-        for k, (foot, top) in enumerate(posts):
-            add_((f"rack_post_{k}", meta.capsule(foot, top, RACK_R_M, "steel")))
+    plan += _plan_rack(body)
     return plan
 
 
@@ -1484,11 +2862,11 @@ def _bumper_axis(body, path, point, front, y):
     return body.P(point[0] + inward[0] * d, point[1] + inward[1] * d, y)
 
 
-def _flank_box(body, s0, s1, side, y0, y1, a, b, depth):
+def _flank_box(body, s0, s1, side, y0, y1, a, b, depth, inset=0.0):
     """A level box per side over [s0, s1] whose outer face is the flank's plan line through the stations a and b
-    (yawed with the taper), from y0 to y1, `depth` deep."""
-    pa = body.P(a, side * body.hw(a), 0.0)
-    pb = body.P(b, side * body.hw(b), 0.0)
+    (yawed with the taper), `inset` inside it, from y0 to y1, `depth` deep."""
+    pa = body.P(a, side * (body.hw(a) - inset), 0.0)
+    pb = body.P(b, side * (body.hw(b) - inset), 0.0)
     e0 = normalize(sub(pb, pa))
     e1 = (0.0, 1.0, 0.0)
     e2 = cross(e0, e1)
@@ -1502,10 +2880,10 @@ def _flank_box(body, s0, s1, side, y0, y1, a, b, depth):
     return _cbox(centre, (length, y1 - y0, depth), "sheet_metal", False, (e0, e1, e2))
 
 
-def _arch_box(body, k, side, phi_deg, top=None):
+def _arch_box(body, k, side, phi_deg, top=None, depth=ARCH_FLANK_M):
     """A box per side round arch k: its inner face tangent to the arch's circle at angle phi (degrees from the
     car's rearward axis, up positive) on the octagon round it, reaching ARCH_BOX_M out (or up to `top` for the box
-    above), ARCH_FLANK_M in from the flank, which it follows in plan."""
+    above), `depth` (ARCH_FLANK_M) in from the flank, which it follows in plan."""
     a, r = body.axle[k], body.r_arch
     phi = math.radians(phi_deg)
     n = (math.cos(phi), math.sin(phi))
@@ -1518,8 +2896,8 @@ def _arch_box(body, k, side, phi_deg, top=None):
     e0 = normalize((tg[0], tg[1], 0.0))
     e0 = normalize(sub(e0, scale(out, dot(e0, out))))
     e1 = cross(out, e0)
-    centre = add(body.P(cs, side * body.hw(cs), cy), scale(out, -ARCH_FLANK_M / 2))
-    return _cbox(centre, (2 * half_t, thick, ARCH_FLANK_M), "sheet_metal", False, (e0, e1, out))
+    centre = add(body.P(cs, side * body.hw(cs), cy), scale(out, -depth / 2))
+    return _cbox(centre, (2 * half_t, thick, depth), "sheet_metal", False, (e0, e1, out))
 
 
 def _top_mean(body, s):
@@ -1583,10 +2961,11 @@ def _greenhouse(body, yb):
     return out
 
 
-def _band_box(body, side, s0, s1, inset=0.0):
+def _band_box(body, side, s0, s1, inset=0.0, depth=BAND_DEPTH_M, below=BAND_BELOW_M, v_low=None, v_top=1.0):
     """A box per side whose outer face is the band's plane (`inset` inside it), its top edge on the band's top edge
-    from s0 to s1, and reaching down in the plane BAND_BELOW_M under the belt at both ends, BAND_DEPTH_M deep."""
-    top0, top1 = body.band_point(s0, 1.0, side), body.band_point(s1, 1.0, side)
+    (or the line at fraction v_top of it) from s0 to s1, and reaching down in the plane `below` under the belt at
+    both ends (or, given v_low, down to that fraction of the band), `depth` deep."""
+    top0, top1 = body.band_point(s0, v_top, side), body.band_point(s1, v_top, side)
     if norm(sub(top1, top0)) < 1e-6:
         top1 = add(top0, (1e-3, 0.0, 0.0))
     e0 = normalize(sub(top1, top0))
@@ -1594,10 +2973,13 @@ def _band_box(body, side, s0, s1, inset=0.0):
     e1 = normalize(cross(normal, e0))
     if e1[1] > 0:
         e1 = scale(e1, -1)  # down the band
-    feet = [sub(body.band_point(s, 0.0, side), (0.0, BAND_BELOW_M, 0.0)) for s in (s0, s1)]
+    if v_low is None:
+        feet = [sub(body.band_point(s, 0.0, side), (0.0, below, 0.0)) for s in (s0, s1)]
+    else:
+        feet = [body.band_point(s, v_low, side) for s in (s0, s1)]
     reach = max(dot(sub(f, top0), e1) for f in feet)
-    centre = add(scale(add(top0, top1), 0.5), add(scale(e1, reach / 2), scale(normal, -BAND_DEPTH_M / 2 - inset)))
-    return _cbox(centre, (norm(sub(top1, top0)), reach, BAND_DEPTH_M), "sheet_metal", False, (e0, e1, normal))
+    centre = add(scale(add(top0, top1), 0.5), add(scale(e1, reach / 2), scale(normal, -depth / 2 - inset)))
+    return _cbox(centre, (norm(sub(top1, top0)), reach, depth), "sheet_metal", False, (e0, e1, normal))
 
 
 def _cap_box(body, s0, s1, material, landable, depth, t_max, half, level):
@@ -1613,6 +2995,768 @@ def _cap_level(body, s, t_max, level):
     return min(ys) + level * (max(ys) - min(ys))
 
 
+# --- the kits' collision (design decision 7; task 1.2) ------------------------------------------------------------
+
+def _kit_plan(body, kit):
+    """[(name, primitive)] of a kit's body in the body's own frame (collision_plan moves it). As _clean_plan where the
+    kit leaves the shape alone, and where it does not, the plan the audit's 5 cm and 2 cm ask of the edited shape:
+
+    - The struck corner's tear (A): the nose's core, its flank on that side, the roll and the wedge under the bonnet
+      stop at the tear's faces (its floor, its back at NOTCH_DEPTH_M, its inner edge), so the pocket stays open: it
+      is a lamp's socket and the inner wing behind, not a fragment hole.
+    - The bonnet's folded corner (A): the bonnet as three landable boxes round the torn-off triangle (in front of it,
+      beside it, and one turned along the tear), the scuttle under the hinge, the wedge stepped down to the engine
+      bay's contents under the opening (their block is its top; the pocket over it is closed by walls, _deck), the
+      wing's roll under the torn side edge as steps from the inner wing out (WING_STEPS), and the flap as strips
+      parallel to its hinge, each fitted to the folded sheet (_fitted_box), 4.5 cm wide so a strip's square end
+      stands within 2 cm of the torn diagonal.
+    - Fragment holes of 0.25 m or less stay closed in collision (the sheet's stated deviation): the panels' boxes
+      run over them; their petals (kits) reach the open centre within AST-05's 5 cm, and none lies in the 2 cm zone.
+    - The open cabin (any pane gone): no solid cabin. The floor, per side the walls (skin to trim, DOOR_T_M) to the
+      crease, the door tops' roll as steps from the trim out (DOOR_TOP_STEPS; at the cowl, where the wing's roll steps
+      down to the door's, one more on the wing's line), thin boxes on the rear wheel tubs and their inner walls, the
+      firewall (the lower front's face) and, behind the rear seat, the boot from its bulkheads (its sides as the clean
+      base's arch boxes); over the belt per side the band's frame (round each gone pane) or its thin boxes (its glass
+      in), one 45-degree chamfer per stretch of the cap's edge roll, the roof as thin halves fitted to its crown (and
+      its sag), each screen's frame and its remaining pane as thin glass boxes (the crazed windscreen in two across,
+      closed over its slit); the seats, the dashboard and the steering wheel as their own shapes (rim, spokes, hub
+      and column).
+    - F: the front arches open as the rear ones (the tyres burnt, the rims well inside), with a core between the
+      wheelhouses; the seats as their frames (the cushion's frame on the floor, the back's round its springs), the
+      steering wheel's core, the dashboard's beam."""
+    plan = []
+    add_ = plan.append
+    af, ar = body.axle
+    s_f, s_r = body.s_front - FACE_M, body.s_rear + FACE_M
+    yb = min(y for _, y in body.underbody)
+    sides = ((-1, "left"), (1, "right"))
+    arch_f, arch_r = ar - body.r_arch, ar + body.r_arch
+    nose_top = (body.z_c(body.s_front) + body.z_c(af)) / 2
+    notch = kit.notch
+    core_half = body.hw(body.s_front) - 0.08
+    # --- the nose
+    if kit.F:  # the front arches open: the nose stops at them, a core runs between the wheelhouses
+        fa0, fa1 = af - body.r_arch, af + body.r_arch
+        add_(("nose_core", _level(body, s_f, fa0, core_half, yb, nose_top)))
+        for side, tag in sides:
+            add_((f"nose_{tag}", _flank_box(body, s_f, fa0, side, yb, nose_top, body.s_front, fa0, 0.15)))
+            # a 12-gon round the open arch (its corners 1.2 cm off the liner: the bonnet's 2 cm zone reaches it)
+            for k, phi in enumerate((150.0, 120.0, 90.0, 60.0, 30.0)):
+                reach = (0.05, 0.02) if phi == 150.0 else (0.0, 0.05) if phi == 30.0 else (0.05, 0.05)
+                add_((f"front_arch_{k}_{tag}", _front_arch_box(body, side, phi,
+                                                               LOWER_MID_TOP_M if phi == 90.0 else None, reach)))
+            # over the arch, from its top to just over the crease (under the roll), in past the wheelhouse's wall
+            depth = body.hw(af) - body.w_in[0] + 0.03
+            for name, s0, s1 in (("front", fa0 - OVERLAP_M, af), ("rear", af, fa1 + OVERLAP_M)):
+                add_((f"front_arch_over_{name}_{tag}", _flank_box(body, s0, s1, side,
+                                                                  body.z_wc + body.r_arch - 0.005,
+                                                                  body.z_c(s0) + 0.03, fa0, fa1, depth)))
+        add_(("axle_core", _level(body, fa0 - OVERLAP_M, fa1 + OVERLAP_M, body.w_in[0], yb, nose_top)))
+        lower_from = fa1
+    else:
+        y_n = min(kit.notch_y(body.s_front), kit.notch_y(notch["s1"])) if notch else None
+        if notch:
+            side = notch["side"]
+            near, far = (-core_half, notch["w_in"]) if side > 0 else (-notch["w_in"], core_half)
+            add_(("nose_core", _level_w(body, s_f, af + OVERLAP_M, near, far, yb, nose_top)))
+            band = (notch["w_in"], core_half) if side > 0 else (-core_half, -notch["w_in"])
+            add_(("nose_core_low", _level_w(body, s_f, af + OVERLAP_M, *band, yb, y_n)))
+            add_(("nose_core_back", _level_w(body, notch["s1"], af + OVERLAP_M, *band, y_n - 0.01, nose_top)))
+        else:
+            add_(("nose_core", _level(body, s_f, af + OVERLAP_M, core_half, yb, nose_top)))
+        for side, tag in sides:
+            if notch and side == notch["side"]:
+                add_((f"nose_{tag}_low", _flank_box(body, s_f, af + OVERLAP_M, side, yb, y_n, body.s_front, af, 0.15)))
+                add_((f"nose_{tag}_back", _flank_box(body, notch["s1"], af + OVERLAP_M, side, y_n - 0.01, nose_top,
+                                                     body.s_front, af, 0.15)))
+            else:
+                add_((f"nose_{tag}", _flank_box(body, s_f, af + OVERLAP_M, side, yb, nose_top, body.s_front, af,
+                                                0.15)))
+        lower_from = af
+    if kit.open:
+        add_(("lower_front", _level(body, lower_from, body.s_cowl + 0.005, MID_HALF_M, yb, LOWER_MID_TOP_M)))
+    else:
+        add_(("lower_mid", _level(body, lower_from, arch_f, MID_HALF_M, yb, LOWER_MID_TOP_M)))
+    # --- the rear arches and the tail (as the clean base); in the open cabin the arches' boxes over the cabin reach in
+    # only to the quarter's trim and up to the door tops' height (the one behind, in the closed boot, as the clean
+    # base's), thin boxes lie on the wheel tubs' tops in the cabin, the tail's core starts behind the rear seat
+    arch_top = body.z_c(body.doors[1]) + 0.04 if kit.open else LOWER_MID_TOP_M
+    arch_depth = DOOR_T_M if kit.open else ARCH_FLANK_M
+    boot_depth = body.hw(body.axle[1] + body.r_arch * math.sqrt(0.5)) - body.w_in[1] + 0.01  # to the cores
+    for side, tag in sides:
+        for name, phi, top in (("arch_front", 135.0, None), ("arch_top", 90.0, arch_top), ("arch_rear", 45.0, None)):
+            depth = boot_depth if kit.open and name == "arch_rear" else arch_depth
+            add_((f"{name}_{tag}", _arch_box(body, 1, side, phi, top, depth)))
+        if kit.open:
+            for k, phi in enumerate(TUB_PHI_DEG):
+                add_((f"arch_tub_{k}_{tag}", _tub_box(body, side, phi)))
+    tail_mid = (body.s_rs_base + body.s_rear) / 2
+    # F: nothing fills the arch, so no box reaches into it; A: 3 cm in, as the lean lifts the far rear corner's liner
+    # off its tyre (the clean base's 5 cm would hold the liner there 5 cm deep)
+    tail_a0 = arch_r if kit.F else arch_r - 0.03
+    for name, a, b, ends in (("tail_a", tail_a0, tail_mid + OVERLAP_M, (arch_r, tail_mid)),
+                             ("tail_b", tail_mid, s_r, (tail_mid, body.s_rear))):
+        top = (body.z_c(ends[0]) + body.z_c(ends[1])) / 2
+        for side, tag in sides:
+            add_((f"{name}_{tag}", _flank_box(body, a, b, side, yb, top, ends[0], ends[1], 0.2)))
+    s_back_top = _seat_back_station(body, body.belt)
+    s_bh, s_up = _bulkhead_station(body), _upper_bulkhead_station(body)
+    tail_from = body.s_rs_base - OVERLAP_M if kit.open else arch_f  # open: the boot's boxes reach it (below)
+    tail_top = body.z_c(body.s_rear) - 0.005
+    if kit.F:  # nothing fills the rear wheel wells: between them the core keeps inside the wheelhouses' walls, and
+        # behind them it starts a centimetre into the well
+        add_(("tail_core_axle", _level(body, tail_from, arch_r, body.w_in[1] - 0.01, yb, tail_top)))
+        add_(("tail_core", _level(body, arch_r - 0.01, s_r, CORE_HALF_M, yb, tail_top)))
+    else:
+        add_(("tail_core", _level(body, tail_from, s_r, CORE_HALF_M, yb, tail_top)))
+    if kit.open:
+        y_liner = body.z_wc + body.r_arch
+        # the boot behind the bulkheads (_cabin_shell): between the wheelhouses up to their liners from the lower
+        # one, between the trims above from the upper one, behind the seat back
+        add_(("boot_low", _level(body, s_bh, body.s_rs_base + OVERLAP_M, body.w_in[1] - 0.01, yb, y_liner)))
+        add_(("boot_high", _level(body, s_up, body.s_rs_base, body.hw(body.s_rs_base) - 0.03, y_liner - 0.04,
+                                   body.belt - 0.01)))
+        # the wheelhouses' inner walls under the rear seat, ahead of the lower bulkhead (their cabin faces)
+        for side, tag in sides:
+            w = side * (body.w_in[1] - 0.005)
+            add_((f"arch_wall_{tag}", _cbox(body.P(s_bh - ARCH_WALL_M[0] / 2, w, body.z_wc + ARCH_WALL_M[1] / 2),
+                                            (ARCH_WALL_M[0], ARCH_WALL_M[1], 0.01), "sheet_metal")))
+        add_(("floor", _level(body, body.s_cowl - OVERLAP_M, arch_f, MID_HALF_M - DOOR_T_M + 0.02, yb - SILL_T_M,
+                              yb)))
+        add_(("floor_rear", _level(body, arch_f - OVERLAP_M, s_bh, body.w_in[1] - 0.01, yb - SILL_T_M, yb)))
+        d1 = body.doors[1]
+        z_c = body.z_c(d1)
+        for side, tag in sides:  # the doors and the quarters: skin to trim up the flank, and the roll's section
+            add_((f"side_front_{tag}", _flank_box(body, body.s_cowl, d1 + OVERLAP_M, side, yb, z_c + 0.04, body.s_cowl,
+                                                  d1, DOOR_T_M)))
+            add_((f"side_rear_{tag}", _flank_box(body, d1, arch_f, side, yb, z_c + 0.04, d1, arch_f, DOOR_T_M)))
+            # the door top's roll as two steps along it from the trim out, each outer-top corner on the arc
+            # (DOOR_TOP_STEPS), so the arc keeps within 2 cm of them and nothing stands in the cabin
+            for k, (out_w, y0, y1) in enumerate(DOOR_TOP_STEPS):
+                add_((f"door_top_{k}_{tag}", _roll_box(body, side, body.s_cowl, s_back_top, (0.0, out_w), y0, y1,
+                                                       (0.0, 0.02))))
+            # at the cowl, where the wing's roll steps down 1.8 cm to the door's (COWL_STEP_M): the upper step on the
+            # wing's line, inside the front roll and just past the step (the roll's end disc leans forward with its
+            # pitch and leaves the step's top bare)
+            out_w, y0, y1 = DOOR_TOP_STEPS[-1]
+            if not (kit.flap and side == kit.flap.side):  # there the torn roll's steps reach past it
+                add_((f"door_top_cowl_{tag}", _roll_box(body, side, body.s_cowl - 0.04, body.s_cowl, (0.0, out_w),
+                                                        y0, y1, (0.0, COWL_STEP_M + 0.001))))
+    # --- the tops
+    add_tops = _kit_tops(body, kit)
+    plan += add_tops
+    # --- the shoulder's roll (cylinders where the cabin is closed or the stretch is not the cabin's)
+    stretches = [("roll_nose", body.s_front, af), ("roll_front", af, body.s_cowl)]
+    stretches += ([("roll_tail_a", body.s_rs_top, body.s_boot)] if kit.open else
+                  [("roll_cabin", body.s_cowl, body.s_rs_top), ("roll_tail_a", body.s_rs_top, body.s_boot)])
+    stretches.append(("roll_tail_b", body.s_boot, body.s_rear))
+    flap = kit.flap
+    for side, tag in sides:
+        torn = flap is not None and side == flap.side  # the bonnet's side edge torn from the flap's foot to the cowl
+        for name, s0, s1 in stretches:
+            if notch and name == "roll_nose" and side == notch["side"]:
+                s0 = notch["s1"]
+            if kit.open and name == "roll_tail_a":
+                s0 = max(s0, s_back_top)
+            if torn and name in ("roll_nose", "roll_front"):
+                s1 = min(s1, flap.s_B)
+                if s1 <= s0:
+                    continue
+            p0 = body.P(s0, side * body.w_t(s0), body.z_c(s0 + 1e-6 if s0 == body.s_cowl else s0))
+            p1 = body.P(s1, side * body.w_t(s1), body.z_c(s1))
+            before = _end_reach(p0, p1, s0 == body.s_front)
+            after = -_end_reach(p1, p0, s1 == body.s_rear)
+            if kit.open and name == "roll_front":
+                # past the cowl just so far that its forward-leaning end disc holds the door tops' front faces:
+                # further, its lower half would stand in the open cabin
+                after = 0.01
+            if torn and s1 == flap.s_B:
+                after = 0.01  # into the torn stretch's steps, not into the pocket behind the corner's foot
+            if (kit.open and name == "roll_tail_a") or (notch and name == "roll_nose" and side == notch["side"]):
+                before = 0.0  # nor reach into the cabin, or into the struck corner's tear
+            add_((f"{name}_{tag}", _cylinder(*_extend(p0, p1, before, after), ROLL_R_M, "sheet_metal")))
+        if torn:  # under the torn edge the roll's outer half alone, as steps from the inner wing out (WING_STEPS)
+            cuts = [flap.s_B] + ([af] if flap.s_B < af else []) + [body.s_cowl]
+            for j, (a, b) in enumerate(zip(cuts, cuts[1:])):
+                # into the roll ahead (its end disc leans with its pitch) and past each other where the line kinks
+                grow = (0.03 if j == 0 else 0.02, COWL_STEP_M + 0.001 if b == body.s_cowl else 0.02)
+                for k, (out_w, y0, y1) in enumerate(WING_STEPS):
+                    add_((f"roll_torn_{j}_{k}_{tag}", _roll_box(body, side, a, b, (0.0, out_w), y0, y1, grow)))
+    # --- the greenhouse
+    plan += _greenhouse_open(body, kit) if kit.open else _greenhouse(body, yb)
+    plan += _plan_bumpers(body, kit)
+    plan += _kit_interior(body, kit)
+    plan += _plan_rack(body)
+    if kit.flap:
+        plan += _flap_strips(body, kit.flap)
+    return plan
+
+
+def _kit_wheels(body, kit):
+    """The wheels on the ground: A's tyres (the flat one leaning with the body on its dropped hub) and the front
+    wheelhouses' cylinders round them (the clean base's: with its tyre where the wheel stands, with the body where
+    it is the flat one's), F's bare rims at their flange radius (steel, the sheet's rim cylinders)."""
+    out = []
+    if not kit.F:
+        af = body.axle[0]
+        for side, tag in ((-1, "left"), (1, "right")):
+            w0, w1 = body.w_in[0], body.hw(af) - 0.01
+            shape = _cylinder(body.P(af, side * w0, body.z_wc), body.P(af, side * w1, body.z_wc),
+                              body.r_tyre + WHEELHOUSE_GAP_M, "rubber")
+            if _corner(body, af, side) == kit.flat:
+                shape = kits.transform_shape(shape, kit.T)
+            out.append((f"wheelhouse_front_{tag}", shape))
+    for k, a in enumerate(body.axle):
+        for side, tag in ((-1, "left"), (1, "right")):
+            hub = kit.hubs[_corner(body, a, side)]
+            if kit.F:
+                h = RIM_WIDTH_M / 2
+                shape = _cylinder(sub(hub, (0.0, 0.0, h)), add(hub, (0.0, 0.0, h)), RIM_FLANGE_R_M, "steel")
+                out.append((f"rim_{('front', 'rear')[k]}_{tag}", shape))
+            else:
+                h = body.w_tyre / 2
+                if _corner(body, a, side) == kit.flat:
+                    # it leans with the body, on its dropped hub, from its tread flattened on the ground to its top:
+                    # the round tyre would sink its drop into the ground the mesh stands on
+                    centre = body.P(a, side * body.track[k] / 2, body.z_wc)
+                    hub_y = kit.T.point(centre)[1]
+                    r = (hub_y + body.r_tyre) / 2
+                    shape = kits.transform_shape(_cylinder(sub(centre, (0.0, 0.0, h)), add(centre, (0.0, 0.0, h)),
+                                                           r, "rubber"), kit.T)
+                    shape["center"][1] += r - hub_y
+                else:
+                    shape = _cylinder(sub(hub, (0.0, 0.0, h)), add(hub, (0.0, 0.0, h)), body.r_tyre, "rubber")
+                out.append((f"wheel_{('front', 'rear')[k]}_{tag}", shape))
+    return out
+
+
+def _level_w(body, s0, s1, w0, w1, y0, y1):
+    """A level, axis-aligned box over [s0, s1], from w0 to w1 across, from y0 to y1."""
+    return _cbox(body.P((s0 + s1) / 2, (w0 + w1) / 2, (y0 + y1) / 2), (s1 - s0, y1 - y0, w1 - w0), "sheet_metal")
+
+
+def _cap_roll(body, s):
+    """The cap's edge roll at s: (its centre's lateral offset, its centre's height)."""
+    w, y, _ = body.roof_edge(s)
+    return w, y
+
+
+def _chamfer_box(body, side, s0, s1, alpha_deg, roll, radius, depth, material="sheet_metal", span=22.5):
+    """A thin box per side whose outer face is the tangent plane at `alpha_deg` (from outward, up positive) to a
+    roll of radius radius(body, s) about the centre line roll(body, s), from s0 to s1 (each end at its own radius),
+    spanning the circumscribed polygon's side between the tangents `span` degrees either way, `depth` deep."""
+    a = math.radians(alpha_deg)
+    reach = max(radius(body, s0), radius(body, s1)) * math.tan(math.radians(span))
+
+    def tangent(s):
+        w, y = roll(body, s)
+        r = radius(body, s)
+        return body.P(s, side * (w + r * math.cos(a)), y + r * math.sin(a))
+    c0, c1 = tangent(s0), tangent(s1)
+    e0 = normalize(sub(c1, c0))
+    n = normalize((0.0, math.sin(a), side * math.cos(a)))
+    n = normalize(sub(n, scale(e0, dot(n, e0))))
+    e2 = normalize(cross(n, e0))
+    centre = sub(scale(add(c0, c1), 0.5), scale(n, depth / 2))
+    return _cbox(centre, (norm(sub(c1, c0)), depth, 2 * reach), material, False, (e0, n, e2))
+
+
+def _front_arch_box(body, side, phi_deg, top=None, reach=(0.05, 0.05)):
+    """F's open front arch: as _arch_box round the front axle, but shorter along the arch (the wing ahead of it is
+    0.17 m) and thinner, and reaching in from the flank to just inside the wheelhouse's inner wall (the axle's core
+    covers its inner face). Along the arch it spans the 12-gon's side and `reach` past it at its ends towards the
+    smaller and the larger phi: 5 cm so neighbours overlap out to their outer faces, less at the run's two ends,
+    where nothing follows and a longer box would stand off the body (2 cm in front, none behind, where it would
+    reach past the firewall into the footwell)."""
+    a, r = body.axle[0], body.r_arch
+    phi = math.radians(phi_deg)
+    n = (math.cos(phi), math.sin(phi))
+    tg = (-math.sin(phi), math.cos(phi))
+    half_t = r * math.tan(math.pi / 12) + (reach[0] + reach[1]) / 2
+    shift = (reach[1] - reach[0]) / 2  # along tg, towards the upper end
+    thick = (top - body.z_wc - r) if top is not None else 0.16  # up under the box over the arch
+    cs, cy = a + n[0] * (r + thick / 2), body.z_wc + n[1] * (r + thick / 2)
+    slope = (body.hw(cs + 0.05) - body.hw(cs - 0.05)) / 0.1
+    out = normalize((-slope, 0.0, float(side)))
+    e0 = normalize((tg[0], tg[1], 0.0))
+    e0 = normalize(sub(e0, scale(out, dot(e0, out))))
+    e1 = cross(out, e0)
+    depth = body.hw(cs) - body.w_in[0] + 0.03
+    centre = add(body.P(cs, side * body.hw(cs), cy), add(scale(out, -depth / 2), scale(e0, shift)))
+    return _cbox(centre, (2 * half_t, thick, depth), "sheet_metal", False, (e0, e1, out))
+
+
+def _tub_box(body, side, phi_deg):
+    """A thin box on the rear wheel tub's top in the open cabin: tangent to the liner's arc at phi (degrees from the
+    car's rearward axis, up positive) over TUB_SPAN_DEG of it and 2 cm on, from inside the wheelhouse's inner wall to
+    2 cm under the quarter's trim."""
+    a, r = body.axle[1], body.r_arch
+    phi = math.radians(phi_deg)
+    n = (math.cos(phi), math.sin(phi), 0.0)
+    e0 = (-math.sin(phi), math.cos(phi), 0.0)
+    half_t = r * math.tan(math.radians(TUB_SPAN_DEG / 2)) + 0.02
+    cs, cy = a + n[0] * (r + TUB_T_M / 2), body.z_wc + n[1] * (r + TUB_T_M / 2)
+    w0, w1 = body.w_in[1] - 0.01, body.hw(cs) - DOOR_T_M + 0.02
+    return _cbox(body.P(cs, side * (w0 + w1) / 2, cy), (2 * half_t, TUB_T_M, w1 - w0), "sheet_metal", False,
+                 (e0, n, (0.0, 0.0, 1.0)))
+
+
+def _roll_box(body, side, s0, s1, lateral, y0, y1, grow=(0.0, 0.0)):
+    """A box along the shoulder roll's centre line from s0 to s1, straight between its ends as the roll's cylinders
+    are: from lateral[0] to lateral[1] out of the line (the open cabin's trim lies on it) and from y0 to y1 over it,
+    grown by grow[0] and grow[1] at its ends along itself (into the neighbouring rolls)."""
+    w0, w1 = lateral
+
+    def at(s):
+        return body.P(s, side * (body.w_t(s) + (w0 + w1) / 2), body.z_c(s) + (y0 + y1) / 2)
+    c0, c1 = at(s0 + 1e-6), at(s1 - 1e-6)  # inside the span: the crease steps at the cowl
+    e0 = normalize(sub(c1, c0))
+    c0, c1 = sub(c0, scale(e0, grow[0])), add(c1, scale(e0, grow[1]))
+    up = normalize(sub((0.0, 1.0, 0.0), scale(e0, e0[1])))
+    return _cbox(scale(add(c0, c1), 0.5), (norm(sub(c1, c0)), y1 - y0, w1 - w0), "sheet_metal", False,
+                 (e0, up, cross(e0, up)))
+
+
+def _fitted_box(points, outline, outward, thickness, material, landable=False, centred=False):
+    """A thin box fitted to sheet points: its plane's normal from the `outline` ring (Newell's, turned to
+    `outward`), its in-plane extent the points' bounds along the outline's first edge and across it, its outer face
+    at the midrange of the points' heights over the plane (or the box centred on them, `centred`), `thickness`
+    inward."""
+    n = normalize(_newell(outline))
+    if dot(n, outward) < 0:
+        n = scale(n, -1)
+    e0 = sub(outline[1], outline[0])
+    e0 = normalize(sub(e0, scale(n, dot(e0, n))))
+    e2 = cross(n, e0)
+    origin = outline[0]
+    a = [dot(sub(p, origin), e0) for p in points]
+    b = [dot(sub(p, origin), e2) for p in points]
+    h = [dot(sub(p, origin), n) for p in points]
+    top = (max(h) + min(h)) / 2 + (thickness / 2 if centred else 0.0)
+    centre = add(origin, add(scale(e0, (max(a) + min(a)) / 2), add(scale(e2, (max(b) + min(b)) / 2),
+                                                                     scale(n, top - thickness / 2))))
+    return _cbox(centre, (max(a) - min(a), thickness, max(b) - min(b)), material, landable, (e0, n, e2))
+
+
+def _bonnet_piece(body, corners, landable, depth=LID_T_M, offset=0.0):
+    """A box under the bonnet's mean plane (pitched along the car, flat across) over the plan quadrilateral
+    `corners` [(s, w)] (a rectangle, square or turned), its top `offset` above the plane, `depth` deep."""
+    a, b = body.s_front, body.s_cowl
+    ya, yb = _top_mean(body, a), _top_mean(body, b)
+
+    def on(s, w):
+        return body.P(s, w, ya + (yb - ya) * (s - a) / (b - a) + offset)
+    pts = [on(s, w) for s, w in corners]
+    e0 = normalize(sub(pts[1], pts[0]))
+    e2 = normalize(sub(pts[3], pts[0]))
+    n = cross(e2, e0)
+    if n[1] < 0:
+        n = scale(n, -1)
+    e2 = cross(n, e0)
+    length, width = norm(sub(pts[1], pts[0])), norm(sub(pts[3], pts[0]))
+    centre = sub(scale(add(pts[0], pts[2]), 0.5), scale(n, depth / 2))
+    return _cbox(centre, (length, depth, width), "sheet_metal", landable, (e0, n, e2))
+
+
+def _lid_box_w(body, s0, s1, w0, w1, depth, offset, landable, line=None):
+    """_lid_box across [w0, w1] instead of +-half."""
+    box = _lid_box(body, s0, s1, (w1 - w0) / 2, depth, offset, landable, line)
+    box["center"][2] += (w0 + w1) / 2
+    return box
+
+
+def _kit_tops(body, kit):
+    """The bonnet, the wedge under it, the boot lid and its wedge, with the struck corner's tear and the folded
+    corner cut from them (see _kit_plan)."""
+    out = []
+    s_f, s_r = body.s_front - FACE_M, body.s_rear + FACE_M
+    notch, flap = kit.notch, kit.flap
+    line = (body.s_front, body.s_cowl)
+    depth, offset = LID_T_M + 0.2, -LID_T_M + 0.005
+    half = FRONT_WEDGE_HALF_M
+    # the wedge under the bonnet, in pieces along the car: the tear's rows, the middle, the folded corner's rows
+    s_mid0 = notch["s1"] if notch else s_f - 0.01
+    s_mid1 = flap.s_B if flap else body.s_cowl
+    if notch:
+        lo, hi = (-half, notch["w_in"]) if notch["side"] > 0 else (-notch["w_in"], half)
+        out.append(("wedge_front", _lid_box_w(body, s_f - 0.01, s_mid0 + OVERLAP_M, lo, hi, depth, offset, False, line)))
+    # the open cabin: the pitched wedge's foot would reach past the firewall, so its last COWL_LEVEL_M is level
+    s_end = body.s_cowl - COWL_LEVEL_M if kit.open else body.s_cowl
+    top_cowl = _top_mean(body, body.s_cowl) + offset
+
+    def cowl_piece(name, w0, w1):
+        if kit.open:
+            out.append((name, _level_w(body, s_end, body.s_cowl, w0, w1, top_cowl - depth, top_cowl)))
+    out.append(("wedge_mid", _lid_box(body, s_mid0, s_end if not flap else s_mid1, half, depth, offset, False, line)))
+    if not flap:
+        cowl_piece("wedge_cowl", -half, half)
+    if flap:
+        w_a = body.w_t(flap.s_b) * flap.u_A
+        lo, hi = (w_a, half) if flap.side < 0 else (-half, w_a)
+        out.append(("wedge_rear", _lid_box_w(body, flap.s_B, s_end, lo, hi, depth, offset, False, line)))
+        cowl_piece("wedge_cowl", lo, hi)
+        s0, s1, w0, w1, top, bottom = _deck_box(body, kit)
+        out.append(("wedge_deck", _cbox(body.P((s0 + s1) / 2, (w0 + w1) / 2, (top + bottom) / 2),
+                                        (s1 - s0, top - bottom, w1 - w0), "sheet_metal")))
+        # the bonnet round the torn-off triangle B (side edge), A (rear edge), C (the corner)
+        edge = body.w_t(body.s_front) * flap.u_max
+        far = -flap.side * edge
+        s_b = flap.s_b
+        w_a2 = w_a
+        # ahead of the corner's foot and beyond the tear's far end the lids over the wedges, as the clean base's
+        out.append(("bonnet_front", _bonnet_piece(body, [(body.s_front, -edge), (flap.s_B, -edge), (flap.s_B, edge),
+                                                         (body.s_front, edge)], True, LID_T_M)))
+        lo, hi = sorted((w_a2, far))
+        out.append(("bonnet_side", _bonnet_piece(body, [(flap.s_B, lo), (body.s_cowl, lo), (body.s_cowl, hi),
+                                                        (flap.s_B, hi)], True, LID_T_M)))
+        # over the pocket, thin and turned along the tear (from the sheet's edge at B to A), reaching the right angle
+        # R of the triangle the other two leave uncovered
+        w_c = flap.side * body.w_t(flap.s_B) * flap.u_max
+        b_pt, a_pt, r_pt = (flap.s_B, w_c), (s_b, w_a2), (flap.s_B, w_a2)
+        length = math.hypot(a_pt[0] - b_pt[0], a_pt[1] - b_pt[1])
+        t = ((a_pt[0] - b_pt[0]) / length, (a_pt[1] - b_pt[1]) / length)
+        v = (r_pt[0] - b_pt[0], r_pt[1] - b_pt[1])
+        along = v[0] * t[0] + v[1] * t[1]
+        perp = (v[0] - along * t[0], v[1] - along * t[1])
+        quad = [b_pt, a_pt, (a_pt[0] + perp[0], a_pt[1] + perp[1]), (b_pt[0] + perp[0], b_pt[1] + perp[1])]
+        out.append(("bonnet_tear", _bonnet_piece(body, quad, True, LID_KIT_M)))
+        lo, hi = sorted((flap.side * body.w_t(s_b) * flap.u_max, w_a2))
+        out.append(("scuttle_hinge", _bonnet_piece(body, [(s_b, lo), (body.s_cowl, lo), (body.s_cowl, hi), (s_b, hi)],
+                                                   False, LID_KIT_M)))
+    else:
+        out.append(("bonnet", _lid_box(body, body.s_front, body.s_cowl, body.w_t(body.s_front), LID_T_M, 0.0, True)))
+    out.append(("rear_wedge", _lid_box(body, body.s_rs_base - OVERLAP_M, s_r, CORE_HALF_M, LID_T_M + 0.25,
+                                       -LID_T_M + 0.005, False, (body.s_rs_base, body.s_rear))))
+    out.append(("boot_lid", _lid_box(body, body.s_rs_base, body.s_rear, body.w_t(body.s_rear), LID_T_M, 0.0, True)))
+    return out
+
+
+def _flap_strips(body, flap):
+    """The folded flap as strips parallel to its hinge, each a thin box fitted to the folded sheet from the side edge
+    to the tear at the strip's middle (centred on the sheet, not landable)."""
+    out = []
+    along = flap.s_b - flap.s_B
+    n = max(2, math.ceil(along / FLAP_STRIP_M))
+    rot = flap.rigid()
+    normal = rot.vector((0.0, 1.0, 0.0))
+    for k in range(n):
+        s0 = flap.s_b - along * k / n
+        s1 = flap.s_b - along * (k + 1) / n
+        sm = (s0 + s1) / 2
+        f_mid = 1.0  # out to the tear at the strip's middle
+
+        def pt(s, f):
+            u = flap.u_C + (flap.u_tear(sm) - flap.u_C) * f
+            return rot.point(body.top_point(s, u))
+        outline = [pt(s0, 0.0), pt(s0, f_mid), pt(s1, f_mid), pt(s1, 0.0)]
+        samples = [pt(s0 + (s1 - s0) * i / 3, j / 6) for i in range(4) for j in range(7)]
+        out.append((f"flap_{k}", _fitted_box(samples, outline, normal, SHELL_T_M, "sheet_metal", centred=True)))
+    return out
+
+
+def _plan_bumpers(body, kit=None):
+    """Per bumper three capsules along the blade and a capsule per overrider (the clean base's)."""
+    out = []
+    for front in (True, False):
+        path, (bottom, top, depth) = _bumper_path(body, front)
+        y = (bottom + top) / 2
+        n = len(path)
+        for a, b, tag in ((path[5], path[n - 6], "end"), (path[5], path[0], "left"), (path[n - 6], path[-1], "right")):
+            pa = _bumper_axis(body, path, a, front, y)
+            pb = _bumper_axis(body, path, b, front, y)
+            out.append((f"bumper_{'front' if front else 'rear'}_{tag}", meta.capsule(pa, pb, BUMPER_R_M, "steel")))
+        lateral, o_bottom, o_top = body.preset["overrider"]
+        s = (0.0 if front else body.L) + (1.0 if front else -1.0) * 0.025
+        tips = 0.02 if kit is not None and kit.F else 0.0  # F: the rubber tips burnt off
+        for side, tag in ((-1, "left"), (1, "right")):
+            out.append((f"overrider_{'front' if front else 'rear'}_{tag}",
+                        meta.capsule(body.P(s, side * lateral, o_bottom + tips + OVERRIDER_R_M),
+                                     body.P(s, side * lateral, o_top - tips - OVERRIDER_R_M), OVERRIDER_R_M, "steel")))
+    return out
+
+
+def _plan_rack(body):
+    out = []
+    if body.p["roof_rack"]:
+        corners, posts = _rack_points(body)
+        for k, (a, b) in enumerate(zip(corners, corners[1:] + corners[:1])):
+            cap = meta.capsule(a, b, RACK_R_M, "steel")
+            cap["landable"] = k in (1, 3)  # the side rails: the legs' touch points (the sheet)
+            out.append((f"rack_tube_{k}", cap))
+        for k, (foot, top) in enumerate(posts):
+            out.append((f"rack_post_{k}", meta.capsule(foot, top, RACK_R_M, "steel")))
+    return out
+
+
+def _greenhouse_open(body, kit):
+    """The open cabin's greenhouse (see _kit_plan): per side the band's thin frame or boxes, the cap's edge roll's
+    chamfers, the roof's fitted halves, the remaining panes' glass boxes."""
+    out = []
+    s_d = body.s_drip_end
+    windows = _windows(body)
+    pairs = _window_pairs(body)
+    v0, v1 = WINDOW_V
+    fv = FRAME_M / body.H_band
+    stretches = (("a", body.s_cowl, body.s_ws_top), ("mid", body.s_ws_top, s_d), ("drop", s_d, body.s_rs_top),
+                 ("c", body.s_rs_top, body.s_rs_base))
+    for side, tag in ((-1, "left"), (1, "right")):
+        gone = [kit.glass[side, p] == "gone" for p in pairs]
+        if any(gone):
+            out += _band_open(body, side, tag)
+        else:
+            for name, s0, s1 in stretches:
+                inset = BAND_C_INSET_M if name == "c" else 0.0
+                out.append((f"band_{name}_{tag}", _band_box(body, side, s0, s1, inset, BAND_SHELL_M, 0.02)))
+        for name, s0, s1 in stretches:
+            out.append((f"cap_edge_{name}_{tag}", _chamfer_box(body, side, s0 + 1e-6, s1 - 1e-6, 45.0, _cap_roll,
+                                                               _cap_r, SHELL_T_M)))
+    # the roof: per stretch (and the sag's crease) two halves fitted to the crown
+    cuts = [body.s_ws_top, body.st["roof_front"], body.st["roof_rear"], body.s_rs_top]
+    if body.sag_m > 0:
+        cuts = sorted(set(cuts + [body.s_crease]))
+    for k, (a, b) in enumerate(zip(cuts, cuts[1:])):
+        for side, tag in ((-1, "left"), (1, "right")):
+            out.append((f"roof_{k}_{tag}", _roof_half(body, a, b, side)))
+    t_ws, t_rs = body.preset["windscreen_glass"][1], body.preset["rear_glass"][1]
+    panes = _cap_glass(body)
+    for name, pane, t_max, state in (("windscreen", panes[0], t_ws, kit.windscreen),
+                                     ("rear_screen", panes[1], t_rs, kit.rear_screen)):
+        s0, s1, _ = pane
+        # its frame round the glass or the opening: the strips along its top and foot and the pillars' flats
+        out += _screen_frame(body, name, s0, s1, t_max)
+        if state == "gone":
+            continue
+        crazed = state == "crazed_holed"
+        # the pane in three along it (it narrows toward one end), the crazed one also in two across (its bulge on
+        # the crown across stands too far off one plane)
+        across = ((-t_max, 0.0, "_left"), (0.0, t_max, "_right")) if crazed else ((-t_max, t_max, ""),)
+        for k in range(3):
+            piece = (s0 + (s1 - s0) * k / 3, s0 + (s1 - s0) * (k + 1) / 3, None)
+            for u0, u1, tag in across:
+                out.append((f"{name}_{k}{tag}", _pane_box(body, kit, piece, (u0, u1), crazed)))
+    return out
+
+
+def _cap_box_over(body, s0, s1, t0, t1, side=1, material="sheet_metal", landable=False):
+    """A thin box fitted to the cap from s0 to s1 over its section parameter t0..t1 on one side (t signed by side),
+    square to the strip's middle line (along an edge, the cap's taper would skew a wide strip's box)."""
+    def pt(s, t):
+        return body.cap_point(s, side * t)
+    tm = (t0 + t1) / 2
+    corners = [pt(s0, tm), pt(s1, tm), pt(s1, t1), pt(s0, t1)]
+    samples = [pt(s0 + (s1 - s0) * i / 4, t0 + (t1 - t0) * j / 4) for i in range(5) for j in range(5)]
+    return _fitted_box(samples, corners, (0.0, 1.0, 0.0), SHELL_T_M, material, landable, True)
+
+
+def _screen_frame(body, name, s0, s1, t_max):
+    """The frame round a screen's glass or opening: the cap's strip between the glass and the roof or the scuttle at
+    each end, and per side the pillar's flat between the glass and its edge roll (1 cm over the glass's edge)."""
+    out = []
+    a, b = (body.s_cowl, body.s_ws_top) if name == "windscreen" else (body.s_rs_top, body.s_rs_base)
+    out.append((f"{name}_frame_a", _cap_box_over(body, a, s0 + 0.01, -CAP_FLAT, CAP_FLAT)))
+    out.append((f"{name}_frame_b", _cap_box_over(body, s1 - 0.01, b, -CAP_FLAT, CAP_FLAT)))
+    for side, tag in ((-1, "left"), (1, "right")):
+        out.append((f"{name}_frame_{tag}", _cap_box_over(body, a, b, t_max - 0.01, CAP_FLAT, side)))
+    return out
+
+
+def _cap_r(body, s):
+    return body.roof_edge(s)[2]
+
+
+def _band_height(body, s):
+    return body.z_e(s) - body.belt
+
+
+def _band_abs(body, side, s0, s1, h0, h1, depth=BAND_SHELL_M):
+    """A thin box over the band from s0 to s1 between the heights h0 and h1 above the belt (along the band, clamped
+    to its top), its outer face fitted to the band."""
+    def pt(s, h):
+        top = _band_height(body, s)
+        return body.band_point(s, min(h, top) / top if top > 1e-6 else 0.0, side)
+    corners = [pt(s0, h0), pt(s1, h0), pt(s1, h1), pt(s0, h1)]
+    samples = [pt(s0 + (s1 - s0) * i / 4, h0 + (h1 - h0) * j / 2) for i in range(5) for j in range(3)]
+    return _fitted_box(samples + corners, corners, (0.0, 0.3, float(side)), depth, "sheet_metal")
+
+
+def _band_triangle(body, side, s_corner, s_far, h_top, name):
+    """The band under a pillar's slanted top edge, a right triangle with its right angle at (s_corner, 0) (the
+    window's edge at the belt), its legs to s_far along the belt and h_top up the window's edge: covered by three
+    rectangles (the one reaching the slanted edge's middle, then one into each corner triangle it leaves); the strip
+    along the edge (_band_box) covers the slivers left under it."""
+    ds = s_far - s_corner
+    rects = [(0.0, 0.5, 0.0, 0.5), (0.0, 0.25, 0.5, 0.75), (0.5, 0.75, 0.0, 0.25)]
+    out = []
+    for k, (a0, a1, b0, b1) in enumerate(rects):
+        s0, s1 = sorted((s_corner + ds * a0, s_corner + ds * a1))
+        out.append((f"{name}_{k}", _band_abs(body, side, s0, s1, h_top * b0, h_top * b1)))
+    return out
+
+
+def _band_open(body, side, tag):
+    """The band's frame on a side whose glass is gone (see _kit_plan): the sill under the windows and the strips over
+    them (along the A pillar's slope, the drip and its fall), the posts between the windows, the A pillar's triangle
+    in front of the vent, and behind the quarter the C pillar's front part and its triangle under the pillar's
+    slope, with a strip along that slope."""
+    out = []
+    windows = _windows(body)
+    v0, v1 = WINDOW_V
+    first, last = windows[0][0], windows[-1][1]
+    s_d, s_c, s_b = body.s_drip_end, body.s_rs_top, body.s_rs_base
+    out.append((f"band_sill_{tag}", _band_box(body, side, first, last, 0.0, BAND_SHELL_M, 0.02, None, v0)))
+    for name, s0, s1 in (("a", body.s_cowl, body.s_ws_top), ("mid", body.s_ws_top, s_d), ("drop", s_d, s_c)):
+        out.append((f"band_top_{name}_{tag}", _band_box(body, side, s0, s1, 0.0, BAND_SHELL_M, None, v1)))
+    for k in range(len(windows) - 1):
+        s0, s1 = windows[k][1], windows[k + 1][0]
+        out.append((f"band_post_{k}_{tag}", _band_rect(body, side, s0, s1, v0, v1)))
+    out += _band_triangle(body, side, first, body.s_cowl, _band_height(body, first), f"band_a_{tag}")
+    out.append((f"band_c_front_{tag}", _band_abs(body, side, last, s_c, 0.0, _band_height(body, s_c))))
+    out += _band_triangle(body, side, s_c, s_b, _band_height(body, s_c), f"band_c_{tag}")
+    out.append((f"band_c_edge_{tag}", _band_box(body, side, s_c, s_b, BAND_C_INSET_M, BAND_SHELL_M, None, 0.85)))
+    return out
+
+
+def _band_rect(body, side, s0, s1, v0, v1, depth=BAND_SHELL_M):
+    """A thin box over the band from s0 to s1 between the band fractions v0 and v1, its outer face on the band."""
+    corners = [body.band_point(s0, v0, side), body.band_point(s1, v0, side), body.band_point(s1, v1, side),
+               body.band_point(s0, v1, side)]
+    samples = [body.band_point(s0 + (s1 - s0) * i / 4, v0 + (v1 - v0) * j / 2, side) for i in range(5) for j in range(3)]
+    outward = (0.0, 0.3, float(side))
+    return _fitted_box(samples + corners, corners, outward, depth, "sheet_metal")
+
+
+def _roof_half(body, a, b, side):
+    """A thin landable box over one half of the roof from a to b, fitted to the (sagged) crown out to the edge roll's
+    67.5-degree corner (where the cap's chamfer takes over), centred on the sheet: the crown's curve stands up to
+    a centimetre off a plane, and the box's faces keep it within the 2 cm either side."""
+    def pt(s, f):
+        w, y = body.cap_section(s, CAP_FLAT * f)
+        return body.P(s, side * w, y)
+    reach = []
+    for s in (a, b):
+        w, _, r = body.roof_edge(s)
+        reach.append(w + r * math.tan(math.radians(22.5)) - 0.005)
+    samples = [pt(a + (b - a) * i / 6, j / 8) for i in range(7) for j in range(9)]
+    corners = [body.P(a, 0.0, pt(a, 0)[1]), body.P(b, 0.0, pt(b, 0)[1]), body.P(b, side * reach[1], pt(b, 1)[1]),
+               body.P(a, side * reach[0], pt(a, 1)[1])]
+    return _fitted_box(samples + corners, corners, (0.0, 1.0, 0.0), SHELL_T_M, "sheet_metal", True, True)
+
+
+def _pane_box(body, kit, pane, span, crazed):
+    """A thin glass box fitted to a pane that remains (its slab, the crazed one's bulge) from pane[0] to pane[1]
+    over the section parameters span[0]..span[1], closed over the crazed pane's slit (as a fragment hole is)."""
+    s0, s1, _ = pane
+    samples = []
+    for i in range(7):
+        s = s0 + (s1 - s0) * i / 6
+        for j in range(9):
+            u = span[0] + (span[1] - span[0]) * j / 8
+            if crazed:
+                w = math.copysign(_flat_reach(body, s) * abs(u) / CAP_FLAT, u)
+                p, _ = _pane_surface(body, kit)(s * kit.ws_k, w)
+            else:
+                p = _inset(body.cap_point(s, u), _cap_normal(body, s, u))
+            samples.append(p)
+    # the outline along the pane's centre line and across it, so the box is square to the car
+    corners = [samples[4], samples[6 * 9 + 4], samples[6 * 9 + 8], samples[8]]
+    return _fitted_box(samples, corners, (0.0, 1.0, 0.0), SHELL_T_M, "glass", False, True)
+
+
+def _kit_interior(body, kit):
+    """The interior's collision for the open cabin (its shapes are exposed): A's seats, dashboard and the steering
+    wheel's rim, spokes, hub and column; F's seat frames (the burnt cushions' frames, the backs round their springs),
+    the steering wheel's core and the dashboard's beam. The closed cabin keeps the clean base's (inside its cores)."""
+    out = []
+    if not kit.open:
+        for k, (centre, size, axes, slot, kind) in enumerate(_seat_boxes(body)):
+            out.append((f"seat_{k}_{kind}", _cbox(centre, size, PHYSICS[slot], False, axes)))
+        d = body.preset["dashboard"]
+        (s0, s1), (y0, y1) = d["s"], d["y"]
+        out.append(("dashboard", _cbox(body.P((s0 + s1) / 2, 0.0, (y0 + y1) / 2), (s1 - s0, y1 - y0, 2 * d["half"]),
+                                       "plastic")))
+        hub, axis, _, _ = _steering_frame(body)
+        st = body.preset["steering"]
+        out.append(("steering_wheel", _cylinder(sub(hub, scale(axis, 0.025)), add(hub, scale(axis, 0.025)),
+                                                st["r"] + st["tube"], "plastic")))
+        return out
+    st = body.preset["steering"]
+    hub, axis, e1, e2 = _steering_frame(body)
+    tube = STEEL_CORE_R_M if kit.F else st["tube"]
+    material = "steel" if kit.F else "plastic"
+    ring = [add(hub, add(scale(e1, st["r"] * math.cos(2 * math.pi * k / 8)), scale(e2, st["r"] * math.sin(2 * math.pi * k / 8))))
+            for k in range(8)]
+    for k in range(8):
+        out.append((f"steering_rim_{k}", meta.capsule(ring[k], ring[(k + 1) % 8], tube, material)))
+    for k, side in enumerate((-1, 1)):
+        tip = add(hub, add(scale(e1, side * st["r"] * math.cos(math.radians(10))),
+                           scale(e2, -st["r"] * math.sin(math.radians(10)))))
+        out.append((f"steering_spoke_{k}", meta.capsule(hub, tip, 0.006 if kit.F else 0.01, material)))
+    d = body.preset["dashboard"]
+    column_end = body.P(d["s"][1] - 0.02, st["w"], d["y"][0] + 0.06)
+    out.append(("steering_column", meta.capsule(sub(hub, scale(axis, 0.02)), column_end, 0.02 if kit.F else 0.025,
+                                                material)))
+    if kit.F:
+        for k, (kind, centre, size, axes, _) in enumerate(_burnt_seats(body)):
+            out.append((f"seat_{k}_{kind}_frame", _cbox(centre, size, "steel", False, axes)))
+        out.append(("dash_beam", _cylinder(*_dash_beam(body), DASH_BEAM_R_M, "steel")))
+        return out
+    out.append(("steering_hub", _cylinder(sub(hub, scale(axis, 0.01)), add(hub, scale(axis, 0.03)), 0.045, "plastic")))
+    for k, (centre, size, axes, slot, kind) in enumerate(_seat_boxes(body)):
+        out.append((f"seat_{k}_{kind}", _cbox(centre, size, PHYSICS[slot], False, axes)))
+    d = body.preset["dashboard"]
+    (s0, s1), (y0, y1) = d["s"], d["y"]
+    out.append(("dashboard", _cbox(body.P((s0 + s1) / 2, 0.0, (y0 + y1) / 2), (s1 - s0, y1 - y0, 2 * d["half"]),
+                                   "plastic")))
+    return out
+
+
+PLAN_GROUPS = (  # the plan's groups by name prefix, first match (the build's line and the tests pin them)
+    ("lower body", ("nose_", "lower_", "arch_", "tail_", "axle_core", "front_arch_", "floor", "side_", "door_top_",
+                    "boot_low", "boot_high")),
+    ("tops", ("front_wedge", "wedge_", "bonnet", "rear_wedge", "boot_lid", "scuttle_")),
+    ("shoulder rolls", ("roll_", "chamfer_")),
+    ("greenhouse", ("cabin_", "band_", "windscreen", "rear_screen", "roof_", "pillar_", "cap_edge_")),
+    ("wheels", ("wheel_", "wheelhouse_", "rim_")),
+    ("bumpers", ("bumper_", "overrider_")),
+    ("interior", ("seat_", "dashboard", "steering", "dash_beam")),
+    ("rack", ("rack_",)),
+    ("flap", ("flap_",)),
+    ("scatter", ("scatter_",)),
+    ("bead wires", ("bead_",)),
+)
+
+
+def plan_group(name):
+    return next(group for group, prefixes in PLAN_GROUPS if name.startswith(prefixes))
+
+
+def _plan_groups(plan):
+    counts = {}
+    for name, _ in plan:
+        group = plan_group(name)
+        counts[group] = counts.get(group, 0) + 1
+    return ", ".join(f"{group} {counts[group]}" for group, _ in PLAN_GROUPS if group in counts)
+
+
+def _kit_summary(body, kit):
+    parts = [f"state {kit.state}", f"burst side {'left' if kit.side < 0 else 'right'}"]
+    if kit.holes:
+        cut = [h for h in kit.holes if h.cut]
+        parts.append(f"{len(kit.holes)} holes ({len(cut)} cut, {len(kit.holes) - len(cut)} decal-only; diameters "
+                     + ", ".join(f"{h.d:.3f}" for h in kit.holes) + " m)")
+    if kit.notch:
+        parts.append("the struck corner's lamp tear")
+    if kit.flap:
+        parts.append(f"bonnet flap folded {abs(math.degrees(kit.flap.angle)):.1f} deg")
+    if kit.ws_hole:
+        parts.append("windscreen crazed with its slit")
+    if kit.flat:
+        parts.append(f"flat {kit.flat}: hub {body.z_wc - kit.hubs[kit.flat][1]:.3f} m down")
+    if kit.F:
+        parts.append(f"on its rims {kit.p['ride_drop']:.3f} m down, roof sag {body.sag_m:.3f} m")
+    return "; ".join(parts)
+
+
 def _plan_summary(plan):
     kinds = {}
     for _, shape in plan:
@@ -1622,19 +3766,46 @@ def _plan_summary(plan):
 
 # --- wind and snags ------------------------------------------------------------------------------------------------
 
-def _wind(body):
-    """The shared plan: the lower body (porosity 0) and the greenhouse (0 with its glass in)."""
+GREENHOUSE_POROSITY = {"A": 0.35, "F": 0.55}  # the sheet's shared wind plan: side glass gone (A), burnt (F)
+
+
+def _wind(body, kit):
+    """The shared plan: the lower body (porosity 0) and the greenhouse (0 with its glass in; 0.35 in A with the side
+    glass gone, 0.55 in F), moved with the body."""
     hw = body.hw(body.st["roof_front"])
     lower = _cbox(body.P((body.s_front + body.s_rear) / 2, 0.0, (body.z_bot(1.5) + body.belt) / 2),
                   (body.s_rear - body.s_front, body.belt - body.z_bot(1.5), 2 * hw), "sheet_metal")
     s0, s1 = body.s_cowl, body.s_rs_base
     gh = _cbox(body.P((s0 + s1) / 2, 0.0, (body.belt + body.H) / 2), (s1 - s0, body.H - body.belt,
                                                                        2 * body.w_t(body.st["roof_front"])), "glass")
-    return [{k: v for k, v in shape.items() if k not in ("material", "landable")} | {"porosity": 0.0}
-            for shape in (lower, gh)]
+    porosity = GREENHOUSE_POROSITY[kit.state] if kit.open else 0.0
+    return [{k: v for k, v in kits.transform_shape(shape, kit.T).items() if k not in ("material", "landable")}
+            | {"porosity": p} for shape, p in ((lower, 0.0), (gh, porosity))]
 
 
-def _snags(body):
+def _snags(body, kit, pieces=()):
+    """The snag records: the clean base's (the rack, the bumpers' ends, the wipers) and F's seat springs (hooks)
+    moved with the body; F's rim flanges (edges) at the hubs; the composed pieces' where they lie."""
+    out = [kits.transform_snag(s, kit.T) for s in _base_snags(body, wipers=not kit.F)]
+    if kit.F:
+        for _, _, _, _, springs in _burnt_seats(body):
+            for pts in springs:
+                out.append(kits.transform_snag({"kind": "hook", "points": [list(p) for p in pts],
+                                                "radius_m": SPRING_R_M}, kit.T))
+        for corner, hub in sorted(kit.hubs.items()):
+            side = -1 if corner.endswith("left") else 1
+            for e in (-1, 1):
+                ring = [[hub[0] + RIM_FLANGE_R_M * math.cos(2 * math.pi * k / 24),
+                         hub[1] + RIM_FLANGE_R_M * math.sin(2 * math.pi * k / 24), hub[2] + e * side * RIM_WIDTH_M / 2]
+                        for k in range(25)]
+                out.append({"kind": "edge", "points": ring, "radius_m": 0.003})
+    for piece in pieces:
+        out += [kits.transform_snag(s, piece["rigid"]) for s in piece["snag"]]
+    return out
+
+
+def _base_snags(body, wipers=True):
+    """The clean base's snags: the rack's tubes and posts and the bumpers' ends (edges), the wiper arms (hooks)."""
     out = []
     if body.p["roof_rack"]:
         corners, posts = _rack_points(body)
@@ -1648,6 +3819,6 @@ def _snags(body):
         for end in (path[:4], path[-4:]):  # the blade's wrapped ends
             out.append({"kind": "edge", "points": [list(body.P(s, w, y)) for s, w in end], "radius_m": 0.006,
                         "edge_radius_m": 0.002})
-    for pivot, tip in _wiper_arms(body):
+    for pivot, tip in _wiper_arms(body) if wipers else ():
         out.append({"kind": "hook", "points": [list(pivot), list(tip)], "radius_m": 0.005})
     return out
