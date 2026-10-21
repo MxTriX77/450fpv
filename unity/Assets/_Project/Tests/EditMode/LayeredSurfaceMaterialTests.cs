@@ -149,7 +149,7 @@ namespace Fpv450.Tests.EditMode
             string prefix = $"_Layer{k}";
             Assert.That(layered.GetTexture(prefix + "Map"), Is.Not.Null.And.EqualTo(recipe.GetTexture("_BaseMap")), $"{prefix}: {recipe.name}'s albedo");
             Assert.That(layered.GetTextureScale(prefix + "Map"), Is.EqualTo(recipe.GetTextureScale("_BaseMap")), $"{prefix}: {recipe.name}'s tiling");
-            Assert.That(layered.GetColor(prefix + "Color"), Is.EqualTo(recipe.GetColor("_BaseColor")), $"{prefix}: {recipe.name}'s tint");
+            AssertSameColour(layered.GetColor(prefix + "Color"), recipe.GetColor("_BaseColor"), $"{prefix}: {recipe.name}'s tint");
             Assert.That(layered.GetTexture(prefix + "BumpMap"), Is.EqualTo(recipe.GetTexture("_BumpMap")), $"{prefix}: {recipe.name}'s normal map");
             Assert.That(layered.GetTexture(prefix + "MaskMap"), Is.EqualTo(recipe.GetTexture("_MetallicGlossMap")), $"{prefix}: {recipe.name}'s packed mask");
             bool masked = recipe.IsKeywordEnabled("_METALLICSPECGLOSSMAP");
@@ -157,6 +157,10 @@ namespace Fpv450.Tests.EditMode
             Assert.That(surface.x, Is.EqualTo(masked ? 1f : recipe.GetFloat("_Metallic")), $"{prefix}: metallic scale");
             Assert.That(surface.y, Is.EqualTo(recipe.GetFloat("_Smoothness")), $"{prefix}: smoothness scale");
         }
+
+        /// <summary>A material's colours pass through a colour-space round trip when set, so a copy matches within 1e-5.</summary>
+        static void AssertSameColour(Color actual, Color expected, string what) =>
+            Assert.That(new[] { actual.r, actual.g, actual.b, actual.a }, Is.EqualTo(new[] { expected.r, expected.g, expected.b, expected.a }).Within(1e-5f), what);
 
         static Vector4 OneHot(int channel, float value)
         {
@@ -174,8 +178,9 @@ namespace Fpv450.Tests.EditMode
             // The declared subshader (the fallback's follow it), not the active one: batchmode without a GPU falls back.
             Assert.That(shader.FindSubshaderTagValue(0, new ShaderTagId("RenderPipeline")).name, Is.EqualTo("UniversalPipeline"));
             Assert.That(shader.FindSubshaderTagValue(0, new ShaderTagId("Queue")).name, Is.EqualTo("Geometry"));
+            // Unity reports a built-in light mode in capitals (ShadowCaster as SHADOWCASTER).
             string[] modes = Enumerable.Range(0, shader.GetPassCountInSubshader(0)).Select(p => shader.FindPassTagValue(0, p, new ShaderTagId("LightMode")).name).ToArray();
-            Assert.That(modes, Is.EqualTo(new[] { "UniversalForward", "ShadowCaster", "DepthOnly", "DepthNormals" }));
+            Assert.That(modes, Is.EqualTo(new[] { "UniversalForward", "ShadowCaster", "DepthOnly", "DepthNormals" }).IgnoreCase);
             foreach (string property in new[] { "_DamageMask", "_Layer1Map", "_Layer5Map", "_Layer5Channel", "_Layer5Coverage", "_Layer5Surface" })
                 Assert.That(shader.FindPropertyIndex(property), Is.GreaterThanOrEqualTo(0), property);
         }
@@ -193,7 +198,7 @@ namespace Fpv450.Tests.EditMode
             Assert.That(layered.renderQueue, Is.EqualTo((int)RenderQueue.Geometry), "opaque");
             Assert.That(layered.mainTexture, Is.Not.Null.And.EqualTo(paint.mainTexture), "the paint's albedo (the review refuses a material without one)");
             Assert.That(layered.GetTextureScale("_BaseMap"), Is.EqualTo(paint.GetTextureScale("_BaseMap")), "the paint's tiling");
-            Assert.That(layered.GetColor("_BaseColor"), Is.EqualTo(paint.GetColor("_BaseColor")), "the paint's tint");
+            AssertSameColour(layered.GetColor("_BaseColor"), paint.GetColor("_BaseColor"), "the paint's tint");
             Assert.That(layered.GetTexture("_BumpMap"), Is.EqualTo(paint.GetTexture("_BumpMap")));
             Assert.That(layered.GetTexture("_MetallicGlossMap"), Is.Not.Null.And.EqualTo(paint.GetTexture("_MetallicGlossMap")));
             Assert.That(layered.GetFloat("_Metallic"), Is.EqualTo(1f), "the packed mask's metallic, unscaled");
@@ -255,22 +260,23 @@ namespace Fpv450.Tests.EditMode
         [Test]
         public void UnmaskedSlot_KeepsItsRecipesMaterial_AndASecondBuildChangesNoFile()
         {
+            // Its own variant name: an asset path another test deleted is not reused within the session.
             Material paint = Recipe("car_paint");
             WriteMask();
 
             Assert.That(Build("plain", "car_paint", false, paint), Is.EqualTo(paint), "a slot without a mask draws with its recipe's material");
 
-            Build("paint", "car_paint", true, paint);
+            Build("repaint", "car_paint", true, paint);
             Dictionary<string, byte[]> first = Snapshot();
-            Assert.That(first.Keys, Does.Contain("paint_probe_layered.mat"));
-            Build("paint", "car_paint", true, paint);
+            Assert.That(first.Keys, Does.Contain("repaint_probe_layered.mat"));
+            Build("repaint", "car_paint", true, paint);
             Dictionary<string, byte[]> second = Snapshot();
             Assert.That(second.Keys, Is.EquivalentTo(first.Keys), "the same files");
             foreach (KeyValuePair<string, byte[]> file in first)
                 Assert.That(second[file.Key], Is.EqualTo(file.Value), $"{file.Key} changed");
 
-            Assert.That(Build("paint", "car_paint", false, paint), Is.EqualTo(paint), "unmasked again: the recipe's material");
-            Assert.That(Snapshot().Keys, Does.Not.Contain("paint_probe_layered.mat"), "the masked build's layered material is gone");
+            Assert.That(Build("repaint", "car_paint", false, paint), Is.EqualTo(paint), "unmasked again: the recipe's material");
+            Assert.That(Snapshot().Keys, Does.Not.Contain("repaint_probe_layered.mat"), "the masked build's layered material is gone");
         }
 
         [Test]
