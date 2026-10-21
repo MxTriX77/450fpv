@@ -64,6 +64,127 @@
       "variant_materials": {
         "V13_mid_yellowing": { "leaf": "leaf_shrub_autumn", "far": "leaf_shrub_autumn_far" }
       }
+    },
+    "Z01": {
+      "class": "standins",
+      "generator": "godot_port",
+      "variants": ["Z01_house_adobe"],
+      "materials": { "adobe_clay": "godot_adobe_clay", "brick_red": "brick_red", "render_clay": "godot_render_clay",
+                     "tile_clay": "godot_tile_clay", "timber_rough": "godot_timber_rough_house",
+                     "wood_weathered": "godot_wood_weathered" },
+      "stand_in": true,
+      "source": { "ref": "refs/godot/main", "commit": "83401382e8b733389982997180cc181b063f61ae",
+                  "model": "game/assets/models/structures/house_adobe.glb", "catalog_key": "house_adobe" }
+    },
+    "Z02": {
+      "class": "standins",
+      "generator": "godot_port",
+      "variants": ["Z02_shed_plank"],
+      "materials": { "sheet_metal_worn": "godot_sheet_metal_worn", "timber_rough": "godot_timber_rough_shed",
+                     "wood_weathered": "godot_wood_weathered" },
+      "stand_in": true,
+      "source": { "ref": "refs/godot/main", "commit": "83401382e8b733389982997180cc181b063f61ae",
+                  "model": "game/assets/models/structures/shed_plank.glb", "catalog_key": "shed_plank" }
+    },
+    "Z03": {
+      "class": "standins",
+      "generator": "godot_port",
+      "variants": ["Z03_cellar_head"],
+      "materials": { "brick_red": "brick_red", "concrete_rough": "godot_concrete_rough", "roof_felt": "godot_roof_felt",
+                     "tarp_blue": "godot_tarp_blue", "wood_weathered": "godot_timber_rough_shed" },
+      "stand_in": true,
+      "source": { "ref": "refs/godot/main", "commit": "83401382e8b733389982997180cc181b063f61ae",
+                  "model": "game/assets/models/structures/cellar_head.glb", "catalog_key": "cellar_head" }
+    },
+    "Z04": {
+      "class": "standins",
+      "generator": "godot_port",
+      "variants": ["Z04_cellar_shaft"],
+      "materials": { "soil_cut": "godot_soil_cut" },
+      "stand_in": true,
+      "source": { "ref": "refs/godot/main", "commit": "83401382e8b733389982997180cc181b063f61ae",
+                  "model": "game/assets/models/structures/cellar_shaft.glb", "catalog_key": "cellar_shaft" }
+    },
+    "Z05": {
+      "class": "standins",
+      "generator": "godot_port",
+      "variants": ["Z05_gate_plank"],
+      "materials": { "wood_weathered": "godot_wood_weathered" },
+      "stand_in": true,
+      "source": { "ref": "refs/godot/main", "commit": "83401382e8b733389982997180cc181b063f61ae",
+                  "model": "game/assets/models/structures/gate_plank.glb", "catalog_key": "gate_plank" }
+    },
+    "Z06": {
+      "class": "standins",
+      "generator": "godot_port",
+      "variants": ["Z06_fence_planks"],
+      "materials": { "wood_weathered": "godot_wood_weathered" },
+      "stand_in": true,
+      "source": { "ref": "refs/godot/main", "commit": "83401382e8b733389982997180cc181b063f61ae",
+                  "model": "game/assets/models/structures/fence_planks.glb", "catalog_key": "fence_planks" }
+    },
+    "Z07": {
+      "class": "standins",
+      "generator": "godot_port",
+      "variants": ["Z07_tree_fruit"],
+      "materials": { "bark_dark": "bark_locust", "foliage_belt": "godot_foliage_belt" },
+      "stand_in": true,
+      "source": { "ref": "refs/godot/main", "commit": "83401382e8b733389982997180cc181b063f61ae",
+                  "model": "game/assets/models/vegetation/tree_fruit.glb", "catalog_key": "tree_fruit" }
+    },
+    "Z08": {
+      "class": "standins",
+      "generator": "godot_port",
+      "variants": ["Z08_tree_young"],
+      "materials": { "bark_belt": "bark_locust", "foliage_belt": "godot_foliage_belt" },
+      "stand_in": true,
+      "source": { "ref": "refs/godot/main", "commit": "83401382e8b733389982997180cc181b063f61ae",
+                  "model": "game/assets/models/vegetation/tree_young.glb", "catalog_key": "tree_young" }
+    },
+    "Z09": {
+      "class": "standins",
+      "generator": "godot_port",
+      "variants": ["Z09_tree_maple"],
+      "materials": { "bark_dark": "bark_locust", "foliage_belt": "godot_foliage_belt" },
+      "stand_in": true,
+      "source": { "ref": "refs/godot/main", "commit": "83401382e8b733389982997180cc181b063f61ae",
+                  "model": "game/assets/models/vegetation/tree_maple.glb", "catalog_key": "tree_maple" }
+    },
+    "Z10": {
+      "class": "standins",
+      "generator": "godot_port",
+      "variants": ["Z10_tree_acacia"],
+      "materials": { "bark_belt": "bark_locust", "foliage_belt": "godot_foliage_belt" },
+      "stand_in": true,
+      "source": { "ref": "refs/godot/main", "commit": "83401382e8b733389982997180cc181b063f61ae",
+                  "model": "game/assets/models/vegetation/tree_acacia.glb", "catalog_key": "tree_acacia" }
+    },
+    "Z11": {
+      "class": "standins",
+      "generator": "godot_port",
+      "variants": ["Z11_tree_ash"],
+      "materials": { "bark_belt": "bark_locust", "foliage_belt": "godot_foliage_belt" },
+      "stand_in": true,
+      "source": { "ref": "refs/godot/main", "commit": "83401382e8b733389982997180cc181b063f61ae",
+                  "model": "game/assets/models/vegetation/tree_ash.glb", "catalog_key": "tree_ash" }
+    },
+    "Z12": {
+      "class": "standins",
+      "generator": "godot_port",
+      "variants": ["Z12_tree_dead"],
+      "materials": { "bark_dark": "bark_locust", "foliage_belt": "godot_foliage_belt" },
+      "stand_in": true,
+      "source": { "ref": "refs/godot/main", "commit": "83401382e8b733389982997180cc181b063f61ae",
+                  "model": "game/assets/models/vegetation/tree_dead.glb", "catalog_key": "tree_dead" }
+    },
+    "Z13": {
+      "class": "standins",
+      "generator": "godot_port",
+      "variants": ["Z13_shrub_belt"],
+      "materials": { "bark_dark": "bark_locust", "foliage_belt": "godot_foliage_belt" },
+      "stand_in": true,
+      "source": { "ref": "refs/godot/main", "commit": "83401382e8b733389982997180cc181b063f61ae",
+                  "model": "game/assets/models/vegetation/shrub_belt.glb", "catalog_key": "shrub_belt" }
     }
   }
 }

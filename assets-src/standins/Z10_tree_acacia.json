@@ -1,0 +1,10 @@
+{
+  "source": {
+    "commit": "83401382e8b733389982997180cc181b063f61ae",
+    "model": "game/assets/models/vegetation/tree_acacia.glb",
+    "model_sha256": "da202770b7dc584560b22bf2dc4ee84ea024823bf52bc0a2a7ffea88714b268a",
+    "catalog_key": "tree_acacia"
+  },
+  "lod": { "switch_m": [0.0, 30.0, 80.0], "cull_m": 200.0 },
+  "holes": []
+}
