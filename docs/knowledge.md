@@ -282,7 +282,7 @@ The verbatim answers are in [pilot-brief-2026-10-17.md](pilot-brief-2026-10-17.m
 
 ## 5. The drone
 
-`[portable]` throughout. The sim has **one** drone, **"Svinoriz 10 Opto"**, of the Vyriy / BOMBUS / OTU / Beshketnyk class: 10-inch, 3-blade props, a fiber spool underneath, and legs or the launch stand.
+`[portable]` throughout. The sim has **one** drone, **"Svinoriz 10 Opto"**, of the Vyriy / BOMBUS / OTU / Beshketnyk class: 10-inch, 3-blade props, a fiber spool underneath, and legs or the launch stand. **Superseded by D-043 and letter T's reading** (`docs/object-sheets/drone.md`, `assets-src/drone/drone.json`): 2-blade props, plate arms, tube legs on skids, the spool on top with the legs on and hung underneath with the legs off, the payload slung crosswise below, two 6S2P packs along the sides.
 
 **Pilot, 2026-10-17:** "just google at typical opto fiber drones in ukraine and how they look (the coil underneath, a couple of batteries, etc, an explosive cargo on top of it, etc.)". So the payload sits **on top** and there are **two battery packs**. The mass layout below (cargo forward and below, one pack) is the first attempt's assumption, and phase 5 must re-derive it from research.
 
