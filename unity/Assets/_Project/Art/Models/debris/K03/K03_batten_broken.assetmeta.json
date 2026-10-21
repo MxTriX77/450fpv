@@ -347,7 +347,8 @@
           -0.011437
         ]
       ],
-      "radius_m": 0.005506
+      "radius_m": 0.005506,
+      "material": "timber"
     },
     {
       "kind": "hook",
@@ -363,7 +364,8 @@
           -0.019227
         ]
       ],
-      "radius_m": 0.004603
+      "radius_m": 0.004603,
+      "material": "timber"
     },
     {
       "kind": "hook",
@@ -379,7 +381,8 @@
           -0.012464
         ]
       ],
-      "radius_m": 0.005884
+      "radius_m": 0.005884,
+      "material": "timber"
     },
     {
       "kind": "hook",
@@ -395,7 +398,8 @@
           0.015395
         ]
       ],
-      "radius_m": 0.006994
+      "radius_m": 0.006994,
+      "material": "timber"
     },
     {
       "kind": "hook",
@@ -411,7 +415,8 @@
           0.016152
         ]
       ],
-      "radius_m": 0.007064
+      "radius_m": 0.007064,
+      "material": "timber"
     },
     {
       "kind": "edge",
@@ -442,7 +447,8 @@
           0.0,
           -0.025
         ]
-      ]
+      ],
+      "material": "timber"
     },
     {
       "kind": "hook",
@@ -458,7 +464,8 @@
           -0.013723
         ]
       ],
-      "radius_m": 0.00581
+      "radius_m": 0.00581,
+      "material": "timber"
     },
     {
       "kind": "hook",
@@ -474,7 +481,8 @@
           -0.022148
         ]
       ],
-      "radius_m": 0.003532
+      "radius_m": 0.003532,
+      "material": "timber"
     },
     {
       "kind": "hook",
@@ -490,7 +498,8 @@
           -0.014926
         ]
       ],
-      "radius_m": 0.006651
+      "radius_m": 0.006651,
+      "material": "timber"
     },
     {
       "kind": "hook",
@@ -506,7 +515,8 @@
           0.021045
         ]
       ],
-      "radius_m": 0.007635
+      "radius_m": 0.007635,
+      "material": "timber"
     },
     {
       "kind": "hook",
@@ -522,7 +532,8 @@
           0.016957
         ]
       ],
-      "radius_m": 0.007217
+      "radius_m": 0.007217,
+      "material": "timber"
     },
     {
       "kind": "edge",
@@ -553,7 +564,8 @@
           0.0,
           -0.025
         ]
-      ]
+      ],
+      "material": "timber"
     },
     {
       "kind": "hook",
@@ -574,7 +586,8 @@
           -0.00957
         ]
       ],
-      "radius_m": 0.00175
+      "radius_m": 0.00175,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -595,7 +608,8 @@
           -0.010059
         ]
       ],
-      "radius_m": 0.00175
+      "radius_m": 0.00175,
+      "material": "steel"
     }
   ]
 }
