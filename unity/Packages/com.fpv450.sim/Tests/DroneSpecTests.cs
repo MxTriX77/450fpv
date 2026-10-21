@@ -23,7 +23,8 @@ namespace Fpv450.Sim.Tests
 
         static string Motor(string position, string spin) =>
             "{'position_m': " + L(position) + ", 'spin': '" + spin + "', 'kv_rpm_per_v': " + L("900")
-            + ", 'tau_s': " + L("0.05") + ", 'esc_tau_s': " + L("0.005") + "}";
+            + ", 'resistance_ohm': " + L("0.1") + ", 'no_load_current_a': " + L("1") + ", 'rotor_inertia_kg_m2': " + L("6e-5")
+            + ", 'magnet_poles': " + L("14") + ", 'esc_tau_s': " + L("0.005") + "}";
 
         static string Pack(string part) =>
             "{'part': '" + part + "', 'series': " + L("6") + ", 'parallel': " + L("2") + ", 'cell_capacity_ah': " + L("5")
@@ -45,7 +46,10 @@ namespace Fpv450.Sim.Tests
             + Motor("[0.16, 0.04, -0.16]", "cw") + ", " + Motor("[0.16, 0.04, 0.16]", "ccw") + ", "
             + Motor("[-0.16, 0.04, -0.16]", "ccw") + ", " + Motor("[-0.16, 0.04, 0.16]", "cw")
             + "], 'props': {'diameter_m': " + L("0.254") + ", 'blades': " + L("3") + ", 'pitch_m': " + L("0.127")
-            + ", 'k_t_n_per_rad2_s2': " + L("1.5e-5") + ", 'kappa_m': " + L("0.0175") + "},"
+            + ", 'k_t_n_per_rad2_s2': " + L("1.5e-5") + ", 'kappa_m': " + L("0.0175") + ", 'reference_rpm': " + L("9000")
+            + ", 'static_rpm': " + L("[3000, 9000, 15000]") + ", 'static_thrust_ratio': " + L("[0.98, 1, 1.03]")
+            + ", 'static_torque_ratio': " + L("[1.05, 1, 1.01]") + ", 'inflow_advance_ratio': " + L("[0, 0.3, 0.6]")
+            + ", 'inflow_thrust_ratio': " + L("[1, 0.55, 0]") + ", 'inflow_torque_ratio': " + L("[1, 0.84, 0.28]") + "},"
             + " 'packs': [" + Pack("pack_a") + ", " + Pack("pack_b") + "],"
             + " 'legs': {'parts': ['leg_rr', 'leg_fr', 'leg_rl', 'leg_fl'], 'stiffness_n_per_m': " + L("20000")
             + ", 'damping_n_s_per_m': " + L("40") + ", 'foot_radius_m': " + L("0.0075") + "},"
@@ -125,6 +129,11 @@ namespace Fpv450.Sim.Tests
         [TestCase("'mass_max_kg': {'value': 2, 'label': 'assumed'}", "'mass_max_kg': {'value': 0.5, 'label': 'assumed'}", "payload: the payload part's mass, 1 kg, is outside", TestName = "A payload outside its range is refused")]
         [TestCase("'ocv_v': {'value': [3.0, 3.7, 4.2]", "'ocv_v': {'value': [3.0, 4.2, 3.7]", "packs[0].ocv_v: the voltage must not fall", TestName = "A falling OCV curve is refused")]
         [TestCase("'pitch_m': {'value': 0.127", "'pitch_m': {'value': 0.12345678901234567", "a number with more significant digits than an exact read allows", TestName = "A number past an exact read is refused")]
+        [TestCase("'magnet_poles': {'value': 14", "'magnet_poles': {'value': 13", "motors[0] (rear right).magnet_poles: poles come in pairs", TestName = "An odd pole count is refused")]
+        [TestCase("'reference_rpm': {'value': 9000", "'reference_rpm': {'value': 9500", "props.reference_rpm: must be one of static_rpm's points", TestName = "A reference rpm off the table is refused")]
+        [TestCase("'static_thrust_ratio': {'value': [0.98, 1, 1.03]", "'static_thrust_ratio': {'value': [0.98, 1.01, 1.03]", "props.static_thrust_ratio: both ratios must be 1 at the reference rpm", TestName = "A static curve not 1 at the reference is refused")]
+        [TestCase("'inflow_advance_ratio': {'value': [0, 0.3, 0.6]", "'inflow_advance_ratio': {'value': [0, 0.6, 0.3]", "props.inflow: the points must increase", TestName = "A falling advance ratio is refused")]
+        [TestCase("'inflow_thrust_ratio': {'value': [1, 0.55, 0]", "'inflow_thrust_ratio': {'value': [1, 0.55]", "props.inflow: the ratios need one value per point", TestName = "A curve short of a point is refused")]
         [TestCase("'schema': 1,", "'schema': 1", "line 1: ", TestName = "Broken JSON is refused with its line")]
         [TestCase(" 'legs_off': {'removed': ['leg_rr', 'leg_fr', 'leg_rl', 'leg_fl'], 'moved': {'spool': {'value': [0, 0.1, 0], 'label': 'assumed'}}},", "", "drone.json.legs_off: missing", TestName = "A drone with no legs-off build is refused")]
         [TestCase("'removed': ['leg_rr', 'leg_fr', 'leg_rl', 'leg_fl']", "'removed': ['leg_rr', 'leg_fr', 'leg_rl']", "legs_off.removed: must take off the leg 'leg_fl'", TestName = "A legs-off build that keeps a leg is refused")]

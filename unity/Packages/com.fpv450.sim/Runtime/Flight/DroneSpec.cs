@@ -5,7 +5,10 @@ using Fpv450.Sim.World;
 
 namespace Fpv450.Sim.Flight
 {
-    /// <summary>One motor and its rotor, at a corner in Betaflight's Quad X order (Corners).</summary>
+    /// <summary>
+    /// One motor and its rotor, at a corner in Betaflight's Quad X order (Corners): a DC motor seen through its ESC
+    /// (Propulsion), whose first-order lag τ_m = J / (Kt·Ke/R + ∂Q/∂ω) follows from these constants and the load.
+    /// </summary>
     public struct DroneMotor
     {
         /// <summary>The prop's hub, where its thrust acts, body m.</summary>
@@ -17,14 +20,26 @@ namespace Fpv450.Sim.Flight
         /// <summary>rpm per volt, unloaded.</summary>
         public double Kv;
 
-        /// <summary>The motor and rotor's first-order lag τ_m, s.</summary>
-        public double Tau;
+        /// <summary>The winding's, the ESC's and the leads' resistance in the motor's DC model, Ω.</summary>
+        public double Resistance;
+
+        /// <summary>The no-load current, A: the bearings' and the iron's losses as a torque Kt·I0.</summary>
+        public double NoLoadCurrent;
+
+        /// <summary>The bell, shaft and prop's moment of inertia about the shaft, kg·m².</summary>
+        public double RotorInertia;
+
+        /// <summary>The rotor's magnet poles (electrical frequency = rpm / 60 × poles / 2).</summary>
+        public int MagnetPoles;
 
         /// <summary>The ESC's command filter τ_esc, s.</summary>
         public double EscTau;
     }
 
-    /// <summary>The four props, alike.</summary>
+    /// <summary>
+    /// The four props, alike: k_T and κ static at ReferenceRpm, the static coefficients' change with rpm, and the
+    /// coefficients' fall with the advance ratio J = V_a / (n·D) of the axial inflow, as ratio tables.
+    /// </summary>
     public struct DroneProps
     {
         public double Diameter;
@@ -33,11 +48,20 @@ namespace Fpv450.Sim.Flight
         /// <summary>The geometric pitch, m per revolution.</summary>
         public double Pitch;
 
-        /// <summary>k_T in T = k_T·n², N per (rad/s)².</summary>
+        /// <summary>k_T in T = k_T·n², N per (rad/s)², static at ReferenceRpm.</summary>
         public double ThrustCoefficient;
 
-        /// <summary>κ in Q = κ·T, N·m per N.</summary>
+        /// <summary>κ in Q = κ·T, N·m per N, static at ReferenceRpm.</summary>
         public double TorqueRatio;
+
+        /// <summary>The rpm k_T and κ hold at.</summary>
+        public double ReferenceRpm;
+
+        /// <summary>Static rpm points, and C_T and C_P there over their values at ReferenceRpm.</summary>
+        public double[] StaticRpm, StaticThrustRatio, StaticTorqueRatio;
+
+        /// <summary>Advance-ratio points from 0, and C_T and C_P there over their static values.</summary>
+        public double[] InflowAdvanceRatio, InflowThrustRatio, InflowTorqueRatio;
     }
 
     /// <summary>One battery pack: its mass part and its cells.</summary>
@@ -222,6 +246,29 @@ namespace Fpv450.Sim.Flight
             return new MassModel(parts);
         }
 
+        /// <summary>The flight's propulsion: copies of the motors, the props and the packs.</summary>
+        public PropulsionSpec BuildPropulsion()
+        {
+            var packs = new DronePack[Packs.Length];
+            for (int i = 0; i < packs.Length; i++)
+            {
+                DronePack p = Packs[i];
+                packs[i] = new DronePack
+                {
+                    Part = p.Part, Series = p.Series, Parallel = p.Parallel, CellCapacity = p.CellCapacity,
+                    CellResistance = p.CellResistance, Ocv = (double[])p.Ocv.Clone(),
+                };
+            }
+            DroneProps props = Props;
+            props.StaticRpm = (double[])Props.StaticRpm.Clone();
+            props.StaticThrustRatio = (double[])Props.StaticThrustRatio.Clone();
+            props.StaticTorqueRatio = (double[])Props.StaticTorqueRatio.Clone();
+            props.InflowAdvanceRatio = (double[])Props.InflowAdvanceRatio.Clone();
+            props.InflowThrustRatio = (double[])Props.InflowThrustRatio.Clone();
+            props.InflowTorqueRatio = (double[])Props.InflowTorqueRatio.Clone();
+            return new PropulsionSpec { Motors = (DroneMotor[])Motors.Clone(), Props = props, Packs = packs };
+        }
+
         // A part scaled uniformly by s about the middle of its face toward the arm plane: its sizes times s, and its
         // centre moved away from the plane by its half-extent along y times (s − 1). s = 1 leaves every bit as it was.
         static void ScaleAwayFromArmPlane(ref DronePart p, double s)
@@ -397,13 +444,18 @@ namespace Fpv450.Sim.Flight
                     JsonNode m = list.Items[i];
                     string path = "motors[" + i + "] (" + Corner[i] + ")";
                     if (!IsObject(m, path)) continue;
-                    Members(m, path, "position_m", "spin", "kv_rpm_per_v", "tau_s", "esc_tau_s");
+                    Members(m, path, "position_m", "spin", "kv_rpm_per_v", "resistance_ohm", "no_load_current_a",
+                        "rotor_inertia_kg_m2", "magnet_poles", "esc_tau_s");
                     ref DroneMotor motor = ref motors[i];
                     if (Vector(m, "position_m", path, out motor.Position)) AtCorner(motor.Position, i, path + ".position_m");
                     spins[i] = Text(m, "spin", path, new[] { "cw", "ccw" });
                     motor.Clockwise = spins[i] == "cw";
                     motor.Kv = Positive(m, "kv_rpm_per_v", path);
-                    motor.Tau = Positive(m, "tau_s", path);
+                    motor.Resistance = Positive(m, "resistance_ohm", path);
+                    motor.NoLoadCurrent = NonNegative(m, "no_load_current_a", path);
+                    motor.RotorInertia = Positive(m, "rotor_inertia_kg_m2", path);
+                    motor.MagnetPoles = Count(m, "magnet_poles", path, 2);
+                    if (motor.MagnetPoles % 2 != 0) Fail(path + ".magnet_poles", "poles come in pairs");
                     motor.EscTau = Positive(m, "esc_tau_s", path);
                 }
                 // The diagonal pairs spin alike and the two pairs oppositely, so the rotor torques cancel at hover.
@@ -416,13 +468,52 @@ namespace Fpv450.Sim.Flight
             {
                 var props = new DroneProps();
                 if (!IsObject(p, "props")) return props;
-                Members(p, "props", "diameter_m", "blades", "pitch_m", "k_t_n_per_rad2_s2", "kappa_m");
+                Members(p, "props", "diameter_m", "blades", "pitch_m", "k_t_n_per_rad2_s2", "kappa_m", "reference_rpm",
+                    "static_rpm", "static_thrust_ratio", "static_torque_ratio",
+                    "inflow_advance_ratio", "inflow_thrust_ratio", "inflow_torque_ratio");
                 props.Diameter = Positive(p, "diameter_m", "props");
                 props.Blades = Count(p, "blades", "props", 2);
                 props.Pitch = Positive(p, "pitch_m", "props");
                 props.ThrustCoefficient = Positive(p, "k_t_n_per_rad2_s2", "props");
                 props.TorqueRatio = Positive(p, "kappa_m", "props");
+                props.ReferenceRpm = Positive(p, "reference_rpm", "props");
+                props.StaticRpm = Numbers(p, "static_rpm", "props", 2);
+                props.StaticThrustRatio = Numbers(p, "static_thrust_ratio", "props", 2);
+                props.StaticTorqueRatio = Numbers(p, "static_torque_ratio", "props", 2);
+                props.InflowAdvanceRatio = Numbers(p, "inflow_advance_ratio", "props", 2);
+                props.InflowThrustRatio = Numbers(p, "inflow_thrust_ratio", "props", 2);
+                props.InflowTorqueRatio = Numbers(p, "inflow_torque_ratio", "props", 2);
+                Curve("props.static", props.StaticRpm, props.StaticThrustRatio, props.StaticTorqueRatio, false);
+                Curve("props.inflow", props.InflowAdvanceRatio, props.InflowThrustRatio, props.InflowTorqueRatio, true);
+                // The ratios are 1 where k_T and κ hold: at the reference rpm, and static (J = 0).
+                if (props.StaticRpm.Length > 1 && props.StaticRpm.Length == props.StaticThrustRatio.Length
+                    && props.StaticRpm.Length == props.StaticTorqueRatio.Length && !double.IsNaN(props.ReferenceRpm))
+                {
+                    int at = System.Array.IndexOf(props.StaticRpm, props.ReferenceRpm);
+                    if (at < 0) Fail("props.reference_rpm", "must be one of static_rpm's points");
+                    else if (props.StaticThrustRatio[at] != 1 || props.StaticTorqueRatio[at] != 1)
+                        Fail("props.static_thrust_ratio", "both ratios must be 1 at the reference rpm");
+                }
+                if (props.InflowThrustRatio.Length > 0 && props.InflowTorqueRatio.Length > 0
+                    && (props.InflowThrustRatio[0] != 1 || props.InflowTorqueRatio[0] != 1))
+                    Fail("props.inflow_thrust_ratio", "both ratios must be 1 at J = 0, the static point");
                 return props;
+            }
+
+            // A curve's points: increasing x (from 0 for the advance ratio) and non-negative ratios, one per point.
+            void Curve(string path, double[] x, double[] thrust, double[] torque, bool fromZero)
+            {
+                if (thrust.Length != x.Length || torque.Length != x.Length)
+                {
+                    Fail(path, "the ratios need one value per point");
+                    return;
+                }
+                for (int k = 0; k < x.Length; k++)
+                {
+                    if (k > 0 && !(x[k] > x[k - 1])) Fail(path, "the points must increase");
+                    if (!(thrust[k] >= 0 && torque[k] >= 0)) Fail(path, "a ratio is not negative");
+                }
+                if (x.Length > 0 && (fromZero ? x[0] != 0 : !(x[0] > 0))) Fail(path, fromZero ? "the advance ratio starts at 0" : "rpm is above 0");
             }
 
             void ReadPacks(JsonNode list, DroneSpec spec)
