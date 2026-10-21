@@ -164,7 +164,8 @@ def shard(rng, tile, size, breaks, cell):
              "points": [list(shift.point((points[j][0], camber_y(tile, points[j][0]) + tile.thickness, points[j][1])))
                         for j in run]} for run in fracture_runs(fracture)]
     return {"lods": [lod0, lod1], "collision": collision, "snag": snag,
-            "materials": [{"slot": s, "physics": PHYSICS} for s in lod0.slots()]}
+            "materials": [{"slot": s, "physics": PHYSICS} for s in lod0.slots()],
+            "volume_m3": abs(_signed_area(points)) * tile.thickness}
 
 
 def fracture_runs(fracture):
@@ -206,7 +207,8 @@ def whole(tile, cell):
         kits_vehicle.transform_range(mesh, (0, len(mesh.vertices)), (0, len(mesh.faces)), shift)
     rigid = rest.then(shift)
     return {"lods": lods, "collision": [kits_vehicle.transform_shape(c, rigid) for c in collision], "snag": [],
-            "materials": [{"slot": TILE_SLOT, "physics": PHYSICS}]}
+            "materials": [{"slot": TILE_SLOT, "physics": PHYSICS}],
+            "volume_m3": tile.length * tile.width * tile.thickness + NIB_M[0] * NIB_M[1] * NIB_M[2]}
 
 
 def rest_angle(tile):
@@ -315,6 +317,10 @@ def _oriented_box(points, alpha):
     return {"shape": "box", "center": [mu * c - mn * s, mu * s + mn * c, mz],
             "size": [max(us) - min(us), max(ns) - min(ns), max(zs) - min(zs)],
             "rotation": [0.0, 0.0, math.sin(alpha / 2), math.cos(alpha / 2)], "material": PHYSICS, "landable": False}
+
+
+def _signed_area(points):
+    return sum(x0 * z1 - x1 * z0 for (x0, z0), (x1, z1) in zip(points, points[1:] + points[:1])) / 2
 
 
 def _area_centroid(points):

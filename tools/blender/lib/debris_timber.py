@@ -108,18 +108,13 @@ def piece(rng, section, length, break_ends, splinter_len, splinter_count, nails,
     collision = [{"shape": "box", "center": [(x_lo + x_hi) / 2, h / 2, 0.0], "size": [x_hi - x_lo, h, w],
                   "rotation": [0.0, 0.0, 0.0, 1.0], "material": PHYSICS, "landable": False}]
     snag = []
+    volume = (x_hi - x_lo) * w * h
     for end in ends:
         x_root = x_hi if end > 0 else x_lo
-        broken = splinters(rng, w, h, splinter_len, splinter_count)
-        for s in broken:
-            root, tip, radius, thickness = _splinter(lods[0], uv, w, h, x_root, end, s)
-            collision.append(meta.capsule(root, tip, radius, PHYSICS))
-            snag.append({"kind": "hook", "points": [list(root), list(tip)], "radius_m": thickness / 2})
-        mean = sum(s["length"] for s in broken) / len(broken)
-        _envelope(lods[1], uv, w, h, x_root, end, mean)
-        snag.append({"kind": "edge", "radius_m": EDGE_SNAG_R_M,
-                     "points": [[x_root, y, z] for y, z in ((0.0, -w / 2), (0.0, w / 2), (h, w / 2), (h, -w / 2),
-                                                            (0.0, -w / 2))]})
+        end_collision, end_snag, broken = broken_end(lods, uv, rng, w, h, x_root, end, splinter_len, splinter_count)
+        collision += end_collision
+        snag += end_snag
+        volume += sum(s["volume"] for s in broken)
     span = (x_hi - x_lo - 2 * NAIL_END_M) / max(nails, 1)
     for k in range(nails):
         x = x_lo + NAIL_END_M + span * (k + rng.random())
@@ -139,7 +134,31 @@ def piece(rng, section, length, break_ends, splinter_len, splinter_count, nails,
     physics = {TIMBER_SLOT: PHYSICS, FRACTURE_SLOT: PHYSICS, NAIL_SLOT: NAIL_PHYSICS}
     return {"lods": lods, "collision": collision, "snag": snag,
             "materials": [{"slot": s, "physics": physics[s]} for s in (TIMBER_SLOT, FRACTURE_SLOT, NAIL_SLOT)
-                          if s in slots]}
+                          if s in slots], "volume_m3": volume}
+
+
+def broken_end(lods, uv, rng, w, h, x_root, end, splinter_len, splinter_count):
+    """One broken end of a member of section (w, h) in the piece's frame, its root section at x = x_root and its
+    splinters running towards `end` (+1 or -1): the splinters into lods[0], LOD1's tapered block into lods[1] (when
+    given), and (collision, snags, splinters): a capsule and a `hook` per splinter, an `edge` round the root section,
+    and each splinter's {"length", "tip", "tip_half", "cell", "volume"} (a host bounds the clear space past the end by
+    them). A host's own member (the house's battens and ceiling boards) breaks with the same splinters."""
+    collision, snag = [], []
+    broken = splinters(rng, w, h, splinter_len, splinter_count)
+    for s in broken:
+        root, tip, radius, thickness = _splinter(lods[0], uv, w, h, x_root, end, s)
+        collision.append(meta.capsule(root, tip, radius, PHYSICS))
+        snag.append({"kind": "hook", "points": [list(root), list(tip)], "radius_m": thickness / 2})
+        z0, z1, y0, y1 = s["cell"]
+        a0, a1 = (z1 - z0) * (y1 - y0), 4 * s["tip_half"][0] * s["tip_half"][1]
+        s["volume"] = s["length"] * (a0 + a1 + math.sqrt(a0 * a1)) / 3  # a frustum between root and tip
+    if len(lods) > 1 and lods[1] is not None:
+        mean = sum(s["length"] for s in broken) / len(broken)
+        _envelope(lods[1], uv, w, h, x_root, end, mean)
+    snag.append({"kind": "edge", "radius_m": EDGE_SNAG_R_M,
+                 "points": [[x_root, y, z] for y, z in ((0.0, -w / 2), (0.0, w / 2), (h, w / 2), (h, -w / 2),
+                                                        (0.0, -w / 2))]})
+    return collision, snag, broken
 
 
 class _UV:
@@ -161,6 +180,9 @@ class _UV:
         if abs(normal[0]) > max(abs(normal[1]), abs(normal[2])):  # an end: across and up
             return (z + self.offset[0], y + self.offset[1])
         return (u + self.offset[0], x + self.offset[1])
+
+
+UV = _UV  # a host's broken end (broken_end) takes the piece's UVs
 
 
 def _body(mesh, uv, w, h, x_lo, x_hi, ends):
