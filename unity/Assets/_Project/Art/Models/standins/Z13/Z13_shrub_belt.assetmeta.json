@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "Z13",
+  "variant": "Z13_shrub_belt",
+  "generator": "godot_port",
+  "params_sha256": "2396ed72b1f6734d1b640cbc6708c94c434c71c78b8287597c215f6b93c38aba",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -1.8782,
+      -0.0045,
+      -1.5545
+    ],
+    "max": [
+      1.4421,
+      3.478,
+      1.602
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "Z13_shrub_belt_LOD0",
+      "tris": 3299,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "Z13_shrub_belt_LOD1",
+      "tris": 1205,
+      "switch_distance_m": 15.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "Z13_shrub_belt_LOD2",
+      "tris": 391,
+      "switch_distance_m": 40.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 95.0,
+  "materials": [
+    {
+      "slot": "bark_dark",
+      "visual": "bark_locust",
+      "physics": "timber"
+    },
+    {
+      "slot": "foliage_belt",
+      "visual": "godot_foliage_belt",
+      "physics": "timber"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        0.225,
+        0.0
+      ],
+      "radius": 0.05,
+      "height": 0.45,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        1.425,
+        0.0
+      ],
+      "radius": 1.15,
+      "height": 1.95,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.5
+    }
+  ],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": [],
+  "stand_in": {
+    "source": {
+      "commit": "83401382e8b733389982997180cc181b063f61ae",
+      "model": "game/assets/models/vegetation/shrub_belt.glb",
+      "model_sha256": "6ddc02133a8081404e8d4987ba9e2b8e97644a6901a579729827ee9528180d65",
+      "catalog_key": "shrub_belt"
+    },
+    "snag_hazard": true
+  }
+}

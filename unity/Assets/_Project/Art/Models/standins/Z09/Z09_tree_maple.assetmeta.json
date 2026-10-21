@@ -1,0 +1,181 @@
+{
+  "schema": 1,
+  "id": "Z09",
+  "variant": "Z09_tree_maple",
+  "generator": "godot_port",
+  "params_sha256": "b9294bd7c6034a2910b9f07c20deb19f59860b64d0b4099f6a5407c05f76f91b",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -3.3586,
+      -0.0232,
+      -4.3359
+    ],
+    "max": [
+      5.1586,
+      9.3072,
+      3.294
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "Z09_tree_maple_LOD0",
+      "tris": 3876,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "Z09_tree_maple_LOD1",
+      "tris": 1206,
+      "switch_distance_m": 30.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "Z09_tree_maple_LOD2",
+      "tris": 398,
+      "switch_distance_m": 80.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 200.0,
+  "materials": [
+    {
+      "slot": "bark_dark",
+      "visual": "bark_locust",
+      "physics": "timber"
+    },
+    {
+      "slot": "foliage_belt",
+      "visual": "godot_foliage_belt",
+      "physics": "timber"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        1.1,
+        0.0
+      ],
+      "radius": 0.15,
+      "height": 2.2,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.2837,
+        3.9435,
+        0.4535
+      ],
+      "radius": 0.0848,
+      "height": 3.4254,
+      "rotation": [
+        -0.175141,
+        -0.784055,
+        -0.255247,
+        0.53799
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.3387,
+        4.7155,
+        -0.4236
+      ],
+      "radius": 0.0741,
+      "height": 3.9508,
+      "rotation": [
+        -0.222783,
+        0.498941,
+        0.134466,
+        0.826647
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.0103,
+        4.2146,
+        -1.3855
+      ],
+      "radius": 0.0634,
+      "height": 3.2428,
+      "rotation": [
+        -0.522081,
+        -0.132555,
+        -0.082535,
+        0.83848
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.7642,
+        4.6351,
+        -0.7105
+      ],
+      "radius": 0.0526,
+      "height": 2.8546,
+      "rotation": [
+        -0.435596,
+        -0.44242,
+        -0.260673,
+        0.739304
+      ],
+      "material": "timber",
+      "landable": false
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        5.3,
+        0.0
+      ],
+      "radius": 3.1,
+      "height": 6.2,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.45
+    }
+  ],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": [],
+  "stand_in": {
+    "source": {
+      "commit": "83401382e8b733389982997180cc181b063f61ae",
+      "model": "game/assets/models/vegetation/tree_maple.glb",
+      "model_sha256": "5ea5414e0e4c15a94f0d17d3fe210fe32f7378019690f24b8bfe6f19835f0000",
+      "catalog_key": "tree_maple"
+    },
+    "snag_hazard": true
+  }
+}
