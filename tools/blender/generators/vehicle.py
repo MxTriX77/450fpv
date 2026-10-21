@@ -266,8 +266,11 @@ WS_HOLE_M = (0.20, 0.03)  # the windscreen's hole where the flap's edge struck i
 WS_BULGE_M = 0.012        # the crazed pane bulged inward round the hole (assumed; within AST-05's 2 cm of its box)
 WS_BULGE_R_M = 0.30
 CRUMB_M = (0.010, 0.010, 0.004)   # design decision 9: crumbs 10 x 10 x 4 mm
-CRUMBS_PER_WINDOW = 1000  # design decision 9: the sheet's 3 600 capped at 1 000 per window at G1 (assumed)
-CRUMB_INSIDE = 0.7        # the sheet: 70 % inside and within 1 m below the pane
+CRUMBS_PER_WINDOW = 200   # the sheet's 3 600 capped (QA 2.1's R2: LOD0 with its micro meshes under AST-08's 60 000;
+                          # 1 000 drew a carpet M does not show)
+CRUMB_INSIDE = 0.9        # measured M: crumbs on the seats, almost none on the ground (the sheet assumed 60-80 %)
+CRUMB_SPREAD_M = 3.0      # the rest scattered on the ground to this far out from the sill, evenly (the sheet's A: to
+                          # 3 m; M: a few chips, never a band under the doors)
 BEAD_SECTION_M = 0.006    # K07's bead wire: a 6 mm bundle (the sheet: 5-8 mm)
 BEAD_DIAMETER_M = 0.37    # K07_bead_wire's Ø (the sheet: 0.33-0.41 m)
 SPRING_R_M = 0.002        # the sheet: burnt seat springs, wire r 2 mm
@@ -2459,9 +2462,9 @@ def _micro(body, kit):
                 for _ in range(inside):
                     _crumb_inside(body_frame, body, side, seat, s0, s1, rng)
                 kits.append_mesh(crumbs, body_frame, kit.T)
-                for _ in range(per - inside):  # on the ground under the door, densest at the car
-                    s = rng.uniform(s0 - 0.1, s1 + 0.1)
-                    w = side * (body.hw(s) + 1.0 * rng.random() ** 1.5)
+                for _ in range(per - inside):  # scattered on the ground beside the door, a few per square metre
+                    s = rng.uniform(s0 - 0.3, s1 + 0.3)
+                    w = side * (body.hw(s) + 0.05 + (CRUMB_SPREAD_M - 0.05) * rng.random())
                     _crumb(crumbs, rng, (body.x(s), 0.0, w))
                 count += per
         if count:

@@ -221,9 +221,11 @@ def test_dimension_checks(r01):
 
 @pytest.mark.parametrize("which", ["built", "built_a", "built_f"])
 def test_lod_budget(which, request):
+    """AST-08: LOD0 with the micro meshes it renders (QA 2.1's R2) under 60 000 triangles, each further LOD at most
+    half the previous."""
     result = request.getfixturevalue(which)
     tris = [m.triangles() for m in result["lods"]]
-    assert tris[0] < 60000
+    assert tris[0] + sum(m["mesh"].triangles() for m in result["micro"] if m["lod"] == 0) < 60000
     assert all(b * 2 <= a for a, b in zip(tris, tris[1:])), tris
     assert result["switch_distances_m"] == [0.0, 20.0, 80.0, 300.0] and result["cull_distance_m"] == 1500.0
     assert result["thin_wire"] == [False] * 4
@@ -360,6 +362,15 @@ def test_a_glass_and_cabin(r01_a, built_a):
     assert {"glass_hull"} <= set(built_a["lods"][2].slots()) and "glass" not in built_a["lods"][2].slots()
     crumbs = [m for m in built_a["micro"] if m["kind"] == "glass_crumbs"]
     assert len(crumbs) == 1 and crumbs[0]["count"] == 2 * vehicle.CRUMBS_PER_WINDOW
+    # M (QA 2.1's R2): the crumbs inside on the seats and the floor, a few scattered on the ground, never a carpet:
+    # each crumb five faces (no bottom), the ground's lowest at 0.5 mm
+    mesh = crumbs[0]["mesh"]
+    lows = [min(mesh.vertices[i][1] for f in mesh.faces[k:k + 5] for i in f[0]) for k in range(0, len(mesh.faces), 5)]
+    ground = [k for k, y in enumerate(lows) if y < 0.01]
+    assert len(lows) == crumbs[0]["count"]
+    assert len(ground) == 2 * round(vehicle.CRUMBS_PER_WINDOW * (1 - vehicle.CRUMB_INSIDE))
+    out = [abs(mesh.vertices[mesh.faces[5 * k][0][0]][2]) - 0.8 for k in ground]
+    assert max(out) > 2.0 and sum(out) / len(out) > 1.0  # spread to 3 m from the sill, not banked under the doors
     assert [w["porosity"] for w in built_a["wind_volumes"]] == [0.0, 0.35]
     plan = dict(named(r01_a))
     assert [c for _, c in named(r01_a)] == built_a["collision"]

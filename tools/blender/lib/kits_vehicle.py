@@ -523,7 +523,7 @@ def scatter_radius(rng, r_min, r_max, falloff=2):
 
 def crumb_box(mesh, centre, size, yaw, slot, uv):
     """One glass crumb: a box of size (x, y, z) about `centre`, turned by `yaw` about the vertical, every corner UV'd
-    to `uv` (a palette column)."""
+    to `uv` (a palette column); its bottom face, on what it lies on, is left out (10 triangles)."""
     c, s = math.cos(yaw), math.sin(yaw)
     axes = ((c, 0.0, s), (0.0, 1.0, 0.0), (-s, 0.0, c))
     h = [v / 2 for v in size]
@@ -536,6 +536,8 @@ def crumb_box(mesh, centre, size, yaw, slot, uv):
                 ids[sx, sy, sz] = mesh.vertex(p)
     for axis in range(3):
         for sign in (-1, 1):
+            if (axis, sign) == (1, -1):
+                continue
             keys = [k for k in ids if k[axis] == sign]
             o = [(axis + 1) % 3, (axis + 2) % 3]
             keys.sort(key=lambda k: math.atan2(k[o[1]], k[o[0]]))
