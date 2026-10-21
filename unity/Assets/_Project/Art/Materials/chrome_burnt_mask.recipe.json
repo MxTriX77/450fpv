@@ -1,0 +1,16 @@
+{
+  "material": "chrome_burnt",
+  "texture_set": "ambientcg/Metal049A",
+  "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
+  "mask": {
+    "metallic": 1.0,
+    "occlusion": 1.0,
+    "smoothness": 0.25
+  },
+  "sources": {},
+  "inputs_sha256": "7dcc9cc04cef72b55d3bdc8e3e58562a6e68f78163e03c5eb2a5a2f48392465a",
+  "size": [
+    1,
+    1
+  ]
+}

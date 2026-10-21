@@ -1,0 +1,21 @@
+{
+  "material": "car_burnt",
+  "texture_set": "ambientcg/Metal046B",
+  "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
+  "mask": {
+    "metallic": 0.0,
+    "occlusion": 1.0,
+    "smoothness": "1 - roughness"
+  },
+  "sources": {
+    "roughness": {
+      "name": "Metal046B_1K-PNG_Roughness.png",
+      "sha256": "28086a4e7039fead59a82c2d7b6bc3078aa7faa152952ac7cf7f7c9508f9a57a"
+    }
+  },
+  "inputs_sha256": "d1216b4b38a91a09646b65c79d91a2307b9239136343fbfbc44944ff3e048b8a",
+  "size": [
+    1024,
+    1024
+  ]
+}

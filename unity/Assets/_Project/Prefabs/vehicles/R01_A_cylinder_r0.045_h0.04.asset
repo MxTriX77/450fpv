@@ -6,7 +6,7 @@ Mesh:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: R01_A_cylinder_r0.055_h0.318085
+  m_Name: R01_A_cylinder_r0.045_h0.04
   serializedVersion: 12
   m_SubMeshes:
   - serializedVersion: 2
@@ -18,7 +18,7 @@ Mesh:
     vertexCount: 16
     localAABB:
       m_Center: {x: 0, y: 0, z: 0}
-      m_Extent: {x: 0.055, y: 0.1590425, z: 0.055}
+      m_Extent: {x: 0.045, y: 0.02, z: 0.045}
   m_Shapes:
     vertices: []
     shapes: []
@@ -97,7 +97,7 @@ Mesh:
       format: 0
       dimension: 0
     m_DataSize: 192
-    _typelessdata: ae47613d0adc22be00000000094c1f3d0adc22be094c1f3dd73525b10adc22beae47613d094c1fbd0adc22be094c1f3dae4761bd0adc22bed735a5b1074c1fbd0adc22be0b4c1fbda34834300adc22beae4761bd0d4c1f3d0adc22be054c1fbdae47613d0adc223e00000000094c1f3d0adc223e094c1f3dd73525b10adc223eae47613d094c1fbd0adc223e094c1f3dae4761bd0adc223ed735a5b1074c1fbd0adc223e0b4c1fbda34834300adc223eae4761bd0d4c1f3d0adc223e054c1fbd
+    _typelessdata: ec51383d0ad7a3bc000000007c55023d0ad7a3bc7c55023d0d2c07b10ad7a3bcec51383d7c5502bd0ad7a3bc7c55023dec5138bd0ad7a3bc0d2c87b17b5502bd0ad7a3bc7e5502bd408113300ad7a3bcec5138bd7f55023d0ad7a3bc795502bdec51383d0ad7a33c000000007c55023d0ad7a33c7c55023d0d2c07b10ad7a33cec51383d7c5502bd0ad7a33c7c55023dec5138bd0ad7a33c0d2c87b17b5502bd0ad7a33c7e5502bd408113300ad7a33cec5138bd7f55023d0ad7a33c795502bd
   m_CompressedMesh:
     m_Vertices:
       m_NumItems: 0
@@ -152,7 +152,7 @@ Mesh:
     m_UVInfo: 0
   m_LocalAABB:
     m_Center: {x: 0, y: 0, z: 0}
-    m_Extent: {x: 0.055, y: 0.1590425, z: 0.055}
+    m_Extent: {x: 0.045, y: 0.02, z: 0.045}
   m_MeshUsageFlags: 0
   m_CookingOptions: 30
   m_BakedConvexCollisionMesh: 
