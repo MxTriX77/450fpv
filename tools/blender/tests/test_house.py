@@ -3,7 +3,7 @@ the intact house): the exact AST-04 sizes (door, window, brick, batten, rafter p
 facade's U continuing across every corner within 1 mm and folding into the reveals, the gap polygons of the door and
 of a window in each of its states, the tiles' layout (gauge + lap, the ГОСТ size), the mask atlas following
 render_loss, the metadata (materials, textures with channels, the cavity), the LODs halving, and the refusals of what
-is not built yet."""
+is not built yet (the X state, after G1). The D state's own tests are test_house_damage.py's."""
 import copy
 import json
 import math
@@ -50,23 +50,17 @@ def with_(params, **changes):
 
 def test_h01_i_params_validate(h01):
     entry, params = h01
-    assert entry["variants"] == ["H01_I"]
+    assert entry["variants"] == ["H01_I", "H01_D"]
     assert params_lib.validate(house, params) == []
     assert params["damage"] == 0 and params["wall_material"] == "adobe" and params["roof_cover"] == "clay_tile"
     assert (params["roof_type_front"], params["roof_type_back"]) == ("gable", "hip")
 
 
 @pytest.mark.parametrize("key,value,needle", [
-    ("damage", 0.55, "not built yet"),
-    ("roof_strip", 0.75, "not built yet"),
-    ("batten_break", 0.3, "not built yet"),
-    ("rafters_broken", 2, "not built yet"),
-    ("opening_jag", 0.2, "not built yet"),
-    ("interior_ceiling_down", 0.45, "not built yet"),
-    ("hanging_cables", 1, "not built yet"),
-    ("shard_heap_depth", 0.3, "not built yet"),
-    ("rubble_volume", 30.0, "not built yet"),
-    ("wall_breaches.b1.side", "back", "not built yet"),
+    ("damage", 0.9, "the X state"),
+    ("gable_breach", 0.5, "not built yet"),
+    ("burnt", 0.3, "not built yet"),
+    ("interior_debris", 0.3, "not built yet"),
     ("collapse.c1.wall", "left", "not built yet"),
     ("door_leaf_state", "inside", "not built yet"),
     ("wall_material", "silicate", "not built yet"),
