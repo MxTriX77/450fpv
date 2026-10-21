@@ -100,7 +100,8 @@
           -0.1
         ]
       ],
-      "radius_m": 0.0005
+      "radius_m": 0.0005,
+      "material": "steel"
     }
   ]
 }

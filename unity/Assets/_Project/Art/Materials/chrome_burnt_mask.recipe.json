@@ -3,12 +3,12 @@
   "texture_set": "ambientcg/Metal049A",
   "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
   "mask": {
-    "metallic": 1.0,
+    "metallic": 0.0,
     "occlusion": 1.0,
-    "smoothness": 0.25
+    "smoothness": 0.15
   },
   "sources": {},
-  "inputs_sha256": "7dcc9cc04cef72b55d3bdc8e3e58562a6e68f78163e03c5eb2a5a2f48392465a",
+  "inputs_sha256": "0bf67fd19907b6ef590b864d779b5443077ad201ea0a671a15a368541cfd5382",
   "size": [
     1,
     1

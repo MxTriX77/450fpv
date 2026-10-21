@@ -13,8 +13,10 @@ namespace Fpv450.Assets
     /// Unity colliders, static. Textures under <c>Art/ThirdParty/</c>: typed from the Poly Haven, ambientCG or
     /// TextureCan suffix; the maps that <c>tools/assets/derive.py</c> writes under <c>Art/Materials/</c>: the packed
     /// masks as linear RGBA data, the ground and palette albedos as sRGB, the <c>_base</c> maps of alpha-clipped
-    /// recipes as sRGB diffuse with their alpha. The base map of an alpha-clipped recipe also keeps its mip coverage
-    /// at the recipe's cutoff (<see cref="ApplyCoverage"/>).
+    /// recipes as sRGB diffuse with their alpha, undilated; the impostor atlases the Blender build writes beside the FBX under
+    /// <c>Art/Models/</c> (p1-v01-locust): the albedo (<c>_impostor</c>) sRGB diffuse with its alpha, the normals
+    /// (<c>_impostor_normal</c>) and the smoothness (<c>_impostor_smoothness</c>) linear data. The base map of an
+    /// alpha-clipped recipe and an impostor atlas also keep their mip coverage at the cutoff (<see cref="ApplyCoverage"/>, applied by the catalog importer).
     /// </summary>
     public static class ArtImportSettings
     {
@@ -50,19 +52,34 @@ namespace Fpv450.Assets
         /// lower-cased, types the map: Poly Haven's <c>_nor_gl</c>, ambientCG's <c>_NormalGL</c>, TextureCan's
         /// <c>_normal</c> and a derived <c>_normal</c> are normal maps; <c>_rough</c>, <c>_ao</c>,
         /// <c>ambientocclusion</c> and ambientCG's <c>_Opacity</c> are single-channel; <c>_diff</c>, <c>_color</c>, a
-        /// derived <c>_albedo</c> (the ground base and detail albedos, the palettes) and a derived <c>_base</c> map
-        /// (the alpha-clipped recipes') are sRGB diffuse; a derived <c>_mask</c> and anything else is a default-typed
-        /// linear map. Only the diffuse maps are sRGB, and only a diffuse whose source carries an alpha channel (a
-        /// leaf atlas) is imported as transparency, its alpha kept as given, never premultiplied.
+        /// derived <c>_albedo</c> (the ground base and detail albedos, the palettes), a derived <c>_base</c> map (the
+        /// alpha-clipped, groove and paint recipes') and an <c>_impostor</c> atlas are sRGB diffuse; a derived
+        /// <c>_mask</c> and anything else is a default-typed linear map. Only the diffuse maps are sRGB, and only a
+        /// diffuse whose source carries an alpha channel (an impostor) is imported as transparency, its alpha kept as
+        /// given, never premultiplied; a derived <c>_base</c> map with alpha (a leaf atlas, the pods) is not, as
+        /// <c>derive.py</c> gives every texel its alpha clips the kept texels' mean colour, which Unity's dilation
+        /// would paint over with the colours at the leaves' edges (p1-v01-locust task 1.2l). An impostor's normal
+        /// atlas (<c>_impostor_normal</c>) is no normal map but linear data without mips: its shader reads it raw at
+        /// full resolution, each texel's mean normal and, as that mean's length, the spread of the normals under it
+        /// (p1-v01-locust task 1.2n). So it keeps its texels: compressed at high quality (BC7 on the PC, at DXT5's
+        /// size), as DXT5's block colours shorten the means (V01_M's card reflected the sky at grazing angles 13 %
+        /// more than from the texels uncompressed, with BC7 3 %, measured), and read at the nearest texel, since a
+        /// texel's mean and length say how one texel's normals spread and the bilinear filter's blend of two texels is
+        /// not their two spreads (7 % more of that reflection, measured). An impostor's smoothness atlas
+        /// (<c>_impostor_smoothness</c>, p1-v01-locust task 1.6b) is single-channel linear data read the same way, at
+        /// full resolution and the nearest texel, beside the normal atlas's texel of the same surfaces.
         /// </summary>
         public static bool ApplyTexture(TextureImporter importer, string assetPath)
         {
             string name = Path.GetFileNameWithoutExtension(assetPath).ToLowerInvariant();
-            bool normal = name.Contains("_nor_gl") || name.Contains("_normal");
+            bool derivedBase = assetPath.StartsWith(MaterialsFolder, StringComparison.Ordinal) && name.EndsWith("_base");
+            bool impostorNormals = name.EndsWith("_impostor_normal");
+            bool impostorSmoothness = name.EndsWith("_impostor_smoothness");
+            bool normal = !impostorNormals && (name.Contains("_nor_gl") || name.Contains("_normal"));
             bool single = name.Contains("_rough") || name.Contains("_ao") || name.Contains("ambientocclusion")
-                || name.Contains("_opacity");
+                || name.Contains("_opacity") || impostorSmoothness;
             bool diffuse = name.Contains("_diff") || name.Contains("_color") || name.Contains("_albedo")
-                || name.EndsWith("_base");
+                || name.EndsWith("_base") || name.EndsWith("_impostor");
             TextureImporterType type = normal ? TextureImporterType.NormalMap
                 : single ? TextureImporterType.SingleChannel
                 : TextureImporterType.Default;
@@ -70,7 +87,13 @@ namespace Fpv450.Assets
             bool changed = false;
             changed |= Set(importer.textureType, type, v => importer.textureType = v);
             changed |= Set(importer.sRGBTexture, diffuse, v => importer.sRGBTexture = v);
-            changed |= Set(importer.alphaIsTransparency, diffuse && importer.DoesSourceTextureHaveAlpha(), v => importer.alphaIsTransparency = v);
+            changed |= Set(importer.alphaIsTransparency, diffuse && !derivedBase && importer.DoesSourceTextureHaveAlpha(), v => importer.alphaIsTransparency = v);
+            if (impostorNormals || impostorSmoothness)
+            {
+                changed |= Set(importer.mipmapEnabled, false, v => importer.mipmapEnabled = v);
+                changed |= Set(importer.textureCompression, TextureImporterCompression.CompressedHQ, v => importer.textureCompression = v);
+                changed |= Set(importer.filterMode, UnityEngine.FilterMode.Point, v => importer.filterMode = v);
+            }
             if (single)
             {
                 var settings = new TextureImporterSettings();
@@ -111,7 +134,7 @@ namespace Fpv450.Assets
     public sealed class ModelPostprocessor : AssetPostprocessor
     {
         // Bump when ArtImportSettings changes, so Unity reimports the files it covers.
-        public override uint GetVersion() => 4;
+        public override uint GetVersion() => 8;
 
         void OnPreprocessModel()
         {
@@ -123,7 +146,8 @@ namespace Fpv450.Assets
         void OnPreprocessTexture()
         {
             if (assetPath.StartsWith(ArtImportSettings.ThirdPartyFolder, StringComparison.Ordinal)
-                || assetPath.StartsWith(ArtImportSettings.MaterialsFolder, StringComparison.Ordinal))
+                || assetPath.StartsWith(ArtImportSettings.MaterialsFolder, StringComparison.Ordinal)
+                || assetPath.StartsWith(ArtImportSettings.ModelsFolder, StringComparison.Ordinal))
                 ArtImportSettings.ApplyTexture((TextureImporter)assetImporter, assetPath);
         }
     }

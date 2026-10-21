@@ -9,12 +9,33 @@ A recipe with a "mask" object gets unity/Assets/_Project/Art/Materials/<material
 that URP/Lit reads twice: _MetallicGlossMap takes metallic from R and smoothness from A, _OcclusionMap takes occlusion
 from G; B is unused and 0. The object holds exactly "metallic", "occlusion" and "smoothness", each a constant in
 [0, 1] or a map of the recipe's texture set by its manifest map name ("ao", "roughness", ...), inverted as
-"1 - roughness". The mask has the sources' size; 16-bit sources are scaled to 8 bits, never clipped.
+"1 - roughness". The mask has the sources' size; 16-bit sources are scaled to 8 bits, never clipped. In the mask of
+an alpha-clipped recipe whose set ships an opacity map, every texel the opacity clips takes each channel's mean over
+the texels it keeps, so the mips of a minified card average its leaves' values, not what lies under the clipped
+texels (p1-v01-locust task 1.2g).
 
 A recipe with "alpha_clip" (p1-v13-shrub, "Alpha-clipped two-sided recipes") whose texture set ships its opacity as
 a separate map (ambientCG's atlases) gets <material>_base.png: the diffuse's RGB with the opacity map as alpha, an
 8-bit sRGB RGBA map the importer assigns as the base map in place of the diffuse, so URP/Lit clips by its alpha. A
-set without an "opacity" map needs nothing: the diffuse's own alpha clips.
+set without an "opacity" map needs nothing: the diffuse's own alpha clips. Every texel the opacity clips takes the
+kept texels' mean colour, averaged in linear light, as the mask's do (p1-v01-locust task 1.2l): the mips of a
+minified card average its leaves' colour, not what lies under the clipped texels, and the importer leaves Unity's
+dilation off for a derived base map, which would paint over them.
+
+A far-card recipe {"schema": 1, "far_card_of": <recipe>} (p1-v01-locust task 1.2j) is that leaf recipe for far
+cards drawn as two faces with normals of their own: the importer builds it from the leaf recipe and its derived maps,
+one-sided and without the normal map, so nothing is derived for it.
+
+Two more base maps (p1-v01-locust, design decision 5), assigned the same way:
+- a "groove" object tints a bark's grooves: {"cavity": <map>, "from": <level>, "to": <level>, "tint": [r, g, b]}.
+  The cavity weight runs linearly from 0 where the cavity map (8-bit, AO dark in the grooves) reads "from" or more
+  to 1 where it reads "to" or less, and each diffuse texel, in linear light, is scaled by 1 + (tint - 1) * weight:
+  the recipe's material tint holds the ridge colour and the groove tint the grooves' own on top of it (an 8-bit sRGB
+  RGB map; a channel past white clips);
+- a "paint" object, in place of a texture set, paints the base map by script: {"pods": <count>, "size_px": [w, h],
+  "colour": "#rrggbb"}, the locust's hanging pods side by side from one stalk at the top, flat strips with their
+  seeds' bulges, darker at the rims, alpha outside (an 8-bit sRGB RGBA map); with an "alpha_clip", every texel it
+  clips takes the kept texels' mean colour, as above.
 
 A recipe of kind "ground" (p1-s04-belt-straw, "Ground recipes with a detail layer") names a soil set and a cover set,
 a seeded patch description and a target mean albedo, and gets four maps for one patch of size_m x size_m at
@@ -74,9 +95,9 @@ blur them together), so a generator tints a face by UV'ing it into a column at a
 palette_uv). A tinted material without any texture would read to the review capture as an un-smudged LFS pointer, and
 a flat map is what a plain tint is.
 
-Beside the PNGs, <material>_mask.recipe.json (masks), <material>_base.recipe.json (alpha base maps) or
-<material>.recipe.json (ground, palette) records what made them: the formula, the recipe where there is one, each
-source's file name and SHA-256 as found on disk, and the SHA-256 of all of that together
+Beside the PNGs, <material>_mask.recipe.json (masks), <material>_base.recipe.json (alpha, groove and paint base
+maps) or <material>.recipe.json (ground, palette) records what made them: the formula, the recipe where there is
+one, each source's file name and SHA-256 as found on disk, and the SHA-256 of all of that together
 (plus the Pillow version for ground maps, whose resampling it fixes, and for ground and palette maps the value of
 every named constant their formula reads, GROUND_CONSTANTS and PALETTE_CONSTANTS, under "constants"; for a ground
 map also the bare layout's, the strips' and the relief's inputs and the layout modules' constants and versions,
@@ -98,7 +119,7 @@ import re
 import sys
 
 import PIL
-from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageMath, ImageOps
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageMath, ImageOps, ImageStat
 
 import fetch  # the manifest, its file paths and the repo root; same folder
 
@@ -108,9 +129,22 @@ from lib import mat, patches, strip  # noqa: E402  the layouts and fields the ge
 RECIPES = os.path.join("assets-src", "materials")
 MATERIALS = os.path.join("unity", "Assets", "_Project", "Art", "Materials")
 FORMULA = "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size"
-BASE_FORMULA = "RGB diffuse, A opacity; 8-bit sRGB at the sources' size"
+CLIP_FORMULA = FORMULA + "; every texel the opacity map clips takes each channel's mean over the texels it keeps"
+CLIP_COLOUR = "; every texel the alpha_clip clips takes the kept texels' mean colour in linear light"
+BASE_FORMULA = "RGB diffuse, A opacity; 8-bit sRGB at the sources' size" + CLIP_COLOUR
+GROOVE_FORMULA = ("RGB diffuse x (1 + (tint - 1) x weight) in linear light, the weight 0 where the cavity map reads "
+                  "from or more and 1 where it reads to or less, linear between; 8-bit sRGB at the sources' size")
+PAINT_FORMULA = ("pods side by side from one stalk at the top, each a flat strip of rounded ends with its seeds' "
+                 "bulges, the rim at 0.7 of the colour; 4x supersampled, alpha clear outside; 8-bit sRGB RGBA"
+                 + CLIP_COLOUR)
 CHANNELS = ("metallic", "occlusion", "smoothness")  # R, G, A
 MAP_EXPR = re.compile(r"^(1 - )?([a-z]+)$")
+HEX = re.compile(r"^#[0-9a-f]{6}$")
+PAINT_SUPERSAMPLE = 4
+POD_SEEDS = 6               # bulges along a pod (the sheet's 5-10 cm pods hold 4-10 seeds, published)
+POD_WIDTH = 0.36            # of the pod's slot across the image
+POD_TOP, POD_BOTTOM = 0.1, 0.97   # of the image's height: the stalk above, the pods' tips below
+POD_RIM = 0.7               # the rim's share of the colour, and the inner face's share of the pod's width
 
 GROUND_FORMULA = ("ground v6: cover tiled at tile_size_m and at tile_size_m*phi, averaged, stretched 1+bias along the "
                   "lodging azimuth and rotated to it; soil tiled at its tile_size_m, gained to its albedo_target when "
@@ -226,9 +260,11 @@ def channel(spec, sources, size):
 
 def derive(root, manifest, material):
     """Derives the material's maps when its recipe asks for them, each only when its stamp is stale: a ground or
-    palette recipe's set; a tiled set's mask when the recipe has one and its base map when it is alpha-clipped.
-    Returns the report lines."""
+    palette recipe's set; a tiled set's mask when the recipe has one and its base map when it is alpha-clipped,
+    groove-tinted or painted. Returns the report lines."""
     recipe = load_recipe(root, material)
+    if "far_card_of" in recipe:
+        return far_card(root, material, recipe)
     kind = recipe.get("kind")
     if kind == "ground":
         if recipe.get("space") == "wall":
@@ -240,12 +276,31 @@ def derive(root, manifest, material):
         return derive_palette(root, material, recipe)
     if kind is not None:
         raise DeriveError(f"{material}: unknown recipe kind {kind!r} (omit it for a tiled set, or 'ground' or 'palette')")
+    if ("paint" in recipe) == ("texture_set" in recipe):
+        raise DeriveError(f"{material}: give a \"texture_set\" or a \"paint\", not both or neither")
+    if "groove" in recipe and "alpha_clip" in recipe:
+        raise DeriveError(f"{material}: a \"groove\" tints an opaque bark; it takes no \"alpha_clip\"")
     lines = []
     if recipe.get("mask") is not None:
         lines.append(derive_mask(root, manifest, material, recipe))
-    if "alpha_clip" in recipe:
+    if "paint" in recipe:
+        lines.append(derive_paint(root, material, recipe))
+    elif "groove" in recipe:
+        lines.append(derive_groove(root, manifest, material, recipe))
+    elif "alpha_clip" in recipe:
         lines.append(derive_base(root, manifest, material, recipe))
     return "\n".join(lines) if lines else f"{material}: no mask in the recipe, nothing to derive"
+
+
+def far_card(root, material, recipe):
+    """A far-card recipe {"schema": 1, "far_card_of": <recipe>} (p1-v01-locust task 1.2j) reads its leaf recipe's
+    derived maps, so it derives nothing."""
+    leaf = recipe["far_card_of"]
+    if set(recipe) != {"schema", "far_card_of"} or not isinstance(leaf, str):
+        raise DeriveError(f"{material}: a \"far_card_of\" recipe names one leaf recipe and holds nothing else")
+    if "far_card_of" in load_recipe(root, leaf):
+        raise DeriveError(f"{material}: {leaf} is itself a far-card recipe; name the leaf recipe")
+    return f"{material}: far cards of {leaf}, whose derived maps it reads; nothing to derive"
 
 
 def derive_mask(root, manifest, material, recipe):
@@ -263,13 +318,20 @@ def derive_mask(root, manifest, material, recipe):
                 raise DeriveError(f"{material}: mask.{name}: {texture_set} has no {parsed[1]} map "
                                   f"(it has {', '.join(sorted(maps))})")
             used.add(parsed[1])
+    clipped = "alpha_clip" in recipe and "opacity" in maps  # the base map clips by this opacity (derive_base)
+    if clipped:
+        used.add("opacity")
     for name in sorted(used):
         if not os.path.isfile(maps[name]):
             raise DeriveError(f"{fetch.relpath(root, maps[name])}: missing; run fetch.py")
-    stamp = {"material": material, "texture_set": texture_set, "formula": FORMULA, "mask": mask,
-             "sources": {name: {"name": os.path.basename(maps[name]), "sha256": fetch.sha256(maps[name])}
-                         for name in sorted(used)}}
-    stamp["inputs_sha256"] = _inputs_sha256(stamp, ("formula", "mask", "sources"))
+    stamp = {"material": material, "texture_set": texture_set, "formula": CLIP_FORMULA if clipped else FORMULA,
+             "mask": mask, "sources": {name: {"name": os.path.basename(maps[name]), "sha256": fetch.sha256(maps[name])}
+                                       for name in sorted(used)}}
+    keys = ("formula", "mask", "sources")
+    if clipped:
+        stamp["alpha_clip"] = recipe["alpha_clip"]
+        keys += ("alpha_clip",)
+    stamp["inputs_sha256"] = _inputs_sha256(stamp, keys)
 
     png_path = os.path.join(root, MATERIALS, f"{material}_mask.png")
     stamp_path = os.path.join(root, MATERIALS, f"{material}_mask.recipe.json")
@@ -283,6 +345,8 @@ def derive_mask(root, manifest, material, recipe):
                           + ", ".join(f"{n} {s[0]}x{s[1]}" for n, s in sorted((n, i.size) for n, i in sources.items())))
     size = sizes.pop() if sizes else (1, 1)
     r, g, a = (channel(mask[name], sources, size) for name in CHANNELS)
+    if clipped:
+        r, g, a = _fill_clipped((r, g, a), sources["opacity"], recipe["alpha_clip"])
     os.makedirs(os.path.dirname(png_path), exist_ok=True)
     Image.merge("RGBA", (r, g, Image.new("L", size, 0), a)).save(png_path, "PNG")
     stamp["size"] = list(size)
@@ -291,8 +355,45 @@ def derive_mask(root, manifest, material, recipe):
             f"({', '.join(sorted(used)) or 'constants only'}); recipe recorded in {os.path.basename(stamp_path)}")
 
 
+def _fill_clipped(images, opacity, cutoff):
+    """The 8-bit L `images` with every texel the alpha test clips (opacity under `cutoff`: the shader drops alpha <
+    cutoff) set to the image's mean over the texels it keeps (p1-v01-locust task 1.2g). Those texels never show at
+    full resolution, but every mip averages them in: LeafSet002's AO reads 0.82 under its clipped texels against 0.97
+    under its leaves, so a minified leaf card took a lower occlusion the farther it was, and its ambient light with
+    it. Unchanged when the map keeps nothing."""
+    keep = _kept(opacity, cutoff)
+    if not keep.getbbox():
+        return images
+    return tuple(Image.composite(image, Image.new("L", image.size, round(ImageStat.Stat(image, keep).mean[0])), keep)
+                 for image in images)
+
+
+def _kept(opacity, cutoff):
+    """The 8-bit L mask of the texels the alpha test keeps: 255 where the opacity is at least `cutoff` (the shader
+    drops alpha < cutoff), else 0."""
+    return opacity.point(lambda v: 255 if v >= math.ceil(cutoff * 255) else 0)
+
+
+def _fill_clipped_colour(rgb, opacity, cutoff):
+    """The 8-bit sRGB `rgb` with every texel the alpha test clips (opacity under `cutoff`) set to the kept texels'
+    mean colour, each channel averaged in linear light and encoded back (p1-v01-locust task 1.2l). Those texels never
+    show at full resolution, but every mip averages them in: under LeafSet002's clipped texels the diffuse reads 18 %
+    darker than under its leaves (linear luminance 0.206 against 0.252), and Unity's dilation, which fills them from
+    the leaves' edges, would paint over them. Unchanged when the map keeps nothing."""
+    keep = _kept(opacity, cutoff)
+    if not keep.getbbox():
+        return rgb
+    counts = rgb.histogram(keep)  # 256 levels per channel, R, G, B, over the kept texels
+    mean = []
+    for c in range(3):
+        levels = counts[256 * c:256 * (c + 1)]
+        mean.append(_encode(sum(n * SRGB_TO_LINEAR[v] for v, n in enumerate(levels)) / sum(levels)))
+    return Image.composite(rgb, Image.new("RGB", rgb.size, tuple(mean)), keep)
+
+
 def derive_base(root, manifest, material, recipe):
-    """The base map of an alpha-clipped recipe: the diffuse's RGB with the set's separate opacity map as alpha."""
+    """The base map of an alpha-clipped recipe: the diffuse's RGB with the set's separate opacity map as alpha, every
+    texel the opacity clips at the recipe's cutoff given the kept texels' mean colour (`_fill_clipped_colour`)."""
     texture_set = recipe["texture_set"]
     maps = set_maps(root, manifest, texture_set, material)
     if "opacity" not in maps:
@@ -301,9 +402,10 @@ def derive_base(root, manifest, material, recipe):
         if not os.path.isfile(maps[name]):
             raise DeriveError(f"{fetch.relpath(root, maps[name])}: missing; run fetch.py")
     stamp = {"material": material, "texture_set": texture_set, "formula": BASE_FORMULA,
+             "alpha_clip": recipe["alpha_clip"],
              "sources": {name: {"name": os.path.basename(maps[name]), "sha256": fetch.sha256(maps[name])}
                          for name in ("diffuse", "opacity")}}
-    stamp["inputs_sha256"] = _inputs_sha256(stamp, ("formula", "sources"))
+    stamp["inputs_sha256"] = _inputs_sha256(stamp, ("formula", "alpha_clip", "sources"))
 
     png_path = os.path.join(root, MATERIALS, f"{material}_base.png")
     stamp_path = os.path.join(root, MATERIALS, f"{material}_base.recipe.json")
@@ -316,11 +418,138 @@ def derive_base(root, manifest, material, recipe):
         raise DeriveError(f"{material}: the sources differ in size: diffuse {diffuse.size[0]}x{diffuse.size[1]}, "
                           f"opacity {opacity.size[0]}x{opacity.size[1]}")
     os.makedirs(os.path.dirname(png_path), exist_ok=True)
-    Image.merge("RGBA", (*diffuse.split(), opacity)).save(png_path, "PNG")
+    rgb = _fill_clipped_colour(diffuse, opacity, recipe["alpha_clip"])
+    Image.merge("RGBA", (*rgb.split(), opacity)).save(png_path, "PNG")
     stamp["size"] = list(diffuse.size)
     _write_stamp(stamp_path, stamp)
     return (f"{fetch.relpath(root, png_path)}: derived {diffuse.size[0]}x{diffuse.size[1]} from {texture_set} "
             f"(diffuse, opacity); recipe recorded in {os.path.basename(stamp_path)}")
+
+
+def derive_groove(root, manifest, material, recipe):
+    """The base map of a bark with a "groove": the diffuse, its grooves tinted by the cavity map (module docstring)."""
+    groove = recipe["groove"]
+    if not isinstance(groove, dict) or set(groove) != {"cavity", "from", "to", "tint"}:
+        raise DeriveError(f"{material}: 'groove' must hold exactly cavity, from, to, tint")
+    tint = groove["tint"]
+    if not (isinstance(tint, list) and len(tint) == 3 and all(_is_num(c) and c > 0 for c in tint)):
+        raise DeriveError(f"{material}: groove.tint must be three positive linear factors, got {tint!r}")
+    if not (_is_num(groove["from"]) and _is_num(groove["to"]) and 0 <= groove["to"] < groove["from"] <= 255):
+        raise DeriveError(f"{material}: groove needs 0 <= to < from <= 255 on the 8-bit cavity map")
+    texture_set = recipe["texture_set"]
+    maps = set_maps(root, manifest, texture_set, material)
+    if groove["cavity"] not in maps:
+        raise DeriveError(f"{material}: groove.cavity: {texture_set} has no {groove['cavity']} map "
+                          f"(it has {', '.join(sorted(maps))})")
+    used = ("diffuse", groove["cavity"])
+    for name in used:
+        if not os.path.isfile(maps[name]):
+            raise DeriveError(f"{fetch.relpath(root, maps[name])}: missing; run fetch.py")
+    stamp = {"material": material, "texture_set": texture_set, "formula": GROOVE_FORMULA, "groove": groove,
+             "sources": {name: {"name": os.path.basename(maps[name]), "sha256": fetch.sha256(maps[name])}
+                         for name in used}}
+    stamp["inputs_sha256"] = _inputs_sha256(stamp, ("formula", "groove", "sources"))
+
+    png_path, stamp_path = _outputs(root, material, "base")
+    if _up_to_date([png_path], stamp_path, stamp["inputs_sha256"]):
+        return f"{fetch.relpath(root, png_path)}: up to date"
+
+    diffuse = Image.open(maps["diffuse"]).convert("RGB")
+    cavity = grey(Image.open(maps[groove["cavity"]]))
+    if diffuse.size != cavity.size:
+        raise DeriveError(f"{material}: the sources differ in size: diffuse {diffuse.size[0]}x{diffuse.size[1]}, "
+                          f"{groove['cavity']} {cavity.size[0]}x{cavity.size[1]}")
+    weights = [min(1.0, max(0.0, (groove["from"] - level) / (groove["from"] - groove["to"]))) for level in range(256)]
+    levels = cavity.tobytes()
+    bands = []
+    for band, factor in zip(diffuse.split(), tint):  # one table per channel, indexed by cavity level and texel
+        table = bytes(_encode(_decode(d) * (1 + (factor - 1) * w)) for w in weights for d in range(256))
+        bands.append(Image.frombytes("L", band.size, bytes(table[a << 8 | d] for a, d in zip(levels, band.tobytes()))))
+    _write(png_path, stamp_path, Image.merge("RGB", bands), stamp)
+    return (f"{fetch.relpath(root, png_path)}: derived {diffuse.size[0]}x{diffuse.size[1]} from {texture_set} "
+            f"(diffuse, {groove['cavity']}); recipe recorded in {os.path.basename(stamp_path)}")
+
+
+def derive_paint(root, material, recipe):
+    """The painted base map of a recipe with a "paint" (module docstring): the locust's pod strip."""
+    paint = recipe["paint"]
+    if not isinstance(paint, dict) or set(paint) != {"pods", "size_px", "colour"}:
+        raise DeriveError(f"{material}: 'paint' must hold exactly pods, size_px, colour")
+    size = paint["size_px"]
+    if not (isinstance(paint["pods"], int) and paint["pods"] >= 1 and isinstance(size, list) and len(size) == 2
+            and all(isinstance(s, int) and 8 <= s <= 2048 for s in size)
+            and isinstance(paint["colour"], str) and HEX.match(paint["colour"])):
+        raise DeriveError(f"{material}: paint needs pods >= 1, size_px [w, h] of 8-2048 px and colour '#rrggbb'")
+    cutoff = recipe.get("alpha_clip")
+    stamp = {"material": material, "formula": PAINT_FORMULA, "paint": paint, "alpha_clip": cutoff, "sources": {}}
+    stamp["inputs_sha256"] = _inputs_sha256(stamp, ("formula", "paint", "alpha_clip", "sources"))
+
+    png_path, stamp_path = _outputs(root, material, "base")
+    if _up_to_date([png_path], stamp_path, stamp["inputs_sha256"]):
+        return f"{fetch.relpath(root, png_path)}: up to date"
+    image = _pods(paint["pods"], size, paint["colour"])
+    if cutoff is not None:
+        rgb, alpha = image.convert("RGB"), image.getchannel("A")
+        image = Image.merge("RGBA", (*_fill_clipped_colour(rgb, alpha, cutoff).split(), alpha))
+    _write(png_path, stamp_path, image, stamp)
+    return f"{fetch.relpath(root, png_path)}: painted {size[0]}x{size[1]}; recipe recorded in {os.path.basename(stamp_path)}"
+
+
+def _pods(count, size, colour):
+    """`count` pods hanging side by side from a stalk at the top centre, drawn PAINT_SUPERSAMPLE times larger and
+    box-filtered down: each a strip whose width swells over its POD_SEEDS seeds and rounds off at both ends, its
+    rim in POD_RIM of the colour, the stalk and the pods' tops converging on it."""
+    s = PAINT_SUPERSAMPLE
+    w, h = size[0] * s, size[1] * s
+    base = tuple(int(colour[i:i + 2], 16) for i in (1, 3, 5))
+    rim = tuple(round(c * POD_RIM) for c in base)
+    image = Image.new("RGBA", (w, h), base + (0,))
+    draw = ImageDraw.Draw(image)
+    top = POD_TOP * h
+    draw.line([(w / 2, 0), (w / 2, top)], fill=rim + (255,), width=max(1, round(0.04 * w)))
+    for i in range(count):
+        slot = w / count
+        tip_x, half = slot * (i + 0.5), POD_WIDTH * slot / 2
+        for share, fill in ((1.0, rim), (POD_RIM, base)):
+            left, right = [], []
+            for k in range(41):
+                t = k / 40
+                x = w / 2 + (tip_x - w / 2) * t ** 0.5
+                y = top + (POD_BOTTOM * h - top) * t
+                bulge = 1 + 0.15 * math.sin(POD_SEEDS * math.pi * t) ** 2
+                r = share * half * bulge * math.sin(math.pi * min(1.0, t / 0.12, (1 - t) / 0.06) / 2)
+                left.append((x - r, y))
+                right.append((x + r, y))
+            draw.polygon(left + right[::-1], fill=fill + (255,))
+    return image.resize(tuple(size), Image.BOX)
+
+
+def _decode(level):
+    """An 8-bit sRGB level as linear light."""
+    c = level / 255
+    return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+
+def _encode(value):
+    """Linear light as an 8-bit sRGB level, clipped at white."""
+    v = min(1.0, max(0.0, value))
+    return round(255 * (12.92 * v if v <= 0.0031308 else 1.055 * v ** (1 / 2.4) - 0.055))
+
+
+def _is_num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def _outputs(root, material, kind):
+    return (os.path.join(root, MATERIALS, f"{material}_{kind}.png"),
+            os.path.join(root, MATERIALS, f"{material}_{kind}.recipe.json"))
+
+
+def _write(png_path, stamp_path, image, stamp):
+    os.makedirs(os.path.dirname(png_path), exist_ok=True)
+    image.save(png_path, "PNG")
+    stamp["size"] = list(image.size)
+    _write_stamp(stamp_path, stamp)
 
 
 def _constants(names):

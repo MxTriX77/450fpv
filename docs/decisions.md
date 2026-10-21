@@ -5,6 +5,8 @@
 - Decisions marked **(verify at phase 0)** depend on facts the next session must check before building on them.
 
 ## D-001 Engine: Unity 6 LTS, URP, C# · Accepted (verify at phase 0)
+**Closed at G1 (D-042):** URP stays. The pilot flew the G1 preview and rated its stations well (`docs/style-rules.md`).
+
 The pilot chose Unity ("backend - whatever the best").
 
 **What we use:**
@@ -354,3 +356,50 @@ The pilot, 2026-10-19: "that req about opto being cut if laid on water - disrega
 - **Supersedes D-036's signal rule.** Fiber lying on or in water carries the feed as anywhere else: water never cuts the signal and never ends a sortie. WLD-01 and WLD-15 drop the cut; the feed has no water event (phase 4); the physics has no cut rule to set (phase 7).
 - **What stays from D-036:** the river and the ponds, their mildly realistic look, the waves from the wind, and the `water` surface row (a touch is a crash, nothing lands on it).
 - **The line on the water stays a physical line:** where it lies on or in the water, and the drag a current puts on it, are the tether physics' to model with the rest of the line (phase 7d); none of it touches the feed.
+
+## D-040 Gallery first: G1 on the original timeline · Accepted
+The pilot, 2026-10-21, after three days with three of G1's six stations merged: "we were supposed to have a gallery in 2-3 days", then, to the orchestrator's gallery-first proposal: "sure we should be on track with the original plan. im waiting for gallery".
+- **The gallery is built now and fills its stations as each lands.** G1's look setup starts at once; the scene takes every merged station and a numbered empty marker for each one still on its branch; the build goes to the pilot as soon as R01 and H01's intact house are in, and the damaged house follows.
+- **Before G1, each station keeps to one fresh QA pass (D-034).** A look miss QA finds becomes a named stand-in read out to the pilot at G1, not a rework round. A QA item on physics, tests, metadata or spec text still blocks the merge.
+- **Moved to after the pilot's G1 look, which steers them:** V01's crown net and the H belt edge (QA 2.1's R1 and R2 in `p1-v01-locust`'s `review.md`), H01's X state and letter S's items (task 1.4b), and any polishing of a number already inside its spec limit.
+- **Unchanged:** the physics rules (real geometry with thickness, collision following the visual, every audit), D-028's definition of realism, and the side-by-side reading of every station against its letters.
+- **Mass production:** a variant that is only a params file on an existing generator takes the Quick or Standard tier (D-033): one build, one look, one QA pass.
+
+## D-041 Efficiency: look first, shared pieces first, lean notes · Accepted
+The pilot, 2026-10-21: "the fact that it's slow - separate topic, dont care. what i care about is efficiency. if you tell me that all the work behind the scenes to create world and objects preparations will help achieve tremendous good quality down the line - works". Spend goes to what compounds (generators, the metadata contract, audits, shared shaders, physics rulings), not to what does not.
+- **Look first inside every asset task.** A rough build, then the side-by-side against its letters (REAL-03, D-038), then the numbers. A wrong shape is found before parity, budgets or tuning are spent on it (E01's and V01's looks failed QA after every number passed).
+- **Shared pieces are planned up front.** A proposal names every library, shader, importer role or metadata key it shares with another change in flight, and the change that builds it first; nothing waits mid-change on a piece nobody owns (R01's layered paint and H01's `textures` key were found mid-change).
+- **Lean notes and briefs.** An As built note gives the numbers and the decisions, not the story of the tries; a brief names the exact sections to read. Every fresh agent re-reads the change, so its length is paid on every task.
+- With D-040: no polishing of a number already inside its limit, and a variant that is only a params file takes the Quick or Standard tier (D-033).
+
+## D-042 First flights before the world: G4, G5 and G7 next; G2 and G3 postponed · Accepted
+The pilot, 2026-10-21, after flying the G1 preview (five of six stations): "VAZ - not bad, trench - very good, actually, grass - solid, tree - it's a hq stuff btw im not gonna lie. what's still missing - поля, посадки, houses and many other things. I was thinking of postponing G2 and G3 now, and creating flying algorithms based on the current raw version." Their proposition: "Do G4 - create feed; G5 - create the drone already; G7 - first flights, this would include sub tasks: a) flying controller support b) basic FPV controlling logic (which means it should support yaw pitch roll throttle etc.) c) important there also - physics. Wind, weather, complex flying logic, etc." Asked, they chose to fly free first, with the fiber after the first flights, and a minimal menu judged at G7 instead of a wireframe gate.
+- **Next, in this order of gates:**
+  - G4: the feed (phase 4)
+  - G5: the drone (phase 5)
+  - G7: first flights (phase 6, with the core of phase 7's flight physics: wind and turbulence, then weather and the airframe effects)
+  - The lanes run in parallel; the gates reach the pilot in that order.
+- **The test range is the G1 gallery.** The world queries run over its stations, so the first flights meet the trees, wires, car, trench and house.
+- **G6 folds into G7.** Train / Calibrate / Exit and the setup screen are built plainly and judged at G7.
+- **The fiber (phase 7d)** follows the first flights, as the next flight build.
+- **Postponed:** mass production, G2's gallery of every asset, and G3's world (fields, belts, villages). Phase 1's deferrals wait with them.
+- **G1:**
+  - The pilot's words are in `docs/style-rules.md`; D-001 closes with URP kept.
+  - V01's crown-net rework (`p1-v01-locust` QA 2.1's R1) is dropped: the pilot rated the tree high quality, and the pilot's words beat QA's reading. It returns only if the pilot asks.
+  - The H belt edge (R2) waits with G3.
+  - H01 finishes (its look pass, its merge, its QA), joins the gallery, and closes G1.
+
+## D-043 The drone copies letter T; legs-off flights launch from the upside-down chair · Accepted
+The pilot, 2026-10-21, sharing a photo of a typical heavy fiber-optic quad, filed as letter T: "this is what our drone, a typical optical fiber, should look like. as you can see, it has legs, but for some missions there are no legs, this is exactly when you lift off from that "upside-down" chair - so it stays on something, coz you can't balance on the spool".
+- **The Svinoriz 10 Opto copies letter T's look** (D-028):
+  - an X frame of carbon plates and tube arms, with four motors
+  - the fiber spool in its housing on top
+  - the payload slung below, between the legs
+  - the two packs strapped along the frame's sides
+  - four carbon tube legs with feet
+  - The object sheet (`p5-drone` task 1.1) reads every detail T shows.
+- **Copy the look, never the markings:** no logo, text or QR code on any part (SEC rules). The payload stays a generic body of T's size and the class's mass, with no functional detail (DRN-01).
+- **What it supersedes:** the 2026-10-17 note "the payload sits on top" and DRN-01's "the fiber coil underneath", for the legs-on build. `p5-drone` re-derives K§5.2 on T's layout.
+- **Legs-off:** the drone rests by its arms on the upside-down chair, the four-post stand of D-022, because it cannot stand on the spool. The orchestrator reads this, with D-022's "the coil hangs clear", as the spool hanging underneath on the legs-off build. That reading is confirmed at G5.
+- **Corrected by T's reading** (`p5-drone` task 1.1, `docs/object-sheets/drone.md`): the arms are flat carbon plates, and the tubes are the legs, standing on fore-aft skids. The props are 2-blade (PRD-02 and DRN-01 said 3-blade). The payload hangs crosswise below the frame. The legs keep the pilot's 25–35 cm, although T's measure about 0.18 m, since the pilot's number beats a photo's scale. The coil keeps the pilot's 1 kg (about 10 km), on T's drum shape scaled up.
+

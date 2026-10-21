@@ -72,13 +72,17 @@ PLANTED = True
 PAINT, UNDER, CHROME, GLASS, TYRE, SEAT, VINYL, LAMP, LENS, RACK, PLATE = (
     "paint", "under", "chrome", "glass", "tyre", "seat", "vinyl", "lamp", "lens", "rack", "plate")
 # the kits' slots (task 1.2): the crazed windscreen's own (the transparent glass, design 6), torn steel rusting, a
-# burnt tyre's bead wires, soot-black and burnt-off paint, dulled chrome, the soot patch
-WINDSCREEN, RUST, WIRE, SOOT, BARE, CHROME_DULL, SOOT_PATCH = (
-    "windscreen", "rust", "wire", "soot", "bare", "chrome_dull", "soot_patch")
+# burnt tyre's bead wires, the soot-black paint (its damage mask's A burns it to bare steel), dulled chrome, the soot
+# patch
+WINDSCREEN, RUST, WIRE, SOOT, CHROME_DULL, SOOT_PATCH = (
+    "windscreen", "rust", "wire", "soot", "chrome_dull", "soot_patch")
+# the far LODs' glass (task 1.4): LOD0-1's panes are the transparent glass with the cabin behind them, the LOD2 and
+# LOD3 hulls have no cabin, so their glass is the opaque car_glass
+GLASS_HULL = "glass_hull"
 PHYSICS = {PAINT: "sheet_metal", UNDER: "sheet_metal", CHROME: "steel", GLASS: "glass", TYRE: "rubber",
            SEAT: "fabric", VINYL: "plastic", LAMP: "glass", LENS: "plastic", RACK: "steel", PLATE: "sheet_metal",
-           WINDSCREEN: "glass", RUST: "sheet_metal", WIRE: "steel", SOOT: "sheet_metal", BARE: "sheet_metal",
-           CHROME_DULL: "steel", SOOT_PATCH: "surface:burnt_field"}
+           WINDSCREEN: "glass", RUST: "sheet_metal", WIRE: "steel", SOOT: "sheet_metal",
+           CHROME_DULL: "steel", SOOT_PATCH: "surface:burnt_field", GLASS_HULL: "glass"}
 # car_lamps' palette columns (assets-src/materials/car_lamps.json), left to right: the lenses and the blank plate
 LAMP_COLUMNS = ("clear", "red", "amber", "plate")
 LAMP_UV = {c: ((k + 0.5) / 4, 0.5) for k, c in enumerate(LAMP_COLUMNS)}
@@ -143,8 +147,10 @@ PRESETS = {
         # "is installed on the bumper", https://www.vazbook.ru/en/01/2101/main/system/fonari-vnutrennego-i-naruzhnogo-
         # osvescheniya); the heights assumed from the bumpers
         "plates": (0.49, 0.515),
-        # roof rack (the sheet: 1.3 x 1.0 m, rails 0.10 m over the roof, 20 mm tubes): s from-to, half-width, posts' s
-        "rack": (1.59, 2.89, 0.50, (1.65, 2.83)),
+        # roof rack (the sheet: 1.3 m long, rails 0.10 m over the roof, 20 mm tubes): s from-to, half-width, posts' s;
+        # 1.2 m across (task 1.4, measured M: the posts rise nearly upright from the drip rails, leaning in 18 degrees,
+        # where the sheet's assumed 1.0 m leant them in 41)
+        "rack": (1.59, 2.89, 0.60, (1.65, 2.83)),
         # interior (assumed, the class; the drawing's seat outlines for s)
         "front_seat": {"s": (1.50, 1.97), "y": (0.30, 0.55), "w": 0.33, "half": 0.24,
                        "back": ((1.97, 0.52), (2.11, 1.04)), "back_t": 0.10},
@@ -183,7 +189,7 @@ RIM_R_M = 0.1651          # a 13-inch rim's bead seat (published: 13 in)
 HUBCAP_R_M, HUBCAP_DOME_M = 0.155, 0.025  # the sheet's domed hubcap, K07's 0.30-0.33 m, its crown at the tyre's
                                           # sidewall (assumed)
 TYRE_LOADED_R_M = 0.282   # the sheet's loaded radius of a 165/80 R13 (derived): the wheel centre's height
-TYRE_SEGMENTS = (32, 16, 8)
+TYRE_SEGMENTS = (48, 16, 8)  # the wheels' sides per LOD (task 1.4: 32 showed as facets at 1.5 m)
 RACK_R_M = 0.01           # 20 mm tubes (the sheet)
 RACK_RISE_M = 0.10        # rails over the roof (the sheet, measured M)
 PLATE_M = (0.52, 0.112)   # a plate's width and height (published: the standard Ukrainian plate, en.wikipedia
@@ -219,6 +225,10 @@ BAND_BELOW_M = 0.12       # the band's boxes reach this far under the belt, into
 BAND_DEPTH_M = 0.12       # and this far in from the band's plane
 BAND_C_INSET_M = 0.01     # the C pillar's box 1 cm inside the band: its plane, yawed with the tail's taper, runs
                           # outside the band where it reaches ahead of the rear screen
+PANE_BACK_M = GLASS_INSET_M + GLASS_T_M - 0.001  # the closed car's band boxes over the windows: their outer face 1 mm
+                          # inside each pane's glass box and within the band's 15 mm sheet, so a pane is met as glass
+PANE_RISE_M = 0.025       # a pane's glass box per stretch over which its top edge rises at most this: under the
+                          # frame's 2.9 cm over the pane (derived: WINDOW_V's 7 % of the 0.42 m band)
 
 # --- the kits' numbers (task 1.2; the sheet's, or labelled) ----------------------------------------------------------
 RIM_FLANGE_R_M = 0.183    # the sheet: a 13-inch rim's flange radius (the F drop's 0.282 - 0.183 m)
@@ -260,8 +270,11 @@ WS_HOLE_M = (0.20, 0.03)  # the windscreen's hole where the flap's edge struck i
 WS_BULGE_M = 0.012        # the crazed pane bulged inward round the hole (assumed; within AST-05's 2 cm of its box)
 WS_BULGE_R_M = 0.30
 CRUMB_M = (0.010, 0.010, 0.004)   # design decision 9: crumbs 10 x 10 x 4 mm
-CRUMBS_PER_WINDOW = 1000  # design decision 9: the sheet's 3 600 capped at 1 000 per window at G1 (assumed)
-CRUMB_INSIDE = 0.7        # the sheet: 70 % inside and within 1 m below the pane
+CRUMBS_PER_WINDOW = 200   # the sheet's 3 600 capped (QA 2.1's R2: LOD0 with its micro meshes under AST-08's 60 000;
+                          # 1 000 drew a carpet M does not show)
+CRUMB_INSIDE = 0.9        # measured M: crumbs on the seats, almost none on the ground (the sheet assumed 60-80 %)
+CRUMB_SPREAD_M = 3.0      # the rest scattered on the ground to this far out from the sill, evenly (the sheet's A: to
+                          # 3 m; M: a few chips, never a band under the doors)
 BEAD_SECTION_M = 0.006    # K07's bead wire: a 6 mm bundle (the sheet: 5-8 mm)
 BEAD_DIAMETER_M = 0.37    # K07_bead_wire's Ø (the sheet: 0.33-0.41 m)
 SPRING_R_M = 0.002        # the sheet: burnt seat springs, wire r 2 mm
@@ -272,6 +285,10 @@ CANVAS = {"side": {-1: (0.0, 0.0), 1: (0.0, 2.0)}, "band": {-1: (4.0, 0.0), 1: (
 # same), so no two panels share a UV and the damage mask (2048 x 1024 over CANVAS_MIN..CANVAS_MAX) is one atlas.
 CANVAS_MIN, CANVAS_MAX, CANVAS_PX = (-2.2, 0.0), (6.8, 5.0), (2048, 1024)
 CRACK_PX = (512, 1024)    # design decision 5: the crack mask, 1k on its long side (across the pane), along x 512
+CRACK_HITS = (3, 4)       # seeded fragment hits on the pane besides the flap's strike, and the radial cracks per
+CRACK_RAYS = (14, 22)     # impact (task 1.4, measured M: three or four small holes, each a web, crazing the whole pane)
+CRACK_HAZE, CRACK_HAZE_FLOOR, CRACK_REACH_M = 0.45, 0.4, 0.8  # the fine cracks under a texel as a haze (task 1.4,
+                          # measured M: the pane reads pale #b9cbd3 across, not as clear glass with a few lines)
 
 # --- the parameter table (vehicles.md, shared table and R01) --------------------------------------------------------
 
@@ -712,8 +729,9 @@ class Kit:
     - The burst (burst_dir): the side facing it is holed (`side`), its front corner struck.
     - Glass per side and window pair (0 the front door's vent and window, 1 the rear door's window and quarter),
       the windscreen, the rear screen (gone in F); the cabin is `open` once any pane is gone.
-    - The body's transform `T`: A's lean about the diagonal opposite its flat tyre, F's drop onto the rims; the hubs
-      in the ground frame (the flat one moves with the body, F's sit at the rim's flange radius).
+    - The body's transform `T`: A's body settled on its four springs over its flat tyre (kits.lean), F's drop onto
+      the rims; the hubs in the ground frame (the flat one the tyre's drop down, moved by `W`; F's at the rim's
+      flange radius).
     - A: the holes on the burst side, the struck corner's lamp tear (`notch`), the bonnet's folded corner (`flap`)
       and the windscreen's hole where its edge struck.
     - F: the burnt-off steel's reach (`burnt`)."""
@@ -748,7 +766,11 @@ class Kit:
         self.hubs = {}
         for corner, h in hubs.items():
             if corner == self.flat:
-                self.hubs[corner] = self.T.point(h)
+                # the flat wheel hangs on its unloaded spring under the settled body, its hub the tyre's whole drop
+                # down; `W` moves it there with the body's tilt
+                moved = self.T.point(h)
+                self.hubs[corner] = (moved[0], h[1] - kits.FLAT_DROP_M, moved[2])
+                self.W = self.T.then(kits.translation((0.0, self.hubs[corner][1] - moved[1], 0.0)))
             elif self.F:
                 self.hubs[corner] = (h[0], RIM_FLANGE_R_M, h[2])
             else:
@@ -978,7 +1000,15 @@ def build(params):
     kit = Kit(body, params)
     pieces = _pieces(body, kit)
     snags = []
-    lods = [_lod(body, q, kit, pieces, snags if n == 0 else None) for n, q in enumerate(QUALITY)]
+    lods = []
+    for n, q in enumerate(QUALITY):
+        mesh = _lod(body, q, kit, snags if n == 0 else None)
+        if n == 0:  # the car's own bounds, without what lies round it: the LOD group's frame (QA 2.1's S2)
+            lod_bounds = mesh.bounds()
+        if q["detail"] >= 1:
+            for piece in pieces:
+                kits.append_mesh(mesh, piece["lods"][0 if q["thick"] else 1], piece["rigid"], piece["slots"])
+        lods.append(mesh)
     lods.append(_box_hull(body, kit))
     lod = params["lod"]
     plan = collision_plan(body, kit, pieces)
@@ -991,6 +1021,7 @@ def build(params):
         lines.append(f"kit: {_kit_summary(body, kit)}")
     return {
         "lods": lods,
+        "lod_bounds": lod_bounds,
         "switch_distances_m": [0.0, lod["lod1_switch_m"], lod["lod2_switch_m"], lod["lod3_switch_m"]],
         "thin_wire": [False] * 4,
         "cull_distance_m": lod["cull_m"],
@@ -1006,9 +1037,9 @@ def build(params):
     }
 
 
-def _lod(body, q, kit, pieces, snags):
-    """One LOD: the body's parts in its own frame, moved by the kit's transform, the wheels and the pieces on the
-    ground in theirs. `snags` collects the kit's torn edges (LOD0's)."""
+def _lod(body, q, kit, snags):
+    """One LOD of the car itself: the body's parts in its own frame, moved by the kit's transform, the wheels on the
+    ground in theirs (build adds the pieces round it). `snags` collects the kit's torn edges (LOD0's)."""
     mesh = Mesh()
     extra_levels = _kit_levels(body, kit, q)
     for side in (-1, 1):
@@ -1040,9 +1071,6 @@ def _lod(body, q, kit, pieces, snags):
     end = (len(mesh.vertices), len(mesh.faces))
     for (v0, f0), (v1, f1) in (((0, 0), wheels), (wheels_end, end)):
         kits.transform_range(mesh, (v0, v1), (f0, f1), kit.T)
-    if q["detail"] >= 1:
-        for piece in pieces:
-            kits.append_mesh(mesh, piece["lods"][0 if q["thick"] else 1], piece["rigid"], piece["slots"])
     return mesh
 
 
@@ -1176,13 +1204,13 @@ def _body_side(mesh, body, side, q, kit, extra_levels, snags):
             loop = kits.boundary_loop(quads)
             outer = [(sheet_grid[i][j], (rows[i0 + i], sheet_grid[i][j][1]), sheet_uvs[i][j]) for i, j in loop]
             hole_snags = kits.emit_patch(mesh, h, outer, surf, flank_uv, t, {"paint": PAINT, "torn": RUST},
-                                         rim_points=48 if q["thick"] else 16, petals=q["thick"])
+                                         PHYSICS[PAINT], rim_points=48 if q["thick"] else 16, petals=q["thick"])
             if snags is not None:
                 snags += hole_snags
-    if q["thick"]:
+    if q["thick"]:  # the uncut holes' dark openings; every hole's halo is the damage mask's (_damage_mask)
         for h in kit.holes:
-            if h.side == side:
-                kits.emit_decal(mesh, h, surf, flank_uv, {"halo": RUST, "dark": UNDER})
+            if h.side == side and not h.cut:
+                kits.emit_dark(mesh, h, surf, flank_uv, UNDER)
 
 
 def _flank_surface(body, side):
@@ -1219,7 +1247,8 @@ def _notch_side(body, q, kit, side, rows, levels, grid, mask, snags):
         grid[i][j_n] = body.P(s, side * body.hw(s), y)
     if snags is not None:
         edge = [grid[i][j_n] for i in range(i_end + 1)] + [grid[i_end][j] for j in range(j_n + 1, len(grid[0]))]
-        snags.append({"kind": "edge", "points": [list(p) for p in edge], "radius_m": kits.EDGE_SNAG_R_M})
+        snags.append({"kind": "edge", "points": [list(p) for p in edge], "radius_m": kits.EDGE_SNAG_R_M,
+                      "material": PHYSICS[PAINT]})
 
 
 def _side_outward(body, side):
@@ -1305,8 +1334,9 @@ def _flap(mesh, body, q, flap, snags):
     if snags is not None:  # the tear (A-B) and the flap's free edges
         tear = [row[-1] for row in grid]
         side = [row[0] for row in grid]
-        snags.append({"kind": "edge", "points": [list(p) for p in tear], "radius_m": kits.EDGE_SNAG_R_M})
-        snags.append({"kind": "edge", "points": [list(p) for p in side], "radius_m": kits.EDGE_SNAG_R_M})
+        for edge in (tear, side):
+            snags.append({"kind": "edge", "points": [list(p) for p in edge], "radius_m": kits.EDGE_SNAG_R_M,
+                          "material": PHYSICS[PAINT]})
 
 
 def _deck_box(body, kit):
@@ -1384,7 +1414,7 @@ def _ends(mesh, body, q, kit, extra_levels, snags):
                 mesh.face(ids, n, RUST, [uv(wa, ya), uv(wb, yb), uv(wb, yb - GAUGE_M), uv(wa, ya - GAUGE_M)])
         if cut and snags is not None:
             snags.append({"kind": "edge", "points": [list(body.P(s, w, y)) for w, y in cut],
-                          "radius_m": kits.EDGE_SNAG_R_M})
+                          "radius_m": kits.EDGE_SNAG_R_M, "material": PHYSICS[PAINT]})
         if cut:
             _notch_pocket(mesh, body, q, kit)
 
@@ -1511,7 +1541,7 @@ def _band(mesh, body, side, q, kit):
             if q["detail"] == 0:  # the hull: an empty window is a dark opening, an intact one its glass
                 empty = inside and any(a < sm < b and g for (a, b), g in zip(windows, gone))
                 mrow.append(True)
-                srow.append(UNDER if empty else GLASS if inside else PAINT)
+                srow.append(UNDER if empty else GLASS_HULL if inside else PAINT)
             else:
                 mrow.append(not inside)
                 srow.append(CHROME if frame and not inside else PAINT)
@@ -1561,7 +1591,7 @@ def _cap(mesh, body, q, kit):
             if q["detail"] == 0:  # the hull: an empty screen is a dark opening
                 empty = any(a < sm < b and um < u and g for (a, b, u), g in zip(panes, gone))
                 mrow.append(True)
-                srow.append(UNDER if empty else GLASS if inside else PAINT)
+                srow.append(UNDER if empty else GLASS_HULL if inside else PAINT)
             else:
                 mrow.append(not inside)
                 srow.append(CHROME if frame and not inside else PAINT)
@@ -1661,7 +1691,7 @@ def _crazed_pane(mesh, body, q, kit, s0, s1, um, thick, snags):
         p = body.cap_point_w(a / kit.ws_k, w)
         return (p[0], p[2])
     rim = kits.emit_patch(mesh, hole, outer, surf, uv, thick, {"paint": WINDSCREEN, "torn": WINDSCREEN},
-                          rim_points=40 if q["thick"] else 16, petals=False)
+                          PHYSICS[WINDSCREEN], rim_points=40 if q["thick"] else 16, petals=False)
     if snags is not None:
         snags += rim
 
@@ -1993,17 +2023,17 @@ def _wheel(mesh, body, s_axle, w, side, q, kit):
         dome = [dome[0], dome[-1]]
     _revolve(mesh, centre, axis, dome, seg, CHROME)
     _revolve(mesh, centre, axis, [(RIM_R_M, -h + 0.025), (0.0, -h + 0.03)], seg, UNDER, facing=-1.0)
-    if corner == kit.flat:  # the wheel moves with the body (its hub down by the corner's drop), the tyre flattened
-        hub = kit.hubs[corner]  # on the ground over a longer patch, its sidewall bulging out near the ground
+    if corner == kit.flat:  # the wheel tilts with the body, its hub down by the tyre's drop (kit.W), the tyre
+        hub = kit.hubs[corner]  # flattened on the ground over a longer patch, its sidewall bulging out near the ground
         for i in range(v0, len(mesh.vertices)):
-            p = kit.T.point(mesh.vertices[i])
+            p = kit.W.point(mesh.vertices[i])
             if i < v1 and p[1] < FLAT_BULGE_REACH_M:
                 f = 1 - p[1] / FLAT_BULGE_REACH_M
                 p = (p[0], max(p[1], 0.0), hub[2] + (p[2] - hub[2]) * (1 + FLAT_BULGE * f))
             mesh.vertices[i] = p
         for k in range(f0, len(mesh.faces)):
             indices, normal, uvs, slot = mesh.faces[k]
-            mesh.faces[k] = (indices, kit.T.vector(normal), uvs, slot)
+            mesh.faces[k] = (indices, kit.W.vector(normal), uvs, slot)
 
 
 def _rim(mesh, hub, side, q):
@@ -2016,11 +2046,11 @@ def _rim(mesh, hub, side, q):
               (RIM_FLANGE_R_M - 0.006, h - 0.006), (RIM_FLANGE_R_M, h)]
     if q["detail"] == 0:
         barrel = [barrel[0], barrel[-1]]
-    _revolve(mesh, hub, axis, barrel, seg, RACK, core=(0.0, 0.0))
+    _revolve(mesh, hub, axis, barrel, seg, CHROME_DULL, core=(0.0, 0.0))
     # the wheel's disc near the outer flange (a steel wheel's offset; within its cylinder's end, AST-05)
     disc = [(RIM_R_M, h - 0.02), (0.10, h - 0.012), (0.06, h - 0.004), (0.0, h - 0.002)]
-    _revolve(mesh, hub, axis, disc, seg, RACK)
-    _revolve(mesh, hub, axis, [(RIM_R_M, h - 0.022), (0.0, h - 0.022)], seg, RACK, facing=-1.0)
+    _revolve(mesh, hub, axis, disc, seg, CHROME_DULL)
+    _revolve(mesh, hub, axis, [(RIM_R_M, h - 0.022), (0.0, h - 0.022)], seg, CHROME_DULL, facing=-1.0)
 
 
 # --- interior -------------------------------------------------------------------------------------------------------
@@ -2312,12 +2342,13 @@ def _rack_points(body):
 
 
 def _rack(mesh, body, q):
+    """The tube rack, bright steel like the bumpers (measured M: it reads pale grey; F dulls it with the chrome)."""
     corners, posts = _rack_points(body)
     sides = 8 if q["detail"] >= 2 else 4
     for a, b in zip(corners, corners[1:] + corners[:1]):
-        _tube(mesh, [a, b], RACK_R_M, sides, RACK)
+        _tube(mesh, [a, b], RACK_R_M, sides, CHROME)
     for foot, top in posts:
-        _tube(mesh, [foot, top], RACK_R_M, sides, RACK)
+        _tube(mesh, [foot, top], RACK_R_M, sides, CHROME)
 
 
 # --- LOD3 ----------------------------------------------------------------------------------------------------------
@@ -2326,10 +2357,14 @@ def _box_hull(body, kit):
     mesh = Mesh()
     hw = body.hw(body.s_ws_top)
     paint = SOOT if kit.F else PAINT
+    # the greenhouse: its glass, or with every pane gone the dark opening of the cabin (QA 2.1's S6)
+    glazed = (any(g != "gone" for g in kit.glass.values()) or kit.windscreen != "gone"
+              or kit.rear_screen != "gone")
     _box(mesh, body.P((body.s_front + body.s_rear) / 2, 0.0, (body.z_bot(1.0) + body.belt) / 2),
          (body.s_rear - body.s_front, body.belt - body.z_bot(1.0), 2 * hw), paint)
     _box(mesh, body.P((body.s_ws_top + body.s_rs_top) / 2, 0.0, (body.belt + body.H) / 2),
-         (body.s_rs_top - body.s_ws_top, body.H - body.belt, 2 * body.w_e(body.s_ws_top)), GLASS)
+         (body.s_rs_top - body.s_ws_top, body.H - body.belt, 2 * body.w_e(body.s_ws_top)),
+         GLASS_HULL if glazed else UNDER)
     kits.transform_range(mesh, (0, len(mesh.vertices)), (0, len(mesh.faces)), kit.T)
     for k, a in enumerate(body.axle):
         for side in (-1, 1):
@@ -2350,7 +2385,8 @@ K07 = {"lamp_bowl": {"diameter_m": 0.17, "section_m": 0.0008, "length_m": 0.0, "
        "trim_plate": {"diameter_m": 0.0, "section_m": 0.001, "length_m": 0.35, "width_m": 0.2, "bend_m": 0.01},
        "bead_wire": {"diameter_m": BEAD_DIAMETER_M, "section_m": BEAD_SECTION_M, "length_m": 0.0, "width_m": 0.0,
                      "bend_m": 0.01}}
-SHARD_SCALE = (0.5, 1.0)  # a scatter shard's size against the trim plate (assumed)
+SHARD_SCALE = (0.15, 0.45)  # a scatter chip's size against the trim plate (task 1.4, measured M: chips of 5-15 cm
+                            # round the one whole plate; 0.5-1.0 laid ten plates)
 SCATTER_MIN_M = 1.0       # the sheet: the A scatter lies 1-4 m from the struck corner
 SCATTER_WEDGE_DEG = 150.0 # on the struck side: a wedge about the corner's outward diagonal (measured M: ahead of and
                           # beside the struck corner; the wedge's width assumed)
@@ -2380,6 +2416,9 @@ def _pieces(body, kit):
                 built, reach = _piece("lamp_bowl", k), K07["lamp_bowl"]["diameter_m"] / 2
             elif k == 1:
                 built, reach = _piece("bezel_ring", k), K07["bezel_ring"]["diameter_m"] / 2
+            elif k == 2:  # the trim plate whole (measured M: one 0.35 x 0.2 m plate), the rest chips of trim
+                plate = K07["trim_plate"]
+                built, reach = _piece("trim_plate", k), math.hypot(plate["length_m"], plate["width_m"]) / 2
             else:
                 f = rng.uniform(*SHARD_SCALE)
                 length, width = 0.35 * f, 0.2 * rng.uniform(SHARD_SCALE[0], 1.0)
@@ -2439,9 +2478,9 @@ def _micro(body, kit):
                 for _ in range(inside):
                     _crumb_inside(body_frame, body, side, seat, s0, s1, rng)
                 kits.append_mesh(crumbs, body_frame, kit.T)
-                for _ in range(per - inside):  # on the ground under the door, densest at the car
-                    s = rng.uniform(s0 - 0.1, s1 + 0.1)
-                    w = side * (body.hw(s) + 1.0 * rng.random() ** 1.5)
+                for _ in range(per - inside):  # scattered on the ground beside the door, a few per square metre
+                    s = rng.uniform(s0 - 0.3, s1 + 0.3)
+                    w = side * (body.hw(s) + 0.05 + (CRUMB_SPREAD_M - 0.05) * rng.random())
                     _crumb(crumbs, rng, (body.x(s), 0.0, w))
                 count += per
         if count:
@@ -2543,8 +2582,9 @@ def _pane_extent(body):
 
 def _crack_mask(body, kit):
     """The windscreen's crack mask (CRACK_PX, R: 1 on a crack): from each impact (the flap's strike at the hole and
-    one or two seeded fragment hits) 10-16 radial cracks wandering out 0.2-0.7 m and concentric rings of chords
-    between them, 1-3 px wide (design decision 5), drawn in the pane's metric (metres up the glass and across)."""
+    CRACK_HITS seeded fragment hits) CRACK_RAYS radial cracks wandering out 0.3-0.9 m and concentric rings of chords
+    between them out to 0.46 m, 1-3 px wide (design decision 5), drawn in the pane's metric (metres up the glass and
+    across), over a haze of the cracks too fine for a texel (CRACK_HAZE)."""
     rng = kits.rng_for(kit.p, "cracks")
     (u0, v0), (u1, v1) = _pane_extent(body)
     width, height = CRACK_PX
@@ -2556,14 +2596,15 @@ def _crack_mask(body, kit):
     hole = kit.ws_hole
     s0, s1, _ = _cap_glass(body)[0]
     impacts = [(hole.s, hole.y, 1.0)]
-    for _ in range(rng.randint(1, 2)):
+    for _ in range(rng.randint(*CRACK_HITS)):
         impacts.append((rng.uniform(s0 * kit.ws_k + 0.1, s1 * kit.ws_k - 0.1), rng.uniform(v0 + 0.15, v1 - 0.15),
-                        rng.uniform(0.4, 0.7)))
+                        rng.uniform(0.6, 1.0)))
     for a0, w0, strength in impacts:
         rays = []
-        for k in range(rng.randint(10, 16)):
-            angle = 2 * math.pi * k / 13 + rng.uniform(-0.2, 0.2)
-            length = rng.uniform(0.2, 0.7) * strength
+        n_rays = rng.randint(*CRACK_RAYS)
+        for k in range(n_rays):
+            angle = 2 * math.pi * k / n_rays + rng.uniform(-0.2, 0.2)
+            length = rng.uniform(0.3, 0.9) * strength
             pts = [(a0, w0)]
             step = 0.02
             heading = angle
@@ -2574,7 +2615,7 @@ def _crack_mask(body, kit):
             lw = rng.uniform(1.0, 3.0)
             for p, q in zip(pts, pts[1:]):
                 raster.line(0, *px(*p), *px(*q), lw, 255)
-        for ring_r in (0.03, 0.06, 0.1, 0.15, 0.22, 0.3):
+        for ring_r in (0.03, 0.06, 0.1, 0.15, 0.22, 0.3, 0.38, 0.46):
             if ring_r > 0.6 * strength:
                 break
             idx = max(1, int(ring_r / 0.02))
@@ -2583,16 +2624,54 @@ def _crack_mask(body, kit):
                 if len(a) <= idx or len(b) <= idx or rng.random() < 0.25:
                     continue
                 raster.line(0, *px(*a[idx]), *px(*b[idx]), rng.uniform(1.0, 2.0), 255)
+    # the web's fine cracks under a texel as a haze: CRACK_HAZE near each impact, thinning out to its reach, never
+    # under CRACK_HAZE_FLOOR of it (the pane is crazed across, measured M); in 2 x 2 texel blocks (it is smooth)
+    for by in range(0, height, 2):
+        w = v1 - (by + 1) / height * (v1 - v0)
+        for bx in range(0, width, 2):
+            a = ((bx + 1) / width * (u1 - u0) + u0 + body.L / 2) * kit.ws_k
+            near = max(st * (1 - math.hypot(a - a0, w - w0) / CRACK_REACH_M) for a0, w0, st in impacts)
+            raster.rect(0, bx, by, bx + 2, by + 2, 255 * CRACK_HAZE * max(near, CRACK_HAZE_FLOOR))
     uv_min, uv_max = _pane_extent(body)
     return {"role": "crack_mask", "slot": WINDSCREEN, "name": "windscreen_cracks", "uv_min": uv_min, "uv_max": uv_max,
             "png": raster.png()}
 
 
+RUST_RIM = 1.12           # a hole's torn rim rusts out to this times its radius (mask R full; measured M: the thin
+                          # orange lips of the torn holes)
+HALO_FLAKE = (0.40, 0.60) # its halo out to rust_halo: the paint flaked to the primer (B, the dust recipe's #bcab93 is
+                          # M's primer #bdb092) over rust (R): M's halo #887465 is about 2 : 3 primer to rust stain
+                          # over the paint (derived from the sheet's colours)
+HALO_SPREAD = (0.7, 1.3)  # each hole's halo is rust_halo times this (seeded; measured M: the 0.09 m hole's 0.21 m
+                          # halo, the 0.15-0.18 m hole's under 1.5 x)
+CHIP_R_M = (0.005, 0.025) # the sheet: primer chips 10-50 mm across where the paint flaked (measured M), a jagged blob
+DUST_BASE = 0.05          # the dust film on upward faces before months_abandoned and paint_fade add theirs (task 1.4:
+                          # 0.15 left M's lit bonnet beige; M reads green with a light film)
+BARE_RUST_WEEKS = 12.0    # F: the bare steel fully rust-brown after this many weeks (assumed; the sheet: grey-white
+                          # oxide turning rust-brown "within weeks"), blotchy before
+
+
+def _blob(raster, channel, cx, cy, radius, value, feather, phase):
+    """Raises `channel` over a jagged disc about (cx, cy) px: radius(a) px at angle a (kits' noise with `phase` when
+    `radius` is a number), `value` inside, falling to 0 over the outer `feather` px."""
+    reach = radius if callable(radius) else (lambda a, r=radius: r * (1 + kits.HALO_JITTER * kits._noise(a, phase)))
+    top = max(reach(2 * math.pi * k / 16) for k in range(16)) * 1.1 + 1
+    for y in range(max(0, int(cy - top)), min(raster.height, int(cy + top) + 2)):
+        for x in range(max(0, int(cx - top)), min(raster.width, int(cx + top) + 2)):
+            dx, dy = x + 0.5 - cx, y + 0.5 - cy
+            r = reach(math.atan2(-dy, dx))
+            d = math.hypot(dx, dy)
+            if d < r:
+                raster.put(channel, x, y, value * min(1.0, (r - d) / max(feather, 1e-6)))
+
+
 def _damage_mask(body, kit):
-    """The damage mask over the paint's UV canvas (CANVAS, CANVAS_PX, RGBA): R rust (every hole's halo, its rust
-    streaks running down 0.05-0.3 m and the sills' rust with months_abandoned), G soot (F: all over), B dust and
-    chalk on upward faces (months_abandoned, paint_fade), A burnt-off steel (F: Kit.burnt). Its shader layers it
-    over the paint later (design decision 5; tech-artist's)."""
+    """The damage mask over the paint's UV canvas (CANVAS, CANVAS_PX, RGBA): R rust (every hole's torn rim, the
+    stain under its flaked halo, its rust streaks running down and the sills' rust spots with months_abandoned), G
+    soot (F: all over), B dust and chalk on upward faces (months_abandoned, paint_fade; fading over the shoulder's
+    roll, so no line stands at its top) and the primer where the paint flaked (each hole's halo and the A kit's chips
+    round the struck front), A burnt-off steel (F: Kit.burnt, rusting in R with weeks_since_fire). Fpv450/LayeredSurface
+    layers it over the paint (design decision 5)."""
     width, height = CANVAS_PX
     raster = masks.Raster(width, height, 4)
     (cu0, cv0), (cu1, cv1) = CANVAS_MIN, CANVAS_MAX
@@ -2602,32 +2681,88 @@ def _damage_mask(body, kit):
         off = CANVAS[group][side] if isinstance(CANVAS[group], dict) else CANVAS[group]
         return (u + off[0] - cu0) * kx, (cv1 - (v + off[1])) * ky
     rng = kits.rng_for(kit.p, "damage mask")
+    seed = kit.p["seed"]
     months = kit.p["months_abandoned"] / 36.0
     for h in kit.holes:
         x, y = px("side", h.side, body.x(h.s), h.y)
-        raster.disc(0, x, y, h.r * h.halo * kx, 230, feather=h.r * 0.6 * kx)
-        for _ in range(1 + int(3 * min(1.0, months * 4))):  # streaks down from the hole's foot
+        spread = rng.uniform(*HALO_SPREAD)
+        def rim(a, h=h):  # the rusted lip, along the jagged rim of a cut hole
+            return (h.rim_radius(a) if h.cut else h.r) * RUST_RIM * kx
+
+        def halo(a, h=h, k=spread):  # lobed round the hole, never inside its rusted lip
+            return max(h.halo_radius(a) * k, h.r * RUST_RIM * 1.2) * kx
+        _blob(raster, 0, x, y, rim, 255, 1.5, None)
+        # the halo's flaked paint between the rim and the halo: primer over a rust stain, mottled by a 1 cm noise
+        top = max(halo(2 * math.pi * k / 16) for k in range(16)) * 1.1 + 1
+        for py in range(max(0, int(y - top)), min(height, int(y + top) + 2)):
+            for qx in range(max(0, int(x - top)), min(width, int(x + top) + 2)):
+                dx, dy = qx + 0.5 - x, py + 0.5 - y
+                a, d = math.atan2(-dy, dx), math.hypot(dx, dy)
+                r_out, r_in = halo(a), rim(a)
+                if r_in <= d < r_out:
+                    edge = min(1.0, (r_out - d) / (0.25 * (r_out - r_in) + 1e-6))
+                    mottle = 0.6 + 0.4 * _value_noise(qx / kx * 100.0, py / ky * 100.0, 0.0, seed)
+                    raster.put(2, qx, py, 255 * HALO_FLAKE[0] * edge * mottle)
+                    raster.put(0, qx, py, 255 * HALO_FLAKE[1] * edge)
+        for _ in range(1 + int(2 * min(1.0, months * 4))):  # faint streaks down from the hole's foot
             sx = x + rng.uniform(-0.6, 0.6) * h.r * kx
             length = rng.uniform(0.05, 0.3) * min(1.0, 0.3 + months * 3)
             raster.line(0, sx, y + h.r * ky, sx + rng.uniform(-2, 2), y + (h.r + length) * ky,
-                        rng.uniform(2.0, 4.0), 150)
-    for side in (-1, 1):  # the sills' rust
+                        rng.uniform(1.5, 3.0), 100)
+        if not h.cut:  # a small hit flakes a chip of paint round it (measured M: the primer splashes by the arch)
+            r_chip = rng.uniform(1.5, 3.0) * h.r * kx
+            _blob(raster, 2, x + rng.uniform(-0.5, 0.5) * h.r * kx, y + rng.uniform(-0.5, 0.5) * h.r * ky,
+                  max(r_chip, CHIP_R_M[0] * kx), 255, 1.5, [rng.uniform(0, 2 * math.pi) for _ in range(6)])
+    for side in (-1, 1):  # the sills' rust: spots, more with months_abandoned
         for s in loft.samples(body.s_front, body.s_rear, 0.05):
+            if rng.random() > 0.15 + 0.5 * min(1.0, months * 2):
+                continue
             x, y = px("side", side, body.x(s), body.z_bot(s) + TUCK_H_M)
-            raster.rect(0, x - 0.03 * kx, y - 0.04 * ky * (0.5 + rng.random()), x + 0.03 * kx, y + 0.06 * ky,
-                        int(200 * min(1.0, months * 2)))
-    dust = int(255 * min(1.0, 0.15 + 0.5 * months + 0.3 * kit.p["paint_fade"]))
+            cx, radius = x + rng.uniform(-0.02, 0.02) * kx, rng.uniform(0.01, 0.035) * kx
+            value = rng.uniform(120, 230) * min(1.0, 0.3 + months * 3)
+            _blob(raster, 0, cx, y, radius, value, 3.0, [rng.uniform(0, 2 * math.pi) for _ in range(6)])
+    if kit.holes:  # chips where the paint flaked round the struck front: the wing and door tops, the bonnet's edge
+        side = kit.side
+        for k in range(len(kit.holes) + 1):
+            phase = [rng.uniform(0, 2 * math.pi) for _ in range(6)]
+            r_chip = rng.uniform(*CHIP_R_M) * kx
+            if k % 2:
+                s = rng.uniform(body.s_front + NOTCH_DEPTH_M, body.s_scuttle - 0.05)
+                w = side * (body.w_t(s) - rng.uniform(0.0, 0.12))
+                x, y = px("top", 0, body.x(s), w)
+            else:
+                s = rng.uniform(body.s_front + NOTCH_DEPTH_M, body.doors[1])
+                yc = body.z_c(s)
+                x, y = px("side", side, body.x(s), rng.uniform(yc - 0.15, yc + ROLL_R_M * math.pi / 2))
+            _blob(raster, 2, x, y, r_chip, 255, 1.5, phase)
+    dust = 255 * min(1.0, DUST_BASE + 0.5 * months + 0.3 * kit.p["paint_fade"])
     x0, y1 = px("top", 0, -body.L / 2, -body.W / 2)
     x1, y0 = px("top", 0, body.L / 2, body.W / 2)
     raster.rect(2, x0, y0, x1, y1, dust)
+    for side in (-1, 1):  # over the shoulder's roll the film thins with the face's upward share (sin^2 of its angle)
+        xa, _ = px("side", side, -body.L / 2, 0.0)
+        xb, _ = px("side", side, body.L / 2, 0.0)
+        for qx in range(max(0, int(xa)), min(width, int(xb) + 1)):
+            s = (qx + 0.5) / kx + cu0 - CANVAS["side"][side][0] + body.L / 2
+            yc = body.z_c(s)
+            _, ya = px("side", side, 0.0, yc + ROLL_R_M * math.pi / 2)
+            _, yb = px("side", side, 0.0, yc)
+            for py in range(max(0, int(ya)), min(height, int(yb) + 1)):
+                v = cv1 - (py + 0.5) / ky - CANVAS["side"][side][1]
+                t = min(max((v - yc) / ROLL_R_M, 0.0), math.pi / 2)
+                raster.put(2, qx, py, dust * math.sin(t) ** 2)
     if kit.F:
         raster.fill(1, 255)
         block = 4
+        rusted = min(1.0, kit.p["weeks_since_fire"] / BARE_RUST_WEEKS)
         for by in range(0, height, block):
             for bx in range(0, width, block):
                 p = _canvas_point(body, cu0 + (bx + block / 2) / kx, cv1 - (by + block / 2) / ky)
                 if p is not None and kit.burnt(p):
                     raster.rect(3, bx, by, bx + block, by + block, 255)
+                    # the bare steel rusting with weeks_since_fire, in blotches (a 5 cm noise)
+                    n = 0.5 + 0.5 * _value_noise(p[0] * 20.0, p[1] * 20.0, p[2] * 20.0, seed + 1)
+                    raster.rect(0, bx, by, bx + block, by + block, 255 * rusted * n * n)
     return {"role": "damage_mask", "slot": SOOT if kit.F else PAINT, "name": "damage", "uv_min": CANVAS_MIN,
             "uv_max": CANVAS_MAX, "png": raster.png()}
 
@@ -2656,19 +2791,14 @@ def _canvas_point(body, u, v):
 
 
 def _burnt_slots(mesh, kit, ranges):
-    """F's surfaces after the fire: the paint soot-black (SOOT) or burnt to bare steel where hottest (BARE, Kit.burnt
-    at each face's centre), chrome and the lamps' reflectors dulled, the blank plates sooted."""
-    rename = {CHROME: CHROME_DULL, LAMP: CHROME_DULL, PLATE: SOOT}
+    """F's surfaces after the fire: the paint's faces all on SOOT, whose damage mask's A burns them to bare steel
+    where hottest (Kit.burnt, in 1.76 cm texels: task 1.4, no longer per 5 cm face), chrome and the lamps' reflectors
+    dulled, the blank plates sooted."""
+    rename = {PAINT: SOOT, CHROME: CHROME_DULL, LAMP: CHROME_DULL, PLATE: SOOT}
     for f0, f1 in ranges:
         for k in range(f0, f1):
             indices, normal, uvs, slot = mesh.faces[k]
-            if slot == PAINT:
-                c = scale(add(add(mesh.vertices[indices[0]], mesh.vertices[indices[1]]), mesh.vertices[indices[2]]),
-                          1 / 3)
-                slot = BARE if kit.burnt(c) else SOOT
-            else:
-                slot = rename.get(slot, slot)
-            mesh.faces[k] = (indices, normal, uvs, slot)
+            mesh.faces[k] = (indices, normal, uvs, rename.get(slot, slot))
 
 
 # --- collision ------------------------------------------------------------------------------------------------------
@@ -2745,7 +2875,8 @@ def _clean_plan(body):
     - The shoulder's roll: per side and stretch a cylinder on the roll's centre line, radius ROLL_R_M, flat-ended
       at the body's faces and overlapping its neighbours.
     - The greenhouse, solid with its glass in: the cabin's lower and upper cores; per side four boxes on the band
-      (along the A pillar, under the level drip, under the falling drip, along the C pillar); the windscreen's and
+      (along the A pillar, under the level drip, under the falling drip, along the C pillar; the first three set in
+      PANE_BACK_M, behind GLASS_T_M glass boxes over each pane, QA 2.1's R3); the windscreen's and
       the rear screen's wedges; the roof's three landable boxes; per side cylinders on the cap's edge roll along the
       A pillar, the level and falling drip and the C pillar.
     - Wheels: four rubber cylinders (the spec's 0.594 x 0.165 m). Bumpers: per bumper three capsules along the
@@ -2927,10 +3058,12 @@ def _greenhouse(body, yb):
                                       UPPER_TOP_M)))
     s_d = body.s_drip_end
     for side, tag in ((-1, "left"), (1, "right")):
-        for name, s0, s1, inset in (("band_a", body.s_cowl, body.s_ws_top, 0.0), ("band_mid", body.s_ws_top, s_d, 0.0),
-                                    ("band_drop", s_d, body.s_rs_top, 0.0),
+        for name, s0, s1, inset in (("band_a", body.s_cowl, body.s_ws_top, PANE_BACK_M),
+                                    ("band_mid", body.s_ws_top, s_d, PANE_BACK_M),
+                                    ("band_drop", s_d, body.s_rs_top, PANE_BACK_M),
                                     ("band_c", body.s_rs_top, body.s_rs_base, BAND_C_INSET_M)):
             out.append((f"{name}_{tag}", _band_box(body, side, s0, s1, inset)))
+        out += _pane_boxes(body, side, tag, lambda pair: True)
     t_ws, t_rs = body.preset["windscreen_glass"][1], body.preset["rear_glass"][1]
     out.append(("windscreen", _cap_box(body, body.s_cowl, body.s_ws_top, gl, False, WEDGE_DEPTH_M, t_ws, WS_HALF_M, 0.5)))
     out.append(("rear_screen", _cap_box(body, body.s_rs_top, body.s_rs_base, gl, False, WEDGE_DEPTH_M, t_rs, RS_HALF_M,
@@ -2958,6 +3091,37 @@ def _greenhouse(body, yb):
             after = {"pillar_a": 0.02, "roof_edge": 0.02, "roof_edge_drop": 0.0, "pillar_c": -0.03}[name]
             p0, p1 = _extend(body.P(s0, side * w0, y0), body.P(s1, side * w1, y1), before, after)
             out.append((f"{name}_{tag}", _cylinder(p0, p1, radius, sm)))
+    return out
+
+
+def _pane_boxes(body, side, tag, intact):
+    """Per side window whose pane is in (`intact(pair)`, its glass_side pair) GLASS_T_M `glass` boxes fitted to the
+    pane's slab, their outer face on the pane's (QA 2.1's R3: the sheet's thin glass boxes): one per stretch of the
+    window over which its top edge rises or falls at most PANE_RISE_M, so under the A pillar's slope (the vent) or
+    the drip's fall (the quarter) each box's top corner stays on the band's frame over the pane."""
+    out = []
+    v0, v1 = WINDOW_V
+    for k, ((a, b), pair) in enumerate(zip(_windows(body), _window_pairs(body))):
+        if not intact(pair):
+            continue
+
+        def pt(s, v):
+            return _inset(body.band_point(s, v, side), _band_normal(body, s, v, side))
+        n = max(1, math.ceil((b - a) / 0.005))
+        ss = [a + (b - a) * i / n for i in range(n + 1)]
+        tops = [pt(s, v1)[1] for s in ss]
+        pieces, start, lo, hi = [], 0, tops[0], tops[0]
+        for i in range(1, n + 1):
+            if max(hi, tops[i]) - min(lo, tops[i]) > PANE_RISE_M:
+                pieces.append((ss[start], ss[i - 1]))
+                start, lo, hi = i - 1, tops[i - 1], tops[i - 1]
+            lo, hi = min(lo, tops[i]), max(hi, tops[i])
+        pieces.append((ss[start], b))
+        for j, (s0, s1) in enumerate(pieces):
+            samples = [pt(s0 + (s1 - s0) * i / 4, v0 + (v1 - v0) * m / 2) for i in range(5) for m in range(3)]
+            corners = [pt(s0, v0), pt(s1, v0), pt(s1, v1), pt(s0, v1)]
+            out.append((f"band_pane_{k}_{j}_{tag}", _fitted_box(samples, corners, (0.0, 0.3, float(side)), GLASS_T_M,
+                                                                "glass")))
     return out
 
 
@@ -3016,11 +3180,11 @@ def _kit_plan(body, kit):
       crease, the door tops' roll as steps from the trim out (DOOR_TOP_STEPS; at the cowl, where the wing's roll steps
       down to the door's, one more on the wing's line), thin boxes on the rear wheel tubs and their inner walls, the
       firewall (the lower front's face) and, behind the rear seat, the boot from its bulkheads (its sides as the clean
-      base's arch boxes); over the belt per side the band's frame (round each gone pane) or its thin boxes (its glass
-      in), one 45-degree chamfer per stretch of the cap's edge roll, the roof as thin halves fitted to its crown (and
-      its sag), each screen's frame and its remaining pane as thin glass boxes (the crazed windscreen in two across,
-      closed over its slit); the seats, the dashboard and the steering wheel as their own shapes (rim, spokes, hub
-      and column).
+      base's arch boxes); over the belt per side the band's frame round its windows and GLASS_T_M glass boxes over
+      each pane still in, one 45-degree chamfer per stretch of the cap's edge roll, the roof as thin halves fitted to
+      its crown (and its sag), each screen's frame and its remaining pane as thin glass boxes (the crazed windscreen
+      in two across, closed over its slit); the seats, the dashboard and the steering wheel as their own shapes (rim,
+      spokes, hub and column).
     - F: the front arches open as the rear ones (the tyres burnt, the rims well inside), with a core between the
       wheelhouses; the seats as their frames (the cushion's frame on the floor, the back's round its springs), the
       steering wheel's core, the dashboard's beam."""
@@ -3216,13 +3380,13 @@ def _kit_wheels(body, kit):
             else:
                 h = body.w_tyre / 2
                 if _corner(body, a, side) == kit.flat:
-                    # it leans with the body, on its dropped hub, from its tread flattened on the ground to its top:
+                    # it tilts with the body, on its dropped hub, from its tread flattened on the ground to its top:
                     # the round tyre would sink its drop into the ground the mesh stands on
                     centre = body.P(a, side * body.track[k] / 2, body.z_wc)
-                    hub_y = kit.T.point(centre)[1]
+                    hub_y = hub[1]
                     r = (hub_y + body.r_tyre) / 2
                     shape = kits.transform_shape(_cylinder(sub(centre, (0.0, 0.0, h)), add(centre, (0.0, 0.0, h)),
-                                                           r, "rubber"), kit.T)
+                                                           r, "rubber"), kit.W)
                     shape["center"][1] += r - hub_y
                 else:
                     shape = _cylinder(sub(hub, (0.0, 0.0, h)), add(hub, (0.0, 0.0, h)), body.r_tyre, "rubber")
@@ -3489,24 +3653,19 @@ def _plan_rack(body):
 
 
 def _greenhouse_open(body, kit):
-    """The open cabin's greenhouse (see _kit_plan): per side the band's thin frame or boxes, the cap's edge roll's
-    chamfers, the roof's fitted halves, the remaining panes' glass boxes."""
+    """The open cabin's greenhouse (see _kit_plan): per side the band's thin frame and glass boxes over each pane still
+    in (either face of a pane is met as glass, from the cabin as from outside), the cap's edge roll's chamfers, the
+    roof's fitted halves, the screens' remaining panes' glass boxes."""
     out = []
     s_d = body.s_drip_end
     windows = _windows(body)
-    pairs = _window_pairs(body)
     v0, v1 = WINDOW_V
     fv = FRAME_M / body.H_band
     stretches = (("a", body.s_cowl, body.s_ws_top), ("mid", body.s_ws_top, s_d), ("drop", s_d, body.s_rs_top),
                  ("c", body.s_rs_top, body.s_rs_base))
     for side, tag in ((-1, "left"), (1, "right")):
-        gone = [kit.glass[side, p] == "gone" for p in pairs]
-        if any(gone):
-            out += _band_open(body, side, tag)
-        else:
-            for name, s0, s1 in stretches:
-                inset = BAND_C_INSET_M if name == "c" else 0.0
-                out.append((f"band_{name}_{tag}", _band_box(body, side, s0, s1, inset, BAND_SHELL_M, 0.02)))
+        out += _band_open(body, side, tag)
+        out += _pane_boxes(body, side, tag, lambda pair, side=side: kit.glass[side, pair] != "gone")
         for name, s0, s1 in stretches:
             out.append((f"cap_edge_{name}_{tag}", _chamfer_box(body, side, s0 + 1e-6, s1 - 1e-6, 45.0, _cap_roll,
                                                                _cap_r, SHELL_T_M)))
@@ -3594,10 +3753,10 @@ def _band_triangle(body, side, s_corner, s_far, h_top, name):
 
 
 def _band_open(body, side, tag):
-    """The band's frame on a side whose glass is gone (see _kit_plan): the sill under the windows and the strips over
-    them (along the A pillar's slope, the drip and its fall), the posts between the windows, the A pillar's triangle
-    in front of the vent, and behind the quarter the C pillar's front part and its triangle under the pillar's
-    slope, with a strip along that slope."""
+    """The band's frame in the open cabin (see _kit_plan), round its windows: the sill under the windows and the
+    strips over them (along the A pillar's slope, the drip and its fall), the posts between the windows, the A
+    pillar's triangle in front of the vent, and behind the quarter the C pillar's front part and its triangle under
+    the pillar's slope, with a strip along that slope."""
     out = []
     windows = _windows(body)
     v0, v1 = WINDOW_V
@@ -3751,10 +3910,31 @@ def _kit_summary(body, kit):
     if kit.ws_hole:
         parts.append("windscreen crazed with its slit")
     if kit.flat:
-        parts.append(f"flat {kit.flat}: hub {body.z_wc - kit.hubs[kit.flat][1]:.3f} m down")
+        settled = _settle(body, kit)
+        parts.append(f"flat {kit.flat}: hub {body.z_wc - kit.hubs[kit.flat][1]:.3f} m down, the body on its springs "
+                     + " / ".join(f"{c} {settled[c] * 1000:+.1f}" for c in CORNERS)
+                     + f" mm (centre {settled['centre'] * 1000:+.1f}), across {settled['across']:.2f} deg, "
+                     f"along {settled['along']:.2f} deg, tilt {settled['tilt']:.2f} deg")
     if kit.F:
         parts.append(f"on its rims {kit.p['ride_drop']:.3f} m down, roof sag {body.sag_m:.3f} m")
     return "; ".join(parts)
+
+
+def _settle(body, kit):
+    """How the body settled over its flat tyre: per corner the body's point over its hub moved up (m), the same at
+    the hubs' centre, and its lean across and along and its whole tilt (degrees)."""
+    out = {}
+    pts = {}
+    for k, a in enumerate(body.axle):
+        for side, tag in ((-1, "left"), (1, "right")):
+            pts[f"{('front', 'rear')[k]}_{tag}"] = body.P(a, side * body.track[k] / 2, body.z_wc)
+    pts["centre"] = tuple(sum(p[i] for p in pts.values()) / 4 for i in range(3))
+    for name, p in pts.items():
+        out[name] = kit.T.point(p)[1] - p[1]
+    out["across"] = abs(math.degrees(math.asin(kit.T.vector((0.0, 0.0, 1.0))[1])))
+    out["along"] = abs(math.degrees(math.asin(kit.T.vector((1.0, 0.0, 0.0))[1])))
+    out["tilt"] = math.degrees(math.acos(min(1.0, kit.T.vector((0.0, 1.0, 0.0))[1])))
+    return out
 
 
 def _plan_summary(plan):
@@ -3785,20 +3965,21 @@ def _wind(body, kit):
 
 def _snags(body, kit, pieces=()):
     """The snag records: the clean base's (the rack, the bumpers' ends, the wipers) and F's seat springs (hooks)
-    moved with the body; F's rim flanges (edges) at the hubs; the composed pieces' where they lie."""
+    moved with the body; F's rim flanges (edges) at the hubs; the composed pieces' where they lie. Each names the
+    physics material of the member it follows (PHYSICS of its slot; lib.meta's snag rule), as the kits' torn edges do."""
     out = [kits.transform_snag(s, kit.T) for s in _base_snags(body, wipers=not kit.F)]
     if kit.F:
         for _, _, _, _, springs in _burnt_seats(body):
             for pts in springs:
                 out.append(kits.transform_snag({"kind": "hook", "points": [list(p) for p in pts],
-                                                "radius_m": SPRING_R_M}, kit.T))
+                                                "radius_m": SPRING_R_M, "material": PHYSICS[WIRE]}, kit.T))
         for corner, hub in sorted(kit.hubs.items()):
             side = -1 if corner.endswith("left") else 1
             for e in (-1, 1):
                 ring = [[hub[0] + RIM_FLANGE_R_M * math.cos(2 * math.pi * k / 24),
                          hub[1] + RIM_FLANGE_R_M * math.sin(2 * math.pi * k / 24), hub[2] + e * side * RIM_WIDTH_M / 2]
                         for k in range(25)]
-                out.append({"kind": "edge", "points": ring, "radius_m": 0.003})
+                out.append({"kind": "edge", "points": ring, "radius_m": 0.003, "material": PHYSICS[CHROME_DULL]})
     for piece in pieces:
         out += [kits.transform_snag(s, piece["rigid"]) for s in piece["snag"]]
     return out
@@ -3810,15 +3991,16 @@ def _base_snags(body, wipers=True):
     if body.p["roof_rack"]:
         corners, posts = _rack_points(body)
         for a, b in zip(corners, corners[1:] + corners[:1]):
-            out.append({"kind": "edge", "points": [list(a), list(b)], "radius_m": RACK_R_M})
+            out.append({"kind": "edge", "points": [list(a), list(b)], "radius_m": RACK_R_M, "material": PHYSICS[RACK]})
         for foot, top in posts:
-            out.append({"kind": "edge", "points": [list(foot), list(top)], "radius_m": RACK_R_M})
+            out.append({"kind": "edge", "points": [list(foot), list(top)], "radius_m": RACK_R_M,
+                        "material": PHYSICS[RACK]})
     for front in (True, False):
         path, (bottom, top, depth) = _bumper_path(body, front)
         y = (bottom + top) / 2
         for end in (path[:4], path[-4:]):  # the blade's wrapped ends
             out.append({"kind": "edge", "points": [list(body.P(s, w, y)) for s, w in end], "radius_m": 0.006,
-                        "edge_radius_m": 0.002})
-    for pivot, tip in _wiper_arms(body) if wipers else ():
-        out.append({"kind": "hook", "points": [list(pivot), list(tip)], "radius_m": 0.005})
+                        "edge_radius_m": 0.002, "material": PHYSICS[CHROME]})
+    for pivot, tip in _wiper_arms(body) if wipers else ():  # tubes of the rack's steel (_lod)
+        out.append({"kind": "hook", "points": [list(pivot), list(tip)], "radius_m": 0.005, "material": PHYSICS[RACK]})
     return out

@@ -98,7 +98,7 @@ This is the pilot's seven-step plan (2026-10-17), "made right". Their order stay
 3. **Look setup** (tech-artist): URP lighting, sky per time of day and rain setting (VIS-02/03), wet-material variants, aerial perspective (VIS-04), the vegetation wind shader.
 4. **Look-lock assets:** S04, V01 + V13, H01 in I/D/X, R01 in A/F, E01, L01 + L03.
 5. **G1 look-lock:** a quick gallery build with those six stations. The pilot looks for about 10 minutes. Their feedback becomes style rules in `docs/style-rules.md`, and the URP-vs-HDRP check of D-001 is settled here.
-6. **Mass production** in the asset-list order, P1 first. First from letter S (D-038, the S read-in's `implications.md` (archive/2026-10-19-p1-letter-s-village-street)): H02 variant 3, the typical village's street house, as params on the shared `house` generator that H01 writes; L02 with the shared whitewashed butt band (L01's too); K01's standing stove block and silicate bricks. From E01's review (archive/2026-10-20-p1-e01-trench/review.md): each trench asset takes its own grassed cover recipe, since `grassed_spoil` carries E01's relief (S14); a build-time triangle budget for earthworks (AST-08, S9); the joint check by identity, not count (S17). Each asset needs:
+6. **Mass production** in the asset-list order, P1 first, after G1's deferrals (D-040): V01's crown net and the H belt edge (`p1-v01-locust` QA 2.1's R1 and R2, with the physics rulings of its task 1.8), H01's X state and letter S's items (its task 1.4b). The crown work judges the 200 m band by its linear-light mean at the feed's resolution, never by the gallery's 1× render, and bakes a crown visibility into the asset (`p1-v01-locust` review-techart.md, findings 6–7). First from letter S (D-038, the S read-in's `implications.md` (archive/2026-10-19-p1-letter-s-village-street)): H02 variant 3, the typical village's street house, as params on the shared `house` generator that H01 writes; L02 with the shared whitewashed butt band (L01's too); K01's standing stove block and silicate bricks. From E01's review (archive/2026-10-20-p1-e01-trench/review.md): each trench asset takes its own grassed cover recipe, since `grassed_spoil` carries E01's relief (S14); a build-time triangle budget for earthworks (AST-08, S9); the joint check by identity, not count (S17). Each asset needs:
    - its generator and params
    - LODs and impostors
    - collision, materials, gaps, wind volumes and snag flags
@@ -156,6 +156,8 @@ This is the pilot's seven-step plan (2026-10-17), "made right". Their order stay
 **Owners:** world-builder (layout, compiler, terrain, placement), physics-engineer (world-query core review and the contact probe), tech-artist (performance, distance look), QA.
 
 **Work:**
+**Before the belts are placed** (`p1-v01-locust` review-techart.md, findings 1–4): the Leaf shader sets up its instance first (latent under the SRP batcher, wrong under instanced or BRG draws); the impostor reads its own SH with the spread, and its reflection widens by it; `LodParity` runs again under G1's day and overcast from 2 m and 30 m; the vegetation shaders' cost is measured per PLT-07 on a synthetic belt at 1080p and at the feed's size.
+
 1. **The map-format spec** for Unity: carry the old format over (K§10), plus the D-007 fixes (polygon gaps, per-part porosity) and the D-019 frames. It and the world-query spec take the gap review's G1–G4, G6 and G8–G11 in full (D-037): terrain holes (WLD-16), the frame conventions and corner mapping, the Unity Terrain tile rule, the rendered-surface parity and the load-time pose parity. Hole ids are local to an asset (`run`, `niche_0`): the compiler namespaces them per placed instance (E01's review (archive/2026-10-20-p1-e01-trench/review.md), S10).
 2. **The layout and the compiler** (`layout.json` → package) with its validator (WLD-09, WLD-12).
 3. **World-query core** in `com.fpv450.sim`:
@@ -263,6 +265,8 @@ Five changes, each ending in an MVP the pilot flies:
 All requirements are green, including PLT-03 on a mid-range estimate and LOG-04 on a second machine. Release notes go out, and the pilot signs off.
 
 ---
+
+**The order after G1 (D-042):** G4 (phase 4), G5 (phase 5) and G7 (phase 6, with the core of phase 7's flight physics: wind, turbulence, weather and the airframe effects) come next, built in parallel lanes, with the G1 gallery as the test range; G6 folds into G7; the fiber (7d) follows G7. Mass production, G2 and G3 are postponed.
 
 ## Gates at a glance
 

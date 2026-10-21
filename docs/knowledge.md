@@ -1109,6 +1109,7 @@ The full text is in [legacy/godot-decisions.md](legacy/godot-decisions.md). The 
 - **Plain C# met the 60 µs per-step world-query budget.** There is no need for exotic tech.
 - **The probe** (a fake drone over the real API) found the API gaps cheaply before the physics change.
 - **Two limits of the first map format:** rectangle gaps and one wind porosity per asset (§10.6).
+- **Unity's Mono evaluates `float` expressions in double precision; CoreCLR does not** (measured in `p4-feed` task 1.1, 2026-10-21). The ported feed scheduler drifted a few ulps per field in Unity against .NET, and an accumulating field (`N3Roll`) carried it, until every `float` operation was cast back to `float` explicitly. Mono also rounded `a + b*t` once instead of twice in about 2 % of cases. **Keep deterministic code in `double`, or cast each `float` operation**, and check it with a golden run in the Unity editor against .NET (LOG-04).
 
 ### 14.6 Godot specifics (for the record) `[Godot]`
 - The csproj had to be generated through Godot's own generator.

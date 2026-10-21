@@ -2,12 +2,13 @@
 docs/object-sheets/vehicles.md, "How vehicles fail"): plain Python helpers the `vehicle` generator calls, with no
 Blender and no import of the generator (a body is duck-typed: s, w and y as generators.vehicle.Body names them).
 
-- Rigid transforms of meshes and collision shapes (the A lean about a diagonal, the F drop on the rims).
+- Rigid transforms of meshes and collision shapes (the A body settled on its springs over a flat tyre, the F drop
+  on the rims).
 - The burst: its direction from `burst_dir`, the side it holes and the end it strikes.
 - Fragment holes: seeded sizes and places on the burst side's flank, and the patch that cuts one from a lofted
   sheet: the sheet's quads round the hole are removed (lib.loft.sheet's `seams`, so no edge strip shows there) and a
-  ring is stitched from their border to the hole's jagged rim, double-sided with its edge, its halo in the rust slot,
-  and petals of the torn sheet bent inward for the large ones.
+  ring is stitched from their border to the hole's jagged rim, double-sided with its edge in the rust slot, and
+  petals of the torn sheet bent inward for the large ones; its halo is the damage mask's (lib.masks).
 - Placement of glass crumbs and of the K07 scatter (1/r^2 areal density).
 
 Numbers are the sheet's (measured M, published) or labelled assumed / derived where this module adds them.
@@ -28,7 +29,8 @@ APERTURE_M = 0.045                      # derived: the open centre's reach from 
                                         # collision, closed over a hole of 0.25 m or less (the sheet's stated
                                         # deviation), stays within AST-05's 5 cm of the visual
 RIM_JITTER = 0.12                       # the rim's radius varies +-12 % round the hole (assumed: a torn outline)
-HALO_JITTER = 0.35                      # a halo's reach varies +-35 % round it (assumed: rust creeps unevenly)
+HALO_JITTER = 0.6                       # a halo's reach varies +-60 % round it (task 1.4, measured M: blotches,
+                                        # not the rings 35 % drew)
 PATCH_RING_M = 0.03                     # a cut hole's patch reaches at least this far past its rim
 EDGE_SNAG_R_M = 0.0004                  # the sheet: a torn edge's radius, half the 0.8 mm gauge
 ZONE_CLEAR_M = 0.32                     # derived: seeded holes keep their patch this far from the bonnet's and the boot
@@ -166,24 +168,27 @@ def burst_vector(azimuth_deg, elevation_deg=0.0):
 
 
 def lean(hubs, flat, drop=FLAT_DROP_M):
-    """The rigid rotation of the body about the diagonal opposite the flat corner (design decision 3), through the
-    other diagonal's two hub centres, that lowers the flat corner's hub by `drop`. `hubs` maps the CORNERS to
-    their hub centres."""
-    other = {"front_left": ("front_right", "rear_left"), "rear_right": ("front_right", "rear_left"),
-             "front_right": ("front_left", "rear_right"), "rear_left": ("front_left", "rear_right")}[flat]
-    a, b = hubs[other[0]], hubs[other[1]]
-    axis = _unit(tuple(b[k] - a[k] for k in range(3)))
-    target = hubs[flat][1] - drop
-    lo, hi = -0.3, 0.3
-    if axis_rotation(a, axis, lo).point(hubs[flat])[1] < axis_rotation(a, axis, hi).point(hubs[flat])[1]:
-        lo, hi = hi, lo
-    for _ in range(80):  # bisection on the angle: the hub's height is monotonic over +-0.3 rad
-        mid = (lo + hi) / 2
-        if axis_rotation(a, axis, mid).point(hubs[flat])[1] > target:
-            lo = mid
-        else:
-            hi = mid
-    return axis_rotation(a, axis, (lo + hi) / 2)
+    """The body settled on its four springs, of equal rate, once the flat corner's support has dropped by `drop`
+    (QA 2.1's R1): the plane fitted by least squares through the four supports' displacements, which is the springs'
+    equilibrium (the load and both moments balance; the warp, which no plane follows, is the springs'), taken as a
+    tilt about the hubs' centroid and a heave. On a rectangle the body goes down drop / 4 at its centre and its
+    corners -3/4, -1/4, -1/4 and +1/4 of the drop (the flat corner first, the opposite one last), half the rigid turn
+    about the diagonal. `hubs` maps the CORNERS to their hub centres (at one height); returns the rigid transform."""
+    rows = [(1.0, hubs[c][0], hubs[c][2], -drop if c == flat else 0.0) for c in CORNERS]
+    # the normal equations of y = a + b x + c z over the four supports, solved by Cramer's rule
+    m = [[sum(r[i] * r[j] for r in rows) for j in range(3)] for i in range(3)]
+    v = [sum(r[i] * r[3] for r in rows) for i in range(3)]
+    det = _det3(m)
+    a, b, c = (_det3([[v[i] if j == k else m[i][j] for j in range(3)] for i in range(3)]) / det for k in range(3))
+    n = _unit((-b, 1.0, -c))
+    pivot = tuple(sum(hubs[corner][k] for corner in CORNERS) / 4 for k in range(3))
+    tilt = axis_rotation(pivot, (n[2], 0.0, -n[0]), math.acos(n[1]))  # the minimal turn taking up (+Y) onto n
+    return tilt.then(translation((0.0, a + b * pivot[0] + c * pivot[2], 0.0)))
+
+
+def _det3(m):
+    return (m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+            + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]))
 
 
 # --- fragment holes ----------------------------------------------------------------------------------------------
@@ -314,12 +319,12 @@ def boundary_loop(quads):
     return loop
 
 
-def emit_patch(mesh, hole, outer, surf, uv, thickness, slots, rim_points=48, petals=True):
+def emit_patch(mesh, hole, outer, surf, uv, thickness, slots, material, rim_points=48, petals=True):
     """Stitches the patch of `hole` into `mesh`: from `outer` (the border loop of the removed quads, as
     [(point, (s, y), uv)]) to the hole's jagged rim in slots["paint"], the rim's edge strip and, when `thickness`
     > 0, the inner surface; and the large hole's petals in slots["torn"]. `surf(s, y)` gives (point, outward unit
     normal) on the sheet, `uv(s, y)` its UV. Returns the edge snags (the rim's closed polyline and each petal's
-    torn outline)."""
+    torn outline), each naming `material`, the sheet's physics material (lib.meta's snag rule)."""
     c = (hole.s, hole.y)
 
     def angle(q):
@@ -350,45 +355,37 @@ def emit_patch(mesh, hole, outer, surf, uv, thickness, slots, rim_points=48, pet
             k += 1
     front.rim_edge(rim_ids, c, slots["torn"])
     snags = [{"kind": "edge", "points": [list(front.points[v]) for v in rim_ids + rim_ids[:1]],
-              "radius_m": EDGE_SNAG_R_M}]
+              "radius_m": EDGE_SNAG_R_M, "material": material}]
     if petals and hole.large:
         for petal in hole.petals:
-            snags.append(_petal(mesh, hole, petal, surf, uv, thickness, slots["torn"]))
+            snags.append(_petal(mesh, hole, petal, surf, uv, thickness, slots["torn"], material))
     return snags
 
 
-DECAL_OFFSET_M = 0.0005   # a halo decal stands this far proud of its panel (LOD0 only: under 20 m the depth buffer
-                          # parts it from the paint)
+DECAL_OFFSET_M = 0.0005   # a decal stands this far proud of its panel (LOD0 only: under 20 m the depth buffer parts
+                          # it from the paint)
 
 
-def emit_decal(mesh, hole, surf, uv, slots, points=32):
-    """The hole's rust halo as a decal (the sheet: halos are decal or mask, no physical role): a ring from just
-    outside the rim to the jagged halo, DECAL_OFFSET_M proud of the sheet, in slots["halo"]; for a hole too small
-    to cut (under CUT_MIN_M) also its dark opening, a disc in slots["dark"]."""
+def emit_dark(mesh, hole, surf, uv, slot, points=16):
+    """The dark opening of a hole too small to cut (under CUT_MIN_M; the sheet: a decal, no physical role): a jagged
+    disc DECAL_OFFSET_M proud of the sheet in `slot`. Its halo is the damage mask's (task 1.4: one halo, not a
+    decal ring over the mask's)."""
     c = (hole.s, hole.y)
-    ring_in, ring_out, centre = [], [], None
 
     def at(q):
         p, n = surf(*q)
         return mesh.vertex(tuple(p[k] + DECAL_OFFSET_M * n[k] for k in range(3))), n
 
-    inner_r = (lambda a: hole.rim_radius(a) * 1.02) if hole.cut else (lambda a: hole.r * (1 + 0.5 * RIM_JITTER *
-                                                                                             _noise(a, hole.phase)))
+    (centre, n) = at(c)
+    ring = []
     for k in range(points):
         a = 2 * math.pi * k / points
-        q_in = (c[0] + inner_r(a) * math.cos(a), c[1] + inner_r(a) * math.sin(a))
-        q_out = (c[0] + hole.halo_radius(a) * math.cos(a), c[1] + hole.halo_radius(a) * math.sin(a))
-        ring_in.append((at(q_in), uv(*q_in)))
-        ring_out.append((at(q_out), uv(*q_out)))
+        r = hole.r * (1 + 0.5 * RIM_JITTER * _noise(a, hole.phase))
+        q = (c[0] + r * math.cos(a), c[1] + r * math.sin(a))
+        ring.append((at(q)[0], uv(*q)))
     for k in range(points):
-        a, b = ring_in[k], ring_in[(k + 1) % points]
-        d, e = ring_out[k], ring_out[(k + 1) % points]
-        mesh.face([a[0][0], b[0][0], e[0][0], d[0][0]], a[0][1], slots["halo"], [a[1], b[1], e[1], d[1]])
-    if not hole.cut:
-        (centre, n) = at(c)
-        for k in range(points):
-            a, b = ring_in[k], ring_in[(k + 1) % points]
-            mesh.face([centre, a[0][0], b[0][0]], n, slots["dark"], [uv(*c), a[1], b[1]])
+        a, b = ring[k], ring[(k + 1) % points]
+        mesh.face([centre, a[0], b[0]], n, slot, [uv(*c), a[1], b[1]])
 
 
 class _Sheet:
@@ -447,9 +444,10 @@ class _Sheet:
                            [ua, ub, (ub[0], ub[1] - self.t), (ua[0], ua[1] - self.t)])
 
 
-def _petal(mesh, hole, petal, surf, uv, thickness, slot):
+def _petal(mesh, hole, petal, surf, uv, thickness, slot, material):
     """One petal: the sheet of its sector between the rim and its tip, bent about the rim inward (into the body,
-    along -normal) so its tip lies petal["depth"] behind the skin. Returns its edge snag (side, tip, side)."""
+    along -normal) so its tip lies petal["depth"] behind the skin. Returns its edge snag (side, tip, side), of
+    `material`."""
     from .loft import sheet  # the double-sided sheet with its edges (a petal is a small lofted grid)
     flat_tip, bend = hole.petal_tip(petal)
     c = (hole.s, hole.y)
@@ -476,7 +474,7 @@ def _petal(mesh, hole, petal, surf, uv, thickness, slot):
     _, n_mid = surf(*c)
     sheet(mesh, rows, uvs, slot, lambda p, n=n_mid: n, thickness)
     outline = [rows[0][0]] + [rows[r][0] for r in range(1, steps + 1)] + [rows[r][-1] for r in range(steps - 1, -1, -1)]
-    return {"kind": "edge", "points": [list(p) for p in outline], "radius_m": EDGE_SNAG_R_M}
+    return {"kind": "edge", "points": [list(p) for p in outline], "radius_m": EDGE_SNAG_R_M, "material": material}
 
 
 def _signed_area(points):
@@ -526,7 +524,7 @@ def scatter_radius(rng, r_min, r_max, falloff=2):
 
 def crumb_box(mesh, centre, size, yaw, slot, uv):
     """One glass crumb: a box of size (x, y, z) about `centre`, turned by `yaw` about the vertical, every corner UV'd
-    to `uv` (a palette column)."""
+    to `uv` (a palette column); its bottom face, on what it lies on, is left out (10 triangles)."""
     c, s = math.cos(yaw), math.sin(yaw)
     axes = ((c, 0.0, s), (0.0, 1.0, 0.0), (-s, 0.0, c))
     h = [v / 2 for v in size]
@@ -539,6 +537,8 @@ def crumb_box(mesh, centre, size, yaw, slot, uv):
                 ids[sx, sy, sz] = mesh.vertex(p)
     for axis in range(3):
         for sign in (-1, 1):
+            if (axis, sign) == (1, -1):
+                continue
             keys = [k for k in ids if k[axis] == sign]
             o = [(axis + 1) % 3, (axis + 2) % 3]
             keys.sort(key=lambda k: math.atan2(k[o[1]], k[o[0]]))

@@ -1,0 +1,6077 @@
+{
+  "schema": 1,
+  "id": "V13",
+  "variant": "V13_mid_yellowing",
+  "generator": "shrub",
+  "params_sha256": "8647b465f29dc7cfd30b8edb7e92ffbae6a569d1327cd2affa243b111734dee0",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -1.162594,
+      -0.003066,
+      -1.123331
+    ],
+    "max": [
+      1.142388,
+      2.064286,
+      1.096111
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "V13_mid_yellowing_LOD0",
+      "tris": 9606,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "V13_mid_yellowing_LOD1",
+      "tris": 3906,
+      "switch_distance_m": 7.5,
+      "thin_wire": false
+    },
+    {
+      "mesh": "V13_mid_yellowing_LOD2",
+      "tris": 60,
+      "switch_distance_m": 93.5,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 800.0,
+  "materials": [
+    {
+      "slot": "stem",
+      "visual": "bark_shrub",
+      "physics": "bark"
+    },
+    {
+      "slot": "twig",
+      "visual": "bark_shrub",
+      "physics": "twig"
+    },
+    {
+      "slot": "leaf",
+      "visual": "leaf_shrub_autumn",
+      "physics": "twig"
+    },
+    {
+      "slot": "far",
+      "visual": "leaf_shrub_autumn_far",
+      "physics": "twig"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "capsule",
+      "center": [
+        0.250583,
+        0.283961,
+        0.014363
+      ],
+      "radius": 0.010834,
+      "height": 0.597806,
+      "rotation": [
+        0.003759,
+        0.0,
+        -0.084357,
+        0.996429
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.375806,
+        0.851884,
+        0.019944
+      ],
+      "radius": 0.009581,
+      "height": 0.607527,
+      "rotation": [
+        0.005868,
+        0.0,
+        -0.131672,
+        0.991276
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.557765,
+        1.419807,
+        0.028053
+      ],
+      "radius": 0.007221,
+      "height": 0.620132,
+      "rotation": [
+        0.007861,
+        0.0,
+        -0.176397,
+        0.984288
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.128788,
+        0.254074,
+        0.193788
+      ],
+      "radius": 0.005088,
+      "height": 0.534069,
+      "rotation": [
+        0.118988,
+        0.0,
+        0.02949,
+        0.992458
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.09201,
+        0.762221,
+        0.342183
+      ],
+      "radius": 0.004414,
+      "height": 0.547345,
+      "rotation": [
+        0.162992,
+        0.0,
+        0.040396,
+        0.9858
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.043008,
+        1.270368,
+        0.539899
+      ],
+      "radius": 0.00262,
+      "height": 0.562647,
+      "rotation": [
+        0.204034,
+        0.0,
+        0.050568,
+        0.977657
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.11202,
+        0.288898,
+        0.081152
+      ],
+      "radius": 0.006541,
+      "height": 0.646841,
+      "rotation": [
+        0.115563,
+        0.0,
+        -0.175494,
+        0.977674
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.353624,
+        0.866693,
+        0.240248
+      ],
+      "radius": 0.005346,
+      "height": 0.670298,
+      "rotation": [
+        0.136958,
+        0.0,
+        -0.207985,
+        0.968496
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.643484,
+        1.444488,
+        0.431122
+      ],
+      "radius": 0.003398,
+      "height": 0.696134,
+      "rotation": [
+        0.156433,
+        0.0,
+        -0.237559,
+        0.958694
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.07606,
+        0.268895,
+        0.057763
+      ],
+      "radius": 0.005006,
+      "height": 0.566735,
+      "rotation": [
+        0.036067,
+        0.0,
+        0.125306,
+        0.991462
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.24023,
+        0.806686,
+        0.105016
+      ],
+      "radius": 0.004394,
+      "height": 0.581774,
+      "rotation": [
+        0.048474,
+        0.0,
+        0.168414,
+        0.984524
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.456081,
+        1.344476,
+        0.167144
+      ],
+      "radius": 0.002684,
+      "height": 0.599062,
+      "rotation": [
+        0.060017,
+        0.0,
+        0.208517,
+        0.976176
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.054137,
+        0.258358,
+        0.20186
+      ],
+      "radius": 0.005008,
+      "height": 0.543753,
+      "rotation": [
+        0.125134,
+        0.0,
+        0.016915,
+        0.991996
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.075509,
+        0.775073,
+        0.359971
+      ],
+      "radius": 0.004351,
+      "height": 0.557666,
+      "rotation": [
+        0.16984,
+        0.0,
+        0.022958,
+        0.985204
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.103803,
+        1.291789,
+        0.569288
+      ],
+      "radius": 0.002596,
+      "height": 0.573691,
+      "rotation": [
+        0.211486,
+        0.0,
+        0.028587,
+        0.976963
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.081357,
+        0.272613,
+        0.062096
+      ],
+      "radius": 0.005479,
+      "height": 0.557012,
+      "rotation": [
+        -0.024211,
+        0.0,
+        0.013155,
+        0.99962
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.082703,
+        0.817838,
+        0.059619
+      ],
+      "radius": 0.004545,
+      "height": 0.554863,
+      "rotation": [
+        0.019681,
+        0.0,
+        -0.010693,
+        0.999749
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.058019,
+        1.363064,
+        0.10505
+      ],
+      "radius": 0.002556,
+      "height": 0.556026,
+      "rotation": [
+        0.063135,
+        0.0,
+        -0.034304,
+        0.997415
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.196711,
+        0.277607,
+        -0.100404
+      ],
+      "radius": 0.009125,
+      "height": 0.620847,
+      "rotation": [
+        -0.19023,
+        0.0,
+        0.055933,
+        0.980145
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.270614,
+        0.83282,
+        -0.351748
+      ],
+      "radius": 0.007629,
+      "height": 0.641528,
+      "rotation": [
+        -0.228508,
+        0.0,
+        0.067188,
+        0.971221
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.360178,
+        1.388033,
+        -0.65636
+      ],
+      "radius": 0.004329,
+      "height": 0.662471,
+      "rotation": [
+        -0.263445,
+        0.0,
+        0.07746,
+        0.96156
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.145774,
+        0.297756,
+        -0.072753
+      ],
+      "radius": 0.009797,
+      "height": 0.630695,
+      "rotation": [
+        -0.108487,
+        0.0,
+        0.031399,
+        0.993602
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.192183,
+        0.893268,
+        -0.233099
+      ],
+      "radius": 0.008442,
+      "height": 0.64404,
+      "rotation": [
+        -0.152575,
+        0.0,
+        0.04416,
+        0.987305
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.255149,
+        1.488779,
+        -0.450649
+      ],
+      "radius": 0.00549,
+      "height": 0.659285,
+      "rotation": [
+        -0.193829,
+        0.0,
+        0.0561,
+        0.97943
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.08627,
+        0.279698,
+        -0.233192
+      ],
+      "radius": 0.00592,
+      "height": 0.611267,
+      "rotation": [
+        -0.171952,
+        0.0,
+        -0.061828,
+        0.983163
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.003931,
+        0.839095,
+        -0.462186
+      ],
+      "radius": 0.005174,
+      "height": 0.632069,
+      "rotation": [
+        -0.210676,
+        0.0,
+        -0.075752,
+        0.974616
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.097335,
+        1.398492,
+        -0.74382
+      ],
+      "radius": 0.003282,
+      "height": 0.654654,
+      "rotation": [
+        -0.246157,
+        0.0,
+        -0.08851,
+        0.96518
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.044684,
+        0.259242,
+        -0.206362
+      ],
+      "radius": 0.005012,
+      "height": 0.542662,
+      "rotation": [
+        -0.10219,
+        0.0,
+        -0.053324,
+        0.993335
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.023735,
+        0.777727,
+        -0.33748
+      ],
+      "radius": 0.004393,
+      "height": 0.55563,
+      "rotation": [
+        -0.142763,
+        0.0,
+        -0.074496,
+        0.986949
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.116139,
+        1.296211,
+        -0.514565
+      ],
+      "radius": 0.002637,
+      "height": 0.57074,
+      "rotation": [
+        -0.180698,
+        0.0,
+        -0.09429,
+        0.979008
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.051853,
+        0.295918,
+        -0.207587
+      ],
+      "radius": 0.009943,
+      "height": 0.621555,
+      "rotation": [
+        -0.07737,
+        0.0,
+        0.046764,
+        0.995905
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.123203,
+        0.887753,
+        -0.325632
+      ],
+      "radius": 0.008537,
+      "height": 0.632162,
+      "rotation": [
+        -0.117662,
+        0.0,
+        0.071118,
+        0.990504
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.225168,
+        1.479588,
+        -0.494328
+      ],
+      "radius": 0.004886,
+      "height": 0.643542,
+      "rotation": [
+        -0.155665,
+        0.0,
+        0.094089,
+        0.983319
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.098961,
+        0.280473,
+        -0.194
+      ],
+      "radius": 0.007714,
+      "height": 0.578424,
+      "rotation": [
+        -0.034556,
+        0.0,
+        -0.025035,
+        0.999089
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.11067,
+        0.841419,
+        -0.210161
+      ],
+      "radius": 0.006399,
+      "height": 0.573803,
+      "rotation": [
+        0.005839,
+        0.0,
+        0.00423,
+        0.999974
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.089468,
+        1.402366,
+        -0.180897
+      ],
+      "radius": 0.003304,
+      "height": 0.571214,
+      "rotation": [
+        0.046105,
+        0.0,
+        0.033402,
+        0.998378
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.11992,
+        0.302546,
+        -0.150605
+      ],
+      "radius": 0.014389,
+      "height": 0.634129,
+      "rotation": [
+        -0.014244,
+        0.0,
+        -0.003448,
+        0.999893
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.131212,
+        0.907637,
+        -0.197254
+      ],
+      "radius": 0.010433,
+      "height": 0.630997,
+      "rotation": [
+        -0.062456,
+        0.0,
+        -0.015118,
+        0.997933
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.15674,
+        1.512729,
+        -0.302714
+      ],
+      "radius": 0.005225,
+      "height": 0.631248,
+      "rotation": [
+        -0.109316,
+        0.0,
+        -0.026461,
+        0.993655
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.227567,
+        0.293671,
+        -0.018865
+      ],
+      "radius": 0.010937,
+      "height": 0.612918,
+      "rotation": [
+        0.04988,
+        0.0,
+        -0.02536,
+        0.998433
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.270808,
+        0.881014,
+        0.066182
+      ],
+      "radius": 0.008322,
+      "height": 0.617093,
+      "rotation": [
+        0.093128,
+        0.0,
+        -0.047349,
+        0.994528
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.340667,
+        1.468357,
+        0.203586
+      ],
+      "radius": 0.004135,
+      "height": 0.623614,
+      "rotation": [
+        0.134457,
+        0.0,
+        -0.068361,
+        0.988559
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.214938,
+        0.883774,
+        -0.123295
+      ],
+      "radius": 0.00945,
+      "height": 0.410906,
+      "rotation": [
+        0.120423,
+        0.0,
+        -0.239986,
+        0.963278
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.411173,
+        1.219257,
+        -0.024825
+      ],
+      "radius": 0.00811,
+      "height": 0.426587,
+      "rotation": [
+        0.135472,
+        0.0,
+        -0.269975,
+        0.953289
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.637393,
+        1.55474,
+        0.088691
+      ],
+      "radius": 0.00705,
+      "height": 0.44466,
+      "rotation": [
+        0.149027,
+        0.0,
+        -0.296989,
+        0.94318
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.289598,
+        0.782286,
+        -0.017904
+      ],
+      "radius": 0.006787,
+      "height": 0.376426,
+      "rotation": [
+        -0.08849,
+        0.0,
+        -0.126678,
+        0.987989
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.394587,
+        1.127809,
+        -0.091243
+      ],
+      "radius": 0.005806,
+      "height": 0.38646,
+      "rotation": [
+        -0.113259,
+        0.0,
+        -0.162137,
+        0.980247
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.527903,
+        1.473332,
+        -0.184369
+      ],
+      "radius": 0.004182,
+      "height": 0.397913,
+      "rotation": [
+        -0.136131,
+        0.0,
+        -0.194879,
+        0.971334
+      ],
+      "material": "bark",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.131447,
+        1.564863,
+        -0.235937
+      ],
+      "radius": 0.244258,
+      "height": 1.638516,
+      "rotation": [
+        0.5,
+        0.0,
+        -0.5,
+        0.707107
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.38951,
+        1.265899,
+        0.224199
+      ],
+      "radius": 0.262228,
+      "height": 1.574456,
+      "rotation": [
+        0.325058,
+        0.0,
+        0.325058,
+        0.888074
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.426611,
+        1.164863,
+        -0.15968
+      ],
+      "radius": 0.245295,
+      "height": 1.290589,
+      "rotation": [
+        -0.5,
+        0.0,
+        -0.5,
+        0.707107
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.109454,
+        1.100738,
+        -0.412713
+      ],
+      "radius": 0.140831,
+      "height": 1.231662,
+      "rotation": [
+        -0.382683,
+        0.0,
+        0.0,
+        0.92388
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.290546,
+        1.111829,
+        0.470129
+      ],
+      "radius": 0.203103,
+      "height": 1.156206,
+      "rotation": [
+        0.382683,
+        0.0,
+        0.0,
+        0.92388
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.059454,
+        1.364863,
+        -0.476838
+      ],
+      "radius": 0.155278,
+      "height": 1.610555,
+      "rotation": [
+        0.0,
+        0.0,
+        -0.707107,
+        0.707107
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.327132,
+        1.547185,
+        0.323162
+      ],
+      "radius": 0.279138,
+      "height": 0.808276,
+      "rotation": [
+        0.0,
+        0.0,
+        -0.382683,
+        0.92388
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.31481,
+        0.989127,
+        -0.276838
+      ],
+      "radius": 0.045711,
+      "height": 1.291421,
+      "rotation": [
+        0.0,
+        0.0,
+        -0.382683,
+        0.92388
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.102678,
+        1.176995,
+        0.723162
+      ],
+      "radius": 0.218224,
+      "height": 1.036448,
+      "rotation": [
+        0.0,
+        0.0,
+        -0.382683,
+        0.92388
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.226611,
+        1.164863,
+        -0.393995
+      ],
+      "radius": 0.176033,
+      "height": 1.152066,
+      "rotation": [
+        0.5,
+        0.0,
+        -0.5,
+        0.707107
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.463751,
+        0.938068,
+        -0.450043
+      ],
+      "radius": 0.093566,
+      "height": 0.987132,
+      "rotation": [
+        -0.325058,
+        0.0,
+        -0.325058,
+        0.888074
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.603388,
+        1.270929,
+        -0.276838
+      ],
+      "radius": 0.260646,
+      "height": 0.821291,
+      "rotation": [
+        0.0,
+        0.0,
+        -0.382683,
+        0.92388
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.178934,
+        0.764863,
+        0.234774
+      ],
+      "radius": 0.111154,
+      "height": 0.872308,
+      "rotation": [
+        -0.5,
+        0.0,
+        -0.5,
+        0.707107
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.108224,
+        0.764863,
+        -0.694515
+      ],
+      "radius": 0.073106,
+      "height": 0.496212,
+      "rotation": [
+        -0.5,
+        0.0,
+        -0.5,
+        0.707107
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.521486,
+        1.195803,
+        0.492222
+      ],
+      "radius": 0.17709,
+      "height": 1.154179,
+      "rotation": [
+        -0.325058,
+        0.0,
+        -0.325058,
+        0.888074
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.109454,
+        1.571449,
+        -0.470251
+      ],
+      "radius": 0.075,
+      "height": 1.3,
+      "rotation": [
+        0.382683,
+        0.0,
+        0.0,
+        0.92388
+      ],
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.11481,
+        1.340598,
+        -0.676838
+      ],
+      "radius": 0.086803,
+      "height": 1.373607,
+      "rotation": [
+        0.0,
+        0.0,
+        -0.92388,
+        0.382683
+      ],
+      "material": "twig",
+      "landable": false
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [
+    {
+      "shape": "box",
+      "center": [
+        -0.009513,
+        1.289116,
+        -0.016112
+      ],
+      "size": [
+        2.229882,
+        1.478508,
+        2.151451
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.385
+    }
+  ],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": [
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.202155,
+          0.0,
+          0.012205
+        ],
+        [
+          0.299011,
+          0.567923,
+          0.016522
+        ]
+      ],
+      "radius_m": 0.010834,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.299011,
+          0.567923,
+          0.016522
+        ],
+        [
+          0.452602,
+          1.135846,
+          0.023367
+        ]
+      ],
+      "radius_m": 0.009581,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.452602,
+          1.135846,
+          0.023367
+        ],
+        [
+          0.662929,
+          1.703769,
+          0.03274
+        ]
+      ],
+      "radius_m": 0.007221,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.144121,
+          0.0,
+          0.131922
+        ],
+        [
+          0.113455,
+          0.508147,
+          0.255655
+        ]
+      ],
+      "radius_m": 0.005088,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.113455,
+          0.508147,
+          0.255655
+        ],
+        [
+          0.070565,
+          1.016294,
+          0.42871
+        ]
+      ],
+      "radius_m": 0.004414,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.070565,
+          1.016294,
+          0.42871
+        ],
+        [
+          0.015451,
+          1.524441,
+          0.651089
+        ]
+      ],
+      "radius_m": 0.00262,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.003282,
+          0.0,
+          0.009548
+        ],
+        [
+          0.220758,
+          0.577795,
+          0.152756
+        ]
+      ],
+      "radius_m": 0.006541,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.220758,
+          0.577795,
+          0.152756
+        ],
+        [
+          0.48649,
+          1.15559,
+          0.327741
+        ]
+      ],
+      "radius_m": 0.005346,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.48649,
+          1.15559,
+          0.327741
+        ],
+        [
+          0.800479,
+          1.733385,
+          0.534503
+        ]
+      ],
+      "radius_m": 0.003398,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.006895,
+          0.0,
+          0.037855
+        ],
+        [
+          -0.145224,
+          0.537791,
+          0.07767
+        ]
+      ],
+      "radius_m": 0.005006,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.145224,
+          0.537791,
+          0.07767
+        ],
+        [
+          -0.335235,
+          1.075581,
+          0.132361
+        ]
+      ],
+      "radius_m": 0.004394,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.335235,
+          1.075581,
+          0.132361
+        ],
+        [
+          -0.576926,
+          1.613372,
+          0.201926
+        ]
+      ],
+      "radius_m": 0.002684,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.045181,
+          0.0,
+          0.135607
+        ],
+        [
+          -0.063092,
+          0.516715,
+          0.268114
+        ]
+      ],
+      "radius_m": 0.005008,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.063092,
+          0.516715,
+          0.268114
+        ],
+        [
+          -0.087926,
+          1.033431,
+          0.451828
+        ]
+      ],
+      "radius_m": 0.004351,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.087926,
+          1.033431,
+          0.451828
+        ],
+        [
+          -0.119681,
+          1.550146,
+          0.686747
+        ]
+      ],
+      "radius_m": 0.002596,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.074176,
+          0.0,
+          0.075311
+        ],
+        [
+          -0.088537,
+          0.545226,
+          0.04888
+        ]
+      ],
+      "radius_m": 0.005479,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.088537,
+          0.545226,
+          0.04888
+        ],
+        [
+          -0.076868,
+          1.090451,
+          0.070357
+        ]
+      ],
+      "radius_m": 0.004545,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.076868,
+          1.090451,
+          0.070357
+        ],
+        [
+          -0.039169,
+          1.635677,
+          0.139742
+        ]
+      ],
+      "radius_m": 0.002556,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.163675,
+          0.0,
+          0.011952
+        ],
+        [
+          -0.229747,
+          0.555213,
+          -0.212759
+        ]
+      ],
+      "radius_m": 0.009125,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.229747,
+          0.555213,
+          -0.212759
+        ],
+        [
+          -0.31148,
+          1.110427,
+          -0.490737
+        ]
+      ],
+      "radius_m": 0.007629,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.31148,
+          1.110427,
+          -0.490737
+        ],
+        [
+          -0.408876,
+          1.66564,
+          -0.821982
+        ]
+      ],
+      "radius_m": 0.004329,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.126709,
+          0.0,
+          -0.006881
+        ],
+        [
+          -0.16484,
+          0.595512,
+          -0.138626
+        ]
+      ],
+      "radius_m": 0.009797,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.16484,
+          0.595512,
+          -0.138626
+        ],
+        [
+          -0.219527,
+          1.191023,
+          -0.327573
+        ]
+      ],
+      "radius_m": 0.008442,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.219527,
+          1.191023,
+          -0.327573
+        ],
+        [
+          -0.290771,
+          1.786535,
+          -0.573724
+        ]
+      ],
+      "radius_m": 0.00549,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.122707,
+          0.0,
+          -0.131855
+        ],
+        [
+          -0.049832,
+          0.559397,
+          -0.334529
+        ]
+      ],
+      "radius_m": 0.00592,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.049832,
+          0.559397,
+          -0.334529
+        ],
+        [
+          0.04197,
+          1.118793,
+          -0.589843
+        ]
+      ],
+      "radius_m": 0.005174,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.04197,
+          1.118793,
+          -0.589843
+        ],
+        [
+          0.152701,
+          1.67819,
+          -0.897798
+        ]
+      ],
+      "radius_m": 0.003282,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.072897,
+          0.0,
+          -0.152295
+        ],
+        [
+          -0.016471,
+          0.518484,
+          -0.260429
+        ]
+      ],
+      "radius_m": 0.005012,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.016471,
+          0.518484,
+          -0.260429
+        ],
+        [
+          0.063941,
+          1.036969,
+          -0.414531
+        ]
+      ],
+      "radius_m": 0.004393,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.063941,
+          1.036969,
+          -0.414531
+        ],
+        [
+          0.168338,
+          1.555453,
+          -0.614599
+        ]
+      ],
+      "radius_m": 0.002637,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.023832,
+          0.0,
+          -0.161226
+        ],
+        [
+          -0.079875,
+          0.591835,
+          -0.253947
+        ]
+      ],
+      "radius_m": 0.009943,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.079875,
+          0.591835,
+          -0.253947
+        ],
+        [
+          -0.166532,
+          1.18367,
+          -0.397318
+        ]
+      ],
+      "radius_m": 0.008537,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.166532,
+          1.18367,
+          -0.397318
+        ],
+        [
+          -0.283804,
+          1.775505,
+          -0.591339
+        ]
+      ],
+      "radius_m": 0.004886,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.08488,
+          0.0,
+          -0.174563
+        ],
+        [
+          0.113043,
+          0.560946,
+          -0.213437
+        ]
+      ],
+      "radius_m": 0.007714,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.113043,
+          0.560946,
+          -0.213437
+        ],
+        [
+          0.108297,
+          1.121892,
+          -0.206886
+        ]
+      ],
+      "radius_m": 0.006399,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.108297,
+          1.121892,
+          -0.206886
+        ],
+        [
+          0.07064,
+          1.682839,
+          -0.154908
+        ]
+      ],
+      "radius_m": 0.003304,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.117833,
+          0.0,
+          -0.141983
+        ],
+        [
+          0.122007,
+          0.605091,
+          -0.159227
+        ]
+      ],
+      "radius_m": 0.014389,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.122007,
+          0.605091,
+          -0.159227
+        ],
+        [
+          0.140417,
+          1.210183,
+          -0.235281
+        ]
+      ],
+      "radius_m": 0.010433,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.140417,
+          1.210183,
+          -0.235281
+        ],
+        [
+          0.173063,
+          1.815274,
+          -0.370146
+        ]
+      ],
+      "radius_m": 0.005225,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.212602,
+          0.0,
+          -0.0483
+        ],
+        [
+          0.242533,
+          0.587343,
+          0.010569
+        ]
+      ],
+      "radius_m": 0.010937,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.242533,
+          0.587343,
+          0.010569
+        ],
+        [
+          0.299083,
+          1.174685,
+          0.121795
+        ]
+      ],
+      "radius_m": 0.008322,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.299083,
+          1.174685,
+          0.121795
+        ],
+        [
+          0.382251,
+          1.762028,
+          0.285376
+        ]
+      ],
+      "radius_m": 0.004135,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.124317,
+          0.716033,
+          -0.168768
+        ],
+        [
+          0.305559,
+          1.051516,
+          -0.077822
+        ]
+      ],
+      "radius_m": 0.00945,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.305559,
+          1.051516,
+          -0.077822
+        ],
+        [
+          0.516787,
+          1.386999,
+          0.028171
+        ]
+      ],
+      "radius_m": 0.00811,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.516787,
+          1.386999,
+          0.028171
+        ],
+        [
+          0.757999,
+          1.722482,
+          0.14921
+        ]
+      ],
+      "radius_m": 0.00705,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.244185,
+          0.609525,
+          0.013819
+        ],
+        [
+          0.335011,
+          0.955048,
+          -0.049627
+        ]
+      ],
+      "radius_m": 0.006787,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.335011,
+          0.955048,
+          -0.049627
+        ],
+        [
+          0.454164,
+          1.30057,
+          -0.13286
+        ]
+      ],
+      "radius_m": 0.005806,
+      "material": "bark"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.454164,
+          1.30057,
+          -0.13286
+        ],
+        [
+          0.601642,
+          1.646093,
+          -0.235879
+        ]
+      ],
+      "radius_m": 0.004182,
+      "material": "bark"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.300794,
+          0.575987,
+          0.016601
+        ],
+        [
+          0.632429,
+          0.776323,
+          0.042992
+        ]
+      ],
+      "radius_m": 0.004,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.632429,
+          0.776323,
+          0.042992
+        ],
+        [
+          0.881916,
+          0.959039,
+          0.195707
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.632429,
+          0.776323,
+          0.042992
+        ],
+        [
+          0.932775,
+          0.972308,
+          -0.114687
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.349307,
+          0.778368,
+          0.018763
+        ],
+        [
+          0.212887,
+          1.137317,
+          -0.512901
+        ]
+      ],
+      "radius_m": 0.004,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.212887,
+          1.137317,
+          -0.512901
+        ],
+        [
+          0.29575,
+          1.324658,
+          -0.722428
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.212887,
+          1.137317,
+          -0.512901
+        ],
+        [
+          0.01545,
+          1.403693,
+          -0.752436
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.400913,
+          0.966659,
+          0.021063
+        ],
+        [
+          0.096576,
+          1.486088,
+          -0.044452
+        ]
+      ],
+      "radius_m": 0.004,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.096576,
+          1.486088,
+          -0.044452
+        ],
+        [
+          -0.082993,
+          1.776384,
+          -0.180457
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.096576,
+          1.486088,
+          -0.044452
+        ],
+        [
+          -0.164478,
+          1.823465,
+          0.024227
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.474245,
+          1.20219,
+          0.024331
+        ],
+        [
+          0.42261,
+          1.468127,
+          -0.252038
+        ]
+      ],
+      "radius_m": 0.004,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.42261,
+          1.468127,
+          -0.252038
+        ],
+        [
+          0.474769,
+          1.603396,
+          -0.407823
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.42261,
+          1.468127,
+          -0.252038
+        ],
+        [
+          0.304,
+          1.667657,
+          -0.449007
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.534271,
+          1.375043,
+          0.027006
+        ],
+        [
+          0.265849,
+          1.554224,
+          -0.270772
+        ]
+      ],
+      "radius_m": 0.004,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.265849,
+          1.554224,
+          -0.270772
+        ],
+        [
+          0.204152,
+          1.65583,
+          -0.462361
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.265849,
+          1.554224,
+          -0.270772
+        ],
+        [
+          -0.229408,
+          1.65639,
+          -0.529154
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.107251,
+          0.591592,
+          0.280688
+        ],
+        [
+          0.054432,
+          0.838682,
+          0.659885
+        ]
+      ],
+      "radius_m": 0.002473,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.054432,
+          0.838682,
+          0.659885
+        ],
+        [
+          -0.055453,
+          0.957404,
+          0.857265
+        ]
+      ],
+      "radius_m": 0.001624,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.054432,
+          0.838682,
+          0.659885
+        ],
+        [
+          0.168586,
+          0.96128,
+          0.860988
+        ]
+      ],
+      "radius_m": 0.001624,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.091618,
+          0.784829,
+          0.343766
+        ],
+        [
+          -0.330213,
+          1.110183,
+          -0.071122
+        ]
+      ],
+      "radius_m": 0.002405,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.330213,
+          1.110183,
+          -0.071122
+        ],
+        [
+          -0.504408,
+          1.244647,
+          -0.53881
+        ]
+      ],
+      "radius_m": 0.0016,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.330213,
+          1.110183,
+          -0.071122
+        ],
+        [
+          -0.632318,
+          1.351865,
+          -0.204153
+        ]
+      ],
+      "radius_m": 0.0016,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.052614,
+          1.194636,
+          0.50114
+        ],
+        [
+          0.253276,
+          1.441502,
+          0.494564
+        ]
+      ],
+      "radius_m": 0.002333,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.253276,
+          1.441502,
+          0.494564
+        ],
+        [
+          0.363459,
+          1.589836,
+          0.543723
+        ]
+      ],
+      "radius_m": 0.001575,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.253276,
+          1.441502,
+          0.494564
+        ],
+        [
+          0.373121,
+          1.681012,
+          0.396439
+        ]
+      ],
+      "radius_m": 0.001575,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.032807,
+          1.376068,
+          0.581058
+        ],
+        [
+          0.171395,
+          1.429618,
+          0.672281
+        ]
+      ],
+      "radius_m": 0.002509,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.171395,
+          1.429618,
+          0.672281
+        ],
+        [
+          0.213942,
+          1.444313,
+          0.746381
+        ]
+      ],
+      "radius_m": 0.001637,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.171395,
+          1.429618,
+          0.672281
+        ],
+        [
+          0.317437,
+          1.510057,
+          0.663604
+        ]
+      ],
+      "radius_m": 0.001637,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.218995,
+          0.573576,
+          0.151595
+        ],
+        [
+          -0.242181,
+          1.184582,
+          0.286465
+        ]
+      ],
+      "radius_m": 0.003404,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.242181,
+          1.184582,
+          0.286465
+        ],
+        [
+          -0.526018,
+          1.640863,
+          0.206668
+        ]
+      ],
+      "radius_m": 0.001954,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.242181,
+          1.184582,
+          0.286465
+        ],
+        [
+          -0.429107,
+          1.466924,
+          0.461431
+        ]
+      ],
+      "radius_m": 0.001954,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.320991,
+          0.808319,
+          0.21876
+        ],
+        [
+          -0.230144,
+          1.076975,
+          0.082405
+        ]
+      ],
+      "radius_m": 0.002856,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.230144,
+          1.076975,
+          0.082405
+        ],
+        [
+          -0.762925,
+          1.26831,
+          -0.448885
+        ]
+      ],
+      "radius_m": 0.00176,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.230144,
+          1.076975,
+          0.082405
+        ],
+        [
+          -0.672385,
+          1.37844,
+          0.141158
+        ]
+      ],
+      "radius_m": 0.00176,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.422828,
+          1.02628,
+          0.285819
+        ],
+        [
+          0.698022,
+          1.150671,
+          0.233095
+        ]
+      ],
+      "radius_m": 0.002816,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.698022,
+          1.150671,
+          0.233095
+        ],
+        [
+          0.852392,
+          1.228465,
+          0.279453
+        ]
+      ],
+      "radius_m": 0.001745,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.698022,
+          1.150671,
+          0.233095
+        ],
+        [
+          0.847911,
+          1.206876,
+          0.137677
+        ]
+      ],
+      "radius_m": 0.001745,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.511533,
+          1.205156,
+          0.344232
+        ],
+        [
+          0.217418,
+          1.478645,
+          0.382957
+        ]
+      ],
+      "radius_m": 0.003029,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.217418,
+          1.478645,
+          0.382957
+        ],
+        [
+          -0.036977,
+          1.809227,
+          0.246327
+        ]
+      ],
+      "radius_m": 0.001821,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.217418,
+          1.478645,
+          0.382957
+        ],
+        [
+          0.001619,
+          1.662602,
+          0.569949
+        ]
+      ],
+      "radius_m": 0.001821,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.63003,
+          1.430805,
+          0.422262
+        ],
+        [
+          0.598584,
+          1.530514,
+          0.362128
+        ]
+      ],
+      "radius_m": 0.002659,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.598584,
+          1.530514,
+          0.362128
+        ],
+        [
+          0.599104,
+          1.57176,
+          0.325557
+        ]
+      ],
+      "radius_m": 0.00169,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.598584,
+          1.530514,
+          0.362128
+        ],
+        [
+          0.572523,
+          1.585952,
+          0.342084
+        ]
+      ],
+      "radius_m": 0.00169,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.176908,
+          0.638607,
+          0.08679
+        ],
+        [
+          -0.18678,
+          0.892136,
+          0.530612
+        ]
+      ],
+      "radius_m": 0.00225,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.18678,
+          0.892136,
+          0.530612
+        ],
+        [
+          -0.318161,
+          0.98291,
+          0.782565
+        ]
+      ],
+      "radius_m": 0.001545,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.18678,
+          0.892136,
+          0.530612
+        ],
+        [
+          0.087519,
+          1.266083,
+          0.880161
+        ]
+      ],
+      "radius_m": 0.001545,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.223435,
+          0.777215,
+          0.100182
+        ],
+        [
+          -0.6212,
+          0.908278,
+          -0.002881
+        ]
+      ],
+      "radius_m": 0.002389,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.6212,
+          0.908278,
+          -0.002881
+        ],
+        [
+          -0.880317,
+          1.06557,
+          -0.293604
+        ]
+      ],
+      "radius_m": 0.001595,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.6212,
+          0.908278,
+          -0.002881
+        ],
+        [
+          -0.930007,
+          0.978368,
+          0.087455
+        ]
+      ],
+      "radius_m": 0.001595,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.380364,
+          1.185339,
+          0.14535
+        ],
+        [
+          -0.345968,
+          1.359258,
+          -0.263429
+        ]
+      ],
+      "radius_m": 0.002591,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.345968,
+          1.359258,
+          -0.263429
+        ],
+        [
+          -0.1204,
+          1.552674,
+          -0.631574
+        ]
+      ],
+      "radius_m": 0.001666,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.345968,
+          1.359258,
+          -0.263429
+        ],
+        [
+          -0.511217,
+          1.462799,
+          -0.58622
+        ]
+      ],
+      "radius_m": 0.001666,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.465471,
+          1.379501,
+          0.169846
+        ],
+        [
+          -0.232078,
+          1.572458,
+          0.228876
+        ]
+      ],
+      "radius_m": 0.00225,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.232078,
+          1.572458,
+          0.228876
+        ],
+        [
+          -0.053425,
+          1.767862,
+          0.357234
+        ]
+      ],
+      "radius_m": 0.001545,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.232078,
+          1.572458,
+          0.228876
+        ],
+        [
+          0.00277,
+          1.773888,
+          0.135656
+        ]
+      ],
+      "radius_m": 0.001545,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.068335,
+          0.638792,
+          0.306898
+        ],
+        [
+          -0.426423,
+          0.991284,
+          0.152498
+        ]
+      ],
+      "radius_m": 0.002353,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.426423,
+          0.991284,
+          0.152498
+        ],
+        [
+          -0.687257,
+          1.51298,
+          -0.201439
+        ]
+      ],
+      "radius_m": 0.001582,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.426423,
+          0.991284,
+          0.152498
+        ],
+        [
+          -0.739401,
+          1.205477,
+          0.233735
+        ]
+      ],
+      "radius_m": 0.001582,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.074044,
+          0.762541,
+          0.34913
+        ],
+        [
+          0.244065,
+          0.922321,
+          0.640125
+        ]
+      ],
+      "radius_m": 0.002431,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.244065,
+          0.922321,
+          0.640125
+        ],
+        [
+          0.278672,
+          1.039274,
+          0.849039
+        ]
+      ],
+      "radius_m": 0.00161,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.244065,
+          0.922321,
+          0.640125
+        ],
+        [
+          0.606873,
+          0.995348,
+          0.695378
+        ]
+      ],
+      "radius_m": 0.00161,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.097186,
+          1.196265,
+          0.520333
+        ],
+        [
+          -0.045793,
+          1.292357,
+          0.674419
+        ]
+      ],
+      "radius_m": 0.00232,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.045793,
+          1.292357,
+          0.674419
+        ],
+        [
+          -0.050815,
+          1.387693,
+          0.81522
+        ]
+      ],
+      "radius_m": 0.00157,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.045793,
+          1.292357,
+          0.674419
+        ],
+        [
+          0.127191,
+          1.368689,
+          0.820304
+        ]
+      ],
+      "radius_m": 0.00157,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.107891,
+          1.371063,
+          0.599531
+        ],
+        [
+          0.06542,
+          1.555757,
+          0.557932
+        ]
+      ],
+      "radius_m": 0.00245,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.06542,
+          1.555757,
+          0.557932
+        ],
+        [
+          0.142301,
+          1.632376,
+          0.577756
+        ]
+      ],
+      "radius_m": 0.001616,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.06542,
+          1.555757,
+          0.557932
+        ],
+        [
+          0.237075,
+          1.704576,
+          0.423009
+        ]
+      ],
+      "radius_m": 0.001616,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.088545,
+          0.598306,
+          0.048866
+        ],
+        [
+          0.218351,
+          0.982695,
+          0.443965
+        ]
+      ],
+      "radius_m": 0.002278,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.218351,
+          0.982695,
+          0.443965
+        ],
+        [
+          0.216461,
+          1.354827,
+          0.804653
+        ]
+      ],
+      "radius_m": 0.001556,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.218351,
+          0.982695,
+          0.443965
+        ],
+        [
+          0.672923,
+          1.21545,
+          0.602559
+        ]
+      ],
+      "radius_m": 0.001556,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.086306,
+          0.800935,
+          0.052988
+        ],
+        [
+          0.038102,
+          1.269171,
+          -0.380506
+        ]
+      ],
+      "radius_m": 0.00242,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.038102,
+          1.269171,
+          -0.380506
+        ],
+        [
+          0.27898,
+          1.539034,
+          -0.557624
+        ]
+      ],
+      "radius_m": 0.001606,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.038102,
+          1.269171,
+          -0.380506
+        ],
+        [
+          -0.05926,
+          1.526485,
+          -0.634579
+        ]
+      ],
+      "radius_m": 0.001606,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.079883,
+          1.018913,
+          0.064809
+        ],
+        [
+          -0.550147,
+          1.235281,
+          0.122262
+        ]
+      ],
+      "radius_m": 0.002434,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.550147,
+          1.235281,
+          0.122262
+        ],
+        [
+          -0.819479,
+          1.393168,
+          -0.047584
+        ]
+      ],
+      "radius_m": 0.00161,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.550147,
+          1.235281,
+          0.122262
+        ],
+        [
+          -0.785566,
+          1.318952,
+          0.269238
+        ]
+      ],
+      "radius_m": 0.00161,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.070233,
+          1.22062,
+          0.082569
+        ],
+        [
+          0.310085,
+          1.461082,
+          -0.111355
+        ]
+      ],
+      "radius_m": 0.002259,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.310085,
+          1.461082,
+          -0.111355
+        ],
+        [
+          0.602914,
+          1.628553,
+          -0.111648
+        ]
+      ],
+      "radius_m": 0.001549,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.310085,
+          1.461082,
+          -0.111355
+        ],
+        [
+          0.442804,
+          1.54475,
+          -0.356967
+        ]
+      ],
+      "radius_m": 0.001549,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.056849,
+          1.424635,
+          0.107202
+        ],
+        [
+          -0.256077,
+          1.622297,
+          0.19495
+        ]
+      ],
+      "radius_m": 0.002385,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.256077,
+          1.622297,
+          0.19495
+        ],
+        [
+          -0.391761,
+          1.71579,
+          0.15753
+        ]
+      ],
+      "radius_m": 0.001593,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.256077,
+          1.622297,
+          0.19495
+        ],
+        [
+          -0.305822,
+          1.725265,
+          0.283267
+        ]
+      ],
+      "radius_m": 0.001593,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.231735,
+          0.570106,
+          -0.21952
+        ],
+        [
+          0.31426,
+          0.774736,
+          -0.204879
+        ]
+      ],
+      "radius_m": 0.003955,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.31426,
+          0.774736,
+          -0.204879
+        ],
+        [
+          0.91619,
+          1.009935,
+          0.194282
+        ]
+      ],
+      "radius_m": 0.002148,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.31426,
+          0.774736,
+          -0.204879
+        ],
+        [
+          0.737299,
+          0.886298,
+          -0.396541
+        ]
+      ],
+      "radius_m": 0.002148,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.258117,
+          0.760321,
+          -0.309246
+        ],
+        [
+          -0.50354,
+          1.046356,
+          -0.072334
+        ]
+      ],
+      "radius_m": 0.003964,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.50354,
+          1.046356,
+          -0.072334
+        ],
+        [
+          -0.771887,
+          1.294803,
+          -0.018039
+        ]
+      ],
+      "radius_m": 0.002152,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.50354,
+          1.046356,
+          -0.072334
+        ],
+        [
+          -0.681712,
+          1.380134,
+          0.371353
+        ]
+      ],
+      "radius_m": 0.002152,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.29116,
+          0.981858,
+          -0.421628
+        ],
+        [
+          -0.323581,
+          1.118927,
+          -0.664197
+        ]
+      ],
+      "radius_m": 0.003782,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.323581,
+          1.118927,
+          -0.664197
+        ],
+        [
+          -0.250871,
+          1.232289,
+          -0.799749
+        ]
+      ],
+      "radius_m": 0.002087,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.323581,
+          1.118927,
+          -0.664197
+        ],
+        [
+          -0.405868,
+          1.192233,
+          -0.767571
+        ]
+      ],
+      "radius_m": 0.002087,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.329716,
+          1.221525,
+          -0.552757
+        ],
+        [
+          -0.346827,
+          1.27764,
+          -0.666224
+        ]
+      ],
+      "radius_m": 0.003902,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.346827,
+          1.27764,
+          -0.666224
+        ],
+        [
+          -0.318813,
+          1.356366,
+          -0.782133
+        ]
+      ],
+      "radius_m": 0.00213,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.346827,
+          1.27764,
+          -0.666224
+        ],
+        [
+          -0.401089,
+          1.31816,
+          -0.723362
+        ]
+      ],
+      "radius_m": 0.00213,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.364011,
+          1.420885,
+          -0.669394
+        ],
+        [
+          -0.322325,
+          1.499775,
+          -0.645851
+        ]
+      ],
+      "radius_m": 0.004,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.322325,
+          1.499775,
+          -0.645851
+        ],
+        [
+          -0.293055,
+          1.588028,
+          -0.593244
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.322325,
+          1.499775,
+          -0.645851
+        ],
+        [
+          -0.295822,
+          1.544211,
+          -0.644777
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.164427,
+          0.590205,
+          -0.137199
+        ],
+        [
+          -0.372333,
+          1.08167,
+          0.125925
+        ]
+      ],
+      "radius_m": 0.004,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.372333,
+          1.08167,
+          0.125925
+        ],
+        [
+          -0.579749,
+          1.479191,
+          0.200284
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.372333,
+          1.08167,
+          0.125925
+        ],
+        [
+          -0.411711,
+          1.612334,
+          0.402793
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.18411,
+          0.826767,
+          -0.205206
+        ],
+        [
+          -0.584243,
+          1.024838,
+          -0.370792
+        ]
+      ],
+      "radius_m": 0.003998,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.584243,
+          1.024838,
+          -0.370792
+        ],
+        [
+          -0.728839,
+          1.085199,
+          -0.534734
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.584243,
+          1.024838,
+          -0.370792
+        ],
+        [
+          -0.863971,
+          1.132245,
+          -0.330791
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.199325,
+          0.991133,
+          -0.257773
+        ],
+        [
+          -0.47686,
+          1.200583,
+          -0.450832
+        ]
+      ],
+      "radius_m": 0.004,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.47686,
+          1.200583,
+          -0.450832
+        ],
+        [
+          -0.538103,
+          1.316915,
+          -0.591762
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.47686,
+          1.200583,
+          -0.450832
+        ],
+        [
+          -0.678914,
+          1.324894,
+          -0.450295
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.221673,
+          1.211228,
+          -0.334987
+        ],
+        [
+          -0.162029,
+          1.330054,
+          -0.576897
+        ]
+      ],
+      "radius_m": 0.004,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.162029,
+          1.330054,
+          -0.576897
+        ],
+        [
+          -0.017022,
+          1.44032,
+          -0.714813
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.162029,
+          1.330054,
+          -0.576897
+        ],
+        [
+          -0.218806,
+          1.432299,
+          -0.718857
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.245571,
+          1.425226,
+          -0.417555
+        ],
+        [
+          -0.241794,
+          1.493788,
+          -0.534565
+        ]
+      ],
+      "radius_m": 0.003744,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.241794,
+          1.493788,
+          -0.534565
+        ],
+        [
+          -0.174674,
+          1.585386,
+          -0.626917
+        ]
+      ],
+      "radius_m": 0.002074,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.241794,
+          1.493788,
+          -0.534565
+        ],
+        [
+          -0.274577,
+          1.564394,
+          -0.619118
+        ]
+      ],
+      "radius_m": 0.002074,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.266346,
+          1.597368,
+          -0.489334
+        ],
+        [
+          -0.244915,
+          1.699214,
+          -0.375615
+        ]
+      ],
+      "radius_m": 0.003742,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.244915,
+          1.699214,
+          -0.375615
+        ],
+        [
+          -0.263882,
+          1.747891,
+          -0.316466
+        ]
+      ],
+      "radius_m": 0.002073,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.244915,
+          1.699214,
+          -0.375615
+        ],
+        [
+          -0.213841,
+          1.752498,
+          -0.324036
+        ]
+      ],
+      "radius_m": 0.002073,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.039826,
+          0.626454,
+          -0.362358
+        ],
+        [
+          -0.003912,
+          0.805665,
+          -0.680392
+        ]
+      ],
+      "radius_m": 0.00225,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.003912,
+          0.805665,
+          -0.680392
+        ],
+        [
+          0.172925,
+          0.905043,
+          -0.882552
+        ]
+      ],
+      "radius_m": 0.001545,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.003912,
+          0.805665,
+          -0.680392
+        ],
+        [
+          -0.132483,
+          1.009614,
+          -0.923983
+        ]
+      ],
+      "radius_m": 0.001545,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.011245,
+          0.808773,
+          -0.441844
+        ],
+        [
+          -0.346349,
+          1.029457,
+          -0.489993
+        ]
+      ],
+      "radius_m": 0.002308,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.346349,
+          1.029457,
+          -0.489993
+        ],
+        [
+          -0.544901,
+          1.269683,
+          -0.681543
+        ]
+      ],
+      "radius_m": 0.001566,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.346349,
+          1.029457,
+          -0.489993
+        ],
+        [
+          -0.671132,
+          1.343657,
+          -0.395204
+        ]
+      ],
+      "radius_m": 0.001566,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.025696,
+          1.027503,
+          -0.544583
+        ],
+        [
+          -0.11982,
+          1.349289,
+          0.127335
+        ]
+      ],
+      "radius_m": 0.00225,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.11982,
+          1.349289,
+          0.127335
+        ],
+        [
+          -0.382604,
+          1.530769,
+          0.457106
+        ]
+      ],
+      "radius_m": 0.001545,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.11982,
+          1.349289,
+          0.127335
+        ],
+        [
+          0.101644,
+          1.51424,
+          0.636945
+        ]
+      ],
+      "radius_m": 0.001545,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.051918,
+          1.17325,
+          -0.61751
+        ],
+        [
+          0.178362,
+          1.574978,
+          -0.21178
+        ]
+      ],
+      "radius_m": 0.002635,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.178362,
+          1.574978,
+          -0.21178
+        ],
+        [
+          0.104368,
+          1.829015,
+          0.026438
+        ]
+      ],
+      "radius_m": 0.001682,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.178362,
+          1.574978,
+          -0.21178
+        ],
+        [
+          0.38009,
+          1.76456,
+          -0.029128
+        ]
+      ],
+      "radius_m": 0.001682,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.098695,
+          1.41726,
+          -0.747602
+        ],
+        [
+          0.085385,
+          1.427429,
+          -0.769975
+        ]
+      ],
+      "radius_m": 0.002172,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.001882,
+          0.625193,
+          -0.288388
+        ],
+        [
+          0.203324,
+          1.0108,
+          0.244845
+        ]
+      ],
+      "radius_m": 0.00225,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.203324,
+          1.0108,
+          0.244845
+        ],
+        [
+          0.052339,
+          1.258683,
+          0.781667
+        ]
+      ],
+      "radius_m": 0.001545,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.203324,
+          1.0108,
+          0.244845
+        ],
+        [
+          0.541524,
+          1.315748,
+          0.608117
+        ]
+      ],
+      "radius_m": 0.001545,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.022683,
+          0.790232,
+          -0.335464
+        ],
+        [
+          -0.392665,
+          1.270851,
+          -0.246085
+        ]
+      ],
+      "radius_m": 0.002412,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.392665,
+          1.270851,
+          -0.246085
+        ],
+        [
+          -0.618562,
+          1.552491,
+          -0.315611
+        ]
+      ],
+      "radius_m": 0.001603,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.392665,
+          1.270851,
+          -0.246085
+        ],
+        [
+          -0.605667,
+          1.580893,
+          -0.022073
+        ]
+      ],
+      "radius_m": 0.001603,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.100084,
+          1.230402,
+          -0.483795
+        ],
+        [
+          0.34454,
+          1.429226,
+          -0.504075
+        ]
+      ],
+      "radius_m": 0.002462,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.34454,
+          1.429226,
+          -0.504075
+        ],
+        [
+          0.516814,
+          1.533335,
+          -0.4561
+        ]
+      ],
+      "radius_m": 0.00162,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.34454,
+          1.429226,
+          -0.504075
+        ],
+        [
+          0.461635,
+          1.524625,
+          -0.560894
+        ]
+      ],
+      "radius_m": 0.00162,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.133895,
+          1.397031,
+          -0.548591
+        ],
+        [
+          0.341167,
+          1.499613,
+          -0.396918
+        ]
+      ],
+      "radius_m": 0.002435,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.341167,
+          1.499613,
+          -0.396918
+        ],
+        [
+          0.51666,
+          1.689509,
+          -0.122377
+        ]
+      ],
+      "radius_m": 0.001611,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.341167,
+          1.499613,
+          -0.396918
+        ],
+        [
+          0.609421,
+          1.552422,
+          -0.346117
+        ]
+      ],
+      "radius_m": 0.001611,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.082138,
+          0.610485,
+          -0.257692
+        ],
+        [
+          0.179683,
+          0.981772,
+          0.23008
+        ]
+      ],
+      "radius_m": 0.004,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.179683,
+          0.981772,
+          0.23008
+        ],
+        [
+          0.235956,
+          1.411096,
+          0.686947
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.179683,
+          0.981772,
+          0.23008
+        ],
+        [
+          0.586563,
+          1.345443,
+          0.512681
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.107111,
+          0.801774,
+          -0.299007
+        ],
+        [
+          -0.189658,
+          1.243497,
+          0.155826
+        ]
+      ],
+      "radius_m": 0.004,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.189658,
+          1.243497,
+          0.155826
+        ],
+        [
+          -0.370581,
+          1.634944,
+          0.421309
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.189658,
+          1.243497,
+          0.155826
+        ],
+        [
+          -0.057826,
+          1.616327,
+          0.466989
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.13914,
+          1.017689,
+          -0.351999
+        ],
+        [
+          0.148012,
+          1.332974,
+          -0.562094
+        ]
+      ],
+      "radius_m": 0.004,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.148012,
+          1.332974,
+          -0.562094
+        ],
+        [
+          0.296048,
+          1.510217,
+          -0.596737
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.148012,
+          1.332974,
+          -0.562094
+        ],
+        [
+          0.206715,
+          1.452509,
+          -0.756951
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.173735,
+          1.225044,
+          -0.409235
+        ],
+        [
+          -0.299891,
+          1.363672,
+          -0.599877
+        ]
+      ],
+      "radius_m": 0.003505,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.299891,
+          1.363672,
+          -0.599877
+        ],
+        [
+          -0.325795,
+          1.437338,
+          -0.714898
+        ]
+      ],
+      "radius_m": 0.001989,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.299891,
+          1.363672,
+          -0.599877
+        ],
+        [
+          -0.397871,
+          1.428052,
+          -0.66582
+        ]
+      ],
+      "radius_m": 0.001989,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.211736,
+          1.430585,
+          -0.472106
+        ],
+        [
+          -0.170426,
+          1.61871,
+          -0.247986
+        ]
+      ],
+      "radius_m": 0.004,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.170426,
+          1.61871,
+          -0.247986
+        ],
+        [
+          -0.30524,
+          1.792701,
+          0.033841
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.170426,
+          1.61871,
+          -0.247986
+        ],
+        [
+          -0.036475,
+          1.830519,
+          -0.077325
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.239696,
+          1.5704,
+          -0.518364
+        ],
+        [
+          -0.133366,
+          1.623689,
+          -0.554632
+        ]
+      ],
+      "radius_m": 0.00395,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.133366,
+          1.623689,
+          -0.554632
+        ],
+        [
+          0.007222,
+          1.685016,
+          -0.53677
+        ]
+      ],
+      "radius_m": 0.002147,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.133366,
+          1.623689,
+          -0.554632
+        ],
+        [
+          -0.10363,
+          1.641275,
+          -0.590043
+        ]
+      ],
+      "radius_m": 0.002147,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.114035,
+          0.616103,
+          -0.214807
+        ],
+        [
+          0.392402,
+          0.795994,
+          -0.538064
+        ]
+      ],
+      "radius_m": 0.003006,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.392402,
+          0.795994,
+          -0.538064
+        ],
+        [
+          0.635632,
+          0.858448,
+          -0.643524
+        ]
+      ],
+      "radius_m": 0.001813,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.392402,
+          0.795994,
+          -0.538064
+        ],
+        [
+          0.437767,
+          0.847496,
+          -0.787411
+        ]
+      ],
+      "radius_m": 0.001813,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.115018,
+          0.805992,
+          -0.216163
+        ],
+        [
+          -0.323089,
+          1.108131,
+          0.24271
+        ]
+      ],
+      "radius_m": 0.003569,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.323089,
+          1.108131,
+          0.24271
+        ],
+        [
+          -0.761174,
+          1.278139,
+          0.40262
+        ]
+      ],
+      "radius_m": 0.002012,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.323089,
+          1.108131,
+          0.24271
+        ],
+        [
+          -0.44942,
+          1.370854,
+          0.651623
+        ]
+      ],
+      "radius_m": 0.002012,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.112074,
+          1.00209,
+          -0.2121
+        ],
+        [
+          -0.369933,
+          1.202372,
+          -0.133021
+        ]
+      ],
+      "radius_m": 0.003447,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.369933,
+          1.202372,
+          -0.133021
+        ],
+        [
+          -0.699588,
+          1.263478,
+          -0.235283
+        ]
+      ],
+      "radius_m": 0.001969,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.369933,
+          1.202372,
+          -0.133021
+        ],
+        [
+          -0.639369,
+          1.421612,
+          0.084472
+        ]
+      ],
+      "radius_m": 0.001969,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.103224,
+          1.23758,
+          -0.199884
+        ],
+        [
+          0.399032,
+          1.435185,
+          0.190377
+        ]
+      ],
+      "radius_m": 0.003774,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.399032,
+          1.435185,
+          0.190377
+        ],
+        [
+          0.406591,
+          1.514066,
+          0.572291
+        ]
+      ],
+      "radius_m": 0.002084,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.399032,
+          1.435185,
+          0.190377
+        ],
+        [
+          0.570216,
+          1.558138,
+          0.257211
+        ]
+      ],
+      "radius_m": 0.002084,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.092641,
+          1.416233,
+          -0.185276
+        ],
+        [
+          0.310996,
+          1.624424,
+          -0.055307
+        ]
+      ],
+      "radius_m": 0.003047,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.310996,
+          1.624424,
+          -0.055307
+        ],
+        [
+          0.383965,
+          1.748685,
+          0.091894
+        ]
+      ],
+      "radius_m": 0.001827,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.310996,
+          1.624424,
+          -0.055307
+        ],
+        [
+          0.440895,
+          1.734859,
+          -0.075494
+        ]
+      ],
+      "radius_m": 0.001827,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.121341,
+          0.567938,
+          -0.156473
+        ],
+        [
+          0.388421,
+          0.858226,
+          -0.36581
+        ]
+      ],
+      "radius_m": 0.004,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.388421,
+          0.858226,
+          -0.36581
+        ],
+        [
+          0.743256,
+          1.201216,
+          -0.446787
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.388421,
+          0.858226,
+          -0.36581
+        ],
+        [
+          0.549685,
+          1.041588,
+          -0.641331
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.126686,
+          0.811459,
+          -0.178557
+        ],
+        [
+          -0.303849,
+          1.007349,
+          -0.259596
+        ]
+      ],
+      "radius_m": 0.003969,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.303849,
+          1.007349,
+          -0.259596
+        ],
+        [
+          -0.618025,
+          1.261609,
+          -0.505253
+        ]
+      ],
+      "radius_m": 0.002153,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.303849,
+          1.007349,
+          -0.259596
+        ],
+        [
+          -0.773952,
+          1.329288,
+          -0.1335
+        ]
+      ],
+      "radius_m": 0.002153,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.13342,
+          1.029239,
+          -0.206374
+        ],
+        [
+          0.194783,
+          1.395467,
+          0.225216
+        ]
+      ],
+      "radius_m": 0.003961,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.194783,
+          1.395467,
+          0.225216
+        ],
+        [
+          0.106764,
+          1.652279,
+          0.434632
+        ]
+      ],
+      "radius_m": 0.00215,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.194783,
+          1.395467,
+          0.225216
+        ],
+        [
+          0.319577,
+          1.588133,
+          0.360889
+        ]
+      ],
+      "radius_m": 0.00215,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.139183,
+          1.180525,
+          -0.230183
+        ],
+        [
+          -0.269183,
+          1.40173,
+          -0.369064
+        ]
+      ],
+      "radius_m": 0.004,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.269183,
+          1.40173,
+          -0.369064
+        ],
+        [
+          -0.432662,
+          1.527884,
+          -0.557578
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.269183,
+          1.40173,
+          -0.369064
+        ],
+        [
+          -0.540023,
+          1.596161,
+          -0.276486
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.147328,
+          1.36321,
+          -0.263833
+        ],
+        [
+          0.265221,
+          1.552292,
+          -0.061712
+        ]
+      ],
+      "radius_m": 0.004,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.265221,
+          1.552292,
+          -0.061712
+        ],
+        [
+          0.2836,
+          1.782291,
+          0.184628
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.265221,
+          1.552292,
+          -0.061712
+        ],
+        [
+          0.417458,
+          1.682741,
+          0.054451
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.160957,
+          1.619749,
+          -0.320135
+        ],
+        [
+          0.115657,
+          1.741508,
+          -0.168819
+        ]
+      ],
+      "radius_m": 0.004,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.115657,
+          1.741508,
+          -0.168819
+        ],
+        [
+          0.034843,
+          1.827509,
+          -0.095269
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.115657,
+          1.741508,
+          -0.168819
+        ],
+        [
+          0.141168,
+          1.821487,
+          -0.097588
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.246482,
+          0.639562,
+          0.018338
+        ],
+        [
+          0.272068,
+          0.90141,
+          0.467025
+        ]
+      ],
+      "radius_m": 0.003276,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.272068,
+          0.90141,
+          0.467025
+        ],
+        [
+          0.128168,
+          1.188183,
+          0.778753
+        ]
+      ],
+      "radius_m": 0.001908,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.272068,
+          0.90141,
+          0.467025
+        ],
+        [
+          0.435851,
+          1.124547,
+          0.687099
+        ]
+      ],
+      "radius_m": 0.001908,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.262457,
+          0.827707,
+          0.049759
+        ],
+        [
+          0.623346,
+          1.107446,
+          -0.102757
+        ]
+      ],
+      "radius_m": 0.003147,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.623346,
+          1.107446,
+          -0.102757
+        ],
+        [
+          0.845153,
+          1.300403,
+          -0.085133
+        ]
+      ],
+      "radius_m": 0.001862,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.623346,
+          1.107446,
+          -0.102757
+        ],
+        [
+          0.808285,
+          1.303659,
+          -0.320371
+        ]
+      ],
+      "radius_m": 0.001862,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.27826,
+          0.98836,
+          0.08084
+        ],
+        [
+          0.509242,
+          1.230186,
+          0.078028
+        ]
+      ],
+      "radius_m": 0.003387,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.509242,
+          1.230186,
+          0.078028
+        ],
+        [
+          0.690248,
+          1.489971,
+          0.160544
+        ]
+      ],
+      "radius_m": 0.001948,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.509242,
+          1.230186,
+          0.078028
+        ],
+        [
+          0.705081,
+          1.537956,
+          -0.019361
+        ]
+      ],
+      "radius_m": 0.001948,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.302252,
+          1.201103,
+          0.128028
+        ],
+        [
+          0.223191,
+          1.363759,
+          0.450532
+        ]
+      ],
+      "radius_m": 0.002832,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.223191,
+          1.363759,
+          0.450532
+        ],
+        [
+          -0.023717,
+          1.520683,
+          0.6628
+        ]
+      ],
+      "radius_m": 0.001751,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.223191,
+          1.363759,
+          0.450532
+        ],
+        [
+          0.275078,
+          1.50493,
+          0.630851
+        ]
+      ],
+      "radius_m": 0.001751,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.323425,
+          1.36731,
+          0.169673
+        ],
+        [
+          0.233082,
+          1.517524,
+          -0.18348
+        ]
+      ],
+      "radius_m": 0.00299,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.233082,
+          1.517524,
+          -0.18348
+        ],
+        [
+          0.271052,
+          1.615909,
+          -0.534542
+        ]
+      ],
+      "radius_m": 0.001807,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.233082,
+          1.517524,
+          -0.18348
+        ],
+        [
+          -0.110007,
+          1.67033,
+          -0.438345
+        ]
+      ],
+      "radius_m": 0.001807,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.360736,
+          1.626749,
+          0.243059
+        ],
+        [
+          0.298043,
+          1.742575,
+          0.096678
+        ]
+      ],
+      "radius_m": 0.003004,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.298043,
+          1.742575,
+          0.096678
+        ],
+        [
+          0.306739,
+          1.790503,
+          0.033256
+        ]
+      ],
+      "radius_m": 0.001812,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.298043,
+          1.742575,
+          0.096678
+        ],
+        [
+          0.240333,
+          1.809026,
+          0.066132
+        ]
+      ],
+      "radius_m": 0.001812,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.174357,
+          0.81441,
+          -0.143658
+        ],
+        [
+          0.465578,
+          1.000773,
+          0.342794
+        ]
+      ],
+      "radius_m": 0.004,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.465578,
+          1.000773,
+          0.342794
+        ],
+        [
+          0.444456,
+          1.052092,
+          0.802828
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.465578,
+          1.000773,
+          0.342794
+        ],
+        [
+          0.764202,
+          1.073832,
+          0.486631
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.303761,
+          1.048439,
+          -0.078724
+        ],
+        [
+          -0.086633,
+          1.270492,
+          -0.281934
+        ]
+      ],
+      "radius_m": 0.004,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.086633,
+          1.270492,
+          -0.281934
+        ],
+        [
+          -0.313296,
+          1.561225,
+          -0.608369
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.086633,
+          1.270492,
+          -0.281934
+        ],
+        [
+          -0.531677,
+          1.474511,
+          -0.25926
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.430354,
+          1.255398,
+          -0.0152
+        ],
+        [
+          0.580404,
+          1.405837,
+          -0.223285
+        ]
+      ],
+      "radius_m": 0.004,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.580404,
+          1.405837,
+          -0.223285
+        ],
+        [
+          0.695167,
+          1.458445,
+          -0.272731
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.580404,
+          1.405837,
+          -0.223285
+        ],
+        [
+          0.610242,
+          1.515492,
+          -0.410545
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.563361,
+          1.45515,
+          0.051542
+        ],
+        [
+          0.647987,
+          1.494455,
+          0.172487
+        ]
+      ],
+      "radius_m": 0.004,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.647987,
+          1.494455,
+          0.172487
+        ],
+        [
+          0.665911,
+          1.525232,
+          0.278123
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.647987,
+          1.494455,
+          0.172487
+        ],
+        [
+          0.703742,
+          1.520735,
+          0.192585
+        ]
+      ],
+      "radius_m": 0.002164,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.276759,
+          0.746331,
+          -0.008936
+        ],
+        [
+          0.591198,
+          0.909921,
+          0.00987
+        ]
+      ],
+      "radius_m": 0.002743,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.591198,
+          0.909921,
+          0.00987
+        ],
+        [
+          0.865898,
+          1.037538,
+          0.179518
+        ]
+      ],
+      "radius_m": 0.00172,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.591198,
+          0.909921,
+          0.00987
+        ],
+        [
+          0.915399,
+          1.035177,
+          -0.12058
+        ]
+      ],
+      "radius_m": 0.00172,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.320735,
+          0.907169,
+          -0.039655
+        ],
+        [
+          0.481866,
+          1.066817,
+          -0.320227
+        ]
+      ],
+      "radius_m": 0.003076,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.481866,
+          1.066817,
+          -0.320227
+        ],
+        [
+          0.748122,
+          1.240262,
+          -0.430696
+        ]
+      ],
+      "radius_m": 0.001838,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.481866,
+          1.066817,
+          -0.320227
+        ],
+        [
+          0.534132,
+          1.203712,
+          -0.66158
+        ]
+      ],
+      "radius_m": 0.001838,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.388749,
+          1.12113,
+          -0.087165
+        ],
+        [
+          0.374559,
+          1.297812,
+          0.309874
+        ]
+      ],
+      "radius_m": 0.002874,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.374559,
+          1.297812,
+          0.309874
+        ],
+        [
+          0.09773,
+          1.48195,
+          0.754247
+        ]
+      ],
+      "radius_m": 0.001766,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.374559,
+          1.297812,
+          0.309874
+        ],
+        [
+          0.500445,
+          1.408448,
+          0.642048
+        ]
+      ],
+      "radius_m": 0.001766,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.458834,
+          1.312631,
+          -0.136122
+        ],
+        [
+          0.617122,
+          1.432117,
+          0.000593
+        ]
+      ],
+      "radius_m": 0.002994,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.617122,
+          1.432117,
+          0.000593
+        ],
+        [
+          0.698179,
+          1.50948,
+          0.177168
+        ]
+      ],
+      "radius_m": 0.001809,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.617122,
+          1.432117,
+          0.000593
+        ],
+        [
+          0.747802,
+          1.501024,
+          0.007743
+        ]
+      ],
+      "radius_m": 0.001809,
+      "material": "twig"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.523422,
+          1.471129,
+          -0.18124
+        ],
+        [
+          0.543774,
+          1.516126,
+          -0.277268
+        ]
+      ],
+      "radius_m": 0.0035,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.543774,
+          1.516126,
+          -0.277268
+        ],
+        [
+          0.580416,
+          1.550522,
+          -0.326867
+        ]
+      ],
+      "radius_m": 0.001987,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.543774,
+          1.516126,
+          -0.277268
+        ],
+        [
+          0.508305,
+          1.587238,
+          -0.410988
+        ]
+      ],
+      "radius_m": 0.001987,
+      "material": "twig"
+    }
+  ]
+}

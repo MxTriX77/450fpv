@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "shader": "Universal Render Pipeline/Lit",
+  "paint": { "pods": 2, "size_px": [128, 256], "colour": "#5c3d28" },
+  "tile_size_m": [1.0, 1.0],
+  "tint": [1.0, 1.0, 1.0, 1.0],
+  "smoothness": 0.2,
+  "alpha_clip": 0.5,
+  "two_sided": true
+}

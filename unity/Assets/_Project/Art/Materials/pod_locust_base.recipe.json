@@ -1,0 +1,19 @@
+{
+  "material": "pod_locust",
+  "formula": "pods side by side from one stalk at the top, each a flat strip of rounded ends with its seeds' bulges, the rim at 0.7 of the colour; 4x supersampled, alpha clear outside; 8-bit sRGB RGBA; every texel the alpha_clip clips takes the kept texels' mean colour in linear light",
+  "paint": {
+    "pods": 2,
+    "size_px": [
+      128,
+      256
+    ],
+    "colour": "#5c3d28"
+  },
+  "alpha_clip": 0.5,
+  "sources": {},
+  "inputs_sha256": "ad15449de692b778960a09c1b5283f39b8c7e72c12b98e3998d855a7b2239572",
+  "size": [
+    128,
+    256
+  ]
+}

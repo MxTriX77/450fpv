@@ -4,15 +4,23 @@ import math
 
 class Mesh:
     """One LOD: vertices, polygon faces with an outward normal, per-corner UVs in metres and a material slot per
-    face. Winding is not the generator's business: lib.export orients every face by its outward normal.
+    face. Winding is not the generator's business: lib.export orients every face by its outward normal. The faces
+    of a slot in `smooth` are shaded smooth: a corner takes the mean normal of the faces that share its vertex, so a
+    tube of few sides shades as the round wood it stands for (p1-v01-locust task 1.2g); every other face is flat. A
+    face given `normals` (one unit vector per corner, kept in `corner_normals` by face index) is shaded with those
+    instead: a far card lit with the normals of the crown it stands for, not its plane's (p1-v01-locust task 1.2j).
 
     A vertex may carry a unit normal and a second UV (p1-l01-l03-pole-wires: a wire tube's radial normal and its
     radius, which the thin-wire shader reads). A face whose every vertex carries a normal is smooth-shaded with them;
-    every other face stays flat. The second UV map is exported only when some vertex carries one, (0, 0) elsewhere."""
+    every other face stays flat. The second UV map is exported only when some vertex carries one, (0, 0) elsewhere.
+    A mesh takes its normals per vertex or per face corner, not both, and per-vertex normals without smooth slots
+    (lib.export refuses either mix: the vertices' would replace the others)."""
 
     def __init__(self):
         self.vertices = []
         self.faces = []  # (indices, outward normal, uvs, slot)
+        self.smooth = set()  # slots shaded smooth
+        self.corner_normals = {}  # face index -> the corners' own shading normals
         self.normals = {}  # vertex index -> unit normal
         self.uv2 = {}  # vertex index -> second UV
 
@@ -26,14 +34,18 @@ class Mesh:
             self.uv2[index] = tuple(float(c) for c in uv2)
         return index
 
-    def face(self, indices, outward, slot, uvs=None):
+    def face(self, indices, outward, slot, uvs=None, normals=None):
         """A convex or concave polygon given in cyclic order (see `ring` for convex ones), with its outward normal.
-        Without `uvs`, every corner gets uv_upright."""
+        Without `uvs`, every corner gets uv_upright; with `normals`, the corners are shaded with them."""
         indices = [int(i) for i in indices]
         if len(indices) < 3 or len(set(indices)) != len(indices):
             raise ValueError(f"a face needs at least 3 distinct vertices, got {indices}")
         if uvs is None:
             uvs = [uv_upright(self.vertices[i], outward) for i in indices]
+        if normals is not None:
+            if len(normals) != len(indices):
+                raise ValueError(f"a face of {len(indices)} corners needs as many normals, got {len(normals)}")
+            self.corner_normals[len(self.faces)] = [_normalize(n) for n in normals]
         self.faces.append((indices, tuple(float(c) for c in outward), [tuple(uv) for uv in uvs], slot))
 
     def bounds(self):

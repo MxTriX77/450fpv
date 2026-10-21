@@ -1370,7 +1370,7 @@ MonoBehaviour:
     m_Extent: {x: 2.5630164, y: 0.6922885, z: 1.888557}
   lods:
   - mesh: R01_F_LOD0
-    tris: 40078
+    tris: 41102
     switchDistanceM: 0
     thinWire: 0
   - mesh: R01_F_LOD1
@@ -1403,15 +1403,9 @@ MonoBehaviour:
     tris: 193
   cullDistanceM: 1500
   materials:
-  - slot: bare
-    visual: car_bare
-    physics: sheet_metal
   - slot: chrome_dull
     visual: chrome_burnt
     physics: steel
-  - slot: glass
-    visual: car_glass
-    physics: glass
   - slot: rack
     visual: car_soot
     physics: steel
@@ -2616,12 +2610,12 @@ MonoBehaviour:
     center: {x: -0.4465, y: 1.37, z: 0}
     size: {x: 0, y: 0, z: 0}
     radius: 0.01
-    height: 1.02
+    height: 1.22
     rotation: {x: 0.707107, y: 0, z: 0, w: 0.707107}
     material: steel
     landable: 0
   - kind: 2
-    center: {x: 0.2035, y: 1.37, z: 0.5}
+    center: {x: 0.2035, y: 1.37, z: 0.6}
     size: {x: 0, y: 0, z: 0}
     radius: 0.01
     height: 1.32
@@ -2632,12 +2626,12 @@ MonoBehaviour:
     center: {x: 0.8535, y: 1.37, z: 0}
     size: {x: 0, y: 0, z: 0}
     radius: 0.01
-    height: 1.02
+    height: 1.22
     rotation: {x: -0.707107, y: 0, z: 0, w: 0.707107}
     material: steel
     landable: 0
   - kind: 2
-    center: {x: 0.2035, y: 1.37, z: -0.5}
+    center: {x: 0.2035, y: 1.37, z: -0.6}
     size: {x: 0, y: 0, z: 0}
     radius: 0.01
     height: 1.32
@@ -2645,35 +2639,35 @@ MonoBehaviour:
     material: steel
     landable: 1
   - kind: 2
-    center: {x: -0.3865, y: 1.2835, z: -0.575746}
+    center: {x: -0.3865, y: 1.2835, z: -0.625746}
     size: {x: 0, y: 0, z: 0}
     radius: 0.01
-    height: 0.249955
-    rotation: {x: 0.351907, y: 0, z: 0, w: 0.936035}
+    height: 0.200501
+    rotation: {x: 0.144144, y: 0, z: 0, w: 0.989557}
     material: steel
     landable: 0
   - kind: 2
-    center: {x: -0.3865, y: 1.2835, z: 0.575746}
+    center: {x: -0.3865, y: 1.2835, z: 0.625746}
     size: {x: 0, y: 0, z: 0}
     radius: 0.01
-    height: 0.249955
-    rotation: {x: -0.351907, y: 0, z: 0, w: 0.936035}
+    height: 0.200501
+    rotation: {x: -0.144144, y: 0, z: 0, w: 0.989557}
     material: steel
     landable: 0
   - kind: 2
-    center: {x: 0.7935, y: 1.27005, z: -0.575479}
+    center: {x: 0.7935, y: 1.27005, z: -0.625479}
     size: {x: 0, y: 0, z: 0}
     radius: 0.01
-    height: 0.270496
-    rotation: {x: 0.317793, y: 0, z: 0, w: 0.94816}
+    height: 0.226293
+    rotation: {x: 0.124478, y: 0, z: 0, w: 0.992222}
     material: steel
     landable: 0
   - kind: 2
-    center: {x: 0.7935, y: 1.27005, z: 0.575479}
+    center: {x: 0.7935, y: 1.27005, z: 0.625479}
     size: {x: 0, y: 0, z: 0}
     radius: 0.01
-    height: 0.270496
-    rotation: {x: -0.317793, y: 0, z: 0, w: 0.94816}
+    height: 0.226293
+    rotation: {x: -0.124478, y: 0, z: 0, w: 0.992222}
     material: steel
     landable: 0
   - kind: 3
@@ -3242,43 +3236,43 @@ MonoBehaviour:
   snag:
   - kind: edge
     points:
-    - {x: -0.4465, y: 1.37, z: -0.5}
-    - {x: -0.4465, y: 1.37, z: 0.5}
+    - {x: -0.4465, y: 1.37, z: -0.6}
+    - {x: -0.4465, y: 1.37, z: 0.6}
     radiusM: 0.01
   - kind: edge
     points:
-    - {x: -0.4465, y: 1.37, z: 0.5}
-    - {x: 0.8535, y: 1.37, z: 0.5}
+    - {x: -0.4465, y: 1.37, z: 0.6}
+    - {x: 0.8535, y: 1.37, z: 0.6}
     radiusM: 0.01
   - kind: edge
     points:
-    - {x: 0.8535, y: 1.37, z: 0.5}
-    - {x: 0.8535, y: 1.37, z: -0.5}
+    - {x: 0.8535, y: 1.37, z: 0.6}
+    - {x: 0.8535, y: 1.37, z: -0.6}
     radiusM: 0.01
   - kind: edge
     points:
-    - {x: 0.8535, y: 1.37, z: -0.5}
-    - {x: -0.4465, y: 1.37, z: -0.5}
+    - {x: 0.8535, y: 1.37, z: -0.6}
+    - {x: -0.4465, y: 1.37, z: -0.6}
     radiusM: 0.01
   - kind: edge
     points:
     - {x: -0.3865, y: 1.197, z: -0.651493}
-    - {x: -0.3865, y: 1.37, z: -0.5}
+    - {x: -0.3865, y: 1.37, z: -0.6}
     radiusM: 0.01
   - kind: edge
     points:
     - {x: -0.3865, y: 1.197, z: 0.651493}
-    - {x: -0.3865, y: 1.37, z: 0.5}
+    - {x: -0.3865, y: 1.37, z: 0.6}
     radiusM: 0.01
   - kind: edge
     points:
     - {x: 0.7935, y: 1.1701, z: -0.650958}
-    - {x: 0.7935, y: 1.37, z: -0.5}
+    - {x: 0.7935, y: 1.37, z: -0.6}
     radiusM: 0.01
   - kind: edge
     points:
     - {x: 0.7935, y: 1.1701, z: 0.650958}
-    - {x: 0.7935, y: 1.37, z: 0.5}
+    - {x: 0.7935, y: 1.37, z: 0.6}
     radiusM: 0.01
   - kind: edge
     points:
@@ -4757,28 +4751,28 @@ LODGroup:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 927482485762129770}
   serializedVersion: 2
-  m_LocalReferencePoint: {x: -0.52651656, y: 0.6877115, z: -0.06338799}
-  m_Size: 5.126033
+  m_LocalReferencePoint: {x: 0, y: 0.69, z: 0}
+  m_Size: 4.063
   m_FadeMode: 0
   m_AnimateCrossFading: 0
   m_LastLODIsBillboard: 0
   m_LODs:
-  - screenRelativeHeight: 0.22196373
+  - screenRelativeHeight: 0.17593308
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 1275862966904095076}
     - renderer: {fileID: 8064687718056661902}
-  - screenRelativeHeight: 0.055490933
+  - screenRelativeHeight: 0.04398327
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 8293305533395704062}
     - renderer: {fileID: 4300935391070139868}
-  - screenRelativeHeight: 0.014797582
+  - screenRelativeHeight: 0.011728872
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 745916412869827096}
     - renderer: {fileID: 446846698129966091}
-  - screenRelativeHeight: 0.0029595166
+  - screenRelativeHeight: 0.0023457743
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 3756709509472896154}
@@ -7286,8 +7280,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2745900479115488275}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.31779304, y: 0, z: 0, w: 0.9481601}
-  m_LocalPosition: {x: 0.7935, y: 1.27005, z: -0.575479}
+  m_LocalRotation: {x: 0.12447804, y: 0, z: 0, w: 0.99222237}
+  m_LocalPosition: {x: 0.7935, y: 1.27005, z: -0.625479}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -7313,7 +7307,7 @@ CapsuleCollider:
   m_Enabled: 1
   serializedVersion: 2
   m_Radius: 0.01
-  m_Height: 0.270496
+  m_Height: 0.226293
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &2764071927098759364
@@ -8460,9 +8454,7 @@ MeshRenderer:
   m_Materials:
   - {fileID: 2100000, guid: 491afbf90749c184d855dac988cee984, type: 2}
   - {fileID: 2100000, guid: c78ada16cdb7bde4c9ced921b1de671b, type: 2}
-  - {fileID: 2100000, guid: 7aac1a1a03d1c2841b3939a36b1dfb3f, type: 2}
   - {fileID: 2100000, guid: 85ef2c007a9ddfb4e8ed64e3e2505199, type: 2}
-  - {fileID: 2100000, guid: c78ada16cdb7bde4c9ced921b1de671b, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -9545,7 +9537,7 @@ CapsuleCollider:
   m_Enabled: 1
   serializedVersion: 2
   m_Radius: 0.01
-  m_Height: 1.02
+  m_Height: 1.22
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &4101270561655152186
@@ -9733,8 +9725,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4126317885503933937}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.31779304, y: 0, z: 0, w: 0.9481601}
-  m_LocalPosition: {x: 0.7935, y: 1.27005, z: 0.575479}
+  m_LocalRotation: {x: -0.12447804, y: 0, z: 0, w: 0.99222237}
+  m_LocalPosition: {x: 0.7935, y: 1.27005, z: 0.625479}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -9760,7 +9752,7 @@ CapsuleCollider:
   m_Enabled: 1
   serializedVersion: 2
   m_Radius: 0.01
-  m_Height: 0.270496
+  m_Height: 0.226293
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &4200182167496799731
@@ -9844,7 +9836,7 @@ Transform:
   m_GameObject: {fileID: 4227888202832888067}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0.7071068, w: 0.7071068}
-  m_LocalPosition: {x: 0.2035, y: 1.37, z: -0.5}
+  m_LocalPosition: {x: 0.2035, y: 1.37, z: -0.6}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -10207,7 +10199,6 @@ MeshRenderer:
   - {fileID: 2100000, guid: 85ef2c007a9ddfb4e8ed64e3e2505199, type: 2}
   - {fileID: 2100000, guid: 491afbf90749c184d855dac988cee984, type: 2}
   - {fileID: 2100000, guid: c78ada16cdb7bde4c9ced921b1de671b, type: 2}
-  - {fileID: 2100000, guid: 7aac1a1a03d1c2841b3939a36b1dfb3f, type: 2}
   - {fileID: 2100000, guid: c78ada16cdb7bde4c9ced921b1de671b, type: 2}
   - {fileID: 2100000, guid: 5c34d4efcb66f604d8781276547cfa1b, type: 2}
   m_StaticBatchInfo:
@@ -11370,8 +11361,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5167910250841690145}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.351907, y: 0, z: 0, w: 0.936035}
-  m_LocalPosition: {x: -0.3865, y: 1.2835, z: 0.575746}
+  m_LocalRotation: {x: -0.14414397, y: 0, z: 0, w: 0.9895568}
+  m_LocalPosition: {x: -0.3865, y: 1.2835, z: 0.625746}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -11397,7 +11388,7 @@ CapsuleCollider:
   m_Enabled: 1
   serializedVersion: 2
   m_Radius: 0.01
-  m_Height: 0.249955
+  m_Height: 0.200501
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &5190913440329427681
@@ -11644,7 +11635,7 @@ Transform:
   m_GameObject: {fileID: 5315655924891490909}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: -0.7071068, w: 0.7071068}
-  m_LocalPosition: {x: 0.2035, y: 1.37, z: 0.5}
+  m_LocalPosition: {x: 0.2035, y: 1.37, z: 0.6}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -13854,7 +13845,7 @@ CapsuleCollider:
   m_Enabled: 1
   serializedVersion: 2
   m_Radius: 0.01
-  m_Height: 1.02
+  m_Height: 1.22
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &6848124749747640572
@@ -15165,7 +15156,7 @@ MeshRenderer:
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: 491afbf90749c184d855dac988cee984, type: 2}
-  - {fileID: 2100000, guid: fc0e041e20aa7b64a8c7b8b287723cfc, type: 2}
+  - {fileID: 2100000, guid: c78ada16cdb7bde4c9ced921b1de671b, type: 2}
   - {fileID: 2100000, guid: c78ada16cdb7bde4c9ced921b1de671b, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
@@ -15799,7 +15790,6 @@ MeshRenderer:
   - {fileID: 2100000, guid: 491afbf90749c184d855dac988cee984, type: 2}
   - {fileID: 2100000, guid: c78ada16cdb7bde4c9ced921b1de671b, type: 2}
   - {fileID: 2100000, guid: 85ef2c007a9ddfb4e8ed64e3e2505199, type: 2}
-  - {fileID: 2100000, guid: 7aac1a1a03d1c2841b3939a36b1dfb3f, type: 2}
   - {fileID: 2100000, guid: c78ada16cdb7bde4c9ced921b1de671b, type: 2}
   - {fileID: 2100000, guid: 5c34d4efcb66f604d8781276547cfa1b, type: 2}
   m_StaticBatchInfo:
@@ -16335,8 +16325,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 9157516918124768559}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.351907, y: 0, z: 0, w: 0.936035}
-  m_LocalPosition: {x: -0.3865, y: 1.2835, z: -0.575746}
+  m_LocalRotation: {x: 0.14414397, y: 0, z: 0, w: 0.9895568}
+  m_LocalPosition: {x: -0.3865, y: 1.2835, z: -0.625746}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -16362,7 +16352,7 @@ CapsuleCollider:
   m_Enabled: 1
   serializedVersion: 2
   m_Radius: 0.01
-  m_Height: 0.249955
+  m_Height: 0.200501
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &9162465927093909403

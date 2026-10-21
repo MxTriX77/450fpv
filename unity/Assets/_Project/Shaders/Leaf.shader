@@ -1,10 +1,11 @@
 // A two-sided, alpha-clipped leaf card (p1-v13-shrub, design decision 6): URP/Lit's surface and lighting, read from
 // the same properties URP/Lit uses (base map with alpha, normal map, the packed mask: metallic R, occlusion G,
-// smoothness A), clipped at _Cutoff, no face culled. A back face is the other side of the leaf, so it is lit with
-// its own normal: URP/Lit with cull off lights it with the front's, which faces away from the viewer and turns the
-// leaf a pale sky sheen. Each pass includes URP's own Lit pass and wraps its fragment (or, for the shadow caster,
-// its vertex); the passes, keywords and per-material buffer are URP/Lit's, so the material stays SRP-batcher
-// compatible. No translucency, no wind.
+// smoothness A), clipped at _Cutoff by the alpha read where the map resolves the leaves (CoverageAlpha.hlsl,
+// p1-v01-locust task 1.2i: so a far card keeps its leaves' opaque share), no face culled. A back face is the other
+// side of the leaf, so it is lit with its own normal: URP/Lit with cull off lights it with the front's, which faces
+// away from the viewer and turns the leaf a pale sky sheen. Each pass includes URP's own Lit pass and wraps its
+// fragment (or, for the shadow caster, its vertex); the passes, keywords and per-material buffer are URP/Lit's, so
+// the material stays SRP-batcher compatible. No translucency, no wind.
 Shader "Fpv450/Leaf"
 {
     Properties
@@ -99,6 +100,7 @@ Shader "Fpv450/Leaf"
             #pragma instancing_options renderinglayer
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
 
+            #include "CoverageAlpha.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitForwardPass.hlsl"
 
@@ -152,6 +154,7 @@ Shader "Fpv450/Leaf"
             #pragma multi_compile _ LOD_FADE_CROSSFADE
             #pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
 
+            #include "CoverageAlpha.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/ShadowCasterPass.hlsl"
 
@@ -194,6 +197,7 @@ Shader "Fpv450/Leaf"
             #pragma multi_compile_instancing
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
 
+            #include "CoverageAlpha.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/DepthOnlyPass.hlsl"
             ENDHLSL
@@ -221,6 +225,7 @@ Shader "Fpv450/Leaf"
             #pragma multi_compile_instancing
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
 
+            #include "CoverageAlpha.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitDepthNormalsPass.hlsl"
 

@@ -1,8 +1,9 @@
 """The build-time collision audit (p1-pipeline-hardening, "Collision audit at build time"; physics review P1-2;
 AST-05), in plain Python so the tests run without Blender.
 
-For every collision primitive, the largest distance from its surface to the LOD0 mesh (an invisible wall), and for
-the LOD0 mesh, the largest distance from its surface to the union of the primitives (a visible surface nothing
+For every collision primitive, the largest distance from its surface to the LOD0 mesh (an invisible wall), over the
+surface outside the other primitives (a cap buried in the next capsule of a chain is no wall; p1-v01-locust), and
+for the LOD0 mesh, the largest distance from its surface to the union of the primitives (a visible surface nothing
 collides with), each within 1 mm of the true maximum. Beyond 50 mm the build fails, or beyond 20 mm within 0.3 m of
 a gap polygon or a landable face (a landable primitive's faces whose normal is within 30 degrees of up). Each gap's
 narrowest_m is checked against the diameter of the largest circle inscribed in its polygon, within 5 mm.
@@ -52,10 +53,14 @@ carrying that material. Those faces are not held to the other primitives; the sh
   a grid (FaceIndex);
 - (b) every LOD0 vertex of a geometry slot lies inside a piece or within ENVELOPE_TOLERANCE_M outside the union;
 - (c) every LOD0 vertex of a card slot, one whose visual material is an alpha-clipped recipe (`card_visuals`), lies
-  inside a piece or within CARD_ALLOWANCE_M outside the union: a sprig hangs at most its own length off the twig mass,
-  and its twig carries a snag record.
-The report prints the piece count and kinds, each piece's largest standoff and where it is, and per slot the largest
-outside distance. The other primitives and faces are audited as above against each other."""
+  inside a piece or within the asset's card allowance outside the union: its generator's stated card reach plus the
+  tolerance (card_allowance; p1-v01-locust review-physics §5, PR3), since a card hangs at most its own length off the
+  twig mass, and its twig carries a snag record;
+- (d) at most SHELL_NEIGHBOURHOOD_MAX pieces of the material have axis-aligned boxes meeting one axis-aligned cube of
+  NEIGHBOURHOOD_M (p1-v01-locust review-physics §2 and PR2: the narrow phase's cost around the drone), found exactly.
+The report prints the piece count and kinds, the largest count meeting one cube and where, each piece's largest
+standoff and where it is, and per slot the largest outside distance. The other primitives and faces are audited as
+above against each other."""
 import functools
 import heapq
 import json
@@ -65,7 +70,9 @@ import os
 TOLERANCE_M = 0.05          # AST-05: collision follows the visual within +-5 cm
 SHELL_MATERIALS = ("twig", "foliage")
 ENVELOPE_TOLERANCE_M = 0.1  # derived, p1-v13-shrub review-physics §2: 3 N at the twig row's 30 N/m before a leaf
-CARD_ALLOWANCE_M = 0.3      # derived, review-physics §2: card_m 0.2 m plus the envelope tolerance
+SHELL_NEIGHBOURHOOD_MAX = 64  # derived, p1-v01-locust review-physics §2.4: one asset's pieces per 2 m cube
+NEIGHBOURHOOD_M = 2.0       # the cube round the drone that the shell cache serves (review-physics §2.1)
+OUTSIDE_BIN_M = 0.5         # grid of the pieces' boxes for the outside distances of (b) and (c)
 SHELL_START_M = 0.01        # the chord of a sphere's or capsule's first cells in the standoff search
 SHELL_CHORD_M = 0.002       # tessellation error allowed on a shell piece of any other shape
 SHELL_PRECISION_M = 0.0005
@@ -101,6 +108,13 @@ ZONE_CELL_M = 0.5           # _Zone's buckets, and how far past an item's box it
 ZONE_REACH_M = 1.0          # distances found are the plain minimum's
 
 
+def card_allowance(card_reach_m):
+    """Rule (c)'s allowance for cards that reach `card_reach_m` off their twig: that reach plus the envelope
+    tolerance, to the micrometre (p1-v01-locust review-physics §5, PR3): 0.3 m for the shrub's 0.2 m sprigs, 0.35 m
+    for the tree's 0.25 m leaves."""
+    return round(card_reach_m + ENVELOPE_TOLERANCE_M, 6)
+
+
 def soft_materials(root):
     """The material ids whose landable tops are soft (SOFT_SURFACES and every plain id of the physics table at
     SOFT_STIFFNESS_N_PER_M or less), from <root>/assets-src/physics_materials.json."""
@@ -111,20 +125,21 @@ def soft_materials(root):
                                        and row["stiffness_n_per_m"] <= SOFT_STIFFNESS_N_PER_M}
 
 
-def run(meta, lod0, *, soft=frozenset(), card_visuals=(), planted=False, clip_boxes=False):
+def run(meta, lod0, *, soft=frozenset(), card_visuals=(), card_reach_m=None, planted=False, clip_boxes=False):
     """(problems, report lines) of one variant: `meta` as lib.meta.assemble builds it, `lod0` its first
     lib.geometry.Mesh, `soft` the material ids with soft tops (soft_materials; none by default, so every landable
     top keeps the 2 cm zone), `card_visuals` the visual materials drawn as alpha-clipped cards
-    (lib.catalog.card_visuals). Both are keywords: each is a set of names, easily swapped. `planted` says the asset
-    stands in the ground (its generator's PLANTED): the terrain then covers the half-space below y = 0 as another
-    primitive would, so a primitive's surface there (a log's capsule cap, a brace's buried foot) is no invisible
-    wall (p1-l01-l03-pole-wires). `clip_boxes` (p1-e01-trench: an asset that cuts the ground, whose hundreds of
-    filler boxes run on under one another along every crease) bounds a primitive's cell by its parts outside the
-    boxes that cover part of it, clipped exactly (_uncovered), instead of refining the cell down to the search's
-    precision along each such line: the same maximum within PRECISION_M, found in minutes instead of an hour; off,
-    every other asset's lines stay as recorded. Problems name the primitive or slot, the deviation and the
-    tolerance; the lines carry the measured numbers for every primitive, the mesh, every shell piece and slot and
-    every gap, success or not."""
+    (lib.catalog.card_visuals), `card_reach_m` the generator's stated card reach (rule (c); needed when a card slot
+    carries a shell material). All are keywords: the first two are sets of names, easily swapped. `planted` says the
+    asset stands in the ground (its generator's PLANTED): the terrain then covers the half-space below y = 0 as
+    another primitive would, so a primitive's surface there (a log's capsule cap, a brace's buried foot) is no
+    invisible wall (p1-l01-l03-pole-wires). `clip_boxes` (p1-e01-trench: an asset that cuts the ground, whose
+    hundreds of filler boxes run on under one another along every crease) bounds a primitive's cell by its parts
+    outside the boxes that cover part of it, clipped exactly (_uncovered), instead of refining the cell down to the
+    search's precision along each such line: the same maximum within PRECISION_M, found in minutes instead of an
+    hour; off, every other asset's lines stay as recorded. Problems name the primitive or slot, the deviation and
+    the tolerance; the lines carry the measured numbers for every primitive, the mesh, every shell piece and slot
+    and every gap, success or not."""
     shapes = [_Shape(s) for s in meta["collision"]]
     shell_slots = {m["slot"] for m in meta["materials"] if m["physics"] in SHELL_MATERIALS}
     wire_slots = {w["slot"] for w in meta.get("wires", [])}
@@ -150,8 +165,9 @@ def run(meta, lod0, *, soft=frozenset(), card_visuals=(), planted=False, clip_bo
                             "under it")
             continue
         # Only a primitive whose bounding box meets this one's can cover a point of its surface: _Covering skips
-        # every other by its box anyway, so the result is the same (p1-e01-trench: 489 shapes);
-        # the index finds them in index order without trying every pair (p1-h01-adobe-house: 1207)
+        # every other by its box anyway, so the result is the same (p1-e01-trench: 489 shapes; p1-v01-locust: a
+        # tree's hundreds of bark capsules each meet a few); the index finds them in index order without trying
+        # every pair (p1-h01-adobe-house: 1207)
         others = [shapes[j] for j in meeting.meeting(i)]
         cells = [tri[:3] for tri in shape.triangles]
         if planted:
@@ -191,7 +207,7 @@ def run(meta, lod0, *, soft=frozenset(), card_visuals=(), planted=False, clip_bo
         problems += _report(lines, "mesh", "mesh->collision", cells, zone,
                             nearest.nearest, lambda cell, which: _shapes_bound(cell, which, shapes),
                             lambda which: f" nearest collision[{which}]")
-    problems += _audit_shells(lines, meta, shapes, shells, lod0, set(card_visuals))
+    problems += _audit_shells(lines, meta, shapes, shells, lod0, set(card_visuals), card_reach_m)
     problems += _audit_wires(lines, meta.get("wires", []), lod0)
     for i, gap in enumerate(meta["gaps"]):
         diameter = 2 * _inscribed_radius(_flatten_polygon(gap["polygon"], gap["normal"]))
@@ -232,10 +248,10 @@ def _report(lines, label, direction, cells, zone, value, bound, note=lambda whic
     return problems
 
 
-def _audit_shells(lines, meta, shapes, shells, lod0, card_visuals):
-    """The shell rule (module docstring), per crown contact material: (a) each piece's largest standoff, (b) and (c)
-    each slot's largest outside distance. A piece no slot carries, and a slot with LOD0 faces that no piece stands
-    for, are each a problem."""
+def _audit_shells(lines, meta, shapes, shells, lod0, card_visuals, card_reach_m):
+    """The shell rule (module docstring), per crown contact material: (d) the most pieces meeting one cube, (a) each
+    piece's largest standoff, (b) and (c) each slot's largest outside distance. A piece no slot carries, and a slot
+    with LOD0 faces that no piece stands for, are each a problem."""
     problems = []
     by_material = {m["physics"]: [] for m in meta["materials"] if m["physics"] in SHELL_MATERIALS}
     for i in shells:
@@ -251,6 +267,11 @@ def _audit_shells(lines, meta, shapes, shells, lod0, card_visuals):
         kinds = [shapes[i].kind for i in members]
         lines.append(f"audit {material} shell: {len(members)} piece{'s' * (len(members) > 1)} ("
                      + ", ".join(f"{kinds.count(k)} {k}{'s' * (kinds.count(k) > 1)}" for k in sorted(set(kinds))) + ")")
+        count, corner = neighbourhood([shapes[i].box() for i in members])
+        text = f"{material} shell: most pieces meeting one {NEIGHBOURHOOD_M:g} m cube {count}, the cube from {_fmt(corner)}"
+        if count > SHELL_NEIGHBOURHOOD_MAX:
+            problems.append(f"{text} exceeds the limit {SHELL_NEIGHBOURHOOD_MAX}")
+        lines.append(f"audit {text}, limit {SHELL_NEIGHBOURHOOD_MAX}")
         index = FaceIndex(faces) if faces else None
         for i in members:
             label = f"collision[{i}] {shapes[i].kind} ({material} shell)"
@@ -270,23 +291,74 @@ def _audit_shells(lines, meta, shapes, shells, lod0, card_visuals):
             lines.append(f"audit {label}: {text}, tolerance {ENVELOPE_TOLERANCE_M * 1000:g} mm")
         for slot, visual in entries:
             card = visual in card_visuals
-            limit, word = (CARD_ALLOWANCE_M, "allowance") if card else (ENVELOPE_TOLERANCE_M, "tolerance")
-            vertices = sorted({lod0.vertices[k] for indices, _, _, s in lod0.faces if s == slot for k in indices})
-            distance, at = 0.0, None
-            for v in vertices:
-                outside = math.inf
-                for i in members:
-                    outside = min(outside, shapes[i].sdf(v))
-                    if outside <= 0:
-                        break
-                if outside > distance:
-                    distance, at = outside, v
             label = f"slot {slot} ({'cards' if card else 'geometry'}, {material} shell)"
+            if card and card_reach_m is None:
+                problems.append(f"{label}: the generator states no card reach, so rule (c) has no allowance")
+                continue
+            limit, word = (card_allowance(card_reach_m), "allowance") if card else (ENVELOPE_TOLERANCE_M, "tolerance")
+            vertices = sorted({lod0.vertices[k] for indices, _, _, s in lod0.faces if s == slot for k in indices})
+            distance, at = _farthest_outside(vertices, [shapes[i] for i in members], limit)
             text = f"largest outside distance {distance * 1000:.3f} mm" + (f" at {_fmt(at)}" if at else "")
             if distance > limit:
                 problems.append(f"{label}: {text} exceeds the {word} {limit * 1000:g} mm")
             lines.append(f"audit {label}: {text} over {len(vertices)} vertices, {word} {limit * 1000:g} mm")
     return problems
+
+
+def neighbourhood(boxes, side=NEIGHBOURHOOD_M):
+    """(count, corner): the largest number of the axis-aligned `boxes` [(lo, hi)] that one axis-aligned cube of
+    `side` meets (touching counts), and that cube's lowest corner, exactly (rule (d)). The cube from c meets a box
+    when c lies in [lo - side, hi] on every axis; the deepest point of those boxes in c-space can be taken with every
+    coordinate at some box's lo - side, so the sweep tries those, x then y, and sweeps z."""
+    spans = [tuple((lo[a] - side, hi[a]) for a in range(3)) for lo, hi in boxes]
+    best, at = 0, None
+    for cx in sorted({s[0][0] for s in spans}):
+        on_x = [s for s in spans if s[0][0] <= cx <= s[0][1]]
+        if len(on_x) <= best:
+            continue
+        for cy in sorted({s[1][0] for s in on_x}):
+            on_y = [s for s in on_x if s[1][0] <= cy <= s[1][1]]
+            if len(on_y) <= best:
+                continue
+            depth = 0
+            for z, end in sorted([(s[2][0], 0) for s in on_y] + [(s[2][1], 1) for s in on_y]):
+                depth += -1 if end else 1
+                if depth > best:
+                    best, at = depth, (cx, cy, z)
+    return best, at
+
+
+def _farthest_outside(vertices, pieces, limit):
+    """(distance, vertex) of the vertex farthest outside the union of the `pieces` (_Shape), 0 and None when every
+    vertex lies inside. Each vertex is measured against the pieces whose box, grown by `limit`, holds it (binned by
+    OUTSIDE_BIN_M), which is exact whenever the nearest piece lies within `limit`; past that, against every piece."""
+    bins = {}
+    for n, piece in enumerate(pieces):
+        lo, hi = piece.box()
+        cells = [range(math.floor((lo[a] - limit) / OUTSIDE_BIN_M), math.floor((hi[a] + limit) / OUTSIDE_BIN_M) + 1)
+                 for a in range(3)]
+        for x in cells[0]:
+            for y in cells[1]:
+                for z in cells[2]:
+                    bins.setdefault((x, y, z), []).append(n)
+    distance, at = 0.0, None
+    for v in vertices:
+        outside = _outside(v, pieces, bins.get(tuple(math.floor(c / OUTSIDE_BIN_M) for c in v), ()))
+        if outside > limit:
+            outside = _outside(v, pieces, range(len(pieces)))
+        if outside > distance:
+            distance, at = outside, v
+    return distance, at
+
+
+def _outside(v, pieces, among):
+    """The least signed distance from v to the pieces numbered `among`, stopping at the first that holds it."""
+    outside = math.inf
+    for n in among:
+        outside = min(outside, pieces[n].sdf(v))
+        if outside <= 0:
+            break
+    return outside
 
 
 def _audit_wires(lines, wires, lod0):
@@ -857,6 +929,17 @@ class _Shape:
         if self._triangles is None:
             self._triangles = _tessellate(self)
         return self._triangles
+
+    def box(self):
+        """(lo, hi) of the shape's axis-aligned box in asset space: a sphere's, or a capsule's or cylinder's axis end
+        points grown by the radius (a cylinder's is loose by its caps' tilt), or a box's corners."""
+        if self.kind == "box":
+            corners = [self.place((x * self.half[0], y * self.half[1], z * self.half[2]))
+                       for x in (-1, 1) for y in (-1, 1) for z in (-1, 1)]
+            return tuple(min(c[a] for c in corners) for a in range(3)), tuple(max(c[a] for c in corners) for a in range(3))
+        ends = [self.place((0.0, -self.h, 0.0)), self.place((0.0, self.h, 0.0))]
+        return (tuple(min(e[a] for e in ends) - self.r for a in range(3)),
+                tuple(max(e[a] for e in ends) + self.r for a in range(3)))
 
     @functools.cached_property
     def lo(self):

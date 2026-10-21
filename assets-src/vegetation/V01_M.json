@@ -1,0 +1,22 @@
+{
+  "seed": 11,
+  "height_m": 10.0,
+  "dbh_m": 0.16,
+  "stems": 1,
+  "first_fork_m": 3.0,
+  "main_limbs": 4,
+  "orders": 5,
+  "children_per_order": 2.5,
+  "fork_angle_deg": { "min": 30.0, "max": 40.0 },
+  "trunk_sinuosity": 0.6,
+  "crown_shape": "scraggly",
+  "crown_width_m": 6.0,
+  "lean_deg": 3.0,
+  "leaf_cover": 0.6,
+  "autumn_share": 0.0,
+  "leaf_m": 0.25,
+  "spines": false,
+  "fruit_share": 0.0,
+  "impostor": true,
+  "lod": { "lod1_switch_m": 9.35, "lod2_switch_m": 116.9, "cull_m": 2500.0, "impostor_switch_m": 230.0 }
+}

@@ -49,10 +49,10 @@
   "tyre_width": 0.165,
   "wheel": "steel_hubcap",
   "paint": "dark_green",
-  "paint_fade": 0.3,
+  "paint_fade": 0.0,
   "state": "A",
   "severity": 0.5,
-  "burst_dir": { "azimuth": 290.0, "elevation": 5.0 },
+  "burst_dir": { "azimuth": 290.0, "elevation": 15.0 },
   "frag_holes": 16,
   "frag_hole_size": 0.03,
   "rust_halo": 1.8,
@@ -83,6 +83,6 @@
   "ground": "soil",
   "pose": "upright",
   "plate": "blank",
-  "seed": 186,
+  "seed": 1263,
   "lod": { "lod1_switch_m": 20.0, "lod2_switch_m": 80.0, "lod3_switch_m": 300.0, "cull_m": 1500.0 }
 }

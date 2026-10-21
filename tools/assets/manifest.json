@@ -140,6 +140,46 @@
     },
     {
       "source": "polyhaven",
+      "id": "bark_brown_01",
+      "title": "Bark Brown 01",
+      "resolution": "2k",
+      "licence": "CC0",
+      "author": "Rob Tuytel",
+      "page": "https://polyhaven.com/a/bark_brown_01",
+      "destination": "unity/Assets/_Project/Art/ThirdParty/polyhaven/bark_brown_01",
+      "files": [
+        {
+          "map": "diffuse",
+          "name": "bark_brown_01_diff_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/bark_brown_01/bark_brown_01_diff_2k.png",
+          "sha256": "617985520504f73226bb54d7f64891687c8073b6efd30348008c7a1d241e04ca",
+          "bytes": 8393792
+        },
+        {
+          "map": "normal",
+          "name": "bark_brown_01_nor_gl_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/bark_brown_01/bark_brown_01_nor_gl_2k.png",
+          "sha256": "c5d2c162ee3e30a36dfb717fde6703e0202ab9c49fbfe205da521a48d7a5a595",
+          "bytes": 8953179
+        },
+        {
+          "map": "roughness",
+          "name": "bark_brown_01_rough_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/bark_brown_01/bark_brown_01_rough_2k.png",
+          "sha256": "d7990a8319db5beb185d6fd36b1d9acef82556e2d942d68583ce3a505907cab2",
+          "bytes": 7228983
+        },
+        {
+          "map": "ao",
+          "name": "bark_brown_01_ao_2k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/bark_brown_01/bark_brown_01_ao_2k.png",
+          "sha256": "02bb9025280895c00e4d93a7849bff005295207dbed1e398962b0e2a64750286",
+          "bytes": 4022617
+        }
+      ]
+    },
+    {
+      "source": "polyhaven",
       "id": "brown_mud_02",
       "title": "Brown Mud 02",
       "resolution": "2k",
@@ -385,56 +425,6 @@
           "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/dirt_floor/dirt_floor_ao_1k.png",
           "sha256": "8ca3fcc1c65f7b13d732af9746989f864b1f4aed4c50b87b9861d0fa3a61ab2e",
           "bytes": 2542347
-        }
-      ]
-    },
-    {
-      "source": "ambientcg",
-      "id": "PaintedMetal006",
-      "title": "Painted Metal 006",
-      "resolution": "1k",
-      "licence": "CC0",
-      "author": "Lennart Demes (ambientCG)",
-      "page": "https://ambientcg.com/a/PaintedMetal006",
-      "destination": "unity/Assets/_Project/Art/ThirdParty/ambientcg/PaintedMetal006",
-      "archive": {
-        "name": "PaintedMetal006_1K-PNG.zip",
-        "url": "https://ambientcg.com/get?file=PaintedMetal006_1K-PNG.zip",
-        "sha256": "d6383c24fe0a077a496e630e7e786fbd20427535b8e00b11d25ec4f61ca4654a",
-        "bytes": 18524656
-      },
-      "files": [
-        {
-          "map": "diffuse",
-          "name": "PaintedMetal006_1K-PNG_Color.png",
-          "member": "PaintedMetal006_1K-PNG_Color.png",
-          "url": "https://ambientcg.com/get?file=PaintedMetal006_1K-PNG.zip",
-          "sha256": "e4744920cf390fb5164ede99d118a01c5e25c9de8b8275edb88e0c4b2ef701b3",
-          "bytes": 1918159
-        },
-        {
-          "map": "normal",
-          "name": "PaintedMetal006_1K-PNG_NormalGL.png",
-          "member": "PaintedMetal006_1K-PNG_NormalGL.png",
-          "url": "https://ambientcg.com/get?file=PaintedMetal006_1K-PNG.zip",
-          "sha256": "9deac70e489ed3d866aeea89f540ab8a9a1ddecd99186a4256749c7b27dff112",
-          "bytes": 5783049
-        },
-        {
-          "map": "roughness",
-          "name": "PaintedMetal006_1K-PNG_Roughness.png",
-          "member": "PaintedMetal006_1K-PNG_Roughness.png",
-          "url": "https://ambientcg.com/get?file=PaintedMetal006_1K-PNG.zip",
-          "sha256": "5cd7f9ec59689914aa03137a4887dfd9d2a146afb1710a1d0d1aa3b725d0cdd4",
-          "bytes": 649164
-        },
-        {
-          "map": "ao",
-          "name": "PaintedMetal006_1K-PNG_AmbientOcclusion.png",
-          "member": "PaintedMetal006_1K-PNG_AmbientOcclusion.png",
-          "url": "https://ambientcg.com/get?file=PaintedMetal006_1K-PNG.zip",
-          "sha256": "b4f85e06929cb996ec4c2621df5839bacb335adb98d29ef2e411d1afc40ff5d4",
-          "bytes": 777138
         }
       ]
     },

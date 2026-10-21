@@ -54,11 +54,11 @@
       "class": "vehicles",
       "generator": "vehicle",
       "variants": ["R01_A", "R01_F"],
-      "materials": { "paint": "car_paint", "under": "car_soot", "chrome": "chrome", "glass": "car_glass", "tyre": "tyre",
+      "materials": { "paint": "car_paint", "under": "car_soot", "chrome": "chrome", "glass": "glass", "tyre": "tyre",
                      "seat": "seat_fabric", "vinyl": "car_vinyl", "lamp": "car_lamps", "lens": "car_lamps",
                      "rack": "car_soot", "plate": "car_lamps", "windscreen": "glass", "rust": "car_rust",
-                     "wire": "car_rust", "soot": "car_burnt", "bare": "car_bare", "chrome_dull": "chrome_burnt",
-                     "soot_patch": "soot_patch" }
+                     "wire": "car_rust", "soot": "car_burnt", "chrome_dull": "chrome_burnt",
+                     "soot_patch": "soot_patch", "glass_hull": "car_glass" }
     },
     "S04": {
       "class": "surfaces",
@@ -66,11 +66,22 @@
       "variants": ["S04_patch"],
       "materials": { "ground": "belt_straw", "soil": "belt_soil", "straw": "straw", "edge": "belt_straw" }
     },
+    "V01": {
+      "class": "vegetation",
+      "generator": "tree",
+      "variants": ["V01_S", "V01_M", "V01_L", "V01_S_autumn", "V01_M_autumn", "V01_L_autumn"],
+      "materials": { "bark": "bark_locust", "twig": "bark_locust", "leaf": "leaf_locust", "leaf_autumn": "leaf_locust_autumn",
+                     "pod": "pod_locust" }
+    },
     "V13": {
       "class": "vegetation",
       "generator": "shrub",
-      "variants": ["V13_low", "V13_mid", "V13_tall"],
-      "materials": { "stem": "bark_shrub", "twig": "bark_shrub", "leaf": "leaf_shrub" }
+      "variants": ["V13_low", "V13_mid", "V13_tall", "V13_low_autumn", "V13_mid_autumn", "V13_tall_autumn", "V13_mid_yellowing"],
+      "materials": { "stem": "bark_shrub", "twig": "bark_shrub", "leaf": "leaf_shrub", "far": "leaf_shrub_far",
+                     "leaf_autumn": "leaf_shrub_autumn", "far_autumn": "leaf_shrub_autumn_far" },
+      "variant_materials": {
+        "V13_mid_yellowing": { "leaf": "leaf_shrub_autumn", "far": "leaf_shrub_autumn_far" }
+      }
     }
   }
 }

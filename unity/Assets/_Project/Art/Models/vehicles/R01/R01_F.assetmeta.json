@@ -16,12 +16,24 @@
       2.0365,
       1.38,
       1.825169
-    ]
+    ],
+    "lod": {
+      "min": [
+        -2.0315,
+        0.0,
+        -0.811924
+      ],
+      "max": [
+        2.0315,
+        1.38,
+        0.811924
+      ]
+    }
   },
   "lods": [
     {
       "mesh": "R01_F_LOD0",
-      "tris": 40078,
+      "tris": 41102,
       "switch_distance_m": 0.0,
       "thin_wire": false
     },
@@ -70,19 +82,9 @@
   "cull_distance_m": 1500.0,
   "materials": [
     {
-      "slot": "bare",
-      "visual": "car_bare",
-      "physics": "sheet_metal"
-    },
-    {
       "slot": "chrome_dull",
       "visual": "chrome_burnt",
       "physics": "steel"
-    },
-    {
-      "slot": "glass",
-      "visual": "car_glass",
-      "physics": "glass"
     },
     {
       "slot": "rack",
@@ -3137,7 +3139,7 @@
         0.0
       ],
       "radius": 0.01,
-      "height": 1.02,
+      "height": 1.22,
       "rotation": [
         0.707107,
         0.0,
@@ -3152,7 +3154,7 @@
       "center": [
         0.2035,
         1.37,
-        0.5
+        0.6
       ],
       "radius": 0.01,
       "height": 1.32,
@@ -3173,7 +3175,7 @@
         0.0
       ],
       "radius": 0.01,
-      "height": 1.02,
+      "height": 1.22,
       "rotation": [
         -0.707107,
         0.0,
@@ -3188,7 +3190,7 @@
       "center": [
         0.2035,
         1.37,
-        -0.5
+        -0.6
       ],
       "radius": 0.01,
       "height": 1.32,
@@ -3206,15 +3208,15 @@
       "center": [
         -0.3865,
         1.2835,
-        -0.575746
+        -0.625746
       ],
       "radius": 0.01,
-      "height": 0.249955,
+      "height": 0.200501,
       "rotation": [
-        0.351907,
+        0.144144,
         0.0,
         0.0,
-        0.936035
+        0.989557
       ],
       "material": "steel",
       "landable": false
@@ -3224,15 +3226,15 @@
       "center": [
         -0.3865,
         1.2835,
-        0.575746
+        0.625746
       ],
       "radius": 0.01,
-      "height": 0.249955,
+      "height": 0.200501,
       "rotation": [
-        -0.351907,
+        -0.144144,
         0.0,
         0.0,
-        0.936035
+        0.989557
       ],
       "material": "steel",
       "landable": false
@@ -3242,15 +3244,15 @@
       "center": [
         0.7935,
         1.27005,
-        -0.575479
+        -0.625479
       ],
       "radius": 0.01,
-      "height": 0.270496,
+      "height": 0.226293,
       "rotation": [
-        0.317793,
+        0.124478,
         0.0,
         0.0,
-        0.94816
+        0.992222
       ],
       "material": "steel",
       "landable": false
@@ -3260,15 +3262,15 @@
       "center": [
         0.7935,
         1.27005,
-        0.575479
+        0.625479
       ],
       "radius": 0.01,
-      "height": 0.270496,
+      "height": 0.226293,
       "rotation": [
-        -0.317793,
+        -0.124478,
         0.0,
         0.0,
-        0.94816
+        0.992222
       ],
       "material": "steel",
       "landable": false
@@ -4566,15 +4568,16 @@
         [
           -0.4465,
           1.37,
-          -0.5
+          -0.6
         ],
         [
           -0.4465,
           1.37,
-          0.5
+          0.6
         ]
       ],
-      "radius_m": 0.01
+      "radius_m": 0.01,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -4582,15 +4585,16 @@
         [
           -0.4465,
           1.37,
-          0.5
+          0.6
         ],
         [
           0.8535,
           1.37,
-          0.5
+          0.6
         ]
       ],
-      "radius_m": 0.01
+      "radius_m": 0.01,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -4598,15 +4602,16 @@
         [
           0.8535,
           1.37,
-          0.5
+          0.6
         ],
         [
           0.8535,
           1.37,
-          -0.5
+          -0.6
         ]
       ],
-      "radius_m": 0.01
+      "radius_m": 0.01,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -4614,15 +4619,16 @@
         [
           0.8535,
           1.37,
-          -0.5
+          -0.6
         ],
         [
           -0.4465,
           1.37,
-          -0.5
+          -0.6
         ]
       ],
-      "radius_m": 0.01
+      "radius_m": 0.01,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -4635,10 +4641,11 @@
         [
           -0.3865,
           1.37,
-          -0.5
+          -0.6
         ]
       ],
-      "radius_m": 0.01
+      "radius_m": 0.01,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -4651,10 +4658,11 @@
         [
           -0.3865,
           1.37,
-          0.5
+          0.6
         ]
       ],
-      "radius_m": 0.01
+      "radius_m": 0.01,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -4667,10 +4675,11 @@
         [
           0.7935,
           1.37,
-          -0.5
+          -0.6
         ]
       ],
-      "radius_m": 0.01
+      "radius_m": 0.01,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -4683,10 +4692,11 @@
         [
           0.7935,
           1.37,
-          0.5
+          0.6
         ]
       ],
-      "radius_m": 0.01
+      "radius_m": 0.01,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -4713,7 +4723,8 @@
         ]
       ],
       "radius_m": 0.006,
-      "edge_radius_m": 0.002
+      "edge_radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -4740,7 +4751,8 @@
         ]
       ],
       "radius_m": 0.006,
-      "edge_radius_m": 0.002
+      "edge_radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -4767,7 +4779,8 @@
         ]
       ],
       "radius_m": 0.006,
-      "edge_radius_m": 0.002
+      "edge_radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -4794,7 +4807,8 @@
         ]
       ],
       "radius_m": 0.006,
-      "edge_radius_m": 0.002
+      "edge_radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -4865,7 +4879,8 @@
           -0.539667
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -4936,7 +4951,8 @@
           -0.463
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -5007,7 +5023,8 @@
           -0.386333
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -5078,7 +5095,8 @@
           -0.309667
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -5149,7 +5167,8 @@
           -0.233
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -5220,7 +5239,8 @@
           -0.156333
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -5291,7 +5311,8 @@
           -0.539667
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -5362,7 +5383,8 @@
           -0.463
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -5433,7 +5455,8 @@
           -0.386333
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -5504,7 +5527,8 @@
           -0.309667
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -5575,7 +5599,8 @@
           -0.233
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -5646,7 +5671,8 @@
           -0.156333
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -5717,7 +5743,8 @@
           0.120333
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -5788,7 +5815,8 @@
           0.197
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -5859,7 +5887,8 @@
           0.273667
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -5930,7 +5959,8 @@
           0.350333
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -6001,7 +6031,8 @@
           0.427
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -6072,7 +6103,8 @@
           0.503667
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -6143,7 +6175,8 @@
           0.120333
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -6214,7 +6247,8 @@
           0.197
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -6285,7 +6319,8 @@
           0.273667
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -6356,7 +6391,8 @@
           0.350333
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -6427,7 +6463,8 @@
           0.427
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -6498,7 +6535,8 @@
           0.503667
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -6569,7 +6607,8 @@
           -0.634471
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -6640,7 +6679,8 @@
           -0.557412
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -6711,7 +6751,8 @@
           -0.480353
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -6782,7 +6823,8 @@
           -0.403294
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -6853,7 +6895,8 @@
           -0.326235
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -6924,7 +6967,8 @@
           -0.249176
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -6995,7 +7039,8 @@
           -0.172118
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -7066,7 +7111,8 @@
           -0.095059
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -7137,7 +7183,8 @@
           -0.018
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -7208,7 +7255,8 @@
           0.059059
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -7279,7 +7327,8 @@
           0.136118
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -7350,7 +7399,8 @@
           0.213176
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -7421,7 +7471,8 @@
           0.290235
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -7492,7 +7543,8 @@
           0.367294
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -7563,7 +7615,8 @@
           0.444353
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -7634,7 +7687,8 @@
           0.521412
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -7705,7 +7759,8 @@
           0.598471
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -7776,7 +7831,8 @@
           -0.634471
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -7847,7 +7903,8 @@
           -0.557412
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -7918,7 +7975,8 @@
           -0.480353
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -7989,7 +8047,8 @@
           -0.403294
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -8060,7 +8119,8 @@
           -0.326235
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -8131,7 +8191,8 @@
           -0.249176
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -8202,7 +8263,8 @@
           -0.172118
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -8273,7 +8335,8 @@
           -0.095059
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -8344,7 +8407,8 @@
           -0.018
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -8415,7 +8479,8 @@
           0.059059
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -8486,7 +8551,8 @@
           0.136118
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -8557,7 +8623,8 @@
           0.213176
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -8628,7 +8695,8 @@
           0.290235
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -8699,7 +8767,8 @@
           0.367294
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -8770,7 +8839,8 @@
           0.444353
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -8841,7 +8911,8 @@
           0.521412
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -8912,7 +8983,8 @@
           0.598471
         ]
       ],
-      "radius_m": 0.002
+      "radius_m": 0.002,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -9043,7 +9115,8 @@
           -0.6095
         ]
       ],
-      "radius_m": 0.003
+      "radius_m": 0.003,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -9174,7 +9247,8 @@
           -0.7395
         ]
       ],
-      "radius_m": 0.003
+      "radius_m": 0.003,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -9305,7 +9379,8 @@
           0.6095
         ]
       ],
-      "radius_m": 0.003
+      "radius_m": 0.003,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -9436,7 +9511,8 @@
           0.7395
         ]
       ],
-      "radius_m": 0.003
+      "radius_m": 0.003,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -9567,7 +9643,8 @@
           -0.5875
         ]
       ],
-      "radius_m": 0.003
+      "radius_m": 0.003,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -9698,7 +9775,8 @@
           -0.7175
         ]
       ],
-      "radius_m": 0.003
+      "radius_m": 0.003,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -9829,7 +9907,8 @@
           0.5875
         ]
       ],
-      "radius_m": 0.003
+      "radius_m": 0.003,
+      "material": "steel"
     },
     {
       "kind": "edge",
@@ -9960,7 +10039,8 @@
           0.7175
         ]
       ],
-      "radius_m": 0.003
+      "radius_m": 0.003,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -10131,7 +10211,8 @@
           -0.7015
         ]
       ],
-      "radius_m": 0.003
+      "radius_m": 0.003,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -10302,7 +10383,8 @@
           -1.245533
         ]
       ],
-      "radius_m": 0.003
+      "radius_m": 0.003,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -10473,7 +10555,8 @@
           0.7075
         ]
       ],
-      "radius_m": 0.003
+      "radius_m": 0.003,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -10644,7 +10727,8 @@
           1.150665
         ]
       ],
-      "radius_m": 0.003
+      "radius_m": 0.003,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -10815,7 +10899,8 @@
           -0.6795
         ]
       ],
-      "radius_m": 0.003
+      "radius_m": 0.003,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -10986,7 +11071,8 @@
           -0.888889
         ]
       ],
-      "radius_m": 0.003
+      "radius_m": 0.003,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -11157,7 +11243,8 @@
           0.6855
         ]
       ],
-      "radius_m": 0.003
+      "radius_m": 0.003,
+      "material": "steel"
     },
     {
       "kind": "hook",
@@ -11328,7 +11415,8 @@
           1.009479
         ]
       ],
-      "radius_m": 0.003
+      "radius_m": 0.003,
+      "material": "steel"
     }
   ]
 }

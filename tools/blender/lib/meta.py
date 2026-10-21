@@ -21,7 +21,8 @@ QUATERNION_TOLERANCE = 1e-6
 NORMAL_TOLERANCE = 1e-6
 PERPENDICULAR_TOLERANCE = 1e-3  # |edge . normal| / |edge|, per polygon edge
 PLANAR_TOLERANCE_M = 0.010  # AST-05 gives +-2 cm around openings
-SNAG_KINDS = ("edge", "hook")  # a polyline the fiber bends over; a free-ended member from base to tip
+SNAG_KINDS = ("edge", "hook")  # a polyline the fiber bends over; a free-ended member from base to tip; each record
+                               # names the physics material of the member it follows (p1-v01-locust review-physics §4)
 # A snag record may carry edge_radius_m, the arris the fiber bends over where it is sharper than the record's reach
 # radius_m (a stranded conductor's outer strand, a SIP bundle's core): optional, positive, at most radius_m (the
 # fortifications reading §1, first used by p1-l01-l03-pole-wires' wires).
@@ -71,6 +72,11 @@ MICRO_KEYS = ("lod", "name", "kind", "count", "tris")
 # or openings let the wind in), "cavity": true, with its "openings", the ids of the gaps its draught passes through;
 # both optional, so a record without them stays valid.
 TEXTURE_KEYS = ("role", "slot", "file", "uv_min", "uv_max")
+# The LOD group's frame (p1-r01-vaz-sedan, QA 2.1's S2): "bounds" holds every mesh drawn, and a
+# generator whose LOD meshes carry what lies round the object (a vehicle's K07 scatter, its micro crumbs or soot
+# patch) returns "lod_bounds", the object's own box, written as bounds.lod; the importer centres the LOD group on it and
+# sizes it by its longest side, so switches are measured from the object, not its scatter. Optional: absent, the
+# bounds serve; schema 1 stays.
 TEXTURE_ROLES = ("crack_mask", "damage_mask")
 TEXTURE_CHANNELS = 4
 # The closed, physics-owned list every physics material id must come from (review R3).
@@ -82,6 +88,8 @@ LABELS = ("pilot", "measured", "published", "derived", "assumed")
 SURFACE_PREFIX = "surface:"
 SURFACE_IDS = ("meadow_sod", "dry_crust", "crater_spoil", "belt_straw", "belt_bare", "tilled", "burnt_field",
                "weeds", "yard_litter", "rubble", "asphalt", "concrete_slab", "dirt_track")
+IMPOSTOR_MAX_PX = 1024  # asset-pipeline "Baked impostor LOD": the albedo, the normal and the smoothness atlas, 1k
+                        # each at most
 
 
 def load_physics_materials(root):
@@ -111,14 +119,14 @@ def load_physics_materials(root):
     return set(rows)
 
 
-def assemble(asset_id, variant, generator, params, built, visual_by_slot):
+def assemble(asset_id, variant, generator, params, built, visual_by_slot, impostor_lod=None):
     """The metadata of one variant from the generator's result `built` ({"lods": [Mesh...], "switch_distances_m",
     "cull_distance_m", "materials": [{"slot", "physics"}], "collision", "gaps", "wind_volumes", "snag"}, and
     optionally "thin_wire": [bool per LOD], "micro": [{"lod", "kind", "count", "mesh": Mesh}], "ports": [{PORT_KEYS}],
     "wires": [{WIRE_KEYS}], "holes": [{HOLE_KEYS}] and "textures": [{"role", "slot", "name", "uv_min", "uv_max",
     "png"}, optionally "channels"]) and the catalog's visual material per slot. A micro mesh is named <variant>_LOD<n>_<kind> and counts
     towards the bounds, since it is rendered; a texture's file is texture_file(variant, name), which build.py
-    writes from its "png" bytes."""
+    writes from its "png" bytes; `impostor_lod` (lib.impostor.lod) follows the mesh LODs when given."""
     lods = built["lods"]
     switches = built["switch_distances_m"]
     thin_wire = built.get("thin_wire", [False] * len(lods))
@@ -134,6 +142,9 @@ def assemble(asset_id, variant, generator, params, built, visual_by_slot):
     meshes = list(lods) + [m["mesh"] for m in built.get("micro", [])]
     lo = [min(m.bounds()[0][a] for m in meshes) for a in range(3)]
     hi = [max(m.bounds()[1][a] for m in meshes) for a in range(3)]
+    bounds = {"min": lo, "max": hi}
+    if "lod_bounds" in built:  # the object's own box, without what lies round it: the LOD group's frame
+        bounds["lod"] = {"min": list(built["lod_bounds"][0]), "max": list(built["lod_bounds"][1])}
     materials = []
     for m in built["materials"]:
         if m["slot"] not in visual_by_slot:
@@ -142,9 +153,10 @@ def assemble(asset_id, variant, generator, params, built, visual_by_slot):
     meta = {
         "schema": SCHEMA, "id": asset_id, "variant": variant, "generator": generator,
         "params_sha256": catalog.params_sha256(params), "units": UNITS, "frame": FRAME,
-        "bounds": {"min": lo, "max": hi},
+        "bounds": bounds,
         "lods": [{"mesh": f"{variant}_LOD{n}", "tris": mesh.triangles(), "switch_distance_m": float(switch),
-                  "thin_wire": bool(thin)} for n, (mesh, switch, thin) in enumerate(zip(lods, switches, thin_wire))],
+                  "thin_wire": bool(thin)} for n, (mesh, switch, thin) in enumerate(zip(lods, switches, thin_wire))]
+                + ([impostor_lod] if impostor_lod else []),
         "micro": micro,
         "cull_distance_m": float(built["cull_distance_m"]),
         "materials": materials,
@@ -206,6 +218,11 @@ def validate(meta, material_ids):
     b = meta["bounds"]
     if not (_is_vec(b.get("min")) and _is_vec(b.get("max"))) or any(b["min"][a] > b["max"][a] for a in range(3)):
         problems.append("bounds need min <= max as two 3-vectors")
+    elif "lod" in b:
+        lod = b["lod"]
+        if not (isinstance(lod, dict) and _is_vec(lod.get("min")) and _is_vec(lod.get("max"))
+                and all(b["min"][a] <= lod["min"][a] <= lod["max"][a] <= b["max"][a] for a in range(3))):
+            problems.append("bounds.lod needs min <= max as two 3-vectors inside the bounds")
     lods = meta["lods"]
     if not lods or any(not (isinstance(l.get("mesh"), str) and isinstance(l.get("tris"), int)
                             and _is_num(l.get("switch_distance_m")) and isinstance(l.get("thin_wire"), bool))
@@ -217,6 +234,9 @@ def validate(meta, material_ids):
             problems.append(f"LOD switch distances must start at 0 and increase, got {switches}")
         if not (_is_num(meta["cull_distance_m"]) and meta["cull_distance_m"] > switches[-1]):
             problems.append("cull_distance_m must lie beyond the last LOD switch")
+        for i, lod in enumerate(lods):
+            if "impostor" in lod:
+                problems += [f"lods[{i}]: {p}" for p in _impostor_problems(lod, i, len(lods))]
     for i, m in enumerate(meta["micro"]):
         ok = (isinstance(m, dict) and all(k in m for k in MICRO_KEYS)
               and isinstance(m["lod"], int) and 0 <= m["lod"] < len(lods)
@@ -303,6 +323,11 @@ def validate(meta, material_ids):
             if "edge_radius_m" in s and not (_is_num(edge) and 0 < edge <= s["radius_m"]):
                 problems.append(f"snag[{i}]: edge_radius_m must be positive and at most radius_m {s['radius_m']}, "
                                 f"got {edge!r}")
+        # p1-v01-locust review-physics §4 and PR4: the physics material of the member the record follows
+        if not isinstance(s.get("material"), str):
+            problems.append(f"snag[{i}]: needs the material of the member it follows")
+        else:
+            problems += [f"snag[{i}]: {p}" for p in _material_problems(s["material"], material_ids)]
     return problems
 
 
@@ -365,7 +390,8 @@ def check_against_fbx(meta, fbx_path):
     found = fbxread.unity_bounds(fbx_path)
     problems = []
     lo, hi = [None] * 3, [None] * 3
-    for name in [lod["mesh"] for lod in meta["lods"]] + [m["name"] for m in meta["micro"]]:
+    # the importer builds an impostor's card from its record; the FBX holds the mesh LODs and the micro meshes
+    for name in [lod["mesh"] for lod in meta["lods"] if "impostor" not in lod] + [m["name"] for m in meta["micro"]]:
         if name not in found:
             problems.append(f"{name} is not a mesh of {fbx_path}; it holds {', '.join(sorted(found))}")
             continue
@@ -413,6 +439,40 @@ def _material_problems(material, material_ids):
     if material not in material_ids:
         return [f"material {material!r} is not in {PHYSICS_MATERIALS}"]
     return []
+
+
+def _impostor_problems(lod, index, count):
+    """The impostor LOD (lib.impostor; asset-pipeline "Baked impostor LOD"): the last LOD, before the cull; an albedo,
+    a normal and a smoothness PNG atlas of IMPOSTOR_MAX_PX at most with their views on a grid; the card's size, one
+    quad, never thin_wire (it draws with the impostor shader); the hashes of the render's inputs and of the three
+    atlases."""
+    problems = [] if index == count - 1 else ["the impostor must be the last LOD, before the cull"]
+    if lod.get("thin_wire") is not False:
+        problems.append("the impostor's thin_wire must be false: the card draws with the impostor shader")
+    record = lod["impostor"]
+    if not isinstance(record, dict):
+        return problems + ["impostor must be an object"]
+    card = record.get("card")
+    size = record.get("size_px")
+    for key in ("atlas", "normals", "smoothness"):
+        if not (isinstance(record.get(key), str) and record[key].endswith(".png")):
+            problems.append(f"impostor {key} must name a .png beside the metadata")
+    if not (isinstance(size, list) and len(size) == 2 and all(_is_int(s) and 0 < s <= IMPOSTOR_MAX_PX for s in size)):
+        problems.append(f"impostor size_px must be [width, height], each at most {IMPOSTOR_MAX_PX} px (1k), got {size}")
+    grid = [record.get(k) for k in ("views", "columns", "rows")]
+    if not (all(_is_int(g) and g > 0 for g in grid) and grid[1] * grid[2] >= grid[0]):
+        problems.append(f"impostor views, columns and rows must be positive with views <= columns * rows, got {grid}")
+    if not (_is_num(record.get("elevation_deg")) and 0 <= record["elevation_deg"] < 90):
+        problems.append("impostor elevation_deg must lie in [0, 90)")
+    if not (isinstance(card, dict) and all(_is_num(card.get(k)) and card[k] > 0 for k in ("width_m", "height_m"))
+            and _is_num(card.get("bottom_m"))):
+        problems.append("impostor card needs width_m and height_m above 0 and bottom_m")
+    if lod["tris"] != 2:
+        problems.append(f"impostor tris {lod['tris']} must be 2: the card is one quad")
+    for key in ("inputs_sha256", "atlas_sha256", "normals_sha256", "smoothness_sha256"):
+        if not _is_hex(record.get(key), 64):
+            problems.append(f"impostor {key} is not a 64-digit hex string")
+    return problems
 
 
 def _shape_problems(shape):
@@ -470,6 +530,10 @@ def _dot(a, b):
 
 def _is_num(v):
     return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def _is_int(v):
+    return isinstance(v, int) and not isinstance(v, bool)
 
 
 def _is_vec(v, n=3):

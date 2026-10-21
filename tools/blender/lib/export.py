@@ -9,8 +9,8 @@ from . import frame
 
 FIXED_CLOCK = datetime.datetime(2000, 1, 1)
 # Design decision 5: Unity-friendly axes with the transform and the units baked into the vertices (lib.frame).
-# Static meshes only; normals per corner (flat unless a generator smooths); triangles, so the file holds exactly
-# what Unity renders.
+# Static meshes only; normals per corner (flat but a mesh's `smooth` slots and its faces' own normals); triangles,
+# so the file holds exactly what Unity renders.
 FBX_OPTIONS = dict(
     axis_forward='-Z', axis_up='Y', bake_space_transform=True, apply_unit_scale=True,
     apply_scale_options='FBX_SCALE_NONE', global_scale=1.0, object_types={'MESH'}, mesh_smooth_type='OFF',
@@ -25,23 +25,40 @@ def reset_scene():
 
 def add_lod(name, mesh):
     """One mesh object `name` from a lib.geometry.Mesh: vertices in Blender's frame, every face wound
-    counter-clockwise about its outward normal, a UV map in metres, and one material per slot named by the slot. When
-    the mesh's vertices carry them (p1-l01-l03-pole-wires): a second UV map of their second UVs ((0, 0) elsewhere),
-    which Unity reads as uv2, and their normals as custom normals on the faces whose every vertex has one, those faces
-    smooth-shaded; every other face keeps its flat normal. A mesh without either exports as before."""
+    counter-clockwise about its outward normal, a UV map in metres, one material per slot named by the slot, the
+    faces of the mesh's `smooth` slots shaded smooth, and the corners of faces with normals of their own
+    (`corner_normals`) given them as custom split normals (zero, Blender's own, elsewhere). Those faces are shaded
+    smooth too: the exporter triangulates, which keeps a smooth polygon's custom normals and scrambles a flat one's,
+    since Blender stores them relative to each corner's own frame (a flat 12-gon's normal leaning up 11.9 degrees came
+    out of the triangulation still 11.9 degrees off the face normal but turned about it, many corners leaning
+    sideways; p1-v01-locust task 1.2j). When the mesh's vertices carry them (p1-l01-l03-pole-wires): a second UV map
+    of their second UVs ((0, 0) elsewhere), which Unity reads as uv2, and their normals as custom normals on the faces
+    whose every vertex has one, those faces smooth-shaded; every other face keeps its flat normal. A mesh with none of
+    these exports as before. A mesh whose vertices carry normals and that also has `corner_normals` or `smooth` slots
+    is refused: the vertices' block would replace the corners' normals and reset every face's smoothing (QA 2.1, S7)."""
+    if mesh.normals and (mesh.corner_normals or mesh.smooth):
+        mixed = "per-corner normals" if mesh.corner_normals else f"smooth slots {sorted(mesh.smooth)}"
+        raise ValueError(f"{name}: a mesh takes per-vertex normals or {mixed}, not both")
     verts = [frame.unity_to_blender(v) for v in mesh.vertices]
-    loops, uvs, slots = [], [], mesh.slots()
-    for indices, outward, face_uvs, _ in mesh.faces:
+    loops, uvs, corners, slots = [], [], [], mesh.slots()
+    for f, (indices, outward, face_uvs, _) in enumerate(mesh.faces):
+        corner_normals = [frame.unity_to_blender(n) for n in mesh.corner_normals.get(f, [(0.0, 0.0, 0.0)] * len(indices))]
         if _dot(_newell(verts, indices), frame.unity_to_blender(outward)) < 0:
-            indices, face_uvs = indices[::-1], face_uvs[::-1]
+            indices, face_uvs, corner_normals = indices[::-1], face_uvs[::-1], corner_normals[::-1]
         loops.append(indices)
         uvs.append(face_uvs)
+        corners += corner_normals
     me = bpy.data.meshes.new(name)
     me.from_pydata(verts, [], loops)
     if me.validate(verbose=True):
         raise RuntimeError(f"{name}: Blender had to correct the geometry; the generator produced an invalid mesh")
     for slot in slots:
         me.materials.append(bpy.data.materials.get(slot) or bpy.data.materials.new(slot))
+    if mesh.smooth or mesh.corner_normals:  # a mesh with neither stays exactly as before
+        me.polygons.foreach_set("use_smooth", [slot in mesh.smooth or f in mesh.corner_normals
+                                               for f, (_, _, _, slot) in enumerate(mesh.faces)])
+    if mesh.corner_normals:  # likewise
+        me.normals_split_custom_set(corners)
     layer = me.uv_layers.new(name="UVMap")
     for poly, face_uvs, (_, _, _, slot) in zip(me.polygons, uvs, mesh.faces):
         poly.material_index = slots.index(slot)

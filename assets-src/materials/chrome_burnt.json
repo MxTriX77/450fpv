@@ -3,6 +3,6 @@
   "shader": "Universal Render Pipeline/Lit",
   "texture_set": "ambientcg/Metal049A",
   "tile_size_m": [0.5, 0.5],
-  "tint": [0.093, 0.101, 0.113, 1.0],
-  "mask": { "metallic": 1.0, "occlusion": 1.0, "smoothness": 0.25 }
+  "tint": [0.202, 0.208, 0.221, 1.0],
+  "mask": { "metallic": 0.0, "occlusion": 1.0, "smoothness": 0.15 }
 }

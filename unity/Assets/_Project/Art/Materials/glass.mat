@@ -38,7 +38,7 @@ Material:
     - _IOR: 1.52
     - _Smoothness: 0.95
     m_Colors:
-    - _BaseColor: {r: 0.15, g: 0.15, b: 0.15, a: 0.02}
+    - _BaseColor: {r: 0.4236, g: 0.4236, b: 0.4236, a: 0.02}
     - _CrackColor: {r: 0.663, g: 0.741, b: 0.706, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
