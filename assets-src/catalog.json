@@ -7,6 +7,12 @@
       "variants": ["E01_curving"],
       "materials": { "ground": "grassed_spoil", "wall": "trench_wall", "clod": "trench_wall", "section": "trench_wall", "straw": "straw" }
     },
+    "H01": {
+      "class": "houses",
+      "generator": "house",
+      "variants": ["H01_I"],
+      "materials": { "facade": "facade_h01", "interior": "interior_h01", "clay": "clay_render", "timber": "roof_timber", "door": "plank_door", "iron": "car_rust", "glass": "glass", "tile": "clay_tile", "tile_fracture": "tile_fracture", "brick": "brick_red" }
+    },
     "K01": {
       "class": "debris",
       "generator": "debris_brick",
