@@ -1,0 +1,9 @@
+{
+  "piece": "tile_whole",
+  "seed": 1,
+  "size_m": 0.0,
+  "tile_m": { "length": 0.36, "width": 0.22, "thickness": 0.014, "camber": 0.008 },
+  "fracture_count": 0,
+  "physics_material": "masonry",
+  "lod": { "lod1_switch_m": 8.0, "cull_m": 170.0 }
+}

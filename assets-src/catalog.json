@@ -13,6 +13,12 @@
       "variants": ["K01_whole"],
       "materials": { "brick": "brick_red" }
     },
+    "K02": {
+      "class": "debris",
+      "generator": "debris_tile",
+      "variants": ["K02_tile_shard", "K02_tile_whole"],
+      "materials": { "tile": "clay_tile", "tile_fracture": "tile_fracture" }
+    },
     "K07": {
       "class": "debris",
       "generator": "debris_car",
