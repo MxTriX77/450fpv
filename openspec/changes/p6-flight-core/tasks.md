@@ -42,16 +42,19 @@ Branch `unity/physics/p6-flight-core` off `unity/main` (D-042). The sim work is 
     - **The free-body golden** is re-pinned at `0x50ED4B05A5D02F20`: the body is a uniform 0.25 m cube of 4.8 kg, so the constant rate stays exact. The audit against 1.1's step: position and velocity bit-identical at every one of the 10 000 steps, attitude within 4.5e-12 rad, body rate within 1.0e-12 rad/s.
 - [ ] 1.4 [physics-engineer] The flight controller and propulsion (design 4, 5):
   - **What:** the Betaflight 4.5 model at 4 kHz (from its published formulas, its scaling constants checked against the source), the X mixer, the ESC and motor lags, thrust and torque, the inflow derate, battery sag on two packs.
+  - **From `p5-drone` 1.2** (its as-built note): derive the maximum thrust from n_max, not design 5's 2.6 kgf (the bench's loaded rpm per volt of duty is 0.80 Kv at 50 % and 0.66 Kv at 100 %: about 3.2 kgf and 44 A a motor at full throttle with sag, estimated); C_T rises from 0.108 to 0.111 between 8000 and 14 000 rpm, which a constant k_T leaves out; κ = 0.0144 m (APC 10x4.5MR) is below design 5's 0.015–0.02, so re-check the yaw saturation scenario; re-derive τ_m for the 16 g 2-blade prop (50 ms is assumed); the pack is 6S4P at 18 mΩ; hover trim carries the front motors 3.7 % over the rear at L4.
   - **Verify:**
     - every propulsion scenario (ACTUAL rates within 0.1 °/s, the builder PIDs' step response, yaw saturation past about 0.72 collective, hover margin and liftoff at 50–65 %, the 25 m/s inflow, sag)
     - the defaults read from `fc-profiles.md` per D-023
 - [ ] 1.5 [physics-engineer] Aero basics and the stand-in wind (design 6, 8):
   - **What:** body drag with along and across areas, the rotor H-force, coil drag below the CoM, the stand-in mean and turbulence per level, labelled.
+  - **From `p5-drone` 1.2:** the sheet's drag areas (frontal 0.06, side 0.056, top 0.07 m², ±30 %) are not in `drone.json`'s schema yet; add them. The coil sits 0.086–0.141 m above the CoM legs on and 0.025–0.079 m below it legs off.
   - **Verify:** the crosswind-lean scenario with a simple closed-loop pilot in `tools/flightbench`, and both wind-field scenarios.
 - [ ] 1.6 [physics-engineer] Contacts (design 7), after `p6-world-query-gallery` 1.1:
   - **What:** legs on `SampleGround`, the four-post stand, swept shapes on `StaticContacts` with the Time < 1 latch, prop strikes, crash and tunnel events.
+  - **From `p5-drone` 1.2:** the feet are skids: each leg's lower end meets the ground at y −0.253 m with a 0.005 m radius, and the skids overhang 0.126 m past each leg, which a four-point foot misses on a pitched landing; the tubes bend sideways at about 6.6 kN/m; the carbon arms, legs and skids need a contact material (the sheet's `carbon_composite`); the stand's posts sit at r 0.200 m.
   - **Verify:**
-    - the ground-contact scenarios on the stub, and on the gallery world once `p6-world-query-gallery` lands it: the bounce with throttle held and cut, liftoff from the stand, into L01 at 10 m/s
+    - the ground-contact scenarios on the stub, and on the test range (D-044) once `p6-world-query-gallery` lands its queries: the bounce with throttle held and cut, liftoff from the stand, into L01 at 10 m/s, into the posadka
     - the replay scenario on a 120 s flight with contacts and a landing
 - [ ] 1.7 [physics-engineer] The budget and determinism (PLT-04):
   - **What:** `tools/flightbench --bench` on AC with the power mode printed: p50 and p99 step times, steady-state allocations, the world-query share.
