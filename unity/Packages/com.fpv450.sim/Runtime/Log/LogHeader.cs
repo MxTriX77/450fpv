@@ -61,8 +61,9 @@ namespace Fpv450.Sim.Log
     /// - the world: the id a replay opens it by, its content hash and QueryVersion, its surface and material names
     /// - the drone: drone.json's hash (0 for a body not read from it), its name and the pilot's loadout
     /// - the body the flight started with: the mass model's parts and the mass, CoM and inertia they built
+    /// - the propulsion: the motors, the props with their curves, the packs (none for a bench's free body)
     /// - the flight controller's settings, every field by its CLI name
-    /// - the start state, and the record layouts (so a reader needs no code of ours)
+    /// - the start state with the packs' charge, and the record layouts (so a reader needs no code of ours)
     /// Sim data only (LOG-05): no user, machine, path or clock.
     ///
     /// On disk: Magic, the format version and the header's length (u32), then entries of a u16 tag, a u32 length and
@@ -72,14 +73,28 @@ namespace Fpv450.Sim.Log
     {
         /// <summary>The FlightSetup fields the header records, checked against FlightSetup by the suite.</summary>
         public static readonly string[] SetupFieldsLogged =
-            { "Seed", "Settings", "World", "Mass", "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate" };
+        {
+            "Seed", "Settings", "World", "Mass", "Propulsion", "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate",
+            "StartPackCharge",
+        };
 
         /// <summary>The DronePart fields the header records, checked against DronePart by the suite.</summary>
         public static readonly string[] PartFieldsLogged =
             { "Name", "Kind", "Material", "Mass", "Position", "Size", "Diameter", "Length", "Axis" };
 
+        /// <summary>The propulsion's fields the header records, checked against the structs by the suite.</summary>
+        public static readonly string[] PropulsionFieldsLogged = { "Motors", "Props", "Packs" };
+        public static readonly string[] MotorFieldsLogged =
+            { "Position", "Clockwise", "Kv", "Resistance", "NoLoadCurrent", "RotorInertia", "MagnetPoles", "EscTau" };
+        public static readonly string[] PropsFieldsLogged =
+        {
+            "Diameter", "Blades", "Pitch", "ThrustCoefficient", "TorqueRatio", "ReferenceRpm", "StaticRpm", "StaticThrustRatio",
+            "StaticTorqueRatio", "InflowAdvanceRatio", "InflowThrustRatio", "InflowTorqueRatio",
+        };
+        public static readonly string[] PackFieldsLogged = { "Part", "Series", "Parallel", "CellCapacity", "CellResistance", "Ocv" };
+
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
-            TagRandomness = 7, TagStart = 8, TagLayouts = 9;
+            TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -100,6 +115,9 @@ namespace Fpv450.Sim.Log
         public DronePart[] Parts = new DronePart[0];
         public MassProperties Body;
 
+        /// <summary>The motors, props and packs; null for a body without propulsion.</summary>
+        public PropulsionSpec Propulsion;
+
         public SettingValue[] Settings = new SettingValue[0];
 
         public string[] Streams = new string[0];
@@ -107,6 +125,7 @@ namespace Fpv450.Sim.Log
 
         public Double3 StartPosition, StartVelocity, StartBodyRate;
         public Quat StartAttitude = Quat.Identity;
+        public double StartPackCharge = 1;
 
         public LogField[] StepFields = LogFormat.StepFields;
         public LogField[] EventFields = LogFormat.EventFields;
@@ -133,11 +152,13 @@ namespace Fpv450.Sim.Log
                 WorldHash = core.World.ContentHash,
                 QueryVersion = core.World.QueryVersion,
                 Body = core.Body,
+                Propulsion = setup.Propulsion,
                 Settings = SettingsOf(core.Settings),
                 StartPosition = setup.StartPosition,
                 StartAttitude = setup.StartAttitude,
                 StartVelocity = setup.StartVelocity,
                 StartBodyRate = setup.StartBodyRate,
+                StartPackCharge = setup.StartPackCharge,
             };
             var surfaces = new List<NamedId>();
             for (int id = 1; id < 255; id++)
@@ -189,10 +210,12 @@ namespace Fpv450.Sim.Log
                 Settings = settings,
                 World = world,
                 Mass = new MassModel(Parts),
+                Propulsion = Propulsion,
                 StartPosition = StartPosition,
                 StartAttitude = StartAttitude,
                 StartVelocity = StartVelocity,
                 StartBodyRate = StartBodyRate,
+                StartPackCharge = StartPackCharge,
             };
         }
 
@@ -337,6 +360,40 @@ namespace Fpv450.Sim.Log
                 S3(e, Body.Inertia);
                 S3(e, Body.InverseInertia);
             });
+            Entry(w, TagPropulsion, e =>
+            {
+                e.Write(Propulsion != null);
+                if (Propulsion == null) return;
+                foreach (DroneMotor m in Propulsion.Motors)
+                {
+                    V3(e, m.Position);
+                    e.Write(m.Clockwise);
+                    e.Write(m.Kv);
+                    e.Write(m.Resistance);
+                    e.Write(m.NoLoadCurrent);
+                    e.Write(m.RotorInertia);
+                    e.Write(m.MagnetPoles);
+                    e.Write(m.EscTau);
+                }
+                DroneProps p = Propulsion.Props;
+                e.Write(p.Diameter);
+                e.Write(p.Blades);
+                e.Write(p.Pitch);
+                e.Write(p.ThrustCoefficient);
+                e.Write(p.TorqueRatio);
+                e.Write(p.ReferenceRpm);
+                foreach (double[] curve in new[] { p.StaticRpm, p.StaticThrustRatio, p.StaticTorqueRatio, p.InflowAdvanceRatio, p.InflowThrustRatio, p.InflowTorqueRatio })
+                    Numbers(e, curve);
+                foreach (DronePack k in Propulsion.Packs)
+                {
+                    e.Write(k.Part);
+                    e.Write(k.Series);
+                    e.Write(k.Parallel);
+                    e.Write(k.CellCapacity);
+                    e.Write(k.CellResistance);
+                    Numbers(e, k.Ocv);
+                }
+            });
             Entry(w, TagSettings, e =>
             {
                 e.Write((ushort)Settings.Length);
@@ -371,6 +428,7 @@ namespace Fpv450.Sim.Log
                 e.Write(StartAttitude.W);
                 V3(e, StartVelocity);
                 V3(e, StartBodyRate);
+                e.Write(StartPackCharge);
             });
             Entry(w, TagLayouts, e =>
             {
@@ -490,6 +548,9 @@ namespace Fpv450.Sim.Log
                             InverseInertia = S3(r),
                         };
                         break;
+                    case TagPropulsion:
+                        Propulsion = r.ReadBoolean() ? ReadPropulsion(r) : null;
+                        break;
                     case TagSettings:
                         Settings = new SettingValue[r.ReadUInt16()];
                         for (int i = 0; i < Settings.Length; i++) Settings[i] = new SettingValue(Text(r), r.ReadByte(), r.ReadInt64());
@@ -506,6 +567,7 @@ namespace Fpv450.Sim.Log
                         StartAttitude = new Quat(r.ReadDouble(), r.ReadDouble(), r.ReadDouble(), r.ReadDouble());
                         StartVelocity = V3(r);
                         StartBodyRate = V3(r);
+                        StartPackCharge = r.ReadDouble();
                         break;
                     case TagLayouts:
                         sawLayouts = true;
@@ -526,6 +588,48 @@ namespace Fpv450.Sim.Log
                 r.BaseStream.Position = end;
             }
             if (!sawLayouts) throw new FlightLogException("the header has no record layouts");
+        }
+
+        static PropulsionSpec ReadPropulsion(BinaryReader r)
+        {
+            var spec = new PropulsionSpec { Motors = new DroneMotor[4], Packs = new DronePack[2] };
+            for (int i = 0; i < 4; i++)
+            {
+                spec.Motors[i] = new DroneMotor
+                {
+                    Position = V3(r), Clockwise = r.ReadBoolean(), Kv = r.ReadDouble(), Resistance = r.ReadDouble(),
+                    NoLoadCurrent = r.ReadDouble(), RotorInertia = r.ReadDouble(), MagnetPoles = r.ReadInt32(), EscTau = r.ReadDouble(),
+                };
+            }
+            spec.Props = new DroneProps
+            {
+                Diameter = r.ReadDouble(), Blades = r.ReadInt32(), Pitch = r.ReadDouble(), ThrustCoefficient = r.ReadDouble(),
+                TorqueRatio = r.ReadDouble(), ReferenceRpm = r.ReadDouble(),
+                StaticRpm = Numbers(r), StaticThrustRatio = Numbers(r), StaticTorqueRatio = Numbers(r),
+                InflowAdvanceRatio = Numbers(r), InflowThrustRatio = Numbers(r), InflowTorqueRatio = Numbers(r),
+            };
+            for (int k = 0; k < 2; k++)
+            {
+                spec.Packs[k] = new DronePack
+                {
+                    Part = r.ReadInt32(), Series = r.ReadInt32(), Parallel = r.ReadInt32(), CellCapacity = r.ReadDouble(),
+                    CellResistance = r.ReadDouble(), Ocv = Numbers(r),
+                };
+            }
+            return spec;
+        }
+
+        static void Numbers(BinaryWriter w, double[] xs)
+        {
+            w.Write((ushort)xs.Length);
+            foreach (double x in xs) w.Write(x);
+        }
+
+        static double[] Numbers(BinaryReader r)
+        {
+            var xs = new double[r.ReadUInt16()];
+            for (int i = 0; i < xs.Length; i++) xs[i] = r.ReadDouble();
+            return xs;
         }
 
         /// <summary>True when a layout the log declares is not the one this build writes (field for field).</summary>
