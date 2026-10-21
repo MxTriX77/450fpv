@@ -477,6 +477,9 @@ def test_f_burnt_surfaces(r01_f, built_f):
     slots = lod0.slots()
     assert {"soot", "chrome_dull", "rack", "wire"} <= set(slots)
     assert not {"paint", "bare", "chrome", "glass", "windscreen", "tyre", "lens", "seat", "vinyl", "plate"} & set(slots)
+    # QA 2.1's S6: every pane gone, so the far hulls' greenhouse is the dark opening, not glass
+    assert not any("glass_hull" in m.slots() for m in built_f["lods"])
+    assert "glass" not in {m["physics"] for m in built_f["materials"]}
     assert [m["lod"] for m in built_f["micro"] if m["kind"] == "soot_patch"] == [0, 1, 2]
     assert [w["porosity"] for w in built_f["wind_volumes"]] == [0.0, 0.55]
     hooks = [s for s in built_f["snag"] if s["kind"] == "hook"]

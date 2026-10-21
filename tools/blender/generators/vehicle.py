@@ -2355,10 +2355,14 @@ def _box_hull(body, kit):
     mesh = Mesh()
     hw = body.hw(body.s_ws_top)
     paint = SOOT if kit.F else PAINT
+    # the greenhouse: its glass, or with every pane gone the dark opening of the cabin (QA 2.1's S6)
+    glazed = (any(g != "gone" for g in kit.glass.values()) or kit.windscreen != "gone"
+              or kit.rear_screen != "gone")
     _box(mesh, body.P((body.s_front + body.s_rear) / 2, 0.0, (body.z_bot(1.0) + body.belt) / 2),
          (body.s_rear - body.s_front, body.belt - body.z_bot(1.0), 2 * hw), paint)
     _box(mesh, body.P((body.s_ws_top + body.s_rs_top) / 2, 0.0, (body.belt + body.H) / 2),
-         (body.s_rs_top - body.s_ws_top, body.H - body.belt, 2 * body.w_e(body.s_ws_top)), GLASS_HULL)
+         (body.s_rs_top - body.s_ws_top, body.H - body.belt, 2 * body.w_e(body.s_ws_top)),
+         GLASS_HULL if glazed else UNDER)
     kits.transform_range(mesh, (0, len(mesh.vertices)), (0, len(mesh.faces)), kit.T)
     for k, a in enumerate(body.axle):
         for side in (-1, 1):
