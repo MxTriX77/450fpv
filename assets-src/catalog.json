@@ -13,6 +13,12 @@
       "variants": ["K01_whole"],
       "materials": { "brick": "brick_red" }
     },
+    "K07": {
+      "class": "debris",
+      "generator": "debris_car",
+      "variants": ["K07_lamp_bowl", "K07_bezel_ring", "K07_trim_plate", "K07_bead_wire"],
+      "materials": { "chrome": "chrome", "rust": "car_rust" }
+    },
     "L01": {
       "class": "lines",
       "generator": "pole",
@@ -25,6 +31,16 @@
       "generator": "wire_span",
       "variants": ["L03_thin", "L03_medium", "L03_thick"],
       "materials": { "steel": "wire_steel", "aluminium": "wire_aluminium", "insulated": "wire_sip" }
+    },
+    "R01": {
+      "class": "vehicles",
+      "generator": "vehicle",
+      "variants": ["R01_A", "R01_F"],
+      "materials": { "paint": "car_paint", "under": "car_soot", "chrome": "chrome", "glass": "glass", "tyre": "tyre",
+                     "seat": "seat_fabric", "vinyl": "car_vinyl", "lamp": "car_lamps", "lens": "car_lamps",
+                     "rack": "car_soot", "plate": "car_lamps", "windscreen": "glass", "rust": "car_rust",
+                     "wire": "car_rust", "soot": "car_burnt", "chrome_dull": "chrome_burnt",
+                     "soot_patch": "soot_patch", "glass_hull": "car_glass" }
     },
     "S04": {
       "class": "surfaces",

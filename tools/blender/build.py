@@ -12,8 +12,9 @@ skipped by the audit), checks the hole-filler contract of an asset that cuts the
 generator's "joints", which it must report for every interior point of its holes' centre lines), prints the generator's own lines (its "lines", if any), and only then
 writes unity/Assets/_Project/Art/Models/<class>/<ID>/<variant>.fbx and <variant>.assetmeta.json, both in Unity's
 frame (lib/frame.py), the FBX staged beside its final name and moved once it reads back as the metadata says. A
-rejected build changes no file. It refuses any Blender other than the pinned major.minor. Exit code 1 on any
-problem; nothing is hand-edited.
+rejected build changes no file. A generator's textures (its "textures", lib.meta) are written beside the metadata as
+<variant>_<name>.png, and a texture of the variant that the build no longer writes is removed with its .meta. It
+refuses any Blender other than the pinned major.minor. Exit code 1 on any problem; nothing is hand-edited.
 """
 import argparse
 import importlib
@@ -72,6 +73,17 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
         if fresh and not os.listdir(out_dir):
             os.rmdir(out_dir)
     meta.write(os.path.join(out_dir, variant + ".assetmeta.json"), data)
+    written = set()
+    for texture in built.get("textures", []):  # the generator's textures beside the metadata (its "textures")
+        name = meta.texture_file(variant, texture["name"])
+        with open(os.path.join(out_dir, name), "wb") as f:
+            f.write(texture["png"])
+        written.add(name)
+    for name in os.listdir(out_dir):  # a texture an earlier build of this variant wrote and this one does not
+        if name.startswith(variant + "_") and name.endswith(".png") and name not in written:
+            for stale in (name, name + ".meta"):
+                if os.path.exists(os.path.join(out_dir, stale)):
+                    os.remove(os.path.join(out_dir, stale))
     size = [round(data["bounds"]["max"][a] - data["bounds"]["min"][a], 4) for a in range(3)]
     tris = " / ".join(str(lod["tris"]) for lod in data["lods"])
     micro = "".join(f"  micro {m['name']} {m['count']} {m['kind']} {m['tris']} tris" for m in data["micro"])

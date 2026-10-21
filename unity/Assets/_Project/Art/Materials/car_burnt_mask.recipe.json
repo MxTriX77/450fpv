@@ -1,0 +1,16 @@
+{
+  "material": "car_burnt",
+  "texture_set": "ambientcg/Metal046B",
+  "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
+  "mask": {
+    "metallic": 0.0,
+    "occlusion": 1.0,
+    "smoothness": 0.08
+  },
+  "sources": {},
+  "inputs_sha256": "e397a87657582620a1c2f8018a5e42c6c811c0a6d6a1f3d73578b8b466c9e5f3",
+  "size": [
+    1,
+    1
+  ]
+}

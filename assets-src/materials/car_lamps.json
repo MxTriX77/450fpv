@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "kind": "palette",
+  "shader": "Universal Render Pipeline/Lit",
+  "colours": { "clear": "#cfd6d4", "red": "#7a1712", "amber": "#b8661a", "plate": "#d9dad6" },
+  "tint": [1.0, 1.0, 1.0, 1.0],
+  "smoothness": 0.85
+}

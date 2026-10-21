@@ -1,0 +1,11 @@
+{
+  "piece": "lamp_bowl",
+  "seed": 1,
+  "diameter_m": 0.17,
+  "section_m": 0.0008,
+  "length_m": 0.0,
+  "width_m": 0.0,
+  "bend_m": 0.0,
+  "physics_material": "steel",
+  "lod": { "lod1_switch_m": 8.0, "cull_m": 80.0 }
+}
