@@ -58,6 +58,13 @@ namespace Fpv450
         }
 
         public Bounds Bounds;
+        /// <summary>The metadata's optional <c>bounds.lod</c>: the object's own box, without what lies round it (a car's scatter, a house's rubble spread); null when absent.</summary>
+        public Bounds? Lod;
+        /// <summary>
+        /// The box the review frames its shots on: <see cref="Lod"/> when the metadata carries it, else the bounds
+        /// (p1-r01-vaz-sedan QA 2.2's T1, p1-h01-adobe-house task 1.6), as the LOD group is framed.
+        /// </summary>
+        public Bounds Frame => Lod ?? Bounds;
         public string LodSummary;
         public float CullDistance;
         public string MaterialSummary;
@@ -76,6 +83,12 @@ namespace Fpv450
             var bounds = Json.Obj(json, "bounds", path);
             Vector3 min = Json.Vec3(bounds, "min", path), max = Json.Vec3(bounds, "max", path);
             meta.Bounds = new Bounds((min + max) * 0.5f, max - min);
+            if (bounds.ContainsKey("lod"))
+            {
+                var lod = Json.Obj(bounds, "lod", path);
+                Vector3 lodMin = Json.Vec3(lod, "min", path), lodMax = Json.Vec3(lod, "max", path);
+                meta.Lod = new Bounds((lodMin + lodMax) * 0.5f, lodMax - lodMin);
+            }
 
             meta.LodSummary = string.Join(", ", Items(json, "lods", path).Select((lod, i) =>
                 $"{Json.Str(lod, "mesh", path).Replace($"{Json.Str(json, "variant", path)}_", "")} {Json.Num(lod, "tris", path):0} TRIS" +
