@@ -45,7 +45,7 @@ TAIL_MAX_M = 0.2                     # the eaves course past the rafter tails (a
 DAMAGE_I = 0.25                      # the sheet: I below 0.25
 DAMAGE_X = 0.8                       # the sheet: X above 0.8
 SLOTS = {"facade": "masonry", "interior": "masonry", "clay": "masonry", "tile": "masonry",
-         "tile_fracture": "masonry", "brick": "masonry", "timber": "timber", "door": "timber", "glass": "glass",
+         "tile_fracture": "masonry", "tile_far": "masonry", "brick": "masonry", "timber": "timber", "door": "timber", "glass": "glass",
          "iron": "steel", "timber_fracture": "timber", "adobe": "masonry", "heap": "masonry", "cable": "cable"}
 CABLE_R_M = 0.004                    # a two-core PVC cable, about 8 mm (assumed)
 CABLE_SAG_M = (0.5, 0.9)             # its loop below the hall's joists (assumed: E 16, down to about head height)
@@ -69,6 +69,9 @@ PARAMS = {
     "render_loss": _p("float", (0.0, 0.8), 0.3, "share of the render gone (mask R 1), round openings, corners, foot "
                                                 "and head"),
     "whitewash_loss": _p("float", (0.0, 1.0), 0.3, "share of the whitewash gone on the render left (mask R 0.5)"),
+    "interior_render_loss": _p("float", (0.0, 0.8), 0.1, "as render_loss, on the rooms' walls (E 16-17: flakes off "
+                                                         "the blue whitewash)"),
+    "interior_whitewash_loss": _p("float", (0.0, 1.0), 0.2, "as whitewash_loss, on the rooms' walls"),
     "base_band_height": _p("float", (0.0, 0.6), 0.42, "the red-clay band at the foot (mask A)"),
     "roof_type_front": _p("str", ", ".join(END_TYPES), "gable", "the -X end (left seen from the door side)"),
     "roof_type_back": _p("str", ", ".join(END_TYPES), "hip", "the +X end"),
@@ -347,7 +350,8 @@ def build(params):
     snag += heap.snag
     wind.append(_cavity(plan, params, gaps))
     raster, mask_lines = masks.facade_atlas(regions, params["render_loss"], params["whitewash_loss"],
-                                           params["base_band_height"], params["soot_openings"], rngs, walls.ATLAS_M)
+                                           params["base_band_height"], params["soot_openings"], rngs, walls.ATLAS_M,
+                                           (params["interior_render_loss"], params["interior_whitewash_loss"]))
     png = raster.png()
     textures = [{"role": "damage_mask", "slot": slot, "name": "damage", "uv_min": [0.0, 0.0],
                  "uv_max": list(walls.ATLAS_M), "channels": CHANNELS, "png": png} for slot in ("facade", "interior")]

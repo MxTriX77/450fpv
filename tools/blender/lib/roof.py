@@ -91,6 +91,12 @@ CEILING_CELL_BOARDS = 4        # the ceiling falls in strips of this many boards
 BOARD_SPLINTER_M = (0.02, 0.04)  # a ceiling board's splinters over its joist (derived: within the joist's top)
 BOARD_SPLINTERS = 5            # as K03's board: a 25 mm board's splinters narrow enough for their capsules
 CLAY_SETBACK_M = (0.0, 0.08)   # the clay crumbles back from a broken board's end (assumed)
+FAR_CELL = 4                   # the clean clay cell LOD2 and LOD3's cover map into, its hue the six cells' mean's
+FAR_SLOT = "tile_far"          # ... in its own slot (recipe clay_tile_far), toned to what LOD1's tiles read as at the
+                               # LOD2 switch: task 1.5 measured this cell under clay_tile's tint 1.29-1.37 x LOD1 at
+                               # 100 m on the feed's 935 px/rad (the tiles' joints and neighbours mipped in), by day
+                               # and overcast, so the far recipe's gains are 0.74 / 0.78 / 0.86 of clay_tile's
+FAR_RIM_UV = 0.0003            # a far slab's 5 cm rim across, in the cell's UV metres (derived: its scale, about 0.006)
 
 
 class Slope:
@@ -1447,20 +1453,36 @@ def _ceiling_down(plan, params, ch, lods, out, rngs):
                                         "narrowest_m": round(audit.inscribed_diameter(poly, [0.0, 1.0, 0.0]), 6)})
 
 
+def _far_uv(slope, layout):
+    """LOD2 and LOD3's cover UVs on a slope: (a, s) into the clay cell FAR_CELL, the slope's extent fitted inside
+    it, so the far cover takes one even tone (FAR_SLOT's) rather than the photo's whole map, whose joints and
+    weathered tiles put it at 0.7 of the cells' mean (task 1.5)."""
+    (u0, v0), (u1, v1) = debris_tile.CELLS_M[FAR_CELL]
+    lo = min(slope.a_range(0.0)[0], slope.a_range(slope.S)[0])
+    hi = max(slope.a_range(0.0)[1], slope.a_range(slope.S)[1])
+    s0, s1 = -layout.e, slope.S
+    k = 0.9 * min((u1 - u0) / (hi - lo), (v1 - v0) / (s1 - s0))
+    cu, cv, ca, cs = (u0 + u1) / 2, (v0 + v1) / 2, (lo + hi) / 2, (s0 + s1) / 2
+    return lambda a, s_: (cu + (a - ca) * k, cv + (s_ - cs) * k)
+
+
 def _far_cover(plan, slopes, layout, lods, regions=None):
-    """LOD2 and LOD3: each slope's cover as one slab over its polygon, UV'd in the slope's metres; a stripped roof's
-    (`regions`, its courses' regions of tiles left, (slope, polygon in (a, s))) as those regions only, top and
-    underside at LOD2 and the top at LOD3, so the far roof shows the same holes."""
+    """LOD2 and LOD3: each slope's cover as one slab over its polygon in FAR_SLOT, UV'd into one clay cell (_far_uv);
+    a stripped roof's (`regions`, its courses' regions of tiles left, (slope, polygon in (a, s))) as those regions only,
+    top and underside at LOD2 and the top at LOD3, so the far roof shows the same holes."""
     if regions is not None:
         n0, n1 = layout.n_head, layout.n_tail + layout.t
+        uvs = {}
         for slope, poly in regions:
+            uv = uvs.setdefault(slope.name, _far_uv(slope, layout))
             for mesh, faces in ((lods[2], ((n1, 1), (n0, -1))), (lods[3], ((n1, 1),))):
                 for n, sgn in faces:
                     verts = [slope.point(a, s_, n) for a, s_ in poly]
-                    mesh.face([mesh.vertex(v) for v in verts], tuple(sgn * c for c in slope.en), TILE_SLOT,
-                              [(a, s_) for a, s_ in poly])
+                    mesh.face([mesh.vertex(v) for v in verts], tuple(sgn * c for c in slope.en), FAR_SLOT,
+                              [uv(a, s_) for a, s_ in poly])
         return
     for slope in slopes:
+        uv = _far_uv(slope, layout)
         s0, s1 = -layout.e, slope.S
         lo0, hi0 = slope.a_range(0.0)
         lo1, hi1 = slope.a_range(s1)
@@ -1474,7 +1496,7 @@ def _far_cover(plan, slopes, layout, lods, regions=None):
             for n, sgn in ((n1, 1), (n0, -1)) if both else ((n1, 1),):
                 verts = [slope.point(a, s, n) for a, s in poly]
                 normal = tuple(sgn * c for c in slope.en)
-                mesh.face([mesh.vertex(v) for v in verts], normal, TILE_SLOT, [(a, s) for a, s in poly])
+                mesh.face([mesh.vertex(v) for v in verts], normal, FAR_SLOT, [uv(a, s) for a, s in poly])
             if both:
                 for (a0, s_0), (a1, s_1) in zip(poly, poly[1:] + poly[:1]):
                     quad = [slope.point(a0, s_0, n0), slope.point(a1, s_1, n0), slope.point(a1, s_1, n1),
@@ -1484,8 +1506,11 @@ def _far_cover(plan, slopes, layout, lods, regions=None):
                     inner = slope.point(sum(p[0] for p in poly) / len(poly), sum(p[1] for p in poly) / len(poly))
                     if prism.dot(normal, tuple(mid[k] - inner[k] for k in range(3))) < 0:
                         normal = tuple(-c for c in normal)
-                    mesh.face([mesh.vertex(v) for v in quad], normal, TILE_SLOT,
-                              [(a0, 0.0), (a1, 0.0), (a1, 0.05), (a0, 0.05)])
+                    p0, p1 = uv(a0, s_0), uv(a1, s_1)
+                    du, dv = p1[0] - p0[0], p1[1] - p0[1]
+                    rim = FAR_RIM_UV / math.hypot(du, dv)  # the rim's UV across its edge, never degenerate
+                    mesh.face([mesh.vertex(v) for v in quad], normal, FAR_SLOT,
+                              [p0, p1, (p1[0] - dv * rim, p1[1] + du * rim), (p0[0] - dv * rim, p0[1] + du * rim)])
 
 
 def _newell(pts):

@@ -45,7 +45,8 @@ def with_(params, **changes):
 def test_h01_d_params_are_design_11s(d_params):
     _, p = d_params
     assert params_lib.validate(house, p) == []
-    assert (p["damage"], p["roof_strip"], p["batten_break"], p["rafters_broken"]) == (0.55, 0.75, 0.3, 2)
+    # design 11's state, tuned by E in task 1.5 inside the sheet's ranges (roof 60-90 %, battens 20-40 %)
+    assert (p["damage"], p["roof_strip"], p["batten_break"], p["rafters_broken"]) == (0.55, 0.8, 0.4, 2)
     assert (p["door_leaf_state"], p["opening_jag"], p["shard_heap_depth"]) == ("hanging", 0.2, 0.3)
     assert (p["interior_ceiling_down"], p["hanging_cables"], p["rubble_volume"]) == (0.45, 1, -1.0)
     assert all(w["state"] == "frame_empty" for w in p["windows"].values() if w["side"] != "none")
@@ -90,17 +91,20 @@ def test_rubble_volume_param_scales_the_heaps(d_params):
 
 
 def _bands_hold(distances, lam, tolerance=0.2, least=5.0):
-    """Each metre band [k, k + 1) holds its exp(-d / lam) share of the pieces within `tolerance`, for every band
-    whose share is at least `least` pieces."""
+    """Each metre band [k, k + 1) holds its share of the pieces under exp(-d / lam) ended at rubble.SPREAD_CAP lam
+    within `tolerance`, for every band whose share is at least `least` pieces, and none lies past the cap."""
     n = len(distances)
+    cap = rubble.SPREAD_CAP * lam
+    assert max(distances) <= cap + 1e-9, (max(distances), cap)
     k, checked = 0, 0
-    while True:
-        expected = n * (math.exp(-k / lam) - math.exp(-(k + 1) / lam))
+    while k < cap:
+        expected = n * (math.exp(-k / lam) - math.exp(-min(k + 1, cap) / lam)) / (1 - math.exp(-rubble.SPREAD_CAP))
         if expected < least:
             return checked
         got = sum(k <= d < k + 1 for d in distances)
         assert abs(got - expected) <= tolerance * expected, (k, got, expected, lam)
         k, checked = k + 1, checked + 1
+    return checked
 
 
 @pytest.mark.parametrize("lam", [1.0, 1.5, 2.0, 3.5])
@@ -121,8 +125,9 @@ def test_house_rubble_spreads_by_exp_per_class_and_widens_away_from_the_burst(d_
         if len(ds) >= 40:
             checked += _bands_hold(ds, lams[call])
     assert checked >= 6
-    assert lams["right outer", "tile"] == pytest.approx(rubble.LAMBDA_M["tile"] * rubble.LEE_WIDEN)  # the lee end
-    assert lams["front outer", "tile"] == pytest.approx(rubble.LAMBDA_M["tile"])
+    # the burst behind the house (task 1.5, by E): the front's foot is the lee, the back's is not
+    assert lams["front outer", "tile"] == pytest.approx(rubble.LAMBDA_M["tile"] * rubble.LEE_WIDEN)
+    assert lams["back outer", "tile"] == pytest.approx(rubble.LAMBDA_M["tile"])
 
 
 def test_rubble_pieces_carry_their_own_collision_and_the_houses_colours(d_built):
@@ -135,7 +140,7 @@ def test_rubble_pieces_carry_their_own_collision_and_the_houses_colours(d_built)
     assert not slots & {"facade", "interior", "glass"}  # never whitewash: rubble is the house's own materials
     recipes = {m["slot"]: m["visual"] for m in data["materials"]}
     assert {recipes[s] for s in slots} <= {"clay_tile", "tile_fracture", "roof_timber", "timber_fracture", "car_rust",
-                                           "adobe", "clay_render"}  # the heap is the tiles' clay (the sheet: as tiles)
+                                           "adobe", "clay_render", "rubble_heap"}  # the heap: tile and adobe crumbs
 
 
 # --- the roof's gaps -----------------------------------------------------------------------------------------------

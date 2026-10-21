@@ -63,7 +63,7 @@ namespace Fpv450.Tests.EditMode
         static readonly string[] FacadeLayers = { "clay_render", "base_band", "adobe", "wall_soot", "wall_dirt" };
         const int Render = 1, Band = 2, Adobe = 3, Soot = 4, Dirt = 5;
         const string FacadeChannels = @"[""render_depth"", ""soot"", ""dirt"", ""base_band""]";
-        const string AdobeDiffuse = "Assets/_Project/Art/ThirdParty/polyhaven/rough_plaster_brick_02/rough_plaster_brick_02_diff_2k.png";
+        const string AdobeDiffuse = "Assets/_Project/Art/ThirdParty/polyhaven/dirt_floor/dirt_floor_diff_1k.png";
 
         // The project's recipe materials a facade build created, deleted once the fixture is done (never a deleted path reused within it).
         static readonly HashSet<string> MadeInProject = new HashSet<string>();

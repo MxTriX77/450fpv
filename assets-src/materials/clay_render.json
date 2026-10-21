@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "shader": "Universal Render Pipeline/Lit",
-  "texture_set": "polyhaven/worn_cracked_plaster",
+  "texture_set": "polyhaven/white_stucco_02",
   "tile_size_m": [1.8, 1.8],
-  "tint": [1.168, 1.021, 0.9, 1.0],
+  "tint": [0.868, 0.682, 0.477, 1.0],
   "mask": { "metallic": 0.0, "occlusion": "ao", "smoothness": "1 - roughness" }
 }

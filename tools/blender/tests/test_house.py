@@ -309,6 +309,36 @@ def test_mask_follows_render_loss(h01):
     assert again.png() == first.png()  # deterministic
 
 
+def test_rooms_take_their_own_render_and_whitewash_loss(built):
+    """The rooms' loops follow interior_render_loss, the facade's render_loss (E 16-17: blue whitewash inside)."""
+    params, out, _ = built
+    shares = {}
+    for line in out["lines"]:
+        if line.startswith("mask ") and "bare adobe on" in line:
+            share = float(line.split("bare adobe on ")[1].split()[0])
+            loss = float(line.split("(render_loss ")[1].split(")")[0])
+            shares[line.split(":")[0][5:]] = (share, loss)
+    assert len(shares) >= 4  # the facade and the rooms
+    for name, (share, loss) in shares.items():
+        assert abs(share - loss) <= 0.05, (name, share, loss)
+    assert sorted({loss for _, loss in shares.values()}) == sorted({params["render_loss"],
+                                                                   params["interior_render_loss"]})
+
+
+def test_far_cover_maps_into_one_clay_cell(built):
+    """LOD2 and LOD3's cover is its own slot sampling the clean cell FAR_CELL, never the photo's whole map (task 1.5's
+    tone step), and LOD0-1's tiles never use it."""
+    _, out, data = built
+    from lib import debris_tile
+    (u0, v0), (u1, v1) = debris_tile.CELLS_M[roof.FAR_CELL]
+    for mesh in out["lods"][2:]:
+        uvs = [uv for _, _, face_uvs, slot in mesh.faces if slot == roof.FAR_SLOT for uv in face_uvs]
+        assert uvs and roof.TILE_SLOT not in mesh.slots()
+        assert all(u0 <= u <= u1 and v0 <= v <= v1 for u, v in uvs)
+    assert all(roof.FAR_SLOT not in mesh.slots() for mesh in out["lods"][:2])
+    assert {m["slot"]: m["physics"] for m in data["materials"]}[roof.FAR_SLOT] == "masonry"
+
+
 def test_mask_covers_peak_as_the_layers_read_them(h01):
     """G soot peaks at 0.85 and B dirt at 0.4 (the layers cover by the channel's value, task 1.2), A is the band's
     cover, worn below 1 in places and nothing above the band."""

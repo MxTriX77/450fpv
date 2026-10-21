@@ -210,12 +210,15 @@ class _Region:
         return min(min(abs(u - c) % p, p - abs(u - c) % p) for c in self.corners) if self.corners else 1e9
 
 
-def facade_atlas(regions, render_loss, whitewash_loss, base_band_height, soot_openings, rng_for, atlas_m):
+def facade_atlas(regions, render_loss, whitewash_loss, base_band_height, soot_openings, rng_for, atlas_m,
+                 interior_loss=None):
     """The damage-mask atlas (ATLAS_PX, RGBA) over the wall loops `regions` (lib.walls.build's), the atlas spanning
     `atlas_m` metres of UV from (0, 0). Everywhere off a wall face reads bare adobe (R 1); on a face R is the render's
     depth: seeded patches of bare adobe over `render_loss` of each loop's face area, gathered round its openings,
     corners, foot and head, and patches of render without whitewash over `whitewash_loss` of what render is left,
-    each feathered (R 0 whitewash, 0.5 render, 1 adobe, for the layered shader's thresholds at 0.25 and 0.75); A the
+    each feathered (R 0 whitewash, 0.5 render, 1 adobe, for the layered shader's thresholds at 0.25 and 0.75); the
+    rooms' loops by `interior_loss` (render_loss, whitewash_loss) instead when given (E 16-17: the rooms keep their
+    blue whitewash where the facade has lost all of its own); A the
     base band's cover to `base_band_height` with a wandering top and its paint worn in patches (facade only); B dirt
     streaks under the sills and down from the wall head, peaking at DIRT_PEAK (facade only); G soot plumes over the
     first `soot_openings` openings in a seeded order, peaking at SOOT_PEAK. Each of A, G and B is the cover of its
@@ -239,6 +242,8 @@ def facade_atlas(regions, render_loss, whitewash_loss, base_band_height, soot_op
         wear = PeriodicNoise(rng, reg.period, BAND_WEAR[1], 1.0)
         foot, head = raw["foot"], raw["head"]
         bare = raw.get("bare", [])
+        r_loss, w_loss = (render_loss, whitewash_loss) if interior_loss is None or reg.kind != "interior" \
+            else interior_loss
 
         def field(noise, u, v, reg=reg, foot=foot, head=head):
             f = sum(wt * n(u, v) for wt, n in zip(OCTAVE_WEIGHTS, noise))
@@ -258,10 +263,10 @@ def facade_atlas(regions, render_loss, whitewash_loss, base_band_height, soot_op
         w_r = FEATHER * (fs[int(0.9 * len(fs))] - fs[int(0.1 * len(fs))])
         # the ramp reaches R 0.75 at 0.347 of its half-width past its middle: put that at the quantile, so the bare
         # adobe (R from 0.75, the shader's adobe layer) covers `render_loss` of the face
-        t_r = fs[min(len(fs) - 1, int((1 - render_loss) * len(fs)))] - 0.347 * w_r if render_loss > 0 else math.inf
+        t_r = fs[min(len(fs) - 1, int((1 - r_loss) * len(fs)))] - 0.347 * w_r if r_loss > 0 else math.inf
         rest = sorted(gg[j][i] for j, i in face if fg[j][i] < t_r)
-        t_w = rest[min(len(rest) - 1, int((1 - whitewash_loss) * len(rest)))] \
-            if whitewash_loss > 0 and rest else math.inf
+        t_w = rest[min(len(rest) - 1, int((1 - w_loss) * len(rest)))] \
+            if w_loss > 0 and rest else math.inf
         w_w = FEATHER * (rest[int(0.9 * len(rest))] - rest[int(0.1 * len(rest))]) if rest else 1.0
         plumes = []
         if reg.kind == "facade" and soot_openings:
@@ -328,7 +333,7 @@ def facade_atlas(regions, render_loss, whitewash_loss, base_band_height, soot_op
                             k = SOOT_PEAK * (1 - rise) * (1 - abs(u - c) / half) ** 0.5 * (0.75 + 0.25 * s)
                             g_plane[row + px] = max(g_plane[row + px], int(round(255 * k)))
         area = max(1, area)
-        lines.append(f"mask {raw['name']}: bare adobe on {adobe / area:.3f} of the face (render_loss {render_loss:g}), "
+        lines.append(f"mask {raw['name']}: bare adobe on {adobe / area:.3f} of the face (render_loss {r_loss:g}), "
                      f"render without whitewash on {loss / max(1, area - adobe):.3f} of the render left "
-                     f"(whitewash_loss {whitewash_loss:g}, patch rims included)")
+                     f"(whitewash_loss {w_loss:g}, patch rims included)")
     return raster, lines

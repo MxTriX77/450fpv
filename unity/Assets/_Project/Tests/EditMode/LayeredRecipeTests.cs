@@ -19,7 +19,7 @@ namespace Fpv450.Tests.EditMode
     {
         const string Folder = "Assets/_Project/Tests/EditMode/ThrowawayLayered";
         const string ManifestFile = "tools/assets/manifest.json";
-        const string AdobeDiffuse = "Assets/_Project/Art/ThirdParty/polyhaven/rough_plaster_brick_02/rough_plaster_brick_02_diff_2k.png";
+        const string AdobeDiffuse = "Assets/_Project/Art/ThirdParty/polyhaven/dirt_floor/dirt_floor_diff_1k.png";
 
         [SetUp]
         public void SetUp() => DeleteThrowaway();

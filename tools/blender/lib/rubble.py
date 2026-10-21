@@ -12,9 +12,9 @@ times the pieces' solid volume is BULKING times the removed volume. By where it 
   in): a heap against the wall, one sloped box per FOOT_STEP_M of foot ("flat-faced blocks"), its top from the
   metre's depth at the wall to the ground HEAP_WIDTH_M out, the foot's width set so its deepest metre is
   `shard_heap_depth` (within the sheet's 1-2 m), each metre as deep as its share of the bulk; and the pieces
-  scattered from the wall by exp(-d / λ) of their class (LAMBDA_M), stratified so each metre band holds its share,
-  LEE_WIDEN times wider on a wall facing away from the burst (`burst_azimuth_deg`), along the foot as the volume
-  fell, lying on the heap or the ground;
+  scattered from the wall by exp(-d / λ) of their class (LAMBDA_M), ending at SPREAD_CAP λ, stratified so each metre
+  band holds its share, LEE_WIDEN times wider on a wall facing away from the burst (`burst_azimuth_deg`), along the
+  foot as the volume fell, lying on the heap or the ground;
 - through a ceiling's holes (its boards and clay): a flat layer over the holes and the pieces on it;
 - in the attic (a rafter off the plate, its collar): lying on the ceiling where it holds them, else on the floor.
 
@@ -30,6 +30,8 @@ from lib.geometry import Mesh, uv_upright
 BULKING = 1.86                 # urban-edge U02's bulking, the sheet's rubble rule
 LAMBDA_M = {"tile": 1.0, "adobe": 1.5, "timber": 2.0}  # the debris kit's spread per class (the sheet)
 LEE_WIDEN = 1.75               # the sheet: 1.5-2 times wider away from the burst (the middle)
+SPREAD_CAP = 3.0               # the spread ends at this many λ, 95 % of exp(-d / λ) (assumed; task 1.5: E shows its
+                               # debris ending within a few metres of the wall, its tail cut so the bounds stay the house)
 FOOT_STEP_M = 1.0              # design decision 7: one sloped box per metre of foot
 HEAP_WIDTH_M = (1.0, 2.0)      # the sheet: a heap 1-2 m wide along the foot
 MIN_HEAP_M = 0.02              # a metre of heap lower than this is left to the pieces (assumed)
@@ -37,7 +39,8 @@ PIECES_PER_TILE = 0.3          # loose pieces per tile that came down, the rest 
 WHOLE_SHARE = 0.1              # of them whole tiles (assumed: E shows a few whole among the shards)
 SHARD_SIZE_M = (0.06, 0.35)    # the sheet's K02 shards, 50 mm and up as geometry
 ADOBE_SIZE_M = (0.10, 0.40)    # chunks up to a whole block's 400 mm (the sheet's 250 x 400 x 200 mm block)
-ADOBE_PIECE_SHARE = 0.5        # of the adobe's solid volume in blocks and chunks, the rest crumbs (assumed)
+ADOBE_PIECE_SHARE = 0.3        # of the adobe's solid volume in blocks and chunks, the rest crumbs (assumed; task 1.5:
+                               # 0.5 strewed some 300 chunks round the house, where E shows few at its foot)
 ADOBE_CHAMFER_M = (0.008, 0.02)  # a crumbled block's worn arrises, inside the 2 cm zone (assumed)
 CLAY_PIECE_SHARE = 0.2         # of a fallen ceiling's clay in slabs (assumed)
 SLAB_SIZE_M = (0.3, 1.0)       # design decision 6: plaster slabs 0.3-1 m
@@ -58,8 +61,10 @@ def travel(params):
 
 
 def spread(rng, n, lam):
-    """n distances from a wall by exp(-d / lam), stratified: piece i at the quantile (i + u) / n, shuffled."""
-    d = [-lam * math.log(1 - (i + rng.random()) / n) for i in range(n)]
+    """n distances from a wall by exp(-d / lam) up to SPREAD_CAP lam, stratified: piece i at the quantile (i + u) / n
+    of that truncated law, shuffled."""
+    tail = 1 - math.exp(-SPREAD_CAP)
+    d = [-lam * math.log(1 - (i + rng.random()) / n * tail) for i in range(n)]
     rng.shuffle(d)
     return d
 

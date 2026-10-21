@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "shader": "Universal Render Pipeline/Lit",
-  "texture_set": "polyhaven/rough_plaster_brick_02",
-  "tile_size_m": [1.5, 1.5],
-  "tint": [0.928, 0.841, 0.794, 1.0],
+  "texture_set": "polyhaven/dirt_floor",
+  "tile_size_m": [2.07, 2.07],
+  "tint": [0.689, 0.703, 0.719, 1.0],
   "mask": { "metallic": 0.0, "occlusion": "ao", "smoothness": "1 - roughness" }
 }

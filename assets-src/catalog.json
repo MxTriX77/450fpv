@@ -11,7 +11,7 @@
       "class": "houses",
       "generator": "house",
       "variants": ["H01_I", "H01_D"],
-      "materials": { "facade": "facade_h01", "interior": "interior_h01", "clay": "clay_render", "timber": "roof_timber", "door": "plank_door", "iron": "car_rust", "glass": "glass", "tile": "clay_tile", "tile_fracture": "tile_fracture", "brick": "brick_red", "timber_fracture": "timber_fracture", "adobe": "adobe", "heap": "clay_tile", "cable": "wire_sip" }
+      "materials": { "facade": "facade_h01", "interior": "interior_h01", "clay": "clay_render", "timber": "roof_timber", "door": "plank_door", "iron": "car_rust", "glass": "glass", "tile": "clay_tile", "tile_fracture": "tile_fracture", "tile_far": "clay_tile_far", "brick": "brick_red", "timber_fracture": "timber_fracture", "adobe": "adobe", "heap": "rubble_heap", "cable": "wire_sip" }
     },
     "K01": {
       "class": "debris",
