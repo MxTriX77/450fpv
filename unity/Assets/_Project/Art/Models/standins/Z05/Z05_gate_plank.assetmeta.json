@@ -1,0 +1,409 @@
+{
+  "schema": 1,
+  "id": "Z05",
+  "variant": "Z05_gate_plank",
+  "generator": "godot_port",
+  "params_sha256": "9428a2456f7f8697a504671f6ced70dcb06fd9b11244ca98493cd962ba37df39",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -1.37,
+      -0.4,
+      -0.757896
+    ],
+    "max": [
+      1.37,
+      2.1,
+      0.07
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "Z05_gate_plank_LOD0",
+      "tris": 168,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "Z05_gate_plank_LOD1",
+      "tris": 84,
+      "switch_distance_m": 20.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 55.0,
+  "materials": [
+    {
+      "slot": "wood_weathered",
+      "visual": "godot_wood_weathered",
+      "physics": "timber"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "box",
+      "center": [
+        -1.3,
+        0.85,
+        0.0
+      ],
+      "size": [
+        0.14,
+        2.5,
+        0.14
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.3,
+        0.85,
+        0.0
+      ],
+      "size": [
+        0.14,
+        2.5,
+        0.14
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        1.945,
+        0.0
+      ],
+      "size": [
+        2.74,
+        0.13,
+        0.09
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.7261,
+        0.22,
+        -0.37
+      ],
+      "size": [
+        1.25,
+        0.09,
+        0.028
+      ],
+      "rotation": [
+        0.0,
+        0.300706,
+        0.0,
+        0.953717
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.7261,
+        1.44,
+        -0.37
+      ],
+      "size": [
+        1.25,
+        0.09,
+        0.028
+      ],
+      "rotation": [
+        0.0,
+        0.300706,
+        0.0,
+        0.953717
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.7261,
+        0.83,
+        -0.37
+      ],
+      "size": [
+        1.6766,
+        0.09,
+        0.0252
+      ],
+      "rotation": [
+        0.119165,
+        0.276087,
+        0.377942,
+        0.875635
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.1884,
+        0.85,
+        -0.0768
+      ],
+      "size": [
+        0.12,
+        1.7,
+        0.022
+      ],
+      "rotation": [
+        0.0,
+        0.300706,
+        0.0,
+        0.953717
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.0604,
+        0.85,
+        -0.1664
+      ],
+      "size": [
+        0.12,
+        1.7,
+        0.022
+      ],
+      "rotation": [
+        0.0,
+        0.300706,
+        0.0,
+        0.953717
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.9324,
+        0.85,
+        -0.256
+      ],
+      "size": [
+        0.12,
+        1.7,
+        0.022
+      ],
+      "rotation": [
+        0.0,
+        0.300706,
+        0.0,
+        0.953717
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.8044,
+        0.85,
+        -0.3456
+      ],
+      "size": [
+        0.12,
+        1.7,
+        0.022
+      ],
+      "rotation": [
+        0.0,
+        0.300706,
+        0.0,
+        0.953717
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.6764,
+        0.85,
+        -0.4352
+      ],
+      "size": [
+        0.12,
+        1.7,
+        0.022
+      ],
+      "rotation": [
+        0.0,
+        0.300706,
+        0.0,
+        0.953717
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.5484,
+        0.85,
+        -0.5249
+      ],
+      "size": [
+        0.12,
+        1.7,
+        0.022
+      ],
+      "rotation": [
+        0.0,
+        0.300706,
+        0.0,
+        0.953717
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.4204,
+        0.517,
+        -0.6145
+      ],
+      "size": [
+        0.12,
+        1.034,
+        0.022
+      ],
+      "rotation": [
+        0.0,
+        0.300706,
+        0.0,
+        0.953717
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.2924,
+        0.5179,
+        -0.7041
+      ],
+      "size": [
+        0.12,
+        1.0359,
+        0.022
+      ],
+      "rotation": [
+        0.0,
+        0.300706,
+        0.0,
+        0.953717
+      ],
+      "material": "timber",
+      "landable": false
+    }
+  ],
+  "gaps": [
+    {
+      "id": "gate",
+      "polygon": [
+        [
+          -0.19905,
+          0.0,
+          0.0
+        ],
+        [
+          1.21505,
+          0.0,
+          0.0
+        ],
+        [
+          1.21505,
+          1.86,
+          0.0
+        ],
+        [
+          -0.19905,
+          1.86,
+          0.0
+        ]
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        -1.0
+      ],
+      "narrowest_m": 1.4141
+    }
+  ],
+  "wind_volumes": [
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        1.05,
+        -0.3585
+      ],
+      "size": [
+        2.74,
+        2.1,
+        0.917
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.62
+    }
+  ],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": [],
+  "stand_in": {
+    "source": {
+      "commit": "83401382e8b733389982997180cc181b063f61ae",
+      "model": "game/assets/models/structures/gate_plank.glb",
+      "model_sha256": "7af111cab277d7bb60e15eb84b00627d309c69b766866fbf0dcbb1c0eb9826af",
+      "catalog_key": "gate_plank"
+    },
+    "snag_hazard": true
+  }
+}
