@@ -583,7 +583,7 @@ Missing and still needed: **asphalt** (rigid, slides on glass crumbs), **concret
 
 ### 7.5 Swept contacts: the Time < 1 rule
 - **Latch:** when a swept contact first touches during a step (`Time` < 1), **don't rewind or sub-step**. Latch the contact plane (point, normal) at the first touch and push back against it, with the part's compliance in series with the material.
-- **Keep or refresh:** a later `Time` = 1 contact with a same-side normal refreshes the plane. A flipped normal keeps the latch. (Probe: the step after a pass-through reported the far-side normal; trusting it would push the part on through.)
+- **Keep or refresh:** a later `Time` = 1 contact with a same-side normal refreshes the plane. A flipped normal keeps the latch. (Probe: the step after a pass-through reported the far-side normal; trusting it would push the part on through.) **Refresh only while the part's core is outside the shape** (Distance > −r): without that guard an arm swept through a 20 mm tube on 32 of 48 runs with no tunnel event (Unity's contact probe, `p6-world-query-gallery` 1.2, `review-physics.md` P1).
 - **Release:** when the plane distance exceeds the margin, or the pair is absent from the result.
 - **Tunnel event:** if the part ends up through the object, log a `tunnel` event. That is **a physics bug, never pilot error.**
 - **Grazes:** a `Time` < 1 contact that the latched plane shows as non-penetrating creates no force and no impact record.
@@ -862,7 +862,7 @@ All of them are allocation-free, reentrant, need no scene, and are callable from
 
 ### 10.5 Typical batch per physics step
 - 44 ground samples: 4 feet, 4 rotors, ≤ 4 body points, ≤ 32 fiber nodes.
-- 46 swept capsules: 4 feet, 4 arms, 4 prop discs, 2 body or coil, ≤ 32 fiber segments.
+- 46 swept capsules: 4 feet, 4 arms, 4 prop discs, 2 body or coil, ≤ 32 fiber segments. In Unity's probe each prop disc is a bounding sphere, with a 12-capsule rim ring cast only once the sphere meets something, and each skid a capsule plus two load-bearing spheres (`p6-world-query-gallery` 1.2).
 - 8 rays: 4 rotors, up and down.
 - Micro-detail at ≤ 40 Hz when the centre has moved more than 0.5 m. Gaps at ≤ 20 Hz.
 
