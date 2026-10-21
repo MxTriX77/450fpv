@@ -5,18 +5,13 @@
   "tile_size_m": [1.5, 1.5],
   "tint": [0.928, 0.841, 0.794, 1.0],
   "smoothness": 0.1,
-  "layered": {
-    "shader": "Fpv450/FacadeLayered",
-    "mask_role": "damage_mask",
-    "channels": ["render_depth", "soot", "dirt", "base_band"],
-    "layers": [
-      { "recipe": "whitewash_blue", "at": 0.0 },
-      { "recipe": "clay_render", "at": 0.5 },
-      { "recipe": "adobe", "at": 1.0 }
-    ],
-    "feather": 0.1,
-    "soot": { "colour": "#2a2622", "strength": 0.85 },
-    "dirt": { "colour": "#4d3f31", "strength": 0.4 },
-    "base_band": { "colour": "#8a4a33" }
-  }
+  "base": "whitewash_blue",
+  "channels": ["render_depth", "soot", "dirt", "base_band"],
+  "layers": [
+    { "channel": "r", "recipe": "clay_render", "threshold": 0.25, "feather": 0.1 },
+    { "channel": "a", "recipe": "base_band" },
+    { "channel": "r", "recipe": "adobe", "threshold": 0.75, "feather": 0.1 },
+    { "channel": "g", "recipe": "wall_soot" },
+    { "channel": "b", "recipe": "wall_dirt" }
+  ]
 }

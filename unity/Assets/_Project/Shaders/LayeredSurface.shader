@@ -1,7 +1,8 @@
 // A surface layered by a damage mask (p1-r01-vaz-sedan, design decision 5; p1-h01-adobe-house, design decision 2):
 // URP/Lit's lighting over a base surface and up to five layers, each a film that covers a share of the surface set by
 // one channel of the mask. A car's paint: the paint, then soot (G), burnt-off steel (A), rust (R) and dust (B). A
-// facade: the whitewash, then the base band (A), render and adobe (both R, at two thresholds), soot (G) and dirt (B).
+// facade: the whitewash, then render (R), the base band (A, paint over the render), adobe (R at a higher threshold),
+// soot (G) and dirt (B).
 // The recipe lists the layers in order (the catalog importer's EnsureLayeredMaterial); this shader only composes them.
 //
 // Every surface (the base and each layer) is a recipe's own: its albedo times its tint, its normal map, and its packed
