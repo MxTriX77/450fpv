@@ -91,6 +91,14 @@ def build(params):
     }
 
 
+def brick_mesh(size, chamfer=None):
+    """One brick of size (length, height, width) in K01's frame (the bottom centre on the origin, the length along
+    +X) with K01's cell UVs, for a host that builds in brick (the house's chimney): chamfered with `chamfer` (a width
+    per corner of CORNERS, m), else the plain box."""
+    hx, height, hz = size[0] / 2, size[1], size[2] / 2
+    return _chamfered_box(hx, height, hz, chamfer) if chamfer else _box(hx, height, hz)
+
+
 def _corner(c, hx, height, hz):
     return (c[0] * hx, height if c[1] > 0 else 0.0, c[2] * hz)
 
