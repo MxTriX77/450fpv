@@ -1,0 +1,601 @@
+{
+  "schema": 1,
+  "id": "K03",
+  "variant": "K03_batten_broken",
+  "generator": "debris_timber",
+  "params_sha256": "30083a7f7635c45d3f2377e8a194f98f25079cca7fcb0d839373391cecd4c906",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -0.6,
+      0.0,
+      -0.025303
+    ],
+    "max": [
+      0.6,
+      0.100117,
+      0.025
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "K03_batten_broken_LOD0",
+      "tris": 184,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "K03_batten_broken_LOD1",
+      "tris": 32,
+      "switch_distance_m": 6.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 115.0,
+  "materials": [
+    {
+      "slot": "timber",
+      "visual": "roof_timber",
+      "physics": "timber"
+    },
+    {
+      "slot": "timber_fracture",
+      "visual": "timber_fracture",
+      "physics": "timber"
+    },
+    {
+      "slot": "nail",
+      "visual": "car_rust",
+      "physics": "steel"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.025,
+        0.0
+      ],
+      "size": [
+        0.8,
+        0.05,
+        0.05
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.5,
+        0.008805,
+        -0.011176
+      ],
+      "radius": 0.007963,
+      "height": 0.215929,
+      "rotation": [
+        -0.001854,
+        0.0,
+        -0.708444,
+        0.705765
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.466717,
+        0.025724,
+        -0.015071
+      ],
+      "radius": 0.006693,
+      "height": 0.147079,
+      "rotation": [
+        -0.043901,
+        0.0,
+        -0.704684,
+        0.708162
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.453055,
+        0.0425,
+        -0.011689
+      ],
+      "radius": 0.007501,
+      "height": 0.121148,
+      "rotation": [
+        -0.010214,
+        0.0,
+        -0.69926,
+        0.714794
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.482942,
+        0.010828,
+        0.014741
+      ],
+      "radius": 0.007185,
+      "height": 0.180264,
+      "rotation": [
+        0.005603,
+        0.0,
+        -0.709763,
+        0.704418
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.45051,
+        0.037297,
+        0.015119
+      ],
+      "radius": 0.008256,
+      "height": 0.117568,
+      "rotation": [
+        0.014335,
+        0.0,
+        -0.701057,
+        0.712961
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.494953,
+        0.007985,
+        -0.012905
+      ],
+      "radius": 0.006783,
+      "height": 0.203493,
+      "rotation": [
+        -0.006124,
+        0.0,
+        0.711084,
+        0.703081
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.471371,
+        0.023735,
+        -0.017117
+      ],
+      "radius": 0.006206,
+      "height": 0.15551,
+      "rotation": [
+        -0.049843,
+        0.0,
+        0.707187,
+        0.705268
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.451905,
+        0.04181,
+        -0.013506
+      ],
+      "radius": 0.007823,
+      "height": 0.119555,
+      "rotation": [
+        -0.018998,
+        0.0,
+        0.694721,
+        0.719028
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.5,
+        0.008914,
+        0.016979
+      ],
+      "radius": 0.008203,
+      "height": 0.21672,
+      "rotation": [
+        0.029273,
+        0.0,
+        0.719981,
+        0.693376
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.451831,
+        0.039765,
+        0.014935
+      ],
+      "radius": 0.007315,
+      "height": 0.118448,
+      "rotation": [
+        0.027029,
+        0.0,
+        0.692831,
+        0.720593
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.263554,
+        0.067198,
+        -0.009251
+      ],
+      "radius": 0.00175,
+      "height": 0.045897,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.262901,
+        0.094159,
+        -0.009411
+      ],
+      "radius": 0.00175,
+      "height": 0.015103,
+      "rotation": [
+        -0.013759,
+        0.0,
+        -0.056369,
+        0.998315
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.151095,
+        0.059678,
+        -0.01062
+      ],
+      "radius": 0.00175,
+      "height": 0.030856,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.147648,
+        0.086221,
+        -0.010339
+      ],
+      "radius": 0.00175,
+      "height": 0.030144,
+      "rotation": [
+        0.010614,
+        0.0,
+        0.130484,
+        0.991394
+      ],
+      "material": "steel",
+      "landable": false
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": [
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.4,
+          0.009185,
+          -0.010914
+        ],
+        [
+          0.6,
+          0.008426,
+          -0.011437
+        ]
+      ],
+      "radius_m": 0.005506
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.4,
+          0.025524,
+          -0.010914
+        ],
+        [
+          0.533434,
+          0.025924,
+          -0.019227
+        ]
+      ],
+      "radius_m": 0.004603
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.4,
+          0.04134,
+          -0.010914
+        ],
+        [
+          0.506109,
+          0.04366,
+          -0.012464
+        ]
+      ],
+      "radius_m": 0.005884
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.4,
+          0.011457,
+          0.014086
+        ],
+        [
+          0.565884,
+          0.010198,
+          0.015395
+        ]
+      ],
+      "radius_m": 0.006994
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.4,
+          0.036457,
+          0.014086
+        ],
+        [
+          0.50102,
+          0.038137,
+          0.016152
+        ]
+      ],
+      "radius_m": 0.007064
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "points": [
+        [
+          0.4,
+          0.0,
+          -0.025
+        ],
+        [
+          0.4,
+          0.0,
+          0.025
+        ],
+        [
+          0.4,
+          0.05,
+          0.025
+        ],
+        [
+          0.4,
+          0.05,
+          -0.025
+        ],
+        [
+          0.4,
+          0.0,
+          -0.025
+        ]
+      ]
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.4,
+          0.009063,
+          -0.012087
+        ],
+        [
+          -0.589907,
+          0.006907,
+          -0.013723
+        ]
+      ],
+      "radius_m": 0.00581
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.4,
+          0.024107,
+          -0.012087
+        ],
+        [
+          -0.542742,
+          0.023363,
+          -0.022148
+        ]
+      ],
+      "radius_m": 0.003532
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.4,
+          0.040044,
+          -0.012087
+        ],
+        [
+          -0.503811,
+          0.043577,
+          -0.014926
+        ]
+      ],
+      "radius_m": 0.006651
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.4,
+          0.012766,
+          0.012913
+        ],
+        [
+          -0.6,
+          0.005062,
+          0.021045
+        ]
+      ],
+      "radius_m": 0.007635
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.4,
+          0.037766,
+          0.012913
+        ],
+        [
+          -0.503661,
+          0.041764,
+          0.016957
+        ]
+      ],
+      "radius_m": 0.007217
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "points": [
+        [
+          -0.4,
+          0.0,
+          -0.025
+        ],
+        [
+          -0.4,
+          0.0,
+          0.025
+        ],
+        [
+          -0.4,
+          0.05,
+          0.025
+        ],
+        [
+          -0.4,
+          0.05,
+          -0.025
+        ],
+        [
+          -0.4,
+          0.0,
+          -0.025
+        ]
+      ]
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.263554,
+          0.05,
+          -0.009251
+        ],
+        [
+          -0.263554,
+          0.088397,
+          -0.009251
+        ],
+        [
+          -0.262248,
+          0.099922,
+          -0.00957
+        ]
+      ],
+      "radius_m": 0.00175
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.151095,
+          0.05,
+          -0.01062
+        ],
+        [
+          0.151095,
+          0.073356,
+          -0.01062
+        ],
+        [
+          0.144201,
+          0.099087,
+          -0.010059
+        ]
+      ],
+      "radius_m": 0.00175
+    }
+  ]
+}
