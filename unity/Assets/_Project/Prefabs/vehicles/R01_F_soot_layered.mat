@@ -107,9 +107,9 @@ Material:
     - _Smoothness: 1
     - _Surface: 0
     m_Colors:
-    - _BaseColor: {r: 0.661, g: 0.663, b: 0.719, a: 1}
+    - _BaseColor: {r: 0.789, g: 0.78999996, b: 0.821, a: 1}
     - _Layer1Channel: {r: 0, g: 0, b: 0, a: 1}
-    - _Layer1Color: {r: 0.30899996, g: 0.27999997, b: 0.25499997, a: 1}
+    - _Layer1Color: {r: 0.61, g: 0.594, b: 0.574, a: 1}
     - _Layer1Coverage: {r: 0.5, g: 1, b: 0, a: 0}
     - _Layer1Surface: {r: 1, g: 1, b: 0, a: 0}
     - _Layer2Channel: {r: 1, g: 0, b: 0, a: 0}

@@ -5,17 +5,12 @@
   "mask": {
     "metallic": 0.0,
     "occlusion": 1.0,
-    "smoothness": "1 - roughness"
+    "smoothness": 0.2
   },
-  "sources": {
-    "roughness": {
-      "name": "Metal046B_1K-PNG_Roughness.png",
-      "sha256": "28086a4e7039fead59a82c2d7b6bc3078aa7faa152952ac7cf7f7c9508f9a57a"
-    }
-  },
-  "inputs_sha256": "d1216b4b38a91a09646b65c79d91a2307b9239136343fbfbc44944ff3e048b8a",
+  "sources": {},
+  "inputs_sha256": "1f502c9245d9dde834be48d27130ae327504a4321694acafa41c3fcc407fde8e",
   "size": [
-    1024,
-    1024
+    1,
+    1
   ]
 }

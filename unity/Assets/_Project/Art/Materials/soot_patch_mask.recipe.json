@@ -5,19 +5,15 @@
   "mask": {
     "metallic": 0.0,
     "occlusion": "ao",
-    "smoothness": "1 - roughness"
+    "smoothness": 0.1
   },
   "sources": {
     "ao": {
       "name": "burned_ground_01_ao_1k.png",
       "sha256": "0740cf1d1305b8f0b01ebe7f0df088f04b39baf425bec5ba4ea386bcaef8690c"
-    },
-    "roughness": {
-      "name": "burned_ground_01_rough_1k.png",
-      "sha256": "75aecfc2b9f82627acbe3357b1279a7d250eb2f544e95b8951b3b5619fd77e62"
     }
   },
-  "inputs_sha256": "9b3d5e192e313faaa066c604a5b2d81d432cc04d442cd5973e1d6ae13921eb11",
+  "inputs_sha256": "ea98d16080e94b694a61cd113f89b1fa5595a2269403264375c59c47ac4e0c4d",
   "size": [
     1024,
     1024
