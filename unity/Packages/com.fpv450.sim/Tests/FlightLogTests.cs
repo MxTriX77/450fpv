@@ -134,7 +134,11 @@ namespace Fpv450.Sim.Tests
             FlightSummary summary = FlightSummary.Read(log);
             Assert.That(summary.Complete, Is.True);
             Assert.That(summary.Gaps, Is.EqualTo(0));
-            Assert.That(summary.Count(EventKind.Hitch), Is.EqualTo(1), "the stall's hitch");
+            // The stall's Late hitch; the virtual clock runs unpaced, so a slow flush worker (Unity's Mono) may also
+            // fill the ring, and each wait for it is a LogFull hitch with nothing dropped.
+            Assert.That(summary.Events.FindAll(e => e.Event.Kind == EventKind.Hitch && e.Event.Index == (byte)HitchCause.Late).Count,
+                Is.EqualTo(1), "the stall's hitch");
+            Assert.That(summary.Count(EventKind.Hitch), Is.EqualTo(1 + summary.End.LogWaits), "every other hitch is a wait for the ring");
             Assert.That(summary.End.Steps, Is.EqualTo(120000));
             Assert.That(summary.Last.State.Armed, Is.True, "the flight armed and flew");
             Assert.That(summary.Last.State.RotorSpeed.RearRight, Is.GreaterThan(100), "the motors turn");
