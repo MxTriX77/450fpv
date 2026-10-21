@@ -32,7 +32,7 @@ D-042 puts the first flights (G7) ahead of the world. The flight model was desig
   - T = k_T·n² and Q = κ·T
   - the forward-flight derate from axial inflow through the tilted disc
   - battery sag on two packs
-- **Aero basics:** body drag on the relative wind with along and across areas, rotor H-force, and coil drag below the CoM.
+- **Aero basics:** body drag on the relative wind with along and across areas, rotor H-force, and coil drag at the coil as `drone.json` places it.
 - **Contacts:**
   - legs as spring-dampers on `SampleGround`
   - the launch stand and every object through `StaticContacts` with the Time < 1 latch rule

@@ -5,14 +5,14 @@
 **Source:** `docs/knowledge.md` §5 (published specs, the derived mass build, thrust, the gap and stand geometry); `docs/reference-notes/fc-profiles.md` (the class's flight controller and 8S packs); the pilot's answers in `docs/pilot-questions.md` (batteries, coil, uptilt, legs).
 
 ## Why
-G5 is after G4 (D-042). The flight core starts from a bootstrap `drone.json` built on K§5.2's assumed layout, which predates the pilot's word that the payload sits on top and the drone carries two packs. This change researches the class, writes the real `drone.json` that the model and the physics both read (DRN-03), and builds the Svinoriz 10 Opto in both leg variants with its launch stand, for the pilot to approve.
+G5 is after G4 (D-042). The flight core starts from a bootstrap `drone.json` built on K§5.2's assumed layout, which predates the pilot's word that the payload sits on top and the drone carries two packs. This change researches the class, writes the real `drone.json` that the model and the physics both read (DRN-03), and builds the Svinoriz 10 Opto as letter T shows it, in both leg variants with its launch stand, for the pilot to approve.
 
 ## What Changes
 - **An object sheet** (`docs/object-sheets/drone.md`): typical heavy 10-inch fiber-optic quads from public sources.
-  - **Parts:** frame, 3115-class motors, 3-blade 10" props, the coil underneath, two packs and their arrangement, the generic payload on top, the FPV camera at 0° uptilt, transceiver, flight-controller stack, wiring, plastic legs and the four-post stand.
+  - **Parts:** letter T's layout (D-043): the frame, 3115-class motors, the props, the spool on top (underneath on the legs-off build), two packs along the sides, the generic payload slung below, the FPV camera at 0° uptilt, transceiver, flight-controller stack, wiring, plastic legs and the four-post stand.
   - **For each part:** dimensions, masses, materials and colours.
 - **`drone.json`** (DRN-03), written from the sheet. It replaces `p6-flight-core`'s bootstrap file.
-  - K§5.2 re-derived for the payload on top and two packs, with the inertia checked.
+  - K§5.2 re-derived for letter T's layout (D-043), with the inertia checked.
   - The pack voltage and arrangement set: 6S or 8S Li-ion, two packs.
 - **The model:** a parametric generator reading `drone.json` for every dimension, in the legs-on and legs-off variants.
   - Prop tip to tip exactly 0.574 m nose-first and 0.706 m diagonal (DRN-02).

@@ -3,9 +3,9 @@
 ### Requirement: One component spec for the model and the physics
 `drone.json` SHALL list every part's mass, size, position and material, written from the drone object sheet, and both the visual model's generator and the physics' mass and inertia build SHALL read it (DRN-03). The payload mass SHALL scale the payload part, the coil mass SHALL fall with payout with the CoM shift computed, and the pack arrangement and voltage (6S or 8S Li-ion, two packs) SHALL be set from the research.
 
-#### Scenario: Re-derived for the payload on top and two packs
+#### Scenario: Re-derived for letter T's layout
 - **WHEN** `drone.json`'s mass build runs at the sheet's nominal loadout and across the payload range 0–2.0 kg
-- **THEN** take-off mass, the CoM and the roll, pitch and yaw inertia land inside the sheet's re-derivation of K§5.2's ranges (derived), each figure labelled, and the coil's centre stays below the CoM
+- **THEN** take-off mass, the CoM and the roll, pitch and yaw inertia land inside the sheet's re-derivation of K§5.2's ranges (derived), each figure labelled, with the spool above the CoM on the legs-on build and below it on the legs-off build (D-043)
 
 ### Requirement: Exact geometry
 The model SHALL be built by a parametric generator from `drone.json` and its params (D-004), with prop tip to tip 0.574 m nose-first and 0.706 m on the diagonal, each within ±5 mm (DRN-02), real thickness on every part with a physical role (REAL-05), and both the legs-on (plastic legs of 25–35 cm) and legs-off variants (DRN-01).
