@@ -781,13 +781,7 @@ namespace Fpv450
             int y = 24, step = ReviewCanvas.LineHeight(3) + 6;
             panel.Text(24, y, $"LEGEND  {title}", 3, White);
             y += step + 8;
-            foreach ((Color32 color, string text) in new[]
-                     {
-                         (ReviewMeta.CollisionColor, $"COLLISION ({meta.Collision.Count}): {Kinds(meta.Collision)}"),
-                         (ReviewMeta.GapColor, $"GAPS ({meta.Gaps.Count}), WITH THEIR NORMALS"),
-                         (ReviewMeta.WindColor, $"WIND VOLUMES ({meta.WindVolumes.Count}): {Kinds(meta.WindVolumes)}"),
-                         (ReviewMeta.SnagColor, $"SNAG ({meta.Snags.Count}), CROSSES AT THE POINTS"),
-                     })
+            foreach ((Color32 color, string text) in LegendKeys(meta))
             {
                 panel.Fill(24, y + 2, 18, 18, color);
                 panel.Text(56, y, text, 3, White);
@@ -813,6 +807,23 @@ namespace Fpv450
                 }
             panel.Outline(0, 0, Tile, Tile, Frame, 2);
             return panel;
+        }
+
+        /// <summary>
+        /// The legend's colour keys: the rigid collision primitives, a compliant shell's pieces apart from them when
+        /// the asset has any (p1-v01-locust QA 2.1 S6), the gaps, the wind volumes and the snag features.
+        /// </summary>
+        internal static List<(Color32 color, string text)> LegendKeys(ReviewMeta meta)
+        {
+            List<ReviewMeta.Shape> rigid = meta.Collision.Where(s => !ReviewMeta.IsShell(s)).ToList();
+            List<ReviewMeta.Shape> shell = meta.Collision.Where(ReviewMeta.IsShell).ToList();
+            var keys = new List<(Color32 color, string text)> { (ReviewMeta.CollisionColor, $"COLLISION ({rigid.Count}): {Kinds(rigid)}") };
+            if (shell.Count > 0)
+                keys.Add((ReviewMeta.ShellColor, $"SHELL PIECES ({shell.Count}, {string.Join(" / ", shell.Select(s => s.material).Distinct().OrderBy(m => m)).ToUpperInvariant()}): {Kinds(shell)}"));
+            keys.Add((ReviewMeta.GapColor, $"GAPS ({meta.Gaps.Count}), WITH THEIR NORMALS"));
+            keys.Add((ReviewMeta.WindColor, $"WIND VOLUMES ({meta.WindVolumes.Count}): {Kinds(meta.WindVolumes)}"));
+            keys.Add((ReviewMeta.SnagColor, $"SNAG ({meta.Snags.Count}), CROSSES AT THE POINTS"));
+            return keys;
         }
 
         /// <summary>

@@ -9,8 +9,8 @@ namespace Fpv450
     /// <summary>
     /// What the review sheet draws and lists from an asset's <c>.assetmeta.json</c> (schema 1, setup-asset-pipeline
     /// design decision 6), read from the file itself rather than from the prefab's colliders (design decision 5): the
-    /// collision primitives, gaps, wind volumes and snag features as line segments in their colours, plus the summary
-    /// lines of the legend.
+    /// collision primitives (a compliant shell's pieces in a colour of their own), gaps, wind volumes and snag features
+    /// as line segments in their colours, plus the summary lines of the legend.
     /// </summary>
     sealed class ReviewMeta
     {
@@ -18,10 +18,18 @@ namespace Fpv450
         public static readonly Color32 GapColor = new Color32(255, 0, 255, 255);
         public static readonly Color32 WindColor = new Color32(0, 255, 255, 255);
         public static readonly Color32 SnagColor = new Color32(255, 0, 0, 255);
+        /// <summary>
+        /// A compliant shell's pieces, apart from the rigid primitives (p1-v13-shrub QA N-3, p1-v01-locust QA 2.1 S6):
+        /// V01_L's 147 pieces over its 364 capsules could not be read in the capsules' green.
+        /// </summary>
+        public static readonly Color32 ShellColor = new Color32(255, 220, 0, 255);
+        /// <summary>The physics materials of a compliant shell's pieces, as <c>lib/audit.py</c>'s SHELL_MATERIALS.</summary>
+        public static readonly string[] ShellMaterials = { "twig", "foliage" };
 
         public sealed class Shape
         {
             public string kind;
+            public string material;
             public Vector3 center;
             public Vector3 size;
             public float radius;
@@ -96,12 +104,18 @@ namespace Fpv450
             return meta;
         }
 
+        public static bool IsShell(Shape shape) => ShellMaterials.Contains(shape.material);
+
         static IEnumerable<Dictionary<string, object>> Items(Dictionary<string, object> json, string key, string what) =>
             Json.Arr(json, key, what).Select((item, i) => Json.Obj(item, $"{what} {key}[{i}]"));
 
         static Shape ReadShape(Dictionary<string, object> json, string what)
         {
-            var shape = new Shape { kind = Json.Str(json, "shape", what), center = Json.Vec3(json, "center", what) };
+            var shape = new Shape
+            {
+                kind = Json.Str(json, "shape", what), center = Json.Vec3(json, "center", what),
+                material = json.TryGetValue("material", out object material) ? material as string : null,
+            };
             switch (shape.kind)
             {
                 case "box":
@@ -129,7 +143,7 @@ namespace Fpv450
         {
             var segments = new List<Segment>();
             foreach (Shape shape in Collision)
-                ShapeSegments(shape, localToWorld, CollisionColor, segments);
+                ShapeSegments(shape, localToWorld, IsShell(shape) ? ShellColor : CollisionColor, segments);
             foreach (Shape shape in WindVolumes)
                 ShapeSegments(shape, localToWorld, WindColor, segments);
             foreach (Gap gap in Gaps)

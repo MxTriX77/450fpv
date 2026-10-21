@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -34,6 +35,29 @@ namespace Fpv450.Tests.EditMode
             Assert.That(string.Join(" ", rows).Replace(",   ", ", "), Is.EqualTo(line));
             Assert.That(rows, Has.Some.Contains("leaf > leaf_locust_autumn / twig"));
             Assert.That(Review.Wrap("BOUNDS 1 X 2 X 3 M", 54), Is.EqualTo(new[] { "BOUNDS 1 X 2 X 3 M" }));
+        }
+
+        /// <summary>
+        /// p1-v01-locust QA 2.1 S6 (p1-v13-shrub QA N-3): a compliant shell's pieces, in the <c>twig</c> or
+        /// <c>foliage</c> material, are drawn in a colour of their own and keyed apart from the rigid primitives; a
+        /// legend without a shell keeps its four keys.
+        /// </summary>
+        [Test]
+        public void Overlay_DrawsShellPiecesInAColourOfTheirOwn()
+        {
+            var meta = new ReviewMeta();
+            meta.Collision.Add(new ReviewMeta.Shape { kind = "capsule", material = "bark", radius = 0.1f, height = 1f });
+            meta.Collision.Add(new ReviewMeta.Shape { kind = "sphere", material = "twig", center = Vector3.up * 3f, radius = 0.3f });
+            meta.Collision.Add(new ReviewMeta.Shape { kind = "capsule", material = "foliage", center = Vector3.up * 4f, radius = 0.2f, height = 1f });
+            var others = new[] { ReviewMeta.CollisionColor, ReviewMeta.GapColor, ReviewMeta.WindColor, ReviewMeta.SnagColor };
+            Assert.That(others, Has.None.EqualTo(ReviewMeta.ShellColor));
+            Assert.That(meta.Segments(Matrix4x4.identity).Select(s => s.Color).Distinct(),
+                        Is.EquivalentTo(new[] { ReviewMeta.CollisionColor, ReviewMeta.ShellColor }));
+            var keys = Review.LegendKeys(meta);
+            Assert.That(keys[0], Is.EqualTo((ReviewMeta.CollisionColor, "COLLISION (1): capsule")));
+            Assert.That(keys[1], Is.EqualTo((ReviewMeta.ShellColor, "SHELL PIECES (2, FOLIAGE / TWIG): sphere, capsule")));
+            meta.Collision.RemoveRange(1, 2);
+            Assert.That(Review.LegendKeys(meta).Select(k => k.color), Is.EqualTo(others));
         }
 
         [Test]
