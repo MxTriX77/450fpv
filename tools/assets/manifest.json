@@ -389,56 +389,6 @@
       ]
     },
     {
-      "source": "ambientcg",
-      "id": "PaintedMetal006",
-      "title": "Painted Metal 006",
-      "resolution": "1k",
-      "licence": "CC0",
-      "author": "Lennart Demes (ambientCG)",
-      "page": "https://ambientcg.com/a/PaintedMetal006",
-      "destination": "unity/Assets/_Project/Art/ThirdParty/ambientcg/PaintedMetal006",
-      "archive": {
-        "name": "PaintedMetal006_1K-PNG.zip",
-        "url": "https://ambientcg.com/get?file=PaintedMetal006_1K-PNG.zip",
-        "sha256": "d6383c24fe0a077a496e630e7e786fbd20427535b8e00b11d25ec4f61ca4654a",
-        "bytes": 18524656
-      },
-      "files": [
-        {
-          "map": "diffuse",
-          "name": "PaintedMetal006_1K-PNG_Color.png",
-          "member": "PaintedMetal006_1K-PNG_Color.png",
-          "url": "https://ambientcg.com/get?file=PaintedMetal006_1K-PNG.zip",
-          "sha256": "e4744920cf390fb5164ede99d118a01c5e25c9de8b8275edb88e0c4b2ef701b3",
-          "bytes": 1918159
-        },
-        {
-          "map": "normal",
-          "name": "PaintedMetal006_1K-PNG_NormalGL.png",
-          "member": "PaintedMetal006_1K-PNG_NormalGL.png",
-          "url": "https://ambientcg.com/get?file=PaintedMetal006_1K-PNG.zip",
-          "sha256": "9deac70e489ed3d866aeea89f540ab8a9a1ddecd99186a4256749c7b27dff112",
-          "bytes": 5783049
-        },
-        {
-          "map": "roughness",
-          "name": "PaintedMetal006_1K-PNG_Roughness.png",
-          "member": "PaintedMetal006_1K-PNG_Roughness.png",
-          "url": "https://ambientcg.com/get?file=PaintedMetal006_1K-PNG.zip",
-          "sha256": "5cd7f9ec59689914aa03137a4887dfd9d2a146afb1710a1d0d1aa3b725d0cdd4",
-          "bytes": 649164
-        },
-        {
-          "map": "ao",
-          "name": "PaintedMetal006_1K-PNG_AmbientOcclusion.png",
-          "member": "PaintedMetal006_1K-PNG_AmbientOcclusion.png",
-          "url": "https://ambientcg.com/get?file=PaintedMetal006_1K-PNG.zip",
-          "sha256": "b4f85e06929cb996ec4c2621df5839bacb335adb98d29ef2e411d1afc40ff5d4",
-          "bytes": 777138
-        }
-      ]
-    },
-    {
       "source": "polyhaven",
       "id": "green_metal_rust",
       "title": "Green Metal Rust",
