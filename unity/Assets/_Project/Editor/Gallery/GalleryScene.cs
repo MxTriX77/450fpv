@@ -35,10 +35,13 @@ namespace Fpv450
         static readonly Vector2 FloorCentre = new Vector2(135f, 0f);
         const float FloorHalfM = 1200f;
         const float CoverTileM = 2f;                 // the set's tile in belt_straw's recipe
-        const float CoverSmoothness = 0.4f;          // 1 - the set's mean roughness (0.59)
-        // The set's mean (linear 0.555 / 0.335 / 0.117) gained to S04's albedo target #7a7055 (linear 0.195 / 0.162 /
-        // 0.091): gains 0.350 / 0.483 / 0.779, written sRGB-encoded as URP's base colour is.
-        static readonly Color CoverGain = new Color(0.6265f, 0.7241f, 0.8955f);
+        const float CoverSmoothness = 0.15f;         // matte: at the set's own 0.4 the far floor took a grey sky sheen the patch's straws do not show
+        // The set's mean (linear 0.555 / 0.335 / 0.117) gained so the floor renders as the S04 patch does from its
+        // viewpoint, the mat with its straws (day: sRGB 113 / 105 / 88, measured in the build), so the patch's edge is
+        // no step: linear gains 0.284 / 0.358 / 0.552 (S04's mat albedo #7a7055 alone would be 0.350 / 0.483 / 0.779),
+        // written sRGB-encoded as URP's base colour is. No occlusion map: the set's AO imports single-channel, and
+        // URP/Lit reads its green.
+        static readonly Color CoverGain = new Color(0.5693f, 0.6327f, 0.7686f);
         // The macro variation (design 2, assumed): value noise of 30 m cells and a 15 m octave over a 480 m tile,
         // brightness +-10 % and a yellow-grey shift, through URP/Lit's detail albedo x2 (linear 0.5 is neutral).
         const float MacroTileM = 480f;
@@ -311,8 +314,8 @@ namespace Fpv450
             material.SetColor("_BaseColor", CoverGain);
             material.SetTexture("_BumpMap", Load<Texture2D>($"{CoverSet}_normal_opengl_2k.png"));
             material.EnableKeyword("_NORMALMAP");
-            material.SetTexture("_OcclusionMap", Load<Texture2D>($"{CoverSet}_ao_2k.jpg"));
-            material.EnableKeyword("_OCCLUSIONMAP");
+            material.SetTexture("_OcclusionMap", null);
+            material.DisableKeyword("_OCCLUSIONMAP");
             material.SetFloat("_Smoothness", CoverSmoothness);
             material.SetFloat("_Metallic", 0f);
             // URP/Lit's detail UV is the base UV times the detail tiling: the macro tile repeats every MacroTileM metres.
