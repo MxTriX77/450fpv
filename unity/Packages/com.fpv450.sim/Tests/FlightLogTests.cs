@@ -337,6 +337,10 @@ namespace Fpv450.Sim.Tests
             SeedStream stream = core.Random.Open("test.parameter");
             double drawn = core.Random.Draw(ref stream, "test.parameter", 0.9, 1.1);
             LogHeader h = Header(setup, core, spec);
+            h.Input = InputSource.Radio;
+            h.InputDevice = "Test Radio Joystick";
+            h.InputIntervals = new ReportIntervals();
+            foreach (long us in new long[] { 1980, 2010, 2040, 950, 25000 }) h.InputIntervals.Add(us);
 
             byte[] bytes = h.Encode();
             Assert.That(h.Length, Is.EqualTo(bytes.Length));
@@ -353,6 +357,11 @@ namespace Fpv450.Sim.Tests
             Assert.That(back.Loadout, Is.EqualTo(spec.Nominal));
             Assert.That((back.StartPosition, back.StartAttitude, back.StartVelocity, back.StartBodyRate),
                 Is.EqualTo((setup.StartPosition, setup.StartAttitude, setup.StartVelocity, setup.StartBodyRate)));
+            Assert.That((back.Input, back.InputDevice), Is.EqualTo((InputSource.Radio, "Test Radio Joystick")));
+            Assert.That(back.InputIntervals.Counts, Is.EqualTo(h.InputIntervals.Counts));
+            Assert.That((back.InputIntervals.BinUs, back.InputIntervals.Count, back.InputIntervals.SumUs, back.InputIntervals.MinUs, back.InputIntervals.MaxUs),
+                Is.EqualTo((100, 5L, 31980L, 950L, 25000L)));
+            Assert.That(back.InputIntervals.PercentileUs(50), Is.EqualTo(2100), "the bin of 2010 us");
             Assert.That(back.Streams, Is.EqualTo(new[] { "test.parameter" }));
             Assert.That(back.Draws.Length, Is.EqualTo(1));
             Assert.That((back.Draws[0].Parameter, back.Draws[0].Lo, back.Draws[0].Hi, back.Draws[0].Value, back.Draws[0].Index),
@@ -412,7 +421,7 @@ namespace Fpv450.Sim.Tests
                 EscCommand = new Corners { RearRight = 0.14, FrontRight = 0.15, RearLeft = 0.16, FrontLeft = 0.17 },
                 PackCharge0 = 0.18, PackCharge1 = 0.19,
             };
-            var k = new StickSample { HostUs = -987654321, Roll = -0.2, Pitch = 0.21, Yaw = -0.22, Throttle = 0.23, Arm = false };
+            var k = new StickSample { HostUs = -987654321, Roll = -0.2, Pitch = 0.21, Yaw = -0.22, Throttle = 0.23, Arm = false, Failsafe = true };
             var t = new StepTrace
             {
                 RotorCommand = new Corners { RearRight = 0.24, FrontRight = 0.25, RearLeft = 0.26, FrontLeft = 0.27 },

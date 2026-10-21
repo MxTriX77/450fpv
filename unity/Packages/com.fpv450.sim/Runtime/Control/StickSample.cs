@@ -31,6 +31,12 @@ namespace Fpv450.Sim.Control
         /// <summary>The arm switch is on.</summary>
         public bool Arm;
 
+        /// <summary>
+        /// The input layer lost the radio at HostUs (INP-05, a USB loss): the sample is the failsafe's, centred,
+        /// throttle down and disarmed. It stays in force until the radio's next report.
+        /// </summary>
+        public bool Failsafe;
+
         /// <summary>The sample in force before the first report arrives: centred, throttle down, disarmed.</summary>
         public static readonly StickSample Neutral = default;
     }

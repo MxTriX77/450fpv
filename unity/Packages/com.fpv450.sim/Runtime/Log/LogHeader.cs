@@ -63,6 +63,8 @@ namespace Fpv450.Sim.Log
     /// - the body the flight started with: the mass model's parts and the mass, CoM and inertia they built
     /// - the flight controller's settings, every field by its CLI name
     /// - the start state, and the record layouts (so a reader needs no code of ours)
+    /// - the input: where the sticks came from (a keyboard flight is for development, never for tuning), the device's
+    ///   product name and its report intervals before the flight (p6-input-app)
     /// Sim data only (LOG-05): no user, machine, path or clock.
     ///
     /// On disk: Magic, the format version and the header's length (u32), then entries of a u16 tag, a u32 length and
@@ -79,7 +81,7 @@ namespace Fpv450.Sim.Log
             { "Name", "Kind", "Material", "Mass", "Position", "Size", "Diameter", "Length", "Axis" };
 
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
-            TagRandomness = 7, TagStart = 8, TagLayouts = 9;
+            TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagInput = 10;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -107,6 +109,14 @@ namespace Fpv450.Sim.Log
 
         public Double3 StartPosition, StartVelocity, StartBodyRate;
         public Quat StartAttitude = Quat.Identity;
+
+        /// <summary>
+        /// Where the sticks came from, the device's product name, and the histogram of its report intervals over the
+        /// window the input layer measured before the flight (null when none was measured: a keyboard or a bench).
+        /// </summary>
+        public InputSource Input;
+        public string InputDevice = "";
+        public ReportIntervals InputIntervals;
 
         public LogField[] StepFields = LogFormat.StepFields;
         public LogField[] EventFields = LogFormat.EventFields;
@@ -378,6 +388,20 @@ namespace Fpv450.Sim.Log
                 Layout(e, LogFormat.EventBlock, EventFields);
                 Layout(e, LogFormat.EndBlock, EndFields);
             });
+            Entry(w, TagInput, e =>
+            {
+                e.Write((byte)Input);
+                Text(e, InputDevice);
+                ReportIntervals r = InputIntervals;
+                e.Write(r == null ? 0 : r.BinUs);
+                e.Write((ushort)(r == null ? 0 : r.Counts.Length));
+                if (r == null) return;
+                foreach (long n in r.Counts) e.Write(n);
+                e.Write(r.Count);
+                e.Write(r.SumUs);
+                e.Write(r.MinUs);
+                e.Write(r.MaxUs);
+            });
             w.Flush();
 
             var file = new MemoryStream();
@@ -517,6 +541,20 @@ namespace Fpv450.Sim.Log
                             else if (kind == LogFormat.EventBlock) EventFields = fields;
                             else if (kind == LogFormat.EndBlock) EndFields = fields;
                         }
+                        break;
+                    case TagInput:
+                        Input = (InputSource)r.ReadByte();
+                        InputDevice = Text(r);
+                        int binUs = r.ReadInt32();
+                        int bins = r.ReadUInt16();
+                        if (binUs == 0) break;
+                        var intervals = new ReportIntervals(binUs, bins);
+                        for (int i = 0; i < bins; i++) intervals.Counts[i] = r.ReadInt64();
+                        intervals.Count = r.ReadInt64();
+                        intervals.SumUs = r.ReadInt64();
+                        intervals.MinUs = r.ReadInt64();
+                        intervals.MaxUs = r.ReadInt64();
+                        InputIntervals = intervals;
                         break;
                     default:
                         Unknown.Add("header entry " + tag + " (" + size + " bytes)");

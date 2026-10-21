@@ -30,7 +30,7 @@ namespace Fpv450.Sim.Log
     }
 
     /// <summary>
-    /// The flight log's binary format (design 10, LOG-01), version 1. One file per flight:
+    /// The flight log's binary format (design 10, LOG-01), version 2. One file per flight:
     /// - the prologue: Magic, then the format Version and the header's length (u32 each), then the header (LogHeader)
     /// - blocks to the end of the flight, each a u16 kind and a u16 payload length, then the payload:
     ///   - a step record (StepBlock) after every step: the integrated state, the stick sample in force during the step,
@@ -47,8 +47,11 @@ namespace Fpv450.Sim.Log
         /// <summary>"FPV450LG".</summary>
         public static readonly byte[] Magic = { 0x46, 0x50, 0x56, 0x34, 0x35, 0x30, 0x4C, 0x47 };
 
-        /// <summary>The format: the prologue, the header's entries and the record layouts below.</summary>
-        public const int Version = 1;
+        /// <summary>
+        /// The format: the prologue, the header's entries and the record layouts below. 1: p6-flight-core 1.2. 2: the
+        /// stick's failsafe flag in the step record's flags (p6-input-app 1.1).
+        /// </summary>
+        public const int Version = 2;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -69,7 +72,7 @@ namespace Fpv450.Sim.Log
         // logged (a new layout) or the suite fails.
         public static readonly string[] StateFieldsLogged =
             { "Step", "Position", "Velocity", "Attitude", "BodyRate", "Armed", "RotorSpeed", "EscCommand", "PackCharge0", "PackCharge1" };
-        public static readonly string[] StickFieldsLogged = { "HostUs", "Roll", "Pitch", "Yaw", "Throttle", "Arm" };
+        public static readonly string[] StickFieldsLogged = { "HostUs", "Roll", "Pitch", "Yaw", "Throttle", "Arm", "Failsafe" };
         public static readonly string[] TraceFieldsLogged =
             { "RotorCommand", "PackVolts0", "PackVolts1", "PackAmps0", "PackAmps1", "NetForce", "NetMoment" };
 
@@ -117,7 +120,7 @@ namespace Fpv450.Sim.Log
             b.Add("pack_amps1", "A", LogFieldType.F64);
             b.Vec("net_force", "N, world, weight included");
             b.Vec("net_moment", "N.m, body, about the CoM");
-            b.Add("flags", "bit 0 armed, bit 1 stick.arm", LogFieldType.U8);
+            b.Add("flags", "bit 0 armed, bit 1 stick.arm, bit 2 stick.failsafe", LogFieldType.U8);
             b.Add("reserved", "zero", LogFieldType.Pad, 7);
             return b.Done(StepSize);
         }
@@ -180,7 +183,7 @@ namespace Fpv450.Sim.Log
             w.F64(t.PackAmps1);
             w.V3(t.NetForce);
             w.V3(t.NetMoment);
-            w.U8((byte)((s.Armed ? 1 : 0) | (k.Arm ? 2 : 0)));
+            w.U8((byte)((s.Armed ? 1 : 0) | (k.Arm ? 2 : 0) | (k.Failsafe ? 4 : 0)));
             w.Zero(7);
         }
 
@@ -214,6 +217,7 @@ namespace Fpv450.Sim.Log
             byte flags = r.U8();
             s.Armed = (flags & 1) != 0;
             k.Arm = (flags & 2) != 0;
+            k.Failsafe = (flags & 4) != 0;
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>
@@ -227,6 +231,7 @@ namespace Fpv450.Sim.Log
             k.Yaw = r.F64();
             k.Throttle = r.F64();
             k.Arm = (src[FlagsAt] & 2) != 0;
+            k.Failsafe = (src[FlagsAt] & 4) != 0;
         }
 
         /// <summary>The step a step record holds.</summary>
