@@ -907,7 +907,16 @@ class _ShapeIndex:
     def nearest(self, p):
         candidates = self.buckets.get(tuple(math.floor(p[k] / SHAPE_BUCKET_M) for k in range(3)))
         if candidates:
-            best = min((abs(self.shapes[i].sdf(p)), i) for i in candidates)
+            # nearest bounding box first (a primitive lies inside its box, so the box's distance bounds |sdf| from
+            # below): once a box lies farther than the best found, no later one can beat or tie it (p1-h01-adobe-house:
+            # pruning only, the same (distance, index) as the plain minimum)
+            shapes = self.shapes
+            order = sorted((math.sqrt(_box_distance2(p, shapes[i].lo, shapes[i].hi)), i) for i in candidates)
+            best = (math.inf, -1)
+            for lower, i in order:
+                if lower > best[0]:
+                    break
+                best = min(best, (abs(shapes[i].sdf(p)), i))
             if best[0] <= SHAPE_REACH_M:
                 return best
         return _nearest_shape(p, self.shapes, self.indices)
@@ -987,7 +996,17 @@ def _zone_distance(p, zone):
     """The least distance from p to a landing face or a gap polygon. Each is skipped when its bounding box lies no
     nearer than the best so far (the distance to a box is a lower bound), so the result is the plain minimum's."""
     faces, polygons = zone
-    best = math.inf
+    # the item with the nearest bounding box first, so the scan starts from a near best and skips the rest by their
+    # boxes (p1-h01-adobe-house: forty gap polygons; the result is the plain minimum)
+    best, first = math.inf, None
+    for kind, items in ((0, faces), (1, polygons)):
+        for k, item in enumerate(items):
+            d2 = _box_distance2(p, item.lo, item.hi)
+            if first is None or d2 < first[0]:
+                first = (d2, kind, k)
+    if first is not None:
+        _, kind, k = first
+        best = _face_distance(p, faces[k]) if kind == 0 else polygons[k].distance(p)
     for item in faces:
         if _box_distance2(p, item.lo, item.hi) < best * best:
             best = min(best, _face_distance(p, item))
