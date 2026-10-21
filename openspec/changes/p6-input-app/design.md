@@ -1,0 +1,41 @@
+# Design: p6-input-app
+
+## Context
+- **What exists:** the Unity app has a `Boot` scene and the G1 gallery with `NoclipCamera`. There is no input layer, menu or flight session yet.
+- **What it builds on:** `p6-flight-core` fixes `StickSample`, `FcSettings` and `PoseFrame` in its task 1.1, and `p6-world-query-gallery` provides the loader for `maps/gallery-g1/stations.json`.
+
+## Goals / Non-Goals
+- **Goals:** the radio in, trusted to the millisecond; the pilot's rates; the shortest path into the air; the summary.
+- **Non-Goals:** the proposal's.
+
+## Decisions
+1. **Reading the radio:**
+   - **The source:** Unity's Input System HID path on Windows, read on a dedicated input thread (or the Input System's background polling), never in `Update`.
+   - **Timestamps:** taken on arrival with `Stopwatch` ticks converted to µs on the sim's clock.
+   - **The handoff:** samples go to the physics thread through a single-producer single-consumer ring.
+   - **Consumption:** the physics step takes the latest sample at or before its time (`p6-flight-core` design 1).
+2. **Measuring the interval:** the input thread records the report interval's histogram over the first 10 s of every flight, into the header.
+3. **Measuring latency:** a test mode drives a known stick step through the HID path (a recorded report stream injected at the device boundary) and times the motor command's response in the physics. The real TX12's own latency, from gimbal to USB, is outside this; the TX12's report interval is recorded instead.
+4. **Calibration:**
+   - **The flow:** centre, sweep, then the arm switch. Channel order, reversal, endpoints and deadband are detected from the sweep.
+   - **The health check:** an axis span under 200 of the HID range, of the roughly 683–903 that healthy axes show (fc-profiles), is "too narrow, recalibrate the radio" (assumed threshold).
+   - **Radio-side curves:** a sweep is linear if the channel-versus-time trace of a steady sweep fits a line within 3 % (assumed). Otherwise, name the axis and tell the pilot to switch off radio expo or dual rates.
+5. **Settings:**
+   - **The record:** `FcSettings` holds Betaflight CLI names.
+   - **The screen:** the Calibrate screen edits ACTUAL rates and the throttle curve, with previews drawn from the same math the core uses (`p6-flight-core`'s rate function, called, never copied).
+   - **Profiles:** stored as JSON under the user's profile folder.
+6. **The flight session:**
+   - **The scene:** one scene loads the gallery, the world loader and a `FlightSession` component, which owns the physics thread's lifecycle.
+   - **The drone:** a stand-in mesh at the interpolated pose (labelled), replaced by `p5-drone`'s prefab.
+   - **The camera:** a plain camera with FEED-02's intrinsics (106° horizontal, 16:9, 0° uptilt by the pilot's answer) until `p4-feed`'s rig.
+   - **Restart:** a new seed, a new log.
+7. **The summary:** read through `p6-flight-core`'s summary reader, never by parsing the log in the UI.
+
+## Risks / Trade-offs
+- **The Input System's HID timing on Windows** may batch reports. The interval histogram shows it, and the fallback is a raw HID read on our own thread.
+
+## Migration Plan
+- None: new code.
+
+## Open Questions
+- None. The minimal menu's look is judged at G7.
