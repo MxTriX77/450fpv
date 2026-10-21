@@ -54,7 +54,11 @@ def test_shapes_within_5_mm(k07):
 
 def test_primitives_materials_and_snags(k07):
     bowl = debris_car.build(k07["K07_lamp_bowl"])
-    assert [c["shape"] for c in bowl["collision"]] == ["sphere"] and bowl["snag"] == []
+    assert [c["shape"] for c in bowl["collision"]] == ["sphere"]
+    # the pressed rim: a closed edge on the ground round the bowl's 0.17 m, at half its 0.8 mm wall
+    (rim,) = bowl["snag"]
+    assert rim["kind"] == "edge" and rim["radius_m"] == pytest.approx(0.0004) and rim["points"][0] == rim["points"][-1]
+    assert all(p[1] == 0.0 and (p[0] ** 2 + p[2] ** 2) ** 0.5 == pytest.approx(0.085 - 0.0004) for p in rim["points"])
     ring = debris_car.build(k07["K07_bezel_ring"])
     assert [c["shape"] for c in ring["collision"]] == ["capsule"] * debris_car.RING_CAPSULES
     assert [s["kind"] for s in ring["snag"]] == ["edge"] and ring["snag"][0]["radius_m"] == pytest.approx(0.006)

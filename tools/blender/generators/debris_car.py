@@ -9,7 +9,8 @@ centred on the origin; it is PLANTED, so the audit lets the ground cover a primi
 sphere).
 
 - lamp_bowl: a hemispherical steel reflector of `diameter_m`, its wall `section_m` thick, resting dome up on its rim.
-  Collision: the sphere of its outer radius about the rim's centre (its lower half in the ground).
+  Collision: the sphere of its outer radius about the rim's centre (its lower half in the ground); an `edge` snag
+  round its rim at half the wall's thickness.
 - bezel_ring: a chrome ring of outer diameter `diameter_m` and round section `section_m`, lying flat. Collision:
   RING_CAPSULES capsules along its centre circle's polygon (the sheet's ring of capsule segments); an `edge` snag
   along it.
@@ -117,7 +118,11 @@ def _bowl(params, rng, material):
         loft.sheet(mesh, grid, uvs, CHROME, lambda p: p, t if k == 0 else 0.0)
         lods.append(mesh)
     collision = [{"shape": "sphere", "center": [0.0, 0.0, 0.0], "radius": r, "material": material, "landable": False}]
-    return lods, collision, []
+    # its pressed rim on the ground, the sheet's edge at mid-thickness (the spec: an `edge` snag)
+    around = SEGMENTS[0][0]
+    rim = [[(r - t / 2) * math.cos(2 * math.pi * j / around), 0.0, (r - t / 2) * math.sin(2 * math.pi * j / around)]
+           for j in range(around)]
+    return lods, collision, [{"kind": "edge", "points": rim + rim[:1], "radius_m": t / 2}]
 
 
 def _ring_centre(params, rng):
