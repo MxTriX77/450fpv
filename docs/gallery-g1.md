@@ -29,7 +29,7 @@ The stations stand in a row along one axis, about 40 to 60 m apart. Each viewpoi
 
 | Key | Station | Letter | The view |
 |---|---|---|---|
-| 1 | **1 S04**: the lodged straw patch | H | 1.5 m over the patch, 35° down; the belt behind it |
+| 1 | **1 S04**: the lodged straw patch | H | 1.5 m over the patch, 35° down at the mat |
 | 2 | **2 V01 V13**: a belt section, locust trees with shrubs at the edge and among the trunks | H | 1.5 m up, 8 m out from the edge, looking along it |
 | 3 | **3 H01**: the adobe house, intact and damaged side by side | E | 1.5 m up, 12 m from the facade |
 | 4 | **4 R01**: the sedans, struck and burnt | M | 1.2 m up, 6 m from the struck side |
