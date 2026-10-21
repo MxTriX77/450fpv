@@ -3,8 +3,8 @@
   "shader": "Universal Render Pipeline/Lit",
   "texture_set": "ambientcg/Metal046B",
   "tile_size_m": [1.5, 1.5],
-  "tint": [0.661, 0.663, 0.719, 1.0],
-  "mask": { "metallic": 0.0, "occlusion": 1.0, "smoothness": "1 - roughness" },
+  "tint": [0.789, 0.79, 0.821, 1.0],
+  "mask": { "metallic": 0.0, "occlusion": 1.0, "smoothness": 0.08 },
   "layers": [
     { "channel": "a", "recipe": "car_bare" },
     { "channel": "r", "recipe": "car_rust" },
