@@ -280,6 +280,20 @@ namespace Fpv450.Tests.EditMode
         }
 
         [Test]
+        public void PendingLayeredRecipe_KeepsItsFallback_AndImportsTheMaskAsData()
+        {
+            // p1-h01-adobe-house task 1.3: facade_h01 carries its layers in a "layered" block until task 1.2 writes
+            // them as "layers" (and turns this test into a layered one).
+            Material facade = Recipe("facade_h01");
+            WriteMask();
+            Assert.That(Build("pending", "facade_h01", true, facade), Is.EqualTo(facade), "the slot keeps the recipe's fallback");
+            Assert.That(Snapshot().Keys, Does.Not.Contain("pending_probe_layered.mat"), "no layered material yet");
+            var importer = (TextureImporter)AssetImporter.GetAtPath(MaskPath);
+            Assert.That(importer.sRGBTexture, Is.False, "the mask is imported as linear data");
+            Assert.That(importer.wrapMode, Is.EqualTo(TextureWrapMode.Clamp), "clamped");
+        }
+
+        [Test]
         public void MalformedLayers_AreRefused()
         {
             Material paint = Recipe("car_paint");

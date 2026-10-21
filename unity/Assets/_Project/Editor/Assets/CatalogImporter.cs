@@ -568,7 +568,8 @@ namespace Fpv450.Assets
         /// draws with the plain glass and an unmasked paint with the plain paint, and a pane or layered material left
         /// from a build in which that slot had its mask is deleted. Refused: another role, a slot without a material in
         /// the metadata, two masks of one role on one slot, a crack mask on a slot whose recipe is not transparent, and a
-        /// damage mask on a slot whose recipe lists no layers.
+        /// damage mask on a slot whose recipe lists no layers, unless the recipe still carries its layers in the interim
+        /// <c>layered</c> block (<see cref="PendingLayers"/>): that slot keeps its recipe's material, its mask imported as data.
         /// </summary>
         static Dictionary<string, Material> WithMaskedSlots(string prefabPath, string variant, Dictionary<string, object> metaJson,
             string metaPath, Dictionary<string, Material> materialBySlot)
@@ -608,9 +609,19 @@ namespace Fpv450.Assets
                 else if (layered)
                 {
                     string what = $"{metaPath} damage mask of slot {slot.Key}";
-                    result[slot.Key] = EnsureLayeredMaterial(slot.Value, RecipeLayers(VisualOf(metaJson, slot.Key, metaPath), what), manifest,
-                        CrackMask($"{metaFolder}/{Json.Str(damage, "file", what)}"), Json.Vec2(damage, "uv_min", what), Json.Vec2(damage, "uv_max", what),
-                        layeredPath, what);
+                    string visual = VisualOf(metaJson, slot.Key, metaPath);
+                    Texture2D mask = CrackMask($"{metaFolder}/{Json.Str(damage, "file", what)}");
+                    if (PendingLayers(visual))
+                    {
+                        // p1-h01-adobe-house: the facade recipes carry their layers in a "layered" block until task 1.2
+                        // rewrites them as "layers"; until then the slot keeps the recipe's own (fallback) material.
+                        Debug.Log($"[CatalogImporter] {what}: recipe {visual} has its layers pending (a \"layered\" block, no \"layers\"); the slot keeps its fallback material");
+                        result[slot.Key] = slot.Value;
+                        layered = false;
+                    }
+                    else
+                        result[slot.Key] = EnsureLayeredMaterial(slot.Value, RecipeLayers(visual, what), manifest, mask,
+                            Json.Vec2(damage, "uv_min", what), Json.Vec2(damage, "uv_max", what), layeredPath, what);
                 }
                 else
                     result[slot.Key] = slot.Value;
@@ -631,6 +642,15 @@ namespace Fpv450.Assets
                     return Json.Str(entry, "visual", metaPath);
             }
             throw new FormatException($"{metaPath}: slot \"{slot}\" has no materials entry");
+        }
+
+        /// <summary>Whether a recipe still carries its layers in the interim <c>"layered"</c> block (p1-h01-adobe-house task 1.1)
+        /// and no <c>"layers"</c>: its damage mask is imported as data and waits, the slot keeping the recipe's material.</summary>
+        static bool PendingLayers(string visual)
+        {
+            string recipePath = $"{RecipesFolder}/{visual}.json";
+            var recipe = Json.Obj(Json.Parse(ReadRepoFile(recipePath)), recipePath);
+            return recipe.ContainsKey("layered") && !recipe.ContainsKey("layers");
         }
 
         /// <summary>A recipe's <c>"layers"</c>, the list a damage mask composes over it (<see cref="EnsureLayeredMaterial"/>).</summary>
