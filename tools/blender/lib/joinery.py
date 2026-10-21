@@ -120,7 +120,8 @@ def door(plan, o, lods, rng):
         res.gaps.append(_gap(side, "door", [(c0, plan.F), (c1, plan.F), (c1, y_top), (c0, y_top)], plan.T - DOOR_DEPTH_M / 2))
         z = LEDGE_M[1]
         res.snag.append({"kind": "edge", "radius_m": EDGE_SNAG_R_M,
-                         "points": [list(frame.point(p)) for p in ((w, 0.0, z), (w, leaf_h, z), (0.0, leaf_h, z))]})
+                         "points": [list(frame.point(p)) for p in ((w, 0.0, z), (w, leaf_h, z), (0.0, leaf_h, z))],
+                         "material": TIMBER})
     return res
 
 
@@ -197,7 +198,7 @@ def window(plan, o, lods, rng):
     if state == "frame_empty":
         res.gaps.append(_gap(side, name, clear, (d0 + d1) / 2))
         res.snag.append({"kind": "edge", "radius_m": EDGE_SNAG_R_M,
-                         "points": [list(side.point(a, y, d0)) for a, y in clear + clear[:1]]})
+                         "points": [list(side.point(a, y, d0)) for a, y in clear + clear[:1]], "material": TIMBER})
         return res
     cm = (c0 + c1) / 2
     layers = [(d0, d0 + CASEMENT_M), (d1 - CASEMENT_M, d1)]
@@ -214,7 +215,8 @@ def window(plan, o, lods, rng):
         shadow = c0 + w_c * math.cos(phi) + CASEMENT_M * math.sin(phi)  # its outer face's far arris
         res.gaps.append(_gap(side, name, [(shadow, r0), (c1, r0), (c1, r1), (shadow, r1)], (d0 + d1) / 2))
         res.snag.append({"kind": "edge", "radius_m": EDGE_SNAG_R_M,
-                         "points": [list(frame.point(p)) for p in ((w_c, 0.0, 0.0), (w_c, r1 - r0, 0.0))]})
+                         "points": [list(frame.point(p)) for p in ((w_c, 0.0, 0.0), (w_c, r1 - r0, 0.0))],
+                         "material": TIMBER})
         return res
     panes = []  # per layer, per pane: its clear rectangle (a0, y0, a1, y1)
     for d_lo, d_hi in layers:
@@ -249,7 +251,7 @@ def window(plan, o, lods, rng):
                 res.collision.append(wall_member(None, side, (a_lo, a_hi), (y_lo, y_hi),
                                                  (dm - GLASS_M / 2, dm + GLASS_M / 2), "a", GLASS_SLOT, GLASS)[1])
                 res.snag.append({"kind": "edge", "radius_m": GLASS_EDGE_R_M,
-                                 "points": [list(side.point(a, y, dm)) for a, y in tri[1:]]})
+                                 "points": [list(side.point(a, y, dm)) for a, y in tri[1:]], "material": GLASS})
                 cuts.append(tri)
         polygon = [(rect_a, rect_y) for rect_a, rect_y in ((outer[0], outer[1]), (outer[2], outer[1]),
                                                            (outer[2], outer[3]), (outer[0], outer[3]))]

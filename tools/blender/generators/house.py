@@ -448,7 +448,7 @@ def _cable(plan, lods, rng):
                          [(s * arc, along), ((s + 1) * arc, along), ((s + 1) * arc, along + seg), (s * arc, along + seg)])
         along += seg
     collision = [meta.capsule(points[k], points[k + 1], CABLE_R_M, "cable") for k in range(len(points) - 1)]
-    snag = [{"kind": "hook", "points": [list(p) for p in points], "radius_m": CABLE_R_M}]
+    snag = [{"kind": "hook", "points": [list(p) for p in points], "radius_m": CABLE_R_M, "material": "cable"}]
     low = min(p[1] for p in points)
     return {"collision": collision, "snag": snag,
             "line": f"cable: in the hall at x {x:.2f} m between the joists at z {zs[i]:.2f} and {zs[j]:.2f} m, "

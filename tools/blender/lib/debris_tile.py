@@ -163,7 +163,7 @@ def shard(rng, tile, size, breaks, cell):
                   "rotation": [0.0, 0.0, 0.0, 1.0], "material": PHYSICS, "landable": False}]
     snag = [{"kind": "edge", "radius_m": EDGE_SNAG_R_M,
              "points": [list(shift.point((points[j][0], camber_y(tile, points[j][0]) + tile.thickness, points[j][1])))
-                        for j in run]} for run in fracture_runs(fracture)]
+                        for j in run], "material": PHYSICS} for run in fracture_runs(fracture)]
     return {"lods": [lod0, lod1], "collision": collision, "snag": snag,
             "materials": [{"slot": s, "physics": PHYSICS} for s in lod0.slots()],
             "volume_m3": abs(_signed_area(points)) * tile.thickness}

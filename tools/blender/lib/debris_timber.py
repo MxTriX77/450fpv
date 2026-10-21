@@ -129,7 +129,8 @@ def piece(rng, section, length, break_ends, splinter_len, splinter_count, nails,
         _rod(lods[0], p1, p2, (True, True))
         collision += [meta.capsule((x, h - NAIL_EMBED_M, z), p1, NAIL_R_M, NAIL_PHYSICS),
                       meta.capsule(p1, p2, NAIL_R_M, NAIL_PHYSICS)]
-        snag.append({"kind": "hook", "points": [list(p0), list(p1), list(p2)], "radius_m": NAIL_R_M})
+        snag.append({"kind": "hook", "points": [list(p0), list(p1), list(p2)], "radius_m": NAIL_R_M,
+                     "material": NAIL_PHYSICS})
     slots = lods[0].slots()
     physics = {TIMBER_SLOT: PHYSICS, FRACTURE_SLOT: PHYSICS, NAIL_SLOT: NAIL_PHYSICS}
     return {"lods": lods, "collision": collision, "snag": snag,
@@ -148,7 +149,7 @@ def broken_end(lods, uv, rng, w, h, x_root, end, splinter_len, splinter_count):
     for s in broken:
         root, tip, radius, thickness = _splinter(lods[0], uv, w, h, x_root, end, s)
         collision.append(meta.capsule(root, tip, radius, PHYSICS))
-        snag.append({"kind": "hook", "points": [list(root), list(tip)], "radius_m": thickness / 2})
+        snag.append({"kind": "hook", "points": [list(root), list(tip)], "radius_m": thickness / 2, "material": PHYSICS})
         z0, z1, y0, y1 = s["cell"]
         a0, a1 = (z1 - z0) * (y1 - y0), 4 * s["tip_half"][0] * s["tip_half"][1]
         s["volume"] = s["length"] * (a0 + a1 + math.sqrt(a0 * a1)) / 3  # a frustum between root and tip
@@ -157,7 +158,7 @@ def broken_end(lods, uv, rng, w, h, x_root, end, splinter_len, splinter_count):
         _envelope(lods[1], uv, w, h, x_root, end, mean)
     snag.append({"kind": "edge", "radius_m": EDGE_SNAG_R_M,
                  "points": [[x_root, y, z] for y, z in ((0.0, -w / 2), (0.0, w / 2), (h, w / 2), (h, -w / 2),
-                                                        (0.0, -w / 2))]})
+                                                        (0.0, -w / 2))], "material": PHYSICS})
     return collision, snag, broken
 
 

@@ -380,7 +380,8 @@ def _rafter_frame(slope, a):
 def _tail_snag(member, out):
     """An `edge` round a rafter's tail: its end face's outline."""
     face = min(member.faces, key=lambda f: prism.dot(f[1], member.frame.ex))
-    out["snag"].append({"kind": "edge", "radius_m": EDGE_SNAG_R_M, "points": [list(p) for p in face[0] + face[0][:1]]})
+    out["snag"].append({"kind": "edge", "radius_m": EDGE_SNAG_R_M, "points": [list(p) for p in face[0] + face[0][:1]],
+                        "material": TIMBER})
 
 
 def _rafters(plan, slopes, commons, forced, ref, pitch, chimney, lods, out, broken=frozenset()):
@@ -530,7 +531,7 @@ def _battens(plan, slopes, layout, chimney, lods, out, breaks=(), rngs=None):
                         end = min(member.faces, key=lambda f, sg=(-1 if which == "lo" else 1):
                                   -sg * prism.dot(f[1], slope.ea))
                         out["snag"].append({"kind": "edge", "radius_m": EDGE_SNAG_R_M,
-                                            "points": [list(q) for q in end[0] + end[0][:1]]})
+                                            "points": [list(q) for q in end[0] + end[0][:1]], "material": TIMBER})
 
 
 def _stub_end(slope, frame, s, height, root, end, brk, lods, out, rngs):
@@ -1159,10 +1160,10 @@ def _chimney(plan, slopes, layout, ch, lods, out, rngs):
                         "narrowest_m": round(audit.inscribed_diameter(poly, [0.0, 1.0, 0.0]), 6)})
     o = CAP_OUT_M
     rim = [[x0 - o, top, z0 - o], [x1 + o, top, z0 - o], [x1 + o, top, z1 + o], [x0 - o, top, z1 + o]]
-    out["snag"].append({"kind": "edge", "radius_m": EDGE_SNAG_R_M, "points": rim + rim[:1]})
+    out["snag"].append({"kind": "edge", "radius_m": EDGE_SNAG_R_M, "points": rim + rim[:1], "material": MASONRY})
     flue = [[f0[0] - o, top, f0[1] - o], [f1[0] + o, top, f0[1] - o], [f1[0] + o, top, f1[1] + o],
             [f0[0] - o, top, f1[1] + o]]
-    out["snag"].append({"kind": "edge", "radius_m": EDGE_SNAG_R_M, "points": flue + flue[:1]})
+    out["snag"].append({"kind": "edge", "radius_m": EDGE_SNAG_R_M, "points": flue + flue[:1], "material": MASONRY})
     _fillets(plan, slopes, layout, ch, lods, out)
     out["lines"].append(f"chimney: {ch['courses']} courses of {bl * 1000:g} x {bw * 1000:g} x {bh * 1000:g} mm bricks "
                         f"with {JOINT_M * 1000:g} mm joints, {x1 - x0:.3f} x {z1 - z0:.3f} m, top {top:.3f} m "
