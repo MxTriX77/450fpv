@@ -103,7 +103,7 @@ PARAMS = {
     "burst_azimuth_deg": _p("float", (0.0, 360.0), 180.0, "where the burst lay seen from the house, degrees from +X "
                                                           "towards +Z (assumed): the lee end, the rubble's wide side"),
     "batten_break": _p("float", (0.0, 0.6), 0.0, "share of the batten spans between two commons broken, splintered"),
-    "rafters_broken": _p("int", (0, 4), 0, "commons off the plate, fallen into the attic"),
+    "rafters_broken": _p("int", (0, 4), 0, "commons off the plate, in pairs with their collar, fallen into the attic"),
     "opening_jag": _p("float", (0.0, 0.4), 0.0, "how far a window's crumble or a breach's blocks reach (the sheet's "
                                                 "0.1-0.3 m at 0.2)"),
     "gable_breach": _p("float", (0.0, 1.0), 0.0, "how much of a gable is missing (the X state, not built yet)"),
@@ -177,6 +177,9 @@ def check(params):
     for c in COLLAPSES:
         if p["collapse"][c]["wall"] != "none":
             problems.append(f"'collapse.{c}' is the X state, not built yet (after G1, D-040); set its wall to none")
+    if p["rafters_broken"] % 2:
+        problems.append(f"'rafters_broken' = {p['rafters_broken']}: a common off the plate alone is not built yet (they "
+                        "come off in pairs, lib.roof)")
     if p["opening_jag"] > 0:
         for w in WINDOWS:
             if p["windows"][w]["side"] != "none" and p["windows"][w]["state"] not in walls.CRUMBLE_STATES:

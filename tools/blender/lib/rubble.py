@@ -43,7 +43,7 @@ CLAY_PIECE_SHARE = 0.2         # of a fallen ceiling's clay in slabs (assumed)
 SLAB_SIZE_M = (0.3, 1.0)       # design decision 6: plaster slabs 0.3-1 m
 SLAB_THICK = (0.3, 1.0)        # a slab's thickness as a share of the clay layer's (assumed)
 MIN_TIMBER_M = 0.3             # a fallen member shorter than this is crumbs (K03's shortest piece)
-TIMBER_SPLINTERS = 3           # per broken end of a fallen batten or board (K03: 2-10)
+TIMBER_SPLINTERS = (3, 5)      # per broken end of a fallen batten, of a board (K03: 2-10; a thin board's narrower)
 FALLEN_SPLINTER_M = 0.08       # their reach (assumed, as the roof's stubs)
 HEAP_SLOT = {"tile": "heap", "adobe": "adobe", "timber": "heap", "clay": "clay"}
 PIECE_SLOTS = {"tile": "tile", "tile_fracture": "tile_fracture", "timber": "timber",
@@ -327,5 +327,6 @@ def timber_piece(rng, section, length, break_ends, nails=1, splinter_len=FALLEN_
     w, h = max(section), min(section)
     splinter = min(splinter_len, (length - 0.1) / max(1, break_ends) / 2)
     nails = nails if length - break_ends * splinter >= 0.3 else 0
-    return debris_timber.piece(rng, (w, h), length, break_ends, splinter, TIMBER_SPLINTERS if break_ends else 0,
+    count = TIMBER_SPLINTERS[0] if w < 2 * h else TIMBER_SPLINTERS[1]
+    return debris_timber.piece(rng, (w, h), length, break_ends, splinter, count if break_ends else 0,
                                nails, 0.05 if nails else 0.0)

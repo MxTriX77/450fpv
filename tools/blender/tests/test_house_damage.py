@@ -58,6 +58,7 @@ def test_h01_d_params_are_design_11s(d_params):
     ("collapse.c1.wall", "back", "not built yet"),
     ("gable_breach", 0.4, "not built yet"),
     ("windows.w1.state", "frame_gone", "no frame"),
+    ("rafters_broken", 1, "in pairs"),
     ("opening_jag", 0.4, "crumble"),  # 0.6 m of crumble round w3 reaches the corner's pier
 ])
 def test_check_refuses_what_d_does_not_build(d_params, key, value, needle):

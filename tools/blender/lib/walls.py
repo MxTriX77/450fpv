@@ -756,7 +756,7 @@ def boxes(plan, damaged=True):
         for o in (plan.openings_on(name) if damaged else []):  # a breach's jutting blocks, through the wall
             out += [_side_box(side, *b, 0.0, plan.T) for b in o.blocks]
         if plan.is_gable(name):
-            out += _gable_boxes(plan, side)
+            out += _gable_boxes(plan, side, damaged)
         for end in (-1, 1):  # a long side's corner block over the head, up to the roof's plane at its outer face
             if long_side and plan.ends[end] == "gable":
                 a = _a_at_x(side, end * (plan.X - plan.T))
@@ -796,15 +796,22 @@ def _axis_box(lo, hi):
             "rotation": [0.0, 0.0, 0.0, 1.0], "material": MASONRY, "landable": False}
 
 
-def _gable_boxes(plan, side):
+def _gable_boxes(plan, side, damaged=True):
     """A gable above the wall head as two boxes, one per slope: its top on the roof's plane from the corner to the
     apex, as deep (square to the slope) as the apex stands above the head's centre, so the triangle is held and what
-    the box holds past it lies inside the wall below or the other slope's box."""
+    the box holds past it lies inside the wall below or the other slope's box. Where a crumbled window's band
+    (task 1.4) lies under the gable, the middle out to z_m past it is a box of its own from the head to the roof's
+    plane there, and the slope boxes only as deep as the plane stands above the head at z_m: none of them dips into
+    the crumble below the head."""
     x_out = side.origin[0]
     x_in = x_out - side.normal[0] * plan.T
     xc, xt = (x_out + x_in) / 2, abs(x_out - x_in)
-    depth = (plan.apex - plan.H) * plan.cos
+    bands = [o.crumble["band"] for o in plan.openings_on(side.name) if damaged and o.crumble]
+    z_m = max((abs(side.point(a, 0.0, 0.0)[2]) + 0.05 for b in bands for a in b[:2]), default=0.0)
+    depth = (plan.rt(xc, z_m) - plan.H) * plan.cos
     out = []
+    if z_m:
+        out.append(_axis_box((min(x_out, x_in), plan.H, -z_m), (max(x_out, x_in), plan.rt(xc, z_m), z_m)))
     for sz in (-1, 1):
         corner = (sz * plan.Z, plan.rt(xc, sz * plan.Z))  # (z, y)
         apex = (0.0, plan.apex)

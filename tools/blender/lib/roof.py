@@ -12,7 +12,8 @@ Carpentry (assumed sections, labelled where the sheet gives them): rafters `raft
 0.10-0.15 m at 0.9-1.2 m), laid out from the hip's ridge-end pair (or the gable) so a bay is the pitch less a rafter;
 the first pair against a gable's inner face; jacks on the side slopes and the hip end at the same pitch, cut on the hip
 rafters' side faces; hip rafters HIP_RAFTER_M, dropped so their top arrises lie in the two planes; a ridge board; a
-collar on every pair between (COLLAR_M at COLLAR_DROP of the rise below the ridge); battens BATTEN_M at
+collar on every pair between (COLLAR_M at COLLAR_DROP of the rise below the ridge, square-cut where its top meets
+the rafters' tops); battens BATTEN_M at
 `batten_pitch`, mitred on the hips' centre planes, square at a gable's verge, cut round the chimney; a tilting fillet
 under the eaves course.
 
@@ -88,7 +89,7 @@ SPLINTERS = 3                  # per broken end of a batten or a ceiling board (
 MIN_FALLEN_M = 0.15            # a broken span's fallen middle is at least this (assumed)
 CEILING_CELL_BOARDS = 4        # the ceiling falls in strips of this many boards between two joists (assumed)
 BOARD_SPLINTER_M = (0.02, 0.04)  # a ceiling board's splinters over its joist (derived: within the joist's top)
-BOARD_SPLINTERS = 2
+BOARD_SPLINTERS = 5            # as K03's board: a 25 mm board's splinters narrow enough for their capsules
 CLAY_SETBACK_M = (0.0, 0.08)   # the clay crumbles back from a broken board's end (assumed)
 
 
@@ -229,7 +230,7 @@ def build(plan, params, lods, rngs):
     gone = _strip(plan, params, pieces, rngs)
     out["gone_tiles"] = [pieces[i] for i in sorted(gone)]
     broken = _pick_rafters(plan, params, slopes, commons, forced, chimney, pieces, gone, rngs)
-    bays = _bays(plan, slopes, layout, commons, broken, chimney)
+    bays = _bays(plan, slopes, layout, commons, forced, broken, chimney)
     breaks = _pick_breaks(params, layout, bays, pieces, gone, rngs)
     _plates(plan, lods, out)
     _rafters(plan, slopes, commons, forced, ref, pitch, chimney, lods, out, broken)
@@ -262,33 +263,35 @@ def build(plan, params, lods, rngs):
 
 
 def _pick_rafters(plan, params, slopes, commons, forced, chimney, pieces, gone, rngs):
-    """The `rafters_broken` commons knocked off the plate, as (slope, x): on the side slopes, not a hip's or a gable's
-    pair nor the chimney's trimmers, those with the most of their tiles gone (within a pitch either side), ties broken
-    by the seeded stream "rafters broken"."""
+    """The `rafters_broken` commons knocked off the plate, in pairs (the two slopes' commons at one x, with their
+    collar: each common's plumb cut leans on its partner across the ridge board, so a common left alone would stand
+    past its cut; `check` holds the count even), as (slope, x): not a hip's or a gable's pair nor the chimney's
+    trimmers, those with the most of their tiles gone (within a pitch either side, both slopes), ties broken by the
+    seeded stream "rafters broken"."""
     if not params["rafters_broken"]:
         return frozenset()
     rng = rngs("rafters broken")
     pitch = params["rafter_pitch"]
-    ch_slope = None if not chimney else ("front" if chimney["z1"] <= 0 else "back")
     candidates = []
-    for slope in slopes[:2]:
-        for x in commons:
-            key = rng.random()
-            if any(abs(x - f) < 1e-9 for f in forced):
-                continue
-            if slope.name == ch_slope and chimney["x0"] - pitch < x < chimney["x1"] + pitch:
-                continue
-            near = [i for i, pc in enumerate(pieces) if pc["slope"] is slope
-                    and abs(sum(q[0] for q in pc["poly"]) / len(pc["poly"]) - x) < pitch]
-            share = sum(i in gone for i in near) / max(1, len(near))
-            candidates.append((-share, key, slope.name, x))
-    return frozenset((name, x) for _, _, name, x in sorted(candidates)[:params["rafters_broken"]])
+    for x in commons:
+        key = rng.random()
+        if any(abs(x - f) < 1e-9 for f in forced):
+            continue
+        if chimney and chimney["x0"] - pitch < x < chimney["x1"] + pitch:
+            continue
+        near = [i for i, pc in enumerate(pieces) if pc["slope"] in slopes[:2]
+                and abs(sum(q[0] for q in pc["poly"]) / len(pc["poly"]) - x) < pitch]
+        share = sum(i in gone for i in near) / max(1, len(near))
+        candidates.append((-share, key, x))
+    pairs = [x for _, _, x in sorted(candidates)[:params["rafters_broken"] // 2]]
+    return frozenset((slope.name, x) for x in pairs for slope in slopes[:2])
 
 
-def _bays(plan, slopes, layout, commons, broken, chimney):
+def _bays(plan, slopes, layout, commons, forced, broken, chimney):
     """The regular bays of the side slopes, between two neighbouring commons still on the plate (the bays a batten
-    breaks in and a gap opens through; the hip's jacks, a gable's verge and the chimney's bay are not), each with its
-    rafters' centres `x`, its clear `a` between their faces and its batten rows."""
+    breaks in and a gap opens through; the hip's jacks, a gable's verge, the chimney's bay and a bay beside a hip's or
+    a gable's pair, whose hip and ridge tiles' boxes hold their arches to 5 cm only, are not), each with its rafters'
+    centres `x`, its clear `a` between their faces and its batten rows."""
     w = plan.rafter_w
     ch_slope = None if not chimney else ("front" if chimney["z1"] <= 0 else "back")
     out = []
@@ -296,6 +299,8 @@ def _bays(plan, slopes, layout, commons, broken, chimney):
         xs = sorted(x for x in commons if (slope.name, x) not in broken)
         for x0, x1 in zip(xs, xs[1:]):
             if slope.name == ch_slope and x0 < chimney["x1"] and chimney["x0"] < x1:
+                continue
+            if any(abs(x - f) < 1e-9 for x in (x0, x1) for f in forced):
                 continue
             out.append({"slope": slope, "x": (x0, x1), "a": (x0 + w / 2, x1 - w / 2),
                         "rows": list(range(len(layout.battens)))})
@@ -311,15 +316,15 @@ def _over(pieces, gone, name, k, a0, a1):
 def _pick_breaks(params, layout, bays, pieces, gone, rngs):
     """`batten_break` of the regular bays' batten spans broken (task 1.4: of the spans that can break), drawn by the
     stream "batten break" among the spans whose tiles are gone from their own course and the course above (a tile
-    hangs on its batten and the next course laps over it), never the eaves or the top row. Each break leaves a stub
-    of STUB_BODY_M on each rafter, splintered by STUB_SPLINTER_M; the middle fell. Returns the breaks, by bay and
-    row."""
+    hangs on its batten and the next course laps over it), never the eaves row nor the top two (so a gap stays clear
+    of the ridge tiles' box, its arch held to 5 cm, past the 2 cm a gap's zone asks). Each break leaves a stub of
+    STUB_BODY_M on each rafter, splintered by STUB_SPLINTER_M; the middle fell. Returns the breaks, by bay and row."""
     total = sum(len(b["rows"]) for b in bays)
     target = round(params["batten_break"] * total)
     if not target:
         return []
     n = len(layout.battens)
-    candidates = [(bi, k) for bi, b in enumerate(bays) for k in range(1, n - 1)
+    candidates = [(bi, k) for bi, b in enumerate(bays) for k in range(1, n - 2)
                   if _over(pieces, gone, b["slope"].name, k, *b["a"]) and _over(pieces, gone, b["slope"].name, k + 1, *b["a"])]
     chosen = sorted(rngs("batten break").sample(candidates, min(target, len(candidates))))
     breaks = []
@@ -425,18 +430,18 @@ def _rafters(plan, slopes, commons, forced, ref, pitch, chimney, lods, out, brok
                 emit(slope, x, [side_face(e, sz, False)])
     # collars between the commons that are neither a gable's nor a hip's ridge-end pair
     yc = plan.apex - COLLAR_DROP * (plan.apex - plan.H)
+    reach_c = (plan.apex - yc) / plan.tan  # square-cut where its top meets the rafters' tops: its box is its solid
     for x in commons:
         if any(abs(x - f) < 1e-9 for f in forced):
             continue
-        if (front.name, x) in broken or (back.name, x) in broken:  # the collar came down with its rafter
-            out["fallen"].append({"kind": "collar", "x": x, "length": 2 * plan.Z, "section": COLLAR_M,
-                                  "volume_m3": 2 * plan.Z * COLLAR_M[0] * COLLAR_M[1]})
+        if (front.name, x) in broken or (back.name, x) in broken:  # the collar came down with its rafters
+            out["fallen"].append({"kind": "collar", "x": x, "length": 2 * reach_c, "section": COLLAR_M,
+                                  "volume_m3": 2 * reach_c * COLLAR_M[0] * COLLAR_M[1]})
             continue
         frame = prism.Frame((x + w / 2 + COLLAR_M[0] / 2, yc, 0.0), (0.0, 0.0, 1.0), (0.0, 1.0, 0.0), (-1.0, 0.0, 0.0))
-        planes = [prism.plane(s.origin, s.en) for s in (front, back)]
         for n, mesh in enumerate(lods[:2]):
-            _, box = prism.member(mesh, frame, (-plan.Z, -COLLAR_M[1], -COLLAR_M[0] / 2),
-                                  (plan.Z, 0.0, COLLAR_M[0] / 2), TIMBER_SLOT, TIMBER, planes, offset=(0.3, 0.1 * x))
+            _, box = prism.member(mesh, frame, (-reach_c, -COLLAR_M[1], -COLLAR_M[0] / 2),
+                                  (reach_c, 0.0, COLLAR_M[0] / 2), TIMBER_SLOT, TIMBER, offset=(0.3, 0.1 * x))
         out["collision"].append(box)
     # the ridge board, from a gable's inner face or a hip's ridge end to the other
     x0 = -(plan.X - plan.T) if plan.ends[-1] == "gable" else plan.hip_ridge_end(-1)
@@ -1409,7 +1414,10 @@ def _ceiling_down(plan, params, ch, lods, out, rngs):
     for xa, xb, za, zb in rects.merge(clay_rects):
         for mesh in lods[:2]:
             prism.member(mesh, xf, (xa, H + bt, za), (xb, y1, zb), CLAY_SLOT, MASONRY, offset=(0.0, 0.0))
-        out["collision"].append(prism.axis_box((xa, y0, za), (xb, y1, zb), MASONRY))
+        # the boards' layer and the clay's, two boxes meeting where the boards' tops meet the clay: a hole's gap holds
+        # the faces within 2 cm, and the boards' tops would lie a board deep in one box
+        out["collision"].append(prism.axis_box((xa, y0, za), (xb, H + bt, zb), TIMBER))
+        out["collision"].append(prism.axis_box((xa, H + bt, za), (xb, y1, zb), MASONRY))
         wind = prism.axis_box((xa, y0, za), (xb, y1, zb), MASONRY)
         wind.pop("material")
         wind.pop("landable")
