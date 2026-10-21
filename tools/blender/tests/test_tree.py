@@ -92,7 +92,7 @@ def test_autumn_variants_are_their_summer_variant_at_the_autumn_cover_with_pods(
 def test_the_autumn_share_moves_leaves_between_the_slots_and_nothing_else(repo_root, name):
     """Task 1.5: each leaf drawn into leaf_autumn at autumn_share from a stream of its own, so at any share the faces
     are the share-0 build's, face for face, only their slots differ, about the share of them autumn's at LOD0, and
-    every LOD thins each slot on its own (LOD1 every other card, LOD2 every fourth)."""
+    every LOD thins each slot on its own (LOD1 one card for every two, LOD2 one for every four)."""
     _, mixed, _ = quick(repo_root, name)
     _, plain, _ = quick(repo_root, name, autumn_share=0.0)
     assert "leaf_autumn" not in plain["lods"][0].slots()
@@ -106,6 +106,48 @@ def test_the_autumn_share_moves_leaves_between_the_slots_and_nothing_else(repo_r
         assert counts == {s: math.ceil(lod0.count(s) / keep) for s in counts}
     assert mixed["collision"] == plain["collision"] and mixed["snag"] == plain["snag"] and mixed["gaps"] == plain["gaps"]
     assert [m["slot"] for m in mixed["materials"]] == ["bark", "twig", "leaf", "leaf_autumn", "pod"]
+
+
+def test_thinning_keeps_one_card_of_each_facing_whatever_their_order():
+    """Task 1.6, lib.cards.by_facing: 64 cards facing evenly round the horizontal, laid so that every fourth faces the
+    first quadrant; one kept for every four keeps 4 in each quadrant, no two neighbours more than twice the even
+    spacing apart, their mean normal within 0.05 of none (every fourth card in order keeps the first quadrant alone)."""
+    order = [quadrant * 16 + k for k in range(16) for quadrant in range(4)]
+    laid = [cards.Card([(0.0, 0.0, 0.0)] * 4, (math.cos(math.pi * j / 32), 0.0, math.sin(math.pi * j / 32)), [(0.0, 0.0)] * 4, 1)
+            for j in order]
+    assert {math.atan2(c.normal[2], c.normal[0]) // (math.pi / 2) for c in laid[::4]} == {0.0}
+    kept = cards.by_facing(laid, 4)
+    azimuths = sorted(math.degrees(math.atan2(c.normal[2], c.normal[0])) % 360 for c in kept)
+    assert [sum(q * 90 <= a < q * 90 + 90 for a in azimuths) for q in range(4)] == [4, 4, 4, 4]
+    assert max((azimuths[(i + 1) % 16] - a) % 360 for i, a in enumerate(azimuths)) <= 2 * 360 / 16
+    assert all(abs(sum(c.normal[axis] for c in kept)) / len(kept) < 0.05 for axis in range(3))
+    assert [laid.index(c) for c in kept] == sorted(laid.index(c) for c in kept), "kept in the cards' order"
+
+
+@pytest.mark.parametrize("name", list(VARIANTS) + sorted(AUTUMN))
+def test_thinned_leaves_face_as_their_slot_does(repo_root, name):
+    """Task 1.6: of each leaf slot, LOD1's and LOD2's kept leaves weighted by their silhouette have the mean normal and
+    the mean n n^T of all the slot's leaves at LOD0 within 0.1 (a tenth of a unit normal), so they face the light and the
+    view as the slot does. Kept as every other and every fourth leaf in the twigs' order, V01_S_autumn's 13 yellow
+    leaves of 52 lay 0.17 and 0.21 off, faced the review's sun 86 % more than the 52, and its LOD2 switch read +6.52 %
+    by day."""
+    _, built, _ = quick(repo_root, name)
+
+    def moments(mesh, slot):
+        faces = [(f, n, uvs) for f, n, uvs, s in mesh.faces if s == slot]
+        weights = [cards.CELL_OPAQUE[cards.CELLS_UV.index((uvs[0], uvs[2]))]
+                   * skeleton.norm(skeleton.cross(skeleton.sub(mesh.vertices[f[1]], mesh.vertices[f[0]]),
+                                                  skeleton.sub(mesh.vertices[f[2]], mesh.vertices[f[1]]))) for f, _, uvs in faces]
+        total = sum(weights)
+        return [sum(w * n[a] for w, (_, n, _) in zip(weights, faces)) / total for a in range(3)] + \
+               [sum(w * n[a] * n[b] for w, (_, n, _) in zip(weights, faces)) / total for a in range(3) for b in range(a, 3)]
+
+    for slot in ("leaf", "leaf_autumn"):
+        if slot not in built["lods"][0].slots():
+            continue
+        all_leaves = moments(built["lods"][0], slot)
+        for lod in (1, 2):
+            assert max(abs(a - b) for a, b in zip(moments(built["lods"][lod], slot), all_leaves)) < 0.1, (slot, lod)
 
 
 @pytest.mark.parametrize("edit, expected", [

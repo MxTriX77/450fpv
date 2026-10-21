@@ -21,8 +21,9 @@ pops brighter nor grows at its switch (p1-v01-locust task 1.2b). Its faces are l
 their planes': each card is two faces back to back on a one-sided material (the leaf shader would turn a back face's
 normal round, so one leaning up would lean down), each face's normal its side's horizontal leaning up as the leaves'
 mean visible normal does from the review's far look-down (`visible_lean`, task 1.2j: a vertical plane has no normal
-towards the sun's half vector and took 35-40 % less of the leaves' specular). The nearer LODs keep every other or
-every fourth card, scaled to hold all the cards' silhouette and that of the thin wood the LOD drops (`thinned`).
+towards the sun's half vector and took 35-40 % less of the leaves' specular). The nearer LODs keep one card for
+every two or every four of near facing, scaled to hold all the cards' silhouette and that of the thin wood the LOD
+drops (`thinned`).
 
 Trees (p1-v01-locust, design decision 2): `along` lays a pinnate leaf card every step along a member's polyline,
 alternate sides, each a whole sprig cell (a stalk with 12-20 small oval leaves, which at a 0.25 m leaf are the
@@ -303,14 +304,17 @@ def silhouette(cards):
 
 
 def thinned(cards, keep, dropped_m2=0.0, ground_y=0.0):
-    """Every `keep`-th card, standing for `keep` of them (p1-v01-locust task 1.2b): mapped to the MEAN_CELLS in turn
-    (as long as before, as wide as its new cell), so the kept cards show the leaves' mean colour rather than the luck
-    of the cells they drew, and scaled about its centre so that their silhouette (`silhouette`) is all the cards' plus
-    `dropped_m2`, the mean silhouette of what the LOD drops besides (its thin wood): a far LOD keeps its crown's
-    coverage and colour. A card dipping under the ground is lifted onto it; `keep` 1 returns the cards as they are."""
+    """One card for every `keep` of near facing, standing for them (p1-v01-locust tasks 1.2b and 1.6; `by_facing`),
+    so the kept cards face the light and the view as all the cards do: kept as every `keep`-th card in the twigs'
+    order, V01_S_autumn's LOD2 kept 13 of its 52 yellow leaves, which faced the review's sun 86 % more than the 52, and
+    its LOD2 switch read 6.52 % bright by day. Each is mapped to the MEAN_CELLS in turn (as long as before, as wide as
+    its new cell), so the kept cards show the leaves' mean colour rather than the luck of the cells they drew, and
+    scaled about its centre so that their silhouette (`silhouette`) is all the cards' plus `dropped_m2`, the mean
+    silhouette of what the LOD drops besides (its thin wood): a far LOD keeps its crown's coverage and colour. A card
+    dipping under the ground is lifted onto it; `keep` 1 returns the cards as they are."""
     if keep == 1 and not dropped_m2:
         return list(cards)
-    kept = [_recelled(card, MEAN_CELLS[i % len(MEAN_CELLS)]) for i, card in enumerate(cards[::keep])]
+    kept = [_recelled(card, MEAN_CELLS[i % len(MEAN_CELLS)]) for i, card in enumerate(by_facing(cards, keep))]
     s = math.sqrt((silhouette(cards) + dropped_m2) / silhouette(kept)) if kept else 1.0
     out = []
     for card in kept:
@@ -321,6 +325,30 @@ def thinned(cards, keep, dropped_m2=0.0, ground_y=0.0):
             corners = [(x, y + lift, z) for x, y, z in corners]
         out.append(Card(corners, card.normal, card.uvs, card.cell))
     return out
+
+
+def by_facing(cards, keep):
+    """ceil(n / keep) of the cards, one for each group of about `keep` cards of near facing, in the cards' order: the
+    groups come from halving the cards at the median of their normals along the axis those spread widest on, each
+    half taking its share of the groups, until a group is one; each group keeps the card nearest its mean normal
+    (task 1.6: a stratified sample of the facings, whatever order the twigs laid the cards in)."""
+    picked = []
+
+    def split(group, count):
+        if count == 1:
+            mean = tuple(sum(cards[i].normal[a] for i in group) for a in range(3))
+            picked.append(max(group, key=lambda i: (dot(cards[i].normal, mean), -i)))
+            return
+        axis = max(range(3), key=lambda a: max(cards[i].normal[a] for i in group) - min(cards[i].normal[a] for i in group))
+        group = sorted(group, key=lambda i: (cards[i].normal[axis], i))
+        low = count // 2
+        cut = min(max(round(len(group) * low / count), low), len(group) - (count - low))
+        split(group[:cut], low)
+        split(group[cut:], count - low)
+
+    if cards:
+        split(list(range(len(cards))), -(-len(cards) // keep))
+    return [cards[i] for i in sorted(picked)]
 
 
 def _recelled(card, cell):

@@ -17,8 +17,9 @@ leaf_cover, spread over the leafy twigs. `autumn_share` of the cards, each drawn
 cards are the same at any share, take the leaf_autumn slot: one crown mixing green and yellow leaves (H), each slot
 its own recipe.
 
-LODs: LOD0 6-sided stems, 3-sided twigs and every card; LOD1 4-sided stems and every other card of each leaf slot, on
-the cells of the leaves' mean colour and grown to hold LOD0's cards' and twigs' silhouette (lib.cards.thinned); LOD2
+LODs: LOD0 6-sided stems, 3-sided twigs and every card; LOD1 4-sided stems and one card of each leaf slot for every
+two of near facing (lib.cards.by_facing, p1-v01-locust task 1.6), on the cells of the leaves' mean colour and grown to
+hold LOD0's cards' and twigs' silhouette (lib.cards.thinned); LOD2
 three crossed ellipses covering what LOD0's cards, stems and twigs cover, in the leaves' mean colour (lib.cards.crossed;
 p1-v01-locust task 1.2b: every LOD within 6 % of LOD0's luminance and 15 % of its coverage, as far as crossed cards
 can), each two faces in the far slot lit with the leaves' visible lean (task 1.2j: no pop at the LOD2 switch by day or

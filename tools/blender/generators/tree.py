@@ -15,12 +15,14 @@ same at any share, take the leaf_autumn slot: one crown mixing green and yellow 
 letter H), each slot its own recipe.
 
 LODs (design decision 1): LOD0 the trunk 12-sided, limbs 8, branches 6, twigs 3, every leaf and pod; LOD1 the same
-sides over every other ring, each twig one band along its chord, every other leaf of each leaf slot and pod strip;
-LOD2 the trunk and limbs over every eighth ring, each branch its chord, every other twig's chord standing for two,
-every fourth leaf of each leaf slot
+sides over every other ring, each twig one band along its chord, one leaf of each leaf slot for every two of near
+facing, every other pod strip; LOD2 the trunk and limbs over every eighth ring, each branch its chord, every other
+twig's chord standing for two, one leaf of each leaf slot for every four of near facing
 (task 1.3: with fewer sides the far LODs' wood took 70 % more specular than LOD0's, lib.skeleton.tree_tubes). The
-kept leaves take the cells of the leaves' mean colour and grow to hold every leaf's silhouette (lib.cards.thinned;
-task 1.2b: LOD2 had half LOD0's crown pixels and was 13-20 % dark by day), and the wood holds LOD0's wood in its own
+kept leaves sample their slot's facings (lib.cards.by_facing; task 1.6: every fourth in the twigs' order,
+V01_S_autumn's 13 yellow leaves of 52 faced the review's sun 86 % more than the 52), take the cells of the leaves'
+mean colour and grow to hold every leaf's silhouette (lib.cards.thinned; task 1.2b: LOD2 had half LOD0's crown pixels
+and was 13-20 % dark by day), and the wood holds LOD0's wood in its own
 colour (lib.skeleton.tree_tubes, task 1.2g). Every tube is shaded smooth, so a tube shades as the round wood it
 stands for (task 1.2g: flat, the 4-sided limbs of LOD1 turned a face to the review's camera that its side sun missed,
 a fifth of the wood's light by day).
@@ -69,7 +71,7 @@ STEM_SPLAY_DEG = 5.0        # a clump's stems lean out this much more than a lon
 LEAF_STEP_M = 0.05          # a leaf every this along a leafy member (assumed: the shoot's internodes)
 LEAF_START = 0.2            # of a member's length, bare at its base (assumed)
 LEAF_ANGLE_DEG = (45.0, 70.0)   # a leaf's angle off its shoot (assumed)
-LEAF_KEEP = (1, 2, 4)       # every this-th leaf per LOD (lib.cards.thinned)
+LEAF_KEEP = (1, 2, 4)       # one leaf for every this many of near facing per LOD (lib.cards.thinned)
 POD_M, POD_ASPECT = 0.08, 0.5   # a pod strip's length (the sheet's 7 cm pods on their stalk) and the painted map's aspect
 SNAG_EDGE_M = 0.030         # the sheet: every segment under 30 mm is an edge
 GAP_MEMBER_M = 0.030        # the sheet's gap rule: two members of 30 mm or more leaving one fork
