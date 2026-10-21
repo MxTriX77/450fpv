@@ -55,11 +55,72 @@ Branch `unity/art/p1-r01-vaz-sedan` off `unity/main` after `p1-e01-trench` merge
       - F's bare steel is drawn twice: once by the per-face `bare` slot (plain `car_bare`, no dust), and once by the layered A on the `soot` faces round it (with B's dust). So the bare areas show a paler fringe and their 5 cm steps. Putting the whole shell on `soot` would leave the split to mask A (1.76 cm blocks) and remove both.
       - The dust ends in a hard line at the shoulder (the canvas's top group).
       - The dust colour, F's soot tint (it reads mid grey, not soot-black) and the paint set are 1.4's to tune against M and O.
-- [ ] 1.4 [asset-artist] Look at it (after 1.3b): the review sheets `review-sheets/R01/` for both states at 1.5 / 10 / 50 / 200 m, the turntables and the collision overlays, and the local side-by-side sheet `reference/_compare/R01.png` against letter M (the A car) and O (the burnt cab, for the F surface) built inside this task from the contact sheets, never committed; pick the paint set and tune the sheet-ranged params by eye (hole pattern, halo size, flap, tint, fade, soot) and commit the params; verify the A car matches M in silhouette, damage and paint readings, the F car reads burnt as the sheet describes, and the handoff lists what matches M and what does not
+- [x] 1.4 [asset-artist] Look at it (after 1.3b): the review sheets `review-sheets/R01/` for both states at 1.5 / 10 / 50 / 200 m, the turntables and the collision overlays, and the local side-by-side sheet `reference/_compare/R01.png` against letter M (the A car) and O (the burnt cab, for the F surface) built inside this task from the contact sheets, never committed; pick the paint set and tune the sheet-ranged params by eye (hole pattern, halo size, flap, tint, fade, soot) and commit the params; verify the A car matches M in silhouette, damage and paint readings, the F car reads burnt as the sheet describes, and the handoff lists what matches M and what does not
     **Notes for 1.4** (from 1.1, 1.2 and the 2026-10-21 handover):
     - The windscreen hole is a 0.20 × 0.03 m slit along the flap's edge (design 3 assumed 0.1 × 0.2 m). Set it by M; if M's hole is larger, split the pane's collision round the hole instead of narrowing the hole (collision follows the visual, never the reverse).
     - The paint set carries rust at `paint_fade` 0; the halos read as saturated orange rings of even width; the soot patch reads as brown litter, not soot; F's side moulding still glints; F's 0.04 m roof sag does not read at 10 m; F's soot and bare split steps along the shell's 5 cm faces.
     - The rack's posts lean in 41°; the tyres need 48 segments at LOD0 (32 show at 1.5 m).
+    **As built:**
+    - *The comparison sheet* (`reference/_compare/R01.png`, local, never committed): M's still and its zoom crops against R01_A's 10 m (overcast and day), the az 225 turntable view (M's view is 30–40° off the axis; the rig's nearest is 45°), 1.5 m, 50 m, 200 m and the collision overlay; O's truck crop against R01_F's 1.5 m and 10 m (overcast and day), the turntable, 50 m and the overlay. M and O have no contact sheets (photo letters): only their stills and zoom crops were read. The rig's sun lights the near side, where M's is in shade, so M's shade reading is compared with the overcast tiles and its lit bonnet with the day bonnet.
+    - *Seen* (`review-sheets/R01/`, both states and lights): at 1.5 and 10 m as below; at 50 m both read as a car (A teal with its tops lighter, F black with its pale roof and bonnet); at 200 m a car-sized speck; the turntables show no tiling at 10 m and the far side clean; the overlays follow the body, the flap, the arches, the rack and the pieces.
+    - *The paint set: `green_metal_rust`.* M's paint is a solid dark teal-green with small spots and few streaks. `PaintedMetal006` is turquoise with rust patches over about a third of it, which M does not show. The set's own small spots and streaks stay (M's flanks are speckled).
+    - *The tint convention* (the orchestrator's note): Unity stores a material colour as sRGB and linearises it, but the car recipes held linear gains. So the paint drew #204652 (its 1.495 blue gain became 2.42), the chrome #676e77, the bare steel #4e463f and the seats #86a0a5. Every car recipe's tint is now the sRGB encoding of the gain that puts its set's linear mean on its target (above 1, g^(1/2.2): Unity's own curve). That covers `car_paint`, `car_soot`, `car_bare`, `car_burnt`, `car_vinyl`, `chrome`, `chrome_burnt`, `seat_fabric`, `tyre` and `soot_patch`. Checked on screen: the side's hue now follows its recipe.
+    - *The recipes, retuned:*
+      - `car_paint` #30494c. M's three readings (shade #3d4b53, lit #6d7c81, roof #8696a2) are all bluer than the sheet's class value #2f4a40, which drew olive beside M. So this is M's hue (linear R : G : B 0.45 : 1 : 1.1) at #2f4a40's luminance.
+      - `car_burnt` at O's #303033, smoothness 0.08. Soot is matte: the set's 0.65 read mid grey under the sky and glinted along the shoulder (the "moulding").
+      - `car_soot` smoothness 0.2 (the underbody). `chrome_burnt` a matte soot film (#333436, metallic 0, smoothness 0.15). `chrome` at M's dusty bumper and hubcap #9a9fa3. `soot_patch` #302d2a, smoothness 0.1 (it read as brown litter). `car_bare` at the sheet's fresh oxide #9a958d.
+    - *The params:*
+      - R01_A `seed` 186 → 1263 and `burst_dir.elevation` 5 → 15°. The new seed came from a seed search against M's near side.
+        - Large holes: front wing behind the arch 0.086 (s 1.06, y 0.57); front door 0.150 (1.45, 0.59) and 0.118 (1.93, 0.51); rear door 0.086 (2.20, 0.72) and 0.089 (2.42, 0.66). Diameters in m, at station and height.
+        - Ten small ones of 10–24 mm. None large behind the rear door.
+      - R01_A `paint_fade` 0.3 → 0: M's paint is glossy, and its roof mirrors the sky.
+      - Kept, because M agrees with them or does not show them: `frag_holes` 16, `frag_hole_size` 0.03, `rust_halo` 1.8, `bonnet_flap` 0.45, `months_abandoned` 6, the windscreen's 0.20 × 0.03 m slit (M's hole lies behind the flap; nothing larger shows, so the pane's collision is unchanged), and every R01_F param (`roof_push` 0.04, `soot_patch` 4.0, `weeks_since_fire` 4).
+    - *The generator (its constants set by M and O):*
+      - *Halos:* drawn once, by the mask; the decal rings are gone (`kits.emit_dark` keeps only the uncut holes' dark openings). Per hole:
+        - R full on a rusted lip, 1.12 × the jagged rim.
+        - Out to `rust_halo` × 0.7–1.3 (seeded per hole), the flaked paint: B 0.4, mottled, over R 0.6 (primer over a rust stain, as M's #887465). Lobed ±60 % (`HALO_JITTER` 0.35 → 0.6).
+        - Faint streaks (R 100).
+      - *Primer chips:* each small hit flakes a chip. 16 more lie on the burst side's wing and door tops and the bonnet's edge (B full: `car_dust`'s #bcab93 is M's primer #bdb092).
+      - *Sills:* their rust is now spots, not a band.
+      - *Dust:* `DUST_BASE` 0.15 → 0.05. Over the shoulder's roll the film thins as sin² of the face's angle, so no line stands at the roll's top.
+      - *Crazing:* 3–4 seeded hits besides the flap's strike, 14–22 cracks each out to 0.9 m, and rings to 0.46 m. Under them, a haze for the cracks finer than a texel: R 0.45 near an impact, never under 0.18. The pane now reads pale across, as M's does.
+      - *F:* the whole shell is on `soot`. Its mask's A alone burns it to bare steel, in 1.76 cm texels: no 5 cm steps, and no second, dustless bare layer. R rusts the bare steel in blotches with `weeks_since_fire` (full at 12 weeks, assumed). The `bare` slot is gone. The rims are `chrome_dull` (sooted, as O's dark wheels).
+      - *Rack:* 1.2 m across (the preset's half-width 0.50 → 0.60), so its posts rise from the drip rails leaning in 18°, not 41° (M). Its tubes are `chrome`: M's rack reads pale, and F dulls it.
+      - *Tyres:* 48 sides at LOD0.
+      - *Glass:* the remaining side glass and the rear screen are on the transparent `glass` at LOD0–1 (M shows the street through the far windows). The LOD2–3 hulls have no cabin behind their glass, so it moves to a new opaque slot, `glass_hull` (`car_glass`).
+      - *Scatter:* the trim plate lies once whole; the rest are chips of 0.15–0.45 of it (`SHARD_SCALE`; M shows chips of 5–15 cm round one plate).
+    - *Collision:* unchanged by group, because no visual change needed it: A 188 (the rack still 8 capsules, the scatter 19), F 224. Largest audit values (tolerance 50 mm, 20 mm in the zone):
+      - A: a primitive 49.6 mm from the mesh, 19.6 mm in the zone; the mesh 41.2 mm from the collision, 19.9 mm in the zone.
+      - F: 49.6 and 19.5 mm; the mesh 40.2 and 17.2 mm.
+    - *Triangles:* A 54 467 / 12 335 / 3 460 / 72, its crumbs 24 000 more at LOD0. F 41 102 / 8 642 / 2 964 / 72, its soot patch 799 / 447 / 193.
+    - *Tests:*
+      - F's bare steel is read from the mask's A over the bonnet, the roof and the boot lid (no `bare` slot).
+      - The crack mask: its lines at 0.5–30 % over the haze.
+      - LOD1 has the transparent glass, LOD2 the hull's.
+      - The scatter statistics run on their own seed.
+    - *R01_A against M, matching:*
+      - The 2101 silhouette and stance, the twin lamps and barred grille, the chrome bumpers, the domed hubcaps, and the rack on near-upright posts.
+      - The flat front tyre and the lean onto that corner.
+      - The struck corner's empty lamp socket. The bonnet's rear corner folded up against a windscreen crazed pale across.
+      - The near-side glass gone and the vent frames in, with the seats and the far windows seen through the car.
+      - A big hole at mid height in the front door's front half, a halo'd hole high on the rear door, small hits with primer chips, a primer-flecked wing, and nothing large on the rear quarter.
+      - Halos as flaked primer-and-rust blotches.
+      - The paint: dark teal-green and glossy, with a light dust on the tops that thins over the shoulder.
+      - The scatter of a bowl, a bezel ring, one plate and chips, ahead of and beside the struck corner.
+    - *R01_A against M, not matching (the stand-in list for G1):*
+      - M's hole high on the wing just behind the headlamp cannot be cut. Holes keep 0.32 m from the bonnet's landing face, because collision stays closed over them and AST-05's 2 cm zone holds.
+      - M's tear at the front door's leading edge is missing: the door lines are kept clear.
+      - Two extra large holes (0.118 m low on the front door, 0.089 m on the rear door) come from the sheet's 6-in-16 count. The wing hole behind the arch is 0.086 m, where M's is a small hit in a primer splash.
+      - M's windscreen shows its small hits as dark dots. The crack mask is one channel (lines and haze), so only their webs are drawn.
+      - M's flap curls at its torn edge and stands taller; ours is a flat folded triangle.
+      - M's engine bay under the flap shows rust-orange parts; ours is a dark block.
+      - M's rack has curved brackets and a ladder-sided rear basket; ours is four straight tubes on four straight posts.
+      - The door mirror is not built.
+      - Deliberate: the plates are blank (SEC-02), and the ground is the gallery's, not M's dusty asphalt.
+    - *R01_F against O (fresh soot) and the sheet:*
+      - Matching: the shell soot-black and matte, in O's range (#303033). No glass. The seats are frames and springs. The dark rims sit on the ground with bead-wire rings. The soot patch is dark with a feathered edge, and the chrome is dulled and sooted.
+      - From the sheet, not O: the bare grey-white steel over the bonnet and the cabin roof (O shows only fresh soot).
+      - Not shown by O, so left: the 0.04 m roof sag (it does not read at 10 m), the doors (O's cab door hangs open; F's doors stay closed, `doors` is not built yet), the rack's sag (not built), and the snow ground.
 - [ ] 1.5 [asset-artist] Merge `origin/unity/main` into the branch under the Asset Artist identity once `p1-v01-locust` is merged (V01's smoothness atlas, the review capture's leak fix and legend wrap, its shell and thicket rules, V13's and V01's rebuilt metadata), keeping both sides' rules: this branch's always-written `textures` list and its `crack_mask` and `damage_mask` roles beside main's; rebuild every asset whose metadata either side touched with `pwsh tools/build_asset.ps1` (V13, V01, K01, K07, S04, L01, L03, E01, R01) instead of hand-merging metadata or prefabs; verify R01's audit lines and counts as before the merge, V01's and V13's parity rows as V01 left them, every `test_existing_tree_is_clean` target green, the EditMode run, `python -m pytest tools -q`, `python tools/assets/fetch.py --verify`, the hygiene scan, `openspec validate p1-r01-vaz-sedan --strict`
     *Note (V01 task 1.7):* V01's merge renamed its per-face-corner normals in the shared `lib/geometry.py` to `Mesh.corner_normals`, keeping main's per-vertex `Mesh.normals` and `uv2`; any R01 code that reads `Mesh.normals` as per-corner normals switches to `corner_normals`, and V13's metadata (rebuilt on both sides) is rebuilt, never merged.
 

@@ -34,3 +34,4 @@ The pipeline after `p1-h01-adobe-house`: generator-written mask atlases under `t
 
 ## Open Questions
 - Which paint set (`PaintedMetal006` or `green_metal_rust`) reads as M: decided at the comparison sheet.
+  *Settled (task 1.4):* `green_metal_rust`, tinted to #30494c (M's readings' hue at the sheet's #2f4a40 luminance) with `paint_fade` 0. The car recipes' tints are now sRGB values, which Unity linearises. The halos are the mask's alone, as flaked primer over rust. The rack is 1.2 m across, so its posts lean in 18°. F's shell is one soot slot, burnt to bare steel by the mask's A. Task 1.4's As built note in `tasks.md` has the details and the match list against M and O.
