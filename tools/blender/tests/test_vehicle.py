@@ -355,8 +355,10 @@ def test_a_scatter_density(r01_a):
     r = [math.hypot(p["rigid"].t[0] - corner[0], p["rigid"].t[2] - corner[1]) for p in pieces]
     assert len(pieces) == 80 and all(1.0 - 1e-9 <= d <= 8.0 + 1e-9 for d in r)
     # 1/r^2 areal density: ln r uniform between ln 1 and ln 8 (mean ln sqrt 8, half within sqrt 8 m)
-    assert sum(math.log(d) for d in r) / len(r) == pytest.approx(math.log(8.0) / 2, abs=0.12)
-    assert sum(d < math.sqrt(8.0) for d in r) / len(r) == pytest.approx(0.5, abs=0.12)
+    # at 3 sigma (QA 2.1's S3: at n = 80 the mean of ln r has sigma 0.067, the share 0.056); uniform areal density
+    # (mean ln r 1.61) and uniform in r (1.38) still fail
+    assert sum(math.log(d) for d in r) / len(r) == pytest.approx(math.log(8.0) / 2, abs=0.20)
+    assert sum(d < math.sqrt(8.0) for d in r) / len(r) == pytest.approx(0.5, abs=0.17)
     for p in pieces:
         x, z = p["rigid"].t[0], p["rigid"].t[2]
         assert abs(x) > body.L / 2 or abs(z) > body.W / 2
