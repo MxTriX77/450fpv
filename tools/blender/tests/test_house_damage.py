@@ -239,6 +239,19 @@ def test_d_metadata_validates_and_every_gap_matches_its_circle(d_built, material
     assert "breach_b1" in cavity["openings"] and "window_w4" in cavity["openings"]
 
 
+def test_d_lod_frame_is_the_house_without_its_spread(d_built):
+    """bounds.lod (task 1.6): the footprint with its eaves, up to the chimney's top, while the bounds hold the rubble
+    spread metres past it, so the LOD group and the review's shots measure from the house."""
+    params, out, data = d_built
+    bounds, frame = data["bounds"], data["bounds"]["lod"]
+    plan = walls.Plan(params)
+    size = [frame["max"][a] - frame["min"][a] for a in range(3)]
+    assert plan.L <= size[0] <= plan.L + 2 * (plan.eaves + 0.2), size
+    assert plan.W <= size[2] <= plan.W + 2 * (plan.eaves + 0.2), size
+    assert abs(frame["max"][1] - bounds["max"][1]) < 1e-9  # the chimney is the top of both
+    assert all(bounds["max"][a] - frame["max"][a] > 2.0 and frame["min"][a] - bounds["min"][a] > 2.0 for a in (0, 2))
+
+
 def test_d_windows_keep_their_frames_clear_and_crumble_round_them(d_built):
     params, out, data = d_built
     for g in data["gaps"]:

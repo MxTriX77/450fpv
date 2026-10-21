@@ -20,7 +20,9 @@ with each tile course one slab under its tiles' tops, the chimney as boxes, no n
 (the battens and rafter tails under a pixel) the walls with their openings and reveals, the floor and ceiling, the
 door's leaf, each slope's cover as one slab and the chimney as one box; LOD3 from `lod.lod3_switch_m` (a reveal under
 a pixel) the outer faces with their openings over a dark liner, the covers' tops and the chimney; culled past
-`lod.cull_m`, where the ridge drops under 2 px (935 * ridge / 2, the debris kit's rule).
+`lod.cull_m`, where the ridge drops under 2 px (935 * ridge / 2, the debris kit's rule). The LOD group's frame
+(`lod_bounds`, lib.meta's bounds.lod) is LOD0's box before the rubble is laid round it, so the switches and the
+review's shots are measured from the house, not from its spread.
 """
 import math
 import random
@@ -343,6 +345,7 @@ def build(params):
         collision += cable["collision"]
         snag += cable["snag"]
         lines.append(cable["line"])
+    lod_bounds = lods[0].bounds()  # the house without its rubble spread: the LOD group's frame
     heap = _rubble(plan, params, built, rngs)
     for mesh, extra in zip(lods, heap.lods):
         kits_vehicle.append_mesh(mesh, extra)
@@ -360,6 +363,7 @@ def build(params):
     lod = params["lod"]
     return {
         "lods": lods,
+        "lod_bounds": lod_bounds,
         "switch_distances_m": [0.0, lod["lod1_switch_m"], lod["lod2_switch_m"], lod["lod3_switch_m"]],
         "thin_wire": [False] * 4,
         "cull_distance_m": lod["cull_m"],
