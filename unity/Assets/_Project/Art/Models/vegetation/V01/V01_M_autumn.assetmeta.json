@@ -41,6 +41,7 @@
       "impostor": {
         "atlas": "V01_M_autumn_impostor.png",
         "normals": "V01_M_autumn_impostor_normal.png",
+        "smoothness": "V01_M_autumn_impostor_smoothness.png",
         "size_px": [
           1024,
           1024
@@ -54,9 +55,10 @@
           "height_m": 13.252342,
           "bottom_m": -0.296128
         },
-        "inputs_sha256": "0042d46423da68de68d1e2dd549ff6cf9adf06b6f814672fb1df2ac1da294e1f",
+        "inputs_sha256": "18bd3f41cec8f6e8c469286b5a7eab5c680c57130f6e67d841cf8dcf09cb13f7",
         "atlas_sha256": "29b73a790c58500eb64a8c441600ec5b56d84805ea86ee95bcd460870f74df86",
-        "normals_sha256": "a2baaf083777ab0be0be0d2472d0ba8ef8ebbee975dab81ae763ae82b842955b"
+        "normals_sha256": "a2baaf083777ab0be0be0d2472d0ba8ef8ebbee975dab81ae763ae82b842955b",
+        "smoothness_sha256": "08a276413999b268dc60786992b50735c9a3f51689693832583bb17830eeec37"
       }
     }
   ],

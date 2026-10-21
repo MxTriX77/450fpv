@@ -1,5 +1,5 @@
 """lib.impostor and the impostor LOD of lib.meta (p1-v01-locust design decision 3; asset-pipeline "Baked impostor LOD"),
-in plain Python: the design's numbers (8 views at 15 degrees, two 1k atlases), the switch distance from the params,
+in plain Python: the design's numbers (8 views at 15 degrees, three 1k atlases), the switch distance from the params,
 the views' axes, the card frame that holds every view, the atlas layout, the hash of the render's inputs, the slot
 materials as the importer picks them, the PNG's chunks, and the metadata's impostor LOD (last before the cull,
 validated, left out of the FBX check). The render, the normal atlas's fill and its PNG run in test_build_blender.py."""
@@ -146,6 +146,9 @@ def test_inputs_hash_follows_the_mesh_the_recipe_and_the_map(tmp_path):
     tinted = copy.deepcopy(materials)
     tinted["wood"]["recipe"]["tint"][0] = 0.9
     assert impostor.inputs_sha256(mesh, record, tinted) != first
+    glossy = copy.deepcopy(materials)
+    glossy["wood"]["recipe"]["smoothness"] = 0.3  # the smoothness atlas changes (task 1.6b); a mask's A is its bytes
+    assert impostor.inputs_sha256(mesh, record, glossy) != first
     smoothed = copy.deepcopy(mesh)
     smoothed.smooth = {"wood"}  # shaded smooth, the normal atlas changes (task 1.2g)
     assert impostor.inputs_sha256(smoothed, record, materials) != first
@@ -164,6 +167,8 @@ def test_slot_materials_pick_the_importers_base_maps(repo_root):
     assert got["leaf"]["cutoff"] == 0.5 and got["bark"]["cutoff"] is None
     assert got["bark"]["mask"].replace("\\", "/").endswith("Art/Materials/bark_locust_mask.png")  # its occlusion
     assert got["pod"]["mask"] is None  # no mask: URP/Lit's occlusion is 1
+    assert got["bark"]["smoothness"] is None and got["leaf"]["smoothness"] is None  # the mask's A (task 1.6b)
+    assert got["pod"]["smoothness"] == 0.2  # the painted recipe's constant
     assert all("normal" not in m for m in got.values()), "the normal render reads no normal map (task 1.2n)"
     assert got["bark"]["tint"] == pytest.approx([impostor.gamma_to_linear(0.845), impostor.gamma_to_linear(0.928),
                                                  1.252 ** 2.2])
@@ -203,6 +208,7 @@ def k01_with_impostor(params, switch=60.0):
     materials = {"brick": {"visual": "brick_red", "recipe": {}, "texture": __file__, "tile_m": [1.0, 1.0]}}
     lod = impostor.lod("K01_whole", switch, mesh, materials)
     lod["impostor"]["atlas_sha256"], lod["impostor"]["normals_sha256"] = "a" * 64, "b" * 64
+    lod["impostor"]["smoothness_sha256"] = "c" * 64
     return meta.assemble("K01", "K01_whole", "debris_brick", params, built, VISUALS, lod)
 
 
@@ -216,6 +222,7 @@ def test_impostor_lod_is_the_last_before_the_cull(k01_params, material_ids):
     record = last["impostor"]
     assert record["atlas"] == "K01_whole_impostor.png" and record["size_px"] == [1024, 1024]
     assert record["normals"] == "K01_whole_impostor_normal.png"
+    assert record["smoothness"] == "K01_whole_impostor_smoothness.png"  # per texel (task 1.6b)
     assert "occlusion" not in record  # per texel, in the normal atlas's alpha (task 1.2m)
     assert (record["views"], record["columns"], record["rows"], record["elevation_deg"]) == (8, 4, 2, 15.0)
     assert json.loads(meta.dumps(data))["lods"][-1] == last
@@ -235,10 +242,12 @@ def test_metadata_without_impostor_is_unchanged(k01_params):
     (lambda d: d["lods"][-1]["impostor"].update(size_px=[2048, 2048]), "each at most 1024 px (1k)"),
     (lambda d: d["lods"][-1]["impostor"].update(atlas="K01_whole_impostor.jpg"), "atlas must name a .png"),
     (lambda d: d["lods"][-1]["impostor"].pop("normals"), "normals must name a .png"),
+    (lambda d: d["lods"][-1]["impostor"].pop("smoothness"), "smoothness must name a .png"),
     (lambda d: d["lods"][-1]["impostor"].update(views=9), "views <= columns * rows"),
     (lambda d: d["lods"][-1].update(tris=32), "must be 2: the card is one quad"),
     (lambda d: d["lods"][-1]["impostor"].update(atlas_sha256="none"), "atlas_sha256 is not a 64-digit hex"),
     (lambda d: d["lods"][-1]["impostor"].update(normals_sha256="none"), "normals_sha256 is not a 64-digit hex"),
+    (lambda d: d["lods"][-1]["impostor"].update(smoothness_sha256="none"), "smoothness_sha256 is not a 64-digit hex"),
 ])
 def test_validate_names_the_impostor_problem(k01_params, material_ids, edit, expected):
     data = k01_with_impostor(k01_params)
@@ -254,18 +263,24 @@ def test_the_fbx_check_leaves_the_card_to_the_importer(k01_params, k01_out):
 
 def test_recorded_atlases_are_up_to_date_only_with_every_hash(tmp_path):
     atlas, normals = tmp_path / "V_impostor.png", tmp_path / "V_impostor_normal.png"
+    smoothness = tmp_path / "V_impostor_smoothness.png"
     atlas.write_bytes(b"pixels")
     normals.write_bytes(b"normals")
+    smoothness.write_bytes(b"smoothness")
     meta_path = tmp_path / "V.assetmeta.json"
     record = {"inputs_sha256": "1" * 64, "atlas_sha256": impostor.file_sha256(str(atlas)),
-              "normals_sha256": impostor.file_sha256(str(normals))}
+              "normals_sha256": impostor.file_sha256(str(normals)),
+              "smoothness_sha256": impostor.file_sha256(str(smoothness))}
     meta_path.write_text(json.dumps({"lods": [{"mesh": "V_LOD0"}, {"mesh": "V_impostor", "impostor": record}]}))
-    paths = (str(meta_path), str(atlas), str(normals))
+    paths = (str(meta_path), str(atlas), str(normals), str(smoothness))
     assert impostor.recorded(*paths, "1" * 64) == record
     assert impostor.recorded(*paths, "2" * 64) is None  # the params or materials changed
     normals.write_bytes(b"hand-edited")
     assert impostor.recorded(*paths, "1" * 64) is None  # never hand-edited: rendered over
     normals.write_bytes(b"normals")
+    smoothness.write_bytes(b"hand-edited")
+    assert impostor.recorded(*paths, "1" * 64) is None
+    smoothness.write_bytes(b"smoothness")
     atlas.write_bytes(b"hand-edited")
     assert impostor.recorded(*paths, "1" * 64) is None
     assert impostor.recorded(str(tmp_path / "missing.json"), *paths[1:], "1" * 64) is None

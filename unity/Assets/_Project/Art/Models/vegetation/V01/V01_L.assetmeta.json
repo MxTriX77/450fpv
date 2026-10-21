@@ -41,6 +41,7 @@
       "impostor": {
         "atlas": "V01_L_impostor.png",
         "normals": "V01_L_impostor_normal.png",
+        "smoothness": "V01_L_impostor_smoothness.png",
         "size_px": [
           1024,
           1024
@@ -54,9 +55,10 @@
           "height_m": 16.531833,
           "bottom_m": -0.403114
         },
-        "inputs_sha256": "6063b56d5e13ee576e1be83ab0f345fec4f903ad5befaf9aff37967715113018",
+        "inputs_sha256": "0b48ef56354f5f1392f4901f8ded37044c0e772941b5faa3d2867a7b033119e1",
         "atlas_sha256": "247b51c4abfd5c8995001964fe08e9593dc9a4528e7f54521f5070e623776416",
-        "normals_sha256": "fa2355bc7a165bba2e2b863a79eae9715a316460c717a00c70a1c3c566ba1474"
+        "normals_sha256": "fa2355bc7a165bba2e2b863a79eae9715a316460c717a00c70a1c3c566ba1474",
+        "smoothness_sha256": "ad18cc16c0549601e16ec5c078b4dbfc41599ac7ff6fe9a7ad3c5557ad500c09"
       }
     }
   ],

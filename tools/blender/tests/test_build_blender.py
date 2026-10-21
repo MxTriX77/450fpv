@@ -1,7 +1,8 @@
 """build.py end to end in headless Blender, when the pinned Blender is installed: K01 builds into a scratch root
 with its audit printed, the outputs agree with the spec scenarios, a second run writes byte-identical files, an
 out-of-range param and a mesh grown beyond its box are refused before anything is written, and an impostor asked for
-is rendered once as a 1k albedo and a 1k normal atlas, the occlusion per texel in its alpha. The version pin and the
+is rendered once as a 1k albedo, a 1k normal atlas, the occlusion per texel in its alpha, and a 1k smoothness atlas.
+The version pin and the
 staged file's retried replace are checked without Blender."""
 import hashlib
 import json
@@ -102,8 +103,9 @@ def test_out_of_range_bevel_is_refused_and_the_outputs_stay_untouched(blender, r
 def test_impostor_atlases_are_rendered_at_1k_once_and_removed_when_off(blender, repo_root, tmp_path):
     """p1-v01-locust design decision 3 (asset-pipeline "Baked impostor LOD"): K01 with its params asking for an
     impostor (the brick generator taught the two keys inside this Blender) gets a 1k RGBA albedo atlas beside its FBX
-    with every view inside its cell and a 1k RGBA normal atlas whose texels face their view (the visible sides'
-    geometric normals), and the impostor as its last LOD at the params' switch distance; a rebuild finds
+    with every view inside its cell, a 1k RGBA normal atlas whose texels face their view (the visible sides'
+    geometric normals) and a 1k grey smoothness atlas, and the impostor as its last LOD at the params' switch
+    distance; a rebuild finds
     the atlases up to date and writes identical bytes; a deleted atlas renders both again to the same bytes; params
     that stop asking remove them."""
     shutil.copytree(repo_root / "assets-src", tmp_path / "assets-src")
@@ -125,7 +127,8 @@ def test_impostor_atlases_are_rendered_at_1k_once_and_removed_when_off(blender, 
                                                         "effect": "test"}}
         sys.exit(build.main(["K01", "--root", {str(tmp_path)!r}]))
         """)
-    names = ("K01_whole.fbx", "K01_whole.assetmeta.json", "K01_whole_impostor.png", "K01_whole_impostor_normal.png")
+    names = ("K01_whole.fbx", "K01_whole.assetmeta.json", "K01_whole_impostor.png", "K01_whole_impostor_normal.png",
+             "K01_whole_impostor_smoothness.png")
     atlas = tmp_path / OUT / names[2]
     outputs, digests = [], []
     for step in ("first", "again", "deleted"):
@@ -139,8 +142,8 @@ def test_impostor_atlases_are_rendered_at_1k_once_and_removed_when_off(blender, 
     assert "impostor rendered" not in outputs[1], "an up-to-date atlas is not rendered again"
     assert "K01_whole: impostor rendered in" in outputs[2]
     assert digests[0] == digests[1] == digests[2], "the same inputs render the same bytes"
-    assert ("K01_whole: impostor K01_whole_impostor.png and K01_whole_impostor_normal.png 1024x1024, 8 views at 15 deg"
-            in outputs[0])
+    assert ("K01_whole: impostor K01_whole_impostor.png, K01_whole_impostor_normal.png and "
+            "K01_whole_impostor_smoothness.png 1024x1024, 8 views at 15 deg" in outputs[0])
 
     assert impostor.png_header(str(atlas)) == (1024, 1024, 8, 6), "a 1k 8-bit RGBA atlas"
     normals = tmp_path / OUT / names[3]
@@ -148,12 +151,15 @@ def test_impostor_atlases_are_rendered_at_1k_once_and_removed_when_off(blender, 
     blue = Image.open(normals).getchannel("B").histogram()
     away = sum(blue[:127]) / sum(blue)
     assert away < 0.01, f"the visible side's normal faces its view's camera ({away:.2%} of the texels lean away)"
+    smoothness = tmp_path / OUT / names[4]
+    assert impostor.png_header(str(smoothness)) == (1024, 1024, 8, 0), "a 1k 8-bit grey smoothness atlas"
     data = json.loads((tmp_path / OUT / names[1]).read_text(encoding="utf-8"))
     last = data["lods"][-1]
     assert [lod["mesh"] for lod in data["lods"]] == ["K01_whole_LOD0", "K01_whole_LOD1", "K01_whole_impostor"]
     assert last["switch_distance_m"] == 60.0 and data["cull_distance_m"] == 120.0
     assert last["impostor"]["atlas_sha256"] == digests[0][names[2]]
     assert last["impostor"]["normals_sha256"] == digests[0][names[3]]
+    assert last["impostor"]["smoothness_sha256"] == digests[0][names[4]]
     alpha = Image.open(atlas).getchannel("A")
     pad = impostor.PAD_PX
     for k in range(impostor.VIEWS):
@@ -168,7 +174,8 @@ def test_impostor_atlases_are_rendered_at_1k_once_and_removed_when_off(blender, 
     params_path.write_text(json.dumps(params), encoding="utf-8")
     code, output = run_build(blender, tmp_path, driver)
     assert code == 0, output
-    assert not atlas.exists() and not normals.exists(), "atlases the params no longer ask for are removed"
+    assert not atlas.exists() and not normals.exists() and not smoothness.exists(), \
+        "atlases the params no longer ask for are removed"
     data = json.loads((tmp_path / OUT / names[1]).read_text(encoding="utf-8"))
     assert [lod["mesh"] for lod in data["lods"]] == ["K01_whole_LOD0", "K01_whole_LOD1"]
 
@@ -193,7 +200,8 @@ def test_the_normal_atlas_holds_the_geometric_normals_mean_and_its_length_their_
         quad = [(x0, 0.0, z0), (x1, 0.0, z1), (x1, 1.0, z1), (x0, 1.0, z0)]
         mesh.face([mesh.vertex(c) for c in quad], outward, "leaf", [(c[0] + 0.5, c[1]) for c in quad])
     materials = {"leaf": {"visual": "card", "recipe": {}, "texture": str(tmp_path / "base.png"), "mask": None,
-                          "tile_m": [1.0, 1.0], "tint": [1.0, 1.0, 1.0], "alpha": 1.0, "cutoff": 0.5}}
+                          "tile_m": [1.0, 1.0], "tint": [1.0, 1.0, 1.0], "alpha": 1.0, "cutoff": 0.5,
+                          "smoothness": 0.2}}
     record = {"card": impostor.frame(mesh)}
     (tmp_path / "mesh.json").write_text(json.dumps({"vertices": mesh.vertices, "faces": mesh.faces}), encoding="utf-8")
     driver = textwrap.dedent(f"""
@@ -207,7 +215,7 @@ def test_the_normal_atlas_holds_the_geometric_normals_mean_and_its_length_their_
         mesh.vertices = [tuple(v) for v in data["vertices"]]
         mesh.faces = [(f[0], tuple(f[1]), [tuple(uv) for uv in f[2]], f[3]) for f in data["faces"]]
         impostor.render(mesh, {record!r}, {materials!r}, {str(tmp_path / "atlas.png")!r},
-                        {str(tmp_path / "normals.png")!r})
+                        {str(tmp_path / "normals.png")!r}, {str(tmp_path / "smoothness.png")!r})
         """)
     code, output = run_build(blender, tmp_path, driver)
     assert code == 0, output
@@ -240,7 +248,8 @@ def test_the_normal_atlas_alpha_holds_each_surfaces_occlusion(blender, tmp_path)
         mesh.face([mesh.vertex(c) for c in corners], (0.0, 0.0, 1.0), slot, [(c[0] + 0.5, c[1]) for c in corners])
         materials[slot] = {"visual": slot, "recipe": {}, "texture": str(tmp_path / "base.png"),
                            "mask": str(tmp_path / f"{slot}_mask.png"), "tile_m": [1.0, 1.0],
-                           "tint": [1.0, 1.0, 1.0], "alpha": 1.0, "cutoff": 0.5 if slot == "leaf" else None}
+                           "tint": [1.0, 1.0, 1.0], "alpha": 1.0, "cutoff": 0.5 if slot == "leaf" else None,
+                           "smoothness": None}
     record = {"card": impostor.frame(mesh)}
     driver = textwrap.dedent(f"""
         import sys
@@ -250,7 +259,7 @@ def test_the_normal_atlas_alpha_holds_each_surfaces_occlusion(blender, tmp_path)
         mesh = Mesh()
         mesh.vertices, mesh.faces = {mesh.vertices!r}, {mesh.faces!r}
         impostor.render(mesh, {record!r}, {materials!r}, {str(tmp_path / "atlas.png")!r},
-                        {str(tmp_path / "normals.png")!r})
+                        {str(tmp_path / "normals.png")!r}, {str(tmp_path / "smoothness.png")!r})
         """)
     code, output = run_build(blender, tmp_path, driver)
     assert code == 0, output
@@ -264,6 +273,51 @@ def test_the_normal_atlas_alpha_holds_each_surfaces_occlusion(blender, tmp_path)
             y = sum(vertices[k * n + i][1] for i in card) / 4
             got = alpha.getpixel((int(x / side * impostor.SIZE_PX), int((1 - y / side) * impostor.SIZE_PX)))
             assert abs(got - occlusion[slot]) <= 1, f"view {k}, the {slot}: occlusion {got} / 255, its mask's {occlusion[slot]}"
+
+
+def test_the_smoothness_atlas_holds_each_surfaces_smoothness(blender, tmp_path):
+    """p1-v01-locust task 1.6b: the smoothness atlas holds the smoothness of the surface under each texel as URP/Lit
+    reads it, not the leaves' one value for the card: three cards of one upright plane facing +Z, an alpha-clipped
+    leaf whose mask's A holds 0.2 and an opaque bark whose mask's A holds 0.094 (V01's leaves' and their bark's mean,
+    0.096), and an unmasked card of a recipe's constant 0.6, read 0.2, 0.094 and 0.6 at their centres in views 0 and 4
+    (front and back), a grey 8-bit 1k PNG."""
+    Image.new("RGBA", (8, 8), (255, 255, 255, 255)).save(tmp_path / "base.png")
+    smoothness = {"leaf": 51, "bark": 24, "pod": 153}  # 0.2, 0.094 and 0.6
+    mesh, materials = Mesh(), {}
+    for x0, slot in ((-0.75, "leaf"), (-0.25, "bark"), (0.25, "pod")):
+        mask = None
+        if slot != "pod":
+            mask = tmp_path / f"{slot}_mask.png"
+            Image.new("RGBA", (8, 8), (0, 200, 0, smoothness[slot])).save(mask)
+        corners = [(x0, 0.0, 0.0), (x0 + 0.5, 0.0, 0.0), (x0 + 0.5, 1.0, 0.0), (x0, 1.0, 0.0)]
+        mesh.face([mesh.vertex(c) for c in corners], (0.0, 0.0, 1.0), slot, [(c[0] + 0.75, c[1]) for c in corners])
+        materials[slot] = {"visual": slot, "recipe": {}, "texture": str(tmp_path / "base.png"),
+                           "mask": str(mask) if mask else None, "tile_m": [1.0, 1.0], "tint": [1.0, 1.0, 1.0],
+                           "alpha": 1.0, "cutoff": None if slot == "bark" else 0.5,
+                           "smoothness": smoothness[slot] / 255 if slot == "pod" else None}
+    record = {"card": impostor.frame(mesh)}
+    driver = textwrap.dedent(f"""
+        import sys
+        sys.path.insert(0, {build.HERE!r})
+        from lib import impostor
+        from lib.geometry import Mesh
+        mesh = Mesh()
+        mesh.vertices, mesh.faces = {mesh.vertices!r}, {mesh.faces!r}
+        impostor.render(mesh, {record!r}, {materials!r}, {str(tmp_path / "atlas.png")!r},
+                        {str(tmp_path / "normals.png")!r}, {str(tmp_path / "smoothness.png")!r})
+        """)
+    code, output = run_build(blender, tmp_path, driver)
+    assert code == 0, output
+    assert impostor.png_header(str(tmp_path / "smoothness.png")) == (impostor.SIZE_PX, impostor.SIZE_PX, 8, 0)
+    vertices, _, _, _, side = impostor.layout(mesh, record, materials)
+    grey = Image.open(tmp_path / "smoothness.png")
+    n = len(mesh.vertices)
+    for k in (0, 4):
+        for card, slot in ((range(0, 4), "leaf"), (range(4, 8), "bark"), (range(8, 12), "pod")):
+            x = sum(vertices[k * n + i][0] for i in card) / 4
+            y = sum(vertices[k * n + i][1] for i in card) / 4
+            got = grey.getpixel((int(x / side * impostor.SIZE_PX), int((1 - y / side) * impostor.SIZE_PX)))
+            assert abs(got - smoothness[slot]) <= 1, f"view {k}, the {slot}: smoothness {got} / 255, its {smoothness[slot]}"
 
 
 def test_mesh_grown_beyond_its_box_fails_the_audit_and_writes_nothing(blender, repo_root, tmp_path):

@@ -31,20 +31,26 @@ URP/Lit applies to the ambient light and its reflections only; 1 for a recipe wi
 as the surface's occlusion, so a leaf's ambient and sky reflection are occluded as the mesh LODs' leaf is and a limb's
 as its bark is (one crown-wide occlusion, the albedo-weighted mean, gave the leaves the bark's 0.56 in part and the bark
 the leaves' 0.97: per texel V01_M's card gains 1.0 point against LOD2 at 190 m by day, task 1.2m, measured). The
-texels no surface covers are filled from the covered ones (push_pull), so neither the filter at the crown's edge nor a
-mip mixes in a normal or an occlusion that no surface has. One albedo card with one normal for every sun left a sunlit
-crown 8-18 % dark at 50 m (measured in task 1.2, design 3).
+smoothness atlas, one grey channel, holds the smoothness of the surfaces under each texel, its recipe's as URP/Lit
+reads it (the mask's A, as `_MetallicGlossMap` with `_Smoothness` at 1, else the recipe's constant), which the shader
+sets as the surface's smoothness, so a limb's texel takes its bark's and a leaf's the leaves' (one card-wide 0.2, the
+leaves', gave V01_L's wood texels twice its bark's mean of 0.096: most of the card's excess overcast, task 1.2n,
+measured; task 1.6b). The texels no surface covers are filled from the covered ones (push_pull), so neither the filter
+at the crown's edge nor a mip mixes in a normal, an occlusion or a smoothness that no surface has. One albedo card with
+one normal for every sun left a sunlit crown 8-18 % dark at 50 m (measured in task 1.2, design 3).
 
 The renders are flat: each slot's base map, as the importer picks it (a groove, paint or separate-opacity recipe's
 derived _base map, else the set's diffuse), times its tint, both linear as Unity takes them, clipped at the recipe's
 cutoff and emitted, so the albedo atlas holds albedo and the gallery's light shades the card (design 3); the normal
-render emits the shading normal and the occlusion render the mask's G as grey, both clipped the same way and through
-the Raw view transform, so their PNGs hold the values, linear, each texel's the mean of the surfaces under it
-(straight alpha), and the normal atlas is written from the two, filled, as 8-bit RGBA. Cycles on the CPU with fixed
-samples and seed, no denoiser, the Standard view transform for albedo and no dither, so a render repeats; each PNG
-keeps only its critical chunks. The metadata records the hash of everything the render reads (`inputs_sha256`) and
-of each atlas (`atlas_sha256`, `normals_sha256`): atlases whose hashes all match are up to date and are not rendered
-again (their measure stands), so an unchanged rebuild writes no byte, and a hand-edited atlas is rendered over."""
+render emits the shading normal and the surface render the occlusion in R and the smoothness in G, both clipped the
+same way and through the Raw view transform, so their PNGs hold the values, linear, each texel's the mean of the
+surfaces under it (straight alpha); the normal atlas is written from the normals and the occlusion, filled, as 8-bit
+RGBA, and the smoothness atlas from the smoothness, filled, as 8-bit grey. Cycles on the CPU with fixed samples and
+seed, no denoiser, the Standard view transform for albedo and no dither, so a render repeats; each PNG keeps only its
+critical chunks. The metadata records the hash of everything the render reads (`inputs_sha256`) and of each atlas
+(`atlas_sha256`, `normals_sha256`, `smoothness_sha256`): atlases whose hashes all match are up to date and are not
+rendered again (their measure stands), so an unchanged rebuild writes no byte, and a hand-edited atlas is rendered
+over."""
 import hashlib
 import json
 import math
@@ -61,11 +67,13 @@ PAD_PX = 8                  # an empty margin round every view: a texel still at
                             # a texel at 400 m and more)
 EMPTY = (0.5, 0.5, 1.0, 1.0)  # a normal atlas cell no surface covers: the view's own direction, (0, 0, 1) in 0-1,
                               # unoccluded
+EMPTY_SMOOTHNESS = (0.0,)   # a smoothness atlas cell no surface covers: matte
 SAMPLES = 32               # Cycles samples per pixel: anti-aliasing and the texture average under a pixel
 TRANSPARENT_BOUNCES = 256   # alpha-clipped cards a ray may pass through; a dense clump stacks dozens
-FORMULA = ("impostor 5: flat albedo x tint, the visible sides' geometric normals' mean, its length their spread, and "
-           "their occlusion in the normal atlas's alpha, Cycles CPU")  # change when the render changes, so every atlas
-                                                                       # is redone
+FORMULA = ("impostor 6: flat albedo x tint, the visible sides' geometric normals' mean, its length their spread, "
+           "their occlusion in the normal atlas's alpha, and their smoothness in a grey atlas, Cycles CPU")  # change
+                                                                       # when the render changes, so every atlas is
+                                                                       # redone
 NO_ATLAS = "0" * 64         # an atlas's sha256 until it is rendered or found up to date
 UV_MAP = "UVMap"            # the laid-out mesh's one UV layer, which the base maps and masks read
 MATERIALS = os.path.join("unity", "Assets", "_Project", "Art", "Materials")
@@ -108,8 +116,9 @@ def frame(mesh):
 def slot_materials(root, visual_by_slot, slots):
     """What the render reads per slot, as the importer builds the material (CatalogImporter.EnsureMaterial): the
     visual name, its recipe, the base map's path, the derived mask's (None without one), the tile size, the tint
-    linear as Unity takes it, the tint's alpha and the alpha cutoff (None for an opaque recipe). Raises ValueError
-    naming a missing recipe, set or map."""
+    linear as Unity takes it, the tint's alpha, the alpha cutoff (None for an opaque recipe) and the recipe's constant
+    smoothness (None with a mask, whose alpha carries it). Raises ValueError naming a missing recipe, set, map or
+    smoothness."""
     with open(os.path.join(root, MANIFEST), encoding="utf-8") as f:
         manifest = json.load(f)
     out = {}
@@ -130,10 +139,13 @@ def slot_materials(root, visual_by_slot, slots):
         mask = os.path.join(root, MATERIALS, f"{visual}_mask.png") if "mask" in recipe else None
         if mask:
             _require_file(mask, visual)
+        elif not isinstance(recipe.get("smoothness"), (int, float)):
+            raise ValueError(f"{visual}: no mask and no constant smoothness (CatalogImporter.EnsureMaterial)")
         tint = recipe["tint"]
         out[slot] = {"visual": visual, "recipe": recipe, "texture": texture, "mask": mask,
                      "tile_m": list(recipe["tile_size_m"]), "tint": [gamma_to_linear(c) for c in tint[:3]],
-                     "alpha": tint[3], "cutoff": recipe["alpha_clip"] if clipped else None}
+                     "alpha": tint[3], "cutoff": recipe["alpha_clip"] if clipped else None,
+                     "smoothness": None if mask else float(recipe["smoothness"])}
     return out
 
 
@@ -149,13 +161,14 @@ def gamma_to_linear(value):
 
 def lod(variant, switch, mesh, materials):
     """The metadata's impostor LOD (lib.meta) for the LOD0 `mesh`: the card mesh's name and triangles, the switch
-    distance, and the record of the two atlases, their views and the card, with the inputs' hash and NO_ATLAS for the
-    atlases' own until they are rendered or found up to date."""
+    distance, and the record of the three atlases, their views and the card, with the inputs' hash and NO_ATLAS for
+    the atlases' own until they are rendered or found up to date."""
     record = {"atlas": f"{variant}_impostor.png", "normals": f"{variant}_impostor_normal.png",
+              "smoothness": f"{variant}_impostor_smoothness.png",
               "size_px": [SIZE_PX, SIZE_PX], "views": VIEWS, "columns": COLUMNS, "rows": ROWS,
               "elevation_deg": ELEVATION_DEG, "card": frame(mesh)}
     record["inputs_sha256"] = inputs_sha256(mesh, record, materials)
-    record["atlas_sha256"] = record["normals_sha256"] = NO_ATLAS
+    record["atlas_sha256"] = record["normals_sha256"] = record["smoothness_sha256"] = NO_ATLAS
     return {"mesh": f"{variant}_impostor", "tris": 2, "switch_distance_m": float(switch), "impostor": record}
 
 
@@ -184,17 +197,18 @@ def file_sha256(path):
         return hashlib.sha256(f.read()).hexdigest()
 
 
-def recorded(meta_path, atlas_path, normals_path, inputs):
-    """The impostor record the variant's current metadata holds, when it records these `inputs` and both atlases on
-    disk still have their hashes; else None, and the atlases are rendered."""
-    if not all(os.path.isfile(p) for p in (meta_path, atlas_path, normals_path)):
+def recorded(meta_path, atlas_path, normals_path, smoothness_path, inputs):
+    """The impostor record the variant's current metadata holds, when it records these `inputs` and the three atlases
+    on disk still have their hashes; else None, and the atlases are rendered."""
+    atlases = {"atlas_sha256": atlas_path, "normals_sha256": normals_path, "smoothness_sha256": smoothness_path}
+    if not all(os.path.isfile(p) for p in (meta_path, *atlases.values())):
         return None
     with open(meta_path, encoding="utf-8") as f:
         lods = json.load(f).get("lods", [])
     old = next((l["impostor"] for l in lods if isinstance(l, dict) and "impostor" in l), None)
     if not old or old.get("inputs_sha256") != inputs:
         return None
-    if file_sha256(atlas_path) != old.get("atlas_sha256") or file_sha256(normals_path) != old.get("normals_sha256"):
+    if any(file_sha256(path) != old.get(key) for key, path in atlases.items()):
         return None
     return old
 
@@ -233,9 +247,9 @@ def layout(mesh, record, materials):
     return vertices, faces, uvs, slots, COLUMNS * cell_w
 
 
-def render(mesh, record, materials, path, normals_path):
-    """Renders the albedo atlas to `path` and the normal atlas, the occlusion in its alpha, to `normals_path` in this
-    Blender (module docstring), replacing the scene."""
+def render(mesh, record, materials, path, normals_path, smoothness_path):
+    """Renders the albedo atlas to `path`, the normal atlas, the occlusion in its alpha, to `normals_path` and the
+    smoothness atlas to `smoothness_path` in this Blender (module docstring), replacing the scene."""
     import bpy
     import numpy as np
     vertices, faces, uvs, slots, side = layout(mesh, record, materials)
@@ -265,15 +279,13 @@ def render(mesh, record, materials, path, normals_path):
     scene.collection.objects.link(camera_object)
     scene.camera = camera_object
     _shoot(scene, path, 6)
-    scene.view_settings.view_transform = 'Raw'  # the PNGs hold the emitted values, linear: the occlusion, the normal
+    scene.view_settings.view_transform = 'Raw'  # the PNGs hold the emitted values, linear: the surface, the normal
     scratch = path[:-len(".png")] + ".measure.png"
     try:
-        occlusion = None  # 1 everywhere when no slot has a mask
-        if any(materials[slot]["mask"] for slot in order):
-            for i, slot in enumerate(order):
-                me.materials[i] = _material(slot, materials[slot], "occlusion")
-            _shoot(scene, scratch, 6)
-            occlusion = _pixels(scratch)[:, :1]  # grey: R = G = B
+        for i, slot in enumerate(order):
+            me.materials[i] = _material(slot, materials[slot], "surface")
+        _shoot(scene, scratch, 6)
+        surface = _pixels(scratch)  # R the occlusion, G the smoothness
         for i, slot in enumerate(order):
             me.materials[i] = _material(slot, materials[slot], "normal")
         _shoot(scene, scratch, 6)
@@ -281,10 +293,10 @@ def render(mesh, record, materials, path, normals_path):
     finally:
         if os.path.exists(scratch):
             os.remove(scratch)
-    if occlusion is None:
-        occlusion = np.ones((len(normals), 1))
     # the same views, cutoffs and samples: both renders cover the same texels, those of the normal render's alpha
-    _write_rgba(normals_path, _filled(np.concatenate([normals[:, :3], occlusion], axis=1), normals[:, 3] > 0))
+    covered = normals[:, 3] > 0
+    _write_png(normals_path, _filled(np.concatenate([normals[:, :3], surface[:, :1]], axis=1), covered, EMPTY))
+    _write_png(smoothness_path, _filled(surface[:, 1:2], covered, EMPTY_SMOOTHNESS))
 
 
 def _shoot(scene, path, colour_type):
@@ -343,10 +355,11 @@ def _settings(scene):
     image.file_format, image.color_mode, image.color_depth, image.compression = 'PNG', 'RGBA', '8', 15
 
 
-def _filled(values, covered):
+def _filled(values, covered, empty):
     """A render's rows of `values` (bottom row first, c channels in 0-1, straight alpha) as SIZE_PX x SIZE_PX x c
     bytes, top row first, every texel no surface covers (where `covered` is False) filled from its cell's covered ones
-    (`push_pull`), so neither the bilinear filter nor a mip ever mixes in a normal or an occlusion no surface has."""
+    (`push_pull`, `empty` in a cell with none), so neither the bilinear filter nor a mip ever mixes in a value no
+    surface has."""
     import numpy as np
     channels = values.shape[1]
     image = values.reshape(SIZE_PX, SIZE_PX, channels)[::-1]
@@ -355,48 +368,51 @@ def _filled(values, covered):
     for row in range(ROWS):
         for column in range(COLUMNS):
             cell = (slice(row * CELL_PX[1], (row + 1) * CELL_PX[1]), slice(column * CELL_PX[0], (column + 1) * CELL_PX[0]))
-            out[cell] = push_pull(image[cell], known[cell])
+            out[cell] = push_pull(image[cell], known[cell], empty)
     return np.clip(np.round(out * 255.0), 0, 255).astype(np.uint8)
 
 
-def push_pull(values, known):
+def push_pull(values, known, empty=EMPTY):
     """`values` (h x w x c, numpy) with every texel where `known` is False filled: from the means of the known ones
     over 2 x 2 blocks, level by level up to one texel, then back down, so a hole takes the mean of the nearest known
-    texels at the finest level that has any; EMPTY when none is known."""
+    texels at the finest level that has any; `empty` when none is known."""
     import numpy as np
     h, w = known.shape
     if known.all():
         return values
     if not known.any():
-        return np.broadcast_to(np.array(EMPTY[:values.shape[2]], dtype=float), values.shape).copy()
+        return np.broadcast_to(np.array(empty[:values.shape[2]], dtype=float), values.shape).copy()
     if h % 2 or w % 2:
         mean = values[known].mean(axis=0)
         return np.where(known[..., None], values, mean)
     weight = known.reshape(h // 2, 2, w // 2, 2).sum(axis=(1, 3))
     total = (values * known[..., None]).reshape(h // 2, 2, w // 2, 2, -1).sum(axis=(1, 3))
-    coarse = push_pull(total / np.maximum(weight, 1)[..., None], weight > 0)
+    coarse = push_pull(total / np.maximum(weight, 1)[..., None], weight > 0, empty)
     return np.where(known[..., None], values, coarse.repeat(2, axis=0).repeat(2, axis=1))
 
 
-def _write_rgba(path, rgba):
-    """An 8-bit RGBA PNG of `rgba` (h x w x 4 bytes, top row first): IHDR, one IDAT of unfiltered rows at zlib level
-    9, IEND, so the same texels always make the same bytes."""
+def _write_png(path, pixels):
+    """An 8-bit PNG of `pixels` (h x w x c bytes, top row first; c 4 for RGBA, 1 for grey): IHDR, one IDAT of
+    unfiltered rows at zlib level 9, IEND, so the same texels always make the same bytes."""
     import zlib
-    h, w, _ = rgba.shape
-    raw = b"".join(b"\x00" + rgba[y].tobytes() for y in range(h))
+    h, w, channels = pixels.shape
+    colour_type = {4: 6, 1: 0}[channels]
+    raw = b"".join(b"\x00" + pixels[y].tobytes() for y in range(h))
 
     def chunk(kind, data):
         return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
 
     with open(path, "wb") as f:
-        f.write(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0))
+        f.write(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, colour_type, 0, 0, 0))
                 + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
 
 
 def _material(slot, m, mode):
-    """Emission of the base map times the tint ("albedo"), of the recipe's occlusion as grey ("occlusion": the mask's
-    G, as URP/Lit reads its occlusion map, else 1), or of the visible side's shading normal mapped into 0-1 ("normal",
-    no normal map: module docstring); a clipped recipe is transparent where its alpha falls under the cutoff."""
+    """Emission of the base map times the tint ("albedo"), of the recipe's occlusion in R and its smoothness in G
+    ("surface": the mask's G, as URP/Lit reads its occlusion map, else 1; the mask's A, as URP/Lit reads it with
+    `_Smoothness` at 1, else the recipe's constant), or of the visible side's shading normal mapped into 0-1
+    ("normal", no normal map: module docstring); a clipped recipe is transparent where its alpha falls under the
+    cutoff."""
     import bpy
     material = bpy.data.materials.new(f"{slot}_{mode}")
     nodes, links = material.node_tree.nodes, material.node_tree.links
@@ -408,16 +424,18 @@ def _material(slot, m, mode):
     tint.inputs[1].default_value = m["tint"]
     links.new(texture.outputs["Color"], tint.inputs[0])
     colour = tint.outputs["Vector"]
-    if mode == "occlusion":
-        occlusion = nodes.new("ShaderNodeVectorMath")
-        occlusion.operation = 'SCALE'
-        occlusion.inputs[0].default_value = (1.0, 1.0, 1.0)
-        occlusion.inputs["Scale"].default_value = 1.0
+    if mode == "surface":
+        surface = nodes.new("ShaderNodeCombineXYZ")
+        surface.inputs["X"].default_value = 1.0
+        surface.inputs["Y"].default_value = 0.0 if m["smoothness"] is None else m["smoothness"]
         if m["mask"]:
+            mask = _texture(nodes, m["mask"], 'Non-Color')
             channels = nodes.new("ShaderNodeSeparateColor")
-            links.new(_texture(nodes, m["mask"], 'Non-Color').outputs["Color"], channels.inputs["Color"])
-            links.new(channels.outputs["Green"], occlusion.inputs["Scale"])
-        colour = occlusion.outputs["Vector"]
+            links.new(mask.outputs["Color"], channels.inputs["Color"])
+            links.new(channels.outputs["Green"], surface.inputs["X"])
+            if m["smoothness"] is None:
+                links.new(mask.outputs["Alpha"], surface.inputs["Y"])
+        colour = surface.outputs["Vector"]
     elif mode == "normal":  # Cycles turns a back face's normal to the viewer, as the leaf shader does
         mapped = nodes.new("ShaderNodeVectorMath")
         mapped.operation = 'MULTIPLY_ADD'
