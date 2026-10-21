@@ -11459,7 +11459,7 @@ MeshRenderer:
   - {fileID: 2100000, guid: cfd8eb1d629548b499be17be3368fee0, type: 2}
   - {fileID: 2100000, guid: c99a4dc0597ae2d48a0def1586e647ff, type: 2}
   - {fileID: 2100000, guid: cd8195a553c2ecb45a976145242da484, type: 2}
-  - {fileID: 2100000, guid: 5481775b8e4fba046bcc525b58d03fb9, type: 2}
+  - {fileID: 2100000, guid: 06406be5786a88c459e8c0ec98915796, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -50500,7 +50500,7 @@ MeshRenderer:
   - {fileID: 2100000, guid: a3def75a972ae4a4b884085a3f394bd4, type: 2}
   - {fileID: 2100000, guid: a7e85ac7c8268ae489bbefb3a3b2c36d, type: 2}
   - {fileID: 2100000, guid: c99a4dc0597ae2d48a0def1586e647ff, type: 2}
-  - {fileID: 2100000, guid: 5481775b8e4fba046bcc525b58d03fb9, type: 2}
+  - {fileID: 2100000, guid: 06406be5786a88c459e8c0ec98915796, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -57667,7 +57667,7 @@ MonoBehaviour:
   id: H01
   variant: H01_I
   generator: house
-  paramsSha256: 8609a98ab8e9e1bafa2e7191e72ed7f3711e42227c7086a139a4f84e708f3bae
+  paramsSha256: 5ddd55f6f7704502ba1b1f89e8ec9798d04c6b37464d2a42ea6a37b981695b34
   units: m
   frame: unity-lh-yup
   bounds:
@@ -57716,6 +57716,9 @@ MonoBehaviour:
     physics: steel
   - slot: tile
     visual: clay_tile
+    physics: masonry
+  - slot: tile_far
+    visual: clay_tile_far
     physics: masonry
   - slot: tile_fracture
     visual: tile_fracture

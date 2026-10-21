@@ -3,7 +3,7 @@
   "id": "H01",
   "variant": "H01_I",
   "generator": "house",
-  "params_sha256": "8609a98ab8e9e1bafa2e7191e72ed7f3711e42227c7086a139a4f84e708f3bae",
+  "params_sha256": "5ddd55f6f7704502ba1b1f89e8ec9798d04c6b37464d2a42ea6a37b981695b34",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
@@ -85,6 +85,11 @@
     {
       "slot": "tile",
       "visual": "clay_tile",
+      "physics": "masonry"
+    },
+    {
+      "slot": "tile_far",
+      "visual": "clay_tile_far",
       "physics": "masonry"
     },
     {

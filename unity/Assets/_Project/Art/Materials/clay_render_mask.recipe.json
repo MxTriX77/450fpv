@@ -1,6 +1,6 @@
 {
   "material": "clay_render",
-  "texture_set": "polyhaven/worn_cracked_plaster",
+  "texture_set": "polyhaven/white_stucco_02",
   "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
   "mask": {
     "metallic": 0.0,
@@ -9,15 +9,15 @@
   },
   "sources": {
     "ao": {
-      "name": "worn_cracked_plaster_ao_2k.png",
-      "sha256": "0bd8d42cca872807934dd091b5bff50cd98ab94af42edd821964e869911f2f2c"
+      "name": "white_stucco_02_ao_2k.png",
+      "sha256": "4079fb952f8433f38479e2e168856be1d9bc6bbd4bb5a7e868d54b82e050b4e7"
     },
     "roughness": {
-      "name": "worn_cracked_plaster_rough_2k.png",
-      "sha256": "24b13973a956c5a0674039520af5ff12071f14a241a4e3a7a9257f2f1783b692"
+      "name": "white_stucco_02_rough_2k.png",
+      "sha256": "b3a3c8bade062b810713bee49399e563d4ce83721e80b4434706e6b28319bc2b"
     }
   },
-  "inputs_sha256": "04f0644db6e86f39f08ee44126867d9ac0b3e42b9d47a7f01d8fc22d6101bbe0",
+  "inputs_sha256": "199985e99efceaf457bf6c92678f4ff8c5172db0c5d40cf6e1c2e37f2d79fb3f",
   "size": [
     2048,
     2048

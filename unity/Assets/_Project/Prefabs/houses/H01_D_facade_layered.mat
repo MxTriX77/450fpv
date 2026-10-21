@@ -36,11 +36,11 @@ Material:
         m_Scale: {x: 0.03125, y: 0.0625}
         m_Offset: {x: 0, y: 0}
     - _Layer1BumpMap:
-        m_Texture: {fileID: 2800000, guid: 41df90972f8ac684a881139e6a755795, type: 3}
+        m_Texture: {fileID: 2800000, guid: dd2d28897565c88469dfa2636fc81539, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Layer1Map:
-        m_Texture: {fileID: 2800000, guid: e91cf9bfa2d31e845ae2bcb9f4b3949d, type: 3}
+        m_Texture: {fileID: 2800000, guid: 48050f3f3ccef1b4c8f28fa8f8c5c71d, type: 3}
         m_Scale: {x: 0.5555556, y: 0.5555556}
         m_Offset: {x: 0, y: 0}
     - _Layer1MaskMap:
@@ -48,11 +48,11 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Layer2BumpMap:
-        m_Texture: {fileID: 2800000, guid: 41df90972f8ac684a881139e6a755795, type: 3}
+        m_Texture: {fileID: 2800000, guid: dd2d28897565c88469dfa2636fc81539, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Layer2Map:
-        m_Texture: {fileID: 2800000, guid: e91cf9bfa2d31e845ae2bcb9f4b3949d, type: 3}
+        m_Texture: {fileID: 2800000, guid: 48050f3f3ccef1b4c8f28fa8f8c5c71d, type: 3}
         m_Scale: {x: 0.5555556, y: 0.5555556}
         m_Offset: {x: 0, y: 0}
     - _Layer2MaskMap:
@@ -60,12 +60,12 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Layer3BumpMap:
-        m_Texture: {fileID: 2800000, guid: 84cbef251cc6a2149ab9951383e3ac26, type: 3}
+        m_Texture: {fileID: 2800000, guid: 2f0ae432ef3dc7140af48965f69af3b7, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Layer3Map:
-        m_Texture: {fileID: 2800000, guid: c6dc2d4cf35d4a44c9a15bf862d9006d, type: 3}
-        m_Scale: {x: 0.6666667, y: 0.6666667}
+        m_Texture: {fileID: 2800000, guid: b1e0cc0e9ad2e3f4fa70aa3b8d2e14b4, type: 3}
+        m_Scale: {x: 0.4830918, y: 0.4830918}
         m_Offset: {x: 0, y: 0}
     - _Layer3MaskMap:
         m_Texture: {fileID: 2800000, guid: ff1bac1fad1c6d24aab3c4223404f6cb, type: 3}
@@ -109,15 +109,15 @@ Material:
     m_Colors:
     - _BaseColor: {r: 1.124, g: 1.102, b: 1.039, a: 1}
     - _Layer1Channel: {r: 1, g: 0, b: 0, a: 0}
-    - _Layer1Color: {r: 1.168, g: 1.021, b: 0.9, a: 1}
+    - _Layer1Color: {r: 0.868, g: 0.682, b: 0.47699994, a: 1}
     - _Layer1Coverage: {r: 0.25, g: 0.1, b: 0, a: 0}
     - _Layer1Surface: {r: 1, g: 1, b: 0, a: 0}
     - _Layer2Channel: {r: 0, g: 0, b: 0, a: 1}
-    - _Layer2Color: {r: 1.068, g: 0.66699994, b: 0.613, a: 1}
+    - _Layer2Color: {r: 0.739, g: 0.47399992, b: 0.36799997, a: 1}
     - _Layer2Coverage: {r: 0.5, g: 1, b: 0, a: 0}
     - _Layer2Surface: {r: 1, g: 1, b: 0, a: 0}
     - _Layer3Channel: {r: 1, g: 0, b: 0, a: 0}
-    - _Layer3Color: {r: 0.928, g: 0.841, b: 0.794, a: 1}
+    - _Layer3Color: {r: 0.689, g: 0.70299995, b: 0.719, a: 1}
     - _Layer3Coverage: {r: 0.75, g: 0.1, b: 0, a: 0}
     - _Layer3Surface: {r: 1, g: 1, b: 0, a: 0}
     - _Layer4Channel: {r: 0, g: 1, b: 0, a: 0}
