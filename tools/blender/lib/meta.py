@@ -63,9 +63,13 @@ MICRO_KEYS = ("lod", "name", "kind", "count", "tris")
 # material"; p1-h01-adobe-house's damage-mask atlas): per texture its role, the material slot it belongs to, its file
 # beside the metadata (<variant>_<name>.png) and where it lies in that slot's UVs (metres, AST-07): uv_min and uv_max,
 # its lower-left and upper-right corners. The importer binds a crack_mask to its pane's slot; a damage_mask waits for
-# its layered shader. Schema 1 stays: the key is additive and always present, [] when none.
+# its layered shader. Schema 1 stays: the key is additive and always present, [] when none. A record may also name
+# its channels (p1-h01-adobe-house, "Generator-written mask atlases"): "channels", what R, G, B and A hold in that
+# order (a facade's ["render_depth", "soot", "dirt", "base_band"]), one to four distinct names, so the importer can
+# hold a mask to the channels its slot's layered recipe reads; optional, so a record without it stays valid.
 TEXTURE_KEYS = ("role", "slot", "file", "uv_min", "uv_max")
 TEXTURE_ROLES = ("crack_mask", "damage_mask")
+TEXTURE_CHANNELS = 4
 # The closed, physics-owned list every physics material id must come from (review R3).
 PHYSICS_MATERIALS = os.path.join("assets-src", "physics_materials.json")
 LABELS = ("pilot", "measured", "published", "derived", "assumed")
@@ -109,7 +113,7 @@ def assemble(asset_id, variant, generator, params, built, visual_by_slot):
     "cull_distance_m", "materials": [{"slot", "physics"}], "collision", "gaps", "wind_volumes", "snag"}, and
     optionally "thin_wire": [bool per LOD], "micro": [{"lod", "kind", "count", "mesh": Mesh}], "ports": [{PORT_KEYS}],
     "wires": [{WIRE_KEYS}], "holes": [{HOLE_KEYS}] and "textures": [{"role", "slot", "name", "uv_min", "uv_max",
-    "png"}]) and the catalog's visual material per slot. A micro mesh is named <variant>_LOD<n>_<kind> and counts
+    "png"}, optionally "channels"]) and the catalog's visual material per slot. A micro mesh is named <variant>_LOD<n>_<kind> and counts
     towards the bounds, since it is rendered; a texture's file is texture_file(variant, name), which build.py
     writes from its "png" bytes."""
     lods = built["lods"]
@@ -143,8 +147,10 @@ def assemble(asset_id, variant, generator, params, built, visual_by_slot):
         "materials": materials,
         "collision": built["collision"], "gaps": built["gaps"], "wind_volumes": built["wind_volumes"],
         "ports": built.get("ports", []), "wires": built.get("wires", []), "holes": built.get("holes", []),
-        "textures": [{"role": t["role"], "slot": t["slot"], "file": texture_file(variant, t["name"]),
-                      "uv_min": list(t["uv_min"]), "uv_max": list(t["uv_max"])} for t in built.get("textures", [])],
+        "textures": [dict({"role": t["role"], "slot": t["slot"], "file": texture_file(variant, t["name"]),
+                           "uv_min": list(t["uv_min"]), "uv_max": list(t["uv_max"])},
+                          **({"channels": list(t["channels"])} if "channels" in t else {}))
+                     for t in built.get("textures", [])],
         "snag": built["snag"],
     }
     return _rounded(meta)
@@ -293,7 +299,8 @@ def validate(meta, material_ids):
 
 def _texture_problems(textures, slots):
     """The textures rule: each record a known role, a slot of the metadata's materials, a .png file name, and
-    uv_min below and left of uv_max; one record per role and slot."""
+    uv_min below and left of uv_max, and its channels, when it names them, one to four distinct non-empty names; one
+    record per role and slot."""
     problems, seen = [], set()
     for i, t in enumerate(textures):
         ok = (isinstance(t, dict) and all(k in t for k in TEXTURE_KEYS) and isinstance(t["file"], str)
@@ -307,6 +314,11 @@ def _texture_problems(textures, slots):
             problems.append(f"textures[{i}]: slot {t['slot']!r} is not a material slot of the metadata")
         if not all(t["uv_min"][a] < t["uv_max"][a] for a in range(2)):
             problems.append(f"textures[{i}]: uv_min {t['uv_min']} must lie below and left of uv_max {t['uv_max']}")
+        channels = t.get("channels", ["-"])
+        if not (isinstance(channels, list) and 1 <= len(channels) <= TEXTURE_CHANNELS
+                and all(isinstance(c, str) and c for c in channels) and len(set(channels)) == len(channels)):
+            problems.append(f"textures[{i}]: channels must be 1 to {TEXTURE_CHANNELS} distinct non-empty names, R "
+                            f"first, got {channels!r}")
         if (t["role"], t["slot"]) in seen:
             problems.append(f"textures[{i}]: a second {t['role']} on slot {t['slot']!r}")
         seen.add((t["role"], t["slot"]))
