@@ -429,3 +429,120 @@ git merge-tree --write-tree origin/unity/main HEAD                              
   - QA checked it against Poly Haven's own API. The author is `{"Rob Tuytel": "All"}`, and the four PNGs' MD5s and byte sizes equal the local files' (`69ae3d63…` diffuse, `a77b22b7…` nor_gl, `bd1e6740…` rough, `cfb5e12d…` ao). Poly Haven publishes every asset under CC0.
   - The leaves reuse the pinned `LeafSet002`. The pods are painted by `derive.py`.
 - **OPSEC:** the scan passes over the tree. QA wrote no file name, place, date or OSD value into this review.
+
+## Re-check (task 2.2)
+
+**Reviewer:** qa-engineer, fresh (did none of the work and not QA 2.1, D-034) · **Tip:** `356ce41` · **Range:** `0dd9ce5..356ce41`, 20 commits on the branch's own line, one of them the 1.12 merge of `unity/main` at `2dc129f`
+**Scope (D-041):** a re-check of what QA 2.1 left blocking, not a second review. It covers R3–R5, §B.6's first group, S4, S6, S7, the 1.12 merge and the repeats. R1 and R2 are G1 stand-ins (D-040): read for their wording only.
+**Read:** `CLAUDE.md`, `AGENTS.md`, D-040, D-041; QA 2.1 above; `review-physics.md` §B; `review-techart.md`; `tasks.md` 1.8, 1.9, 1.11, 1.12, 2.1's note, 2.2; the code and tests each check rests on.
+**How it ran:**
+- QA's own worktree, detached at `356ce41` (the branch was checked out in another worktree), `git lfs checkout` (163/163), and no `unity/Library/` before the first Unity run.
+- AC on (`BatteryStatus.PowerOnline` True) at the start and end of every Blender and Unity run, Balanced plan. Every Unity log names `NVIDIA GeForce RTX 4050 Laptop GPU`.
+- Free RAM was checked before each run. Twice it was under 2.5 GB:
+  - before the first build, QA waited for another agent's Unity to exit (then 4.3 GB free)
+  - before the parity runs, QA set a wait on another agent's Blender and checked again when its own `pytest` ended (3.8 GB free)
+  - That Blender ran beside the parity runs, with 3.0 GB or more free.
+- QA's scripts are plain Python in the scratchpad, never committed, and share no code with `tools/blender`. No performance claim is made.
+
+### Verdict: APPROVED
+
+R3, R4 and R5 close, and so do S4, S6 and S7. §B.6's first group is in the deltas, the sheet and PHY-18. The 1.12 merge keeps both sides' rules, and every repeat reads as QA 2.1 and task 1.12 left it. R1 and R2 stay G1 stand-ins, and `docs/gallery-g1.md` names them as QA sees them. There is no new look miss. Tasks 2.1 and 2.2 are ticked.
+
+### Items
+| Item | Result | Evidence |
+|---|---|---|
+| R3, the card allowance | **Closed** | The V01 requirement reads "within the tree's card allowance, 0.361 m (the 0.25 m card's far corner plus 0.1 m)". Design 4 reads "a 0.361 m card allowance (the 0.25 m leaf card's far corner at 0.261 m plus 0.1 m, review-physics §A.3)" (`b362116`). "0.35 m" is left only as a twig's length (design, skeleton) and in the shrub's "Card outside the shell" scenario (0.35 m against 0.3 m), both right. The build prints `allowance 361.026 mm`, worst 358.277 mm (V01_L). |
+| R4, the orphan path | **Closed** | `test_shell.py` holds `test_a_bare_twig_no_lattice_candidate_reaches_gets_its_orphan_pieces_and_passes_rule_b` and `test_a_mass_with_no_orphan_fits_from_exactly_the_lattices_candidates` (`3a4156c`). Both pass. **Mutation 1** (`fit` passes no target to `mass.on`): the first test fails at `assert passes`. **Mutation 2** (one lattice-reached target given orphan candidates anyway): both fail, the second showing "Left contains one more item". Reverted with `git checkout`, then 8 of 8 pass. |
+| R5, the hooks | **Closed** | Below: QA's own check on the shipped metadata. |
+| §B.6, first group (`e06d90e`) | **Closed** | Each new text is present exactly once, and each old text is gone: edit 1 (asset-pipeline conventions), edit 2 (V01's snag clause), edits 3 and 4 (the sheet's snag rule and §V01's snag line), edit 5 (PHY-18's wedge). `e06d90e` touches only those four files. The second group waits for R1 and R2's work (§B.5). |
+| S4, the shader reading | **Closed** | `review-techart.md` (`e47c70d`): "Sound for G1. No blocking finding." `docs/plan.md` phase 3 opens with "Before the belts are placed", citing findings 1–4: the Leaf shadow pass sets up its instance first, the impostor reads its own SH with the spread and widens its reflection, `LodParity` runs again under G1's day and overcast from 2 m and 30 m, and the cost is measured per PLT-07 at 1080p and at the feed's size (`af3b141`, merged through #110). |
+| S6, the overlay | **Closed** | `ReviewMeta.ShellColor` (255, 220, 0) for `twig` and `foliage` pieces, and the legend key "SHELL PIECES (n, materials): kinds" apart from "COLLISION" (`f81d6a4`). EditMode `Overlay_DrawsShellPiecesInAColourOfTheirOwn` passes. On QA's V01_L sheet the overlay tile holds 23 230 pixels of (255, 220, 0) beside 22 089 green. By eye the 147 pieces stand apart from the 364 capsules, and the legend reads "COLLISION (364): 364 CAPSULE" and "SHELL PIECES (147, TWIG): 102 CAPSULE, 45 SPHERE". |
+| S7, mixed normals | **Closed** | `add_lod` raises before touching Blender on per-vertex `normals` with `corner_normals`, or with `smooth` slots (`dedbce3`). `test_export.py` has both refusals, and either kind alone goes on to Blender. All pass. |
+| 1.12's merge (`129f788`) | **Closed** | Below. |
+| The repeats | **Closed** | Below. |
+| R1, R2 (G1 stand-ins) | **Named as QA sees them** | Below. |
+
+### R5, by QA's own check of the shipped metadata
+`qa_hooks22.py` reads only the shipped metadata. It takes the capsules' axis ends from centre, height and rotation (every bark `edge` matches a capsule's two ends within 0.2 mm together, 64 / 111 / 142 of 64 / 111 / 142, which proves the frame). For every bark hook it lists every other segment end (capsule ends, bark record ends, twig records' first points) at the tip and within 3 cm of it. It walks each trunk's capsule chain from the ground to its first fork.
+```
+V01_S (and autumn): 285 records (64 bark edge, 37 bark hook, 184 twig hook); 2 trunks, top at y 2.500 m, r 38.2 mm, 3 segments leave each top
+V01_M (and autumn): 364 records (111 / 59 / 194); trunk top y 3.000 m, r 72.6 mm, 4 leave
+V01_L (and autumn): 373 records (142 / 86 / 145); trunk top y 4.000 m, r 109.6 mm, 4 leave
+every variant: bark records lying on a trunk capsule 0; hooks ending at a trunk top 0; bark hooks with another segment's end at the tip (0.1 mm) 0
+within 3 cm of a tip, not at it:
+  V01_L  hook r 10.1 mm, tip y 11.672 m, segment 205.0 mm: capsule r 5.5 mm and its bark hook start 20.6 mm short, 0.000 mm off the hook's axis at t 0.899
+  V01_M  hook r 6.1 mm, tip y 7.232 m: twig start 20.3 mm short, 0.001 mm off the axis at t 0.898; its own child twig 11.0 mm away, on that twig's axis
+  V01_M  hook r 7.6 mm, tip y 5.391 m: twig start 29.1 mm away, on another branch (27.9 mm off this axis)
+  V01_S  hook r 4.6 mm, tip y 4.862 m: twig start 29.6 mm short, on the axis at t 0.738
+  V01_S  hook r 3.9 mm, tip y 4.249 m: twig start 27.6 mm away, on another twig (11.6 mm off this axis)
+FAILURES 0
+```
+- **Every hook on all 13 variants is on a free tip.** `qa_twighooks22.py` runs the same check on every hook, bark and twig, over V01 and V13: nothing leaves any hook's tip. The converse holds too: every V13 twig `edge` (60 / 59 / 91 / 59 / 91 / 60 / 78) has a record leaving its end.
+- **The metadata diff since QA 2.1's tip `45c5626`** (`qa_snagdiff22.py`): exactly the trunk-top hooks are removed, two on V01_S (r 38.2 mm, to y 2.500 m) and one each on V01_M (72.6 mm, y 3.000 m) and V01_L (109.6 mm, y 4.000 m), the same on the autumn twins. Nothing is added. The only other key changed is task 1.12's `"textures": []`.
+- **The exemption is right by §B.3.** §B.3 defines a free tip as "a member end from which no other member leaves", and children leave "at 0.2–0.95 of its length". V01_L's 205 mm branch has its child on its own axis (0.000 mm) at 0.899 of its length, 20.6 mm short of the end, so it leaves the side, not the end. The test's 3 cm check skips only a capsule that starts at the hook's base (its own) or on the hook's own axis (within 2 µm). Its first assertion, that no hook's tip lies within 1 mm of any member's first point, holds for that branch with 20 mm to spare. The two other on-axis side children QA found (V01_M at 0.898, V01_S at 0.738) are twigs, which the capsule check does not list, and they are free tips by the same reading.
+
+### The 1.12 merge (`129f788`, parents `e47c70d` and `2dc129f`)
+- **`git show --remerge-diff 129f788`:** three files conflicted (`build.py`, `meta.py`, `CatalogImporter.cs`), as task 1.12 says.
+  - In `build.py`, R01's stale rule ("every `<variant>_*.png` not written") gives way to `listed_textures` (read before the metadata is replaced) and `write_textures`, which removes, with its `.meta`, only `listed - written`.
+  - `meta.py`'s docstring carries both sides.
+  - `CatalogImporter.cs` keeps the branch's `EnsureLods` call with R01's `LodBounds` frame, and the second `SetVector` is removed. One definition is left (line 556).
+  - Outside the conflicts, the merge's own hand edits are R01's and K07's snag materials (`kits.emit_patch` and `_petal` take `material`; `vehicle`'s `_body_side`, `_notch_side`, `_flap`, `_ends`, `_crazed_pane`, `_snags` and `_base_snags`; the three `debris_car` pieces) with their tests, and V13's three metadata files taken from the branch and rebuilt in `f9f84b2`.
+- **The rule, by a mutation:** `test_a_build_removes_only_the_textures_its_old_metadata_listed` passes. With R01's old rule put back it fails (`FileNotFoundError ... V01_M_impostor.png`). Reverted, it passes again.
+- **V01's 24 atlases and `.meta` files** are unchanged against `e47c70d` and against QA 2.1's `45c5626` (`git diff --stat`, empty). Against `e47c70d`, V01's and V13's 13 metadata files gain one line each (`"textures": []`). No FBX, prefab, material or atlas changed.
+- **R01 and K07 against `unity/main` (`qa_rerecord22.py`):**
+  - only `snag` changes, and every record gains `material` alone: R01_A 67 (40 `sheet_metal`, 1 `glass`, 26 `steel`), R01_F 86 `steel`, and each K07 piece its one record, `steel`
+  - no R01 or K07 FBX, prefab or material differs from `unity/main`
+  - K01, S04, L01, L03 and E01's outputs equal `unity/main`'s
+- **R01 rebuilt by QA** (Blender, `build.py -- R01`, exit 0, 21:35–21:42, `git status` clean after it):
+  - plans 212 and 224, by group as the tests' `A_COUNTS` and `F_COUNTS`; the clean base's 110 is `test_collision_plan`'s, which passes in QA's run
+  - A: box→mesh 49.590 mm, in the zone 19.646 mm; mesh→collision 40.188 mm (18.974)
+  - F: 49.589 mm (19.539); 40.187 mm (17.160)
+  - triangles 54 467 / 12 335 / 3 460 / 72 + 4 000 crumbs, and 41 102 / 8 642 / 2 964 / 72
+  - These equal R01's archived re-check and task 1.12's note.
+
+### The repeats
+```
+pwsh tools/build_asset.ps1 V01   run 1: exit=0 21:14:26-21:25:21  git status --short: empty
+pwsh tools/build_asset.ps1 V01   run 2: exit=0 21:25:47-21:34:56  git status --short: empty
+  2624 build, importer and review lines identical between the runs (times masked); 2425 of them Blender's; problem lines 0
+  12 review sheets byte-identical (SHA-256)
+  records lines: V01_S 285, V01_M 364, V01_L 373 (each autumn twin the same); near-gap clause "V01_S capsule 28 ... 0.889 mm" as task 1.7 explains it
+& $env:UNITY ... -executeMethod Fpv450.LodParity.Measure -asset V01   exit 0, 21:58:13-22:05:34, 222 [LodParity] lines
+  V01: PASS, 0 of 44 judged rows outside the limits, 0 not judgeable; 120 info rows
+  worst per variant -2.20 / -2.51 / +3.09 / +3.15 / +2.37 / +3.41 % (S / M / L / S_autumn / M_autumn / L_autumn), as task 1.9's
+  the eight impostor rows to the digit as QA 2.1's §7 (V01_L_autumn overcast +3.41 %, coverage -5.87 % at most)
+& $env:UNITY ... -asset V13                                          exit 0, 22:05:59-22:09:32, 184 [LodParity] lines
+  V13: PASS, 0 of 42 judged rows outside the limits, 0 not judgeable; 84 info rows; worst V13_low_autumn -4.27 % (LOD1 at 50 m by day)
+& $env:UNITY -batchmode -nographics -projectPath unity -runTests -testPlatform EditMode ...   total=109 passed=109 failed=0 skipped=0 result=Passed
+python -m pytest tools -q                                            1077 passed in 1282.04s (0:21:22)
+python -m pytest tools/hygiene -k test_existing_tree_is_clean -rA    PASSED [HEAD]; PASSED [origin/unity/main merged with HEAD]
+python tools/assets/fetch.py --verify                                OK, exit 0
+python tools/hygiene/precommit.py --tree HEAD                        1314 files scanned, 0 findings, exit 0
+openspec validate p1-v01-locust --strict                             Change 'p1-v01-locust' is valid
+openspec validate --all --strict                                     Totals: 14 passed, 0 failed
+```
+- **Statistics** (`qa_parity22.py`: each judged row's margin to its limit, over √(se₁² + se₂²) of the pair):
+  - the least margin is 5.9 standard errors over V01's 44 rows (V01_S_autumn's LOD2 switch by day, +1.54 %) and 4.4 over V13's 42 (V13_low_autumn above), QA 2.1's figures
+  - no verdict rests on noise
+  - the known-wrong models QA 2.1 lists still stand as the target's failures on record
+- **Commit hygiene** (the 20 commits):
+  - subject only, `type(scope): summary`, lower case, 37–70 characters, no body, no trailer, no co-author line
+  - authors are the Orchestrator, the Physics Engineer, the Asset Artist and the Tech Artist, each on their own work
+  - `git diff --name-only` holds nothing under `reference/`, `Library/`, `Temp/`, `Logs/` or `UserSettings/`, and every changed PNG and FBX is under LFS
+  - one committer slip, S11
+
+### R1 and R2, the G1 stand-ins (`docs/gallery-g1.md` on `origin/unity/world/p1-g1-look-lock-gallery`, `cce941f`)
+- **Station 2's lines:**
+  - "The locust crowns are a few long limbs with sparse leaf tufts; F's are a dense, scraggly net of fine zigzag twigs. At 200 m the belt reads as dotted crowns, not a dark band."
+  - "The H edge reads as an olive leaf band on bare stems; H is a picket of thin dark stems through sparse, mostly green leaves."
+  - "Only 20 m of belt stands, two rows deep."
+- **What QA sees.**
+  - QA's V01_M and V01_L sheets from the builds above, at 1.5, 10, 50 and 200 m, day and overcast: four long, nearly straight limbs in a vase with sparse leaf tufts, and at 200 m a sparse speckle of a crown.
+  - The local H comparison sheet, read inside `reference/_compare/` and its crop deleted after: the understory is an olive leaf band over bare stems.
+  - V13's clumps and V01's FBX are unchanged since that sheet's build, apart from task 1.6's LOD picks. So the wording matches R1 and R2 as QA 2.1 wrote them.
+- **No new look miss.** R5's change moved records, not geometry, and the sheets show the same trees.
+
+### Suggestions (not blocking)
+- **S11. `89112e7`'s committer is the machine's default identity** (`SanityEclipse000`), with the Asset Artist as author, 27 s apart: an amend made without the role's `-c`. It is pushed, so it is not rewritten (S8's rule). The trunk already holds four such commits. Commit with `git -c user.name=… -c user.email=… commit --amend`, or not at all.
+- **S12. Two lost spaces from the 1.12 merge:** `size =[round(` in `build.py`'s `build_variant` (the merge's own resolution), and `data =meta.assemble(` in `test_vehicle.py`. They are cosmetic. Fix them in the next change that touches either file.
+- **S10 (QA 2.1) is still open, local only:** two of the earlier tasks' working folders are still in `reference/_compare/`.

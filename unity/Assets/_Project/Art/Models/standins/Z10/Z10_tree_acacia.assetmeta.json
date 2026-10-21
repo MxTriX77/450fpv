@@ -1,0 +1,181 @@
+{
+  "schema": 1,
+  "id": "Z10",
+  "variant": "Z10_tree_acacia",
+  "generator": "godot_port",
+  "params_sha256": "fc9da097b94866d3b6875904522305fe727ada0e9c1d97b1cc2ea8d6ee25b386",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -4.5147,
+      -0.0092,
+      -4.5551
+    ],
+    "max": [
+      4.3107,
+      12.4009,
+      4.4597
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "Z10_tree_acacia_LOD0",
+      "tris": 4016,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "Z10_tree_acacia_LOD1",
+      "tris": 1242,
+      "switch_distance_m": 30.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "Z10_tree_acacia_LOD2",
+      "tris": 405,
+      "switch_distance_m": 80.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 200.0,
+  "materials": [
+    {
+      "slot": "bark_belt",
+      "visual": "bark_locust",
+      "physics": "timber"
+    },
+    {
+      "slot": "foliage_belt",
+      "visual": "godot_foliage_belt",
+      "physics": "timber"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        1.7,
+        0.0
+      ],
+      "radius": 0.13,
+      "height": 3.4,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.9959,
+        6.0623,
+        -1.004
+      ],
+      "radius": 0.0775,
+      "height": 5.4856,
+      "rotation": [
+        -0.235646,
+        -0.305681,
+        -0.078366,
+        0.919178
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.6863,
+        6.6811,
+        0.0642
+      ],
+      "radius": 0.0695,
+      "height": 5.4623,
+      "rotation": [
+        -0.063249,
+        -0.720282,
+        -0.066254,
+        0.687607
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.2986,
+        6.2226,
+        0.9478
+      ],
+      "radius": 0.0616,
+      "height": 4.2858,
+      "rotation": [
+        -0.058768,
+        0.941109,
+        0.243151,
+        0.227461
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.8281,
+        7.2538,
+        0.7883
+      ],
+      "radius": 0.0536,
+      "height": 5.6748,
+      "rotation": [
+        -0.099741,
+        0.869374,
+        0.195938,
+        0.442548
+      ],
+      "material": "timber",
+      "landable": false
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        7.5,
+        0.0
+      ],
+      "radius": 2.8,
+      "height": 8.2,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.55
+    }
+  ],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": [],
+  "stand_in": {
+    "source": {
+      "commit": "83401382e8b733389982997180cc181b063f61ae",
+      "model": "game/assets/models/vegetation/tree_acacia.glb",
+      "model_sha256": "da202770b7dc584560b22bf2dc4ee84ea024823bf52bc0a2a7ffea88714b268a",
+      "catalog_key": "tree_acacia"
+    },
+    "snag_hazard": true
+  }
+}

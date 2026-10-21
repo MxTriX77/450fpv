@@ -1,0 +1,10 @@
+{
+  "source": {
+    "commit": "83401382e8b733389982997180cc181b063f61ae",
+    "model": "game/assets/models/structures/fence_planks.glb",
+    "model_sha256": "bf4d75e74444188583c76c4a244b1dab12c6ae99a1168c1013f4242758715dd5",
+    "catalog_key": "fence_planks"
+  },
+  "lod": { "switch_m": [0.0], "cull_m": 55.0 },
+  "holes": []
+}

@@ -1,0 +1,40 @@
+# Tasks: p6-test-range
+
+Standard tier (D-033): one QA pass, then the map reaches the pilot inside G4 (noclip through the feed) and G7 (flights). Task 1.1 runs at once on `unity/art/p6-test-range--standins` off `unity/main`. Task 1.2 runs on `unity/world/p6-test-range` off G1's tip until G1 merges, and merges 1.1's branch when 1.1 is done. Task 1.3 follows H01's merge only if 1.2 ran before it.
+
+## 1. Build
+
+- [x] 1.1 [asset-artist] The Godot stand-ins (design 1–5):
+  - **What:** the port generator and a params file for each of `Z01`–`Z13` from `refs/godot/main` at `8340138` (read-only: `git show` and the local LFS objects; nothing merged, D-027); their catalog entries with `"stand_in": true` and the source; each `.assetmeta.json` from the Godot catalog entry through the mesh's own transform; render materials from existing recipes where one fits, any third-party texture pinned and credited. Build Z01 (the house: gaps and many boxes) first and look at its review sheet and collision overlay before the batch.
+  - **Verify:** the three stand-in scenarios; `pwsh tools/build_asset.ps1 Z0n` exits 0 for all thirteen, and a second run of each leaves `git status` clean; the audit's line per stand-in; one look at each 10 m sheet for frame errors (a mirrored model, a gap on the wrong wall, collision off the mesh); `python -m pytest tools -q`; `python tools/assets/fetch.py --verify`; the hygiene scan; Unity's EditMode run; `openspec validate p6-test-range --strict`.
+  - **As built:**
+    - *Port:* `generators/godot_port.py` (`STAND_IN`), params in `assets-src/standins/<id>_<key>.json` (commit, model path, LFS id, catalog key, LODs, holes), catalog class `standins` with `"stand_in": true` and `source`. `lib/godot.py` reads the pinned commit with `git show` and the model from the shared LFS store, SHA-256 checked; `lib/glb.py` reads the glb's buffers in plain Python rather than through Blender's importer, so the one frame change is Godot (x, y, z) → asset (x, y, −z) for mesh and metadata alike. Godot's `rotation_deg` is [yaw, pitch, roll], R = Ry·Rx·Rz (its `game/maps/README.md`); a rotation maps to S·R·S, quaternion [−x, −y, z, w]. Corner normals and UVs carried (glTF V flipped back).
+    - *LODs:* the glbs hold their own LOD meshes (Godot's builder drew or decimated them), so those are ported and nothing is decimated again. Switches are Godot's `lod_switch_m` but its last, the cull its last, and Godot's last level is not ported: the trees' far card (no impostors) and, by the same rule, the structures' coarsest mesh, so the house culls at 130 m. Fence and shaft have one level and no `lod_switch_m`: cull 55 m (the gate's) and 60 m (the cellar head's), assumed. Each is a params number.
+
+      | Id | Godot | Tris per LOD | Shapes | Gaps | Wind | Switches / cull (m) |
+      |---|---|---|---|---|---|---|
+      | Z01 | house_adobe | 3696 / 1452 | 157 box | 8 | 1 box, 0.11 | 0, 45 / 130 |
+      | Z02 | shed_plank | 1272 / 372 | 35 box | 1 | 1 box, 0.04 | 0, 25 / 70 |
+      | Z03 | cellar_head | 912 / 228 | 11 box | 1 | 11 (its boxes), 0 | 0, 22 / 60 |
+      | Z04 | cellar_shaft | 120 | 10 box | 0 | none (porosity 1) | 0 / 60 |
+      | Z05 | gate_plank | 168 / 84 | 14 box | 1 | 1 box, 0.62 | 0, 20 / 55 |
+      | Z06 | fence_planks | 228 | 19 box | 0 | 1 box, 0.35 | 0 / 55 |
+      | Z07 | tree_fruit | 2252 / 802 / 290 | 1 cyl, 4 caps | 0 | 1 cyl, 0.62 | 0, 26, 70 / 170 |
+      | Z08 | tree_young | 2178 / 734 / 270 | 1 cyl | 0 | 1 cyl, 0.62 | 0, 22, 60 / 150 |
+      | Z09 | tree_maple | 3876 / 1206 / 398 | 1 cyl, 4 caps | 0 | 1 cyl, 0.45 | 0, 30, 80 / 200 |
+      | Z10 | tree_acacia | 4016 / 1242 / 405 | 1 cyl, 4 caps | 0 | 1 cyl, 0.55 | 0, 30, 80 / 200 |
+      | Z11 | tree_ash | 4140 / 1220 / 405 | 1 cyl, 5 caps | 0 | 1 cyl, 0.5 | 0, 30, 80 / 200 |
+      | Z12 | tree_dead | 2604 / 754 / 270 | 1 cyl, 3 caps | 0 | 1 cyl, 0.8 | 0, 30, 80 / 200 |
+      | Z13 | shrub_belt | 3299 / 1205 / 391 | 1 cyl | 0 | 1 cyl, 0.5 | 0, 15, 40 / 95 |
+    - *Metadata:* shapes, gaps (rectangle → polygon, `narrowest_m` its smaller side) and wind volumes through the mirror; wind by Godot's rules (its `wind_volume`, else the collision shapes; porosity 1 → none). Every shape `landable: false` (Godot has no such flag). Physics ids are Godot's own (`masonry`, `timber`, `surface:belt_bare`), all in Unity's table: nothing mapped. Godot's per-object snag flag has no asset-space field, so the port writes an optional `stand_in` record last (source and `snag_hazard`; `lib.meta` validates it, other assets are unchanged) and `snag` stays empty. Z04 carries a `holes` record in E01's form (design 5): centre line z ±1.0 m, band 1.5 m (Godot's 1.5 × 3.5 m band along its axis), top width 0.9 m, depth 1.8 m (published: Godot's `cellar_shaft.py`).
+    - *Audit:* `lib.audit.stand_in`: each shape's exact box within the LOD0 bounds + 5 cm, and each gap's `narrowest_m` against its inscribed circle. All thirteen pass; the farthest shapes touch the bounds (+0.000 m, the structures) or lie inside (−0.004 to −0.023 m, the trunks). The full two-way audit and the hole contract (E01's fillers) are not asked of Godot's collision (D-040).
+    - *Materials:* bark slots → `bark_locust`, brick → `brick_red`; every other slot a palette of the model's own colour (`godot_*`: sRGB of its linear base colour, smoothness 1 − roughness, the leaf cards two-sided). The glbs embed no textures: nothing third-party, the manifest is unchanged. No plank, clay-tile or adobe recipe is on `unity/main` yet.
+    - *Differs from Godot:* the structures lose Godot's far mesh (culled at its last distance instead); the leaf cards draw as Godot drew them, flat green; the cellar band's square corners become the stadium's rounded ends (over the shaft walls' corners, never over the cavity).
+- [ ] 1.2 [world-builder] The map, its scene and build (design 5–9):
+  - **What:** `tools/map/make_test_range.py` writing `maps/test-range/placements.json` (the yard from `ADOBE_YARD`, the posadka, the fields' grass, R01 A and F, the pole line with its wires, E01, H01 if merged, the start points, the noclip start); the scene builder writing `Scenes/TestRange.unity` from it with the floor's holes for the cellar and the trench; the look presets and noclip from G1; `Fpv450.Build.TestRange`; `docs/test-range.md`.
+  - **Verify:** the contents, posadka-shape, start-point and preset scenarios; a test that every placed instance's transform in the scene matches `placements.json` within 1 mm and 0.01°; the generator run twice gives the same bytes; the smoke test exits 0 with every prefab logged; the load time; a first frame-rate reading on AC along the spec's three legs (QA measures it fully); the EditMode run; `python tools/map/validate.py maps/test-range` if it applies to this form, otherwise the placement file's own check.
+- [ ] 1.3 [world-builder] H01 in the yard's neighbours (only if 1.2 ran before `p1-h01-adobe-house` merged): merge the base that holds H01, add `H01_I` and `H01_D` to the generator's table, rebuild the map and the scene; verify the contents scenario and the smoke test again.
+
+## 2. Review
+
+- [ ] 2.1 [qa-engineer] review against spec scenarios: every `test-range` scenario run by QA; the stand-ins' metadata against the Godot catalog (shape by shape, gaps and wind volumes) and their review sheets; the frame rate on AC along the three legs with vsync off and the power mode printed (PLT-07); the load time (PLT-06); the port's provenance (each stand-in names its Godot source and commit, nothing merged, D-027); hygiene (no text in the map, nothing from `reference/`, subject-only commits)
