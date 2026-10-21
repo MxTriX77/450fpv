@@ -26,7 +26,7 @@ The model SHALL integrate a rigid body with a unit-quaternion attitude by semi-i
 - **THEN** its angular momentum stays within 0.1 % and the quaternion's norm within 1e-9 of 1
 
 ### Requirement: Aero basics
-The model SHALL apply body drag on the relative wind (velocity minus the local wind) with separate along and across areas, a rotor H-force growing with airspeed, and the coil's drag at the coil, below the centre of mass.
+The model SHALL apply body drag on the relative wind (velocity minus the local wind) with separate along and across areas, a rotor H-force growing with airspeed, and the coil's drag at the coil, where `drone.json` places it.
 
 #### Scenario: A crosswind leans the drone
 - **WHEN** the bootstrap drone holds a hover position in a steady 5 m/s crosswind, under the closed-loop simulated pilot

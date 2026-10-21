@@ -54,7 +54,7 @@
 6. **Aero basics** (K§6.5):
    - **Body drag:** F = ½ρ·C_d·A_dir·|v_rel|·v_rel with along and across areas (assumed), on v_rel = v − wind at the body.
    - **The rotor H-force:** proportional to the in-plane airspeed and the thrust (assumed coefficient).
-   - **Coil drag:** at the coil, 8–9 cm below the CoM (derived).
+   - **Coil drag:** at the coil, where `drone.json` puts it. The bootstrap is K§5.2's, 8–9 cm below the CoM (derived); `p5-drone` moves it to letter T's layout (D-043: above the CoM on the legs-on build).
    - **Calibration:** the areas are tuned to 0.95–2.6° of lean per m/s of crosswind (derived, nominal 1.8°).
 7. **Contacts:**
    - **Legs:** each foot is a spring-damper in series with the ground: k and c in `drone.json` (assumed), the ground from `SampleGround` (height, normal and surface, rigid at this stage; soil is 7a).
