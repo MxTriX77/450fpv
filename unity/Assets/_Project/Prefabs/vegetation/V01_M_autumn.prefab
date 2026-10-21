@@ -16981,8 +16981,8 @@ MonoBehaviour:
   units: m
   frame: unity-lh-yup
   bounds:
-    m_Center: {x: -0.13047147, y: 4.7167764, z: 0.3343941}
-    m_Extent: {x: 2.8165085, y: 4.8046556, z: 2.784027}
+    m_Center: {x: -0.12254, y: 4.7413898, z: 0.36612093}
+    m_Extent: {x: 2.82444, y: 4.829269, z: 2.7259731}
   lods:
   - mesh: V01_M_autumn_LOD0
     tris: 12558
@@ -22787,25 +22787,25 @@ LODGroup:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6550283973578551789}
   serializedVersion: 2
-  m_LocalReferencePoint: {x: -0.13047147, y: 4.7167764, z: 0.3343941}
-  m_Size: 9.609311
+  m_LocalReferencePoint: {x: -0.12254, y: 4.7413898, z: 0.36612093}
+  m_Size: 9.658538
   m_FadeMode: 0
   m_AnimateCrossFading: 0
   m_LastLODIsBillboard: 0
   m_LODs:
-  - screenRelativeHeight: 0.89004356
+  - screenRelativeHeight: 0.8946031
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 3829762297224861382}
-  - screenRelativeHeight: 0.071188256
+  - screenRelativeHeight: 0.07155295
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 3686587010094154456}
-  - screenRelativeHeight: 0.036182206
+  - screenRelativeHeight: 0.03636756
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 9149840924860428418}
-  - screenRelativeHeight: 0.0033287632
+  - screenRelativeHeight: 0.0033458157
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 5262626455556622938}
