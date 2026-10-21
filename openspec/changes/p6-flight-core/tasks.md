@@ -90,6 +90,7 @@ Branch `unity/physics/p6-flight-core` off `unity/main` (D-042). The sim work is 
   - **What:** legs on `SampleGround`, the four-post stand, swept shapes on `StaticContacts` with the Time < 1 latch, prop strikes, crash and tunnel events.
   - **From `p5-drone` 1.2:** the feet are skids: each leg's lower end meets the ground at y −0.253 m with a 0.005 m radius, and the skids overhang 0.126 m past each leg, which a four-point foot misses on a pitched landing; the tubes bend sideways at about 6.6 kN/m; the carbon arms, legs and skids need a contact material (the sheet's `carbon_composite`); the stand's posts sit at r 0.200 m.
   - **From QA's `review-base.md`:** finding 4 (a log cut between a step and its events replays as Diverged, not MatchCut, `FlightReplay.cs:157`) and finding 5 (runtime objects such as the stand need a log header entry, `LogHeader.cs:81`) land here, when the first events and the stand do.
+  - **From world-query 1.2's sign-off** (`openspec/changes/p6-world-query-gallery/review-physics.md` §7): refresh a latched plane only while the part's core is outside the shape (Distance > −r; P1, without it 32 of 48 tube sweeps went through unseen); branch on a rigid material instead of the series formula (1/(1/k) comes back one ulp off for 13.8 % of stiffnesses); each skid is a capsule plus load-bearing spheres at the overhang end and the T-joint, with a dedupe rule; give `drone.json` real contact shapes and per-part compliance (the plate arm bends at about 1.8e4 N/m at the post); the legs' restitution is about 0.53 on a rigid floor; log `physics_materials.json`'s hash and the stand's shapes in the header. `tools/flightbench --probe` is the interface check.
   - **Verify:**
     - the ground-contact scenarios on the stub, and on the test range (D-044) once `p6-world-query-gallery` lands its queries: the bounce with throttle held and cut, liftoff from the stand, into L01 at 10 m/s, into the posadka
     - the replay scenario on a 120 s flight with contacts and a landing
@@ -97,6 +98,7 @@ Branch `unity/physics/p6-flight-core` off `unity/main` (D-042). The sim work is 
   - **What:** `tools/flightbench --bench` on AC with the power mode printed: p50 and p99 step times, steady-state allocations, the world-query share.
   - **Verify:** p99 ≤ 300 µs and 0 allocations; a worker forced early or late changes only the logged hitches; the golden run identical in .NET and in the Unity editor (LOG-04's first half).
   - **From QA's `review-base.md`:** finding 2 (a torque-free tumble gains kinetic energy, +0.14 % per second at 1 ms, first order: `RigidBody.cs:35` turns the attitude at the step's starting rate; bound it or take a midpoint rate) and finding 3 (only one test guards the gyroscopic term; add a golden on the L4 drone body tumbling).
+  - **Bench collision:** `LoggedStepCase` writes a fixed `%TEMP%pv450-flightbench.flightlog`, so parallel agents' benches collide (an IOException); give it a unique name.
 
 ## 2. Review
 
