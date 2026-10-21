@@ -40,5 +40,17 @@ namespace Fpv450.Sim
         /// the same bits on every runtime.
         /// </summary>
         public static double Sqrt(double x) => System.Math.Sqrt(x);
+
+        /// <summary>|x|: exact (the sign bit cleared) on every runtime.</summary>
+        public static double Abs(double x) => System.Math.Abs(x);
+
+        /// <summary>
+        /// The smaller of a and b: a unless b &lt; a. Plain comparisons, so a NaN or a
+        /// signed zero gives the same bits on every runtime (System.Math.Min has not).
+        /// </summary>
+        public static double Min(double a, double b) => b < a ? b : a;
+
+        /// <summary>The larger of a and b: a unless b &gt; a (the rule of Min).</summary>
+        public static double Max(double a, double b) => b > a ? b : a;
     }
 }
