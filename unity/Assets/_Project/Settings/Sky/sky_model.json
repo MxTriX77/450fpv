@@ -1,0 +1,38 @@
+{
+  "latitude_deg": 45.0,
+  "declination_deg": 0.0,
+  "zenith_exponent": 0.5,
+  "ground_fade_sin": 0.03,
+  "ground_albedo_linear": [0.15, 0.13, 0.10],
+  "far_land_km": 3.0,
+  "sun_hidden_from_cover": 0.6,
+  "sun_disc_radius_deg": 0.27,
+  "sun_disc_gain": 30.0,
+  "sun_halo_gain": 0.12,
+  "rows": [
+    {
+      "sun_elevation_deg": 45.0,
+      "sun_linear": [1.0, 0.94, 0.85],
+      "zenith_linear": [0.13, 0.26, 0.55],
+      "horizon_linear": [0.42, 0.50, 0.62],
+      "overcast_linear": [0.93, 0.98, 1.04],
+      "overcast_horizon_ratio": 0.9
+    },
+    {
+      "sun_elevation_deg": 5.0,
+      "sun_linear": [4.5, 3.15, 1.89],
+      "zenith_linear": [0.10, 0.18, 0.50],
+      "horizon_linear": [0.60, 0.58, 0.54],
+      "overcast_linear": [1.0, 0.97, 0.94],
+      "overcast_horizon_ratio": 0.9
+    },
+    {
+      "sun_elevation_deg": -18.0,
+      "sun_linear": [0.0, 0.0, 0.0],
+      "zenith_linear": [0.060, 0.060, 0.063],
+      "horizon_linear": [0.085, 0.085, 0.088],
+      "overcast_linear": [1.0, 1.0, 1.02],
+      "overcast_horizon_ratio": 2.0
+    }
+  ]
+}
