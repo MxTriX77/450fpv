@@ -4,9 +4,9 @@ The first Unity build to fly through. Six stations, each built from the assets a
 
 ## Run it
 - Double-click `unity/Builds/Windows-Gallery/450fpv-gallery.exe` (or run it from a terminal). Laptop on **AC power**: on battery it falls back to the integrated GPU.
-- It opens in a 1920 × 1080 window with vsync on. **Alt+Enter** toggles full screen.
+- It opens full screen at the display's resolution, with vsync on, every time. **Alt+Enter** toggles a window.
 - **Esc** (or Alt+F4) quits.
-- Options for the team: `-vsync 0` (vsync off, for frame-rate measurements), `-smoketest` (loads the scene, logs it, quits after one frame).
+- Options for the team: `-windowed` (a 1920 × 1080 window), `-vsync 0` (vsync off, for frame-rate measurements), `-smoketest` (loads the scene, logs it, quits after one frame), `-capture <folder>` (saves every viewpoint under every light, then quits).
 
 ## Keys
 | Key | Does |
@@ -32,7 +32,7 @@ The stations stand in a row along one axis, about 40 to 60 m apart. Each viewpoi
 | 1 | **1 S04**: the lodged straw patch | H | 1.5 m over the patch, 35° down at the mat |
 | 2 | **2 V01 V13**: a belt section, locust trees with shrubs at the edge and among the trunks | H | 1.5 m up, 8 m out from the edge, looking along it |
 | 3 | **3 H01**: the adobe house, intact and damaged side by side | E | 1.5 m up, 12 m from the facade |
-| 4 | **4 R01**: the sedans, struck and burnt | M | 1.2 m up, 6 m from the struck side |
+| 4 | **4 R01**: the sedans, struck and burnt | M | 1.35 m up, the struck car's front three-quarter from its struck side, nose left, 17° down; the burnt car stands 8 m beyond its nose. Try F1: the sun stands beyond the car |
 | 5 | **5 E01**: the trench | G | 1.5 m over its lip, along the run |
 | 6 | **6 L01 L03**: the wooden poles (straight, leaning, on a stub) and the wires | L | 2 m up, 15 m from the leaning pole, against the sky; try it under F4 |
 | 7 | the same line | J | 2 m up, looking up along the wires against the sky |
