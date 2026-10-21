@@ -363,7 +363,8 @@
           0.0
         ]
       ],
-      "radius_m": 0.006
+      "radius_m": 0.006,
+      "material": "steel"
     }
   ]
 }
