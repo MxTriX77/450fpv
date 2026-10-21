@@ -1,0 +1,32 @@
+{
+  "material": "godot_sheet_metal_worn",
+  "kind": "palette",
+  "formula": "palette v2: one column PALETTE_BLOCK_PX x PALETTE_HEIGHT_PX per colour, left to right in the recipe's order, its stops spread evenly from the bottom to the top and interpolated in linear light, padded with the last column to a power of two of columns; 8-bit sRGB",
+  "constants": {
+    "PALETTE_BLOCK_PX": 16,
+    "PALETTE_HEIGHT_PX": 64
+  },
+  "recipe": {
+    "schema": 1,
+    "kind": "palette",
+    "shader": "Universal Render Pipeline/Lit",
+    "colours": {
+      "sheet_metal_worn": "#736867"
+    },
+    "tint": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "smoothness": 0.38
+  },
+  "inputs_sha256": "86eb9c79a85dc11fe8834387b4ecf65fd8dd29f9d9962053040dd5ee47905619",
+  "size": [
+    16,
+    64
+  ],
+  "columns": [
+    "sheet_metal_worn"
+  ]
+}

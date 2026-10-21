@@ -1,0 +1,33 @@
+{
+  "material": "godot_foliage_belt",
+  "kind": "palette",
+  "formula": "palette v2: one column PALETTE_BLOCK_PX x PALETTE_HEIGHT_PX per colour, left to right in the recipe's order, its stops spread evenly from the bottom to the top and interpolated in linear light, padded with the last column to a power of two of columns; 8-bit sRGB",
+  "constants": {
+    "PALETTE_BLOCK_PX": 16,
+    "PALETTE_HEIGHT_PX": 64
+  },
+  "recipe": {
+    "schema": 1,
+    "kind": "palette",
+    "shader": "Universal Render Pipeline/Lit",
+    "colours": {
+      "foliage_belt": "#5c6a38"
+    },
+    "tint": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "smoothness": 0.18,
+    "two_sided": true
+  },
+  "inputs_sha256": "77fd1d3cc4ddfec8f25b2c322b4ca79eb17570d6b5a41fcaa224751c8af2a669",
+  "size": [
+    16,
+    64
+  ],
+  "columns": [
+    "foliage_belt"
+  ]
+}
