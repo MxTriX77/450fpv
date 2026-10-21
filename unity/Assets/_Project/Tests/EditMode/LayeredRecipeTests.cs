@@ -7,12 +7,13 @@ using UnityEngine;
 namespace Fpv450.Tests.EditMode
 {
     /// <summary>
-    /// The layered house recipes through today's importer (p1-h01-adobe-house task 1.1; the facade shader and its
-    /// binding are task 1.2's). <c>facade_h01.json</c> and <c>interior_h01.json</c> are tiled-set recipes whose
-    /// top-level keys are their fallback, the bare adobe on URP/Lit with a constant smoothness, and whose
-    /// <c>layered</c> block (the shader, the <c>damage_mask</c> role, its channels and the R channel's layers) the
-    /// importer does not read yet; every layer is a plain tiled set with its packed mask, so the layered shader finds
-    /// each layer's maps. The materials are written under <see cref="Folder"/>, deleted before and after.
+    /// The layered house recipes (p1-h01-adobe-house tasks 1.1 and 1.2): <c>facade_h01.json</c> and
+    /// <c>interior_h01.json</c> are tiled-set recipes whose own material, what a slot without its damage mask draws, is
+    /// the bare adobe on URP/Lit with a constant smoothness, and whose <c>layers</c> lie over their <c>base</c> (the
+    /// whitewash, the interior's blue). The base and every tiled layer build as a plain set with its normal map and
+    /// packed mask, the soot and dirt as one-colour palettes, so the layered shader finds each one's maps (how the
+    /// importer composes them is <see cref="LayeredSurfaceMaterialTests"/>'s). The materials are written under
+    /// <see cref="Folder"/>, deleted before and after.
     /// </summary>
     public sealed class LayeredRecipeTests
     {
@@ -43,15 +44,15 @@ namespace Fpv450.Tests.EditMode
 
         [TestCase("facade_h01", "whitewash")]
         [TestCase("interior_h01", "whitewash_blue")]
-        public void LayeredRecipe_BuildsItsAdobeFallbackAndEachLayer(string recipe, string topLayer)
+        public void LayeredRecipe_BuildsItsAdobeFallbackItsBaseAndEachLayer(string recipe, string whitewash)
         {
             Material fallback = Build(recipe);
-            Assert.That(fallback.shader.name, Is.EqualTo("Universal Render Pipeline/Lit"), "the fallback until task 1.2's shader");
+            Assert.That(fallback.shader.name, Is.EqualTo("Universal Render Pipeline/Lit"), "the fallback, what an unmasked slot draws");
             Assert.That(AssetDatabase.GetAssetPath(fallback.GetTexture("_BaseMap")), Is.EqualTo(AdobeDiffuse), "the bare adobe");
             Assert.That(fallback.GetTexture("_MetallicGlossMap"), Is.Null, "a constant smoothness, no duplicate mask");
             Assert.That(fallback.GetFloat("_Smoothness"), Is.EqualTo(0.1f));
 
-            foreach (string layer in new[] { topLayer, "clay_render", "adobe" })
+            foreach (string layer in new[] { whitewash, "clay_render", "base_band", "adobe" })
             {
                 Material material = Build(layer);
                 Assert.That(material.shader.name, Is.EqualTo("Universal Render Pipeline/Lit"), layer);
@@ -59,6 +60,14 @@ namespace Fpv450.Tests.EditMode
                 Assert.That(material.GetTexture("_BumpMap"), Is.Not.Null, $"{layer}: its set's normal map");
                 Assert.That(AssetDatabase.GetAssetPath(material.GetTexture("_MetallicGlossMap")),
                     Is.EqualTo($"Assets/_Project/Art/Materials/{layer}_mask.png"), $"{layer}: its packed mask");
+            }
+            foreach (string palette in new[] { "wall_soot", "wall_dirt" })
+            {
+                Material material = Build(palette);
+                Assert.That(material.shader.name, Is.EqualTo("Universal Render Pipeline/Lit"), palette);
+                Assert.That(AssetDatabase.GetAssetPath(material.GetTexture("_BaseMap")),
+                    Is.EqualTo($"Assets/_Project/Art/Materials/{palette}_albedo.png"), $"{palette}: its derived colour");
+                Assert.That(material.GetTexture("_BumpMap"), Is.Null, $"{palette}: flat colour, no normal map");
             }
         }
     }

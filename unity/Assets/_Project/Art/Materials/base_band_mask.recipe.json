@@ -1,0 +1,25 @@
+{
+  "material": "base_band",
+  "texture_set": "polyhaven/worn_cracked_plaster",
+  "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
+  "mask": {
+    "metallic": 0.0,
+    "occlusion": "ao",
+    "smoothness": "1 - roughness"
+  },
+  "sources": {
+    "ao": {
+      "name": "worn_cracked_plaster_ao_2k.png",
+      "sha256": "0bd8d42cca872807934dd091b5bff50cd98ab94af42edd821964e869911f2f2c"
+    },
+    "roughness": {
+      "name": "worn_cracked_plaster_rough_2k.png",
+      "sha256": "24b13973a956c5a0674039520af5ff12071f14a241a4e3a7a9257f2f1783b692"
+    }
+  },
+  "inputs_sha256": "04f0644db6e86f39f08ee44126867d9ac0b3e42b9d47a7f01d8fc22d6101bbe0",
+  "size": [
+    2048,
+    2048
+  ]
+}
