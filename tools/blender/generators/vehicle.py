@@ -41,8 +41,9 @@ The clean base (design decision 2):
   bars over a dark backing, twin round headlamps in chrome bezels, front indicators, the tail lamps, door handles,
   wipers; steel wheels with domed hubcaps and 165/80 R13 tyres flattened at the ground; the interior (two front seats
   without headrests, the rear bench, the dashboard, the steering wheel); the tube roof rack on four posts clamped to
-  the drip rails (roof_rack). Plates: none (SEC-02). Door trims, the firewall and the parcel shelf are left to the
-  kits that open the cabin (task 1.2): behind intact glass nothing reaches them.
+  the drip rails (roof_rack). Plates (`plate`): none, or blank plates front and rear with no character on them
+  (SEC-02). Door trims, the firewall and the parcel shelf are left to the kits that open the cabin (task 1.2):
+  behind intact glass nothing reaches them.
 
 Collision (design decision 7, with what the audit's 2 cm zone round the landable roof, bonnet and boot lid asks):
 the closed car is a union of convex primitives whose exposed faces lie on its skin; `collision_plan` lists them
@@ -67,12 +68,12 @@ from lib.skeleton import add, cross, dot, norm, normalize, scale, sub
 PLANTED = True
 
 # --- slots and materials ------------------------------------------------------------------------------------------
-PAINT, UNDER, CHROME, GLASS, TYRE, SEAT, VINYL, LAMP, LENS, RACK = (
-    "paint", "under", "chrome", "glass", "tyre", "seat", "vinyl", "lamp", "lens", "rack")
+PAINT, UNDER, CHROME, GLASS, TYRE, SEAT, VINYL, LAMP, LENS, RACK, PLATE = (
+    "paint", "under", "chrome", "glass", "tyre", "seat", "vinyl", "lamp", "lens", "rack", "plate")
 PHYSICS = {PAINT: "sheet_metal", UNDER: "sheet_metal", CHROME: "steel", GLASS: "glass", TYRE: "rubber",
-           SEAT: "fabric", VINYL: "plastic", LAMP: "glass", LENS: "plastic", RACK: "steel"}
-# car_lamps' palette columns (assets-src/materials/car_lamps.json), left to right, padded to four
-LAMP_COLUMNS = ("clear", "red", "amber")
+           SEAT: "fabric", VINYL: "plastic", LAMP: "glass", LENS: "plastic", RACK: "steel", PLATE: "sheet_metal"}
+# car_lamps' palette columns (assets-src/materials/car_lamps.json), left to right: the lenses and the blank plate
+LAMP_COLUMNS = ("clear", "red", "amber", "plate")
 LAMP_UV = {c: ((k + 0.5) / 4, 0.5) for k, c in enumerate(LAMP_COLUMNS)}
 
 # --- the shared table's enumerations (vehicles.md) ------------------------------------------------------------------
@@ -130,6 +131,11 @@ PRESETS = {
         "bumper_front": (0.39, 0.49, 0.06, 0.04, 0.20),
         "bumper_rear": (0.40, 0.50, 0.06, 0.035, 0.19),
         "overrider": (0.385, 0.34, 0.53),       # lateral, bottom, top (derived: the front view)
+        # blank plates: the front one's top at the blade's top, on its middle; the rear one's bottom over the rear
+        # bumper, on the rear panel, lit by the plate lamp on the bumper (published: the 2101's FP-141 plate lamp
+        # "is installed on the bumper", https://www.vazbook.ru/en/01/2101/main/system/fonari-vnutrennego-i-naruzhnogo-
+        # osvescheniya); the heights assumed from the bumpers
+        "plates": (0.49, 0.515),
         # roof rack (the sheet: 1.3 x 1.0 m, rails 0.10 m over the roof, 20 mm tubes): s from-to, half-width, posts' s
         "rack": (1.59, 2.89, 0.50, (1.65, 2.83)),
         # interior (assumed, the class; the drawing's seat outlines for s)
@@ -171,6 +177,10 @@ TYRE_LOADED_R_M = 0.282   # the sheet's loaded radius of a 165/80 R13 (derived):
 TYRE_SEGMENTS = (32, 16, 8)
 RACK_R_M = 0.01           # 20 mm tubes (the sheet)
 RACK_RISE_M = 0.10        # rails over the roof (the sheet, measured M)
+PLATE_M = (0.52, 0.112)   # a plate's width and height (published: the standard Ukrainian plate, en.wikipedia
+                          # "Vehicle registration plates of Ukraine"); blank, never a character (SEC-02)
+PLATE_T_M = 0.001         # its sheet (assumed)
+PLATE_OFF_M = 0.003       # its back off the blade's or the rear panel's face, on its bracket (assumed)
 # The collision plan's construction numbers (derived from the shapes above against the audit's 5 cm and 2 cm)
 FACE_M = 0.006            # the cores' end faces this far proud of the body's front and rear faces (the lamps stand
                           # 1.0-1.8 cm proud: within the bonnet's 2 cm zone of both)
@@ -287,7 +297,8 @@ def _params():
         "soot_patch": {"type": "float", "range": (0.0, 6.0), "default": 0.0, "effect": "burnt ground diameter"},
         "ground": {"type": "str", "range": ", ".join(GROUNDS), "default": "soil", "effect": "soot patch, crumbs"},
         "pose": {"type": "str", "range": ", ".join(POSES), "default": "upright", "effect": "rare blast poses"},
-        "plate": {"type": "str", "range": ", ".join(PLATES), "default": "none", "effect": "never characters"},
+        "plate": {"type": "str", "range": ", ".join(PLATES), "default": "none",
+                  "effect": "none, or blank plates front and rear: never characters"},
         "seed": {"type": "int", "range": (0, 2**31 - 1), "default": 1, "effect": "every random choice"},
         "lod.lod1_switch_m": {"type": "float", "range": (5.0, 100.0), "default": 20.0,
                               "effect": "LOD1 from here (design 8)"},
@@ -338,8 +349,7 @@ def check(params):
     for key, built, why in (("model", ("R01",), "only R01's preset exists"), ("front", ("2101",), "the 2101 front only"),
                             ("wheel", ("steel_hubcap",), "R01's steel wheels only"),
                             ("paint", ("dark_green",), "only car_paint (dark green) has a recipe"),
-                            ("pose", ("upright",), "the ditch and side poses are B's (P2)"),
-                            ("plate", ("none",), "R01 carries none")):
+                            ("pose", ("upright",), "the ditch and side poses are B's (P2)")):
         if flat[key] not in built:
             problems.append(f"'{key}' = {flat[key]!r} is not built yet: {why}")
     if flat["model"] == "R01" and flat["body"] != PRESETS["R01"]["body"]:
@@ -1108,6 +1118,8 @@ def _front_details(mesh, body, q):
         a, b, y0, y1 = body.preset["indicator"]
         _box(mesh, body.P(s - 0.007, side * (a + b) / 2, (y0 + y1) / 2), (0.014, y1 - y0, b - a), LENS,
              uvs=lambda p, n: LAMP_UV["amber"])
+    if q["detail"] >= 1:  # the front plate on the blade's middle, its top at the blade's top
+        _plate(mesh, body, BLADE_SET_M - PLATE_OFF_M - PLATE_T_M / 2, body.preset["plates"][0] - PLATE_M[1] / 2)
 
 
 def _rear_details(mesh, body, q):
@@ -1118,6 +1130,14 @@ def _rear_details(mesh, body, q):
             w0, w1 = a + (b - a) * k / 3, a + (b - a) * (k + 1) / 3
             _box(mesh, body.P(s + 0.006, side * (w0 + w1) / 2, (y0 + y1) / 2), (0.012, y1 - y0, w1 - w0), LENS,
                  uvs=lambda p, n, c=colour: LAMP_UV[c])
+    if q["detail"] >= 1:  # the rear plate on the rear panel between the tail lamps, over the bumper
+        _plate(mesh, body, s + PLATE_OFF_M + PLATE_T_M / 2, body.preset["plates"][1] + PLATE_M[1] / 2)
+
+
+def _plate(mesh, body, s, y):
+    """A blank plate (`plate` blank) centred on the centre line at station s and height y; nothing when none."""
+    if body.p["plate"] == "blank":
+        _box(mesh, body.P(s, 0.0, y), (PLATE_T_M, PLATE_M[1], PLATE_M[0]), PLATE, uvs=lambda p, n: LAMP_UV["plate"])
 
 
 def _wiper_arms(body):

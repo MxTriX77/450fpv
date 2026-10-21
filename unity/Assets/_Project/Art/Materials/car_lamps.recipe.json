@@ -13,7 +13,8 @@
     "colours": {
       "clear": "#cfd6d4",
       "red": "#7a1712",
-      "amber": "#b8661a"
+      "amber": "#b8661a",
+      "plate": "#d9dad6"
     },
     "tint": [
       1.0,
@@ -23,7 +24,7 @@
     ],
     "smoothness": 0.85
   },
-  "inputs_sha256": "fe49a6a73c8258720226d012d50f61df15045d9fa21b2f098b86546947acaf05",
+  "inputs_sha256": "b657a17b1bd748ba43b2ec85958a638cec0467eee870f28bb33ae6ca3ae21e0b",
   "size": [
     64,
     64
@@ -31,6 +32,7 @@
   "columns": [
     "clear",
     "red",
-    "amber"
+    "amber",
+    "plate"
   ]
 }

@@ -1,7 +1,7 @@
 """generators.vehicle, the clean base of R01 (p1-r01-vaz-sedan task 1.1): the published dimensions in the metadata's
 terms (plan bounds, wheelbase, tracks, wheel cylinders, roof height), the collision plan, the landable and material
-assignments, the "not built yet" refusals, the LOD budget, determinism, and params edits moving the geometry
-(AST-03). The collision audit itself runs in the Blender build (build.py), where it takes minutes."""
+assignments, the "not built yet" refusals, the blank plates, the LOD budget, determinism, and params edits moving the
+geometry (AST-03). The collision audit itself runs in the Blender build (build.py), where it takes minutes."""
 import copy
 import json
 import math
@@ -38,7 +38,7 @@ def wheels(params):
 
 def test_params_file_is_valid_and_the_clean_base(r01):
     assert params_lib.validate(vehicle, r01) == []
-    assert (r01["model"], r01["state"], r01["severity"], r01["plate"]) == ("R01", "A", 0.0, "none")
+    assert (r01["model"], r01["state"], r01["severity"], r01["plate"]) == ("R01", "A", 0.0, "blank")
 
 
 def test_published_dimensions(r01, built):
@@ -80,7 +80,7 @@ PLAN_GROUPS = {"lower body": ("nose_", "lower_mid", "arch_", "tail_"),
                "wheels": ("wheel_", "wheelhouse_"), "bumpers": ("bumper_", "overrider_"),
                "interior": ("seat_", "dashboard", "steering"), "rack": ("rack_",)}
 # The plan the audit's 2 cm zone round the roof, bonnet and boot lid asks of this shape (generators.vehicle,
-# collision_plan): design decision 7's 28 is not reachable with the audit passing (task 1.1's handoff says why).
+# collision_plan): design decision 7's 28 is not reachable with the audit passing (task 1.1's as-built note).
 PLAN_COUNTS = {"lower body": 15, "tops": 4, "shoulder rolls": 10, "greenhouse": 23, "wheels": 6, "bumpers": 10,
                "interior": 8, "rack": 8}
 
@@ -96,6 +96,7 @@ def test_landable_and_materials(built, r01):
     assert by_name["dashboard"]["material"] == "plastic"
     physics = {m["slot"]: m["physics"] for m in built["materials"]}
     assert physics["tyre"] == "rubber" and physics["seat"] == "fabric" and physics["paint"] == "sheet_metal"
+    assert physics["plate"] == "sheet_metal"
     assert built["gaps"] == [] and built["holes"] == []
     assert [w["porosity"] for w in built["wind_volumes"]] == [0.0, 0.0]
     kinds = sorted({s["kind"] for s in built["snag"]})
@@ -112,13 +113,40 @@ def test_landable_and_materials(built, r01):
     ("frag_holes", 16, "'frag_holes' = 0"),
     ("bonnet", "corner_folded", "'bonnet' = 'closed'"),
     ("paint", "beige", "'paint' = 'beige' is not built yet"),
-    ("plate", "blank", "'plate' = 'blank' is not built yet"),
 ])
 def test_not_built_yet_refusals(r01, key, value, text):
     params = copy.deepcopy(r01)
     params[key] = value
     problems = params_lib.validate(vehicle, params)
     assert any(text in p for p in problems), problems
+
+
+def plate_boxes(mesh):
+    """The plate slot's boxes as (min, max) bounds, front to rear (six faces each)."""
+    faces = [f for f in mesh.faces if f[3] == "plate"]
+    boxes = []
+    for k in range(0, len(faces), 6):
+        pts = [mesh.vertices[i] for f in faces[k:k + 6] for i in f[0]]
+        boxes.append((tuple(min(p[a] for p in pts) for a in range(3)), tuple(max(p[a] for p in pts) for a in range(3))))
+    return sorted(boxes)
+
+
+def test_blank_plates(r01, built):
+    """SEC-02: the clean base carries two blank plates of the standard 520 x 112 mm, on the front bumper's middle and
+    the rear panel, inside the overall length; `plate` none carries none; LOD2 and LOD3 drop them."""
+    boxes = plate_boxes(built["lods"][0])
+    assert len(boxes) == 2 and len(plate_boxes(built["lods"][1])) == 2
+    assert all("plate" not in m.slots() for m in built["lods"][2:])
+    lo, hi = built["lods"][0].bounds()
+    (f_lo, f_hi), (r_lo, r_hi) = boxes
+    for b_lo, b_hi in boxes:
+        assert (b_hi[2] - b_lo[2], b_hi[1] - b_lo[1]) == pytest.approx(vehicle.PLATE_M, abs=1e-9)
+        assert b_hi[0] - b_lo[0] == pytest.approx(vehicle.PLATE_T_M, abs=1e-9)
+        assert b_lo[2] == pytest.approx(-b_hi[2])  # on the centre line
+    front_top, rear_bottom = vehicle.PRESETS["R01"]["plates"]
+    assert lo[0] < f_lo[0] and f_hi[1] == pytest.approx(front_top)  # behind the overriders' faces
+    assert r_hi[0] < hi[0] and r_lo[1] == pytest.approx(rear_bottom)
+    assert all(f[3] != "plate" for f in vehicle.build(dict(r01, plate="none"))["lods"][0].faces)
 
 
 def test_dimension_checks(r01):

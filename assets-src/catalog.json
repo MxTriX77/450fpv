@@ -38,7 +38,7 @@
       "variants": ["R01_A"],
       "materials": { "paint": "car_paint", "under": "car_soot", "chrome": "chrome", "glass": "car_glass", "tyre": "tyre",
                      "seat": "seat_fabric", "vinyl": "car_vinyl", "lamp": "car_lamps", "lens": "car_lamps",
-                     "rack": "car_soot" }
+                     "rack": "car_soot", "plate": "car_lamps" }
     },
     "S04": {
       "class": "surfaces",

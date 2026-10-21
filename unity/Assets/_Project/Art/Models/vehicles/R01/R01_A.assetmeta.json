@@ -3,7 +3,7 @@
   "id": "R01",
   "variant": "R01_A",
   "generator": "vehicle",
-  "params_sha256": "3e9fefd8eeedde2279bb4023e2f94becd38ea135dc09d43e17477a7edc345692",
+  "params_sha256": "1f9a11c29ce88c77c8527b1a3e0be151091bf9138cf76275094edabc83b7b17f",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
@@ -21,13 +21,13 @@
   "lods": [
     {
       "mesh": "R01_A_LOD0",
-      "tris": 32376,
+      "tris": 32400,
       "switch_distance_m": 0.0,
       "thin_wire": false
     },
     {
       "mesh": "R01_A_LOD1",
-      "tris": 8136,
+      "tris": 8160,
       "switch_distance_m": 20.0,
       "thin_wire": false
     },
@@ -70,6 +70,11 @@
     {
       "slot": "paint",
       "visual": "car_paint",
+      "physics": "sheet_metal"
+    },
+    {
+      "slot": "plate",
+      "visual": "car_lamps",
       "physics": "sheet_metal"
     },
     {

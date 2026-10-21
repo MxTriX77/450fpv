@@ -715,6 +715,7 @@ MeshRenderer:
   - {fileID: 2100000, guid: d71717a3463a8ba48a14a5fe01ec6d64, type: 2}
   - {fileID: 2100000, guid: 06e785333c74c4348bb21150a48591bb, type: 2}
   - {fileID: 2100000, guid: 06e785333c74c4348bb21150a48591bb, type: 2}
+  - {fileID: 2100000, guid: 06e785333c74c4348bb21150a48591bb, type: 2}
   - {fileID: 2100000, guid: 406e8116d709dc64faba46b1850cfef6, type: 2}
   - {fileID: 2100000, guid: 1ce00264c9518a44e806f94f3d3deae1, type: 2}
   - {fileID: 2100000, guid: c78ada16cdb7bde4c9ced921b1de671b, type: 2}
@@ -2313,6 +2314,7 @@ MeshRenderer:
   - {fileID: 2100000, guid: d71717a3463a8ba48a14a5fe01ec6d64, type: 2}
   - {fileID: 2100000, guid: 06e785333c74c4348bb21150a48591bb, type: 2}
   - {fileID: 2100000, guid: 06e785333c74c4348bb21150a48591bb, type: 2}
+  - {fileID: 2100000, guid: 06e785333c74c4348bb21150a48591bb, type: 2}
   - {fileID: 2100000, guid: c78ada16cdb7bde4c9ced921b1de671b, type: 2}
   - {fileID: 2100000, guid: 406e8116d709dc64faba46b1850cfef6, type: 2}
   - {fileID: 2100000, guid: 1ce00264c9518a44e806f94f3d3deae1, type: 2}
@@ -2965,7 +2967,7 @@ MonoBehaviour:
   id: R01
   variant: R01_A
   generator: vehicle
-  paramsSha256: 3e9fefd8eeedde2279bb4023e2f94becd38ea135dc09d43e17477a7edc345692
+  paramsSha256: 1f9a11c29ce88c77c8527b1a3e0be151091bf9138cf76275094edabc83b7b17f
   units: m
   frame: unity-lh-yup
   bounds:
@@ -2973,11 +2975,11 @@ MonoBehaviour:
     m_Extent: {x: 2.0365, y: 0.775, z: 0.811924}
   lods:
   - mesh: R01_A_LOD0
-    tris: 32376
+    tris: 32400
     switchDistanceM: 0
     thinWire: 0
   - mesh: R01_A_LOD1
-    tris: 8136
+    tris: 8160
     switchDistanceM: 20
     thinWire: 0
   - mesh: R01_A_LOD2
@@ -3005,6 +3007,9 @@ MonoBehaviour:
     physics: plastic
   - slot: paint
     visual: car_paint
+    physics: sheet_metal
+  - slot: plate
+    visual: car_lamps
     physics: sheet_metal
   - slot: rack
     visual: car_soot

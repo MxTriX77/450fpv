@@ -82,7 +82,7 @@
   "soot_patch": 0.0,
   "ground": "soil",
   "pose": "upright",
-  "plate": "none",
+  "plate": "blank",
   "seed": 1,
   "lod": { "lod1_switch_m": 20.0, "lod2_switch_m": 80.0, "lod3_switch_m": 300.0, "cull_m": 1500.0 }
 }
