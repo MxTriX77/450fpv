@@ -30,6 +30,7 @@ namespace Fpv450.Sim.Tests
         {
             Seed = 0x5EED,
             World = FlightWorld.Floor(),
+            Mass = new MassModel(new[] { new DronePart { Name = "cube", Kind = PartKind.Box, Mass = 4.8, Size = new Double3(0.25, 0.25, 0.25) } }),
             StartPosition = new Double3(0, 10, 0),
             StartVelocity = new Double3(1, 4, -2),
             StartBodyRate = new Double3(1, 2, 0.5),

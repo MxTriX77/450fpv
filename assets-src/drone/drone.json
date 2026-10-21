@@ -1,0 +1,234 @@
+{
+  "schema": 1,
+  "owner": "physics-engineer",
+  "name": "Svinoriz 10 Opto",
+  "bootstrap": true,
+  "about": "The BOOTSTRAP component spec (DRN-03; p6-flight-core design 3, task 1.3): docs/knowledge.md §5.2's assumed layout (from reference-notes/wind.md §5.5) at its nominal in-flight loadout, 4.8 kg with the coil half paid out and 1 kg of payload aboard, so the flight core has a body until p5-drone task 1.2 replaces this file with letter T's researched layout (D-043: the spool on top, the payload slung below, the two packs along the sides). K§5.2 writes its layout with x forward and z up; this file is in the body frame of DetMath.cs: x right, y up, z forward, metres from the arm-plane centre. Positions are data: nothing in the code knows where a part sits. Every number is labelled where it stands (pilot, measured, published, derived or assumed) and the note gives its source or its calculation.",
+  "fields": {
+    "labelled number": "{\"value\": <number, or [x, y, z], or a list>, \"label\": \"pilot\" | \"measured\" | \"published\" | \"derived\" | \"assumed\", \"note\": \"<source or calculation>\"}; the note is optional, the label is not",
+    "bootstrap": "true for p6-flight-core's stand-in; p5-drone's researched file sets false",
+    "parts": "every rigid part the mass build sums (PHB-02): name (unique), kind (box | cylinder), material (carbon | aluminium | steel | polymer | li_ion | electronics), mass_kg (above 0), position_m (the part's centre); a box has size_m, its extents along body x, y, z; a cylinder is solid, with diameter_m, length_m and axis (the direction of its length, normalised when read)",
+    "motors": "four, in Betaflight's Quad X order (rear right, front right, rear left, front left): position_m (the prop hub, where the thrust acts), spin (cw | ccw seen from above; cw is a positive rotation about body +y), kv_rpm_per_v, tau_s (the motor and rotor's first-order lag), esc_tau_s (the ESC's command filter)",
+    "props": "the four props, alike: diameter_m, blades, pitch_m (geometric, per revolution), k_t_n_per_rad2_s2 (T = k_T·n², n in rad/s), kappa_m (Q = κ·T)",
+    "packs": "two (PHB-03): part (the pack's mass part), series and parallel cells, cell_capacity_ah, r_cell_ohm, ocv_v (one cell's open-circuit voltage at states of charge 0, 1/(n−1), …, 1)",
+    "legs": "parts (the four leg parts, in Betaflight's corner order; a leg's length is its part's, its foot the part's lower end), stiffness_n_per_m and damping_n_s_per_m (each leg's own spring and damper, in series with the ground), foot_radius_m; legs off sets the leg parts to 0 kg",
+    "coil": "part (the spool's mass part, whose mass falls as the line pays out), spool_mass_kg (empty, with its housing), fiber_mass_kg and fiber_length_m (the line on a full spool); the part's mass here is this file's loadout",
+    "payload": "part (the payload's mass part, set to the pilot's payload), mass_min_kg and mass_max_kg (the setting's range, APP-03); the part's mass here is this file's loadout",
+    "stand": "the legs-off launch stand (D-022, D-043): material, post_radius_m (each post on a motor diagonal, from the stand's centre), post_height_m (the post tops above the ground), post_diameter_m, mass_kg"
+  },
+  "parts": [
+    {
+      "name": "motor_rr", "kind": "cylinder", "material": "aluminium",
+      "mass_kg": {"value": 0.130, "label": "derived", "note": "K§5.2 motors with props: a Surpass S3115 900 Kv, 112 g (published), plus an 18 g 10-inch 3-blade prop (assumed)"},
+      "position_m": {"value": [0.15981, 0.02, -0.15981], "label": "derived", "note": "on the diagonal, 0.226 m out (half the published 452 mm wheelbase), 2 cm above the arm plane (K§5.2, assumed)"},
+      "diameter_m": {"value": 0.037, "label": "assumed", "note": "a 3115 motor's bell"},
+      "length_m": {"value": 0.03, "label": "assumed", "note": "the bell with its mount"},
+      "axis": {"value": [0, 1, 0], "label": "assumed", "note": "the motor stands upright"}
+    },
+    {
+      "name": "motor_fr", "kind": "cylinder", "material": "aluminium",
+      "mass_kg": {"value": 0.130, "label": "derived", "note": "as motor_rr"},
+      "position_m": {"value": [0.15981, 0.02, 0.15981], "label": "derived", "note": "as motor_rr"},
+      "diameter_m": {"value": 0.037, "label": "assumed", "note": "as motor_rr"},
+      "length_m": {"value": 0.03, "label": "assumed", "note": "as motor_rr"},
+      "axis": {"value": [0, 1, 0], "label": "assumed", "note": "as motor_rr"}
+    },
+    {
+      "name": "motor_rl", "kind": "cylinder", "material": "aluminium",
+      "mass_kg": {"value": 0.130, "label": "derived", "note": "as motor_rr"},
+      "position_m": {"value": [-0.15981, 0.02, -0.15981], "label": "derived", "note": "as motor_rr"},
+      "diameter_m": {"value": 0.037, "label": "assumed", "note": "as motor_rr"},
+      "length_m": {"value": 0.03, "label": "assumed", "note": "as motor_rr"},
+      "axis": {"value": [0, 1, 0], "label": "assumed", "note": "as motor_rr"}
+    },
+    {
+      "name": "motor_fl", "kind": "cylinder", "material": "aluminium",
+      "mass_kg": {"value": 0.130, "label": "derived", "note": "as motor_rr"},
+      "position_m": {"value": [-0.15981, 0.02, 0.15981], "label": "derived", "note": "as motor_rr"},
+      "diameter_m": {"value": 0.037, "label": "assumed", "note": "as motor_rr"},
+      "length_m": {"value": 0.03, "label": "assumed", "note": "as motor_rr"},
+      "axis": {"value": [0, 1, 0], "label": "assumed", "note": "as motor_rr"}
+    },
+    {
+      "name": "arm_rr", "kind": "cylinder", "material": "carbon",
+      "mass_kg": {"value": 0.060, "label": "assumed", "note": "K§5.2: four 60 g arms, which with the plates make the frame's 383 g (reseller figure)"},
+      "position_m": {"value": [0.09051, 0, -0.09051], "label": "derived", "note": "a rod from 0.03 to 0.226 m out on the diagonal (K§5.2, assumed), centred 0.128 m out, in the arm plane"},
+      "diameter_m": {"value": 0.016, "label": "assumed", "note": "a carbon tube arm (D-043: tube arms)"},
+      "length_m": {"value": 0.196, "label": "derived", "note": "0.226 − 0.03 m"},
+      "axis": {"value": [1, 0, -1], "label": "derived", "note": "the diagonal"}
+    },
+    {
+      "name": "arm_fr", "kind": "cylinder", "material": "carbon",
+      "mass_kg": {"value": 0.060, "label": "assumed", "note": "as arm_rr"},
+      "position_m": {"value": [0.09051, 0, 0.09051], "label": "derived", "note": "as arm_rr"},
+      "diameter_m": {"value": 0.016, "label": "assumed", "note": "as arm_rr"},
+      "length_m": {"value": 0.196, "label": "derived", "note": "as arm_rr"},
+      "axis": {"value": [1, 0, 1], "label": "derived", "note": "the diagonal"}
+    },
+    {
+      "name": "arm_rl", "kind": "cylinder", "material": "carbon",
+      "mass_kg": {"value": 0.060, "label": "assumed", "note": "as arm_rr"},
+      "position_m": {"value": [-0.09051, 0, -0.09051], "label": "derived", "note": "as arm_rr"},
+      "diameter_m": {"value": 0.016, "label": "assumed", "note": "as arm_rr"},
+      "length_m": {"value": 0.196, "label": "derived", "note": "as arm_rr"},
+      "axis": {"value": [1, 0, 1], "label": "derived", "note": "the diagonal"}
+    },
+    {
+      "name": "arm_fl", "kind": "cylinder", "material": "carbon",
+      "mass_kg": {"value": 0.060, "label": "assumed", "note": "as arm_rr"},
+      "position_m": {"value": [-0.09051, 0, 0.09051], "label": "derived", "note": "as arm_rr"},
+      "diameter_m": {"value": 0.016, "label": "assumed", "note": "as arm_rr"},
+      "length_m": {"value": 0.196, "label": "derived", "note": "as arm_rr"},
+      "axis": {"value": [1, 0, -1], "label": "derived", "note": "the diagonal"}
+    },
+    {
+      "name": "plates", "kind": "box", "material": "carbon",
+      "mass_kg": {"value": 0.143, "label": "derived", "note": "K§5.2: plates and standoffs, the frame's 383 g (reseller figure) less four 60 g arms"},
+      "position_m": {"value": [0, 0, 0], "label": "assumed", "note": "K§5.2: centred on the arm plane"},
+      "size_m": {"value": [0.10, 0.03, 0.16], "label": "assumed", "note": "K§5.2: a 16 × 10 × 3 cm box, 16 cm fore and aft"}
+    },
+    {
+      "name": "electronics", "kind": "box", "material": "electronics",
+      "mass_kg": {"value": 0.235, "label": "derived", "note": "K§5.2: the ESC, flight controller, camera, transceiver and wiring at the middle of 0.18–0.29 kg (the assumed 0.35–0.5 kg less the props and legs)"},
+      "position_m": {"value": [0, 0.01, 0], "label": "assumed", "note": "K§5.2: 1 cm above the arm plane"},
+      "size_m": {"value": [0.10, 0.06, 0.16], "label": "assumed", "note": "K§5.2: a 16 × 10 × 6 cm box, 16 cm fore and aft"}
+    },
+    {
+      "name": "pack_left", "kind": "box", "material": "li_ion",
+      "mass_kg": {"value": 0.975, "label": "derived", "note": "half of K§5.2's nominal 1.95 kg pack (6S Li-ion between 4P and 5P: 21700 cells of ≈ 69 g, assumed, + 5 %), split into the two packs PHB-03 asks for; side by side the halves have exactly the one box's inertia. The cells of packs[] (2 × 6S2P) weigh 1.74 kg by the same figures: the mass keeps K§5.2's nominal so the bootstrap is K§5.2's 4.8 kg, and p5-drone sets both from research"},
+      "position_m": {"value": [-0.025, 0.055, 0], "label": "derived", "note": "the left half of K§5.2's battery box, centred 5.5 cm above the arm plane (assumed)"},
+      "size_m": {"value": [0.05, 0.07, 0.14], "label": "derived", "note": "half of K§5.2's 14 × 10 × 7 cm box (the nominal 10 cm width, assumed), split across"}
+    },
+    {
+      "name": "pack_right", "kind": "box", "material": "li_ion",
+      "mass_kg": {"value": 0.975, "label": "derived", "note": "as pack_left"},
+      "position_m": {"value": [0.025, 0.055, 0], "label": "derived", "note": "the right half of K§5.2's battery box"},
+      "size_m": {"value": [0.05, 0.07, 0.14], "label": "derived", "note": "as pack_left"}
+    },
+    {
+      "name": "coil", "kind": "cylinder", "material": "polymer",
+      "mass_kg": {"value": 0.6, "label": "derived", "note": "K§5.2's nominal: half paid out, the 0.2 kg spool plus half of its 0.8 kg of line"},
+      "position_m": {"value": [0, -0.10, 0], "label": "assumed", "note": "K§5.2: centred 10 cm below the arm plane"},
+      "diameter_m": {"value": 0.14, "label": "assumed", "note": "K§5.2: a solid drum 14 cm across"},
+      "length_m": {"value": 0.08, "label": "assumed", "note": "K§5.2: 8 cm tall"},
+      "axis": {"value": [0, 1, 0], "label": "assumed", "note": "the drum's axis upright"}
+    },
+    {
+      "name": "payload", "kind": "box", "material": "polymer",
+      "mass_kg": {"value": 1.0, "label": "assumed", "note": "K§5.2: the class's typical ≈ 1 kg (range 0.5–2 kg, class), which sets the nominal 4.8 kg"},
+      "position_m": {"value": [0, -0.08, 0.10], "label": "assumed", "note": "K§5.2: in front of the coil, centred 10 cm forward and 8 cm below the arm plane"},
+      "size_m": {"value": [0.10, 0.12, 0.10], "label": "assumed", "note": "K§5.2: a 10 × 10 × 12 cm box, 12 cm tall; a generic body with no functional detail (DRN-01)"}
+    },
+    {
+      "name": "leg_rr", "kind": "cylinder", "material": "polymer",
+      "mass_kg": {"value": 0.030, "label": "assumed", "note": "K§5.2: 25–35 g plastic legs, 30 g at the nominal loadout"},
+      "position_m": {"value": [0.08485, -0.15, -0.08485], "label": "derived", "note": "K§5.2: 12 cm from the centre on the diagonal (assumed), hanging 30 cm from the arm plane, so centred 15 cm below it"},
+      "diameter_m": {"value": 0.012, "label": "assumed", "note": "a plastic leg"},
+      "length_m": {"value": 0.30, "label": "pilot", "note": "plastic legs of 25–35 cm (pilot, K§5.4), the middle"},
+      "axis": {"value": [0, 1, 0], "label": "assumed", "note": "hanging straight down"}
+    },
+    {
+      "name": "leg_fr", "kind": "cylinder", "material": "polymer",
+      "mass_kg": {"value": 0.030, "label": "assumed", "note": "as leg_rr"},
+      "position_m": {"value": [0.08485, -0.15, 0.08485], "label": "derived", "note": "as leg_rr"},
+      "diameter_m": {"value": 0.012, "label": "assumed", "note": "as leg_rr"},
+      "length_m": {"value": 0.30, "label": "pilot", "note": "as leg_rr"},
+      "axis": {"value": [0, 1, 0], "label": "assumed", "note": "as leg_rr"}
+    },
+    {
+      "name": "leg_rl", "kind": "cylinder", "material": "polymer",
+      "mass_kg": {"value": 0.030, "label": "assumed", "note": "as leg_rr"},
+      "position_m": {"value": [-0.08485, -0.15, -0.08485], "label": "derived", "note": "as leg_rr"},
+      "diameter_m": {"value": 0.012, "label": "assumed", "note": "as leg_rr"},
+      "length_m": {"value": 0.30, "label": "pilot", "note": "as leg_rr"},
+      "axis": {"value": [0, 1, 0], "label": "assumed", "note": "as leg_rr"}
+    },
+    {
+      "name": "leg_fl", "kind": "cylinder", "material": "polymer",
+      "mass_kg": {"value": 0.030, "label": "assumed", "note": "as leg_rr"},
+      "position_m": {"value": [-0.08485, -0.15, 0.08485], "label": "derived", "note": "as leg_rr"},
+      "diameter_m": {"value": 0.012, "label": "assumed", "note": "as leg_rr"},
+      "length_m": {"value": 0.30, "label": "pilot", "note": "as leg_rr"},
+      "axis": {"value": [0, 1, 0], "label": "assumed", "note": "as leg_rr"}
+    }
+  ],
+  "motors": [
+    {
+      "position_m": {"value": [0.15981, 0.04, -0.15981], "label": "derived", "note": "the prop hub over the motor's axis (the 452 mm wheelbase, published), 4 cm above the arm plane: the arm's top, the mount and the bell (assumed)"},
+      "spin": "cw",
+      "kv_rpm_per_v": {"value": 900, "label": "published", "note": "Surpass Hobby Bat S3115 900 KV (K§5.1)"},
+      "tau_s": {"value": 0.05, "label": "assumed", "note": "design 5: τ_m ≈ 40–60 ms for a 3115 on a 10-inch 3-blade prop, the middle; 1.4 re-derives it"},
+      "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "design 5: τ_esc ≈ 5 ms"}
+    },
+    {
+      "position_m": {"value": [0.15981, 0.04, 0.15981], "label": "derived", "note": "as motors[0]"},
+      "spin": "ccw",
+      "kv_rpm_per_v": {"value": 900, "label": "published", "note": "as motors[0]"},
+      "tau_s": {"value": 0.05, "label": "assumed", "note": "as motors[0]"},
+      "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "as motors[0]"}
+    },
+    {
+      "position_m": {"value": [-0.15981, 0.04, -0.15981], "label": "derived", "note": "as motors[0]"},
+      "spin": "ccw",
+      "kv_rpm_per_v": {"value": 900, "label": "published", "note": "as motors[0]"},
+      "tau_s": {"value": 0.05, "label": "assumed", "note": "as motors[0]"},
+      "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "as motors[0]"}
+    },
+    {
+      "position_m": {"value": [-0.15981, 0.04, 0.15981], "label": "derived", "note": "as motors[0]"},
+      "spin": "cw",
+      "kv_rpm_per_v": {"value": 900, "label": "published", "note": "as motors[0]"},
+      "tau_s": {"value": 0.05, "label": "assumed", "note": "as motors[0]"},
+      "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "as motors[0]"}
+    }
+  ],
+  "props": {
+    "diameter_m": {"value": 0.254, "label": "published", "note": "10 inches (K§5.1)"},
+    "blades": {"value": 3, "label": "published", "note": "OTU-10's 3-blade props (K§5.1)"},
+    "pitch_m": {"value": 0.127, "label": "assumed", "note": "a 10 × 5 prop, common for heavy 10-inch lift"},
+    "k_t_n_per_rad2_s2": {"value": 1.5499e-5, "label": "derived", "note": "C_T·ρ·D⁴/(4π²) with a static C_T of 0.12 for a 10-inch 3-blade prop (assumed) and ρ 1.225 kg/m³ (ISA sea level, published): K§5.3's nominal 2.6 kgf per motor at 1283 rad/s (12 250 rpm); 1.4 checks it against Kv and the pack"},
+    "kappa_m": {"value": 0.0175, "label": "assumed", "note": "K§5.3: rotor drag torque 0.015–0.02 N·m per N of thrust, the middle"}
+  },
+  "packs": [
+    {
+      "part": "pack_left",
+      "series": {"value": 6, "label": "derived", "note": "K§5.2's 6S Li-ion; the class spans 6S–8S (fc-profiles.md), which p5-drone settles"},
+      "parallel": {"value": 2, "label": "derived", "note": "K§5.2's 6S4P–6S5P as two packs, rounded down to whole cells"},
+      "cell_capacity_ah": {"value": 5.0, "label": "assumed", "note": "K§5.2: 5 Ah 21700 cells"},
+      "r_cell_ohm": {"value": 0.015, "label": "assumed", "note": "K§5.3 and design 5: R_cell ≈ 15 mΩ"},
+      "ocv_v": {"value": [3.00, 3.45, 3.55, 3.62, 3.67, 3.73, 3.81, 3.90, 3.98, 4.07, 4.20], "label": "assumed", "note": "one cell at state of charge 0, 0.1, …, 1: the shape of published OCV curves of 5 Ah 21700 NMC cells, 3.0 → 4.2 V (design 5), 3.45–4.07 V over the usable charge (K§5.3: 3.4–4.1 V); 1.4 checks it"}
+    },
+    {
+      "part": "pack_right",
+      "series": {"value": 6, "label": "derived", "note": "as packs[0]"},
+      "parallel": {"value": 2, "label": "derived", "note": "as packs[0]"},
+      "cell_capacity_ah": {"value": 5.0, "label": "assumed", "note": "as packs[0]"},
+      "r_cell_ohm": {"value": 0.015, "label": "assumed", "note": "as packs[0]"},
+      "ocv_v": {"value": [3.00, 3.45, 3.55, 3.62, 3.67, 3.73, 3.81, 3.90, 3.98, 4.07, 4.20], "label": "assumed", "note": "as packs[0]"}
+    }
+  ],
+  "legs": {
+    "parts": ["leg_rr", "leg_fr", "leg_rl", "leg_fl"],
+    "stiffness_n_per_m": {"value": 20000, "label": "assumed", "note": "a leg's own spring, the first attempt's probe (physics_materials.json, steel); 1.6 tunes it against the bounce scenario"},
+    "damping_n_s_per_m": {"value": 40, "label": "assumed", "note": "ζ ≈ 0.13 for a quarter of 4.8 kg on 2e4 N/m (c = 2ζ·√(k·m), derived); 1.6 tunes it against the bounce scenario"},
+    "foot_radius_m": {"value": 0.0075, "label": "assumed", "note": "the 15 mm reference foot of physics_materials.json"}
+  },
+  "coil": {
+    "part": "coil",
+    "spool_mass_kg": {"value": 0.2, "label": "assumed", "note": "K§5.2: an empty spool with its housing is at least 0.2 kg"},
+    "fiber_mass_kg": {"value": 0.8, "label": "derived", "note": "K§5.2's ≈ 1.0 kg coil at take-off (class) less the spool"},
+    "fiber_length_m": {"value": 10000, "label": "published", "note": "the class's 10 km spools (K§5.1: Vyriy, OTU-10, BOMBUS 10-O)"}
+  },
+  "payload": {
+    "part": "payload",
+    "mass_min_kg": {"value": 0, "label": "assumed", "note": "the setup's range starts with no payload (APP-03)"},
+    "mass_max_kg": {"value": 2.0, "label": "published", "note": "OTU-10's payload of up to 2 kg (K§5.1), the setup's top (APP-03)"}
+  },
+  "stand": {
+    "material": "steel",
+    "post_radius_m": {"value": 0.226, "label": "derived", "note": "D-022: one post under each motor, on the diagonals, half the 452 mm wheelbase (published)"},
+    "post_height_m": {"value": 0.25, "label": "pilot", "note": "D-022: posts about 0.25 m high"},
+    "post_diameter_m": {"value": 0.025, "label": "assumed", "note": "25 × 25 mm steel tube, read as its width"},
+    "mass_kg": {"value": 2.9, "label": "derived", "note": "≈ 2 m of 25 × 25 × 2 mm steel square tube (assumed) at 1.44 kg/m: two 0.5 m base bars and four 0.25 m posts"}
+  }
+}
