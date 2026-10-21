@@ -54,9 +54,10 @@ def _quat_matrix(q):
 
 
 def _angle_between(a, b):
-    """The angle in degrees of the rotation a^T b."""
-    trace = sum(a[k][i] * b[k][i] for i in range(3) for k in range(3))
-    return math.degrees(math.acos(max(-1.0, min(1.0, (trace - 1) / 2))))
+    """The angle in degrees of the rotation a^T b, from ||a - b|| = 2 sqrt(2) sin(angle / 2), which stays exact for
+    small angles where acos of the trace does not (a quaternion rounded to the micrometre read 0.08 degrees)."""
+    norm = math.sqrt(sum((a[i][j] - b[i][j]) ** 2 for i in range(3) for j in range(3)))
+    return math.degrees(2 * math.asin(min(1.0, norm / (2 * math.sqrt(2)))))
 
 
 def _mirrored(m):
@@ -294,6 +295,9 @@ def test_every_slot_has_a_recipe_and_each_palette_is_the_godot_colour(repo_root,
             assert visual in ("bark_locust", "brick_red") and ("bark" in slot or slot == "brick_red")
             continue
         m = materials[slot]
+        # ModelPostprocessor reads a texture named with one of these as a data map (a single red channel for the
+        # first four): the Z01 build's timbers drew red from godot_timber_rough_house_albedo.png
+        assert not any(t in visual for t in ("_rough", "_ao", "ambientocclusion", "_opacity", "_normal", "_nor_gl"))
         assert recipe["kind"] == "palette" and len(recipe["colours"]) == 1
         colour = next(iter(recipe["colours"].values()))
         got = [int(colour[i:i + 2], 16) for i in (1, 3, 5)]
