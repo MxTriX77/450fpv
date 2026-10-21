@@ -52,6 +52,7 @@ namespace Fpv450.Sim.Tests
             { "Flight/HostClock.cs", "host-clock", "it defines the clock" },
             { "Flight/FlightScheduler.cs", "host-clock", "only the scheduler reads the clock, never a step" },
             { "Math/DetMath.cs", "system-math", "System.Math is called only inside DetMath" },
+            { "Log/LogStore.cs", "process-environment", "the logs' folder under the user's profile (LOG-05), found at a flight's start, never by a step" },
         };
 
         [Test]

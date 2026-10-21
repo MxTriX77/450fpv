@@ -15,9 +15,10 @@ namespace Fpv450.FlightBench
             }
             if (args.Length == 1 && args[0] == "--bench")
             {
-                Console.WriteLine("flightbench: 2 bench cases registered; " + Power.Describe());
+                Console.WriteLine("flightbench: 3 bench cases registered; " + Power.Describe());
                 bool ok = FreeBodyCase.Bench();
                 ok &= MassRebuildCase.Bench();
+                ok &= LoggedStepCase.Bench();
                 if (!Power.OnAc) Console.WriteLine("flightbench: not on AC power, so these numbers are not evidence (PLT-07)");
                 return ok ? 0 : 1;
             }

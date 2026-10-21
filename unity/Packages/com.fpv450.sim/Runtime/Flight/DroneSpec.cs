@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
+using Fpv450.Sim.World;
 
 namespace Fpv450.Sim.Flight
 {
@@ -149,6 +151,9 @@ namespace Fpv450.Sim.Flight
 
         public string Name;
 
+        /// <summary>The file's identity, which the flight log records and a replay checks (HashText).</summary>
+        public ulong ContentHash;
+
         /// <summary>True for p6-flight-core's bootstrap file, which p5-drone replaces.</summary>
         public bool Bootstrap;
 
@@ -218,8 +223,15 @@ namespace Fpv450.Sim.Flight
             var reader = new Reader();
             DroneSpec spec = reader.Read(root);
             if (reader.Problems.Count > 0) throw new DroneSpecException(reader.Problems);
+            spec.ContentHash = HashText(json);
             return spec;
         }
+
+        /// <summary>
+        /// drone.json's identity: WorldHash's rule over the text's UTF-8 bytes, CR LF read as LF, so a CRLF and an LF
+        /// checkout of one file hash alike and any other edit changes it.
+        /// </summary>
+        public static ulong HashText(string json) => WorldHash.HashFile(WorldHash.Offset, Encoding.UTF8.GetBytes(json), true);
 
         // The validator: it reads everything it can and records a problem for anything missing, misspelt, unlabelled or
         // out of range, so one run lists them all. A value that could not be read is NaN (or −1 for a part reference),

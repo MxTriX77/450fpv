@@ -1,0 +1,467 @@
+using System;
+using System.Buffers.Binary;
+using System.Globalization;
+using Fpv450.Sim.Control;
+using Fpv450.Sim.Flight;
+
+namespace Fpv450.Sim.Log
+{
+    /// <summary>A record field's type: little-endian, F64 as its IEEE 754 bits, Pad as zero bytes.</summary>
+    public enum LogFieldType : byte { F64 = 1, I64 = 2, I32 = 3, U16 = 4, U8 = 5, Pad = 6 }
+
+    /// <summary>One field of a fixed-layout record, as the log header lists it (so a reader needs no code of ours).</summary>
+    public readonly struct LogField
+    {
+        public readonly string Name, Unit;
+        public readonly LogFieldType Type;
+        public readonly int Offset, Size;
+
+        public LogField(string name, string unit, LogFieldType type, int offset, int size)
+        {
+            Name = name;
+            Unit = unit;
+            Type = type;
+            Offset = offset;
+            Size = size;
+        }
+
+        public bool SameAs(in LogField o) =>
+            Name == o.Name && Unit == o.Unit && Type == o.Type && Offset == o.Offset && Size == o.Size;
+    }
+
+    /// <summary>
+    /// The flight log's binary format (design 10, LOG-01), version 1. One file per flight:
+    /// - the prologue: Magic, then the format Version and the header's length (u32 each), then the header (LogHeader)
+    /// - blocks to the end of the flight, each a u16 kind and a u16 payload length, then the payload:
+    ///   - a step record (StepBlock) after every step: the integrated state, the stick sample in force during the step,
+    ///     and the step's trace (StepFields, StepSize bytes)
+    ///   - the step's events after its record, hitches before the steps they delayed (EventBlock, EventFields)
+    ///   - the end block (EndBlock, EndFields) when the log is closed; a log without one was cut
+    /// Every number is little-endian, a double as its IEEE 754 bits, so a record replays bit for bit. The layouts are
+    /// fixed for a format version: a field a later task fills is zero until then (the rotor commands and packs, 1.4),
+    /// and a new field is a new version that appends it (the controller's integrators, 1.4; the contact anchors, 1.6).
+    /// A kind a reader does not know is skipped by its length.
+    /// </summary>
+    public static class LogFormat
+    {
+        /// <summary>"FPV450LG".</summary>
+        public static readonly byte[] Magic = { 0x46, 0x50, 0x56, 0x34, 0x35, 0x30, 0x4C, 0x47 };
+
+        /// <summary>The format: the prologue, the header's entries and the record layouts below.</summary>
+        public const int Version = 1;
+
+        /// <summary>
+        /// The flight model's version: raised with every code change that alters a step's result for the same header
+        /// and inputs, when the flightbench golden is re-recorded (audited case by case), so a replay refuses a log of
+        /// another model rather than report a divergence at its first step. WorldHash.QueryVersion is the world's.
+        /// 1: p6-flight-core tasks 1.1–1.3 (the free rigid body).
+        /// </summary>
+        public const int ModelVersion = 1;
+
+        public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
+
+        /// <summary>A block's kind and payload length, u16 each.</summary>
+        public const int BlockHeaderSize = 4;
+
+        public const int StepSize = 352, EventSize = 72, EndSize = 48;
+
+        // What the step record covers, checked against the structs by the suite: a field added to one of them must be
+        // logged (a new layout) or the suite fails.
+        public static readonly string[] StateFieldsLogged =
+            { "Step", "Position", "Velocity", "Attitude", "BodyRate", "Armed", "RotorSpeed", "EscCommand", "PackCharge0", "PackCharge1" };
+        public static readonly string[] StickFieldsLogged = { "HostUs", "Roll", "Pitch", "Yaw", "Throttle", "Arm" };
+        public static readonly string[] TraceFieldsLogged =
+            { "RotorCommand", "PackVolts0", "PackVolts1", "PackAmps0", "PackAmps1", "NetForce", "NetMoment" };
+
+        static readonly string[] CornerNames = { "rear_right", "front_right", "rear_left", "front_left" };
+
+        public static readonly LogField[] StepFields = BuildStepFields();
+        public static readonly LogField[] EventFields = BuildEventFields();
+        public static readonly LogField[] EndFields = BuildEndFields();
+
+        // After the tables: static fields initialise in this order.
+        static readonly int StickAt = OffsetOf(StepFields, "stick.host_us"), FlagsAt = OffsetOf(StepFields, "flags");
+
+        static int OffsetOf(LogField[] fields, string name)
+        {
+            foreach (LogField f in fields)
+                if (f.Name == name)
+                    return f.Offset;
+            throw new InvalidOperationException("no field " + name);
+        }
+
+        static LogField[] BuildStepFields()
+        {
+            var b = new Layout();
+            b.Add("step", "steps since the start; the state's time is step x 1 ms", LogFieldType.I64);
+            b.Vec("position", "m, world");
+            b.Vec("velocity", "m/s, world");
+            b.Add("attitude.x", "body to world", LogFieldType.F64);
+            b.Add("attitude.y", "body to world", LogFieldType.F64);
+            b.Add("attitude.z", "body to world", LogFieldType.F64);
+            b.Add("attitude.w", "body to world", LogFieldType.F64);
+            b.Vec("body_rate", "rad/s, body");
+            b.Corners("rotor_speed", "rad/s");
+            b.Corners("esc_command", "0..1");
+            b.Add("pack_charge0", "0..1", LogFieldType.F64);
+            b.Add("pack_charge1", "0..1", LogFieldType.F64);
+            b.Add("stick.host_us", "us, host clock", LogFieldType.I64);
+            b.Add("stick.roll", "-1..1, +1 right", LogFieldType.F64);
+            b.Add("stick.pitch", "-1..1, +1 forward", LogFieldType.F64);
+            b.Add("stick.yaw", "-1..1, +1 right", LogFieldType.F64);
+            b.Add("stick.throttle", "0..1", LogFieldType.F64);
+            b.Corners("rotor_command", "0..1");
+            b.Add("pack_volts0", "V", LogFieldType.F64);
+            b.Add("pack_volts1", "V", LogFieldType.F64);
+            b.Add("pack_amps0", "A", LogFieldType.F64);
+            b.Add("pack_amps1", "A", LogFieldType.F64);
+            b.Vec("net_force", "N, world, weight included");
+            b.Vec("net_moment", "N.m, body, about the CoM");
+            b.Add("flags", "bit 0 armed, bit 1 stick.arm", LogFieldType.U8);
+            b.Add("reserved", "zero", LogFieldType.Pad, 7);
+            return b.Done(StepSize);
+        }
+
+        static LogField[] BuildEventFields()
+        {
+            var b = new Layout();
+            b.Add("step", "the step that made it", LogFieldType.I64);
+            b.Add("kind", "EventKind", LogFieldType.U16);
+            b.Add("part", "drone part index; 65535 none", LogFieldType.U16);
+            b.Add("object", "world object; -1 ground", LogFieldType.I32);
+            b.Add("shape", "shape of the object", LogFieldType.I32);
+            b.Add("material", "world material id; 0 none", LogFieldType.U16);
+            b.Add("surface", "world surface id; 0 none", LogFieldType.U8);
+            b.Add("index", "corner, axis or cause by kind; 255 none", LogFieldType.U8);
+            b.Vec("point", "m, world");
+            b.Add("a", "by kind", LogFieldType.F64);
+            b.Add("b", "by kind", LogFieldType.F64);
+            b.Add("c", "by kind", LogFieldType.F64);
+            return b.Done(EventSize);
+        }
+
+        static LogField[] BuildEndFields()
+        {
+            var b = new Layout();
+            b.Add("steps", "step records written", LogFieldType.I64);
+            b.Add("events", "event records written, hitches included", LogFieldType.I64);
+            b.Add("hitches", "scheduler hitches", LogFieldType.I64);
+            b.Add("log_waits", "times the flight thread waited for a full ring", LogFieldType.I64);
+            b.Add("sticks_dropped", "stick reports refused by a full inbox", LogFieldType.I64);
+            b.Add("events_lost", "events refused by a full step buffer", LogFieldType.I64);
+            return b.Done(EndSize);
+        }
+
+        /// <summary>One step's record: the new state, the stick sample in force during the step, the step's trace.</summary>
+        public static void EncodeStep(Span<byte> dst, in FlightState s, in StickSample k, in StepTrace t)
+        {
+            var w = new Writer(dst.Slice(0, StepSize));
+            w.I64(s.Step);
+            w.V3(s.Position);
+            w.V3(s.Velocity);
+            w.F64(s.Attitude.X);
+            w.F64(s.Attitude.Y);
+            w.F64(s.Attitude.Z);
+            w.F64(s.Attitude.W);
+            w.V3(s.BodyRate);
+            w.C4(s.RotorSpeed);
+            w.C4(s.EscCommand);
+            w.F64(s.PackCharge0);
+            w.F64(s.PackCharge1);
+            w.I64(k.HostUs);
+            w.F64(k.Roll);
+            w.F64(k.Pitch);
+            w.F64(k.Yaw);
+            w.F64(k.Throttle);
+            w.C4(t.RotorCommand);
+            w.F64(t.PackVolts0);
+            w.F64(t.PackVolts1);
+            w.F64(t.PackAmps0);
+            w.F64(t.PackAmps1);
+            w.V3(t.NetForce);
+            w.V3(t.NetMoment);
+            w.U8((byte)((s.Armed ? 1 : 0) | (k.Arm ? 2 : 0)));
+            w.Zero(7);
+        }
+
+        public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
+        {
+            var r = new Reader(src.Slice(0, StepSize));
+            s = default;
+            k = default;
+            t = default;
+            s.Step = r.I64();
+            s.Position = r.V3();
+            s.Velocity = r.V3();
+            s.Attitude = new Quat(r.F64(), r.F64(), r.F64(), r.F64());
+            s.BodyRate = r.V3();
+            s.RotorSpeed = r.C4();
+            s.EscCommand = r.C4();
+            s.PackCharge0 = r.F64();
+            s.PackCharge1 = r.F64();
+            k.HostUs = r.I64();
+            k.Roll = r.F64();
+            k.Pitch = r.F64();
+            k.Yaw = r.F64();
+            k.Throttle = r.F64();
+            t.RotorCommand = r.C4();
+            t.PackVolts0 = r.F64();
+            t.PackVolts1 = r.F64();
+            t.PackAmps0 = r.F64();
+            t.PackAmps1 = r.F64();
+            t.NetForce = r.V3();
+            t.NetMoment = r.V3();
+            byte flags = r.U8();
+            s.Armed = (flags & 1) != 0;
+            k.Arm = (flags & 2) != 0;
+        }
+
+        /// <summary>The stick sample of a step record, without decoding the rest.</summary>
+        public static void DecodeStick(ReadOnlySpan<byte> src, out StickSample k)
+        {
+            var r = new Reader(src.Slice(StickAt, 40));
+            k = default;
+            k.HostUs = r.I64();
+            k.Roll = r.F64();
+            k.Pitch = r.F64();
+            k.Yaw = r.F64();
+            k.Throttle = r.F64();
+            k.Arm = (src[FlagsAt] & 2) != 0;
+        }
+
+        /// <summary>The step a step record holds.</summary>
+        public static long StepOf(ReadOnlySpan<byte> record) => BinaryPrimitives.ReadInt64LittleEndian(record);
+
+        public static void EncodeEvent(Span<byte> dst, long step, in FlightEvent e)
+        {
+            var w = new Writer(dst.Slice(0, EventSize));
+            w.I64(step);
+            w.U16((ushort)e.Kind);
+            w.U16(e.Part);
+            w.I32(e.Object);
+            w.I32(e.Shape);
+            w.U16(e.Material);
+            w.U8(e.Surface);
+            w.U8(e.Index);
+            w.V3(e.Point);
+            w.F64(e.A);
+            w.F64(e.B);
+            w.F64(e.C);
+        }
+
+        public static void DecodeEvent(ReadOnlySpan<byte> src, out long step, out FlightEvent e)
+        {
+            var r = new Reader(src.Slice(0, EventSize));
+            e = default;
+            step = r.I64();
+            e.Kind = (EventKind)r.U16();
+            e.Part = r.U16();
+            e.Object = r.I32();
+            e.Shape = r.I32();
+            e.Material = r.U16();
+            e.Surface = r.U8();
+            e.Index = r.U8();
+            e.Point = r.V3();
+            e.A = r.F64();
+            e.B = r.F64();
+            e.C = r.F64();
+        }
+
+        /// <summary>The end block's counts.</summary>
+        public static void EncodeEnd(Span<byte> dst, in LogEnd end)
+        {
+            var w = new Writer(dst.Slice(0, EndSize));
+            w.I64(end.Steps);
+            w.I64(end.Events);
+            w.I64(end.Hitches);
+            w.I64(end.LogWaits);
+            w.I64(end.SticksDropped);
+            w.I64(end.EventsLost);
+        }
+
+        public static void DecodeEnd(ReadOnlySpan<byte> src, out LogEnd end)
+        {
+            var r = new Reader(src.Slice(0, EndSize));
+            end = new LogEnd
+            {
+                Steps = r.I64(),
+                Events = r.I64(),
+                Hitches = r.I64(),
+                LogWaits = r.I64(),
+                SticksDropped = r.I64(),
+                EventsLost = r.I64(),
+            };
+        }
+
+        /// <summary>A block's kind and length, before its payload.</summary>
+        public static void EncodeBlockHeader(Span<byte> dst, ushort kind, int length)
+        {
+            BinaryPrimitives.WriteUInt16LittleEndian(dst, kind);
+            BinaryPrimitives.WriteUInt16LittleEndian(dst.Slice(2), (ushort)length);
+        }
+
+        /// <summary>The index of the field holding byte offset, or −1.</summary>
+        public static int FieldAt(LogField[] fields, int offset)
+        {
+            for (int i = 0; i < fields.Length; i++)
+                if (offset >= fields[i].Offset && offset < fields[i].Offset + fields[i].Size)
+                    return i;
+            return -1;
+        }
+
+        /// <summary>A field's value in a record, as text: a double with its bits, so two that print alike still differ.</summary>
+        public static string FormatField(in LogField f, ReadOnlySpan<byte> record)
+        {
+            ReadOnlySpan<byte> b = record.Slice(f.Offset, f.Size);
+            CultureInfo c = CultureInfo.InvariantCulture;
+            switch (f.Type)
+            {
+                case LogFieldType.F64:
+                    long bits = BinaryPrimitives.ReadInt64LittleEndian(b);
+                    return BitConverter.Int64BitsToDouble(bits).ToString("R", c) + " (0x" + bits.ToString("X16", c) + ")";
+                case LogFieldType.I64: return BinaryPrimitives.ReadInt64LittleEndian(b).ToString(c);
+                case LogFieldType.I32: return BinaryPrimitives.ReadInt32LittleEndian(b).ToString(c);
+                case LogFieldType.U16: return BinaryPrimitives.ReadUInt16LittleEndian(b).ToString(c);
+                case LogFieldType.U8: return b[0].ToString(c);
+                default:
+                    var text = new System.Text.StringBuilder("0x");
+                    for (int i = 0; i < b.Length; i++) text.Append(b[i].ToString("X2", c));
+                    return text.ToString();
+            }
+        }
+
+        sealed class Layout
+        {
+            readonly System.Collections.Generic.List<LogField> _fields = new System.Collections.Generic.List<LogField>();
+            int _at;
+
+            public void Add(string name, string unit, LogFieldType type, int size = 0)
+            {
+                if (size == 0) size = type == LogFieldType.F64 || type == LogFieldType.I64 ? 8 : type == LogFieldType.I32 ? 4 : type == LogFieldType.U16 ? 2 : 1;
+                _fields.Add(new LogField(name, unit, type, _at, size));
+                _at += size;
+            }
+
+            public void Vec(string name, string unit)
+            {
+                Add(name + ".x", unit, LogFieldType.F64);
+                Add(name + ".y", unit, LogFieldType.F64);
+                Add(name + ".z", unit, LogFieldType.F64);
+            }
+
+            public void Corners(string name, string unit)
+            {
+                foreach (string corner in CornerNames)
+                    Add(name + "." + corner, unit, LogFieldType.F64);
+            }
+
+            public LogField[] Done(int size)
+            {
+                if (_at != size) throw new InvalidOperationException("a log layout is " + _at + " bytes, not " + size);
+                return _fields.ToArray();
+            }
+        }
+
+        ref struct Writer
+        {
+            readonly Span<byte> _b;
+            int _at;
+
+            public Writer(Span<byte> b)
+            {
+                _b = b;
+                _at = 0;
+            }
+
+            public void F64(double v) => I64(BitConverter.DoubleToInt64Bits(v));
+
+            public void I64(long v)
+            {
+                BinaryPrimitives.WriteInt64LittleEndian(_b.Slice(_at), v);
+                _at += 8;
+            }
+
+            public void I32(int v)
+            {
+                BinaryPrimitives.WriteInt32LittleEndian(_b.Slice(_at), v);
+                _at += 4;
+            }
+
+            public void U16(ushort v)
+            {
+                BinaryPrimitives.WriteUInt16LittleEndian(_b.Slice(_at), v);
+                _at += 2;
+            }
+
+            public void U8(byte v) => _b[_at++] = v;
+
+            public void Zero(int n)
+            {
+                _b.Slice(_at, n).Clear();
+                _at += n;
+            }
+
+            public void V3(in Double3 v)
+            {
+                F64(v.X);
+                F64(v.Y);
+                F64(v.Z);
+            }
+
+            public void C4(in Corners c)
+            {
+                F64(c.RearRight);
+                F64(c.FrontRight);
+                F64(c.RearLeft);
+                F64(c.FrontLeft);
+            }
+        }
+
+        ref struct Reader
+        {
+            readonly ReadOnlySpan<byte> _b;
+            int _at;
+
+            public Reader(ReadOnlySpan<byte> b)
+            {
+                _b = b;
+                _at = 0;
+            }
+
+            public double F64() => BitConverter.Int64BitsToDouble(I64());
+
+            public long I64()
+            {
+                long v = BinaryPrimitives.ReadInt64LittleEndian(_b.Slice(_at));
+                _at += 8;
+                return v;
+            }
+
+            public int I32()
+            {
+                int v = BinaryPrimitives.ReadInt32LittleEndian(_b.Slice(_at));
+                _at += 4;
+                return v;
+            }
+
+            public ushort U16()
+            {
+                ushort v = BinaryPrimitives.ReadUInt16LittleEndian(_b.Slice(_at));
+                _at += 2;
+                return v;
+            }
+
+            public byte U8() => _b[_at++];
+
+            public Double3 V3() => new Double3(F64(), F64(), F64());
+
+            public Corners C4() => new Corners { RearRight = F64(), FrontRight = F64(), RearLeft = F64(), FrontLeft = F64() };
+        }
+    }
+
+    /// <summary>The end block: what the recorder wrote and what the flight lost, counted at the close.</summary>
+    public struct LogEnd
+    {
+        public long Steps, Events, Hitches, LogWaits, SticksDropped, EventsLost;
+    }
+}

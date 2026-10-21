@@ -19,13 +19,17 @@ namespace Fpv450.Sim.Flight
     }
 
     /// <summary>
-    /// Where the scheduler hands every step and hitch, on the flight thread. Task 1.2's log implements it with its
-    /// ring buffer; a test implements it with a state dump. An implementation must not block or allocate.
+    /// Where the scheduler hands every step and hitch, on the flight thread. The log (Log.FlightRecorder) implements it
+    /// with its ring buffer; a test implements it with a state dump. An implementation must not allocate, and waits
+    /// only when its buffer is full, which it logs as a hitch.
     /// </summary>
     public interface IFlightRecorder
     {
-        /// <summary>After each step: the new state and the stick sample that was in force during it.</summary>
-        void RecordStep(in FlightState state, in StickSample stick);
+        /// <summary>
+        /// After each step: the new state, the stick sample that was in force during it, what the step computed beside
+        /// the state, and the events it made (FlightCore.Trace and Events, valid until the next step).
+        /// </summary>
+        void RecordStep(in FlightState state, in StickSample stick, in StepTrace trace, StepEvents events);
 
         void RecordHitch(in Hitch hitch);
     }

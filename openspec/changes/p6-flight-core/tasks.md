@@ -22,9 +22,45 @@ Branch `unity/physics/p6-flight-core` off `unity/main` (D-042). The sim work is 
     - **The step:** `FlightCore.Advance(in StickSample)`, 1 ms, semi-implicit Euler, the quaternion first-order then renormalised; gravity 9.806 65 m/s² (published) is its only force until 1.3. `FlightScheduler` alone reads the clock (`Begin`, `RunDue`, `Start`, `Stop`); a pass with two or more steps due logs one `Hitch` {`Step`, `Steps`, `LateUs`}; the thread sleeps 1 ms with more than 2 ms to go and yields otherwise. `IFlightRecorder` {`RecordStep(state, stick)`, `RecordHitch`} is 1.2's seam.
     - **Randomness:** key = Mix64(seed + Mix64(FNV-1a 64 of the ASCII name)); draw i = SplitMix64's output at key + (i + 1)·γ; units from the top 53 bits. `FlightRandom.Open` once per name, `Draw` records each per-flight draw with its bound. Pinned values match an independent Python implementation.
     - **Numbers:** the free body over 10 s: position 5.0e-11 m from the exact discrete solution, quaternion norm within 2.2e-16, attitude 1.0e-5 rad from the exact rotation (the first-order update's (|ω|·dt)³/12 per step); golden `0xAECE29900A37638B` in Debug and Release. Bench on AC: p50 0.20 µs, p99 0.30 µs, 0 B.
-- [ ] 1.2 [physics-engineer] The log and replay (design 10):
+- [x] 1.2 [physics-engineer] The log and replay (design 10):
   - **What:** the header, the 1 kHz records and events, the ring buffer and flush worker, `tools/replay`, the summary reader.
   - **Verify:** both physics-log scenarios on a free-body flight, and the truncation case.
+  - **As built** (`Runtime/Log/`, `LogFormat.Version` 1; branched after 1.3's merge, so the drone hash is real):
+    - **The file:** `FPV450LG`, the format version and the header's length, then the header, then blocks of a u16 kind and a u16 length. A step record follows every step and the step's events follow it. A hitch comes before the steps it delayed, and the end block comes at the close (a log without one was cut). Everything is little-endian, a double as its bits. A reader skips a header entry or a block kind it does not know.
+    - **The header** (`LogHeader`, 6.1 kB for the bootstrap drone) holds:
+      - the model version (`LogFormat.ModelVersion` 1, raised with every change to a step's result, alongside the golden re-record) and the seed
+      - the build, the runtime and the ISA flags
+      - the world's id, content hash and `QueryVersion`, with its surface and material names
+      - drone.json's hash (`DroneSpec.ContentHash`: WorldHash's rule over the text, CR LF read as LF; 0 for a bench body), its name and the loadout
+      - the mass model's parts and the body they built
+      - every `FcSettings` field by its CLI name, read by reflection, so 1.4's fields are logged with no edit
+      - the opened streams and every `ParameterDraw`, and the start state
+      - the three record layouts, with names and units, so a reader needs none of our code
+    - **The step record, 352 B (356 with its block header): 21.36 MB a minute, 214 MB for 10 min, under LOG-01's 50 MB a minute before compression.** Design 10 assumed about 200 B and 12 MB. The fields, in order:
+      - step; position, velocity, attitude and body rate
+      - rotor speed and ESC command per corner; both packs' charge
+      - the stick in force: host µs, roll, pitch, yaw, throttle
+      - rotor command per corner and both packs' V and A (zero until 1.4)
+      - the net force (world, weight included) and the net moment (body, about the CoM): `StepTrace`, filled by `FlightCore`
+      - flags (armed, stick arm) and 7 reserved bytes
+    - **The events** (72 B, 76 with the block header): the step, then `EventKind`, part, object, shape, material, surface, index (corner, axis or `HitchCause`), point, and A, B and C as the kind gives them.
+      - The kinds are ContactMade, ContactBroken, PropStrike, MixerSaturation, Crash, Tunnel, Hitch and EventsLost. They are appended to, never renumbered.
+      - Producers add to `FlightCore.Events` (`StepEvents`, 64 a step; an overflow is logged as EventsLost). The seam is `IFlightRecorder.RecordStep(state, stick, trace, events)`.
+    - **Writing** (`FlightRecorder`):
+      - a 4 MiB ring (11.8 s) and a flush worker every 2 ms
+      - a full ring makes the flight thread wait in 1 ms sleeps and logs a `LogFull` hitch; nothing is dropped
+      - a failed write ends the log, never the flight
+      - `LogStore` (LOG-05) writes `%LOCALAPPDATA%\450fpv\flights\flight-SEED-N.flightlog` (an extension git ignores); a test checks the header holds no user, machine, path or clock
+    - **Replay** (`FlightReplay`, `tools/replay`):
+      - It refuses, naming both values, another model version, world hash or `QueryVersion`, drone.json hash or `FcSettings` field.
+      - It checks the rebuilt body and the draws, then steps with the logged sticks and compares every record and event byte for byte. Hitches are not compared.
+      - A divergence names its step, its field and both values. A different runtime or ISA is a note, not a refusal (LOG-04).
+      - Exit codes: 0 match, 1 diverged, 3 refused, 4 unreadable, 5 matched a cut log.
+    - **The summary reader** (`FlightSummary.Read(path)`, `.Print`): reads a cut log to its last whole record, and `CutAt` and `CutReason` say where and how it was cut.
+    - **Guards:** the suite fails when `FlightState`, `StickSample`, `StepTrace`, `FlightSetup` or `DronePart` gains a field the log does not cover.
+    - **Numbers:**
+      - The 120 s scripted flight in real time on the flight thread: 120 013 steps, 52 one-step hitches, 0 ring waits, 42.7 MB, replayed bit for bit in 0.84 s. The same log cut mid-record reads and replays to its last whole record.
+      - Bench on AC, two runs: the step with its record at 1 kHz into a file, p50 1.2–1.9 µs and p99 14.9–20.8 µs; the record alone p50 0.6–1.0 µs and p99 4.0–6.5 µs; 0 B on the flight thread; 0 ring waits.
 - [x] 1.3 [physics-engineer] `drone.json` and the rigid body (design 3):
   - **What:** the schema with a validator, the bootstrap file from K§5.2 with every value labelled, the parallel-axis mass build, the quaternion rigid body.
   - **Verify:** the "bootstrap drone matches K§5.2" and "free flight conserves" scenarios.
