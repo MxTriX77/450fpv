@@ -15,15 +15,15 @@
       "glass": "#a9bdb4"
     },
     "tint": [
-      0.15,
-      0.15,
-      0.15,
+      0.4236,
+      0.4236,
+      0.4236,
       0.02
     ],
     "smoothness": 0.95,
     "ior": 1.52
   },
-  "inputs_sha256": "7640901211a2fa15c695eb4bc91f18049b2342f16e8ddb8e28ac0076e68ad6b6",
+  "inputs_sha256": "83e48da863ac9af2de6878d3780bef7b012bf01cc917f69ab0730a412f1cce1f",
   "size": [
     16,
     64
