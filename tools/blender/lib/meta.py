@@ -67,6 +67,9 @@ MICRO_KEYS = ("lod", "name", "kind", "count", "tris")
 # its channels (p1-h01-adobe-house, "Generator-written mask atlases"): "channels", what R, G, B and A hold in that
 # order (a facade's ["render_depth", "soot", "dirt", "base_band"]), one to four distinct names, so the importer can
 # hold a mask to the channels its slot's layered recipe reads; optional, so a record without it stays valid.
+# A wind volume may be a sheltered `cavity` (p1-h01-adobe-house, design decision 9: a house's interior once its roof
+# or openings let the wind in), "cavity": true, with its "openings", the ids of the gaps its draught passes through;
+# both optional, so a record without them stays valid.
 TEXTURE_KEYS = ("role", "slot", "file", "uv_min", "uv_max")
 TEXTURE_ROLES = ("crack_mask", "damage_mask")
 TEXTURE_CHANNELS = 4
@@ -239,10 +242,16 @@ def validate(meta, material_ids):
             problems.append(f"gaps[{i}]: needs id, a planar polygon of 3+ points, normal and narrowest_m")
         else:
             problems += [f"gaps[{i}]: {p}" for p in _gap_problems(g)]
+    gap_ids = {g.get("id") for g in meta["gaps"] if isinstance(g, dict)}
     for i, w in enumerate(meta["wind_volumes"]):
         problems += [f"wind_volumes[{i}]: {p}" for p in _shape_problems(w)]
         if not (_is_num(w.get("porosity")) and 0 <= w["porosity"] <= 1):
             problems.append(f"wind_volumes[{i}]: porosity must be in [0, 1]")
+        if "cavity" in w and not isinstance(w["cavity"], bool):
+            problems.append(f"wind_volumes[{i}]: cavity must be a boolean")
+        if "openings" in w and not (w.get("cavity") is True and isinstance(w["openings"], list)
+                                    and all(o in gap_ids for o in w["openings"])):
+            problems.append(f"wind_volumes[{i}]: openings belong to a cavity and must name gaps of the metadata")
     ids = set()
     for i, port in enumerate(meta["ports"]):
         if not (isinstance(port, dict) and isinstance(port.get("id"), str) and port["id"]
