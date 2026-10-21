@@ -10,11 +10,11 @@ A catalog entry MAY give a variant its own slot-to-material map (`variant_materi
 - **THEN** the autumn variant's prefab uses `leaf_shrub_autumn`, every other variant keeps `leaf_shrub`, and rebuilding leaves no diff
 
 ### Requirement: Baked impostor LOD
-A generator MAY ask for an impostor: the build SHALL render the LOD0 mesh with its materials from a fixed set of views in headless Blender into an albedo atlas with alpha and a normal atlas (1k each at most), write them beside the FBX as derived textures, and the importer SHALL build it as the last LOD before the cull: a camera-facing card set reading the atlas. The atlas is regenerated whenever the params or materials change and is never hand-edited.
+A generator MAY ask for an impostor: the build SHALL render the LOD0 mesh with its materials from a fixed set of views in headless Blender into an albedo atlas with coverage in alpha, a normal atlas with occlusion in alpha and a grey smoothness atlas holding each texel's mean surface smoothness (1k each at most), write them beside the FBX as derived textures, and the importer SHALL build it as the last LOD before the cull: a camera-facing card set reading the atlas. The atlas is regenerated whenever the params or materials change and is never hand-edited.
 
 #### Scenario: Impostor built and switched
 - **WHEN** a tree variant's params set `impostor: true` with a switch distance
-- **THEN** the build writes `<variant>_impostor.png` at 1k with alpha and its normal atlas at 1k, the metadata lists the impostor LOD with its switch distance, and the prefab's LOD group shows the card set beyond that distance and the mesh LODs before it
+- **THEN** the build writes `<variant>_impostor.png` at 1k with alpha, its normal atlas and its smoothness atlas at 1k, the metadata lists the impostor LOD with its switch distance, and the prefab's LOD group shows the card set beyond that distance and the mesh LODs before it
 
 #### Scenario: No LOD switch pops
 - **WHEN** the 50 m tile and the tile at each LOD's switch distance are rendered with each LOD forced in turn (every mesh LOD and the impostor), by day and overcast, each value the mean over an 8 × 8 grid of sub-pixel projection offsets (±1/16 to ±7/16 px), refined to a 16 × 16 grid (±1/32 to ±15/32 px) for every LOD at a tile where any LOD's standard error on the 8 × 8 grid is at or over 1 %, with its standard error under 1 % in luminance and coverage (single renders of a crown of about 100 px scatter by 5–16 %; the error of the mean falls as 1/√N, tasks 1.2c–1.2d; true coverage at MSAA 1 point-samples a crown's sub-pixel leaves and wood as geometry is, 1.10–1.47 % on 64 offsets at 85–100 px, task 1.2i)
