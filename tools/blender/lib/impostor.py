@@ -161,15 +161,17 @@ def gamma_to_linear(value):
 
 def lod(variant, switch, mesh, materials):
     """The metadata's impostor LOD (lib.meta) for the LOD0 `mesh`: the card mesh's name and triangles, the switch
-    distance, and the record of the three atlases, their views and the card, with the inputs' hash and NO_ATLAS for
-    the atlases' own until they are rendered or found up to date."""
+    distance, `thin_wire` false (every LOD entry carries it; the card draws with the impostor shader), and the record
+    of the three atlases, their views and the card, with the inputs' hash and NO_ATLAS for the atlases' own until
+    they are rendered or found up to date."""
     record = {"atlas": f"{variant}_impostor.png", "normals": f"{variant}_impostor_normal.png",
               "smoothness": f"{variant}_impostor_smoothness.png",
               "size_px": [SIZE_PX, SIZE_PX], "views": VIEWS, "columns": COLUMNS, "rows": ROWS,
               "elevation_deg": ELEVATION_DEG, "card": frame(mesh)}
     record["inputs_sha256"] = inputs_sha256(mesh, record, materials)
     record["atlas_sha256"] = record["normals_sha256"] = record["smoothness_sha256"] = NO_ATLAS
-    return {"mesh": f"{variant}_impostor", "tris": 2, "switch_distance_m": float(switch), "impostor": record}
+    return {"mesh": f"{variant}_impostor", "tris": 2, "switch_distance_m": float(switch), "thin_wire": False,
+            "impostor": record}
 
 
 def inputs_sha256(mesh, record, materials):

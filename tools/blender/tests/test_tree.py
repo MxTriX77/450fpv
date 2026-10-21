@@ -275,7 +275,7 @@ def test_far_tubes_keep_lod0s_sides_over_fewer_rings(variant, monkeypatch):
         mesh = geometry.Mesh()
         mesh.smooth = {"bark", "twig"}
         skeleton.tree_tubes(mesh, members, lod, lambda m: "twig" if m.twig else "bark")
-        assert not mesh.normals
+        assert not mesh.corner_normals
     by_patch = {skeleton.bark_patch(i): m for i, m in enumerate(members)}
     for lod in (1, 2):
         domes = [c for c in calls[lod] if c[0] == "dome"]

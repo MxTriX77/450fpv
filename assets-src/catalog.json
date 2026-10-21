@@ -1,11 +1,30 @@
 {
   "schema": 1,
   "assets": {
+    "E01": {
+      "class": "earthworks",
+      "generator": "trench",
+      "variants": ["E01_curving"],
+      "materials": { "ground": "grassed_spoil", "wall": "trench_wall", "clod": "trench_wall", "section": "trench_wall", "straw": "straw" }
+    },
     "K01": {
       "class": "debris",
       "generator": "debris_brick",
       "variants": ["K01_whole"],
       "materials": { "brick": "brick_red" }
+    },
+    "L01": {
+      "class": "lines",
+      "generator": "pole",
+      "variants": ["L01_straight", "L01_leaning", "L01_braced", "L01_stub"],
+      "materials": { "wood": "pole_wood", "concrete": "pole_concrete", "steel": "pole_steel",
+                     "insulator": "insulator_porcelain", "ground_wire": "wire_steel" }
+    },
+    "L03": {
+      "class": "lines",
+      "generator": "wire_span",
+      "variants": ["L03_thin", "L03_medium", "L03_thick"],
+      "materials": { "steel": "wire_steel", "aluminium": "wire_aluminium", "insulated": "wire_sip" }
     },
     "S04": {
       "class": "surfaces",

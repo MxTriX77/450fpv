@@ -10,7 +10,7 @@ A catalog entry MAY give a variant its own slot-to-material map (`variant_materi
 - **THEN** the autumn variant's prefab uses `leaf_shrub_autumn`, every other variant keeps `leaf_shrub`, and rebuilding leaves no diff
 
 ### Requirement: Baked impostor LOD
-A generator MAY ask for an impostor: the build SHALL render the LOD0 mesh with its materials from a fixed set of views in headless Blender into an albedo atlas with coverage in alpha, a normal atlas with occlusion in alpha and a grey smoothness atlas holding each texel's mean surface smoothness (1k each at most), write them beside the FBX as derived textures, and the importer SHALL build it as the last LOD before the cull: a camera-facing card set reading the atlas. The atlas is regenerated whenever the params or materials change and is never hand-edited.
+A generator MAY ask for an impostor: the build SHALL render the LOD0 mesh with its materials from a fixed set of views in headless Blender into an albedo atlas with coverage in alpha, a normal atlas with occlusion in alpha and a grey smoothness atlas holding each texel's mean surface smoothness (1k each at most), write them beside the FBX as derived textures, and the importer SHALL build it as the last LOD before the cull: a camera-facing card set reading the atlas. Its LOD entry carries `thin_wire` false, as every LOD entry carries the flag, and the validator SHALL refuse it true. The atlas is regenerated whenever the params or materials change and is never hand-edited.
 
 #### Scenario: Impostor built and switched
 - **WHEN** a tree variant's params set `impostor: true` with a switch distance

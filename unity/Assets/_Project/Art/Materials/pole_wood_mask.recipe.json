@@ -1,0 +1,25 @@
+{
+  "material": "pole_wood",
+  "texture_set": "polyhaven/rough_wood",
+  "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
+  "mask": {
+    "metallic": 0.0,
+    "occlusion": "ao",
+    "smoothness": "1 - roughness"
+  },
+  "sources": {
+    "ao": {
+      "name": "rough_wood_ao_1k.png",
+      "sha256": "4d8b56eb1821c7bc4a20be0e89898e8b881f7d4f94fd63d079aa5a1fa241ed55"
+    },
+    "roughness": {
+      "name": "rough_wood_rough_1k.png",
+      "sha256": "0ea5fac374fa836ed284ddad6b9efa42b9677acaf9d2769b0263c00c5fe5ae67"
+    }
+  },
+  "inputs_sha256": "eeacaf5834f81c11028d2c86660030b48257e5a674f6ac0f83e62a7e6aa9dd4a",
+  "size": [
+    1024,
+    1024
+  ]
+}

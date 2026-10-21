@@ -26,37 +26,55 @@ def reset_scene():
 def add_lod(name, mesh):
     """One mesh object `name` from a lib.geometry.Mesh: vertices in Blender's frame, every face wound
     counter-clockwise about its outward normal, a UV map in metres, one material per slot named by the slot, the
-    faces of the mesh's `smooth` slots shaded smooth, and the corners of faces with normals of their own given them
-    as custom split normals (zero, Blender's own, elsewhere). Those faces are shaded smooth too: the exporter
-    triangulates, which keeps a smooth polygon's custom normals and scrambles a flat one's, since Blender stores them
-    relative to each corner's own frame (a flat 12-gon's normal leaning up 11.9 degrees came out of the
-    triangulation still 11.9 degrees off the face normal but turned about it, many corners leaning sideways;
-    p1-v01-locust task 1.2j)."""
+    faces of the mesh's `smooth` slots shaded smooth, and the corners of faces with normals of their own
+    (`corner_normals`) given them as custom split normals (zero, Blender's own, elsewhere). Those faces are shaded
+    smooth too: the exporter triangulates, which keeps a smooth polygon's custom normals and scrambles a flat one's,
+    since Blender stores them relative to each corner's own frame (a flat 12-gon's normal leaning up 11.9 degrees came
+    out of the triangulation still 11.9 degrees off the face normal but turned about it, many corners leaning
+    sideways; p1-v01-locust task 1.2j). When the mesh's vertices carry them (p1-l01-l03-pole-wires): a second UV map
+    of their second UVs ((0, 0) elsewhere), which Unity reads as uv2, and their normals as custom normals on the faces
+    whose every vertex has one, those faces smooth-shaded; every other face keeps its flat normal. A mesh with none of
+    these exports as before."""
     verts = [frame.unity_to_blender(v) for v in mesh.vertices]
-    loops, uvs, normals, slots = [], [], [], mesh.slots()
+    loops, uvs, corners, slots = [], [], [], mesh.slots()
     for f, (indices, outward, face_uvs, _) in enumerate(mesh.faces):
-        corner_normals = [frame.unity_to_blender(n) for n in mesh.normals.get(f, [(0.0, 0.0, 0.0)] * len(indices))]
+        corner_normals = [frame.unity_to_blender(n) for n in mesh.corner_normals.get(f, [(0.0, 0.0, 0.0)] * len(indices))]
         if _dot(_newell(verts, indices), frame.unity_to_blender(outward)) < 0:
             indices, face_uvs, corner_normals = indices[::-1], face_uvs[::-1], corner_normals[::-1]
         loops.append(indices)
         uvs.append(face_uvs)
-        normals += corner_normals
+        corners += corner_normals
     me = bpy.data.meshes.new(name)
     me.from_pydata(verts, [], loops)
     if me.validate(verbose=True):
         raise RuntimeError(f"{name}: Blender had to correct the geometry; the generator produced an invalid mesh")
     for slot in slots:
         me.materials.append(bpy.data.materials.get(slot) or bpy.data.materials.new(slot))
-    if mesh.smooth or mesh.normals:  # a mesh with neither stays exactly as before
-        me.polygons.foreach_set("use_smooth", [slot in mesh.smooth or f in mesh.normals
+    if mesh.smooth or mesh.corner_normals:  # a mesh with neither stays exactly as before
+        me.polygons.foreach_set("use_smooth", [slot in mesh.smooth or f in mesh.corner_normals
                                                for f, (_, _, _, slot) in enumerate(mesh.faces)])
-    if mesh.normals:  # likewise
-        me.normals_split_custom_set(normals)
+    if mesh.corner_normals:  # likewise
+        me.normals_split_custom_set(corners)
     layer = me.uv_layers.new(name="UVMap")
     for poly, face_uvs, (_, _, _, slot) in zip(me.polygons, uvs, mesh.faces):
         poly.material_index = slots.index(slot)
         for loop_index, uv in zip(poly.loop_indices, face_uvs):
             layer.data[loop_index].uv = uv
+    if mesh.uv2:
+        second = me.uv_layers.new(name="UVMap2")
+        for loop in me.loops:
+            second.data[loop.index].uv = mesh.uv2.get(loop.vertex_index, (0.0, 0.0))
+    if mesh.normals:
+        normals = {i: frame.unity_to_blender(n) for i, n in mesh.normals.items()}
+        smooth = [all(v in normals for v in poly.vertices) for poly in me.polygons]
+        for poly, flag in zip(me.polygons, smooth):
+            poly.use_smooth = flag
+        corner = [(0.0, 0.0, 0.0)] * len(me.loops)  # zero: keep the face's own normal
+        for poly, flag in zip(me.polygons, smooth):
+            if flag:
+                for loop_index in poly.loop_indices:
+                    corner[loop_index] = normals[me.loops[loop_index].vertex_index]
+        me.normals_split_custom_set(corner)
     obj = bpy.data.objects.new(name, me)
     bpy.context.scene.collection.objects.link(obj)
     return obj

@@ -52,6 +52,7 @@ The pilot, 2026-10-17: "when i say realism i mean more than just abstract realis
 | M | the abandoned classic sedan on asphalt |
 | N | the blast-wrecked hatchback in its debris field |
 | O | the burnt-out bonneted truck (no snow: season isn't a setting) |
+| S | a damaged village street from about 12.5 m (11–14 m) in damp autumn overcast: stripped hip roofs over standing walls, ragged verges and fences, whitewashed pole butts, an open green (S's look as a scene type, never its sequence) |
 
 *Accept:* every view exists. The review controls cycle through them (GAL-05, WLD-14).
 
@@ -353,7 +354,7 @@ The footage is PAL and too coarse for photogrammetry, so **assets are rebuilt to
 
 Every terrain patch is at least 60 m across. The relief patch rises at least 2 m from crest to dip at tens-of-metres scale and **carries a tree-belt run and an object station**, so assets are judged on ground that isn't level. The gallery is generated from one station list, so feedback is an edit and a re-run. Unbuilt items keep a reserved station labelled "not built yet". *Source:* B plan 2, old D-017; gap review G21 (D-037).
 
-**GAL-05 Reference views in the gallery.** The gallery holds a recreated reference view (REAL-02) for every letter its contents cover (B, C, D, E, F, G, H, I, J, K, M, N, O). **R** cycles through them, framed as in the reference. The same views produce the REAL-03 comparison sheets.
+**GAL-05 Reference views in the gallery.** The gallery holds a recreated reference view (REAL-02) for every letter its contents cover (B, C, D, E, F, G, H, I, J, K, M, N, O, S). **R** cycles through them, framed as in the reference. The same views produce the REAL-03 comparison sheets.
 
 **GAL-02 Review controls.**
 - PRD-07 movement
@@ -375,15 +376,15 @@ Every terrain patch is at least 60 m across. The relief patch rises at least 2 m
 ## 7. World (WLD): phase 3
 
 **WLD-01 Composition** (D-018 as refined by D-035), about 4 × 4 km:
-- **three settlements:** a typical village (linear, along its roads, about 0.6–1.2 km of street), a smaller village nearby, and a somewhat larger town that holds the destroyed Stalin-era block, its rubble and garages, a farm complex and the larger public buildings; divided by **tree belts and fields** in the pattern the layout reference (letter Q) shows: a pattern to copy, never a place
+- **three settlements:** a typical village (linear, along its roads, about 0.6–1.2 km of street) that copies the look of letter S's street (its cross-section, house and yard classes, states and feel, never its sequence or layout: REAL-04), with cars on the street and in yards (D-038), a smaller village nearby of the same kind, and a somewhat larger town that holds the destroyed Stalin-era block, its rubble and garages, a farm complex and the larger public buildings; divided by **tree belts and fields** in the pattern the layout reference (letter Q) shows: a pattern to copy, never a place
 - fields: meadow, tilled, burnt, cratered; **trenches and firing positions in the fields** as well as along belts
 - **tree belts** crossing the fields, several with trenches along them
-- a **small river with tree-lined banks and a pond or two**, as the layout reference shows (the pilot, D-036): the fiber laid on water cuts the signal, the water looks mildly realistic, and wind raises waves on it
+- a **small river with tree-lined banks and a pond or two**, as the layout reference shows (the pilot, D-036): the water looks mildly realistic and wind raises waves on it; fiber lying on the water keeps the signal (D-039)
 - **fortifications** at road approaches, field edges and between the settlements: concertina-wire runs (F01), dragon's-teeth rows (F02), a couple of anti-tank hedgehogs (F03), built and placed as the real thing is, never as game props
 - vehicles on roads, in yards and at field edges
 - **the settlements read as frontline today:** most houses damaged or destroyed (WLD-05), not a peaceful village with a few ruins
 
-*Source:* B plan 2–3, K§4.5, the pilot 2026-10-18 (D-035).
+*Source:* B plan 2–3, K§4.5, the pilot 2026-10-18 (D-035) and 2026-10-19 (D-038).
 
 **WLD-02 Relief.** Real rolling ground: 2–5 m over hundreds of metres, crests, dips, a gully, road embankments, spoil banks. Never a flat plane. Crests hide what is behind them. *Source:* PR-8.
 
@@ -450,10 +451,10 @@ Along the street: wires and poles. The damage mix is a frontline village's today
 
 *Source:* K§10.1, D-007; gap review G1–G3, G6 (D-037).
 
-**WLD-14 Reference views in the world.** Every letter (A–H, L, P, I–K, M–O) has at least one place in the world that recreates its scene type (REAL-02, REAL-04), reachable from the review controls. The world is judged against the references through these views before G3.
+**WLD-14 Reference views in the world.** Every letter (A–H, L, P, S, I–K, M–O) has at least one place in the world that recreates its scene type (REAL-02, REAL-04), reachable from the review controls. The world is judged against the references through these views before G3.
 
-**WLD-15 Water** (D-036). The world holds a small river and a pond or two where the layout reference puts them.
-- **Signal:** fiber lying on or in water cuts the feed: the video drops to the no-signal state while any part of the line is in the water, and a line laid across water stays cut for the sortie (the physics logs where the line entered the water).
+**WLD-15 Water** (D-036, D-039). The world holds a small river and a pond or two where the layout reference puts them.
+- **Signal:** fiber lying on or in the water carries the feed as anywhere else; water never cuts the signal (the pilot, D-039). Where the line lies on the water and the drag a current puts on it belong to the tether physics (phase 7d).
 - **Look:** mildly realistic: a reflective surface with the sky and the banks in it, mud and reeds at the edge, no feature beyond what the feed resolves.
 - **Wind:** waves follow the wind level and direction (ripples in Calm, wavelets in Windy, short breaking crests in Severe), driven by the same wind field as the vegetation (VIS-05).
 - **Physics:** the water surface is a surface row of its own (`water`): a drone that touches it is down (the sortie ends as a crash into water); legs do not land on it.

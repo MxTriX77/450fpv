@@ -65,7 +65,26 @@ between pale humps). The soil takes the gain to the soil's optional albedo_targe
 per-channel gain that lands the patch's linear mean colour on albedo_target with the soil, the gaps and the strips at their
 own colours, then a global pass corrects clipping; the achieved mean, the shares and the gains are recorded in the
 stamp. The azimuth is degrees from +u towards +v of the map, which is +X towards +Z of the asset when its UVs are
-metres.
+metres. A ground recipe whose patches name only the lodging (p1-e01-trench task 1.4, a trench's grassed spoil) is a
+cover: no bare patch, no lip, no green strip and no relief tone, so no stain lies where the asset's mesh has no relief
+to make it (REAL-05); its map is the cover with its gaps on the target (COVER_FORMULA), its stamp's layout null. A
+cover may also name its asset's relief (patches.relief: {"params", "generator"}, p1-e01-trench task 1.6): the
+generator's relief_inputs(params) give the lib/mat.py relief its mesh is shaped by and its baked straws gather on,
+and the map darkens the cover and the occlusion in that relief's hollows as a ground recipe does, the dark crevices
+between the mat's tussocks (G 1-12); the stamp's layout records that relief and its params. A
+cover may give cover.smoothness_scale (0-1, p1-e01-trench task 1.2): the mask's smoothness is the set's 1 - roughness
+times it, for a dry straw mat that the set's roughness leaves too glossy at grazing view (G 1-12: no sheen).
+
+A ground recipe in wall space ("space": "wall", p1-e01-trench design 7) is a cut's map: the strip of
+tools/blender/lib/strip.py, size_m [u, v] metres at output_px [w, h] (2K at most), u along the run and v up the map,
+which the trench generator UVs every cut face into. Its base is the loam set and the soil set, each tiled at its
+tile_size_m in metres along u and v, blended at the soil's share and gained to albedo_target; on each wall row the
+topsoil band (the top topsoil_m of the asset's params file, "params", its edge broken by value noise) darkens to
+"topsoil", a root fringe of thin lines hangs within lib.strip.TOPSOIL_ROOTS_M of the lip in "roots", and the clod
+spill in the bottom lib.strip.SPILL_M lightens to "spill"; the floor row is gained to floor_albedo. The normal is the
+sets' normals with spade facets on the wall rows (a jittered lattice of facets facets.size_m across, each a plane
+tilted so it stands at most facets.relief_m proud, added in tangent space: under 2 cm, no physical role). The mask and
+the detail albedo are as for a patch. The importer tiles it 1/u by 1/v with no offset.
 
 A recipe of kind "palette" (p1-s04-belt-straw, the straw instance kit) has no texture set: its "colours" object names
 sRGB colours, each a flat "#rrggbb" or a list of stops from the bottom of the map to the top, and the build writes
@@ -91,6 +110,7 @@ check without an exception. Exit code 1 on any problem.
 """
 import argparse
 import hashlib
+import importlib
 import json
 import math
 import os
@@ -104,7 +124,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageMath, ImageOps, 
 import fetch  # the manifest, its file paths and the repo root; same folder
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "blender"))
-from lib import mat, patches  # noqa: E402  the layouts and fields the ground_patch generator shares (plain Python)
+from lib import mat, patches, strip  # noqa: E402  the layouts and fields the generators share (plain Python)
 
 RECIPES = os.path.join("assets-src", "materials")
 MATERIALS = os.path.join("unity", "Assets", "_Project", "Art", "Materials")
@@ -146,6 +166,14 @@ GROUND_FORMULA = ("ground v6: cover tiled at tile_size_m and at tile_size_m*phi,
                   "cover normals rotated by the azimuth; mask R 0, G AO times 1 - RELIEF_AO (1 - h01), B 0, "
                   "A 1 - roughness; detail albedo = the detail set's diffuse as grey at its size with a linear mean "
                   "of 0.5; 8-bit sRGB albedos")
+COVER_FORMULA = ("ground cover v3: ground v6 with patches naming only the lodging and, optionally, the asset's relief "
+                 "(patches.relief: its params and generator, whose relief_inputs give lib/mat.py's relief), so no bare "
+                 "patch, no lip and no green strip: albedo = the cover times 1 - RELIEF_TONE (1 - h01) where a relief "
+                 "is named (h01 as ground v6's), with its gaps (the cover gained to gap_albedo, the soil without one) "
+                 "and the straw gain for albedo_target, then a global gain against clipping; normal = the cover's "
+                 "rotated by the azimuth; mask R 0, G the cover's AO times 1 - RELIEF_AO (1 - h01) where a relief is "
+                 "named, B 0, A (1 - roughness) times the cover's smoothness_scale (1 without one); detail albedo as "
+                 "ground v6")
 GROUND_MAPS = ("albedo", "normal", "mask", "detail_albedo")
 PALETTE_FORMULA = ("palette v2: one column PALETTE_BLOCK_PX x PALETTE_HEIGHT_PX per colour, left to right in the "
                    "recipe's order, its stops spread evenly from the bottom to the top and interpolated in linear light, "
@@ -239,6 +267,10 @@ def derive(root, manifest, material):
         return far_card(root, material, recipe)
     kind = recipe.get("kind")
     if kind == "ground":
+        if recipe.get("space") == "wall":
+            return derive_wall(root, manifest, material, recipe)
+        if "space" in recipe:
+            raise DeriveError(f"{material}: unknown ground space {recipe['space']!r} (omit it for a patch, or 'wall')")
         return derive_ground(root, manifest, material, recipe)
     if kind == "palette":
         return derive_palette(root, material, recipe)
@@ -607,6 +639,31 @@ def bare_layout_inputs(root, bare, material, size_m):
     return path, inputs, params
 
 
+def cover_relief_inputs(root, spec, material):
+    """(the params path, lib.mat.relief's inputs) of a cover's patches.relief: {"params": the asset's params file,
+    "generator": its generator under tools/blender/generators}, the generator's relief_inputs(params) giving the
+    same relief its mesh and its baked straws are shaped by, in metres from the map's centre."""
+    what = f"{material}.patches.relief"
+    path, name = spec.get("params"), spec.get("generator")
+    if not isinstance(path, str) or not isinstance(name, str) or not re.fullmatch(r"[a-z_]+", name):
+        raise DeriveError(f"{what}: needs \"params\" (the asset's params file) and \"generator\" (its generator)")
+    full = os.path.join(root, path)
+    if not os.path.isfile(full):
+        raise DeriveError(f"{what}.params: no file at {path}")
+    with open(full, encoding="utf-8") as f:
+        params = json.load(f)
+    try:
+        generator = importlib.import_module(f"generators.{name}")
+    except ImportError:
+        raise DeriveError(f"{what}.generator: no generator {name!r} in tools/blender/generators")
+    if not hasattr(generator, "relief_inputs"):
+        raise DeriveError(f"{what}.generator: {name} defines no relief_inputs(params)")
+    try:
+        return path, generator.relief_inputs(params)
+    except (KeyError, TypeError, ValueError) as e:
+        raise DeriveError(f"{what}.params: {path} does not give {name}'s relief ({e})")
+
+
 def ground_recipe(root, recipe, material):
     """Validates a ground recipe and returns its numbers as plain values (shares, sizes, colours in linear RGB)."""
     _number(recipe, "seed", material, integer=True)
@@ -614,30 +671,47 @@ def ground_recipe(root, recipe, material):
     output_px = _number(recipe, "output_px", material, lo=16, hi=MAX_OUTPUT_PX, integer=True)
     soil, cover, detail = (_set_ref(recipe, k, material) for k in ("soil", "cover", "detail"))
     patch_spec = _object(recipe, "patches", material)
-    bare, green, lodging = (_object(patch_spec, k, f"{material}.patches") for k in ("bare", "green", "lodging"))
-    layout_params, layout_inputs, params = bare_layout_inputs(root, bare, material, size_m)
-    if green.get("params") != layout_params:
-        raise DeriveError(f"{material}.patches.green.params: {green.get('params')!r} must name the bare patches' params "
-                          f"file {layout_params!r} (the strips are the asset's, measured outside its bare patches)")
-    try:
-        green_inputs, relief_inputs = mat.green_inputs(params), mat.relief_inputs(params)
-    except (KeyError, TypeError) as e:
-        raise DeriveError(f"{material}.patches.green.params: {layout_params} lacks the key {e} (green.share, "
-                          "green.width_m, green.length_m, cell_m, relief_m)")
-    green_share = green_inputs["share"]
-    if not 0 <= green_share <= 1:
-        raise DeriveError(f"{material}.patches.green.params: green.share {green_share} must lie in [0, 1]")
-    if layout_inputs["share"] + green_share > 1:
-        raise DeriveError(f"{material}.patches: the bare share {layout_inputs['share']} + green.share {green_share} "
-                          "exceeds 1")
+    lodging = _object(patch_spec, "lodging", f"{material}.patches")
+    relief_params = None
+    if "bare" not in patch_spec and "green" not in patch_spec:  # a cover: no patch, no strip
+        layout_params = layout_inputs = green_inputs = relief_inputs = green_tint = None
+        if "relief" in patch_spec:  # the tone of the asset's own relief, from its generator (p1-e01-trench task 1.6)
+            relief_params, relief_inputs = cover_relief_inputs(root, _object(patch_spec, "relief",
+                                                                              f"{material}.patches"), material)
+    elif "smoothness_scale" in cover or "relief" in patch_spec:
+        if "relief" in patch_spec:
+            raise DeriveError(f"{material}.patches.relief: only a cover names its relief; a ground recipe's is its "
+                              "bare patches' params file's")
+        raise DeriveError(f"{material}.cover.smoothness_scale: only a cover (patches naming only the lodging) takes it")
+    else:
+        bare, green = (_object(patch_spec, k, f"{material}.patches") for k in ("bare", "green"))
+        layout_params, layout_inputs, params = bare_layout_inputs(root, bare, material, size_m)
+        if green.get("params") != layout_params:
+            raise DeriveError(f"{material}.patches.green.params: {green.get('params')!r} must name the bare patches' "
+                              f"params file {layout_params!r} (the strips are the asset's, measured outside its bare "
+                              "patches)")
+        try:
+            green_inputs, relief_inputs = mat.green_inputs(params), mat.relief_inputs(params)
+        except (KeyError, TypeError) as e:
+            raise DeriveError(f"{material}.patches.green.params: {layout_params} lacks the key {e} (green.share, "
+                              "green.width_m, green.length_m, cell_m, relief_m)")
+        green_share = green_inputs["share"]
+        if not 0 <= green_share <= 1:
+            raise DeriveError(f"{material}.patches.green.params: green.share {green_share} must lie in [0, 1]")
+        if layout_inputs["share"] + green_share > 1:
+            raise DeriveError(f"{material}.patches: the bare share {layout_inputs['share']} + green.share {green_share} "
+                              "exceeds 1")
+        green_tint = _colour(green, "tint", f"{material}.patches.green")
     return {
         "seed": recipe["seed"], "size_m": size_m, "output_px": output_px,
         "soil": soil, "cover": cover, "detail": detail,
         "soil_target": _colour(soil, "albedo_target", f"{material}.soil") if "albedo_target" in soil else None,
         "gap_share": _number(cover, "gap_share", f"{material}.cover", lo=0, hi=0.5) if "gap_share" in cover else 0.0,
         "gap_albedo": _colour(cover, "gap_albedo", f"{material}.cover") if "gap_albedo" in cover else None,
+        "smoothness_scale": (_number(cover, "smoothness_scale", f"{material}.cover", lo=0, hi=1)
+                             if "smoothness_scale" in cover else 1.0),
         "layout_params": layout_params, "layout": layout_inputs, "green": green_inputs, "relief": relief_inputs,
-        "green_tint": _colour(green, "tint", f"{material}.patches.green"),
+        "relief_params": relief_params, "green_tint": green_tint,
         "azimuth_deg": _number(lodging, "azimuth_deg", f"{material}.patches.lodging", lo=-360, hi=360),
         "bias": _number(lodging, "bias", f"{material}.patches.lodging", lo=0, hi=1),
         "target": _colour(recipe, "albedo_target", material),
@@ -837,10 +911,16 @@ def derive_ground(root, manifest, material, recipe):
     g = ground_recipe(root, recipe, material)
     sets = {"soil": g["soil"]["texture_set"], "cover": g["cover"]["texture_set"], "detail": g["detail"]["texture_set"]}
     maps = {role: _load_set(root, manifest, texture_set, material, role) for role, texture_set in sets.items()}
-    stamp = {"material": material, "kind": "ground", "formula": GROUND_FORMULA, "pillow": PIL.__version__,
-             "constants": _constants(GROUND_CONSTANTS),
-             "layout": {"params": g["layout_params"], "inputs": g["layout"], "constants": patches.constants(),
-                        "green": g["green"], "relief": g["relief"], "fields": mat.constants()},
+    cover_only = g["layout"] is None
+    if not cover_only:
+        layout_stamp = {"params": g["layout_params"], "inputs": g["layout"], "constants": patches.constants(),
+                        "green": g["green"], "relief": g["relief"], "fields": mat.constants()}
+    elif g["relief"] is not None:  # a cover toned by its asset's relief
+        layout_stamp = {"params": g["relief_params"], "relief": g["relief"], "fields": mat.constants()}
+    else:
+        layout_stamp = None
+    stamp = {"material": material, "kind": "ground", "formula": COVER_FORMULA if cover_only else GROUND_FORMULA,
+             "pillow": PIL.__version__, "constants": _constants(GROUND_CONSTANTS), "layout": layout_stamp,
              "recipe": recipe,
              "sources": {f"{role}/{name}": {"name": os.path.basename(path), "sha256": fetch.sha256(path)}
                          for role in ("soil", "cover", "detail") for name, path in sorted(maps[role].items())
@@ -869,13 +949,14 @@ def derive_ground(root, manifest, material, recipe):
 
     rng = random.Random(g["seed"])
     try:
-        layout = patches.layout(**g["layout"])
-        regrowth = mat.green(**g["green"], bare_patches=layout["patches"])
+        layout = {"patches": [], "share": 0.0} if cover_only else patches.layout(**g["layout"])
+        regrowth = {"strips": []} if cover_only else mat.green(**g["green"], bare_patches=layout["patches"])
     except ValueError as e:
         raise DeriveError(f"{material}: {e}")
     bare = bare_layer(layout["patches"], out_px, size_m)
     green = green_layer(regrowth["strips"], out_px, size_m)
-    relief = relief_layer(mat.relief(**g["relief"]), g["relief"]["relief_m"], out_px, size_m)
+    relief = (None if g["relief"] is None
+              else relief_layer(mat.relief(**g["relief"]), g["relief"]["relief_m"], out_px, size_m))
     soil_albedo, cover_albedo = soil("diffuse"), cover("diffuse")
     soil_gain = [1.0, 1.0, 1.0]
     if g["soil_target"] is not None:
@@ -897,8 +978,9 @@ def derive_ground(root, manifest, material, recipe):
     bare_soil_share = coverage(bare)  # the soil the bare mask shows in the floors, before the strewn straws
     bare = ImageChops.multiply(bare, scatter)
     # The relief's hollows: darker straws and less ambient light (G 1-12).
-    tone = relief.point(lambda v: round(255 * (1 - RELIEF_TONE * (1 - v / 255))))
-    cover_albedo = ImageChops.multiply(cover_albedo, Image.merge("RGB", (tone, tone, tone)))
+    if relief is not None:
+        tone = relief.point(lambda v: round(255 * (1 - RELIEF_TONE * (1 - v / 255))))
+        cover_albedo = ImageChops.multiply(cover_albedo, Image.merge("RGB", (tone, tone, tone)))
     soil_mask = ImageChops.lighter(bare, lip)
     bare_share = layout["share"]  # the outlines'
     floor_soil_share = coverage(ImageChops.multiply(soil_mask, floors)) / max(1e-6, coverage(floors))
@@ -914,18 +996,21 @@ def derive_ground(root, manifest, material, recipe):
     litter_share = coverage(gaps, outside=soil_mask)
     strip_share = coverage(shown, outside=ImageChops.lighter(soil_mask, gaps))
     straw_share = max(1e-6, 1 - soil_share - litter_share - strip_share)
+    tints = [0.0, 0.0, 0.0] if cover_only else g["green_tint"]  # a cover has no strip: strip_share is 0
     straw_target = [(t - soil_share * s - litter_share * lt - strip_share * tint) / straw_share
-                    for t, s, lt, tint in zip(g["target"], linear_means(soil_albedo), linear_means(litter), g["green_tint"])]
+                    for t, s, lt, tint in zip(g["target"], linear_means(soil_albedo), linear_means(litter), tints)]
     straw, straw_gain = match_mean(cover_albedo, [max(0.001, t) for t in straw_target])
-    strips, _ = match_mean(cover_albedo, g["green_tint"])
+    strips = straw if cover_only else match_mean(cover_albedo, g["green_tint"])[0]
     albedo = Image.composite(soil_albedo, Image.composite(litter, Image.composite(strips, straw, shown), gaps), soil_mask)
     albedo, final_gain = match_mean(albedo, g["target"])
     normal = Image.composite(soil("normal"), rotate_normals(cover("normal"), az), soil_mask)
-    ao = ImageChops.multiply(Image.composite(soil("ao"), cover("ao"), soil_mask),
-                             relief.point(lambda v: round(255 * (1 - RELIEF_AO * (1 - v / 255)))))
+    ao = Image.composite(soil("ao"), cover("ao"), soil_mask)
+    if relief is not None:
+        ao = ImageChops.multiply(ao, relief.point(lambda v: round(255 * (1 - RELIEF_AO * (1 - v / 255)))))
     roughness = Image.composite(soil("roughness"), cover("roughness"), soil_mask)
     zero = Image.new("L", (out_px, out_px), 0)
-    mask = Image.merge("RGBA", (zero, ao, zero, roughness.point(lambda v: 255 - v)))
+    scale = g["smoothness_scale"]
+    mask = Image.merge("RGBA", (zero, ao, zero, roughness.point(lambda v: round((255 - v) * scale))))
     # Grey, so URP's "detail x2" adds the straws' grain without moving the base's hue: per-channel gains on the
     # yellow straw set would amplify its weak blue channel into blue and lilac flecks.
     detail, detail_gain = match_mean(load("detail", "diffuse").convert("L").convert("RGB"), [0.5, 0.5, 0.5])
@@ -948,13 +1033,241 @@ def derive_ground(root, manifest, material, recipe):
     stamp.update({"size": [out_px, out_px], "detail_size": list(detail.size),
                   "outputs": [os.path.basename(outputs[name]) for name in GROUND_MAPS], "measured": measured})
     _write_stamp(stamp_path, stamp)
+    shares = (f"a cover: no bare patch or green strip, the relief tone of {g['relief_params']}"
+              if cover_only and relief is not None else
+              "a cover: no bare patch, green strip or relief tone" if cover_only else
+              f"bare {100 * bare_share:.1f} % ({len(layout['patches'])} outlines from {g['layout_params']}; soil shown "
+              f"{100 * bare_soil_share:.1f} %, {100 * floor_soil_share:.1f} % of the floors with the straws strewn over "
+              f"them), green {100 * green_share:.1f} %")
     return (f"{fetch.relpath(root, outputs['albedo'])}: derived {out_px}x{out_px} ground from soil {sets['soil']} and "
             f"cover {sets['cover']}; mean luminance {measured['mean_luminance']:.4f} (target "
-            f"{measured['target_luminance']:.4f}, {measured['luminance_error_pct']:+.1f} %), bare {100 * bare_share:.1f} % "
-            f"({len(layout['patches'])} outlines from {g['layout_params']}; soil shown {100 * bare_soil_share:.1f} %, "
-            f"{100 * floor_soil_share:.1f} % of the floors with the straws strewn over them), "
-            f"green {100 * green_share:.1f} %, gaps {100 * gap_share:.1f} %, straw gain {measured['straw_gain']}; recipe recorded in "
+            f"{measured['target_luminance']:.4f}, {measured['luminance_error_pct']:+.1f} %), {shares}, "
+            f"gaps {100 * gap_share:.1f} %, straw gain {measured['straw_gain']}; recipe recorded in "
             f"{os.path.basename(stamp_path)}")
+
+
+# --- wall-space ground recipes (a cut's strip) ----------------------------------------------------------------------
+
+WALL_FORMULA = ("wall v1: the strip of lib/strip.py, size_m [u, v] at output_px [w, h], v up the map; base = the loam "
+                "and soil sets each tiled at its tile_size_m along u and v, blended at soil.share, gained to "
+                "albedo_target; per wall row the topsoil band (the params' topsoil_m below the row's top, its edge "
+                "moved by up to TOPSOIL_EDGE_M of value noise on TOPSOIL_LOBE_M cells, feathered over TOPSOIL_FEATHER_M) "
+                "blended to topsoil at TOPSOIL_LEVEL, ROOTS_PER_M root lines per metre hanging ROOT_LEN_M from the lip "
+                "within lib.strip.TOPSOIL_ROOTS_M, ROOT_PX wide, in roots, the clod spill (lib.strip.SPILL_M at the "
+                "row's foot, its top moved by SPILL_EDGE_M of noise, feathered over SPILL_FEATHER_M) blended to spill at "
+                "SPILL_LEVEL; the floor row gained to floor_albedo; normal = the sets' normals blended at soil.share, "
+                "plus on the wall rows spade facets: a lattice of facets.size_m cells jittered by FACET_JITTER, each "
+                "tilted by a seeded tangent of at most 2 relief_m / size_m across u and v, added to the normals' x and "
+                "y; mask R 0, G the sets' AO, B 0, A 1 - roughness; detail albedo = the detail set's diffuse as grey "
+                "at its size with a linear mean of 0.5; 8-bit sRGB albedos")
+TOPSOIL_LEVEL = 0.85      # the topsoil band's blend towards its colour (assumed: a band, not a flat paint)
+TOPSOIL_EDGE_M = 0.08     # the band's lower edge wanders this much (assumed: a soil horizon is never a ruled line)
+TOPSOIL_LOBE_M = 0.6
+TOPSOIL_FEATHER_M = 0.06
+ROOTS_PER_M = 14          # root traces per metre of lip (assumed: grass roots in the top 0.2 m, G's crumbled lips)
+ROOT_LEN_M = (0.05, 0.2)
+ROOT_PX = 2
+SPILL_LEVEL = 0.6         # the clod spill's blend at the wall's foot (assumed)
+SPILL_EDGE_M = 0.06
+SPILL_FEATHER_M = 0.08
+FACET_JITTER = 0.25       # a facet corner moves by up to this share of a cell (assumed: spade cuts, not a grid)
+WALL_CONSTANTS = ("MAX_OUTPUT_PX", "TOPSOIL_LEVEL", "TOPSOIL_EDGE_M", "TOPSOIL_LOBE_M", "TOPSOIL_FEATHER_M",
+                  "ROOTS_PER_M", "ROOT_LEN_M", "ROOT_PX", "SPILL_LEVEL", "SPILL_EDGE_M", "SPILL_FEATHER_M",
+                  "FACET_JITTER")
+
+
+def wall_recipe(root, recipe, material):
+    """Validates a wall-space ground recipe against lib.strip and returns its numbers (colours in linear RGB)."""
+    _number(recipe, "seed", material, integer=True)
+    size = recipe.get("size_m")
+    if size != [strip.U_M, strip.V_M]:
+        raise DeriveError(f"{material}.size_m: {size!r} must be lib/strip.py's [{strip.U_M}, {strip.V_M}]: the generator "
+                          "lays its UVs on that strip")
+    px = recipe.get("output_px")
+    if not (isinstance(px, list) and len(px) == 2 and all(isinstance(v, int) and 16 <= v <= MAX_OUTPUT_PX for v in px)):
+        raise DeriveError(f"{material}.output_px: {px!r} must be [w, h], integers in [16, {MAX_OUTPUT_PX}]")
+    path = recipe.get("params")
+    if not isinstance(path, str) or not os.path.isfile(os.path.join(root, path)):
+        raise DeriveError(f"{material}.params: {path!r} is not an asset params file (the topsoil band is the asset's)")
+    with open(os.path.join(root, path), encoding="utf-8") as f:
+        topsoil_m = json.load(f).get("topsoil_m")
+    if not isinstance(topsoil_m, (int, float)) or not 0 < topsoil_m < strip.BELT_ROW[1] - strip.BELT_ROW[0]:
+        raise DeriveError(f"{material}.params: {path} has no topsoil_m inside a wall row")
+    loam, soil, detail = (_set_ref(recipe, k, material) for k in ("loam", "soil", "detail"))
+    share = _number(soil, "share", f"{material}.soil", lo=0, hi=1)
+    facets = _object(recipe, "facets", material)
+    size_m = _range(facets, "size_m", f"{material}.facets")
+    relief_m = _number(facets, "relief_m", f"{material}.facets", lo=0, hi=0.02)
+    return {"seed": recipe["seed"], "px": px, "params": path, "topsoil_m": topsoil_m, "loam": loam, "soil": soil,
+            "detail": detail, "share": share, "facet_m": size_m, "relief_m": relief_m,
+            **{k: _colour(recipe, k, material) for k in ("albedo_target", "topsoil", "roots", "spill", "floor_albedo")}}
+
+
+def tiled_xy(image, tile_w, tile_h, size):
+    """The image resampled to a tile_w x tile_h tile and repeated over a canvas of `size`."""
+    tile = image.resize((max(1, round(tile_w)), max(1, round(tile_h))), Image.LANCZOS)
+    canvas = Image.new(image.mode, size)
+    for y in range(0, size[1], tile.size[1]):
+        for x in range(0, size[0], tile.size[0]):
+            canvas.paste(tile, (x, y))
+    return canvas
+
+
+def _noise_band(rng, size, px_u, lobe_m):
+    """A row of value noise in [-1, 1] along u, one value per lobe_m, as a list per pixel column."""
+    cells = math.ceil(size[0] / (lobe_m * px_u)) + 2
+    knots = [rng.uniform(-1, 1) for _ in range(cells)]
+    out = []
+    for x in range(size[0]):
+        f = x / (lobe_m * px_u)
+        i = int(f)
+        t = f - i
+        t = t * t * (3 - 2 * t)
+        out.append(knots[i] * (1 - t) + knots[i + 1] * t)
+    return out
+
+
+def _band_mask(size, px_u, px_v, rows, edge, feather_m, top):
+    """An L mask over the wall rows: for each row (bottom, top) metres, 255 from the row's top (top=True) or bottom
+    down (up) to the edge at depth edge[x] metres from it, feathered over feather_m; 0 elsewhere."""
+    w, h = size
+    column = Image.new("L", (w, h), 0)
+    draw = ImageDraw.Draw(column)
+    for bottom, row_top in rows:
+        for x in range(w):
+            if top:
+                y0 = (strip.V_M - row_top) * px_v
+                y1 = y0 + edge[x] * px_v
+            else:
+                y1 = (strip.V_M - bottom) * px_v
+                y0 = y1 - edge[x] * px_v
+            draw.line([(x, y0), (x, y1)], fill=255)
+    return column.filter(ImageFilter.GaussianBlur(max(0.5, feather_m * px_v / 2)))
+
+
+def derive_wall(root, manifest, material, recipe):
+    g = wall_recipe(root, recipe, material)
+    sets = {"loam": g["loam"]["texture_set"], "soil": g["soil"]["texture_set"], "detail": g["detail"]["texture_set"]}
+    maps = {role: _load_set(root, manifest, texture_set, material, role) for role, texture_set in sets.items()}
+    layout = {name: getattr(strip, name) for name in ("U_M", "V_M", "FLOOR_ROW", "FIELD_ROW", "BELT_ROW", "SPILL_M",
+                                                      "TOPSOIL_ROOTS_M")}
+    stamp = {"material": material, "kind": "ground", "space": "wall", "formula": WALL_FORMULA, "pillow": PIL.__version__,
+             "constants": _constants(WALL_CONSTANTS),
+             "layout": {"strip": {k: list(v) if isinstance(v, tuple) else v for k, v in layout.items()},
+                        "params": g["params"], "topsoil_m": g["topsoil_m"]},
+             "recipe": recipe,
+             "sources": {f"{role}/{name}": {"name": os.path.basename(path), "sha256": fetch.sha256(path)}
+                         for role in ("loam", "soil", "detail") for name, path in sorted(maps[role].items())
+                         if name in ("diffuse", "normal", "roughness", "ao")}}
+    stamp["inputs_sha256"] = _inputs_sha256(stamp, ("formula", "pillow", "constants", "layout", "recipe", "sources"))
+    outputs = {name: os.path.join(root, MATERIALS, f"{material}_{name}.png") for name in GROUND_MAPS}
+    stamp_path = os.path.join(root, MATERIALS, f"{material}.recipe.json")
+    if _up_to_date(list(outputs.values()), stamp_path, stamp["inputs_sha256"]):
+        return f"{fetch.relpath(root, outputs['albedo'])}: up to date"
+
+    size = tuple(g["px"])
+    px_u, px_v = size[0] / strip.U_M, size[1] / strip.V_M
+
+    def load(role, name):
+        if name == "ao" and "ao" not in maps[role]:
+            return Image.new("L", (1, 1), 255)
+        image = Image.open(maps[role][name])
+        return image.convert("RGB") if name in ("diffuse", "normal") else grey(image)
+
+    def layer(role, name):
+        tile = g[role]["tile_size_m"]
+        return tiled_xy(load(role, name), tile * px_u, tile * px_v, size)
+
+    rng = random.Random(g["seed"])
+    share = g["share"]
+    base = Image.blend(layer("loam", "diffuse"), layer("soil", "diffuse"), share)
+    walls_rows = (strip.BELT_ROW, strip.FIELD_ROW)
+    row_mask = Image.new("L", size, 0)
+    draw = ImageDraw.Draw(row_mask)
+    for bottom, top in walls_rows:
+        draw.rectangle([0, (strip.V_M - top) * px_v, size[0], (strip.V_M - bottom) * px_v], fill=255)
+    wall, wall_gain = match_mean(base, g["albedo_target"])
+    floor, floor_gain = match_mean(base, g["floor_albedo"])
+    albedo = Image.composite(wall, floor, row_mask)
+    # The topsoil band: darker soil at the top of each wall, its lower edge wandering.
+    noise = _noise_band(rng, size, px_u, TOPSOIL_LOBE_M)
+    band = _band_mask(size, px_u, px_v, walls_rows, [g["topsoil_m"] + TOPSOIL_EDGE_M * n for n in noise],
+                      TOPSOIL_FEATHER_M, top=True)
+    topsoil, _ = match_mean(base, g["topsoil"])
+    albedo = Image.composite(topsoil, albedo, band.point(lambda v: round(v * TOPSOIL_LEVEL)))
+    # The clod spill at each wall's foot.
+    noise = _noise_band(rng, size, px_u, TOPSOIL_LOBE_M / 2)
+    spill_mask = _band_mask(size, px_u, px_v, [(b + 0.1, t) for b, t in walls_rows],
+                            [strip.SPILL_M + SPILL_EDGE_M * n for n in noise], SPILL_FEATHER_M, top=False)
+    spill, _ = match_mean(base, g["spill"])
+    albedo = Image.composite(spill, albedo, spill_mask.point(lambda v: round(v * SPILL_LEVEL)))
+    # The root fringe: thin traces hanging from the lip.
+    draw = ImageDraw.Draw(albedo)
+    colour = tuple(to_srgb8(c) for c in g["roots"])
+    for _, top in walls_rows:
+        for _ in range(round(ROOTS_PER_M * strip.U_M)):
+            x = rng.uniform(0, size[0])
+            depth = min(strip.TOPSOIL_ROOTS_M, rng.uniform(*ROOT_LEN_M))
+            y = (strip.V_M - top) * px_v
+            points = [(x, y)]
+            for k in range(1, 5):
+                points.append((x + rng.uniform(-0.01, 0.01) * px_u * k, y + depth * px_v * k / 4))
+            draw.line(points, fill=colour, width=ROOT_PX)
+    # Normals: the sets' blended, then the spade facets on the wall rows.
+    normal = Image.blend(layer("loam", "normal"), layer("soil", "normal"), share)
+    fx, fy = Image.new("L", size, 128), Image.new("L", size, 128)
+    dx, dy = ImageDraw.Draw(fx), ImageDraw.Draw(fy)
+    cell_m = sum(g["facet_m"]) / 2
+    tilt = 2 * g["relief_m"] / g["facet_m"][1]
+    for bottom, top in walls_rows:
+        nu, nv = math.ceil(strip.U_M / cell_m) + 1, math.ceil((top - bottom) / cell_m) + 1
+        corners = [[((i + rng.uniform(-FACET_JITTER, FACET_JITTER)) * cell_m,
+                     bottom + (j + rng.uniform(-FACET_JITTER, FACET_JITTER)) * cell_m) for j in range(nv + 1)]
+                   for i in range(nu + 1)]
+        for i in range(nu):
+            for j in range(nv):
+                quad = [corners[i][j], corners[i + 1][j], corners[i + 1][j + 1], corners[i][j + 1]]
+                polygon = [(u * px_u, (strip.V_M - v) * px_v) for u, v in quad]
+                tx, ty = rng.uniform(-tilt, tilt), rng.uniform(-tilt, tilt)
+                dx.polygon(polygon, fill=round(128 + 127 * tx))
+                dy.polygon(polygon, fill=round(128 + 127 * ty))
+    keep = row_mask.convert("F")
+    r, gch, b = normal.split()
+    r = ImageMath.lambda_eval(lambda a: a["n"] + (a["f"] - 128) * a["m"] / 255, n=r.convert("F"), f=fx.convert("F"),
+                              m=keep).convert("L")
+    gch = ImageMath.lambda_eval(lambda a: a["n"] + (a["f"] - 128) * a["m"] / 255, n=gch.convert("F"),
+                                f=fy.convert("F"), m=keep).convert("L")
+    normal = Image.merge("RGB", (r, gch, b))
+    ao = ImageChops.multiply(layer("loam", "ao"), layer("soil", "ao")) if share else layer("loam", "ao")
+    roughness = Image.blend(layer("loam", "roughness"), layer("soil", "roughness"), share)
+    zero = Image.new("L", size, 0)
+    mask = Image.merge("RGBA", (zero, ao, zero, roughness.point(lambda v: 255 - v)))
+    detail, detail_gain = match_mean(load("detail", "diffuse").convert("L").convert("RGB"), [0.5, 0.5, 0.5])
+
+    os.makedirs(os.path.dirname(stamp_path), exist_ok=True)
+    for name, image in (("albedo", albedo), ("normal", normal), ("mask", mask), ("detail_albedo", detail)):
+        image.save(outputs[name], "PNG")
+
+    def mean_of(box_rows):
+        crops = [albedo.crop((0, round((strip.V_M - t) * px_v), size[0], round((strip.V_M - b) * px_v)))
+                 for b, t in box_rows]
+        means = [linear_means(c) for c in crops]
+        return [sum(m[k] for m in means) / len(means) for k in range(3)]
+
+    walls, floor_mean = mean_of(walls_rows), mean_of([strip.FLOOR_ROW])
+    measured = {"wall_mean_srgb": "#" + "".join(f"{to_srgb8(c):02x}" for c in walls),
+                "wall_luminance": round(luminance(walls), 4),
+                "floor_mean_srgb": "#" + "".join(f"{to_srgb8(c):02x}" for c in floor_mean),
+                "target_luminance": round(luminance(g["albedo_target"]), 4),
+                "wall_gain": [round(x, 3) for x in wall_gain], "floor_gain": [round(x, 3) for x in floor_gain],
+                "detail_gain": [round(x, 3) for x in detail_gain]}
+    stamp.update({"size": list(size), "detail_size": list(detail.size),
+                  "outputs": [os.path.basename(outputs[name]) for name in GROUND_MAPS], "measured": measured})
+    _write_stamp(stamp_path, stamp)
+    return (f"{fetch.relpath(root, outputs['albedo'])}: derived {size[0]}x{size[1]} wall strip from loam {sets['loam']} "
+            f"and soil {sets['soil']}; walls {measured['wall_mean_srgb']} (luminance {measured['wall_luminance']:.4f}, "
+            f"the base's target {measured['target_luminance']:.4f} before the bands), floor "
+            f"{measured['floor_mean_srgb']}; recipe recorded in {os.path.basename(stamp_path)}")
 
 
 # --- palette recipes ----------------------------------------------------------------------------------------------

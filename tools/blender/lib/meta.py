@@ -1,6 +1,6 @@
 """Asset metadata, schema 1 (design decision 6): assembly from a generator's result, validation of the schema and
-of its conventions (the physics review's R2 and R3), a deterministic writer, and the check against the exported
-FBX. Every number is in asset space (lib.frame) and metres."""
+of its conventions (the physics review's R2 and R3, the ports and wires of p1-l01-l03-pole-wires), a deterministic
+writer, and the check against the exported FBX. Every number is in asset space (lib.frame) and metres."""
 import json
 import math
 import os
@@ -23,8 +23,37 @@ PERPENDICULAR_TOLERANCE = 1e-3  # |edge . normal| / |edge|, per polygon edge
 PLANAR_TOLERANCE_M = 0.010  # AST-05 gives +-2 cm around openings
 SNAG_KINDS = ("edge", "hook")  # a polyline the fiber bends over; a free-ended member from base to tip; each record
                                # names the physics material of the member it follows (p1-v01-locust review-physics §4)
+# A snag record may carry edge_radius_m, the arris the fiber bends over where it is sharper than the record's reach
+# radius_m (a stranded conductor's outer strand, a SIP bundle's core): optional, positive, at most radius_m (the
+# fortifications reading §1, first used by p1-l01-l03-pole-wires' wires).
 KEY_ORDER = ("schema", "id", "variant", "generator", "params_sha256", "units", "frame", "bounds", "lods", "micro",
-             "cull_distance_m", "materials", "collision", "gaps", "wind_volumes", "snag")
+             "cull_distance_m", "materials", "collision", "gaps", "wind_volumes", "ports", "wires", "holes", "snag")
+# Each LOD entry: its mesh, triangles, switch distance and `thin_wire`, whether every slot of that LOD's mesh draws
+# with the thin-wire material (p1-l01-l03-pole-wires, task 1.4), which reads each vertex's radius from its second UV:
+# a wire's tube, a pole's far LODs. The generator says so explicitly ("thin_wire", one bool per LOD, false when it
+# returns none), so a second UV, which is also Unity's lightmap channel, never decides it (review S2).
+# Named attachment points (p1-l01-l03-pole-wires, "Ports and wires in the metadata"): where a generator lets other
+# generators and the map attach, a pole's insulators for the wires. Each: a unique id, a position, a unit direction
+# and the largest conductor diameter its seat holds (task 1.5's reading §1: the compiler refuses a thicker one).
+# Schema 1 stays: the key is additive and always present, [] when none.
+PORT_KEYS = ("id", "position", "direction", "max_diameter_m")
+# Conductors that are map objects rather than collision shapes (same requirement; D-007): per conductor the material
+# slot its tube is drawn in (a slot of physics `cable`), its diameter, mass per metre and sag below the chord at
+# mid-span (PHY-22 derives T = w L^2 / 8 f and k = 4 T / L from them), its axial stiffness EA and rated breaking
+# force (past the slack the span stretches, then breaks: task 1.5's reading §2.2), material `cable`, its damage state
+# and the sampled centre line, two points at least. The map compiler copies them into objects.json; the audit holds
+# the tube to the points. Schema 1 stays: the key is additive and always present, [] when none.
+WIRE_KEYS = ("slot", "diameter_m", "mass_kg_per_m", "sag_m", "axial_stiffness_n", "breaking_force_n", "material",
+             "damage", "points")
+WIRE_NUMBERS = ("diameter_m", "mass_kg_per_m", "sag_m", "axial_stiffness_n", "breaking_force_n")
+WIRE_MATERIAL = "cable"
+WIRE_DAMAGE = ("intact", "cut", "down")  # the lines sheet's states per conductor (§L03)
+# Cuts in the ground (p1-e01-trench, "Holes in the metadata"): per cut an id, its ordered centre line ([x, y, z] in
+# asset space, y the ground), its top width, its depth and its band's width, the band being every point within
+# band_width_m / 2 of the centre line in plan; the map compiler marks the hole cells from the band and the asset's
+# fillers carry the cut. A trench writes its run first, then one record per niche. Schema 1 stays: the key is
+# additive and always present, [] when the asset cuts nothing.
+HOLE_KEYS = ("id", "centre_line", "top_width_m", "depth_m", "band_width_m")
 # Visual-only micro-detail meshes (p1-s04-belt-straw, "Visual-only micro-detail meshes"): a generator may return,
 # per LOD, meshes the importer renders with that LOD and nothing collides with (the baked straws, until the shared
 # micro-detail generator places them at physics parity, AST-10). Listed under "micro" with their kind and count;
@@ -73,13 +102,16 @@ def load_physics_materials(root):
 def assemble(asset_id, variant, generator, params, built, visual_by_slot, impostor_lod=None):
     """The metadata of one variant from the generator's result `built` ({"lods": [Mesh...], "switch_distances_m",
     "cull_distance_m", "materials": [{"slot", "physics"}], "collision", "gaps", "wind_volumes", "snag"}, and
-    optionally "micro": [{"lod", "kind", "count", "mesh": Mesh}]) and the catalog's visual material per slot. A micro
-    mesh is named <variant>_LOD<n>_<kind> and counts towards the bounds, since it is rendered; `impostor_lod`
-    (lib.impostor.lod) follows the mesh LODs when given."""
+    optionally "thin_wire": [bool per LOD], "micro": [{"lod", "kind", "count", "mesh": Mesh}], "ports": [{PORT_KEYS}],
+    "wires": [{WIRE_KEYS}] and "holes": [{HOLE_KEYS}]) and the catalog's visual material per slot. A micro mesh is named <variant>_LOD<n>_<kind>
+    and counts towards the bounds, since it is rendered; `impostor_lod` (lib.impostor.lod) follows the mesh LODs when
+    given."""
     lods = built["lods"]
     switches = built["switch_distances_m"]
-    if len(switches) != len(lods):
-        raise ValueError(f"{variant}: {len(lods)} LODs but {len(switches)} switch distances")
+    thin_wire = built.get("thin_wire", [False] * len(lods))
+    if len(switches) != len(lods) or len(thin_wire) != len(lods):
+        raise ValueError(f"{variant}: {len(lods)} LODs but {len(switches)} switch distances and {len(thin_wire)} "
+                         "thin_wire flags")
     micro = []
     for m in built.get("micro", []):
         if not 0 <= m["lod"] < len(lods):
@@ -98,12 +130,14 @@ def assemble(asset_id, variant, generator, params, built, visual_by_slot, impost
         "schema": SCHEMA, "id": asset_id, "variant": variant, "generator": generator,
         "params_sha256": catalog.params_sha256(params), "units": UNITS, "frame": FRAME,
         "bounds": {"min": lo, "max": hi},
-        "lods": [{"mesh": f"{variant}_LOD{n}", "tris": mesh.triangles(), "switch_distance_m": float(switch)}
-                 for n, (mesh, switch) in enumerate(zip(lods, switches))] + ([impostor_lod] if impostor_lod else []),
+        "lods": [{"mesh": f"{variant}_LOD{n}", "tris": mesh.triangles(), "switch_distance_m": float(switch),
+                  "thin_wire": bool(thin)} for n, (mesh, switch, thin) in enumerate(zip(lods, switches, thin_wire))]
+                + ([impostor_lod] if impostor_lod else []),
         "micro": micro,
         "cull_distance_m": float(built["cull_distance_m"]),
         "materials": materials,
         "collision": built["collision"], "gaps": built["gaps"], "wind_volumes": built["wind_volumes"],
+        "ports": built.get("ports", []), "wires": built.get("wires", []), "holes": built.get("holes", []),
         "snag": built["snag"],
     }
     return _rounded(meta)
@@ -153,8 +187,9 @@ def validate(meta, material_ids):
         problems.append("bounds need min <= max as two 3-vectors")
     lods = meta["lods"]
     if not lods or any(not (isinstance(l.get("mesh"), str) and isinstance(l.get("tris"), int)
-                            and _is_num(l.get("switch_distance_m"))) for l in lods):
-        problems.append("lods need at least one entry with mesh, tris and switch_distance_m")
+                            and _is_num(l.get("switch_distance_m")) and isinstance(l.get("thin_wire"), bool))
+                       for l in lods):
+        problems.append("lods need at least one entry with mesh, tris, switch_distance_m and a boolean thin_wire")
     else:
         switches = [l["switch_distance_m"] for l in lods]
         if switches[0] != 0 or switches != sorted(switches) or len(set(switches)) != len(switches):
@@ -193,6 +228,43 @@ def validate(meta, material_ids):
         problems += [f"wind_volumes[{i}]: {p}" for p in _shape_problems(w)]
         if not (_is_num(w.get("porosity")) and 0 <= w["porosity"] <= 1):
             problems.append(f"wind_volumes[{i}]: porosity must be in [0, 1]")
+    ids = set()
+    for i, port in enumerate(meta["ports"]):
+        if not (isinstance(port, dict) and isinstance(port.get("id"), str) and port["id"]
+                and _is_vec(port.get("position")) and _is_vec(port.get("direction"))
+                and _is_num(port.get("max_diameter_m"))):
+            problems.append(f"ports[{i}]: needs {', '.join(PORT_KEYS)}: a non-empty id, two 3-vectors and a number: "
+                            f"{port}")
+            continue
+        if port["id"] in ids:
+            problems.append(f"ports[{i}]: id {port['id']!r} is not unique")
+        ids.add(port["id"])
+        length = math.sqrt(_dot(port["direction"], port["direction"]))
+        if abs(length - 1) > NORMAL_TOLERANCE:
+            problems.append(f"ports[{i}] {port['id']!r}: direction must be a unit vector within {NORMAL_TOLERANCE:g}, "
+                            f"|d| = {length:.6f}")
+        if not port["max_diameter_m"] > 0:
+            problems.append(f"ports[{i}] {port['id']!r}: max_diameter_m must be positive, got {port['max_diameter_m']}")
+    slots = {m.get("slot"): m.get("physics") for m in meta["materials"] if isinstance(m, dict)}
+    for i, w in enumerate(meta["wires"]):
+        if not (isinstance(w, dict) and all(k in w for k in WIRE_KEYS) and isinstance(w["points"], list)
+                and all(_is_vec(p) for p in w["points"]) and all(isinstance(w[k], str) for k in ("slot", "material", "damage"))
+                and all(_is_num(w[k]) for k in WIRE_NUMBERS)):
+            problems.append(f"wires[{i}]: needs {', '.join(WIRE_KEYS)}: a slot, {len(WIRE_NUMBERS)} numbers, a "
+                            "material, a damage state and a list of 3-vectors")
+            continue
+        if len(w["points"]) < 2:
+            problems.append(f"wires[{i}]: needs a point list of at least 2 points, got {len(w['points'])}")
+        if w["material"] != WIRE_MATERIAL:
+            problems.append(f"wires[{i}]: material must be {WIRE_MATERIAL!r}, got {w['material']!r}")
+        if not (all(w[k] > 0 for k in WIRE_NUMBERS if k != "sag_m") and w["sag_m"] >= 0):
+            problems.append(f"wires[{i}]: diameter_m, mass_kg_per_m, axial_stiffness_n and breaking_force_n must be "
+                            "positive and sag_m at least 0")
+        if w["damage"] not in WIRE_DAMAGE:
+            problems.append(f"wires[{i}]: damage must be one of {', '.join(WIRE_DAMAGE)}, got {w['damage']!r}")
+        if slots.get(w["slot"]) != WIRE_MATERIAL:
+            problems.append(f"wires[{i}]: slot {w['slot']!r} must be a material slot of physics {WIRE_MATERIAL!r}")
+    problems += _hole_problems(meta["holes"])
     for i, s in enumerate(meta["snag"]):
         if not (isinstance(s.get("kind"), str) and isinstance(s.get("points"), list)
                 and all(_is_vec(p) for p in s["points"]) and _is_num(s.get("radius_m"))):
@@ -202,11 +274,40 @@ def validate(meta, material_ids):
                 problems.append(f"snag[{i}]: kind must be one of {', '.join(SNAG_KINDS)}, got {s['kind']!r}")
             if len(s["points"]) < 2:
                 problems.append(f"snag[{i}]: needs at least 2 points, got {len(s['points'])}")
+            edge = s.get("edge_radius_m")
+            if "edge_radius_m" in s and not (_is_num(edge) and 0 < edge <= s["radius_m"]):
+                problems.append(f"snag[{i}]: edge_radius_m must be positive and at most radius_m {s['radius_m']}, "
+                                f"got {edge!r}")
         # p1-v01-locust review-physics §4 and PR4: the physics material of the member the record follows
         if not isinstance(s.get("material"), str):
             problems.append(f"snag[{i}]: needs the material of the member it follows")
         else:
             problems += [f"snag[{i}]: {p}" for p in _material_problems(s["material"], material_ids)]
+    return problems
+
+
+def _hole_problems(holes):
+    """The holes rule: each record a unique non-empty id, a centre line of at least two 3-vectors, a positive top
+    width and depth, and a band no narrower than its top width."""
+    problems, ids = [], set()
+    for i, h in enumerate(holes):
+        if not (isinstance(h, dict) and all(k in h for k in HOLE_KEYS) and isinstance(h["id"], str) and h["id"]
+                and isinstance(h["centre_line"], list) and all(_is_vec(p) for p in h["centre_line"])
+                and all(_is_num(h[k]) for k in ("top_width_m", "depth_m", "band_width_m"))):
+            problems.append(f"holes[{i}]: needs {', '.join(HOLE_KEYS)}: a non-empty id, a list of 3-vectors and three "
+                            f"numbers: {h}")
+            continue
+        label = f"holes[{i}] {h['id']!r}"
+        if h["id"] in ids:
+            problems.append(f"{label}: id is not unique")
+        ids.add(h["id"])
+        if len(h["centre_line"]) < 2:
+            problems.append(f"{label}: needs a centre line of at least 2 points, got {len(h['centre_line'])}")
+        if not (h["top_width_m"] > 0 and h["depth_m"] > 0):
+            problems.append(f"{label}: top_width_m and depth_m must be positive")
+        if h["band_width_m"] < h["top_width_m"]:
+            problems.append(f"{label}: band_width_m {h['band_width_m']} is narrower than its top_width_m "
+                            f"{h['top_width_m']}")
     return problems
 
 
@@ -270,8 +371,11 @@ def _material_problems(material, material_ids):
 def _impostor_problems(lod, index, count):
     """The impostor LOD (lib.impostor; asset-pipeline "Baked impostor LOD"): the last LOD, before the cull; an albedo,
     a normal and a smoothness PNG atlas of IMPOSTOR_MAX_PX at most with their views on a grid; the card's size, one
-    quad; the hashes of the render's inputs and of the three atlases."""
+    quad, never thin_wire (it draws with the impostor shader); the hashes of the render's inputs and of the three
+    atlases."""
     problems = [] if index == count - 1 else ["the impostor must be the last LOD, before the cull"]
+    if lod.get("thin_wire") is not False:
+        problems.append("the impostor's thin_wire must be false: the card draws with the impostor shader")
     record = lod["impostor"]
     if not isinstance(record, dict):
         return problems + ["impostor must be an object"]

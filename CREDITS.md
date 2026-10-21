@@ -15,5 +15,9 @@ the manifest.
 | Bark Brown 01 (2k) | CC0 1.0 | Rob Tuytel | [polyhaven.com/a/bark_brown_01](https://polyhaven.com/a/bark_brown_01) | `unity/Assets/_Project/Art/ThirdParty/polyhaven/bark_brown_01/` (4 files, 28.6 MB) |
 | Brown Mud 02 (2k) | CC0 1.0 | Rob Tuytel | [polyhaven.com/a/brown_mud_02](https://polyhaven.com/a/brown_mud_02) | `unity/Assets/_Project/Art/ThirdParty/polyhaven/brown_mud_02/` (4 files, 21.9 MB) |
 | Dry Straw Grass / Hay Texture (2k) | CC0 1.0 | TextureCan | [www.texturecan.com/details/190/](https://www.texturecan.com/details/190/) | `unity/Assets/_Project/Art/ThirdParty/texturecan/ground_0018/` (4 files, 30.4 MB) |
+| Rough Wood (1k) | CC0 1.0 | Rob Tuytel | [polyhaven.com/a/rough_wood](https://polyhaven.com/a/rough_wood) | `unity/Assets/_Project/Art/ThirdParty/polyhaven/rough_wood/` (4 files, 6.4 MB) |
+| Rough Concrete (1k) | CC0 1.0 | Dimitrios Savva | [polyhaven.com/a/rough_concrete](https://polyhaven.com/a/rough_concrete) | `unity/Assets/_Project/Art/ThirdParty/polyhaven/rough_concrete/` (4 files, 16.4 MB) |
+| Rusty Metal (1k) | CC0 1.0 | Rob Tuytel | [polyhaven.com/a/rusty_metal](https://polyhaven.com/a/rusty_metal) | `unity/Assets/_Project/Art/ThirdParty/polyhaven/rusty_metal/` (4 files, 5.8 MB) |
+| Dirt Floor (1k) | CC0 1.0 | eye-candy.xyz | [polyhaven.com/a/dirt_floor](https://polyhaven.com/a/dirt_floor) | `unity/Assets/_Project/Art/ThirdParty/polyhaven/dirt_floor/` (4 files, 16.5 MB) |
 
 Licences: [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/), [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/). CC0 needs no attribution; the authors are named as thanks.

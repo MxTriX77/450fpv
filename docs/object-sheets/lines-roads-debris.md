@@ -10,7 +10,7 @@
 
 ## How this sheet was made
 
-- **Letters read**, through contact sheets only: C 19 stills at 2/s, D 21 at 2/s, E 24 at 2/s, H 24 at 1/s, L 14 at 2/s; the photos J, K, M, O as single stills. Native-size crops for thin objects and colour sampling: C 1, 3, 5, 7, 8, 12; D 1, 3, 7, 9–14; E 7, 10, 15–18; H 1–3; L 1–2; and regions of J, K, M, O.
+- **Letters read**, through contact sheets only: C 19 stills at 2/s, D 21 at 2/s, E 24 at 2/s, H 24 at 1/s, L 14 at 2/s; the photos J, K, M, O as single stills. Native-size crops for thin objects and colour sampling: C 1, 3, 5, 7, 8, 12; D 1, 3, 7, 9–14; E 7, 10, 15–18; H 1–3; L 1–2; and regions of J, K, M, O. S (50 stills at 2/s, added by `p1-letter-s-village-street`, D-038) through its three contact sheets and single stills, seen from about 12 m up; its full reading is [terrain.md](../reference-notes/terrain.md) §12, its sizes derived from the scene through the pinned feed intrinsics, never from the display.
 - **Reused, not re-measured:** terrain.md §4 B5–B6, §6 S1–S5, §7 (micro-detail), §8 (the `asphalt`, `rubble`, `yard_litter` surface rows), §9; knowledge.md §7.4 (object materials), §9.2, §10 (map format: wires are map objects with point lists, sag and diameter), §14.4; [houses-and-yard.md](houses-and-yard.md) (brick, tile, slate and lintel sizes, the blast-failure order, the C01 tarp, the Y11 line and barrel, the Y03 top wire); [vegetation.md](vegetation.md) (V19–V20 brush, the `deadwood` proposal).
 - **Scale cues:** brick 250 × 120 × 65 mm, door leaf 0.8 × 1.9 m, storey 2.8 m (AST-04); the car wheel in M (a 165/80 R13 tyre is 0.59 m across, derived from the size code: 13 × 25.4 + 2 × 0.8 × 165 mm); a slate sheet 1.13 m wide (J); the drone's own prop line (0.574 m) in the lower corners of every clip still.
 - **Labels:** every number is **measured** (from a letter, with still numbers), **published** (with its source), **derived** (with the derivation) or **assumed**.
@@ -28,6 +28,7 @@
   | One feed pixel at | 0.8 m | 1.4 m | 2.0 m | 2.7 m | 4.1 m | 5.4 m | 8.1 m |
 
 - **Measured:** in J (overcast, a photo at far better resolution than the feed) the service drop is 1–2 px wide and its darkest pixels are only about 15 % darker than the sky (#afb5be on #d6dfe7). In D 12 (hard backlight) the slack cable is a dark silhouette line (#1e1816 on #adaaa4). A wire is a dark line only against a bright sky, and invisible in front light beyond a few metres. **This is the realism target: never thicken or brighten a wire to make it visible.**
+- **Measured in S (overcast, looking down 30–50° from about 12 m onto grass):** the street line's conductors don't read at all; a drop is at most a faint 1 px line beside its pole (S 49). Seen from above, a wire has only the ground behind it, never the sky.
 - A pole (0.2 m) is one feed pixel wide at about 54 m and stays a readable silhouette at night against the brighter sky (L): the L 1 pole is 3.5–4.7 feed px wide, so 12–15 m away if it is 0.2 m thick, and its height in frame (about 7.5 m over 21° of the picture) gives about 20 m: 12–20 m (derived).
 
 ## Reference views (REAL-02)
@@ -45,6 +46,7 @@ Viewpoint heights are estimated from the scene, never from the display. The side
 | L | A night crest with a pole | 2–5 m up, the pole 12–20 m away (L 1–3) | The pole in the left third, leaning about 9°, a short crossarm near the top; a bush and a lone tree on the crest | Night; the sky brighter than the ground; black-and-white feed |
 | M | An asphalt street with an abandoned car | Standing height (1.5 m), 4–6 m from the car | Pale dusty asphalt in the lower half; a shallow water-filled depression behind the car; fine cracks; a kerb, a verge with litter and a fence at the back | Bright sun, hard shadows; late winter or early spring (bare trees) |
 | O | A slushy road at the snowy edge of a settlement | Standing height on the snowy verge, the road 5–30 m away | Dark wet asphalt with slush and dark debris on it, snow banks, bare trees, a lamp post | Overcast, snow light; winter |
+| S | A village asphalt street from the air, its poles, and the debris of a flattened plot and a green | About 12.5 m (11–14 m) up, camera about 30° below the horizon, 10–12 m/s; across the street (S 19–24), then along it over its far edge (S 43–50) (derived, terrain.md §12.2) | Key frame S 47: the pale road from the bottom centre to the upper left, about 6 m wide, ravelled, potholes with puddles, no kerb; a concrete pole with a whitewashed butt in the house-side verge at the centre right; S 22: the street across the frame with a leaning pole and roadside debris; S 17–19: the flattened plot's rubble; S 31–36: slate fragments and a knocked-down slate fence on the green | Bright high overcast, no shadows; daytime; damp; autumn |
 
 ## A correction: the straight dark lines high in C and D are OSD marks, not wires
 
@@ -144,7 +146,7 @@ Outputs: LOD0 with hooks, insulators and bands; LOD1 the pole, stub, brace and c
 
 ## L01 Wooden pole
 
-**Seen in:** L 1–3 (a pole silhouette leaning about 9° with a short crossarm near the top; its material can't be read at night). H's pole reads as concrete and is L02's. J shows no pole, only a drop from one out of frame. **R** for the construction.
+**Seen in:** L 1–3 (a pole silhouette leaning about 9° with a short crossarm near the top; its material can't be read at night). H's pole reads as concrete and is L02's. J shows no pole, only a drop from one out of frame. S 33: a thin dark wooden pole set back on the green beside the end of a flattened fence, near a concrete lamp pole at the road edge (wood mixed with L02 on one street, as placed below). S 20–22: a pale pole leaning about 10° at the street's near verge with a dark stub or band at its foot (variant 3 on a stub, or concrete: not readable from 12 m). **R** for the construction.
 **Research sources:** pole types and braces (Ukrainian ПУЕ cl. 2.4.45–2.4.47, https://dnaop.com/html/41440_3.html ); reinforced-concrete stubs for wooden poles exist as standard products of the ПТ series (published listing, https://satu.kz/Pt-43.html ); pin insulator ТФ-20 108 mm high, 75 mm across (published table, https://dnaop.com/html/54346_2.html ).
 
 ### Dimensions
@@ -194,7 +196,8 @@ Fragments gouge the log on the blast side; a near miss snaps a dry log at the gr
 - **Landable surfaces:** none (a 0.16 m top).
 
 ### Placement rules
-- Street lines: one side of the street, 0.5–1.5 m in from the road edge or along the fence line, every 30–45 m; brace or guy at every angle and at the line ends; a service drop from each pole or every other pole to the houses on both sides.
+- Street lines, the typical village (D-038, letter S): in the house-side verge, 3–5 m from the road edge and 3–5 m in front of the fence line (derived S 46–47, terrain.md §12.3); where the street passes an open green, a few poles stand on the other side too (a lamp pole at the road edge, S 33; a thin pole in the verge, S 42); every 30–45 m; brace or guy at every angle and at the line ends; a service drop from each pole or every other pole to the houses on both sides.
+- Side streets and lanes (no letter shows them): one side, 0.5–1.5 m in from the road edge or along the fence line. L01 as merged carries no placement parameter, so the rule is the world-builder's (phase 3).
 - Wood is the older class: on side streets, lanes and field edges; mixed with L02 along the main street (about one wooden pole in three, assumed).
 - Field lines: in a row along a belt edge or a field road, 40–60 m apart, often leaning (L).
 - Night landmarks: keep at least one pole on a skyline crest near each start point and along each field road (L): a pole is one of the few silhouettes readable at night.
@@ -208,7 +211,7 @@ Shared pole table, with these defaults: `pole_kind` wood_log, `length_m` 9.5, `t
 
 ## L02 Concrete pole with crossarm and insulators
 
-**Seen in:** H 1–4 (a straight grey pole passing 3–4 m to the right: two flat faces meeting at a sharp vertical arris, a clear taper from the butt, and a round through-hole on the lit face at mid-frame, H 2–3; so a vibrated rectangular СВ-type pole, not a round log). O shows a lamp post with a curved arm (the urban class). **R** for the head.
+**Seen in:** H 1–4 (a straight grey pole passing 3–4 m to the right: two flat faces meeting at a sharp vertical arris, a clear taper from the butt, and a round through-hole on the lit face at mid-frame, H 2–3; so a vibrated rectangular СВ-type pole, not a round log). O shows a lamp post with a curved arm (the urban class). S 43–50: the village street's line, pale concrete poles in the house-side verge with their butts whitewashed (S 47–49), one leaning about 10° (S 49), one braced by a raking strut (S 43–44), a crossarm or bracket near the top (S 47); S 33: a concrete pole with a street lamp on a short bracket, on the other side of the street from the line. **R** for the head.
 **Research sources:** the СВ-95 pole: 9.5 m long, 0.36 m³, 0.9 t, for lines from 0.4 kV (published, https://productcenter.ru/products/124963/stoika-sv95-3 ); the СВ-105 stand: 10.5 m long, 0.47 m³, 1.18 t, for lines up to 10 kV (published, https://productcenter.ru/products/124965/sv105-5 ); ПУЕ clauses above.
 
 ### Dimensions
@@ -220,8 +223,10 @@ Shared pole table, with these defaults: `pole_kind` wood_log, `length_m` 9.5, `t
 | Through-holes | round, 20–25 mm, along the pole at intervals for bolts and grounding | 25 mm every 0.5 m in the top 2 m, one at 3.5 m | assumed; measured H 3: one hole at mid-frame |
 | 0.4 kV head (variant 1) | a steel angle crossarm 63 × 63 × 6 mm, 0.8–1.2 m, with 4–5 pin insulators; or a SIP bracket with an anchor clamp 0.3–0.5 m below the top | crossarm 1.0 m, 4 insulators | assumed; insulator size published (L01) |
 | 10 kV head (variant 2) | a steel crossarm 1.5–2.2 m at 0.3 m below the top, three pin insulators about 0.14 m across and 0.13 m high (two on the arm, one on a top pin) | 1.8 m | assumed |
-| Street lamp | a 1.0–1.5 m bracket at 6–6.5 m on every 2nd–3rd pole | none | assumed; O shows the urban form |
-| Lean | 0–15° | 0 (variant 2 of the asset list: leaning 8°) | asset list; measured L 1 for the magnitude |
+| Street lamp | a 1.0–1.5 m bracket at 6–6.5 m on every 2nd–3rd pole | none | assumed; O shows the urban form; S 33 shows a short bracket with a lamp on a village pole (measured presence) |
+| Lean | 0–15° | 0 (variant 2 of the asset list: leaning 8°) | asset list; measured L 1 for the magnitude; S 49: about 10° |
+| Whitewashed butt | lime whitewash on the bottom 0.5–1 m | 0.7 m | measured S 47–49 (a white band at the foot, about a fifth of the visible pole in S 47) |
+| Position across the street | in the house-side verge, 3–5 m from the road edge and 3–5 m in front of the fence line; where the street passes an open green, some poles stand on the other side too (a lamp pole at the road edge, S 33; a thin pole in the verge, S 42) | 4 m | derived (S 46–47 at the 12.5 m camera height, terrain.md §12.3); measured S 33, 42 |
 
 ### Construction and materials
 - Vibrated reinforced concrete (B30, published), cast as a tapered rectangular stand with longitudinal bars, through-holes for the crossarm bolts and the grounding conductor, a grounding wire or strip down one face. Steel angle crossarms bolted through, pin insulators on steel pins or hooks, SIP fittings on a bracket. Grey with rust streaks below every steel part, lichen on the shaded face, chipped arrises at the foot.
@@ -230,7 +235,8 @@ Shared pole table, with these defaults: `pole_kind` wood_log, `length_m` 9.5, `t
 ### Colour
 | Surface | Photo albedo (sRGB) | Feed check value (sRGB) | Source |
 |---|---|---|---|
-| Pole, weathered concrete | #9b9890 | shaded face #4a4640, lit face #5b5c5a, against the overcast sky #e3e4e2 | assumed albedo; measured H 2–3 |
+| Pole, weathered concrete | #9b9890 | shaded face #4a4640, lit face #5b5c5a, against the overcast sky #e3e4e2; from above against grass, lit face #999388 | assumed albedo; measured H 2–3; measured S 49 |
+| Whitewashed butt | lime white about #d8d6cf (assumed) | reads as the brightest spot on the verge (S 47–49) | assumed albedo; measured presence S 47–49 |
 | Rust streaks under fittings | #7a5a42 | — | assumed |
 | Crossarm, rusted steel | #5e4a3a | — | assumed |
 
@@ -267,7 +273,7 @@ Shared pole table, with these defaults: `pole_kind` concrete_sv, `length_m` 9.5 
 
 ## L03 Wires (generator: catenary between poles, sag)
 
-**Seen in:** J (a service drop from a pole out of frame to the left house's roof, nearly straight over its visible length, 1–2 px wide; a fainter line crossing behind the right house; a low wire leaving the left house toward the left edge); D 9–12 (the slack cable, L04's); K (thin lines across the sky beyond the block). Not in C (see the correction above).
+**Seen in:** J (a service drop from a pole out of frame to the left house's roof, nearly straight over its visible length, 1–2 px wide; a fainter line crossing behind the right house; a low wire leaving the left house toward the left edge); D 9–12 (the slack cable, L04's); K (thin lines across the sky beyond the block). Not in C (see the correction above). S 49–50: from about 12 m up against grass, the street line's conductors and drops don't read, only one faint 1 px line beside a pole (see "How thin objects read on the feed").
 **Research sources:** the conductor, height, spacing and span tables above (ГОСТ 839; the SIP datasheets; Ukrainian ПУЕ cl. 2.4.13–2.4.50).
 
 ### Dimensions
@@ -341,7 +347,7 @@ See "How lines fail" above. A cut aluminium conductor unravels at the end (stran
 
 ## L04 Fallen or sagging wire across a yard
 
-**Seen in:** D 9–12 (a dark cable leaving the dead trunk at about 1.5–2.5 m and arcing right over the shrubs, smooth and even in thickness over about 6–10 m of its visible length, highest over the shrubs and dropping toward the trunk and into the weeds: a slack line draped over the vegetation, not a tensioned span).
+**Seen in:** D 9–12 (a dark cable leaving the dead trunk at about 1.5–2.5 m and arcing right over the shrubs, smooth and even in thickness over about 6–10 m of its visible length, highest over the shrubs and dropping toward the trunk and into the weeds: a slack line draped over the vegetation, not a tensioned span). S 49 (possible): a faint thin line lying across the verge grass from the leaning pole toward a yard, a drop down (variant 2); too faint to measure.
 **Research sources:** none beyond the L03 tables.
 
 ### Dimensions
@@ -460,26 +466,27 @@ A cable hangs wherever a ceiling, slab edge or eave was torn open: one per room 
 
 ## RD01 Asphalt road kit: straight, curve, junction; potholes, crater decals, cracked edges
 
-**Seen in:** M (a pale, dusty, worn asphalt street with fine dark cracks, scattered gravel and twigs, a lighter patched area, a shallow irregular depression holding water behind the car, a kerb with a painted face at the back); O (dark wet asphalt under slush, snow banks on both sides, dark debris on the carriageway). No asphalt appears in any clip (terrain.md §9).
+**Seen in:** M (a pale, dusty, worn asphalt street with fine dark cracks, scattered gravel and twigs, a lighter patched area, a shallow irregular depression holding water behind the car, a kerb with a painted face at the back); O (dark wet asphalt under slush, snow banks on both sides, dark debris on the carriageway). S (the first clip with asphalt, terrain.md §12.3): the typical village's main street from about 12 m up, crossed at S 19–24 and followed at S 43–50: pale worn asphalt about 6 m wide, no kerb and no centre line, edges ravelled into gravel-and-mud shoulders, shallow potholes and patches over much of it, puddles in the low ones, dark tyre lines along the lanes, twigs and a few fragments on it, no ditch.
 **Research sources:** lane widths 3.0 m on main village streets and roads and 2.75 m on local streets (published: ДБН В.2.3-5:2018 as reported at https://www.kmu.gov.ua/news/v-ukrayini-vzhe-mozhna-zvuzhuvati-dorogi-pri-yih-rekonstrukciyi-ta-budivnictvi-lev-parchaladze ); a maintained road may not carry a hole deeper than 4 cm (higher categories) or 6 cm (the rest) (published: ДСТУ 3587 cl. 3.1.2, https://dnaop.com/html/60501/doc-%D0%94%D0%A1%D0%A2%D0%A3_3587-97 ), so the holes of an unmaintained frontline road are deeper.
 
 ### Dimensions
 | Part | Range | Chosen default | Label |
 |---|---|---|---|
-| Carriageway, main village street | 5.5–7.0 m | 6.0 m | published (2 × 3.0 m lanes); older streets narrower (assumed) |
+| Carriageway, main village street | 5.5–7.0 m | 6.0 m | published (2 × 3.0 m lanes); older streets narrower (assumed); S: 5–7 m, about 6 m edge to edge (derived: S 22 depression angles of both edges, S 46–47 both edges projected to the ground at the 12.5 m camera height) |
 | Carriageway, side street | 3.5–5.5 m | 4.5 m | published 2.75 m lanes; single-lane assumed |
-| Shoulder (soil and grass) | 0.5–2.0 m | 1.0 m | assumed |
+| Shoulder (soil and grass) | 0.5–2.0 m | 1.0 m | assumed; S: gravel and mud 0.5–1.5 m with grass creeping on (measured against the road width, S 45–48) |
 | Asphalt layer | 40–80 mm | 50 mm | assumed (light-duty village pavement) |
 | Crushed-stone base | 150–250 mm | 200 mm | assumed |
 | Crossfall | 1.5–3 % | 2 % | assumed |
 | Edge drop to the shoulder | 0–100 mm | 50 mm | derived (the layer thickness where the shoulder has eroded) |
-| Ravelled edge | 0.1–0.6 m into the lane, broken into plates 0.1–0.4 m | 0.3 m | assumed; M shows a broken edge at the verge |
-| Patches | 0.5–3 m rectangles, 5–20 % of the area, a shade darker or lighter | 10 % | measured M (a lighter patched area), sizes assumed |
+| Ravelled edge | 0.1–0.6 m into the lane, broken into plates 0.1–0.4 m | 0.3 m | assumed; M shows a broken edge at the verge; S 45–48: 0.2–0.5 m on both edges (measured against the road width) |
+| Patches | 0.5–3 m rectangles, 5–20 % of the area, a shade darker or lighter | 10 % | measured M (a lighter patched area), sizes assumed; S 22, 45–48: patches and shallow potholes over much of the surface, more than the default (measured, rough) |
 | Cracks | 2–20 mm wide, in cells of 0.3–1.5 m and along the edges | — | measured M (fine dark cracks), sizes assumed |
 | Potholes | 0.2–2.0 m across, 40–150 mm deep, often holding water | 0.6 m, 70 mm | published threshold (above); measured M: a shallow depression about 1.3 m across the view and 1.5–2.2 m along it (scaled from the 0.59 m wheel: about 2.2 wheel widths) |
 | Crater in asphalt (with the E05 crater) | 1–4 m across, the asphalt lifted in slabs 0.2–0.8 m around the rim, radial cracks to 1–3 radii | 2 m | E05 in the earthworks sheet; ring assumed |
 | Fragment pits | 10–60 mm across, 5–30 mm deep, within 5–15 m of a crater | — | assumed |
-| Kerb (urban edge only) | stones 0.15 × 0.30 × 1.0 m, 0.10–0.15 m above the carriageway | — | measured M (a kerb at the back, urban); village streets have none (assumed) |
+| Kerb (urban edge only) | stones 0.15 × 0.30 × 1.0 m, 0.10–0.15 m above the carriageway | — | measured M (a kerb at the back, urban); village streets have none (assumed; S 22, 43–48 confirms: no kerb, measured) |
+| Puddles (S) | 1–3 m long in the lower potholes, after rain | — | measured S 45–48 (against the road width) |
 | Kit pieces | straight 10 and 20 m; curves of radius 15–40 m; T and X junctions; an end that crumbles into a dirt track (RD03) | — | assumed (asset list) |
 
 ### Construction and materials
@@ -492,6 +499,8 @@ A cable hangs wherever a ceiling, slab edge or eave was torn open: one per room 
 | Dusty asphalt, dry, near | #b2aca2 | — (no clip) | measured M |
 | Dusty asphalt, dry, mid-distance | #bdbab5 | — | measured M; terrain.md #b7b2aa |
 | Water in a depression | #919094 | — | measured M |
+| Worn asphalt, damp, overcast, from 12 m | as above | near #bbb7c8, #bac1d3; at about 45 m #a9a0a1; far #bebbca | measured S 46, 48; S 45; S 43 |
+| Puddle; wet patch; muddy gravel shoulder | — | #9da4b4; #a9adbc; #aba4ad | measured S 48; S 47; S 47 |
 | Wet asphalt under slush | #59595e | — | measured O; terrain.md #525256 |
 | Snow on the verge | #cbd3e0 | — | measured O; terrain.md #ccd4e1 |
 
@@ -515,7 +524,7 @@ Asphalt fails by cracking (fatigue and frost), then the cracked cells lose their
 
 ### Placement rules
 - One asphalt main street through each village, joining the next village; side streets are dirt or gravel (RD03); the asphalt ends in a crumbled edge where it meets a field road.
-- Houses 5–15 m back behind their fences; L01/L02 poles along one side; abandoned and destroyed vehicles on and beside it (the vehicles sheet), with K07 debris around them; damage concentrated near the village centre and the junctions (assumed).
+- Houses 5–15 m back behind their fences; L01/L02 poles along one side (S, the typical village: the fence 7–9 m, the house front 12–16 m and the poles 3–5 m from the road edge, derived S 46–47, terrain.md §12.3; a few poles on the other side where the street passes a green, S 33, 42); abandoned and destroyed vehicles on and beside it (the vehicles sheet), with K07 debris around them; damage concentrated near the village centre and the junctions (assumed).
 
 ### Generator parameters
 | Param | Type | Range | Default | Effect |
@@ -610,7 +619,7 @@ Plates rarely break in place; a burst beside the track tips and lifts plates, a 
 
 ## RD03 Dirt track ruts (decal plus surface)
 
-**Seen in:** L (faint field tracks at night, too dark to measure; terrain.md §9); **R**.
+**Seen in:** L (faint field tracks at night, too dark to measure; terrain.md §9); S 28–30 (tyre arcs pressed into the short grass of a village green, paired and circling, no ruts: the first sign of driving, not yet a track); **R**.
 **Research sources:** none; vehicle tracks are in the vehicles sheet (published specs there).
 
 ### Dimensions
@@ -693,7 +702,7 @@ Craters in the track (E05), tracks detouring around them in a widened, braided b
 
 ## K01 Bricks: whole, halves, chunks; brick clusters
 
-**Seen in:** C 1–8 (red brick bits at the foot of the cellar head's piers); D 12–14 (a pile of flat pale stone slabs with red brick beside them, the pile D's flight dives onto); E (the chimney's brick, the adobe heap is H01's); J (silicate bricks and blocks heaped along the right house's wall, pieces 0.1–0.3 m with many smaller); K (the mound's main material: sandy-red bricks, many of them perforated, single and in mortared clusters 0.5–0.8 m); I (terrain.md B5).
+**Seen in:** C 1–8 (red brick bits at the foot of the cellar head's piers); D 12–14 (a pile of flat pale stone slabs with red brick beside them, the pile D's flight dives onto); E (the chimney's brick, the adobe heap is H01's); J (silicate bricks and blocks heaped along the right house's wall, pieces 0.1–0.3 m with many smaller); K (the mound's main material: sandy-red bricks, many of them perforated, single and in mortared clusters 0.5–0.8 m); I (terrain.md B5). S 15–19: a flattened, burnt house's footprint seen from 10–12 m up: red brick in heaps and spreads, pale wall stubs under 1 m, a masonry stove block standing 1–1.5 m (`feed` red brick #957266, mixed rubble #908188, stove block #91626b; S 17–18).
 **Research sources:** AST-04 (brick 250 × 120 × 65 mm), the thickened 88 mm brick (published, houses-and-yard.md shared section); the existing generator `tools/blender/generators/debris_brick.py` and `assets-src/debris/K01_whole.json`.
 
 ### Dimensions
@@ -766,7 +775,7 @@ Bricks come out whole or halved along the bed joints where mortar is weak (house
 
 ## K02 Clay tile shards; slate (шифер) fragments
 
-**Seen in:** E 7, 10 (tile shards 0.1–0.35 m heaped along the wall foot, a few nearly whole tiles among them; more inside, E 16); J (asbestos-cement slate: whole and half sheets about 1.1 m wide stacked and leaning in the debris, fragments 0.1–0.6 m scattered between the houses and the street).
+**Seen in:** E 7, 10 (tile shards 0.1–0.35 m heaped along the wall foot, a few nearly whole tiles among them; more inside, E 16); J (asbestos-cement slate: whole and half sheets about 1.1 m wide stacked and leaning in the debris, fragments 0.1–0.6 m scattered between the houses and the street). S: pale slate fragments 0.2–1 m scattered over a village green, about one per 20–40 m² and several per m² along a slate fence knocked flat (S 29–36, measured roughly); the slate of stripped hip roofs lying on the houses' ceilings, mostly intact but holed (S 50), instead of on the ground (S 45–50); whole slate sheets on the flattened plot (S 17–19).
 **Research sources:** houses-and-yard.md shared section (tile and slate sizes, the blast fracture of asbestos-cement sheet).
 
 ### Dimensions
@@ -789,6 +798,7 @@ Bricks come out whole or halved along the bed joints where mortar is weak (house
 | Tile shards at the foot | about #a0613f (as H01 tiles) | #825e3f (E 10), #805c43 (E 7), #825f44 (terrain.md) | measured E |
 | Slate, weathered upper face | #736767 | — | houses-and-yard (J) |
 | Slate stack in shade | #5a5048 | — | measured J |
+| Slate fragment on grass; fallen slate fence sheets (overcast, from 12 m) | as above | #8695a6; #93a7ab | measured S 33; S 36 |
 
 ### Variants and states
 - Tile: shard (seeded outline), whole, ridge piece. Slate: whole sheet, half sheet, fragment (seeded outline), a stack of 2–6. States: clean, mossy, sooted.
@@ -823,7 +833,7 @@ Tiles lift, slide and break at the eaves and the foot; slate shatters and scatte
 
 ## K03 Planks, beams, broken rafters
 
-**Seen in:** E 7 (the plank lean-to: grey boards and a board panel broken off and leaning; battens and rafters on the stripped roof); E 16 (ceiling boards 0.1–0.2 m wide and 0.5–1.5 m long on the floor among plaster slabs); J (a beam about 0.15–0.18 m wide and about 2.8 m long leaning at 60° against the debris, scaled from the 0.8 m door; planks, posts and poles among the slate); K (timber in the mound and a cut log in two sections 0.25–0.3 m across); C 7, 12 (the cellar head's boards).
+**Seen in:** E 7 (the plank lean-to: grey boards and a board panel broken off and leaning; battens and rafters on the stripped roof); E 16 (ceiling boards 0.1–0.2 m wide and 0.5–1.5 m long on the floor among plaster slabs); J (a beam about 0.15–0.18 m wide and about 2.8 m long leaning at 60° against the debris, scaled from the 0.8 m door; planks, posts and poles among the slate); K (timber in the mound and a cut log in two sections 0.25–0.3 m across); C 7, 12 (the cellar head's boards). S: boards and rafters in the flattened plot's rubble (S 17–19), boards on the street verge (S 21–22), boards and rafter stubs on the stripped ceilings (S 45–50).
 **Research sources:** sawn softwood: boards 16–44 mm and beams 50–100 mm thick, widths from 75 mm in 25 mm steps (published, the ГОСТ 24454 and 26002 classes, https://dnaop.com/html/66566/doc-%D0%93%D0%9E%D0%A1%D0%A2_24454-80 ); roof timber sizes from houses-and-yard.md.
 
 ### Dimensions
@@ -887,7 +897,7 @@ Battens and rafters snap at mid-span or at the plate with long splinters (houses
 
 ## K04 Corrugated sheet, bent sheet metal
 
-**Seen in:** N per the asset list (the vehicles sheet; terrain.md S4). In this sheet's letters no steel sheet is certain: the wavy grey sheets in J read as asbestos-cement slate (K02). **R** for the rest.
+**Seen in:** N per the asset list (the vehicles sheet; terrain.md S4). In this sheet's letters no steel sheet is certain: the wavy grey sheets in J read as asbestos-cement slate (K02). S, the first steel sheet in a clip: corrugated roof sheets peeled from outbuildings and curled into arcs about 1–3 m across (measured, rough), still attached at one edge (S 16–20); a red-painted roof sheet lying on the street verge (S 21–22); red-painted sheets among yard buildings (S 44–45). **R** for the rest.
 **Research sources:** corrugated galvanised iron from about 0.3 mm upward, today nearly always at a 76 mm pitch (published, https://en.wikipedia.org/wiki/Corrugated_galvanised_iron ); corrugated panels fail at 7–14 kPa (published, houses-and-yard.md's blast thresholds).
 
 ### Dimensions
@@ -1065,7 +1075,7 @@ Lintels crack and drop when the brick above them goes; slabs crack at their supp
 
 ## K08 Household items: fridge, wardrobe, mattress, radiator, chair
 
-**Seen in:** K (two-door chipboard wardrobes in the open rooms and a brown wardrobe panel in the mound, shelving, a cast-iron radiator under a window, a sofa back, dark appliance housings, PVC window frames, a TV); I (sheets and plastic, terrain.md S5).
+**Seen in:** K (two-door chipboard wardrobes in the open rooms and a brown wardrobe panel in the mound, shelving, a cast-iron radiator under a window, a sofa back, dark appliance housings, PVC window frames, a TV); I (sheets and plastic, terrain.md S5). S 17–19: a village house's contents in its flattened footprint: a heap of white window frames, a rusted steel frame (a bed or a stand), a broken box (S 21–22, on the verge).
 **Research sources:** a cast-iron sectional radiator of the МС-140 type is about 585 mm high with 500 mm between the connections (published listing, https://catalog.onliner.by/radiators/llmz ) and 140 mm deep (from the type name).
 
 ### Dimensions

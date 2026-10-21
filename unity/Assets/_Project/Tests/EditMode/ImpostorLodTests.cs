@@ -37,8 +37,8 @@ namespace Fpv450.Tests.EditMode
   ""params_sha256"": ""0"", ""units"": ""m"", ""frame"": ""unity-lh-yup"",
   ""bounds"": { ""min"": [0.0, 0.0, 0.0], ""max"": [0.3, 0.1, 0.2] },
   ""lods"": [
-    { ""mesh"": ""xsign_probe"", ""tris"": 12, ""switch_distance_m"": 0.0 },
-    { ""mesh"": ""impostor_probe_impostor"", ""tris"": 2, ""switch_distance_m"": 30.0,
+    { ""mesh"": ""xsign_probe"", ""tris"": 12, ""switch_distance_m"": 0.0, ""thin_wire"": false },
+    { ""mesh"": ""impostor_probe_impostor"", ""tris"": 2, ""switch_distance_m"": 30.0, ""thin_wire"": false,
       ""impostor"": { ""atlas"": ""impostor_probe_impostor.png"", ""normals"": ""impostor_probe_impostor_normal.png"",
                     ""smoothness"": ""impostor_probe_impostor_smoothness.png"", ""size_px"": [1024, 1024], ""views"": 8, ""columns"": 4, ""rows"": 2, ""elevation_deg"": 15.0,
                     ""card"": { ""width_m"": 0.4, ""height_m"": 0.6, ""bottom_m"": -0.05 },
@@ -50,7 +50,7 @@ namespace Fpv450.Tests.EditMode
   ""micro"": [],
   ""cull_distance_m"": 100.0,
   ""materials"": [ { ""slot"": ""probe"", ""visual"": ""brick_red"", ""physics"": ""masonry"" } ],
-  ""collision"": [], ""gaps"": [], ""wind_volumes"": [], ""snag"": []
+  ""collision"": [], ""gaps"": [], ""wind_volumes"": [], ""ports"": [], ""wires"": [], ""holes"": [], ""snag"": []
 }
 ";
 

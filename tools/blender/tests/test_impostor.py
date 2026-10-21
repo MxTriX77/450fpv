@@ -219,6 +219,7 @@ def test_impostor_lod_is_the_last_before_the_cull(k01_params, material_ids):
     assert [lod["mesh"] for lod in data["lods"]] == ["K01_whole_LOD0", "K01_whole_LOD1", "K01_whole_impostor"]
     assert last["switch_distance_m"] == 60.0 and data["cull_distance_m"] == 120.0
     assert last["tris"] == 2  # one quad
+    assert last["thin_wire"] is False  # every LOD entry carries it (p1-l01-l03-pole-wires); the card never is one
     record = last["impostor"]
     assert record["atlas"] == "K01_whole_impostor.png" and record["size_px"] == [1024, 1024]
     assert record["normals"] == "K01_whole_impostor_normal.png"
@@ -245,6 +246,7 @@ def test_metadata_without_impostor_is_unchanged(k01_params):
     (lambda d: d["lods"][-1]["impostor"].pop("smoothness"), "smoothness must name a .png"),
     (lambda d: d["lods"][-1]["impostor"].update(views=9), "views <= columns * rows"),
     (lambda d: d["lods"][-1].update(tris=32), "must be 2: the card is one quad"),
+    (lambda d: d["lods"][-1].update(thin_wire=True), "the impostor's thin_wire must be false"),
     (lambda d: d["lods"][-1]["impostor"].update(atlas_sha256="none"), "atlas_sha256 is not a 64-digit hex"),
     (lambda d: d["lods"][-1]["impostor"].update(normals_sha256="none"), "normals_sha256 is not a 64-digit hex"),
     (lambda d: d["lods"][-1]["impostor"].update(smoothness_sha256="none"), "smoothness_sha256 is not a 64-digit hex"),

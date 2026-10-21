@@ -140,6 +140,28 @@ def test_cylinder_primitive_follows_a_cylinder_mesh_and_a_longer_capsule_does_no
                for p in problems), problems
 
 
+def test_a_planted_log_buried_below_the_ground_is_no_wall_and_unplanted_it_is(k01_params):
+    """p1-l01-l03-pole-wires: a log standing in the ground is drawn from y = 0 up (an open tube with its top cut);
+    its cylinder runs 0.2 m on below the ground. Planted, the terrain covers that part and the log measures as its
+    tube; unplanted, the buried bottom is an invisible wall 0.2 m off the mesh."""
+    data, _ = k01(k01_params)
+    lod0 = cylinder_mesh(0.12, 1.0)
+    lod0.vertices = [(x, y + 0.5, z) for x, y, z in lod0.vertices]
+    lod0.faces = [f for f in lod0.faces if f[1] != (0.0, -1.0, 0.0)]  # no face under the ground
+    log = round_shape("cylinder", 0.12, 1.2)
+    log["center"] = [0.0, 0.4, 0.0]
+    data["collision"] = [log]
+    problems, lines = audit.run(data, lod0, planted=True)
+    assert problems == [] and lines[0] == "audit: planted, the ground covers every primitive below y = 0"
+    assert measured_mm(lines[1]) < 0.5 and measured_mm(lines[2]) < 0.5, lines
+    print(f"planted: cylinder->mesh {measured_mm(lines[1]):.3f} mm, mesh->cylinder {measured_mm(lines[2]):.3f} mm, "
+          "tolerance 50 mm")
+    problems, _ = audit.run(data, lod0)
+    assert len(problems) == 1 and problems[0].startswith("collision[0] cylinder: cylinder->mesh ")
+    assert measured_mm(problems[0]) == pytest.approx(math.hypot(0.2, 0.12) * 1000, abs=0.5), problems
+    print(f"unplanted: {problems[0]}")
+
+
 @pytest.mark.parametrize("shape, lo, hi", [
     ({"shape": "sphere", "center": [0.0, 0.0, 0.0], "radius": 0.05}, (-0.05, -0.05, -0.05), (0.05, 0.05, 0.05)),
     (round_shape("capsule", 0.05, 1.0), (-0.05, -0.5, -0.05), (0.05, 0.5, 0.05)),
@@ -269,11 +291,85 @@ def test_primitives_form_a_union_and_soft_tops_are_held_to_5cm(k01_params, repo_
     assert [p.split(" at ")[0] for p in problems] == ["collision[1] sphere: near gaps/landable 30.000 mm"]
 
 
+def test_clipping_by_boxes_finds_the_same_maxima(k01_params):
+    """p1-e01-trench: with clip_boxes, a cell partly inside other boxes is bounded by its parts outside them, clipped
+    exactly, so the search stops early along a box's face running on under another; the maxima are the default
+    search's within its precision (two boxes making a slab, the second's top 10 mm low)."""
+    data, _ = k01(k01_params)
+    lod0 = slab()
+    data["collision"] = [
+        {"shape": "box", "center": [-0.4, -0.1, 0.0], "size": [1.2, 0.2, 2.0], "rotation": [0.0, 0.0, 0.0, 1.0],
+         "material": "masonry", "landable": False},
+        {"shape": "box", "center": [0.4, -0.105, 0.0], "size": [1.2, 0.19, 2.0], "rotation": [0.0, 0.0, 0.0, 1.0],
+         "material": "masonry", "landable": False},
+    ]
+    plain = audit.run(data, lod0)
+    clipped = audit.run(data, lod0, clip_boxes=True)
+    assert plain[0] == clipped[0] == []
+    assert [measured_mm(line) for line in clipped[1]] == pytest.approx([measured_mm(line) for line in plain[1]],
+                                                                       abs=audit.PRECISION_M * 1000)
+    assert measured_mm(clipped[1][1]) == pytest.approx(10.0, abs=0.1)
+
+
+def test_uncovered_parts_are_the_cell_outside_the_boxes():
+    """_uncovered clips a triangle by a box exactly: the half-space x <= 0.5 covered leaves the corner beyond it."""
+    box = audit._Shape({"shape": "box", "center": [0.0, 0.0, 0.0], "size": [1.0, 4.0, 4.0],
+                        "rotation": [0.0, 0.0, 0.0, 1.0]})
+    cell = ((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0))
+    parts = audit._uncovered(cell, [box])
+    area = sum(math.sqrt(audit._dot(*(2 * [audit._newell(p)]))) / 2 for p in parts)
+    assert area == pytest.approx(0.125, abs=1e-5)
+    assert audit._uncovered(cell, []) is None
+    assert audit._uncovered(((-0.4, 0.0, 0.0), (0.4, 0.0, 0.0), (0.0, 0.4, 0.0)), [box]) == []
+
+
+SEARCH_CELLS = 300_000  # the time box: the guarded search below takes a few thousand cells
+
+
+def test_a_covered_edge_on_the_zones_edge_ends_the_search(k01_params, monkeypatch):
+    """p1-e01-trench task 1.4: a box 10 mm under a slab's top, covered up to x = 0 by a second box level with it, and
+    a gap 0.3 m from x = 0, so the 2 cm zone ends exactly on the covered edge (E01's parapet toe with the lip crumble
+    at 0). Inside the zone the top is covered; past it the cells hold the 10 mm no vertex inside can match, so before
+    the guard the cells along the edge split without end. With it a cell at the zone's edge no longer than
+    ZONE_EDGE_CELL_M is not split and counts at its bound: the box's search ends at 10 mm on the edge (the mesh's has
+    no jump there: past x = 0 it lies within x of the second box's corner). The run is boxed at SEARCH_CELLS cells, so
+    a hang fails the test instead of filling the memory."""
+    data, _ = k01(k01_params)
+    lod0 = slab(size=0.4)
+    data["collision"] = [
+        {"shape": "box", "center": [0.0, -0.105, 0.0], "size": [0.4, 0.19, 0.4], "rotation": [0.0, 0.0, 0.0, 1.0],
+         "material": "masonry", "landable": False},
+        {"shape": "box", "center": [-0.1, -0.05, 0.0], "size": [0.2, 0.1, 0.4], "rotation": [0.0, 0.0, 0.0, 1.0],
+         "material": "masonry", "landable": False},
+    ]
+    data["gaps"] = [{"id": "edge", "polygon": [[-0.3, -1.0, -1.0], [-0.3, -1.0, 1.0], [-0.3, 1.0, 1.0], [-0.3, 1.0, -1.0]],
+                     "normal": [1.0, 0.0, 0.0], "narrowest_m": 2.0}]
+    cells = [0]
+    longest_edge = audit._longest_edge
+
+    def boxed(cell):
+        cells[0] += 1
+        if cells[0] > SEARCH_CELLS:
+            raise RuntimeError(f"the search did not end within {SEARCH_CELLS} cells")
+        return longest_edge(cell)
+
+    monkeypatch.setattr(audit, "_longest_edge", boxed)
+    problems, lines = audit.run(data, lod0, clip_boxes=True)
+    assert problems == []
+    near = {line.split(":")[0]: line.split("near gaps/landable ")[1] for line in lines if "near gaps/landable" in line}
+    assert set(near) == {"audit collision[0] box", "audit collision[1] box", "audit mesh"}
+    edge = near["audit collision[0] box"]
+    assert measured_mm(edge) == pytest.approx(10.0, abs=0.01), edge
+    x = float(edge.split(" at (")[1].split(",")[0])
+    assert 0.0 <= x <= audit.ZONE_EDGE_CELL_M, f"counted on the covered edge, within a millimetre: {edge}"
+
+
 def test_soft_materials_are_the_soft_surfaces_and_the_compliant_ids(repo_root):
     """review-physics PR6: the three surfaces where the reference foot sinks 25 mm or more, and every plain id at
-    1000 N/m or less (foliage 200, twig 30, straw 490, fabric 600, mesh 800); rigid and stiff ids are not soft."""
+    1000 N/m or less (foliage 200, twig 30, straw 490, fabric 160, mesh 430, razor_wire 60, sandbag 900); rigid and
+    stiff ids are not soft."""
     assert audit.soft_materials(repo_root) == {"surface:belt_straw", "surface:crater_spoil", "surface:tilled",
-                                               "foliage", "twig", "straw", "fabric", "mesh"}
+                                               "foliage", "twig", "straw", "fabric", "mesh", "razor_wire", "sandbag"}
 
 
 def relief(size=2.0, step=0.05, depth=0.2, amplitude=0.04):

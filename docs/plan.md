@@ -98,7 +98,7 @@ This is the pilot's seven-step plan (2026-10-17), "made right". Their order stay
 3. **Look setup** (tech-artist): URP lighting, sky per time of day and rain setting (VIS-02/03), wet-material variants, aerial perspective (VIS-04), the vegetation wind shader.
 4. **Look-lock assets:** S04, V01 + V13, H01 in I/D/X, R01 in A/F, E01, L01 + L03.
 5. **G1 look-lock:** a quick gallery build with those six stations. The pilot looks for about 10 minutes. Their feedback becomes style rules in `docs/style-rules.md`, and the URP-vs-HDRP check of D-001 is settled here.
-6. **Mass production** in the asset-list order, P1 first. Each asset needs:
+6. **Mass production** in the asset-list order, P1 first. First from letter S (D-038, the S read-in's `implications.md` (archive/2026-10-19-p1-letter-s-village-street)): H02 variant 3, the typical village's street house, as params on the shared `house` generator that H01 writes; L02 with the shared whitewashed butt band (L01's too); K01's standing stove block and silicate bricks. From E01's review (archive/2026-10-20-p1-e01-trench/review.md): each trench asset takes its own grassed cover recipe, since `grassed_spoil` carries E01's relief (S14); a build-time triangle budget for earthworks (AST-08, S9); the joint check by identity, not count (S17). Each asset needs:
    - its generator and params
    - LODs and impostors
    - collision, materials, gaps, wind volumes and snag flags
@@ -107,7 +107,7 @@ This is the pilot's seven-step plan (2026-10-17), "made right". Their order stay
    - QA approval
 
    Each one also goes into its gallery station as it lands.
-7. **Micro-detail generator and renderer:** deterministic, shared with physics (AST-10). Before it, the next materials sign-off by the physics engineer: every row of `physics_materials.json` re-derived per touching part, not for the whole drone (`fabric` 600 N/m and `mesh` 800 N/m sink four legs 20 mm, not 50–100 mm; `straw`'s 490 N/m with S04's measured mat depth), and the fortifications' `razor_wire` and `sandbag` rows added (archive/2026-10-18-p1-fortifications-sheet/review-physics.md §4).
+7. **Micro-detail generator and renderer:** deterministic, shared with physics (AST-10). The materials sign-off it needs is done (`p1-materials-per-part`, archived: every row per touching part, `razor_wire` and `sandbag` added).
 8. **Gap probe:** a drone-sized capsule through every gap, and contact with every material (AST-05).
 
 **Deliverables:** `assets-src/` (params), `tools/blender/` generators, Unity prefabs, the catalog, object sheets, review sheets, `CREDITS.md`.
@@ -156,7 +156,7 @@ This is the pilot's seven-step plan (2026-10-17), "made right". Their order stay
 **Owners:** world-builder (layout, compiler, terrain, placement), physics-engineer (world-query core review and the contact probe), tech-artist (performance, distance look), QA.
 
 **Work:**
-1. **The map-format spec** for Unity: carry the old format over (K§10), plus the D-007 fixes (polygon gaps, per-part porosity) and the D-019 frames. It and the world-query spec take the gap review's G1–G4, G6 and G8–G11 in full (D-037): terrain holes (WLD-16), the frame conventions and corner mapping, the Unity Terrain tile rule, the rendered-surface parity and the load-time pose parity.
+1. **The map-format spec** for Unity: carry the old format over (K§10), plus the D-007 fixes (polygon gaps, per-part porosity) and the D-019 frames. It and the world-query spec take the gap review's G1–G4, G6 and G8–G11 in full (D-037): terrain holes (WLD-16), the frame conventions and corner mapping, the Unity Terrain tile rule, the rendered-surface parity and the load-time pose parity. Hole ids are local to an asset (`run`, `niche_0`): the compiler namespaces them per placed instance (E01's review (archive/2026-10-20-p1-e01-trench/review.md), S10).
 2. **The layout and the compiler** (`layout.json` → package) with its validator (WLD-09, WLD-12).
 3. **World-query core** in `com.fpv450.sim`:
    - port and adapt the first attempt's C# (`WorldQuery`, `Contacts`, `MicroDetail`, `WindGrid`, `DetMath`, `ContentHash`)
@@ -164,7 +164,8 @@ This is the pilot's seven-step plan (2026-10-17), "made right". Their order stay
    - the physics engineer runs a contact probe (a fake drone over the API) before sign-off
    - from the fortifications and V01 readings (archive/2026-10-18-p1-fortifications-sheet/review-physics.md §6–§7, p1-v01-locust review-physics §A.4): a `convex` shape (a face and edge list per hull, a swept separating-axis contact test, ray clipping, geometry lookup, golden cases, a `teeth_field` benchmark); a spatial index over snag records and gaps with a record query, a cap of 2,048 record segments per 2 m cube per asset and per map, a `wire_runs` benchmark; a two-level shape index for belts of trees; density counted as narrow tests
 4. **Unity world builder:** terrain tiles from the heightfield, surface splatting with feathered edges, vegetation and object instancing from `objects.json`, micro-detail near the camera, impostors, streaming if needed. The compiler writes the gaps between separately placed objects (between dragon's teeth, between road blocks) as the layout places them, sizes long thin wind volumes (wire runs, hedges, porous fences) by their thickness across the wind, not by footprint perimeter / π, and re-derives gap verdicts per instance scale (a 0.706 m gap at scale 0.9 is nose-first only).
-5. **The map itself:** the D-018 layout as refined by D-035 (WLD-01). A village, a smaller village and a somewhat larger town divided by belts and fields in the pattern of the layout reference (letter Q); fields, belts with trenches, trenches in the fields, cratered, burnt and tilled fields, roads and slab tracks, a small river and ponds, the fortifications (F01–F03), the urban edge, most houses damaged or destroyed, at least 30 fly-ins, at least 6 start points.
+5. **The map itself:** the D-018 layout as refined by D-035 (WLD-01). A village copying letter S's street with cars on it (D-038), a smaller village and a somewhat larger town divided by belts and fields in the pattern of the layout reference (letter Q); fields, belts with trenches, trenches in the fields, cratered, burnt and tilled fields, roads and slab tracks, a small river and ponds, the fortifications (F01–F03), the urban edge, most houses damaged or destroyed, at least 30 fly-ins, at least 6 start points.
+   - The typical village's placement from letter S (the S read-in's `implications.md` (archive/2026-10-19-p1-letter-s-village-street)): the street line in the house-side verge 3–5 m off the road with lamps on some poles, drops of 8–12 m and 21–27 m; a lone shrub (V13) every 15–25 m on greens; single trees in yards and along the street; cars on the verges by the gates, in yards, on the green and at the road edge.
 6. **Performance** (PLT-02, PLT-05, PLT-06) and the night silhouette check (WLD-10).
 
 **Done means:**
@@ -187,7 +188,7 @@ This is the pilot's seven-step plan (2026-10-17), "made right". Their order stay
 2. **Port the Godot feed faithfully** (FEED-00, D-026, [legacy/video-feed-godot/](legacy/video-feed-godot/)): the shader pipeline, `FeedEvents`, `FeedLoss`, `FeedOsd` and `FeedFont`, with the A/B against the Godot original (same seed: identical schedule, matching stills). Then the `IFeedSignals` interface and its labelled stubs (FEED-03).
 3. The pipeline stages in K§11.7 order, at field resolution, 50 fields/s (FEED-02, FEED-04).
 4. The receiver state machines: staged loss, hard cut, N12 dropouts with clean recovery (FEED-05/06/07).
-5. AE and AWB loops, and night (C1–C5, FEED-08).
+5. AE and AWB loops, and night (C1–C5, FEED-08). Letter S is the overcast-daylight check of the grade: its colour table (terrain.md §12.5, the whole-patch means) from neutral albedos.
 6. The exact OSD: grid, font, crosshair, strings and the analog path (OSD-01…04).
 7. Review tools and the local A/B comparison sheet (FEED-11/12). Before it, a Standard change to the reference tools: the frame-metrics tool run alike on footage and captured feed output, burst extraction and the stable letter index (FEED-12, D-037).
 8. The performance budget (FEED-10).
@@ -247,10 +248,10 @@ Five changes, each ending in an MVP the pilot flies:
 
 | Change | Covers | Pilot account it must reproduce (computed, never asked: D-024) |
 |---|---|---|
-| 7a Ground and landing | PHY-01…06: soil, mat, hooks, stiction, pitfalls, furrows, stems, launch stand, landing bounce, wet ground | legs stick "sometimes, a little", more on soft ground, most of the time in rain |
+| 7a Ground and landing | PHY-01…06: soil, mat, hooks, stiction, pitfalls, furrows, stems, launch stand, landing bounce, wet ground (from `p1-materials-per-part`: area-type rows (`straw`, `fabric`, `sandbag`) scale by the touching part's contact size, about 3× on straw for an arm against a foot; a linear compliant row gets a stroke limit, since at 160 N/m a 3–6 g landing would send a foot 0.22–0.44 m down; `bark` and `deadwood` gain an elastic modulus for slender members; a shape's own `stiffness_n_per_m` overrides its row, validated in `meta.validate` when the first asset needs it, F01 or a car's bumper cover); from E01's review (archive/2026-10-20-p1-e01-trench/review.md) S16: the merge among one asset's own overlapping shapes (in force: normals within 45° merge, the deepest wins) and how a buried shape's side faces behave, or F-3 restated to read a landable ground top so E01's 25 mm ring boxes can go | legs stick "sometimes, a little", more on soft ground, most of the time in rain |
 | 7b Propulsion and airframe | PHY-07…12: asymmetry, ground effect, VRS, PR-1 shake, battery, inertia character | settling into own wash depends on throttle against weight, with wobble; the PR-1 shake is rare |
 | 7c Wind and turbulence | PHY-13…17 (the wind and rain statistics tools ported to plain Python first, D-037): field, PR-3 vorticity and gradients, wakes, levels against the K§8.6 targets via the simulated-pilot harness, per-flight draws, trade-off, rain, cruise in wind | wind flown at normal cruise speed; the effort goes into correcting course |
-| 7d Tether and wires | PHY-18…23: spool, span, cut risk, link margin, fiber break, wire strikes, openings (with the fortifications reading's §9: the exact bend radius over an edge, `payout_tension_n` named and logged, abrasion per fiber section, barb pitch as a lock point, the fiber skipping compliant stand-in shapes; QA scenarios: a line draped over a coil run, a reverse round a snagged barb) | cuts from sharp reverse, tree snags, very sharp liftoff, backward momentum after liftoff |
+| 7d Tether and wires | PHY-18…23: spool, span, cut risk, link margin, fiber break, wire strikes, openings (with the fortifications reading's §9: the exact bend radius over an edge, `payout_tension_n` named and logged, abrasion per fiber section, barb pitch as a lock point, the fiber skipping compliant stand-in shapes; QA scenarios: a line draped over a coil run, a reverse round a snagged barb); a wire's contact takes the span's compliance per direction: 4T/L pushed aside, Irvine's in-plane value with the tension rise pressed down, about 5× stiffer (`p1-materials-per-part`, the `cable` row) | cuts from sharp reverse, tree snags, very sharp liftoff, backward momentum after liftoff |
 | 7e Physics → feed, and forensics | PHY-24/25, LOG-03/04: all signals live, the crash report with a verdict, the second-machine determinism check, lens drops driven by physics | drops stay on the lens even when fast, and travel with the airflow |
 
 **Done means, per change:** its PHY requirements are met with scenarios; statistical targets are proven to fail wrong models; replay is bit-exact; performance is held; the pilot has flown it.

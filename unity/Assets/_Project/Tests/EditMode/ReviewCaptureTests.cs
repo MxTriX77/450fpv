@@ -12,8 +12,9 @@ namespace Fpv450.Tests.EditMode
     /// whose renderers have no mesh or whose materials have no texture asset, as an un-smudged LFS pointer leaves
     /// them, is refused by name before any tile is rendered. The exit path is <see cref="Review.Capture"/>'s catch;
     /// here the check is exercised through the method on throwaway objects. And the pilot-height pose
-    /// (p1-s04-belt-straw design 7): a surfaces asset is shot from on the surface, every other class as before. And the
-    /// stage's shadow-distance fit, shared with the LOD parity measure (p1-v01-locust task 1.2h).
+    /// (p1-s04-belt-straw design 7): a surfaces asset is shot from on the surface, an earthwork with a holes record
+    /// along its run (p1-e01-trench design 9), every other class as before. And the stage's shadow-distance fit,
+    /// shared with the LOD parity measure (p1-v01-locust task 1.2h).
     /// </summary>
     public sealed class ReviewCaptureTests
     {
@@ -177,6 +178,100 @@ namespace Fpv450.Tests.EditMode
             {
                 Object.DestroyImmediate(k01.Root);
                 Object.DestroyImmediate(s04.Root);
+            }
+        }
+
+        /// <summary>
+        /// p1-l01-l03-pole-wires task 1.6: the stage lifts an asset whose bounds reach below y = 0 onto the ground and
+        /// leaves one whose lowest point is above it at its own height (a lift of max(0, -min.y)). The placement reads
+        /// only the metadata's bounds, so literal bounds on K01's prefab: S04's 0.425 m below the ground, and a span
+        /// from 3.5 m to 6.5 m up like L03's.
+        /// </summary>
+        [TestCase(-0.425f, 0.425f, 0f, TestName = "StageBuild_BoundsBelowTheGround_AreLiftedOntoIt")]
+        [TestCase(3.5f, 0f, 3.5f, TestName = "StageBuild_BoundsAboveTheGround_StayAtTheirHeight")]
+        public void StageBuild_LiftsOnlyWhatReachesBelowTheGround(float minY, float lift, float lowestOnStage)
+        {
+            const string prefabPath = "Assets/_Project/Prefabs/debris/K01_whole.prefab";
+            Assert.That(AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath), Is.Not.Null, $"{prefabPath} is missing: run pwsh tools/build_asset.ps1 K01");
+            var meta = new ReviewMeta { Bounds = new Bounds(new Vector3(10f, minY + 1.5f, 0f), new Vector3(20f, 3f, 0.5f)) };
+            Review.Stage stage = Review.Stage.Build(prefabPath, meta, "lines");
+            try
+            {
+                AssertNear(stage.Origin, new Vector3(0f, lift, 0f), "asset origin");
+                Assert.That(stage.AssetBounds.min.y, Is.EqualTo(lowestOnStage).Within(1e-5f), "lowest point on the stage");
+                AssertNear(stage.AssetBounds.size, new Vector3(20f, 3f, 0.5f), "bounds size");
+            }
+            finally
+            {
+                Object.DestroyImmediate(stage.Root);
+            }
+        }
+
+        // p1-e01-trench design 9: hand-made metadata, the run first and a niche after it, square to the run, which the
+        // capture ignores. The straight run lies on the lip along +X; the bent one starts at (2, 1), runs (0.6, 0.8) for
+        // two metres and bends 25° left, with its points at y = -1.5 to show the lip is taken at y = 0 whatever their height.
+        const string StraightRun = @"{""holes"": [
+            {""id"": ""straight"", ""centre_line"": [[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0], [4, 0, 0]], ""top_width_m"": 0.8, ""depth_m"": 1.5, ""band_width_m"": 2.3},
+            {""id"": ""straight_niche"", ""centre_line"": [[2, 0, 0], [2, 0, -1.1]], ""top_width_m"": 0.8, ""depth_m"": 1.35, ""band_width_m"": 2.1}]}";
+        const string BentRun = @"{""holes"": [
+            {""id"": ""bent"", ""centre_line"": [[2, -1.5, 1], [2.6, -1.5, 1.8], [3.2, -1.5, 2.6], [3.406, -1.5, 3.579], [3.611, -1.5, 4.557]], ""top_width_m"": 1.2, ""depth_m"": 1.5, ""band_width_m"": 2.7},
+            {""id"": ""bent_niche"", ""centre_line"": [[2.6, -1.5, 1.8], [3.48, -1.5, 1.14]], ""top_width_m"": 0.8, ""depth_m"": 1.35, ""band_width_m"": 2.1}]}";
+
+        /// <summary>
+        /// p1-e01-trench design 9, "Pilot-height tile of a trench", on a straight run: the camera 1.5 m above the lip at
+        /// the run's start, half the 0.8 m top width out to the run's right (the field side), so (0, 1.5, -0.4) in the
+        /// asset's frame; forward along +X and 20° down; the bar 3 m along the run and 0.2 m out from the lip, (3, 0, -0.6).
+        /// The stage lifts the asset by the fixture bounds' 1.8 m below the ground.
+        /// </summary>
+        [Test]
+        public void PilotPose_Earthworks_StraightRun_StandsAboveTheLip_LooksAlongIt20DegreesDown()
+        {
+            AssertRunPose(StraightRun, new Vector3(0f, 3.3f, -0.4f), new Vector3(0.93969f, -0.34202f, 0f), new Vector3(3f, 1.8f, -0.6f));
+        }
+
+        /// <summary>
+        /// The same on a bent run: the first segment's plan direction (0.6, 0, 0.8), not the run's overall one; its right
+        /// (0.8, 0, -0.6) times half the 1.2 m top width from (2, 0, 1) puts the camera at (2.48, 1.5, 0.64), and the bar at
+        /// (2, 0, 1) + 3 (0.6, 0, 0.8) + 0.8 (0.8, 0, -0.6) = (4.44, 0, 2.92).
+        /// </summary>
+        [Test]
+        public void PilotPose_Earthworks_BentRun_LooksAlongTheFirstSegment()
+        {
+            AssertRunPose(BentRun, new Vector3(2.48f, 3.3f, 0.64f), new Vector3(0.56382f, -0.34202f, 0.75175f), new Vector3(4.44f, 1.8f, 2.92f));
+        }
+
+        /// <summary>An earthwork without a <c>holes</c> record keeps the pose beside its bounds.</summary>
+        [TestCase("{}", TestName = "EarthworkRun_NoHolesKey_IsNone")]
+        [TestCase(@"{""holes"": []}", TestName = "EarthworkRun_EmptyHoles_IsNone")]
+        public void EarthworkRun_WithoutAHolesRecord_IsNone(string fixture)
+        {
+            Assert.That(Review.EarthworkRun.Read(fixture, "fixture"), Is.Null);
+        }
+
+        static void AssertRunPose(string fixture, Vector3 camera, Vector3 forward, Vector3 barBase)
+        {
+            const string prefabPath = "Assets/_Project/Prefabs/debris/K01_whole.prefab";
+            Assert.That(AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath), Is.Not.Null, $"{prefabPath} is missing: run pwsh tools/build_asset.ps1 K01");
+            var meta = new ReviewMeta { Bounds = new Bounds(new Vector3(12f, -0.6f, 0f), new Vector3(36f, 2.4f, 14f)) };
+            Review.Stage stage = Review.Stage.Build(prefabPath, meta, "earthworks", Review.EarthworkRun.Read(fixture, "fixture"));
+            Review.Rig rig = Review.Rig.Create();
+            try
+            {
+                (Vector3 position, Vector3 lookAt, Vector3 bar, bool fromBounds) = Review.PilotPose(stage);
+                AssertNear(position, camera, "camera");
+                AssertNear(bar, barBase, "bar base");
+                Assert.That(fromBounds, Is.False);
+
+                rig.Aim(position, lookAt);
+                Vector3 actual = rig.Camera.transform.forward;
+                Assert.That(Vector3.Angle(actual, forward), Is.LessThan(0.1f), $"forward {actual:F4}, expected {forward:F4}");
+                Assert.That(rig.InFrame(bar), Is.True, "the bar's foot is in frame");
+                Assert.That(rig.InFrame(bar + Vector3.up * 1.8f), Is.True, "the bar's top is in frame");
+            }
+            finally
+            {
+                rig.Dispose();
+                Object.DestroyImmediate(stage.Root);
             }
         }
 

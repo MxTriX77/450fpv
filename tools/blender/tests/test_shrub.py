@@ -461,13 +461,13 @@ def test_far_cards_lean_as_the_leaves_seen_from_the_review_look_down(variant):
     lod2 = built["lods"][2]
     lean = math.degrees(cards.visible_lean(leaf_cards(built["lods"][0])))
     assert lean == pytest.approx({"V13_low": 11.60, "V13_mid": 11.46, "V13_tall": 11.46}[name], abs=0.01)
-    assert sorted(lod2.normals) == list(range(len(lod2.faces)))
+    assert sorted(lod2.corner_normals) == list(range(len(lod2.faces)))
     for f in range(0, len(lod2.faces), 2):
         (front, n_front, _, _), (back, n_back, _, _) = lod2.faces[f], lod2.faces[f + 1]
         assert [lod2.vertices[i] for i in front] == [lod2.vertices[i] for i in back]
         assert n_back == pytest.approx(tuple(-c for c in n_front))
         for k, side in ((f, n_front), (f + 1, n_back)):
-            for n in lod2.normals[k]:
+            for n in lod2.corner_normals[k]:
                 assert math.degrees(math.asin(n[1])) == pytest.approx(lean, abs=1e-6)
                 assert skeleton.dot(skeleton.normalize((n[0], 0.0, n[2])), side) == pytest.approx(1.0)
     assert data["lods"][2]["tris"] == 60

@@ -229,7 +229,10 @@ namespace Fpv450.Assets
         /// offset. The detail layer is the derived <c>_detail_albedo.png</c> (the detail set's diffuse, neutralised
         /// to mid-grey for URP's "detail albedo ×2") and the detail set's own normal map, keyword
         /// <c>_DETAIL_MULX2</c>. URP/Lit derives the detail UV from the base UV times the detail tiling, so the
-        /// tiling is size/tile_size_m: the detail repeats every tile_size_m metres of the asset.
+        /// tiling is size/tile_size_m: the detail repeats every tile_size_m metres of the asset. A ground recipe in
+        /// wall space (<c>"space": "wall"</c>, p1-e01-trench) is a cut's strip: its <c>size_m</c> is [u, v] metres
+        /// from the strip's corner (the generator UVs the cut's faces in metres along the run and up the strip), so
+        /// the base tiling is 1/u by 1/v with no offset and the detail tiling u/tile by v/tile.
         /// </para>
         /// <para>
         /// A recipe of kind <c>palette</c> (the straw instance kit's tints) has no texture set: its base map is the
@@ -288,10 +291,16 @@ namespace Fpv450.Assets
             {
                 if (recipe.ContainsKey("mask") || recipe.ContainsKey("smoothness"))
                     throw new FormatException($"{recipePath}: a ground recipe derives its own mask; it takes neither \"mask\" nor \"smoothness\"");
-                float size = Json.Num(recipe, "size_m", recipePath);
+                string space = recipe.TryGetValue("space", out object spaceValue)
+                    ? spaceValue as string ?? throw new FormatException($"{recipePath}: \"space\" must be a string")
+                    : null;
+                if (space != null && space != "wall")
+                    throw new FormatException($"{recipePath}: unknown ground space \"{space}\" (omit it for a patch, or \"wall\")");
+                bool wall = space == "wall";
+                Vector2 size = wall ? Json.Vec2(recipe, "size_m", recipePath) : Vector2.one * Json.Num(recipe, "size_m", recipePath);
                 var detail = Json.Obj(recipe, "detail", recipePath);
                 float detailTile = Json.Num(detail, "tile_size_m", recipePath);
-                if (size <= 0f || detailTile <= 0f)
+                if (size.x <= 0f || size.y <= 0f || detailTile <= 0f)
                     throw new FormatException($"{recipePath}: size_m and detail.tile_size_m must be positive metres");
                 albedo = Derived(mapsOf, "albedo");
                 normal = Derived(mapsOf, "normal");
@@ -300,9 +309,9 @@ namespace Fpv450.Assets
                 Dictionary<string, Texture2D> detailSet = TextureSet(Json.Str(detail, "texture_set", recipePath), manifest, recipePath);
                 if (!detailSet.TryGetValue("normal", out detailNormal))
                     throw new FormatException($"{recipePath}: the detail texture set has no normal map");
-                baseScale = new Vector2(1f / size, 1f / size);
-                baseOffset = new Vector2(0.5f, 0.5f);
-                detailScale = new Vector2(size / detailTile, size / detailTile);
+                baseScale = new Vector2(1f / size.x, 1f / size.y);
+                baseOffset = wall ? Vector2.zero : new Vector2(0.5f, 0.5f);
+                detailScale = new Vector2(size.x / detailTile, size.y / detailTile);
                 masked = true;
             }
             else
@@ -466,10 +475,26 @@ namespace Fpv450.Assets
 
         static bool SetTexture(Material m, string name, Texture value)
         {
-            if (m.GetTexture(name) == value)
+            if (m.GetTexture(name) == value && (value != null || !NamesMissingTexture(m, name)))
                 return false;
             m.SetTexture(name, value);
             return true;
+        }
+
+        /// <summary>
+        /// Whether the material's texture property still names an asset that is gone (a recipe that dropped its mask):
+        /// such a reference reads back as null but stays in the file until it is set again.
+        /// </summary>
+        static bool NamesMissingTexture(Material m, string name)
+        {
+            SerializedProperty textures = new SerializedObject(m).FindProperty("m_SavedProperties.m_TexEnvs");
+            for (int i = 0; i < textures.arraySize; i++)
+            {
+                SerializedProperty entry = textures.GetArrayElementAtIndex(i);
+                if (entry.FindPropertyRelative("first").stringValue == name)
+                    return entry.FindPropertyRelative("second.m_Texture").objectReferenceInstanceIDValue != 0;
+            }
+            return false;
         }
 
         static bool SetTextureScale(Material m, string name, Vector2 value)
@@ -523,14 +548,76 @@ namespace Fpv450.Assets
             return true;
         }
 
+        // --- thin wires (p1-l01-l03-pole-wires, design decision 8; tech-artist) -----------------------------------
+
+        internal const string ThinWireShader = "Fpv450/ThinWire";
+        internal const string ThinWireKeyword = "_THIN_WIRE_COVERAGE";
+
+        /// <summary>
+        /// The material of a wire tube whose slot maps to <paramref name="surface"/>, the recipe's own material from
+        /// <see cref="EnsureMaterial(string, Dictionary{string, object})"/>: <c>Shaders/ThinWire</c> with
+        /// <see cref="ThinWireKeyword"/> on and the recipe's surface (base map and its tiling, tint, smoothness or the
+        /// packed mask, occlusion), at <c>&lt;surface&gt;_thin_wire.mat</c> beside it, created or updated in place. The
+        /// recipe's own material stays URP/Lit, so one recipe still draws both a span's conductor and a pole's
+        /// grounding wire. The tube's mesh must carry its radius in uv2 and radial normals (the shader's header).
+        /// </summary>
+        internal static Material EnsureThinWireMaterial(Material surface)
+        {
+            string surfacePath = AssetDatabase.GetAssetPath(surface);
+            if (string.IsNullOrEmpty(surfacePath))
+                throw new ArgumentException($"{surface.name} is not a material asset");
+            Shader shader = Shader.Find(ThinWireShader) ?? throw new FileNotFoundException($"no shader named \"{ThinWireShader}\"");
+            string path = $"{Path.GetDirectoryName(surfacePath).Replace('\\', '/')}/{surface.name}_thin_wire.mat";
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            bool changed = false;
+            if (material == null)
+            {
+                material = new Material(shader);
+                AssetDatabase.CreateAsset(material, path);
+            }
+            else if (material.shader != shader)
+            {
+                material.shader = shader;
+                changed = true;
+            }
+            foreach (string texture in new[] { "_BaseMap", "_MetallicGlossMap", "_OcclusionMap" })
+                changed |= SetTexture(material, texture, surface.GetTexture(texture));
+            changed |= SetTextureScale(material, "_BaseMap", surface.GetTextureScale("_BaseMap"));
+            changed |= SetTextureOffset(material, "_BaseMap", surface.GetTextureOffset("_BaseMap"));
+            changed |= SetColor(material, "_BaseColor", surface.GetColor("_BaseColor"));
+            foreach (string value in new[] { "_Smoothness", "_Metallic", "_OcclusionStrength" })
+                changed |= SetFloat(material, value, surface.GetFloat(value));
+            foreach (string keyword in new[] { "_METALLICSPECGLOSSMAP", "_OCCLUSIONMAP" })
+                changed |= SetKeyword(material, keyword, surface.IsKeywordEnabled(keyword));
+            changed |= SetFloat(material, "_ThinWireCoverage", 1f);
+            changed |= SetKeyword(material, ThinWireKeyword, true);
+            if (material.renderQueue != (int)RenderQueue.Transparent) // the shader's own, set so it holds without a GPU too
+            {
+                material.renderQueue = (int)RenderQueue.Transparent;
+                changed = true;
+            }
+            if (changed)
+                EditorUtility.SetDirty(material);
+            return material;
+        }
+
         // --- the prefab -------------------------------------------------------------------------------------------
 
         /// <summary>
         /// Creates or updates the prefab in place (so its file ids stay stable): the metadata component, one child
         /// per LOD with the FBX mesh and the slot materials plus one per micro mesh of that LOD (rendered with it,
         /// never a collider), or, for an impostor LOD, the card set (<see cref="EnsureImpostor"/>), the LODGroup, one
-        /// child per collision primitive, and nothing else. Internal for the EditMode tests, which build a prefab from
-        /// a throwaway metadata.
+        /// child per collision primitive, and nothing else. Every slot of a mesh LOD whose metadata entry is
+        /// <c>thin_wire</c> draws with the thin-wire material made from its recipe's
+        /// (<see cref="EnsureThinWireMaterial"/>), and every vertex of it must carry its radius in uv2, the shader's
+        /// input: a wire's tube, and a pole's far LODs (p1-l01-l03-pole-wires, "Night silhouette kept to 1 km"). Every
+        /// other slot, and every micro mesh, draws with the recipe's own, whatever its uv2 holds (Unity's lightmap
+        /// channel; review S2); an impostor's card, never <c>thin_wire</c>, with its own. A wire's tube ("Wires are
+        /// audited against their polyline") is the faces of the slot
+        /// its <c>wires</c> record names: it draws only in a <c>thin_wire</c> LOD, a renderer drawing only wires casts
+        /// no shadow (any other casts one, the thin-wire shader's at the member's true radius), and no collider
+        /// stands for a wire: conductors are map objects the sim reads from the metadata (D-007). Internal for the
+        /// EditMode tests, which build a prefab from a throwaway metadata.
         /// </summary>
         internal static void EnsurePrefab(string prefabPath, string variant, Dictionary<string, object> metaJson, TextAsset source,
             string fbxPath, Dictionary<string, Material> materialBySlot)
@@ -542,8 +629,11 @@ namespace Fpv450.Assets
                 root.name = variant;
                 AssetPhysicsMeta meta = Ensure<AssetPhysicsMeta>(root);
                 Fill(meta, metaJson, source, prefabPath);
+                var wireSlots = new HashSet<string>(meta.wires.Select(w => w.slot));
                 var keep = new HashSet<string>();
-                Renderer[][] renderers = EnsureLods(root, meta, metaJson, AssetDatabase.GetAssetPath(source), fbxPath, materialBySlot, keep, prefabPath);
+                var thin = new List<string>();
+                Renderer[][] renderers = EnsureLods(root, meta, metaJson, AssetDatabase.GetAssetPath(source), fbxPath, materialBySlot, wireSlots, keep, thin,
+                    prefabPath);
                 EnsureLodGroup(root, meta, renderers);
                 EnsureColliders(root, meta, keep, prefabPath);
                 for (int i = root.transform.childCount - 1; i >= 0; i--)
@@ -557,7 +647,11 @@ namespace Fpv450.Assets
                 if (!saved)
                     throw new IOException($"could not save {prefabPath}");
                 string micro = meta.micro.Length == 0 ? "" : $"{string.Join(", ", meta.micro.Select(m => $"{m.name} ({m.count} {m.kind}, LOD{m.lod})"))} micro, ";
-                Debug.Log($"[CatalogImporter] {variant}: {prefabPath}, {renderers.Length} LODs, {micro}{meta.collision.Length} colliders, " +
+                string ports = meta.ports.Length == 0 ? "" : $"{meta.ports.Length} ports ({string.Join(", ", meta.ports.Select(p => p.id))}), ";
+                string wires = meta.wires.Length == 0 ? "" : $"{meta.wires.Length} wires without colliders ({string.Join(", ", meta.wires.GroupBy(w => (w.slot, w.diameterM)).Select(g => $"{g.Count()} x {g.Key.diameterM * 1000f:0.#} mm in {g.Key.slot} -> {ThinWireShader}"))}), ";
+                string thinWire = thin.Count == 0 ? "" : $"thin wire {string.Join(", ", thin)}, ";
+                string holes = meta.holes.Length == 0 ? "" : $"{meta.holes.Length} holes ({string.Join(", ", meta.holes.Select(h => $"{h.id} {h.centreLine.Length} points, band {h.bandWidthM:0.###} m"))}), ";
+                Debug.Log($"[CatalogImporter] {variant}: {prefabPath}, {renderers.Length} LODs, {micro}{meta.collision.Length} colliders, {ports}{wires}{holes}{thinWire}" +
                           $"materials {string.Join(", ", materialBySlot.Select(kv => $"{kv.Key} -> {kv.Value.name}"))}, " +
                           $"LOD heights {string.Join(" / ", root.GetComponent<LODGroup>().GetLODs().Select(l => l.screenRelativeTransitionHeight.ToString("0.0000")))} " +
                           $"(size {root.GetComponent<LODGroup>().size} m, fov {VerticalFovDeg} deg)");
@@ -576,7 +670,7 @@ namespace Fpv450.Assets
         /// (<see cref="EnsureImpostor"/>) alone.
         /// </summary>
         static Renderer[][] EnsureLods(GameObject root, AssetPhysicsMeta meta, Dictionary<string, object> metaJson, string metaPath, string fbxPath,
-            Dictionary<string, Material> materialBySlot, HashSet<string> keep, string prefabPath)
+            Dictionary<string, Material> materialBySlot, HashSet<string> wireSlots, HashSet<string> keep, List<string> thin, string prefabPath)
         {
             var imported = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath)
                 ?? throw new FileNotFoundException($"{fbxPath} did not import as a model");
@@ -594,10 +688,10 @@ namespace Fpv450.Assets
                     impostor = true;
                     continue;
                 }
-                var lod = new List<Renderer> { MeshChild(root, meta.lods[i].mesh, filters, fbxPath, materialBySlot, keep) };
+                var lod = new List<Renderer> { MeshChild(root, meta.lods[i].mesh, meta.lods[i].thinWire, filters, fbxPath, materialBySlot, wireSlots, keep, thin) };
                 foreach (AssetPhysicsMeta.MicroMesh micro in meta.micro)
                     if (micro.lod == i)
-                        lod.Add(MeshChild(root, micro.name, filters, fbxPath, materialBySlot, keep));
+                        lod.Add(MeshChild(root, micro.name, false, filters, fbxPath, materialBySlot, wireSlots, keep, thin));
                 renderers[i] = lod.ToArray();
             }
             if (!impostor)
@@ -605,15 +699,28 @@ namespace Fpv450.Assets
             return renderers;
         }
 
-        static Renderer MeshChild(GameObject root, string meshName, MeshFilter[] filters, string fbxPath, Dictionary<string, Material> materialBySlot, HashSet<string> keep)
+        static Renderer MeshChild(GameObject root, string meshName, bool thinWire, MeshFilter[] filters, string fbxPath,
+            Dictionary<string, Material> materialBySlot, HashSet<string> wireSlots, HashSet<string> keep, List<string> thin)
         {
             MeshFilter filter = filters.FirstOrDefault(f => f.sharedMesh != null && f.sharedMesh.name == meshName)
                 ?? throw new FormatException($"{fbxPath} has no mesh named {meshName}");
-            Material[] slotMaterials = filter.GetComponent<MeshRenderer>().sharedMaterials
-                .Select(slot => materialBySlot.TryGetValue(slot.name, out Material material)
-                    ? material
-                    : throw new FormatException($"{meshName}: the FBX slot \"{slot.name}\" has no material in the metadata"))
-                .ToArray();
+            string[] slots = filter.GetComponent<MeshRenderer>().sharedMaterials.Select(slot => slot.name).ToArray();
+            var uv2 = new List<Vector2>();
+            filter.sharedMesh.GetUVs(1, uv2);
+            var slotMaterials = new Material[slots.Length];
+            for (int i = 0; i < slots.Length; i++)
+            {
+                if (!materialBySlot.TryGetValue(slots[i], out Material material))
+                    throw new FormatException($"{meshName}: the FBX slot \"{slots[i]}\" has no material in the metadata");
+                if (wireSlots.Contains(slots[i]) && !thinWire)
+                    throw new FormatException($"{meshName} slot {slots[i]}: a wire's tube draws only in a LOD whose metadata entry is thin_wire");
+                if (thinWire && !CarriesRadius(filter.sharedMesh, uv2, i))
+                    throw new FormatException($"{meshName} slot {slots[i]}: a thin_wire LOD needs its radius (> 0 m) in uv2 on every vertex for the " +
+                                              $"thin-wire shader ({uv2.Count} uv2 values over {filter.sharedMesh.vertexCount} vertices)");
+                slotMaterials[i] = thinWire ? EnsureThinWireMaterial(material) : material;
+                if (thinWire)
+                    thin.Add($"{meshName} {slots[i]}");
+            }
 
             GameObject child = Child(root, meshName, keep);
             child.transform.localPosition = Vector3.zero;
@@ -622,6 +729,7 @@ namespace Fpv450.Assets
             Ensure<MeshFilter>(child).sharedMesh = filter.sharedMesh;
             MeshRenderer renderer = Ensure<MeshRenderer>(child);
             renderer.sharedMaterials = slotMaterials;
+            renderer.shadowCastingMode = slots.Length > 0 && slots.All(wireSlots.Contains) ? ShadowCastingMode.Off : ShadowCastingMode.On;
             return renderer;
         }
 
@@ -786,6 +894,17 @@ namespace Fpv450.Assets
             foreach (string stale in new[] { $"{folder}/{variant}_impostor.asset", $"{folder}/{variant}_impostor.mat" })
                 if (AssetDatabase.LoadMainAssetAtPath(stale) != null)
                     AssetDatabase.DeleteAsset(stale);
+        }
+
+        /// <summary>
+        /// Whether every vertex of a submesh carries a radius (> 0 m) in uv2, the thin-wire shader's input (written by
+        /// lib/export from the generator's second UV): without it the shader draws a tube of radius 0, nothing. A
+        /// check on a <c>thin_wire</c> LOD only, never what picks the material.
+        /// </summary>
+        static bool CarriesRadius(Mesh mesh, List<Vector2> uv2, int submesh)
+        {
+            int[] indices = mesh.GetIndices(submesh);
+            return indices.Length > 0 && uv2.Count > 0 && indices.All(i => uv2[i].x > 0f);
         }
 
         /// <summary>
@@ -989,6 +1108,7 @@ namespace Fpv450.Assets
                 mesh = Json.Str(lod, "mesh", at),
                 tris = (int)Json.Num(lod, "tris", at),
                 switchDistanceM = Json.Num(lod, "switch_distance_m", at),
+                thinWire = Json.Bool(lod, "thin_wire", at),
             });
             if (meta.lods.Length == 0)
                 throw new FormatException($"{what}: no LODs");
@@ -1035,6 +1155,33 @@ namespace Fpv450.Assets
                 var volume = new AssetPhysicsMeta.WindVolume { porosity = Json.Num(shape, "porosity", at) };
                 ReadShape(volume, shape, at);
                 return volume;
+            });
+            meta.ports = Items(json, "ports", what, (port, at) => new AssetPhysicsMeta.Port
+            {
+                id = Json.Str(port, "id", at),
+                position = Json.Vec3(port, "position", at),
+                direction = Json.Vec3(port, "direction", at),
+                maxDiameterM = Json.Num(port, "max_diameter_m", at),
+            });
+            meta.wires = Items(json, "wires", what, (wire, at) => new AssetPhysicsMeta.Wire
+            {
+                slot = Json.Str(wire, "slot", at),
+                diameterM = Json.Num(wire, "diameter_m", at),
+                massKgPerM = Json.Num(wire, "mass_kg_per_m", at),
+                sagM = Json.Num(wire, "sag_m", at),
+                axialStiffnessN = Json.Num(wire, "axial_stiffness_n", at),
+                breakingForceN = Json.Num(wire, "breaking_force_n", at),
+                material = Json.Str(wire, "material", at),
+                damage = Json.Str(wire, "damage", at),
+                points = Json.Arr(wire, "points", at).Select(p => Json.Vec3(p, $"{at} points")).ToArray(),
+            });
+            meta.holes = Items(json, "holes", what, (hole, at) => new AssetPhysicsMeta.Hole
+            {
+                id = Json.Str(hole, "id", at),
+                centreLine = Json.Arr(hole, "centre_line", at).Select(p => Json.Vec3(p, $"{at} centre_line")).ToArray(),
+                topWidthM = Json.Num(hole, "top_width_m", at),
+                depthM = Json.Num(hole, "depth_m", at),
+                bandWidthM = Json.Num(hole, "band_width_m", at),
             });
             meta.snag = Items(json, "snag", what, (feature, at) => new AssetPhysicsMeta.SnagFeature
             {
