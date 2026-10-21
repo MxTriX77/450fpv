@@ -61,4 +61,6 @@ Ask new questions only under the rule above, at the matching gate.
 | Gate | Question | Why it is the pilot's | Source |
 |---|---|---|---|
 | G2 | Looking at the fortifications in the gallery: which forms read as what you see today? Coils loose or on pickets, bright or rusted; teeth squat or slim; hedgehogs of rail or of angle; a made or an improvised barrier; do the coil's flat loops read right? | qualitative look; no reference shows them | F01–F04, D-035 |
+| G5 | On a legs-off build, does the payload ride on top or stay slung below? | their own kit; T shows only the legs-on build | D-043, `drone.md` |
+| G5 | Letter T's payload hangs crosswise under the frame, with the spool fore-aft. Is that how your drones sit? | their own kit | D-043, `drone.md` |
 | G4 | The references show two no-signal screens: a bright blue with small centred text, and a deeper blue with two lines top-left. Which do your goggles show, or does it depend on the receiver? | a preference about their own kit; the footage shows both | FEED-07, gap review L12 |
