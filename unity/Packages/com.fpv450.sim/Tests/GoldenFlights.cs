@@ -24,9 +24,11 @@ namespace Fpv450.Sim.Tests
         // the records' shared 912 bytes: with the air off (no drag, still air, no ESC limit) and the gyroscopic term
         // taken out, every record of all 10 000 steps is bit-identical; then each new term moves the flight from its
         // first step of effect: the gyroscopic moment from step 1133 (0.17 m by 10 s), the rotors' in-plane drag from
-        // step 22 (model 2's drone fell 315 m with no drag at all; it now ends 219 m up), the 40 A limit from step
-        // 2006 (the roll step's kick), the body's and the coil's drag from step 2, the wind from step 1.
-        public const ulong PoweredHash = 0x3A5D9ED8AECA878CUL;
+        // step 22 (model 2's drone fell 315 m with no drag at all; it now ends 196 m up), the 40 A limit from step
+        // 2006 (the roll step's kick), the body's and the coil's drag from step 2, the wind from step 1. Pinned again
+        // within model 3 when drone.json's h_force_n_per_m_s was tuned from 0.31 to 0.225 (clip P's cruise pitch);
+        // the drone's hash refuses the earlier logs.
+        public const ulong PoweredHash = 0x734CE3306086F5D7UL;
 
         public static FlightSetup PoweredSetup(DroneSpec spec) => new FlightSetup
         {

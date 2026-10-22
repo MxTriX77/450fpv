@@ -213,7 +213,7 @@
     "inflow_advance_ratio": {"value": [0, 0.0405, 0.0811, 0.1216, 0.1621, 0.2027, 0.2432, 0.2837, 0.3242, 0.3648, 0.4053, 0.4458, 0.4864, 0.5269, 0.5674, 0.5877], "label": "published", "note": "the repository's drone.json (APC 10x4.5MR): the curves' shapes, borrowed"},
     "inflow_thrust_ratio": {"value": [1, 0.9612, 0.9178, 0.8689, 0.8163, 0.7581, 0.6944, 0.626, 0.5522, 0.4737, 0.3924, 0.3075, 0.2207, 0.132, 0.0443, 0], "label": "derived", "note": "the repository's drone.json (APC 10x4.5MR): the curves' shapes, borrowed"},
     "inflow_torque_ratio": {"value": [1, 1.0026, 1.0026, 0.9974, 0.9819, 0.9587, 0.9276, 0.8889, 0.8372, 0.7752, 0.7054, 0.6253, 0.5349, 0.4367, 0.3307, 0.2765], "label": "derived", "note": "the repository's drone.json (APC 10x4.5MR): the curves' shapes, borrowed"},
-    "h_force_n_per_m_s": {"value": 0.31, "label": "assumed", "note": "as the repository's drone.json"}
+    "h_force_n_per_m_s": {"value": 0.225, "label": "assumed", "note": "as the repository's drone.json"}
   },
   "packs": [
     {
