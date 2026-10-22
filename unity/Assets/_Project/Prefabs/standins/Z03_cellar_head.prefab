@@ -739,7 +739,7 @@ MonoBehaviour:
   id: Z03
   variant: Z03_cellar_head
   generator: godot_port
-  paramsSha256: c608ddf7087c79edd66036dd5aced598c9f41dc9e02553d3ea7e54abb46881d0
+  paramsSha256: 14a58d10ed4cf5a389baaa12847f4a0e7fd6b895dfbbecec49608a560c8ee2af
   units: m
   frame: unity-lh-yup
   bounds:
@@ -755,7 +755,7 @@ MonoBehaviour:
     switchDistanceM: 22
     thinWire: 0
   micro: []
-  cullDistanceM: 60
+  cullDistanceM: 400
   materials:
   - slot: brick_red
     visual: brick_red
@@ -971,7 +971,7 @@ LODGroup:
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 8568669654484414785}
-  - screenRelativeHeight: 0.046891928
+  - screenRelativeHeight: 0.0070337895
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 8764493758204759347}

@@ -113,7 +113,7 @@ MonoBehaviour:
   id: Z04
   variant: Z04_cellar_shaft
   generator: godot_port
-  paramsSha256: 2769410bc67050049f72655f473769e24cf93a67722383b8bc63ffb78bd400d2
+  paramsSha256: d163dbdfde3a99decf9c781ef3f0fbcff2e56152dda921dc0d836b914921afc7
   units: m
   frame: unity-lh-yup
   bounds:
@@ -125,7 +125,7 @@ MonoBehaviour:
     switchDistanceM: 0
     thinWire: 0
   micro: []
-  cullDistanceM: 60
+  cullDistanceM: 400
   materials:
   - slot: soil_cut
     visual: godot_soil_cut
@@ -239,7 +239,7 @@ LODGroup:
   m_AnimateCrossFading: 0
   m_LastLODIsBillboard: 0
   m_LODs:
-  - screenRelativeHeight: 0.050518148
+  - screenRelativeHeight: 0.0075777224
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 6082813029911551980}

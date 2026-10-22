@@ -5,6 +5,6 @@
     "model_sha256": "e250727975007593e51cd99781250dcbee8e679d839e66bcef753e984cc9651b",
     "catalog_key": "house_adobe"
   },
-  "lod": { "switch_m": [0.0, 45.0], "cull_m": 130.0 },
+  "lod": { "switch_m": [0.0, 45.0], "cull_m": 400.0 },
   "holes": []
 }

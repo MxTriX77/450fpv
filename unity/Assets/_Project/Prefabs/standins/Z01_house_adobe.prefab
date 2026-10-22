@@ -1946,7 +1946,7 @@ MonoBehaviour:
   id: Z01
   variant: Z01_house_adobe
   generator: godot_port
-  paramsSha256: 7f0042acf7457c41d3fc00f6c8357402e01fa08f91ac18e1734e44bf5c9c0eee
+  paramsSha256: be26b7c060d46422741df214fc1ca8bb833d9402c4073a08c1f2a9834861e6ee
   units: m
   frame: unity-lh-yup
   bounds:
@@ -1962,7 +1962,7 @@ MonoBehaviour:
     switchDistanceM: 45
     thinWire: 0
   micro: []
-  cullDistanceM: 130
+  cullDistanceM: 400
   materials:
   - slot: adobe_clay
     visual: godot_adobe_clay
@@ -3335,7 +3335,7 @@ LODGroup:
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 1045806697840200409}
-  - screenRelativeHeight: 0.08527982
+  - screenRelativeHeight: 0.027715942
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 5376271305317604831}

@@ -5,6 +5,6 @@
     "model_sha256": "a852a169a446af0d7ddb80c0a999740553af4d78e6435ffed56922cbd36c33e8",
     "catalog_key": "tree_dead"
   },
-  "lod": { "switch_m": [0.0, 30.0, 80.0], "cull_m": 200.0 },
+  "lod": { "switch_m": [0.0, 30.0, 80.0], "cull_m": 400.0 },
   "holes": []
 }

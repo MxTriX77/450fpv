@@ -5,7 +5,7 @@
     "model_sha256": "6e08183f90d1fd7d3d6ac48744e0073593619101276fdcc23ba9467d06ba623c",
     "catalog_key": "cellar_shaft"
   },
-  "lod": { "switch_m": [0.0], "cull_m": 60.0 },
+  "lod": { "switch_m": [0.0], "cull_m": 400.0 },
   "holes": [
     { "id": "shaft", "centre_line": [[0.0, 0.0, -1.0], [0.0, 0.0, 1.0]], "top_width_m": 0.9, "depth_m": 1.8, "band_width_m": 1.5 }
   ]

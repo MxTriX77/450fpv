@@ -367,7 +367,7 @@ MonoBehaviour:
   id: Z09
   variant: Z09_tree_maple
   generator: godot_port
-  paramsSha256: b9294bd7c6034a2910b9f07c20deb19f59860b64d0b4099f6a5407c05f76f91b
+  paramsSha256: f17360075c6fcad5f450ce613d932ce7fdc223f04cab6809c1bd43bc68e4dc1e
   units: m
   frame: unity-lh-yup
   bounds:
@@ -387,7 +387,7 @@ MonoBehaviour:
     switchDistanceM: 80
     thinWire: 0
   micro: []
-  cullDistanceM: 200
+  cullDistanceM: 400
   materials:
   - slot: bark_dark
     visual: bark_locust
@@ -472,7 +472,7 @@ LODGroup:
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 1519560874903030471}
-  - screenRelativeHeight: 0.04040182
+  - screenRelativeHeight: 0.02020091
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 7004782689258269809}

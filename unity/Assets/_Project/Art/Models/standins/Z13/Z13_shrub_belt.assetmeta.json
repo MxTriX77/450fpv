@@ -3,7 +3,7 @@
   "id": "Z13",
   "variant": "Z13_shrub_belt",
   "generator": "godot_port",
-  "params_sha256": "2396ed72b1f6734d1b640cbc6708c94c434c71c78b8287597c215f6b93c38aba",
+  "params_sha256": "3d48caf1dbf114b2a7c38510d69bf07468b0f1bdb1d4b0dfd6bdf6dc8839efab",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
@@ -39,7 +39,7 @@
     }
   ],
   "micro": [],
-  "cull_distance_m": 95.0,
+  "cull_distance_m": 400.0,
   "materials": [
     {
       "slot": "bark_dark",

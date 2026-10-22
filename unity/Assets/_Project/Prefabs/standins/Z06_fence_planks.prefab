@@ -848,7 +848,7 @@ MonoBehaviour:
   id: Z06
   variant: Z06_fence_planks
   generator: godot_port
-  paramsSha256: 446e55dc0ac4b21f43348aa6e22ce308586746712c06127a661569ea34977e16
+  paramsSha256: ed20151da29cc99f1205f1907018c9613a96789420651a374962caf0d2fb7106
   units: m
   frame: unity-lh-yup
   bounds:
@@ -860,7 +860,7 @@ MonoBehaviour:
     switchDistanceM: 0
     thinWire: 0
   micro: []
-  cullDistanceM: 55
+  cullDistanceM: 400
   materials:
   - slot: wood_weathered
     visual: godot_wood_weathered
@@ -1046,7 +1046,7 @@ LODGroup:
   m_AnimateCrossFading: 0
   m_LastLODIsBillboard: 0
   m_LODs:
-  - screenRelativeHeight: 0.0412543
+  - screenRelativeHeight: 0.0056724665
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 4472608141691645560}

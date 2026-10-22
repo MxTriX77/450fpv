@@ -660,7 +660,7 @@ MonoBehaviour:
   id: Z11
   variant: Z11_tree_ash
   generator: godot_port
-  paramsSha256: 45087735896b8c64174b70628b803811cdbc8325acbed805f5109d18c78daa1e
+  paramsSha256: 45cd36fadd832cec2812d9752c80ea268447942f1fa2102dc6ff225eddf2fd1a
   units: m
   frame: unity-lh-yup
   bounds:
@@ -680,7 +680,7 @@ MonoBehaviour:
     switchDistanceM: 80
     thinWire: 0
   micro: []
-  cullDistanceM: 200
+  cullDistanceM: 400
   materials:
   - slot: bark_belt
     visual: bark_locust
@@ -773,7 +773,7 @@ LODGroup:
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 5861227541455872296}
-  - screenRelativeHeight: 0.060788922
+  - screenRelativeHeight: 0.030394461
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 5342893936272930524}

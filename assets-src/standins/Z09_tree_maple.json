@@ -5,6 +5,6 @@
     "model_sha256": "5ea5414e0e4c15a94f0d17d3fe210fe32f7378019690f24b8bfe6f19835f0000",
     "catalog_key": "tree_maple"
   },
-  "lod": { "switch_m": [0.0, 30.0, 80.0], "cull_m": 200.0 },
+  "lod": { "switch_m": [0.0, 30.0, 80.0], "cull_m": 400.0 },
   "holes": []
 }

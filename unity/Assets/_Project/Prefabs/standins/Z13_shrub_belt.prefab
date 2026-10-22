@@ -144,7 +144,7 @@ MonoBehaviour:
   id: Z13
   variant: Z13_shrub_belt
   generator: godot_port
-  paramsSha256: 2396ed72b1f6734d1b640cbc6708c94c434c71c78b8287597c215f6b93c38aba
+  paramsSha256: 3d48caf1dbf114b2a7c38510d69bf07468b0f1bdb1d4b0dfd6bdf6dc8839efab
   units: m
   frame: unity-lh-yup
   bounds:
@@ -164,7 +164,7 @@ MonoBehaviour:
     switchDistanceM: 40
     thinWire: 0
   micro: []
-  cullDistanceM: 95
+  cullDistanceM: 400
   materials:
   - slot: bark_dark
     visual: bark_locust
@@ -217,7 +217,7 @@ LODGroup:
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 4996458804774302632}
-  - screenRelativeHeight: 0.031746667
+  - screenRelativeHeight: 0.0075398334
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 5847755979691200637}

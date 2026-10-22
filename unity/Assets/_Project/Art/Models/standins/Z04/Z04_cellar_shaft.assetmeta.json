@@ -3,7 +3,7 @@
   "id": "Z04",
   "variant": "Z04_cellar_shaft",
   "generator": "godot_port",
-  "params_sha256": "2769410bc67050049f72655f473769e24cf93a67722383b8bc63ffb78bd400d2",
+  "params_sha256": "d163dbdfde3a99decf9c781ef3f0fbcff2e56152dda921dc0d836b914921afc7",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
@@ -27,7 +27,7 @@
     }
   ],
   "micro": [],
-  "cull_distance_m": 60.0,
+  "cull_distance_m": 400.0,
   "materials": [
     {
       "slot": "soil_cut",

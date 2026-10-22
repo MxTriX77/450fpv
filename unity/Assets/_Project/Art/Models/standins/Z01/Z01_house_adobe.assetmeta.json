@@ -3,7 +3,7 @@
   "id": "Z01",
   "variant": "Z01_house_adobe",
   "generator": "godot_port",
-  "params_sha256": "7f0042acf7457c41d3fc00f6c8357402e01fa08f91ac18e1734e44bf5c9c0eee",
+  "params_sha256": "be26b7c060d46422741df214fc1ca8bb833d9402c4073a08c1f2a9834861e6ee",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
@@ -33,7 +33,7 @@
     }
   ],
   "micro": [],
-  "cull_distance_m": 130.0,
+  "cull_distance_m": 400.0,
   "materials": [
     {
       "slot": "adobe_clay",

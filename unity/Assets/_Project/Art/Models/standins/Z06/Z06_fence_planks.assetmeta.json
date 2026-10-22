@@ -3,7 +3,7 @@
   "id": "Z06",
   "variant": "Z06_fence_planks",
   "generator": "godot_port",
-  "params_sha256": "446e55dc0ac4b21f43348aa6e22ce308586746712c06127a661569ea34977e16",
+  "params_sha256": "ed20151da29cc99f1205f1907018c9613a96789420651a374962caf0d2fb7106",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
@@ -27,7 +27,7 @@
     }
   ],
   "micro": [],
-  "cull_distance_m": 55.0,
+  "cull_distance_m": 400.0,
   "materials": [
     {
       "slot": "wood_weathered",

@@ -258,7 +258,7 @@ MonoBehaviour:
   id: Z07
   variant: Z07_tree_fruit
   generator: godot_port
-  paramsSha256: 7b9b7a34675eb212311c2ba151d19accf9f1d00d934549f267e67bd1b300ae9a
+  paramsSha256: f9805a19249c77a27abbadc01756e5478eb0d7de95120ca6e01fcd6f5b6081b8
   units: m
   frame: unity-lh-yup
   bounds:
@@ -278,7 +278,7 @@ MonoBehaviour:
     switchDistanceM: 70
     thinWire: 0
   micro: []
-  cullDistanceM: 170
+  cullDistanceM: 400
   materials:
   - slot: bark_dark
     visual: bark_locust
@@ -363,7 +363,7 @@ LODGroup:
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 7030011863690285612}
-  - screenRelativeHeight: 0.044843305
+  - screenRelativeHeight: 0.019058404
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 2038811239426813336}

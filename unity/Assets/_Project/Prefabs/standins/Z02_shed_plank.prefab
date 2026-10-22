@@ -139,7 +139,7 @@ MonoBehaviour:
   id: Z02
   variant: Z02_shed_plank
   generator: godot_port
-  paramsSha256: e287194ab2a1d258f0501e0d5825e9bb59fb328028c9874c0a641e6dedd012a6
+  paramsSha256: 591a39c1c632470becfe908f19a0c28c24e9add0fd9942acfd6096ebf9083f17
   units: m
   frame: unity-lh-yup
   bounds:
@@ -155,7 +155,7 @@ MonoBehaviour:
     switchDistanceM: 25
     thinWire: 0
   micro: []
-  cullDistanceM: 70
+  cullDistanceM: 400
   materials:
   - slot: sheet_metal_worn
     visual: godot_sheet_metal_worn
@@ -487,7 +487,7 @@ LODGroup:
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 4823766351673691586}
-  - screenRelativeHeight: 0.055673063
+  - screenRelativeHeight: 0.009742786
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 4902108903170531754}

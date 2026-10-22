@@ -3,7 +3,7 @@
   "id": "Z12",
   "variant": "Z12_tree_dead",
   "generator": "godot_port",
-  "params_sha256": "76fa62e67269651c9df77564aa6551a952e9adda909bb3bb4e83012c02193cf6",
+  "params_sha256": "965c624b5a78a39f761a15b86ad78a6f602f0b2472b7468e2cdd04f0ca635f0f",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
@@ -39,7 +39,7 @@
     }
   ],
   "micro": [],
-  "cull_distance_m": 200.0,
+  "cull_distance_m": 400.0,
   "materials": [
     {
       "slot": "bark_dark",

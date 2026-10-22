@@ -202,7 +202,7 @@ MonoBehaviour:
   id: Z10
   variant: Z10_tree_acacia
   generator: godot_port
-  paramsSha256: fc9da097b94866d3b6875904522305fe727ada0e9c1d97b1cc2ea8d6ee25b386
+  paramsSha256: 59d128b2431081c5f1231fa78397016ef7681f04c3c375d8952fe7d3f007089c
   units: m
   frame: unity-lh-yup
   bounds:
@@ -222,7 +222,7 @@ MonoBehaviour:
     switchDistanceM: 80
     thinWire: 0
   micro: []
-  cullDistanceM: 200
+  cullDistanceM: 400
   materials:
   - slot: bark_belt
     visual: bark_locust
@@ -307,7 +307,7 @@ LODGroup:
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 6135155599034801560}
-  - screenRelativeHeight: 0.05373731
+  - screenRelativeHeight: 0.026868654
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 3219394528756693486}

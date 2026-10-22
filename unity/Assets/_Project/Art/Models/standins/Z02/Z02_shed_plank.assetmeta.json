@@ -3,7 +3,7 @@
   "id": "Z02",
   "variant": "Z02_shed_plank",
   "generator": "godot_port",
-  "params_sha256": "e287194ab2a1d258f0501e0d5825e9bb59fb328028c9874c0a641e6dedd012a6",
+  "params_sha256": "591a39c1c632470becfe908f19a0c28c24e9add0fd9942acfd6096ebf9083f17",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
@@ -33,7 +33,7 @@
     }
   ],
   "micro": [],
-  "cull_distance_m": 70.0,
+  "cull_distance_m": 400.0,
   "materials": [
     {
       "slot": "sheet_metal_worn",

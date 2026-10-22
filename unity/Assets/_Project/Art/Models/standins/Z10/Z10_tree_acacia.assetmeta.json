@@ -3,7 +3,7 @@
   "id": "Z10",
   "variant": "Z10_tree_acacia",
   "generator": "godot_port",
-  "params_sha256": "fc9da097b94866d3b6875904522305fe727ada0e9c1d97b1cc2ea8d6ee25b386",
+  "params_sha256": "59d128b2431081c5f1231fa78397016ef7681f04c3c375d8952fe7d3f007089c",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
@@ -39,7 +39,7 @@
     }
   ],
   "micro": [],
-  "cull_distance_m": 200.0,
+  "cull_distance_m": 400.0,
   "materials": [
     {
       "slot": "bark_belt",

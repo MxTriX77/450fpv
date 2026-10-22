@@ -3,7 +3,7 @@
   "id": "Z08",
   "variant": "Z08_tree_young",
   "generator": "godot_port",
-  "params_sha256": "e0e48d1ab10a5e5dba9f43f342e6b04a66e95aaf1c88ddeae5856ac5f7a8d2a5",
+  "params_sha256": "681e8f34dc44fde19be414d38e5883544a3b3b03bf44987f70c1c6353b6732c9",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
@@ -39,7 +39,7 @@
     }
   ],
   "micro": [],
-  "cull_distance_m": 150.0,
+  "cull_distance_m": 400.0,
   "materials": [
     {
       "slot": "bark_belt",

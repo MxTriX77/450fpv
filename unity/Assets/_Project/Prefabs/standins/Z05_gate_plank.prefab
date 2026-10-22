@@ -632,7 +632,7 @@ MonoBehaviour:
   id: Z05
   variant: Z05_gate_plank
   generator: godot_port
-  paramsSha256: 9428a2456f7f8697a504671f6ced70dcb06fd9b11244ca98493cd962ba37df39
+  paramsSha256: 837912f07597a6cb7aadb1e49100542020c1772ce97ccc2cc305304330b0feea
   units: m
   frame: unity-lh-yup
   bounds:
@@ -648,7 +648,7 @@ MonoBehaviour:
     switchDistanceM: 20
     thinWire: 0
   micro: []
-  cullDistanceM: 55
+  cullDistanceM: 400
   materials:
   - slot: wood_weathered
     visual: godot_wood_weathered
@@ -806,7 +806,7 @@ LODGroup:
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 8999226072608615704}
-  - screenRelativeHeight: 0.043143813
+  - screenRelativeHeight: 0.0059322743
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 973450297672364479}
