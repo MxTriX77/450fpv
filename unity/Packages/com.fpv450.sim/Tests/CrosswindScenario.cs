@@ -101,16 +101,32 @@ namespace Fpv450.Sim.Tests
         }
 
         /// <summary>The pitch, degrees, that holds an airspeed north in still air, mean over the last MeasuredSeconds.</summary>
-        public static double CruisePitch(DroneSpec spec, double airspeed)
+        public static double CruisePitch(DroneSpec spec, double airspeed) => Cruise(spec, airspeed, 0, out _);
+
+        /// <summary>
+        /// The sideways lean, degrees, that holds a track north at a ground speed in a steady crosswind from the west,
+        /// the nose kept on the track ("roll and keep direction", wind.md §5.5): the lean wind.md §5.3 derives 1.8° per
+        /// m/s of (0.95–2.6) at its nominal 13 m/s.
+        /// </summary>
+        public static double CruiseLean(DroneSpec spec, double speed, double crosswind)
         {
-            FlightSetup setup = Setup(spec, WindSetup.Of(WindLevel.Still));
+            Cruise(spec, speed, crosswind, out double lean);
+            return lean;
+        }
+
+        // The pitch and the sideways lean (toward the west, into a wind from there), degrees, holding a ground velocity
+        // north in a steady wind from the west.
+        static double Cruise(DroneSpec spec, double airspeed, double crosswind, out double lean)
+        {
+            FlightSetup setup = Setup(spec, crosswind > 0 ? WindSetup.SteadyFrom(270, crosswind) : WindSetup.Of(WindLevel.Still));
             var core = new FlightCore(setup);
             Arm(core);
             var pilot = new SimPilot(core.Controller, setup.StartPosition)
             {
                 HoldVelocity = true, TargetVelocity = new Double3(0, 0, airspeed), MaxTiltSin = 0.8,
             };
-            double tilt = 0;
+            double pitch = 0;
+            lean = 0;
             int n = 0, steps = (int)(Seconds * 1000), from = (int)((Seconds - MeasuredSeconds) * 1000);
             for (int k = 0; k < steps; k++)
             {
@@ -120,10 +136,12 @@ namespace Fpv450.Sim.Tests
                 pilot.Target = new Double3(core.State.Position.X, setup.StartPosition.Y, core.State.Position.Z);
                 if (k < from) continue;
                 Double3 up = core.State.Attitude.Rotate(new Double3(0, 1, 0));
-                tilt += System.Math.Atan2(DetMath.Sqrt(up.X * up.X + up.Z * up.Z), up.Y) * RadToDeg;
+                pitch += System.Math.Atan2(up.Z, up.Y) * RadToDeg;
+                lean += System.Math.Atan2(-up.X, up.Y) * RadToDeg;
                 n++;
             }
-            return tilt / n;
+            lean /= n;
+            return pitch / n;
         }
     }
 }

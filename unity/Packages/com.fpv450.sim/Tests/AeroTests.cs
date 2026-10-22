@@ -48,6 +48,21 @@ namespace Fpv450.Sim.Tests
             Assert.That(body.LeanPerMs, Is.LessThan(0.95));
         }
 
+        // Where wind.md §5.3 derived the band: at its nominal 13 m/s of cruise, where the drag puts clip P's 22.7° of pitch
+        // (drone.json's rotor in-plane drag is set so), the extra lean each m/s of crosswind needs with the nose kept on
+        // the track: 1.8° nominal.
+        [Test]
+        public void ACrosswindAtCruiseNeedsTheDerivedLean()
+        {
+            double pitch = CrosswindScenario.CruisePitch(Drone, 13);
+            double lean0 = CrosswindScenario.CruiseLean(Drone, 13, 0), lean2 = CrosswindScenario.CruiseLean(Drone, 13, 2);
+            double perMs = (lean2 - lean0) / 2;
+            TestContext.Out.WriteLine($"cruise north at 13 m/s: pitch {F(pitch, "0.00")}° (clip P: 22.7°, 22.4–23.0); a 2 m/s crosswind from the west "
+                + $"leans it {F(lean2 - lean0, "0.00")}° into the wind: {F(perMs, "0.000")}° per m/s (wind.md §5.3: 1.8, 0.95–2.6)");
+            Assert.That(pitch, Is.InRange(22.4, 23.0), "the drag flies clip P's attitude at the nominal airspeed");
+            Assert.That(perMs, Is.InRange(0.95, 2.6));
+        }
+
         // The stand-in's turbulent Severe wind: the mean lean over the measured window per m/s of the mean wind there.
         [Test]
         public void ASevereWindLeansTheDroneByItsMean()
