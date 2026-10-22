@@ -34,6 +34,9 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The ESC's command filter τ_esc, s.</summary>
         public double EscTau;
+
+        /// <summary>The ESC's current limit, A: the motor's current never exceeds it while it drives (Propulsion).</summary>
+        public double EscCurrentLimit;
     }
 
     /// <summary>
@@ -62,6 +65,10 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>Advance-ratio points from 0, and C_T and C_P there over their static values.</summary>
         public double[] InflowAdvanceRatio, InflowThrustRatio, InflowTorqueRatio;
+
+        /// <summary>The rotor's in-plane drag (the H-force), N per m/s of the hub's in-plane airspeed at ReferenceRpm;
+        /// it grows in proportion to the rotor's speed (Propulsion.HForce).</summary>
+        public double HForce;
     }
 
     /// <summary>One battery pack: its mass part and its cells.</summary>
@@ -208,6 +215,9 @@ namespace Fpv450.Sim.Flight
         public DronePayload Payload;
         public DroneStand Stand;
 
+        /// <summary>The airframe's drag; its coil part is the coil's.</summary>
+        public AeroSpec Aero;
+
         /// <summary>The file's own loadout: its payload and coil masses, legs on.</summary>
         public Loadout Nominal => new Loadout
         {
@@ -268,6 +278,9 @@ namespace Fpv450.Sim.Flight
             props.InflowTorqueRatio = (double[])Props.InflowTorqueRatio.Clone();
             return new PropulsionSpec { Motors = (DroneMotor[])Motors.Clone(), Props = props, Packs = packs };
         }
+
+        /// <summary>The flight's airframe drag: a copy of the aero block.</summary>
+        public AeroSpec BuildAero() => Aero.Clone();
 
         // A part scaled uniformly by s about the middle of its face toward the arm plane: its sizes times s, and its
         // centre moved away from the plane by its half-extent along y times (s − 1). s = 1 leaves every bit as it was.
@@ -349,11 +362,12 @@ namespace Fpv450.Sim.Flight
                     LegsOff = new DroneLegsOff { Removed = new int[0], Moved = new int[0], MovedTo = new Double3[0] },
                     Coil = new DroneCoil { Part = -1 },
                     Payload = new DronePayload { Part = -1 },
+                    Aero = new AeroSpec(),
                 };
                 const string top = "drone.json";
                 if (!IsObject(root, top)) return spec;
                 Members(root, top, "schema", "owner", "name", "bootstrap", "about", "fields",
-                    "parts", "motors", "props", "packs", "legs", "legs_off", "coil", "payload", "stand");
+                    "parts", "motors", "props", "packs", "legs", "legs_off", "coil", "payload", "stand", "aero");
 
                 JsonNode schema = Required(root, "schema", top);
                 if (schema != null && !(schema.Kind == JsonKind.Number && schema.Number == Schema))
@@ -383,6 +397,7 @@ namespace Fpv450.Sim.Flight
                 if ((n = Required(root, "payload", top)) != null) spec.Payload = ReadPayload(n, spec);
                 if ((n = Required(root, "legs_off", top)) != null) ReadLegsOff(n, spec);
                 if ((n = Required(root, "stand", top)) != null) spec.Stand = ReadStand(n);
+                if ((n = Required(root, "aero", top)) != null) ReadAero(n, spec);
                 return spec;
             }
 
@@ -445,7 +460,7 @@ namespace Fpv450.Sim.Flight
                     string path = "motors[" + i + "] (" + Corner[i] + ")";
                     if (!IsObject(m, path)) continue;
                     Members(m, path, "position_m", "spin", "kv_rpm_per_v", "resistance_ohm", "no_load_current_a",
-                        "rotor_inertia_kg_m2", "magnet_poles", "esc_tau_s");
+                        "rotor_inertia_kg_m2", "magnet_poles", "esc_tau_s", "esc_current_limit_a");
                     ref DroneMotor motor = ref motors[i];
                     if (Vector(m, "position_m", path, out motor.Position)) AtCorner(motor.Position, i, path + ".position_m");
                     spins[i] = Text(m, "spin", path, new[] { "cw", "ccw" });
@@ -457,6 +472,7 @@ namespace Fpv450.Sim.Flight
                     motor.MagnetPoles = Count(m, "magnet_poles", path, 2);
                     if (motor.MagnetPoles % 2 != 0) Fail(path + ".magnet_poles", "poles come in pairs");
                     motor.EscTau = Positive(m, "esc_tau_s", path);
+                    motor.EscCurrentLimit = Positive(m, "esc_current_limit_a", path);
                 }
                 // The diagonal pairs spin alike and the two pairs oppositely, so the rotor torques cancel at hover.
                 if (System.Array.IndexOf(spins, null) < 0
@@ -470,7 +486,7 @@ namespace Fpv450.Sim.Flight
                 if (!IsObject(p, "props")) return props;
                 Members(p, "props", "diameter_m", "blades", "pitch_m", "k_t_n_per_rad2_s2", "kappa_m", "reference_rpm",
                     "static_rpm", "static_thrust_ratio", "static_torque_ratio",
-                    "inflow_advance_ratio", "inflow_thrust_ratio", "inflow_torque_ratio");
+                    "inflow_advance_ratio", "inflow_thrust_ratio", "inflow_torque_ratio", "h_force_n_per_m_s");
                 props.Diameter = Positive(p, "diameter_m", "props");
                 props.Blades = Count(p, "blades", "props", 2);
                 props.Pitch = Positive(p, "pitch_m", "props");
@@ -483,6 +499,7 @@ namespace Fpv450.Sim.Flight
                 props.InflowAdvanceRatio = Numbers(p, "inflow_advance_ratio", "props", 2);
                 props.InflowThrustRatio = Numbers(p, "inflow_thrust_ratio", "props", 2);
                 props.InflowTorqueRatio = Numbers(p, "inflow_torque_ratio", "props", 2);
+                props.HForce = NonNegative(p, "h_force_n_per_m_s", "props");
                 Curve("props.static", props.StaticRpm, props.StaticThrustRatio, props.StaticTorqueRatio, false);
                 Curve("props.inflow", props.InflowAdvanceRatio, props.InflowThrustRatio, props.InflowTorqueRatio, true);
                 // The ratios are 1 where k_T and κ hold: at the reference rpm, and static (J = 0).
@@ -657,6 +674,23 @@ namespace Fpv450.Sim.Flight
                 stand.PostDiameter = Positive(p, "post_diameter_m", "stand");
                 stand.Mass = Positive(p, "mass_kg", "stand");
                 return stand;
+            }
+
+            // After the coil, whose part carries the coil's own drag.
+            void ReadAero(JsonNode p, DroneSpec spec)
+            {
+                AeroSpec aero = spec.Aero;
+                aero.CoilPart = spec.Coil.Part;
+                if (!IsObject(p, "aero")) return;
+                Members(p, "aero", "air_density_kg_m3", "body_area_m2", "body_center_of_pressure_m", "drag_coefficient");
+                aero.AirDensity = Positive(p, "air_density_kg_m3", "aero");
+                if (Vector(p, "body_area_m2", "aero", out aero.BodyArea)
+                    && !(aero.BodyArea.X > 0 && aero.BodyArea.Y > 0 && aero.BodyArea.Z > 0))
+                    Fail("aero.body_area_m2", "every silhouette must be above 0");
+                Vector(p, "body_center_of_pressure_m", "aero", out aero.BodyCenterOfPressure);
+                aero.DragCoefficient = Positive(p, "drag_coefficient", "aero");
+                if (spec.Coil.Part >= 0 && spec.Parts[spec.Coil.Part].Kind != PartKind.Cylinder)
+                    Fail("coil.part", "the coil's drag needs its part to be a cylinder");
             }
 
             // ---- the building blocks ----

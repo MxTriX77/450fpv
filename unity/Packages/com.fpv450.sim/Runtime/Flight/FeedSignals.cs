@@ -38,7 +38,7 @@ namespace Fpv450.Sim.Flight
     /// - CameraAngularVelocity: filled (1.1)
     /// - MotorElectricalHz, MotorCurrent (each ESC's draw from the packs), MotorCurrentStep, PackVolts: filled (1.4),
     ///   for a body with propulsion · Impact and Crashed: 1.6 (design 1's list)
-    /// - AirVelocityAtCamera: stub; the stand-in wind (1.5), then p7c-wind
+    /// - AirVelocityAtCamera: filled (1.5) from the stand-in wind, then p7c-wind's field
     /// - CameraVibration: stub; p7b-airframe (PR-1's throttle-punch shake)
     /// - FiberTension, FiberMinBendRadius, LinkState, LinkMargin: stub; 7d
     /// K§11.8's other rows are not the physics': scene light, sun and time of day (the renderer), the OSD state (the

@@ -24,7 +24,7 @@ namespace Fpv450.Sim.Tests
         static string Motor(string position, string spin) =>
             "{'position_m': " + L(position) + ", 'spin': '" + spin + "', 'kv_rpm_per_v': " + L("900")
             + ", 'resistance_ohm': " + L("0.1") + ", 'no_load_current_a': " + L("1") + ", 'rotor_inertia_kg_m2': " + L("6e-5")
-            + ", 'magnet_poles': " + L("14") + ", 'esc_tau_s': " + L("0.005") + "}";
+            + ", 'magnet_poles': " + L("14") + ", 'esc_tau_s': " + L("0.005") + ", 'esc_current_limit_a': " + L("40") + "}";
 
         static string Pack(string part) =>
             "{'part': '" + part + "', 'series': " + L("6") + ", 'parallel': " + L("2") + ", 'cell_capacity_ah': " + L("5")
@@ -49,7 +49,8 @@ namespace Fpv450.Sim.Tests
             + ", 'k_t_n_per_rad2_s2': " + L("1.5e-5") + ", 'kappa_m': " + L("0.0175") + ", 'reference_rpm': " + L("9000")
             + ", 'static_rpm': " + L("[3000, 9000, 15000]") + ", 'static_thrust_ratio': " + L("[0.98, 1, 1.03]")
             + ", 'static_torque_ratio': " + L("[1.05, 1, 1.01]") + ", 'inflow_advance_ratio': " + L("[0, 0.3, 0.6]")
-            + ", 'inflow_thrust_ratio': " + L("[1, 0.55, 0]") + ", 'inflow_torque_ratio': " + L("[1, 0.84, 0.28]") + "},"
+            + ", 'inflow_thrust_ratio': " + L("[1, 0.55, 0]") + ", 'inflow_torque_ratio': " + L("[1, 0.84, 0.28]")
+            + ", 'h_force_n_per_m_s': " + L("0.3") + "},"
             + " 'packs': [" + Pack("pack_a") + ", " + Pack("pack_b") + "],"
             + " 'legs': {'parts': ['leg_rr', 'leg_fr', 'leg_rl', 'leg_fl'], 'stiffness_n_per_m': " + L("20000")
             + ", 'damping_n_s_per_m': " + L("40") + ", 'foot_radius_m': " + L("0.0075") + "},"
@@ -58,7 +59,9 @@ namespace Fpv450.Sim.Tests
             + ", 'fiber_length_m': " + L("10000") + "},"
             + " 'payload': {'part': 'cargo', 'mass_min_kg': " + L("0") + ", 'mass_max_kg': " + L("2") + "},"
             + " 'stand': {'material': 'steel', 'post_radius_m': " + L("0.226") + ", 'post_height_m': " + L("0.25")
-            + ", 'post_diameter_m': " + L("0.025") + ", 'mass_kg': " + L("2.9") + "}}"
+            + ", 'post_diameter_m': " + L("0.025") + ", 'mass_kg': " + L("2.9") + "},"
+            + " 'aero': {'air_density_kg_m3': " + L("1.225") + ", 'body_area_m2': " + L("[0.04, 0.05, 0.05]")
+            + ", 'body_center_of_pressure_m': " + L("[0, -0.05, 0]") + ", 'drag_coefficient': " + L("0.9") + "}}"
         ).Replace('\'', '"');
 
         // The repository's file is p5-drone's researched drone (task 1.2): letter T's 2-blade props, the 3115 900 KV

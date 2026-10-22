@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Wind;
 using Fpv450.Sim.World;
 
 namespace Fpv450.Sim.Log
@@ -276,6 +277,13 @@ namespace Fpv450.Sim.Log
             w.WriteLine("  body: " + h.Parts.Length + " parts, " + h.Body.Mass.ToString("0.000", c) + " kg, CoM " + V(h.Body.CenterOfMass, "0.0000")
                 + " m, inertia xx " + G(i.XX) + " yy " + G(i.YY) + " zz " + G(i.ZZ) + " xy " + G(i.XY) + " xz " + G(i.XZ) + " yz " + G(i.YZ) + " kg.m2");
             w.WriteLine("  settings: " + h.Settings.Length + " FcSettings fields by CLI name");
+            w.WriteLine("  wind: " + WindLine(h));
+            if (h.Aero != null)
+                w.WriteLine("  aero: air " + G(h.Aero.AirDensity) + " kg/m3, body silhouette side/top/front " + V(h.Aero.BodyArea, "0.0000")
+                    + " m2 at " + V(h.Aero.BodyCenterOfPressure, "0.000") + " m, C_d " + G(h.Aero.DragCoefficient) + ", coil "
+                    + (h.Aero.CoilPart >= 0 ? PartName((ushort)h.Aero.CoilPart) : "none"));
+            else
+                w.WriteLine("  aero: none (a bench body)");
             w.WriteLine("  randomness: " + h.Streams.Length + " streams" + (h.Streams.Length > 0 ? " (" + string.Join(", ", h.Streams) + ")" : "")
                 + ", " + h.Draws.Length + " per-flight draws");
             foreach (ParameterDraw d in h.Draws)
@@ -305,7 +313,9 @@ namespace Fpv450.Sim.Log
                 w.WriteLine("  rotor speed " + C4(s.RotorSpeed) + " rad/s, command " + C4(t.RotorCommand) + ", esc " + C4(s.EscCommand));
                 w.WriteLine("  packs " + G(t.PackVolts0) + " / " + G(t.PackVolts1) + " V, " + G(t.PackAmps0) + " / " + G(t.PackAmps1) + " A, charge "
                     + G(s.PackCharge0) + " / " + G(s.PackCharge1));
-                w.WriteLine("  net force " + V(t.NetForce, "0.000") + " N, net moment " + V(t.NetMoment, "0.0000") + " N.m");
+                w.WriteLine("  net force " + V(t.NetForce, "0.000") + " N, net moment " + V(t.NetMoment, "0.0000") + " N.m; the air's "
+                    + V(t.AeroForce, "0.000") + " N, " + V(t.AeroMoment, "0.0000") + " N.m; gust " + V(s.Gust, "0.000") + " m/s"
+                    + (s.EscLimited != 0 ? "; ESCs at their current limit: " + Limited(s.EscLimited) : ""));
                 w.WriteLine("  stick roll " + G(k.Roll) + ", pitch " + G(k.Pitch) + ", yaw " + G(k.Yaw) + ", throttle " + G(k.Throttle) + ", arm "
                     + (k.Arm ? "on" : "off") + " (host " + k.HostUs + " us)");
             }
@@ -344,6 +354,10 @@ namespace Fpv450.Sim.Log
                         : "hitch: the scheduler ran " + G(e.A) + " steps to catch up, the first " + G(e.B) + " us late";
                 case EventKind.EventsLost:
                     return G(e.A) + " events lost: the step's event buffer was full (a producer bug)";
+                case EventKind.CurrentLimit:
+                    return e.A > 0
+                        ? "ESC " + CornerName(e.Index) + " holds its motor at its " + G(e.B) + " A current limit, taking " + G(e.A * 100) + " % of its duty"
+                        : "ESC " + CornerName(e.Index) + " lets go of its " + G(e.B) + " A current limit";
                 default:
                     return "event kind " + (int)e.Kind + ": part " + e.Part + ", index " + e.Index + ", " + Where(e) + ", a " + G(e.A) + ", b "
                         + G(e.B) + ", c " + G(e.C);
@@ -371,6 +385,29 @@ namespace Fpv450.Sim.Log
             if (e.Surface != 0) what += " (surface " + Header.SurfaceName(e.Surface) + ")";
             else if (e.Material != 0) what += " (material " + Header.MaterialName(e.Material) + ")";
             return what;
+        }
+
+        // The wind in words: its model, level and draws (PHB-06: a stand-in, labelled as such).
+        static string WindLine(LogHeader h)
+        {
+            string text = h.WindModel + ", " + h.Wind.Level.ToString().ToLowerInvariant();
+            if (h.Wind.Level == WindLevel.Steady)
+                text += " " + G(h.Wind.SteadySpeed) + " m/s from " + G(h.Wind.SteadyFromDeg) + " deg";
+            foreach (ParameterDraw d in h.Draws)
+                if (d.Stream == "wind.direction") text += "; from " + G(d.Value) + " deg";
+                else if (d.Stream == "wind.strength") text += ", mean " + G(d.Value) + " m/s in [" + G(d.Lo) + ", " + G(d.Hi) + "]";
+            foreach (NamedValue v in h.WindParameters) text += ", " + v.Name + " " + G(v.Value);
+            if (h.WindModel == WindPreset.Model) text += " (p7c-wind replaces it)";
+            return text;
+        }
+
+        static string Limited(byte bits)
+        {
+            var parts = new List<string>();
+            for (byte i = 0; i < 4; i++)
+                if ((bits & (1 << i)) != 0)
+                    parts.Add(CornerName(i));
+            return string.Join(", ", parts);
         }
 
         static string CornerName(byte corner) =>

@@ -34,14 +34,30 @@ namespace Fpv450.Sim.Tests
             }
         }
 
-        static FlightCore Core(MassModel mass, double charge, Quat attitude = default, Double3 velocity = default)
+        static FlightCore Core(MassModel mass, double charge, Quat attitude = default, Double3 velocity = default, PropulsionSpec propulsion = null)
         {
             if (attitude.W == 0 && attitude.X == 0 && attitude.Y == 0 && attitude.Z == 0) attitude = Quat.Identity;
             return new FlightCore(new FlightSetup
             {
-                Seed = 1, World = FlightWorld.Floor(), Mass = mass, Propulsion = Drone.BuildPropulsion(),
+                Seed = 1, World = FlightWorld.Floor(), Mass = mass, Propulsion = propulsion ?? Drone.BuildPropulsion(),
                 StartPosition = new Double3(0, 500, 0), StartAttitude = attitude, StartVelocity = velocity, StartPackCharge = charge,
             });
+        }
+
+        // The drone's propulsion with its ESCs' current limit lifted (an ESC with none), or with no rotor in-plane drag
+        // (the rate rig of a step-response test, where the tumbling body's own air does not reach the loop).
+        static PropulsionSpec Unlimited()
+        {
+            PropulsionSpec p = Drone.BuildPropulsion();
+            for (int i = 0; i < 4; i++) p.Motors[i].EscCurrentLimit = 1e9;
+            return p;
+        }
+
+        static PropulsionSpec NoInPlaneDrag()
+        {
+            PropulsionSpec p = Drone.BuildPropulsion();
+            p.Props.HForce = 0;
+            return p;
         }
 
         static StickSample Stick(double throttle, double roll = 0, double pitch = 0, double yaw = 0, bool arm = true) =>
@@ -60,18 +76,21 @@ namespace Fpv450.Sim.Tests
             public double Stick, Throttle, Duty, Rpm, Amps, Volts, FrontOverRear, Climb;
         }
 
-        // A simulated pilot holding height on the throttle (a PD on the height and climb rate), sticks centred; the
-        // steady state over the last two seconds of eight.
+        // The closed-loop pilot (SimPilot) holding the start's position, height and heading, so the hover is level and
+        // still (the rotors' in-plane drag would otherwise trim a drift); the steady state over the last two seconds
+        // of eight.
         static Hover HoldHeight(FlightCore core)
         {
-            double z0 = core.State.Position.Y, stick = 0.5;
+            var pilot = new SimPilot(core.Controller, core.State.Position);
+            double stick;
             var h = new Hover();
             int n = 0;
             for (int k = 0; k < 8000; k++)
             {
-                double z = core.State.Position.Y, vz = core.State.Velocity.Y;
-                stick = Math.Clamp(0.5 + 0.1 * (z0 - z) - 0.1 * vz, 0, 1);
-                core.Advance(Stick(stick));
+                StickSample sticks = pilot.Sticks(core, core.State.Step * FlightCore.StepUs);
+                stick = sticks.Throttle;
+                core.Advance(sticks);
+                double vz = core.State.Velocity.Y;
                 if (k < 6000) continue;
                 ref readonly FlightState s = ref core.State;
                 h.Stick += stick;
@@ -153,29 +172,46 @@ namespace Fpv450.Sim.Tests
         // ---- The maximum thrust and the sag ----
 
         // The independent check: the DC motor's steady state at full duty, every motor alike, two packs in parallel,
-        // solved by bisection on the rotor speed with drone.json's numbers in System.Math (not Propulsion's code).
-        static void FullDutySteadyState(double charge, out double thrustPerMotor, out double volts, out double packAmps)
+        // solved by bisection on the rotor speed with drone.json's numbers in System.Math (not Propulsion's code). Where
+        // the motor's current would pass the ESC's limit, the limit holds it: the prop's torque then balances the
+        // limit's, Kt·(I_lim − I0) = Q(ω), and the ESC draws its duty's share of it, d'·I_lim with d' = (I_lim·R + Ke·ω)/V.
+        static void FullDutySteadyState(double charge, out double thrustPerMotor, out double volts, out double packAmps,
+            double limit = double.NaN)
         {
             DroneSpec d = Drone;
             DroneMotor m = d.Motors[0];
             DroneProps p = d.Props;
             DronePack pack = d.Packs[0];
+            if (double.IsNaN(limit)) limit = m.EscCurrentLimit;
             double ke = 60 / (2 * Math.PI * m.Kv);
             double voc = pack.Series * Ocv(pack.Ocv, charge), rPack = pack.Series * pack.CellResistance / pack.Parallel / 2; // two packs
+            double Q(double w) => p.TorqueRatio * p.ThrustCoefficient * Lerp(p.StaticRpm, p.StaticTorqueRatio, w * 60 / (2 * Math.PI)) * w * w;
             double lo = 0, hi = m.Kv * voc * 2 * Math.PI / 60;
             for (int it = 0; it < 200; it++)
             {
-                double w = (lo + hi) / 2, rpm = w * 60 / (2 * Math.PI);
-                double q = p.TorqueRatio * p.ThrustCoefficient * Lerp(p.StaticRpm, p.StaticTorqueRatio, rpm) * w * w;
-                double i = m.NoLoadCurrent + q / ke;
+                double w = (lo + hi) / 2;
+                double i = m.NoLoadCurrent + Q(w) / ke;
                 double v = voc - rPack * 4 * i;
                 if (v - ke * w - m.Resistance * i > 0) lo = w; else hi = w;
             }
-            double ws = lo, rpms = ws * 60 / (2 * Math.PI);
-            thrustPerMotor = p.ThrustCoefficient * Lerp(p.StaticRpm, p.StaticThrustRatio, rpms) * ws * ws;
-            double current = m.NoLoadCurrent + p.TorqueRatio * p.ThrustCoefficient * Lerp(p.StaticRpm, p.StaticTorqueRatio, rpms) * ws * ws / ke;
+            double ws = lo;
+            double current = m.NoLoadCurrent + Q(ws) / ke;
             volts = voc - rPack * 4 * current;
             packAmps = 4 * current; // both packs together: four ESCs at full duty draw their motors' current
+            if (current > limit)
+            {
+                lo = 0;
+                for (int it = 0; it < 200; it++)
+                {
+                    double w = (lo + hi) / 2;
+                    if (Q(w) < ke * (limit - m.NoLoadCurrent)) lo = w; else hi = w;
+                }
+                ws = lo;
+                double power = 4 * (limit * m.Resistance + ke * ws) * limit; // the four ESCs' constant power
+                volts = (voc + Math.Sqrt(voc * voc - 4 * rPack * power)) / 2;
+                packAmps = power / volts;
+            }
+            thrustPerMotor = p.ThrustCoefficient * Lerp(p.StaticRpm, p.StaticThrustRatio, ws * 60 / (2 * Math.PI)) * ws * ws;
         }
 
         static double Ocv(double[] table, double charge)
@@ -211,18 +247,62 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void TheMaximumThrustIsTheMotorsAtItsTopSpeed()
         {
-            var prop = new Propulsion(Drone.BuildPropulsion());
-            FullDuty(prop, 1, 2, out RotorLoads loads);
-            double total = (loads.Thrust.RearRight + loads.Thrust.FrontRight + loads.Thrust.RearLeft + loads.Thrust.FrontLeft) / loads.SubSteps;
-            FullDutySteadyState(1, out double perMotor, out double volts, out double packAmps);
-            double weight4 = L4.Properties.Mass * G, weight5 = L5.Properties.Mass * G;
-            TestContext.Out.WriteLine($"full duty, full pack: {F(total / G, "0.00")} kgf ({F(total / 4 / G, "0.00")} kgf a motor), "
-                + $"{F(loads.Volts, "0.00")} V, {F(loads.Amps0 + loads.Amps1, "0.0")} A from the packs; thrust over weight "
-                + $"{F(total / weight4, "0.00")} at L4, {F(total / weight5, "0.00")} at L5; the independent steady state {F(perMotor / G, "0.000")} kgf a motor at {F(volts, "0.00")} V");
-            Assert.That(total / 4, Is.EqualTo(perMotor).Within(0.01 * perMotor), "the dynamic model settles on the DC motor's steady state");
-            Assert.That(loads.Volts, Is.EqualTo(volts).Within(0.01 * volts));
-            Assert.That(loads.Amps0 + loads.Amps1, Is.EqualTo(packAmps).Within(0.01 * packAmps));
-            Assert.That(total / G, Is.InRange(10.0, 17.0), "a 10-inch 2-blade on a 900 KV 3115 at 6S");
+            // With the ESCs' 40 A limit (drone.json, the 1.5 policy) and without one.
+            foreach (bool limited in new[] { true, false })
+            {
+                var prop = new Propulsion(limited ? Drone.BuildPropulsion() : Unlimited());
+                FullDuty(prop, 1, 2, out RotorLoads loads);
+                double total = (loads.Thrust.RearRight + loads.Thrust.FrontRight + loads.Thrust.RearLeft + loads.Thrust.FrontLeft) / loads.SubSteps;
+                FullDutySteadyState(1, out double perMotor, out double volts, out double packAmps, limited ? double.NaN : 1e9);
+                double weight4 = L4.Properties.Mass * G, weight5 = L5.Properties.Mass * G;
+                TestContext.Out.WriteLine($"full duty, full pack, {(limited ? "the ESCs' 40 A limit" : "no current limit")}: {F(total / G, "0.00")} kgf "
+                    + $"({F(total / 4 / G, "0.00")} kgf a motor), {F(loads.Volts, "0.00")} V, {F(loads.Amps0 + loads.Amps1, "0.0")} A from the packs, "
+                    + $"limited ESCs 0x{loads.Limited:X}; thrust over weight {F(total / weight4, "0.00")} at L4, {F(total / weight5, "0.00")} at L5; "
+                    + $"the independent steady state {F(perMotor / G, "0.000")} kgf a motor at {F(volts, "0.00")} V, {F(packAmps, "0.0")} A");
+                Assert.That(total / 4, Is.EqualTo(perMotor).Within(0.01 * perMotor), "the dynamic model settles on the DC motor's steady state");
+                Assert.That(loads.Volts, Is.EqualTo(volts).Within(0.01 * volts));
+                Assert.That(loads.Amps0 + loads.Amps1, Is.EqualTo(packAmps).Within(0.01 * packAmps));
+                Assert.That(loads.Limited, Is.EqualTo(limited ? 0xF : 0), "full duty passes 40 A, so the limit holds every motor");
+                Assert.That(total / G, limited ? Is.InRange(9.0, 12.5) : Is.InRange(10.0, 17.0),
+                    limited ? "K§5.3's 9.0–12.5 kgf at a 40 A maximum" : "a 10-inch 2-blade on a 900 KV 3115 at 6S");
+            }
+        }
+
+        // The ESC's limit: a spin-up from idle to full duty never lets a motor's current pass it, and an ESC without one
+        // draws far more in the spin-up than at its steady full duty.
+        [Test]
+        public void TheEscHoldsTheMotorAtItsCurrentLimit()
+        {
+            DroneSpec d = Drone;
+            DroneMotor m = d.Motors[0];
+            double ke = 60 / (2 * Math.PI * m.Kv);
+            var peaks = new double[2];
+            for (int pass = 0; pass < 2; pass++)
+            {
+                var prop = new Propulsion(pass == 0 ? d.BuildPropulsion() : Unlimited());
+                var s = new FlightState { Attitude = Quat.Identity, PackCharge0 = 1, PackCharge1 = 1 };
+                var idle = new Corners { RearRight = 0.06, FrontRight = 0.06, RearLeft = 0.06, FrontLeft = 0.06 };
+                var full = new Corners { RearRight = 1, FrontRight = 1, RearLeft = 1, FrontLeft = 1 };
+                for (int k = 0; k < 2000; k++) Step(prop, ref s, idle);
+                for (int k = 0; k < 500; k++)
+                {
+                    prop.BeginStep(s);
+                    for (int j = 0; j < FlightController.LoopsPerStep; j++)
+                    {
+                        var loads = new RotorLoads();
+                        double w = s.RotorSpeed.RearRight;
+                        prop.SubStep(ref s, full, true, FlightController.LoopDt, ref loads);
+                        // The motor's current over the sub-step from its supply current and duty: i = I_supply / d'.
+                        double volts = loads.Volts, held = (loads.Limited & 1) != 0 ? m.EscCurrentLimit : double.NaN;
+                        double free = (s.EscCommand.RearRight * volts - ke * w) / m.Resistance;
+                        peaks[pass] = Math.Max(peaks[pass], double.IsNaN(held) ? free : held);
+                    }
+                }
+            }
+            TestContext.Out.WriteLine($"idle to full duty: the motor's peak current {F(peaks[0], "0.0")} A with the ESC's {F(m.EscCurrentLimit, "0")} A limit, "
+                + $"{F(peaks[1], "0.0")} A without one");
+            Assert.That(peaks[0], Is.LessThanOrEqualTo(m.EscCurrentLimit * (1 + 1e-12)), "the limit holds the current");
+            Assert.That(peaks[1], Is.GreaterThan(1.5 * m.EscCurrentLimit), "the spin-up's transient current");
         }
 
         [Test]
@@ -260,7 +340,9 @@ namespace Fpv450.Sim.Tests
             var prop = new Propulsion(d.BuildPropulsion());
             DroneMotor m = d.Motors[0];
             double ke = 60 / (2 * Math.PI * m.Kv);
-            foreach (double duty in new[] { 0.15, 0.47, 0.9 })
+            // Near idle, at hover and near full: 0.80, where the 0.02 step keeps the current under the ESC's 40 A limit (a
+            // limited motor is a current source, TheEscHoldsTheMotorAtItsCurrentLimit).
+            foreach (double duty in new[] { 0.15, 0.47, 0.80 })
             {
                 // Settle every motor at the duty, then step one motor by 0.02 (a small signal; the bus barely moves).
                 var s = new FlightState { Attitude = Quat.Identity, PackCharge0 = 1, PackCharge1 = 1 };
@@ -301,7 +383,11 @@ namespace Fpv450.Sim.Tests
         [TestCase(1, TestName = "The builder's PIDs hold a stable loop: pitch")]
         public void TheBuildersPidsHoldAStableLoop(int axis)
         {
-            FlightCore core = Core(L4, 1);
+            // On a rate rig: a 200 °/s step held 2 s tumbles the body through 400°, and in free air the rotors'
+            // in-plane drag of that tumble's own motion swings the rate by tens of °/s (printed below); the loop's own
+            // stability is measured without it.
+            FreeTumble(axis);
+            FlightCore core = Core(L4, 1, propulsion: NoInPlaneDrag());
             Arm(core);
             Hover h = HoldHeight(core);
             FlightController fc = core.Controller;
@@ -341,6 +427,29 @@ namespace Fpv450.Sim.Tests
             Assert.That(overshoot, Is.LessThan(0.25), "overshoots by less than 25 %");
             Assert.That(settle, Is.LessThan(1.0), "within 5 % for good inside the first second");
             Assert.That(lastMax - lastMin, Is.LessThan(10), "no sustained oscillation");
+        }
+
+        // The same step in free air, the rotors' in-plane drag on: printed, not asserted.
+        static void FreeTumble(int axis)
+        {
+            FlightCore core = Core(L4, 1);
+            Arm(core);
+            Hover h = HoldHeight(core);
+            double stick = 0.9575;
+            double lo = double.MaxValue, hi = double.MinValue;
+            for (int k = 0; k < 2000; k++)
+            {
+                core.Advance(axis == 0 ? Stick(h.Stick, roll: stick) : Stick(h.Stick, pitch: stick));
+                Axes3 g = FlightCore.Gyro(core.State.BodyRate);
+                double r = axis == 0 ? g.Roll : g.Pitch;
+                if (k >= 1000)
+                {
+                    lo = Math.Min(lo, r);
+                    hi = Math.Max(hi, r);
+                }
+            }
+            TestContext.Out.WriteLine($"in free air, the rotors' in-plane drag on: the last second's {(axis == 0 ? "roll" : "pitch")} rate {F(lo, "0.0")}–{F(hi, "0.0")} °/s, "
+                + $"the body at {F(core.State.Velocity.Length(), "0.0")} m/s");
         }
 
         // ---- Yaw saturates first ----
@@ -424,8 +533,24 @@ namespace Fpv450.Sim.Tests
                 for (int j = 0; j < 4; j++) prop.SubStep(ref s, u, true, FlightController.LoopDt, ref loads);
             }
             double steady = loads.YawMoment / loads.SubSteps / mass.Properties.Inertia.YY * 180 / Math.PI;
-            TestContext.Out.WriteLine($"yaw authority at hover: {F(steady, "0")} °/s² steady (drag torque), {F(kick, "0")} °/s² over full yaw's first 50 ms (with the rotors' spin-up)");
+            double unlimitedKick = YawKick(Unlimited(), fc);
+            TestContext.Out.WriteLine($"yaw authority at hover: {F(steady, "0")} °/s² steady (drag torque), {F(kick, "0")} °/s² over full yaw's first 50 ms "
+                + $"(with the rotors' spin-up; {F(unlimitedKick, "0")} °/s² with no ESC current limit)");
             Assert.That(steady, Is.InRange(500, 800), "fc-profiles §3: about 500–800 °/s²");
+            Assert.That(kick, Is.LessThan(unlimitedKick), "the 40 A limit takes from the spin-up's kick");
+        }
+
+        // Full yaw from a hover at mixer throttle 0.45: the yaw acceleration over the first 50 ms, °/s².
+        static double YawKick(PropulsionSpec propulsion, FlightController fc)
+        {
+            FlightCore core = Core(L4, 1, propulsion: propulsion);
+            Arm(core);
+            HoldHeight(core);
+            double stick = StickFor(fc, 0.45);
+            for (int k = 0; k < 500; k++) core.Advance(Stick(stick));
+            double yaw0 = FlightCore.Gyro(core.State.BodyRate).Yaw;
+            for (int k = 0; k < 50; k++) core.Advance(Stick(stick, yaw: 1));
+            return (FlightCore.Gyro(core.State.BodyRate).Yaw - yaw0) / 0.05;
         }
 
         // A rotor's drag torque at the speed where it makes this static thrust.
