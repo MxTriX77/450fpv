@@ -3,8 +3,8 @@
 ### Requirement: The log fixes the whole flight
 One binary log per flight SHALL hold a header, then fixed-layout records.
 - **The header:** the seed, every per-flight draw, `drone.json`'s hash, the flight-controller settings, the world content hash and query version, and the build, runtime and ISA flags.
-- **At 1 kHz:** the full integrated state, the stick inputs, per-rotor commands and speeds, pack voltage and current, and the net force and moment.
-- **Events at step resolution:** contacts made and broken (with surface and material), prop strikes, mixer saturation, crashes, tunnels and hitches.
+- **At 1 kHz:** the full integrated state (the wind's gust among it), the stick inputs, per-rotor commands and speeds, pack voltage and current, the net force and moment, and the air's share of them.
+- **Events at step resolution:** contacts made and broken (with surface and material), prop strikes, mixer saturation, the ESCs' current limit, crashes, tunnels and hitches.
 
 It SHALL be written through a ring buffer and a worker, stored under the user's profile, and hold sim data only (LOG-05).
 
