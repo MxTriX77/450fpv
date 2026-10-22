@@ -6,12 +6,13 @@ using Fpv450.Sim;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Log;
+using Fpv450.Sim.Wind;
 
 namespace Fpv450.Replay
 {
     // The scripted flight that exercises the log end to end (physics-log, "Replay matches the flight"): drone.json at
-    // its nominal loadout with its Betaflight 4.5 controller and propulsion (1.4), started 300 m up in still air (the
-    // contacts arrive with 1.6), with a scripted pilot on the sticks. It is flown either through the scheduler on a
+    // its nominal loadout with its Betaflight 4.5 controller and propulsion (1.4), its drag in a stand-in wind (1.5;
+    // Windy unless asked otherwise), started 300 m up (the contacts arrive with 1.6), with a scripted pilot on the sticks. It is flown either through the scheduler on a
     // virtual clock, with three 40 ms process stalls for the hitches, or in real time on the flight thread with the
     // stick reports from an input thread. Both log through the ring and the flush worker.
     internal static class ScriptedFlight
@@ -96,7 +97,7 @@ namespace Fpv450.Replay
 
         static double Triangle(double x) => 4 * Math.Abs(x - Math.Floor(x + 0.5)) - 1;
 
-        public static Recorded Fly(string path, string dronePath, long steps, bool realtime)
+        public static Recorded Fly(string path, string dronePath, long steps, bool realtime, WindLevel wind = WindLevel.Windy)
         {
             DroneSpec spec = DroneSpec.Parse(File.ReadAllText(dronePath));
             Loadout loadout = spec.Nominal;
@@ -106,6 +107,8 @@ namespace Fpv450.Replay
                 World = OpenWorld("floor"),
                 Mass = spec.BuildMass(loadout),
                 Propulsion = spec.BuildPropulsion(),
+                Aero = spec.BuildAero(),
+                Wind = WindSetup.Of(wind),
                 StartPosition = new Double3(0, 300, 0),
             };
             var core = new FlightCore(setup);

@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Log;
+using Fpv450.Sim.Wind;
 
 namespace Fpv450.Replay
 {
@@ -14,8 +15,8 @@ namespace Fpv450.Replay
             "usage:\n"
             + "  replay <log> [--drone <drone.json>]   replay the flight; compare every record bit for bit\n"
             + "  replay --summary <log>                 the flight's summary; a cut log reads to its last whole record\n"
-            + "  replay --record <log> [--seconds S] [--realtime] [--drone <drone.json>]\n"
-            + "                                         fly the scripted flight (120 s) and log it\n"
+            + "  replay --record <log> [--seconds S] [--realtime] [--wind still|calm|windy|severe] [--drone <drone.json>]\n"
+            + "                                         fly the scripted flight (120 s, Windy) and log it\n"
             + "exit: 0 match, 1 diverged, 2 usage, 3 refused, 4 unreadable, 5 matched a cut log\n"
             + "drone.json defaults to the repository's assets-src/drone/drone.json";
 
@@ -96,11 +97,14 @@ namespace Fpv450.Replay
             string drone = Option(args, "--drone") ?? ScriptedFlight.RepositoryDrone()
                 ?? throw new ArgumentException("no drone.json found; pass --drone");
             bool realtime = Array.IndexOf(args, "--realtime") >= 0;
+            string level = Option(args, "--wind") ?? "windy";
+            if (!Enum.TryParse(level, true, out WindLevel wind) || wind == WindLevel.Steady)
+                throw new ArgumentException("--wind is still, calm, windy or severe");
 
-            ScriptedFlight.Recorded r = ScriptedFlight.Fly(path, drone, (long)(duration * 1000), realtime);
+            ScriptedFlight.Recorded r = ScriptedFlight.Fly(path, drone, (long)(duration * 1000), realtime, wind);
             LogEnd c = r.Counts;
             double perStep = (double)(r.Bytes - r.HeaderBytes) / c.Steps;
-            Console.WriteLine($"record {Path.GetFileName(path)}: {(realtime ? "real time on the flight thread" : "virtual clock, the scheduler and the flush worker")}, "
+            Console.WriteLine($"record {Path.GetFileName(path)}: {(realtime ? "real time on the flight thread" : "virtual clock, the scheduler and the flush worker")}, {wind} wind, "
                 + $"{c.Steps} steps ({c.Steps / 1000.0:F3} s), {c.Events} events, {c.Hitches} scheduler hitches, {c.LogWaits} log waits, "
                 + $"{c.SticksDropped} stick reports dropped");
             Console.WriteLine($"  {r.Bytes} bytes: header {r.HeaderBytes} B, then {perStep:F1} B a step = {perStep * 60000 / 1e6:F2} MB a minute; "
