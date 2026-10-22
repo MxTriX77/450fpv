@@ -46,5 +46,33 @@ namespace Fpv450.Sim.Tests
             Assert.That(double.IsNaN(DetMath.Cbrt(double.NaN)), Is.True);
             Assert.That(DetMath.Cbrt(double.PositiveInfinity), Is.EqualTo(double.PositiveInfinity));
         }
+
+        // SinCos against System.Math over ±10 turns, and its exact points; its bits are pinned at two angles so a
+        // runtime that rounded one of its basic operations differently would show here (the wind's bearing uses it).
+        [Test]
+        public void SinCos_AgreesWithTheRuntimesToHalfAnUlpOfOne()
+        {
+            double worst = 0;
+            for (int i = -200000; i <= 200000; i++)
+            {
+                double x = i * 3.1415e-4;
+                DetMath.SinCos(x, out double s, out double c);
+                worst = Math.Max(worst, Math.Max(Math.Abs(s - Math.Sin(x)), Math.Abs(c - Math.Cos(x))));
+            }
+            TestContext.WriteLine($"worst {worst:E2} against System.Math");
+            Assert.That(worst, Is.LessThanOrEqualTo(1.2e-16));
+            DetMath.SinCos(0, out double s0, out double c0);
+            Assert.That((s0, c0), Is.EqualTo((0.0, 1.0)));
+            DetMath.SinCos(-Math.PI / 2, out double s1, out double c1);
+            Assert.That(s1, Is.EqualTo(-1.0));
+            Assert.That(Math.Abs(c1), Is.LessThan(1e-16));
+            DetMath.SinCos(1.0, out double s2, out double c2);
+            DetMath.SinCos(250 * Math.PI / 180, out double s3, out double c3);
+            Assert.That((BitConverter.DoubleToInt64Bits(s2), BitConverter.DoubleToInt64Bits(c2)), Is.EqualTo((0x3FEAED548F090CEEL, 0x3FE14A280FB5068CL)));
+            Assert.That((BitConverter.DoubleToInt64Bits(s3), BitConverter.DoubleToInt64Bits(c3)), Is.EqualTo((PinnedS3, PinnedC3)));
+        }
+
+        // sin and cos of 250° (−0.9396926207859082, −0.3420201433256694), recorded on .NET 10 and Mono alike.
+        const long PinnedS3 = unchecked((long)0xBFEE11F642522D1AUL), PinnedC3 = unchecked((long)0xBFD5E3A8748A0C01UL);
     }
 }

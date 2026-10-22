@@ -8,8 +8,8 @@ namespace Fpv450.Sim.Flight
     /// copying it is a snapshot.
     ///
     /// Slots the later tasks fill, so the log layout and the pose have one home:
-    /// - this change: the stand-in wind's turbulence state (1.5); per-leg contact anchors and the swept-contact
-    ///   latches (1.6), whose tables live with the contact model and are snapshotted with this state
+    /// - this change: per-leg contact anchors and the swept-contact latches (1.6), whose tables live with the contact
+    ///   model and are snapshotted with this state
     /// - phase 7: per-leg plastic sink and stick anchors (7a), hooks by element Id (7a), the spool's paid-out length
     ///   and the tether's node positions and velocities (7d)
     /// </summary>
@@ -45,5 +45,12 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The flight controller's filters, integrators and latches (FlightController).</summary>
         public FcState Fc;
+
+        /// <summary>The stand-in wind's gust in force during the last step, world m/s (StandInWind); 0 in still or
+        /// steady air.</summary>
+        public Double3 Gust;
+
+        /// <summary>The ESCs whose current limit held their motor during the last step, bit 1 &lt;&lt; corner (Propulsion).</summary>
+        public byte EscLimited;
     }
 }

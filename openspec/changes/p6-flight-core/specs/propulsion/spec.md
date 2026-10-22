@@ -16,18 +16,22 @@ The mixer SHALL map collective, roll, pitch and yaw to four motor commands for a
 
 #### Scenario: Yaw saturates first and the collective yields
 - **WHEN** the wind clip's maximum yaw and roll demands (288 and 412 °/s², wind.md §5.5) are set against the nominal drone's full thrust, and full yaw is commanded at mixer throttles from 0.45 to 0.85
-- **THEN** yaw runs out of mix past a collective of about 0.84 of full thrust and roll only past about 0.98 (K§5.3's 0.72 re-derived with κ = 0.0144 m and a fixed yaw moment), and above a mixer throttle of about 0.625 (1 less the yaw P term's 0.375 of the mix) the collective delivered falls below the commanded one while yaw, roll and pitch keep their authority, with a MixerSaturation event naming the collective
+- **THEN** yaw runs out of mix past a collective of about 0.81 of full thrust and roll only past about 0.98 (K§5.3's 0.72 re-derived with κ = 0.0144 m and a fixed yaw moment; full thrust at the ESCs' 40 A limit), and above a mixer throttle of about 0.625 (1 less the yaw P term's 0.375 of the mix) the collective delivered falls below the commanded one while yaw, roll and pitch keep their authority, with a MixerSaturation event naming the collective
 
 ### Requirement: ESC, motor and rotor
-Each rotor SHALL follow its command through an ESC filter and the motor's first-order lag, a DC motor whose lag follows from its resistance, its rotor's inertia and the prop's load, updated without transcendental functions, and produce thrust T = k_T·n² and torque Q = κ·T with k_T and κ from `drone.json`'s prop, varying with rpm as its published table says (κ = 0.0144 m, derived, for the APC 10x4.5MR). The thrust SHALL be derated by the axial inflow through the tilted disc from momentum theory, never by a flat factor (PHB-03).
+Each rotor SHALL follow its command through an ESC filter and the motor's first-order lag, a DC motor whose lag follows from its resistance, its rotor's inertia and the prop's load, updated without transcendental functions, and produce thrust T = k_T·n² and torque Q = κ·T with k_T and κ from `drone.json`'s prop, varying with rpm as its published table says (κ = 0.0144 m, derived, for the APC 10x4.5MR). The thrust SHALL be derated by the axial inflow through the tilted disc from momentum theory, never by a flat factor (PHB-03), the inflow being each hub's velocity through the air (the wind at the hub taken off). Each ESC SHALL hold its motor's current at `drone.json`'s current limit while it drives (the policy of task 1.5: the motor's published 40 A as the ESC's current protection), logging when it begins and ends.
+
+#### Scenario: The ESC holds the motor at its current limit
+- **WHEN** every ESC steps from idle to full duty on a full pack
+- **THEN** no motor's current passes 40 A, an ESC without a limit draws over 1.5 × that in the spin-up, and a CurrentLimit event names each ESC as it begins to hold
 
 #### Scenario: The motor's lag is its physics
-- **WHEN** one motor's duty steps by 0.02 near idle, at hover and near full
+- **WHEN** one motor's duty steps by 0.02 near idle, at hover and near full (below the current limit)
 - **THEN** its speed reaches 63 % of the change within τ_m + τ_esc ± 10 %, with τ_m = J / (Kt·Ke/R + ∂Q/∂ω) from `drone.json` (about 40 ms at hover, inside design 5's 40–60 ms), and never within one step
 
 #### Scenario: Hover and liftoff as the real drone
 - **WHEN** the drone is held at a hover through the Betaflight throttle path at its nominal 4.8 kg and loaded at 6.2 and 6.5 kg, on a full and a half pack
-- **THEN** the loaded drone lifts off between 50 and 65 % motor power (pilot: about 62 % on a real heavy quad), at 6.2 kg on both packs and at 6.5 kg on the full one, and the maximum total thrust is the motor model's steady state at full duty within 1 % (derived from n_max on the published bench and the prop's table: about 14 kgf on a full pack, where K§5.3's 9.0–12.5 kgf assumed a 40 A cap)
+- **THEN** the loaded drone lifts off between 50 and 65 % motor power (pilot: about 62 % on a real heavy quad), at 6.2 kg on both packs and at 6.5 kg on the full one, and the maximum total thrust is the motor model's steady state at full duty within 1 % (derived from n_max on the published bench and the prop's table, held at the ESCs' 40 A limit: about 11.9 kgf on a full pack, inside K§5.3's 9.0–12.5 kgf; 14.2 kgf with no limit)
 
 #### Scenario: Fast flight loses thrust to inflow
 - **WHEN** the drone holds 25 m/s level with its disc tilted 22.7°

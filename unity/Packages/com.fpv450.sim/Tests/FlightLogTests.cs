@@ -7,14 +7,15 @@ using System.Threading;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Log;
+using Fpv450.Sim.Wind;
 using Fpv450.Sim.World;
 using NUnit.Framework;
 
 namespace Fpv450.Sim.Tests
 {
     // physics-log (LOG-01, LOG-02, LOG-05): "Replay matches the flight" and "A truncated log still reads" on the
-    // bootstrap drone with its flight controller and propulsion (1.4), launched into the air and flown by a scripted
-    // pilot, through the scheduler, the ring and the flush worker; the refusals, a divergence named by step and field,
+    // bootstrap drone with its flight controller and propulsion (1.4), its drag in the Windy stand-in wind (1.5),
+    // launched into the air and flown by a scripted pilot, through the scheduler, the ring and the flush worker; the refusals, a divergence named by step and field,
     // a full ring that waits and logs a hitch, the header's round trip, and the guards that keep the record and the
     // header covering the state and the setup as later tasks extend them.
     public sealed class FlightLogTests
@@ -37,6 +38,8 @@ namespace Fpv450.Sim.Tests
             World = FlightWorld.Floor(),
             Mass = spec.BuildMass(spec.Nominal),
             Propulsion = spec.BuildPropulsion(),
+            Aero = spec.BuildAero(),
+            Wind = WindSetup.Of(WindLevel.Windy),
             StartPosition = new Double3(0, 100, 0),
             StartVelocity = new Double3(3, 20, -1),
             StartBodyRate = new Double3(2, -1, 0.5),
@@ -119,7 +122,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void ReplayMatchesTheFlight()
         {
-            // 120 s of 916 B steps: 110 MB, kept in memory.
+            // 120 s of 996 B steps: 120 MB, kept in memory.
             var log = new MemoryStream();
             Record(log, 120000);
             DroneSpec spec = BootstrapDrone.Spec();
@@ -184,7 +187,7 @@ namespace Fpv450.Sim.Tests
             long block = BlockOf(bytes, 1234);
             var cuts = new[]
             {
-                (at: block + LogFormat.BlockHeaderSize + 100, reason: "cut inside a step block, 100 of its 912 bytes"),
+                (at: block + LogFormat.BlockHeaderSize + 100, reason: "cut inside a step block, 100 of its " + LogFormat.StepSize + " bytes"),
                 (at: block + 2, reason: "cut inside a block's header"),
                 (at: block, reason: "ends after a whole block, without its end block"),
             };
@@ -365,10 +368,21 @@ namespace Fpv450.Sim.Tests
             Assert.That(back.Loadout, Is.EqualTo(spec.Nominal));
             Assert.That((back.StartPosition, back.StartAttitude, back.StartVelocity, back.StartBodyRate),
                 Is.EqualTo((setup.StartPosition, setup.StartAttitude, setup.StartVelocity, setup.StartBodyRate)));
-            Assert.That(back.Streams, Is.EqualTo(new[] { "test.parameter" }));
-            Assert.That(back.Draws.Length, Is.EqualTo(1));
-            Assert.That((back.Draws[0].Parameter, back.Draws[0].Lo, back.Draws[0].Hi, back.Draws[0].Value, back.Draws[0].Index),
-                Is.EqualTo(("test.parameter", 0.9, 1.1, drawn, 0UL)));
+            Assert.That(back.Streams, Is.EqualTo(new[] { "wind.direction", "wind.strength", "wind.gust0", "wind.turbulence", "test.parameter" }));
+            Assert.That(back.Draws.Length, Is.EqualTo(6), "the wind's five and the test's");
+            for (int i = 0; i < 5; i++) Assert.That(back.Draws[i], Is.EqualTo(core.Random.Draws[i]), "wind draw " + i);
+            ParameterDraw last = back.Draws[5];
+            Assert.That((last.Parameter, last.Lo, last.Hi, last.Value, last.Index), Is.EqualTo(("test.parameter", 0.9, 1.1, drawn, 0UL)));
+
+            // The air: the drag spec field for field, and the wind's model, level and preset.
+            foreach (string f in LogHeader.AeroFieldsLogged)
+            {
+                FieldInfo info = typeof(AeroSpec).GetField(f);
+                Assert.That(info.GetValue(back.Aero), Is.EqualTo(info.GetValue(setup.Aero)), "aero." + f);
+            }
+            Assert.That((back.WindModel, back.Wind), Is.EqualTo(("stand-in", setup.Wind)));
+            Assert.That(back.WindParameters, Is.EqualTo(LogHeader.PresetOf(WindLevel.Windy)));
+            Assert.That(back.WindParameters.Length, Is.EqualTo(7));
 
             var problems = new List<string>();
             back.ReadSettings(out FcSettings read, problems);
@@ -426,6 +440,8 @@ namespace Fpv450.Sim.Tests
             Assert.That(InstanceFields(typeof(DroneMotor)), Is.EquivalentTo(LogHeader.MotorFieldsLogged));
             Assert.That(InstanceFields(typeof(DroneProps)), Is.EquivalentTo(LogHeader.PropsFieldsLogged));
             Assert.That(InstanceFields(typeof(DronePack)), Is.EquivalentTo(LogHeader.PackFieldsLogged));
+            Assert.That(InstanceFields(typeof(AeroSpec)), Is.EquivalentTo(LogHeader.AeroFieldsLogged));
+            Assert.That(InstanceFields(typeof(WindSetup)), Is.EquivalentTo(LogHeader.WindFieldsLogged));
 
             foreach ((LogField[] fields, int size) in new[] { (LogFormat.StepFields, LogFormat.StepSize), (LogFormat.EventFields, LogFormat.EventSize),
                          (LogFormat.EndFields, LogFormat.EndSize) })
@@ -446,7 +462,7 @@ namespace Fpv450.Sim.Tests
                 Attitude = new Quat(0.1, -0.2, 0.3, 0.9), BodyRate = new Double3(7, 8, -9), Armed = true,
                 RotorSpeed = new Corners { RearRight = 10, FrontRight = 11, RearLeft = 12, FrontLeft = 13 },
                 EscCommand = new Corners { RearRight = 0.14, FrontRight = 0.15, RearLeft = 0.16, FrontLeft = 0.17 },
-                PackCharge0 = 0.18, PackCharge1 = 0.19,
+                PackCharge0 = 0.18, PackCharge1 = 0.19, Gust = new Double3(0.5, -0.25, 0.75), EscLimited = 0x9,
             };
             // Every FcState double a distinct value through reflection, its flags every bit.
             object fc = default(FcState);
@@ -466,6 +482,7 @@ namespace Fpv450.Sim.Tests
                 RotorCommand = new Corners { RearRight = 0.24, FrontRight = 0.25, RearLeft = 0.26, FrontLeft = 0.27 },
                 PackVolts0 = 24.8, PackVolts1 = 24.9, PackAmps0 = 30.1, PackAmps1 = 30.2,
                 NetForce = new Double3(31, -32, 33), NetMoment = new Double3(-0.34, 0.35, -0.36),
+                AeroForce = new Double3(-1.5, 2.5, 3.5), AeroMoment = new Double3(0.04, -0.05, 0.06),
             };
             var bytes = new byte[LogFormat.StepSize];
             LogFormat.EncodeStep(bytes, s, k, t);

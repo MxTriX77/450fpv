@@ -24,12 +24,19 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The net moment about the centre of mass, body axes, N·m.</summary>
         public Double3 NetMoment;
+
+        /// <summary>The air's share of the net force: the body's, the coil's and the rotors' in-plane drag, world, N.</summary>
+        public Double3 AeroForce;
+
+        /// <summary>The air's share of the net moment, about the centre of mass, body axes, N·m.</summary>
+        public Double3 AeroMoment;
     }
 
     /// <summary>
     /// The kinds of a step's events (design 10, LOG-01). Fixed: a kind is never renumbered, and a new mechanism appends
     /// its kinds (phase 7: hooks, pitfalls, VRS, payout, the tether's break). The producers arrive with their mechanisms:
-    /// mixer saturation (FlightCore, 1.4); contacts, prop strikes, crashes and tunnels (1.6); the scheduler and the log
+    /// mixer saturation (FlightCore, 1.4); the ESCs' current limit (1.5); contacts, prop strikes, crashes and tunnels
+    /// (1.6); the scheduler and the log
     /// write the hitches. FlightEvent says what each field holds per kind; a field a kind does not use keeps its "none"
     /// value.
     /// </summary>
@@ -64,6 +71,12 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>A step made more events than StepEvents holds: a bug in a producer. A: how many were lost.</summary>
         EventsLost = 8,
+
+        /// <summary>
+        /// Index's ESC began to hold its motor at its current limit (A: the largest share of its duty the limit took in
+        /// the step, 0–1; B: the limit, A), or let it go (A: 0). The maximum thrust and the spin-up are the limit's.
+        /// </summary>
+        CurrentLimit = 9,
     }
 
     /// <summary>MixerSaturation's Index.</summary>

@@ -8,6 +8,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Wind;
 
 namespace Fpv450.Sim.Log
 {
@@ -29,6 +30,19 @@ namespace Fpv450.Sim.Log
         {
             Id = id;
             Name = name;
+        }
+    }
+
+    /// <summary>One named number of the header (the wind preset's parameters).</summary>
+    public readonly struct NamedValue
+    {
+        public readonly string Name;
+        public readonly double Value;
+
+        public NamedValue(string name, double value)
+        {
+            Name = name;
+            Value = value;
         }
     }
 
@@ -62,6 +76,8 @@ namespace Fpv450.Sim.Log
     /// - the drone: drone.json's hash (0 for a body not read from it), its name and the pilot's loadout
     /// - the body the flight started with: the mass model's parts and the mass, CoM and inertia they built
     /// - the propulsion: the motors, the props with their curves, the packs (none for a bench's free body)
+    /// - the airframe's drag (none for a bench's body), and the wind: its model ("stand-in", PHB-06), its level and
+    ///   the level's preset by name (its per-flight draws are the randomness's)
     /// - the flight controller's settings, every field by its CLI name
     /// - the start state with the packs' charge, and the record layouts (so a reader needs no code of ours)
     /// Sim data only (LOG-05): no user, machine, path or clock.
@@ -75,7 +91,7 @@ namespace Fpv450.Sim.Log
         public static readonly string[] SetupFieldsLogged =
         {
             "Seed", "Settings", "World", "Mass", "Propulsion", "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate",
-            "StartPackCharge",
+            "StartPackCharge", "Aero", "Wind",
         };
 
         /// <summary>The DronePart fields the header records, checked against DronePart by the suite.</summary>
@@ -85,16 +101,18 @@ namespace Fpv450.Sim.Log
         /// <summary>The propulsion's fields the header records, checked against the structs by the suite.</summary>
         public static readonly string[] PropulsionFieldsLogged = { "Motors", "Props", "Packs" };
         public static readonly string[] MotorFieldsLogged =
-            { "Position", "Clockwise", "Kv", "Resistance", "NoLoadCurrent", "RotorInertia", "MagnetPoles", "EscTau" };
+            { "Position", "Clockwise", "Kv", "Resistance", "NoLoadCurrent", "RotorInertia", "MagnetPoles", "EscTau", "EscCurrentLimit" };
         public static readonly string[] PropsFieldsLogged =
         {
             "Diameter", "Blades", "Pitch", "ThrustCoefficient", "TorqueRatio", "ReferenceRpm", "StaticRpm", "StaticThrustRatio",
-            "StaticTorqueRatio", "InflowAdvanceRatio", "InflowThrustRatio", "InflowTorqueRatio",
+            "StaticTorqueRatio", "InflowAdvanceRatio", "InflowThrustRatio", "InflowTorqueRatio", "HForce",
         };
+        public static readonly string[] AeroFieldsLogged = { "AirDensity", "BodyArea", "BodyCenterOfPressure", "DragCoefficient", "CoilPart" };
+        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg" };
         public static readonly string[] PackFieldsLogged = { "Part", "Series", "Parallel", "CellCapacity", "CellResistance", "Ocv" };
 
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
-            TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10;
+            TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -119,6 +137,14 @@ namespace Fpv450.Sim.Log
         public PropulsionSpec Propulsion;
 
         public SettingValue[] Settings = new SettingValue[0];
+
+        /// <summary>The airframe's drag; null for none.</summary>
+        public AeroSpec Aero;
+
+        /// <summary>The wind: its model's name, its setup, and its level's preset by name (empty for still or steady air).</summary>
+        public string WindModel = WindPreset.Model;
+        public WindSetup Wind;
+        public NamedValue[] WindParameters = new NamedValue[0];
 
         public string[] Streams = new string[0];
         public ParameterDraw[] Draws = new ParameterDraw[0];
@@ -159,6 +185,9 @@ namespace Fpv450.Sim.Log
                 StartVelocity = setup.StartVelocity,
                 StartBodyRate = setup.StartBodyRate,
                 StartPackCharge = setup.StartPackCharge,
+                Aero = setup.Aero?.Clone(),
+                Wind = setup.Wind,
+                WindParameters = PresetOf(setup.Wind.Level),
             };
             var surfaces = new List<NamedId>();
             for (int id = 1; id < 255; id++)
@@ -184,6 +213,20 @@ namespace Fpv450.Sim.Log
             for (int i = 0; i < h.Draws.Length; i++)
                 h.Draws[i] = core.Random.Draws[i];
             return h;
+        }
+
+        /// <summary>A pilot's level's preset by name, as the header records it; none for still or steady air.</summary>
+        public static NamedValue[] PresetOf(WindLevel level)
+        {
+            if (level == WindLevel.Still || level == WindLevel.Steady) return new NamedValue[0];
+            WindPreset p = WindPreset.Of(level);
+            return new[]
+            {
+                new NamedValue("mean_lo_m_s", p.MeanLo), new NamedValue("mean_hi_m_s", p.MeanHi),
+                new NamedValue("intensity_sigma_over_u", WindPreset.Intensity), new NamedValue("vertical_over_horizontal_sigma", WindPreset.VerticalRatio),
+                new NamedValue("horizontal_scale_m", WindPreset.HorizontalScale), new NamedValue("vertical_scale_m", WindPreset.VerticalScale),
+                new NamedValue("gust_bound_sigma", WindPreset.GustBound),
+            };
         }
 
         /// <summary>This process's runtime and architecture, as the header records them (".NET 10.0.x X64", "Mono …").</summary>
@@ -216,6 +259,8 @@ namespace Fpv450.Sim.Log
                 StartVelocity = StartVelocity,
                 StartBodyRate = StartBodyRate,
                 StartPackCharge = StartPackCharge,
+                Aero = Aero?.Clone(),
+                Wind = Wind,
             };
         }
 
@@ -374,6 +419,7 @@ namespace Fpv450.Sim.Log
                     e.Write(m.RotorInertia);
                     e.Write(m.MagnetPoles);
                     e.Write(m.EscTau);
+                    e.Write(m.EscCurrentLimit);
                 }
                 DroneProps p = Propulsion.Props;
                 e.Write(p.Diameter);
@@ -384,6 +430,7 @@ namespace Fpv450.Sim.Log
                 e.Write(p.ReferenceRpm);
                 foreach (double[] curve in new[] { p.StaticRpm, p.StaticThrustRatio, p.StaticTorqueRatio, p.InflowAdvanceRatio, p.InflowThrustRatio, p.InflowTorqueRatio })
                     Numbers(e, curve);
+                e.Write(p.HForce);
                 foreach (DronePack k in Propulsion.Packs)
                 {
                     e.Write(k.Part);
@@ -392,6 +439,29 @@ namespace Fpv450.Sim.Log
                     e.Write(k.CellCapacity);
                     e.Write(k.CellResistance);
                     Numbers(e, k.Ocv);
+                }
+            });
+            Entry(w, TagAero, e =>
+            {
+                e.Write(Aero != null);
+                if (Aero == null) return;
+                e.Write(Aero.AirDensity);
+                V3(e, Aero.BodyArea);
+                V3(e, Aero.BodyCenterOfPressure);
+                e.Write(Aero.DragCoefficient);
+                e.Write(Aero.CoilPart);
+            });
+            Entry(w, TagWind, e =>
+            {
+                Text(e, WindModel);
+                e.Write((byte)Wind.Level);
+                e.Write(Wind.SteadySpeed);
+                e.Write(Wind.SteadyFromDeg);
+                e.Write((ushort)WindParameters.Length);
+                foreach (NamedValue v in WindParameters)
+                {
+                    Text(e, v.Name);
+                    e.Write(v.Value);
                 }
             });
             Entry(w, TagSettings, e =>
@@ -551,6 +621,21 @@ namespace Fpv450.Sim.Log
                     case TagPropulsion:
                         Propulsion = r.ReadBoolean() ? ReadPropulsion(r) : null;
                         break;
+                    case TagAero:
+                        Aero = r.ReadBoolean()
+                            ? new AeroSpec
+                            {
+                                AirDensity = r.ReadDouble(), BodyArea = V3(r), BodyCenterOfPressure = V3(r), DragCoefficient = r.ReadDouble(),
+                                CoilPart = r.ReadInt32(),
+                            }
+                            : null;
+                        break;
+                    case TagWind:
+                        WindModel = Text(r);
+                        Wind = new WindSetup { Level = (WindLevel)r.ReadByte(), SteadySpeed = r.ReadDouble(), SteadyFromDeg = r.ReadDouble() };
+                        WindParameters = new NamedValue[r.ReadUInt16()];
+                        for (int i = 0; i < WindParameters.Length; i++) WindParameters[i] = new NamedValue(Text(r), r.ReadDouble());
+                        break;
                     case TagSettings:
                         Settings = new SettingValue[r.ReadUInt16()];
                         for (int i = 0; i < Settings.Length; i++) Settings[i] = new SettingValue(Text(r), r.ReadByte(), r.ReadInt64());
@@ -599,6 +684,7 @@ namespace Fpv450.Sim.Log
                 {
                     Position = V3(r), Clockwise = r.ReadBoolean(), Kv = r.ReadDouble(), Resistance = r.ReadDouble(),
                     NoLoadCurrent = r.ReadDouble(), RotorInertia = r.ReadDouble(), MagnetPoles = r.ReadInt32(), EscTau = r.ReadDouble(),
+                    EscCurrentLimit = r.ReadDouble(),
                 };
             }
             spec.Props = new DroneProps
@@ -607,6 +693,7 @@ namespace Fpv450.Sim.Log
                 TorqueRatio = r.ReadDouble(), ReferenceRpm = r.ReadDouble(),
                 StaticRpm = Numbers(r), StaticThrustRatio = Numbers(r), StaticTorqueRatio = Numbers(r),
                 InflowAdvanceRatio = Numbers(r), InflowThrustRatio = Numbers(r), InflowTorqueRatio = Numbers(r),
+                HForce = r.ReadDouble(),
             };
             for (int k = 0; k < 2; k++)
             {

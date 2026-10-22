@@ -7,8 +7,8 @@ using Fpv450.Sim.Tests;
 
 namespace Fpv450.FlightBench
 {
-    // The powered flight (task 1.4): the repository's drone with the Betaflight 4.5 controller at 4 kHz and the ESCs,
-    // motors, props and packs at its loops, flown by GoldenFlights' scripted pilot (the same file the suite compiles,
+    // The powered flight (tasks 1.4 and 1.5): the repository's drone with the Betaflight 4.5 controller at 4 kHz and the
+    // ESCs, motors, props and packs at its loops, its drag and the Windy stand-in wind, flown by GoldenFlights' scripted pilot (the same file the suite compiles,
     // so the suite on .NET and on Unity's Mono and this Release build pin one hash). The bench times the powered step.
     internal static class PoweredFlightCase
     {

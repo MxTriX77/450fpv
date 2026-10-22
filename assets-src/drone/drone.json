@@ -8,14 +8,15 @@
     "labelled number": "{\"value\": <number, or [x, y, z], or a list>, \"label\": \"pilot\" | \"measured\" | \"published\" | \"derived\" | \"assumed\", \"note\": \"<source or calculation>\"}; the note is optional, the label is not",
     "bootstrap": "true for p6-flight-core's stand-in (now a test fixture); this researched file sets false",
     "parts": "every rigid part the mass build sums (PHB-02): name (unique), kind (box | cylinder), material (carbon | aluminium | steel | polymer | li_ion | electronics), mass_kg (above 0), position_m (the part's centre); a box has size_m, its extents along body x, y, z; a cylinder is solid, with diameter_m, length_m and axis (the direction of its length, normalised when read). A part is a mass shape: its inertia, not its look (the props and arms say how they map)",
-    "motors": "four, in Betaflight's Quad X order (rear right, front right, rear left, front left): position_m (the prop hub, where the thrust acts), spin (cw | ccw seen from above; cw is a positive rotation about body +y), kv_rpm_per_v, resistance_ohm (the DC model's resistance: winding, ESC and leads), no_load_current_a (the bearings' and iron's loss, as the torque Kt·I0), rotor_inertia_kg_m2 (bell, shaft and prop about the shaft), magnet_poles, esc_tau_s (the ESC's command filter); the motor's lag τ_m = J/(Kt·Ke/R + ∂Q/∂ω) follows from these and the load",
-    "props": "the four props, alike: diameter_m, blades, pitch_m (geometric, per revolution), k_t_n_per_rad2_s2 (T = k_T·n², n in rad/s) and kappa_m (Q = κ·T), both static at reference_rpm (one of static_rpm's points); static_rpm with static_thrust_ratio and static_torque_ratio (C_T and C_P there over their values at reference_rpm: the coefficients' change with rpm); inflow_advance_ratio (J = V_a/(n·D) of the axial inflow, from 0) with inflow_thrust_ratio and inflow_torque_ratio (C_T and C_P there over their static values); linear between points, held at the ends",
+    "motors": "four, in Betaflight's Quad X order (rear right, front right, rear left, front left): position_m (the prop hub, where the thrust acts), spin (cw | ccw seen from above; cw is a positive rotation about body +y), kv_rpm_per_v, resistance_ohm (the DC model's resistance: winding, ESC and leads), no_load_current_a (the bearings' and iron's loss, as the torque Kt·I0), rotor_inertia_kg_m2 (bell, shaft and prop about the shaft), magnet_poles, esc_tau_s (the ESC's command filter), esc_current_limit_a (the ESC's current limit: the motor's current never passes it while the ESC drives); the motor's lag τ_m = J/(Kt·Ke/R + ∂Q/∂ω) follows from these and the load",
+    "props": "the four props, alike: diameter_m, blades, pitch_m (geometric, per revolution), k_t_n_per_rad2_s2 (T = k_T·n², n in rad/s) and kappa_m (Q = κ·T), both static at reference_rpm (one of static_rpm's points); static_rpm with static_thrust_ratio and static_torque_ratio (C_T and C_P there over their values at reference_rpm: the coefficients' change with rpm); inflow_advance_ratio (J = V_a/(n·D) of the axial inflow, from 0) with inflow_thrust_ratio and inflow_torque_ratio (C_T and C_P there over their static values); linear between points, held at the ends; h_force_n_per_m_s (the rotor's in-plane drag, the H-force, per m/s of its hub's in-plane airspeed at reference_rpm, growing in proportion to the rotor's speed)",
     "packs": "two (PHB-03): part (the pack's mass part), series and parallel cells, cell_capacity_ah, r_cell_ohm, ocv_v (one cell's open-circuit voltage at states of charge 0, 1/(n−1), …, 1)",
     "legs": "parts (the four leg parts, in Betaflight's corner order; a leg's length is its part's, its foot the part's lower end, where it meets level ground), stiffness_n_per_m and damping_n_s_per_m (each leg's own spring and damper, in series with the ground), foot_radius_m (the foot's curvature); legs off is legs_off's build",
     "legs_off": "the legs-off build (D-043), added by p5-drone for letter T's layout: removed (every part that comes off with the legs, the four leg parts among them; they weigh 0 kg), moved ({part name: its labelled centre on the legs-off build}); every other part stays as it is",
     "coil": "part (the spool's mass part, whose mass falls as the line pays out), spool_mass_kg (empty, with its housing), fiber_mass_kg and fiber_length_m (the line on a full spool); the part's mass here is this file's loadout",
     "payload": "part (the payload's mass part, set to the pilot's payload), mass_min_kg and mass_max_kg (the setting's range, APP-03); the part is the body at its mass here, this file's loadout; another payload scales it uniformly by the cube root of the mass ratio, growing away from the arm plane (its face toward the frame stays put), and 0 kg leaves it off",
-    "stand": "the legs-off launch stand (D-022, D-043): material, post_radius_m (each post on a motor diagonal, from the stand's centre), post_height_m (the post tops above the ground), post_diameter_m, mass_kg"
+    "stand": "the legs-off launch stand (D-022, D-043): material, post_radius_m (each post on a motor diagonal, from the stand's centre), post_height_m (the post tops above the ground), post_diameter_m, mass_kg",
+    "aero": "the airframe's drag (p6-flight-core 1.5): air_density_kg_m3; body_area_m2 (the silhouette less the coil's, projected along body x, y and z: side, top, front); body_center_of_pressure_m (where the body's drag acts); drag_coefficient (of the body's silhouette and of the coil, whose own drag acts at the coil part's centre with its cylinder's silhouette)"
   },
   "parts": [
     {
@@ -260,7 +261,8 @@
       "no_load_current_a": {"value": 1.0, "label": "assumed", "note": "a 3115-class 900 KV motor's idle current, about 1 A at 10 V; not published for these motors. Its torque Kt·I0, 0.011 N·m, is 6 % of the hover drag torque"},
       "rotor_inertia_kg_m2": {"value": 6.0e-5, "label": "derived", "note": "±30 %: the 16 g prop about 4.7e-5 (UMN's measured APC 12x3.8SF with its motor and adaptor, 1.12e-4, scaled by m·D² to 16 g and 10 inches; a uniform rod would be 8.6e-5) plus the bell, about 35 g of magnets and can at 17 mm, 1.2e-5. With R and the prop's load it makes τ_m about 40 ms at hover (design 5's 40–60 ms)"},
       "magnet_poles": {"value": 14, "label": "published", "note": "12N14P (Flash Hobby Arthur 3115, the sheet's research table): 7 pole pairs"},
-      "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "design 5: τ_esc ≈ 5 ms"}
+      "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "design 5: τ_esc ≈ 5 ms"},
+      "esc_current_limit_a": {"value": 40, "label": "assumed", "note": "the policy (p6-flight-core 1.5): the motor's published 40 A maximum (Surpass Hobby Bat S3115 900 KV, K§5.1; K§5.3's realistic maximum current) set as the ESC's current protection, which BLHeli_32 applies per ESC and fast enough to hold the current during accelerations too (its manual); AM32's limit is optional and Bluejay or BLHeli_S ESCs sense no current. Without it the model's motor draws 47.5 A at full duty on a full pack and 115 A in a spin-up from idle to full; with it the full-duty thrust falls from 14.24 to 11.93 kgf (K§5.3: 9.0–12.5), the yaw acceleration over full yaw's first 50 ms from hover from about 1650 to 1290 °/s² and the steady yaw authority from 796 to 745 °/s²; hover and liftoff draw far less and are untouched. A higher value models an ESC without a limit (G7 asks the pilot how the yaw kick feels)"}
     },
     {
       "position_m": {"value": [0.15981, 0.035, 0.15981], "label": "derived", "note": "as motors[0]"},
@@ -270,7 +272,8 @@
       "no_load_current_a": {"value": 1.0, "label": "assumed", "note": "as motors[0]"},
       "rotor_inertia_kg_m2": {"value": 6.0e-5, "label": "derived", "note": "as motors[0]"},
       "magnet_poles": {"value": 14, "label": "published", "note": "as motors[0]"},
-      "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "as motors[0]"}
+      "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "as motors[0]"},
+      "esc_current_limit_a": {"value": 40, "label": "assumed", "note": "as motors[0]"}
     },
     {
       "position_m": {"value": [-0.15981, 0.035, -0.15981], "label": "derived", "note": "as motors[0]"},
@@ -280,7 +283,8 @@
       "no_load_current_a": {"value": 1.0, "label": "assumed", "note": "as motors[0]"},
       "rotor_inertia_kg_m2": {"value": 6.0e-5, "label": "derived", "note": "as motors[0]"},
       "magnet_poles": {"value": 14, "label": "published", "note": "as motors[0]"},
-      "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "as motors[0]"}
+      "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "as motors[0]"},
+      "esc_current_limit_a": {"value": 40, "label": "assumed", "note": "as motors[0]"}
     },
     {
       "position_m": {"value": [-0.15981, 0.035, 0.15981], "label": "derived", "note": "as motors[0]"},
@@ -290,7 +294,8 @@
       "no_load_current_a": {"value": 1.0, "label": "assumed", "note": "as motors[0]"},
       "rotor_inertia_kg_m2": {"value": 6.0e-5, "label": "derived", "note": "as motors[0]"},
       "magnet_poles": {"value": 14, "label": "published", "note": "as motors[0]"},
-      "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "as motors[0]"}
+      "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "as motors[0]"},
+      "esc_current_limit_a": {"value": 40, "label": "assumed", "note": "as motors[0]"}
     }
   ],
   "props": {
@@ -305,7 +310,8 @@
     "static_torque_ratio": {"value": [1.2274, 1.1214, 1.0749, 1.0465, 1.0284, 1.0155, 1.0078, 1.0026, 1, 0.9974, 0.9974, 1, 1.0026, 1.0052, 1.0129, 1.0181, 1.0284, 1.0388, 1.0517, 1.0749], "label": "derived", "note": "C_P over its 0.0387 at 9000 rpm: the drag torque per n² is 23 % higher at 1000 rpm (idle), 1–3 % between 6000 and 17 000"},
     "inflow_advance_ratio": {"value": [0, 0.0405, 0.0811, 0.1216, 0.1621, 0.2027, 0.2432, 0.2837, 0.3242, 0.3648, 0.4053, 0.4458, 0.4864, 0.5269, 0.5674, 0.5877], "label": "published", "note": "the same table at 9000 rpm, every second row to zero thrust at J 0.588 (linear between them within 0.06 % of C_T and 0.26 % of C_P)"},
     "inflow_thrust_ratio": {"value": [1, 0.9612, 0.9178, 0.8689, 0.8163, 0.7581, 0.6944, 0.626, 0.5522, 0.4737, 0.3924, 0.3075, 0.2207, 0.132, 0.0443, 0], "label": "derived", "note": "C_T(J) over the static C_T at 9000 rpm: APC's blade-element and momentum computation of the axial-inflow derate (PHB-03); the same ratios hold within 0.5 % from 4000 to 18 000 rpm"},
-    "inflow_torque_ratio": {"value": [1, 1.0026, 1.0026, 0.9974, 0.9819, 0.9587, 0.9276, 0.8889, 0.8372, 0.7752, 0.7054, 0.6253, 0.5349, 0.4367, 0.3307, 0.2765], "label": "derived", "note": "C_P(J) over the static C_P at 9000 rpm: the torque falls more slowly than the thrust, so the inflow costs power as momentum theory says (within 2 % to J 0.3 from 4000 to 18 000 rpm, 5 % by J 0.5)"}
+    "inflow_torque_ratio": {"value": [1, 1.0026, 1.0026, 0.9974, 0.9819, 0.9587, 0.9276, 0.8889, 0.8372, 0.7752, 0.7054, 0.6253, 0.5349, 0.4367, 0.3307, 0.2765], "label": "derived", "note": "C_P(J) over the static C_P at 9000 rpm: the torque falls more slowly than the thrust, so the inflow costs power as momentum theory says (within 2 % to J 0.3 from 4000 to 18 000 rpm, 5 % by J 0.5)"},
+    "h_force_n_per_m_s": {"value": 0.225, "label": "assumed", "note": "tuned (design 6) so the model flies clip P's measured 22.7° of pitch at wind.md §5.3's nominal 13 m/s of cruise (22.8° at 0.225), where wind.md derives its 1.8° of lean per m/s of crosswind: the model then needs 1.9° per m/s there and 1.27° per m/s in a hover (design 6's 0.95–2.6). That is 0.18 s⁻¹ of linear rotor drag per unit mass at the hover's 8800 rpm, inside the 0.1–0.4 s⁻¹ reported for small quadrotors (wind.md §5.3). The pilot's cruise answer (K§8.2) points to less drag still: here 17 m/s takes 33.6° of pitch; p7c-wind settles it with T0"}
   },
   "packs": [
     {
@@ -355,5 +361,11 @@
     "post_height_m": {"value": 0.25, "label": "pilot", "note": "D-022: posts about 0.25 m high"},
     "post_diameter_m": {"value": 0.020, "label": "assumed", "note": "a chair's 20 × 20 × 1.5 mm square tube, read as its width (the sheet)"},
     "mass_kg": {"value": 1.6, "label": "derived", "note": "about 1.8 m of that tube at 0.871 kg/m (111 mm² × 7850 kg/m³, published steel) with its caps and welds (the sheet)"}
+  },
+  "aero": {
+    "air_density_kg_m3": {"value": 1.225, "label": "published", "note": "ISA sea level, 15 °C: APC's tables and k_T are at it"},
+    "body_area_m2": {"value": [0.039, 0.053, 0.055], "label": "derived", "note": "the sheet's silhouettes (Physics role, ±30 %): side 0.056, top 0.07 and front 0.06 m², less the spool's own, which the coil's drag takes from its part: 0.017 side (the sheet), 0.017 top (0.083 × 0.20 m) and 0.005 front (its Ø0.083 m end)"},
+    "body_center_of_pressure_m": {"value": [0, -0.07, 0], "label": "assumed", "note": "the silhouette's area-weighted centre: the packs (y −0.043), the payload (−0.108), the legs (−0.128) and the skids (−0.248) against the plates (+0.014) put it about 0.08 m below the arm plane side-on; 0.07 taken for every direction, on the centreline; it stays put on the legs-off build (assumed)"},
+    "drag_coefficient": {"value": 0.9, "label": "assumed", "note": "a silhouette of rounded bluff parts, the coil's cylinder alike: finite cylinders 0.6–1.0 by their length over diameter, boxes with rounded edges 0.8–1.05 (Hoerner, Fluid-Dynamic Drag); 0.9 × the sheet's 0.06 m² front is wind.md §5.3's nominal C_D·A of 0.05 m²"}
   }
 }

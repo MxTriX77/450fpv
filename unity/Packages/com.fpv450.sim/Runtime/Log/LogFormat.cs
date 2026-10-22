@@ -30,8 +30,9 @@ namespace Fpv450.Sim.Log
     }
 
     /// <summary>
-    /// The flight log's binary format (design 10, LOG-01), version 2 (1.4 appended the flight controller's state to
-    /// the step record). One file per flight:
+    /// The flight log's binary format (design 10, LOG-01), version 3 (1.4 appended the flight controller's state to
+    /// the step record; 1.5 the wind's gust, the air's force and moment and the ESCs' current limit, and the header's
+    /// aero and wind entries). One file per flight:
     /// - the prologue: Magic, then the format Version and the header's length (u32 each), then the header (LogHeader)
     /// - blocks to the end of the flight, each a u16 kind and a u16 payload length, then the payload:
     ///   - a step record (StepBlock) after every step: the integrated state, the stick sample in force during the step,
@@ -50,7 +51,7 @@ namespace Fpv450.Sim.Log
         public static readonly byte[] Magic = { 0x46, 0x50, 0x56, 0x34, 0x35, 0x30, 0x4C, 0x47 };
 
         /// <summary>The format: the prologue, the header's entries and the record layouts below.</summary>
-        public const int Version = 2;
+        public const int Version = 3;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -58,21 +59,24 @@ namespace Fpv450.Sim.Log
         /// another model rather than report a divergence at its first step. WorldHash.QueryVersion is the world's.
         /// 1: p6-flight-core tasks 1.1–1.3 (the free rigid body).
         /// 2: task 1.4 (the flight controller and propulsion; a body without propulsion steps as in 1).
+        /// 3: task 1.5 (the air: the stand-in wind, the rotors' inflow from it and their in-plane drag, the body's and
+        ///    the coil's drag, the rotors' gyroscopic moment, the ESCs' current limit; a free body steps as in 1).
         /// </summary>
-        public const int ModelVersion = 2;
+        public const int ModelVersion = 3;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
         /// <summary>A block's kind and payload length, u16 each.</summary>
         public const int BlockHeaderSize = 4;
 
-        /// <summary>The step record: 352 B of 1.1–1.3's fields, then the flight controller's 69 doubles and flags.</summary>
-        public const int StepSize = 912, EventSize = 72, EndSize = 48;
+        /// <summary>The step record: 352 B of 1.1–1.3's fields, then the flight controller's 69 doubles and flags (1.4),
+        /// then the gust, the air's force and moment and the ESCs' limit (1.5).</summary>
+        public const int StepSize = 992, EventSize = 72, EndSize = 48;
 
         // What the step record covers, checked against the structs by the suite: a field added to one of them must be
         // logged (a new layout) or the suite fails.
         public static readonly string[] StateFieldsLogged =
-            { "Step", "Position", "Velocity", "Attitude", "BodyRate", "Armed", "RotorSpeed", "EscCommand", "PackCharge0", "PackCharge1", "Fc" };
+            { "Step", "Position", "Velocity", "Attitude", "BodyRate", "Armed", "RotorSpeed", "EscCommand", "PackCharge0", "PackCharge1", "Fc", "Gust", "EscLimited" };
         public static readonly string[] FcFieldsLogged =
         {
             "RcCommand", "RcThrottle", "RcDataThrottle", "RawSetpoint", "FfDeltaPrev", "FfSpeedPrev", "FfAccelPrev", "FfRaw",
@@ -82,7 +86,7 @@ namespace Fpv450.Sim.Log
         };
         public static readonly string[] StickFieldsLogged = { "HostUs", "Roll", "Pitch", "Yaw", "Throttle", "Arm" };
         public static readonly string[] TraceFieldsLogged =
-            { "RotorCommand", "PackVolts0", "PackVolts1", "PackAmps0", "PackAmps1", "NetForce", "NetMoment" };
+            { "RotorCommand", "PackVolts0", "PackVolts1", "PackAmps0", "PackAmps1", "NetForce", "NetMoment", "AeroForce", "AeroMoment" };
 
         static readonly string[] CornerNames = { "rear_right", "front_right", "rear_left", "front_left" };
 
@@ -164,6 +168,12 @@ namespace Fpv450.Sim.Log
             b.Add("fc.motor_mix_range", "0..", LogFieldType.F64);
             b.Add("fc.flags", "FcFlags", LogFieldType.U16);
             b.Add("fc.reserved", "zero", LogFieldType.Pad, 6);
+            // The air (1.5).
+            b.Vec("gust", "m/s, world, the stand-in wind's gust over its mean");
+            b.Vec("aero_force", "N, world: body, coil and rotor in-plane drag");
+            b.Vec("aero_moment", "N.m, body, about the CoM");
+            b.Add("esc_limited", "bit per corner: held at its current limit", LogFieldType.U8);
+            b.Add("air.reserved", "zero", LogFieldType.Pad, 7);
             return b.Done(StepSize);
         }
 
@@ -261,6 +271,11 @@ namespace Fpv450.Sim.Log
             w.F64(f.MotorMixRange);
             w.U16((ushort)f.Flags);
             w.Zero(6);
+            w.V3(s.Gust);
+            w.V3(t.AeroForce);
+            w.V3(t.AeroMoment);
+            w.U8(s.EscLimited);
+            w.Zero(7);
         }
 
         public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
@@ -327,6 +342,11 @@ namespace Fpv450.Sim.Log
             f.TpaFactor = r.F64();
             f.MotorMixRange = r.F64();
             f.Flags = (FcFlags)r.U16();
+            r.Skip(6);
+            s.Gust = r.V3();
+            t.AeroForce = r.V3();
+            t.AeroMoment = r.V3();
+            s.EscLimited = r.U8();
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>
