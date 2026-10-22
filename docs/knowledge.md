@@ -336,7 +336,7 @@ Sources used in the first attempt: dron-shop.com.ua (VYRIY 10), magura.in.ua ("�
   - FM 0.55–0.65 (static, 10" 3-blade) and η 0.80–0.85
   - 40 A as the realistic maximum current
   - loaded pack voltage V = 6·(OCV − I_cell·R_cell), with OCV 3.4–4.1 V per cell, **R_cell ≈ 15 mΩ**, and I_cell 40 A (4P) or 32 A (5P), giving 16.8–21.7 V
-- **Maximum thrust:** a realistic **2.3–3.1 kgf per motor (nominal 2.6)**, or **9.0–12.5 kgf in total**. That is a thrust-to-weight of 1.4–2.8 at take-off, and 2.0 for a typical 5.2 kg. **Unity's model (`p6-flight-core` 1.4):** a DC motor on APC 10x4.5MR's published curves with no current limit gives 14.24 kgf at full duty on a full pack (3.56 a motor at about 47 A, above the motor's published 40 A maximum), a thrust-to-weight of 2.95 at 4.83 kg. The ESC current-limit policy is open (task 1.5); with a 40 A cap the figure falls back toward this range.
+- **Maximum thrust:** a realistic **2.3–3.1 kgf per motor (nominal 2.6)**, or **9.0–12.5 kgf in total**. That is a thrust-to-weight of 1.4–2.8 at take-off, and 2.0 for a typical 5.2 kg. **Unity's model (`p6-flight-core` 1.4):** a DC motor on APC 10x4.5MR's published curves with no current limit gives 14.24 kgf at full duty on a full pack (3.56 a motor at about 47 A, above the motor's published 40 A maximum), a thrust-to-weight of 2.95 at 4.83 kg. Task 1.5 set the ESC to limit each motor at its published 40 A (BLHeli_32-style current protection): 11.93 kgf at full duty on a full pack, inside this range.
 - **Fast flight:** axial inflow derates the thrust to 0.80–0.95 (nominal 0.90 at 13 m/s) (assumed).
 - **Margin in the severe-wind clip's flight state:**
   - the need was 1.10 W, which is **33–99 % of what was available (nominal 56 %)**
