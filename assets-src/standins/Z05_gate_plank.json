@@ -5,6 +5,6 @@
     "model_sha256": "7af111cab277d7bb60e15eb84b00627d309c69b766866fbf0dcbb1c0eb9826af",
     "catalog_key": "gate_plank"
   },
-  "lod": { "switch_m": [0.0, 20.0], "cull_m": 400.0 },
+  "lod": { "switch_m": [0.0, 20.0], "cull_m": 600.0 },
   "holes": []
 }

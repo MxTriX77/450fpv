@@ -50,9 +50,9 @@ PARAMS = {
     "lod.switch_m": {"type": "list", "range": "numbers rising from 0, at most one per model LOD", "default": [0.0, 45.0],
                      "effect": "a ported level per entry, LOD0 first, each shown from its distance (published: "
                                "Godot's lod_switch_m but its last)"},
-    "lod.cull_m": {"type": "float", "range": (1.0, 5000.0), "default": 400.0,
+    "lod.cull_m": {"type": "float", "range": (1.0, 5000.0), "default": 600.0,
                    "effect": "distance beyond which the asset is culled (published: Godot's last lod_switch_m; "
-                             "assumed for a model of one level; the test range sets 400 m, its map's sight lines)"},
+                             "assumed for a model of one level; the test range's 600 m: past its sight lines)"},
     "holes": {"type": "list", "range": "records of id, centre_line, top_width_m, depth_m, band_width_m", "default": [],
               "effect": "the cuts in the ground the asset stands in, in Godot's frame (lib.meta holes)"},
 }

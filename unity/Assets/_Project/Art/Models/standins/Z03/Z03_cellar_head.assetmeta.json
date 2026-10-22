@@ -3,7 +3,7 @@
   "id": "Z03",
   "variant": "Z03_cellar_head",
   "generator": "godot_port",
-  "params_sha256": "14a58d10ed4cf5a389baaa12847f4a0e7fd6b895dfbbecec49608a560c8ee2af",
+  "params_sha256": "c992923b681ff9bd0d4265d3ed234eae0aea180a9f3bac431a5fd61b755745cd",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
@@ -33,7 +33,7 @@
     }
   ],
   "micro": [],
-  "cull_distance_m": 400.0,
+  "cull_distance_m": 600.0,
   "materials": [
     {
       "slot": "brick_red",

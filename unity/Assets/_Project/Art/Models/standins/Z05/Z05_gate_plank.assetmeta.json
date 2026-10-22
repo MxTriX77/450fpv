@@ -3,7 +3,7 @@
   "id": "Z05",
   "variant": "Z05_gate_plank",
   "generator": "godot_port",
-  "params_sha256": "837912f07597a6cb7aadb1e49100542020c1772ce97ccc2cc305304330b0feea",
+  "params_sha256": "b44170b7cb53d7370648a6662983369f18409e0b03f75857995c46198fc13de4",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
@@ -33,7 +33,7 @@
     }
   ],
   "micro": [],
-  "cull_distance_m": 400.0,
+  "cull_distance_m": 600.0,
   "materials": [
     {
       "slot": "wood_weathered",

@@ -376,7 +376,7 @@ def test_the_metadata_survives_the_port(repo_root, godot_source, asset_id):
     assert data["stand_in"]["source"] == p["source"]
     switches = [lod["switch_distance_m"] for lod in data["lods"]]
     if "lod_switch_m" in g:
-        # Godot's switches; the cull at Godot's last or farther (p6-test-range 1.2: 400 m over the 512 m map)
+        # Godot's switches; the cull at Godot's last or farther (p6-test-range 1.2: 600 m over the 512 m map)
         assert switches[1:] == g["lod_switch_m"][:-1] and data["cull_distance_m"] >= g["lod_switch_m"][-1]
     else:
         assert switches == [0.0]

@@ -380,7 +380,7 @@ MonoBehaviour:
   id: Z08
   variant: Z08_tree_young
   generator: godot_port
-  paramsSha256: 681e8f34dc44fde19be414d38e5883544a3b3b03bf44987f70c1c6353b6732c9
+  paramsSha256: cd0a96a55e4dbd1fe328271c952a53c9f8b61e9d9acfe2d80c76285d4cd5da54
   units: m
   frame: unity-lh-yup
   bounds:
@@ -400,7 +400,7 @@ MonoBehaviour:
     switchDistanceM: 60
     thinWire: 0
   micro: []
-  cullDistanceM: 400
+  cullDistanceM: 600
   materials:
   - slot: bark_belt
     visual: bark_locust
@@ -453,7 +453,7 @@ LODGroup:
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 4517420393814474814}
-  - screenRelativeHeight: 0.01435069
+  - screenRelativeHeight: 0.009567127
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 6346305644638553640}

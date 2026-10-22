@@ -5,6 +5,6 @@
     "model_sha256": "9c9b8f4174e8b3c7b8474c735a7c7a3b7111e90752d70877df0e7a3ec983b617",
     "catalog_key": "cellar_head"
   },
-  "lod": { "switch_m": [0.0, 22.0], "cull_m": 400.0 },
+  "lod": { "switch_m": [0.0, 22.0], "cull_m": 600.0 },
   "holes": []
 }
