@@ -4,7 +4,7 @@
 
 A small flat map for G4's noclip through the feed and G7's first flights, made of what exists: the Godot yard
 (make_uat1_gallery.py's ADOBE_YARD, its Z flipped), a posadka of the Godot belt trees and shrub mixed with V01 and V13,
-S04 grass along the belt and round the yard, R01's two cars, an L01/L03 power line along the track, E01's trench along
+S04 grass along both edges of the belt, R01's two cars, an L01/L03 power line along the track, E01's trench along
 the belt and the start points. Every size, spacing and count is a row of TABLE, labelled (docs/workflow.md), so the
 pilot's change is an edit there and a re-run. The same seed gives the same bytes.
 
@@ -82,8 +82,8 @@ TABLE = {
     "legs_off_start": ((40.0, 45.0, 180.0), "assumed", "x, z, yaw: in the north field 39 m from the belt, facing it"),
     "start_clearance_m": (5.0, "pilot", "each start at least 5 m from any collision shape, in plan (the spec)"),
     # the noclip camera
-    "noclip_start": ((-15.0, 30.0, -18.0, 22.0), "assumed", "rel x, height, rel z, pitch down: above the yard, "
-                                                            "turned to the belt's far end"),
+    "noclip_start": ((-24.0, 25.0, -22.0, 27.0, -8.0), "assumed", "rel x, height, rel z, pitch down, yaw off the "
+                     "bearing to the belt's far end: above the yard's corner, the yard low left, the belt running away"),
     "leg_seconds": (32.0, "published", "PLT-07: 2 s warm-up and at least 30 s measured"),
 }
 
@@ -333,9 +333,10 @@ def posadka(m, rng, keep_out):
 
 
 def grass(m, rng):
-    """S04 patches on 12 m cells: one strip along each belt edge, the ring round the yard (not its track side) and
-    the 3 x 3 block round the legs-off start less its centre. A cell is dropped where it would carry a structure's
-    collision shapes, a plant's base (within a metre), a car or another patch, or lie in a neighbour plot."""
+    """S04 patches on 12 m cells in one strip along each belt edge, a lodged-straw verge (letter H's low flight along
+    a belt edge). A cell is dropped where it would carry a structure's collision shapes, a plant's base (within a
+    metre) or another patch. Not round the yard and the starts: from the air a cluster of patches reads as square
+    tiles on the floor (the first captures), where a strip along the belt reads as a verge."""
     size = v("patch_m")
     half = 0.5 * size
     cells = []
@@ -347,15 +348,6 @@ def grass(m, rng):
     for i in range(n):
         x = x0 + (i + 0.5) * size
         cells += [(x, south - half), (x, north + half)]
-    yx, yz = v("yard_centre")
-    hx, hz = v("yard_half_m")
-    for j in (-2, -1, 0, 1):  # the row past the fence (j = 2) is the track's
-        for i in (-2, -1, 0, 1, 2):
-            cx, cz = yx + i * size, yz + j * size
-            if not overlaps([cx - half, cz - half, cx + half, cz + half], [yx - hx, yz - hz, yx + hx, yz + hz]):
-                cells.append((cx, cz))
-    sx, sz, _ = v("legs_off_start")
-    cells += [(sx + i * size, sz + j * size) for j in (-1, 0, 1) for i in (-1, 0, 1) if (i, j) != (0, 0)]
 
     blocked = []
     for row in m.rows:
@@ -368,9 +360,6 @@ def grass(m, rng):
             rect = m.collision_rect(row)
             if rect is not None:
                 blocked.append(rect)
-    for name, side in (("west", -1.0), ("east", 1.0)):
-        px = yx + side * v("plot_offset_m")
-        blocked.append([px - hx, yz - hz, px + hx, yz + hz])
     for cx, cz in cells:
         cell = [cx - half, cz - half, cx + half, cz + half]
         if any(overlaps(cell, b) for b in blocked) or rng.random() >= v("patch_fill"):
@@ -450,12 +439,12 @@ def heading(a, b):
 
 def views_and_legs(m, starts):
     yx, yz = v("yard_centre")
-    dx, height, dz, pitch = v("noclip_start")
+    dx, height, dz, pitch, turn = v("noclip_start")
     x0, x1 = v("belt_x")
     rows = belt_rows_z()
     cam = (yx + dx, yz + dz)
     noclip = {"name": "yard", "position_m": [r3(cam[0]), height, r3(cam[1])],
-              "yaw_deg": r3(heading(cam, (x1, v("belt_z")))), "pitch_deg": pitch}
+              "yaw_deg": r3(heading(cam, (x1, v("belt_z"))) + turn), "pitch_deg": pitch}
     edge_z = min(rows) - v("edge_shrub_offset_m") - 4.0
     trench_row = next(r for r in m.rows if r["asset"] == "E01")
     lip = to_world(trench_row, m.assets.meta("E01", "E01_curving")["holes"][0]["centre_line"][0])
