@@ -12,22 +12,24 @@ The pilot, at the halt: "finish the tasks and halt the work. i will continue thi
 | Change | State | Branch tip |
 |---|---|---|
 | `p1-v01-locust` | archived (#121) | — |
-| `p6-flight-core` | 1.1–1.4 done (1.4: the Betaflight 4.5 controller at 4 kHz, the DC motors on APC's curves, two packs); **1.5 running** on `--aero`; then 1.4b (filters and sag compensation, `Runtime/Control/` only, may run beside 1.5), 1.6 contacts, 1.7, QA 2.1 | `0e5c623` |
+| `p6-flight-core` | 1.1–1.5 done (1.4: the Betaflight 4.5 controller at 4 kHz, DC motors on APC's curves, two packs; 1.5: drag, rotor H-force, the rotors' gyroscopic moment, the 40 A ESC limit, the stand-in wind; log format 3); next 1.4b (filters and sag compensation, `Runtime/Control/` only), 1.6 contacts, 1.7, QA 2.1 | `98ae449` |
 | `p5-drone` | 1.1, 1.2 done and on `unity/main`; next 1.3 model and 1.4 stand (asset-artist), after merging `unity/main` | `c51eb5a` |
 | `p4-feed` | 1.1, 1.2 done (the pass ported, still A/B passes over 26 stages; the lens passes); next 1.3, 1.4, 1.6, 1.7, 1.8 (1.8 decides the render size), QA, G4 | `efc01e4` |
 | `p6-world-query-gallery` | 1.1 on `unity/main`; 1.2 the physics sign-off done (probe in `flightbench --probe`, findings W1–W8 in `review-physics.md`); next 1.3 after G1 merges, 1.4 (musts W1 wires, W3, W4), 1.5, QA | `b1a402d` |
-| `p6-input-app` | **1.1 the radio, finishing** (ticked in the worktree); then 1.2–1.5, QA | worktree `46f5f16` |
+| `p6-input-app` | 1.1 the radio done (raw Windows HID on its own thread, `tools/radioprobe`; no TX12 was plugged in, so it is tested on a recorded EdgeTX stream); next 1.2–1.5, QA | `46f5f16` |
 | `p1-h01-adobe-house` | 1.5 done; **1.6 running** (merge `6b9d5c7` done, the twelve rebuilds); then QA 2.1, merge | worktree `1e8de2b` |
 | `p1-g1-look-lock-gallery` | 1.3 waits for H01's merge (place H01); then QA 2.1, merge | `08a59e4` |
-| `p6-test-range` | 1.1 the stand-ins done (`--standins` `7c06b69`); **1.2 the map, scene and build running**, stacked on G1's tip; then 1.3 (H01 as neighbours, after H01 merges), QA 2.1 | `4db9dd9` (worktree `8b7288c`) |
+| `p6-test-range` | 1.1 the stand-ins and 1.2 the map, scene and build done (729 instances; 1 % low 138 fps or more; the build went to the pilot), stacked on G1's tip; next 1.3 (H01 as neighbours, after H01 merges), QA 2.1 | `0b7c568` |
 
 ## 2. Agents running at the halt (check their worktrees first: `git worktree list`, then each `git log` and `git status`)
 Their handbacks reach the session that started them. If that session is gone, each worktree holds whatever they committed; start a fresh agent from the branch tip for any unfinished part.
-- **H01 1.6** (asset-artist): `.claude/worktrees/agent-a5abaac23f09054af`, branch `unity/art/p1-h01-adobe-house`
-- **Input 1.1** (game-developer): `agent-a53833d3c4a0bfee1`, branch `unity/game/p6-input-app` (off `unity/main` `ac2a5ee`)
-- **Test range 1.2** (world-builder): `agent-a2ae5a7b5570cde4e`, branch `unity/world/p6-test-range`; the build goes to `unity/Builds/Windows-TestRange/` in that worktree
-- **Flight core 1.5** (physics-engineer): `agent-aeec90e27aebdfaba`, branch `unity/physics/p6-flight-core--aero` (off `0e5c623`)
-- Kept for reuse (they hold a Unity Library): `agent-a09bfc6494fea1534` (`unity/art/p5-drone`, for the drone's 1.3), `agent-a9924b0d589177745` (`unity/techart/p4-feed`, for feed 1.3)
+- **H01 1.6** (asset-artist): `.claude/worktrees/agent-a5abaac23f09054af`, branch `unity/art/p1-h01-adobe-house`. At the halt it had committed the merge `6b9d5c7` and the rebuilds of K02, K03 and H01 (`1e8de2b`, pushed), and was building the next asset. The remaining rebuilds: R01, K07, V01, V13, K01, S04, L01, L03, E01 (1.6's list), then 1.6's checks and tick.
+- **Idle worktrees kept for reuse** (each holds a Unity Library):
+  - `agent-a09bfc6494fea1534` (`unity/art/p5-drone`): the drone's 1.3
+  - `agent-a9924b0d589177745` (`unity/techart/p4-feed`): feed 1.3
+  - `agent-a53833d3c4a0bfee1` (`unity/game/p6-input-app`): input 1.2
+  - `agent-aeec90e27aebdfaba` (`unity/physics/p6-flight-core`): flight core 1.4b and 1.6
+  - `agent-a2ae5a7b5570cde4e` (`unity/world/p6-test-range`): test range 1.3
 
 ## 3. Merge order and stacking
 - **H01** merges after its QA. Then G1 1.3 places H01, G1 QA, G1 merges to `unity/main`.
@@ -43,10 +45,14 @@ Their handbacks reach the session that started them. If that session is gone, ea
 - **Liftoff:** the loaded drone (6.18 kg) lifts off at 55 % on a full pack and 62.6 % at half charge, which matches the pilot's "about 62 %" for a loaded quad; nominal (4.83 kg) is 47–49 %. With no current limit a motor draws about 47 A at full duty, above its rated 40 A (1.5 sets the ESC policy).
 - **The feed:** Godot's fine structure needs the full-resolution read (an FPV render of 2754 × 1549); 1.8 measures the cost and decides. The A/B sheets are local in `unity/Logs/feed-ab-1.2/`.
 - **The latch rule** gained a guard (K§7.5): refresh only while the part's core is outside the shape.
+- **The 40 A ESC limit** (1.5) brings full thrust to 11.93 kgf and the first 50 ms of full yaw to 1289 °/s² (steady 745 °/s²); the G7 yaw question picks the policy.
+- **Drag against the pilot's cruise:** with clip P's 22.7° at 13 m/s pinned, 17 m/s needs 33.6° of pitch, while K§8.2 (cruise 17–22 m/s) points to less drag. Left to `p7c-wind`'s T0 (noted in tasks.md). `drone.json` has no camera position yet, so `AirVelocityAtCamera` is taken at the body origin.
+- **The input lane's log change clashes:** `p6-input-app` 1.1 raised `LogFormat.Version` to 2 (`StickSample.Failsafe`, header tag 10 for the input source, device and report intervals), while the flight core is at format 3. Merging `unity/main` into the input branch after the core lands again needs version 4 and a physics reading of the input agent's edits to `StickSample`, `LogFormat`, `LogHeader`, `FlightSummary` and the log tests. Its one Mono failure (`ReplayMatchesTheFlight`) is the flake the core fixed in `313dc43`. Design 2 should say the interval histogram covers the 10 s before the flight. `CLAUDE.md`'s verification block lacks `dotnet test tools/inputtests`.
+- **The test range:** grass (S04) lies only along the posadka's verges, since its patches read as square tiles from the air, and most of the map is bare flat floor; E01's ground patch shows as a pale rectangle. The first launch after a clean build loads in 11.9 s (PLT-06 asks ≤ 10 s); one launch once took 216 s and did not repeat. Its preset test cannot press keys in EditMode (a PlayMode test is needed). World-query 1.3 should hash only `ground`, `instances` and `start_points`. The world-builder edited the stand-ins' culls (600 m) and the asset-artist's port test and default: QA reads them.
 - **Stand-ins:** the importer turns any texture name containing `_rough` into a single red channel (a trap for recipe names). The optional `stand_in` metadata record (with Godot's snag flag) needs a physics reading in world-query 1.3 or flight core 1.6.
 
 ## 5. Waiting on the pilot
-- **The build:** the test range player (see the reply that halted the session for its path). It is noclip only: no feed, no flight yet.
+- **The build:** the test range player, `unity/Builds/TestRange-preview-1/450fpv-test-range.exe` in the main checkout (local, git-ignored; keys in `docs/test-range.md` on its branch). Noclip only: no feed, no drone, no flight yet. Their word on it is the test range's first reading, recorded in `docs/style-rules.md`.
 - **G7 question** (logged): the first-instant yaw kick. G4 and G5 questions as before.
 - **The letter map's T row** (`reference/_frames/letters.md`, `index.md`): still unanswered.
 - **The old session** "450fpv phase 1 continuation 2" is idle; archive it only on the pilot's yes.
