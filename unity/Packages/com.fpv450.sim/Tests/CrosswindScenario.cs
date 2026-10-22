@@ -1,0 +1,129 @@
+using Fpv450.Sim.Control;
+using Fpv450.Sim.Flight;
+using Fpv450.Sim.Wind;
+
+namespace Fpv450.Sim.Tests
+{
+    /// <summary>
+    /// flight-dynamics' "A crosswind leans the drone" (p6-flight-core 1.5): the repository's drone at its nominal
+    /// loadout, armed by Betaflight's rules and held at a point by the closed-loop pilot (SimPilot) in a wind, its lean
+    /// and drift measured over the flight's last 10 s of 40. The suite asserts it (AeroTests); tools/flightbench --scenarios
+    /// prints it. Also the cruise trim: the pitch that holds an airspeed in still air, for clip P's 22.7° (wind.md
+    /// §5.3). Basic operations only in what the core is fed, so the flights give the same bits on every runtime.
+    /// </summary>
+    public static class CrosswindScenario
+    {
+        public const double Seconds = 40, MeasuredSeconds = 10;
+        const double RadToDeg = 57.29577951308232;
+
+        public struct Result
+        {
+            /// <summary>The mean wind at the body over the measured window, world m/s, and its speed.</summary>
+            public Double3 Wind;
+            public double WindSpeed;
+
+            /// <summary>The body's up axis from the vertical, degrees, mean over the window; per m/s of the wind.</summary>
+            public double LeanDeg, LeanPerMs;
+
+            /// <summary>The lean's bearing against the wind's source: 0 leans straight into the wind, degrees.</summary>
+            public double LeanOffWindDeg;
+
+            /// <summary>The position's mean and largest horizontal error over the window, m, and the mean drift, m/s.</summary>
+            public double MeanError, MaxError, Drift;
+
+            /// <summary>The air's horizontal force over the weight, mean over the window (tan of the lean it needs).</summary>
+            public double AirOverWeight;
+        }
+
+        /// <summary>The flight's setup: the drone with its drag (or without, for a known-wrong model) in a wind.</summary>
+        public static FlightSetup Setup(DroneSpec spec, WindSetup wind, ulong seed = 0x450F, bool drag = true, bool rotorDrag = true)
+        {
+            PropulsionSpec propulsion = spec.BuildPropulsion();
+            if (!rotorDrag) propulsion.Props.HForce = 0;
+            return new FlightSetup
+            {
+                Seed = seed, World = FlightWorld.Floor(), Mass = spec.BuildMass(spec.Nominal), Propulsion = propulsion,
+                Aero = drag ? spec.BuildAero() : null, Wind = wind, StartPosition = new Double3(0, 300, 0), StartPackCharge = 0.9,
+            };
+        }
+
+        /// <summary>Arms by Betaflight's rules (the switch off, then on with the throttle low), 16 steps.</summary>
+        public static void Arm(FlightCore core)
+        {
+            for (int k = 0; k < 16; k++)
+                core.Advance(new StickSample { HostUs = core.State.Step * FlightCore.StepUs, Arm = k >= 8 });
+        }
+
+        /// <summary>Holds the start point for Seconds and measures the last MeasuredSeconds.</summary>
+        public static Result Hold(FlightSetup setup)
+        {
+            var core = new FlightCore(setup);
+            Arm(core);
+            var pilot = new SimPilot(core.Controller, setup.StartPosition) { PositionIntegral = 0.1 };
+            double weight = core.Body.Mass * 9.80665;
+            var r = new Result();
+            Double3 up = default, wind = default, drift = default;
+            double air = 0;
+            int n = 0, steps = (int)(Seconds * 1000), from = (int)((Seconds - MeasuredSeconds) * 1000);
+            for (int k = 0; k < steps; k++)
+            {
+                core.Advance(pilot.Sticks(core, core.State.Step * FlightCore.StepUs));
+                if (k < from) continue;
+                ref readonly FlightState s = ref core.State;
+                up = up + s.Attitude.Rotate(new Double3(0, 1, 0));
+                wind = wind + core.Wind.At(s.Gust, s.Position);
+                drift = drift + new Double3(s.Velocity.X, 0, s.Velocity.Z);
+                Double3 a = core.Trace.AeroForce;
+                air += DetMath.Sqrt(a.X * a.X + a.Z * a.Z) / weight;
+                double ex = s.Position.X - setup.StartPosition.X, ez = s.Position.Z - setup.StartPosition.Z;
+                double e = DetMath.Sqrt(ex * ex + ez * ez);
+                r.MeanError += e;
+                r.MaxError = DetMath.Max(r.MaxError, e);
+                n++;
+            }
+            up = up * (1.0 / n);
+            r.Wind = wind * (1.0 / n);
+            r.WindSpeed = DetMath.Sqrt(r.Wind.X * r.Wind.X + r.Wind.Z * r.Wind.Z);
+            r.MeanError /= n;
+            drift = drift * (1.0 / n);
+            r.Drift = DetMath.Sqrt(drift.X * drift.X + drift.Z * drift.Z);
+            r.AirOverWeight = air / n;
+            double horizontal = DetMath.Sqrt(up.X * up.X + up.Z * up.Z);
+            r.LeanDeg = System.Math.Atan2(horizontal, up.Y) * RadToDeg;
+            r.LeanPerMs = r.WindSpeed > 0 ? r.LeanDeg / r.WindSpeed : 0;
+            // Into the wind: the up axis leans toward where the wind comes from, −W.
+            if (horizontal > 0 && r.WindSpeed > 0)
+            {
+                double cos = -(up.X * r.Wind.X + up.Z * r.Wind.Z) / (horizontal * r.WindSpeed);
+                r.LeanOffWindDeg = System.Math.Acos(System.Math.Min(1, System.Math.Max(-1, cos))) * RadToDeg;
+            }
+            return r;
+        }
+
+        /// <summary>The pitch, degrees, that holds an airspeed north in still air, mean over the last MeasuredSeconds.</summary>
+        public static double CruisePitch(DroneSpec spec, double airspeed)
+        {
+            FlightSetup setup = Setup(spec, WindSetup.Of(WindLevel.Still));
+            var core = new FlightCore(setup);
+            Arm(core);
+            var pilot = new SimPilot(core.Controller, setup.StartPosition)
+            {
+                HoldVelocity = true, TargetVelocity = new Double3(0, 0, airspeed), MaxTiltSin = 0.8,
+            };
+            double tilt = 0;
+            int n = 0, steps = (int)(Seconds * 1000), from = (int)((Seconds - MeasuredSeconds) * 1000);
+            for (int k = 0; k < steps; k++)
+            {
+                StickSample sticks = pilot.Sticks(core, core.State.Step * FlightCore.StepUs);
+                core.Advance(sticks);
+                // The height held too: the pilot's target follows the drone's path.
+                pilot.Target = new Double3(core.State.Position.X, setup.StartPosition.Y, core.State.Position.Z);
+                if (k < from) continue;
+                Double3 up = core.State.Attitude.Rotate(new Double3(0, 1, 0));
+                tilt += System.Math.Atan2(DetMath.Sqrt(up.X * up.X + up.Z * up.Z), up.Y) * RadToDeg;
+                n++;
+            }
+            return tilt / n;
+        }
+    }
+}

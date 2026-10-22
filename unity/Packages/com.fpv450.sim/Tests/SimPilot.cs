@@ -9,7 +9,8 @@ namespace Fpv450.Sim.Tests
     /// the horizontal error asks for an acceleration, the acceleration for a tilt of the thrust, the tilt's error for
     /// a body rate, and the rate for the stick that the controller's own ACTUAL curve maps to it; the height's error
     /// works the throttle. The integrators hold a steady lean against a steady wind, so the position does not drift.
-    /// Basic operations only (no System.Math), so a flight it flies gives the same bits on every runtime.
+    /// It moves the sticks at the TX12's 250 Hz report rate (every Period steps) and holds them between. Basic operations
+    /// only (no System.Math), so a flight it flies gives the same bits on every runtime.
     ///
     /// Gains (assumed, for a stable hold well inside the controller's own bandwidth): the attitude loop 5 rad/s; the
     /// horizontal loop ω_n 0.77 rad/s with ζ 0.78 and a slow integrator; the throttle 0.1 of stick per m and per m/s, as
@@ -33,7 +34,12 @@ namespace Fpv450.Sim.Tests
         public double YawGain = 2, ThrottleBase = 0.5, ThrottleGain = 0.1, ThrottleDamping = 0.1;
         public double MaxTiltSin = 0.5736; // sin 35°
 
+        /// <summary>Steps between stick reports: 4, the radio's 250 Hz (fc-profiles §1).</summary>
+        public int Period = 4;
+
         double _ix, _iz;
+        int _count;
+        StickSample _last;
         readonly FlightController _fc;
 
         public SimPilot(FlightController fc, Double3 target)
@@ -45,8 +51,13 @@ namespace Fpv450.Sim.Tests
         /// <summary>The sticks for the core's present state, armed, at host time hostUs.</summary>
         public StickSample Sticks(FlightCore core, long hostUs)
         {
+            if (_count++ % Period != 0)
+            {
+                _last.HostUs = hostUs;
+                return _last;
+            }
             ref readonly FlightState s = ref core.State;
-            const double dt = FlightCore.Dt;
+            double dt = FlightCore.Dt * Period;
 
             // The horizontal acceleration it wants.
             double ax, az;
@@ -90,7 +101,7 @@ namespace Fpv450.Sim.Tests
             throttle = throttle < 0 ? 0 : throttle > 1 ? 1 : throttle;
 
             // The pilot's axes (DetMath.cs): roll right −ω_z, nose down +ω_x, yaw right +ω_y, in °/s.
-            return new StickSample
+            return _last = new StickSample
             {
                 HostUs = hostUs,
                 Roll = Stick(0, -rate.Z * RadToDeg),
