@@ -23,7 +23,7 @@ The pilot, at the halt: "finish the tasks and halt the work. i will continue thi
 
 ## 2. Agents running at the halt (check their worktrees first: `git worktree list`, then each `git log` and `git status`)
 Their handbacks reach the session that started them. If that session is gone, each worktree holds whatever they committed; start a fresh agent from the branch tip for any unfinished part.
-- **H01 1.6** (asset-artist): `.claude/worktrees/agent-a5abaac23f09054af`, branch `unity/art/p1-h01-adobe-house`. At the halt it had committed the merge `6b9d5c7` and the rebuilds of K02, K03 and H01 (`1e8de2b`, pushed: no, push it), and was building the next asset. The remaining rebuilds: R01, K07, V01, V13, K01, S04, L01, L03, E01 (1.6's list), then 1.6's checks and tick.
+- **H01 1.6** (asset-artist): `.claude/worktrees/agent-a5abaac23f09054af`, branch `unity/art/p1-h01-adobe-house`. At the halt it had committed the merge `6b9d5c7` and the rebuilds of K02, K03 and H01 (`1e8de2b`, pushed), and was building the next asset. The remaining rebuilds: R01, K07, V01, V13, K01, S04, L01, L03, E01 (1.6's list), then 1.6's checks and tick.
 - **Idle worktrees kept for reuse** (each holds a Unity Library):
   - `agent-a09bfc6494fea1534` (`unity/art/p5-drone`): the drone's 1.3
   - `agent-a9924b0d589177745` (`unity/techart/p4-feed`): feed 1.3
