@@ -6,7 +6,8 @@ using UnityEngine;
 namespace Fpv450
 {
     /// <summary>
-    /// Batchmode build entry points, run as <c>-executeMethod Fpv450.Build.Windows</c> or <c>Fpv450.Build.Gallery</c>.
+    /// Batchmode build entry points, run as <c>-executeMethod Fpv450.Build.Windows</c>, <c>Fpv450.Build.Gallery</c> or
+    /// <c>Fpv450.Build.TestRange</c>.
     /// A failed build exits Unity with code 1.
     /// </summary>
     public static class Build
@@ -23,7 +24,14 @@ namespace Fpv450
         /// <c>GalleryBoot</c> gives <c>-windowed</c>), under its own product name (so its window settings are its own).
         /// The project's settings are restored after.
         /// </summary>
-        public static void Gallery()
+        public static void Gallery() =>
+            OneScene("Gallery", "450fpv gallery", GalleryScene.ScenePath, "Builds/Windows-Gallery/450fpv-gallery.exe");
+
+        /// <summary>The test range (p6-test-range design 9): its scene alone, as the gallery's build, under its own product name.</summary>
+        public static void TestRange() =>
+            OneScene("TestRange", "450fpv test range", TestRangeScene.ScenePath, "Builds/Windows-TestRange/450fpv-test-range.exe");
+
+        static void OneScene(string name, string productName, string scene, string path)
         {
             string product = PlayerSettings.productName;
             FullScreenMode mode = PlayerSettings.fullScreenMode;
@@ -31,10 +39,10 @@ namespace Fpv450
             bool built;
             try
             {
-                PlayerSettings.productName = "450fpv gallery";
+                PlayerSettings.productName = productName;
                 PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow;
                 PlayerSettings.defaultIsNativeResolution = true;
-                built = Player("Gallery", new[] { GalleryScene.ScenePath }, "Builds/Windows-Gallery/450fpv-gallery.exe");
+                built = Player(name, new[] { scene }, path);
             }
             finally
             {
