@@ -10,11 +10,11 @@
 - **Non-Goals:** the proposal's.
 
 ## Decisions
-1. **Research first:** the object sheet (`docs/object-sheets/drone.md`, in the `object-sheets` format) from public sources on typical Ukrainian heavy 10-inch fiber-optic quads, with every number labelled published, derived or assumed.
+1. **Research first, from letter T:** the pilot's reference photo (D-043) is the look; public sources fill what it does not show. The object sheet (`docs/object-sheets/drone.md`, in the `object-sheets` format) from public sources on typical Ukrainian heavy 10-inch fiber-optic quads, with every number labelled published, derived or assumed.
    - **The payload** is a generic box sized and massed by the class (0.5–2 kg), with no functional detail.
    - **OPSEC:** no unit, place or sortie detail; product names only where public.
 2. **`drone.json`** (the physics engineer's):
-   - K§5.2 re-derived with the payload on top and two packs, by the parallel-axis theorem: inertia ranges at seven loadouts, the CoM, and the coil's offset below it.
+   - K§5.2 re-derived on letter T's layout (D-043: the spool on top, the payload slung below, two packs along the sides; the spool underneath on the legs-off build), by the parallel-axis theorem: inertia ranges at seven loadouts, the CoM, and the coil's offset below it.
    - **The packs:** 6S or 8S Li-ion chosen from the research and `fc-profiles.md` (the OTU class runs 8S), each pack's cells and R_cell recorded.
    - The motors' Kv and the prop's k_T and κ from published data where it exists.
 3. **The generator:** `tools/blender/generators/drone.py`, reading `drone.json` plus a look params file (colours, decals none, wear).

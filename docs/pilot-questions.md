@@ -19,6 +19,7 @@ The pilot's words: "why tf are you asking me these questions if it's you whos go
 | Batteries | Li-ion, 20–35 Ah, 6S4P to 6S5P ±; **"a couple of batteries"** on the drone. The OTU class runs 8S Li-ion (FpvPrep profiles) | pilot, fc-profiles |
 | Coil | about 1 kg | pilot |
 | The fiber in the first flights | fly free first; the fiber comes in the next flight build after G7 | 2026-10-21, D-042 |
+| The drone's look | letter T: the spool on top, the payload slung below, two packs along the sides, carbon tube legs; legs-off flights rest on the upside-down chair, since it can't stand on the spool | 2026-10-21, D-043 |
 | Menus before flying | a minimal menu (Train / Calibrate / Exit, setup), judged at G7; no wireframe gate | 2026-10-21, D-042 |
 | Payload | on **top** of the drone | 2026-10-17 |
 | Water in the world | yes: a pond or a small river; fiber on water keeps the signal (corrected by the pilot, D-039); graphics mildly realistic; wind makes waves | 2026-10-18 (D-036), 2026-10-19 (D-039) |
@@ -60,4 +61,6 @@ Ask new questions only under the rule above, at the matching gate.
 | Gate | Question | Why it is the pilot's | Source |
 |---|---|---|---|
 | G2 | Looking at the fortifications in the gallery: which forms read as what you see today? Coils loose or on pickets, bright or rusted; teeth squat or slim; hedgehogs of rail or of angle; a made or an improvised barrier; do the coil's flat loops read right? | qualitative look; no reference shows them | F01–F04, D-035 |
+| G5 | On a legs-off build, does the payload ride on top or stay slung below? | their own kit; T shows only the legs-on build | D-043, `drone.md` |
+| G5 | Letter T's payload hangs crosswise under the frame, with the spool fore-aft. Is that how your drones sit? | their own kit | D-043, `drone.md` |
 | G4 | The references show two no-signal screens: a bright blue with small centred text, and a deeper blue with two lines top-left. Which do your goggles show, or does it depend on the receiver? | a preference about their own kit; the footage shows both | FEED-07, gap review L12 |

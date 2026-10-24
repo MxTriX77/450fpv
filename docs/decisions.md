@@ -389,3 +389,24 @@ The pilot, 2026-10-21, after flying the G1 preview (five of six stations): "VAZ 
   - The H belt edge (R2) waits with G3.
   - H01 finishes (its look pass, its merge, its QA), joins the gallery, and closes G1.
 
+## D-043 The drone copies letter T; legs-off flights launch from the upside-down chair · Accepted
+The pilot, 2026-10-21, sharing a photo of a typical heavy fiber-optic quad, filed as letter T: "this is what our drone, a typical optical fiber, should look like. as you can see, it has legs, but for some missions there are no legs, this is exactly when you lift off from that "upside-down" chair - so it stays on something, coz you can't balance on the spool".
+- **The Svinoriz 10 Opto copies letter T's look** (D-028):
+  - an X frame of carbon plates and tube arms, with four motors
+  - the fiber spool in its housing on top
+  - the payload slung below, between the legs
+  - the two packs strapped along the frame's sides
+  - four carbon tube legs with feet
+  - The object sheet (`p5-drone` task 1.1) reads every detail T shows.
+- **Copy the look, never the markings:** no logo, text or QR code on any part (SEC rules). The payload stays a generic body of T's size and the class's mass, with no functional detail (DRN-01).
+- **What it supersedes:** the 2026-10-17 note "the payload sits on top" and DRN-01's "the fiber coil underneath", for the legs-on build. `p5-drone` re-derives K§5.2 on T's layout.
+- **Legs-off:** the drone rests by its arms on the upside-down chair, the four-post stand of D-022, because it cannot stand on the spool. The orchestrator reads this, with D-022's "the coil hangs clear", as the spool hanging underneath on the legs-off build. That reading is confirmed at G5.
+- **Corrected by T's reading** (`p5-drone` task 1.1, `docs/object-sheets/drone.md`): the arms are flat carbon plates, and the tubes are the legs, standing on fore-aft skids. The props are 2-blade (PRD-02 and DRN-01 said 3-blade). The payload hangs crosswise below the frame. The legs keep the pilot's 25–35 cm, although T's measure about 0.18 m, since the pilot's number beats a photo's scale. The coil keeps the pilot's 1 kg (about 10 km), on T's drum shape scaled up.
+
+
+## D-044 The test range: a simple map from what exists, for G4 and G7 · Accepted
+The pilot, 2026-10-22: "there's a house on Godot - for now you can use that house and posadka's from there to create in unity. just pick whatever we have at the moment that we can use, create a simple ahh map, so i test the flights and complex physics on something tangible, and not a couple of trees standing alone in a sandbox world. make it simple, don't use too much resources for this." Their list: the grass from Unity; the house and the yard from Godot; the posadka from Godot, with Unity's trees and bushes too; the cars from Unity; "and whatever else".
+- **Supersedes D-042's "the test range is the G1 gallery".** G4's noclip through the feed and G7's first flights run over the test range (`p6-test-range`). The gallery stays the look-lock reference, and G5's drone station stays in it.
+- **The map:** about 512 m square on flat ground. It holds the Godot yard (house, shed, cellar, gate, fence, fruit trees) at its Godot layout; a posadka of the Godot belt trees and shrub mixed with V01 and V13; S04 grass; R01's two cars; an L01/L03 power line; E01's trench; H01's two houses as neighbours once H01 merges; and start points from the ground and from the stand.
+- **The Godot assets are stand-ins `Z01`–`Z13`** (D-040), ported through the Unity pipeline from `refs/godot/main` with their Godot physics metadata (collision, gaps, wind volumes, porosity, snag), never merged (D-027). They get no look pass and no rework, and each is swapped for its Unity asset when that lands.
+- **Kept cheap:** Standard tier (D-033), three build tasks and one QA pass; no relief, terrain layers or roads (G3's).

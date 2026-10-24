@@ -1,0 +1,476 @@
+{
+  "schema": 1,
+  "id": "Z06",
+  "variant": "Z06_fence_planks",
+  "generator": "godot_port",
+  "params_sha256": "cb08443d8c2b6eb997d1406ee26c81f505dfb123ebd38861334969196caac31c",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -1.31,
+      -0.3,
+      -0.06
+    ],
+    "max": [
+      1.31,
+      1.75,
+      0.08
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "Z06_fence_planks_LOD0",
+      "tris": 228,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 600.0,
+  "materials": [
+    {
+      "slot": "wood_weathered",
+      "visual": "godot_wood_weathered",
+      "physics": "timber"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "box",
+      "center": [
+        -1.25,
+        0.725,
+        0.0
+      ],
+      "size": [
+        0.12,
+        2.05,
+        0.12
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.25,
+        0.725,
+        0.0
+      ],
+      "size": [
+        0.12,
+        2.05,
+        0.12
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.3,
+        0.04
+      ],
+      "size": [
+        2.38,
+        0.08,
+        0.04
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        1.3,
+        0.04
+      ],
+      "size": [
+        2.38,
+        0.08,
+        0.04
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.125,
+        0.8079,
+        0.07
+      ],
+      "size": [
+        0.11,
+        1.5157,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.009704,
+        0.999953
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.975,
+        0.814,
+        0.07
+      ],
+      "size": [
+        0.11,
+        1.5279,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.004922,
+        0.999988
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.675,
+        0.8112,
+        0.07
+      ],
+      "size": [
+        0.11,
+        1.5224,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.008596,
+        0.999963
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.525,
+        0.8019,
+        0.07
+      ],
+      "size": [
+        0.11,
+        1.5038,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.00418,
+        0.999991
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.375,
+        0.8033,
+        0.07
+      ],
+      "size": [
+        0.11,
+        1.5066,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.008631,
+        0.999963
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.225,
+        0.7959,
+        0.07
+      ],
+      "size": [
+        0.11,
+        1.4917,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.001885,
+        0.999998
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.075,
+        0.8077,
+        0.07
+      ],
+      "size": [
+        0.11,
+        1.5153,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.004206,
+        0.999991
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.075,
+        0.4906,
+        0.07
+      ],
+      "size": [
+        0.11,
+        0.8812,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.008439,
+        0.999964
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.225,
+        0.81,
+        0.07
+      ],
+      "size": [
+        0.11,
+        1.52,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.006414,
+        0.999979
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.375,
+        0.8118,
+        0.07
+      ],
+      "size": [
+        0.11,
+        1.5235,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        7.9e-05,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.525,
+        0.7923,
+        0.07
+      ],
+      "size": [
+        0.11,
+        1.4847,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.001475,
+        0.999999
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.675,
+        0.8,
+        0.07
+      ],
+      "size": [
+        0.11,
+        1.5,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.003744,
+        0.999993
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.825,
+        0.793,
+        0.07
+      ],
+      "size": [
+        0.11,
+        1.4861,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.00459,
+        0.999989
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.975,
+        0.8029,
+        0.07
+      ],
+      "size": [
+        0.11,
+        1.5058,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.006999,
+        0.999976
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.125,
+        0.7907,
+        0.07
+      ],
+      "size": [
+        0.11,
+        1.4813,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.006929,
+        0.999976
+      ],
+      "material": "timber",
+      "landable": false
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.875,
+        0.01
+      ],
+      "size": [
+        2.62,
+        1.75,
+        0.14
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.35
+    }
+  ],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": [],
+  "stand_in": {
+    "source": {
+      "commit": "83401382e8b733389982997180cc181b063f61ae",
+      "model": "game/assets/models/structures/fence_planks.glb",
+      "model_sha256": "bf4d75e74444188583c76c4a244b1dab12c6ae99a1168c1013f4242758715dd5",
+      "catalog_key": "fence_planks"
+    },
+    "snag_hazard": true
+  }
+}
