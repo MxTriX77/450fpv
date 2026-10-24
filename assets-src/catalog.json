@@ -7,11 +7,29 @@
       "variants": ["E01_curving"],
       "materials": { "ground": "grassed_spoil", "wall": "trench_wall", "clod": "trench_wall", "section": "trench_wall", "straw": "straw" }
     },
+    "H01": {
+      "class": "houses",
+      "generator": "house",
+      "variants": ["H01_I", "H01_D"],
+      "materials": { "facade": "facade_h01", "interior": "interior_h01", "clay": "clay_render", "timber": "roof_timber", "door": "plank_door", "iron": "car_rust", "glass": "glass", "tile": "clay_tile", "tile_fracture": "tile_fracture", "tile_far": "clay_tile_far", "brick": "brick_red", "timber_fracture": "timber_fracture", "adobe": "adobe", "heap": "rubble_heap", "cable": "wire_sip" }
+    },
     "K01": {
       "class": "debris",
       "generator": "debris_brick",
       "variants": ["K01_whole"],
       "materials": { "brick": "brick_red" }
+    },
+    "K02": {
+      "class": "debris",
+      "generator": "debris_tile",
+      "variants": ["K02_tile_shard", "K02_tile_whole"],
+      "materials": { "tile": "clay_tile", "tile_fracture": "tile_fracture" }
+    },
+    "K03": {
+      "class": "debris",
+      "generator": "debris_timber",
+      "variants": ["K03_batten_broken", "K03_board", "K03_rafter_broken"],
+      "materials": { "timber": "roof_timber", "timber_fracture": "timber_fracture", "nail": "car_rust" }
     },
     "K07": {
       "class": "debris",

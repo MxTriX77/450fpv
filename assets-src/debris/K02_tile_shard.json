@@ -1,0 +1,9 @@
+{
+  "piece": "tile_shard",
+  "seed": 1,
+  "size_m": 0.15,
+  "tile_m": { "length": 0.40, "width": 0.22, "thickness": 0.014, "camber": 0.008 },
+  "fracture_count": 3,
+  "physics_material": "masonry",
+  "lod": { "lod1_switch_m": 3.0, "cull_m": 70.0 }
+}
