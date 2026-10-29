@@ -64,9 +64,26 @@ Branch `unity/game/p6-input-app` off `unity/main`, after `p6-flight-core`'s task
 - [ ] 1.4 [game-developer] The app and the flight session (design 6, 7):
   - **What:** the menu (Train, Calibrate, Exit; Explore in review builds), the setup, the flight session over the test range (D-044) with the world loader, the physics thread, the stand-in drone, the FEED-02 camera and the launch stand; arm and disarm, pause and restart, the end conditions, and the post-flight summary.
   - **Verify:** every `app-flow` scenario, and a built player flying the stand-in from the stand and from the ground with the keyboard fallback.
-- [ ] 1.5 [game-developer] Latency (design 3):
+- [x] 1.5 [game-developer] Latency (design 3) (ticked for its build; the TX12's figures are 1.5b):
   - **What:** the latency test mode.
   - **Verify:** the latency scenario with a TX12, both figures in the header.
+  - **As built** (`Scripts/Input/Radio/LatencyTest.cs`; the input header entry; `radioprobe --latency`; tests in `Tests/EditMode/Radio/LatencyTests.cs`):
+    - **The path:** an injector at the device boundary keeps each report's arrival stamp and writes the pattern into its values. Then `RadioReader` (the raw map), the flight's `StickInbox`, and `FlightScheduler` on its thread with the app's 1 ms timer period. Then the controller (the 250 Hz RC link, RC smoothing, throttle boost, mixer) and the ESCs. The bench is the repository's drone at its nominal loadout, 300 m up in still air, with no contacts. A recording (played at its stamps, `LeadUs` 0) and a live device both work.
+    - **The pattern:** disarmed, then armed at 0.1 s; the throttle stick at 0.42 from 0.3 s; then from 0.8 s, 120 changes between 0.42 and 0.48, one every 82 ms. 82 ms is an odd count of 2 ms reports, so the changes land on both RC-frame phases a 500 Hz stream reaches, and the boost's 15 Hz low-pass settles to 0.03 %. No timed change has an ESC at its 40 A limit (the spin-up at 0.3 s does); with 50 ms holds and only 0.05 s of settling, two did.
+    - **The figures**, from each change's first report's arrival stamp: to the host time of the first step that uses it; and to the motor command's response, the four ESCs' mean duty halfway through the change (linear between the steps' records). The breakdown splits the second: the wait for the RC link's next frame, the smoothing to the DShot command halfway, then the ESC.
+    - **The header:** format 6 is kept, since it has not reached `unity/main`. The input entry (tag 15) gains two fields, appended so a 1.1 entry still reads:
+      - `StartHostUs`, the flight's step-0 host µs: a step's stick age is `StartHostUs + k·1000 − HostUs`, so the log alone gives the first figure (the test recomputes it from the records)
+      - `InputLatency`: the steps, and each figure's min, p50, p99, max and mean
+    - **The log:** the header is written before the first step, so the test splices the figures into its own log's header after the flight. `FlightSummary` prints a `latency test:` line, and the log replays bit for bit.
+    - **Numbers** (no TX12 here: 1.1's synthetic EdgeTX stream at 2 ms, in real time). The figures were identical over two .NET 10 runs and Unity's Mono. Each run: 120 of 120 changes timed, about 10 730 steps, 5–9 hitches, 0 dropped; 486–488 report intervals before the flight, mean 2.000 ms.
+      - **To the first step:** p50 0.477, p99 0.561 ms (0.384–0.563, mean 0.474). The 1 ms step: a report waits for the next step. The stream's reports arrive 437–617 µs into the host's 1 ms USB frame and this flight's steps fall on the frame's edge, so the wait is 0.383–0.563 ms (the wake jitter's 180 µs). Across flights the phase is anything in 0–1 ms. radioprobe's `--from` run of the same timing had its steps near the arrivals and gave 0.001–1.000 ms (p50 0.939). Its p99 and max of 1.000 ms are reports stamped at a step's own host time: the input thread had not delivered them when that step ran, so they waited for the next one.
+      - **To the motor command:** p50 6.453, p99 8.460 ms (6.283–8.462, mean 7.373). That is the first step's 0.474, plus the RC frame's 2.000 (1 or 3 ms: 2 ms reports land on two of the 4 ms frame's phases; 1.5 ms on average over phases), plus the smoothing's 1.563, plus the ESC's 3.336.
+        - The smoothing is the PT3 at the auto 93 Hz with the throttle boost. Betaflight's formulas written out give 1.562 ms.
+        - The ESC is τ_esc 5 ms. Its formula gives 3.335 ms: under a step's 0.693 τ = 3.47 ms, because the boost overshoots.
+        - Every change's smoothing and ESC parts are within 2 µs of that chain.
+    - **Run it:** `dotnet test tools/inputtests` (the scenario takes 11 s) and Unity's EditMode. `radioprobe --latency [n] [--from <recording>]` runs on a live radio or a recording, prints the interval histogram, both figures and the breakdown, and writes the test flight's log to the flights folder.
+    - **For 1.4:** the flight session sets `header.StartHostUs` to its `StartUs`. A review build may offer the test mode.
+- [ ] 1.5b At G7, with the gate's flights (not a merge blocker): the pilot's TX12's report interval and both figures, from `radioprobe --latency` while the radio is plugged in for the gate anyway, or from the app's test mode once 1.4 offers it. Nobody asks the pilot to plug it in for this.
 
 ## 2. Review
 
