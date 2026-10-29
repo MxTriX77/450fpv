@@ -282,7 +282,7 @@ The verbatim answers are in [pilot-brief-2026-10-17.md](pilot-brief-2026-10-17.m
 
 ## 5. The drone
 
-`[portable]` throughout. The sim has **one** drone, **"Svinoriz 10 Opto"**, of the Vyriy / BOMBUS / OTU / Beshketnyk class: 10-inch, 3-blade props, a fiber spool underneath, and legs or the launch stand.
+`[portable]` throughout. The sim has **one** drone, **"Svinoriz 10 Opto"**, of the Vyriy / BOMBUS / OTU / Beshketnyk class: 10-inch, 3-blade props, a fiber spool underneath, and legs or the launch stand. **Superseded by D-043 and letter T's reading** (`docs/object-sheets/drone.md`, `assets-src/drone/drone.json`): 2-blade props, plate arms, tube legs on skids, the spool on top with the legs on and hung underneath with the legs off, the payload slung crosswise below, two 6S2P packs along the sides.
 
 **Pilot, 2026-10-17:** "just google at typical opto fiber drones in ukraine and how they look (the coil underneath, a couple of batteries, etc, an explosive cargo on top of it, etc.)". So the payload sits **on top** and there are **two battery packs**. The mass layout below (cargo forward and below, one pack) is the first attempt's assumption, and phase 5 must re-derive it from research.
 
@@ -1109,6 +1109,7 @@ The full text is in [legacy/godot-decisions.md](legacy/godot-decisions.md). The 
 - **Plain C# met the 60 µs per-step world-query budget.** There is no need for exotic tech.
 - **The probe** (a fake drone over the real API) found the API gaps cheaply before the physics change.
 - **Two limits of the first map format:** rectangle gaps and one wind porosity per asset (§10.6).
+- **Unity's Mono evaluates `float` expressions in double precision; CoreCLR does not** (measured in `p4-feed` task 1.1, 2026-10-21). The ported feed scheduler drifted a few ulps per field in Unity against .NET, and an accumulating field (`N3Roll`) carried it, until every `float` operation was cast back to `float` explicitly. Mono also rounded `a + b*t` once instead of twice in about 2 % of cases. **Keep deterministic code in `double`, or cast each `float` operation**, and check it with a golden run in the Unity editor against .NET (LOG-04).
 
 ### 14.6 Godot specifics (for the record) `[Godot]`
 - The csproj had to be generated through Godot's own generator.

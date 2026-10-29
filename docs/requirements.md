@@ -103,7 +103,7 @@ The pilot, 2026-10-17: "when i say realism i mean more than just abstract realis
 
 **PRD-01 Purpose.** A lightweight Windows simulator of **heavy fiber-optic cargo FPV quads** whose product is **physics realism**: undefined and sometimes unexpected dynamics, as in real flight. It is not an AAA game. *Accept:* every phase's spec states how it serves this. *Source:* V§1–2, V§3.
 
-**PRD-02 One drone.** Exactly one aircraft, **"Svinoriz 10 Opto"**, 10-inch with 3-blade props. There is no drone selection and no tuning of the airframe beyond PRD-04. *Accept:* no UI or config exposes another airframe. *Source:* B req 4, V§3, D-011.
+**PRD-02 One drone.** Exactly one aircraft, **"Svinoriz 10 Opto"**, 10-inch with 2-blade props, as letter T shows them (D-043). There is no drone selection and no tuning of the airframe beyond PRD-04. *Accept:* no UI or config exposes another airframe. *Source:* B req 4, V§3, D-011.
 
 **PRD-03 One map.** One composite map of Ukrainian terrain, about 3 adjacent villages with their fields and tree belts plus one urban edge (D-018). *Source:* B plan 2, V§3.
 
@@ -613,13 +613,13 @@ Train mode shows what the pilot needs; the layout positions come from the footag
 ## 11. Drone (DRN): phase 5
 
 **DRN-01 The model.** "Svinoriz 10 Opto", researched from typical Ukrainian fiber-optic heavy quads:
-- 10-inch X frame (452 mm wheelbase class), 3115-class motors, **3-blade 10" props**
+- 10-inch X frame (452 mm wheelbase class) with flat carbon plate arms, 3115-class motors, **2-blade 10" props** (letter T, D-043)
 - **the fiber spool in its housing on top**, as letter T shows it (D-043); underneath on the legs-off build, which rests on the stand
 - **two battery packs**
 - **a payload slung below**, between the legs (letter T, D-043), generic and without functional detail
 - FPV camera at **0° uptilt**
 - fiber transceiver, flight-controller stack, wiring
-- **plastic legs 25–35 cm** in the legs-on variant, and a legs-off variant
+- **legs 25–35 cm** (pilot; carbon tubes on clamps standing on fore-aft skids, as letter T shows them) in the legs-on variant, and a legs-off variant
 
 *Source:* B plan 5, B req 4, K§5.
 

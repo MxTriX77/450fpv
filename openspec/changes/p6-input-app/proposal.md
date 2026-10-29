@@ -23,8 +23,8 @@ G7 is the pilot flying with their own RadioMaster TX12, their own rates, and a m
 - **The app** (APP-02…05):
   - the main menu: Train, Calibrate, Exit (plus Explore in review builds)
   - the setup: payload, legs, time of day, wind, rain
-  - **the flight session** over the G1 gallery:
-    - the world loaded from `maps/gallery-g1/stations.json`
+  - **the flight session** over the test range (`p6-test-range`, D-044):
+    - the world loaded from `maps/test-range/placements.json`
     - the sim thread started
     - the pose interpolated onto the drone (a labelled stand-in until `p5-drone`)
     - the FPV camera (a clean camera with FEED-02's intrinsics until `p4-feed`'s rig lands)

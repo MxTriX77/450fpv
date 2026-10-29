@@ -193,7 +193,7 @@ Sizes from [knowledge.md](knowledge.md) §9.2. Every model is built once, as a c
 
 | ID | Asset | States | Pri |
 |---|---|---|---|
-| D01 | **Svinoriz 10 Opto**: 10" X frame, 3-blade props, coil underneath, two battery packs, generic payload on top, 0° camera, legs | legs on / legs off (with launch stand) | phase 5 |
+| D01 | **Svinoriz 10 Opto** (letter T, D-043): 10" X frame of carbon plates, 2-blade props, the spool on top, two packs along the sides, a generic payload slung below, 0° camera, tube legs on skids | legs on / legs off (with launch stand) | phase 5 |
 | D02 | Launch stand (D-022): an X-shaped steel base with four posts about 0.25 m high, one under each motor (on the diagonals, 0.226 m from the centre), sized from `drone.json`; unanchored | — | phase 5 |
 
 ## 12. Fortifications (added by D-035; an object sheet `docs/object-sheets/fortifications.md` comes first)

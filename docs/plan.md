@@ -266,7 +266,7 @@ All requirements are green, including PLT-03 on a mid-range estimate and LOG-04 
 
 ---
 
-**The order after G1 (D-042):** G4 (phase 4), G5 (phase 5) and G7 (phase 6, with the core of phase 7's flight physics: wind, turbulence, weather and the airframe effects) come next, built in parallel lanes, with the G1 gallery as the test range; G6 folds into G7; the fiber (7d) follows G7. Mass production, G2 and G3 are postponed.
+**The order after G1 (D-042):** G4 (phase 4), G5 (phase 5) and G7 (phase 6, with the core of phase 7's flight physics: wind, turbulence, weather and the airframe effects) come next, built in parallel lanes, with the test range (D-044: a small map of the Godot yard and belt and Unity's assets) as G4's and G7's map; G6 folds into G7; the fiber (7d) follows G7. Mass production, G2 and G3 are postponed.
 
 ## Gates at a glance
 
