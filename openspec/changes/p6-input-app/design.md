@@ -18,7 +18,7 @@
 3. **Measuring latency:** a test mode drives a known stick step through the HID path (a recorded report stream injected at the device boundary) and times the motor command's response in the physics. The real TX12's own latency, from gimbal to USB, is outside this; the TX12's report interval is recorded instead.
 4. **Calibration:**
    - **The flow:** centre, sweep, then the arm switch. Channel order, reversal, endpoints and deadband are detected from the sweep.
-   - **The health check:** an axis span under 200 of the HID range, of the roughly 683–903 that healthy axes show (fc-profiles), is "too narrow, recalibrate the radio" (assumed threshold).
+   - **The health check:** an axis span under 200 of the HID range, of the roughly 683–903 that healthy axes show (fc-profiles), is "too narrow, recalibrate the radio" (assumed threshold). **As built (1.2):** a second rule catches the real TX12 pitfall, which the span rule misses: EdgeTX divides by `max(100, span)`, so a radio calibrated on spans like 79 / 1 reaches full output about 100 counts from centre and its USB axis jumps end to end over the full HID range. A sweep that crosses 10 % to 90 % of its travel in under 0.7 s twice in a row is "too narrow" too (the first time the pilot is asked to go slower). The wizard's other thresholds (2 % centre for 1 s, a 0.3 s hold at 80 % or a 2 s hold, 25 % for the arm, 3 % off a line for a curve, 5 % short for dual rates) are assumed and checked at 1.2b.
    - **Radio-side curves:** a sweep is linear if the channel-versus-time trace of a steady sweep fits a line within 3 % (assumed). Otherwise, name the axis and tell the pilot to switch off radio expo or dual rates.
 5. **Settings:**
    - **The record:** `FcSettings` holds Betaflight CLI names.
