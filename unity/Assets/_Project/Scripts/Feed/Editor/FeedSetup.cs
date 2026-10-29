@@ -32,11 +32,7 @@ namespace Fpv450.Feed
         {
             try
             {
-                FeedSettings settings = EnsureSettings();
-                var shader = AssetDatabase.LoadAssetAtPath<Shader>(ShaderPath)
-                    ?? throw new FileNotFoundException($"{ShaderPath} did not load as a shader");
-                foreach (string path in Renderers)
-                    EnsureFeature(path, shader);
+                FeedSettings settings = ApplyFeature();
                 BuildTestScene(settings);
                 AssetDatabase.SaveAssets();
                 Debug.Log("[FeedSetup] Applied");
@@ -47,6 +43,18 @@ namespace Fpv450.Feed
                 if (Application.isBatchMode)
                     EditorApplication.Exit(1);
             }
+        }
+
+        /// The settings asset and the feature on every renderer, without the test scene, whose rebuild draws new file
+        /// ids: what <c>ProjectSetup.Apply</c> re-derives, so a second run of it still changes nothing.
+        public static FeedSettings ApplyFeature()
+        {
+            FeedSettings settings = EnsureSettings();
+            var shader = AssetDatabase.LoadAssetAtPath<Shader>(ShaderPath)
+                ?? throw new FileNotFoundException($"{ShaderPath} did not load as a shader");
+            foreach (string path in Renderers)
+                EnsureFeature(path, shader);
+            return settings;
         }
 
         static FeedSettings EnsureSettings()

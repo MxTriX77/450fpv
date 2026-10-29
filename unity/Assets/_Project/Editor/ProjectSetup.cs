@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Fpv450.App;
+using Fpv450.Feed;
 using Fpv450.Input;
 using UnityEditor;
 using UnityEditor.Build;
@@ -34,6 +35,9 @@ namespace Fpv450.EditorSetup
             // their GUIDs, so the graphics settings still point at them.
             MoveIntoSettings("UniversalRenderPipelineGlobalSettings");
             MoveIntoSettings("DefaultVolumeProfile");
+
+            // The analog feed's settings asset and its feature on every renderer above (p4-feed task 1.8).
+            FeedSetup.ApplyFeature();
 
             EnsureBootScene();
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(BootScenePath, true) };
