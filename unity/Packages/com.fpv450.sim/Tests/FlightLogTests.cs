@@ -542,6 +542,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(InstanceFields(typeof(DronePack)), Is.EquivalentTo(LogHeader.PackFieldsLogged));
             Assert.That(InstanceFields(typeof(AeroSpec)), Is.EquivalentTo(LogHeader.AeroFieldsLogged));
             Assert.That(InstanceFields(typeof(WindSetup)), Is.EquivalentTo(LogHeader.WindFieldsLogged));
+            Assert.That(InstanceFields(typeof(MotorAsymmetry)), Is.EquivalentTo(LogHeader.AsymmetryFieldsLogged));
 
             foreach ((LogField[] fields, int size) in new[] { (LogFormat.StepFields, LogFormat.StepSize), (LogFormat.EventFields, LogFormat.EventSize),
                          (LogFormat.EndFields, LogFormat.EndSize) })

@@ -30,10 +30,11 @@ namespace Fpv450.Sim.Log
     }
 
     /// <summary>
-    /// The flight log's binary format (design 10, LOG-01), version 5 (1.4 appended the flight controller's state to
+    /// The flight log's binary format (design 10, LOG-01), version 6 (1.4 appended the flight controller's state to
     /// the step record; 1.5 the wind's gust, the air's force and moment and the ESCs' current limit, and the header's
     /// aero and wind entries; 1.6 the contacts' force, moment and legs, the crash flag, and the header's contacts and
-    /// runtime objects; 1.4b, after them, the controller's filter outputs and battery). One file per flight:
+    /// runtime objects; 1.4b, after them, the controller's filter outputs and battery; 6: p7b-airframe 1.1 the rotors'
+    /// angles, and the header's motor asymmetry). One file per flight:
     /// - the prologue: Magic, then the format Version and the header's length (u32 each), then the header (LogHeader)
     /// - blocks to the end of the flight, each a u16 kind and a u16 payload length, then the payload:
     ///   - a step record (StepBlock) after every step: the integrated state, the stick sample in force during the step,
@@ -52,7 +53,7 @@ namespace Fpv450.Sim.Log
         public static readonly byte[] Magic = { 0x46, 0x50, 0x56, 0x34, 0x35, 0x30, 0x4C, 0x47 };
 
         /// <summary>The format: the prologue, the header's entries and the record layouts below.</summary>
-        public const int Version = 5;
+        public const int Version = 6;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -72,8 +73,10 @@ namespace Fpv450.Sim.Log
         ///    energy; with no passes a flight steps as in 5, and a body with isotropic inertia steps as in 1).
         /// 7: p7b-airframe 1.0 (drone.json's ESC command lag τ_esc from 5 ms, assumed, to 0.4 ms, derived; the code is
         ///    6's, so a flight with τ_esc at 5 ms steps as in 6, and a free body as in 1).
+        /// 8: p7b-airframe 1.1 (the motors' asymmetry, MotorAsymmetry: each motor's Kv, each ESC's lag and each prop's
+        ///    unbalance drawn per flight; the rotors' angles; a flight without asymmetry steps as in 7).
         /// </summary>
-        public const int ModelVersion = 7;
+        public const int ModelVersion = 8;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
@@ -83,13 +86,13 @@ namespace Fpv450.Sim.Log
         /// <summary>The step record: 352 B of 1.1–1.3's fields, then the flight controller's 69 doubles and flags (1.4),
         /// then the gust, the air's force and moment and the ESCs' limit (1.5), then the contacts' force and moment, the
         /// legs' loads and compressions and the touching pairs (1.6), then the controller's filter outputs and battery
-        /// (1.4b).</summary>
-        public const int StepSize = 1296, EventSize = 72, EndSize = 48;
+        /// (1.4b), then the rotors' angles (p7b-airframe 1.1).</summary>
+        public const int StepSize = 1328, EventSize = 72, EndSize = 48;
 
         // What the step record covers, checked against the structs by the suite: a field added to one of them must be
         // logged (a new layout) or the suite fails.
         public static readonly string[] StateFieldsLogged =
-            { "Step", "Position", "Velocity", "Attitude", "BodyRate", "Armed", "RotorSpeed", "EscCommand", "PackCharge0", "PackCharge1", "Fc", "Gust", "EscLimited", "Crashed" };
+            { "Step", "Position", "Velocity", "Attitude", "BodyRate", "Armed", "RotorSpeed", "EscCommand", "PackCharge0", "PackCharge1", "Fc", "Gust", "EscLimited", "Crashed", "RotorAngle" };
         public static readonly string[] FcFieldsLogged =
         {
             "RcCommand", "RcThrottle", "RcDataThrottle", "RawSetpoint", "FfDeltaPrev", "FfSpeedPrev", "FfAccelPrev", "FfRaw",
@@ -207,6 +210,8 @@ namespace Fpv450.Sim.Log
             b.Add("fc.dyn_lpf_throttle", "hundredths of throttle the dynamic LPFs follow", LogFieldType.U8);
             b.Add("fc.dyn_lpf_loops", "loops since they last moved, to 20", LogFieldType.U8);
             b.Add("fc.filters.reserved", "zero", LogFieldType.Pad, 5);
+            // The rotors' angles (p7b-airframe 1.1).
+            b.Corners("rotor_angle", "rad, 0..2 pi, turned since the start");
             return b.Done(StepSize);
         }
 
@@ -327,6 +332,7 @@ namespace Fpv450.Sim.Log
             w.U8(f.DynLpfThrottle);
             w.U8(f.DynLpfLoops);
             w.Zero(5);
+            w.C4(s.RotorAngle);
         }
 
         public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
@@ -417,6 +423,8 @@ namespace Fpv450.Sim.Log
             f.Cells = r.U8();
             f.DynLpfThrottle = r.U8();
             f.DynLpfLoops = r.U8();
+            r.Skip(5);
+            s.RotorAngle = r.C4();
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>

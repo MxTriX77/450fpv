@@ -97,7 +97,7 @@ namespace Fpv450.Sim.Log
         public static readonly string[] SetupFieldsLogged =
         {
             "Seed", "Settings", "World", "Mass", "Propulsion", "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate",
-            "StartPackCharge", "Aero", "Wind", "Contacts", "RuntimeObjects",
+            "StartPackCharge", "Aero", "Wind", "Contacts", "RuntimeObjects", "Asymmetry",
         };
 
         /// <summary>The contacts' fields the header records, checked against the types by the suite.</summary>
@@ -128,11 +128,12 @@ namespace Fpv450.Sim.Log
         };
         public static readonly string[] AeroFieldsLogged = { "AirDensity", "BodyArea", "BodyCenterOfPressure", "DragCoefficient", "CoilPart" };
         public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg" };
+        public static readonly string[] AsymmetryFieldsLogged = { "KvBound", "KvSigma", "EscLagBound", "BalanceGrade", "PropMass", "ServiceRpm" };
         public static readonly string[] PackFieldsLogged = { "Part", "Series", "Parallel", "CellCapacity", "CellResistance", "Ocv" };
 
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
             TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
-            TagRuntimeObjects = 14;
+            TagRuntimeObjects = 14, TagAsymmetry = 15;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -168,6 +169,9 @@ namespace Fpv450.Sim.Log
 
         /// <summary>The contacts; null for none.</summary>
         public ContactSpec Contacts;
+
+        /// <summary>The motors' asymmetry's tolerances; null for identical rotors (its draws are in Draws).</summary>
+        public MotorAsymmetry Asymmetry;
 
         /// <summary>The runtime objects the flight placed, in order, and the world's object id each got.</summary>
         public RuntimeObject[] RuntimeObjects = new RuntimeObject[0];
@@ -216,6 +220,7 @@ namespace Fpv450.Sim.Log
                 Wind = setup.Wind,
                 WindParameters = PresetOf(setup.Wind.Level),
                 Contacts = setup.Contacts?.Clone(),
+                Asymmetry = setup.Asymmetry?.Clone(),
                 RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
                 RuntimeIds = (int[])core.RuntimeIds.Clone(),
             };
@@ -292,6 +297,7 @@ namespace Fpv450.Sim.Log
                 Aero = Aero?.Clone(),
                 Wind = Wind,
                 Contacts = Contacts?.Clone(),
+                Asymmetry = Asymmetry?.Clone(),
                 RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
             };
         }
@@ -540,6 +546,17 @@ namespace Fpv450.Sim.Log
                 }
                 e.Write(c.MaterialsHash);
             });
+            Entry(w, TagAsymmetry, e =>
+            {
+                e.Write(Asymmetry != null);
+                if (Asymmetry == null) return;
+                e.Write(Asymmetry.KvBound);
+                e.Write(Asymmetry.KvSigma);
+                e.Write(Asymmetry.EscLagBound);
+                e.Write(Asymmetry.BalanceGrade);
+                e.Write(Asymmetry.PropMass);
+                e.Write(Asymmetry.ServiceRpm);
+            });
             Entry(w, TagRuntimeObjects, e =>
             {
                 e.Write((ushort)RuntimeObjects.Length);
@@ -741,6 +758,15 @@ namespace Fpv450.Sim.Log
                         break;
                     case TagContacts:
                         Contacts = r.ReadBoolean() ? ReadContacts(r) : null;
+                        break;
+                    case TagAsymmetry:
+                        Asymmetry = r.ReadBoolean()
+                            ? new MotorAsymmetry
+                            {
+                                KvBound = r.ReadDouble(), KvSigma = r.ReadDouble(), EscLagBound = r.ReadDouble(), BalanceGrade = r.ReadDouble(),
+                                PropMass = r.ReadDouble(), ServiceRpm = r.ReadDouble(),
+                            }
+                            : null;
                         break;
                     case TagRuntimeObjects:
                         RuntimeObjects = new RuntimeObject[r.ReadUInt16()];

@@ -290,6 +290,12 @@ namespace Fpv450.Sim.Log
                     + G(h.Contacts.CrashPropSpeed) + " m/s; physics_materials.json 0x" + h.Contacts.MaterialsHash.ToString("X16", c) + " (" + h.Contacts.Materials.Length + " rows)");
             else
                 w.WriteLine("  contacts: none");
+            if (h.Asymmetry != null)
+                w.WriteLine("  motor asymmetry: Kv sigma " + G(h.Asymmetry.KvSigma) + " within " + G(h.Asymmetry.KvBound) + ", ESC lag within "
+                    + G(h.Asymmetry.EscLagBound) + " s, props at balance grade " + G(h.Asymmetry.BalanceGrade) + " m/s ("
+                    + G(h.Asymmetry.PropMass) + " kg at " + G(h.Asymmetry.ServiceRpm) + " rpm)");
+            else
+                w.WriteLine("  motor asymmetry: off (identical rotors)");
             for (int n = 0; n < h.RuntimeObjects.Length; n++)
                 w.WriteLine("  runtime object " + (n < h.RuntimeIds.Length ? h.RuntimeIds[n] : -1) + " '" + h.RuntimeObjects[n].Name + "': "
                     + h.RuntimeObjects[n].Shapes.Length + " shapes");

@@ -32,7 +32,7 @@ namespace Fpv450.FlightBench
             bool ok = hash == GoldenFlights.PoweredHash && with == without && core.State.Armed;
             Console.WriteLine($"{Name}: {GoldenFlights.PoweredSteps} steps, hash 0x{hash:X16} "
                 + $"({(hash == GoldenFlights.PoweredHash ? "matches" : $"golden 0x{GoldenFlights.PoweredHash:X16}")}), armed {core.State.Armed}, "
-                + $"packs at {core.State.PackCharge0:F4} of 0.9; over 1.4b's 1176-byte layout (less the contacts' 120 bytes) 0x{with:X16} with the contacts, "
+                + $"packs at {core.State.PackCharge0:F4} of 0.9; over the record less the contacts' 120 bytes 0x{with:X16} with the contacts, "
                 + $"0x{without:X16} without ({(with == without ? "the same" : "DIFFERENT")}): {(ok ? "PASS" : "FAIL")}");
             ulong contact = GoldenFlights.FlyContact(Drone(), out FlightCore c);
             bool cok = contact == GoldenFlights.ContactHash && c.Contacts.ImpactCount >= 2 && !c.State.Crashed;
@@ -45,7 +45,14 @@ namespace Fpv450.FlightBench
                 + $"({(tumble == GoldenFlights.TumbleHash ? "matches" : $"golden 0x{GoldenFlights.TumbleHash:X16}")}), momentum within {tc.Momentum:E2} (< 1e-10), "
                 + $"energy within {tc.Energy:E2} (< 1e-10), CoM {tc.Parabola:E2} m from its parabola (< 1e-9), body rate wandering {tc.Wander:F3} rad/s (> 0.5): "
                 + $"{(tok ? "PASS" : "FAIL")}");
-            return ok && cok && tok;
+            // p7b-airframe 1.1's audit: with the motors' asymmetry off, over model 7's 1296-byte layout, each golden is model 7's.
+            ulong p7 = GoldenFlights.FlyPowered(Drone(), out _, 1296, 32, asymmetry: false);
+            ulong c7 = GoldenFlights.FlyContact(Drone(), out _, 1296, 32, false);
+            ulong t7 = GoldenFlights.FlyTumble(Drone(), out _, out _, 1296, 32);
+            bool aok = p7 == 0xA65FBFBCBCFC5B96UL && c7 == 0x3AF33645FF8F1919UL && t7 == 0xE3178EE7FF322698UL;
+            Console.WriteLine($"asymmetry off, over model 7's layout: powered 0x{p7:X16}, contact 0x{c7:X16}, tumble 0x{t7:X16} "
+                + $"({(aok ? "model 7's, bit for bit" : "NOT model 7's")}): {(aok ? "PASS" : "FAIL")}");
+            return ok && cok && tok && aok;
         }
 
         public static bool Bench()

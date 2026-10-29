@@ -55,5 +55,9 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The flight has ended in a crash (ContactModel, 1.6): latched; the body still moves, the app ends the flight.</summary>
         public bool Crashed;
+
+        /// <summary>Each rotor's angle turned since the start, rad, kept in [0, 2π) (Propulsion): the prop's unbalance turns
+        /// with it.</summary>
+        public Corners RotorAngle;
     }
 }

@@ -27,6 +27,10 @@ namespace Fpv450.Sim.Flight
         /// </summary>
         public PropulsionSpec Propulsion;
 
+        /// <summary>The motors' asymmetry (MotorAsymmetry, p7b-airframe 1.1): the tolerances each motor, ESC and prop is
+        /// drawn from at the start. Null for four identical rotors (Calm's wind grading, a bench).</summary>
+        public MotorAsymmetry Asymmetry;
+
         /// <summary>The airframe's drag (DroneSpec.BuildAero): the body's and the coil's. Null for none (a bench's body);
         /// the rotors' in-plane drag comes with the propulsion.</summary>
         public AeroSpec Aero;
@@ -137,7 +141,9 @@ namespace Fpv450.Sim.Flight
             };
             if (setup.Propulsion != null)
             {
-                _propulsion = new Propulsion(setup.Propulsion);
+                Asymmetry = setup.Asymmetry?.Clone();
+                Draws = Asymmetry?.DrawFor(Random);
+                _propulsion = new Propulsion(setup.Propulsion, Draws);
                 var clockwise = new bool[4];
                 for (int i = 0; i < 4; i++) clockwise[i] = setup.Propulsion.Motors[i].Clockwise;
                 _fc = new FlightController(_settings, clockwise);
@@ -174,6 +180,10 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The events the last step made, for the log; a producer adds to them inside Advance.</summary>
         public StepEvents Events => _events;
+
+        /// <summary>The motors' asymmetry, or null for identical rotors; and its per-flight draws.</summary>
+        public MotorAsymmetry Asymmetry { get; }
+        public MotorAsymmetry.Draws Draws { get; }
 
         /// <summary>The flight's wind, with its per-flight draws.</summary>
         public StandInWind Wind => _wind;
@@ -299,6 +309,13 @@ namespace Fpv450.Sim.Flight
             m.Y = loads.YawMoment * share;
             force = s.Attitude.Rotate(new Double3(0, lift, 0));
             moment = m + GyroscopicMoment(s.BodyRate, spin);
+            // The props' unbalance: their mean pull on the hubs over the sub-steps, and its moment about the CoM.
+            if (_propulsion.Unbalanced)
+            {
+                Double3 pull = loads.UnbalanceForce * share;
+                force = force + s.Attitude.Rotate(pull);
+                moment = moment + loads.UnbalanceMoment * share - Double3.Cross(com, pull);
+            }
 
             _trace.RotorCommand = duty;
             _trace.PackVolts0 = _trace.PackVolts1 = loads.Volts;

@@ -290,6 +290,16 @@ namespace Fpv450.Sim.Flight
         /// <summary>The flight's airframe drag: a copy of the aero block.</summary>
         public AeroSpec BuildAero() => Aero.Clone();
 
+        /// <summary>The motors' asymmetry at its researched tolerances (MotorAsymmetry), the props' mass from the parts
+        /// (the rear right prop's, "prop_rr"; the four are alike) and the service speed at the props' reference rpm.</summary>
+        public MotorAsymmetry BuildAsymmetry()
+        {
+            var a = new MotorAsymmetry { ServiceRpm = Props.ReferenceRpm };
+            foreach (DronePart p in Parts)
+                if (p.Name == "prop_rr") a.PropMass = p.Mass;
+            return a;
+        }
+
         /// <summary>
         /// The flight's contact model at a loadout, with physics_materials.json's rows and hash (PhysicsMaterials.Parse):
         /// each shape follows its part through BuildMass, so a part at 0 kg (legs off, no payload) has no shapes, a moved

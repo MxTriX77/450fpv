@@ -10,7 +10,8 @@ namespace Fpv450.Sim.Tests
     /// <summary>
     /// The golden flights. The powered one (p6-flight-core 1.4, 1.5, 1.4b): the repository's drone at its nominal loadout
     /// with its drag and its contacts, in the Windy stand-in wind, armed by Betaflight's rules and flown 10 s by a scripted
-    /// pilot through every part of the controller with the builder's filter chain, propulsion and the air (a spin-up, a
+    /// pilot through every part of the controller with the builder's filter chain, propulsion, the motors' asymmetry
+    /// (p7b-airframe 1.1, on the seed's draws; the contact flight too) and the air (a spin-up, a
     /// climb, roll, pitch and yaw steps, a throttle punch into the ESCs' current limit and a chop, a weave), 300 m up, so
     /// it touches nothing. The contact one (1.6): the drone takes off from the floor under the closed-loop pilot, comes
     /// down on the slow glide path with the sticks held, bounces, and the throttle is cut. Each hash is every step's log
@@ -64,7 +65,15 @@ namespace Fpv450.Sim.Tests
         // 0.4 ms the records move from the first armed step, 21; the open-loop script drifts 55 mm and 0.16 mrad by the
         // roll step (step 2000), 0.18 m and 7.9 mrad by the chop's end (5500), then the weave carries it to 4.7 m and
         // 0.16 rad by 10 s, 195.1 m up against 199.4; 88 events against 98 (74 CurrentLimit against 84).
-        public const ulong PoweredHash = 0xA65FBFBCBCFC5B96UL;
+        // Model 7: 0xA65FBFBCBCFC5B96.
+        // p7b-airframe 1.1: re-recorded with ModelVersion 8 (the 1328-byte record: model 7's 1296 bytes, then the rotors'
+        // angles) with the motors' asymmetry in its setup (seed 0x450F: Kv −1.41, −0.80, −2.24, −3.16 %; ESC lags −42, +69,
+        // −11, −28 µs; unbalances 0.023–0.077 g·mm). Audited: with the asymmetry off, hashed over model 7's layout with its
+        // events, the flight is model 7's bit for bit (a kept test, WithTheAsymmetryOffEachGoldenIsModel7s). With it the
+        // records move from the first armed step, 21 (the motors spin up apart): 0.18 m and 7.7 mrad by the roll step
+        // (2000), 0.90 m and 39 mrad by the chop's end (5500), 5.3 m and 0.11 rad by 10 s, 194.1 m up against 195.1;
+        // 92 events against 88 (78 CurrentLimit against 74: the cold motors reach the limit at other steps).
+        public const ulong PoweredHash = 0x08FBAF9331110BE9UL;
 
         // 1.6: first recorded with ModelVersion 4 as 0x8B568804552379E6.
         // 1.6 and 1.4b merged: re-recorded with ModelVersion 5. Audited against 1.6: with every filter off and the PID
@@ -83,13 +92,20 @@ namespace Fpv450.Sim.Tests
         // 6's 0x3EE12C8D692BADF3 bit for bit. At 0.4 ms it keeps its course: the sticks held at step 7220 (7219), the skids
         // down at the same step (7412), the held bounce 135.7 mm up (140.1), the last touchdown after the cut 16 ms
         // earlier (step 9297 against 9313), 5 impacts, no crash, at rest at the same height to 1.5 µm.
-        public const ulong ContactHash = 0x3AF33645FF8F1919UL;
+        // Model 7: 0x3AF33645FF8F1919.
+        // p7b-airframe 1.1: re-recorded with ModelVersion 8 with the motors' asymmetry on (seed 0x450F's draws, as the
+        // powered flight's), audited: with it off, over model 7's layout, model 7's flight bit for bit (the kept test). With
+        // it the flight moves from the first armed step, 9, and keeps its course: 5 impacts, no crash, at rest on 8 pairs
+        // 4 µm from the identical-rotor flight's height, the idling props' unbalance shaking it at 0.11 mrad/s.
+        public const ulong ContactHash = 0x5D45B356ECD6B940UL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
         // leaving out the momentum's transport into the new axes (QA's experiment) loses 16 % of the momentum, and the
         // body rate never wanders.
-        public const ulong TumbleHash = 0xE3178EE7FF322698UL;
+        // Model 7: 0xE3178EE7FF322698. p7b-airframe 1.1 (ModelVersion 8): the 1328-byte record, the rotors' angles zero (no
+        // propulsion); over model 7's layout the hash is model 7's (the kept test).
+        public const ulong TumbleHash = 0xF7E0F587B45FA098UL;
         public const int TumbleSteps = 10000;
 
         public static FlightSetup PoweredSetup(DroneSpec spec)
@@ -104,6 +120,7 @@ namespace Fpv450.Sim.Tests
                 Aero = spec.BuildAero(),
                 Wind = WindSetup.Of(WindLevel.Windy),
                 Contacts = spec.BuildContacts(spec.Nominal, materials, hash),
+                Asymmetry = spec.BuildAsymmetry(),
                 StartPosition = new Double3(0, 300, 0),
                 StartPackCharge = 0.9,
             };
@@ -135,10 +152,12 @@ namespace Fpv450.Sim.Tests
         /// <summary>Flies the powered golden flight; returns its hash, with the core's last state for a report. With
         /// skipAt and skipBytes the hash leaves out each record's bytes from skipAt on, skipBytes of them (a parent model's
         /// layout, for an audit).</summary>
-        public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool contacts = true)
+        public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool contacts = true,
+            bool asymmetry = true)
         {
             FlightSetup setup = PoweredSetup(spec);
             if (!contacts) setup.Contacts = null;
+            if (!asymmetry) setup.Asymmetry = null;
             core = new FlightCore(setup);
             var record = new byte[LogFormat.StepSize];
             var e = new byte[LogFormat.EventSize];
@@ -164,13 +183,14 @@ namespace Fpv450.Sim.Tests
         /// at 0.5 m/s; with the skids 0.1 m up the sticks are held (roll, pitch and yaw centred) and the drone bounces; 1.5 s
         /// later the throttle is cut and it comes to rest. Returns its hash, with the core for a report.
         /// </summary>
-        public static ulong FlyContact(DroneSpec spec, out FlightCore core)
+        public static ulong FlyContact(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
             double stand = ContactScenarios.Standing(contacts);
             FlightSetup setup = ContactScenarios.Setup(spec, materials, mh, true, new Double3(0, stand, 0));
             setup.Wind = WindSetup.Of(WindLevel.Calm);
+            if (asymmetry) setup.Asymmetry = spec.BuildAsymmetry();
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, new Double3(0, stand + 1, 0));
             var record = new byte[LogFormat.StepSize];
@@ -202,7 +222,8 @@ namespace Fpv450.Sim.Tests
                 }
                 core.Advance(stick);
                 LogFormat.EncodeStep(record, core.State, stick, core.Trace);
-                hash = Fnv(hash, record, 0, record.Length);
+                hash = Fnv(hash, record, 0, skipAt);
+                hash = Fnv(hash, record, skipAt + skipBytes, record.Length);
                 for (int i = 0; i < core.Events.Count; i++)
                 {
                     LogFormat.EncodeEvent(e, core.State.Step, core.Events[i]);
@@ -238,7 +259,7 @@ namespace Fpv450.Sim.Tests
         /// It guards the gyroscopic term on a body that has one, where the free-body golden's cube has none: a step that
         /// leaves out the momentum's transport into the new axes, or turns at the start's rate, fails its checks.
         /// </summary>
-        public static ulong FlyTumble(DroneSpec spec, out FlightCore core, out TumbleChecks checks)
+        public static ulong FlyTumble(DroneSpec spec, out FlightCore core, out TumbleChecks checks, int skipAt = LogFormat.StepSize, int skipBytes = 0)
         {
             FlightSetup setup = TumbleSetup(spec);
             core = new FlightCore(setup);
@@ -257,7 +278,8 @@ namespace Fpv450.Sim.Tests
                 core.Advance(StickSample.Neutral);
                 ref readonly FlightState s = ref core.State;
                 LogFormat.EncodeStep(record, s, StickSample.Neutral, core.Trace);
-                hash = Fnv(hash, record, 0, record.Length);
+                hash = Fnv(hash, record, 0, skipAt);
+                hash = Fnv(hash, record, skipAt + skipBytes, record.Length);
                 for (int i = 0; i < core.Events.Count; i++)
                 {
                     LogFormat.EncodeEvent(e, s.Step, core.Events[i]);

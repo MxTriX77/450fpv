@@ -69,8 +69,20 @@ namespace Fpv450.Sim.Tests
         }
 
         // Model 3's 992 bytes, then 1.6's contacts, then 1.4b's filter block: each parent's layout is the record less the
-        // other's block.
+        // other's block. Then p7b-airframe 1.1's rotor angles: model 7's layout is the record less them.
         const int ContactBytesAt = 992, ContactBytes = 120, FilterBytesAt = ContactBytesAt + ContactBytes;
+        const int RotorAngleAt = 1296, RotorAngleBytes = 32;
+
+        // p7b-airframe 1.1's audit, kept: with the motors' asymmetry off, over model 7's 1296-byte layout with its events,
+        // each golden is model 7's bit for bit (the rotors' angles turn, but nothing reads them without an unbalance).
+        [Test]
+        public void WithTheAsymmetryOffEachGoldenIsModel7s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, RotorAngleAt, RotorAngleBytes, asymmetry: false), Is.EqualTo(0xA65FBFBCBCFC5B96UL), "powered");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, RotorAngleAt, RotorAngleBytes, false), Is.EqualTo(0x3AF33645FF8F1919UL), "contact");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, RotorAngleAt, RotorAngleBytes), Is.EqualTo(0xE3178EE7FF322698UL), "tumble");
+        }
 
         [Test]
         public void TheRecordKeepsEachParentsBytesInPlace()
@@ -79,7 +91,10 @@ namespace Fpv450.Sim.Tests
                 "1.6 appends its fields after model 3's 992 bytes");
             Assert.That(LogFormat.FieldAt(LogFormat.StepFields, FilterBytesAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "fc.gyro_filtered.roll")),
                 "1.4b's filter block follows the contacts' 120 bytes");
-            Assert.That(LogFormat.StepSize - FilterBytesAt, Is.EqualTo(1176 - 992), "1.4b's whole block, to the record's end");
+            Assert.That(RotorAngleAt - FilterBytesAt, Is.EqualTo(1176 - 992), "1.4b's whole block, to model 7's end");
+            Assert.That(LogFormat.FieldAt(LogFormat.StepFields, RotorAngleAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "rotor_angle.rear_right")),
+                "1.1's rotor angles follow model 7's 1296 bytes");
+            Assert.That(LogFormat.StepSize - RotorAngleAt, Is.EqualTo(RotorAngleBytes), "to the record's end");
         }
     }
 }

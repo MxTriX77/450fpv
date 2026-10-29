@@ -30,6 +30,9 @@ namespace Fpv450.Sim.Flight
         /// the rotors' angular momentum).</summary>
         public Corners Speed;
 
+        /// <summary>The props' unbalance pull on their hubs, body N, and its moment about the body origin, body N·m, summed.</summary>
+        public Double3 UnbalanceForce, UnbalanceMoment;
+
         /// <summary>The ESCs whose current limit held their motor in a sub-step (bit 1 &lt;&lt; corner), and the largest
         /// share of each one's duty the limit took, 0–1.</summary>
         public int Limited;
@@ -72,8 +75,10 @@ namespace Fpv450.Sim.Flight
     ///   it grows with the airspeed and with the rotor, as published rotor-drag models have it, ∝ ω·v_∥).
     /// The body feels each rotor's thrust and H-force at its hub and, about +y, the reaction of its motor: the prop's
     /// drag torque plus the rotor's own spin-up, J·ω̇ (a clockwise rotor yaws the body left). The rotors' spin
-    /// momentum h = Σ ±J·ω (SpinMomentum) gives the gyroscopic moment −ω × h (FlightCore). Not yet: motor asynchrony,
-    /// ground effect, the vortex ring and prop wash (p7b-airframe).
+    /// momentum h = Σ ±J·ω (SpinMomentum) gives the gyroscopic moment −ω × h (FlightCore).
+    /// - the asymmetry (MotorAsymmetry, p7b-airframe 1.1): each motor's Kv (so its Ke and Kt), each ESC's lag and each
+    ///   prop's residual unbalance as the flight drew them; the unbalance pulls its hub with U·ω² at the rotor's angle.
+    /// Not yet: ground effect, the vortex ring and prop wash (p7b-airframe 1.2, 1.3).
     /// </summary>
     public sealed class Propulsion
     {
@@ -88,6 +93,8 @@ namespace Fpv450.Sim.Flight
         readonly double[] _escTau = new double[4], _reaction = new double[4], _polePairs = new double[4];
         readonly double[] _limit = new double[4], _limitVolts = new double[4];
         readonly Double3[] _hub = new Double3[4];
+        readonly double[] _unbalance = new double[4], _unbalanceAngle = new double[4];
+        readonly bool _unbalanced;
         readonly double _kT, _kQ, _diameter, _hPerSpeed;
         readonly double[] _rpm, _rpmThrust, _rpmTorque, _j, _jThrust, _jTorque;
         readonly double[] _series = new double[2], _conductance = new double[2], _capacity = new double[2];
@@ -98,7 +105,11 @@ namespace Fpv450.Sim.Flight
         readonly Double3[] _inPlane = new Double3[4];
         readonly double[] _thrust = new double[4], _torque = new double[4];
 
-        public Propulsion(PropulsionSpec spec)
+        public Propulsion(PropulsionSpec spec) : this(spec, null) { }
+
+        /// <summary>The propulsion of spec, its four motors, ESCs and props each as drawn (MotorAsymmetry; null for four
+        /// identical ones).</summary>
+        public Propulsion(PropulsionSpec spec, MotorAsymmetry.Draws draws)
         {
             if (spec == null) throw new ArgumentNullException(nameof(spec));
             if (spec.Motors == null || spec.Motors.Length != 4) throw new ArgumentException("four motors", nameof(spec));
@@ -106,16 +117,20 @@ namespace Fpv450.Sim.Flight
             for (int i = 0; i < 4; i++)
             {
                 DroneMotor m = spec.Motors[i];
-                _ke[i] = 60 / (TwoPi * m.Kv);
+                _ke[i] = draws == null ? 60 / (TwoPi * m.Kv) : 60 / (TwoPi * (m.Kv * draws.KvScale[i]));
                 _invR[i] = 1 / m.Resistance;
                 _friction[i] = _ke[i] * m.NoLoadCurrent;
                 _inertia[i] = m.RotorInertia;
-                _escTau[i] = m.EscTau;
+                _escTau[i] = draws == null ? m.EscTau : m.EscTau + draws.EscLag[i];
                 _reaction[i] = m.Clockwise ? -1 : +1;
                 _polePairs[i] = m.MagnetPoles / 2;
                 _hub[i] = m.Position;
                 _limit[i] = m.EscCurrentLimit;
                 _limitVolts[i] = m.EscCurrentLimit * m.Resistance;
+                if (draws == null) continue;
+                _unbalance[i] = draws.Unbalance[i];
+                _unbalanceAngle[i] = draws.UnbalanceAngle[i];
+                _unbalanced |= _unbalance[i] > 0;
             }
             DroneProps p = spec.Props;
             _kT = p.ThrustCoefficient;
@@ -137,6 +152,9 @@ namespace Fpv450.Sim.Flight
                 _ocv[k] = pack.Ocv;
             }
         }
+
+        /// <summary>Whether a prop carries an unbalance (MotorAsymmetry), so the rotors pull their hubs.</summary>
+        public bool Unbalanced => _unbalanced;
 
         /// <summary>A rotor's hub, body m.</summary>
         public Double3 Hub(int corner) => _hub[corner];
@@ -277,6 +295,7 @@ namespace Fpv450.Sim.Flight
                 loads.YawMoment += _reaction[i] * (_inertia[i] * (next - w) / h + torque);
                 loads.SupplyAmps[i] += drive * current;
                 loads.Speed[i] += next;
+                Turn(ref s, i, w, next, h, ref loads);
                 if (held)
                 {
                     loads.Limited |= 1 << i;
@@ -294,6 +313,23 @@ namespace Fpv450.Sim.Flight
             loads.Amps0 = amps0;
             loads.Amps1 = amps1;
             loads.SubSteps++;
+        }
+
+        // A rotor turns by the sub-step's mean speed, its angle kept in [0, 2π); an unbalanced prop's residual U, at its
+        // angle on the rotor, pulls the hub outward with U·ω² in the disc's plane. A clockwise rotor turns positively
+        // about +y (DetMath.cs), so the unbalance at angle θ from body +x points along (cos θ, 0, −sin θ).
+        void Turn(ref FlightState s, int i, double w, double next, double h, ref RotorLoads loads)
+        {
+            double angle = s.RotorAngle[i] + (w + next) * 0.5 * h;
+            while (angle >= TwoPi) angle -= TwoPi;
+            s.RotorAngle[i] = angle;
+            if (!_unbalanced) return;
+            double theta = _unbalanceAngle[i] - _reaction[i] * angle;
+            DetMath.SinCos(theta, out double sin, out double cos);
+            double pull = _unbalance[i] * next * next;
+            var f = new Double3(pull * cos, 0, -pull * sin);
+            loads.UnbalanceForce = loads.UnbalanceForce + f;
+            loads.UnbalanceMoment = loads.UnbalanceMoment + Double3.Cross(_hub[i], f);
         }
 
         // The bus voltage: V = vth − rth·(load·V − emf + power/V), the larger root of

@@ -185,6 +185,7 @@ namespace Fpv450.Replay
                 Aero = spec.BuildAero(),
                 Wind = WindSetup.Of(wind),
                 Contacts = contacts,
+                Asymmetry = spec.BuildAsymmetry(), // a pilot's flight: the motors as this seed drew them (p7b-airframe 1.1)
                 StartPosition = new Double3(0, stand, 0),
             };
             var core = new FlightCore(setup);
