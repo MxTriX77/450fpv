@@ -13,10 +13,11 @@
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/GoldenFlights.cs" Link="GoldenFlights.cs" />
   </ItemGroup>
 
-  <!-- The aero and wind scenarios the suite asserts, which the scenarios mode prints. -->
+  <!-- The aero, wind and contact scenarios the suite asserts, which the scenarios and contacts modes print. -->
   <ItemGroup>
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/SimPilot.cs" Link="SimPilot.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/CrosswindScenario.cs" Link="CrosswindScenario.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/WindTargets.cs" Link="WindTargets.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/ContactScenarios.cs" Link="ContactScenarios.cs" />
   </ItemGroup>
 </Project>

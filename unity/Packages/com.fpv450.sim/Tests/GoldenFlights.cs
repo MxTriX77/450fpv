@@ -1,4 +1,5 @@
 using System;
+using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Log;
@@ -7,17 +8,18 @@ using Fpv450.Sim.Wind;
 namespace Fpv450.Sim.Tests
 {
     /// <summary>
-    /// The powered golden flight (p6-flight-core 1.4, 1.5): the repository's drone at its nominal loadout with its drag,
-    /// in the Windy stand-in wind, armed by Betaflight's rules and flown 10 s by a scripted pilot through every part
-    /// of the controller, propulsion and the air (a spin-up, a climb, roll, pitch and yaw steps, a throttle punch into
-    /// the ESCs' current limit and a chop, a weave). Its hash is every step's log
-    /// record and events, so it pins the whole state, the controller's included, bit for bit. The suite checks it on
-    /// .NET and in Unity's EditMode (Mono), tools/flightbench --golden on .NET Release. A re-record raises
-    /// LogFormat.ModelVersion and is audited case by case (CLAUDE.md).
+    /// The golden flights. The powered one (p6-flight-core 1.4, 1.5): the repository's drone at its nominal loadout with
+    /// its drag and its contacts, in the Windy stand-in wind, armed by Betaflight's rules and flown 10 s by a scripted
+    /// pilot through every part of the controller, propulsion and the air (a spin-up, a climb, roll, pitch and yaw
+    /// steps, a throttle punch into the ESCs' current limit and a chop, a weave), 300 m up, so it touches nothing. The
+    /// contact one (1.6): the drone takes off from the floor under the closed-loop pilot, comes down on the slow glide
+    /// path with the sticks held, bounces, and the throttle is cut. Each hash is every step's log record and events, so
+    /// it pins the whole state bit for bit. The suite checks them on .NET and in Unity's EditMode (Mono), tools/flightbench
+    /// --golden on .NET Release. A re-record raises LogFormat.ModelVersion and is audited case by case (CLAUDE.md).
     /// </summary>
     public static class GoldenFlights
     {
-        public const int PoweredSteps = 10000;
+        public const int PoweredSteps = 10000, ContactSteps = 12000;
 
         // 1.4: first recorded with LogFormat.ModelVersion 2: 0xED68941C901FBA75.
         // 1.5: re-recorded with ModelVersion 3 (the 992-byte record), audited case by case against model 2's flight on
@@ -28,19 +30,32 @@ namespace Fpv450.Sim.Tests
         // 2006 (the roll step's kick), the body's and the coil's drag from step 2, the wind from step 1. Pinned again
         // within model 3 when drone.json's h_force_n_per_m_s was tuned from 0.31 to 0.225 (clip P's cruise pitch);
         // the drone's hash refuses the earlier logs.
-        public const ulong PoweredHash = 0x734CE3306086F5D7UL;
+        // 1.6: re-recorded with ModelVersion 4 (the 1112-byte record), the contacts in its setup. Audited: hashed over the
+        // records' first 992 bytes (model 3's layout) with its events, the flight is model 3's 0x734CE3306086F5D7 bit for
+        // bit (PoweredModel3Hash, GoldenFlightTests): at 196–300 m no shape touches, so the contacts add nothing, not even
+        // a signed zero; the 120 appended bytes are zero but for the touching count, which is 0 too.
+        public const ulong PoweredHash = 0x798AFECB92E12DB7UL;
+        public const ulong PoweredModel3Hash = 0x734CE3306086F5D7UL;
 
-        public static FlightSetup PoweredSetup(DroneSpec spec) => new FlightSetup
+        // 1.6: first recorded with ModelVersion 4.
+        public const ulong ContactHash = 0x8B568804552379E6UL;
+
+        public static FlightSetup PoweredSetup(DroneSpec spec)
         {
-            Seed = 0x450F,
-            World = FlightWorld.Floor(),
-            Mass = spec.BuildMass(spec.Nominal),
-            Propulsion = spec.BuildPropulsion(),
-            Aero = spec.BuildAero(),
-            Wind = WindSetup.Of(WindLevel.Windy),
-            StartPosition = new Double3(0, 300, 0),
-            StartPackCharge = 0.9,
-        };
+            MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong hash);
+            return new FlightSetup
+            {
+                Seed = 0x450F,
+                World = FlightWorld.Floor(),
+                Mass = spec.BuildMass(spec.Nominal),
+                Propulsion = spec.BuildPropulsion(),
+                Aero = spec.BuildAero(),
+                Wind = WindSetup.Of(WindLevel.Windy),
+                Contacts = spec.BuildContacts(spec.Nominal, materials, hash),
+                StartPosition = new Double3(0, 300, 0),
+                StartPackCharge = 0.9,
+            };
+        }
 
         /// <summary>The scripted pilot's sticks at step k.</summary>
         public static StickSample PoweredStick(int k)
@@ -65,8 +80,9 @@ namespace Fpv450.Sim.Tests
             return s;
         }
 
-        /// <summary>Flies the powered golden flight; returns its hash, with the core's last state for a report.</summary>
-        public static ulong FlyPowered(DroneSpec spec, out FlightCore core)
+        /// <summary>Flies the powered golden flight; returns its hash, with the core's last state for a report. With
+        /// recordBytes the hash takes only each record's first recordBytes (an earlier model's layout, for an audit).</summary>
+        public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int recordBytes = LogFormat.StepSize)
         {
             core = new FlightCore(PoweredSetup(spec));
             var record = new byte[LogFormat.StepSize];
@@ -77,19 +93,72 @@ namespace Fpv450.Sim.Tests
                 StickSample stick = PoweredStick(k);
                 core.Advance(stick);
                 LogFormat.EncodeStep(record, core.State, stick, core.Trace);
-                hash = Fnv(hash, record);
+                hash = Fnv(hash, record, recordBytes);
                 for (int i = 0; i < core.Events.Count; i++)
                 {
                     LogFormat.EncodeEvent(e, core.State.Step, core.Events[i]);
-                    hash = Fnv(hash, e);
+                    hash = Fnv(hash, e, e.Length);
                 }
             }
             return hash;
         }
 
-        static ulong Fnv(ulong h, byte[] bytes)
+        /// <summary>
+        /// Flies the contact golden flight: legs on from the floor, the closed-loop pilot up to a metre for 4 s, then down
+        /// at 0.5 m/s; with the skids 0.1 m up the sticks are held (roll, pitch and yaw centred) and the drone bounces; 1.5 s
+        /// later the throttle is cut and it comes to rest. Returns its hash, with the core for a report.
+        /// </summary>
+        public static ulong FlyContact(DroneSpec spec, out FlightCore core)
         {
-            foreach (byte b in bytes) h = unchecked((h ^ b) * 0x100000001B3UL);
+            MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
+            ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
+            double stand = ContactScenarios.Standing(contacts);
+            FlightSetup setup = ContactScenarios.Setup(spec, materials, mh, true, new Double3(0, stand, 0));
+            setup.Wind = WindSetup.Of(WindLevel.Calm);
+            core = new FlightCore(setup);
+            var pilot = new SimPilot(core.Controller, new Double3(0, stand + 1, 0));
+            var record = new byte[LogFormat.StepSize];
+            var e = new byte[LogFormat.EventSize];
+            ulong hash = 0xCBF29CE484222325UL;
+            StickSample held = default;
+            int holdAt = -1;
+            for (int k = 0; k < ContactSteps; k++)
+            {
+                ref readonly FlightState s = ref core.State;
+                StickSample stick;
+                if (k < 16) stick = new StickSample { HostUs = k * FlightCore.StepUs, Arm = k >= 8 };
+                else if (holdAt < 0)
+                {
+                    if (k >= 4000) pilot.Target = new Double3(0, stand + 1 - 0.5 * (k - 4000) * FlightCore.Dt, 0);
+                    stick = pilot.Sticks(core, k * FlightCore.StepUs);
+                    if (k >= 4000 && s.Position.Y - stand < 0.1)
+                    {
+                        holdAt = k;
+                        held = stick;
+                        held.Roll = held.Pitch = held.Yaw = 0;
+                    }
+                }
+                else
+                {
+                    stick = held;
+                    stick.HostUs = k * FlightCore.StepUs;
+                    if (k - holdAt >= 1500) stick.Throttle = 0;
+                }
+                core.Advance(stick);
+                LogFormat.EncodeStep(record, core.State, stick, core.Trace);
+                hash = Fnv(hash, record, record.Length);
+                for (int i = 0; i < core.Events.Count; i++)
+                {
+                    LogFormat.EncodeEvent(e, core.State.Step, core.Events[i]);
+                    hash = Fnv(hash, e, e.Length);
+                }
+            }
+            return hash;
+        }
+
+        static ulong Fnv(ulong h, byte[] bytes, int count)
+        {
+            for (int i = 0; i < count; i++) h = unchecked((h ^ bytes[i]) * 0x100000001B3UL);
             return h;
         }
     }
