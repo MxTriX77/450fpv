@@ -43,6 +43,14 @@ namespace Fpv450.Feed
     /// (≈29.9 fps, so one recorded frame ≈ 1.67 fields). Nothing is a fixed cycle: each stage draws its own length,
     /// and the snow level, the split line and the tell type are drawn per event.
     /// </para>
+    /// <para>
+    /// <b>One fix to the Godot code</b> (p4-feed task 1.3, the recovering-dropout scenario): Godot cleared the
+    /// picture in the same step as a dropout's last outage field (FeedLoss.cs:206-207), so that field showed the
+    /// picture. A blue-out drawn at 18–35 fields showed 17–34, a black dropout drawn at 3–4 showed 2–3, and the black
+    /// never left partway down a field. Here the last field shows its stage and the next field clears. No draw moves
+    /// and <see cref="Busy"/> falls on the same field, so every later event is Godot's; only that one field per
+    /// dropout differs. <c>godotLastField</c> restores Godot's step, for the A/B against the original.
+    /// </para>
     /// </remarks>
     public sealed class FeedLoss
     {
@@ -111,6 +119,7 @@ namespace Fpv450.Feed
         const int Forever = int.MaxValue; // FeedLoss.cs:91
 
         readonly Random _rng;
+        readonly bool _godotLastField;
         readonly Stage[] _stages = new Stage[4]; // FeedLoss.cs:94
         int _count, _index, _left;
         int _snowLevelLeft;
@@ -137,7 +146,13 @@ namespace Fpv450.Feed
         /// True while a sequence is running, so nothing schedules another on top of it.
         public bool Busy => _count > 0;
 
-        public FeedLoss(Random rng) => _rng = rng;
+        /// `godotLastField` steps a sequence's end as the Godot code did, the last outage field already showing the
+        /// picture (see the remarks); only the A/B against the original sets it.
+        public FeedLoss(Random rng, bool godotLastField = false)
+        {
+            _rng = rng;
+            _godotLastField = godotLastField;
+        }
 
         /// The recovering dropout of N12: a tell, a short outage, then the picture back. This is what the pilot's
         /// "occasional cut" is, and it is the one sequence a timer may fire.
@@ -226,8 +241,11 @@ namespace Fpv450.Feed
                 _left = _stages[_index].Fields;
                 return;
             }
+            // The sequence is over, so nothing holds off the next one, but this field still shows its last stage;
+            // the next Step clears it (task 1.3's fix). Godot cleared it here.
             _count = 0;
-            Clear();
+            if (_godotLastField)
+                Clear();
         }
 
         /// The tell that always comes before the picture goes. The footage gives a different pair for each sequence,
