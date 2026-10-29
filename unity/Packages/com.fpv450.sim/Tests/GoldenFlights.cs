@@ -48,13 +48,17 @@ namespace Fpv450.Sim.Tests
         // 1.6 and 1.4b merged: re-recorded with ModelVersion 5 (the 1296-byte record: model 3's 992 bytes, 1.6's 120
         // contact bytes, 1.4b's 184 filter bytes), audited against each parent with the other's terms off:
         // - against 1.4b: hashed over 1.4b's layout (the record less the contacts' 120 bytes) with its events, the flight is
-        //   1.4b's 0x3695FC49DCA906DC bit for bit (PoweredFiltersHash, GoldenFlightTests), the contacts adding nothing 300 m
+        //   1.4b's 0x3695FC49DCA906DC bit for bit (pinned as a test until model 6), the contacts adding nothing 300 m
         //   up, as in 1.6; the contacts' bytes are zero throughout (the touching count 0).
         // - against 1.6: with every filter off and the PID reading the gyro at the loop (1.4b's temporary edit, made again
         //   and reverted), hashed over 1.6's 1112-byte layout with its events, the flight is 1.6's 0x798AFECB92E12DB7 bit
         //   for bit. With the chain on, it moves as 1.4b's did, from step 21.
-        public const ulong PoweredHash = 0x734B61C0C15797BCUL;
-        public const ulong PoweredFiltersHash = 0x3695FC49DCA906DCUL;
+        //   Model 5: 0x734B61C0C15797BC.
+        // 1.7: re-recorded with ModelVersion 6 (the rigid body's midpoint rate, RigidBody.MidpointPasses), audited: with
+        // the passes at 0 (a temporary edit, reverted) the flight is model 5's 0x734B61C0C15797BC bit for bit, and over
+        // 1.4b's layout 1.4b's 0x3695FC49DCA906DC. With the three passes it moves from step 1 (the first kick off the
+        // principal axes); the closed loop holds it to 0.34 mrad of attitude and 32 mm of position by 10 s, 199.4 m up.
+        public const ulong PoweredHash = 0x3F13A5CF5DB7DAFDUL;
 
         // 1.6: first recorded with ModelVersion 4 as 0x8B568804552379E6.
         // 1.6 and 1.4b merged: re-recorded with ModelVersion 5. Audited against 1.6: with every filter off and the PID
@@ -64,7 +68,18 @@ namespace Fpv450.Sim.Tests
         // the same step (7219) and the skids down at the same step (7412), off the ground 1 ms later, 140.1 mm up in the
         // held bounce against 142.3, the last hop after the cut ending 8 ms later (step 9313 against 9305), 5 impacts,
         // the same height at rest. It has no audit against 1.4b, whose core has no contacts: the flight starts on the floor.
-        public const ulong ContactHash = 0xF1D0832353311083UL;
+        // Model 5: 0xF1D0832353311083.
+        // 1.7: re-recorded with ModelVersion 6, audited: with the midpoint passes at 0 (the temporary edit) the flight is
+        // model 5's 0xF1D0832353311083 bit for bit. With them it moves from step 1, by at most 1.0 µm and 0.62 µrad, and
+        // keeps its course: the sticks held at step 7219, 5 impacts, at rest at the same height to 10 µm on 8 pairs.
+        public const ulong ContactHash = 0x3EE12C8D692BADF3UL;
+
+        // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
+        // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
+        // leaving out the momentum's transport into the new axes (QA's experiment) loses 16 % of the momentum, and the
+        // body rate never wanders.
+        public const ulong TumbleHash = 0xE3178EE7FF322698UL;
+        public const int TumbleSteps = 10000;
 
         public static FlightSetup PoweredSetup(DroneSpec spec)
         {
@@ -109,9 +124,11 @@ namespace Fpv450.Sim.Tests
         /// <summary>Flies the powered golden flight; returns its hash, with the core's last state for a report. With
         /// skipAt and skipBytes the hash leaves out each record's bytes from skipAt on, skipBytes of them (a parent model's
         /// layout, for an audit).</summary>
-        public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0)
+        public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool contacts = true)
         {
-            core = new FlightCore(PoweredSetup(spec));
+            FlightSetup setup = PoweredSetup(spec);
+            if (!contacts) setup.Contacts = null;
+            core = new FlightCore(setup);
             var record = new byte[LogFormat.StepSize];
             var e = new byte[LogFormat.EventSize];
             ulong hash = 0xCBF29CE484222325UL;
@@ -180,6 +197,68 @@ namespace Fpv450.Sim.Tests
                     LogFormat.EncodeEvent(e, core.State.Step, core.Events[i]);
                     hash = Fnv(hash, e, 0, e.Length);
                 }
+            }
+            return hash;
+        }
+
+        /// <summary>The tumble's setup: the repository drone's nominal body (L4, legs on) alone, no propulsion, air or
+        /// contacts, launched 600 m up with a velocity and a spin off its principal axes (its I_yz and the payload's
+        /// offset), falling under gravity.</summary>
+        public static FlightSetup TumbleSetup(DroneSpec spec) => new FlightSetup
+        {
+            Seed = 0x450F,
+            World = FlightWorld.Floor(),
+            Mass = spec.BuildMass(spec.Nominal),
+            StartPosition = new Double3(0, 600, 0),
+            StartVelocity = new Double3(3, 2, -1),
+            StartBodyRate = new Double3(2, -1, 3),
+        };
+
+        /// <summary>What the tumble keeps, each relative to its start: the angular momentum about the CoM in the world,
+        /// the rotational energy, and the CoM's distance from semi-implicit Euler's exact discrete parabola (m); and how far
+        /// the body rate wanders in body axes (rad/s), which a body without ω × I·ω never does.</summary>
+        public struct TumbleChecks
+        {
+            public double Momentum, Energy, Parabola, Wander;
+        }
+
+        /// <summary>
+        /// Flies the tumble golden (1.7, QA's review-base finding 3): TumbleSetup for 10 s, its hash every step's record.
+        /// It guards the gyroscopic term on a body that has one, where the free-body golden's cube has none: a step that
+        /// leaves out the momentum's transport into the new axes, or turns at the start's rate, fails its checks.
+        /// </summary>
+        public static ulong FlyTumble(DroneSpec spec, out FlightCore core, out TumbleChecks checks)
+        {
+            FlightSetup setup = TumbleSetup(spec);
+            core = new FlightCore(setup);
+            MassProperties b = setup.Mass.Properties;
+            Double3 c = b.CenterOfMass;
+            Double3 com0 = setup.StartPosition + Quat.Identity.Rotate(c);
+            Double3 v0 = setup.StartVelocity + Double3.Cross(setup.StartBodyRate, c);
+            Double3 l0 = b.Inertia * setup.StartBodyRate;
+            double e0 = Double3.Dot(setup.StartBodyRate, l0);
+            var record = new byte[LogFormat.StepSize];
+            var e = new byte[LogFormat.EventSize];
+            ulong hash = 0xCBF29CE484222325UL;
+            checks = default;
+            for (int k = 0; k < TumbleSteps; k++)
+            {
+                core.Advance(StickSample.Neutral);
+                ref readonly FlightState s = ref core.State;
+                LogFormat.EncodeStep(record, s, StickSample.Neutral, core.Trace);
+                hash = Fnv(hash, record, 0, record.Length);
+                for (int i = 0; i < core.Events.Count; i++)
+                {
+                    LogFormat.EncodeEvent(e, s.Step, core.Events[i]);
+                    hash = Fnv(hash, e, 0, e.Length);
+                }
+                Double3 h = b.Inertia * s.BodyRate;
+                double n = k + 1, dt = FlightCore.Dt;
+                Double3 parabola = com0 + v0 * (n * dt) + FlightCore.Gravity * (dt * dt * n * (n + 1) / 2);
+                checks.Momentum = DetMath.Max(checks.Momentum, (s.Attitude.Rotate(h) - l0).Length() / l0.Length());
+                checks.Energy = DetMath.Max(checks.Energy, DetMath.Abs(Double3.Dot(s.BodyRate, h) - e0) / e0);
+                checks.Parabola = DetMath.Max(checks.Parabola, (s.Position + s.Attitude.Rotate(c) - parabola).Length());
+                checks.Wander = DetMath.Max(checks.Wander, (s.BodyRate - setup.StartBodyRate).Length());
             }
             return hash;
         }

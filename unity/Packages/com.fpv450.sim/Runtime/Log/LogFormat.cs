@@ -68,8 +68,10 @@ namespace Fpv450.Sim.Log
         ///    samples, battery sag compensation; a free body steps as in 1). Two models shared the number on two branches.
         /// 5: 1.6 and 1.4b merged: the contacts and the filter chain together (a flight that touches nothing steps as 1.4b's
         ///    model 4, a flight with every filter off as 1.6's; a free body steps as in 1).
+        /// 6: task 1.7 (the rigid body turns at the step's midpoint rate, RigidBody.MidpointPasses, which keeps the
+        ///    energy; with no passes a flight steps as in 5, and a body with isotropic inertia steps as in 1).
         /// </summary>
-        public const int ModelVersion = 5;
+        public const int ModelVersion = 6;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
