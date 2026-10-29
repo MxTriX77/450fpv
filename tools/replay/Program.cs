@@ -109,6 +109,7 @@ namespace Fpv450.Replay
                 + $"{c.SticksDropped} stick reports dropped");
             Console.WriteLine($"  {r.Bytes} bytes: header {r.HeaderBytes} B, then {perStep:F1} B a step = {perStep * 60000 / 1e6:F2} MB a minute; "
                 + $"seed 0x{r.Seed:X16}, drone.json 0x{r.DroneHash:X16}; {r.WallSeconds:F2} s of wall time");
+            Console.WriteLine("  landing: " + r.Landing);
             if (r.Fault != null)
             {
                 Console.WriteLine("  the log failed: " + r.Fault.Message);
