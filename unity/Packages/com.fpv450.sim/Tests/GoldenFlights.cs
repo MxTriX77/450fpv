@@ -8,14 +8,15 @@ using Fpv450.Sim.Wind;
 namespace Fpv450.Sim.Tests
 {
     /// <summary>
-    /// The golden flights. The powered one (p6-flight-core 1.4, 1.5): the repository's drone at its nominal loadout with
-    /// its drag and its contacts, in the Windy stand-in wind, armed by Betaflight's rules and flown 10 s by a scripted
-    /// pilot through every part of the controller, propulsion and the air (a spin-up, a climb, roll, pitch and yaw
-    /// steps, a throttle punch into the ESCs' current limit and a chop, a weave), 300 m up, so it touches nothing. The
-    /// contact one (1.6): the drone takes off from the floor under the closed-loop pilot, comes down on the slow glide
-    /// path with the sticks held, bounces, and the throttle is cut. Each hash is every step's log record and events, so
-    /// it pins the whole state bit for bit. The suite checks them on .NET and in Unity's EditMode (Mono), tools/flightbench
-    /// --golden on .NET Release. A re-record raises LogFormat.ModelVersion and is audited case by case (CLAUDE.md).
+    /// The golden flights. The powered one (p6-flight-core 1.4, 1.5, 1.4b): the repository's drone at its nominal loadout
+    /// with its drag and its contacts, in the Windy stand-in wind, armed by Betaflight's rules and flown 10 s by a scripted
+    /// pilot through every part of the controller with the builder's filter chain, propulsion and the air (a spin-up, a
+    /// climb, roll, pitch and yaw steps, a throttle punch into the ESCs' current limit and a chop, a weave), 300 m up, so
+    /// it touches nothing. The contact one (1.6): the drone takes off from the floor under the closed-loop pilot, comes
+    /// down on the slow glide path with the sticks held, bounces, and the throttle is cut. Each hash is every step's log
+    /// record and events, so it pins the whole state, the controller's included, bit for bit. The suite checks them on
+    /// .NET and in Unity's EditMode (Mono), tools/flightbench --golden on .NET Release. A re-record raises
+    /// LogFormat.ModelVersion and is audited case by case (CLAUDE.md).
     /// </summary>
     public static class GoldenFlights
     {
@@ -36,6 +37,17 @@ namespace Fpv450.Sim.Tests
         // a signed zero; the 120 appended bytes are zero but for the touching count, which is 0 too.
         public const ulong PoweredHash = 0x798AFECB92E12DB7UL;
         public const ulong PoweredModel3Hash = 0x734CE3306086F5D7UL;
+        // 1.4b, on its own branch: re-recorded with ModelVersion 4 (the 1176-byte record: model 3's 992 bytes, then the
+        // filter chain's and the battery's), audited case by case on the shared 992 bytes: with every filter off and the
+        // PID reading the gyro at the loop rather than its two 8 kHz samples' mean (a temporary edit), every record and
+        // event of all 10 000 steps is bit-identical to model 3's 0x734CE3306086F5D7. Then each part of the chain moves
+        // the motion from its first armed step, 21 (the controller's own state from step 2, D min's filters running
+        // disarmed): the 8 kHz mean (0.008 m from the gyro-at-the-loop flight by 10 s), gyro LPF2 (0.18 m), LPF1
+        // (2.1 m), the gyro notch (4.3 m), the D term's filters (3.7 m, the builder's whole chain, this golden); the RPM
+        // filter from step 164, when the motors pass rpm_filter_min_hz (4.2 m); the dynamic notch (3.5 m). The golden
+        // flies the default, sag compensation off; with it at 100 the flight moves from step 21 and ends 38.6 m lower
+        // (the motors' top cut by up to 25 % on the 90 % pack).
+        public const ulong PoweredFiltersHash = 0x3695FC49DCA906DCUL;
 
         // 1.6: first recorded with ModelVersion 4.
         public const ulong ContactHash = 0x8B568804552379E6UL;

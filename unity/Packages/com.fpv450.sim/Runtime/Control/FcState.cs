@@ -60,8 +60,9 @@ namespace Fpv450.Sim.Control
 
     /// <summary>
     /// The flight controller's state: everything Betaflight 4.5 carries from one 4 kHz loop to the next in the model
-    /// FlightController runs, so FlightState holds the whole flight (K§6.2) and the log every bit of it. A value type.
-    /// Names follow Betaflight's where it has them (rc.c, pid.c, mixer.c).
+    /// FlightController runs, so FlightState holds the whole flight (K§6.2) and the log every bit of it, but for the
+    /// filter chain's delay lines and its sliding DFT (FilterBank), of which it holds the outputs. A value type.
+    /// Names follow Betaflight's where it has them (rc.c, pid.c, mixer.c, gyro_filter_impl.c, dyn_notch_filter.c).
     /// </summary>
     public struct FcState
     {
@@ -100,7 +101,8 @@ namespace Fpv450.Sim.Control
         /// <summary>The I term, in Betaflight's PID units.</summary>
         public Axes3 ITerm;
 
-        /// <summary>The gyro the last loop read, °/s (the D term's previous value).</summary>
+        /// <summary>The gyro the last loop read, °/s, before its filters: the start of the plant's ramp to this loop and
+        /// the other end of its 8 kHz midpoint.</summary>
         public Axes3 GyroPrev;
 
         /// <summary>I-term relax's setpoint low-pass (windupLpf), °/s.</summary>
@@ -127,5 +129,27 @@ namespace Fpv450.Sim.Control
         public double MotorMixRange;
 
         public FcFlags Flags;
+
+        // ---- the filter chain's outputs and slow parameters (FilterBank; its delay lines are the bank's) ----
+
+        /// <summary>gyroADCf: the gyro after its filters, °/s, which the P and I terms read.</summary>
+        public Axes3 GyroFiltered;
+
+        /// <summary>previousGyroRateDterm: the filtered gyro after the D term's filters at the last loop, °/s.</summary>
+        public Axes3 DtermGyro;
+
+        /// <summary>The dynamic notches' centres (dynNotch.centerFreq), Hz per axis; zero past dyn_notch_count.</summary>
+        public Axes3 DynNotch1, DynNotch2, DynNotch3, DynNotch4, DynNotch5;
+
+        /// <summary>The dynamic LPFs' throttle in hundredths (0–100), and the loops since it last moved them (to 20, 5 ms).</summary>
+        public byte DynLpfThrottle, DynLpfLoops;
+
+        // ---- the battery (sensors/voltage.c, battery.c), run only with sag compensation on ----
+
+        /// <summary>The pack voltage through the sag filter, V.</summary>
+        public double SagVolts;
+
+        /// <summary>The cell count, found at the battery's first reading; 0 before it.</summary>
+        public byte Cells;
     }
 }

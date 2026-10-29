@@ -18,18 +18,24 @@ namespace Fpv450.Sim.Control
     ///   rcCommand with the deadband, the throttle through min_check and the 11-point curve, the ACTUAL rate curve,
     ///   feedforward (rc.c updateRcCommands, processRcCommand, calculateFeedforward, applyActualRates); Betaflight's
     ///   arming rules on the arm switch and airmode's start (fc/core.c)
-    /// - every loop: the RC smoothing's PT3 filters at the auto cutoffs (rc.c processRcSmoothingFilter), the PID with
-    ///   Betaflight's scaling, I-term relax, the I-term's windup and limit, D min, TPA, anti-gravity, the yaw P
-    ///   low-pass and the PID-sum limits (flight/pid.c pidController, pid_init.c), and the mixer: throttle boost, the
-    ///   Quad X mix, airmode's desaturation and the DShot endpoints with the idle (flight/mixer.c mixTable,
-    ///   applyMixerAdjustment, applyMixToMotors; drivers/dshot.c dshotInitEndpoints)
+    /// - every loop: the gyro's and the D term's filter chain (FilterBank: the lowpasses, the notches, the RPM filter
+    ///   and the dynamic notch), the RC smoothing's PT3 filters at the auto cutoffs (rc.c processRcSmoothingFilter),
+    ///   the PID with Betaflight's scaling on the filtered gyro, I-term relax, the I-term's windup and limit, D min,
+    ///   TPA, anti-gravity, the yaw P low-pass and the PID-sum limits (flight/pid.c pidController, pid_init.c), and
+    ///   the mixer: the dynamic LPFs' throttle, throttle boost, the Quad X mix, airmode's desaturation and the DShot
+    ///   endpoints with the idle and battery sag compensation (flight/mixer.c mixTable, calculateThrottleAndCurrent-
+    ///   MotorEndpoints 245–262, applyMixerAdjustment, applyMixToMotors; mixer_init.c 347–357; drivers/dshot.c
+    ///   dshotInitEndpoints)
+    /// - the battery task at 200 Hz while sag compensation is on (Battery: sensors/voltage.c 186–190, 228–232,
+    ///   battery.c 206–225, 549–553; fc/tasks.c's FAST_VOLTAGE_TASK_FREQ_HZ, voltage.h 25–26)
     /// The loop runs at its real 4 kHz, LoopsPerStep loops a 1 ms step. Departures, each deliberate: double precision
     /// throughout (Betaflight computes in float); the throttle channel is not truncated to whole µs (the curve's
-    /// table is, as Betaflight builds it); the gyro is the rigid body's rate, with no sensor, gyro filters or D-term
-    /// filters (design 4, deferred: "Betaflight's formulas are mirrored, not its filters"); the link's frame rate is
-    /// fixed, so the auto cutoffs are Betaflight's settled ones. Not modelled, so refused: vbat_sag_compensation
-    /// above 0 and feedforward_averaging. Modes other than acro (angle, horizon, launch control, crash recovery,
-    /// yaw-spin recovery, absolute control, 3D, dynamic idle, thrust linearisation) do not exist here.
+    /// table is, as Betaflight builds it); the gyro is the rigid body's rate, with no sensor (FilterBank lists the
+    /// filter chain's own); the pack voltage is read exactly, then truncated to whole cV as Betaflight's integer cell
+    /// voltage is, with no ADC counts; the link's frame rate is fixed, so the auto cutoffs are Betaflight's settled
+    /// ones. Not modelled, so refused: feedforward_averaging and a lowpass type other than BIQUAD. Modes other than
+    /// acro (angle, horizon, launch control, crash recovery, yaw-spin recovery, absolute control, 3D, dynamic idle,
+    /// thrust linearisation, turtle) do not exist here.
     /// </summary>
     public sealed class FlightController
     {
@@ -43,6 +49,11 @@ namespace Fpv450.Sim.Control
         public const int RcLinkHz = 250;
 
         public const int LoopsPerRcFrame = LoopHz / RcLinkHz;
+
+        /// <summary>The battery task's rate with sag compensation on, Hz (published: voltage.h 26, FAST_VOLTAGE_TASK_FREQ_HZ).</summary>
+        public const int BatteryHz = 200;
+
+        public const int LoopsPerBatterySample = LoopHz / BatteryHz;
 
         /// <summary>One loop, s.</summary>
         public const double LoopDt = 1.0 / LoopHz;
@@ -61,8 +72,15 @@ namespace Fpv450.Sim.Control
         const double PwmRangeMin = 1000, PwmRangeMax = 2000, PwmRange = PwmRangeMax - PwmRangeMin;
         const double StickHalfRange = 500;
         const double TwoPi = 6.283185307179586;
+        const double CellVoltageFullCv = 420; // battery.h 31, CELL_VOLTAGE_FULL_CV
+        const int MaxAutoDetectCells = 8;     // battery.h 38
 
         readonly FcSettings _s;
+        readonly FilterBank _bank;
+
+        // Battery sag compensation (mixer_init.c 347–357): the factor and the cell range it works over, cV; the sag
+        // filter's gain at the battery task's rate.
+        readonly double _sagFactor, _sagRangeCv, _kSag;
 
         // The PID's gains, Betaflight-scaled, per axis.
         readonly double[] _kp = new double[3], _ki = new double[3], _kd = new double[3], _kf = new double[3];
@@ -95,8 +113,11 @@ namespace Fpv450.Sim.Control
         {
             if (clockwise == null || clockwise.Length != 4) throw new ArgumentException("four corners' spins", nameof(clockwise));
             _s = settings;
-            if (settings.vbat_sag_compensation != 0)
-                throw new ArgumentException("vbat_sag_compensation is not modelled yet (p6-flight-core 1.4): it must be 0");
+            if (!(settings.vbat_sag_compensation >= 0 && settings.vbat_sag_compensation <= 150))
+                throw new ArgumentException("vbat_sag_compensation is Betaflight's 0–150 %");
+            if (!IsWhole(settings.vbat_max_cell_voltage, 100, 500) || !IsWhole(settings.vbat_warning_cell_voltage, 100, 500)
+                || !IsWhole(settings.force_battery_cell_count, 0, 24) || !(settings.vbat_sag_lpf_period >= 1))
+                throw new ArgumentException("the battery's cell voltages are whole cV 100–500, force_battery_cell_count 0–24, vbat_sag_lpf_period at least 1");
             if (settings.feedforward_averaging != FeedforwardAveraging.OFF)
                 throw new ArgumentException("feedforward_averaging is not modelled yet (p6-flight-core 1.4): it must be OFF");
             if (!IsWhole(settings.thr_mid, 0, 100) || !IsWhole(settings.thr_expo, 0, 100))
@@ -182,10 +203,26 @@ namespace Fpv450.Sim.Control
             // drivers/dshot.c dshotInitEndpoints: the idle above DShot's 48, the output limit below 2047.
             _outputLow = DshotMinThrottle + settings.dshot_idle_value * 0.01 * 0.01 * DshotRange;
             _outputHigh = DshotMaxThrottle - DshotRange * (1 - settings.motor_output_limit / 100);
+
+            // mixer_init.c 347–357: full is 4.20 V a cell; compensated down to the warning voltage. voltage.c 228–232:
+            // the sag filter a PT1 at 1 / (period / 10) Hz at the battery task's rate (GET_BATTERY_LPF_FREQUENCY).
+            _sagRangeCv = CellVoltageFullCv - settings.vbat_warning_cell_voltage;
+            _sagFactor = settings.vbat_sag_compensation > 0 && _sagRangeCv > 0 ? settings.vbat_sag_compensation / 100 : 0;
+            double sagHz = 1 / (settings.vbat_sag_lpf_period / 10), dt = 1.0 / BatteryHz;
+            _kSag = TwoPi * sagHz * dt / (TwoPi * sagHz * dt + 1);
+
+            _bank = new FilterBank(settings);
         }
 
+        /// <summary>The gyro and D-term filter chain, its configuration and its delay lines.</summary>
+        public FilterBank Filters => _bank;
+
+        /// <summary>The sag compensation's factor (vbat_sag_compensation / 100; 0 when off).</summary>
+        public double SagFactor => _sagFactor;
+
         /// <summary>The state of a controller that has been running with its sticks centred, throttle off, disarmed;
-        /// the arm switch must be seen off before it arms (Betaflight refuses an arm switch that is on at power-up).</summary>
+        /// the arm switch must be seen off before it arms (Betaflight refuses an arm switch that is on at power-up).
+        /// The filter bank is a resting drone's (FilterBank.Reset); the battery is found at the first battery loop.</summary>
         public void Reset(ref FcState s, in Axes3 gyro)
         {
             s = default;
@@ -194,10 +231,50 @@ namespace Fpv450.Sim.Control
             s.GyroPrev = gyro;
             s.TpaFactor = 1;
             s.Flags = FcFlags.ArmBlocked;
+            _bank.Reset(ref s);
         }
 
         /// <summary>True when loop (counted from the flight's start) takes a new RC frame.</summary>
         public static bool IsFrameLoop(long loop) => loop % LoopsPerRcFrame == 0;
+
+        /// <summary>True when loop (counted from the flight's start) runs the battery task: every LoopsPerBatterySample
+        /// loops, at the second loop of a step (the scheduler's phase, assumed), so that it reads the bus voltage the
+        /// step's first sub-step left.</summary>
+        public static bool IsBatteryLoop(long loop) => loop % LoopsPerBatterySample == 1;
+
+        /// <summary>
+        /// The battery task with sag compensation on (it does not run otherwise, voltage.c 187): the pack's voltage, V,
+        /// through the sag filter. The first reading finds the battery (battery.c batteryUpdatePresence, its display
+        /// filter long settled at a powered-up drone's): the cells forced, or counted as whole cV over
+        /// vbat_max_cell_voltage, plus one, at most 8; the sag filter starts settled there.
+        /// </summary>
+        public void Battery(ref FcState s, double packVolts)
+        {
+            if (_sagFactor <= 0) return;
+            if (s.Cells == 0)
+            {
+                int cells = _s.force_battery_cell_count != 0
+                    ? (int)_s.force_battery_cell_count
+                    : (int)(packVolts * 100) / (int)_s.vbat_max_cell_voltage + 1;
+                s.Cells = (byte)(cells > MaxAutoDetectCells && _s.force_battery_cell_count == 0 ? MaxAutoDetectCells : cells);
+                s.SagVolts = packVolts;
+                return;
+            }
+            s.SagVolts += _kSag * (packVolts - s.SagVolts);
+        }
+
+        /// <summary>
+        /// The share of the motors' range (idle to full) sag compensation takes off its top (calculateThrottleAndCurrent-
+        /// MotorEndpoints 245–256): the cell voltage, whole cV (getBatterySagCellVoltage), as goodness 1 at full and 0 at
+        /// the warning voltage, times the range over full and the factor; 0 when off or before the battery is found.
+        /// </summary>
+        public double SagAttenuation(in FcState s)
+        {
+            if (_sagFactor <= 0) return 0;
+            int cellCv = s.Cells > 0 ? (int)(s.SagVolts * 100) / s.Cells : 0;
+            double goodness = 1 - Clamp((CellVoltageFullCv - cellCv) / _sagRangeCv, 0, 1);
+            return _sagRangeCv / CellVoltageFullCv * goodness * _sagFactor;
+        }
 
         /// <summary>
         /// One RC frame: the stick in force read as Betaflight's channels (roll, pitch, yaw 1500 ± 500 µs, throttle
@@ -251,12 +328,19 @@ namespace Fpv450.Sim.Control
         }
 
         /// <summary>
-        /// One 4 kHz loop: the RC smoothing, the PID on gyro (°/s, pilot axes) and the mixer. duty is each ESC's
-        /// command, 0–1 of its full duty (DShot 48–2047), zero while disarmed (the ESC lets its motor freewheel);
+        /// One 4 kHz loop: the filter chain on gyro (°/s, pilot axes, this loop's reading) and the motors' speeds
+        /// (rad/s, bidirectional DShot), the RC smoothing, the PID on the filtered gyro and the mixer. duty is each
+        /// ESC's command, 0–1 of its full duty (DShot 48–2047), zero while disarmed (the ESC lets its motor freewheel);
         /// loss gathers what the mixer did not deliver while armed.
         /// </summary>
-        public void Loop(ref FcState s, bool armed, in Axes3 gyro, ref Corners duty, ref MixerLoss loss)
+        public void Loop(ref FcState s, bool armed, in Axes3 gyro, in Corners motorSpeed, ref Corners duty, ref MixerLoss loss)
         {
+            // fc/core.c taskFiltering, then pid.c pidController's D-term filters and rpmFilterUpdate (862–883).
+            _bank.FilterGyro(ref s, s.GyroPrev, gyro, motorSpeed);
+            s.GyroPrev = gyro;
+            _bank.FilterDterm(s, out Axes3 dtermGyro);
+            _bank.RpmUpdate();
+
             Smooth(ref s);
 
             // fc/core.c processRxModes: the I term is held at zero until armed with the throttle up or airmode active.
@@ -270,7 +354,7 @@ namespace Fpv450.Sim.Control
             var sum = new Axes3();
             for (int a = 0; a < 3; a++)
             {
-                double setpoint = s.Setpoint[a], g = gyro[a];
+                double setpoint = s.Setpoint[a], g = s.GyroFiltered[a];
                 double error = setpoint - g, itermError = error;
                 double iterm = s.ITerm[a];
 
@@ -304,7 +388,7 @@ namespace Fpv450.Sim.Control
                 double dterm = 0;
                 if (_kd[a] > 0)
                 {
-                    double delta = -(g - s.GyroPrev[a]) * LoopHz;
+                    double delta = -(dtermGyro[a] - s.DtermGyro[a]) * LoopHz;
                     double preTpaD = _kd[a] * delta;
                     if (_dMinPercent[a] > 0)
                     {
@@ -322,7 +406,7 @@ namespace Fpv450.Sim.Control
                     }
                     dterm = preTpaD * s.TpaFactor;
                 }
-                s.GyroPrev[a] = g;
+                s.DtermGyro[a] = dtermGyro[a];
 
                 double fterm = _kf[a] * feedforward;
                 if (a != 2)
@@ -365,6 +449,8 @@ namespace Fpv450.Sim.Control
             else tpaRate = _tpaLowMultiplier * (_tpaLowBreakpoint - throttle);
             s.TpaFactor = 1 - tpaRate;
 
+            _bank.UpdateDynLpf(ref s, throttle);
+
             if (_boost > 0)
             {
                 s.BoostLpf += _kBoost * (throttle - s.BoostLpf);
@@ -392,11 +478,13 @@ namespace Fpv450.Sim.Control
             double normalisation = range > 1 ? transition / range : transition;
             throttle = Clamp(throttle, -mixMin * normalisation, 1 - mixMax * normalisation);
 
-            // applyMixToMotors: onto the DShot range between the idle and the limit; disarmed, the motors stop.
+            // applyMixToMotors: onto the DShot range between the idle and the limit, less sag compensation's share of
+            // its top; disarmed, the motors stop.
+            double rangeMax = _outputHigh - SagAttenuation(s) * (_outputHigh - _outputLow);
             for (int c = 0; c < 4; c++)
             {
-                double motor = _outputLow + (_outputHigh - _outputLow) * (mix[c] * normalisation + throttle);
-                motor = Clamp(motor, _outputLow, _outputHigh);
+                double motor = _outputLow + (rangeMax - _outputLow) * (mix[c] * normalisation + throttle);
+                motor = Clamp(motor, _outputLow, rangeMax);
                 duty[c] = armed ? (motor - DshotMinThrottle) / DshotRange : 0;
             }
 
@@ -537,7 +625,8 @@ namespace Fpv450.Sim.Control
             return LookupThrottle((t - _s.min_check) * PwmRangeMin / (PwmRangeMax - _s.min_check));
         }
 
-        /// <summary>The ESC duty, 0–1, of a mixer output (throttle plus mix) in 0–1, as applyMixToMotors maps it.</summary>
+        /// <summary>The ESC duty, 0–1, of a mixer output (throttle plus mix) in 0–1, as applyMixToMotors maps it with no sag
+        /// compensation.</summary>
         public double DutyOf(double mixerOutput) =>
             (Clamp(_outputLow + (_outputHigh - _outputLow) * mixerOutput, _outputLow, _outputHigh) - DshotMinThrottle) / DshotRange;
 
