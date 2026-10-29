@@ -57,4 +57,45 @@ namespace Fpv450.Sim.Control
             return 0;
         }
     }
+
+    /// <summary>
+    /// The latency test's two figures (p6-input-app design 3, INP-04), as the log header records them: a known stick
+    /// step injected as reports at the device boundary, timed from each step report's arrival stamp (HostUs)
+    /// - FirstStep: to the host time of the first flight step whose stick in force is that report or a later one
+    /// - Motor: to the motor command's response, the ESCs' mean duty to their motors (the controller's DShot command
+    ///   through the ESC's lag) halfway through the step's change, interpolated between the steps' records
+    /// </summary>
+    public sealed class InputLatency
+    {
+        /// <summary>Stick steps timed.</summary>
+        public long Steps;
+
+        public LatencySpread FirstStep, Motor;
+    }
+
+    /// <summary>A latency's spread over the steps timed, µs: the nearest-rank median and 99th percentile.</summary>
+    public struct LatencySpread
+    {
+        public long MinUs, P50Us, P99Us, MaxUs;
+        public double MeanUs;
+
+        /// <summary>The spread of the first count values (it sorts a copy; it allocates).</summary>
+        public static LatencySpread Of(long[] values, int count)
+        {
+            if (count <= 0) return default;
+            var sorted = new long[count];
+            System.Array.Copy(values, sorted, count);
+            System.Array.Sort(sorted);
+            double sum = 0;
+            foreach (long v in sorted) sum += v;
+            return new LatencySpread
+            {
+                MinUs = sorted[0],
+                P50Us = sorted[(count * 50 + 99) / 100 - 1],
+                P99Us = sorted[(count * 99 + 99) / 100 - 1],
+                MaxUs = sorted[count - 1],
+                MeanUs = sum / count,
+            };
+        }
+    }
 }

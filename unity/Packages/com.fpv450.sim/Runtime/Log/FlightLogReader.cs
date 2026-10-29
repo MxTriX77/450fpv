@@ -308,6 +308,7 @@ namespace Fpv450.Sim.Log
             w.WriteLine("  start: position " + V(h.StartPosition, "0.000") + " m, velocity " + V(h.StartVelocity, "0.000") + " m/s, body rate "
                 + V(h.StartBodyRate, "0.000") + " rad/s");
             w.WriteLine("  input: " + InputLine(h));
+            if (h.InputLatency != null) w.WriteLine("  latency test: " + LatencyLine(h.InputLatency));
             foreach (string u in h.Unknown) w.WriteLine("  not known to this reader: " + u);
 
             string length = Steps + " step records, " + Seconds.ToString("0.000", c) + " s";
@@ -408,6 +409,14 @@ namespace Fpv450.Sim.Log
         }
 
         static string Ms(long us) => (us / 1000.0).ToString("0.000", CultureInfo.InvariantCulture);
+
+        static string LatencyLine(InputLatency l) =>
+            l.Steps + " stick steps, from each step report's arrival: to the first step that uses it " + Spread(l.FirstStep)
+            + "; to the motor command (the ESCs' duty halfway through the change) " + Spread(l.Motor);
+
+        static string Spread(in LatencySpread s) =>
+            "p50 " + Ms(s.P50Us) + ", p99 " + Ms(s.P99Us) + " ms (min " + Ms(s.MinUs) + ", max " + Ms(s.MaxUs) + ", mean "
+            + (s.MeanUs / 1000).ToString("0.000", CultureInfo.InvariantCulture) + ")";
 
         string ByKind()
         {

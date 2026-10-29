@@ -54,7 +54,8 @@ namespace Fpv450.Sim.Log
 
         /// <summary>
         /// The format: the prologue, the header's entries and the record layouts below. 1–5: p6-flight-core. 6: the
-        /// stick's failsafe flag in the step record's flags (bit 3) and the header's input entry (p6-input-app 1.1).
+        /// stick's failsafe flag in the step record's flags (bit 3) and the header's input entry (p6-input-app 1.1; its
+        /// step-0 host time and the latency test's figures appended by 1.5, before 6 reached unity/main).
         /// </summary>
         public const int Version = 6;
 

@@ -87,7 +87,8 @@ namespace Fpv450.Sim.Log
     ///   pose and order; their material ids are the world's, named by the world entry)
     /// - the start state with the packs' charge, and the record layouts (so a reader needs no code of ours)
     /// - the input: where the sticks came from (a keyboard flight is for development, never for tuning), the device's
-    ///   product name and its report intervals before the flight (p6-input-app)
+    ///   product name and its report intervals before the flight (p6-input-app 1.1); the host µs of step 0, so a step's
+    ///   stick age is derived from the records, and the latency test's figures when the flight was one (1.5)
     /// Sim data only (LOG-05): no user, machine, path or clock.
     ///
     /// On disk: Magic, the format version and the header's length (u32), then entries of a u16 tag, a u32 length and
@@ -189,6 +190,15 @@ namespace Fpv450.Sim.Log
         public InputSource Input;
         public string InputDevice = "";
         public ReportIntervals InputIntervals;
+
+        /// <summary>
+        /// HostClock µs of step 0 (FlightScheduler.StartUs), the clock the sticks' HostUs are in, so step k's stick age is
+        /// StartHostUs + k·1000 − its HostUs; 0 when not recorded (a bench, a replay, a log before 1.5).
+        /// </summary>
+        public long StartHostUs;
+
+        /// <summary>The latency test's figures when this flight was one (LatencyTest, p6-input-app 1.5), else null.</summary>
+        public InputLatency InputLatency;
 
         public LogField[] StepFields = LogFormat.StepFields;
         public LogField[] EventFields = LogFormat.EventFields;
@@ -626,12 +636,22 @@ namespace Fpv450.Sim.Log
                 ReportIntervals r = InputIntervals;
                 e.Write(r == null ? 0 : r.BinUs);
                 e.Write((ushort)(r == null ? 0 : r.Counts.Length));
-                if (r == null) return;
-                foreach (long n in r.Counts) e.Write(n);
-                e.Write(r.Count);
-                e.Write(r.SumUs);
-                e.Write(r.MinUs);
-                e.Write(r.MaxUs);
+                if (r != null)
+                {
+                    foreach (long n in r.Counts) e.Write(n);
+                    e.Write(r.Count);
+                    e.Write(r.SumUs);
+                    e.Write(r.MinUs);
+                    e.Write(r.MaxUs);
+                }
+                // 1.5, appended: a reader of 1.1's entry stops before it.
+                e.Write(StartHostUs);
+                InputLatency l = InputLatency;
+                e.Write(l != null);
+                if (l == null) return;
+                e.Write(l.Steps);
+                Spread(e, l.FirstStep);
+                Spread(e, l.Motor);
             });
             w.Flush();
 
@@ -820,14 +840,20 @@ namespace Fpv450.Sim.Log
                         InputDevice = Text(r);
                         int binUs = r.ReadInt32();
                         int bins = r.ReadUInt16();
-                        if (binUs == 0) break;
-                        var intervals = new ReportIntervals(binUs, bins);
-                        for (int i = 0; i < bins; i++) intervals.Counts[i] = r.ReadInt64();
-                        intervals.Count = r.ReadInt64();
-                        intervals.SumUs = r.ReadInt64();
-                        intervals.MinUs = r.ReadInt64();
-                        intervals.MaxUs = r.ReadInt64();
-                        InputIntervals = intervals;
+                        if (binUs != 0)
+                        {
+                            var intervals = new ReportIntervals(binUs, bins);
+                            for (int i = 0; i < bins; i++) intervals.Counts[i] = r.ReadInt64();
+                            intervals.Count = r.ReadInt64();
+                            intervals.SumUs = r.ReadInt64();
+                            intervals.MinUs = r.ReadInt64();
+                            intervals.MaxUs = r.ReadInt64();
+                            InputIntervals = intervals;
+                        }
+                        if (r.BaseStream.Position >= end) break; // 1.1's entry
+                        StartHostUs = r.ReadInt64();
+                        if (!r.ReadBoolean()) break;
+                        InputLatency = new InputLatency { Steps = r.ReadInt64(), FirstStep = Spread(r), Motor = Spread(r) };
                         break;
                     default:
                         Unknown.Add("header entry " + tag + " (" + size + " bytes)");
@@ -985,6 +1011,20 @@ namespace Fpv450.Sim.Log
         }
 
         static Double3 V3(BinaryReader r) => new Double3(r.ReadDouble(), r.ReadDouble(), r.ReadDouble());
+
+        static void Spread(BinaryWriter w, in LatencySpread s)
+        {
+            w.Write(s.MinUs);
+            w.Write(s.P50Us);
+            w.Write(s.P99Us);
+            w.Write(s.MaxUs);
+            w.Write(s.MeanUs);
+        }
+
+        static LatencySpread Spread(BinaryReader r) => new LatencySpread
+        {
+            MinUs = r.ReadInt64(), P50Us = r.ReadInt64(), P99Us = r.ReadInt64(), MaxUs = r.ReadInt64(), MeanUs = r.ReadDouble(),
+        };
 
         static void S3(BinaryWriter w, Sym3 s)
         {
