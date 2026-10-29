@@ -109,6 +109,26 @@ namespace Fpv450.WorldBench
                     $"    z {CentreZ(j),7:F1}: {x,6:F2} {beta,6:F3} {phi,6:F3}  {a.Speed,7:F3} {b.Speed,7:F3}  {perera,8}    {c.Speed,6:F3} {d.Speed,6:F3} | {b.Turbulence,6:F3} {c.Turbulence,5:F3} {e.Turbulence,5:F3} {f.Turbulence,5:F3}"));
             }
             Console.WriteLine(FormattableString.Invariant($"  belt: mean turbulence ratio over 5-15 H at 0.5 H: {sum / n:F3} ({n} cells; literature about 2x, K8.2)"));
+            var tops = new List<string>();
+            foreach (double target in new[] { 5.0, 10, 15, 20 })
+            {
+                int best = -1;
+                double err = double.MaxValue;
+                for (int j = 147; j >= 0; j--)
+                {
+                    grid.Describe(i, j, out double x, out double h, out _, out _, out _, out _, out _);
+                    if (h > 0 && Math.Abs(x - target) < err) { err = Math.Abs(x - target); best = j; }
+                }
+                grid.SampleCell(i, best, 0.5 * 8.4, out WakeSample low);
+                double top = 0;
+                for (double zh = 0.5; zh < 6; zh += 0.01)
+                {
+                    grid.SampleCell(i, best, zh * 8.4, out WakeSample s);
+                    if (s.Turbulence - 1 < 0.1 * (low.Turbulence - 1)) { top = zh; break; }
+                }
+                tops.Add(FormattableString.Invariant($"{top:F2} H at {target} H"));
+            }
+            Console.WriteLine("  belt: the wake's top (the boost down to a tenth of its value at 0.5 H): " + string.Join(", ", tops) + " (K8.2: 2-3 H)");
             int lowest = 0;
             for (int j = 0; j < 150; j++)
                 for (int a = Column(-150); a <= Column(150); a++)
