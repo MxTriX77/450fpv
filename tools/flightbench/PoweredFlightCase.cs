@@ -72,8 +72,14 @@ namespace Fpv450.FlightBench
             double us = 1e6 / Stopwatch.Frequency;
             double p50 = times[steps / 2] * us, p99 = times[steps * 99 / 100] * us, max = times[steps - 1] * us;
             bool ok = p99 <= 300 && allocated == 0 && core.State.Armed;
+            string share = TimedQuery.Share(GoldenFlights.PoweredSetup(Drone()), (c, k) =>
+            {
+                StickSample s = sticks[k % sticks.Length];
+                if (k >= sticks.Length && s.HostUs < 20 * FlightCore.StepUs) s.Arm = true;
+                return s;
+            }, warmup, steps);
             Console.WriteLine($"{Name}: {steps} steps of {FlightController.LoopsPerStep} controller loops and propulsion sub-steps, "
-                + $"p50 {p50:F2} µs, p99 {p99:F2} µs, max {max:F1} µs, steady-state allocation {allocated} B: {(ok ? "PASS" : "FAIL")} (p99 ≤ 300 µs, 0 B)");
+                + $"p50 {p50:F2} µs, p99 {p99:F2} µs, max {max:F1} µs, steady-state allocation {allocated} B, {share}: {(ok ? "PASS" : "FAIL")} (p99 ≤ 300 µs, 0 B)");
             return ok;
         }
     }
