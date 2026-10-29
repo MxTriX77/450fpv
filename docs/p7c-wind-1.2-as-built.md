@@ -1,0 +1,48 @@
+# p7c-wind 1.2: as built (for tasks.md)
+
+Branch `unity/physics/p7c-wind--harness` off `p6-flight-core` (`2a99cbc`). The orchestrator folds this into task 1.2 of `tasks.md` and removes the file.
+
+- **As built** (`Tests/{HarnessPilot,WindHarness}.cs`, `Runtime/Wind/StandInWind.cs`'s `SyntheticBelt`, `tools/flightbench --wind-harness`):
+  - **The pilot** (`HarnessPilot`, K§8.5 / wind.md §6.1): rate mode through the core's controller, its sticks at the TX12's 250 Hz.
+    - It sees camera frames at 29.917 Hz, each `Delay` after it was taken (0.10 s; variants 0 and 0.2).
+    - It wants e* = ē − v/(g·τ_v), τ_v 0.5 s (variants 0.3 and 1.0), with ē̇ = −v/(g·τ_v·3 s), and splits it with s = 0.64 (variants 1 and 0); k = −sin θ_ref.
+    - It holds θ_ref = −22.7° and commands (ref − angle)/τ with τ 0.30 / 0.17 / 0.27 s, turned into p, q, r by the exact ZYX relations and into sticks through the controller's own ACTUAL curve.
+    - Height (held within 0.07–0.10 m on average): a climb rate (h_ref − h)/2 s wanted, its error on the throttle at 0.05 per m/s plus an integral over 2 s, from 0.55 (all three assumed).
+  - **The tracker's angles** (`TrackerAngles`): roll atan2(−u_x, −u_y), pitch asin(u_z), the heading the optical axis's azimuth, which are exactly the ZYX angles. They use an atan2 from the basic operations, so the pilot flies the same bits on every runtime.
+  - **The test flight** (`WindHarness.Fly`): the repository drone (p5-drone, D-043) at its nominal loadout: 4.832 kg, inertia roll / pitch / yaw 0.0562 / 0.0529 / 0.0623 kg·m². K§8.5 assumed 4.8 kg and 0.044 / 0.054 / 0.050, the first attempt's component model, which the bootstrap fixture still carries. The harness grades the drone the sim flies, so roll and yaw inertia are about 27 % and 24 % above K§8.5's.
+    - Armed, then released level at θ_ref and 13 m/s along the course (1.5's trim of 22.7°).
+    - The course is laid with the seed's drawn wind abeam from the left (bearing + 90°). Runs are 39 s, the first 5 s discarded (1017 frames), at heights spread evenly over 20–50 m (23 / 29 / 35 / 41 / 47 m for 5 seeds).
+    - The start rule (`StartSecond`, 90° of the drawn direction for the whole run) runs on the seed's prevailing history. The stand-in's never moves, so the start is 0. A late start needs 1.4's field to take a start time, and the harness refuses one until then.
+  - **The synthetic belt** (`SyntheticBelt`, opt-in through `WindSetup.Belt`; every other flight is bit for bit unchanged, and so are the goldens):
+    - A labelled region across the course, 9 s of flight past the release, 10 H long with H = 9.1 m (10 H in 7 s at 13 m/s). It is not a wake, and it has no height dependence.
+    - Inside, smooth 1 H ramps scale both of its effects:
+      - the mean wind is cut by 0.2;
+      - a frozen field of 24 divergence-free plane waves (wavelengths 5–20 m, clip P's eddies; stream `wind.belt`, counter-based) adds √(2² − 1)·σ_u per component, twice the open field's intensity.
+    - All are assumed and named. The header's wind entry records it (only when present), and the summary prints it.
+  - **The measurement:** per run, a CSV in `track_attitude.py`'s 19 columns, which is the input `wind_stats.py`'s `load` reads.
+    - Frames are numbered from 1, with time_s = (frame − 1)/29.917, roll and pitch in degrees, and yaw_rate_dps the frame-to-frame heading change × 29.917.
+    - conf_* is 1, dup is 0 and flag is ok; the tracker's diagnostics are left empty.
+    - `harness.json` lists each run with its `--segment` (the belt's frames, from the frames' positions), its draws, height, mass and means.
+    - `--history N` writes N seeds × 120 min of the prevailing direction at 1 Hz in `--wind-log`'s columns.
+  - **The tool:** `flightbench --wind-harness calm|windy|severe [--seeds N] [--out DIR] [--pilots nominal|all] [--belt on|off] [--history N]`. Seeds and pilots fly in parallel: 35 flights take about 2 s in Release.
+  - **Numbers** (Severe stand-in, seeds 1–5, nominal pilot):
+    - Lean into the wind: 1.76–1.85° per m/s, with the belt or without it. 1.5's own cruise lean at 13 m/s, taken as the tracker's roll (tan φ = tan(lean)·cos θ), is 1.866, so the runs are 1.1–5.5 % under it and inside K§6.5's 0.95–2.6.
+    - Mean roll −5.97 to −11.15°, pitch −22.70°, airspeed 12.97–13.37 m/s, belt 6.8–7.5 s.
+    - The known-wrong model without drag leans 0.000° per m/s and fails.
+  - **Verified:**
+    - `WindHarnessTests`: the ZYX angles, the lean, the CSV format and the start rule.
+    - `SyntheticBeltTests`: off by default, the deficit and σ_b inside, no divergence with vorticity, the seed, the header's round trip, the bounds.
+    - `tools/flightbench/tests/test_wind_harness_csv.py`: the original's `load` / `analyse` / `load_wind` logic reads the files.
+  - **Open:**
+    - **d = 0.2 s cannot hold pitch.** That variant sits at the pure-delay limit of the pitch loop (D/τ < π/2: 0.27 s at τ 0.17 s), and the frame hold and the controller already take it there. It oscillates: pitch σ 8.4°, roll σ 14.6°, airspeed about 8 m/s. Whether the variant scales τ with d, or is reported but not scored, is for 1.5.
+    - The stand-in's T0c history is constant, so it fails T0c, as it must until 1.4.
+    - **The committed round trip through 1.1's ported `wind_stats.py` waits for 1.1 to land.**
+      - A provisional run through 1.1's in-progress port (its local `c2253f8`, not on origin yet) read every Severe run: 1017 of 1017 frames usable at 29.917 Hz, and every target's field present.
+      - T0c ran on 40 seeds × 120 min and fails, as it must: spread 0°, no shifts.
+    - **The stand-in through that port** (Severe, nominal, 5 seeds; 1.5 grades the real field):
+      - T0 −6.0 to −11.1° (|mean| 8.6°, inside 9 ± 3).
+      - T1 0.11–0.29°, under 0.35–0.70: the stand-in has no 2–4 Hz energy, and 1.4 adds it.
+      - T3 0.47–1.06° over the synthetic belt.
+      - Field kurtosis 8–36: the field is quiet next to the belt's transients.
+      - T10b −0.13 to +0.29 (P: +0.57). With s = 0 it falls to −0.62 to −0.76: the drone's yaw lags the pilot's roll compensation, so the yaw's own horizon roll, −0.39·ψ̇, shows. In still air a 10° heading step overshoots 48 %, with the horizon within ±1.7°.
+    - The belt's eddies are frozen (1.4 advects them), and the region has no wake physics (1.3).
