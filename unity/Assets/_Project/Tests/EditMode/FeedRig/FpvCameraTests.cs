@@ -93,6 +93,43 @@ namespace Fpv450.Feed.Tests
             }
         }
 
+        /// The noclip camera feeds its angular rate in its own axes (design 4), measured off its pose per frame, even
+        /// for a frame's turn far below a degree; every other signal stays its labelled stub, and the log says so.
+        [Test]
+        public void TheNoclipCameraFeedsItsAngularRate()
+        {
+            var go = new GameObject("NoclipFeedSignalsTest");
+            try
+            {
+                go.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
+                var signals = new NoclipFeedSignals(go.transform);
+                signals.Sample(0.004f);
+                Assert.That(signals.CameraAngularVelocity, Is.EqualTo(System.Numerics.Vector3.Zero));
+
+                // 0.04° down in a 4 ms frame (10°/s, 250 fps), facing east: a pitch about the camera's own x.
+                go.transform.rotation = Quaternion.Euler(0.04f, 90f, 0f);
+                signals.Sample(0.004f);
+                float rate = 10f * Mathf.Deg2Rad;
+                Assert.That(signals.CameraAngularVelocity.X, Is.EqualTo(rate).Within(0.01f * rate));
+                Assert.That(signals.CameraAngularVelocity.Y, Is.EqualTo(0f).Within(1e-3f));
+                Assert.That(signals.CameraAngularVelocity.Z, Is.EqualTo(0f).Within(1e-3f));
+
+                // 3° right (yaw) in 20 ms: 150°/s about the camera's up.
+                go.transform.rotation = Quaternion.Euler(0.04f, 93f, 0f);
+                signals.Sample(0.02f);
+                Assert.That(signals.CameraAngularVelocity.Length(), Is.EqualTo(150f * Mathf.Deg2Rad).Within(0.01f));
+                Assert.That(signals.CameraAngularVelocity.Y, Is.GreaterThan(2.6f));
+
+                foreach (FeedSignal s in (FeedSignal[])System.Enum.GetValues(typeof(FeedSignal)))
+                    Assert.That(signals.SourceOf(s), Is.EqualTo(s == FeedSignal.CameraAngularVelocity ? SignalSource.Noclip : SignalSource.Stub), s.ToString());
+                StringAssert.Contains("; noclip [CameraAngularVelocity]; physics []", FeedSignalLog.Describe(signals));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
         /// Every quality level's URP renderer carries the feed feature with the feed shader, and the shader has its
         /// three blits in order.
         [Test]
