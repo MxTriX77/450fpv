@@ -4,9 +4,35 @@ Branch `unity/world/p6-world-query-gallery` off `unity/main` once `p1-g1-look-lo
 
 ## 1. Build
 
-- [ ] 1.1 [world-builder] The query interface (design 1, 2, 6):
+- [x] 1.1 [world-builder] The query interface (design 1, 2, 6):
   - **What:** `IWorldQuery`, its result structs, the content hash and `QueryVersion` in `Runtime/World/`, ported from `refs/godot/main` (fetch it read-only: `git fetch origin main:refs/godot/main`; read with `git show`, never merge). A stub world (the floor plane) implementing it.
   - **Verify:** `dotnet test tools/simtests`, and Unity's EditMode run compiles the package.
+  - **As built:**
+    - **Files:** `Runtime/World/{IWorldQuery,WorldTypes,ShapeMath,WorldHash,FloorWorld}.cs` (namespace `Fpv450.Sim.World`), `Runtime/Math/Double3.cs`, and `DetMath.Abs/Min/Max`. Each ported file names its source in `refs/godot/main`.
+    - **The calls** (`IWorldQuery`):
+      - `ulong ContentHash`, `int QueryVersion` (= `WorldHash.QueryVersion` = 1)
+      - `void SampleGround(ReadOnlySpan<XZ> points, Span<GroundSample> results)`
+      - `int StaticContacts(in Capsule previous, in Capsule current, double margin, Span<StaticContact> results)`: one call per capsule, the true count returned, canonical order (object, shape), the ground first
+      - `void Raycast(ReadOnlySpan<Ray> rays, double maxDistance, Span<RayHit> hits)`
+      - `bool Geometry(int obj, int shape, out ShapeGeometry geometry)`
+      - `int AddObject(string name, ReadOnlySpan<ShapeGeometry> shapes)`, `void ResetRuntimeObjects()`
+      - `string ObjectName(int)`, `string MaterialName(ushort)`, `ushort MaterialId(string)`, `string SurfaceName(byte)`
+    - **The results** (all doubles, `Double3` vectors):
+      - `GroundSample`: `Height` (−∞ in a hole), `Normal`, `Surface`, `Flags` (`Hole`)
+      - `StaticContact`: `Point`, `Normal`, `Distance`, `Object`, `Shape`, `Material`, `Surface`, `WireParam` (−1 off wires), `Time`
+      - `RayHit`: `Distance` (+∞ on a miss), `Point`, `Normal`, `Object`, `Shape`, `Material`, `Surface`
+      - `ShapeGeometry`: `Kind` (Plane, Box, Sphere, Capsule, Cylinder, Wire), `Center`, `AxisX/Y/Z`, `HalfExtents`, `Radius`, `HalfLength`, `Material`, `Surface`, `SpanA/B`, `Sag`
+      - `WorldIds`: `Ground` = −1 (also a miss's object, with `Surface` 0), `NoMaterial` = 0, `NoSurface` = 0
+    - **Decisions:**
+      - **The Time rule:** every first touch during a step reports `Time` < 1 at the touch (K§7.5's reading). The first attempt reported a same-side entry as `Time` = 1. Touching since the step began gives `Time` = 1, or 0 when it went through.
+      - **The ground is in `StaticContacts`:** as object −1, shape 0, a half-space with its surface, absent over a hole. Feet may skip it and read `SampleGround`.
+      - **`AddObject` takes world-space shapes,** not a catalog id. Each shape has exactly one of a material and a soil surface.
+      - **The frame:** the ported math has no handedness, so it is unchanged. The Z flip is where data enters: rows and yaw (`IWorldQuery.cs`, Frame).
+      - **Ids:** each world holds its material and surface tables. The stub's floor surface is 1, and its materials are 1…n in constructor order.
+    - **Numbers:**
+      - 18 tests pass in `tools/simtests`. Unity's EditMode run compiles the package and passes 124 of 124 tests, the same 18 among them.
+      - `--golden`: 5 cases pass in Release and Debug. 10 000 each of samples, capsules (1 082 in contact, 330 with `Time` < 1) and rays (3 297 on the floor, 361 on the probe shapes). Batched equals one by one.
+      - `--bench` on the stub (AC, Balanced plan, best power efficiency mode): a step's batch (44 + 46 + 8) has a median of 9.70 µs and a p99 of 32.50 µs. 100 000 capsules take 53.75 ms and 100 000 rays 13.18 ms, with 0 B allocated.
 - [ ] 1.2 [physics-engineer] Sign off the interface by reading, with a contact probe (a fake drone over the API: four feet, four arms, a coil, four prop discs) in `tools/flightbench`.
   - **Verify:** the probe passes on the stub, and the sign-off goes into `review-physics.md` in this change, with the PHB-05 lessons checked.
 - [ ] 1.3 [world-builder] The station data (design 3):

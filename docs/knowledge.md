@@ -282,7 +282,7 @@ The verbatim answers are in [pilot-brief-2026-10-17.md](pilot-brief-2026-10-17.m
 
 ## 5. The drone
 
-`[portable]` throughout. The sim has **one** drone, **"Svinoriz 10 Opto"**, of the Vyriy / BOMBUS / OTU / Beshketnyk class: 10-inch, 3-blade props, a fiber spool underneath, and legs or the launch stand.
+`[portable]` throughout. The sim has **one** drone, **"Svinoriz 10 Opto"**, of the Vyriy / BOMBUS / OTU / Beshketnyk class: 10-inch, 3-blade props, a fiber spool underneath, and legs or the launch stand. **Superseded by D-043 and letter T's reading** (`docs/object-sheets/drone.md`, `assets-src/drone/drone.json`): 2-blade props, plate arms, tube legs on skids, the spool on top with the legs on and hung underneath with the legs off, the payload slung crosswise below, two 6S2P packs along the sides.
 
 **Pilot, 2026-10-17:** "just google at typical opto fiber drones in ukraine and how they look (the coil underneath, a couple of batteries, etc, an explosive cargo on top of it, etc.)". So the payload sits **on top** and there are **two battery packs**. The mass layout below (cargo forward and below, one pack) is the first attempt's assumption, and phase 5 must re-derive it from research.
 
@@ -336,7 +336,7 @@ Sources used in the first attempt: dron-shop.com.ua (VYRIY 10), magura.in.ua ("�
   - FM 0.55–0.65 (static, 10" 3-blade) and η 0.80–0.85
   - 40 A as the realistic maximum current
   - loaded pack voltage V = 6·(OCV − I_cell·R_cell), with OCV 3.4–4.1 V per cell, **R_cell ≈ 15 mΩ**, and I_cell 40 A (4P) or 32 A (5P), giving 16.8–21.7 V
-- **Maximum thrust:** a realistic **2.3–3.1 kgf per motor (nominal 2.6)**, or **9.0–12.5 kgf in total**. That is a thrust-to-weight of 1.4–2.8 at take-off, and 2.0 for a typical 5.2 kg.
+- **Maximum thrust:** a realistic **2.3–3.1 kgf per motor (nominal 2.6)**, or **9.0–12.5 kgf in total**. That is a thrust-to-weight of 1.4–2.8 at take-off, and 2.0 for a typical 5.2 kg. **Unity's model (`p6-flight-core` 1.4):** a DC motor on APC 10x4.5MR's published curves with no current limit gives 14.24 kgf at full duty on a full pack (3.56 a motor at about 47 A, above the motor's published 40 A maximum), a thrust-to-weight of 2.95 at 4.83 kg. Task 1.5 set the ESC to limit each motor at its published 40 A (BLHeli_32-style current protection): 11.93 kgf at full duty on a full pack, inside this range.
 - **Fast flight:** axial inflow derates the thrust to 0.80–0.95 (nominal 0.90 at 13 m/s) (assumed).
 - **Margin in the severe-wind clip's flight state:**
   - the need was 1.10 W, which is **33–99 % of what was available (nominal 56 %)**
@@ -583,7 +583,7 @@ Missing and still needed: **asphalt** (rigid, slides on glass crumbs), **concret
 
 ### 7.5 Swept contacts: the Time < 1 rule
 - **Latch:** when a swept contact first touches during a step (`Time` < 1), **don't rewind or sub-step**. Latch the contact plane (point, normal) at the first touch and push back against it, with the part's compliance in series with the material.
-- **Keep or refresh:** a later `Time` = 1 contact with a same-side normal refreshes the plane. A flipped normal keeps the latch. (Probe: the step after a pass-through reported the far-side normal; trusting it would push the part on through.)
+- **Keep or refresh:** a later `Time` = 1 contact with a same-side normal refreshes the plane. A flipped normal keeps the latch. (Probe: the step after a pass-through reported the far-side normal; trusting it would push the part on through.) **Refresh only while the part's core is outside the shape** (Distance > −r): without that guard an arm swept through a 20 mm tube on 32 of 48 runs with no tunnel event (Unity's contact probe, `p6-world-query-gallery` 1.2, `review-physics.md` P1).
 - **Release:** when the plane distance exceeds the margin, or the pair is absent from the result.
 - **Tunnel event:** if the part ends up through the object, log a `tunnel` event. That is **a physics bug, never pilot error.**
 - **Grazes:** a `Time` < 1 contact that the latched plane shows as non-penetrating creates no force and no impact record.
@@ -862,7 +862,7 @@ All of them are allocation-free, reentrant, need no scene, and are callable from
 
 ### 10.5 Typical batch per physics step
 - 44 ground samples: 4 feet, 4 rotors, ≤ 4 body points, ≤ 32 fiber nodes.
-- 46 swept capsules: 4 feet, 4 arms, 4 prop discs, 2 body or coil, ≤ 32 fiber segments.
+- 46 swept capsules: 4 feet, 4 arms, 4 prop discs, 2 body or coil, ≤ 32 fiber segments. In Unity's probe each prop disc is a bounding sphere, with a 12-capsule rim ring cast only once the sphere meets something, and each skid a capsule plus two load-bearing spheres (`p6-world-query-gallery` 1.2).
 - 8 rays: 4 rotors, up and down.
 - Micro-detail at ≤ 40 Hz when the centre has moved more than 0.5 m. Gaps at ≤ 20 Hz.
 

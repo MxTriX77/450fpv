@@ -35,9 +35,16 @@ Branch `unity/techart/p4-feed` off `unity/main`, once `p1-g1-look-lock-gallery` 
 - [ ] 1.5 [game-developer] The OSD content model (design 5):
   - **What:** OSD-03's fields from the sim state, with invented values.
   - **Verify:** the voltage scenario with a stub pack signal, and with `p6-flight-core`'s once it lands.
-- [ ] 1.6 [reference-analyst] The frame-metrics tool (design 7):
+- [x] 1.6 [reference-analyst] The frame-metrics tool (design 7):
   - **What:** one tool for footage and captured feed frames, with the local-jump outlier rule and burst extraction, plus the stable letter index (FEED-12, D-037).
   - **Verify:** it runs on two letters' frames and on a captured feed sequence, writing only to `reference/_compare/`, and the OPSEC scan stays clean.
+  - **As built:** `tools/reference/frame_metrics.py` and `letter_index.py`, on Pillow alone (no new dependency).
+    - **One path:** a clip by its letter (every decoded frame at its own timestamp) or a folder of PNG frames at `--fps`, then the same code from the RGB frame on. A folder of a clip's frames gives the clip's CSV exactly (tested).
+    - **Per frame,** on a grid area-averaged to 270 rows (480 × 270 for 1080p, the first attempt's scan), Y = Rec.601 luma: `luma_mean`; `noise`, the RMS of Y minus its 3 × 3 box mean; `stripe`, the variance of the row means minus their 15-row moving average; `diff`, the mean absolute RGB change from the previous frame; `r_mean`, `g_mean`, `b_mean` over the native frame; `flag`, the local-jump rule on noise, stripe and diff (± 3 neighbours, median + 10 × MAD).
+    - **Exports,** native and lossless: each flagged frame with ± 2 neighbours, and 3 bursts of 8 consecutive frames (start, middle, end). Everything goes to `reference/_compare/metrics/<letter or name>/` only.
+    - **The letter map** (`reference/_frames/letters.md`): rows never change and letters are never reused. A new file takes the next letter after the highest one used, so a skipped letter stays skipped. The tool is a dry run unless given `--write`. It would give T to the one unlettered photo; T was not written, because the T row is still an open question.
+    - **Run** on A, E and 100 fields of the Godot feed (mixed, seed 1, a static gallery view, a 1920 × 1055 window). Medians of noise, stripe and diff: A 10.8, 28.9, 11.0 (2 frames flagged); E 21.4, 108, 10.7 (16 flagged); Godot 11.4, 91.1, 4.0 (0 flagged). `noise` and `stripe` include the scene's detail and its row structure, so they compare only between matching views, not with K§11's grain σ.
+    - **Not built:** the full-resolution N2–N4 detectors that FEED-12 in `requirements.md` names; this task and the change's spec leave them out.
 - [ ] 1.7 [tech-artist] AE/AWB, night and lens drops (design 6, FEED-13):
   - **Verify:** the night scenario, and the AE and AWB τ against K§11.
 - [x] 1.8 [tech-artist] Performance and G4's build (design 8):

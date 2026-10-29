@@ -4,7 +4,7 @@ Branch `unity/physics/p6-flight-core` off `unity/main` (D-042). The sim work is 
 
 ## 1. Build
 
-- [ ] 1.1 [physics-engineer] The core and the interfaces (design 1, 2, 9):
+- [x] 1.1 [physics-engineer] The core and the interfaces (design 1, 2, 9):
   - **What:** the step on its own thread with the scheduler, the state, the double-buffered `PoseFrame`, the named seed streams, and `StickSample`, `FcSettings`, `FeedSignals` and the flat-ground `IWorldQuery` stub in `Runtime/{Flight,Control}/`. A `tools/flightbench` case that steps a free body. The frame stated once (D-019, refined if needed with a note).
   - **Verify:**
     - the "Nothing outside the state enters a step" scenario as a suite test
@@ -12,28 +12,91 @@ Branch `unity/physics/p6-flight-core` off `unity/main` (D-042). The sim work is 
     - the "Adding a stream shifts nothing" scenario
     - `dotnet test tools/simtests`
     - Unity's EditMode run compiles the package
-- [ ] 1.2 [physics-engineer] The log and replay (design 10):
+  - **As built:**
+    - **`StickSample`** (`Fpv450.Sim.Control`): `long HostUs` (`HostClock` µs on arrival), `double Roll, Pitch, Yaw` in −1…1 (+1 = right, forward/nose down, right), `double Throttle` 0…1, `bool Arm`; `Neutral` = centred, throttle 0, disarmed. Written to `StickInbox` (lock-free SPSC ring, 1024, `TryWrite`, `Dropped`). Step k's host time is `StartUs + k·1000 µs`; the sample in force is the latest with `HostUs ≤` it; the recorder gets it every step.
+    - **`FcSettings`** (struct, CLI names in CLI units, `FcSettings.Default`): the sim default column (rates 5.5 / 22.5 / 34 roll and pitch, 8.5 / 26 / 15 yaw, held as doubles since Betaflight keeps ×10 integers; `thr_mid` 50, `thr_expo` 10, deadband 2 / 2, `rc_smoothing_auto_factor` 50, `f_*` 50 / 50 / 0, sag compensation 0); the builder's PIDs, `d_min` 60, `iterm_relax_cutoff` 8, `throttle_boost` 5; Betaflight 4.5 defaults for the rest (`p_yaw` 45, `d_min_gain` 37, `d_min_advance` 20, `iterm_limit` 400, the RC smoothing and feedforward defaults, `dshot_idle_value` 550; 1.4 re-checks them); `airmode` on (assumed).
+    - **`PoseFrame`** (`Fpv450.Sim.Flight`): `Step`, `Position`, `Attitude` (`Quat`), `Velocity`, `BodyRate`, `RotorSpeed`, `Armed`, `LegCompression` (1.6), `FiberPaidOut` (7d). `PoseBuffer` is a wait-free triple buffer of `PosePair` {`Previous`, `Current`, `Signals`, `StartUs`}, published after every step; `PosePair.Interpolate(hostUs, out PoseFrame)` is linear plus nlerp, held at the ends, never extrapolated. Per-corner values (`Corners`) follow Betaflight's Quad X motor order.
+    - **`FeedSignals`**: p4-feed's `IFeedSignals` names and SI units field for field (`MotorElectricalHz`, `MotorCurrentA`, `MotorCurrentTotalA`, `MotorCurrentTotalMaxA`, `MotorCurrentStepAPerS`, `PackVolts`, `CameraAngularVelocity`, `CameraVibration` with X < 50 Hz, Y 50–200 Hz, Z > 200 Hz, `ImpactCount`, `ImpactPeakAccel`, `ImpactImpulse`, `FiberTensionN`, `FiberMinBendRadiusM`, `LinkState` {`Intact`, `Broken`}, `LinkMarginDb`, `AirVelocityAtCamera`), plus `Step` and `Crashed`. `Live` (`FeedSignalSet`) puts each signal at bit 1 << its `FeedSignal` index; only `CameraAngularVelocity` is filled (the body rate), the rest are labelled stubs with the task that fills them. The scene's, app's and setup's rows are not physics fields.
+    - **Precision:** the core is `double` throughout, with no `float` anywhere in `Runtime/{Flight,Control,Math}`; the purity scan now refuses `float` in the step (Mono evaluates float expressions in double, CoreCLR does not). The feed's adapter narrows on the Unity side.
+    - **The world:** `FlightWorld` wraps `Fpv450.Sim.World.IWorldQuery`, merged from `p6-world-query-gallery`'s 1.1 (`afd554b`); the core's tests run on its `FloorWorld`. No second stub or vector type (D-041).
+    - **The step:** `FlightCore.Advance(in StickSample)`, 1 ms, semi-implicit Euler, the quaternion first-order then renormalised; gravity 9.806 65 m/s² (published) is its only force until 1.3. `FlightScheduler` alone reads the clock (`Begin`, `RunDue`, `Start`, `Stop`); a pass with two or more steps due logs one `Hitch` {`Step`, `Steps`, `LateUs`}; the thread sleeps 1 ms with more than 2 ms to go and yields otherwise. `IFlightRecorder` {`RecordStep(state, stick)`, `RecordHitch`} is 1.2's seam.
+    - **Randomness:** key = Mix64(seed + Mix64(FNV-1a 64 of the ASCII name)); draw i = SplitMix64's output at key + (i + 1)·γ; units from the top 53 bits. `FlightRandom.Open` once per name, `Draw` records each per-flight draw with its bound. Pinned values match an independent Python implementation.
+    - **Numbers:** the free body over 10 s: position 5.0e-11 m from the exact discrete solution, quaternion norm within 2.2e-16, attitude 1.0e-5 rad from the exact rotation (the first-order update's (|ω|·dt)³/12 per step); golden `0xAECE29900A37638B` in Debug and Release. Bench on AC: p50 0.20 µs, p99 0.30 µs, 0 B.
+- [x] 1.2 [physics-engineer] The log and replay (design 10):
   - **What:** the header, the 1 kHz records and events, the ring buffer and flush worker, `tools/replay`, the summary reader.
   - **Verify:** both physics-log scenarios on a free-body flight, and the truncation case.
-- [ ] 1.3 [physics-engineer] `drone.json` and the rigid body (design 3):
+  - **As built** (`Runtime/Log/`, `LogFormat.Version` 1; branched after 1.3's merge, so the drone hash is real):
+    - **The file:** `FPV450LG`, the format version and the header's length, then the header, then blocks of a u16 kind and a u16 length. A step record follows every step and the step's events follow it. A hitch comes before the steps it delayed, and the end block comes at the close (a log without one was cut). Everything is little-endian, a double as its bits. A reader skips a header entry or a block kind it does not know.
+    - **The header** (`LogHeader`, 6.1 kB for the bootstrap drone) holds:
+      - the model version (`LogFormat.ModelVersion` 1, raised with every change to a step's result, alongside the golden re-record) and the seed
+      - the build, the runtime and the ISA flags
+      - the world's id, content hash and `QueryVersion`, with its surface and material names
+      - drone.json's hash (`DroneSpec.ContentHash`: WorldHash's rule over the text, CR LF read as LF; 0 for a bench body), its name and the loadout
+      - the mass model's parts and the body they built
+      - every `FcSettings` field by its CLI name, read by reflection, so 1.4's fields are logged with no edit
+      - the opened streams and every `ParameterDraw`, and the start state
+      - the three record layouts, with names and units, so a reader needs none of our code
+    - **The step record, 352 B (356 with its block header): 21.36 MB a minute, 214 MB for 10 min, under LOG-01's 50 MB a minute before compression.** Design 10 assumed about 200 B and 12 MB. The fields, in order:
+      - step; position, velocity, attitude and body rate
+      - rotor speed and ESC command per corner; both packs' charge
+      - the stick in force: host µs, roll, pitch, yaw, throttle
+      - rotor command per corner and both packs' V and A (zero until 1.4)
+      - the net force (world, weight included) and the net moment (body, about the CoM): `StepTrace`, filled by `FlightCore`
+      - flags (armed, stick arm) and 7 reserved bytes
+    - **The events** (72 B, 76 with the block header): the step, then `EventKind`, part, object, shape, material, surface, index (corner, axis or `HitchCause`), point, and A, B and C as the kind gives them.
+      - The kinds are ContactMade, ContactBroken, PropStrike, MixerSaturation, Crash, Tunnel, Hitch and EventsLost. They are appended to, never renumbered.
+      - Producers add to `FlightCore.Events` (`StepEvents`, 64 a step; an overflow is logged as EventsLost). The seam is `IFlightRecorder.RecordStep(state, stick, trace, events)`.
+    - **Writing** (`FlightRecorder`):
+      - a 4 MiB ring (11.8 s) and a flush worker every 2 ms
+      - a full ring makes the flight thread wait in 1 ms sleeps and logs a `LogFull` hitch; nothing is dropped
+      - a failed write ends the log, never the flight
+      - `LogStore` (LOG-05) writes `%LOCALAPPDATA%\450fpv\flights\flight-SEED-N.flightlog` (an extension git ignores); a test checks the header holds no user, machine, path or clock
+    - **Replay** (`FlightReplay`, `tools/replay`):
+      - It refuses, naming both values, another model version, world hash or `QueryVersion`, drone.json hash or `FcSettings` field.
+      - It checks the rebuilt body and the draws, then steps with the logged sticks and compares every record and event byte for byte. Hitches are not compared.
+      - A divergence names its step, its field and both values. A different runtime or ISA is a note, not a refusal (LOG-04).
+      - Exit codes: 0 match, 1 diverged, 3 refused, 4 unreadable, 5 matched a cut log.
+    - **The summary reader** (`FlightSummary.Read(path)`, `.Print`): reads a cut log to its last whole record, and `CutAt` and `CutReason` say where and how it was cut.
+    - **Guards:** the suite fails when `FlightState`, `StickSample`, `StepTrace`, `FlightSetup` or `DronePart` gains a field the log does not cover.
+    - **Numbers:**
+      - The 120 s scripted flight in real time on the flight thread: 120 013 steps, 52 one-step hitches, 0 ring waits, 42.7 MB, replayed bit for bit in 0.84 s. The same log cut mid-record reads and replays to its last whole record.
+      - Bench on AC, two runs: the step with its record at 1 kHz into a file, p50 1.2–1.9 µs and p99 14.9–20.8 µs; the record alone p50 0.6–1.0 µs and p99 4.0–6.5 µs; 0 B on the flight thread; 0 ring waits.
+- [x] 1.3 [physics-engineer] `drone.json` and the rigid body (design 3):
   - **What:** the schema with a validator, the bootstrap file from K§5.2 with every value labelled, the parallel-axis mass build, the quaternion rigid body.
   - **Verify:** the "bootstrap drone matches K§5.2" and "free flight conserves" scenarios.
+  - **As built:**
+    - **The schema** (`DroneSpec`, `"schema": 1`; the file's own `fields` block documents it): every number is `{"value", "label", "note"}`, the label one of pilot / measured / published / derived / assumed, the note optional; unknown members are refused.
+      - `parts[]`: `name` (unique), `kind` box | cylinder, `material` (carbon, aluminium, steel, polymer, li_ion, electronics), `mass_kg` > 0, `position_m` (the centre); a box has `size_m` (extents along body x, y, z), a solid cylinder `diameter_m`, `length_m` and `axis`
+      - `motors[4]` in Betaflight's Quad X order (checked by corner): `position_m` (the prop hub), `spin` cw | ccw (diagonals alike, pairs opposite), `kv_rpm_per_v`, `tau_s`, `esc_tau_s`
+      - `props`: `diameter_m`, `blades`, `pitch_m`, `k_t_n_per_rad2_s2`, `kappa_m`; `packs[2]`: `part`, `series`, `parallel`, `cell_capacity_ah`, `r_cell_ohm`, `ocv_v` (per cell at even states of charge 0…1)
+      - `legs`: `parts` (four, in corner order), `stiffness_n_per_m`, `damping_n_s_per_m`, `foot_radius_m`; `coil`: `part`, `spool_mass_kg`, `fiber_mass_kg`, `fiber_length_m`; `payload`: `part`, `mass_min_kg`, `mass_max_kg`; `stand`: `material`, `post_radius_m`, `post_height_m`, `post_diameter_m`, `mass_kg`
+    - **The validator** (`DroneSpec.Parse`) lists every problem with its place. `DetJson` reads numbers by Clinger's fast path (an exact integer ≤ 2^53 times or over an exact 10^k, |k| ≤ 22: one correctly rounded IEEE operation), so Mono and CoreCLR read the same bits; it refuses anything past that rather than read it approximately. (They do differ: Unity's Mono parses "-0" as +0, CoreCLR as −0.)
+    - **The bootstrap** (`assets-src/drone/drone.json`, `"bootstrap": true`): wind.md §5.5's nominal loadout in D-019's body axes, the 1.95 kg pack split into the two side-by-side packs PHB-03 asks for (the same inertia). It builds 4.808 kg, the CoM 0.79 cm below the arm plane and 2.08 cm forward, roll / pitch / yaw 0.0443 / 0.0543 / 0.0501 kg·m², yaw/roll 1.13. With a full coil the CoM is 1.50 cm below and 1.92 cm forward, and the coil 8.50 cm below it (K§5.2: 1–2, 1–3, 8–9). The payload forward and below gives I_yz = 0.0072 kg·m²: the roll and yaw principal axes sit 34° off the body axes, and a roll moment also yaws the body at −0.144 of its roll rate. The packs' cells (2 × 6S2P) weigh 1.74 kg against the part's 1.95 kg; the note says so, and p5-drone sets both.
+    - **The mass build** (`MassModel`): the parallel-axis sum in part order. `SetPartMass` rebuilds without allocating (flightbench's `mass-rebuild`: 18 parts, p50 2.8 µs, 0 B). `DroneSpec.BuildMass(Loadout {Payload, Legs, CoilPaidOut})` sets the payload, the coil (`CoilMass(paidOut)`) and the legs (0 kg when off).
+    - **The rigid body** (`RigidBody.Step`, `FlightSetup.Mass`): the state stays the body origin's, so a mass change moves the CoM and not the motion. The CoM's velocity and position step by semi-implicit Euler. The angular momentum about the CoM, h = I·ω, is kicked by the moment and turns the attitude at ω* = I⁻¹·h; then it is carried into the new body axes, h' = q'⁻¹·(q·h). That is Euler's equation with the gyroscopic term ω × I·ω, and it keeps |h| exact. `FlightCore` has the net force and moment slots that 1.4–1.6 fill.
+    - **Numbers:** 60 s at 2 rad/s about each principal axis: angular momentum within 2.2e-11, the norm within 3.3e-16, the CoM at rest. A tumble off the principal axes stays within 1.4e-11, while a model without the coupling is off by 8.6 %. The CoM falls on the exact discrete parabola within 5.0e-11 m over 10 s.
+    - **The free-body golden** is re-pinned at `0x50ED4B05A5D02F20`: the body is a uniform 0.25 m cube of 4.8 kg, so the constant rate stays exact. The audit against 1.1's step: position and velocity bit-identical at every one of the 10 000 steps, attitude within 4.5e-12 rad, body rate within 1.0e-12 rad/s.
 - [ ] 1.4 [physics-engineer] The flight controller and propulsion (design 4, 5):
   - **What:** the Betaflight 4.5 model at 4 kHz (from its published formulas, its scaling constants checked against the source), the X mixer, the ESC and motor lags, thrust and torque, the inflow derate, battery sag on two packs.
+  - **From `p5-drone` 1.2** (its as-built note): derive the maximum thrust from n_max, not design 5's 2.6 kgf (the bench's loaded rpm per volt of duty is 0.80 Kv at 50 % and 0.66 Kv at 100 %: about 3.2 kgf and 44 A a motor at full throttle with sag, estimated); C_T rises from 0.108 to 0.111 between 8000 and 14 000 rpm, which a constant k_T leaves out; κ = 0.0144 m (APC 10x4.5MR) is below design 5's 0.015–0.02, so re-check the yaw saturation scenario; re-derive τ_m for the 16 g 2-blade prop (50 ms is assumed); the pack is 6S4P at 18 mΩ; hover trim carries the front motors 3.7 % over the rear at L4.
   - **Verify:**
     - every propulsion scenario (ACTUAL rates within 0.1 °/s, the builder PIDs' step response, yaw saturation past about 0.72 collective, hover margin and liftoff at 50–65 %, the 25 m/s inflow, sag)
     - the defaults read from `fc-profiles.md` per D-023
 - [ ] 1.5 [physics-engineer] Aero basics and the stand-in wind (design 6, 8):
   - **What:** body drag with along and across areas, the rotor H-force, coil drag at the coil as `drone.json` places it, the stand-in mean and turbulence per level, labelled.
+  - **From `p5-drone` 1.2:** the sheet's drag areas (frontal 0.06, side 0.056, top 0.07 m², ±30 %) are not in `drone.json`'s schema yet; add them. The coil sits 0.086–0.141 m above the CoM legs on and 0.025–0.079 m below it legs off.
   - **Verify:** the crosswind-lean scenario with a simple closed-loop pilot in `tools/flightbench`, and both wind-field scenarios.
 - [ ] 1.6 [physics-engineer] Contacts (design 7), after `p6-world-query-gallery` 1.1:
   - **What:** legs on `SampleGround`, the four-post stand, swept shapes on `StaticContacts` with the Time < 1 latch, prop strikes, crash and tunnel events.
+  - **From `p5-drone` 1.2:** the feet are skids: each leg's lower end meets the ground at y −0.253 m with a 0.005 m radius, and the skids overhang 0.126 m past each leg, which a four-point foot misses on a pitched landing; the tubes bend sideways at about 6.6 kN/m; the carbon arms, legs and skids need a contact material (the sheet's `carbon_composite`); the stand's posts sit at r 0.200 m.
+  - **From QA's `review-base.md`:** finding 4 (a log cut between a step and its events replays as Diverged, not MatchCut, `FlightReplay.cs:157`) and finding 5 (runtime objects such as the stand need a log header entry, `LogHeader.cs:81`) land here, when the first events and the stand do.
   - **Verify:**
     - the ground-contact scenarios on the stub, and on the test range (D-044) once `p6-world-query-gallery` lands its queries: the bounce with throttle held and cut, liftoff from the stand, into L01 at 10 m/s, into the posadka
     - the replay scenario on a 120 s flight with contacts and a landing
 - [ ] 1.7 [physics-engineer] The budget and determinism (PLT-04):
   - **What:** `tools/flightbench --bench` on AC with the power mode printed: p50 and p99 step times, steady-state allocations, the world-query share.
   - **Verify:** p99 ≤ 300 µs and 0 allocations; a worker forced early or late changes only the logged hitches; the golden run identical in .NET and in the Unity editor (LOG-04's first half).
+  - **From QA's `review-base.md`:** finding 2 (a torque-free tumble gains kinetic energy, +0.14 % per second at 1 ms, first order: `RigidBody.cs:35` turns the attitude at the step's starting rate; bound it or take a midpoint rate) and finding 3 (only one test guards the gyroscopic term; add a golden on the L4 drone body tumbling).
 
 ## 2. Review
 
