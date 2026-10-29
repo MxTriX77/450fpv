@@ -122,6 +122,25 @@ namespace Fpv450.FlightBench
                 Row($"{level} known-wrong: a flat 0.2 m/s σ", WindTargets.Intensity(flat, out d, out _), d, knownWrong: true);
                 Row($"{level} known-wrong: a mean 5 % strong", WindTargets.MeanInBand(biased, WindPreset.Of(level), out d), d, knownWrong: true);
             }
+            Console.WriteLine("motor asymmetry (airframe-effects, p7b-airframe 1.1): a hands-off hover in still air, "
+                + $"{AsymmetryScenario.Seconds:F0} s on seeds 1-5, asymmetry on and off:");
+            AsymmetryScenario.Run run = AsymmetryScenario.Flown(spec);
+            AsymmetryScenario.Band band = run.Band;
+            Console.WriteLine($"  the band from the tolerances ({AsymmetryScenario.BandDraws} seeds' draws, {AsymmetryScenario.BandQuantile * 100:F1}–"
+                + $"{100 - AsymmetryScenario.BandQuantile * 100:F1} %): roll {band.RollRateLo:E2}–{band.RollRateHi:E2} °/s, yaw {band.YawRateLo:E2}–"
+                + $"{band.YawRateHi:E2} °/s, vibration {band.VibrationLo:E2}–{band.VibrationHi:E2} rad/s per step");
+            for (int i = 0; i < AsymmetryScenario.Seeds.Length; i++)
+            {
+                AsymmetryScenario.Result on = run.On[i], off = run.Off[i];
+                AsymmetryScenario.Prediction p = run.Predicted[i];
+                bool pass = AsymmetryScenario.InBand(on, band) && AsymmetryScenario.AsPredicted(on, p) && AsymmetryScenario.Steady(on, p)
+                    && AsymmetryScenario.NeverStill(on, band) && !AsymmetryScenario.NeverStill(off, band)
+                    && off.RollRate <= 0.5 * on.RollRate && off.YawRate <= 0.5 * on.YawRate && off.SideDrift <= 0.5 * on.SideDrift;
+                Row($"seed {AsymmetryScenario.Seeds[i]}", pass, AsymmetryScenario.Describe(on, off, p));
+            }
+            bool identical = true;
+            foreach (AsymmetryScenario.Result off in run.Off) identical &= AsymmetryScenario.InBand(off, band);
+            Row("known-wrong: identical rotors", identical, $"roll {run.Off[0].RollRate:E1} and yaw {run.Off[0].YawRate:E1} °/s on every seed", knownWrong: true);
             Console.WriteLine($"scenarios: {(_ok ? "PASS" : "FAIL")}");
             return _ok;
         }
