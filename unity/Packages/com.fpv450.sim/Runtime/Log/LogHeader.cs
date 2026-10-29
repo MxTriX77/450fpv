@@ -78,8 +78,9 @@ namespace Fpv450.Sim.Log
     /// - the drone: drone.json's hash (0 for a body not read from it), its name and the pilot's loadout
     /// - the body the flight started with: the mass model's parts and the mass, CoM and inertia they built
     /// - the propulsion: the motors, the props with their curves, the packs (none for a bench's free body)
-    /// - the airframe's drag (none for a bench's body), and the wind: its model ("stand-in", PHB-06), its level and
-    ///   the level's preset by name (its per-flight draws are the randomness's)
+    /// - the airframe's drag (none for a bench's body), and the wind: its model ("field", p7c-wind 1.4), its level,
+    ///   its start second and the level's preset by name (its per-flight draws are the randomness's), with the
+    ///   synthetic belt and the gust front when the flight has them
     /// - the flight controller's settings, every field by its CLI name
     /// - the contacts (1.6): drone.json's contact shapes at the loadout with their thresholds, the legs' spring, and the
     ///   physics materials' rows with physics_materials.json's hash (none for a flight without contacts)
@@ -127,8 +128,9 @@ namespace Fpv450.Sim.Log
             "StaticTorqueRatio", "InflowAdvanceRatio", "InflowThrustRatio", "InflowTorqueRatio", "HForce",
         };
         public static readonly string[] AeroFieldsLogged = { "AirDensity", "BodyArea", "BodyCenterOfPressure", "DragCoefficient", "CoilPart" };
-        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg", "Belt" };
+        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg", "StartSecond", "Belt", "Front" };
         public static readonly string[] BeltFieldsLogged = { "Edge", "Across", "Height", "Deficit", "Boost", "EddyMin", "EddyMax", "Modes", "Ramp" };
+        public static readonly string[] FrontFieldsLogged = { "Start", "Normal", "Delta", "Speed", "Width", "Uniform" };
         public static readonly string[] PackFieldsLogged = { "Part", "Series", "Parallel", "CellCapacity", "CellResistance", "Ocv" };
 
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
@@ -254,9 +256,17 @@ namespace Fpv450.Sim.Log
             return new[]
             {
                 new NamedValue("mean_lo_m_s", p.MeanLo), new NamedValue("mean_hi_m_s", p.MeanHi),
-                new NamedValue("intensity_sigma_over_u", WindPreset.Intensity), new NamedValue("vertical_over_horizontal_sigma", WindPreset.VerticalRatio),
-                new NamedValue("horizontal_scale_m", WindPreset.HorizontalScale), new NamedValue("vertical_scale_m", WindPreset.VerticalScale),
-                new NamedValue("gust_bound_sigma", WindPreset.GustBound),
+                new NamedValue("reference_height_m", p.ReferenceHeight), new NamedValue("cover_height_m", p.CoverHeight),
+                new NamedValue("roughness_over_cover", p.RoughnessRatio), new NamedValue("displacement_over_cover", p.DisplacementRatio),
+                new NamedValue("profile_top_m", p.ProfileTop), new NamedValue("taper_height_m", p.TaperHeight),
+                new NamedValue("intensity_sigma_over_u", p.Intensity), new NamedValue("vertical_over_horizontal_sigma", p.VerticalRatio),
+                new NamedValue("horizontal_scale_m", p.HorizontalScale), new NamedValue("vertical_scale_m", p.VerticalScale),
+                new NamedValue("modes", p.Modes), new NamedValue("shortest_wavelength_m", p.ShortestWavelength),
+                new NamedValue("longest_over_knee", p.LongestFraction),
+                new NamedValue("meander_sigma_deg", p.MeanderSigmaDeg), new NamedValue("meander_tau_s", p.MeanderTau),
+                new NamedValue("meander_lag_s", p.MeanderLag), new NamedValue("shift_rate_per_s", p.ShiftRate),
+                new NamedValue("shift_lo_deg", p.ShiftLoDeg), new NamedValue("shift_hi_deg", p.ShiftHiDeg),
+                new NamedValue("ramp_lo_s", p.RampLo), new NamedValue("ramp_hi_s", p.RampHi), new NamedValue("horizon_s", p.Horizon),
             };
         }
 
@@ -498,23 +508,34 @@ namespace Fpv450.Sim.Log
                 e.Write((byte)Wind.Level);
                 e.Write(Wind.SteadySpeed);
                 e.Write(Wind.SteadyFromDeg);
+                e.Write(Wind.StartSecond);
                 e.Write((ushort)WindParameters.Length);
                 foreach (NamedValue v in WindParameters)
                 {
                     Text(e, v.Name);
                     e.Write(v.Value);
                 }
-                // The synthetic belt (p7c-wind 1.2) after the rest, only when the flight has one: every other flight's
-                // entry is byte for byte what it was.
+                // The synthetic belt (p7c-wind 1.2) and the gust front (1.4), each after a flag.
                 SyntheticBelt b = Wind.Belt;
-                if (b == null) return;
-                e.Write(true);
-                V3(e, b.Edge);
-                V3(e, b.Across);
-                foreach (double v in new[] { b.Height, b.Deficit, b.Boost, b.EddyMin, b.EddyMax })
-                    e.Write(v);
-                e.Write(b.Modes);
-                e.Write(b.Ramp);
+                e.Write(b != null);
+                if (b != null)
+                {
+                    V3(e, b.Edge);
+                    V3(e, b.Across);
+                    foreach (double v in new[] { b.Height, b.Deficit, b.Boost, b.EddyMin, b.EddyMax })
+                        e.Write(v);
+                    e.Write(b.Modes);
+                    e.Write(b.Ramp);
+                }
+                GustFront g = Wind.Front;
+                e.Write(g != null);
+                if (g == null) return;
+                V3(e, g.Start);
+                V3(e, g.Normal);
+                V3(e, g.Delta);
+                e.Write(g.Speed);
+                e.Write(g.Width);
+                e.Write(g.Uniform);
             });
             Entry(w, TagContacts, e =>
             {
@@ -747,14 +768,22 @@ namespace Fpv450.Sim.Log
                         break;
                     case TagWind:
                         WindModel = Text(r);
-                        Wind = new WindSetup { Level = (WindLevel)r.ReadByte(), SteadySpeed = r.ReadDouble(), SteadyFromDeg = r.ReadDouble() };
+                        Wind = new WindSetup
+                        {
+                            Level = (WindLevel)r.ReadByte(), SteadySpeed = r.ReadDouble(), SteadyFromDeg = r.ReadDouble(), StartSecond = r.ReadInt32(),
+                        };
                         WindParameters = new NamedValue[r.ReadUInt16()];
                         for (int i = 0; i < WindParameters.Length; i++) WindParameters[i] = new NamedValue(Text(r), r.ReadDouble());
-                        if (r.BaseStream.Position < end && r.ReadBoolean())
+                        if (r.ReadBoolean())
                             Wind.Belt = new SyntheticBelt
                             {
                                 Edge = V3(r), Across = V3(r), Height = r.ReadDouble(), Deficit = r.ReadDouble(), Boost = r.ReadDouble(),
                                 EddyMin = r.ReadDouble(), EddyMax = r.ReadDouble(), Modes = r.ReadInt32(), Ramp = r.ReadDouble(),
+                            };
+                        if (r.ReadBoolean())
+                            Wind.Front = new GustFront
+                            {
+                                Start = V3(r), Normal = V3(r), Delta = V3(r), Speed = r.ReadDouble(), Width = r.ReadDouble(), Uniform = r.ReadBoolean(),
                             };
                         break;
                     case TagContacts:

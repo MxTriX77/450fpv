@@ -67,8 +67,10 @@ namespace Fpv450.Sim.Tests
                     Assert.That(r.MeanRollDeg, Is.LessThan(0), "into the wind from the left");
                     Assert.That(r.MeanPitchDeg, Is.EqualTo(HarnessPilot.ClipPPitchDeg).Within(2), "θ_ref ± 2°");
                     Assert.That(r.Samples.Length, Is.EqualTo(1017), "34 s at 29.917 Hz");
-                    Assert.That(beltSeconds, Is.InRange(6, 8), "about 7 s from the belt's edge to 10 H");
-                    Assert.That(Math.Abs(r.MeanSpeed - Math.Abs(r.MeanCrosswind)), Is.LessThan(belt ? 1.5 : 0.5), "the wind abeam");
+                    // The belt's 90 m at the run's ground speed along the course: 13 m/s through the air plus the wind's
+                    // component along it, which the meander and the shifts move within the start rule's 90°.
+                    Assert.That(beltSeconds, Is.InRange(4, 12), "90 m at 13 m/s through the air, give or take the wind along the course");
+                    Assert.That(r.MeanCrosswind, Is.GreaterThan(0.25 * r.MeanSpeed), "the wind from the left");
                 }
             }
             WindHarness.Run wrong = WindHarness.Fly(spec, WindLevel.Severe, 1, 0, 5, nominal, belt: false, drag: false);
@@ -122,11 +124,17 @@ namespace Fpv450.Sim.Tests
             Assert.That(WindHarness.StartSecond(steady, 70, 39), Is.EqualTo(-1), "never within 90° of 70°");
             Assert.That(WindHarness.StartSecond(swung, 10, 39), Is.EqualTo(20), "only the swing's 40 s are within 90° of 10°");
             Assert.That(WindHarness.StartSecond(new[] { 359.0, 1, 2, 358 }, 0.5, 3), Is.EqualTo(0), "across north");
-            // The stand-in's history never moves (it fails T0c, as it must until p7c-wind 1.4): its start is 0.
+            // The field's history moves (p7c-wind 1.4): the start is the first second the rule allows, and the flight
+            // started there meets the history's direction from that second on.
             double[] h = WindHarness.History(WindLevel.Severe, 9, 120, out double drawn);
             Assert.That(h.Length, Is.EqualTo(7201));
-            Assert.That(Array.TrueForAll(h, d => d == drawn), Is.True);
-            Assert.That(WindHarness.StartSecond(h, drawn, WindHarness.Seconds), Is.EqualTo(0));
+            Assert.That(Array.TrueForAll(h, d => d == drawn), Is.False, "the direction moves");
+            int start = WindHarness.StartSecond(h, drawn, WindHarness.Seconds);
+            Assert.That(start, Is.GreaterThanOrEqualTo(0));
+            for (int s = start; s <= start + 39; s++)
+                Assert.That(Math.Abs(((h[s] - drawn) % 360 + 540) % 360 - 180), Is.LessThan(90), "second " + s);
+            var late = new WindField(new WindSetup { Level = WindLevel.Severe, StartSecond = start }, new FlightRandom(9));
+            Assert.That(late.FromDegAt(0), Is.EqualTo(h[start]));
         }
     }
 }

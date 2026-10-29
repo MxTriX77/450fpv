@@ -9,7 +9,7 @@ namespace Fpv450.Sim.Tests
 {
     /// <summary>
     /// The golden flights. The powered one (p6-flight-core 1.4, 1.5, 1.4b): the repository's drone at its nominal loadout
-    /// with its drag and its contacts, in the Windy stand-in wind, armed by Betaflight's rules and flown 10 s by a scripted
+    /// with its drag and its contacts, in the Windy wind (the field, p7c-wind 1.4), armed by Betaflight's rules and flown 10 s by a scripted
     /// pilot through every part of the controller with the builder's filter chain, propulsion and the air (a spin-up, a
     /// climb, roll, pitch and yaw steps, a throttle punch into the ESCs' current limit and a chop, a weave), 300 m up, so
     /// it touches nothing. The contact one (1.6): the drone takes off from the floor under the closed-loop pilot, comes
@@ -53,8 +53,20 @@ namespace Fpv450.Sim.Tests
         // - against 1.6: with every filter off and the PID reading the gyro at the loop (1.4b's temporary edit, made again
         //   and reverted), hashed over 1.6's 1112-byte layout with its events, the flight is 1.6's 0x798AFECB92E12DB7 bit
         //   for bit. With the chain on, it moves as 1.4b's did, from step 21.
-        public const ulong PoweredHash = 0x734B61C0C15797BCUL;
-        public const ulong PoweredFiltersHash = 0x3695FC49DCA906DCUL;
+        // p7c-wind 1.4: re-recorded with ModelVersion 6 (the 1392-byte record: model 5's 1296 bytes, the stand-in's gust
+        // slot now the wind at the body's origin, then the four hubs' winds) in the Windy field, audited case by case
+        // against model 5 (35c6432) by flying both models in still air and in a steady 5 m/s from 270° and hashing model
+        // 5's 1296 bytes (for steady air less the 24-byte wind slot, which model 5 left 0): every record and event of
+        // all 10 000 steps is bit-identical (StillAirPoweredHash below; steady 0x00D35F9AE93901C0 on both). In the Windy
+        // field the flight moves from step 1, the wind's first: the field's draws are new (the direction, the strength,
+        // the meander, the shifts, the modes), so the stand-in's air is gone; it ends 203.1 m up against 199.4 and
+        // 16.6 m from model 5's end.
+        public const ulong PoweredHash = 0xBC85ED28D55D2986UL;
+
+        // The powered golden in still air over model 5's 1296-byte layout: model 5's flight, bit for bit (the audit).
+        // Model 5 in turn held 1.4b's 0x3695FC49DCA906DC over 1.4b's layout in the stand-in's Windy air; that flight
+        // cannot be flown on model 6, whose Windy air is the field's.
+        public const ulong StillAirPoweredHash = 0x47789216C52FBF65UL;
 
         // 1.6: first recorded with ModelVersion 4 as 0x8B568804552379E6.
         // 1.6 and 1.4b merged: re-recorded with ModelVersion 5. Audited against 1.6: with every filter off and the PID
@@ -64,7 +76,17 @@ namespace Fpv450.Sim.Tests
         // the same step (7219) and the skids down at the same step (7412), off the ground 1 ms later, 140.1 mm up in the
         // held bounce against 142.3, the last hop after the cut ending 8 ms later (step 9313 against 9305), 5 impacts,
         // the same height at rest. It has no audit against 1.4b, whose core has no contacts: the flight starts on the floor.
-        public const ulong ContactHash = 0xF1D0832353311083UL;
+        // p7c-wind 1.4: re-recorded with ModelVersion 6 in the Calm field. Audited as the powered one: in still air
+        // (StillAirContactHash) and in the steady 5 m/s (0x7F53C9713DCE5641) both models fly every record and event of
+        // the 12 000 steps bit for bit over model 5's bytes. In Calm the flight moves from its first step (the field's
+        // draws are new) and keeps its course: 5 impacts as model 5's, at rest 0.2519 m up on its 8 touching pairs.
+        public const ulong ContactHash = 0x3D6092D3121E468AUL;
+
+        /// <summary>The contact golden in still air over model 5's 1296-byte layout: model 5's flight, bit for bit.</summary>
+        public const ulong StillAirContactHash = 0x7C3C81C9E2B04309UL;
+
+        /// <summary>Model 5's record length: the record less p7c-wind 1.4's four hub winds.</summary>
+        public const int Model5Bytes = 1296;
 
         public static FlightSetup PoweredSetup(DroneSpec spec)
         {
@@ -109,9 +131,11 @@ namespace Fpv450.Sim.Tests
         /// <summary>Flies the powered golden flight; returns its hash, with the core's last state for a report. With
         /// skipAt and skipBytes the hash leaves out each record's bytes from skipAt on, skipBytes of them (a parent model's
         /// layout, for an audit).</summary>
-        public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0)
+        public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, WindSetup? wind = null)
         {
-            core = new FlightCore(PoweredSetup(spec));
+            FlightSetup setup = PoweredSetup(spec);
+            if (wind != null) setup.Wind = wind.Value;
+            core = new FlightCore(setup);
             var record = new byte[LogFormat.StepSize];
             var e = new byte[LogFormat.EventSize];
             ulong hash = 0xCBF29CE484222325UL;
@@ -136,13 +160,13 @@ namespace Fpv450.Sim.Tests
         /// at 0.5 m/s; with the skids 0.1 m up the sticks are held (roll, pitch and yaw centred) and the drone bounces; 1.5 s
         /// later the throttle is cut and it comes to rest. Returns its hash, with the core for a report.
         /// </summary>
-        public static ulong FlyContact(DroneSpec spec, out FlightCore core)
+        public static ulong FlyContact(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, WindSetup? wind = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
             double stand = ContactScenarios.Standing(contacts);
             FlightSetup setup = ContactScenarios.Setup(spec, materials, mh, true, new Double3(0, stand, 0));
-            setup.Wind = WindSetup.Of(WindLevel.Calm);
+            setup.Wind = wind ?? WindSetup.Of(WindLevel.Calm);
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, new Double3(0, stand + 1, 0));
             var record = new byte[LogFormat.StepSize];
@@ -174,7 +198,8 @@ namespace Fpv450.Sim.Tests
                 }
                 core.Advance(stick);
                 LogFormat.EncodeStep(record, core.State, stick, core.Trace);
-                hash = Fnv(hash, record, 0, record.Length);
+                hash = Fnv(hash, record, 0, skipAt);
+                hash = Fnv(hash, record, skipAt + skipBytes, record.Length);
                 for (int i = 0; i < core.Events.Count; i++)
                 {
                     LogFormat.EncodeEvent(e, core.State.Step, core.Events[i]);

@@ -1,5 +1,6 @@
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Log;
+using Fpv450.Sim.Wind;
 using NUnit.Framework;
 
 namespace Fpv450.Sim.Tests
@@ -21,16 +22,20 @@ namespace Fpv450.Sim.Tests
             Assert.That(hash, Is.EqualTo(GoldenFlights.PoweredHash), "the pinned golden (a re-record is audited and raises the model version)");
         }
 
-        // 1.6's audit, kept across the merge with 1.4b: the contacts change nothing for a flight that touches nothing. Over
-        // 1.4b's 1176-byte layout (the record without 1.6's 120 contact bytes) the powered flight with its contacts is 1.4b's
-        // pinned flight, bit for bit.
+        // p7c-wind 1.4's audit: the field changes nothing but the wind. In still air both golden flights over model 5's
+        // 1296-byte layout (the record less the hubs' winds) are model 5's, bit for bit; the powered one touches nothing.
         [Test]
-        public void ThePoweredFlightTouchesNothingAndStaysTheFilterModels()
+        public void InStillAirTheGoldenFlightsAreModel5s()
         {
-            ulong hash = GoldenFlights.FlyPowered(RepositoryDrone.Spec(), out FlightCore core, ContactBytesAt, ContactBytes);
+            DroneSpec spec = RepositoryDrone.Spec();
+            WindSetup still = WindSetup.Of(WindLevel.Still);
+            int skip = LogFormat.StepSize - GoldenFlights.Model5Bytes;
+            ulong powered = GoldenFlights.FlyPowered(spec, out FlightCore core, GoldenFlights.Model5Bytes, skip, still);
             Assert.That(core.Contacts, Is.Not.Null, "the flight carries its contacts");
             Assert.That(core.Contacts.ImpactCount, Is.EqualTo(0));
-            Assert.That(hash, Is.EqualTo(GoldenFlights.PoweredFiltersHash), "1.4b's records and events, every bit");
+            Assert.That(powered, Is.EqualTo(GoldenFlights.StillAirPoweredHash), "model 5's records and events, every bit");
+            ulong contact = GoldenFlights.FlyContact(spec, out _, GoldenFlights.Model5Bytes, skip, still);
+            Assert.That(contact, Is.EqualTo(GoldenFlights.StillAirContactHash), "model 5's records and events, every bit");
         }
 
         [Test]
@@ -49,8 +54,9 @@ namespace Fpv450.Sim.Tests
         }
 
         // Model 3's 992 bytes, then 1.6's contacts, then 1.4b's filter block: each parent's layout is the record less the
-        // other's block.
-        const int ContactBytesAt = 992, ContactBytes = 120, FilterBytesAt = ContactBytesAt + ContactBytes;
+        // other's block. Then p7c-wind 1.4's rotor winds (model 6), to the record's end: model 5's layout is the record's
+        // first 1296 bytes.
+        const int ContactBytesAt = 992, ContactBytes = 120, FilterBytesAt = ContactBytesAt + ContactBytes, RotorWindBytesAt = 1296;
 
         [Test]
         public void TheRecordKeepsEachParentsBytesInPlace()
@@ -59,7 +65,10 @@ namespace Fpv450.Sim.Tests
                 "1.6 appends its fields after model 3's 992 bytes");
             Assert.That(LogFormat.FieldAt(LogFormat.StepFields, FilterBytesAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "fc.gyro_filtered.roll")),
                 "1.4b's filter block follows the contacts' 120 bytes");
-            Assert.That(LogFormat.StepSize - FilterBytesAt, Is.EqualTo(1176 - 992), "1.4b's whole block, to the record's end");
+            Assert.That(RotorWindBytesAt - FilterBytesAt, Is.EqualTo(1176 - 992), "1.4b's whole block");
+            Assert.That(LogFormat.FieldAt(LogFormat.StepFields, RotorWindBytesAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "rotor_wind.rear_right.x")),
+                "p7c-wind 1.4's rotor winds follow it");
+            Assert.That(LogFormat.StepSize - RotorWindBytesAt, Is.EqualTo(96), "four vectors, to the record's end");
         }
     }
 }

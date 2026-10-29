@@ -42,6 +42,13 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The touching (shape, object, shape) pairs whose force the step took, the legs' points among them.</summary>
         public int ContactsTouching;
+
+        /// <summary>The wind field's velocity at the body's origin during the step, world, m/s (p7c-wind 1.4).</summary>
+        public Double3 Wind;
+
+        /// <summary>The wind at each rotor's hub during the step, world, m/s (the rotors' inflow and in-plane drag take
+        /// it); zero for a body without propulsion.</summary>
+        public Corners3 RotorWind;
     }
 
     /// <summary>

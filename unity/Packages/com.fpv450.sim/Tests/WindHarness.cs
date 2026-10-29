@@ -133,15 +133,15 @@ namespace Fpv450.Sim.Tests
         }
 
         /// <summary>
-        /// The prevailing direction a seed's wind blows from at time t, degrees: the preset's own wind state before
-        /// turbulence and wakes (K§8.5's T0c history). The stand-in's is its draw, fixed; p7c-wind 1.4's field moves it.
+        /// The direction a seed's wind blows from at second t of its history, degrees: the preset's own wind state before
+        /// turbulence and wakes (K§8.5's T0c history), 1.4's field's meander and shifts about its drawn direction.
         /// </summary>
-        public static double PrevailingFromDeg(StandInWind wind, double t) => wind.FromDeg;
+        public static double PrevailingFromDeg(WindField wind, int t) => wind.FromDegAt(t);
 
         /// <summary>A seed's prevailing-direction history at 1 Hz, `minutes` long.</summary>
         public static double[] History(WindLevel level, ulong seed, double minutes, out double drawnDeg)
         {
-            var wind = new StandInWind(WindSetup.Of(level), new FlightRandom(seed));
+            var wind = new WindField(WindSetup.Of(level), new FlightRandom(seed));
             drawnDeg = wind.FromDeg;
             var h = new double[(int)(minutes * 60) + 1];
             for (int i = 0; i < h.Length; i++) h[i] = PrevailingFromDeg(wind, i);
@@ -150,14 +150,15 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>The test flight's setup for a seed at a height: its course from the seed's drawn wind, and the belt.</summary>
         public static FlightSetup Setup(DroneSpec spec, WindLevel level, ulong seed, double height, bool belt, bool drag,
-            out double courseDeg, out double fromDeg)
+            out double courseDeg, out double fromDeg, int startSecond = 0)
         {
-            fromDeg = new StandInWind(WindSetup.Of(level), new FlightRandom(seed)).FromDeg;
+            fromDeg = new WindField(WindSetup.Of(level), new FlightRandom(seed)).FromDeg;
             courseDeg = (fromDeg + 90) % 360; // the wind abeam from the left
             double course = courseDeg * DegToRad;
             DetMath.SinCos(course, out double sin, out double cos);
             var along = new Double3(sin, 0, cos);
             WindSetup wind = WindSetup.Of(level);
+            wind.StartSecond = startSecond;
             if (belt)
                 wind.Belt = new SyntheticBelt
                 {
@@ -179,11 +180,11 @@ namespace Fpv450.Sim.Tests
         public static Run Fly(DroneSpec spec, WindLevel level, ulong seed, int i, int n, Pilot pilot, bool belt = true, bool drag = true)
         {
             double height = HeightOf(i, n);
-            FlightSetup setup = Setup(spec, level, seed, height, belt, drag, out double courseDeg, out double fromDeg);
-            double[] history = History(level, seed, Seconds / 60, out double drawn);
+            double[] history = History(level, seed, 120, out double drawn);
             int start = StartSecond(history, drawn, Seconds);
-            if (start != 0)
-                throw new System.InvalidOperationException("the stand-in's field cannot start a run late (p7c-wind 1.4's field takes the start)");
+            if (start < 0)
+                throw new System.InvalidOperationException("seed " + seed + "'s 120 min hold no " + Seconds + " s within 90° of its drawn direction");
+            FlightSetup setup = Setup(spec, level, seed, height, belt, drag, out double courseDeg, out double fromDeg, start);
 
             var core = new FlightCore(setup);
             CrosswindScenario.Arm(core);
@@ -217,7 +218,7 @@ namespace Fpv450.Sim.Tests
                     double time = frame / HarnessPilot.CameraHz;
                     if (time >= DiscardSeconds)
                     {
-                        Double3 wind = core.Wind.At(s.Gust, s.Position), air = s.Velocity - wind;
+                        Double3 wind = core.Wind.At(s.Position), air = s.Velocity - wind;
                         double x = Double3.Dot(s.Position - setup.StartPosition, along);
                         samples.Add(new Sample
                         {
@@ -286,7 +287,7 @@ namespace Fpv450.Sim.Tests
         {
             var b = new StringBuilder("time_s,wind_from_deg,prevailing_from_deg\n");
             for (int i = 0; i < fromDeg.Length; i++)
-                b.Append(i.ToString(CultureInfo.InvariantCulture)).Append(',').Append(F(fromDeg[i], "0.000")).Append(',')
+                b.Append(i.ToString(CultureInfo.InvariantCulture)).Append(',').Append(F((fromDeg[i] % 360 + 360) % 360, "0.000")).Append(',')
                     .Append(F(drawnDeg, "0.000")).Append('\n');
             return b.ToString();
         }

@@ -8,10 +8,10 @@ using Fpv450.Sim.Wind;
 
 namespace Fpv450.FlightBench
 {
-    // The aero and wind scenarios (p6-flight-core 1.5), from the same files the suite compiles (CrosswindScenario,
-    // WindTargets, SimPilot): the crosswind lean under the closed-loop pilot, the cruise trim, and the stand-in wind's
-    // targets, each statistical target also run on a known-wrong model that must fail it. PASS needs every target met
-    // and every known-wrong model failed.
+    // The aero and wind scenarios (p6-flight-core 1.5, p7c-wind 1.4), from the same files the suite compiles
+    // (CrosswindScenario, WindTargets, GustFrontScenario, SimPilot): the crosswind lean under the closed-loop pilot, the
+    // cruise trim, and the wind field's open-air targets, each statistical target also run on a known-wrong model that
+    // must fail it. PASS needs every target met and every known-wrong model failed.
     internal static class ScenariosCase
     {
         static bool _ok = true;
@@ -27,6 +27,9 @@ namespace Fpv450.FlightBench
         static string Lean(CrosswindScenario.Result r) =>
             $"lean {r.LeanDeg:F2}° = {r.LeanPerMs:F3}° per m/s of {r.WindSpeed:F2} m/s, {r.LeanOffWindDeg:F1}° off the wind's bearing, "
             + $"position error {r.MeanError:F3} m mean / {r.MaxError:F3} m max, drift {r.Drift:F4} m/s";
+
+        static (long, long, long) Bits(Double3 v) =>
+            (BitConverter.DoubleToInt64Bits(v.X), BitConverter.DoubleToInt64Bits(v.Y), BitConverter.DoubleToInt64Bits(v.Z));
 
         static bool LeanTarget(CrosswindScenario.Result r) => r.LeanPerMs >= 0.95 && r.LeanPerMs <= 2.6 && r.LeanOffWindDeg < 5;
 
@@ -44,7 +47,7 @@ namespace Fpv450.FlightBench
             foreach (ulong seed in new ulong[] { 1, 2, 3, 4, 5 })
             {
                 CrosswindScenario.Result r = CrosswindScenario.Hold(CrosswindScenario.Setup(spec, WindSetup.Of(WindLevel.Severe), seed));
-                Row($"Severe stand-in, seed {seed}", r.LeanPerMs >= 0.95 && r.LeanPerMs <= 2.6 && r.LeanOffWindDeg < 10, Lean(r));
+                Row($"Severe field, seed {seed}", r.LeanPerMs >= 0.95 && r.LeanPerMs <= 2.6 && r.LeanOffWindDeg < 10, Lean(r));
             }
             CrosswindScenario.Result none = CrosswindScenario.Hold(CrosswindScenario.Setup(spec, WindSetup.SteadyFrom(270, 5), drag: false, rotorDrag: false));
             Row("known-wrong: no drag", LeanTarget(none), Lean(none), knownWrong: true);
@@ -61,7 +64,7 @@ namespace Fpv450.FlightBench
                 pitch >= 22.4 && pitch <= 23.0 && perMs >= 0.95 && perMs <= 2.6,
                 $"pitch {pitch:F2}° (P: 22.7°), {lean2 - lean0:F2}° more lean = {perMs:F3}° per m/s (wind.md §5.3: 1.8 nominal)");
 
-            Console.WriteLine("stand-in wind (wind-field, design 8):");
+            Console.WriteLine("the wind field (wind-turbulence, p7c-wind 1.4, design 3 and 5):");
             var calm = new List<WindTargets.History>();
             var still = new List<WindTargets.History>();
             var vector = new List<WindTargets.History>();
@@ -76,18 +79,34 @@ namespace Fpv450.FlightBench
             Row("known-wrong: still air", WindTargets.NeverStill(still, out d), d, knownWrong: true);
             Row("known-wrong: a fixed vector", WindTargets.NeverStill(vector, out d), d, knownWrong: true);
 
-            // The same seed, the same wind: two bench flights on one seed, flown differently.
-            FlightSetup a = WindTargets.BenchFlight(WindLevel.Windy, 0x450F), b = WindTargets.BenchFlight(WindLevel.Windy, 0x450F);
-            b.StartVelocity = new Double3(3, 1, -2);
-            FlightCore ca = new FlightCore(a), cb = new FlightCore(b);
-            int same = 0;
-            for (int k = 0; k < 60000; k++)
+            // Same seed, same wind: two powered flights on one seed and level, flown alike, the wind at every rotor and
+            // at the body compared bit for bit at every step; a different seed draws another direction.
+            int same = 0, steps = 20000, rotors = 0;
             {
-                ca.Advance(default);
-                cb.Advance(default);
-                if (ca.State.Gust.X == cb.State.Gust.X && ca.State.Gust.Y == cb.State.Gust.Y && ca.State.Gust.Z == cb.State.Gust.Z) same++;
+                FlightCore Fly(ulong seed)
+                {
+                    FlightSetup f = CrosswindScenario.Setup(spec, WindSetup.Of(WindLevel.Severe), seed);
+                    f.StartPosition = new Double3(0, 30, 0);
+                    var c = new FlightCore(f);
+                    CrosswindScenario.Arm(c);
+                    return c;
+                }
+                FlightCore ca = Fly(0x450F), cb = Fly(0x450F);
+                var pa = new SimPilot(ca.Controller, ca.State.Position);
+                var pb = new SimPilot(cb.Controller, cb.State.Position);
+                for (int k = 0; k < steps; k++)
+                {
+                    ca.Advance(pa.Sticks(ca, ca.State.Step * FlightCore.StepUs));
+                    cb.Advance(pb.Sticks(cb, cb.State.Step * FlightCore.StepUs));
+                    int alike = 0;
+                    for (int i = 0; i < 4; i++)
+                        if (Bits(ca.Trace.RotorWind[i]) == Bits(cb.Trace.RotorWind[i])) alike++;
+                    rotors += alike;
+                    if (alike == 4 && Bits(ca.Trace.Wind) == Bits(cb.Trace.Wind)) same++;
+                }
             }
-            Row("the same seed, the same wind", same == 60000, $"{same} of 60000 steps' gusts bit-identical on two differently flown flights");
+            Row("same seed, same wind (Severe, 20 s held at 30 m)", same == steps && rotors == 4 * steps,
+                $"{same} of {steps} steps with the wind at all 4 rotors and the body bit-identical");
             WindTargets.History u1 = WindTargets.Gusts(WindLevel.Windy, 0x450F, 5, 1, WindTargets.Unseeded);
             WindTargets.History u2 = WindTargets.Gusts(WindLevel.Windy, 0x450F, 5, 1, WindTargets.Unseeded);
             int sameWrong = 0;
@@ -96,7 +115,7 @@ namespace Fpv450.FlightBench
             Row("known-wrong: an unseeded turbulence", sameWrong == u1.Samples.Length, $"{sameWrong} of {u1.Samples.Length} samples alike", knownWrong: true);
 
             var bearings = new double[400];
-            for (int i = 0; i < bearings.Length; i++) bearings[i] = new StandInWind(WindSetup.Of(WindLevel.Windy), new FlightRandom((ulong)i + 1)).FromDeg;
+            for (int i = 0; i < bearings.Length; i++) bearings[i] = new WindField(WindSetup.Of(WindLevel.Windy), new FlightRandom((ulong)i + 1)).FromDeg;
             Row("a different seed, a different direction, uniform over the compass", WindTargets.Uniform(bearings, out d) && new HashSet<double>(bearings).Count == 400, d);
             var left = new double[400];
             for (int i = 0; i < left.Length; i++) left[i] = 225 + 90 * ((i * 0.618034) % 1);
@@ -104,24 +123,41 @@ namespace Fpv450.FlightBench
 
             foreach (WindLevel level in new[] { WindLevel.Windy, WindLevel.Severe })
             {
+                WindPreset preset = WindPreset.Of(level);
                 var runs = new List<WindTargets.History>();
-                var white = new List<WindTargets.History>();
                 var flat = new List<WindTargets.History>();
                 var biased = new List<WindTargets.History>();
+                var met = new List<WindTargets.History>();
+                var low = new List<WindTargets.History>();
+                var white = new List<WindTargets.History>();
+                WindPreset cut = preset;
+                cut.ShortestWavelength = 13; // the known-wrong field: nothing above 1 Hz at 13 m/s
                 for (ulong seed = 1; seed <= 20; seed++) runs.Add(WindTargets.Gusts(level, seed, 1200, 50));
                 for (ulong seed = 1; seed <= 5; seed++)
                 {
-                    white.Add(WindTargets.Gusts(level, seed, 300, 50, WindTargets.White));
                     flat.Add(WindTargets.Gusts(level, seed, 300, 50, WindTargets.FlatSigma));
+                    met.Add(WindTargets.Encounter(level, seed, 66, 13));
+                    low.Add(WindTargets.Encounter(level, seed, 66, 13, cut));
+                    white.Add(WindTargets.Encounter(level, seed, 66, 13, null, WindTargets.White));
                 }
                 foreach (WindTargets.History h in runs) biased.Add(WindTargets.Biased(h));
-                Row($"{level}: σ/U, 20 seeds of 1200 s", WindTargets.Intensity(runs, out d, out _), d);
-                Row($"{level}: the time constant L/U", WindTargets.TimeConstant(runs, out d), d);
-                Row($"{level}: the mean in its band and unbiased", WindTargets.MeanInBand(runs, WindPreset.Of(level), out d), d);
-                Row($"{level} known-wrong: white noise", WindTargets.TimeConstant(white, out d), d, knownWrong: true);
-                Row($"{level} known-wrong: a flat 0.2 m/s σ", WindTargets.Intensity(flat, out d, out _), d, knownWrong: true);
-                Row($"{level} known-wrong: a mean 5 % strong", WindTargets.MeanInBand(biased, WindPreset.Of(level), out d), d, knownWrong: true);
+                Row($"{level}: σ/U, 20 seeds of 1200 s", WindTargets.Intensity(runs, preset, out d, out _), d);
+                Row($"{level}: the mean in its band and unbiased", WindTargets.MeanInBand(runs, preset, out d), d);
+                Row($"{level}: energy at 2–4 Hz at 13 m/s, 5 seeds", WindTargets.Spectrum(met, preset, 13, 2, 4, out d, out _), d);
+                Row($"{level}: energy at 1–2 Hz at 13 m/s, 5 seeds", WindTargets.Spectrum(met, preset, 13, 1, 2, out d, out _), d);
+                Row($"{level} known-wrong: a field that stops below 1 Hz at 13 m/s", WindTargets.Spectrum(low, preset, 13, 2, 4, out d, out _), d, knownWrong: true);
+                Row($"{level} known-wrong: white noise", WindTargets.Spectrum(white, preset, 13, 2, 4, out d, out _), d, knownWrong: true);
+                Row($"{level} known-wrong: a flat 0.2 m/s σ", WindTargets.Intensity(flat, preset, out d, out _), d, knownWrong: true);
+                Row($"{level} known-wrong: a mean 5 % strong", WindTargets.MeanInBand(biased, preset, out d), d, knownWrong: true);
             }
+
+            // Per-rotor gradients (PR-3): a gust front crossing the drone tail to nose.
+            GustFrontScenario.Result field = GustFrontScenario.Fly(spec, uniform: false), uniform = GustFrontScenario.Fly(spec, uniform: true);
+            string Rates(GustFrontScenario.Result r) =>
+                $"peak pitch {r.Pitch * 57.29578:F2} °/s at +{r.PitchStep} ms, yaw {r.Yaw * 57.29578:F2} °/s at +{r.YawStep} ms, roll {r.Roll * 57.29578:F2} °/s";
+            Row("a gust front crossing the drone: coupled pitch and yaw, each 3× the uniform field's or more",
+                GustFrontScenario.Coupled(field, uniform), Rates(field) + "; the uniform field " + Rates(uniform));
+            Row("known-wrong: the uniform field", GustFrontScenario.Coupled(uniform, uniform), Rates(uniform), knownWrong: true);
             Console.WriteLine($"scenarios: {(_ok ? "PASS" : "FAIL")}");
             return _ok;
         }

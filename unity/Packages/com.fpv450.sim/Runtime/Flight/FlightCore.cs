@@ -31,7 +31,7 @@ namespace Fpv450.Sim.Flight
         /// the rotors' in-plane drag comes with the propulsion.</summary>
         public AeroSpec Aero;
 
-        /// <summary>The wind (StandInWind): a pilot's level, or still or steady air for a bench. Still by default.</summary>
+        /// <summary>The wind (WindField): a pilot's level, or still or steady air for a bench. Still by default.</summary>
         public WindSetup Wind;
 
         /// <summary>The contacts (DroneSpec.BuildContacts, 1.6): null for none (a bench's free body, a flight in open air).</summary>
@@ -59,14 +59,14 @@ namespace Fpv450.Sim.Flight
     ///
     /// The body is RigidBody's, with the mass, centre of mass and inertia of the setup's MassModel (1.3). Its forces:
     /// the flight controller and propulsion (1.4) when the setup has propulsion; the air (1.5): the stand-in wind
-    /// (StandInWind), sampled at each hub, at the body's centre of pressure and at the coil, the rotors' axial
+    /// field (WindField), sampled at each hub, at the body's centre of pressure and at the coil, the rotors' axial
     /// inflow and in-plane drag (Propulsion), the body's and the coil's drag (Aero), and the rotors' gyroscopic
     /// moment; the contacts (ContactModel, 1.6): the legs, the frame's parts and their friction on the ground and the
     /// world's objects. A bench's body without propulsion is a free one, gravity and the torque-free motion of its
     /// inertia (and the drag, when its setup has an AeroSpec).
     ///
-    /// Each step first advances the wind's gust from its stream (the gust in the record is the one that acted), then
-    /// takes every force from the step's starting state (the contacts' from the planes and ground the last step's sweep
+    /// Each step first fixes the wind field's frame (its time and the ground under the body; the record carries the wind
+    /// that acted at the body's origin and at each hub), then takes every force from the step's starting state (the contacts' from the planes and ground the last step's sweep
     /// left at that pose), then moves the body, then sweeps the contact shapes from the old pose to the new one.
     ///
     /// The controller runs at its real 4 kHz: each step is FlightController.LoopsPerStep loops, each followed by a
@@ -101,9 +101,11 @@ namespace Fpv450.Sim.Flight
         readonly FlightController _fc;
         readonly Propulsion _propulsion;
         readonly Aero _aero;
-        readonly StandInWind _wind;
+        readonly WindField _wind;
         readonly Contact.ContactModel _contacts;
         readonly Double3[] _hubWind = new Double3[4];
+        readonly Sim.World.XZ[] _windAt = new Sim.World.XZ[1];
+        readonly Sim.World.GroundSample[] _windGround = new Sim.World.GroundSample[1];
         StepTrace _trace;
         readonly StepEvents _events = new StepEvents();
 
@@ -126,14 +128,13 @@ namespace Fpv450.Sim.Flight
                     throw new ArgumentException("the aero spec's coil is not a cylinder of the mass model", nameof(setup));
                 _aero = new Aero(setup.Aero);
             }
-            _wind = new StandInWind(setup.Wind, Random);
+            _wind = new WindField(setup.Wind, Random);
             _state = new FlightState
             {
                 Position = setup.StartPosition,
                 Velocity = setup.StartVelocity,
                 Attitude = setup.StartAttitude.Normalized(),
                 BodyRate = setup.StartBodyRate,
-                Gust = _wind.StartGust,
             };
             if (setup.Propulsion != null)
             {
@@ -176,7 +177,7 @@ namespace Fpv450.Sim.Flight
         public StepEvents Events => _events;
 
         /// <summary>The flight's wind, with its per-flight draws.</summary>
-        public StandInWind Wind => _wind;
+        public WindField Wind => _wind;
 
         /// <summary>The airframe's drag, or null for none.</summary>
         public Aero Aero => _aero;
@@ -198,7 +199,7 @@ namespace Fpv450.Sim.Flight
         {
             ref FlightState s = ref _state;
             _events.Clear();
-            _wind.Advance(ref s.Gust, s.Step);
+            BeginWind(s);
 
             // The net force (world, N) and the net moment about the CoM (body, N·m), weight aside; the air's share
             // of them in body axes.
@@ -225,6 +226,21 @@ namespace Fpv450.Sim.Flight
             if (_contacts != null) _contacts.Sense(was, ref s, _events);
         }
 
+        // The wind field's frame for the step that starts at s (WindField.Begin): the ground under the body's origin from
+        // the world when the field has a profile, and the wind there for the record.
+        void BeginWind(in FlightState s)
+        {
+            double ground = 0;
+            if (_wind.HasProfile)
+            {
+                _windAt[0] = new Sim.World.XZ(s.Position.X, s.Position.Z);
+                World.SampleGround(_windAt, _windGround);
+                ground = _windGround[0].Height;
+            }
+            _wind.Begin(s.Step, s.Position, ground);
+            _trace.Wind = _wind.At(s.Position);
+        }
+
         // The body's and the coil's drag (Aero) on the air's velocity at their centres, into the air's body-axis sums.
         void Drag(in FlightState s, in MassProperties body, ref Double3 force, ref Double3 moment)
         {
@@ -244,7 +260,7 @@ namespace Fpv450.Sim.Flight
         // A body point's velocity through the air, body m/s: the body origin's velocity v (body) plus ω × r, less the
         // wind there.
         Double3 Air(in FlightState s, in Double3 v, in Double3 point) =>
-            v + Double3.Cross(s.BodyRate, point) - s.Attitude.InverseRotate(_wind.At(s.Gust, s.Position + s.Attitude.Rotate(point)));
+            v + Double3.Cross(s.BodyRate, point) - s.Attitude.InverseRotate(_wind.At(s.Position + s.Attitude.Rotate(point)));
 
         // The controller's loops and propulsion's sub-steps for one step; the rotors' mean loads on the body: their
         // thrust and reaction into force (world) and moment, their in-plane drag into the air's sums (body).
@@ -252,7 +268,7 @@ namespace Fpv450.Sim.Flight
             ref Double3 airForce, ref Double3 airMoment)
         {
             for (int i = 0; i < 4; i++)
-                _hubWind[i] = _wind.At(s.Gust, s.Position + s.Attitude.Rotate(_propulsion.Hub(i)));
+                _trace.RotorWind[i] = _hubWind[i] = _wind.At(s.Position + s.Attitude.Rotate(_propulsion.Hub(i)));
             _propulsion.BeginStep(s, _hubWind);
             Axes3 from = s.Fc.GyroPrev, to = Gyro(s.BodyRate);
             var loads = new RotorLoads();
@@ -405,7 +421,7 @@ namespace Fpv450.Sim.Flight
             // The air at the camera, in its axes (the body's, 0° uptilt): the wind less the camera's motion, taken at
             // the body origin (drone.json has no camera position yet; within 0.1 m, ω × r is below 0.1·|ω| m/s).
             ref readonly FlightState s = ref _state;
-            Double3 air = s.Attitude.InverseRotate(_wind.At(s.Gust, s.Position) - s.Velocity);
+            Double3 air = s.Attitude.InverseRotate(_wind.At(s.Position) - s.Velocity);
             signals = new FeedSignals
             {
                 Live = FeedSignalSet.CameraAngularVelocity | FeedSignalSet.AirVelocityAtCamera,

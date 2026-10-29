@@ -3,7 +3,9 @@ using System.Diagnostics;
 using System.IO;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Log;
 using Fpv450.Sim.Tests;
+using Fpv450.Sim.Wind;
 
 namespace Fpv450.FlightBench
 {
@@ -27,12 +29,13 @@ namespace Fpv450.FlightBench
         public static bool Golden()
         {
             ulong hash = GoldenFlights.FlyPowered(Drone(), out FlightCore core);
-            ulong filters = GoldenFlights.FlyPowered(Drone(), out _, 992, 120);
-            bool ok = hash == GoldenFlights.PoweredHash && filters == GoldenFlights.PoweredFiltersHash && core.State.Armed;
+            int skip = LogFormat.StepSize - GoldenFlights.Model5Bytes;
+            ulong still = GoldenFlights.FlyPowered(Drone(), out _, GoldenFlights.Model5Bytes, skip, WindSetup.Of(WindLevel.Still));
+            bool ok = hash == GoldenFlights.PoweredHash && still == GoldenFlights.StillAirPoweredHash && core.State.Armed;
             Console.WriteLine($"{Name}: {GoldenFlights.PoweredSteps} steps, hash 0x{hash:X16} "
                 + $"({(hash == GoldenFlights.PoweredHash ? "matches" : $"golden 0x{GoldenFlights.PoweredHash:X16}")}), armed {core.State.Armed}, "
-                + $"packs at {core.State.PackCharge0:F4} of 0.9; over 1.4b's 1176-byte layout (less the contacts' 120 bytes) 0x{filters:X16} "
-                + $"({(filters == GoldenFlights.PoweredFiltersHash ? "1.4b's" : $"1.4b's is 0x{GoldenFlights.PoweredFiltersHash:X16}")}): {(ok ? "PASS" : "FAIL")}");
+                + $"packs at {core.State.PackCharge0:F4} of 0.9; in still air over model 5's 1296-byte layout 0x{still:X16} "
+                + $"({(still == GoldenFlights.StillAirPoweredHash ? "model 5's" : $"model 5's is 0x{GoldenFlights.StillAirPoweredHash:X16}")}): {(ok ? "PASS" : "FAIL")}");
             ulong contact = GoldenFlights.FlyContact(Drone(), out FlightCore c);
             bool cok = contact == GoldenFlights.ContactHash && c.Contacts.ImpactCount >= 2 && !c.State.Crashed;
             Console.WriteLine($"contact-flight: {GoldenFlights.ContactSteps} steps, hash 0x{contact:X16} "

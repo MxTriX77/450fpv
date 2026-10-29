@@ -52,7 +52,7 @@ namespace Fpv450.Sim.Log
         public static readonly byte[] Magic = { 0x46, 0x50, 0x56, 0x34, 0x35, 0x30, 0x4C, 0x47 };
 
         /// <summary>The format: the prologue, the header's entries and the record layouts below.</summary>
-        public const int Version = 5;
+        public const int Version = 6;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -68,8 +68,10 @@ namespace Fpv450.Sim.Log
         ///    samples, battery sag compensation; a free body steps as in 1). Two models shared the number on two branches.
         /// 5: 1.6 and 1.4b merged: the contacts and the filter chain together (a flight that touches nothing steps as 1.4b's
         ///    model 4, a flight with every filter off as 1.6's; a free body steps as in 1).
+        /// 6: p7c-wind 1.4 (the wind field replaces the stand-in: the log-law profile, von Kármán modes frozen and advected,
+        ///    the direction's meander and shifts, per point; still and steady air step as in 5).
         /// </summary>
-        public const int ModelVersion = 5;
+        public const int ModelVersion = 6;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
@@ -77,15 +79,16 @@ namespace Fpv450.Sim.Log
         public const int BlockHeaderSize = 4;
 
         /// <summary>The step record: 352 B of 1.1–1.3's fields, then the flight controller's 69 doubles and flags (1.4),
-        /// then the gust, the air's force and moment and the ESCs' limit (1.5), then the contacts' force and moment, the
-        /// legs' loads and compressions and the touching pairs (1.6), then the controller's filter outputs and battery
-        /// (1.4b).</summary>
-        public const int StepSize = 1296, EventSize = 72, EndSize = 48;
+        /// then the wind at the body's origin, the air's force and moment and the ESCs' limit (1.5; the wind, p7c-wind
+        /// 1.4, where the stand-in's gust was), then the contacts' force and moment, the legs' loads and compressions and
+        /// the touching pairs (1.6), then the controller's filter outputs and battery (1.4b), then the wind at each hub
+        /// (p7c-wind 1.4).</summary>
+        public const int StepSize = 1392, EventSize = 72, EndSize = 48;
 
         // What the step record covers, checked against the structs by the suite: a field added to one of them must be
         // logged (a new layout) or the suite fails.
         public static readonly string[] StateFieldsLogged =
-            { "Step", "Position", "Velocity", "Attitude", "BodyRate", "Armed", "RotorSpeed", "EscCommand", "PackCharge0", "PackCharge1", "Fc", "Gust", "EscLimited", "Crashed" };
+            { "Step", "Position", "Velocity", "Attitude", "BodyRate", "Armed", "RotorSpeed", "EscCommand", "PackCharge0", "PackCharge1", "Fc", "EscLimited", "Crashed" };
         public static readonly string[] FcFieldsLogged =
         {
             "RcCommand", "RcThrottle", "RcDataThrottle", "RawSetpoint", "FfDeltaPrev", "FfSpeedPrev", "FfAccelPrev", "FfRaw",
@@ -98,7 +101,7 @@ namespace Fpv450.Sim.Log
         public static readonly string[] TraceFieldsLogged =
             {
                 "RotorCommand", "PackVolts0", "PackVolts1", "PackAmps0", "PackAmps1", "NetForce", "NetMoment", "AeroForce", "AeroMoment",
-                "ContactForce", "ContactMoment", "LegLoad", "LegCompression", "ContactsTouching",
+                "ContactForce", "ContactMoment", "LegLoad", "LegCompression", "ContactsTouching", "Wind", "RotorWind",
             };
 
         static readonly string[] CornerNames = { "rear_right", "front_right", "rear_left", "front_left" };
@@ -182,7 +185,7 @@ namespace Fpv450.Sim.Log
             b.Add("fc.flags", "FcFlags", LogFieldType.U16);
             b.Add("fc.reserved", "zero", LogFieldType.Pad, 6);
             // The air (1.5).
-            b.Vec("gust", "m/s, world, the stand-in wind's gust over its mean");
+            b.Vec("wind", "m/s, world, the wind field at the body's origin");
             b.Vec("aero_force", "N, world: body, coil and rotor in-plane drag");
             b.Vec("aero_moment", "N.m, body, about the CoM");
             b.Add("esc_limited", "bit per corner: held at its current limit", LogFieldType.U8);
@@ -203,6 +206,8 @@ namespace Fpv450.Sim.Log
             b.Add("fc.dyn_lpf_throttle", "hundredths of throttle the dynamic LPFs follow", LogFieldType.U8);
             b.Add("fc.dyn_lpf_loops", "loops since they last moved, to 20", LogFieldType.U8);
             b.Add("fc.filters.reserved", "zero", LogFieldType.Pad, 5);
+            // The wind at each hub (p7c-wind 1.4).
+            foreach (string c in CornerNames) b.Vec("rotor_wind." + c, "m/s, world, the wind field at the hub");
             return b.Done(StepSize);
         }
 
@@ -300,7 +305,7 @@ namespace Fpv450.Sim.Log
             w.F64(f.MotorMixRange);
             w.U16((ushort)f.Flags);
             w.Zero(6);
-            w.V3(s.Gust);
+            w.V3(t.Wind);
             w.V3(t.AeroForce);
             w.V3(t.AeroMoment);
             w.U8(s.EscLimited);
@@ -323,6 +328,7 @@ namespace Fpv450.Sim.Log
             w.U8(f.DynLpfThrottle);
             w.U8(f.DynLpfLoops);
             w.Zero(5);
+            for (int i = 0; i < 4; i++) w.V3(t.RotorWind[i]);
         }
 
         public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
@@ -391,7 +397,7 @@ namespace Fpv450.Sim.Log
             f.MotorMixRange = r.F64();
             f.Flags = (FcFlags)r.U16();
             r.Skip(6);
-            s.Gust = r.V3();
+            t.Wind = r.V3();
             t.AeroForce = r.V3();
             t.AeroMoment = r.V3();
             s.EscLimited = r.U8();
@@ -413,6 +419,8 @@ namespace Fpv450.Sim.Log
             f.Cells = r.U8();
             f.DynLpfThrottle = r.U8();
             f.DynLpfLoops = r.U8();
+            r.Skip(5);
+            for (int i = 0; i < 4; i++) t.RotorWind[i] = r.V3();
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>

@@ -71,7 +71,7 @@ namespace Fpv450.Sim.Tests
                 if (k < from) continue;
                 ref readonly FlightState s = ref core.State;
                 up = up + s.Attitude.Rotate(new Double3(0, 1, 0));
-                wind = wind + core.Wind.At(s.Gust, s.Position);
+                wind = wind + core.Wind.At(s.Position);
                 drift = drift + new Double3(s.Velocity.X, 0, s.Velocity.Z);
                 Double3 a = core.Trace.AeroForce;
                 air += DetMath.Sqrt(a.X * a.X + a.Z * a.Z) / weight;

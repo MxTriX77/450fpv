@@ -14,7 +14,7 @@ using NUnit.Framework;
 namespace Fpv450.Sim.Tests
 {
     // physics-log (LOG-01, LOG-02, LOG-05): "Replay matches the flight" and "A truncated log still reads" on the
-    // bootstrap drone with its flight controller and propulsion (1.4), its drag in the Windy stand-in wind (1.5),
+    // bootstrap drone with its flight controller and propulsion (1.4), its drag in the Windy wind (1.5; the field, p7c-wind 1.4),
     // launched into the air and flown by a scripted pilot, through the scheduler, the ring and the flush worker; the refusals, a divergence named by step and field,
     // a full ring that waits and logs a hitch, the header's round trip, and the guards that keep the record and the
     // header covering the state and the setup as later tasks extend them.
@@ -368,10 +368,10 @@ namespace Fpv450.Sim.Tests
             Assert.That(back.Loadout, Is.EqualTo(spec.Nominal));
             Assert.That((back.StartPosition, back.StartAttitude, back.StartVelocity, back.StartBodyRate),
                 Is.EqualTo((setup.StartPosition, setup.StartAttitude, setup.StartVelocity, setup.StartBodyRate)));
-            Assert.That(back.Streams, Is.EqualTo(new[] { "wind.direction", "wind.strength", "wind.gust0", "wind.turbulence", "test.parameter" }));
-            Assert.That(back.Draws.Length, Is.EqualTo(6), "the wind's five and the test's");
-            for (int i = 0; i < 5; i++) Assert.That(back.Draws[i], Is.EqualTo(core.Random.Draws[i]), "wind draw " + i);
-            ParameterDraw last = back.Draws[5];
+            Assert.That(back.Streams, Is.EqualTo(new[] { "wind.direction", "wind.strength", "wind.meander", "wind.shift", "wind.turbulence", "test.parameter" }));
+            Assert.That(back.Draws.Length, Is.EqualTo(3), "the wind's two and the test's");
+            for (int i = 0; i < 2; i++) Assert.That(back.Draws[i], Is.EqualTo(core.Random.Draws[i]), "wind draw " + i);
+            ParameterDraw last = back.Draws[2];
             Assert.That((last.Parameter, last.Lo, last.Hi, last.Value, last.Index), Is.EqualTo(("test.parameter", 0.9, 1.1, drawn, 0UL)));
 
             // The air: the drag spec field for field, and the wind's model, level and preset.
@@ -380,9 +380,9 @@ namespace Fpv450.Sim.Tests
                 FieldInfo info = typeof(AeroSpec).GetField(f);
                 Assert.That(info.GetValue(back.Aero), Is.EqualTo(info.GetValue(setup.Aero)), "aero." + f);
             }
-            Assert.That((back.WindModel, back.Wind), Is.EqualTo(("stand-in", setup.Wind)));
+            Assert.That((back.WindModel, back.Wind), Is.EqualTo(("field", setup.Wind)));
             Assert.That(back.WindParameters, Is.EqualTo(LogHeader.PresetOf(WindLevel.Windy)));
-            Assert.That(back.WindParameters.Length, Is.EqualTo(7));
+            Assert.That(back.WindParameters.Length, Is.EqualTo(24), "every field of the preset but its level");
 
             var problems = new List<string>();
             back.ReadSettings(out FcSettings read, problems);
@@ -462,7 +462,7 @@ namespace Fpv450.Sim.Tests
                 Attitude = new Quat(0.1, -0.2, 0.3, 0.9), BodyRate = new Double3(7, 8, -9), Armed = true,
                 RotorSpeed = new Corners { RearRight = 10, FrontRight = 11, RearLeft = 12, FrontLeft = 13 },
                 EscCommand = new Corners { RearRight = 0.14, FrontRight = 0.15, RearLeft = 0.16, FrontLeft = 0.17 },
-                PackCharge0 = 0.18, PackCharge1 = 0.19, Gust = new Double3(0.5, -0.25, 0.75), EscLimited = 0x9,
+                PackCharge0 = 0.18, PackCharge1 = 0.19, EscLimited = 0x9,
             };
             // Every FcState double a distinct value through reflection, its flags every bit.
             object fc = default(FcState);
@@ -484,6 +484,12 @@ namespace Fpv450.Sim.Tests
                 PackVolts0 = 24.8, PackVolts1 = 24.9, PackAmps0 = 30.1, PackAmps1 = 30.2,
                 NetForce = new Double3(31, -32, 33), NetMoment = new Double3(-0.34, 0.35, -0.36),
                 AeroForce = new Double3(-1.5, 2.5, 3.5), AeroMoment = new Double3(0.04, -0.05, 0.06),
+                Wind = new Double3(0.5, -0.25, 0.75),
+                RotorWind = new Corners3
+                {
+                    RearRight = new Double3(1.25, -0.5, 2), FrontRight = new Double3(-1.75, 0.125, 2.5), RearLeft = new Double3(3, 0.0625, -3.5),
+                    FrontLeft = new Double3(-4, 0.375, 4.5),
+                },
             };
             var bytes = new byte[LogFormat.StepSize];
             LogFormat.EncodeStep(bytes, s, k, t);
