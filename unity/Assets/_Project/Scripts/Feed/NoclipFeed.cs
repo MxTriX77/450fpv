@@ -153,12 +153,12 @@ namespace Fpv450.Feed
             var all = (FeedSignal[])Enum.GetValues(typeof(FeedSignal));
             float em = style.fontSize, line = Mathf.Round(em * 1.3f), x = 24f, y = Mathf.Round(Screen.height * 0.1f);
             float valueX = x + 12f * em, sourceX = x + 34f * em;
-            var box = new Rect(x - 8f, y - 6f, 40f * em, line * (all.Length + 1.5f) + 12f);
+            var box = new Rect(x - 8f, y - 6f, 40f * em, line * (all.Length + 2.5f) + 12f);
             GUI.color = new Color(0f, 0f, 0f, 0.6f);
             GUI.DrawTexture(box, Texture2D.whiteTexture);
             GUI.color = Color.white;
-            GUI.Label(new Rect(x, y, box.width, line), Header(), style);
-            y += Mathf.Round(line * 1.5f);
+            GUI.Label(new Rect(x, y, box.width, 2f * line), Header(), style);
+            y += Mathf.Round(line * 2.5f);
             foreach (FeedSignal s in all)
             {
                 GUI.Label(new Rect(x, y, valueX - x, line), s.ToString(), style);
@@ -174,8 +174,8 @@ namespace Fpv450.Feed
                 return "Feed off (V)";
             FeedSettings s = rig.settings;
             Vector2Int size = s.SceneSize;
-            return $"Feed on (V)   seed {s.seed}   field {rig.Events.Field}   {rig.Events.Loss.Current}   quality drop {rig.Events.Degrade:0.00}   " +
-                   $"render {size.x}x{size.y}, field {s.fieldWidth}x{FeedSettings.FieldRows}";
+            return $"Feed on (V)   seed {s.seed}   field {rig.Events.Field}   {rig.Events.Loss.Current}   quality drop {rig.Events.Degrade:0.00}\n" +
+                   $"render {size.x}x{size.y}, analog pass {s.fieldWidth}x{FeedSettings.FieldRows}";
         }
 
         static int IntArg(string[] args, string name, int fallback)
