@@ -5,7 +5,10 @@ using Fpv450.Sim.World;
 
 namespace Fpv450.Sim.Flight
 {
-    /// <summary>One motor and its rotor, at a corner in Betaflight's Quad X order (Corners).</summary>
+    /// <summary>
+    /// One motor and its rotor, at a corner in Betaflight's Quad X order (Corners): a DC motor seen through its ESC
+    /// (Propulsion), whose first-order lag τ_m = J / (Kt·Ke/R + ∂Q/∂ω) follows from these constants and the load.
+    /// </summary>
     public struct DroneMotor
     {
         /// <summary>The prop's hub, where its thrust acts, body m.</summary>
@@ -17,14 +20,29 @@ namespace Fpv450.Sim.Flight
         /// <summary>rpm per volt, unloaded.</summary>
         public double Kv;
 
-        /// <summary>The motor and rotor's first-order lag τ_m, s.</summary>
-        public double Tau;
+        /// <summary>The winding's, the ESC's and the leads' resistance in the motor's DC model, Ω.</summary>
+        public double Resistance;
+
+        /// <summary>The no-load current, A: the bearings' and the iron's losses as a torque Kt·I0.</summary>
+        public double NoLoadCurrent;
+
+        /// <summary>The bell, shaft and prop's moment of inertia about the shaft, kg·m².</summary>
+        public double RotorInertia;
+
+        /// <summary>The rotor's magnet poles (electrical frequency = rpm / 60 × poles / 2).</summary>
+        public int MagnetPoles;
 
         /// <summary>The ESC's command filter τ_esc, s.</summary>
         public double EscTau;
+
+        /// <summary>The ESC's current limit, A: the motor's current never exceeds it while it drives (Propulsion).</summary>
+        public double EscCurrentLimit;
     }
 
-    /// <summary>The four props, alike.</summary>
+    /// <summary>
+    /// The four props, alike: k_T and κ static at ReferenceRpm, the static coefficients' change with rpm, and the
+    /// coefficients' fall with the advance ratio J = V_a / (n·D) of the axial inflow, as ratio tables.
+    /// </summary>
     public struct DroneProps
     {
         public double Diameter;
@@ -33,11 +51,24 @@ namespace Fpv450.Sim.Flight
         /// <summary>The geometric pitch, m per revolution.</summary>
         public double Pitch;
 
-        /// <summary>k_T in T = k_T·n², N per (rad/s)².</summary>
+        /// <summary>k_T in T = k_T·n², N per (rad/s)², static at ReferenceRpm.</summary>
         public double ThrustCoefficient;
 
-        /// <summary>κ in Q = κ·T, N·m per N.</summary>
+        /// <summary>κ in Q = κ·T, N·m per N, static at ReferenceRpm.</summary>
         public double TorqueRatio;
+
+        /// <summary>The rpm k_T and κ hold at.</summary>
+        public double ReferenceRpm;
+
+        /// <summary>Static rpm points, and C_T and C_P there over their values at ReferenceRpm.</summary>
+        public double[] StaticRpm, StaticThrustRatio, StaticTorqueRatio;
+
+        /// <summary>Advance-ratio points from 0, and C_T and C_P there over their static values.</summary>
+        public double[] InflowAdvanceRatio, InflowThrustRatio, InflowTorqueRatio;
+
+        /// <summary>The rotor's in-plane drag (the H-force), N per m/s of the hub's in-plane airspeed at ReferenceRpm;
+        /// it grows in proportion to the rotor's speed (Propulsion.HForce).</summary>
+        public double HForce;
     }
 
     /// <summary>One battery pack: its mass part and its cells.</summary>
@@ -184,6 +215,17 @@ namespace Fpv450.Sim.Flight
         public DronePayload Payload;
         public DroneStand Stand;
 
+        /// <summary>The airframe's drag; its coil part is the coil's.</summary>
+        public AeroSpec Aero;
+
+        /// <summary>The contact shapes and thresholds (p6-flight-core 1.6), the shapes at the file's positions; null when the
+        /// file has no contacts block (the bootstrap fixture). BuildContacts places them at a loadout.</summary>
+        public Contact.ContactSpec Contacts;
+
+        /// <summary>The drone side's contact materials (a closed list; physics signs off additions): the sheet's
+        /// carbon_composite for the arms, plates, legs and skids (p5-drone 1.2), polymer, aluminium.</summary>
+        public static readonly string[] ContactMaterials = { "carbon_composite", "polymer", "aluminium" };
+
         /// <summary>The file's own loadout: its payload and coil masses, legs on.</summary>
         public Loadout Nominal => new Loadout
         {
@@ -220,6 +262,67 @@ namespace Fpv450.Sim.Flight
             ScaleAwayFromArmPlane(ref payload, DetMath.Cbrt(loadout.Payload / payload.Mass));
             payload.Mass = loadout.Payload;
             return new MassModel(parts);
+        }
+
+        /// <summary>The flight's propulsion: copies of the motors, the props and the packs.</summary>
+        public PropulsionSpec BuildPropulsion()
+        {
+            var packs = new DronePack[Packs.Length];
+            for (int i = 0; i < packs.Length; i++)
+            {
+                DronePack p = Packs[i];
+                packs[i] = new DronePack
+                {
+                    Part = p.Part, Series = p.Series, Parallel = p.Parallel, CellCapacity = p.CellCapacity,
+                    CellResistance = p.CellResistance, Ocv = (double[])p.Ocv.Clone(),
+                };
+            }
+            DroneProps props = Props;
+            props.StaticRpm = (double[])Props.StaticRpm.Clone();
+            props.StaticThrustRatio = (double[])Props.StaticThrustRatio.Clone();
+            props.StaticTorqueRatio = (double[])Props.StaticTorqueRatio.Clone();
+            props.InflowAdvanceRatio = (double[])Props.InflowAdvanceRatio.Clone();
+            props.InflowThrustRatio = (double[])Props.InflowThrustRatio.Clone();
+            props.InflowTorqueRatio = (double[])Props.InflowTorqueRatio.Clone();
+            return new PropulsionSpec { Motors = (DroneMotor[])Motors.Clone(), Props = props, Packs = packs };
+        }
+
+        /// <summary>The flight's airframe drag: a copy of the aero block.</summary>
+        public AeroSpec BuildAero() => Aero.Clone();
+
+        /// <summary>
+        /// The flight's contact model at a loadout, with physics_materials.json's rows and hash (PhysicsMaterials.Parse):
+        /// each shape follows its part through BuildMass, so a part at 0 kg (legs off, no payload) has no shapes, a moved
+        /// part's shapes move with it, and the payload's scale with it. Null when the file has no contacts block.
+        /// </summary>
+        public Contact.ContactSpec BuildContacts(in Loadout loadout, Contact.MaterialRow[] materials, ulong materialsHash)
+        {
+            if (Contacts == null) return null;
+            if (materials == null) throw new ArgumentNullException(nameof(materials));
+            MassModel model = BuildMass(loadout);
+            Contact.ContactSpec c = Contacts.Clone();
+            var shapes = new System.Collections.Generic.List<Contact.ContactShape>();
+            foreach (Contact.ContactShape s in Contacts.Shapes)
+            {
+                DronePart file = Parts[s.Part], now = model.Part(s.Part);
+                if (!(now.Mass > 0)) continue;
+                double scale = file.Kind == PartKind.Box ? now.Size.X / file.Size.X : now.Length / file.Length;
+                Contact.ContactShape placed = s;
+                if (scale != 1 || now.Position.X != file.Position.X || now.Position.Y != file.Position.Y || now.Position.Z != file.Position.Z)
+                {
+                    placed.A = now.Position + (s.A - file.Position) * scale;
+                    placed.B = now.Position + (s.B - file.Position) * scale;
+                    placed.Radius = s.Radius * scale;
+                    placed.HalfThickness = s.HalfThickness * scale;
+                }
+                shapes.Add(placed);
+            }
+            c.Shapes = shapes.ToArray();
+            c.LegStiffness = Legs.Stiffness;
+            c.LegDamping = Legs.Damping;
+            c.Materials = (Contact.MaterialRow[])materials.Clone();
+            c.MaterialsHash = materialsHash;
+            return c;
         }
 
         // A part scaled uniformly by s about the middle of its face toward the arm plane: its sizes times s, and its
@@ -302,11 +405,12 @@ namespace Fpv450.Sim.Flight
                     LegsOff = new DroneLegsOff { Removed = new int[0], Moved = new int[0], MovedTo = new Double3[0] },
                     Coil = new DroneCoil { Part = -1 },
                     Payload = new DronePayload { Part = -1 },
+                    Aero = new AeroSpec(),
                 };
                 const string top = "drone.json";
                 if (!IsObject(root, top)) return spec;
                 Members(root, top, "schema", "owner", "name", "bootstrap", "about", "fields",
-                    "parts", "motors", "props", "packs", "legs", "legs_off", "coil", "payload", "stand");
+                    "parts", "motors", "props", "packs", "legs", "legs_off", "coil", "payload", "stand", "aero", "contacts");
 
                 JsonNode schema = Required(root, "schema", top);
                 if (schema != null && !(schema.Kind == JsonKind.Number && schema.Number == Schema))
@@ -336,7 +440,89 @@ namespace Fpv450.Sim.Flight
                 if ((n = Required(root, "payload", top)) != null) spec.Payload = ReadPayload(n, spec);
                 if ((n = Required(root, "legs_off", top)) != null) ReadLegsOff(n, spec);
                 if ((n = Required(root, "stand", top)) != null) spec.Stand = ReadStand(n);
+                if ((n = Required(root, "aero", top)) != null) ReadAero(n, spec);
+                if ((n = root.Member("contacts")) != null) spec.Contacts = ReadContacts(n, spec);
                 return spec;
+            }
+
+            static readonly string[] CornerIds = { "rr", "fr", "rl", "fl" };
+
+            // After the parts, the motors, the props and the legs, which it checks against.
+            Contact.ContactSpec ReadContacts(JsonNode p, DroneSpec spec)
+            {
+                var c = new Contact.ContactSpec();
+                const string at = "contacts";
+                if (!IsObject(p, at)) return c;
+                Members(p, at, "margin_m", "crash_accel_m_s2", "crash_prop_speed_m_s", "impact_window_s", "impact_speed_m_s",
+                    "friction_stiffness_ratio", "damping_mass_share", "ground_friction_static", "ground_friction_kinetic", "ring_segments", "shapes");
+                c.Margin = Positive(p, "margin_m", at);
+                c.CrashAccel = Positive(p, "crash_accel_m_s2", at);
+                c.CrashPropSpeed = Positive(p, "crash_prop_speed_m_s", at);
+                c.ImpactWindow = Positive(p, "impact_window_s", at);
+                c.ImpactSpeed = Positive(p, "impact_speed_m_s", at);
+                c.FrictionStiffnessRatio = Positive(p, "friction_stiffness_ratio", at);
+                c.DampingMassShare = Positive(p, "damping_mass_share", at);
+                c.GroundStaticFriction = NonNegative(p, "ground_friction_static", at);
+                c.GroundKineticFriction = NonNegative(p, "ground_friction_kinetic", at);
+                if (c.GroundKineticFriction > c.GroundStaticFriction) Fail(at + ".ground_friction_kinetic", "is above ground_friction_static");
+                c.RingSegments = Count(p, "ring_segments", at, 6);
+                JsonNode list = Required(p, "shapes", at);
+                if (list == null || !IsArray(list, at + ".shapes", 1)) return c;
+                c.Shapes = new Contact.ContactShape[list.Items.Count];
+                for (int i = 0; i < c.Shapes.Length; i++)
+                {
+                    JsonNode s = list.Items[i];
+                    string path = at + ".shapes[" + i + "]";
+                    ref Contact.ContactShape shape = ref c.Shapes[i];
+                    shape.Part = -1;
+                    shape.Corner = -1;
+                    if (!IsObject(s, path)) continue;
+                    JsonNode nameNode = s.Member("name");
+                    if (nameNode != null && nameNode.Kind == JsonKind.String) path += " (" + nameNode.Text + ")";
+                    Members(s, path, "name", "part", "role", "corner", "material", "a_m", "b_m", "radius_m", "half_thickness_m",
+                        "stiffness_n_per_m", "stiffness_up_n_per_m", "damping_ratio");
+                    shape.Name = Text(s, "name", path, null);
+                    for (int j = 0; j < i; j++)
+                        if (shape.Name != null && string.Equals(c.Shapes[j].Name, shape.Name, StringComparison.Ordinal))
+                            Fail(path + ".name", "is used twice");
+                    shape.Part = PartRef(s, "part", path, spec);
+                    string role = Text(s, "role", path, new[] { "support", "skid", "body", "disc" });
+                    shape.Role = role == "support" ? Contact.ContactRole.Support : role == "skid" ? Contact.ContactRole.Skid
+                        : role == "disc" ? Contact.ContactRole.Disc : Contact.ContactRole.Body;
+                    shape.Material = Text(s, "material", path, ContactMaterials);
+                    bool cornered = role == "support" || role == "skid" || role == "disc";
+                    string corner = Text(s, "corner", path, CornerIds, !cornered);
+                    if (corner != null && !cornered) Fail(path + ".corner", "only a support, a skid or a disc has a corner");
+                    shape.Corner = corner == null ? -1 : System.Array.IndexOf(CornerIds, corner);
+                    Vector(s, "a_m", path, out shape.A);
+                    bool capsule = s.Member("b_m") != null;
+                    if (capsule) Vector(s, "b_m", path, out shape.B);
+                    else shape.B = shape.A;
+                    if (capsule && role != "skid" && role != "body") Fail(path + ".b_m", "a support and a disc are points: a_m only");
+                    if (!capsule && role == "skid") Fail(path + ".b_m", "a skid is a capsule: it needs b_m");
+                    shape.Radius = Positive(s, "radius_m", path);
+                    bool disc = role == "disc", body = role == "body";
+                    if (disc) shape.HalfThickness = Positive(s, "half_thickness_m", path);
+                    else if (s.Member("half_thickness_m") != null) Fail(path + ".half_thickness_m", "only a disc has a thickness");
+                    if (body)
+                    {
+                        shape.Stiffness = Positive(s, "stiffness_n_per_m", path);
+                        shape.StiffnessUp = s.Member("stiffness_up_n_per_m") != null ? Positive(s, "stiffness_up_n_per_m", path) : shape.Stiffness;
+                        shape.DampingRatio = NonNegative(s, "damping_ratio", path);
+                    }
+                    else if (s.Member("stiffness_n_per_m") != null || s.Member("stiffness_up_n_per_m") != null || s.Member("damping_ratio") != null)
+                        Fail(path + ".stiffness_n_per_m", "only a body shape has its own compliance: the legs carry supports and skids");
+                    // The consistency drone.json's other blocks fix.
+                    if (role == "support" && !double.IsNaN(shape.Radius) && shape.Radius != spec.Legs.FootRadius)
+                        Fail(path + ".radius_m", "a support is the foot: legs.foot_radius_m");
+                    if (disc && shape.Corner >= 0)
+                    {
+                        Double3 hub = spec.Motors[shape.Corner].Position;
+                        if (!(shape.A.X == hub.X && shape.A.Y == hub.Y && shape.A.Z == hub.Z)) Fail(path + ".a_m", "a disc sits at its motor's position_m");
+                        if (!double.IsNaN(shape.Radius) && shape.Radius != spec.Props.Diameter / 2) Fail(path + ".radius_m", "a disc is the flown prop: props.diameter_m / 2");
+                    }
+                }
+                return c;
             }
 
             DronePart[] ReadParts(JsonNode list)
@@ -397,14 +583,20 @@ namespace Fpv450.Sim.Flight
                     JsonNode m = list.Items[i];
                     string path = "motors[" + i + "] (" + Corner[i] + ")";
                     if (!IsObject(m, path)) continue;
-                    Members(m, path, "position_m", "spin", "kv_rpm_per_v", "tau_s", "esc_tau_s");
+                    Members(m, path, "position_m", "spin", "kv_rpm_per_v", "resistance_ohm", "no_load_current_a",
+                        "rotor_inertia_kg_m2", "magnet_poles", "esc_tau_s", "esc_current_limit_a");
                     ref DroneMotor motor = ref motors[i];
                     if (Vector(m, "position_m", path, out motor.Position)) AtCorner(motor.Position, i, path + ".position_m");
                     spins[i] = Text(m, "spin", path, new[] { "cw", "ccw" });
                     motor.Clockwise = spins[i] == "cw";
                     motor.Kv = Positive(m, "kv_rpm_per_v", path);
-                    motor.Tau = Positive(m, "tau_s", path);
+                    motor.Resistance = Positive(m, "resistance_ohm", path);
+                    motor.NoLoadCurrent = NonNegative(m, "no_load_current_a", path);
+                    motor.RotorInertia = Positive(m, "rotor_inertia_kg_m2", path);
+                    motor.MagnetPoles = Count(m, "magnet_poles", path, 2);
+                    if (motor.MagnetPoles % 2 != 0) Fail(path + ".magnet_poles", "poles come in pairs");
                     motor.EscTau = Positive(m, "esc_tau_s", path);
+                    motor.EscCurrentLimit = Positive(m, "esc_current_limit_a", path);
                 }
                 // The diagonal pairs spin alike and the two pairs oppositely, so the rotor torques cancel at hover.
                 if (System.Array.IndexOf(spins, null) < 0
@@ -416,13 +608,53 @@ namespace Fpv450.Sim.Flight
             {
                 var props = new DroneProps();
                 if (!IsObject(p, "props")) return props;
-                Members(p, "props", "diameter_m", "blades", "pitch_m", "k_t_n_per_rad2_s2", "kappa_m");
+                Members(p, "props", "diameter_m", "blades", "pitch_m", "k_t_n_per_rad2_s2", "kappa_m", "reference_rpm",
+                    "static_rpm", "static_thrust_ratio", "static_torque_ratio",
+                    "inflow_advance_ratio", "inflow_thrust_ratio", "inflow_torque_ratio", "h_force_n_per_m_s");
                 props.Diameter = Positive(p, "diameter_m", "props");
                 props.Blades = Count(p, "blades", "props", 2);
                 props.Pitch = Positive(p, "pitch_m", "props");
                 props.ThrustCoefficient = Positive(p, "k_t_n_per_rad2_s2", "props");
                 props.TorqueRatio = Positive(p, "kappa_m", "props");
+                props.ReferenceRpm = Positive(p, "reference_rpm", "props");
+                props.StaticRpm = Numbers(p, "static_rpm", "props", 2);
+                props.StaticThrustRatio = Numbers(p, "static_thrust_ratio", "props", 2);
+                props.StaticTorqueRatio = Numbers(p, "static_torque_ratio", "props", 2);
+                props.InflowAdvanceRatio = Numbers(p, "inflow_advance_ratio", "props", 2);
+                props.InflowThrustRatio = Numbers(p, "inflow_thrust_ratio", "props", 2);
+                props.InflowTorqueRatio = Numbers(p, "inflow_torque_ratio", "props", 2);
+                props.HForce = NonNegative(p, "h_force_n_per_m_s", "props");
+                Curve("props.static", props.StaticRpm, props.StaticThrustRatio, props.StaticTorqueRatio, false);
+                Curve("props.inflow", props.InflowAdvanceRatio, props.InflowThrustRatio, props.InflowTorqueRatio, true);
+                // The ratios are 1 where k_T and κ hold: at the reference rpm, and static (J = 0).
+                if (props.StaticRpm.Length > 1 && props.StaticRpm.Length == props.StaticThrustRatio.Length
+                    && props.StaticRpm.Length == props.StaticTorqueRatio.Length && !double.IsNaN(props.ReferenceRpm))
+                {
+                    int at = System.Array.IndexOf(props.StaticRpm, props.ReferenceRpm);
+                    if (at < 0) Fail("props.reference_rpm", "must be one of static_rpm's points");
+                    else if (props.StaticThrustRatio[at] != 1 || props.StaticTorqueRatio[at] != 1)
+                        Fail("props.static_thrust_ratio", "both ratios must be 1 at the reference rpm");
+                }
+                if (props.InflowThrustRatio.Length > 0 && props.InflowTorqueRatio.Length > 0
+                    && (props.InflowThrustRatio[0] != 1 || props.InflowTorqueRatio[0] != 1))
+                    Fail("props.inflow_thrust_ratio", "both ratios must be 1 at J = 0, the static point");
                 return props;
+            }
+
+            // A curve's points: increasing x (from 0 for the advance ratio) and non-negative ratios, one per point.
+            void Curve(string path, double[] x, double[] thrust, double[] torque, bool fromZero)
+            {
+                if (thrust.Length != x.Length || torque.Length != x.Length)
+                {
+                    Fail(path, "the ratios need one value per point");
+                    return;
+                }
+                for (int k = 0; k < x.Length; k++)
+                {
+                    if (k > 0 && !(x[k] > x[k - 1])) Fail(path, "the points must increase");
+                    if (!(thrust[k] >= 0 && torque[k] >= 0)) Fail(path, "a ratio is not negative");
+                }
+                if (x.Length > 0 && (fromZero ? x[0] != 0 : !(x[0] > 0))) Fail(path, fromZero ? "the advance ratio starts at 0" : "rpm is above 0");
             }
 
             void ReadPacks(JsonNode list, DroneSpec spec)
@@ -566,6 +798,23 @@ namespace Fpv450.Sim.Flight
                 stand.PostDiameter = Positive(p, "post_diameter_m", "stand");
                 stand.Mass = Positive(p, "mass_kg", "stand");
                 return stand;
+            }
+
+            // After the coil, whose part carries the coil's own drag.
+            void ReadAero(JsonNode p, DroneSpec spec)
+            {
+                AeroSpec aero = spec.Aero;
+                aero.CoilPart = spec.Coil.Part;
+                if (!IsObject(p, "aero")) return;
+                Members(p, "aero", "air_density_kg_m3", "body_area_m2", "body_center_of_pressure_m", "drag_coefficient");
+                aero.AirDensity = Positive(p, "air_density_kg_m3", "aero");
+                if (Vector(p, "body_area_m2", "aero", out aero.BodyArea)
+                    && !(aero.BodyArea.X > 0 && aero.BodyArea.Y > 0 && aero.BodyArea.Z > 0))
+                    Fail("aero.body_area_m2", "every silhouette must be above 0");
+                Vector(p, "body_center_of_pressure_m", "aero", out aero.BodyCenterOfPressure);
+                aero.DragCoefficient = Positive(p, "drag_coefficient", "aero");
+                if (spec.Coil.Part >= 0 && spec.Parts[spec.Coil.Part].Kind != PartKind.Cylinder)
+                    Fail("coil.part", "the coil's drag needs its part to be a cylinder");
             }
 
             // ---- the building blocks ----

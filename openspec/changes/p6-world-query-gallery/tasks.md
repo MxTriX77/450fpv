@@ -33,8 +33,18 @@ Branch `unity/world/p6-world-query-gallery` off `unity/main` once `p1-g1-look-lo
       - 18 tests pass in `tools/simtests`. Unity's EditMode run compiles the package and passes 124 of 124 tests, the same 18 among them.
       - `--golden`: 5 cases pass in Release and Debug. 10 000 each of samples, capsules (1 082 in contact, 330 with `Time` < 1) and rays (3 297 on the floor, 361 on the probe shapes). Batched equals one by one.
       - `--bench` on the stub (AC, Balanced plan, best power efficiency mode): a step's batch (44 + 46 + 8) has a median of 9.70 µs and a p99 of 32.50 µs. 100 000 capsules take 53.75 ms and 100 000 rays 13.18 ms, with 0 B allocated.
-- [ ] 1.2 [physics-engineer] Sign off the interface by reading, with a contact probe (a fake drone over the API: four feet, four arms, a coil, four prop discs) in `tools/flightbench`.
+- [x] 1.2 [physics-engineer] Sign off the interface by reading, with a contact probe (a fake drone over the API: four feet, four arms, a coil, four prop discs) in `tools/flightbench`.
   - **Verify:** the probe passes on the stub, and the sign-off goes into `review-physics.md` in this change, with the PHB-05 lessons checked.
+  - **As built:**
+    - **The probe:** `tools/flightbench/ContactProbeCase.cs`, run with `--probe`, uses the public calls only.
+      - The drone is `drone.json` at L4, legs on (4.832 kg) and legs off (4.716 kg).
+      - Its parts: four skid segments (a capsule, plus spheres at the overhang end and the T-joint), four arms, the coil, and four prop discs (a bounding sphere, then a 12-capsule rim ring).
+      - It drives the drone resting, sliding, dropping, landing on a 9 mm rod, on the stand, through a board and a tube at 10–30 m/s, and with its discs against a wire.
+      - Each of `--break latch | margin | refresh | spheres | disc` fails it.
+      - `--bench`: p50 3.90 µs clear and 10.50 µs with two rings, 0 B.
+    - **Verdict:** signed off for `p6-flight-core` 1.6, with no call or field changed.
+      - Findings W1–W8 go to the world-builder. The musts for 1.4 are wires (W1), the ground under a capsule straddling a hole edge (W3), and patch ground answered once (W4).
+      - The probe corrects api-review §4's refresh rule (P1, 1.6 and K§7.5): refresh only while the part's core is outside the shape. Without that, a tube was passed on 32 of 48 runs, with no tunnel event.
 - [ ] 1.3 [world-builder] The station data (design 3):
   - **What:** `maps/gallery-g1/stations.json` from `GalleryStations.cs` in `p6-test-range`'s placement form (its design 7, D-044), the scene builder reading it, and the sim loader placing every variant's `.assetmeta.json` at its pose, for the gallery and for `maps/test-range/placements.json` alike.
   - **Verify:** the gallery scene test passes unchanged, and the "sim sees what the scene shows" scenario on both maps (pose parity within 1 mm; the hash moves with a 1 mm pose change).

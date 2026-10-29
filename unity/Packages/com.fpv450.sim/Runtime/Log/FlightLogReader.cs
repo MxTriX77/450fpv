@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Wind;
 using Fpv450.Sim.World;
 
 namespace Fpv450.Sim.Log
@@ -276,6 +277,22 @@ namespace Fpv450.Sim.Log
             w.WriteLine("  body: " + h.Parts.Length + " parts, " + h.Body.Mass.ToString("0.000", c) + " kg, CoM " + V(h.Body.CenterOfMass, "0.0000")
                 + " m, inertia xx " + G(i.XX) + " yy " + G(i.YY) + " zz " + G(i.ZZ) + " xy " + G(i.XY) + " xz " + G(i.XZ) + " yz " + G(i.YZ) + " kg.m2");
             w.WriteLine("  settings: " + h.Settings.Length + " FcSettings fields by CLI name");
+            w.WriteLine("  wind: " + WindLine(h));
+            if (h.Aero != null)
+                w.WriteLine("  aero: air " + G(h.Aero.AirDensity) + " kg/m3, body silhouette side/top/front " + V(h.Aero.BodyArea, "0.0000")
+                    + " m2 at " + V(h.Aero.BodyCenterOfPressure, "0.000") + " m, C_d " + G(h.Aero.DragCoefficient) + ", coil "
+                    + (h.Aero.CoilPart >= 0 ? PartName((ushort)h.Aero.CoilPart) : "none"));
+            else
+                w.WriteLine("  aero: none (a bench body)");
+            if (h.Contacts != null)
+                w.WriteLine("  contacts: " + h.Contacts.Shapes.Length + " shapes, margin " + G(h.Contacts.Margin) + " m, legs " + G(h.Contacts.LegStiffness)
+                    + " N/m and " + G(h.Contacts.LegDamping) + " N.s/m, a crash past " + G(h.Contacts.CrashAccel) + " m/s2 or a prop strike past "
+                    + G(h.Contacts.CrashPropSpeed) + " m/s; physics_materials.json 0x" + h.Contacts.MaterialsHash.ToString("X16", c) + " (" + h.Contacts.Materials.Length + " rows)");
+            else
+                w.WriteLine("  contacts: none");
+            for (int n = 0; n < h.RuntimeObjects.Length; n++)
+                w.WriteLine("  runtime object " + (n < h.RuntimeIds.Length ? h.RuntimeIds[n] : -1) + " '" + h.RuntimeObjects[n].Name + "': "
+                    + h.RuntimeObjects[n].Shapes.Length + " shapes");
             w.WriteLine("  randomness: " + h.Streams.Length + " streams" + (h.Streams.Length > 0 ? " (" + string.Join(", ", h.Streams) + ")" : "")
                 + ", " + h.Draws.Length + " per-flight draws");
             foreach (ParameterDraw d in h.Draws)
@@ -305,7 +322,11 @@ namespace Fpv450.Sim.Log
                 w.WriteLine("  rotor speed " + C4(s.RotorSpeed) + " rad/s, command " + C4(t.RotorCommand) + ", esc " + C4(s.EscCommand));
                 w.WriteLine("  packs " + G(t.PackVolts0) + " / " + G(t.PackVolts1) + " V, " + G(t.PackAmps0) + " / " + G(t.PackAmps1) + " A, charge "
                     + G(s.PackCharge0) + " / " + G(s.PackCharge1));
-                w.WriteLine("  net force " + V(t.NetForce, "0.000") + " N, net moment " + V(t.NetMoment, "0.0000") + " N.m");
+                w.WriteLine("  net force " + V(t.NetForce, "0.000") + " N, net moment " + V(t.NetMoment, "0.0000") + " N.m; the air's "
+                    + V(t.AeroForce, "0.000") + " N, " + V(t.AeroMoment, "0.0000") + " N.m; gust " + V(s.Gust, "0.000") + " m/s"
+                    + (s.EscLimited != 0 ? "; ESCs at their current limit: " + Limited(s.EscLimited) : ""));
+                w.WriteLine("  contacts: " + t.ContactsTouching + " touching, force " + V(t.ContactForce, "0.000") + " N, moment " + V(t.ContactMoment, "0.0000")
+                    + " N.m; legs " + C4(t.LegLoad) + " N, compressed " + C4(t.LegCompression) + " m" + (s.Crashed ? "; CRASHED" : ""));
                 w.WriteLine("  stick roll " + G(k.Roll) + ", pitch " + G(k.Pitch) + ", yaw " + G(k.Yaw) + ", throttle " + G(k.Throttle) + ", arm "
                     + (k.Arm ? "on" : "off") + " (host " + k.HostUs + " us)");
             }
@@ -325,25 +346,35 @@ namespace Fpv450.Sim.Log
             switch (e.Kind)
             {
                 case EventKind.ContactMade:
-                    return PartName(e.Part) + " touches " + Where(e) + " at " + V(e.Point, "0.000") + " m, " + G(e.A) + " m/s";
+                    return ShapeName(e) + " touches " + Where(e) + " at " + V(e.Point, "0.000") + " m, " + G(e.A) + " m/s";
                 case EventKind.ContactBroken:
-                    return PartName(e.Part) + " leaves " + Where(e) + " after " + G(e.A) + " s, impulse " + G(e.B) + " N.s";
+                    return ShapeName(e) + " leaves " + Where(e) + " after " + G(e.A) + " s, impulse " + G(e.B) + " N.s, peak " + G(e.C) + " N";
                 case EventKind.PropStrike:
                     return "prop " + CornerName(e.Index) + " struck by " + Where(e) + " at " + V(e.Point, "0.000") + " m, " + G(e.A) + " m/s";
                 case EventKind.MixerSaturation:
                     return "mixer saturated: " + (e.Index <= 3 ? ((MixerAxis)e.Index).ToString().ToLowerInvariant() : "axis " + e.Index)
                         + " lost " + G(e.A * 100) + " % of its demand";
                 case EventKind.Crash:
-                    return "CRASH: " + PartName(e.Part) + " on " + Where(e) + " at " + V(e.Point, "0.000") + " m, " + G(e.A) + " m/s, " + G(e.B)
-                        + " N.s, peak " + G(e.C) + " m/s2";
+                    return "CRASH (" + (e.Index == 1 ? "acceleration" : e.Index == 2 ? "prop strike" : "cause " + e.Index) + "): " + PartName(e.Part) + " on "
+                        + Where(e) + " at " + V(e.Point, "0.000") + " m, " + G(e.A) + " m/s; so far " + G(e.B) + " N.s, peak " + G(e.C) + " m/s2";
                 case EventKind.Tunnel:
-                    return "TUNNEL, a physics bug: " + PartName(e.Part) + " through " + Where(e) + " at " + V(e.Point, "0.000") + " m, " + G(e.A) + " m deep";
+                    return "TUNNEL, a physics bug: " + ShapeName(e) + " through " + Where(e) + " at " + V(e.Point, "0.000") + " m, " + G(e.A) + " m deep at "
+                        + G(e.B) + " m/s";
+                case EventKind.Impact:
+                    return "impact: " + PartName(e.Part) + " on " + Where(e) + " at " + G(e.C) + " m/s: peak " + G(e.A) + " m/s2 (" + G(e.A / 9.80665)
+                        + " g), impulse " + G(e.B) + " N.s over its window";
+                case EventKind.ContactsLost:
+                    return G(e.A) + " contacts lost by " + ShapeName(e) + ": its table or the query buffer was full (a bug)";
                 case EventKind.Hitch:
                     return e.Index == (byte)HitchCause.LogFull
                         ? "hitch: the log's ring was full and the flight thread waited " + G(e.A) + " x 1 ms"
                         : "hitch: the scheduler ran " + G(e.A) + " steps to catch up, the first " + G(e.B) + " us late";
                 case EventKind.EventsLost:
                     return G(e.A) + " events lost: the step's event buffer was full (a producer bug)";
+                case EventKind.CurrentLimit:
+                    return e.A > 0
+                        ? "ESC " + CornerName(e.Index) + " holds its motor at its " + G(e.B) + " A current limit, taking " + G(e.A * 100) + " % of its duty"
+                        : "ESC " + CornerName(e.Index) + " lets go of its " + G(e.B) + " A current limit";
                 default:
                     return "event kind " + (int)e.Kind + ": part " + e.Part + ", index " + e.Index + ", " + Where(e) + ", a " + G(e.A) + ", b "
                         + G(e.B) + ", c " + G(e.C);
@@ -365,12 +396,44 @@ namespace Fpv450.Sim.Log
         string PartName(ushort part) =>
             part == FlightEvent.NoPart ? "the drone" : part < Header.Parts.Length ? "part '" + Header.Parts[part].Name + "'" : "part #" + part;
 
+        string ShapeName(in FlightEvent e) =>
+            Header.Contacts != null && e.Index < Header.Contacts.Shapes.Length ? "'" + Header.Contacts.Shapes[e.Index].Name + "' of " + PartName(e.Part) : PartName(e.Part);
+
         string Where(in FlightEvent e)
         {
-            string what = e.Object == WorldIds.Ground ? "the ground" : "object " + e.Object + " shape " + e.Shape;
+            string name = Header.RuntimeObjectName(e.Object);
+            string what = e.Object == WorldIds.Ground ? "the ground" : name != null ? "'" + name + "' shape " + e.Shape : "object " + e.Object + " shape " + e.Shape;
             if (e.Surface != 0) what += " (surface " + Header.SurfaceName(e.Surface) + ")";
             else if (e.Material != 0) what += " (material " + Header.MaterialName(e.Material) + ")";
             return what;
+        }
+
+        // The wind in words: its model, level and draws (PHB-06: a stand-in, labelled as such).
+        static string WindLine(LogHeader h)
+        {
+            string text = h.WindModel + ", " + h.Wind.Level.ToString().ToLowerInvariant();
+            if (h.Wind.Level == WindLevel.Steady)
+                text += " " + G(h.Wind.SteadySpeed) + " m/s from " + G(h.Wind.SteadyFromDeg) + " deg";
+            foreach (ParameterDraw d in h.Draws)
+                if (d.Stream == "wind.direction") text += "; from " + G(d.Value) + " deg";
+                else if (d.Stream == "wind.strength") text += ", mean " + G(d.Value) + " m/s in [" + G(d.Lo) + ", " + G(d.Hi) + "]";
+            foreach (NamedValue v in h.WindParameters) text += ", " + v.Name + " " + G(v.Value);
+            SyntheticBelt b = h.Wind.Belt;
+            if (b != null)
+                text += "; a synthetic belt (p7c-wind 1.2's harness, until 1.3's wake grid): edge at " + G(b.Edge.X) + ", " + G(b.Edge.Z)
+                    + " m across " + G(b.Across.X) + ", " + G(b.Across.Z) + ", H " + G(b.Height) + " m, deficit " + G(b.Deficit) + ", boost "
+                    + G(b.Boost) + ", eddies " + G(b.EddyMin) + "–" + G(b.EddyMax) + " m in " + b.Modes + " modes, ramps " + G(b.Ramp) + " H";
+            if (h.WindModel == WindPreset.Model) text += " (p7c-wind replaces it)";
+            return text;
+        }
+
+        static string Limited(byte bits)
+        {
+            var parts = new List<string>();
+            for (byte i = 0; i < 4; i++)
+                if ((bits & (1 << i)) != 0)
+                    parts.Add(CornerName(i));
+            return string.Join(", ", parts);
         }
 
         static string CornerName(byte corner) =>

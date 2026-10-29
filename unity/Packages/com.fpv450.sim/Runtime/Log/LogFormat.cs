@@ -30,7 +30,10 @@ namespace Fpv450.Sim.Log
     }
 
     /// <summary>
-    /// The flight log's binary format (design 10, LOG-01), version 1. One file per flight:
+    /// The flight log's binary format (design 10, LOG-01), version 5 (1.4 appended the flight controller's state to
+    /// the step record; 1.5 the wind's gust, the air's force and moment and the ESCs' current limit, and the header's
+    /// aero and wind entries; 1.6 the contacts' force, moment and legs, the crash flag, and the header's contacts and
+    /// runtime objects; 1.4b, after them, the controller's filter outputs and battery). One file per flight:
     /// - the prologue: Magic, then the format Version and the header's length (u32 each), then the header (LogHeader)
     /// - blocks to the end of the flight, each a u16 kind and a u16 payload length, then the payload:
     ///   - a step record (StepBlock) after every step: the integrated state, the stick sample in force during the step,
@@ -38,8 +41,9 @@ namespace Fpv450.Sim.Log
     ///   - the step's events after its record, hitches before the steps they delayed (EventBlock, EventFields)
     ///   - the end block (EndBlock, EndFields) when the log is closed; a log without one was cut
     /// Every number is little-endian, a double as its IEEE 754 bits, so a record replays bit for bit. The layouts are
-    /// fixed for a format version: a field a later task fills is zero until then (the rotor commands and packs, 1.4),
-    /// and a new field is a new version that appends it (the controller's integrators, 1.4; the contact anchors, 1.6).
+    /// fixed for a format version: a field a later task fills is zero until then, and a new field is a new version
+    /// that appends it (the flight controller's state, 1.4; the contact anchors, 1.6). A body without propulsion
+    /// logs zeros for the rotors, the packs and the controller.
     /// A kind a reader does not know is skipped by its length.
     /// </summary>
     public static class LogFormat
@@ -48,30 +52,54 @@ namespace Fpv450.Sim.Log
         public static readonly byte[] Magic = { 0x46, 0x50, 0x56, 0x34, 0x35, 0x30, 0x4C, 0x47 };
 
         /// <summary>The format: the prologue, the header's entries and the record layouts below.</summary>
-        public const int Version = 1;
+        public const int Version = 5;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
         /// and inputs, when the flightbench golden is re-recorded (audited case by case), so a replay refuses a log of
         /// another model rather than report a divergence at its first step. WorldHash.QueryVersion is the world's.
         /// 1: p6-flight-core tasks 1.1–1.3 (the free rigid body).
+        /// 2: task 1.4 (the flight controller and propulsion; a body without propulsion steps as in 1).
+        /// 3: task 1.5 (the air: the stand-in wind, the rotors' inflow from it and their in-plane drag, the body's and
+        ///    the coil's drag, the rotors' gyroscopic moment, the ESCs' current limit; a free body steps as in 1).
+        /// 4: task 1.6 (the contacts: the legs on the ground, the frame's parts on the ground and the world's objects under
+        ///    the Time &lt; 1 latch, friction, prop strikes, crashes; a flight that touches nothing steps as in 3), and
+        ///    separately task 1.4b (the controller's gyro and D-term filter chain on the builder's profile, its 8 kHz gyro
+        ///    samples, battery sag compensation; a free body steps as in 1). Two models shared the number on two branches.
+        /// 5: 1.6 and 1.4b merged: the contacts and the filter chain together (a flight that touches nothing steps as 1.4b's
+        ///    model 4, a flight with every filter off as 1.6's; a free body steps as in 1).
         /// </summary>
-        public const int ModelVersion = 1;
+        public const int ModelVersion = 5;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
         /// <summary>A block's kind and payload length, u16 each.</summary>
         public const int BlockHeaderSize = 4;
 
-        public const int StepSize = 352, EventSize = 72, EndSize = 48;
+        /// <summary>The step record: 352 B of 1.1–1.3's fields, then the flight controller's 69 doubles and flags (1.4),
+        /// then the gust, the air's force and moment and the ESCs' limit (1.5), then the contacts' force and moment, the
+        /// legs' loads and compressions and the touching pairs (1.6), then the controller's filter outputs and battery
+        /// (1.4b).</summary>
+        public const int StepSize = 1296, EventSize = 72, EndSize = 48;
 
         // What the step record covers, checked against the structs by the suite: a field added to one of them must be
         // logged (a new layout) or the suite fails.
         public static readonly string[] StateFieldsLogged =
-            { "Step", "Position", "Velocity", "Attitude", "BodyRate", "Armed", "RotorSpeed", "EscCommand", "PackCharge0", "PackCharge1" };
+            { "Step", "Position", "Velocity", "Attitude", "BodyRate", "Armed", "RotorSpeed", "EscCommand", "PackCharge0", "PackCharge1", "Fc", "Gust", "EscLimited", "Crashed" };
+        public static readonly string[] FcFieldsLogged =
+        {
+            "RcCommand", "RcThrottle", "RcDataThrottle", "RawSetpoint", "FfDeltaPrev", "FfSpeedPrev", "FfAccelPrev", "FfRaw",
+            "Setpoint1", "Setpoint2", "Setpoint", "Throttle1", "Throttle2", "Throttle", "Ff1", "Ff2", "Ff", "ITerm", "GyroPrev",
+            "RelaxLpf", "DMinRange1", "DMinRange", "DMinLpf1", "DMinLpf", "YawP", "BoostLpf", "AntiGravity1", "AntiGravity",
+            "ThrottlePrev", "TpaFactor", "MotorMixRange", "Flags", "GyroFiltered", "DtermGyro", "DynNotch1", "DynNotch2",
+            "DynNotch3", "DynNotch4", "DynNotch5", "DynLpfThrottle", "DynLpfLoops", "SagVolts", "Cells",
+        };
         public static readonly string[] StickFieldsLogged = { "HostUs", "Roll", "Pitch", "Yaw", "Throttle", "Arm" };
         public static readonly string[] TraceFieldsLogged =
-            { "RotorCommand", "PackVolts0", "PackVolts1", "PackAmps0", "PackAmps1", "NetForce", "NetMoment" };
+            {
+                "RotorCommand", "PackVolts0", "PackVolts1", "PackAmps0", "PackAmps1", "NetForce", "NetMoment", "AeroForce", "AeroMoment",
+                "ContactForce", "ContactMoment", "LegLoad", "LegCompression", "ContactsTouching",
+            };
 
         static readonly string[] CornerNames = { "rear_right", "front_right", "rear_left", "front_left" };
 
@@ -117,8 +145,64 @@ namespace Fpv450.Sim.Log
             b.Add("pack_amps1", "A", LogFieldType.F64);
             b.Vec("net_force", "N, world, weight included");
             b.Vec("net_moment", "N.m, body, about the CoM");
-            b.Add("flags", "bit 0 armed, bit 1 stick.arm", LogFieldType.U8);
+            b.Add("flags", "bit 0 armed, bit 1 stick.arm, bit 2 crashed", LogFieldType.U8);
             b.Add("reserved", "zero", LogFieldType.Pad, 7);
+            // The flight controller's state (FcState), roll, pitch and yaw in the pilot's directions.
+            b.Axes("fc.rc_command", "us from the stick centre after the deadband");
+            b.Add("fc.rc_throttle", "us, rcCommand[THROTTLE] from the curve", LogFieldType.F64);
+            b.Add("fc.rc_data_throttle", "us, the throttle channel", LogFieldType.F64);
+            b.Axes("fc.raw_setpoint", "deg/s");
+            b.Axes("fc.ff_delta_prev", "us");
+            b.Axes("fc.ff_speed_prev", "deg/s2");
+            b.Axes("fc.ff_accel_prev", "deg/s2");
+            b.Axes("fc.ff_raw", "deg/s2");
+            b.Axes("fc.setpoint1", "deg/s, PT3 stage");
+            b.Axes("fc.setpoint2", "deg/s, PT3 stage");
+            b.Axes("fc.setpoint", "deg/s, smoothed");
+            b.Add("fc.throttle1", "us, PT3 stage", LogFieldType.F64);
+            b.Add("fc.throttle2", "us, PT3 stage", LogFieldType.F64);
+            b.Add("fc.throttle", "us, smoothed", LogFieldType.F64);
+            b.Axes("fc.ff1", "deg/s2, PT3 stage");
+            b.Axes("fc.ff2", "deg/s2, PT3 stage");
+            b.Axes("fc.ff", "deg/s2, smoothed");
+            b.Axes("fc.iterm", "PID units");
+            b.Axes("fc.gyro_prev", "deg/s");
+            b.Axes("fc.relax_lpf", "deg/s");
+            b.Axes("fc.dmin_range1", "deg/s2, PT2 stage");
+            b.Axes("fc.dmin_range", "deg/s2");
+            b.Axes("fc.dmin_lpf1", "D min factor, PT2 stage");
+            b.Axes("fc.dmin_lpf", "D min factor");
+            b.Add("fc.yaw_p", "PID units", LogFieldType.F64);
+            b.Add("fc.boost_lpf", "0..1", LogFieldType.F64);
+            b.Add("fc.anti_gravity1", "1/s, PT2 stage", LogFieldType.F64);
+            b.Add("fc.anti_gravity", "1/s", LogFieldType.F64);
+            b.Add("fc.throttle_prev", "0..1", LogFieldType.F64);
+            b.Add("fc.tpa_factor", "0..1", LogFieldType.F64);
+            b.Add("fc.motor_mix_range", "0..", LogFieldType.F64);
+            b.Add("fc.flags", "FcFlags", LogFieldType.U16);
+            b.Add("fc.reserved", "zero", LogFieldType.Pad, 6);
+            // The air (1.5).
+            b.Vec("gust", "m/s, world, the stand-in wind's gust over its mean");
+            b.Vec("aero_force", "N, world: body, coil and rotor in-plane drag");
+            b.Vec("aero_moment", "N.m, body, about the CoM");
+            b.Add("esc_limited", "bit per corner: held at its current limit", LogFieldType.U8);
+            b.Add("air.reserved", "zero", LogFieldType.Pad, 7);
+            // The contacts (1.6).
+            b.Vec("contact_force", "N, world: every touching pair's normal force and friction");
+            b.Vec("contact_moment", "N.m, body, about the CoM");
+            b.Corners("leg_load", "N, each leg's spring force");
+            b.Corners("leg_compression", "m, each leg's deepest point");
+            b.Add("contacts_touching", "touching pairs that pushed", LogFieldType.U16);
+            b.Add("contact.reserved", "zero", LogFieldType.Pad, 6);
+            // The controller's filter chain and battery (1.4b).
+            b.Axes("fc.gyro_filtered", "deg/s, gyroADCf after the gyro's filters");
+            b.Axes("fc.dterm_gyro", "deg/s, after the D term's filters");
+            for (int p = 1; p <= 5; p++) b.Axes("fc.dyn_notch" + p, "Hz, the dynamic notch's centre; 0 past its count");
+            b.Add("fc.sag_volts", "V, the pack through the sag filter", LogFieldType.F64);
+            b.Add("fc.cells", "the battery's cell count; 0 not yet found", LogFieldType.U8);
+            b.Add("fc.dyn_lpf_throttle", "hundredths of throttle the dynamic LPFs follow", LogFieldType.U8);
+            b.Add("fc.dyn_lpf_loops", "loops since they last moved, to 20", LogFieldType.U8);
+            b.Add("fc.filters.reserved", "zero", LogFieldType.Pad, 5);
             return b.Done(StepSize);
         }
 
@@ -180,8 +264,65 @@ namespace Fpv450.Sim.Log
             w.F64(t.PackAmps1);
             w.V3(t.NetForce);
             w.V3(t.NetMoment);
-            w.U8((byte)((s.Armed ? 1 : 0) | (k.Arm ? 2 : 0)));
+            w.U8((byte)((s.Armed ? 1 : 0) | (k.Arm ? 2 : 0) | (s.Crashed ? 4 : 0)));
             w.Zero(7);
+            ref readonly FcState f = ref s.Fc;
+            w.A3(f.RcCommand);
+            w.F64(f.RcThrottle);
+            w.F64(f.RcDataThrottle);
+            w.A3(f.RawSetpoint);
+            w.A3(f.FfDeltaPrev);
+            w.A3(f.FfSpeedPrev);
+            w.A3(f.FfAccelPrev);
+            w.A3(f.FfRaw);
+            w.A3(f.Setpoint1);
+            w.A3(f.Setpoint2);
+            w.A3(f.Setpoint);
+            w.F64(f.Throttle1);
+            w.F64(f.Throttle2);
+            w.F64(f.Throttle);
+            w.A3(f.Ff1);
+            w.A3(f.Ff2);
+            w.A3(f.Ff);
+            w.A3(f.ITerm);
+            w.A3(f.GyroPrev);
+            w.A3(f.RelaxLpf);
+            w.A3(f.DMinRange1);
+            w.A3(f.DMinRange);
+            w.A3(f.DMinLpf1);
+            w.A3(f.DMinLpf);
+            w.F64(f.YawP);
+            w.F64(f.BoostLpf);
+            w.F64(f.AntiGravity1);
+            w.F64(f.AntiGravity);
+            w.F64(f.ThrottlePrev);
+            w.F64(f.TpaFactor);
+            w.F64(f.MotorMixRange);
+            w.U16((ushort)f.Flags);
+            w.Zero(6);
+            w.V3(s.Gust);
+            w.V3(t.AeroForce);
+            w.V3(t.AeroMoment);
+            w.U8(s.EscLimited);
+            w.Zero(7);
+            w.V3(t.ContactForce);
+            w.V3(t.ContactMoment);
+            w.C4(t.LegLoad);
+            w.C4(t.LegCompression);
+            w.U16((ushort)t.ContactsTouching);
+            w.Zero(6);
+            w.A3(f.GyroFiltered);
+            w.A3(f.DtermGyro);
+            w.A3(f.DynNotch1);
+            w.A3(f.DynNotch2);
+            w.A3(f.DynNotch3);
+            w.A3(f.DynNotch4);
+            w.A3(f.DynNotch5);
+            w.F64(f.SagVolts);
+            w.U8(f.Cells);
+            w.U8(f.DynLpfThrottle);
+            w.U8(f.DynLpfLoops);
+            w.Zero(5);
         }
 
         public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
@@ -214,6 +355,64 @@ namespace Fpv450.Sim.Log
             byte flags = r.U8();
             s.Armed = (flags & 1) != 0;
             k.Arm = (flags & 2) != 0;
+            s.Crashed = (flags & 4) != 0;
+            r.Skip(7);
+            ref FcState f = ref s.Fc;
+            f.RcCommand = r.A3();
+            f.RcThrottle = r.F64();
+            f.RcDataThrottle = r.F64();
+            f.RawSetpoint = r.A3();
+            f.FfDeltaPrev = r.A3();
+            f.FfSpeedPrev = r.A3();
+            f.FfAccelPrev = r.A3();
+            f.FfRaw = r.A3();
+            f.Setpoint1 = r.A3();
+            f.Setpoint2 = r.A3();
+            f.Setpoint = r.A3();
+            f.Throttle1 = r.F64();
+            f.Throttle2 = r.F64();
+            f.Throttle = r.F64();
+            f.Ff1 = r.A3();
+            f.Ff2 = r.A3();
+            f.Ff = r.A3();
+            f.ITerm = r.A3();
+            f.GyroPrev = r.A3();
+            f.RelaxLpf = r.A3();
+            f.DMinRange1 = r.A3();
+            f.DMinRange = r.A3();
+            f.DMinLpf1 = r.A3();
+            f.DMinLpf = r.A3();
+            f.YawP = r.F64();
+            f.BoostLpf = r.F64();
+            f.AntiGravity1 = r.F64();
+            f.AntiGravity = r.F64();
+            f.ThrottlePrev = r.F64();
+            f.TpaFactor = r.F64();
+            f.MotorMixRange = r.F64();
+            f.Flags = (FcFlags)r.U16();
+            r.Skip(6);
+            s.Gust = r.V3();
+            t.AeroForce = r.V3();
+            t.AeroMoment = r.V3();
+            s.EscLimited = r.U8();
+            r.Skip(7);
+            t.ContactForce = r.V3();
+            t.ContactMoment = r.V3();
+            t.LegLoad = r.C4();
+            t.LegCompression = r.C4();
+            t.ContactsTouching = r.U16();
+            r.Skip(6);
+            f.GyroFiltered = r.A3();
+            f.DtermGyro = r.A3();
+            f.DynNotch1 = r.A3();
+            f.DynNotch2 = r.A3();
+            f.DynNotch3 = r.A3();
+            f.DynNotch4 = r.A3();
+            f.DynNotch5 = r.A3();
+            f.SagVolts = r.F64();
+            f.Cells = r.U8();
+            f.DynLpfThrottle = r.U8();
+            f.DynLpfLoops = r.U8();
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>
@@ -355,6 +554,13 @@ namespace Fpv450.Sim.Log
                     Add(name + "." + corner, unit, LogFieldType.F64);
             }
 
+            public void Axes(string name, string unit)
+            {
+                Add(name + ".roll", unit, LogFieldType.F64);
+                Add(name + ".pitch", unit, LogFieldType.F64);
+                Add(name + ".yaw", unit, LogFieldType.F64);
+            }
+
             public LogField[] Done(int size)
             {
                 if (_at != size) throw new InvalidOperationException("a log layout is " + _at + " bytes, not " + size);
@@ -415,6 +621,13 @@ namespace Fpv450.Sim.Log
                 F64(c.RearLeft);
                 F64(c.FrontLeft);
             }
+
+            public void A3(in Axes3 a)
+            {
+                F64(a.Roll);
+                F64(a.Pitch);
+                F64(a.Yaw);
+            }
         }
 
         ref struct Reader
@@ -456,6 +669,10 @@ namespace Fpv450.Sim.Log
             public Double3 V3() => new Double3(F64(), F64(), F64());
 
             public Corners C4() => new Corners { RearRight = F64(), FrontRight = F64(), RearLeft = F64(), FrontLeft = F64() };
+
+            public Axes3 A3() => new Axes3 { Roll = F64(), Pitch = F64(), Yaw = F64() };
+
+            public void Skip(int n) => _at += n;
         }
     }
 
