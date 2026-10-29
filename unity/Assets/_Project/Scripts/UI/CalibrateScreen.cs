@@ -14,7 +14,8 @@ namespace Fpv450.UI
     /// arrival stamp, so nothing depends on the frame rate. The live bars show each raw axis and the sticks as the
     /// flight will get them (the reader's map). A clean calibration is saved under the radio's name, made the active
     /// profile and put into the reader's map at once; one with an axis too narrow is not saved. Profiles are listed to
-    /// pick the active one, and renamed with the keyboard if the pilot wants to, after the calibration.
+    /// pick the active one, and renamed with the keyboard if the pilot wants to, after the calibration. The Rates tab
+    /// (1.3) edits the rates and the throttle curve (RatesPanel); it is offered whenever the wizard is not running.
     /// </summary>
     public sealed class CalibrateScreen : MonoBehaviour
     {
@@ -34,6 +35,9 @@ namespace Fpv450.UI
         string _rename = "";
         GUIStyle _title, _text, _small;
         Texture2D _white;
+        RatesPanel _rates;
+        int _tab;
+        static readonly string[] Tabs = { "Radio", "Rates" };
 
         // The app's reader, or one opened here on first use, so the menu can set Reader just after enabling the screen.
         RadioReader Radio
@@ -61,6 +65,7 @@ namespace Fpv450.UI
                 _store = new CalibrationStore(Application.persistentDataPath);
                 _storeError = CalibrationStore.FileName + " could not be read (" + e.Message + "); a new calibration replaces it.";
             }
+            _rates = new RatesPanel(Application.persistentDataPath);
         }
 
         void Start()
@@ -71,6 +76,7 @@ namespace Fpv450.UI
 
         void OnDisable()
         {
+            _rates?.Save();
             Stop();
             _own?.Stop();
             _own = null;
@@ -143,27 +149,38 @@ namespace Fpv450.UI
             float w = Mathf.Min(900, Screen.width - 32);
             GUILayout.BeginArea(new Rect((Screen.width - w) / 2, 24, w, Screen.height - 48));
             GUILayout.Label("Calibrate", _title);
-            RadioReader r = Radio;
-            if (!r.Connected)
-            {
-                GUILayout.Label("Connect the radio by USB in joystick mode.", _text);
-            }
+            if (_wizard != null && _wizard.Step != CalibrationStep.Done) _tab = 0;
             else
             {
-                GUILayout.Label(r.DeviceName, _small);
+                _tab = GUILayout.Toolbar(_tab, Tabs, GUILayout.Width(320), GUILayout.Height(32));
                 GUILayout.Space(12);
-                if (_wizard == null) Idle();
-                else if (_wizard.Step != CalibrationStep.Done) Running();
-                else Finished();
-                GUILayout.Space(16);
-                Bars(r);
             }
-            if (_storeError != null) GUILayout.Label(_storeError, _small);
+            if (_tab == 1) _rates.Draw(w);
+            else
+            {
+                RadioReader r = Radio;
+                if (!r.Connected)
+                {
+                    GUILayout.Label("Connect the radio by USB in joystick mode.", _text);
+                }
+                else
+                {
+                    GUILayout.Label(r.DeviceName, _small);
+                    GUILayout.Space(12);
+                    if (_wizard == null) Idle();
+                    else if (_wizard.Step != CalibrationStep.Done) Running();
+                    else Finished();
+                    GUILayout.Space(16);
+                    Bars(r);
+                }
+                if (_storeError != null) GUILayout.Label(_storeError, _small);
+            }
             GUILayout.FlexibleSpace();
             if (GUILayout.Button("Back", GUILayout.Width(160), GUILayout.Height(36)))
             {
                 _wizard = null;
                 Stop();
+                _rates.Save();
                 Closed?.Invoke();
             }
             GUILayout.EndArea();
