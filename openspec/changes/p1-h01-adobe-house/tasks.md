@@ -117,6 +117,7 @@ Branch `unity/art/p1-h01-adobe-house` off `unity/art/p1-r01-vaz-sedan` at `e5250
     - *Rebuilt:* K02 (1 snag), K03 (33), H01_I (198) and H01_D (2 562) gain only each snag's `material`; H01 also gains `bounds.lod` and its prefabs' LOD groups. K01, K07, R01, V01, V13, S04, L01, L03 and E01 show no diff.
     - *Counts:* H01 as 1.5 left it: 0 problems, primitive to mesh 41.5 mm, mesh 48.9 mm, 17.5 mm in D's zone; D has 4 047 shapes, 2 562 snags and 50 gaps; triangles unchanged. The audit took 910 s (I) and 2 863–4 384 s (D) with other agents' jobs running; its code path is unchanged by the merge. R01 as merged: A 49.590 (zone 19.646) and 40.188 (18.974) mm, F 49.589 (19.539) and 40.187 (17.160) mm.
     - *Checks:* V01 parity 0 of 44; EditMode 114 of 114; `pytest tools` 1 356 passed; both `test_existing_tree_is_clean` targets green; `fetch.py --verify` and the hygiene scan clean; a second H01 build leaves `git status` clean. No `test_tint_encoding.py` exists.
+    - *B1 fixed in code and tests, rebuild to do:* `joinery.door`'s open leaf now records its throat (I 0.368 m "no", D 0.720 m "any yaw, 7 mm a side on the diagonal"); `pwsh tools/build_asset.ps1 H01` is still to run.
 
 ## 2. Review
 
