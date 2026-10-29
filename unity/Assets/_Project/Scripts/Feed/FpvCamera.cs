@@ -44,7 +44,14 @@ namespace Fpv450.Feed
         RenderTexture savedTarget;
         double clock;
 
-        void OnEnable() => Begin();
+        // A rig added from code (NoclipFeed) gets its settings and signals after AddComponent, so it begins at Start.
+        void OnEnable()
+        {
+            if (settings != null)
+                Begin();
+        }
+
+        void Start() => Begin();
 
         void OnDisable() => End();
 
@@ -104,9 +111,9 @@ namespace Fpv450.Feed
             Feed.Scene = scene;
             Feed.SceneEncoded = false;
 
+            // The clock runs on from where the rig last stopped, so switching the feed off and on resumes the schedule.
             Events = new FeedEvents(settings.seed);
-            clock = 0.0;
-            Step(pinnedField >= 0 ? pinnedField : 0);
+            Step(pinnedField >= 0 ? pinnedField : (int)(clock * FieldsPerSecond));
             Debug.Log($"[Feed] FPV camera: {size.x}x{size.y} render, {settings.RenderVerticalFovDeg:0.00}° vertical, " +
                       $"picture {settings.PictureHorizontalFovDeg:0.0}° across, lens k1 {settings.K1:0.00}, " +
                       $"field {settings.fieldWidth}x{FeedSettings.FieldRows}, seed {settings.seed}. {FeedSignalLog.Describe(Signals)}");

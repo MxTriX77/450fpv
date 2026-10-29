@@ -31,6 +31,10 @@ namespace Fpv450.Feed
         [Tooltip("The camera's AE gain, 1 by day (the Godot stand-in's). Task 1.7's AE loop replaces it.")]
         public float gain = 1f;
 
+        /// The project's asset, <c>Settings/Feed/Resources/FeedSettings.asset</c>: under Resources so a rig added at
+        /// run time (<see cref="NoclipFeed"/>) finds it in a player.
+        public static FeedSettings Load() => Resources.Load<FeedSettings>("FeedSettings");
+
         /// The picture's aspect: native 16:9 with square pixels (FEED-02).
         public const float Aspect = 16f / 9f;
         /// Rows of the field texture: the 286 field lines plus the half line an odd field starts with (gd:169).

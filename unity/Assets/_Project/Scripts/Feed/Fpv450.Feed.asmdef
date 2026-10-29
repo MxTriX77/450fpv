@@ -3,6 +3,7 @@
     "rootNamespace": "Fpv450.Feed",
     "references": [
         "Fpv450.Feed.Core",
+        "Unity.InputSystem",
         "Unity.RenderPipelines.Core.Runtime",
         "Unity.RenderPipelines.Universal.Runtime"
     ],

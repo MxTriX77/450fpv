@@ -5,7 +5,11 @@ A small flat map, 512 m square, to look around in noclip now and to fly the firs
 ## Run it
 - Double-click `unity/Builds/Windows-TestRange/450fpv-test-range.exe` (or run it from a terminal). Laptop on **AC power**: on battery it falls back to the integrated GPU.
 - It opens full screen at the display's resolution, with vsync on. **Alt+Enter** toggles a window. **Esc** (or Alt+F4) quits.
-- Options for the team: `-windowed` (a 1920 × 1080 window), `-vsync 0` (vsync off, for frame-rate measurements), `-smoketest` (loads, logs every placed object, quits after one frame), `-capture <folder>` (saves every number-key view under every light, then quits), `-bench` (flies the three frame-rate legs, over the yard, along the posadka at 2 m and over the fields at 50 m, logs each leg's frame rate, then quits).
+- You look through the **goggles feed** from the start: the analog PAL picture with its noise, quality drops and short dropouts, as the Godot feed had them. There is no drone yet, so nothing in it reacts to motors or the fiber. Not in it yet: the OSD (blank), the camera's own exposure and white balance, night's low-light look and drops on the lens.
+- Options for the team: `-windowed` (a 1920 × 1080 window), `-vsync 0` (vsync off, for frame-rate measurements), `-smoketest` (loads, logs every placed object, quits after one frame), `-capture <folder>` (saves every number-key view under every light, then quits), `-bench` (flies the three frame-rate legs, over the yard, along the posadka at 2 m and over the fields at 50 m, logs each leg's frame rate, then quits). Captures and the bench go through the feed unless it is off:
+  - `-feed 0` starts with the feed off (the clean noclip view, its frame rate and clean captures)
+  - `-feedwidth <n>` renders the scene at `n` samples across the picture instead of 1920 (frame-rate runs)
+  - `-feedcost` measures the feed's own GPU time for 30 s at the start view and quits (exit code 1 over 1.0 ms); it needs a development build (`-executeMethod Fpv450.Build.TestRange -developmentBuild`)
 
 ## Keys
 | Key | Does |
@@ -22,6 +26,8 @@ A small flat map, 512 m square, to look around in noclip now and to fly the firs
 | 4 | along the posadka's south edge at 2 m |
 | 5 | the trench, 1.5 m over its lip |
 | 6 | the whole map from 50 m up, from its north-west |
+| V | the goggles feed off / on (off is the clean view, with a narrower lens) |
+| O | the feed's review overlay: every signal it reads, its value and whether it is a stub |
 
 ## What is where
 - **The track** runs east-west. **The yard** lies south of it at the map's west end: the house by the road-side fence and gate, the shed, the cellar, two fruit trees, laid out as the Godot yard was.
@@ -34,4 +40,4 @@ A small flat map, 512 m square, to look around in noclip now and to fly the firs
 ## What is a stand-in
 - **From the Godot attempt**, as they were, with no look work (D-040), each swapped for its Unity asset when that lands: the house, the shed, the cellar, the gate, the fence and the fruit trees in the yard, and in the posadka the acacia, ash, maple, young and dead trees and the round bushes (their leaves are flat green cards).
 - **Unity's own**, as judged at G1: the straw patches (S04), the locusts (V01) and the leafy bushes (V13) in the posadka, the two cars (R01), the poles and wires (L01, L03) and the trench (E01).
-- **Not there yet:** H01's intact and damaged houses as the yard's neighbours (their plots stand empty until H01 is merged); the launch stand itself (the take-off point is set; the stand comes with the flight session); relief, roads, the goggles feed and the drone.
+- **Not there yet:** H01's intact and damaged houses as the yard's neighbours (their plots stand empty until H01 is merged); the launch stand itself (the take-off point is set; the stand comes with the flight session); relief, roads and the drone.

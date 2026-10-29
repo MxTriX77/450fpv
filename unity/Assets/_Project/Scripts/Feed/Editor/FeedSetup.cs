@@ -17,7 +17,7 @@ namespace Fpv450.Feed
     /// </summary>
     public static class FeedSetup
     {
-        public const string SettingsPath = "Assets/_Project/Settings/Feed/FeedSettings.asset";
+        public const string SettingsPath = "Assets/_Project/Settings/Feed/Resources/FeedSettings.asset";
         public const string ShaderPath = "Assets/_Project/Shaders/Feed.shader";
         public const string TestScenePath = "Assets/_Project/Scenes/FeedTest.unity";
         const string TestSceneFolder = "Assets/_Project/Scenes/FeedTest";
