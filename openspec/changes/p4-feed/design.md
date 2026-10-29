@@ -23,7 +23,7 @@
 5. **The OSD content:** a small model in `Scripts/UI/` (the game-developer's) maps the sim state to OSD-03's fields, with invented values where a real one would identify anything.
 6. **The AE/AWB loop and night:** first-order loops on the scene's measured luma and white point, with K§11.4's time constants. Night is the pipeline's low-light end, not a separate pass.
 7. **The metrics tool:** `tools/reference/frame_metrics.py` (the reference-analyst's), one tool for footage frames and captured feed frames, writing per-frame CSVs to `reference/_compare/` only.
-8. **G4's build:** the gallery player gains a feed toggle (on by default) on the noclip camera, plus the review overlay key.
+8. **G4's build:** the test range player (D-044, which moved G4 there from the gallery) gains a feed toggle (on by default) on the noclip camera, plus the review overlay key: V and O (task 1.8).
 
 ## Risks / Trade-offs
 - **HLSL against GDShader** differ in precision and in their derivative functions. The stage-by-stage still A/B catches drift.
