@@ -229,6 +229,8 @@ namespace Fpv450.Sim.Flight
             long loop = s.Step * FlightController.LoopsPerStep;
             for (int j = 0; j < FlightController.LoopsPerStep; j++)
             {
+                // The battery task reads the bus voltage the last sub-step left; the loop, the rotors' speeds (DShot).
+                if (FlightController.IsBatteryLoop(loop + j)) _fc.Battery(ref s.Fc, loads.Volts);
                 if (FlightController.IsFrameLoop(loop + j)) _fc.Frame(ref s.Fc, ref s.Armed, stick);
                 Axes3 gyro = to;
                 if (j < FlightController.LoopsPerStep - 1)
@@ -238,7 +240,7 @@ namespace Fpv450.Sim.Flight
                     gyro.Pitch = from.Pitch + (to.Pitch - from.Pitch) * t;
                     gyro.Yaw = from.Yaw + (to.Yaw - from.Yaw) * t;
                 }
-                _fc.Loop(ref s.Fc, s.Armed, gyro, ref duty, ref loss);
+                _fc.Loop(ref s.Fc, s.Armed, gyro, s.RotorSpeed, ref duty, ref loss);
                 _propulsion.SubStep(ref s, duty, s.Armed, FlightController.LoopDt, ref loads);
             }
 

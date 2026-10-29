@@ -18,11 +18,12 @@ namespace Fpv450.Sim.Control
     /// rates and the throttle curve in Calibrate (p6-input-app). The flight takes a copy at its start and logs it.
     ///
     /// Defaults (FcSettings.Default): the rates, throttle curve, deadband, RC smoothing and feedforward are the sim
-    /// default column of reference-notes/fc-profiles.md (pilot); the PIDs, D min, `iterm_relax_cutoff` and
-    /// `throttle_boost` are the builder's (fc-profiles §1, pilot); the rest are Betaflight 4.5.0's defaults (published,
-    /// checked in its source in 1.4: src/main/flight/pid.c resetPidProfile, src/main/pg/rx.c, src/main/pg/motor.c,
+    /// default column of reference-notes/fc-profiles.md (pilot); the PIDs, D min, `iterm_relax_cutoff`,
+    /// `throttle_boost`, the gyro and D-term filters, the RPM filter and the cell warning are the builder's (fc-profiles §1,
+    /// pilot); the rest are Betaflight 4.5.0's defaults (published, checked in its source in 1.4 and 1.4b:
+    /// src/main/flight/pid.c resetPidProfile, src/main/pg/rx.c, src/main/pg/motor.c,
     /// src/main/config/feature.c). Every value is a named, tunable default. FlightController says which settings it
-    /// models and refuses the values it does not (vbat_sag_compensation, feedforward_averaging).
+    /// models and refuses the values it does not (feedforward_averaging, a lowpass type other than BIQUAD).
     ///
     /// ACTUAL rates store the centre sensitivity and the full-stick rate in tens of °/s. Betaflight keeps them as
     /// integers; the sim default column asks for halves (55 and 225 °/s), which this record holds exactly as 5.5 and
@@ -87,8 +88,35 @@ namespace Fpv450.Sim.Control
         // Throttle boost.
         public double throttle_boost, throttle_boost_cutoff;
 
-        // Battery sag compensation, 0–100 %.
+        // The gyro's filters (sensors/gyro.c, gyro_init.c): LPF1, dynamic from its min to its max cutoff with the
+        // throttle (a min of 0: static at gyro_lpf1_static_hz) and its curve's expo, tenths; LPF2 at the gyro's 8 kHz;
+        // two notches, centre and lower cutoff. Hz; 0 = off.
+        public LowpassType gyro_lpf1_type, gyro_lpf2_type;
+        public double gyro_lpf1_static_hz, gyro_lpf1_dyn_min_hz, gyro_lpf1_dyn_max_hz, gyro_lpf1_dyn_expo;
+        public double gyro_lpf2_static_hz;
+        public double gyro_notch1_hz, gyro_notch1_cutoff, gyro_notch2_hz, gyro_notch2_cutoff;
+
+        // The dynamic notch (flight/dyn_notch_filter.c): notches per axis (0–5, 0 = off), Q × 100, its range, Hz.
+        public double dyn_notch_count, dyn_notch_q, dyn_notch_min_hz, dyn_notch_max_hz;
+
+        // The RPM filter (flight/rpm_filter.c) on bidirectional DShot's motor speeds: harmonics (0–3, 0 = off),
+        // Q × 100, the lowest notch and the fade above it, Hz, and the motor speeds' low-pass, Hz.
+        public bool dshot_bidir;
+        public double rpm_filter_harmonics, rpm_filter_q, rpm_filter_min_hz, rpm_filter_fade_range_hz, rpm_filter_lpf_hz;
+
+        // The D term's filters (flight/pid_init.c): a notch, centre and lower cutoff; LPF1, dynamic as the gyro's;
+        // LPF2. Hz; 0 = off.
+        public double dterm_notch_hz, dterm_notch_cutoff;
+        public LowpassType dterm_lpf1_type, dterm_lpf2_type;
+        public double dterm_lpf1_static_hz, dterm_lpf1_dyn_min_hz, dterm_lpf1_dyn_max_hz, dterm_lpf1_dyn_expo;
+        public double dterm_lpf2_static_hz;
+
+        // Battery sag compensation (flight/mixer.c, sensors/battery.c, sensors/voltage.c), 0–150 %: that share of the
+        // warning-to-full cell range, over full, taken off the motors' top on a full pack and none at the warning
+        // voltage. The cell thresholds, cV; the sag filter's period, tenths of a second; the cell count (0 = counted
+        // from vbat_max_cell_voltage when the pack is found).
         public double vbat_sag_compensation;
+        public double vbat_warning_cell_voltage, vbat_max_cell_voltage, vbat_sag_lpf_period, force_battery_cell_count;
 
         // Motors: idle in hundredths of a percent (550 = 5.5 %), the output limit, % of full, airmode (CLI `feature
         // AIRMODE`) and the throttle that activates it, %.
@@ -117,6 +145,18 @@ namespace Fpv450.Sim.Control
             iterm_relax_cutoff = 8,
             throttle_boost = 5,
 
+            // pilot: fc-profiles §1, the builder's filters, RPM filter and cell warning (hand-set, so simplified filter
+            // tuning off)
+            gyro_lpf1_type = LowpassType.BIQUAD, gyro_lpf1_dyn_min_hz = 35, gyro_lpf1_dyn_max_hz = 90,
+            gyro_lpf2_type = LowpassType.BIQUAD, gyro_lpf2_static_hz = 90,
+            gyro_notch1_hz = 50, gyro_notch1_cutoff = 35,
+            dyn_notch_q = 500, dyn_notch_min_hz = 60, dyn_notch_max_hz = 200,
+            dterm_lpf1_type = LowpassType.BIQUAD, dterm_lpf1_static_hz = 63, dterm_lpf1_dyn_min_hz = 35, dterm_lpf1_dyn_max_hz = 80,
+            dterm_lpf2_type = LowpassType.BIQUAD, dterm_lpf2_static_hz = 80,
+            dterm_notch_hz = 60, dterm_notch_cutoff = 45,
+            dshot_bidir = true, rpm_filter_min_hz = 50,
+            vbat_warning_cell_voltage = 300,
+
             // published: Betaflight 4.5.0's defaults (the builder kept yaw P at its default). pid.c resetPidProfile:
             // the yaw P, D min, I-term, PID-sum, anti-gravity, TPA and throttle-boost values; pid.h PID_YAW_DEFAULT,
             // D_MIN_DEFAULT, PIDSUM_LIMIT(_YAW); pg/rx.c rxConfig: min_check, the RC smoothing and airmode's start;
@@ -143,6 +183,18 @@ namespace Fpv450.Sim.Control
             motor_output_limit = 100,
             airmode = true,
             airmode_start_throttle_percent = 25,
+
+            // published: Betaflight 4.5.0's defaults (1.4b). sensors/gyro.c pgResetFn_gyroConfig 105–134 (LPF1's
+            // static 250 Hz, unused while it is dynamic; the curve's expo 5; notch 2 off), pid.c resetPidProfile 169–205
+            // (the D term's expo 5), pg/dyn_notch.c 32–37 (3 notches), pg/rpm_filter.c 32–39 (3 harmonics, Q 500, the
+            // fade 50 Hz, the speeds' low-pass 150 Hz), sensors/battery.c 110–132 (vbat_max_cell_voltage 430 as
+            // VBAT_CELL_VOLTAGE_DEFAULT_MAX, the sag filter's period 2, the cells counted)
+            gyro_lpf1_static_hz = 250, gyro_lpf1_dyn_expo = 5,
+            gyro_notch2_hz = 0, gyro_notch2_cutoff = 0,
+            dyn_notch_count = 3,
+            dterm_lpf1_dyn_expo = 5,
+            rpm_filter_harmonics = 3, rpm_filter_q = 500, rpm_filter_fade_range_hz = 50, rpm_filter_lpf_hz = 150,
+            vbat_max_cell_voltage = 430, vbat_sag_lpf_period = 2, force_battery_cell_count = 0,
         };
     }
 }

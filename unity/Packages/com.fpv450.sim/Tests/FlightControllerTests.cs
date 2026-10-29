@@ -66,7 +66,7 @@ namespace Fpv450.Sim.Tests
             for (int loop = 0; loop < 2000; loop++)
             {
                 if (FlightController.IsFrameLoop(loop)) fc.Frame(ref s, ref armed, stick);
-                fc.Loop(ref s, armed, default, ref duty, ref loss);
+                fc.Loop(ref s, armed, default, default, ref duty, ref loss);
             }
             Assert.That(s.Setpoint.Roll, Is.EqualTo(fc.SetpointOf(0, 0.5)).Within(0.1));
             Assert.That(s.Setpoint.Pitch, Is.EqualTo(fc.SetpointOf(1, -0.75)).Within(0.1));
@@ -141,6 +141,21 @@ namespace Fpv450.Sim.Tests
             Assert.That(d.p_yaw, Is.EqualTo(45), "Betaflight 4.5.0's PID_YAW_DEFAULT P");
             StringAssert.Contains("`iterm_relax_cutoff = " + d.iterm_relax_cutoff + "`", string.Join("\n", lines));
             StringAssert.Contains("`throttle_boost = " + d.throttle_boost + "`", string.Join("\n", lines));
+
+            // §1's filters, RPM filter and cell warning (1.4b), every one a biquad.
+            string note = string.Join("\n", lines);
+            string N(double x) => x.ToString(CultureInfo.InvariantCulture);
+            Assert.That(new[] { d.gyro_lpf1_type, d.gyro_lpf2_type, d.dterm_lpf1_type, d.dterm_lpf2_type }, Is.All.EqualTo(LowpassType.BIQUAD));
+            StringAssert.Contains($"gyro LPF1 dynamic {N(d.gyro_lpf1_dyn_min_hz)}–{N(d.gyro_lpf1_dyn_max_hz)} Hz (biquad) and LPF2 static {N(d.gyro_lpf2_static_hz)} Hz (biquad)", note);
+            StringAssert.Contains($"a gyro notch at {N(d.gyro_notch1_hz)} Hz (cutoff {N(d.gyro_notch1_cutoff)})", note);
+            StringAssert.Contains($"a dynamic notch at {N(d.dyn_notch_min_hz)}–{N(d.dyn_notch_max_hz)} Hz (Q {N(d.dyn_notch_q)})", note);
+            StringAssert.Contains($"D-term LPF1 dynamic {N(d.dterm_lpf1_dyn_min_hz)}–{N(d.dterm_lpf1_dyn_max_hz)} Hz (biquad, static {N(d.dterm_lpf1_static_hz)}) "
+                + $"and LPF2 {N(d.dterm_lpf2_static_hz)} Hz (biquad)", note);
+            StringAssert.Contains($"a D-term notch at {N(d.dterm_notch_hz)} Hz (cutoff {N(d.dterm_notch_cutoff)})", note);
+            StringAssert.Contains($"**DShot300, bidirectional**", note);
+            Assert.That(d.dshot_bidir, Is.True);
+            StringAssert.Contains($"`rpm_filter_min_hz = {N(d.rpm_filter_min_hz)}`", note);
+            StringAssert.Contains($"{(d.vbat_warning_cell_voltage / 100).ToString("0.00", CultureInfo.InvariantCulture)} V warning", note);
         }
 
         // The arming rules (fc/core.c): the switch on at the start or with the throttle up refuses until it is off.
@@ -175,8 +190,16 @@ namespace Fpv450.Sim.Tests
         public void SettingsTheModelLacksAreRefused()
         {
             FcSettings s = FcSettings.Default;
-            s.vbat_sag_compensation = 100;
+            s.vbat_sag_compensation = 151;
             StringAssert.Contains("vbat_sag_compensation", Assert.Throws<ArgumentException>(() => new FlightController(s, PropsIn)).Message);
+            s = FcSettings.Default;
+            s.gyro_lpf2_type = LowpassType.PT1;
+            StringAssert.Contains("gyro_lpf2_type", Assert.Throws<ArgumentException>(() => new FlightController(s, PropsIn)).Message);
+            s.gyro_lpf2_static_hz = 0;
+            Assert.DoesNotThrow(() => new FlightController(s, PropsIn), "a lowpass that is off may have any type");
+            s = FcSettings.Default;
+            s.dyn_notch_count = 6;
+            StringAssert.Contains("dyn_notch_count", Assert.Throws<ArgumentException>(() => new FlightController(s, PropsIn)).Message);
             s = FcSettings.Default;
             s.feedforward_averaging = FeedforwardAveraging.TWO_POINT;
             StringAssert.Contains("feedforward_averaging", Assert.Throws<ArgumentException>(() => new FlightController(s, PropsIn)).Message);

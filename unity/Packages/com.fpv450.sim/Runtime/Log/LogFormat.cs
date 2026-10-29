@@ -30,9 +30,9 @@ namespace Fpv450.Sim.Log
     }
 
     /// <summary>
-    /// The flight log's binary format (design 10, LOG-01), version 3 (1.4 appended the flight controller's state to
+    /// The flight log's binary format (design 10, LOG-01), version 4 (1.4 appended the flight controller's state to
     /// the step record; 1.5 the wind's gust, the air's force and moment and the ESCs' current limit, and the header's
-    /// aero and wind entries). One file per flight:
+    /// aero and wind entries; 1.4b the controller's filter outputs and battery). One file per flight:
     /// - the prologue: Magic, then the format Version and the header's length (u32 each), then the header (LogHeader)
     /// - blocks to the end of the flight, each a u16 kind and a u16 payload length, then the payload:
     ///   - a step record (StepBlock) after every step: the integrated state, the stick sample in force during the step,
@@ -51,7 +51,7 @@ namespace Fpv450.Sim.Log
         public static readonly byte[] Magic = { 0x46, 0x50, 0x56, 0x34, 0x35, 0x30, 0x4C, 0x47 };
 
         /// <summary>The format: the prologue, the header's entries and the record layouts below.</summary>
-        public const int Version = 3;
+        public const int Version = 4;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -61,8 +61,10 @@ namespace Fpv450.Sim.Log
         /// 2: task 1.4 (the flight controller and propulsion; a body without propulsion steps as in 1).
         /// 3: task 1.5 (the air: the stand-in wind, the rotors' inflow from it and their in-plane drag, the body's and
         ///    the coil's drag, the rotors' gyroscopic moment, the ESCs' current limit; a free body steps as in 1).
+        /// 4: task 1.4b (the controller's gyro and D-term filter chain on the builder's profile, its 8 kHz gyro samples,
+        ///    battery sag compensation; a free body steps as in 1).
         /// </summary>
-        public const int ModelVersion = 3;
+        public const int ModelVersion = 4;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
@@ -70,8 +72,9 @@ namespace Fpv450.Sim.Log
         public const int BlockHeaderSize = 4;
 
         /// <summary>The step record: 352 B of 1.1–1.3's fields, then the flight controller's 69 doubles and flags (1.4),
-        /// then the gust, the air's force and moment and the ESCs' limit (1.5).</summary>
-        public const int StepSize = 992, EventSize = 72, EndSize = 48;
+        /// then the gust, the air's force and moment and the ESCs' limit (1.5), then the controller's filter outputs and
+        /// battery (1.4b).</summary>
+        public const int StepSize = 1176, EventSize = 72, EndSize = 48;
 
         // What the step record covers, checked against the structs by the suite: a field added to one of them must be
         // logged (a new layout) or the suite fails.
@@ -82,7 +85,8 @@ namespace Fpv450.Sim.Log
             "RcCommand", "RcThrottle", "RcDataThrottle", "RawSetpoint", "FfDeltaPrev", "FfSpeedPrev", "FfAccelPrev", "FfRaw",
             "Setpoint1", "Setpoint2", "Setpoint", "Throttle1", "Throttle2", "Throttle", "Ff1", "Ff2", "Ff", "ITerm", "GyroPrev",
             "RelaxLpf", "DMinRange1", "DMinRange", "DMinLpf1", "DMinLpf", "YawP", "BoostLpf", "AntiGravity1", "AntiGravity",
-            "ThrottlePrev", "TpaFactor", "MotorMixRange", "Flags",
+            "ThrottlePrev", "TpaFactor", "MotorMixRange", "Flags", "GyroFiltered", "DtermGyro", "DynNotch1", "DynNotch2",
+            "DynNotch3", "DynNotch4", "DynNotch5", "DynLpfThrottle", "DynLpfLoops", "SagVolts", "Cells",
         };
         public static readonly string[] StickFieldsLogged = { "HostUs", "Roll", "Pitch", "Yaw", "Throttle", "Arm" };
         public static readonly string[] TraceFieldsLogged =
@@ -174,6 +178,15 @@ namespace Fpv450.Sim.Log
             b.Vec("aero_moment", "N.m, body, about the CoM");
             b.Add("esc_limited", "bit per corner: held at its current limit", LogFieldType.U8);
             b.Add("air.reserved", "zero", LogFieldType.Pad, 7);
+            // The controller's filter chain and battery (1.4b).
+            b.Axes("fc.gyro_filtered", "deg/s, gyroADCf after the gyro's filters");
+            b.Axes("fc.dterm_gyro", "deg/s, after the D term's filters");
+            for (int p = 1; p <= 5; p++) b.Axes("fc.dyn_notch" + p, "Hz, the dynamic notch's centre; 0 past its count");
+            b.Add("fc.sag_volts", "V, the pack through the sag filter", LogFieldType.F64);
+            b.Add("fc.cells", "the battery's cell count; 0 not yet found", LogFieldType.U8);
+            b.Add("fc.dyn_lpf_throttle", "hundredths of throttle the dynamic LPFs follow", LogFieldType.U8);
+            b.Add("fc.dyn_lpf_loops", "loops since they last moved, to 20", LogFieldType.U8);
+            b.Add("fc.filters.reserved", "zero", LogFieldType.Pad, 5);
             return b.Done(StepSize);
         }
 
@@ -276,6 +289,18 @@ namespace Fpv450.Sim.Log
             w.V3(t.AeroMoment);
             w.U8(s.EscLimited);
             w.Zero(7);
+            w.A3(f.GyroFiltered);
+            w.A3(f.DtermGyro);
+            w.A3(f.DynNotch1);
+            w.A3(f.DynNotch2);
+            w.A3(f.DynNotch3);
+            w.A3(f.DynNotch4);
+            w.A3(f.DynNotch5);
+            w.F64(f.SagVolts);
+            w.U8(f.Cells);
+            w.U8(f.DynLpfThrottle);
+            w.U8(f.DynLpfLoops);
+            w.Zero(5);
         }
 
         public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
@@ -347,6 +372,18 @@ namespace Fpv450.Sim.Log
             t.AeroForce = r.V3();
             t.AeroMoment = r.V3();
             s.EscLimited = r.U8();
+            r.Skip(7);
+            f.GyroFiltered = r.A3();
+            f.DtermGyro = r.A3();
+            f.DynNotch1 = r.A3();
+            f.DynNotch2 = r.A3();
+            f.DynNotch3 = r.A3();
+            f.DynNotch4 = r.A3();
+            f.DynNotch5 = r.A3();
+            f.SagVolts = r.F64();
+            f.Cells = r.U8();
+            f.DynLpfThrottle = r.U8();
+            f.DynLpfLoops = r.U8();
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>
