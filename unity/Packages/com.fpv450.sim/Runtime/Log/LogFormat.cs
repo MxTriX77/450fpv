@@ -70,8 +70,10 @@ namespace Fpv450.Sim.Log
         ///    model 4, a flight with every filter off as 1.6's; a free body steps as in 1).
         /// 6: task 1.7 (the rigid body turns at the step's midpoint rate, RigidBody.MidpointPasses, which keeps the
         ///    energy; with no passes a flight steps as in 5, and a body with isotropic inertia steps as in 1).
+        /// 7: p7b-airframe 1.0 (drone.json's ESC command lag τ_esc from 5 ms, assumed, to 0.4 ms, derived; the code is
+        ///    6's, so a flight with τ_esc at 5 ms steps as in 6, and a free body as in 1).
         /// </summary>
-        public const int ModelVersion = 6;
+        public const int ModelVersion = 7;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

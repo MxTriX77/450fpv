@@ -58,7 +58,13 @@ namespace Fpv450.Sim.Tests
         // the passes at 0 (a temporary edit, reverted) the flight is model 5's 0x734B61C0C15797BC bit for bit, and over
         // 1.4b's layout 1.4b's 0x3695FC49DCA906DC. With the three passes it moves from step 1 (the first kick off the
         // principal axes); the closed loop holds it to 0.34 mrad of attitude and 32 mm of position by 10 s, 199.4 m up.
-        public const ulong PoweredHash = 0x3F13A5CF5DB7DAFDUL;
+        // Model 6: 0x3F13A5CF5DB7DAFD.
+        // p7b-airframe 1.0: re-recorded with ModelVersion 7 (drone.json's τ_esc 5 → 0.4 ms), audited: with τ_esc at 5 ms
+        // (a temporary test parsing drone.json so, removed) the flight is model 6's 0x3F13A5CF5DB7DAFD bit for bit. At
+        // 0.4 ms the records move from the first armed step, 21; the open-loop script drifts 55 mm and 0.16 mrad by the
+        // roll step (step 2000), 0.18 m and 7.9 mrad by the chop's end (5500), then the weave carries it to 4.7 m and
+        // 0.16 rad by 10 s, 195.1 m up against 199.4; 88 events against 98 (74 CurrentLimit against 84).
+        public const ulong PoweredHash = 0xA65FBFBCBCFC5B96UL;
 
         // 1.6: first recorded with ModelVersion 4 as 0x8B568804552379E6.
         // 1.6 and 1.4b merged: re-recorded with ModelVersion 5. Audited against 1.6: with every filter off and the PID
@@ -72,7 +78,12 @@ namespace Fpv450.Sim.Tests
         // 1.7: re-recorded with ModelVersion 6, audited: with the midpoint passes at 0 (the temporary edit) the flight is
         // model 5's 0xF1D0832353311083 bit for bit. With them it moves from step 1, by at most 1.0 µm and 0.62 µrad, and
         // keeps its course: the sticks held at step 7219, 5 impacts, at rest at the same height to 10 µm on 8 pairs.
-        public const ulong ContactHash = 0x3EE12C8D692BADF3UL;
+        // Model 6: 0x3EE12C8D692BADF3.
+        // p7b-airframe 1.0: re-recorded with ModelVersion 7 (τ_esc 0.4 ms), audited: with τ_esc at 5 ms the flight is model
+        // 6's 0x3EE12C8D692BADF3 bit for bit. At 0.4 ms it keeps its course: the sticks held at step 7220 (7219), the skids
+        // down at the same step (7412), the held bounce 135.7 mm up (140.1), the last touchdown after the cut 16 ms
+        // earlier (step 9297 against 9313), 5 impacts, no crash, at rest at the same height to 1.5 µm.
+        public const ulong ContactHash = 0x3AF33645FF8F1919UL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;

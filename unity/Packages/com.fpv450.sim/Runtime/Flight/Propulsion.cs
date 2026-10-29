@@ -43,7 +43,9 @@ namespace Fpv450.Sim.Flight
 
     /// <summary>
     /// The propulsion chain under the flight controller (design 5, PHB-03), per rotor, at the controller's 4 kHz:
-    /// - the ESC: a first-order filter on the duty command, d += (u − d)·h/(τ_esc + h) (drone.json's τ_esc)
+    /// - the ESC: a first-order filter on the duty command, d += (u − d)·h/(τ_esc + h) (drone.json's τ_esc: the DShot
+    ///   frame, the PWM's update and the winding's L/R as one lag, about 0.4 ms; the duty is not slewed, as BLHeli_32
+    ///   at its maximum acceleration and Bluejay do: p7b-airframe 1.0)
     /// - the motor: a DC motor at the duty's share of the bus voltage, i = (d·V − Ke·ω)/R, its torque Kt·i (Kt = Ke
     ///   in SI) against the no-load loss Kt·I0 and the prop's drag torque, J·ω̇ = Kt·i − Kt·I0 − Q. One state, ω; its
     ///   lag τ_m = J / (Kt·Ke/R + ∂Q/∂ω) follows from the load (about 40 ms at hover, Propulsion's tests), and the

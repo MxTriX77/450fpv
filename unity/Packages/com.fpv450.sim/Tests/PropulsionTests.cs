@@ -429,9 +429,12 @@ namespace Fpv450.Sim.Tests
         // On a rate rig: a 200 °/s step held 2 s tumbles the body through 400°, and in free air the rotors' in-plane drag
         // of that tumble's own motion swings the rate by tens of °/s (FreeTumble prints it); the loop's own stability
         // is measured without it. The rate is the plant's (the body's), not the filtered gyro.
-        static StepResult StepResponse(int axis, FcSettings settings)
+        static StepResult StepResponse(int axis, FcSettings settings, double escTau = 0)
         {
-            FlightCore core = Core(L4, 1, propulsion: NoInPlaneDrag(), settings: settings);
+            PropulsionSpec propulsion = NoInPlaneDrag();
+            if (escTau > 0)
+                for (int i = 0; i < 4; i++) propulsion.Motors[i].EscTau = escTau;
+            FlightCore core = Core(L4, 1, propulsion: propulsion, settings: settings);
             Arm(core);
             Hover h = HoldHeight(core);
             FlightController fc = core.Controller;
@@ -528,10 +531,18 @@ namespace Fpv450.Sim.Tests
             Assert.That(chain.Settle, Is.LessThan(1.0), "within 5 % for good inside the first second");
             Assert.That(chain.LastSpread, Is.LessThan(10), "no sustained oscillation");
             // Its overshoot below 25 % holds for the plant and the PIDs alone (1.4, 1.5); the chain's phase lag
-            // (10.6 ms at 10 Hz on the gyro, 18.8 ms on the D term's input: FilterChainTests) takes it to about 40 %,
-            // past the scenario's 25 % (1.4b, for the orchestrator). Bounded here so that a change of it is seen.
+            // (10.6 ms at 10 Hz on the gyro, 18.8 ms on the D term's input: FilterChainTests) takes it past that (1.4b,
+            // D-045). Bounded here so that a change of it is seen: 20–35 % on the ESC's 0.4 ms command lag (p7b-airframe
+            // 1.0), across its 0.2–0.7 ms range; design 5's assumed 5 ms, the known-wrong lag, falls out of it.
             Assert.That(bare.Overshoot, Is.LessThan(0.25), "without the filters: overshoots by less than 25 %");
-            Assert.That(chain.Overshoot, Is.InRange(0.30, 0.45), "the builder's chain: measured 40.9 % (roll), 38.4 % (pitch)");
+            Assert.That(chain.Overshoot, Is.InRange(0.20, 0.35), "the builder's chain: measured 29.2 % (roll), 26.5 % (pitch)");
+            foreach (double tau in new[] { 0.0002, 0.0007, 0.005 })
+            {
+                StepResult r = StepResponse(axis, FcSettings.Default, tau);
+                TestContext.Out.WriteLine($"{name} step, the builder's chain, τ_esc {F(1000 * tau, "0.0")} ms: {r}");
+                if (tau < 0.001) Assert.That(r.Overshoot, Is.InRange(0.20, 0.35), "inside the band across τ_esc's range");
+                else Assert.That(r.Overshoot, Is.GreaterThan(0.35), "the known-wrong 5 ms lag overshoots past the band");
+            }
         }
 
         // The same step in free air, the rotors' in-plane drag on: printed, not asserted.

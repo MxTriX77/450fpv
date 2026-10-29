@@ -8,7 +8,7 @@
     "labelled number": "{\"value\": <number, or [x, y, z], or a list>, \"label\": \"pilot\" | \"measured\" | \"published\" | \"derived\" | \"assumed\", \"note\": \"<source or calculation>\"}; the note is optional, the label is not",
     "bootstrap": "true for p6-flight-core's stand-in (now a test fixture); this researched file sets false",
     "parts": "every rigid part the mass build sums (PHB-02): name (unique), kind (box | cylinder), material (carbon | aluminium | steel | polymer | li_ion | electronics), mass_kg (above 0), position_m (the part's centre); a box has size_m, its extents along body x, y, z; a cylinder is solid, with diameter_m, length_m and axis (the direction of its length, normalised when read). A part is a mass shape: its inertia, not its look (the props and arms say how they map)",
-    "motors": "four, in Betaflight's Quad X order (rear right, front right, rear left, front left): position_m (the prop hub, where the thrust acts), spin (cw | ccw seen from above; cw is a positive rotation about body +y), kv_rpm_per_v, resistance_ohm (the DC model's resistance: winding, ESC and leads), no_load_current_a (the bearings' and iron's loss, as the torque Kt·I0), rotor_inertia_kg_m2 (bell, shaft and prop about the shaft), magnet_poles, esc_tau_s (the ESC's command filter), esc_current_limit_a (the ESC's current limit: the motor's current never passes it while the ESC drives); the motor's lag τ_m = J/(Kt·Ke/R + ∂Q/∂ω) follows from these and the load",
+    "motors": "four, in Betaflight's Quad X order (rear right, front right, rear left, front left): position_m (the prop hub, where the thrust acts), spin (cw | ccw seen from above; cw is a positive rotation about body +y), kv_rpm_per_v, resistance_ohm (the DC model's resistance: winding, ESC and leads), no_load_current_a (the bearings' and iron's loss, as the torque Kt·I0), rotor_inertia_kg_m2 (bell, shaft and prop about the shaft), magnet_poles, esc_tau_s (the ESC's command lag: the DShot frame, the PWM and the winding's L/R as one first-order lag), esc_current_limit_a (the ESC's current limit: the motor's current never passes it while the ESC drives); the motor's lag τ_m = J/(Kt·Ke/R + ∂Q/∂ω) follows from these and the load",
     "props": "the four props, alike: diameter_m, blades, pitch_m (geometric, per revolution), k_t_n_per_rad2_s2 (T = k_T·n², n in rad/s) and kappa_m (Q = κ·T), both static at reference_rpm (one of static_rpm's points); static_rpm with static_thrust_ratio and static_torque_ratio (C_T and C_P there over their values at reference_rpm: the coefficients' change with rpm); inflow_advance_ratio (J = V_a/(n·D) of the axial inflow, from 0) with inflow_thrust_ratio and inflow_torque_ratio (C_T and C_P there over their static values); linear between points, held at the ends; h_force_n_per_m_s (the rotor's in-plane drag, the H-force, per m/s of its hub's in-plane airspeed at reference_rpm, growing in proportion to the rotor's speed)",
     "packs": "two (PHB-03): part (the pack's mass part), series and parallel cells, cell_capacity_ah, r_cell_ohm, ocv_v (one cell's open-circuit voltage at states of charge 0, 1/(n−1), …, 1)",
     "legs": "parts (the four leg parts, in Betaflight's corner order; a leg's length is its part's, its foot the part's lower end, where it meets level ground), stiffness_n_per_m and damping_n_s_per_m (each leg's own spring and damper, in series with the ground), foot_radius_m (the foot's curvature); legs off is legs_off's build",
@@ -262,7 +262,7 @@
       "no_load_current_a": {"value": 1.0, "label": "assumed", "note": "a 3115-class 900 KV motor's idle current, about 1 A at 10 V; not published for these motors. Its torque Kt·I0, 0.011 N·m, is 6 % of the hover drag torque"},
       "rotor_inertia_kg_m2": {"value": 6.0e-5, "label": "derived", "note": "±30 %: the 16 g prop about 4.7e-5 (UMN's measured APC 12x3.8SF with its motor and adaptor, 1.12e-4, scaled by m·D² to 16 g and 10 inches; a uniform rod would be 8.6e-5) plus the bell, about 35 g of magnets and can at 17 mm, 1.2e-5. With R and the prop's load it makes τ_m about 40 ms at hover (design 5's 40–60 ms)"},
       "magnet_poles": {"value": 14, "label": "published", "note": "12N14P (Flash Hobby Arthur 3115, the sheet's research table): 7 pole pairs"},
-      "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "design 5: τ_esc ≈ 5 ms"},
+      "esc_tau_s": {"value": 0.0004, "label": "derived", "note": "p7b-airframe 1.0: the command's way from the flight controller to the motor's torque as one first-order lag, the sum of its delays (their first moment: within 0.1° of their phase below 60 Hz). The DShot300 frame, 53 µs (published: 16 bits at 300 kbit/s, sent every 250 µs, fc-profiles §1); the ESC takes the duty up at once (published sources: Bluejay sets its PWM registers in the frame's interrupt, AM32 in its 20 kHz loop, within 50 µs); the 24 kHz PWM's next period and its mean, about 42 µs (AM32's nominal 24 kHz, its source): about 0.1 ms in all (derived). Then the winding's current rise L/R, 0.3 ms (assumed, 0.1–0.6 ms: no inductance is published for these motors). The duty is not slewed: BLHeli_32's Maximum Acceleration (0.1–25.5 %/ms or maximum, its manual) is left at maximum, no limit, as ESC vendors advise; Bluejay has none (its source); AM32's ramp (16 %/ms above 40 k erpm, 6 below, 2 at start: its source) moves the filtered 200 °/s step by under 0.1 point and is left out. Design 5's 5 ms (assumed) gave that step 40.9 % overshoot (roll) against 29.2 % here; 0.2–0.7 ms gives 28.7–30.0 %"},
       "esc_current_limit_a": {"value": 40, "label": "assumed", "note": "the policy (p6-flight-core 1.5): the motor's published 40 A maximum (Surpass Hobby Bat S3115 900 KV, K§5.1; K§5.3's realistic maximum current) set as the ESC's current protection, which BLHeli_32 applies per ESC and fast enough to hold the current during accelerations too (its manual); AM32's limit is optional and Bluejay or BLHeli_S ESCs sense no current. Without it the model's motor draws 47.5 A at full duty on a full pack and 115 A in a spin-up from idle to full; with it the full-duty thrust falls from 14.24 to 11.93 kgf (K§5.3: 9.0–12.5), the yaw acceleration over full yaw's first 50 ms from hover from about 1650 to 1290 °/s² and the steady yaw authority from 796 to 745 °/s²; hover and liftoff draw far less and are untouched. A higher value models an ESC without a limit (G7 asks the pilot how the yaw kick feels)"}
     },
     {
@@ -273,7 +273,7 @@
       "no_load_current_a": {"value": 1.0, "label": "assumed", "note": "as motors[0]"},
       "rotor_inertia_kg_m2": {"value": 6.0e-5, "label": "derived", "note": "as motors[0]"},
       "magnet_poles": {"value": 14, "label": "published", "note": "as motors[0]"},
-      "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "as motors[0]"},
+      "esc_tau_s": {"value": 0.0004, "label": "derived", "note": "as motors[0]"},
       "esc_current_limit_a": {"value": 40, "label": "assumed", "note": "as motors[0]"}
     },
     {
@@ -284,7 +284,7 @@
       "no_load_current_a": {"value": 1.0, "label": "assumed", "note": "as motors[0]"},
       "rotor_inertia_kg_m2": {"value": 6.0e-5, "label": "derived", "note": "as motors[0]"},
       "magnet_poles": {"value": 14, "label": "published", "note": "as motors[0]"},
-      "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "as motors[0]"},
+      "esc_tau_s": {"value": 0.0004, "label": "derived", "note": "as motors[0]"},
       "esc_current_limit_a": {"value": 40, "label": "assumed", "note": "as motors[0]"}
     },
     {
@@ -295,7 +295,7 @@
       "no_load_current_a": {"value": 1.0, "label": "assumed", "note": "as motors[0]"},
       "rotor_inertia_kg_m2": {"value": 6.0e-5, "label": "derived", "note": "as motors[0]"},
       "magnet_poles": {"value": 14, "label": "published", "note": "as motors[0]"},
-      "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "as motors[0]"},
+      "esc_tau_s": {"value": 0.0004, "label": "derived", "note": "as motors[0]"},
       "esc_current_limit_a": {"value": 40, "label": "assumed", "note": "as motors[0]"}
     }
   ],
