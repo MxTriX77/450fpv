@@ -58,9 +58,9 @@ namespace Fpv450.Tests.Radio
             {
                 Assert.That(t.FirstStepUs[i], Is.InRange(0, 2 * FlightCore.StepUs - 1), "change " + i + ": arrival to the first step");
                 if (t.FirstStepUs[i] >= FlightCore.StepUs) raced++;
+                else waits.Add(t.FrameWaitUs[i]); // a change that waited a second step meets the frame a step later
                 Assert.That(t.FrameWaitUs[i] % FlightCore.StepUs, Is.EqualTo(0));
                 Assert.That(t.FrameWaitUs[i], Is.InRange(0, 3 * FlightCore.StepUs), "change " + i + ": the frame's wait");
-                waits.Add(t.FrameWaitUs[i]);
                 Assert.That(t.SmoothingUs[i], Is.EqualTo(smoothing).Within(10), "change " + i + ": the RC smoothing against Betaflight's formulas");
                 Assert.That(t.EscUs[i], Is.EqualTo(esc).Within(10), "change " + i + ": the ESC against its lag");
                 Assert.That(t.MotorUs[i], Is.EqualTo(t.FirstStepUs[i] + t.FrameWaitUs[i] + t.SmoothingUs[i] + t.EscUs[i]));
