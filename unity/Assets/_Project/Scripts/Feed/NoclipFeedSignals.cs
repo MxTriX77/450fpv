@@ -9,7 +9,7 @@ namespace Fpv450.Feed
     /// is <see cref="Stub"/>'s labelled stub. With no drone that is no motor current and an intact link, so only the
     /// Godot timers' quality drops and recovering dropouts run.
     /// </summary>
-    public sealed class NoclipFeedSignals : IFeedSignals
+    public sealed class NoclipFeedSignals : IFeedSignals, IFieldOsd
     {
         /// Every signal but the camera's rate, settable as the stubs are.
         public readonly StubFeedSignals Stub = new StubFeedSignals();
@@ -66,5 +66,6 @@ namespace Fpv450.Feed
         public float RainRateMmPerHour => Stub.RainRateMmPerHour;
         public Num.Vector3 AirVelocityAtCamera => Stub.AirVelocityAtCamera;
         public char OsdCell(int row, int col) => Stub.OsdCell(row, col);
+        public void BuildOsd(int field) => Stub.BuildOsd(field);
     }
 }

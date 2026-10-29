@@ -97,7 +97,20 @@ namespace Fpv450.Feed
                 overlay = !overlay;
         }
 
-        void LateUpdate() => signals.Sample(Time.unscaledDeltaTime);
+        void LateUpdate()
+        {
+            float dt = Time.unscaledDeltaTime;
+            signals.Sample(dt);
+            if (!rig.Running)
+                return;
+            // The stub OSD's altitude, distance and timer, from the free camera as the Godot stand-in took them
+            // (FeedSignals.cs:43-58); the OSD content model replaces them (task 1.5).
+            StubOsd osd = signals.Stub.Osd;
+            Vector3 p = transform.position;
+            osd.AltitudeM = p.y;
+            osd.DistanceM = new Vector2(p.x, p.z).magnitude;
+            osd.ElapsedSeconds += dt;
+        }
 
         /// The cost scenario (analog-feed spec, "The cost on AC"): the GPU time of the feed's three passes per frame.
         IEnumerator Cost()

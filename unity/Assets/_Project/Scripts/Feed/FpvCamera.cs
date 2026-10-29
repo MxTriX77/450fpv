@@ -40,6 +40,11 @@ namespace Fpv450.Feed
 
         Camera fpv;
         RenderTexture scene;
+        // The OSD (task 1.4): this field's codes, uploaded once per field as the Godot feed did, and the ROM's atlas.
+        Texture2D osdCodes;
+        readonly float[] codes = new float[FeedOsd.Cols * FeedOsd.TotalRows];
+        int osdField;
+        static Texture2D glyphs;
         float savedFov;
         RenderTexture savedTarget;
         double clock;
@@ -111,12 +116,30 @@ namespace Fpv450.Feed
             Feed.Scene = scene;
             Feed.SceneEncoded = false;
 
+            // The OSD's two textures and its grid (VideoFeed.cs:155-159), neither flipped: row 0 at the top.
+            osdCodes = new Texture2D(FeedOsd.Cols, FeedOsd.TotalRows, TextureFormat.RFloat, false, true)
+            {
+                name = "OsdCodes",
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp,
+                hideFlags = HideFlags.DontSave,
+            };
+            osdField = int.MinValue;
+            Feed.OsdCodes = osdCodes;
+            Feed.OsdGlyphs = Glyphs();
+            Feed.OsdCells = FeedFont.CellCount;
+            Feed.OsdCell = new Vector2(FeedOsd.CellW, FeedOsd.CellH);
+            Feed.OsdOrigin = new Vector2(FeedOsd.OriginX, FeedOsd.OriginY);
+
             // The clock runs on from where the rig last stopped, so switching the feed off and on resumes the schedule.
             Events = new FeedEvents(settings.seed);
             Step(pinnedField >= 0 ? pinnedField : (int)(clock * FieldsPerSecond));
             Debug.Log($"[Feed] FPV camera: {size.x}x{size.y} render, {settings.RenderVerticalFovDeg:0.00}° vertical, " +
                       $"picture {settings.PictureHorizontalFovDeg:0.0}° across, lens k1 {settings.K1:0.00}, " +
                       $"field {settings.fieldWidth}x{FeedSettings.FieldRows}, seed {settings.seed}. {FeedSignalLog.Describe(Signals)}");
+            Debug.Log($"[Feed] OSD ({Signals.SourceOf(FeedSignal.OsdState).ToString().ToLowerInvariant()}), " +
+                      $"{FeedOsd.Cols}x{FeedOsd.Rows} cells of {FeedOsd.CellW * 1920f:0.0}x{FeedOsd.CellH * 1080f:0.0} px at 1920x1080, " +
+                      $"{FeedFont.CellCount}-cell ROM, field {Events.Field}: {FeedOsd.Describe(Signals)}");
         }
 
         /// Stops the rig and gives the camera back.
@@ -129,6 +152,8 @@ namespace Fpv450.Feed
             DestroyNow(Output.gameObject);
             Output = null;
             Feed = null;
+            DestroyNow(osdCodes);
+            osdCodes = null;
             scene.Release();
             DestroyNow(scene);
             scene = null;
@@ -142,6 +167,31 @@ namespace Fpv450.Feed
                 Events = new FeedEvents(settings.seed);
             Events.AdvanceTo(field, FeedSignalScale.MotorCurrent(Signals.MotorCurrentTotalA));
             Feed.Uniforms = FeedUniforms.From(Events, settings.seed, settings.gain, Signals);
+            if (Events.Field != osdField)
+            {
+                osdField = Events.Field;
+                (Signals as IFieldOsd)?.BuildOsd(osdField);
+                FeedOsd.WriteCodes(Signals, codes);
+                osdCodes.SetPixelData(codes, 0);
+                osdCodes.Apply(false);
+            }
+        }
+
+        /// The ROM's atlas (FeedFont.BuildAtlas), baked once: R the glyph, G its outline, linear, point-sampled.
+        static Texture2D Glyphs()
+        {
+            if (glyphs != null)
+                return glyphs;
+            glyphs = new Texture2D(FeedFont.AtlasWidth, FeedFont.CellH, TextureFormat.RG16, false, true)
+            {
+                name = "OsdGlyphs",
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp,
+                hideFlags = HideFlags.DontSave,
+            };
+            glyphs.LoadRawTextureData(FeedFont.BuildAtlas());
+            glyphs.Apply(false, true);
+            return glyphs;
         }
 
         /// Feeds a fixed frame instead of the render (the still A/B's identical input frame, FEED-00): `encoded` when
