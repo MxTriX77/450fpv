@@ -6,9 +6,11 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
+using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Wind;
+using Fpv450.Sim.World;
 
 namespace Fpv450.Sim.Log
 {
@@ -79,6 +81,10 @@ namespace Fpv450.Sim.Log
     /// - the airframe's drag (none for a bench's body), and the wind: its model ("stand-in", PHB-06), its level and
     ///   the level's preset by name (its per-flight draws are the randomness's)
     /// - the flight controller's settings, every field by its CLI name
+    /// - the contacts (1.6): drone.json's contact shapes at the loadout with their thresholds, the legs' spring, and the
+    ///   physics materials' rows with physics_materials.json's hash (none for a flight without contacts)
+    /// - the runtime objects the flight placed, in order, each shape in world space (the launch stand: K§6.10's asset,
+    ///   pose and order; their material ids are the world's, named by the world entry)
     /// - the start state with the packs' charge, and the record layouts (so a reader needs no code of ours)
     /// Sim data only (LOG-05): no user, machine, path or clock.
     ///
@@ -91,8 +97,21 @@ namespace Fpv450.Sim.Log
         public static readonly string[] SetupFieldsLogged =
         {
             "Seed", "Settings", "World", "Mass", "Propulsion", "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate",
-            "StartPackCharge", "Aero", "Wind",
+            "StartPackCharge", "Aero", "Wind", "Contacts", "RuntimeObjects",
         };
+
+        /// <summary>The contacts' fields the header records, checked against the types by the suite.</summary>
+        public static readonly string[] ContactFieldsLogged =
+        {
+            "Margin", "CrashAccel", "CrashPropSpeed", "ImpactWindow", "ImpactSpeed", "FrictionStiffnessRatio", "DampingMassShare",
+            "GroundStaticFriction", "GroundKineticFriction", "LegStiffness", "LegDamping", "RingSegments", "Shapes", "Materials", "MaterialsHash",
+        };
+        public static readonly string[] ContactShapeFieldsLogged =
+            { "Name", "Part", "Role", "Corner", "Material", "A", "B", "Radius", "HalfThickness", "Stiffness", "StiffnessUp", "DampingRatio" };
+        public static readonly string[] MaterialRowFieldsLogged = { "Name", "StaticFriction", "KineticFriction", "Stiffness", "DampingRatio" };
+        public static readonly string[] RuntimeObjectFieldsLogged = { "Name", "Shapes" };
+        public static readonly string[] ShapeGeometryFieldsLogged =
+            { "Kind", "Center", "AxisX", "AxisY", "AxisZ", "HalfExtents", "Radius", "HalfLength", "Material", "Surface", "SpanA", "SpanB", "Sag" };
 
         /// <summary>The DronePart fields the header records, checked against DronePart by the suite.</summary>
         public static readonly string[] PartFieldsLogged =
@@ -112,7 +131,8 @@ namespace Fpv450.Sim.Log
         public static readonly string[] PackFieldsLogged = { "Part", "Series", "Parallel", "CellCapacity", "CellResistance", "Ocv" };
 
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
-            TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12;
+            TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
+            TagRuntimeObjects = 14;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -145,6 +165,13 @@ namespace Fpv450.Sim.Log
         public string WindModel = WindPreset.Model;
         public WindSetup Wind;
         public NamedValue[] WindParameters = new NamedValue[0];
+
+        /// <summary>The contacts; null for none.</summary>
+        public ContactSpec Contacts;
+
+        /// <summary>The runtime objects the flight placed, in order, and the world's object id each got.</summary>
+        public RuntimeObject[] RuntimeObjects = new RuntimeObject[0];
+        public int[] RuntimeIds = new int[0];
 
         public string[] Streams = new string[0];
         public ParameterDraw[] Draws = new ParameterDraw[0];
@@ -188,6 +215,9 @@ namespace Fpv450.Sim.Log
                 Aero = setup.Aero?.Clone(),
                 Wind = setup.Wind,
                 WindParameters = PresetOf(setup.Wind.Level),
+                Contacts = setup.Contacts?.Clone(),
+                RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
+                RuntimeIds = (int[])core.RuntimeIds.Clone(),
             };
             var surfaces = new List<NamedId>();
             for (int id = 1; id < 255; id++)
@@ -261,7 +291,17 @@ namespace Fpv450.Sim.Log
                 StartPackCharge = StartPackCharge,
                 Aero = Aero?.Clone(),
                 Wind = Wind,
+                Contacts = Contacts?.Clone(),
+                RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
             };
+        }
+
+        /// <summary>The runtime object's name of a world object id, or null when the flight placed none by that id.</summary>
+        public string RuntimeObjectName(int id)
+        {
+            for (int i = 0; i < RuntimeIds.Length && i < RuntimeObjects.Length; i++)
+                if (RuntimeIds[i] == id) return RuntimeObjects[i].Name;
+            return null;
         }
 
         /// <summary>The surface or material name of an id, or the id itself when the header has no name for it.</summary>
@@ -464,6 +504,69 @@ namespace Fpv450.Sim.Log
                     e.Write(v.Value);
                 }
             });
+            Entry(w, TagContacts, e =>
+            {
+                e.Write(Contacts != null);
+                if (Contacts == null) return;
+                ContactSpec c = Contacts;
+                foreach (double v in new[] { c.Margin, c.CrashAccel, c.CrashPropSpeed, c.ImpactWindow, c.ImpactSpeed, c.FrictionStiffnessRatio,
+                    c.DampingMassShare, c.GroundStaticFriction, c.GroundKineticFriction, c.LegStiffness, c.LegDamping })
+                    e.Write(v);
+                e.Write(c.RingSegments);
+                e.Write((ushort)c.Shapes.Length);
+                foreach (ContactShape s in c.Shapes)
+                {
+                    Text(e, s.Name);
+                    e.Write(s.Part);
+                    e.Write((byte)s.Role);
+                    e.Write(s.Corner);
+                    Text(e, s.Material);
+                    V3(e, s.A);
+                    V3(e, s.B);
+                    e.Write(s.Radius);
+                    e.Write(s.HalfThickness);
+                    e.Write(s.Stiffness);
+                    e.Write(s.StiffnessUp);
+                    e.Write(s.DampingRatio);
+                }
+                e.Write((ushort)c.Materials.Length);
+                foreach (MaterialRow m in c.Materials)
+                {
+                    Text(e, m.Name);
+                    e.Write(m.StaticFriction);
+                    e.Write(m.KineticFriction);
+                    e.Write(m.Stiffness);
+                    e.Write(m.DampingRatio);
+                }
+                e.Write(c.MaterialsHash);
+            });
+            Entry(w, TagRuntimeObjects, e =>
+            {
+                e.Write((ushort)RuntimeObjects.Length);
+                for (int i = 0; i < RuntimeObjects.Length; i++)
+                {
+                    RuntimeObject o = RuntimeObjects[i];
+                    e.Write(i < RuntimeIds.Length ? RuntimeIds[i] : -1);
+                    Text(e, o.Name);
+                    e.Write((ushort)o.Shapes.Length);
+                    foreach (ShapeGeometry g in o.Shapes)
+                    {
+                        e.Write((byte)g.Kind);
+                        V3(e, g.Center);
+                        V3(e, g.AxisX);
+                        V3(e, g.AxisY);
+                        V3(e, g.AxisZ);
+                        V3(e, g.HalfExtents);
+                        e.Write(g.Radius);
+                        e.Write(g.HalfLength);
+                        e.Write(g.Material);
+                        e.Write(g.Surface);
+                        V3(e, g.SpanA);
+                        V3(e, g.SpanB);
+                        e.Write(g.Sag);
+                    }
+                }
+            });
             Entry(w, TagSettings, e =>
             {
                 e.Write((ushort)Settings.Length);
@@ -636,6 +739,29 @@ namespace Fpv450.Sim.Log
                         WindParameters = new NamedValue[r.ReadUInt16()];
                         for (int i = 0; i < WindParameters.Length; i++) WindParameters[i] = new NamedValue(Text(r), r.ReadDouble());
                         break;
+                    case TagContacts:
+                        Contacts = r.ReadBoolean() ? ReadContacts(r) : null;
+                        break;
+                    case TagRuntimeObjects:
+                        RuntimeObjects = new RuntimeObject[r.ReadUInt16()];
+                        RuntimeIds = new int[RuntimeObjects.Length];
+                        for (int i = 0; i < RuntimeObjects.Length; i++)
+                        {
+                            RuntimeIds[i] = r.ReadInt32();
+                            string name = Text(r);
+                            var shapes = new ShapeGeometry[r.ReadUInt16()];
+                            for (int k = 0; k < shapes.Length; k++)
+                            {
+                                shapes[k] = new ShapeGeometry
+                                {
+                                    Kind = (ShapeKind)r.ReadByte(), Center = V3(r), AxisX = V3(r), AxisY = V3(r), AxisZ = V3(r), HalfExtents = V3(r),
+                                    Radius = r.ReadDouble(), HalfLength = r.ReadDouble(), Material = r.ReadUInt16(), Surface = r.ReadByte(),
+                                    SpanA = V3(r), SpanB = V3(r), Sag = r.ReadDouble(),
+                                };
+                            }
+                            RuntimeObjects[i] = new RuntimeObject(name, shapes);
+                        }
+                        break;
                     case TagSettings:
                         Settings = new SettingValue[r.ReadUInt16()];
                         for (int i = 0; i < Settings.Length; i++) Settings[i] = new SettingValue(Text(r), r.ReadByte(), r.ReadInt64());
@@ -673,6 +799,34 @@ namespace Fpv450.Sim.Log
                 r.BaseStream.Position = end;
             }
             if (!sawLayouts) throw new FlightLogException("the header has no record layouts");
+        }
+
+        static ContactSpec ReadContacts(BinaryReader r)
+        {
+            var c = new ContactSpec
+            {
+                Margin = r.ReadDouble(), CrashAccel = r.ReadDouble(), CrashPropSpeed = r.ReadDouble(), ImpactWindow = r.ReadDouble(),
+                ImpactSpeed = r.ReadDouble(), FrictionStiffnessRatio = r.ReadDouble(), DampingMassShare = r.ReadDouble(),
+                GroundStaticFriction = r.ReadDouble(), GroundKineticFriction = r.ReadDouble(), LegStiffness = r.ReadDouble(), LegDamping = r.ReadDouble(),
+                RingSegments = r.ReadInt32(),
+            };
+            c.Shapes = new ContactShape[r.ReadUInt16()];
+            for (int i = 0; i < c.Shapes.Length; i++)
+            {
+                c.Shapes[i] = new ContactShape
+                {
+                    Name = Text(r), Part = r.ReadInt32(), Role = (ContactRole)r.ReadByte(), Corner = r.ReadInt32(), Material = Text(r), A = V3(r), B = V3(r),
+                    Radius = r.ReadDouble(), HalfThickness = r.ReadDouble(), Stiffness = r.ReadDouble(), StiffnessUp = r.ReadDouble(), DampingRatio = r.ReadDouble(),
+                };
+            }
+            c.Materials = new MaterialRow[r.ReadUInt16()];
+            for (int i = 0; i < c.Materials.Length; i++)
+                c.Materials[i] = new MaterialRow
+                {
+                    Name = Text(r), StaticFriction = r.ReadDouble(), KineticFriction = r.ReadDouble(), Stiffness = r.ReadDouble(), DampingRatio = r.ReadDouble(),
+                };
+            c.MaterialsHash = r.ReadUInt64();
+            return c;
         }
 
         static PropulsionSpec ReadPropulsion(BinaryReader r)

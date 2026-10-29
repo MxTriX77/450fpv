@@ -27,11 +27,18 @@ namespace Fpv450.FlightBench
         public static bool Golden()
         {
             ulong hash = GoldenFlights.FlyPowered(Drone(), out FlightCore core);
-            bool ok = hash == GoldenFlights.PoweredHash && core.State.Armed;
+            ulong model3 = GoldenFlights.FlyPowered(Drone(), out _, 992);
+            bool ok = hash == GoldenFlights.PoweredHash && model3 == GoldenFlights.PoweredModel3Hash && core.State.Armed;
             Console.WriteLine($"{Name}: {GoldenFlights.PoweredSteps} steps, hash 0x{hash:X16} "
                 + $"({(hash == GoldenFlights.PoweredHash ? "matches" : $"golden 0x{GoldenFlights.PoweredHash:X16}")}), armed {core.State.Armed}, "
-                + $"packs at {core.State.PackCharge0:F4} of 0.9: {(ok ? "PASS" : "FAIL")}");
-            return ok;
+                + $"packs at {core.State.PackCharge0:F4} of 0.9; over model 3's 992 record bytes 0x{model3:X16} "
+                + $"({(model3 == GoldenFlights.PoweredModel3Hash ? "model 3's" : $"model 3's is 0x{GoldenFlights.PoweredModel3Hash:X16}")}): {(ok ? "PASS" : "FAIL")}");
+            ulong contact = GoldenFlights.FlyContact(Drone(), out FlightCore c);
+            bool cok = contact == GoldenFlights.ContactHash && c.Contacts.ImpactCount >= 2 && !c.State.Crashed;
+            Console.WriteLine($"contact-flight: {GoldenFlights.ContactSteps} steps, hash 0x{contact:X16} "
+                + $"({(contact == GoldenFlights.ContactHash ? "matches" : $"golden 0x{GoldenFlights.ContactHash:X16}")}), {c.Contacts.ImpactCount} impacts, "
+                + $"ends {c.State.Position.Y:F4} m up on {c.Trace.ContactsTouching} touching pairs: {(cok ? "PASS" : "FAIL")}");
+            return ok && cok;
         }
 
         public static bool Bench()

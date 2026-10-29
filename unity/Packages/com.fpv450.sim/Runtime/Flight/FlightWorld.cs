@@ -14,8 +14,11 @@ namespace Fpv450.Sim.Flight
 
         public FlightWorld(IWorldQuery query) => _query = query ?? throw new ArgumentNullException(nameof(query));
 
-        /// <summary>The world-query stub's floor at y = 0 (FloorWorld), for tests and benches.</summary>
-        public static FlightWorld Floor() => new FlightWorld(new FloorWorld(0, "belt_bare", "steel"));
+        /// <summary>
+        /// The world-query stub's floor at y = 0 (FloorWorld), for tests and benches: surface belt_bare, and the
+        /// materials of the stand (steel) and of the stub's pole-sized runtime objects (timber, L01_straight's).
+        /// </summary>
+        public static FlightWorld Floor() => new FlightWorld(new FloorWorld(0, "belt_bare", "steel", "timber"));
 
         /// <summary>The world itself, for setup before the flight thread starts (runtime objects such as the stand).</summary>
         public IWorldQuery Query => _query;
@@ -29,5 +32,25 @@ namespace Fpv450.Sim.Flight
             _query.StaticContacts(previous, current, margin, results);
 
         public void Raycast(ReadOnlySpan<Ray> rays, double maxDistance, Span<RayHit> hits) => _query.Raycast(rays, maxDistance, hits);
+
+        public bool Geometry(int obj, int shape, out ShapeGeometry geometry) => _query.Geometry(obj, shape, out geometry);
+    }
+
+    /// <summary>
+    /// A runtime object the flight places in its world before its first step (the launch stand, a test's pole): its name
+    /// and world-space shapes, their material and surface ids this world's. The flight resets the world's runtime
+    /// objects and adds these in order (FlightCore), and the log header records them, so a replay places the same ones
+    /// (K§6.10: asset, pose and order; QA review-base finding 5).
+    /// </summary>
+    public sealed class RuntimeObject
+    {
+        public string Name;
+        public ShapeGeometry[] Shapes;
+
+        public RuntimeObject(string name, ShapeGeometry[] shapes)
+        {
+            Name = name;
+            Shapes = shapes;
+        }
     }
 }

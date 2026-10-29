@@ -131,14 +131,59 @@ Branch `unity/physics/p6-flight-core` off `unity/main` (D-042). The sim work is 
     - **The golden:** re-recorded as `0x734CE3306086F5D7` and audited on the records' shared 912 bytes. With the air off and the gyroscopic term taken out, model 3 is bit-identical to model 2 over all 10 000 steps. The first steps of difference are then: the gyroscopic term 1133, the H-force 22, the limit 2006 (the roll step's kick), the drag 2, the wind 1. The free-body golden is unchanged. Unity's EditMode (Mono) gives the same bits: 276 of 276 passed.
     - **Tools:** the `SimPilot` (an acro closed loop at the radio's 250 Hz), `CrosswindScenario` and `WindTargets` serve both the suite and `flightbench --scenarios`; `replay --record` takes `--wind` (Windy by default). Bench on AC: the powered step p50 3.7 µs and p99 31.2 µs; with its record p50 17.4 µs and p99 89.7 µs; 0 B.
     - **Open:** the pilot's cruise answer (K§8.2) needs less drag than P at 13 m/s does: 17 m/s takes 33.6° of pitch here. That is for p7c-wind's T0.
-- [ ] 1.6 [physics-engineer] Contacts (design 7), after `p6-world-query-gallery` 1.1:
+- [x] 1.6 [physics-engineer] Contacts (design 7), after `p6-world-query-gallery` 1.1 (ticked for its stub half; the test range half is 1.6b):
   - **What:** legs on `SampleGround`, the four-post stand, swept shapes on `StaticContacts` with the Time < 1 latch, prop strikes, crash and tunnel events.
   - **From `p5-drone` 1.2:** the feet are skids: each leg's lower end meets the ground at y −0.253 m with a 0.005 m radius, and the skids overhang 0.126 m past each leg, which a four-point foot misses on a pitched landing; the tubes bend sideways at about 6.6 kN/m; the carbon arms, legs and skids need a contact material (the sheet's `carbon_composite`); the stand's posts sit at r 0.200 m.
   - **From QA's `review-base.md`:** finding 4 (a log cut between a step and its events replays as Diverged, not MatchCut, `FlightReplay.cs:157`) and finding 5 (runtime objects such as the stand need a log header entry, `LogHeader.cs:81`) land here, when the first events and the stand do.
   - **From world-query 1.2's sign-off** (`openspec/changes/p6-world-query-gallery/review-physics.md` §7): refresh a latched plane only while the part's core is outside the shape (Distance > −r; P1, without it 32 of 48 tube sweeps went through unseen); branch on a rigid material instead of the series formula (1/(1/k) comes back one ulp off for 13.8 % of stiffnesses); each skid is a capsule plus load-bearing spheres at the overhang end and the T-joint, with a dedupe rule; give `drone.json` real contact shapes and per-part compliance (the plate arm bends at about 1.8e4 N/m at the post); the legs' restitution is about 0.53 on a rigid floor; log `physics_materials.json`'s hash and the stand's shapes in the header. `tools/flightbench --probe` is the interface check.
+  - **As built** (`Runtime/Contact/{ContactSpec,ContactModel,LaunchStand,PhysicsMaterials}.cs`; `LogFormat.Version` 4, `ModelVersion` 4):
+    - **`drone.json`'s `contacts` block** (P5): 43 shapes, each tied to its mass part, so a part at 0 kg has none (legs off, no payload) and a moved or scaled part carries its own (the spool legs off, the payload's cube-root scale).
+      - **Legs:** per corner, two support spheres (the overhang end at z ±0.220 and the T-joint at ±0.099, r 0.005, the skid's bottom at y −0.253) and the skid segment's capsule (P3); the leg tubes as body capsules at 6.6 kN/m.
+      - **Frame:** each 6 × 25 mm arm plate as two edge capsules (r 0.003), 3.1e5 N/m in its plane and 1.8e4 out of it (`stiffness_up_n_per_m`); the motor cans as spheres, 2e5 / 1.2e4; the stack as two capsules and the electronics at 1e6; the packs, the payload and the spool at 1e5, the last two with load-bearing end spheres; the four prop discs.
+      - **Thresholds:** margin 0.1 m (P2 re-derived: a can at 30 m/s stops in 0.146 m and clears a 20 mm tube after 0.057), a crash past 50 g or a prop strike past 3 m/s on a rigid shape, a 50 ms impact window, the friction anchor at 0.5 of the normal stiffness, damping on a quarter of the mass, the ground's μ 0.5/0.4 for every surface at G7.
+      - **Materials:** `carbon_composite` signed off as the drone side's contact material of the arms, plates, legs and skids (`polymer`, `aluminium` beside it). μ comes from `physics_materials.json`'s rows, which are polymer on the material, for every drone material until a pairing table exists.
+    - **The law** (`ContactModel`): `Forces` at the step's start from the planes and ground samples `Sense` left at that pose; `Sense` after the move sweeps every shape from the old pose to the new.
+      - The latch is K§7.5's with P1's guard: a plane refreshes only while the core is outside, `Distance > −r`. The depth is taken at the core point nearest the latched point.
+      - Each leg is one spring and damper carrying its points by depth: δ_max, split by δ_i/Σδ.
+      - Each body pair is its shape's stiffness along the normal, with a rigid material taken as the part's alone (P7), friction by a stick anchor (K§7.1 step 5), no restitution anywhere.
+      - The discs: a bounding sphere, then the 12-capsule ring.
+      - Events: `ContactMade`, `ContactBroken` (its C is now the peak force), `PropStrike`, `Crash` (Index: the cause), `Tunnel`, and the new `Impact` (peak and impulse over the window) and `ContactsLost`.
+    - **The core:**
+      - `FlightSetup.Contacts` and `RuntimeObjects`: the core resets the world's runtime objects and places these in order, with `RuntimeIds`.
+      - `FlightState.Crashed`, latched.
+      - `PoseFrame.LegCompression`, one step behind the pose.
+      - `FeedSignals`' Impact and `Crashed` are live.
+      - `FlightWorld.Floor()` gains `timber`.
+    - **The log:**
+      - The record is 1112 B: the contacts' force and moment, each leg's load and compression, the touching pairs, and the crash in flags bit 2. That is 67.0 MB a minute raw and 36.6 deflated (LOG-01: ≤ 50).
+      - The header gains `TagContacts` (the spec and its materials table, with `physics_materials.json`'s hash, P8) and `TagRuntimeObjects` (name, id, world-space shapes, in order; QA finding 5). A replay places the stand from it.
+      - QA finding 4 is fixed: only a complete log owes its last step's events, so a cut between a record and its events is MatchCut. The new test fails on the old rule.
+    - **Numbers** (`flightbench --contacts`, the stub's rigid floor, still air):
+      - **Throttle held** (down at 0.5 m/s, the sticks held from 0.1 m): touch at 0.496 m/s, legs to 4.2 mm and 46 N each. The drone leaves the ground at 0.277 m/s (restitution 0.56) and rises 206 mm, and is not at rest 4 s later.
+      - **Throttle cut** at the touch: the drone hops 2.9 mm and rests 0.28 s after the touch. The legs' k and c are kept (P6).
+      - **The glide path** (0.5 down and 0.5 forward, held): it rises 248 mm. **A hard landing** at 1.5 m/s, cut: 2.5 of the weight on a leg, a 27 mm hop.
+      - **The stand:** 8 post contacts in steel, resting 321 µm deep (m·g/(8·k_up)). Off the last post 1.96 s into a 3 s ramp, at throttle 0.490 and ESC duty 49.7 %, after sliding 2.5 mm. No tunnel, no crash.
+      - **The pole** (`L01_straight`'s collision as a runtime object; 10.35 m/s at 1.36 m): a crash by `prop_fr` on `L01_straight`, timber, at 7.47 m/s along the normal. Its impact peaks at 121 g with an impulse of 70.5 N·s, then the coil and the skids hit. 0 tunnels.
+      - **A tunnel is caught:** a free body swept into a 9 mm rod at its leg tubes is stopped at 2 m/s. At 40 m/s it logs 4 tunnel events.
+    - **Goldens:**
+      - The powered one is re-pinned at `0x798AFECB92E12DB7`, with its contacts in the setup. The audit is kept as a test: over model 3's 992 record bytes it is model 3's `0x734CE3306086F5D7` bit for bit (at 196–300 m nothing touches).
+      - New: the contact flight `0x8B568804552379E6` (a takeoff, the held landing's bounce, the cut).
+      - The free body is unchanged. Unity's EditMode (Mono) gives the same bits: 295 of 295 passed.
+    - **Bench** on AC (Balanced plan, best performance mode, 3201 MHz), 0 B everywhere:
+      - the powered step with its contacts in the air: p50 9.3 µs, p99 60.4 µs
+      - with its record: p50 9.4 µs, p99 49.2 µs
+      - legs on resting on the floor: p50 11.8 µs, p99 27.4 µs
+      - legs off on the stand: p50 69.2 µs, p99 140.9 µs. The posts sit inside the disc spheres, so the four rings sweep every step.
+    - **Replay:** `tools/replay`'s scripted flight now starts at rest on the floor. A pilot on the published pose climbs to 20 m, flies a circuit with a sharp reverse every 15 s, lands with the sticks held, cuts and disarms. 120 000 steps and 238 events replay bit for bit; the probe still passes.
+    - **Open:**
+      - the blades in the disc face (P4) need a rotor angle in the state
+      - the stand is static (W8)
+      - there is no breakage or plastic loss, so a pole hit rebounds elastically and a leg at 40 m/s goes through a rod (logged)
+      - per-surface μ is 7a's
   - **Verify:**
     - the ground-contact scenarios on the stub, and on the test range (D-044) once `p6-world-query-gallery` lands its queries: the bounce with throttle held and cut, liftoff from the stand, into L01 at 10 m/s, into the posadka
     - the replay scenario on a 120 s flight with contacts and a landing
+- [ ] 1.6b [physics-engineer] 1.6's test range half (D-044), after `p6-world-query-gallery` 1.4 lands its queries: the ground-contact scenarios on the test range (the bounce with the throttle held and cut, liftoff from the stand, into L01 at 10 m/s, into the posadka), and the probe's cases switched to the loaded world (review-physics §6: a skid in E01's run, on S04, an arm into `L01_straight`, a prop ring and a skid on an L03 conductor, a rotor ray past it).
 - [ ] 1.7 [physics-engineer] The budget and determinism (PLT-04):
   - **What:** `tools/flightbench --bench` on AC with the power mode printed: p50 and p99 step times, steady-state allocations, the world-query share.
   - **Verify:** p99 ≤ 300 µs and 0 allocations; a worker forced early or late changes only the logged hitches; the golden run identical in .NET and in the Unity editor (LOG-04's first half).

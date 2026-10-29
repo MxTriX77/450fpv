@@ -30,9 +30,10 @@ namespace Fpv450.Sim.Log
     }
 
     /// <summary>
-    /// The flight log's binary format (design 10, LOG-01), version 3 (1.4 appended the flight controller's state to
+    /// The flight log's binary format (design 10, LOG-01), version 4 (1.4 appended the flight controller's state to
     /// the step record; 1.5 the wind's gust, the air's force and moment and the ESCs' current limit, and the header's
-    /// aero and wind entries). One file per flight:
+    /// aero and wind entries; 1.6 the contacts' force, moment and legs, the crash flag, and the header's contacts and
+    /// runtime objects). One file per flight:
     /// - the prologue: Magic, then the format Version and the header's length (u32 each), then the header (LogHeader)
     /// - blocks to the end of the flight, each a u16 kind and a u16 payload length, then the payload:
     ///   - a step record (StepBlock) after every step: the integrated state, the stick sample in force during the step,
@@ -51,7 +52,7 @@ namespace Fpv450.Sim.Log
         public static readonly byte[] Magic = { 0x46, 0x50, 0x56, 0x34, 0x35, 0x30, 0x4C, 0x47 };
 
         /// <summary>The format: the prologue, the header's entries and the record layouts below.</summary>
-        public const int Version = 3;
+        public const int Version = 4;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -61,8 +62,10 @@ namespace Fpv450.Sim.Log
         /// 2: task 1.4 (the flight controller and propulsion; a body without propulsion steps as in 1).
         /// 3: task 1.5 (the air: the stand-in wind, the rotors' inflow from it and their in-plane drag, the body's and
         ///    the coil's drag, the rotors' gyroscopic moment, the ESCs' current limit; a free body steps as in 1).
+        /// 4: task 1.6 (the contacts: the legs on the ground, the frame's parts on the ground and the world's objects under
+        ///    the Time &lt; 1 latch, friction, prop strikes, crashes; a flight that touches nothing steps as in 3).
         /// </summary>
-        public const int ModelVersion = 3;
+        public const int ModelVersion = 4;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
@@ -70,13 +73,14 @@ namespace Fpv450.Sim.Log
         public const int BlockHeaderSize = 4;
 
         /// <summary>The step record: 352 B of 1.1–1.3's fields, then the flight controller's 69 doubles and flags (1.4),
-        /// then the gust, the air's force and moment and the ESCs' limit (1.5).</summary>
-        public const int StepSize = 992, EventSize = 72, EndSize = 48;
+        /// then the gust, the air's force and moment and the ESCs' limit (1.5), then the contacts' force and moment, the
+        /// legs' loads and compressions and the touching pairs (1.6).</summary>
+        public const int StepSize = 1112, EventSize = 72, EndSize = 48;
 
         // What the step record covers, checked against the structs by the suite: a field added to one of them must be
         // logged (a new layout) or the suite fails.
         public static readonly string[] StateFieldsLogged =
-            { "Step", "Position", "Velocity", "Attitude", "BodyRate", "Armed", "RotorSpeed", "EscCommand", "PackCharge0", "PackCharge1", "Fc", "Gust", "EscLimited" };
+            { "Step", "Position", "Velocity", "Attitude", "BodyRate", "Armed", "RotorSpeed", "EscCommand", "PackCharge0", "PackCharge1", "Fc", "Gust", "EscLimited", "Crashed" };
         public static readonly string[] FcFieldsLogged =
         {
             "RcCommand", "RcThrottle", "RcDataThrottle", "RawSetpoint", "FfDeltaPrev", "FfSpeedPrev", "FfAccelPrev", "FfRaw",
@@ -86,7 +90,10 @@ namespace Fpv450.Sim.Log
         };
         public static readonly string[] StickFieldsLogged = { "HostUs", "Roll", "Pitch", "Yaw", "Throttle", "Arm" };
         public static readonly string[] TraceFieldsLogged =
-            { "RotorCommand", "PackVolts0", "PackVolts1", "PackAmps0", "PackAmps1", "NetForce", "NetMoment", "AeroForce", "AeroMoment" };
+            {
+                "RotorCommand", "PackVolts0", "PackVolts1", "PackAmps0", "PackAmps1", "NetForce", "NetMoment", "AeroForce", "AeroMoment",
+                "ContactForce", "ContactMoment", "LegLoad", "LegCompression", "ContactsTouching",
+            };
 
         static readonly string[] CornerNames = { "rear_right", "front_right", "rear_left", "front_left" };
 
@@ -132,7 +139,7 @@ namespace Fpv450.Sim.Log
             b.Add("pack_amps1", "A", LogFieldType.F64);
             b.Vec("net_force", "N, world, weight included");
             b.Vec("net_moment", "N.m, body, about the CoM");
-            b.Add("flags", "bit 0 armed, bit 1 stick.arm", LogFieldType.U8);
+            b.Add("flags", "bit 0 armed, bit 1 stick.arm, bit 2 crashed", LogFieldType.U8);
             b.Add("reserved", "zero", LogFieldType.Pad, 7);
             // The flight controller's state (FcState), roll, pitch and yaw in the pilot's directions.
             b.Axes("fc.rc_command", "us from the stick centre after the deadband");
@@ -174,6 +181,13 @@ namespace Fpv450.Sim.Log
             b.Vec("aero_moment", "N.m, body, about the CoM");
             b.Add("esc_limited", "bit per corner: held at its current limit", LogFieldType.U8);
             b.Add("air.reserved", "zero", LogFieldType.Pad, 7);
+            // The contacts (1.6).
+            b.Vec("contact_force", "N, world: every touching pair's normal force and friction");
+            b.Vec("contact_moment", "N.m, body, about the CoM");
+            b.Corners("leg_load", "N, each leg's spring force");
+            b.Corners("leg_compression", "m, each leg's deepest point");
+            b.Add("contacts_touching", "touching pairs that pushed", LogFieldType.U16);
+            b.Add("contact.reserved", "zero", LogFieldType.Pad, 6);
             return b.Done(StepSize);
         }
 
@@ -235,7 +249,7 @@ namespace Fpv450.Sim.Log
             w.F64(t.PackAmps1);
             w.V3(t.NetForce);
             w.V3(t.NetMoment);
-            w.U8((byte)((s.Armed ? 1 : 0) | (k.Arm ? 2 : 0)));
+            w.U8((byte)((s.Armed ? 1 : 0) | (k.Arm ? 2 : 0) | (s.Crashed ? 4 : 0)));
             w.Zero(7);
             ref readonly FcState f = ref s.Fc;
             w.A3(f.RcCommand);
@@ -276,6 +290,12 @@ namespace Fpv450.Sim.Log
             w.V3(t.AeroMoment);
             w.U8(s.EscLimited);
             w.Zero(7);
+            w.V3(t.ContactForce);
+            w.V3(t.ContactMoment);
+            w.C4(t.LegLoad);
+            w.C4(t.LegCompression);
+            w.U16((ushort)t.ContactsTouching);
+            w.Zero(6);
         }
 
         public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
@@ -308,6 +328,7 @@ namespace Fpv450.Sim.Log
             byte flags = r.U8();
             s.Armed = (flags & 1) != 0;
             k.Arm = (flags & 2) != 0;
+            s.Crashed = (flags & 4) != 0;
             r.Skip(7);
             ref FcState f = ref s.Fc;
             f.RcCommand = r.A3();
@@ -347,6 +368,12 @@ namespace Fpv450.Sim.Log
             t.AeroForce = r.V3();
             t.AeroMoment = r.V3();
             s.EscLimited = r.U8();
+            r.Skip(7);
+            t.ContactForce = r.V3();
+            t.ContactMoment = r.V3();
+            t.LegLoad = r.C4();
+            t.LegCompression = r.C4();
+            t.ContactsTouching = r.U16();
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>

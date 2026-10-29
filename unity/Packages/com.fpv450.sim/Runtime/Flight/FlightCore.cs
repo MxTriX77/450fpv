@@ -34,6 +34,13 @@ namespace Fpv450.Sim.Flight
         /// <summary>The wind (StandInWind): a pilot's level, or still or steady air for a bench. Still by default.</summary>
         public WindSetup Wind;
 
+        /// <summary>The contacts (DroneSpec.BuildContacts, 1.6): null for none (a bench's free body, a flight in open air).</summary>
+        public Contact.ContactSpec Contacts;
+
+        /// <summary>The runtime objects the flight places in its world, in order (the launch stand, a test's pole); the
+        /// flight resets the world's own first.</summary>
+        public RuntimeObject[] RuntimeObjects = new RuntimeObject[0];
+
         /// <summary>The initial state. A flight starts at rest; a bench may launch a free body.</summary>
         public Double3 StartPosition;
         public Quat StartAttitude = Quat.Identity;
@@ -54,11 +61,13 @@ namespace Fpv450.Sim.Flight
     /// the flight controller and propulsion (1.4) when the setup has propulsion; the air (1.5): the stand-in wind
     /// (StandInWind), sampled at each hub, at the body's centre of pressure and at the coil, the rotors' axial
     /// inflow and in-plane drag (Propulsion), the body's and the coil's drag (Aero), and the rotors' gyroscopic
-    /// moment; contacts (1.6). A bench's body without propulsion is a free one, gravity and the torque-free motion of
-    /// its inertia (and the drag, when its setup has an AeroSpec).
+    /// moment; the contacts (ContactModel, 1.6): the legs, the frame's parts and their friction on the ground and the
+    /// world's objects. A bench's body without propulsion is a free one, gravity and the torque-free motion of its
+    /// inertia (and the drag, when its setup has an AeroSpec).
     ///
     /// Each step first advances the wind's gust from its stream (the gust in the record is the one that acted), then
-    /// takes every force from the step's starting state, then moves the body.
+    /// takes every force from the step's starting state (the contacts' from the planes and ground the last step's sweep
+    /// left at that pose), then moves the body, then sweeps the contact shapes from the old pose to the new one.
     ///
     /// The controller runs at its real 4 kHz: each step is FlightController.LoopsPerStep loops, each followed by a
     /// sub-step of the ESCs, motors and packs (Propulsion) at the loop's 250 µs, while the body moves once a step
@@ -93,6 +102,7 @@ namespace Fpv450.Sim.Flight
         readonly Propulsion _propulsion;
         readonly Aero _aero;
         readonly StandInWind _wind;
+        readonly Contact.ContactModel _contacts;
         readonly Double3[] _hubWind = new Double3[4];
         StepTrace _trace;
         readonly StepEvents _events = new StepEvents();
@@ -134,6 +144,19 @@ namespace Fpv450.Sim.Flight
                 _state.PackCharge0 = _state.PackCharge1 = setup.StartPackCharge;
                 _fc.Reset(ref _state.Fc, Gyro(_state.BodyRate));
             }
+
+            // The world as this flight finds it: its runtime objects in order, then the contacts at the start pose.
+            World.Query.ResetRuntimeObjects();
+            RuntimeObject[] objects = setup.RuntimeObjects ?? new RuntimeObject[0];
+            RuntimeIds = new int[objects.Length];
+            for (int i = 0; i < objects.Length; i++)
+                RuntimeIds[i] = World.Query.AddObject(objects[i].Name, objects[i].Shapes);
+            if (setup.Contacts != null)
+            {
+                _contacts = new Contact.ContactModel(setup.Contacts, World, _mass.Properties.Mass);
+                _contacts.Sense(_state, ref _state, _events);
+                _events.Clear();
+            }
         }
 
         public ref readonly FlightState State => ref _state;
@@ -164,6 +187,12 @@ namespace Fpv450.Sim.Flight
         /// <summary>The propulsion model, or null for a body without it.</summary>
         public Propulsion Propulsion => _propulsion;
 
+        /// <summary>The world's object id of each of the setup's runtime objects, in order.</summary>
+        public int[] RuntimeIds { get; }
+
+        /// <summary>The contact model, or null for a flight without contacts.</summary>
+        public Contact.ContactModel Contacts => _contacts;
+
         /// <summary>One 1 ms step with the stick sample in force (StickSample, "the timing contract").</summary>
         public void Advance(in StickSample stick)
         {
@@ -183,14 +212,17 @@ namespace Fpv450.Sim.Flight
             Double3 airWorld = s.Attitude.Rotate(airForce);
             force = force + airWorld;
             moment = moment + airMoment;
+            if (_contacts != null) _contacts.Forces(ref s, body, ref force, ref moment, ref _trace, _events);
 
             // Semi-implicit Euler (RigidBody): the velocities first, then the positions with the new velocities.
+            FlightState was = s;
             RigidBody.Step(ref s, in body, Gravity + force * body.InverseMass, moment, Dt);
             _trace.NetForce = force + Gravity * body.Mass;
             _trace.NetMoment = moment;
             _trace.AeroForce = airWorld;
             _trace.AeroMoment = airMoment;
             s.Step++;
+            if (_contacts != null) _contacts.Sense(was, ref s, _events);
         }
 
         // The body's and the coil's drag (Aero) on the air's velocity at their centres, into the air's body-axis sums.
@@ -361,6 +393,7 @@ namespace Fpv450.Sim.Flight
                 BodyRate = s.BodyRate,
                 RotorSpeed = s.RotorSpeed,
                 Armed = s.Armed,
+                LegCompression = _trace.LegCompression, // the step's start: one step behind the pose
             };
         }
 
@@ -377,7 +410,15 @@ namespace Fpv450.Sim.Flight
                 Step = _state.Step,
                 CameraAngularVelocity = _state.BodyRate,
                 AirVelocityAtCamera = air,
+                Crashed = _state.Crashed,
             };
+            if (_contacts != null)
+            {
+                signals.Live |= FeedSignalSet.Impact;
+                signals.ImpactCount = _contacts.ImpactCount;
+                signals.ImpactPeakAccel = _contacts.ImpactPeakAccel;
+                signals.ImpactImpulse = _contacts.ImpactImpulse;
+            }
             if (_propulsion == null) return;
             signals.Live |= FeedSignalSet.MotorElectricalHz | FeedSignalSet.MotorCurrent | FeedSignalSet.MotorCurrentStep
                 | FeedSignalSet.PackVolts;

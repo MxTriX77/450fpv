@@ -51,12 +51,19 @@ namespace Fpv450.Sim.Tests
         /// <summary>The sticks for the core's present state, armed, at host time hostUs.</summary>
         public StickSample Sticks(FlightCore core, long hostUs)
         {
+            ref readonly FlightState s = ref core.State;
+            var pose = new PoseFrame { Position = s.Position, Velocity = s.Velocity, Attitude = s.Attitude };
+            return Sticks(pose, hostUs);
+        }
+
+        /// <summary>The sticks for a pose (the flight's published one, as a pilot sees it), armed, at host time hostUs.</summary>
+        public StickSample Sticks(in PoseFrame s, long hostUs)
+        {
             if (_count++ % Period != 0)
             {
                 _last.HostUs = hostUs;
                 return _last;
             }
-            ref readonly FlightState s = ref core.State;
             double dt = FlightCore.Dt * Period;
 
             // The horizontal acceleration it wants.

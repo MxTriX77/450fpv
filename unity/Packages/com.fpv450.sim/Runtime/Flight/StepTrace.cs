@@ -30,13 +30,25 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The air's share of the net moment, about the centre of mass, body axes, N·m.</summary>
         public Double3 AeroMoment;
+
+        /// <summary>The contacts' share of the net force (normal and friction, every touching pair), world, N (1.6).</summary>
+        public Double3 ContactForce;
+
+        /// <summary>The contacts' share of the net moment, about the centre of mass, body axes, N·m.</summary>
+        public Double3 ContactMoment;
+
+        /// <summary>Each leg's spring force, N, and its compression (its deepest point's depth), m.</summary>
+        public Corners LegLoad, LegCompression;
+
+        /// <summary>The touching (shape, object, shape) pairs whose force the step took, the legs' points among them.</summary>
+        public int ContactsTouching;
     }
 
     /// <summary>
     /// The kinds of a step's events (design 10, LOG-01). Fixed: a kind is never renumbered, and a new mechanism appends
     /// its kinds (phase 7: hooks, pitfalls, VRS, payout, the tether's break). The producers arrive with their mechanisms:
-    /// mixer saturation (FlightCore, 1.4); the ESCs' current limit (1.5); contacts, prop strikes, crashes and tunnels
-    /// (1.6); the scheduler and the log
+    /// mixer saturation (FlightCore, 1.4); the ESCs' current limit (1.5); contacts, prop strikes, crashes, tunnels,
+    /// impacts and lost contacts (ContactModel, 1.6); the scheduler and the log
     /// write the hitches. FlightEvent says what each field holds per kind; a field a kind does not use keeps its "none"
     /// value.
     /// </summary>
@@ -44,13 +56,15 @@ namespace Fpv450.Sim.Flight
     {
         None = 0,
 
-        /// <summary>Part touches (Object, Shape) of Material or Surface at Point. A: the closing speed along the normal, m/s.</summary>
+        /// <summary>Part touches (Object, Shape) of Material or Surface at Point (Index: the contact shape, which the header
+        /// lists). A: the closing speed along the normal, m/s.</summary>
         ContactMade = 1,
 
-        /// <summary>Part leaves (Object, Shape). A: how long the contact lasted, s; B: its impulse, N·s.</summary>
+        /// <summary>Part leaves (Object, Shape) (Index: the contact shape). A: how long the contact lasted, s; B: its normal
+        /// impulse, N·s; C: its peak normal force, N.</summary>
         ContactBroken = 2,
 
-        /// <summary>Index's prop disc is entered by (Object, Shape) at Point. A: the speed of the entry, m/s.</summary>
+        /// <summary>Index's prop disc is entered by (Object, Shape) at Point. A: the speed of the entry along the normal, m/s.</summary>
         PropStrike = 3,
 
         /// <summary>
@@ -60,10 +74,13 @@ namespace Fpv450.Sim.Flight
         /// </summary>
         MixerSaturation = 4,
 
-        /// <summary>A crash of Part on (Object, Shape) at Point. A: the speed, m/s; B: the impulse, N·s; C: the peak acceleration, m/s².</summary>
+        /// <summary>A crash of Part on (Object, Shape) at Point, which ends the flight (Index: CrashCause). A: the closing speed
+        /// at its first touch, m/s; B: the impulse of its impact so far, N·s; C: that impact's peak acceleration so far,
+        /// m/s². The impact's whole figures follow in its Impact event.</summary>
         Crash = 5,
 
-        /// <summary>Part ended the step through (Object, Shape) at Point: a physics bug, never pilot error. A: the depth, m.</summary>
+        /// <summary>Part ended the step through (Object, Shape) at Point, its deepest core end: a physics bug, never pilot
+        /// error. A: the depth past the latched plane, m; B: the part's speed, m/s.</summary>
         Tunnel = 6,
 
         /// <summary>A late step (Index: HitchCause). A: the steps run to catch up, or the waits for the log; B: how late, µs.</summary>
@@ -77,6 +94,18 @@ namespace Fpv450.Sim.Flight
         /// the step, 0–1; B: the limit, A), or let it go (A: 0). The maximum thrust and the spin-up are the limit's.
         /// </summary>
         CurrentLimit = 9,
+
+        /// <summary>
+        /// An impact of Part on (Object, Shape) at Point (its first touch or strike faster than the contact spec's
+        /// impact speed), made when its window closes (Index: the contact shape, or the disc's corner for a strike). A:
+        /// the peak acceleration of the body from all its contacts over the window, m/s²; B: their impulse over it, N·s;
+        /// C: the closing speed at the first touch, m/s.
+        /// </summary>
+        Impact = 10,
+
+        /// <summary>A contact shape met more pairs than its table holds, or a query more than its buffer: a bug (Index: the
+        /// contact shape). A: how many were dropped.</summary>
+        ContactsLost = 11,
     }
 
     /// <summary>MixerSaturation's Index.</summary>

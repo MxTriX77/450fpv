@@ -9,4 +9,9 @@
   <ItemGroup>
     <ProjectReference Include="../simcore/simcore.csproj" />
   </ItemGroup>
+
+  <!-- The scripted flight's pilot: the suite's closed loop, flown on the published pose. -->
+  <ItemGroup>
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/SimPilot.cs" Link="SimPilot.cs" />
+  </ItemGroup>
 </Project>

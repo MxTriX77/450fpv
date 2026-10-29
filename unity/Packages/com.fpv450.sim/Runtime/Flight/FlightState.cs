@@ -8,8 +8,8 @@ namespace Fpv450.Sim.Flight
     /// copying it is a snapshot.
     ///
     /// Slots the later tasks fill, so the log layout and the pose have one home:
-    /// - this change: per-leg contact anchors and the swept-contact latches (1.6), whose tables live with the contact
-    ///   model and are snapshotted with this state
+    /// - this change: the swept-contact latches and the friction anchors (1.6) live in ContactModel's fixed tables, a
+    ///   function of the flight so far like the rest of this state; the crash is here
     /// - phase 7: per-leg plastic sink and stick anchors (7a), hooks by element Id (7a), the spool's paid-out length
     ///   and the tether's node positions and velocities (7d)
     /// </summary>
@@ -52,5 +52,8 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The ESCs whose current limit held their motor during the last step, bit 1 &lt;&lt; corner (Propulsion).</summary>
         public byte EscLimited;
+
+        /// <summary>The flight has ended in a crash (ContactModel, 1.6): latched; the body still moves, the app ends the flight.</summary>
+        public bool Crashed;
     }
 }
