@@ -133,3 +133,27 @@ def test_a_log_must_hold_one_drawn_direction(tmp_path):
     (tmp_path / "bad.csv").write_text("time_s,wind_from_deg,prevailing_from_deg\n0,1,10\n1,2,11\n", encoding="utf-8")
     with pytest.raises(ValueError):
         ws.load_wind(tmp_path / "bad.csv")
+
+
+def _write_set(folder, model, first, seeds=40):
+    """One seed set of a fixture model as a simulator writes its histories: seed-<n>.csv, n from first."""
+    logs = fx.seed_sets([first], seeds, fx.MINUTES, **fx.options(model))[0]
+    for s, (t, d, p) in enumerate(logs):
+        rows = "".join(f"{a:.1f},{b:.4f},{c:.4f}\n" for a, b, c in zip(t, d, p))
+        (folder / f"seed-{first * seeds + s + 1}.csv").write_text("time_s,wind_from_deg,prevailing_from_deg\n" + rows, encoding="utf-8")
+
+
+def test_grade_reads_a_simulators_histories_in_sets(tmp_path):
+    """--grade (p7c-wind 1.4): a simulator's seed-<n>.csv grouped by n into sets of 40; the starting model passes every
+    set, a schedule fails, a short last set is left out."""
+    good, bad = tmp_path / "good", tmp_path / "bad"
+    good.mkdir()
+    bad.mkdir()
+    for i in range(2):
+        _write_set(good, "random", i)
+    _write_set(bad, "sched5", 0)
+    (good / "seed-81.csv").write_text((good / "seed-1.csv").read_text(encoding="utf-8"), encoding="utf-8")
+    ok = fx.grade(good)
+    assert len(ok) == 2 and all(all(row) for row in ok)
+    assert fx.main(["--grade", str(good)]) == 0
+    assert fx.main(["--grade", str(bad)]) == 1

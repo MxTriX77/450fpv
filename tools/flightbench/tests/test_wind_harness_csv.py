@@ -62,7 +62,7 @@ def harness(tmp_path_factory):
 
 def test_the_run_reads_as_an_attitude_log(harness):
     folder, manifest = harness
-    assert manifest["wind"] == "stand-in" and manifest["belt"] is True
+    assert manifest["wind"] == "field" and manifest["belt"] is True
     (run,) = manifest["runs"]
     c = load(folder / run["csv"])
     n = len(c["frame"])
@@ -76,12 +76,12 @@ def test_the_run_reads_as_an_attitude_log(harness):
     assert all(ok) and all(oky), "every frame usable on every axis"
     assert not any(c["dup"]) and not any(c["lost"])
     assert all(math.isnan(e) for e in c["edge_px"]), "a simulation has no horizon edge"
-    assert -12 < sum(c["roll_deg"]) / n < -3, "leaning into the Severe stand-in's wind from the left"
+    assert -12 < sum(c["roll_deg"]) / n < -3, "leaning into the Severe field's wind from the left"
     assert abs(sum(c["pitch_deg"]) / n + 22.7) < 2, "clip P's pitch held"
 
     first, last = (int(v) for v in run["segment"].split("-"))    # main()'s --segment parse
     inside = [first <= f <= last for f in c["frame"]]
-    assert 6 < sum(inside) / fps < 8, "about 7 s from the belt's edge to 10 belt heights"
+    assert 4 < sum(inside) / fps < 12, "90 m at 13 m/s through the air, give or take the wind along the course"
     assert 0 < first and last < n
 
 

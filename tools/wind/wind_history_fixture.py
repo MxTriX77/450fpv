@@ -7,12 +7,15 @@ a simulator's wind log would be. It reads nothing from reference/.
 
     python tools/wind/wind_history_fixture.py --check 40 [--model random sched5 ...]
     python tools/wind/wind_history_fixture.py --write <folder> [--set 0] [--model random]
+    python tools/wind/wind_history_fixture.py --grade <folder> [--seeds 40]
 
 --check builds N independent seed sets of each model (set i uses seed i) and prints how many pass each
 T0c condition, with the spread of every statistic, then the self-check: the starting model ("random")
 must pass all of T0c in every set and every control must fail it in every set (exit 1 otherwise).
 --seeds and --minutes change the history (default: T0c's minimum). --write writes one seed set as
---wind-log CSVs; then run wind_stats.py --wind-log <folder>/*.csv.
+--wind-log CSVs; then run wind_stats.py --wind-log <folder>/*.csv. --grade reads a simulator's own histories (one
+--wind-log CSV per seed, named seed-<n>.csv, as flightbench --wind-harness --history writes them), groups them by seed
+number into sets of --seeds, and grades every set as --check does (exit 1 unless every set passes all of T0c).
 
 The model (assumed starting values, tunable; K section 8.3):
 - each seed draws its prevailing direction, uniform over 0-360 deg
@@ -202,6 +205,27 @@ def verdict(results):
     return good
 
 
+def grade(folder, seeds=SEEDS):
+    """T0c, as check does, on a simulator's histories: seed-<n>.csv grouped by n into sets of `seeds`; a short last set
+    is left out. Returns [[pass per T0C condition] per set]."""
+    files = sorted(Path(folder).glob("seed-*.csv"), key=lambda f: int(f.stem.split("-")[1]))
+    sets = [files[i:i + seeds] for i in range(0, len(files) - seeds + 1, seeds)]
+    if not sets:
+        raise SystemExit(f"{folder}: fewer than {seeds} seed-<n>.csv histories")
+    res = [wind_stats.wind_history([wind_stats.load_wind(f) for f in group]) for group in sets]
+    minutes = (len(wind_stats.load_wind(files[0])[0]) - 1) / 60.0
+    print(f"T0c on {len(sets)} sets of {seeds} seeds x {minutes:g} min from {folder}")
+    ok = [[bool(fn(o)) for fn in T0C.values()] for o in res]
+    fails = ", ".join(f"{k} {sum(not row[j] for row in ok)}" for j, k in enumerate(T0C))
+    print(f"simulator: passes all of T0c in {sum(all(row) for row in ok)} of {len(sets)} sets; fails per condition: {fails}")
+    for k, fn in STATS.items():
+        v = [float(fn(o)) for o in res]
+        print(f"    {k:15s} min {min(wind_stats.fin(v), default=math.nan):.3f}  p5 {wind_stats.percentile(v, 5):.3f}"
+              f"  median {wind_stats.percentile(v, 50):.3f}  p95 {wind_stats.percentile(v, 95):.3f}"
+              f"  max {max(wind_stats.fin(v), default=math.nan):.3f}")
+    return ok
+
+
 def write(folder, index, name, seeds, minutes):
     folder = Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
@@ -219,13 +243,16 @@ def main(argv=None):
     p.add_argument("--check", type=int, help="run N seed sets of each model through T0c")
     p.add_argument("--write", help="write one seed set as --wind-log CSVs into this folder")
     p.add_argument("--set", type=int, default=0, help="the seed set --write writes")
+    p.add_argument("--grade", help="grade a simulator's own histories (seed-<n>.csv) in sets of --seeds")
     p.add_argument("--model", nargs="+", choices=list(MODELS), help="models to run (default: all for --check, "
                    "random for --write)")
     p.add_argument("--seeds", type=int, default=SEEDS)
     p.add_argument("--minutes", type=float, default=MINUTES)
     a = p.parse_args(argv)
-    if not (a.check or a.write):
-        p.error("give --check N or --write <folder>")
+    if not (a.check or a.write or a.grade):
+        p.error("give --check N, --write <folder> or --grade <folder>")
+    if a.grade:
+        return 0 if all(all(row) for row in grade(a.grade, a.seeds)) else 1
     if a.write:
         write(a.write, a.set, (a.model or ["random"])[0], a.seeds, a.minutes)
     if a.check:
