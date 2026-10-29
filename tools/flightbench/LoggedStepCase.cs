@@ -5,29 +5,23 @@ using Fpv450.Sim;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Log;
+using Fpv450.Sim.Tests;
 
 namespace Fpv450.FlightBench
 {
-    // The step with the log on (task 1.2, design 10): the free body stepped at a real 1 kHz for 30 s, each step's record
-    // going through FlightRecorder's ring to a log file on disk while its flush worker writes, as in a flight. It times
-    // the step with its record, and the record alone, and counts the flight thread's allocations (the budget: p99 ≤ 300
-    // µs and 0 B, PLT-04) and the ring's waits for the disk (0: the step never waits on it).
+    // The step with the log on (tasks 1.2, 1.4 and 1.5, design 10): the powered drone with its drag in the Windy wind,
+    // flown by GoldenFlights' scripted pilot at a real 1 kHz for 30 s, each step's 1296 B record going through FlightRecorder's ring to a log file on disk while
+    // its flush worker writes, as in a flight. It times the step with its record, and the record alone, and counts the
+    // flight thread's allocations (the budget: p99 ≤ 300 µs and 0 B, PLT-04) and the ring's waits for the disk (0: the
+    // step never waits on it).
     internal static class LoggedStepCase
     {
         public const string Name = "logged-step";
 
         public static bool Bench()
         {
-            const int warmup = 2000, steps = 30000; // 30 s at 1 kHz: the 4 MiB ring turns over 2.5 times
-            var setup = new FlightSetup
-            {
-                Seed = 1,
-                World = FlightWorld.Floor(),
-                StartPosition = new Double3(0, 100, 0),
-                StartVelocity = new Double3(3, 2, -1),
-                StartBodyRate = new Double3(2, -1, 0.5),
-                Mass = new MassModel(new[] { new DronePart { Name = "cube", Kind = PartKind.Box, Mass = 4.8, Size = new Double3(0.25, 0.25, 0.25) } }),
-            };
+            const int warmup = 2000, steps = 30000; // 30 s at 1 kHz: the 4 MiB ring turns over 6.5 times
+            FlightSetup setup = GoldenFlights.PoweredSetup(PoweredFlightCase.Drone());
             var core = new FlightCore(setup);
             LogHeader header = LogHeader.For(setup, core);
             header.Build = "tools/flightbench";
@@ -47,7 +41,8 @@ namespace Fpv450.FlightBench
                     allocated = GC.GetAllocatedBytesForCurrentThread();
                     processAllocated = GC.GetTotalAllocatedBytes(true);
                 }
-                var stick = new StickSample { HostUs = k, Roll = 0.25, Throttle = 0.5, Arm = true };
+                StickSample stick = GoldenFlights.PoweredStick((k + warmup) % GoldenFlights.PoweredSteps);
+                if (k + warmup >= GoldenFlights.PoweredSteps) stick.Arm = true; // the script's restart keeps the switch on
                 while (Stopwatch.GetTimestamp() < next) { } // the 1 kHz pace, as the flight thread keeps it
                 next += period;
                 long t0 = Stopwatch.GetTimestamp();
