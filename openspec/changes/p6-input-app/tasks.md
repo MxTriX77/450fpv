@@ -19,6 +19,7 @@ Branch `unity/game/p6-input-app` off `unity/main`, after `p6-flight-core`'s task
       - cable pull: the loss at host 1 234 567 µs disarms the step at 1 235 000 µs, logged, replayed bit for bit
       - the stream's intervals over 10 s: 5000, mean 2.000 ms, 1.821–2.176 ms; the live TX12's: `radioprobe --measure` when one is plugged in
     - **Merged the flight core at 2a99cbc:** `LogFormat.Version` 6 (`ModelVersion` 5, the 1296 B record unchanged), the failsafe in flags bit 3, the input header entry at tag 15 (the core holds 10–14); the goldens did not move.
+    - **Merged unity/main at 7156dde** (#136: model 6, the midpoint rigid body, the tumble golden, the prop-disc gate): `LogFormat.Version` stays 6, `ModelVersion` 6, the record's bytes unchanged; the four goldens did not move.
     - **For 1.4:** `timeBeginPeriod(1)` with the flight thread (p6-flight-core 1.2's note), `RadioReader.Stop` on quit and domain reload, the keyboard only when no radio is connected.
 - [x] 1.2 [game-developer] The calibration wizard (design 4) (ticked for its build; the by-hand run is 1.2b):
   - **What:** centre, sweep and arm switch, the channel order, reversal, endpoints and deadband, live bars, named profiles, the health check, and radio-side curves.
