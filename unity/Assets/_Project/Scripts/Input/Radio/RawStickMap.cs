@@ -9,7 +9,7 @@ namespace Fpv450.Input.Radio
     /// range. A device with fewer than five axes arms on its first button. Raw values only: the core's controller does
     /// the deadband, the rates and the throttle curve (StickSample).
     /// </summary>
-    public sealed class RawStickMap
+    public sealed class RawStickMap : IStickMap
     {
         public int Roll = 0, Pitch = 1, Throttle = 2, Yaw = 3, Arm = 4;
 

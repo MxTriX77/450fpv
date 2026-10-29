@@ -9,11 +9,11 @@ namespace Fpv450.Input.Radio
     /// the flight thread as a StickSample through the flight's StickInbox, lock-free.
     /// - **Stamps:** each report carries the HostClock µs the device stamped on its arrival; the sample keeps it, so the
     ///   step that takes it is fixed by when it arrived, never by when a frame ran.
-    /// - **The map:** raw values through RawStickMap until the calibration (p6-input-app 1.2) replaces it.
+    /// - **The map:** Map, the pilot's calibration (CalibratedStickMap) or RawStickMap without one; swapped whole.
     /// - **Loss:** a lost device is a failsafe sample (StickSample.Failsafe: centred, throttle down, disarmed) stamped
     ///   when the loss was seen, then a rescan every 0.5 s until a device opens again.
     /// - **Intervals:** every arrival stamp goes into a ring, so Intervals gives the histogram of the last window.
-    /// - **Latest:** the last report for a live display, read from any thread.
+    /// - **Latest:** the last report for a live display, read from any thread; Tap, every report, for the calibration.
     /// Steady state allocates nothing. Pump is one pass of the thread, for tests that drive it on a virtual clock.
     /// </summary>
     public sealed class RadioReader : IDisposable
@@ -23,7 +23,8 @@ namespace Fpv450.Input.Radio
         const int ReadTimeoutMs = 100, RescanMs = 500;
 
         readonly Func<IRadioDevice> _open;
-        readonly RawStickMap _map;
+        IStickMap _map;
+        ReportTap _tap;
         readonly long[] _stamps = new long[StampCapacity];
         StickInbox _inbox;
         IRadioDevice _device;
@@ -38,7 +39,7 @@ namespace Fpv450.Input.Radio
         int _latestSeq;
 
         /// <param name="open">Opens a device, or returns null when none is present (WinHid.OpenFirst on a live machine).</param>
-        public RadioReader(Func<IRadioDevice> open, RawStickMap map = null)
+        public RadioReader(Func<IRadioDevice> open, IStickMap map = null)
         {
             _open = open ?? throw new ArgumentNullException(nameof(open));
             _map = map ?? new RawStickMap();
@@ -49,6 +50,23 @@ namespace Fpv450.Input.Radio
         {
             get => Volatile.Read(ref _inbox);
             set => Volatile.Write(ref _inbox, value);
+        }
+
+        /// <summary>
+        /// The map from a report to a StickSample (any thread): set a new map whole and never change one in use, since
+        /// the input thread reads it per report. Null sets the raw map.
+        /// </summary>
+        public IStickMap Map
+        {
+            get => Volatile.Read(ref _map);
+            set => Volatile.Write(ref _map, value ?? new RawStickMap());
+        }
+
+        /// <summary>Every report also goes here while set (the Calibrate screen's wizard), or null. One consumer.</summary>
+        public ReportTap Tap
+        {
+            get => Volatile.Read(ref _tap);
+            set => Volatile.Write(ref _tap, value);
         }
 
         /// <summary>A device is open and has not been lost.</summary>
@@ -151,7 +169,8 @@ namespace Fpv450.Input.Radio
             report.CopyTo(_latest);
             Volatile.Write(ref _latestSeq, _latestSeq + 1);
 
-            _map.Map(report, _device.Axes, out StickSample sample);
+            Volatile.Read(ref _tap)?.TryWrite(report);
+            Volatile.Read(ref _map).Map(report, _device.Axes, out StickSample sample);
             sample.HostUs = report.HostUs;
             Volatile.Read(ref _inbox)?.TryWrite(sample);
         }
