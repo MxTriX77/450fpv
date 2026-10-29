@@ -13,6 +13,9 @@ namespace Fpv450.Input.Radio
     /// - **Loss:** a lost device is a failsafe sample (StickSample.Failsafe: centred, throttle down, disarmed) stamped
     ///   when the loss was seen, then a rescan every 0.5 s until a device opens again.
     /// - **Intervals:** every arrival stamp goes into a ring, so Intervals gives the histogram of the last window.
+    /// - **The arm switch cycled:** after a loss, and from HoldArm (a flight's start), the samples carry the switch off
+    ///   until a report shows it off, so it must be turned off and on again to arm, as Betaflight refuses a switch left
+    ///   on through a failsafe or a power-up. The log's stick is the switch as the controller may see it.
     /// - **Latest:** the last report for a live display, read from any thread; Tap, every report, for the calibration.
     /// Steady state allocates nothing. Pump is one pass of the thread, for tests that drive it on a virtual clock.
     /// </summary>
@@ -32,6 +35,7 @@ namespace Fpv450.Input.Radio
         Thread _thread;
         volatile bool _stop;
         volatile bool _connected;
+        volatile bool _armHeld;
         long _count, _sessionFrom, _losses;
 
         // Latest, under a sequence lock: odd while the input thread writes it.
@@ -84,6 +88,12 @@ namespace Fpv450.Input.Radio
         public long Reports => Volatile.Read(ref _count);
 
         public long Losses => Volatile.Read(ref _losses);
+
+        /// <summary>From now, the samples carry the arm switch off until a report shows it off (any thread).</summary>
+        public void HoldArm() => _armHeld = true;
+
+        /// <summary>The arm switch is held off until it is seen off.</summary>
+        public bool ArmHeld => _armHeld;
 
         /// <summary>Starts the input thread.</summary>
         public void Start()
@@ -172,12 +182,18 @@ namespace Fpv450.Input.Radio
             Volatile.Read(ref _tap)?.TryWrite(report);
             Volatile.Read(ref _map).Map(report, _device.Axes, out StickSample sample);
             sample.HostUs = report.HostUs;
+            if (_armHeld)
+            {
+                if (sample.Arm) sample.Arm = false;
+                else _armHeld = false;
+            }
             Volatile.Read(ref _inbox)?.TryWrite(sample);
         }
 
         void Lose(long hostUs)
         {
             _connected = false;
+            _armHeld = true;
             Interlocked.Increment(ref _losses);
             StickSample failsafe = StickSample.Neutral;
             failsafe.HostUs = hostUs;
