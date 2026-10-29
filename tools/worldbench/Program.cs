@@ -15,6 +15,7 @@ namespace Fpv450.WorldBench
     // --bench             times a physics step's batch (K§10.5) and 100 000 capsules and rays, on AC only (PLT-07)
     // --wakes             the wake grid (p7c-wind 1.3) over its synthetic layout: the scenario numbers, and the worker's
     //                     10-degree rebuild under a 1 kHz loop, on AC only (PLT-07)
+    // --wakes-range DIR   the wake grid over the test range's placements, from a checkout of p6-test-range at DIR
     // Cases: the floor stub (p6-world-query-gallery task 1.1) and the wake grid (golden/wakes.txt). The gallery world
     // joins in tasks 1.4 and 1.5.
     internal static class Program
@@ -34,7 +35,9 @@ namespace Fpv450.WorldBench
                 WakeBench.Scenarios();
                 return WakeBench.Loop(power);
             }
-            Console.Error.WriteLine("usage: worldbench --golden [--record] | --bench | --wakes");
+            if (args.Length == 2 && args[0] == "--wakes-range")
+                return WakeRange.Run(args[1]);
+            Console.Error.WriteLine("usage: worldbench --golden [--record] | --bench | --wakes | --wakes-range DIR");
             return 2;
         }
 
