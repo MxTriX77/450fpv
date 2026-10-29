@@ -25,9 +25,10 @@ namespace Fpv450.Sim.Flight
         /// lot's spread is a share of the label deviations).</summary>
         public double KvSigma = 0.02;
 
-        /// <summary>The ESC command lag's spread, ±s: 0.08 ms (derived: where each ESC's 20 kHz loop and 24 kHz PWM period
-        /// fall against the frame, up to 50 + 42 µs, about ±46 µs about their mean (AM32, published, p7b 1.0), plus the
-        /// winding's L/R of 0.3 ms at ±10 % (assumed, maxon's tolerance), ±30 µs).</summary>
+        /// <summary>The ESC command lag's spread, ±s: 0.08 ms (derived): the winding's L/R of 0.3 ms at ±10 % (assumed, maxon's
+        /// tolerance), ±30 µs, a motor's own; and where its ESC's 20 kHz loop and 24 kHz PWM period fall against the frame,
+        /// up to 50 + 42 µs, ±46 µs about their mean (AM32, published, p7b 1.0). That phase drifts update by update, below
+        /// the 250 µs sub-step, so the lag carries it as one offset per flight within its bound (assumed).</summary>
         public double EscLagBound = 0.08e-3;
 
         /// <summary>ISO 21940-11's balance grade G, m/s: G 6.3 (published: Tyto Robotics, UAV props are typically balanced
