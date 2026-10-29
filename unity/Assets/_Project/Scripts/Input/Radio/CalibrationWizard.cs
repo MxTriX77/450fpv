@@ -85,7 +85,8 @@ namespace Fpv450.Input.Radio
             _winMax = new int[_n];
             _holdStart = new long[_n];
             _assigned = new bool[_n];
-            Profile.Device = Profile.Name = device ?? "";
+            Profile.Device = device ?? "";
+            Profile.Name = Profile.Device.Length > 0 ? Profile.Device : "Radio"; // the default name, renamed at will
         }
 
         public CalibrationStep Step { get; private set; } = CalibrationStep.Centre;
