@@ -61,9 +61,50 @@ Branch `unity/game/p6-input-app` off `unity/main`, after `p6-flight-core`'s task
     - **Room for the rest (INP-07):** another Betaflight setting is a new row. A `diff all` importer writes the same names into the same form.
     - **Numbers:** a fresh profile reads 55 / 225 °/s with expo 0.34 on roll and pitch, 85 / 260 / 0.15 on yaw, `thr_mid` 50 (0.50) and `thr_expo` 10 (0.10), deadband 2 / 2, `rc_smoothing_auto_factor` 50, `f_*` 50 / 50 / 0, `airmode` on, `dshot_idle_value` 550. Six rows edited, plus a double that needs 17 digits, a bool and an enum, read back bit for bit after a save, on .NET 10 and on Unity's Mono. Eight bad files (cut short, not text, another format, out of range, not whole, an unknown name, a mistyped value, one the controller refuses) fall back to the defaults with their reasons.
     - **For 1.4:** the flight loads `FcSettingsStore.Load(persistentDataPath, out error)` at its start.
-- [ ] 1.4a [game-developer] The flight session's logic, headless (design 6, 7; split by D-046, no GPU that night):
+- [x] 1.4a [game-developer] The flight session's logic, headless (design 6, 7; split by D-046, no GPU that night):
   - **What:** the engine-side session behind the app, testable without a scene: the setup (payload, legs, time of day, wind, rain) mapped into `FlightSetup`, the loadout and the wind level; the physics thread started and stopped with the 1 ms timer period, `RadioReader` stopped on quit and on domain reload, the keyboard only when no radio is connected; arm and disarm through the controller's rules (the switch cycled after a failsafe), pause and restart, the end conditions, the post-flight summary from the log; `header.StartHostUs = StartUs`; the launch stand placed as a runtime object with the legs off; the world a `FloorWorld` until the test range's queries land; a thin Unity adapter that compiles.
   - **Verify:** the `app-flow` scenarios that need no scene (setup to `FlightSetup`, arm and disarm, the failsafe, pause and restart, every end condition, the summary against the log, persistence), `tools/inputtests`, `tools/simtests`, Unity's EditMode `-nographics`.
+  - **As built** (`Scripts/App/Session/`, the engine-free `Fpv450.App.Session`, which `tools/inputcore` compiles too; `Scripts/App/{FlightSessionHost,AppRadio}.cs`; tests in `Tests/EditMode/Session/SessionTests.cs`):
+    - **The setup:** `FlightChoices` holds the six choices and checks them (payload 0–2.0 kg in 0.1 kg steps, time of day 0–24 h, Calm / Windy / Severe, Sunny / Rain / Severe rain, the start point by name). `SetupStore` keeps them in `setup.json` beside the other two files, saved the same way.
+      - `SessionSetup.Build` takes drone.json's mass, propulsion, aero and contacts at the loadout (the coil full at take-off), `WindSetup.Of(level)`, the settings, a new `FlightWorld.Floor()` and the start point (the floor's `origin` until the test range lists its own).
+      - Legs on, the drone stands on its unloaded skids. Legs off, `LaunchStand.Build` is placed as the runtime object at the start point's heading, and the drone rests at `RestingOrigin`.
+      - The time of day and the rain go to the scene: the G7 physics has no rain, and the log header has no field for either.
+    - **The session** (`FlightSession`):
+      - `SessionInputs.FromProfile(persistentDataPath, …)` loads the setup, `FcSettingsStore.Load` and the active calibration, and names any file it could not read.
+      - `Start` takes the radio when `RadioReader.Connected`; otherwise the keyboard where it is allowed; otherwise it refuses ("no radio is connected"). It sets the reader's map (`CalibratedStickMap`, or raw without a profile), `HoldArm` and the flight's inbox.
+      - Each flight gets a new random seed and a new log (`LogStore.NewPath`). The header holds the input's source and device, the 10 s of intervals, and `StartHostUs`, step 0, set 20 ms after `Start` so the file is written first.
+      - The session holds the 1 ms timer period while it lives. It never starts or stops the app's radio.
+    - **Arming:** the controller's rules. `RadioReader` holds the switch off after a loss and at each flight's start until a report shows it off, as Betaflight refuses a switch left on through a failsafe or a power-up. The log's stick is the switch as the controller may see it.
+    - **Pause:** the flight thread stops.
+      - While paused, the frames drain the radio's reports: the stopped thread hands the inbox's consumer side to the frame, so a loss stays in force and nothing is dropped.
+      - `Resume` moves every later step's host time by the pause, and first logs it as the new `HitchCause.Pause` (B: µs). Replay skips it, as it skips every hitch, and the summary prints `PAUSED`.
+      - `Restart` is the pilot's end, then a new flight with a new seed and a new log.
+    - **The ends** (`FlightEndRule`): one rule for the live flight and for the log, the first that holds:
+      - the core's latched `Crashed` (QA's flight-core finding 3: the core keeps stepping; the session ends the flight)
+      - upside down: the up axis below the horizon while touching, for 1 s (assumed)
+      - armed before and not now: the failsafe when the stick in force is the failsafe sample, else the disarm
+      - the battery cut-off: either pack's charge at 0, the end of drone.json's OCV table (3.0 V a cell). The model holds the voltage below it, so the pack would never empty (assumed).
+      - The rule runs on the flight thread as each step goes to the log, and the log stops at the end's step. The pilot's end and a fault are the session's only.
+    - **The summary** (`PostFlight.Read(path)`): `FlightSummary` for the header, the events and the failsafes, then one pass over the records for the distance (from the header's start) and the end. `Cause()` and `Lines()` give:
+      - the end and its cause (for a crash: the part, the object and its material)
+      - the time, the distance and the battery used
+      - the keyboard's warning and each failsafe
+      - the seed and the log's path
+    - **The adapter** compiles; there is no scene (that is 1.4b):
+      - `AppRadio` is the app's one reader, stopped on `Application.quitting` and `beforeAssemblyReload`.
+      - `FlightSessionHost` builds the session from the profile and starts a flight once the radio is connected, or after 1 s on the keyboard. It ticks the session with `KeyboardFallback.ReadKeys()` and disposes it when disabled.
+      - It reads drone.json and physics_materials.json from the repository; the player's copy is 1.4b's.
+    - **Numbers** (12 tests; a test radio of the TX12's layout every 2 ms on a set clock, a step a ms; the last on the real flight thread):
+      - **The setup:** payload 1.5 kg, Windy. Legs on, the drone stands at 0.2530 m and has sunk 1.4 mm after 1.5 s disarmed, 8 pairs touching. Legs off, on the stand, 0.4 mm.
+      - **Arming:** neither a switch left on nor one turned on with the throttle at 0.5 arms, until it has been seen off. Off, then on, arms. The disarm ends the flight at the next RC frame, within 4 ms of the switch.
+      - **The failsafe:** lost at 1 271 000 µs, disarmed at the step at 1 274 000 µs. The controller reads the switch at its 250 Hz RC frame, so the disarm comes up to 3 steps after the loss. tx-input asks for one step; 1.1 met that on a free body. Open, for physics.
+      - **Pause:** 2.000 s with no step and 0 reports dropped. Every later step's stick is within 3 ms before its moved host time.
+      - **Restart:** a new seed and a new log, the same start, the switch to be cycled again.
+      - **A crash:** into a steel box named R01_A 1.4 m over the drone, at full throttle: "crash: coil hit R01_A (steel), an impact at 4.3 m/s". The summary's distance equals the published poses' path within 1e-9 m, and its time, battery and seed are the flight's.
+      - **Upside down:** the flight ends 1.0 s after the drone settles on its back. **The battery cut-off:** from 0.05 % charge at throttle 0.35, after 3.2 s.
+      - **Persistence:** `roll_srate` 30, and payload 1.7 kg with the legs off, Severe wind and Rain, are saved, loaded fresh, flown and found in the header. A broken setup.json is named, and the defaults are used.
+      - **The keyboard** flies only without a radio. With one, Enter does nothing. With neither, `Start` refuses.
+      - **The flight thread** in real time: 891 steps in 892 ms flown, a 201 ms pause logged, 2 hitches.
 - [ ] 1.4b [game-developer] The app's screens and the built player (design 6, 7), after 1.4a, with the GPU:
   - **What:** the menu (Train, Calibrate, Exit; Explore in review builds), the setup screen, the flight session's scene over the test range (D-044) with the world loader, the stand-in drone, the FEED-02 camera and the launch stand.
   - **Verify:** the remaining `app-flow` scenarios, and a built player flying the stand-in from the stand and from the ground with the keyboard fallback.
