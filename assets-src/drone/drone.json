@@ -334,8 +334,8 @@
   ],
   "legs": {
     "parts": ["leg_rr", "leg_fr", "leg_rl", "leg_fl"],
-    "stiffness_n_per_m": {"value": 10000, "label": "assumed", "note": "the vertical give of the plastic clamps, T-joints and skid overhangs, 5–20 kN/m a leg (the sheet), its middle; the tube itself bends sideways at about 6.6 kN/m (derived, the sheet); 1.6 tunes it against the bounce scenario"},
-    "damping_n_s_per_m": {"value": 45, "label": "derived", "note": "ζ 0.2 (the sheet's 0.1–0.3, assumed) on a quarter of the 5.18 kg take-off mass: c = 2ζ·√(k·m) = 45 N·s/m; 1.6 tunes it against the bounce scenario"},
+    "stiffness_n_per_m": {"value": 10000, "label": "assumed", "note": "the vertical give of the plastic clamps, T-joints and skid overhangs, 5–20 kN/m a leg (the sheet), its middle; the tube itself bends sideways at about 6.6 kN/m (derived, the sheet); kept by 1.6's bounce scenario on a rigid floor: down at 0.50 m/s with the sticks held it leaves again at 0.28 m/s (0.56 of the touch) and rises 0.21 m, with the throttle cut it hops 3 mm and rests 0.28 s after the touch (the manifesto's §2.6; soil's loss is 7a's)"},
+    "damping_n_s_per_m": {"value": 45, "label": "derived", "note": "ζ 0.2 (the sheet's 0.1–0.3, assumed) on a quarter of the 5.18 kg take-off mass: c = 2ζ·√(k·m) = 45 N·s/m; kept by 1.6's bounce scenario (see stiffness_n_per_m)"},
     "foot_radius_m": {"value": 0.005, "label": "measured", "note": "the skid tube's radius (T: Ø9–10 mm); the feet are skids, so each leg's foot is its T-joint on the skid"}
   },
   "legs_off": {
