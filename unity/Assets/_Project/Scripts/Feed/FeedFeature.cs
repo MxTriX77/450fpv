@@ -72,6 +72,10 @@ namespace Fpv450.Feed
             FeedOutput output;
             RTHandle scene;
             Texture sceneSource;
+            // A render graph import takes a colour or a depth format, never both, so a scene target with a depth buffer
+            // (the FPV camera's) comes in by its identifier with its colour's info, and is bound by that identifier.
+            bool sceneByIdentifier;
+            RenderTargetInfo sceneInfo;
 
             public FeedPass()
             {
@@ -88,8 +92,20 @@ namespace Fpv450.Feed
                 if (sceneSource != o.Scene)
                 {
                     scene?.Release();
-                    scene = RTHandles.Alloc(o.Scene);
                     sceneSource = o.Scene;
+                    var target = o.Scene as RenderTexture;
+                    sceneByIdentifier = target != null && target.depthStencilFormat != GraphicsFormat.None;
+                    if (sceneByIdentifier)
+                    {
+                        scene = RTHandles.Alloc(new RenderTargetIdentifier(target));
+                        sceneInfo = new RenderTargetInfo
+                        {
+                            width = target.width, height = target.height, volumeDepth = 1, msaaSamples = 1,
+                            format = target.graphicsFormat,
+                        };
+                    }
+                    else
+                        scene = RTHandles.Alloc(o.Scene);
                 }
             }
 
@@ -105,7 +121,8 @@ namespace Fpv450.Feed
                 var resources = frameData.Get<UniversalResourceData>();
                 Apply(material, output);
 
-                TextureHandle source = renderGraph.ImportTexture(scene);
+                TextureHandle source = sceneByIdentifier ? renderGraph.ImportTexture(scene, sceneInfo) : renderGraph.ImportTexture(scene);
+                bool byIdentifier = sceneByIdentifier;
                 if (!output.SceneEncoded)
                 {
                     var encoded = renderGraph.CreateTexture(new TextureDesc(output.Scene.width, output.Scene.height)
@@ -113,8 +130,9 @@ namespace Fpv450.Feed
                         colorFormat = GraphicsFormat.R8G8B8A8_UNorm,
                         name = "_FeedScene",
                     });
-                    AddBlit(renderGraph, "Feed encode", source, encoded, EncodePass);
+                    AddBlit(renderGraph, "Feed encode", source, byIdentifier, encoded, EncodePass);
                     source = encoded;
+                    byIdentifier = false;
                 }
 
                 var field = renderGraph.CreateTexture(new TextureDesc(output.Settings.fieldWidth, FeedSettings.FieldRows)
@@ -122,30 +140,39 @@ namespace Fpv450.Feed
                     colorFormat = GraphicsFormat.R8G8B8A8_UNorm,
                     name = "_FeedField",
                 });
-                AddBlit(renderGraph, "Feed field", source, field, FieldPass);
-                AddBlit(renderGraph, "Feed output", field, resources.activeColorTexture, OutputPass);
+                AddBlit(renderGraph, "Feed field", source, byIdentifier, field, FieldPass);
+                AddBlit(renderGraph, "Feed output", field, false, resources.activeColorTexture, OutputPass);
             }
 
             sealed class BlitData
             {
                 public TextureHandle Source;
+                public bool ByIdentifier;
                 public Material Material;
                 public int Pass;
             }
 
             /// A full-screen blit of one of the shader's passes. RenderGraph's own AddBlitPass reads the source's
             /// descriptor, which an imported still (a Texture2D) does not have, so this is the plain raster pass.
-            void AddBlit(RenderGraph renderGraph, string name, TextureHandle source, TextureHandle destination, int shaderPass)
+            void AddBlit(RenderGraph renderGraph, string name, TextureHandle source, bool byIdentifier, TextureHandle destination,
+                int shaderPass)
             {
                 using (var builder = renderGraph.AddRasterRenderPass<BlitData>(name, out var data, profilingSampler))
                 {
                     data.Source = source;
+                    data.ByIdentifier = byIdentifier;
                     data.Material = material;
                     data.Pass = shaderPass;
                     builder.UseTexture(source);
                     builder.SetRenderAttachment(destination, 0);
                     builder.SetRenderFunc(static (BlitData d, RasterGraphContext ctx) =>
-                        Blitter.BlitTexture(ctx.cmd, d.Source, new Vector4(1f, 1f, 0f, 0f), d.Material, d.Pass));
+                    {
+                        var scaleBias = new Vector4(1f, 1f, 0f, 0f);
+                        if (d.ByIdentifier)
+                            Blitter.BlitTexture(ctx.cmd, (RenderTargetIdentifier)(RTHandle)d.Source, scaleBias, d.Material, d.Pass);
+                        else
+                            Blitter.BlitTexture(ctx.cmd, d.Source, scaleBias, d.Material, d.Pass);
+                    });
                 }
             }
 

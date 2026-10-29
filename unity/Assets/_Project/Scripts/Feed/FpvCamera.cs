@@ -79,9 +79,9 @@ namespace Fpv450.Feed
             savedTarget = fpv.targetTexture;
 
             Vector2Int size = settings.SceneSize;
-            // Colour only: URP renders through its own intermediate colour and depth and blits the result here, and
-            // RenderGraph imports a texture with a colour or a depth format, never both.
-            scene = new RenderTexture(size.x, size.y, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB)
+            // With a depth buffer: URP's render graph wants one on a camera target, and warns every frame without it.
+            // The feed reads the colour alone (FeedFeature imports it by its identifier).
+            scene = new RenderTexture(size.x, size.y, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB)
             {
                 name = "FpvScene",
                 antiAliasing = 1, // MSAA 1× (p1-g1-look-lock-gallery task 1.1)
