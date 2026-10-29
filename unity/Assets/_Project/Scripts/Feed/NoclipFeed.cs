@@ -112,19 +112,17 @@ namespace Fpv450.Feed
             }
             feed.enabled = true;
             var gpu = new List<float>(8192);
-            var gpuFrame = new List<double>(8192);
-            var frameTimings = new FrameTiming[1];
-            int frames = 0;
+            int frames = 0, blocks = 0;
             float start = Time.realtimeSinceStartup;
             while (Time.realtimeSinceStartup - start < CostSeconds)
             {
                 yield return null;
                 frames++;
                 if (feed.gpuSampleBlockCount > 0)
+                {
                     gpu.Add(feed.gpuElapsedNanoseconds * 1e-6f);
-                FrameTimingManager.CaptureFrameTimings();
-                if (FrameTimingManager.GetLatestTimings(1, frameTimings) > 0 && frameTimings[0].gpuFrameTime > 0.0)
-                    gpuFrame.Add(frameTimings[0].gpuFrameTime);
+                    blocks += feed.gpuSampleBlockCount;
+                }
             }
             float seconds = Time.realtimeSinceStartup - start;
             if (gpu.Count == 0)
@@ -138,15 +136,11 @@ namespace Fpv450.Feed
             foreach (float ms in gpu)
                 mean += ms;
             mean /= gpu.Count;
-            double frameGpu = 0.0;
-            foreach (double ms in gpuFrame)
-                frameGpu += ms;
-            string whole = gpuFrame.Count > 0 ? $"{frameGpu / gpuFrame.Count:0.00} ms" : "not reported";
             Vector2Int size = rig.settings.SceneSize;
-            Debug.Log($"[Feed] cost: {gpu.Count} of {frames} frames over {seconds:0.0} s, the feed's GPU time mean {mean:0.000} ms, " +
+            Debug.Log($"[Feed] cost: {gpu.Count} of {frames} frames over {seconds:0.0} s, {(float)blocks / gpu.Count:0.0} passes a frame, the feed's GPU time mean {mean:0.000} ms, " +
                       $"median {gpu[gpu.Count / 2]:0.000}, 99th percentile {gpu[Mathf.Clamp(Mathf.CeilToInt(0.99f * gpu.Count) - 1, 0, gpu.Count - 1)]:0.000}, " +
                       $"max {gpu[gpu.Count - 1]:0.000} ms ({(mean <= BudgetMs ? "within" : "OVER")} FEED-10's {BudgetMs:0.0} ms); " +
-                      $"the frame {frames / seconds:0.0} fps, its GPU time {whole}; render {size.x}x{size.y}, field {rig.settings.fieldWidth}x{FeedSettings.FieldRows}, " +
+                      $"{frames / seconds:0.0} fps; render {size.x}x{size.y}, field {rig.settings.fieldWidth}x{FeedSettings.FieldRows}, " +
                       $"output {Screen.width}x{Screen.height}, vsync {QualitySettings.vSyncCount}, GPU {SystemInfo.graphicsDeviceName} ({SystemInfo.graphicsDeviceType})");
             Application.Quit(mean <= BudgetMs ? 0 : 1);
         }
