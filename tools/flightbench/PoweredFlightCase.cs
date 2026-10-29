@@ -27,18 +27,25 @@ namespace Fpv450.FlightBench
         public static bool Golden()
         {
             ulong hash = GoldenFlights.FlyPowered(Drone(), out FlightCore core);
-            ulong filters = GoldenFlights.FlyPowered(Drone(), out _, 992, 120);
-            bool ok = hash == GoldenFlights.PoweredHash && filters == GoldenFlights.PoweredFiltersHash && core.State.Armed;
+            ulong with = GoldenFlights.FlyPowered(Drone(), out _, 992, 120);
+            ulong without = GoldenFlights.FlyPowered(Drone(), out _, 992, 120, false);
+            bool ok = hash == GoldenFlights.PoweredHash && with == without && core.State.Armed;
             Console.WriteLine($"{Name}: {GoldenFlights.PoweredSteps} steps, hash 0x{hash:X16} "
                 + $"({(hash == GoldenFlights.PoweredHash ? "matches" : $"golden 0x{GoldenFlights.PoweredHash:X16}")}), armed {core.State.Armed}, "
-                + $"packs at {core.State.PackCharge0:F4} of 0.9; over 1.4b's 1176-byte layout (less the contacts' 120 bytes) 0x{filters:X16} "
-                + $"({(filters == GoldenFlights.PoweredFiltersHash ? "1.4b's" : $"1.4b's is 0x{GoldenFlights.PoweredFiltersHash:X16}")}): {(ok ? "PASS" : "FAIL")}");
+                + $"packs at {core.State.PackCharge0:F4} of 0.9; over 1.4b's 1176-byte layout (less the contacts' 120 bytes) 0x{with:X16} with the contacts, "
+                + $"0x{without:X16} without ({(with == without ? "the same" : "DIFFERENT")}): {(ok ? "PASS" : "FAIL")}");
             ulong contact = GoldenFlights.FlyContact(Drone(), out FlightCore c);
             bool cok = contact == GoldenFlights.ContactHash && c.Contacts.ImpactCount >= 2 && !c.State.Crashed;
             Console.WriteLine($"contact-flight: {GoldenFlights.ContactSteps} steps, hash 0x{contact:X16} "
                 + $"({(contact == GoldenFlights.ContactHash ? "matches" : $"golden 0x{GoldenFlights.ContactHash:X16}")}), {c.Contacts.ImpactCount} impacts, "
                 + $"ends {c.State.Position.Y:F4} m up on {c.Trace.ContactsTouching} touching pairs: {(cok ? "PASS" : "FAIL")}");
-            return ok && cok;
+            ulong tumble = GoldenFlights.FlyTumble(Drone(), out FlightCore t, out GoldenFlights.TumbleChecks tc);
+            bool tok = tumble == GoldenFlights.TumbleHash && tc.Momentum < 1e-10 && tc.Energy < 1e-10 && tc.Parabola < 1e-9 && tc.Wander > 0.5;
+            Console.WriteLine($"tumble: {GoldenFlights.TumbleSteps} steps of the L4 body off its principal axes, hash 0x{tumble:X16} "
+                + $"({(tumble == GoldenFlights.TumbleHash ? "matches" : $"golden 0x{GoldenFlights.TumbleHash:X16}")}), momentum within {tc.Momentum:E2} (< 1e-10), "
+                + $"energy within {tc.Energy:E2} (< 1e-10), CoM {tc.Parabola:E2} m from its parabola (< 1e-9), body rate wandering {tc.Wander:F3} rad/s (> 0.5): "
+                + $"{(tok ? "PASS" : "FAIL")}");
+            return ok && cok && tok;
         }
 
         public static bool Bench()
@@ -65,8 +72,14 @@ namespace Fpv450.FlightBench
             double us = 1e6 / Stopwatch.Frequency;
             double p50 = times[steps / 2] * us, p99 = times[steps * 99 / 100] * us, max = times[steps - 1] * us;
             bool ok = p99 <= 300 && allocated == 0 && core.State.Armed;
+            string share = TimedQuery.Share(GoldenFlights.PoweredSetup(Drone()), (c, k) =>
+            {
+                StickSample s = sticks[k % sticks.Length];
+                if (k >= sticks.Length && s.HostUs < 20 * FlightCore.StepUs) s.Arm = true;
+                return s;
+            }, warmup, steps);
             Console.WriteLine($"{Name}: {steps} steps of {FlightController.LoopsPerStep} controller loops and propulsion sub-steps, "
-                + $"p50 {p50:F2} µs, p99 {p99:F2} µs, max {max:F1} µs, steady-state allocation {allocated} B: {(ok ? "PASS" : "FAIL")} (p99 ≤ 300 µs, 0 B)");
+                + $"p50 {p50:F2} µs, p99 {p99:F2} µs, max {max:F1} µs, steady-state allocation {allocated} B, {share}: {(ok ? "PASS" : "FAIL")} (p99 ≤ 300 µs, 0 B)");
             return ok;
         }
     }

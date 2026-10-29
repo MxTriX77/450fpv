@@ -33,7 +33,7 @@
    - **`IWorldQuery`:** `SampleGround(x, z)`, `StaticContacts(swept shapes)` with the Time < 1 latch, and `Raycast`, as `p6-world-query-gallery` defines them from K§10.4. This change carries a flat-ground stub that implements them for its own tests.
 2. **The step and its thread:**
    - **The scheduler:** a dedicated thread runs whole 1 ms steps against a real-time target. Only the scheduler reads the wall clock, never the step. A late step is caught up with real steps and logged as a `hitch` (PLT-04).
-   - **The integrator:** semi-implicit Euler (K§6.2), the quaternion renormalised each step, with no sub-stepping except the flight controller's 4 kHz loop (decision 4).
+   - **The integrator:** semi-implicit Euler (K§6.2), the quaternion renormalised each step, with no sub-stepping except the flight controller's 4 kHz loop (decision 4). The attitude turns at the step's midpoint rate (task 1.7: the implicit midpoint rule on Euler's equation, three fixed-point passes), so a torque-free tumble keeps its energy as well as its momentum.
    - **Memory:** zero managed allocation in steady state. Every buffer is preallocated at arm time.
 3. **`drone.json`** (DRN-03):
    - **The schema:** `parts[]` (name, kind, mass, box or cylinder size, position, material), `motors[]` (position, spin direction, Kv, the lag τ_m), `props` (diameter, blades, k_T, κ), `packs` (series and parallel cells, R_cell, the OCV curve), `legs` (length, stiffness, damping, foot radius), `coil`, `stand`.
@@ -80,7 +80,7 @@
 
 ## Risks / Trade-offs
 - **The FC model's fidelity:** Betaflight's formulas and the builder's filter chain are mirrored (D-045). The chain's phase lag takes the builder PIDs' 200 °/s step from about 16 % overshoot to about 41 %. Stability is the check (PHB-03); the overshoot is held as a regression band.
-  - **A slower plant** than the real drone would explain part of that overshoot. Task 1.7 re-checks the motor's time constant (43 ms at hover, derived) and the rotor inertia (±30 %) against published data, and the pilot's feel decides at G7.
+  - **A slower plant** than the real drone would explain part of that overshoot. Task 1.7 re-checked it against the published data (the Flash Hobby 3115 900 KV bench, APC's 10x4.5MR table, UMN's measured rotor inertia): τ_m = J/(K_t·K_e/R + 2κ·k_T·ω) is 42.8 ms at hover, 30–56 ms over the inertia's ±30 %, and the bench's voltage loss grows with the current, as a resistance does, so its 0.11 Ω is the one the dynamics see. Nothing published says faster, so the numbers stand. The fastest plant in that band (J −30 %) takes the chain's overshoot to 34 % (roll), 0.057 Ω (the winding's 0.046 with the ESC and the leads, against the bench) to 39 %, and the assumed 5 ms ESC lag at 1 ms to 31 %. The chain's lag dominates either way, and the pilot's feel decides at G7.
   - The gyro is clean until a sensor model is asked for.
 - **The log's state:** the 1 kHz record carries the filters' outputs, not their delay lines (about 700 doubles, D-045). A replay re-runs the flight from its start and stays bit for bit, but it cannot start mid-flight. This departs from K§6.10's "full state at 1 kHz"; a keyframe block comes only if forensics needs a mid-flight restart.
 - **Assumed constants:** τ_m, the drag areas, the leg k and c and the crash threshold are assumed, labelled and tuned to the derived targets (liftoff 50–65 %, lean per m/s, the bounce). The pilot's flights then tune feel, never quantities (D-024).
@@ -91,4 +91,4 @@
 
 ## Open Questions
 - The gyro's sensor model (noise, bias, its on-chip filter) and the frame's vibration: deferred until the pilot asks (D-023: optional). The filter chain itself is built (1.4b, D-045).
-- Whether the builder's chain's 41 % step overshoot is the real drone's: the plant's lag is re-checked in task 1.7, and the pilot's feel decides at G7 (a qualitative question in `docs/pilot-questions.md`).
+- Whether the builder's chain's 41 % step overshoot is the real drone's: task 1.7's plant check leaves the motor at 43 ms (published data), so the pilot's feel decides at G7 (a qualitative question in `docs/pilot-questions.md`). The ESC's command lag (5 ms, assumed) is the plant's largest unpublished lever.

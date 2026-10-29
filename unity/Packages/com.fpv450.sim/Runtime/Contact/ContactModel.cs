@@ -39,14 +39,24 @@ namespace Fpv450.Sim.Contact
     ///   with the material's (a rigid material drops out: the shape's alone, never 1/(1/k + 1/∞), P7), c = 2ζ·√(k·m·share).
     /// - Friction (K§7.1 step 5): a stick anchor per pair, tangential stiffness ratio × the normal's, holding to μs·Fn and
     ///   sliding at μk·Fn; μ from physics_materials.json's row, or the ground's pair.
-    /// - A prop disc: its bounding sphere each step, and when that meets anything, the ring of capsules round its rim
-    ///   (P4); a shape's entry is a PropStrike, and a crash when the shape is rigid or the ground and the entry is fast.
+    /// - A prop disc: its bounding sphere each step; when that meets anything, a chord capsule over each ChordSegments
+    ///   of the rim's segments, sized to hold them (1.7: the stand's posts sit inside the sphere, far from the rim); and
+    ///   when a chord meets anything, its segments of the ring of capsules round the rim (P4). Both gates only skip
+    ///   capsules that touch nothing, so the ring finds what it found without them. A shape's entry is a PropStrike, and
+    ///   a crash when the shape is rigid or the ground and the entry is fast.
     /// No restitution coefficient anywhere: a bounce is the stored energy of the compliance and the thrust.
     /// </summary>
     public sealed class ContactModel
     {
         /// <summary>The (object, shape) pairs one shape holds at once; more is a ContactsLost event.</summary>
         public const int PairsPerShape = 8;
+
+        /// <summary>The rim's segments under one chord of the disc's second gate (1.7): 3 of 12 make four chords.</summary>
+        public const int ChordSegments = 3;
+
+        // The chord capsules' pad over the farthest point they hold, m: far above the rounding of the body-to-world
+        // transform and the query's tests, far below anything physical; a larger gate only costs time.
+        const double ChordPad = 1e-6;
 
         const int Buffer = 32;
 
@@ -86,6 +96,7 @@ namespace Fpv450.Sim.Contact
         readonly XZ[] _at;
         readonly GroundSample[] _samples;
         readonly Double3[] _ring;       // the rim's unit directions in the disc's plane (body xz)
+        readonly double[] _chordReach;  // each chord's farthest rim vertex from it, on the unit ring
 
         // The impact window.
         int _impactLeft, _impacts;
@@ -148,6 +159,24 @@ namespace Fpv450.Sim.Contact
                 DetMath.SinCos(2 * 3.141592653589793 * s / _spec.RingSegments, out double sin, out double cos);
                 _ring[s] = new Double3(cos, 0, sin);
             }
+
+            // The chords: a straight rim segment is as far from a chord as its farther end, so the farthest vertex
+            // between the chord's ends bounds them all.
+            int ring = _spec.RingSegments;
+            _chordReach = new double[(ring + ChordSegments - 1) / ChordSegments];
+            for (int c = 0; c < _chordReach.Length; c++)
+            {
+                int from = c * ChordSegments, to = from + ChordSegments < ring ? from + ChordSegments : ring;
+                for (int v = from + 1; v < to; v++)
+                    _chordReach[c] = DetMath.Max(_chordReach[c], SegmentDistance(_ring[v], _ring[from], _ring[to]));
+            }
+        }
+
+        static double SegmentDistance(Double3 p, Double3 a, Double3 b)
+        {
+            Double3 ab = b - a;
+            double t = DetMath.Min(1, DetMath.Max(0, Double3.Dot(p - a, ab) / Double3.Dot(ab, ab)));
+            return (p - (a + ab * t)).Length();
         }
 
         public ContactSpec Spec => _spec;
@@ -644,9 +673,17 @@ namespace Fpv450.Sim.Contact
             Double3 hubWas = World(was, d.A), hubNow = World(now, d.A);
             int gate = _world.StaticContacts(new Capsule(hubWas, hubWas, r), new Capsule(hubNow, hubNow, r), 0, _buf);
             int lost = 0;
-            if (gate > 0)
+            for (int chord = 0; gate > 0 && chord < _chordReach.Length; chord++)
             {
-                for (int s = 0; s < _spec.RingSegments; s++)
+                int from = chord * ChordSegments, to = from + ChordSegments < _spec.RingSegments ? from + ChordSegments : _spec.RingSegments;
+                if (to - from > 1)
+                {
+                    Double3 ca = d.A + _ring[from] * d.Radius, cb = d.A + _ring[to] * d.Radius;
+                    double reach = _chordReach[chord] * d.Radius + d.HalfThickness + ChordPad;
+                    if (_world.StaticContacts(new Capsule(World(was, ca), World(was, cb), reach), new Capsule(World(now, ca), World(now, cb), reach), 0, _buf) == 0)
+                        continue;
+                }
+                for (int s = from; s < to; s++)
                 {
                     Double3 a = d.A + _ring[s] * d.Radius, b = d.A + _ring[s + 1] * d.Radius;
                     int found = _world.StaticContacts(new Capsule(World(was, a), World(was, b), d.HalfThickness),

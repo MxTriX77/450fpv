@@ -166,6 +166,106 @@ namespace Fpv450.Sim.Tests
             StringAssert.Contains(changedHash.ToString("X16"), refused.Message, "names the replay's hash");
         }
 
+        // PLT-04, PHB-01 (task 1.7): the flight thread's timing changes only the logged hitches. The repository's drone with
+        // its contacts, the Windy wind and the builder's chain (GoldenFlights' powered setup) is flown 3 s on the jittered
+        // stick stream by three workers on a virtual clock: one exactly on each step's time, one forced early (it wakes
+        // 10–400 µs apart, mostly before its step is due), one forced late (2–4000 µs apart, and once 40 ms, so passes
+        // catch up 2–40 steps). Every step record and every event but the hitches is the same, byte for byte.
+        enum Worker { OnTime, Early, Late }
+
+        const long WorkerSteps = 3000;
+
+        static byte[] FlyWorker(Worker worker, out long passes, out long idle, out long hitches)
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            FlightSetup setup = GoldenFlights.PoweredSetup(spec);
+            var core = new FlightCore(setup);
+            var log = new MemoryStream();
+            var recorder = new FlightRecorder(log, Header(setup, core, spec), FlightRecorder.DefaultCapacity, ownsStream: false);
+            var clock = new VirtualClock { Now = StartUs };
+            var inbox = new StickInbox();
+            var scheduler = new FlightScheduler(core, inbox, new PoseBuffer(), clock, recorder);
+            scheduler.Begin(StartUs);
+            ulong lcg = 0x9E3779B97F4A7C15UL;
+            long report = StartUs - 2000, wake = StartUs;
+            passes = idle = 0;
+            for (int i = 0; core.State.Step < WorkerSteps;)
+            {
+                clock.Now = wake;
+                for (; report <= wake; i++)
+                {
+                    inbox.TryWrite(Report(i, report));
+                    report += 3700 + i * 131 % 600;
+                }
+                passes++;
+                if (scheduler.RunDue(wake) == 0) idle++;
+                lcg = unchecked(lcg * 6364136223846793005UL + 1442695040888963407UL);
+                long draw = (long)(lcg >> 33);
+                if (worker == Worker.OnTime) wake = scheduler.StepHostUs(core.State.Step);
+                else if (worker == Worker.Early) wake += 10 + draw % 391;
+                else wake += core.State.Step == 1500 ? 40000 : 2 + draw % 3999;
+            }
+            recorder.Close(inbox.Dropped);
+            Assert.That(recorder.Fault, Is.Null);
+            hitches = scheduler.HitchCount;
+            return log.ToArray();
+        }
+
+        // Every step record and every event but the hitches up to step `last`, in order (a late worker's last pass may run
+        // past it); the Late hitches counted apart.
+        static List<byte[]> Deterministic(byte[] log, long last, out int late)
+        {
+            var blocks = new List<byte[]>();
+            late = 0;
+            using (var reader = new FlightLogReader(new MemoryStream(log)))
+            {
+                while (reader.Next())
+                {
+                    if (reader.Kind == LogFormat.EventBlock)
+                    {
+                        reader.ReadEvent(out LoggedEvent e);
+                        if (e.Event.Kind == EventKind.Hitch)
+                        {
+                            if (e.Event.Index == (byte)HitchCause.Late) late++;
+                            continue;
+                        }
+                        if (e.Step > last) continue;
+                    }
+                    if (reader.Kind == LogFormat.StepBlock && LogFormat.StepOf(reader.Payload) > last) continue;
+                    if (reader.Kind == LogFormat.StepBlock || reader.Kind == LogFormat.EventBlock) blocks.Add(reader.Payload.ToArray());
+                }
+                Assert.That(reader.Complete, Is.True);
+            }
+            return blocks;
+        }
+
+        [Test]
+        public void AWorkerEarlyOrLateChangesOnlyTheHitches()
+        {
+            List<byte[]> reference = Deterministic(FlyWorker(Worker.OnTime, out _, out long refIdle, out long refHitches), WorkerSteps, out int refLate);
+            Assert.That(refHitches, Is.EqualTo(0));
+            Assert.That(refLate, Is.EqualTo(0));
+            Assert.That(refIdle, Is.EqualTo(0), "on time, every pass runs its one step");
+            foreach (Worker w in new[] { Worker.Early, Worker.Late })
+            {
+                List<byte[]> blocks = Deterministic(FlyWorker(w, out long passes, out long idle, out long hitches), WorkerSteps, out int late);
+                TestContext.WriteLine($"{w}: {passes} passes, {idle} with nothing due, {hitches} hitches, {blocks.Count} records and events (on time: {reference.Count})");
+                Assert.That(blocks.Count, Is.EqualTo(reference.Count), w + ": the records and events");
+                for (int k = 0; k < blocks.Count; k++)
+                    Assert.That(blocks[k], Is.EqualTo(reference[k]), w + ": block " + k);
+                Assert.That(late, Is.EqualTo(hitches), w + ": each late pass is one logged hitch");
+                if (w == Worker.Early)
+                {
+                    Assert.That(idle, Is.GreaterThan(passes / 2), "most early passes find nothing due");
+                    Assert.That(hitches, Is.EqualTo(0));
+                }
+                else
+                {
+                    Assert.That(hitches, Is.GreaterThan(100), "late passes catch up and log it");
+                }
+            }
+        }
+
         [Test]
         public void ATruncatedLogStillReads()
         {
