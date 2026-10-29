@@ -154,7 +154,9 @@ namespace Fpv450.Sim.Log
                     result.Events++;
                 }
             }
-            if (matched < expected)
+            // A cut that falls between the last step's record and its events loses those events, not the match (QA
+            // review-base finding 4): only a complete log owes them.
+            if (matched < expected && log.Complete)
                 return Diverge(result, step, "event " + matched, "the replay made " + (expected - matched) + " events the log lacks, the first "
                     + KindOf(core, matched));
 
@@ -170,6 +172,7 @@ namespace Fpv450.Sim.Log
                 result.Outcome = ReplayOutcome.MatchCut;
                 result.Message = "match to the cut: " + result.Steps + " steps and " + result.Events + " events, bit for bit, to step " + step;
                 result.Notes.Add("the log is cut at byte " + log.CutAt + ": " + log.CutReason);
+                if (matched < expected) result.Notes.Add("the cut took the last step's " + (expected - matched) + " events after the " + matched + " it holds");
             }
             return result;
         }

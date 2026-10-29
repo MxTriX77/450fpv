@@ -88,6 +88,43 @@ namespace Fpv450.Sim.Tests
             Assert.That(worst, Is.GreaterThan(1e-2), "the check must fail a model without ω × I·ω");
         }
 
+        // QA's review-base finding 2: a torque-free tumble keeps its energy ½·ω·I·ω, on every loadout of the repository's
+        // drone (payloads 0–2 kg, the coil empty to full, legs on and off), at 4 rad/s off the principal axes for 60 s. The midpoint rate holds
+        // it at rounding; the known-wrong step, turning at the step's starting rate, gained +10 % on L1 legs off.
+        [Test]
+        public void ATumbleKeepsItsEnergy([Values(0.0, 1.0, 2.0)] double payload, [Values(0.0, 0.5, 1.0)] double coil, [Values(true, false)] bool legs)
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            MassProperties b = spec.BuildMass(new Loadout { Payload = payload, Legs = legs, CoilPaidOut = (1 - coil) * spec.Coil.FiberLength }).Properties;
+            Double3 rate = new Double3(1, 1, 1) * (4.0 / Math.Sqrt(3));
+            FlightState s = Spinning(b, rate);
+            double e0 = Double3.Dot(s.BodyRate, b.Inertia * s.BodyRate), energy = 0;
+            Double3 l0 = WorldMomentum(s, b);
+            double momentum = 0;
+            for (int k = 0; k < Steps60s; k++)
+            {
+                RigidBody.Step(ref s, b, default, default, FlightCore.Dt);
+                energy = Math.Max(energy, Math.Abs(Double3.Dot(s.BodyRate, b.Inertia * s.BodyRate) - e0) / e0);
+                momentum = Math.Max(momentum, (WorldMomentum(s, b) - l0).Length() / l0.Length());
+            }
+
+            // The known-wrong step: the attitude turned at the starting rate I⁻¹·h, the momentum carried as RigidBody does.
+            FlightState wrong = Spinning(b, rate);
+            for (int k = 0; k < Steps60s; k++)
+            {
+                Double3 h = b.Inertia * wrong.BodyRate;
+                Quat q1 = Quat.Integrate(wrong.Attitude, b.InverseInertia * h, FlightCore.Dt);
+                wrong.BodyRate = b.InverseInertia * q1.InverseRotate(wrong.Attitude.Rotate(h));
+                wrong.Attitude = q1;
+            }
+            double gained = (Double3.Dot(wrong.BodyRate, b.Inertia * wrong.BodyRate) - e0) / e0;
+            TestContext.WriteLine($"payload {payload} kg, coil {coil}, legs {(legs ? "on" : "off")}: 60 s at 4 rad/s, energy within {energy:E2}, "
+                + $"momentum within {momentum:E2}; at the starting rate the energy changes {gained * 100:+0.00;-0.00} %");
+            Assert.That(energy, Is.LessThan(1e-9), "the energy within 1e-9 over 60 s");
+            Assert.That(momentum, Is.LessThan(1e-9), "|h| and the world's momentum kept");
+            Assert.That(gained, Is.GreaterThan(1e-4), "the check must fail the starting-rate step, which gains energy");
+        }
+
         // The translation is the CoM's: under gravity a tumbling drone's CoM follows semi-implicit Euler's exact
         // discrete parabola, x_n = x0 + n·dt·v0 + g·dt²·n(n+1)/2, while its origin swings round it.
         [Test]

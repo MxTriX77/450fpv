@@ -8,14 +8,15 @@
     "labelled number": "{\"value\": <number, or [x, y, z], or a list>, \"label\": \"pilot\" | \"measured\" | \"published\" | \"derived\" | \"assumed\", \"note\": \"<source or calculation>\"}; the note is optional, the label is not",
     "bootstrap": "true for p6-flight-core's stand-in; p5-drone's researched file sets false",
     "parts": "every rigid part the mass build sums (PHB-02): name (unique), kind (box | cylinder), material (carbon | aluminium | steel | polymer | li_ion | electronics), mass_kg (above 0), position_m (the part's centre); a box has size_m, its extents along body x, y, z; a cylinder is solid, with diameter_m, length_m and axis (the direction of its length, normalised when read)",
-    "motors": "four, in Betaflight's Quad X order (rear right, front right, rear left, front left): position_m (the prop hub, where the thrust acts), spin (cw | ccw seen from above; cw is a positive rotation about body +y), kv_rpm_per_v, tau_s (the motor and rotor's first-order lag), esc_tau_s (the ESC's command filter)",
-    "props": "the four props, alike: diameter_m, blades, pitch_m (geometric, per revolution), k_t_n_per_rad2_s2 (T = k_T·n², n in rad/s), kappa_m (Q = κ·T)",
+    "motors": "four, in Betaflight's Quad X order (rear right, front right, rear left, front left): position_m (the prop hub, where the thrust acts), spin (cw | ccw seen from above; cw is a positive rotation about body +y), kv_rpm_per_v, resistance_ohm (the DC model's resistance: winding, ESC and leads), no_load_current_a (the bearings' and iron's loss, as the torque Kt·I0), rotor_inertia_kg_m2 (bell, shaft and prop about the shaft), magnet_poles, esc_tau_s (the ESC's command filter), esc_current_limit_a (the ESC's current limit: the motor's current never passes it while the ESC drives); the motor's lag τ_m = J/(Kt·Ke/R + ∂Q/∂ω) follows from these and the load",
+    "props": "the four props, alike: diameter_m, blades, pitch_m (geometric, per revolution), k_t_n_per_rad2_s2 (T = k_T·n², n in rad/s) and kappa_m (Q = κ·T), both static at reference_rpm (one of static_rpm's points); static_rpm with static_thrust_ratio and static_torque_ratio (C_T and C_P there over their values at reference_rpm: the coefficients' change with rpm); inflow_advance_ratio (J = V_a/(n·D) of the axial inflow, from 0) with inflow_thrust_ratio and inflow_torque_ratio (C_T and C_P there over their static values); linear between points, held at the ends; h_force_n_per_m_s (the rotor's in-plane drag, the H-force, per m/s of its hub's in-plane airspeed at reference_rpm, growing in proportion to the rotor's speed)",
     "packs": "two (PHB-03): part (the pack's mass part), series and parallel cells, cell_capacity_ah, r_cell_ohm, ocv_v (one cell's open-circuit voltage at states of charge 0, 1/(n−1), …, 1)",
     "legs": "parts (the four leg parts, in Betaflight's corner order; a leg's length is its part's, its foot the part's lower end), stiffness_n_per_m and damping_n_s_per_m (each leg's own spring and damper, in series with the ground), foot_radius_m; legs off is legs_off's build",
     "legs_off": "the legs-off build: removed (every part that comes off with the legs, the four leg parts among them), moved ({part name: its labelled centre on the legs-off build})",
     "coil": "part (the spool's mass part, whose mass falls as the line pays out), spool_mass_kg (empty, with its housing), fiber_mass_kg and fiber_length_m (the line on a full spool); the part's mass here is this file's loadout",
     "payload": "part (the payload's mass part, set to the pilot's payload), mass_min_kg and mass_max_kg (the setting's range, APP-03); the part is the body at its mass here, this file's loadout, and another payload scales it by the cube root of the mass ratio, growing away from the arm plane",
-    "stand": "the legs-off launch stand (D-022, D-043): material, post_radius_m (each post on a motor diagonal, from the stand's centre), post_height_m (the post tops above the ground), post_diameter_m, mass_kg"
+    "stand": "the legs-off launch stand (D-022, D-043): material, post_radius_m (each post on a motor diagonal, from the stand's centre), post_height_m (the post tops above the ground), post_diameter_m, mass_kg",
+    "aero": "the airframe's drag (p6-flight-core 1.5): air_density_kg_m3; body_area_m2 (the silhouette less the coil's, projected along body x, y and z: side, top, front); body_center_of_pressure_m (where the body's drag acts); drag_coefficient (of the body's silhouette and of the coil, whose own drag acts at the coil part's centre with its cylinder's silhouette)"
   },
   "parts": [
     {
@@ -158,29 +159,45 @@
       "position_m": {"value": [0.15981, 0.04, -0.15981], "label": "derived", "note": "the prop hub over the motor's axis (the 452 mm wheelbase, published), 4 cm above the arm plane: the arm's top, the mount and the bell (assumed)"},
       "spin": "cw",
       "kv_rpm_per_v": {"value": 900, "label": "published", "note": "Surpass Hobby Bat S3115 900 KV (K§5.1)"},
-      "tau_s": {"value": 0.05, "label": "assumed", "note": "design 5: τ_m ≈ 40–60 ms for a 3115 on a 10-inch 3-blade prop, the middle; 1.4 re-derives it"},
-      "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "design 5: τ_esc ≈ 5 ms"}
+      "resistance_ohm": {"value": 0.11, "label": "derived", "note": "as the repository's drone.json: the published Flash Hobby 3115 900 KV bench"},
+      "no_load_current_a": {"value": 1.0, "label": "assumed", "note": "as the repository's drone.json"},
+      "rotor_inertia_kg_m2": {"value": 7.0e-5, "label": "assumed", "note": "an 18 g 10-inch 3-blade prop and the bell"},
+      "magnet_poles": {"value": 14, "label": "published", "note": "a 3115's 12N14P"},
+      "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "design 5: τ_esc ≈ 5 ms"},
+      "esc_current_limit_a": {"value": 40, "label": "assumed", "note": "as the repository's drone.json (p6-flight-core 1.5's policy)"}
     },
     {
       "position_m": {"value": [0.15981, 0.04, 0.15981], "label": "derived", "note": "as motors[0]"},
       "spin": "ccw",
       "kv_rpm_per_v": {"value": 900, "label": "published", "note": "as motors[0]"},
-      "tau_s": {"value": 0.05, "label": "assumed", "note": "as motors[0]"},
-      "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "as motors[0]"}
+      "resistance_ohm": {"value": 0.11, "label": "derived", "note": "as motors[0]"},
+      "no_load_current_a": {"value": 1.0, "label": "assumed", "note": "as motors[0]"},
+      "rotor_inertia_kg_m2": {"value": 7.0e-5, "label": "assumed", "note": "as motors[0]"},
+      "magnet_poles": {"value": 14, "label": "published", "note": "as motors[0]"},
+      "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "as motors[0]"},
+      "esc_current_limit_a": {"value": 40, "label": "assumed", "note": "as motors[0]"}
     },
     {
       "position_m": {"value": [-0.15981, 0.04, -0.15981], "label": "derived", "note": "as motors[0]"},
       "spin": "ccw",
       "kv_rpm_per_v": {"value": 900, "label": "published", "note": "as motors[0]"},
-      "tau_s": {"value": 0.05, "label": "assumed", "note": "as motors[0]"},
-      "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "as motors[0]"}
+      "resistance_ohm": {"value": 0.11, "label": "derived", "note": "as motors[0]"},
+      "no_load_current_a": {"value": 1.0, "label": "assumed", "note": "as motors[0]"},
+      "rotor_inertia_kg_m2": {"value": 7.0e-5, "label": "assumed", "note": "as motors[0]"},
+      "magnet_poles": {"value": 14, "label": "published", "note": "as motors[0]"},
+      "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "as motors[0]"},
+      "esc_current_limit_a": {"value": 40, "label": "assumed", "note": "as motors[0]"}
     },
     {
       "position_m": {"value": [-0.15981, 0.04, 0.15981], "label": "derived", "note": "as motors[0]"},
       "spin": "cw",
       "kv_rpm_per_v": {"value": 900, "label": "published", "note": "as motors[0]"},
-      "tau_s": {"value": 0.05, "label": "assumed", "note": "as motors[0]"},
-      "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "as motors[0]"}
+      "resistance_ohm": {"value": 0.11, "label": "derived", "note": "as motors[0]"},
+      "no_load_current_a": {"value": 1.0, "label": "assumed", "note": "as motors[0]"},
+      "rotor_inertia_kg_m2": {"value": 7.0e-5, "label": "assumed", "note": "as motors[0]"},
+      "magnet_poles": {"value": 14, "label": "published", "note": "as motors[0]"},
+      "esc_tau_s": {"value": 0.005, "label": "assumed", "note": "as motors[0]"},
+      "esc_current_limit_a": {"value": 40, "label": "assumed", "note": "as motors[0]"}
     }
   ],
   "props": {
@@ -188,7 +205,15 @@
     "blades": {"value": 3, "label": "published", "note": "OTU-10's 3-blade props (K§5.1)"},
     "pitch_m": {"value": 0.127, "label": "assumed", "note": "a 10 × 5 prop, common for heavy 10-inch lift"},
     "k_t_n_per_rad2_s2": {"value": 1.5499e-5, "label": "derived", "note": "C_T·ρ·D⁴/(4π²) with a static C_T of 0.12 for a 10-inch 3-blade prop (assumed) and ρ 1.225 kg/m³ (ISA sea level, published): K§5.3's nominal 2.6 kgf per motor at 1283 rad/s (12 250 rpm); 1.4 checks it against Kv and the pack"},
-    "kappa_m": {"value": 0.0175, "label": "assumed", "note": "K§5.3: rotor drag torque 0.015–0.02 N·m per N of thrust, the middle"}
+    "kappa_m": {"value": 0.0175, "label": "assumed", "note": "K§5.3: rotor drag torque 0.015–0.02 N·m per N of thrust, the middle"},
+    "reference_rpm": {"value": 9000, "label": "derived", "note": "the repository's drone.json (APC 10x4.5MR): the curves' shapes, borrowed"},
+    "static_rpm": {"value": [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 11000, 12000, 13000, 14000, 15000, 16000, 17000, 18000, 19000, 20000], "label": "published", "note": "the repository's drone.json (APC 10x4.5MR): the curves' shapes, borrowed"},
+    "static_thrust_ratio": {"value": [0.9788, 0.9815, 0.9843, 0.9861, 0.988, 0.9908, 0.9935, 0.9963, 1, 1.0037, 1.0083, 1.0129, 1.0185, 1.024, 1.0314, 1.0388, 1.0462, 1.0554, 1.0656, 1.0766], "label": "derived", "note": "the repository's drone.json (APC 10x4.5MR): the curves' shapes, borrowed"},
+    "static_torque_ratio": {"value": [1.2274, 1.1214, 1.0749, 1.0465, 1.0284, 1.0155, 1.0078, 1.0026, 1, 0.9974, 0.9974, 1, 1.0026, 1.0052, 1.0129, 1.0181, 1.0284, 1.0388, 1.0517, 1.0749], "label": "derived", "note": "the repository's drone.json (APC 10x4.5MR): the curves' shapes, borrowed"},
+    "inflow_advance_ratio": {"value": [0, 0.0405, 0.0811, 0.1216, 0.1621, 0.2027, 0.2432, 0.2837, 0.3242, 0.3648, 0.4053, 0.4458, 0.4864, 0.5269, 0.5674, 0.5877], "label": "published", "note": "the repository's drone.json (APC 10x4.5MR): the curves' shapes, borrowed"},
+    "inflow_thrust_ratio": {"value": [1, 0.9612, 0.9178, 0.8689, 0.8163, 0.7581, 0.6944, 0.626, 0.5522, 0.4737, 0.3924, 0.3075, 0.2207, 0.132, 0.0443, 0], "label": "derived", "note": "the repository's drone.json (APC 10x4.5MR): the curves' shapes, borrowed"},
+    "inflow_torque_ratio": {"value": [1, 1.0026, 1.0026, 0.9974, 0.9819, 0.9587, 0.9276, 0.8889, 0.8372, 0.7752, 0.7054, 0.6253, 0.5349, 0.4367, 0.3307, 0.2765], "label": "derived", "note": "the repository's drone.json (APC 10x4.5MR): the curves' shapes, borrowed"},
+    "h_force_n_per_m_s": {"value": 0.225, "label": "assumed", "note": "as the repository's drone.json"}
   },
   "packs": [
     {
@@ -235,5 +260,11 @@
     "post_height_m": {"value": 0.25, "label": "pilot", "note": "D-022: posts about 0.25 m high"},
     "post_diameter_m": {"value": 0.025, "label": "assumed", "note": "25 × 25 mm steel tube, read as its width"},
     "mass_kg": {"value": 2.9, "label": "derived", "note": "≈ 2 m of 25 × 25 × 2 mm steel square tube (assumed) at 1.44 kg/m: two 0.5 m base bars and four 0.25 m posts"}
+  },
+  "aero": {
+    "air_density_kg_m3": {"value": 1.225, "label": "published", "note": "ISA sea level, 15 °C"},
+    "body_area_m2": {"value": [0.039, 0.053, 0.055], "label": "assumed", "note": "the repository's drone.json's silhouettes (K§5.2's layout has no sheet of its own)"},
+    "body_center_of_pressure_m": {"value": [0, -0.07, 0], "label": "assumed", "note": "as the repository's drone.json"},
+    "drag_coefficient": {"value": 0.9, "label": "assumed", "note": "as the repository's drone.json"}
   }
 }

@@ -54,6 +54,8 @@ namespace Fpv450.Sim.Tests
             }
             Mix(ref h, s.PackCharge0);
             Mix(ref h, s.PackCharge1);
+            Mix(ref h, s.Gust);
+            Mix(ref h, s.EscLimited);
             Mix(ref h, (ulong)k.HostUs);
             Mix(ref h, k.Roll);
             Mix(ref h, k.Pitch);

@@ -33,7 +33,7 @@
    - **`IWorldQuery`:** `SampleGround(x, z)`, `StaticContacts(swept shapes)` with the Time < 1 latch, and `Raycast`, as `p6-world-query-gallery` defines them from K§10.4. This change carries a flat-ground stub that implements them for its own tests.
 2. **The step and its thread:**
    - **The scheduler:** a dedicated thread runs whole 1 ms steps against a real-time target. Only the scheduler reads the wall clock, never the step. A late step is caught up with real steps and logged as a `hitch` (PLT-04).
-   - **The integrator:** semi-implicit Euler (K§6.2), the quaternion renormalised each step, with no sub-stepping except the flight controller's 4 kHz loop (decision 4).
+   - **The integrator:** semi-implicit Euler (K§6.2), the quaternion renormalised each step, with no sub-stepping except the flight controller's 4 kHz loop (decision 4). The attitude turns at the step's midpoint rate (task 1.7: the implicit midpoint rule on Euler's equation, three fixed-point passes), so a torque-free tumble keeps its energy as well as its momentum.
    - **Memory:** zero managed allocation in steady state. Every buffer is preallocated at arm time.
 3. **`drone.json`** (DRN-03):
    - **The schema:** `parts[]` (name, kind, mass, box or cylinder size, position, material), `motors[]` (position, spin direction, Kv, the lag τ_m), `props` (diameter, blades, k_T, κ), `packs` (series and parallel cells, R_cell, the OCV curve), `legs` (length, stiffness, damping, foot radius), `coil`, `stand`.
@@ -44,7 +44,10 @@
    - **The rate path:** ACTUAL rates map the stick to a setpoint in °/s, after the deadband and the RC smoothing filter.
    - **The PID:** Betaflight's scaling (P × 0.032029, I × 0.244381, D × 0.000529, the published constants, checked against the source in task 1.4), with D min, I-term relax and feedforward.
    - **Throttle:** the throttle curve and throttle boost.
-   - **The loop:** 4 kHz, four sub-steps per 1 ms step, using the gyro value of the current state (no sensor noise in this change).
+   - **The loop:** 4 kHz, four sub-steps per 1 ms step. The gyro is the body's rate sampled at 8 kHz (two samples a loop, on the step's ramp from the last state to this one).
+   - **The filters** (task 1.4b, D-045): the builder's whole Betaflight 4.5 chain (`fc-profiles.md` §1), in Betaflight's order: LPF2, the RPM filter on the motors' speeds, the gyro notch, the dynamic LPF1 and the dynamic notch, then the D term's notch and its two lowpasses. They stay, faithful to the pilot's flight controller, with the phase lag they bring.
+   - **Sag compensation:** Betaflight's `vbat_sag_compensation`, off by default.
+   - **No sensor model in this change:** the gyro carries no noise, bias or on-chip filter, and with no vibration model the dynamic notch tracks the flight's own spectrum.
 5. **Propulsion:**
    - **The mixer:** an X mixer clips each motor to [0, 1], then desaturates the collective (K§5.3).
    - **The ESC:** a first-order command filter, then the motor's first-order lag. τ_esc ≈ 5 ms and τ_m ≈ 40–60 ms for a 3115 motor on a 10-inch 3-blade prop are assumed, and the exact update is n += (n_cmd − n)·dt/(τ + dt), with no `exp`.
@@ -71,12 +74,15 @@
    - Every draw is logged with its name and bound.
 10. **The log:**
     - **The header:** the seed, the draws, `drone.json`'s hash, `FcSettings`, the world content hash and query version, the build, runtime and ISA flags.
-    - **The records:** fixed-layout binary at 1 kHz (state, inputs, rotors, pack, net force and moment; about 200 B a step, about 12 MB a minute, assumed), plus events.
+    - **The records:** fixed-layout binary at 1 kHz (state, inputs, rotors, pack, net force and moment, the controller's state and its filters' outputs, the air's and the contacts' shares; 1296 B a step at model 5, measured: 78.1 MB a minute raw, 40.5 deflated), plus events. The filters' delay lines stay in the controller and are rebuilt by re-running the flight from its start (D-045).
     - **Writing:** a preallocated ring buffer and a flush worker. The step never waits on disk; a full ring logs a hitch.
     - **Replay:** `tools/replay` compiles the same sources and re-runs from the header and the logged inputs, comparing each record bit for bit.
 
 ## Risks / Trade-offs
-- **The FC model's fidelity:** Betaflight's formulas are mirrored, not its filters. The gyro is clean until a sensor model is asked for. The builder PIDs' stability on the plant is the check (PHB-03).
+- **The FC model's fidelity:** Betaflight's formulas and the builder's filter chain are mirrored (D-045). The chain's phase lag takes the builder PIDs' 200 °/s step from about 16 % overshoot to about 41 %. Stability is the check (PHB-03); the overshoot is held as a regression band.
+  - **A slower plant** than the real drone would explain part of that overshoot. Task 1.7 re-checked it against the published data (the Flash Hobby 3115 900 KV bench, APC's 10x4.5MR table, UMN's measured rotor inertia): τ_m = J/(K_t·K_e/R + 2κ·k_T·ω) is 42.8 ms at hover, 30–56 ms over the inertia's ±30 %, and the bench's voltage loss grows with the current, as a resistance does, so its 0.11 Ω is the one the dynamics see. Nothing published says faster, so the numbers stand. The fastest plant in that band (J −30 %) takes the chain's overshoot to 34 % (roll), 0.057 Ω (the winding's 0.046 with the ESC and the leads, against the bench) to 39 %, and the assumed 5 ms ESC lag at 1 ms to 31 %. The chain's lag dominates either way, and the pilot's feel decides at G7.
+  - The gyro is clean until a sensor model is asked for.
+- **The log's state:** the 1 kHz record carries the filters' outputs, not their delay lines (about 700 doubles, D-045). A replay re-runs the flight from its start and stays bit for bit, but it cannot start mid-flight. This departs from K§6.10's "full state at 1 kHz"; a keyframe block comes only if forensics needs a mid-flight restart.
 - **Assumed constants:** τ_m, the drag areas, the leg k and c and the crash threshold are assumed, labelled and tuned to the derived targets (liftoff 50–65 %, lean per m/s, the bounce). The pilot's flights then tune feel, never quantities (D-024).
 - **The interface lock:** later lanes depend on decision 1, so changing it after task 1.1 means a superseding decision, not a quiet edit.
 
@@ -84,4 +90,5 @@
 - **New code only:** `drone.json` is new, and the bootstrap is replaced by `p5-drone`'s file at its merge, with the mass-build test re-pinned.
 
 ## Open Questions
-- Sensor noise and the gyro filter chain: deferred until the pilot asks (D-023: optional).
+- The gyro's sensor model (noise, bias, its on-chip filter) and the frame's vibration: deferred until the pilot asks (D-023: optional). The filter chain itself is built (1.4b, D-045).
+- Whether the builder's chain's 41 % step overshoot is the real drone's: task 1.7's plant check leaves the motor at 43 ms (published data), so the pilot's feel decides at G7 (a qualitative question in `docs/pilot-questions.md`). The ESC's command lag (5 ms, assumed) is the plant's largest unpublished lever.
