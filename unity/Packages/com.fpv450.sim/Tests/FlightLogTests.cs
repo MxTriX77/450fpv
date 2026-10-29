@@ -502,6 +502,13 @@ namespace Fpv450.Sim.Tests
             Assert.That(t2, Is.EqualTo(t));
             LogFormat.DecodeStick(bytes, out StickSample k3);
             Assert.That(k3, Is.EqualTo(k));
+            // The crash (bit 2, 1.6) and the stick's failsafe (bit 3, p6-input-app) are separate bits.
+            s.Crashed = true;
+            k.Failsafe = false;
+            LogFormat.EncodeStep(bytes, s, k, t);
+            LogFormat.DecodeStep(bytes, out s2, out k2, out _);
+            Assert.That((s2, k2), Is.EqualTo((s, k)));
+            Assert.That(bytes[Array.Find(LogFormat.StepFields, f => f.Name == "flags").Offset], Is.EqualTo(0b0101), "armed and crashed");
 
             var e = new FlightEvent
             {
