@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Runs the input layer's NUnit tests (unity/Assets/_Project/Tests/EditMode/Radio) outside Unity, as simtests
+  <!-- Runs the input layer's and the flight session's NUnit tests (unity/Assets/_Project/Tests/EditMode/{Radio,Session}) outside Unity, as simtests
        does for the sim core. NUnit stays on 3.x, Unity's. -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <Compile Include="../../unity/Assets/_Project/Tests/EditMode/Radio/**/*.cs" />
+    <Compile Include="../../unity/Assets/_Project/Tests/EditMode/Session/**/*.cs" />
   </ItemGroup>
 
   <ItemGroup>

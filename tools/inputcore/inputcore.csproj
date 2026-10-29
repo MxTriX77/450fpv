@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- The engine-free input layer (p6-input-app), compiled from the Unity project's own sources (never a copy).
+  <!-- The engine-free input layer and flight session (p6-input-app), compiled from the Unity project's own sources (never a copy).
        netstandard2.1 is Unity's API level, so an API Unity lacks fails this build too. -->
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <Compile Include="../../unity/Assets/_Project/Scripts/Input/Radio/**/*.cs" />
+    <Compile Include="../../unity/Assets/_Project/Scripts/App/Session/**/*.cs" />
   </ItemGroup>
 
   <ItemGroup>

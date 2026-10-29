@@ -1,0 +1,17 @@
+{
+    "name": "Fpv450.App.Session",
+    "rootNamespace": "Fpv450.App.Session",
+    "references": [
+        "Fpv450.Sim",
+        "Fpv450.Input.Radio"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}
