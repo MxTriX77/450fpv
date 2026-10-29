@@ -34,4 +34,4 @@ USB loss SHALL failsafe-disarm the drone and be logged (INP-05). A keyboard fall
 
 #### Scenario: Pulling the cable mid-flight
 - **WHEN** the TX12's USB is unplugged in flight
-- **THEN** the drone disarms within one physics step of the loss being detected, and the log records the failsafe with its time
+- **THEN** the drone disarms within one RC frame of the loss being detected (the controller reads the sticks at the link's 250 Hz, so at most 4 ms), and the log records the failsafe with its time
