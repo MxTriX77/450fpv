@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "id": "K02",
+  "variant": "K02_tile_whole",
+  "generator": "debris_tile",
+  "params_sha256": "fea3d4e289c544e28cd0eaa7e904b847613f87bc1a21106e8cba765a308b8366",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -0.200416,
+      0.0,
+      -0.11
+    ],
+    "max": [
+      0.200416,
+      0.031817,
+      0.11
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "K02_tile_whole_LOD0",
+      "tris": 78,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "K02_tile_whole_LOD1",
+      "tris": 20,
+      "switch_distance_m": 8.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 190.0,
+  "materials": [
+    {
+      "slot": "tile",
+      "visual": "clay_tile",
+      "physics": "masonry"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "box",
+      "center": [
+        -0.100455,
+        0.015932,
+        0.0
+      ],
+      "size": [
+        0.200719,
+        0.015987,
+        0.22
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.039706,
+        0.999211
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.099765,
+        0.01593,
+        0.0
+      ],
+      "size": [
+        0.201319,
+        0.031775,
+        0.22
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        -0.000263,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": []
+}

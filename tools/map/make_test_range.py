@@ -106,9 +106,11 @@ ADOBE_YARD = [
 STAND_INS = {"house_adobe": "Z01_house_adobe", "shed_plank": "Z02_shed_plank", "cellar_head": "Z03_cellar_head",
              "cellar_shaft": "Z04_cellar_shaft", "gate_plank": "Z05_gate_plank", "fence_planks": "Z06_fence_planks",
              "tree_fruit": "Z07_tree_fruit"}
-# H01's intact and damaged houses as the yard's neighbours: empty until p1-h01-adobe-house merges (task 1.3 adds
-# ("H01", "H01_I", dx, dz, yaw) rows, in the plot's own frame about its centre, Unity's frame).
-NEIGHBOUR_PLOTS = {"west": [], "east": []}
+# H01's intact and damaged houses as the yard's neighbours: (asset, variant, dx, dz, yaw) about the plot's centre,
+# Unity's frame. Assumed: each at its plot's centre, turned 180° so its front (door and most windows, asset -Z) faces
+# the track like a village street; the damaged one east, by the burnt car. H01_D's front rubble then ends 5.3 m short
+# of the track's line (its bounds, z -45.28 against -40), and both starts stay over 30 m away.
+NEIGHBOUR_PLOTS = {"west": [("H01", "H01_I", 0.0, 0.0, 180.0)], "east": [("H01", "H01_D", 0.0, 0.0, 180.0)]}
 PLANTS = ("V01", "V13", "Z07", "Z08", "Z09", "Z10", "Z11", "Z12", "Z13")
 FOUR_HOOKS = ["hook_0", "hook_1", "hook_2", "hook_3"]
 

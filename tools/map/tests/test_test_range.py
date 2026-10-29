@@ -39,7 +39,8 @@ def test_the_same_seed_gives_the_same_bytes(tmp_path):
 
 def test_everything_is_placed(data, world):
     """The spec's list: the Godot yard at its relative layout, the posadka's mix, grass both sides of the belt, both
-    cars, at least four poles with spans, E01 along the belt; every variant built and inside the map."""
+    cars, at least four poles with spans, E01 along the belt, H01_I and H01_D beside the yard; every variant built and
+    inside the map."""
     yx, yz = gen.v("yard_centre")
     yard = rows(data, group="yard")
     expected = sorted((gen.STAND_INS[k], round(yx + dx, 3), round(yz - dz, 3), round(-yaw % 360.0, 3))
@@ -47,6 +48,16 @@ def test_everything_is_placed(data, world):
     placed = sorted((r["variant"], r["position_m"][0], r["position_m"][2], r["yaw_deg"]) for r in yard)
     assert placed == expected
     assert sum(r["variant"] == "Z07_tree_fruit" for r in yard) == 2
+
+    houses = rows(data, asset="H01")
+    assert sorted(r["variant"] for r in houses) == ["H01_D", "H01_I"], "H01's intact and damaged houses"
+    hx, hz = gen.v("yard_half_m")
+    yard_rect = [yx - hx, yz - hz, yx + hx, yz + hz]
+    for r in houses:
+        rect = world.bounds_rect(r)
+        assert math.hypot(r["position_m"][0] - yx, r["position_m"][2] - yz) < 60.0, f"{r['variant']} by the yard"
+        assert not gen.overlaps(rect, yard_rect), f"{r['variant']} beside the yard, not in it"
+        assert rect[3] < gen.v("track_z"), f"{r['variant']}'s spread stops short of the track"
 
     belt = rows(data, group="posadka")
     assert {r["asset"] for r in belt} == {"Z08", "Z09", "Z10", "Z11", "Z12", "Z13", "V01", "V13"}

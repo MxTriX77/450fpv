@@ -30,7 +30,7 @@ A small flat map, 512 m square, to look around in noclip now and to fly the firs
 | O | the feed's review overlay: every signal it reads, its value and whether it is a stub |
 
 ## What is where
-- **The track** runs east-west. **The yard** lies south of it at the map's west end: the house by the road-side fence and gate, the shed, the cellar, two fruit trees, laid out as the Godot yard was.
+- **The track** runs east-west. **The yard** lies south of it at the map's west end: the house by the road-side fence and gate, the shed, the cellar, two fruit trees, laid out as the Godot yard was. **Its neighbours** stand west and east of it along the track: H01's intact house and, by the burnt car, its damaged one, each with its front to the track.
 - **The power line** runs along the track's north side: six wooden poles (a strutted end pole, one on a concrete stub) 40 m apart, four wires.
 - **The struck car** stands by the yard's gate; **the burnt car** stands on the track.
 - **The posadka** runs 40 m north of the track: 300 m long, about 13 m wide, four rows of trees 1.5 to 3 m apart with bushes among them and along both edges, and one 12 m gap where a field track would cross.
@@ -39,5 +39,5 @@ A small flat map, 512 m square, to look around in noclip now and to fly the firs
 
 ## What is a stand-in
 - **From the Godot attempt**, as they were, with no look work (D-040), each swapped for its Unity asset when that lands: the house, the shed, the cellar, the gate, the fence and the fruit trees in the yard, and in the posadka the acacia, ash, maple, young and dead trees and the round bushes (their leaves are flat green cards).
-- **Unity's own**, as judged at G1: the straw patches (S04), the locusts (V01) and the leafy bushes (V13) in the posadka, the two cars (R01), the poles and wires (L01, L03) and the trench (E01).
-- **Not there yet:** H01's intact and damaged houses as the yard's neighbours (their plots stand empty until H01 is merged); the launch stand itself (the take-off point is set; the stand comes with the flight session); relief, roads and the drone.
+- **Unity's own**, as judged at G1: the straw patches (S04), the locusts (V01) and the leafy bushes (V13) in the posadka, the two cars (R01), the poles and wires (L01, L03) and the trench (E01); the neighbours' two houses (H01) are Unity's own too.
+- **Not there yet:** the launch stand itself (the take-off point is set; the stand comes with the flight session); relief, roads, the OSD and the drone.

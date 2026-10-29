@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "shader": "Universal Render Pipeline/Lit",
+  "texture_set": "polyhaven/rough_wood",
+  "tile_size_m": [0.5, 1.0],
+  "tint": [1.607, 1.521, 1.327, 1.0],
+  "smoothness": 0.1
+}
