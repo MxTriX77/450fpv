@@ -12,7 +12,7 @@ namespace Fpv450.Feed
     /// link margin, the debug panel's triggers). The defaults are a parked drone with no fiber: nothing turns, nothing
     /// pulls, and the link can't fail. Only the pack voltage has a Godot value.
     /// </remarks>
-    public sealed class StubFeedSignals : IFeedSignals
+    public sealed class StubFeedSignals : IFeedSignals, IFieldOsd
     {
         /// The Svinoriz 10 Opto is a quad.
         public const int Motors = 4;
@@ -20,8 +20,9 @@ namespace Fpv450.Feed
 
         public readonly float[] MotorHz = new float[Motors];
         public readonly float[] MotorAmps = new float[Motors];
-        /// Blank until the OSD content model fills it (`p4-feed` design 5).
-        public readonly char[,] Osd = NewBlankOsd();
+        /// The Godot OSD's layout with invented values (task 1.4), laid out per field by <see cref="BuildOsd"/>
+        /// until the OSD content model replaces it (`p4-feed` design 5, task 1.5). Blank until the first field.
+        public readonly StubOsd Osd = new StubOsd();
 
         public SignalSource SourceOf(FeedSignal signal) => SignalSource.Stub;
 
@@ -53,15 +54,8 @@ namespace Fpv450.Feed
         public float RainRateMmPerHour { get; set; }
         public Vector3 AirVelocityAtCamera { get; set; }
 
-        public char OsdCell(int row, int col) => Osd[row, col];
+        public char OsdCell(int row, int col) => Osd.Grid[row, col];
 
-        static char[,] NewBlankOsd()
-        {
-            var osd = new char[OsdRows, OsdCols];
-            for (int r = 0; r < OsdRows; r++)
-                for (int c = 0; c < OsdCols; c++)
-                    osd[r, c] = ' ';
-            return osd;
-        }
+        public void BuildOsd(int field) => Osd.Build(this, field);
     }
 }
