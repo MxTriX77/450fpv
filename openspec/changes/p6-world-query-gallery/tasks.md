@@ -41,6 +41,7 @@ Branch `unity/world/p6-world-query-gallery` off `unity/main` once `p1-g1-look-lo
 - [ ] 1.4 [world-builder] The queries over the gallery and the test range (design 4, 5; D-044):
   - **What:** `SampleGround` with the floor, the patches and holes; `StaticContacts` over primitives, wire capsule chains and runtime objects with the Time < 1 latch on a deterministic 2 m grid; `Raycast`; `Geometry`; the launch stand as a runtime object with reset.
   - **Verify:** the swept-arm, foot-in-the-trench and batched-equals-single scenarios, the golden file, and a concurrency test.
+  - **From `p6-flight-core` 1.7:** on the launch stand the step's remaining cost is the stub's `StaticContacts` sweeping the payload and coil capsules beside the posts (about 6 µs each, finding nothing); give the gallery and test range worlds an AABB early reject per shape before the exact test.
 - [ ] 1.5 [world-builder] Budgets (design 7):
   - **What:** `tools/worldbench --bench` at the three spots, plus the test range's posadka at 2 m (its densest step, D-044), on AC with the power mode printed.
   - **Verify:** the worst-case-step scenario, plus 100 000 capsules and 100 000 rays under 100 ms each.
