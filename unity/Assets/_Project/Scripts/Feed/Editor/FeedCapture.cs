@@ -25,7 +25,9 @@ namespace Fpv450.Feed
     /// within ±0.03 of 0.33.</item>
     /// </list>
     /// Signals are the stubs (gain 1, link margin 1, current 0), as the Godot captures pin them with
-    /// <c>--video-signals 1,1,0</c>.
+    /// <c>--video-signals 1,1,0</c>, and the OSD is the stub's Godot layout at the Godot capture's pinned values
+    /// (altitude, distance and timer 0, 25.2 V, 0 A). The A/B against Godot takes <c>-feedLens off</c>: Godot had no
+    /// lens.
     /// </summary>
     public static class FeedCapture
     {
