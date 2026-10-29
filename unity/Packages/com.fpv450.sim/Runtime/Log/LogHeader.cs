@@ -127,7 +127,8 @@ namespace Fpv450.Sim.Log
             "StaticTorqueRatio", "InflowAdvanceRatio", "InflowThrustRatio", "InflowTorqueRatio", "HForce",
         };
         public static readonly string[] AeroFieldsLogged = { "AirDensity", "BodyArea", "BodyCenterOfPressure", "DragCoefficient", "CoilPart" };
-        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg" };
+        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg", "Belt" };
+        public static readonly string[] BeltFieldsLogged = { "Edge", "Across", "Height", "Deficit", "Boost", "EddyMin", "EddyMax", "Modes", "Ramp" };
         public static readonly string[] PackFieldsLogged = { "Part", "Series", "Parallel", "CellCapacity", "CellResistance", "Ocv" };
 
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
@@ -503,6 +504,17 @@ namespace Fpv450.Sim.Log
                     Text(e, v.Name);
                     e.Write(v.Value);
                 }
+                // The synthetic belt (p7c-wind 1.2) after the rest, only when the flight has one: every other flight's
+                // entry is byte for byte what it was.
+                SyntheticBelt b = Wind.Belt;
+                if (b == null) return;
+                e.Write(true);
+                V3(e, b.Edge);
+                V3(e, b.Across);
+                foreach (double v in new[] { b.Height, b.Deficit, b.Boost, b.EddyMin, b.EddyMax })
+                    e.Write(v);
+                e.Write(b.Modes);
+                e.Write(b.Ramp);
             });
             Entry(w, TagContacts, e =>
             {
@@ -738,6 +750,12 @@ namespace Fpv450.Sim.Log
                         Wind = new WindSetup { Level = (WindLevel)r.ReadByte(), SteadySpeed = r.ReadDouble(), SteadyFromDeg = r.ReadDouble() };
                         WindParameters = new NamedValue[r.ReadUInt16()];
                         for (int i = 0; i < WindParameters.Length; i++) WindParameters[i] = new NamedValue(Text(r), r.ReadDouble());
+                        if (r.BaseStream.Position < end && r.ReadBoolean())
+                            Wind.Belt = new SyntheticBelt
+                            {
+                                Edge = V3(r), Across = V3(r), Height = r.ReadDouble(), Deficit = r.ReadDouble(), Boost = r.ReadDouble(),
+                                EddyMin = r.ReadDouble(), EddyMax = r.ReadDouble(), Modes = r.ReadInt32(), Ramp = r.ReadDouble(),
+                            };
                         break;
                     case TagContacts:
                         Contacts = r.ReadBoolean() ? ReadContacts(r) : null;
