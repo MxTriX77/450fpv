@@ -218,6 +218,14 @@ namespace Fpv450.Sim.Flight
         /// <summary>The airframe's drag; its coil part is the coil's.</summary>
         public AeroSpec Aero;
 
+        /// <summary>The contact shapes and thresholds (p6-flight-core 1.6), the shapes at the file's positions; null when the
+        /// file has no contacts block (the bootstrap fixture). BuildContacts places them at a loadout.</summary>
+        public Contact.ContactSpec Contacts;
+
+        /// <summary>The drone side's contact materials (a closed list; physics signs off additions): the sheet's
+        /// carbon_composite for the arms, plates, legs and skids (p5-drone 1.2), polymer, aluminium.</summary>
+        public static readonly string[] ContactMaterials = { "carbon_composite", "polymer", "aluminium" };
+
         /// <summary>The file's own loadout: its payload and coil masses, legs on.</summary>
         public Loadout Nominal => new Loadout
         {
@@ -281,6 +289,41 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The flight's airframe drag: a copy of the aero block.</summary>
         public AeroSpec BuildAero() => Aero.Clone();
+
+        /// <summary>
+        /// The flight's contact model at a loadout, with physics_materials.json's rows and hash (PhysicsMaterials.Parse):
+        /// each shape follows its part through BuildMass, so a part at 0 kg (legs off, no payload) has no shapes, a moved
+        /// part's shapes move with it, and the payload's scale with it. Null when the file has no contacts block.
+        /// </summary>
+        public Contact.ContactSpec BuildContacts(in Loadout loadout, Contact.MaterialRow[] materials, ulong materialsHash)
+        {
+            if (Contacts == null) return null;
+            if (materials == null) throw new ArgumentNullException(nameof(materials));
+            MassModel model = BuildMass(loadout);
+            Contact.ContactSpec c = Contacts.Clone();
+            var shapes = new System.Collections.Generic.List<Contact.ContactShape>();
+            foreach (Contact.ContactShape s in Contacts.Shapes)
+            {
+                DronePart file = Parts[s.Part], now = model.Part(s.Part);
+                if (!(now.Mass > 0)) continue;
+                double scale = file.Kind == PartKind.Box ? now.Size.X / file.Size.X : now.Length / file.Length;
+                Contact.ContactShape placed = s;
+                if (scale != 1 || now.Position.X != file.Position.X || now.Position.Y != file.Position.Y || now.Position.Z != file.Position.Z)
+                {
+                    placed.A = now.Position + (s.A - file.Position) * scale;
+                    placed.B = now.Position + (s.B - file.Position) * scale;
+                    placed.Radius = s.Radius * scale;
+                    placed.HalfThickness = s.HalfThickness * scale;
+                }
+                shapes.Add(placed);
+            }
+            c.Shapes = shapes.ToArray();
+            c.LegStiffness = Legs.Stiffness;
+            c.LegDamping = Legs.Damping;
+            c.Materials = (Contact.MaterialRow[])materials.Clone();
+            c.MaterialsHash = materialsHash;
+            return c;
+        }
 
         // A part scaled uniformly by s about the middle of its face toward the arm plane: its sizes times s, and its
         // centre moved away from the plane by its half-extent along y times (s − 1). s = 1 leaves every bit as it was.
@@ -367,7 +410,7 @@ namespace Fpv450.Sim.Flight
                 const string top = "drone.json";
                 if (!IsObject(root, top)) return spec;
                 Members(root, top, "schema", "owner", "name", "bootstrap", "about", "fields",
-                    "parts", "motors", "props", "packs", "legs", "legs_off", "coil", "payload", "stand", "aero");
+                    "parts", "motors", "props", "packs", "legs", "legs_off", "coil", "payload", "stand", "aero", "contacts");
 
                 JsonNode schema = Required(root, "schema", top);
                 if (schema != null && !(schema.Kind == JsonKind.Number && schema.Number == Schema))
@@ -398,7 +441,88 @@ namespace Fpv450.Sim.Flight
                 if ((n = Required(root, "legs_off", top)) != null) ReadLegsOff(n, spec);
                 if ((n = Required(root, "stand", top)) != null) spec.Stand = ReadStand(n);
                 if ((n = Required(root, "aero", top)) != null) ReadAero(n, spec);
+                if ((n = root.Member("contacts")) != null) spec.Contacts = ReadContacts(n, spec);
                 return spec;
+            }
+
+            static readonly string[] CornerIds = { "rr", "fr", "rl", "fl" };
+
+            // After the parts, the motors, the props and the legs, which it checks against.
+            Contact.ContactSpec ReadContacts(JsonNode p, DroneSpec spec)
+            {
+                var c = new Contact.ContactSpec();
+                const string at = "contacts";
+                if (!IsObject(p, at)) return c;
+                Members(p, at, "margin_m", "crash_accel_m_s2", "crash_prop_speed_m_s", "impact_window_s", "impact_speed_m_s",
+                    "friction_stiffness_ratio", "damping_mass_share", "ground_friction_static", "ground_friction_kinetic", "ring_segments", "shapes");
+                c.Margin = Positive(p, "margin_m", at);
+                c.CrashAccel = Positive(p, "crash_accel_m_s2", at);
+                c.CrashPropSpeed = Positive(p, "crash_prop_speed_m_s", at);
+                c.ImpactWindow = Positive(p, "impact_window_s", at);
+                c.ImpactSpeed = Positive(p, "impact_speed_m_s", at);
+                c.FrictionStiffnessRatio = Positive(p, "friction_stiffness_ratio", at);
+                c.DampingMassShare = Positive(p, "damping_mass_share", at);
+                c.GroundStaticFriction = NonNegative(p, "ground_friction_static", at);
+                c.GroundKineticFriction = NonNegative(p, "ground_friction_kinetic", at);
+                if (c.GroundKineticFriction > c.GroundStaticFriction) Fail(at + ".ground_friction_kinetic", "is above ground_friction_static");
+                c.RingSegments = Count(p, "ring_segments", at, 6);
+                JsonNode list = Required(p, "shapes", at);
+                if (list == null || !IsArray(list, at + ".shapes", 1)) return c;
+                c.Shapes = new Contact.ContactShape[list.Items.Count];
+                for (int i = 0; i < c.Shapes.Length; i++)
+                {
+                    JsonNode s = list.Items[i];
+                    string path = at + ".shapes[" + i + "]";
+                    ref Contact.ContactShape shape = ref c.Shapes[i];
+                    shape.Part = -1;
+                    shape.Corner = -1;
+                    if (!IsObject(s, path)) continue;
+                    JsonNode nameNode = s.Member("name");
+                    if (nameNode != null && nameNode.Kind == JsonKind.String) path += " (" + nameNode.Text + ")";
+                    Members(s, path, "name", "part", "role", "corner", "material", "a_m", "b_m", "radius_m", "half_thickness_m",
+                        "stiffness_n_per_m", "stiffness_up_n_per_m", "damping_ratio");
+                    shape.Name = Text(s, "name", path, null);
+                    for (int j = 0; j < i; j++)
+                        if (shape.Name != null && string.Equals(c.Shapes[j].Name, shape.Name, StringComparison.Ordinal))
+                            Fail(path + ".name", "is used twice");
+                    shape.Part = PartRef(s, "part", path, spec);
+                    string role = Text(s, "role", path, new[] { "support", "skid", "body", "disc" });
+                    shape.Role = role == "support" ? Contact.ContactRole.Support : role == "skid" ? Contact.ContactRole.Skid
+                        : role == "disc" ? Contact.ContactRole.Disc : Contact.ContactRole.Body;
+                    shape.Material = Text(s, "material", path, ContactMaterials);
+                    bool cornered = role == "support" || role == "skid" || role == "disc";
+                    string corner = Text(s, "corner", path, CornerIds, !cornered);
+                    if (corner != null && !cornered) Fail(path + ".corner", "only a support, a skid or a disc has a corner");
+                    shape.Corner = corner == null ? -1 : System.Array.IndexOf(CornerIds, corner);
+                    Vector(s, "a_m", path, out shape.A);
+                    bool capsule = s.Member("b_m") != null;
+                    if (capsule) Vector(s, "b_m", path, out shape.B);
+                    else shape.B = shape.A;
+                    if (capsule && role != "skid" && role != "body") Fail(path + ".b_m", "a support and a disc are points: a_m only");
+                    if (!capsule && role == "skid") Fail(path + ".b_m", "a skid is a capsule: it needs b_m");
+                    shape.Radius = Positive(s, "radius_m", path);
+                    bool disc = role == "disc", body = role == "body";
+                    if (disc) shape.HalfThickness = Positive(s, "half_thickness_m", path);
+                    else if (s.Member("half_thickness_m") != null) Fail(path + ".half_thickness_m", "only a disc has a thickness");
+                    if (body)
+                    {
+                        shape.Stiffness = Positive(s, "stiffness_n_per_m", path);
+                        shape.StiffnessUp = s.Member("stiffness_up_n_per_m") != null ? Positive(s, "stiffness_up_n_per_m", path) : shape.Stiffness;
+                        shape.DampingRatio = NonNegative(s, "damping_ratio", path);
+                    }
+                    else if (s.Member("stiffness_n_per_m") != null || s.Member("stiffness_up_n_per_m") != null || s.Member("damping_ratio") != null)
+                        Fail(path + ".stiffness_n_per_m", "only a body shape has its own compliance: the legs carry supports and skids");
+                    // The consistency drone.json's other blocks fix.
+                    if (role == "support" && !double.IsNaN(shape.Radius) && shape.Radius != spec.Legs.FootRadius)
+                        Fail(path + ".radius_m", "a support is the foot: legs.foot_radius_m");
+                    if (disc && shape.Corner >= 0)
+                    {
+                        Double3 hub = spec.Motors[shape.Corner].Position;
+                        if (!(shape.A.X == hub.X && shape.A.Y == hub.Y && shape.A.Z == hub.Z)) Fail(path + ".a_m", "a disc sits at its motor's position_m");
+                        if (!double.IsNaN(shape.Radius) && shape.Radius != spec.Props.Diameter / 2) Fail(path + ".radius_m", "a disc is the flown prop: props.diameter_m / 2");
+                    }
+                }
+                return c;
             }
 
             DronePart[] ReadParts(JsonNode list)
