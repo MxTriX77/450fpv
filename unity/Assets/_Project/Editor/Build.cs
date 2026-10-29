@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
@@ -54,15 +56,21 @@ namespace Fpv450
                 EditorApplication.Exit(1);
         }
 
+        /// <c>-developmentBuild</c> makes a development player instead, for the profiler's GPU timings (PLT-07, the
+        /// feed's <c>-feedcost</c>), in its own folder: the release folder's name with "-Development".
+        static readonly bool Development = Array.IndexOf(Environment.GetCommandLineArgs(), "-developmentBuild") >= 0;
+
         static bool Player(string name, string[] scenes, string path)
         {
+            if (Development)
+                path = Path.Combine(Path.GetDirectoryName(path) + "-Development", Path.GetFileName(path));
             BuildReport report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
                 scenes = scenes,
                 locationPathName = path,
                 target = BuildTarget.StandaloneWindows64,
                 targetGroup = BuildTargetGroup.Standalone,
-                options = BuildOptions.None,
+                options = Development ? BuildOptions.Development : BuildOptions.None,
             });
 
             BuildSummary summary = report.summary;
