@@ -10,7 +10,7 @@ using Fpv450.Sim.Tests;
 namespace Fpv450.FlightBench
 {
     // The step with the log on (tasks 1.2, 1.4 and 1.5, design 10): the powered drone with its drag in the Windy wind,
-    // flown by GoldenFlights' scripted pilot at a real 1 kHz for 30 s, each step's 1176 B record going through FlightRecorder's ring to a log file on disk while
+    // flown by GoldenFlights' scripted pilot at a real 1 kHz for 30 s, each step's 1296 B record going through FlightRecorder's ring to a log file on disk while
     // its flush worker writes, as in a flight. It times the step with its record, and the record alone, and counts the
     // flight thread's allocations (the budget: p99 ≤ 300 µs and 0 B, PLT-04) and the ring's waits for the disk (0: the
     // step never waits on it).

@@ -122,7 +122,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void ReplayMatchesTheFlight()
         {
-            // 120 s of 1180 B steps: 142 MB, kept in memory.
+            // 120 s of 1300 B steps: 156 MB, kept in memory.
             var log = new MemoryStream();
             Record(log, 120000);
             DroneSpec spec = BootstrapDrone.Spec();
