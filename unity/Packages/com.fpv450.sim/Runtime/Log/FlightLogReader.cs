@@ -284,6 +284,15 @@ namespace Fpv450.Sim.Log
                     + (h.Aero.CoilPart >= 0 ? PartName((ushort)h.Aero.CoilPart) : "none"));
             else
                 w.WriteLine("  aero: none (a bench body)");
+            if (h.Contacts != null)
+                w.WriteLine("  contacts: " + h.Contacts.Shapes.Length + " shapes, margin " + G(h.Contacts.Margin) + " m, legs " + G(h.Contacts.LegStiffness)
+                    + " N/m and " + G(h.Contacts.LegDamping) + " N.s/m, a crash past " + G(h.Contacts.CrashAccel) + " m/s2 or a prop strike past "
+                    + G(h.Contacts.CrashPropSpeed) + " m/s; physics_materials.json 0x" + h.Contacts.MaterialsHash.ToString("X16", c) + " (" + h.Contacts.Materials.Length + " rows)");
+            else
+                w.WriteLine("  contacts: none");
+            for (int n = 0; n < h.RuntimeObjects.Length; n++)
+                w.WriteLine("  runtime object " + (n < h.RuntimeIds.Length ? h.RuntimeIds[n] : -1) + " '" + h.RuntimeObjects[n].Name + "': "
+                    + h.RuntimeObjects[n].Shapes.Length + " shapes");
             w.WriteLine("  randomness: " + h.Streams.Length + " streams" + (h.Streams.Length > 0 ? " (" + string.Join(", ", h.Streams) + ")" : "")
                 + ", " + h.Draws.Length + " per-flight draws");
             foreach (ParameterDraw d in h.Draws)
@@ -316,6 +325,8 @@ namespace Fpv450.Sim.Log
                 w.WriteLine("  net force " + V(t.NetForce, "0.000") + " N, net moment " + V(t.NetMoment, "0.0000") + " N.m; the air's "
                     + V(t.AeroForce, "0.000") + " N, " + V(t.AeroMoment, "0.0000") + " N.m; gust " + V(s.Gust, "0.000") + " m/s"
                     + (s.EscLimited != 0 ? "; ESCs at their current limit: " + Limited(s.EscLimited) : ""));
+                w.WriteLine("  contacts: " + t.ContactsTouching + " touching, force " + V(t.ContactForce, "0.000") + " N, moment " + V(t.ContactMoment, "0.0000")
+                    + " N.m; legs " + C4(t.LegLoad) + " N, compressed " + C4(t.LegCompression) + " m" + (s.Crashed ? "; CRASHED" : ""));
                 w.WriteLine("  stick roll " + G(k.Roll) + ", pitch " + G(k.Pitch) + ", yaw " + G(k.Yaw) + ", throttle " + G(k.Throttle) + ", arm "
                     + (k.Arm ? "on" : "off") + " (host " + k.HostUs + " us)");
             }
@@ -335,19 +346,25 @@ namespace Fpv450.Sim.Log
             switch (e.Kind)
             {
                 case EventKind.ContactMade:
-                    return PartName(e.Part) + " touches " + Where(e) + " at " + V(e.Point, "0.000") + " m, " + G(e.A) + " m/s";
+                    return ShapeName(e) + " touches " + Where(e) + " at " + V(e.Point, "0.000") + " m, " + G(e.A) + " m/s";
                 case EventKind.ContactBroken:
-                    return PartName(e.Part) + " leaves " + Where(e) + " after " + G(e.A) + " s, impulse " + G(e.B) + " N.s";
+                    return ShapeName(e) + " leaves " + Where(e) + " after " + G(e.A) + " s, impulse " + G(e.B) + " N.s, peak " + G(e.C) + " N";
                 case EventKind.PropStrike:
                     return "prop " + CornerName(e.Index) + " struck by " + Where(e) + " at " + V(e.Point, "0.000") + " m, " + G(e.A) + " m/s";
                 case EventKind.MixerSaturation:
                     return "mixer saturated: " + (e.Index <= 3 ? ((MixerAxis)e.Index).ToString().ToLowerInvariant() : "axis " + e.Index)
                         + " lost " + G(e.A * 100) + " % of its demand";
                 case EventKind.Crash:
-                    return "CRASH: " + PartName(e.Part) + " on " + Where(e) + " at " + V(e.Point, "0.000") + " m, " + G(e.A) + " m/s, " + G(e.B)
-                        + " N.s, peak " + G(e.C) + " m/s2";
+                    return "CRASH (" + (e.Index == 1 ? "acceleration" : e.Index == 2 ? "prop strike" : "cause " + e.Index) + "): " + PartName(e.Part) + " on "
+                        + Where(e) + " at " + V(e.Point, "0.000") + " m, " + G(e.A) + " m/s; so far " + G(e.B) + " N.s, peak " + G(e.C) + " m/s2";
                 case EventKind.Tunnel:
-                    return "TUNNEL, a physics bug: " + PartName(e.Part) + " through " + Where(e) + " at " + V(e.Point, "0.000") + " m, " + G(e.A) + " m deep";
+                    return "TUNNEL, a physics bug: " + ShapeName(e) + " through " + Where(e) + " at " + V(e.Point, "0.000") + " m, " + G(e.A) + " m deep at "
+                        + G(e.B) + " m/s";
+                case EventKind.Impact:
+                    return "impact: " + PartName(e.Part) + " on " + Where(e) + " at " + G(e.C) + " m/s: peak " + G(e.A) + " m/s2 (" + G(e.A / 9.80665)
+                        + " g), impulse " + G(e.B) + " N.s over its window";
+                case EventKind.ContactsLost:
+                    return G(e.A) + " contacts lost by " + ShapeName(e) + ": its table or the query buffer was full (a bug)";
                 case EventKind.Hitch:
                     return e.Index == (byte)HitchCause.LogFull
                         ? "hitch: the log's ring was full and the flight thread waited " + G(e.A) + " x 1 ms"
@@ -379,9 +396,13 @@ namespace Fpv450.Sim.Log
         string PartName(ushort part) =>
             part == FlightEvent.NoPart ? "the drone" : part < Header.Parts.Length ? "part '" + Header.Parts[part].Name + "'" : "part #" + part;
 
+        string ShapeName(in FlightEvent e) =>
+            Header.Contacts != null && e.Index < Header.Contacts.Shapes.Length ? "'" + Header.Contacts.Shapes[e.Index].Name + "' of " + PartName(e.Part) : PartName(e.Part);
+
         string Where(in FlightEvent e)
         {
-            string what = e.Object == WorldIds.Ground ? "the ground" : "object " + e.Object + " shape " + e.Shape;
+            string name = Header.RuntimeObjectName(e.Object);
+            string what = e.Object == WorldIds.Ground ? "the ground" : name != null ? "'" + name + "' shape " + e.Shape : "object " + e.Object + " shape " + e.Shape;
             if (e.Surface != 0) what += " (surface " + Header.SurfaceName(e.Surface) + ")";
             else if (e.Material != 0) what += " (material " + Header.MaterialName(e.Material) + ")";
             return what;
