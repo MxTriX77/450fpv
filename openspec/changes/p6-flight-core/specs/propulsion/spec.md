@@ -8,8 +8,19 @@ The controller SHALL mirror Betaflight 4.5 (D-023): ACTUAL rates, the throttle c
 - **THEN** each setpoint equals Betaflight 4.5's ACTUAL formula within 0.1 °/s
 
 #### Scenario: The builder's PIDs hold a stable loop
-- **WHEN** the drone at nominal mass takes a 200 °/s roll-rate step at hover throttle
-- **THEN** the rate settles within 5 % of the setpoint, overshoots by less than 25 % and shows no sustained oscillation over 2 s
+- **WHEN** the drone at nominal mass takes a 200 °/s roll-rate or pitch-rate step at hover throttle through the builder's whole gyro and D-term filter chain (D-045)
+- **THEN** the rate stays within 5 % of the setpoint for good inside the first second (measured from 0.39 s roll, 0.38 s pitch), its last second's mean is within 5 % and its peak to peak is under 10 °/s, so no oscillation is sustained (measured 5.5 and 6.2 °/s), and its overshoot stays in the regression band 30–45 % (measured 40.9 % roll, 38.4 % pitch: the chain's phase lag, its LPFs, notches, RPM filter and dynamic notch adding about 25 points), while the plant and the PIDs without the chain overshoot by less than 25 % (measured 15.9 and 14.4 %)
+
+### Requirement: The builder's filter chain and sag compensation
+The controller SHALL filter the gyro and the D term as Betaflight 4.5 does on the builder's profile (D-045, `fc-profiles.md` §1), in Betaflight's order at each 4 kHz loop: the gyro's two 8 kHz samples through LPF2, the RPM filter's notches on the motors' speeds (bidirectional DShot), the gyro notch, the dynamic LPF1, and the dynamic notch on Betaflight's sliding DFT; then the D term's notch and its two lowpasses. So the loop carries the real chain's phase lag. It SHALL compensate battery sag as Betaflight 4.5's `vbat_sag_compensation` does, off by default (fc-profiles §2's sim column). The log SHALL carry the chain's outputs: the filtered gyro, the D term's input, the dynamic notches' centres, the throttle the dynamic lowpasses follow, the sag filter's volts and the cell count. The filters' delay lines stay in the controller and are rebuilt by re-running the flight from its start, so a replay stays bit for bit (D-045).
+
+#### Scenario: Each filter as Betaflight computes it
+- **WHEN** each filter of the builder's chain is evaluated at three frequencies, and the gyro's and the D term's chains at 10, 25 and 45 Hz
+- **THEN** each filter's response is that of Betaflight 4.5's coefficients within 1e-6 (complex), each biquad lowpass is −3.01 dB and −90° at its cutoff, and each chain is the product of its sections within 1e-6 (measured phase lag at 10 Hz: the gyro 10.6 ms, the D term's input 18.8 ms)
+
+#### Scenario: Sag compensation holds the hover throttle
+- **WHEN** `vbat_sag_compensation` is 100 and the loaded drone (L6) hovers on packs from full down to 20 % charge
+- **THEN** the hover stick spans less than 2 % (measured 1.19 %), where without compensation the sagging packs need more throttle by over 5 % (measured 22.2 %)
 
 ### Requirement: An X mixer that saturates honestly
 The mixer SHALL map collective, roll, pitch and yaw to four motor commands for an X quad as Betaflight 4.5's does: limit the PID sums, scale the mix into range, then desaturate the collective so that no motor clips, so that yaw saturates first, as on the real drone (K§5.3).
