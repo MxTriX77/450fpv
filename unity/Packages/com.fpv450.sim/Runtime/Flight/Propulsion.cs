@@ -175,11 +175,30 @@ namespace Fpv450.Sim.Flight
         public void BeginStep(in FlightState s) => BeginStep(s, null);
 
         /// <summary>
-        /// The step's inflow from the state and the wind at each hub (world m/s, in Corners order; null for still air):
-        /// each hub's velocity through the air in body axes, the body origin's velocity plus ω × r less the wind, along
-        /// the disc's normal (body +y) and in its plane; and the rotors' loads at their speeds.
+        /// The step's inflow (RotorInflow) from the state and the wind at each hub (world m/s, in Corners order; null for
+        /// still air), and the rotors' loads at their speeds.
         /// </summary>
         public void BeginStep(in FlightState s, Double3[] windAtHubs)
+        {
+            RotorInflow(s, windAtHubs);
+            for (int i = 0; i < 4; i++)
+            {
+                Aero(s.RotorSpeed[i], _inflow[i], out double t, out double q);
+                _thrust[i] = t;
+                _torque[i] = q;
+            }
+        }
+
+        /// <summary>
+        /// The per-rotor inflow seam (p7b-airframe design 2, shared with p7c-wind): the one place each rotor's air through
+        /// its disc is made, for the step, into Inflow (axial, m/s, positive down through the disc as in a climb) and
+        /// InPlane (body m/s). Its input from outside is the wind at each hub, world m/s in Corners order (null for still
+        /// air): p7c-wind's field sampled at the hub. Today the air is each hub's velocity through it in body axes, the
+        /// body origin's velocity plus ω × r less that wind, split along the disc's normal (body +y) and its plane.
+        /// The rotors' own terms go here and nowhere else: the own wash and the vortex ring (p7b 1.2), the neighbours'
+        /// wash and recirculation, and the ground and ceiling (1.3), each from the state and the rotors' own loads.
+        /// </summary>
+        public void RotorInflow(in FlightState s, Double3[] windAtHubs)
         {
             Double3 v = s.Attitude.InverseRotate(s.Velocity);
             Double3 w = s.BodyRate;
@@ -189,9 +208,6 @@ namespace Fpv450.Sim.Flight
                 if (windAtHubs != null) air = air - s.Attitude.InverseRotate(windAtHubs[i]);
                 _inflow[i] = air.Y;
                 _inPlane[i] = new Double3(air.X, 0, air.Z);
-                Aero(s.RotorSpeed[i], _inflow[i], out double t, out double q);
-                _thrust[i] = t;
-                _torque[i] = q;
             }
         }
 
