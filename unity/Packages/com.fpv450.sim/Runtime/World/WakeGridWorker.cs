@@ -69,7 +69,8 @@ namespace Fpv450.Sim.World
         {
             _grids[0] = WakeGrid.Build(obstacles, fromDeg);
             _grids[1] = WakeGrid.Build(obstacles, fromDeg);
-            _thread = new Thread(Run) { IsBackground = true, Name = "wake grid" };
+            // Below normal: the precompute yields to the flight thread whenever they share a core.
+            _thread = new Thread(Run) { IsBackground = true, Name = "wake grid", Priority = ThreadPriority.BelowNormal };
             _thread.Start();
         }
 
