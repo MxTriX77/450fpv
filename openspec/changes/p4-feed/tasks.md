@@ -30,6 +30,10 @@ Branch `unity/techart/p4-feed` off `unity/main`, once `p1-g1-look-lock-gallery` 
 - [ ] 1.3 [tech-artist] Losses, recovery, snow and the blue screens (FEED-05…07):
   - **What:** both no-signal styles, as built in the Godot feed.
   - **Verify:** the recovering-dropout scenario, snow statistics against K§11, and both blue screens.
+  - **Started and stopped (2026-10-29, D-046: no GPU that night); the orchestrator's calls on its findings:**
+    - **Godot's last outage field:** Godot's `FeedLoss.Step` clears the picture in the same step as a dropout's last outage field, so blue shows 17–34 fields (constants 18–35) and black 2–3 (constants 3–4). **Fix it** toward the constants and K§11.3: the last outage field shows its stage and the next field clears it, with no draw moved. A `godotLastField` flag keeps Godot's step for the A/B (`FeedEvents`, `FeedSchedule.Run`/`Digest`, `feedbench --godot`, `FeedScheduleTests` pinned in Godot mode) and new digests pin the fixed mode. The half-wired edit is on `unity/techart/p4-feed--last-field` (`3fe8644`); the Godot-identical baseline dumps for seeds 1–3 were taken before it.
+    - **The bright no-signal screen** (letters A and H) was never built in Godot; only the deep B–G screen was ("AV IN 1" / "PAL 50" top-left). **Build it new** from A and H's measurements: blue (0, 0.010, 0.975); one centred line of the same invented receiver text from code row 16 (the codes texture stays 30 × 18), cap height about 31 px, green with a dark lower-right edge. A `FeedSettings` enum (deep is Godot's default), a `_NoSignalStyle` branch that leaves the deep path byte-identical, `-nosignal deep|bright` and the **B** key, shown in the overlay header and `docs/test-range.md`.
+    - Noted for G4, not changed: the footage's blue frames show about 2 dark top rows, and its B–G text starts near x 303 where Godot's sits at column 0.
 - [x] 1.4 [tech-artist] The OSD rendering (`FeedOsd`, `FeedFont`, the analog path):
   - **Verify:** the "grid matches the Godot OSD" scenario and the fringing against K§11.
 
