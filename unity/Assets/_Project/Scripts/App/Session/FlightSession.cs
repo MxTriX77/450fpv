@@ -108,7 +108,8 @@ namespace Fpv450.App.Session
     /// - **arms and disarms** by the flight controller's own rules (the switch on with the throttle low)
     /// - **runs** on the flight thread (FlightScheduler) under the 1 ms timer period, which the session holds while it
     ///   lives; Pause stops the stepping and Resume goes on with every later step's host time moved by the pause, logged
-    ///   as a Pause hitch
+    ///   as a Pause hitch. A radio lost during the pause is the failsafe in force for the first RC frame after it, even
+    ///   when plugged back in before Resume, so the log has it with its stamp and the end rule sees it
     /// - **ends** on the first of FlightEndRule's conditions, found on the flight thread as each step goes to the log; the
     ///   log stops at that step, so PostFlight finds the same end. Restart, EndFlight and Dispose end it by the pilot.
     /// The session never starts or stops the app's radio (the app does, on quit and on a domain reload); it sets the
@@ -122,6 +123,9 @@ namespace Fpv450.App.Session
         /// <summary>The window of report intervals the header records (design 2).</summary>
         public const long IntervalWindowUs = 10000000;
 
+        /// <summary>Steps an RC frame: a loss during a pause is in force this long after Resume, so one frame reads it.</summary>
+        public const long RcFrameSteps = FlightController.LoopsPerRcFrame / FlightController.LoopsPerStep;
+
         readonly SessionInputs _in;
         IDisposable _period;
         FlightCore _core;
@@ -131,7 +135,8 @@ namespace Fpv450.App.Session
         StickInbox _inbox;
         KeyboardSticks _keyboard;
         long _startUs, _shiftUs, _pausedAtUs, _hitches;
-        bool _stepping;
+        bool _stepping, _lostWhilePaused;
+        StickSample _pausedLoss;
 
         public FlightSession(SessionInputs inputs)
         {
@@ -255,9 +260,11 @@ namespace Fpv450.App.Session
             {
                 _keyboard.Update(KeyboardKeys.None, now, out _); // the pause's time does not move the throttle
             }
-            else
+            else if (_inbox.Drain(now, out StickSample lost) && !_lostWhilePaused)
             {
-                _inbox.Consume(now, out _); // the flight thread is stopped: this thread is the inbox's consumer, so a loss stays in force
+                // The flight thread is stopped: this thread is the inbox's consumer. The first loss is kept for Resume.
+                _pausedLoss = lost;
+                _lostWhilePaused = true;
             }
 
             if (_scheduler.Fault != null)
@@ -277,12 +284,14 @@ namespace Fpv450.App.Session
             if (State != SessionState.Flying) return;
             StopStepping();
             _pausedAtUs = _in.Clock.NowUs();
+            _lostWhilePaused = false;
             State = SessionState.Paused;
         }
 
         /// <summary>
         /// Steps again: every later step's host time moves by the pause, which the log records before the next step as a
-        /// Pause hitch. A step that was already due when the pause began is due at once.
+        /// Pause hitch. A step that was already due when the pause began is due at once. A loss the paused frames
+        /// drained is the sample in force for the first RC frame's steps, whatever reports came after it.
         /// </summary>
         public void Resume()
         {
@@ -299,6 +308,7 @@ namespace Fpv450.App.Session
             long moved = start - _startUs - _shiftUs;
             _shiftUs += moved;
             _log.RecordPause(k + 1, moved);
+            if (_lostWhilePaused) _inbox.Hold(_pausedLoss, start + (k + RcFrameSteps) * FlightCore.StepUs);
             Step(start);
             State = SessionState.Flying;
         }

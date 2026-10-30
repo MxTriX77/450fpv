@@ -224,6 +224,61 @@ namespace Fpv450.Tests.Session
             Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying), "a failsafe before arming ends nothing");
         }
 
+        // QA's probes E3a and E3b (interim review, finding 1): armed at throttle 0.3, paused, the cable pulled during the
+        // pause; E3b plugs it back in with the switch on 200 ms later, before Resume. Both are the failsafe: in force for
+        // the first RC frame after Resume, logged once with the loss's stamp, and the summary says so.
+        [TestCase(false, TestName = "E3a: a radio lost during a pause is the failsafe")]
+        [TestCase(true, TestName = "E3b: a radio lost during a pause and plugged back in before Resume is the failsafe")]
+        public void ARadioLostDuringAPauseIsTheFailsafe(bool pluggedBackIn)
+        {
+            Rig rig = Make(i =>
+            {
+                ulong seed = 0x0A31;
+                i.NewSeed = () => seed++;
+                i.Choices = new FlightChoices { Payload = 1.0, Legs = true };
+            });
+            rig.Session.Start();
+            rig.ArmCycle();
+            rig.Radio.Throttle = 0.3;
+            rig.Run(300);
+            rig.Session.Pause();
+            long k = rig.Session.Core.State.Step;
+            rig.Run(100);
+            rig.Radio.Lost = true;
+            long lostAt = rig.Clock.Now + FlightCore.StepUs; // the next pass sees it
+            rig.Run(100);
+            if (pluggedBackIn)
+            {
+                var back = new TestRadio(rig.Clock) { Arm = true, Throttle = 0.3 };
+                rig.Radio = back;
+                rig.Plugged = back;
+                rig.Run(200);
+                Assert.That(rig.Reader.Connected, Is.True, "back before Resume");
+            }
+            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Paused));
+            rig.Session.Resume();
+            rig.Run(100);
+
+            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Ended));
+            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Failsafe));
+            long rcFrame = FlightController.LoopsPerRcFrame / FlightController.LoopsPerStep;
+            Assert.That(rig.Session.End.Step - k, Is.InRange(1, rcFrame), "disarmed at the first RC frame after Resume");
+
+            PostFlight p = rig.Session.ReadSummary();
+            TestContext.WriteLine((pluggedBackIn ? "E3b" : "E3a") + ": paused after step " + k + ", lost at host " + lostAt + " us; " + string.Join(" | ", p.Lines()));
+            Assert.That((p.End.Kind, p.End.Step), Is.EqualTo((FlightEndKind.Failsafe, rig.Session.End.Step)));
+            Assert.That(p.Log.Failsafes.Count, Is.EqualTo(1));
+            Assert.That((p.Log.Failsafes[0].State.Step, p.Log.Failsafes[0].Stick.HostUs), Is.EqualTo((k + 1, lostAt)), "logged at the first step after Resume, with the loss's stamp");
+            StringAssert.StartsWith("failsafe", p.Cause());
+            Assert.That(p.Lines().FindAll(l => l.StartsWith("failsafe at ")).Count, Is.EqualTo(1), "the summary lists the failsafe");
+
+            ReplayResult replay;
+            using (FileStream f = File.OpenRead(rig.Session.LogPath))
+                replay = FlightReplay.Run(f, id => id == "floor" ? FlightWorld.Floor() : null, _spec.ContentHash);
+            TestContext.WriteLine("replay: " + replay.Outcome + ", " + replay.Steps + " steps " + replay.Message);
+            Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
+        }
+
         // ---- Pause and restart ------------------------------------------------------------------------------------------
 
         [Test]
