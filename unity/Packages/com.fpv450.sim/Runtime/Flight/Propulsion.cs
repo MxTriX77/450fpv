@@ -283,12 +283,17 @@ namespace Fpv450.Sim.Flight
         /// rotation about +y, DetMath.cs), −J·ω counter-clockwise.</summary>
         public double SpinMomentum(int corner, double speed) => -_reaction[corner] * _inertia[corner] * speed;
 
-        /// <summary>A pack's open-circuit voltage at a state of charge, V: n_s × the cell's OCV table, held at its ends.</summary>
+        /// <summary>The cells in series of the first pack (both are alike): the OSD's low-voltage signal is per cell.</summary>
+        public double SeriesCells => _series[0];
+
+        /// <summary>A pack's open-circuit voltage at a state of charge, V: n_s × the cell's OCV table, held at full; past
+        /// empty (the cell's cut-off, charge 0) it keeps falling at the table's last slope to 0 V (assumed: an
+        /// over-discharged cell collapses, it does not hold its cut-off voltage; p7b-airframe 1.5).</summary>
         public double OpenCircuitVolts(int pack, double charge)
         {
             double[] ocv = _ocv[pack];
             double x = charge * (ocv.Length - 1);
-            if (!(x > 0)) return _series[pack] * ocv[0];
+            if (!(x > 0)) return _series[pack] * DetMath.Max(0, ocv[0] + x * (ocv[1] - ocv[0]));
             if (x >= ocv.Length - 1) return _series[pack] * ocv[ocv.Length - 1];
             int k = (int)x;
             return _series[pack] * (ocv[k] + (x - k) * (ocv[k + 1] - ocv[k]));

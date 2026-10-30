@@ -14,6 +14,8 @@ namespace Fpv450.FlightBench
     {
         public const string Name = "powered-flight";
 
+        static DroneSpec M11() => GoldenFlights.WithModel11Packs(Drone());
+
         public static DroneSpec Drone()
         {
             for (string dir = Directory.GetCurrentDirectory(); dir != null; dir = Path.GetDirectoryName(dir))
@@ -47,35 +49,43 @@ namespace Fpv450.FlightBench
                 + $"{(tok ? "PASS" : "FAIL")}");
             // p7b-airframe 1.1's audit: with the motors' asymmetry off (and 1.2's rings, 1.3's ground effect), over model 7's
             // 1296-byte layout, each golden is model 7's.
-            ulong p7 = GoldenFlights.FlyPowered(Drone(), out _, 1296, 200, asymmetry: false, ring: false, ground: false, flapping: false);
-            ulong c7 = GoldenFlights.FlyContact(Drone(), out _, 1296, 200, false, false, ground: false, flapping: false);
-            ulong t7 = GoldenFlights.FlyTumble(Drone(), out _, out _, 1296, 200);
+            ulong p7 = GoldenFlights.FlyPowered(M11(), out _, 1296, 200, asymmetry: false, ring: false, ground: false, flapping: false);
+            ulong c7 = GoldenFlights.FlyContact(M11(), out _, 1296, 200, false, false, ground: false, flapping: false);
+            ulong t7 = GoldenFlights.FlyTumble(M11(), out _, out _, 1296, 200);
             bool aok = p7 == 0xA65FBFBCBCFC5B96UL && c7 == 0x3AF33645FF8F1919UL && t7 == 0xE3178EE7FF322698UL;
             Console.WriteLine($"asymmetry off, over model 7's layout: powered 0x{p7:X16}, contact 0x{c7:X16}, tumble 0x{t7:X16} "
                 + $"({(aok ? "model 7's, bit for bit" : "NOT model 7's")}): {(aok ? "PASS" : "FAIL")}");
             // p7b-airframe 1.2's audit: with the vortex rings off (and 1.3's ground effect), over model 8's 1328-byte layout, each
             // golden is model 8's.
-            ulong p8 = GoldenFlights.FlyPowered(Drone(), out _, 1328, 168, ring: false, ground: false, flapping: false);
-            ulong c8 = GoldenFlights.FlyContact(Drone(), out _, 1328, 168, ring: false, ground: false, flapping: false);
-            ulong t8 = GoldenFlights.FlyTumble(Drone(), out _, out _, 1328, 168);
+            ulong p8 = GoldenFlights.FlyPowered(M11(), out _, 1328, 168, ring: false, ground: false, flapping: false);
+            ulong c8 = GoldenFlights.FlyContact(M11(), out _, 1328, 168, ring: false, ground: false, flapping: false);
+            ulong t8 = GoldenFlights.FlyTumble(M11(), out _, out _, 1328, 168);
             bool rok = p8 == 0x08FBAF9331110BE9UL && c8 == 0x5D45B356ECD6B940UL && t8 == 0xF7E0F587B45FA098UL;
             Console.WriteLine($"rings off, over model 8's layout: powered 0x{p8:X16}, contact 0x{c8:X16}, tumble 0x{t8:X16} "
                 + $"({(rok ? "model 8's, bit for bit" : "NOT model 8's")}): {(rok ? "PASS" : "FAIL")}");
             // p7b-airframe 1.3's audit: with the ground effect off, over model 9's 1400-byte layout, each golden is model 9's.
-            ulong p9 = GoldenFlights.FlyPowered(Drone(), out _, 1400, 96, ground: false, flapping: false);
-            ulong c9 = GoldenFlights.FlyContact(Drone(), out _, 1400, 96, ground: false, flapping: false);
-            ulong t9 = GoldenFlights.FlyTumble(Drone(), out _, out _, 1400, 96);
+            ulong p9 = GoldenFlights.FlyPowered(M11(), out _, 1400, 96, ground: false, flapping: false);
+            ulong c9 = GoldenFlights.FlyContact(M11(), out _, 1400, 96, ground: false, flapping: false);
+            ulong t9 = GoldenFlights.FlyTumble(M11(), out _, out _, 1400, 96);
             bool gok = p9 == 0x5AF86BCB6FD0B3A2UL && c9 == 0x8D965FFD8708C6C3UL && t9 == 0x50541A5726F695D8UL;
             Console.WriteLine($"ground effect off, over model 9's layout: powered 0x{p9:X16}, contact 0x{c9:X16}, tumble 0x{t9:X16} "
                 + $"({(gok ? "model 9's, bit for bit" : "NOT model 9's")}): {(gok ? "PASS" : "FAIL")}");
             // p7b-airframe 1.3c's audit: with the flapping off (the record's layout unchanged), each golden is model 10's.
-            ulong p10 = GoldenFlights.FlyPowered(Drone(), out _, flapping: false);
-            ulong c10 = GoldenFlights.FlyContact(Drone(), out _, flapping: false);
-            ulong t10 = GoldenFlights.FlyTumble(Drone(), out _, out _);
+            ulong p10 = GoldenFlights.FlyPowered(M11(), out _, flapping: false);
+            ulong c10 = GoldenFlights.FlyContact(M11(), out _, flapping: false);
+            ulong t10 = GoldenFlights.FlyTumble(M11(), out _, out _);
             bool fok = p10 == 0x0B91602E467653F4UL && c10 == 0x05EDD1881425872EUL && t10 == 0x58EF4F6AE8D111D8UL;
             Console.WriteLine($"flapping off: powered 0x{p10:X16}, contact 0x{c10:X16}, tumble 0x{t10:X16} "
                 + $"({(fok ? "model 10's, bit for bit" : "NOT model 10's")}): {(fok ? "PASS" : "FAIL")}");
-            return ok && cok && tok && aok && rok && gok && fok;
+            // p7b-airframe 1.5's audit: on model 11's pack table (the record's layout unchanged), each golden is model 11's;
+            // the audits above fly on it too.
+            ulong p11 = GoldenFlights.FlyPowered(M11(), out _);
+            ulong c11 = GoldenFlights.FlyContact(M11(), out _);
+            ulong t11 = GoldenFlights.FlyTumble(M11(), out _, out _);
+            bool pok = p11 == 0x9057D18CF741A255UL && c11 == 0xF6E32F2FDC831268UL && t11 == 0x58EF4F6AE8D111D8UL;
+            Console.WriteLine($"model 11's pack table: powered 0x{p11:X16}, contact 0x{c11:X16}, tumble 0x{t11:X16} "
+                + $"({(pok ? "model 11's, bit for bit" : "NOT model 11's")}): {(pok ? "PASS" : "FAIL")}");
+            return ok && cok && tok && aok && rok && gok && fok && pok;
         }
 
         public static bool Bench()

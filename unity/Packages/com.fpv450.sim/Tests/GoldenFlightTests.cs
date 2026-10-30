@@ -68,6 +68,19 @@ namespace Fpv450.Sim.Tests
             Assert.That(hash, Is.EqualTo(GoldenFlights.ContactHash), "the pinned golden (a re-record is audited and raises the model version)");
         }
 
+        // The kept audits of models 7–11 fly drone.json on model 11's pack table (p7b-airframe 1.5 re-mapped it).
+        static DroneSpec Model11() => GoldenFlights.WithModel11Packs(DroneSpec.Parse(RepositoryDrone.Text()));
+
+        // p7b-airframe 1.5's audit: on model 11's pack table, the record's layout unchanged, all three are model 11's bit for
+        // bit, so the new pins move by the table alone.
+        [Test]
+        public void OnModel11sPackTableEachGoldenIsModel11s()
+        {
+            Assert.That(GoldenFlights.FlyPowered(Model11(), out _), Is.EqualTo(0x9057D18CF741A255UL), "powered");
+            Assert.That(GoldenFlights.FlyContact(Model11(), out _), Is.EqualTo(0xF6E32F2FDC831268UL), "contact");
+            Assert.That(GoldenFlights.FlyTumble(Model11(), out _, out _), Is.EqualTo(0x58EF4F6AE8D111D8UL), "tumble");
+        }
+
         // Model 3's 992 bytes, then 1.6's contacts, then 1.4b's filter block: each parent's layout is the record less the
         // other's block. Then p7b-airframe 1.1's rotor angles: model 7's layout is the record less them.
         const int ContactBytesAt = 992, ContactBytes = 120, FilterBytesAt = ContactBytesAt + ContactBytes;
@@ -80,7 +93,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void WithTheAsymmetryOffEachGoldenIsModel7s()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = Model11();
             const int skip = RotorAngleBytes + RingBytes + GroundBytes;
             Assert.That(GoldenFlights.FlyPowered(spec, out _, RotorAngleAt, skip, asymmetry: false, ring: false, ground: false, flapping: false), Is.EqualTo(0xA65FBFBCBCFC5B96UL), "powered");
             Assert.That(GoldenFlights.FlyContact(spec, out _, RotorAngleAt, skip, false, false, ground: false, flapping: false), Is.EqualTo(0x3AF33645FF8F1919UL), "contact");
@@ -92,7 +105,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void WithTheRingsOffEachGoldenIsModel8s()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = Model11();
             const int skip = RingBytes + GroundBytes;
             Assert.That(GoldenFlights.FlyPowered(spec, out _, RingAt, skip, ring: false, ground: false, flapping: false), Is.EqualTo(0x08FBAF9331110BE9UL), "powered");
             Assert.That(GoldenFlights.FlyContact(spec, out _, RingAt, skip, ring: false, ground: false, flapping: false), Is.EqualTo(0x5D45B356ECD6B940UL), "contact");
@@ -104,7 +117,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void WithTheGroundEffectOffEachGoldenIsModel9s()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = Model11();
             Assert.That(GoldenFlights.FlyPowered(spec, out _, GroundAt, GroundBytes, ground: false, flapping: false), Is.EqualTo(0x5AF86BCB6FD0B3A2UL), "powered");
             Assert.That(GoldenFlights.FlyContact(spec, out _, GroundAt, GroundBytes, ground: false, flapping: false), Is.EqualTo(0x8D965FFD8708C6C3UL), "contact");
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, GroundAt, GroundBytes), Is.EqualTo(0x50541A5726F695D8UL), "tumble");
@@ -114,7 +127,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void WithTheFlappingOffEachGoldenIsModel10s()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = Model11();
             Assert.That(GoldenFlights.FlyPowered(spec, out _, flapping: false), Is.EqualTo(0x0B91602E467653F4UL), "powered");
             Assert.That(GoldenFlights.FlyContact(spec, out _, flapping: false), Is.EqualTo(0x05EDD1881425872EUL), "contact");
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _), Is.EqualTo(0x58EF4F6AE8D111D8UL), "tumble");
@@ -125,7 +138,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void ThePoweredGoldenFindsNoSurface()
         {
-            Assert.That(GoldenFlights.FlyPowered(RepositoryDrone.Spec(), out FlightCore core, GroundAt, GroundBytes, flapping: false), Is.EqualTo(0x5AF86BCB6FD0B3A2UL));
+            Assert.That(GoldenFlights.FlyPowered(Model11(), out FlightCore core, GroundAt, GroundBytes, flapping: false), Is.EqualTo(0x5AF86BCB6FD0B3A2UL));
             Assert.That(core.GroundEffect, Is.Not.Null);
             Assert.That(core.Trace.GroundDistance.FrontLeft, Is.GreaterThan(100), "the floor sampled far below");
             Assert.That(core.Trace.CeilingDistance.FrontLeft, Is.EqualTo(double.PositiveInfinity), "nothing above");

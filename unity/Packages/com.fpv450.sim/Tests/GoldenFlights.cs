@@ -96,7 +96,14 @@ namespace Fpv450.Sim.Tests
         // WithTheFlappingOffEachGoldenIsModel10s). With it the flight moves from step 21, the first armed step with the rotors
         // turning in Windy's air: by the roll step's end (2500) 191 mm and 34 mrad apart, by 10 s 40.6 m on the open-loop script
         // (the discs tilt away from each gust), 220.3 m up against 193.2; 102 events against 100; armed, no crash.
-        public const ulong PoweredHash = 0x9057D18CF741A255UL;
+        // Model 11: 0x9057D18CF741A255.
+        // p7b-airframe 1.5: re-recorded with ModelVersion 12, drone.json's packs on the P50B's table to its 2.5 V cut-off.
+        // Audited: on model 11's table, every record and event is model 11's bit for bit (the kept test,
+        // OnModel11sPackTableEachGoldenIsModel11s). At charge 0.9 both tables give 4.07 V a cell; the first armed draw (step
+        // 20) takes the charge into the new table's 0.85–0.90 segment (1.0 V a unit against 0.9), so the packs differ by at
+        // most 3.2 mV and the flight by at most 13.9 mm and 0.15 mrad (0.19 mm and 0.004 mrad by the roll step), 220.30 m up
+        // against 220.32; the same 102 events, armed, no crash.
+        public const ulong PoweredHash = 0x63D668DD01A1E587UL;
 
         // 1.6: first recorded with ModelVersion 4 as 0x8B568804552379E6.
         // 1.6 and 1.4b merged: re-recorded with ModelVersion 5. Audited against 1.6: with every filter off and the PID
@@ -140,7 +147,11 @@ namespace Fpv450.Sim.Tests
         // for bit (the kept test). With it the flight moves from step 9, the first with the rotors turning in Calm's air, and
         // keeps its course: at most 15 mm from model 10's path, 5 impacts, no crash, at rest at the same 0.2519 m, 11 mm aside.
         // The tumble has no rotors and keeps model 10's hash.
-        public const ulong ContactHash = 0xF6E32F2FDC831268UL;
+        // Model 11: 0xF6E32F2FDC831268.
+        // p7b-airframe 1.5: re-recorded with ModelVersion 12 on the P50B's table, audited as the powered flight: on model 11's
+        // table it is model 11's bit for bit. It keeps its course: 5 impacts, no crash, at rest on 8 contacts at the same
+        // 0.2519 m, 0.53 mm aside, the packs 2 mV apart. The tumble has no rotors and keeps model 10's hash.
+        public const ulong ContactHash = 0x8B50CC1BD8EBC8FFUL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -154,6 +165,17 @@ namespace Fpv450.Sim.Tests
         // over model 9's layout the hash is model 9's (the kept test).
         public const ulong TumbleHash = 0x58EF4F6AE8D111D8UL;
         public const int TumbleSteps = 10000;
+
+        /// <summary>Model 11's pack table (drone.json's before p7b-airframe 1.5: one cell at charge 0, 0.1, …, 1, from 3.0 V),
+        /// which the kept audits of models 7–11 fly on.</summary>
+        public static readonly double[] Model11Ocv = { 3.00, 3.45, 3.55, 3.62, 3.67, 3.73, 3.81, 3.90, 3.98, 4.07, 4.20 };
+
+        /// <summary>The spec with model 11's pack table on both packs. Pass a freshly parsed spec: it is changed in place.</summary>
+        public static DroneSpec WithModel11Packs(DroneSpec spec)
+        {
+            for (int k = 0; k < spec.Packs.Length; k++) spec.Packs[k].Ocv = (double[])Model11Ocv.Clone();
+            return spec;
+        }
 
         public static FlightSetup PoweredSetup(DroneSpec spec)
         {

@@ -85,8 +85,10 @@ namespace Fpv450.Sim.Log
         /// 11: p7b-airframe 1.3c (the rotors' edgewise-flow moments, RotorFlappingSpec: each blade's flap and its hub moment,
         ///    the dissymmetry of lift and the back flapping, from blade-element theory on the props' sheet; a flight without
         ///    them steps as in 10).
+        /// 12: p7b-airframe 1.5 (drone.json's packs to the P50B's 2.5 V cut-off: the OCV table re-mapped over 2.5–4.2 V with
+        ///    its low knee, the voltage falling past empty; a pack on model 11's table steps as in 11).
         /// </summary>
-        public const int ModelVersion = 11;
+        public const int ModelVersion = 12;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

@@ -321,7 +321,7 @@
       "parallel": {"value": 2, "label": "derived", "note": "two identical packs (T, the pilot's 'a couple of batteries') in parallel make the pilot's 6S4P (pilot: 6S4P to 6S5P, 20–35 Ah): 20 Ah, 432 Wh, the one even arrangement inside 4P–5P; T's packs, two cells high and 0.22 m long, hold 12 cells each"},
       "cell_capacity_ah": {"value": 5.0, "label": "published", "note": "Molicel INR21700-P50B: 5.0 Ah typical, 4.85 Ah minimum, 3.6 V, 2.5 V cut-off, 60 A continuous, 71 ± 1 g, Ø21.45 × 70.05 mm (akkuteile.de). 5 Ah makes 6S4P the pilot's 20 Ah (a 4.5 Ah P45B gives 18), and its 60 A covers the about 50 A a cell at full throttle in 4P (derived), which a 25 A Samsung 50S does not"},
       "r_cell_ohm": {"value": 0.012, "label": "assumed", "note": "under load, 1.5 × the P50B's published ≤ 8 mΩ at shipping (AC); the sheet's 12–16 mΩ, K§5.3's 15 mΩ; 1.4's sag scenario checks it"},
-      "ocv_v": {"value": [3.00, 3.45, 3.55, 3.62, 3.67, 3.73, 3.81, 3.90, 3.98, 4.07, 4.20], "label": "assumed", "note": "one cell at state of charge 0, 0.1, …, 1: the shape of published OCV curves of 5 Ah 21700 NMC cells, 3.0 → 4.2 V (design 5), 3.45–4.07 V over the usable charge (K§5.3: 3.4–4.1 V); charge 0 is the flight controller's 3.0 V warning (fc-profiles.md), above the cell's 2.5 V cut-off; 1.4 checks it"}
+      "ocv_v": {"value": [2.50, 3.20, 3.40, 3.48, 3.53, 3.57, 3.60, 3.63, 3.66, 3.69, 3.72, 3.76, 3.80, 3.84, 3.88, 3.93, 3.97, 4.02, 4.07, 4.13, 4.20], "label": "assumed", "note": "one cell at state of charge 0, 0.05, …, 1, over the P50B's published 5.0 Ah from its 4.2 V charge to its 2.5 V cut-off (published, akkuteile.de): the shape of the P50B's and like 5 Ah 21700 NMC cells' published low-rate discharge curves, read by shape and not digitised, so assumed; 3.40–4.07 V over 10–90 % (K§5.3: 3.4–4.1 V), the knee below 10 %: 4 V a unit of charge from 10 to 5 %, 14 V from 5 % to the cut-off (p7b-airframe 1.5; model 11's table stopped at 3.0 V, so the pack never emptied)"}
     },
     {
       "part": "pack_right",
@@ -329,7 +329,7 @@
       "parallel": {"value": 2, "label": "derived", "note": "as packs[0]"},
       "cell_capacity_ah": {"value": 5.0, "label": "published", "note": "as packs[0]"},
       "r_cell_ohm": {"value": 0.012, "label": "assumed", "note": "as packs[0]"},
-      "ocv_v": {"value": [3.00, 3.45, 3.55, 3.62, 3.67, 3.73, 3.81, 3.90, 3.98, 4.07, 4.20], "label": "assumed", "note": "as packs[0]"}
+      "ocv_v": {"value": [2.50, 3.20, 3.40, 3.48, 3.53, 3.57, 3.60, 3.63, 3.66, 3.69, 3.72, 3.76, 3.80, 3.84, 3.88, 3.93, 3.97, 4.02, 4.07, 4.13, 4.20], "label": "assumed", "note": "as packs[0]"}
     }
   ],
   "legs": {
