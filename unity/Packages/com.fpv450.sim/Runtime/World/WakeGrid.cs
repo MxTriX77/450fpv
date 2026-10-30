@@ -266,7 +266,7 @@ namespace Fpv450.Sim.World
                         s += (int)(hit.L / MarchStep); // past this obstacle: its wake does not reach
                         continue;
                     }
-                    if (haveSide || (s & 1) != 0 || !o.IsNear(q)) continue;
+                    if ((s & 1) != 0 || !o.IsNear(q)) continue;
 
                     // The side probes: the nearest obstacle cell to each side of the clear path at this distance.
                     int left = Probe(px, pz, -1), right = Probe(px, pz, 1);
@@ -294,10 +294,10 @@ namespace Fpv450.Sim.World
                         double width = (left + right - 1) * WakeObstacles.Cell;
                         gapJet = GapJetAmp * (1 - side.Beta) * WakeGridMath.Exp(-d / (GapJetDecayWidths * width));
                     }
+                    break; // the nearest obstacle: a side one, met while the cell's own path is still clear
                 }
 
-                // The nearer of the direct obstacle and the side one; the side one only while its own path is clear.
-                if (haveSide && (!haveDirect || side.X <= direct.X))
+                if (haveSide)
                     _cells[k] = Coefficients(side, sideWeight, gapJet, 0);
                 else if (haveDirect)
                     _cells[k] = Coefficients(direct, Spread(yc, direct, y0, y1), 0, Width(direct, y0, y1));
