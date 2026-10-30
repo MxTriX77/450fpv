@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The airframe effects a real heavy quad shows and a clean plant does not: motor asymmetry, ground and ceiling effect, recirculation, vortex ring state, the throttle-punch shake, and the battery's and inertia's character, each physical, bounded and logged.
+The airframe effects a real heavy quad shows and a clean plant does not: motor asymmetry, ground and ceiling effect, recirculation, the rotors' edgewise-flow moments, vortex ring state, the throttle-punch shake, and the battery's and inertia's character, each physical, bounded and logged.
 
 ## ADDED Requirements
 
@@ -27,6 +27,17 @@ Each rotor SHALL gain thrust near the ground by Cheeseman–Bennett from its own
 #### Scenario: The close hover is never still
 - **WHEN** the drone without asymmetry hovers on its legs in still air with its skids about 0.1 m up, with the recirculation and with a known-wrong model without it, and the same hover 3 m up
 - **THEN** every half second of the close hover moves the body above a rate floor, while the known-wrong model's and the high hover's stay below a tenth of it
+
+### Requirement: Rotor edgewise-flow moments
+Each rotor in edgewise flow SHALL flap and make a hub moment from blade-element theory on the props' sheet with labelled constants: the dissymmetry of lift's rolling moment and the back flapping's tilt away from the airflow, the in-plane force staying the H-force alone so it is not counted twice.
+
+#### Scenario: The hub moment against its published form
+- **WHEN** a constant-chord, linearly twisted blade's flap and hub moment are taken at advance ratios 0.05, 0.10 and 0.20, articulated, hingeless and stiff, and a known-wrong rigid rotor without flapping
+- **THEN** the flap and hub moment equal Johnson's forms within 1e-9 at each, and the known-wrong rotor misses them by all of the moment
+
+#### Scenario: A gust step tilts the drone harder
+- **WHEN** the hovering drone meets a 4 m/s gust step from the front and from the side, with the flapping on and off
+- **THEN** with it on, the peak pitch rate (front) and roll rate (side) are at least 1.5 times those without it, and the drone tilts away from the gust
 
 ### Requirement: Settling into the own wash
 Vortex ring state SHALL set in from the descent rate normalised by the induced velocity at the current thrust, with hysteresis, costing thrust and adding a wandering moment, its entry and exit logged.
