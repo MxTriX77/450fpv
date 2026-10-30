@@ -14,11 +14,19 @@ Each flight SHALL draw each motor's Kv spread, ESC timing jitter and prop imbala
 - **THEN** with it on, the correction rate needed lies inside the computed band on every seed and never buzzes or diverges; with it off, the drift is at least halved
 
 ### Requirement: Ground effect, ceiling effect and recirculation per rotor
-Each rotor SHALL gain thrust near the ground by Cheeseman–Bennett from its own ray and the ground's relief and mat top, none over a hole, the same under a roof for the ceiling effect, and a close hover SHALL never be still.
+Each rotor SHALL gain thrust near the ground by Cheeseman–Bennett from its own ray and the ground's relief and mat top, none over a hole, and under a roof by a published ceiling-effect model from its upward ray, and a close hover SHALL never be still, its variation the re-ingested wash's from a named, logged stream and never on the pose.
 
 #### Scenario: The cushion and the hole
 - **WHEN** one rotor hovers 0.3 rotor diameters above the floor and another over a hole band
 - **THEN** the first rotor's thrust at fixed speed rises by Cheeseman–Bennett's ratio within 2 %, and the second's equals its free-air thrust
+
+#### Scenario: The ceiling under a roof
+- **WHEN** one rotor hovers 0.3 rotor diameters below a runtime box roof and another in the open
+- **THEN** the first rotor's thrust at fixed speed rises by the published ceiling model's ratio within 2 %, and the second's equals its free-air thrust
+
+#### Scenario: The close hover is never still
+- **WHEN** the drone without asymmetry hovers on its legs in still air with its skids about 0.1 m up, with the recirculation and with a known-wrong model without it, and the same hover 3 m up
+- **THEN** every half second of the close hover moves the body above a rate floor, while the known-wrong model's and the high hover's stay below a tenth of it
 
 ### Requirement: Settling into the own wash
 Vortex ring state SHALL set in from the descent rate normalised by the induced velocity at the current thrust, with hysteresis, costing thrust and adding a wandering moment, its entry and exit logged.
