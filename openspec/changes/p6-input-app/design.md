@@ -1,8 +1,8 @@
 # Design: p6-input-app
 
 ## Context
-- **What exists:** the Unity app has a `Boot` scene and the G1 gallery with `NoclipCamera`. There is no input layer, menu or flight session yet.
-- **What it builds on:** `p6-flight-core` fixes `StickSample`, `FcSettings` and `PoseFrame` in its task 1.1, and `p6-world-query-gallery` provides the loader for `maps/gallery-g1/stations.json`.
+- **What exists:** the Unity app has a `Boot` scene, the G1 gallery and the test range (D-044) with `NoclipCamera`. There is no input layer, menu or flight session yet.
+- **What it builds on:** `p6-flight-core` fixes `StickSample`, `FcSettings` and `PoseFrame` in its task 1.1, and `p6-world-query-gallery` provides the loader for the test range's `maps/test-range/placements.json` (D-044).
 
 ## Goals / Non-Goals
 - **Goals:** the radio in, trusted to the millisecond; the pilot's rates; the shortest path into the air; the summary.
@@ -25,7 +25,7 @@
    - **The screen:** the Calibrate screen edits ACTUAL rates and the throttle curve, with previews drawn from the same math the core uses (`p6-flight-core`'s rate function, called, never copied).
    - **Profiles:** stored as JSON under the user's profile folder.
 6. **The flight session:**
-   - **The scene:** one scene loads the gallery, the world loader and a `FlightSession` component, which owns the physics thread's lifecycle.
+   - **The scene:** one scene loads the test range, the world loader and a `FlightSession` component, which owns the physics thread's lifecycle.
    - **The drone:** a stand-in mesh at the interpolated pose (labelled), replaced by `p5-drone`'s prefab.
    - **The camera:** a plain camera with FEED-02's intrinsics (106° horizontal, 16:9, 0° uptilt by the pilot's answer) until `p4-feed`'s rig.
    - **Restart:** a new seed, a new log.

@@ -98,7 +98,7 @@ Branch `unity/game/p6-input-app` off `unity/main`, after `p6-flight-core`'s task
     - **Numbers** (12 tests; a test radio of the TX12's layout every 2 ms on a set clock, a step a ms; the last on the real flight thread):
       - **The setup:** payload 1.5 kg, Windy. Legs on, the drone stands at 0.2530 m and has sunk 1.4 mm after 1.5 s disarmed, 8 pairs touching. Legs off, on the stand, 0.4 mm.
       - **Arming:** neither a switch left on nor one turned on with the throttle at 0.5 arms, until it has been seen off. Off, then on, arms. The disarm ends the flight at the next RC frame, within 4 ms of the switch.
-      - **The failsafe:** lost at 1 271 000 µs, disarmed at the step at 1 274 000 µs. The controller reads the switch at its 250 Hz RC frame, so the disarm comes up to 3 steps after the loss. tx-input asks for one step; 1.1 met that on a free body. Open, for physics.
+      - **The failsafe:** lost at 1 271 000 µs, disarmed at the step at 1 274 000 µs. The controller reads the switch at its 250 Hz RC frame, so the disarm comes up to 3 steps after the loss. The tx-input spec now says "within one RC frame" (313350b).
       - **Pause:** 2.000 s with no step and 0 reports dropped. Every later step's stick is within 3 ms before its moved host time.
       - **Restart:** a new seed and a new log, the same start, the switch to be cycled again.
       - **A crash:** into a steel box named R01_A 1.4 m over the drone, at full throttle: "crash: coil hit R01_A (steel), an impact at 4.3 m/s". The summary's distance equals the published poses' path within 1e-9 m, and its time, battery and seed are the flight's.
