@@ -165,7 +165,7 @@ namespace Fpv450.Replay
 
         static double Axis(double v) => Math.Round(Math.Clamp(v, -1, 1) * 500) / 500;
 
-        public static Recorded Fly(string path, string dronePath, long steps, bool realtime, WindLevel wind = WindLevel.Windy)
+        public static Recorded Fly(string path, string dronePath, long steps, bool realtime, WindLevel wind = WindLevel.Windy, bool wakes = false)
         {
             DroneSpec spec = DroneSpec.Parse(File.ReadAllText(dronePath));
             string materialsPath = Repository(Path.Combine("assets-src", "physics_materials.json"))
@@ -183,8 +183,10 @@ namespace Fpv450.Replay
                 Mass = spec.BuildMass(loadout),
                 Propulsion = spec.BuildPropulsion(),
                 Aero = spec.BuildAero(),
-                Wind = WindSetup.Of(wind),
                 Contacts = contacts,
+                // --wakes (p7c-wind 1.5): the wake grid's synthetic layout (a maple row along X through the start, with a
+                // gap, and a solid house), so the replay rebuilds the grid and its worker's handovers from the header.
+                Wind = wakes ? new WindSetup { Level = wind, Wakes = new WakeLayout { OriginX = -300, OriginZ = -300, NX = 300, NZ = 300, Volumes = Fpv450.Sim.Tests.WakeGridFixture.Volumes() } } : WindSetup.Of(wind),
                 StartPosition = new Double3(0, stand, 0),
             };
             var core = new FlightCore(setup);

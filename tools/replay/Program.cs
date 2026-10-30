@@ -15,7 +15,7 @@ namespace Fpv450.Replay
             "usage:\n"
             + "  replay <log> [--drone <drone.json>]   replay the flight; compare every record bit for bit\n"
             + "  replay --summary <log>                 the flight's summary; a cut log reads to its last whole record\n"
-            + "  replay --record <log> [--seconds S] [--realtime] [--wind still|calm|windy|severe] [--drone <drone.json>]\n"
+            + "  replay --record <log> [--seconds S] [--realtime] [--wind still|calm|windy|severe] [--wakes] [--drone <drone.json>]\n"
             + "                                         fly the scripted flight (120 s, Windy) and log it\n"
             + "exit: 0 match, 1 diverged, 2 usage, 3 refused, 4 unreadable, 5 matched a cut log\n"
             + "drone.json defaults to the repository's assets-src/drone/drone.json";
@@ -101,7 +101,7 @@ namespace Fpv450.Replay
             if (!Enum.TryParse(level, true, out WindLevel wind) || wind == WindLevel.Steady)
                 throw new ArgumentException("--wind is still, calm, windy or severe");
 
-            ScriptedFlight.Recorded r = ScriptedFlight.Fly(path, drone, (long)(duration * 1000), realtime, wind);
+            ScriptedFlight.Recorded r = ScriptedFlight.Fly(path, drone, (long)(duration * 1000), realtime, wind, Array.IndexOf(args, "--wakes") >= 0);
             LogEnd c = r.Counts;
             double perStep = (double)(r.Bytes - r.HeaderBytes) / c.Steps;
             Console.WriteLine($"record {Path.GetFileName(path)}: {(realtime ? "real time on the flight thread" : "virtual clock, the scheduler and the flush worker")}, {wind} wind, "
