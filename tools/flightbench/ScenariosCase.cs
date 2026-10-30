@@ -141,6 +141,19 @@ namespace Fpv450.FlightBench
             bool identical = true;
             foreach (AsymmetryScenario.Result off in run.Off) identical &= AsymmetryScenario.InBand(off, band);
             Row("known-wrong: identical rotors", identical, $"roll {run.Off[0].RollRate:E1} and yaw {run.Off[0].YawRate:E1} °/s on every seed", knownWrong: true);
+
+            Console.WriteLine("vortex ring state (airframe-effects, p7b-airframe 1.2): the 6.2 kg loadout down at 3 m/s under the pilot, then the "
+                + $"throttle held {VortexRingScenario.HoldSeconds:F1} s, low or higher, then recovered:");
+            VortexRingSpec ring = spec.BuildVortexRing();
+            VortexRingScenario.Result low = VortexRingScenario.Fly(VortexRingScenario.Setup(spec), true);
+            VortexRingScenario.Result lowOff = VortexRingScenario.Fly(VortexRingScenario.Setup(spec, false), true);
+            VortexRingScenario.Result high = VortexRingScenario.Fly(VortexRingScenario.Setup(spec), false);
+            VortexRingScenario.Result wrong = VortexRingScenario.Fly(VortexRingScenario.Setup(spec, true, true), true);
+            Row("heavy on low throttle: enters, loses thrust, wobbles; exits below its entry rate", VortexRingScenario.HeavyOnLowThrottle(low, lowOff, ring),
+                VortexRingScenario.Describe(low) + $"; ringless: 10 ms change {lowOff.WobbleRms:E2} rad/s RMS");
+            Row("the same descent at higher throttle: no ring", VortexRingScenario.HigherThrottle(high), VortexRingScenario.Describe(high));
+            Row("known-wrong: the onset from the descent speed alone", VortexRingScenario.HeavyOnLowThrottle(wrong, lowOff, ring), VortexRingScenario.Describe(wrong),
+                knownWrong: true);
             Console.WriteLine($"scenarios: {(_ok ? "PASS" : "FAIL")}");
             return _ok;
         }
