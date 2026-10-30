@@ -505,6 +505,7 @@ namespace Fpv450.Sim.Flight
             signals.MotorCurrentTotalMaxA = _fieldTotalMax;
             signals.MotorCurrentStepAPerS = _fieldStepMax;
             signals.PackVolts = _fieldVolts;
+            signals.PackLow = _fieldVolts < FeedSignals.LowCellVolts * _propulsion.SeriesCells;
         }
     }
 }

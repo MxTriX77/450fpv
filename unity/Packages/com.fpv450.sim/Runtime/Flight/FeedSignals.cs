@@ -70,6 +70,15 @@ namespace Fpv450.Sim.Flight
         /// <summary>The packs' loaded voltage at the ESCs, V, field mean.</summary>
         public double PackVolts;
 
+        /// <summary>The OSD's low-voltage warning (PHY-11, p7b-airframe 1.5), part of the PackVolts signal: the field's
+        /// loaded voltage below LowCellVolts a cell. The raw comparison; Betaflight's display filter and hysteresis are the
+        /// OSD's.</summary>
+        public bool PackLow;
+
+        /// <summary>The low-voltage warning's threshold, V a cell (pilot: the FC profile's vbat_warning_cell_voltage,
+        /// 3.00 V, Li-ion; reference-notes/fc-profiles.md).</summary>
+        public const double LowCellVolts = 3.00;
+
         /// <summary>The camera's angular velocity in its own axes (the body axes: 0° uptilt), rad/s, at this step.</summary>
         public Double3 CameraAngularVelocity;
 
