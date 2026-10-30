@@ -39,7 +39,7 @@ namespace Fpv450.FlightBench
             DroneSpec spec = PoweredFlightCase.Drone();
 
             Console.WriteLine($"crosswind lean in a hover (flight-dynamics: the drag's bands over the weight, {CrosswindScenario.HoverLeanLo:F2}–{CrosswindScenario.HoverLeanHi:F2}° "
-                + $"per m/s in a steady 5 m/s, to {CrosswindScenario.GustLeanHi:F2} in the Severe field; into the wind), the drone holding its point "
+                + $"per m/s in a steady 5 m/s, to {CrosswindScenario.GustLeanHi:F2} × U/5 above 5 m/s in the Severe field; into the wind), the drone holding its point "
                 + $"under the closed-loop pilot, the last {CrosswindScenario.MeasuredSeconds:F0} s of {CrosswindScenario.Seconds:F0}:");
             foreach (double from in new[] { 270.0, 0, 90, 180, 45, 135 })
             {
