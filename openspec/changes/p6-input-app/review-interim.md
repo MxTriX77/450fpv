@@ -126,3 +126,70 @@ python tools/hygiene/precommit.py --tree HEAD                       1609 files s
 openspec validate p6-input-app --strict                             Change 'p6-input-app' is valid
 python tools/assets/fetch.py --verify                               OK
 ```
+
+## Re-check of finding 1 (at `6e84ee4`)
+
+**Verdict for the interim scope: green.** Finding 1 is fixed. A loss during a pause, replugged before Resume or not, is now the failsafe in force for exactly one RC frame after Resume. It is logged once with the loss's stamp, the end is `Failsafe` and the summary says so. One new finding (8) is not blocking. Findings 2–7 were not re-checked and stand.
+
+**Scope:** `99e7db3` (`StickInbox.Drain` and `Hold`), `b63af4f` (the session's pause and resume, the two E3 tests), `8b2919c` (1.4a's note), `6e84ee4` (the tx-input scenario "Pulling the cable during a pause"). No GPU (D-046).
+
+8. **Not blocking: a second pause inside the first RC frame after Resume drops the hold, and the end is a disarm again** (INP-05, APP-04; owner: game developer).
+   - The hold ends at a host time (`FlightSession.cs:311`). A pause moves every later step's host time past it, and `Pause` clears the kept loss (`:287`).
+   - Probe E3f: E3b, paused again 1, 2 or 3 ms after Resume (k mod 4 = 1, so the frame is the 4th step), resumed 50 ms later. The records from 342 carry the failsafe up to the re-pause, then the replugged radio's sample. The reader's held-off switch disarms at 345: end **`Disarm`**, summary "disarmed | … | failsafe at 0:00.3". The log replays.
+   - It is safe, and out of a pilot's reach: Pause and Resume come once a frame from the pilot's input (`FlightSessionHost.cs:77-78`), and the window is under 4 ms. It is outside the scenario's WHEN.
+   - **Suggestion:** count the hold in steps, or have `Pause` keep a loss whose RC frame has not run. Add E3f as a test, with 1.4b's pause controls, before G7.
+
+| scenario | result | evidence |
+|---|---|---|
+| tx-input: pulling the cable during a pause (new) | passed | the owner's two tests; my E3a–E3e below |
+| tx-input: pulling the cable mid-flight | passed | the owner's test: lost at 1 271 000 µs, disarmed at the step at 1 274 000 µs |
+
+**Requirements:** INP-05 met (finding 8 lies outside the scenario). APP-04: finding 1's end is fixed; still partly met for finding 3's names.
+
+**My probes** (scratch, not committed; every one replays its session's own log, Match):
+
+| probe | sequence | result |
+|---|---|---|
+| E3a | armed at 0.3 for 300 ms, paused, lost, Resume | `Failsafe` at step 345; logged at 342 with 1 471 000 µs |
+| E3b | E3a, replugged with the switch on 200 ms before Resume | the same (was `Disarm`, 0 failsafes, at `b3dfff4`) |
+| E3c | two losses in one pause (1 471 000 and 1 771 000 µs), each replugged | the same, with the first loss's stamp; the reader counts 2 losses, the log one failsafe |
+| E3d | lost in the last paused frame (its Pump and Tick), Resume at that host time | the same |
+| E3d′ | the loss reaches the inbox after the last paused frame (no Tick), Resume | the same, without a hold: the first step takes it |
+| E3e | E3b paused after steps 341, 342, 343, 344 (k mod 4 = 1, 2, 3, 0) | the end at 345 each time (k + 4, 3, 2, 1), the one frame step; logged at k + 1 with the loss's stamp |
+| E3f | finding 8 | `Disarm` |
+
+**The fix read as the physics engineer** (`StickInbox` is physics-owned; the game developer changed it):
+- **Without a hold, `Consume` is the old rule.** `_heldUntilUs` starts at `long.MinValue` (`StickInbox.cs:19`), so the test at `:56` never holds. `Drain` is the old loop plus a flag that touches neither `_inForce` nor `_read`.
+  - E12c, unity/main's `StickInbox` (copied, renamed) against the branch's on one random stream: 0 of 206 864 steps differ, and 0 writes differ, 0 dropped. The stream has failsafes 1 in 30, reports 0.3–3.7 ms apart and up to 3 ms ahead, and paused stretches through the old `Consume` against the new `Drain`.
+  - E12, against my own queue of the rule: 0 of 300 000 steps differ. With a hold, 4 steps are held and the rest are identical.
+  - E12b, `Drain` over 100 000 paused frames: it returns true exactly when a report it takes is a failsafe, and gives the first. The sample in force after it is the latest.
+- **Nothing allocates.** E13: 0 B for 20 000 TryWrite, Consume and Drain with the hold in force, and 0 B with it expired. 0 B for 3000 paused frames (Pump, Tick's Drain). E11 again: 0 B over 3000 flying frames with their steps.
+- **The hold is one RC frame.** `RcFrameSteps` = 16 / 4 = 4 (`FlightSession.cs:127`). It covers the steps timed before `start + (k + 4)·1 ms`, which are the pre-steps k to k + 3 (`StepHostUs`, `FlightScheduler.cs:49`). A frame is taken at `loop % 16 == 0`, with `loop = Step·4 + j` (`FlightCore.cs:261-265`). So exactly one of any four steps takes a frame, at every phase (E3e). The steps' times are the scheduler's own, so a hitch does not shorten the hold; only a pause does (finding 8).
+- **Threads:** `_held` and `_heldUntilUs` are the consumer's. `Hold` runs on the frame thread before `Step(start)` starts the flight thread. The paused `Drain` runs after `StopStepping` has joined it. The producer is untouched.
+- Engine-free and without arithmetic. The core, log format 6 and the goldens are unchanged.
+
+**Hygiene:** the four commits are subject-only with no trailer. Author and committer are `Game Developer <gamedev@450fpv.local>` (3) and `Orchestrator <orchestrator@450fpv.local>` (1). They touch six paths, none under `reference/`, `Library/`, `Temp/` or `Logs/`. `GoldenFlights.cs`, `FreeBodyCase.cs` and `tools/{simtests,flightbench,replay}` show 0 diff lines against `unity/main`.
+
+```
+git rev-parse --short HEAD                                          6e84ee4
+dotnet test tools/inputtests                                        Passed 34/34 (32 s)
+  E3a: paused after step 341, lost at host 1471000 us; failsafe: the radio was lost, and the drone disarmed | ... | failsafe at 0:00.3
+  E3b: paused after step 341, lost at host 1471000 us; failsafe: the radio was lost, and the drone disarmed | ... | failsafe at 0:00.3
+  lost at host 1271000 us; disarmed at the step at host 1274000 us; failsafe: the radio was lost, and the drone disarmed
+dotnet test tools/simtests                                          Passed 215/215 (1 m 27 s)
+dotnet run -c Release --project tools/flightbench -- --golden
+  free-body 0x50ED4B05A5D02F20 (matches); powered-flight 0x3F13A5CF5DB7DAFD (matches);
+  contact-flight 0x3EE12C8D692BADF3 (matches), 5 impacts; tumble 0xE3178EE7FF322698 (matches): PASS
+git lfs checkout                                                    (no output)
+free RAM before Unity: 4.86 GB
+Unity -batchmode -nographics -runTests -testPlatform EditMode -testResults Logs/qa-recheck-editmode.xml
+  exit 0, 109 s; 0 "error CS"; testcasecount=355 passed=355 failed=0
+  Fpv450.Sim.Tests 215, Fpv450.Tests.EditMode 106, Fpv450.Tests.Radio 20, Fpv450.Tests.Session 14
+  E3a and E3b passed, the same lines; replay: Match, 345 steps match: 345 steps and 16 events, bit for bit
+  golden on Mono: 0x3F13A5CF5DB7DAFD, 0x3EE12C8D692BADF3, 0xE3178EE7FF322698
+QA probe e3 (the interim's E3, unchanged)                           ALL PASS: E3a and E3b Failsafe at step 345, 1 failsafe, Match
+QA probe e3x                                                        3 FAILED: E3f 1, 2, 3 ms (finding 8); every other check PASS
+QA probe e12, e13, e11                                              ALL PASS (0 differ; 0 B)
+python tools/hygiene/precommit.py --tree HEAD                       1610 files scanned, 0 findings (exit 0)
+openspec validate p6-input-app --strict                             Change 'p6-input-app' is valid
+```
