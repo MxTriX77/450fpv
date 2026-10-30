@@ -39,8 +39,9 @@ namespace Fpv450.Input.Radio
     /// - **The health check:** a span under 200 of a 2048 range, or a sweep that jumps from end to end twice running
     ///   (under 0.7 s from 10 % to 90 % of its travel; the first time the pilot is asked to go slower), is too
     ///   narrow: it behaves like a switch (the TX12 pitfall in fc-profiles), recalibrate the radio. The jump rule
-    ///   times the sweep, so a slow pilot passes it; a radio's axis whose rest jitter at the centre step spreads as far
-    ///   as one ADC count at EdgeTX's floor gain (PitfallJitter) is too narrow at any speed.
+    ///   times the sweep, so a slow pilot passes it; a radio's axis whose slower sweep never changes by less than
+    ///   PitfallStep between two reports, on either side of its centre, is too narrow at any speed, jitter or filter.
+    ///   An axis that keeps the centre step from settling for 5 s is named in the prompt.
     /// - **Radio-side curves:** the sweep from 10 % to 90 % of its travel off a fitted line by more than 3 % of the
     ///   travel is a curve on the radio; an endpoint more than 5 % short of a radio's full range is dual rates or a
     ///   weight under 100 %. Both are named, with what to switch off; neither blocks saving.
@@ -50,20 +51,22 @@ namespace Fpv450.Input.Radio
     public sealed class CalibrationWizard
     {
         public const long StillUs = 1000000, HoldUs = 300000, LongHoldUs = 2000000, ArmHoldUs = 200000;
-        public const long MinTransitUs = 700000;
+        public const long MinTransitUs = 700000, RestlessUs = 5000000;
         public const double StillBand = 0.02, MinTravel = 0.02, EndBand = 0.10, Dominance = 2, FullReach = 0.8;
         public const double CentreSide = 0.35, NarrowSpan = 200.0 / 2048, LineTolerance = 0.03, ShortEnd = 0.05;
         public const double ArmChange = 0.25;
 
         /// <summary>
-        /// The TX12 pitfall's rest jitter, a fraction of the HID range. EdgeTX scales a stick as
-        /// `(v − mid) · 1024 / max(100, span)` (mixer.cpp evalInputs) onto the 2048-count range, so an axis whose radio
-        /// calibration saved a span under 100 (fc-profiles' 79 / 1 and 85 / 0) moves 1024 / 100 = 10.24 counts, 0.5 % of
-        /// the range, for each ADC count: the least jitter at rest, one count, spreads it that far (10 counts after
-        /// EdgeTX's integer division). A healthy span (683–903) moves it 1.1–1.5 counts for each, so it would need 7 ADC
-        /// counts of jitter at rest to spread as far.
+        /// The TX12 pitfall's smallest step, a fraction of the HID range: half EdgeTX's floor gain. EdgeTX scales a stick
+        /// as `(v − mid) · 1024 / max(100, span)` (mixer.cpp evalInputs) onto the 2048-count range, so an axis whose radio
+        /// calibration saved a span under 100 (fc-profiles' 79 / 1 and 85 / 0) moves 1024 / 100 = 10.24 counts for each
+        /// ADC count: however slowly it is swept, jittery or filtered still, its value never changes by less than 10
+        /// counts between two reports (EdgeTX's integer division). A healthy span (683–903) moves it 1.1–1.5 counts for
+        /// each, so a sweep's smallest change is 1 or 2. Half the floor gain, 5 counts, sits a factor 2 under the pitfall
+        /// and over the 4.7 counts a still ADC moves per report at the jump rule's fastest accepted sweep (80 % of the
+        /// 2048 in 0.7 s, a report every 2 ms). It catches a radio span up to 204 (1024 / 5); 250–300 pass.
         /// </summary>
-        public const double PitfallJitter = 1024.0 / 100 / 2048;
+        public const double PitfallStep = 1024.0 / 100 / 2 / 2048;
 
         static readonly string[] StickNames = { "Throttle", "Yaw", "Pitch", "Roll" };
 
@@ -81,6 +84,7 @@ namespace Fpv450.Input.Radio
         bool _fastHigh; // the end the too-fast sweep finished at, which the repeat must finish at too
         int _armCandidate = -1; // an axis index, or 1000 + a button index
         long _armSince;
+        int _mover = -1; // the axis that last broke the centre step's stillness
 
         public CalibrationWizard(string device, InputSource source, RadioAxis[] axes)
         {
@@ -128,7 +132,9 @@ namespace Fpv450.Input.Radio
                 string slower = TooFast ? "Too fast. " : "";
                 switch (Step)
                 {
-                    case CalibrationStep.Centre: return "Let go of the sticks. Throttle fully down, arm switch off.";
+                    case CalibrationStep.Centre:
+                        return Restless < 0 ? "Let go of the sticks. Throttle fully down, arm switch off."
+                            : "Let go of the sticks. Channel " + (Restless + 1) + " keeps moving: if it does with your hands off, recalibrate the radio's sticks.";
                     case CalibrationStep.Throttle: return slower + "Throttle: slowly all the way up, about 2 seconds, and hold.";
                     case CalibrationStep.Yaw: return slower + "Yaw: full left, then slowly full right, about 2 seconds, and hold.";
                     case CalibrationStep.Pitch: return slower + "Pitch: full back, then slowly full forward, about 2 seconds, and hold.";
@@ -139,6 +145,12 @@ namespace Fpv450.Input.Radio
                 }
             }
         }
+
+        /// <summary>
+        /// The axis (0-based) that has kept the centre step from settling for RestlessUs, or −1: a thumb on a stick, or a
+        /// radio's axis that jitters over the still band at rest (the TX12 pitfall with 3 ADC counts of jitter or more).
+        /// </summary>
+        public int Restless => Step == CalibrationStep.Centre && LastUs - FirstUs >= RestlessUs ? _mover : -1;
 
         /// <summary>Takes one report, in arrival order.</summary>
         public void Feed(RadioReport report)
@@ -176,7 +188,11 @@ namespace Fpv450.Input.Radio
             for (int i = 0; i < _n && !reset; i++)
             {
                 int v = r.Axes[i];
-                if (Math.Max(_winMax[i], v) - Math.Min(_winMin[i], v) > Band(i)) reset = true;
+                if (Math.Max(_winMax[i], v) - Math.Min(_winMin[i], v) > Band(i))
+                {
+                    reset = true;
+                    _mover = i;
+                }
             }
             if (reset)
             {
@@ -286,11 +302,9 @@ namespace Fpv450.Input.Radio
                 }
             long transit = iS >= 0 && iF > iS ? _t[iF] - _t[iS] : 0;
             string name = StickNames[(int)Step - (int)CalibrationStep.Throttle];
-            bool narrow = lead < NarrowSpan * Range(L), jumps = false;
-            // The pitfall at any speed: EdgeTX's floor gain spreads the centre's least jitter over PitfallJitter (the
-            // throttle rests at its end, where EdgeTX clamps, so it has the jump rule alone).
-            bool jittery = !narrow && _source == InputSource.Radio && _spread[L] >= (int)(PitfallJitter * Range(L));
-            if (!narrow && !jittery && transit < MinTransitUs)
+            bool narrow = lead < NarrowSpan * Range(L), jumps = false, coarse = false;
+            int step = 0;
+            if (!narrow && transit < MinTransitUs)
             {
                 if (_fastAxis != L)
                 {
@@ -301,6 +315,13 @@ namespace Fpv450.Input.Radio
                     return;
                 }
                 jumps = true;
+            }
+            else if (!narrow && _source == InputSource.Radio)
+            {
+                // The pitfall at any slower speed: EdgeTX's floor gain never moves the axis by less than 10 counts. The
+                // throttle too, split at the range's middle, where EdgeTX's output is 0.
+                step = SmallestStep(L, iS, iF, lo, hi, throttle ? (_axes[L].Min + _axes[L].Max) / 2 : _rest[L]);
+                coarse = step >= Math.Max(2, (int)(PitfallStep * Range(L)));
             }
             TooFast = false;
             _fastAxis = -1;
@@ -317,8 +338,8 @@ namespace Fpv450.Input.Radio
             int span = Range(L) + 1;
             if (narrow)
                 Add(FindingKind.TooNarrow, name, name + " spans only " + lead + " of " + span + ": it behaves like a switch. Recalibrate the radio's sticks, then calibrate here again.");
-            else if (jittery)
-                Add(FindingKind.TooNarrow, name, name + " jumps at the slightest touch, even at rest: it behaves like a switch. Recalibrate the radio's sticks, then calibrate here again.");
+            else if (coarse)
+                Add(FindingKind.TooNarrow, name, name + " moves in jumps of " + step + " of " + span + " or more, however slowly it is swept: it behaves like a switch. Recalibrate the radio's sticks, then calibrate here again.");
             else if (jumps)
                 Add(FindingKind.TooNarrow, name, name + " jumps from end to end even when moved slowly: it behaves like a switch. Recalibrate the radio's sticks, then calibrate here again.");
             else
@@ -346,6 +367,23 @@ namespace Fpv450.Input.Radio
                 case CalibrationStep.Pitch: return Profile.Pitch;
                 default: return Profile.Roll;
             }
+        }
+
+        // The radio's gain per ADC count, at any sweep speed: the smallest non-zero change between two consecutive reports
+        // of the sweep inside 10–90 % of its travel, on each side of the centre (EdgeTX scales each side by its own span),
+        // and the larger of the two. 0 if neither side has one.
+        int SmallestStep(int axis, int from, int to, int lo, int hi, int centre)
+        {
+            double inLo = lo + EndBand * (hi - lo), inHi = hi - EndBand * (hi - lo);
+            int below = int.MaxValue, above = int.MaxValue;
+            for (int k = Math.Max(0, from); k < to; k++)
+            {
+                int a = _v[k * _n + axis], b = _v[(k + 1) * _n + axis], d = Math.Abs(b - a);
+                if (d == 0 || Math.Min(a, b) < inLo || Math.Max(a, b) > inHi) continue;
+                if (a > centre && b > centre) above = Math.Min(above, d);
+                else if (a < centre && b < centre) below = Math.Min(below, d);
+            }
+            return Math.Max(below == int.MaxValue ? 0 : below, above == int.MaxValue ? 0 : above);
         }
 
         // The largest distance of the sweep's reports from their least-squares line in time.
