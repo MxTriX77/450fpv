@@ -278,6 +278,9 @@ namespace Fpv450.Sim.Log
                 + " m, inertia xx " + G(i.XX) + " yy " + G(i.YY) + " zz " + G(i.ZZ) + " xy " + G(i.XY) + " xz " + G(i.XZ) + " yz " + G(i.YZ) + " kg.m2");
             w.WriteLine("  settings: " + h.Settings.Length + " FcSettings fields by CLI name");
             w.WriteLine("  wind: " + WindLine(h));
+            w.WriteLine("  rain: " + h.Rain.ToString().ToLowerInvariant() + (h.RainParameters.Length > 0 ? " (" + h.RainParameters.Length + " preset values)" : "")
+                + "; camera lens at " + h.CameraPosition.X.ToString("R", CultureInfo.InvariantCulture) + ", "
+                + h.CameraPosition.Y.ToString("R", CultureInfo.InvariantCulture) + ", " + h.CameraPosition.Z.ToString("R", CultureInfo.InvariantCulture) + " m");
             if (h.Aero != null)
                 w.WriteLine("  aero: air " + G(h.Aero.AirDensity) + " kg/m3, body silhouette side/top/front " + V(h.Aero.BodyArea, "0.0000")
                     + " m2 at " + V(h.Aero.BodyCenterOfPressure, "0.000") + " m, C_d " + G(h.Aero.DragCoefficient) + ", coil "
