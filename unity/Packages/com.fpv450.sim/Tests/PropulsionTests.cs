@@ -24,7 +24,7 @@ namespace Fpv450.Sim.Tests
         static MassModel L5 => Drone.BuildMass(new Loadout { Payload = 1.0, Legs = true });
         static MassModel L6 => Drone.BuildMass(new Loadout { Payload = 2.0, Legs = true });
 
-        static MassModel Heavy
+        internal static MassModel Heavy
         {
             get
             {
@@ -34,7 +34,7 @@ namespace Fpv450.Sim.Tests
             }
         }
 
-        static FlightCore Core(MassModel mass, double charge, Quat attitude = default, Double3 velocity = default, PropulsionSpec propulsion = null,
+        internal static FlightCore Core(MassModel mass, double charge, Quat attitude = default, Double3 velocity = default, PropulsionSpec propulsion = null,
             FcSettings? settings = null)
         {
             if (attitude.W == 0 && attitude.X == 0 && attitude.Y == 0 && attitude.Z == 0) attitude = Quat.Identity;
@@ -66,7 +66,7 @@ namespace Fpv450.Sim.Tests
             new StickSample { Throttle = throttle, Roll = roll, Pitch = pitch, Yaw = yaw, Arm = arm };
 
         // Betaflight's arming: the switch seen off, then on with the throttle low.
-        static void Arm(FlightCore core)
+        internal static void Arm(FlightCore core)
         {
             for (int k = 0; k < 8; k++) core.Advance(Stick(0, arm: false));
             for (int k = 0; k < 8; k++) core.Advance(Stick(0));
@@ -267,7 +267,7 @@ namespace Fpv450.Sim.Tests
         }
 
         // Propulsion alone on a body held at rest, every ESC at full duty for `seconds`.
-        static FlightState FullDuty(Propulsion prop, double charge, double seconds, out RotorLoads last)
+        internal static FlightState FullDuty(Propulsion prop, double charge, double seconds, out RotorLoads last)
         {
             var s = new FlightState { Attitude = Quat.Identity, PackCharge0 = charge, PackCharge1 = charge };
             var full = new Corners { RearRight = 1, FrontRight = 1, RearLeft = 1, FrontLeft = 1 };

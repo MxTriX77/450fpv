@@ -85,6 +85,53 @@ namespace Fpv450.Sim.Tests
             }
         }
 
+        // PHY-12 (p7b-airframe 1.5) on the seven loadouts, legs on and off: the inertia ratios as the real drone.json builds
+        // them, and yaw saturating first. Yaw's authority: the same thrust step ΔT on each rotor, in the mixer's pattern for
+        // each axis, gives a roll moment Σ ΔT·|x|, a pitch moment Σ ΔT·|z| (the hubs about the CoM) and a yaw moment Σ ΔT·Q/T
+        // (the props' torque over thrust at hover speed, derived from drone.json's k_T, torque ratio and static tables); over
+        // each axis's inertia, the angular accelerations. Yaw's is the smallest by far, so yaw meets the motors' range first.
+        [TestCaseSource(nameof(SheetLoadouts))]
+        public void TheInertiaCharacterOnTheSevenLoadouts(SheetLoadout l)
+        {
+            DroneSpec spec = SpecFor(l);
+            DroneProps p = spec.Props;
+            foreach (bool legs in new[] { true, false })
+            {
+                MassProperties b = spec.BuildMass(At(spec, l, legs)).Properties;
+                double roll = b.Inertia.ZZ, pitch = b.Inertia.XX, yaw = b.Inertia.YY;
+                double hoverW = Math.Sqrt(b.Mass * 9.80665 / 4 / (p.ThrustCoefficient * Table(p.StaticRpm, p.StaticThrustRatio, p.ReferenceRpm)));
+                double rpm = hoverW * 60 / (2 * Math.PI);
+                double qOverT = p.TorqueRatio * Table(p.StaticRpm, p.StaticTorqueRatio, rpm) / Table(p.StaticRpm, p.StaticThrustRatio, rpm);
+                double armX = 0, armZ = 0;
+                for (int i = 0; i < 4; i++)
+                {
+                    armX += Math.Abs(spec.Motors[i].Position.X - b.CenterOfMass.X);
+                    armZ += Math.Abs(spec.Motors[i].Position.Z - b.CenterOfMass.Z);
+                }
+                double aRoll = armX / roll, aPitch = armZ / pitch, aYaw = 4 * qOverT / yaw; // rad/s² a newton of ΔT
+                TestContext.WriteLine($"{l.Name}, legs {(legs ? "on " : "off")}: pitch/roll {pitch / roll:F3}, yaw/roll {yaw / roll:F3} "
+                    + $"(roll {roll:F4} pitch {pitch:F4} yaw {yaw:F4} kg·m²); a newton of ΔT a rotor: roll {aRoll:F1}, pitch {aPitch:F1}, "
+                    + $"yaw {aYaw:F2} rad/s² (Q/T {qOverT * 1000:F2} mm at {rpm:F0} rpm), yaw/roll {aYaw / aRoll:F3} (all derived)");
+                Assert.That(aYaw, Is.LessThan(0.2 * aRoll).And.LessThan(0.2 * aPitch), "yaw saturates first");
+                if (!legs) continue;
+                // PHY-12's ratios as letter T's layout gives them (1.5's finding, handed to the orchestrator): the packs along
+                // the sides and the payload crosswise put roll above pitch on six of the seven; yaw/roll is 1.0–1.3 on five.
+                bool pitchAbove = pitch > roll, yawInBand = yaw / roll >= 1.0 && yaw / roll <= 1.3;
+                TestContext.WriteLine($"  PHY-12: pitch above roll {pitchAbove}, yaw 1.0–1.3 × roll {yawInBand}");
+                Assert.That(pitchAbove, Is.EqualTo(l.Name == "L2"), "pitch above roll, as the layout gives it");
+                Assert.That(yawInBand, Is.EqualTo(l.Name != "L1" && l.Name != "L6"), "yaw 1.0–1.3 × roll, as the layout gives it");
+            }
+        }
+
+        // A static table at a speed (rpm), linear, held at its ends.
+        static double Table(double[] x, double[] y, double at)
+        {
+            if (at <= x[0]) return y[0];
+            for (int k = 0; k < x.Length - 1; k++)
+                if (at < x[k + 1]) return y[k] + (at - x[k]) * (y[k + 1] - y[k]) / (x[k + 1] - x[k]);
+            return y[y.Length - 1];
+        }
+
         // The spool above the centre of mass on the legs-on build and below it on the legs-off build (D-043), at every
         // payload of the setting (APP-03: 0–2.0 kg in 0.1 kg steps) and every state of the coil.
         [Test]
