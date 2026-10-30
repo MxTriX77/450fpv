@@ -175,6 +175,19 @@ namespace Fpv450.FlightBench
             Row("the close hover is never still", GroundEffectScenario.NeverStill(close, noWash, up), Hover(close)
                 + $"; {GroundEffectScenario.HighLift:F0} m up: {up.LeastRate:E2}-{up.MostRate:E2} rad/s");
             Row("known-wrong: no recirculation", GroundEffectScenario.NeverStill(noWash, noWash, up), Hover(noWash), knownWrong: true);
+
+            // p7b-airframe 1.3c: the rotors' edgewise-flow moments.
+            Console.WriteLine("rotor flapping (p7b-airframe 1.3c):");
+            double err = FlappingScenario.WorstError(false), rigid = FlappingScenario.WorstError(true);
+            Row("the hub moment is Johnson's at mu 0.05, 0.10, 0.20", err < 1e-9, $"worst relative error {err:E2} (the hingeless 150 Hz blade, roll and pitch)");
+            Row("known-wrong: a rigid rotor without flapping (model 10)", rigid < 1e-9, $"worst relative error {rigid:E2}", knownWrong: true);
+            foreach (double from in new[] { 0.0, 90.0 })
+            {
+                FlappingScenario.Response on = FlappingScenario.GustStep(spec, from, true), off = FlappingScenario.GustStep(spec, from, false);
+                bool harder = from == 0 ? on.PitchPeak > 1.5 * off.PitchPeak : on.RollPeak > 1.5 * off.RollPeak;
+                Row(from == 0 ? "a head gust step pitches harder with flapping" : "a side gust step rolls harder with flapping", harder,
+                    FlappingScenario.Describe(from, on, off));
+            }
             Console.WriteLine($"scenarios: {(_ok ? "PASS" : "FAIL")}");
             return _ok;
         }
