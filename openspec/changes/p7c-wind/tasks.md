@@ -90,7 +90,43 @@ Complex tier (D-033). Branch `unity/physics/p7c-wind` off `unity/main` once `p6-
     - **First readings, ungraded** (Severe, nominal pilot, 5 seeds, `wind_stats.py`): T0 −2.5 to −12.3°; T1 0.16–0.35°, T2 0.02–0.08°; T3 0.67–1.32°, T4 0.11–0.53°; T5 0.32–0.69° / 1.6–4.8°; T6a 84–100 %, T6b 0.011–0.026°; T7 11–18/min, 83–100 % in the belt; T9a 3.3–11.5, T9b 2.8–4.7; T10b −0.10 to +0.14; T11a 0.97–2.48° / 0.21–0.42°; T12 CV 0.16–0.57. Lean 1.69–1.83° per m/s (1.2's check passes).
     - **Open:** the wakes and the trench cavity wait for 1.3; the cover from the world too. For 1.5: T1, T2, T6b and T10b sit low at 13 m/s and the field kurtosis runs high on two seeds; the belt takes 5–9.4 s, as the wind along the course moves within the start rule's 90°. For 1.8: the field doubles the step's p99.
 - [ ] 1.5 [physics-engineer] The levels against the targets (design 2): Severe tuned until T0 passes, Windy and Calm from it, every K§8.6 target on five seeds, T0c on 40 × 120 min, each target failing its known-wrong model; verify the "Severe meets every target", "direction history" and "trade-off" scenarios
-- [ ] 1.6 [physics-engineer] Cruise in wind (design 6): the drag re-derived for clip P's pitch at 17–22 m/s, superseding 1.5's 13 m/s calibration in `drone.json`'s `aero` block; verify the "clip P's pitch flies the cruise" scenario and T0 at that airspeed
+  - **As built** (`Runtime/Wind/{WindField,WindSetup}.cs`, `Tests/{WindHarness,WakeFieldTests}.cs`, `tools/wind/grade_levels.py`, `flightbench --wind-harness … --wrong steady|nodrag`, `replay --record … --wakes`; `LogFormat.Version` 7, `ModelVersion` 8):
+    - **The wakes in the field:** a setup's obstacles (`WindSetup.Wakes`, a `WakeLayout`: the obstacle grid's origin and cells and the placed wind volumes) build 1.3's `WakeGridWorker` for the history's first bearing. `Begin` steps it with the bearing at that step; `At` samples it at each point's height over the ground under the body.
+      - `Speed` scales the mean along the wind (reverse flow below 0).
+      - `Turbulence` T: the open modes stay, and 24 wake eddies (stream `wind.wake`; λ 0.6–2.4 H, assumed: P's 5–20 m over the stand-in maple's 8.4 m) carry √(T² − 1)·σ_u at `ObstacleHeight`'s scale, divergence-free, advected.
+      - It replaces 1.2's `SyntheticBelt`. The header records the layout, every volume and `WakeGrid.Version` (a mismatch is refused).
+    - **The harness's belt** (D-046's default until the test range's world): one row of the stand-in maple scaled to H (porosity 0.45, Godot's), crossing the course 9 s out at 45° (assumed), forward on the upwind side. With the wind abeam the course then runs from its upwind edge to 10 H past its leeward edge in 7 s, so H = 11.9 m (derived).
+    - **The centres** (derived): Severe 7.2 m/s (0.384 × 18.8, inside PHY-17a's 6.5–8.5), Windy 3.6 and Calm 1.08 (c 0.5 and 0.15).
+      - The spectrum checks now run at the 18.8 m/s cruise: 2–4 Hz at 1.11 of von Kármán's variance, 1–2 Hz at 1.33; the field cut below 1 Hz reads 0.03.
+      - A turbulent hover's lean ceiling scales with U/5 above 5 m/s (quadratic drag, derived), for Severe's stronger draws.
+    - **The grader** (`grade_levels.py DIR LEVEL`): wind.md §6.3–6.4's fields per run, averaged over the nominal runs (T8 pooled, T11b from s = 1 and s = 0), against the level's column. Each target is also graded on its known-wrong model:
+      - no drag (T0, T11b), the fixed vector (T0b, the field's spreads and spectra, T8, T10a), no wakes (the belt's)
+      - 0.15° of white noise on the pose (T6a, T6d), Gaussian noise (T9a and T12 calm/busy, T9b stationary)
+      - Severe's runs for Calm's ceilings.
+    - **Readings** (5 seeds, `--pilots all`): Severe passes 8 of 21, Windy 8 of 21, Calm 9 of 9 (ceilings; the airframe has no asymmetry model yet, so it flies with it off).
+      - Pass at Severe: T0 7.76° (6–12), T0b 0.194 with 5 of 5 windward, T5 field 0.51°, T6a 96 %, T6d 0.015 / 0.017°, T9a 3.27, T11b (0.98, 1.75, tilts 1.09 and 1.04), T12 (CV 0.26 / 0.17, smallest 0.65 / 0.78).
+      - Miss at Severe: T1 0.187° (0.35–0.70), T2 0.061° (0.19–0.38), T3 0.196° at 1.05 × T1, T4 0.051° at 0.84 × T2, T5 belt 0.45° (0.8–2.5), T6b 0.015° (0.06–0.16), T6c's 1–2 Hz 0.028° (its share 32 % passes), T7 36.9/min with 32 % in the belt, T8's median 0.92 s (CV 0.95 passes), T9b 3.04 (3.3–5.5), T10a −0.21, T10b 0.10 / 0.14, T11a 0.30 / 0.30°.
+      - Windy misses the same ones in its column (T1 0.082°, T2 0.020°, about 0.44 and 0.33 of Severe's), plus T6c's share at 49 %; T0 3.67° (3.1–6.1) passes.
+      - Every known-wrong model fails its target at Severe and Windy. At Calm, Severe's runs fail T0, T1, T5 and T11a, but not T2, T3 or T4, whose spreads are low at every level.
+      - T0c (`--history 40`, 40 × 120 min): resultant 0.09, offset −0.7°, spread 50.5° (each seed 40.9° or more), 0.159 shifts/min, gap CV 0.86, peak 1.45, side kept 86.2 %: PASS.
+    - **Why the spreads miss (not tuned away):**
+      - **The open field:** σ_u/U 0.135 is the surface layer's own (2.4·u*) and L_u 167 m is MIL-HDBK-1797's. K§6.7's extremes (0.15, 115 m) would add about 25 %, not the 1.9–3.1× missing, so pushing them would fake a response the airframe lacks.
+        - Under K§8.5's pilot the roll comes from the drift the drag drives, filtered by the lateral time constant m/c ≈ 4.6 s at the cruise, and from gust moments.
+        - The rotors' edgewise-flow moments (dissymmetry of lift, blade flapping), which tilt a quad away from an in-plane gust, are not in `Propulsion` yet.
+        - 1.6's rotor drag (0.225 → 0.044 N per m/s) removed the coupling the stand-in had. This is the flight model's next change.
+      - **The belt:** at 20–50 m the course is 1.7–4.2 H over the 11.9 m belt, above its turbulent wake (Perera's growth tops the boost at 1.5–2.1 H within 10 H), so T3 equals T1 and the no-wake runs read the same.
+        - A trial with a 20 m belt at 60° lifted T3/T1 to 1.6, T4/T2 to 1.24, T5 belt to 0.84° and T7's belt share to 0.64. With the stretch's end computed exactly (committed), its far wake reached the field and T3/T1 fell to 1.15, so it is not adopted.
+        - P's ×2.5 at 20–50 m says its belt was taller or its course lower than assumed: K§8.5's geometry, not the field's.
+      - **The porosity rule** (1.3's open question): the product rule is right for the *optical* porosity, because crowns in series transmit light multiplicatively (Beer–Lambert). The wake functions (Perera's model, the bubble's 0.1–0.3 thresholds) are a thin fence's, where optical and aerodynamic porosity coincide.
+        - A deep belt's wake follows its aerodynamic porosity, the bleed through it: about β^0.4 for tree windbreaks (Guan et al. 2003). Living multi-row belts show no standing bubble (Heisler and DeWalle 1988's review). Both are recalled, not re-read.
+        - So the physical rule keeps the product for β and feeds the wake functions α = β^0.4. The posadka's 0.003–0.02 becomes 0.10–0.21 (at most a weak, partial bubble, as P's belt shows), and the harness's single row goes from 0.47 to 0.74.
+        - That is `WakeGrid`'s code (world-builder: `WakeGrid.Version` 2 and the worldbench goldens) and is not changed here. Above the wake, as the harness flies, it moves nothing measurable.
+    - **Goldens (ModelVersion 8)**, audited case by case:
+      - With model 7's centres (the temporary edit) both goldens are model 7's pins, and on model 6's drone model 6's, every record and event: the wake code and the header's new fields change no flight without obstacles.
+      - At model 8's centres both move from step 1 (the strength draw). Powered `0x104ECFA937FC9962`; contact `0xF9B3D93720B83C58`, with 5 impacts, at rest 0.2518 m up.
+      - The model-6-drone pins fly model 7's centres only, so their test went; the still-air audits stand.
+    - **Verified:** suite 215 of 215; `--golden` and `--scenarios` PASS; the bench on AC (Balanced, best power efficiency mode, 3201 MHz) powered p50 21.8 µs, p99 107.9 µs, 0 B (without wakes: their cost over the posadka is 1.8's); a 60 s Severe flight in the fixture's wakes (`replay --record … --wakes`) replays bit for bit, 60 000 steps and 140 events.
+- [x] 1.6 [physics-engineer] Cruise in wind (design 6): the drag re-derived for clip P's pitch at 17–22 m/s, superseding 1.5's 13 m/s calibration in `drone.json`'s `aero` block; verify the "clip P's pitch flies the cruise" scenario and T0 at that airspeed
   - **As built** (`drone.json`'s `props.h_force_n_per_m_s` and `aero.drag_coefficient` notes; `Tests/{WindHarness,CrosswindScenario,AeroTests,GoldenFlights}.cs`; `ModelVersion` 7, `LogFormat.Version` 6 unchanged):
     - **The drag:**
       - **H-force 0.225 → 0.044 N per m/s at 9000 rpm** (assumed and tuned → derived). Blade-element theory of a rigid 2-blade rotor, averaged over a turn: the blades' profile drag plus their lift tilted by the inflow (Johnson). It uses the sheet's chord and the 4.5-inch helix, a = 5.7 (assumed), and α_L0 −6.3° and c_d0 0.049 fitted to APC's published static 12.43 N and κ 0.0144 m. At the cruise (10 050 rpm, 12.0 m/s through the disc) it gives 0.049 N per m/s, 0.044 at the reference speed; with stall-capped inboard lift, 0.033. 1.5's value was 5× a rigid rotor's.
@@ -121,6 +157,7 @@ Complex tier (D-033). Branch `unity/physics/p7c-wind` off `unity/main` once `p6-
       - `SevereCentre`'s 5.0 m/s is "clip P's 5 m/s at its derived 13 m/s airspeed". At the cruise, P's crosswind is 0.384 × 18.8 = 7.2 m/s (PHY-17a: 6.5–8.5).
       - A trial run with the centre at 7.2 (not committed) gave a pooled 7.54°: **PASS**.
       - Moving the levels (Severe 7.2; Windy and Calm from it, 3.6 and 1.1) re-records both goldens. That is 1.5's "Severe tuned until T0 passes", unless the orchestrator folds it into 1.6.
+    - **T0 at the cruise, done in 1.5:** with Severe's centre at 7.2 m/s, the pooled |mean| roll is 7.76° (6–12): PASS.
 - [ ] 1.7 [physics-engineer] Rain (design 7): the rain rate per level, its drag and wet mass, the camera's air velocity; verify the "rain without wind" scenario and `rain_stats.py`'s targets for clip P
 - [ ] 1.8 [physics-engineer] The budget (design 8): `flightbench --bench` over the posadka in Severe on AC; verify the "cost of the wind" scenario
 
