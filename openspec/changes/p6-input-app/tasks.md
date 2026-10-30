@@ -80,6 +80,7 @@ Branch `unity/game/p6-input-app` off `unity/main`, after `p6-flight-core`'s task
       - While paused, the frames drain the radio's reports: the stopped thread hands the inbox's consumer side to the frame, so a loss stays in force and nothing is dropped.
       - `Resume` moves every later step's host time by the pause, and first logs it as the new `HitchCause.Pause` (B: µs). Replay skips it, as it skips every hitch, and the summary prints `PAUSED`.
       - `Restart` is the pilot's end, then a new flight with a new seed and a new log.
+      - QA's interim finding 1 fixed: the paused frames keep the first loss they drain (`StickInbox.Drain`, even one a replug's report superseded), and `Resume` holds it in force for the first RC frame (`StickInbox.Hold`, 4 steps), so a step record carries the failsafe with the loss's stamp and the end is `Failsafe`. No new log event; format 6 is unchanged. QA's E3a and E3b are tests: lost at 1 471 000 µs, logged at step 342 (the first after Resume), the end at step 345, "failsafe", replayed bit for bit.
     - **The ends** (`FlightEndRule`): one rule for the live flight and for the log, the first that holds:
       - the core's latched `Crashed` (QA's flight-core finding 3: the core keeps stepping; the session ends the flight)
       - upside down: the up axis below the horizon while touching, for 1 s (assumed)
@@ -95,7 +96,7 @@ Branch `unity/game/p6-input-app` off `unity/main`, after `p6-flight-core`'s task
       - `AppRadio` is the app's one reader, stopped on `Application.quitting` and `beforeAssemblyReload`.
       - `FlightSessionHost` builds the session from the profile and starts a flight once the radio is connected, or after 1 s on the keyboard. It ticks the session with `KeyboardFallback.ReadKeys()` and disposes it when disabled.
       - It reads drone.json and physics_materials.json from the repository; the player's copy is 1.4b's.
-    - **Numbers** (12 tests; a test radio of the TX12's layout every 2 ms on a set clock, a step a ms; the last on the real flight thread):
+    - **Numbers** (14 tests; a test radio of the TX12's layout every 2 ms on a set clock, a step a ms; the last on the real flight thread):
       - **The setup:** payload 1.5 kg, Windy. Legs on, the drone stands at 0.2530 m and has sunk 1.4 mm after 1.5 s disarmed, 8 pairs touching. Legs off, on the stand, 0.4 mm.
       - **Arming:** neither a switch left on nor one turned on with the throttle at 0.5 arms, until it has been seen off. Off, then on, arms. The disarm ends the flight at the next RC frame, within 4 ms of the switch.
       - **The failsafe:** lost at 1 271 000 µs, disarmed at the step at 1 274 000 µs. The controller reads the switch at its 250 Hz RC frame, so the disarm comes up to 3 steps after the loss. The tx-input spec now says "within one RC frame" (313350b).
