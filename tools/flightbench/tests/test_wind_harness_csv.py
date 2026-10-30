@@ -81,7 +81,7 @@ def test_the_run_reads_as_an_attitude_log(harness):
 
     first, last = (int(v) for v in run["segment"].split("-"))    # main()'s --segment parse
     inside = [first <= f <= last for f in c["frame"]]
-    assert 4 < sum(inside) / fps < 12, "90 m at 13 m/s through the air, give or take the wind along the course"
+    assert 4 < sum(inside) / fps < 12, "10 H in 7 s at the cruise through the air, give or take the wind along the course"
     assert 0 < first and last < n
 
 

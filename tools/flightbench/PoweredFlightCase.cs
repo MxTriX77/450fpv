@@ -16,12 +16,15 @@ namespace Fpv450.FlightBench
     {
         public const string Name = "powered-flight";
 
-        public static DroneSpec Drone()
+        public static DroneSpec Drone() => DroneSpec.Parse(DroneText());
+
+        /// <summary>The repository's drone.json, found from the working directory up.</summary>
+        public static string DroneText()
         {
             for (string dir = Directory.GetCurrentDirectory(); dir != null; dir = Path.GetDirectoryName(dir))
             {
                 string path = Path.Combine(dir, "assets-src", "drone", "drone.json");
-                if (File.Exists(path)) return DroneSpec.Parse(File.ReadAllText(path));
+                if (File.Exists(path)) return File.ReadAllText(path);
             }
             throw new FileNotFoundException("assets-src/drone/drone.json was not found from " + Directory.GetCurrentDirectory());
         }
@@ -29,17 +32,24 @@ namespace Fpv450.FlightBench
         public static bool Golden()
         {
             ulong hash = GoldenFlights.FlyPowered(Drone(), out FlightCore core);
+            // The audits: model 6's drone (1.5's rotor drag, p7c-wind 1.6) flies model 6's pin, and in still air over
+            // model 5's 1296-byte layout model 5's (p7c-wind 1.4).
+            DroneSpec model6 = GoldenFlights.Model6Drone(DroneText());
+            ulong six = GoldenFlights.FlyPowered(model6, out _);
             int skip = LogFormat.StepSize - GoldenFlights.Model5Bytes;
-            ulong still = GoldenFlights.FlyPowered(Drone(), out _, GoldenFlights.Model5Bytes, skip, WindSetup.Of(WindLevel.Still));
-            bool ok = hash == GoldenFlights.PoweredHash && still == GoldenFlights.StillAirPoweredHash && core.State.Armed;
+            ulong still = GoldenFlights.FlyPowered(model6, out _, GoldenFlights.Model5Bytes, skip, WindSetup.Of(WindLevel.Still));
+            bool ok = hash == GoldenFlights.PoweredHash && six == GoldenFlights.Model6PoweredHash && still == GoldenFlights.StillAirPoweredHash && core.State.Armed;
             Console.WriteLine($"{Name}: {GoldenFlights.PoweredSteps} steps, hash 0x{hash:X16} "
                 + $"({(hash == GoldenFlights.PoweredHash ? "matches" : $"golden 0x{GoldenFlights.PoweredHash:X16}")}), armed {core.State.Armed}, "
-                + $"packs at {core.State.PackCharge0:F4} of 0.9; in still air over model 5's 1296-byte layout 0x{still:X16} "
+                + $"packs at {core.State.PackCharge0:F4} of 0.9; model 6's drone 0x{six:X16} "
+                + $"({(six == GoldenFlights.Model6PoweredHash ? "model 6's" : $"model 6's is 0x{GoldenFlights.Model6PoweredHash:X16}")}), in still air over model 5's 1296-byte layout 0x{still:X16} "
                 + $"({(still == GoldenFlights.StillAirPoweredHash ? "model 5's" : $"model 5's is 0x{GoldenFlights.StillAirPoweredHash:X16}")}): {(ok ? "PASS" : "FAIL")}");
             ulong contact = GoldenFlights.FlyContact(Drone(), out FlightCore c);
-            bool cok = contact == GoldenFlights.ContactHash && c.Contacts.ImpactCount >= 2 && !c.State.Crashed;
+            ulong contact6 = GoldenFlights.FlyContact(model6, out _);
+            bool cok = contact == GoldenFlights.ContactHash && contact6 == GoldenFlights.Model6ContactHash && c.Contacts.ImpactCount >= 2 && !c.State.Crashed;
             Console.WriteLine($"contact-flight: {GoldenFlights.ContactSteps} steps, hash 0x{contact:X16} "
-                + $"({(contact == GoldenFlights.ContactHash ? "matches" : $"golden 0x{GoldenFlights.ContactHash:X16}")}), {c.Contacts.ImpactCount} impacts, "
+                + $"({(contact == GoldenFlights.ContactHash ? "matches" : $"golden 0x{GoldenFlights.ContactHash:X16}")}), model 6's drone 0x{contact6:X16} "
+                + $"({(contact6 == GoldenFlights.Model6ContactHash ? "model 6's" : $"model 6's is 0x{GoldenFlights.Model6ContactHash:X16}")}), {c.Contacts.ImpactCount} impacts, "
                 + $"ends {c.State.Position.Y:F4} m up on {c.Trace.ContactsTouching} touching pairs: {(cok ? "PASS" : "FAIL")}");
             return ok && cok;
         }

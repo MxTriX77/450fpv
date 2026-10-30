@@ -24,10 +24,11 @@ namespace Fpv450.Sim.Tests
 
         // p7c-wind 1.4's audit: the field changes nothing but the wind. In still air both golden flights over model 5's
         // 1296-byte layout (the record less the hubs' winds) are model 5's, bit for bit; the powered one touches nothing.
+        // On model 6's drone: 1.6's re-derived rotor drag moves every flight through the air, still air too.
         [Test]
         public void InStillAirTheGoldenFlightsAreModel5s()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = GoldenFlights.Model6Drone(RepositoryDrone.Text());
             WindSetup still = WindSetup.Of(WindLevel.Still);
             int skip = LogFormat.StepSize - GoldenFlights.Model5Bytes;
             ulong powered = GoldenFlights.FlyPowered(spec, out FlightCore core, GoldenFlights.Model5Bytes, skip, still);
@@ -36,6 +37,16 @@ namespace Fpv450.Sim.Tests
             Assert.That(powered, Is.EqualTo(GoldenFlights.StillAirPoweredHash), "model 5's records and events, every bit");
             ulong contact = GoldenFlights.FlyContact(spec, out _, GoldenFlights.Model5Bytes, skip, still);
             Assert.That(contact, Is.EqualTo(GoldenFlights.StillAirContactHash), "model 5's records and events, every bit");
+        }
+
+        // p7c-wind 1.6's audit: the re-derived rotor drag is model 7's only change. On model 6's drone (drone.json with
+        // 1.5's tuned H-force) both golden flights are model 6's pins, every record and event.
+        [Test]
+        public void WithModel6sRotorDragTheGoldenFlightsAreModel6s()
+        {
+            DroneSpec spec = GoldenFlights.Model6Drone(RepositoryDrone.Text());
+            Assert.That(GoldenFlights.FlyPowered(spec, out _), Is.EqualTo(GoldenFlights.Model6PoweredHash), "model 6's powered golden, every bit");
+            Assert.That(GoldenFlights.FlyContact(spec, out _), Is.EqualTo(GoldenFlights.Model6ContactHash), "model 6's contact golden, every bit");
         }
 
         [Test]

@@ -7,8 +7,8 @@ using NUnit.Framework;
 namespace Fpv450.Sim.Tests
 {
     // p7c-wind 1.2, K§8.5's acceptance harness (WindHarness, HarnessPilot): the tracker's angles are the ZYX angles;
-    // the simulated pilot's test flight reproduces p6-flight-core 1.5's stand-in crosswind lean inside K§6.5's band,
-    // and a drone without drag (a known-wrong model) fails it; the camera log is track_attitude.py's CSV at 29.917 Hz
+    // the simulated pilot's test flight, at the cruise clip P's pitch flies (p7c-wind 1.6), reproduces the crosswind
+    // lean p6-flight-core 1.5's scenario gives there, and a drone without drag (a known-wrong model) fails it; the camera log is track_attitude.py's CSV at 29.917 Hz
     // as wind_stats.py's reader takes it; the start rule finds a stretch with the wind on the left. tools/flightbench
     // --wind-harness flies the same code and writes the files.
     public sealed class WindHarnessTests
@@ -52,8 +52,12 @@ namespace Fpv450.Sim.Tests
         {
             DroneSpec spec = RepositoryDrone.Spec();
             double reference = WindHarness.CruiseRollPerMs(spec, WindPreset.SevereCentre);
-            TestContext.Out.WriteLine($"1.5's cruise lean as the tracker's roll: {reference:F3}° per m/s");
-            Assert.That(reference, Is.InRange(0.95, 2.6));
+            // At the cruise (p7c-wind 1.6) the lean per m/s is the airspeed's (wind.md §5.3: the tracker's roll, 23.4°
+            // over it); T0 grades what it gives in Severe, not K§6.5's band at 13 m/s.
+            double relation = 23.4 / WindHarness.ReleaseSpeed;
+            TestContext.Out.WriteLine($"1.5's cruise lean at {WindHarness.ReleaseSpeed:F1} m/s as the tracker's roll: {reference:F3}° per m/s "
+                + $"(wind.md §5.3's relation {relation:F3}); in Severe's {WindPreset.SevereCentre:F1} m/s abeam: {reference * WindPreset.SevereCentre:F1}° (T0: 9 ± 3)");
+            Assert.That(reference, Is.EqualTo(relation).Within(0.15 * relation));
             WindHarness.Pilot nominal = WindHarness.Pilots[0];
             for (int i = 0; i < 5; i++)
             {
@@ -61,15 +65,18 @@ namespace Fpv450.Sim.Tests
                 {
                     WindHarness.Run r = WindHarness.Fly(spec, WindLevel.Severe, (ulong)i + 1, i, 5, nominal, belt);
                     double beltSeconds = (r.BeltLast - r.BeltFirst + 1) / HarnessPilot.CameraHz;
+                    double own = WindHarness.CruiseRollPerMs(spec, r.MeanCrosswind); // 1.5's at the run's own crosswind
                     TestContext.Out.WriteLine($"seed {r.Seed}{(belt ? ", belt" : "")}: {r.HeightRef:F0} m, {r.Mass:F3} kg, airspeed {r.MeanAirspeed:F2} m/s, "
-                        + $"pitch {r.MeanPitchDeg:F2}°, roll {r.MeanRollDeg:F2}° against {r.MeanCrosswind:F2} m/s = {r.LeanPerMs:F3}° per m/s; belt {r.Segment} ({beltSeconds:F2} s)");
-                    Assert.That(WindHarness.Reproduces(r.LeanPerMs, reference, belt ? 0.2 : 0.1), Is.True, "the lean per m/s");
+                        + $"pitch {r.MeanPitchDeg:F2}°, roll {r.MeanRollDeg:F2}° against {r.MeanCrosswind:F2} m/s of {r.MeanSpeed:F2} = {r.LeanPerMs:F3}° per m/s "
+                        + $"(1.5's there {own:F3}); belt {r.Segment} ({beltSeconds:F2} s)");
+                    Assert.That(WindHarness.Reproduces(r.LeanPerMs, own, belt ? 0.2 : 0.1), Is.True, "the lean per m/s");
                     Assert.That(r.MeanRollDeg, Is.LessThan(0), "into the wind from the left");
                     Assert.That(r.MeanPitchDeg, Is.EqualTo(HarnessPilot.ClipPPitchDeg).Within(2), "θ_ref ± 2°");
                     Assert.That(r.Samples.Length, Is.EqualTo(1017), "34 s at 29.917 Hz");
-                    // The belt's 90 m at the run's ground speed along the course: 13 m/s through the air plus the wind's
+                    // The belt's 10 H at the run's ground speed along the course: the cruise through the air plus the wind's
                     // component along it, which the meander and the shifts move within the start rule's 90°.
-                    Assert.That(beltSeconds, Is.InRange(4, 12), "90 m at 13 m/s through the air, give or take the wind along the course");
+                    Assert.That(beltSeconds, Is.InRange(4, 12), "7 s at the cruise through the air, give or take the wind along the course");
+                    Assert.That(r.MeanAirspeed / WindHarness.ReleaseSpeed, Is.InRange(0.95, 1.08), "the course is flown at the cruise");
                     Assert.That(r.MeanCrosswind, Is.GreaterThan(0.25 * r.MeanSpeed), "the wind from the left");
                 }
             }

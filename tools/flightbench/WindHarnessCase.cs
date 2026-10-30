@@ -14,9 +14,9 @@ namespace Fpv450.FlightBench
     // K§8.5's acceptance harness (p7c-wind 1.2), headless: the simulated pilot and its variants fly the test flight on
     // N seeds, in parallel, and each run's camera log is written in track_attitude.py's columns, the input wind_stats.py
     // reads, with a manifest of the runs and their belt segments; optionally the seeds' T0c wind histories. Its own
-    // check: the nominal pilot's lean per m/s of crosswind on the stand-in without the belt reproduces p6-flight-core
-    // 1.5's (K§6.5's band 0.95–2.6° per m/s, and within 15 % of 1.5's cruise lean at 13 m/s), and with the belt stays in
-    // the band; without drag (a known-wrong model) it must fail.
+    // check: flown at the cruise clip P's pitch settles at (p7c-wind 1.6), the nominal pilot's lean per m/s of crosswind
+    // reproduces p6-flight-core 1.5's scenario's there (within 10 %, 20 % with the belt) and its airspeed is the cruise's;
+    // without drag (a known-wrong model) it must fail. T0, the lean that grades it, is wind_stats.py's.
     internal static class WindHarnessCase
     {
         const string Usage = "usage: flightbench --wind-harness calm|windy|severe [--seeds N] [--out DIR] [--pilots nominal|all] [--belt on|off] [--history N]";
@@ -65,17 +65,20 @@ namespace Fpv450.FlightBench
             bool ok = true;
             if (level != WindLevel.Calm)
             {
-                // The stand-in's own lean at cruise (p6-flight-core 1.5's CrosswindScenario): 13 m/s, the Severe centre.
+                // 1.5's scenario's own lean at the cruise (CrosswindScenario), in the Severe centre's crosswind.
                 double c = WindPreset.SevereCentre;
                 double reference = WindHarness.CruiseRollPerMs(spec, c);
-                Console.WriteLine($"  1.5's cruise lean at {WindHarness.ReleaseSpeed:F0} m/s in a steady {c:F1} m/s crosswind, as the tracker's roll: {reference:F3}° per m/s "
-                    + "(K§6.5: 0.95–2.6, nominal 1.8)");
+                Console.WriteLine($"  1.5's cruise lean at {WindHarness.ReleaseSpeed:F1} m/s in a steady {c:F1} m/s crosswind, as the tracker's roll: {reference:F3}° per m/s, "
+                    + $"{reference * c:F1}° at {c:F1} m/s abeam (T0: 9 ± 3)");
                 foreach (WindHarness.Run r in runs)
                 {
                     if (r.Pilot != "nominal") continue;
-                    bool pass = Reproduces(r.LeanPerMs, reference, belt);
-                    ok &= pass;
-                    Console.WriteLine($"  nominal seed {r.Seed}: {r.LeanPerMs:F3}° per m/s, {100 * (r.LeanPerMs / reference - 1):+0.0;-0.0} % off 1.5's: {(pass ? "PASS" : "FAIL")}");
+                    double own = WindHarness.CruiseRollPerMs(spec, r.MeanCrosswind); // 1.5's at the run's own crosswind
+                    bool lean = Reproduces(r.LeanPerMs, own, belt);
+                    bool speed = r.MeanAirspeed / WindHarness.ReleaseSpeed >= 0.95 && r.MeanAirspeed / WindHarness.ReleaseSpeed <= 1.08;
+                    ok &= lean && speed;
+                    Console.WriteLine($"  nominal seed {r.Seed}: {r.LeanPerMs:F3}° per m/s in {r.MeanCrosswind:F2} m/s, {100 * (r.LeanPerMs / own - 1):+0.0;-0.0} % off 1.5's there ({own:F3}): {(lean ? "PASS" : "FAIL")}; "
+                        + $"airspeed {r.MeanAirspeed:F2} m/s, {100 * (r.MeanAirspeed / WindHarness.ReleaseSpeed - 1):+0.0;-0.0} % off the cruise (−5 to +8 %): {(speed ? "PASS" : "FAIL")}");
                 }
                 WindHarness.Run wrong = WindHarness.Fly(spec, level, 1, 0, seeds, WindHarness.Pilots[0], belt, drag: false);
                 bool caught = !Reproduces(wrong.LeanPerMs, reference, belt);
@@ -124,8 +127,7 @@ namespace Fpv450.FlightBench
             return ok ? 0 : 1;
         }
 
-        // 1.5's band, K§6.5's 0.95–2.6° per m/s, and within 10 % of 1.5's own cruise lean (20 % with the belt, whose
-        // deficit and eddies 1.5 never flew).
+        // Within 10 % of 1.5's scenario's cruise lean (20 % with the belt, whose deficit and eddies 1.5 never flew).
         static bool Reproduces(double perMs, double reference, bool belt) => WindHarness.Reproduces(perMs, reference, belt ? 0.2 : 0.1);
 
         static int Fail(string message)

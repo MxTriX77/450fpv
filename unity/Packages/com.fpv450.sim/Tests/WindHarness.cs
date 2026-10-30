@@ -28,15 +28,15 @@ namespace Fpv450.Sim.Tests
         /// discarded; the belt 4 s into the measured part, as P's began at f121, assumed).</summary>
         public const double Seconds = 39, DiscardSeconds = 5, BeltStartSeconds = 9, BeltSeconds = 7;
 
-        /// <summary>The release speed along the course, m/s (derived: p6-flight-core 1.5 trims clip P's 22.7° of pitch at
-        /// 13 m/s in still air; p7c-wind 1.6 moves it to the published cruise).</summary>
-        public const double ReleaseSpeed = 13;
+        /// <summary>The release speed along the course, m/s (derived, p7c-wind 1.6: the airspeed clip P's 22.7° of pitch
+        /// settles at in still air, HeldPitchAirspeed, 18.82 m/s; PHY-17a's published cruise is 17–22).</summary>
+        public const double ReleaseSpeed = 18.8;
 
         /// <summary>The runs' heights spread evenly over this band, m above the floor (assumed, wind.md §6.2).</summary>
         public const double LowHeight = 20, HighHeight = 50;
 
-        /// <summary>The synthetic belt's height H, m (derived: 10 H in BeltSeconds at ReleaseSpeed, 9.1 m, a field
-        /// shelterbelt's).</summary>
+        /// <summary>The synthetic belt's height H, m (derived: 10 H in BeltSeconds at ReleaseSpeed, 13.2 m, a field
+        /// shelterbelt's; 9.1 m at 1.5's 13 m/s).</summary>
         public const double BeltHeight = BeltSeconds * ReleaseSpeed / SyntheticBelt.RegionHeights;
 
         /// <summary>A pilot: the nominal one or a variant (wind.md §6.1).</summary>
@@ -105,9 +105,55 @@ namespace Fpv450.Sim.Tests
             return (Roll(crosswind) - Roll(0)) / crosswind;
         }
 
-        /// <summary>The harness's lean check: K§6.5's band, 0.95–2.6° per m/s, and within `tolerance` of 1.5's own.</summary>
+        /// <summary>The harness's lean check: within `tolerance` of 1.5's own at the release speed (p7c-wind 1.6: the lean
+        /// per m/s follows from the physics at the cruise and is graded by T0, not by K§6.5's band at 13 m/s).</summary>
         public static bool Reproduces(double perMs, double reference, double tolerance) =>
-            perMs >= 0.95 && perMs <= 2.6 && System.Math.Abs(perMs / reference - 1) <= tolerance;
+            perMs > 0 && System.Math.Abs(perMs / reference - 1) <= tolerance;
+
+        /// <summary>
+        /// wind-turbulence's "Clip P's pitch flies the cruise" (p7c-wind 1.6, PHY-17a): the nominal pilot holds clip P's
+        /// pitch, a level heading north and 35 m in still air, released at `releaseSpeed`; the airspeed it settles at, the
+        /// mean over the run's last `MeasuredSeconds`, and the mean pitch there (the tracker's, degrees). `hForce` ≥ 0
+        /// replaces drone.json's rotor in-plane drag, N per m/s (a known-wrong model).
+        /// </summary>
+        public static double HeldPitchAirspeed(DroneSpec spec, double releaseSpeed, out double pitchDeg, double hForce = -1)
+        {
+            const double height = 35;
+            FlightSetup setup = CrosswindScenario.Setup(spec, WindSetup.Of(WindLevel.Still));
+            if (hForce >= 0) setup.Propulsion.Props.HForce = hForce; // a known-wrong rotor drag
+            setup.StartPosition = new Double3(0, height, 0);
+            setup.StartVelocity = new Double3(0, 0, releaseSpeed);
+            DetMath.SinCos(-HarnessPilot.ClipPPitchDeg * DegToRad / 2, out double sp, out double cp);
+            setup.StartAttitude = new Quat(sp, 0, 0, cp);
+            var core = new FlightCore(setup);
+            CrosswindScenario.Arm(core);
+            var p = new HarnessPilot(core.Controller) { Course = 0, Height = height };
+            long release = core.State.Step;
+            int steps = (int)(Seconds * 1000), from = (int)((Seconds - MeasuredSeconds) * 1000), frame = 0, n = 0;
+            double speed = 0;
+            pitchDeg = 0;
+            for (int k = 0; k < steps; k++)
+            {
+                if (k * HarnessPilot.CameraHz >= frame * 1000.0)
+                {
+                    HarnessPilot.Frame f = HarnessPilot.Take(core.State, k, 0);
+                    p.See(f);
+                    frame++;
+                    if (k >= from)
+                    {
+                        speed += core.State.Velocity.Length();
+                        pitchDeg += f.Pitch * RadToDeg;
+                        n++;
+                    }
+                }
+                core.Advance(p.Sticks(k, (release + k) * FlightCore.StepUs));
+            }
+            pitchDeg /= n;
+            return speed / n;
+        }
+
+        /// <summary>The held-pitch flight's measured end, s.</summary>
+        public const double MeasuredSeconds = 10;
 
         /// <summary>The height of run i of n, m: evenly over the band.</summary>
         public static double HeightOf(int i, int n) => LowHeight + (HighHeight - LowHeight) * (i + 0.5) / n;

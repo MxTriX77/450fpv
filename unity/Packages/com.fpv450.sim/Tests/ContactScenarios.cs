@@ -370,8 +370,8 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>
         /// ground-contact's "Into a pole": the legs-on drone takes off from the floor, the pilot climbs to 1.5 m, then holds
-        /// 10 m/s north at that height straight into L01_straight standing 30 m ahead, and keeps the sticks there for 1.5 s
-        /// past the hit.
+        /// 10 m/s north at that height straight into L01_straight standing 50 m ahead (30 m until p7c-wind 1.6's lower
+        /// rotor drag let the pilot's speed overshoot there), and keeps the sticks there for 1.5 s past the hit.
         /// </summary>
         public static PoleStrike IntoPole(DroneSpec spec, MaterialRow[] materials, ulong materialsHash, double speed = 10)
         {
@@ -380,7 +380,7 @@ namespace Fpv450.Sim.Tests
             FlightWorld world = FlightWorld.Floor();
             FlightSetup setup = Setup(spec, materials, materialsHash, true, new Double3(0, stand, 0));
             setup.World = world;
-            setup.RuntimeObjects = new[] { Pole(world, new Double3(0, 0, 30)) };
+            setup.RuntimeObjects = new[] { Pole(world, new Double3(0, 0, 50)) };
             var core = new FlightCore(setup);
             CrosswindScenario.Arm(core);
             var pilot = new SimPilot(core.Controller, new Double3(0, 1.5, 0));

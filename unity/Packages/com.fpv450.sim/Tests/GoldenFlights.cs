@@ -61,7 +61,14 @@ namespace Fpv450.Sim.Tests
         // field the flight moves from step 1, the wind's first: the field's draws are new (the direction, the strength,
         // the meander, the shifts, the modes), so the stand-in's air is gone; it ends 203.1 m up against 199.4 and
         // 16.6 m from model 5's end.
-        public const ulong PoweredHash = 0xBC85ED28D55D2986UL;
+        // p7c-wind 1.6: re-recorded with ModelVersion 7 (drone.json's rotor in-plane drag 0.225 → 0.044 N per m/s, the
+        // only change), audited case by case: on model 6's drone (Model6Drone) both goldens are model 6's pins and the
+        // still-air ones model 5's, every record and event (WithModel6sRotorDragTheGoldenFlightsAreModel6s). With the new
+        // drag every flight moves from step 21, the first with the hubs moving in their discs' planes through the air
+        // (position.x), in the Windy field, in still air and in a steady 5 m/s alike: the open-loop sticks leave the drone
+        // tilted and sinking, its discs edgewise to the descent meet 5× less in-plane drag, and it ends 131.2 m up against
+        // 203.1 (still air 128.8 against 200.0), 71.9 m from model 6's end.
+        public const ulong PoweredHash = 0x376ECD53376BBC68UL;
 
         // The powered golden in still air over model 5's 1296-byte layout: model 5's flight, bit for bit (the audit).
         // Model 5 in turn held 1.4b's 0x3695FC49DCA906DC over 1.4b's layout in the stand-in's Windy air; that flight
@@ -80,13 +87,36 @@ namespace Fpv450.Sim.Tests
         // (StillAirContactHash) and in the steady 5 m/s (0x7F53C9713DCE5641) both models fly every record and event of
         // the 12 000 steps bit for bit over model 5's bytes. In Calm the flight moves from its first step (the field's
         // draws are new) and keeps its course: 5 impacts as model 5's, at rest 0.2519 m up on its 8 touching pairs.
-        public const ulong ContactHash = 0x3D6092D3121E468AUL;
+        // p7c-wind 1.6: re-recorded with ModelVersion 7, audited as the powered one (model 6's drone flies model 6's pin).
+        // With the new drag the flight moves from step 9, the first armed step's motion (position.x), and keeps its
+        // course: 5 impacts as model 6's, at rest 0.2518 m up, 9.5 cm from model 6's resting place in Calm (1.8 mm in
+        // still air); in a steady 5 m/s it drifts 0.8 m against 1.7 and touches down with 5 impacts against 7.
+        public const ulong ContactHash = 0xCD821FAEE49DF277UL;
 
         /// <summary>The contact golden in still air over model 5's 1296-byte layout: model 5's flight, bit for bit.</summary>
         public const ulong StillAirContactHash = 0x7C3C81C9E2B04309UL;
 
         /// <summary>Model 5's record length: the record less p7c-wind 1.4's four hub winds.</summary>
         public const int Model5Bytes = 1296;
+
+        /// <summary>Model 6's pins (p7c-wind 1.4), which model 6's drone still flies (the 1.6 audit).</summary>
+        public const ulong Model6PoweredHash = 0xBC85ED28D55D2986UL, Model6ContactHash = 0x3D6092D3121E468AUL;
+
+        /// <summary>p6-flight-core 1.5's tuned rotor drag, N per m/s at the reference speed (model 6's).</summary>
+        public const string Model6HForce = "0.225";
+
+        /// <summary>
+        /// Model 6's drone: drone.json's text (the repository's) with 1.5's tuned rotor drag in place of p7c-wind 1.6's
+        /// derived one, the only change model 7 makes (the audit flies the goldens on it).
+        /// </summary>
+        public static DroneSpec Model6Drone(string text)
+        {
+            const string key = "\"h_force_n_per_m_s\": {\"value\": ";
+            int at = text.IndexOf(key, System.StringComparison.Ordinal);
+            if (at < 0) throw new System.InvalidOperationException("drone.json has no h_force_n_per_m_s");
+            int from = at + key.Length, to = text.IndexOf(',', from);
+            return DroneSpec.Parse(text.Substring(0, from) + Model6HForce + text.Substring(to));
+        }
 
         public static FlightSetup PoweredSetup(DroneSpec spec)
         {
@@ -130,8 +160,9 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>Flies the powered golden flight; returns its hash, with the core's last state for a report. With
         /// skipAt and skipBytes the hash leaves out each record's bytes from skipAt on, skipBytes of them (a parent model's
-        /// layout, for an audit).</summary>
-        public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, WindSetup? wind = null)
+        /// layout, for an audit); onRecord sees each step's record (an audit's step-by-step comparison).</summary>
+        public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, WindSetup? wind = null,
+            System.Action<byte[]> onRecord = null)
         {
             FlightSetup setup = PoweredSetup(spec);
             if (wind != null) setup.Wind = wind.Value;
@@ -144,6 +175,7 @@ namespace Fpv450.Sim.Tests
                 StickSample stick = PoweredStick(k);
                 core.Advance(stick);
                 LogFormat.EncodeStep(record, core.State, stick, core.Trace);
+                onRecord?.Invoke(record);
                 hash = Fnv(hash, record, 0, skipAt);
                 hash = Fnv(hash, record, skipAt + skipBytes, record.Length);
                 for (int i = 0; i < core.Events.Count; i++)
@@ -160,7 +192,8 @@ namespace Fpv450.Sim.Tests
         /// at 0.5 m/s; with the skids 0.1 m up the sticks are held (roll, pitch and yaw centred) and the drone bounces; 1.5 s
         /// later the throttle is cut and it comes to rest. Returns its hash, with the core for a report.
         /// </summary>
-        public static ulong FlyContact(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, WindSetup? wind = null)
+        public static ulong FlyContact(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, WindSetup? wind = null,
+            System.Action<byte[]> onRecord = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -198,6 +231,7 @@ namespace Fpv450.Sim.Tests
                 }
                 core.Advance(stick);
                 LogFormat.EncodeStep(record, core.State, stick, core.Trace);
+                onRecord?.Invoke(record);
                 hash = Fnv(hash, record, 0, skipAt);
                 hash = Fnv(hash, record, skipAt + skipBytes, record.Length);
                 for (int i = 0; i < core.Events.Count; i++)

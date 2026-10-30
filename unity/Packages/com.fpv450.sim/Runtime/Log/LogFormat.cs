@@ -70,8 +70,10 @@ namespace Fpv450.Sim.Log
         ///    model 4, a flight with every filter off as 1.6's; a free body steps as in 1).
         /// 6: p7c-wind 1.4 (the wind field replaces the stand-in: the log-law profile, von Kármán modes frozen and advected,
         ///    the direction's meander and shifts, per point; still and steady air step as in 5).
+        /// 7: p7c-wind 1.6 (drone.json's rotor in-plane drag re-derived from blade-element theory, 0.225 → 0.044 N per m/s,
+        ///    so clip P's pitch flies the published cruise; the code is model 6's, and its drone flies model 6's bits).
         /// </summary>
-        public const int ModelVersion = 6;
+        public const int ModelVersion = 7;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

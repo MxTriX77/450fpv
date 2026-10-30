@@ -9,8 +9,8 @@ using Fpv450.Sim.Wind;
 namespace Fpv450.FlightBench
 {
     // The aero and wind scenarios (p6-flight-core 1.5, p7c-wind 1.4), from the same files the suite compiles
-    // (CrosswindScenario, WindTargets, GustFrontScenario, SimPilot): the crosswind lean under the closed-loop pilot, the
-    // cruise trim, and the wind field's open-air targets, each statistical target also run on a known-wrong model that
+    // (CrosswindScenario, WindHarness, WindTargets, GustFrontScenario, SimPilot): the crosswind lean under the closed-loop
+    // pilot, clip P's pitch flying the cruise (p7c-wind 1.6), and the wind field's open-air targets, each statistical target also run on a known-wrong model that
     // must fail it. PASS needs every target met and every known-wrong model failed.
     internal static class ScenariosCase
     {
@@ -31,13 +31,15 @@ namespace Fpv450.FlightBench
         static (long, long, long) Bits(Double3 v) =>
             (BitConverter.DoubleToInt64Bits(v.X), BitConverter.DoubleToInt64Bits(v.Y), BitConverter.DoubleToInt64Bits(v.Z));
 
-        static bool LeanTarget(CrosswindScenario.Result r) => r.LeanPerMs >= 0.95 && r.LeanPerMs <= 2.6 && r.LeanOffWindDeg < 5;
+        static bool LeanTarget(CrosswindScenario.Result r) =>
+            r.LeanPerMs >= CrosswindScenario.HoverLeanLo && r.LeanPerMs <= CrosswindScenario.HoverLeanHi && r.LeanOffWindDeg < 5;
 
         public static bool Run()
         {
             DroneSpec spec = PoweredFlightCase.Drone();
 
-            Console.WriteLine("crosswind lean (flight-dynamics, K§6.5: 0.95–2.6° per m/s, nominal 1.8, into the wind), the drone holding its point "
+            Console.WriteLine($"crosswind lean in a hover (flight-dynamics: the drag's bands over the weight, {CrosswindScenario.HoverLeanLo:F2}–{CrosswindScenario.HoverLeanHi:F2}° "
+                + $"per m/s in a steady 5 m/s, to {CrosswindScenario.GustLeanHi:F2} in the Severe field; into the wind), the drone holding its point "
                 + $"under the closed-loop pilot, the last {CrosswindScenario.MeasuredSeconds:F0} s of {CrosswindScenario.Seconds:F0}:");
             foreach (double from in new[] { 270.0, 0, 90, 180, 45, 135 })
             {
@@ -47,22 +49,31 @@ namespace Fpv450.FlightBench
             foreach (ulong seed in new ulong[] { 1, 2, 3, 4, 5 })
             {
                 CrosswindScenario.Result r = CrosswindScenario.Hold(CrosswindScenario.Setup(spec, WindSetup.Of(WindLevel.Severe), seed));
-                Row($"Severe field, seed {seed}", r.LeanPerMs >= 0.95 && r.LeanPerMs <= 2.6 && r.LeanOffWindDeg < 10, Lean(r));
+                Row($"Severe field, seed {seed}", r.LeanPerMs >= CrosswindScenario.HoverLeanLo && r.LeanPerMs <= CrosswindScenario.GustLeanHi && r.LeanOffWindDeg < 10, Lean(r));
             }
             CrosswindScenario.Result none = CrosswindScenario.Hold(CrosswindScenario.Setup(spec, WindSetup.SteadyFrom(270, 5), drag: false, rotorDrag: false));
             Row("known-wrong: no drag", LeanTarget(none), Lean(none), knownWrong: true);
             CrosswindScenario.Result body = CrosswindScenario.Hold(CrosswindScenario.Setup(spec, WindSetup.SteadyFrom(270, 5), rotorDrag: false));
             Row("known-wrong: the body's drag alone, no rotor in-plane drag", LeanTarget(body), Lean(body), knownWrong: true);
 
-            Console.Write("  cruise trim in still air, the pitch that holds an airspeed (clip P: 22.7° at wind.md §5.3's nominal 13 m/s; the published cruise 17–22 m/s):");
-            foreach (double v in new[] { 13.0, 17, 22 }) Console.Write($" {v:F0} m/s {CrosswindScenario.CruisePitch(spec, v):F1}°;");
+            Console.WriteLine("clip P's pitch flies the cruise (wind-turbulence, p7c-wind 1.6, PHY-17a): the harness pilot holds 22.7° of pitch, a heading "
+                + "and 35 m in still air at the nominal loadout; it settles inside the published 17–22 m/s, the last 10 s of 39:");
+            double slow = WindHarness.HeldPitchAirspeed(spec, 13, out double pitchSlow), fast = WindHarness.HeldPitchAirspeed(spec, 25, out double pitchFast);
+            Row("released at 13 m/s and at 25 m/s", slow >= 17 && slow <= 22 && Math.Abs(fast - slow) <= 0.05
+                    && Math.Abs(pitchSlow + 22.7) <= 0.3 && Math.Abs(pitchFast + 22.7) <= 0.3,
+                $"settles at {slow:F2} m/s (pitch {pitchSlow:F2}°) and {fast:F2} m/s ({pitchFast:F2}°)");
+            Row("the harness's release is the cruise", Math.Abs(WindHarness.ReleaseSpeed - slow) <= 0.3, $"{WindHarness.ReleaseSpeed:F1} m/s");
+            double old = WindHarness.HeldPitchAirspeed(spec, 13, out _, hForce: double.Parse(GoldenFlights.Model6HForce, System.Globalization.CultureInfo.InvariantCulture));
+            Row("known-wrong: p6-flight-core 1.5's rotor drag, tuned to 13 m/s", old >= 17 && old <= 22, $"{old:F2} m/s", knownWrong: true);
+            double v = WindHarness.ReleaseSpeed;
+            double lean0 = CrosswindScenario.CruiseLean(spec, v, 0), lean2 = CrosswindScenario.CruiseLean(spec, v, 2);
+            double perMs = (lean2 - lean0) / 2, relation = 23.4 / v, roll = WindHarness.CruiseRollPerMs(spec, WindPreset.SevereCentre);
+            Row($"at the cruise, {v:F1} m/s north, a 2 m/s crosswind from the west, the nose on the track", Math.Abs(perMs / relation - 1) <= 0.15,
+                $"{lean2 - lean0:F2}° more lean = {perMs:F3}° per m/s (wind.md §5.3's 23.4°/V: {relation:F3}); as the tracker's roll {roll:F3}, "
+                + $"so {roll * WindPreset.SevereCentre:F1}° in Severe's {WindPreset.SevereCentre:F1} m/s abeam (T0, graded by wind_stats.py: 9 ± 3)");
+            Console.Write("  cruise trim in still air, the pitch that holds an airspeed:");
+            foreach (double speed in new[] { 13.0, 17, v, 22 }) Console.Write($" {speed:F1} m/s {CrosswindScenario.CruisePitch(spec, speed):F1}°;");
             Console.WriteLine();
-            double pitch = CrosswindScenario.CruisePitch(spec, 13);
-            double lean0 = CrosswindScenario.CruiseLean(spec, 13, 0), lean2 = CrosswindScenario.CruiseLean(spec, 13, 2);
-            double perMs = (lean2 - lean0) / 2;
-            Row("at cruise, 13 m/s north, a 2 m/s crosswind from the west, the nose on the track",
-                pitch >= 22.4 && pitch <= 23.0 && perMs >= 0.95 && perMs <= 2.6,
-                $"pitch {pitch:F2}° (P: 22.7°), {lean2 - lean0:F2}° more lean = {perMs:F3}° per m/s (wind.md §5.3: 1.8 nominal)");
 
             Console.WriteLine("the wind field (wind-turbulence, p7c-wind 1.4, design 3 and 5):");
             var calm = new List<WindTargets.History>();
