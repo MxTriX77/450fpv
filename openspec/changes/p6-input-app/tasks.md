@@ -82,6 +82,7 @@ Branch `unity/game/p6-input-app` off `unity/main`, after `p6-flight-core`'s task
       - `Resume` moves every later step's host time by the pause, and first logs it as the new `HitchCause.Pause` (B: µs). Replay skips it, as it skips every hitch, and the summary prints `PAUSED`.
       - `Restart` is the pilot's end, then a new flight with a new seed and a new log.
       - QA's interim finding 1 fixed: the paused frames keep the first loss they drain (`StickInbox.Drain`, even one a replug's report superseded), and `Resume` holds it in force for the first RC frame (`StickInbox.Hold`, 4 steps), so a step record carries the failsafe with the loss's stamp and the end is `Failsafe`. No new log event; format 6 is unchanged. QA's E3a and E3b are tests: lost at 1 471 000 µs, logged at step 342 (the first after Resume), the end at step 345, "failsafe", replayed bit for bit.
+      - QA's finding 8 fixed: the held steps are counted by index, so a pause among them keeps the loss (`Pause` drops it only once they have all run) and the next `Resume` holds it for the rest. QA's E3f (E3b, paused again 1, 2 or 3 ms after Resume for 50 ms) is a test: the same step 342 and stamp, the end at 345, "failsafe", both pauses logged, replayed bit for bit.
     - **The ends** (`FlightEndRule`): one rule for the live flight and for the log, the first that holds:
       - the core's latched `Crashed` (QA's flight-core finding 3: the core keeps stepping; the session ends the flight)
       - upside down: the up axis below the horizon while touching, for 1 s (assumed)

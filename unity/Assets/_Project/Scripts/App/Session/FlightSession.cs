@@ -137,6 +137,7 @@ namespace Fpv450.App.Session
         long _startUs, _shiftUs, _pausedAtUs, _hitches;
         bool _stepping, _lostWhilePaused;
         StickSample _pausedLoss;
+        long _heldToStep; // the kept loss is held in force at the steps before this one
 
         public FlightSession(SessionInputs inputs)
         {
@@ -232,6 +233,8 @@ namespace Fpv450.App.Session
             _startUs = startUs;
             _shiftUs = 0;
             _hitches = 0;
+            _lostWhilePaused = false;
+            _heldToStep = 0;
             End = default;
             Fault = LogFault = null;
             Flights++;
@@ -284,14 +287,15 @@ namespace Fpv450.App.Session
             if (State != SessionState.Flying) return;
             StopStepping();
             _pausedAtUs = _in.Clock.NowUs();
-            _lostWhilePaused = false;
+            _lostWhilePaused &= _core.State.Step < _heldToStep; // a loss whose held steps have not all run stays kept
             State = SessionState.Paused;
         }
 
         /// <summary>
         /// Steps again: every later step's host time moves by the pause, which the log records before the next step as a
         /// Pause hitch. A step that was already due when the pause began is due at once. A loss the paused frames
-        /// drained is the sample in force for the first RC frame's steps, whatever reports came after it.
+        /// drained is the sample in force for the first RC frame's steps, whatever reports came after it. Those steps
+        /// are counted by index, so a pause among them holds it again for the rest.
         /// </summary>
         public void Resume()
         {
@@ -308,7 +312,11 @@ namespace Fpv450.App.Session
             long moved = start - _startUs - _shiftUs;
             _shiftUs += moved;
             _log.RecordPause(k + 1, moved);
-            if (_lostWhilePaused) _inbox.Hold(_pausedLoss, start + (k + RcFrameSteps) * FlightCore.StepUs);
+            if (_lostWhilePaused)
+            {
+                if (_heldToStep <= k) _heldToStep = k + RcFrameSteps; // a new loss; a kept one keeps its steps
+                _inbox.Hold(_pausedLoss, start + _heldToStep * FlightCore.StepUs);
+            }
             Step(start);
             State = SessionState.Flying;
         }
