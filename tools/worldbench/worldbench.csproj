@@ -6,5 +6,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../simcore/simcore.csproj" />
+    <!-- The wake grid's synthetic layout, shared with the sim tests (it has no NUnit). -->
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/World/WakeGridFixture.cs" />
   </ItemGroup>
 </Project>
