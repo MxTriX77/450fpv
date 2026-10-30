@@ -68,7 +68,15 @@ namespace Fpv450.Sim.Tests
         // (position.x), in the Windy field, in still air and in a steady 5 m/s alike: the open-loop sticks leave the drone
         // tilted and sinking, its discs edgewise to the descent meet 5× less in-plane drag, and it ends 131.2 m up against
         // 203.1 (still air 128.8 against 200.0), 71.9 m from model 6's end.
-        public const ulong PoweredHash = 0x376ECD53376BBC68UL;
+        // p7c-wind 1.5: re-recorded with ModelVersion 8 (the levels' centres from the cruise, Severe 7.2, Windy 3.6, Calm
+        // 1.08 m/s; the wakes, which no golden flies). Audited case by case: with the centres set back to model 7's
+        // (5.0 / 2.5 / 0.8, the temporary edit) both goldens are model 7's pins (0x376ECD53376BBC68, 0xCD821FAEE49DF277)
+        // and on model 6's drone model 6's (0xBC85ED28D55D2986, 0x3D6092D3121E468A), every record and event, so the wake
+        // code and the header's new fields change no flight without obstacles; the still-air pins hold as they are. At
+        // model 8's centres the Windy flight moves from step 1, the wind's first: the strength draw is the same uniform
+        // draw in a band 1.44 times model 7's. The model-6-drone pins of 1.6's audit fly model 7's centres only, so their
+        // standing test went with them (flightbench --golden no longer flies them).
+        public const ulong PoweredHash = 0x104ECFA937FC9962UL;
 
         // The powered golden in still air over model 5's 1296-byte layout: model 5's flight, bit for bit (the audit).
         // Model 5 in turn held 1.4b's 0x3695FC49DCA906DC over 1.4b's layout in the stand-in's Windy air; that flight
@@ -91,16 +99,15 @@ namespace Fpv450.Sim.Tests
         // With the new drag the flight moves from step 9, the first armed step's motion (position.x), and keeps its
         // course: 5 impacts as model 6's, at rest 0.2518 m up, 9.5 cm from model 6's resting place in Calm (1.8 mm in
         // still air); in a steady 5 m/s it drifts 0.8 m against 1.7 and touches down with 5 impacts against 7.
-        public const ulong ContactHash = 0xCD821FAEE49DF277UL;
+        // p7c-wind 1.5: re-recorded with ModelVersion 8, audited as the powered one (above); in Calm's band, 1.35 times
+        // model 7's, the flight moves from step 1 and keeps its course: 5 impacts, at rest 0.2518 m up on 8 touching pairs.
+        public const ulong ContactHash = 0xF9B3D93720B83C58UL;
 
         /// <summary>The contact golden in still air over model 5's 1296-byte layout: model 5's flight, bit for bit.</summary>
         public const ulong StillAirContactHash = 0x7C3C81C9E2B04309UL;
 
         /// <summary>Model 5's record length: the record less p7c-wind 1.4's four hub winds.</summary>
         public const int Model5Bytes = 1296;
-
-        /// <summary>Model 6's pins (p7c-wind 1.4), which model 6's drone still flies (the 1.6 audit).</summary>
-        public const ulong Model6PoweredHash = 0xBC85ED28D55D2986UL, Model6ContactHash = 0x3D6092D3121E468AUL;
 
         /// <summary>p6-flight-core 1.5's tuned rotor drag, N per m/s at the reference speed (model 6's).</summary>
         public const string Model6HForce = "0.225";

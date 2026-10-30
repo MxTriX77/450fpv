@@ -1,24 +1,28 @@
 using System;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.World;
 
 namespace Fpv450.Sim.Wind
 {
     /// <summary>
     /// A level's preset (design 3 and 5, K§6.7, K§8.3, K§8.6): what the level fixes. Every number is labelled; the log
-    /// header records each by name (LogHeader.PresetOf). The level centres are the stand-in's until 1.5 tunes them.
+    /// header records each by name (LogHeader.PresetOf).
     /// </summary>
     public struct WindPreset
     {
         /// <summary>The model's name in the log header and the summary.</summary>
         public const string Model = "field";
 
-        /// <summary>Severe's mean wind at the reference height, m/s (derived: clip P's 5 m/s at its derived 13 m/s
-        /// airspeed, wind.md §5.3; 1.5 tunes it until T0 passes, K§8.6).</summary>
-        public const double SevereCentre = 5.0;
+        /// <summary>Severe's mean wind at the reference height, m/s (derived, p7c-wind 1.5: clip P's crosswind at the
+        /// cruise its pitch flies, 0.384 × 18.8 m/s = 7.2, wind.md §5.3's ratio of crosswind to airspeed at p7c-wind
+        /// 1.6's 18.8 m/s; inside PHY-17a's 6.5–8.5; T0 grades it, K§8.6).</summary>
+        public const double SevereCentre = 7.2;
 
-        /// <summary>Windy's and Calm's centres as fractions of Severe's (derived, K§8.6: c = 0.5 and 0.15; Calm's
-        /// 0.75 m/s rounded to 0.8).</summary>
-        public const double WindyCentre = 2.5, CalmCentre = 0.8;
+        /// <summary>Windy's and Calm's centres as fractions of Severe's (derived, K§8.6: c = 0.5 and 0.15).</summary>
+        public const double WindyFraction = 0.5, CalmFraction = 0.15;
+
+        /// <summary>Windy's and Calm's centres, m/s (derived: 3.6 and 1.08).</summary>
+        public const double WindyCentre = WindyFraction * SevereCentre, CalmCentre = CalmFraction * SevereCentre;
 
         /// <summary>Each band is its centre ± 25 % (derived, K§8.6), so no two overlap.</summary>
         public const double Band = 0.25;
@@ -79,6 +83,15 @@ namespace Fpv450.Sim.Wind
         /// energy below a quarter of the knee is 0.02 % of σ²).</summary>
         public double LongestFraction;
 
+        // ---- the wakes' eddies (K§6.7 layer 3, with 1.3's wake grid) ----
+
+        /// <summary>The wakes' eddies' wavelengths over the obstacle's height (assumed: clip P's belt eddies 5–20 m apart,
+        /// K§8.2, "the size of the trees", over the stand-in maple's 8.4 m; P's belt height is not measured).</summary>
+        public double WakeEddyMin, WakeEddyMax;
+
+        /// <summary>The wakes' eddies' plane waves (assumed, as 1.2's belt).</summary>
+        public int WakeModes;
+
         // ---- the direction (K§8.3, design 5) ----
 
         /// <summary>The meander's σ, degrees, its Ornstein–Uhlenbeck time constant, s, and its smoothing lag, s
@@ -111,6 +124,9 @@ namespace Fpv450.Sim.Wind
             Modes = 128;
             ShortestWavelength = 1;
             LongestFraction = 0.25;
+            WakeEddyMin = 0.6;
+            WakeEddyMax = 2.4;
+            WakeModes = 24;
             MeanderSigmaDeg = 30;
             MeanderTau = 120;
             MeanderLag = 30;
@@ -145,7 +161,7 @@ namespace Fpv450.Sim.Wind
             if (!(MeanLo > 0 && MeanHi >= MeanLo) || !(CoverHeight > 0) || !(RoughnessRatio > 0) || !(DisplacementRatio >= 0)
                 || !(ReferenceHeight > Displacement + Roughness) || !(ProfileTop >= ReferenceHeight) || !(TaperHeight > 0)
                 || !(Intensity >= 0) || !(VerticalRatio >= 0) || !(HorizontalScale > 0) || !(VerticalScale > 0) || Modes < 1
-                || !(ShortestWavelength > 0) || !(LongestFraction > 0) || !(MeanderSigmaDeg >= 0) || !(MeanderTau > 0)
+                || !(ShortestWavelength > 0) || !(LongestFraction > 0) || !(WakeEddyMin > 0 && WakeEddyMax >= WakeEddyMin) || WakeModes < 1 || !(MeanderSigmaDeg >= 0) || !(MeanderTau > 0)
                 || !(MeanderLag > 0) || !(ShiftRate > 0) || !(ShiftLoDeg >= 0 && ShiftHiDeg >= ShiftLoDeg)
                 || !(RampLo > 0 && RampHi >= RampLo) || Horizon < 1)
                 throw new ArgumentException("the wind preset is out of its bounds");
@@ -173,13 +189,20 @@ namespace Fpv450.Sim.Wind
     ///   Its horizontal part has the amplitude 2·√(band energy) of σ_u and L_u, its vertical part that of σ_w and L_w.
     ///   Frozen and advected with the mean wind (Taylor): the phase is κ·(x − X(t)) + φ, X(t) the drift. Each
     ///   component is bounded by the sum of its modes' amplitudes (Bound). Tapered to 0 at d over TaperHeight.
-    /// - **The wakes:** 1.2's synthetic belt (SyntheticBelt) until 1.3's wake grid, its eddies now advected.
+    /// - **The wakes** (p7c-wind 1.5), when the setup has obstacles (WakeLayout): 1.3's wake grid of them on its worker
+    ///   (WakeGridWorker), stepped with the direction's bearing at each step and sampled at each point at its height over
+    ///   the ground under the body. Its speed scales the mean along the wind (below 0 the flow reverses); its turbulence
+    ///   T is the local σ over the open field's: the open modes stay, and wake eddies at the obstacle's scale carry the
+    ///   rest, √(T² − 1)·σ_u, tapered as the open modes. The eddies are WakeModes plane waves u = a·ĉ·cos(κ̂·(x − X(t))·2π
+    ///   / (λ·H) + φ), κ̂ uniform on the sphere, ĉ across it (vorticity, no divergence) at a uniform angle, λ uniform in
+    ///   WakeEddyMin–WakeEddyMax, φ uniform (wind.wake's draws 5·m to 5·m + 4, counter-based), a = √(6/WakeModes), so each
+    ///   component has unit σ; H is the sample's ObstacleHeight. Frozen and advected with the drift, as the open modes.
     /// - **A gust front** (GustFront), only when the setup has one.
     /// Randomness enters only the wind's velocity, a physical parameter, and reaches the body only through the drag and
     /// rotor forces (flight-randomness): never the pose. Begin fixes a step's frame (its time, the drift, each mode's
     /// phase offset, the ground); At answers for that frame. Zero allocations after the constructor.
     /// </summary>
-    public sealed class WindField
+    public sealed class WindField : IDisposable
     {
         const double Dt = 0.001; // FlightCore.Dt
         const double DegToRad = 0.017453292519943295;
@@ -216,10 +239,11 @@ namespace Fpv450.Sim.Wind
         readonly Double3[] _wave, _amp;
         readonly double[] _phase, _offset;
 
-        // The synthetic belt's eddies, the same form.
-        readonly SyntheticBelt _belt;
-        readonly Double3[] _beltWave, _beltAmplitude;
-        readonly double[] _beltPhase, _beltOffset;
+        // The wakes: the worker and the eddies' unit wave directions, 2π/λ over H, unit amplitudes, phases and each step's
+        // offset −κ̂·X(t).
+        readonly WakeGridWorker _wakes;
+        readonly Double3[] _eddyDir, _eddyAmp;
+        readonly double[] _eddyScale, _eddyPhase, _eddyOffset;
         readonly GustFront _front;
 
         // The step's frame (Begin).
@@ -235,8 +259,8 @@ namespace Fpv450.Sim.Wind
             Setup = setup;
             Preset = preset;
             _front = setup.Front?.Checked();
-            if (setup.Belt != null && (setup.Level == WindLevel.Still || setup.Level == WindLevel.Steady))
-                throw new ArgumentException("a synthetic belt needs a pilot's level", nameof(setup));
+            if (setup.Wakes != null && (setup.Level == WindLevel.Still || setup.Level == WindLevel.Steady))
+                throw new ArgumentException("wakes need a pilot's level", nameof(setup));
             if (setup.StartSecond != 0 && (setup.Level == WindLevel.Still || setup.Level == WindLevel.Steady))
                 throw new ArgumentException("a start second needs a pilot's level", nameof(setup));
             switch (setup.Level)
@@ -315,31 +339,38 @@ namespace Fpv450.Sim.Wind
                 bound2 += DetMath.Abs(_amp[m].Z);
             }
             Bound = new Double3(bound0, bound1, bound2);
-            if (setup.Belt == null) return;
+            if (setup.Wakes == null) return;
 
-            // The belt's eddies (SyntheticBelt): Modes plane waves, each from draws 5·m to 5·m + 4 of the counter-based
-            // stream wind.belt.
-            _belt = setup.Belt.Checked();
-            SeedStream belt = random.Open("wind.belt");
-            int nb = _belt.Modes;
-            double sigma = DetMath.Sqrt(_belt.Boost * _belt.Boost - 1) * preset.Intensity * MeanSpeed;
-            double a = sigma * DetMath.Sqrt(6.0 / nb);
-            _beltWave = new Double3[nb];
-            _beltAmplitude = new Double3[nb];
-            _beltPhase = new double[nb];
-            _beltOffset = new double[nb];
-            for (int m = 0; m < nb; m++)
+            // The wakes (p7c-wind 1.5): the grid for the history's first bearing, and the eddies from the counter-based
+            // stream wind.wake.
+            WakeObstacles obstacles = setup.Wakes.Checked().Obstacles();
+            SeedStream wake = random.Open("wind.wake");
+            int ne = preset.WakeModes;
+            _eddyDir = new Double3[ne];
+            _eddyAmp = new Double3[ne];
+            _eddyScale = new double[ne];
+            _eddyPhase = new double[ne];
+            _eddyOffset = new double[ne];
+            double unit = DetMath.Sqrt(6.0 / ne);
+            for (int m = 0; m < ne; m++)
             {
                 ulong i = (ulong)m * 5;
-                double z = 2 * Unit(belt, i) - 1, r = DetMath.Sqrt(1 - z * z);
-                DetMath.SinCos(TwoPi * Unit(belt, i + 1), out double sin, out double cos);
+                double z = 2 * Unit(wake, i) - 1, r = DetMath.Sqrt(1 - z * z);
+                DetMath.SinCos(TwoPi * Unit(wake, i + 1), out double sin, out double cos);
                 var k = new Double3(r * cos, z, r * sin);
-                double wavelength = _belt.EddyMin + (_belt.EddyMax - _belt.EddyMin) * Unit(belt, i + 2);
-                _beltWave[m] = k * (TwoPi / wavelength);
-                _beltAmplitude[m] = Across(k, Unit(belt, i + 3)) * a;
-                _beltPhase[m] = TwoPi * Unit(belt, i + 4);
+                _eddyDir[m] = k;
+                _eddyScale[m] = TwoPi / (preset.WakeEddyMin + (preset.WakeEddyMax - preset.WakeEddyMin) * Unit(wake, i + 2));
+                _eddyAmp[m] = Across(k, Unit(wake, i + 3)) * unit;
+                _eddyPhase[m] = TwoPi * Unit(wake, i + 4);
             }
+            _wakes = new WakeGridWorker(obstacles, _fromDeg[0]);
         }
+
+        /// <summary>Stops the wake grid's worker, if the flight has one.</summary>
+        public void Dispose() => _wakes?.Dispose();
+
+        /// <summary>The wake grid's worker, or null without wakes.</summary>
+        public WakeGridWorker Wakes => _wakes;
 
         static WindPreset PresetFor(WindLevel level) =>
             level == WindLevel.Still || level == WindLevel.Steady ? default : WindPreset.Of(level);
@@ -379,9 +410,10 @@ namespace Fpv450.Sim.Wind
             _drift = new Double3(_cx[j] + (_vx[j] + 0.5 * ax * f) * f, 0, _cz[j] + (_vz[j] + 0.5 * az * f) * f);
             for (int m = 0; m < _wave.Length; m++)
                 _offset[m] = _phase[m] - (_wave[m].X * _drift.X + _wave[m].Z * _drift.Z);
-            if (_belt == null) return;
-            for (int m = 0; m < _beltWave.Length; m++)
-                _beltOffset[m] = _beltPhase[m] - (_beltWave[m].X * _drift.X + _beltWave[m].Z * _drift.Z);
+            if (_wakes == null) return;
+            _wakes.Step(step, _fromDeg[j] + (_fromDeg[k] - _fromDeg[j]) * f);
+            for (int m = 0; m < _eddyDir.Length; m++)
+                _eddyOffset[m] = -(_eddyDir[m].X * _drift.X + _eddyDir[m].Z * _drift.Z);
         }
 
         /// <summary>The mean wind at the reference height in the step's frame, world m/s.</summary>
@@ -420,18 +452,22 @@ namespace Fpv450.Sim.Wind
             if (!(h - _d > _z0) || !(h < double.PositiveInfinity)) return default; // in the cover, or sheltered in a hole
             double profile = DetMath.Log((DetMath.Min(h, _top) - _d) / _z0) / _logRef;
             double taper = DetMath.Min(1, (h - _d) / Preset.TaperHeight);
-            Double3 wind = _mean * profile + Turbulence(point) * taper;
-            if (_belt == null) return wind;
-            double b = _belt.Weight(point);
-            if (!(b > 0)) return wind;
+            Double3 turbulence = Turbulence(point) * taper;
+            if (_wakes == null) return _mean * profile + turbulence;
+            _wakes.Sample(point.X, point.Z, h, out WakeSample s);
+            Double3 wind = _mean * (profile * s.Speed) + turbulence;
+            double t2 = s.Turbulence * s.Turbulence - 1;
+            if (!(t2 > 0) || !(s.ObstacleHeight > 0)) return wind;
+            double inv = 1 / s.ObstacleHeight;
             Double3 eddies = default;
-            for (int m = 0; m < _beltWave.Length; m++)
+            for (int m = 0; m < _eddyDir.Length; m++)
             {
-                Double3 k = _beltWave[m];
-                DetMath.SinCos(k.X * point.X + k.Y * point.Y + k.Z * point.Z + _beltOffset[m], out _, out double cos);
-                eddies = eddies + _beltAmplitude[m] * cos;
+                Double3 k = _eddyDir[m];
+                double along = k.X * point.X + k.Y * point.Y + k.Z * point.Z + _eddyOffset[m];
+                DetMath.SinCos(along * _eddyScale[m] * inv + _eddyPhase[m], out _, out double cos);
+                eddies = eddies + _eddyAmp[m] * cos;
             }
-            return wind - _mean * (profile * _belt.Deficit * b) + eddies * b;
+            return wind + eddies * (DetMath.Sqrt(t2) * SigmaH * taper);
         }
 
         /// <summary>The wind's velocity of a speed blowing from a bearing, world (+X east, +Z north), m/s.</summary>

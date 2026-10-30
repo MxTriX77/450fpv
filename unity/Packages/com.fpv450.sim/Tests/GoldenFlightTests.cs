@@ -39,16 +39,6 @@ namespace Fpv450.Sim.Tests
             Assert.That(contact, Is.EqualTo(GoldenFlights.StillAirContactHash), "model 5's records and events, every bit");
         }
 
-        // p7c-wind 1.6's audit: the re-derived rotor drag is model 7's only change. On model 6's drone (drone.json with
-        // 1.5's tuned H-force) both golden flights are model 6's pins, every record and event.
-        [Test]
-        public void WithModel6sRotorDragTheGoldenFlightsAreModel6s()
-        {
-            DroneSpec spec = GoldenFlights.Model6Drone(RepositoryDrone.Text());
-            Assert.That(GoldenFlights.FlyPowered(spec, out _), Is.EqualTo(GoldenFlights.Model6PoweredHash), "model 6's powered golden, every bit");
-            Assert.That(GoldenFlights.FlyContact(spec, out _), Is.EqualTo(GoldenFlights.Model6ContactHash), "model 6's contact golden, every bit");
-        }
-
         [Test]
         public void TheContactGoldenFlightIsPinned()
         {

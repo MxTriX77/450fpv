@@ -128,8 +128,9 @@ namespace Fpv450.Sim.Log
             "StaticTorqueRatio", "InflowAdvanceRatio", "InflowThrustRatio", "InflowTorqueRatio", "HForce",
         };
         public static readonly string[] AeroFieldsLogged = { "AirDensity", "BodyArea", "BodyCenterOfPressure", "DragCoefficient", "CoilPart" };
-        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg", "StartSecond", "Belt", "Front" };
-        public static readonly string[] BeltFieldsLogged = { "Edge", "Across", "Height", "Deficit", "Boost", "EddyMin", "EddyMax", "Modes", "Ramp" };
+        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg", "StartSecond", "Wakes", "Front" };
+        public static readonly string[] WakeFieldsLogged = { "OriginX", "OriginZ", "NX", "NZ", "Volumes" };
+        public static readonly string[] VolumeFieldsLogged = { "Kind", "X", "Z", "BaseM", "TopM", "HalfX", "HalfZ", "Radius", "Yaw", "Porosity" };
         public static readonly string[] FrontFieldsLogged = { "Start", "Normal", "Delta", "Speed", "Width", "Uniform" };
         public static readonly string[] PackFieldsLogged = { "Part", "Series", "Parallel", "CellCapacity", "CellResistance", "Ocv" };
 
@@ -263,6 +264,8 @@ namespace Fpv450.Sim.Log
                 new NamedValue("horizontal_scale_m", p.HorizontalScale), new NamedValue("vertical_scale_m", p.VerticalScale),
                 new NamedValue("modes", p.Modes), new NamedValue("shortest_wavelength_m", p.ShortestWavelength),
                 new NamedValue("longest_over_knee", p.LongestFraction),
+                new NamedValue("wake_eddy_min_over_h", p.WakeEddyMin), new NamedValue("wake_eddy_max_over_h", p.WakeEddyMax),
+                new NamedValue("wake_modes", p.WakeModes),
                 new NamedValue("meander_sigma_deg", p.MeanderSigmaDeg), new NamedValue("meander_tau_s", p.MeanderTau),
                 new NamedValue("meander_lag_s", p.MeanderLag), new NamedValue("shift_rate_per_s", p.ShiftRate),
                 new NamedValue("shift_lo_deg", p.ShiftLoDeg), new NamedValue("shift_hi_deg", p.ShiftHiDeg),
@@ -515,17 +518,23 @@ namespace Fpv450.Sim.Log
                     Text(e, v.Name);
                     e.Write(v.Value);
                 }
-                // The synthetic belt (p7c-wind 1.2) and the gust front (1.4), each after a flag.
-                SyntheticBelt b = Wind.Belt;
+                // The wakes' obstacles (p7c-wind 1.5) with the wake grid's version, and the gust front (1.4), each after a flag.
+                WakeLayout b = Wind.Wakes;
                 e.Write(b != null);
                 if (b != null)
                 {
-                    V3(e, b.Edge);
-                    V3(e, b.Across);
-                    foreach (double v in new[] { b.Height, b.Deficit, b.Boost, b.EddyMin, b.EddyMax })
-                        e.Write(v);
-                    e.Write(b.Modes);
-                    e.Write(b.Ramp);
+                    e.Write(WakeGrid.Version);
+                    e.Write(b.OriginX);
+                    e.Write(b.OriginZ);
+                    e.Write(b.NX);
+                    e.Write(b.NZ);
+                    e.Write(b.Volumes.Length);
+                    foreach (WindVolume v in b.Volumes)
+                    {
+                        e.Write((byte)v.Kind);
+                        foreach (double x in new[] { v.X, v.Z, v.BaseM, v.TopM, v.HalfX, v.HalfZ, v.Radius, v.Yaw, v.Porosity })
+                            e.Write(x);
+                    }
                 }
                 GustFront g = Wind.Front;
                 e.Write(g != null);
@@ -775,11 +784,20 @@ namespace Fpv450.Sim.Log
                         WindParameters = new NamedValue[r.ReadUInt16()];
                         for (int i = 0; i < WindParameters.Length; i++) WindParameters[i] = new NamedValue(Text(r), r.ReadDouble());
                         if (r.ReadBoolean())
-                            Wind.Belt = new SyntheticBelt
-                            {
-                                Edge = V3(r), Across = V3(r), Height = r.ReadDouble(), Deficit = r.ReadDouble(), Boost = r.ReadDouble(),
-                                EddyMin = r.ReadDouble(), EddyMax = r.ReadDouble(), Modes = r.ReadInt32(), Ramp = r.ReadDouble(),
-                            };
+                        {
+                            int wakeVersion = r.ReadInt32();
+                            if (wakeVersion != WakeGrid.Version)
+                                throw new FlightLogException("the log's wake grid is version " + wakeVersion + "; this build's is " + WakeGrid.Version);
+                            Wind.Wakes = new WakeLayout { OriginX = r.ReadDouble(), OriginZ = r.ReadDouble(), NX = r.ReadInt32(), NZ = r.ReadInt32() };
+                            Wind.Wakes.Volumes = new WindVolume[r.ReadInt32()];
+                            for (int i = 0; i < Wind.Wakes.Volumes.Length; i++)
+                                Wind.Wakes.Volumes[i] = new WindVolume
+                                {
+                                    Kind = (WindVolumeKind)r.ReadByte(), X = r.ReadDouble(), Z = r.ReadDouble(), BaseM = r.ReadDouble(),
+                                    TopM = r.ReadDouble(), HalfX = r.ReadDouble(), HalfZ = r.ReadDouble(), Radius = r.ReadDouble(),
+                                    Yaw = r.ReadDouble(), Porosity = r.ReadDouble(),
+                                };
+                        }
                         if (r.ReadBoolean())
                             Wind.Front = new GustFront
                             {

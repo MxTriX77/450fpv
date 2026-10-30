@@ -52,7 +52,7 @@ namespace Fpv450.Sim.Log
         public static readonly byte[] Magic = { 0x46, 0x50, 0x56, 0x34, 0x35, 0x30, 0x4C, 0x47 };
 
         /// <summary>The format: the prologue, the header's entries and the record layouts below.</summary>
-        public const int Version = 6;
+        public const int Version = 7;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -72,8 +72,11 @@ namespace Fpv450.Sim.Log
         ///    the direction's meander and shifts, per point; still and steady air step as in 5).
         /// 7: p7c-wind 1.6 (drone.json's rotor in-plane drag re-derived from blade-element theory, 0.225 → 0.044 N per m/s,
         ///    so clip P's pitch flies the published cruise; the code is model 6's, and its drone flies model 6's bits).
+        /// 8: p7c-wind 1.5 (the levels' centres from the cruise, Severe 7.2, Windy 3.6, Calm 1.08 m/s; the wakes of a
+        ///    setup's obstacles from 1.3's wake grid, which replace 1.2's synthetic belt; a flight without obstacles at
+        ///    model 7's centres steps as in 7).
         /// </summary>
-        public const int ModelVersion = 7;
+        public const int ModelVersion = 8;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

@@ -49,7 +49,7 @@ namespace Fpv450.FlightBench
             foreach (ulong seed in new ulong[] { 1, 2, 3, 4, 5 })
             {
                 CrosswindScenario.Result r = CrosswindScenario.Hold(CrosswindScenario.Setup(spec, WindSetup.Of(WindLevel.Severe), seed));
-                Row($"Severe field, seed {seed}", r.LeanPerMs >= CrosswindScenario.HoverLeanLo && r.LeanPerMs <= CrosswindScenario.GustLeanHi && r.LeanOffWindDeg < 10, Lean(r));
+                Row($"Severe field, seed {seed}", r.LeanPerMs >= CrosswindScenario.HoverLeanLo && r.LeanPerMs <= CrosswindScenario.GustLeanHiAt(r.WindSpeed) && r.LeanOffWindDeg < 10, Lean(r));
             }
             CrosswindScenario.Result none = CrosswindScenario.Hold(CrosswindScenario.Setup(spec, WindSetup.SteadyFrom(270, 5), drag: false, rotorDrag: false));
             Row("known-wrong: no drag", LeanTarget(none), Lean(none), knownWrong: true);
@@ -142,22 +142,22 @@ namespace Fpv450.FlightBench
                 var low = new List<WindTargets.History>();
                 var white = new List<WindTargets.History>();
                 WindPreset cut = preset;
-                cut.ShortestWavelength = 13; // the known-wrong field: nothing above 1 Hz at 13 m/s
+                cut.ShortestWavelength = WindHarness.ReleaseSpeed; // the known-wrong field: nothing above 1 Hz at the 18.8 m/s cruise
                 for (ulong seed = 1; seed <= 20; seed++) runs.Add(WindTargets.Gusts(level, seed, 1200, 50));
                 for (ulong seed = 1; seed <= 5; seed++)
                 {
                     flat.Add(WindTargets.Gusts(level, seed, 300, 50, WindTargets.FlatSigma));
-                    met.Add(WindTargets.Encounter(level, seed, 66, 13));
-                    low.Add(WindTargets.Encounter(level, seed, 66, 13, cut));
-                    white.Add(WindTargets.Encounter(level, seed, 66, 13, null, WindTargets.White));
+                    met.Add(WindTargets.Encounter(level, seed, 66, WindHarness.ReleaseSpeed));
+                    low.Add(WindTargets.Encounter(level, seed, 66, WindHarness.ReleaseSpeed, cut));
+                    white.Add(WindTargets.Encounter(level, seed, 66, WindHarness.ReleaseSpeed, null, WindTargets.White));
                 }
                 foreach (WindTargets.History h in runs) biased.Add(WindTargets.Biased(h));
                 Row($"{level}: σ/U, 20 seeds of 1200 s", WindTargets.Intensity(runs, preset, out d, out _), d);
                 Row($"{level}: the mean in its band and unbiased", WindTargets.MeanInBand(runs, preset, out d), d);
-                Row($"{level}: energy at 2–4 Hz at 13 m/s, 5 seeds", WindTargets.Spectrum(met, preset, 13, 2, 4, out d, out _), d);
-                Row($"{level}: energy at 1–2 Hz at 13 m/s, 5 seeds", WindTargets.Spectrum(met, preset, 13, 1, 2, out d, out _), d);
-                Row($"{level} known-wrong: a field that stops below 1 Hz at 13 m/s", WindTargets.Spectrum(low, preset, 13, 2, 4, out d, out _), d, knownWrong: true);
-                Row($"{level} known-wrong: white noise", WindTargets.Spectrum(white, preset, 13, 2, 4, out d, out _), d, knownWrong: true);
+                Row($"{level}: energy at 2–4 Hz at the 18.8 m/s cruise, 5 seeds", WindTargets.Spectrum(met, preset, WindHarness.ReleaseSpeed, 2, 4, out d, out _), d);
+                Row($"{level}: energy at 1–2 Hz at the 18.8 m/s cruise, 5 seeds", WindTargets.Spectrum(met, preset, WindHarness.ReleaseSpeed, 1, 2, out d, out _), d);
+                Row($"{level} known-wrong: a field that stops below 1 Hz at the 18.8 m/s cruise", WindTargets.Spectrum(low, preset, WindHarness.ReleaseSpeed, 2, 4, out d, out _), d, knownWrong: true);
+                Row($"{level} known-wrong: white noise", WindTargets.Spectrum(white, preset, WindHarness.ReleaseSpeed, 2, 4, out d, out _), d, knownWrong: true);
                 Row($"{level} known-wrong: a flat 0.2 m/s σ", WindTargets.Intensity(flat, preset, out d, out _), d, knownWrong: true);
                 Row($"{level} known-wrong: a mean 5 % strong", WindTargets.MeanInBand(biased, preset, out d), d, knownWrong: true);
             }

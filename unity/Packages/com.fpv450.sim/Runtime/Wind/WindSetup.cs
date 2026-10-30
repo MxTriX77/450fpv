@@ -1,5 +1,6 @@
 using System;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.World;
 
 namespace Fpv450.Sim.Wind
 {
@@ -23,9 +24,9 @@ namespace Fpv450.Sim.Wind
         /// flight but the harness's, whose start rule picks it, K§8.5), 0 to WindPreset.Horizon.</summary>
         public int StartSecond;
 
-        /// <summary>A synthetic tree belt (p7c-wind 1.2's harness, until 1.3's wake grid), or null for none (every flight
-        /// but the harness's).</summary>
-        public SyntheticBelt Belt;
+        /// <summary>The obstacles whose wakes the field carries (p7c-wind 1.5: the wake grid of 1.3, built from them), or
+        /// null for none (open country).</summary>
+        public WakeLayout Wakes;
 
         /// <summary>A gust front (p7c-wind 1.4's per-rotor scenario), or null for none (every other flight).</summary>
         public GustFront Front;
@@ -37,66 +38,27 @@ namespace Fpv450.Sim.Wind
     }
 
     /// <summary>
-    /// A synthetic tree belt (p7c-wind 1.2, labelled: the harness's belt until 1.3's wake grid lands). A region, not a
-    /// wake: it has no wake physics and does not follow the wind's direction. It starts at a line through Edge across the
-    /// horizontal unit vector Across and runs RegionHeights belt heights along it (K§8.5: from the belt's upwind edge to
-    /// 10 belt heights downwind), at every height. Inside:
-    /// - the mean wind cut by Deficit,
-    /// - plus a field of eddies: Modes plane waves u = a·ĉ·cos(κ·(x − X(t)) + φ), κ in a uniformly drawn direction
-    ///   with a wavelength uniform in EddyMin–EddyMax, ĉ across κ (no divergence, so the field carries vorticity) at a
-    ///   drawn angle, φ uniform; a = σ_b·√(6/Modes) gives each component σ_b = √(Boost² − 1)·Intensity·U, so the belt's
-    ///   turbulence intensity is Boost times the open field's. Bounded by σ_b·√(6·Modes). Frozen and advected with the
-    ///   mean wind, X(t) the field's drift (WindField, 1.4), inside the region, which stays where it is.
-    /// Both scaled by the region's weight: 0 at its ends, 1 from Ramp belt heights in, smooth (t²·(3 − 2t)).
-    /// Every value is assumed and named; the log header records them.
+    /// The obstacles of a flight's wakes (p7c-wind 1.5, design 4): the wake grid's obstacle grid (K§10.3) over its origin
+    /// (world X, Z of its south-west corner, m) and its 2 m cells, from the placed wind volumes. The field builds its
+    /// WakeGridWorker from it at the flight's start; the log header records every value, so a replay rebuilds the same
+    /// grid (WakeGrid.Version with it). The harness's synthetic belt (WindHarness.BeltLayout) is one, until the test
+    /// range's world lands (D-046).
     /// </summary>
-    public sealed class SyntheticBelt
+    public sealed class WakeLayout
     {
-        /// <summary>The region's length in belt heights (K§8.5: to 10 belt heights downwind).</summary>
-        public const double RegionHeights = 10;
+        public double OriginX, OriginZ;
+        public int NX, NZ;
+        public WindVolume[] Volumes;
 
-        /// <summary>A point on the belt's upwind edge (world, m; its height is not used) and the horizontal unit vector
-        /// from it into the region.</summary>
-        public Double3 Edge, Across;
+        /// <summary>The obstacle grid (K§10.3).</summary>
+        public WakeObstacles Obstacles() => new WakeObstacles(OriginX, OriginZ, NX, NZ, Volumes);
 
-        /// <summary>The belt's height H, m.</summary>
-        public double Height;
-
-        /// <summary>The mean wind's deficit inside (assumed: a porous belt's 20–50 % near the ground, less 2–5 H
-        /// above it).</summary>
-        public double Deficit = 0.2;
-
-        /// <summary>The belt's turbulence intensity over the open field's (assumed: shelterbelt studies' about 2×,
-        /// K§8.2).</summary>
-        public double Boost = 2;
-
-        /// <summary>The eddies' wavelengths, m (measured: clip P's eddies 2.5–11 m across and 5–20 m apart, K§8.2).</summary>
-        public double EddyMin = 5, EddyMax = 20;
-
-        /// <summary>The eddy field's plane waves (assumed).</summary>
-        public int Modes = 24;
-
-        /// <summary>The ramps at the region's ends, belt heights (assumed).</summary>
-        public double Ramp = 1;
-
-        /// <summary>The region's weight at a world point: 0 outside, ramping to 1 inside.</summary>
-        public double Weight(in Double3 point)
+        internal WakeLayout Checked()
         {
-            double x = Double3.Dot(point - Edge, Across) / Height;
-            if (!(x > 0 && x < RegionHeights)) return 0;
-            return Smooth(x / Ramp) * Smooth((RegionHeights - x) / Ramp);
-        }
-
-        internal SyntheticBelt Checked()
-        {
-            double across = Across.X * Across.X + Across.Z * Across.Z;
-            if (!(Height > 0) || !(Across.Y == 0) || !(DetMath.Abs(across - 1) < 1e-12) || !(Deficit >= 0 && Deficit <= 1)
-                || !(Boost >= 1) || !(EddyMin > 0 && EddyMax >= EddyMin) || Modes < 1 || !(Ramp > 0 && 2 * Ramp <= RegionHeights))
-                throw new ArgumentException("the synthetic belt is out of its bounds");
+            if (NX < 1 || NZ < 1 || NX > 4096 || NZ > 4096 || Volumes == null || !(DetMath.Abs(OriginX) < 1e7) || !(DetMath.Abs(OriginZ) < 1e7))
+                throw new ArgumentException("the wake layout is out of its bounds");
             return this;
         }
-
-        internal static double Smooth(double t) => t >= 1 ? 1 : t <= 0 ? 0 : t * t * (3 - 2 * t);
     }
 
     /// <summary>
@@ -117,8 +79,10 @@ namespace Fpv450.Sim.Wind
         public Double3 At(in Double3 point, double t)
         {
             double behind = (Speed * t - Double3.Dot(point - Start, Normal)) / Width + 0.5;
-            return Delta * SyntheticBelt.Smooth(behind);
+            return Delta * Smooth(behind);
         }
+
+        internal static double Smooth(double t) => t >= 1 ? 1 : t <= 0 ? 0 : t * t * (3 - 2 * t);
 
         internal GustFront Checked()
         {

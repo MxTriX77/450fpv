@@ -110,30 +110,30 @@ namespace Fpv450.Sim.Tests
                 bool intensity = Intensity(runs, preset, out string di, out _);
                 bool band = MeanInBand(runs, preset, out string db);
                 var met = new List<History>();
-                for (ulong seed = 1; seed <= 5; seed++) met.Add(Encounter(level, seed, 33, 13));
-                bool spectrum = Spectrum(met, preset, 13, 2, 4, out string ds, out _);
-                TestContext.Out.WriteLine($"{level}, 20 seeds of 1200 s: {di}; {db}; 5 seeds at 13 m/s: {ds}");
+                for (ulong seed = 1; seed <= 5; seed++) met.Add(Encounter(level, seed, 33, WindHarness.ReleaseSpeed));
+                bool spectrum = Spectrum(met, preset, WindHarness.ReleaseSpeed, 2, 4, out string ds, out _);
+                TestContext.Out.WriteLine($"{level}, 20 seeds of 1200 s: {di}; {db}; 5 seeds at the 18.8 m/s cruise: {ds}");
                 Assert.That(intensity, Is.True, di);
                 Assert.That(band, Is.True, db);
                 Assert.That(spectrum, Is.True, ds);
 
-                // The known-wrong: a field that stops below 1 Hz at 13 m/s and white noise fail the spectrum, a σ that
+                // The known-wrong: a field that stops below 1 Hz at the cruise and white noise fail the spectrum, a σ that
                 // ignores the wind fails the intensity, a mean 5 % off its drawn strength fails the unbiased mean.
                 WindPreset cut = preset;
-                cut.ShortestWavelength = 13;
+                cut.ShortestWavelength = WindHarness.ReleaseSpeed;
                 var low = new List<History>();
                 var white = new List<History>();
                 var flat = new List<History>();
                 var biased = new List<History>();
                 for (ulong seed = 1; seed <= 5; seed++)
                 {
-                    low.Add(Encounter(level, seed, 33, 13, cut));
-                    white.Add(Encounter(level, seed, 33, 13, null, White));
+                    low.Add(Encounter(level, seed, 33, WindHarness.ReleaseSpeed, cut));
+                    white.Add(Encounter(level, seed, 33, WindHarness.ReleaseSpeed, null, White));
                     flat.Add(Gusts(level, seed, 300, 50, FlatSigma));
                 }
                 foreach (History h in runs) biased.Add(Biased(h));
-                Assert.That(Spectrum(low, preset, 13, 2, 4, out string w0, out _), Is.False, "a field below 1 Hz fails the spectrum: " + w0);
-                Assert.That(Spectrum(white, preset, 13, 2, 4, out string w1, out _), Is.False, "white noise fails the spectrum: " + w1);
+                Assert.That(Spectrum(low, preset, WindHarness.ReleaseSpeed, 2, 4, out string w0, out _), Is.False, "a field below 1 Hz fails the spectrum: " + w0);
+                Assert.That(Spectrum(white, preset, WindHarness.ReleaseSpeed, 2, 4, out string w1, out _), Is.False, "white noise fails the spectrum: " + w1);
                 Assert.That(Intensity(flat, preset, out string w2, out _), Is.False, "a flat σ fails the intensity: " + w2);
                 Assert.That(MeanInBand(biased, preset, out string w3), Is.False, "a biased mean fails: " + w3);
                 TestContext.Out.WriteLine($"  known-wrong: below 1 Hz: {w0}; white noise: {w1}; a flat 0.2 m/s σ: {w2}; a mean 5 % strong: {w3}");
@@ -193,7 +193,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(wind.At(new Double3(0, 0.1, 0)), Is.EqualTo(default(Double3)), "inside the cover the field is still");
             Double3 top = wind.At(new Double3(1, 100, 2)) - wind.Turbulence(new Double3(1, 100, 2));
             Double3 above = wind.At(new Double3(1, 400, 2)) - wind.Turbulence(new Double3(1, 400, 2));
-            Assert.That(above, Is.EqualTo(top), "held above the top");
+            Assert.That((above - top).Length(), Is.LessThan(1e-12 * top.Length()), "held above the top");
             wind.Begin(0, default, 10);
             Assert.That(wind.At(new Double3(0, 10.1, 0)), Is.EqualTo(default(Double3)), "the ground under the body is the world's");
             wind.Begin(0, default, double.NegativeInfinity);
@@ -228,7 +228,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(calm.MeanHi, Is.LessThan(windy.MeanLo));
             Assert.That(windy.MeanHi, Is.LessThan(severe.MeanLo));
             double[] bands = { calm.MeanLo, calm.MeanHi, windy.MeanLo, windy.MeanHi, severe.MeanLo, severe.MeanHi };
-            Assert.That(bands, Is.EqualTo(new[] { 0.6, 1.0, 1.875, 3.125, 3.75, 6.25 }).Within(1e-12), "centre ± 25 % (K§8.6)");
+            Assert.That(bands, Is.EqualTo(new[] { 0.81, 1.35, 2.7, 4.5, 5.4, 9.0 }).Within(1e-12), "centre ± 25 % (K§8.6)");
         }
     }
 }

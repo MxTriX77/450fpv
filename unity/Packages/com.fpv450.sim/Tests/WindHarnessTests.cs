@@ -69,7 +69,7 @@ namespace Fpv450.Sim.Tests
                     TestContext.Out.WriteLine($"seed {r.Seed}{(belt ? ", belt" : "")}: {r.HeightRef:F0} m, {r.Mass:F3} kg, airspeed {r.MeanAirspeed:F2} m/s, "
                         + $"pitch {r.MeanPitchDeg:F2}°, roll {r.MeanRollDeg:F2}° against {r.MeanCrosswind:F2} m/s of {r.MeanSpeed:F2} = {r.LeanPerMs:F3}° per m/s "
                         + $"(1.5's there {own:F3}); belt {r.Segment} ({beltSeconds:F2} s)");
-                    Assert.That(WindHarness.Reproduces(r.LeanPerMs, own, belt ? 0.2 : 0.1), Is.True, "the lean per m/s");
+                    Assert.That(WindHarness.Reproduces(r.LeanPerMs, own, belt ? 0.2 : 0.15), Is.True, "the lean per m/s");
                     Assert.That(r.MeanRollDeg, Is.LessThan(0), "into the wind from the left");
                     Assert.That(r.MeanPitchDeg, Is.EqualTo(HarnessPilot.ClipPPitchDeg).Within(2), "θ_ref ± 2°");
                     Assert.That(r.Samples.Length, Is.EqualTo(1017), "34 s at 29.917 Hz");

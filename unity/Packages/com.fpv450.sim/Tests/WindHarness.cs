@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Wind;
+using Fpv450.Sim.World;
 
 namespace Fpv450.Sim.Tests
 {
@@ -13,9 +14,11 @@ namespace Fpv450.Sim.Tests
     ///   `ReleaseSpeed` along the course, nose down at the pilot's θ_ref, level, at the run's height. The course is
     ///   laid with the seed's drawn wind abeam from the left (bearing = the wind's + 90°), straight, `Seconds` long:
     ///   `BeltSeconds` from the belt's upwind edge to 10 belt heights downwind, the rest over open field.
-    /// - **The belt:** until p7c-wind 1.3's wake grid, the stand-in's labelled synthetic belt (SyntheticBelt) across the
-    ///   course `BeltStartSeconds` of flight past the release, 10 heights long with H = BeltSeconds·ReleaseSpeed/10.
-    ///   The segment is where the camera's frames are inside that region, from their positions.
+    /// - **The belt** (p7c-wind 1.5): a row of trees (BeltLayout) whose wakes the field takes from 1.3's wake grid, until
+    ///   the test range's world lands (D-046). It crosses the course `BeltStartSeconds` of flight past the release at
+    ///   `BeltAngleDeg` to it, running forward on the upwind side, so that with the drawn wind abeam the course runs from
+    ///   the belt's upwind edge to 10 belt heights downwind of it in `BeltSeconds` (K§8.5). The segment is where the
+    ///   camera's frames are on that stretch of the course, from their positions; the wind's own direction moves the wake.
     /// - **The measurement:** the frames from `DiscardSeconds` on, numbered from 1 with time_s = (frame − 1)/29.917
     ///   (the tracker's convention), roll and pitch from TrackerAngles, the yaw rate the frame-to-frame change of the
     ///   heading × 29.917, every confidence 1, dup 0, flag ok.
@@ -35,9 +38,25 @@ namespace Fpv450.Sim.Tests
         /// <summary>The runs' heights spread evenly over this band, m above the floor (assumed, wind.md §6.2).</summary>
         public const double LowHeight = 20, HighHeight = 50;
 
-        /// <summary>The synthetic belt's height H, m (derived: 10 H in BeltSeconds at ReleaseSpeed, 13.2 m, a field
-        /// shelterbelt's; 9.1 m at 1.5's 13 m/s).</summary>
-        public const double BeltHeight = BeltSeconds * ReleaseSpeed / SyntheticBelt.RegionHeights;
+        /// <summary>The belt's angle to the course, degrees (assumed: K§8.5's belt crossing with the wind abeam needs it
+        /// oblique; at 45° the course gains a metre downwind of the belt for every metre along).</summary>
+        public const double BeltAngleDeg = 45;
+
+        /// <summary>The belt's stretch of the course in belt heights past its leeward edge (K§8.5).</summary>
+        public const double BeltHeights = 10;
+
+        /// <summary>The belt's trees: the stand-in maple's wind volume (Z09_tree_maple, WakeGridFixture: a crown of radius
+        /// 3.1 m from 2.2 to 8.4 m, porosity 0.45, Godot's) scaled to the belt's height, every 5 m scaled.</summary>
+        public const double MapleTop = WakeGridFixture.MapleTop, CrownRatio = WakeGridFixture.MapleRadius / MapleTop,
+            BaseRatio = WakeGridFixture.MapleBase / MapleTop, SpacingRatio = WakeGridFixture.TreeSpacing / MapleTop;
+
+        /// <summary>The trees' porosity (assumed: the stand-in maple's, Godot's 0.45; 1.5 judges it against T3).</summary>
+        public static double BeltPorosity = WakeGridFixture.MaplePorosity;
+
+        /// <summary>The belt's height H, m (derived: from its upwind edge to 10 H past its leeward edge in BeltSeconds at
+        /// ReleaseSpeed along the course at BeltAngleDeg: 7·18.8 = H·(10 + 2·CrownRatio/sin 45°), 11.9 m; 1.2's region was
+        /// 13.2 m at the cruise and 9.1 m at 13 m/s).</summary>
+        public static readonly double BeltHeight = BeltSeconds * ReleaseSpeed / (BeltHeights + 2 * CrownRatio / System.Math.Sin(BeltAngleDeg * DegToRad));
 
         /// <summary>A pilot: the nominal one or a variant (wind.md §6.1).</summary>
         public sealed class Pilot
@@ -73,7 +92,7 @@ namespace Fpv450.Sim.Tests
             public WindLevel Level;
             public ulong Seed;
             public string Pilot;
-            public bool Belt;
+            public bool Belt, Steady;
             public double HeightRef, FromDeg, MeanSpeed, CourseDeg, Mass, StartSecond;
 
             /// <summary>The body's inertia about its roll, pitch and yaw axes, kg·m² (body z, x, y).</summary>
@@ -194,22 +213,73 @@ namespace Fpv450.Sim.Tests
             return h;
         }
 
-        /// <summary>The test flight's setup for a seed at a height: its course from the seed's drawn wind, and the belt.</summary>
-        public static FlightSetup Setup(DroneSpec spec, WindLevel level, ulong seed, double height, bool belt, bool drag,
-            out double courseDeg, out double fromDeg, int startSecond = 0)
+        /// <summary>
+        /// The belt's trees and their grid for a course from the origin along `along` (a horizontal unit vector), the wind
+        /// abeam from its left: the belt's centre line crosses the course BeltStartSeconds·ReleaseSpeed ahead and runs
+        /// forward on the upwind side at BeltAngleDeg, from 4 spacings behind the crossing to where the course leaves the
+        /// belt's 10 H, so its far wake beyond falls behind the drone (assumed). The grid covers the trees and the
+        /// course's stretch with 40 m about them (the wakes need nothing upwind of the trees).
+        /// </summary>
+        public static WakeLayout BeltLayout(in Double3 along)
         {
-            fromDeg = new WindField(WindSetup.Of(level), new FlightRandom(seed)).FromDeg;
+            double h = BeltHeight, r = CrownRatio * h, spacing = SpacingRatio * h, gamma = BeltAngleDeg * DegToRad;
+            var left = new Double3(-along.Z, 0, along.X);
+            DetMath.SinCos(gamma, out double sg, out double cg);
+            Double3 d = along * cg + left * sg, crossing = along * (BeltStartSeconds * ReleaseSpeed);
+            double end = (BeltHeights * h + 2 * r / sg) / sg + spacing;
+            var volumes = new List<WindVolume>();
+            double x0 = double.MaxValue, x1 = double.MinValue, z0 = double.MaxValue, z1 = double.MinValue;
+            void Cover(in Double3 q)
+            {
+                x0 = System.Math.Min(x0, q.X); x1 = System.Math.Max(x1, q.X);
+                z0 = System.Math.Min(z0, q.Z); z1 = System.Math.Max(z1, q.Z);
+            }
+            for (double t = -4 * spacing; t <= end; t += spacing)
+            {
+                Double3 q = crossing + d * t;
+                volumes.Add(new WindVolume
+                {
+                    Kind = WindVolumeKind.Cylinder, X = q.X, Z = q.Z, BaseM = BaseRatio * h, TopM = h, Radius = r, Porosity = BeltPorosity,
+                });
+                Cover(q);
+            }
+            Cover(crossing - along * (2 * r));
+            Cover(crossing + along * (BeltSeconds * ReleaseSpeed + 2 * r));
+            const double margin = 40;
+            double ox = WakeObstacles.Cell * System.Math.Floor((x0 - margin) / WakeObstacles.Cell);
+            double oz = WakeObstacles.Cell * System.Math.Floor((z0 - margin) / WakeObstacles.Cell);
+            return new WakeLayout
+            {
+                OriginX = ox, OriginZ = oz, NX = (int)System.Math.Ceiling((x1 + margin - ox) / WakeObstacles.Cell),
+                NZ = (int)System.Math.Ceiling((z1 + margin - oz) / WakeObstacles.Cell), Volumes = volumes.ToArray(),
+            };
+        }
+
+        /// <summary>The belt's stretch of the course, m from the release: from its upwind edge to 10 H past its leeward
+        /// edge, with the wind abeam.</summary>
+        public static void BeltStretch(out double from, out double to)
+        {
+            double sg = System.Math.Sin(BeltAngleDeg * DegToRad), r = CrownRatio * BeltHeight;
+            from = BeltStartSeconds * ReleaseSpeed - r / sg;
+            to = BeltStartSeconds * ReleaseSpeed + r / sg + BeltHeights * BeltHeight;
+        }
+
+        /// <summary>The test flight's setup for a seed at a height: its course from the seed's drawn wind, and the belt.
+        /// `steady` is the known-wrong fixed vector: the drawn strength from the drawn direction at every point and time,
+        /// without turbulence, profile, direction changes or wakes.</summary>
+        public static FlightSetup Setup(DroneSpec spec, WindLevel level, ulong seed, double height, bool belt, bool drag,
+            out double courseDeg, out double fromDeg, int startSecond = 0, bool steady = false)
+        {
+            var drawn = new WindField(WindSetup.Of(level), new FlightRandom(seed));
+            fromDeg = drawn.FromDeg;
             courseDeg = (fromDeg + 90) % 360; // the wind abeam from the left
             double course = courseDeg * DegToRad;
             DetMath.SinCos(course, out double sin, out double cos);
             var along = new Double3(sin, 0, cos);
             WindSetup wind = WindSetup.Of(level);
             wind.StartSecond = startSecond;
-            if (belt)
-                wind.Belt = new SyntheticBelt
-                {
-                    Edge = along * (BeltStartSeconds * ReleaseSpeed), Across = along, Height = BeltHeight,
-                };
+            if (belt) wind.Wakes = BeltLayout(along);
+            if (steady) wind = WindSetup.SteadyFrom(fromDeg, drawn.MeanSpeed);
             FlightSetup setup = CrosswindScenario.Setup(spec, wind, seed, drag, drag);
             setup.StartPosition = new Double3(0, height, 0);
             setup.StartVelocity = along * ReleaseSpeed;
@@ -223,14 +293,16 @@ namespace Fpv450.Sim.Tests
         const double DegToRad = 0.017453292519943295, RadToDeg = 57.29577951308232;
 
         /// <summary>Flies run i of n for a seed with a pilot, and logs it.</summary>
-        public static Run Fly(DroneSpec spec, WindLevel level, ulong seed, int i, int n, Pilot pilot, bool belt = true, bool drag = true)
+        public static Run Fly(DroneSpec spec, WindLevel level, ulong seed, int i, int n, Pilot pilot, bool belt = true, bool drag = true,
+            bool steady = false)
         {
             double height = HeightOf(i, n);
             double[] history = History(level, seed, 120, out double drawn);
             int start = StartSecond(history, drawn, Seconds);
             if (start < 0)
                 throw new System.InvalidOperationException("seed " + seed + "'s 120 min hold no " + Seconds + " s within 90° of its drawn direction");
-            FlightSetup setup = Setup(spec, level, seed, height, belt, drag, out double courseDeg, out double fromDeg, start);
+            FlightSetup setup = Setup(spec, level, seed, height, belt && !steady, drag, out double courseDeg, out double fromDeg,
+                steady ? 0 : start, steady);
 
             var core = new FlightCore(setup);
             CrosswindScenario.Arm(core);
@@ -242,11 +314,11 @@ namespace Fpv450.Sim.Tests
             DetMath.SinCos(course, out double sin, out double cos);
             var along = new Double3(sin, 0, cos);
             var right = new Double3(cos, 0, -sin);
-            double beltFrom = BeltStartSeconds * ReleaseSpeed, beltTo = beltFrom + SyntheticBelt.RegionHeights * BeltHeight;
+            BeltStretch(out double beltFrom, out double beltTo);
 
             var run = new Run
             {
-                Level = level, Seed = seed, Pilot = pilot.Name, Belt = belt, HeightRef = height, FromDeg = fromDeg,
+                Level = level, Seed = seed, Pilot = pilot.Name, Belt = belt, Steady = steady, HeightRef = height, FromDeg = fromDeg,
                 MeanSpeed = core.Wind.MeanSpeed, CourseDeg = courseDeg, Mass = core.Body.Mass, StartSecond = start,
                 RollInertia = core.Body.Inertia.ZZ, PitchInertia = core.Body.Inertia.XX, YawInertia = core.Body.Inertia.YY,
             };
@@ -280,6 +352,7 @@ namespace Fpv450.Sim.Tests
                 }
                 core.Advance(p.Sticks(k, (release + k) * FlightCore.StepUs));
             }
+            core.Wind.Dispose();
             run.Samples = samples.ToArray();
             foreach (Sample s in run.Samples)
             {

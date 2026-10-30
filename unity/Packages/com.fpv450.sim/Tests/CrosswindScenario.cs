@@ -27,6 +27,11 @@ namespace Fpv450.Sim.Tests
         /// <summary>The top of a turbulent field's hover lean per m/s of its mean (assumed: the gusts and the pilot's own
         /// motion raise the quadratic drag's mean up to 25 % above a steady wind's).</summary>
         public const double GustLeanHi = 1.25 * HoverLeanHi;
+
+        /// <summary>The top of a turbulent field's hover lean per m/s at a mean of `speed` m/s (derived, p7c-wind 1.5): the
+        /// silhouettes' drag is quadratic, so its lean per m/s grows with the speed, at most in proportion above the bands'
+        /// 5 m/s (the rotors' linear in-plane drag keeps the bottom).</summary>
+        public static double GustLeanHiAt(double speed) => GustLeanHi * System.Math.Max(1, speed / 5);
         const double RadToDeg = 57.29577951308232;
 
         public struct Result

@@ -26,5 +26,6 @@
   <ItemGroup>
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/HarnessPilot.cs" Link="HarnessPilot.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/WindHarness.cs" Link="WindHarness.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/World/WakeGridFixture.cs" Link="WakeGridFixture.cs" />
   </ItemGroup>
 </Project>

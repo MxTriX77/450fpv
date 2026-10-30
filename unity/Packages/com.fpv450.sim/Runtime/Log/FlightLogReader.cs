@@ -420,11 +420,10 @@ namespace Fpv450.Sim.Log
                 if (d.Stream == "wind.direction") text += "; from " + G(d.Value) + " deg";
                 else if (d.Stream == "wind.strength") text += ", mean " + G(d.Value) + " m/s in [" + G(d.Lo) + ", " + G(d.Hi) + "]";
             foreach (NamedValue v in h.WindParameters) text += ", " + v.Name + " " + G(v.Value);
-            SyntheticBelt b = h.Wind.Belt;
+            WakeLayout b = h.Wind.Wakes;
             if (b != null)
-                text += "; a synthetic belt (p7c-wind 1.2's harness, until 1.3's wake grid): edge at " + G(b.Edge.X) + ", " + G(b.Edge.Z)
-                    + " m across " + G(b.Across.X) + ", " + G(b.Across.Z) + ", H " + G(b.Height) + " m, deficit " + G(b.Deficit) + ", boost "
-                    + G(b.Boost) + ", eddies " + G(b.EddyMin) + "–" + G(b.EddyMax) + " m in " + b.Modes + " modes, ramps " + G(b.Ramp) + " H";
+                text += "; wakes (p7c-wind 1.5, wake grid version " + WakeGrid.Version + "): " + b.Volumes.Length + " wind volumes on "
+                    + b.NX + " × " + b.NZ + " cells of 2 m from " + G(b.OriginX) + ", " + G(b.OriginZ) + " m";
             GustFront f = h.Wind.Front;
             if (f != null)
                 text += "; a gust front (p7c-wind 1.4's scenario" + (f.Uniform ? ", the known-wrong uniform field" : "") + "): from " + G(f.Start.X) + ", "

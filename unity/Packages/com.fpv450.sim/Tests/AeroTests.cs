@@ -85,7 +85,7 @@ namespace Fpv450.Sim.Tests
             {
                 CrosswindScenario.Result r = CrosswindScenario.Hold(CrosswindScenario.Setup(Drone, WindSetup.Of(WindLevel.Severe), seed));
                 TestContext.Out.WriteLine($"Severe, seed {seed}: {Describe(r)}");
-                Assert.That(r.LeanPerMs, Is.InRange(CrosswindScenario.HoverLeanLo, CrosswindScenario.GustLeanHi));
+                Assert.That(r.LeanPerMs, Is.InRange(CrosswindScenario.HoverLeanLo, CrosswindScenario.GustLeanHiAt(r.WindSpeed)));
                 Assert.That(r.LeanOffWindDeg, Is.LessThan(10));
             }
         }
