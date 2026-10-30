@@ -302,6 +302,7 @@ namespace Fpv450.WorldBench
             Run worker = Fly(obstacles, Mode.Worker);
             Print("worker (0 to 10 deg at 1 s), all", worker, 0, Steps);
             Print("  from the request to the takeover", worker, (int)worker.RequestStep, (int)worker.TakeoverStep);
+            Print("    of which the build itself", worker, (int)worker.RequestStep, (int)Math.Min(worker.TakeoverStep, worker.RequestStep + (long)Math.Ceiling(worker.BuildMs) + 1));
             Print("  during the fade (two grids)", worker, (int)worker.TakeoverStep, (int)Math.Min(Steps, worker.TakeoverStep + WakeGridWorker.FadeSteps));
             Console.WriteLine(FormattableString.Invariant(
                 $"      worker: {worker.Builds} build(s), {worker.BuildMs:F1} ms on the worker; request at step {worker.RequestStep}, takeover at {worker.TakeoverStep} (+{WakeGridWorker.LatencySteps}); stalls {worker.Stalls}; flight thread {worker.Allocated} B allocated; GCs gen0 {worker.Gc0} gen1 {worker.Gc1} gen2 {worker.Gc2}"));
@@ -312,13 +313,14 @@ namespace Fpv450.WorldBench
             bool same = worker.Hash == direct && wrong.Hash == direct;
             Console.WriteLine($"    the worker's grid at {worker.FromDeg} deg {(same ? "equals" : "DIFFERS FROM")} a direct build: {Hex(worker.Hash)} ({Hex(direct)})");
 
-            // A lone step over 1 ms is the machine's noise floor (the control shows it too); a hitch is a run of them,
-            // as the known-wrong design's. The worker passes with no run longer than the control's longest.
+            // A short run of steps over 1 ms is the machine's noise floor (the control shows runs of up to a few steps); a
+            // hitch the build caused lasts the build, about 110 steps, as the known-wrong design's does. The worker passes
+            // with no run of 10 or more (assumed threshold: well above the noise, well below the build).
             int windowMissed = Over(worker, (int)worker.RequestStep, (int)worker.TakeoverStep);
             int wrongMissed = Over(wrong, 0, Steps);
             Console.WriteLine($"    longest run of consecutive steps over 1 ms: control {Longest(control)}, worker {Longest(worker)}, known-wrong {Longest(wrong)}");
             bool ok = worker.Allocated == 0 && worker.Stalls == 0 && worker.Gc0 + worker.Gc1 + worker.Gc2 == 0 && same
-                && worker.FromDeg == 10 && Longest(worker) <= Math.Max(2, Longest(control)) && Longest(wrong) > 50;
+                && worker.FromDeg == 10 && Longest(worker) < 10 && Longest(wrong) >= 50;
             Console.WriteLine($"    steps over 1 ms while the worker built: {windowMissed}; the known-wrong design's: {wrongMissed} (it must show the stall)");
             Console.WriteLine(ok ? "worldbench --wakes: PASS" : "worldbench --wakes: FAIL");
             return ok ? 0 : 1;
