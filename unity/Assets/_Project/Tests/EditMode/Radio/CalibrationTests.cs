@@ -14,9 +14,9 @@ namespace Fpv450.Tests.Radio
     // and the reader's map and tap.
     public sealed class CalibrationTests
     {
-        static CalibrationWizard Calibrate(Tx12Radio radio, CalibratingPilot pilot = null)
+        static CalibrationWizard Calibrate(Tx12Radio radio, CalibratingPilot pilot = null, long reportUs = 2000, long updateUs = 0)
         {
-            CalibrationWizard w = Calibrations.Run(radio, pilot ?? new CalibratingPilot(radio), out _);
+            CalibrationWizard w = Calibrations.Run(radio, pilot ?? new CalibratingPilot(radio), out _, 300000000, reportUs, updateUs);
             Assert.AreEqual(CalibrationStep.Done, w.Step, "the wizard finished");
             TestContext.WriteLine("flow " + (w.LastUs - w.FirstUs) / 1e6 + " s; order " + w.Profile.Order + "; findings: " +
                 (w.Findings.Count == 0 ? "none" : string.Join(" | ", w.Findings.Select(f => f.Kind + " " + f.Message))));
@@ -220,6 +220,65 @@ namespace Fpv450.Tests.Radio
             Assert.IsEmpty(w.Findings);
         }
 
+        // QA's finding 10 (interim review, probes E9w F and E9x): the smallest step rule assumed a report every 2 ms. A
+        // radio that updates every 3 or 4 ms, or a 1 ms stream repeating a 4 ms output, moves 5–9 counts an update on a
+        // quick healthy sweep, and was refused as the pitfall. Every healthy sweep is now saved or asked to go slower,
+        // and the pitfall is still named once its sweep is slow enough. The pilot goes 2.5 times slower after each
+        // "Too fast", as QA's.
+        static readonly long[][] SlowRadios = { new long[] { 3000, 0 }, new long[] { 4000, 0 }, new long[] { 1000, 4000 } };
+
+        static string Radio(long[] r) => r[1] == 0 ? "every " + r[0] / 1000 + " ms" : r[0] / 1000 + " ms over " + r[1] / 1000 + " ms";
+
+        static IEnumerable<TestCaseData> SlowHealthyCases()
+        {
+            foreach (long[] r in SlowRadios)
+                foreach (int span in new[] { 683, 800, 903 })
+                    foreach (int j in new[] { 0, 1 })
+                        foreach (long sweep in new long[] { 900000, 1000000, 1100000, 1200000, 1500000, 2000000, 3000000, 8000000 })
+                            yield return new TestCaseData(r[0], r[1], span, j, sweep).SetName("E10: a healthy span " + span + " " + Radio(r) + ", jitter ±" + j + ", sweep " + sweep / 1000 + " ms, is saved");
+        }
+
+        [TestCaseSource(nameof(SlowHealthyCases))]
+        public void AHealthyRadioSlowerThan2MsIsSavedOrAskedSlower(long reportUs, long updateUs, int span, int jitter, long sweepUs)
+        {
+            var radio = new Tx12Radio
+            {
+                TravelNeg = new[] { span, span, 683, span },
+                TravelPos = new[] { span, span, 720, span },
+                NoiseLo = -jitter,
+                NoiseHi = jitter,
+            };
+            CalibratingPilot pilot = Sweeping(radio, sweepUs);
+            CalibrationWizard w = Calibrate(radio, pilot, reportUs, updateUs);
+            TestContext.WriteLine("asked slower " + pilot.SawTooFast + "; update interval " + w.UpdateUs + " us");
+
+            Assert.IsFalse(w.Failed, "never refused");
+            Assert.IsEmpty(w.Findings);
+            long update = updateUs > 0 ? updateUs : reportUs;
+            Assert.That(w.UpdateUs, Is.InRange(update - 40, update + 40), "the radio's update interval, from its changes, not its reports");
+        }
+
+        static IEnumerable<TestCaseData> SlowPitfallCases()
+        {
+            foreach (long[] r in SlowRadios)
+                foreach (int j in new[] { 0, 1 })
+                    foreach (long sweep in new long[] { 2000000, 3000000, 8000000, 12000000 })
+                        yield return new TestCaseData(r[0], r[1], j, sweep).SetName("E10: the pitfall " + Radio(r) + ", jitter ±" + j + ", sweep " + sweep / 1000000 + " s, is too narrow");
+        }
+
+        [TestCaseSource(nameof(SlowPitfallCases))]
+        public void ThePitfallSlowerThan2MsIsTooNarrowOnceSweptSlowEnough(long reportUs, long updateUs, int jitter, long sweepUs)
+        {
+            var radio = new Tx12Radio { SpanNeg = PitfallNeg, SpanPos = PitfallPos, NoiseLo = -jitter, NoiseHi = jitter };
+            CalibratingPilot pilot = Sweeping(radio, sweepUs);
+            CalibrationWizard w = Calibrate(radio, pilot, reportUs, updateUs);
+            TestContext.WriteLine("asked slower " + pilot.SawTooFast + "; update interval " + w.UpdateUs + " us");
+
+            Assert.IsTrue(w.Failed, "nothing is saved");
+            Assert.AreEqual(new[] { "Pitch", "Roll" }, TooNarrow(w));
+            Assert.IsTrue(w.Findings.All(f => f.Kind == FindingKind.TooNarrow), "the healthy throttle and yaw pass");
+        }
+
         [TestCase(0.002, TestName = "E9v: a thumb's ±0.2 % at the centre step is saved")]
         [TestCase(0.004, TestName = "E9v: a thumb's ±0.4 % at the centre step is saved")]
         [TestCase(0.006, TestName = "E9v: a thumb's ±0.6 % at the centre step is saved")]
@@ -236,9 +295,12 @@ namespace Fpv450.Tests.Radio
 
         // The throttle rests at its end, where EdgeTX clamps, so its rest says nothing; its sweep's smallest step does. And
         // a pitfall on one side only (EdgeTX scales each side by its own span): the coarse side is named.
-        [TestCase(0, 0, TestName = "E9v: a pitfall throttle and a one-sided pitfall roll, ADC still, are too narrow")]
-        [TestCase(-1, 1, TestName = "E9v: a pitfall throttle and a one-sided pitfall roll, jitter ±1, are too narrow")]
-        public void APitfallThrottleAndAOneSidedPitfallAreTooNarrow(int noiseLo, int noiseHi)
+        [TestCase(0, 0, 2000, 0, TestName = "E9v: a pitfall throttle and a one-sided pitfall roll, ADC still, are too narrow")]
+        [TestCase(-1, 1, 2000, 0, TestName = "E9v: a pitfall throttle and a one-sided pitfall roll, jitter ±1, are too narrow")]
+        [TestCase(0, 0, 3000, 0, TestName = "E10: a pitfall throttle and a one-sided pitfall roll, ADC still, every 3 ms, are too narrow")]
+        [TestCase(0, 0, 4000, 0, TestName = "E10: a pitfall throttle and a one-sided pitfall roll, ADC still, every 4 ms, are too narrow")]
+        [TestCase(-1, 1, 1000, 4000, TestName = "E10: a pitfall throttle and a one-sided pitfall roll, jitter ±1, 1 ms over 4 ms, are too narrow")]
+        public void APitfallThrottleAndAOneSidedPitfallAreTooNarrow(int noiseLo, int noiseHi, long reportUs, long updateUs)
         {
             var radio = new Tx12Radio
             {
@@ -247,7 +309,7 @@ namespace Fpv450.Tests.Radio
                 NoiseLo = noiseLo,
                 NoiseHi = noiseHi,
             };
-            CalibrationWizard w = Calibrate(radio, Sweeping(radio, 8000000));
+            CalibrationWizard w = Calibrate(radio, Sweeping(radio, 8000000), reportUs, updateUs);
 
             Assert.IsTrue(w.Failed, "nothing is saved");
             Assert.AreEqual(new[] { "Roll", "Throttle" }, TooNarrow(w));
