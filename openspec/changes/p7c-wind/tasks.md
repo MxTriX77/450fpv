@@ -76,6 +76,36 @@ Complex tier (D-033). Branch `unity/physics/p7c-wind` off `unity/main` once `p6-
     - **Open:** the wakes and the trench cavity wait for 1.3; the cover from the world too. For 1.5: T1, T2, T6b and T10b sit low at 13 m/s and the field kurtosis runs high on two seeds; the belt takes 5–9.4 s, as the wind along the course moves within the start rule's 90°. For 1.8: the field doubles the step's p99.
 - [ ] 1.5 [physics-engineer] The levels against the targets (design 2): Severe tuned until T0 passes, Windy and Calm from it, every K§8.6 target on five seeds, T0c on 40 × 120 min, each target failing its known-wrong model; verify the "Severe meets every target", "direction history" and "trade-off" scenarios
 - [ ] 1.6 [physics-engineer] Cruise in wind (design 6): the drag re-derived for clip P's pitch at 17–22 m/s, superseding 1.5's 13 m/s calibration in `drone.json`'s `aero` block; verify the "clip P's pitch flies the cruise" scenario and T0 at that airspeed
+  - **As built** (`drone.json`'s `props.h_force_n_per_m_s` and `aero.drag_coefficient` notes; `Tests/{WindHarness,CrosswindScenario,AeroTests,GoldenFlights}.cs`; `ModelVersion` 7, `LogFormat.Version` 6 unchanged):
+    - **The drag:**
+      - **H-force 0.225 → 0.044 N per m/s at 9000 rpm** (assumed and tuned → derived). Blade-element theory of a rigid 2-blade rotor, averaged over a turn: the blades' profile drag plus their lift tilted by the inflow (Johnson). It uses the sheet's chord and the 4.5-inch helix, a = 5.7 (assumed), and α_L0 −6.3° and c_d0 0.049 fitted to APC's published static 12.43 N and κ 0.0144 m. At the cruise (10 050 rpm, 12.0 m/s through the disc) it gives 0.049 N per m/s, 0.044 at the reference speed; with stall-capped inboard lift, 0.033. 1.5's value was 5× a rigid rotor's.
+      - **C_d 0.9 kept** (assumed, Hoerner's bluff parts, re-checked part by part). The areas are unchanged (derived from the sheet).
+      - **The cruise is a prediction, not a fit:** C_d 0.8–1.05 gives 19.8–17.5 m/s.
+    - **"Clip P's pitch flies the cruise"** (`WindHarness.HeldPitchAirspeed`, `AeroTests.ClipPsPitchFliesTheCruise`, `--scenarios`): the harness pilot holds −22.7° in still air at the nominal loadout.
+      - Released at 13 m/s and at 25 m/s, it settles at 18.82 m/s both ways, at −22.70°.
+      - The known-wrong 0.225 flies 12.97 m/s and fails.
+    - **The lean at the cruise:**
+      - 1.331° per m/s of crosswind (as the tracker's roll, 1.324; wind.md §5.3's 23.4°/V gives 1.245). That is 6.6° in Severe's 5 m/s abeam.
+      - Hover lean bands re-derived from the drag's bands: 0.32–0.56° per m/s at 5 m/s from the side to the diagonal, 0.70 in the field (measured 0.40–0.61). K§6.5's 0.95–2.6 is a cruise band at 13 m/s.
+    - **The harness:**
+      - `ReleaseSpeed` 13 → 18.8 m/s; the synthetic belt's H follows, 9.1 → 13.2 m (10 H in 7 s).
+      - Its lean check compares each run with 1.5's scenario at that run's own crosswind: −2.6 to −8.7 % (within 10 %).
+      - New: the course airspeed check, 18.18–19.05 m/s (−3.3 to +1.3 %).
+    - **The goldens** (ModelVersion 7): powered `0x376ECD53376BBC68`, contact `0xCD821FAEE49DF277`. Audited:
+      - On model 6's drone (`Model6Drone`: drone.json with 0.225), both are model 6's pins and the still-air ones model 5's, every record and event.
+      - With 0.044 the powered flight moves from step 21 (the hubs' first in-plane motion). It ends 131.2 m up against 203.1.
+      - The contact flight moves from step 9, keeps its 5 impacts and rests 9.5 cm from model 6's spot.
+      - `IntoAPole`'s pole moves from 30 to 50 m ahead: with less drag the pilot's speed overshoots at 30 m (11.14 m/s). It now strikes at 10.78.
+    - **Verified:**
+      - suite 207 of 207
+      - `--golden`, `--scenarios`, `--contacts`, `--wind-harness severe` all PASS
+      - `--bench` on AC (Balanced, 3201 MHz): powered p50 22.8 µs, p99 88.8 µs, 0 B
+      - a 60 s Severe flight replays bit for bit (60 000 steps, 160 events)
+    - **Remains: T0 at the cruise.** Severe, nominal pilot, 5 seeds, through `wind_stats.py`:
+      - The runs' mean rolls are −4.0, −3.2, −1.7, −8.1 and −8.1°, so the pooled |mean| is 5.0° against 9 ± 3: **FAIL**. The cause is physical: each m/s of crosswind now leans the drone 1.18–1.26°, against 1.8 at 13 m/s, and these runs' crosswind averages 4.0 m/s.
+      - `SevereCentre`'s 5.0 m/s is "clip P's 5 m/s at its derived 13 m/s airspeed". At the cruise, P's crosswind is 0.384 × 18.8 = 7.2 m/s (PHY-17a: 6.5–8.5).
+      - A trial run with the centre at 7.2 (not committed) gave a pooled 7.54°: **PASS**.
+      - Moving the levels (Severe 7.2; Windy and Calm from it, 3.6 and 1.1) re-records both goldens. That is 1.5's "Severe tuned until T0 passes", unless the orchestrator folds it into 1.6.
 - [ ] 1.7 [physics-engineer] Rain (design 7): the rain rate per level, its drag and wet mass, the camera's air velocity; verify the "rain without wind" scenario and `rain_stats.py`'s targets for clip P
 - [ ] 1.8 [physics-engineer] The budget (design 8): `flightbench --bench` over the posadka in Severe on AC; verify the "cost of the wind" scenario
 
