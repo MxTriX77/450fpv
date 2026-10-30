@@ -50,6 +50,7 @@ Branch `unity/game/p6-input-app` off `unity/main`, after `p6-flight-core`'s task
       - yaw expo 30 % named, and roll at weight 70 % named as 70 % of the travel
       - a hasty first sweep (0.4 s) of each stick: asked again, then passed, 28.2 s
     - **Assumed thresholds** (2 %, 0.3 / 2 s, 80 %, 0.7 s, 3 %, 5 %, 25 %) are checked at 1.2b. A human's 2 s sweep is less steady than the synthetic one, so the 3 % line is the likeliest to misfire.
+    - **QA's interim finding 2 fixed:** a third rule, independent of speed: a radio's axis whose rest at the centre step spreads over `PitfallJitter` (1024 / 100 / 2048 of the range, one ADC count at EdgeTX's floor gain, 10 counts; a healthy 683–903 span would need 7 counts of jitter) is too narrow at once, without "Too fast". QA's E9 (3 s, then 7.5 s) and an 8 s pilot are tests: roll and pitch named, nothing saved, the healthy radio clean at both speeds; the 2 s pitfall now takes 17.3 s.
 - [ ] 1.2b The pilot's, at G7 (with the gate's flights, not a merge blocker), by hand: the pilot calibrates their own TX12 from the wizard's first screen in under 2 minutes, with the radio alone after Start. Any assumed threshold that misfires is retuned from that run.
 - [x] 1.3 [game-developer] Rates and throttle (design 5):
   - **What:** the Calibrate screen's ACTUAL rates and throttle curve with previews from the core's rate function, `FcSettings` under CLI names, the sim default column as defaults, and persistence.
@@ -81,6 +82,7 @@ Branch `unity/game/p6-input-app` off `unity/main`, after `p6-flight-core`'s task
       - `Resume` moves every later step's host time by the pause, and first logs it as the new `HitchCause.Pause` (B: µs). Replay skips it, as it skips every hitch, and the summary prints `PAUSED`.
       - `Restart` is the pilot's end, then a new flight with a new seed and a new log.
       - QA's interim finding 1 fixed: the paused frames keep the first loss they drain (`StickInbox.Drain`, even one a replug's report superseded), and `Resume` holds it in force for the first RC frame (`StickInbox.Hold`, 4 steps), so a step record carries the failsafe with the loss's stamp and the end is `Failsafe`. No new log event; format 6 is unchanged. QA's E3a and E3b are tests: lost at 1 471 000 µs, logged at step 342 (the first after Resume), the end at step 345, "failsafe", replayed bit for bit.
+      - QA's finding 8 fixed: the held steps are counted by index, so a pause among them keeps the loss (`Pause` drops it only once they have all run) and the next `Resume` holds it for the rest. QA's E3f (E3b, paused again 1, 2 or 3 ms after Resume for 50 ms) is a test: the same step 342 and stamp, the end at 345, "failsafe", both pauses logged, replayed bit for bit.
     - **The ends** (`FlightEndRule`): one rule for the live flight and for the log, the first that holds:
       - the core's latched `Crashed` (QA's flight-core finding 3: the core keeps stepping; the session ends the flight)
       - upside down: the up axis below the horizon while touching, for 1 s (assumed)

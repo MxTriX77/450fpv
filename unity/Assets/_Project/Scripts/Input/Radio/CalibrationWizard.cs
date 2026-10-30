@@ -38,7 +38,9 @@ namespace Fpv450.Input.Radio
     ///   from the rest (from the start for the throttle), 2 s short of it, so a pause mid-sweep rarely ends it.
     /// - **The health check:** a span under 200 of a 2048 range, or a sweep that jumps from end to end twice running
     ///   (under 0.7 s from 10 % to 90 % of its travel; the first time the pilot is asked to go slower), is too
-    ///   narrow: it behaves like a switch (the TX12 pitfall in fc-profiles), recalibrate the radio.
+    ///   narrow: it behaves like a switch (the TX12 pitfall in fc-profiles), recalibrate the radio. The jump rule
+    ///   times the sweep, so a slow pilot passes it; a radio's axis whose rest jitter at the centre step spreads as far
+    ///   as one ADC count at EdgeTX's floor gain (PitfallJitter) is too narrow at any speed.
     /// - **Radio-side curves:** the sweep from 10 % to 90 % of its travel off a fitted line by more than 3 % of the
     ///   travel is a curve on the radio; an endpoint more than 5 % short of a radio's full range is dual rates or a
     ///   weight under 100 %. Both are named, with what to switch off; neither blocks saving.
@@ -53,12 +55,22 @@ namespace Fpv450.Input.Radio
         public const double CentreSide = 0.35, NarrowSpan = 200.0 / 2048, LineTolerance = 0.03, ShortEnd = 0.05;
         public const double ArmChange = 0.25;
 
+        /// <summary>
+        /// The TX12 pitfall's rest jitter, a fraction of the HID range. EdgeTX scales a stick as
+        /// `(v − mid) · 1024 / max(100, span)` (mixer.cpp evalInputs) onto the 2048-count range, so an axis whose radio
+        /// calibration saved a span under 100 (fc-profiles' 79 / 1 and 85 / 0) moves 1024 / 100 = 10.24 counts, 0.5 % of
+        /// the range, for each ADC count: the least jitter at rest, one count, spreads it that far (10 counts after
+        /// EdgeTX's integer division). A healthy span (683–903) moves it 1.1–1.5 counts for each, so it would need 7 ADC
+        /// counts of jitter at rest to spread as far.
+        /// </summary>
+        public const double PitfallJitter = 1024.0 / 100 / 2048;
+
         static readonly string[] StickNames = { "Throttle", "Yaw", "Pitch", "Roll" };
 
         readonly RadioAxis[] _axes;
         readonly InputSource _source;
         readonly int _n;
-        readonly int[] _rest, _noise, _lo, _hi, _holdMin, _holdMax, _winMin, _winMax;
+        readonly int[] _rest, _noise, _spread, _lo, _hi, _holdMin, _holdMax, _winMin, _winMax;
         readonly long[] _holdStart;
         readonly bool[] _assigned;
         readonly List<long> _t = new List<long>();
@@ -77,6 +89,7 @@ namespace Fpv450.Input.Radio
             _n = axes.Length;
             _rest = new int[_n];
             _noise = new int[_n];
+            _spread = new int[_n];
             _lo = new int[_n];
             _hi = new int[_n];
             _holdMin = new int[_n];
@@ -181,7 +194,8 @@ namespace Fpv450.Input.Radio
             for (int i = 0; i < _n; i++)
             {
                 _rest[i] = (_winMin[i] + _winMax[i]) / 2;
-                _noise[i] = (_winMax[i] - _winMin[i] + 1) / 2;
+                _spread[i] = _winMax[i] - _winMin[i];
+                _noise[i] = (_spread[i] + 1) / 2;
             }
             _restButtons = r.Buttons;
             Begin(CalibrationStep.Throttle, r);
@@ -273,7 +287,10 @@ namespace Fpv450.Input.Radio
             long transit = iS >= 0 && iF > iS ? _t[iF] - _t[iS] : 0;
             string name = StickNames[(int)Step - (int)CalibrationStep.Throttle];
             bool narrow = lead < NarrowSpan * Range(L), jumps = false;
-            if (!narrow && transit < MinTransitUs)
+            // The pitfall at any speed: EdgeTX's floor gain spreads the centre's least jitter over PitfallJitter (the
+            // throttle rests at its end, where EdgeTX clamps, so it has the jump rule alone).
+            bool jittery = !narrow && _source == InputSource.Radio && _spread[L] >= (int)(PitfallJitter * Range(L));
+            if (!narrow && !jittery && transit < MinTransitUs)
             {
                 if (_fastAxis != L)
                 {
@@ -300,6 +317,8 @@ namespace Fpv450.Input.Radio
             int span = Range(L) + 1;
             if (narrow)
                 Add(FindingKind.TooNarrow, name, name + " spans only " + lead + " of " + span + ": it behaves like a switch. Recalibrate the radio's sticks, then calibrate here again.");
+            else if (jittery)
+                Add(FindingKind.TooNarrow, name, name + " jumps at the slightest touch, even at rest: it behaves like a switch. Recalibrate the radio's sticks, then calibrate here again.");
             else if (jumps)
                 Add(FindingKind.TooNarrow, name, name + " jumps from end to end even when moved slowly: it behaves like a switch. Recalibrate the radio's sticks, then calibrate here again.");
             else
