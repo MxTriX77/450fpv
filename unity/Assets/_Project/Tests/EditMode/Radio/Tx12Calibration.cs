@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Fpv450.Input.Radio;
 using Fpv450.Sim.Control;
 
@@ -90,8 +91,9 @@ namespace Fpv450.Tests.Radio
     /// <summary>
     /// A pilot following the wizard's prompts with a radio alone: 0.8 s to react to each prompt, a stick to its start
     /// end in 0.3 s and held 0.5 s, then swept steadily to the far end over SweepUs and held; the first sweep of a
-    /// stick takes FirstSweepUs (a hasty pilot), and each repeat after the second is 2.5 times slower than the last
-    /// (QA's pilot). A stick springs back to centre when its step ends. With Wobble, a thumb
+    /// stick takes FirstSweepUs (a hasty pilot), and each repeat after the second is Slowing times slower than the last
+    /// (2.5, QA's pilot; 1, a pilot who sweeps the same every time). A stick springs back to centre when its step ends.
+    /// Each prompt the pilot reacts to is kept in Prompts. With Wobble, a thumb
     /// left on roll, pitch and yaw at the centre step moves them by up to that fraction of their half travel.
     /// </summary>
     sealed class CalibratingPilot
@@ -100,7 +102,9 @@ namespace Fpv450.Tests.Radio
 
         public long SweepUs = 2000000, FirstSweepUs = 2000000;
 
-        public double Wobble;
+        public double Wobble, Slowing = 2.5;
+
+        public readonly List<string> Prompts = new List<string>();
 
         /// <summary>The prompt said "Too fast" at least once.</summary>
         public bool SawTooFast;
@@ -130,6 +134,7 @@ namespace Fpv450.Tests.Radio
                 int f = Function(_step);
                 _from = f >= 0 ? _radio.Stick[f] : 0;
                 _attempt++;
+                Prompts.Add(wizard.Prompt);
             }
             _repeats = wizard.Repeats;
             SawTooFast |= wizard.TooFast;
@@ -153,7 +158,7 @@ namespace Fpv450.Tests.Radio
                     return;
             }
             int stick = Function(_step);
-            double start = stick == Tx12Radio.Throttle ? 0 : -1, sweep = _attempt == 1 ? FirstSweepUs : SweepUs * Math.Pow(2.5, _attempt - 2);
+            double start = stick == Tx12Radio.Throttle ? 0 : -1, sweep = _attempt == 1 ? FirstSweepUs : SweepUs * Math.Pow(Slowing, _attempt - 2);
             double p;
             if (tau < 0) p = _from;
             else if (tau < ToStartUs) p = _from + (start - _from) * tau / ToStartUs;

@@ -42,8 +42,9 @@ namespace Fpv450.Input.Radio
     ///   times the sweep, so a slow pilot passes it; a radio's axis whose slower sweep never changes by less than
     ///   PitfallStep between two reports, on either side of its centre, is too narrow at any speed, jitter or filter.
     ///   A side whose part of the band held too few of the radio's updates (UpdateUs) to show a healthy step is not
-    ///   judged: the pilot is asked to go slower. An axis that keeps the centre step from settling for 5 s is named in
-    ///   the prompt.
+    ///   judged: the pilot is asked to go slower, as many times as it needs; a repeat no slower (its side held under
+    ///   Slower times the updates of the last) names the axis. An axis that keeps the centre step from settling for 5 s
+    ///   is named in the prompt.
     /// - **Radio-side curves:** the sweep from 10 % to 90 % of its travel off a fitted line by more than 3 % of the
     ///   travel is a curve on the radio; an endpoint more than 5 % short of a radio's full range is dual rates or a
     ///   weight under 100 %. Both are named, with what to switch off; neither blocks saving.
@@ -71,13 +72,26 @@ namespace Fpv450.Input.Radio
         /// sweep), so a side of the sweep is judged only if its part of the band held band / (PitfallStep − 1) updates
         /// or more: then a healthy radio's mean step is under PitfallStep − 1 and some step is smaller (pigeonhole, with
         /// a count's margin; about 205 a side, 410 over the band). Fewer, and the sweep was too fast to tell: the step is
-        /// repeated, as often as it takes. At 2 ms a healthy radio is never coarse on a sweep the jump rule accepts; the
-        /// pitfall crossing its band in 0.7 s to about 0.82 s is asked to go slower once more.
+        /// repeated, as many times slower as the side needs, until a repeat is no slower (QA's finding 11): the pitfall's
+        /// coarse side passes about 82 ADC counts, so it needs about 8 s a sweep at 2 ms and 16 s at 4 ms. At 2 ms a
+        /// healthy radio is never coarse on a sweep the jump rule accepts.
         /// </summary>
         public const double PitfallStep = 1024.0 / 100 / 2 / 2048;
 
         /// <summary>The changes of one axis that UpdateUs is the mean interval of.</summary>
         public const int UpdateWindow = 16;
+
+        /// <summary>
+        /// The slowest radio's update interval, µs, and UpdateUs's bound: a still ADC's slow sweep changes less often than
+        /// the radio updates (QA's finding 11: a 2 ms radio read 3–13 ms on a 5–20 s throttle sweep).
+        /// </summary>
+        public const long SlowestUpdateUs = 4000;
+
+        /// <summary>
+        /// A repeat is slower only if its coarse side held this many times the updates of the last; else the axis is
+        /// named. A factor, not "more", so the repeats are bounded: a side that held a quarter of its need ends within 7.
+        /// </summary>
+        public const double Slower = 1.25;
 
         static readonly string[] StickNames = { "Throttle", "Yaw", "Pitch", "Roll" };
 
@@ -95,6 +109,8 @@ namespace Fpv450.Input.Radio
         int _fastAxis = -1;
         bool _fastHigh; // the end the too-fast sweep finished at, which the repeat must finish at too
         bool _jumped; // the too-fast sweep jumped from end to end (the jump rule), not one too quick to judge its step
+        double _held; // the share of the updates it needs that the too-quick sweep's coarse side held
+        int _times; // how many times slower than the last sweep the prompt asks for; 0: about 2 seconds
         int _armCandidate = -1; // an axis index, or 1000 + a button index
         long _armSince;
         int _mover = -1; // the axis that last broke the centre step's stillness
@@ -132,10 +148,10 @@ namespace Fpv450.Input.Radio
 
         /// <summary>
         /// The radio's update interval, µs: the shortest mean interval between UpdateWindow consecutive changes of any one
-        /// axis so far (long.MaxValue before). A report that repeats the last (a 1 ms USB stream over a 4 ms radio) is not
-        /// an update; the mean rides out the stamps' wake jitter and reports read in a bunch.
+        /// axis so far, and never more than SlowestUpdateUs (it before). A report that repeats the last (a 1 ms USB stream
+        /// over a 4 ms radio) is not an update; the mean rides out the stamps' wake jitter and reports read in a bunch.
         /// </summary>
-        public long UpdateUs { get; private set; } = long.MaxValue;
+        public long UpdateUs { get; private set; } = SlowestUpdateUs;
 
         /// <summary>The profile so far; complete at Done.</summary>
         public CalibrationProfile Profile { get; } = new CalibrationProfile();
@@ -156,15 +172,16 @@ namespace Fpv450.Input.Radio
             get
             {
                 string slower = Repeats == 0 ? "" : Repeats == 1 ? "Too fast. " : "Still too fast. ";
+                string pace = _times > 0 ? "about " + _times + " times slower than that" : "about 2 seconds";
                 switch (Step)
                 {
                     case CalibrationStep.Centre:
                         return Restless < 0 ? "Let go of the sticks. Throttle fully down, arm switch off."
                             : "Let go of the sticks. Channel " + (Restless + 1) + " keeps moving: if it does with your hands off, recalibrate the radio's sticks.";
-                    case CalibrationStep.Throttle: return slower + "Throttle: slowly all the way up, about 2 seconds, and hold.";
-                    case CalibrationStep.Yaw: return slower + "Yaw: full left, then slowly full right, about 2 seconds, and hold.";
-                    case CalibrationStep.Pitch: return slower + "Pitch: full back, then slowly full forward, about 2 seconds, and hold.";
-                    case CalibrationStep.Roll: return slower + "Roll: full left, then slowly full right, about 2 seconds, and hold.";
+                    case CalibrationStep.Throttle: return slower + "Throttle: slowly all the way up, " + pace + ", and hold.";
+                    case CalibrationStep.Yaw: return slower + "Yaw: full left, then slowly full right, " + pace + ", and hold.";
+                    case CalibrationStep.Pitch: return slower + "Pitch: full back, then slowly full forward, " + pace + ", and hold.";
+                    case CalibrationStep.Roll: return slower + "Roll: full left, then slowly full right, " + pace + ", and hold.";
                     case CalibrationStep.ArmOn: return "Throttle down, then flip the arm switch on.";
                     case CalibrationStep.ArmOff: return "Flip the arm switch off.";
                     default: return Failed ? "Recalibrate the radio's sticks, then calibrate here again." : "Calibrated.";
@@ -343,13 +360,13 @@ namespace Fpv450.Input.Radio
                 }
             long transit = iS >= 0 && iF > iS ? _t[iF] - _t[iS] : 0;
             string name = StickNames[(int)Step - (int)CalibrationStep.Throttle];
-            bool narrow = lead < NarrowSpan * Range(L), jumps = false, coarse = false;
+            bool narrow = lead < NarrowSpan * Range(L), jumps = false, coarse = false, again = false;
             int step = 0;
             if (!narrow && transit < MinTransitUs)
             {
                 if (_fastAxis != L || !_jumped)
                 {
-                    Repeat(L, atHi, true, r); // once: the pilot may have been quick
+                    Repeat(L, atHi, true, 0, r); // once: the pilot may have been quick
                     return;
                 }
                 jumps = true;
@@ -359,16 +376,26 @@ namespace Fpv450.Input.Radio
                 // The pitfall at any slower speed: EdgeTX's floor gain never moves the axis by less than 10 counts. The
                 // throttle too, split at the range's middle, where EdgeTX's output is 0.
                 int pitfall = Math.Max(2, (int)(PitfallStep * Range(L)));
-                step = SmallestStep(L, iS, iF, lo, hi, throttle ? (_axes[L].Min + _axes[L].Max) / 2 : _rest[L], pitfall, out bool unjudged);
+                step = SmallestStep(L, iS, iF, lo, hi, throttle ? (_axes[L].Min + _axes[L].Max) / 2 : _rest[L], pitfall, out double held, out int deferred);
                 coarse = step >= pitfall;
-                if (!coarse && unjudged)
+                if (!coarse && held < 1)
                 {
-                    Repeat(L, atHi, false, r); // as often as it takes: a slow radio's quick sweep is not the pitfall
-                    return;
+                    if (_fastAxis != L || _jumped || held >= Slower * _held)
+                    {
+                        // A slow radio's quick sweep is not the pitfall: again, as many times slower as the coarse side
+                        // needs. A factor of the pilot's own sweep, not seconds: a pitfall's flat ends hide the stick, so
+                        // the wizard cannot time the whole sweep.
+                        _held = held;
+                        Repeat(L, atHi, false, Math.Max(2, (int)Math.Ceiling(1 / held)), r);
+                        return;
+                    }
+                    step = deferred; // no slower: its steps are the radio's, or the pilot cannot sweep slower
+                    coarse = again = true;
                 }
             }
             Repeats = 0;
             _fastAxis = -1;
+            _times = 0;
 
             StickCalibration c = Stick(Step);
             c.Axis = L;
@@ -382,6 +409,8 @@ namespace Fpv450.Input.Radio
             int span = Range(L) + 1;
             if (narrow)
                 Add(FindingKind.TooNarrow, name, name + " spans only " + lead + " of " + span + ": it behaves like a switch. Recalibrate the radio's sticks, then calibrate here again.");
+            else if (again)
+                Add(FindingKind.TooNarrow, name, name + " moves in jumps of " + step + " of " + span + " or more, swept again no slower: it behaves like a switch. Recalibrate the radio's sticks, then calibrate here again, sweeping it slower.");
             else if (coarse)
                 Add(FindingKind.TooNarrow, name, name + " moves in jumps of " + step + " of " + span + " or more, however slowly it is swept: it behaves like a switch. Recalibrate the radio's sticks, then calibrate here again.");
             else if (jumps)
@@ -403,11 +432,12 @@ namespace Fpv450.Input.Radio
         }
 
         // The step again, slower; the way back to the start of the sweep is not a sweep.
-        void Repeat(int axis, bool high, bool jumped, RadioReport r)
+        void Repeat(int axis, bool high, bool jumped, int times, RadioReport r)
         {
             _fastAxis = axis;
             _fastHigh = high;
             _jumped = jumped;
+            _times = times;
             Repeats++;
             Begin(Step, r);
         }
@@ -426,8 +456,9 @@ namespace Fpv450.Input.Radio
         // The radio's gain per ADC count, at any sweep speed: the smallest non-zero change between two consecutive reports
         // of the sweep inside 10–90 % of its travel, on each side of the centre (EdgeTX scales each side by its own span),
         // and the larger of the two. 0 if neither side has one. A side as coarse as pitfall counts only if its part of
-        // the band held enough of the radio's updates to judge it (PitfallStep); else it is unjudged.
-        int SmallestStep(int axis, int from, int to, int lo, int hi, int centre, int pitfall, out bool unjudged)
+        // the band held enough of the radio's updates to judge it (PitfallStep); else it is unjudged: held is the least
+        // share of the updates it needs that an unjudged side held (1 if none), deferred its larger smallest step.
+        int SmallestStep(int axis, int from, int to, int lo, int hi, int centre, int pitfall, out double held, out int deferred)
         {
             double inLo = lo + EndBand * (hi - lo), inHi = hi - EndBand * (hi - lo);
             int below = int.MaxValue, above = int.MaxValue;
@@ -449,19 +480,22 @@ namespace Fpv450.Input.Radio
                     belowTo = _t[k + 1];
                 }
             }
-            unjudged = false;
-            below = Side(below, belowTo - belowFrom, centre - inLo, pitfall, ref unjudged);
-            above = Side(above, aboveTo - aboveFrom, inHi - centre, pitfall, ref unjudged);
+            held = 1;
+            deferred = 0;
+            below = Side(below, belowTo - belowFrom, centre - inLo, pitfall, ref held, ref deferred);
+            above = Side(above, aboveTo - aboveFrom, inHi - centre, pitfall, ref held, ref deferred);
             return Math.Max(below, above);
         }
 
         // One side's smallest step: 0 without one, or if it is as coarse as pitfall over fewer than band / (pitfall − 1)
         // of the radio's updates in us (unjudged).
-        int Side(int smallest, long us, double band, int pitfall, ref bool unjudged)
+        int Side(int smallest, long us, double band, int pitfall, ref double held, ref int deferred)
         {
             if (smallest == int.MaxValue) return 0;
-            if (smallest < pitfall || us * (double)(pitfall - 1) >= band * UpdateUs) return smallest;
-            unjudged = true;
+            double share = us * (double)(pitfall - 1) / (band * UpdateUs);
+            if (smallest < pitfall || share >= 1) return smallest;
+            held = Math.Min(held, share);
+            deferred = Math.Max(deferred, smallest);
             return 0;
         }
 

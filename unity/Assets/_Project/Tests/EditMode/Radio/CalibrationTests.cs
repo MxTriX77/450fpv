@@ -316,6 +316,98 @@ namespace Fpv450.Tests.Radio
             Assert.IsTrue(w.Findings.All(f => f.Kind == FindingKind.TooNarrow), "the healthy pitch and yaw pass");
         }
 
+        // QA's finding 11 (interim review, probes E10q and E10r): the update guard put the pitfall off for as long as the
+        // pilot did not slow down, so a one-sided pitfall swept at the prompt's own 2 s heard "Still too fast" forever.
+        // The prompt now asks how many times slower the coarse side needs, and a repeat no slower names the axis. A literal
+        // pilot sweeps the same every time; a stubborn one goes 2.5 times slower once, as QA's.
+        static readonly long[][] AllRadios = { new long[] { 2000, 0 }, new long[] { 3000, 0 }, new long[] { 4000, 0 }, new long[] { 1000, 4000 } };
+
+        static CalibratingPilot Literal(Tx12Radio radio, long sweepUs) =>
+            new CalibratingPilot(radio) { FirstSweepUs = sweepUs, SweepUs = sweepUs, Slowing = 1 };
+
+        static CalibratingPilot Stubborn(Tx12Radio radio, long sweepUs) =>
+            new CalibratingPilot(radio) { FirstSweepUs = sweepUs, SweepUs = sweepUs * 5 / 2, Slowing = 1 };
+
+        static Tx12Radio OneSided(int jitter) =>
+            new Tx12Radio { SpanNeg = new[] { 79, 742, 79, 868 }, SpanPos = new[] { 794, 903, 1, 851 }, NoiseLo = -jitter, NoiseHi = jitter };
+
+        static IEnumerable<TestCaseData> LiteralPitfallCases()
+        {
+            foreach (long[] r in AllRadios)
+                foreach (long sweep in new long[] { 2000000, 2500000, 3000000 })
+                    yield return new TestCaseData(r[0], r[1], sweep).SetName("E10: a one-sided pitfall roll " + Radio(r) + ", swept " + sweep / 1000 + " ms every time, is named");
+        }
+
+        [TestCaseSource(nameof(LiteralPitfallCases))]
+        public void AOneSidedPitfallSweptTheSameEveryTimeIsNamed(long reportUs, long updateUs, long sweepUs)
+        {
+            Tx12Radio radio = OneSided(1);
+            CalibratingPilot pilot = Literal(radio, sweepUs);
+            CalibrationWizard w = Calibrate(radio, pilot, reportUs, updateUs);
+            TestContext.WriteLine("asked: " + string.Join(" | ", pilot.Prompts.Where(p => p.Contains("fast"))));
+
+            Assert.IsTrue(w.Failed, "nothing is saved");
+            Assert.AreEqual(new[] { "Roll", "Throttle" }, TooNarrow(w));
+            Assert.Less(w.LastUs - w.FirstUs, 120000000, "under two minutes");
+            Assert.IsTrue(pilot.Prompts.Any(p => p.StartsWith("Too fast. Roll") && p.Contains("times slower than that")), "asked how much slower its coarse side needs");
+        }
+
+        static IEnumerable<TestCaseData> StubbornPitfallCases()
+        {
+            foreach (long[] r in AllRadios)
+                foreach (bool oneSided in new[] { false, true })
+                    foreach (int j in new[] { 0, 1 })
+                        foreach (long sweep in new long[] { 2000000, 3000000, 8000000, 12000000 })
+                            yield return new TestCaseData(r[0], r[1], oneSided, j, sweep).SetName("E10: the " + (oneSided ? "one-sided pitfall roll and throttle" : "pitfall") + " " + Radio(r) + ", jitter ±" + j + ", swept " + sweep / 1000000 + " s by a stubborn pilot, is named");
+        }
+
+        [TestCaseSource(nameof(StubbornPitfallCases))]
+        public void ThePitfallSweptByAStubbornPilotIsNamed(long reportUs, long updateUs, bool oneSided, int jitter, long sweepUs)
+        {
+            Tx12Radio radio = oneSided ? OneSided(jitter) : new Tx12Radio { SpanNeg = PitfallNeg, SpanPos = PitfallPos, NoiseLo = -jitter, NoiseHi = jitter };
+            CalibrationWizard w = Calibrate(radio, Stubborn(radio, sweepUs), reportUs, updateUs);
+
+            Assert.IsTrue(w.Failed, "nothing is saved");
+            Assert.AreEqual(oneSided ? new[] { "Roll", "Throttle" } : new[] { "Pitch", "Roll" }, TooNarrow(w));
+            Assert.IsTrue(w.Findings.All(f => f.Kind == FindingKind.TooNarrow), "the healthy sticks pass");
+        }
+
+        static IEnumerable<TestCaseData> LiteralHealthyCases()
+        {
+            foreach (long[] r in AllRadios)
+                foreach (int span in new[] { 683, 800, 903 })
+                    foreach (long sweep in new long[] { 2000000, 2500000, 3000000 })
+                        yield return new TestCaseData(r[0], r[1], span, sweep).SetName("E10: a healthy span " + span + " " + Radio(r) + ", swept " + sweep / 1000 + " ms every time, is saved");
+        }
+
+        [TestCaseSource(nameof(LiteralHealthyCases))]
+        public void AHealthyRadioSweptTheSameEveryTimeIsSaved(long reportUs, long updateUs, int span, long sweepUs)
+        {
+            var radio = new Tx12Radio { TravelNeg = new[] { span, span, 683, span }, TravelPos = new[] { span, span, 720, span } };
+            CalibrationWizard w = Calibrate(radio, Literal(radio, sweepUs), reportUs, updateUs);
+
+            Assert.IsFalse(w.Failed, "never refused");
+            Assert.IsEmpty(w.Findings);
+        }
+
+        static IEnumerable<TestCaseData> StubbornHealthyCases()
+        {
+            foreach (long[] r in AllRadios)
+                foreach (int span in new[] { 683, 800, 903 })
+                    foreach (long sweep in new long[] { 900000, 1000000, 1200000, 1500000 })
+                        yield return new TestCaseData(r[0], r[1], span, sweep).SetName("E10: a healthy span " + span + " " + Radio(r) + ", swept " + sweep / 1000 + " ms by a stubborn pilot, is saved");
+        }
+
+        [TestCaseSource(nameof(StubbornHealthyCases))]
+        public void AHealthyRadioSweptByAStubbornPilotIsSaved(long reportUs, long updateUs, int span, long sweepUs)
+        {
+            var radio = new Tx12Radio { TravelNeg = new[] { span, span, 683, span }, TravelPos = new[] { span, span, 720, span } };
+            CalibrationWizard w = Calibrate(radio, Stubborn(radio, sweepUs), reportUs, updateUs);
+
+            Assert.IsFalse(w.Failed, "never refused");
+            Assert.IsEmpty(w.Findings);
+        }
+
         // QA's pre-existing gap: a pitfall with ±3 ADC counts of rest jitter spreads 61 HID counts, over the centre step's
         // 2 % still band, so the step never settles. After 5 s the prompt names the channel.
         [Test]
