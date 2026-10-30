@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Fpv450.Input.Radio;
@@ -160,6 +161,116 @@ namespace Fpv450.Tests.Radio
             CalibrationWizard h = Calibrate(healthy, new CalibratingPilot(healthy) { FirstSweepUs = firstSweepUs, SweepUs = sweepUs });
             Assert.IsFalse(h.Failed);
             Assert.IsEmpty(h.Findings, "the same pilot on a healthy radio");
+        }
+
+        // QA's probe E9v (interim review, finding 9 and gap 2a). The rest spread rule refused a healthy radio whose rest
+        // spread 8–10 HID counts (±4–5 ADC counts of jitter, or a thumb's ±0.4 % at the centre step), and passed a slow
+        // pilot on a pitfall whose ADC is still at rest (EdgeTX 2.8's jitter filter). The smallest step rule catches the
+        // pitfall at every sweep and jitter, and saves every healthy radio. The repeat after "Too fast" is 2.5 times
+        // slower, as QA's pilot's.
+        static readonly int[] PitfallNeg = { 79, 85, 683, 868 }, PitfallPos = { 1, 0, 720, 851 };
+
+        static IEnumerable<TestCaseData> PitfallCases()
+        {
+            foreach ((int lo, int hi) in new[] { (0, 0), (0, 1), (-1, 1), (-1, 2), (-2, 2) })
+                foreach (long sweep in new long[] { 2000000, 3000000, 8000000, 12000000 })
+                    yield return new TestCaseData(lo, hi, sweep).SetName("E9v: the pitfall, jitter " + lo + " to " + hi + ", sweep " + sweep / 1000000 + " s, is too narrow");
+        }
+
+        static CalibratingPilot Sweeping(Tx12Radio radio, long sweepUs) =>
+            new CalibratingPilot(radio) { FirstSweepUs = sweepUs, SweepUs = sweepUs * 5 / 2 };
+
+        static string[] TooNarrow(CalibrationWizard w) =>
+            w.Findings.Where(f => f.Kind == FindingKind.TooNarrow).Select(f => f.Stick).OrderBy(s => s).ToArray();
+
+        [TestCaseSource(nameof(PitfallCases))]
+        public void ThePitfallIsTooNarrowAtAnySweepAndJitter(int noiseLo, int noiseHi, long sweepUs)
+        {
+            var radio = new Tx12Radio { SpanNeg = PitfallNeg, SpanPos = PitfallPos, NoiseLo = noiseLo, NoiseHi = noiseHi };
+            CalibrationWizard w = Calibrate(radio, Sweeping(radio, sweepUs));
+
+            Assert.IsTrue(w.Failed, "nothing is saved");
+            Assert.AreEqual(new[] { "Pitch", "Roll" }, TooNarrow(w));
+            Assert.IsTrue(w.Findings.All(f => f.Kind == FindingKind.TooNarrow), "the healthy throttle and yaw pass");
+            foreach (CalibrationFinding f in w.Findings)
+                StringAssert.Contains("Recalibrate the radio", f.Message);
+        }
+
+        static IEnumerable<TestCaseData> HealthyCases()
+        {
+            foreach (int span in new[] { 683, 800, 903 })
+                foreach (int j in new[] { 1, 2, 3, 4, 5 })
+                    foreach (long sweep in new long[] { 3000000, 8000000 })
+                        yield return new TestCaseData(span, j, sweep).SetName("E9v: a healthy span " + span + ", jitter ±" + j + ", sweep " + sweep / 1000000 + " s, is saved");
+        }
+
+        [TestCaseSource(nameof(HealthyCases))]
+        public void AHealthyRadioIsSavedAtAnyJitter(int span, int jitter, long sweepUs)
+        {
+            var radio = new Tx12Radio
+            {
+                TravelNeg = new[] { span, span, 683, span },
+                TravelPos = new[] { span, span, 720, span },
+                NoiseLo = -jitter,
+                NoiseHi = jitter,
+            };
+            CalibrationWizard w = Calibrate(radio, Sweeping(radio, sweepUs));
+
+            Assert.IsFalse(w.Failed);
+            Assert.IsEmpty(w.Findings);
+        }
+
+        [TestCase(0.002, TestName = "E9v: a thumb's ±0.2 % at the centre step is saved")]
+        [TestCase(0.004, TestName = "E9v: a thumb's ±0.4 % at the centre step is saved")]
+        [TestCase(0.006, TestName = "E9v: a thumb's ±0.6 % at the centre step is saved")]
+        [TestCase(0.01, TestName = "E9v: a thumb's ±1 % at the centre step is saved")]
+        [TestCase(0.015, TestName = "E9v: a thumb's ±1.5 % at the centre step is saved")]
+        public void AThumbLeftOnTheSticksAtTheCentreStepIsNotASwitch(double wobble)
+        {
+            var radio = new Tx12Radio { TravelNeg = new[] { 800, 800, 683, 800 }, TravelPos = new[] { 800, 800, 720, 800 } };
+            CalibrationWizard w = Calibrate(radio, new CalibratingPilot(radio) { Wobble = wobble });
+
+            Assert.IsFalse(w.Failed);
+            Assert.IsEmpty(w.Findings);
+        }
+
+        // The throttle rests at its end, where EdgeTX clamps, so its rest says nothing; its sweep's smallest step does. And
+        // a pitfall on one side only (EdgeTX scales each side by its own span): the coarse side is named.
+        [TestCase(0, 0, TestName = "E9v: a pitfall throttle and a one-sided pitfall roll, ADC still, are too narrow")]
+        [TestCase(-1, 1, TestName = "E9v: a pitfall throttle and a one-sided pitfall roll, jitter ±1, are too narrow")]
+        public void APitfallThrottleAndAOneSidedPitfallAreTooNarrow(int noiseLo, int noiseHi)
+        {
+            var radio = new Tx12Radio
+            {
+                SpanNeg = new[] { 79, 742, 79, 868 },
+                SpanPos = new[] { 794, 903, 1, 851 },
+                NoiseLo = noiseLo,
+                NoiseHi = noiseHi,
+            };
+            CalibrationWizard w = Calibrate(radio, Sweeping(radio, 8000000));
+
+            Assert.IsTrue(w.Failed, "nothing is saved");
+            Assert.AreEqual(new[] { "Roll", "Throttle" }, TooNarrow(w));
+            Assert.IsTrue(w.Findings.All(f => f.Kind == FindingKind.TooNarrow), "the healthy pitch and yaw pass");
+        }
+
+        // QA's pre-existing gap: a pitfall with ±3 ADC counts of rest jitter spreads 61 HID counts, over the centre step's
+        // 2 % still band, so the step never settles. After 5 s the prompt names the channel.
+        [Test]
+        public void APitfallTooJitteryToSettleIsNamedAtTheCentreStep()
+        {
+            var radio = new Tx12Radio { SpanNeg = PitfallNeg, SpanPos = PitfallPos, NoiseLo = -3, NoiseHi = 3 };
+            CalibrationWizard early = Calibrations.Run(radio, new CalibratingPilot(radio), out _, 1000000 + 4900000);
+            Assert.AreEqual(CalibrationStep.Centre, early.Step);
+            Assert.AreEqual(-1, early.Restless, "not before 5 s");
+            StringAssert.DoesNotContain("keeps moving", early.Prompt);
+
+            CalibrationWizard w = Calibrations.Run(radio, new CalibratingPilot(radio), out _, 1000000 + 10000000);
+            TestContext.WriteLine(w.Prompt);
+            Assert.AreEqual(CalibrationStep.Centre, w.Step, "the centre step never settles");
+            Assert.That(w.Restless, Is.InRange(0, 1), "roll's or pitch's channel");
+            StringAssert.Contains("Channel " + (w.Restless + 1) + " keeps moving", w.Prompt);
+            StringAssert.Contains("recalibrate the radio's sticks", w.Prompt);
         }
 
         // The same spans read as the reports' own range (design 4's rule: under 200 of the 2048).

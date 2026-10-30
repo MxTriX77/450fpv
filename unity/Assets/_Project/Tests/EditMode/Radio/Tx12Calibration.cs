@@ -34,6 +34,9 @@ namespace Fpv450.Tests.Radio
         /// <summary>A stick whose output spans only this many HID counts about the centre (0: the radio's pipeline).</summary>
         public int[] HidSpan = { 0, 0, 0, 0 };
 
+        /// <summary>Each report's ADC jitter, uniform from NoiseLo to NoiseHi counts (0 and 0: an ADC filtered still).</summary>
+        public int NoiseLo = -1, NoiseHi = 1;
+
         /// <summary>The arm switch's channel (0-based, an axis), or −1 with ArmButton set.</summary>
         public int ArmChannel = 4, ArmButton = -1;
 
@@ -52,7 +55,7 @@ namespace Fpv450.Tests.Radio
             for (int f = 0; f < 4; f++)
             {
                 double p = f == Throttle ? 2 * Stick[f] - 1 : Stick[f];
-                int noise = (int)(Hash((ulong)t * 8 + (ulong)f) % 3) - 1; // ±1 count of ADC jitter
+                int noise = NoiseLo + (int)(Hash((ulong)t * 8 + (ulong)f) % (ulong)(NoiseHi - NoiseLo + 1)); // ADC jitter
                 int adc = 1024 + (int)Math.Round(p >= 0 ? p * TravelPos[f] : p * TravelNeg[f]) + noise;
                 int v = adc - 1024;
                 int span = v > 0 ? (SpanPos ?? TravelPos)[f] : (SpanNeg ?? TravelNeg)[f];
@@ -87,13 +90,16 @@ namespace Fpv450.Tests.Radio
     /// <summary>
     /// A pilot following the wizard's prompts with a radio alone: 0.8 s to react to each prompt, a stick to its start
     /// end in 0.3 s and held 0.5 s, then swept steadily to the far end over SweepUs and held; the first sweep of a
-    /// stick takes FirstSweepUs (a hasty pilot). A stick springs back to centre when its step ends.
+    /// stick takes FirstSweepUs (a hasty pilot). A stick springs back to centre when its step ends. With Wobble, a thumb
+    /// left on roll, pitch and yaw at the centre step moves them by up to that fraction of their half travel.
     /// </summary>
     sealed class CalibratingPilot
     {
         public const long ReactUs = 800000, ToStartUs = 300000, HoldStartUs = 500000;
 
         public long SweepUs = 2000000, FirstSweepUs = 2000000;
+
+        public double Wobble;
 
         /// <summary>The prompt said "Too fast" at least once.</summary>
         public bool SawTooFast;
@@ -115,6 +121,7 @@ namespace Fpv450.Tests.Radio
                 {
                     int previous = Function(_step);
                     if (previous >= 0 && previous != Tx12Radio.Throttle) _radio.Stick[previous] = 0; // let go
+                    if (_step == CalibrationStep.Centre) _radio.Stick[Tx12Radio.Roll] = _radio.Stick[Tx12Radio.Pitch] = _radio.Stick[Tx12Radio.Yaw] = 0;
                     _attempt = 0;
                 }
                 _step = wizard.Step;
@@ -137,6 +144,10 @@ namespace Fpv450.Tests.Radio
                     if (tau >= 0) _radio.Arm = false;
                     return;
                 case CalibrationStep.Centre:
+                    if (Wobble != 0)
+                        foreach (int f in new[] { Tx12Radio.Roll, Tx12Radio.Pitch, Tx12Radio.Yaw })
+                            _radio.Stick[f] = Wobble * Math.Sin(2 * Math.PI * (0.7 + 0.13 * f) * t / 1e6);
+                    return;
                 case CalibrationStep.Done:
                     return;
             }
