@@ -135,6 +135,33 @@ namespace Fpv450.Tests.Radio
             StringAssert.Contains("Recalibrate the radio", w.Prompt);
         }
 
+        // QA's probe E9 (interim review, finding 2): on the pitfall's axes the reports cross 10–90 % in about a tenth of
+        // the stick's sweep. A careful first sweep of 3 s is "too fast", and the repeat at 7.5 s crosses in 0.75 s, over
+        // the jump rule's 0.7 s: both axes were saved as sticks. A pilot slow from the start is never even asked. The
+        // same pilots on a healthy radio find nothing.
+        [TestCase(3000000, 7500000, TestName = "E9: the pitfall swept in 3 s, then 7.5 s after Too fast, is too narrow")]
+        [TestCase(8000000, 8000000, TestName = "E9: the pitfall swept in 8 s from the start is too narrow")]
+        public void ASlowPilotStillFindsTheTx12Pitfall(long firstSweepUs, long sweepUs)
+        {
+            var radio = new Tx12Radio
+            {
+                SpanNeg = new[] { 79, 85, 683, 868 },
+                SpanPos = new[] { 1, 0, 720, 851 },
+            };
+            CalibrationWizard w = Calibrate(radio, new CalibratingPilot(radio) { FirstSweepUs = firstSweepUs, SweepUs = sweepUs });
+
+            Assert.IsTrue(w.Failed, "nothing is saved");
+            Assert.AreEqual(new[] { "Pitch", "Roll" }, w.Findings.Where(f => f.Kind == FindingKind.TooNarrow).Select(f => f.Stick).OrderBy(s => s).ToArray());
+            Assert.IsTrue(w.Findings.All(f => f.Kind == FindingKind.TooNarrow), "the healthy throttle and yaw pass");
+            foreach (CalibrationFinding f in w.Findings)
+                StringAssert.Contains("Recalibrate the radio", f.Message);
+
+            var healthy = new Tx12Radio();
+            CalibrationWizard h = Calibrate(healthy, new CalibratingPilot(healthy) { FirstSweepUs = firstSweepUs, SweepUs = sweepUs });
+            Assert.IsFalse(h.Failed);
+            Assert.IsEmpty(h.Findings, "the same pilot on a healthy radio");
+        }
+
         // The same spans read as the reports' own range (design 4's rule: under 200 of the 2048).
         [Test]
         public void AxesSpanningOnly79And85CountsAreNamedAsTooNarrow()
