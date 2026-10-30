@@ -10,18 +10,24 @@ namespace Fpv450.Sim.Tests
     /// <summary>
     /// The stub's floor (FloorWorld at y = 0) with a hole band across it, x in [XMin, XMax]: there SampleGround reports a
     /// hole, and neither Raycast nor StaticContacts sees the ground (IWorldQuery's rule for a hole). Runtime objects are the
-    /// floor's. A test world for airframe-effects' "The cushion and the hole" until the test range's holes land.
+    /// floor's. With sampleRise, SampleGround's ground stands that much above the floor the ray sees (a mat's top or a relief
+    /// the terrain's triangles lack, PHY-08). A test world for airframe-effects' "The cushion and the hole" until the test
+    /// range's holes land.
     /// </summary>
     public sealed class HoleBandWorld : IWorldQuery
     {
         readonly FloorWorld _floor = new FloorWorld(0, "belt_bare", "steel", "timber");
         readonly double _xMin, _xMax;
 
-        public HoleBandWorld(double xMin, double xMax)
+        readonly double _rise;
+
+        public HoleBandWorld(double xMin, double xMax, double sampleRise = 0)
         {
             _xMin = xMin;
             _xMax = xMax;
-            string text = "HoleBand\n" + BitConverter.DoubleToInt64Bits(xMin).ToString("X16") + "\n" + BitConverter.DoubleToInt64Bits(xMax).ToString("X16");
+            _rise = sampleRise;
+            string text = "HoleBand\n" + BitConverter.DoubleToInt64Bits(xMin).ToString("X16") + "\n" + BitConverter.DoubleToInt64Bits(xMax).ToString("X16")
+                + "\n" + BitConverter.DoubleToInt64Bits(sampleRise).ToString("X16");
             ContentHash = WorldHash.HashFile(_floor.ContentHash, Encoding.UTF8.GetBytes(text), true);
         }
 
@@ -34,8 +40,11 @@ namespace Fpv450.Sim.Tests
         {
             _floor.SampleGround(points, results);
             for (int i = 0; i < points.Length; i++)
+            {
+                results[i].Height += _rise;
                 if (InHole(points[i].X))
                     results[i] = new GroundSample { Height = double.NegativeInfinity, Normal = new Double3(0, 1, 0), Flags = GroundFlags.Hole };
+            }
         }
 
         public int StaticContacts(in Capsule previous, in Capsule current, double margin, Span<StaticContact> results)

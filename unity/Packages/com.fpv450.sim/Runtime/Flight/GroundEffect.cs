@@ -28,7 +28,7 @@ namespace Fpv450.Sim.Flight
         public double Reach = 8;
 
         /// <summary>The height over R below which both forms are held: 0.5 (assumed: the image model diverges at 0.25; the
-        /// ground's gain there is 1.333, the ceiling's 1.07).</summary>
+        /// ground's gain there is 1.333, the ceiling's 1.11).</summary>
         public double LowestHeight = 0.5;
 
         /// <summary>The ceiling model's α₀: 1.60 (published: Hsiao and Chirarattananon's reduced model fitted to their
@@ -40,7 +40,7 @@ namespace Fpv450.Sim.Flight
         public double RecirculationOnset = 4.0;
 
         /// <summary>The re-ingested inflow's σ over v_h at LowestHeight, falling linearly to 0 at RecirculationOnset: 0.05
-        /// (assumed: about 3.4 % of the thrust, a third of the vortex ring's measured σ).</summary>
+        /// (assumed: about 3 % of the thrust through the props' static slope, a third of the vortex ring's measured σ).</summary>
         public double RecirculationSigma = 0.05;
 
         /// <summary>Its bound over v_h: 0.15 (assumed: 3σ at LowestHeight).</summary>

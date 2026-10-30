@@ -36,6 +36,31 @@ namespace Fpv450.Sim.Tests
             Assert.That(GroundEffectScenario.Within(c), Is.True);
         }
 
+        // PHY-08: Raycast sees the terrain's triangles only, so the rotor's ground is the nearer of its ray's hit and
+        // SampleGround's ground (a mat's top 5 cm above the floor here), along the axis however the drone is tilted.
+        [Test]
+        public void TheRotorsGroundIsTheNearerOfItsRayAndTheSampledGround()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            var p = new Propulsion(spec.BuildPropulsion(), null, null, default, spec.BuildGroundEffect(), default);
+            var surfaces = new RotorSurfaces(p, 2);
+            DetMath.SinCos(0.25, out double sin, out double cosHalf);
+            var tilt = new Quat(0, 0, sin, cosHalf); // 0.5 rad of roll about +z
+            DetMath.SinCos(0.5, out _, out double cos);
+            foreach (double rise in new[] { 0.0, 0.05 })
+            {
+                var world = new FlightWorld(new HoleBandWorld(10, 11, rise));
+                var s = new FlightState { Position = new Double3(0, 0.5, 0), Attitude = tilt };
+                surfaces.Find(world, s, out Corners below, out Corners above);
+                for (int i = 0; i < 4; i++)
+                {
+                    double hub = (s.Position + tilt.Rotate(p.Hub(i))).Y;
+                    Assert.That(below[i], Is.EqualTo((hub - rise) / cos).Within(1e-12), "the nearer surface along the tilted axis");
+                    Assert.That(above[i], Is.EqualTo(double.PositiveInfinity));
+                }
+            }
+        }
+
         [Test]
         public void TheCeilingUnderARuntimeRoof()
         {
