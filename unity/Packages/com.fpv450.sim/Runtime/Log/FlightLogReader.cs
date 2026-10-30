@@ -296,6 +296,15 @@ namespace Fpv450.Sim.Log
                     + G(h.Asymmetry.PropMass) + " kg at " + G(h.Asymmetry.ServiceRpm) + " rpm)");
             else
                 w.WriteLine("  motor asymmetry: off (identical rotors)");
+            if (h.VortexRing != null)
+                w.WriteLine("  vortex rings: in at eta " + G(h.VortexRing.EntryRate) + ", out below " + G(h.VortexRing.ExitRate) + " or past "
+                    + G(h.VortexRing.EndRate) + ", swept away at mu " + G(h.VortexRing.EscapeInPlane) + "; inflow " + G(h.VortexRing.EntryInflow)
+                    + " to " + G(h.VortexRing.PeakInflow) + " v_h at its peak eta " + G(h.VortexRing.PeakRate) + ", lag " + G(h.VortexRing.InflowLag)
+                    + " R/v_h; thrust sigma " + G(h.VortexRing.FluctuationSigma) + " within " + G(h.VortexRing.FluctuationBound) + " at f R/v_h "
+                    + G(h.VortexRing.FluctuationFrequency) + "; air " + G(h.VortexRing.AirDensity) + " kg/m3"
+                    + (h.VortexRing.FixedInducedVelocity > 0 ? "; KNOWN-WRONG: scaled by a fixed " + G(h.VortexRing.FixedInducedVelocity) + " m/s" : ""));
+            else
+                w.WriteLine("  vortex rings: off");
             for (int n = 0; n < h.RuntimeObjects.Length; n++)
                 w.WriteLine("  runtime object " + (n < h.RuntimeIds.Length ? h.RuntimeIds[n] : -1) + " '" + h.RuntimeObjects[n].Name + "': "
                     + h.RuntimeObjects[n].Shapes.Length + " shapes");
@@ -381,6 +390,10 @@ namespace Fpv450.Sim.Log
                     return e.A > 0
                         ? "ESC " + CornerName(e.Index) + " holds its motor at its " + G(e.B) + " A current limit, taking " + G(e.A * 100) + " % of its duty"
                         : "ESC " + CornerName(e.Index) + " lets go of its " + G(e.B) + " A current limit";
+                case EventKind.VortexRingEntered:
+                case EventKind.VortexRingLeft:
+                    return "rotor " + CornerName(e.Index) + (e.Kind == EventKind.VortexRingEntered ? " enters" : " leaves") + " its vortex ring at eta "
+                        + G(e.A) + ", mu " + G(e.B) + " (v_h " + G(e.C) + " m/s" + (e.C > 0 ? ")" : ": the rotor stopped)");
                 default:
                     return "event kind " + (int)e.Kind + ": part " + e.Part + ", index " + e.Index + ", " + Where(e) + ", a " + G(e.A) + ", b "
                         + G(e.B) + ", c " + G(e.C);

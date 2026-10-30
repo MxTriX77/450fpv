@@ -11,7 +11,8 @@ namespace Fpv450.Sim.Tests
     /// The golden flights. The powered one (p6-flight-core 1.4, 1.5, 1.4b): the repository's drone at its nominal loadout
     /// with its drag and its contacts, in the Windy stand-in wind, armed by Betaflight's rules and flown 10 s by a scripted
     /// pilot through every part of the controller with the builder's filter chain, propulsion, the motors' asymmetry
-    /// (p7b-airframe 1.1, on the seed's draws; the contact flight too) and the air (a spin-up, a
+    /// (p7b-airframe 1.1, on the seed's draws; the contact flight too), the rotors' vortex rings (1.2; the contact flight
+    /// too) and the air (a spin-up, a
     /// climb, roll, pitch and yaw steps, a throttle punch into the ESCs' current limit and a chop, a weave), 300 m up, so
     /// it touches nothing. The contact one (1.6): the drone takes off from the floor under the closed-loop pilot, comes
     /// down on the slow glide path with the sticks held, bounces, and the throttle is cut. Each hash is every step's log
@@ -73,7 +74,17 @@ namespace Fpv450.Sim.Tests
         // records move from the first armed step, 21 (the motors spin up apart): 0.18 m and 7.7 mrad by the roll step
         // (2000), 0.90 m and 39 mrad by the chop's end (5500), 5.3 m and 0.11 rad by 10 s, 194.1 m up against 195.1;
         // 92 events against 88 (78 CurrentLimit against 74: the cold motors reach the limit at other steps).
-        public const ulong PoweredHash = 0x08FBAF9331110BE9UL;
+        // Model 8: 0x08FBAF9331110BE9.
+        // p7b-airframe 1.2: re-recorded with ModelVersion 9 (the 1400-byte record: model 8's 1328 bytes, then the rings' 72)
+        // with the vortex rings in its setup. Audited: with them off, hashed over model 8's layout with its events, the flight
+        // is model 8's bit for bit (a kept test, WithTheRingsOffEachGoldenIsModel8s). With them the records move from step 393:
+        // the drone armed 300 m up sinks as the script's throttle ramps (0.47 by 1 s, below its hover), and at step 392 the
+        // rear left rotor's descent along its axis reaches 1.04 v_h (3.7 m/s at v_h 3.2 m/s, the Windy air's 0.95 v_h in its
+        // plane), the others within 12 steps; the four leave the ring at η 0.2 at steps 2291–2338, as the roll step tilts
+        // their axes. 0.24 m and 2.1 mrad apart by the roll step (2000), 1.0 m and 5.1 mrad by the chop's end (5500), 0.94 m
+        // and 8.1 mrad by 10 s, 193.2 m up against 194.1 (the ring's lost thrust); 100 events against 92 (the 4 entries and
+        // 4 exits).
+        public const ulong PoweredHash = 0x5AF86BCB6FD0B3A2UL;
 
         // 1.6: first recorded with ModelVersion 4 as 0x8B568804552379E6.
         // 1.6 and 1.4b merged: re-recorded with ModelVersion 5. Audited against 1.6: with every filter off and the PID
@@ -97,15 +108,24 @@ namespace Fpv450.Sim.Tests
         // powered flight's), audited: with it off, over model 7's layout, model 7's flight bit for bit (the kept test). With
         // it the flight moves from the first armed step, 9, and keeps its course: 5 impacts, no crash, at rest on 8 pairs
         // 4 µm from the identical-rotor flight's height, the idling props' unbalance shaking it at 0.11 mrad/s.
-        public const ulong ContactHash = 0x5D45B356ECD6B940UL;
+        // Model 8: 0x5D45B356ECD6B940.
+        // p7b-airframe 1.2: re-recorded with ModelVersion 9 with the rings on, audited: with them off, over model 8's layout,
+        // model 8's flight bit for bit (the kept test). With them it is model 8's to step 8709: in the held bounce's last
+        // drop (1.0 m/s down, 72 mm above its standing height, on the held throttle) the front right rotor reaches η 0.45
+        // (v_h 1.9 m/s), the others within 8 steps; all four leave below η 0.2 as the skids land (steps 8776–8778), the front
+        // right once more on the last hop (8952–8973). It keeps its course: 5 impacts, no crash, at rest 0.2 mm and 0.19 mrad
+        // from model 8's; 133 events against 123.
+        public const ulong ContactHash = 0x8D965FFD8708C6C3UL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
         // leaving out the momentum's transport into the new axes (QA's experiment) loses 16 % of the momentum, and the
         // body rate never wanders.
         // Model 7: 0xE3178EE7FF322698. p7b-airframe 1.1 (ModelVersion 8): the 1328-byte record, the rotors' angles zero (no
-        // propulsion); over model 7's layout the hash is model 7's (the kept test).
-        public const ulong TumbleHash = 0xF7E0F587B45FA098UL;
+        // propulsion); over model 7's layout the hash is model 7's (the kept test). Model 8: 0xF7E0F587B45FA098.
+        // p7b-airframe 1.2 (ModelVersion 9): the 1400-byte record, the rings' bytes zero (no propulsion); over model 8's
+        // layout the hash is model 8's (the kept test).
+        public const ulong TumbleHash = 0x50541A5726F695D8UL;
         public const int TumbleSteps = 10000;
 
         public static FlightSetup PoweredSetup(DroneSpec spec)
@@ -121,6 +141,7 @@ namespace Fpv450.Sim.Tests
                 Wind = WindSetup.Of(WindLevel.Windy),
                 Contacts = spec.BuildContacts(spec.Nominal, materials, hash),
                 Asymmetry = spec.BuildAsymmetry(),
+                VortexRing = spec.BuildVortexRing(),
                 StartPosition = new Double3(0, 300, 0),
                 StartPackCharge = 0.9,
             };
@@ -153,11 +174,12 @@ namespace Fpv450.Sim.Tests
         /// skipAt and skipBytes the hash leaves out each record's bytes from skipAt on, skipBytes of them (a parent model's
         /// layout, for an audit).</summary>
         public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool contacts = true,
-            bool asymmetry = true)
+            bool asymmetry = true, bool ring = true)
         {
             FlightSetup setup = PoweredSetup(spec);
             if (!contacts) setup.Contacts = null;
             if (!asymmetry) setup.Asymmetry = null;
+            if (!ring) setup.VortexRing = null;
             core = new FlightCore(setup);
             var record = new byte[LogFormat.StepSize];
             var e = new byte[LogFormat.EventSize];
@@ -183,7 +205,8 @@ namespace Fpv450.Sim.Tests
         /// at 0.5 m/s; with the skids 0.1 m up the sticks are held (roll, pitch and yaw centred) and the drone bounces; 1.5 s
         /// later the throttle is cut and it comes to rest. Returns its hash, with the core for a report.
         /// </summary>
-        public static ulong FlyContact(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true)
+        public static ulong FlyContact(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
+            bool ring = true, Action<FlightCore> after = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -191,6 +214,7 @@ namespace Fpv450.Sim.Tests
             FlightSetup setup = ContactScenarios.Setup(spec, materials, mh, true, new Double3(0, stand, 0));
             setup.Wind = WindSetup.Of(WindLevel.Calm);
             if (asymmetry) setup.Asymmetry = spec.BuildAsymmetry();
+            if (ring) setup.VortexRing = spec.BuildVortexRing();
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, new Double3(0, stand + 1, 0));
             var record = new byte[LogFormat.StepSize];
@@ -221,6 +245,7 @@ namespace Fpv450.Sim.Tests
                     if (k - holdAt >= 1500) stick.Throttle = 0;
                 }
                 core.Advance(stick);
+                after?.Invoke(core);
                 LogFormat.EncodeStep(record, core.State, stick, core.Trace);
                 hash = Fnv(hash, record, 0, skipAt);
                 hash = Fnv(hash, record, skipAt + skipBytes, record.Length);

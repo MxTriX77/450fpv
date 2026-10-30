@@ -45,14 +45,22 @@ namespace Fpv450.FlightBench
                 + $"({(tumble == GoldenFlights.TumbleHash ? "matches" : $"golden 0x{GoldenFlights.TumbleHash:X16}")}), momentum within {tc.Momentum:E2} (< 1e-10), "
                 + $"energy within {tc.Energy:E2} (< 1e-10), CoM {tc.Parabola:E2} m from its parabola (< 1e-9), body rate wandering {tc.Wander:F3} rad/s (> 0.5): "
                 + $"{(tok ? "PASS" : "FAIL")}");
-            // p7b-airframe 1.1's audit: with the motors' asymmetry off, over model 7's 1296-byte layout, each golden is model 7's.
-            ulong p7 = GoldenFlights.FlyPowered(Drone(), out _, 1296, 32, asymmetry: false);
-            ulong c7 = GoldenFlights.FlyContact(Drone(), out _, 1296, 32, false);
-            ulong t7 = GoldenFlights.FlyTumble(Drone(), out _, out _, 1296, 32);
+            // p7b-airframe 1.1's audit: with the motors' asymmetry off (and 1.2's rings), over model 7's 1296-byte layout, each
+            // golden is model 7's.
+            ulong p7 = GoldenFlights.FlyPowered(Drone(), out _, 1296, 104, asymmetry: false, ring: false);
+            ulong c7 = GoldenFlights.FlyContact(Drone(), out _, 1296, 104, false, false);
+            ulong t7 = GoldenFlights.FlyTumble(Drone(), out _, out _, 1296, 104);
             bool aok = p7 == 0xA65FBFBCBCFC5B96UL && c7 == 0x3AF33645FF8F1919UL && t7 == 0xE3178EE7FF322698UL;
             Console.WriteLine($"asymmetry off, over model 7's layout: powered 0x{p7:X16}, contact 0x{c7:X16}, tumble 0x{t7:X16} "
                 + $"({(aok ? "model 7's, bit for bit" : "NOT model 7's")}): {(aok ? "PASS" : "FAIL")}");
-            return ok && cok && tok && aok;
+            // p7b-airframe 1.2's audit: with the vortex rings off, over model 8's 1328-byte layout, each golden is model 8's.
+            ulong p8 = GoldenFlights.FlyPowered(Drone(), out _, 1328, 72, ring: false);
+            ulong c8 = GoldenFlights.FlyContact(Drone(), out _, 1328, 72, ring: false);
+            ulong t8 = GoldenFlights.FlyTumble(Drone(), out _, out _, 1328, 72);
+            bool rok = p8 == 0x08FBAF9331110BE9UL && c8 == 0x5D45B356ECD6B940UL && t8 == 0xF7E0F587B45FA098UL;
+            Console.WriteLine($"rings off, over model 8's layout: powered 0x{p8:X16}, contact 0x{c8:X16}, tumble 0x{t8:X16} "
+                + $"({(rok ? "model 8's, bit for bit" : "NOT model 8's")}): {(rok ? "PASS" : "FAIL")}");
+            return ok && cok && tok && aok && rok;
         }
 
         public static bool Bench()

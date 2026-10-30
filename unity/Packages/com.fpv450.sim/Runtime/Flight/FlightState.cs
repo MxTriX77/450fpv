@@ -59,5 +59,11 @@ namespace Fpv450.Sim.Flight
         /// <summary>Each rotor's angle turned since the start, rad, kept in [0, 2π) (Propulsion): the prop's unbalance turns
         /// with it.</summary>
         public Corners RotorAngle;
+
+        /// <summary>Each rotor's vortex ring (VortexRingSpec, p7b-airframe 1.2): what its recirculation adds to the inflow
+        /// through the disc, m/s, lagged; its thrust's fluctuation, a share of the thrust; and the rotors in the ring, bit
+        /// 1 &lt;&lt; corner. All 0 without the ring.</summary>
+        public Corners RingInflow, RingThrust;
+        public byte RingLatched;
     }
 }

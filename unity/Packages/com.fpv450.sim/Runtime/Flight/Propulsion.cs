@@ -78,12 +78,15 @@ namespace Fpv450.Sim.Flight
     /// momentum h = Σ ±J·ω (SpinMomentum) gives the gyroscopic moment −ω × h (FlightCore).
     /// - the asymmetry (MotorAsymmetry, p7b-airframe 1.1): each motor's Kv (so its Ke and Kt), each ESC's lag and each
     ///   prop's residual unbalance as the flight drew them; the unbalance pulls its hub with U·ω² at the rotor's angle.
-    /// Not yet: ground effect, the vortex ring and prop wash (p7b-airframe 1.2, 1.3).
+    /// - the vortex ring (VortexRingSpec, p7b-airframe 1.2), inside RotorInflow: each rotor's ring adds its lagged inflow
+    ///   to the thrust's advance ratio and its fluctuation to the thrust; AdvanceRing moves the rings once a step.
+    /// Not yet: ground effect and prop wash (p7b-airframe 1.3).
     /// </summary>
     public sealed class Propulsion
     {
         /// <summary>The advance ratio a descending rotor's static slope runs to (assumed: a 1.9 m/s descent at hover
-        /// speed, below the vortex ring's onset; p7b-airframe's VRS replaces this branch).</summary>
+        /// speed, below the vortex ring's onset). It ends near η 0.19 (the static C_T's v_h is 0.263·n·D), by Johnson's VzD
+        /// 0.2, where his VRS inflow leaves momentum theory; the vortex ring (VortexRingSpec) adds to it from there.</summary>
         public const double DescentAdvanceRatioLimit = -0.05;
 
         const double TwoPi = 6.283185307179586;
@@ -98,6 +101,14 @@ namespace Fpv450.Sim.Flight
         readonly double _kT, _kQ, _diameter, _hPerSpeed;
         readonly double[] _rpm, _rpmThrust, _rpmTorque, _j, _jThrust, _jTorque;
         readonly double[] _series = new double[2], _conductance = new double[2], _capacity = new double[2];
+
+        // The vortex ring (null: none): its spec and stream, the rotor's radius, 2ρA, the held descent branch's inflow over
+        // v_h, and the advance ratio a m/s of the ring's inflow makes at 1 rad/s.
+        readonly VortexRingSpec _ring;
+        readonly SeedStream _ringStream;
+        readonly double _radius, _twoRhoArea, _heldInflow, _ringAdvance;
+        readonly double[] _ringInflow = new double[4], _ringGain = new double[4], _meanThrust = new double[4];
+        readonly double[] _ringRate = new double[4], _ringInPlane = new double[4], _ringInduced = new double[4];
         readonly double[][] _ocv = new double[2][];
 
         // The step's inflow and in-plane airspeed per rotor, and each rotor's thrust and torque at its present speed.
@@ -107,9 +118,12 @@ namespace Fpv450.Sim.Flight
 
         public Propulsion(PropulsionSpec spec) : this(spec, null) { }
 
+        public Propulsion(PropulsionSpec spec, MotorAsymmetry.Draws draws) : this(spec, draws, null, default) { }
+
         /// <summary>The propulsion of spec, its four motors, ESCs and props each as drawn (MotorAsymmetry; null for four
-        /// identical ones).</summary>
-        public Propulsion(PropulsionSpec spec, MotorAsymmetry.Draws draws)
+        /// identical ones), with each rotor's vortex ring from ring and its thrust's fluctuation from ringStream (null for
+        /// none).</summary>
+        public Propulsion(PropulsionSpec spec, MotorAsymmetry.Draws draws, VortexRingSpec ring, SeedStream ringStream)
         {
             if (spec == null) throw new ArgumentNullException(nameof(spec));
             if (spec.Motors == null || spec.Motors.Length != 4) throw new ArgumentException("four motors", nameof(spec));
@@ -151,7 +165,37 @@ namespace Fpv450.Sim.Flight
                 _capacity[k] = pack.Parallel * pack.CellCapacity * SecondsPerHour;
                 _ocv[k] = pack.Ocv;
             }
+            if (ring == null) return;
+            _ring = ring.Clone();
+            _ringStream = ringStream;
+            _radius = _diameter / 2;
+            _twoRhoArea = 2 * ring.AirDensity * (TwoPi / 2) * _radius * _radius;
+            // The static C_T at the reference rpm, k_T·(2π)²/(ρD⁴), sets v_h/(n·D) = √(2C_T/π) (momentum theory). The table's
+            // static slope s (∂ratio/∂J) with momentum theory at hover gives the blade's thrust against the inflow through the
+            // disc: a climb's ΔV moves that inflow by (1 − r)/2·ΔV, r = −s·√(2C_T/π) (derived, linearised at hover), so a
+            // ring's added inflow δ is the advance ratio 2δ/((1 − r)·n·D).
+            double ct = _kT * TwoPi * TwoPi / (ring.AirDensity * _diameter * _diameter * _diameter * _diameter);
+            double vhOverNd = DetMath.Sqrt(2 * ct / (TwoPi / 2));
+            double r = -(_jThrust[1] - _jThrust[0]) / (_j[1] - _j[0]) * vhOverNd;
+            _ringAdvance = 2 * TwoPi / ((1 - r) * _diameter);
+            // The held branch's inflow over v_h: momentum theory at the descent where it holds (η of the limit).
+            double held = -DescentAdvanceRatioLimit / vhOverNd;
+            _heldInflow = -0.5 * held + DetMath.Sqrt(0.25 * held * held + 1);
         }
+
+        /// <summary>Whether the rotors have their vortex rings (VortexRingSpec).</summary>
+        public bool HasRing => _ring != null;
+
+        /// <summary>The held descent branch's inflow through the disc over v_h, which the ring adds to (derived).</summary>
+        public double HeldInflow => _heldInflow;
+
+        /// <summary>A rotor's ring this step, from AdvanceRing: its η, μ and v_h (m/s) at the step's start.</summary>
+        public double RingRate(int corner) => _ringRate[corner];
+        public double RingInPlane(int corner) => _ringInPlane[corner];
+        public double RingInduced(int corner) => _ringInduced[corner];
+
+        /// <summary>A rotor's thrust at the last sub-step without its ring's fluctuation, N (the ring's v_h is of it).</summary>
+        public double MeanThrust(int corner) => _meanThrust[corner];
 
         /// <summary>Whether a prop carries an unbalance (MotorAsymmetry), so the rotors pull their hubs.</summary>
         public bool Unbalanced => _unbalanced;
@@ -201,7 +245,7 @@ namespace Fpv450.Sim.Flight
             RotorInflow(s, windAtHubs);
             for (int i = 0; i < 4; i++)
             {
-                Aero(s.RotorSpeed[i], _inflow[i], out double t, out double q);
+                RotorAero(i, s.RotorSpeed[i], out double t, out double q);
                 _thrust[i] = t;
                 _torque[i] = q;
             }
@@ -215,6 +259,10 @@ namespace Fpv450.Sim.Flight
         /// body origin's velocity plus ω × r less that wind, split along the disc's normal (body +y) and its plane.
         /// The rotors' own terms go here and nowhere else: the own wash and the vortex ring (p7b 1.2), the neighbours'
         /// wash and recirculation, and the ground and ceiling (1.3), each from the state and the rotors' own loads.
+        /// The vortex ring (1.2): each rotor's ring adds its inflow through the disc (FlightState.RingInflow, m/s) to the
+        /// thrust's inflow and its fluctuation (RingThrust) to the thrust, as the state holds them at the step's start;
+        /// AdvanceRing moves them after the step's loops. The torque keeps the freestream's inflow: Washizu et al. and
+        /// Azuma and Obata measured little torque change in the ring (under 2.5 % against 15 % of thrust; Johnson 2005).
         /// </summary>
         public void RotorInflow(in FlightState s, Double3[] windAtHubs)
         {
@@ -226,7 +274,59 @@ namespace Fpv450.Sim.Flight
                 if (windAtHubs != null) air = air - s.Attitude.InverseRotate(windAtHubs[i]);
                 _inflow[i] = air.Y;
                 _inPlane[i] = new Double3(air.X, 0, air.Z);
+                if (_ring == null) continue;
+                _ringInflow[i] = s.RingInflow[i];
+                _ringGain[i] = 1 + s.RingThrust[i];
             }
+        }
+
+        /// <summary>
+        /// The rotors' vortex rings over one step of dt seconds (VortexRingSpec), from the step's inflow and each rotor's thrust
+        /// at its last sub-step without the fluctuation: η and μ against that thrust's v_h; in or out of the ring by the
+        /// hysteresis; the ring's added inflow lagged toward its value there, dδ/dt = (δ* − δ)/τ, τ = InflowLag·R/v_h, by
+        /// backward Euler; the fluctuation a first-order process with the corner f = FluctuationFrequency·v_h/R,
+        /// x ← a·x + √(1 − a²)·σ·n, a = τ_x/(τ_x + dt), n from "vrs.thrust" at the step and the corner, bounded. A stopped
+        /// rotor has no ring.
+        /// </summary>
+        public void AdvanceRing(ref FlightState s, double dt)
+        {
+            int latched = s.RingLatched;
+            for (int i = 0; i < 4; i++)
+            {
+                bool was = (latched & (1 << i)) != 0;
+                double t = _meanThrust[i];
+                _ringRate[i] = _ringInPlane[i] = _ringInduced[i] = 0;
+                if (!(t > 0))
+                {
+                    s.RingInflow[i] = 0;
+                    s.RingThrust[i] = 0;
+                    latched &= ~(1 << i);
+                    continue;
+                }
+                double vh = _ring.FixedInducedVelocity > 0 ? _ring.FixedInducedVelocity : DetMath.Sqrt(t / _twoRhoArea);
+                Double3 p = _inPlane[i];
+                double eta = -_inflow[i] / vh, mu = DetMath.Sqrt(p.X * p.X + p.Z * p.Z) / vh;
+                bool now = _ring.InRing(was, eta, mu);
+                double target = now ? _ring.AddedInflow(eta, mu, _heldInflow) * vh : 0;
+                double tau = _ring.InflowLag * _radius / vh;
+                double d = s.RingInflow[i];
+                s.RingInflow[i] = d + (target - d) * dt / (tau + dt);
+                double sigma = now ? _ring.Sigma(eta, mu) : 0, x = s.RingThrust[i];
+                if (sigma > 0 || x != 0)
+                {
+                    double tx = _radius / (TwoPi * _ring.FluctuationFrequency * vh), a = tx / (tx + dt);
+                    x *= a;
+                    if (sigma > 0) x += DetMath.Sqrt(1 - a * a) * sigma * VortexRingSpec.Normal(_ringStream, s.Step, i);
+                    double bound = _ring.FluctuationBound;
+                    x = x > bound ? bound : x < -bound ? -bound : x;
+                    s.RingThrust[i] = x;
+                }
+                _ringRate[i] = eta;
+                _ringInPlane[i] = mu;
+                _ringInduced[i] = vh;
+                latched = now ? latched | (1 << i) : latched & ~(1 << i);
+            }
+            s.RingLatched = (byte)latched;
         }
 
         /// <summary>
@@ -290,7 +390,7 @@ namespace Fpv450.Sim.Flight
                 double slope = -((driving && !held ? ke * ke * _invR[i] : 0) + (w > 0 ? 2 * q / w : 0)) / _inertia[i];
                 double next = w + h * rate / (1 - h * slope);
                 if (next < 0) next = 0;
-                Aero(next, _inflow[i], out double thrust, out double torque);
+                RotorAero(i, next, out double thrust, out double torque);
                 loads.Thrust[i] += thrust;
                 loads.YawMoment += _reaction[i] * (_inertia[i] * (next - w) / h + torque);
                 loads.SupplyAmps[i] += drive * current;
@@ -355,6 +455,27 @@ namespace Fpv450.Sim.Flight
             double advance = va / (w * (_diameter / TwoPi));
             double w2 = w * w;
             thrust = _kT * Table(_rpm, _rpmThrust, rpm) * InflowRatio(_jThrust, advance) * w2;
+            torque = _kQ * Table(_rpm, _rpmTorque, rpm) * InflowRatio(_jTorque, advance) * w2;
+        }
+
+        // A rotor's thrust and torque at speed w with this step's inflow (Aero), and with its vortex ring when the rotors
+        // have one: the ring's added inflow moves the thrust's advance ratio past the held descent branch, its fluctuation
+        // scales the thrust; _meanThrust keeps the thrust without the fluctuation.
+        void RotorAero(int i, double w, out double thrust, out double torque)
+        {
+            if (_ring == null || !(w > 0))
+            {
+                Aero(w, _inflow[i], out thrust, out torque);
+                _meanThrust[i] = thrust;
+                return;
+            }
+            double rpm = w * (60 / TwoPi);
+            double advance = _inflow[i] / (w * (_diameter / TwoPi));
+            double w2 = w * w;
+            double j = (advance >= 0 ? advance : DetMath.Max(advance, DescentAdvanceRatioLimit)) + _ringInflow[i] * _ringAdvance / w;
+            double mean = _kT * Table(_rpm, _rpmThrust, rpm) * InflowRatio(_jThrust, j) * w2;
+            _meanThrust[i] = mean;
+            thrust = mean * _ringGain[i];
             torque = _kQ * Table(_rpm, _rpmTorque, rpm) * InflowRatio(_jTorque, advance) * w2;
         }
 

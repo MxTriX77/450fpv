@@ -300,6 +300,9 @@ namespace Fpv450.Sim.Flight
             return a;
         }
 
+        /// <summary>The rotors' vortex rings at the published boundaries (VortexRingSpec), in the aero block's air.</summary>
+        public VortexRingSpec BuildVortexRing() => new VortexRingSpec { AirDensity = Aero.AirDensity };
+
         /// <summary>
         /// The flight's contact model at a loadout, with physics_materials.json's rows and hash (PhysicsMaterials.Parse):
         /// each shape follows its part through BuildMass, so a part at 0 kg (legs off, no payload) has no shapes, a moved

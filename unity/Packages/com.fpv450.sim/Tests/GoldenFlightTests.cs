@@ -71,17 +71,30 @@ namespace Fpv450.Sim.Tests
         // Model 3's 992 bytes, then 1.6's contacts, then 1.4b's filter block: each parent's layout is the record less the
         // other's block. Then p7b-airframe 1.1's rotor angles: model 7's layout is the record less them.
         const int ContactBytesAt = 992, ContactBytes = 120, FilterBytesAt = ContactBytesAt + ContactBytes;
-        const int RotorAngleAt = 1296, RotorAngleBytes = 32;
+        const int RotorAngleAt = 1296, RotorAngleBytes = 32, RingAt = RotorAngleAt + RotorAngleBytes, RingBytes = 72;
 
-        // p7b-airframe 1.1's audit, kept: with the motors' asymmetry off, over model 7's 1296-byte layout with its events,
-        // each golden is model 7's bit for bit (the rotors' angles turn, but nothing reads them without an unbalance).
+        // p7b-airframe 1.1's audit, kept: with the motors' asymmetry off (and 1.2's rings), over model 7's 1296-byte layout
+        // with its events, each golden is model 7's bit for bit (the rotors' angles turn, but nothing reads them without an
+        // unbalance).
         [Test]
         public void WithTheAsymmetryOffEachGoldenIsModel7s()
         {
             DroneSpec spec = RepositoryDrone.Spec();
-            Assert.That(GoldenFlights.FlyPowered(spec, out _, RotorAngleAt, RotorAngleBytes, asymmetry: false), Is.EqualTo(0xA65FBFBCBCFC5B96UL), "powered");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, RotorAngleAt, RotorAngleBytes, false), Is.EqualTo(0x3AF33645FF8F1919UL), "contact");
-            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, RotorAngleAt, RotorAngleBytes), Is.EqualTo(0xE3178EE7FF322698UL), "tumble");
+            const int skip = RotorAngleBytes + RingBytes;
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, RotorAngleAt, skip, asymmetry: false, ring: false), Is.EqualTo(0xA65FBFBCBCFC5B96UL), "powered");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, RotorAngleAt, skip, false, false), Is.EqualTo(0x3AF33645FF8F1919UL), "contact");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, RotorAngleAt, skip), Is.EqualTo(0xE3178EE7FF322698UL), "tumble");
+        }
+
+        // p7b-airframe 1.2's audit: with the vortex rings off, over model 8's 1328-byte layout with its events, each golden
+        // is model 8's bit for bit (the rings' 72 bytes are zero without them).
+        [Test]
+        public void WithTheRingsOffEachGoldenIsModel8s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, RingAt, RingBytes, ring: false), Is.EqualTo(0x08FBAF9331110BE9UL), "powered");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, RingAt, RingBytes, ring: false), Is.EqualTo(0x5D45B356ECD6B940UL), "contact");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, RingAt, RingBytes), Is.EqualTo(0xF7E0F587B45FA098UL), "tumble");
         }
 
         [Test]
@@ -94,7 +107,9 @@ namespace Fpv450.Sim.Tests
             Assert.That(RotorAngleAt - FilterBytesAt, Is.EqualTo(1176 - 992), "1.4b's whole block, to model 7's end");
             Assert.That(LogFormat.FieldAt(LogFormat.StepFields, RotorAngleAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "rotor_angle.rear_right")),
                 "1.1's rotor angles follow model 7's 1296 bytes");
-            Assert.That(LogFormat.StepSize - RotorAngleAt, Is.EqualTo(RotorAngleBytes), "to the record's end");
+            Assert.That(LogFormat.FieldAt(LogFormat.StepFields, RingAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "ring_inflow.rear_right")),
+                "1.2's rings follow model 8's 1328 bytes");
+            Assert.That(LogFormat.StepSize - RingAt, Is.EqualTo(RingBytes), "to the record's end");
         }
     }
 }

@@ -106,6 +106,13 @@ namespace Fpv450.Sim.Flight
         /// <summary>A contact shape met more pairs than its table holds, or a query more than its buffer: a bug (Index: the
         /// contact shape). A: how many were dropped.</summary>
         ContactsLost = 11,
+
+        /// <summary>Index's rotor entered its vortex ring (VortexRingSpec, p7b-airframe 1.2). A: the descent along its axis
+        /// over its induced velocity, η; B: its in-plane airspeed over it, μ; C: that induced velocity v_h, m/s.</summary>
+        VortexRingEntered = 12,
+
+        /// <summary>Index's rotor left its vortex ring. A, B, C as VortexRingEntered's.</summary>
+        VortexRingLeft = 13,
     }
 
     /// <summary>MixerSaturation's Index.</summary>

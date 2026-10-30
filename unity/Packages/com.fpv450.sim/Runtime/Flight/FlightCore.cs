@@ -31,6 +31,10 @@ namespace Fpv450.Sim.Flight
         /// drawn from at the start. Null for four identical rotors (Calm's wind grading, a bench).</summary>
         public MotorAsymmetry Asymmetry;
 
+        /// <summary>The rotors' vortex rings (VortexRingSpec, p7b-airframe 1.2): null for none, as a bench's rotors and the
+        /// goldens' audits fly.</summary>
+        public VortexRingSpec VortexRing;
+
         /// <summary>The airframe's drag (DroneSpec.BuildAero): the body's and the coil's. Null for none (a bench's body);
         /// the rotors' in-plane drag comes with the propulsion.</summary>
         public AeroSpec Aero;
@@ -143,7 +147,9 @@ namespace Fpv450.Sim.Flight
             {
                 Asymmetry = setup.Asymmetry?.Clone();
                 Draws = Asymmetry?.DrawFor(Random);
-                _propulsion = new Propulsion(setup.Propulsion, Draws);
+                VortexRing = setup.VortexRing?.Clone();
+                SeedStream ring = VortexRing != null ? Random.Open("vrs.thrust") : default;
+                _propulsion = new Propulsion(setup.Propulsion, Draws, VortexRing, ring);
                 var clockwise = new bool[4];
                 for (int i = 0; i < 4; i++) clockwise[i] = setup.Propulsion.Motors[i].Clockwise;
                 _fc = new FlightController(_settings, clockwise);
@@ -184,6 +190,9 @@ namespace Fpv450.Sim.Flight
         /// <summary>The motors' asymmetry, or null for identical rotors; and its per-flight draws.</summary>
         public MotorAsymmetry Asymmetry { get; }
         public MotorAsymmetry.Draws Draws { get; }
+
+        /// <summary>The rotors' vortex rings, or null for none.</summary>
+        public VortexRingSpec VortexRing { get; }
 
         /// <summary>The flight's wind, with its per-flight draws.</summary>
         public StandInWind Wind => _wind;
@@ -347,6 +356,25 @@ namespace Fpv450.Sim.Flight
                 _events.Add(e);
             }
             s.EscLimited = (byte)loads.Limited;
+
+            // The vortex rings move once a step, after its loops, from its inflow and the rotors' last thrust
+            // (Propulsion.AdvanceRing); each rotor's entry and exit is an event with its η, μ and v_h.
+            if (_propulsion.HasRing)
+            {
+                int was = s.RingLatched;
+                _propulsion.AdvanceRing(ref s, Dt);
+                for (int i = 0; i < 4; i++)
+                {
+                    bool now = (s.RingLatched & (1 << i)) != 0;
+                    if (now == ((was & (1 << i)) != 0)) continue;
+                    FlightEvent e = FlightEvent.Of(now ? EventKind.VortexRingEntered : EventKind.VortexRingLeft);
+                    e.Index = (byte)i;
+                    e.A = _propulsion.RingRate(i);
+                    e.B = _propulsion.RingInPlane(i);
+                    e.C = _propulsion.RingInduced(i);
+                    _events.Add(e);
+                }
+            }
 
             Field(s, amps, loads.Volts);
         }
