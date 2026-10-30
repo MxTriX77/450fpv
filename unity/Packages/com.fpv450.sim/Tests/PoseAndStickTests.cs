@@ -44,6 +44,30 @@ namespace Fpv450.Sim.Tests
             Assert.That(inbox.TryWrite(At(11, 0)), Is.True);
         }
 
+        // A paused flight's drain (p6-input-app, QA's interim finding 1): a failsafe superseded within one drain is still
+        // seen, and Hold keeps it in force for the steps before its end while the later reports are taken.
+        [Test]
+        public void ADrainSeesASupersededFailsafeAndHoldKeepsIt()
+        {
+            var inbox = new StickInbox(8);
+            inbox.TryWrite(At(1000, 0.1));
+            Assert.That(inbox.Drain(1000, out _), Is.False, "no failsafe");
+            inbox.TryWrite(new StickSample { HostUs = 1500, Failsafe = true });
+            inbox.TryWrite(At(1800, 0.2));
+            inbox.TryWrite(At(2500, 0.3));
+            Assert.That(inbox.Drain(2000, out StickSample lost), Is.True, "superseded by the report at 1800, still seen");
+            Assert.That((lost.HostUs, lost.Failsafe, lost.Arm), Is.EqualTo((1500L, true, false)));
+
+            inbox.Hold(lost, 4000);
+            inbox.Consume(3000, out StickSample held);
+            inbox.TryWrite(At(3500, 0.4));
+            inbox.Consume(3999, out StickSample stillHeld);
+            inbox.Consume(4000, out StickSample after);
+            Assert.That((held.HostUs, held.Failsafe), Is.EqualTo((1500L, true)), "held before its end");
+            Assert.That(stillHeld.Failsafe, Is.True);
+            Assert.That((after.HostUs, after.Roll, after.Failsafe), Is.EqualTo((3500L, 0.4, false)), "then the latest report taken meanwhile");
+        }
+
         static PosePair Pair(long startUs)
         {
             var a = new PoseFrame { Step = 10, Position = new Double3(1, 2, 3), Attitude = Quat.Identity };

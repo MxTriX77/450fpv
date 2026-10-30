@@ -15,6 +15,8 @@ namespace Fpv450.Sim.Control
         long _read;    // written by the consumer only, read by the producer
         long _dropped;
         StickSample _inForce = StickSample.Neutral; // the consumer's
+        StickSample _held;                           // the consumer's: in force at the steps before _heldUntilUs (Hold)
+        long _heldUntilUs = long.MinValue;
 
         /// <param name="capacity">A power of two. 1024 holds 4 s of reports at 250 Hz, so only a stall of the flight
         /// thread longer than that drops a report.</param>
@@ -45,19 +47,48 @@ namespace Fpv450.Sim.Control
 
         /// <summary>
         /// Flight thread: the sample in force at a step whose host time is stepHostUs, the latest report with
-        /// HostUs ≤ stepHostUs (StickSample, "the timing contract"). Reports stamped later stay queued.
+        /// HostUs ≤ stepHostUs (StickSample, "the timing contract"), or Hold's sample before its end. Reports stamped
+        /// later stay queued.
         /// </summary>
         public void Consume(long stepHostUs, out StickSample inForce)
         {
+            Drain(stepHostUs, out _);
+            inForce = stepHostUs < _heldUntilUs ? _held : _inForce;
+        }
+
+        /// <summary>
+        /// Consumer: takes every report stamped up to hostUs, as each step's Consume does, so the ring never fills while
+        /// no step consumes (a paused flight). True when one of them was a failsafe sample, even one a later report
+        /// superseded; failsafe is the first.
+        /// </summary>
+        public bool Drain(long hostUs, out StickSample failsafe)
+        {
             long w = Volatile.Read(ref _written);
             long r = _read;
-            while (r < w && _ring[r & _mask].HostUs <= stepHostUs)
+            bool lost = false;
+            failsafe = default;
+            while (r < w && _ring[r & _mask].HostUs <= hostUs)
             {
                 _inForce = _ring[r & _mask];
+                if (_inForce.Failsafe && !lost)
+                {
+                    failsafe = _inForce;
+                    lost = true;
+                }
                 r++;
             }
             Volatile.Write(ref _read, r);
-            inForce = _inForce;
+            return lost;
+        }
+
+        /// <summary>
+        /// Consumer: sample is in force at the steps before untilHostUs, whatever reports come by then. They are still
+        /// taken, so the sample in force after is the latest.
+        /// </summary>
+        public void Hold(in StickSample sample, long untilHostUs)
+        {
+            _held = sample;
+            _heldUntilUs = untilHostUs;
         }
     }
 }
