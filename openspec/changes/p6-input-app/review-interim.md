@@ -350,3 +350,77 @@ QA probe e9x (eased)                                                2 ms 0 of 36
 python tools/hygiene/precommit.py --tree HEAD                       1610 files scanned, 0 findings (exit 0)
 openspec validate p6-input-app --strict                             Change 'p6-input-app' is valid
 ```
+
+## Re-check of finding 10 (at `f57ebc6`)
+
+**Verdict for the interim scope: green.** Finding 10 is fixed: no healthy sweep is refused at 2, 3 or 4 ms or 1 ms over 4 ms, and no pitfall is saved. The guard adds finding 11: a pilot who does not keep slowing down is told "Still too fast" forever, and the pitfall is never named. That includes a one-sided pitfall swept at the prompt's own "about 2 seconds", a regression from `0da4c97`. It is not blocking, but it must be settled before G7. Findings 3–7 were not re-checked and stand.
+
+**Scope:** `755c0c8` (the per-side update guard, `UpdateUs`, `Repeats`, `_jumped`, the test pilot, E10) and `f57ebc6` (design 4's note, task 1.2's line). No GPU (D-046).
+
+**My probe E10q** (scratch, not committed) uses my E9w F and E9x radios and sweeps. It changes one thing: the pilot restarts on each new repeat (`Repeats`), not on the first "Too fast" only. There are two pilots: one 2.5× slower at every repeat, and a stubborn one, 2.5× slower once. 1 320 checks, 0 fail.
+
+| interval | healthy 683 / 800 / 903, still and ±1, linear 0.9–3 s and eased 1.0–2.5 s | pitfall, two-sided, one-sided and throttle, still, 0..1 and ±1, 2–20 s: 2.5× slower each repeat | the same pitfalls, stubborn pilot |
+|---|---|---|---|
+| 2 ms | **84 of 84 saved** (6 asked slower, 1 repeat at most) | **54 of 54 named**, 2 repeats at most, 176.9 s at worst | 40 named, **14 stuck** (180 s, "Still too fast" 6–31 times) |
+| 3 ms | **84 of 84 saved** (14 asked slower; 8 refused at `0da4c97`) | **54 of 54 named**, 2 repeats, 176.9 s | 40 named, **14 stuck** |
+| 4 ms | **84 of 84 saved** (32 asked slower; 27 refused at `0da4c97`) | **54 of 54 named**, 3 repeats, 116.7 s | 31 named, **23 stuck** |
+| 1 ms over 4 ms | **84 of 84 saved** (33 asked slower; 18 of the 48 linear refused at `0da4c97`) | **54 of 54 named**, 3 repeats, 116.6 s | 31 named, **23 stuck** |
+
+Both pilots saved all 84 healthy cases at every interval. No pitfall run was ever saved.
+
+**The per-side guard** departs from my wording, which counted the whole band. I accept it, because the pigeonhole holds per side: the step rule takes each side's smallest step. With the whole band, a lopsided healthy sweep could let one side's updates vouch for the other's coarse steps.
+- **Cost:** a one-sided pitfall is judged only on its own coarse side, about 82 ADC counts. It is deferred like a two-sided one.
+- **Result:** every one-sided case was named with the slowing pilot (1–3 repeats, 71 s at worst at 4 ms). A one-sided pitfall is still caught.
+
+**`UpdateUs` on a still ADC's first sweep** (healthy 800, linear, read when the throttle step ends):
+- **Quick sweeps:** 0.9–3 s give the true interval at every rate (2000, 3000, 4000, and 4000 for 1 ms over 4 ms).
+- **Slow sweeps:** the value is inflated, because a still ADC changes less often than the radio updates. A 2 ms radio reads 3 125 at 5 s, 5 125 at 8 s, 7 750 at 12 s and 12 875 at 20 s. A 4 ms radio reads the same from 8 s on.
+- **Later steps:** it falls back to the true interval at the end (a minimum, so it only falls). E10's ±40 µs check reads that end value, so it misses this.
+- **Effect:** an inflated value makes the guard stricter. It can only defer a pitfall, never refuse a healthy radio. A still-ADC pitfall throttle at 12 or 20 s, at 2 ms, needed 2 repeats: sweeps of 75 s and 125 s. Design 4 says "asked once more" only for a band transit of 0.7–0.82 s at 2 ms, so this half of the note is refuted.
+
+**Finding 11 (new, not blocking, before G7): the guard can defer the pitfall forever.** A side that held fewer than band / 4 updates is never judged, so the pilot must keep slowing down.
+- **Where:** the pitfall's side passes about 82 ADC counts. Its full sweep must take about 4 000 × `UpdateUs` before the side counts: about 8 s at 2 ms and 16 s at 4 ms, more with the inflated value. In my runs a sweep was deferred at 8 s and judged at 12 s (2 ms), and deferred at 12 s and judged at 20 s (4 ms).
+- **Effect:** a pilot who settles below that time hears "Still too fast" with no end and no diagnosis. The prompt still asks for "about 2 seconds".
+- **The one-sided pitfall at the prompt's own speed (E10r, a pilot who sweeps the same every time, ±1):**
+  - **Stuck:** the one-sided roll at 2, 2.5 and 3 s never ends at 2 ms or at 4 ms: 32–41 repeats in 180 s, nothing named. Its healthy side makes the transit slow, so the jump rule never fires.
+  - **Named:** the two-sided pitfall and the throttle are named by the jump rule after one "Too fast" at every speed (`_jumped` keeps that working). So is the one-sided roll at 1.5 s.
+  - **Healthy:** 683 and 903 at 1.5–2.5 s are saved with no repeat.
+- **Regression at 2 ms:** at `0da4c97` every one of these pitfalls was named, by the step rule at a smallest step of 10. Now the stubborn pilot leaves 14 of 54 unended, and the literal pilot leaves every one-sided sweep of 2 s or more unended.
+- **Risk:** nothing wrong is saved, and the pilot's own TX12 pitfall (79 / 1 and 85 / 0, two-sided) is named at a 2 s sweep.
+
+**Suggestions (game developer):**
+- **Say how slow:** the wizard knows the side's time and the time it needs, so the "Still too fast" prompt can ask for that many seconds.
+- **Cap the deferral:** after a repeat whose coarse side held no more updates than the last, name the axis: "moves in jumps … sweep slower or recalibrate the radio's sticks".
+- **Bound `UpdateUs`** so a still ADC's slow sweep cannot inflate it, for example `min(measured, the slowest supported radio's 4 ms)`.
+- **Test it:** add a pilot who sweeps 2 s every time to E10, with the one-sided pitfall, asserting that Roll is named.
+
+**Scenarios:**
+- "The TX12 pitfall is caught" passed with the slowing pilot at every interval. The pilot's own two-sided pitfall is also named at a literal 2 s. With the stubborn pilot it is not caught in 74 of 216 runs, nor is the one-sided pitfall at a literal 2–3 s (finding 11).
+- The "683–903 pass" half now passes at 3 ms, 4 ms and 1 ms over 4 ms.
+
+**Requirements:** INP-05 met. INP-02 is still partly met (finding 11; 1.2b).
+
+**Hygiene:**
+- Both commits are subject-only with no trailer, by `Game Developer <gamedev@450fpv.local>`.
+- They touch 5 paths, none under `reference/`, `Library/`, `Temp/` or `Logs/`.
+- The sim package and `tools/{simtests,flightbench,replay}` show 0 diff lines against `9fe4af2`.
+
+```
+git rev-parse --short HEAD                                          f57ebc6
+dotnet test tools/inputtests                                        Passed 268/268 (28 s; 97 + 171 E10)
+dotnet run -c Release --project tools/flightbench -- --golden
+  free-body 0x50ED4B05A5D02F20 (matches); powered-flight 0x3F13A5CF5DB7DAFD (matches);
+  contact-flight 0x3EE12C8D692BADF3 (matches), 5 impacts; tumble 0xE3178EE7FF322698 (matches): PASS
+QA probe e10q                                                       1320 checks, 0 FAIL; healthy 672 of 672 saved (both pilots);
+                                                                    pitfall 216 of 216 named (slowing pilot), 0 of 432 saved;
+                                                                    stubborn pilot 74 of 216 stuck at 180 s (finding 11)
+QA probe e10r (literal pilot, ±1)                                   24 checks, 0 FAIL (none saved); one-sided 2 / 2.5 / 3 s stuck
+                                                                    at 2 and 4 ms (32–41 repeats); two-sided, throttle named (jumps)
+python tools/hygiene/precommit.py --tree HEAD                       1611 files scanned, 0 findings (exit 0)
+openspec validate p6-input-app --strict                             Change 'p6-input-app' is valid
+free RAM before Unity: 4.53 GB; Unity Hub running
+Unity -batchmode -nographics -runTests -testPlatform EditMode -testResults Logs/editmode-recheck10.xml
+  exit 0; 0 "error CS"; testcasecount=589 passed=589 failed=0 (91.3 s)
+  Fpv450.Sim.Tests 215, Fpv450.Tests.EditMode 106, Fpv450.Tests.Radio 251, Fpv450.Tests.Session 17
+  golden on Mono: 0x3F13A5CF5DB7DAFD, 0x3EE12C8D692BADF3, 0xE3178EE7FF322698
+```
