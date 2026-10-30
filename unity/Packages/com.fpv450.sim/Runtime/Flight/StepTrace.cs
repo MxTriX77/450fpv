@@ -42,6 +42,10 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The touching (shape, object, shape) pairs whose force the step took, the legs' points among them.</summary>
         public int ContactsTouching;
+
+        /// <summary>Each rotor's distance along its axis to the surface below it and above it at the step's start, m (its rays
+        /// and SampleGround, GroundEffectSpec): +∞ for none within the reach, 0 without the ground effect.</summary>
+        public Corners GroundDistance, CeilingDistance;
     }
 
     /// <summary>

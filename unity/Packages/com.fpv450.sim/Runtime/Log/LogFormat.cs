@@ -34,7 +34,8 @@ namespace Fpv450.Sim.Log
     /// the step record; 1.5 the wind's gust, the air's force and moment and the ESCs' current limit, and the header's
     /// aero and wind entries; 1.6 the contacts' force, moment and legs, the crash flag, and the header's contacts and
     /// runtime objects; 1.4b, after them, the controller's filter outputs and battery; 6: p7b-airframe 1.1 the rotors'
-    /// angles, and the header's motor asymmetry; 7: p7b-airframe 1.2 the rotors' vortex rings, and the header's ring). One
+    /// angles, and the header's motor asymmetry; 7: p7b-airframe 1.2 the rotors' vortex rings, and the header's ring; 8:
+    /// p7b-airframe 1.3 the rotors' surfaces and re-ingested wash, and the header's ground effect). One
     /// file per flight:
     /// - the prologue: Magic, then the format Version and the header's length (u32 each), then the header (LogHeader)
     /// - blocks to the end of the flight, each a u16 kind and a u16 payload length, then the payload:
@@ -54,7 +55,7 @@ namespace Fpv450.Sim.Log
         public static readonly byte[] Magic = { 0x46, 0x50, 0x56, 0x34, 0x35, 0x30, 0x4C, 0x47 };
 
         /// <summary>The format: the prologue, the header's entries and the record layouts below.</summary>
-        public const int Version = 7;
+        public const int Version = 8;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -79,8 +80,10 @@ namespace Fpv450.Sim.Log
         /// 9: p7b-airframe 1.2 (the rotors' vortex rings, VortexRingSpec: the onset from the descent over the induced velocity
         ///    at the present thrust, the hysteresis, the ring's inflow and the thrust's fluctuation; a flight without the
         ///    ring steps as in 8).
+        /// 10: p7b-airframe 1.3 (the rotors' ground and ceiling effect from their rays and SampleGround, and the re-ingested
+        ///    wash in a close hover, GroundEffectSpec; a flight without them steps as in 9).
         /// </summary>
-        public const int ModelVersion = 9;
+        public const int ModelVersion = 10;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
@@ -90,14 +93,15 @@ namespace Fpv450.Sim.Log
         /// <summary>The step record: 352 B of 1.1–1.3's fields, then the flight controller's 69 doubles and flags (1.4),
         /// then the gust, the air's force and moment and the ESCs' limit (1.5), then the contacts' force and moment, the
         /// legs' loads and compressions and the touching pairs (1.6), then the controller's filter outputs and battery
-        /// (1.4b), then the rotors' angles (p7b-airframe 1.1), then the vortex rings (1.2).</summary>
-        public const int StepSize = 1400, EventSize = 72, EndSize = 48;
+        /// (1.4b), then the rotors' angles (p7b-airframe 1.1), then the vortex rings (1.2), then the rotors' surfaces and
+        /// re-ingested wash (1.3).</summary>
+        public const int StepSize = 1496, EventSize = 72, EndSize = 48;
 
         // What the step record covers, checked against the structs by the suite: a field added to one of them must be
         // logged (a new layout) or the suite fails.
         public static readonly string[] StateFieldsLogged =
             { "Step", "Position", "Velocity", "Attitude", "BodyRate", "Armed", "RotorSpeed", "EscCommand", "PackCharge0", "PackCharge1", "Fc", "Gust", "EscLimited", "Crashed", "RotorAngle",
-              "RingInflow", "RingThrust", "RingLatched" };
+              "RingInflow", "RingThrust", "RingLatched", "WashInflow" };
         public static readonly string[] FcFieldsLogged =
         {
             "RcCommand", "RcThrottle", "RcDataThrottle", "RawSetpoint", "FfDeltaPrev", "FfSpeedPrev", "FfAccelPrev", "FfRaw",
@@ -110,7 +114,7 @@ namespace Fpv450.Sim.Log
         public static readonly string[] TraceFieldsLogged =
             {
                 "RotorCommand", "PackVolts0", "PackVolts1", "PackAmps0", "PackAmps1", "NetForce", "NetMoment", "AeroForce", "AeroMoment",
-                "ContactForce", "ContactMoment", "LegLoad", "LegCompression", "ContactsTouching",
+                "ContactForce", "ContactMoment", "LegLoad", "LegCompression", "ContactsTouching", "GroundDistance", "CeilingDistance",
             };
 
         static readonly string[] CornerNames = { "rear_right", "front_right", "rear_left", "front_left" };
@@ -222,6 +226,10 @@ namespace Fpv450.Sim.Log
             b.Corners("ring_thrust", "the ring's thrust fluctuation, a share of the thrust");
             b.Add("ring_latched", "the rotors in their ring, bit 1 << corner", LogFieldType.U8);
             b.Add("ring.reserved", "zero", LogFieldType.Pad, 7);
+            // The rotors' surfaces and re-ingested wash (p7b-airframe 1.3).
+            b.Corners("ground_distance", "m along the axis to the surface below at the step's start; inf none, 0 without the effect");
+            b.Corners("ceiling_distance", "m along the axis to the surface above at the step's start; inf none, 0 without the effect");
+            b.Corners("wash_inflow", "the re-ingested wash's inflow through the disc over v_h");
             return b.Done(StepSize);
         }
 
@@ -347,6 +355,9 @@ namespace Fpv450.Sim.Log
             w.C4(s.RingThrust);
             w.U8(s.RingLatched);
             w.Zero(7);
+            w.C4(t.GroundDistance);
+            w.C4(t.CeilingDistance);
+            w.C4(s.WashInflow);
         }
 
         public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
@@ -442,6 +453,10 @@ namespace Fpv450.Sim.Log
             s.RingInflow = r.C4();
             s.RingThrust = r.C4();
             s.RingLatched = r.U8();
+            r.Skip(7);
+            t.GroundDistance = r.C4();
+            t.CeilingDistance = r.C4();
+            s.WashInflow = r.C4();
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>

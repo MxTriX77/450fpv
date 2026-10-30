@@ -12,7 +12,7 @@ namespace Fpv450.Sim.Tests
     /// with its drag and its contacts, in the Windy stand-in wind, armed by Betaflight's rules and flown 10 s by a scripted
     /// pilot through every part of the controller with the builder's filter chain, propulsion, the motors' asymmetry
     /// (p7b-airframe 1.1, on the seed's draws; the contact flight too), the rotors' vortex rings (1.2; the contact flight
-    /// too) and the air (a spin-up, a
+    /// too), their ground effect (1.3; the contact flight too, where it acts) and the air (a spin-up, a
     /// climb, roll, pitch and yaw steps, a throttle punch into the ESCs' current limit and a chop, a weave), 300 m up, so
     /// it touches nothing. The contact one (1.6): the drone takes off from the floor under the closed-loop pilot, comes
     /// down on the slow glide path with the sticks held, bounces, and the throttle is cut. Each hash is every step's log
@@ -84,7 +84,13 @@ namespace Fpv450.Sim.Tests
         // their axes. 0.24 m and 2.1 mrad apart by the roll step (2000), 1.0 m and 5.1 mrad by the chop's end (5500), 0.94 m
         // and 8.1 mrad by 10 s, 193.2 m up against 194.1 (the ring's lost thrust); 100 events against 92 (the 4 entries and
         // 4 exits).
-        public const ulong PoweredHash = 0x5AF86BCB6FD0B3A2UL;
+        // Model 9: 0x5AF86BCB6FD0B3A2.
+        // p7b-airframe 1.3: re-recorded with ModelVersion 10 (the 1496-byte record: model 9's 1400 bytes, then the rotors'
+        // surfaces and re-ingested wash, 96) with the ground effect in its setup. Audited: with it off, over model 9's layout,
+        // the flight is model 9's bit for bit (a kept test, WithTheGroundEffectOffEachGoldenIsModel9s); with it on too (a kept
+        // test, ThePoweredGoldenFindsNoSurface): 193-300 m up no ray finds a surface within its 1.02 m, so every gain is 1
+        // and the wash 0, not a bit moves; the new bytes hold the sampled ground's distance along each axis and +∞ above.
+        public const ulong PoweredHash = 0x0B91602E467653F4UL;
 
         // 1.6: first recorded with ModelVersion 4 as 0x8B568804552379E6.
         // 1.6 and 1.4b merged: re-recorded with ModelVersion 5. Audited against 1.6: with every filter off and the PID
@@ -115,7 +121,15 @@ namespace Fpv450.Sim.Tests
         // (v_h 1.9 m/s), the others within 8 steps; all four leave below η 0.2 as the skids land (steps 8776–8778), the front
         // right once more on the last hop (8952–8973). It keeps its course: 5 impacts, no crash, at rest 0.2 mm and 0.19 mrad
         // from model 8's; 133 events against 123.
-        public const ulong ContactHash = 0x8D965FFD8708C6C3UL;
+        // Model 9: 0x8D965FFD8708C6C3.
+        // p7b-airframe 1.3: re-recorded with ModelVersion 10 with the ground effect on, audited: with it off, over model 9's
+        // layout, model 9's flight bit for bit (the kept test). With it the flight moves from step 10, the first with the
+        // rotors turning: on its legs the hubs stand 0.288 m (2.27 R) above the floor, inside the cushion and the wash's 4 R.
+        // It keeps its course: the climb 8 mm higher at 1 s on the cushion (0.740 m against 0.732), the same at 4 s; the
+        // sticks held 7 ms later (the skids below 0.1 m at step 7079 against 7072), the held bounce 163.3 mm up against
+        // 130.1 (the held throttle gains the cushion near the floor), at most 54 mm apart (step 8766) and 19 mrad, 5 impacts,
+        // no crash, at rest at the same height to 10 µm and 15 mm aside; 135 events against 133.
+        public const ulong ContactHash = 0x05EDD1881425872EUL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -124,8 +138,10 @@ namespace Fpv450.Sim.Tests
         // Model 7: 0xE3178EE7FF322698. p7b-airframe 1.1 (ModelVersion 8): the 1328-byte record, the rotors' angles zero (no
         // propulsion); over model 7's layout the hash is model 7's (the kept test). Model 8: 0xF7E0F587B45FA098.
         // p7b-airframe 1.2 (ModelVersion 9): the 1400-byte record, the rings' bytes zero (no propulsion); over model 8's
-        // layout the hash is model 8's (the kept test).
-        public const ulong TumbleHash = 0x50541A5726F695D8UL;
+        // layout the hash is model 8's (the kept test). Model 9: 0x50541A5726F695D8.
+        // p7b-airframe 1.3 (ModelVersion 10): the 1496-byte record, the surfaces' and the wash's bytes zero (no propulsion);
+        // over model 9's layout the hash is model 9's (the kept test).
+        public const ulong TumbleHash = 0x58EF4F6AE8D111D8UL;
         public const int TumbleSteps = 10000;
 
         public static FlightSetup PoweredSetup(DroneSpec spec)
@@ -142,6 +158,7 @@ namespace Fpv450.Sim.Tests
                 Contacts = spec.BuildContacts(spec.Nominal, materials, hash),
                 Asymmetry = spec.BuildAsymmetry(),
                 VortexRing = spec.BuildVortexRing(),
+                GroundEffect = spec.BuildGroundEffect(),
                 StartPosition = new Double3(0, 300, 0),
                 StartPackCharge = 0.9,
             };
@@ -174,12 +191,13 @@ namespace Fpv450.Sim.Tests
         /// skipAt and skipBytes the hash leaves out each record's bytes from skipAt on, skipBytes of them (a parent model's
         /// layout, for an audit).</summary>
         public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool contacts = true,
-            bool asymmetry = true, bool ring = true)
+            bool asymmetry = true, bool ring = true, bool ground = true)
         {
             FlightSetup setup = PoweredSetup(spec);
             if (!contacts) setup.Contacts = null;
             if (!asymmetry) setup.Asymmetry = null;
             if (!ring) setup.VortexRing = null;
+            if (!ground) setup.GroundEffect = null;
             core = new FlightCore(setup);
             var record = new byte[LogFormat.StepSize];
             var e = new byte[LogFormat.EventSize];
@@ -206,7 +224,7 @@ namespace Fpv450.Sim.Tests
         /// later the throttle is cut and it comes to rest. Returns its hash, with the core for a report.
         /// </summary>
         public static ulong FlyContact(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
-            bool ring = true, Action<FlightCore> after = null)
+            bool ring = true, Action<FlightCore> after = null, bool ground = true)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -215,6 +233,7 @@ namespace Fpv450.Sim.Tests
             setup.Wind = WindSetup.Of(WindLevel.Calm);
             if (asymmetry) setup.Asymmetry = spec.BuildAsymmetry();
             if (ring) setup.VortexRing = spec.BuildVortexRing();
+            if (ground) setup.GroundEffect = spec.BuildGroundEffect();
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, new Double3(0, stand + 1, 0));
             var record = new byte[LogFormat.StepSize];

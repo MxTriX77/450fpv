@@ -80,7 +80,9 @@ namespace Fpv450.Sim.Flight
     ///   prop's residual unbalance as the flight drew them; the unbalance pulls its hub with U·ω² at the rotor's angle.
     /// - the vortex ring (VortexRingSpec, p7b-airframe 1.2), inside RotorInflow: each rotor's ring adds its lagged inflow
     ///   to the thrust's advance ratio and its fluctuation to the thrust; AdvanceRing moves the rings once a step.
-    /// Not yet: ground effect and prop wash (p7b-airframe 1.3).
+    /// - the ground and the ceiling (GroundEffectSpec, p7b-airframe 1.3), inside RotorInflow: each rotor's thrust at its speed
+    ///   gains by its distances along its axis to the surfaces below and above it (SetSurfaces), and its re-ingested wash
+    ///   adds its inflow to the thrust's advance ratio; AdvanceWash moves the wash once a step.
     /// </summary>
     public sealed class Propulsion
     {
@@ -109,6 +111,13 @@ namespace Fpv450.Sim.Flight
         readonly double _radius, _twoRhoArea, _heldInflow, _ringAdvance;
         readonly double[] _ringInflow = new double[4], _ringGain = new double[4], _meanThrust = new double[4];
         readonly double[] _ringRate = new double[4], _ringInPlane = new double[4], _ringInduced = new double[4];
+
+        // The ground and the ceiling (null: neither): their spec and the wash's stream; each rotor's distances along its axis
+        // to them (m, +∞ for none), its gain from them, and its v_h (m/s) and re-ingested inflow (m/s) at the step's start.
+        readonly GroundEffectSpec _ground;
+        readonly SeedStream _groundStream;
+        Corners _groundAt, _ceilingAt;
+        readonly double[] _surfaceGain = new double[4], _washInflow = new double[4], _washInduced = new double[4];
         readonly double[][] _ocv = new double[2][];
 
         // The step's inflow and in-plane airspeed per rotor, and each rotor's thrust and torque at its present speed.
@@ -124,6 +133,12 @@ namespace Fpv450.Sim.Flight
         /// identical ones), with each rotor's vortex ring from ring and its thrust's fluctuation from ringStream (null for
         /// none).</summary>
         public Propulsion(PropulsionSpec spec, MotorAsymmetry.Draws draws, VortexRingSpec ring, SeedStream ringStream)
+            : this(spec, draws, ring, ringStream, null, default) { }
+
+        /// <summary>The same, with each rotor's ground and ceiling effect from ground and its re-ingested wash from
+        /// groundStream (null for neither).</summary>
+        public Propulsion(PropulsionSpec spec, MotorAsymmetry.Draws draws, VortexRingSpec ring, SeedStream ringStream,
+            GroundEffectSpec ground, SeedStream groundStream)
         {
             if (spec == null) throw new ArgumentNullException(nameof(spec));
             if (spec.Motors == null || spec.Motors.Length != 4) throw new ArgumentException("four motors", nameof(spec));
@@ -165,16 +180,24 @@ namespace Fpv450.Sim.Flight
                 _capacity[k] = pack.Parallel * pack.CellCapacity * SecondsPerHour;
                 _ocv[k] = pack.Ocv;
             }
-            if (ring == null) return;
-            _ring = ring.Clone();
+            for (int i = 0; i < 4; i++)
+            {
+                _ringGain[i] = _surfaceGain[i] = 1;
+                _groundAt[i] = _ceilingAt[i] = double.PositiveInfinity;
+            }
+            if (ring == null && ground == null) return;
+            _ring = ring?.Clone();
             _ringStream = ringStream;
+            _ground = ground?.Clone();
+            _groundStream = groundStream;
+            double rho = ring != null ? ring.AirDensity : ground.AirDensity;
             _radius = _diameter / 2;
-            _twoRhoArea = 2 * ring.AirDensity * (TwoPi / 2) * _radius * _radius;
+            _twoRhoArea = 2 * rho * (TwoPi / 2) * _radius * _radius;
             // The static C_T at the reference rpm, k_T·(2π)²/(ρD⁴), sets v_h/(n·D) = √(2C_T/π) (momentum theory). The table's
             // static slope s (∂ratio/∂J) with momentum theory at hover gives the blade's thrust against the inflow through the
             // disc: a climb's ΔV moves that inflow by (1 − r)/2·ΔV, r = −s·√(2C_T/π) (derived, linearised at hover), so a
             // ring's added inflow δ is the advance ratio 2δ/((1 − r)·n·D).
-            double ct = _kT * TwoPi * TwoPi / (ring.AirDensity * _diameter * _diameter * _diameter * _diameter);
+            double ct = _kT * TwoPi * TwoPi / (rho * _diameter * _diameter * _diameter * _diameter);
             double vhOverNd = DetMath.Sqrt(2 * ct / (TwoPi / 2));
             double r = -(_jThrust[1] - _jThrust[0]) / (_j[1] - _j[0]) * vhOverNd;
             _ringAdvance = 2 * TwoPi / ((1 - r) * _diameter);
@@ -185,6 +208,25 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>Whether the rotors have their vortex rings (VortexRingSpec).</summary>
         public bool HasRing => _ring != null;
+
+        /// <summary>Whether the rotors feel the ground and the ceiling (GroundEffectSpec).</summary>
+        public bool HasGround => _ground != null;
+
+        /// <summary>A rotor's gain from the ground and the ceiling this step (1 without them).</summary>
+        public double SurfaceGain(int corner) => _surfaceGain[corner];
+
+        /// <summary>A rotor's thrust at its present speed with this step's inflow, N (after BeginStep, then each sub-step).</summary>
+        public double Thrust(int corner) => _thrust[corner];
+
+        /// <summary>
+        /// Each rotor's distance along its axis to the surface below it (the ground or a shape) and above it, m, +∞ for none
+        /// within the rays' reach (FlightCore's rays and SampleGround): RotorInflow's ground and ceiling from then on.
+        /// </summary>
+        public void SetSurfaces(in Corners ground, in Corners ceiling)
+        {
+            _groundAt = ground;
+            _ceilingAt = ceiling;
+        }
 
         /// <summary>The held descent branch's inflow through the disc over v_h, which the ring adds to (derived).</summary>
         public double HeldInflow => _heldInflow;
@@ -274,9 +316,48 @@ namespace Fpv450.Sim.Flight
                 if (windAtHubs != null) air = air - s.Attitude.InverseRotate(windAtHubs[i]);
                 _inflow[i] = air.Y;
                 _inPlane[i] = new Double3(air.X, 0, air.Z);
-                if (_ring == null) continue;
-                _ringInflow[i] = s.RingInflow[i];
-                _ringGain[i] = 1 + s.RingThrust[i];
+                if (_ring != null)
+                {
+                    _ringInflow[i] = s.RingInflow[i];
+                    _ringGain[i] = 1 + s.RingThrust[i];
+                }
+                if (_ground == null) continue;
+                // The ground and the ceiling (1.3), at v_h of the rotor's thrust at the last sub-step, faded by the hub's
+                // airspeed in the disc's plane (Cheeseman and Bennett's forward form); the re-ingested wash in v_h.
+                double t = _meanThrust[i], vh = t > 0 ? DetMath.Sqrt(t / _twoRhoArea) : 0;
+                double vh2 = vh * vh, v2 = air.X * air.X + air.Z * air.Z;
+                double fade = vh2 + v2 > 0 ? vh2 / (vh2 + v2) : 1;
+                _surfaceGain[i] = _ground.GroundGain(_groundAt[i] / _radius, fade) * _ground.CeilingGain(_ceilingAt[i] / _radius, fade);
+                _washInflow[i] = s.WashInflow[i] * vh;
+                _washInduced[i] = vh;
+            }
+        }
+
+        /// <summary>
+        /// The rotors' re-ingested wash over one step of dt seconds (GroundEffectSpec): each rotor's share of v_h, x, a
+        /// first-order process, x ← a·x + √(1 − a²)·σ·n, a = τ/(τ + dt), τ = RecirculationLoop·(z + R)/v_h with z the rotor's
+        /// height held between LowestHeight and RecirculationOnset, σ its height's, n from "ground.recirc" at the step and
+        /// the corner, bounded. A stopped rotor has none.
+        /// </summary>
+        public void AdvanceWash(ref FlightState s, double dt)
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                double vh = _washInduced[i], x = s.WashInflow[i];
+                if (!(vh > 0))
+                {
+                    s.WashInflow[i] = 0;
+                    continue;
+                }
+                double z = _groundAt[i] / _radius;
+                double sigma = _ground.Sigma(z);
+                if (!(sigma > 0) && x == 0) continue;
+                z = DetMath.Min(DetMath.Max(z, _ground.LowestHeight), _ground.RecirculationOnset);
+                double tau = _ground.RecirculationLoop * (z + 1) * _radius / vh, a = tau / (tau + dt);
+                x *= a;
+                if (sigma > 0) x += DetMath.Sqrt(1 - a * a) * sigma * VortexRingSpec.Normal(_groundStream, s.Step, i);
+                double bound = _ground.RecirculationBound;
+                s.WashInflow[i] = x > bound ? bound : x < -bound ? -bound : x;
             }
         }
 
@@ -460,10 +541,11 @@ namespace Fpv450.Sim.Flight
 
         // A rotor's thrust and torque at speed w with this step's inflow (Aero), and with its vortex ring when the rotors
         // have one: the ring's added inflow moves the thrust's advance ratio past the held descent branch, its fluctuation
-        // scales the thrust; _meanThrust keeps the thrust without the fluctuation.
+        // scales the thrust; _meanThrust keeps the thrust without the fluctuation. With the ground and the ceiling, the
+        // re-ingested wash's inflow joins the ring's and the surfaces' gain scales the thrust (the torque keeps its own).
         void RotorAero(int i, double w, out double thrust, out double torque)
         {
-            if (_ring == null || !(w > 0))
+            if ((_ring == null && _ground == null) || !(w > 0))
             {
                 Aero(w, _inflow[i], out thrust, out torque);
                 _meanThrust[i] = thrust;
@@ -472,8 +554,10 @@ namespace Fpv450.Sim.Flight
             double rpm = w * (60 / TwoPi);
             double advance = _inflow[i] / (w * (_diameter / TwoPi));
             double w2 = w * w;
-            double j = (advance >= 0 ? advance : DetMath.Max(advance, DescentAdvanceRatioLimit)) + _ringInflow[i] * _ringAdvance / w;
+            double added = _ground == null ? _ringInflow[i] : _ringInflow[i] + _washInflow[i];
+            double j = (advance >= 0 ? advance : DetMath.Max(advance, DescentAdvanceRatioLimit)) + added * _ringAdvance / w;
             double mean = _kT * Table(_rpm, _rpmThrust, rpm) * InflowRatio(_jThrust, j) * w2;
+            if (_ground != null) mean *= _surfaceGain[i];
             _meanThrust[i] = mean;
             thrust = mean * _ringGain[i];
             torque = _kQ * Table(_rpm, _rpmTorque, rpm) * InflowRatio(_jTorque, advance) * w2;

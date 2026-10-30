@@ -72,6 +72,7 @@ namespace Fpv450.Sim.Tests
         // other's block. Then p7b-airframe 1.1's rotor angles: model 7's layout is the record less them.
         const int ContactBytesAt = 992, ContactBytes = 120, FilterBytesAt = ContactBytesAt + ContactBytes;
         const int RotorAngleAt = 1296, RotorAngleBytes = 32, RingAt = RotorAngleAt + RotorAngleBytes, RingBytes = 72;
+        const int GroundAt = RingAt + RingBytes, GroundBytes = 96;
 
         // p7b-airframe 1.1's audit, kept: with the motors' asymmetry off (and 1.2's rings), over model 7's 1296-byte layout
         // with its events, each golden is model 7's bit for bit (the rotors' angles turn, but nothing reads them without an
@@ -80,21 +81,44 @@ namespace Fpv450.Sim.Tests
         public void WithTheAsymmetryOffEachGoldenIsModel7s()
         {
             DroneSpec spec = RepositoryDrone.Spec();
-            const int skip = RotorAngleBytes + RingBytes;
-            Assert.That(GoldenFlights.FlyPowered(spec, out _, RotorAngleAt, skip, asymmetry: false, ring: false), Is.EqualTo(0xA65FBFBCBCFC5B96UL), "powered");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, RotorAngleAt, skip, false, false), Is.EqualTo(0x3AF33645FF8F1919UL), "contact");
+            const int skip = RotorAngleBytes + RingBytes + GroundBytes;
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, RotorAngleAt, skip, asymmetry: false, ring: false, ground: false), Is.EqualTo(0xA65FBFBCBCFC5B96UL), "powered");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, RotorAngleAt, skip, false, false, ground: false), Is.EqualTo(0x3AF33645FF8F1919UL), "contact");
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, RotorAngleAt, skip), Is.EqualTo(0xE3178EE7FF322698UL), "tumble");
         }
 
-        // p7b-airframe 1.2's audit: with the vortex rings off, over model 8's 1328-byte layout with its events, each golden
-        // is model 8's bit for bit (the rings' 72 bytes are zero without them).
+        // p7b-airframe 1.2's audit: with the vortex rings off (and 1.3's ground effect), over model 8's 1328-byte layout with
+        // its events, each golden is model 8's bit for bit (the rings' 72 bytes are zero without them).
         [Test]
         public void WithTheRingsOffEachGoldenIsModel8s()
         {
             DroneSpec spec = RepositoryDrone.Spec();
-            Assert.That(GoldenFlights.FlyPowered(spec, out _, RingAt, RingBytes, ring: false), Is.EqualTo(0x08FBAF9331110BE9UL), "powered");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, RingAt, RingBytes, ring: false), Is.EqualTo(0x5D45B356ECD6B940UL), "contact");
-            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, RingAt, RingBytes), Is.EqualTo(0xF7E0F587B45FA098UL), "tumble");
+            const int skip = RingBytes + GroundBytes;
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, RingAt, skip, ring: false, ground: false), Is.EqualTo(0x08FBAF9331110BE9UL), "powered");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, RingAt, skip, ring: false, ground: false), Is.EqualTo(0x5D45B356ECD6B940UL), "contact");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, RingAt, skip), Is.EqualTo(0xF7E0F587B45FA098UL), "tumble");
+        }
+
+        // p7b-airframe 1.3's audit: with the ground effect off, over model 9's 1400-byte layout with its events, each golden
+        // is model 9's bit for bit (the surfaces' and the wash's 96 bytes are zero without it).
+        [Test]
+        public void WithTheGroundEffectOffEachGoldenIsModel9s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, GroundAt, GroundBytes, ground: false), Is.EqualTo(0x5AF86BCB6FD0B3A2UL), "powered");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, GroundAt, GroundBytes, ground: false), Is.EqualTo(0x8D965FFD8708C6C3UL), "contact");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, GroundAt, GroundBytes), Is.EqualTo(0x50541A5726F695D8UL), "tumble");
+        }
+
+        // 1.3's audit of the powered golden with the ground effect on: 196-300 m up, no rotor's ray finds a surface within its
+        // reach, so the effect adds nothing, not a bit, over model 9's layout.
+        [Test]
+        public void ThePoweredGoldenFindsNoSurface()
+        {
+            Assert.That(GoldenFlights.FlyPowered(RepositoryDrone.Spec(), out FlightCore core, GroundAt, GroundBytes), Is.EqualTo(0x5AF86BCB6FD0B3A2UL));
+            Assert.That(core.GroundEffect, Is.Not.Null);
+            Assert.That(core.Trace.GroundDistance.FrontLeft, Is.GreaterThan(100), "the floor sampled far below");
+            Assert.That(core.Trace.CeilingDistance.FrontLeft, Is.EqualTo(double.PositiveInfinity), "nothing above");
         }
 
         [Test]
@@ -109,7 +133,9 @@ namespace Fpv450.Sim.Tests
                 "1.1's rotor angles follow model 7's 1296 bytes");
             Assert.That(LogFormat.FieldAt(LogFormat.StepFields, RingAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "ring_inflow.rear_right")),
                 "1.2's rings follow model 8's 1328 bytes");
-            Assert.That(LogFormat.StepSize - RingAt, Is.EqualTo(RingBytes), "to the record's end");
+            Assert.That(LogFormat.FieldAt(LogFormat.StepFields, GroundAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "ground_distance.rear_right")),
+                "1.3's surfaces and wash follow model 9's 1400 bytes");
+            Assert.That(LogFormat.StepSize - GroundAt, Is.EqualTo(GroundBytes), "to the record's end");
         }
     }
 }

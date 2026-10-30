@@ -35,6 +35,10 @@ namespace Fpv450.Sim.Flight
         /// goldens' audits fly.</summary>
         public VortexRingSpec VortexRing;
 
+        /// <summary>The rotors' ground and ceiling effect and recirculation (GroundEffectSpec, p7b-airframe 1.3): null for
+        /// none, as a bench's rotors and the goldens' audits fly.</summary>
+        public GroundEffectSpec GroundEffect;
+
         /// <summary>The airframe's drag (DroneSpec.BuildAero): the body's and the coil's. Null for none (a bench's body);
         /// the rotors' in-plane drag comes with the propulsion.</summary>
         public AeroSpec Aero;
@@ -112,6 +116,7 @@ namespace Fpv450.Sim.Flight
         readonly StandInWind _wind;
         readonly Contact.ContactModel _contacts;
         readonly Double3[] _hubWind = new Double3[4];
+        readonly RotorSurfaces _surfaces; // the rotors' surfaces (GroundEffectSpec), or null
         StepTrace _trace;
         readonly StepEvents _events = new StepEvents();
 
@@ -149,7 +154,10 @@ namespace Fpv450.Sim.Flight
                 Draws = Asymmetry?.DrawFor(Random);
                 VortexRing = setup.VortexRing?.Clone();
                 SeedStream ring = VortexRing != null ? Random.Open("vrs.thrust") : default;
-                _propulsion = new Propulsion(setup.Propulsion, Draws, VortexRing, ring);
+                GroundEffect = setup.GroundEffect?.Clone();
+                SeedStream wash = GroundEffect != null ? Random.Open("ground.recirc") : default;
+                _propulsion = new Propulsion(setup.Propulsion, Draws, VortexRing, ring, GroundEffect, wash);
+                if (GroundEffect != null) _surfaces = new RotorSurfaces(_propulsion, GroundEffect.Reach * setup.Propulsion.Props.Diameter / 2);
                 var clockwise = new bool[4];
                 for (int i = 0; i < 4; i++) clockwise[i] = setup.Propulsion.Motors[i].Clockwise;
                 _fc = new FlightController(_settings, clockwise);
@@ -193,6 +201,9 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The rotors' vortex rings, or null for none.</summary>
         public VortexRingSpec VortexRing { get; }
+
+        /// <summary>The rotors' ground and ceiling effect, or null for none.</summary>
+        public GroundEffectSpec GroundEffect { get; }
 
         /// <summary>The flight's wind, with its per-flight draws.</summary>
         public StandInWind Wind => _wind;
@@ -272,6 +283,13 @@ namespace Fpv450.Sim.Flight
         {
             for (int i = 0; i < 4; i++)
                 _hubWind[i] = _wind.At(s.Gust, s.Position + s.Attitude.Rotate(_propulsion.Hub(i)));
+            if (_surfaces != null)
+            {
+                _surfaces.Find(World, s, out Corners below, out Corners above);
+                _propulsion.SetSurfaces(below, above);
+                _trace.GroundDistance = below;
+                _trace.CeilingDistance = above;
+            }
             _propulsion.BeginStep(s, _hubWind);
             Axes3 from = s.Fc.GyroPrev, to = Gyro(s.BodyRate);
             var loads = new RotorLoads();
@@ -375,6 +393,9 @@ namespace Fpv450.Sim.Flight
                     _events.Add(e);
                 }
             }
+
+            // The re-ingested wash moves once a step too (Propulsion.AdvanceWash), from the step's heights and v_h.
+            if (_propulsion.HasGround) _propulsion.AdvanceWash(ref s, Dt);
 
             Field(s, amps, loads.Volts);
         }

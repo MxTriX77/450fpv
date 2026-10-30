@@ -97,7 +97,14 @@ namespace Fpv450.Sim.Log
         public static readonly string[] SetupFieldsLogged =
         {
             "Seed", "Settings", "World", "Mass", "Propulsion", "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate",
-            "StartPackCharge", "Aero", "Wind", "Contacts", "RuntimeObjects", "Asymmetry", "VortexRing",
+            "StartPackCharge", "Aero", "Wind", "Contacts", "RuntimeObjects", "Asymmetry", "VortexRing", "GroundEffect",
+        };
+
+        /// <summary>The ground effect's fields the header records, checked against GroundEffectSpec by the suite.</summary>
+        public static readonly string[] GroundEffectFieldsLogged =
+        {
+            "Reach", "LowestHeight", "CeilingAlpha", "RecirculationOnset", "RecirculationSigma", "RecirculationBound",
+            "RecirculationLoop", "AirDensity",
         };
 
         /// <summary>The contacts' fields the header records, checked against the types by the suite.</summary>
@@ -138,7 +145,7 @@ namespace Fpv450.Sim.Log
 
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
             TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
-            TagRuntimeObjects = 14, TagAsymmetry = 15, TagVortexRing = 16;
+            TagRuntimeObjects = 14, TagAsymmetry = 15, TagVortexRing = 16, TagGroundEffect = 17;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -180,6 +187,9 @@ namespace Fpv450.Sim.Log
 
         /// <summary>The rotors' vortex rings; null for none (their stream is in the randomness entry).</summary>
         public VortexRingSpec VortexRing;
+
+        /// <summary>The rotors' ground and ceiling effect; null for none (the wash's stream is in the randomness entry).</summary>
+        public GroundEffectSpec GroundEffect;
 
         /// <summary>The runtime objects the flight placed, in order, and the world's object id each got.</summary>
         public RuntimeObject[] RuntimeObjects = new RuntimeObject[0];
@@ -230,6 +240,7 @@ namespace Fpv450.Sim.Log
                 Contacts = setup.Contacts?.Clone(),
                 Asymmetry = setup.Asymmetry?.Clone(),
                 VortexRing = setup.VortexRing?.Clone(),
+                GroundEffect = setup.GroundEffect?.Clone(),
                 RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
                 RuntimeIds = (int[])core.RuntimeIds.Clone(),
             };
@@ -308,6 +319,7 @@ namespace Fpv450.Sim.Log
                 Contacts = Contacts?.Clone(),
                 Asymmetry = Asymmetry?.Clone(),
                 VortexRing = VortexRing?.Clone(),
+                GroundEffect = GroundEffect?.Clone(),
                 RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
             };
         }
@@ -579,6 +591,18 @@ namespace Fpv450.Sim.Log
                          })
                     e.Write(x);
             });
+            Entry(w, TagGroundEffect, e =>
+            {
+                e.Write(GroundEffect != null);
+                if (GroundEffect == null) return;
+                GroundEffectSpec g = GroundEffect;
+                foreach (double x in new[]
+                         {
+                             g.Reach, g.LowestHeight, g.CeilingAlpha, g.RecirculationOnset, g.RecirculationSigma, g.RecirculationBound,
+                             g.RecirculationLoop, g.AirDensity,
+                         })
+                    e.Write(x);
+            });
             Entry(w, TagRuntimeObjects, e =>
             {
                 e.Write((ushort)RuntimeObjects.Length);
@@ -798,6 +822,16 @@ namespace Fpv450.Sim.Log
                                 EntryInflow = r.ReadDouble(), PeakInflow = r.ReadDouble(), EscapeInPlane = r.ReadDouble(), InflowLag = r.ReadDouble(),
                                 FluctuationSigma = r.ReadDouble(), FluctuationBound = r.ReadDouble(), FluctuationFrequency = r.ReadDouble(),
                                 AirDensity = r.ReadDouble(), FixedInducedVelocity = r.ReadDouble(),
+                            }
+                            : null;
+                        break;
+                    case TagGroundEffect:
+                        GroundEffect = r.ReadBoolean()
+                            ? new GroundEffectSpec
+                            {
+                                Reach = r.ReadDouble(), LowestHeight = r.ReadDouble(), CeilingAlpha = r.ReadDouble(),
+                                RecirculationOnset = r.ReadDouble(), RecirculationSigma = r.ReadDouble(), RecirculationBound = r.ReadDouble(),
+                                RecirculationLoop = r.ReadDouble(), AirDensity = r.ReadDouble(),
                             }
                             : null;
                         break;

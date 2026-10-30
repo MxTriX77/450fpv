@@ -305,6 +305,14 @@ namespace Fpv450.Sim.Log
                     + (h.VortexRing.FixedInducedVelocity > 0 ? "; KNOWN-WRONG: scaled by a fixed " + G(h.VortexRing.FixedInducedVelocity) + " m/s" : ""));
             else
                 w.WriteLine("  vortex rings: off");
+            if (h.GroundEffect != null)
+                w.WriteLine("  ground effect: Cheeseman-Bennett below, Hsiao-Chirarattananon alpha0 " + G(h.GroundEffect.CeilingAlpha)
+                    + " above, rays " + G(h.GroundEffect.Reach) + " R, held at " + G(h.GroundEffect.LowestHeight) + " R; wash sigma "
+                    + G(h.GroundEffect.RecirculationSigma) + " v_h within " + G(h.GroundEffect.RecirculationBound) + " below "
+                    + G(h.GroundEffect.RecirculationOnset) + " R, loop " + G(h.GroundEffect.RecirculationLoop) + " (z + R)/v_h; air "
+                    + G(h.GroundEffect.AirDensity) + " kg/m3" + (h.GroundEffect.RecirculationSigma > 0 ? "" : "; KNOWN-WRONG: no recirculation"));
+            else
+                w.WriteLine("  ground effect: off");
             for (int n = 0; n < h.RuntimeObjects.Length; n++)
                 w.WriteLine("  runtime object " + (n < h.RuntimeIds.Length ? h.RuntimeIds[n] : -1) + " '" + h.RuntimeObjects[n].Name + "': "
                     + h.RuntimeObjects[n].Shapes.Length + " shapes");

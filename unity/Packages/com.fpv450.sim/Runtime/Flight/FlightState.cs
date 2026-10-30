@@ -65,5 +65,9 @@ namespace Fpv450.Sim.Flight
         /// 1 &lt;&lt; corner. All 0 without the ring.</summary>
         public Corners RingInflow, RingThrust;
         public byte RingLatched;
+
+        /// <summary>Each rotor's re-ingested wash in a close hover (GroundEffectSpec, p7b-airframe 1.3): its inflow through the
+        /// disc over v_h, the recirculation's process. 0 without the ground effect and away from the ground.</summary>
+        public Corners WashInflow;
     }
 }
