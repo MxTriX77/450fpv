@@ -193,3 +193,90 @@ QA probe e12, e13, e11                                              ALL PASS (0 
 python tools/hygiene/precommit.py --tree HEAD                       1610 files scanned, 0 findings (exit 0)
 openspec validate p6-input-app --strict                             Change 'p6-input-app' is valid
 ```
+
+## Re-check of findings 2 and 8 (at `7522d68`)
+
+**Verdict for the interim scope: green.** Finding 8 is fixed. Finding 2 is fixed for the radio the new rule assumes, at every sweep speed I tried. The rule leaves a gap (2a) and adds a false refusal (9, new), both not blocking and both to settle before G7. Findings 3–7 were not re-checked and stand.
+
+**Scope:** `9d9f8c6` (`PitfallJitter`, the E9 tests), `ab1da12` (`_heldToStep`, the E3f tests), `7522d68` (design 4's third rule, the amended "Pulling the cable during a pause"). No GPU (D-046).
+
+**Finding 2, the rule:** `PitfallJitter` = 1024 / 100 / 2048, and `(int)(PitfallJitter · 2047)` = 10 HID counts. EdgeTX's integer division gives 10 counts per ADC count at its floor of 100, so one count of rest jitter spreads exactly 10, which is caught with no margin (E9v, 0..1).
+- I checked the formula against EdgeTX's source. At 2.8.0 (the pilot's, fc-profiles) `getADC` filters the raw value (`hal/adc_driver.cpp`), and the calibration (`evalInputs`, as the owner read it) divides by `max(100, span)` after it. On `main`, `apply_calibration` runs before the filter. The gain is the same either way.
+
+**My probes** (scratch, not committed). E9v uses my EdgeTX model with C's integer division, a 2 ms report and the 2.5× slower repeat:
+
+| probe | radio, rest jitter in ADC counts | sweep | result |
+|---|---|---|---|
+| E9 (as before) | pitfall 79 / 1, 85 / 0, ±1 | 2.0, 2.8, 3.0, 4.0 s | all caught, roll and pitch, 18.3–24.6 s (was: one axis missed at 2.8 s, both from 3.0 s) |
+| E8 (as before) | healthy; pitfall; eased; yaw expo 30 % | 2 s | all PASS; the pitfall is now named by the jitter message |
+| E9v | pitfall, 0..1, ±1, −1..2, ±2 | 2, 3, 8, 12 s | caught, rest spread 10–40 |
+| E9v | pitfall, none (an ADC still at rest) | 2 s | caught by the jump rule |
+| E9v | pitfall, none | 3 s (7.5 s), 8 s, 12 s | **saved with 0 findings** (2a) |
+| E9v | pitfall, ±3 | any | stuck at Centre for 180 s: the spread of 61 never fits the 2 % still band. Nothing saved, nothing said (pre-existing) |
+| E9v | healthy 683 / 800 / 903, ±1 to ±3 | 3, 8 s | saved, spread 2–8 |
+| E9v | healthy 683 and 800, ±4 (8 peak to peak); 903, ±5 | 3, 8 s | **refused**: yaw, pitch and roll "jump at the slightest touch" (9) |
+| E9v | healthy 800, ±1, a thumb left on the sticks during Centre | 2 s | ±0.2 % of the half travel saved (spread 6); **±0.4 % (±3 ADC counts) or more refused** (9) |
+| E9v | a partial radio calibration, span 120–200, ±1 | 2, 3 s | caught. Spans 250 and 300 are saved (a gain of 3–4, outside fc-profiles' pitfall) |
+
+**Could a healthy radio be blocked? Yes** (finding 9):
+- The derivation's "7 counts" holds: 8 counts peak to peak at spans 683 and 800, 10 at 903.
+- The spread is a max − min over about 500 reports (1 s), so Gaussian noise of σ ≈ 1.3 ADC counts reaches 8 counts peak to peak (500 draws span about 6.1σ).
+- EdgeTX's filter averages raw changes under 10 counts, so this is likelier with the radio's or the model's jitter filter off.
+- A thumb's wobble passes the filter either way. The message then sends the pilot to recalibrate the radio, which fixes nothing.
+- Before `9d9f8c6`, both cases only widened the deadband.
+
+**Finding 2a, the gap:**
+- At 2.8 the filter runs on the raw value, before the ×10.24, so it can hold a pitfall axis still at rest. Its own comment reports 1 count left with the plain average and less with the doubled input, without a figure.
+- If a pitfall axis is still at rest on the pilot's TX12, a slow pilot passes again. Design 4 names this, for 1.2b.
+
+**Suggestion (game developer, before G7):** test the sweep's smallest step: the least non-zero change between two consecutive reports within 10–90 %, which is the radio's gain per ADC count.
+- In E9v it was 10 on the pitfall in every case, including no jitter, and 1 on every healthy radio, at every jitter and every wobble. Spans 120–300 gave 8 to 3.
+- A threshold of about 4 is independent of speed, jitter, filter and thumbs. Use it in place of the rest rule, or ahead of it.
+- Have 1.2b record each axis's rest spread and smallest step on the pilot's TX12, with its filter setting.
+- If the rest rule stays, say "let go of the sticks" in its message.
+- Nit: the comments say the throttle has the jump rule alone, but the code applies the rest rule to it too. It passes only because EdgeTX clamps at the end (a healthy ±6 gives the throttle a spread of 9).
+
+**Finding 8:** fixed.
+- `Pause` keeps the loss while `Step < _heldToStep`, and `Resume` keeps the first hold's end step and moves its host time with the new start. `Start` resets both.
+- E3f at 1, 2 and 3 ms: `Failsafe` at step 345, logged at 342 with 1 471 000 µs, replayed (was `Disarm`).
+- My variants, every log replayed with Match:
+
+| probe | sequence | result |
+|---|---|---|
+| E3y | E3b at all four phases (k = 341–344), re-paused 1–4 times inside the hold: +0, +0/+0, +1/+1, +1/+2, +2/+1, +1/+1/+1, +0/+1/+1/+1, +3/+0 ms, 50 ms each | 32 of 32: `Failsafe` at 345, one failsafe logged at k + 1 with the loss's stamp, every pause logged (1–5). A re-pause after the frame is a no-op, since the flight has ended |
+| E3h | E3b, re-paused at +1 ms, the cable pulled again and replugged in the re-pause | `Failsafe` at 345, one failsafe with the first loss's stamp; the reader counts 2 losses |
+| E3i | a pause without a loss, Resume, re-paused 2 ms later, lost and replugged in that pause | a fresh hold: `Failsafe` at 345, logged at 344 with its own stamp |
+
+**Scenarios:** "the TX12 pitfall is caught" passed, now also at 3–12 s sweeps (2a and 9 lie outside its WHEN). "Pulling the cable during a pause" (amended) passed.
+
+**Requirements:** INP-05 met. INP-02 is still partly met (2a, 9; 1.2b).
+
+**Hygiene:**
+- The three commits are subject-only with no trailer. Author and committer are `Game Developer <gamedev@450fpv.local>` (2) and `Orchestrator <orchestrator@450fpv.local>` (1).
+- They touch 7 paths, none under `reference/`, `Library/`, `Temp/` or `Logs/`.
+- The sim package and `tools/{simtests,flightbench,replay}` show 0 diff lines against `ded61bb`.
+
+```
+git rev-parse --short HEAD                                          7522d68
+dotnet test tools/inputtests                                        Passed 39/39 (25 s)
+  E9 3 s then 7.5 s, E9 8 s: Passed
+  E3a, E3b, E3f 1/2/3 ms: paused after step 341, lost at host 1471000 us; end at step 345; failsafe ... | failsafe at 0:00.3
+dotnet test tools/simtests                                          Passed 215/215 (1 m 20 s)
+dotnet run -c Release --project tools/flightbench -- --golden
+  free-body 0x50ED4B05A5D02F20 (matches); powered-flight 0x3F13A5CF5DB7DAFD (matches);
+  contact-flight 0x3EE12C8D692BADF3 (matches), 5 impacts; tumble 0xE3178EE7FF322698 (matches): PASS
+git lfs checkout                                                    (no output)
+free RAM before Unity: 4.65 GB
+Unity -batchmode -nographics -runTests -testPlatform EditMode -testResults Logs/qa-recheck2-editmode.xml
+  exit 0, 109 s; 0 "error CS"; testcasecount=360 passed=360 failed=0
+  Fpv450.Sim.Tests 215, Fpv450.Tests.EditMode 106, Fpv450.Tests.Radio 22, Fpv450.Tests.Session 17
+  golden on Mono: 0x3F13A5CF5DB7DAFD, 0x3EE12C8D692BADF3, 0xE3178EE7FF322698
+QA probe e9                                                         ALL PASS: 2.0, 2.8, 3.0, 4.0 s each failed True, too-narrow 2
+QA probe e8                                                         ALL PASS
+QA probe e3x                                                        ALL PASS (74 checks; E3f 1, 2, 3 ms: Failsafe at 345)
+QA probe e3y                                                        ALL PASS (236 checks: E3y 32 runs, E3h, E3i)
+QA probe e9v                                                        pitfall with jitter: 24 of 24 nothing saved (4 stuck at Centre);
+                                                                    without: 1 caught (2 s), 3 saved; healthy refused at 8–10 p-p
+python tools/hygiene/precommit.py --tree HEAD                       1610 files scanned, 0 findings (exit 0)
+openspec validate p6-input-app --strict                             Change 'p6-input-app' is valid
+```
