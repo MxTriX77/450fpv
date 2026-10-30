@@ -81,6 +81,8 @@ namespace Fpv450.Sim.Log
     /// - the airframe's drag (none for a bench's body), and the wind: its model ("field", p7c-wind 1.4), its level,
     ///   its start second and the level's preset by name (its per-flight draws are the randomness's), with the
     ///   synthetic belt and the gust front when the flight has them
+    /// - the rain (p7c-wind 1.7): its level and its preset by name (its per-flight draws, the rate and the film's
+    ///   thickness, are the randomness's), and the camera's lens position the feed's air velocity is taken at
     /// - the flight controller's settings, every field by its CLI name
     /// - the contacts (1.6): drone.json's contact shapes at the loadout with their thresholds, the legs' spring, and the
     ///   physics materials' rows with physics_materials.json's hash (none for a flight without contacts)
@@ -98,7 +100,7 @@ namespace Fpv450.Sim.Log
         public static readonly string[] SetupFieldsLogged =
         {
             "Seed", "Settings", "World", "Mass", "Propulsion", "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate",
-            "StartPackCharge", "Aero", "Wind", "Contacts", "RuntimeObjects",
+            "StartPackCharge", "Aero", "Wind", "Rain", "CameraPosition", "Contacts", "RuntimeObjects",
         };
 
         /// <summary>The contacts' fields the header records, checked against the types by the suite.</summary>
@@ -136,7 +138,7 @@ namespace Fpv450.Sim.Log
 
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
             TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
-            TagRuntimeObjects = 14;
+            TagRuntimeObjects = 14, TagRain = 15;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -169,6 +171,12 @@ namespace Fpv450.Sim.Log
         public string WindModel = WindPreset.Model;
         public WindSetup Wind;
         public NamedValue[] WindParameters = new NamedValue[0];
+
+        /// <summary>The rain: its level and its preset by name (empty when Sunny), and the camera's lens, body m. A log
+        /// without the entry is Sunny with the camera at the body's origin.</summary>
+        public RainLevel Rain;
+        public NamedValue[] RainParameters = new NamedValue[0];
+        public Double3 CameraPosition;
 
         /// <summary>The contacts; null for none.</summary>
         public ContactSpec Contacts;
@@ -219,6 +227,9 @@ namespace Fpv450.Sim.Log
                 Aero = setup.Aero?.Clone(),
                 Wind = setup.Wind,
                 WindParameters = PresetOf(setup.Wind.Level),
+                Rain = setup.Rain,
+                RainParameters = RainPreset.Named(setup.Rain),
+                CameraPosition = setup.CameraPosition,
                 Contacts = setup.Contacts?.Clone(),
                 RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
                 RuntimeIds = (int[])core.RuntimeIds.Clone(),
@@ -305,6 +316,8 @@ namespace Fpv450.Sim.Log
                 StartPackCharge = StartPackCharge,
                 Aero = Aero?.Clone(),
                 Wind = Wind,
+                Rain = Rain,
+                CameraPosition = CameraPosition,
                 Contacts = Contacts?.Clone(),
                 RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
             };
@@ -582,6 +595,17 @@ namespace Fpv450.Sim.Log
                 }
                 e.Write(c.MaterialsHash);
             });
+            Entry(w, TagRain, e =>
+            {
+                e.Write((byte)Rain);
+                e.Write((ushort)RainParameters.Length);
+                foreach (NamedValue v in RainParameters)
+                {
+                    Text(e, v.Name);
+                    e.Write(v.Value);
+                }
+                V3(e, CameraPosition);
+            });
             Entry(w, TagRuntimeObjects, e =>
             {
                 e.Write((ushort)RuntimeObjects.Length);
@@ -806,6 +830,12 @@ namespace Fpv450.Sim.Log
                         break;
                     case TagContacts:
                         Contacts = r.ReadBoolean() ? ReadContacts(r) : null;
+                        break;
+                    case TagRain:
+                        Rain = (RainLevel)r.ReadByte();
+                        RainParameters = new NamedValue[r.ReadUInt16()];
+                        for (int i = 0; i < RainParameters.Length; i++) RainParameters[i] = new NamedValue(Text(r), r.ReadDouble());
+                        CameraPosition = V3(r);
                         break;
                     case TagRuntimeObjects:
                         RuntimeObjects = new RuntimeObject[r.ReadUInt16()];

@@ -71,6 +71,7 @@ namespace Fpv450.Sim.Tests
             {
                 Seed = seed, World = FlightWorld.Floor(), Mass = spec.BuildMass(loadout), Propulsion = spec.BuildPropulsion(), Aero = spec.BuildAero(),
                 Contacts = spec.BuildContacts(loadout, materials, materialsHash), StartPosition = start, StartPackCharge = 0.9,
+                CameraPosition = spec.CameraPosition,
             };
         }
 

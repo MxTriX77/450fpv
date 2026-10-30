@@ -49,6 +49,18 @@ namespace Fpv450.Sim.Flight
         /// <summary>The wind at each rotor's hub during the step, world, m/s (the rotors' inflow and in-plane drag take
         /// it); zero for a body without propulsion.</summary>
         public Corners3 RotorWind;
+
+        /// <summary>The rain's force on the airframe during the step, world, N (p7c-wind 1.7; inside AeroForce too); zero
+        /// when Sunny.</summary>
+        public Double3 RainForce;
+
+        /// <summary>The rain's water film on the airframe after the step, kg (the mass model's "rain_film"); zero when
+        /// Sunny.</summary>
+        public double FilmMass;
+
+        /// <summary>The air's velocity at the camera at the step's start, camera (body) axes, m/s: the feed's
+        /// AirVelocityAtCamera (FEED-13's lens drops).</summary>
+        public Double3 CameraAir;
     }
 
     /// <summary>

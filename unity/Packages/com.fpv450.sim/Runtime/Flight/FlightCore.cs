@@ -34,6 +34,14 @@ namespace Fpv450.Sim.Flight
         /// <summary>The wind (WindField): a pilot's level, or still or steady air for a bench. Still by default.</summary>
         public WindSetup Wind;
 
+        /// <summary>The rain (RainField, p7c-wind 1.7): the pilot's own setting, independent of the wind. Sunny by default.
+        /// Rain needs the airframe's drag (Aero), whose silhouettes it falls on.</summary>
+        public RainLevel Rain;
+
+        /// <summary>The camera's lens, body m (drone.json's camera block, DroneSpec.CameraPosition): where the feed's air
+        /// velocity at the camera is taken. The body's origin by default.</summary>
+        public Double3 CameraPosition;
+
         /// <summary>The contacts (DroneSpec.BuildContacts, 1.6): null for none (a bench's free body, a flight in open air).</summary>
         public Contact.ContactSpec Contacts;
 
@@ -102,6 +110,10 @@ namespace Fpv450.Sim.Flight
         readonly Propulsion _propulsion;
         readonly Aero _aero;
         readonly WindField _wind;
+        readonly RainField _rain;
+        readonly int _filmPart = -1;
+        readonly Double3 _camera;
+        double _rainMassRate;
         readonly Contact.ContactModel _contacts;
         readonly Double3[] _hubWind = new Double3[4];
         readonly Sim.World.XZ[] _windAt = new Sim.World.XZ[1];
@@ -120,15 +132,32 @@ namespace Fpv450.Sim.Flight
             if (setup == null) throw new ArgumentNullException(nameof(setup));
             World = setup.World ?? throw new ArgumentException("the setup needs a world", nameof(setup));
             _settings = setup.Settings;
-            _mass = (setup.Mass ?? throw new ArgumentException("the setup needs a mass model", nameof(setup))).Clone();
+            MassModel mass = (setup.Mass ?? throw new ArgumentException("the setup needs a mass model", nameof(setup))).Clone();
             Random = new FlightRandom(setup.Seed);
             if (setup.Aero != null)
             {
-                if (setup.Aero.CoilPart >= _mass.PartCount || (setup.Aero.CoilPart >= 0 && _mass.Part(setup.Aero.CoilPart).Kind != PartKind.Cylinder))
+                if (setup.Aero.CoilPart >= mass.PartCount || (setup.Aero.CoilPart >= 0 && mass.Part(setup.Aero.CoilPart).Kind != PartKind.Cylinder))
                     throw new ArgumentException("the aero spec's coil is not a cylinder of the mass model", nameof(setup));
                 _aero = new Aero(setup.Aero);
             }
             _wind = new WindField(setup.Wind, Random);
+            _camera = setup.CameraPosition;
+
+            // The rain (a Sunny flight builds none and opens no stream): its draws, then its film as the mass model's
+            // last part, at 0 kg until the drops fill it (0 kg leaves the model's mass, centre and inertia bit for bit).
+            if (setup.Rain != RainLevel.Sunny)
+            {
+                if (_aero == null) throw new ArgumentException("rain needs the airframe's drag (an AeroSpec)", nameof(setup));
+                int coil = setup.Aero.CoilPart;
+                _rain = new RainField(setup.Rain, Random, setup.Aero, coil >= 0 ? Aero.CoilSurface(mass.Part(coil)) : 0);
+                var parts = new DronePart[mass.PartCount + 1];
+                for (int i = 0; i < mass.PartCount; i++) parts[i] = mass.Part(i);
+                parts[mass.PartCount] = RainField.FilmPartOf(setup.Aero);
+                mass = new MassModel(parts);
+                _filmPart = mass.PartCount - 1;
+                if (_rain.FilmMass > 0) mass.SetPartMass(_filmPart, _rain.FilmMass);
+            }
+            _mass = mass;
             _state = new FlightState
             {
                 Position = setup.StartPosition,
@@ -179,6 +208,9 @@ namespace Fpv450.Sim.Flight
         /// <summary>The flight's wind, with its per-flight draws.</summary>
         public WindField Wind => _wind;
 
+        /// <summary>The flight's rain, or null for a Sunny flight.</summary>
+        public RainField Rain => _rain;
+
         /// <summary>The airframe's drag, or null for none.</summary>
         public Aero Aero => _aero;
 
@@ -224,6 +256,12 @@ namespace Fpv450.Sim.Flight
             _trace.AeroMoment = airMoment;
             s.Step++;
             if (_contacts != null) _contacts.Sense(was, ref s, _events);
+
+            // The film takes the water the drops brought this step; the next step flies its mass.
+            if (_rain == null) return;
+            _rain.Fill(_rainMassRate, Dt);
+            _mass.SetPartMass(_filmPart, _rain.FilmMass);
+            _trace.FilmMass = _rain.FilmMass;
         }
 
         // The wind field's frame for the step that starts at s (WindField.Begin): the ground under the body's origin from
@@ -239,22 +277,57 @@ namespace Fpv450.Sim.Flight
             }
             _wind.Begin(s.Step, s.Position, ground);
             _trace.Wind = _wind.At(s.Position);
+            _trace.CameraAir = AirAtCamera(s);
         }
 
-        // The body's and the coil's drag (Aero) on the air's velocity at their centres, into the air's body-axis sums.
+        // The air's velocity at the camera, in its axes (the body's, 0° uptilt): the wind there less the camera's motion,
+        // v + ω × r.
+        Double3 AirAtCamera(in FlightState s) =>
+            s.Attitude.InverseRotate(_wind.At(s.Position + s.Attitude.Rotate(_camera)) - s.Velocity) - Double3.Cross(s.BodyRate, _camera);
+
+        // The body's and the coil's drag (Aero) on the air's velocity at their centres, into the air's body-axis sums;
+        // in rain, the drops' momentum flux on the same silhouettes (RainField), and the water they bring.
         void Drag(in FlightState s, in MassProperties body, ref Double3 force, ref Double3 moment)
         {
             Double3 v = s.Attitude.InverseRotate(s.Velocity), com = body.CenterOfMass;
             Double3 cp = _aero.Spec.BodyCenterOfPressure;
-            Double3 f = _aero.Body(Air(s, v, cp));
+            Double3 a = Air(s, v, cp);
+            Double3 f = _aero.Body(a);
             force = force + f;
             moment = moment + Double3.Cross(cp - com, f);
+            Double3 fall = default, rain = default;
+            double flux = 0;
+            if (_rain != null)
+            {
+                // The airframe's velocity through the drops: through the air, plus the drops' fall in body axes.
+                fall = s.Attitude.InverseRotate(new Double3(0, _rain.FallSpeed, 0));
+                Double3 u = a + fall;
+                flux = _aero.BodyFlux(u);
+                rain = _rain.Force(u, flux);
+                moment = moment + Double3.Cross(cp - com, rain);
+            }
             int coil = _aero.Spec.CoilPart;
-            if (coil < 0) return;
-            ref readonly DronePart part = ref _mass.Part(coil);
-            f = _aero.Coil(Air(s, v, part.Position), part);
-            force = force + f;
-            moment = moment + Double3.Cross(part.Position - com, f);
+            if (coil >= 0)
+            {
+                ref readonly DronePart part = ref _mass.Part(coil);
+                a = Air(s, v, part.Position);
+                f = _aero.Coil(a, part);
+                force = force + f;
+                moment = moment + Double3.Cross(part.Position - com, f);
+                if (_rain != null)
+                {
+                    Double3 u = a + fall;
+                    double c = Aero.CoilFlux(u, part);
+                    f = _rain.Force(u, c);
+                    flux += c;
+                    rain = rain + f;
+                    moment = moment + Double3.Cross(part.Position - com, f);
+                }
+            }
+            if (_rain == null) return;
+            force = force + rain;
+            _rainMassRate = _rain.WaterContent * flux;
+            _trace.RainForce = s.Attitude.Rotate(rain);
         }
 
         // A body point's velocity through the air, body m/s: the body origin's velocity v (body) plus ω × r, less the
@@ -418,16 +491,15 @@ namespace Fpv450.Sim.Flight
         /// <summary>The feed signals of the current state (FeedSignals says which are live).</summary>
         public void GetSignals(out FeedSignals signals)
         {
-            // The air at the camera, in its axes (the body's, 0° uptilt): the wind less the camera's motion, taken at
-            // the body origin (drone.json has no camera position yet; within 0.1 m, ω × r is below 0.1·|ω| m/s).
+            // The air at the camera's lens (the setup's CameraPosition) in its axes, and the rain's rate (0 when Sunny).
             ref readonly FlightState s = ref _state;
-            Double3 air = s.Attitude.InverseRotate(_wind.At(s.Position) - s.Velocity);
             signals = new FeedSignals
             {
-                Live = FeedSignalSet.CameraAngularVelocity | FeedSignalSet.AirVelocityAtCamera,
+                Live = FeedSignalSet.CameraAngularVelocity | FeedSignalSet.AirVelocityAtCamera | FeedSignalSet.RainRate,
                 Step = _state.Step,
                 CameraAngularVelocity = _state.BodyRate,
-                AirVelocityAtCamera = air,
+                AirVelocityAtCamera = AirAtCamera(s),
+                RainRateMmPerHour = _rain != null ? _rain.RateMmPerHour : 0,
                 Crashed = _state.Crashed,
             };
             if (_contacts != null)

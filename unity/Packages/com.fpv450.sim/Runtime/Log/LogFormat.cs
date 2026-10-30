@@ -52,7 +52,7 @@ namespace Fpv450.Sim.Log
         public static readonly byte[] Magic = { 0x46, 0x50, 0x56, 0x34, 0x35, 0x30, 0x4C, 0x47 };
 
         /// <summary>The format: the prologue, the header's entries and the record layouts below.</summary>
-        public const int Version = 7;
+        public const int Version = 8;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -75,8 +75,10 @@ namespace Fpv450.Sim.Log
         /// 8: p7c-wind 1.5 (the levels' centres from the cruise, Severe 7.2, Windy 3.6, Calm 1.08 m/s; the wakes of a
         ///    setup's obstacles from 1.3's wake grid, which replace 1.2's synthetic belt; a flight without obstacles at
         ///    model 7's centres steps as in 7).
+        /// 9: p7c-wind 1.7 (rain, a level of its own: the drops' momentum flux on the airframe's silhouettes and their water
+        ///    film in the mass model; a Sunny flight steps as in 8).
         /// </summary>
-        public const int ModelVersion = 8;
+        public const int ModelVersion = 9;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
@@ -87,8 +89,8 @@ namespace Fpv450.Sim.Log
         /// then the wind at the body's origin, the air's force and moment and the ESCs' limit (1.5; the wind, p7c-wind
         /// 1.4, where the stand-in's gust was), then the contacts' force and moment, the legs' loads and compressions and
         /// the touching pairs (1.6), then the controller's filter outputs and battery (1.4b), then the wind at each hub
-        /// (p7c-wind 1.4).</summary>
-        public const int StepSize = 1392, EventSize = 72, EndSize = 48;
+        /// (p7c-wind 1.4), then the rain's force and film and the air at the camera (p7c-wind 1.7).</summary>
+        public const int StepSize = 1448, EventSize = 72, EndSize = 48;
 
         // What the step record covers, checked against the structs by the suite: a field added to one of them must be
         // logged (a new layout) or the suite fails.
@@ -107,6 +109,7 @@ namespace Fpv450.Sim.Log
             {
                 "RotorCommand", "PackVolts0", "PackVolts1", "PackAmps0", "PackAmps1", "NetForce", "NetMoment", "AeroForce", "AeroMoment",
                 "ContactForce", "ContactMoment", "LegLoad", "LegCompression", "ContactsTouching", "Wind", "RotorWind",
+                "RainForce", "FilmMass", "CameraAir",
             };
 
         static readonly string[] CornerNames = { "rear_right", "front_right", "rear_left", "front_left" };
@@ -213,6 +216,10 @@ namespace Fpv450.Sim.Log
             b.Add("fc.filters.reserved", "zero", LogFieldType.Pad, 5);
             // The wind at each hub (p7c-wind 1.4).
             foreach (string c in CornerNames) b.Vec("rotor_wind." + c, "m/s, world, the wind field at the hub");
+            // The rain and the camera (p7c-wind 1.7).
+            b.Vec("rain_force", "N, world, the drops' momentum flux on the airframe (inside aero_force); 0 when sunny");
+            b.Add("film_mass", "kg, the rain's water film after the step; 0 when sunny", LogFieldType.F64);
+            b.Vec("camera_air", "m/s, camera (body) axes, the air at the lens at the step's start");
             return b.Done(StepSize);
         }
 
@@ -334,6 +341,9 @@ namespace Fpv450.Sim.Log
             w.U8(f.DynLpfLoops);
             w.Zero(5);
             for (int i = 0; i < 4; i++) w.V3(t.RotorWind[i]);
+            w.V3(t.RainForce);
+            w.F64(t.FilmMass);
+            w.V3(t.CameraAir);
         }
 
         public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
@@ -426,6 +436,9 @@ namespace Fpv450.Sim.Log
             f.DynLpfLoops = r.U8();
             r.Skip(5);
             for (int i = 0; i < 4; i++) t.RotorWind[i] = r.V3();
+            t.RainForce = r.V3();
+            t.FilmMass = r.F64();
+            t.CameraAir = r.V3();
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>

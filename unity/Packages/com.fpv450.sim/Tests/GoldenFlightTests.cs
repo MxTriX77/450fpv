@@ -69,7 +69,10 @@ namespace Fpv450.Sim.Tests
             Assert.That(RotorWindBytesAt - FilterBytesAt, Is.EqualTo(1176 - 992), "1.4b's whole block");
             Assert.That(LogFormat.FieldAt(LogFormat.StepFields, RotorWindBytesAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "rotor_wind.rear_right.x")),
                 "p7c-wind 1.4's rotor winds follow it");
-            Assert.That(LogFormat.StepSize - RotorWindBytesAt, Is.EqualTo(96), "four vectors, to the record's end");
+            Assert.That(LogFormat.FieldAt(LogFormat.StepFields, RotorWindBytesAt + 96), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "rain_force.x")),
+                "four vectors, then p7c-wind 1.7's rain at model 8's 1392 bytes");
+            Assert.That(RotorWindBytesAt + 96, Is.EqualTo(1392));
+            Assert.That(LogFormat.StepSize - 1392, Is.EqualTo(56), "the rain's force, its film and the camera's air, to the record's end");
         }
     }
 }

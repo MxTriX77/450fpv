@@ -218,6 +218,10 @@ namespace Fpv450.Sim.Flight
         /// <summary>The airframe's drag; its coil part is the coil's.</summary>
         public AeroSpec Aero;
 
+        /// <summary>The FPV camera's lens, body m (p7c-wind 1.7: FlightSetup.CameraPosition); the body's origin when the
+        /// file has no camera block.</summary>
+        public Double3 CameraPosition;
+
         /// <summary>The contact shapes and thresholds (p6-flight-core 1.6), the shapes at the file's positions; null when the
         /// file has no contacts block (the bootstrap fixture). BuildContacts places them at a loadout.</summary>
         public Contact.ContactSpec Contacts;
@@ -410,7 +414,7 @@ namespace Fpv450.Sim.Flight
                 const string top = "drone.json";
                 if (!IsObject(root, top)) return spec;
                 Members(root, top, "schema", "owner", "name", "bootstrap", "about", "fields",
-                    "parts", "motors", "props", "packs", "legs", "legs_off", "coil", "payload", "stand", "aero", "contacts");
+                    "parts", "motors", "props", "packs", "legs", "legs_off", "coil", "payload", "stand", "aero", "camera", "contacts");
 
                 JsonNode schema = Required(root, "schema", top);
                 if (schema != null && !(schema.Kind == JsonKind.Number && schema.Number == Schema))
@@ -441,6 +445,11 @@ namespace Fpv450.Sim.Flight
                 if ((n = Required(root, "legs_off", top)) != null) ReadLegsOff(n, spec);
                 if ((n = Required(root, "stand", top)) != null) spec.Stand = ReadStand(n);
                 if ((n = Required(root, "aero", top)) != null) ReadAero(n, spec);
+                if ((n = root.Member("camera")) != null && IsObject(n, "camera"))
+                {
+                    Members(n, "camera", "lens_position_m");
+                    Vector(n, "lens_position_m", "camera", out spec.CameraPosition);
+                }
                 if ((n = root.Member("contacts")) != null) spec.Contacts = ReadContacts(n, spec);
                 return spec;
             }

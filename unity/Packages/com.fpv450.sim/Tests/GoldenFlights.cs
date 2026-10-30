@@ -76,7 +76,21 @@ namespace Fpv450.Sim.Tests
         // model 8's centres the Windy flight moves from step 1, the wind's first: the strength draw is the same uniform
         // draw in a band 1.44 times model 7's. The model-6-drone pins of 1.6's audit fly model 7's centres only, so their
         // standing test went with them (flightbench --golden no longer flies them).
-        public const ulong PoweredHash = 0x104ECFA937FC9962UL;
+        // p7c-wind 1.7: re-recorded with ModelVersion 9 (rain; the 1448-byte record: model 8's 1392 bytes, then the rain's
+        // force, the film and the air at the camera). The golden flies Sunny, and audited case by case: over model 8's
+        // 1392 bytes with its events it is model 8's pin (Model8PoweredHash) bit for bit, every record of the 10 000 steps
+        // (RainTests.ASunnyFlightIsModel8sBitForBit): a Sunny flight opens no rain stream and adds no film part. Only
+        // the new bytes move: the rain's two slots stay 0, and the camera's air is the field's at drone.json's new lens
+        // position. RainPoweredHash below pins the same flight in Severe rain.
+        public const ulong PoweredHash = 0xFF9521B7653C909CUL;
+
+        // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
+        // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
+        public const ulong RainPoweredHash = 0x6E28860F47C45BC1UL;
+
+        /// <summary>Model 8's pins (p7c-wind 1.5) over its 1392-byte record: a Sunny flight of model 9 flies them bit for
+        /// bit (RainTests.ASunnyFlightIsModel8sBitForBit).</summary>
+        public const ulong Model8PoweredHash = 0x104ECFA937FC9962UL, Model8ContactHash = 0xF9B3D93720B83C58UL;
 
         // The powered golden in still air over model 5's 1296-byte layout: model 5's flight, bit for bit (the audit).
         // Model 5 in turn held 1.4b's 0x3695FC49DCA906DC over 1.4b's layout in the stand-in's Windy air; that flight
@@ -101,7 +115,9 @@ namespace Fpv450.Sim.Tests
         // still air); in a steady 5 m/s it drifts 0.8 m against 1.7 and touches down with 5 impacts against 7.
         // p7c-wind 1.5: re-recorded with ModelVersion 8, audited as the powered one (above); in Calm's band, 1.35 times
         // model 7's, the flight moves from step 1 and keeps its course: 5 impacts, at rest 0.2518 m up on 8 touching pairs.
-        public const ulong ContactHash = 0xF9B3D93720B83C58UL;
+        // p7c-wind 1.7: re-recorded with ModelVersion 9, audited as the powered one: over model 8's 1392 bytes it is
+        // model 8's pin (Model8ContactHash) bit for bit; only the camera's air is new.
+        public const ulong ContactHash = 0xBC4E9FA68E254625UL;
 
         /// <summary>The contact golden in still air over model 5's 1296-byte layout: model 5's flight, bit for bit.</summary>
         public const ulong StillAirContactHash = 0x7C3C81C9E2B04309UL;
@@ -136,6 +152,7 @@ namespace Fpv450.Sim.Tests
                 Propulsion = spec.BuildPropulsion(),
                 Aero = spec.BuildAero(),
                 Wind = WindSetup.Of(WindLevel.Windy),
+                CameraPosition = spec.CameraPosition,
                 Contacts = spec.BuildContacts(spec.Nominal, materials, hash),
                 StartPosition = new Double3(0, 300, 0),
                 StartPackCharge = 0.9,
@@ -169,10 +186,11 @@ namespace Fpv450.Sim.Tests
         /// skipAt and skipBytes the hash leaves out each record's bytes from skipAt on, skipBytes of them (a parent model's
         /// layout, for an audit); onRecord sees each step's record (an audit's step-by-step comparison).</summary>
         public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, WindSetup? wind = null,
-            System.Action<byte[]> onRecord = null)
+            System.Action<byte[]> onRecord = null, RainLevel rain = RainLevel.Sunny)
         {
             FlightSetup setup = PoweredSetup(spec);
             if (wind != null) setup.Wind = wind.Value;
+            setup.Rain = rain;
             core = new FlightCore(setup);
             var record = new byte[LogFormat.StepSize];
             var e = new byte[LogFormat.EventSize];
