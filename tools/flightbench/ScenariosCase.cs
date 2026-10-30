@@ -24,6 +24,10 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"  {name}: {detail}: {verdict}");
         }
 
+        static string Hover(GroundEffectScenario.Hover h) =>
+            $"skids {h.Clearance:F3} m up, rotors at {h.LeastHeight:F2}-{h.MostHeight:F2} R, body rate RMS per {GroundEffectScenario.Block} s block "
+            + $"{h.LeastRate:E2}-{h.MostRate:E2} rad/s (floor {GroundEffectScenario.StillFloor:E0}), wash up to {h.MostWash:E2} v_h";
+
         static string Lean(CrosswindScenario.Result r) =>
             $"lean {r.LeanDeg:F2}° = {r.LeanPerMs:F3}° per m/s of {r.WindSpeed:F2} m/s, {r.LeanOffWindDeg:F1}° off the wind's bearing, "
             + $"position error {r.MeanError:F3} m mean / {r.MaxError:F3} m max, drift {r.Drift:F4} m/s";
@@ -154,6 +158,23 @@ namespace Fpv450.FlightBench
             Row("the same descent at higher throttle: no ring", VortexRingScenario.HigherThrottle(high), VortexRingScenario.Describe(high));
             Row("known-wrong: the onset from the descent speed alone", VortexRingScenario.HeavyOnLowThrottle(wrong, lowOff, ring), VortexRingScenario.Describe(wrong),
                 knownWrong: true);
+
+            Console.WriteLine("ground and ceiling effect, recirculation (airframe-effects, p7b-airframe 1.3) on the stub, each rotor's thrust at "
+                + "the props' reference rpm over its free-air thrust, and a closed-loop hover on the legs in still air without asymmetry:");
+            GroundEffectScenario.Surfaces cushion = GroundEffectScenario.Cushion(spec);
+            Row("the cushion and the hole", GroundEffectScenario.Within(cushion), $"over the floor at {cushion.DistanceOver:F3} D gain "
+                + $"{cushion.LeastOver:F5} against Cheeseman-Bennett's {cushion.Expected:F5} ({(cushion.LeastOver / cushion.Expected - 1) * 100:F2} %); "
+                + $"over the hole band no ground ({cushion.DistanceAway} D), |gain - 1| {cushion.Away1:E1}");
+            GroundEffectScenario.Surfaces roof = GroundEffectScenario.Ceiling(spec);
+            Row("the ceiling under a runtime box roof", GroundEffectScenario.Within(roof), $"under it at {roof.DistanceOver:F3} D gain "
+                + $"{roof.LeastOver:F5} against Hsiao-Chirarattananon's {roof.Expected:F5} ({(roof.LeastOver / roof.Expected - 1) * 100:F2} %); "
+                + $"in the open |gain - 1| {roof.Away1:E1}");
+            GroundEffectScenario.Hover close = GroundEffectScenario.FlyHover(spec, true, GroundEffectScenario.HoverLift);
+            GroundEffectScenario.Hover noWash = GroundEffectScenario.FlyHover(spec, false, GroundEffectScenario.HoverLift);
+            GroundEffectScenario.Hover up = GroundEffectScenario.FlyHover(spec, true, GroundEffectScenario.HighLift);
+            Row("the close hover is never still", GroundEffectScenario.NeverStill(close, noWash, up), Hover(close)
+                + $"; {GroundEffectScenario.HighLift:F0} m up: {up.LeastRate:E2}-{up.MostRate:E2} rad/s");
+            Row("known-wrong: no recirculation", GroundEffectScenario.NeverStill(noWash, noWash, up), Hover(noWash), knownWrong: true);
             Console.WriteLine($"scenarios: {(_ok ? "PASS" : "FAIL")}");
             return _ok;
         }

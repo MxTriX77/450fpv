@@ -187,6 +187,7 @@ namespace Fpv450.Replay
                 Contacts = contacts,
                 Asymmetry = spec.BuildAsymmetry(), // a pilot's flight: the motors as this seed drew them (p7b-airframe 1.1)
                 VortexRing = spec.BuildVortexRing(), // and the rotors' vortex rings (1.2)
+                GroundEffect = spec.BuildGroundEffect(), // and their ground and ceiling effect and recirculation (1.3)
                 StartPosition = new Double3(0, stand, 0),
             };
             var core = new FlightCore(setup);
