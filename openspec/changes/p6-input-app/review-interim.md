@@ -280,3 +280,73 @@ QA probe e9v                                                        pitfall with
 python tools/hygiene/precommit.py --tree HEAD                       1610 files scanned, 0 findings (exit 0)
 openspec validate p6-input-app --strict                             Change 'p6-input-app' is valid
 ```
+
+## Re-check of finding 9 and gap 2a (at `0da4c97`)
+
+**Verdict for the interim scope: green.** Finding 9 and gap 2a are fixed for a radio that reports every 2 ms. The new rule adds finding 10: it assumes that 2 ms, and a slower radio is refused on a quick sweep. It is not blocking, but it must be settled before G7. Findings 3–7 were not re-checked and stand.
+
+**Scope:** `b0e2386` (`PitfallStep`, `SmallestStep`, `Restless`, the new `CalibrationTests`), `0da4c97` (design 4's third rule, task 1.2's note and 1.2b). No GPU (D-046).
+
+**The rule:** `(int)(PitfallStep · 2047)` = 5, against the pitfall's 10 (C's integer division). It applies only to sweeps the jump rule accepts (10–90 % in 0.7 s or more), on each side of the centre, and takes the larger of the two sides. The throttle is split at 1023.
+
+**My probes** (scratch, not committed). E9w and E9x use my own EdgeTX model, C's integer division and `System.Random` jitter; the pilot is 2.5× slower after "Too fast". The smallest step is my probe's figure, over the wizard's band and split. 281 checks, 0 fail.
+
+| probe | radio | jitter, sweep | result |
+|---|---|---|---|
+| E9w A | pitfall: two-sided 79 / 1 and 85 / 0, one-sided 79 / 800, throttle 79 / 1 | still, 0..1 cyclic and random, ±1, −1..2, ±2, ±3, ±5; 2, 3, 5, 7, 8, 12, 20 s | **168 of 168 not saved.** 133 named by the step rule (smallest step 10, every case), 14 by the jump rule, 21 (±3 and ±5) held at Centre with "Channel N keeps moving" (was: stuck with nothing said) |
+| E9w B | healthy 683 / 800 / 903 | still and ±1 to ±5; 0.9, 1.0, 1.5, 2, 3, 8 s | **108 of 108 saved,** no too-narrow finding. Smallest step 1 in 98, 2–4 in the rest |
+| E9w C | healthy 800, ±1, a thumb on the sticks at Centre | ±0.2 % to ±1.5 % of the half travel | saved (rest spread up to 33). At ±3 % it holds at Centre with "Channel 4 keeps moving", the right prompt |
+| E9w E | a partial radio calibration, roll and pitch | still and ±1; 2, 3, 8 s | 200, 204 and **205** refused (smallest 5); 210, 250 and 300 saved (smallest 4, 4, 3) |
+
+**The margin at 2 ms:**
+- The fastest first sweep the jump rule accepts is a 0.875 s linear one. With a still ADC, its per-report step had a mean of 4.46 and a median of 4. The smallest was 3–4 against the threshold of 5, so the margin is one count. With ±1 jitter the smallest was 1–2.
+- That margin holds by construction, not by luck. A transit of 0.7 s at 2 ms is 350 reports over about 1 638 counts, a mean of 4.68, so a steady sweep must have a step of 4 or less.
+- The same count breaks above a 2.14 ms interval (1 638 / 5 × interval < 0.7 s).
+- Nit: the design says the rule catches spans "up to 204". In my model 205 is caught too (1024 · d / 205 steps by 5, except once in about 205 counts). It is harmless.
+
+**Finding 10 (new, not blocking, before G7): a radio slower than 2 ms is refused on a quick, healthy sweep.** E9w F and E9x tested healthy 683 / 800 / 903 radios, still and ±1:
+
+| reports | linear sweeps 0.9–3 s refused | eased sweeps 1.0–2.5 s refused |
+|---|---|---|
+| every 2 ms | 0 of 48 | 0 of 36 |
+| every 3 ms | 7 of 48 (0.9–1.2 s) | 1 of 36 |
+| every 4 ms | 18 of 48 (0.9–1.5 s; the throttle at 1.5 s) | 9 of 36 (1.2–1.5 s) |
+| 1 ms, output updated every 2 ms | 0 of 48 | not run |
+| 1 ms, output updated every 4 ms | the same 18 of 48 | not run |
+
+- The refused axes are named "moves in jumps of 5–9 … recalibrate the radio's sticks", the same misdirection as finding 9. The prompt asks for about 2 s, and every 2 s sweep passed. The pitfall was caught at every interval.
+- The TX12's interval is not measured (1.5b, at G7). Measuring it there finds this only after the pilot has been refused once.
+- What counts is how often the radio updates its output, not the USB interval itself (the 1 ms rows).
+- **Suggestion (game developer):** gate the refusal by the radio's updates, not by the sweep's time. When the step rule finds a coarse sweep whose 10–90 % band holds fewer than band / (`PitfallStep` − 1) updates (about 410), say "Too fast" instead of refusing.
+  - Count the updates from the measured interval, not from the reports: a 1 ms stream can repeat a 4 ms output.
+  - At 2 ms this never fires on a healthy radio (pigeonhole), and it delays the pitfall by one slower repeat at most.
+  - Add a 4 ms `Tx12Radio` case to `CalibrationTests`.
+
+**Scenarios:** "The TX12 pitfall is caught" passed: both axes named at every sweep and jitter, and spans 683–903 passed at 2 ms. At 3–4 ms the "683–903 pass" half fails on quick sweeps (finding 10, outside the scenario's recorded sweep).
+
+**Requirements:** INP-05 met. INP-02 is still partly met (finding 10; 1.2b).
+
+**Hygiene:**
+- Both commits are subject-only with no trailer, by `Game Developer <gamedev@450fpv.local>`.
+- They touch 5 paths, none under `reference/`, `Library/`, `Temp/` or `Logs/`.
+- The sim package and `tools/{simtests,flightbench,replay}` show 0 diff lines against `f47ff4c`.
+
+```
+git rev-parse --short HEAD                                          0da4c97
+dotnet test tools/inputtests                                        Passed 97/97 (24 s)
+dotnet test tools/simtests                                          Passed 215/215 (1 m 18 s)
+dotnet run -c Release --project tools/flightbench -- --golden
+  free-body 0x50ED4B05A5D02F20 (matches); powered-flight 0x3F13A5CF5DB7DAFD (matches);
+  contact-flight 0x3EE12C8D692BADF3 (matches), 5 impacts; tumble 0xE3178EE7FF322698 (matches): PASS
+free RAM before Unity: 4.97 GB; Unity Hub running
+Unity -batchmode -nographics -runTests -testPlatform EditMode -testResults Logs/editmode-recheck9.xml
+  exit 0; 0 "error CS"; testcasecount=418 passed=418 failed=0 (84.8 s)
+  Fpv450.Sim.Tests 215, Fpv450.Tests.EditMode 106, Fpv450.Tests.Radio 80, Fpv450.Tests.Session 17
+  golden on Mono: 0x3F13A5CF5DB7DAFD, 0x3EE12C8D692BADF3, 0xE3178EE7FF322698
+QA probe e9w                                                        281 PASS, 0 FAIL; A 168 of 168 pitfalls not saved
+                                                                    (21 held at Centre, 21 named); B 108 of 108 healthy saved;
+                                                                    F 3 ms 7 of 48, 4 ms 18 of 48 healthy refused (finding 10)
+QA probe e9x (eased)                                                2 ms 0 of 36, 3 ms 1 of 36, 4 ms 9 of 36 healthy refused
+python tools/hygiene/precommit.py --tree HEAD                       1610 files scanned, 0 findings (exit 0)
+openspec validate p6-input-app --strict                             Change 'p6-input-app' is valid
+```
