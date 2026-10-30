@@ -226,7 +226,7 @@ namespace Fpv450.Sim.Tests
             var left = new Double3(-along.Z, 0, along.X);
             DetMath.SinCos(gamma, out double sg, out double cg);
             Double3 d = along * cg + left * sg, crossing = along * (BeltStartSeconds * ReleaseSpeed);
-            double end = (BeltHeights * h + 2 * r / sg) / sg + spacing;
+            double end = (r / sg + BeltHeights * h * cg / sg) / cg + spacing;
             var volumes = new List<WindVolume>();
             double x0 = double.MaxValue, x1 = double.MinValue, z0 = double.MaxValue, z1 = double.MinValue;
             void Cover(in Double3 q)
@@ -261,7 +261,7 @@ namespace Fpv450.Sim.Tests
         {
             double sg = System.Math.Sin(BeltAngleDeg * DegToRad), r = CrownRatio * BeltHeight;
             from = BeltStartSeconds * ReleaseSpeed - r / sg;
-            to = BeltStartSeconds * ReleaseSpeed + r / sg + BeltHeights * BeltHeight;
+            to = BeltStartSeconds * ReleaseSpeed + r / sg + BeltHeights * BeltHeight * System.Math.Cos(BeltAngleDeg * DegToRad) / sg;
         }
 
         /// <summary>The test flight's setup for a seed at a height: its course from the seed's drawn wind, and the belt.
