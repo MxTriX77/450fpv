@@ -129,6 +129,21 @@ namespace Fpv450.Sim.Log
         }
 
         /// <summary>
+        /// A pause (HitchCause.Pause) before the step that makes state step: no step ran for pausedUs. Only while the
+        /// flight thread is stopped (the app's pause), so it stands where a hitch would, before the steps it delayed.
+        /// </summary>
+        public void RecordPause(long step, long pausedUs)
+        {
+            if (_closed || Volatile.Read(ref _fault) != null) return;
+            if (!Reserve(EventBlockSize, step)) return;
+            FlightEvent e = FlightEvent.Of(EventKind.Hitch);
+            e.Index = (byte)HitchCause.Pause;
+            e.B = pausedUs;
+            PutEvent(step, e);
+            Volatile.Write(ref _written, _cursor);
+        }
+
+        /// <summary>
         /// Drains the ring, writes the end block and closes the stream (if owned). Once, after the flight thread has
         /// stopped; sticksDropped is the stick inbox's count (StickInbox.Dropped).
         /// </summary>

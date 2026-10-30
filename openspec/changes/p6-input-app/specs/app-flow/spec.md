@@ -1,15 +1,15 @@
 ## ADDED Requirements
 
 ### Requirement: The menu and the setup
-The main menu SHALL offer Train, Calibrate and Exit (plus Explore in review builds), plainly built and readable (APP-02; judged at G7 by D-042). The setup SHALL offer payload 0–2.0 kg in 0.1 kg steps, legs on or off, the time of day (continuous, night included), wind Calm / Windy / Severe and rain Sunny / Rain / Severe rain (APP-03), with no other settings.
+The main menu SHALL offer Train, Calibrate and Exit (plus Explore in review builds), plainly built and readable (APP-02; judged at G7 by D-042). The setup SHALL offer payload 0–2.0 kg in 0.1 kg steps, legs on or off, the time of day (continuous, night included), wind Calm / Windy / Severe and rain Sunny / Rain / Severe rain and the start point (APP-03), with no other settings.
 
 #### Scenario: Into the air in a few steps
 - **WHEN** the pilot starts the app with a calibrated profile
-- **THEN** Train, the setup's Start and arming the switch take them to a flight in the gallery with no other screen in between
+- **THEN** Train, the setup's Start and arming the switch take them to a flight over the test range (D-044) with no other screen in between
 
-### Requirement: The flight session over the gallery
+### Requirement: The flight session over the test range
 A flight session SHALL:
-- load the G1 gallery and its world from `maps/gallery-g1/stations.json`
+- load the test range and its world from `maps/test-range/placements.json` (D-044; a flat floor until its queries land, D-046)
 - place the launch stand at the start point when the legs are off
 - start the physics thread with the setup's payload, legs, wind and rain and the profile's `FcSettings`
 - show the drone at the interpolated `PoseFrame` through the FPV camera

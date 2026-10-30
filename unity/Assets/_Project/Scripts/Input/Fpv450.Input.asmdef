@@ -2,7 +2,9 @@
     "name": "Fpv450.Input",
     "rootNamespace": "Fpv450.Input",
     "references": [
-        "Unity.InputSystem"
+        "Unity.InputSystem",
+        "Fpv450.Sim",
+        "Fpv450.Input.Radio"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

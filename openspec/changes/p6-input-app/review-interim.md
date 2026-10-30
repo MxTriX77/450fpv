@@ -1,0 +1,195 @@
+# Interim QA review: p6-input-app (1.1, 1.2, 1.3, 1.4a, 1.5)
+
+**Verdict: blocking.** One blocking finding (1): a radio lost during a pause and plugged back in before Resume leaves no failsafe in the log, and the summary blames the pilot ("disarmed"). Everything else I ran is green: every in-scope scenario, my own flights replayed bit for bit (failsafe and pause), the four goldens equal `unity/main`'s on .NET and Mono, a format-5 log is refused, and hygiene is clean. Findings 2–7 are not blocking; 2 should be fixed before G7.
+
+**Scope:** `unity/game/p6-input-app` at `b3dfff4` (`unity/main` `7156dde` merged in). Out of scope: 1.4b (screens, player), 1.2b and 1.5b (the pilot's TX12 at G7). No TX12 here and no GPU (D-046): .NET, and Unity `-nographics` EditMode.
+
+**How I checked:** the owner's tests rerun, then a scratch probe of my own (never committed) on the public APIs: my radio, my clock, my stick scripts, my EdgeTX model and pilot, my Betaflight formulas. Every replay is the core's `FlightReplay` on the session's own log file.
+
+## Findings
+
+1. **Blocking: a loss during a pause is not logged, and the end is called a disarm** (INP-05; owner: game developer).
+   - While paused, the frame drains the inbox (`Scripts/App/Session/FlightSession.cs:258-261`). When the radio comes back before Resume, its reports supersede the failsafe sample, so no step record carries `Failsafe` (`FlightLogReader.cs:241`), and `FlightEndRule` (`Scripts/App/Session/FlightEnd.cs:80`) sees the held switch's disarm with a normal stick in force: `Disarm`.
+   - Probe E3b: armed, throttle 0.3, paused, cable pulled (host 1 471 000 µs), plugged back in with the switch on 200 ms later, Resume. Session end `Disarm` at step 345, **0 failsafes in the log**, summary "disarmed". E3a, the same without the replug: `Failsafe`, logged once. The log replays in both cases.
+   - The drone does disarm (the switch is held off until seen off), so it is safe. The log and the summary are wrong, and the "bug or pilot error" verdict reads them.
+   - **Fix (owner's choice):** keep a failsafe seen while paused in force for the first RC frame after Resume, and/or have the end rule call it a failsafe when one was in force since the last armed RC frame. If a log event is chosen, add it now, before format 6 reaches `unity/main`. Add E3b's sequence as a test.
+2. **Not blocking (fix before G7): a slow pilot gets past the TX12 pitfall check** (INP-02; owner: game developer).
+   - The "jumps" rule times the 10–90 % transit against 0.7 s (`CalibrationWizard.cs:51`, `:276`). On a 79 / 1 radio span the HID value crosses 10–90 % in about 10 % of the stick's sweep, so any sweep of about 7 s or more passes.
+   - Probe E9 (my EdgeTX model, `out = d·1024 / max(100, span)`, and my pilot, 2.5× slower after "Too fast"): first sweep 2.0 s, caught; 2.8 s, one axis of two caught; **3.0 s (then 7.5 s), both missed, the profile saved with 0 findings**.
+   - The scenario passes at the instructed speed (E8). But fc-profiles records this fault on the pilot's own radio, so a careful first calibration at G7 could save roll and pitch as switches.
+   - **Suggestion:** add a signal that does not depend on speed, for example the centre step's rest noise (EdgeTX's ×1024/100 gain amplifies it about 8× against a healthy ×1024/800 axis), or the transit against the throttle's and yaw's. Retune before G7, not during 1.2b.
+3. **Not blocking: crash objects are named only when they are runtime objects** (owners: game developer with world builder, for 1.4b and p6-test-range).
+   - `PostFlight.cs:69` resolves the object through `h.RuntimeObjectName`. The header holds no world object names, so a crash into a placed test-range car would read "object N".
+   - The "crash into the car" scenario passed with R01_A placed as a runtime object (`SessionTests.cs:291`). It cannot be run against a world object yet, because FloorWorld's only objects are the runtime ones and they are reset each flight (probe E10).
+   - Decide where world object names come from: a header entry (best before format 6 lands) or the world, opened by `WorldId`.
+4. **Not blocking: spec drift** (owner: orchestrator).
+   - app-flow `spec.md:8,10,12` and `design.md:5,28` still load the G1 gallery from `maps/gallery-g1/stations.json`. The proposal moved the session to the test range (D-044).
+   - app-flow `spec.md:4` says "with no other settings" and leaves out APP-03's start point, which `FlightChoices` has.
+   - `tasks.md:101` ("tx-input asks for one step … Open, for physics") is stale since `313350b` made the scenario one RC frame.
+5. **Not blocking, docs:** `LogHeader.cs:195-196` gives a step's stick age as `StartHostUs + k·1000 − HostUs` and leaves out the pauses. `HitchCause.Pause` (`StepTrace.cs:123-125`) adds them. One line.
+6. **Not blocking, nit:** the percentiles are upper bin edges, so they can exceed the maximum: "p99 2.200, max 2.136 ms" (my `radioprobe` run, and the summary's `InputLine`, `FlightLogReader.cs:400`). Cap them at the maximum, or say "bin".
+7. **Not blocking, test sizing:**
+   - `LatencyTests.cs:59` (first step within 2 ms) plays the recording at its stamps (`LeadUs` 0) on real threads, so an input thread more than about 1 ms late under load fails it.
+   - It passed in every run here, including with Unity compiling alongside. The false-failure rate is not stated.
+   - The render-rate test is not exposed: it hands reports over 10 ms early.
+
+## Scenarios
+
+| scenario | result | evidence |
+|---|---|---|
+| tx-input: render rate does not touch the sticks | passed | Owner's test: 30 / 60 / 240 fps identical to the rule; the frame-bound control has 777 of 1200 steps stale. **Probe E5** through `FlightSession`'s own threads (a recorded stream, `LeadUs` 10 ms, loss at 2.6 s) at 30, 60 (with a 300 ms pause) and 240 fps: 0 of 2503 / 2203 / 2503 steps differ from "the latest report at or before the step's host time". The same rule 1 ms early differs at 1251 / 1101 / 1251 steps, so the check can fail. 0 dropped, each log replays bit for bit |
+| tx-input: latency is measured | passed (synthetic); TX12 not testable (1.5b) | Owner's test, identical on .NET 10 and Mono: first step p50 0.477 / p99 0.561 ms, motor p50 6.453 / p99 8.460 ms, both in the header and the summary. My recording through `radioprobe --latency --from`: first step p50 0.909 / p99 0.999, motor p50 6.898 / p99 8.894. The breakdown 0.910 + 2.000 + 1.563 + 3.336 = 7.809 equals the mean |
+| tx-input: the TX12 pitfall is caught | passed at the instructed speed | Owner's two tests. **Probe E8**: 79 / 1 and 85 / 0 named "jumps from end to end", nothing saved; healthy spans pass (AETR, 0–2047); a 30 % radio yaw expo is named; a human's eased sweep raises no false curve. Finding 2 covers slower sweeps |
+| tx-input: under two minutes, no keyboard | partly; real TX12 not testable (1.2b) | synthetic radio: 19.0 s (owner), 20.0 s (mine) |
+| tx-input: the defaults are the sim default column | passed | E6: a fresh `FcSettingsStore.Load` gives 55 / 225 / 0.34, 85 / 260 / 0.15, thr 50 / 10, deadband 2 / 2, smoothing 50, f 50 / 50 / 0, airmode on, idle 550, which is fc-profiles' column. **Probe E7**: the preview against Betaflight 4.5's ACTUAL formula, written out by me: 0.0 °/s over 3 × 101 sticks, and the throttle within 2.8e-16 (integer `lookupThrottleRC`, double interpolation). The formula without the deadband differs by 2.5–15 °/s |
+| tx-input: pulling the cable mid-flight | passed; partly (finding 1) | E1: lost at host 3 571 000 µs, disarmed at the step at 3 574 000 µs (3 ms, under 4 ms), logged once with its stamp. Owner's test: 1 271 000 to 1 274 000 µs |
+| app-flow: into the air in a few steps | not testable | screens are 1.4b |
+| app-flow: pause and restart | passed | E1: no step while paused, the pause logged at step 1542 (B 700 000 µs), the flight replays. E5 at 60 fps: 299 822 µs, every later stick within the rule. Owner's test: a new seed, a new log, the same start, the switch to be cycled |
+| app-flow: a crash into the car | partly (finding 3) | "crash: coil hit R01_A (steel), an impact at 4.3 m/s" from the log, with R01_A as a runtime object |
+| app-flow: settings survive a restart | passed (quality preset: 1.4b) | E6: `roll_srate` 30, 1.7 kg, legs off, Severe, Rain, 21.5 h restored through `SessionInputs.FromProfile`. Four corrupt kinds (cut, binary, out of range, unknown name) in all three files: 3 problems named, the defaults used |
+| APP-04 ends and the summary | passed | Owner's tests: crash, upside down (1.0 s), battery cut-off, disarm and failsafe. E1's summary from the log: 1845 steps read 0:01.8, failsafe at 0:01.8, seed `0x…0A11`, battery 0.2 %. Owner's distance against the published poses: within 1e-9 m |
+
+**Requirements:**
+- Met: INP-01 (the TX12 itself at 1.5b), INP-03, INP-04 (the TX12's figures at 1.5b), INP-06, INP-07.
+- Partly met:
+  - INP-02 (finding 2; 1.2b)
+  - INP-05 (finding 1)
+  - APP-04 (finding 1's end, finding 3's names)
+  - APP-05 (the quality preset is 1.4b)
+- In logic only, screens at 1.4b: APP-03.
+- Not testable: APP-02.
+
+## The physics-owned files, read as the physics engineer
+
+- **`StickSample.Failsafe`:** a new bool, which the core never reads (it reads `Arm`).
+  - Flags bit 3, apart from the crash's bit 2: encoded at `LogFormat.cs:274`, decoded at `:366` and `:437`.
+  - `FlightLogTests` round-trips both bits set and apart. The record stays 1296 B.
+- **The tag 15 input entry:** written at `LogHeader.cs:632`, read at `:838`.
+  - Bounded by its entry's end (`:862`), and a 1.1 entry stops before `StartHostUs`.
+  - The device path is never logged (LOG-05): `WinHidInfo.Path`.
+- **`HitchCause.Pause`:**
+  - written by `RecordPause` on the frame thread, only while the flight thread is joined (`FlightScheduler.Stop` joins)
+  - placed before the step it delayed
+  - skipped by replay like every hitch (`FlightReplay.cs:141`)
+- **The versions:** `LogFormat.Version` 6 and `ModelVersion` 6, the same as `unity/main`.
+  - Probe E4 patched a log's prologue to 5. The reader, the replay (`Unreadable`) and the summary all refuse it: "the log's format is version 5; this build reads version 6".
+  - I did not write a log on a `unity/main` build. The refusal is the prologue's version check (`LogHeader.cs:687`).
+- **The goldens equal `unity/main`'s:**
+  - powered `0x3F13A5CF5DB7DAFD`, contact `0x3EE12C8D692BADF3`, tumble `0xE3178EE7FF322698`, free body `0x50ED4B05A5D02F20` (flightbench, Release)
+  - the first three also on Mono, in Unity
+  - The golden constants and `tools/{simtests,flightbench,replay}` are unchanged against `unity/main`. Nothing was re-recorded.
+- **Steady state:** probe E11 measured 0 B allocated over 10 000 reports through `RadioReader.Pump` (raw and calibrated maps), and 0 B over 3000 frames of Pump, Tick, steps, the log ring and the end rule.
+
+## Hygiene
+
+- **Commits:** 31 since `unity/main`, all subject-only (no body, no trailer). 28 are by `Game Developer <gamedev@450fpv.local>` and 3 by `Orchestrator <orchestrator@450fpv.local>`, author and committer alike. Every subject is in `type(scope): summary` form and 72 characters or fewer.
+- **Paths:** nothing from `reference/`, `Library/`, `Temp/`, `Logs/` or `UserSettings/`, and no logs or recordings.
+- **Copied code:** none found.
+  - No GPL header in any new `.cs` file.
+  - No `#define`, `->`, C integer type, or EdgeTX or Betaflight identifier outside comments. The `f` literals are Unity `Color` arguments only.
+  - EdgeTX's and Betaflight's formulas are cited and re-expressed (my E7 and E8 checked their results).
+- **Licences:** `tools/assets/manifest.json` and `CREDITS.md` are unchanged. The NuGet pins in `tools/inputtests` (17.14.1, 3.14.0, 5.0.0) are simtests' own.
+- **Engine-free:** `Fpv450.Input.Radio` and `Fpv450.App.Session` have `noEngineReferences: true` and build as netstandard2.1 in `tools/inputcore`.
+- **The HID reader:** overlapped reads go into unmanaged buffers, and `CancelIoEx` plus a wait comes before freeing them (`WinHid.cs:313-326`).
+
+## Commands and output (trimmed)
+
+```
+git lfs checkout                                                    (no output)
+free RAM before Unity: 4.22 GB
+dotnet test tools/simtests                                          Passed 214/214 (1 m 19 s)
+dotnet test tools/inputtests                                        Passed 32/32 (25 s)
+  render rate: 30 fps 42 frames, 1253 steps; 60 fps 84, 1252; 240 fps 336, 1254; 618 reports and 1 loss each
+  control: 30 fps frame-bound, 777 of 1200 steps had a stale stick
+  FAILSAFE: the radio was lost at host 1234567 us; step 736 (t = 0.736 s) disarmed
+  latency: first step p50 0.477, p99 0.561 ms; motor p50 6.453, p99 8.460 ms (mean 7.373)
+  lost at host 1271000 us; disarmed at the step at host 1274000 us; failsafe: the radio was lost, and the drone disarmed
+  on the flight thread: 889 steps in 889 ms flown, a pause of 200 ms, 0 hitches
+dotnet run -c Release --project tools/flightbench -- --golden
+  free-body 0x50ED4B05A5D02F20 (matches); powered-flight 0x3F13A5CF5DB7DAFD (matches);
+  contact-flight 0x3EE12C8D692BADF3 (matches), 5 impacts; tumble 0xE3178EE7FF322698 (matches): PASS
+Unity -batchmode -nographics -runTests -testPlatform EditMode -testResults Logs/qa-editmode.xml
+  exit 0, 106 s; 0 "error CS"; testcasecount=352 passed=352 failed=0
+  Fpv450.Sim.Tests 214, Fpv450.Tests.EditMode 106, Fpv450.Tests.Radio 20, Fpv450.Tests.Session 12; Mono 6.13.0 X64
+  golden: 0x3F13A5CF5DB7DAFD, 0x3EE12C8D692BADF3, 0xE3178EE7FF322698; latency figures as on .NET
+dotnet run -c Release --project tools/radioprobe -- --latency --from <QA's 15 s recording>
+  10729 steps, 6 hitches, 0 dropped; 120 of 120 timed; 488 intervals, mean 2.000 ms
+  first step p50 0.909, p99 0.999 ms; motor p50 6.898, p99 8.894 ms; RC frame 2.000 + smoothing 1.563 + ESC 3.336 (means)
+QA probe (scratch, not committed): 52 PASS, 2 FAIL (E3b, finding 1)
+  E1 replay: Match, 1845 steps and 24 events, bit for bit (failsafe and a 700 ms pause, on the stand, Windy, 1.5 kg)
+  E3a replay Match; E3b: end Disarm, 0 failsafes in the log
+  E4: FlightLogReader refuses it: the log's format is version 5; this build reads version 6
+  E5 30/60/240 fps: 0 of 2503 / 2203 / 2503 differ; control 1251 / 1101 / 1251; replays Match
+  E9: pitfall missed with a 3.0 s first sweep (7.5 s after "Too fast")
+  E11: 0 B
+python tools/hygiene/precommit.py --tree HEAD                       1609 files scanned, 0 findings (exit 0)
+openspec validate p6-input-app --strict                             Change 'p6-input-app' is valid
+python tools/assets/fetch.py --verify                               OK
+```
+
+## Re-check of finding 1 (at `6e84ee4`)
+
+**Verdict for the interim scope: green.** Finding 1 is fixed. A loss during a pause, replugged before Resume or not, is now the failsafe in force for exactly one RC frame after Resume. It is logged once with the loss's stamp, the end is `Failsafe` and the summary says so. One new finding (8) is not blocking. Findings 2–7 were not re-checked and stand.
+
+**Scope:** `99e7db3` (`StickInbox.Drain` and `Hold`), `b63af4f` (the session's pause and resume, the two E3 tests), `8b2919c` (1.4a's note), `6e84ee4` (the tx-input scenario "Pulling the cable during a pause"). No GPU (D-046).
+
+8. **Not blocking: a second pause inside the first RC frame after Resume drops the hold, and the end is a disarm again** (INP-05, APP-04; owner: game developer).
+   - The hold ends at a host time (`FlightSession.cs:311`). A pause moves every later step's host time past it, and `Pause` clears the kept loss (`:287`).
+   - Probe E3f: E3b, paused again 1, 2 or 3 ms after Resume (k mod 4 = 1, so the frame is the 4th step), resumed 50 ms later. The records from 342 carry the failsafe up to the re-pause, then the replugged radio's sample. The reader's held-off switch disarms at 345: end **`Disarm`**, summary "disarmed | … | failsafe at 0:00.3". The log replays.
+   - It is safe, and out of a pilot's reach: Pause and Resume come once a frame from the pilot's input (`FlightSessionHost.cs:77-78`), and the window is under 4 ms. It is outside the scenario's WHEN.
+   - **Suggestion:** count the hold in steps, or have `Pause` keep a loss whose RC frame has not run. Add E3f as a test, with 1.4b's pause controls, before G7.
+
+| scenario | result | evidence |
+|---|---|---|
+| tx-input: pulling the cable during a pause (new) | passed | the owner's two tests; my E3a–E3e below |
+| tx-input: pulling the cable mid-flight | passed | the owner's test: lost at 1 271 000 µs, disarmed at the step at 1 274 000 µs |
+
+**Requirements:** INP-05 met (finding 8 lies outside the scenario). APP-04: finding 1's end is fixed; still partly met for finding 3's names.
+
+**My probes** (scratch, not committed; every one replays its session's own log, Match):
+
+| probe | sequence | result |
+|---|---|---|
+| E3a | armed at 0.3 for 300 ms, paused, lost, Resume | `Failsafe` at step 345; logged at 342 with 1 471 000 µs |
+| E3b | E3a, replugged with the switch on 200 ms before Resume | the same (was `Disarm`, 0 failsafes, at `b3dfff4`) |
+| E3c | two losses in one pause (1 471 000 and 1 771 000 µs), each replugged | the same, with the first loss's stamp; the reader counts 2 losses, the log one failsafe |
+| E3d | lost in the last paused frame (its Pump and Tick), Resume at that host time | the same |
+| E3d′ | the loss reaches the inbox after the last paused frame (no Tick), Resume | the same, without a hold: the first step takes it |
+| E3e | E3b paused after steps 341, 342, 343, 344 (k mod 4 = 1, 2, 3, 0) | the end at 345 each time (k + 4, 3, 2, 1), the one frame step; logged at k + 1 with the loss's stamp |
+| E3f | finding 8 | `Disarm` |
+
+**The fix read as the physics engineer** (`StickInbox` is physics-owned; the game developer changed it):
+- **Without a hold, `Consume` is the old rule.** `_heldUntilUs` starts at `long.MinValue` (`StickInbox.cs:19`), so the test at `:56` never holds. `Drain` is the old loop plus a flag that touches neither `_inForce` nor `_read`.
+  - E12c, unity/main's `StickInbox` (copied, renamed) against the branch's on one random stream: 0 of 206 864 steps differ, and 0 writes differ, 0 dropped. The stream has failsafes 1 in 30, reports 0.3–3.7 ms apart and up to 3 ms ahead, and paused stretches through the old `Consume` against the new `Drain`.
+  - E12, against my own queue of the rule: 0 of 300 000 steps differ. With a hold, 4 steps are held and the rest are identical.
+  - E12b, `Drain` over 100 000 paused frames: it returns true exactly when a report it takes is a failsafe, and gives the first. The sample in force after it is the latest.
+- **Nothing allocates.** E13: 0 B for 20 000 TryWrite, Consume and Drain with the hold in force, and 0 B with it expired. 0 B for 3000 paused frames (Pump, Tick's Drain). E11 again: 0 B over 3000 flying frames with their steps.
+- **The hold is one RC frame.** `RcFrameSteps` = 16 / 4 = 4 (`FlightSession.cs:127`). It covers the steps timed before `start + (k + 4)·1 ms`, which are the pre-steps k to k + 3 (`StepHostUs`, `FlightScheduler.cs:49`). A frame is taken at `loop % 16 == 0`, with `loop = Step·4 + j` (`FlightCore.cs:261-265`). So exactly one of any four steps takes a frame, at every phase (E3e). The steps' times are the scheduler's own, so a hitch does not shorten the hold; only a pause does (finding 8).
+- **Threads:** `_held` and `_heldUntilUs` are the consumer's. `Hold` runs on the frame thread before `Step(start)` starts the flight thread. The paused `Drain` runs after `StopStepping` has joined it. The producer is untouched.
+- Engine-free and without arithmetic. The core, log format 6 and the goldens are unchanged.
+
+**Hygiene:** the four commits are subject-only with no trailer. Author and committer are `Game Developer <gamedev@450fpv.local>` (3) and `Orchestrator <orchestrator@450fpv.local>` (1). They touch six paths, none under `reference/`, `Library/`, `Temp/` or `Logs/`. `GoldenFlights.cs`, `FreeBodyCase.cs` and `tools/{simtests,flightbench,replay}` show 0 diff lines against `unity/main`.
+
+```
+git rev-parse --short HEAD                                          6e84ee4
+dotnet test tools/inputtests                                        Passed 34/34 (32 s)
+  E3a: paused after step 341, lost at host 1471000 us; failsafe: the radio was lost, and the drone disarmed | ... | failsafe at 0:00.3
+  E3b: paused after step 341, lost at host 1471000 us; failsafe: the radio was lost, and the drone disarmed | ... | failsafe at 0:00.3
+  lost at host 1271000 us; disarmed at the step at host 1274000 us; failsafe: the radio was lost, and the drone disarmed
+dotnet test tools/simtests                                          Passed 215/215 (1 m 27 s)
+dotnet run -c Release --project tools/flightbench -- --golden
+  free-body 0x50ED4B05A5D02F20 (matches); powered-flight 0x3F13A5CF5DB7DAFD (matches);
+  contact-flight 0x3EE12C8D692BADF3 (matches), 5 impacts; tumble 0xE3178EE7FF322698 (matches): PASS
+git lfs checkout                                                    (no output)
+free RAM before Unity: 4.86 GB
+Unity -batchmode -nographics -runTests -testPlatform EditMode -testResults Logs/qa-recheck-editmode.xml
+  exit 0, 109 s; 0 "error CS"; testcasecount=355 passed=355 failed=0
+  Fpv450.Sim.Tests 215, Fpv450.Tests.EditMode 106, Fpv450.Tests.Radio 20, Fpv450.Tests.Session 14
+  E3a and E3b passed, the same lines; replay: Match, 345 steps match: 345 steps and 16 events, bit for bit
+  golden on Mono: 0x3F13A5CF5DB7DAFD, 0x3EE12C8D692BADF3, 0xE3178EE7FF322698
+QA probe e3 (the interim's E3, unchanged)                           ALL PASS: E3a and E3b Failsafe at step 345, 1 failsafe, Match
+QA probe e3x                                                        3 FAILED: E3f 1, 2, 3 ms (finding 8); every other check PASS
+QA probe e12, e13, e11                                              ALL PASS (0 differ; 0 B)
+python tools/hygiene/precommit.py --tree HEAD                       1610 files scanned, 0 findings (exit 0)
+openspec validate p6-input-app --strict                             Change 'p6-input-app' is valid
+```
