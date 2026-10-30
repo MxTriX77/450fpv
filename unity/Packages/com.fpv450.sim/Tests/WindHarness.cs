@@ -50,8 +50,9 @@ namespace Fpv450.Sim.Tests
         public const double MapleTop = WakeGridFixture.MapleTop, CrownRatio = WakeGridFixture.MapleRadius / MapleTop,
             BaseRatio = WakeGridFixture.MapleBase / MapleTop, SpacingRatio = WakeGridFixture.TreeSpacing / MapleTop;
 
-        /// <summary>The trees' porosity (assumed: the stand-in maple's, Godot's 0.45; 1.5 judges it against T3).</summary>
-        public static double BeltPorosity = WakeGridFixture.MaplePorosity;
+        /// <summary>The trees' optical porosity (assumed: the stand-in maple's, Godot's 0.45). p7c-wind 1.5: one row reads
+        /// 0.47 on its path, porous, as clip P's belt (no reversal); at the runs' 20–50 m the drone flies above its wake.</summary>
+        public const double BeltPorosity = WakeGridFixture.MaplePorosity;
 
         /// <summary>The belt's height H, m (derived: from its upwind edge to 10 H past its leeward edge in BeltSeconds at
         /// ReleaseSpeed along the course at BeltAngleDeg: 7·18.8 = H·(10 + 2·CrownRatio/sin 45°), 11.9 m; 1.2's region was

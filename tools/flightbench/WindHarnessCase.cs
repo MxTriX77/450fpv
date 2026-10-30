@@ -15,8 +15,10 @@ namespace Fpv450.FlightBench
     // N seeds, in parallel, and each run's camera log is written in track_attitude.py's columns, the input wind_stats.py
     // reads, with a manifest of the runs and their belt segments; optionally the seeds' T0c wind histories. Its own
     // check: flown at the cruise clip P's pitch settles at (p7c-wind 1.6), the nominal pilot's lean per m/s of crosswind
-    // reproduces p6-flight-core 1.5's scenario's there (within 10 %, 20 % with the belt) and its airspeed is the cruise's;
-    // without drag (a known-wrong model) it must fail. T0, the lean that grades it, is wind_stats.py's.
+    // reproduces p6-flight-core 1.5's scenario's there (within 15 %, 20 % with the belt) and its airspeed is the cruise's;
+    // without drag (a known-wrong model) it must fail. T0, the lean that grades it, is wind_stats.py's. p7c-wind 1.5: the
+    // belt's wakes come from the wake grid, and `--wrong steady|nodrag` flies the known-wrong families that
+    // tools/wind/grade_levels.py grades every target on.
     internal static class WindHarnessCase
     {
         const string Usage = "usage: flightbench --wind-harness calm|windy|severe [--seeds N] [--out DIR] [--pilots nominal|all] [--belt on|off] [--wrong steady|nodrag] [--history N]";
