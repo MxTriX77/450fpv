@@ -39,6 +39,10 @@ namespace Fpv450.Sim.Flight
         /// none, as a bench's rotors and the goldens' audits fly.</summary>
         public GroundEffectSpec GroundEffect;
 
+        /// <summary>The rotors' edgewise-flow moments, blade flapping and the dissymmetry of lift (RotorFlappingSpec,
+        /// p7b-airframe 1.3c): null for none, as a bench's rotors and the goldens' audits fly.</summary>
+        public RotorFlappingSpec Flapping;
+
         /// <summary>The airframe's drag (DroneSpec.BuildAero): the body's and the coil's. Null for none (a bench's body);
         /// the rotors' in-plane drag comes with the propulsion.</summary>
         public AeroSpec Aero;
@@ -156,7 +160,8 @@ namespace Fpv450.Sim.Flight
                 SeedStream ring = VortexRing != null ? Random.Open("vrs.thrust") : default;
                 GroundEffect = setup.GroundEffect?.Clone();
                 SeedStream wash = GroundEffect != null ? Random.Open("ground.recirc") : default;
-                _propulsion = new Propulsion(setup.Propulsion, Draws, VortexRing, ring, GroundEffect, wash);
+                Flapping = setup.Flapping?.Clone();
+                _propulsion = new Propulsion(setup.Propulsion, Draws, VortexRing, ring, GroundEffect, wash) { Flapping = Flapping };
                 if (GroundEffect != null) _surfaces = new RotorSurfaces(_propulsion, GroundEffect.Reach * setup.Propulsion.Props.Diameter / 2);
                 var clockwise = new bool[4];
                 for (int i = 0; i < 4; i++) clockwise[i] = setup.Propulsion.Motors[i].Clockwise;
@@ -204,6 +209,9 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The rotors' ground and ceiling effect, or null for none.</summary>
         public GroundEffectSpec GroundEffect { get; }
+
+        /// <summary>The rotors' flapping, or null for none.</summary>
+        public RotorFlappingSpec Flapping { get; }
 
         /// <summary>The flight's wind, with its per-flight draws.</summary>
         public StandInWind Wind => _wind;
@@ -331,6 +339,7 @@ namespace Fpv450.Sim.Flight
                 Double3 h = _propulsion.HForce(i, speed);
                 airForce = airForce + h;
                 airMoment = airMoment + Double3.Cross(r, h);
+                if (Flapping != null) airMoment = airMoment + _propulsion.HubMoment(i, speed, thrust);
                 spin += _propulsion.SpinMomentum(i, speed);
             }
             m.Y = loads.YawMoment * share;

@@ -545,6 +545,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(InstanceFields(typeof(MotorAsymmetry)), Is.EquivalentTo(LogHeader.AsymmetryFieldsLogged));
             Assert.That(InstanceFields(typeof(VortexRingSpec)), Is.EquivalentTo(LogHeader.VortexRingFieldsLogged));
             Assert.That(InstanceFields(typeof(GroundEffectSpec)), Is.EquivalentTo(LogHeader.GroundEffectFieldsLogged));
+            Assert.That(InstanceFields(typeof(RotorFlappingSpec)), Is.EquivalentTo(LogHeader.FlappingFieldsLogged));
 
             foreach ((LogField[] fields, int size) in new[] { (LogFormat.StepFields, LogFormat.StepSize), (LogFormat.EventFields, LogFormat.EventSize),
                          (LogFormat.EndFields, LogFormat.EndSize) })

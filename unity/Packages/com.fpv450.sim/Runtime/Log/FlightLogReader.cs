@@ -311,6 +311,11 @@ namespace Fpv450.Sim.Log
                     + G(h.GroundEffect.RecirculationSigma) + " v_h within " + G(h.GroundEffect.RecirculationBound) + " below "
                     + G(h.GroundEffect.RecirculationOnset) + " R, loop " + G(h.GroundEffect.RecirculationLoop) + " (z + R)/v_h; air "
                     + G(h.GroundEffect.AirDensity) + " kg/m3" + (h.GroundEffect.RecirculationSigma > 0 ? "" : "; KNOWN-WRONG: no recirculation"));
+            if (h.Flapping != null)
+                w.WriteLine("  flapping: blade-element, lift slope " + G(h.Flapping.LiftSlope) + "/rad, zero lift " + G(h.Flapping.ZeroLiftAngle)
+                    + " rad, bending " + G(h.Flapping.BendingFrequency) + " Hz, Southwell " + G(h.Flapping.Southwell) + ", skew gain "
+                    + G(h.Flapping.SkewGain) + ", " + h.Flapping.Blades + " blades of " + G(h.Flapping.BladeInertia) + " kg m2 on R "
+                    + G(h.Flapping.Radius) + " m, " + h.Flapping.Stations.Length + " stations; air " + G(h.Flapping.AirDensity) + " kg/m3");
             else
                 w.WriteLine("  ground effect: off");
             for (int n = 0; n < h.RuntimeObjects.Length; n++)

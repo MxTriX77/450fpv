@@ -257,6 +257,25 @@ namespace Fpv450.Sim.Flight
         /// <summary>A rotor's in-plane drag at a speed (rad/s) with this step's in-plane airspeed, body N.</summary>
         public Double3 HForce(int corner, double speed) => _inPlane[corner] * (-_hPerSpeed * speed);
 
+        /// <summary>The rotors' flapping (RotorFlappingSpec, p7b-airframe 1.3c): null for none. FlightCore sets its own copy.</summary>
+        public RotorFlappingSpec Flapping { get; set; }
+
+        /// <summary>
+        /// A rotor's hub moment from its edgewise flow at a speed (rad/s) and thrust (N) with this step's inflow, body N·m
+        /// (RotorFlappingSpec): its blades' flapwise spring moments, (N_b/2)·(s·M₁s·X − M₁c·Y), X the in-plane airflow's
+        /// direction, Y = +y × X, s +1 clockwise. A pure couple; 0 without flapping, a stopped rotor or no in-plane airspeed.
+        /// </summary>
+        public Double3 HubMoment(int corner, double speed, double thrust)
+        {
+            RotorFlappingSpec f = Flapping;
+            Double3 p = _inPlane[corner];
+            double v = DetMath.Sqrt(p.X * p.X + p.Z * p.Z);
+            if (f == null || !(speed > 0) || !(v > 0)) return default;
+            f.Solve(speed, v, _inflow[corner], thrust, out double m1c, out double m1s, out _, out _, out _);
+            double xx = -p.X / v, xz = -p.Z / v, half = 0.5 * f.Blades, roll = -_reaction[corner] * m1s;
+            return new Double3(half * (roll * xx - m1c * xz), 0, half * (roll * xz + m1c * xx));
+        }
+
         /// <summary>A rotor's ESC current limit, A.</summary>
         public double CurrentLimit(int corner) => _limit[corner];
 

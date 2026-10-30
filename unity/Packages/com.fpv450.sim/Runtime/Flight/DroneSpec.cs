@@ -307,6 +307,34 @@ namespace Fpv450.Sim.Flight
         public GroundEffectSpec BuildGroundEffect() => new GroundEffectSpec { AirDensity = Aero.AirDensity };
 
         /// <summary>
+        /// The rotors' flapping (RotorFlappingSpec) on the props' sheet, in the aero block's air: the radius and blades from
+        /// the props; a blade's flap inertia from the prop's part ("prop_rr") as a uniform rod, m/N_b·R²/3 (derived, as the
+        /// mass build's rod); the chord at 19 stations from 0.1 R to the tip, linear through the sheet's 18 mm at 0.1 R
+        /// (assumed), 26 mm at 0.3 R and 8 mm at the tip (the sheet, docs/object-sheets/drone.md); the angle there the
+        /// props' helix less the zero-lift angle.
+        /// </summary>
+        public RotorFlappingSpec BuildFlapping()
+        {
+            double radius = Props.Diameter / 2, mass = 0;
+            foreach (DronePart p in Parts)
+                if (p.Name == "prop_rr") mass = p.Mass;
+            var f = new RotorFlappingSpec
+            {
+                AirDensity = Aero.AirDensity, Radius = radius, Blades = Props.Blades,
+                BladeInertia = mass / Props.Blades * radius * radius / 3,
+                Stations = new double[19], Chords = new double[19], Angles = new double[19],
+            };
+            for (int k = 0; k < 19; k++)
+            {
+                double x = 0.1 + 0.05 * k;
+                f.Stations[k] = x;
+                f.Chords[k] = x < 0.3 ? 0.018 + (x - 0.1) / 0.2 * 0.008 : 0.026 - (x - 0.3) / 0.7 * 0.018;
+                f.Angles[k] = f.HelixAngle(Props.Pitch, x);
+            }
+            return f;
+        }
+
+        /// <summary>
         /// The flight's contact model at a loadout, with physics_materials.json's rows and hash (PhysicsMaterials.Parse):
         /// each shape follows its part through BuildMass, so a part at 0 kg (legs off, no payload) has no shapes, a moved
         /// part's shapes move with it, and the payload's scale with it. Null when the file has no contacts block.

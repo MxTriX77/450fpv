@@ -98,6 +98,7 @@ namespace Fpv450.Sim.Log
         {
             "Seed", "Settings", "World", "Mass", "Propulsion", "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate",
             "StartPackCharge", "Aero", "Wind", "Contacts", "RuntimeObjects", "Asymmetry", "VortexRing", "GroundEffect",
+            "Flapping",
         };
 
         /// <summary>The ground effect's fields the header records, checked against GroundEffectSpec by the suite.</summary>
@@ -105,6 +106,13 @@ namespace Fpv450.Sim.Log
         {
             "Reach", "LowestHeight", "CeilingAlpha", "RecirculationOnset", "RecirculationSigma", "RecirculationBound",
             "RecirculationLoop", "AirDensity",
+        };
+
+        /// <summary>The flapping's fields the header records, checked against RotorFlappingSpec by the suite.</summary>
+        public static readonly string[] FlappingFieldsLogged =
+        {
+            "LiftSlope", "ZeroLiftAngle", "BendingFrequency", "Southwell", "SkewGain", "Radius", "Blades", "BladeInertia",
+            "Stations", "Chords", "Angles", "AirDensity",
         };
 
         /// <summary>The contacts' fields the header records, checked against the types by the suite.</summary>
@@ -134,7 +142,7 @@ namespace Fpv450.Sim.Log
             "StaticTorqueRatio", "InflowAdvanceRatio", "InflowThrustRatio", "InflowTorqueRatio", "HForce",
         };
         public static readonly string[] AeroFieldsLogged = { "AirDensity", "BodyArea", "BodyCenterOfPressure", "DragCoefficient", "CoilPart" };
-        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg" };
+        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg", "SteadyOnsetSeconds" };
         public static readonly string[] AsymmetryFieldsLogged = { "KvBound", "KvSigma", "EscLagBound", "BalanceGrade", "PropMass", "ServiceRpm" };
         public static readonly string[] VortexRingFieldsLogged =
         {
@@ -145,7 +153,7 @@ namespace Fpv450.Sim.Log
 
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
             TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
-            TagRuntimeObjects = 14, TagAsymmetry = 15, TagVortexRing = 16, TagGroundEffect = 17;
+            TagRuntimeObjects = 14, TagAsymmetry = 15, TagVortexRing = 16, TagGroundEffect = 17, TagFlapping = 18;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -190,6 +198,9 @@ namespace Fpv450.Sim.Log
 
         /// <summary>The rotors' ground and ceiling effect; null for none (the wash's stream is in the randomness entry).</summary>
         public GroundEffectSpec GroundEffect;
+
+        /// <summary>The rotors' flapping; null for none.</summary>
+        public RotorFlappingSpec Flapping;
 
         /// <summary>The runtime objects the flight placed, in order, and the world's object id each got.</summary>
         public RuntimeObject[] RuntimeObjects = new RuntimeObject[0];
@@ -241,6 +252,7 @@ namespace Fpv450.Sim.Log
                 Asymmetry = setup.Asymmetry?.Clone(),
                 VortexRing = setup.VortexRing?.Clone(),
                 GroundEffect = setup.GroundEffect?.Clone(),
+                Flapping = setup.Flapping?.Clone(),
                 RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
                 RuntimeIds = (int[])core.RuntimeIds.Clone(),
             };
@@ -320,6 +332,7 @@ namespace Fpv450.Sim.Log
                 Asymmetry = Asymmetry?.Clone(),
                 VortexRing = VortexRing?.Clone(),
                 GroundEffect = GroundEffect?.Clone(),
+                Flapping = Flapping?.Clone(),
                 RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
             };
         }
@@ -525,6 +538,7 @@ namespace Fpv450.Sim.Log
                 e.Write((byte)Wind.Level);
                 e.Write(Wind.SteadySpeed);
                 e.Write(Wind.SteadyFromDeg);
+                e.Write(Wind.SteadyOnsetSeconds);
                 e.Write((ushort)WindParameters.Length);
                 foreach (NamedValue v in WindParameters)
                 {
@@ -602,6 +616,22 @@ namespace Fpv450.Sim.Log
                              g.RecirculationLoop, g.AirDensity,
                          })
                     e.Write(x);
+            });
+            Entry(w, TagFlapping, e =>
+            {
+                e.Write(Flapping != null);
+                if (Flapping == null) return;
+                RotorFlappingSpec f = Flapping;
+                foreach (double x in new[] { f.LiftSlope, f.ZeroLiftAngle, f.BendingFrequency, f.Southwell, f.SkewGain, f.Radius, f.BladeInertia, f.AirDensity })
+                    e.Write(x);
+                e.Write(f.Blades);
+                e.Write((ushort)f.Stations.Length);
+                for (int i = 0; i < f.Stations.Length; i++)
+                {
+                    e.Write(f.Stations[i]);
+                    e.Write(f.Chords[i]);
+                    e.Write(f.Angles[i]);
+                }
             });
             Entry(w, TagRuntimeObjects, e =>
             {
@@ -798,7 +828,7 @@ namespace Fpv450.Sim.Log
                         break;
                     case TagWind:
                         WindModel = Text(r);
-                        Wind = new WindSetup { Level = (WindLevel)r.ReadByte(), SteadySpeed = r.ReadDouble(), SteadyFromDeg = r.ReadDouble() };
+                        Wind = new WindSetup { Level = (WindLevel)r.ReadByte(), SteadySpeed = r.ReadDouble(), SteadyFromDeg = r.ReadDouble(), SteadyOnsetSeconds = r.ReadDouble() };
                         WindParameters = new NamedValue[r.ReadUInt16()];
                         for (int i = 0; i < WindParameters.Length; i++) WindParameters[i] = new NamedValue(Text(r), r.ReadDouble());
                         break;
@@ -834,6 +864,29 @@ namespace Fpv450.Sim.Log
                                 RecirculationLoop = r.ReadDouble(), AirDensity = r.ReadDouble(),
                             }
                             : null;
+                        break;
+                    case TagFlapping:
+                        if (!r.ReadBoolean())
+                        {
+                            Flapping = null;
+                            break;
+                        }
+                        Flapping = new RotorFlappingSpec
+                        {
+                            LiftSlope = r.ReadDouble(), ZeroLiftAngle = r.ReadDouble(), BendingFrequency = r.ReadDouble(),
+                            Southwell = r.ReadDouble(), SkewGain = r.ReadDouble(), Radius = r.ReadDouble(),
+                            BladeInertia = r.ReadDouble(), AirDensity = r.ReadDouble(), Blades = r.ReadInt32(),
+                        };
+                        int stations = r.ReadUInt16();
+                        Flapping.Stations = new double[stations];
+                        Flapping.Chords = new double[stations];
+                        Flapping.Angles = new double[stations];
+                        for (int i = 0; i < stations; i++)
+                        {
+                            Flapping.Stations[i] = r.ReadDouble();
+                            Flapping.Chords[i] = r.ReadDouble();
+                            Flapping.Angles[i] = r.ReadDouble();
+                        }
                         break;
                     case TagRuntimeObjects:
                         RuntimeObjects = new RuntimeObject[r.ReadUInt16()];

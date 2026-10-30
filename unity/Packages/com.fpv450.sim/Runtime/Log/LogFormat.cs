@@ -55,7 +55,7 @@ namespace Fpv450.Sim.Log
         public static readonly byte[] Magic = { 0x46, 0x50, 0x56, 0x34, 0x35, 0x30, 0x4C, 0x47 };
 
         /// <summary>The format: the prologue, the header's entries and the record layouts below.</summary>
-        public const int Version = 8;
+        public const int Version = 9;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -82,8 +82,11 @@ namespace Fpv450.Sim.Log
         ///    ring steps as in 8).
         /// 10: p7b-airframe 1.3 (the rotors' ground and ceiling effect from their rays and SampleGround, and the re-ingested
         ///    wash in a close hover, GroundEffectSpec; a flight without them steps as in 9).
+        /// 11: p7b-airframe 1.3c (the rotors' edgewise-flow moments, RotorFlappingSpec: each blade's flap and its hub moment,
+        ///    the dissymmetry of lift and the back flapping, from blade-element theory on the props' sheet; a flight without
+        ///    them steps as in 10).
         /// </summary>
-        public const int ModelVersion = 10;
+        public const int ModelVersion = 11;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

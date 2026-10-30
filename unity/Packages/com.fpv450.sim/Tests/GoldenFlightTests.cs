@@ -82,8 +82,8 @@ namespace Fpv450.Sim.Tests
         {
             DroneSpec spec = RepositoryDrone.Spec();
             const int skip = RotorAngleBytes + RingBytes + GroundBytes;
-            Assert.That(GoldenFlights.FlyPowered(spec, out _, RotorAngleAt, skip, asymmetry: false, ring: false, ground: false), Is.EqualTo(0xA65FBFBCBCFC5B96UL), "powered");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, RotorAngleAt, skip, false, false, ground: false), Is.EqualTo(0x3AF33645FF8F1919UL), "contact");
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, RotorAngleAt, skip, asymmetry: false, ring: false, ground: false, flapping: false), Is.EqualTo(0xA65FBFBCBCFC5B96UL), "powered");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, RotorAngleAt, skip, false, false, ground: false, flapping: false), Is.EqualTo(0x3AF33645FF8F1919UL), "contact");
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, RotorAngleAt, skip), Is.EqualTo(0xE3178EE7FF322698UL), "tumble");
         }
 
@@ -94,8 +94,8 @@ namespace Fpv450.Sim.Tests
         {
             DroneSpec spec = RepositoryDrone.Spec();
             const int skip = RingBytes + GroundBytes;
-            Assert.That(GoldenFlights.FlyPowered(spec, out _, RingAt, skip, ring: false, ground: false), Is.EqualTo(0x08FBAF9331110BE9UL), "powered");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, RingAt, skip, ring: false, ground: false), Is.EqualTo(0x5D45B356ECD6B940UL), "contact");
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, RingAt, skip, ring: false, ground: false, flapping: false), Is.EqualTo(0x08FBAF9331110BE9UL), "powered");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, RingAt, skip, ring: false, ground: false, flapping: false), Is.EqualTo(0x5D45B356ECD6B940UL), "contact");
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, RingAt, skip), Is.EqualTo(0xF7E0F587B45FA098UL), "tumble");
         }
 
@@ -105,9 +105,19 @@ namespace Fpv450.Sim.Tests
         public void WithTheGroundEffectOffEachGoldenIsModel9s()
         {
             DroneSpec spec = RepositoryDrone.Spec();
-            Assert.That(GoldenFlights.FlyPowered(spec, out _, GroundAt, GroundBytes, ground: false), Is.EqualTo(0x5AF86BCB6FD0B3A2UL), "powered");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, GroundAt, GroundBytes, ground: false), Is.EqualTo(0x8D965FFD8708C6C3UL), "contact");
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, GroundAt, GroundBytes, ground: false, flapping: false), Is.EqualTo(0x5AF86BCB6FD0B3A2UL), "powered");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, GroundAt, GroundBytes, ground: false, flapping: false), Is.EqualTo(0x8D965FFD8708C6C3UL), "contact");
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, GroundAt, GroundBytes), Is.EqualTo(0x50541A5726F695D8UL), "tumble");
+        }
+
+        // 1.3c's audit: with the flapping off, the record's layout unchanged, all three are model 10's bit for bit.
+        [Test]
+        public void WithTheFlappingOffEachGoldenIsModel10s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, flapping: false), Is.EqualTo(0x0B91602E467653F4UL), "powered");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, flapping: false), Is.EqualTo(0x05EDD1881425872EUL), "contact");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _), Is.EqualTo(0x58EF4F6AE8D111D8UL), "tumble");
         }
 
         // 1.3's audit of the powered golden with the ground effect on: 196-300 m up, no rotor's ray finds a surface within its
@@ -115,7 +125,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void ThePoweredGoldenFindsNoSurface()
         {
-            Assert.That(GoldenFlights.FlyPowered(RepositoryDrone.Spec(), out FlightCore core, GroundAt, GroundBytes), Is.EqualTo(0x5AF86BCB6FD0B3A2UL));
+            Assert.That(GoldenFlights.FlyPowered(RepositoryDrone.Spec(), out FlightCore core, GroundAt, GroundBytes, flapping: false), Is.EqualTo(0x5AF86BCB6FD0B3A2UL));
             Assert.That(core.GroundEffect, Is.Not.Null);
             Assert.That(core.Trace.GroundDistance.FrontLeft, Is.GreaterThan(100), "the floor sampled far below");
             Assert.That(core.Trace.CeilingDistance.FrontLeft, Is.EqualTo(double.PositiveInfinity), "nothing above");

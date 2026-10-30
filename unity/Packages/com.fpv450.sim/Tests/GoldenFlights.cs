@@ -90,7 +90,13 @@ namespace Fpv450.Sim.Tests
         // the flight is model 9's bit for bit (a kept test, WithTheGroundEffectOffEachGoldenIsModel9s); with it on too (a kept
         // test, ThePoweredGoldenFindsNoSurface): 193-300 m up no ray finds a surface within its 1.02 m, so every gain is 1
         // and the wash 0, not a bit moves; the new bytes hold the sampled ground's distance along each axis and +∞ above.
-        public const ulong PoweredHash = 0x0B91602E467653F4UL;
+        // Model 10: 0x0B91602E467653F4.
+        // p7b-airframe 1.3c: re-recorded with ModelVersion 11 with the rotors' flapping in its setup (the record's layout
+        // unchanged). Audited: with it off, every record and event is model 10's bit for bit (a kept test,
+        // WithTheFlappingOffEachGoldenIsModel10s). With it the flight moves from step 21, the first armed step with the rotors
+        // turning in Windy's air: by the roll step's end (2500) 191 mm and 34 mrad apart, by 10 s 40.6 m on the open-loop script
+        // (the discs tilt away from each gust), 220.3 m up against 193.2; 102 events against 100; armed, no crash.
+        public const ulong PoweredHash = 0x9057D18CF741A255UL;
 
         // 1.6: first recorded with ModelVersion 4 as 0x8B568804552379E6.
         // 1.6 and 1.4b merged: re-recorded with ModelVersion 5. Audited against 1.6: with every filter off and the PID
@@ -129,7 +135,12 @@ namespace Fpv450.Sim.Tests
         // sticks held 7 ms later (the skids below 0.1 m at step 7079 against 7072), the held bounce 163.3 mm up against
         // 130.1 (the held throttle gains the cushion near the floor), at most 54 mm apart (step 8766) and 19 mrad, 5 impacts,
         // no crash, at rest at the same height to 10 µm and 15 mm aside; 135 events against 133.
-        public const ulong ContactHash = 0x05EDD1881425872EUL;
+        // Model 10: 0x05EDD1881425872E.
+        // p7b-airframe 1.3c: re-recorded with ModelVersion 11 with the flapping on, audited: with it off, model 10's flight bit
+        // for bit (the kept test). With it the flight moves from step 9, the first with the rotors turning in Calm's air, and
+        // keeps its course: at most 15 mm from model 10's path, 5 impacts, no crash, at rest at the same 0.2519 m, 11 mm aside.
+        // The tumble has no rotors and keeps model 10's hash.
+        public const ulong ContactHash = 0xF6E32F2FDC831268UL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -159,6 +170,7 @@ namespace Fpv450.Sim.Tests
                 Asymmetry = spec.BuildAsymmetry(),
                 VortexRing = spec.BuildVortexRing(),
                 GroundEffect = spec.BuildGroundEffect(),
+                Flapping = spec.BuildFlapping(),
                 StartPosition = new Double3(0, 300, 0),
                 StartPackCharge = 0.9,
             };
@@ -191,9 +203,10 @@ namespace Fpv450.Sim.Tests
         /// skipAt and skipBytes the hash leaves out each record's bytes from skipAt on, skipBytes of them (a parent model's
         /// layout, for an audit).</summary>
         public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool contacts = true,
-            bool asymmetry = true, bool ring = true, bool ground = true)
+            bool asymmetry = true, bool ring = true, bool ground = true, bool flapping = true)
         {
             FlightSetup setup = PoweredSetup(spec);
+            if (!flapping) setup.Flapping = null;
             if (!contacts) setup.Contacts = null;
             if (!asymmetry) setup.Asymmetry = null;
             if (!ring) setup.VortexRing = null;
@@ -224,7 +237,7 @@ namespace Fpv450.Sim.Tests
         /// later the throttle is cut and it comes to rest. Returns its hash, with the core for a report.
         /// </summary>
         public static ulong FlyContact(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
-            bool ring = true, Action<FlightCore> after = null, bool ground = true)
+            bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -234,6 +247,7 @@ namespace Fpv450.Sim.Tests
             if (asymmetry) setup.Asymmetry = spec.BuildAsymmetry();
             if (ring) setup.VortexRing = spec.BuildVortexRing();
             if (ground) setup.GroundEffect = spec.BuildGroundEffect();
+            if (flapping) setup.Flapping = spec.BuildFlapping();
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, new Double3(0, stand + 1, 0));
             var record = new byte[LogFormat.StepSize];
