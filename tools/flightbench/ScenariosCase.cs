@@ -170,6 +170,38 @@ namespace Fpv450.FlightBench
                 GustFrontScenario.Coupled(field, uniform), Rates(field) + "; the uniform field " + Rates(uniform));
             Row("known-wrong: the uniform field", GustFrontScenario.Coupled(uniform, uniform), Rates(uniform), knownWrong: true);
             Console.WriteLine($"scenarios: {(_ok ? "PASS" : "FAIL")}");
+            // Rain without wind (wind-turbulence, p7c-wind 1.7, PHY-17): the powered golden's pilot in Calm air and Severe
+            // rain, against the same flight Sunny.
+            Console.WriteLine("rain without wind (wind-turbulence, p7c-wind 1.7, PHY-17): the golden's scripted pilot, Calm and Severe rain, 10 s:");
+            RainScenario.Result rain = RainScenario.Fly(spec);
+            RainField rf = rain.Core.Rain;
+            bool calmWind = rain.Core.Wind.MeanSpeed == rain.Sunny.Wind.MeanSpeed && rain.Core.Wind.FromDeg == rain.Sunny.Wind.FromDeg;
+            Row("the wind stays Calm's", calmWind, $"from {rain.Core.Wind.FromDeg:F2}°, {rain.Core.Wind.MeanSpeed:F3} m/s, the Sunny flight's draws");
+            FeedSignals sig = rain.LastSignals;
+            bool live = (sig.Live & FeedSignalSet.RainRate) != 0 && (sig.Live & FeedSignalSet.AirVelocityAtCamera) != 0
+                && sig.RainRateMmPerHour == rf.RateMmPerHour && rain.LoggedMismatches == 0;
+            Row("the rain rate and the camera's air are live and logged", live,
+                $"{sig.RainRateMmPerHour:F2} mm/h in [10, 50]; camera air ({sig.AirVelocityAtCamera.X:F2}, {sig.AirVelocityAtCamera.Y:F2}, "
+                + $"{sig.AirVelocityAtCamera.Z:F2}) m/s; {rain.LoggedMismatches} records whose rain force, film or camera air read back other");
+            Row("the rain's drag matches its labelled formula within 1 %", rain.WorstDragError < 0.01,
+                $"worst {rain.WorstDragError:E2} over 10 000 steps; V {rf.FallSpeed:F2} m/s (D0 {rf.DropDiameterMm:F2} mm), W {rf.WaterContent * 1000:F3} g/m³; "
+                + $"mean {rain.MeanRainForce * 1000:F2} mN, peak {rain.PeakRainForce * 1000:F2} mN against the air's peak {rain.PeakAirDrag:F2} N");
+            Row("the film fills inside its bound and weighs", rain.FilmMass > 0 && rain.FilmMass <= rf.FilmCapacity
+                    && Math.Abs(rain.Core.Body.Mass - rain.DryMass - rain.FilmMass) < 1e-12,
+                $"{rain.FilmMass * 1000:F2} g of {rf.FilmCapacity * 1000:F2} g ({rf.FilmThickness * 1000:F3} mm over {rf.WettedArea:F3} m²)");
+            // The known-wrong: rain as denser air (½(ρ + W)·C_d·A·v²) puts no drops on a drone at rest in still air.
+            FlightSetup stillRain = GoldenFlights.PoweredSetup(spec);
+            stillRain.Wind = WindSetup.Of(WindLevel.Still);
+            stillRain.Rain = RainLevel.SevereRain;
+            var atRest = new FlightCore(stillRain);
+            atRest.Advance(new StickSample());
+            DronePart coil = stillRain.Mass.Part(stillRain.Aero.CoilPart);
+            double top = stillRain.Aero.BodyArea.Y + coil.Length * coil.Diameter;
+            double hover = RainPreset.WaterDensity * atRest.Rain.RateMmPerHour * RainPreset.MmPerHour * atRest.Rain.FallSpeed * top;
+            Row("at rest in still air: ρ_w·R·V on the top silhouettes, down", Math.Abs(-atRest.Trace.RainForce.Y - hover) <= 0.01 * hover,
+                $"{-atRest.Trace.RainForce.Y * 1000:F3} mN against {hover * 1000:F3} mN");
+            Row("known-wrong: rain as denser air", Math.Abs(0 - hover) <= 0.01 * hover, "0 mN at rest", knownWrong: true);
+
             return _ok;
         }
     }

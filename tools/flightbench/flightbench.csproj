@@ -19,6 +19,7 @@
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/CrosswindScenario.cs" Link="CrosswindScenario.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/WindTargets.cs" Link="WindTargets.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/GustFrontScenario.cs" Link="GustFrontScenario.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/RainScenario.cs" Link="RainScenario.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/ContactScenarios.cs" Link="ContactScenarios.cs" />
   </ItemGroup>
 
