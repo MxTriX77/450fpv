@@ -1,7 +1,7 @@
 """Path guard shared by the reference tools (OPSEC, SEC-01).
 
 Clips are read only from under <root>/reference/. Everything is written only strictly inside
-<root>/reference/_frames/, which git ignores. Paths are resolved first (`..`, symlinks), so
+<root>/reference/_frames/, or reference/_compare/ for frame_metrics.py, both of which git ignores. Paths are resolved first (`..`, symlinks), so
 neither `..`, an absolute path nor a link can step outside. Error messages never repeat a clip path.
 """
 import re
@@ -49,4 +49,16 @@ def frames_path(root, path, what):
     p = Path(path).resolve()
     if not _inside(p, frames_dir(root)):
         raise RefError(f"{what} must be inside reference/_frames/")
+    return p
+
+
+def compare_dir(root):
+    return (reference_dir(root) / "_compare").resolve()
+
+
+def compare_path(root, path, what):
+    """The resolved path, which must lie strictly inside reference/_compare/ (frame_metrics.py's outputs)."""
+    p = Path(path).resolve()
+    if not _inside(p, compare_dir(root)):
+        raise RefError(f"{what} must be inside reference/_compare/")
     return p

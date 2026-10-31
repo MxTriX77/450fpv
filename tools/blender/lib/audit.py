@@ -104,6 +104,8 @@ BOX_CELL_M = 0.25           # a box face is tessellated in cells of at most this
                             # thin wall (12 x 0.2 m) into slivers; a brick's faces stay one cell each
 SHAPE_BUCKET_M = 0.5        # _ShapeIndex's buckets, and how far past a primitive's box it is listed (SHAPE_REACH_M):
 SHAPE_REACH_M = 0.25        # pruning only, the audit's numbers are unchanged
+ZONE_CELL_M = 0.5           # _Zone's buckets, and how far past an item's box it is listed: pruning only, the
+ZONE_REACH_M = 1.0          # distances found are the plain minimum's
 
 
 def card_allowance(card_reach_m):
@@ -121,6 +123,45 @@ def soft_materials(root):
     return frozenset(SOFT_SURFACES) | {material for material, row in rows.items()
                                        if row.get("stiffness_n_per_m") is not None
                                        and row["stiffness_n_per_m"] <= SOFT_STIFFNESS_N_PER_M}
+
+
+def stand_in(meta, lod0):
+    """(problems, report lines) of a Godot stand-in (p6-test-range design 3, "The metadata survives the port"): every
+    collision shape's exact axis-aligned box (_Shape.box for boxes, spheres and capsules, _cylinder_box for cylinders)
+    within the LOD0 mesh's bounds plus TOLERANCE_M, and each gap's narrowest_m against
+    its largest inscribed circle as the full audit holds it. The full audit's 5 cm both ways is not asked of the first
+    attempt's collision (D-040: no rework); its review sheet's overlay shows the two together. One line for the
+    shapes, naming the one that reaches farthest past the mesh (negative: inside it), and one per gap."""
+    lo, hi = lod0.bounds()
+    problems, worst, at = [], -math.inf, None
+    for i, shape in enumerate(meta["collision"]):
+        s_lo, s_hi = _cylinder_box(_Shape(shape)) if shape["shape"] == "cylinder" else _Shape(shape).box()
+        past = max(max(lo[a] - s_lo[a], s_hi[a] - hi[a]) for a in range(3))
+        if past > worst:
+            worst, at = past, i
+        if past > TOLERANCE_M + COVERED_M:
+            problems.append(f"collision[{i}] {shape['shape']} reaches {past:.4f} m past the LOD0 bounds, tolerance "
+                            f"{TOLERANCE_M:g} m")
+    bounds = f"[{', '.join(f'{v:.3f}' for v in lo)}]..[{', '.join(f'{v:.3f}' for v in hi)}]"
+    lines = [f"stand-in audit: {len(meta['collision'])} collision shapes against the LOD0 bounds {bounds} + "
+             f"{TOLERANCE_M:g} m: " + (f"the farthest, collision[{at}] {meta['collision'][at]['shape']}, at "
+                                       f"{worst:+.4f} m past them" if at is not None else "none") +
+             (f", {len(problems)} beyond" if problems else ", every one within")]
+    for i, gap in enumerate(meta["gaps"]):
+        diameter = inscribed_diameter(gap["polygon"], gap["normal"])
+        text = f"gaps[{i}] '{gap['id']}': narrowest_m {gap['narrowest_m']:.4f}, largest inscribed circle {diameter:.4f}"
+        if abs(gap["narrowest_m"] - diameter) > NARROWEST_TOLERANCE_M:
+            problems.append(f"{text}: they differ by more than {NARROWEST_TOLERANCE_M * 1000:g} mm")
+        lines.append(f"stand-in audit {text}, tolerance {NARROWEST_TOLERANCE_M * 1000:g} mm")
+    return problems, lines
+
+
+def _cylinder_box(shape):
+    """(lo, hi) of a cylinder's exact axis-aligned box: along each asset axis its half height times the axis's share
+    plus its radius times the caps' reach, sqrt(1 - share^2)."""
+    d = _rotate(shape.q, (0.0, 1.0, 0.0))
+    reach = [shape.h * abs(d[a]) + shape.r * math.sqrt(max(0.0, 1.0 - d[a] * d[a])) for a in range(3)]
+    return (tuple(shape.centre[a] - reach[a] for a in range(3)), tuple(shape.centre[a] + reach[a] for a in range(3)))
 
 
 def run(meta, lod0, *, soft=frozenset(), card_visuals=(), card_reach_m=None, planted=False, clip_boxes=False):
@@ -155,16 +196,18 @@ def run(meta, lod0, *, soft=frozenset(), card_visuals=(), card_reach_m=None, pla
     if soft_tops:
         lines.append(f"audit: soft tops {_runs(soft_tops)} are landed on over their whole top, "
                      f"held to {TOLERANCE_M * 1000:g} mm there")
+    meeting = _BoxIndex(shapes, body)
     for i in body:
         shape = shapes[i]
         if not faces:
             problems.append(f"collision[{i}] {shape.kind}: no LOD0 face outside the shells' and wires' slots stands "
                             "under it")
             continue
-        # Only a primitive whose bounding box meets this one's can cover a point of its surface: _covered and
-        # _cell_covered skip every other by its box anyway, so the result is the same (p1-e01-trench: 489 shapes;
-        # p1-v01-locust: a tree's hundreds of bark capsules each meet a few).
-        others = [shapes[j] for j in body if j != i and _boxes_meet(shapes[j], shape)]
+        # Only a primitive whose bounding box meets this one's can cover a point of its surface: _Covering skips
+        # every other by its box anyway, so the result is the same (p1-e01-trench: 489 shapes; p1-v01-locust: a
+        # tree's hundreds of bark capsules each meet a few); the index finds them in index order without trying
+        # every pair (p1-h01-adobe-house: 1207)
+        others = [shapes[j] for j in meeting.meeting(i)]
         cells = [tri[:3] for tri in shape.triangles]
         if planted:
             cells = _above_ground(cells)
@@ -172,14 +215,16 @@ def run(meta, lod0, *, soft=frozenset(), card_visuals=(), card_reach_m=None, pla
                 lines.append(f"audit collision[{i}] {shape.kind}: wholly below the ground, covered")
                 continue
 
-        def value(v, others=others):
+        covering = _Covering(others)
+
+        def value(v, covering=covering):
             d, which = index.nearest(v)
-            return (0.0 if _covered(v, others) else d), which
+            return (0.0 if covering(v) else d), which
 
         boxes = [s for s in others if s.kind == "box"] if clip_boxes else []
 
-        def bound(cell, which, others=others, boxes=boxes):
-            if _cell_covered(cell, others):
+        def bound(cell, which, covering=covering, boxes=boxes):
+            if covering.cell(cell):
                 return 0.0
             parts = _uncovered(cell, boxes) if boxes else None
             if parts is None:
@@ -187,7 +232,12 @@ def run(meta, lod0, *, soft=frozenset(), card_visuals=(), card_reach_m=None, pla
             return max((_faces_bound(tri, [index.nearest(v)[1] for v in tri], faces)
                         for part in parts for tri in _fan(part)), default=0.0)
 
-        problems += _report(lines, f"collision[{i}] {shape.kind}", f"{shape.kind}->mesh", cells, zone, value, bound)
+        # A primitive farther from every gap and landing face than the zone reaches (with the zone edge's cells) has
+        # no point in it: its zone search would find none and print nothing, so it is not run.
+        near_zone = zone if zone and zone.lower_bound(shape.lo, shape.hi) <= NEAR_RANGE_M + 2 * ZONE_EDGE_CELL_M \
+            else None
+        problems += _report(lines, f"collision[{i}] {shape.kind}", f"{shape.kind}->mesh", cells, near_zone, value,
+                            bound)
     if faces and not body:
         problems.append("mesh: no collision primitive stands for the LOD0 mesh")
     elif faces:
@@ -219,13 +269,15 @@ def _runs(indexed):
 
 
 def _report(lines, label, direction, cells, zone, value, bound, note=lambda which: ""):
-    """Measures one direction, appends its report line and returns its problems."""
-    distance, at, which = _directed_max(cells, value, bound)
+    """Measures one direction, appends its report line and returns its problems. Both searches share the values
+    found at the vertices (each a function of its point alone)."""
+    cache = {}
+    distance, at, which = _directed_max(cells, value, bound, cache=cache)
     text = f"{direction} {distance * 1000:.3f} mm at {_fmt(at)}{note(which)}"
     line = f"{label}: {text}, tolerance {TOLERANCE_M * 1000:g} mm"
     problems = [] if distance <= TOLERANCE_M else [f"{label}: {text} exceeds the tolerance {TOLERANCE_M * 1000:g} mm"]
     if zone:
-        distance, at, which = _directed_max(cells, value, bound, zone)
+        distance, at, which = _directed_max(cells, value, bound, zone, cache)
         if at is not None:
             text = f"near gaps/landable {distance * 1000:.3f} mm at {_fmt(at)}{note(which)}"
             line += f"; {text}, tolerance {NEAR_TOLERANCE_M * 1000:g} mm"
@@ -564,7 +616,7 @@ _RINGS = [[(x, y, z) for x in range(-k, k + 1) for y in range(-k, k + 1) for z i
            if max(abs(x), abs(y), abs(z)) == k] for k in range(FACE_RINGS + 1)]
 
 
-def _directed_max(cells, value, bound, zone=None):
+def _directed_max(cells, value, bound, zone=None, cache=None):
     """The largest value over the surface of the `cells` triangles, within PRECISION_M, as (value, point, which):
     `value(vertex)` gives the exact (distance, which) at a point and `bound(cell, [which per vertex])` an upper
     bound over a cell. Only the points within NEAR_RANGE_M of `zone` count when it is given (point None when no
@@ -572,20 +624,24 @@ def _directed_max(cells, value, bound, zone=None):
     split: its bound counts, at its vertex nearest the zone. Its bound covers its part just outside the zone too, so a
     covered edge on the zone's edge (no vertex inside can match the uncovered part outside) or a surface that meets the
     zone along a line only would otherwise split its cells along that line without end; counted, the edge errs
-    towards the larger value, by what lies within a millimetre outside the zone."""
-    cache, near = {}, {}
+    towards the larger value, by what lies within a millimetre outside the zone. `cache` holds the values already
+    found (a caller's earlier search over the same cells); a cell the zone drops is dropped before its values."""
+    cache = {} if cache is None else cache
+    near = {}
     best, at, which = -1.0, None, None
     heap = []
 
     def push(cell):
         nonlocal best, at, which
+        if zone:
+            for v in cell:
+                if v not in near:
+                    near[v] = zone.distance(v)
+            if min(near[v] for v in cell) - _longest_edge(cell) > NEAR_RANGE_M:
+                return
         for v in cell:
             if v not in cache:
                 cache[v] = value(v)
-            if zone and v not in near:
-                near[v] = _zone_distance(v, zone)
-        if zone and min(near[v] for v in cell) - _longest_edge(cell) > NEAR_RANGE_M:
-            return
         for v in cell:
             d, w = cache[v]
             if d > best and (not zone or near[v] <= NEAR_RANGE_M):
@@ -687,62 +743,90 @@ class _FaceIndex:
                     for z in range(lo[2], hi[2] + 1):
                         self.buckets.setdefault((x, y, z), []).append(i)
         self.reach = max((abs(c[k]) for c in self.buckets for k in range(3)), default=0) + 1
+        self.boxes = [face.lo + face.hi for face in faces]
 
     def _cell(self, p):
         return (math.floor(p[0] / self.h), math.floor(p[1] / self.h), math.floor(p[2] / self.h))
 
     def nearest(self, p):
         """(distance, index) of the face nearest to p: the rings of buckets around p's, outwards, until no further
-        ring can hold a closer face (a face in ring k lies at least (k - 1) bucket sizes away)."""
+        ring can hold a closer face (a face in ring k lies at least (k - 1) bucket sizes away). The rings' buckets
+        are visited in a fixed order (_bucket_ring), so of two faces at the same distance the same one is found."""
         px, py, pz = p
         cx, cy, cz = self._cell(p)
         best, which = math.inf, None
         seen = set()
+        buckets, faces, boxes = self.buckets, self.faces, self.boxes
         k = 0
         while True:
-            for x in range(cx - k, cx + k + 1):
-                for y in range(cy - k, cy + k + 1):
-                    edge = max(abs(x - cx), abs(y - cy)) == k
-                    for z in (range(cz - k, cz + k + 1) if edge else (cz - k, cz + k) if k else (cz,)):
-                        for i in self.buckets.get((x, y, z), ()):
-                            if i in seen:
-                                continue
-                            seen.add(i)
-                            face = self.faces[i]
-                            lo, hi = face.lo, face.hi
-                            dx = lo[0] - px if px < lo[0] else px - hi[0] if px > hi[0] else 0.0
-                            dy = lo[1] - py if py < lo[1] else py - hi[1] if py > hi[1] else 0.0
-                            dz = lo[2] - pz if pz < lo[2] else pz - hi[2] if pz > hi[2] else 0.0
-                            if dx * dx + dy * dy + dz * dz >= best * best:
-                                continue
-                            d = _face_distance(p, face)
-                            if d < best:
-                                best, which = d, i
+            for dx, dy, dz in _bucket_ring(k):
+                ids = buckets.get((cx + dx, cy + dy, cz + dz))
+                if not ids:
+                    continue
+                for i in ids:
+                    if i in seen:
+                        continue
+                    seen.add(i)
+                    lx, ly, lz, hx, hy, hz = boxes[i]
+                    ex = lx - px if px < lx else px - hx if px > hx else 0.0
+                    ey = ly - py if py < ly else py - hy if py > hy else 0.0
+                    ez = lz - pz if pz < lz else pz - hz if pz > hz else 0.0
+                    if ex * ex + ey * ey + ez * ez >= best * best:
+                        continue
+                    d = _face_distance(p, faces[i])
+                    if d < best:
+                        best, which = d, i
             if best <= k * self.h or k > self.reach + max(abs(cx), abs(cy), abs(cz)):
                 return best, which
             k += 1
 
 
-def _covered(p, others):
-    """Whether p lies inside one of the other primitives, so no collision surface passes there. A primitive whose
-    bounding box (grown by COVERED_M) misses p is skipped without its signed distance."""
-    return any(shape.lo[0] <= p[0] <= shape.hi[0] and shape.lo[1] <= p[1] <= shape.hi[1]
-               and shape.lo[2] <= p[2] <= shape.hi[2] and shape.sdf(p) <= COVERED_M for shape in others)
+_BUCKET_RINGS = []
 
 
-def _cell_covered(cell, others):
-    """Whether a whole triangle lies inside the other primitives: its three vertices inside the same one (every
-    primitive is convex), or, for a cell no longer than SEAM_CELL_M, each vertex inside some other one. The second
-    rule ends the search at a seam where two primitives only touch (the mat boxes standing on the soil box), which
-    no single primitive covers: a strip of face under a millimetre wide there is no surface a foot could find."""
-    if any(all(shape.lo[k] <= v[k] <= shape.hi[k] for v in cell for k in range(3))
-           and all(shape.sdf(v) <= COVERED_M for v in cell) for shape in others):
-        return True
-    return _longest_edge(cell) <= SEAM_CELL_M and all(_covered(v, others) for v in cell)
+def _bucket_ring(k):
+    """The offsets of _FaceIndex's ring k in its visiting order: x, then y, then z, the inner z run whole on the
+    ring's x-y edge and only its two ends inside it."""
+    while len(_BUCKET_RINGS) <= k:
+        r = len(_BUCKET_RINGS)
+        _BUCKET_RINGS.append([(x, y, z) for x in range(-r, r + 1) for y in range(-r, r + 1)
+                              for z in (range(-r, r + 1) if max(abs(x), abs(y)) == r else (-r, r) if r else (0,))])
+    return _BUCKET_RINGS[k]
+
+
+class _Covering:
+    """Which of one primitive's `others` cover a point or a cell, each vertex's covering primitives kept (a vertex
+    lies in up to six cells of the search; p1-h01-adobe-house: each signed distance found once per vertex). A point
+    is covered when it lies inside another primitive, so no collision surface passes there; a primitive whose bounding
+    box (grown by COVERED_M) misses it is skipped without its signed distance. A whole triangle is covered when its
+    three vertices lie inside the same primitive (every primitive is convex), or, for a cell no longer than
+    SEAM_CELL_M, each inside some other one: the second rule ends the search at a seam where two primitives only
+    touch (the mat boxes standing on the soil box), which no single primitive covers, a strip of face under a
+    millimetre wide there being no surface a foot could find."""
+
+    def __init__(self, others):
+        self.others, self.sets = others, {}
+
+    def of(self, p):
+        found = self.sets.get(p)
+        if found is None:
+            x, y, z = p
+            found = frozenset(k for k, s in enumerate(self.others)
+                              if s.lo[0] <= x <= s.hi[0] and s.lo[1] <= y <= s.hi[1] and s.lo[2] <= z <= s.hi[2]
+                              and s.sdf(p) <= COVERED_M)
+            self.sets[p] = found
+        return found
+
+    def __call__(self, p):
+        return bool(self.of(p))
+
+    def cell(self, cell):
+        a, b, c = (self.of(v) for v in cell)
+        return bool(a and b and c and (a & b & c or _longest_edge(cell) <= SEAM_CELL_M))
 
 
 def _uncovered(cell, boxes):
-    """The parts of a cell outside every box of `boxes` (each grown by COVERED_M, as _covered counts a point covered),
+    """The parts of a cell outside every box of `boxes` (each grown by COVERED_M, as _Covering counts a point covered),
     as convex polygons in the cell's plane, slivers thinner than COVERED_M dropped (no surface, as the module
     says); None when no box cuts the cell, so the caller keeps its own bound. Exact: a box is six half-spaces."""
     lo = [min(v[k] for v in cell) for k in range(3)]
@@ -876,6 +960,7 @@ class _Shape:
         self.half = tuple(s / 2 for s in shape["size"]) if self.kind == "box" else None
         self.h = shape["height"] / 2 - (self.r if self.kind == "capsule" else 0.0) if "height" in shape else 0.0
         self._triangles = None
+        self._unrotated = self.q == (0.0, 0.0, 0.0, 1.0)  # local() then only moves: the same numbers, unrotated
 
     @property
     def triangles(self):
@@ -897,7 +982,7 @@ class _Shape:
 
     @functools.cached_property
     def lo(self):
-        """The bounding box (lo, hi) for _covered, grown past the tessellation's chords and by the coverage
+        """The bounding box (lo, hi) for _Covering, grown past the tessellation's chords and by the coverage
         tolerance; built on first use like the tessellation, then a plain attribute."""
         return tuple(min(p[k] for t in self.triangles for p in t[:3]) - self._grow() for k in range(3))
 
@@ -922,6 +1007,9 @@ class _Shape:
         return self.h + self.r
 
     def local(self, p):
+        if self._unrotated:
+            c = self.centre
+            return (p[0] - c[0], p[1] - c[1], p[2] - c[2])
         x, y, z, w = self.q
         return _rotate((-x, -y, -z, w), _sub(p, self.centre))
 
@@ -931,9 +1019,10 @@ class _Shape:
     def sdf(self, p):
         x, y, z = self.local(p)
         if self.kind == "box":
-            d = (abs(x) - self.half[0], abs(y) - self.half[1], abs(z) - self.half[2])
-            outside = math.sqrt(sum(max(c, 0.0) ** 2 for c in d))
-            return outside + min(max(d), 0.0)
+            hx, hy, hz = self.half
+            d0, d1, d2 = abs(x) - hx, abs(y) - hy, abs(z) - hz
+            a, b, c = max(d0, 0.0), max(d1, 0.0), max(d2, 0.0)
+            return math.sqrt(a ** 2 + b ** 2 + c ** 2) + min(max(d0, d1, d2), 0.0)
         if self.kind == "sphere":
             return math.sqrt(x * x + y * y + z * z) - self.r
         if self.kind == "capsule":
@@ -990,7 +1079,16 @@ class _ShapeIndex:
     def nearest(self, p):
         candidates = self.buckets.get(tuple(math.floor(p[k] / SHAPE_BUCKET_M) for k in range(3)))
         if candidates:
-            best = min((abs(self.shapes[i].sdf(p)), i) for i in candidates)
+            # nearest bounding box first (a primitive lies inside its box, so the box's distance bounds |sdf| from
+            # below): once a box lies farther than the best found, no later one can beat or tie it (p1-h01-adobe-house:
+            # pruning only, the same (distance, index) as the plain minimum)
+            shapes = self.shapes
+            order = sorted((math.sqrt(_box_distance2(p, shapes[i].lo, shapes[i].hi)), i) for i in candidates)
+            best = (math.inf, -1)
+            for lower, i in order:
+                if lower > best[0]:
+                    break
+                best = min(best, (abs(shapes[i].sdf(p)), i))
             if best[0] <= SHAPE_REACH_M:
                 return best
         return _nearest_shape(p, self.shapes, self.indices)
@@ -1063,21 +1161,86 @@ def _zone(meta, shapes, soft):
              if entry["landable"] and entry["material"] not in soft
              for a, b, c, n in shape.triangles if _dot(n, UP) >= LANDABLE_COS]
     polygons = [_GapPolygon(tuple(tuple(p) for p in g["polygon"]), tuple(g["normal"])) for g in meta["gaps"]]
-    return (faces, polygons) if faces or polygons else None
+    return _Zone(faces, polygons) if faces or polygons else None
+
+
+class _Zone:
+    """The landing faces and gap polygons that tighten the tolerance, on a grid of ZONE_CELL_M buckets, each item
+    listed in every bucket its bounding box grown by ZONE_REACH_M touches (p1-h01-adobe-house: forty gap polygons,
+    and a damaged house's hundred). distance(p) is the least distance to any item: the bucket's items give it
+    whenever it is ZONE_REACH_M or less (an item not listed there lies farther), else every item is tried; either
+    way the plain minimum."""
+
+    def __init__(self, faces, polygons):
+        self.items = [(face, True) for face in faces] + [(polygon, False) for polygon in polygons]
+        self.buckets = {}
+        for k, (item, _) in enumerate(self.items):
+            lo = [math.floor((item.lo[a] - ZONE_REACH_M) / ZONE_CELL_M) for a in range(3)]
+            hi = [math.floor((item.hi[a] + ZONE_REACH_M) / ZONE_CELL_M) for a in range(3)]
+            for x in range(lo[0], hi[0] + 1):
+                for y in range(lo[1], hi[1] + 1):
+                    for z in range(lo[2], hi[2] + 1):
+                        self.buckets.setdefault((x, y, z), []).append(k)
+
+    def distance(self, p):
+        listed = self.buckets.get((math.floor(p[0] / ZONE_CELL_M), math.floor(p[1] / ZONE_CELL_M),
+                                   math.floor(p[2] / ZONE_CELL_M)))
+        if listed:
+            best = self._nearest(p, [self.items[k] for k in listed])
+            if best <= ZONE_REACH_M:
+                return best
+        return self._nearest(p, self.items)
+
+    def lower_bound(self, lo, hi):
+        """A distance no item lies nearer to the box (lo, hi) than: the least gap between bounding boxes."""
+        best = math.inf
+        for item, _ in self.items:
+            d2 = sum(max(item.lo[a] - hi[a], lo[a] - item.hi[a], 0.0) ** 2 for a in range(3))
+            best = min(best, math.sqrt(d2))
+        return best
+
+    @staticmethod
+    def _nearest(p, items):
+        """The least distance to the items, each skipped when its bounding box lies no nearer than the best so far
+        (the distance to a box is a lower bound), the one with the nearest box tried first."""
+        best, first = math.inf, None
+        for item, is_face in items:
+            d2 = _box_distance2(p, item.lo, item.hi)
+            if first is None or d2 < first[0]:
+                first = (d2, item, is_face)
+        if first is not None:
+            _, item, is_face = first
+            best = _face_distance(p, item) if is_face else item.distance(p)
+        for item, is_face in items:
+            if _box_distance2(p, item.lo, item.hi) < best * best:
+                best = min(best, _face_distance(p, item) if is_face else item.distance(p))
+        return best
 
 
 def _zone_distance(p, zone):
-    """The least distance from p to a landing face or a gap polygon. Each is skipped when its bounding box lies no
-    nearer than the best so far (the distance to a box is a lower bound), so the result is the plain minimum's."""
-    faces, polygons = zone
-    best = math.inf
-    for item in faces:
-        if _box_distance2(p, item.lo, item.hi) < best * best:
-            best = min(best, _face_distance(p, item))
-    for item in polygons:
-        if _box_distance2(p, item.lo, item.hi) < best * best:
-            best = min(best, item.distance(p))
-    return best
+    """The least distance from p to a landing face or a gap polygon of `zone` (a _Zone)."""
+    return zone.distance(p)
+
+
+class _BoxIndex:
+    """The primitives of `indices` bucketed by their bounding boxes (SHAPE_BUCKET_M), for the pairs whose boxes meet:
+    meeting(i) lists every other primitive whose box meets i's, in index order, as the plain scan would."""
+
+    def __init__(self, shapes, indices):
+        self.shapes, self.buckets, self.cells = shapes, {}, {}
+        for i in indices:
+            s = shapes[i]
+            lo = [math.floor(s.lo[k] / SHAPE_BUCKET_M) for k in range(3)]
+            hi = [math.floor(s.hi[k] / SHAPE_BUCKET_M) for k in range(3)]
+            self.cells[i] = [(x, y, z) for x in range(lo[0], hi[0] + 1) for y in range(lo[1], hi[1] + 1)
+                             for z in range(lo[2], hi[2] + 1)]
+            for cell in self.cells[i]:
+                self.buckets.setdefault(cell, []).append(i)
+
+    def meeting(self, i):
+        shape = self.shapes[i]
+        found = {j for cell in self.cells[i] for j in self.buckets[cell]}
+        return [j for j in sorted(found) if j != i and _boxes_meet(self.shapes[j], shape)]
 
 
 def _box_distance2(p, lo, hi):

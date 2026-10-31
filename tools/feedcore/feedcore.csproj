@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The feed's engine-free core, compiled from the Unity project's own sources (never a copy), as simcore does
+       for the sim package. netstandard2.1 is Unity's API level, so an API Unity lacks fails this build too. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>Fpv450.Feed.Core</AssemblyName>
+    <RootNamespace>Fpv450.Feed</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../../unity/Assets/_Project/Scripts/Feed/Core/**/*.cs" />
+  </ItemGroup>
+</Project>

@@ -30,7 +30,7 @@ The feed SHALL read its causes through `IFeedSignals`, from `p6-flight-core`'s `
 
 #### Scenario: A stub is visible as a stub
 - **WHEN** the review overlay is on
-- **THEN** every signal shows its value and its source, `physics` or `stub`
+- **THEN** every signal shows its value and its source: `physics`, `stub`, or `noclip` for the noclip camera's measured angular rate (design 4)
 
 ### Requirement: Light, night and lens drops
 The AE and AWB loops SHALL follow K§11's time constants, and night SHALL be the same pipeline at its low-light end: monochrome, the strongest grain, N13 on, never a separate filter (FEED-08). Rain SHALL put drops on the lens as FEED-13 gives them.
@@ -43,7 +43,7 @@ The AE and AWB loops SHALL follow K§11's time constants, and night SHALL be the
 The feed's GPU cost SHALL be at most 1.0 ms at 1080p output on the dev machine, measured on AC power (FEED-10), and the FPV view SHALL hold PLT-02.
 
 #### Scenario: The cost on AC
-- **WHEN** the feed's GPU time is measured in the gallery at 1080p on AC
+- **WHEN** the feed's GPU time is measured in the test range (D-044) at 1080p on AC
 - **THEN** it is at most 1.0 ms, printed with the power mode
 
 ### Requirement: Review and acceptance

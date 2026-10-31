@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "kind": "palette",
+  "shader": "Universal Render Pipeline/Lit",
+  "colours": { "concrete_rough": "#9c9790" },
+  "tint": [1.0, 1.0, 1.0, 1.0],
+  "smoothness": 0.12
+}

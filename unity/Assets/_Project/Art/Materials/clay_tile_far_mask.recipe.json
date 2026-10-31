@@ -1,0 +1,25 @@
+{
+  "material": "clay_tile_far",
+  "texture_set": "polyhaven/clay_roof_tiles_02",
+  "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
+  "mask": {
+    "metallic": 0.0,
+    "occlusion": "ao",
+    "smoothness": "1 - roughness"
+  },
+  "sources": {
+    "ao": {
+      "name": "clay_roof_tiles_02_ao_1k.png",
+      "sha256": "e1deee3304e46886b0827a1acd5fae1f0d51bdcff141f08efe69ef2b35d9a944"
+    },
+    "roughness": {
+      "name": "clay_roof_tiles_02_rough_1k.png",
+      "sha256": "f1aa2cd527bf0afd67a60461fc7aa6a02ae637d3d9a72e10eed6feb8843a67e9"
+    }
+  },
+  "inputs_sha256": "ef9b4fc59af8b0517f03a50621ced76cb9c7092f529e6389bb0eac96698a67b1",
+  "size": [
+    1024,
+    1024
+  ]
+}

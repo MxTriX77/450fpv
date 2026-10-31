@@ -29,6 +29,12 @@ SNAG_KINDS = ("edge", "hook")  # a polyline the fiber bends over; a free-ended m
 KEY_ORDER = ("schema", "id", "variant", "generator", "params_sha256", "units", "frame", "bounds", "lods", "micro",
              "cull_distance_m", "materials", "collision", "gaps", "wind_volumes", "ports", "wires", "holes", "textures",
              "snag")
+# A Godot stand-in's record (p6-test-range design 1-3), written last and only by the port: its source (the commit,
+# the model's path and LFS object id, the catalog key) and the first attempt's snag flag, which asset space has no
+# field for (its snag records say where a member catches; Godot's flag says the whole object does). Optional and
+# additive: schema 1 stays, and every other asset's file is unchanged.
+OPTIONAL_KEYS = ("stand_in",)
+STAND_IN_SOURCE_KEYS = ("commit", "model", "model_sha256", "catalog_key")
 # Each LOD entry: its mesh, triangles, switch distance and `thin_wire`, whether every slot of that LOD's mesh draws
 # with the thin-wire material (p1-l01-l03-pole-wires, task 1.4), which reads each vertex's radius from its second UV:
 # a wire's tube, a pole's far LODs. The generator says so explicitly ("thin_wire", one bool per LOD, false when it
@@ -64,7 +70,13 @@ MICRO_KEYS = ("lod", "name", "kind", "count", "tris")
 # material"; p1-h01-adobe-house's damage-mask atlas): per texture its role, the material slot it belongs to, its file
 # beside the metadata (<variant>_<name>.png) and where it lies in that slot's UVs (metres, AST-07): uv_min and uv_max,
 # its lower-left and upper-right corners. The importer binds a crack_mask to its pane's slot; a damage_mask waits for
-# its layered shader. Schema 1 stays: the key is additive and always present, [] when none.
+# its layered shader. Schema 1 stays: the key is additive and always present, [] when none. A record may also name
+# its channels (p1-h01-adobe-house, "Generator-written mask atlases"): "channels", what R, G, B and A hold in that
+# order (a facade's ["render_depth", "soot", "dirt", "base_band"]), one to four distinct names, so the importer can
+# hold a mask to the channels its slot's layered recipe reads; optional, so a record without it stays valid.
+# A wind volume may be a sheltered `cavity` (p1-h01-adobe-house, design decision 9: a house's interior once its roof
+# or openings let the wind in), "cavity": true, with its "openings", the ids of the gaps its draught passes through;
+# both optional, so a record without them stays valid.
 TEXTURE_KEYS = ("role", "slot", "file", "uv_min", "uv_max")
 # The LOD group's frame (p1-r01-vaz-sedan, QA 2.1's S2): "bounds" holds every mesh drawn, and a
 # generator whose LOD meshes carry what lies round the object (a vehicle's K07 scatter, its micro crumbs or soot
@@ -72,6 +84,7 @@ TEXTURE_KEYS = ("role", "slot", "file", "uv_min", "uv_max")
 # sizes it by its longest side, so switches are measured from the object, not its scatter. Optional: absent, the
 # bounds serve; schema 1 stays.
 TEXTURE_ROLES = ("crack_mask", "damage_mask")
+TEXTURE_CHANNELS = 4
 # The closed, physics-owned list every physics material id must come from (review R3).
 PHYSICS_MATERIALS = os.path.join("assets-src", "physics_materials.json")
 LABELS = ("pilot", "measured", "published", "derived", "assumed")
@@ -117,7 +130,7 @@ def assemble(asset_id, variant, generator, params, built, visual_by_slot, impost
     "cull_distance_m", "materials": [{"slot", "physics"}], "collision", "gaps", "wind_volumes", "snag"}, and
     optionally "thin_wire": [bool per LOD], "micro": [{"lod", "kind", "count", "mesh": Mesh}], "ports": [{PORT_KEYS}],
     "wires": [{WIRE_KEYS}], "holes": [{HOLE_KEYS}] and "textures": [{"role", "slot", "name", "uv_min", "uv_max",
-    "png"}]) and the catalog's visual material per slot. A micro mesh is named <variant>_LOD<n>_<kind> and counts
+    "png"}, optionally "channels"] and a stand-in's "stand_in" record) and the catalog's visual material per slot. A micro mesh is named <variant>_LOD<n>_<kind> and counts
     towards the bounds, since it is rendered; a texture's file is texture_file(variant, name), which build.py
     writes from its "png" bytes; `impostor_lod` (lib.impostor.lod) follows the mesh LODs when given."""
     lods = built["lods"]
@@ -155,10 +168,14 @@ def assemble(asset_id, variant, generator, params, built, visual_by_slot, impost
         "materials": materials,
         "collision": built["collision"], "gaps": built["gaps"], "wind_volumes": built["wind_volumes"],
         "ports": built.get("ports", []), "wires": built.get("wires", []), "holes": built.get("holes", []),
-        "textures": [{"role": t["role"], "slot": t["slot"], "file": texture_file(variant, t["name"]),
-                      "uv_min": list(t["uv_min"]), "uv_max": list(t["uv_max"])} for t in built.get("textures", [])],
+        "textures": [dict({"role": t["role"], "slot": t["slot"], "file": texture_file(variant, t["name"]),
+                           "uv_min": list(t["uv_min"]), "uv_max": list(t["uv_max"])},
+                          **({"channels": list(t["channels"])} if "channels" in t else {}))
+                     for t in built.get("textures", [])],
         "snag": built["snag"],
     }
+    if "stand_in" in built:
+        meta["stand_in"] = built["stand_in"]
     return _rounded(meta)
 
 
@@ -253,10 +270,16 @@ def validate(meta, material_ids):
             problems.append(f"gaps[{i}]: needs id, a planar polygon of 3+ points, normal and narrowest_m")
         else:
             problems += [f"gaps[{i}]: {p}" for p in _gap_problems(g)]
+    gap_ids = {g.get("id") for g in meta["gaps"] if isinstance(g, dict)}
     for i, w in enumerate(meta["wind_volumes"]):
         problems += [f"wind_volumes[{i}]: {p}" for p in _shape_problems(w)]
         if not (_is_num(w.get("porosity")) and 0 <= w["porosity"] <= 1):
             problems.append(f"wind_volumes[{i}]: porosity must be in [0, 1]")
+        if "cavity" in w and not isinstance(w["cavity"], bool):
+            problems.append(f"wind_volumes[{i}]: cavity must be a boolean")
+        if "openings" in w and not (w.get("cavity") is True and isinstance(w["openings"], list)
+                                    and all(o in gap_ids for o in w["openings"])):
+            problems.append(f"wind_volumes[{i}]: openings belong to a cavity and must name gaps of the metadata")
     ids = set()
     for i, port in enumerate(meta["ports"]):
         if not (isinstance(port, dict) and isinstance(port.get("id"), str) and port["id"]
@@ -313,12 +336,27 @@ def validate(meta, material_ids):
             problems.append(f"snag[{i}]: needs the material of the member it follows")
         else:
             problems += [f"snag[{i}]: {p}" for p in _material_problems(s["material"], material_ids)]
+    if "stand_in" in meta:
+        problems += _stand_in_problems(meta["stand_in"])
     return problems
+
+
+def _stand_in_problems(record):
+    """The stand-in record: its source's commit (40 hex digits), model path, LFS object id (64) and catalog key, and
+    a boolean snag_hazard, nothing else."""
+    source = record.get("source") if isinstance(record, dict) else None
+    ok = (isinstance(source, dict) and set(source) == set(STAND_IN_SOURCE_KEYS)
+          and _is_hex(source["commit"], 40) and _is_hex(source["model_sha256"], 64)
+          and all(isinstance(source[k], str) and source[k] for k in ("model", "catalog_key"))
+          and set(record) == {"source", "snag_hazard"} and isinstance(record["snag_hazard"], bool))
+    return [] if ok else [f"stand_in needs a source of {', '.join(STAND_IN_SOURCE_KEYS)} (a 40-digit commit, a "
+                          f"64-digit object id) and a boolean snag_hazard, nothing else: {record}"]
 
 
 def _texture_problems(textures, slots):
     """The textures rule: each record a known role, a slot of the metadata's materials, a .png file name, and
-    uv_min below and left of uv_max; one record per role and slot."""
+    uv_min below and left of uv_max, and its channels, when it names them, one to four distinct non-empty names; one
+    record per role and slot."""
     problems, seen = [], set()
     for i, t in enumerate(textures):
         ok = (isinstance(t, dict) and all(k in t for k in TEXTURE_KEYS) and isinstance(t["file"], str)
@@ -332,6 +370,11 @@ def _texture_problems(textures, slots):
             problems.append(f"textures[{i}]: slot {t['slot']!r} is not a material slot of the metadata")
         if not all(t["uv_min"][a] < t["uv_max"][a] for a in range(2)):
             problems.append(f"textures[{i}]: uv_min {t['uv_min']} must lie below and left of uv_max {t['uv_max']}")
+        channels = t.get("channels", ["-"])
+        if not (isinstance(channels, list) and 1 <= len(channels) <= TEXTURE_CHANNELS
+                and all(isinstance(c, str) and c for c in channels) and len(set(channels)) == len(channels)):
+            problems.append(f"textures[{i}]: channels must be 1 to {TEXTURE_CHANNELS} distinct non-empty names, R "
+                            f"first, got {channels!r}")
         if (t["role"], t["slot"]) in seen:
             problems.append(f"textures[{i}]: a second {t['role']} on slot {t['slot']!r}")
         seen.add((t["role"], t["slot"]))
@@ -387,6 +430,7 @@ def check_against_fbx(meta, fbx_path):
 def dumps(meta):
     """The file text: schema key order, 2-space indent, LF, one trailing newline; identical for identical input."""
     ordered = {k: meta[k] for k in KEY_ORDER}
+    ordered.update({k: meta[k] for k in OPTIONAL_KEYS if k in meta})
     return json.dumps(_rounded(ordered), indent=2, ensure_ascii=False) + "\n"
 
 

@@ -1,0 +1,10 @@
+{
+  "source": {
+    "commit": "83401382e8b733389982997180cc181b063f61ae",
+    "model": "game/assets/models/structures/shed_plank.glb",
+    "model_sha256": "4d8875e92e03fa8e8f5332548dcebffe2992db9915c5553cfe8eea2538316774",
+    "catalog_key": "shed_plank"
+  },
+  "lod": { "switch_m": [0.0, 25.0], "cull_m": 600.0 },
+  "holes": []
+}

@@ -33,6 +33,17 @@ namespace Fpv450.Input
 
         void OnDisable() => Cursor.lockState = CursorLockMode.None;
 
+        /// <summary>
+        /// Puts the camera at <paramref name="position"/>, turned <paramref name="yawDeg"/> about up and pitched
+        /// <paramref name="pitchDeg"/> down (a saved viewpoint); mouse look and movement continue from that pose.
+        /// </summary>
+        public void MoveTo(Vector3 position, float yawDeg, float pitchDeg)
+        {
+            yaw = yawDeg;
+            pitch = Mathf.Clamp(pitchDeg, -PitchLimit, PitchLimit);
+            transform.SetPositionAndRotation(position, Quaternion.Euler(pitch, yaw, 0f));
+        }
+
         void Update()
         {
             Mouse mouse = Mouse.current;
