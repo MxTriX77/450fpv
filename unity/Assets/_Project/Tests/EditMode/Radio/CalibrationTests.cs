@@ -350,6 +350,9 @@ namespace Fpv450.Tests.Radio
             Assert.AreEqual(new[] { "Roll", "Throttle" }, TooNarrow(w));
             Assert.Less(w.LastUs - w.FirstUs, 120000000, "under two minutes");
             Assert.IsTrue(pilot.Prompts.Any(p => p.StartsWith("Too fast. Roll") && p.Contains("times slower than that")), "asked how much slower its coarse side needs");
+            foreach (CalibrationFinding f in w.Findings)
+                StringAssert.Contains("Recalibrate the radio's sticks, then calibrate here again", f.Message, "the pitfall's steps are 10 or more: the radio is named first");
+            Assert.AreEqual("Recalibrate the radio's sticks, then calibrate here again.", w.Prompt);
         }
 
         static IEnumerable<TestCaseData> StubbornPitfallCases()
@@ -427,6 +430,50 @@ namespace Fpv450.Tests.Radio
             Assert.That(w.UpdateUs, Is.InRange(updateUs - 40, updateUs + 40), "the radio's update interval, slower than 4 ms");
             Assert.Less(w.LastUs - w.FirstUs, 120000000, "under two minutes");
         }
+
+        // QA's nit on finding 11's refusal: a healthy radio swept quicker than the prompt, then no slower, is refused (QA's
+        // E11t trade-off), but its step is under EdgeTX's floor gain of 10, so the refusal leads with the speed, never the
+        // radio, and asks how much slower.
+        static IEnumerable<TestCaseData> QuickLiteralHealthyCases()
+        {
+            foreach (long[] r in AllRadios)
+                foreach (int span in new[] { 683, 800, 903 })
+                    foreach (long sweep in new long[] { 900000, 1000000, 1100000, 1200000, 1500000 })
+                        yield return new TestCaseData(r[0], r[1], span, sweep).SetName("E12: a healthy span " + span + " " + Radio(r) + ", swept " + sweep / 1000 + " ms every time, is saved or told to sweep slower");
+        }
+
+        [TestCaseSource(nameof(QuickLiteralHealthyCases))]
+        public void AHealthyRadioSweptQuicklyEveryTimeIsNeverToldToRecalibrateTheRadioFirst(long reportUs, long updateUs, int span, long sweepUs)
+        {
+            var radio = new Tx12Radio { TravelNeg = new[] { span, span, 683, span }, TravelPos = new[] { span, span, 720, span } };
+            CalibrationWizard w = Calibrate(radio, Literal(radio, sweepUs), reportUs, updateUs);
+
+            foreach (CalibrationFinding f in w.Findings)
+                StringAssert.IsMatch(@"^\w+ was not swept slower, so it cannot be told from a switch\. Calibrate here again, sweeping it about ([2-9]|10) times slower\. If it is refused again, recalibrate the radio's sticks\.$", f.Message);
+            Assert.AreEqual(w.Failed ? "Calibrate here again, sweeping slower." : "Calibrated.", w.Prompt);
+        }
+
+        [Test]
+        public void AHealthyRadioSweptIn1SecondEveryTimeIsToldToSweepSlower()
+        {
+            var radio = new Tx12Radio { TravelNeg = new[] { 800, 800, 683, 800 }, TravelPos = new[] { 800, 800, 720, 800 } };
+            CalibrationWizard w = Calibrate(radio, Literal(radio, 1000000), 4000);
+
+            Assert.IsTrue(w.Failed, "refused: swept quicker than the prompt, then no slower");
+            Assert.IsNotEmpty(w.Findings);
+            foreach (CalibrationFinding f in w.Findings)
+                StringAssert.StartsWith(f.Stick + " was not swept slower, so it cannot be told from a switch. Calibrate here again, sweeping it about", f.Message);
+            Assert.AreEqual("Calibrate here again, sweeping slower.", w.Prompt);
+        }
+
+        // QA's nit: the factor asked is capped, so a side whose in-band reports share one stamp (held 0) asks 10.
+        [TestCase(0.0, 10)]
+        [TestCase(0.01, 10)]
+        [TestCase(0.15, 7)]
+        [TestCase(0.3, 4)]
+        [TestCase(0.6, 2)]
+        [TestCase(0.99, 2)]
+        public void TheFactorAskedIs2To10(double held, int times) => Assert.AreEqual(times, CalibrationWizard.TimesSlower(held));
 
         // QA's pre-existing gap: a pitfall with ±3 ADC counts of rest jitter spreads 61 HID counts, over the centre step's
         // 2 % still band, so the step never settles. After 5 s the prompt names the channel.

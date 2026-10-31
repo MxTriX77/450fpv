@@ -43,7 +43,8 @@ namespace Fpv450.Input.Radio
     ///   PitfallStep between two reports, on either side of its centre, is too narrow at any speed, jitter or filter.
     ///   A side whose part of the band held too few of the radio's updates (UpdateUs) to show a healthy step is not
     ///   judged: the pilot is asked to go slower, as many times as it needs; a repeat no slower (its side held under
-    ///   Slower times the updates of the last) names the axis. An axis that keeps the centre step from settling for 5 s
+    ///   Slower times the updates of the last) names the axis: by its speed if its step is under EdgeTX's floor gain, else
+    ///   as a switch. An axis that keeps the centre step from settling for 5 s
     ///   is named in the prompt.
     /// - **Radio-side curves:** the sweep from 10 % to 90 % of its travel off a fitted line by more than 3 % of the
     ///   travel is a curve on the radio; an endpoint more than 5 % short of a radio's full range is dual rates or a
@@ -95,6 +96,15 @@ namespace Fpv450.Input.Radio
         /// </summary>
         public const double Slower = 1.25;
 
+        /// <summary>The most times slower a prompt asks for; the least is 2.</summary>
+        public const int MostTimesSlower = 10;
+
+        /// <summary>
+        /// How many times slower a side that held this share of the updates it needs must be swept: 2 to MostTimesSlower,
+        /// capped before the cast, so a share of 0 (in-band reports on one stamp) asks MostTimesSlower.
+        /// </summary>
+        public static int TimesSlower(double held) => Math.Max(2, (int)Math.Min(MostTimesSlower, Math.Ceiling(1 / held)));
+
         static readonly string[] StickNames = { "Throttle", "Yaw", "Pitch", "Roll" };
 
         readonly RadioAxis[] _axes;
@@ -113,6 +123,7 @@ namespace Fpv450.Input.Radio
         bool _jumped; // the too-fast sweep jumped from end to end (the jump rule), not one too quick to judge its step
         double _held; // the share of the updates it needs that the too-quick sweep's coarse side held
         int _times; // how many times slower than the last sweep the prompt asks for; 0: about 2 seconds
+        bool _radioBlamed; // a blocking finding names the radio first, not only a sweep's speed
         int _armCandidate = -1; // an axis index, or 1000 + a button index
         long _armSince;
         int _mover = -1; // the axis that last broke the centre step's stillness
@@ -186,7 +197,9 @@ namespace Fpv450.Input.Radio
                     case CalibrationStep.Roll: return slower + "Roll: full left, then slowly full right, " + pace + ", and hold.";
                     case CalibrationStep.ArmOn: return "Throttle down, then flip the arm switch on.";
                     case CalibrationStep.ArmOff: return "Flip the arm switch off.";
-                    default: return Failed ? "Recalibrate the radio's sticks, then calibrate here again." : "Calibrated.";
+                    default:
+                        if (!Failed) return "Calibrated.";
+                        return _radioBlamed ? "Recalibrate the radio's sticks, then calibrate here again." : "Calibrate here again, sweeping slower.";
                 }
             }
         }
@@ -363,7 +376,7 @@ namespace Fpv450.Input.Radio
             long transit = iS >= 0 && iF > iS ? _t[iF] - _t[iS] : 0;
             string name = StickNames[(int)Step - (int)CalibrationStep.Throttle];
             bool narrow = lead < NarrowSpan * Range(L), jumps = false, coarse = false, again = false;
-            int step = 0;
+            int step = 0, slower = 0; // slower: how many times slower a repeat named for its speed needed
             if (!narrow && transit < MinTransitUs)
             {
                 if (_fastAxis != L || !_jumped)
@@ -388,11 +401,13 @@ namespace Fpv450.Input.Radio
                         // needs. A factor of the pilot's own sweep, not seconds: a pitfall's flat ends hide the stick, so
                         // the wizard cannot time the whole sweep.
                         _held = held;
-                        Repeat(L, atHi, false, Math.Max(2, (int)Math.Ceiling(1 / held)), r);
+                        Repeat(L, atHi, false, TimesSlower(held), r);
                         return;
                     }
                     step = deferred; // no slower: its steps are the radio's, or the pilot cannot sweep slower
                     coarse = again = true;
+                    // Under EdgeTX's floor gain (10 of the 2048) the pitfall cannot be: the sweep's speed is named first.
+                    if (step < (int)(2 * PitfallStep * Range(L))) slower = TimesSlower(held);
                 }
             }
             Repeats = 0;
@@ -409,10 +424,13 @@ namespace Fpv450.Input.Radio
             _assigned[L] = true;
 
             int span = Range(L) + 1;
+            _radioBlamed |= (narrow || coarse || jumps) && slower == 0;
             if (narrow)
                 Add(FindingKind.TooNarrow, name, name + " spans only " + lead + " of " + span + ": it behaves like a switch. Recalibrate the radio's sticks, then calibrate here again.");
+            else if (slower > 0)
+                Add(FindingKind.TooNarrow, name, name + " was not swept slower, so it cannot be told from a switch. Calibrate here again, sweeping it about " + slower + " times slower. If it is refused again, recalibrate the radio's sticks.");
             else if (again)
-                Add(FindingKind.TooNarrow, name, name + " moves in jumps of " + step + " of " + span + " or more, swept again no slower: it behaves like a switch. Recalibrate the radio's sticks, then calibrate here again, sweeping it slower.");
+                Add(FindingKind.TooNarrow, name, name + " moves in jumps of " + step + " of " + span + " or more and was not swept slower: it behaves like a switch. Recalibrate the radio's sticks, then calibrate here again, sweeping it slower.");
             else if (coarse)
                 Add(FindingKind.TooNarrow, name, name + " moves in jumps of " + step + " of " + span + " or more, however slowly it is swept: it behaves like a switch. Recalibrate the radio's sticks, then calibrate here again.");
             else if (jumps)
