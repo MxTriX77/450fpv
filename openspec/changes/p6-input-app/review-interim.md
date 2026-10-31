@@ -424,3 +424,109 @@ Unity -batchmode -nographics -runTests -testPlatform EditMode -testResults Logs/
   Fpv450.Sim.Tests 215, Fpv450.Tests.EditMode 106, Fpv450.Tests.Radio 251, Fpv450.Tests.Session 17
   golden on Mono: 0x3F13A5CF5DB7DAFD, 0x3EE12C8D692BADF3, 0xE3178EE7FF322698
 ```
+
+## Re-check of findings 10 and 11 (at `019362d`)
+
+**Verdict: changes requested (finding 12).** Finding 11 is fixed: no pitfall is left unended at 2–4 ms, whatever the pilot does, and nothing wrong is saved. I accept its trade-off. Finding 10's fix still holds at 2–4 ms. But the fix's 4 ms bound on `UpdateUs` brings finding 10 back, worse, for radios that update slower than 4 ms. EdgeTX's own source shows such radios exist, and a TX12 with its RF module on can be one. The fix is one constant, proven below. Findings 3–7 were not re-checked and stand.
+
+**Scope:** `7d17339` (the `Slower` rule, the "times slower" prompt, `SlowestUpdateUs`, 160 tests) and `019362d` (design 4, task 1.2). No GPU (D-046). I did not rerun Unity: the game developer ran EditMode (749/749), and no probe needed it.
+
+**My probes** are scratch and not committed. E10q and E10r are unchanged from my finding 10 re-check. E11t adds pilots over E10q's matrices. E12u and E12v test radios slower than 4 ms. For the cause, the same probes ran on two scratch builds that swap only the wizard: `f57ebc6`'s, and the tip's with one constant changed.
+
+**Finding 11 is fixed:**
+
+| probe | at `f57ebc6` | at `019362d` |
+|---|---|---|
+| E10q healthy, 672 (two pilots; 2, 3, 4 ms and 1 over 4 ms) | 672 saved | **672 saved**, 1 repeat at most |
+| E10q pitfall, 432 | 358 named, **74 stuck** (stubborn pilot) | **432 named**, 0 stuck, 0 saved; 3 repeats at most, 88.3 s at worst (was 176.9 s) |
+| E10r literal pilot (±1; 1.5–3 s; 2 and 4 ms) | one-sided 2–3 s stuck, 32–41 repeats | **18 of 18 pitfalls named** after 1 repeat: the one-sided ones by the new rule, the rest by the jump rule. 12 of 12 healthy saved, no repeat |
+
+- **The owner's tests fail a known-wrong model:** run on `f57ebc6`'s wizard, 36 of the 160 new tests fail. They are every pitfall case: 12 literal one-sided, 24 stubborn. That is the 36 that task 1.2's note claims. At the tip, 428 of 428 pass.
+- **`UpdateUs` on a still ADC's slow throttle sweep** now reads 4 000 µs or less at every rate (E10q), where it read up to 12 875 µs before.
+
+**The trade-off** (E11t): 9 pilots, at 4 intervals, over E10q's 84 healthy and 54 pitfall cases. 1 944 checks, 0 fail: no pitfall is saved, and every one is named. Below, healthy radios of 84 refused by the "no slower" rule:
+
+| pilot, at each repeat | 2 ms | 3 ms | 4 ms | 1 over 4 ms |
+|---|---|---|---|---|
+| sweeps the same (literal) | 0 | 8 | 26 | 26 |
+| 1.1× slower | 0 | 6 | 16 | 17 |
+| 1.2× slower | 0 | 4 | 16 | 16 |
+| 1.3×, 1.5× or 2× slower | 0 | 0 | 0 | 0 |
+| asked N, goes N^0.25 slower | 0 | 4 | 7 | 7 |
+| asked N, goes √N slower | 0 | 0 | 0 | 0 |
+| asked N, goes N slower | 0 | 0 | 0 | 0 |
+
+- **Who is refused:** every refused sweep is a first sweep of 0.9–1.5 s, faster than the prompt's 2 s. At 2–4 ms, no healthy sweep of 2 s or slower is ever repeated. So a refusal takes two departures from the prompt: a quick sweep, then less than 1.25× slower when asked for about 2 or 3 times slower.
+- **The margin:** the prompt asks for 2× at least (`Math.Max(2, …)`, `CalibrationWizard.cs:389`), 1.6× over the rule's 1.25.
+- **The pitfall:** named with every pilot. A pilot who follows the prompt needs 1 repeat, or 2 at 1 ms over 4 ms (asked up to 5× at 2 ms and 9× at 4 ms), and 83 s at worst.
+- **Not new:** the jump rule, unchanged since 1.2, refuses a healthy eased 1.0 s sweep that is repeated at 1.0–1.1 s (6 of 84 at every interval). That is its "twice in a row" design.
+- **Accepted:** nothing wrong is saved, the refusal says "sweeping it slower", and a pilot who reads the prompt passes.
+
+**The prompts, read as a pilot:**
+- "Too fast. Roll: full left, then slowly full right, about 5 times slower than that, and hold." This is clear. "That" is the sweep just made, and a factor is right, because the wizard cannot time a pitfall's whole sweep.
+- "Still too fast. … about 2 times slower than that, and hold." Fine.
+- **Nit, the "no slower" refusal** (`:413`): "Yaw moves in jumps of 5 of 2048 or more, swept again no slower: it behaves like a switch. Recalibrate the radio's sticks, then calibrate here again, sweeping it slower." On a healthy radio this blames the radio first, and "swept again no slower" reads awkwardly.
+  - Suggestion: when the deferred step is under the pitfall's floor of 10, lead with the speed. For example: "Yaw was not swept slower, so it cannot be told from a switch. Calibrate here again, sweeping it about N times slower. If it is refused again, recalibrate the radio's sticks."
+  - The cut at 10 works at 4 ms or faster: on a steady sweep that the jump rule accepts, a healthy step is 9 or less, and the pitfall's is 10 or more.
+- **Nit:** `(int)Math.Ceiling(1 / held)` (`:389`) is unbounded. If `held` is 0 (a coarse side whose in-band reports share one stamp), .NET 9 and later saturate to "about 2147483647 times slower". Mono and IL2CPP leave the conversion unspecified (on x64, `int.MinValue`, so 2). I did not reach this case. Capping the factor (say at 10) settles it.
+
+**Finding 12 (new; a regression from finding 11's fix, and from my own suggestion): a radio that updates slower than 4 ms is refused outright** (INP-02; owner: game developer).
+- **The bound:** `UpdateUs` is bounded at `SlowestUpdateUs`, 4 ms (`CalibrationWizard.cs:88`, `:154`, `:236`). I suggested that bound in finding 11 on the premise that no radio is slower than 4 ms. **EdgeTX's source refutes the premise:**
+  - `getMixerSchedulerPeriod()` (`radio/src/mixer_scheduler.cpp`) uses the internal module's period, else the external module's. The USB joystick's 1 ms applies only when neither module has set one.
+  - `mixer_scheduler.h` allows 850 µs to 50 ms (`MAX_REFRESH_RATE 50000`).
+  - So a TX12 with its RF module left on, for example ELRS at 150 Hz (6.7 ms) or 50 Hz (20 ms), updates its USB output that slowly.
+- **Effect:** an under-read interval makes the guard lax. A slow radio's coarse side is judged after too few updates, so a healthy step of 5–9 is refused as "however slowly it is swept", with no "Too fast" first. This is finding 9's misdirection, at the prompt's own speed.
+
+E12u (1 ms reports over a slower radio; E10q's 84 healthy cases; healthy radios saved, of 84):
+
+| radio updates every | follows the prompt, tip | 2.5× slower each repeat, tip | 2.5× slower each repeat, `f57ebc6` (no bound) | follows the prompt, tip with the bound at 50 ms |
+|---|---|---|---|---|
+| 1 ms; 4 ms; 5 ms | 84; 84; 84 | 84; 84; 84 | 84; 84; 84 | 84; 84; 84 |
+| 7 ms | **77** (7 refused as switches) | 75 | 84 | 84 |
+| 9 ms | **54** (30) | 62 | 84 | 84 |
+| 20 ms | **0** (84) | 1 | 84 | 84 (2 repeats at most, 90 s at worst) |
+
+- **Which sweeps (E12v):** at 7 ms, half of the healthy linear 2.5 s sweeps are refused, though they are slower than asked. At 20 ms, every sweep is refused at every speed from 0.9 to 3 s, including the prompt's 2 s.
+- **The cause, by experiment:** I took the tip's wizard and changed only `SlowestUpdateUs`, to 50 000 (EdgeTX's maximum). Then:
+  - **Slow radios:** 84 of 84 are saved at every interval up to 20 ms, with both pilots.
+  - **Pitfalls with slow radios:** a pilot who follows the prompt has every pitfall named up to 9 ms, and 17 of 18 at 20 ms (the 18th is not saved).
+  - **Everything else:** all 428 owner tests pass, as do E10q (1 320 of 1 320: 672 saved, 432 named), E10r (24 of 24) and E11t (1 944 of 1 944), with the same trade-off counts as above.
+  - **The cost:** a pitfall's longest run, with a pilot who follows the prompt, goes from 83 s to 112 s, because a still ADC's inflated interval asks for more. The pitfall is refused either way.
+- **The `Slower` rule now bounds the deferral on its own,** so the bound that finding 11 asked for is not needed.
+- **Fix (game developer):**
+  - Raise `SlowestUpdateUs` to EdgeTX's 50 ms, or drop the bound.
+  - Add a healthy `Tx12Radio` case at 1 ms over 20 ms, swept at 2 s by a pilot who follows the prompt.
+  - Correct design 4's "bounded at 4 ms".
+- **Where it would show:** the TX12's interval and module state are recorded at 1.5b, at G7. That is where this would first show, as a refusal of the pilot's healthy radio.
+
+**Scenarios:**
+- **"The TX12 pitfall is caught":** passed with all 11 pilot models at every interval up to 4 ms (E10q, E10r and E11t: every pitfall named, none saved). From 5 to 20 ms the pitfall is named too, never saved.
+- **The "683–903 pass" half:** passed at 2–4 ms for any pilot who slows 1.3× or more, or at least √N when asked N, and at 1 and 5 ms with both E12u pilots. It **failed** at 7, 9 and 20 ms (finding 12).
+
+**Requirements:** INP-02 is still partly met (finding 12; 1.2b). INP-05 is met (no session diff since my last re-check).
+
+**Hygiene:**
+- Both commits are subject-only with no trailer, by `Game Developer <gamedev@450fpv.local>`.
+- They touch 5 paths, none under `reference/`, `Library/`, `Temp/` or `Logs/`.
+- The sim package and `tools/{simtests,flightbench,replay}` show 0 diff lines against `9fe4af2`.
+
+```
+git rev-parse --short HEAD                                          019362d
+dotnet test tools/inputtests                                        Passed 428/428 (30 s; 268 + 160 E10)
+dotnet test tools/simtests                                          Passed 215/215 (1 m 12 s)
+dotnet run -c Release --project tools/flightbench -- --golden
+  free-body 0x50ED4B05A5D02F20 (matches); powered-flight 0x3F13A5CF5DB7DAFD (matches);
+  contact-flight 0x3EE12C8D692BADF3 (matches), 5 impacts; tumble 0xE3178EE7FF322698 (matches): PASS
+python tools/hygiene/precommit.py --tree HEAD                       1611 files scanned, 0 findings (exit 0)
+openspec validate p6-input-app --strict                             Change 'p6-input-app' is valid
+QA probe e10q                                                       1320 checks, 0 FAIL; healthy 672 of 672 saved; pitfall 432 of 432
+                                                                    named, 0 stuck, 0 saved; 3 repeats, 88.3 s at worst
+QA probe e10r (literal pilot, ±1)                                   24 checks, 0 FAIL; 18 of 18 pitfalls named after 1 repeat; 12 healthy saved
+QA probe e11t (9 pilots)                                            1944 checks, 0 FAIL; every pitfall named; healthy refused by "no slower":
+                                                                    literal 0 / 8 / 26 / 26 at 2 / 3 / 4 / 1-over-4 ms, 0 for >= 1.3x or sqrt N
+QA probe e12u (1 ms over 5 / 7 / 9 / 20 ms)                         216 checks, 0 FAIL (no pitfall saved); healthy saved, prompt pilot:
+                                                                    84 / 77 / 54 / 0 (finding 12)
+QA scratch: 160 new tests on f57ebc6's wizard                       Failed 36, Passed 124 (every pitfall case)
+QA scratch: tip's wizard, SlowestUpdateUs 50000                     inputtests 428/428; e10q 1320/1320; e10r 24/24; e11t 1944/1944;
+                                                                    e12u 216/216, healthy 84 of 84 at every interval
+```
