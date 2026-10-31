@@ -114,8 +114,8 @@ namespace Fpv450.Sim.Tests
                     + $"yaw {aYaw:F2} rad/s² (Q/T {qOverT * 1000:F2} mm at {rpm:F0} rpm), yaw/roll {aYaw / aRoll:F3} (all derived)");
                 Assert.That(aYaw, Is.LessThan(0.2 * aRoll).And.LessThan(0.2 * aPitch), "yaw saturates first");
                 if (!legs) continue;
-                // PHY-12's ratios as letter T's layout gives them (1.5's finding, handed to the orchestrator): the packs along
-                // the sides and the payload crosswise put roll above pitch on six of the seven; yaw/roll is 1.0–1.3 on five.
+                // PHY-12's ratios as letter T's layout gives them (1.5's finding, D-048): the packs along the sides and the
+                // payload crosswise put roll above pitch on six of the seven; yaw/roll is 1.0–1.3 on five.
                 bool pitchAbove = pitch > roll, yawInBand = yaw / roll >= 1.0 && yaw / roll <= 1.3;
                 TestContext.WriteLine($"  PHY-12: pitch above roll {pitchAbove}, yaw 1.0–1.3 × roll {yawInBand}");
                 Assert.That(pitchAbove, Is.EqualTo(l.Name == "L2"), "pitch above roll, as the layout gives it");

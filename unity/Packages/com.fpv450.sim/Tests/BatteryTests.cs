@@ -54,8 +54,8 @@ namespace Fpv450.Sim.Tests
             Assert.That(twLow, Is.LessThan(twFull), "the sag takes the margin");
             Assert.That(twStiff, Is.GreaterThan(twLow), "the known-wrong stiff pack keeps it");
             Assert.That(signals.PackLow, Is.EqualTo(vFlight < FeedSignals.LowCellVolts), "the signal is the loaded voltage against its threshold");
-            // As computed (1.5's finding, handed to the orchestrator): at 20 % the loaded cell holds about 3.1 V, above the
-            // pilot's 3.00 V warning, so the spec's "the low-voltage signal is set" does not hold at 20 %; it does below 13 %.
+            // As computed (1.5's finding, D-048): at 20 % the loaded cell holds about 3.1 V, above the pilot's 3.00 V
+            // warning, so the signal is not set at 20 %; it sets at the knee, below 13 % (the next test).
             Assert.That(signals.PackLow, Is.False, "at 20 % the loaded cell is above the 3.00 V warning");
         }
 
