@@ -3,7 +3,6 @@ using System.Globalization;
 using System.Text;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Wind;
-using Fpv450.Sim.World;
 
 namespace Fpv450.Sim.Tests
 {
