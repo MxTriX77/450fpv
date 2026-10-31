@@ -530,3 +530,115 @@ QA scratch: 160 new tests on f57ebc6's wizard                       Failed 36, P
 QA scratch: tip's wizard, SlowestUpdateUs 50000                     inputtests 428/428; e10q 1320/1320; e10r 24/24; e11t 1944/1944;
                                                                     e12u 216/216, healthy 84 of 84 at every interval
 ```
+
+## Re-check of finding 12 and its two nits (at `063bb0a`)
+
+**Verdict: green; the branch can land.** Finding 12 is fixed: a healthy radio that updates every 7, 9 or 20 ms is saved with a pilot who follows the prompt. Both nits are fixed. The Done title, changed beyond the brief, is right. The leftover is finding 13, a note before G7, not a blocker. The game developer's proposed cut for it moves the misdirection onto the pitfall itself, so I do not endorse it as written. Findings 3–7 were not re-checked and stand.
+
+**Scope:** `5b6cce1` (`SlowestUpdateUs` 50 ms, 4 E12 tests), `a147c27` (`TimesSlower` capped at 10, a refusal named by speed under a step of 10, `_radioBlamed`, 67 tests) and `063bb0a` (design 4, task 1.2). No GPU (D-046). I did not rerun Unity: the game developer ran EditMode (820/820), and no check needed it.
+
+**My probes** are scratch and not committed. E10q, E10r, E11t, E12u and E12v are rerun unchanged. E12w is new: E11t's 9 pilots and matrices over radios that update every 4, 7, 9 and 20 ms, with each refusal sorted by what it names first. For causes, the same probes and the owner's tests ran on scratch builds that change one line of the tip's wizard: KW-A the 4 ms bound back, KW-B the speed naming removed, KW-C the factor uncapped, KW-D the game developer's proposed cut.
+
+**Finding 12 is fixed** (E12u, healthy radios saved, of 84):
+
+| radio updates every | follows the prompt, `019362d` | follows the prompt, `063bb0a` | 2.5× slower each repeat, `019362d` | 2.5× slower each repeat, `063bb0a` |
+|---|---|---|---|---|
+| 1 ms; 4 ms; 5 ms | 84; 84; 84 | 84; 84; 84 | 84; 84; 84 | 84; 84; 84 |
+| 7 ms | 77 | **84** | 75 | **84** |
+| 9 ms | 54 | **84** | 62 | **84** |
+| 20 ms | 0 | **84** (89.8 s at worst) | 1 | **84** (149.1 s) |
+
+- **E12v:** with a pilot who follows the prompt, no healthy sweep is refused at 7, 9 or 20 ms, from 0.9 to 3 s, linear or eased.
+- **Nothing wrong is saved:** 0 of 216 pitfall runs in E12u and 0 of 1 944 in E12w are saved.
+- **Everything else holds:** E10q 1 320 of 1 320 (672 saved, 432 named, 3 repeats at most); E10r 24 of 24; E11t 1 944 of 1 944, its summaries equal to `019362d`'s line for line, bar the times. So the cap never binds at 2–4 ms.
+- **The owner's tests fail a known-wrong model:** KW-A (the 4 ms bound back) fails exactly the 4 E12 slow-radio tests. That is task 1.2's "the 4 failing before".
+
+**The nits are fixed:**
+- **The factor:** `TimesSlower` caps before the cast, so a share of 0 asks 10. KW-C (uncapped) fails 2 tests, held 0 and 0.01. **Its cost:** a pilot who obeys "about 10 times slower" at 20 ms is asked for sweeps of 80 s or more. Within my probe's 180 s, the pitfall is named in 15 of 18 runs (E12u) and 41 of 54 (E12w), against 17 and 46 uncapped (KW-C). Every other run is still being asked slower, and none is saved. I accept that cost: it falls only on a 20 ms radio, and a pilot who stops slowing gets the pitfall named.
+- **The wording:** a repeat no slower whose step is under 10 now reads "Yaw was not swept slower, so it cannot be told from a switch. Calibrate here again, sweeping it about N times slower. If it is refused again, recalibrate the radio's sticks." That is my suggestion. The radio-named repeat now reads "… and was not swept slower", not "swept again no slower".
+- **The cut at 10 is exact:** in E12w at the tip, every pitfall named, at every interval and with every pilot, names the radio first (0 of 1 944 speed first). KW-B (speed naming removed) fails 11 tests: 10 of the 60 quick literal cases (the other 50 are saved, so they check only "Calibrated.") and the 1 s case.
+
+**Beyond the brief, the Done title: accepted.**
+- **The change:** a refusal whose only blocking findings are named by speed is titled "Calibrate here again, sweeping slower." Without it, the screen's title (`CalibrateScreen.cs:200-205` shows `Prompt`) would tell the pilot to recalibrate the radio above a finding that says the speed was at fault.
+- **Why it is right:** only `TooNarrow` is blocking (`CalibrationWizard.cs:27`). Every `TooNarrow` path except the speed one sets `_radioBlamed` (`:427`). So one radio-named finding keeps the radio title. The flag lives one calibration: the screen builds a new wizard on each Start (`CalibrateScreen.cs:88`).
+- **Measured:** in every E12w row, the refusals titled "Recalibrate the radio's sticks" equal the refusals that name the radio. The owner's tests assert both titles, and KW-B fails them.
+
+**Finding 13 (new, not blocking, before G7; the leftover): at 7–20 ms, a healthy radio swept no slower is refused naming the radio first** (INP-02; owner: game developer).
+- **What:** a slow radio's healthy step is 10 or more, so the speed message (under 10) does not apply. The refusal reads "… moves in jumps of N of 2048 or more and was not swept slower: it behaves like a switch. Recalibrate the radio's sticks, then calibrate here again, sweeping it slower."
+- **Who:** a pilot who, asked for 2–10 times slower, goes less than 1.25× slower. At 20 ms, that one departure is enough, even at the prompt's 2 s. The radio-named steps reach 15 at 7 ms, 20 at 9 ms and 45 at 20 ms.
+
+E12w, healthy radios of 84 refused naming the radio by this message (sticks in brackets):
+
+| pilot, at each repeat | 1 over 4 ms | 1 over 7 ms | 1 over 9 ms | 1 over 20 ms |
+|---|---|---|---|---|
+| sweeps the same (literal) | 0 | 21 (82) | 41 (159) | 78 (312) |
+| 1.1× slower | 0 | 18 (68) | 33 (126) | 76 (303) |
+| 1.2× slower | 0 | 9 (34) | 34 (129) | 81 (324) |
+| 1.3×, 1.5×, 2×; follows the prompt; √N; N^0.25 | 0 | 0 | 0 | 0 |
+| sticks, the three pilots above | 0 | **184** | **414** | **939** |
+
+- **The game developer's figures are reproduced exactly** by my own probe: 184, 414 and 939.
+- **Not in the table:** the jump rule's 6 eased 1.0 s refusals for the literal and 1.1× pilots at every interval. They are unchanged since 1.2 and already noted.
+
+**Why it does not block:**
+- Nothing wrong is saved.
+- A pilot who follows the prompt, goes √N slower or goes 1.3× or more is never refused at 7–20 ms.
+- The refusal also says "sweeping it slower". Recalibrating a healthy radio's sticks in EdgeTX changes nothing, so following it costs a repeat, not a wrong profile.
+- I accepted this same trade-off at 2–4 ms in finding 11.
+- It shows only on a TX12 whose USB output follows an RF module's period. 1.5b records that at G7.
+
+**The proposed cut** (speed first under max(10, 2.34 counts per ms × `UpdateUs`)) **is not free.** KW-D removes every row of the table above. But it names the pitfall itself by speed first, where the tip names none:
+
+| pitfalls named speed first, of 54 (KW-D) | 1 over 4 ms | 1 over 7 ms | 1 over 9 ms | 1 over 20 ms |
+|---|---|---|---|---|
+| literal; 1.1×; 1.2× | 6; 6; 6 | 30; 30; 31 | 30; 31; 31 | 28; 28; 30 |
+| N^0.25; 1.3× | 6; 0 | 36; 1 | 36; 3 | 6; 1 |
+| the tip, every pilot | 0 | 0 | 0 | 0 |
+
+- **At 1 ms over 4 ms:** the throttle pitfall swept 8–20 s is named "Throttle was not swept slower … about 3 times slower". A still ADC's slow throttle sweep inflates `UpdateUs` at that step (E10q: 12 750 µs), and that lifts the cut to about 30.
+- **At 7–20 ms:** this hits the pilot's own fault (the two-sided pitfall's Pitch, swept 8–20 s), the one-sided Roll and the throttle.
+- **The scenario:** it says the wizard "tells the pilot to recalibrate the radio". KW-D would put that second for up to 36 of 54 pitfalls.
+
+**Suggestion (game developer, settle at 1.5b with the TX12's interval recorded):** key the advice on the measured interval, not the step.
+- **The rule:** when `UpdateUs` is over about 4.3 ms (where the jump rule's fastest accepted sweep makes a healthy step of 10), a refusal or the Done screen adds: "The radio updates its USB output only every N ms (an RF module is on): switch it off for the sim, then calibrate here again."
+- **Why:** this is true for a healthy radio and for the pitfall alike. It also covers the 2-minute accept: at 20 ms, only the pilot who follows the prompt finishes under 2 minutes (89.8 s). The √N pilot takes 130.6 s and the 2× pilot 154.8 s. With the 1.3× pilot, 20 of 84 are not done in 180 s.
+- **Latency:** a 20 ms stick feed is also a 50 Hz input for flight (INP-04).
+
+**Scenarios:**
+- **"The TX12 pitfall is caught":** passed at every interval from 1 to 20 ms: never saved, and the radio named first in every run that names it. Every pilot has it named up to 4 ms (E10q, E10r, E11t, E12w), and so does every pilot who stops slowing at 7–20 ms. At 20 ms, a pilot who keeps slowing can still be mid-sweep at 180 s, asked to go slower.
+- **The "683–903 pass" half:** passed at 1–20 ms with a pilot who follows the prompt (E12u, E12v, E12w: 84 of 84), and with √N, 1.3×, 1.5× and 2× pilots (at 20 ms, 1.3× and 1.5× can take over 180 s). It fails for pilots under 1.25× (finding 11's accepted trade-off), now with the radio named first at 7–20 ms (finding 13).
+- **"Under two minutes, no keyboard":** not testable here (1.2b, the pilot's TX12). In the model, it is met at 20 ms only by the pilot who follows the prompt.
+
+**Requirements:** INP-02 is still partly met (1.2b at G7; finding 13 to settle there). Finding 12 no longer holds it back. INP-05 is met (no session diff since my last re-check).
+
+**Hygiene:**
+- The three commits are subject-only with no trailer, by `Game Developer <gamedev@450fpv.local>`.
+- They touch 5 paths, none under `reference/`, `Library/`, `Temp/` or `Logs/`.
+- The sim package and `tools/{simtests,flightbench,replay}` show 0 diff lines against `9fe4af2`.
+- Design 4 and task 1.2 now match the code: the bound is 50 ms, the factor is 2–10, and the speed naming is under 10.
+
+```
+git rev-parse --short HEAD                                          063bb0a
+dotnet test tools/inputtests                                        Passed 499/499 (29 s; 428 + 71 E12)
+dotnet test tools/simtests                                          Passed 215/215 (1 m 13 s)
+dotnet run -c Release --project tools/flightbench -- --golden
+  free-body 0x50ED4B05A5D02F20 (matches); powered-flight 0x3F13A5CF5DB7DAFD (matches);
+  contact-flight 0x3EE12C8D692BADF3 (matches), 5 impacts; tumble 0xE3178EE7FF322698 (matches): PASS
+python tools/hygiene/precommit.py --tree HEAD                       1611 files scanned, 0 findings (exit 0)
+openspec validate p6-input-app --strict                             Change 'p6-input-app' is valid
+QA probe e12u (1 ms; 1 over 4 / 5 / 7 / 9 / 20 ms)                  216 checks, 0 FAIL; healthy 84 of 84 at every interval, both pilots;
+                                                                    pitfall 0 saved; named 18 of 18 to 9 ms; 20 ms: 15 (prompt), 6 (2.5x)
+QA probe e12v                                                       1 over 7 / 9 / 20 ms: no healthy sweep refused
+QA probe e10q                                                       1320 checks, 0 FAIL; 672 saved; 432 named, 0 saved; 3 repeats at most
+QA probe e10r (literal pilot, ±1)                                   24 checks, 0 FAIL; 18 of 18 pitfalls named; 12 healthy saved
+QA probe e11t (9 pilots, 2 / 3 / 4 / 1-over-4 ms)                   1944 checks, 0 FAIL; every pitfall named; summaries equal 019362d's
+QA probe e12w (9 pilots, 1 over 4 / 7 / 9 / 20 ms)                  1944 checks, 0 FAIL (no pitfall saved); radio-first refusals of healthy
+                                                                    radios, literal + 1.1x + 1.2x: 0 / 184 / 414 / 939 sticks (finding 13);
+                                                                    pitfalls named speed first: 0 of 1944
+QA scratch: owner's 499 tests on one-line known-wrong wizards       KW-A 4 ms bound: Failed 4 (the E12 slow radios), Passed 495
+                                                                    KW-B no speed naming: Failed 11 (10 quick literal, the 1 s case), Passed 488
+                                                                    KW-C uncapped factor: Failed 2 (held 0, 0.01), Passed 497
+QA scratch: KW-C probes                                             e12u 20 ms pitfall named 17 (prompt), 6 (2.5x); e12w prompt 20 ms 46 of 54
+QA scratch: KW-D (the proposed cut) probe e12w                      1944 checks, 0 FAIL; radio-first healthy refusals 0 (jump rule's 6 aside);
+                                                                    pitfalls named speed first 6 of 54 at 1 over 4 ms, up to 36 of 54 at 7-20 ms
+```
