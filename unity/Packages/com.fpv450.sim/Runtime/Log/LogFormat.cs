@@ -52,7 +52,7 @@ namespace Fpv450.Sim.Log
         public static readonly byte[] Magic = { 0x46, 0x50, 0x56, 0x34, 0x35, 0x30, 0x4C, 0x47 };
 
         /// <summary>The format: the prologue, the header's entries and the record layouts below.</summary>
-        public const int Version = 8;
+        public const int Version = 9;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -77,8 +77,10 @@ namespace Fpv450.Sim.Log
         ///    model 7's centres steps as in 7).
         /// 9: p7c-wind 1.7 (rain, a level of its own: the drops' momentum flux on the airframe's silhouettes and their water
         ///    film in the mass model; a Sunny flight steps as in 8).
+        /// 10: p7c-wind 1.5 (a wooded strip's canopy flow, CanopyFlow: its mean profile, its σ and its own eddies; a flight
+        ///    without a canopy strip steps as in 9).
         /// </summary>
-        public const int ModelVersion = 9;
+        public const int ModelVersion = 10;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

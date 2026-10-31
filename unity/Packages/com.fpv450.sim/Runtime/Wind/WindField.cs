@@ -92,6 +92,38 @@ namespace Fpv450.Sim.Wind
         /// <summary>The wakes' eddies' plane waves (assumed, as 1.2's belt).</summary>
         public int WakeModes;
 
+        // ---- a canopy strip's flow (p7c-wind 1.5, with WindSetup.Canopy) ----
+
+        /// <summary>σ_u/u*, σ_v/u* and σ_w/u* at the canopy's top, u along the wind (recalled, not re-read in this task:
+        /// the canopy-top ensemble of Raupach, Finnigan and Brunet (1996) and Finnigan (2000), σ_u/u* about 1.8–2.0,
+        /// σ_v/u* about 1.5–1.7, σ_w/u* about 1.1; below the surface layer's 2.4, 1.9 and 1.25).</summary>
+        public double CanopySigmaU, CanopySigmaV, CanopySigmaW;
+
+        /// <summary>The canopy eddies' isotropic integral scales over h: the horizontal components' and w's (the first
+        /// published, Finnigan, Shaw and Patton (2009): integral length scales of order h at the canopy's top; the second
+        /// derived: w's streamwise scale about 0.3 h (Kruijt et al. 2000: 0.28 h from the shear length; Kaimal and
+        /// Finnigan (1994)'s h/3, recalled) is the isotropic form's lateral scale, half its L).</summary>
+        public double CanopyScaleU, CanopyScaleW;
+
+        /// <summary>The canopy eddies' random Fourier modes (assumed: about 23 per decade over their 2.7 decades).</summary>
+        public int CanopyModes;
+
+        /// <summary>The canopy eddies' convection velocity over U(h) (published: U_c ≈ 1.8·U(h), Finnigan, Shaw and Patton
+        /// 2009, after Shaw et al. 1995).</summary>
+        public double CanopyConvection;
+
+        /// <summary>Below h every σ falls as (U(z)/U(h))^this (assumed: 0.5 halves σ_w at half height in a dense canopy,
+        /// α ≈ 2.5–3, as the canopy ensembles show, recalled; local equilibrium would be 1).</summary>
+        public double CanopyDecay;
+
+        /// <summary>The blending height over h: the strip's surface layer meets the open field's mean there, and its
+        /// eddies are gone (assumed: above the roughness sublayer's 1.4–2 h, a few canopy heights).</summary>
+        public double BlendingHeights;
+
+        /// <summary>The strip's edge blend over h: its flow grows from 0 at its edge to full this far inside (assumed:
+        /// the canopy-scale eddies mix across an edge over about one canopy height).</summary>
+        public double CanopyEdge;
+
         // ---- the direction (K§8.3, design 5) ----
 
         /// <summary>The meander's σ, degrees, its Ornstein–Uhlenbeck time constant, s, and its smoothing lag, s
@@ -127,6 +159,16 @@ namespace Fpv450.Sim.Wind
             WakeEddyMin = 0.6;
             WakeEddyMax = 2.4;
             WakeModes = 24;
+            CanopySigmaU = 2.0;
+            CanopySigmaV = 1.6;
+            CanopySigmaW = 1.1;
+            CanopyScaleU = 1.0;
+            CanopyScaleW = 0.6;
+            CanopyModes = 64;
+            CanopyConvection = 1.8;
+            CanopyDecay = 0.5;
+            BlendingHeights = 3;
+            CanopyEdge = 1;
             MeanderSigmaDeg = 30;
             MeanderTau = 120;
             MeanderLag = 30;
@@ -161,7 +203,10 @@ namespace Fpv450.Sim.Wind
             if (!(MeanLo > 0 && MeanHi >= MeanLo) || !(CoverHeight > 0) || !(RoughnessRatio > 0) || !(DisplacementRatio >= 0)
                 || !(ReferenceHeight > Displacement + Roughness) || !(ProfileTop >= ReferenceHeight) || !(TaperHeight > 0)
                 || !(Intensity >= 0) || !(VerticalRatio >= 0) || !(HorizontalScale > 0) || !(VerticalScale > 0) || Modes < 1
-                || !(ShortestWavelength > 0) || !(LongestFraction > 0) || !(WakeEddyMin > 0 && WakeEddyMax >= WakeEddyMin) || WakeModes < 1 || !(MeanderSigmaDeg >= 0) || !(MeanderTau > 0)
+                || !(ShortestWavelength > 0) || !(LongestFraction > 0) || !(WakeEddyMin > 0 && WakeEddyMax >= WakeEddyMin) || WakeModes < 1
+                || !(CanopySigmaU >= 0) || !(CanopySigmaV >= 0) || !(CanopySigmaW >= 0) || !(CanopyScaleU > 0) || !(CanopyScaleW > 0)
+                || CanopyModes < 1 || !(CanopyConvection >= 0) || !(CanopyDecay >= 0) || !(BlendingHeights > 2) || !(CanopyEdge > 0)
+                || !(MeanderSigmaDeg >= 0) || !(MeanderTau > 0)
                 || !(MeanderLag > 0) || !(ShiftRate > 0) || !(ShiftLoDeg >= 0 && ShiftHiDeg >= ShiftLoDeg)
                 || !(RampLo > 0 && RampHi >= RampLo) || Horizon < 1)
                 throw new ArgumentException("the wind preset is out of its bounds");
@@ -197,6 +242,9 @@ namespace Fpv450.Sim.Wind
     ///   / (λ·H) + φ), κ̂ uniform on the sphere, ĉ across it (vorticity, no divergence) at a uniform angle, λ uniform in
     ///   WakeEddyMin–WakeEddyMax, φ uniform (wind.wake's draws 5·m to 5·m + 4, counter-based), a = √(6/WakeModes), so each
     ///   component has unit σ; H is the sample's ObstacleHeight. Frozen and advected with the drift, as the open modes.
+    /// - **A wooded strip's canopy flow** (p7c-wind 1.5, CanopyFlow), when the setup has one (never with wakes): inside
+    ///   the strip and below its blending height, the canopy's mean profile blended in by the plan weight w, the open
+    ///   modes scaled by 1 − w·(1 − r), r the canopy's fall of σ below its top, and its own eddies by r·√(w·layer).
     /// - **A gust front** (GustFront), only when the setup has one.
     /// Randomness enters only the wind's velocity, a physical parameter, and reaches the body only through the drag and
     /// rotor forces (flight-randomness): never the pose. Begin fixes a step's frame (its time, the drift, each mode's
@@ -246,6 +294,9 @@ namespace Fpv450.Sim.Wind
         readonly double[] _eddyScale, _eddyPhase, _eddyOffset;
         readonly GustFront _front;
 
+        // A wooded strip's canopy layer (p7c-wind 1.5), or null.
+        readonly CanopyFlow _canopy;
+
         // The step's frame (Begin).
         double _t, _ground;
         Double3 _mean, _drift, _origin;
@@ -259,8 +310,10 @@ namespace Fpv450.Sim.Wind
             Setup = setup;
             Preset = preset;
             _front = setup.Front?.Checked();
-            if (setup.Wakes != null && (setup.Level == WindLevel.Still || setup.Level == WindLevel.Steady))
-                throw new ArgumentException("wakes need a pilot's level", nameof(setup));
+            if ((setup.Wakes != null || setup.Canopy != null) && (setup.Level == WindLevel.Still || setup.Level == WindLevel.Steady))
+                throw new ArgumentException("wakes and a canopy need a pilot's level", nameof(setup));
+            if (setup.Wakes != null && setup.Canopy != null)
+                throw new ArgumentException("a canopy strip with wakes is not modelled: the wake grid would read its trees as a thin obstacle", nameof(setup));
             if (setup.StartSecond != 0 && (setup.Level == WindLevel.Still || setup.Level == WindLevel.Steady))
                 throw new ArgumentException("a start second needs a pilot's level", nameof(setup));
             switch (setup.Level)
@@ -339,6 +392,8 @@ namespace Fpv450.Sim.Wind
                 bound2 += DetMath.Abs(_amp[m].Z);
             }
             Bound = new Double3(bound0, bound1, bound2);
+            if (setup.Canopy != null)
+                _canopy = new CanopyFlow(setup.Canopy, preset, FromDeg, MeanSpeed, Profile, SigmaH, SigmaV, random);
             if (setup.Wakes == null) return;
 
             // The wakes (p7c-wind 1.5): the grid for the history's first bearing, and the eddies from the counter-based
@@ -410,6 +465,7 @@ namespace Fpv450.Sim.Wind
             _drift = new Double3(_cx[j] + (_vx[j] + 0.5 * ax * f) * f, 0, _cz[j] + (_vz[j] + 0.5 * az * f) * f);
             for (int m = 0; m < _wave.Length; m++)
                 _offset[m] = _phase[m] - (_wave[m].X * _drift.X + _wave[m].Z * _drift.Z);
+            _canopy?.Begin(_drift);
             if (_wakes == null) return;
             _wakes.Step(step, _fromDeg[j] + (_fromDeg[k] - _fromDeg[j]) * f);
             for (int m = 0; m < _eddyDir.Length; m++)
@@ -446,12 +502,31 @@ namespace Fpv450.Sim.Wind
             return new Double3(x, y, z);
         }
 
+        /// <summary>The wind's canopy layer, or null without a canopy strip.</summary>
+        public CanopyFlow Canopy => _canopy;
+
+        // The open field's mean at a height over the ground, over the reference height's.
+        double Profile(double h) => DetMath.Log((DetMath.Min(h, _top) - _d) / _z0) / _logRef;
+
         Double3 Air(in Double3 point)
         {
             double h = point.Y - _ground;
             if (!(h - _d > _z0) || !(h < double.PositiveInfinity)) return default; // in the cover, or sheltered in a hole
-            double profile = DetMath.Log((DetMath.Min(h, _top) - _d) / _z0) / _logRef;
+            double profile = Profile(h);
             double taper = DetMath.Min(1, (h - _d) / Preset.TaperHeight);
+            if (_canopy != null && h < _canopy.BlendingHeight)
+            {
+                // The strip's layer (CanopyFlow): its mean blended in by the plan weight, the open modes falling with its
+                // σ inside, its eddies carrying the rest.
+                double w = _canopy.Weight(point);
+                if (w > 0)
+                {
+                    double r = _canopy.Decay(h);
+                    double speed = profile + w * (_canopy.Speed(h) / MeanSpeed - profile);
+                    return _mean * speed + Turbulence(point) * (taper * (1 - w * (1 - r)))
+                        + _canopy.Eddies(point) * (taper * r * DetMath.Sqrt(w * _canopy.Layer(h)));
+                }
+            }
             Double3 turbulence = Turbulence(point) * taper;
             if (_wakes == null) return _mean * profile + turbulence;
             _wakes.Sample(point.X, point.Z, h, out WakeSample s);
@@ -494,7 +569,7 @@ namespace Fpv450.Sim.Wind
         }
 
         // A unit vector across `along` (a unit vector) at the angle 2π·u about it.
-        static Double3 Across(in Double3 along, double u)
+        internal static Double3 Across(in Double3 along, double u)
         {
             Double3 e1 = Double3.Cross(along, DetMath.Abs(along.Y) < 0.9 ? new Double3(0, 1, 0) : new Double3(1, 0, 0));
             e1 = e1 * (1 / e1.Length());
@@ -504,7 +579,7 @@ namespace Fpv450.Sim.Wind
         }
 
         // Draw i of a counter-based stream as a uniform value in [0, 1): the top 53 bits, exactly.
-        static double Unit(in SeedStream stream, ulong i) => (stream.BitsAt(i) >> 11) * (1.0 / 9007199254740992.0);
+        internal static double Unit(in SeedStream stream, ulong i) => (stream.BitsAt(i) >> 11) * (1.0 / 9007199254740992.0);
 
         // Draw i of a stream as a nearly normal value (Irwin–Hall: 12 uniforms less 6, bounded by ±6).
         static double Normal(in SeedStream stream, ulong i)

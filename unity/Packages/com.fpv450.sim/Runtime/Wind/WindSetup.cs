@@ -31,6 +31,10 @@ namespace Fpv450.Sim.Wind
         /// <summary>A gust front (p7c-wind 1.4's per-rotor scenario), or null for none (every other flight).</summary>
         public GustFront Front;
 
+        /// <summary>A wooded strip whose canopy flow the field carries (p7c-wind 1.5, WindField's canopy layer), or null
+        /// for none. Not with Wakes: the wake grid would read the same trees as a thin obstacle.</summary>
+        public CanopyStrip Canopy;
+
         public static WindSetup Of(WindLevel level) => new WindSetup { Level = level };
 
         public static WindSetup SteadyFrom(double fromDeg, double speed) =>
@@ -41,8 +45,7 @@ namespace Fpv450.Sim.Wind
     /// The obstacles of a flight's wakes (p7c-wind 1.5, design 4): the wake grid's obstacle grid (K§10.3) over its origin
     /// (world X, Z of its south-west corner, m) and its 2 m cells, from the placed wind volumes. The field builds its
     /// WakeGridWorker from it at the flight's start; the log header records every value, so a replay rebuilds the same
-    /// grid (WakeGrid.Version with it). The harness's synthetic belt (WindHarness.BeltLayout) is one, until the test
-    /// range's world lands (D-046).
+    /// grid (WakeGrid.Version with it). The replay's fixture row (--wakes) is one.
     /// </summary>
     public sealed class WakeLayout
     {
@@ -57,6 +60,29 @@ namespace Fpv450.Sim.Wind
         {
             if (NX < 1 || NZ < 1 || NX > 4096 || NZ > 4096 || Volumes == null || !(DetMath.Abs(OriginX) < 1e7) || !(DetMath.Abs(OriginZ) < 1e7))
                 throw new ArgumentException("the wake layout is out of its bounds");
+            return this;
+        }
+    }
+
+    /// <summary>
+    /// A wooded strip (p7c-wind 1.5, belt-geometry-p.md: clip P's belt is a wide strip of scrub with scattered tall
+    /// trees, the wind along it): a rectangle in plan around its centre (world X, Z, m), its long axis at the bearing
+    /// AxisDeg (degrees from north toward east), Length along that axis and Width across it, m; its canopy's height h,
+    /// m (the tall trees'), and its frontal area index λ (the trees' and the scrub's frontal area per ground area, so
+    /// Raupach (1994)'s canopy area index is 2λ). WindField's canopy layer derives the flow inside and above it from
+    /// these. The log header records every value. The harness's strip (WindHarness.Strip) is one, until the world's
+    /// woodlands carry theirs.
+    /// </summary>
+    public sealed class CanopyStrip
+    {
+        public double CentreX, CentreZ, AxisDeg, Length, Width, Height, FrontalAreaIndex;
+
+        internal CanopyStrip Checked()
+        {
+            if (!(DetMath.Abs(CentreX) < 1e7) || !(DetMath.Abs(CentreZ) < 1e7) || !(DetMath.Abs(AxisDeg) <= 360)
+                || !(Length > 0 && Length < 1e5) || !(Width > 0 && Width < 1e5) || !(Height >= 1 && Height <= 60)
+                || !(FrontalAreaIndex >= 0.01 && FrontalAreaIndex <= 5))
+                throw new ArgumentException("the canopy strip is out of its bounds");
             return this;
         }
     }

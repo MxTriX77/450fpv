@@ -80,7 +80,7 @@ namespace Fpv450.Sim.Log
     /// - the propulsion: the motors, the props with their curves, the packs (none for a bench's free body)
     /// - the airframe's drag (none for a bench's body), and the wind: its model ("field", p7c-wind 1.4), its level,
     ///   its start second and the level's preset by name (its per-flight draws are the randomness's), with the
-    ///   synthetic belt and the gust front when the flight has them
+    ///   wakes' obstacles, the gust front and the canopy strip when the flight has them
     /// - the rain (p7c-wind 1.7): its level and its preset by name (its per-flight draws, the rate and the film's
     ///   thickness, are the randomness's), and the camera's lens position the feed's air velocity is taken at
     /// - the flight controller's settings, every field by its CLI name
@@ -130,10 +130,11 @@ namespace Fpv450.Sim.Log
             "StaticTorqueRatio", "InflowAdvanceRatio", "InflowThrustRatio", "InflowTorqueRatio", "HForce",
         };
         public static readonly string[] AeroFieldsLogged = { "AirDensity", "BodyArea", "BodyCenterOfPressure", "DragCoefficient", "CoilPart" };
-        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg", "StartSecond", "Wakes", "Front" };
+        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg", "StartSecond", "Wakes", "Front", "Canopy" };
         public static readonly string[] WakeFieldsLogged = { "OriginX", "OriginZ", "NX", "NZ", "Volumes" };
         public static readonly string[] VolumeFieldsLogged = { "Kind", "X", "Z", "BaseM", "TopM", "HalfX", "HalfZ", "Radius", "Yaw", "Porosity" };
         public static readonly string[] FrontFieldsLogged = { "Start", "Normal", "Delta", "Speed", "Width", "Uniform" };
+        public static readonly string[] CanopyFieldsLogged = { "CentreX", "CentreZ", "AxisDeg", "Length", "Width", "Height", "FrontalAreaIndex" };
         public static readonly string[] PackFieldsLogged = { "Part", "Series", "Parallel", "CellCapacity", "CellResistance", "Ocv" };
 
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
@@ -277,6 +278,11 @@ namespace Fpv450.Sim.Log
                 new NamedValue("longest_over_knee", p.LongestFraction),
                 new NamedValue("wake_eddy_min_over_h", p.WakeEddyMin), new NamedValue("wake_eddy_max_over_h", p.WakeEddyMax),
                 new NamedValue("wake_modes", p.WakeModes),
+                new NamedValue("canopy_sigma_u_over_ustar", p.CanopySigmaU), new NamedValue("canopy_sigma_v_over_ustar", p.CanopySigmaV),
+                new NamedValue("canopy_sigma_w_over_ustar", p.CanopySigmaW), new NamedValue("canopy_scale_u_over_h", p.CanopyScaleU),
+                new NamedValue("canopy_scale_w_over_h", p.CanopyScaleW), new NamedValue("canopy_modes", p.CanopyModes),
+                new NamedValue("canopy_convection_over_uh", p.CanopyConvection), new NamedValue("canopy_decay_power", p.CanopyDecay),
+                new NamedValue("blending_over_h", p.BlendingHeights), new NamedValue("canopy_edge_over_h", p.CanopyEdge),
                 new NamedValue("meander_sigma_deg", p.MeanderSigmaDeg), new NamedValue("meander_tau_s", p.MeanderTau),
                 new NamedValue("meander_lag_s", p.MeanderLag), new NamedValue("shift_rate_per_s", p.ShiftRate),
                 new NamedValue("shift_lo_deg", p.ShiftLoDeg), new NamedValue("shift_hi_deg", p.ShiftHiDeg),
@@ -551,13 +557,21 @@ namespace Fpv450.Sim.Log
                 }
                 GustFront g = Wind.Front;
                 e.Write(g != null);
-                if (g == null) return;
-                V3(e, g.Start);
-                V3(e, g.Normal);
-                V3(e, g.Delta);
-                e.Write(g.Speed);
-                e.Write(g.Width);
-                e.Write(g.Uniform);
+                if (g != null)
+                {
+                    V3(e, g.Start);
+                    V3(e, g.Normal);
+                    V3(e, g.Delta);
+                    e.Write(g.Speed);
+                    e.Write(g.Width);
+                    e.Write(g.Uniform);
+                }
+                // The canopy strip (p7c-wind 1.5, format 9) after its flag.
+                CanopyStrip c = Wind.Canopy;
+                e.Write(c != null);
+                if (c == null) return;
+                foreach (double x in new[] { c.CentreX, c.CentreZ, c.AxisDeg, c.Length, c.Width, c.Height, c.FrontalAreaIndex })
+                    e.Write(x);
             });
             Entry(w, TagContacts, e =>
             {
@@ -826,6 +840,12 @@ namespace Fpv450.Sim.Log
                             Wind.Front = new GustFront
                             {
                                 Start = V3(r), Normal = V3(r), Delta = V3(r), Speed = r.ReadDouble(), Width = r.ReadDouble(), Uniform = r.ReadBoolean(),
+                            };
+                        if (r.ReadBoolean())
+                            Wind.Canopy = new CanopyStrip
+                            {
+                                CentreX = r.ReadDouble(), CentreZ = r.ReadDouble(), AxisDeg = r.ReadDouble(), Length = r.ReadDouble(),
+                                Width = r.ReadDouble(), Height = r.ReadDouble(), FrontalAreaIndex = r.ReadDouble(),
                             };
                         break;
                     case TagContacts:

@@ -382,7 +382,7 @@ namespace Fpv450.Sim.Tests
             }
             Assert.That((back.WindModel, back.Wind), Is.EqualTo(("field", setup.Wind)));
             Assert.That(back.WindParameters, Is.EqualTo(LogHeader.PresetOf(WindLevel.Windy)));
-            Assert.That(back.WindParameters.Length, Is.EqualTo(27), "every field of the preset but its level");
+            Assert.That(back.WindParameters.Length, Is.EqualTo(37), "every field of the preset but its level");
 
             var problems = new List<string>();
             back.ReadSettings(out FcSettings read, problems);
