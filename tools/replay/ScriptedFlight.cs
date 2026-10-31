@@ -166,7 +166,7 @@ namespace Fpv450.Replay
         static double Axis(double v) => Math.Round(Math.Clamp(v, -1, 1) * 500) / 500;
 
         public static Recorded Fly(string path, string dronePath, long steps, bool realtime, WindLevel wind = WindLevel.Windy, bool wakes = false,
-            RainLevel rain = RainLevel.Sunny)
+            RainLevel rain = RainLevel.Sunny, bool canopy = false)
         {
             DroneSpec spec = DroneSpec.Parse(File.ReadAllText(dronePath));
             string materialsPath = Repository(Path.Combine("assets-src", "physics_materials.json"))
@@ -177,6 +177,17 @@ namespace Fpv450.Replay
             double stand = 0; // the body origin's height standing on the floor, the skids unloaded
             foreach (ContactShape s in contacts.Shapes)
                 if (s.Role == ContactRole.Support) stand = Math.Max(stand, s.Radius - s.A.Y);
+            WindSetup air = WindSetup.Of(wind);
+            // --wakes (p7c-wind 1.5): the wake grid's synthetic layout (a maple row along X through the start, with a gap,
+            // and a solid house), so the replay rebuilds the grid and its worker's handovers from the header. --canopy: a
+            // wooded strip as the wind harness's (16.6 m tall, 141 m wide, λ 0.3) through the start, along X, so the replay
+            // rebuilds the canopy's flow from the header.
+            if (wakes) air.Wakes = new WakeLayout { OriginX = -300, OriginZ = -300, NX = 300, NZ = 300, Volumes = Fpv450.Sim.Tests.WakeGridFixture.Volumes() };
+            if (canopy)
+                air.Canopy = new CanopyStrip
+                {
+                    CentreX = 0, CentreZ = 0, AxisDeg = 90, Length = 1000, Width = 141, Height = 16.6, FrontalAreaIndex = 0.3,
+                };
             var setup = new FlightSetup
             {
                 Seed = Seed,
@@ -185,9 +196,7 @@ namespace Fpv450.Replay
                 Propulsion = spec.BuildPropulsion(),
                 Aero = spec.BuildAero(),
                 Contacts = contacts,
-                // --wakes (p7c-wind 1.5): the wake grid's synthetic layout (a maple row along X through the start, with a
-                // gap, and a solid house), so the replay rebuilds the grid and its worker's handovers from the header.
-                Wind = wakes ? new WindSetup { Level = wind, Wakes = new WakeLayout { OriginX = -300, OriginZ = -300, NX = 300, NZ = 300, Volumes = Fpv450.Sim.Tests.WakeGridFixture.Volumes() } } : WindSetup.Of(wind),
+                Wind = air,
                 StartPosition = new Double3(0, stand, 0),
                 Rain = rain,
                 CameraPosition = spec.CameraPosition,

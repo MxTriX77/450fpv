@@ -15,7 +15,7 @@ namespace Fpv450.Replay
             "usage:\n"
             + "  replay <log> [--drone <drone.json>]   replay the flight; compare every record bit for bit\n"
             + "  replay --summary <log>                 the flight's summary; a cut log reads to its last whole record\n"
-            + "  replay --record <log> [--seconds S] [--realtime] [--wind still|calm|windy|severe] [--rain sunny|rain|severerain] [--wakes] [--drone <drone.json>]\n"
+            + "  replay --record <log> [--seconds S] [--realtime] [--wind still|calm|windy|severe] [--rain sunny|rain|severerain] [--wakes | --canopy] [--drone <drone.json>]\n"
             + "                                         fly the scripted flight (120 s, Windy) and log it\n"
             + "exit: 0 match, 1 diverged, 2 usage, 3 refused, 4 unreadable, 5 matched a cut log\n"
             + "drone.json defaults to the repository's assets-src/drone/drone.json";
@@ -103,7 +103,8 @@ namespace Fpv450.Replay
             if (!Enum.TryParse(Option(args, "--rain") ?? "sunny", true, out RainLevel rain) || !Enum.IsDefined(typeof(RainLevel), rain))
                 throw new ArgumentException("--rain is sunny, rain or severerain");
 
-            ScriptedFlight.Recorded r = ScriptedFlight.Fly(path, drone, (long)(duration * 1000), realtime, wind, Array.IndexOf(args, "--wakes") >= 0, rain);
+            ScriptedFlight.Recorded r = ScriptedFlight.Fly(path, drone, (long)(duration * 1000), realtime, wind, Array.IndexOf(args, "--wakes") >= 0, rain,
+                Array.IndexOf(args, "--canopy") >= 0);
             LogEnd c = r.Counts;
             double perStep = (double)(r.Bytes - r.HeaderBytes) / c.Steps;
             Console.WriteLine($"record {Path.GetFileName(path)}: {(realtime ? "real time on the flight thread" : "virtual clock, the scheduler and the flush worker")}, {wind} wind, {rain}, "
