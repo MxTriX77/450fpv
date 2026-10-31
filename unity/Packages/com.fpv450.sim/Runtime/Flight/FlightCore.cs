@@ -43,6 +43,10 @@ namespace Fpv450.Sim.Flight
         /// p7b-airframe 1.3c): null for none, as a bench's rotors and the goldens' audits fly.</summary>
         public RotorFlappingSpec Flapping;
 
+        /// <summary>The airframe's elastic modes, the arms' bending and the payload's and the coil's mounts (AirframeModesSpec,
+        /// p7b-airframe 1.4): null for a rigid airframe, as a bench and the goldens' audits fly.</summary>
+        public AirframeModesSpec Modes;
+
         /// <summary>The airframe's drag (DroneSpec.BuildAero): the body's and the coil's. Null for none (a bench's body);
         /// the rotors' in-plane drag comes with the propulsion.</summary>
         public AeroSpec Aero;
@@ -121,6 +125,10 @@ namespace Fpv450.Sim.Flight
         readonly Contact.ContactModel _contacts;
         readonly Double3[] _hubWind = new Double3[4];
         readonly RotorSurfaces _surfaces; // the rotors' surfaces (GroundEffectSpec), or null
+        readonly AirframeModes _modes; // the airframe's modes (AirframeModesSpec), or null
+        readonly VibrationBands _vibration; // the camera mount's vibration, with the modes
+        Corners _rotorThrust = default; // each rotor's mean thrust over the step's sub-steps, for the modes
+        ModeSet _modeAccel; // the modes' accelerations over the last step, for the camera
         StepTrace _trace;
         readonly StepEvents _events = new StepEvents();
 
@@ -162,6 +170,14 @@ namespace Fpv450.Sim.Flight
                 SeedStream wash = GroundEffect != null ? Random.Open("ground.recirc") : default;
                 Flapping = setup.Flapping?.Clone();
                 _propulsion = new Propulsion(setup.Propulsion, Draws, VortexRing, ring, GroundEffect, wash) { Flapping = Flapping };
+                ModesSpec = setup.Modes?.Clone();
+                if (ModesSpec != null)
+                {
+                    var hubs = new Double3[4];
+                    for (int i = 0; i < 4; i++) hubs[i] = setup.Propulsion.Motors[i].Position;
+                    _modes = new AirframeModes(ModesSpec, _mass, hubs);
+                    _vibration = new VibrationBands(Dt);
+                }
                 if (GroundEffect != null) _surfaces = new RotorSurfaces(_propulsion, GroundEffect.Reach * setup.Propulsion.Props.Diameter / 2);
                 var clockwise = new bool[4];
                 for (int i = 0; i < 4; i++) clockwise[i] = setup.Propulsion.Motors[i].Clockwise;
@@ -213,6 +229,13 @@ namespace Fpv450.Sim.Flight
         /// <summary>The rotors' flapping, or null for none.</summary>
         public RotorFlappingSpec Flapping { get; }
 
+        /// <summary>The airframe's modes' spec and the modes this body has, or null for a rigid airframe.</summary>
+        public AirframeModesSpec ModesSpec { get; }
+        public AirframeModes Modes => _modes;
+
+        /// <summary>The camera mount's vibration bands (FeedSignals.CameraVibration), or null without the modes.</summary>
+        public VibrationBands Vibration => _vibration;
+
         /// <summary>The flight's wind, with its per-flight draws.</summary>
         public StandInWind Wind => _wind;
 
@@ -252,6 +275,10 @@ namespace Fpv450.Sim.Flight
             moment = moment + airMoment;
             if (_contacts != null) _contacts.Forces(ref s, body, ref force, ref moment, ref _trace, _events);
 
+            // The airframe's modes under the rotors' thrust and the relief of the body's whole load (AirframeModes).
+            if (_modes != null)
+                _modes.Advance(ref s.ModeShape, ref s.ModeRate, out _modeAccel, _rotorThrust, s.Attitude.InverseRotate(force), moment, Dt);
+
             // Semi-implicit Euler (RigidBody): the velocities first, then the positions with the new velocities.
             FlightState was = s;
             RigidBody.Step(ref s, in body, Gravity + force * body.InverseMass, moment, Dt);
@@ -261,6 +288,17 @@ namespace Fpv450.Sim.Flight
             _trace.AeroMoment = airMoment;
             s.Step++;
             if (_contacts != null) _contacts.Sense(was, ref s, _events);
+            if (_vibration != null) _vibration.Add(CameraAcceleration(was, s), FieldSteps);
+        }
+
+        // The camera mount's acceleration over the step, body m/s²: the body origin's (from its velocities), the turn's at the
+        // camera, α × r + ω × (ω × r), and the frame's elastic share (AirframeModes).
+        Double3 CameraAcceleration(in FlightState was, in FlightState now)
+        {
+            Double3 r = ModesSpec.Camera, w = now.BodyRate;
+            Double3 a = now.Attitude.InverseRotate((now.Velocity - was.Velocity) * (1 / Dt));
+            Double3 alpha = (now.BodyRate - was.BodyRate) * (1 / Dt);
+            return a + Double3.Cross(alpha, r) + Double3.Cross(w, Double3.Cross(w, r)) + _modes.CameraAcceleration(_modeAccel);
         }
 
         // The body's and the coil's drag (Aero) on the air's velocity at their centres, into the air's body-axis sums.
@@ -298,8 +336,15 @@ namespace Fpv450.Sim.Flight
                 _trace.GroundDistance = below;
                 _trace.CeilingDistance = above;
             }
+            if (_modes != null)
+            {
+                Corners elastic = default;
+                for (int i = 0; i < 4; i++) elastic[i] = _modes.HubVelocity(s.ModeRate, i);
+                _propulsion.SetHubElastic(elastic);
+            }
             _propulsion.BeginStep(s, _hubWind);
-            Axes3 from = s.Fc.GyroPrev, to = Gyro(s.BodyRate);
+            // The gyro on the frame: the rigid body's rate and, with the modes, the frame's elastic turn.
+            Axes3 from = s.Fc.GyroPrev, to = Gyro(_modes == null ? s.BodyRate : s.BodyRate + _modes.FrameRate(s.ModeRate));
             var loads = new RotorLoads();
             var loss = new MixerLoss();
             Corners duty = default;
@@ -331,6 +376,7 @@ namespace Fpv450.Sim.Flight
             for (int i = 0; i < 4; i++)
             {
                 double thrust = loads.Thrust[i] * share, speed = loads.Speed[i] * share;
+                _rotorThrust[i] = thrust;
                 Double3 r = _propulsion.Hub(i) - com;
                 lift += thrust;
                 m.X -= r.Z * thrust;
@@ -497,6 +543,13 @@ namespace Fpv450.Sim.Flight
                 signals.ImpactImpulse = _contacts.ImpactImpulse;
             }
             if (_propulsion == null) return;
+            if (_modes != null)
+            {
+                // The camera on the flexing frame: its elastic turn, and the mount's vibration bands.
+                signals.Live |= FeedSignalSet.CameraVibration;
+                signals.CameraAngularVelocity = _state.BodyRate + _modes.FrameRate(_state.ModeRate);
+                signals.CameraVibration = _vibration.Field;
+            }
             signals.Live |= FeedSignalSet.MotorElectricalHz | FeedSignalSet.MotorCurrent | FeedSignalSet.MotorCurrentStep
                 | FeedSignalSet.PackVolts;
             signals.MotorElectricalHz = _fieldHz;

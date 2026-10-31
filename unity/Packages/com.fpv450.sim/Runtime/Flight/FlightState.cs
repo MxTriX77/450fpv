@@ -69,5 +69,9 @@ namespace Fpv450.Sim.Flight
         /// <summary>Each rotor's re-ingested wash in a close hover (GroundEffectSpec, p7b-airframe 1.3): its inflow through the
         /// disc over v_h, the recirculation's process. 0 without the ground effect and away from the ground.</summary>
         public Corners WashInflow;
+
+        /// <summary>The airframe's elastic modes (AirframeModes, p7b-airframe 1.4): each mode's coordinate (mass-normalised,
+        /// m·√kg) and its rate, lowest first. 0 without the modes.</summary>
+        public ModeSet ModeShape, ModeRate;
     }
 }

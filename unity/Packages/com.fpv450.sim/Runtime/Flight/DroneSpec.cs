@@ -306,6 +306,18 @@ namespace Fpv450.Sim.Flight
         /// <summary>The rotors' ground and ceiling effect and recirculation (GroundEffectSpec), in the aero block's air.</summary>
         public GroundEffectSpec BuildGroundEffect() => new GroundEffectSpec { AirDensity = Aero.AirDensity };
 
+        /// <summary>The airframe's modes (AirframeModesSpec, p7b-airframe 1.4): each arm's tip mass from its corner's motor,
+        /// prop and arm parts ("motor_rr", "prop_rr", "arm_rr", …), and the payload's and the coil's parts.</summary>
+        public AirframeModesSpec BuildModes()
+        {
+            var m = new AirframeModesSpec { PayloadPart = Payload.Part, CoilPart = Coil.Part };
+            string[] corners = { "rr", "fr", "rl", "fl" };
+            for (int i = 0; i < 4; i++)
+                m.TipMass[i] = Parts[PartIndex("motor_" + corners[i])].Mass + Parts[PartIndex("prop_" + corners[i])].Mass
+                    + m.ArmTipShare * Parts[PartIndex("arm_" + corners[i])].Mass;
+            return m;
+        }
+
         /// <summary>
         /// The rotors' flapping (RotorFlappingSpec) on the props' sheet, in the aero block's air: the radius and blades from
         /// the props; a blade's flap inertia from the prop's part ("prop_rr") as a uniform rod, m/N_b·R²/3 (derived, as the

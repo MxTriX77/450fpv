@@ -120,6 +120,10 @@ namespace Fpv450.Sim.Flight
         readonly double[] _surfaceGain = new double[4], _washInflow = new double[4], _washInduced = new double[4];
         readonly double[][] _ocv = new double[2][];
 
+        // Each hub's elastic velocity along +y (SetHubElastic), and whether the modes set it.
+        Corners _hubElastic;
+        bool _elastic;
+
         // The step's inflow and in-plane airspeed per rotor, and each rotor's thrust and torque at its present speed.
         Corners _inflow;
         readonly Double3[] _inPlane = new Double3[4];
@@ -228,6 +232,16 @@ namespace Fpv450.Sim.Flight
             _ceilingAt = ceiling;
         }
 
+        /// <summary>
+        /// Each hub's elastic velocity along +y, m/s (AirframeModes, p7b-airframe 1.4): RotorInflow adds it to the hub's
+        /// air from then on, so a flexing arm's prop damps it. Never set without the modes.
+        /// </summary>
+        public void SetHubElastic(in Corners velocity)
+        {
+            _hubElastic = velocity;
+            _elastic = true;
+        }
+
         /// <summary>The held descent branch's inflow through the disc over v_h, which the ring adds to (derived).</summary>
         public double HeldInflow => _heldInflow;
 
@@ -324,7 +338,8 @@ namespace Fpv450.Sim.Flight
         /// air): p7c-wind's field sampled at the hub. Today the air is each hub's velocity through it in body axes, the
         /// body origin's velocity plus ω × r less that wind, split along the disc's normal (body +y) and its plane.
         /// The rotors' own terms go here and nowhere else: the own wash and the vortex ring (p7b 1.2), the neighbours'
-        /// wash and recirculation, and the ground and ceiling (1.3), each from the state and the rotors' own loads.
+        /// wash and recirculation, and the ground and ceiling (1.3), each from the state and the rotors' own loads; and
+        /// each hub's elastic velocity along the axis when the airframe flexes (1.4, SetHubElastic).
         /// The vortex ring (1.2): each rotor's ring adds its inflow through the disc (FlightState.RingInflow, m/s) to the
         /// thrust's inflow and its fluctuation (RingThrust) to the thrust, as the state holds them at the step's start;
         /// AdvanceRing moves them after the step's loops. The torque keeps the freestream's inflow: Washizu et al. and
@@ -338,6 +353,7 @@ namespace Fpv450.Sim.Flight
             {
                 Double3 air = v + Double3.Cross(w, _hub[i]);
                 if (windAtHubs != null) air = air - s.Attitude.InverseRotate(windAtHubs[i]);
+                if (_elastic) air.Y += _hubElastic[i];
                 _inflow[i] = air.Y;
                 _inPlane[i] = new Double3(air.X, 0, air.Z);
                 if (_ring != null)
