@@ -440,3 +440,10 @@ From `p7b-airframe` 1.5, computed, never asked (D-024):
 - **PHY-12:** "pitch exceeds roll" was derived in K§5.3 before D-043 copied letter T's layout (the packs along the sides, the payload crosswise). On that layout roll exceeds pitch on six of seven loadouts (pitch/roll 0.855–1.048, yaw/roll 0.91–1.41). The reference decides (D-028): PHY-12 asks for the ratios computed from `drone.json`'s layout, asserted exactly, with yaw saturating first.
 - **PHY-11:** the low-voltage signal is the pilot's FC profile's 3.00 V a cell on the loaded voltage. At the heavy corner under full throttle it sets at about 13 % charge, not 20 %. The scenario follows the physics: the margin falls with the sag (19.6 % from full to 20 %), the signal sets at the knee, and no margin is left at the cut-off.
 - **The OSD** applies Betaflight's voltage filter and warning hysteresis to the signal (`p4-feed` 1.5).
+
+## D-049 The throttle-punch shake follows the computed airframe · Accepted
+From `p7b-airframe` 1.4, computed, never asked (D-024):
+- **The visible shake comes from the rigid body:** through a sharp arrest of a descent the four ESCs sit at their 40 A limit while the rotors re-ingest their wash, so the drone jitters and tilts 5–16° uncommanded. The frame's modes (arms at 48–63 Hz, computed from the plate, on the builder's notches) add the 50–200 Hz band, far below one luma sample at the camera.
+- **PHY-10's scenario follows the physics:** a gentle throttle increase never shows it from hover; in a 5–9 m/s descent a gentle ramp shows PHY-09's wobble instead; the shake lasts as long as the arrest (0.3–0.7 s for the empty drone's moderate descents, 0.8–1.4 s heavy or from 9 m/s).
+- **The pilot's feel decides at G7** (a qualitative question in `docs/pilot-questions.md`).
+- **For the feed:** `CameraVibration`'s 50–200 Hz band is for shimmer; the visible shake comes from the pose and `CameraAngularVelocity`.
