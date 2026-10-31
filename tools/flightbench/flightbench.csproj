@@ -23,5 +23,6 @@
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/VortexRingScenario.cs" Link="VortexRingScenario.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/GroundEffectScenario.cs" Link="GroundEffectScenario.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/FlappingScenario.cs" Link="FlappingScenario.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/ShakeScenario.cs" Link="ShakeScenario.cs" />
   </ItemGroup>
 </Project>

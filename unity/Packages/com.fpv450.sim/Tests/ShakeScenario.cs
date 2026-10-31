@@ -1,0 +1,146 @@
+using Fpv450.Sim.Control;
+using Fpv450.Sim.Flight;
+using Fpv450.Sim.Wind;
+
+namespace Fpv450.Sim.Tests
+{
+    /// <summary>
+    /// airframe-effects' "Shake only when its causes meet" (p7b-airframe 1.4, PHY-10, PR-1): arrested descents of the
+    /// repository's drone, legs on, at a payload, with its asymmetry, rings, flapping and the airframe's modes, in still air
+    /// 300 m up. The closed-loop pilot hovers it for HoverSeconds; then the throttle is chopped (ChopStick) for a drop time,
+    /// so it falls; then the pilot's input to arrest it, roll, pitch and yaw centred: a sharp step to a stick, or a gentle
+    /// ramp to the hover's stick plus GentleStep over GentleRamp; held until the descent is arrested (or for HoldLimit), then
+    /// the hover's stick, sticks centred, to the window's end. A drop of 0 is the same input from the hover.
+    /// The image's shake is the camera's turn above LowCorner (the flight's own motion is below it): its rate (the body's
+    /// and the frame's elastic turn, the camera's angular velocity), high-passed, and its angle, the rate through the same
+    /// first-order high-pass; it shows in a field whose RMS angle is at least Visible.
+    /// </summary>
+    public static class ShakeScenario
+    {
+        public const double HoverSeconds = 3, ChopStick = 0.05, GentleStep = 0.15, GentleRamp = 0.6, HoldLimit = 1.5, WindowSeconds = 1.5;
+
+        /// <summary>The jitter's corner, Hz: the camera vibration's X band's (VibrationBands.LowCorner, assumed).</summary>
+        public const double LowCorner = VibrationBands.LowCorner;
+
+        /// <summary>
+        /// The visible shake, the field's RMS turn, degrees: 0.088 (derived: one effective luma sample, K§11.5's 450 across
+        /// p4-feed's 106° at its f 1.005, 0.25° at the centre, peak to peak of a sine, 0.25/(2√2)).
+        /// </summary>
+        public const double Visible = 0.25 / 2.8284271247461903;
+
+        const double RadToDeg = 57.29577951308232, TwoPi = 6.283185307179586;
+
+        public struct Result
+        {
+            /// <summary>The descent as the input began, m/s down; and when it was arrested, s after (NaN: not in HoldLimit).</summary>
+            public double Descent, ArrestedAfter;
+
+            /// <summary>The fields the shake showed in, the first's and the last's start after the input, s; their span (the
+            /// shake's length, 0 for none), and the largest field RMS turn, degrees.</summary>
+            public int Fields;
+            public double First, Last, Duration, Peak;
+
+            /// <summary>The camera vibration's largest field RMS over the window, per band (X, Y, Z), m/s², and whether
+            /// the feed's CameraVibration was live.</summary>
+            public Double3 VibrationPeak;
+            public bool Published;
+
+            /// <summary>Time in the window with a rotor in its ring, and with an ESC on its current limit, s.</summary>
+            public double InRing, Limited;
+
+            /// <summary>The largest height lost or gained against a steady arrest is not asked; the trajectory's error: the
+            /// largest tilt from level in the window, degrees.</summary>
+            public double TiltMax;
+        }
+
+        public static FlightSetup Setup(DroneSpec spec, double payload, ulong seed, bool modes = true)
+        {
+            var setup = new FlightSetup
+            {
+                Seed = seed, World = FlightWorld.Floor(), Mass = spec.BuildMass(new Loadout { Payload = payload, Legs = true }),
+                Propulsion = spec.BuildPropulsion(), Aero = spec.BuildAero(), Wind = WindSetup.Of(WindLevel.Still),
+                Asymmetry = spec.BuildAsymmetry(), VortexRing = spec.BuildVortexRing(), Flapping = spec.BuildFlapping(),
+                StartPosition = new Double3(0, 300, 0), StartPackCharge = 0.9,
+            };
+            if (modes) setup.Modes = spec.BuildModes();
+            return setup;
+        }
+
+        /// <summary>Flies one arrested descent: drop s of chop, then a sharp step to stick (gentle false) or the gentle ramp.</summary>
+        public static Result Fly(FlightSetup setup, double drop, bool gentle, double stick = 1,
+            System.Action<FlightCore, StickSample> after = null)
+            => Fly(new FlightCore(setup), setup, drop, gentle, stick, after);
+
+        public static Result Fly(FlightCore core, FlightSetup setup, double drop, bool gentle, double stick = 1,
+            System.Action<FlightCore, StickSample> after = null)
+        {
+            var pilot = new SimPilot(core.Controller, setup.StartPosition);
+            const int arm = 16;
+            int hover = arm + (int)(HoverSeconds * 1000), input = hover + (int)(drop * 1000), end = input + (int)(WindowSeconds * 1000);
+            var r = new Result { ArrestedAfter = double.NaN };
+            double hoverStick = 0, cut = 1 - 6.283185307179586 * LowCorner * FlightCore.Dt;
+            Double3 rateLow = default, angle = default;
+            double fieldSum = 0;
+            int fieldCount = 0, arrested = -1;
+            for (int k = 0; k < end; k++)
+            {
+                ref readonly FlightState s = ref core.State;
+                long us = s.Step * FlightCore.StepUs;
+                StickSample sticks;
+                if (k < arm) sticks = new StickSample { HostUs = us, Arm = k >= 8 };
+                else if (k < hover)
+                {
+                    sticks = pilot.Sticks(core, us);
+                    hoverStick = sticks.Throttle;
+                }
+                else if (k < input) sticks = new StickSample { HostUs = us, Arm = true, Throttle = ChopStick };
+                else
+                {
+                    if (k == input) r.Descent = -s.Velocity.Y;
+                    double from = drop > 0 ? ChopStick : hoverStick, t = (k - input) * FlightCore.Dt;
+                    double throttle = !gentle ? stick : from + (hoverStick + GentleStep - from) * DetMath.Min(1, t / GentleRamp);
+                    if (arrested < 0 && k > input + 50 && (s.Velocity.Y >= 0 || t >= HoldLimit))
+                    {
+                        arrested = k;
+                        if (s.Velocity.Y >= 0) r.ArrestedAfter = t;
+                    }
+                    sticks = new StickSample { HostUs = us, Arm = true, Throttle = arrested >= 0 ? hoverStick : throttle };
+                }
+                core.Advance(sticks);
+                after?.Invoke(core, sticks);
+                if (k < input) continue;
+
+                // The camera's turn above the corner: its angular velocity less a first-order low-pass of it, and the angle
+                // that high-passed rate turns, leaking at the same corner.
+                core.GetSignals(out FeedSignals signals);
+                Double3 w = signals.CameraAngularVelocity;
+                rateLow = rateLow * cut + w * (1 - cut);
+                angle = angle * cut + (w - rateLow) * FlightCore.Dt;
+                fieldSum += angle.X * angle.X + angle.Y * angle.Y + angle.Z * angle.Z;
+                ref readonly FlightState a = ref core.State;
+                if (a.RingLatched != 0) r.InRing += FlightCore.Dt;
+                if (a.EscLimited != 0) r.Limited += FlightCore.Dt;
+                Double3 up = a.Attitude.Rotate(new Double3(0, 1, 0));
+                r.TiltMax = DetMath.Max(r.TiltMax, System.Math.Acos(DetMath.Min(1, up.Y)) * RadToDeg);
+                if (++fieldCount < FlightCore.FieldSteps) continue;
+                double rms = DetMath.Sqrt(fieldSum / fieldCount) * RadToDeg, at = (k + 1 - input - fieldCount) * FlightCore.Dt;
+                fieldSum = 0;
+                fieldCount = 0;
+                r.Peak = DetMath.Max(r.Peak, rms);
+                r.Published |= (signals.Live & FeedSignalSet.CameraVibration) != 0;
+                Double3 v = signals.CameraVibration;
+                r.VibrationPeak = new Double3(DetMath.Max(r.VibrationPeak.X, v.X), DetMath.Max(r.VibrationPeak.Y, v.Y), DetMath.Max(r.VibrationPeak.Z, v.Z));
+                if (!(rms >= Visible)) continue;
+                if (r.Fields++ == 0) r.First = at;
+                r.Last = at;
+            }
+            r.Duration = r.Fields == 0 ? 0 : r.Last + FlightCore.FieldSteps * FlightCore.Dt - r.First;
+            return r;
+        }
+
+        public static string Describe(in Result r) =>
+            $"{r.Descent,5:F2} m/s down, arrested {(double.IsNaN(r.ArrestedAfter) ? "  —  " : r.ArrestedAfter.ToString("F2") + " s")}; shake in {r.Fields,2} fields, "
+            + $"{r.First:F2}–{r.Last + 0.02:F2} s ({r.Duration:F2} s), peak {r.Peak:F3}°; vibration X {r.VibrationPeak.X:F2} Y {r.VibrationPeak.Y:F2} "
+            + $"Z {r.VibrationPeak.Z:F2} m/s²; ring {r.InRing:F2} s, ESC limit {r.Limited:F2} s; tilt to {r.TiltMax:F1}°";
+    }
+}

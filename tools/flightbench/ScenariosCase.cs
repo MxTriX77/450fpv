@@ -188,6 +188,23 @@ namespace Fpv450.FlightBench
                 Row(from == 0 ? "a head gust step pitches harder with flapping" : "a side gust step rolls harder with flapping", harder,
                     FlappingScenario.Describe(from, on, off));
             }
+            // p7b-airframe 1.4: the throttle-punch shake, its causes and the airframe's modes.
+            Console.WriteLine("the throttle-punch shake (p7b-airframe 1.4):");
+            var modes = new FlightCore(ShakeScenario.Setup(spec, 1, 1)).Modes;
+            var hz = new System.Text.StringBuilder();
+            for (int i = 0; i < modes.Count; i++) hz.Append($"{(i > 0 ? ", " : "")}{modes.Frequency(i):F1}");
+            Console.WriteLine($"  the airframe's modes at 1 kg: {hz} Hz");
+            foreach (double payload in new[] { 0.0, 2.0 })
+                foreach (double drop in new[] { 0.0, 0.3, 0.6, 1.0 })
+                {
+                    ShakeScenario.Result sharp = ShakeScenario.Fly(ShakeScenario.Setup(spec, payload, 1), drop, false);
+                    ShakeScenario.Result gentle = ShakeScenario.Fly(ShakeScenario.Setup(spec, payload, 1), drop, true);
+                    bool ok = drop == 0 ? sharp.Duration < 0.3 && gentle.Fields == 0 : sharp.Duration >= 0.28 && gentle.Peak < sharp.Peak;
+                    Row($"{payload:F0} kg, {(drop == 0 ? "from the hover" : $"after a {drop:F1} s drop")}", ok,
+                        $"sharp: {ShakeScenario.Describe(sharp)}; gentle: {ShakeScenario.Describe(gentle)}");
+                }
+            ShakeScenario.Result stiff = ShakeScenario.Fly(ShakeScenario.Setup(spec, 2, 1, false), 0.6, false);
+            Row("known-wrong: a rigid airframe publishes no camera vibration", stiff.Published, ShakeScenario.Describe(stiff), knownWrong: true);
             Console.WriteLine($"scenarios: {(_ok ? "PASS" : "FAIL")}");
             return _ok;
         }
