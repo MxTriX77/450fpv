@@ -17,8 +17,8 @@ namespace Fpv450.FlightBench
     // check: flown at the cruise clip P's pitch settles at (p7c-wind 1.6), the nominal pilot's lean per m/s of crosswind
     // reproduces p6-flight-core 1.5's scenario's there (within 15 %, 20 % with the belt) and its airspeed is the cruise's;
     // without drag (a known-wrong model) it must fail. T0, the lean that grades it, is wind_stats.py's. p7c-wind 1.5: the
-    // belt's wakes come from the wake grid, and `--wrong steady|nodrag` flies the known-wrong families that
-    // tools/wind/grade_levels.py grades every target on.
+    // belt is a wooded strip's canopy flow (CanopyFlow, belt-geometry-p.md), flown at 0.5–1.0 H, and `--wrong
+    // steady|nodrag` and `--belt off` fly the known-wrong families that tools/wind/grade_levels.py grades every target on.
     internal static class WindHarnessCase
     {
         const string Usage = "usage: flightbench --wind-harness calm|windy|severe [--seeds N] [--out DIR] [--pilots nominal|all] [--belt on|off] [--wrong steady|nodrag] [--history N]";
@@ -48,8 +48,8 @@ namespace Fpv450.FlightBench
             DroneSpec spec = PoweredFlightCase.Drone();
             WindHarness.Pilot[] pilots = all ? WindHarness.Pilots : new[] { WindHarness.Pilots[0] };
             Console.WriteLine($"flightbench: the wind harness (p7c-wind 1.2, K§8.5): {level}, the {WindPreset.Model} wind"
-                + (drag ? "" : ", the known-wrong airframe without drag") + (steady ? ", the known-wrong fixed vector (no turbulence, direction changes or wakes)" : belt ? $" with its belt's wakes (H {WindHarness.BeltHeight:F1} m at {WindHarness.BeltAngleDeg:F0}°, porosity {WindHarness.BeltPorosity:F2})" : " without a belt")
-                + $", {seeds} seeds × {pilots.Length} pilots, {WindHarness.Seconds:F0} s each, the first {WindHarness.DiscardSeconds:F0} s discarded");
+                + (drag ? "" : ", the known-wrong airframe without drag") + (steady ? ", the known-wrong fixed vector (no turbulence, direction changes or wakes)" : belt ? $" with its wooded strip (H {WindHarness.StripHeight:F1} m, {WindHarness.StripWidthHeights:F1} H wide, λ {WindHarness.StripAreaIndex:F2}, the wind along it)" : " without the strip")
+                + $", {seeds} seeds × {pilots.Length} pilots, {WindHarness.Seconds:F0} s each and the climb between the stretches (unmeasured), the first {WindHarness.DiscardSeconds:F0} s discarded");
 
             var runs = new WindHarness.Run[pilots.Length * seeds];
             var clock = System.Diagnostics.Stopwatch.StartNew();
@@ -60,7 +60,7 @@ namespace Fpv450.FlightBench
             foreach (WindHarness.Run r in runs)
             {
                 double beltSeconds = r.BeltLast > 0 ? (r.BeltLast - r.BeltFirst + 1) / HarnessPilot.CameraHz : 0;
-                Console.WriteLine($"  {r.Pilot,-7} seed {r.Seed}: {r.HeightRef:F0} m, wind from {r.FromDeg:F1}° at {r.MeanSpeed:F2} m/s, course {r.CourseDeg:F1}°, "
+                Console.WriteLine($"  {r.Pilot,-7} seed {r.Seed}: belt {r.BeltHeightRef:F1} m, field {r.HeightRef:F0} m (climb {r.ClimbSeconds:F1} s), wind from {r.FromDeg:F1}° at {r.MeanSpeed:F2} m/s, course {r.CourseDeg:F1}°, "
                     + $"{r.Mass:F3} kg ({r.RollInertia:F4} / {r.PitchInertia:F4} / {r.YawInertia:F4} kg·m²); height off by {r.MeanHeightError:F2} m; airspeed {r.MeanAirspeed:F2} m/s, pitch {r.MeanPitchDeg:F2}°, roll {r.MeanRollDeg:F2}° against {r.MeanCrosswind:F2} m/s "
                     + $"from the left = {r.LeanPerMs:F3}° per m/s; {r.Samples.Length} frames, belt {r.Segment ?? "none"} ({beltSeconds:F2} s)");
             }
@@ -101,6 +101,7 @@ namespace Fpv450.FlightBench
                     manifest.Add(new
                     {
                         csv = csv.Replace('\\', '/'), segment = r.Segment, pilot = r.Pilot, seed = r.Seed, height_m = r.HeightRef,
+                        belt_height_m = r.BeltHeightRef, climb_s = r.ClimbSeconds,
                         wind_from_deg = r.FromDeg, wind_mean_m_s = r.MeanSpeed, course_deg = r.CourseDeg, start_s = r.StartSecond, mass_kg = r.Mass,
                         inertia_roll_pitch_yaw_kg_m2 = new[] { r.RollInertia, r.PitchInertia, r.YawInertia }, mean_height_error_m = r.MeanHeightError,
                         frames = r.Samples.Length, fps = HarnessPilot.CameraHz, mean_airspeed_m_s = r.MeanAirspeed, mean_roll_deg = r.MeanRollDeg,
@@ -110,7 +111,8 @@ namespace Fpv450.FlightBench
                 var doc = new
                 {
                     harness = "p7c-wind 1.5 (K§8.5)", level = level.ToString(), wind = steady ? "steady (known-wrong)" : WindPreset.Model, belt = belt && !steady,
-                    belt_height_m = belt ? WindHarness.BeltHeight : 0, seconds = WindHarness.Seconds, discarded_s = WindHarness.DiscardSeconds,
+                    strip_height_m = belt ? WindHarness.StripHeight : 0, strip_width_m = belt ? WindHarness.StripWidthHeights * WindHarness.StripHeight : 0,
+                    strip_area_index = belt ? WindHarness.StripAreaIndex : 0, seconds = WindHarness.Seconds, discarded_s = WindHarness.DiscardSeconds,
                     how = "per run: wind_stats.py --csv <dir>/<csv> --segment <segment> --json <out>; T0c: --wind-log <dir>/history/*.csv",
                     runs = manifest,
                 };
@@ -130,7 +132,7 @@ namespace Fpv450.FlightBench
             return ok ? 0 : 1;
         }
 
-        // Within 15 % of 1.5's scenario's cruise lean (20 % with the belt, whose wakes 1.5 never flew). p7c-wind 1.5: 10 %
+        // Within 15 % of 1.5's scenario's cruise lean (20 % with the belt, whose canopy 1.5 never flew). p7c-wind 1.5: 10 %
         // until Severe's centre moved to 7.2 m/s; a run's 34 s then hold about 1.5 integral times of the field's longest
         // eddies (L_u/U ≈ 23 s), whose own mean crosswind and its lag through the pilot move the lean by up to 11 %.
         static bool Reproduces(double perMs, double reference, bool belt) => WindHarness.Reproduces(perMs, reference, belt ? 0.2 : 0.15);

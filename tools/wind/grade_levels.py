@@ -7,9 +7,10 @@ Severe as section 6.3, Windy with the angle spreads and band RMS scaled by c = 0
 for T0), Calm ceilings only (section 6.4). Each target is then graded on its known-wrong model's runs, where one was
 flown, and must fail there:
 - `-nodrag`: the airframe without drag (T0, T11b)
-- `-steady`: the drawn strength as one fixed vector, no turbulence, direction changes or wakes (T0b, the field's
+- `-steady`: the drawn strength as one fixed vector, no turbulence, direction changes or strip (T0b, the field's
   spreads and spectra, T7, T8, T10)
-- `-nobelt`: the field without the belt's wakes (the belt's spreads and ratios, T7's belt share, T10b's belt)
+- `-nobelt`: the field without the belt's wooded strip, its canopy flow (the belt's spreads and ratios, T7's belt
+  share, T10b's belt), flown at the same heights
 - `as severe` (Calm only): Severe's runs graded on Calm's ceilings, a calm level as strong as Severe (every ceiling
   but T6d's)
 - `pose`: the nominal runs' logs with white noise of 0.15 deg per axis added to the attitude, the "noise on the pose"

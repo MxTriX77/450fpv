@@ -72,10 +72,14 @@ namespace Fpv450.Sim.Tests
                     Assert.That(WindHarness.Reproduces(r.LeanPerMs, own, belt ? 0.2 : 0.15), Is.True, "the lean per m/s");
                     Assert.That(r.MeanRollDeg, Is.LessThan(0), "into the wind from the left");
                     Assert.That(r.MeanPitchDeg, Is.EqualTo(HarnessPilot.ClipPPitchDeg).Within(2), "θ_ref ± 2°");
-                    Assert.That(r.Samples.Length, Is.EqualTo(1017), "34 s at 29.917 Hz");
-                    // The belt's 10 H at the run's ground speed along the course: the cruise through the air plus the wind's
+                    int usable = Array.FindAll(r.Samples, x => x.Usable).Length;
+                    Assert.That(usable, Is.InRange(1016, 1018), "34 s at 29.917 Hz, without the climb between the stretches");
+                    Assert.That(r.Samples.Length - usable, Is.EqualTo((int)(r.ClimbSeconds * HarnessPilot.CameraHz)).Within(1), "the climb's frames");
+                    Assert.That(Array.TrueForAll(r.Samples, x => !x.InBelt || x.Usable), Is.True, "the belt is measured");
+                    Assert.That(r.BeltHeightRef, Is.InRange(0.5 * WindHarness.StripHeight, WindHarness.StripHeight), "the belt at 0.5–1.0 H");
+                    // P's 7.3 H at the run's ground speed along the course: the cruise through the air plus the wind's
                     // component along it, which the meander and the shifts move within the start rule's 90°.
-                    Assert.That(beltSeconds, Is.InRange(4, 12), "7 s at the cruise through the air, give or take the wind along the course");
+                    Assert.That(beltSeconds, Is.InRange(4, 12), "7 s at the cruise's ground speed, give or take the wind along the course");
                     Assert.That(r.MeanAirspeed / WindHarness.ReleaseSpeed, Is.InRange(0.95, 1.08), "the course is flown at the cruise");
                     Assert.That(r.MeanCrosswind, Is.GreaterThan(0.25 * r.MeanSpeed), "the wind from the left");
                 }
@@ -108,14 +112,14 @@ namespace Fpv450.Sim.Tests
                 Assert.That(double.Parse(f[2], CultureInfo.InvariantCulture), Is.EqualTo(r.Samples[i - 1].RollDeg).Within(5e-5));
                 Assert.That(double.Parse(f[3], CultureInfo.InvariantCulture), Is.EqualTo(r.Samples[i - 1].PitchDeg).Within(5e-5));
                 heading += double.Parse(f[4], CultureInfo.InvariantCulture) / HarnessPilot.CameraHz;
-                Assert.That(f[5] + f[6] + f[7] + f[8], Is.EqualTo("1110"), "conf 1, dup 0");
+                Assert.That(f[5] + f[6] + f[7] + f[8], Is.EqualTo(r.Samples[i - 1].Usable ? "1110" : "0000"), "conf 1 (0 in the climb), dup 0");
                 for (int k = 9; k < 18; k++) Assert.That(f[k], Is.Empty, "a simulation has no tracker diagnostics");
                 Assert.That(f[18], Is.EqualTo("ok"));
             }
             // wind_stats.py's frame rate, (n − 1) / (t_last − t_first), and the heading its yaw run integrates: the
             // course's (the run's mean crab is zero, the split's swings average out), within the CSV's rounding.
             Assert.That((n - 1) / (last - first), Is.EqualTo(HarnessPilot.CameraHz).Within(1e-4));
-            Assert.That(Math.Abs(heading), Is.LessThan(2), "the heading's net change over 34 s, degrees");
+            Assert.That(Math.Abs(heading), Is.LessThan(2), "the heading's net change over the run, degrees");
             Assert.That(r.Segment, Does.Match(@"^\d+-\d+$"));
         }
 
