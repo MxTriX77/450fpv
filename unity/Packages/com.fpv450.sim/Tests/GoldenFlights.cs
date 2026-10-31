@@ -1,0 +1,272 @@
+using System;
+using Fpv450.Sim.Contact;
+using Fpv450.Sim.Control;
+using Fpv450.Sim.Flight;
+using Fpv450.Sim.Log;
+using Fpv450.Sim.Wind;
+
+namespace Fpv450.Sim.Tests
+{
+    /// <summary>
+    /// The golden flights. The powered one (p6-flight-core 1.4, 1.5, 1.4b): the repository's drone at its nominal loadout
+    /// with its drag and its contacts, in the Windy stand-in wind, armed by Betaflight's rules and flown 10 s by a scripted
+    /// pilot through every part of the controller with the builder's filter chain, propulsion and the air (a spin-up, a
+    /// climb, roll, pitch and yaw steps, a throttle punch into the ESCs' current limit and a chop, a weave), 300 m up, so
+    /// it touches nothing. The contact one (1.6): the drone takes off from the floor under the closed-loop pilot, comes
+    /// down on the slow glide path with the sticks held, bounces, and the throttle is cut. Each hash is every step's log
+    /// record and events, so it pins the whole state, the controller's included, bit for bit. The suite checks them on
+    /// .NET and in Unity's EditMode (Mono), tools/flightbench --golden on .NET Release. A re-record raises
+    /// LogFormat.ModelVersion and is audited case by case (CLAUDE.md).
+    /// </summary>
+    public static class GoldenFlights
+    {
+        public const int PoweredSteps = 10000, ContactSteps = 12000;
+
+        // 1.4: first recorded with LogFormat.ModelVersion 2: 0xED68941C901FBA75.
+        // 1.5: re-recorded with ModelVersion 3 (the 992-byte record), audited case by case against model 2's flight on
+        // the records' shared 912 bytes: with the air off (no drag, still air, no ESC limit) and the gyroscopic term
+        // taken out, every record of all 10 000 steps is bit-identical; then each new term moves the flight from its
+        // first step of effect: the gyroscopic moment from step 1133 (0.17 m by 10 s), the rotors' in-plane drag from
+        // step 22 (model 2's drone fell 315 m with no drag at all; it now ends 196 m up), the 40 A limit from step
+        // 2006 (the roll step's kick), the body's and the coil's drag from step 2, the wind from step 1. Pinned again
+        // within model 3 when drone.json's h_force_n_per_m_s was tuned from 0.31 to 0.225 (clip P's cruise pitch);
+        // the drone's hash refuses the earlier logs.
+        // 1.6, on its own branch: re-recorded with ModelVersion 4 (the 1112-byte record), the contacts in its setup, as
+        // 0x798AFECB92E12DB7. Audited: hashed over the records' first 992 bytes (model 3's layout) with its events, the
+        // flight was model 3's 0x734CE3306086F5D7 bit for bit: at 196–300 m no shape touches, so the contacts add nothing,
+        // not even a signed zero; the 120 appended bytes are zero but for the touching count, which is 0 too.
+        // 1.4b, on its own branch: re-recorded with ModelVersion 4 (the 1176-byte record: model 3's 992 bytes, then the
+        // filter chain's and the battery's) as 0x3695FC49DCA906DC, audited case by case on the shared 992 bytes: with every
+        // filter off and the PID reading the gyro at the loop rather than its two 8 kHz samples' mean (a temporary edit),
+        // every record and event of all 10 000 steps is bit-identical to model 3's 0x734CE3306086F5D7. Then each part of
+        // the chain moves the motion from its first armed step, 21 (the controller's own state from step 2, D min's
+        // filters running disarmed): the 8 kHz mean (0.008 m from the gyro-at-the-loop flight by 10 s), gyro LPF2
+        // (0.18 m), LPF1 (2.1 m), the gyro notch (4.3 m), the D term's filters (3.7 m, the builder's whole chain, this
+        // golden); the RPM filter from step 164, when the motors pass rpm_filter_min_hz (4.2 m); the dynamic notch
+        // (3.5 m). The golden flies the default, sag compensation off; with it at 100 the flight moves from step 21 and
+        // ends 38.6 m lower (the motors' top cut by up to 25 % on the 90 % pack).
+        // 1.6 and 1.4b merged: re-recorded with ModelVersion 5 (the 1296-byte record: model 3's 992 bytes, 1.6's 120
+        // contact bytes, 1.4b's 184 filter bytes), audited against each parent with the other's terms off:
+        // - against 1.4b: hashed over 1.4b's layout (the record less the contacts' 120 bytes) with its events, the flight is
+        //   1.4b's 0x3695FC49DCA906DC bit for bit (pinned as a test until model 6), the contacts adding nothing 300 m
+        //   up, as in 1.6; the contacts' bytes are zero throughout (the touching count 0).
+        // - against 1.6: with every filter off and the PID reading the gyro at the loop (1.4b's temporary edit, made again
+        //   and reverted), hashed over 1.6's 1112-byte layout with its events, the flight is 1.6's 0x798AFECB92E12DB7 bit
+        //   for bit. With the chain on, it moves as 1.4b's did, from step 21.
+        //   Model 5: 0x734B61C0C15797BC.
+        // 1.7: re-recorded with ModelVersion 6 (the rigid body's midpoint rate, RigidBody.MidpointPasses), audited: with
+        // the passes at 0 (a temporary edit, reverted) the flight is model 5's 0x734B61C0C15797BC bit for bit, and over
+        // 1.4b's layout 1.4b's 0x3695FC49DCA906DC. With the three passes it moves from step 1 (the first kick off the
+        // principal axes); the closed loop holds it to 0.34 mrad of attitude and 32 mm of position by 10 s, 199.4 m up.
+        public const ulong PoweredHash = 0x3F13A5CF5DB7DAFDUL;
+
+        // 1.6: first recorded with ModelVersion 4 as 0x8B568804552379E6.
+        // 1.6 and 1.4b merged: re-recorded with ModelVersion 5. Audited against 1.6: with every filter off and the PID
+        // reading the gyro at the loop (the temporary edit), hashed over 1.6's 1112 bytes with its events, the flight is
+        // 1.6's 0x8B568804552379E6 bit for bit. With the builder's chain the controller's state moves from step 2 (D min's
+        // filters, disarmed) and the motion from the first armed step, 9; the flight keeps its course: the sticks held at
+        // the same step (7219) and the skids down at the same step (7412), off the ground 1 ms later, 140.1 mm up in the
+        // held bounce against 142.3, the last hop after the cut ending 8 ms later (step 9313 against 9305), 5 impacts,
+        // the same height at rest. It has no audit against 1.4b, whose core has no contacts: the flight starts on the floor.
+        // Model 5: 0xF1D0832353311083.
+        // 1.7: re-recorded with ModelVersion 6, audited: with the midpoint passes at 0 (the temporary edit) the flight is
+        // model 5's 0xF1D0832353311083 bit for bit. With them it moves from step 1, by at most 1.0 µm and 0.62 µrad, and
+        // keeps its course: the sticks held at step 7219, 5 impacts, at rest at the same height to 10 µm on 8 pairs.
+        public const ulong ContactHash = 0x3EE12C8D692BADF3UL;
+
+        // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
+        // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
+        // leaving out the momentum's transport into the new axes (QA's experiment) loses 16 % of the momentum, and the
+        // body rate never wanders.
+        public const ulong TumbleHash = 0xE3178EE7FF322698UL;
+        public const int TumbleSteps = 10000;
+
+        public static FlightSetup PoweredSetup(DroneSpec spec)
+        {
+            MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong hash);
+            return new FlightSetup
+            {
+                Seed = 0x450F,
+                World = FlightWorld.Floor(),
+                Mass = spec.BuildMass(spec.Nominal),
+                Propulsion = spec.BuildPropulsion(),
+                Aero = spec.BuildAero(),
+                Wind = WindSetup.Of(WindLevel.Windy),
+                Contacts = spec.BuildContacts(spec.Nominal, materials, hash),
+                StartPosition = new Double3(0, 300, 0),
+                StartPackCharge = 0.9,
+            };
+        }
+
+        /// <summary>The scripted pilot's sticks at step k.</summary>
+        public static StickSample PoweredStick(int k)
+        {
+            double t = k * FlightCore.Dt;
+            var s = new StickSample { HostUs = k * FlightCore.StepUs, Arm = k >= 20 };
+            if (k < 1000) s.Throttle = 0.47 * DetMath.Max(0, t - 0.1) / 0.9;
+            else s.Throttle = 0.47;
+            if (k >= 2000 && k < 2500) s.Roll = 0.9575;
+            if (k >= 2500 && k < 3000) s.Roll = -0.5;
+            if (k >= 3000 && k < 3500) s.Pitch = 0.6;
+            if (k >= 3500 && k < 4500) s.Yaw = 1;
+            if (k >= 4500 && k < 5500) s.Throttle = 1;
+            if (k >= 5500 && k < 6000) s.Throttle = 0;
+            if (k >= 6000)
+            {
+                double phase = (k - 6000) % 1000 / 1000.0;
+                s.Throttle = 0.5;
+                s.Roll = phase < 0.5 ? 0.4 : -0.4;
+                s.Pitch = phase < 0.25 || phase >= 0.75 ? -0.2 : 0.2;
+            }
+            return s;
+        }
+
+        /// <summary>Flies the powered golden flight; returns its hash, with the core's last state for a report. With
+        /// skipAt and skipBytes the hash leaves out each record's bytes from skipAt on, skipBytes of them (a parent model's
+        /// layout, for an audit).</summary>
+        public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool contacts = true)
+        {
+            FlightSetup setup = PoweredSetup(spec);
+            if (!contacts) setup.Contacts = null;
+            core = new FlightCore(setup);
+            var record = new byte[LogFormat.StepSize];
+            var e = new byte[LogFormat.EventSize];
+            ulong hash = 0xCBF29CE484222325UL;
+            for (int k = 0; k < PoweredSteps; k++)
+            {
+                StickSample stick = PoweredStick(k);
+                core.Advance(stick);
+                LogFormat.EncodeStep(record, core.State, stick, core.Trace);
+                hash = Fnv(hash, record, 0, skipAt);
+                hash = Fnv(hash, record, skipAt + skipBytes, record.Length);
+                for (int i = 0; i < core.Events.Count; i++)
+                {
+                    LogFormat.EncodeEvent(e, core.State.Step, core.Events[i]);
+                    hash = Fnv(hash, e, 0, e.Length);
+                }
+            }
+            return hash;
+        }
+
+        /// <summary>
+        /// Flies the contact golden flight: legs on from the floor, the closed-loop pilot up to a metre for 4 s, then down
+        /// at 0.5 m/s; with the skids 0.1 m up the sticks are held (roll, pitch and yaw centred) and the drone bounces; 1.5 s
+        /// later the throttle is cut and it comes to rest. Returns its hash, with the core for a report.
+        /// </summary>
+        public static ulong FlyContact(DroneSpec spec, out FlightCore core)
+        {
+            MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
+            ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
+            double stand = ContactScenarios.Standing(contacts);
+            FlightSetup setup = ContactScenarios.Setup(spec, materials, mh, true, new Double3(0, stand, 0));
+            setup.Wind = WindSetup.Of(WindLevel.Calm);
+            core = new FlightCore(setup);
+            var pilot = new SimPilot(core.Controller, new Double3(0, stand + 1, 0));
+            var record = new byte[LogFormat.StepSize];
+            var e = new byte[LogFormat.EventSize];
+            ulong hash = 0xCBF29CE484222325UL;
+            StickSample held = default;
+            int holdAt = -1;
+            for (int k = 0; k < ContactSteps; k++)
+            {
+                ref readonly FlightState s = ref core.State;
+                StickSample stick;
+                if (k < 16) stick = new StickSample { HostUs = k * FlightCore.StepUs, Arm = k >= 8 };
+                else if (holdAt < 0)
+                {
+                    if (k >= 4000) pilot.Target = new Double3(0, stand + 1 - 0.5 * (k - 4000) * FlightCore.Dt, 0);
+                    stick = pilot.Sticks(core, k * FlightCore.StepUs);
+                    if (k >= 4000 && s.Position.Y - stand < 0.1)
+                    {
+                        holdAt = k;
+                        held = stick;
+                        held.Roll = held.Pitch = held.Yaw = 0;
+                    }
+                }
+                else
+                {
+                    stick = held;
+                    stick.HostUs = k * FlightCore.StepUs;
+                    if (k - holdAt >= 1500) stick.Throttle = 0;
+                }
+                core.Advance(stick);
+                LogFormat.EncodeStep(record, core.State, stick, core.Trace);
+                hash = Fnv(hash, record, 0, record.Length);
+                for (int i = 0; i < core.Events.Count; i++)
+                {
+                    LogFormat.EncodeEvent(e, core.State.Step, core.Events[i]);
+                    hash = Fnv(hash, e, 0, e.Length);
+                }
+            }
+            return hash;
+        }
+
+        /// <summary>The tumble's setup: the repository drone's nominal body (L4, legs on) alone, no propulsion, air or
+        /// contacts, launched 600 m up with a velocity and a spin off its principal axes (its I_yz and the payload's
+        /// offset), falling under gravity.</summary>
+        public static FlightSetup TumbleSetup(DroneSpec spec) => new FlightSetup
+        {
+            Seed = 0x450F,
+            World = FlightWorld.Floor(),
+            Mass = spec.BuildMass(spec.Nominal),
+            StartPosition = new Double3(0, 600, 0),
+            StartVelocity = new Double3(3, 2, -1),
+            StartBodyRate = new Double3(2, -1, 3),
+        };
+
+        /// <summary>What the tumble keeps, each relative to its start: the angular momentum about the CoM in the world,
+        /// the rotational energy, and the CoM's distance from semi-implicit Euler's exact discrete parabola (m); and how far
+        /// the body rate wanders in body axes (rad/s), which a body without ω × I·ω never does.</summary>
+        public struct TumbleChecks
+        {
+            public double Momentum, Energy, Parabola, Wander;
+        }
+
+        /// <summary>
+        /// Flies the tumble golden (1.7, QA's review-base finding 3): TumbleSetup for 10 s, its hash every step's record.
+        /// It guards the gyroscopic term on a body that has one, where the free-body golden's cube has none: a step that
+        /// leaves out the momentum's transport into the new axes, or turns at the start's rate, fails its checks.
+        /// </summary>
+        public static ulong FlyTumble(DroneSpec spec, out FlightCore core, out TumbleChecks checks)
+        {
+            FlightSetup setup = TumbleSetup(spec);
+            core = new FlightCore(setup);
+            MassProperties b = setup.Mass.Properties;
+            Double3 c = b.CenterOfMass;
+            Double3 com0 = setup.StartPosition + Quat.Identity.Rotate(c);
+            Double3 v0 = setup.StartVelocity + Double3.Cross(setup.StartBodyRate, c);
+            Double3 l0 = b.Inertia * setup.StartBodyRate;
+            double e0 = Double3.Dot(setup.StartBodyRate, l0);
+            var record = new byte[LogFormat.StepSize];
+            var e = new byte[LogFormat.EventSize];
+            ulong hash = 0xCBF29CE484222325UL;
+            checks = default;
+            for (int k = 0; k < TumbleSteps; k++)
+            {
+                core.Advance(StickSample.Neutral);
+                ref readonly FlightState s = ref core.State;
+                LogFormat.EncodeStep(record, s, StickSample.Neutral, core.Trace);
+                hash = Fnv(hash, record, 0, record.Length);
+                for (int i = 0; i < core.Events.Count; i++)
+                {
+                    LogFormat.EncodeEvent(e, s.Step, core.Events[i]);
+                    hash = Fnv(hash, e, 0, e.Length);
+                }
+                Double3 h = b.Inertia * s.BodyRate;
+                double n = k + 1, dt = FlightCore.Dt;
+                Double3 parabola = com0 + v0 * (n * dt) + FlightCore.Gravity * (dt * dt * n * (n + 1) / 2);
+                checks.Momentum = DetMath.Max(checks.Momentum, (s.Attitude.Rotate(h) - l0).Length() / l0.Length());
+                checks.Energy = DetMath.Max(checks.Energy, DetMath.Abs(Double3.Dot(s.BodyRate, h) - e0) / e0);
+                checks.Parabola = DetMath.Max(checks.Parabola, (s.Position + s.Attitude.Rotate(c) - parabola).Length());
+                checks.Wander = DetMath.Max(checks.Wander, (s.BodyRate - setup.StartBodyRate).Length());
+            }
+            return hash;
+        }
+
+        static ulong Fnv(ulong h, byte[] bytes, int from, int to)
+        {
+            for (int i = from; i < to; i++) h = unchecked((h ^ bytes[i]) * 0x100000001B3UL);
+            return h;
+        }
+    }
+}

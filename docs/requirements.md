@@ -819,9 +819,9 @@ The design to start from is [legacy/flight-model/](legacy/flight-model/), conden
 - **The pilot: it "doesn't happen much".** Its occurrence comes out of the physics (wash re-ingestion, frame resonance near the 50–60 Hz the real filters notch, payload and spool pendulum), and is never tuned to a pilot number.
 - It publishes the camera-vibration signal.
 
-**PHY-11 Battery.** State of charge and sag over the flight. The heavy corner has no thrust margin left. Low-voltage warnings go to the OSD.
+**PHY-11 Battery.** State of charge and sag over the flight. The heavy corner's margin falls with the sag and is gone at the cut-off. Low-voltage warnings go to the OSD (D-048).
 
-**PHY-12 Inertia character.** Pitch inertia exceeds roll, and yaw is only 1.0–1.3 × roll. **Yaw saturates first**, so the mixer desaturates honestly. *Source:* V§2.4, K§5.3.
+**PHY-12 Inertia character.** The pitch, roll and yaw inertias follow the reference layout as computed from `drone.json` (D-043, D-048). **Yaw saturates first**, so the mixer desaturates honestly. *Source:* V§2.4, K§5.3.
 
 ### 15.3 Wind and turbulence
 **PHY-13 Wind field.**

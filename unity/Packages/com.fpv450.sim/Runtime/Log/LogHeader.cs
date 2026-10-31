@@ -6,8 +6,11 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
+using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Wind;
+using Fpv450.Sim.World;
 
 namespace Fpv450.Sim.Log
 {
@@ -29,6 +32,19 @@ namespace Fpv450.Sim.Log
         {
             Id = id;
             Name = name;
+        }
+    }
+
+    /// <summary>One named number of the header (the wind preset's parameters).</summary>
+    public readonly struct NamedValue
+    {
+        public readonly string Name;
+        public readonly double Value;
+
+        public NamedValue(string name, double value)
+        {
+            Name = name;
+            Value = value;
         }
     }
 
@@ -61,8 +77,18 @@ namespace Fpv450.Sim.Log
     /// - the world: the id a replay opens it by, its content hash and QueryVersion, its surface and material names
     /// - the drone: drone.json's hash (0 for a body not read from it), its name and the pilot's loadout
     /// - the body the flight started with: the mass model's parts and the mass, CoM and inertia they built
+    /// - the propulsion: the motors, the props with their curves, the packs (none for a bench's free body)
+    /// - the airframe's drag (none for a bench's body), and the wind: its model ("stand-in", PHB-06), its level and
+    ///   the level's preset by name (its per-flight draws are the randomness's)
     /// - the flight controller's settings, every field by its CLI name
-    /// - the start state, and the record layouts (so a reader needs no code of ours)
+    /// - the contacts (1.6): drone.json's contact shapes at the loadout with their thresholds, the legs' spring, and the
+    ///   physics materials' rows with physics_materials.json's hash (none for a flight without contacts)
+    /// - the runtime objects the flight placed, in order, each shape in world space (the launch stand: K§6.10's asset,
+    ///   pose and order; their material ids are the world's, named by the world entry)
+    /// - the start state with the packs' charge, and the record layouts (so a reader needs no code of ours)
+    /// - the input: where the sticks came from (a keyboard flight is for development, never for tuning), the device's
+    ///   product name and its report intervals before the flight (p6-input-app 1.1); the host µs of step 0, so a step's
+    ///   stick age is derived from the records, and the latency test's figures when the flight was one (1.5)
     /// Sim data only (LOG-05): no user, machine, path or clock.
     ///
     /// On disk: Magic, the format version and the header's length (u32), then entries of a u16 tag, a u32 length and
@@ -72,14 +98,44 @@ namespace Fpv450.Sim.Log
     {
         /// <summary>The FlightSetup fields the header records, checked against FlightSetup by the suite.</summary>
         public static readonly string[] SetupFieldsLogged =
-            { "Seed", "Settings", "World", "Mass", "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate" };
+        {
+            "Seed", "Settings", "World", "Mass", "Propulsion", "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate",
+            "StartPackCharge", "Aero", "Wind", "Contacts", "RuntimeObjects",
+        };
+
+        /// <summary>The contacts' fields the header records, checked against the types by the suite.</summary>
+        public static readonly string[] ContactFieldsLogged =
+        {
+            "Margin", "CrashAccel", "CrashPropSpeed", "ImpactWindow", "ImpactSpeed", "FrictionStiffnessRatio", "DampingMassShare",
+            "GroundStaticFriction", "GroundKineticFriction", "LegStiffness", "LegDamping", "RingSegments", "Shapes", "Materials", "MaterialsHash",
+        };
+        public static readonly string[] ContactShapeFieldsLogged =
+            { "Name", "Part", "Role", "Corner", "Material", "A", "B", "Radius", "HalfThickness", "Stiffness", "StiffnessUp", "DampingRatio" };
+        public static readonly string[] MaterialRowFieldsLogged = { "Name", "StaticFriction", "KineticFriction", "Stiffness", "DampingRatio" };
+        public static readonly string[] RuntimeObjectFieldsLogged = { "Name", "Shapes" };
+        public static readonly string[] ShapeGeometryFieldsLogged =
+            { "Kind", "Center", "AxisX", "AxisY", "AxisZ", "HalfExtents", "Radius", "HalfLength", "Material", "Surface", "SpanA", "SpanB", "Sag" };
 
         /// <summary>The DronePart fields the header records, checked against DronePart by the suite.</summary>
         public static readonly string[] PartFieldsLogged =
             { "Name", "Kind", "Material", "Mass", "Position", "Size", "Diameter", "Length", "Axis" };
 
+        /// <summary>The propulsion's fields the header records, checked against the structs by the suite.</summary>
+        public static readonly string[] PropulsionFieldsLogged = { "Motors", "Props", "Packs" };
+        public static readonly string[] MotorFieldsLogged =
+            { "Position", "Clockwise", "Kv", "Resistance", "NoLoadCurrent", "RotorInertia", "MagnetPoles", "EscTau", "EscCurrentLimit" };
+        public static readonly string[] PropsFieldsLogged =
+        {
+            "Diameter", "Blades", "Pitch", "ThrustCoefficient", "TorqueRatio", "ReferenceRpm", "StaticRpm", "StaticThrustRatio",
+            "StaticTorqueRatio", "InflowAdvanceRatio", "InflowThrustRatio", "InflowTorqueRatio", "HForce",
+        };
+        public static readonly string[] AeroFieldsLogged = { "AirDensity", "BodyArea", "BodyCenterOfPressure", "DragCoefficient", "CoilPart" };
+        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg" };
+        public static readonly string[] PackFieldsLogged = { "Part", "Series", "Parallel", "CellCapacity", "CellResistance", "Ocv" };
+
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
-            TagRandomness = 7, TagStart = 8, TagLayouts = 9;
+            TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
+            TagRuntimeObjects = 14, TagInput = 15;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -100,13 +156,49 @@ namespace Fpv450.Sim.Log
         public DronePart[] Parts = new DronePart[0];
         public MassProperties Body;
 
+        /// <summary>The motors, props and packs; null for a body without propulsion.</summary>
+        public PropulsionSpec Propulsion;
+
         public SettingValue[] Settings = new SettingValue[0];
+
+        /// <summary>The airframe's drag; null for none.</summary>
+        public AeroSpec Aero;
+
+        /// <summary>The wind: its model's name, its setup, and its level's preset by name (empty for still or steady air).</summary>
+        public string WindModel = WindPreset.Model;
+        public WindSetup Wind;
+        public NamedValue[] WindParameters = new NamedValue[0];
+
+        /// <summary>The contacts; null for none.</summary>
+        public ContactSpec Contacts;
+
+        /// <summary>The runtime objects the flight placed, in order, and the world's object id each got.</summary>
+        public RuntimeObject[] RuntimeObjects = new RuntimeObject[0];
+        public int[] RuntimeIds = new int[0];
 
         public string[] Streams = new string[0];
         public ParameterDraw[] Draws = new ParameterDraw[0];
 
         public Double3 StartPosition, StartVelocity, StartBodyRate;
         public Quat StartAttitude = Quat.Identity;
+        public double StartPackCharge = 1;
+
+        /// <summary>
+        /// Where the sticks came from, the device's product name, and the histogram of its report intervals over the
+        /// window the input layer measured before the flight (null when none was measured: a keyboard or a bench).
+        /// </summary>
+        public InputSource Input;
+        public string InputDevice = "";
+        public ReportIntervals InputIntervals;
+
+        /// <summary>
+        /// HostClock µs of step 0 (FlightScheduler.StartUs), the clock the sticks' HostUs are in, so step k's stick age is
+        /// StartHostUs + k·1000 − its HostUs; 0 when not recorded (a bench, a replay, a log before 1.5).
+        /// </summary>
+        public long StartHostUs;
+
+        /// <summary>The latency test's figures when this flight was one (LatencyTest, p6-input-app 1.5), else null.</summary>
+        public InputLatency InputLatency;
 
         public LogField[] StepFields = LogFormat.StepFields;
         public LogField[] EventFields = LogFormat.EventFields;
@@ -133,11 +225,19 @@ namespace Fpv450.Sim.Log
                 WorldHash = core.World.ContentHash,
                 QueryVersion = core.World.QueryVersion,
                 Body = core.Body,
+                Propulsion = setup.Propulsion,
                 Settings = SettingsOf(core.Settings),
                 StartPosition = setup.StartPosition,
                 StartAttitude = setup.StartAttitude,
                 StartVelocity = setup.StartVelocity,
                 StartBodyRate = setup.StartBodyRate,
+                StartPackCharge = setup.StartPackCharge,
+                Aero = setup.Aero?.Clone(),
+                Wind = setup.Wind,
+                WindParameters = PresetOf(setup.Wind.Level),
+                Contacts = setup.Contacts?.Clone(),
+                RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
+                RuntimeIds = (int[])core.RuntimeIds.Clone(),
             };
             var surfaces = new List<NamedId>();
             for (int id = 1; id < 255; id++)
@@ -165,6 +265,20 @@ namespace Fpv450.Sim.Log
             return h;
         }
 
+        /// <summary>A pilot's level's preset by name, as the header records it; none for still or steady air.</summary>
+        public static NamedValue[] PresetOf(WindLevel level)
+        {
+            if (level == WindLevel.Still || level == WindLevel.Steady) return new NamedValue[0];
+            WindPreset p = WindPreset.Of(level);
+            return new[]
+            {
+                new NamedValue("mean_lo_m_s", p.MeanLo), new NamedValue("mean_hi_m_s", p.MeanHi),
+                new NamedValue("intensity_sigma_over_u", WindPreset.Intensity), new NamedValue("vertical_over_horizontal_sigma", WindPreset.VerticalRatio),
+                new NamedValue("horizontal_scale_m", WindPreset.HorizontalScale), new NamedValue("vertical_scale_m", WindPreset.VerticalScale),
+                new NamedValue("gust_bound_sigma", WindPreset.GustBound),
+            };
+        }
+
         /// <summary>This process's runtime and architecture, as the header records them (".NET 10.0.x X64", "Mono …").</summary>
         public static string CurrentRuntime() => RuntimeInformation.FrameworkDescription + " " + RuntimeInformation.ProcessArchitecture;
 
@@ -189,11 +303,25 @@ namespace Fpv450.Sim.Log
                 Settings = settings,
                 World = world,
                 Mass = new MassModel(Parts),
+                Propulsion = Propulsion,
                 StartPosition = StartPosition,
                 StartAttitude = StartAttitude,
                 StartVelocity = StartVelocity,
                 StartBodyRate = StartBodyRate,
+                StartPackCharge = StartPackCharge,
+                Aero = Aero?.Clone(),
+                Wind = Wind,
+                Contacts = Contacts?.Clone(),
+                RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
             };
+        }
+
+        /// <summary>The runtime object's name of a world object id, or null when the flight placed none by that id.</summary>
+        public string RuntimeObjectName(int id)
+        {
+            for (int i = 0; i < RuntimeIds.Length && i < RuntimeObjects.Length; i++)
+                if (RuntimeIds[i] == id) return RuntimeObjects[i].Name;
+            return null;
         }
 
         /// <summary>The surface or material name of an id, or the id itself when the header has no name for it.</summary>
@@ -337,6 +465,128 @@ namespace Fpv450.Sim.Log
                 S3(e, Body.Inertia);
                 S3(e, Body.InverseInertia);
             });
+            Entry(w, TagPropulsion, e =>
+            {
+                e.Write(Propulsion != null);
+                if (Propulsion == null) return;
+                foreach (DroneMotor m in Propulsion.Motors)
+                {
+                    V3(e, m.Position);
+                    e.Write(m.Clockwise);
+                    e.Write(m.Kv);
+                    e.Write(m.Resistance);
+                    e.Write(m.NoLoadCurrent);
+                    e.Write(m.RotorInertia);
+                    e.Write(m.MagnetPoles);
+                    e.Write(m.EscTau);
+                    e.Write(m.EscCurrentLimit);
+                }
+                DroneProps p = Propulsion.Props;
+                e.Write(p.Diameter);
+                e.Write(p.Blades);
+                e.Write(p.Pitch);
+                e.Write(p.ThrustCoefficient);
+                e.Write(p.TorqueRatio);
+                e.Write(p.ReferenceRpm);
+                foreach (double[] curve in new[] { p.StaticRpm, p.StaticThrustRatio, p.StaticTorqueRatio, p.InflowAdvanceRatio, p.InflowThrustRatio, p.InflowTorqueRatio })
+                    Numbers(e, curve);
+                e.Write(p.HForce);
+                foreach (DronePack k in Propulsion.Packs)
+                {
+                    e.Write(k.Part);
+                    e.Write(k.Series);
+                    e.Write(k.Parallel);
+                    e.Write(k.CellCapacity);
+                    e.Write(k.CellResistance);
+                    Numbers(e, k.Ocv);
+                }
+            });
+            Entry(w, TagAero, e =>
+            {
+                e.Write(Aero != null);
+                if (Aero == null) return;
+                e.Write(Aero.AirDensity);
+                V3(e, Aero.BodyArea);
+                V3(e, Aero.BodyCenterOfPressure);
+                e.Write(Aero.DragCoefficient);
+                e.Write(Aero.CoilPart);
+            });
+            Entry(w, TagWind, e =>
+            {
+                Text(e, WindModel);
+                e.Write((byte)Wind.Level);
+                e.Write(Wind.SteadySpeed);
+                e.Write(Wind.SteadyFromDeg);
+                e.Write((ushort)WindParameters.Length);
+                foreach (NamedValue v in WindParameters)
+                {
+                    Text(e, v.Name);
+                    e.Write(v.Value);
+                }
+            });
+            Entry(w, TagContacts, e =>
+            {
+                e.Write(Contacts != null);
+                if (Contacts == null) return;
+                ContactSpec c = Contacts;
+                foreach (double v in new[] { c.Margin, c.CrashAccel, c.CrashPropSpeed, c.ImpactWindow, c.ImpactSpeed, c.FrictionStiffnessRatio,
+                    c.DampingMassShare, c.GroundStaticFriction, c.GroundKineticFriction, c.LegStiffness, c.LegDamping })
+                    e.Write(v);
+                e.Write(c.RingSegments);
+                e.Write((ushort)c.Shapes.Length);
+                foreach (ContactShape s in c.Shapes)
+                {
+                    Text(e, s.Name);
+                    e.Write(s.Part);
+                    e.Write((byte)s.Role);
+                    e.Write(s.Corner);
+                    Text(e, s.Material);
+                    V3(e, s.A);
+                    V3(e, s.B);
+                    e.Write(s.Radius);
+                    e.Write(s.HalfThickness);
+                    e.Write(s.Stiffness);
+                    e.Write(s.StiffnessUp);
+                    e.Write(s.DampingRatio);
+                }
+                e.Write((ushort)c.Materials.Length);
+                foreach (MaterialRow m in c.Materials)
+                {
+                    Text(e, m.Name);
+                    e.Write(m.StaticFriction);
+                    e.Write(m.KineticFriction);
+                    e.Write(m.Stiffness);
+                    e.Write(m.DampingRatio);
+                }
+                e.Write(c.MaterialsHash);
+            });
+            Entry(w, TagRuntimeObjects, e =>
+            {
+                e.Write((ushort)RuntimeObjects.Length);
+                for (int i = 0; i < RuntimeObjects.Length; i++)
+                {
+                    RuntimeObject o = RuntimeObjects[i];
+                    e.Write(i < RuntimeIds.Length ? RuntimeIds[i] : -1);
+                    Text(e, o.Name);
+                    e.Write((ushort)o.Shapes.Length);
+                    foreach (ShapeGeometry g in o.Shapes)
+                    {
+                        e.Write((byte)g.Kind);
+                        V3(e, g.Center);
+                        V3(e, g.AxisX);
+                        V3(e, g.AxisY);
+                        V3(e, g.AxisZ);
+                        V3(e, g.HalfExtents);
+                        e.Write(g.Radius);
+                        e.Write(g.HalfLength);
+                        e.Write(g.Material);
+                        e.Write(g.Surface);
+                        V3(e, g.SpanA);
+                        V3(e, g.SpanB);
+                        e.Write(g.Sag);
+                    }
+                }
+            });
             Entry(w, TagSettings, e =>
             {
                 e.Write((ushort)Settings.Length);
@@ -371,12 +621,37 @@ namespace Fpv450.Sim.Log
                 e.Write(StartAttitude.W);
                 V3(e, StartVelocity);
                 V3(e, StartBodyRate);
+                e.Write(StartPackCharge);
             });
             Entry(w, TagLayouts, e =>
             {
                 Layout(e, LogFormat.StepBlock, StepFields);
                 Layout(e, LogFormat.EventBlock, EventFields);
                 Layout(e, LogFormat.EndBlock, EndFields);
+            });
+            Entry(w, TagInput, e =>
+            {
+                e.Write((byte)Input);
+                Text(e, InputDevice);
+                ReportIntervals r = InputIntervals;
+                e.Write(r == null ? 0 : r.BinUs);
+                e.Write((ushort)(r == null ? 0 : r.Counts.Length));
+                if (r != null)
+                {
+                    foreach (long n in r.Counts) e.Write(n);
+                    e.Write(r.Count);
+                    e.Write(r.SumUs);
+                    e.Write(r.MinUs);
+                    e.Write(r.MaxUs);
+                }
+                // 1.5, appended: a reader of 1.1's entry stops before it.
+                e.Write(StartHostUs);
+                InputLatency l = InputLatency;
+                e.Write(l != null);
+                if (l == null) return;
+                e.Write(l.Steps);
+                Spread(e, l.FirstStep);
+                Spread(e, l.Motor);
             });
             w.Flush();
 
@@ -490,6 +765,47 @@ namespace Fpv450.Sim.Log
                             InverseInertia = S3(r),
                         };
                         break;
+                    case TagPropulsion:
+                        Propulsion = r.ReadBoolean() ? ReadPropulsion(r) : null;
+                        break;
+                    case TagAero:
+                        Aero = r.ReadBoolean()
+                            ? new AeroSpec
+                            {
+                                AirDensity = r.ReadDouble(), BodyArea = V3(r), BodyCenterOfPressure = V3(r), DragCoefficient = r.ReadDouble(),
+                                CoilPart = r.ReadInt32(),
+                            }
+                            : null;
+                        break;
+                    case TagWind:
+                        WindModel = Text(r);
+                        Wind = new WindSetup { Level = (WindLevel)r.ReadByte(), SteadySpeed = r.ReadDouble(), SteadyFromDeg = r.ReadDouble() };
+                        WindParameters = new NamedValue[r.ReadUInt16()];
+                        for (int i = 0; i < WindParameters.Length; i++) WindParameters[i] = new NamedValue(Text(r), r.ReadDouble());
+                        break;
+                    case TagContacts:
+                        Contacts = r.ReadBoolean() ? ReadContacts(r) : null;
+                        break;
+                    case TagRuntimeObjects:
+                        RuntimeObjects = new RuntimeObject[r.ReadUInt16()];
+                        RuntimeIds = new int[RuntimeObjects.Length];
+                        for (int i = 0; i < RuntimeObjects.Length; i++)
+                        {
+                            RuntimeIds[i] = r.ReadInt32();
+                            string name = Text(r);
+                            var shapes = new ShapeGeometry[r.ReadUInt16()];
+                            for (int k = 0; k < shapes.Length; k++)
+                            {
+                                shapes[k] = new ShapeGeometry
+                                {
+                                    Kind = (ShapeKind)r.ReadByte(), Center = V3(r), AxisX = V3(r), AxisY = V3(r), AxisZ = V3(r), HalfExtents = V3(r),
+                                    Radius = r.ReadDouble(), HalfLength = r.ReadDouble(), Material = r.ReadUInt16(), Surface = r.ReadByte(),
+                                    SpanA = V3(r), SpanB = V3(r), Sag = r.ReadDouble(),
+                                };
+                            }
+                            RuntimeObjects[i] = new RuntimeObject(name, shapes);
+                        }
+                        break;
                     case TagSettings:
                         Settings = new SettingValue[r.ReadUInt16()];
                         for (int i = 0; i < Settings.Length; i++) Settings[i] = new SettingValue(Text(r), r.ReadByte(), r.ReadInt64());
@@ -506,6 +822,7 @@ namespace Fpv450.Sim.Log
                         StartAttitude = new Quat(r.ReadDouble(), r.ReadDouble(), r.ReadDouble(), r.ReadDouble());
                         StartVelocity = V3(r);
                         StartBodyRate = V3(r);
+                        StartPackCharge = r.ReadDouble();
                         break;
                     case TagLayouts:
                         sawLayouts = true;
@@ -518,6 +835,26 @@ namespace Fpv450.Sim.Log
                             else if (kind == LogFormat.EndBlock) EndFields = fields;
                         }
                         break;
+                    case TagInput:
+                        Input = (InputSource)r.ReadByte();
+                        InputDevice = Text(r);
+                        int binUs = r.ReadInt32();
+                        int bins = r.ReadUInt16();
+                        if (binUs != 0)
+                        {
+                            var intervals = new ReportIntervals(binUs, bins);
+                            for (int i = 0; i < bins; i++) intervals.Counts[i] = r.ReadInt64();
+                            intervals.Count = r.ReadInt64();
+                            intervals.SumUs = r.ReadInt64();
+                            intervals.MinUs = r.ReadInt64();
+                            intervals.MaxUs = r.ReadInt64();
+                            InputIntervals = intervals;
+                        }
+                        if (r.BaseStream.Position >= end) break; // 1.1's entry
+                        StartHostUs = r.ReadInt64();
+                        if (!r.ReadBoolean()) break;
+                        InputLatency = new InputLatency { Steps = r.ReadInt64(), FirstStep = Spread(r), Motor = Spread(r) };
+                        break;
                     default:
                         Unknown.Add("header entry " + tag + " (" + size + " bytes)");
                         break;
@@ -526,6 +863,78 @@ namespace Fpv450.Sim.Log
                 r.BaseStream.Position = end;
             }
             if (!sawLayouts) throw new FlightLogException("the header has no record layouts");
+        }
+
+        static ContactSpec ReadContacts(BinaryReader r)
+        {
+            var c = new ContactSpec
+            {
+                Margin = r.ReadDouble(), CrashAccel = r.ReadDouble(), CrashPropSpeed = r.ReadDouble(), ImpactWindow = r.ReadDouble(),
+                ImpactSpeed = r.ReadDouble(), FrictionStiffnessRatio = r.ReadDouble(), DampingMassShare = r.ReadDouble(),
+                GroundStaticFriction = r.ReadDouble(), GroundKineticFriction = r.ReadDouble(), LegStiffness = r.ReadDouble(), LegDamping = r.ReadDouble(),
+                RingSegments = r.ReadInt32(),
+            };
+            c.Shapes = new ContactShape[r.ReadUInt16()];
+            for (int i = 0; i < c.Shapes.Length; i++)
+            {
+                c.Shapes[i] = new ContactShape
+                {
+                    Name = Text(r), Part = r.ReadInt32(), Role = (ContactRole)r.ReadByte(), Corner = r.ReadInt32(), Material = Text(r), A = V3(r), B = V3(r),
+                    Radius = r.ReadDouble(), HalfThickness = r.ReadDouble(), Stiffness = r.ReadDouble(), StiffnessUp = r.ReadDouble(), DampingRatio = r.ReadDouble(),
+                };
+            }
+            c.Materials = new MaterialRow[r.ReadUInt16()];
+            for (int i = 0; i < c.Materials.Length; i++)
+                c.Materials[i] = new MaterialRow
+                {
+                    Name = Text(r), StaticFriction = r.ReadDouble(), KineticFriction = r.ReadDouble(), Stiffness = r.ReadDouble(), DampingRatio = r.ReadDouble(),
+                };
+            c.MaterialsHash = r.ReadUInt64();
+            return c;
+        }
+
+        static PropulsionSpec ReadPropulsion(BinaryReader r)
+        {
+            var spec = new PropulsionSpec { Motors = new DroneMotor[4], Packs = new DronePack[2] };
+            for (int i = 0; i < 4; i++)
+            {
+                spec.Motors[i] = new DroneMotor
+                {
+                    Position = V3(r), Clockwise = r.ReadBoolean(), Kv = r.ReadDouble(), Resistance = r.ReadDouble(),
+                    NoLoadCurrent = r.ReadDouble(), RotorInertia = r.ReadDouble(), MagnetPoles = r.ReadInt32(), EscTau = r.ReadDouble(),
+                    EscCurrentLimit = r.ReadDouble(),
+                };
+            }
+            spec.Props = new DroneProps
+            {
+                Diameter = r.ReadDouble(), Blades = r.ReadInt32(), Pitch = r.ReadDouble(), ThrustCoefficient = r.ReadDouble(),
+                TorqueRatio = r.ReadDouble(), ReferenceRpm = r.ReadDouble(),
+                StaticRpm = Numbers(r), StaticThrustRatio = Numbers(r), StaticTorqueRatio = Numbers(r),
+                InflowAdvanceRatio = Numbers(r), InflowThrustRatio = Numbers(r), InflowTorqueRatio = Numbers(r),
+                HForce = r.ReadDouble(),
+            };
+            for (int k = 0; k < 2; k++)
+            {
+                spec.Packs[k] = new DronePack
+                {
+                    Part = r.ReadInt32(), Series = r.ReadInt32(), Parallel = r.ReadInt32(), CellCapacity = r.ReadDouble(),
+                    CellResistance = r.ReadDouble(), Ocv = Numbers(r),
+                };
+            }
+            return spec;
+        }
+
+        static void Numbers(BinaryWriter w, double[] xs)
+        {
+            w.Write((ushort)xs.Length);
+            foreach (double x in xs) w.Write(x);
+        }
+
+        static double[] Numbers(BinaryReader r)
+        {
+            var xs = new double[r.ReadUInt16()];
+            for (int i = 0; i < xs.Length; i++) xs[i] = r.ReadDouble();
+            return xs;
         }
 
         /// <summary>True when a layout the log declares is not the one this build writes (field for field).</summary>
@@ -602,6 +1011,20 @@ namespace Fpv450.Sim.Log
         }
 
         static Double3 V3(BinaryReader r) => new Double3(r.ReadDouble(), r.ReadDouble(), r.ReadDouble());
+
+        static void Spread(BinaryWriter w, in LatencySpread s)
+        {
+            w.Write(s.MinUs);
+            w.Write(s.P50Us);
+            w.Write(s.P99Us);
+            w.Write(s.MaxUs);
+            w.Write(s.MeanUs);
+        }
+
+        static LatencySpread Spread(BinaryReader r) => new LatencySpread
+        {
+            MinUs = r.ReadInt64(), P50Us = r.ReadInt64(), P99Us = r.ReadInt64(), MaxUs = r.ReadInt64(), MeanUs = r.ReadDouble(),
+        };
 
         static void S3(BinaryWriter w, Sym3 s)
         {

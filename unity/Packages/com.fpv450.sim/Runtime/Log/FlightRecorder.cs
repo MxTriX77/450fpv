@@ -11,7 +11,7 @@ namespace Fpv450.Sim.Log
     /// step's record and events are encoded into a preallocated ring, with no allocation, no lock and no disk. A flush
     /// worker thread writes the ring to the stream every few ms.
     ///
-    /// The step never waits on the disk: the default ring holds 4 MiB, 11.8 s of flight at 356 B a step. Only a disk
+    /// The step never waits on the disk: the default ring holds 4 MiB, 4.6 s of flight at 916 B a step. Only a disk
     /// stalled for longer fills it, and then the flight thread waits for room. It logs that wait as a LogFull hitch
     /// before the step's record, and the scheduler's next pass logs the late steps as a Late one. Nothing is dropped,
     /// so a replay stays exact. A failed write (a full disk) stops the log and never the flight: the file then ends
@@ -125,6 +125,21 @@ namespace Fpv450.Sim.Log
             e.B = hitch.LateUs;
             PutEvent(step, e);
             _counts.Hitches++;
+            Volatile.Write(ref _written, _cursor);
+        }
+
+        /// <summary>
+        /// A pause (HitchCause.Pause) before the step that makes state step: no step ran for pausedUs. Only while the
+        /// flight thread is stopped (the app's pause), so it stands where a hitch would, before the steps it delayed.
+        /// </summary>
+        public void RecordPause(long step, long pausedUs)
+        {
+            if (_closed || Volatile.Read(ref _fault) != null) return;
+            if (!Reserve(EventBlockSize, step)) return;
+            FlightEvent e = FlightEvent.Of(EventKind.Hitch);
+            e.Index = (byte)HitchCause.Pause;
+            e.B = pausedUs;
+            PutEvent(step, e);
             Volatile.Write(ref _written, _cursor);
         }
 

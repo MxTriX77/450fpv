@@ -1,0 +1,16 @@
+{
+    "name": "Fpv450.Input.Radio",
+    "rootNamespace": "Fpv450.Input.Radio",
+    "references": [
+        "Fpv450.Sim"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

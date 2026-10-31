@@ -81,5 +81,29 @@ namespace Fpv450.Sim
             for (int i = 0; i < 8; i++) y += (m / (y * y) - y) / 3;
             return y * scale;
         }
+
+        // π/2 in two parts (fdlibm's pio2_1 and pio2_1t, published): the first has 33 bits, so k·PiOver2Hi is exact
+        // for |k| < 2^20 and the reduction loses nothing there.
+        const double PiOver2Hi = 1.57079632673412561417e+00, PiOver2Lo = 6.07710050650619224932e-11;
+        const double TwoOverPi = 6.36619772367581382433e-01;
+
+        /// <summary>
+        /// sin x and cos x, x in radians, |x| below about 1.6e6, by the basic operations only, so every runtime gives
+        /// the same bits (System.Math's are not correctly rounded). x = k·π/2 + r with |r| ≤ π/4 (Cody–Waite, exact
+        /// for that range), then the Taylor series of both to r^17 and r^16, whose next terms are below 1e-19, and
+        /// the quadrant k picks and signs them.
+        /// </summary>
+        public static void SinCos(double x, out double sin, out double cos)
+        {
+            double k = System.Math.Round(x * TwoOverPi); // exact: rounding to an integer is one correctly rounded op
+            double r = x - k * PiOver2Hi - k * PiOver2Lo, r2 = r * r;
+            double s = r * (1 + r2 * (-1.0 / 6 + r2 * (1.0 / 120 + r2 * (-1.0 / 5040 + r2 * (1.0 / 362880
+                + r2 * (-1.0 / 39916800 + r2 * (1.0 / 6227020800 + r2 * (-1.0 / 1307674368000 + r2 * (1.0 / 355687428096000)))))))));
+            double c = 1 + r2 * (-0.5 + r2 * (1.0 / 24 + r2 * (-1.0 / 720 + r2 * (1.0 / 40320 + r2 * (-1.0 / 3628800
+                + r2 * (1.0 / 479001600 + r2 * (-1.0 / 87178291200 + r2 * (1.0 / 20922789888000))))))));
+            long q = (long)k & 3;
+            sin = q == 0 ? s : q == 1 ? c : q == 2 ? -s : -c;
+            cos = q == 0 ? c : q == 1 ? -s : q == 2 ? -c : s;
+        }
     }
 }

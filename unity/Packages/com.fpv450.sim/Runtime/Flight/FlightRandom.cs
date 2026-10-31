@@ -105,6 +105,24 @@ namespace Fpv450.Sim.Flight
         }
 
         /// <summary>
+        /// A per-flight draw of a named physical parameter, nearly normal about 0 with standard deviation sigma: the
+        /// sum of 12 uniform draws less 6 (Irwin–Hall: variance 1, kurtosis 2.9), times sigma, clamped to ±bound;
+        /// recorded for the header with the bound and the index of its first draw.
+        /// </summary>
+        public double DrawNormal(ref SeedStream stream, string parameter, double sigma, double bound)
+        {
+            if (!(sigma >= 0 && bound >= 0))
+                throw new ArgumentException("the spread and the bound are not negative: " + parameter);
+            ulong index = stream.Count;
+            double sum = -6;
+            for (int i = 0; i < 12; i++) sum += stream.NextUnit();
+            double value = sum * sigma;
+            value = value > bound ? bound : value < -bound ? -bound : value;
+            _draws.Add(new ParameterDraw(stream.Name, parameter, -bound, bound, value, index));
+            return value;
+        }
+
+        /// <summary>
         /// The stream key of (seed, name): Mix64(seed + Mix64(FNV-1a 64 of the name's ASCII bytes)). Fixed forever,
         /// because old logs replay through it (a change is a superseding decision and a new log version).
         /// </summary>

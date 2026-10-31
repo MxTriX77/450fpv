@@ -129,7 +129,7 @@ This is the pilot's seven-step plan (2026-10-17), "made right". Their order stay
 
 ---
 
-## Phase 2: Gallery, the first release (G2)
+## Phase 2: Gallery, the first release (G2) · dropped (D-047)
 
 **Goal:** a Windows build of the gallery map with every asset, variant and state, ready for the pilot's review.
 **Owners:** world-builder (gallery generator), game-developer (noclip, review controls, build), QA.
@@ -150,7 +150,7 @@ This is the pilot's seven-step plan (2026-10-17), "made right". Their order stay
 
 ---
 
-## Phase 3: World (G3, UAT-2)
+## Phase 3: World (G3, UAT-2) · dropped (D-047: the test range is the map)
 
 **Goal:** the full composite map, explorable in noclip, built from an editable layout, with the deterministic world-query core underneath.
 **Owners:** world-builder (layout, compiler, terrain, placement), physics-engineer (world-query core review and the contact probe), tech-artist (performance, distance look), QA.
@@ -180,7 +180,7 @@ This is the pilot's seven-step plan (2026-10-17), "made right". Their order stay
 
 ---
 
-## Phase 4: Analog feed and OSD (G4)
+## Phase 4: Analog feed and OSD (G4, folded into G7 by D-047)
 
 **Goal:** the goggles view, analog and dynamic, exactly the footage's OSD.
 **Owners:** tech-artist (feed, OSD rendering), game-developer (OSD content model, debug panel), QA.
@@ -201,7 +201,7 @@ This is the pilot's seven-step plan (2026-10-17), "made right". Their order stay
 
 ---
 
-## Phase 5: The drone (G5)
+## Phase 5: The drone (G5, folded into G7 by D-047)
 
 **Goal:** "Svinoriz 10 Opto", researched, modelled and specified once for both visuals and physics.
 **Owners:** reference-analyst (research: typical Ukrainian fiber-optic heavy quads, coil, battery arrangement, payload mounting, legs, launch stand), asset-artist (model), physics-engineer (`drone.json`, mass and inertia check), QA.
@@ -266,17 +266,17 @@ All requirements are green, including PLT-03 on a mid-range estimate and LOG-04 
 
 ---
 
-**The order after G1 (D-042):** G4 (phase 4), G5 (phase 5) and G7 (phase 6, with the core of phase 7's flight physics: wind, turbulence, weather and the airframe effects) come next, built in parallel lanes, with the test range (D-044: a small map of the Godot yard and belt and Unity's assets) as G4's and G7's map; G6 folds into G7; the fiber (7d) follows G7. Mass production, G2 and G3 are postponed.
+**The order now (D-047, superseding D-042's):** the test range is the release's map. The map stack lands (G1's code, the test range, H01), then the feed, the world queries and contacts over the test range, the airframe (7b) and the wind (7c); the app's screens and the built player then make the **G7 build**, where the pilot also judges the feed (G4) and the drone (G5). After G7, one MVP per remaining physics change (7d the fiber, 7a the ground, 7e forensics), with the feed's remaining tasks, then G8. Phases 2 and 3, mass production, G2 and G3 are dropped.
 
 ## Gates at a glance
 
 | Gate | When | What the pilot gets | Pilot time |
 |---|---|---|---|
 | G1 look-lock | mid phase 1 | 6 stations in a quick gallery build | about 10 min |
-| **G2 gallery** | end of phase 2 | the full gallery build in noclip | as they like |
-| **G3 world (UAT-2)** | end of phase 3 | the full world in noclip | as they like |
-| **G4 feed** | end of phase 4 | the world seen through the goggles feed | about 30 min |
-| G5 drone | end of phase 5 | the drone station and turntable | about 5 min |
+| ~~G2 gallery~~ | dropped (D-047) | — | — |
+| ~~G3 world (UAT-2)~~ | dropped (D-047) | — | — |
+| G4 feed | folded into G7 (D-047) | judged in the flying build | — |
+| G5 drone | folded into G7 (D-047) | judged in the flying build | — |
 | **G6 wireframes** | start of phase 6 | screen wireframes | about 10 min |
 | **G7 MVP-1** | end of phase 6 | first flight with the TX12 | flying |
 | MVP-2…n | phase 7 | each physics change | flying |
