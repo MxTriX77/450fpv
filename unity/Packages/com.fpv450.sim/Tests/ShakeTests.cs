@@ -28,16 +28,18 @@ namespace Fpv450.Sim.Tests
         }
 
         // Fifty arrested descents: two payloads, four drops (from the hover, 2.5, 5.4 and 9 m/s), a sharp full and a sharp
-        // 0.8 step and the gentle ramp, two seeds; and the known-wrong rigid airframe twice.
+        // 0.8 step and the gentle ramp, two seeds; and the known-wrong rigid airframe twice. The spec's three scenarios (D-049):
+        // "Shake only when its causes meet", "The shake lasts as long as the arrest", "The visible shake is the rigid body's".
         [Test]
         public void ShakeOnlyWhenItsCausesMeet()
         {
             DroneSpec spec = RepositoryDrone.Spec();
             int flights = 0;
+            var heavyPunch = new ShakeScenario.Result[Seeds.Length];
             foreach (double payload in Payloads)
                 foreach (double drop in Drops)
                 {
-                    var peaks = new double[3, Seeds.Length];
+                    var runs = new ShakeScenario.Result[3, Seeds.Length];
                     for (int s = 0; s < Seeds.Length; s++)
                         for (int input = 0; input < 3; input++)
                         {
@@ -45,42 +47,67 @@ namespace Fpv450.Sim.Tests
                             double stick = input == 0 ? 1 : 0.8;
                             ShakeScenario.Result r = ShakeScenario.Fly(ShakeScenario.Setup(spec, payload, Seeds[s]), drop, gentle, stick);
                             flights++;
-                            peaks[input, s] = r.Peak;
-                            TestContext.WriteLine($"{payload:F0} kg, drop {drop:F1} s, {(gentle ? "gentle" : "step " + stick.ToString("F1"))}, seed {Seeds[s]}: "
-                                + ShakeScenario.Describe(r));
+                            runs[input, s] = r;
+                            string at = $"{payload:F0} kg, drop {drop:F1} s, {(gentle ? "gentle" : "step " + stick.ToString("F1"))}, seed {Seeds[s]}: "
+                                + ShakeScenario.Describe(r);
+                            TestContext.WriteLine(at);
                             Assert.That(r.Published, Is.True, "the camera's vibration reaches the feed");
                             if (drop == 0)
                             {
                                 // From the hover: a gentle increase never shows it; a sharp one only its own kick as the motors
                                 // spin up, under 0.3 s, the ESCs off their limit within 0.1 s.
-                                if (gentle) Assert.That(r.Fields, Is.EqualTo(0), "a gentle increase never shows it");
-                                else Assert.That(r.Duration, Is.LessThan(0.3), "a punch from the hover is a kick, not the shake");
-                                Assert.That(r.Limited, Is.LessThan(0.1));
+                                if (gentle) Assert.That(r.Fields, Is.EqualTo(0), "a gentle increase never shows it: " + at);
+                                else Assert.That(r.Duration, Is.LessThan(0.3), "a punch from the hover is a kick, not the shake: " + at);
+                                Assert.That(r.Limited, Is.LessThan(0.1), at);
                                 continue;
                             }
-                            if (gentle) continue;
-                            // Arresting a descent sharply: the shake, seen mainly on the camera, as long as the arrest holds the
-                            // ESCs on their limit and the rotors in their wash.
-                            Assert.That(r.Duration, Is.GreaterThanOrEqualTo(0.28), "the shake after the arrest");
-                            Assert.That(r.InRing, Is.GreaterThan(0.2), "the rotors re-ingest their wash");
-                            Assert.That(r.VibrationPeak.Y, Is.GreaterThan(0.5), "the frame's band rings");
+                            if (gentle)
+                            {
+                                // In a 5–9 m/s descent a gentle ramp shows PHY-09's wobble instead (the 2.5 m/s one is not asked).
+                                if (drop >= 0.6) Assert.That(ShakeScenario.Wobbles(r), Is.True, "the rotors settle into their wash: " + at);
+                                continue;
+                            }
+                            // Arresting a descent sharply: the shake, the rigid body jittering and tilting uncommanded while the
+                            // ESCs sit at their limit and the rotors re-ingest their wash; the frame's modes add the 50–200 Hz band.
+                            Assert.That(r.Duration, Is.GreaterThanOrEqualTo(0.28), "the shake after the arrest: " + at);
+                            Assert.That(r.Limited, Is.GreaterThan(0.25), "the ESCs sit at their limit: " + at);
+                            Assert.That(r.InRing, Is.GreaterThan(0.2), "the rotors re-ingest their wash: " + at);
+                            Assert.That(r.TiltMax, Is.InRange(5, 16), "the tilt uncommanded: " + at);
+                            Assert.That(r.VibrationPeak.Y, Is.GreaterThan(0.5), "the frame's band rings: " + at);
+                            // It lasts as long as the arrest: 0.3–0.7 s for the empty drone's moderate descents; a full punch
+                            // holds the ESCs on their limit through the whole arrest, 0.8–1.4 s with the payload or from 9 m/s.
+                            if (payload == 0 && drop <= 0.6) Assert.That(ShakeScenario.LastsInTenths(r.Duration, 0.3, 0.7), Is.True, at);
+                            if (stick < 1) continue;
+                            Assert.That(ShakeScenario.LastsTheArrest(r), Is.True, "a full punch's shake lasts its arrest: " + at);
+                            if (payload > 0 || drop >= 1) Assert.That(ShakeScenario.LastsInTenths(r.Duration, 0.8, 1.4), Is.True, at);
+                            if (payload > 0 && drop == 0.6) heavyPunch[s] = r;
                         }
+                    if (drop == 0) continue;
                     for (int s = 0; s < Seeds.Length; s++)
-                        if (drop > 0) Assert.That(peaks[2, s], Is.LessThan(peaks[0, s]), "the gentle input's jitter is below the sharp punch's at the same descent");
-                    if (drop > 0) Assert.That(peaks[0, 0], Is.Not.EqualTo(peaks[0, 1]), "it varies between occurrences");
+                    {
+                        // A smaller step lets the ESCs go sooner, and its shake is shorter; the gentle ramp's below the punch's.
+                        Assert.That(runs[1, s].Limited, Is.LessThan(runs[0, s].Limited), "the 0.8 step's ESCs leave their limit sooner");
+                        Assert.That(runs[1, s].Duration, Is.LessThan(runs[0, s].Duration), "the 0.8 step's shake is shorter");
+                        Assert.That(runs[2, s].Peak, Is.LessThan(runs[0, s].Peak), "the gentle input's jitter is below the sharp punch's at the same descent");
+                    }
+                    Assert.That(runs[0, 0].Peak, Is.Not.EqualTo(runs[0, 1].Peak), "it varies between occurrences");
                 }
-            // Known-wrong: a rigid airframe, the modes off. The camera then has no frame to ring and the feed no vibration.
-            foreach (ulong seed in Seeds)
+            // Known-wrong: a rigid airframe, the modes off. The visible shake is the rigid body's, so it stays (within 20 % of
+            // the flexing airframe's, as long); but the camera has no frame to ring, and the feed no vibration.
+            for (int s = 0; s < Seeds.Length; s++)
             {
-                ShakeScenario.Result r = ShakeScenario.Fly(ShakeScenario.Setup(spec, 2, seed, false), 0.6, false);
+                ShakeScenario.Result r = ShakeScenario.Fly(ShakeScenario.Setup(spec, 2, Seeds[s], false), 0.6, false);
                 flights++;
-                TestContext.WriteLine($"rigid, 2 kg, drop 0.6 s, step 1.0, seed {seed}: " + ShakeScenario.Describe(r));
+                string at = $"rigid, 2 kg, drop 0.6 s, step 1.0, seed {Seeds[s]}: " + ShakeScenario.Describe(r);
+                TestContext.WriteLine(at);
+                Assert.That(r.Peak / heavyPunch[s].Peak, Is.InRange(0.8, 1.2), "the visible shake is the rigid body's: " + at);
+                Assert.That(ShakeScenario.LastsTheArrest(r) && ShakeScenario.LastsInTenths(r.Duration, 0.8, 1.4), Is.True, at);
                 Assert.That(r.Published, Is.False, "the known-wrong rigid airframe publishes no camera vibration");
             }
             Assert.That(flights, Is.EqualTo(50));
         }
 
-        // The no-payload drone arrested sharply from 2.5–5.4 m/s, the pilot's PR-1: the shake lasts 0.3–0.75 s.
+        // The no-payload drone arrested sharply from 2.5–5.4 m/s, the pilot's PR-1: the shake lasts 0.3–0.7 s (D-049).
         [Test]
         public void TheShakeLastsAboutTheArrest()
         {
@@ -90,7 +117,7 @@ namespace Fpv450.Sim.Tests
                     foreach (double stick in new[] { 1.0, 0.8 })
                     {
                         ShakeScenario.Result r = ShakeScenario.Fly(ShakeScenario.Setup(spec, 0, seed), drop, false, stick);
-                        Assert.That(r.Duration, Is.InRange(0.28, 0.75), ShakeScenario.Describe(r));
+                        Assert.That(ShakeScenario.LastsInTenths(r.Duration, 0.3, 0.7), Is.True, ShakeScenario.Describe(r));
                     }
         }
 

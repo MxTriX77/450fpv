@@ -47,11 +47,19 @@ Vortex ring state SHALL set in from the descent rate normalised by the induced v
 - **THEN** the first enters the state and logs its entry, loses thrust and wobbles; the second does not enter it; and exit needs a lower normalised descent rate than entry
 
 ### Requirement: The throttle-punch shake arises from its causes
-After a fast descent is arrested by a sharp throttle increase, a damped high-frequency disturbance of 0.3–0.7 s SHALL arise from wash re-ingestion, frame resonance and the payload and spool pendulum, shown mainly as camera vibration, depending on descent rate, abruptness and payload, and not on every throttle increase.
+After a fast descent is arrested by a sharp throttle increase, a damped high-frequency disturbance SHALL arise that lasts as long as the arrest (0.3–0.7 s for the empty drone's moderate descents, longer with a payload or from a fast descent; D-049), seen mainly as camera shake: visibly the rigid body's, jittering and tilting uncommanded while the four ESCs sit at their current limit and the rotors re-ingest their wash, with the frame's modes and the payload and spool pendulum adding the 50–200 Hz band; it depends on descent rate, abruptness and payload, and does not follow every throttle increase.
 
 #### Scenario: Shake only when its causes meet
-- **WHEN** fifty arrested descents run across descent rates, throttle steps and payloads on several seeds
-- **THEN** the shake appears only where descent rate and abruptness are both high, lasts 0.3–0.7 s when it does, varies between occurrences, and publishes `CameraVibration`; a gentle throttle increase never shows it
+- **WHEN** fifty arrested descents run from the hover and from 2.5, 5.4 and 9 m/s down, with a sharp full step, a sharp 0.8 step and a gentle ramp, at 0 and 2 kg, on two seeds
+- **THEN** from the hover a gentle throttle increase never shows the shake and a sharp one only the motors' spin-up kick; every sharp arrest of a descent shows it; in a 5–9 m/s descent a gentle ramp shows PHY-09's wobble instead, below the sharp punch's; and the shake varies between occurrences
+
+#### Scenario: The shake lasts as long as the arrest
+- **WHEN** a sharp step arrests a descent
+- **THEN** the shake lasts 0.3–0.7 s for the empty drone's moderate descents (2.5–5.3 m/s) and 0.8–1.4 s with the payload or from 9 m/s, where a full punch holds the four ESCs on their limit through the whole arrest and the shake ends with it; a smaller step lets the ESCs go sooner, and its shake is shorter
+
+#### Scenario: The visible shake is the rigid body's
+- **WHEN** the same arrests fly with the airframe's modes and with a known-wrong rigid airframe
+- **THEN** the drone tilts 5–16° uncommanded while the ESCs sit at their limit and the rotors re-ingest their wash, and the rigid airframe's visible shake is within 20 % of the flexing one's and as long; the modes add the 50–200 Hz band and publish `CameraVibration`, which the rigid airframe does not
 
 ### Requirement: The battery's margin and the inertia character
 The heavy corner SHALL lose its thrust margin as the pack sags, a low-voltage signal at the pilot's FC profile's 3.00 V a cell on the loaded voltage SHALL reach the OSD, and the inertia ratios SHALL be the ones computed from `drone.json`'s layout, with yaw saturating first (D-048).

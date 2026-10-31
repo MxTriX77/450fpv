@@ -28,7 +28,39 @@ namespace Fpv450.Sim.Tests
         /// </summary>
         public const double Visible = 0.25 / 2.8284271247461903;
 
+        /// <summary>
+        /// The settling after a full punch's arrest, s: the shake ends within it once the descent is arrested, the ESCs off
+        /// their limit and the hover's stick back (the loop levels the tilt; 0.09–0.20 s measured). A test bound, assumed.
+        /// </summary>
+        public const double Settle = 0.25;
+
         const double RadToDeg = 57.29577951308232, TwoPi = 6.283185307179586;
+
+        /// <summary>
+        /// D-049's lengths of the shake, s, read to the text's tenth (a field is 20 ms, and the first and last fields over the
+        /// visible line move by one with the seed): 0.3–0.7 for the empty drone's moderate descents, 0.8–1.4 for a full punch
+        /// with the payload or from 9 m/s.
+        /// </summary>
+        public static bool LastsInTenths(double seconds, double low, double high)
+        {
+            double tenths = System.Math.Round(seconds * 10, System.MidpointRounding.AwayFromZero) / 10;
+            return tenths >= low && tenths <= high;
+        }
+
+        /// <summary>
+        /// A full punch's shake lasts as long as the arrest (D-049): the four ESCs on their limit for the whole arrest, and
+        /// the shake ending after the descent is arrested, within Settle (or with the window).
+        /// </summary>
+        public static bool LastsTheArrest(in Result r) =>
+            !double.IsNaN(r.ArrestedAfter) && DetMath.Abs(r.Limited - r.ArrestedAfter) <= 0.03
+            && r.First + r.Duration >= r.ArrestedAfter && r.First + r.Duration <= r.ArrestedAfter + Settle;
+
+        /// <summary>
+        /// PHY-09's wobble, not the shake (D-049): a gentle ramp does not arrest a 5–9 m/s descent within the window, so the
+        /// rotors sit in their ring for most of it (over 1 s of 1.5) with the ESCs off their limit (under 0.2 s), and the
+        /// wandering thrust shows over the visible line.
+        /// </summary>
+        public static bool Wobbles(in Result r) => r.Fields > 0 && r.InRing > 1.0 && r.Limited < 0.2;
 
         public struct Result
         {
@@ -141,6 +173,6 @@ namespace Fpv450.Sim.Tests
         public static string Describe(in Result r) =>
             $"{r.Descent,5:F2} m/s down, arrested {(double.IsNaN(r.ArrestedAfter) ? "  —  " : r.ArrestedAfter.ToString("F2") + " s")}; shake in {r.Fields,2} fields, "
             + $"{r.First:F2}–{r.Last + 0.02:F2} s ({r.Duration:F2} s), peak {r.Peak:F3}°; vibration X {r.VibrationPeak.X:F2} Y {r.VibrationPeak.Y:F2} "
-            + $"Z {r.VibrationPeak.Z:F2} m/s²; ring {r.InRing:F2} s, ESC limit {r.Limited:F2} s; tilt to {r.TiltMax:F1}°";
+            + $"Z {r.VibrationPeak.Z:F2} m/s²; ring {r.InRing:F2} s, ESC limit {r.Limited:F2} s; tilt to {r.TiltMax:F2}°";
     }
 }
