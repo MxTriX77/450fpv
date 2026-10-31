@@ -189,6 +189,7 @@ namespace Fpv450.Replay
                 VortexRing = spec.BuildVortexRing(), // and the rotors' vortex rings (1.2)
                 GroundEffect = spec.BuildGroundEffect(), // and their ground and ceiling effect and recirculation (1.3)
                 Flapping = spec.BuildFlapping(), // and their edgewise-flow moments (1.3c)
+                Modes = spec.BuildModes(), // and the airframe's modes (1.4)
                 StartPosition = new Double3(0, stand, 0),
             };
             var core = new FlightCore(setup);
