@@ -14,9 +14,9 @@ namespace Fpv450.Tests.Radio
     // and the reader's map and tap.
     public sealed class CalibrationTests
     {
-        static CalibrationWizard Calibrate(Tx12Radio radio, CalibratingPilot pilot = null)
+        static CalibrationWizard Calibrate(Tx12Radio radio, CalibratingPilot pilot = null, long reportUs = 2000, long updateUs = 0)
         {
-            CalibrationWizard w = Calibrations.Run(radio, pilot ?? new CalibratingPilot(radio), out _);
+            CalibrationWizard w = Calibrations.Run(radio, pilot ?? new CalibratingPilot(radio), out _, 300000000, reportUs, updateUs);
             Assert.AreEqual(CalibrationStep.Done, w.Step, "the wizard finished");
             TestContext.WriteLine("flow " + (w.LastUs - w.FirstUs) / 1e6 + " s; order " + w.Profile.Order + "; findings: " +
                 (w.Findings.Count == 0 ? "none" : string.Join(" | ", w.Findings.Select(f => f.Kind + " " + f.Message))));
@@ -220,6 +220,65 @@ namespace Fpv450.Tests.Radio
             Assert.IsEmpty(w.Findings);
         }
 
+        // QA's finding 10 (interim review, probes E9w F and E9x): the smallest step rule assumed a report every 2 ms. A
+        // radio that updates every 3 or 4 ms, or a 1 ms stream repeating a 4 ms output, moves 5–9 counts an update on a
+        // quick healthy sweep, and was refused as the pitfall. Every healthy sweep is now saved or asked to go slower,
+        // and the pitfall is still named once its sweep is slow enough. The pilot goes 2.5 times slower after each
+        // "Too fast", as QA's.
+        static readonly long[][] SlowRadios = { new long[] { 3000, 0 }, new long[] { 4000, 0 }, new long[] { 1000, 4000 } };
+
+        static string Radio(long[] r) => r[1] == 0 ? "every " + r[0] / 1000 + " ms" : r[0] / 1000 + " ms over " + r[1] / 1000 + " ms";
+
+        static IEnumerable<TestCaseData> SlowHealthyCases()
+        {
+            foreach (long[] r in SlowRadios)
+                foreach (int span in new[] { 683, 800, 903 })
+                    foreach (int j in new[] { 0, 1 })
+                        foreach (long sweep in new long[] { 900000, 1000000, 1100000, 1200000, 1500000, 2000000, 3000000, 8000000 })
+                            yield return new TestCaseData(r[0], r[1], span, j, sweep).SetName("E10: a healthy span " + span + " " + Radio(r) + ", jitter ±" + j + ", sweep " + sweep / 1000 + " ms, is saved");
+        }
+
+        [TestCaseSource(nameof(SlowHealthyCases))]
+        public void AHealthyRadioSlowerThan2MsIsSavedOrAskedSlower(long reportUs, long updateUs, int span, int jitter, long sweepUs)
+        {
+            var radio = new Tx12Radio
+            {
+                TravelNeg = new[] { span, span, 683, span },
+                TravelPos = new[] { span, span, 720, span },
+                NoiseLo = -jitter,
+                NoiseHi = jitter,
+            };
+            CalibratingPilot pilot = Sweeping(radio, sweepUs);
+            CalibrationWizard w = Calibrate(radio, pilot, reportUs, updateUs);
+            TestContext.WriteLine("asked slower " + pilot.SawTooFast + "; update interval " + w.UpdateUs + " us");
+
+            Assert.IsFalse(w.Failed, "never refused");
+            Assert.IsEmpty(w.Findings);
+            long update = updateUs > 0 ? updateUs : reportUs;
+            Assert.That(w.UpdateUs, Is.InRange(update - 40, update + 40), "the radio's update interval, from its changes, not its reports");
+        }
+
+        static IEnumerable<TestCaseData> SlowPitfallCases()
+        {
+            foreach (long[] r in SlowRadios)
+                foreach (int j in new[] { 0, 1 })
+                    foreach (long sweep in new long[] { 2000000, 3000000, 8000000, 12000000 })
+                        yield return new TestCaseData(r[0], r[1], j, sweep).SetName("E10: the pitfall " + Radio(r) + ", jitter ±" + j + ", sweep " + sweep / 1000000 + " s, is too narrow");
+        }
+
+        [TestCaseSource(nameof(SlowPitfallCases))]
+        public void ThePitfallSlowerThan2MsIsTooNarrowOnceSweptSlowEnough(long reportUs, long updateUs, int jitter, long sweepUs)
+        {
+            var radio = new Tx12Radio { SpanNeg = PitfallNeg, SpanPos = PitfallPos, NoiseLo = -jitter, NoiseHi = jitter };
+            CalibratingPilot pilot = Sweeping(radio, sweepUs);
+            CalibrationWizard w = Calibrate(radio, pilot, reportUs, updateUs);
+            TestContext.WriteLine("asked slower " + pilot.SawTooFast + "; update interval " + w.UpdateUs + " us");
+
+            Assert.IsTrue(w.Failed, "nothing is saved");
+            Assert.AreEqual(new[] { "Pitch", "Roll" }, TooNarrow(w));
+            Assert.IsTrue(w.Findings.All(f => f.Kind == FindingKind.TooNarrow), "the healthy throttle and yaw pass");
+        }
+
         [TestCase(0.002, TestName = "E9v: a thumb's ±0.2 % at the centre step is saved")]
         [TestCase(0.004, TestName = "E9v: a thumb's ±0.4 % at the centre step is saved")]
         [TestCase(0.006, TestName = "E9v: a thumb's ±0.6 % at the centre step is saved")]
@@ -236,9 +295,12 @@ namespace Fpv450.Tests.Radio
 
         // The throttle rests at its end, where EdgeTX clamps, so its rest says nothing; its sweep's smallest step does. And
         // a pitfall on one side only (EdgeTX scales each side by its own span): the coarse side is named.
-        [TestCase(0, 0, TestName = "E9v: a pitfall throttle and a one-sided pitfall roll, ADC still, are too narrow")]
-        [TestCase(-1, 1, TestName = "E9v: a pitfall throttle and a one-sided pitfall roll, jitter ±1, are too narrow")]
-        public void APitfallThrottleAndAOneSidedPitfallAreTooNarrow(int noiseLo, int noiseHi)
+        [TestCase(0, 0, 2000, 0, TestName = "E9v: a pitfall throttle and a one-sided pitfall roll, ADC still, are too narrow")]
+        [TestCase(-1, 1, 2000, 0, TestName = "E9v: a pitfall throttle and a one-sided pitfall roll, jitter ±1, are too narrow")]
+        [TestCase(0, 0, 3000, 0, TestName = "E10: a pitfall throttle and a one-sided pitfall roll, ADC still, every 3 ms, are too narrow")]
+        [TestCase(0, 0, 4000, 0, TestName = "E10: a pitfall throttle and a one-sided pitfall roll, ADC still, every 4 ms, are too narrow")]
+        [TestCase(-1, 1, 1000, 4000, TestName = "E10: a pitfall throttle and a one-sided pitfall roll, jitter ±1, 1 ms over 4 ms, are too narrow")]
+        public void APitfallThrottleAndAOneSidedPitfallAreTooNarrow(int noiseLo, int noiseHi, long reportUs, long updateUs)
         {
             var radio = new Tx12Radio
             {
@@ -247,12 +309,171 @@ namespace Fpv450.Tests.Radio
                 NoiseLo = noiseLo,
                 NoiseHi = noiseHi,
             };
-            CalibrationWizard w = Calibrate(radio, Sweeping(radio, 8000000));
+            CalibrationWizard w = Calibrate(radio, Sweeping(radio, 8000000), reportUs, updateUs);
 
             Assert.IsTrue(w.Failed, "nothing is saved");
             Assert.AreEqual(new[] { "Roll", "Throttle" }, TooNarrow(w));
             Assert.IsTrue(w.Findings.All(f => f.Kind == FindingKind.TooNarrow), "the healthy pitch and yaw pass");
         }
+
+        // QA's finding 11 (interim review, probes E10q and E10r): the update guard put the pitfall off for as long as the
+        // pilot did not slow down, so a one-sided pitfall swept at the prompt's own 2 s heard "Still too fast" forever.
+        // The prompt now asks how many times slower the coarse side needs, and a repeat no slower names the axis. A literal
+        // pilot sweeps the same every time; a stubborn one goes 2.5 times slower once, as QA's.
+        static readonly long[][] AllRadios = { new long[] { 2000, 0 }, new long[] { 3000, 0 }, new long[] { 4000, 0 }, new long[] { 1000, 4000 } };
+
+        static CalibratingPilot Literal(Tx12Radio radio, long sweepUs) =>
+            new CalibratingPilot(radio) { FirstSweepUs = sweepUs, SweepUs = sweepUs, Slowing = 1 };
+
+        static CalibratingPilot Stubborn(Tx12Radio radio, long sweepUs) =>
+            new CalibratingPilot(radio) { FirstSweepUs = sweepUs, SweepUs = sweepUs * 5 / 2, Slowing = 1 };
+
+        static Tx12Radio OneSided(int jitter) =>
+            new Tx12Radio { SpanNeg = new[] { 79, 742, 79, 868 }, SpanPos = new[] { 794, 903, 1, 851 }, NoiseLo = -jitter, NoiseHi = jitter };
+
+        static IEnumerable<TestCaseData> LiteralPitfallCases()
+        {
+            foreach (long[] r in AllRadios)
+                foreach (long sweep in new long[] { 2000000, 2500000, 3000000 })
+                    yield return new TestCaseData(r[0], r[1], sweep).SetName("E10: a one-sided pitfall roll " + Radio(r) + ", swept " + sweep / 1000 + " ms every time, is named");
+        }
+
+        [TestCaseSource(nameof(LiteralPitfallCases))]
+        public void AOneSidedPitfallSweptTheSameEveryTimeIsNamed(long reportUs, long updateUs, long sweepUs)
+        {
+            Tx12Radio radio = OneSided(1);
+            CalibratingPilot pilot = Literal(radio, sweepUs);
+            CalibrationWizard w = Calibrate(radio, pilot, reportUs, updateUs);
+            TestContext.WriteLine("asked: " + string.Join(" | ", pilot.Prompts.Where(p => p.Contains("fast"))));
+
+            Assert.IsTrue(w.Failed, "nothing is saved");
+            Assert.AreEqual(new[] { "Roll", "Throttle" }, TooNarrow(w));
+            Assert.Less(w.LastUs - w.FirstUs, 120000000, "under two minutes");
+            Assert.IsTrue(pilot.Prompts.Any(p => p.StartsWith("Too fast. Roll") && p.Contains("times slower than that")), "asked how much slower its coarse side needs");
+            foreach (CalibrationFinding f in w.Findings)
+                StringAssert.Contains("Recalibrate the radio's sticks, then calibrate here again", f.Message, "the pitfall's steps are 10 or more: the radio is named first");
+            Assert.AreEqual("Recalibrate the radio's sticks, then calibrate here again.", w.Prompt);
+        }
+
+        static IEnumerable<TestCaseData> StubbornPitfallCases()
+        {
+            foreach (long[] r in AllRadios)
+                foreach (bool oneSided in new[] { false, true })
+                    foreach (int j in new[] { 0, 1 })
+                        foreach (long sweep in new long[] { 2000000, 3000000, 8000000, 12000000 })
+                            yield return new TestCaseData(r[0], r[1], oneSided, j, sweep).SetName("E10: the " + (oneSided ? "one-sided pitfall roll and throttle" : "pitfall") + " " + Radio(r) + ", jitter ±" + j + ", swept " + sweep / 1000000 + " s by a stubborn pilot, is named");
+        }
+
+        [TestCaseSource(nameof(StubbornPitfallCases))]
+        public void ThePitfallSweptByAStubbornPilotIsNamed(long reportUs, long updateUs, bool oneSided, int jitter, long sweepUs)
+        {
+            Tx12Radio radio = oneSided ? OneSided(jitter) : new Tx12Radio { SpanNeg = PitfallNeg, SpanPos = PitfallPos, NoiseLo = -jitter, NoiseHi = jitter };
+            CalibrationWizard w = Calibrate(radio, Stubborn(radio, sweepUs), reportUs, updateUs);
+
+            Assert.IsTrue(w.Failed, "nothing is saved");
+            Assert.AreEqual(oneSided ? new[] { "Roll", "Throttle" } : new[] { "Pitch", "Roll" }, TooNarrow(w));
+            Assert.IsTrue(w.Findings.All(f => f.Kind == FindingKind.TooNarrow), "the healthy sticks pass");
+        }
+
+        static IEnumerable<TestCaseData> LiteralHealthyCases()
+        {
+            foreach (long[] r in AllRadios)
+                foreach (int span in new[] { 683, 800, 903 })
+                    foreach (long sweep in new long[] { 2000000, 2500000, 3000000 })
+                        yield return new TestCaseData(r[0], r[1], span, sweep).SetName("E10: a healthy span " + span + " " + Radio(r) + ", swept " + sweep / 1000 + " ms every time, is saved");
+        }
+
+        [TestCaseSource(nameof(LiteralHealthyCases))]
+        public void AHealthyRadioSweptTheSameEveryTimeIsSaved(long reportUs, long updateUs, int span, long sweepUs)
+        {
+            var radio = new Tx12Radio { TravelNeg = new[] { span, span, 683, span }, TravelPos = new[] { span, span, 720, span } };
+            CalibrationWizard w = Calibrate(radio, Literal(radio, sweepUs), reportUs, updateUs);
+
+            Assert.IsFalse(w.Failed, "never refused");
+            Assert.IsEmpty(w.Findings);
+        }
+
+        static IEnumerable<TestCaseData> StubbornHealthyCases()
+        {
+            foreach (long[] r in AllRadios)
+                foreach (int span in new[] { 683, 800, 903 })
+                    foreach (long sweep in new long[] { 900000, 1000000, 1200000, 1500000 })
+                        yield return new TestCaseData(r[0], r[1], span, sweep).SetName("E10: a healthy span " + span + " " + Radio(r) + ", swept " + sweep / 1000 + " ms by a stubborn pilot, is saved");
+        }
+
+        [TestCaseSource(nameof(StubbornHealthyCases))]
+        public void AHealthyRadioSweptByAStubbornPilotIsSaved(long reportUs, long updateUs, int span, long sweepUs)
+        {
+            var radio = new Tx12Radio { TravelNeg = new[] { span, span, 683, span }, TravelPos = new[] { span, span, 720, span } };
+            CalibrationWizard w = Calibrate(radio, Stubborn(radio, sweepUs), reportUs, updateUs);
+
+            Assert.IsFalse(w.Failed, "never refused");
+            Assert.IsEmpty(w.Findings);
+        }
+
+        // QA's finding 12 (interim review, probe E12u): EdgeTX runs its mixer, and so its USB output, at the RF module's
+        // period (ELRS at 150 Hz: 6.7 ms; at 50 Hz: 20 ms). UpdateUs's 4 ms bound read such a radio as faster than it was,
+        // and refused its healthy sweeps as switches, at 20 ms every one. A pilot who follows the prompt is saved.
+        [TestCase(7000, 1, TestName = "E12: a healthy radio, 1 ms over 7 ms, jitter ±1, swept 2 s by a pilot who follows the prompt, is saved")]
+        [TestCase(9000, 1, TestName = "E12: a healthy radio, 1 ms over 9 ms, jitter ±1, swept 2 s by a pilot who follows the prompt, is saved")]
+        [TestCase(20000, 1, TestName = "E12: a healthy radio, 1 ms over 20 ms, jitter ±1, swept 2 s by a pilot who follows the prompt, is saved")]
+        [TestCase(20000, 0, TestName = "E12: a healthy radio, 1 ms over 20 ms, ADC still, swept 2 s by a pilot who follows the prompt, is saved")]
+        public void AHealthyRadioSlowerThan4MsIsSavedWhenThePromptIsFollowed(long updateUs, int jitter)
+        {
+            var radio = new Tx12Radio { NoiseLo = -jitter, NoiseHi = jitter };
+            var pilot = new CalibratingPilot(radio) { FollowsPrompt = true };
+            CalibrationWizard w = Calibrate(radio, pilot, 1000, updateUs);
+            TestContext.WriteLine("asked: " + string.Join(" | ", pilot.Prompts.Where(p => p.Contains("fast"))) + "; update interval " + w.UpdateUs + " us");
+
+            Assert.IsFalse(w.Failed, "never refused");
+            Assert.IsEmpty(w.Findings);
+            Assert.That(w.UpdateUs, Is.InRange(updateUs - 40, updateUs + 40), "the radio's update interval, slower than 4 ms");
+            Assert.Less(w.LastUs - w.FirstUs, 120000000, "under two minutes");
+        }
+
+        // QA's nit on finding 11's refusal: a healthy radio swept quicker than the prompt, then no slower, is refused (QA's
+        // E11t trade-off), but its step is under EdgeTX's floor gain of 10, so the refusal leads with the speed, never the
+        // radio, and asks how much slower.
+        static IEnumerable<TestCaseData> QuickLiteralHealthyCases()
+        {
+            foreach (long[] r in AllRadios)
+                foreach (int span in new[] { 683, 800, 903 })
+                    foreach (long sweep in new long[] { 900000, 1000000, 1100000, 1200000, 1500000 })
+                        yield return new TestCaseData(r[0], r[1], span, sweep).SetName("E12: a healthy span " + span + " " + Radio(r) + ", swept " + sweep / 1000 + " ms every time, is saved or told to sweep slower");
+        }
+
+        [TestCaseSource(nameof(QuickLiteralHealthyCases))]
+        public void AHealthyRadioSweptQuicklyEveryTimeIsNeverToldToRecalibrateTheRadioFirst(long reportUs, long updateUs, int span, long sweepUs)
+        {
+            var radio = new Tx12Radio { TravelNeg = new[] { span, span, 683, span }, TravelPos = new[] { span, span, 720, span } };
+            CalibrationWizard w = Calibrate(radio, Literal(radio, sweepUs), reportUs, updateUs);
+
+            foreach (CalibrationFinding f in w.Findings)
+                StringAssert.IsMatch(@"^\w+ was not swept slower, so it cannot be told from a switch\. Calibrate here again, sweeping it about ([2-9]|10) times slower\. If it is refused again, recalibrate the radio's sticks\.$", f.Message);
+            Assert.AreEqual(w.Failed ? "Calibrate here again, sweeping slower." : "Calibrated.", w.Prompt);
+        }
+
+        [Test]
+        public void AHealthyRadioSweptIn1SecondEveryTimeIsToldToSweepSlower()
+        {
+            var radio = new Tx12Radio { TravelNeg = new[] { 800, 800, 683, 800 }, TravelPos = new[] { 800, 800, 720, 800 } };
+            CalibrationWizard w = Calibrate(radio, Literal(radio, 1000000), 4000);
+
+            Assert.IsTrue(w.Failed, "refused: swept quicker than the prompt, then no slower");
+            Assert.IsNotEmpty(w.Findings);
+            foreach (CalibrationFinding f in w.Findings)
+                StringAssert.StartsWith(f.Stick + " was not swept slower, so it cannot be told from a switch. Calibrate here again, sweeping it about", f.Message);
+            Assert.AreEqual("Calibrate here again, sweeping slower.", w.Prompt);
+        }
+
+        // QA's nit: the factor asked is capped, so a side whose in-band reports share one stamp (held 0) asks 10.
+        [TestCase(0.0, 10)]
+        [TestCase(0.01, 10)]
+        [TestCase(0.15, 7)]
+        [TestCase(0.3, 4)]
+        [TestCase(0.6, 2)]
+        [TestCase(0.99, 2)]
+        public void TheFactorAskedIs2To10(double held, int times) => Assert.AreEqual(times, CalibrationWizard.TimesSlower(held));
 
         // QA's pre-existing gap: a pitfall with ±3 ADC counts of rest jitter spreads 61 HID counts, over the centre step's
         // 2 % still band, so the step never settles. After 5 s the prompt names the channel.
