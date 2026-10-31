@@ -12,7 +12,7 @@ The flight core's propulsion is a clean, symmetric plant. The pilot's manifesto 
 - **Ground and ceiling effect, recirculation** (PHY-08): per rotor, Cheeseman–Bennett from per-rotor rays combined with `SampleGround`'s relief and mat top, the ceiling effect under roofs, and prop-wash recirculation in a close hover, never still.
 - **Settling into the own wash** (PHY-09): vortex ring state with hysteresis, its onset governed by thrust relative to weight while descending (the pilot's account), entry and exit logged, the wobble from the physics.
 - **The throttle-punch shake** (PHY-10): from wash re-ingestion, frame resonance near the 50–60 Hz the real filters notch (D-045's chain is in), and the payload and spool pendulum; seen mainly as camera shake, rare, varying, never tuned to a pilot number; it publishes the camera-vibration signal.
-- **Battery and inertia character** (PHY-11, PHY-12): the heavy corner's lost margin and the low-voltage warning signal for the OSD; pitch inertia above roll, yaw at 1.0–1.3 × roll, yaw saturating first, checked on the real `drone.json`.
+- **Battery and inertia character** (PHY-11, PHY-12, D-048): the heavy corner's margin falling with the sag and gone at the cut-off, and the low-voltage warning signal for the OSD; the inertia ratios as computed from the real `drone.json`'s layout, yaw saturating first.
 
 ## Capabilities
 

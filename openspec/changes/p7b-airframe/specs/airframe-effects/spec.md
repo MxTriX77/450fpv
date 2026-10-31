@@ -54,8 +54,12 @@ After a fast descent is arrested by a sharp throttle increase, a damped high-fre
 - **THEN** the shake appears only where descent rate and abruptness are both high, lasts 0.3–0.7 s when it does, varies between occurrences, and publishes `CameraVibration`; a gentle throttle increase never shows it
 
 ### Requirement: The battery's margin and the inertia character
-The heavy corner SHALL lose its thrust margin as the pack sags, a low-voltage signal SHALL reach the OSD, and the inertia SHALL keep pitch above roll and yaw at 1.0–1.3 × roll with yaw saturating first.
+The heavy corner SHALL lose its thrust margin as the pack sags, a low-voltage signal at the pilot's FC profile's 3.00 V a cell on the loaded voltage SHALL reach the OSD, and the inertia ratios SHALL be the ones computed from `drone.json`'s layout, with yaw saturating first (D-048).
 
 #### Scenario: The heavy corner at low charge
-- **WHEN** the 6.5 kg loadout flies full throttle at 20 % charge
-- **THEN** its thrust over weight falls below the margin its full pack had by the sag the pack model computes, and the low-voltage signal is set
+- **WHEN** the 6.5 kg loadout flies full throttle from a full pack down through 20 % charge to the cut-off
+- **THEN** its thrust over weight falls with the sag the pack model computes, below the margin its full pack had; the low-voltage signal sets at the pack's knee, below 20 %; and no margin is left at the cut-off
+
+#### Scenario: The inertia character on the seven loadouts
+- **WHEN** the pitch, roll and yaw inertias are built from `drone.json` on each of the seven loadouts
+- **THEN** their ratios equal the ones computed from its layout exactly, and yaw saturates first on every loadout
