@@ -12,7 +12,8 @@ namespace Fpv450.Sim.Tests
     /// with its drag and its contacts, in the Windy stand-in wind, armed by Betaflight's rules and flown 10 s by a scripted
     /// pilot through every part of the controller with the builder's filter chain, propulsion, the motors' asymmetry
     /// (p7b-airframe 1.1, on the seed's draws; the contact flight too), the rotors' vortex rings (1.2; the contact flight
-    /// too), their ground effect (1.3; the contact flight too, where it acts) and the air (a spin-up, a
+    /// too), their ground effect (1.3; the contact flight too, where it acts), the airframe's modes (1.4; the contact flight
+    /// too) and the air (a spin-up, a
     /// climb, roll, pitch and yaw steps, a throttle punch into the ESCs' current limit and a chop, a weave), 300 m up, so
     /// it touches nothing. The contact one (1.6): the drone takes off from the floor under the closed-loop pilot, comes
     /// down on the slow glide path with the sticks held, bounces, and the throttle is cut. Each hash is every step's log
@@ -103,7 +104,13 @@ namespace Fpv450.Sim.Tests
         // 20) takes the charge into the new table's 0.85–0.90 segment (1.0 V a unit against 0.9), so the packs differ by at
         // most 3.2 mV and the flight by at most 13.9 mm and 0.15 mrad (0.19 mm and 0.004 mrad by the roll step), 220.30 m up
         // against 220.32; the same 102 events, armed, no crash.
-        public const ulong PoweredHash = 0x63D668DD01A1E587UL;
+        // Model 12: 0x63D668DD01A1E587. p7b-airframe 1.4: re-recorded with ModelVersion 13 (the 1656-byte record), the
+        // airframe's modes in its setup. Audited: with the modes off, over model 12's 1496 bytes, every record and event is
+        // model 12's bit for bit (the kept test, WithTheModesOffEachGoldenIsModel12s). With them, the flight moves from step 21,
+        // its first armed one: the Windy air's drag on the body, relieved through the masses, has set the payload's sling and
+        // the coil's mount swinging, and the gyro reads the frame's turn; 73 mm by 2.5 s, 31 m by 10 s on the open-loop script,
+        // 227.76 m up against 220.30, armed, no crash.
+        public const ulong PoweredHash = 0x0F843363CA8DBFBAUL;
 
         // 1.6: first recorded with ModelVersion 4 as 0x8B568804552379E6.
         // 1.6 and 1.4b merged: re-recorded with ModelVersion 5. Audited against 1.6: with every filter off and the PID
@@ -151,7 +158,10 @@ namespace Fpv450.Sim.Tests
         // p7b-airframe 1.5: re-recorded with ModelVersion 12 on the P50B's table, audited as the powered flight: on model 11's
         // table it is model 11's bit for bit. It keeps its course: 5 impacts, no crash, at rest on 8 contacts at the same
         // 0.2519 m, 0.53 mm aside, the packs 2 mV apart. The tumble has no rotors and keeps model 10's hash.
-        public const ulong ContactHash = 0x8B50CC1BD8EBC8FFUL;
+        // Model 12: 0x8B50CC1BD8EBC8FF. p7b-airframe 1.4: re-recorded with ModelVersion 13, the modes in its setup, audited as the
+        // powered flight: with them off, over model 12's layout, it is model 12's bit for bit. With them it moves from step 9
+        // and keeps its course: within 32 mm of model 12's path, 5 impacts, no crash, at rest at the same 0.2519 m, 26 mm aside.
+        public const ulong ContactHash = 0xD1EA300928A02EEEUL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -162,8 +172,10 @@ namespace Fpv450.Sim.Tests
         // p7b-airframe 1.2 (ModelVersion 9): the 1400-byte record, the rings' bytes zero (no propulsion); over model 8's
         // layout the hash is model 8's (the kept test). Model 9: 0x50541A5726F695D8.
         // p7b-airframe 1.3 (ModelVersion 10): the 1496-byte record, the surfaces' and the wash's bytes zero (no propulsion);
-        // over model 9's layout the hash is model 9's (the kept test).
-        public const ulong TumbleHash = 0x58EF4F6AE8D111D8UL;
+        // over model 9's layout the hash is model 9's (the kept test). Model 10–12: 0x58EF4F6AE8D111D8. p7b-airframe 1.4
+        // (ModelVersion 13): the 1656-byte record, the modes' bytes zero (no propulsion, no modes); over model 12's layout the
+        // hash is model 12's (the kept test).
+        public const ulong TumbleHash = 0xB371E06FF28075D8UL;
         public const int TumbleSteps = 10000;
 
         /// <summary>Model 11's pack table (drone.json's before p7b-airframe 1.5: one cell at charge 0, 0.1, …, 1, from 3.0 V),
@@ -193,6 +205,7 @@ namespace Fpv450.Sim.Tests
                 VortexRing = spec.BuildVortexRing(),
                 GroundEffect = spec.BuildGroundEffect(),
                 Flapping = spec.BuildFlapping(),
+                Modes = spec.BuildModes(),
                 StartPosition = new Double3(0, 300, 0),
                 StartPackCharge = 0.9,
             };
@@ -225,9 +238,10 @@ namespace Fpv450.Sim.Tests
         /// skipAt and skipBytes the hash leaves out each record's bytes from skipAt on, skipBytes of them (a parent model's
         /// layout, for an audit).</summary>
         public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool contacts = true,
-            bool asymmetry = true, bool ring = true, bool ground = true, bool flapping = true)
+            bool asymmetry = true, bool ring = true, bool ground = true, bool flapping = true, bool modes = true)
         {
             FlightSetup setup = PoweredSetup(spec);
+            if (!modes) setup.Modes = null;
             if (!flapping) setup.Flapping = null;
             if (!contacts) setup.Contacts = null;
             if (!asymmetry) setup.Asymmetry = null;
@@ -259,7 +273,7 @@ namespace Fpv450.Sim.Tests
         /// later the throttle is cut and it comes to rest. Returns its hash, with the core for a report.
         /// </summary>
         public static ulong FlyContact(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
-            bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true)
+            bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true, bool modes = true)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -270,6 +284,7 @@ namespace Fpv450.Sim.Tests
             if (ring) setup.VortexRing = spec.BuildVortexRing();
             if (ground) setup.GroundEffect = spec.BuildGroundEffect();
             if (flapping) setup.Flapping = spec.BuildFlapping();
+            if (modes) setup.Modes = spec.BuildModes();
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, new Double3(0, stand + 1, 0));
             var record = new byte[LogFormat.StepSize];

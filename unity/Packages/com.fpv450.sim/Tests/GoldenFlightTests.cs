@@ -76,16 +76,16 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void OnModel11sPackTableEachGoldenIsModel11s()
         {
-            Assert.That(GoldenFlights.FlyPowered(Model11(), out _), Is.EqualTo(0x9057D18CF741A255UL), "powered");
-            Assert.That(GoldenFlights.FlyContact(Model11(), out _), Is.EqualTo(0xF6E32F2FDC831268UL), "contact");
-            Assert.That(GoldenFlights.FlyTumble(Model11(), out _, out _), Is.EqualTo(0x58EF4F6AE8D111D8UL), "tumble");
+            Assert.That(GoldenFlights.FlyPowered(Model11(), out _, ModeAt, ModeBytes, modes: false), Is.EqualTo(0x9057D18CF741A255UL), "powered");
+            Assert.That(GoldenFlights.FlyContact(Model11(), out _, ModeAt, ModeBytes, modes: false), Is.EqualTo(0xF6E32F2FDC831268UL), "contact");
+            Assert.That(GoldenFlights.FlyTumble(Model11(), out _, out _, ModeAt, ModeBytes), Is.EqualTo(0x58EF4F6AE8D111D8UL), "tumble");
         }
 
         // Model 3's 992 bytes, then 1.6's contacts, then 1.4b's filter block: each parent's layout is the record less the
         // other's block. Then p7b-airframe 1.1's rotor angles: model 7's layout is the record less them.
         const int ContactBytesAt = 992, ContactBytes = 120, FilterBytesAt = ContactBytesAt + ContactBytes;
         const int RotorAngleAt = 1296, RotorAngleBytes = 32, RingAt = RotorAngleAt + RotorAngleBytes, RingBytes = 72;
-        const int GroundAt = RingAt + RingBytes, GroundBytes = 96;
+        const int GroundAt = RingAt + RingBytes, GroundBytes = 96, ModeAt = GroundAt + GroundBytes, ModeBytes = 160;
 
         // p7b-airframe 1.1's audit, kept: with the motors' asymmetry off (and 1.2's rings), over model 7's 1296-byte layout
         // with its events, each golden is model 7's bit for bit (the rotors' angles turn, but nothing reads them without an
@@ -94,9 +94,9 @@ namespace Fpv450.Sim.Tests
         public void WithTheAsymmetryOffEachGoldenIsModel7s()
         {
             DroneSpec spec = Model11();
-            const int skip = RotorAngleBytes + RingBytes + GroundBytes;
-            Assert.That(GoldenFlights.FlyPowered(spec, out _, RotorAngleAt, skip, asymmetry: false, ring: false, ground: false, flapping: false), Is.EqualTo(0xA65FBFBCBCFC5B96UL), "powered");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, RotorAngleAt, skip, false, false, ground: false, flapping: false), Is.EqualTo(0x3AF33645FF8F1919UL), "contact");
+            const int skip = RotorAngleBytes + RingBytes + GroundBytes + ModeBytes;
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, RotorAngleAt, skip, asymmetry: false, ring: false, ground: false, flapping: false, modes: false), Is.EqualTo(0xA65FBFBCBCFC5B96UL), "powered");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, RotorAngleAt, skip, false, false, ground: false, flapping: false, modes: false), Is.EqualTo(0x3AF33645FF8F1919UL), "contact");
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, RotorAngleAt, skip), Is.EqualTo(0xE3178EE7FF322698UL), "tumble");
         }
 
@@ -106,9 +106,9 @@ namespace Fpv450.Sim.Tests
         public void WithTheRingsOffEachGoldenIsModel8s()
         {
             DroneSpec spec = Model11();
-            const int skip = RingBytes + GroundBytes;
-            Assert.That(GoldenFlights.FlyPowered(spec, out _, RingAt, skip, ring: false, ground: false, flapping: false), Is.EqualTo(0x08FBAF9331110BE9UL), "powered");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, RingAt, skip, ring: false, ground: false, flapping: false), Is.EqualTo(0x5D45B356ECD6B940UL), "contact");
+            const int skip = RingBytes + GroundBytes + ModeBytes;
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, RingAt, skip, ring: false, ground: false, flapping: false, modes: false), Is.EqualTo(0x08FBAF9331110BE9UL), "powered");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, RingAt, skip, ring: false, ground: false, flapping: false, modes: false), Is.EqualTo(0x5D45B356ECD6B940UL), "contact");
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, RingAt, skip), Is.EqualTo(0xF7E0F587B45FA098UL), "tumble");
         }
 
@@ -118,9 +118,9 @@ namespace Fpv450.Sim.Tests
         public void WithTheGroundEffectOffEachGoldenIsModel9s()
         {
             DroneSpec spec = Model11();
-            Assert.That(GoldenFlights.FlyPowered(spec, out _, GroundAt, GroundBytes, ground: false, flapping: false), Is.EqualTo(0x5AF86BCB6FD0B3A2UL), "powered");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, GroundAt, GroundBytes, ground: false, flapping: false), Is.EqualTo(0x8D965FFD8708C6C3UL), "contact");
-            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, GroundAt, GroundBytes), Is.EqualTo(0x50541A5726F695D8UL), "tumble");
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, GroundAt, GroundBytes + ModeBytes, ground: false, flapping: false, modes: false), Is.EqualTo(0x5AF86BCB6FD0B3A2UL), "powered");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, GroundAt, GroundBytes + ModeBytes, ground: false, flapping: false, modes: false), Is.EqualTo(0x8D965FFD8708C6C3UL), "contact");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, GroundAt, GroundBytes + ModeBytes), Is.EqualTo(0x50541A5726F695D8UL), "tumble");
         }
 
         // 1.3c's audit: with the flapping off, the record's layout unchanged, all three are model 10's bit for bit.
@@ -128,9 +128,19 @@ namespace Fpv450.Sim.Tests
         public void WithTheFlappingOffEachGoldenIsModel10s()
         {
             DroneSpec spec = Model11();
-            Assert.That(GoldenFlights.FlyPowered(spec, out _, flapping: false), Is.EqualTo(0x0B91602E467653F4UL), "powered");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, flapping: false), Is.EqualTo(0x05EDD1881425872EUL), "contact");
-            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _), Is.EqualTo(0x58EF4F6AE8D111D8UL), "tumble");
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, ModeAt, ModeBytes, flapping: false, modes: false), Is.EqualTo(0x0B91602E467653F4UL), "powered");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, ModeAt, ModeBytes, flapping: false, modes: false), Is.EqualTo(0x05EDD1881425872EUL), "contact");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, ModeAt, ModeBytes), Is.EqualTo(0x58EF4F6AE8D111D8UL), "tumble");
+        }
+
+        // 1.4's audit: with the airframe's modes off, over model 12's 1496-byte layout, all three are model 12's bit for bit.
+        [Test]
+        public void WithTheModesOffEachGoldenIsModel12s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, ModeAt, ModeBytes, modes: false), Is.EqualTo(0x63D668DD01A1E587UL), "powered");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, ModeAt, ModeBytes, modes: false), Is.EqualTo(0x8B50CC1BD8EBC8FFUL), "contact");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, ModeAt, ModeBytes), Is.EqualTo(0x58EF4F6AE8D111D8UL), "tumble");
         }
 
         // 1.3's audit of the powered golden with the ground effect on: 196-300 m up, no rotor's ray finds a surface within its
@@ -138,7 +148,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void ThePoweredGoldenFindsNoSurface()
         {
-            Assert.That(GoldenFlights.FlyPowered(Model11(), out FlightCore core, GroundAt, GroundBytes, flapping: false), Is.EqualTo(0x5AF86BCB6FD0B3A2UL));
+            Assert.That(GoldenFlights.FlyPowered(Model11(), out FlightCore core, GroundAt, GroundBytes + ModeBytes, flapping: false, modes: false), Is.EqualTo(0x5AF86BCB6FD0B3A2UL));
             Assert.That(core.GroundEffect, Is.Not.Null);
             Assert.That(core.Trace.GroundDistance.FrontLeft, Is.GreaterThan(100), "the floor sampled far below");
             Assert.That(core.Trace.CeilingDistance.FrontLeft, Is.EqualTo(double.PositiveInfinity), "nothing above");
@@ -158,7 +168,9 @@ namespace Fpv450.Sim.Tests
                 "1.2's rings follow model 8's 1328 bytes");
             Assert.That(LogFormat.FieldAt(LogFormat.StepFields, GroundAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "ground_distance.rear_right")),
                 "1.3's surfaces and wash follow model 9's 1400 bytes");
-            Assert.That(LogFormat.StepSize - GroundAt, Is.EqualTo(GroundBytes), "to the record's end");
+            Assert.That(LogFormat.FieldAt(LogFormat.StepFields, ModeAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "mode_shape0")),
+                "1.4's modes follow model 12's 1496 bytes");
+            Assert.That(LogFormat.StepSize - ModeAt, Is.EqualTo(ModeBytes), "to the record's end");
         }
     }
 }
