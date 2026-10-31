@@ -1,0 +1,3654 @@
+{
+  "schema": 1,
+  "id": "Z01",
+  "variant": "Z01_house_adobe",
+  "generator": "godot_port",
+  "params_sha256": "eadbc5014e821d570187808efc3936a087c6303e6f3c0cde4039a0434c09497a",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -5.30005,
+      -0.081054,
+      -4.70848
+    ],
+    "max": [
+      7.501395,
+      5.357679,
+      3.809449
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "Z01_house_adobe_LOD0",
+      "tris": 3696,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "Z01_house_adobe_LOD1",
+      "tris": 1452,
+      "switch_distance_m": 45.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 600.0,
+  "materials": [
+    {
+      "slot": "adobe_clay",
+      "visual": "godot_adobe_clay",
+      "physics": "masonry"
+    },
+    {
+      "slot": "brick_red",
+      "visual": "brick_red",
+      "physics": "masonry"
+    },
+    {
+      "slot": "render_clay",
+      "visual": "godot_render_clay",
+      "physics": "masonry"
+    },
+    {
+      "slot": "tile_clay",
+      "visual": "godot_tile_clay",
+      "physics": "masonry"
+    },
+    {
+      "slot": "timber_rough",
+      "visual": "godot_timber_house",
+      "physics": "masonry"
+    },
+    {
+      "slot": "wood_weathered",
+      "visual": "godot_wood_weathered",
+      "physics": "masonry"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "box",
+      "center": [
+        -4.6,
+        1.225,
+        -2.775
+      ],
+      "size": [
+        0.8,
+        2.45,
+        0.45
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -3.8,
+        0.475,
+        -2.775
+      ],
+      "size": [
+        0.8,
+        0.95,
+        0.45
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -3.8,
+        2.2,
+        -2.775
+      ],
+      "size": [
+        0.8,
+        0.5,
+        0.45
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.5,
+        1.225,
+        -2.775
+      ],
+      "size": [
+        1.8,
+        2.45,
+        0.45
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.2,
+        0.475,
+        -2.775
+      ],
+      "size": [
+        0.8,
+        0.95,
+        0.45
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.2,
+        2.2,
+        -2.775
+      ],
+      "size": [
+        0.8,
+        0.5,
+        0.45
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.3,
+        1.225,
+        -2.775
+      ],
+      "size": [
+        2.2,
+        2.45,
+        0.45
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.8,
+        2.125,
+        -2.775
+      ],
+      "size": [
+        0.8,
+        0.65,
+        0.45
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.8,
+        1.225,
+        -2.775
+      ],
+      "size": [
+        1.2,
+        2.45,
+        0.45
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.8,
+        0.475,
+        -2.775
+      ],
+      "size": [
+        0.8,
+        0.95,
+        0.45
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.8,
+        2.2,
+        -2.775
+      ],
+      "size": [
+        0.8,
+        0.5,
+        0.45
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        4.6,
+        1.225,
+        -2.775
+      ],
+      "size": [
+        0.8,
+        2.45,
+        0.45
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -4.0,
+        1.225,
+        2.775
+      ],
+      "size": [
+        2.0,
+        2.45,
+        0.45
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.6,
+        0.475,
+        2.775
+      ],
+      "size": [
+        0.8,
+        0.95,
+        0.45
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.6,
+        2.2,
+        2.775
+      ],
+      "size": [
+        0.8,
+        0.5,
+        0.45
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.4,
+        1.225,
+        2.775
+      ],
+      "size": [
+        3.6,
+        2.45,
+        0.45
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.8,
+        0.425,
+        2.775
+      ],
+      "size": [
+        0.8,
+        0.85,
+        0.45
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.8,
+        2.225,
+        2.775
+      ],
+      "size": [
+        0.8,
+        0.45,
+        0.45
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.6,
+        1.225,
+        2.775
+      ],
+      "size": [
+        2.8,
+        2.45,
+        0.45
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        4.775,
+        1.225,
+        1.475
+      ],
+      "size": [
+        0.45,
+        2.45,
+        2.15
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        4.775,
+        0.475,
+        0.0
+      ],
+      "size": [
+        0.45,
+        0.95,
+        0.8
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        4.775,
+        2.2,
+        0.0
+      ],
+      "size": [
+        0.45,
+        0.5,
+        0.8
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        4.775,
+        1.225,
+        -1.475
+      ],
+      "size": [
+        0.45,
+        2.45,
+        2.15
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -4.775,
+        1.225,
+        0.0
+      ],
+      "size": [
+        0.45,
+        2.45,
+        5.1
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.9,
+        1.225,
+        1.4875
+      ],
+      "size": [
+        0.25,
+        2.45,
+        2.125
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.9,
+        2.2,
+        0.0
+      ],
+      "size": [
+        0.25,
+        0.5,
+        0.85
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.9,
+        1.225,
+        -1.4875
+      ],
+      "size": [
+        0.25,
+        2.45,
+        2.125
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -4.85,
+        2.6625,
+        0.0
+      ],
+      "size": [
+        0.3,
+        0.425,
+        5.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -4.85,
+        3.0875,
+        0.0
+      ],
+      "size": [
+        0.3,
+        0.425,
+        4.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -4.85,
+        3.5125,
+        0.0
+      ],
+      "size": [
+        0.3,
+        0.425,
+        3.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -4.85,
+        3.9375,
+        0.0
+      ],
+      "size": [
+        0.3,
+        0.425,
+        2.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -4.85,
+        4.3625,
+        0.0
+      ],
+      "size": [
+        0.3,
+        0.425,
+        1.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        4.85,
+        2.6625,
+        0.0
+      ],
+      "size": [
+        0.3,
+        0.425,
+        5.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        4.85,
+        3.0875,
+        0.0
+      ],
+      "size": [
+        0.3,
+        0.425,
+        4.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        2.51,
+        2.94
+      ],
+      "size": [
+        10.0,
+        0.12,
+        0.12
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        2.51,
+        -2.94
+      ],
+      "size": [
+        10.0,
+        0.12,
+        0.12
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        4.92,
+        0.0
+      ],
+      "size": [
+        10.6,
+        0.16,
+        0.1
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -4.9,
+        3.745,
+        1.47
+      ],
+      "size": [
+        0.06,
+        0.16,
+        3.7638
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -4.9,
+        3.745,
+        -1.47
+      ],
+      "size": [
+        0.06,
+        0.16,
+        3.7638
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -3.92,
+        3.745,
+        1.47
+      ],
+      "size": [
+        0.06,
+        0.16,
+        3.7638
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -3.92,
+        3.745,
+        -1.47
+      ],
+      "size": [
+        0.06,
+        0.16,
+        3.7638
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.94,
+        3.745,
+        1.47
+      ],
+      "size": [
+        0.06,
+        0.16,
+        3.7638
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.94,
+        3.745,
+        -1.47
+      ],
+      "size": [
+        0.06,
+        0.16,
+        3.7638
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.96,
+        3.745,
+        1.47
+      ],
+      "size": [
+        0.06,
+        0.16,
+        3.7638
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.96,
+        3.745,
+        -1.47
+      ],
+      "size": [
+        0.06,
+        0.16,
+        3.7638
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.98,
+        3.745,
+        1.47
+      ],
+      "size": [
+        0.06,
+        0.16,
+        3.7638
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.98,
+        3.745,
+        -1.47
+      ],
+      "size": [
+        0.06,
+        0.16,
+        3.7638
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        3.745,
+        1.47
+      ],
+      "size": [
+        0.06,
+        0.16,
+        3.7638
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        3.745,
+        -1.47
+      ],
+      "size": [
+        0.06,
+        0.16,
+        3.7638
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.98,
+        3.745,
+        1.47
+      ],
+      "size": [
+        0.06,
+        0.16,
+        3.7638
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.98,
+        3.745,
+        -1.47
+      ],
+      "size": [
+        0.06,
+        0.16,
+        3.7638
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.96,
+        3.745,
+        1.47
+      ],
+      "size": [
+        0.06,
+        0.16,
+        3.7638
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.96,
+        3.745,
+        -1.47
+      ],
+      "size": [
+        0.06,
+        0.16,
+        3.7638
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.94,
+        3.745,
+        1.47
+      ],
+      "size": [
+        0.06,
+        0.16,
+        3.7638
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.94,
+        3.745,
+        -1.47
+      ],
+      "size": [
+        0.06,
+        0.16,
+        3.7638
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.92,
+        3.745,
+        1.47
+      ],
+      "size": [
+        0.06,
+        0.16,
+        3.7638
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.92,
+        3.745,
+        -1.47
+      ],
+      "size": [
+        0.06,
+        0.16,
+        3.7638
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        4.9,
+        3.745,
+        1.47
+      ],
+      "size": [
+        0.06,
+        0.16,
+        3.7638
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        4.9,
+        3.745,
+        -1.47
+      ],
+      "size": [
+        0.06,
+        0.16,
+        3.7638
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -3.7857,
+        2.7691,
+        2.8431
+      ],
+      "size": [
+        3.0286,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.2714,
+        2.7691,
+        2.8431
+      ],
+      "size": [
+        6.0571,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.7571,
+        2.9751,
+        2.5853
+      ],
+      "size": [
+        9.0857,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -4.5429,
+        3.1812,
+        2.3275
+      ],
+      "size": [
+        1.5143,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        3.1812,
+        2.3275
+      ],
+      "size": [
+        1.5143,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.7857,
+        3.1812,
+        2.3275
+      ],
+      "size": [
+        3.0286,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -4.5429,
+        3.3872,
+        2.0698
+      ],
+      "size": [
+        1.5143,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.5143,
+        3.3872,
+        2.0698
+      ],
+      "size": [
+        7.5714,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -4.5429,
+        3.5933,
+        1.812
+      ],
+      "size": [
+        1.5143,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.7571,
+        3.5933,
+        1.812
+      ],
+      "size": [
+        6.0571,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -4.5429,
+        3.7993,
+        1.5542
+      ],
+      "size": [
+        1.5143,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.5143,
+        3.7993,
+        1.5542
+      ],
+      "size": [
+        1.5143,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.0286,
+        3.7993,
+        1.5542
+      ],
+      "size": [
+        4.5429,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -3.7857,
+        4.0053,
+        1.2965
+      ],
+      "size": [
+        3.0286,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.2714,
+        4.0053,
+        1.2965
+      ],
+      "size": [
+        6.0571,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        4.2114,
+        1.0387
+      ],
+      "size": [
+        10.6,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -4.5429,
+        4.4174,
+        0.7809
+      ],
+      "size": [
+        1.5143,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.5143,
+        4.4174,
+        0.7809
+      ],
+      "size": [
+        7.5714,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -4.5429,
+        4.6235,
+        0.5231
+      ],
+      "size": [
+        1.5143,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.7571,
+        4.6235,
+        0.5231
+      ],
+      "size": [
+        3.0286,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.0286,
+        4.6235,
+        0.5231
+      ],
+      "size": [
+        1.5143,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -3.0286,
+        4.8295,
+        0.2654
+      ],
+      "size": [
+        4.5429,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.5143,
+        4.8295,
+        0.2654
+      ],
+      "size": [
+        1.5143,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        4.5429,
+        4.8295,
+        0.2654
+      ],
+      "size": [
+        1.5143,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.5143,
+        2.7691,
+        -2.8431
+      ],
+      "size": [
+        4.5429,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        4.5429,
+        2.7691,
+        -2.8431
+      ],
+      "size": [
+        1.5143,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.2714,
+        2.9751,
+        -2.5853
+      ],
+      "size": [
+        3.0286,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        4.5429,
+        2.9751,
+        -2.5853
+      ],
+      "size": [
+        1.5143,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.5143,
+        3.1812,
+        -2.3275
+      ],
+      "size": [
+        1.5143,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.5143,
+        3.1812,
+        -2.3275
+      ],
+      "size": [
+        1.5143,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.2714,
+        3.3872,
+        -2.0698
+      ],
+      "size": [
+        3.0286,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.5143,
+        3.5933,
+        -1.812
+      ],
+      "size": [
+        7.5714,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.5143,
+        3.7993,
+        -1.5542
+      ],
+      "size": [
+        7.5714,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.7571,
+        4.0053,
+        -1.2965
+      ],
+      "size": [
+        3.0286,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.7857,
+        4.0053,
+        -1.2965
+      ],
+      "size": [
+        3.0286,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.5143,
+        4.2114,
+        -1.0387
+      ],
+      "size": [
+        1.5143,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        4.4174,
+        -0.7809
+      ],
+      "size": [
+        1.5143,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.7857,
+        4.4174,
+        -0.7809
+      ],
+      "size": [
+        3.0286,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.2714,
+        4.6235,
+        -0.5231
+      ],
+      "size": [
+        3.0286,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.0286,
+        4.6235,
+        -0.5231
+      ],
+      "size": [
+        4.5429,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.2714,
+        4.8295,
+        -0.2654
+      ],
+      "size": [
+        3.0286,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.7857,
+        4.8295,
+        -0.2654
+      ],
+      "size": [
+        3.0286,
+        0.03,
+        0.05
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.9321,
+        3.4321,
+        2.0896
+      ],
+      "size": [
+        1.7547,
+        0.035,
+        1.2197
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.1087,
+        4.2907,
+        1.0156
+      ],
+      "size": [
+        1.7436,
+        0.035,
+        1.2287
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.9769,
+        3.4462,
+        2.072
+      ],
+      "size": [
+        2.0228,
+        0.035,
+        0.8564
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.2787,
+        3.7056,
+        1.7475
+      ],
+      "size": [
+        2.8207,
+        0.035,
+        1.2349
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.7533,
+        3.8772,
+        1.5328
+      ],
+      "size": [
+        2.9755,
+        0.035,
+        1.1279
+      ],
+      "rotation": [
+        0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.4962,
+        4.5566,
+        -0.6828
+      ],
+      "size": [
+        2.8142,
+        0.035,
+        1.0578
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.7748,
+        3.7547,
+        -1.6861
+      ],
+      "size": [
+        1.9281,
+        0.035,
+        1.4986
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.7733,
+        4.2089,
+        -1.1179
+      ],
+      "size": [
+        1.5772,
+        0.035,
+        1.3417
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.2604,
+        3.95,
+        -1.4417
+      ],
+      "size": [
+        1.7754,
+        0.035,
+        1.0903
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.4513,
+        3.4922,
+        -2.0145
+      ],
+      "size": [
+        2.851,
+        0.035,
+        1.018
+      ],
+      "rotation": [
+        -0.330811,
+        0.0,
+        0.0,
+        0.943697
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -3.3,
+        3.55,
+        1.5
+      ],
+      "size": [
+        0.5,
+        3.1,
+        0.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -3.2,
+        5.225,
+        1.5
+      ],
+      "size": [
+        0.3,
+        0.25,
+        0.5
+      ],
+      "rotation": [
+        -0.00137,
+        -0.052318,
+        0.026141,
+        0.998287
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -4.35,
+        2.34,
+        0.0
+      ],
+      "size": [
+        0.08,
+        0.14,
+        5.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.61,
+        2.34,
+        0.0
+      ],
+      "size": [
+        0.08,
+        0.14,
+        5.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.74,
+        2.34,
+        0.0
+      ],
+      "size": [
+        0.08,
+        0.14,
+        5.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.87,
+        2.34,
+        0.0
+      ],
+      "size": [
+        0.08,
+        0.14,
+        5.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        2.34,
+        0.0
+      ],
+      "size": [
+        0.08,
+        0.14,
+        5.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.87,
+        2.34,
+        0.0
+      ],
+      "size": [
+        0.08,
+        0.14,
+        5.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.74,
+        2.34,
+        0.0
+      ],
+      "size": [
+        0.08,
+        0.14,
+        5.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.61,
+        2.34,
+        0.0
+      ],
+      "size": [
+        0.08,
+        0.14,
+        5.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.48,
+        2.34,
+        0.0
+      ],
+      "size": [
+        0.08,
+        0.14,
+        5.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        4.35,
+        2.34,
+        0.0
+      ],
+      "size": [
+        0.08,
+        0.14,
+        5.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.725,
+        2.43,
+        0.0
+      ],
+      "size": [
+        7.65,
+        0.04,
+        5.1
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -3.825,
+        2.43,
+        1.175
+      ],
+      "size": [
+        1.45,
+        0.04,
+        2.75
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -3.825,
+        2.43,
+        -2.175
+      ],
+      "size": [
+        1.45,
+        0.04,
+        0.75
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.1266,
+        0.0291,
+        -3.5526
+      ],
+      "size": [
+        0.2317,
+        0.0581,
+        0.1796
+      ],
+      "rotation": [
+        -0.072565,
+        -0.905406,
+        -0.022079,
+        0.417715
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -4.8934,
+        0.0206,
+        -3.3761
+      ],
+      "size": [
+        0.3592,
+        0.0413,
+        0.1926
+      ],
+      "rotation": [
+        -0.148896,
+        0.72055,
+        0.063732,
+        0.674222
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -3.6277,
+        0.0221,
+        -3.4821
+      ],
+      "size": [
+        0.361,
+        0.0441,
+        0.2569
+      ],
+      "rotation": [
+        -0.190023,
+        -0.111525,
+        0.086778,
+        0.971557
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.6898,
+        0.0307,
+        -3.0512
+      ],
+      "size": [
+        0.3148,
+        0.0614,
+        0.2164
+      ],
+      "rotation": [
+        0.034104,
+        0.243578,
+        0.085179,
+        0.965532
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.7409,
+        0.0299,
+        -3.3693
+      ],
+      "size": [
+        0.3111,
+        0.0598,
+        0.1673
+      ],
+      "rotation": [
+        -0.11892,
+        0.870919,
+        0.030412,
+        0.47585
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.4397,
+        0.0209,
+        -3.5917
+      ],
+      "size": [
+        0.2827,
+        0.0418,
+        0.2344
+      ],
+      "rotation": [
+        0.040386,
+        0.78249,
+        -0.092036,
+        0.614498
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.93,
+        0.0272,
+        -3.6246
+      ],
+      "size": [
+        0.2529,
+        0.0544,
+        0.2534
+      ],
+      "rotation": [
+        -0.102603,
+        -0.259273,
+        0.080191,
+        0.956984
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        4.0126,
+        0.0228,
+        3.6567
+      ],
+      "size": [
+        0.3011,
+        0.0457,
+        0.2466
+      ],
+      "rotation": [
+        -0.002607,
+        -0.106681,
+        0.066452,
+        0.992067
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.9874,
+        0.0331,
+        3.5021
+      ],
+      "size": [
+        0.3293,
+        0.0662,
+        0.2506
+      ],
+      "rotation": [
+        0.017554,
+        0.921309,
+        0.029415,
+        0.387318
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.5,
+        0.0305,
+        2.9469
+      ],
+      "size": [
+        0.2845,
+        0.061,
+        0.264
+      ],
+      "rotation": [
+        0.055849,
+        0.796998,
+        -0.183452,
+        0.572731
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.9771,
+        0.0294,
+        3.0585
+      ],
+      "size": [
+        0.3492,
+        0.0589,
+        0.1438
+      ],
+      "rotation": [
+        0.132439,
+        0.907111,
+        -0.083616,
+        0.390664
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.0251,
+        0.0325,
+        3.4028
+      ],
+      "size": [
+        0.2068,
+        0.0651,
+        0.1526
+      ],
+      "rotation": [
+        -0.149711,
+        -0.051322,
+        -0.060133,
+        0.985564
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        4.9294,
+        0.03,
+        3.3134
+      ],
+      "size": [
+        0.2054,
+        0.0599,
+        0.2303
+      ],
+      "rotation": [
+        0.138343,
+        0.488668,
+        0.00924,
+        0.861382
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.6426,
+        0.12,
+        -1.0107
+      ],
+      "size": [
+        0.4342,
+        0.24,
+        0.3113
+      ],
+      "rotation": [
+        0.088251,
+        0.733422,
+        -0.130268,
+        0.661313
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.711,
+        0.1,
+        2.0665
+      ],
+      "size": [
+        0.2708,
+        0.2001,
+        0.3269
+      ],
+      "rotation": [
+        -0.104159,
+        -0.310522,
+        0.031148,
+        0.944329
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        6.6955,
+        0.1062,
+        1.9756
+      ],
+      "size": [
+        0.4222,
+        0.2124,
+        0.2954
+      ],
+      "rotation": [
+        0.078462,
+        0.936344,
+        -0.128652,
+        0.317099
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        6.7746,
+        0.0982,
+        3.0498
+      ],
+      "size": [
+        0.2763,
+        0.1964,
+        0.23
+      ],
+      "rotation": [
+        -0.038514,
+        -0.986562,
+        -0.126764,
+        0.095622
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        6.6415,
+        0.1029,
+        -0.6932
+      ],
+      "size": [
+        0.3593,
+        0.2057,
+        0.3533
+      ],
+      "rotation": [
+        0.142206,
+        0.928266,
+        -0.09175,
+        0.331183
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        6.0372,
+        0.1208,
+        2.9451
+      ],
+      "size": [
+        0.4131,
+        0.2417,
+        0.2556
+      ],
+      "rotation": [
+        0.100789,
+        -0.470896,
+        0.137857,
+        0.865502
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        7.2279,
+        0.0909,
+        -0.0049
+      ],
+      "size": [
+        0.4572,
+        0.1818,
+        0.2699
+      ],
+      "rotation": [
+        0.032968,
+        0.1617,
+        0.109934,
+        0.980143
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        6.3549,
+        0.0972,
+        -0.2239
+      ],
+      "size": [
+        0.2904,
+        0.1944,
+        0.2615
+      ],
+      "rotation": [
+        -0.05479,
+        0.803885,
+        0.000302,
+        0.592255
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.2462,
+        0.025,
+        -1.2567
+      ],
+      "size": [
+        2.0338,
+        0.03,
+        0.22
+      ],
+      "rotation": [
+        0.001344,
+        -0.999863,
+        -2.2e-05,
+        0.016484
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.1827,
+        0.025,
+        1.1899
+      ],
+      "size": [
+        1.6021,
+        0.03,
+        0.22
+      ],
+      "rotation": [
+        -0.002534,
+        -0.987752,
+        0.0004,
+        0.156012
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0574,
+        0.025,
+        1.6596
+      ],
+      "size": [
+        1.6506,
+        0.03,
+        0.22
+      ],
+      "rotation": [
+        -0.003416,
+        -0.910367,
+        0.001553,
+        0.413785
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.877,
+        0.025,
+        -1.0068
+      ],
+      "size": [
+        1.2663,
+        0.03,
+        0.22
+      ],
+      "rotation": [
+        -1.7e-05,
+        -0.658683,
+        2e-05,
+        0.752421
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.2694,
+        0.025,
+        -1.8212
+      ],
+      "size": [
+        1.5035,
+        0.03,
+        0.22
+      ],
+      "rotation": [
+        -0.003481,
+        -0.285717,
+        0.011674,
+        0.958237
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.6233,
+        0.025,
+        0.5912
+      ],
+      "size": [
+        1.9441,
+        0.03,
+        0.22
+      ],
+      "rotation": [
+        -0.004964,
+        -0.429978,
+        0.010423,
+        0.902765
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.1751,
+        0.025,
+        -1.8882
+      ],
+      "size": [
+        2.3988,
+        0.03,
+        0.22
+      ],
+      "rotation": [
+        -0.000462,
+        -0.03808,
+        0.012112,
+        0.999201
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.92,
+        0.025,
+        1.7589
+      ],
+      "size": [
+        1.5423,
+        0.03,
+        0.22
+      ],
+      "rotation": [
+        0.010954,
+        -0.852127,
+        -0.006725,
+        0.523177
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -3.8,
+        0.07,
+        -0.4
+      ],
+      "size": [
+        0.09,
+        0.14,
+        4.6
+      ],
+      "rotation": [
+        0.0,
+        -0.052336,
+        0.0,
+        0.99863
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.15,
+        0.02,
+        -3.75
+      ],
+      "size": [
+        0.76,
+        0.04,
+        1.76
+      ],
+      "rotation": [
+        0.0,
+        -0.207912,
+        0.0,
+        0.978148
+      ],
+      "material": "masonry",
+      "landable": false
+    }
+  ],
+  "gaps": [
+    {
+      "id": "door",
+      "polygon": [
+        [
+          1.4,
+          0.0,
+          -3.0
+        ],
+        [
+          2.2,
+          0.0,
+          -3.0
+        ],
+        [
+          2.2,
+          1.8,
+          -3.0
+        ],
+        [
+          1.4,
+          1.8,
+          -3.0
+        ]
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        -1.0
+      ],
+      "narrowest_m": 0.8
+    },
+    {
+      "id": "window_south_west",
+      "polygon": [
+        [
+          -4.2,
+          0.95,
+          -3.0
+        ],
+        [
+          -3.4,
+          0.95,
+          -3.0
+        ],
+        [
+          -3.4,
+          1.95,
+          -3.0
+        ],
+        [
+          -4.2,
+          1.95,
+          -3.0
+        ]
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        -1.0
+      ],
+      "narrowest_m": 0.8
+    },
+    {
+      "id": "window_south_mid",
+      "polygon": [
+        [
+          -1.6,
+          0.95,
+          -3.0
+        ],
+        [
+          -0.8,
+          0.95,
+          -3.0
+        ],
+        [
+          -0.8,
+          1.95,
+          -3.0
+        ],
+        [
+          -1.6,
+          1.95,
+          -3.0
+        ]
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        -1.0
+      ],
+      "narrowest_m": 0.8
+    },
+    {
+      "id": "window_south_east",
+      "polygon": [
+        [
+          3.4,
+          0.95,
+          -3.0
+        ],
+        [
+          4.2,
+          0.95,
+          -3.0
+        ],
+        [
+          4.2,
+          1.95,
+          -3.0
+        ],
+        [
+          3.4,
+          1.95,
+          -3.0
+        ]
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        -1.0
+      ],
+      "narrowest_m": 0.8
+    },
+    {
+      "id": "window_far",
+      "polygon": [
+        [
+          2.2,
+          0.85,
+          3.0
+        ],
+        [
+          1.4,
+          0.85,
+          3.0
+        ],
+        [
+          1.4,
+          2.0,
+          3.0
+        ],
+        [
+          2.2,
+          2.0,
+          3.0
+        ]
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "narrowest_m": 0.8
+    },
+    {
+      "id": "window_north_west",
+      "polygon": [
+        [
+          -2.2,
+          0.95,
+          3.0
+        ],
+        [
+          -3.0,
+          0.95,
+          3.0
+        ],
+        [
+          -3.0,
+          1.95,
+          3.0
+        ],
+        [
+          -2.2,
+          1.95,
+          3.0
+        ]
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "narrowest_m": 0.8
+    },
+    {
+      "id": "window_gable_east",
+      "polygon": [
+        [
+          5.0,
+          0.95,
+          -0.4
+        ],
+        [
+          5.0,
+          0.95,
+          0.4
+        ],
+        [
+          5.0,
+          1.95,
+          0.4
+        ],
+        [
+          5.0,
+          1.95,
+          -0.4
+        ]
+      ],
+      "normal": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "narrowest_m": 0.8
+    },
+    {
+      "id": "inner_door",
+      "polygon": [
+        [
+          -1.9,
+          0.0,
+          -0.425
+        ],
+        [
+          -1.9,
+          0.0,
+          0.425
+        ],
+        [
+          -1.9,
+          1.95,
+          0.425
+        ],
+        [
+          -1.9,
+          1.95,
+          -0.425
+        ]
+      ],
+      "normal": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "narrowest_m": 0.85
+    }
+  ],
+  "wind_volumes": [
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        2.5,
+        0.0
+      ],
+      "size": [
+        10.0,
+        5.0,
+        6.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.11
+    }
+  ],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": [],
+  "stand_in": {
+    "source": {
+      "commit": "83401382e8b733389982997180cc181b063f61ae",
+      "model": "game/assets/models/structures/house_adobe.glb",
+      "model_sha256": "e250727975007593e51cd99781250dcbee8e679d839e66bcef753e984cc9651b",
+      "catalog_key": "house_adobe"
+    },
+    "snag_hazard": true
+  }
+}

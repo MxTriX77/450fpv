@@ -1,0 +1,13 @@
+{
+  "piece": "rafter_sawn",
+  "seed": 1,
+  "section_m": { "w": 0.15, "h": 0.10 },
+  "length_m": 3.0,
+  "break_ends": 1,
+  "splinter_len_m": 0.3,
+  "splinter_count": 8,
+  "nails": 2,
+  "nail_proud_mm": 50.0,
+  "physics_material": "timber",
+  "lod": { "lod1_switch_m": 10.0, "cull_m": 315.0 }
+}

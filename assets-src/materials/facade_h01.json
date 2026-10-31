@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "shader": "Universal Render Pipeline/Lit",
+  "texture_set": "polyhaven/dirt_floor",
+  "tile_size_m": [2.07, 2.07],
+  "tint": [0.689, 0.703, 0.719, 1.0],
+  "smoothness": 0.1,
+  "base": "whitewash",
+  "channels": ["render_depth", "soot", "dirt", "base_band"],
+  "layers": [
+    { "channel": "r", "recipe": "clay_render", "threshold": 0.25, "feather": 0.1 },
+    { "channel": "a", "recipe": "base_band" },
+    { "channel": "r", "recipe": "adobe", "threshold": 0.75, "feather": 0.1 },
+    { "channel": "g", "recipe": "wall_soot" },
+    { "channel": "b", "recipe": "wall_dirt" }
+  ]
+}

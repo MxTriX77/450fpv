@@ -1,0 +1,25 @@
+{
+  "material": "base_band",
+  "texture_set": "polyhaven/white_stucco_02",
+  "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
+  "mask": {
+    "metallic": 0.0,
+    "occlusion": "ao",
+    "smoothness": "1 - roughness"
+  },
+  "sources": {
+    "ao": {
+      "name": "white_stucco_02_ao_2k.png",
+      "sha256": "4079fb952f8433f38479e2e168856be1d9bc6bbd4bb5a7e868d54b82e050b4e7"
+    },
+    "roughness": {
+      "name": "white_stucco_02_rough_2k.png",
+      "sha256": "b3a3c8bade062b810713bee49399e563d4ce83721e80b4434706e6b28319bc2b"
+    }
+  },
+  "inputs_sha256": "199985e99efceaf457bf6c92678f4ff8c5172db0c5d40cf6e1c2e37f2d79fb3f",
+  "size": [
+    2048,
+    2048
+  ]
+}

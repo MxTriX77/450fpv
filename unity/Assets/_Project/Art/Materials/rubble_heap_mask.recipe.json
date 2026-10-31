@@ -1,0 +1,25 @@
+{
+  "material": "rubble_heap",
+  "texture_set": "polyhaven/dirt_floor",
+  "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
+  "mask": {
+    "metallic": 0.0,
+    "occlusion": "ao",
+    "smoothness": "1 - roughness"
+  },
+  "sources": {
+    "ao": {
+      "name": "dirt_floor_ao_1k.png",
+      "sha256": "8ca3fcc1c65f7b13d732af9746989f864b1f4aed4c50b87b9861d0fa3a61ab2e"
+    },
+    "roughness": {
+      "name": "dirt_floor_rough_1k.png",
+      "sha256": "b4232b4e0cf8a8c5f88ac3925b8dcc4f1b20784f4369f7c53af301a09b1abaf4"
+    }
+  },
+  "inputs_sha256": "4200010ebce7d1db01386fb8bd6530aa0fc7ce0d2383776e2855fd18dc0f0db6",
+  "size": [
+    1024,
+    1024
+  ]
+}
