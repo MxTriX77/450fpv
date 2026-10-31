@@ -101,7 +101,14 @@ namespace Fpv450.Sim.Log
         {
             "Seed", "Settings", "World", "Mass", "Propulsion", "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate",
             "StartPackCharge", "Aero", "Wind", "Contacts", "RuntimeObjects", "Asymmetry", "VortexRing", "GroundEffect",
-            "Flapping",
+            "Flapping", "Modes",
+        };
+
+        /// <summary>The modes' fields the header records, checked against AirframeModesSpec by the suite.</summary>
+        public static readonly string[] ModesFieldsLogged =
+        {
+            "ArmModulus", "ArmWidth", "ArmThickness", "ArmLength", "ArmTipShare", "ArmDamping", "MountStiffness", "SlingStiffness",
+            "MountDamping", "SwingDamping", "BottomPlate", "Camera", "Gravity", "TipMass", "PayloadPart", "CoilPart",
         };
 
         /// <summary>The ground effect's fields the header records, checked against GroundEffectSpec by the suite.</summary>
@@ -156,7 +163,8 @@ namespace Fpv450.Sim.Log
 
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
             TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
-            TagRuntimeObjects = 14, TagInput = 15, TagAsymmetry = 16, TagVortexRing = 17, TagGroundEffect = 18, TagFlapping = 19;
+            TagRuntimeObjects = 14, TagInput = 15, TagAsymmetry = 16, TagVortexRing = 17, TagGroundEffect = 18, TagFlapping = 19,
+            TagModes = 20;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -204,6 +212,9 @@ namespace Fpv450.Sim.Log
 
         /// <summary>The rotors' flapping; null for none.</summary>
         public RotorFlappingSpec Flapping;
+
+        /// <summary>The airframe's modes; null for a rigid airframe.</summary>
+        public AirframeModesSpec Modes;
 
         /// <summary>The runtime objects the flight placed, in order, and the world's object id each got.</summary>
         public RuntimeObject[] RuntimeObjects = new RuntimeObject[0];
@@ -273,6 +284,7 @@ namespace Fpv450.Sim.Log
                 VortexRing = setup.VortexRing?.Clone(),
                 GroundEffect = setup.GroundEffect?.Clone(),
                 Flapping = setup.Flapping?.Clone(),
+                Modes = setup.Modes?.Clone(),
                 RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
                 RuntimeIds = (int[])core.RuntimeIds.Clone(),
             };
@@ -353,6 +365,7 @@ namespace Fpv450.Sim.Log
                 VortexRing = VortexRing?.Clone(),
                 GroundEffect = GroundEffect?.Clone(),
                 Flapping = Flapping?.Clone(),
+                Modes = Modes?.Clone(),
                 RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
             };
         }
@@ -653,6 +666,21 @@ namespace Fpv450.Sim.Log
                     e.Write(f.Angles[i]);
                 }
             });
+            Entry(w, TagModes, e =>
+            {
+                e.Write(Modes != null);
+                if (Modes == null) return;
+                AirframeModesSpec m = Modes;
+                foreach (double x in new[]
+                         {
+                             m.ArmModulus, m.ArmWidth, m.ArmThickness, m.ArmLength, m.ArmTipShare, m.ArmDamping, m.MountStiffness,
+                             m.SlingStiffness, m.MountDamping, m.SwingDamping, m.BottomPlate, m.Camera.X, m.Camera.Y, m.Camera.Z, m.Gravity,
+                             m.TipMass[0], m.TipMass[1], m.TipMass[2], m.TipMass[3],
+                         })
+                    e.Write(x);
+                e.Write(m.PayloadPart);
+                e.Write(m.CoilPart);
+            });
             Entry(w, TagRuntimeObjects, e =>
             {
                 e.Write((ushort)RuntimeObjects.Length);
@@ -931,6 +959,23 @@ namespace Fpv450.Sim.Log
                             Flapping.Chords[i] = r.ReadDouble();
                             Flapping.Angles[i] = r.ReadDouble();
                         }
+                        break;
+                    case TagModes:
+                        if (!r.ReadBoolean())
+                        {
+                            Modes = null;
+                            break;
+                        }
+                        Modes = new AirframeModesSpec
+                        {
+                            ArmModulus = r.ReadDouble(), ArmWidth = r.ReadDouble(), ArmThickness = r.ReadDouble(), ArmLength = r.ReadDouble(),
+                            ArmTipShare = r.ReadDouble(), ArmDamping = r.ReadDouble(), MountStiffness = r.ReadDouble(),
+                            SlingStiffness = r.ReadDouble(), MountDamping = r.ReadDouble(), SwingDamping = r.ReadDouble(),
+                            BottomPlate = r.ReadDouble(), Camera = new Double3(r.ReadDouble(), r.ReadDouble(), r.ReadDouble()),
+                            Gravity = r.ReadDouble(),
+                            TipMass = new[] { r.ReadDouble(), r.ReadDouble(), r.ReadDouble(), r.ReadDouble() },
+                            PayloadPart = r.ReadInt32(), CoilPart = r.ReadInt32(),
+                        };
                         break;
                     case TagRuntimeObjects:
                         RuntimeObjects = new RuntimeObject[r.ReadUInt16()];

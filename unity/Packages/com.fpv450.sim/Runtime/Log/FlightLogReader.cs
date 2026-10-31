@@ -319,6 +319,11 @@ namespace Fpv450.Sim.Log
                     + G(h.GroundEffect.RecirculationSigma) + " v_h within " + G(h.GroundEffect.RecirculationBound) + " below "
                     + G(h.GroundEffect.RecirculationOnset) + " R, loop " + G(h.GroundEffect.RecirculationLoop) + " (z + R)/v_h; air "
                     + G(h.GroundEffect.AirDensity) + " kg/m3" + (h.GroundEffect.RecirculationSigma > 0 ? "" : "; KNOWN-WRONG: no recirculation"));
+            if (h.Modes != null)
+                w.WriteLine("  modes: arms " + G(h.Modes.ArmWidth * 1000) + " x " + G(h.Modes.ArmThickness * 1000) + " mm plate of " + G(h.Modes.ArmModulus / 1e9)
+                    + " GPa over " + G(h.Modes.ArmLength) + " m, " + G(h.Modes.ArmStiffness) + " N/m, damping " + G(h.Modes.ArmDamping) + "; mounts "
+                    + G(h.Modes.MountStiffness) + " N/m, slings " + G(h.Modes.SlingStiffness) + " N/m, damping " + G(h.Modes.MountDamping) + " and swing "
+                    + G(h.Modes.SwingDamping) + "; payload part " + h.Modes.PayloadPart + ", coil part " + h.Modes.CoilPart);
             if (h.Flapping != null)
                 w.WriteLine("  flapping: blade-element, lift slope " + G(h.Flapping.LiftSlope) + "/rad, zero lift " + G(h.Flapping.ZeroLiftAngle)
                     + " rad, bending " + G(h.Flapping.BendingFrequency) + " Hz, Southwell " + G(h.Flapping.Southwell) + ", skew gain "

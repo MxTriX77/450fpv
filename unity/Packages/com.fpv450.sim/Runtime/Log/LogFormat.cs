@@ -35,7 +35,8 @@ namespace Fpv450.Sim.Log
     /// aero and wind entries; 1.6 the contacts' force, moment and legs, the crash flag, and the header's contacts and
     /// runtime objects; 1.4b, after them, the controller's filter outputs and battery; p6-input-app the stick's
     /// failsafe flag and the header's input entry; p7b-airframe the rotors' angles, vortex rings, surfaces and
-    /// re-ingested wash, and the header's motor asymmetry, ring, ground effect and flapping). One file per flight:
+    /// re-ingested wash, and the header's motor asymmetry, ring, ground effect and flapping; 11: p7b-airframe 1.4 the
+    /// airframe's modes, and the header's modes). One file per flight:
     /// - the prologue: Magic, then the format Version and the header's length (u32 each), then the header (LogHeader)
     /// - blocks to the end of the flight, each a u16 kind and a u16 payload length, then the payload:
     ///   - a step record (StepBlock) after every step: the integrated state, the stick sample in force during the step,
@@ -60,9 +61,10 @@ namespace Fpv450.Sim.Log
         /// unity/main). 6–9 on p7b-airframe's branch: 6 the rotors' angles and the header's motor asymmetry (1.1), 7 the
         /// rotors' vortex rings and the header's ring (1.2), 8 the rotors' surfaces and re-ingested wash and the header's
         /// ground effect (1.3), 9 the header's flapping and the steady wind's onset (1.3c). 10: the two merged, the input
-        /// entry at tag 15 and the airframe's entries after it.
+        /// entry at tag 15 and the airframe's entries after it. 11: the airframe's modes in the step record (p7b-airframe
+        /// 1.4: each mode's coordinate and rate) and the header's modes entry.
         /// </summary>
-        public const int Version = 10;
+        public const int Version = 11;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -94,8 +96,11 @@ namespace Fpv450.Sim.Log
         ///    them steps as in 10).
         /// 12: p7b-airframe 1.5 (drone.json's packs to the P50B's 2.5 V cut-off: the OCV table re-mapped over 2.5–4.2 V with
         ///    its low knee, the voltage falling past empty; a pack on model 11's table steps as in 11).
+        /// 13: p7b-airframe 1.4 (the airframe's elastic modes, AirframeModesSpec: the arms' bending and the payload's and the
+        ///    coil's mounts about the rigid body, the frame's elastic turn in the gyro, each hub's elastic velocity in its
+        ///    rotor's inflow; a flight without them steps as in 12).
         /// </summary>
-        public const int ModelVersion = 12;
+        public const int ModelVersion = 13;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
@@ -106,14 +111,14 @@ namespace Fpv450.Sim.Log
         /// then the gust, the air's force and moment and the ESCs' limit (1.5), then the contacts' force and moment, the
         /// legs' loads and compressions and the touching pairs (1.6), then the controller's filter outputs and battery
         /// (1.4b), then the rotors' angles (p7b-airframe 1.1), then the vortex rings (1.2), then the rotors' surfaces and
-        /// re-ingested wash (1.3).</summary>
-        public const int StepSize = 1496, EventSize = 72, EndSize = 48;
+        /// re-ingested wash (1.3), then the airframe's modes (1.4).</summary>
+        public const int StepSize = 1656, EventSize = 72, EndSize = 48;
 
         // What the step record covers, checked against the structs by the suite: a field added to one of them must be
         // logged (a new layout) or the suite fails.
         public static readonly string[] StateFieldsLogged =
             { "Step", "Position", "Velocity", "Attitude", "BodyRate", "Armed", "RotorSpeed", "EscCommand", "PackCharge0", "PackCharge1", "Fc", "Gust", "EscLimited", "Crashed", "RotorAngle",
-              "RingInflow", "RingThrust", "RingLatched", "WashInflow" };
+              "RingInflow", "RingThrust", "RingLatched", "WashInflow", "ModeShape", "ModeRate" };
         public static readonly string[] FcFieldsLogged =
         {
             "RcCommand", "RcThrottle", "RcDataThrottle", "RawSetpoint", "FfDeltaPrev", "FfSpeedPrev", "FfAccelPrev", "FfRaw",
@@ -242,6 +247,9 @@ namespace Fpv450.Sim.Log
             b.Corners("ground_distance", "m along the axis to the surface below at the step's start; inf none, 0 without the effect");
             b.Corners("ceiling_distance", "m along the axis to the surface above at the step's start; inf none, 0 without the effect");
             b.Corners("wash_inflow", "the re-ingested wash's inflow through the disc over v_h");
+            // The airframe's modes (p7b-airframe 1.4), lowest first; 0 past the body's count.
+            for (int m = 0; m < AirframeModes.MaxModes; m++) b.Add("mode_shape" + m, "m kg^0.5, mass-normalised", LogFieldType.F64);
+            for (int m = 0; m < AirframeModes.MaxModes; m++) b.Add("mode_rate" + m, "m kg^0.5/s", LogFieldType.F64);
             return b.Done(StepSize);
         }
 
@@ -370,6 +378,8 @@ namespace Fpv450.Sim.Log
             w.C4(t.GroundDistance);
             w.C4(t.CeilingDistance);
             w.C4(s.WashInflow);
+            for (int m = 0; m < AirframeModes.MaxModes; m++) w.F64(s.ModeShape[m]);
+            for (int m = 0; m < AirframeModes.MaxModes; m++) w.F64(s.ModeRate[m]);
         }
 
         public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
@@ -470,6 +480,8 @@ namespace Fpv450.Sim.Log
             t.GroundDistance = r.C4();
             t.CeilingDistance = r.C4();
             s.WashInflow = r.C4();
+            for (int m = 0; m < AirframeModes.MaxModes; m++) s.ModeShape[m] = r.F64();
+            for (int m = 0; m < AirframeModes.MaxModes; m++) s.ModeRate[m] = r.F64();
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>
