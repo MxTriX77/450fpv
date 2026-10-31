@@ -30,13 +30,12 @@ namespace Fpv450.Sim.Log
     }
 
     /// <summary>
-    /// The flight log's binary format (design 10, LOG-01), version 7 (1.4 appended the flight controller's state to
+    /// The flight log's binary format (design 10, LOG-01), version 10 (1.4 appended the flight controller's state to
     /// the step record; 1.5 the wind's gust, the air's force and moment and the ESCs' current limit, and the header's
     /// aero and wind entries; 1.6 the contacts' force, moment and legs, the crash flag, and the header's contacts and
-    /// runtime objects; 1.4b, after them, the controller's filter outputs and battery; 6: p7b-airframe 1.1 the rotors'
-    /// angles, and the header's motor asymmetry; 7: p7b-airframe 1.2 the rotors' vortex rings, and the header's ring; 8:
-    /// p7b-airframe 1.3 the rotors' surfaces and re-ingested wash, and the header's ground effect). One
-    /// file per flight:
+    /// runtime objects; 1.4b, after them, the controller's filter outputs and battery; p6-input-app the stick's
+    /// failsafe flag and the header's input entry; p7b-airframe the rotors' angles, vortex rings, surfaces and
+    /// re-ingested wash, and the header's motor asymmetry, ring, ground effect and flapping). One file per flight:
     /// - the prologue: Magic, then the format Version and the header's length (u32 each), then the header (LogHeader)
     /// - blocks to the end of the flight, each a u16 kind and a u16 payload length, then the payload:
     ///   - a step record (StepBlock) after every step: the integrated state, the stick sample in force during the step,
@@ -54,8 +53,16 @@ namespace Fpv450.Sim.Log
         /// <summary>"FPV450LG".</summary>
         public static readonly byte[] Magic = { 0x46, 0x50, 0x56, 0x34, 0x35, 0x30, 0x4C, 0x47 };
 
-        /// <summary>The format: the prologue, the header's entries and the record layouts below.</summary>
-        public const int Version = 9;
+        /// <summary>
+        /// The format: the prologue, the header's entries and the record layouts below. 1–5: p6-flight-core. 6 on
+        /// unity/main: the stick's failsafe flag in the step record's flags (bit 3) and the header's input entry
+        /// (p6-input-app 1.1; its step-0 host time and the latency test's figures appended by 1.5, before 6 reached
+        /// unity/main). 6–9 on p7b-airframe's branch: 6 the rotors' angles and the header's motor asymmetry (1.1), 7 the
+        /// rotors' vortex rings and the header's ring (1.2), 8 the rotors' surfaces and re-ingested wash and the header's
+        /// ground effect (1.3), 9 the header's flapping and the steady wind's onset (1.3c). 10: the two merged, the input
+        /// entry at tag 15 and the airframe's entries after it.
+        /// </summary>
+        public const int Version = 10;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -115,7 +122,7 @@ namespace Fpv450.Sim.Log
             "ThrottlePrev", "TpaFactor", "MotorMixRange", "Flags", "GyroFiltered", "DtermGyro", "DynNotch1", "DynNotch2",
             "DynNotch3", "DynNotch4", "DynNotch5", "DynLpfThrottle", "DynLpfLoops", "SagVolts", "Cells",
         };
-        public static readonly string[] StickFieldsLogged = { "HostUs", "Roll", "Pitch", "Yaw", "Throttle", "Arm" };
+        public static readonly string[] StickFieldsLogged = { "HostUs", "Roll", "Pitch", "Yaw", "Throttle", "Arm", "Failsafe" };
         public static readonly string[] TraceFieldsLogged =
             {
                 "RotorCommand", "PackVolts0", "PackVolts1", "PackAmps0", "PackAmps1", "NetForce", "NetMoment", "AeroForce", "AeroMoment",
@@ -166,7 +173,7 @@ namespace Fpv450.Sim.Log
             b.Add("pack_amps1", "A", LogFieldType.F64);
             b.Vec("net_force", "N, world, weight included");
             b.Vec("net_moment", "N.m, body, about the CoM");
-            b.Add("flags", "bit 0 armed, bit 1 stick.arm, bit 2 crashed", LogFieldType.U8);
+            b.Add("flags", "bit 0 armed, bit 1 stick.arm, bit 2 crashed, bit 3 stick.failsafe", LogFieldType.U8);
             b.Add("reserved", "zero", LogFieldType.Pad, 7);
             // The flight controller's state (FcState), roll, pitch and yaw in the pilot's directions.
             b.Axes("fc.rc_command", "us from the stick centre after the deadband");
@@ -296,7 +303,7 @@ namespace Fpv450.Sim.Log
             w.F64(t.PackAmps1);
             w.V3(t.NetForce);
             w.V3(t.NetMoment);
-            w.U8((byte)((s.Armed ? 1 : 0) | (k.Arm ? 2 : 0) | (s.Crashed ? 4 : 0)));
+            w.U8((byte)((s.Armed ? 1 : 0) | (k.Arm ? 2 : 0) | (s.Crashed ? 4 : 0) | (k.Failsafe ? 8 : 0)));
             w.Zero(7);
             ref readonly FcState f = ref s.Fc;
             w.A3(f.RcCommand);
@@ -396,6 +403,7 @@ namespace Fpv450.Sim.Log
             s.Armed = (flags & 1) != 0;
             k.Arm = (flags & 2) != 0;
             s.Crashed = (flags & 4) != 0;
+            k.Failsafe = (flags & 8) != 0;
             r.Skip(7);
             ref FcState f = ref s.Fc;
             f.RcCommand = r.A3();
@@ -475,6 +483,7 @@ namespace Fpv450.Sim.Log
             k.Yaw = r.F64();
             k.Throttle = r.F64();
             k.Arm = (src[FlagsAt] & 2) != 0;
+            k.Failsafe = (src[FlagsAt] & 8) != 0;
         }
 
         /// <summary>The step a step record holds.</summary>

@@ -410,3 +410,33 @@ The pilot, 2026-10-22: "there's a house on Godot - for now you can use that hous
 - **The map:** about 512 m square on flat ground. It holds the Godot yard (house, shed, cellar, gate, fence, fruit trees) at its Godot layout; a posadka of the Godot belt trees and shrub mixed with V01 and V13; S04 grass; R01's two cars; an L01/L03 power line; E01's trench; H01's two houses as neighbours once H01 merges; and start points from the ground and from the stand.
 - **The Godot assets are stand-ins `Z01`–`Z13`** (D-040), ported through the Unity pipeline from `refs/godot/main` with their Godot physics metadata (collision, gaps, wind volumes, porosity, snag), never merged (D-027). They get no look pass and no rework, and each is swapped for its Unity asset when that lands.
 - **Kept cheap:** Standard tier (D-033), three build tasks and one QA pass; no relief, terrain layers or roads (G3's).
+
+## D-045 The builder's filter chain stays; the step-response check follows it · Accepted
+`p6-flight-core` 1.4b put the builder's full Betaflight 4.5 gyro and D-term filter chain into the controller (`fc-profiles.md` §1). Its phase lag raises the builder PIDs' 200 °/s roll step overshoot from about 16 % to about 41 %, against the propulsion spec's "less than 25 %", which was written for a loop without filters.
+- **The chain stays,** faithful to the pilot's flight controller (D-023). Simplicity never trims physical fidelity.
+- **The scenario is re-derived** for the real chain: stable, well inside the 5.5 °/s peak-to-peak settling, with the overshoot held as a regression band rather than the 25 %.
+- **The plant's lag is re-checked** in task 1.7 against published data: the motor's time constant (43 ms at hover, derived) and the rotor inertia (±30 %). A slower plant than the real one would explain the overshoot.
+- **The pilot's feel decides** at G7 (a qualitative question in `docs/pilot-questions.md`).
+- **The log carries the filters' outputs, not their delay lines:** about 700 doubles of filter state stay in the controller and are rebuilt by re-running the flight from its start, so replay stays bit for bit. This departs from K§6.10's "full state at 1 kHz"; a keyframe block comes only if forensics needs a mid-flight restart.
+
+## D-046 The gallery gate closes as seen; the map waits; physics and the radio first · Accepted
+The pilot, 2026-10-29: "gallery - not needed anymore, coz ive seen some objects already. map - let's do later on, for this night let's only those tasks that dont require GPU. physics, radiomaster, there's plenty to do and test for you. WILL work on the world map the other time".
+- **G1's gate is closed as seen.** `p1-g1-look-lock-gallery`'s remaining tasks (1.3 H01's station, the QA pass for the gate, the pilot's look) are dropped. Its code (`LookSetup`, the noclip camera, the gallery scene and builder) is still needed by the test range and the feed, so it lands with them after one QA pass when the map work resumes.
+- **The map waits:** `p6-test-range` (its QA) and `p6-world-query-gallery` 1.3–1.5 pause until the pilot turns to the world map. The test range builds stay the pilot's preview (`TestRange-preview-3`).
+- **Now:** work that needs no GPU: the flight core (1.7, D-045's plant check), the engine-free tasks of `p7c-wind` and `p7b-airframe`, and the RadioMaster input (`p6-input-app`). Unity runs only `-nographics` EditMode tests.
+- **H01:** QA's B1 fix lands as code and tests; its rebuild and the QA re-check wait for the map work.
+
+## D-047 The test range is the final map; finish the game on it · Accepted
+The pilot, 2026-10-31: "let's assume the current demo map is the final map. let's finish the game."
+- **The test range (D-044) is the release's one map.** G7, the MVPs after it and G8 fly it. VISION stays as written; the pilot's words here decide the release's map.
+- **Dropped:** phase 2 (the gallery, G2), phase 3 (the world, G3, UAT-2) and mass production; `p6-world-query-gallery` 1.3 (the gallery's station data); `p5-drone` 1.6 (the gallery station). G1's code still lands with the test range.
+- **G4 and G5 fold into G7:** one flying build where the pilot judges the feed, the OSD and the drone as they fly, so the pilot reviews one build, not three.
+- **The map's finishing:** H01's rebuild and QA re-check, the test range's QA, the world queries over it (`p6-world-query-gallery` 1.4, 1.5) and the contacts on it (`p6-flight-core` 1.6b).
+- **The order:** the map stack lands on `unity/main` (G1's code, the test range, H01), then the feed; the world queries and contacts; the airframe and the wind; then the app's screens and the built player (`p6-input-app` 1.4b) make the **G7 build**. After G7, one MVP per physics change: 7d (the fiber), 7a (the ground), 7e (forensics, the feed's physics signals), with the feed's remaining tasks, then G8.
+- **The GPU is back:** D-046's GPU-free rule was for its night.
+
+## D-048 The inertia character and the low-voltage signal follow the computed build · Accepted
+From `p7b-airframe` 1.5, computed, never asked (D-024):
+- **PHY-12:** "pitch exceeds roll" was derived in K§5.3 before D-043 copied letter T's layout (the packs along the sides, the payload crosswise). On that layout roll exceeds pitch on six of seven loadouts (pitch/roll 0.855–1.048, yaw/roll 0.91–1.41). The reference decides (D-028): PHY-12 asks for the ratios computed from `drone.json`'s layout, asserted exactly, with yaw saturating first.
+- **PHY-11:** the low-voltage signal is the pilot's FC profile's 3.00 V a cell on the loaded voltage. At the heavy corner under full throttle it sets at about 13 % charge, not 20 %. The scenario follows the physics: the margin falls with the sag (19.6 % from full to 20 %), the signal sets at the knee, and no margin is left at the cut-off.
+- **The OSD** applies Betaflight's voltage filter and warning hysteresis to the signal (`p4-feed` 1.5).

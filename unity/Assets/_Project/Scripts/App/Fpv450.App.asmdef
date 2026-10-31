@@ -1,7 +1,12 @@
 {
     "name": "Fpv450.App",
     "rootNamespace": "Fpv450.App",
-    "references": [],
+    "references": [
+        "Fpv450.Sim",
+        "Fpv450.Input",
+        "Fpv450.Input.Radio",
+        "Fpv450.App.Session"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

@@ -1,7 +1,10 @@
 {
     "name": "Fpv450.UI",
     "rootNamespace": "Fpv450.UI",
-    "references": [],
+    "references": [
+        "Fpv450.Sim",
+        "Fpv450.Input.Radio"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

@@ -107,7 +107,7 @@ The exact commands live in `CLAUDE.md` (Verification). Every change runs its nar
 
 ## Tokens and limits
 
-- **At most 2 subagents in parallel.**
+- **At most 4 subagents in parallel** (D-036), no more than two of them heavy Unity or Blender agents (memory).
 - **One fresh subagent per logical task** (D-029), with a short brief. Never reuse an agent for a second task, and don't resume agents that have grown huge.
 - **Commit early and often,** so a stopped agent loses nothing.
 - **Run long jobs in the background** (builds, benchmarks, batch renders) and wait for the completion notice. Never poll with sleep loops.

@@ -130,6 +130,10 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The log's ring was full, so the flight thread waited for the flush worker (FlightRecorder).</summary>
         LogFull = 2,
+
+        /// <summary>The app paused the flight (p6-input-app): no step ran for B µs, and every later step's host time is
+        /// that much later, so a stick's age adds every pause before it. A: 0.</summary>
+        Pause = 3,
     }
 
     /// <summary>

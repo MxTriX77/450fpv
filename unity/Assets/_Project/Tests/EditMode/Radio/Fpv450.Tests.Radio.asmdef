@@ -1,0 +1,25 @@
+{
+    "name": "Fpv450.Tests.Radio",
+    "rootNamespace": "Fpv450.Tests.Radio",
+    "references": [
+        "Fpv450.Sim",
+        "Fpv450.Input.Radio",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

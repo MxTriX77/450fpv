@@ -452,6 +452,10 @@ namespace Fpv450.Sim.Tests
             SeedStream stream = core.Random.Open("test.parameter");
             double drawn = core.Random.Draw(ref stream, "test.parameter", 0.9, 1.1);
             LogHeader h = Header(setup, core, spec);
+            h.Input = InputSource.Radio;
+            h.InputDevice = "Test Radio Joystick";
+            h.InputIntervals = new ReportIntervals();
+            foreach (long us in new long[] { 1980, 2010, 2040, 950, 25000 }) h.InputIntervals.Add(us);
 
             byte[] bytes = h.Encode();
             Assert.That(h.Length, Is.EqualTo(bytes.Length));
@@ -468,6 +472,11 @@ namespace Fpv450.Sim.Tests
             Assert.That(back.Loadout, Is.EqualTo(spec.Nominal));
             Assert.That((back.StartPosition, back.StartAttitude, back.StartVelocity, back.StartBodyRate),
                 Is.EqualTo((setup.StartPosition, setup.StartAttitude, setup.StartVelocity, setup.StartBodyRate)));
+            Assert.That((back.Input, back.InputDevice), Is.EqualTo((InputSource.Radio, "Test Radio Joystick")));
+            Assert.That(back.InputIntervals.Counts, Is.EqualTo(h.InputIntervals.Counts));
+            Assert.That((back.InputIntervals.BinUs, back.InputIntervals.Count, back.InputIntervals.SumUs, back.InputIntervals.MinUs, back.InputIntervals.MaxUs),
+                Is.EqualTo((100, 5L, 31980L, 950L, 25000L)));
+            Assert.That(back.InputIntervals.PercentileUs(50), Is.EqualTo(2100), "the bin of 2010 us");
             Assert.That(back.Streams, Is.EqualTo(new[] { "wind.direction", "wind.strength", "wind.gust0", "wind.turbulence", "test.parameter" }));
             Assert.That(back.Draws.Length, Is.EqualTo(6), "the wind's five and the test's");
             for (int i = 0; i < 5; i++) Assert.That(back.Draws[i], Is.EqualTo(core.Random.Draws[i]), "wind draw " + i);
@@ -581,7 +590,7 @@ namespace Fpv450.Sim.Tests
             }
             s.Fc = (FcState)fc;
             Assert.That(v, Is.EqualTo(100 + 91 + 3), "the record's 91 controller doubles and 3 bytes");
-            var k = new StickSample { HostUs = -987654321, Roll = -0.2, Pitch = 0.21, Yaw = -0.22, Throttle = 0.23, Arm = false };
+            var k = new StickSample { HostUs = -987654321, Roll = -0.2, Pitch = 0.21, Yaw = -0.22, Throttle = 0.23, Arm = false, Failsafe = true };
             var t = new StepTrace
             {
                 RotorCommand = new Corners { RearRight = 0.24, FrontRight = 0.25, RearLeft = 0.26, FrontLeft = 0.27 },
@@ -597,6 +606,13 @@ namespace Fpv450.Sim.Tests
             Assert.That(t2, Is.EqualTo(t));
             LogFormat.DecodeStick(bytes, out StickSample k3);
             Assert.That(k3, Is.EqualTo(k));
+            // The crash (bit 2, 1.6) and the stick's failsafe (bit 3, p6-input-app) are separate bits.
+            s.Crashed = true;
+            k.Failsafe = false;
+            LogFormat.EncodeStep(bytes, s, k, t);
+            LogFormat.DecodeStep(bytes, out s2, out k2, out _);
+            Assert.That((s2, k2), Is.EqualTo((s, k)));
+            Assert.That(bytes[Array.Find(LogFormat.StepFields, f => f.Name == "flags").Offset], Is.EqualTo(0b0101), "armed and crashed");
 
             var e = new FlightEvent
             {
