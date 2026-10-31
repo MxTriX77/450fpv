@@ -529,8 +529,12 @@ namespace Fpv450.Tests.Session
                     + " ms, " + session.Hitches + " hitches; started " + ((session.StartUs - t0) / 1000.0).ToString("0.0") + " ms after Start returned");
                 Assert.That(s.Complete, s.CutReason);
                 Assert.That(s.Steps, Is.InRange(flown / 1000 - 30, flown / 1000 + 1), "about a step a ms");
-                Assert.That(session.PausedUs, Is.InRange(190000, 400000));
-                Assert.That(s.Events.Exists(e => e.Event.Kind == EventKind.Hitch && e.Event.Index == (byte)HitchCause.Pause), "the pause logged");
+                // No wall-time ceiling: a loaded host oversleeps (410 ms seen for the 200), and Resume moves a late schedule
+                // further. The log decides: one Pause hitch, carrying exactly the shift the session applied.
+                Assert.That(session.PausedUs, Is.GreaterThanOrEqualTo(190000), "the 200 ms sleep, less the timer's granularity");
+                var pauses = s.Events.FindAll(e => e.Event.Kind == EventKind.Hitch && e.Event.Index == (byte)HitchCause.Pause);
+                Assert.That(pauses.Count, Is.EqualTo(1), "the pause logged");
+                Assert.That(pauses[0].Event.B, Is.EqualTo(session.PausedUs), "the log carries the pause the steps were moved by");
             }
         }
 
