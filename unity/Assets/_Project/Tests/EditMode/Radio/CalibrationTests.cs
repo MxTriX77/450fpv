@@ -408,6 +408,26 @@ namespace Fpv450.Tests.Radio
             Assert.IsEmpty(w.Findings);
         }
 
+        // QA's finding 12 (interim review, probe E12u): EdgeTX runs its mixer, and so its USB output, at the RF module's
+        // period (ELRS at 150 Hz: 6.7 ms; at 50 Hz: 20 ms). UpdateUs's 4 ms bound read such a radio as faster than it was,
+        // and refused its healthy sweeps as switches, at 20 ms every one. A pilot who follows the prompt is saved.
+        [TestCase(7000, 1, TestName = "E12: a healthy radio, 1 ms over 7 ms, jitter ±1, swept 2 s by a pilot who follows the prompt, is saved")]
+        [TestCase(9000, 1, TestName = "E12: a healthy radio, 1 ms over 9 ms, jitter ±1, swept 2 s by a pilot who follows the prompt, is saved")]
+        [TestCase(20000, 1, TestName = "E12: a healthy radio, 1 ms over 20 ms, jitter ±1, swept 2 s by a pilot who follows the prompt, is saved")]
+        [TestCase(20000, 0, TestName = "E12: a healthy radio, 1 ms over 20 ms, ADC still, swept 2 s by a pilot who follows the prompt, is saved")]
+        public void AHealthyRadioSlowerThan4MsIsSavedWhenThePromptIsFollowed(long updateUs, int jitter)
+        {
+            var radio = new Tx12Radio { NoiseLo = -jitter, NoiseHi = jitter };
+            var pilot = new CalibratingPilot(radio) { FollowsPrompt = true };
+            CalibrationWizard w = Calibrate(radio, pilot, 1000, updateUs);
+            TestContext.WriteLine("asked: " + string.Join(" | ", pilot.Prompts.Where(p => p.Contains("fast"))) + "; update interval " + w.UpdateUs + " us");
+
+            Assert.IsFalse(w.Failed, "never refused");
+            Assert.IsEmpty(w.Findings);
+            Assert.That(w.UpdateUs, Is.InRange(updateUs - 40, updateUs + 40), "the radio's update interval, slower than 4 ms");
+            Assert.Less(w.LastUs - w.FirstUs, 120000000, "under two minutes");
+        }
+
         // QA's pre-existing gap: a pitfall with ±3 ADC counts of rest jitter spreads 61 HID counts, over the centre step's
         // 2 % still band, so the step never settles. After 5 s the prompt names the channel.
         [Test]

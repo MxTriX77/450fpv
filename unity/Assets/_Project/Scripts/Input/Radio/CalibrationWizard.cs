@@ -82,10 +82,12 @@ namespace Fpv450.Input.Radio
         public const int UpdateWindow = 16;
 
         /// <summary>
-        /// The slowest radio's update interval, µs, and UpdateUs's bound: a still ADC's slow sweep changes less often than
-        /// the radio updates (QA's finding 11: a 2 ms radio read 3–13 ms on a 5–20 s throttle sweep).
+        /// The slowest radio's update interval, µs, and UpdateUs's bound before 16 changes: EdgeTX's MAX_REFRESH_RATE
+        /// (mixer_scheduler.h). EdgeTX runs its mixer, and so its USB output, at the RF module's period (ELRS at 150 Hz:
+        /// 6.7 ms; at 50 Hz: 20 ms), so a TX12 with its module on updates that slowly (QA's finding 12). A still ADC's slow
+        /// sweep reads slower than its radio (QA's finding 11); the Slower rule bounds the repeats that costs.
         /// </summary>
-        public const long SlowestUpdateUs = 4000;
+        public const long SlowestUpdateUs = 50000;
 
         /// <summary>
         /// A repeat is slower only if its coarse side held this many times the updates of the last; else the axis is
