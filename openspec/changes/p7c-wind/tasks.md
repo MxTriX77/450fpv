@@ -95,15 +95,15 @@ Complex tier (D-033). Branch `unity/physics/p7c-wind` off `unity/main` once `p6-
       - `Speed` scales the mean along the wind (reverse flow below 0).
       - `Turbulence` T: the open modes stay, and 24 wake eddies (stream `wind.wake`; λ 0.6–2.4 H, assumed: P's 5–20 m over the stand-in maple's 8.4 m) carry √(T² − 1)·σ_u at `ObstacleHeight`'s scale, divergence-free, advected.
       - It replaces 1.2's `SyntheticBelt`. The header records the layout, every volume and `WakeGrid.Version` (a mismatch is refused).
-    - **The harness's belt** (D-046's default until the test range's world): one row of the stand-in maple scaled to H (porosity 0.45, Godot's), crossing the course 9 s out at 45° (assumed), forward on the upwind side. With the wind abeam the course then runs from its upwind edge to 10 H past its leeward edge in 7 s, so H = 11.9 m (derived).
+    - **The harness's belt** (model 9's, superseded by the canopy strip below): one row of the stand-in maple scaled to H (porosity 0.45, Godot's), crossing the course 9 s out at 45° (assumed), forward on the upwind side. With the wind abeam the course then runs from its upwind edge to 10 H past its leeward edge in 7 s, so H = 11.9 m (derived).
     - **The centres** (derived): Severe 7.2 m/s (0.384 × 18.8, inside PHY-17a's 6.5–8.5), Windy 3.6 and Calm 1.08 (c 0.5 and 0.15).
       - The spectrum checks now run at the 18.8 m/s cruise: 2–4 Hz at 1.11 of von Kármán's variance, 1–2 Hz at 1.33; the field cut below 1 Hz reads 0.03.
       - A turbulent hover's lean ceiling scales with U/5 above 5 m/s (quadratic drag, derived), for Severe's stronger draws.
     - **The grader** (`grade_levels.py DIR LEVEL`): wind.md §6.3–6.4's fields per run, averaged over the nominal runs (T8 pooled, T11b from s = 1 and s = 0), against the level's column. Each target is also graded on its known-wrong model:
-      - no drag (T0, T11b), the fixed vector (T0b, the field's spreads and spectra, T8, T10a), no wakes (the belt's)
+      - no drag (T0, T11b), the fixed vector (T0b, the field's spreads and spectra, T8, T10a), no strip (the belt's; model 9: no wakes)
       - 0.15° of white noise on the pose (T6a, T6d), Gaussian noise (T9a and T12 calm/busy, T9b stationary)
       - Severe's runs for Calm's ceilings.
-    - **Readings** (5 seeds, `--pilots all`): Severe passes 8 of 21, Windy 8 of 21, Calm 9 of 9 (ceilings; the airframe has no asymmetry model yet, so it flies with it off).
+    - **Readings over model 9's belt row** (5 seeds, `--pilots all`): Severe passes 8 of 21, Windy 8 of 21, Calm 9 of 9 (ceilings; the airframe has no asymmetry model yet, so it flies with it off).
       - Pass at Severe: T0 7.76° (6–12), T0b 0.194 with 5 of 5 windward, T5 field 0.51°, T6a 96 %, T6d 0.015 / 0.017°, T9a 3.27, T11b (0.98, 1.75, tilts 1.09 and 1.04), T12 (CV 0.26 / 0.17, smallest 0.65 / 0.78).
       - Miss at Severe: T1 0.187° (0.35–0.70), T2 0.061° (0.19–0.38), T3 0.196° at 1.05 × T1, T4 0.051° at 0.84 × T2, T5 belt 0.45° (0.8–2.5), T6b 0.015° (0.06–0.16), T6c's 1–2 Hz 0.028° (its share 32 % passes), T7 36.9/min with 32 % in the belt, T8's median 0.92 s (CV 0.95 passes), T9b 3.04 (3.3–5.5), T10a −0.21, T10b 0.10 / 0.14, T11a 0.30 / 0.30°.
       - Windy misses the same ones in its column (T1 0.082°, T2 0.020°, about 0.44 and 0.33 of Severe's), plus T6c's share at 49 %; T0 3.67° (3.1–6.1) passes.
@@ -126,6 +126,39 @@ Complex tier (D-033). Branch `unity/physics/p7c-wind` off `unity/main` once `p6-
       - At model 8's centres both move from step 1 (the strength draw). Powered `0x104ECFA937FC9962`; contact `0xF9B3D93720B83C58`, with 5 impacts, at rest 0.2518 m up.
       - The model-6-drone pins fly model 7's centres only, so their test went; the still-air audits stand.
     - **Verified:** suite 215 of 215; `--golden` and `--scenarios` PASS; the bench on AC (Balanced, best power efficiency mode, 3201 MHz) powered p50 21.8 µs, p99 107.9 µs, 0 B (without wakes: their cost over the posadka is 1.8's); a 60 s Severe flight in the fixture's wakes (`replay --record … --wakes`) replays bit for bit, 60 000 steps and 140 events.
+    - **The canopy strip and the belt stretch** (the open part: `Runtime/Wind/CanopyFlow.cs`, `Tests/CanopyFieldTests.cs`, `flightbench --bench`'s canopy-step, `replay --record … --canopy`; `LogFormat.Version` 9, `ModelVersion` 10). belt-geometry-p.md: P's belt is a wide wooded strip, the wind along it, crossed at 0.45–1.0 H inside its canopy layer, so the course flew above the old row's wake. This was one of 1.5's two causes; the other, the weak gust response, is `p7b`'s flapping at the merge.
+      - **The flow** (`WindSetup.Canopy`, a `CanopyStrip`: centre, axis, length, width, h, λ; never with wakes):
+        - Raupach (1994)'s d/h, β = u*/U(h) and z0/h with ψ_h 0.193, and its sublayer to z_w = d + 2(h − d) (published; the form read in CABLE's code).
+        - Inside, U(h)·e^(α(z/h − 1)) (Inoue, Cionco), α from the mixing length's continuity at h (derived). Linear through the sublayer, then the log law to the blending height 3 h (assumed), where it meets the open field's mean, which sets u* (derived).
+        - The canopy-top σ_u, σ_v, σ_w = 2.0, 1.6, 1.1 u* (recalled: Raupach, Finnigan and Brunet 1996, Finnigan 2000). Below h each σ falls as (U/U(h))^0.5 (assumed).
+        - The open modes stay, scaled by that fall. 64 canopy modes (stream `wind.canopy`) carry the rest, √(σ² − σ_open²), u along the drawn bearing. Their isotropic scales are h and 0.6 h (published: of order h, Finnigan, Shaw and Patton 2009; w's from Kruijt et al. 2000's 0.28 h, derived). They advect at 1.8·U(h) (published, the same).
+        - The eddies are full to z_w and gone at z_b. In plan the layer ramps up over 1 h inside the edge (assumed). It is developed everywhere inside: the adjustment over about 3 L_c of a strip the wind crosses is not modelled.
+        - For the harness's strip (16.6 m, λ 0.3): d/h 0.585, z0/h 0.133, β 0.30, α 0.90, z_w 23.5 m. In Severe's draw of 5.67 m/s, u* 0.82 m/s and U(h) 2.74 m/s.
+        - Sampled at every point like the rest of the field. Measured at the canopy's top over 12 804 points: σ/u* 1.97 / 1.52 / 1.05.
+      - **The harness** (`WindHarness.Strip`, D-046's default until the test range's world):
+        - The strip: H = 7 s × 17.4 m/s / 7.3 = 16.6 m (derived: P's set B covers 7.3 H in 7 s at the course's ground speed, √(18.8² − 7.2²); the note's 15 m, 11–21). It is 8.5 H wide along the course (derived) and 60 H long along the drawn wind (assumed), with λ 0.3 (assumed: loose scrub and scattered tall trees, at Raupach's β plateau).
+        - The belt stretch is P's set B: from 2 H before the near edge for 7.3 H of ground, the runs at 0.5–1.0 H (8.3–15.8 m).
+        - Released at the belt height. Past the stretch, the height to hold climbs at 3 m/s to the run's field height (K§8.5's 20–50 m, assumed, unmeasured), and the climb's frames until 4 s after it are logged at confidence 0. wind_stats.py skips them, as it skips the tracker's lost frames. The runs are 8.6–14.4 s longer.
+        - `--belt off` flies the same heights without the strip.
+      - **Readings** (`grade_levels.py`, every family flown, `--pilots all`). On 5 seeds: Severe 9 of 21 (8 over the row), Windy 8 of 21 (8), Calm 9 of 9. On 10 seeds: 8, 8 and 9 of 9.
+        - Every known-wrong model fails its target at Severe and Windy. At Calm, Severe's runs still pass T2 and T4, and on 10 seeds T1 (0.172 under 0.175): Severe's own field spreads are that low.
+        - Severe, 5 seeds (10 seeds), P in brackets:
+          - The belt's ratios now pass, with no strip at 0.81–1.07: T3/T1 3.07 (3.00) [2.5], T4/T2 2.37 (2.07) [1.6], T11a 3.19 (3.07) [2.9].
+          - T5 belt 1.67° (1.51°) [1.67°]: PASS, was 0.45°. T7 15.9/min with 87 % in the belt (19.3, 88 %) [14.2, 7 of 7]: PASS, was 32 %.
+          - The absolute belt spreads follow the field's: T3 0.57° (0.52°), T4 0.13° (0.10°), T11a belt 0.96° (0.84°).
+          - T0 6.40° (5.75°) against 6–12: 6.64° (6.07°) without the strip. Model 9's 39 s runs at 20–50 m read 7.76°. The low pre-belt and belt frames weaken the crosswind, and the longer runs move the start rule's seconds. Each run's lean is the physics' (1.31° per m/s at 7.7 m/s abeam).
+          - T0b: spread 0.356 passes, but windward in 3 of 5 (7 of 10), 4 of 5 (9 of 10) without the strip. Seed 1's −0.007 is at the first measured frame, at 9 m, in a run 65° off abeam. Seed 3's −0.032 is in the strip, at 1.9 m/s of mean crosswind.
+          - The field is unchanged by the strip (T1 0.185° (0.172°), T2 0.055° (0.047°), T6b 0.015°, T6c's 1–2 Hz 0.035°, T11a field 0.30°). So are T8, T9b and T10a; T10b belt is 0.20 (0.11).
+        - Windy: T0 3.04° (2.73°) against 3.1–6.1, 3.18° without the strip; T0b 3 of 5 (7 of 10). Its ratios pass as Severe's (T3/T1 3.29, T4/T2 2.40, T11a 3.41), and so do T5 belt 0.69° and T7's 83 %.
+        - T0c is unchanged (the history does not see the strip): resultant 0.09, offset −0.7°, spread 50.5°, 0.159 shifts/min, gap CV 0.86, peak 1.45, side kept 86.2 %. PASS.
+      - **Still missing** (not tuned away):
+        - The field's absolute spreads, and the belt's with them: the airframe's gust response, `p7b`'s flapping.
+        - T0 and T0b sit at their floors. They follow each seed's crosswind share and the strip's shelter. Severe's centre is for 1.5's "tuned until T0 passes", after the merge.
+      - **Goldens:** unchanged, so none re-recorded. A flight without a strip steps as model 9's, and every pin matches: free body `0x50ED4B05A5D02F20`, powered `0xFF9521B7653C909C`, contact `0xBC4E9FA68E254625`, rain `0x6E28860F47C45BC1`. The header's 10 new preset names are not in the hashes.
+      - **Verified:**
+        - The suite 227 of 227; `--golden`, `--scenarios` and `--wind-harness` PASS.
+        - A 60 s Severe flight with `replay --record … --canopy` replays bit for bit, 60 000 steps and 156 events.
+        - The bench on AC (Balanced plan, best performance mode, 3201 MHz): powered p50 11.8 µs, p99 106.2 µs; canopy-step inside the strip p50 37.0 µs, p99 42.4 µs (outside 22.7 / 29.6). 0 B everywhere.
 - [x] 1.6 [physics-engineer] Cruise in wind (design 6): the drag re-derived for clip P's pitch at 17–22 m/s, superseding 1.5's 13 m/s calibration in `drone.json`'s `aero` block; verify the "clip P's pitch flies the cruise" scenario and T0 at that airspeed
   - **As built** (`drone.json`'s `props.h_force_n_per_m_s` and `aero.drag_coefficient` notes; `Tests/{WindHarness,CrosswindScenario,AeroTests,GoldenFlights}.cs`; `ModelVersion` 7, `LogFormat.Version` 6 unchanged):
     - **The drag:**

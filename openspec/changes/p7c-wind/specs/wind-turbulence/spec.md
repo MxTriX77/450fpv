@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The wind the drone flies through: a seeded field of mean profile, turbulence and wakes, drawn per flight, graded against clip P's measured targets by a simulated pilot, with the airframe's drag calibrated to the pilot's cruise.
+The wind the drone flies through: a seeded field of mean profile, turbulence, wakes and the canopy flow of wooded strips, drawn per flight, graded against clip P's measured targets by a simulated pilot, with the airframe's drag calibrated to the pilot's cruise.
 
 ## ADDED Requirements
 
