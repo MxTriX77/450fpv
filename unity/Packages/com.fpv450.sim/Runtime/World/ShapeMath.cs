@@ -14,7 +14,9 @@
 //   RayPrim (a capsule chain along the point list, segments outside the reach skipped)
 // Changes: System.Math goes through DetMath; the plane (the ground's half-space) is
 // new; a shape's rotation is its ShapeGeometry axes; Time is a double; the Time rule
-// latches every first touch during the step (IWorldQuery). Task 1.4: the sweep is
+// latches every first touch during the step (IWorldQuery). Task 1.5: a box's closest
+// approach along a core is exact (BoxMinimizer), where Shapes.cs searched it, and a box
+// sweep that provably cannot touch ends early (Clear). Task 1.4: the sweep is
 // generic over the shape's closest approach (IClosest), so a primitive and a wire share
 // one Time rule; a wire's candidate segments are found along its chord (WireRange); a
 // ray that starts inside any segment of a wire does not hit that wire.
@@ -85,8 +87,8 @@ namespace Fpv450.Sim.World
     {
         void Closest(Double3 p, Double3 q, double r, out Near near);
 
-        /// <summary>True only if the swept capsule cannot touch the shape from `t` to the step's end (ShapeMath.Clear).</summary>
-        bool Clear(in Capsule previous, in Capsule current, double t);
+        /// <summary>True only if the swept capsule stays more than `beyond` from the shape from `t` to the step's end (ShapeMath.Clear).</summary>
+        bool Clear(in Capsule previous, in Capsule current, double t, double beyond);
     }
 
     /// <summary>A primitive given by its geometry (a copy).</summary>
@@ -98,7 +100,7 @@ namespace Fpv450.Sim.World
 
         public void Closest(Double3 p, Double3 q, double r, out Near near) => ShapeMath.Closest(_s, p, q, r, out near);
 
-        public bool Clear(in Capsule previous, in Capsule current, double t) => ShapeMath.Clear(_s, previous, current, t);
+        public bool Clear(in Capsule previous, in Capsule current, double t, double beyond) => ShapeMath.Clear(_s, previous, current, t, beyond);
     }
 
     /// <summary>A primitive in a world's array, by its index (no copy).</summary>
@@ -115,7 +117,8 @@ namespace Fpv450.Sim.World
 
         public void Closest(Double3 p, Double3 q, double r, out Near near) => ShapeMath.Closest(_prims[_index].Geometry, p, q, r, out near);
 
-        public bool Clear(in Capsule previous, in Capsule current, double t) => ShapeMath.Clear(_prims[_index].Geometry, previous, current, t);
+        public bool Clear(in Capsule previous, in Capsule current, double t, double beyond) =>
+            ShapeMath.Clear(_prims[_index].Geometry, previous, current, t, beyond);
     }
 
     /// <summary>
@@ -144,7 +147,7 @@ namespace Fpv450.Sim.World
 
         public void Closest(Double3 p, Double3 q, double r, out Near near) => ShapeMath.WireClosest(this, p, q, r, out near);
 
-        public bool Clear(in Capsule previous, in Capsule current, double t) => false;
+        public bool Clear(in Capsule previous, in Capsule current, double t, double beyond) => false;
     }
 
     /// <summary>The closest approach of a capsule to one primitive.</summary>
@@ -180,8 +183,15 @@ namespace Fpv450.Sim.World
             out Near near, out double time) where T : struct, IClosest
         {
             double r = current.Radius;
-            s.Closest(current.A, current.B, r, out near);
             time = 1;
+            // A box that the whole sweep stays clear of and that the current pose is beyond the margin of: no contact,
+            // without a closest approach (the AABB check passes yawed and tilted boxes that are far in their own frame).
+            if (s.Clear(previous, current, 0, TouchDistance) && s.Clear(current, current, 0, margin))
+            {
+                near = default;
+                return false;
+            }
+            s.Closest(current.A, current.B, r, out near);
             if (speed > 0)
             {
                 // The distance changes by at most `speed` per unit of t, so stepping by distance / speed never skips a touch.
@@ -192,7 +202,7 @@ namespace Fpv450.Sim.World
                     s.Closest(previous.A + (current.A - previous.A) * t, previous.B + (current.B - previous.B) * t, r, out first);
                     if (first.Distance <= TouchDistance)
                         break;
-                    if (s.Clear(previous, current, t))
+                    if (s.Clear(previous, current, t, TouchDistance))
                         return near.Distance <= margin; // never touched: a box's per-axis bound (Clear) proves it for the rest
                     if (i == MaxAdvance)
                         break;
@@ -217,7 +227,7 @@ namespace Fpv450.Sim.World
         }
 
         /// <summary>
-        /// Whether the capsule swept from `previous` to `current` provably stays beyond TouchDistance of the box `s` from
+        /// Whether the capsule swept from `previous` to `current` provably stays more than `beyond` from the box `s` from
         /// `t` to 1 (false for every other kind: the sweep then advances as before). A box's signed distance is at least
         /// max_i(|x_i| − h_i) in its own frame, the segment's least |x_i| at `t` is exact, and |x_i| of any core point
         /// changes by at most the larger of the core ends' moves along axis i per unit of t; so the bound at t = 1 holds
@@ -225,7 +235,7 @@ namespace Fpv450.Sim.World
         /// capsule sliding along a face): a sweep it ends would never have touched, so every result is the same, except
         /// that a slide that used to give up after MaxAdvance steps (a touch counted where there was none) is now clear.
         /// </summary>
-        public static bool Clear(in ShapeGeometry s, in Capsule previous, in Capsule current, double t)
+        public static bool Clear(in ShapeGeometry s, in Capsule previous, in Capsule current, double t, double beyond)
         {
             if (s.Kind != ShapeKind.Box)
                 return false;
@@ -235,7 +245,7 @@ namespace Fpv450.Sim.World
             double rest = 1 - t;
             double bound = DetMath.Max(AxisBound(lp.X, lq.X, la.X, lb.X, h.X, rest),
                 DetMath.Max(AxisBound(lp.Y, lq.Y, la.Y, lb.Y, h.Y, rest), AxisBound(lp.Z, lq.Z, la.Z, lb.Z, h.Z, rest)));
-            return bound - current.Radius > TouchDistance + ClearSlack;
+            return bound - current.Radius > beyond + ClearSlack;
         }
 
         /// <summary>A lower bound of |x| − h over the core segment p–q along one axis, for the rest of the step.</summary>
@@ -538,12 +548,21 @@ namespace Fpv450.Sim.World
 
         /// <summary>
         /// The u in [0, 1] that minimises the signed distance of a box or cylinder at
-        /// lp + u·(lq − lp). The signed distance of a convex solid is convex along a line, so
-        /// a golden-section search finds it (the bracket shrinks to 4e-9); both ends are
-        /// checked too, so a capsule end resting on a face is exact.
+        /// lp + u·(lq − lp). Outside a box it is exact (BoxMinimizer). Otherwise the signed
+        /// distance of a convex solid is convex along a line, so a golden-section search finds
+        /// it (the bracket shrinks to 4e-9); both ends are checked too, so a capsule end resting
+        /// on a face is exact. Inside a box the deepest point lies where two faces are equally
+        /// near, so the search's point beside it, not the tie itself, keeps the face (and the
+        /// Time rule's normal test) steady from one pose to the next.
         /// </summary>
         private static double MinimizeAlong(in ShapeGeometry s, Double3 lp, Double3 lq)
         {
+            if (s.Kind == ShapeKind.Box)
+            {
+                double outside = BoxMinimizer(s.HalfExtents, lp, lq - lp);
+                if (outside >= 0)
+                    return outside;
+            }
             const double g = 0.6180339887498949;
             Double3 d = lq - lp;
             double lo = 0, hi = 1, u1 = 1 - g, u2 = g;
@@ -575,6 +594,119 @@ namespace Fpv450.Sim.World
                 f = start;
             }
             return end < f ? 1 : u;
+        }
+
+        /// <summary>
+        /// The u in [0, 1] that minimises a box's distance at p + u·d (its own frame) when the segment stays outside the
+        /// box, in closed form, where the golden-section search took 44 evaluations (task 1.5); −1 when it enters the box.
+        /// max_i(|x_i| − h_i) is convex and piecewise linear in u, so its least value lies at an end, where an x_i is 0,
+        /// or where two |x_i| − h_i meet; not above 0, the segment enters the box. Otherwise the squared distance
+        /// Σ max(|x_i| − h_i, 0)² is a convex quadratic between the u where an x_i crosses ±h_i, minimised in closed form
+        /// on each piece. On a tie the smaller u wins: a flat stretch's start, A itself when A lies over the face
+        /// (IWorldQuery's line contact).
+        /// </summary>
+        private static double BoxMinimizer(Double3 h, Double3 p, Double3 d)
+        {
+            double best = Inner(h, p, d, 0), at = 0;
+            Candidate(h, p, d, 1, ref best, ref at);
+            for (int i = 0; i < 3; i++)
+            {
+                double pi = Axis(p, i), di = Axis(d, i);
+                if (di != 0)
+                    Candidate(h, p, d, -pi / di, ref best, ref at);
+                for (int j = i + 1; j < 3; j++)
+                {
+                    for (int si = -1; si <= 1; si += 2)
+                    {
+                        for (int sj = -1; sj <= 1; sj += 2)
+                        {
+                            double den = si * di - sj * Axis(d, j);
+                            if (den != 0)
+                                Candidate(h, p, d, (Axis(h, i) - Axis(h, j) - si * pi + sj * Axis(p, j)) / den, ref best, ref at);
+                        }
+                    }
+                }
+            }
+            if (best <= 0)
+                return -1;
+
+            // Outside all along: the pieces between the u where an axis crosses a face's plane.
+            Span<double> cuts = stackalloc double[8];
+            int n = 0;
+            cuts[n++] = 0;
+            cuts[n++] = 1;
+            for (int i = 0; i < 3; i++)
+            {
+                double pi = Axis(p, i), di = Axis(d, i), hi = Axis(h, i);
+                if (di == 0)
+                    continue;
+                for (int sign = -1; sign <= 1; sign += 2)
+                {
+                    double u = (sign * hi - pi) / di;
+                    if (u > 0 && u < 1)
+                        cuts[n++] = u;
+                }
+            }
+            for (int k = 1; k < n; k++) // insertion sort, ascending
+            {
+                double v = cuts[k];
+                int m = k - 1;
+                for (; m >= 0 && cuts[m] > v; m--)
+                    cuts[m + 1] = cuts[m];
+                cuts[m + 1] = v;
+            }
+            best = double.PositiveInfinity;
+            for (int k = 0; k + 1 < n; k++)
+            {
+                double u0 = cuts[k], u1 = cuts[k + 1];
+                if (!(u1 > u0))
+                    continue;
+                double mid = 0.5 * (u0 + u1), a = 0, b = 0;
+                for (int i = 0; i < 3; i++)
+                {
+                    double pi = Axis(p, i), di = Axis(d, i), hi = Axis(h, i), x = pi + mid * di;
+                    if (x > hi || x < -hi)
+                    {
+                        a += di * di;
+                        b += di * (pi - (x > hi ? hi : -hi));
+                    }
+                }
+                double u = a > 0 ? -b / a : u0;
+                u = u > u0 ? u < u1 ? u : u1 : u0;
+                double f = Outer(h, p, d, u);
+                if (f < best)
+                {
+                    best = f;
+                    at = u;
+                }
+            }
+            return at;
+        }
+
+        private static double Axis(Double3 v, int i) => i == 0 ? v.X : i == 1 ? v.Y : v.Z;
+
+        /// <summary>max_i(|x_i| − h_i) at p + u·d: the box's signed distance inside it, a lower bound outside.</summary>
+        private static double Inner(Double3 h, Double3 p, Double3 d, double u) => DetMath.Max(DetMath.Abs(p.X + u * d.X) - h.X,
+            DetMath.Max(DetMath.Abs(p.Y + u * d.Y) - h.Y, DetMath.Abs(p.Z + u * d.Z) - h.Z));
+
+        /// <summary>Σ max(|x_i| − h_i, 0)² at p + u·d: the squared distance outside the box.</summary>
+        private static double Outer(Double3 h, Double3 p, Double3 d, double u)
+        {
+            double x = DetMath.Max(DetMath.Abs(p.X + u * d.X) - h.X, 0), y = DetMath.Max(DetMath.Abs(p.Y + u * d.Y) - h.Y, 0);
+            double z = DetMath.Max(DetMath.Abs(p.Z + u * d.Z) - h.Z, 0);
+            return x * x + y * y + z * z;
+        }
+
+        private static void Candidate(Double3 h, Double3 p, Double3 d, double u, ref double best, ref double at)
+        {
+            if (!(u >= 0 && u <= 1))
+                return;
+            double v = Inner(h, p, d, u);
+            if (v < best || v == best && u < at)
+            {
+                best = v;
+                at = u;
+            }
         }
 
         /// <summary>
