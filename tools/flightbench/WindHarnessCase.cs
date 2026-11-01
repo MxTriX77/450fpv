@@ -84,9 +84,13 @@ namespace Fpv450.FlightBench
                         + $"airspeed {r.MeanAirspeed:F2} m/s, {100 * (r.MeanAirspeed / WindHarness.ReleaseSpeed - 1):+0.0;-0.0} % off the cruise (−5 to +8 %): {(speed ? "PASS" : "FAIL")}");
                 }
                 WindHarness.Run wrong = WindHarness.Fly(spec, level, 1, 0, seeds, WindHarness.Pilots[0], belt, drag: false);
-                bool caught = !Reproduces(wrong.LeanPerMs, reference, belt);
+                // It must fail the nominal runs' checks: the lean, or the airspeed, which nothing holds without drag (its lean
+                // per m/s is a ratio of near-zero means when its course drifts out of the wind).
+                double ratio = wrong.MeanAirspeed / WindHarness.ReleaseSpeed;
+                bool caught = !Reproduces(wrong.LeanPerMs, reference, belt) || ratio < 0.95 || ratio > 1.08;
                 ok &= caught;
-                Console.WriteLine($"  known-wrong: no drag, seed 1: {wrong.LeanPerMs:F3}° per m/s: {(caught ? "fails, as it must" : "PASSES: the check cannot tell it (FAIL)")}");
+                Console.WriteLine($"  known-wrong: no drag, seed 1: {wrong.LeanPerMs:F3}° per m/s, airspeed {wrong.MeanAirspeed:F2} m/s: "
+                    + $"{(caught ? "fails, as it must" : "PASSES: the check cannot tell it (FAIL)")}");
             }
 
             if (output != null)
