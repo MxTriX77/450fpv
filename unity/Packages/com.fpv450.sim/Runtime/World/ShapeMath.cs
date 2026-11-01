@@ -84,6 +84,9 @@ namespace Fpv450.Sim.World
     internal interface IClosest
     {
         void Closest(Double3 p, Double3 q, double r, out Near near);
+
+        /// <summary>True only if the swept capsule cannot touch the shape from `t` to the step's end (ShapeMath.Clear).</summary>
+        bool Clear(in Capsule previous, in Capsule current, double t);
     }
 
     /// <summary>A primitive given by its geometry (a copy).</summary>
@@ -94,6 +97,8 @@ namespace Fpv450.Sim.World
         public GeometryClosest(in ShapeGeometry s) => _s = s;
 
         public void Closest(Double3 p, Double3 q, double r, out Near near) => ShapeMath.Closest(_s, p, q, r, out near);
+
+        public bool Clear(in Capsule previous, in Capsule current, double t) => ShapeMath.Clear(_s, previous, current, t);
     }
 
     /// <summary>A primitive in a world's array, by its index (no copy).</summary>
@@ -109,6 +114,8 @@ namespace Fpv450.Sim.World
         }
 
         public void Closest(Double3 p, Double3 q, double r, out Near near) => ShapeMath.Closest(_prims[_index].Geometry, p, q, r, out near);
+
+        public bool Clear(in Capsule previous, in Capsule current, double t) => ShapeMath.Clear(_prims[_index].Geometry, previous, current, t);
     }
 
     /// <summary>
@@ -136,6 +143,8 @@ namespace Fpv450.Sim.World
         }
 
         public void Closest(Double3 p, Double3 q, double r, out Near near) => ShapeMath.WireClosest(this, p, q, r, out near);
+
+        public bool Clear(in Capsule previous, in Capsule current, double t) => false;
     }
 
     /// <summary>The closest approach of a capsule to one primitive.</summary>
@@ -153,6 +162,8 @@ namespace Fpv450.Sim.World
         private const double TouchDistance = 1e-6;
         /// <summary>Conservative advancement gives up after this many steps and counts the shape as touched.</summary>
         private const int MaxAdvance = 64;
+        /// <summary>Clear's margin over TouchDistance for its own rounding (coordinates of a few hundred metres), m.</summary>
+        private const double ClearSlack = 1e-9;
         /// <summary>The largest double below 1: a Time below 1 never reads as the current pose.</summary>
         private const double BelowOne = 0.99999999999999989;
 
@@ -179,7 +190,11 @@ namespace Fpv450.Sim.World
                 for (int i = 0; ; i++)
                 {
                     s.Closest(previous.A + (current.A - previous.A) * t, previous.B + (current.B - previous.B) * t, r, out first);
-                    if (first.Distance <= TouchDistance || i == MaxAdvance)
+                    if (first.Distance <= TouchDistance)
+                        break;
+                    if (s.Clear(previous, current, t))
+                        return near.Distance <= margin; // never touched: a box's per-axis bound (Clear) proves it for the rest
+                    if (i == MaxAdvance)
                         break;
                     t += first.Distance / speed;
                     if (!(t <= 1))
@@ -200,6 +215,32 @@ namespace Fpv450.Sim.World
             }
             return near.Distance <= margin;
         }
+
+        /// <summary>
+        /// Whether the capsule swept from `previous` to `current` provably stays beyond TouchDistance of the box `s` from
+        /// `t` to 1 (false for every other kind: the sweep then advances as before). A box's signed distance is at least
+        /// max_i(|x_i| − h_i) in its own frame, the segment's least |x_i| at `t` is exact, and |x_i| of any core point
+        /// changes by at most the larger of the core ends' moves along axis i per unit of t; so the bound at t = 1 holds
+        /// for the whole rest of the step. It only ends the advancement early where the Lipschitz step would creep (a
+        /// capsule sliding along a face): a sweep it ends would never have touched, so every result is the same, except
+        /// that a slide that used to give up after MaxAdvance steps (a touch counted where there was none) is now clear.
+        /// </summary>
+        public static bool Clear(in ShapeGeometry s, in Capsule previous, in Capsule current, double t)
+        {
+            if (s.Kind != ShapeKind.Box)
+                return false;
+            Double3 da = current.A - previous.A, db = current.B - previous.B;
+            Double3 lp = ToLocal(s, previous.A + da * t - s.Center), lq = ToLocal(s, previous.B + db * t - s.Center);
+            Double3 la = ToLocal(s, da), lb = ToLocal(s, db), h = s.HalfExtents;
+            double rest = 1 - t;
+            double bound = DetMath.Max(AxisBound(lp.X, lq.X, la.X, lb.X, h.X, rest),
+                DetMath.Max(AxisBound(lp.Y, lq.Y, la.Y, lb.Y, h.Y, rest), AxisBound(lp.Z, lq.Z, la.Z, lb.Z, h.Z, rest)));
+            return bound - current.Radius > TouchDistance + ClearSlack;
+        }
+
+        /// <summary>A lower bound of |x| − h over the core segment p–q along one axis, for the rest of the step.</summary>
+        private static double AxisBound(double p, double q, double movep, double moveq, double h, double rest) =>
+            (p * q <= 0 ? -h : DetMath.Min(DetMath.Abs(p), DetMath.Abs(q)) - h) - DetMath.Max(DetMath.Abs(movep), DetMath.Abs(moveq)) * rest;
 
         /// <summary>Inserts in canonical order (object, shape); on overflow the buffer keeps the first ones. `count` is the true count.</summary>
         public static void Insert(Span<StaticContact> results, ref int count, in StaticContact c)

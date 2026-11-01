@@ -159,6 +159,26 @@ namespace Fpv450.Sim.Tests
         }
 
         [Test]
+        public void SkidSlidingAlongTheRunsFloor_IsNotLatchedByAGrazeItNeverMade()
+        {
+            // A skid capsule 0.1 mm above E01's run floor (y −1.5), sliding 20 mm along the run in one step: it never touches,
+            // so every floor tile within the margin is the current contact (Time 1), never a first touch. The Lipschitz
+            // advancement alone creeps 0.1 mm / 20 mm of the step at a time and gave up as touched (ShapeMath.Clear).
+            int e01 = Object("E01_curving");
+            const double r = 0.005, y = -1.5 + r + 0.0001, z = -14.587;
+            var before = new Capsule(new Double3(59.4, y, z), new Double3(59.6, y, z), r);
+            var after = new Capsule(new Double3(59.42, y, z), new Double3(59.62, y, z), r);
+            StaticContact[] c = Contacts(World, before, after);
+            StaticContact[] floor = Array.FindAll(c, k => k.Object == e01 && k.Normal.Y > 0.99);
+            Assert.That(floor.Length, Is.GreaterThan(0));
+            foreach (StaticContact k in floor)
+            {
+                Assert.That(k.Time, Is.EqualTo(1), $"shape {k.Shape}");
+                Assert.That(k.Distance, Is.EqualTo(0.0001).Within(1e-9), $"shape {k.Shape}");
+            }
+        }
+
+        [Test]
         public void S04Patch_IsAnsweredOnceByItsSoilAndStraw_WithoutThePlane()
         {
             int patch = Object("S04_patch");
