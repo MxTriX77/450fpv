@@ -34,18 +34,21 @@ namespace Fpv450.Sim.World
     public enum GroundFlags : byte
     {
         None = 0,
-        /// <summary>No ground at this point: the shapes there (a hole's fillers) are the ground, through StaticContacts.</summary>
+        /// <summary>
+        /// No plane ground at this point: over a ground patch's footprint or inside a hole band (IWorldQuery, The ground).
+        /// The shapes there (a patch's soil and straw, a hole's fillers and walls) are the ground, through StaticContacts.
+        /// </summary>
         Hole = 1,
     }
 
     /// <summary>The ground under one (x, z) point.</summary>
     public struct GroundSample
     {
-        /// <summary>The soil surface's height (K§10.4's ground height), m; −∞ in a hole.</summary>
+        /// <summary>The plane ground's height (K§10.4's ground height), m; −∞ where Hole.</summary>
         public double Height;
-        /// <summary>Unit normal of the ground at the point; +Y in a hole.</summary>
+        /// <summary>Unit normal of the ground at the point; +Y where Hole.</summary>
         public Double3 Normal;
-        /// <summary>The ground's surface id (IWorldQuery.SurfaceName); WorldIds.NoSurface in a hole.</summary>
+        /// <summary>The ground's surface id (IWorldQuery.SurfaceName); WorldIds.NoSurface where Hole.</summary>
         public byte Surface;
         public GroundFlags Flags;
     }
@@ -67,7 +70,7 @@ namespace Fpv450.Sim.World
     /// <summary>A swept capsule's contact with one shape (IWorldQuery.StaticContacts).</summary>
     public struct StaticContact
     {
-        /// <summary>On the shape's surface, m: at the first touch when Time &lt; 1, else at the current pose.</summary>
+        /// <summary>On the shape's surface, m: at the first touch when Time &lt; 1, else at the current pose (a line contact's: IWorldQuery).</summary>
         public Double3 Point;
         /// <summary>Unit, out of the shape toward the capsule.</summary>
         public Double3 Normal;
@@ -81,7 +84,7 @@ namespace Fpv450.Sim.World
         public ushort Material;
         /// <summary>Non-zero: a soil shape or the ground, with this surface id (SurfaceName). Physics dispatches on it.</summary>
         public byte Surface;
-        /// <summary>Along a wire's point list by length, 0–1; −1 for every other shape.</summary>
+        /// <summary>A wire's: the contact's length along its chain over the chain's length, 0 at its first point, 1 at its last; −1 for every other shape.</summary>
         public double WireParam;
         /// <summary>1: at the current pose. Below 1: the fraction of the step at the first touch (the Time rule, IWorldQuery).</summary>
         public double Time;
@@ -122,7 +125,7 @@ namespace Fpv450.Sim.World
         Sphere,
         Capsule,
         Cylinder,
-        /// <summary>A conductor: a capsule chain along its point list at Radius (task 1.4).</summary>
+        /// <summary>A conductor: a capsule chain along its point list at Radius (task 1.4). Geometry holds its chord; MapWorld.WirePoints the chain.</summary>
         Wire,
     }
 
@@ -134,9 +137,9 @@ namespace Fpv450.Sim.World
     public struct ShapeGeometry
     {
         public ShapeKind Kind;
-        /// <summary>The box's, sphere's or cylinder's centre, the capsule core's midpoint, or a point on the plane, m.</summary>
+        /// <summary>The box's, sphere's or cylinder's centre, the capsule core's midpoint, a wire's chord midpoint, or a point on the plane, m.</summary>
         public Double3 Center;
-        /// <summary>Local axes in world space. A capsule and a cylinder run along AxisY; a plane's normal is AxisY.</summary>
+        /// <summary>Local axes in world space. A capsule, a cylinder and a wire's chord run along AxisY; a plane's normal is AxisY.</summary>
         public Double3 AxisX, AxisY, AxisZ;
         /// <summary>Box: half its size along AxisX, AxisY and AxisZ, m.</summary>
         public Double3 HalfExtents;
@@ -148,9 +151,9 @@ namespace Fpv450.Sim.World
         public ushort Material;
         /// <summary>Non-zero for a soil shape (the metadata's "surface:&lt;id&gt;") and the ground.</summary>
         public byte Surface;
-        /// <summary>Wire: the end points of its span, m.</summary>
+        /// <summary>Wire: the end points of its span (its chain's first and last points), m.</summary>
         public Double3 SpanA, SpanB;
-        /// <summary>Wire: its sag at mid-span, m.</summary>
+        /// <summary>Wire: its sag at mid-span (the metadata's sag_m), m.</summary>
         public double Sag;
     }
 }
