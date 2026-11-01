@@ -223,9 +223,9 @@ namespace Fpv450.Replay
             // rebuilds the canopy's flow from the header.
             if (wakes) air.Wakes = new WakeLayout { OriginX = -300, OriginZ = -300, NX = 300, NZ = 300, Volumes = Fpv450.Sim.Tests.WakeGridFixture.Volumes() };
             if (canopy)
-                air.Canopy = new CanopyStrip
+                air.Canopies = new[]
                 {
-                    CentreX = 0, CentreZ = 0, AxisDeg = 90, Length = 1000, Width = 141, Height = 16.6, FrontalAreaIndex = 0.3,
+                    new CanopyStrip { CentreX = 0, CentreZ = 0, AxisDeg = 90, Length = 1000, Width = 141, Height = 16.6, FrontalAreaIndex = 0.3 },
                 };
             // --map: the map's first legs-on start point off a stand, its foot and heading (D-019's yaw: the body turned
             // about +y, the nose's bearing (sin, 0, cos), as ContactScenarios.Site turns it).

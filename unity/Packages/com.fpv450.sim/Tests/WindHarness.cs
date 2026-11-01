@@ -278,7 +278,7 @@ namespace Fpv450.Sim.Tests
             var along = new Double3(sin, 0, cos);
             WindSetup wind = WindSetup.Of(level);
             wind.StartSecond = startSecond;
-            if (belt) wind.Canopy = Strip(courseDeg);
+            if (belt) wind.Canopies = new[] { Strip(courseDeg) };
             if (steady) wind = WindSetup.SteadyFrom(fromDeg, drawn.MeanSpeed);
             FlightSetup setup = CrosswindScenario.Setup(spec, wind, seed, drag, drag);
             Airframe(spec, setup);

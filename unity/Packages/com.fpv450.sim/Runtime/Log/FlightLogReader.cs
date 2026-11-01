@@ -515,10 +515,10 @@ namespace Fpv450.Sim.Log
                 text += "; a gust front (p7c-wind 1.4's scenario" + (f.Uniform ? ", the known-wrong uniform field" : "") + "): from " + G(f.Start.X) + ", "
                     + G(f.Start.Z) + " m along " + G(f.Normal.X) + ", " + G(f.Normal.Z) + " at " + G(f.Speed) + " m/s, " + V(f.Delta, "0.000")
                     + " m/s behind it over " + G(f.Width) + " m";
-            CanopyStrip c = h.Wind.Canopy;
-            if (c != null)
-                text += "; a wooded strip's canopy (p7c-wind 1.5): " + G(c.Height) + " m tall, λ " + G(c.FrontalAreaIndex) + ", " + G(c.Length) + " × "
-                    + G(c.Width) + " m about " + G(c.CentreX) + ", " + G(c.CentreZ) + " m, its axis at " + G(c.AxisDeg) + " deg";
+            if (h.Wind.Canopies != null)
+                foreach (CanopyStrip c in h.Wind.Canopies)
+                    text += "; a wooded strip's canopy (p7c-wind 1.5): " + G(c.Height) + " m tall, λ " + G(c.FrontalAreaIndex) + ", " + G(c.Length) + " × "
+                        + G(c.Width) + " m about " + G(c.CentreX) + ", " + G(c.CentreZ) + " m, its axis at " + G(c.AxisDeg) + " deg";
             return text;
         }
 

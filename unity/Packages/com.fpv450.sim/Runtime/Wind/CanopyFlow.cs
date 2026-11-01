@@ -65,10 +65,10 @@ namespace Fpv450.Sim.Wind
         /// <summary>
         /// The strip's flow for a flight: the preset's canopy parameters, the drawn bearing (degrees) and strength (m/s at
         /// the reference height), the open field's mean at the blending height over that strength, its σ_u and σ_w (m/s),
-        /// and the flight's random (stream wind.canopy).
+        /// and the flight's stream wind.canopy (counter-based: a map's strips share it, each at its own scales).
         /// </summary>
         internal CanopyFlow(CanopyStrip strip, in WindPreset p, double fromDeg, double meanSpeed, Func<double, double> openProfile,
-            double sigmaH, double sigmaV, FlightRandom random)
+            double sigmaH, double sigmaV, in SeedStream s)
         {
             Strip = strip.Checked();
             double h = strip.Height, lambda = strip.FrontalAreaIndex;
@@ -110,7 +110,6 @@ namespace Fpv450.Sim.Wind
 
             // The eddies' modes in the drawn bearing's frame: along (the way the wind blows), across, up.
             Double3 along = WindField.Toward(fromDeg, 1), across = new Double3(-along.Z, 0, along.X);
-            SeedStream s = random.Open("wind.canopy");
             int modes = p.CanopyModes;
             _wave = new Double3[modes];
             _amp = new Double3[modes];

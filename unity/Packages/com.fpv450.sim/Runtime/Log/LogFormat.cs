@@ -67,9 +67,10 @@ namespace Fpv450.Sim.Log
         /// 6–9 on p7c-wind's branch: 6 the wind field's header entry and the record's wind at the body's origin (where the
         /// stand-in's gust was) and at each hub (1.4), 7 the header's wake layout (1.5), 8 the header's rain and camera and
         /// the record's rain force, film and air at the camera (1.7), 9 the header's canopy strip and the presets by name
-        /// (1.5). 13: the two merged, p7c-wind's record fields before the airframe's.
+        /// (1.5). 13: the two merged, p7c-wind's record fields before the airframe's. 14: the header's canopy strips as a
+        /// count and the strips (p7c-wind, the map's wind: a map's belt has one a section), where 13 had a flag and one.
         /// </summary>
-        public const int Version = 13;
+        public const int Version = 14;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -134,8 +135,12 @@ namespace Fpv450.Sim.Log
         /// 19: 1.6b's range branch and unity/main merged (model 18's wind field, wakes, canopy and rain with model 16's
         ///    contacts: the skids on soil faces, the seam rule, no tunnel out of a compliant shape; the code is the two
         ///    parents' together, so a flight on the stub's floor steps as in 18).
+        /// 20: the range branch's hole fix (WindField.Begin's ground over a hole; its own branch, merged later).
+        /// 21: p7c-wind, the map's wind (MapWind, WindSetup.ForMap): canopy strips together with wakes, each point shared
+        ///    between a strip's canopy (its plan weight w) and the wake grid (1 − w), and several strips sharing
+        ///    wind.canopy's draws; a flight with strips or wakes alone steps as in 19, and one with neither too.
         /// </summary>
-        public const int ModelVersion = 19;
+        public const int ModelVersion = 21;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
