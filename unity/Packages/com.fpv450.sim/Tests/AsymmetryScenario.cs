@@ -143,8 +143,9 @@ namespace Fpv450.Sim.Tests
             public double RollI, YawI, RollDeg, HeadingDeg, RollRate, YawRate;
 
             /// <summary>The props' unbalance: the body rate's step-to-step change it makes, RMS, rad/s (the rotors at
-            /// their own speeds, so their vibrations add in quadrature).</summary>
-            public double Vibration;
+            /// their own speeds, so their vibrations add in quadrature); and its most, the four in phase (their amplitudes
+            /// summed on each axis), which no block of the unbalance's own vibration can pass.</summary>
+            public double Vibration, VibrationInPhase;
         }
 
         /// <summary>The hover's linearisation (Predict): the operating point and the slopes there.</summary>
@@ -205,7 +206,7 @@ namespace Fpv450.Sim.Tests
         public static Prediction Predict(Model mo, MotorAsymmetry.Draws d)
         {
             var p = new Prediction();
-            double roll = 0, yaw = 0, rollAuthority = 0, vib2 = 0;
+            double roll = 0, yaw = 0, rollAuthority = 0, vib2 = 0, sumX = 0, sumY = 0, sumZ = 0;
             for (int i = 0; i < 4; i++)
             {
                 double dk = d.KvScale[i] - 1;
@@ -222,6 +223,9 @@ namespace Fpv450.Sim.Tests
                 double ay = DetMath.Sqrt(r.X * r.X + r.Z * r.Z) * f / mo.Inertia.Y;
                 double step = 2 * System.Math.Sin(mo.Speed * FlightCore.Dt / 2) / mo.Speed;
                 vib2 += (ax * ax + ay * ay + az * az) * step * step / 2;
+                sumX += ax * step;
+                sumY += ay * step;
+                sumZ += az * step;
             }
             p.RollMoment = System.Math.Abs(roll);
             p.YawMoment = System.Math.Abs(yaw);
@@ -232,6 +236,7 @@ namespace Fpv450.Sim.Tests
             p.RollRate = p.RollDeg / Seconds;
             p.YawRate = p.HeadingDeg / Seconds;
             p.Vibration = DetMath.Sqrt(vib2);
+            p.VibrationInPhase = DetMath.Sqrt((sumX * sumX + sumY * sumY + sumZ * sumZ) / 2);
             return p;
         }
 
@@ -309,10 +314,12 @@ namespace Fpv450.Sim.Tests
             && r.VibrationMin <= 1.3 * p.Vibration && r.VibrationMax >= 0.7 * p.Vibration;
 
         /// <summary>Never buzzes: the ESCs' commands move by under 1e-4 a step (the loop does not chase the vibration) and the
-        /// vibration stays within √2 of the props' own pull (two rotors beating in phase); never diverges: the body rate
-        /// under 0.01 rad/s and the attitude within 5° of level.</summary>
+        /// vibration stays within the props' own pull with all four beating in phase (D-050's layout, its centre of mass
+        /// nearer the hubs' plane, puts more of the pull on yaw, where the four beat on one axis, so a block passes model
+        /// 13's √2 of their quadrature sum); never diverges: the body rate under 0.01 rad/s and the attitude within 5° of
+        /// level.</summary>
         public static bool Steady(in Result r, in Prediction p) =>
-            r.DutyJump < 1e-4 && r.VibrationMax <= 1.42 * p.Vibration && r.RateMax < 0.01
+            r.DutyJump < 1e-4 && r.VibrationMax <= p.VibrationInPhase && r.RateMax < 0.01
             && DetMath.Abs(r.RollDeg) < 5 && DetMath.Abs(r.PitchDeg) < 5;
 
         /// <summary>Calm's floor (PHY-14): every 1 s block above the band's lowest vibration.</summary>
@@ -324,7 +331,7 @@ namespace Fpv450.Sim.Tests
             $"on: roll {on.RollRate:E2} and yaw {on.YawRate:E2} °/s, the yank {on.YankRollDeg:F3}° and {on.YankHeadingDeg:F3}° at {YankAt:F0} s "
             + $"(predicted {p.RollDeg:F3}° and {p.HeadingDeg:F3}°, I {DetMath.Abs(on.YankITerm.Roll):F2}/{DetMath.Abs(on.YankITerm.Yaw):F2} against "
             + $"{p.RollI:F2}/{p.YawI:F2}), drifting {on.SideDrift:F1} m sideways, vibration {on.VibrationMin:E2}–{on.VibrationMax:E2} rad/s "
-            + $"(predicted {p.Vibration:E2}), the ESCs' largest step {on.DutyJump:E1}; off: {off.RollRate:E1} and {off.YawRate:E1} °/s, "
+            + $"(predicted {p.Vibration:E2}, in phase at most {p.VibrationInPhase:E2}), the ESCs' largest step {on.DutyJump:E1}; off: {off.RollRate:E1} and {off.YawRate:E1} °/s, "
             + $"{off.SideDrift:F2} m, vibration {off.VibrationMax:E1}";
 
         /// <summary>A seed's per-flight motor draws, as a flight on that seed makes them (the wind is still, so it draws none first).</summary>
