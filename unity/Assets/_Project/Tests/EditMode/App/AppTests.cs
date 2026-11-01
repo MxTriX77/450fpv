@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using System.IO;
 using Fpv450.App;
+using Fpv450.App.Session;
 using Fpv450.Feed;
 using Fpv450.Sim;
 using Fpv450.Sim.Control;
@@ -13,11 +15,31 @@ namespace Fpv450.Tests.App
     // The app's screens and player (p6-input-app 1.4b): what of them runs without a scene.
     public sealed class AppTests
     {
+        // The player's copies alone (AppData.PlayerFiles under a folder of their own, as Fpv450.Build copies them) give the
+        // drone and the test range's map.
         [Test]
         public void ThePlayerCarriesEveryFileTheFlightReads()
         {
-            foreach (string file in AppData.PlayerFiles)
-                Assert.That(File.Exists(AppData.File(file)), file + " under " + AppData.Root);
+            string copies = Path.Combine(Path.GetTempPath(), "fpv450-player-" + System.Guid.NewGuid().ToString("N"));
+            try
+            {
+                List<string> files = AppData.PlayerFiles(AppData.Root);
+                foreach (string file in files)
+                {
+                    string to = Path.Combine(copies, file);
+                    Directory.CreateDirectory(Path.GetDirectoryName(to));
+                    File.Copy(AppData.File(file), to);
+                }
+                TestContext.WriteLine(files.Count + " files: " + string.Join(", ", files));
+                Assert.That(DroneSpec.Parse(File.ReadAllText(Path.Combine(copies, AppData.DroneFile))), Is.Not.Null);
+                FlightWorldChoice range = FlightWorlds.TestRange(copies);
+                Assert.That(range.Id, Is.EqualTo("test-range"));
+                Assert.That(range.Open().ContentHash, Is.EqualTo(FlightWorlds.TestRange(AppData.Root).Open().ContentHash), "the same map as the repository's");
+            }
+            finally
+            {
+                if (Directory.Exists(copies)) Directory.Delete(copies, true);
+            }
         }
 
         [Test]

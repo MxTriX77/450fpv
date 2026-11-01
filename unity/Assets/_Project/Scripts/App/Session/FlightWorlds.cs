@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
-using Fpv450.Input.Radio;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.World;
+using MapStart = Fpv450.Sim.World.StartPoint;
 
 namespace Fpv450.App.Session
 {
@@ -35,39 +35,41 @@ namespace Fpv450.App.Session
         public static string PlacementsPath(string root) => Path.Combine(root, "maps", TestRangeMap, "placements.json");
 
         /// <summary>
-        /// The test range (D-044, D-047): its start points from its placement file. Its queries (p6-world-query-gallery
-        /// 1.4, MapWorld.Load(root, "test-range")) have not landed, so it flies on the world-query stub's floor at
-        /// y = 0, which is the range's flat ground, and the log names the world "floor" so replay reopens that floor.
-        /// MapWorld drops in here, with the id "test-range", and nothing else changes.
+        /// The test range (D-044, D-047) on its queries, MapWorld.Load(root, "test-range"), loaded once and shared by its
+        /// flights: each flight's FlightWorld resets the map's runtime objects and adds its own (FlightCore). The log names
+        /// the world by its map id, so replay and the summary reopen it; the start points are the map's, in its order.
         /// </summary>
-        public static FlightWorldChoice TestRange(string root) => new FlightWorldChoice
+        public static FlightWorldChoice TestRange(string root)
         {
-            Id = "floor",
-            Open = FlightWorld.Floor,
-            StartPoints = ReadStartPoints(File.ReadAllText(PlacementsPath(root), Encoding.UTF8)),
-        };
+            MapWorld map = MapWorld.Load(root, TestRangeMap);
+            return new FlightWorldChoice
+            {
+                Id = map.MapId,
+                Open = () => new FlightWorld(map),
+                StartPoints = Array.ConvertAll(map.StartPoints, AppStart),
+            };
+        }
 
         /// <summary>
-        /// A placement file's start points (tools/map/make_test_range.py: id, position_m in Unity's frame, which is the
-        /// sim's, heading_deg, stand), in the file's order. The height is the world's ground, sampled at the flight's build.
+        /// The files under the root that MapWorld reads for the test range, by their paths from the root: the placement
+        /// file, the material table and each placed variant's metadata, in the order it reads them (a player's copies).
         /// </summary>
-        public static StartPoint[] ReadStartPoints(string placementsJson)
+        public static List<string> TestRangeFiles(string root)
         {
-            Dictionary<string, object> file = JsonRead.Object(MiniJson.Parse(placementsJson), "the placement file");
-            if (!(JsonRead.Member(file, "start_points") is List<object> rows) || rows.Count == 0)
-                throw new FormatException("the placement file lists no start points");
-            var points = new StartPoint[rows.Count];
-            for (int i = 0; i < rows.Count; i++)
+            var files = new List<string> { "maps/" + TestRangeMap + "/placements.json", MapWorld.MaterialsFile };
+            string Read(string relative) => File.ReadAllText(Path.Combine(root, relative));
+            new MapWorld(Read(files[0]), model =>
             {
-                Dictionary<string, object> row = JsonRead.Object(rows[i], "start point " + i);
-                string id = JsonRead.Text(row, "id");
-                if (!(JsonRead.Member(row, "position_m") is List<object> p) || p.Count != 3 || !(p[0] is double x) || !(p[2] is double z))
-                    throw new FormatException("start point '" + id + "': position_m is not [x, y, z]");
-                if (!(JsonRead.Member(row, "heading_deg") is double heading))
-                    throw new FormatException("start point '" + id + "': heading_deg is not a number");
-                points[i] = new StartPoint { Name = id, X = x, Z = z, Yaw = heading * Math.PI / 180, Stand = JsonRead.Bool(row, "stand") };
-            }
-            return points;
+                files.Add(MapWorld.ModelsRoot + "/" + model);
+                return Read(MapWorld.ModelsRoot + "/" + model);
+            }, MapWorld.MaterialNames(Read(files[1])));
+            return files;
         }
+
+        // The map's start point for the screens and the session: its foot on the ground and its heading in radians.
+        static StartPoint AppStart(MapStart p) => new StartPoint
+        {
+            Name = p.Id, X = p.Position.X, Z = p.Position.Z, Yaw = p.HeadingDeg * Math.PI / 180, Stand = p.Stand,
+        };
     }
 }

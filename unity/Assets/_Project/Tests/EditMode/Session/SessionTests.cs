@@ -13,6 +13,7 @@ using Fpv450.Sim.Log;
 using Fpv450.Sim.Wind;
 using Fpv450.Sim.World;
 using NUnit.Framework;
+using StartPoint = Fpv450.App.Session.StartPoint;
 
 namespace Fpv450.Tests.Session
 {
@@ -57,13 +58,14 @@ namespace Fpv450.Tests.Session
         // ---- The test range's starts (1.4b) -------------------------------------------------------------------------------
 
         [Test]
-        public void TheTestRangeListsItsStartsAndFliesOnTheFloor()
+        public void TheTestRangeListsItsStartsAndFliesOnItsMap()
         {
-            string placements = RepositoryFile("maps/test-range/placements.json");
-            string root = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(placements), "..", ".."));
-            Assert.That(Path.GetFullPath(FlightWorlds.PlacementsPath(root)), Is.EqualTo(Path.GetFullPath(placements)));
+            string root = RepositoryRoot();
+            Assert.That(Path.GetFullPath(FlightWorlds.PlacementsPath(root)), Is.EqualTo(Path.GetFullPath(RepositoryFile("maps/test-range/placements.json"))));
             FlightWorldChoice world = FlightWorlds.TestRange(root);
-            Assert.That(world.Id, Is.EqualTo("floor"), "the floor stub until MapWorld, named so replay reopens it");
+            Assert.That(world.Id, Is.EqualTo("test-range"), "MapWorld's map id, which the log records so replay reopens it");
+            Assert.That(world.Open().Query, Is.InstanceOf<MapWorld>());
+            Assert.That(world.Open().ContentHash, Is.EqualTo(MapWorld.Load(root, "test-range").ContentHash));
             Assert.That(world.StartPoints.Length, Is.EqualTo(2));
             StartPoint track = world.StartPoints[0], field = world.StartPoints[1];
             Assert.That((track.Name, track.X, track.Z, track.Stand), Is.EqualTo(("track", -178.0, -40.0, false)));
@@ -97,13 +99,6 @@ namespace Fpv450.Tests.Session
                 Assert.That(x, Is.EqualTo(at.X).Within(1e-9), "the stand's posts about the start");
                 Assert.That(z, Is.EqualTo(at.Z).Within(1e-9));
             }
-        }
-
-        [Test]
-        public void AStartPointFileWithoutStartsIsRefused()
-        {
-            Assert.Throws<FormatException>(() => FlightWorlds.ReadStartPoints("{\"start_points\": []}"));
-            Assert.Throws<FormatException>(() => FlightWorlds.ReadStartPoints("{\"start_points\": [{\"id\": \"a\", \"position_m\": [1, 0], \"heading_deg\": 0, \"stand\": false}]}"));
         }
 
         // ---- Setup to FlightSetup ---------------------------------------------------------------------------------------
@@ -800,6 +795,9 @@ namespace Fpv450.Tests.Session
             Kind = ShapeKind.Box, Center = centre, AxisX = new Double3(1, 0, 0), AxisY = new Double3(0, 1, 0), AxisZ = new Double3(0, 0, 1),
             HalfExtents = half, Material = material,
         };
+
+        static string RepositoryRoot() =>
+            Path.GetFullPath(Path.Combine(Path.GetDirectoryName(RepositoryFile("maps/test-range/placements.json")), "..", ".."));
 
         // A repository file, found up from this file's own path (the .NET tools compile it in place) or from Unity's
         // project folder (unity/, the editor's working directory).

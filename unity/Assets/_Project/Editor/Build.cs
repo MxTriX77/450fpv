@@ -103,7 +103,7 @@ namespace Fpv450
             path = Located(path);
             string root = Path.GetFullPath(Path.Combine(Application.dataPath, "..", ".."));
             string streaming = Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileNameWithoutExtension(path) + "_Data", "StreamingAssets");
-            foreach (string file in Fpv450.App.AppData.PlayerFiles)
+            foreach (string file in Fpv450.App.AppData.PlayerFiles(root))
             {
                 string from = Path.Combine(root, file), to = Path.Combine(streaming, file);
                 if (!File.Exists(from))
