@@ -142,17 +142,18 @@ namespace Fpv450.UI
 
         void OnGUI()
         {
+            AppStyle.Begin();
             Styles();
-            GUI.color = new Color(0.08f, 0.08f, 0.09f);
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), _white);
-            GUI.color = Color.white;
+            AppStyle.DrawGround();
             float w = Mathf.Min(900, Screen.width - 32);
             GUILayout.BeginArea(new Rect((Screen.width - w) / 2, 24, w, Screen.height - 48));
             GUILayout.Label("Calibrate", _title);
             if (_wizard != null && _wizard.Step != CalibrationStep.Done) _tab = 0;
             else
             {
-                _tab = GUILayout.Toolbar(_tab, Tabs, GUILayout.Width(320), GUILayout.Height(32));
+                GUILayout.BeginHorizontal(GUILayout.Width(320));
+                _tab = AppStyle.Segments(_tab, Tabs, 36);
+                GUILayout.EndHorizontal();
                 GUILayout.Space(12);
             }
             if (_tab == 1) _rates.Draw(w);
