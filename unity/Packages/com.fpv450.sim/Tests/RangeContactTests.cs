@@ -378,6 +378,36 @@ namespace Fpv450.Sim.Tests
             Assert.That(track.LateEvents, Is.EqualTo(0));
         }
 
+        // Tunnels: none through a rigid shape in any level's field, on the crown's and the wire's approaches. At model 19 on
+        // query version 3 the wire logged 2 through L03's cable held at 5.475 m, or with leg_fr first at 5.51–5.52 m: query
+        // version 4 (the turning sweep bisected to its touch) closes them, model 19's flights there now log none. Severe's
+        // crown logged 4 through V01_L's bark, and model 19's flight still does at query version 4: after the strike crash
+        // the tumbling drone's leg_fr, support_fr_joint and support_fr_end pass limb 307 (r 4.0 mm) and skid_rl limb 149
+        // (r 13.4 mm) at 5–13 m/s closing. The leg tube's 6.6 kN/m and the legs' spring need 0.1–0.3 m to stop the drone,
+        // more than the limbs are thick, so the core passes the limb's axis under the latch and leaves the sweep's margin
+        // 18–115 mm deep against its latched plane: drone.json's margin_m names it (a soft part that fast into a rod snaps
+        // in truth, phase 7's breakage; ATunnelIsLoggedAsABug). Since model 20 that approach crosses S04 in the wind, meets
+        // the crown otherwise (the crash on Z11_tree_ash behind it) and logs none.
+        [TestCase("crown", 10.0, WindLevel.Calm)]
+        [TestCase("crown", 10.0, WindLevel.Windy)]
+        [TestCase("crown", 10.0, WindLevel.Severe)]
+        [TestCase("wire", 5.47, WindLevel.Severe)]
+        [TestCase("wire", 5.475, WindLevel.Severe)]
+        [TestCase("wire", 5.51, WindLevel.Severe)]
+        [TestCase("wire", 5.52, WindLevel.Severe)]
+        [TestCase("wire", 5.475, WindLevel.Windy)]
+        [TestCase("wire", 5.475, WindLevel.Still)]
+        public void InTheWindNoTunnelThroughARigidShape(string name, double height, WindLevel level)
+        {
+            MaterialRow[] m = Materials(out ulong h);
+            RangeScenarios.Approach a = RangeScenarios.Find(name);
+            ContactScenarios.PoleStrike p = ContactScenarios.Into(Spec, m, h, InTheAir(RangeScenarios.At(a.Foot, a.HeadingDeg), WindSetup.Of(level)),
+                height, a.Speed, _ => RangeScenarios.Placed(a.Variant, a.Occurrence), null, a.ClimbSteps, a.ClimbRate);
+            TestContext.Out.WriteLine($"{name} at {height} m in {level}: first {p.FirstPart} on {p.FirstObject} ({p.FirstMaterial}) at {p.First.A:F2} m/s; "
+                + $"crash ({p.Cause}) by {p.Part} on {p.Object} ({p.Material}) at {p.FlightSpeed:F2} m/s; {p.Tunnels} tunnels ({string.Join(", ", p.TunnelThrough)}), {p.Lost} lost");
+            Assert.That(p.Tunnels + p.Lost, Is.EqualTo(0));
+        }
+
         // Model 20, the wind over a hole: where SampleGround reports Hole the field reads the soil a ray straight down meets
         // (FlightWorld.SoilUnder): the top of the object holding that soil, past any other object's shapes. Over S04's straw
         // mat (its top at y 0, the plane's height) the field blows as over the stub's floor at y 0, over the bare soil between
