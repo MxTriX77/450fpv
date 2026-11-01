@@ -38,8 +38,12 @@ namespace Fpv450.Sim.World
         /// shape (ShapeMath.Bound), and after 64 distance / speed steps the sweep steps by that
         /// bound; a sweep still unsettled after 128 counts no first touch. Both golden files
         /// re-recorded: only first touches on the plane and former give-ups moved.
+        /// 4 (QA's re-check B4): a sweep unsettled after 128 steps whose current pose touches
+        /// bisects to that touch and reports it as the first touch (ShapeMath.Touch), where 3
+        /// counted none: a core pitching across a curved shape lost a quarter of its touches.
+        /// No golden case moved; both golden files re-recorded for the version line alone.
         /// </summary>
-        public const int QueryVersion = 3;
+        public const int QueryVersion = 4;
 
         /// <summary>FNV-1a 64's offset basis: the hash of nothing.</summary>
         public const ulong Offset = 0xCBF29CE484222325UL;

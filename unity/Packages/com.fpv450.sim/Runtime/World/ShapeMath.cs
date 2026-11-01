@@ -22,6 +22,7 @@
 // ray that starts inside any segment of a wire does not hit that wire. QA's review B3 (QueryVersion 3): a
 // separating plane bounds every kind's sweep (Bound), so a sweep that cannot touch ends instead of creeping,
 // the plane's first touch is exact, and a sweep the advancement cannot settle counts no first touch.
+// QA's re-check B4 (QueryVersion 4): unless its current pose touches; then it bisects to that touch (Touch).
 // Frame: none of this depends on handedness (IWorldQuery, Frame).
 
 using System;
@@ -196,8 +197,10 @@ namespace Fpv450.Sim.World
         private const double TouchDistance = 1e-6;
         /// <summary>Conservative advancement steps by distance / speed this many times, then by the separating plane's bound.</summary>
         private const int MaxAdvance = 64;
-        /// <summary>It gives up after this many steps in all and counts no first touch (IWorldQuery).</summary>
+        /// <summary>It gives up after this many steps in all: a touching current pose is then bisected to (Touch), else no first touch (IWorldQuery).</summary>
         private const int MaxSteps = 2 * MaxAdvance;
+        /// <summary>Touch's halvings at most: t in (0, 1] has no more bits.</summary>
+        private const int MaxHalvings = 64;
         /// <summary>Clear's margin over TouchDistance for its own rounding (coordinates of a few hundred metres), m.</summary>
         private const double ClearSlack = 1e-9;
         /// <summary>The largest double below 1: a Time below 1 never reads as the current pose.</summary>
@@ -257,7 +260,15 @@ namespace Fpv450.Sim.World
                     if (apart || s.Clear(previous, current, t, TouchDistance))
                         return near.Distance <= margin; // never touched: a bound proves it for the rest of the step
                     if (i == MaxSteps)
-                        return near.Distance <= margin; // no touch shown: counted as none, never as a first touch
+                    {
+                        // Unsettled: a core pitching across a curved shape, its far ends swinging at the plane of the bound
+                        // while its middle creeps in (QA's re-check B4). A current pose that touches proves a touch in
+                        // (t, 1]: bisect to it. Anything else counts none, never a first touch.
+                        if (!(near.Distance <= TouchDistance))
+                            return near.Distance <= margin;
+                        t = Touch(s, previous, current, r, t, near, out first);
+                        break;
+                    }
                     t = i < MaxAdvance && !s.Flat ? t + first.Distance / speed : DetMath.Max(t + first.Distance / speed, bound);
                     if (!(t <= 1))
                         return near.Distance <= margin; // never touched
@@ -276,6 +287,35 @@ namespace Fpv450.Sim.World
                 }
             }
             return near.Distance <= margin;
+        }
+
+        /// <summary>
+        /// The touch of a sweep clear at `lo` whose current pose touches (`end`, within TouchDistance): bisection on (lo, 1]
+        /// to a pose whose distance lies in [TouchDistance / 2, TouchDistance], short of the surface by more than a closest
+        /// approach's rounding (a cylinder's search reads a few nm long), or to the last bit of t. Returns its t. The pose at
+        /// `lo` is clear and the one at 1 touches, so a touch lies between; where the distance is convex in t (a translation
+        /// past a convex shape) it is the first.
+        /// </summary>
+        private static double Touch<T>(T s, in Capsule previous, in Capsule current, double r, double lo, in Near end, out Near touch)
+            where T : struct, IClosest
+        {
+            double hi = 1;
+            touch = end;
+            for (int k = 0; k < MaxHalvings && touch.Distance < TouchDistance / 2; k++)
+            {
+                double mid = lo + (hi - lo) * 0.5;
+                if (!(mid > lo && mid < hi))
+                    break;
+                s.Closest(previous.A + (current.A - previous.A) * mid, previous.B + (current.B - previous.B) * mid, r, out Near at);
+                if (at.Distance <= TouchDistance)
+                {
+                    hi = mid;
+                    touch = at;
+                }
+                else
+                    lo = mid;
+            }
+            return hi;
         }
 
         /// <summary>
