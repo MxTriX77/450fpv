@@ -238,3 +238,337 @@ dump, ground effect on, flapping off: "ground effect: Cheeseman-Bennett below, .
 - **OPSEC:** the scan finds 0 findings over 1649 files. The new notes cite published sources only.
 - **Licences:** no third-party file added.
 - **Determinism:** every new core file uses `DetMath` (no `Math.Sin`/`Cos`/`Exp`/`Pow`, no FMA, no clock); `noEngineReferences` true; 0 B in steady state in every bench row.
+
+---
+
+# Re-review at `292c2bc7` (task 2.1, second pass)
+
+**Verdict: changes requested.** One finding blocks. It sits in PHY-10's stated bounds and one test threshold, not in the physics.
+- Findings 1–6 of my first review are answered and 7–9 handled.
+- D-050's layout fits the drone model, and PHY-12's ratios match my own build of `drone.json`.
+- The golden chain is kept from the trunk to model 15, and I reproduced 1.7's model 13 audit.
+- Log format 12 walks exactly, replay is bit for bit, and the budget holds on AC.
+- On my own seeds 301–340, three of the shake's restated "every flight" claims miss on one to three flights each. The pilot's-band test (at least 8 of 10) fails one of my four 10-seed groups.
+
+**Scope:** `unity/physics/p7b-airframe` at `292c2bc7` (model 15, log format 12): tasks 1.7 and 1.8, and the answers to findings 1–9. It holds `unity/main` at `bf94f75`. 1.3b stays out of scope.
+
+**How I checked:**
+- I ran every command below in this worktree. Nothing from the handoff was taken as evidence.
+- I used a scratch harness, never committed. It compiles the core's `Runtime/` and the suite's scenario files unchanged, plus my own loops over seeds. A second build swaps in `AirframeModes.cs` with model 13's sling put back; a diff against `a5884ea7`'s file, comments stripped, shows only the fields' order differing.
+- Seeds:
+  - the shake on 301–340, 40 a cell, sized as `--shake`
+  - the ring on 301–340
+  - the asymmetry on 31–60
+  - The suite now flies 1–40, 101–120 and 1–30, which hold my old seeds, so these are fresh.
+- No tracked file was edited but this one.
+
+## The first review's findings, answered
+
+| # | Finding | Answer | Verdict |
+|---|---|---|---|
+| 1 | The heavy band (0.8–1.4 s) failed, behind a 1.5 s window | Window 3 s. The heavy band is dropped: the length follows the arrest, with its medians stated. The pilot's 0.3–0.7 s is kept for the empty drone from 2.5–5.3 m/s, on most flights and at the median | **Fixed.** The window sees every end: end less arrest at most 0.25 s on my 240 full punches, against `Settle`'s 0.31. My medians: 0.42, 0.62, 0.82 s empty; 0.57, 0.94, 1.28 s at 2 kg. The spec's are 0.44, 0.64, 0.82 and 0.66, 0.96, 1.32. The pilot's band: 37/40 and 40/40. Its test's threshold is B1(d) |
+| 2 | The tilt band and the 0.28 s floor applied to the 0.8 step | Both dropped. Kept: every sharp arrest shows it, an ESC meets its limit, and the frame's band rings over 0.3 m/s² | **Fixed** as asked. "Every sharp arrest shows it" now misses on 3 of my 240 0.8 steps: B1(a) |
+| 3 | The wrong cause; "the four ESCs" | The cause is the current limit: an ESC through the whole arrest, all four for its first part. The no-limit known-wrong is asserted, `InRing` only printed, G7's tilt question tied to the firmware one | **Fixed** in the spec, design 5, the tests and 1.8's notes. On my seeds an ESC holds to within 0.005 s of the arrest on 240/240, all four for 0.25–1.29 s. The no-limit ESC fails `LastsTheArrest` on 240/240. Still open: D-051, PHY-10's requirement text and G7's question keep pre-1.8 numbers (N1), and the "less than half" bound misses one seed: B1(c) |
+| 4 | The ring's wobble statistic was under-powered | Hold 0.6 s, the rings' whole passage (derived); 20 seeds asserted | **Fixed.** Seeds 301–340: heavy 40/40, the higher throttle 40/40, the known-wrong failing 40/40. The wobble is 1.67–24.9 × the ringless flight's, against 1.5 |
+| 5 | The summary mislabelled the effects | Each label in its own branch; a test for each effect off alone and for all off | **Fixed.** Reproduced in three cases, one line per effect each: <ul><li>flapping off: "flapping: off", and the ground effect's real line</li><li>ground effect and modes off: "ground effect: off" and "modes: off (a rigid airframe)"</li><li>asymmetry and rings off: "motor asymmetry: off (identical rotors)" and "vortex rings: off"</li></ul> |
+| 6 | The asymmetry's yank tolerance failed seed 13 | An absolute floor of 0.03°, assumed, its order derived; 30 seeds asserted | **Fixed.** Seeds 31–60: `AsPredicted` 30/30, `Steady` 30/30. The largest miss beyond 30 % is 0.0289°, inside the floor by 0.001° (N3) |
+| 7 | The stand's queries over 60 µs | The world query's, in 1.3b | **Agreed, not this change's.** My bench: 99.5 µs p99 a step. 1.8's 147.5 µs was taken under other agents' load |
+| 8 | `Settle` had no anchor | Derived from the loop's roll settling, 0.31 s | **Fixed.** On my 240 full punches the shake ends at most 0.25 s after the arrest |
+| 9 | The G7 risk | D-051; the tilt question rests on the firmware question | **Handled.** `pilot-questions.md:70` ties the tilt to the firmware; its number is stale (N1) |
+
+## Findings
+
+### Blocking
+
+**B1. Three of PHY-10's restated "every flight" claims miss on my seeds, and the pilot's-band test is sized at a 3 % false-failure rate.** Owner: the physics engineer (the spec lines, `ShakeTests`, 1.8's notes).
+- **Why:** each bound sits just past the extreme of seeds 1–40. A new draw beats the largest of 40 with a chance of 1 in 41, so a fresh 40 seeds passes such a bound about once per claim. That is what I see:
+  - **(a)** "every sharp arrest of a descent shows it" fails on 3 of my 240 0.8 steps, all at 2 kg: seeds 314 and 318 from 2.56 m/s, and 324 from 5.43 m/s. Their peaks are 0.067–0.077° against the visible line's 0.088°. Every full punch shows it (240/240).
+  - **(b)** The gentle ramp's "an ESC on its limit for at most half the full punch's time" fails on seed 321 (empty, from 8.98 m/s): 0.43 s against the punch's 0.76 s, a share of 0.56. On seeds 1–40 the share is at most 0.43. `Wobbles` fails it.
+  - **(c)** "without the limit it tilts less than half as far" fails on seed 333 (empty, from 9.0 m/s): 1.31° against 2.38°, a ratio of 0.55. On seeds 1–40 it is at most 0.43. The cause still holds on that seed: no ESC holds the arrest, and it ends in 0.53 s against 0.74.
+  - **(d)** `TheShakeLastsAboutTheArrest` asks at least 8 of 10 seeds inside 0.3–0.7 s:
+    - The empty full punch from 2.5 m/s leaves the band on 3 of 40 on seeds 1–40 and on 3 of 40 of mine: p ≈ 0.075.
+    - So a fresh 10 seeds fails the test 3.4 % of the time (11 % at p = 0.12).
+    - My seeds 311–320 fail it (7 of 10, median 0.38 s). 301–310, 321–330 and 331–340 pass.
+- Everything else in the restated scenarios holds on all 40 of my seeds a cell (table below).
+- **Fix:** texts and thresholds only; no model, golden or log change:
+  - **(a)** "every full punch shows it". State the 0.8 step's rate as measured on 80 seeds or more, for example "nearly every 0.8 step".
+  - **(b)** and **(c):** either set the bounds from enough seeds that they keep a margin past their extremes, or state them as rates or quantiles. For example, a share under 0.6; or "less far on every seed, at most half on 95 %".
+  - **(d)** at least 7 of 10. That false-fails 0.46 % at p 0.075, and the no-limit known-wrong (1 of 80 inside) still fails it with probability 1 − 5e-12.
+  - **The hover's kick:** the spec says "at most 0.1 s", the test asserts under 0.3 s, and 0.10 s is seeds 1–40's largest (mine reach 0.04 s). State one bound and assert it.
+  - **Suggested:** `flightbench --shake` prints its table and always exits 0, so the "on 40 seeds a cell" statements are checked by eye only. Let it assert them and exit 1 on a miss; the run takes 12 s.
+
+### Not blocking
+
+**N1. The trunk's texts keep pre-1.8 numbers.** Owner: the orchestrator.
+- **D-051** (`docs/decisions.md:461–465`) still says:
+  - "from 11–16° to 1.5–3.4°"; 1.8 measures 2.7–10.0° with the limit and 0.1–3.2° without
+  - "the empty drone's 0.3–0.7 s (40 of 40)"; it is now 77 of 80
+  - "the 6–15° tilt applies to a full punch only"; 1.8 drops the tilt band
+  - the heavy band "is re-measured … before it is stated"; it is now stated, as the arrest's length and its medians
+
+  Amend D-051 or add a new entry.
+- **`docs/pilot-questions.md:70`:** "the tilt (6–15° on a full punch)".
+- **`docs/requirements.md:819` (PHY-10):** "Its occurrence comes out of the physics (wash re-ingestion, frame resonance …, payload and spool pendulum)". D-050 removed the pendulum, and D-051 names the current limit.
+
+**N2. Spec and design wording.** Owner: the physics engineer.
+- **The spec:** "the frame's modes and the loads' strapped mounts adding the 50–200 Hz band". The mounts are at 27.6–35.8 Hz, below the band; the arms carry it.
+- **Design 5's as-built:** it gives "the bottle's mount 27.6–30.0 Hz, the coil's 34.1–36.2 Hz, the arms 48.0, 54.5, 61.2 and 63.4 Hz", partly model 14's values. `--scenarios` prints 27.6, 29.4, 29.5, 34.1, 35.7, 35.8, 48.0, 54.5, 60.9 and 63.0 Hz.
+
+**N3. `YankFloorDeg` (0.03°) has almost no margin.** It sits just above seeds 1–30's largest miss (0.026°), and seeds 31–60 reach 0.0289°. The code derives the transients' order as about 0.04°; using that value gives the margin. Same root as B1.
+
+**N4. The branch is 14 trunk commits behind** (`2116ec6f`: docs and `tools/build_latest.*`). `git merge-tree` merges them cleanly.
+
+## PHY-10 as restated, against the 40-seed table and on my seeds
+
+`flightbench --shake` reproduces 1.8's table on seeds 1–40:
+- the medians
+- the 0.3–0.7 s counts: 37/40, 40/40, 4/40, 34/40, 3/40, 0/40
+- the tilt ranges, "at least 2.3 times" and "at most 0.43"
+- the rigid airframe's ratio, 0.98–1.04
+
+My harness flies the same 37 cells on seeds 301–340 (1480 flights):
+
+| Claim (spec) | Seeds 1–40 (`--shake`) | Seeds 301–340 (QA) |
+|---|---|---|
+| From the hover, a gentle increase never shows it | 80/80 | 80/80 |
+| A sharp one only the kick, at most 0.1 s; the ESCs limited under 0.1 s | at most 0.10 s | at most 0.04 s; 0.05 s |
+| Every sharp arrest of a descent shows it | full 240/240; 0.8 240/240 | full 240/240; 0.8 **237/240** (B1a) |
+| An ESC meets its limit; the frame's band rings (over 0.3 m/s²) | all | all (Y 0.55 m/s² at the least) |
+| Gentle ramp from 5–9 m/s: in its ring over 1 s | 160/160 | 160/160 (1.36 s at the least) |
+| Gentle ramp: an ESC limited at most half the punch's time | 160/160 (at most 0.43) | **159/160** (0.56, B1b) |
+| A full punch holds an ESC through the arrest, all four for part of it | 240/240 | 240/240 (within 0.005 s; all four 0.25–1.29 s) |
+| The shake never outlasts the arrest by more than `Settle` (0.31 s) | at most 0.26 s | at most 0.25 s |
+| Medians: empty 0.44/0.64/0.82 s; 2 kg 0.66/0.96/1.32 s | as stated | empty 0.42/0.62/0.82; 2 kg 0.57/0.94/1.28 |
+| Empty from 2.5–5.3 m/s: 0.3–0.7 s on most flights and at the median | 77/80, both medians inside | 77/80; medians 0.42 and 0.62 |
+| The 0.8 step's ESCs leave sooner | 240/240 | 240/240 |
+| The 0.8 step's shake is shorter | 229/240 pairs | 231/240 pairs; shorter summed in every cell |
+| No limit: no ESC holds the arrest | 240/240 | 240/240 |
+| No limit: it tilts less than half as far | 240/240 | **239/240** (0.55, B1c) |
+| Rigid: within 20 %, as long, no `CameraVibration` | 0.98–1.04; within 0.06 s | 0.97–1.03; within 0.04 s; 80/80 |
+| It varies between occurrences | yes | neighbouring seeds differ, 39/39 in every cell |
+| Rings off: the tilt against the punch's (they coincide, not cause it) | 0.62–1.70 | 0.42–2.19 |
+
+`TheShakeLastsAboutTheArrest`'s statistic on four groups of 10 of my seeds:
+- Seeds 301–310, 321–330 and 331–340 pass.
+- Seeds 311–320 fail from 2.5 m/s: 7 of 10 inside, median 0.38 s.
+- The no-limit known-wrong fails in all four groups (0 of 10 inside).
+
+## "Never buzzes": the in-phase bound
+
+- **The reasoning holds:**
+  - Each rotor's unbalance is a pull U·ω² turning at its own speed. Its moment on each body axis is one sinusoid, so the body rate's step-to-step change on that axis is a sinusoid of amplitude α·2 sin(ω·dt/2)/ω.
+  - The four rotors run 1–5 Hz apart. Their sinusoids add to one carrier near 145 Hz whose envelope never passes the sum of their amplitudes.
+  - A 1 s block holds about 145 carrier cycles, so its mean square is at most (ΣA)²/2 per axis. The sum-frequency term adds about 1e-3 of that (of order 1/(ωT)).
+  - This bounds the rigid body: on mean axes the modes leave its motion unchanged.
+- **Two approximations,** both small against the measured margin:
+  - The prediction uses the hover's mean speed for all four rotors; a rotor 2 % fast pulls about 4 % harder.
+  - It leaves out the cross inertia (I_yz −6.5e-5 against 0.06 kg·m²).
+- **Measured:** seeds 31–60 reach 0.52–0.86 of the bound (1–30: 0.45–0.86). Against the old quadrature sum they reach 0.98–1.65, so the old 1.42 × bound would have failed some.
+- **It fails a known-wrong sharply.** I swept the D gains (and D min) on seeds 1 and 31:
+
+  | D gains | Busiest block / bound | ESCs' largest step |
+  |---|---|---|
+  | × 1.5 to × 3 | 0.71–0.82 | about 1e-7 |
+  | × 3.5 (buzzes) | 22–30 | 1.1e-2 |
+  | × 4 (buzzes) | 25–34 | 1.3e-2 |
+
+  The loop jumps from no amplification to a full buzz between × 3 and × 3.5, so there is no middle case for the bound to miss.
+
+## D-050's layout
+
+- **The plates,** from p5-drone's generator (`origin/unity/art/p5-drone`, `plate_heights`). With the 6 mm arm centred at y 0, the 34 mm stack holds:
+  - the bottom plate at −0.006 to −0.003
+  - the top plate at +0.003 to +0.005
+  - the upper plate at +0.025 to +0.028
+- **The electronics:** the box (0.005 to 0.025, centred at 0.015) fills the gap between the top and upper plates. The camera's lens at (0, 0.015, 0.115) sits in it, matching the generator's `camera.lens_*` (0.015 and 0.115).
+- **The bottle:** Ø0.080 on the upper plate's top at 0.028, so its axis is at 0.068. Its three contact shapes are at 0.068 with radius 0.040.
+  - At the hubs' plane (y 0.035) the capsule is 0.045 m wide.
+  - In plan, it comes within 0.0248 m of the nearest 10-inch disc (hub at ±0.160, ±0.160; R 0.127): the stated 25 mm.
+- **The coil beneath:**
+  - its axis at −0.053, 0.047 below the bottom plate's underside
+  - its top at −0.0115, 5.5 mm clear of the plate
+  - 8.5 mm clear of the packs' inner faces
+  - `legs_off.moved` is empty
+- **The fit's diff** (`134e899a`) is exactly what `WithModel14Fit` puts back:
+  - the electronics' box and capsule
+  - the bottle's height and shapes
+  - the centre of pressure, −0.01 → −0.018 m, derived in its note
+
+## PHY-12
+
+I built the mass independently in Python: boxes and cylinders from `drone.json`'s parts, summed by the parallel-axis theorem, no sim code. The file as written is L4 (the 1 kg bottle, the half-wound coil):
+
+| L4 | Mass kg | CoM y, z m | Roll | Pitch | Yaw kg·m² | Pitch/roll | Yaw/roll |
+|---|---|---|---|---|---|---|---|
+| Legs on | 4.832 | −0.0110, +0.0005 | 0.0445 | 0.0474 | 0.0599 | 1.065 | 1.347 |
+| Legs off | 4.716 | −0.0063 | 0.0384 | 0.0410 | 0.0572 | 1.069 | 1.492 |
+
+- Legs on, I_yz is −6.51e-5.
+- Every figure equals `MassBuildTests`' L4 row to the digit it pins.
+- The other six loadouts are pinned the same way and asserted with yaw saturating first (265 of 265).
+- K§5.3's 1.0–1.3 yaw/roll now holds only on L6 and L7. D-048 accepts that: the ratios are computed, not targeted.
+
+## The golden chain
+
+| Link | Kept as | My run |
+|---|---|---|
+| Trunk (model 6) ← model 7 | `AtTheTrunksEscLagEachGoldenIsModel6s` | `0x3F13A5CF5DB7DAFD`, `0x3EE12C8D692BADF3`, `0xE3178EE7FF322698`: the three hashes the trunk at `2116ec6f` pins |
+| Model 7 ← … ← model 12 | The kept audits, on `Fixtures/drone-model13.json` | All match. The fixture is byte for byte `a5884ea7`'s `drone.json` |
+| Model 13 ← model 14 (the sling strapped, D-050's file) | 1.7's temporary experiment; it cannot be kept, since the code has no sling | **Reproduced.** HEAD's code with only the sling put back flies model 13's file to model 13's three hashes: `0x0F843363CA8DBFBA`, `0xD1EA300928A02EEE`, `0xB371E06FF28075D8`. Strapped, the same file moves powered and contact (`0x67E07B3A8FCBB009`, `0x9A44DD9971654040`) but not the tumble, which has no modes. So the strapped payload is the code's only move |
+| Model 14 ← model 15 (the electronics fit) | `OnModel14sFitEachGoldenIsModel14s` | `0x381ABAE6909C139F`, `0xB57132DE1812820D`, `0x26CDDB5EDB155896`: the hashes `263528dc` pinned |
+| Model 15 | The pins | `0xCCECAFB7466D6ADE`, `0xC378E1EFFB9AEC93`, `0xFB841727FADDC7A7` |
+
+- **No stored input changed.** Since `a5884ea7`, `GoldenFlights.cs` changes only in its notes, its pins and the two `With…` helpers; its scripts and setups are untouched.
+- **Every moved case has a cause shown by experiment.**
+- **The runtime's diff since my first review:**
+  - the sling removed from `AirframeModes`
+  - the lens read from `camera.lens_m`; model 13's file has none, so it keeps the old default
+  - a comment in `Aero.cs`
+  - the log's fields
+
+## Log format 12
+
+- **The raw walk** of my recorded log:
+  - magic `FPV450LG`, format 12
+  - a 28 954-byte header (28 970 with the prologue); the walk ends exactly at its end
+  - entries in order:
+    - 1–5
+    - 10–13
+    - 16 asymmetry, 49 B
+    - 17 vortex ring, 105 B
+    - 18 ground effect, 65 B
+    - 19 flapping, 527 B
+    - **20 modes, 129 B** (format 11's was 161 B; the 32 bytes less are the four sling fields)
+    - 14
+    - 6–9
+    - 15 input, 18 B
+- **The modes entry decoded,** 129 of 129 bytes:
+  - a presence byte
+  - the arms: 55 GPa, 25 × 6 mm, 0.18 m, tip share 0.2357, ζ 0.02
+  - the mounts: 30 000 N/m, ζ 0.1
+  - the camera at (0, 0.015, 0.115)
+  - four tip masses of 0.140079 kg
+  - payload part 17, coil part 16
+  - no sling, swing, bottom-plate or gravity field
+- **The suite** checks that `ModesFieldsLogged` equals `AirframeModesSpec`'s fields.
+- **`--summary`** reads "format 12, model 15" and prints one line per airframe effect. The modes' line names the mounts and the camera, and no slings.
+
+## Replay
+
+- **Recorded** with `replay --record --realtime --wind windy`:
+  - 120 042 steps and 347 events
+  - 37 scheduler hitches, 0 log waits, 0 stick reports dropped
+  - landed at 0.483 m/s, no crash
+- **Replayed:** 120 042 steps and 310 events (347 less the 37 hitches), bit for bit, exit 0.
+
+## The budget
+
+`flightbench --bench`, alone on the machine (CPU at 8 % before it): AC, Balanced plan, best power efficiency mode, CPU 3201/3201 MHz.
+
+| Case | On: p50 / p99 / max µs | Off: p50 / p99 µs | Effects at p50 | Queries p99 a step | Allocation |
+|---|---|---|---|---|---|
+| On the stand | 56.9 / 131.8 / 1180.8 | 53.2 / 117.5 | +3.7 (6.5 %) | 99.5 µs | 0 B |
+| The close hover | 13.2 / 29.8 / 697.5 | 10.5 / 23.6 | +2.7 (20.5 %) | 8.0 µs | 0 B |
+| In the vortex ring (all four latched 100 %) | 12.2 / 29.7 / 873.8 | 9.8 / 20.7 | +2.4 (19.7 %) | 7.3 µs | 0 B |
+| The powered flight | 18.3 / 90.5 / 913.1 | — | — | 11.6 µs | 0 B |
+
+- The worst p99 is 131.8 µs, 44 % of PLT-04's 300 µs; my first review measured 129.1.
+- The stand's queries take 99.5 µs a step against the 60 µs line. That is the world query's (finding 7). 1.8's 147.5 µs was taken under other agents' load.
+
+## Spec scenarios (`airframe-effects`) on this pass
+
+| Scenario | Result |
+|---|---|
+| Asymmetry on and off | **Pass:** the suite's seeds 1–5 and 1–30, and mine 31–60 |
+| The cushion and the hole | **Pass:** 1.20866 against 1.21008 |
+| The ceiling under a roof | **Pass:** 1.08030 against 1.08080 |
+| The close hover is never still | **Pass:** 1.48e-2–2.49e-2 rad/s against the 1e-3 floor. The known-wrong gives 2.9e-7–1.2e-6, and the 3 m hover 4.6e-7–1.7e-6 |
+| The hub moment against its published form | **Pass:** worst error 2.54e-16 |
+| A gust step tilts the drone harder | **Pass:** pitch × 2.48 and roll × 2.52, tilting away from the gust |
+| Heavy on low throttle | **Pass:** the suite's seeds 101–120, and mine 301–340 (40/40) |
+| Shake only when its causes meet | **Fails in part** on my seeds: an 0.8 step showing it (237/240) and the gentle ramp's ESC share (159/160), B1(a) and (b). Every other clause holds on every flight |
+| The shake lasts as long as the arrest | **Pass** on my seeds: it lasts the arrest on 240/240, the medians and the pilot's band hold, and the 0.8 step's ESCs leave sooner. Its asserted 10-seed test false-fails 3.4 % of the time (B1(d)) |
+| The visible shake is the rigid body's | **Fails in part** on my seeds: "less than half as far" holds on 239/240 (B1(c)). The rigid airframe and `CameraVibration` clauses pass |
+| The heavy corner at low charge | **Pass** (the suite) |
+| The inertia character on the seven loadouts | **Pass;** L4 matched by my own build |
+
+## Requirements
+
+| ID | Status |
+|---|---|
+| PHY-07 | Met |
+| PHY-14 | Met |
+| PHY-08 | Partly met: the test range is 1.3b |
+| PHY-09 | Met; its statistic now sized (finding 4 fixed) |
+| PHY-10 | Partly met. It arises from its cause, lasts the arrest, varies and publishes `CameraVibration`. Three stated bounds and one test threshold are sized at their seeds' extremes (B1) |
+| PHY-11 | Met |
+| PHY-12 | Met, matched independently on L4 |
+| PLT-04 | Partly met: p99 ≤ 300 µs and 0 B with every effect on. The queries' 60 µs line is the world query's (finding 7) |
+
+## Commands and output (trimmed)
+
+```
+$ dotnet test tools/simtests
+Passed!  - Failed:     0, Passed:   265, Skipped:     0, Total:   265, Duration: 4 m 35 s - Fpv450.Sim.Tests.dll (net10.0)
+
+$ dotnet run -c Release --project tools/flightbench -- --golden          # exit 0
+powered-flight: 10000 steps, hash 0xCCECAFB7466D6ADE (matches), armed True ...: PASS
+contact-flight: 12000 steps, hash 0xC378E1EFFB9AEC93 (matches), 5 impacts, ends 0.2519 m up on 8 touching pairs: PASS
+tumble: ... hash 0xFB841727FADDC7A7 (matches), momentum within 7.07E-013, energy within 1.43E-012, ... 5.546 rad/s: PASS
+asymmetry off ... rings off ... ground effect off ... flapping off ... model 11's pack table ... modes off ...: PASS (each)
+model 14's fit: powered 0x381ABAE6909C139F, contact 0xB57132DE1812820D, tumble 0x26CDDB5EDB155896 (model 14's, bit for bit): PASS
+the trunk's 5 ms ESC lag, every mechanism off, over model 7's layout: powered 0x3F13A5CF5DB7DAFD, contact 0x3EE12C8D692BADF3, tumble 0xE3178EE7FF322698 (the trunk's (model 6's), bit for bit): PASS
+
+$ dotnet run -c Release --project tools/flightbench -- --scenarios       # exit 0, 46 rows PASS, every known-wrong "fails, as it must"
+  the airframe's modes at 1 kg: 27.6, 29.4, 29.5, 34.1, 35.7, 35.8, 48.0, 54.5, 60.9, 63.0 Hz
+  on seeds 101-120: heavy on low throttle, the higher throttle, the known-wrong failing: 20, 20 and 20 of 20; the wobble 1.75-8.65 x ...: PASS
+scenarios: PASS
+$ dotnet run -c Release --project tools/flightbench -- --contacts        # contacts: PASS, exit 0
+$ dotnet run -c Release --project tools/flightbench -- --shake           # exit 0 (prints only), 12 s; reproduces 1.8's table
+
+$ dotnet run -c Release --project tools/flightbench -- --bench           # exit 0
+flightbench: 7 bench cases registered; AC, Balanced plan, best power efficiency mode, CPU 3201/3201 MHz
+airframe: on the stand ... p50 56.90 µs, p99 131.80 µs, max 1180.8 µs; off ... p50 53.20 µs, p99 117.50 µs; ... 0 B; world queries 75.7 % (45.0 calls a step; p99 99.5 µs ...): PASS
+airframe: the close hover ... p50 13.20 µs, p99 29.80 µs ...: PASS
+airframe: in the vortex ring ... p50 12.20 µs, p99 29.70 µs ...: PASS
+powered-flight: ... p50 18.30 µs, p99 90.50 µs ... 0 B: PASS
+
+$ dotnet run -c Release --project tools/replay -- --record <scratch>/qa-flight.fpvlog --realtime --wind windy
+record qa-flight.fpvlog: real time on the flight thread, Windy wind, 120042 steps (120.042 s), 347 events, 37 scheduler hitches, 0 log waits, 0 stick reports dropped
+$ dotnet run -c Release --project tools/replay -- <scratch>/qa-flight.fpvlog
+  match: 120042 steps and 310 events, bit for bit; exit 0 (Match)
+$ dotnet run -c Release --project tools/replay -- --summary <scratch>/qa-flight.fpvlog   # "format 12, model 15", one line per effect
+
+$ & $env:UNITY -batchmode -nographics -projectPath unity -runTests -testPlatform EditMode -testResults Logs/qa-editmode.xml -logFile - | Out-Host
+test-run result="Passed" total="875" passed="875" failed="0" (Mono, 181 s; run with 7.5 GB free; the goldens and every kept audit among them)
+
+$ python tools/hygiene/precommit.py --tree HEAD
+1880 files scanned, 0 findings
+$ openspec validate p7b-airframe --strict
+Change 'p7b-airframe' is valid
+```
+
+QA's experiments, from the scratch harness:
+
+```
+sling put back, model 13's file: powered 0x0F843363CA8DBFBA MATCH, contact 0xD1EA300928A02EEE MATCH, tumble 0xB371E06FF28075D8 MATCH
+HEAD, model 13's file (strapped): powered 0x67E07B3A8FCBB009, contact 0x9A44DD9971654040 (moved), tumble 0xB371E06FF28075D8 (same)
+shake, seeds 301-340, 1480 flights: 4 claims missed:
+  2 kg 0.8 steps not shown: seeds 314, 318 (2.56 m/s), 324 (5.43 m/s), peaks 0.067-0.077 deg against 0.088
+  seed 321, 0 kg from 8.98 m/s, gentle ramp: ESC 0.43 s against the punch's 0.76 s (0.56)
+  seed 333, 0 kg from 9.0 m/s, no limit: tilt 1.31 deg against the punch's 2.38 (0.55)
+  the 10-seed band statistic: 311-320 FAIL (7/10, median 0.38); 301-310, 321-330, 331-340 pass; no-limit 0/10 in each
+vrs, seeds 301-340: heavy 40/40, higher 40/40, known-wrong fails 40/40; wobble 1.67-24.92 x the ringless, against 1.5
+asym, seeds 31-60: AsPredicted 30/30, Steady 30/30; busiest 0.52-0.86 of the in-phase bound; largest miss beyond 30 % 0.0289 deg
+  D x 3: Steady, 0.74-0.79 of the bound; D x 3.5: buzzes, 22-30 x, ESC step 1.1e-2; D x 4: 25-34 x
+mass build (python, independent), L4: 4.832 kg, CoM y -0.0110, roll 0.0445, pitch 0.0474, yaw 0.0599, 1.065, 1.347; legs off 4.716, 0.0384, 0.0410, 0.0572, 1.069, 1.492
+header walk: format 12, 28954 B, tag 20 modes 129 B, ends exactly
+```
+
+## Hygiene
+
+- **Commits:** 30 first-parent commits since `a5884ea7`: 29 Physics Engineer and my first review. All are subject-only and at most 72 characters, with no body, trailer or co-author line. The two merges are subject-only.
+- **Staging:** the branch's diff holds no file from `reference/`, `Library/`, `Temp/`, `Logs/` or `UserSettings/`, and no video.
+- **OPSEC:** the scan finds 0 findings over 1880 files. The new notes cite the drone model and published sources only.
+- **Licences:** no third-party file added.
+- **Determinism:** the runtime's changes since my first review use basic operations only (the mounts' k and `DetMath.Sqrt`). Every bench row allocates 0 B in steady state.
