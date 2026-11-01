@@ -229,7 +229,8 @@ namespace Fpv450.Tests.App
         // An exact keyboard flight on the floor (Threaded false: Tick runs the steps due on the test's clock), its keys held
         // on the test keyboard and read a 1 ms frame at a time as the app reads them: the scene's keys, then the flight's
         // (FlightSessionHost ticks the session with KeyboardFallback.ReadKeys). Enter arms, W climbs, D yaws, the up arrow
-        // pitches, Enter disarms. With vEveryMs, V is held 50 ms in every vEveryMs, and each press must flip the view. A
+        // pitches, Enter disarms, and End flight ends it 100 ms later (a disarm ends nothing, D-062). With vEveryMs, V is
+        // held 50 ms in every vEveryMs, and each press must flip the view. A
         // manual update in edit mode gives keys' states but not wasPressedThisFrame (the Input System restores the player's
         // update count after an editor update), so the press is the V key's state turning on; the players' smoke test
         // presses V through FlightScene's own read. Returns the log's bytes.
@@ -257,7 +258,7 @@ namespace Fpv450.Tests.App
             var held = new List<Key>();
             try
             {
-                for (int ms = 0; ms < 2000 && session.State != SessionState.Ended; ms++)
+                for (int ms = 0; ms < 1700 && session.State != SessionState.Ended; ms++)
                 {
                     if (ms == 10) session.Start();
                     held.Clear();
@@ -278,7 +279,9 @@ namespace Fpv450.Tests.App
                     session.Tick(KeyboardFallback.ReadKeys());
                 }
                 Assert.That(session.Input, Is.EqualTo(InputSource.Keyboard));
-                Assert.That(session.End.Kind, Is.EqualTo(FlightEndKind.Disarm), "disarmed by Enter");
+                Assert.That((session.Core.State.Armed, session.State), Is.EqualTo((false, SessionState.Flying)), "disarmed by Enter, still flying");
+                session.EndFlight();
+                Assert.That(session.End.Kind, Is.EqualTo(FlightEndKind.Pilot), "End flight");
                 Assert.That(presses, Is.EqualTo(edges), "each V press flips the view, and only V's");
                 log = session.LogPath;
             }

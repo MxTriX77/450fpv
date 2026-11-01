@@ -104,7 +104,6 @@ namespace Fpv450.App.Session
                 case FlightEndKind.UpsideDown: return "crash: upside down on the ground";
                 case FlightEndKind.BatteryCutoff: return "battery cut-off";
                 case FlightEndKind.Failsafe: return "failsafe: the radio was lost, and the drone disarmed";
-                case FlightEndKind.Disarm: return "disarmed";
                 case FlightEndKind.Pilot: return "ended by the pilot";
                 case FlightEndKind.Fault: return "the flight thread failed";
                 default: return Log.Header == null ? "the log cannot be read: " + Log.HeaderProblem : "the log was cut: " + Log.CutReason;

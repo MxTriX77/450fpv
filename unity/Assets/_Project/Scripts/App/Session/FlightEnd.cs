@@ -4,7 +4,7 @@ using Fpv450.Sim.Flight;
 
 namespace Fpv450.App.Session
 {
-    /// <summary>Why a flight ended (APP-04). The fiber's ends come with p7d.</summary>
+    /// <summary>Why a flight ended (APP-04). The fiber's ends come with p7d. A disarm on the switch ends nothing (D-062).</summary>
     public enum FlightEndKind : byte
     {
         /// <summary>Still flying.</summary>
@@ -22,10 +22,8 @@ namespace Fpv450.App.Session
         /// <summary>The controller disarmed on the radio's loss (INP-05).</summary>
         Failsafe = 4,
 
-        /// <summary>The controller disarmed on the arm switch.</summary>
-        Disarm = 5,
-
-        /// <summary>The pilot ended it: restart, quit or back to the menu. Never found in a log, which then simply ends.</summary>
+        /// <summary>The pilot ended it: End flight from the pause, restart, quit or back to the menu. Never found in a
+        /// log, which then simply ends.</summary>
         Pilot = 6,
 
         /// <summary>The flight thread failed (FlightSession.Fault): a bug.</summary>
@@ -50,8 +48,8 @@ namespace Fpv450.App.Session
     /// - a crash: FlightState.Crashed, the core's latch
     /// - upside down on the ground: the body's up axis below the horizon while any contact touches, held UpsideDownSteps
     ///   (assumed: a tumble that rights itself does not end the flight)
-    /// - the failsafe or a disarm: armed in the step before and not now; the failsafe when the stick in force is the
-    ///   input layer's failsafe sample
+    /// - the failsafe: armed in the step before and not now, the stick in force the input layer's failsafe sample. A
+    ///   disarm on the switch ends nothing (D-062): the drone stays under physics, and the switch re-arms it
     /// - the battery cut-off: either pack's charge at or under BatteryCutoffCharge. Charge 0 is the end of drone.json's
     ///   OCV table, 3.0 V a cell open-circuit (the flight controller's warning); the model holds the voltage there, so
     ///   past it the pack would never empty (assumed; the cells' published 2.5 V cut-off lies below the table)
@@ -77,7 +75,7 @@ namespace Fpv450.App.Session
 
             if (s.Crashed) kind = FlightEndKind.Crash;
             else if (upsideDown && s.Step - _upsideFrom >= UpsideDownSteps) kind = FlightEndKind.UpsideDown;
-            else if (_wasArmed && !s.Armed) kind = stick.Failsafe ? FlightEndKind.Failsafe : FlightEndKind.Disarm;
+            else if (_wasArmed && !s.Armed && stick.Failsafe) kind = FlightEndKind.Failsafe;
             else if (s.PackCharge0 <= BatteryCutoffCharge || s.PackCharge1 <= BatteryCutoffCharge) kind = FlightEndKind.BatteryCutoff;
             _wasArmed = s.Armed;
             if (kind == FlightEndKind.None) return false;

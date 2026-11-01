@@ -205,16 +205,42 @@ namespace Fpv450.Tests.Session
             radio.Arm = false;
             long offAt = rig.Clock.Now;
             rig.Run(100);
-            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Ended));
-            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Disarm));
-            long endHostUs = rig.Session.StartUs + (rig.Session.End.Step - 1) * FlightCore.StepUs;
-            TestContext.WriteLine("switch off at host " + offAt + " us; the flight ended at step " + rig.Session.End.Step + " (host " + endHostUs + " us, the RC frame's)");
-            Assert.That(endHostUs - offAt, Is.InRange(0, 5 * FlightCore.StepUs), "the disarm at the next RC frame");
+            Assert.That(core.State.Armed, Is.False, "off disarms");
 
+            // D-062: a disarm ends nothing. The drone stays under physics, and the switch re-arms it.
+            rig.Run(400);
+            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying), "disarmed, still flying");
+            radio.Arm = true;
+            rig.Run(100);
+            Assert.That(core.State.Armed, Is.True, "on again with the throttle down: re-armed");
+            radio.Throttle = 0.3;
+            rig.Run(300);
+            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying));
+            long steps = core.State.Step;
+            rig.Session.EndFlight(); // the pause's End flight
+            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Pilot));
+
+            // The log keeps the arm, the disarm and the re-arm: each step's state.
             PostFlight p = rig.Session.ReadSummary();
-            Assert.That((p.End.Kind, p.End.Step), Is.EqualTo((rig.Session.End.Kind, rig.Session.End.Step)), "the summary's end is the session's");
-            Assert.That(p.Log.Last.State.Step, Is.EqualTo(rig.Session.End.Step), "the log stops at the end's step");
-            Assert.That(p.Cause(), Is.EqualTo("disarmed"));
+            var changes = new List<(long, bool)>();
+            bool armed = false;
+            using (FlightLogReader r = FlightLogReader.Open(rig.Session.LogPath))
+                while (r.Next())
+                {
+                    if (r.Kind != LogFormat.StepBlock) continue;
+                    r.ReadStep(out LoggedStep step);
+                    if (step.State.Armed == armed) continue;
+                    armed = step.State.Armed;
+                    changes.Add((step.State.Step, armed));
+                }
+            long offStep = changes.Count > 1 ? changes[1].Item1 : 0;
+            long offHostUs = rig.Session.StartUs + (offStep - 1) * FlightCore.StepUs;
+            TestContext.WriteLine("switch off at host " + offAt + " us; disarmed at step " + offStep + " (host " + offHostUs + " us, the RC frame's); arm changes " +
+                                  string.Join(", ", changes) + "; " + string.Join(" | ", p.Lines()));
+            Assert.That(changes.ConvertAll(c => c.Item2), Is.EqualTo(new[] { true, false, true }), "armed, disarmed, re-armed, in the log");
+            Assert.That(offHostUs - offAt, Is.InRange(0, 5 * FlightCore.StepUs), "the disarm at the next RC frame");
+            Assert.That((p.End.Kind, p.Log.Last.State.Step), Is.EqualTo((FlightEndKind.Pilot, steps)), "the summary's end is the pilot's, at the last step");
+            Assert.That(p.Cause(), Is.EqualTo("ended by the pilot"));
         }
 
         // ---- The failsafe -----------------------------------------------------------------------------------------------
@@ -650,7 +676,8 @@ namespace Fpv450.Tests.Session
             rig.Run(500, KeyboardKeys.ThrottleUp);
             rig.Run(1, KeyboardKeys.ArmToggle);
             rig.Run(20);
-            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Disarm));
+            Assert.That((core.State.Armed, rig.Session.State), Is.EqualTo((false, SessionState.Flying)), "Enter disarms, and the flight goes on (D-062)");
+            rig.Session.EndFlight();
             PostFlight p = rig.Session.ReadSummary();
             Assert.That(p.Log.Header.Input, Is.EqualTo(InputSource.Keyboard));
             Assert.That(p.Lines(), Has.Member("keyboard: never tune from this flight"));
@@ -681,7 +708,8 @@ namespace Fpv450.Tests.Session
             rig.Run(50);
             rig.Run(1, KeyboardKeys.ArmToggle);
             rig.Run(20);
-            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Disarm));
+            rig.Session.EndFlight();
+            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Pilot));
             string isa = rig.Session.ReadSummary().Log.Header.Isa;
             TestContext.WriteLine("isa " + isa);
             Assert.That(isa, Is.EqualTo(HostIsa.Flags));

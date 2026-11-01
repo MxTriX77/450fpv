@@ -339,7 +339,6 @@ namespace Fpv450.App
                 case FlightEndKind.UpsideDown: return "Upside down";
                 case FlightEndKind.BatteryCutoff: return "Battery cut-off";
                 case FlightEndKind.Failsafe: return "Failsafe";
-                case FlightEndKind.Disarm: return "Disarmed";
                 case FlightEndKind.Pilot: return "Flight ended";
                 case FlightEndKind.Fault: return "The flight stopped";
                 default: return "The log was cut";
