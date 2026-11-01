@@ -53,16 +53,30 @@ namespace Fpv450.Tests.App
         public void TheFeedReadsThePhysicsWhereItIsLive()
         {
             var feed = new FlightFeedSignals();
+            feed.Osd.Cells = 6;
+            feed.Update(default, false, 0, 0, 0); // before a flight: the stub's pack, disarmed
+            feed.BuildOsd(0);
+            Assert.That(feed.SourceOf(FeedSignal.OsdState), Is.EqualTo(SignalSource.Stub));
+            Assert.That(Grid(feed), Does.StartWith("DISARMED "));
+            StringAssert.Contains("$25.2в", Grid(feed), "the stub's pack");
+
+            feed.Osd.Reset();
+            var first = new SimSignals { Live = FeedSignalSet.PackVolts | FeedSignalSet.MotorCurrent, Step = FlightCore.FieldSteps - 1 };
+            feed.Update(first, false, 0, 0, 0); // the physics' means before its first whole field are 0 V: not sampled
+            feed.BuildOsd(5);
+            Assert.That(Grid(feed), Does.Not.Contain("в"), "no voltage before the first whole field");
+
             var s = new SimSignals
             {
                 Live = FeedSignalSet.PackVolts | FeedSignalSet.MotorCurrent | FeedSignalSet.CameraAngularVelocity,
+                Step = 2 * FlightCore.FieldSteps,
                 PackVolts = 23.5,
                 MotorCurrentTotalA = 41.2,
                 MotorCurrentA = new Corners { RearRight = 10.1, FrontRight = 10.2, RearLeft = 10.3, FrontLeft = 10.6 },
                 CameraAngularVelocity = new Double3(0.1, -0.2, 0.3),
                 LinkMarginDb = 3, // not live: the stub's
             };
-            feed.Update(s, 12.4, 250, 75.3);
+            feed.Update(s, true, 12.4, 250, 75.3);
             Assert.That(feed.SourceOf(FeedSignal.PackVolts), Is.EqualTo(SignalSource.Physics));
             Assert.That(feed.PackVolts, Is.EqualTo(23.5f));
             Assert.That(feed.MotorCurrentTotalA, Is.EqualTo(41.2f));
@@ -70,15 +84,11 @@ namespace Fpv450.Tests.App
             Assert.That(feed.CameraAngularVelocity.Y, Is.EqualTo(-0.2f));
             Assert.That(feed.SourceOf(FeedSignal.LinkMargin), Is.EqualTo(SignalSource.Stub));
             Assert.That(feed.LinkMarginDb, Is.EqualTo(float.PositiveInfinity), "the stub's link, until 7d");
-            Assert.That(feed.SourceOf(FeedSignal.OsdState), Is.EqualTo(SignalSource.Stub), "the OSD's layout is the stand-in's until p4-feed 1.5");
+            Assert.That(feed.SourceOf(FeedSignal.OsdState), Is.EqualTo(SignalSource.Physics), "the OSD's content model, from the pack's signals (p4-feed 1.5)");
 
-            feed.BuildOsd(0);
-            string grid = "";
-            for (int r = 0; r < FeedOsd.Rows; r++)
-            {
-                for (int c = 0; c < FeedOsd.Cols; c++) grid += feed.OsdCell(r, c);
-                grid += "\n";
-            }
+            feed.BuildOsd(9);
+            string grid = Grid(feed);
+            Assert.That(grid, Does.StartWith("AIR "), "armed");
             StringAssert.Contains("SVINORIZ 10 OPTO", grid);
             StringAssert.Contains("! SAFE !", grid);
             StringAssert.Contains(">12m", grid, "the altitude from the flight");
@@ -86,6 +96,17 @@ namespace Fpv450.Tests.App
             StringAssert.Contains("0.25", grid, "the distance home, km");
             StringAssert.Contains("23.5", grid, "the pack from the physics");
             StringAssert.Contains("41.20", grid, "the current from the physics");
+        }
+
+        static string Grid(FlightFeedSignals feed)
+        {
+            string grid = "";
+            for (int r = 0; r < FeedOsd.Rows; r++)
+            {
+                for (int c = 0; c < FeedOsd.Cols; c++) grid += feed.OsdCell(r, c);
+                grid += "\n";
+            }
+            return grid;
         }
 
         [Test]
