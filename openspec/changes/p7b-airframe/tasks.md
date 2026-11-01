@@ -159,6 +159,46 @@ Complex tier (D-033). Branch `unity/physics/p7b-airframe` off `unity/main` once 
       - `replay --record --realtime` (Windy): 120 015 steps, 63 hitches, 0 log waits, landed at 0.475 m/s; replayed bit for bit (120 015 steps, 320 events) in 2.99 s; `--summary` names each airframe effect.
       - Hygiene: 0 findings over 1880 files. `openspec validate p7b-airframe --strict`: valid.
       - Unity EditMode (Mono, `-nographics`): 875 of 875, the same golden hashes and every kept audit on Mono.
+- [x] 1.9 [physics-engineer] QA's re-review (2.1's second pass): B1, PHY-10's bounds stated as they hold on fresh seeds, and N2–N4; texts, thresholds and `flightbench --shake` only
+  - **As built** (no model, golden or log change: `LogFormat.ModelVersion` 15, `LogFormat.Version` 12):
+    - **The trunk merged** (N4): `unity/main` at `3d35914` (D-052, D-053, the latest build's tools), with `-m`; no conflict.
+    - **`flightbench --shake [first seed]`** flies 40 seeds a cell from any first seed (1 by default), prints the table as before, then checks each of PHY-10's claims on one line, PASS or FAIL, and exits 1 if one misses. "Every" is checked on every flight; "nearly every" is `ShakeScenario.NearlyEvery`, at least 95 % (228 of 240 arrests, 152 of 160 ramps, 38 of 40 seeds); "most" is `ShakeScenario.Most`, 70 % and the median (`PilotBand`).
+    - **How the bounds were set and checked:** set on seeds 1–40, QA's 301–340 and 341–500 (240 a cell), then checked on 1001–1200 (200 a cell), flown only once the bounds were fixed. All 11 groups of 40 pass. The new seeds missed three more "every" claims QA's did not: seed 385's empty full punch from 2.5 m/s never shows (peak 0.07°); the hover's kick reaches 0.14 s (381–500); and the rigid airframe's length differs by more than three fields on 4 of 440 seeds (0.70 s on one, whose flexing shake fades early). Each is restated, and the 0.8 step's "sooner" too, which held on every flight but by 12 ms at the least.
+    - **The claims** (measured on 1–40 and 301–500 / on the held-out 1001–1200):
+
+      | Claim, as the spec now states it | Every or a rate | 1–40, 301–500 | 1001–1200 |
+      |---|---|---|---|
+      | From the hover a gentle increase never shows it | every | 480/480 | 400/400 |
+      | A sharp one only the kick, shorter than the pilot's shortest shake, 0.3 s (B1: one bound, `KickSeconds`; the ESCs off their limit within 0.1 s, `KickLimited`) | every | at most 0.14 s; 0.05 s | at most 0.14 s; 0.05 s |
+      | Every sharp arrest meets an ESC's limit and rings the frame's band over 0.3 m/s² | every | 2880/2880; limited 0.25 s, Y 0.55 m/s² at least | 2400/2400; 0.25 s, 0.55 |
+      | Nearly every full punch shows it (B1a; "every" missed on seed 385) | ≥ 95 % | 1439/1440 | 1200/1200 |
+      | Nearly every 0.8 step shows it (B1a) | ≥ 95 % | 1430/1440 | 1194/1200 |
+      | A gentle ramp from 5–9 m/s wobbles: shown, in its ring over 1 s, an ESC limited less than the full punch's time (B1b) | every | 960/960; ring 1.36 s, share 0.57 at most | 800/800; 1.36 s, 0.52 |
+      | Its ESC limited at most half the punch's time (B1b) | ≥ 95 % | 958/960 | 799/800 |
+      | A full punch holds an ESC through the arrest, all four for its first part, and its shake (where shown) ends within `Settle` (`HoldsTheArrest`) | every | 1440/1440; within 0.005 s, all four 0.22 s, end +0.27 s at most | 1200/1200; 0.005, 0.20, +0.26 |
+      | Its length follows the arrest: the medians rise with descent and payload | every group | empty 0.42–0.44 / 0.62–0.64 / 0.80–0.82 s, 2 kg 0.58–0.70 / 0.94–0.96 / 1.28–1.32 | 0.42–0.44 / 0.60–0.64 / 0.80–0.82, 0.62–0.68 / 0.94–0.96 / 1.30–1.32 |
+      | Most of the empty drone's full punches from 2.5–5.3 m/s shake 0.3–0.7 s, and the median | ≥ 70 % and the median | 224/240 and 237/240; no 10-seed group fails 7 of 10 | 182/200 and 199/200; none |
+      | A 0.8 step lets its ESCs go sooner (every flight, but by 12 ms at the least, so a rate) | ≥ 95 % | 1440/1440; 0.012 s sooner at least, 0.044 s at the 1 % quantile, 0.33 s at the median | 1200/1200; 0.014, 0.048, 0.33 s |
+      | The 0.8 steps' shakes are shorter in sum | every cell | pair by pair 1365/1440 | 1146/1200 |
+      | No current limit: no ESC holds the arrest | every | 1440/1440 | 1200/1200 |
+      | No current limit: it tilts less far (B1c) | every | 1440/1440; 0.57 at most, median 0.13–0.16 | 1200/1200; 0.67 at most |
+      | No current limit: less than half as far (B1c) | ≥ 95 % | 1437/1440 | 1198/1200 |
+      | Rigid: the peak within 20 %, holding the arrest, no `CameraVibration` | every | 0.97–1.07; 240/240 | 0.97–1.08; 200/200 |
+      | Rigid: as long, the same median within a field and within three fields | median; ≥ 95 % | medians equal in every group; 238/240 | equal; 198/200 |
+      | The shake varies; the modes publish `CameraVibration`, the rigid airframe never | every | all | all |
+
+    - **`TheShakeLastsAboutTheArrest`** (B1d): at least 7 of 10 and the median (`PilotBand`). The 2.5 m/s cell leaves the band on 34 of 440 seeds (7.7 %), so a fresh group of ten fails it about 0.5 % of the time; none of the 88 groups of ten flown fails it; the known-wrong ESC that senses no current fails it.
+    - **`ShakeScenario`:** `HoldsTheArrest` (the every-flight hold) beside `LastsTheArrest` (that, and shown); `Wobbles` asks for less than the punch's limited time; `KickSeconds`, `KickLimited`, `NearlyEvery`, `Most`, `PilotBand`, each with its measured margin.
+    - **`ShakeTests`** checks the every-flight claims on each of its flights (`HoldsTheArrest`, the kick under 0.3 s, the no-limit tilt less far, `Wobbles`) and leaves the rates to `--shake`: the per-flight asserts of the shake showing, the 0.8 step's sooner release and the rigid airframe's length are gone. **`flightbench --scenarios`**' no-limit row fails as it must on `HoldsTheArrest` or a tilt at least the punch's.
+    - **N2:** the spec gives the arms' bending (48–63 Hz) the 50–200 Hz band and the loads' strapped mounts (28–36 Hz) the band below it; design 5 gives model 15's ten modes: 27.6, 29.4, 29.5, 34.1, 35.7 and 35.8 Hz for the bottle and the half-wound coil, coupled through the frame (no bottle: the coil's 31.2, 31.8, 31.8 Hz), and the arms' 48.0, 54.5, 60.9 and 63.0 Hz.
+    - **N3:** `AsymmetryScenario.YankFloorDeg` 0.04°, the derived order (was 0.03°, assumed). Seeds 1–30 hold `AsPredicted` 30/30 (largest miss beyond 30 % 0.026°), QA's 31–60 30/30 (0.029°). It is an order, not a bound: fresh seeds 61–150 and 301–400 hold it on 185 of 190 (88, 308 and 392 miss by 0.055–0.075° beyond 30 % on a roll yank predicted near zero; 304 and 383 on the vibration's blocks), noted in the code. `Steady` holds on all 220 (0.35–0.94 of the in-phase bound).
+    - **Found on the fresh seeds, outside B1's text, for QA and the orchestrator:** the asymmetry scenario's "the correction rate inside the computed band on every seed" holds on the spec's five seeds and 1–30, but on 6 of 190 fresh seeds (107, 115, 304, 361, 373 and 380 of 61–150 and 301–400) one rate falls outside the band, which is the linear model's 0.5–99.5 % over the draws (about 2 % outside on either axis by construction, plus the model's own error). Off, the drift is halved on all 220. Not changed here.
+    - **Checks** (no GPU, the pilot's rule: no Unity, Blender, `--bench` or `replay --realtime`):
+      - `dotnet test tools/simtests`: 265 of 265.
+      - `flightbench --golden`: PASS, the three model 15 hashes and every kept audit, unchanged. `--scenarios`: 46 rows PASS, the 23 known-wrongs failing as they must (the 6 no-limit rows among them). `--contacts`: PASS.
+      - `flightbench --shake` (1–40) and `--shake 301`: every claim PASS, exit 0; the 11 groups above, exit 0 each. Before the restatement `--shake 341`, `381` and `421` exited 1 on the old "every" claims (the rigid airframe's three fields, seed 385's full punch), so a miss fails the run.
+      - Hygiene: 0 findings over 1882 files. `openspec validate p7b-airframe --strict`: valid.
+      - **Owed:** Unity EditMode (`-nographics`) on this branch, for the suite's edited tests on Mono. No runtime file changed, so `--bench` and `replay` are not re-run.
 
 ## 2. Review
 
