@@ -105,10 +105,12 @@ namespace Fpv450.Sim.Tests
             throw new System.ArgumentException("no approach '" + name + "'");
         }
 
-        public static ContactScenarios.PoleStrike Into(DroneSpec spec, MaterialRow[] materials, ulong hash, in Approach a)
+        public static ContactScenarios.PoleStrike Into(DroneSpec spec, MaterialRow[] materials, ulong hash, in Approach a, bool airframe = false)
         {
             int target = Placed(a.Variant, a.Occurrence);
-            return ContactScenarios.Into(spec, materials, hash, At(a.Foot, a.HeadingDeg), a.Height, a.Speed, _ => target, null, a.ClimbSteps, a.ClimbRate);
+            ContactScenarios.Site site = At(a.Foot, a.HeadingDeg);
+            site.Airframe = airframe;
+            return ContactScenarios.Into(spec, materials, hash, site, a.Height, a.Speed, _ => target, null, a.ClimbSteps, a.ClimbRate);
         }
 
         // ---- Resting ----------------------------------------------------------------------------------------------------
@@ -149,7 +151,7 @@ namespace Fpv450.Sim.Tests
             FlightSetup setup = ContactScenarios.Setup(spec, materials, hash, true, site.Foot + new Double3(0, stand, 0));
             setup.World = site.Open();
             setup.StartAttitude = site.Attitude();
-            var core = new FlightCore(setup);
+            var core = new FlightCore(site.Effects(setup, spec));
             var r = new Resting { Pairs = new List<string>() };
             var open = new Dictionary<(int, int, int), FlightEvent>();
             int steps = (int)(seconds * 1000);

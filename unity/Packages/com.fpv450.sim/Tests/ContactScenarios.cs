@@ -77,22 +77,38 @@ namespace Fpv450.Sim.Tests
         /// <summary>
         /// Where a scenario flies: a world (null: a fresh stub floor), the ground point the drone starts over (its skids or
         /// its stand there), and its heading (rad, D-019's yaw: positive turns north towards east), which is also the way it
-        /// flies forward. The default is the stub's origin, facing north.
+        /// flies forward. The default is the stub's origin, facing north. Airframe turns on the airframe's effects as a pilot's
+        /// flight has them (p7b-airframe: the motors' asymmetry, the vortex rings, the ground effect, the flapping, the
+        /// modes); off by default, so 1.6's and 1.6b's numbers keep their bits.
         /// </summary>
         public struct Site
         {
             public FlightWorld World;
             public Double3 Foot;
             public double Heading;
+            public bool Airframe;
 
             public Site(FlightWorld world, Double3 foot, double heading)
             {
                 World = world;
                 Foot = foot;
                 Heading = heading;
+                Airframe = false;
             }
 
             public FlightWorld Open() => World ?? FlightWorld.Floor();
+
+            /// <summary>The setup with the airframe's effects on, when Airframe asks for them.</summary>
+            public FlightSetup Effects(FlightSetup setup, DroneSpec spec)
+            {
+                if (!Airframe) return setup;
+                setup.Asymmetry = spec.BuildAsymmetry();
+                setup.VortexRing = spec.BuildVortexRing();
+                setup.GroundEffect = spec.BuildGroundEffect();
+                setup.Flapping = spec.BuildFlapping();
+                setup.Modes = spec.BuildModes();
+                return setup;
+            }
 
             /// <summary>The heading's turn of the body about +y (LaunchStand's convention).</summary>
             public Quat Attitude()
@@ -117,7 +133,7 @@ namespace Fpv450.Sim.Tests
             FlightSetup setup = Setup(spec, materials, materialsHash, legs, start);
             setup.World = world;
             setup.StartAttitude = site.Attitude();
-            return setup;
+            return site.Effects(setup, spec);
         }
 
         /// <summary>Whether a contact shape is a leg's (a support sphere or a skid capsule).</summary>

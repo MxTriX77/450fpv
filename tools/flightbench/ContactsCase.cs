@@ -147,6 +147,38 @@ namespace Fpv450.FlightBench
             Row("a skid across a conductor at 2 m/s", wire.Tunnels == 0 && wire.Lost == 0,
                 $"first '{wire.FirstShape}' at {wire.TouchSpeed:F3} m/s; touched by {string.Join(", ", wire.Shapes)}; peak leg {wire.PeakLegLoad:F1} N; "
                 + $"{wire.After:F3} m over the conductor 1.5 s later; {wire.Strikes} prop strikes, {wire.Crashes} crashes, {wire.Tunnels} tunnels");
+
+            // The two laws with the airframe's effects on, as RangeContactTests' WithTheAirframesEffects… assert them.
+            Console.WriteLine("with the airframe's effects on (p7b-airframe: the motors' asymmetry, the vortex rings, the ground effect, the flapping, the modes):");
+            ContactScenarios.Site stub = default;
+            stub.Airframe = true;
+            ContactScenarios.Landing stubHeld = ContactScenarios.Land(spec, materials, hash, false, site: stub);
+            ContactScenarios.Landing stubCut = ContactScenarios.Land(spec, materials, hash, true, site: stub);
+            Row("the stub's floor, throttle held", stubHeld.Separated && stubHeld.Tunnels == 0 && stubHeld.Crashes == 0 && stubHeld.Lost == 0, Land(stubHeld));
+            Row("the stub's floor, throttle cut", !double.IsNaN(stubCut.Settled) && stubCut.Tunnels == 0 && stubCut.Crashes == 0 && stubCut.Lost == 0, Land(stubCut));
+            foreach (var (name, at) in new[] { ("S04's bare soil", RangeScenarios.At(RangeScenarios.Soil, 0)), ("E01's run", RangeScenarios.At(RangeScenarios.Run, RangeScenarios.RunHeading)) })
+            {
+                ContactScenarios.Site site = at;
+                site.Airframe = true;
+                RangeScenarios.Resting r = RangeScenarios.Rest(spec, materials, hash, site);
+                Row(name + ", resting", r.Soil == r.Pairs.Count && r.Soil >= 8 && Math.Abs(r.LoadOverWeight - 1) < 1e-3 && r.LateEvents == 0
+                    && r.Tunnels == 0 && r.Crashes == 0 && r.Lost == 0, Rest(r));
+                ContactScenarios.Landing held = ContactScenarios.Land(spec, materials, hash, false, site: site);
+                Row(name + ", throttle held, as the stub's", Math.Abs(held.SeparationHeight - stubHeld.SeparationHeight) <= 1e-3 && held.Tunnels == 0 && held.Crashes == 0
+                    && held.Lost == 0, Land(held) + First(held));
+                ContactScenarios.Landing cut = ContactScenarios.Land(spec, materials, hash, true, site: site);
+                Row(name + ", throttle cut, as the stub's", Math.Abs(cut.Settled - stubCut.Settled) <= 0.01 && cut.Tunnels == 0 && cut.Crashes == 0 && cut.Lost == 0,
+                    Land(cut) + First(cut));
+            }
+            ContactScenarios.Site straw = RangeScenarios.At(RangeScenarios.Straw, 0);
+            straw.Airframe = true;
+            foreach (bool c in new[] { false, true })
+            {
+                ContactScenarios.Landing l = ContactScenarios.Land(spec, materials, hash, c, site: straw);
+                Row($"S04's straw, throttle {(c ? "cut" : "held")}, no tunnel through the mat", l.Tunnels == 0 && l.Crashes == 0 && l.Lost == 0, Land(l) + First(l));
+            }
+            ContactScenarios.PoleStrike crown = RangeScenarios.Into(spec, materials, hash, RangeScenarios.Find("crown"), true);
+            Row("the crown (V01_L, 10 m/s at 10 m), no tunnel through its twigs", crown.Tunnels == 0 && crown.Lost == 0, Strike(crown));
         }
 
         /// <summary>The step with its contacts busiest: legs on resting on the floor (eight supports and their friction), and

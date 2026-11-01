@@ -155,10 +155,10 @@ namespace Fpv450.Sim.Tests
 
         // ---- flights into the range's objects ---------------------------------------------------------------------------------
 
-        static ContactScenarios.PoleStrike Into(string name)
+        static ContactScenarios.PoleStrike Into(string name, bool airframe = false)
         {
             MaterialRow[] m = Materials(out ulong h);
-            ContactScenarios.PoleStrike r = RangeScenarios.Into(Spec, m, h, RangeScenarios.Find(name));
+            ContactScenarios.PoleStrike r = RangeScenarios.Into(Spec, m, h, RangeScenarios.Find(name), airframe);
             TestContext.Out.WriteLine($"first {r.FirstPart} on {r.FirstObject} ({r.FirstMaterial}) by {r.First.Kind} at {r.First.A:F2} m/s flying {r.FirstFlightSpeed:F2}; "
                 + $"crash ({r.Cause}) by {r.Part} on {r.Object} ({r.Material}) at {r.Speed:F2} m/s; peak {r.PeakAccel:F0} m/s², impulse {r.Impulse:F2} N·s; "
                 + $"{r.Tunnels} tunnels, {r.Touched.Count} touches of the target");
@@ -243,6 +243,66 @@ namespace Fpv450.Sim.Tests
             Assert.That(r.TouchSpeed, Is.EqualTo(2).Within(0.4));
             Assert.That(r.PeakLegLoad, Is.GreaterThan(0), "the leg carries it");
             Assert.That(r.Tunnels + r.Lost, Is.EqualTo(0));
+        }
+
+        // ---- with the airframe's effects on ---------------------------------------------------------------------------------
+
+        // The two laws with the airframe's effects on, as a pilot's flight has them (p7b-airframe: the motors' asymmetry, the
+        // vortex rings, the ground effect from the rotors' rays, the flapping, the modes). With the same-face rule off, a
+        // skid's flat-face tie counts as a third point and the rest flickers (2016 and 3800 contact events in the last second
+        // on S04's soil and in E01's run); without the seam rule the run is 1.3 µm deeper than the plane; with every latched
+        // pass a tunnel, the crown logs 31 through V01_L's and V01_M's twigs.
+        static ContactScenarios.Site Airframe(ContactScenarios.Site site)
+        {
+            site.Airframe = true;
+            return site;
+        }
+
+        [TestCase("soil")]
+        [TestCase("run")]
+        public void WithTheAirframesEffectsSoilIsStillThePlane(string where)
+        {
+            ContactScenarios.Site site = Airframe(where == "soil" ? RangeScenarios.At(RangeScenarios.Soil, 0) : RangeScenarios.At(RangeScenarios.Run, RangeScenarios.RunHeading));
+            RangeScenarios.Resting soil = Rest(site);
+            RangeScenarios.Resting plane = Rest(Airframe(RangeScenarios.At(RangeScenarios.Start("track"))));
+            Assert.That(soil.HoleSupports, Is.EqualTo(8), "SampleGround reports Hole under every support (the premise)");
+            Assert.That(soil.Soil, Is.EqualTo(soil.Pairs.Count).And.GreaterThanOrEqualTo(8), "only soil shapes carry it, every support");
+            Assert.That(soil.LoadOverWeight, Is.EqualTo(1).Within(1e-3), "the weight counted once");
+            Assert.That(soil.Sink, Is.EqualTo(plane.Sink).Within(1e-6), "rigid ground at G7, as the plane");
+            Assert.That(soil.LateEvents, Is.EqualTo(0), "no contact flickers at rest");
+
+            // The landing: the rotors' rays meet the soil's face where the stub's meet its floor, so the ground effect, the
+            // touch and the bounce are the stub's.
+            MaterialRow[] m = Materials(out ulong h);
+            foreach (bool cut in new[] { false, true })
+            {
+                ContactScenarios.Landing here = ContactScenarios.Land(Spec, m, h, cut, site: site);
+                ContactScenarios.Landing stub = ContactScenarios.Land(Spec, m, h, cut, site: Airframe(default));
+                TestContext.Out.WriteLine($"{(cut ? "cut" : "held")}: touch {here.TouchSpeed:F4} m/s (stub {stub.TouchSpeed:F4}), rose {here.SeparationHeight * 1e3:F2} mm "
+                    + $"(stub {stub.SeparationHeight * 1e3:F2}), at rest {here.Settled:F3} s (stub {stub.Settled:F3}), {here.ContactEvents} contact events (stub {stub.ContactEvents})");
+                Assert.That(here.First.Surface, Is.Not.EqualTo(WorldIds.NoSurface), "the first touch is the ground's");
+                Assert.That(here.TouchSpeed, Is.EqualTo(stub.TouchSpeed).Within(1e-3));
+                Assert.That(here.SeparationHeight, Is.EqualTo(stub.SeparationHeight).Within(1e-3), "the ground's law is the stub floor's");
+                if (cut) Assert.That(here.Settled, Is.EqualTo(stub.Settled).Within(0.01).And.LessThanOrEqualTo(2));
+                else Assert.That(here.Separated && here.SeparationHeight > 0.05, Is.True, "held: the legs throw it back into the air");
+                Assert.That(here.Tunnels + here.Crashes + here.Lost, Is.EqualTo(0));
+            }
+        }
+
+        [Test]
+        public void WithTheAirframesEffectsACompliantShapeIsNoTunnel()
+        {
+            MaterialRow[] m = Materials(out ulong h);
+            foreach (bool cut in new[] { false, true })
+            {
+                ContactScenarios.Landing r = ContactScenarios.Land(Spec, m, h, cut, site: Airframe(RangeScenarios.At(RangeScenarios.Straw, 0)));
+                TestContext.Out.WriteLine($"straw, {(cut ? "cut" : "held")}: rose {r.SeparationHeight * 1e3:F1} mm, at rest {r.Settled:F3} s, {r.Tunnels} tunnels");
+                Assert.That(RangeScenarios.World.MaterialName(r.First.Material), Is.EqualTo("straw"), "it lands on the mat");
+                Assert.That(r.Tunnels + r.Crashes + r.Lost, Is.EqualTo(0), "sinking through a compliant mat is no tunnel");
+            }
+            ContactScenarios.PoleStrike crown = Into("crown", true);
+            Assert.That(crown.FirstObject, Is.EqualTo("V01_L"), "the posadka's crown first");
+            Assert.That(crown.Touched.Count, Is.GreaterThan(0));
         }
 
         // review-physics §6 and W6: a rotor's down ray meets a conductor, and cast again from inside it goes on to the ground.
