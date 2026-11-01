@@ -344,8 +344,20 @@ namespace Fpv450.Sim.Tests
                     + $"(plane {there.SeparationHeight * 1e3:F2}), at rest {here.Settled:F3} s (plane {there.Settled:F3}), {here.ContactEvents} contact events (plane {there.ContactEvents})");
                 Assert.That(here.First.Surface, Is.Not.EqualTo(WorldIds.NoSurface), "the first touch is the ground's");
                 Assert.That(here.Tunnels + here.Crashes + here.Lost, Is.EqualTo(0));
-                if (where == "soil") continue; // S04's crosswind landings are not the plane's (rose 202.5 mm against 169.2 held), not traced
-                Assert.That(here.TouchSpeed, Is.EqualTo(there.TouchSpeed).Within(1e-3));
+                Assert.That(here.TouchSpeed, Is.EqualTo(there.TouchSpeed).Within(1e-3), "the touch is the plane's");
+                if (where == "soil")
+                {
+                    // Traced: the site, not the soil's law. S04's soil spot is a gap of bare soil (x −0.33 to +0.60 m about its
+                    // foot) in the straw mat, whose boxes stand 0.125 m higher. In the crosswind the pilot's hold sits 0.36 m
+                    // downwind at the touch, on the plane as here; held, the bounce carries it on, and from 0.31 s after the
+                    // touch the right rotors' rays meet the mat (0.25 m against the plane's 0.35): more ground effect on that
+                    // side, a higher rise (202.5 mm against 169.2), support_fr_end on a straw box mid-bounce, and the end on
+                    // the mat. Cut, it settles within 10 ms of the plane (0.764 against 0.754 s).
+                    double over = here.Core.State.Position.Y - site.Foot.Y - (there.Core.State.Position.Y - plane.Foot.Y);
+                    if (!cut) Assert.That(over, Is.GreaterThan(0.08), "held, it ends on the mat, 0.125 m over the soil");
+                    else Assert.That(here.Settled, Is.EqualTo(there.Settled).Within(0.015));
+                    continue;
+                }
                 Assert.That(here.SeparationHeight, Is.EqualTo(there.SeparationHeight).Within(1e-3), "E01's fillers land as the plane");
                 if (cut) Assert.That(here.Settled, Is.EqualTo(there.Settled).Within(0.01));
             }
