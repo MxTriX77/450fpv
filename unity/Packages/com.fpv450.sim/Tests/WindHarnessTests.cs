@@ -54,7 +54,7 @@ namespace Fpv450.Sim.Tests
             double reference = WindHarness.CruiseRollPerMs(spec, WindPreset.SevereCentre);
             // At the cruise (p7c-wind 1.6) the lean per m/s is the airspeed's (wind.md §5.3: the tracker's roll, 23.4°
             // over it); T0 grades what it gives in Severe, not K§6.5's band at 13 m/s. The relation is the small crosswind's
-            // slope, so it is checked at 2 m/s: the quadratic drag steepens it with the crosswind (+16 % at Severe's centre on
+            // slope, so it is checked at 2 m/s: the quadratic drag steepens it with the crosswind (+16 % at 7.2 m/s on
             // D-050's silhouette at its 20.6 m/s cruise, +12.5 % on D-043's at 18.8).
             double relation = 23.4 / WindHarness.ReleaseSpeed, slope = WindHarness.CruiseRollPerMs(spec, 2);
             TestContext.Out.WriteLine($"1.5's cruise lean at {WindHarness.ReleaseSpeed:F1} m/s as the tracker's roll: {slope:F3}° per m/s at 2 m/s "

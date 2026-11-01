@@ -173,13 +173,20 @@ namespace Fpv450.Sim.Tests
         //   15's 0xFB841727FADDC7A7. The field's steady onset and the rotors' inflow seam (RotorInflow) carry main's air.
         // In the Windy field the flight moves from step 1 against either parent (the field's draws against main's stand-in;
         // the midpoint passes against p7c-wind's) and ends 148.18 m up (main's 220.65 m); 106 events; armed, no crash.
-        public const ulong PoweredHash = 0x14FA2EF5AE127F25UL;
+        // Model 17: 0x14FA2EF5AE127F25. p7c-wind 1.5's re-grade: re-recorded with ModelVersion 18 (Severe's centre 7.2 → 9.5
+        // m/s, Windy's 3.6 → 4.75, Calm's 1.08 → 1.425). Audited: with the centre set back to 7.2 (a temporary edit, reverted)
+        // the powered, contact, rain and tumble goldens and the still-air audit are model 17's, every record and event. At
+        // 11.5 the Windy flight moves from step 1 (the strength draw, 4.83 m/s in Windy's band) and ends 148.12 m up,
+        // 102 events, armed, no crash.
+        public const ulong PoweredHash = 0xFE81E38EFCBD2F4EUL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
         // Model 10 on p7c-wind's branch: 0x6E28860F47C45BC1. p7c-wind merged with unity/main (ModelVersion 17), audited as the
         // powered flight: with main's terms off it is model 10's bit for bit; on the merge the film holds 9.50 g at 10 s.
-        public const ulong RainPoweredHash = 0x5FA1F49E82CBC0D5UL;
+        // Model 17: 0x5FA1F49E82CBC0D5. p7c-wind 1.5's re-grade (ModelVersion 18), audited as the powered flight: in Calm's
+        // stronger band it moves from step 1; the film holds 9.57 g at 10 s.
+        public const ulong RainPoweredHash = 0xE5D4C472F6CA12D2UL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered and contact goldens (pinned from main's code with
@@ -262,7 +269,10 @@ namespace Fpv450.Sim.Tests
         // p7c-wind merged with unity/main: re-recorded with ModelVersion 17, audited as the powered flight (above), against
         // each parent bit for bit. In the Calm field on D-050's drone it moves from step 1 and keeps its course: 5 impacts,
         // no crash, at rest on 8 touching pairs at 0.2518 m, 50 mm from where it rose; 125 events.
-        public const ulong ContactHash = 0x4D5A4F57872D01F7UL;
+        // Model 17: 0x4D5A4F57872D01F7. p7c-wind 1.5's re-grade (ModelVersion 18), audited as the powered flight. In Calm's
+        // band, 1.32 times model 17's, it moves from step 1 and keeps its course: 5 impacts, no crash, at rest on 8 touching
+        // pairs at 0.2518 m, 51 mm from where it rose; 125 events.
+        public const ulong ContactHash = 0x1152D64875230761UL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -285,7 +295,7 @@ namespace Fpv450.Sim.Tests
         // 5.1e-11 m, the rate wandering 5.55 rad/s.
         // Model 15 on unity/main: 0xFB841727FADDC7A7. p7c-wind merged with unity/main (ModelVersion 17): the 1808-byte record,
         // p7c-wind's bytes zero but the camera's air (the free body's own motion at the lens); over main's 1656 bytes it is
-        // model 15's (the kept test), and models 13's and 14's on their files.
+        // model 15's (the kept test), and models 13's and 14's on their files. It has no air: model 18 keeps it.
         public const ulong TumbleHash = 0x2A0283BBFE59FD84UL;
         public const int TumbleSteps = 10000;
 

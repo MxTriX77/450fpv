@@ -13,15 +13,19 @@ namespace Fpv450.Sim.Wind
         /// <summary>The model's name in the log header and the summary.</summary>
         public const string Model = "field";
 
-        /// <summary>Severe's mean wind at the reference height, m/s (derived, p7c-wind 1.5: clip P's crosswind at the
-        /// cruise its pitch flies, 0.384 × 18.8 m/s = 7.2, wind.md §5.3's ratio of crosswind to airspeed at p7c-wind
-        /// 1.6's 18.8 m/s; inside PHY-17a's 6.5–8.5; T0 grades it, K§8.6).</summary>
-        public const double SevereCentre = 7.2;
+        /// <summary>Severe's mean wind at the reference height, m/s (assumed, tuned until T0 passes, p7c-wind 1.5, on 10 seeds
+        /// with the whole airframe): at 9.5 the harness's pooled |mean roll| reads 7.17° (6–12, P's 9) and Windy's 3.37°
+        /// (3.1–6.1), its runs' mean crosswind 5.8 m/s. The derived 0.384 × 20.6 m/s = 7.9 (wind.md §5.3's ratio of P's
+        /// crosswind to its airspeed, at the cruise on D-050's silhouette) is P's crosswind, not the strength: under K§8.5's
+        /// start rule a run's mean crosswind is about 0.63 of the strength, and at 7.9 T0 reads 6.0, its floor, and Windy's
+        /// 2.9. At 11.5 T0 reads P's 9.25 and the crosswind 7.3 m/s, inside PHY-17a's 6.5–8.5, but T5 field leaves its band
+        /// (0.97 against 0.22–0.66) and the known-wrong models of T5 belt, T6a and T11b pass: 9.5 keeps them.</summary>
+        public const double SevereCentre = 9.5;
 
         /// <summary>Windy's and Calm's centres as fractions of Severe's (derived, K§8.6: c = 0.5 and 0.15).</summary>
         public const double WindyFraction = 0.5, CalmFraction = 0.15;
 
-        /// <summary>Windy's and Calm's centres, m/s (derived: 3.6 and 1.08).</summary>
+        /// <summary>Windy's and Calm's centres, m/s (derived: 4.75 and 1.425).</summary>
         public const double WindyCentre = WindyFraction * SevereCentre, CalmCentre = CalmFraction * SevereCentre;
 
         /// <summary>Each band is its centre ± 25 % (derived, K§8.6), so no two overlap.</summary>

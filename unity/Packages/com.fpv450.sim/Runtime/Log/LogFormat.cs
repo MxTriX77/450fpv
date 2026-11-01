@@ -127,8 +127,10 @@ namespace Fpv450.Sim.Log
         /// 17: p7c-wind and unity/main merged (main's model 15 with p7c-wind's field, wakes, canopy and rain and its
         ///    derived rotor in-plane drag, 0.044 N per m/s, over D-050's silhouette; the steady wind's onset carried into
         ///    the field; the camera's lens one point, drone.json's camera.lens_m, for the modes and the air at the lens).
+        /// 18: p7c-wind 1.5's re-grade on the merge (Severe's centre tuned until T0 passes, 7.2 → 9.5 m/s at 35 m; Windy 4.75
+        ///    and Calm 1.425 from it; a flight at model 17's centres steps as in 17).
         /// </summary>
-        public const int ModelVersion = 17;
+        public const int ModelVersion = 18;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

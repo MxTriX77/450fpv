@@ -228,7 +228,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(calm.MeanHi, Is.LessThan(windy.MeanLo));
             Assert.That(windy.MeanHi, Is.LessThan(severe.MeanLo));
             double[] bands = { calm.MeanLo, calm.MeanHi, windy.MeanLo, windy.MeanHi, severe.MeanLo, severe.MeanHi };
-            Assert.That(bands, Is.EqualTo(new[] { 0.81, 1.35, 2.7, 4.5, 5.4, 9.0 }).Within(1e-12), "centre ± 25 % (K§8.6)");
+            Assert.That(bands, Is.EqualTo(new[] { 1.06875, 1.78125, 3.5625, 5.9375, 7.125, 11.875 }).Within(1e-12), "centre ± 25 % (K§8.6)");
         }
     }
 }
