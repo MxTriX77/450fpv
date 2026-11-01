@@ -202,4 +202,5 @@ Complex tier (D-033). Branch `unity/physics/p7b-airframe` off `unity/main` once 
 
 ## 2. Review
 
-- [ ] 2.1 [qa-engineer] review against spec scenarios: every `airframe-effects` scenario run by QA on its own seeds; each known-wrong model failing; every new draw named, bounded and logged, never noise on the pose; replay bit for bit; the budget on AC; hygiene
+- [x] 2.1 [qa-engineer] review against spec scenarios: every `airframe-effects` scenario run by QA on its own seeds; each known-wrong model failing; every new draw named, bounded and logged, never noise on the pose; replay bit for bit; the budget on AC; hygiene
+  - **Approved** at `a59022fb` (third pass, `review.md`): B1 and N2–N4 fixed; N5 (the rigid cell's bench check) and N6 (PHY-07's band as a rate) are follow-ups; Unity EditMode owed (the pilot's no-GPU rule).

@@ -572,3 +572,177 @@ header walk: format 12, 28954 B, tag 20 modes 129 B, ends exactly
 - **OPSEC:** the scan finds 0 findings over 1880 files. The new notes cite the drone model and published sources only.
 - **Licences:** no third-party file added.
 - **Determinism:** the runtime's changes since my first review use basic operations only (the mounts' k and `DetMath.Sqrt`). Every bench row allocates 0 B in steady state.
+
+# Third pass at `a59022fb` (task 2.1: B1 and N2–N4 re-checked)
+
+**Verdict: approved.** B1 and N2–N4 are fixed, and nothing blocks. Two follow-ups remain, neither a model, golden or log change: N5 (the rigid airframe's bench check) and N6 (PHY-07's band stated as a rate).
+- Every restated PHY-10 claim holds on `--shake 2001` and `--shake 7001`. It also holds on 12 more fresh groups (5001–5480): 560 fresh seeds a cell, 20 720 flights.
+- The "every" claims hold on every flight, with a margin. The rates hold on 98.6–99.9 % of flights, against "nearly every"'s 95 %.
+- One group in 14 fails one rate check: `--shake 5161`, the rigid airframe "within three fields", 37 of 40 against 38 (N5).
+- `TheShakeLastsAboutTheArrest`'s 7 of 10 false-fails about 0.4 % of the time, and it still rejects the known-wrong.
+- **Owed:** Unity EditMode on this branch (the edited tests on Mono). It is not run here, under the pilot's no-GPU rule. No runtime file has changed since my re-review, whose EditMode run passed 875 of 875.
+
+**Scope:** `unity/physics/p7b-airframe` at `a59022fb`: task 1.9 (`4e25472e`, `7fe2c2ce`, `1e99eeba`, `a59022fb`) and the trunk merge `f07ad86a`.
+- `git diff 73281683..HEAD` touches nothing under the core's `Runtime/` or `unity/Assets`.
+- It stays model 15, log format 12.
+
+**How I checked:**
+- I ran every command below in this worktree. No GPU was used: no Unity, Blender, `--bench` or `replay --realtime`.
+- I used two scratch harnesses, never committed. They compile the suite's scenario files unchanged. One flies PHY-07's per-seed checks on any seeds; the other prints the airframe's modes by loadout.
+
+## The re-review's findings, answered
+
+| # | Finding | Answer (1.9) | Verdict |
+|---|---|---|---|
+| B1(a) | "Every sharp arrest shows it" missed 3 of 240 0.8 steps | Every sharp arrest meets a limit and rings; nearly every one shows it | **Fixed.** On my seeds, meets and rings: 6720/6720. Shows: full punches 3357/3360, 0.8 steps 3341/3360 |
+| B1(b) | The gentle ramp's half share missed (0.56) | Every ramp is limited for less than the punch's time; nearly every one for at most half | **Fixed.** Less: 2240/2240 (0.59 at most, seed 2040). Half: 2235/2240 |
+| B1(c) | The no-limit "less than half" missed (0.55) | Less far on every flight; less than half on nearly every one | **Fixed.** Less far: 3360/3360. Half: 3351/3360 |
+| B1(d) | 8 of 10 false-failed 3.4 % of the time | 7 of 10 and the median (`PilotBand`) | **Fixed.** See below |
+| B1, the kick | The spec said 0.1 s and the test 0.3 s | One bound: `KickSeconds`, 0.3 s, the pilot's shortest shake | **Fixed.** On 2240 sharp steps from the hover, the kick lasts 0.14 s at most and the ESCs leave their limit within 0.05 s |
+| B1, suggested | `--shake` printed and exited 0 | It checks each claim and exits 1 on a miss | **Done.** `--shake 5161` exits 1 on its one miss |
+| N2 | Spec and design wording on the modes | The arms (48–63 Hz) carry the 50–200 Hz band, the mounts (28–36 Hz) the band below; design 5 lists model 15's ten modes | **Fixed.** My harness prints the same ten: 1 kg 27.6, 29.4, 29.5, 34.1, 35.7, 35.8, 48.0, 54.5, 60.9, 63.0 Hz; no bottle 31.2, 31.8, 31.8, 48.0, 53.6, 61.5, 62.1 Hz; 2 kg 22.4–33.5 and 48.0–62.1 Hz. The attribution holds by experiment: without the bottle three of the low six go and the four arms stay; at 2 kg the low six fall and the arms move 3 Hz at most |
+| N3 | `YankFloorDeg` 0.03° had no margin | 0.04°, derived | **Fixed.** The arithmetic holds: 6e-5 × 2 × 16 / 0.060 = 0.032 rad/s (1.83 °/s), over 0.02 s that is 0.037°. 2 % of 920 rad/s is 18.4 rather than 16, which gives 0.042°: the same order. On my 300 fresh seeds `AsPredicted` holds on 298 (2065 misses by 0.046° beyond 30 %, 7085 by 0.077°). That is an order, not a bound, as the code now says |
+| N4 | The branch was 14 trunk commits behind | `unity/main` at `3d35914` merged with `-m` | **Fixed.** Re-merging `73281683` and `3d359146` gives tree `44bfee7f`, the merge's exactly: no conflict, subject-only. The trunk has since moved 4 commits (`19d6d6f8`, one handover doc only), and `git merge-tree` merges it clean |
+| N1 | Stale numbers in the trunk's texts | The orchestrator's D-053 | **Fixed** on the trunk and merged: PHY-10 and G7's tilt question cite D-053 (2.7–10°), and the pendulum is gone |
+
+## PHY-10 as restated, on my fresh seeds
+
+**Seeds:** 2001–2040, 7001–7040 and 5001–5480, 40 seeds a cell in 14 runs. None of them overlaps 1.9's (1–40, 301–500, 1001–1200).
+
+| Claim (spec) | As | Mine: 560 seeds a cell |
+|---|---|---|
+| From the hover, a gentle increase never shows it | every | 1120/1120; peak 0.001° at most, against the visible 0.088° |
+| A sharp step only kicks, under 0.3 s, the ESCs off their limit within 0.1 s | every | 2240 steps: 0.14 s at most; 0.05 s |
+| Every sharp arrest meets a limit and rings over 0.3 m/s² | every | 6720/6720; limited 0.24 s and Y 0.54 m/s² at the least |
+| Nearly every full punch shows it | ≥ 95 % | 3357/3360 (99.9 %) |
+| Nearly every 0.8 step shows it | ≥ 95 % | 3341/3360 (99.4 %) |
+| Every gentle ramp from 5–9 m/s wobbles: ring over 1 s, the ESC limited for less than the punch | every | 2240/2240; ring 1.36 s at the least, share 0.59 at most |
+| …at most half the punch's time | ≥ 95 % | 2235/2240 |
+| Every full punch holds the arrest, all four for its first part, and ends within `Settle` | every | 3360/3360; within 0.005 s; all four 0.19 s at the least; the end +0.26 s at most, against 0.31 |
+| The medians rise with the descent and the payload | every group | 14/14. Empty: 0.42–0.44 / 0.60–0.66 / 0.78–0.84 s. 2 kg: 0.58–0.70 / 0.90–0.96 / 1.28–1.32 s |
+| Most of the empty drone's 2.5–5.3 m/s punches are inside 0.3–0.7 s, and the median | ≥ 70 % and the median | 2.5 m/s: 520/560 (92.9 %), medians 0.42–0.44. 5.3 m/s: 548/560, medians 0.60–0.66. No ten-seed group of 112 fails 7 of 10 |
+| Nearly every 0.8 step lets go sooner | ≥ 95 % | 3360/3360; 0.018 s sooner at the least |
+| The 0.8 steps are shorter in sum | every cell | 84/84 cells |
+| No limit: no ESC holds the arrest | every | 3360/3360 |
+| No limit: it tilts less far | every | 3360/3360; 0.76 of the punch's tilt at most (seed 7010, empty from 9 m/s), medians 0.14–0.16 |
+| No limit: less than half as far | ≥ 95 % | 3351/3360 |
+| Rigid: within 20 %, holding the arrest, publishing no vibration | every | 560/560; 0.92–1.15 |
+| Rigid: the same median, within three fields | the median; ≥ 95 % | Medians equal, 14/14. Within three fields: 552/560 (98.6 %). **5161–5200: 37/40, the run exits 1** (N5) |
+| It varies; the modes publish `CameraVibration`, the rigid airframe never | every | 14/14; 20 720/20 720 |
+
+**The pilot's band test (B1(d)), `TheShakeLastsAboutTheArrest`:** at least 7 of 10 inside, and the median (`PilotBand`).
+- **False failures:** the 2.5 m/s cell leaves the band on 40 of my 560 seeds, 74 of 1000 with 1.9's. At p = 0.074 a fresh ten fails with P(4 or more out) ≈ 0.43 %. My 112 groups of ten pass, as do 1.9's 88.
+- **The known-wrong:** the ESC that senses no current is inside on 14 of 560 from 2.5 m/s. It passes 7 of 10 with a probability of about 7e-10, so the test still rejects it.
+- **Sized:** the threshold is set by its false-failure rate and fails its known-wrong.
+
+**The thinnest every-flight margins:**
+- The no-limit tilt: 0.76 against 1, up from 1.9's 0.67.
+- The shake's end: +0.26 s against `Settle`'s 0.31, steady at +0.25–0.27 over every group flown.
+
+Both hold on every flight seen, 6000 for the tilt.
+
+## Findings
+
+### Blocking
+
+None.
+
+### Not blocking
+
+**N5. The rigid airframe's "within three fields" check false-fails a fresh `--shake` about 1 % of the time, not 0.5 %.** Owner: the physics engineer.
+- **The count:** it is one cell of 40, and "nearly every" needs 38 of 40. My seeds miss on 8 of 560, 1.9's on 4 of 440: 12 of 1000.
+- **The rate:** at p = 0.012, three or more misses in 40 come up 1.2 % of the time. 5161–5200 is one such group: 37 of 40, the medians equal (0.96 s), 0.20 s apart at most.
+- **The comment:** `ShakeScenario.NearlyEvery`'s note says "about 0.5 % of the time at most".
+- **The claim itself holds:** 98.6 % against 95 %. Only the 40-flight check is too short.
+- **The fix:** fly the rigid cell on 160 seeds (about a second more), or ask 37 of 40 (0.13 % at p 0.012). Either way, state the rate in the comment.
+
+**N6. PHY-07's "inside the computed band on every seed", and `AsPredicted`, miss on about 1–3 % of fresh seeds by construction (the physics engineer's note).** Owner: the physics engineer, placed by the orchestrator.
+- **My check:** fresh seeds 2001–2100 and 7001–7200, the scenario's code unchanged.
+  - `InBand`: 298/300. Seed 2035's yaw is 9.1e-5 against the floor's 1.16e-4, predicted 5.0e-4. Seed 2052's roll is 2.2e-5 against 1.54e-4, predicted 2.1e-4.
+  - `AsPredicted`: 298/300.
+  - `Steady` and "off, halved": 300/300.
+  - The suite's seeds 1–5 pass all four.
+  - With 1.9's 184/190, the band holds on 482 of 490 (98.4 %).
+- **Judged a follow-up, not a block:**
+  - **Different from B1:** the band is not a bound set at its seeds' extremes. It is each axis's 0.5–99.5 % of the linear model over 20 000 draws of the tolerances, computed before any flight. About 2 % of flights fall outside it by design (two axes), and 98.4 % coverage is that design confirmed.
+  - **Where it misses:** both of my misses sit at the band's floor, where the measured rate is near zero and the linear model's absolute error is largest.
+  - **No flaky test:** the suite asserts it on fixed seeds, so nothing flakes.
+  - **No pilot-facing number:** no pilot number or G7 question rests on it.
+  - **Nothing to change in the physics:** no model, golden or log change is needed.
+- **The defect is the wording:** "on every seed" is a universal claim. A fresh five seeds would fail the scenario as worded about 8 % of the time.
+- **The fix:**
+  - Restate the scenario under D-053's rule: inside the band on nearly every seed, the band being each axis's 0.5–99.5 %.
+  - Add a fresh-seed coverage check, a `flightbench` mode with a first seed like `--shake`'s, which the identical-rotors known-wrong fails.
+  - Keep `AsPredicted` as the order the code now calls it.
+
+## Spec scenarios (`airframe-effects`) on this pass
+
+| Scenario | Result |
+|---|---|
+| Asymmetry on and off | **Pass** on the suite's five seeds. On fresh seeds the band holds on 98.4 % (N6) |
+| The cushion and the hole; the ceiling under a roof; the close hover is never still; the hub moment; a gust step | **Pass** (`--scenarios`; no runtime change since the re-review) |
+| Heavy on low throttle | **Pass** (`--scenarios`, seeds 101–120) |
+| Shake only when its causes meet | **Pass** on 560 fresh seeds a cell, every clause as restated |
+| The shake lasts as long as the arrest | **Pass** on 560 fresh seeds a cell; the pilot's band test sized at about 0.4 % |
+| The visible shake is the rigid body's | **Pass** on 560 fresh seeds a cell. One 40-seed group fails the bench's three-field check, a check too short for its claim (N5) |
+| The heavy corner at low charge; the inertia character | **Pass** (the suite) |
+
+## Requirements
+
+| ID | Status |
+|---|---|
+| PHY-07 | Met. The band's "every seed" wording is a follow-up (N6) |
+| PHY-08, PHY-09, PHY-11, PHY-12, PHY-14 | As in the re-review: met, and PHY-08 partly (its test range is 1.3b) |
+| PHY-10 | Met. It arises from its cause, lasts the arrest, varies and publishes `CameraVibration`. Every claim is stated as it holds and checked on fresh seeds |
+| PLT-04 | As in the re-review (no runtime change; `--bench` is not re-run under the no-GPU rule) |
+
+## Commands and output (trimmed)
+
+```
+$ dotnet test tools/simtests
+Passed!  - Failed:     0, Passed:   265, Skipped:     0, Total:   265, Duration: 4 m 35 s - Fpv450.Sim.Tests.dll (net10.0)
+
+$ dotnet run -c Release --project tools/flightbench -- --golden          # exit 0
+powered-flight: 10000 steps, hash 0xCCECAFB7466D6ADE (matches) ...
+contact-flight: 12000 steps, hash 0xC378E1EFFB9AEC93 (matches), 5 impacts, ends 0.2519 m up on 8 touching pairs: PASS
+tumble: ... hash 0xFB841727FADDC7A7 (matches) ...
+asymmetry off, rings off, ground effect off, flapping off, model 11's pack table, modes off, model 14's fit: PASS (each, bit for bit)
+the trunk's 5 ms ESC lag ...: powered 0x3F13A5CF5DB7DAFD, contact 0x3EE12C8D692BADF3, tumble 0xE3178EE7FF322698 (the trunk's (model 6's), bit for bit): PASS
+$ dotnet run -c Release --project tools/flightbench -- --scenarios       # exit 0; 23 known-wrongs "fails, as it must", the 6 no-limit rows among them
+  the airframe's modes at 1 kg: 27.6, 29.4, 29.5, 34.1, 35.7, 35.8, 48.0, 54.5, 60.9, 63.0 Hz
+scenarios: PASS
+$ dotnet run -c Release --project tools/flightbench -- --contacts        # contacts: PASS, exit 0
+$ dotnet run -c Release --project tools/flightbench -- --shake           # exit 0; 20 claims PASS on seeds 1-40
+  its length follows the arrest: ... empty 0.44 / 0.64 / 0.82 s, 2 kg 0.66 / 0.96 / 1.32 s: PASS
+shake: PASS
+$ dotnet run -c Release --project tools/flightbench -- --shake 2001      # exit 0, 20 claims PASS
+$ dotnet run -c Release --project tools/flightbench -- --shake 7001      # exit 0, 20 claims PASS
+$ for f in 5001 5041 ... 5441; do flightbench --shake $f; done           # 11 exit 0; 5161 exit 1:
+  known-wrong, a rigid airframe: as long, the same median within a field and within three fields on nearly every seed: medians 0.96 and 0.96 s; 37/40 within 0.06 s, 0.20 s apart at most: FAIL
+
+$ python tools/hygiene/precommit.py --tree HEAD
+1882 files scanned, 0 findings
+$ openspec validate p7b-airframe --strict
+Change 'p7b-airframe' is valid
+$ git merge-tree --write-tree 73281683 3d359146    # 44bfee7f..., equal to f07ad86a^{tree}
+$ git merge-tree --write-tree HEAD 19d6d6f8        # clean
+```
+
+QA's scratch harnesses:
+
+```
+asymmetry, seeds 2001-2100: InBand 98/100, AsPredicted 99/100, Steady 100/100, off halved 100/100
+  seed 2035: BAND(yaw 9.08E-005 below 1.16E-004; predicted 4.98E-004); seed 2052: BAND(roll 2.23E-005 below 1.54E-004; predicted 2.11E-004)
+  seed 2065: ASPRED(beyond 30 % 0.0464 deg)
+asymmetry, seeds 7001-7200: InBand 200/200, AsPredicted 199/200 (7085: 0.0768 deg), Steady 200/200, off halved 200/200
+asymmetry, seeds 1-5: InBand 5/5, AsPredicted 5/5, Steady 5/5, off halved 5/5
+modes: 1 kg 27.6 29.4 29.5 34.1 35.7 35.8 48.0 54.5 60.9 63.0 Hz; 0 kg 31.2 31.8 31.8 48.0 53.6 61.5 62.1 Hz; 2 kg 22.4 25.7 26.3 32.6 33.5 33.5 48.0 54.4 58.0 62.1 Hz
+```
+
+## Hygiene
+
+- **Commits:** the five since my re-review (four by the physics engineer, and the merge) are subject-only and 57–67 characters long. Each is under `Physics Engineer <physics@450fpv.local>`, with no body, trailer or co-author line. The merge has its own `-m` subject.
+- **Staging:** the branch's diff holds no file from `reference/`, `Library/`, `Temp/`, `Logs/` or `UserSettings/`.
+- **OPSEC:** the scan finds 0 findings over 1882 files.
+- **Licences:** no third-party file added.
+- **Determinism:** no runtime file changed; the goldens and every kept audit are bit for bit.
