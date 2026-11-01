@@ -32,6 +32,8 @@ namespace Fpv450.App
     /// walks the app (Smoke) and quits, exit code 1 on any failed check or any error logged; <c>-smokeshots &lt;folder&gt;</c>
     /// saves its screens there, and <c>-smokeseq &lt;n&gt;</c> beside them n consecutive frames at the punch-outs and the
     /// hover, FPV and chase (Sequence). <c>-camerafeel 0</c> flies the camera as before p7e-camera-feel (FlightScene.CameraFeel).
+    /// <c>-smokewind &lt;Calm|Windy|Severe&gt;</c> flies the smoke test's flights in that wind (Calm by default), a look at
+    /// the wind field in the player: its checks are Calm's.
     /// </remarks>
     public sealed class AppFlow : MonoBehaviour
     {
@@ -290,6 +292,15 @@ namespace Fpv450.App
             int seq = Array.IndexOf(args, "-smokeseq");
             if (shots != null && seq >= 0 && seq + 1 < args.Length && int.TryParse(args[seq + 1], out _sequenceFrames) && _sequenceFrames > 0)
                 _sequences = Path.Combine(shots, "seq");
+            int windAt = Array.IndexOf(args, "-smokewind");
+            WindLevel wind = WindLevel.Calm;
+            if (windAt >= 0 && (windAt + 1 >= args.Length || !Enum.TryParse(args[windAt + 1], true, out wind) ||
+                                (wind != WindLevel.Calm && wind != WindLevel.Windy && wind != WindLevel.Severe)))
+            {
+                Debug.LogError("[Smoke] -smokewind is Calm, Windy or Severe");
+                wind = WindLevel.Calm;
+            }
+            Debug.Log("[Smoke] the flights' wind: " + wind);
             // The smoke test's flights save their setup; the pilot's own is put back at the end.
             string setupFile = SetupStore.PathIn(Application.persistentDataPath);
             byte[] pilotSetup = File.Exists(setupFile) ? File.ReadAllBytes(setupFile) : null;
@@ -402,7 +413,7 @@ namespace Fpv450.App
                 c.StartPoint = start.Name;
                 c.Legs = !start.Stand;
                 c.Payload = 1.0;
-                c.Wind = WindLevel.Calm;
+                c.Wind = wind;
                 c.Rain = Rain.Sunny;
                 c.TimeOfDay = n == 0 ? 11.5 : 17.5;
                 // QA's finding 15: the second flight is set from the first's summary. With the keyboard barred, as in a
@@ -498,6 +509,10 @@ namespace Fpv450.App
                 long steps = session.Core.State.Step;
                 yield return new WaitForSecondsRealtime(0.3f);
                 Check(session.State == SessionState.Paused && session.Core.State.Step == steps, "paused: no step for 0.3 s, at step " + steps);
+                Double3 air = session.Core.Trace.Wind; // the field at the body in the last step; the core is not stepping
+                Debug.Log("[Smoke] " + session.Setup.Wind.Level + " wind at the drone, " + (session.Core.State.Position.Y - rest).ToString("0.0") + " m up: (" +
+                          air.X.ToString("0.00") + ", " + air.Y.ToString("0.00") + ", " + air.Z.ToString("0.00") + ") m/s, " +
+                          Math.Sqrt(air.X * air.X + air.Z * air.Z).ToString("0.00") + " m/s across");
                 if (n == 0) yield return Shot("pause");
                 host.Resume();
 
