@@ -470,3 +470,10 @@ From QA's review of `p6-input-app` 1.4b (finding 17): PRD-04 and PRD-05 keep the
 - **A `-quality <name>` option** on the command line picks another preset and is saved to the profile for the next start.
 - **APP-05 stands as written:** the preset chosen on the command line is the one saved to the profile.
 - **The pilot is asked only if their frame rate needs it** (a preference, at G7).
+
+## D-053 The throttle-punch shake's numbers, from 40 seeds a case · Accepted
+`p7b-airframe` 1.8 measured the shake on D-050's final layout (40 seeds a case, a 3 s window, `flightbench --shake`). Its numbers supersede D-049's ("0.8–1.4 s heavy", "5–16°") and D-051's (the tilt figures, "40 of 40"). D-051's cause stands: the assumed 40 A ESC current limit.
+- **The shake lasts the arrest:** an ESC holds its limit through every arrest, and the shake ends at most about 0.3 s after it. The medians are 0.44 / 0.64 / 0.82 s empty and 0.66 / 0.96 / 1.32 s at 2 kg, from about 2.5 / 5.3 / 9 m/s.
+- **The empty drone's full punch** lasts 0.3–0.7 s on about 96 % of flights, matching the pilot's account.
+- **The tilt** on a full punch is 2.7–10° and at least about twice the no-current-limit model's (0.1–3.2°), so the ESC firmware question decides it.
+- **The bands with no physical floor are dropped.** The spec states rates where a bound is not true on every seed (QA's re-review, B1).
