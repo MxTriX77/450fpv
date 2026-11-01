@@ -33,8 +33,13 @@ namespace Fpv450.Sim.World
         /// (ShapeMath.BoxMinimizer, within 3.3e-12 m of version 1's search on the audit set),
         /// and a box sweep that provably cannot touch ends instead of giving up as a touch;
         /// MapWorld's wires, patches and hole bands are new. golden/floor.txt re-recorded.
+        /// 3 (QA's review B3): a first touch is never a give-up. The plane's first touch is exact
+        /// (its distance is linear in t), a separating plane proves when a sweep cannot touch any
+        /// shape (ShapeMath.Bound), and after 64 distance / speed steps the sweep steps by that
+        /// bound; a sweep still unsettled after 128 counts no first touch. Both golden files
+        /// re-recorded: only first touches on the plane and former give-ups moved.
         /// </summary>
-        public const int QueryVersion = 2;
+        public const int QueryVersion = 3;
 
         /// <summary>FNV-1a 64's offset basis: the hash of nothing.</summary>
         public const ulong Offset = 0xCBF29CE484222325UL;

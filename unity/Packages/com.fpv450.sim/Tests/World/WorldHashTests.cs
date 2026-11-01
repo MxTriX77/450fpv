@@ -34,9 +34,9 @@ namespace Fpv450.Sim.Tests
         }
 
         [Test]
-        public void QueryVersion_IsTwo()
+        public void QueryVersion_IsThree()
         {
-            Assert.That(WorldHash.QueryVersion, Is.EqualTo(2));
+            Assert.That(WorldHash.QueryVersion, Is.EqualTo(3));
         }
     }
 }
