@@ -25,6 +25,10 @@ namespace Fpv450.App.Session
         /// <summary>The heading, rad: positive turns north towards east, as the drone's yaw.</summary>
         public double Yaw;
 
+        /// <summary>The world lists it as a start from the launch stand (legs off); otherwise from the ground. A hint for
+        /// the screens and the smoke test: the setup's legs decide what the flight stands on.</summary>
+        public bool Stand;
+
         /// <summary>The floor's one start point until the test range lists its own.</summary>
         public static StartPoint Origin => new StartPoint { Name = "origin" };
     }

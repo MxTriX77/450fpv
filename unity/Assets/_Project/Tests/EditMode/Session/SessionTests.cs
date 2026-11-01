@@ -54,6 +54,58 @@ namespace Fpv450.Tests.Session
             }
         }
 
+        // ---- The test range's starts (1.4b) -------------------------------------------------------------------------------
+
+        [Test]
+        public void TheTestRangeListsItsStartsAndFliesOnTheFloor()
+        {
+            string placements = RepositoryFile("maps/test-range/placements.json");
+            string root = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(placements), "..", ".."));
+            Assert.That(Path.GetFullPath(FlightWorlds.PlacementsPath(root)), Is.EqualTo(Path.GetFullPath(placements)));
+            FlightWorldChoice world = FlightWorlds.TestRange(root);
+            Assert.That(world.Id, Is.EqualTo("floor"), "the floor stub until MapWorld, named so replay reopens it");
+            Assert.That(world.StartPoints.Length, Is.EqualTo(2));
+            StartPoint track = world.StartPoints[0], field = world.StartPoints[1];
+            Assert.That((track.Name, track.X, track.Z, track.Stand), Is.EqualTo(("track", -178.0, -40.0, false)));
+            Assert.That((field.Name, field.X, field.Z, field.Stand), Is.EqualTo(("field", 40.0, 45.0, true)));
+            Assert.That(track.Yaw, Is.EqualTo(Math.PI / 2).Within(1e-15), "heading 90°: east");
+            Assert.That(field.Yaw, Is.EqualTo(Math.PI).Within(1e-15), "heading 180°: south");
+
+            foreach (StartPoint at in world.StartPoints)
+            {
+                SessionInputs inputs = Inputs();
+                world.ApplyTo(inputs);
+                inputs.Choices = new FlightChoices { StartPoint = at.Name, Legs = !at.Stand };
+                FlightSetup setup = SessionSetup.Build(inputs, 1, out Loadout loadout, out StartPoint start);
+                Assert.That(start.Name, Is.EqualTo(at.Name));
+                Assert.That(setup.StartPosition.X, Is.EqualTo(at.X).Within(1e-12));
+                Assert.That(setup.StartPosition.Z, Is.EqualTo(at.Z).Within(1e-12));
+                RuntimeObject[] objects = setup.RuntimeObjects ?? new RuntimeObject[0];
+                if (!at.Stand)
+                {
+                    Assert.That(objects, Is.Empty, at.Name + ": legs on, no stand");
+                    continue;
+                }
+                Assert.That(objects.Length, Is.EqualTo(1));
+                Assert.That(objects[0].Name, Is.EqualTo(LaunchStand.Name));
+                double x = 0, z = 0;
+                for (int c = 0; c < 4; c++)
+                {
+                    x += objects[0].Shapes[c].Center.X / 4;
+                    z += objects[0].Shapes[c].Center.Z / 4;
+                }
+                Assert.That(x, Is.EqualTo(at.X).Within(1e-9), "the stand's posts about the start");
+                Assert.That(z, Is.EqualTo(at.Z).Within(1e-9));
+            }
+        }
+
+        [Test]
+        public void AStartPointFileWithoutStartsIsRefused()
+        {
+            Assert.Throws<FormatException>(() => FlightWorlds.ReadStartPoints("{\"start_points\": []}"));
+            Assert.Throws<FormatException>(() => FlightWorlds.ReadStartPoints("{\"start_points\": [{\"id\": \"a\", \"position_m\": [1, 0], \"heading_deg\": 0, \"stand\": false}]}"));
+        }
+
         // ---- Setup to FlightSetup ---------------------------------------------------------------------------------------
 
         [Test]
