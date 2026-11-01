@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The headless replay (LOG-02): the sim core's own sources through simcore, no Unity. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>replay</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../simcore/simcore.csproj" />
+  </ItemGroup>
+
+  <!-- The scripted flight's pilot: the suite's closed loop, flown on the published pose. -->
+  <ItemGroup>
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/SimPilot.cs" Link="SimPilot.cs" />
+  </ItemGroup>
+</Project>

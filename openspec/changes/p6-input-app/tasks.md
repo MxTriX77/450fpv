@@ -4,21 +4,138 @@ Branch `unity/game/p6-input-app` off `unity/main`, after `p6-flight-core`'s task
 
 ## 1. Build
 
-- [ ] 1.1 [game-developer] The radio (design 1, 2):
+- [x] 1.1 [game-developer] The radio (design 1, 2):
   - **What:** HID reading off the render thread for the TX12 and generic joysticks, arrival timestamps, the lock-free ring to the physics thread as `StickSample`, the interval histogram, the USB-loss failsafe, and the keyboard fallback marked in the log.
   - **Verify:** the "render rate does not touch the sticks" scenario with a recorded stream, and the disconnect scenario.
-- [ ] 1.2 [game-developer] The calibration wizard (design 4):
+  - **As built** (`Scripts/Input/Radio/`, the engine-free `Fpv450.Input.Radio`; `tools/inputcore`, `tools/inputtests`, `tools/radioprobe`):
+    - **The path:** Windows' HID class driver, not the Input System, which hands events to the main thread only (design 1's fallback, taken up front). `RadioReader` is the input thread (Highest priority). `WinHidDevice` waits on an overlapped `ReadFile`, stamps `HostClock.NowUs()` when the wait returns, then decodes with `HidP_GetData`. `RawStickMap` makes the `StickSample`, written to the flight's `StickInbox` (`RadioReader.Inbox`, set per flight, the thread its only producer). Nothing allocates per report.
+    - **Devices:** HID page 1, usage 4, 5 or 8; an EdgeTX or OpenTX radio (1209:4F54 or 0483:5710) is `InputSource.Radio` and comes first; a rescan every 0.5 s while none is open. Controls are ordered by their place in the report, found with `HidP_SetData`, because Windows numbers one main item's data indices backwards (measured on a mouse here: X at bit 16 is index 6, Y at bit 32 index 5) and EdgeTX declares its 8 axes in one main item.
+    - **The TX12** (EdgeTX 2.8's source): 24 buttons (ch 9–32), 8 axes 0–2047 (ch 1–8, output + 1024), the mixer every 2 ms in joystick mode, a 1 ms endpoint, so about 2 ms between reports. Raw map until 1.2: AETR on axes 1–4, arm on ch5 above centre (button 1 on a device of fewer axes).
+    - **Intervals (design 2, changed):** the header is written before the first step, so it records the reports of the 10 s **before** the flight (`RadioReader.Intervals`, a ring of 32 768 arrival stamps) in a new header entry with the source and the product name (`LogHeader.Input*`, 100 µs bins to 20 ms), which `FlightSummary` prints.
+    - **Loss:** a failed read is the loss: a failsafe sample (centred, throttle 0, disarmed, the new `StickSample.Failsafe`) stamped when it was seen. The step record's flags carry it as bit 3 (bit 2 is the core's crash); `FlightSummary.Failsafes` lists each one's step and loss time.
+    - **Keyboard:** `KeyboardSticks` (engine-free) and `KeyboardFallback` (physical keys, `Debug.isDebugBuild` only): W / S throttle at 0.5 a second, A / D yaw, arrows pitch and roll at ±0.5, Enter toggles arm, polled once a frame. With `InputSource.Keyboard` the summary prints "never tune from this flight".
+    - **Numbers** (no TX12 here: a synthetic stream of EdgeTX's layout and timing, 20–200 µs wake jitter assumed):
+      - render rate: on the real input and flight threads at 30, 60 and 240 fps, the stick in force at all 1200 steps (618 reports, the loss at 1.2346 s) equals the timing rule applied to the recording; a frame-bound control at 30 fps had 782 stale steps
+      - cable pull: the loss at host 1 234 567 µs disarms the step at 1 235 000 µs, logged, replayed bit for bit
+      - the stream's intervals over 10 s: 5000, mean 2.000 ms, 1.821–2.176 ms; the live TX12's: `radioprobe --measure` when one is plugged in
+    - **Merged the flight core at 2a99cbc:** `LogFormat.Version` 6 (`ModelVersion` 5, the 1296 B record unchanged), the failsafe in flags bit 3, the input header entry at tag 15 (the core holds 10–14); the goldens did not move.
+    - **Merged unity/main at 7156dde** (#136: model 6, the midpoint rigid body, the tumble golden, the prop-disc gate): `LogFormat.Version` stays 6, `ModelVersion` 6, the record's bytes unchanged; the four goldens did not move.
+    - **For 1.4:** `timeBeginPeriod(1)` with the flight thread (p6-flight-core 1.2's note), `RadioReader.Stop` on quit and domain reload, the keyboard only when no radio is connected.
+- [x] 1.2 [game-developer] The calibration wizard (design 4) (ticked for its build; the by-hand run is 1.2b):
   - **What:** centre, sweep and arm switch, the channel order, reversal, endpoints and deadband, live bars, named profiles, the health check, and radio-side curves.
   - **Verify:** both calibration scenarios, the TX12 pitfall with fc-profiles' recorded spans, and a real TX12 in under 2 minutes, by hand.
-- [ ] 1.3 [game-developer] Rates and throttle (design 5):
+  - **As built** (`Scripts/Input/Radio/`: `CalibrationWizard`, `CalibrationProfile` with `CalibratedStickMap`, `CalibrationStore`, `MiniJson`, `ReportTap`, `IStickMap`; `Scripts/UI/CalibrateScreen.cs`; tests in `Tests/EditMode/Radio/CalibrationTests.cs`):
+    - **The flow:** the wizard is engine-free and fed every report with its arrival stamp through `RadioReader.Tap`, so neither the frame rate nor a key enters after Start.
+      - centre: every axis still within 2 % for 1 s (sticks let go, throttle down, arm off) gives each rest and its noise
+      - the sweep: throttle up, then yaw, pitch and roll, each from one end slowly to the other and held (0.3 s at 80 % or more of the radio's travel, otherwise 2 s, so a pause mid-sweep rarely ends a step)
+      - the arm switch on, then off: the axis (a change of 25 % or more) or button that changes, at the midpoint
+      - the axis that travels most, at least twice the runner-up, is the stick's: that gives the channel order (any order, written in Betaflight's letters, AETR or TAER), the reversal (the sweep's direction) and the endpoints (its extremes)
+      - the deadband is the rest noise in raw counts; Betaflight's own `deadband` still applies in the core
+    - **The TX12 pitfall** (EdgeTX 2.8's `evalInputs`, read): fc-profiles' 79 / 1 and 85 / 0 are the radio's own calibration spans. EdgeTX divides by max(100, span), so such an axis reaches full output about 100 ADC counts from centre, of its 683–903, and in the reports it jumps from end to end over the full HID range. Design 4's rule alone (a span under 200 of the HID range) misses that, so the health check has two rules, each "it behaves like a switch: recalibrate the radio", and either blocks saving:
+      - a span under 200 of 2048 (design 4)
+      - a sweep under 0.7 s from 10 % to 90 % of its travel, twice running; the first time, the pilot is asked to go slower
+    - **Radio-side curves:** both are named with what to switch off, and the profile is still saved.
+      - a curve: the 10–90 % sweep off its fitted line by more than 3 % of the travel (design 4): expo or a curve
+      - a short endpoint (a radio only): more than 5 % short of the full range: dual rates or the weight
+    - **The map:** `CalibratedStickMap` replaces `RawStickMap` once a profile is active, and `RadioReader.Map` swaps it whole. It runs piecewise from the centre to each endpoint, with the deadband but no step, and the throttle 0–1 between its endpoints. It keeps a copy of the profile and allocates nothing.
+    - **Profiles:** `calibration.json` in `persistentDataPath` holds the active name and the named profiles; it is written to a temporary file and swapped in.
+      - a clean calibration is saved under the radio's name and made active at once; renaming and picking take the mouse, after the calibration
+      - `MiniJson` is the app's small JSON reader, for 1.3's settings too
+    - **The screen:** `CalibrateScreen` is plain IMGUI. 1.4's menu opens it with the app's reader; without one, it opens its own. It shows the prompt, raw bars for every axis and the buttons, calibrated bars through the reader's map, the findings and the profiles.
+    - **Numbers** (no TX12 here: a synthetic TX12 through EdgeTX's pipeline and a synthetic pilot, 0.8 s to react and 2 s sweeps):
+      - healthy, AETR: done in 19.0 s, endpoints 0–2047, deadbands 1 count
+      - TAER, with pitch and throttle reversed on the radio and the arm on a button: all found, 19.0 s
+      - the pitfall (spans 79 / 1 and 85 / 0 on roll and pitch, 683–903 on yaw and throttle): roll and pitch named, the other two pass, nothing saved, 23.3 s
+      - spans of 79 and 85 in the reports themselves: "spans only 81 / 87 of 2048" (with ±1 of jitter), 22.3 s
+      - yaw expo 30 % named, and roll at weight 70 % named as 70 % of the travel
+      - a hasty first sweep (0.4 s) of each stick: asked again, then passed, 28.2 s
+    - **Assumed thresholds** (2 %, 0.3 / 2 s, 80 %, 0.7 s, 3 %, 5 %, 25 %) are checked at 1.2b. A human's 2 s sweep is less steady than the synthetic one, so the 3 % line is the likeliest to misfire.
+    - **QA's interim finding 2 fixed:** a third rule, independent of speed: a radio's axis whose rest at the centre step spreads over `PitfallJitter` (1024 / 100 / 2048 of the range, one ADC count at EdgeTX's floor gain, 10 counts; a healthy 683–903 span would need 7 counts of jitter) is too narrow at once, without "Too fast". QA's E9 (3 s, then 7.5 s) and an 8 s pilot are tests: roll and pitch named, nothing saved, the healthy radio clean at both speeds; the 2 s pitfall now takes 17.3 s. (Replaced by the smallest step rule, below.)
+    - **QA's finding 9 and gap 2a fixed:** the rest-spread rule is dropped for the sweep's smallest step (`PitfallStep`, half the floor gain, 5 counts; design 4); 58 tests (QA's E9v, a pitfall throttle, a one-sided pitfall, a restless channel): the pitfall caught at every sweep and jitter, every healthy radio and thumb saved, the restless channel named after 5 s.
+    - **QA's finding 10 fixed:** the update guard (design 4): a coarse side over fewer than band / (`PitfallStep` − 1) radio updates (`UpdateUs`, from the values) is "Too fast", never refused; 171 tests (E10, 3 ms, 4 ms, 1 ms over 4 ms): 45 healthy sweeps refused before are asked slower, then saved; every pitfall still named.
+    - **QA's finding 11 fixed:** "Too fast" asks how many times slower the coarse side needs; a repeat whose coarse side held under `Slower` (1.25) times the last's updates names the axis; `UpdateUs` is bounded at 4 ms; 160 tests (E10, literal and stubborn pilots at 2, 3, 4 and 1 over 4 ms): 36 pitfalls stuck before are named, every healthy radio saved.
+    - **QA's finding 12 fixed:** `UpdateUs` is bounded at 50 ms (`SlowestUpdateUs`, EdgeTX's slowest mixer period), not 4 ms: EdgeTX's USB output follows the RF module's period (6.7 ms at ELRS 150 Hz, 20 ms at 50 Hz), and such a radio was refused as a switch. QA's two nits: the factor asked is capped at 10 (`TimesSlower`), and a repeat no slower whose step is under EdgeTX's floor gain (10) is named by its speed, not the radio, in its finding and the final prompt. 71 tests (E12: a healthy radio at 1 ms over 7, 9 and 20 ms, swept 2 s by a pilot who follows the prompt, saved, 74 s at 20 ms, the 4 failing before; 60 quick literal healthy sweeps at 2–4 ms, saved or told to sweep slower, never the radio; the cap).
+- [ ] 1.2b The pilot's, at G7 (with the gate's flights, not a merge blocker), by hand: the pilot calibrates their own TX12 from the wizard's first screen in under 2 minutes, with the radio alone after Start. Any assumed threshold that misfires is retuned from that run. Record each axis's rest spread and smallest step, with the radio's ADC filter setting.
+- [x] 1.3 [game-developer] Rates and throttle (design 5):
   - **What:** the Calibrate screen's ACTUAL rates and throttle curve with previews from the core's rate function, `FcSettings` under CLI names, the sim default column as defaults, and persistence.
   - **Verify:** the defaults scenario and the persistence scenario.
-- [ ] 1.4 [game-developer] The app and the flight session (design 6, 7):
-  - **What:** the menu (Train, Calibrate, Exit; Explore in review builds), the setup, the flight session over the test range (D-044) with the world loader, the physics thread, the stand-in drone, the FEED-02 camera and the launch stand; arm and disarm, pause and restart, the end conditions, and the post-flight summary.
-  - **Verify:** every `app-flow` scenario, and a built player flying the stand-in from the stand and from the ground with the keyboard fallback.
-- [ ] 1.5 [game-developer] Latency (design 3):
+  - **As built** (`Scripts/Input/Radio/{FcSettingsStore,RatePreview}.cs`; `Scripts/UI/RatesPanel.cs`, the Calibrate screen's Rates tab; tests in `Tests/EditMode/Radio/RatesTests.cs`):
+    - **The screen:** a Rates tab beside Radio, offered while the wizard is not running. A column for each of roll, pitch and yaw (centre, max rate, expo) and the throttle (mid, expo), each under its curve, with a slider and − / + steps: rates in 5 °/s (the sim default's halves), expo and throttle in hundredths. The rate curves share one scale. Defaults restores the sim default column. Its look is unseen (no GPU, D-046) and judged at G7.
+    - **The previews:** `RatePreview` builds a `FlightController` on the edited settings and samples its own `SetpointOf` and `ThrottleCommandOf` at 101 sticks from 0 to 1. Against a frame of the flight's RC path (`rawSetpoint`, `rcCommand`), they differ by 0 °/s and 0 µs at every point, for the defaults and an edited set; against Betaflight's formula written out in the test, by at most 5.7e-14 °/s.
+    - **The rows** (`FcSettingRow.Rows`): the CLI name (the `FcSettings` field, by reflection), its column and curve, the shown units, the step and Betaflight 4.5's range (`controlrate_profile.c`'s ACTUAL limits: `rc_rate` and `srate` to 200, expo to 100; `settings.c`: `rc_rate` from 1, `thr_mid` and `thr_expo` whole, 0–100). The sliders' 10–250 °/s centre and 50–1000 °/s max rate are assumed; the steps reach the full range.
+    - **The file:** `fc-settings.json` beside `calibration.json`, `{"format": "fpv450 fc settings 1", "settings": {CLI name: CLI value}}`, written to a temporary file, then swapped in. It holds every row and any other field off its default. Reading takes any `FcSettings` field by its CLI name (a number, true or false, an enum's name), checks the rows' ranges and then the whole set through the `FlightController` constructor, and leaves every missing name at its default. A file that fails is not used: the defaults apply, the reason shows, and the file stays until the next change is saved. Saving happens when the mouse button is released after a change, on Back, and when the screen closes.
+    - **Room for the rest (INP-07):** another Betaflight setting is a new row. A `diff all` importer writes the same names into the same form.
+    - **Numbers:** a fresh profile reads 55 / 225 °/s with expo 0.34 on roll and pitch, 85 / 260 / 0.15 on yaw, `thr_mid` 50 (0.50) and `thr_expo` 10 (0.10), deadband 2 / 2, `rc_smoothing_auto_factor` 50, `f_*` 50 / 50 / 0, `airmode` on, `dshot_idle_value` 550. Six rows edited, plus a double that needs 17 digits, a bool and an enum, read back bit for bit after a save, on .NET 10 and on Unity's Mono. Eight bad files (cut short, not text, another format, out of range, not whole, an unknown name, a mistyped value, one the controller refuses) fall back to the defaults with their reasons.
+    - **For 1.4:** the flight loads `FcSettingsStore.Load(persistentDataPath, out error)` at its start.
+- [x] 1.4a [game-developer] The flight session's logic, headless (design 6, 7; split by D-046, no GPU that night):
+  - **What:** the engine-side session behind the app, testable without a scene: the setup (payload, legs, time of day, wind, rain) mapped into `FlightSetup`, the loadout and the wind level; the physics thread started and stopped with the 1 ms timer period, `RadioReader` stopped on quit and on domain reload, the keyboard only when no radio is connected; arm and disarm through the controller's rules (the switch cycled after a failsafe), pause and restart, the end conditions, the post-flight summary from the log; `header.StartHostUs = StartUs`; the launch stand placed as a runtime object with the legs off; the world a `FloorWorld` until the test range's queries land; a thin Unity adapter that compiles.
+  - **Verify:** the `app-flow` scenarios that need no scene (setup to `FlightSetup`, arm and disarm, the failsafe, pause and restart, every end condition, the summary against the log, persistence), `tools/inputtests`, `tools/simtests`, Unity's EditMode `-nographics`.
+  - **As built** (`Scripts/App/Session/`, the engine-free `Fpv450.App.Session`, which `tools/inputcore` compiles too; `Scripts/App/{FlightSessionHost,AppRadio}.cs`; tests in `Tests/EditMode/Session/SessionTests.cs`):
+    - **The setup:** `FlightChoices` holds the six choices and checks them (payload 0–2.0 kg in 0.1 kg steps, time of day 0–24 h, Calm / Windy / Severe, Sunny / Rain / Severe rain, the start point by name). `SetupStore` keeps them in `setup.json` beside the other two files, saved the same way.
+      - `SessionSetup.Build` takes drone.json's mass, propulsion, aero and contacts at the loadout (the coil full at take-off), `WindSetup.Of(level)`, the settings, a new `FlightWorld.Floor()` and the start point (the floor's `origin` until the test range lists its own).
+      - Legs on, the drone stands on its unloaded skids. Legs off, `LaunchStand.Build` is placed as the runtime object at the start point's heading, and the drone rests at `RestingOrigin`.
+      - The time of day and the rain go to the scene: the G7 physics has no rain, and the log header has no field for either.
+    - **The session** (`FlightSession`):
+      - `SessionInputs.FromProfile(persistentDataPath, …)` loads the setup, `FcSettingsStore.Load` and the active calibration, and names any file it could not read.
+      - `Start` takes the radio when `RadioReader.Connected`; otherwise the keyboard where it is allowed; otherwise it refuses ("no radio is connected"). It sets the reader's map (`CalibratedStickMap`, or raw without a profile), `HoldArm` and the flight's inbox.
+      - Each flight gets a new random seed and a new log (`LogStore.NewPath`). The header holds the input's source and device, the 10 s of intervals, and `StartHostUs`, step 0, set 20 ms after `Start` so the file is written first.
+      - The session holds the 1 ms timer period while it lives. It never starts or stops the app's radio.
+    - **Arming:** the controller's rules. `RadioReader` holds the switch off after a loss and at each flight's start until a report shows it off, as Betaflight refuses a switch left on through a failsafe or a power-up. The log's stick is the switch as the controller may see it.
+    - **Pause:** the flight thread stops.
+      - While paused, the frames drain the radio's reports: the stopped thread hands the inbox's consumer side to the frame, so a loss stays in force and nothing is dropped.
+      - `Resume` moves every later step's host time by the pause, and first logs it as the new `HitchCause.Pause` (B: µs). Replay skips it, as it skips every hitch, and the summary prints `PAUSED`.
+      - `Restart` is the pilot's end, then a new flight with a new seed and a new log.
+      - QA's interim finding 1 fixed: the paused frames keep the first loss they drain (`StickInbox.Drain`, even one a replug's report superseded), and `Resume` holds it in force for the first RC frame (`StickInbox.Hold`, 4 steps), so a step record carries the failsafe with the loss's stamp and the end is `Failsafe`. No new log event; format 6 is unchanged. QA's E3a and E3b are tests: lost at 1 471 000 µs, logged at step 342 (the first after Resume), the end at step 345, "failsafe", replayed bit for bit.
+      - QA's finding 8 fixed: the held steps are counted by index, so a pause among them keeps the loss (`Pause` drops it only once they have all run) and the next `Resume` holds it for the rest. QA's E3f (E3b, paused again 1, 2 or 3 ms after Resume for 50 ms) is a test: the same step 342 and stamp, the end at 345, "failsafe", both pauses logged, replayed bit for bit.
+    - **The ends** (`FlightEndRule`): one rule for the live flight and for the log, the first that holds:
+      - the core's latched `Crashed` (QA's flight-core finding 3: the core keeps stepping; the session ends the flight)
+      - upside down: the up axis below the horizon while touching, for 1 s (assumed)
+      - armed before and not now: the failsafe when the stick in force is the failsafe sample, else the disarm
+      - the battery cut-off: either pack's charge at 0, the end of drone.json's OCV table (3.0 V a cell). The model holds the voltage below it, so the pack would never empty (assumed).
+      - The rule runs on the flight thread as each step goes to the log, and the log stops at the end's step. The pilot's end and a fault are the session's only.
+    - **The summary** (`PostFlight.Read(path)`): `FlightSummary` for the header, the events and the failsafes, then one pass over the records for the distance (from the header's start) and the end. `Cause()` and `Lines()` give:
+      - the end and its cause (for a crash: the part, the object and its material)
+      - the time, the distance and the battery used
+      - the keyboard's warning and each failsafe
+      - the seed and the log's path
+    - **The adapter** compiles; there is no scene (that is 1.4b):
+      - `AppRadio` is the app's one reader, stopped on `Application.quitting` and `beforeAssemblyReload`.
+      - `FlightSessionHost` builds the session from the profile and starts a flight once the radio is connected, or after 1 s on the keyboard. It ticks the session with `KeyboardFallback.ReadKeys()` and disposes it when disabled.
+      - It reads drone.json and physics_materials.json from the repository; the player's copy is 1.4b's.
+    - **Numbers** (14 tests; a test radio of the TX12's layout every 2 ms on a set clock, a step a ms; the last on the real flight thread):
+      - **The setup:** payload 1.5 kg, Windy. Legs on, the drone stands at 0.2530 m and has sunk 1.4 mm after 1.5 s disarmed, 8 pairs touching. Legs off, on the stand, 0.4 mm.
+      - **Arming:** neither a switch left on nor one turned on with the throttle at 0.5 arms, until it has been seen off. Off, then on, arms. The disarm ends the flight at the next RC frame, within 4 ms of the switch.
+      - **The failsafe:** lost at 1 271 000 µs, disarmed at the step at 1 274 000 µs. The controller reads the switch at its 250 Hz RC frame, so the disarm comes up to 3 steps after the loss. The tx-input spec now says "within one RC frame" (313350b).
+      - **Pause:** 2.000 s with no step and 0 reports dropped. Every later step's stick is within 3 ms before its moved host time.
+      - **Restart:** a new seed and a new log, the same start, the switch to be cycled again.
+      - **A crash:** into a steel box named R01_A 1.4 m over the drone, at full throttle: "crash: coil hit R01_A (steel), an impact at 4.3 m/s". The summary's distance equals the published poses' path within 1e-9 m, and its time, battery and seed are the flight's.
+      - **Upside down:** the flight ends 1.0 s after the drone settles on its back. **The battery cut-off:** from 0.05 % charge at throttle 0.35, after 3.2 s.
+      - **Persistence:** `roll_srate` 30, and payload 1.7 kg with the legs off, Severe wind and Rain, are saved, loaded fresh, flown and found in the header. A broken setup.json is named, and the defaults are used.
+      - **The keyboard** flies only without a radio. With one, Enter does nothing. With neither, `Start` refuses.
+      - **The flight thread** in real time: 891 steps in 892 ms flown, a 201 ms pause logged, 2 hitches.
+- [ ] 1.4b [game-developer] The app's screens and the built player (design 6, 7), after 1.4a, with the GPU:
+  - **What:** the menu (Train, Calibrate, Exit; Explore in review builds), the setup screen, the flight session's scene over the test range (D-044) with the world loader, the stand-in drone, the FEED-02 camera and the launch stand.
+  - **Verify:** the remaining `app-flow` scenarios, and a built player flying the stand-in from the stand and from the ground with the keyboard fallback.
+- [x] 1.5 [game-developer] Latency (design 3) (ticked for its build; the TX12's figures are 1.5b):
   - **What:** the latency test mode.
   - **Verify:** the latency scenario with a TX12, both figures in the header.
+  - **As built** (`Scripts/Input/Radio/LatencyTest.cs`; the input header entry; `radioprobe --latency`; tests in `Tests/EditMode/Radio/LatencyTests.cs`):
+    - **The path:** an injector at the device boundary keeps each report's arrival stamp and writes the pattern into its values. Then `RadioReader` (the raw map), the flight's `StickInbox`, and `FlightScheduler` on its thread with the app's 1 ms timer period. Then the controller (the 250 Hz RC link, RC smoothing, throttle boost, mixer) and the ESCs. The bench is the repository's drone at its nominal loadout, 300 m up in still air, with no contacts. A recording (played at its stamps, `LeadUs` 0) and a live device both work.
+    - **The pattern:** disarmed, then armed at 0.1 s; the throttle stick at 0.42 from 0.3 s; then from 0.8 s, 120 changes between 0.42 and 0.48, one every 82 ms. 82 ms is an odd count of 2 ms reports, so the changes land on both RC-frame phases a 500 Hz stream reaches, and the boost's 15 Hz low-pass settles to 0.03 %. No timed change has an ESC at its 40 A limit (the spin-up at 0.3 s does); with 50 ms holds and only 0.05 s of settling, two did.
+    - **The figures**, from each change's first report's arrival stamp: to the host time of the first step that uses it; and to the motor command's response, the four ESCs' mean duty halfway through the change (linear between the steps' records). The breakdown splits the second: the wait for the RC link's next frame, the smoothing to the DShot command halfway, then the ESC.
+    - **The header:** format 6 is kept, since it has not reached `unity/main`. The input entry (tag 15) gains two fields, appended so a 1.1 entry still reads:
+      - `StartHostUs`, the flight's step-0 host µs: a step's stick age is `StartHostUs + k·1000 − HostUs`, so the log alone gives the first figure (the test recomputes it from the records)
+      - `InputLatency`: the steps, and each figure's min, p50, p99, max and mean
+    - **The log:** the header is written before the first step, so the test splices the figures into its own log's header after the flight. `FlightSummary` prints a `latency test:` line, and the log replays bit for bit.
+    - **Numbers** (no TX12 here: 1.1's synthetic EdgeTX stream at 2 ms, in real time). The figures were identical over two .NET 10 runs and Unity's Mono. Each run: 120 of 120 changes timed, about 10 730 steps, 5–9 hitches, 0 dropped; 486–488 report intervals before the flight, mean 2.000 ms.
+      - **To the first step:** p50 0.477, p99 0.561 ms (0.384–0.563, mean 0.474). The 1 ms step: a report waits for the next step. The stream's reports arrive 437–617 µs into the host's 1 ms USB frame and this flight's steps fall on the frame's edge, so the wait is 0.383–0.563 ms (the wake jitter's 180 µs). Across flights the phase is anything in 0–1 ms. radioprobe's `--from` run of the same timing had its steps near the arrivals and gave 0.001–1.000 ms (p50 0.939). Its p99 and max of 1.000 ms are reports stamped at a step's own host time: the input thread had not delivered them when that step ran, so they waited for the next one.
+      - **To the motor command:** p50 6.453, p99 8.460 ms (6.283–8.462, mean 7.373). That is the first step's 0.474, plus the RC frame's 2.000 (1 or 3 ms: 2 ms reports land on two of the 4 ms frame's phases; 1.5 ms on average over phases), plus the smoothing's 1.563, plus the ESC's 3.336.
+        - The smoothing is the PT3 at the auto 93 Hz with the throttle boost. Betaflight's formulas written out give 1.562 ms.
+        - The ESC is τ_esc 5 ms. Its formula gives 3.335 ms: under a step's 0.693 τ = 3.47 ms, because the boost overshoots.
+        - Every change's smoothing and ESC parts are within 2 µs of that chain.
+    - **Run it:** `dotnet test tools/inputtests` (the scenario takes 11 s) and Unity's EditMode. `radioprobe --latency [n] [--from <recording>]` runs on a live radio or a recording, prints the interval histogram, both figures and the breakdown, and writes the test flight's log to the flights folder.
+    - **For 1.4:** the flight session sets `header.StartHostUs` to its `StartUs`. A review build may offer the test mode.
+- [ ] 1.5b At G7, with the gate's flights (not a merge blocker): the pilot's TX12's report interval and both figures, from `radioprobe --latency` while the radio is plugged in for the gate anyway, or from the app's test mode once 1.4 offers it. Nobody asks the pilot to plug it in for this.
 
 ## 2. Review
 

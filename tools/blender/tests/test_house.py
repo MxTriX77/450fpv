@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from generators import house
-from lib import catalog, joinery, masks, meta, params as params_lib, roof, walls
+from lib import audit, catalog, joinery, masks, meta, params as params_lib, roof, walls
 from lib.geometry import Mesh
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -216,17 +216,70 @@ def _window_gaps(params, state):
     return plan, o, res.gaps
 
 
-def test_door_gap_is_the_clear_opening(built):
-    params, out, data = built
-    gap = next(g for g in data["gaps"] if g["id"] == "door")
-    w, h = joinery.extent(gap)
-    assert abs(w - 0.80) <= MM5 and abs(h - 1.90) <= MM5 and abs(gap["narrowest_m"] - 0.80) <= MM5
-    assert gap["normal"] == [0.0, 0.0, -1.0]
-    assert "any yaw" in house.verdict(gap["narrowest_m"], h)
+def _door(variant, **changes):
+    """The door of an H01 variant's params (with `changes`): its plan and joinery Result."""
+    entry = catalog.load(ROOT)["assets"]["H01"]
+    params = with_(catalog.load_params(catalog.params_path(ROOT, entry, variant)), **changes)
     plan = walls.Plan(params)
-    closed = joinery.door(plan, walls.Plan(with_(params, door_leaf_state="closed")).door, [Mesh()] * 4,
-                          random.Random(1))
+    return plan, joinery.door(plan, plan.door, [Mesh() for _ in range(4)], random.Random(1))
+
+
+def _leaf_throat(plan, res):
+    """The throat as QA's B1 measures it, from the collision alone: the plan distance from the far jamb's room-side
+    arris to the leaf's board box (0.8 m wide, BOARD_M thick)."""
+    (leaf,) = [b for b in res.collision
+               if abs(b["size"][0] - 0.80) <= 1e-9 and abs(b["size"][2] - joinery.BOARD_M[0]) <= 1e-9]
+    side = plan.sides[plan.door.side]
+    arris = side.point(plan.door.a1 - joinery.DOOR_FRAME_M[0], plan.F, plan.T)
+    n = audit._rotate(leaf["rotation"], (0.0, 0.0, 1.0))
+    return abs(sum((arris[k] - leaf["center"][k]) * n[k] for k in range(3))) - leaf["size"][2] / 2, arris
+
+
+def _door_gap(plan, res):
+    (gap,) = res.gaps
+    assert gap["id"] == "door"
+    throat, arris = _leaf_throat(plan, res)
+    w, h = joinery.extent(gap)
+    assert abs(gap["narrowest_m"] - throat) <= 0.002 and abs(w - throat) <= 1e-6  # the polylabel's precision
+    assert abs(h - 1.90) <= MM5  # threshold to head
+    on_arris = [p for p in gap["polygon"] if math.dist((p[0], p[2]), (arris[0], arris[2])) <= 1e-9]
+    assert len(on_arris) == 2  # one edge up the far jamb's arris, the other on the leaf's face
+    return gap, throat, h
+
+
+def test_ajar_door_gap_is_the_throat_its_leaf_leaves():
+    """H01_I's leaf ajar at 30 degrees leaves 0.8 sin 30 - 0.032 = 0.368 m to the far jamb (QA's B1): no drone."""
+    plan, res = _door("H01_I")
+    assert plan.door.state == "ajar"
+    gap, throat, h = _door_gap(plan, res)
+    assert abs(throat - 0.368) <= 1e-6
+    assert house.verdict(gap["narrowest_m"], h) == "no"
+    _, closed = _door("H01_I", door_leaf_state="closed")
     assert closed.gaps == []  # a closed leaf seals it
+
+
+def test_hanging_door_gap_is_the_throat_its_leaf_leaves():
+    """H01_D's leaf hanging at 70 degrees and sagged leaves 0.8 sin 70 - 0.032 = 0.720 m (QA's B1): any yaw, 73 mm a
+    side nose-first and 7 mm on the diagonal."""
+    plan, res = _door("H01_D")
+    assert plan.door.state == "hanging"
+    gap, throat, h = _door_gap(plan, res)
+    assert abs(throat - (0.8 * math.sin(math.radians(70.0)) - 0.032)) <= 1e-6 and round(throat, 3) == 0.720
+    assert house.verdict(gap["narrowest_m"], h) == "passes at any yaw, 7 mm a side on the diagonal"
+    assert round((gap["narrowest_m"] - house.DRONE_M[0]) / 2 * 1000) == 73
+
+
+@pytest.mark.parametrize("swing", [10.0, 30.0, 45.0, 50.0, 60.0, 90.0])
+def test_door_gap_narrows_with_its_leaf(monkeypatch, swing):
+    """The old rule (the frame's 0.80 m clear for every open leaf) fails here: the gap follows the swing, w sin - t,
+    and a leaf under about 49 degrees leaves the drone no way past."""
+    monkeypatch.setattr(joinery, "AJAR_DEG", swing)
+    plan, res = _door("H01_I")
+    gap, throat, h = _door_gap(plan, res)
+    assert abs(throat - (0.8 * math.sin(math.radians(swing)) - 0.032)) <= 1e-6
+    assert gap["narrowest_m"] < 0.80 - MM5
+    passes = house.verdict(gap["narrowest_m"], h) != "no"
+    assert passes == (swing >= 50.0)
 
 
 def test_framed_window_gap_and_the_other_states(h01):

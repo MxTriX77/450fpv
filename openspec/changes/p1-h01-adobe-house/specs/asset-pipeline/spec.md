@@ -18,4 +18,4 @@ A generator MAY compose pieces of another generator (debris kit pieces as a hous
 
 #### Scenario: Rubble pieces audited with the house
 - **WHEN** a house variant composes 300 tile shards and 40 timber pieces
-- **THEN** its metadata holds one shape per piece (two for a cambered tile), each within 5 cm of its mesh in the audit, and the audit prints the piece count it checked
+- **THEN** its metadata holds at least one shape per piece (two for a cambered tile; a timber piece also carries its splinter and nail capsules), each within 5 cm of its mesh in the audit, and the build prints the piece count
