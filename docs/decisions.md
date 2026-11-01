@@ -463,3 +463,23 @@ QA's review of `p7b-airframe` 1.4 corrects D-049:
 - **The cause is the assumed 40 A ESC current limit,** not the rotors re-ingesting their wash: without the limit the full-punch tilt falls from 11–16° to 1.5–3.4° and the arrest is about twice as fast. The four ESCs are limited together for only part of the arrest.
 - **The firmware decides it:** with Bluejay, which senses no current, the modelled shake mostly vanishes. G7's ESC firmware question settles the tilt question.
 - **The bands kept:** the shake lasts the arrest (60 of 60); the empty drone's 0.3–0.7 s (40 of 40); the 6–15° tilt applies to a full punch only. The heavy or fast band is re-measured with a window that sees its end, on enough seeds, before it is stated.
+
+## D-052 The quality preset is the build's, with a command-line override · Accepted
+From QA's review of `p6-input-app` 1.4b (finding 17): PRD-04 and PRD-05 keep the menu and the setup to their few choices, so the quality preset gets no screen.
+- **At G7 the player runs the build's preset (High).**
+- **A `-quality <name>` option** on the command line picks another preset and is saved to the profile for the next start.
+- **APP-05 stands as written:** the preset chosen on the command line is the one saved to the profile.
+- **The pilot is asked only if their frame rate needs it** (a preference, at G7).
+
+## D-053 The throttle-punch shake's numbers, from 40 seeds a case · Accepted
+`p7b-airframe` 1.8 measured the shake on D-050's final layout (40 seeds a case, a 3 s window, `flightbench --shake`). Its numbers supersede D-049's ("0.8–1.4 s heavy", "5–16°") and D-051's (the tilt figures, "40 of 40"). D-051's cause stands: the assumed 40 A ESC current limit.
+- **The shake lasts the arrest:** an ESC holds its limit through every arrest, and the shake ends at most about 0.3 s after it. The medians are 0.44 / 0.64 / 0.82 s empty and 0.66 / 0.96 / 1.32 s at 2 kg, from about 2.5 / 5.3 / 9 m/s.
+- **The empty drone's full punch** lasts 0.3–0.7 s on about 96 % of flights, matching the pilot's account.
+- **The tilt** on a full punch is 2.7–10° and at least about twice the no-current-limit model's (0.1–3.2°), so the ESC firmware question decides it.
+- **The bands with no physical floor are dropped.** The spec states rates where a bound is not true on every seed (QA's re-review, B1).
+
+## D-054 How the world queries' budget is judged until the fiber · Accepted
+From QA's review of `p6-world-query-gallery` (B1, S2):
+- **At G7 the queries are judged on physics' pattern,** the calls `ContactModel` makes each step, inside PLT-04's whole-step budget (p99 at most 300 µs, 0 B). The 100 000-capsule and 100 000-ray budgets are read the same way.
+- **K§10.5's batch with the fiber's segments** is judged when the fiber is built (phase 7d), which decides how often the fiber is queried.
+- **PLT-04's 60 µs line stays the target** for the queries' speed work. The straw patch (194 µs at p99 a step) and the launch stand get a broad phase inside each object.

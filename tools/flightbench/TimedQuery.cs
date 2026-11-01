@@ -62,7 +62,7 @@ namespace Fpv450.FlightBench
 
         /// <summary>
         /// Flies a fresh setup (its world wrapped) warmup steps, then steps more, and gives the queries' share of those
-        /// steps' time and their calls a step.
+        /// steps' time, their calls a step, and their time in a step at p99 and at most (PLT-04: under 60 µs).
         /// </summary>
         public static string Share(FlightSetup setup, Func<FlightCore, int, StickSample> stick, int warmup, int steps)
         {
@@ -71,10 +71,19 @@ namespace Fpv450.FlightBench
             var core = new FlightCore(setup);
             for (int k = 0; k < warmup; k++) core.Advance(stick(core, k));
             timed.Ticks = timed.Calls = 0;
+            var per = new long[steps];
             long t0 = Stopwatch.GetTimestamp();
-            for (int k = warmup; k < warmup + steps; k++) core.Advance(stick(core, k));
+            for (int k = warmup; k < warmup + steps; k++)
+            {
+                long before = timed.Ticks;
+                core.Advance(stick(core, k));
+                per[k - warmup] = timed.Ticks - before;
+            }
             long total = Stopwatch.GetTimestamp() - t0;
-            return $"world queries {100.0 * timed.Ticks / total:F1} % of the step ({(double)timed.Calls / steps:F1} calls a step)";
+            Array.Sort(per);
+            double us = 1e6 / Stopwatch.Frequency;
+            return $"world queries {100.0 * timed.Ticks / total:F1} % of the step ({(double)timed.Calls / steps:F1} calls a step; "
+                + $"p99 {per[steps * 99 / 100] * us:F1} µs, max {per[steps - 1] * us:F1} µs a step)";
         }
     }
 }

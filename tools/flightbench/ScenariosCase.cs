@@ -24,6 +24,10 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"  {name}: {detail}: {verdict}");
         }
 
+        static string Hover(GroundEffectScenario.Hover h) =>
+            $"skids {h.Clearance:F3} m up, rotors at {h.LeastHeight:F2}-{h.MostHeight:F2} R, body rate RMS per {GroundEffectScenario.Block} s block "
+            + $"{h.LeastRate:E2}-{h.MostRate:E2} rad/s (floor {GroundEffectScenario.StillFloor:E0}), wash up to {h.MostWash:E2} v_h";
+
         static string Lean(CrosswindScenario.Result r) =>
             $"lean {r.LeanDeg:F2}° = {r.LeanPerMs:F3}° per m/s of {r.WindSpeed:F2} m/s, {r.LeanOffWindDeg:F1}° off the wind's bearing, "
             + $"position error {r.MeanError:F3} m mean / {r.MaxError:F3} m max, drift {r.Drift:F4} m/s";
@@ -122,6 +126,114 @@ namespace Fpv450.FlightBench
                 Row($"{level} known-wrong: a flat 0.2 m/s σ", WindTargets.Intensity(flat, out d, out _), d, knownWrong: true);
                 Row($"{level} known-wrong: a mean 5 % strong", WindTargets.MeanInBand(biased, WindPreset.Of(level), out d), d, knownWrong: true);
             }
+            Console.WriteLine("motor asymmetry (airframe-effects, p7b-airframe 1.1): a hands-off hover in still air, "
+                + $"{AsymmetryScenario.Seconds:F0} s on seeds 1-5, asymmetry on and off:");
+            AsymmetryScenario.Run run = AsymmetryScenario.Flown(spec);
+            AsymmetryScenario.Band band = run.Band;
+            Console.WriteLine($"  the band from the tolerances ({AsymmetryScenario.BandDraws} seeds' draws, {AsymmetryScenario.BandQuantile * 100:F1}–"
+                + $"{100 - AsymmetryScenario.BandQuantile * 100:F1} %): roll {band.RollRateLo:E2}–{band.RollRateHi:E2} °/s, yaw {band.YawRateLo:E2}–"
+                + $"{band.YawRateHi:E2} °/s, vibration {band.VibrationLo:E2}–{band.VibrationHi:E2} rad/s per step");
+            for (int i = 0; i < AsymmetryScenario.Seeds.Length; i++)
+            {
+                AsymmetryScenario.Result on = run.On[i], off = run.Off[i];
+                AsymmetryScenario.Prediction p = run.Predicted[i];
+                bool pass = AsymmetryScenario.InBand(on, band) && AsymmetryScenario.AsPredicted(on, p) && AsymmetryScenario.Steady(on, p)
+                    && AsymmetryScenario.NeverStill(on, band) && !AsymmetryScenario.NeverStill(off, band)
+                    && off.RollRate <= 0.5 * on.RollRate && off.YawRate <= 0.5 * on.YawRate && off.SideDrift <= 0.5 * on.SideDrift;
+                Row($"seed {AsymmetryScenario.Seeds[i]}", pass, AsymmetryScenario.Describe(on, off, p));
+            }
+            bool identical = true;
+            foreach (AsymmetryScenario.Result off in run.Off) identical &= AsymmetryScenario.InBand(off, band);
+            Row("known-wrong: identical rotors", identical, $"roll {run.Off[0].RollRate:E1} and yaw {run.Off[0].YawRate:E1} °/s on every seed", knownWrong: true);
+
+            Console.WriteLine("vortex ring state (airframe-effects, p7b-airframe 1.2): the 6.2 kg loadout down at 3 m/s under the pilot, then the "
+                + $"throttle held {VortexRingScenario.HoldSeconds:F1} s, low or higher, then recovered:");
+            VortexRingSpec ring = spec.BuildVortexRing();
+            VortexRingScenario.Result low = VortexRingScenario.Fly(VortexRingScenario.Setup(spec), true);
+            VortexRingScenario.Result lowOff = VortexRingScenario.Fly(VortexRingScenario.Setup(spec, false), true);
+            VortexRingScenario.Result high = VortexRingScenario.Fly(VortexRingScenario.Setup(spec), false);
+            VortexRingScenario.Result wrong = VortexRingScenario.Fly(VortexRingScenario.Setup(spec, true, true), true);
+            Row("heavy on low throttle: enters, loses thrust, wobbles; exits below its entry rate", VortexRingScenario.HeavyOnLowThrottle(low, lowOff, ring),
+                VortexRingScenario.Describe(low) + $"; ringless: 10 ms change {lowOff.WobbleRms:E2} rad/s RMS");
+            Row("the same descent at higher throttle: no ring", VortexRingScenario.HigherThrottle(high), VortexRingScenario.Describe(high));
+            Row("known-wrong: the onset from the descent speed alone", VortexRingScenario.HeavyOnLowThrottle(wrong, lowOff, ring), VortexRingScenario.Describe(wrong),
+                knownWrong: true);
+            // QA's finding 4: on 20 seeds, each against its own ringless flight; the known-wrong fails on each.
+            int heavyOk = 0, higher = 0, wrongs = 0;
+            double least = double.MaxValue, most = 0;
+            foreach (ulong seed in VortexRingScenario.Seeds)
+            {
+                VortexRingScenario.Result on = VortexRingScenario.Fly(VortexRingScenario.Setup(spec, seed: seed), true);
+                VortexRingScenario.Result off = VortexRingScenario.Fly(VortexRingScenario.Setup(spec, false, seed: seed), true);
+                if (VortexRingScenario.HeavyOnLowThrottle(on, off, ring)) heavyOk++;
+                if (VortexRingScenario.HigherThrottle(VortexRingScenario.Fly(VortexRingScenario.Setup(spec, seed: seed), false))) higher++;
+                if (!VortexRingScenario.HeavyOnLowThrottle(VortexRingScenario.Fly(VortexRingScenario.Setup(spec, true, true, seed), true), off, ring)) wrongs++;
+                least = Math.Min(least, on.WobbleRms / off.WobbleRms);
+                most = Math.Max(most, on.WobbleRms / off.WobbleRms);
+            }
+            int seeds = VortexRingScenario.Seeds.Length;
+            Row($"on seeds 101-120: heavy on low throttle, the higher throttle, the known-wrong failing", heavyOk == seeds && higher == seeds && wrongs == seeds,
+                $"{heavyOk}, {higher} and {wrongs} of {seeds}; the wobble {least:F2}-{most:F2} x the ringless flight's (against 1.5)");
+
+            Console.WriteLine("ground and ceiling effect, recirculation (airframe-effects, p7b-airframe 1.3) on the stub, each rotor's thrust at "
+                + "the props' reference rpm over its free-air thrust, and a closed-loop hover on the legs in still air without asymmetry:");
+            GroundEffectScenario.Surfaces cushion = GroundEffectScenario.Cushion(spec);
+            Row("the cushion and the hole", GroundEffectScenario.Within(cushion), $"over the floor at {cushion.DistanceOver:F3} D gain "
+                + $"{cushion.LeastOver:F5} against Cheeseman-Bennett's {cushion.Expected:F5} ({(cushion.LeastOver / cushion.Expected - 1) * 100:F2} %); "
+                + $"over the hole band no ground ({cushion.DistanceAway} D), |gain - 1| {cushion.Away1:E1}");
+            GroundEffectScenario.Surfaces roof = GroundEffectScenario.Ceiling(spec);
+            Row("the ceiling under a runtime box roof", GroundEffectScenario.Within(roof), $"under it at {roof.DistanceOver:F3} D gain "
+                + $"{roof.LeastOver:F5} against Hsiao-Chirarattananon's {roof.Expected:F5} ({(roof.LeastOver / roof.Expected - 1) * 100:F2} %); "
+                + $"in the open |gain - 1| {roof.Away1:E1}");
+            GroundEffectScenario.Hover close = GroundEffectScenario.FlyHover(spec, true, GroundEffectScenario.HoverLift);
+            GroundEffectScenario.Hover noWash = GroundEffectScenario.FlyHover(spec, false, GroundEffectScenario.HoverLift);
+            GroundEffectScenario.Hover up = GroundEffectScenario.FlyHover(spec, true, GroundEffectScenario.HighLift);
+            Row("the close hover is never still", GroundEffectScenario.NeverStill(close, noWash, up), Hover(close)
+                + $"; {GroundEffectScenario.HighLift:F0} m up: {up.LeastRate:E2}-{up.MostRate:E2} rad/s");
+            Row("known-wrong: no recirculation", GroundEffectScenario.NeverStill(noWash, noWash, up), Hover(noWash), knownWrong: true);
+
+            // p7b-airframe 1.3c: the rotors' edgewise-flow moments.
+            Console.WriteLine("rotor flapping (p7b-airframe 1.3c):");
+            double err = FlappingScenario.WorstError(false), rigid = FlappingScenario.WorstError(true);
+            Row("the hub moment is Johnson's at mu 0.05, 0.10, 0.20", err < 1e-9, $"worst relative error {err:E2} (the hingeless 150 Hz blade, roll and pitch)");
+            Row("known-wrong: a rigid rotor without flapping (model 10)", rigid < 1e-9, $"worst relative error {rigid:E2}", knownWrong: true);
+            foreach (double from in new[] { 0.0, 90.0 })
+            {
+                FlappingScenario.Response on = FlappingScenario.GustStep(spec, from, true), off = FlappingScenario.GustStep(spec, from, false);
+                bool harder = from == 0 ? on.PitchPeak > 1.5 * off.PitchPeak : on.RollPeak > 1.5 * off.RollPeak;
+                Row(from == 0 ? "a head gust step pitches harder with flapping" : "a side gust step rolls harder with flapping", harder,
+                    FlappingScenario.Describe(from, on, off));
+            }
+            // p7b-airframe 1.4: the throttle-punch shake, its causes and the airframe's modes (D-049's scenarios).
+            Console.WriteLine("the throttle-punch shake (p7b-airframe 1.4, D-049, D-051; its 40-seed distribution: --shake):");
+            var modes = new FlightCore(ShakeScenario.Setup(spec, 1, 1)).Modes;
+            var hz = new System.Text.StringBuilder();
+            for (int i = 0; i < modes.Count; i++) hz.Append($"{(i > 0 ? ", " : "")}{modes.Frequency(i):F1}");
+            Console.WriteLine($"  the airframe's modes at 1 kg: {hz} Hz");
+            ShakeScenario.Result heavy = default;
+            foreach (double payload in new[] { 0.0, 2.0 })
+                foreach (double drop in new[] { 0.0, 0.3, 0.6, 1.0 })
+                {
+                    ShakeScenario.Result sharp = ShakeScenario.Fly(ShakeScenario.Setup(spec, payload, 1), drop, false);
+                    ShakeScenario.Result gentle = ShakeScenario.Fly(ShakeScenario.Setup(spec, payload, 1), drop, true);
+                    if (payload > 0 && drop == 0.6) heavy = sharp;
+                    // From the hover: the kick, never the shake; arresting a descent: an ESC on its current limit through the
+                    // whole arrest and the shake lasting it, the frame's band ringing; a gentle ramp in a 5–9 m/s descent shows
+                    // PHY-09's wobble instead.
+                    bool ok = drop == 0 ? sharp.Duration < ShakeScenario.KickSeconds && gentle.Fields == 0
+                        : ShakeScenario.LastsTheArrest(sharp) && sharp.VibrationPeak.Y > ShakeScenario.Rings
+                          && (drop < 0.6 || ShakeScenario.Wobbles(gentle, sharp));
+                    Row($"{payload:F0} kg, {(drop == 0 ? "from the hover" : $"after a {drop:F1} s drop")}", ok,
+                        $"sharp: {ShakeScenario.Describe(sharp)}; gentle: {ShakeScenario.Describe(gentle)}");
+                    if (drop == 0) continue;
+                    ShakeScenario.Result noLimit = ShakeScenario.Fly(ShakeScenario.Setup(spec, payload, 1, currentLimit: false), drop, false);
+                    Row($"known-wrong: an ESC that senses no current, {payload:F0} kg after a {drop:F1} s drop", ShakeScenario.HoldsTheArrest(noLimit)
+                        || noLimit.TiltMax >= sharp.TiltMax, $"tilt {noLimit.TiltMax:F2}° against the punch's {sharp.TiltMax:F2}°; " + ShakeScenario.Describe(noLimit), knownWrong: true);
+                }
+            ShakeScenario.Result stiff = ShakeScenario.Fly(ShakeScenario.Setup(spec, 2, 1, false), 0.6, false);
+            Row("a rigid airframe keeps the visible shake (the rigid body's)", ShakeScenario.LastsTheArrest(stiff) && stiff.Peak / heavy.Peak >= 0.8
+                && stiff.Peak / heavy.Peak <= 1.2, $"peak {stiff.Peak / heavy.Peak:F2} of the flexing airframe's; " + ShakeScenario.Describe(stiff));
+            Row("known-wrong: a rigid airframe publishes no camera vibration", stiff.Published, ShakeScenario.Describe(stiff), knownWrong: true);
             Console.WriteLine($"scenarios: {(_ok ? "PASS" : "FAIL")}");
             return _ok;
         }
