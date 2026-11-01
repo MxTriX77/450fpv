@@ -34,7 +34,7 @@ namespace Fpv450.UI
         {
             AppStyle.Begin();
             AppStyle.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0, 0, 0, 0.55f));
-            float w = AppStyle.S(460), h = AppStyle.S(420);
+            float w = AppStyle.S(460), h = AppStyle.S(360);
             var panel = new Rect(Mathf.Round((Screen.width - w) / 2), Mathf.Round((Screen.height - h) / 2), w, h);
             AppStyle.Fill(panel, AppStyle.Panel);
             float pad = AppStyle.S(40);
