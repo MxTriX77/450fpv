@@ -5,7 +5,11 @@ scratch folder, and both are read here by the reader logic of the first attempt'
 (godot-final, read only, D-027): `load` (the attitude columns, "" as NaN, dup, the no-picture guard), the first lines
 of `analyse` (the frame rate from time_s, the usable frames by confidence, the --segment frame range) and `load_wind`
 (time_s, wind_from_deg, and one prevailing_from_deg per seed). It is that logic in plain Python, without numpy.
-When task 1.1's port lands (`tools/wind/wind_stats.py`), the round trip through the ported tool itself replaces it.
+Task 1.1's port (`tools/wind/wind_stats.py`) reads these files when `grade_levels.py` grades a level; this copy of
+the original's reader stays as an independent check of the files' format.
+
+Since task 1.5's belt stretch, the climb between the stretches and SettleSeconds after it are logged at confidence 0
+(WindHarness.Fly), as the tracker logs lost frames: one block of unusable frames right after the belt's segment.
 """
 import csv
 import json
@@ -46,6 +50,18 @@ def load_wind(path):
     return t, d, p
 
 
+def check_the_climb(ok, oky, last, climb_frames):
+    """The harness's usable frames: one block unusable on every axis from the frame after the belt's segment (frame
+    `last` + 1, index `last`), the climb plus SettleSeconds long; every other frame, the belt's included, usable."""
+    assert ok == oky, "a frame is usable on every axis or on none"
+    bad = [i for i, v in enumerate(ok) if not v]
+    assert bad, "the climb is logged unusable"
+    assert bad == list(range(bad[0], bad[-1] + 1)), "one block of unusable frames"
+    assert bad[0] == last, "the block starts right after the belt's segment"
+    assert abs(len(bad) - climb_frames) <= 1, "the block is the climb plus SettleSeconds"
+    assert bad[-1] < len(ok) - 1, "the field after the climb is measured"
+
+
 @pytest.fixture(scope="module")
 def harness(tmp_path_factory):
     dotnet = shutil.which("dotnet")
@@ -73,13 +89,19 @@ def test_the_run_reads_as_an_attitude_log(harness):
     ok = [cr >= CONF and cp >= CONF and math.isfinite(r) and math.isfinite(p)
           for cr, cp, r, p in zip(c["conf_roll"], c["conf_pitch"], c["roll_deg"], c["pitch_deg"])]
     oky = [cy >= CONF and math.isfinite(y) for cy, y in zip(c["conf_yaw"], c["yaw_rate_dps"])]
-    assert all(ok) and all(oky), "every frame usable on every axis"
+    first, last = (int(v) for v in run["segment"].split("-"))    # main()'s --segment parse
+    climb = run["climb_s"] * fps
+    check_the_climb(ok, oky, last, climb)
+    for stray in (first - 1 + (last - first) // 2, n - 1):        # known-wrong: one stray unusable frame
+        wrong = list(ok)
+        wrong[stray] = False
+        with pytest.raises(AssertionError):
+            check_the_climb(wrong, wrong, last, climb)
     assert not any(c["dup"]) and not any(c["lost"])
     assert all(math.isnan(e) for e in c["edge_px"]), "a simulation has no horizon edge"
     assert -12 < sum(c["roll_deg"]) / n < -3, "leaning into the Severe field's wind from the left"
     assert abs(sum(c["pitch_deg"]) / n + 22.7) < 2, "clip P's pitch held"
 
-    first, last = (int(v) for v in run["segment"].split("-"))    # main()'s --segment parse
     inside = [first <= f <= last for f in c["frame"]]
     assert 4 < sum(inside) / fps < 12, "10 H in 7 s at the cruise through the air, give or take the wind along the course"
     assert 0 < first and last < n
