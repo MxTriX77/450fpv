@@ -38,6 +38,19 @@ namespace Fpv450.Feed
         public FeedOutput Feed { get; private set; }
         public bool Running => Output != null;
 
+        /// The camera's read (p7e-camera-feel): set before the rig begins to render with the shutter's margin and read each
+        /// field through this track (<see cref="UploadShutter"/> after each <see cref="RollingShutter.Build"/>); null, or
+        /// the settings' shutter off, renders and reads as before.
+        public RollingShutter Shutter { get; set; }
+
+        /// The flight drives the feed's fields (p7e-camera-feel): while true, the rig leaves its field to <see cref="Drive"/>.
+        public bool Driven { get; set; }
+
+        /// The render's coverage in half-widths while running: the lens's, plus the shutter's margin with a track.
+        public float RenderCoverage { get; private set; }
+
+        Texture2D shutterTrack;
+
         Camera fpv;
         RenderTexture scene;
         // The OSD (task 1.4): this field's codes, uploaded once per field as the Godot feed did, and the ROM's atlas.
@@ -62,10 +75,29 @@ namespace Fpv450.Feed
 
         void LateUpdate()
         {
-            if (!Running)
+            if (!Running || Driven)
                 return;
             clock += Time.deltaTime;
             Step(pinnedField >= 0 ? pinnedField : (int)(clock * FieldsPerSecond));
+        }
+
+        /// Puts the feed at the flight's field (p7e-camera-feel), with the rig's own clock left in that field, so the feed
+        /// runs on from it once the flight stops driving.
+        public void Drive(int field)
+        {
+            if (!Running)
+                return;
+            Step(field);
+            clock = (field + 0.5) / FieldsPerSecond;
+        }
+
+        /// Uploads <see cref="Shutter"/>'s track for the next field pass.
+        public void UploadShutter()
+        {
+            if (shutterTrack == null || Shutter == null)
+                return;
+            shutterTrack.SetPixelData(Shutter.Track, 0);
+            shutterTrack.Apply(false);
         }
 
         /// Starts the rig: the camera's intrinsics and reduced target, the output camera, the scheduler. OnEnable
@@ -83,7 +115,9 @@ namespace Fpv450.Feed
             savedFov = fpv.fieldOfView;
             savedTarget = fpv.targetTexture;
 
-            Vector2Int size = settings.SceneSize;
+            bool shutterOn = Shutter != null && settings.shutter;
+            RenderCoverage = shutterOn ? settings.ShutterCoverage : settings.Coverage;
+            Vector2Int size = settings.SceneSizeFor(RenderCoverage);
             // With a depth buffer: URP's render graph wants one on a camera target, and warns every frame without it.
             // The feed reads the colour alone (FeedFeature imports it by its identifier).
             scene = new RenderTexture(size.x, size.y, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB)
@@ -96,7 +130,7 @@ namespace Fpv450.Feed
             };
             scene.Create();
             fpv.targetTexture = scene;
-            fpv.fieldOfView = settings.RenderVerticalFovDeg;
+            fpv.fieldOfView = settings.VerticalFovDeg(RenderCoverage);
 
             var go = new GameObject("FeedOutput") { hideFlags = HideFlags.DontSave };
             go.transform.SetParent(transform, false);
@@ -131,10 +165,28 @@ namespace Fpv450.Feed
             Feed.OsdCell = new Vector2(FeedOsd.CellW, FeedOsd.CellH);
             Feed.OsdOrigin = new Vector2(FeedOsd.OriginX, FeedOsd.OriginY);
 
+            // The camera's read (p7e-camera-feel): the track's texture, its rows top-down as RollingShutter writes them,
+            // read by texel; it starts as the identity, the scene as rendered.
+            if (shutterOn)
+            {
+                shutterTrack = new Texture2D(RollingShutter.RowTexels, RollingShutter.Rows, TextureFormat.RGBAFloat, false, true)
+                {
+                    name = "ShutterTrack",
+                    filterMode = FilterMode.Point,
+                    wrapMode = TextureWrapMode.Clamp,
+                    hideFlags = HideFlags.DontSave,
+                };
+                Shutter.Clear();
+                UploadShutter();
+                Feed.ShutterTrack = shutterTrack;
+                Feed.Shutter = new Vector4(1f, settings.focalHalfWidths, RenderCoverage, 0f);
+            }
+
             // The clock runs on from where the rig last stopped, so switching the feed off and on resumes the schedule.
             Events = new FeedEvents(settings.seed);
             Step(pinnedField >= 0 ? pinnedField : (int)(clock * FieldsPerSecond));
-            Debug.Log($"[Feed] FPV camera: {size.x}x{size.y} render, {settings.RenderVerticalFovDeg:0.00}° vertical, " +
+            Debug.Log($"[Feed] FPV camera: {size.x}x{size.y} render, {settings.VerticalFovDeg(RenderCoverage):0.00}° vertical, " +
+                      (shutterOn ? $"rolling shutter on ({settings.shutterMarginDeg:0.#}° margin), " : "") +
                       $"picture {settings.PictureHorizontalFovDeg:0.0}° across, lens k1 {settings.K1:0.00}, " +
                       $"field {settings.fieldWidth}x{FeedSettings.FieldRows}, seed {settings.seed}. {FeedSignalLog.Describe(Signals)}");
             Debug.Log($"[Feed] OSD ({Signals.SourceOf(FeedSignal.OsdState).ToString().ToLowerInvariant()}), " +
@@ -154,6 +206,9 @@ namespace Fpv450.Feed
             Feed = null;
             DestroyNow(osdCodes);
             osdCodes = null;
+            if (shutterTrack != null)
+                DestroyNow(shutterTrack);
+            shutterTrack = null;
             scene.Release();
             DestroyNow(scene);
             scene = null;

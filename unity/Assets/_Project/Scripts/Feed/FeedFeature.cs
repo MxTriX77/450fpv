@@ -66,7 +66,8 @@ namespace Fpv450.Feed
                 OsdCodes = Shader.PropertyToID("_OsdCodes"), OsdGlyphs = Shader.PropertyToID("_OsdGlyphs"),
                 OsdCells = Shader.PropertyToID("_OsdCells"), OsdCell = Shader.PropertyToID("_OsdCell"),
                 OsdOrigin = Shader.PropertyToID("_OsdOrigin"), Lens = Shader.PropertyToID("_Lens"),
-                FieldSize = Shader.PropertyToID("_FieldSize");
+                FieldSize = Shader.PropertyToID("_FieldSize"), ShutterTrack = Shader.PropertyToID("_ShutterTrack"),
+                Shutter = Shader.PropertyToID("_Shutter");
 
             Material material;
             FeedOutput output;
@@ -208,6 +209,10 @@ namespace Fpv450.Feed
                 m.SetVector(OsdOrigin, o.OsdOrigin);
                 m.SetVector(Lens, o.Settings.LensVector);
                 m.SetVector(FieldSize, new Vector4(o.Settings.fieldWidth, FeedSettings.FieldRows, 0f, 0f));
+                // The camera's read (p7e-camera-feel): without a track, the old read.
+                bool track = o.ShutterTrack != null && o.Shutter.x > 0.5f;
+                m.SetTexture(ShutterTrack, track ? o.ShutterTrack : Texture2D.blackTexture);
+                m.SetVector(Shutter, track ? o.Shutter : Vector4.zero);
             }
         }
     }

@@ -31,6 +31,12 @@ namespace Fpv450.Feed
         [Tooltip("The camera's AE gain, 1 by day (the Godot stand-in's). Task 1.7's AE loop replaces it.")]
         public float gain = 1f;
 
+        [Header("The camera's read (p7e-camera-feel)")]
+        [Tooltip("The CMOS rolling shutter and the exposure's blur from the flight's poses (RollingShutter), on a rig that is handed a track. Off reads the scene as before, as the FEED-00 A/B does.")]
+        public bool shutter = true;
+        [Tooltip("The render's margin on every side for the shutter's turn, degrees (design 4: the pilot's 300 °/s over half the 18.3 ms read is 2.7°, with headroom).")]
+        public float shutterMarginDeg = 4f;
+
         /// The project's asset, <c>Settings/Feed/Resources/FeedSettings.asset</c>: under Resources so a rig added at
         /// run time (<see cref="NoclipFeed"/>) finds it in a player.
         public static FeedSettings Load() => Resources.Load<FeedSettings>("FeedSettings");
@@ -49,21 +55,32 @@ namespace Fpv450.Feed
         public float Coverage => (float)(1.0 + K1 * (1.0 + 1.0 / (Aspect * (double)Aspect)));
 
         /// The render's vertical field of view in degrees: the pinhole covering <see cref="Coverage"/> half-widths.
-        public float RenderVerticalFovDeg
-            => (float)(2.0 * Math.Atan(Coverage / Aspect / focalHalfWidths) * 180.0 / Math.PI);
+        public float RenderVerticalFovDeg => VerticalFovDeg(Coverage);
+
+        /// The pinhole's vertical field of view in degrees when it covers `coverage` half-widths.
+        public float VerticalFovDeg(float coverage)
+            => (float)(2.0 * Math.Atan(coverage / Aspect / focalHalfWidths) * 180.0 / Math.PI);
+
+        /// The shutter's render: <see cref="Coverage"/> plus <see cref="shutterMarginDeg"/> on every side, half-widths
+        /// (1.434 + 0.070 = 1.504 at the defaults); the plain coverage with the shutter off.
+        public float ShutterCoverage
+            => shutter ? Coverage + (float)(focalHalfWidths * Math.Tan(shutterMarginDeg * Math.PI / 180.0)) : Coverage;
 
         /// The picture's horizontal field of view in degrees: where its edge (r_d = 1) lands, p_u = 1 + k1.
         public float PictureHorizontalFovDeg => (float)(2.0 * Math.Atan((1.0 + K1) / focalHalfWidths) * 180.0 / Math.PI);
 
         /// The scene render's size in pixels, 16:9.
-        public Vector2Int SceneSize
+        public Vector2Int SceneSize => SceneSizeFor(Coverage);
+
+        /// The scene render's size in pixels for a render covering `coverage` half-widths, 16:9.
+        public Vector2Int SceneSizeFor(float coverage)
         {
-            get
-            {
-                int w = Mathf.Max(16, Mathf.RoundToInt(sceneWidth * Coverage));
-                return new Vector2Int(w, Mathf.Max(9, Mathf.RoundToInt(w / Aspect)));
-            }
+            int w = Mathf.Max(16, Mathf.RoundToInt(sceneWidth * coverage));
+            return new Vector2Int(w, Mathf.Max(9, Mathf.RoundToInt(w / Aspect)));
         }
+
+        /// The render's pixels per radian at the picture's centre: half the width's samples per half-width, times f.
+        public double PixelsPerRad => sceneWidth * 0.5 * focalHalfWidths;
 
         /// The shader's <c>_Lens</c>: k1, the coverage and the aspect.
         public Vector4 LensVector => new Vector4(K1, Coverage, Aspect, 0f);
