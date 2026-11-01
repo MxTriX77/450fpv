@@ -32,8 +32,8 @@ namespace Fpv450.Sim.Tests
             }
         }
 
-        // QA's finding 6: the yank as its draws predict, within 30 % and YankFloorDeg, and never buzzing, on seeds 1–30 (the
-        // suite's 1–5 and QA's 11–15 among them), so the tolerance is sized on the spread it has to hold.
+        // QA's finding 6: the yank as its draws predict, within 30 % and YankFloorDeg (derived, 0.04°), and never buzzing, on
+        // seeds 1–30 (the suite's 1–5 and QA's 11–15 among them). On fresh seeds it holds on 215 of 220 (YankFloorDeg).
         [Test]
         public void TheYankIsAsPredictedOnThirtySeeds()
         {

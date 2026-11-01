@@ -311,15 +311,17 @@ namespace Fpv450.Sim.Tests
             r.RollRate >= b.RollRateLo && r.RollRate <= b.RollRateHi && r.YawRate >= b.YawRateLo && r.YawRate <= b.YawRateHi;
 
         /// <summary>
-        /// The yank's absolute tolerance, degrees (assumed; QA's finding 6, seed 13): the steady model leaves out the spin-up's
-        /// transients, the rotors' reaction torques as they spin up to their Kv-spread speeds and Betaflight's anti-gravity
-        /// boosting the I term while the throttle moves, which turn the drone by a few hundredths of a degree whatever the
-        /// steady moment. Their size: J·Δω over the yaw inertia, 6e-5 kg·m² × 2 × 16 rad/s (the 2 % Kv spread at the hover's
-        /// 920 rad/s, the four signed) / 0.060 kg·m², 1.8 °/s, for the loop's ~20 ms, about 0.04° (derived, its order).
-        /// A small yank's relative error grows past 30 % by this much: on seeds 1–30 the largest miss beyond 30 % is 0.026°
-        /// (seed 27's roll, 0.018° against 0.063°), so with the floor none falls outside.
+        /// The yank's absolute tolerance, degrees (derived, its order; QA's finding 6, seed 13, and the re-review's N3): the
+        /// steady model leaves out the spin-up's transients, the rotors' reaction torques as they spin up to their Kv-spread
+        /// speeds and Betaflight's anti-gravity boosting the I term while the throttle moves, which turn the drone by a few
+        /// hundredths of a degree whatever the steady moment. Their size: J·Δω over the yaw inertia, 6e-5 kg·m² × 2 × 16 rad/s
+        /// (the 2 % Kv spread at the hover's 920 rad/s, the four signed) / 0.060 kg·m², 1.8 °/s, for the loop's ~20 ms, about
+        /// 0.04°. A small yank's relative error grows past 30 % by up to this much: the largest miss beyond 30 % is 0.026° on
+        /// seeds 1–30 (seed 27's roll, 0.018° against 0.063°) and 0.029° on QA's 31–60, inside the derived 0.04°. It is the
+        /// order, not a bound: on seeds 31–150 and 301–400, 215 of 220 hold AsPredicted; seeds 88, 308 and 392 miss by
+        /// 0.055–0.075° beyond 30 % (a roll yank predicted near zero), and 304 and 383 on the vibration's blocks.
         /// </summary>
-        public const double YankFloorDeg = 0.03;
+        public const double YankFloorDeg = 0.04;
 
         /// <summary>The yank (I terms, roll and heading at YankAt) within 30 % of the seed's own prediction and YankFloorDeg
         /// (its I terms' ki times it), and its vibration's blocks around the prediction: the linear model leaves out the
