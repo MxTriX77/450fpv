@@ -548,3 +548,10 @@ The pilot, 2026-11-02: "arm disarm change AIR DISARM on OSD, dont make disarm tr
 - **Disarming no longer ends the flight.** The OSD shows DISARMED (D-057); the drone stays in the world under physics, and the pilot can re-arm with the switch and fly on.
 - **The flight ends on:** a crash, the failsafe, the battery cut-off, or End flight from the pause menu. The post-flight summary shows only then.
 - The arm and disarm events stay in the log, and replay is unchanged.
+
+## D-063 Nothing interrupts the flight; the pilot watches the drone · Accepted
+The pilot, 2026-11-02: "i dont like that whenever something is off this dialog pops out. just let me see the drone behavior".
+- **No event ends the flight on its own.** After a crash, an upside-down rest, the failsafe or the battery cut-off, the drone stays under physics (tumbling, falling, lying where it lands) and the pilot keeps watching through the feed or the chase view.
+- **Each event is logged** as before (the crash names its object, LOG-03), and the flight's events are listed when the pilot ends the flight.
+- **The summary shows only on End flight or Restart from the pause menu.** No dialog or overlay appears during the flight.
+- **Supersedes the end rule** of D-062 and APP-04: the flight now ends only by the pilot.

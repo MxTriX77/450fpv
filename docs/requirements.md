@@ -665,7 +665,7 @@ The last setup is remembered.
 **APP-04 In flight.**
 - Arm and disarm on a transmitter switch.
 - Pause and restart.
-- **The flight ends** on a crash (an impact over its threshold, or upside-down on the ground), a fiber break with failsafe, a battery cut-off, or End flight from the pause menu. A disarm doesn't end it: the OSD reads DISARMED and the pilot can re-arm (D-062).
+- **The flight ends only by the pilot** (End flight or Restart from the pause menu, D-063). A crash, an upside-down rest, a fiber break with failsafe, a battery cut-off or a disarm is logged and the drone stays under physics, with no dialog; the summary lists the events when the pilot ends the flight.
 - The **post-flight summary** shows the seed, the log path and the key events, with the logged crash cause.
 
 **APP-05 Persistence.** Calibration profiles, rates, setup and quality preset are saved to the user's profile folder.
