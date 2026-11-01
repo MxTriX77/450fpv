@@ -1,0 +1,24 @@
+{
+  "spec": "assets-src/drone/drone.json",
+  "seed": 1,
+  "layout": "legs_off",
+  "arm": {"thickness_m": 0.006, "width_m": 0.025, "mount_width_m": 0.032},
+  "plates": {"bottom_m": 0.003, "top_m": 0.002, "upper_m": 0.003, "corner_r_m": 0.010},
+  "motor": {"base_d_m": 0.034, "base_h_m": 0.006},
+  "prop": {
+    "hub_d_m": 0.019, "hub_h_m": 0.008, "chord_m": 0.026, "tip_chord_m": 0.008, "sweep_m": 0.012, "thickness_m": 0.004,
+    "rest_deg": {"rr": 30.0, "fr": 100.0, "rl": 150.0, "fl": 60.0}
+  },
+  "coil": {
+    "wound_m": 0.15, "hoop_len_m": 0.015, "hoop_d_m": 0.090, "cap_d_m": 0.072, "core_d_m": 0.039, "hole_d_m": 0.011,
+    "rib_pitch_m": 0.0075, "rib_depth_m": 0.0006
+  },
+  "payout": 0.0,
+  "payload_kg": 1.0,
+  "bottle": {"neck_d_m": 0.025, "cap_d_m": 0.030, "cap_h_m": 0.015, "shoulder_m": 0.06, "base_r_m": 0.012},
+  "pack": {"corner_r_m": 0.008},
+  "straps": 2,
+  "skid_band": true,
+  "camera": {"lens_y_m": 0.015, "lens_z_m": 0.115},
+  "lod": {"lod1_switch_m": 3.0, "lod2_switch_m": 10.0, "lod3_switch_m": 35.0, "cull_m": 330.0}
+}

@@ -1,6 +1,12 @@
 {
   "schema": 1,
   "assets": {
+    "D01": {
+      "class": "drone",
+      "generator": "drone",
+      "variants": ["D01_legs_on", "D01_legs_off"],
+      "materials": { "carbon": "drone_carbon", "metal": "drone_metal", "prop": "drone_prop", "plastic": "drone_plastic", "strap": "drone_strap", "lead": "drone_lead", "bottle": "drone_bottle" }
+    },
     "E01": {
       "class": "earthworks",
       "generator": "trench",
