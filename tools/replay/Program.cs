@@ -13,7 +13,8 @@ namespace Fpv450.Replay
     {
         const string Usage =
             "usage:\n"
-            + "  replay <log> [--drone <drone.json>]   replay the flight; compare every record bit for bit\n"
+            + "  replay <log> [--drone <drone.json>]   replay the flight; compare every record bit for bit, on the world\n"
+            + "                                         the log names: 'floor', or the repository's maps/<id>\n"
             + "  replay --summary <log>                 the flight's summary; a cut log reads to its last whole record\n"
             + "  replay --record <log> [--seconds S] [--realtime] [--wind still|calm|windy|severe] [--drone <drone.json>]\n"
             + "                                         fly the scripted flight (120 s, Windy) and log it\n"
@@ -66,12 +67,13 @@ namespace Fpv450.Replay
                 }
                 Console.WriteLine($"  drone.json {drone}: 0x{droneHash:X16}");
             }
-            FlightWorld world = ScriptedFlight.OpenWorld(h.WorldId);
+            FlightWorld world = ScriptedFlight.OpenWorld(h.WorldId, out string where);
             if (world == null)
             {
-                Console.WriteLine("refused: this replay cannot open the world '" + h.WorldId + "'");
+                Console.WriteLine("refused: this replay cannot open the world '" + h.WorldId + "': " + where);
                 return (int)ReplayOutcome.Refused;
             }
+            Console.WriteLine($"  world '{h.WorldId}' from {where}: 0x{world.ContentHash:X16}");
 
             var clock = Stopwatch.StartNew();
             ReplayResult r = FlightReplay.Run(reader, world, droneHash, Host.Isa);

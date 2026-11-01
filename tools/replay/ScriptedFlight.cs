@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using Fpv450.Sim;
 using Fpv450.Sim.Contact;
@@ -9,6 +10,7 @@ using Fpv450.Sim.Flight;
 using Fpv450.Sim.Log;
 using Fpv450.Sim.Tests;
 using Fpv450.Sim.Wind;
+using Fpv450.Sim.World;
 
 namespace Fpv450.Replay
 {
@@ -45,8 +47,41 @@ namespace Fpv450.Replay
             public long NowUs() => Now;
         }
 
-        /// <summary>The worlds a replay can open by the header's id.</summary>
-        public static FlightWorld OpenWorld(string id) => id == "floor" ? FlightWorld.Floor() : null;
+        /// <summary>
+        /// The world a log names by its header's id: "floor" is the stub's floor; any other id is the repository's map
+        /// maps/&lt;id&gt; (MapWorld.Load), as the app names its flights on the test range (FlightWorlds). Null when there is
+        /// neither; where says what was opened, or why nothing was. The replay checks its content hash against the log's.
+        /// </summary>
+        public static FlightWorld OpenWorld(string id, out string where)
+        {
+            if (id == "floor")
+            {
+                where = "the stub's floor";
+                return FlightWorld.Floor();
+            }
+            if (id.Length == 0 || !id.All(c => c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '-' || c == '_'))
+            {
+                where = "it is not a map id";
+                return null;
+            }
+            string placements = Repository(Path.Combine("maps", id, "placements.json"));
+            if (placements == null)
+            {
+                where = "no maps/" + id + "/placements.json in a repository above " + Directory.GetCurrentDirectory();
+                return null;
+            }
+            string root = Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(placements)));
+            try
+            {
+                where = "the map " + placements;
+                return new FlightWorld(MapWorld.Load(root, id));
+            }
+            catch (Exception e) when (e is IOException || e is FormatException || e is ArgumentException)
+            {
+                where = "the map " + placements + " cannot be loaded: " + e.Message;
+                return null;
+            }
+        }
 
         /// <summary>The repository's drone.json, found from the working directory upwards; null when there is none.</summary>
         public static string RepositoryDrone() => Repository(Path.Combine("assets-src", "drone", "drone.json"));
@@ -179,7 +214,7 @@ namespace Fpv450.Replay
             var setup = new FlightSetup
             {
                 Seed = Seed,
-                World = OpenWorld("floor"),
+                World = FlightWorld.Floor(),
                 Mass = spec.BuildMass(loadout),
                 Propulsion = spec.BuildPropulsion(),
                 Aero = spec.BuildAero(),
