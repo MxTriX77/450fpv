@@ -583,8 +583,8 @@ def analyse(c, segment=None):
                 bs = [b["std"] for b in bl]
                 d[k] = dict(res_std=sdv, res_std_ci=boot(v, std, block=BLOCK_SEG), frames=nv,
                             kurtosis=kurtosis(fin(v)), kurtosis_ci=boot(v, kurtosis, block=BLOCK_SEG),
-                            blocks=bl, block_cv=std(bs) / mean(bs) if len(bs) > 1 else NAN,
-                            block_min=min(bs) / sdv if len(bs) > 1 else NAN,
+                            blocks=bl, block_cv=std(bs) / mean(bs) if len(bs) > 1 and mean(bs) > 0 else NAN,
+                            block_min=min(bs) / sdv if len(bs) > 1 and sdv > 0 else NAN,
                             events=count, per_min=count / minutes if minutes else NAN,
                             per_min_err=math.sqrt(max(count, 1)) / minutes if minutes else NAN)
             v = where(m, tilt)
