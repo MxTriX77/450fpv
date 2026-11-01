@@ -24,7 +24,7 @@ namespace Fpv450.Sim.Tests
         static MassModel L5 => Drone.BuildMass(new Loadout { Payload = 1.0, Legs = true });
         static MassModel L6 => Drone.BuildMass(new Loadout { Payload = 2.0, Legs = true });
 
-        static MassModel Heavy
+        internal static MassModel Heavy
         {
             get
             {
@@ -34,15 +34,15 @@ namespace Fpv450.Sim.Tests
             }
         }
 
-        static FlightCore Core(MassModel mass, double charge, Quat attitude = default, Double3 velocity = default, PropulsionSpec propulsion = null,
-            FcSettings? settings = null)
+        internal static FlightCore Core(MassModel mass, double charge, Quat attitude = default, Double3 velocity = default, PropulsionSpec propulsion = null,
+            FcSettings? settings = null, AirframeModesSpec modes = null)
         {
             if (attitude.W == 0 && attitude.X == 0 && attitude.Y == 0 && attitude.Z == 0) attitude = Quat.Identity;
             return new FlightCore(new FlightSetup
             {
                 Seed = 1, World = FlightWorld.Floor(), Mass = mass, Propulsion = propulsion ?? Drone.BuildPropulsion(),
                 StartPosition = new Double3(0, 500, 0), StartAttitude = attitude, StartVelocity = velocity, StartPackCharge = charge,
-                Settings = settings ?? FcSettings.Default,
+                Settings = settings ?? FcSettings.Default, Modes = modes,
             });
         }
 
@@ -66,7 +66,7 @@ namespace Fpv450.Sim.Tests
             new StickSample { Throttle = throttle, Roll = roll, Pitch = pitch, Yaw = yaw, Arm = arm };
 
         // Betaflight's arming: the switch seen off, then on with the throttle low.
-        static void Arm(FlightCore core)
+        internal static void Arm(FlightCore core)
         {
             for (int k = 0; k < 8; k++) core.Advance(Stick(0, arm: false));
             for (int k = 0; k < 8; k++) core.Advance(Stick(0));
@@ -155,8 +155,8 @@ namespace Fpv450.Sim.Tests
                     duty[c.name + " " + charge] = h.Duty;
                     if (c.name == "L4 nominal" && charge == 1.0)
                     {
-                        Assert.That(h.FrontOverRear, Is.EqualTo(0.037).Within(0.003),
-                            "p5-drone: the front motors 3.7 % over the mean at L4 (the CoM 6 mm forward: the front pair 7.7 % over the rear pair)");
+                        Assert.That(h.FrontOverRear, Is.EqualTo(0.0032).Within(0.0005),
+                            "D-050: the front motors 0.32 % over the mean at L4 (the CoM 0.5 mm forward, the stack's electronics)");
                         core.GetSignals(out FeedSignals sig);
                         Assert.That(sig.PackVolts, Is.EqualTo(h.Volts).Within(0.05));
                         Assert.That(sig.MotorElectricalHz.RearRight, Is.EqualTo(core.State.RotorSpeed.RearRight / (2 * Math.PI) * 7).Within(2));
@@ -267,7 +267,7 @@ namespace Fpv450.Sim.Tests
         }
 
         // Propulsion alone on a body held at rest, every ESC at full duty for `seconds`.
-        static FlightState FullDuty(Propulsion prop, double charge, double seconds, out RotorLoads last)
+        internal static FlightState FullDuty(Propulsion prop, double charge, double seconds, out RotorLoads last)
         {
             var s = new FlightState { Attitude = Quat.Identity, PackCharge0 = charge, PackCharge1 = charge };
             var full = new Corners { RearRight = 1, FrontRight = 1, RearLeft = 1, FrontLeft = 1 };
@@ -429,9 +429,15 @@ namespace Fpv450.Sim.Tests
         // On a rate rig: a 200 °/s step held 2 s tumbles the body through 400°, and in free air the rotors' in-plane drag
         // of that tumble's own motion swings the rate by tens of °/s (FreeTumble prints it); the loop's own stability
         // is measured without it. The rate is the plant's (the body's), not the filtered gyro.
-        static StepResult StepResponse(int axis, FcSettings settings)
+        static StepResult StepResponse(int axis, FcSettings settings, double escTau = 0, bool modes = false)
         {
-            FlightCore core = Core(L4, 1, propulsion: NoInPlaneDrag(), settings: settings);
+            PropulsionSpec propulsion = NoInPlaneDrag();
+            if (escTau > 0)
+                for (int i = 0; i < 4; i++) propulsion.Motors[i].EscTau = escTau;
+            FlightCore core = Core(L4, 1, propulsion: propulsion, settings: settings, modes: modes ? Drone.BuildModes() : null);
+            if (modes)
+                for (int i = 0; i < core.Modes.Count; i++)
+                    TestContext.Out.WriteLine($"  mode {i}: {F(core.Modes.Frequency(i), "0.0")} Hz, ζ {F(core.Modes.Damping(i), "0.000")} (derived)");
             Arm(core);
             Hover h = HoldHeight(core);
             FlightController fc = core.Controller;
@@ -528,10 +534,27 @@ namespace Fpv450.Sim.Tests
             Assert.That(chain.Settle, Is.LessThan(1.0), "within 5 % for good inside the first second");
             Assert.That(chain.LastSpread, Is.LessThan(10), "no sustained oscillation");
             // Its overshoot below 25 % holds for the plant and the PIDs alone (1.4, 1.5); the chain's phase lag
-            // (10.6 ms at 10 Hz on the gyro, 18.8 ms on the D term's input: FilterChainTests) takes it to about 40 %,
-            // past the scenario's 25 % (1.4b, for the orchestrator). Bounded here so that a change of it is seen.
+            // (10.6 ms at 10 Hz on the gyro, 18.8 ms on the D term's input: FilterChainTests) takes it past that (1.4b,
+            // D-045). Bounded here so that a change of it is seen: 20–35 % on the ESC's 0.4 ms command lag (p7b-airframe
+            // 1.0), across its 0.2–0.7 ms range; design 5's assumed 5 ms, the known-wrong lag, falls out of it.
             Assert.That(bare.Overshoot, Is.LessThan(0.25), "without the filters: overshoots by less than 25 %");
-            Assert.That(chain.Overshoot, Is.InRange(0.30, 0.45), "the builder's chain: measured 40.9 % (roll), 38.4 % (pitch)");
+            Assert.That(chain.Overshoot, Is.InRange(0.20, 0.35), "the builder's chain: measured 32.5 % (roll), 27.1 % (pitch) on D-050's layout");
+            foreach (double tau in new[] { 0.0002, 0.0007, 0.005 })
+            {
+                StepResult r = StepResponse(axis, FcSettings.Default, tau);
+                TestContext.Out.WriteLine($"{name} step, the builder's chain, τ_esc {F(1000 * tau, "0.0")} ms: {r}");
+                if (tau < 0.001) Assert.That(r.Overshoot, Is.InRange(0.20, 0.35), "inside the band across τ_esc's range");
+                else Assert.That(r.Overshoot, Is.GreaterThan(0.35), "the known-wrong 5 ms lag overshoots past the band");
+            }
+            // The same step on the elastic airframe (AirframeModes, 1.4; D-050's strapped loads): the bottle's mount on top is
+            // its lowest mode, the coil's beneath next, the arms at the builder's notches, and the gyro reads the frame's
+            // turn. The loop stays stable and inside the band.
+            StepResult elastic = StepResponse(axis, FcSettings.Default, modes: true);
+            TestContext.Out.WriteLine($"{name} step, the builder's chain, the airframe's modes on: {elastic}");
+            Assert.That(elastic.LastMean, Is.EqualTo(200).Within(10), "the modes on: settles within 5 % of the setpoint");
+            Assert.That(elastic.Settle, Is.LessThan(1.0), "the modes on: within 5 % for good inside the first second");
+            Assert.That(elastic.LastSpread, Is.LessThan(10), "the modes on: no sustained oscillation");
+            Assert.That(elastic.Overshoot, Is.InRange(0.20, 0.35), "the modes on: inside the band");
         }
 
         // The same step in free air, the rotors' in-plane drag on: printed, not asserted.

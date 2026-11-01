@@ -164,6 +164,13 @@
       "edge_radius_m": 0.05,
       "label": "derived",
       "rationale": "filled sandbags (F04): μ as fabric (a polymer foot on woven polypropylene or hessian, assumed); a 15 mm foot at 67 kPa punches into loose fill (surface bearing capacity 2–4 kPa), so the fill acts as a loose-soil row: tamped fill at 5e6 N/m³ (assumed, between tilled and meadow_sod) under the 15 mm reference foot, k = bearing·A = 884 N/m, so a leg sinks 13 mm static and 28 mm at 25 N; ζ from those rows' damping at a quarter of 4.8 kg, 0.94; the edge is the rounded shoulder of a 0.12 m bag (derived), so a line over a wall top never cuts; elastic, so no footprint stays (a deviation from the soil law, accepted); no wet adhesion on polypropylene (review-physics.md of p1-fortifications-sheet)"
+    },
+    "carbon_composite": {
+      "friction_static": 0.30,
+      "friction_kinetic": 0.25,
+      "edge_radius_m": 0.0005,
+      "label": "assumed",
+      "rationale": "carbon-fibre laminate: the drone's own arms, plates, legs and skids (the Svinoriz 10 Opto model's collision, p5-drone; the drone side's contact material of the same id in drone.json, p6-flight-core 1.6) and any other cut carbon plate or roll-wrapped tube; signed off by physics in p7b-airframe (D-050's fit). A polymer part on the laminate's epoxy-rich face, as plastic on plastic in the published 0.2–0.4 band; rigid per part: the reference part is a 3 mm quasi-isotropic plate (E ≈ 50 GPa, ν 0.3, assumed) 0.09 m across between its supports (the drone's plates), which a 15 mm foot bends as a centre-loaded simply supported square plate, w = 0.0116·P·a²/D (Timoshenko's coefficient, published) with D = E·t³/(12(1−ν²)) = 124 N·m, at ≈ 1.3e6 N/m (derived), so a foot's 11.8 N share (a quarter of 4.8 kg) sinks 9 µm and the part's own spring sets the bounce; a roll-wrapped 10 mm tube is a cylinder, so the fiber bends over its own radius; a plate's milled edge, lightly sanded as builders do against cut leads and straps (assumed: a fresh milled edge is sharper still), bends the fiber over 0.5 mm"
     }
   }
 }
