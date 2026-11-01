@@ -152,6 +152,58 @@ namespace Fpv450.Sim.Tests
             Assert.That(late.FromDegAt(0), Is.EqualTo(h[start]));
         }
 
+        // D-060, K§8.4: the nominal pilot's split per stretch reads clip P's roll share of the thrust tilt over the field,
+        // 0.80 (wind_stats.py's cov(roll, e)/var(e) on the residuals about the 0.6 s trend, e = roll + k·heading); K§8.5's
+        // single 0.64 everywhere (the harness before D-060, the known-wrong) reads about 0.51 there.
+        [Test]
+        public void TheSplitReadsClipPsRollShare()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            double Share(WindHarness.Pilot pilot)
+            {
+                double cov = 0, var = 0;
+                for (int i = 0; i < 5; i++)
+                {
+                    WindHarness.Run r = WindHarness.Fly(spec, WindLevel.Severe, (ulong)i + 1, i, 5, pilot);
+                    double heading = 0, pitch = 0;
+                    var roll = new System.Collections.Generic.List<double>();
+                    var head = new System.Collections.Generic.List<double>();
+                    void Close()
+                    {
+                        double[] a = MicroMotion.Residual(roll.ToArray(), HarnessPilot.CameraHz), h = MicroMotion.Residual(head.ToArray(), HarnessPilot.CameraHz);
+                        double k = -Math.Sin(pitch * DegToRad);
+                        for (int j = 0; j < a.Length; j++)
+                        {
+                            double e = a[j] + k * h[j];
+                            cov += a[j] * e;
+                            var += e * e;
+                        }
+                        roll.Clear();
+                        head.Clear();
+                    }
+                    pitch = r.MeanPitchDeg;
+                    foreach (WindHarness.Sample x in r.Samples)
+                    {
+                        heading += x.YawRateDps / HarnessPilot.CameraHz;
+                        if (x.Usable && !x.InBelt)
+                        {
+                            roll.Add(x.RollDeg);
+                            head.Add(heading);
+                        }
+                        else if (roll.Count > 0) Close();
+                    }
+                    if (roll.Count > 0) Close();
+                }
+                return cov / var;
+            }
+            WindHarness.Pilot nominal = WindHarness.Pilots[0];
+            var single = new WindHarness.Pilot { Name = "single", FieldSplit = 0.64, BeltSplit = 0.64 };
+            double share = Share(nominal), wrong = Share(single);
+            TestContext.Out.WriteLine($"field roll share, Severe seeds 1–5: {share:F3} at s {nominal.FieldSplit} (P 0.80); K§8.5's single 0.64: {wrong:F3}");
+            Assert.That(share, Is.EqualTo(0.80).Within(0.06));
+            Assert.That(Math.Abs(wrong - 0.80), Is.GreaterThan(0.06), "the single 0.64 split does not read P's share");
+        }
+
         // D-060: the harness pilot's stick noise is the optimal-control model's motor noise. On a command of known variance
         // (a 1 Hz sinusoid, σ_c² = A²/2) its variance is π·ρ_u·σ_c² through the neuromotor lag, (1 − a)/(1 + a)·π·ρ_u·σ_c²/Δt
         // at the 250 Hz reports (a = e^(−Δt/τ_n)), with ρ_u at −25 dB, and its lag-1 correlation is a. The observation

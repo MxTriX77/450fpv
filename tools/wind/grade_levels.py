@@ -146,6 +146,7 @@ def per_run(o):
         "T12 cv roll": g(out, ("roll", "block_cv")), "T12 cv pitch": g(out, ("pitch", "block_cv")),
         "T12 min roll": g(out, ("roll", "block_min")), "T12 min pitch": g(out, ("pitch", "block_min")),
         "belt roll": g(ins, ("roll", "res_std")), "belt yaw": g(ins, ("yaw", "res_std")), "k": o["airframe"]["k"],
+        "share field": g(out, ("tilt", "split")), "share belt": g(ins, ("tilt", "split")),
     }
     return v
 
@@ -290,6 +291,8 @@ def main(argv=None):
         table.append(dict(target=name, passed=ok, wrong=list(fams), wrong_fails=caught))
     print(f"{a.level}: {passed} of {graded} targets pass; "
           f"{'every' if allcaught else 'NOT every'} known-wrong model fails its target")
+    print(f"  the nominal pilot's roll share of the thrust tilt (K section 8.4, P: 0.80 field, 0.64 belt): "
+          f"field {v['share field']:.3f}, belt {v['share belt']:.3f}")
     if a.json:
         Path(a.json).write_text(json.dumps(ws.finite({"level": a.level, "readings": v, "verdicts": res, "table": table,
                                                        "wrong": wrong}), indent=1), encoding="utf-8")

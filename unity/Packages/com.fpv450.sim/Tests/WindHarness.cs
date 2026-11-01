@@ -80,11 +80,20 @@ namespace Fpv450.Sim.Tests
         /// (assumed: a gentle cruise climb; twice HarnessPilot's 2 s height loop).</summary>
         public const double ClimbRate = 3, SettleSeconds = 4;
 
-        /// <summary>A pilot: the nominal one or a variant (wind.md §6.1).</summary>
+        /// <summary>
+        /// The nominal pilot's split s over the open field and over the belt stretch (derived, D-060: set so that the
+        /// harness's measured roll share, wind_stats.py's cov(roll, e)/var(e), reads clip P's, K§8.4's measured 0.80 over
+        /// the field and 0.64 over the belt, on Severe's 10 seeds, as K§8.5 once set 0.64 from the belt's share; the pilot
+        /// splits the tilt it wants, and the airframe's own roll and the heading's turn of the horizon move the share it
+        /// reads). K§8.5's single 0.64, which reads about 0.51 over the field, is the known-wrong.
+        /// </summary>
+        public const double FieldSplit = 0.85, BeltSplit = 0.73;
+
+        /// <summary>A pilot: the nominal one or a variant (wind.md §6.1), with its split over the field and the belt.</summary>
         public sealed class Pilot
         {
             public string Name;
-            public double Delay = 0.10, TauV = 0.5, Split = 0.64;
+            public double Delay = 0.10, TauV = 0.5, FieldSplit = WindHarness.FieldSplit, BeltSplit = WindHarness.BeltSplit;
         }
 
         /// <summary>The nominal pilot and its variants, flown on the same seeds; s = 1 and s = 0 are for T11b only.</summary>
@@ -95,8 +104,8 @@ namespace Fpv450.Sim.Tests
             new Pilot { Name = "d0.2", Delay = 0.2 },
             new Pilot { Name = "tv0.3", TauV = 0.3 },
             new Pilot { Name = "tv1.0", TauV = 1.0 },
-            new Pilot { Name = "s1", Split = 1 },
-            new Pilot { Name = "s0", Split = 0 },
+            new Pilot { Name = "s1", FieldSplit = 1, BeltSplit = 1 },
+            new Pilot { Name = "s0", FieldSplit = 0, BeltSplit = 0 },
         };
 
         /// <summary>One logged camera frame, and the flight's truth beside it (for the run's summary, never the CSV).</summary>
@@ -343,7 +352,7 @@ namespace Fpv450.Sim.Tests
             double course = courseDeg * DegToRad;
             var p = new HarnessPilot(core.Controller)
             {
-                Delay = pilot.Delay, TauV = pilot.TauV, Split = pilot.Split, Course = course, Height = low,
+                Delay = pilot.Delay, TauV = pilot.TauV, Split = pilot.FieldSplit, Course = course, Height = low,
             };
             if (remnant) p.UseRemnant(seed); // D-060: the stick noise; the noiseless pilot is the known-wrong
             DetMath.SinCos(course, out double sin, out double cos);
@@ -366,7 +375,9 @@ namespace Fpv450.Sim.Tests
             var fields = new HarnessPilot.Frame[4]; // the camera at the last fields' horizon rows, by field number
             for (int k = 0; k < steps; k++)
             {
-                if (climbFrom < 0 && Double3.Dot(core.State.Position - setup.StartPosition, along) > beltTo) climbFrom = k;
+                double travelled = Double3.Dot(core.State.Position - setup.StartPosition, along);
+                p.Split = travelled >= beltFrom && travelled <= beltTo ? pilot.BeltSplit : pilot.FieldSplit; // per stretch
+                if (climbFrom < 0 && travelled > beltTo) climbFrom = k;
                 if (climbFrom >= 0) p.Height = System.Math.Min(height, low + ClimbRate * (k - climbFrom) * 0.001);
                 if ((k - (long)HorizonMs) % (long)FieldMs == 0 || k == 0)
                     fields[(k / (long)FieldMs) % fields.Length] = HarnessPilot.Take(core.State, k, course);
