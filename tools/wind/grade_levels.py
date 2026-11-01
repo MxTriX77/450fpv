@@ -11,6 +11,8 @@ flown, and must fail there:
   spreads and spectra, T7, T8, T10)
 - `-nobelt`: the field without the belt's wooded strip, its canopy flow (the belt's spreads and ratios, T7's belt
   share, T10b's belt), flown at the same heights
+- `-noiseless`: the pilot without its stick noise (D-060, HarnessPilot's motor noise), a second known-wrong for the
+  pitch spread and its 1-4 Hz (T2, T6c), where the human remnant belongs; every flown known-wrong must fail
 - `as severe` (Calm only): Severe's runs graded on Calm's ceilings, a calm level as strong as Severe (every ceiling
   but T6d's)
 - `pose`: the nominal runs' logs with white noise of 0.15 deg per axis added to the attitude, the "noise on the pose"
@@ -27,7 +29,7 @@ derived); the harness's frames carry the recorder's field pick (WindHarness.Fiel
 upper end with P's pick added in quadrature (0.018 / 0.012 deg, section 2.3): 0.082 / 0.044 deg (derived).
 
 usage: python tools/wind/grade_levels.py DIR LEVEL [--json OUT]
-DIR holds <level>/, and optionally <level>-nodrag/, <level>-steady/ and <level>-nobelt/.
+DIR holds <level>/, and optionally <level>-nodrag/, <level>-steady/, <level>-nobelt/ and <level>-noiseless/.
 """
 
 import argparse
@@ -61,9 +63,9 @@ CALM = {"T0", "T1", "T2", "T3", "T4", "T5 field", "T5 belt", "T6d roll", "T6d pi
 # The targets in wind.md's order, each with its conditions and its known-wrong model (the family that must fail it).
 TARGETS = [
     ("T0", ["T0"], "nodrag"), ("T0b", ["T0b spread", "T0b windward"], "steady"),
-    ("T1", ["T1"], "steady"), ("T2", ["T2"], "steady"), ("T3", ["T3", "T3 ratio"], "nobelt"), ("T4", ["T4", "T4 ratio"], "nobelt"),
+    ("T1", ["T1"], "steady"), ("T2", ["T2"], ("steady", "noiseless")), ("T3", ["T3", "T3 ratio"], "nobelt"), ("T4", ["T4", "T4 ratio"], "nobelt"),
     ("T5 field", ["T5 field"], "steady"), ("T5 belt", ["T5 belt"], "nobelt"),
-    ("T6a", ["T6a"], "pose"), ("T6b", ["T6b"], "steady"), ("T6c", ["T6c share", "T6c rms"], "steady"),
+    ("T6a", ["T6a"], "pose"), ("T6b", ["T6b"], "steady"), ("T6c", ["T6c share", "T6c rms"], ("steady", "noiseless")),
     ("T6d", ["T6d roll", "T6d pitch"], "pose"), ("T7", ["T7 rate", "T7 belt share"], "nobelt"),
     ("T8", ["T8 median", "T8 cv"], "steady"), ("T9a", ["T9a"], "calm/busy"), ("T9b", ["T9b"], "stationary"),
     ("T10a", ["T10a"], "steady"), ("T10b", ["T10b whole", "T10b belt", "T10b belt > field"], "nobelt"),
@@ -237,7 +239,7 @@ def main(argv=None):
     v = readings(runs)
     res = verdicts(v, a.level)
     wrong = {}
-    for fam in ("nodrag", "steady", "nobelt"):
+    for fam in ("nodrag", "steady", "nobelt", "noiseless"):
         d = root / f"{a.level}-{fam}"
         if (d / "harness.json").exists():
             wrong[fam] = verdicts(readings(load_runs(d)), a.level)
@@ -254,14 +256,18 @@ def main(argv=None):
     allpass = allcaught = True
     table = []
     for name, conds, fam in TARGETS:
-        if a.level == "calm" and fam != "pose":
-            fam = "as severe"
+        fams = fam if isinstance(fam, tuple) else (fam,)
+        if a.level == "calm" and fams != ("pose",):
+            fams = ("as severe",)
         conds = [c for c in conds if c in res]
         if not conds:
             continue
         ok = all(res[c][2] for c in conds)
-        w = wrong.get(fam)
-        caught = None if w is None or not any(c in w for c in conds) else any(not w[c][2] for c in conds if c in w)
+        # Each known-wrong family fails the target when any of its conditions is out; every flown one must fail it.
+        each = {f: (None if wrong.get(f) is None or not any(c in wrong[f] for c in conds)
+                    else any(not wrong[f][c][2] for c in conds if c in wrong[f])) for f in fams}
+        flown = [x for x in each.values() if x is not None]
+        caught = None if not flown else all(flown)
         graded += 1
         passed += ok
         allpass &= ok
@@ -269,12 +275,19 @@ def main(argv=None):
         for i, c in enumerate(conds):
             x, band, cok = res[c]
             xs = f"{x:9.3f}" if isinstance(x, float) else f"{x:>9}"
-            wx = w[c][0] if w is not None and c in w else None
-            wtxt = "" if wx is None else (f"{fam} {wx:.3f}" if isinstance(wx, float) else f"{fam} {wx}") + (" in" if w[c][2] else " out")
+            parts = []
+            for f in fams:
+                w = wrong.get(f)
+                if w is None or c not in w:
+                    continue
+                wx = w[c][0]
+                parts.append((f"{f} {wx:.3f}" if isinstance(wx, float) else f"{f} {wx}") + (" in" if w[c][2] else " out"))
+            wtxt = "; ".join(parts)
             last = i == len(conds) - 1
-            tail = (f"  -> {'PASS' if ok else 'FAIL'}; known-wrong {fam}: " + ("not flown" if caught is None else "fails" if caught else "PASSES"))
+            tail = (f"  -> {'PASS' if ok else 'FAIL'}; known-wrong " + ", ".join(
+                f"{f}: " + ("not flown" if each[f] is None else "fails" if each[f] else "PASSES") for f in fams))
             print(f"  {name if i == 0 else '':8s} {c:18s} {xs}  {band:14s} {'ok' if cok else 'out':4s}  {wtxt}{tail if last else ''}")
-        table.append(dict(target=name, passed=ok, wrong=fam, wrong_fails=caught))
+        table.append(dict(target=name, passed=ok, wrong=list(fams), wrong_fails=caught))
     print(f"{a.level}: {passed} of {graded} targets pass; "
           f"{'every' if allcaught else 'NOT every'} known-wrong model fails its target")
     if a.json:

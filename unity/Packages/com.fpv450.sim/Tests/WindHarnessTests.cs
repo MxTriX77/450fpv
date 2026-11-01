@@ -152,6 +152,47 @@ namespace Fpv450.Sim.Tests
             Assert.That(late.FromDegAt(0), Is.EqualTo(h[start]));
         }
 
+        // D-060: the harness pilot's stick noise is the optimal-control model's motor noise. On a command of known variance
+        // (a 1 Hz sinusoid, σ_c² = A²/2) its variance is π·ρ_u·σ_c² through the neuromotor lag, (1 − a)/(1 + a)·π·ρ_u·σ_c²/Δt
+        // at the 250 Hz reports (a = e^(−Δt/τ_n)), with ρ_u at −25 dB, and its lag-1 correlation is a. The observation
+        // noise's −20 dB in its place (3.2× the variance) fails; without UseRemnant the pilot is noiseless (the grade's
+        // known-wrong family).
+        [Test]
+        public void TheStickNoiseIsTheModelsMotorNoise()
+        {
+            double Variance(double db, out double lag1)
+            {
+                var pilot = new HarnessPilot(null) { MotorNoiseDb = db };
+                pilot.UseRemnant(7);
+                const double amplitude = 40; // °/s
+                double sum = 0, sum2 = 0, cross = 0, last = 0;
+                int n = 0;
+                for (long k = 0; k < 250 * 300; k++)
+                {
+                    double noise = pilot.Motor(1, amplitude * Math.Sin(2 * Math.PI * k / 250.0), k);
+                    if (k >= 250 * 30)
+                    {
+                        sum += noise;
+                        sum2 += noise * noise;
+                        cross += noise * last;
+                        n++;
+                    }
+                    last = noise;
+                }
+                double mean = sum / n, v = sum2 / n - mean * mean;
+                lag1 = (cross / n - mean * mean) / v;
+                return v / (amplitude * amplitude / 2);
+            }
+            double dt = 0.004, a = Math.Exp(-dt / 0.1);
+            double expected = (1 - a) / (1 + a) * Math.PI * Math.Pow(10, -2.5) / dt;
+            double got = Variance(-25, out double lag1), wrong = Variance(-20, out _);
+            TestContext.Out.WriteLine($"stick noise over the command's variance: {got:F4} (the model's {expected:F4}); lag-1 correlation {lag1:F4} ({a:F4}); "
+                + $"at −20 dB {wrong:F4}");
+            Assert.That(got / expected, Is.EqualTo(1).Within(0.1));
+            Assert.That(lag1, Is.EqualTo(a).Within(0.01));
+            Assert.That(Math.Abs(wrong / expected - 1), Is.GreaterThan(0.1), "−20 dB is not the motor noise's ratio");
+        }
+
         // D-060, hover-micro-motion.md §2.3: each logged frame shows the newest whole PAL field at its horizon row, as the
         // recorder writes it at its 29.917 Hz ticks, so the frames' instants jitter by a field (σ 20/√12 = 5.8 ms) against
         // the tracker's uniform clock. The uniform clock (the harness before D-060, the known-wrong) has no such spread.

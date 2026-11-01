@@ -28,6 +28,8 @@ def test_every_condition_has_a_target_and_a_known_wrong_model():
     conds = {k for _, cs, _ in gl.TARGETS for k in cs}
     assert set(gl.SEVERE) <= conds
     assert all(fam for _, _, fam in gl.TARGETS)
+    fams = {name: fam for name, _, fam in gl.TARGETS}
+    assert "noiseless" in fams["T2"] and "noiseless" in fams["T6c"]   # D-060: the stick noise's known-wrong
 
 
 def test_the_verdicts_read_bands_and_ratios():

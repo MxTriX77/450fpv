@@ -32,6 +32,8 @@ namespace Fpv450.Sim.Tests
     ///   tick's (K§8.5).
     /// - **The start:** each run starts where the seed's prevailing wind stays within 90° of its drawn direction for the
     ///   whole run (StartSecond).
+    /// - **The pilot's stick noise** (D-060): every pilot flies with the optimal-control model's motor noise
+    ///   (HarnessPilot.UseRemnant, on the run's seed); `remnant: false` flies the noiseless pilot, the known-wrong.
     /// </summary>
     public static class WindHarness
     {
@@ -112,7 +114,7 @@ namespace Fpv450.Sim.Tests
             public WindLevel Level;
             public ulong Seed;
             public string Pilot;
-            public bool Belt, Steady;
+            public bool Belt, Steady, Remnant;
             public double HeightRef, BeltHeightRef, ClimbSeconds, FromDeg, MeanSpeed, CourseDeg, Mass, StartSecond;
 
             /// <summary>The body's inertia about its roll, pitch and yaw axes, kg·m² (body z, x, y).</summary>
@@ -326,7 +328,7 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>Flies run i of n for a seed with a pilot, and logs it.</summary>
         public static Run Fly(DroneSpec spec, WindLevel level, ulong seed, int i, int n, Pilot pilot, bool belt = true, bool drag = true,
-            bool steady = false)
+            bool steady = false, bool remnant = true)
         {
             double height = HeightOf(i, n), low = BeltHeightOf(i, n), climb = ClimbSecondsOf(i, n), seconds = Seconds + climb;
             double[] history = History(level, seed, 120, out double drawn);
@@ -343,6 +345,7 @@ namespace Fpv450.Sim.Tests
             {
                 Delay = pilot.Delay, TauV = pilot.TauV, Split = pilot.Split, Course = course, Height = low,
             };
+            if (remnant) p.UseRemnant(seed); // D-060: the stick noise; the noiseless pilot is the known-wrong
             DetMath.SinCos(course, out double sin, out double cos);
             var along = new Double3(sin, 0, cos);
             var right = new Double3(cos, 0, -sin);
@@ -350,7 +353,7 @@ namespace Fpv450.Sim.Tests
 
             var run = new Run
             {
-                Level = level, Seed = seed, Pilot = pilot.Name, Belt = belt, Steady = steady, HeightRef = height, BeltHeightRef = low,
+                Level = level, Seed = seed, Pilot = pilot.Name, Belt = belt, Steady = steady, Remnant = remnant, HeightRef = height, BeltHeightRef = low,
                 ClimbSeconds = climb, FromDeg = fromDeg,
                 MeanSpeed = core.Wind.MeanSpeed, CourseDeg = courseDeg, Mass = core.Body.Mass, StartSecond = start,
                 RollInertia = core.Body.Inertia.ZZ, PitchInertia = core.Body.Inertia.XX, YawInertia = core.Body.Inertia.YY,

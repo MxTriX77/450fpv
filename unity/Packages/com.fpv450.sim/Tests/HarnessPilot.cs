@@ -81,6 +81,15 @@ namespace Fpv450.Sim.Tests
     ///   controller's own rate curve (ACTUAL rates), inverted by bisection.
     /// - **Throttle:** the height through a 2 s loop: a climb rate (h_ref − h)/`HeightTau` wanted, its error on the
     ///   throttle with a proportional and an integral share.
+    /// - **Stick noise** (D-060), when the harness gives it its stream (`UseRemnant`): the optimal-control model's motor
+    ///   noise (Kleinman, Baron and Levison 1970), at its published ratio, not tuned. On each command (the three body
+    ///   rates and the throttle), white noise of covariance V_u = π·ρ_u·E{u_c²}, ρ_u at `MotorNoiseDb` and E{u_c²} the
+    ///   command's variance about its running mean over `RemnantWindow`, through the neuromotor lag `NeuromotorTau` (so
+    ///   its variance is V_u/(2·τ_n)), added to the command; the commands' own path keeps K§8.5's measured τ, which already
+    ///   holds the pilot's lag. The model's observation noise (−20 dB) is not carried: it enters that model through its
+    ///   optimal estimator, which this pilot has not, and fed raw into K§8.5's laws it is another model (p7c-wind 1.5's
+    ///   tasks note its reading). Each draw is a 12-uniform sum (bounded at ±6σ) from the named counter-based stream
+    ///   `pilot.motor`, per stick report and command. Without it the pilot is noiseless (the known-wrong).
     /// It reports the sticks at the TX12's 250 Hz (every `Period` steps). Basic operations only, so its flights give
     /// the same bits on every runtime.
     /// </summary>
@@ -126,6 +135,18 @@ namespace Fpv450.Sim.Tests
         /// <summary>Steps between stick reports: 4, the radio's 250 Hz (fc-profiles §1).</summary>
         public int Period = 4;
 
+        /// <summary>The motor noise ratio, dB: ρ_u = 10^(dB/10) (published: −25 dB, the optimal-control model's, Kleinman,
+        /// Baron and Levison 1970; recalled, not re-read).</summary>
+        public double MotorNoiseDb = -25;
+
+        /// <summary>The neuromotor lag the motor noise passes through, s (published: about 0.1 s, the same model's τ_n;
+        /// recalled, not re-read).</summary>
+        public double NeuromotorTau = 0.1;
+
+        /// <summary>The running variance's time constant, s (assumed: long against the pilot's 0.17–0.30 s loops and the
+        /// 0.23 Hz band's period, short against a run; set before any grade, never tuned).</summary>
+        public double RemnantWindow = 10;
+
         /// <summary>The course's bearing, radians from north toward east, and the height to hold, m.</summary>
         public double Course, Height;
 
@@ -143,9 +164,24 @@ namespace Fpv450.Sim.Tests
         int _count;
         StickSample _last;
 
+        // The stick noise: its stream, each command's running mean and variance and its noise through the neuromotor lag,
+        // and the stick reports so far (the draws' index).
+        bool _remnant;
+        SeedStream _motor;
+        readonly double[] _mean = new double[4], _variance = new double[4], _lagged = new double[4];
+        long _reports;
+
         public HarnessPilot(FlightController fc)
         {
             _fc = fc;
+        }
+
+        /// <summary>Gives the pilot the optimal-control model's stick noise, drawn from the flight seed's named stream
+        /// `pilot.motor`.</summary>
+        public void UseRemnant(ulong seed)
+        {
+            _motor = new FlightRandom(seed).Open("pilot.motor");
+            _remnant = true;
         }
 
         /// <summary>A frame the camera took (in time order).</summary>
@@ -208,6 +244,14 @@ namespace Fpv450.Sim.Tests
             double r = headingRate * cosPitch * cosRoll - pitchRate * sinRoll;
 
             double throttle = ThrottleStart + _throttleIntegral + ClimbGain * ClimbError(v);
+            if (_remnant)
+            {
+                p += Motor(0, p, _reports);
+                q += Motor(1, q, _reports);
+                r += Motor(2, r, _reports);
+                throttle += Motor(3, throttle, _reports);
+                _reports++;
+            }
             throttle = throttle < 0 ? 0 : throttle > 1 ? 1 : throttle;
 
             // The pilot's axes (DetMath.cs): roll right +p; stick forward is nose down, −q; yaw right +r; °/s.
@@ -223,6 +267,33 @@ namespace Fpv450.Sim.Tests
         }
 
         double ClimbError(in Frame f) => (Height - f.Height) / HeightTau - f.Climb;
+
+        // Command i's motor noise at stick report `report` (from 0, once per report and command): its running mean and
+        // variance (exponentially weighted over RemnantWindow, the plain mean until it has that many reports) updated with
+        // the command, then one draw of white noise of covariance π·ρ_u·E{u_c²} held over the report, through the
+        // neuromotor lag.
+        internal double Motor(int i, double command, long report)
+        {
+            double dt = Period * 0.001, window = RemnantWindow / dt;
+            long n = report + 1;
+            double alpha = n < window ? 1.0 / n : 1 / window;
+            double d = command - _mean[i];
+            _mean[i] += alpha * d;
+            _variance[i] = (1 - alpha) * (_variance[i] + alpha * d * d);
+            double ratio = DetMath.Exp(MotorNoiseDb * 0.23025850929940458); // 10^(dB/10)
+            double white = DetMath.Sqrt(TrackerAngles.Pi * ratio * _variance[i] / dt) * Normal(_motor, (ulong)report * 4 + (ulong)i);
+            double a = DetMath.Exp(-dt / NeuromotorTau);
+            _lagged[i] = a * _lagged[i] + (1 - a) * white;
+            return _lagged[i];
+        }
+
+        // Draw i of a stream as a nearly normal value: 12 uniforms less 6 (Irwin–Hall), bounded by ±6.
+        static double Normal(in SeedStream stream, ulong i)
+        {
+            double sum = -6;
+            for (ulong j = 0; j < 12; j++) sum += (stream.BitsAt(12 * i + j) >> 11) * (1.0 / 9007199254740992.0);
+            return sum;
+        }
 
         // The stick whose ACTUAL setpoint is this rate (°/s), by bisection on the controller's curve.
         double Stick(int axis, double rate)
