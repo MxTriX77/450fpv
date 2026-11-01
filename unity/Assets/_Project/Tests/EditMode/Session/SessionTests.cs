@@ -345,6 +345,78 @@ namespace Fpv450.Tests.Session
             Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
         }
 
+        // QA's probe Q2 (review, finding 14): armed at throttle 0.3, paused, the cable pulled, then Restart or End flight,
+        // after the paused frames drained the loss or in the frame it came. Neither throws, and the loss is the failsafe:
+        // the first RC frame after the pause runs before the end with the loss in force, so the log has it with its stamp
+        // and the flight ends on it. Restart without the radio leaves the session Ended; the next flight starts once the
+        // radio is back, with the switch to cycle again.
+        [TestCase(true, true, TestName = "Q2: Restart after a radio lost during a pause logs the failsafe and waits for the radio")]
+        [TestCase(false, true, TestName = "Q2: End flight after a radio lost during a pause logs the failsafe")]
+        [TestCase(false, false, TestName = "Q2: End flight in the frame the radio is lost during a pause logs the failsafe")]
+        public void EndingAPauseThatLostTheRadioIsTheFailsafe(bool restart, bool drained)
+        {
+            Rig rig = Make(i => i.Choices = new FlightChoices { Payload = 1.0, Legs = true });
+            rig.Session.Start();
+            rig.ArmCycle();
+            rig.Radio.Throttle = 0.3;
+            rig.Run(300);
+            rig.Session.Pause();
+            long k = rig.Session.Core.State.Step;
+            rig.Run(100);
+            rig.Radio.Lost = true;
+            long lostAt;
+            if (drained)
+            {
+                lostAt = rig.Clock.Now + FlightCore.StepUs; // the next pass sees it
+                rig.Run(100);
+            }
+            else
+            {
+                rig.Clock.Now += FlightCore.StepUs; // the input thread's pass, and no frame since
+                lostAt = rig.Clock.Now;
+                rig.Plugged = null;
+                rig.Reader.Pump(0);
+            }
+            Assert.That(rig.Reader.Connected, Is.False, "the cable is out");
+            ulong seed = rig.Session.Seed;
+            string log = rig.Session.LogPath;
+            Double3 first = rig.Session.Setup.StartPosition;
+            if (restart) Assert.That(rig.Session.Restart(), Is.False, "no radio: the new flight waits for it");
+            else rig.Session.EndFlight();
+
+            Assert.That((rig.Session.State, rig.Session.Flights), Is.EqualTo((SessionState.Ended, 1)));
+            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Failsafe));
+            long rcFrame = FlightController.LoopsPerRcFrame / FlightController.LoopsPerStep;
+            Assert.That(rig.Session.End.Step - k, Is.InRange(1, rcFrame), "disarmed at the first RC frame after the pause");
+            PostFlight p = rig.Session.ReadSummary();
+            TestContext.WriteLine("Q2 " + (restart ? "Restart" : "End flight") + (drained ? "" : " in the loss's frame") + ": paused after step " + k + ", lost at host " + lostAt
+                                  + " us; end at step " + rig.Session.End.Step + "; " + string.Join(" | ", p.Lines()));
+            Assert.That((p.End.Kind, p.End.Step), Is.EqualTo((FlightEndKind.Failsafe, rig.Session.End.Step)));
+            Assert.That(p.Log.Failsafes.Count, Is.EqualTo(1));
+            Assert.That((p.Log.Failsafes[0].State.Step, p.Log.Failsafes[0].Stick.HostUs), Is.EqualTo((k + 1, lostAt)), "logged at the first step after the pause, with the loss's stamp");
+            List<LoggedEvent> after = p.Log.Events.FindAll(e => e.Event.Kind == EventKind.Hitch && e.Step > k);
+            Assert.That(after.ConvertAll(e => ((HitchCause)e.Event.Index, e.Step)), Is.EqualTo(new[] { (HitchCause.Pause, k + 1) }), "the pause logged, and no late pass");
+            Assert.That(p.Lines().FindAll(l => l.StartsWith("failsafe at ")).Count, Is.EqualTo(1), "the summary lists the failsafe");
+            ReplayResult replay;
+            using (FileStream f = File.OpenRead(log))
+                replay = FlightReplay.Run(f, id => id == "floor" ? FlightWorld.Floor() : null, _spec.ContentHash);
+            Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
+            if (!restart) return;
+
+            var back = new TestRadio(rig.Clock) { Arm = true, Throttle = 0.3 };
+            rig.Radio = back;
+            rig.Plugged = back;
+            for (int i = 0; i < 100 && !rig.Reader.Connected; i++) rig.Run(1);
+            Assert.That(rig.Reader.Connected, Is.True, "back");
+            rig.Session.Start(); // the host's, once the radio is in
+            Assert.That((rig.Session.State, rig.Session.Flights), Is.EqualTo((SessionState.Flying, 2)));
+            Assert.That(rig.Session.Seed, Is.Not.EqualTo(seed), "a new seed");
+            Assert.That(rig.Session.LogPath, Is.Not.EqualTo(log), "a new log");
+            Assert.That(rig.Session.Setup.StartPosition, Is.EqualTo(first), "from the start point");
+            rig.Run(50);
+            Assert.That(rig.Session.Core.State.Armed, Is.False, "the new flight needs the switch cycled");
+        }
+
         // ---- Pause and restart ------------------------------------------------------------------------------------------
 
         [Test]
@@ -369,7 +441,7 @@ namespace Fpv450.Tests.Session
             ulong seed = rig.Session.Seed;
             string log = rig.Session.LogPath;
 
-            rig.Session.Restart();
+            Assert.That(rig.Session.Restart(), Is.True, "the radio is in: the new flight starts at once");
             Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying));
             Assert.That(rig.Session.Flights, Is.EqualTo(2));
             Assert.That(rig.Session.Seed, Is.Not.EqualTo(seed), "a new seed");

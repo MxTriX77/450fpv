@@ -113,7 +113,8 @@ namespace Fpv450.App.Session
     /// - **runs** on the flight thread (FlightScheduler) under the 1 ms timer period, which the session holds while it
     ///   lives; Pause stops the stepping and Resume goes on with every later step's host time moved by the pause, logged
     ///   as a Pause hitch. A radio lost during the pause is the failsafe in force for the first RC frame after it, even
-    ///   when plugged back in before Resume, so the log has it with its stamp and the end rule sees it
+    ///   when plugged back in before Resume, so the log has it with its stamp and the end rule sees it; the pilot's end of
+    ///   a paused flight runs that frame first
     /// - **ends** on the first of FlightEndRule's conditions, found on the flight thread as each step goes to the log; the
     ///   log stops at that step, so PostFlight finds the same end. Restart, EndFlight and Dispose end it by the pilot.
     /// The session never starts or stops the app's radio (the app does, on quit and on a domain reload); it sets the
@@ -192,10 +193,16 @@ namespace Fpv450.App.Session
         /// </summary>
         public void Start()
         {
+            if (!TryStart()) throw new InvalidOperationException("no radio is connected");
+        }
+
+        // Start's work; false, with nothing changed, when no radio is connected and the keyboard may not fly.
+        bool TryStart()
+        {
             if (State == SessionState.Flying || State == SessionState.Paused) throw new InvalidOperationException("a flight is under way");
             RadioReader reader = _in.Reader;
             bool radio = reader != null && reader.Connected;
-            if (!radio && !_in.KeyboardAllowed) throw new InvalidOperationException("no radio is connected");
+            if (!radio && !_in.KeyboardAllowed) return false;
 
             ulong seed = _in.NewSeed != null ? _in.NewSeed() : RandomSeed();
             FlightSetup setup = SessionSetup.Build(_in, seed, out Loadout loadout, out StartPoint start);
@@ -244,6 +251,7 @@ namespace Fpv450.App.Session
             Flights++;
             Step(startUs);
             State = SessionState.Flying;
+            return true;
         }
 
         /// <summary>
@@ -267,11 +275,9 @@ namespace Fpv450.App.Session
             {
                 _keyboard.Update(KeyboardKeys.None, now, out _); // the pause's time does not move the throttle
             }
-            else if (_inbox.Drain(now, out StickSample lost) && !_lostWhilePaused)
+            else
             {
-                // The flight thread is stopped: this thread is the inbox's consumer. The first loss is kept for Resume.
-                _pausedLoss = lost;
-                _lostWhilePaused = true;
+                DrainPaused(now);
             }
 
             if (_scheduler.Fault != null)
@@ -309,34 +315,36 @@ namespace Fpv450.App.Session
                 Tick(); // it ended before the pause
                 return;
             }
-            long now = _in.Clock.NowUs();
-            long k = _core.State.Step;
-            long start = _startUs + _shiftUs + (now - _pausedAtUs);
-            if (start + k * FlightCore.StepUs < now) start = now - k * FlightCore.StepUs;
-            long moved = start - _startUs - _shiftUs;
-            _shiftUs += moved;
-            _log.RecordPause(k + 1, moved);
-            if (_lostWhilePaused)
-            {
-                if (_heldToStep <= k) _heldToStep = k + RcFrameSteps; // a new loss; a kept one keeps its steps
-                _inbox.Hold(_pausedLoss, start + _heldToStep * FlightCore.StepUs);
-            }
-            Step(start);
+            Step(Unpause());
             State = SessionState.Flying;
         }
 
-        /// <summary>Ends the flight by the pilot and starts a new one from the start point, with a new seed and log.</summary>
-        public void Restart()
+        /// <summary>
+        /// Ends the flight by the pilot and starts a new one from the start point, with a new seed and log, when one can
+        /// start; true when it did. Without a radio where the keyboard may not fly, the session stays Ended and the next
+        /// Start begins the new flight (the host's, once the radio is in).
+        /// </summary>
+        public bool Restart()
         {
             EndFlight();
-            Start();
+            return TryStart();
         }
 
-        /// <summary>Ends a flight under way by the pilot (quit, back to the menu).</summary>
+        /// <summary>
+        /// Ends a flight under way by the pilot (the pause's End flight and Restart, quit, back to the menu). A radio lost
+        /// during the pause is still the failsafe (INP-05): the first RC frame after the pause runs here, with the loss in
+        /// force, as Resume would have it, so the log has the failsafe with its stamp and the end rule sees it (an armed
+        /// drone disarms, and the flight ends on the failsafe).
+        /// </summary>
         public void EndFlight()
         {
+            if (State == SessionState.Paused && _scheduler.Fault == null && !_probe.Ended)
+            {
+                DrainPaused(_in.Clock.NowUs());
+                if (_lostWhilePaused) RunHeldFrame(Unpause());
+            }
             if (State == SessionState.Flying || State == SessionState.Paused)
-                Finish(new FlightEnd { Kind = FlightEndKind.Pilot, Step = _core.State.Step });
+                Finish(_probe.Ended ? _probe.End : new FlightEnd { Kind = FlightEndKind.Pilot, Step = _core.State.Step });
         }
 
         /// <summary>The ended flight's summary, from its log (design 7). It reads the whole log, so call it off the frame.</summary>
@@ -360,6 +368,45 @@ namespace Fpv450.App.Session
             if (_in.Threaded) _scheduler.Start(startUs);
             else _scheduler.Begin(startUs);
             _stepping = true;
+        }
+
+        // While paused the flight thread is stopped, so this thread is the inbox's consumer. The first loss is kept.
+        void DrainPaused(long now)
+        {
+            if (_inbox.Drain(now, out StickSample lost) && !_lostWhilePaused)
+            {
+                _pausedLoss = lost;
+                _lostWhilePaused = true;
+            }
+        }
+
+        // The end of a pause: step 0's host time moved by it (a step already due when it began is due now), the move
+        // logged before the next step as a Pause hitch, and a loss the pause drained held for the first RC frame after it.
+        long Unpause()
+        {
+            long now = _in.Clock.NowUs();
+            long k = _core.State.Step;
+            long start = _startUs + _shiftUs + (now - _pausedAtUs);
+            if (start + k * FlightCore.StepUs < now) start = now - k * FlightCore.StepUs;
+            long moved = start - _startUs - _shiftUs;
+            _shiftUs += moved;
+            _log.RecordPause(k + 1, moved);
+            if (_lostWhilePaused)
+            {
+                if (_heldToStep <= k) _heldToStep = k + RcFrameSteps; // a new loss; a kept one keeps its steps
+                _inbox.Hold(_pausedLoss, start + _heldToStep * FlightCore.StepUs);
+            }
+            return start;
+        }
+
+        // A paused flight's held RC frame, on this thread, one step a pass at its own host time (no hitch), until the
+        // frame has run or the end rule has found the end.
+        void RunHeldFrame(long startUs)
+        {
+            _scheduler = new FlightScheduler(_core, _inbox, Poses, _in.Clock, _probe);
+            _scheduler.Begin(startUs);
+            while (_core.State.Step < _heldToStep && !_probe.Ended)
+                _scheduler.RunDue(_scheduler.StepHostUs(_core.State.Step));
         }
 
         void StopStepping()

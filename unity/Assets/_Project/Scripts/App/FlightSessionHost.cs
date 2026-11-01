@@ -38,7 +38,8 @@ namespace Fpv450.App
         // A flight is wanted: the first once enabled, then one for each Fly. It starts when it can.
         bool _wanted;
 
-        /// <summary>A flight is wanted, no radio is connected and the keyboard may not fly: the scene asks for the radio.</summary>
+        /// <summary>A flight is wanted (the first, a Fly or a Restart), no radio is connected and the keyboard may not fly:
+        /// the scene asks for the radio.</summary>
         public bool WaitingForRadio => Session != null && _wanted && !AppRadio.Reader.Connected && !Inputs.KeyboardAllowed;
 
         void OnEnable()
@@ -107,12 +108,13 @@ namespace Fpv450.App
         public void Pause() => Session?.Pause();
         public void Resume() => Session?.Resume();
 
-        /// <summary>Ends the flight by the pilot and starts a new one from the start point (APP-04).</summary>
+        /// <summary>Ends the flight by the pilot and starts a new one from the start point (APP-04); without the radio the
+        /// new one is wanted, as Fly's, and starts once the radio is in.</summary>
         public void Restart()
         {
             if (Session == null) return;
-            Session.Restart();
-            Logged();
+            if (Session.Restart()) Logged();
+            else _wanted = true;
         }
 
         void Logged() =>
