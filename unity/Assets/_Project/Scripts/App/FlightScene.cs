@@ -5,6 +5,7 @@ using Fpv450.App.Session;
 using Fpv450.Feed;
 using Fpv450.Sim;
 using Fpv450.Sim.Contact;
+using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.UI;
 using Fpv450.World;
@@ -36,7 +37,7 @@ namespace Fpv450.App
         static readonly Vector3 ChaseOffset = new Vector3(0f, 0.7f, -2.2f);
         const float ChasePitchDeg = 14f;
 
-        /// <summary>The camera's height over the ground while the first flight waits for the radio: about where the drone
+        /// <summary>The camera's height over the ground while a flight waits for the radio: about where the drone
         /// rests on its legs or on the stand (0.253 m), a preview only.</summary>
         const float PreviewHeightM = 0.25f;
         FlightChoices _previewed;
@@ -146,11 +147,12 @@ namespace Fpv450.App
             FlightSession session = Host.Session;
             Keys();
             if (session == null) return;
-            if (session.Flights == 0)
+            if (Host.WaitingForRadio)
             {
-                if (Host.WaitingForRadio) Preview(Host.Inputs);
+                Preview(Host.Inputs);
                 return;
             }
+            if (session.Flights == 0) return;
             if (session.Flights != ShownFlight) Show(session);
 
             // The buffer is reused by every flight: a pair from before this flight's step 0 is the last flight's.
@@ -184,6 +186,7 @@ namespace Fpv450.App
         void Show(FlightSession session)
         {
             ShownFlight = session.Flights;
+            _previewed = null; // the next wait for the radio previews again
             _armedOnce = false;
             Summary = null;
             _lines = null;
@@ -226,16 +229,21 @@ namespace Fpv450.App
                       $"sun {_look.State.SunElevationDeg:0.0}° up");
         }
 
-        // Before the first flight, while the radio is awaited: the view from the chosen start at the chosen time, once for
-        // each choice the setup hands over.
+        // While the radio is awaited (before the first flight, or after a Fly or a Restart): the FPV view from the chosen
+        // start at the chosen time, once for each choice the setup hands over and once after each flight. The last
+        // flight's stand-in and stand go.
         void Preview(SessionInputs inputs)
         {
             FlightChoices c = inputs.Choices;
             if (ReferenceEquals(c, _previewed)) return;
             _previewed = c;
+            if (_model != null) Destroy(_model);
+            if (_stand != null) Destroy(_stand);
             StartPoint at = Array.Find(inputs.StartPoints, s => s.Name == c.StartPoint);
             if (at.Name == null) at = inputs.StartPoints[0];
             _body.SetPositionAndRotation(new Vector3((float)at.X, PreviewHeightM, (float)at.Z), Quaternion.Euler(0f, (float)(at.Yaw * 180 / Math.PI), 0f));
+            _camera.transform.localPosition = CameraMount;
+            _camera.transform.localRotation = Quaternion.identity;
             Look(c);
         }
 
@@ -327,7 +335,7 @@ namespace Fpv450.App
             switch (session.State)
             {
                 case SessionState.Flying:
-                    if (!_armedOnce) FlightScreens.Hint("Arm: switch off, then on, with the throttle down  ·  Esc pauses");
+                    if (!_armedOnce) FlightScreens.Hint(ArmHint(session.Input) + "  ·  Esc pauses");
                     break;
                 case SessionState.Paused:
                     switch (FlightScreens.Pause())
@@ -347,6 +355,12 @@ namespace Fpv450.App
                     break;
             }
         }
+
+        /// <summary>How the flight's input arms: the radio's switch (held off until seen off), or the development
+        /// keyboard's Enter, a toggle, with its throttle (W up, S down) at the bottom.</summary>
+        public static string ArmHint(InputSource input) => input == InputSource.Keyboard
+            ? "Arm: Enter, with the throttle down (S)"
+            : "Arm: switch off, then on, with the throttle down";
 
         void OnDisable() => Cursor.visible = true;
 

@@ -2,6 +2,7 @@ using System.IO;
 using Fpv450.App;
 using Fpv450.Feed;
 using Fpv450.Sim;
+using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.UI;
 using NUnit.Framework;
@@ -74,6 +75,14 @@ namespace Fpv450.Tests.App
             Assert.That(SetupScreen.Clock(0), Is.EqualTo("00:00"));
             Assert.That(SetupScreen.Clock(17.5), Is.EqualTo("17:30"));
             Assert.That(SetupScreen.Clock(23 + 59 / 60.0), Is.EqualTo("23:59"));
+        }
+
+        // QA's finding 16: the keyboard arms with Enter, a toggle; only the radio's switch is held off until seen off.
+        [Test]
+        public void TheArmingHintIsTheInputs()
+        {
+            Assert.That(FlightScene.ArmHint(InputSource.Keyboard), Is.EqualTo("Arm: Enter, with the throttle down (S)"));
+            Assert.That(FlightScene.ArmHint(InputSource.Radio), Is.EqualTo("Arm: switch off, then on, with the throttle down"));
         }
     }
 }
