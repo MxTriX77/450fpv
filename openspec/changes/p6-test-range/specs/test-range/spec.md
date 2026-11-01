@@ -9,7 +9,7 @@ The test range: a small flat map built from the assets that exist, a yard with i
 ### Requirement: Contents from what exists
 The map SHALL be about 512 m square on flat ground and SHALL hold:
 - a yard with the Godot adobe house, plank shed, cellar head and shaft, plank gate, a run of plank fence and two fruit trees at the Godot yard's relative layout, with grass round it
-- a posadka a few hundred metres long and 10–30 m wide, trunks 1–3 m apart, mixing the Godot belt trees and shrub with Unity's V01 trees and V13 shrubs, with bushes among the trees and at least one gap through it
+- a posadka a few hundred metres long and 10–30 m wide across its trees and their edge bushes, trunks 1–3 m apart, mixing the Godot belt trees and shrub with Unity's V01 trees and V13 shrubs, with bushes among the trees and at least one gap through it
 - grass fields on both sides of the posadka
 - both R01 variants: the intact car in or by the yard, the burnt one on the track
 - a power line of at least four L01 poles with L03 wires, and an E01 trench run along the posadka
@@ -23,7 +23,7 @@ No text, sign or name SHALL appear in the map beyond what the assets already car
 
 #### Scenario: The posadka's shape
 - **WHEN** the map's placement data is read
-- **THEN** the posadka's trunks lie within a strip 10–30 m wide and at least 200 m long, the nearest-neighbour distance between trunks has its median within 1–3 m, at least a fifth of its plants are Unity's V01 or V13, and at least one gap at least 4 m wide crosses it
+- **THEN** the posadka's plants, its trees and their edge bushes, lie within a strip 10–30 m wide and at least 200 m long, its trunks stand in four rows 3 m apart, the nearest-neighbour distance between trunks has its median within 1–3 m, at least a fifth of its plants are Unity's V01 or V13, and at least one gap at least 4 m wide crosses it
 
 ### Requirement: The Godot stand-ins
 Each Godot asset the map uses SHALL be ported from `refs/godot/main` at a pinned commit through the asset pipeline, rebuilt by one command, and labelled a stand-in in the catalog. Each SHALL keep its Godot collision shapes, gaps, wind volumes, porosity, snag flag and LOD distances, carried into Unity's frame, and SHALL get its review sheet. Nothing of the Godot branch SHALL be merged (D-027).
