@@ -182,51 +182,108 @@ namespace Fpv450.FlightBench
         }
 
         /// <summary>The step with its contacts busiest: legs on resting on the floor (eight supports and their friction), and
-        /// legs off resting on the stand (eight arm edges on four posts), armed at idle; 60 000 steps each.</summary>
+        /// legs off resting on the stand (eight arm edges on four posts), armed at idle; 60 000 steps each. Then the same on
+        /// the test range (MapWorld) with the airframe's effects on, as a pilot's flight has them: legs on resting in S04's
+        /// straw, and the field start's stand through its launch (FromStand's flight: armed on the posts, the collective ramp,
+        /// the climb), 12 flights of 5016 steps from the arming.</summary>
         public static bool Bench()
         {
             DroneSpec spec = PoweredFlightCase.Drone();
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong hash);
             bool ok = true;
+            Func<FlightCore, int, StickSample> idle = (c, k) => new StickSample { HostUs = c.State.Step * FlightCore.StepUs, Arm = k >= 8, Throttle = 0 };
             foreach (bool legs in new[] { true, false })
             {
                 Loadout loadout = spec.Nominal;
                 loadout.Legs = legs;
                 ContactSpec contacts = spec.BuildContacts(loadout, materials, hash);
-                FlightSetup setup = ContactScenarios.Setup(spec, materials, hash, legs, legs
-                    ? new Double3(0, ContactScenarios.Standing(contacts), 0) : LaunchStand.RestingOrigin(spec, contacts, default));
-                if (!legs) setup.RuntimeObjects = new[] { LaunchStand.Build(spec, default, 0, setup.World.Query.MaterialId(spec.Stand.Material)) };
-                setup.GroundEffect = spec.BuildGroundEffect(); // p7b-airframe 1.3: the rotors' rays and ground samples on top of the contacts
-                setup.Flapping = spec.BuildFlapping(); // and 1.3c's flapping
-                var core = new FlightCore(setup);
-                const int warmup = 2000, steps = 60000;
-                var times = new long[steps];
-                long allocated = 0;
-                int touching = 0;
-                for (int k = -warmup; k < steps; k++)
+                Double3 start = legs ? new Double3(0, ContactScenarios.Standing(contacts), 0) : LaunchStand.RestingOrigin(spec, contacts, default);
+                FlightSetup Make()
                 {
-                    var stick = new StickSample { HostUs = core.State.Step * FlightCore.StepUs, Arm = k + warmup >= 8, Throttle = 0 };
-                    if (k == 0) allocated = GC.GetAllocatedBytesForCurrentThread();
-                    long t0 = Stopwatch.GetTimestamp();
-                    core.Advance(stick);
-                    if (k >= 0) times[k] = Stopwatch.GetTimestamp() - t0;
-                    if (k == steps - 1) touching = core.Trace.ContactsTouching;
+                    FlightSetup setup = ContactScenarios.Setup(spec, materials, hash, legs, start);
+                    if (!legs) setup.RuntimeObjects = new[] { LaunchStand.Build(spec, default, 0, setup.World.Query.MaterialId(spec.Stand.Material)) };
+                    setup.GroundEffect = spec.BuildGroundEffect(); // p7b-airframe 1.3: the rotors' rays and ground samples on top of the contacts
+                    setup.Flapping = spec.BuildFlapping(); // and 1.3c's flapping
+                    return setup;
                 }
-                allocated = GC.GetAllocatedBytesForCurrentThread() - allocated;
-                Array.Sort(times);
-                double us = 1e6 / Stopwatch.Frequency, p50 = times[steps / 2] * us, p99 = times[steps * 99 / 100] * us;
-                bool pass = p99 <= 300 && allocated == 0 && core.State.Armed && touching > 0;
-                ok &= pass;
-                FlightSetup again = ContactScenarios.Setup(spec, materials, hash, legs, setup.StartPosition);
-                if (!legs) again.RuntimeObjects = new[] { LaunchStand.Build(spec, default, 0, again.World.Query.MaterialId(spec.Stand.Material)) };
-                again.GroundEffect = spec.BuildGroundEffect();
-                again.Flapping = spec.BuildFlapping();
-                string share = TimedQuery.Share(again, (c, k) => new StickSample { HostUs = c.State.Step * FlightCore.StepUs, Arm = k >= 8, Throttle = 0 }, warmup, steps);
-                Console.WriteLine($"{Name}: {(legs ? "legs on, resting on the floor" : "legs off, resting on the stand")}, armed at idle: {steps} steps, "
-                    + $"{contacts.Shapes.Length} shapes, {touching} touching pairs: p50 {p50:F2} µs, p99 {p99:F2} µs, steady-state allocation {allocated} B, "
-                    + $"{share}: {(pass ? "PASS" : "FAIL")} (p99 ≤ 300 µs, 0 B)");
+                ok &= Timed(legs ? "legs on, resting on the floor, armed at idle" : "legs off, resting on the stand, armed at idle", contacts.Shapes.Length, Make, idle, 2000, 60000, 1);
+            }
+
+            MapWorld world = RangeScenarios.World;
+            Console.WriteLine($"{Name}: the test range, MapWorld 0x{world.ContentHash:X16} ({world.PlacedObjects} objects), the airframe's effects on:");
+            {
+                ContactScenarios.Site straw = RangeScenarios.At(RangeScenarios.Straw, 0);
+                straw.Airframe = true;
+                ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, hash);
+                Double3 start = straw.Foot + new Double3(0, ContactScenarios.Standing(contacts), 0);
+                FlightSetup Make()
+                {
+                    FlightSetup setup = ContactScenarios.Setup(spec, materials, hash, true, start);
+                    setup.World = new FlightWorld(world);
+                    return straw.Effects(setup, spec);
+                }
+                ok &= Timed("legs on, resting in S04's straw, armed at idle", contacts.Shapes.Length, Make, idle, 2000, 60000, 1);
+            }
+            {
+                ContactScenarios.Site field = RangeScenarios.At(RangeScenarios.Start("field"));
+                field.Airframe = true;
+                Loadout off = spec.Nominal;
+                off.Legs = false;
+                ContactSpec contacts = spec.BuildContacts(off, materials, hash);
+                FlightSetup Make()
+                {
+                    FlightSetup setup = ContactScenarios.Setup(spec, materials, hash, false, LaunchStand.RestingOrigin(spec, contacts, field.Foot));
+                    setup.World = new FlightWorld(world);
+                    setup.StartAttitude = field.Attitude();
+                    setup.RuntimeObjects = new[] { LaunchStand.Build(spec, field.Foot, field.Heading, world.MaterialId(spec.Stand.Material)) };
+                    return field.Effects(setup, spec);
+                }
+                // FromStand's sticks: armed at 1008, the collective from 0 at 1016 to 0.75 over 3 s, held 2 s.
+                Func<FlightCore, int, StickSample> launch = (c, k) => new StickSample
+                {
+                    HostUs = c.State.Step * FlightCore.StepUs, Arm = k >= 1008, Throttle = k < 1016 ? 0 : DetMath.Min(0.75, 0.75 * (k - 1016) / 3000.0),
+                };
+                ok &= Timed("legs off, the field start's stand: armed on the posts, the launch and the climb", contacts.Shapes.Length, Make, launch, 1000, 5016, 12);
             }
             return ok;
+        }
+
+        /// <summary>
+        /// Flies repeats fresh flights of make() for warmup + steps each and times the last steps of each: the step's p50 and
+        /// p99 over them all and its allocation in them. Then the same flights again with the world's queries timed
+        /// (TimedQuery): their share of the step, their calls a step, and their time in a step at p99 and at most (PLT-04's
+        /// 60 µs line). Passes on p99 ≤ 300 µs, 0 B, armed at the end, and touching at the first timed step.
+        /// </summary>
+        static bool Timed(string label, int shapes, Func<FlightSetup> make, Func<FlightCore, int, StickSample> stick, int warmup, int steps, int repeats)
+        {
+            var times = new long[steps * repeats];
+            long allocated = 0;
+            int touching = 0;
+            bool armed = true;
+            for (int r = 0; r < repeats; r++)
+            {
+                var core = new FlightCore(make());
+                long before = 0;
+                for (int k = 0; k < warmup + steps; k++)
+                {
+                    StickSample s = stick(core, k);
+                    if (k == warmup) before = GC.GetAllocatedBytesForCurrentThread();
+                    long t0 = Stopwatch.GetTimestamp();
+                    core.Advance(s);
+                    if (k >= warmup) times[r * steps + k - warmup] = Stopwatch.GetTimestamp() - t0;
+                    if (r == 0 && k == warmup) touching = core.Trace.ContactsTouching;
+                }
+                allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+                armed &= core.State.Armed;
+            }
+            Array.Sort(times);
+            int n = times.Length;
+            double us = 1e6 / Stopwatch.Frequency, p50 = times[n / 2] * us, p99 = times[n * 99 / 100] * us;
+            bool pass = p99 <= 300 && allocated == 0 && armed && touching > 0;
+            string share = TimedQuery.Share(make, stick, warmup, steps, repeats);
+            Console.WriteLine($"{Name}: {label}: {repeats} × {steps} steps, {shapes} shapes, {touching} touching pairs at the first timed step: p50 {p50:F2} µs, "
+                + $"p99 {p99:F2} µs, steady-state allocation {allocated} B, {share}: {(pass ? "PASS" : "FAIL")} (p99 ≤ 300 µs, 0 B)");
+            return pass;
         }
     }
 }
