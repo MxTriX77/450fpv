@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using Fpv450.App.Session;
 using Fpv450.Input.Radio;
+using Fpv450.Sim;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Wind;
 using Fpv450.UI;
@@ -440,8 +441,40 @@ namespace Fpv450.App
                 }
             }
 
+            // The keyboard's flight into the house beside the ground start (QA's finding 3 in a player): the summary names
+            // the placed object it hit, from the map. A pilot's build has no keyboard and skips it.
+            string lastStart = stand.Name;
+            double lastHour = 17.5;
+            if (_flight != null && _flight.Host.Inputs != null && _flight.Host.Inputs.KeyboardAllowed)
+            {
+                FlightChoices c = _setup.Choices;
+                c.StartPoint = lastStart = ground.Name;
+                c.Legs = true;
+                c.TimeOfDay = lastHour = 14.0;
+                Fly();
+                FlightSessionHost host = _flight.Host;
+                yield return Until(() => host.Session.State == SessionState.Flying && host.Session.Flights == _flight.ShownFlight && host.Session.Choices.StartPoint == ground.Name, 10);
+                yield return new WaitForSecondsRealtime(1);
+                yield return Hold(KeyboardKeys.ArmToggle, 0.1f);
+                yield return new WaitForSecondsRealtime(0.4f);
+                Check(_flight.Pose.Armed, "armed for the flight into the house");
+                yield return IntoTheHouse();
+                FlightSession session = host.Session;
+                Check(session.State == SessionState.Ended && session.End.Kind == FlightEndKind.Crash, "the flight into the house ends in a crash: " + session.End.Kind);
+                _flight.Chase = true;
+                yield return null;
+                yield return Shot("crash_chase");
+                _flight.Chase = false;
+                yield return Until(() => _flight.Summary != null, 30);
+                PostFlight summary = _flight.Summary;
+                Check(summary != null && summary.HasCrash && summary.CrashObject == HouseBesideTrack,
+                      "the summary names the house: " + (summary != null ? summary.Cause() : "none"));
+                yield return Shot("summary_crash");
+            }
+
             FlightChoices saved = SetupStore.Load(Application.persistentDataPath, out string error);
-            Check(error == null && saved.StartPoint == stand.Name && !saved.Legs, "the last setup is saved for the next start");
+            Check(error == null && saved.StartPoint == lastStart && saved.Legs == (lastStart == ground.Name) && saved.TimeOfDay == lastHour,
+                  "the last setup is saved for the next start");
             if (pilotSetup != null) File.WriteAllBytes(setupFile, pilotSetup);
             else File.Delete(setupFile);
             Menu();
@@ -449,6 +482,41 @@ namespace Fpv450.App
             Check(_view == View.Menu, "Menu returns to the menu");
             Debug.Log("[Smoke] " + (failed == 0 && _errors == 0 ? "PASS" : "FAIL") + ": " + failed + " checks failed, " + _errors + " errors logged");
             Application.Quit(failed == 0 && _errors == 0 ? 0 : 1);
+        }
+
+        /// <summary>The house beside the ground start `track`, 6 m ahead and 14 m to the right, behind a 1.8 m fence; its
+        /// north wall lies between headings 143° and 176° from the start.</summary>
+        const string HouseBesideTrack = "Z01_house_adobe";
+
+        // The smoke test's keyboard pilot into the house, on the flight's own pose: the throttle (W, S) holds 3 m over the
+        // start, D turns to 158° once 2 m up, then the pitch key tilts it forward for 0.35 s, and it flies on until it hits.
+        IEnumerator IntoTheHouse()
+        {
+            const double Height = 3, Heading = 158;
+            FlightSessionHost host = _flight.Host;
+            FlightSession session = host.Session;
+            KeyboardKeys keys = KeyboardKeys.None;
+            host.Keys = () => keys;
+            double rest = _flight.RestPose.Position.Y;
+            float end = Time.realtimeSinceStartup + 15, pitchFrom = -1;
+            while (session.State == SessionState.Flying && Time.realtimeSinceStartup < end)
+            {
+                yield return null;
+                PoseFrame p = _flight.Pose;
+                double h = p.Position.Y - rest + 0.8 * p.Velocity.Y; // a little ahead
+                Quat q = p.Attitude;
+                double heading = Math.Atan2(2 * (q.X * q.Z + q.W * q.Y), 1 - 2 * (q.X * q.X + q.Y * q.Y)) * 180 / Math.PI;
+                double turn = ((Heading - heading) % 360 + 540) % 360 - 180;
+                KeyboardKeys k = h < Height ? KeyboardKeys.ThrottleUp : h > Height + 0.3 ? KeyboardKeys.ThrottleDown : KeyboardKeys.None;
+                if (pitchFrom < 0 && p.Position.Y - rest > 2)
+                {
+                    if (Math.Abs(turn) > 3) k |= turn > 0 ? KeyboardKeys.YawRight : KeyboardKeys.YawLeft;
+                    else pitchFrom = Time.realtimeSinceStartup;
+                }
+                if (pitchFrom >= 0 && Time.realtimeSinceStartup - pitchFrom < 0.35f) k |= KeyboardKeys.PitchForward;
+                keys = k;
+            }
+            host.Keys = () => KeyboardKeys.None;
         }
     }
 }
