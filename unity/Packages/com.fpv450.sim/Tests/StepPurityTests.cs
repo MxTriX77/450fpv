@@ -90,6 +90,9 @@ namespace Fpv450.Sim.Tests
         [TestCase("unordered-collection", "var hooks = new Dictionary<long, Hook>();")]
         [TestCase("unordered-collection", "foreach (var id in new HashSet<long>()) { }")]
         [TestCase("system-math", "double s = Math.Sin(a);")]
+        [TestCase("system-math", "double capstan = Math.Exp(mu * theta);")]
+        [TestCase("system-math", "double n = System.Math.Log(rate);")]
+        [TestCase("system-math", "double wrap = Math.Atan2(cross, dot);")]
         [TestCase("system-math", "using System.Numerics;")]
         [TestCase("single-precision", "float k = 0.5f;")]
         [TestCase("other-randomness", "var r = new Random(1);")]
@@ -101,6 +104,39 @@ namespace Fpv450.Sim.Tests
             Assert.That(Scan("Flight/Clean.cs", code), Is.Empty, "comments and strings are not code");
             List<string> found = Scan("Flight/Wrong.cs", "class C {\n" + line + "\n}\n");
             Assert.That(found.Exists(v => v.Contains("[" + rule + "]")), Is.True, rule + " missed: " + string.Join("; ", found));
+        }
+
+        // DetMath is the one file allowed System.Math, and inside it only the members IEEE 754 rounds correctly, so they
+        // give the same bits on every runtime: Sqrt, Abs, and Round to an integer. Its Cbrt, SinCos, Exp, Ln and Atan2 are
+        // built from them and + − × ÷ (p7d-tether 1.1); a transcendental call slipped in here would pass the step scan.
+        static readonly string[] ExactRuntimeMembers = { "Sqrt", "Abs", "Round" };
+
+        [Test]
+        public void DetMathCallsOnlyTheRuntimesCorrectlyRoundedMembers()
+        {
+            string path = Path.Combine(RuntimeDirectory(), "Math", "DetMath.cs");
+            List<string> found = RuntimeMathCalls("Math/DetMath.cs", File.ReadAllText(path));
+            Assert.That(found, Is.Empty, string.Join("\n", found));
+
+            // The check's own check: both spellings caught, the exact members and comments let through.
+            string wrong = "class C {\n// Math.Exp(x) in a comment\ndouble a = System.Math.Exp(x);\ndouble b = Math.Atan2(y, x);\ndouble c = Math.Sqrt(x);\n}\n";
+            List<string> caught = RuntimeMathCalls("Math/DetMath.cs", wrong);
+            Assert.That(caught.Count, Is.EqualTo(2), string.Join("\n", caught));
+            Assert.That(caught[0], Does.Contain("System.Math.Exp"));
+            Assert.That(caught[1], Does.Contain("System.Math.Atan2"));
+        }
+
+        static List<string> RuntimeMathCalls(string relative, string source)
+        {
+            var found = new List<string>();
+            var call = new Regex(@"\bMath\.(\w+)", RegexOptions.CultureInvariant);
+            string[] lines = StripCommentsAndLiterals(source).Split('\n');
+            for (int i = 0; i < lines.Length; i++)
+                foreach (Match m in call.Matches(lines[i]))
+                    if (Array.IndexOf(ExactRuntimeMembers, m.Groups[1].Value) < 0)
+                        found.Add(relative + ":" + (i + 1) + " System.Math." + m.Groups[1].Value
+                            + " is not correctly rounded: build it in DetMath from + − × ÷ √");
+            return found;
         }
 
         static List<string> Scan(string relative, string source)
