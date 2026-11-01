@@ -90,7 +90,7 @@ Branch `unity/game/p6-input-app` off `unity/main`, after `p6-flight-core`'s task
     - **The ends** (`FlightEndRule`): one rule for the live flight and for the log, the first that holds:
       - the core's latched `Crashed` (QA's flight-core finding 3: the core keeps stepping; the session ends the flight)
       - upside down: the up axis below the horizon while touching, for 1 s (assumed)
-      - armed before and not now: the failsafe when the stick in force is the failsafe sample, else the disarm
+      - armed before and not now with the failsafe sample in force: the failsafe (a disarm on the switch ended the flight too until D-062, below in 1.4b)
       - the battery cut-off: either pack's charge at 0, the end of drone.json's OCV table (3.0 V a cell). The model holds the voltage below it, so the pack would never empty (assumed).
       - The rule runs on the flight thread as each step goes to the log, and the log stops at the end's step. The pilot's end and a fault are the session's only.
     - **The summary** (`PostFlight.Read(path)`): `FlightSummary` for the header, the events and the failsafes, then one pass over the records for the distance (from the header's start) and the end. `Cause()` and `Lines()` give:

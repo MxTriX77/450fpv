@@ -30,7 +30,12 @@ In every build, V SHALL switch the flight's camera between the FPV camera at `dr
 - **AND** the flight's log is the same, byte for byte, as without the presses, and replays bit for bit
 
 ### Requirement: The flight ends, and the pilot reads why
-The flight SHALL end on a crash (an impact over its threshold, or upside down on the ground), a battery cut-off or a disarm (APP-04; the fiber's ends come with 7d). The post-flight summary SHALL show the flight from its log: time, distance, the end and its cause (the part and the object for a crash), battery used, and the seed.
+The flight SHALL end on a crash (an impact over its threshold, or upside down on the ground), the failsafe, a battery cut-off, or End flight from the pause menu (APP-04, D-062; the fiber's ends come with 7d), and only then SHALL the post-flight summary show. A disarm on the switch SHALL NOT end the flight: the OSD reads DISARMED, the drone stays in the world under physics, and the switch re-arms it to fly on; the log keeps the arm state of every step. The post-flight summary SHALL show the flight from its log: time, distance, the end and its cause (the part and the object for a crash), battery used, and the seed.
+
+#### Scenario: A disarm in the air
+- **WHEN** the pilot disarms on the switch in the air, then re-arms with the throttle down
+- **THEN** the flight goes on with no summary, the OSD reads DISARMED and then AIR, and the drone falls under physics until the motors take it again
+- **AND** End flight from the pause menu ends it, and the summary reads "ended by the pilot"
 
 #### Scenario: A crash into the car
 - **WHEN** the drone flies into R01_A and crashes

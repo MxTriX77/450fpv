@@ -38,4 +38,4 @@ USB loss SHALL failsafe-disarm the drone and be logged (INP-05). A keyboard fall
 
 #### Scenario: Pulling the cable during a pause
 - **WHEN** the radio is lost while the flight is paused, even if it is plugged back in with the arm switch on before Resume, and even if the pilot pauses again within that first RC frame
-- **THEN** the failsafe is in force for the first RC frame after Resume, the log records it with the loss's time, and the flight ends as a failsafe, not a disarm
+- **THEN** the failsafe is in force for the first RC frame after Resume, the log records it with the loss's time, and the flight ends on the failsafe
