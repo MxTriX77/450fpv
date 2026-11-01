@@ -7,9 +7,10 @@ using Fpv450.Sim.Wind;
 
 namespace Fpv450.FlightBench
 {
-    // The step inside a wooded strip (p7c-wind 1.5): the wind harness's Severe flight, nominal pilot, seed 1, released at
-    // its belt height and flown through its strip (CanopyFlow: 64 more modes at every sample inside it). The bench times
-    // the step inside the strip and outside it; the pilot's own work is outside the timed calls.
+    // The step inside a wooded strip (p7c-wind 1.5): the wind harness's Severe flight, nominal pilot, seed 1, with its whole
+    // airframe and in Severe rain (1.8's cost of the wind), released at its belt height and flown through its strip
+    // (CanopyFlow: 64 more modes at every sample inside it). The bench times the step inside the strip and outside it; the
+    // pilot's own work is outside the timed calls.
     internal static class CanopyStepCase
     {
         public const string Name = "canopy-step";
@@ -19,6 +20,7 @@ namespace Fpv450.FlightBench
             DroneSpec spec = PoweredFlightCase.Drone();
             double low = WindHarness.BeltHeightOf(2, 5);
             FlightSetup setup = WindHarness.Setup(spec, WindLevel.Severe, 1, low, belt: true, drag: true, out double courseDeg, out _);
+            setup.Rain = RainLevel.SevereRain;
             var core = new FlightCore(setup);
             CrosswindScenario.Arm(core);
             var pilot = new HarnessPilot(core.Controller) { Course = courseDeg * 0.017453292519943295, Height = low };
@@ -52,7 +54,7 @@ namespace Fpv450.FlightBench
             }
             double i50 = P(inside, ni, 50), i99 = P(inside, ni, 99), o50 = P(outside, no, 50), o99 = P(outside, no, 99);
             bool ok = ni > 3000 && i99 <= 300 && o99 <= 300 && allocated == 0 && core.State.Armed;
-            Console.WriteLine($"{Name}: the harness's Severe flight at {low:F1} m, {ni} steps inside the strip p50 {i50:F2} µs, p99 {i99:F2} µs; "
+            Console.WriteLine($"{Name}: the harness's Severe flight in Severe rain at {low:F1} m, {ni} steps inside the strip p50 {i50:F2} µs, p99 {i99:F2} µs; "
                 + $"{no} outside p50 {o50:F2} µs, p99 {o99:F2} µs; allocation {allocated} B: {(ok ? "PASS" : "FAIL")} (p99 ≤ 300 µs, 0 B)");
             return ok;
         }
