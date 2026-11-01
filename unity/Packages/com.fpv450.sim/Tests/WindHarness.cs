@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Wind;
+using Fpv450.Sim.World;
 
 namespace Fpv450.Sim.Tests
 {
@@ -316,7 +317,20 @@ namespace Fpv450.Sim.Tests
                 throw new System.InvalidOperationException("seed " + seed + "'s 120 min hold no " + seconds + " s within 90° of its drawn direction");
             FlightSetup setup = Setup(spec, level, seed, low, belt && !steady, drag, out double courseDeg, out double fromDeg,
                 steady ? 0 : start, steady);
+            BeltStretch(out double beltFrom, out double beltTo);
+            var run = new Run
+            {
+                Level = level, Seed = seed, Pilot = pilot.Name, Belt = belt, Steady = steady, HeightRef = height, BeltHeightRef = low,
+                ClimbSeconds = climb, FromDeg = fromDeg, CourseDeg = courseDeg, StartSecond = start,
+            };
+            return Fly(setup, pilot, run, low, height, climb, seconds, beltFrom, beltTo);
+        }
 
+        // The run's flight and its frames: released at `low`, the height to hold climbing to `height` past the belt stretch
+        // [beltFrom, beltTo] (m along the course from the release), `seconds` long.
+        static Run Fly(FlightSetup setup, Pilot pilot, Run run, double low, double height, double climb, double seconds, double beltFrom, double beltTo)
+        {
+            double courseDeg = run.CourseDeg;
             var core = new FlightCore(setup);
             CrosswindScenario.Arm(core);
             double course = courseDeg * DegToRad;
@@ -327,15 +341,11 @@ namespace Fpv450.Sim.Tests
             DetMath.SinCos(course, out double sin, out double cos);
             var along = new Double3(sin, 0, cos);
             var right = new Double3(cos, 0, -sin);
-            BeltStretch(out double beltFrom, out double beltTo);
-
-            var run = new Run
-            {
-                Level = level, Seed = seed, Pilot = pilot.Name, Belt = belt, Steady = steady, HeightRef = height, BeltHeightRef = low,
-                ClimbSeconds = climb, FromDeg = fromDeg,
-                MeanSpeed = core.Wind.MeanSpeed, CourseDeg = courseDeg, Mass = core.Body.Mass, StartSecond = start,
-                RollInertia = core.Body.Inertia.ZZ, PitchInertia = core.Body.Inertia.XX, YawInertia = core.Body.Inertia.YY,
-            };
+            run.MeanSpeed = core.Wind.MeanSpeed;
+            run.Mass = core.Body.Mass;
+            run.RollInertia = core.Body.Inertia.ZZ;
+            run.PitchInertia = core.Body.Inertia.XX;
+            run.YawInertia = core.Body.Inertia.YY;
             var samples = new List<Sample>();
             long release = core.State.Step;
             int steps = (int)(seconds * 1000), frame = 0;
@@ -392,6 +402,61 @@ namespace Fpv450.Sim.Tests
             run.MeanHeightError /= count;
             run.LeanPerMs = run.MeanCrosswind > 0 ? -run.MeanRollDeg / run.MeanCrosswind : 0;
             return run;
+        }
+
+        /// <summary>The map flight's height over the belt's canopy height h, lowest and highest run (assumed: just over the
+        /// test range posadka's tallest crowns, 13.5 m over its h of 10.4–10.5 m, where a pilot skims a dense belt; P's
+        /// 0.45–1.0 H was inside a loose strip's canopy, and the posadka's rows 3 m apart leave no room to fly in it).</summary>
+        public const double MapLow = 1.35, MapHigh = 1.6;
+
+        /// <summary>The map flight's field after the belt, s (assumed: with the 4 s before it, about K§8.5's open field).</summary>
+        public const double MapAfterSeconds = 22;
+
+        /// <summary>
+        /// The test flight along a map's tree belt (p7c-wind, the map's wind): run i of n for a seed with a pilot, in the
+        /// map's own wind (WindSetup.ForMap; `obstacles` false is the known-wrong field without them, WindSetup.Of, as the
+        /// player flew before). The course runs along the belt's centre line (its sections' union along their axis), east
+        /// when the seed's drawn wind blows from the north half, west otherwise, so the wind comes from the left as in
+        /// K§8.5; released BeltStartSeconds at GroundSpeed before the belt's near end, at a height of MapLow–MapHigh times
+        /// the belt's h held throughout (no climb), and flown MapAfterSeconds past its far end, over open field off the map.
+        /// The belt stretch is where the course is over the belt. The world is the stub's floor: only the wind is the map's.
+        /// </summary>
+        public static Run FlyMap(DroneSpec spec, WindLevel level, ulong seed, int i, int n, Pilot pilot, MapWorld map, bool obstacles = true, bool drag = true)
+        {
+            MapWind m = MapWind.Of(map);
+            double x0 = double.PositiveInfinity, x1 = double.NegativeInfinity, z = 0, h = 0;
+            foreach (MapWind.Belt b in m.Belts)
+            {
+                x0 = System.Math.Min(x0, b.Strip.CentreX - b.Strip.Length / 2);
+                x1 = System.Math.Max(x1, b.Strip.CentreX + b.Strip.Length / 2);
+                z += b.Strip.CentreZ / m.Belts.Length;
+                h = System.Math.Max(h, b.Strip.Height);
+            }
+            double height = h * (MapLow + (MapHigh - MapLow) * (i + 0.5) / n);
+            double lead = BeltStartSeconds * GroundSpeed, seconds = BeltStartSeconds + (x1 - x0) / GroundSpeed + MapAfterSeconds;
+            double[] history = History(level, seed, 120, out double drawn);
+            int start = StartSecond(history, drawn, seconds);
+            if (start < 0)
+                throw new System.InvalidOperationException("seed " + seed + "'s 120 min hold no " + seconds + " s within 90° of its drawn direction");
+            DetMath.SinCos(drawn * DegToRad, out _, out double fromNorth);
+            bool east = fromNorth > 0;
+            double courseDeg = east ? 90 : 270;
+            WindSetup wind = obstacles ? WindSetup.ForMap(map, level) : WindSetup.Of(level);
+            wind.StartSecond = start;
+            FlightSetup setup = CrosswindScenario.Setup(spec, wind, seed, drag, drag);
+            Airframe(spec, setup);
+            if (level == WindLevel.Calm) setup.Asymmetry = null;
+            setup.StartPosition = new Double3(east ? x0 - lead : x1 + lead, height, z);
+            setup.StartVelocity = new Double3(east ? ReleaseSpeed : -ReleaseSpeed, 0, 0);
+            DetMath.SinCos(courseDeg * DegToRad / 2, out double sy, out double cy);
+            DetMath.SinCos(-HarnessPilot.ClipPPitchDeg * DegToRad / 2, out double sp, out double cp);
+            setup.StartAttitude = new Quat(0, sy, 0, cy) * new Quat(sp, 0, 0, cp);
+            var run = new Run
+            {
+                Level = level, Seed = seed, Pilot = pilot.Name, Belt = obstacles, HeightRef = height, BeltHeightRef = height,
+                FromDeg = drawn, CourseDeg = courseDeg, StartSecond = start,
+            };
+            return Fly(setup, pilot, run, height, height, 0, seconds, lead, lead + (x1 - x0));
         }
 
         /// <summary>`track_attitude.py`'s columns, in its order (godot-final, COLUMNS).</summary>
