@@ -658,6 +658,7 @@ Missing and still needed: **asphalt** (rigid, slides on glass crumbs), **concret
 - **Test flight:**
   - 4.8 kg, with inertia 0.044 / 0.054 / 0.050
   - a straight course at 20–50 m: **32 s over open field plus 7 s** from the belt's upwind edge to 10 belt heights downwind
+  - **P's measured geometry contradicts this belt stretch** ([reference-notes/belt-geometry-p.md](reference-notes/belt-geometry-p.md)). P crossed a wide wooded strip, with the wind along it, at 0.45–1.0 H (H ≈ 15 m) inside its canopy layer, not in a wake downwind.
   - at least 5 seeds, discarding the first 5 s
   - each run's course laid with the drawn wind abeam from the left, starting where the seed's wind stays within 90° of the drawn direction for the whole run
 - **Measurement:** log roll, pitch and yaw rate in the tracker's definitions at 29.917 Hz, then run the old `tools/reference/wind_stats.py` (a Blender Python script) over them.

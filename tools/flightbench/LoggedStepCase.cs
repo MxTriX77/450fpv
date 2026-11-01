@@ -26,7 +26,8 @@ namespace Fpv450.FlightBench
             LogHeader header = LogHeader.For(setup, core);
             header.Build = "tools/flightbench";
             header.WorldId = "floor";
-            string path = Path.Combine(Path.GetTempPath(), "fpv450-flightbench" + LogStore.Extension);
+            // A name of its own, so benches run side by side (parallel agents' worktrees) never share the file.
+            string path = Path.Combine(Path.GetTempPath(), "fpv450-flightbench-" + Guid.NewGuid().ToString("N") + LogStore.Extension);
             var recorder = new FlightRecorder(new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read, 1 << 16), header);
 
             var total = new long[steps];

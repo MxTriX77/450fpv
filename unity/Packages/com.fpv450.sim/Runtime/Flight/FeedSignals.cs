@@ -41,7 +41,8 @@ namespace Fpv450.Sim.Flight
     ///   for a body with propulsion · Impact and Crashed: 1.6 (design 1's list)
     /// - AirVelocityAtCamera: filled (1.5), from p7c-wind's field at the setup's CameraPosition (1.7)
     /// - RainRate: filled (p7c-wind 1.7), the setup's rain: the flight's drawn rate, 0 when Sunny
-    /// - CameraVibration: stub; p7b-airframe (PR-1's throttle-punch shake)
+    /// - CameraVibration: filled (p7b-airframe 1.4, PR-1's throttle-punch shake) with the airframe's modes (VibrationBands);
+    ///   with them CameraAngularVelocity gains the frame's elastic turn
     /// - FiberTension, FiberMinBendRadius, LinkState, LinkMargin: stub; 7d
     /// K§11.8's other rows are not the physics': scene light, sun and time of day (the renderer), the OSD state (the
     /// app).
@@ -71,6 +72,15 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The packs' loaded voltage at the ESCs, V, field mean.</summary>
         public double PackVolts;
+
+        /// <summary>The OSD's low-voltage warning (PHY-11, p7b-airframe 1.5), part of the PackVolts signal: the field's
+        /// loaded voltage below LowCellVolts a cell. The raw comparison; Betaflight's display filter and hysteresis are the
+        /// OSD's.</summary>
+        public bool PackLow;
+
+        /// <summary>The low-voltage warning's threshold, V a cell (pilot: the FC profile's vbat_warning_cell_voltage,
+        /// 3.00 V, Li-ion; reference-notes/fc-profiles.md).</summary>
+        public const double LowCellVolts = 3.00;
 
         /// <summary>The camera's angular velocity in its own axes (the body axes: 0° uptilt), rad/s, at this step.</summary>
         public Double3 CameraAngularVelocity;

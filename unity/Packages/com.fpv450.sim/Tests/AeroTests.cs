@@ -53,27 +53,27 @@ namespace Fpv450.Sim.Tests
         // clip P's 22.7° of pitch in still air at the nominal loadout, released below and above the cruise; both settle at
         // the same airspeed, inside the published 17–22 m/s, and the harness is released there. At that airspeed each m/s
         // of crosswind needs the lean the physics gives (wind.md §5.3's relation, 23.4° over the airspeed, whatever the
-        // drag's split), which T0 grades. The known-wrong: p6-flight-core 1.5's rotor drag, tuned to 13 m/s.
+        // drag's split), which T0 grades. The known-wrong: unity/main's rotor drag, tuned to 13 m/s (p7b-airframe 1.7).
         [Test]
         public void ClipPsPitchFliesTheCruise()
         {
             double slow = WindHarness.HeldPitchAirspeed(Drone, 13, out double pitchSlow);
             double fast = WindHarness.HeldPitchAirspeed(Drone, 25, out double pitchFast);
-            double old = WindHarness.HeldPitchAirspeed(Drone, 13, out _, hForce: double.Parse(GoldenFlights.Model6HForce, CultureInfo.InvariantCulture));
+            double old = WindHarness.HeldPitchAirspeed(Drone, 13, out _, hForce: double.Parse(GoldenFlights.TunedHForce, CultureInfo.InvariantCulture));
             double lean0 = CrosswindScenario.CruiseLean(Drone, WindHarness.ReleaseSpeed, 0);
             double lean2 = CrosswindScenario.CruiseLean(Drone, WindHarness.ReleaseSpeed, 2);
             double perMs = (lean2 - lean0) / 2, relation = 23.4 / WindHarness.ReleaseSpeed;
             TestContext.Out.WriteLine($"clip P's pitch held in still air: released at 13 m/s it settles at {F(slow, "0.00")} m/s (pitch {F(pitchSlow, "0.00")}°), "
                 + $"at 25 m/s {F(fast, "0.00")} m/s ({F(pitchFast, "0.00")}°); the harness's release {F(WindHarness.ReleaseSpeed, "0.0")} m/s; "
                 + $"a 2 m/s crosswind there needs {F(perMs, "0.000")}° per m/s (wind.md §5.3's 23.4°/V: {F(relation, "0.000")}); "
-                + $"known-wrong, 1.5's rotor drag {GoldenFlights.Model6HForce} N per m/s: {F(old, "0.00")} m/s");
+                + $"known-wrong, main's tuned rotor drag {GoldenFlights.TunedHForce} N per m/s: {F(old, "0.00")} m/s");
             Assert.That(slow, Is.InRange(17, 22), "PHY-17a: the published cruise");
             Assert.That(fast, Is.EqualTo(slow).Within(0.05), "it settles there from either side");
             Assert.That(pitchSlow, Is.EqualTo(-22.7).Within(0.3), "the pilot holds clip P's pitch");
             Assert.That(pitchFast, Is.EqualTo(-22.7).Within(0.3));
             Assert.That(WindHarness.ReleaseSpeed, Is.EqualTo(slow).Within(0.3), "the harness is released at the cruise");
             Assert.That(perMs, Is.EqualTo(relation).Within(0.15 * relation), "the lean per m/s follows from the airspeed");
-            Assert.That(old, Is.Not.InRange(17, 22), "1.5's drag flies 13 m/s");
+            Assert.That(old, Is.Not.InRange(17, 22), "the tuned drag flies 13 m/s");
         }
 
         // The Severe field: the mean lean over the measured window per m/s of the mean wind there; the gusts raise the

@@ -20,6 +20,10 @@ namespace Fpv450.Sim.Wind
         /// north, 90 from the east).</summary>
         public double SteadySpeed, SteadyFromDeg;
 
+        /// <summary>Steady only: the time it starts to blow, s (0: from the start). Before it the air is still, then the
+        /// whole wind steps in at once: a gust step for the airframe's response (p7b-airframe 1.3c).</summary>
+        public double SteadyOnsetSeconds;
+
         /// <summary>A pilot's level only: the second of the seed's direction history the flight starts at (0 for every
         /// flight but the harness's, whose start rule picks it, K§8.5), 0 to WindPreset.Horizon.</summary>
         public int StartSecond;

@@ -215,11 +215,15 @@ namespace Fpv450.Sim.Flight
         public DronePayload Payload;
         public DroneStand Stand;
 
+        /// <summary>The FPV camera's lens, body m (camera.lens_m): the camera mount's point for the modes (BuildModes); null
+        /// for a file without a camera block (the bootstrap fixture), whose modes keep AirframeModesSpec's.</summary>
+        public Double3? CameraLens;
+
         /// <summary>The airframe's drag; its coil part is the coil's.</summary>
         public AeroSpec Aero;
 
-        /// <summary>The FPV camera's lens, body m (p7c-wind 1.7: FlightSetup.CameraPosition); the body's origin when the
-        /// file has no camera block.</summary>
+        /// <summary>The FPV camera's lens, body m (camera.lens_m, as CameraLens; p7c-wind 1.7: FlightSetup.CameraPosition,
+        /// where the feed's air at the camera is taken); the body's origin when the file has no camera block.</summary>
         public Double3 CameraPosition;
 
         /// <summary>The contact shapes and thresholds (p6-flight-core 1.6), the shapes at the file's positions; null when the
@@ -293,6 +297,64 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The flight's airframe drag: a copy of the aero block.</summary>
         public AeroSpec BuildAero() => Aero.Clone();
+
+        /// <summary>The motors' asymmetry at its researched tolerances (MotorAsymmetry), the props' mass from the parts
+        /// (the rear right prop's, "prop_rr"; the four are alike) and the service speed at the props' reference rpm.</summary>
+        public MotorAsymmetry BuildAsymmetry()
+        {
+            var a = new MotorAsymmetry { ServiceRpm = Props.ReferenceRpm };
+            foreach (DronePart p in Parts)
+                if (p.Name == "prop_rr") a.PropMass = p.Mass;
+            return a;
+        }
+
+        /// <summary>The rotors' vortex rings at the published boundaries (VortexRingSpec), in the aero block's air.</summary>
+        public VortexRingSpec BuildVortexRing() => new VortexRingSpec { AirDensity = Aero.AirDensity };
+
+        /// <summary>The rotors' ground and ceiling effect and recirculation (GroundEffectSpec), in the aero block's air.</summary>
+        public GroundEffectSpec BuildGroundEffect() => new GroundEffectSpec { AirDensity = Aero.AirDensity };
+
+        /// <summary>The airframe's modes (AirframeModesSpec, p7b-airframe 1.4): each arm's tip mass from its corner's motor,
+        /// prop and arm parts ("motor_rr", "prop_rr", "arm_rr", …), the payload's and the coil's parts, and the camera at the
+        /// file's lens.</summary>
+        public AirframeModesSpec BuildModes()
+        {
+            var m = new AirframeModesSpec { PayloadPart = Payload.Part, CoilPart = Coil.Part };
+            if (CameraLens.HasValue) m.Camera = CameraLens.Value;
+            string[] corners = { "rr", "fr", "rl", "fl" };
+            for (int i = 0; i < 4; i++)
+                m.TipMass[i] = Parts[PartIndex("motor_" + corners[i])].Mass + Parts[PartIndex("prop_" + corners[i])].Mass
+                    + m.ArmTipShare * Parts[PartIndex("arm_" + corners[i])].Mass;
+            return m;
+        }
+
+        /// <summary>
+        /// The rotors' flapping (RotorFlappingSpec) on the props' sheet, in the aero block's air: the radius and blades from
+        /// the props; a blade's flap inertia from the prop's part ("prop_rr") as a uniform rod, m/N_b·R²/3 (derived, as the
+        /// mass build's rod); the chord at 19 stations from 0.1 R to the tip, linear through the sheet's 18 mm at 0.1 R
+        /// (assumed), 26 mm at 0.3 R and 8 mm at the tip (the sheet, docs/object-sheets/drone.md); the angle there the
+        /// props' helix less the zero-lift angle.
+        /// </summary>
+        public RotorFlappingSpec BuildFlapping()
+        {
+            double radius = Props.Diameter / 2, mass = 0;
+            foreach (DronePart p in Parts)
+                if (p.Name == "prop_rr") mass = p.Mass;
+            var f = new RotorFlappingSpec
+            {
+                AirDensity = Aero.AirDensity, Radius = radius, Blades = Props.Blades,
+                BladeInertia = mass / Props.Blades * radius * radius / 3,
+                Stations = new double[19], Chords = new double[19], Angles = new double[19],
+            };
+            for (int k = 0; k < 19; k++)
+            {
+                double x = 0.1 + 0.05 * k;
+                f.Stations[k] = x;
+                f.Chords[k] = x < 0.3 ? 0.018 + (x - 0.1) / 0.2 * 0.008 : 0.026 - (x - 0.3) / 0.7 * 0.018;
+                f.Angles[k] = f.HelixAngle(Props.Pitch, x);
+            }
+            return f;
+        }
 
         /// <summary>
         /// The flight's contact model at a loadout, with physics_materials.json's rows and hash (PhysicsMaterials.Parse):
@@ -414,7 +476,7 @@ namespace Fpv450.Sim.Flight
                 const string top = "drone.json";
                 if (!IsObject(root, top)) return spec;
                 Members(root, top, "schema", "owner", "name", "bootstrap", "about", "fields",
-                    "parts", "motors", "props", "packs", "legs", "legs_off", "coil", "payload", "stand", "aero", "camera", "contacts");
+                    "parts", "motors", "props", "packs", "legs", "legs_off", "coil", "payload", "camera", "stand", "aero", "contacts");
 
                 JsonNode schema = Required(root, "schema", top);
                 if (schema != null && !(schema.Kind == JsonKind.Number && schema.Number == Schema))
@@ -443,13 +505,17 @@ namespace Fpv450.Sim.Flight
                 if ((n = Required(root, "coil", top)) != null) spec.Coil = ReadCoil(n, spec);
                 if ((n = Required(root, "payload", top)) != null) spec.Payload = ReadPayload(n, spec);
                 if ((n = Required(root, "legs_off", top)) != null) ReadLegsOff(n, spec);
-                if ((n = Required(root, "stand", top)) != null) spec.Stand = ReadStand(n);
-                if ((n = Required(root, "aero", top)) != null) ReadAero(n, spec);
                 if ((n = root.Member("camera")) != null && IsObject(n, "camera"))
                 {
-                    Members(n, "camera", "lens_position_m");
-                    Vector(n, "lens_position_m", "camera", out spec.CameraPosition);
+                    Members(n, "camera", "lens_m");
+                    if (Vector(n, "lens_m", "camera", out Double3 lens))
+                    {
+                        spec.CameraLens = lens;
+                        spec.CameraPosition = lens;
+                    }
                 }
+                if ((n = Required(root, "stand", top)) != null) spec.Stand = ReadStand(n);
+                if ((n = Required(root, "aero", top)) != null) ReadAero(n, spec);
                 if ((n = root.Member("contacts")) != null) spec.Contacts = ReadContacts(n, spec);
                 return spec;
             }

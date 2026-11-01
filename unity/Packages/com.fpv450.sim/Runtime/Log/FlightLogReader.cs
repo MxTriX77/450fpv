@@ -183,6 +183,12 @@ namespace Fpv450.Sim.Log
         /// <summary>Every event in log order: the timeline.</summary>
         public readonly List<LoggedEvent> Events = new List<LoggedEvent>();
 
+        /// <summary>
+        /// The first step of each failsafe (INP-05): its stick's HostUs is when the input layer lost the radio, and the
+        /// step is the one it disarmed.
+        /// </summary>
+        public readonly List<LoggedStep> Failsafes = new List<LoggedStep>();
+
         /// <summary>The log ended with its end block; End holds its counts.</summary>
         public bool Complete;
         public LogEnd End;
@@ -232,6 +238,8 @@ namespace Fpv450.Sim.Log
                 if (reader.Kind == LogFormat.StepBlock)
                 {
                     reader.ReadStep(out LoggedStep step);
+                    if (step.Stick.Failsafe && !(s.HasSteps && s.Last.Stick.Failsafe))
+                        s.Failsafes.Add(step);
                     if (!s.HasSteps)
                         s.First = step;
                     else if (step.State.Step != s.Last.State.Step + 1)
@@ -293,6 +301,43 @@ namespace Fpv450.Sim.Log
                     + G(h.Contacts.CrashPropSpeed) + " m/s; physics_materials.json 0x" + h.Contacts.MaterialsHash.ToString("X16", c) + " (" + h.Contacts.Materials.Length + " rows)");
             else
                 w.WriteLine("  contacts: none");
+            if (h.Asymmetry != null)
+                w.WriteLine("  motor asymmetry: Kv sigma " + G(h.Asymmetry.KvSigma) + " within " + G(h.Asymmetry.KvBound) + ", ESC lag within "
+                    + G(h.Asymmetry.EscLagBound) + " s, props at balance grade " + G(h.Asymmetry.BalanceGrade) + " m/s ("
+                    + G(h.Asymmetry.PropMass) + " kg at " + G(h.Asymmetry.ServiceRpm) + " rpm)");
+            else
+                w.WriteLine("  motor asymmetry: off (identical rotors)");
+            if (h.VortexRing != null)
+                w.WriteLine("  vortex rings: in at eta " + G(h.VortexRing.EntryRate) + ", out below " + G(h.VortexRing.ExitRate) + " or past "
+                    + G(h.VortexRing.EndRate) + ", swept away at mu " + G(h.VortexRing.EscapeInPlane) + "; inflow " + G(h.VortexRing.EntryInflow)
+                    + " to " + G(h.VortexRing.PeakInflow) + " v_h at its peak eta " + G(h.VortexRing.PeakRate) + ", lag " + G(h.VortexRing.InflowLag)
+                    + " R/v_h; thrust sigma " + G(h.VortexRing.FluctuationSigma) + " within " + G(h.VortexRing.FluctuationBound) + " at f R/v_h "
+                    + G(h.VortexRing.FluctuationFrequency) + "; air " + G(h.VortexRing.AirDensity) + " kg/m3"
+                    + (h.VortexRing.FixedInducedVelocity > 0 ? "; KNOWN-WRONG: scaled by a fixed " + G(h.VortexRing.FixedInducedVelocity) + " m/s" : ""));
+            else
+                w.WriteLine("  vortex rings: off");
+            if (h.GroundEffect != null)
+                w.WriteLine("  ground effect: Cheeseman-Bennett below, Hsiao-Chirarattananon alpha0 " + G(h.GroundEffect.CeilingAlpha)
+                    + " above, rays " + G(h.GroundEffect.Reach) + " R, held at " + G(h.GroundEffect.LowestHeight) + " R; wash sigma "
+                    + G(h.GroundEffect.RecirculationSigma) + " v_h within " + G(h.GroundEffect.RecirculationBound) + " below "
+                    + G(h.GroundEffect.RecirculationOnset) + " R, loop " + G(h.GroundEffect.RecirculationLoop) + " (z + R)/v_h; air "
+                    + G(h.GroundEffect.AirDensity) + " kg/m3" + (h.GroundEffect.RecirculationSigma > 0 ? "" : "; KNOWN-WRONG: no recirculation"));
+            else
+                w.WriteLine("  ground effect: off");
+            if (h.Modes != null)
+                w.WriteLine("  modes: arms " + G(h.Modes.ArmWidth * 1000) + " x " + G(h.Modes.ArmThickness * 1000) + " mm plate of " + G(h.Modes.ArmModulus / 1e9)
+                    + " GPa over " + G(h.Modes.ArmLength) + " m, " + G(h.Modes.ArmStiffness) + " N/m, damping " + G(h.Modes.ArmDamping) + "; mounts "
+                    + G(h.Modes.MountStiffness) + " N/m, damping " + G(h.Modes.MountDamping) + "; camera at (" + G(h.Modes.Camera.X) + ", "
+                    + G(h.Modes.Camera.Y) + ", " + G(h.Modes.Camera.Z) + ") m; payload part " + h.Modes.PayloadPart + ", coil part " + h.Modes.CoilPart);
+            else
+                w.WriteLine("  modes: off (a rigid airframe)");
+            if (h.Flapping != null)
+                w.WriteLine("  flapping: blade-element, lift slope " + G(h.Flapping.LiftSlope) + "/rad, zero lift " + G(h.Flapping.ZeroLiftAngle)
+                    + " rad, bending " + G(h.Flapping.BendingFrequency) + " Hz, Southwell " + G(h.Flapping.Southwell) + ", skew gain "
+                    + G(h.Flapping.SkewGain) + ", " + h.Flapping.Blades + " blades of " + G(h.Flapping.BladeInertia) + " kg m2 on R "
+                    + G(h.Flapping.Radius) + " m, " + h.Flapping.Stations.Length + " stations; air " + G(h.Flapping.AirDensity) + " kg/m3");
+            else
+                w.WriteLine("  flapping: off");
             for (int n = 0; n < h.RuntimeObjects.Length; n++)
                 w.WriteLine("  runtime object " + (n < h.RuntimeIds.Length ? h.RuntimeIds[n] : -1) + " '" + h.RuntimeObjects[n].Name + "': "
                     + h.RuntimeObjects[n].Shapes.Length + " shapes");
@@ -302,6 +347,8 @@ namespace Fpv450.Sim.Log
                 w.WriteLine("    " + d.Stream + " / " + d.Parameter + " = " + G(d.Value) + " in [" + G(d.Lo) + ", " + G(d.Hi) + "] (draw " + d.Index + ")");
             w.WriteLine("  start: position " + V(h.StartPosition, "0.000") + " m, velocity " + V(h.StartVelocity, "0.000") + " m/s, body rate "
                 + V(h.StartBodyRate, "0.000") + " rad/s");
+            w.WriteLine("  input: " + InputLine(h));
+            if (h.InputLatency != null) w.WriteLine("  latency test: " + LatencyLine(h.InputLatency));
             foreach (string u in h.Unknown) w.WriteLine("  not known to this reader: " + u);
 
             string length = Steps + " step records, " + Seconds.ToString("0.000", c) + " s";
@@ -334,6 +381,10 @@ namespace Fpv450.Sim.Log
                 w.WriteLine("  stick roll " + G(k.Roll) + ", pitch " + G(k.Pitch) + ", yaw " + G(k.Yaw) + ", throttle " + G(k.Throttle) + ", arm "
                     + (k.Arm ? "on" : "off") + " (host " + k.HostUs + " us)");
             }
+
+            foreach (LoggedStep f in Failsafes)
+                w.WriteLine("FAILSAFE: the radio was lost at host " + f.Stick.HostUs + " us; step " + f.State.Step + " (t = "
+                    + (f.State.Step * FlightCore.Dt).ToString("0.000", c) + " s) disarmed");
 
             w.WriteLine("events: " + Events.Count + ByKind());
             for (int n = 0; n < Events.Count && n < maxEvents; n++)
@@ -372,6 +423,8 @@ namespace Fpv450.Sim.Log
                 case EventKind.Hitch:
                     return e.Index == (byte)HitchCause.LogFull
                         ? "hitch: the log's ring was full and the flight thread waited " + G(e.A) + " x 1 ms"
+                        : e.Index == (byte)HitchCause.Pause
+                        ? "PAUSED for " + G(e.B) + " us: no step ran, and the later steps run that much later"
                         : "hitch: the scheduler ran " + G(e.A) + " steps to catch up, the first " + G(e.B) + " us late";
                 case EventKind.EventsLost:
                     return G(e.A) + " events lost: the step's event buffer was full (a producer bug)";
@@ -379,11 +432,38 @@ namespace Fpv450.Sim.Log
                     return e.A > 0
                         ? "ESC " + CornerName(e.Index) + " holds its motor at its " + G(e.B) + " A current limit, taking " + G(e.A * 100) + " % of its duty"
                         : "ESC " + CornerName(e.Index) + " lets go of its " + G(e.B) + " A current limit";
+                case EventKind.VortexRingEntered:
+                case EventKind.VortexRingLeft:
+                    return "rotor " + CornerName(e.Index) + (e.Kind == EventKind.VortexRingEntered ? " enters" : " leaves") + " its vortex ring at eta "
+                        + G(e.A) + ", mu " + G(e.B) + " (v_h " + G(e.C) + " m/s" + (e.C > 0 ? ")" : ": the rotor stopped)");
                 default:
                     return "event kind " + (int)e.Kind + ": part " + e.Part + ", index " + e.Index + ", " + Where(e) + ", a " + G(e.A) + ", b "
                         + G(e.B) + ", c " + G(e.C);
             }
         }
+
+        static string InputLine(LogHeader h)
+        {
+            if (h.Input == InputSource.None) return "none recorded (a bench or a test)";
+            if (h.Input == InputSource.Keyboard) return "KEYBOARD, development only: never tune from this flight";
+            string line = (h.Input == InputSource.Radio ? "radio" : "joystick") + " '" + h.InputDevice + "'";
+            ReportIntervals r = h.InputIntervals;
+            if (r == null || r.Count == 0) return line + "; report interval not measured";
+            CultureInfo c = CultureInfo.InvariantCulture;
+            return line + "; report interval over " + (r.SumUs / 1e6).ToString("0.0", c) + " s before the flight: " + r.Count + " intervals, mean "
+                + ((double)r.SumUs / r.Count / 1000).ToString("0.000", c) + " ms, min " + Ms(r.MinUs) + ", p50 " + Ms(r.PercentileUs(50)) + ", p99 "
+                + Ms(r.PercentileUs(99)) + ", max " + Ms(r.MaxUs) + " ms";
+        }
+
+        static string Ms(long us) => (us / 1000.0).ToString("0.000", CultureInfo.InvariantCulture);
+
+        static string LatencyLine(InputLatency l) =>
+            l.Steps + " stick steps, from each step report's arrival: to the first step that uses it " + Spread(l.FirstStep)
+            + "; to the motor command (the ESCs' duty halfway through the change) " + Spread(l.Motor);
+
+        static string Spread(in LatencySpread s) =>
+            "p50 " + Ms(s.P50Us) + ", p99 " + Ms(s.P99Us) + " ms (min " + Ms(s.MinUs) + ", max " + Ms(s.MaxUs) + ", mean "
+            + (s.MeanUs / 1000).ToString("0.000", CultureInfo.InvariantCulture) + ")";
 
         string ByKind()
         {
@@ -417,7 +497,10 @@ namespace Fpv450.Sim.Log
         {
             string text = h.WindModel + ", " + h.Wind.Level.ToString().ToLowerInvariant();
             if (h.Wind.Level == WindLevel.Steady)
+            {
                 text += " " + G(h.Wind.SteadySpeed) + " m/s from " + G(h.Wind.SteadyFromDeg) + " deg";
+                if (h.Wind.SteadyOnsetSeconds != 0) text += ", stepping in at " + G(h.Wind.SteadyOnsetSeconds) + " s";
+            }
             if (h.Wind.StartSecond != 0) text += ", from second " + h.Wind.StartSecond + " of its history";
             foreach (ParameterDraw d in h.Draws)
                 if (d.Stream == "wind.direction") text += "; from " + G(d.Value) + " deg";

@@ -1,0 +1,513 @@
+{
+  "schema": 1,
+  "id": "K03",
+  "variant": "K03_rafter_broken",
+  "generator": "debris_timber",
+  "params_sha256": "05c6dde372fb35a7d7f320aab0de5992c40d3b78bb0df38240b85a9cfa9b671e",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -1.5,
+      0.0,
+      -0.075
+    ],
+    "max": [
+      1.5,
+      0.149623,
+      0.075192
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "K03_rafter_broken_LOD0",
+      "tris": 164,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "K03_rafter_broken_LOD1",
+      "tris": 22,
+      "switch_distance_m": 10.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 315.0,
+  "materials": [
+    {
+      "slot": "timber",
+      "visual": "roof_timber",
+      "physics": "timber"
+    },
+    {
+      "slot": "timber_fracture",
+      "visual": "timber_fracture",
+      "physics": "timber"
+    },
+    {
+      "slot": "nail",
+      "visual": "car_rust",
+      "physics": "steel"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "box",
+      "center": [
+        -0.15,
+        0.05,
+        0.0
+      ],
+      "size": [
+        2.7,
+        0.1,
+        0.15
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.335091,
+        0.024829,
+        -0.061582
+      ],
+      "radius": 0.014229,
+      "height": 0.298656,
+      "rotation": [
+        -0.007147,
+        0.0,
+        -0.708527,
+        0.705648
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.30899,
+        0.024061,
+        -0.024286
+      ],
+      "radius": 0.015951,
+      "height": 0.249911,
+      "rotation": [
+        -0.008098,
+        0.0,
+        -0.711346,
+        0.702795
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.275651,
+        0.07551,
+        -0.052245
+      ],
+      "radius": 0.015097,
+      "height": 0.181496,
+      "rotation": [
+        -0.002365,
+        0.0,
+        -0.706525,
+        0.707684
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.268246,
+        0.079172,
+        -0.017027
+      ],
+      "radius": 0.013128,
+      "height": 0.16303,
+      "rotation": [
+        -0.022242,
+        0.0,
+        -0.686894,
+        0.726417
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.35,
+        0.017834,
+        0.018249
+      ],
+      "radius": 0.013394,
+      "height": 0.327337,
+      "rotation": [
+        0.021655,
+        0.0,
+        -0.725123,
+        0.688279
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.306909,
+        0.02395,
+        0.055379
+      ],
+      "radius": 0.016623,
+      "height": 0.247228,
+      "rotation": [
+        0.025222,
+        0.0,
+        -0.712519,
+        0.701199
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.266055,
+        0.078742,
+        0.022021
+      ],
+      "radius": 0.014742,
+      "height": 0.16181,
+      "rotation": [
+        0.024123,
+        0.0,
+        -0.690401,
+        0.723025
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.28276,
+        0.078145,
+        0.062939
+      ],
+      "radius": 0.013915,
+      "height": 0.193772,
+      "rotation": [
+        0.045364,
+        0.0,
+        -0.695263,
+        0.717322
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.16316,
+        0.117932,
+        0.041492
+      ],
+      "radius": 0.00175,
+      "height": 0.047364,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -1.164855,
+        0.144357,
+        0.043113
+      ],
+      "radius": 0.00175,
+      "height": 0.013636,
+      "rotation": [
+        0.164681,
+        0.0,
+        0.172166,
+        0.971205
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.114613,
+        0.117737,
+        -0.033598
+      ],
+      "radius": 0.00175,
+      "height": 0.046974,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.112241,
+        0.14341,
+        -0.031034
+      ],
+      "radius": 0.00175,
+      "height": 0.014026,
+      "rotation": [
+        0.260649,
+        0.0,
+        0.241051,
+        0.934856
+      ],
+      "material": "steel",
+      "landable": false
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": [
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.2,
+          0.025386,
+          -0.060219
+        ],
+        [
+          1.470182,
+          0.024272,
+          -0.062945
+        ]
+      ],
+      "radius_m": 0.010112,
+      "material": "timber"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.2,
+          0.025386,
+          -0.023045
+        ],
+        [
+          1.417979,
+          0.022736,
+          -0.025527
+        ]
+      ],
+      "radius_m": 0.015287,
+      "material": "timber"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.2,
+          0.075386,
+          -0.051991
+        ],
+        [
+          1.351302,
+          0.075634,
+          -0.052498
+        ]
+      ],
+      "radius_m": 0.014258,
+      "material": "timber"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.2,
+          0.075386,
+          -0.014817
+        ],
+        [
+          1.336492,
+          0.082959,
+          -0.019237
+        ]
+      ],
+      "radius_m": 0.009383,
+      "material": "timber"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.2,
+          0.02573,
+          0.013769
+        ],
+        [
+          1.5,
+          0.009937,
+          0.022728
+        ]
+      ],
+      "radius_m": 0.009901,
+      "material": "timber"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.2,
+          0.02573,
+          0.051595
+        ],
+        [
+          1.413818,
+          0.022169,
+          0.059164
+        ]
+      ],
+      "radius_m": 0.016254,
+      "material": "timber"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.2,
+          0.07573,
+          0.019713
+        ],
+        [
+          1.332109,
+          0.081755,
+          0.024329
+        ]
+      ],
+      "radius_m": 0.012999,
+      "material": "timber"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.2,
+          0.07573,
+          0.057539
+        ],
+        [
+          1.36552,
+          0.080559,
+          0.068339
+        ]
+      ],
+      "radius_m": 0.012157,
+      "material": "timber"
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "points": [
+        [
+          1.2,
+          0.0,
+          -0.075
+        ],
+        [
+          1.2,
+          0.0,
+          0.075
+        ],
+        [
+          1.2,
+          0.1,
+          0.075
+        ],
+        [
+          1.2,
+          0.1,
+          -0.075
+        ],
+        [
+          1.2,
+          0.0,
+          -0.075
+        ]
+      ],
+      "material": "timber"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -1.16316,
+          0.1,
+          0.041492
+        ],
+        [
+          -1.16316,
+          0.139864,
+          0.041492
+        ],
+        [
+          -1.166549,
+          0.148849,
+          0.044734
+        ]
+      ],
+      "radius_m": 0.00175,
+      "material": "steel"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.114613,
+          0.1,
+          -0.033598
+        ],
+        [
+          0.114613,
+          0.139474,
+          -0.033598
+        ],
+        [
+          0.109869,
+          0.147347,
+          -0.028469
+        ]
+      ],
+      "radius_m": 0.00175,
+      "material": "steel"
+    }
+  ]
+}

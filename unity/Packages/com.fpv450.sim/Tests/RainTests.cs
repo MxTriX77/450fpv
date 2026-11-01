@@ -9,11 +9,9 @@ using NUnit.Framework;
 namespace Fpv450.Sim.Tests
 {
     // p7c-wind 1.7 (design 7, PHY-17, D-021): rain is a level of its own. "Rain without wind" (wind-turbulence spec), the
-    // rain's draws in their classes, the film's bound, and the Sunny audit (every golden is model 8's over its bytes).
+    // rain's draws in their classes, the film's bound, and a Sunny flight without rain.
     public class RainTests
     {
-        const int Model8Bytes = 1392;
-
         [Test]
         public void RainWithoutWindKeepsCalmsWindAndItsDragFormula()
         {
@@ -72,14 +70,12 @@ namespace Fpv450.Sim.Tests
         }
 
         [Test]
-        public void ASunnyFlightIsModel8sBitForBit()
+        public void ASunnyFlightOpensNoRain()
         {
-            // The goldens over model 8's 1392 bytes (the record less 1.7's rain force, film and camera air) are model 8's pins.
+            // A Sunny flight opens no rain stream and logs no rain. (Model 8's pins over its 1392 bytes, which a Sunny flight
+            // flew bit for bit, went at the merge with unity/main: GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s
+            // flies the Sunny goldens as main's, which has no rain.)
             DroneSpec spec = RepositoryDrone.Spec();
-            int skip = LogFormat.StepSize - Model8Bytes;
-            Assert.That(GoldenFlights.FlyPowered(spec, out _, Model8Bytes, skip), Is.EqualTo(GoldenFlights.Model8PoweredHash));
-            Assert.That(GoldenFlights.FlyContact(spec, out _, Model8Bytes, skip), Is.EqualTo(GoldenFlights.Model8ContactHash));
-            // A Sunny flight opens no rain stream and logs no rain.
             var core = new FlightCore(GoldenFlights.PoweredSetup(spec));
             Assert.That(core.Rain, Is.Null);
             foreach (string s in core.Random.Opened) Assert.That(s, Does.Not.StartWith("rain."));

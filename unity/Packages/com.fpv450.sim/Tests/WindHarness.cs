@@ -37,8 +37,9 @@ namespace Fpv450.Sim.Tests
         public const double Seconds = 39, DiscardSeconds = 5, BeltStartSeconds = 9, BeltSeconds = 7;
 
         /// <summary>The release speed along the course, m/s (derived, p7c-wind 1.6: the airspeed clip P's 22.7° of pitch
-        /// settles at in still air, HeldPitchAirspeed, 18.82 m/s; PHY-17a's published cruise is 17–22).</summary>
-        public const double ReleaseSpeed = 18.8;
+        /// settles at in still air, HeldPitchAirspeed: 20.57 m/s on D-050's silhouette, 18.82 on D-043's; PHY-17a's published
+        /// cruise is 17–22).</summary>
+        public const double ReleaseSpeed = 20.6;
 
         /// <summary>The runs' field heights spread evenly over this band, m above the floor (assumed, wind.md §6.2;
         /// belt-geometry-p.md did not measure P's field stretch).</summary>
@@ -49,15 +50,15 @@ namespace Fpv450.Sim.Tests
         public const double LowBelt = 0.5, HighBelt = 1.0;
 
         /// <summary>The course's ground speed, m/s (derived: the cruise through the air with Severe's centre abeam,
-        /// √(18.8² − 7.2²) = 17.4; belt-geometry-p.md assumed 17, 12–21).</summary>
+        /// √(V² − U²) at the release speed V and Severe's centre U; belt-geometry-p.md assumed 17, 12–21).</summary>
         public static readonly double GroundSpeed = System.Math.Sqrt(ReleaseSpeed * ReleaseSpeed - WindPreset.SevereCentre * WindPreset.SevereCentre);
 
         /// <summary>The belt stretch's ground and its part before the strip's near edge, in strip heights (derived,
         /// belt-geometry-p.md: set B covers about 7.3 H, from 2.2 H before the near edge; 2 H here, the note's course).</summary>
         public const double StretchHeights = 7.3, ApproachHeights = 2;
 
-        /// <summary>The strip's height H, m (derived: P's set B covers StretchHeights in BeltSeconds, so H = 7 s · 17.4 m/s
-        /// / 7.3 = 16.6 m at the harness's ground speed; belt-geometry-p.md's 15 m, 11–21, at its assumed 17 m/s).</summary>
+        /// <summary>The strip's height H, m (derived: P's set B covers StretchHeights in BeltSeconds, so H = 7 s · GroundSpeed
+        /// / 7.3 at the harness's ground speed; belt-geometry-p.md's 15 m, 11–21, at its assumed 17 m/s).</summary>
         public static readonly double StripHeight = BeltSeconds * GroundSpeed / StretchHeights;
 
         /// <summary>The strip's width along the course and its length along the wind, in strip heights (the first derived,

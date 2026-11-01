@@ -277,6 +277,7 @@ namespace Fpv450.Sim.Wind
 
         readonly bool _level;
         readonly Double3 _steady;
+        readonly long _onsetStep; // Steady only: the onset, in steps (0: blowing from the start)
         readonly double _z0, _d, _logRef, _top;
 
         // The direction history from the flight's start, per second: the bearing, the mean wind's velocity at the
@@ -299,6 +300,7 @@ namespace Fpv450.Sim.Wind
 
         // The step's frame (Begin).
         double _t, _ground;
+        bool _still; // a steady wind before its onset
         Double3 _mean, _drift, _origin;
 
         /// <summary>The wind of a flight with this setup, its per-flight draws made from random (at the flight's start).</summary>
@@ -325,6 +327,8 @@ namespace Fpv450.Sim.Wind
                     FromDeg = setup.SteadyFromDeg;
                     MeanSpeed = setup.SteadySpeed;
                     _steady = Toward(FromDeg, MeanSpeed);
+                    if (!(setup.SteadyOnsetSeconds >= 0)) throw new ArgumentException("a steady wind's onset is 0 s or later", nameof(setup));
+                    _onsetStep = (long)(setup.SteadyOnsetSeconds / Dt + 0.5);
                     return;
             }
             if (random == null) throw new ArgumentNullException(nameof(random));
@@ -451,7 +455,13 @@ namespace Fpv450.Sim.Wind
             _t = step * Dt;
             _origin = origin;
             _ground = ground;
-            if (!_level) return;
+            if (!_level)
+            {
+                // A steady wind with an onset blows over the step that ends at it and every one after (p7b-airframe 1.3c's
+                // gust step: the stand-in's gust carried −Mean until then).
+                _still = step + 1 < _onsetStep;
+                return;
+            }
             long last = _vx.Length - 1, i = step / 1000;
             double f = (step - i * 1000) * Dt;
             if (i >= last)
@@ -473,7 +483,7 @@ namespace Fpv450.Sim.Wind
         }
 
         /// <summary>The mean wind at the reference height in the step's frame, world m/s.</summary>
-        public Double3 Mean => _level ? _mean : _steady;
+        public Double3 Mean => _level ? _mean : _still ? default : _steady;
 
         /// <summary>The field's drift since the flight's start in the step's frame, world m.</summary>
         public Double3 Drift => _drift;
@@ -481,7 +491,7 @@ namespace Fpv450.Sim.Wind
         /// <summary>The wind's velocity at a world point in the step's frame, world m/s.</summary>
         public Double3 At(in Double3 point)
         {
-            Double3 wind = _level ? Air(point) : _steady;
+            Double3 wind = _level ? Air(point) : _still ? default : _steady;
             if (_front != null) wind = wind + _front.At(_front.Uniform ? _origin : point, _t);
             return wind;
         }

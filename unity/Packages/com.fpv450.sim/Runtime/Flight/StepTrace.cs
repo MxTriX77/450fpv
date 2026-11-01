@@ -61,6 +61,9 @@ namespace Fpv450.Sim.Flight
         /// <summary>The air's velocity at the camera at the step's start, camera (body) axes, m/s: the feed's
         /// AirVelocityAtCamera (FEED-13's lens drops).</summary>
         public Double3 CameraAir;
+        /// <summary>Each rotor's distance along its axis to the surface below it and above it at the step's start, m (its rays
+        /// and SampleGround, GroundEffectSpec): +∞ for none within the reach, 0 without the ground effect.</summary>
+        public Corners GroundDistance, CeilingDistance;
     }
 
     /// <summary>
@@ -125,6 +128,13 @@ namespace Fpv450.Sim.Flight
         /// <summary>A contact shape met more pairs than its table holds, or a query more than its buffer: a bug (Index: the
         /// contact shape). A: how many were dropped.</summary>
         ContactsLost = 11,
+
+        /// <summary>Index's rotor entered its vortex ring (VortexRingSpec, p7b-airframe 1.2). A: the descent along its axis
+        /// over its induced velocity, η; B: its in-plane airspeed over it, μ; C: that induced velocity v_h, m/s.</summary>
+        VortexRingEntered = 12,
+
+        /// <summary>Index's rotor left its vortex ring. A, B, C as VortexRingEntered's.</summary>
+        VortexRingLeft = 13,
     }
 
     /// <summary>MixerSaturation's Index.</summary>
@@ -138,6 +148,10 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The log's ring was full, so the flight thread waited for the flush worker (FlightRecorder).</summary>
         LogFull = 2,
+
+        /// <summary>The app paused the flight (p6-input-app): no step ran for B µs, and every later step's host time is
+        /// that much later, so a stick's age adds every pause before it. A: 0.</summary>
+        Pause = 3,
     }
 
     /// <summary>

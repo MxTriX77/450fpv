@@ -166,6 +166,106 @@ namespace Fpv450.Sim.Tests
             StringAssert.Contains(changedHash.ToString("X16"), refused.Message, "names the replay's hash");
         }
 
+        // PLT-04, PHB-01 (task 1.7): the flight thread's timing changes only the logged hitches. The repository's drone with
+        // its contacts, the Windy wind and the builder's chain (GoldenFlights' powered setup) is flown 3 s on the jittered
+        // stick stream by three workers on a virtual clock: one exactly on each step's time, one forced early (it wakes
+        // 10–400 µs apart, mostly before its step is due), one forced late (2–4000 µs apart, and once 40 ms, so passes
+        // catch up 2–40 steps). Every step record and every event but the hitches is the same, byte for byte.
+        enum Worker { OnTime, Early, Late }
+
+        const long WorkerSteps = 3000;
+
+        static byte[] FlyWorker(Worker worker, out long passes, out long idle, out long hitches)
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            FlightSetup setup = GoldenFlights.PoweredSetup(spec);
+            var core = new FlightCore(setup);
+            var log = new MemoryStream();
+            var recorder = new FlightRecorder(log, Header(setup, core, spec), FlightRecorder.DefaultCapacity, ownsStream: false);
+            var clock = new VirtualClock { Now = StartUs };
+            var inbox = new StickInbox();
+            var scheduler = new FlightScheduler(core, inbox, new PoseBuffer(), clock, recorder);
+            scheduler.Begin(StartUs);
+            ulong lcg = 0x9E3779B97F4A7C15UL;
+            long report = StartUs - 2000, wake = StartUs;
+            passes = idle = 0;
+            for (int i = 0; core.State.Step < WorkerSteps;)
+            {
+                clock.Now = wake;
+                for (; report <= wake; i++)
+                {
+                    inbox.TryWrite(Report(i, report));
+                    report += 3700 + i * 131 % 600;
+                }
+                passes++;
+                if (scheduler.RunDue(wake) == 0) idle++;
+                lcg = unchecked(lcg * 6364136223846793005UL + 1442695040888963407UL);
+                long draw = (long)(lcg >> 33);
+                if (worker == Worker.OnTime) wake = scheduler.StepHostUs(core.State.Step);
+                else if (worker == Worker.Early) wake += 10 + draw % 391;
+                else wake += core.State.Step == 1500 ? 40000 : 2 + draw % 3999;
+            }
+            recorder.Close(inbox.Dropped);
+            Assert.That(recorder.Fault, Is.Null);
+            hitches = scheduler.HitchCount;
+            return log.ToArray();
+        }
+
+        // Every step record and every event but the hitches up to step `last`, in order (a late worker's last pass may run
+        // past it); the Late hitches counted apart.
+        static List<byte[]> Deterministic(byte[] log, long last, out int late)
+        {
+            var blocks = new List<byte[]>();
+            late = 0;
+            using (var reader = new FlightLogReader(new MemoryStream(log)))
+            {
+                while (reader.Next())
+                {
+                    if (reader.Kind == LogFormat.EventBlock)
+                    {
+                        reader.ReadEvent(out LoggedEvent e);
+                        if (e.Event.Kind == EventKind.Hitch)
+                        {
+                            if (e.Event.Index == (byte)HitchCause.Late) late++;
+                            continue;
+                        }
+                        if (e.Step > last) continue;
+                    }
+                    if (reader.Kind == LogFormat.StepBlock && LogFormat.StepOf(reader.Payload) > last) continue;
+                    if (reader.Kind == LogFormat.StepBlock || reader.Kind == LogFormat.EventBlock) blocks.Add(reader.Payload.ToArray());
+                }
+                Assert.That(reader.Complete, Is.True);
+            }
+            return blocks;
+        }
+
+        [Test]
+        public void AWorkerEarlyOrLateChangesOnlyTheHitches()
+        {
+            List<byte[]> reference = Deterministic(FlyWorker(Worker.OnTime, out _, out long refIdle, out long refHitches), WorkerSteps, out int refLate);
+            Assert.That(refHitches, Is.EqualTo(0));
+            Assert.That(refLate, Is.EqualTo(0));
+            Assert.That(refIdle, Is.EqualTo(0), "on time, every pass runs its one step");
+            foreach (Worker w in new[] { Worker.Early, Worker.Late })
+            {
+                List<byte[]> blocks = Deterministic(FlyWorker(w, out long passes, out long idle, out long hitches), WorkerSteps, out int late);
+                TestContext.WriteLine($"{w}: {passes} passes, {idle} with nothing due, {hitches} hitches, {blocks.Count} records and events (on time: {reference.Count})");
+                Assert.That(blocks.Count, Is.EqualTo(reference.Count), w + ": the records and events");
+                for (int k = 0; k < blocks.Count; k++)
+                    Assert.That(blocks[k], Is.EqualTo(reference[k]), w + ": block " + k);
+                Assert.That(late, Is.EqualTo(hitches), w + ": each late pass is one logged hitch");
+                if (w == Worker.Early)
+                {
+                    Assert.That(idle, Is.GreaterThan(passes / 2), "most early passes find nothing due");
+                    Assert.That(hitches, Is.EqualTo(0));
+                }
+                else
+                {
+                    Assert.That(hitches, Is.GreaterThan(100), "late passes catch up and log it");
+                }
+            }
+        }
+
         [Test]
         public void ATruncatedLogStillReads()
         {
@@ -352,6 +452,10 @@ namespace Fpv450.Sim.Tests
             SeedStream stream = core.Random.Open("test.parameter");
             double drawn = core.Random.Draw(ref stream, "test.parameter", 0.9, 1.1);
             LogHeader h = Header(setup, core, spec);
+            h.Input = InputSource.Radio;
+            h.InputDevice = "Test Radio Joystick";
+            h.InputIntervals = new ReportIntervals();
+            foreach (long us in new long[] { 1980, 2010, 2040, 950, 25000 }) h.InputIntervals.Add(us);
 
             byte[] bytes = h.Encode();
             Assert.That(h.Length, Is.EqualTo(bytes.Length));
@@ -368,6 +472,11 @@ namespace Fpv450.Sim.Tests
             Assert.That(back.Loadout, Is.EqualTo(spec.Nominal));
             Assert.That((back.StartPosition, back.StartAttitude, back.StartVelocity, back.StartBodyRate),
                 Is.EqualTo((setup.StartPosition, setup.StartAttitude, setup.StartVelocity, setup.StartBodyRate)));
+            Assert.That((back.Input, back.InputDevice), Is.EqualTo((InputSource.Radio, "Test Radio Joystick")));
+            Assert.That(back.InputIntervals.Counts, Is.EqualTo(h.InputIntervals.Counts));
+            Assert.That((back.InputIntervals.BinUs, back.InputIntervals.Count, back.InputIntervals.SumUs, back.InputIntervals.MinUs, back.InputIntervals.MaxUs),
+                Is.EqualTo((100, 5L, 31980L, 950L, 25000L)));
+            Assert.That(back.InputIntervals.PercentileUs(50), Is.EqualTo(2100), "the bin of 2010 us");
             Assert.That(back.Streams, Is.EqualTo(new[] { "wind.direction", "wind.strength", "wind.meander", "wind.shift", "wind.turbulence", "test.parameter" }));
             Assert.That(back.Draws.Length, Is.EqualTo(3), "the wind's two and the test's");
             for (int i = 0; i < 2; i++) Assert.That(back.Draws[i], Is.EqualTo(core.Random.Draws[i]), "wind draw " + i);
@@ -442,6 +551,11 @@ namespace Fpv450.Sim.Tests
             Assert.That(InstanceFields(typeof(DronePack)), Is.EquivalentTo(LogHeader.PackFieldsLogged));
             Assert.That(InstanceFields(typeof(AeroSpec)), Is.EquivalentTo(LogHeader.AeroFieldsLogged));
             Assert.That(InstanceFields(typeof(WindSetup)), Is.EquivalentTo(LogHeader.WindFieldsLogged));
+            Assert.That(InstanceFields(typeof(MotorAsymmetry)), Is.EquivalentTo(LogHeader.AsymmetryFieldsLogged));
+            Assert.That(InstanceFields(typeof(VortexRingSpec)), Is.EquivalentTo(LogHeader.VortexRingFieldsLogged));
+            Assert.That(InstanceFields(typeof(GroundEffectSpec)), Is.EquivalentTo(LogHeader.GroundEffectFieldsLogged));
+            Assert.That(InstanceFields(typeof(RotorFlappingSpec)), Is.EquivalentTo(LogHeader.FlappingFieldsLogged));
+            Assert.That(InstanceFields(typeof(AirframeModesSpec)), Is.EquivalentTo(LogHeader.ModesFieldsLogged));
 
             foreach ((LogField[] fields, int size) in new[] { (LogFormat.StepFields, LogFormat.StepSize), (LogFormat.EventFields, LogFormat.EventSize),
                          (LogFormat.EndFields, LogFormat.EndSize) })
@@ -477,7 +591,7 @@ namespace Fpv450.Sim.Tests
             }
             s.Fc = (FcState)fc;
             Assert.That(v, Is.EqualTo(100 + 91 + 3), "the record's 91 controller doubles and 3 bytes");
-            var k = new StickSample { HostUs = -987654321, Roll = -0.2, Pitch = 0.21, Yaw = -0.22, Throttle = 0.23, Arm = false };
+            var k = new StickSample { HostUs = -987654321, Roll = -0.2, Pitch = 0.21, Yaw = -0.22, Throttle = 0.23, Arm = false, Failsafe = true };
             var t = new StepTrace
             {
                 RotorCommand = new Corners { RearRight = 0.24, FrontRight = 0.25, RearLeft = 0.26, FrontLeft = 0.27 },
@@ -499,6 +613,13 @@ namespace Fpv450.Sim.Tests
             Assert.That(t2, Is.EqualTo(t));
             LogFormat.DecodeStick(bytes, out StickSample k3);
             Assert.That(k3, Is.EqualTo(k));
+            // The crash (bit 2, 1.6) and the stick's failsafe (bit 3, p6-input-app) are separate bits.
+            s.Crashed = true;
+            k.Failsafe = false;
+            LogFormat.EncodeStep(bytes, s, k, t);
+            LogFormat.DecodeStep(bytes, out s2, out k2, out _);
+            Assert.That((s2, k2), Is.EqualTo((s, k)));
+            Assert.That(bytes[Array.Find(LogFormat.StepFields, f => f.Name == "flags").Offset], Is.EqualTo(0b0101), "armed and crashed");
 
             var e = new FlightEvent
             {
@@ -555,6 +676,59 @@ namespace Fpv450.Sim.Tests
             Assert.That(r.Outcome, Is.EqualTo(ReplayOutcome.Diverged), r.Message);
             Assert.That(r.Step, Is.EqualTo(5));
             StringAssert.Contains("ContactMade event at step 5 that the replay did not make", r.Message);
+        }
+
+        // QA's p7b-airframe finding 5: the summary names every airframe effect, on or off, once each. Each flight records the
+        // powered golden's setup for 20 steps with one effect off (and one with all five off), and its summary says so.
+        [TestCase("motor asymmetry", "motor asymmetry: off (identical rotors)")]
+        [TestCase("vortex rings", "vortex rings: off")]
+        [TestCase("ground effect", "ground effect: off")]
+        [TestCase("flapping", "flapping: off")]
+        [TestCase("modes", "modes: off (a rigid airframe)")]
+        [TestCase(null, null)]
+        public void TheSummaryNamesEveryAirframeEffectOnOrOff(string offName, string offLine)
+        {
+            string[] names = { "motor asymmetry", "vortex rings", "ground effect", "flapping", "modes" };
+            DroneSpec spec = RepositoryDrone.Spec();
+            foreach (bool allOff in offName == null ? new[] { false, true } : new[] { false })
+            {
+                FlightSetup setup = GoldenFlights.PoweredSetup(spec);
+                bool Off(string n) => allOff || n == offName;
+                if (Off("motor asymmetry")) setup.Asymmetry = null;
+                if (Off("vortex rings")) setup.VortexRing = null;
+                if (Off("ground effect")) setup.GroundEffect = null;
+                if (Off("flapping")) setup.Flapping = null;
+                if (Off("modes")) setup.Modes = null;
+                var core = new FlightCore(setup);
+                LogHeader h = LogHeader.For(setup, core);
+                h.Build = "simtests";
+                h.Isa = "test";
+                h.WorldId = "floor";
+                h.SetDrone(spec, spec.Nominal);
+                var log = new MemoryStream();
+                var recorder = new FlightRecorder(log, h, FlightRecorder.DefaultCapacity, ownsStream: false);
+                for (int k = 0; k < 20; k++)
+                {
+                    StickSample stick = GoldenFlights.PoweredStick(k);
+                    core.Advance(stick);
+                    recorder.RecordStep(core.State, stick, core.Trace, core.Events);
+                }
+                recorder.Close();
+                var text = new StringWriter();
+                FlightSummary.Read(new MemoryStream(log.ToArray())).Print(text);
+                string summary = text.ToString();
+                foreach (string n in names)
+                {
+                    int lines = 0;
+                    foreach (string line in summary.Split(new[] { Environment.NewLine, "\n" }, StringSplitOptions.None))
+                        if (line.TrimStart().StartsWith(n + ":", StringComparison.Ordinal)) lines++;
+                    Assert.That(lines, Is.EqualTo(1), $"one line for {n}: {summary}");
+                    string off = n == "motor asymmetry" ? "motor asymmetry: off (identical rotors)" : n == "modes" ? "modes: off (a rigid airframe)" : n + ": off";
+                    if (Off(n)) StringAssert.Contains(off, summary);
+                    else StringAssert.DoesNotContain(off, summary);
+                }
+                if (offLine != null) StringAssert.Contains(offLine, summary);
+            }
         }
 
         [Test]

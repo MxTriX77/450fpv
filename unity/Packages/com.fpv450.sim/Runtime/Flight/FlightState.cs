@@ -51,5 +51,23 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The flight has ended in a crash (ContactModel, 1.6): latched; the body still moves, the app ends the flight.</summary>
         public bool Crashed;
+
+        /// <summary>Each rotor's angle turned since the start, rad, kept in [0, 2π) (Propulsion): the prop's unbalance turns
+        /// with it.</summary>
+        public Corners RotorAngle;
+
+        /// <summary>Each rotor's vortex ring (VortexRingSpec, p7b-airframe 1.2): what its recirculation adds to the inflow
+        /// through the disc, m/s, lagged; its thrust's fluctuation, a share of the thrust; and the rotors in the ring, bit
+        /// 1 &lt;&lt; corner. All 0 without the ring.</summary>
+        public Corners RingInflow, RingThrust;
+        public byte RingLatched;
+
+        /// <summary>Each rotor's re-ingested wash in a close hover (GroundEffectSpec, p7b-airframe 1.3): its inflow through the
+        /// disc over v_h, the recirculation's process. 0 without the ground effect and away from the ground.</summary>
+        public Corners WashInflow;
+
+        /// <summary>The airframe's elastic modes (AirframeModes, p7b-airframe 1.4): each mode's coordinate (mass-normalised,
+        /// m·√kg) and its rate, lowest first. 0 without the modes.</summary>
+        public ModeSet ModeShape, ModeRate;
     }
 }

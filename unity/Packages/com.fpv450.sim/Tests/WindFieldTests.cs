@@ -112,7 +112,7 @@ namespace Fpv450.Sim.Tests
                 var met = new List<History>();
                 for (ulong seed = 1; seed <= 5; seed++) met.Add(Encounter(level, seed, 33, WindHarness.ReleaseSpeed));
                 bool spectrum = Spectrum(met, preset, WindHarness.ReleaseSpeed, 2, 4, out string ds, out _);
-                TestContext.Out.WriteLine($"{level}, 20 seeds of 1200 s: {di}; {db}; 5 seeds at the 18.8 m/s cruise: {ds}");
+                TestContext.Out.WriteLine($"{level}, 20 seeds of 1200 s: {di}; {db}; 5 seeds at the {WindHarness.ReleaseSpeed:F1} m/s cruise: {ds}");
                 Assert.That(intensity, Is.True, di);
                 Assert.That(band, Is.True, db);
                 Assert.That(spectrum, Is.True, ds);

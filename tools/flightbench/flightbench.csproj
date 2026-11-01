@@ -21,6 +21,11 @@
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/GustFrontScenario.cs" Link="GustFrontScenario.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/RainScenario.cs" Link="RainScenario.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/ContactScenarios.cs" Link="ContactScenarios.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/AsymmetryScenario.cs" Link="AsymmetryScenario.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/VortexRingScenario.cs" Link="VortexRingScenario.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/GroundEffectScenario.cs" Link="GroundEffectScenario.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/FlappingScenario.cs" Link="FlappingScenario.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/ShakeScenario.cs" Link="ShakeScenario.cs" />
   </ItemGroup>
 
   <!-- K§8.5's simulated pilot and the test flight, which the wind-harness mode flies (p7c-wind 1.2). -->

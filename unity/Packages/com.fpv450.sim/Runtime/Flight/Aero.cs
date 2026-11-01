@@ -17,7 +17,7 @@ namespace Fpv450.Sim.Flight
         public double DragCoefficient;
 
         /// <summary>The coil's mass part, whose cylinder and centre in the flight's mass model carry the coil's own drag
-        /// (so the legs-off build's moved spool drags where it hangs); −1 for none.</summary>
+        /// (so a build that moves the spool drags it where it hangs); −1 for none.</summary>
         public int CoilPart = -1;
 
         public AeroSpec Clone() => (AeroSpec)MemberwiseClone();
@@ -30,8 +30,8 @@ namespace Fpv450.Sim.Flight
     ///   A(n) = A_x|n_x| + A_y|n_y| + A_z|n_z| the projection of a box of those side, top and front silhouettes along
     ///   the flow's direction n (exact for a box), so A(n)·|v| = A_x|v_x| + A_y|v_y| + A_z|v_z|.
     /// - The coil, at its own centre: its cylinder's silhouette along n, L·D·√(1 − (n·a)²) + (π/4)·D²·|n·a|
-    ///   (exact for a cylinder of axis a), with the same coefficient; on the legs-on build it rides above the centre of
-    ///   mass, so its drag also rolls the drone (away from the wind, the sheet: the opposite sense to K§5.2's).
+    ///   (exact for a cylinder of axis a), with the same coefficient; beneath the frame on both builds (D-050) it hangs
+    ///   below the centre of mass, so its drag also rolls the drone, its top into the wind (K§5.2's sense).
     /// The rotors' in-plane drag, the H-force, is the rotors' (Propulsion.HForce). Basic operations only.
     /// </summary>
     public sealed class Aero
