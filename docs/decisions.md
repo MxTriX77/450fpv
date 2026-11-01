@@ -477,3 +477,9 @@ From QA's review of `p6-input-app` 1.4b (finding 17): PRD-04 and PRD-05 keep the
 - **The empty drone's full punch** lasts 0.3–0.7 s on about 96 % of flights, matching the pilot's account.
 - **The tilt** on a full punch is 2.7–10° and at least about twice the no-current-limit model's (0.1–3.2°), so the ESC firmware question decides it.
 - **The bands with no physical floor are dropped.** The spec states rates where a bound is not true on every seed (QA's re-review, B1).
+
+## D-054 How the world queries' budget is judged until the fiber · Accepted
+From QA's review of `p6-world-query-gallery` (B1, S2):
+- **At G7 the queries are judged on physics' pattern,** the calls `ContactModel` makes each step, inside PLT-04's whole-step budget (p99 at most 300 µs, 0 B). The 100 000-capsule and 100 000-ray budgets are read the same way.
+- **K§10.5's batch with the fiber's segments** is judged when the fiber is built (phase 7d), which decides how often the fiber is queried.
+- **PLT-04's 60 µs line stays the target** for the queries' speed work. The straw patch (194 µs at p99 a step) and the launch stand get a broad phase inside each object.
