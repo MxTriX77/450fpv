@@ -477,18 +477,18 @@ namespace Fpv450.Sim.Tests
                     switch ((string)c["shape"])
                     {
                         case "box":
-                            AssertNear(g.HalfExtents, Vec(c["size"]) * 0.5, 0, $"row {i} shape {s}: half size");
+                            AssertNear(g.HalfExtents, Vec(c["size"]) * 0.5, Exact, $"row {i} shape {s}: half size");
                             break;
                         case "capsule":
-                            Assert.That(g.Radius, Is.EqualTo((double)c["radius"]));
+                            Assert.That(g.Radius, Is.EqualTo((double)c["radius"]).Within(Exact));
                             Assert.That(g.HalfLength, Is.EqualTo(Math.Max(0, (double)c["height"] / 2 - g.Radius)).Within(Exact));
                             break;
                         case "cylinder":
-                            Assert.That(g.Radius, Is.EqualTo((double)c["radius"]));
+                            Assert.That(g.Radius, Is.EqualTo((double)c["radius"]).Within(Exact));
                             Assert.That(g.HalfLength, Is.EqualTo((double)c["height"] / 2).Within(Exact));
                             break;
                         default:
-                            Assert.That(g.Radius, Is.EqualTo((double)c["radius"]));
+                            Assert.That(g.Radius, Is.EqualTo((double)c["radius"]).Within(Exact));
                             break;
                     }
                 }
@@ -659,7 +659,8 @@ namespace Fpv450.Sim.Tests
     }
 
     /// <summary>A plain JSON reader for the tests (objects, arrays, strings, numbers by double.Parse, true/false/null), so
-    /// the pose parity is read independently of the loader's DetJson.</summary>
+    /// the pose parity is read independently of the loader's DetJson. Mono's double.Parse is not always correctly rounded
+    /// (E01's half size 0.827903 came back one ulp off), so the parity compares sizes within Exact, not bit for bit.</summary>
     internal static class TestJson
     {
         public static object Parse(string text)
