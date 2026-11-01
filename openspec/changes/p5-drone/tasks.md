@@ -38,13 +38,14 @@ Branch `unity/art/p5-drone` off `unity/main`, **stacked on `p6-flight-core`** (m
 - [ ] 1.3 [asset-artist] The drone generator (design 3):
   - **What:** `drone.py` reading `drone.json` and the look params, both variants, LODs, and the review sheet at 1.5 / 10 / 50 / 200 m.
   - **Verify:** the prop-tips scenario, `pwsh tools/build_asset.ps1 D01` exits 0, and a second build leaves `git status` clean. Look at the sheet against the object sheet's references.
+  - **So far (code only; the GPU went to the pilot):** `tools/blender/generators/drone.py` on `lib/solids.py`, D-050's layout (the coil beneath, a bottle strapped on top) read from `drone.json`, `D01_legs_on` and `D01_legs_off` with four LODs, collision and snag, six palette recipes and the bottle's, the catalog entry, and pure-Python tests (`test_drone.py`, `test_solids.py`; the prop tips 0.5736 / 0.7060 m). The Blender and Unity build, the review sheet and the look against T wait for a fresh task, after the physics engineer's D-050 `drone.json`.
 - [ ] 1.4 [asset-artist] The launch stand (design 4):
   - **What:** its generator from `drone.json`, with its metadata.
   - **Verify:** the "drone rests on the stand" scenario, and `build_asset.ps1 D02` exits 0.
 - [ ] 1.5 [tech-artist] In-view parts and hooks (design 5):
   - **What:** the props' rpm blur, the parts in the FPV frustum, leg flex and coil payout from `PoseFrame`.
   - **Verify:** the "props in view" scenario through `p4-feed`'s rig.
-- [ ] 1.6 [world-builder] The gallery station (design 6):
+- [x] 1.6 [world-builder] The gallery station (design 6): **dropped by D-047** (the test range is the final map; G5 folds into G7).
   - **What:** both variants, a turntable and the stand, in `stations.json` with a viewpoint.
   - **Verify:** the gallery scene test and the smoke test list them.
 
