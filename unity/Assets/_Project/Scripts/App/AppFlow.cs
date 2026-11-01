@@ -40,6 +40,7 @@ namespace Fpv450.App
         FlightScene _flight;
         string _profile;
         int _errors;
+        string _smokeLogs; // the smoke test's flight logs, never in the pilot's folder
 
         /// <summary>Boot's: makes the app once; the Boot scene loads again for the menu and finds it.</summary>
         public static void Create()
@@ -161,7 +162,11 @@ namespace Fpv450.App
                     return;
                 }
                 _flight = FlightScene.Attach(scene);
-                if (_flight.Host.Inputs != null) _flight.Host.Inputs.Choices = _setup.Choices.Clone();
+                if (_flight.Host.Inputs != null)
+                {
+                    _flight.Host.Inputs.Choices = _setup.Choices.Clone();
+                    if (_smokeLogs != null) _flight.Host.Inputs.LogFolder = _smokeLogs;
+                }
                 _flight.SetupRequested += () =>
                 {
                     if (_flight.Host.Inputs != null) _setup.Choices = _flight.Host.Inputs.Choices.Clone();
@@ -252,8 +257,10 @@ namespace Fpv450.App
         /// then a flight from the ground (legs on, the first start that is not the stand's) and one from the launch stand
         /// (legs off, the stand's start), the second set from the first's summary through Setup. With the development
         /// keyboard each flight is flown by a script of its keys: armed, climbed, paused (no step while paused),
-        /// restarted (the stand's, before arming: a new seed and log), descended, disarmed, and the summary read from the
-        /// log. A pilot's build has no keyboard: there each flight is checked waiting for the radio.
+        /// restarted (the stand's, before arming, from the pause: a new seed and log), descended, disarmed, and the summary
+        /// read from the log. The keyboard is barred twice, as in a pilot's build without the radio: the stand's flight,
+        /// set from the first's summary, waits at its start; its Restart ends it and waits. A pilot's build has no keyboard:
+        /// there each flight is checked waiting for the radio. The flights log to the smoke test's own folder.
         /// </summary>
         IEnumerator Smoke()
         {
@@ -261,6 +268,9 @@ namespace Fpv450.App
             int at = Array.IndexOf(args, "-smokeshots");
             string shots = at >= 0 && at + 1 < args.Length ? args[at + 1] : null;
             if (shots != null) Directory.CreateDirectory(shots);
+            // Its flights log to a folder of its own (QA's note): beside the shots, or in the app's temporary folder.
+            _smokeLogs = shots != null ? Path.Combine(shots, "flights") : Path.Combine(Application.temporaryCachePath, "smoketest-flights");
+            Debug.Log("[Smoke] flight logs in " + _smokeLogs);
             // The smoke test's flights save their setup; the pilot's own is put back at the end.
             string setupFile = SetupStore.PathIn(Application.persistentDataPath);
             byte[] pilotSetup = File.Exists(setupFile) ? File.ReadAllBytes(setupFile) : null;
@@ -332,12 +342,25 @@ namespace Fpv450.App
                 c.Wind = WindLevel.Calm;
                 c.Rain = Rain.Sunny;
                 c.TimeOfDay = n == 0 ? 11.5 : 17.5;
+                // QA's finding 15: the second flight is set from the first's summary. With the keyboard barred, as in a
+                // pilot's build without the radio, it waits, and the view is the chosen start's, not the last flight's end.
+                bool barred = n == 1 && _flight != null && _flight.Host.Inputs != null && _flight.Host.Inputs.KeyboardAllowed;
+                if (barred) _flight.Host.Inputs.KeyboardAllowed = false;
                 Fly();
                 string where = "'" + start.Name + "' (legs " + (c.Legs ? "on" : "off, the stand") + ")";
                 yield return Until(() => _view == View.Flight && _flight != null && _flight.Host.Session != null, 60);
                 Check(_flight != null && _flight.Host.Session != null, "Fly loads the flight over the test range at " + where);
                 if (_flight == null || _flight.Host.Session == null) break;
                 FlightSessionHost host = _flight.Host;
+                if (barred)
+                {
+                    yield return new WaitForSecondsRealtime(1);
+                    Vector3 eye = Camera.main != null ? Camera.main.transform.position : Vector3.positiveInfinity;
+                    Check(host.WaitingForRadio && Math.Abs(eye.x - start.X) < 0.1 && Math.Abs(eye.z - start.Z) < 0.1 && eye.y < 0.5,
+                          "after a flight, the wait for the radio views the chosen start " + where + " from " + eye.ToString("0.00"));
+                    yield return Shot("waiting_after_flight_" + start.Name);
+                    host.Inputs.KeyboardAllowed = true;
+                }
                 if (!host.Inputs.KeyboardAllowed)
                 {
                     yield return new WaitForSecondsRealtime(2);
@@ -358,10 +381,18 @@ namespace Fpv450.App
                 Check(session.State == SessionState.Flying, "flight " + session.Flights + " started at " + where + " on " + session.Input);
                 if (start.Stand)
                 {
+                    // The pause's Restart, first without the radio (QA's finding 14): the flight ends by the pilot and the
+                    // next waits for it; with the keyboard back it starts.
                     ulong seed = session.Seed;
                     string log = session.LogPath;
                     int flights = session.Flights;
+                    host.Pause();
+                    host.Inputs.KeyboardAllowed = false;
                     host.Restart();
+                    yield return new WaitForSecondsRealtime(0.5f);
+                    Check(host.WaitingForRadio && session.State == SessionState.Ended && session.End.Kind == FlightEndKind.Pilot,
+                          "Restart without the radio: ended by the pilot, and the next flight waits for it");
+                    host.Inputs.KeyboardAllowed = true;
                     yield return new WaitForSecondsRealtime(1);
                     Check(session.Flights == flights + 1 && session.Seed != seed && session.LogPath != log, "Restart: a new flight with a new seed and log");
                 }
