@@ -12,6 +12,8 @@ namespace Fpv450.FlightBench
     // The ground-contact scenarios (p6-flight-core 1.6) on the world-query stub, from the file the suite compiles
     // (ContactScenarios): the landing with the sticks held and with the throttle cut, the liftoff from the stand, the
     // pole at 10 m/s, and a part driven through a rod faster than its compliance can stop it, which must log a tunnel.
+    // Then the same on the test range (1.6b, RangeScenarios, which RangeContactTests asserts): resting and landing on the
+    // plane, S04's soil and straw and E01's run, the field start's stand and a belly landing, and flights into its objects.
     // The bench times the step with the contacts busiest: resting on the floor, and on the stand.
     internal static class ContactsCase
     {
@@ -72,8 +74,79 @@ namespace Fpv450.FlightBench
             int fast = ContactScenarios.Overdriven(spec, materials, hash, 40, out string fastDetail);
             Row("at 40 m/s it goes through, and the log says so", fast >= 1, fastDetail);
 
+            Range(spec, materials, hash);
+
             Console.WriteLine($"{Name}: {(_ok ? "PASS" : "FAIL")}");
             return _ok;
+        }
+
+        static string Rest(RangeScenarios.Resting r) =>
+            $"sank {r.Sink * 1e3:F2} mm, legs {r.LegLoad[0]:F1}/{r.LegLoad[1]:F1}/{r.LegLoad[2]:F1}/{r.LegLoad[3]:F1} N ({r.LoadOverWeight:F3} of the weight), "
+            + $"{r.Speed * 1e3:F3} mm/s; {r.Pairs.Count} open pairs: {r.Plane} plane, {r.Soil} soil, {r.Material} material, {r.PlaneInHole} plane over a hole; "
+            + $"{r.HoleSupports} supports over Hole; {r.LateEvents} contact events in the last second; {r.Tunnels} tunnels, {r.Crashes} crashes, {r.Lost} lost";
+
+        static string First(ContactScenarios.Landing l)
+        {
+            IWorldQuery q = l.Core.World.Query;
+            FlightEvent e = l.First;
+            return $"; first '{l.Core.Contacts.Spec.Shapes[e.Index].Name}' on {(e.Object == WorldIds.Ground ? "the plane" : q.ObjectName(e.Object) + "#" + e.Object + "/" + e.Shape)} "
+                + $"({(e.Surface != 0 ? "surface " + q.SurfaceName(e.Surface) : q.MaterialName(e.Material))}) at y {e.Point.Y:F4}";
+        }
+
+        static string Strike(ContactScenarios.PoleStrike p) =>
+            (p.Touch ? $"first touch '{p.FirstPart}' on '{p.FirstObject}' ({p.FirstMaterial}) by {p.First.Kind} at {p.First.A:F2} m/s, flying {p.FirstFlightSpeed:F2} m/s; " : "touched nothing; ")
+            + (p.Crashes > 0 ? $"crash ({p.Cause}) by '{p.Part}' on '{p.Object}' ({p.Material}) at {p.Speed:F2} m/s, flying {p.FlightSpeed:F2} m/s at {p.Height:F2} m; "
+                + $"impact (from '{p.ImpactPart}') peak {p.PeakAccel:F0} m/s² ({p.PeakAccel / 9.80665:F0} g), impulse {p.Impulse:F2} N·s; " : "no crash; ")
+            + $"touched by {string.Join(", ", p.Touched)}; {p.Tunnels} tunnels{(p.Tunnels > 0 ? " (" + string.Join(", ", p.TunnelThrough) + ")" : "")}, {p.Lost} lost";
+
+        /// <summary>The ground-contact scenarios on the test range (1.6b, D-044): MapWorld with its start points, patches and objects.</summary>
+        static void Range(DroneSpec spec, MaterialRow[] materials, ulong hash)
+        {
+            var load = Stopwatch.StartNew();
+            MapWorld world = RangeScenarios.World;
+            Console.WriteLine($"the test range (D-047): MapWorld 0x{world.ContentHash:X16}, query version {world.QueryVersion}, {world.PlacedObjects} objects, "
+                + $"loaded in {load.Elapsed.TotalSeconds:F2} s; still air");
+            StartPoint track = RangeScenarios.Start("track"), field = RangeScenarios.Start("field");
+
+            Console.WriteLine("resting (legs on, disarmed, 3 s on the skids):");
+            foreach (var (name, site) in new[] { ("the track start", RangeScenarios.At(track)), ("S04's straw", RangeScenarios.At(RangeScenarios.Straw, 0)),
+                ("S04's bare soil", RangeScenarios.At(RangeScenarios.Soil, 0)), ("E01's run", RangeScenarios.At(RangeScenarios.Run, RangeScenarios.RunHeading)) })
+            {
+                RangeScenarios.Resting r = RangeScenarios.Rest(spec, materials, hash, site);
+                Row(name, r.Tunnels == 0 && r.Crashes == 0 && r.Lost == 0, Rest(r) + "; " + string.Join("; ", r.Pairs));
+            }
+
+            Console.WriteLine("the landing (down at 0.5 m/s, the sticks held from 0.1 m):");
+            foreach (var (name, site) in new[] { ("the track start", RangeScenarios.At(track)), ("S04's straw", RangeScenarios.At(RangeScenarios.Straw, 0)),
+                ("S04's bare soil", RangeScenarios.At(RangeScenarios.Soil, 0)), ("E01's run", RangeScenarios.At(RangeScenarios.Run, RangeScenarios.RunHeading)) })
+            {
+                ContactScenarios.Landing held = ContactScenarios.Land(spec, materials, hash, false, site: site);
+                Row(name + ", throttle held", held.Tunnels == 0 && held.Crashes == 0 && held.Lost == 0, Land(held) + First(held));
+                ContactScenarios.Landing cut = ContactScenarios.Land(spec, materials, hash, true, site: site);
+                Row(name + ", throttle cut", cut.Tunnels == 0 && cut.Crashes == 0 && cut.Lost == 0, Land(cut) + First(cut));
+            }
+
+            Console.WriteLine("the field start (legs off, the stand):");
+            ContactScenarios.Liftoff lift = ContactScenarios.FromStand(spec, materials, hash, site: RangeScenarios.At(field));
+            Row("off the four posts", lift.Tunnels == 0 && lift.Crashes == 0 && lift.Lost == 0,
+                $"{lift.Made} post contacts made ({lift.MadeSteel} steel) and resting {lift.RestDepth * 1e6:F1} µm deep; {lift.Broken} broken in the ramp, "
+                + $"{lift.BrokenSteel} steel; off the last post {lift.Time:F3} s into the ramp at throttle {lift.Throttle:F3}, ESC duty {lift.Duty * 100:F1} %, "
+                + $"after sliding {lift.Slide * 1e3:F2} mm; {lift.ClimbAfter:F3} m over the posts a second later; {lift.Tunnels} tunnels, {lift.Crashes} crashes");
+            RangeScenarios.Belly belly = RangeScenarios.BellyLanding(spec, materials, hash, RangeScenarios.At(field));
+            Row("a belly landing 3 m off the stand, cut at the touch", belly.Tunnels == 0 && belly.Crashes == 0 && belly.Lost == 0,
+                $"first '{belly.FirstPart}' at {belly.TouchSpeed:F3} m/s, peak {belly.PeakAccel / 9.80665:F1} g, at rest {(double.IsNaN(belly.Settled) ? "never" : $"{belly.Settled:F3} s")} after it "
+                + $"on {string.Join(", ", belly.Resting)}; {belly.Tunnels} tunnels, {belly.Crashes} crashes");
+
+            Console.WriteLine("flights into the range's objects:");
+            foreach (RangeScenarios.Approach a in RangeScenarios.Approaches)
+            {
+                ContactScenarios.PoleStrike p = RangeScenarios.Into(spec, materials, hash, a);
+                Row($"{a.Name} ({a.Variant}, {(a.ClimbRate > 0 ? $"climbing at {a.ClimbRate} m/s" : $"{a.Speed} m/s at {a.Height} m")})", p.Tunnels == 0 && p.Lost == 0, Strike(p));
+            }
+            RangeScenarios.OnWire wire = RangeScenarios.OntoWire(spec, materials, hash);
+            Row("a skid across a conductor at 2 m/s", wire.Tunnels == 0 && wire.Lost == 0,
+                $"first '{wire.FirstShape}' at {wire.TouchSpeed:F3} m/s; touched by {string.Join(", ", wire.Shapes)}; peak leg {wire.PeakLegLoad:F1} N; "
+                + $"{wire.After:F3} m over the conductor 1.5 s later; {wire.Strikes} prop strikes, {wire.Crashes} crashes, {wire.Tunnels} tunnels");
         }
 
         /// <summary>The step with its contacts busiest: legs on resting on the floor (eight supports and their friction), and
