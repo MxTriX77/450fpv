@@ -186,12 +186,16 @@ namespace Fpv450.Sim.World
             time = 1;
             // A box that the whole sweep stays clear of and that the current pose is beyond the margin of: no contact,
             // without a closest approach (the AABB check passes yawed and tilted boxes that are far in their own frame).
-            if (s.Clear(previous, current, 0, TouchDistance) && s.Clear(current, current, 0, margin))
+            bool clear = s.Clear(previous, current, 0, TouchDistance);
+            if (clear && s.Clear(current, current, 0, margin))
             {
                 near = default;
                 return false;
             }
             s.Closest(current.A, current.B, r, out near);
+            // A box the whole sweep stays clear of is never touched: the current contact alone, without the start pose's.
+            if (clear)
+                return near.Distance <= margin;
             if (speed > 0)
             {
                 // The distance changes by at most `speed` per unit of t, so stepping by distance / speed never skips a touch.
@@ -566,7 +570,7 @@ namespace Fpv450.Sim.World
             const double g = 0.6180339887498949;
             Double3 d = lq - lp;
             double lo = 0, hi = 1, u1 = 1 - g, u2 = g;
-            double f1 = LocalSdf(s, lp + d * u1, out _, out _), f2 = LocalSdf(s, lp + d * u2, out _, out _);
+            double f1 = Sdf(s, lp + d * u1), f2 = Sdf(s, lp + d * u2);
             for (int i = 0; i < 40; i++)
             {
                 if (f1 <= f2)
@@ -575,7 +579,7 @@ namespace Fpv450.Sim.World
                     u2 = u1;
                     f2 = f1;
                     u1 = hi - g * (hi - lo);
-                    f1 = LocalSdf(s, lp + d * u1, out _, out _);
+                    f1 = Sdf(s, lp + d * u1);
                 }
                 else
                 {
@@ -583,11 +587,11 @@ namespace Fpv450.Sim.World
                     u1 = u2;
                     f1 = f2;
                     u2 = lo + g * (hi - lo);
-                    f2 = LocalSdf(s, lp + d * u2, out _, out _);
+                    f2 = Sdf(s, lp + d * u2);
                 }
             }
             double u = f1 <= f2 ? u1 : u2, f = f1 <= f2 ? f1 : f2;
-            double start = LocalSdf(s, lp, out _, out _), end = LocalSdf(s, lq, out _, out _);
+            double start = Sdf(s, lp), end = Sdf(s, lq);
             if (start <= f)
             {
                 u = 0;
@@ -608,6 +612,20 @@ namespace Fpv450.Sim.World
         private static double BoxMinimizer(Double3 h, Double3 p, Double3 d)
         {
             double best = Inner(h, p, d, 0), at = 0;
+            // Both ends beyond one face's plane: outside all along, so the entry test below is settled (its every candidate
+            // lies between the ends, beyond that plane too, rounding included), and only its sign was used.
+            if (!Beyond(p.X, d.X, h.X) && !Beyond(p.Y, d.Y, h.Y) && !Beyond(p.Z, d.Z, h.Z))
+                best = EntryTest(h, p, d, best, ref at);
+            if (best <= 0)
+                return -1;
+            return Outside(h, p, d);
+        }
+
+        private static bool Beyond(double p, double d, double h) => p > h && p + d > h || p < -h && p + d < -h;
+
+        /// <summary>The least max_i(|x_i| − h_i) over the segment's candidates: not above 0, the segment enters the box.</summary>
+        private static double EntryTest(Double3 h, Double3 p, Double3 d, double best, ref double at)
+        {
             Candidate(h, p, d, 1, ref best, ref at);
             for (int i = 0; i < 3; i++)
             {
@@ -627,10 +645,13 @@ namespace Fpv450.Sim.World
                     }
                 }
             }
-            if (best <= 0)
-                return -1;
+            return best;
+        }
 
-            // Outside all along: the pieces between the u where an axis crosses a face's plane.
+        /// <summary>BoxMinimizer's u for a segment outside the box all along: the pieces between the u where an axis crosses a face's plane.</summary>
+        private static double Outside(Double3 h, Double3 p, Double3 d)
+        {
+            double best, at = 0;
             Span<double> cuts = stackalloc double[8];
             int n = 0;
             cuts[n++] = 0;
@@ -765,6 +786,31 @@ namespace Fpv450.Sim.World
             surface = new Double3(x.X, sy * half, x.Z);
             normal = new Double3(0, sy, 0);
             return dy;
+        }
+
+        /// <summary>LocalSdf's value alone, the same bits: the search's evaluations, without a point and a normal.</summary>
+        private static double Sdf(in ShapeGeometry s, Double3 x)
+        {
+            if (s.Kind == ShapeKind.Box)
+            {
+                Double3 h = s.HalfExtents;
+                double qx = DetMath.Abs(x.X) - h.X, qy = DetMath.Abs(x.Y) - h.Y, qz = DetMath.Abs(x.Z) - h.Z;
+                if (qx > 0 || qy > 0 || qz > 0)
+                {
+                    double vx = x.X - Limit(x.X, h.X), vy = x.Y - Limit(x.Y, h.Y), vz = x.Z - Limit(x.Z, h.Z);
+                    return DetMath.Sqrt(vx * vx + vy * vy + vz * vz);
+                }
+                return qx >= qy && qx >= qz ? qx : qy >= qz ? qy : qz;
+            }
+            double radius = s.Radius, half = s.HalfLength, rho = DetMath.Sqrt(x.X * x.X + x.Z * x.Z);
+            double dr = rho - radius, dy = DetMath.Abs(x.Y) - half;
+            if (dr > 0 && dy > 0)
+            {
+                double ux = rho > 0 ? x.X / rho : 1, uz = rho > 0 ? x.Z / rho : 0;
+                double vx = x.X - ux * radius, vy = x.Y - Sign(x.Y) * half, vz = x.Z - uz * radius;
+                return DetMath.Sqrt(vx * vx + vy * vy + vz * vz);
+            }
+            return dr > 0 || dy <= 0 && dr >= dy ? dr : dy;
         }
 
         /// <summary>The ground's half-space, entered only from above (or at its surface, going down).</summary>
