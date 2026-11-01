@@ -62,9 +62,10 @@ namespace Fpv450.Sim.Log
         /// rotors' vortex rings and the header's ring (1.2), 8 the rotors' surfaces and re-ingested wash and the header's
         /// ground effect (1.3), 9 the header's flapping and the steady wind's onset (1.3c). 10: the two merged, the input
         /// entry at tag 15 and the airframe's entries after it. 11: the airframe's modes in the step record (p7b-airframe
-        /// 1.4: each mode's coordinate and rate) and the header's modes entry.
+        /// 1.4: each mode's coordinate and rate) and the header's modes entry. 12: the modes entry without the slings' fields
+        /// (D-050: both loads on strapped mounts; their stiffness, swing damping, the bottom plate and gravity dropped).
         /// </summary>
-        public const int Version = 11;
+        public const int Version = 12;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header

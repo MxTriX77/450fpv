@@ -6,9 +6,9 @@ namespace Fpv450.Sim.Flight
     /// The airframe's small elastic modes (p7b-airframe design 5, PHY-10), from drone.json's frame (DroneSpec.BuildModes):
     /// - the arms: each a cantilever from the body's edge to the motor mount, its tip (the motor, the prop and Rayleigh's
     ///   0.2357 of the arm) bending along the rotor's axis, k = 3EI/L³ of the carbon plate (Euler–Bernoulli, published)
-    /// - the payload and the coil: each a mass on its mount, three ways: one hanging below the bottom plate swings as a
-    ///   sling's pendulum, m·g/ℓ across (a parallel sling: it translates, its own inertia not swinging) and its sling's
-    ///   stretch along; one on top is strapped, MountStiffness every way
+    /// - the payload and the coil: each a mass on its strapped mount, three ways, MountStiffness every way (D-050: the
+    ///   bottle strapped rigidly on top, the coil in its cradle beneath; neither swings on a sling); each translates on
+    ///   its mount, its own inertia turning with the frame (assumed: its rocking on the straps is left out)
     /// The rest of the drone is rigid. The modes are the free-free ones of that system about the drone's rigid motion
     /// (mean axes, Waszak and Schmidt 1988, published): the rigid body (FlightCore's, the whole drone's mass and inertia)
     /// moves exactly as without them, and the deformation moves the frame against it so that its own momentum and
@@ -36,25 +36,16 @@ namespace Fpv450.Sim.Flight
         /// friction; the prop's aerodynamic damping of the tip comes from its inflow, apart).</summary>
         public double ArmDamping = 0.02;
 
-        /// <summary>A strapped mount's stiffness every way: 30 kN/m (assumed: the coil's straps on its printed cradle, 10–100
-        /// kN/m); a sling's along its straps: 50 kN/m (assumed: two short webbing straps or a release hook, 20–400 kN/m).</summary>
-        public double MountStiffness = 30000, SlingStiffness = 50000;
+        /// <summary>A strapped mount's stiffness every way: 30 kN/m (assumed: the coil's cable-tie hoops on its printed cradle
+        /// and the bottle's two straps through the plate, 10–100 kN/m).</summary>
+        public double MountStiffness = 30000;
 
-        /// <summary>The damping ratio of a mount's and a sling's stretch: 0.1 (assumed: webbing and printed plastic); of a
-        /// sling's swing: 0.05 (assumed: the straps' friction and the air on the payload).</summary>
-        public double MountDamping = 0.1, SwingDamping = 0.05;
+        /// <summary>A mount's damping ratio: 0.1 (assumed: webbing, a filled PET bottle's wall and printed plastic).</summary>
+        public double MountDamping = 0.1;
 
-        /// <summary>The bottom plate's underside, body m: −0.003 (drone.json's plates, derived): a mass whose centre is below it
-        /// hangs from it, the sling's length that drop.</summary>
-        public double BottomPlate = -0.003;
-
-        /// <summary>The camera, body m: (0, 0.014, 0.1) (assumed: at the plates' front edge, mid-height; the sheet puts it at
-        /// the front of the stack).</summary>
+        /// <summary>The camera mount's point, body m: drone.json's camera.lens_m (DroneSpec.BuildModes); this default (0, 0.014,
+        /// 0.1), assumed at the plates' front edge mid-height, only for a file without one.</summary>
         public Double3 Camera = new Double3(0, 0.014, 0.1);
-
-        /// <summary>Standard gravity for the slings' pendulum, m/s² (published; the load factor's change in a punch is left out,
-        /// assumed: the modes are linear about 1 g).</summary>
-        public double Gravity = 9.80665;
 
         /// <summary>Each arm's tip mass, kg, in Corners order: its motor's and prop's parts and ArmTipShare of its arm's
         /// (DroneSpec.BuildModes, from drone.json's parts).</summary>
@@ -166,17 +157,13 @@ namespace Fpv450.Sim.Flight
             {
                 if (part < 0 || !(mass.Part(part).Mass > 0)) continue;
                 ref readonly DronePart p = ref mass.Part(part);
-                double below = spec.BottomPlate - p.Position.Y;
-                bool hanging = below > 0;
                 for (int axis = 0; axis < 3; axis++)
                 {
                     m[n] = p.Mass;
                     r[n] = p.Position - com;
                     u[n] = axis == 0 ? new Double3(1, 0, 0) : axis == 1 ? new Double3(0, 1, 0) : new Double3(0, 0, 1);
-                    bool along = axis == 1;
-                    k[n] = !hanging ? spec.MountStiffness : along ? spec.SlingStiffness : p.Mass * spec.Gravity / below;
-                    double zeta = hanging && !along ? spec.SwingDamping : spec.MountDamping;
-                    c[n] = 2 * zeta * DetMath.Sqrt(k[n] * m[n]);
+                    k[n] = spec.MountStiffness;
+                    c[n] = 2 * spec.MountDamping * DetMath.Sqrt(k[n] * m[n]);
                     n++;
                 }
             }

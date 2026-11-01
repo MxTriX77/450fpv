@@ -107,8 +107,8 @@ namespace Fpv450.Sim.Log
         /// <summary>The modes' fields the header records, checked against AirframeModesSpec by the suite.</summary>
         public static readonly string[] ModesFieldsLogged =
         {
-            "ArmModulus", "ArmWidth", "ArmThickness", "ArmLength", "ArmTipShare", "ArmDamping", "MountStiffness", "SlingStiffness",
-            "MountDamping", "SwingDamping", "BottomPlate", "Camera", "Gravity", "TipMass", "PayloadPart", "CoilPart",
+            "ArmModulus", "ArmWidth", "ArmThickness", "ArmLength", "ArmTipShare", "ArmDamping", "MountStiffness", "MountDamping",
+            "Camera", "TipMass", "PayloadPart", "CoilPart",
         };
 
         /// <summary>The ground effect's fields the header records, checked against GroundEffectSpec by the suite.</summary>
@@ -674,7 +674,7 @@ namespace Fpv450.Sim.Log
                 foreach (double x in new[]
                          {
                              m.ArmModulus, m.ArmWidth, m.ArmThickness, m.ArmLength, m.ArmTipShare, m.ArmDamping, m.MountStiffness,
-                             m.SlingStiffness, m.MountDamping, m.SwingDamping, m.BottomPlate, m.Camera.X, m.Camera.Y, m.Camera.Z, m.Gravity,
+                             m.MountDamping, m.Camera.X, m.Camera.Y, m.Camera.Z,
                              m.TipMass[0], m.TipMass[1], m.TipMass[2], m.TipMass[3],
                          })
                     e.Write(x);
@@ -970,9 +970,7 @@ namespace Fpv450.Sim.Log
                         {
                             ArmModulus = r.ReadDouble(), ArmWidth = r.ReadDouble(), ArmThickness = r.ReadDouble(), ArmLength = r.ReadDouble(),
                             ArmTipShare = r.ReadDouble(), ArmDamping = r.ReadDouble(), MountStiffness = r.ReadDouble(),
-                            SlingStiffness = r.ReadDouble(), MountDamping = r.ReadDouble(), SwingDamping = r.ReadDouble(),
-                            BottomPlate = r.ReadDouble(), Camera = new Double3(r.ReadDouble(), r.ReadDouble(), r.ReadDouble()),
-                            Gravity = r.ReadDouble(),
+                            MountDamping = r.ReadDouble(), Camera = new Double3(r.ReadDouble(), r.ReadDouble(), r.ReadDouble()),
                             TipMass = new[] { r.ReadDouble(), r.ReadDouble(), r.ReadDouble(), r.ReadDouble() },
                             PayloadPart = r.ReadInt32(), CoilPart = r.ReadInt32(),
                         };
