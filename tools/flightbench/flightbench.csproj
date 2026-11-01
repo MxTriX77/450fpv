@@ -19,5 +19,10 @@
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/CrosswindScenario.cs" Link="CrosswindScenario.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/WindTargets.cs" Link="WindTargets.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/ContactScenarios.cs" Link="ContactScenarios.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/AsymmetryScenario.cs" Link="AsymmetryScenario.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/VortexRingScenario.cs" Link="VortexRingScenario.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/GroundEffectScenario.cs" Link="GroundEffectScenario.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/FlappingScenario.cs" Link="FlappingScenario.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/ShakeScenario.cs" Link="ShakeScenario.cs" />
   </ItemGroup>
 </Project>

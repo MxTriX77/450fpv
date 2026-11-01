@@ -12,10 +12,10 @@ from lib import catalog, meta
 
 VISUALS = {"brick": "brick_red"}
 # Review R3's eight rows, the nine signed off in p1-pipeline-hardening/review-materials.md and the two of the
-# fortifications physics reading (p1-fortifications-sheet review-physics §4).
+# fortifications physics reading (p1-fortifications-sheet review-physics §4), and the drone's carbon (p7b-airframe).
 REVIEW_MATERIALS = {"steel", "sheet_metal", "timber", "masonry", "concrete", "glass", "cable", "foliage",
                     "bark", "twig", "deadwood", "asbestos_cement", "straw", "fabric", "rubber", "plastic", "mesh",
-                    "razor_wire", "sandbag"}
+                    "razor_wire", "sandbag", "carbon_composite"}
 WIRE_FIELDS = "slot, diameter_m, mass_kg_per_m, sag_m, axial_stiffness_n, breaking_force_n, material, damage, points"
 WIRE_POSITIVE = "diameter_m, mass_kg_per_m, axial_stiffness_n and breaking_force_n must be positive and sag_m at least 0"
 SURFACE_RULE = "is not one of the thirteen surface ids surface:{meadow_sod, dry_crust, crater_spoil, belt_straw, " \
@@ -402,11 +402,29 @@ def test_textures_are_carried_from_the_generator(k01_params, material_ids):
     assert list(data).index("textures") == list(data).index("holes") + 1
 
 
+def test_a_texture_may_name_its_channels(k01_params, material_ids):
+    """p1-h01-adobe-house, "Generator-written mask atlases": a facade's damage mask names what R, G, B and A hold, in
+    that order, after its UV rectangle; a record without channels (R01's masks) is unchanged."""
+    built = debris_brick.build(k01_params)
+    channels = ["render_depth", "soot", "dirt", "base_band"]
+    built["textures"] = [{"role": "damage_mask", "slot": "brick", "name": "damage", "uv_min": (0.0, 0.0),
+                          "uv_max": (32.0, 5.0), "channels": channels, "png": b"\x89PNG"}]
+    data = meta.assemble("K01", "K01_whole", "debris_brick", k01_params, built, VISUALS)
+    assert data["textures"] == [{"role": "damage_mask", "slot": "brick", "file": "K01_whole_damage.png",
+                                 "uv_min": [0.0, 0.0], "uv_max": [32.0, 5.0], "channels": channels}]
+    assert list(data["textures"][0])[-1] == "channels"
+    assert meta.validate(data, material_ids) == []
+
+
 @pytest.mark.parametrize("edit, expected", [
     (lambda t: t.update(role="normal_map"), "role must be one of crack_mask, damage_mask"),
     (lambda t: t.update(slot="glass"), "slot 'glass' is not a material slot"),
     (lambda t: t.update(uv_max=[0.0, 0.5]), "must lie below and left of uv_max"),
     (lambda t: t.update(file="cracks.jpg"), "needs role, slot, file, uv_min, uv_max"),
+    (lambda t: t.update(channels=["soot", "soot"]), "channels must be 1 to 4 distinct non-empty names"),
+    (lambda t: t.update(channels=["r", "g", "b", "a", "x"]), "channels must be 1 to 4 distinct non-empty names"),
+    (lambda t: t.update(channels=[]), "channels must be 1 to 4 distinct non-empty names"),
+    (lambda t: t.update(channels="render_depth"), "channels must be 1 to 4 distinct non-empty names"),
 ])
 def test_textures_validated(k01_params, material_ids, edit, expected):
     data = k01_meta(k01_params)
