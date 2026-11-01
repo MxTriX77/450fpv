@@ -325,7 +325,7 @@ namespace Fpv450.App
                 Check(k[FlightScene.ViewKey].isPressed && KeyboardFallback.ReadKeys() == KeyboardKeys.None, "V held " + where + ": the flight's keys are none");
                 InputSystem.QueueStateEvent(k, new KeyboardState());
                 yield return null;
-                Transform eye = Camera.main != null ? Camera.main.transform : null;
+                Transform eye = _flight.Eye; // not Camera.main: the FPV view's camera is off between fields (p7e-camera-feel)
                 FpvCamera feed = eye != null ? eye.GetComponent<FpvCamera>() : null;
                 bool feedOn = feed != null && feed.Running;
                 if (chase)

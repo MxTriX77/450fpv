@@ -55,6 +55,10 @@ namespace Fpv450.App
 
         public FlightSessionHost Host { get; private set; }
 
+        /// <summary>The flight's camera, enabled or not: the FPV view holds a field by not rendering between fields
+        /// (p7e-camera-feel), when Camera.main does not see it.</summary>
+        public Transform Eye => _camera != null ? _camera.transform : null;
+
         /// <summary>The summary's Setup and Menu, for AppFlow.</summary>
         public event Action SetupRequested, MenuRequested;
 
@@ -264,14 +268,16 @@ namespace Fpv450.App
                 _rig.UploadShutter();
                 return;
             }
+            // The camera renders at the mount on the rigid body; the frame's elastic turn, the reference row's included,
+            // is in the track, so the camera's transform stays the lens's (D-055) and the read turns the picture.
             _body.SetPositionAndRotation(V(at.Position), Q(at.Attitude));
-            _camera.transform.localRotation = Q(FieldCamera.Turn(at.CameraTurn));
-            FillSamples(session.Poses, start, FieldCamera.Attitude(at));
+            FillSamples(session.Poses, start, at.Attitude);
             _shutter.Build(_samples, RollingShutter.ExposureS(_signals.SceneLuminance), _rig.settings.PixelsPerRad);
             _rig.UploadShutter();
         }
 
-        // The camera against the field's reference at the history's steps from SampleLead before the field to its end; a
+        // The camera on the flexing frame (FieldCamera.Attitude) against the rigid body's attitude at the field's reference
+        // instant, at the history's steps from SampleLead before the field to its end; a
         // step the history does not hold (before the flight began) takes the nearest one it does, none the identity.
         void FillSamples(PoseBuffer poses, long fieldStartUs, Quat reference)
         {
