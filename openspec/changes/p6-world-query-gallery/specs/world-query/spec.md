@@ -17,6 +17,10 @@ The sim package SHALL provide, engine-free, allocation-free, reentrant and calla
 - **WHEN** a 15 mm sphere is swept 60 mm in one step across a 5 mm wire, or across an `L03_medium` conductor of the test range, at any point of the span and from any side
 - **THEN** `StaticContacts` returns that wire once with `Time` in (0, 1), its `Distance` within 1 µm of 0 and its `WireParam` the crossing's length along the chain over the chain's length; at rest on the conductor the `Distance` is the true signed distance, deep inside too
 
+#### Scenario: A first touch is a touch
+- **WHEN** a skid slides 0.1 mm over the open plane at 10, 20 and 30 m/s, a 5 mm sphere slides 20 mm in a step 0.2 mm past a trunk cylinder, a sphere sinks 50 µm while moving 20 mm across the plane, and 15 mm spheres graze a 5 mm wire and an `L03_medium` conductor at 0.990–0.998 of R + r
+- **THEN** the slides are never a first touch (the current contact, `Time` 1), the sinking sphere's first touch on the plane is exact (`Time` and `Distance` within 1e-12), and every graze is one contact with `Time` in (0, 1), not after its analytic first touch, and its `Distance` within 1 µm of 0
+
 #### Scenario: A rotor ray re-cast from inside a conductor goes on
 - **WHEN** a ray down onto an `L03_medium` conductor is re-cast from 1 mm inside it
 - **THEN** the re-cast does not hit that wire and returns the ground below it, and a ray from inside a segment along the conductor hits nothing of it
@@ -56,8 +60,8 @@ The test range's placement file (`maps/test-range/placements.json`, D-047) SHALL
 - **THEN** the plane answers at the lower core end's foot when that end lies outside the band, is absent when the lower end lies inside it, and the wall answers for the end over it either way
 
 ### Requirement: Budgets
-The queries SHALL meet K§10.4's budgets on the dev machine on AC power, with the power mode printed: a worst-case physics step's batch (physics' pattern of review-physics W7 and K§10.5's: the ground samples, the swept capsules and the rays a step makes, at physics' margin) under 60 µs at the median, and 100 000 capsules and 100 000 rays of physics' pattern under 100 ms each and 100 000 ground samples under 10 ms.
+The queries SHALL be judged as D-054 sets it, on the dev machine on AC power with the power plan, mode and CPU clock printed (PLT-07): at G7 on physics' pattern (review-physics W7: the samples, swept capsules and rays `ContactModel` makes each step, at physics' margin), inside PLT-04's whole-step budget of `p6-flight-core` (p99 at most 300 µs, 0 B); 100 000 capsules and 100 000 rays of physics' pattern under 100 ms each and 100 000 ground samples under 10 ms. PLT-04's 60 µs line for the queries is the target of their speed work, printed beside each row. K§10.5's batch with the fiber's segments is shown, and judged when the fiber is built (phase 7d).
 
 #### Scenario: The worst-case step over the busiest spots
-- **WHEN** `tools/worldbench --bench` runs a step's batch with the drone inside V01_L's crown, round H01_D's walls under its eaves, along and over E01's run, and along the posadka at 2 m
-- **THEN** the median is under 60 µs at every spot, and the p99 and the largest step are printed beside it
+- **WHEN** `tools/worldbench --bench` runs physics' pattern with the drone inside V01_L's crown, round H01_D's walls under its eaves, along and over E01's run, along the posadka at 2 m, resting in S04's straw and lifting off the field start's stand
+- **THEN** every row allocates 0 B and its p99 is under 300 µs, with its median, p99, largest step and the 60 µs target printed beside it; and `p6-flight-core`'s `flightbench --bench` gives the queries' p99 a step on the straw rest and the stand's launch inside its whole-step budget
