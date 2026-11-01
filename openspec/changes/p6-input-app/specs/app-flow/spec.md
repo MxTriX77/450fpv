@@ -21,6 +21,14 @@ The drone SHALL be `p5-drone`'s D01 prefab for the setup's legs, and the FPV cam
 - **WHEN** the pilot pauses mid-flight, then restarts
 - **THEN** the physics stops stepping on pause and logs it, and the restart begins a new flight from the start point with a new seed, logged
 
+### Requirement: V switches the view, and nothing else
+In every build, V SHALL switch the flight's camera between the FPV camera at `drone.json`'s `camera.lens_m` and a third-person chase view behind and above the drone, and change nothing else (D-055): the feed, its noise and the OSD SHALL apply in both views, and the physics, the flight log and the input SHALL never see the key. The keys over a flight SHALL be Esc (pause), V (the view) and, in review builds, F (the feed off and on); C is retired.
+
+#### Scenario: V changes only the camera
+- **WHEN** the pilot presses V during a flight, and again
+- **THEN** the picture switches to the chase view behind the drone and back to the lens, through the feed with its OSD in both
+- **AND** the flight's log is the same, byte for byte, as without the presses, and replays bit for bit
+
 ### Requirement: The flight ends, and the pilot reads why
 The flight SHALL end on a crash (an impact over its threshold, or upside down on the ground), a battery cut-off or a disarm (APP-04; the fiber's ends come with 7d). The post-flight summary SHALL show the flight from its log: time, distance, the end and its cause (the part and the object for a crash), battery used, and the seed.
 

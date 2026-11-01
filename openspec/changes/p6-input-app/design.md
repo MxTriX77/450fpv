@@ -28,6 +28,8 @@
    - **The scene:** one scene loads the test range, the world loader and a `FlightSession` component, which owns the physics thread's lifecycle.
    - **The drone:** `p5-drone`'s D01 prefab for the setup's legs at the interpolated pose (a labelled stand-in until it landed).
    - **The camera:** a plain camera with FEED-02's intrinsics (106° horizontal, 16:9, 0° uptilt by the pilot's answer) until `p4-feed`'s rig.
+   - **The view (D-055):** V switches that camera between the FPV view at `camera.lens_m` and the third-person chase view (2.2 m behind and 0.7 m above the drone on its heading, 14° down), in every build and while waiting for the radio too. The feed's rig rides the one camera, so the feed, its noise and the OSD apply in both views. V is not one of `KeyboardFallback`'s keys and the view is never handed to the session, so the physics, the log and the input never see it.
+   - **The keys over a flight:** Esc pauses; V the view; F the feed off and on in review builds (it left V; C, the old chase key, is retired). The development keyboard (INP-06): W / S the throttle, A / D yaw, the arrows pitch and roll, Enter arms. Explore's noclip keeps GAL-02's V for its feed, since it has no third person.
    - **Restart:** a new seed, a new log.
 7. **The summary:** read through `p6-flight-core`'s summary reader, never by parsing the log in the UI.
 
