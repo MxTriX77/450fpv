@@ -101,6 +101,17 @@ namespace Fpv450.App
         int _fieldOffset;
         bool _driving;
 
+        /// <summary>False with <c>-camerafeel 0</c>: the camera as before p7e-camera-feel, drawn every frame at the render
+        /// clock's pose and read as rendered, the feed on its own clock (the before half of its A/B, task 1.7).</summary>
+        public static readonly bool CameraFeel = CameraFeelArg();
+
+        static bool CameraFeelArg()
+        {
+            string[] args = Environment.GetCommandLineArgs();
+            int i = Array.IndexOf(args, "-camerafeel");
+            return !(i >= 0 && i + 1 < args.Length && args[i + 1] == "0");
+        }
+
         /// <summary>
         /// Takes the loaded test range over for a flight; call it from SceneManager.sceneLoaded, before the scene's Start.
         /// The noclip rig (its camera, keys, boot and NoclipFeed) is switched off whole, and the look's own preset start
@@ -144,7 +155,8 @@ namespace Fpv450.App
             _rig = go.AddComponent<FpvCamera>(); // it begins at Start, once it has its settings and signals
             _rig.settings = settings;
             _rig.Signals = _signals;
-            _rig.Shutter = _shutter;
+            if (CameraFeel) _rig.Shutter = _shutter;
+            else Debug.Log("[Flight] -camerafeel 0: the camera at the render clock's pose, read as rendered (p7e-camera-feel's before)");
             if (_look != null) _look.viewCamera = _camera;
         }
 
@@ -231,7 +243,7 @@ namespace Fpv450.App
         // reference instant and its rows through the field's track; in the chase view every frame, read as rendered.
         void Latch(FlightSession session, bool thisFlight)
         {
-            bool flying = thisFlight && (session.State == SessionState.Flying || session.State == SessionState.Paused)
+            bool flying = CameraFeel && thisFlight && (session.State == SessionState.Flying || session.State == SessionState.Paused)
                 && _rig != null && _rig.Running;
             long latest = flying ? FieldCamera.LatestField(session.Poses.LatestStep) : -1;
             if (latest < 0)
