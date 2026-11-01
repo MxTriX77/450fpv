@@ -17,7 +17,11 @@ namespace Fpv450.Sim.Tests
     /// </summary>
     public static class ShakeScenario
     {
-        public const double HoverSeconds = 3, ChopStick = 0.05, GentleStep = 0.15, GentleRamp = 0.6, HoldLimit = 1.5, WindowSeconds = 1.5;
+        public const double HoverSeconds = 3, ChopStick = 0.05, GentleStep = 0.15, GentleRamp = 0.6, HoldLimit = 1.5;
+
+        /// <summary>The window after the input, s: it sees the end of the longest shake (QA's finding 1: the heavy punch from
+        /// 9 m/s is arrested at up to 1.41 s, so 1.5 s cut it), HoldLimit plus Settle plus a margin (derived).</summary>
+        public const double WindowSeconds = 3;
 
         /// <summary>The jitter's corner, Hz: the camera vibration's X band's (VibrationBands.LowCorner, assumed).</summary>
         public const double LowCorner = VibrationBands.LowCorner;
@@ -30,9 +34,11 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>
         /// The settling after a full punch's arrest, s: the shake ends within it once the descent is arrested, the ESCs off
-        /// their limit and the hover's stick back (the loop levels the tilt; 0.09–0.20 s measured). A test bound, assumed.
+        /// their limit and the hover's stick back, as the loop levels the tilt (derived, QA's finding 8: the builder's loop
+        /// settles a 200 °/s step within 5 % in 0.21 s on pitch and 0.31 s on roll, TheBuildersPidsHoldAStableLoop with the
+        /// modes on; on 40 seeds a cell every full punch's visible shake ends 0.08–0.26 s after its arrest or before it).
         /// </summary>
-        public const double Settle = 0.25;
+        public const double Settle = 0.31;
 
         const double RadToDeg = 57.29577951308232, TwoPi = 6.283185307179586;
 
@@ -77,15 +83,19 @@ namespace Fpv450.Sim.Tests
             public Double3 VibrationPeak;
             public bool Published;
 
-            /// <summary>Time in the window with a rotor in its ring, and with an ESC on its current limit, s.</summary>
-            public double InRing, Limited;
+            /// <summary>Time in the window with a rotor in its ring, with any ESC on its current limit and with all four on
+            /// it, s; and when the last ESC left its limit, s after the input (0 for never on it).</summary>
+            public double InRing, Limited, AllLimited, LimitEnds;
 
             /// <summary>The largest height lost or gained against a steady arrest is not asked; the trajectory's error: the
             /// largest tilt from level in the window, degrees.</summary>
             public double TiltMax;
         }
 
-        public static FlightSetup Setup(DroneSpec spec, double payload, ulong seed, bool modes = true)
+        /// <summary>The known-wrong ESC without a current limit (D-051: an ESC that senses no current, as Bluejay's), A.</summary>
+        public const double NoCurrentLimit = 1e4;
+
+        public static FlightSetup Setup(DroneSpec spec, double payload, ulong seed, bool modes = true, bool currentLimit = true)
         {
             var setup = new FlightSetup
             {
@@ -95,6 +105,8 @@ namespace Fpv450.Sim.Tests
                 StartPosition = new Double3(0, 300, 0), StartPackCharge = 0.9,
             };
             if (modes) setup.Modes = spec.BuildModes();
+            if (!currentLimit)
+                for (int i = 0; i < setup.Propulsion.Motors.Length; i++) setup.Propulsion.Motors[i].EscCurrentLimit = NoCurrentLimit;
             return setup;
         }
 
@@ -151,7 +163,12 @@ namespace Fpv450.Sim.Tests
                 fieldSum += angle.X * angle.X + angle.Y * angle.Y + angle.Z * angle.Z;
                 ref readonly FlightState a = ref core.State;
                 if (a.RingLatched != 0) r.InRing += FlightCore.Dt;
-                if (a.EscLimited != 0) r.Limited += FlightCore.Dt;
+                if (a.EscLimited != 0)
+                {
+                    r.Limited += FlightCore.Dt;
+                    r.LimitEnds = (k + 1 - input) * FlightCore.Dt;
+                }
+                if (a.EscLimited == 0xF) r.AllLimited += FlightCore.Dt;
                 Double3 up = a.Attitude.Rotate(new Double3(0, 1, 0));
                 r.TiltMax = DetMath.Max(r.TiltMax, System.Math.Acos(DetMath.Min(1, up.Y)) * RadToDeg);
                 if (++fieldCount < FlightCore.FieldSteps) continue;
@@ -173,6 +190,6 @@ namespace Fpv450.Sim.Tests
         public static string Describe(in Result r) =>
             $"{r.Descent,5:F2} m/s down, arrested {(double.IsNaN(r.ArrestedAfter) ? "  —  " : r.ArrestedAfter.ToString("F2") + " s")}; shake in {r.Fields,2} fields, "
             + $"{r.First:F2}–{r.Last + 0.02:F2} s ({r.Duration:F2} s), peak {r.Peak:F3}°; vibration X {r.VibrationPeak.X:F2} Y {r.VibrationPeak.Y:F2} "
-            + $"Z {r.VibrationPeak.Z:F2} m/s²; ring {r.InRing:F2} s, ESC limit {r.Limited:F2} s; tilt to {r.TiltMax:F2}°";
+            + $"Z {r.VibrationPeak.Z:F2} m/s²; ring {r.InRing:F2} s, ESC limit {r.Limited:F2} s (all four {r.AllLimited:F2} s, the last off at {r.LimitEnds:F2} s); tilt to {r.TiltMax:F2}°";
     }
 }
