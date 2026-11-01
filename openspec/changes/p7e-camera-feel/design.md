@@ -3,7 +3,7 @@
 Numbers are labelled **pilot / measured / published / derived / assumed**.
 
 ## 1. Where the smoothness comes from (task 1.1, measured)
-`CameraFeelProbe` (sim tests) flies the repository's drone (its asymmetry, rings, flapping and modes; seed 1) 3 s into a hover, then a full-throttle punch, and reports the camera's turn above 5 Hz (the shake scenario's high-pass, `VibrationBands.LowCorner`) as RMS over the window:
+`CameraFeelProbe` (sim tests) flies the repository's drone (its asymmetry, rings, flapping and modes; seed 1) 3 s into a hover, then a full-throttle punch, and reports the camera's turn above 5 Hz (the shake scenario's high-pass, `VibrationBands.LowCorner`) as RMS over the window. It flew `unity/main`'s stand-in wind (one gust per world axis, the same over the whole drone); on `p7c-wind`'s field a Severe hover reads 0.008–0.013° above 5 Hz and a cruise 0.025° (measured, `reference-notes/hover-micro-motion.md` §3, on `unity/physics/p7-micro-motion`):
 
 | Air, payload | Hover: rigid · rigid + elastic · elastic turn | Punch: rigid · rigid + elastic | Rotor 1× |
 |---|---|---|---|
@@ -18,7 +18,7 @@ What made the picture smooth, in order:
 1. **The render clock.** The camera took the interpolated pose at each render frame (60–144 Hz on the dev machine), so the picture moved at the monitor's rate: smoother than 50 fields a second, and its samples fell at the render's phase, not the field's.
 2. **One instant per picture.** Every line was read at the same instant; a CMOS camera reads its field over 18.3 ms, so its rotation shows as skew and its vibration as wobble across the lines.
 3. **The rigid body only.** The pose is the rigid body's (`AirframeModes`: "never on the pose"); the frame's elastic turn reached the gyro and `CameraAngularVelocity` but not the rendered camera. Its share is small (0.0003–0.011° RMS).
-4. **The physics' own floor (not this change).** In a hover the sim's camera carries 0.0001–0.003° above 5 Hz, 40–1000× under clip P's floor. Nothing in the render can show motion the physics does not make; design 6 names the signals.
+4. **The physics' own floor (not this change).** Like for like (the same wind field, a cruise against clip P's cruise, and P's floor less its tracker's share), the sim's camera moves 3–4× less than P in roll, 2× less in pitch and about 5× less in heading over 4–15 Hz, and 3–6× less over 1–4 Hz (measured and derived, `hover-micro-motion.md` §0). The stand-in wind's hover above made it look 40–1000×; that compared different things. The gap above 4 Hz is the tail of the 1–4 Hz gap, not a separate source. Nothing in the render can show motion the physics does not make; design 6 names the signals.
 There was no filter on the camera: `PlaceCamera` set the mount with the identity rotation, and `PosePair.Interpolate` blends two 1 ms steps only.
 
 ## 2. The camera at each field's own time
@@ -48,11 +48,10 @@ Either way the mount's resonance is far above the step's 500 Hz Nyquist and the 
 - **Taps:** the row's exposure is sampled at n equally spaced times ending at its read; n = ⌈sweep⌉ clamped to 1–8, the sweep being the largest angle between the row's taps in render pixels at the centre (965 px/rad: 960 px per half-width × f, derived). Daylight's 122 µs at 300 °/s sweeps 0.6 px: one tap.
 
 ## 6. What the physics would add (named, not built here)
-The camera shows the sim's motion faithfully; the hover's floor is the physics'. The signals that would raise it, each a physical cause:
-- **Turbulence above 4 Hz:** `p7c-wind`'s field at the rotors (`FlightCore`'s `_hubWind`); the stand-in wind's spectrum carries little there.
-- **Each prop's factory imbalance:** `MotorAsymmetry.Draws.Unbalance` (`prop.unbalance_kg_m.<corner>`, kg·m) at `BalanceGrade`; a chipped or bent blade's added unbalance from `p7f-damage` (PHY-26) on the same draw, through `Propulsion`'s U·ω² pull. The renderer reads nothing of it directly: it reaches the camera through `BodyRate` and `ModeShape`.
-- **The blade pass:** each blade's thrust ripple as it crosses its arm (3 blades: 3× the rotor rate, 400–720 Hz), not modelled; it would drive the arm modes.
-- **The mount's vibration bands** stay the feed's other read (`CameraVibration`, N2/N3 hooks); the picture's motion comes from the poses, never from the bands' RMS.
+The camera shows the sim's motion faithfully; the floor is the physics'. The signals that would raise it, each a physical cause (`hover-micro-motion.md` §4 and §6):
+- **Turbulence's per-rotor gradient:** `p7c-wind`'s field at the rotors (`FlightCore`'s `_hubWind`) carries 97 % of roll's power above 4 Hz and 87 % of pitch's in cruise; the landscape's roughness class sets its intensity (×1.2–1.26 at z0 0.10 m). The stand-in wind's spectrum carries little there.
+- **Pitch's 1–4 Hz:** the rotor–rotor wake interaction in forward flight, and the human pilot's remnant in the grading harness; both `p7c-wind`'s and the flight model's, not the camera's.
+- **Not picture motion:** each prop's factory imbalance (even G 40 turns the camera 1.4·10⁻⁴° at 1/rev), a chipped or bent blade (`p7f-damage`, PHY-26), the blade pass, the blade-to-blade spread, the motors' torque ripple and the gyro's noise move the camera's angle by 10⁻⁸–10⁻³°. They are vibration: they reach the feed through the mount's bands (`CameraVibration`, the N2/N3 hooks), never through the poses.
 
 ## 7. Cost
 One quaternion rotation per scene read (36 per field pixel, ALU only) with one tap; up to 8 reads where the exposure's sweep exceeds a pixel (dim light with motion). The track's upload is 41 KB per field. Measured per PLT-07 once the GPU is free (task 1.7).

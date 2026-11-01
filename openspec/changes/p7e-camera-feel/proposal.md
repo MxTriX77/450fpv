@@ -12,7 +12,7 @@ The pilot, after flying the map build (D-059): "there's still this smoothness to
 - **The camera at each field's own time** (1.2, 1.4): the sim keeps its last 128 poses (a wait-free history beside the pose pair) and each pose carries the frame's elastic turn at the camera (`AirframeModes`), so the renderer draws each PAL field once, at its own sim time, with the camera at the body's attitude times the frame's turn, held until the next field. The feed's fields follow the flight's.
 - **Rolling shutter and motion blur** (1.3, 1.5): each field line is warped by the camera's rotation between the field's reference instant and that line's read, and blurred along its rotation over the exposure (the Ratel 2's published 1/50–1/100 000 s), from the poses alone. Off-switchable; off reads the scene exactly as before.
 - **The camera's mount, derived** (design 3): the micro camera is clamped between the plates; its mount's resonance lies far above the step's 500 Hz, so the camera rides the frame and the frame's modes are the soft part.
-- **The physics' share, named** (design 6): the measured hover carries almost no motion above 5 Hz; the signals that would add it (turbulence above 4 Hz, the props' balance grade and damage, the blade pass) belong to `p7c-wind` and `p7f-damage`.
+- **The physics' share, named** (design 6): like for like, the sim's camera moves 2–5× less than clip P's over 4–15 Hz and 3–6× less over 1–4 Hz; the turbulence's per-rotor gradient (`p7c-wind`) carries that motion. The props' balance grade and damage and the blade pass are vibration, not picture motion (`hover-micro-motion.md`).
 
 ## Capabilities
 
