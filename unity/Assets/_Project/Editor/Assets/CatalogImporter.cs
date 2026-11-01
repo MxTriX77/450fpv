@@ -248,9 +248,10 @@ namespace Fpv450.Assets
         /// (<see cref="EnsureCrazedPaneMaterial"/>).
         /// </para>
         /// <para>
-        /// A recipe may list <c>"layers"</c> (p1-r01-vaz-sedan design decision 5): what a damage mask lays over it. Its own
-        /// material ignores them and stays URP/Lit; a slot whose metadata gives it a damage mask draws with its own
-        /// layered material (<see cref="EnsureLayeredMaterial"/>).
+        /// A recipe may list <c>"layers"</c> (p1-r01-vaz-sedan design decision 5): what a damage mask lays over it, with
+        /// an optional <c>"base"</c> recipe they lie over and the optional <c>"channels"</c> they read (p1-h01-adobe-house
+        /// design decision 2). Its own material ignores them and stays URP/Lit; a slot whose metadata gives it a damage
+        /// mask draws with its own layered material (<see cref="EnsureLayeredMaterial"/>).
         /// </para>
         /// Internal for the EditMode tests, which build the belt_straw material without an asset around it.
         /// </summary>
@@ -656,12 +657,13 @@ namespace Fpv450.Assets
         /// <c>&lt;variant&gt;_&lt;slot&gt;_crazed.mat</c> beside the prefab (<see cref="EnsureCrazedPaneMaterial"/>). A slot with
         /// a <c>damage_mask</c> (p1-r01-vaz-sedan task 1.2: the vehicle's damage mask over its paint's UV canvas; a
         /// house's over its walls, p1-h01-adobe-house) draws with its own layered material,
-        /// <c>&lt;variant&gt;_&lt;slot&gt;_layered.mat</c> beside the prefab, its recipe's surface under the layers the recipe
-        /// lists (<see cref="EnsureLayeredMaterial"/>). Every other slot keeps its recipe's material, so an intact pane
-        /// draws with the plain glass and an unmasked paint with the plain paint, and a pane or layered material left
-        /// from a build in which that slot had its mask is deleted. Refused: another role, a slot without a material in
-        /// the metadata, two masks of one role on one slot, a crack mask on a slot whose recipe is not transparent, and a
-        /// damage mask on a slot whose recipe lists no layers.
+        /// <c>&lt;variant&gt;_&lt;slot&gt;_layered.mat</c> beside the prefab, its recipe's surface (or its <c>"base"</c>
+        /// recipe's) under the layers the recipe lists (<see cref="EnsureLayeredMaterial"/>, <see cref="LayeredRecipe"/>).
+        /// Every other slot keeps its recipe's material, so an intact pane draws with the plain glass, an unmasked paint
+        /// with the plain paint and an unmasked facade with its bare adobe, and a pane or layered material left from a
+        /// build in which that slot had its mask is deleted. Refused: another role, a slot without a material in the
+        /// metadata, two masks of one role on one slot, a crack mask on a slot whose recipe is not transparent, a damage
+        /// mask on a slot whose recipe lists no layers, and a damage mask whose channels are not its recipe's.
         /// </summary>
         static Dictionary<string, Material> WithMaskedSlots(string prefabPath, string variant, Dictionary<string, object> metaJson,
             string metaPath, Dictionary<string, Material> materialBySlot)
@@ -701,7 +703,9 @@ namespace Fpv450.Assets
                 else if (layered)
                 {
                     string what = $"{metaPath} damage mask of slot {slot.Key}";
-                    result[slot.Key] = EnsureLayeredMaterial(slot.Value, RecipeLayers(VisualOf(metaJson, slot.Key, metaPath), what), manifest,
+                    (List<object> layers, string baseRecipe) = LayeredRecipe(VisualOf(metaJson, slot.Key, metaPath), damage, what);
+                    Material surface = baseRecipe == null ? slot.Value : EnsureMaterial(baseRecipe, manifest);
+                    result[slot.Key] = EnsureLayeredMaterial(surface, layers, manifest,
                         CrackMask($"{metaFolder}/{Json.Str(damage, "file", what)}"), Json.Vec2(damage, "uv_min", what), Json.Vec2(damage, "uv_max", what),
                         layeredPath, what);
                 }
@@ -726,15 +730,32 @@ namespace Fpv450.Assets
             throw new FormatException($"{metaPath}: slot \"{slot}\" has no materials entry");
         }
 
-        /// <summary>A recipe's <c>"layers"</c>, the list a damage mask composes over it (<see cref="EnsureLayeredMaterial"/>).</summary>
-        static List<object> RecipeLayers(string visual, string what)
+        /// <summary>
+        /// A layered recipe's <c>"layers"</c>, the list a damage mask composes over it (<see cref="EnsureLayeredMaterial"/>), and its
+        /// optional <c>"base"</c>, the recipe whose surface they lie over instead of its own (p1-h01-adobe-house: the facade's
+        /// whitewash, while its own material, what an unmasked slot draws, stays the bare adobe). When the mask's record names
+        /// its <c>"channels"</c> (what R, G, B and A hold, <c>tools/blender/lib/meta.py</c>), they must be the recipe's
+        /// <c>"channels"</c>, the names its layers read: a mask written for another surface is refused.
+        /// </summary>
+        static (List<object> layers, string baseRecipe) LayeredRecipe(string visual, Dictionary<string, object> maskRecord, string what)
         {
             string recipePath = $"{RecipesFolder}/{visual}.json";
             var recipe = Json.Obj(Json.Parse(ReadRepoFile(recipePath)), recipePath);
             if (!recipe.TryGetValue("layers", out object layers))
                 throw new FormatException($"{what}: its recipe {visual} lists no \"layers\"; a damage mask needs a layered recipe");
-            return Json.Arr(layers, $"{recipePath} \"layers\"");
+            if (maskRecord.ContainsKey("channels"))
+            {
+                string[] mask = Names(maskRecord, what), read = recipe.ContainsKey("channels") ? Names(recipe, recipePath) : null;
+                if (read == null)
+                    throw new FormatException($"{what}: the mask names its channels ({string.Join(", ", mask)}) but its recipe {visual} names none to hold them to");
+                if (!mask.SequenceEqual(read))
+                    throw new FormatException($"{what}: the mask's channels (R, G, B, A) are {string.Join(", ", mask)}, but its recipe {visual}'s layers read {string.Join(", ", read)}");
+            }
+            return (Json.Arr(layers, $"{recipePath} \"layers\""), recipe.ContainsKey("base") ? Json.Str(recipe, "base", recipePath) : null);
         }
+
+        static string[] Names(Dictionary<string, object> obj, string what) =>
+            Json.Arr(obj, "channels", what).Select(c => c as string ?? throw new FormatException($"{what}: \"channels\" must be names")).ToArray();
 
         /// <summary>
         /// A crazed pane's material at <paramref name="path"/>, created or updated in place: its slot's plain glass (the
@@ -780,7 +801,7 @@ namespace Fpv450.Assets
         // --- layered surfaces (p1-r01-vaz-sedan, design decision 5; p1-h01-adobe-house, design decision 2; tech-artist) ---
 
         internal const string LayeredSurfaceShader = "Fpv450/LayeredSurface";
-        internal const int MaxLayers = 5; // the shader's: a facade's band, render, adobe, soot and dirt
+        internal const int MaxLayers = 5; // the shader's: a facade's render, band, adobe, soot and dirt
         static readonly string[] LayerChannels = { "r", "g", "b", "a" };
         static readonly HashSet<string> LayerKeys = new HashSet<string> { "channel", "recipe", "threshold", "feather" };
 

@@ -17,11 +17,13 @@ namespace Fpv450.Tests.EditMode
     /// recipe (the car paint) as the base and the recipe's layers over it, and a slot without one keeps its recipe's
     /// material. Which layer a mask picks is read from the material by the shader's coverage rule (its header; the
     /// batchmode run has no GPU to render with): the car paint's R, G, B and A at 1 each pick their layer (rust, soot,
-    /// dust, burnt-off steel) and at 0 the paint; the facade's R at 0, 0.5 and 1 picks whitewash, render and adobe
-    /// (stand-in recipes: H01's sets are pinned by its own task). A second build changes no file, a slot whose mask is
-    /// gone loses its layered material, and malformed layers are refused. Everything is written under
-    /// <see cref="Folder"/>, deleted before and after; the layers' own recipe materials are the project's, which
-    /// the importer keeps up to date in place.
+    /// dust, burnt-off steel) and at 0 the paint; H01's facade and interior, on their own recipes and sets, lie over
+    /// their whitewash base, R at 0, 0.5 and 1 picks whitewash, render and adobe, A lays the band over the render and
+    /// under the adobe, and an unmasked facade keeps its bare adobe (p1-h01-adobe-house task 1.2). A second build
+    /// changes no file, a slot whose mask is gone loses its layered material, and malformed layers and a mask whose
+    /// channels are not its recipe's are refused. Everything is written under <see cref="Folder"/>, deleted before and
+    /// after; the layers' own recipe materials are the project's, which the importer keeps up to date in place (those a
+    /// facade build creates are deleted after it: H01's build commits its own).
     /// </summary>
     public sealed class LayeredSurfaceMaterialTests
     {
@@ -45,21 +47,40 @@ namespace Fpv450.Tests.EditMode
   ""gaps"": [], ""wind_volumes"": [], ""ports"": [], ""wires"": [], ""holes"": [], ""snag"": []TEXTURES
 }
 ";
-        // The mask over the slot's UVs from (-2, 1) to (6, 5) m: scale 1 / (8, 4), offset -min x scale.
+        // The mask over the slot's UVs from (-2, 1) to (6, 5) m: scale 1 / (8, 4), offset -min x scale; CHANNELS is the
+        // record's optional "channels".
         const string Textures = @",
   ""textures"": [ { ""role"": ""damage_mask"", ""slot"": ""probe"", ""file"": ""probe_damage.png"",
-                  ""uv_min"": [-2.0, 1.0], ""uv_max"": [6.0, 5.0] } ]";
+                  ""uv_min"": [-2.0, 1.0], ""uv_max"": [6.0, 5.0]CHANNELS } ]";
         static readonly Vector2 MaskScale = new Vector2(0.125f, 0.25f), MaskOffset = new Vector2(0.25f, -0.25f);
 
         // The car paint's layers by the mask channel that picks each (assets-src/materials/car_paint.json).
         static readonly (int channel, string recipe)[] PaintLayers = { (1, "car_burnt"), (3, "car_bare"), (0, "car_rust"), (2, "car_dust") };
         static readonly string[] ChannelNames = { "R", "G", "B", "A" };
 
+        // H01's facade layers in order (assets-src/materials/facade_h01.json, its design decision 2) and what its mask's
+        // channels hold, as the house generator's record names them.
+        static readonly string[] FacadeLayers = { "clay_render", "base_band", "adobe", "wall_soot", "wall_dirt" };
+        const int Render = 1, Band = 2, Adobe = 3, Soot = 4, Dirt = 5;
+        const string FacadeChannels = @"[""render_depth"", ""soot"", ""dirt"", ""base_band""]";
+        const string AdobeDiffuse = "Assets/_Project/Art/ThirdParty/polyhaven/dirt_floor/dirt_floor_diff_1k.png";
+
+        // The project's recipe materials a facade build created, deleted once the fixture is done (never a deleted path reused within it).
+        static readonly HashSet<string> MadeInProject = new HashSet<string>();
+
         [SetUp]
         public void SetUp() => DeleteThrowaway();
 
         [TearDown]
         public void TearDown() => DeleteThrowaway();
+
+        [OneTimeTearDown]
+        public void DeleteMadeInProject()
+        {
+            foreach (string path in MadeInProject)
+                AssetDatabase.DeleteAsset(path);
+            MadeInProject.Clear();
+        }
 
         static void DeleteThrowaway()
         {
@@ -95,11 +116,15 @@ namespace Fpv450.Tests.EditMode
             return AssetDatabase.LoadAssetAtPath<Texture2D>(MaskPath);
         }
 
-        /// <summary>Writes the metadata and runs the importer's prefab step over the probe FBX with its slot on <paramref name="surface"/>.</summary>
-        static Material Build(string variant, string visual, bool masked, Material surface)
+        /// <summary>
+        /// Writes the metadata and runs the importer's prefab step over the probe FBX with its slot on <paramref name="surface"/>,
+        /// its damage mask's record naming <paramref name="channels"/> (a JSON list) when given.
+        /// </summary>
+        static Material Build(string variant, string visual, bool masked, Material surface, string channels = null)
         {
             string metaPath = $"{Folder}/{variant}.assetmeta.json";
-            File.WriteAllText(FullPath(metaPath), Metadata.Replace("VARIANT", variant).Replace("VISUAL", visual).Replace("TEXTURES", masked ? Textures : ""));
+            string textures = masked ? Textures.Replace("CHANNELS", channels == null ? "" : $", \"channels\": {channels}") : "";
+            File.WriteAllText(FullPath(metaPath), Metadata.Replace("VARIANT", variant).Replace("VISUAL", visual).Replace("TEXTURES", textures));
             AssetDatabase.ImportAsset(metaPath, ImportAssetOptions.ForceSynchronousImport);
             var source = AssetDatabase.LoadAssetAtPath<TextAsset>(metaPath);
             Assert.That(source, Is.Not.Null, "the metadata imported as a TextAsset");
@@ -157,6 +182,23 @@ namespace Fpv450.Tests.EditMode
             Assert.That(surface.x, Is.EqualTo(masked ? 1f : recipe.GetFloat("_Metallic")), $"{prefix}: metallic scale");
             Assert.That(surface.y, Is.EqualTo(recipe.GetFloat("_Smoothness")), $"{prefix}: smoothness scale");
         }
+
+        /// <summary>That the layered material's base is the given recipe material's surface.</summary>
+        static void AssertBaseIs(Material layered, Material recipe)
+        {
+            Assert.That(layered.mainTexture, Is.Not.Null.And.EqualTo(recipe.mainTexture), $"the base: {recipe.name}'s albedo");
+            Assert.That(layered.GetTextureScale("_BaseMap"), Is.EqualTo(recipe.GetTextureScale("_BaseMap")), $"the base: {recipe.name}'s tiling");
+            AssertSameColour(layered.GetColor("_BaseColor"), recipe.GetColor("_BaseColor"), $"the base: {recipe.name}'s tint");
+            Assert.That(layered.GetTexture("_BumpMap"), Is.Not.Null.And.EqualTo(recipe.GetTexture("_BumpMap")), $"the base: {recipe.name}'s normal map");
+            Assert.That(layered.GetTexture("_MetallicGlossMap"), Is.Not.Null.And.EqualTo(recipe.GetTexture("_MetallicGlossMap")), $"the base: {recipe.name}'s packed mask");
+        }
+
+        /// <summary>
+        /// Notes the project's recipe materials among <paramref name="recipes"/> that do not exist yet, which a layered build
+        /// creates in place: the fixture deletes them when it is done, so the tree stays as it was (H01's build commits its own).
+        /// </summary>
+        static void NoteNotYetBuilt(IEnumerable<string> recipes) =>
+            MadeInProject.UnionWith(recipes.Select(r => $"{MaterialsFolder}/{r}.mat").Where(path => AssetDatabase.LoadAssetAtPath<Material>(path) == null));
 
         /// <summary>A material's colours pass through a colour-space round trip when set, so a copy matches within 1e-5.</summary>
         static void AssertSameColour(Color actual, Color expected, string what) =>
@@ -229,32 +271,59 @@ namespace Fpv450.Tests.EditMode
             }
         }
 
-        [Test]
-        public void Facade_RedAtZeroHalfAndOnePicksWhitewashRenderAndAdobe()
+        [TestCase("facade_h01", "whitewash")]
+        [TestCase("interior_h01", "whitewash_blue")]
+        public void Facade_RedAtZeroHalfAndOnePicksWhitewashRenderAndAdobe_TheBandLiesOverTheRenderAndUnderTheAdobe(string recipe, string whitewash)
         {
-            // H01's facade order (its design decision 2) on stand-in recipes: the base band (A), render and adobe (R at
-            // 0.25 and 0.75, feathered 0.1), soot (G), dirt (B), over the whitewash base.
-            Material whitewash = Recipe("brick_red");
-            const string layersJson = @"[
-  { ""channel"": ""a"", ""recipe"": ""car_burnt"" },
-  { ""channel"": ""r"", ""recipe"": ""car_rust"", ""threshold"": 0.25, ""feather"": 0.1 },
-  { ""channel"": ""r"", ""recipe"": ""car_bare"", ""threshold"": 0.75, ""feather"": 0.1 },
-  { ""channel"": ""g"", ""recipe"": ""car_soot"" },
-  { ""channel"": ""b"", ""recipe"": ""car_dust"" }
-]";
+            // H01's facade (its design decision 2) on its own recipes and sets, through the importer's prefab step: over
+            // the whitewash base, render by R (0.25, feathered 0.1), the base band by A, adobe by R (0.75), soot G, dirt B.
+            string variant = recipe.Split('_')[0];
+            NoteNotYetBuilt(FacadeLayers.Prepend(whitewash));
+            Material fallback = Recipe(recipe);
             Texture2D mask = WriteMask();
-            Material facade = CatalogImporter.EnsureLayeredMaterial(whitewash, Json.Arr(Json.Parse(layersJson), "layers"), Manifest(), mask,
-                Vector2.zero, new Vector2(30f, 5f), $"{Folder}/facade_layered.mat", "facade");
 
-            AssertLayerIs(facade, 2, ProjectMaterial("car_rust"));
-            AssertLayerIs(facade, 3, ProjectMaterial("car_bare"));
+            Assert.That(Build($"{variant}plain", recipe, false, fallback), Is.EqualTo(fallback), "an unmasked slot keeps its recipe's material");
+            Assert.That(AssetDatabase.GetAssetPath(fallback.mainTexture), Is.EqualTo(AdobeDiffuse), "the bare adobe, until the house has its mask");
+
+            Material facade = Build(variant, recipe, true, fallback, FacadeChannels);
+
+            Assert.That(facade.shader.name, Is.EqualTo(CatalogImporter.LayeredSurfaceShader));
+            Assert.That(facade.GetTexture("_DamageMask"), Is.EqualTo(mask), "it reads its damage mask");
+            AssertBaseIs(facade, ProjectMaterial(whitewash));
+            for (int k = 1; k <= FacadeLayers.Length; k++)
+                AssertLayerIs(facade, k, ProjectMaterial(FacadeLayers[k - 1]));
+
             AssertShows(facade, new Vector4(0f, 0f, 0f, 0f), 0, "R 0: whitewash");
-            AssertShows(facade, new Vector4(0.5f, 0f, 0f, 0f), 2, "R 0.5: render");
-            AssertShows(facade, new Vector4(1f, 0f, 0f, 0f), 3, "R 1: adobe");
-            Assert.That(Shares(facade, new Vector4(0.25f, 0f, 0f, 0f))[2], Is.EqualTo(0.5f).Within(1e-6f), "R 0.25: half render, feathered");
+            AssertShows(facade, new Vector4(0.5f, 0f, 0f, 0f), Render, "R 0.5: render");
+            AssertShows(facade, new Vector4(1f, 0f, 0f, 0f), Adobe, "R 1: adobe");
             Assert.That(Shares(facade, new Vector4(0.2f, 0f, 0f, 0f))[0], Is.EqualTo(1f).Within(1e-6f), "R 0.2: the feather's foot, all whitewash");
-            AssertShows(facade, new Vector4(0f, 0f, 0f, 1f), 1, "A 1: the base band");
-            AssertShows(facade, new Vector4(0.5f, 0f, 0f, 1f), 2, "A 1 and R 0.5: the band's render lost, render shows");
+            Assert.That(Shares(facade, new Vector4(0.25f, 0f, 0f, 0f))[Render], Is.EqualTo(0.5f).Within(1e-6f), "R 0.25: half render, feathered");
+            Assert.That(Shares(facade, new Vector4(0.3f, 0f, 0f, 0f))[Render], Is.EqualTo(1f).Within(1e-6f), "R 0.3: the feather's top, all render");
+            Assert.That(Shares(facade, new Vector4(0.75f, 0f, 0f, 0f))[Adobe], Is.EqualTo(0.5f).Within(1e-6f), "R 0.75: half adobe, feathered");
+
+            AssertShows(facade, new Vector4(0f, 0f, 0f, 1f), Band, "A 1 over the whitewash: the band");
+            AssertShows(facade, new Vector4(0.5f, 0f, 0f, 1f), Band, "A 1 and R 0.5: the band, paint over the render");
+            AssertShows(facade, new Vector4(1f, 0f, 0f, 1f), Adobe, "A 1 and R 1: the bare adobe, under no paint");
+            Assert.That(Shares(facade, new Vector4(0.5f, 0f, 0f, 0.5f))[Band], Is.EqualTo(0.5f).Within(1e-6f), "A 0.5: half band");
+
+            AssertShows(facade, new Vector4(0.5f, 1f, 0f, 1f), Soot, "G 1: soot over the band and the render");
+            AssertShows(facade, new Vector4(1f, 0f, 1f, 0f), Dirt, "B 1: dirt over the adobe");
+            Assert.That(Shares(facade, new Vector4(0f, 0.85f, 0f, 0f))[Soot], Is.EqualTo(0.85f).Within(1e-6f), "a channel value is its coverage");
+        }
+
+        [Test]
+        public void MaskChannelsThatAreNotTheRecipes_AreRefused()
+        {
+            Material facade = Recipe("facade_h01");
+            Material paint = Recipe("car_paint");
+            WriteMask();
+
+            var renamed = Assert.Throws<FormatException>(() => Build("misnamed", "facade_h01", true, facade, @"[""render_depth"", ""soot"", ""dust"", ""base_band""]"));
+            Assert.That(renamed.Message, Does.Contain("the mask's channels (R, G, B, A) are render_depth, soot, dust, base_band, but its recipe facade_h01's layers read render_depth, soot, dirt, base_band"));
+            var shortened = Assert.Throws<FormatException>(() => Build("shortened", "facade_h01", true, facade, @"[""render_depth"", ""soot"", ""dirt""]"));
+            Assert.That(shortened.Message, Does.Contain("are render_depth, soot, dirt, but"), "a mask without the band's channel");
+            var unnamed = Assert.Throws<FormatException>(() => Build("carnamed", "car_paint", true, paint, @"[""rust"", ""soot"", ""dust"", ""bare""]"));
+            Assert.That(unnamed.Message, Does.Contain("but its recipe car_paint names none to hold them to"));
         }
 
         [Test]
