@@ -19,7 +19,7 @@ The pipeline SHALL build asset H01 (`house` generator; variants `H01_I`, `H01_D`
 
 #### Scenario: Openings against the drone in the D state
 - **WHEN** `H01_D`'s gaps are read
-- **THEN** the door passes at any yaw (113 mm a side nose-first, 47 mm on the diagonal), a window with its frame gone is 0.80 × 1.00 m and with its frame 0.66 × 0.86 m (passable within ±18° yaw, 43 mm a side), a roof bay is a gap only where its battens are gone, its polygon the real opening between the battens and rafters left (a fully stripped bay 0.9–1.1 m wide passes; a partial opening takes its own verdict), no bay with intact battens (0.33 m) is a gap, and every opening's polygon is its real clear space after jags, with `narrowest_m` agreeing with the audit within 5 mm
+- **THEN** the door's gap is the narrowest clear space between its open leaf and the far jamb, in every leaf state; with D's leaf hanging at 70° (a 0.720 m throat) it passes at any yaw (73 mm a side nose-first, 7 mm on the diagonal), a window with its frame gone is 0.80 × 1.00 m and with its frame 0.66 × 0.86 m (passable within ±18° yaw, 43 mm a side), a roof bay is a gap only where its battens are gone, its polygon the real opening between the battens and rafters left (a fully stripped bay 0.9–1.1 m wide passes; a partial opening takes its own verdict), no bay with intact battens (0.33 m) is a gap, and every opening's polygon is its real clear space after jags, with `narrowest_m` agreeing with the audit within 5 mm
 
 #### Scenario: The E facade
 - **WHEN** the review sheet's 1.5 m and 10 m tiles of `H01_D` are compared side by side with letter E (frames 1–12 for the facade, 13–15 for the door, 16–18 for the interior) in the local comparison sheet
@@ -31,7 +31,7 @@ The pipeline SHALL build asset H01 (`house` generator; variants `H01_I`, `H01_D`
 
 #### Scenario: Budget
 - **WHEN** the triangle counts per LOD are read
-- **THEN** `H01_D`'s LOD0 is under 150 000 triangles, each further LOD at most half the previous with the openings kept at every LOD, the wall sets are 2K and every other texture 2K or less, and the cull distance follows the pixel rule from the ridge height
+- **THEN** `H01_D`'s LOD0 is under 150 000 triangles, each further LOD at most half the previous with the openings kept through LOD2 (LOD3, the far shell, closes them, and the flue closes from LOD2; collision is unaffected), the wall sets at most 2K (the adobe set `dirt_floor` is 1K, 495 px/m) and every other texture 2K or less, and the cull distance follows the pixel rule from the ridge height
 
 ### Requirement: K02 tile shards and K03 timber pieces
 The pipeline SHALL build assets K02 (`debris_tile` generator; variants `K02_tile_shard`, `K02_tile_whole`) and K03 (`debris_timber` generator; variants `K03_batten_broken`, `K03_board`, `K03_rafter_broken`) from their params files into Unity prefabs matching `docs/object-sheets/lines-roads-debris.md` §K02 and §K03: a seeded shard outline 0.05–0.35 m at 14 mm, a cambered whole tile of 0.40 × 0.22 m with a nib (ГОСТ 1808-71's strip tile, 333 × 200 mm covering), a 50 × 50 mm batten and a 100 × 150 mm rafter splintered at one or both ends, a 32 × 150 mm board; each with one box (two for the cambered tile), `masonry` or `timber`, `edge` snags on fracture rims and `hook` snags on splinters and nails, and the pieces SHALL be composable by the house generator as its rubble.

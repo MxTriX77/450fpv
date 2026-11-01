@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Fpv450.Input.Radio;
 using Fpv450.Sim.Control;
 
@@ -90,7 +91,10 @@ namespace Fpv450.Tests.Radio
     /// <summary>
     /// A pilot following the wizard's prompts with a radio alone: 0.8 s to react to each prompt, a stick to its start
     /// end in 0.3 s and held 0.5 s, then swept steadily to the far end over SweepUs and held; the first sweep of a
-    /// stick takes FirstSweepUs (a hasty pilot). A stick springs back to centre when its step ends. With Wobble, a thumb
+    /// stick takes FirstSweepUs (a hasty pilot), and each repeat after the second is Slowing times slower than the last
+    /// (2.5, QA's pilot; 1, a pilot who sweeps the same every time). With FollowsPrompt, a repeat is as many times
+    /// slower than the last sweep as the prompt asks, or its 2 seconds (QA's E12u pilot). A stick springs back to centre
+    /// when its step ends. Each prompt the pilot reacts to is kept in Prompts. With Wobble, a thumb
     /// left on roll, pitch and yaw at the centre step moves them by up to that fraction of their half travel.
     /// </summary>
     sealed class CalibratingPilot
@@ -99,23 +103,27 @@ namespace Fpv450.Tests.Radio
 
         public long SweepUs = 2000000, FirstSweepUs = 2000000;
 
-        public double Wobble;
+        public double Wobble, Slowing = 2.5;
+
+        public bool FollowsPrompt;
+
+        public readonly List<string> Prompts = new List<string>();
 
         /// <summary>The prompt said "Too fast" at least once.</summary>
         public bool SawTooFast;
 
         readonly Tx12Radio _radio;
         CalibrationStep _step = CalibrationStep.Centre;
-        bool _tooFast;
+        int _repeats;
         long _since;
-        double _from;
+        double _from, _sweep;
         int _attempt;
 
         public CalibratingPilot(Tx12Radio radio) => _radio = radio;
 
         public void Act(long t, CalibrationWizard wizard)
         {
-            if (wizard.Step != _step || (wizard.TooFast && !_tooFast))
+            if (wizard.Step != _step || wizard.Repeats > _repeats)
             {
                 if (wizard.Step != _step)
                 {
@@ -129,8 +137,10 @@ namespace Fpv450.Tests.Radio
                 int f = Function(_step);
                 _from = f >= 0 ? _radio.Stick[f] : 0;
                 _attempt++;
+                _sweep = _attempt == 1 ? FirstSweepUs : Asked(wizard.Prompt, _sweep);
+                Prompts.Add(wizard.Prompt);
             }
-            _tooFast = wizard.TooFast;
+            _repeats = wizard.Repeats;
             SawTooFast |= wizard.TooFast;
 
             long tau = t - _since - ReactUs;
@@ -152,7 +162,8 @@ namespace Fpv450.Tests.Radio
                     return;
             }
             int stick = Function(_step);
-            double start = stick == Tx12Radio.Throttle ? 0 : -1, sweep = _attempt == 1 ? FirstSweepUs : SweepUs;
+            double start = stick == Tx12Radio.Throttle ? 0 : -1;
+            double sweep = FollowsPrompt ? _sweep : _attempt == 1 ? FirstSweepUs : SweepUs * Math.Pow(Slowing, _attempt - 2);
             double p;
             if (tau < 0) p = _from;
             else if (tau < ToStartUs) p = _from + (start - _from) * tau / ToStartUs;
@@ -160,6 +171,13 @@ namespace Fpv450.Tests.Radio
             else if (tau < ToStartUs + HoldStartUs + sweep) p = start + (1 - start) * (tau - ToStartUs - HoldStartUs) / sweep;
             else p = 1;
             _radio.Stick[stick] = p;
+        }
+
+        // The sweep a repeat's prompt asks for: "about N times slower than that" (the last sweep), else its 2 seconds.
+        static double Asked(string prompt, double last)
+        {
+            int at = prompt.IndexOf("about ", StringComparison.Ordinal), times = prompt.IndexOf(" times slower than that", StringComparison.Ordinal);
+            return at >= 0 && times > at ? last * int.Parse(prompt.Substring(at + 6, times - at - 6)) : 2000000;
         }
 
         static int Function(CalibrationStep step)
@@ -178,20 +196,29 @@ namespace Fpv450.Tests.Radio
     static class Calibrations
     {
         /// <summary>
-        /// The radio's reports every 2 ms (20–200 µs of wake jitter) into the wizard, the pilot acting before each,
-        /// until the wizard is done or limitUs has passed. Every report is also kept, as a recording.
+        /// The radio's reports every reportUs (2 ms by default; 20–200 µs of wake jitter) into the wizard, the pilot
+        /// acting before each, until the wizard is done or limitUs has passed. The radio's output updates every
+        /// updateUs (0: every report); a report between two updates repeats the last output, as a 1 ms USB stream over a
+        /// 4 ms radio. Every report is also kept, as a recording.
         /// </summary>
-        public static CalibrationWizard Run(Tx12Radio radio, CalibratingPilot pilot, out RecordedRadio recording, long limitUs = 300000000)
+        public static CalibrationWizard Run(Tx12Radio radio, CalibratingPilot pilot, out RecordedRadio recording, long limitUs = 300000000,
+            long reportUs = 2000, long updateUs = 0)
         {
             var wizard = new CalibrationWizard("RadioMaster TX12 (synthetic)", InputSource.Radio, Tx12Radio.Axes);
             recording = new RecordedRadio("RadioMaster TX12 (synthetic)", InputSource.Radio, Tx12Radio.Axes, 24);
             var report = new RadioReport(Tx12Radio.Axes.Length);
+            long nextUpdate = 0;
             for (long k = 0; wizard.Step != CalibrationStep.Done; k++)
             {
-                long t = 1000000 + k * 2000 + 20 + (long)(Tx12Radio.Hash((ulong)k) % 181);
+                long tick = k * reportUs, t = 1000000 + tick + 20 + (long)(Tx12Radio.Hash((ulong)k) % 181);
                 if (t > limitUs) break;
                 pilot.Act(t, wizard);
-                radio.Fill(t, report);
+                if (tick >= nextUpdate)
+                {
+                    radio.Fill(t, report);
+                    nextUpdate += updateUs > 0 ? updateUs : reportUs;
+                }
+                else report.HostUs = t;
                 recording.Add(t, report.Axes, report.Buttons);
                 wizard.Feed(report);
             }

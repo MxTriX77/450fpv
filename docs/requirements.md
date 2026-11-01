@@ -614,9 +614,9 @@ Train mode shows what the pilot needs; the layout positions come from the footag
 
 **DRN-01 The model.** "Svinoriz 10 Opto", researched from typical Ukrainian fiber-optic heavy quads:
 - 10-inch X frame (452 mm wheelbase class) with flat carbon plate arms, 3115-class motors, **2-blade 10" props** (letter T, D-043)
-- **the fiber spool in its housing on top**, as letter T shows it (D-043); underneath on the legs-off build, which rests on the stand
+- **the fiber coil beneath** the frame on both builds (D-050); the legs-off build rests on the stand, which clears it
 - **two battery packs**
-- **a payload slung below**, between the legs (letter T, D-043), generic and without functional detail
+- **a plain plastic bottle strapped on top**, the only load, its filled mass the setup's weight (D-050)
 - FPV camera at **0° uptilt**
 - fiber transceiver, flight-controller stack, wiring
 - **legs 25–35 cm** (pilot; carbon tubes on clamps standing on fore-aft skids, as letter T shows them) in the legs-on variant, and a legs-off variant
@@ -814,7 +814,7 @@ The design to start from is [legacy/flight-model/](legacy/flight-model/), conden
 - **The model:** descent rate normalised by the induced velocity at the *current* thrust, with thrust-to-weight driving it, not descent speed alone.
 
 **PHY-10 Throttle-punch shake (PR-1).**
-- After a fast descent is arrested by a sharp throttle increase: a damped, high-frequency disturbance of **0.3–0.7 s**, seen mainly as **camera shake**.
+- After a fast descent is arrested by a sharp throttle increase: a damped, high-frequency disturbance that lasts as long as the arrest (**0.3–0.7 s** for the empty drone's moderate descents, longer heavy or from a fast descent; D-049, D-051), seen mainly as **camera shake**.
 - It depends on descent rate, input abruptness and payload, and doesn't fire on every throttle increase. It varies between occurrences.
 - **The pilot: it "doesn't happen much".** Its occurrence comes out of the physics (wash re-ingestion, frame resonance near the 50–60 Hz the real filters notch, payload and spool pendulum), and is never tuned to a pilot number.
 - It publishes the camera-vibration signal.
