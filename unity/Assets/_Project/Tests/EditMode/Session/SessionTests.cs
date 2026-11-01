@@ -545,6 +545,13 @@ namespace Fpv450.Tests.Session
             string unnamed = "object " + p.Crash.Event.Object;
             Assert.That(PostFlight.Read(rig.Session.LogPath).CrashObject, Is.EqualTo(unnamed), "no world to open");
             Assert.That(PostFlight.Read(rig.Session.LogPath, id => FlightWorld.Floor().Query).CrashObject, Is.EqualTo(unnamed), "another world's hash");
+
+            // The log replays on the map it names.
+            ReplayResult replay;
+            using (FileStream f = File.OpenRead(rig.Session.LogPath))
+                replay = FlightReplay.Run(f, id => id == range.Id ? range.Open() : null, _spec.ContentHash);
+            TestContext.WriteLine("replay: " + replay.Outcome + ", " + replay.Steps + " steps " + replay.Message);
+            Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
         }
 
         [Test]
