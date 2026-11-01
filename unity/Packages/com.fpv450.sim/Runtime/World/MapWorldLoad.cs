@@ -12,7 +12,10 @@
 //   end) at every point; Geometry gives the chord: Center its midpoint, AxisY along it,
 //   SpanA and SpanB its ends, Sag the record's, Radius half the diameter.
 // - The ground record: the plane, each patch footprint ([xmin, zmin, xmax, zmax]) and each
-//   band (centre line, band width); their cells are listed like the shapes'.
+//   band (centre line, band width); their cells are listed like the objects'.
+// - The broad phase: an object of more than TreeShapes shapes gets a tree over their bounds
+//   (BuildTree) and is listed in the 2 m grid's cells by its bounds; every other object's
+//   shapes are listed there each by its own.
 // Load time only: it allocates and throws FormatException naming the file and the field.
 
 using System;
@@ -213,14 +216,48 @@ namespace Fpv450.Sim.World
             _gaps = gaps.ToArray();
             _band = band.ToArray();
 
-            // The cells: shapes by their bounds, gaps by their rectangles.
-            ListCells(_prims.Length, k =>
+            // The broad phase inside each dense object: its tree. Then the cells: the dense objects by their bounds (item ~o),
+            // every other shape by its own (item i), gaps by their rectangles.
+            var nodes = new List<Node>();
+            var items = new List<int>();
+            _leafPrims = new int[_prims.Length];
+            _objRoot = new int[rowMeta.Length];
+            _objBox = new Bounds[rowMeta.Length];
+            _objCellX = new int[rowMeta.Length];
+            _objCellZ = new int[rowMeta.Length];
+            for (int i = 0; i < rowMeta.Length; i++)
             {
-                ref Prim p = ref _prims[k];
+                _objRoot[i] = -1;
+                if (_first[i + 1] - _first[i] > TreeShapes)
+                {
+                    for (int k = _first[i]; k < _first[i + 1]; k++)
+                        _leafPrims[k] = k;
+                    _objRoot[i] = BuildTree(nodes, _first[i], _first[i + 1] - _first[i], 0);
+                    _objBox[i] = nodes[_objRoot[i]].Box;
+                    _objCellX[i] = CellX(_objBox[i].Min.X);
+                    _objCellZ[i] = CellZ(_objBox[i].Min.Z);
+                    items.Add(~i);
+                }
+                else
+                {
+                    for (int k = _first[i]; k < _first[i + 1]; k++)
+                        items.Add(k);
+                }
+            }
+            _nodes = nodes.ToArray();
+            int[] listed = items.ToArray();
+            ListCells(listed.Length, k =>
+            {
+                int item = listed[k];
+                if (item < 0)
+                    return (_objCellX[~item], CellX(_objBox[~item].Max.X), _objCellZ[~item], CellZ(_objBox[~item].Max.Z));
+                ref Prim p = ref _prims[item];
                 p.CellX = CellX(p.Box.Min.X);
                 p.CellZ = CellZ(p.Box.Min.Z);
                 return (p.CellX, CellX(p.Box.Max.X), p.CellZ, CellZ(p.Box.Max.Z));
             }, out _cellStart, out _cellItems);
+            for (int k = 0; k < _cellItems.Length; k++)
+                _cellItems[k] = listed[_cellItems[k]];
             ListCells(_gaps.Length, k => (CellX(_gaps[k].X0), CellX(_gaps[k].X1), CellZ(_gaps[k].Z0), CellZ(_gaps[k].Z1)), out _gapStart, out _gapItems);
 
             // The start points.
@@ -292,6 +329,63 @@ namespace Fpv450.Sim.World
             };
             return new Prim { Geometry = g, Box = box, Object = obj, Shape = shape, WireFirst = wireAt, WireCount = local.Length };
         }
+
+        /// <summary>
+        /// One object's tree over _leafPrims[from .. from + count) (its prims): a leaf of at most LeafSize prims, or the
+        /// prims sorted by their bounds' centre along one axis (ties by index, so every runtime builds the same tree) and
+        /// halved, the first half the next node. Returns the node's index.
+        /// </summary>
+        private int BuildTree(List<Node> nodes, int from, int count, int depth)
+        {
+            if (depth > MaxDepth)
+                throw new InvalidOperationException("an object's tree is deeper than the query's stack");
+            Bounds box = _prims[_leafPrims[from]].Box;
+            for (int k = from + 1; k < from + count; k++)
+                box = box.Union(_prims[_leafPrims[k]].Box);
+            int at = nodes.Count;
+            nodes.Add(new Node { Box = box, First = from, Count = count });
+            if (count <= LeafSize)
+                return at;
+            // Halved by their centres along the axis whose halves' bounds have the least surface, so that long shapes lying
+            // side by side (S04's straw strips) part across their length.
+            int half = count / 2, axis = 0;
+            double least = double.PositiveInfinity;
+            for (int i = 0; i < 3; i++)
+            {
+                SortAlong(from, count, i);
+                double area = Area(from, half) + Area(from + half, count - half);
+                if (area < least)
+                {
+                    least = area;
+                    axis = i;
+                }
+            }
+            SortAlong(from, count, axis);
+            BuildTree(nodes, from, half, depth + 1);
+            int right = BuildTree(nodes, from + half, count - half, depth + 1);
+            nodes[at] = new Node { Box = box, Right = right };
+            return at;
+        }
+
+        private void SortAlong(int from, int count, int axis) => Array.Sort(_leafPrims, from, count, Comparer<int>.Create((a, b) =>
+        {
+            double ca = Axis(Centre(_prims[a].Box), axis), cb = Axis(Centre(_prims[b].Box), axis);
+            return ca < cb ? -1 : ca > cb ? 1 : a.CompareTo(b);
+        }));
+
+        /// <summary>The surface of the bounds of _leafPrims[from .. from + count).</summary>
+        private double Area(int from, int count)
+        {
+            Bounds box = _prims[_leafPrims[from]].Box;
+            for (int k = from + 1; k < from + count; k++)
+                box = box.Union(_prims[_leafPrims[k]].Box);
+            Double3 e = box.Max - box.Min;
+            return e.X * e.Y + e.Y * e.Z + e.Z * e.X;
+        }
+
+        private static Double3 Centre(in Bounds b) => (b.Min + b.Max) * 0.5;
+
+        private static double Axis(Double3 v, int i) => i == 0 ? v.X : i == 1 ? v.Y : v.Z;
 
         /// <summary>Each item k's cell range (x0, x1, z0, z1) listed in compressed rows: start[cell] … start[cell + 1] in item order.</summary>
         private void ListCells(int items, Func<int, (int x0, int x1, int z0, int z1)> range, out int[] start, out int[] list)

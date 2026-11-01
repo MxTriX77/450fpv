@@ -39,6 +39,10 @@ namespace Fpv450.Sim.World
             Max = max;
         }
 
+        /// <summary>Bounds that overlap nothing (an object without shapes).</summary>
+        public static readonly Bounds Empty = new Bounds(new Double3(double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity),
+            new Double3(double.NegativeInfinity, double.NegativeInfinity, double.NegativeInfinity));
+
         public static Bounds Of(Double3 a, Double3 b, double pad) => new Bounds(
             new Double3(DetMath.Min(a.X, b.X) - pad, DetMath.Min(a.Y, b.Y) - pad, DetMath.Min(a.Z, b.Z) - pad),
             new Double3(DetMath.Max(a.X, b.X) + pad, DetMath.Max(a.Y, b.Y) + pad, DetMath.Max(a.Z, b.Z) + pad));
@@ -78,7 +82,7 @@ namespace Fpv450.Sim.World
         public ShapeGeometry Geometry;
         public Bounds Box;
         public int Object, Shape;
-        /// <summary>A grid world's cell of the bounds' minimum corner (MapWorld).</summary>
+        /// <summary>A grid world's cell of the bounds' minimum corner (MapWorld, a shape listed in the grid itself).</summary>
         public int CellX, CellZ;
         /// <summary>A wire: its chain's points in the world's wire arrays (MapWorld).</summary>
         public int WireFirst, WireCount;
