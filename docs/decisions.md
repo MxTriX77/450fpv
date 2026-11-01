@@ -555,3 +555,13 @@ The pilot, 2026-11-02: "i dont like that whenever something is off this dialog p
 - **Each event is logged** as before (the crash names its object, LOG-03), and the flight's events are listed when the pilot ends the flight.
 - **The summary shows only on End flight or Restart from the pause menu.** No dialog or overlay appears during the flight.
 - **Supersedes the end rule** of D-062 and APP-04: the flight now ends only by the pilot.
+
+## D-064 The drone is never perfectly still: low-throttle and near-ground micro-motion · Accepted
+The pilot, 2026-11-02: "in real life motors may be different just by 0.0004%, randomly, but this tiny difference is visible in micromovements and microshakings of the camera when on a slower speed, lower throttle etc. ... make it act realistically unexpected (but not like unexpectedly crashing) ... one can sense these things ESPECIALLY when lifting off or landing."
+- **The target is the pilot's footage:** the reference analyst measures the camera's micro-motion (rates and spectra by axis) in the clips that show a liftoff, a hover near the ground and a landing, as clip P was measured for the wind (D-028).
+- **The sources are physical and published,** each a bounded perturbation of a named parameter, seeded and logged (PHY-24), never noise on the pose:
+  - each rotor's own thrust and torque unsteadiness in hover, from published rotor measurements
+  - its rise near the ground as the wash recirculates unevenly (ground effect's unsteady part)
+  - each motor's and ESC's own dynamics (time constant, friction, low-throttle and idle behaviour), drawn per motor per flight
+  - the legs' stick-slip at liftoff (`p7a-ground`)
+- **Graded like the wind:** each target is met against the footage and fails a known-wrong model (a perfectly steady rotor), and nothing is tuned to pass.
