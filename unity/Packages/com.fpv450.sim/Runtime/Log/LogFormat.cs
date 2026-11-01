@@ -64,8 +64,9 @@ namespace Fpv450.Sim.Log
         /// entry at tag 15 and the airframe's entries after it. 11: the airframe's modes in the step record (p7b-airframe
         /// 1.4: each mode's coordinate and rate) and the header's modes entry. 12: the modes entry without the slings' fields
         /// (D-050: both loads on strapped mounts; their stiffness, swing damping, the bottom plate and gravity dropped).
+        /// 13: the header's tether entry (p7d-tether 1.1: tether.json's rows, labels and hash).
         /// </summary>
-        public const int Version = 12;
+        public const int Version = 13;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header

@@ -57,6 +57,10 @@ namespace Fpv450.Sim.Flight
         /// <summary>The contacts (DroneSpec.BuildContacts, 1.6): null for none (a bench's free body, a flight in open air).</summary>
         public Contact.ContactSpec Contacts;
 
+        /// <summary>The fiber's table (tether.json, p7d-tether 1.1): null for a flight without the line. The header records
+        /// its rows and hash; the line's mechanics read it from 1.5 on.</summary>
+        public Tether.TetherTable Tether;
+
         /// <summary>The runtime objects the flight places in its world, in order (the launch stand, a test's pole); the
         /// flight resets the world's own first.</summary>
         public RuntimeObject[] RuntimeObjects = new RuntimeObject[0];

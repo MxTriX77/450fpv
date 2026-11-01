@@ -1,0 +1,80 @@
+{
+  "schema": 1,
+  "owner": "physics-engineer",
+  "about": "Every number of the fiber-optic line, its strength, the spool it pays out of, the optical link it carries, the wires' end fittings and the launch layout (p7d-tether design 1; PHY-18…21, D-024). The sim core reads it with DetJson through TetherTable, which refuses a missing block or field, an unknown one, a value without its label or rationale, a value of the wrong shape, and a derived value that does not equal its derivation from the table's own values. The flight log records every row and the file's hash; a replay refuses a tether.json of another hash. Randomness enters only through the bands and quantile tables named by design 14's streams (fiber.span_strength, fiber.section_strength, spool.peel, spool.irregularity, wire.strength, wire.tie), each drawn, bounded and logged; nothing about where the line lies is drawn. New values are added here by physics with the schema in TetherTable, never in code.",
+  "fields": {
+    "value": "a number; a band [lo, hi]; a vector [x, y, z] in the body frame (Unity's: +x right, +y up, +z forward), metres; or a quantile table [[p, value], …] with p rising from 0 to 1, read piecewise linearly",
+    "label": "where the number stands: pilot, measured, published, derived or assumed",
+    "rationale": "the source, the derivation or the reason"
+  },
+  "fiber": {
+    "glass_diameter_m": {"value": 1.25e-4, "label": "published", "rationale": "silica cladding Ø125 µm, ITU-T G.657 class (the drone sheet's 0.25 mm spool fiber, knowledge §5.1)"},
+    "coating_diameter_m": {"value": 2.5e-4, "label": "published", "rationale": "dual acrylate coating to Ø250 µm, ITU-T G.657 class; GetFPV's canister fiber is 0.26 mm"},
+    "coating_thickness_m": {"value": 6.25e-5, "label": "derived", "rationale": "(coating − glass diameter)/2; the depth abrasion must wear through before the glass is touched (design 7)"},
+    "mass_per_m_kg": {"value": 6.9e-5, "label": "derived", "rationale": "0.069 kg/km: drone.json's coil, 0.69 kg of line over 10 000 m (glass at 2.2 g/cm³ plus coating at about 1.15 g/cm³)"},
+    "weight_per_m_n": {"value": 6.767e-4, "label": "derived", "rationale": "mass_per_m_kg times the core's g, 9.80665 m/s²"},
+    "youngs_modulus_pa": {"value": 7.3e10, "label": "published", "rationale": "fused silica, 73 GPa"},
+    "glass_area_m2": {"value": 1.2272e-8, "label": "derived", "rationale": "π·d²/4 of the glass; the coating carries under 1 % of the axial load and is left out (design 1)"},
+    "axial_stiffness_n": {"value": 895.8, "label": "derived", "rationale": "EA of the glass, E·A_g: the cable chain's segment spring EA/ℓ₀ (design 2)"},
+    "bending_stiffness_n_m2": {"value": 8.748e-7, "label": "derived", "rationale": "EI of the glass, E·π·d⁴/64 (the coating adds under 15 %, left out): the elastica's bend length √(EI/T) at every contact, the lip and the peel point (design 6, 7)"},
+    "proof_stress_pa": {"value": 6.895e8, "label": "published", "rationale": "the 100 kpsi screen every length is proof-tested to (Telcordia GR-20, TIA FOTP-31): no flaw below it survives the factory"},
+    "proof_force_n": {"value": 8.461, "label": "derived", "rationale": "proof_stress_pa times the glass area: the tension at which a span is as weak as it can be"},
+    "coating_modulus_pa": {"value": 1.0e9, "label": "assumed", "rationale": "the cured acrylate's modulus for the Hertz pressure of the line on an edge (the fortifications reading §2.4)"},
+    "coating_poisson_ratio": {"value": 0.4, "label": "assumed", "rationale": "the acrylate's Poisson ratio for the same Hertz contact (the fortifications reading §2.4)"},
+    "coating_hardness_pa": {"value": 7.07e7, "label": "assumed", "rationale": "Archard's H: the geometric mean of the acrylate's 0.05–0.1 GPa (the fortifications reading §2.4); the acceptance harness prints the targets' sensitivity across that band (design 16)"},
+    "archard_wear_coefficient": {"value": 0.0224, "label": "assumed", "rationale": "Archard's k: the geometric mean of 0.01–0.05 (the fortifications reading §2.4), so 18–88 loaded rubs of one section wear through the coating; the harness prints the sensitivity across that band"},
+    "section_length_m": {"value": 0.1, "label": "assumed", "rationale": "the length each per-section draw covers (fiber.section_strength, spool.irregularity), indexed by the material coordinate s so the order of use never shifts a draw (design 7, 14); the props' scale near the exit"},
+    "drag_cross_base": {"value": 1, "label": "published", "rationale": "C_d = base + coefficient·Re^exponent across a circular cylinder, 1 < Re < 2·10⁵ (White, Viscous Fluid Flow, 3rd ed.); a falling line settles at 1.4 m/s, Re 24 (derived, design 3)"},
+    "drag_cross_coefficient": {"value": 10, "label": "published", "rationale": "White's fit, as drag_cross_base"},
+    "drag_cross_exponent": {"value": -0.666666666666667, "label": "published", "rationale": "White's fit, −2/3, as drag_cross_base"},
+    "drag_cross_reynolds": {"value": [1, 200000], "label": "published", "rationale": "the Reynolds numbers White's fit holds over"},
+    "drag_axial": {"value": 0.02, "label": "assumed", "rationale": "skin friction along the line on its surface area (design 1)"},
+    "air_kinematic_viscosity_m2_s": {"value": 1.461e-5, "label": "published", "rationale": "ISA sea level at 15 °C: μ 1.789e-5 Pa·s over ρ 1.225 kg/m³; the line's Reynolds number v·d/ν"},
+    "wet_film_rain_m": {"value": 5.0e-5, "label": "assumed", "rationale": "the water film a line carries in Rain (D-021, design 5): 0.35 mm across and 68 % heavier"},
+    "wet_film_severe_m": {"value": 7.5e-5, "label": "assumed", "rationale": "the film in Severe rain (design 5)"},
+    "water_density_kg_m3": {"value": 1000, "label": "published", "rationale": "the film's density"}
+  },
+  "strength": {
+    "span_pa": {"value": [[0, 6.895e8], [1, 1.4e9]], "label": "assumed", "rationale": "fiber.span_strength, one draw per flight at arming, met by T/A_g anywhere on the span (design 7): the floor is the proof stress (published); the ceiling is assumed, a fifth of a short section's, because a whole span breaks near its proof-truncated weakest flaw (Weibull's weakest link, published); uniform inside, the shape assumed: 8.5–17 N"},
+    "flaw_spacing_m": {"value": 20000, "label": "assumed", "rationale": "one surviving flaw per 20 km of line: a section holds one with probability section_length_m/flaw_spacing_m (design 7); tied to the fact that a 10 km canister pays out at cruise safely on all but rare flights (design 16, published)"},
+    "flaw_pa": {"value": [[0, 6.895e8], [1, 3.0e9]], "label": "assumed", "rationale": "a flawed section's local strength, from the proof stress (published floor) to the intact floor; uniform inside (assumed)"},
+    "intact_pa": {"value": [[0, 3.0e9], [1, 5.0e9]], "label": "assumed", "rationale": "an intact section's local strength at a bend, under the published means of 4.5–5.5 GPa in short-gauge tension and 6.5–7.6 GPa in bending (the fortifications reading's sources); uniform inside (assumed)"},
+    "abraded_pa": {"value": [[0, 3.0e8], [1, 6.895e8]], "label": "assumed", "rationale": "a section worn through its coating, redrawn on the same counter (design 7): abraded glass, Weibull modulus 3–7 against 30–100 for pristine fiber (published); uniform inside (assumed)"}
+  },
+  "spool": {
+    "peel_energy_j_m": {"value": [0.0196, 0.0981], "label": "derived", "rationale": "spool.peel, G₀ drawn per flight: the published 2–10 g peel force of fiber canister packs (US 5,167,382 and its cited art) read at a 90° test angle, G = F·(1 − cos 90°) = F"},
+    "peel_rate_exponent": {"value": 0.2, "label": "assumed", "rationale": "G = G₀·max(1, (ṡ/v_ref)^n): within the published 0.1–0.3 exponents of rubbery adhesives' peel energy (Gent and Petrich 1969)"},
+    "peel_reference_rate_m_s": {"value": 1, "label": "assumed", "rationale": "v_ref of the peel's rate law"},
+    "irregularity": {"value": [0.75, 1.25], "label": "assumed", "rationale": "spool.irregularity, the pack's resistance factor per section (±25 %): the adhesive's spread and the winding's cross-overs"},
+    "balloon_length_m": {"value": 0.25, "label": "assumed", "rationale": "L_b, the line between the peel point and the exit whose acceleration the exit tension carries (μ·L_b·s̈, design 3; the FOG-M review's friction-and-adhesive term plus ρv², published)"},
+    "lip_radius_m": {"value": 0.002, "label": "assumed", "rationale": "the exit's flared nozzle at the rear cap's Ø11 mm hole (the drone sheet; GetFPV's canisters use an aluminium outlet nozzle, published)"},
+    "lip_friction": {"value": 0.3, "label": "assumed", "rationale": "μ of the coating on the nozzle in the lip's capstan, T·e^(μθ): 1.17× at 30°, 1.60× at 90°, 2.57× at 180°"},
+    "exit_position_m": {"value": [0, -0.053, -0.1], "label": "derived", "rationale": "the rear cap's centre: drone.json's coil part at (0, −0.053, 0) with its 0.20 m length along +z, the line leaving aft"}
+  },
+  "link": {
+    "wavelength_m": {"value": 1.55e-6, "label": "assumed", "rationale": "the video downlink of a bidirectional pair at 1550 nm"},
+    "budget_db": {"value": 15, "label": "assumed", "rationale": "launch power over receiver sensitivity: the low end of the published 20 km BiDi SFP class (−8…−3 dBm out, −23 dBm sensitivity)"},
+    "connector_loss_db": {"value": 1.5, "label": "assumed", "rationale": "connectors and splices at the station and the drone"},
+    "launch_margin_db": {"value": 13.5, "label": "derived", "rationale": "budget_db less connector_loss_db: the margin with no line paid out and no bend"},
+    "attenuation_db_per_m": {"value": 2.1e-4, "label": "published", "rationale": "0.21 dB/km, typical of G.657 at 1550 nm (ITU's maximum is 0.30)"},
+    "macrobend_loss_a_db": {"value": 0.5, "label": "published", "rationale": "ITU-T G.657.A2's limit for one turn at 7.5 mm radius, 1550 nm; the law L(R) = L_a·e^(−decay·(R − R_a)) per full turn passes through it; limits are maxima, so the law is the worst compliant fiber's (assumed)"},
+    "macrobend_radius_a_m": {"value": 0.0075, "label": "published", "rationale": "the radius of macrobend_loss_a_db's test"},
+    "macrobend_loss_b_db": {"value": 0.1, "label": "published", "rationale": "ITU-T G.657.A2's limit for one turn at 10 mm radius, 1550 nm"},
+    "macrobend_radius_b_m": {"value": 0.01, "label": "published", "rationale": "the radius of macrobend_loss_b_db's test"},
+    "macrobend_decay_per_m": {"value": 643.8, "label": "derived", "rationale": "ln(L_a/L_b)/(R_b − R_a) = ln 5/2.5 mm: 2.5 dB a turn at 5 mm, 9.1 at 3 mm, 17.2 at 2 mm"},
+    "microbend_smooth_db_per_n": {"value": 1e-5, "label": "assumed", "rationale": "c_m, the microbend loss per newton pressing the line on a smooth contact (metal, polymer, the drone's parts, a conductor): the order of the sandpaper-drum test of IEC TR 62221 (15–20 N/m on fine abrasive gives well under 1 dB/km on a bend-insensitive fiber), so a contact's loss is a few thousandths of a dB beside a bend's (design 8)"},
+    "microbend_rough_db_per_n": {"value": 1e-3, "label": "assumed", "rationale": "c_m on a rough contact (soil, bark, concrete, straw, fabric): a hundred times the smooth one for millimetre-scale roughness"},
+    "dip_threshold_db": {"value": 0, "label": "assumed", "rationale": "the receiver loses the picture when the margin falls below 0 dB (design 8)"},
+    "dip_hysteresis_db": {"value": 1, "label": "assumed", "rationale": "a dip ends when the margin is back above threshold plus this"}
+  },
+  "fittings": {
+    "tie_hold_n": {"value": [500, 2000], "label": "assumed", "rationale": "wire.tie for a bare conductor's tie on a hook or pin: the pull it holds before slipping, of the order of 10–25 % of the conductor's rated strength"},
+    "tie_unseat_slip_m": {"value": 0.2, "label": "assumed", "rationale": "the slip after which a tie leaves its seat and the span drops"},
+    "sip_clamp_hold_ratio": {"value": 1, "label": "assumed", "rationale": "a SIP anchor clamp holds its conductor's rated strength"},
+    "house_anchor_hold_n": {"value": [1000, 3000], "label": "assumed", "rationale": "wire.tie for a service drop's house anchor: its pull-out force"},
+    "conductor_strength_ratio": {"value": [0.9, 1.2], "label": "assumed", "rationale": "wire.strength, each conductor's breaking force as a factor of its record's: the ГОСТ figure is a minimum, and old conductors corrode"}
+  },
+  "launch": {
+    "anchor_behind_start_m": {"value": 3, "label": "assumed", "rationale": "the line's far end at the ground station on the ground, 3 m behind the start point; the line laid straight from it to beneath the exit (the pilot sets the drone down on its line)"}
+  }
+}

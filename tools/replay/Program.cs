@@ -13,12 +13,14 @@ namespace Fpv450.Replay
     {
         const string Usage =
             "usage:\n"
-            + "  replay <log> [--drone <drone.json>]   replay the flight; compare every record bit for bit\n"
+            + "  replay <log> [--drone <drone.json>] [--tether <tether.json>]\n"
+            + "                                         replay the flight; compare every record bit for bit\n"
             + "  replay --summary <log>                 the flight's summary; a cut log reads to its last whole record\n"
             + "  replay --record <log> [--seconds S] [--realtime] [--wind still|calm|windy|severe] [--drone <drone.json>]\n"
             + "                                         fly the scripted flight (120 s, Windy) and log it\n"
             + "exit: 0 match, 1 diverged, 2 usage, 3 refused, 4 unreadable, 5 matched a cut log\n"
-            + "drone.json defaults to the repository's assets-src/drone/drone.json";
+            + "drone.json defaults to the repository's assets-src/drone/drone.json, and tether.json, for a log with the line,\n"
+            + "to its assets-src/tether.json";
 
         private static int Main(string[] args)
         {
@@ -66,6 +68,18 @@ namespace Fpv450.Replay
                 }
                 Console.WriteLine($"  drone.json {drone}: 0x{droneHash:X16}");
             }
+            ulong tetherHash = 0;
+            string tether = Option(args, "--tether") ?? (h.Tether != null ? ScriptedFlight.RepositoryTether() : null);
+            if (tether != null)
+            {
+                tetherHash = ScriptedFlight.TetherHash(tether, out string problem);
+                if (problem != null)
+                {
+                    Console.WriteLine("refused: " + problem);
+                    return (int)ReplayOutcome.Refused;
+                }
+                Console.WriteLine($"  tether.json {tether}: 0x{tetherHash:X16}");
+            }
             FlightWorld world = ScriptedFlight.OpenWorld(h.WorldId);
             if (world == null)
             {
@@ -74,7 +88,7 @@ namespace Fpv450.Replay
             }
 
             var clock = Stopwatch.StartNew();
-            ReplayResult r = FlightReplay.Run(reader, world, droneHash, Host.Isa);
+            ReplayResult r = FlightReplay.Run(reader, world, droneHash, Host.Isa, tetherHash);
             Console.WriteLine("  " + r.Message);
             foreach (string note in r.Notes) Console.WriteLine("  note: " + note);
             Console.WriteLine($"  replayed in {clock.Elapsed.TotalSeconds:F2} s on {LogHeader.CurrentRuntime()}, isa {Host.Isa}; exit {(int)r.Outcome} ({r.Outcome})");

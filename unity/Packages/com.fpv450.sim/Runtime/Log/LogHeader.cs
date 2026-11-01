@@ -9,6 +9,7 @@ using System.Text;
 using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Tether;
 using Fpv450.Sim.Wind;
 using Fpv450.Sim.World;
 
@@ -85,6 +86,8 @@ namespace Fpv450.Sim.Log
     ///   physics materials' rows with physics_materials.json's hash (none for a flight without contacts)
     /// - the runtime objects the flight placed, in order, each shape in world space (the launch stand: K§6.10's asset,
     ///   pose and order; their material ids are the world's, named by the world entry)
+    /// - the fiber's table (p7d-tether 1.1): tether.json's every row with its label, and the file's hash (none for a
+    ///   flight without the line)
     /// - the start state with the packs' charge, and the record layouts (so a reader needs no code of ours)
     /// - the input: where the sticks came from (a keyboard flight is for development, never for tuning), the device's
     ///   product name and its report intervals before the flight (p6-input-app 1.1); the host µs of step 0, so a step's
@@ -101,8 +104,12 @@ namespace Fpv450.Sim.Log
         {
             "Seed", "Settings", "World", "Mass", "Propulsion", "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate",
             "StartPackCharge", "Aero", "Wind", "Contacts", "RuntimeObjects", "Asymmetry", "VortexRing", "GroundEffect",
-            "Flapping", "Modes",
+            "Flapping", "Modes", "Tether",
         };
+
+        /// <summary>The tether table's fields the header records (its rows whole, and the file's hash), checked by the suite.</summary>
+        public static readonly string[] TetherFieldsLogged = { "ContentHash", "Rows" };
+        public static readonly string[] TetherRowFieldsLogged = { "Name", "Label", "Kind", "Values" };
 
         /// <summary>The modes' fields the header records, checked against AirframeModesSpec by the suite.</summary>
         public static readonly string[] ModesFieldsLogged =
@@ -164,7 +171,7 @@ namespace Fpv450.Sim.Log
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
             TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
             TagRuntimeObjects = 14, TagInput = 15, TagAsymmetry = 16, TagVortexRing = 17, TagGroundEffect = 18, TagFlapping = 19,
-            TagModes = 20;
+            TagModes = 20, TagTether = 21;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -215,6 +222,10 @@ namespace Fpv450.Sim.Log
 
         /// <summary>The airframe's modes; null for a rigid airframe.</summary>
         public AirframeModesSpec Modes;
+
+        /// <summary>tether.json's rows and hash; null for a flight without the line. A replay builds its table from these
+        /// rows once its own file's hash matches (FlightReplay).</summary>
+        public TetherTable Tether;
 
         /// <summary>The runtime objects the flight placed, in order, and the world's object id each got.</summary>
         public RuntimeObject[] RuntimeObjects = new RuntimeObject[0];
@@ -285,6 +296,7 @@ namespace Fpv450.Sim.Log
                 GroundEffect = setup.GroundEffect?.Clone(),
                 Flapping = setup.Flapping?.Clone(),
                 Modes = setup.Modes?.Clone(),
+                Tether = setup.Tether,
                 RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
                 RuntimeIds = (int[])core.RuntimeIds.Clone(),
             };
@@ -366,6 +378,7 @@ namespace Fpv450.Sim.Log
                 GroundEffect = GroundEffect?.Clone(),
                 Flapping = Flapping?.Clone(),
                 Modes = Modes?.Clone(),
+                Tether = Tether,
                 RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
             };
         }
@@ -681,6 +694,21 @@ namespace Fpv450.Sim.Log
                 e.Write(m.PayloadPart);
                 e.Write(m.CoilPart);
             });
+            Entry(w, TagTether, e =>
+            {
+                e.Write(Tether != null);
+                if (Tether == null) return;
+                e.Write(Tether.ContentHash);
+                e.Write((ushort)Tether.Rows.Length);
+                foreach (TetherRow row in Tether.Rows)
+                {
+                    Text(e, row.Name);
+                    e.Write(row.Label);
+                    e.Write((byte)row.Kind);
+                    e.Write((ushort)row.Values.Length);
+                    foreach (double x in row.Values) e.Write(x);
+                }
+            });
             Entry(w, TagRuntimeObjects, e =>
             {
                 e.Write((ushort)RuntimeObjects.Length);
@@ -974,6 +1002,22 @@ namespace Fpv450.Sim.Log
                             TipMass = new[] { r.ReadDouble(), r.ReadDouble(), r.ReadDouble(), r.ReadDouble() },
                             PayloadPart = r.ReadInt32(), CoilPart = r.ReadInt32(),
                         };
+                        break;
+                    case TagTether:
+                        if (!r.ReadBoolean())
+                        {
+                            Tether = null;
+                            break;
+                        }
+                        ulong tetherHash = r.ReadUInt64();
+                        var rows = new TetherRow[r.ReadUInt16()];
+                        for (int i = 0; i < rows.Length; i++)
+                        {
+                            rows[i] = new TetherRow { Name = Text(r), Label = r.ReadByte(), Kind = (TetherValueKind)r.ReadByte() };
+                            rows[i].Values = new double[r.ReadUInt16()];
+                            for (int k = 0; k < rows[i].Values.Length; k++) rows[i].Values[k] = r.ReadDouble();
+                        }
+                        Tether = new TetherTable(rows, tetherHash);
                         break;
                     case TagRuntimeObjects:
                         RuntimeObjects = new RuntimeObject[r.ReadUInt16()];

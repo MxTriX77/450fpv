@@ -8,6 +8,7 @@ using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Log;
 using Fpv450.Sim.Tests;
+using Fpv450.Sim.Tether;
 using Fpv450.Sim.Wind;
 
 namespace Fpv450.Replay
@@ -76,6 +77,28 @@ namespace Fpv450.Replay
             catch (IOException e)
             {
                 problem = "drone.json cannot be read: " + e.Message;
+            }
+            return 0;
+        }
+
+        /// <summary>The repository's tether.json, found from the working directory upwards; null when there is none.</summary>
+        public static string RepositoryTether() => Repository(TetherTable.RelativePath);
+
+        /// <summary>TetherTable.ContentHash of the file, or 0 with problem set when it cannot be read or is not valid.</summary>
+        public static ulong TetherHash(string path, out string problem)
+        {
+            try
+            {
+                problem = null;
+                return TetherTable.Parse(File.ReadAllText(path)).ContentHash;
+            }
+            catch (TetherTableException e)
+            {
+                problem = e.Message;
+            }
+            catch (IOException e)
+            {
+                problem = "tether.json cannot be read: " + e.Message;
             }
             return 0;
         }
