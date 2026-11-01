@@ -34,6 +34,35 @@ namespace Fpv450.Sim.Tests
             Assert.That(high.DescentAtHold, Is.EqualTo(low.DescentAtHold), "the same descent, bit for bit, until the hold");
         }
 
+        // QA's finding 4: the scenario on 20 seeds, each against its own ringless flight. Every seed enters, loses thrust,
+        // wobbles at least 1.5 times its ringless flight's 10 ms rate change over the rings' whole passage, and leaves below
+        // its entry rate; the higher throttle never enters; the known-wrong onset from the descent speed alone fails each.
+        [Test]
+        public void HeavyOnLowThrottleOnTwentySeeds()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            VortexRingSpec ring = spec.BuildVortexRing();
+            double least = double.MaxValue, most = 0, offLeast = double.MaxValue, offMost = 0;
+            foreach (ulong seed in VortexRingScenario.Seeds)
+            {
+                VortexRingScenario.Result low = VortexRingScenario.Fly(VortexRingScenario.Setup(spec, seed: seed), true);
+                VortexRingScenario.Result off = VortexRingScenario.Fly(VortexRingScenario.Setup(spec, false, seed: seed), true);
+                VortexRingScenario.Result high = VortexRingScenario.Fly(VortexRingScenario.Setup(spec, seed: seed), false);
+                VortexRingScenario.Result wrong = VortexRingScenario.Fly(VortexRingScenario.Setup(spec, true, true, seed), true);
+                double ratio = low.WobbleRms / off.WobbleRms;
+                least = System.Math.Min(least, ratio);
+                most = System.Math.Max(most, ratio);
+                offLeast = System.Math.Min(offLeast, off.WobbleRms);
+                offMost = System.Math.Max(offMost, off.WobbleRms);
+                string at = $"seed {seed}: " + VortexRingScenario.Describe(low) + $"; wobble {ratio:F2} × the ringless {off.WobbleRms:E2} rad/s";
+                TestContext.Out.WriteLine(at);
+                Assert.That(VortexRingScenario.HeavyOnLowThrottle(low, off, ring), Is.True, at);
+                Assert.That(VortexRingScenario.HigherThrottle(high), Is.True, "the higher throttle: " + VortexRingScenario.Describe(high));
+                Assert.That(VortexRingScenario.HeavyOnLowThrottle(wrong, off, ring), Is.False, "known-wrong: " + VortexRingScenario.Describe(wrong));
+            }
+            TestContext.Out.WriteLine($"20 seeds: the wobble {least:F2}–{most:F2} × the ringless flight's ({offLeast:E2}–{offMost:E2} rad/s), against 1.5");
+        }
+
         // The ring's curves at Johnson's points, the hysteresis, the forward speed's escape, and what the propulsion derives.
         [Test]
         public void TheRingFollowsJohnsonsPoints()

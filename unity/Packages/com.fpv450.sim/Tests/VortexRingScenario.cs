@@ -16,7 +16,12 @@ namespace Fpv450.Sim.Tests
     /// </summary>
     public static class VortexRingScenario
     {
-        public const double Descent = 3, HoverSeconds = 2, DescentSeconds = 3, HoldSeconds = 0.4, RecoverSeconds = 3;
+        /// <summary>The hold, s: the rings' whole passage on the low throttle (derived, QA's finding 4): the rotors enter
+        /// within 0.04 s and the falling drone carries all four past η 2.0, the windmill brake state, 0.53–0.57 s into the
+        /// hold on seeds 101–120, so the wobble's statistic sees every step the rings wander (0.4 s saw about 80 % of it).</summary>
+        public const double HoldSeconds = 0.6;
+
+        public const double Descent = 3, HoverSeconds = 2, DescentSeconds = 3, RecoverSeconds = 3;
         public const double LowThrottle = 0.15, HighThrottleStep = 0.1;
         public const ulong Seed = 0x450F;
         const double G = 9.80665;
@@ -47,12 +52,15 @@ namespace Fpv450.Sim.Tests
             public double RateRms, WobbleRms, TiltMax, RingMomentRms;
         }
 
-        public static FlightSetup Setup(DroneSpec spec, bool ring = true, bool knownWrong = false)
+        /// <summary>The 20 seeds the suite flies the scenario on (QA's 101–120), besides Seed.</summary>
+        public static readonly ulong[] Seeds = { 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120 };
+
+        public static FlightSetup Setup(DroneSpec spec, bool ring = true, bool knownWrong = false, ulong seed = Seed)
         {
             MassModel mass = spec.BuildMass(new Loadout { Payload = 2.0, Legs = true });
             var setup = new FlightSetup
             {
-                Seed = Seed, World = FlightWorld.Floor(), Mass = mass, Propulsion = spec.BuildPropulsion(), Aero = spec.BuildAero(),
+                Seed = seed, World = FlightWorld.Floor(), Mass = mass, Propulsion = spec.BuildPropulsion(), Aero = spec.BuildAero(),
                 Wind = WindSetup.Of(WindLevel.Still), Asymmetry = spec.BuildAsymmetry(), StartPosition = new Double3(0, 300, 0), StartPackCharge = 0.9,
             };
             if (ring) setup.VortexRing = spec.BuildVortexRing();
