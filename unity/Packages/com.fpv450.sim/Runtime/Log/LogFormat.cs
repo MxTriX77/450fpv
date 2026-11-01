@@ -75,8 +75,10 @@ namespace Fpv450.Sim.Log
         ///    model 4, a flight with every filter off as 1.6's; a free body steps as in 1).
         /// 6: task 1.7 (the rigid body turns at the step's midpoint rate, RigidBody.MidpointPasses, which keeps the
         ///    energy; with no passes a flight steps as in 5, and a body with isotropic inertia steps as in 1).
+        /// 7: task 1.6b (a skid capsule on the face its support spheres stand on is their support, and leaving a compliant
+        ///    shape is no tunnel; a flight on the stub's floor steps as in 6).
         /// </summary>
-        public const int ModelVersion = 6;
+        public const int ModelVersion = 7;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

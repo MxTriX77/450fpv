@@ -365,7 +365,8 @@ namespace Fpv450.Sim.Contact
             return ft;
         }
 
-        Row RowOf(in Pair p) => p.Material != WorldIds.NoMaterial && p.Material < _byMaterial.Length && _byMaterial[p.Material].Known
+        // The ground is the plane and every soil shape (a patch's soil, a hole's fillers): its surface, never its object.
+        Row RowOf(in Pair p) => p.Surface == WorldIds.NoSurface && p.Material < _byMaterial.Length && _byMaterial[p.Material].Known
             ? _byMaterial[p.Material] : _groundRow;
 
         static double Series(double a, double b) => a * b / (a + b);
@@ -443,7 +444,7 @@ namespace Fpv450.Sim.Contact
                 if (groundless && c.Object == WorldIds.Ground) continue; // the supports' ground is SampleGround's
                 int k = 0;
                 while (k < _count[i] && (_pairs[first + k].Object != c.Object || _pairs[first + k].Shape != c.Shape)) k++;
-                bool same = capsule && SameSupport(i, c.Point);
+                bool same = capsule && SameSupport(i, c);
                 if (k == _count[i])
                 {
                     if (same) continue;
@@ -506,7 +507,9 @@ namespace Fpv450.Sim.Contact
                 Depth(ref p, part);
                 if (!p.Seen || p.Suppressed)
                 {
-                    if (!p.Seen && p.Latched && p.Depth > 0 && (p.Flipped || PastCentre(p, part))) Tunnel(i, p, part, now, events);
+                    // Only a rigid shape or the ground can be passed by mistake: a compliant one (a crown's twig shell, a
+                    // straw mat) yields to its own law, and leaving it is an ordinary break.
+                    if (!p.Seen && p.Latched && p.Depth > 0 && RowOf(p).Rigid && (p.Flipped || PastCentre(p, part))) Tunnel(i, p, part, now, events);
                     if (p.Touching) Broken(ref p, i, now.Step, events);
                     continue;
                 }
@@ -522,8 +525,12 @@ namespace Fpv450.Sim.Contact
             _count[i] = kept;
         }
 
-        // A capsule's contact at point lies within two radii of a touching sphere of the same part: the same support (P3).
-        bool SameSupport(int capsule, Double3 point)
+        // A capsule's contact is the same support as a touching sphere of the same part (P3) when its point lies within two
+        // radii of the sphere's, or when the sphere is a support on the same world shape and the capsule is no deeper into it
+        // by more than its own radius: a straight skid on a flat face, whose line contact's tie falls at either core end
+        // (IWorldQuery: the start of the flat stretch), the far one's point well clear of every sphere. A crossing between
+        // the spheres (a rod, a wire, a ridge or a hump the spheres stand off) is deeper, or another shape, and counts.
+        bool SameSupport(int capsule, in StaticContact contact)
         {
             ContactShape c = _shapes[capsule];
             for (int i = 0; i < _shapes.Length; i++)
@@ -531,11 +538,13 @@ namespace Fpv450.Sim.Contact
                 ContactShape s = _shapes[i];
                 if (i == capsule || s.Part != c.Part || s.Role == ContactRole.Disc || !Same(s.A, s.B)) continue;
                 double reach = c.Radius + s.Radius;
-                if (s.Role == ContactRole.Support && _ground[i].Touching && Near(_ground[i].Point, point, reach)) return true;
+                if (s.Role == ContactRole.Support && _ground[i].Touching && Near(_ground[i].Point, contact.Point, reach)) return true;
                 for (int k = 0; k < _count[i]; k++)
                 {
                     ref Pair p = ref _pairs[i * PairsPerShape + k];
-                    if (p.Touching && !p.Suppressed && Near(p.Point, point, reach)) return true;
+                    if (!p.Touching || p.Suppressed) continue;
+                    if (Near(p.Point, contact.Point, reach)) return true;
+                    if (s.Role == ContactRole.Support && p.Object == contact.Object && p.Shape == contact.Shape && -contact.Distance <= p.Depth + c.Radius) return true;
                 }
             }
             return false;
