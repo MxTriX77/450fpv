@@ -340,7 +340,14 @@ namespace Fpv450.Sim.Tests
         // for bit, so the wind over the hole is the whole change; in still air it is model 16's (Model16StillRangeHash, the
         // kept test), and Calm and still air now differ. Read from the first soil shape alone (the mat's soil box, 0.125 m
         // under the plane's height, a known-wrong) it was 0xCE9BEF5615932EFB, 7 impacts, 0.233 m up on 21 pairs.
-        public const ulong RangeHash = 0x7A21A5FA04DD30E0UL;
+        // Model 20: 0x7A21A5FA04DD30E0. The merge with p7c-wind--d060 (ModelVersion 21: D-060's class-4 z0 and σ_u/U, the
+        // turbulence to 0.5 m): re-recorded on the same content and query version 4, where the Calm field over S04 now
+        // carries D-060's profile and turbulence: 5 impacts, no crash, at rest 19.10 mm into the straw on 18 pairs. Audited
+        // against both parents (temporary switches, reverted): with z0 0.03 m, σ_u/U 0.135 and the 1 m cut every golden is
+        // the range branch's model 20 (range 0x7A21A5FA04DD30E0, powered 0xFE81E38EFCBD2F4E, contact 0x1152D64875230761,
+        // rain 0xE5D4C472F6CA12D2); with 19's rule over a hole the stub's goldens are p7c-wind--d060's pins and the range
+        // flight is model 19's 0xE4B13EDD65CFF0B2, so the change is D-060's field blowing over the hole, nothing else.
+        public const ulong RangeHash = 0x10A035F9F29042CCUL;
 
         /// <summary>The merge's audit against the range branch (GoldenFlightTests.InStillAirTheRangeGoldenIsModel16s): model
         /// 16's range golden in still air over its 1656-byte layout, pinned from the range branch's code (c2cf4023) with the
