@@ -5,7 +5,14 @@
         "Fpv450.Sim",
         "Fpv450.Input",
         "Fpv450.Input.Radio",
-        "Fpv450.App.Session"
+        "Fpv450.App.Session",
+        "Fpv450.UI",
+        "Fpv450.Feed",
+        "Fpv450.Feed.Core",
+        "Fpv450.World",
+        "Unity.InputSystem",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.Universal.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

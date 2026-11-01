@@ -1,23 +1,21 @@
-using System;
-using System.Collections;
+using Fpv450.Input;
 using UnityEngine;
 
 namespace Fpv450.App
 {
     /// <summary>
-    /// Logs that the Boot scene loaded. With <c>-smoketest</c> on the command line the player
-    /// quits on the next frame, so a batchmode run proves that a build opens its scene.
+    /// The Boot scene's: logs that it loaded and opens the app (AppFlow, the menu). The scene's camera keeps its noclip
+    /// switched off, so the menu has the mouse. With <c>-smoketest</c> the app walks its screens and flights and quits
+    /// (AppFlow.Smoke), so a batchmode run proves that a build opens and flies.
     /// </summary>
     public sealed class Boot : MonoBehaviour
     {
-        IEnumerator Start()
+        void Awake()
         {
             Debug.Log("[Boot] Boot scene loaded");
-            if (Array.IndexOf(Environment.GetCommandLineArgs(), "-smoketest") < 0)
-                yield break;
-
-            yield return null;
-            Application.Quit(0);
+            var noclip = GetComponent<NoclipCamera>();
+            if (noclip != null) noclip.enabled = false;
+            AppFlow.Create();
         }
     }
 }
