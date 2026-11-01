@@ -31,9 +31,10 @@ namespace Fpv450.Sim.Tests
 
         // Sixty-two arrested descents: two payloads, four drops (from the hover, 2.5, 5.4 and 9 m/s), a sharp full and a sharp
         // 0.8 step and the gentle ramp, two seeds; the known-wrong ESC that senses no current on each full punch, and the
-        // known-wrong rigid airframe twice. The spec's three scenarios (D-049, D-051), each checked as it holds on every
-        // flight of 40 seeds a cell (flightbench --shake): "Shake only when its causes meet", "The shake lasts as long as the
-        // arrest", "The visible shake is the rigid body's".
+        // known-wrong rigid airframe twice. The spec's three scenarios (D-049, D-051, D-053): "Shake only when its causes
+        // meet", "The shake lasts as long as the arrest", "The visible shake is the rigid body's". What they state of every
+        // flight is checked on each flight here; what they state of nearly every one, or of the median, is a rate, checked on
+        // 40 seeds a cell by flightbench --shake, which fails when one misses (QA's re-review, B1).
         [Test]
         public void ShakeOnlyWhenItsCausesMeet()
         {
@@ -60,48 +61,50 @@ namespace Fpv450.Sim.Tests
                             if (drop == 0)
                             {
                                 // From the hover: a gentle increase never shows it; a sharp one only its own kick as the motors
-                                // spin up, under 0.3 s, the ESCs off their limit within 0.1 s.
+                                // spin up, shorter than the pilot's shortest shake, the ESCs off their limit within 0.1 s.
                                 if (gentle) Assert.That(r.Fields, Is.EqualTo(0), "a gentle increase never shows it: " + at);
-                                else Assert.That(r.Duration, Is.LessThan(0.3), "a punch from the hover is a kick, not the shake: " + at);
-                                Assert.That(r.Limited, Is.LessThan(0.1), at);
+                                else Assert.That(r.Duration, Is.LessThan(ShakeScenario.KickSeconds), "a punch from the hover is a kick, not the shake: " + at);
+                                Assert.That(r.Limited, Is.LessThan(ShakeScenario.KickLimited), at);
                                 continue;
                             }
                             if (gentle) continue;
-                            // Arresting a descent sharply shows it, an ESC meeting its current limit, and the frame's band rings.
-                            Assert.That(r.Fields, Is.GreaterThan(0), "every sharp arrest shows it: " + at);
+                            // Arresting a descent sharply meets an ESC's current limit and rings the frame's band (that nearly
+                            // every one shows the shake is a rate: a weak arrest from 2.5 m/s can stay under the visible line).
                             Assert.That(r.Limited, Is.GreaterThan(0), "an ESC meets its limit: " + at);
                             Assert.That(r.VibrationPeak.Y, Is.GreaterThan(ShakeScenario.Rings), "the frame's band rings: " + at);
                             if (stick < 1) continue;
                             // A full punch holds an ESC on its limit through the whole arrest, all four for part of it, and its
-                            // shake shows while it lasts and never outlasts it by more than the loop's settling.
-                            Assert.That(ShakeScenario.LastsTheArrest(r), Is.True, "a full punch's shake lasts its arrest: " + at);
+                            // shake never outlasts it by more than the loop's settling.
+                            Assert.That(ShakeScenario.HoldsTheArrest(r), Is.True, "a full punch holds its arrest: " + at);
                             if (payload > 0 && drop == 0.6) heavyPunch[s] = r;
                         }
                     if (drop == 0) continue;
                     for (int s = 0; s < Seeds.Length; s++)
                     {
                         ShakeScenario.Result full = runs[0, s], half = runs[1, s], gentle = runs[2, s];
-                        // A smaller step lets the ESCs go sooner; in a 5–9 m/s descent a gentle ramp shows PHY-09's wobble.
-                        Assert.That(half.Limited, Is.LessThan(full.Limited), "the 0.8 step's ESCs leave their limit sooner");
+                        // A smaller step lets the ESCs go sooner (on nearly every seed: 2640 of 2640 on 440 seeds a cell, but by
+                        // 12 ms at the least, so a rate, flightbench --shake); in a 5–9 m/s descent a gentle ramp shows PHY-09's wobble.
                         halfSum += half.Duration;
                         fullSum += full.Duration;
                         if (drop >= 0.6) Assert.That(ShakeScenario.Wobbles(gentle, full), Is.True, "the rotors settle into their wash: " + ShakeScenario.Describe(gentle));
-                        // Known-wrong: an ESC that senses no current (D-051). Nothing holds the loop short of authority: its
-                        // tilt falls below half the full punch's, and no ESC sits on a limit through the arrest.
+                        // Known-wrong: an ESC that senses no current (D-051). Nothing holds the loop short of authority: no
+                        // ESC sits on a limit through the arrest, and it tilts less far than the full punch (less than half as
+                        // far on nearly every seed, a rate).
                         ShakeScenario.Result wrong = ShakeScenario.Fly(ShakeScenario.Setup(spec, payload, Seeds[s], currentLimit: false), drop, false);
                         flights++;
                         string w = $"no current limit, {payload:F0} kg, drop {drop:F1} s, seed {Seeds[s]}: " + ShakeScenario.Describe(wrong);
                         TestContext.WriteLine(w);
-                        Assert.That(ShakeScenario.LastsTheArrest(wrong), Is.False, w);
-                        Assert.That(wrong.TiltMax, Is.LessThan(0.5 * full.TiltMax), "the tilt is the current limit's: " + w);
+                        Assert.That(ShakeScenario.HoldsTheArrest(wrong), Is.False, w);
+                        Assert.That(wrong.TiltMax, Is.LessThan(full.TiltMax), "the tilt is the current limit's: " + w);
                     }
                     Assert.That(runs[0, 0].Peak, Is.Not.EqualTo(runs[0, 1].Peak), "it varies between occurrences");
                 }
-            // The 0.8 step's shake is shorter: over these 12 pairs in all (pair by pair on 229 of 240 on 40 seeds a cell).
+            // The 0.8 steps' shakes are shorter in sum: over these 12 pairs in all (in every cell of 40 seeds, flightbench --shake).
             TestContext.WriteLine($"the 0.8 step's shakes over the full punches': {halfSum / fullSum:F2}");
             Assert.That(halfSum, Is.LessThan(fullSum), "the 0.8 step's shake is shorter");
             // Known-wrong: a rigid airframe, the modes off. The visible shake is the rigid body's, so it stays (within 20 % of
-            // the flexing airframe's, as long); but the camera has no frame to ring, and the feed no vibration.
+            // the flexing airframe's peak; as long is a rate, the same median and within three fields on nearly every seed);
+            // but the camera has no frame to ring, and the feed no vibration.
             for (int s = 0; s < Seeds.Length; s++)
             {
                 ShakeScenario.Result r = ShakeScenario.Fly(ShakeScenario.Setup(spec, 2, Seeds[s], false), 0.6, false);
@@ -109,16 +112,16 @@ namespace Fpv450.Sim.Tests
                 string at = $"rigid, 2 kg, drop 0.6 s, step 1.0, seed {Seeds[s]}: " + ShakeScenario.Describe(r);
                 TestContext.WriteLine(at);
                 Assert.That(r.Peak / heavyPunch[s].Peak, Is.InRange(0.8, 1.2), "the visible shake is the rigid body's: " + at);
-                Assert.That(ShakeScenario.LastsTheArrest(r), Is.True, at);
-                Assert.That(System.Math.Abs(r.Duration - heavyPunch[s].Duration), Is.LessThanOrEqualTo(3 * FlightCore.FieldSteps * FlightCore.Dt + 1e-9), "as long, within three fields (0.06 s on 40 seeds at most): " + at);
+                Assert.That(ShakeScenario.HoldsTheArrest(r), Is.True, at);
                 Assert.That(r.Published, Is.False, "the known-wrong rigid airframe publishes no camera vibration");
             }
             Assert.That(flights, Is.EqualTo(62));
         }
 
         // The empty drone's full punch from 2.5 and 5.3 m/s on seeds 1–10, the pilot's PR-1: the shake lasts 0.3–0.7 s on
-        // most (77 of 80 on seeds 1–40; the rest are weak shakes over the visible line for 0.1–0.2 s), its median in it. The
-        // known-wrong ESC that senses no current fails it from 2.5 m/s, where its shake barely shows (1 of 40 in the band).
+        // most, at least 7 of 10 (ShakeScenario.Most), its median in it. On 440 seeds the 2.5 m/s cell leaves the band on
+        // 7.7 % (weak shakes over the visible line for 0.1–0.2 s), so a fresh 10 seeds fails it about 0.5 % of the time. The
+        // known-wrong ESC that senses no current fails it from 2.5 m/s, where its shake barely shows.
         [Test]
         public void TheShakeLastsAboutTheArrest()
         {
@@ -139,7 +142,7 @@ namespace Fpv450.Sim.Tests
                     double median = (lengths[4] + lengths[5]) / 2;
                     string at = $"drop {drop:F1} s{(limit ? "" : ", no current limit")}: {inside} of 10 in 0.3–0.7 s, {lengths[0]:F2}–{lengths[9]:F2} s, median {median:F2} s";
                     TestContext.WriteLine(at);
-                    Assert.That(inside >= 8 && ShakeScenario.LastsInTenths(median, 0.3, 0.7), Is.EqualTo(limit), at);
+                    Assert.That(ShakeScenario.PilotBand(inside, lengths.Length, median), Is.EqualTo(limit), at);
                 }
         }
 

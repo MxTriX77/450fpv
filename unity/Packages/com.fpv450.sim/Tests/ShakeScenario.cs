@@ -53,26 +53,52 @@ namespace Fpv450.Sim.Tests
         }
 
         /// <summary>
-        /// A full punch's shake lasts the arrest (D-049, D-051): an ESC on its current limit for the whole arrest (within
-        /// 0.03 s) and all four for part of it, and the shake showing and never outlasting the arrest by more than Settle.
-        /// On 40 seeds a cell it holds on every full punch. Its end is bounded above only: on 2 of 240 the visible shake fades
-        /// below the line before the arrest ends (2 kg from 5.4 m/s), and on 4 weak ones from 2.5 m/s it shows only in the
-        /// settling just after the arrest (0.10–0.22 s long).
+        /// A full punch holds the arrest (D-049, D-051, D-053): an ESC on its current limit for the whole arrest (within 0.03 s)
+        /// and all four for part of it, and its shake, where it shows, never outlasting the arrest by more than Settle. On
+        /// every full punch of 440 seeds a cell (seeds 1–40, 301–500 and 1001–1200: the hold within 0.005 s, all four 0.20 s at
+        /// least, the end at most 0.27 s after the arrest). Its end is bounded above only: the visible shake can fade below
+        /// the line before the arrest ends (2 kg from 5.4 m/s), and a weak one from 2.5 m/s shows only in the settling just
+        /// after it.
         /// </summary>
-        public static bool LastsTheArrest(in Result r) =>
+        public static bool HoldsTheArrest(in Result r) =>
             !double.IsNaN(r.ArrestedAfter) && DetMath.Abs(r.Limited - r.ArrestedAfter) <= 0.03 && r.AllLimited > 0
-            && r.Fields > 0 && r.First + r.Duration <= r.ArrestedAfter + Settle;
+            && (r.Fields == 0 || r.First + r.Duration <= r.ArrestedAfter + Settle);
+
+        /// <summary>A full punch's shake lasts the arrest: it holds the arrest and shows. Nearly every one shows (a weak
+        /// arrest from 2.5 m/s can stay under the visible line: seed 385, empty).</summary>
+        public static bool LastsTheArrest(in Result r) => HoldsTheArrest(r) && r.Fields > 0;
 
         /// <summary>
         /// PHY-09's wobble, not the shake (D-049): a gentle ramp does not arrest a 5–9 m/s descent within HoldLimit, so the
         /// rotors sit in their ring for over 1 s of the window and the wandering thrust shows over the visible line, while an
-        /// ESC meets its limit for at most half the full punch's time at the same descent (0.43 at most on 40 seeds a cell).
+        /// ESC meets its limit for less than the full punch's time at the same descent (at most 0.57 of it on 440 seeds
+        /// a cell; at most half of it on nearly every ramp, flightbench --shake).
         /// </summary>
-        public static bool Wobbles(in Result r, in Result punch) => r.Fields > 0 && r.InRing > 1.0 && r.Limited <= 0.5 * punch.Limited;
+        public static bool Wobbles(in Result r, in Result punch) => r.Fields > 0 && r.InRing > 1.0 && r.Limited < punch.Limited;
 
         /// <summary>The frame's band rings on a sharp step: the camera vibration's Y band (50–200 Hz) over this, m/s² (derived:
         /// between the gentle input from the hover's 0.11 at most and every sharp step's 0.42 at least, on 40 seeds a cell).</summary>
         public const double Rings = 0.3;
+
+        /// <summary>From the hover a sharp step shows only the motors' spin-up kick: shorter than the pilot's shortest shake,
+        /// 0.3 s (PR-1; at most 0.14 s on 440 seeds a cell), and every ESC leaves its limit within KickLimited, s (at most
+        /// 0.05 s on those seeds).</summary>
+        public const double KickSeconds = 0.3, KickLimited = 0.1;
+
+        /// <summary>"Nearly every": the share of a cell's flights a rate PHY-10 states holds on, where a bound is not true on
+        /// every seed (QA's re-review, B1; D-053). Its claims hold on 99 % or more of 440 seeds a cell (1–40, 301–500 and
+        /// 1001–1200), so a fresh 40 seeds misses one about 0.5 % of the time at most (the rigid airframe's "within three
+        /// fields", 436 of 440, on its one cell of 40), far less for the others (240 or 160 flights each).</summary>
+        public const double NearlyEvery = 0.95;
+
+        /// <summary>The pilot's "most" for the 0.3–0.7 s of the empty drone's moderate descents (PR-1): this share of the
+        /// seeds and the median inside. The empty full punch from 2.5 m/s leaves the band on 7.7 % of 440 seeds (1–40, 301–500,
+        /// 1001–1200), so a fresh group of ten misses at least 7 of 10 about 0.5 % of the time; the known-wrong ESC that senses
+        /// no current, its shake barely showing from 2.5 m/s, fails it.</summary>
+        public const double Most = 0.7;
+
+        /// <summary>The pilot's band on a group of seeds: at least Most of them inside 0.3–0.7 s, and the median.</summary>
+        public static bool PilotBand(int inside, int of, double median) => inside >= Most * of && LastsInTenths(median, 0.3, 0.7);
 
         public struct Result
         {

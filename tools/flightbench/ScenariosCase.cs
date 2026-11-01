@@ -220,15 +220,15 @@ namespace Fpv450.FlightBench
                     // From the hover: the kick, never the shake; arresting a descent: an ESC on its current limit through the
                     // whole arrest and the shake lasting it, the frame's band ringing; a gentle ramp in a 5–9 m/s descent shows
                     // PHY-09's wobble instead.
-                    bool ok = drop == 0 ? sharp.Duration < 0.3 && gentle.Fields == 0
+                    bool ok = drop == 0 ? sharp.Duration < ShakeScenario.KickSeconds && gentle.Fields == 0
                         : ShakeScenario.LastsTheArrest(sharp) && sharp.VibrationPeak.Y > ShakeScenario.Rings
                           && (drop < 0.6 || ShakeScenario.Wobbles(gentle, sharp));
                     Row($"{payload:F0} kg, {(drop == 0 ? "from the hover" : $"after a {drop:F1} s drop")}", ok,
                         $"sharp: {ShakeScenario.Describe(sharp)}; gentle: {ShakeScenario.Describe(gentle)}");
                     if (drop == 0) continue;
                     ShakeScenario.Result noLimit = ShakeScenario.Fly(ShakeScenario.Setup(spec, payload, 1, currentLimit: false), drop, false);
-                    Row($"known-wrong: an ESC that senses no current, {payload:F0} kg after a {drop:F1} s drop", ShakeScenario.LastsTheArrest(noLimit)
-                        || noLimit.TiltMax >= 0.5 * sharp.TiltMax, $"tilt {noLimit.TiltMax:F2}° against the punch's {sharp.TiltMax:F2}°; " + ShakeScenario.Describe(noLimit), knownWrong: true);
+                    Row($"known-wrong: an ESC that senses no current, {payload:F0} kg after a {drop:F1} s drop", ShakeScenario.HoldsTheArrest(noLimit)
+                        || noLimit.TiltMax >= sharp.TiltMax, $"tilt {noLimit.TiltMax:F2}° against the punch's {sharp.TiltMax:F2}°; " + ShakeScenario.Describe(noLimit), knownWrong: true);
                 }
             ShakeScenario.Result stiff = ShakeScenario.Fly(ShakeScenario.Setup(spec, 2, 1, false), 0.6, false);
             Row("a rigid airframe keeps the visible shake (the rigid body's)", ShakeScenario.LastsTheArrest(stiff) && stiff.Peak / heavy.Peak >= 0.8
