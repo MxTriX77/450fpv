@@ -15,7 +15,7 @@ namespace Fpv450.EditorSetup
     /// <summary>
     /// Re-derives the project's settings (setup-unity-skeleton, design decision 1): the player
     /// settings, one URP asset with a Forward+ renderer per quality level, the quality levels,
-    /// and the Boot scene as the only scene in the build. Idempotent: a second run changes nothing.
+    /// and the Boot scene and the test range as the build's scenes. Idempotent: a second run changes nothing.
     /// Run with <c>-executeMethod Fpv450.EditorSetup.ProjectSetup.Apply</c>.
     /// </summary>
     public static class ProjectSetup
@@ -40,7 +40,8 @@ namespace Fpv450.EditorSetup
             FeedSetup.ApplyFeature();
 
             EnsureBootScene();
-            EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(BootScenePath, true) };
+            // The game: the Boot scene's menu, then the test range it flies over (p6-input-app 1.4b, D-047).
+            EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(BootScenePath, true), new EditorBuildSettingsScene(TestRangeScene.ScenePath, true) };
             AssetDatabase.SaveAssets();
             Debug.Log("[ProjectSetup] Applied");
         }
