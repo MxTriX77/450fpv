@@ -614,9 +614,9 @@ Train mode shows what the pilot needs; the layout positions come from the footag
 
 **DRN-01 The model.** "Svinoriz 10 Opto", researched from typical Ukrainian fiber-optic heavy quads:
 - 10-inch X frame (452 mm wheelbase class) with flat carbon plate arms, 3115-class motors, **2-blade 10" props** (letter T, D-043)
-- **the fiber spool in its housing on top**, as letter T shows it (D-043); underneath on the legs-off build, which rests on the stand
+- **the fiber coil beneath** the frame on both builds (D-050); the legs-off build rests on the stand, which clears it
 - **two battery packs**
-- **a payload slung below**, between the legs (letter T, D-043), generic and without functional detail
+- **a plain plastic bottle strapped on top**, the only load, its filled mass the setup's weight (D-050)
 - FPV camera at **0° uptilt**
 - fiber transceiver, flight-controller stack, wiring
 - **legs 25–35 cm** (pilot; carbon tubes on clamps standing on fore-aft skids, as letter T shows them) in the legs-on variant, and a legs-off variant
