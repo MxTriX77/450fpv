@@ -10,9 +10,14 @@
 // - refs/godot/main:game/src/world/Contacts.cs: Contact (the sweep), Insert, TouchDistance, MaxAdvance
 // - refs/godot/main:game/src/world/WorldObjects.cs: Bounds
 // - refs/godot/main:game/src/world/WorldQuery.cs: Limit
+// - refs/godot/main:game/src/world/Shapes.cs (task 1.4): the wire case of Closest and
+//   RayPrim (a capsule chain along the point list, segments outside the reach skipped)
 // Changes: System.Math goes through DetMath; the plane (the ground's half-space) is
 // new; a shape's rotation is its ShapeGeometry axes; Time is a double; the Time rule
-// latches every first touch during the step (IWorldQuery). Wires are task 1.4's.
+// latches every first touch during the step (IWorldQuery). Task 1.4: the sweep is
+// generic over the shape's closest approach (IClosest), so a primitive and a wire share
+// one Time rule; a wire's candidate segments are found along its chord (WireRange); a
+// ray that starts inside any segment of a wire does not hit that wire.
 // Frame: none of this depends on handedness (IWorldQuery, Frame).
 
 using System;
@@ -69,6 +74,68 @@ namespace Fpv450.Sim.World
         public ShapeGeometry Geometry;
         public Bounds Box;
         public int Object, Shape;
+        /// <summary>A grid world's cell of the bounds' minimum corner (MapWorld).</summary>
+        public int CellX, CellZ;
+        /// <summary>A wire: its chain's points in the world's wire arrays (MapWorld).</summary>
+        public int WireFirst, WireCount;
+    }
+
+    /// <summary>One shape's closest approach to a capsule core, as the sweep asks it (ShapeMath.Sweep).</summary>
+    internal interface IClosest
+    {
+        void Closest(Double3 p, Double3 q, double r, out Near near);
+    }
+
+    /// <summary>A primitive given by its geometry (a copy).</summary>
+    internal readonly struct GeometryClosest : IClosest
+    {
+        private readonly ShapeGeometry _s;
+
+        public GeometryClosest(in ShapeGeometry s) => _s = s;
+
+        public void Closest(Double3 p, Double3 q, double r, out Near near) => ShapeMath.Closest(_s, p, q, r, out near);
+    }
+
+    /// <summary>A primitive in a world's array, by its index (no copy).</summary>
+    internal readonly struct PrimClosest : IClosest
+    {
+        private readonly Prim[] _prims;
+        private readonly int _index;
+
+        public PrimClosest(Prim[] prims, int index)
+        {
+            _prims = prims;
+            _index = index;
+        }
+
+        public void Closest(Double3 p, Double3 q, double r, out Near near) => ShapeMath.Closest(_prims[_index].Geometry, p, q, r, out near);
+    }
+
+    /// <summary>
+    /// A wire's capsule chain: its points (world space) and their lengths along it from its first point, with the
+    /// candidate segments [Lo, Hi] of one query (ShapeMath.WireRange) and that query's reach.
+    /// </summary>
+    internal readonly struct WireChain : IClosest
+    {
+        public readonly Double3[] Points;
+        public readonly double[] Along;
+        public readonly int First, Count, Lo, Hi;
+        public readonly double Radius;
+        public readonly Bounds Reach;
+
+        public WireChain(Double3[] points, double[] along, int first, int count, double radius, int lo, int hi, in Bounds reach)
+        {
+            Points = points;
+            Along = along;
+            First = first;
+            Count = count;
+            Radius = radius;
+            Lo = lo;
+            Hi = hi;
+            Reach = reach;
+        }
+
+        public void Closest(Double3 p, Double3 q, double r, out Near near) => ShapeMath.WireClosest(this, p, q, r, out near);
     }
 
     /// <summary>The closest approach of a capsule to one primitive.</summary>
@@ -94,10 +161,15 @@ namespace Fpv450.Sim.World
         /// IWorldQuery's Time rule. `speed` is the larger of the two core ends' moves, m.
         /// </summary>
         public static bool Sweep(in ShapeGeometry s, in Capsule previous, in Capsule current, double margin, double speed,
-            out Near near, out double time)
+            out Near near, out double time) =>
+            Sweep(new GeometryClosest(s), previous, current, margin, speed, out near, out time);
+
+        /// <summary>The sweep of any shape that gives its closest approach (a primitive, a wire's chain).</summary>
+        public static bool Sweep<T>(T s, in Capsule previous, in Capsule current, double margin, double speed,
+            out Near near, out double time) where T : struct, IClosest
         {
             double r = current.Radius;
-            Closest(s, current.A, current.B, r, out near);
+            s.Closest(current.A, current.B, r, out near);
             time = 1;
             if (speed > 0)
             {
@@ -106,7 +178,7 @@ namespace Fpv450.Sim.World
                 Near first;
                 for (int i = 0; ; i++)
                 {
-                    Closest(s, previous.A + (current.A - previous.A) * t, previous.B + (current.B - previous.B) * t, r, out first);
+                    s.Closest(previous.A + (current.A - previous.A) * t, previous.B + (current.B - previous.B) * t, r, out first);
                     if (first.Distance <= TouchDistance || i == MaxAdvance)
                         break;
                     t += first.Distance / speed;
@@ -185,8 +257,103 @@ namespace Fpv450.Sim.World
                     break;
                 }
                 default:
-                    near.Distance = double.PositiveInfinity; // a wire: task 1.4
+                    near.Distance = double.PositiveInfinity; // a wire is a chain: WireClosest
                     break;
+            }
+        }
+
+        /// <summary>
+        /// The candidate segments [lo, hi] of a wire's chain for `reach` (empty when hi &lt; lo): the segments i, from
+        /// point i to i + 1, whose stretch along the chord, grown by the radius, meets the reach's. `proj` holds each
+        /// point's distance along the unit chord from `origin`, strictly rising (MapWorld checks it), so two binary
+        /// searches find them. Conservative by 1 µm: every segment whose bounds meet the reach is among them.
+        /// </summary>
+        public static void WireRange(double[] proj, int first, int count, Double3 origin, Double3 chord, double radius, in Bounds reach,
+            out int lo, out int hi)
+        {
+            const double slack = 1e-6;
+            Double3 centre = (reach.Min + reach.Max) * 0.5, half = (reach.Max - reach.Min) * 0.5;
+            double mid = Double3.Dot(centre - origin, chord);
+            double spread = DetMath.Abs(chord.X) * half.X + DetMath.Abs(chord.Y) * half.Y + DetMath.Abs(chord.Z) * half.Z + radius + slack;
+            double from = mid - spread, to = mid + spread;
+            // lo: the first segment whose far end reaches `from`; hi: the last one whose near end is within `to`.
+            int a = first, b = first + count - 1; // segments first .. first + count − 2; b is one past the last
+            while (a < b)
+            {
+                int m = a + (b - a) / 2;
+                if (proj[m + 1] >= from) b = m;
+                else a = m + 1;
+            }
+            lo = a;
+            a = first - 1;
+            b = first + count - 2;
+            while (a < b)
+            {
+                int m = b - (b - a) / 2;
+                if (proj[m] <= to) a = m;
+                else b = m - 1;
+            }
+            hi = a;
+        }
+
+        /// <summary>
+        /// A capsule's closest approach to a wire's chain (refs/godot/main Shapes.cs, the wire case): the nearest of its
+        /// candidate segments that meet the reach (the first on a tie), its distance the true signed one deep inside,
+        /// and WireParam the point's length along the chain over the chain's length. +∞ with no segment in reach.
+        /// </summary>
+        public static void WireClosest(in WireChain w, Double3 p, Double3 q, double r, out Near near)
+        {
+            near = default;
+            near.WireParam = -1;
+            double best = double.PositiveInfinity, bu = 0, bv = 0;
+            int at = -1;
+            for (int i = w.Lo; i <= w.Hi; i++)
+            {
+                Double3 a = w.Points[i], b = w.Points[i + 1];
+                if (!Bounds.Of(a, b, w.Radius).Overlaps(w.Reach))
+                    continue;
+                SegmentSegment(p, q, a, b, out double u, out double v);
+                Double3 d = p + (q - p) * u - (a + (b - a) * v);
+                double dd = Double3.Dot(d, d);
+                if (dd < best)
+                {
+                    best = dd;
+                    at = i;
+                    bu = u;
+                    bv = v;
+                }
+            }
+            if (at < 0)
+            {
+                near.Distance = double.PositiveInfinity;
+                return;
+            }
+            Double3 a0 = w.Points[at], b0 = w.Points[at + 1];
+            Round(p + (q - p) * bu, a0 + (b0 - a0) * bv, w.Radius, r, b0 - a0, ref near);
+            near.WireParam = (w.Along[at] + (w.Along[at + 1] - w.Along[at]) * bv) / w.Along[w.First + w.Count - 1];
+        }
+
+        /// <summary>
+        /// Where the ray o + t·d (d unit) first enters a wire's chain, as RayPrim does for a primitive. A ray that starts
+        /// inside any of its candidate segments does not hit the wire (a re-cast from inside a conductor goes on).
+        /// </summary>
+        public static void WireRay(in WireChain w, Double3 o, Double3 d, ref double t, ref Double3 normal)
+        {
+            double rr = w.Radius * w.Radius;
+            for (int i = w.Lo; i <= w.Hi; i++)
+            {
+                Double3 a = w.Points[i], b = w.Points[i + 1];
+                if (!Bounds.Of(a, b, w.Radius).Overlaps(w.Reach))
+                    continue;
+                Double3 v = o - OnSegment(a, b, o);
+                if (Double3.Dot(v, v) < rr)
+                    return;
+            }
+            for (int i = w.Lo; i <= w.Hi; i++)
+            {
+                Double3 a = w.Points[i], b = w.Points[i + 1];
+                if (Bounds.Of(a, b, w.Radius).Overlaps(w.Reach))
+                    RayCapsule(o, d, a, b, w.Radius, ref t, ref normal);
             }
         }
 
@@ -217,6 +384,35 @@ namespace Fpv450.Sim.World
         }
 
         public static Double3 Unit(Double3 v) => v * (1 / v.Length());
+
+        /// <summary>
+        /// Why AddObject refuses a runtime shape, or null: a box, sphere, capsule or cylinder with exactly one of a
+        /// material (1 … materials) and a soil surface (1 … surfaces), orthonormal axes with AxisX x AxisY = AxisZ, and
+        /// no negative size.
+        /// </summary>
+        public static string RuntimeShapeProblem(in ShapeGeometry s, int materials, int surfaces)
+        {
+            if (s.Kind != ShapeKind.Box && s.Kind != ShapeKind.Sphere && s.Kind != ShapeKind.Capsule && s.Kind != ShapeKind.Cylinder)
+                return $"kind {s.Kind}: a runtime object holds boxes, spheres, capsules and cylinders";
+            if ((s.Material == WorldIds.NoMaterial) == (s.Surface == WorldIds.NoSurface))
+                return "needs exactly one of a material and a soil surface";
+            if (s.Material > materials || s.Surface > surfaces)
+                return "names a material or surface this world does not know";
+            if (!Orthonormal(s.AxisX, s.AxisY, s.AxisZ))
+                return "axes are not orthonormal with AxisX x AxisY = AxisZ";
+            if (!(s.Radius >= 0 && s.HalfLength >= 0 && s.HalfExtents.X >= 0 && s.HalfExtents.Y >= 0 && s.HalfExtents.Z >= 0))
+                return "has a negative size";
+            return null;
+        }
+
+        private static bool Orthonormal(Double3 x, Double3 y, Double3 z)
+        {
+            const double tolerance = 1e-9;
+            return DetMath.Abs(Double3.Dot(x, x) - 1) <= tolerance && DetMath.Abs(Double3.Dot(y, y) - 1) <= tolerance
+                && DetMath.Abs(Double3.Dot(z, z) - 1) <= tolerance && DetMath.Abs(Double3.Dot(x, y)) <= tolerance
+                && DetMath.Abs(Double3.Dot(y, z)) <= tolerance && DetMath.Abs(Double3.Dot(z, x)) <= tolerance
+                && Double3.Dot(Double3.Cross(x, y), z) > 0;
+        }
 
         private static Double3 ToLocal(in ShapeGeometry s, Double3 v) =>
             new Double3(Double3.Dot(v, s.AxisX), Double3.Dot(v, s.AxisY), Double3.Dot(v, s.AxisZ));
