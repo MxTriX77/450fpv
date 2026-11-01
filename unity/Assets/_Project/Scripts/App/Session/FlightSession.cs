@@ -116,10 +116,11 @@ namespace Fpv450.App.Session
     /// - **runs** on the flight thread (FlightScheduler) under the 1 ms timer period, which the session holds while it
     ///   lives; Pause stops the stepping and Resume goes on with every later step's host time moved by the pause, logged
     ///   as a Pause hitch. A radio lost during the pause is the failsafe in force for the first RC frame after it, even
-    ///   when plugged back in before Resume, so the log has it with its stamp and the end rule sees it; the pilot's end of
-    ///   a paused flight runs that frame first
-    /// - **ends** on the first of FlightEndRule's conditions, found on the flight thread as each step goes to the log; the
-    ///   log stops at that step, so PostFlight finds the same end. Restart, EndFlight and Dispose end it by the pilot.
+    ///   when plugged back in before Resume, so the log has it with its stamp and an armed drone disarms; the pilot's end
+    ///   of a paused flight runs that frame first
+    /// - **ends only by the pilot** (D-063): Restart, EndFlight and Dispose. A crash, an upside-down rest, the failsafe
+    ///   or the battery cut-off ends nothing: the drone stays under physics, each step goes to the log, and PostFlight
+    ///   lists them when the pilot ends the flight. A failed flight thread ends it too (Fault).
     /// The session never starts or stops the app's radio (the app does, on quit and on a domain reload); it sets the
     /// reader's inbox for each flight and clears it at the end.
     /// </summary>
@@ -139,7 +140,6 @@ namespace Fpv450.App.Session
         FlightCore _core;
         FlightScheduler _scheduler;
         FlightRecorder _log;
-        EndProbe _probe;
         StickInbox _inbox;
         KeyboardSticks _keyboard;
         long _startUs, _shiftUs, _pausedAtUs, _hitches;
@@ -225,7 +225,6 @@ namespace Fpv450.App.Session
 
             _core = core;
             _log = log;
-            _probe = new EndProbe(log);
             _inbox = new StickInbox();
             _keyboard = null;
             if (radio)
@@ -260,7 +259,7 @@ namespace Fpv450.App.Session
 
         /// <summary>
         /// Once a frame on the scene's thread: the keyboard's sample when it flies (keys held now), the steps due when
-        /// not threaded, the radio's samples drained while paused, and the end once the flight thread has found it.
+        /// not threaded, the radio's samples drained while paused, and the end once the flight thread has failed.
         /// </summary>
         public void Tick(KeyboardKeys keys = KeyboardKeys.None)
         {
@@ -289,10 +288,6 @@ namespace Fpv450.App.Session
                 Fault = _scheduler.Fault;
                 Finish(new FlightEnd { Kind = FlightEndKind.Fault, Step = _core.State.Step });
             }
-            else if (_probe.Ended)
-            {
-                Finish(_probe.End);
-            }
         }
 
         /// <summary>Stops the stepping (APP-04); the flight's state stays as it was.</summary>
@@ -314,9 +309,9 @@ namespace Fpv450.App.Session
         public void Resume()
         {
             if (State != SessionState.Paused) return;
-            if (_scheduler.Fault != null || _probe.Ended)
+            if (_scheduler.Fault != null)
             {
-                Tick(); // it ended before the pause
+                Tick(); // it failed before the pause
                 return;
             }
             Step(Unpause());
@@ -337,18 +332,18 @@ namespace Fpv450.App.Session
         /// <summary>
         /// Ends a flight under way by the pilot (the pause's End flight and Restart, quit, back to the menu). A radio lost
         /// during the pause is still the failsafe (INP-05): the first RC frame after the pause runs here, with the loss in
-        /// force, as Resume would have it, so the log has the failsafe with its stamp and the end rule sees it (an armed
-        /// drone disarms, and the flight ends on the failsafe).
+        /// force, as Resume would have it, so the log has the failsafe with its stamp and an armed drone disarms; the
+        /// summary lists it.
         /// </summary>
         public void EndFlight()
         {
-            if (State == SessionState.Paused && _scheduler.Fault == null && !_probe.Ended)
+            if (State == SessionState.Paused && _scheduler.Fault == null)
             {
                 DrainPaused(_in.Clock.NowUs());
                 if (_lostWhilePaused) RunHeldFrame(Unpause());
             }
             if (State == SessionState.Flying || State == SessionState.Paused)
-                Finish(_probe.Ended ? _probe.End : new FlightEnd { Kind = FlightEndKind.Pilot, Step = _core.State.Step });
+                Finish(new FlightEnd { Kind = FlightEndKind.Pilot, Step = _core.State.Step });
         }
 
         /// <summary>The ended flight's summary, from its log (design 7). It reads the whole log, so call it off the frame.</summary>
@@ -368,7 +363,7 @@ namespace Fpv450.App.Session
         // A scheduler for the steps from the core's state on, step 0 at startUs (a resumed flight's moved start).
         void Step(long startUs)
         {
-            _scheduler = new FlightScheduler(_core, _inbox, Poses, _in.Clock, _probe);
+            _scheduler = new FlightScheduler(_core, _inbox, Poses, _in.Clock, _log);
             if (_in.Threaded) _scheduler.Start(startUs);
             else _scheduler.Begin(startUs);
             _stepping = true;
@@ -404,12 +399,12 @@ namespace Fpv450.App.Session
         }
 
         // A paused flight's held RC frame, on this thread, one step a pass at its own host time (no hitch), until the
-        // frame has run or the end rule has found the end.
+        // frame has run.
         void RunHeldFrame(long startUs)
         {
-            _scheduler = new FlightScheduler(_core, _inbox, Poses, _in.Clock, _probe);
+            _scheduler = new FlightScheduler(_core, _inbox, Poses, _in.Clock, _log);
             _scheduler.Begin(startUs);
-            while (_core.State.Step < _heldToStep && !_probe.Ended)
+            while (_core.State.Step < _heldToStep)
                 _scheduler.RunDue(_scheduler.StepHostUs(_core.State.Step));
         }
 
@@ -435,32 +430,6 @@ namespace Fpv450.App.Session
             var bytes = new byte[8];
             using (RandomNumberGenerator rng = RandomNumberGenerator.Create()) rng.GetBytes(bytes);
             return BitConverter.ToUInt64(bytes, 0);
-        }
-
-        // On the flight thread, between the scheduler and the log: each step to the log, then the end rule; once the
-        // flight has ended nothing more is logged, so the log stops at the end's step.
-        sealed class EndProbe : IFlightRecorder
-        {
-            readonly FlightRecorder _log;
-            readonly FlightEndRule _rule = new FlightEndRule();
-            volatile bool _ended;
-
-            public EndProbe(FlightRecorder log) => _log = log;
-
-            public bool Ended => _ended;
-            public FlightEnd End => _rule.End;
-
-            public void RecordStep(in FlightState state, in StickSample stick, in StepTrace trace, StepEvents events)
-            {
-                if (_ended) return;
-                _log.RecordStep(state, stick, trace, events);
-                if (_rule.Step(state, stick, trace)) _ended = true;
-            }
-
-            public void RecordHitch(in Hitch hitch)
-            {
-                if (!_ended) _log.RecordHitch(hitch);
-            }
         }
     }
 

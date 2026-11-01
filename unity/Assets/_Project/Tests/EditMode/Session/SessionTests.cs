@@ -245,31 +245,41 @@ namespace Fpv450.Tests.Session
 
         // ---- The failsafe -----------------------------------------------------------------------------------------------
 
+        // D-063: the failsafe ends nothing. The controller disarms (the OSD's DISARMED), the drone stays under physics,
+        // and the summary lists the failsafe once the pilot ends the flight.
         [Test]
-        public void TheFailsafeEndsAnArmedFlight()
+        public void TheFailsafeDisarmsAndTheFlightGoesOn()
         {
             Rig rig = Make();
             rig.Session.Start();
             rig.ArmCycle();
             rig.Radio.Throttle = 0.3;
             rig.Run(200);
+            FlightCore core = rig.Session.Core;
             rig.Radio.Lost = true;
             long lostAt = rig.Clock.Now + FlightCore.StepUs; // the next pass sees it
-            rig.Run(20);
-            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Ended));
-            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Failsafe));
+            for (int ms = 0; ms < 20 && core.State.Armed; ms++) rig.Run(1);
+            Assert.That(core.State.Armed, Is.False, "the failsafe disarms");
             // The failsafe sample is in force from the first step at or after the loss; the controller reads the sticks,
             // its arm switch among them, at its 250 Hz RC frame, so it disarms at the next frame: within 4 steps.
-            long endHostUs = rig.Session.StartUs + (rig.Session.End.Step - 1) * FlightCore.StepUs;
-            Assert.That(endHostUs - lostAt, Is.InRange(0, FlightController.LoopsPerRcFrame / FlightController.LoopsPerStep * FlightCore.StepUs - 1),
-                "disarmed at the RC frame after the loss");
+            long off = core.State.Step;
+            long offHostUs = rig.Session.StartUs + (off - 1) * FlightCore.StepUs;
+            Assert.That(offHostUs - lostAt, Is.InRange(0, FlightSession.RcFrameSteps * FlightCore.StepUs - 1), "disarmed at the RC frame after the loss");
+            rig.Run(500);
+            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying), "the failsafe ends nothing");
+            Assert.That((core.State.Step, core.State.Armed), Is.EqualTo((off + 500, false)), "disarmed, and stepping on under physics");
 
+            rig.Session.EndFlight(); // the pause's End flight
+            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Pilot));
             PostFlight p = rig.Session.ReadSummary();
-            TestContext.WriteLine("lost at host " + lostAt + " us; disarmed at the step at host " + endHostUs + " us; " + string.Join(" | ", p.Lines()));
-            Assert.That((p.End.Kind, p.End.Step), Is.EqualTo((FlightEndKind.Failsafe, rig.Session.End.Step)));
+            TestContext.WriteLine("lost at host " + lostAt + " us; disarmed at the step at host " + offHostUs + " us; " + string.Join(" | ", p.Lines()));
+            Assert.That((p.End.Kind, p.End.Step), Is.EqualTo((FlightEndKind.Pilot, off + 500)));
             Assert.That(p.Log.Failsafes.Count, Is.EqualTo(1));
             Assert.That(p.Log.Failsafes[0].Stick.HostUs, Is.EqualTo(lostAt));
-            StringAssert.StartsWith("failsafe", p.Cause());
+            Assert.That(Disarms(rig.Session.LogPath), Is.EqualTo(new[] { off }), "the log's one disarm");
+            Assert.That(p.Incidents.ConvertAll(i => (i.Kind, i.Step)), Is.EqualTo(new[] { (FlightIncidentKind.Failsafe, p.Log.Failsafes[0].State.Step) }));
+            Assert.That(p.Cause(), Is.EqualTo("ended by the pilot"));
+            Assert.That(p.Lines().FindAll(l => l.StartsWith("failsafe at ")).Count, Is.EqualTo(1), "the summary lists the failsafe");
         }
 
         [Test]
@@ -299,8 +309,9 @@ namespace Fpv450.Tests.Session
 
         // QA's probes E3a and E3b (interim review, finding 1): armed at throttle 0.3, paused, the cable pulled during the
         // pause; E3b plugs it back in with the switch on 200 ms later, before Resume. Both are the failsafe: in force for
-        // the first RC frame after Resume, logged once with the loss's stamp, and the summary says so. E3f (finding 8):
-        // E3b, paused again 1, 2 or 3 ms after Resume, before that RC frame has run, and resumed 50 ms later.
+        // the first RC frame after Resume, logged once with the loss's stamp, the drone disarmed and still flying (D-063),
+        // and the summary lists it. E3f (finding 8): E3b, paused again 1, 2 or 3 ms after Resume, before that RC frame
+        // has run, and resumed 50 ms later.
         [TestCase(false, 0, TestName = "E3a: a radio lost during a pause is the failsafe")]
         [TestCase(true, 0, TestName = "E3b: a radio lost during a pause and plugged back in before Resume is the failsafe")]
         [TestCase(true, 1, TestName = "E3f: E3b paused again 1 ms after Resume is the failsafe")]
@@ -344,19 +355,20 @@ namespace Fpv450.Tests.Session
             }
             rig.Run(100);
 
-            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Ended));
-            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Failsafe));
-            long rcFrame = FlightController.LoopsPerRcFrame / FlightController.LoopsPerStep;
-            Assert.That(rig.Session.End.Step - k, Is.InRange(1, rcFrame), "disarmed at the first RC frame after Resume");
+            Assert.That((rig.Session.State, rig.Session.Core.State.Armed), Is.EqualTo((SessionState.Flying, false)), "disarmed, still flying");
+            rig.Session.EndFlight();
+            List<long> off = Disarms(rig.Session.LogPath);
+            Assert.That(off.Count, Is.EqualTo(1), "one disarm");
+            Assert.That(off[0] - k, Is.InRange(1, FlightSession.RcFrameSteps), "disarmed at the first RC frame after Resume");
 
             PostFlight p = rig.Session.ReadSummary();
-            TestContext.WriteLine((pausedAgainAfterMs > 0 ? "E3f " + pausedAgainAfterMs + " ms" : pluggedBackIn ? "E3b" : "E3a") + ": paused after step " + k + ", lost at host " + lostAt + " us; end at step " + rig.Session.End.Step + "; " + string.Join(" | ", p.Lines()));
-            Assert.That((p.End.Kind, p.End.Step), Is.EqualTo((FlightEndKind.Failsafe, rig.Session.End.Step)));
+            TestContext.WriteLine((pausedAgainAfterMs > 0 ? "E3f " + pausedAgainAfterMs + " ms" : pluggedBackIn ? "E3b" : "E3a") + ": paused after step " + k + ", lost at host " + lostAt + " us; disarmed at step " + off[0] + "; " + string.Join(" | ", p.Lines()));
+            Assert.That(p.End.Kind, Is.EqualTo(FlightEndKind.Pilot));
             Assert.That(p.Log.Failsafes.Count, Is.EqualTo(1));
             Assert.That((p.Log.Failsafes[0].State.Step, p.Log.Failsafes[0].Stick.HostUs), Is.EqualTo((k + 1, lostAt)), "logged at the first step after Resume, with the loss's stamp");
             Assert.That(p.Log.Events.FindAll(e => e.Event.Kind == EventKind.Hitch && e.Event.Index == (byte)HitchCause.Pause).Count,
                 Is.EqualTo(pausedAgainAfterMs > 0 ? 2 : 1), "each pause logged");
-            StringAssert.StartsWith("failsafe", p.Cause());
+            Assert.That(p.Cause(), Is.EqualTo("ended by the pilot"));
             Assert.That(p.Lines().FindAll(l => l.StartsWith("failsafe at ")).Count, Is.EqualTo(1), "the summary lists the failsafe");
 
             ReplayResult replay;
@@ -369,8 +381,8 @@ namespace Fpv450.Tests.Session
         // QA's probe Q2 (review, finding 14): armed at throttle 0.3, paused, the cable pulled, then Restart or End flight,
         // after the paused frames drained the loss or in the frame it came. Neither throws, and the loss is the failsafe:
         // the first RC frame after the pause runs before the end with the loss in force, so the log has it with its stamp
-        // and the flight ends on it. Restart without the radio leaves the session Ended; the next flight starts once the
-        // radio is back, with the switch to cycle again.
+        // and the drone's disarm, and the summary lists it. Restart without the radio leaves the session Ended; the next
+        // flight starts once the radio is back, with the switch to cycle again.
         [TestCase(true, true, TestName = "Q2: Restart after a radio lost during a pause logs the failsafe and waits for the radio")]
         [TestCase(false, true, TestName = "Q2: End flight after a radio lost during a pause logs the failsafe")]
         [TestCase(false, false, TestName = "Q2: End flight in the frame the radio is lost during a pause logs the failsafe")]
@@ -406,13 +418,14 @@ namespace Fpv450.Tests.Session
             else rig.Session.EndFlight();
 
             Assert.That((rig.Session.State, rig.Session.Flights), Is.EqualTo((SessionState.Ended, 1)));
-            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Failsafe));
-            long rcFrame = FlightController.LoopsPerRcFrame / FlightController.LoopsPerStep;
-            Assert.That(rig.Session.End.Step - k, Is.InRange(1, rcFrame), "disarmed at the first RC frame after the pause");
+            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Pilot));
+            List<long> off = Disarms(log);
+            Assert.That(off.Count, Is.EqualTo(1), "one disarm");
+            Assert.That(off[0] - k, Is.InRange(1, FlightSession.RcFrameSteps), "disarmed at the first RC frame after the pause");
             PostFlight p = rig.Session.ReadSummary();
             TestContext.WriteLine("Q2 " + (restart ? "Restart" : "End flight") + (drained ? "" : " in the loss's frame") + ": paused after step " + k + ", lost at host " + lostAt
-                                  + " us; end at step " + rig.Session.End.Step + "; " + string.Join(" | ", p.Lines()));
-            Assert.That((p.End.Kind, p.End.Step), Is.EqualTo((FlightEndKind.Failsafe, rig.Session.End.Step)));
+                                  + " us; disarmed at step " + off[0] + ", end at step " + rig.Session.End.Step + "; " + string.Join(" | ", p.Lines()));
+            Assert.That((p.End.Kind, p.End.Step), Is.EqualTo((FlightEndKind.Pilot, rig.Session.End.Step)));
             Assert.That(p.Log.Failsafes.Count, Is.EqualTo(1));
             Assert.That((p.Log.Failsafes[0].State.Step, p.Log.Failsafes[0].Stick.HostUs), Is.EqualTo((k + 1, lostAt)), "logged at the first step after the pause, with the loss's stamp");
             List<LoggedEvent> after = p.Log.Events.FindAll(e => e.Event.Kind == EventKind.Hitch && e.Step > k);
@@ -493,9 +506,11 @@ namespace Fpv450.Tests.Session
             Assert.That(PostFlight.Read(log).End.Kind, Is.EqualTo(FlightEndKind.Pilot));
         }
 
-        // ---- The end conditions -----------------------------------------------------------------------------------------
+        // ---- What the flight meets: each logged, none an end (D-063) ---------------------------------------------------
 
-        // app-flow "A crash into the car", without the scene: a steel box named R01_A over the drone, full throttle.
+        // app-flow "A crash into the car", without the scene: a steel box named R01_A over the drone, full throttle. The
+        // crash ends nothing: with the throttle down the drone falls from the box and lies on the floor, under physics,
+        // until the pilot's End flight, and the summary lists the crash.
         [Test]
         public void ACrashIntoR01ANamesThePartTheObjectAndTheMaterial()
         {
@@ -507,21 +522,36 @@ namespace Fpv450.Tests.Session
             });
             rig.Session.Start();
             rig.ArmCycle();
+            FlightCore core = rig.Session.Core;
             rig.Radio.Throttle = 1;
-            rig.Run(3000);
-            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Crash));
+            for (int ms = 0; ms < 3000 && !core.State.Crashed; ms++) rig.Run(1);
+            Assert.That(core.State.Crashed, "crashed into the box");
+            long crashed = core.State.Step;
+            double crashY = core.State.Position.Y;
+            rig.Radio.Throttle = 0;
+            rig.Run(1500);
+            TestContext.WriteLine("crashed at step " + crashed + ", " + crashY.ToString("0.000") + " m; 1.5 s later " + core.State.Position.Y.ToString("0.000") + " m, "
+                                  + core.State.Velocity.Length().ToString("0.000") + " m/s, " + core.Trace.ContactsTouching + " touching pairs");
+            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying), "the crash ends nothing");
+            Assert.That(core.State.Step, Is.EqualTo(crashed + 1500), "stepping on under physics");
+            Assert.That(crashY - core.State.Position.Y > 0.5 && core.Trace.ContactsTouching > 0, "fell from the box onto the floor");
+            rig.Session.EndFlight(); // the pause's End flight
+            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Pilot));
 
             PostFlight p = rig.Session.ReadSummary();
             TestContext.WriteLine(string.Join("\n", p.Lines()));
-            Assert.That((p.End.Kind, p.End.Step), Is.EqualTo((FlightEndKind.Crash, rig.Session.End.Step)));
+            Assert.That((p.End.Kind, p.End.Step), Is.EqualTo((FlightEndKind.Pilot, rig.Session.End.Step)));
             Assert.That(p.HasCrash);
             Assert.That(p.CrashObject, Is.EqualTo("R01_A"));
             Assert.That(p.CrashMaterial, Is.EqualTo("steel"));
             Assert.That(Array.Exists(_spec.Parts, part => part.Name == p.CrashPart), "the part is drone.json's: " + p.CrashPart);
-            StringAssert.Contains("R01_A", p.Cause());
+            Assert.That((p.Incidents[0].Kind, p.Incidents[0].Step, p.Crash.Step), Is.EqualTo((FlightIncidentKind.Crash, crashed, crashed)), "the crash, first");
+            string line = p.Describe(p.Incidents[0]);
+            Assert.That(p.Lines(), Has.Member(line));
+            StringAssert.StartsWith("crash at ", line);
+            StringAssert.Contains("hit R01_A (steel)", line);
 
             // The summary against the log and the flight: time, distance (the published poses' path), battery, seed.
-            FlightCore core = rig.Session.Core;
             Assert.That(core.State.Step, Is.EqualTo(rig.Session.End.Step), "one step a tick, so the core stopped at the end");
             Assert.That(p.Seconds, Is.EqualTo(rig.Session.End.Seconds));
             Assert.That(p.Distance, Is.EqualTo(rig.Distance).Within(1e-9), "the distance");
@@ -552,13 +582,19 @@ namespace Fpv450.Tests.Session
             });
             rig.Session.Start();
             rig.ArmCycle();
-            for (int ms = 0; ms < 6000 && rig.Session.State != SessionState.Ended; ms += 10)
+            FlightCore core = rig.Session.Core;
+            for (int ms = 0; ms < 6000 && !core.State.Crashed; ms += 10)
             {
                 rig.Radio.Throttle = ms < 350 ? 0.62 : ms < 1000 ? 0.43 : 0.52; // lift, then low and level
                 rig.Radio.Pitch = ms >= 350 && ms < 1000 ? 0.35 : 0; // forward, then held there (acro)
                 rig.Run(10);
             }
-            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Crash));
+            Assert.That(core.State.Crashed, "crashed");
+            rig.Radio.Throttle = 0;
+            rig.Radio.Pitch = 0;
+            rig.Run(1000); // D-063: the drone stays under physics after the crash, until the pilot ends the flight
+            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying), "the crash ends nothing");
+            rig.Session.EndFlight();
 
             PostFlight p = rig.Session.ReadSummary();
             TestContext.WriteLine(string.Join(" | ", p.Lines()));
@@ -567,7 +603,8 @@ namespace Fpv450.Tests.Session
             Assert.That(p.CrashObject, Is.EqualTo("R01_A"));
             Assert.That(p.CrashMaterial, Is.EqualTo("steel"), "the bumper");
             Assert.That(Array.Exists(_spec.Parts, part => part.Name == p.CrashPart), "the part is drone.json's: " + p.CrashPart);
-            StringAssert.Contains("hit R01_A (steel)", p.Cause());
+            Assert.That(p.Incidents[0].Kind, Is.EqualTo(FlightIncidentKind.Crash));
+            StringAssert.Contains("hit R01_A (steel)", p.Describe(p.Incidents[0]));
 
             string unnamed = "object " + p.Crash.Event.Object;
             Assert.That(PostFlight.Read(rig.Session.LogPath).CrashObject, Is.EqualTo(unnamed), "no world to open");
@@ -582,7 +619,7 @@ namespace Fpv450.Tests.Session
         }
 
         [Test]
-        public void UpsideDownOnTheGroundEndsTheFlight()
+        public void UpsideDownOnTheGroundIsListedAndTheFlightGoesOn()
         {
             Rig rig = Make(i => i.Adjust = s =>
             {
@@ -597,27 +634,58 @@ namespace Fpv450.Tests.Session
             });
             rig.Session.Start();
             rig.Run(3000);
-            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.UpsideDown));
+            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying), "upside down ends nothing");
+            rig.Session.EndFlight();
             PostFlight p = rig.Session.ReadSummary();
             TestContext.WriteLine(string.Join(" | ", p.Lines()));
-            Assert.That((p.End.Kind, p.End.Step), Is.EqualTo((FlightEndKind.UpsideDown, rig.Session.End.Step)));
-            Assert.That(p.End.Seconds, Is.GreaterThanOrEqualTo(FlightEndRule.UpsideDownSteps * FlightCore.Dt));
+            Assert.That((p.End.Kind, p.End.Step), Is.EqualTo((FlightEndKind.Pilot, rig.Session.End.Step)));
+            Assert.That(p.Incidents.ConvertAll(i => i.Kind), Is.EqualTo(new[] { FlightIncidentKind.UpsideDown }), "one rest, listed once");
+            Assert.That(p.Incidents[0].Step, Is.InRange(PostFlight.UpsideDownSteps, PostFlight.UpsideDownSteps + 100), "held 1 s from its first touch");
+            Assert.That(p.Lines(), Has.Member(p.Describe(p.Incidents[0])));
         }
 
+        // D-063: the cut-off ends nothing, and the OSD keeps reading the pack: past empty its voltage falls on (the pack
+        // collapses, Propulsion.OpenCircuitVolts) while the drone stays under physics, until the pilot ends the flight.
         [Test]
-        public void TheBatteryCutOffEndsTheFlight()
+        public void TheBatteryCutOffIsListedAndThePackSagsOn()
         {
             Rig rig = Make(i => i.Adjust = s => s.StartPackCharge = 0.0005);
             rig.Session.Start();
             rig.ArmCycle();
             rig.Radio.Throttle = 0.35;
-            rig.Run(10000);
-            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.BatteryCutoff));
             FlightCore core = rig.Session.Core;
-            Assert.That(Math.Min(core.State.PackCharge0, core.State.PackCharge1), Is.LessThanOrEqualTo(FlightEndRule.BatteryCutoffCharge));
+            for (int ms = 0; ms < 10000 && Math.Min(core.State.PackCharge0, core.State.PackCharge1) > PostFlight.BatteryCutoffCharge; ms++) rig.Run(1);
+            Assert.That(Math.Min(core.State.PackCharge0, core.State.PackCharge1), Is.LessThanOrEqualTo(PostFlight.BatteryCutoffCharge), "the cut-off");
+            long cutoff = core.State.Step;
+            rig.Run(40);
+            double atCutoff = rig.Session.Poses.Read().Signals.PackVolts;
+            rig.Run(1000);
+            double after = rig.Session.Poses.Read().Signals.PackVolts;
+            TestContext.WriteLine("cut-off at step " + cutoff + ": the pack " + atCutoff.ToString("0.00") + " V, 1 s later " + after.ToString("0.00") + " V");
+            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying), "the cut-off ends nothing");
+            Assert.That(after, Is.LessThan(atCutoff), "the pack sags on, and the OSD reads it");
+            rig.Session.EndFlight();
             PostFlight p = rig.Session.ReadSummary();
             TestContext.WriteLine(string.Join(" | ", p.Lines()));
-            Assert.That((p.End.Kind, p.End.Step), Is.EqualTo((FlightEndKind.BatteryCutoff, rig.Session.End.Step)));
+            Assert.That(p.End.Kind, Is.EqualTo(FlightEndKind.Pilot));
+            Assert.That(p.Incidents.ConvertAll(i => (i.Kind, i.Step)), Has.Member((FlightIncidentKind.BatteryCutoff, cutoff)));
+            Assert.That(p.Lines().FindAll(l => l.StartsWith("battery cut-off at ")).Count, Is.EqualTo(1), "the summary lists it");
+        }
+
+        // The steps at which the log's drone went from armed to disarmed.
+        static List<long> Disarms(string log)
+        {
+            var steps = new List<long>();
+            bool armed = false;
+            using (FlightLogReader r = FlightLogReader.Open(log))
+                while (r.Next())
+                {
+                    if (r.Kind != LogFormat.StepBlock) continue;
+                    r.ReadStep(out LoggedStep s);
+                    if (armed && !s.State.Armed) steps.Add(s.State.Step);
+                    armed = s.State.Armed;
+                }
+            return steps;
         }
 
         // ---- Persistence ------------------------------------------------------------------------------------------------

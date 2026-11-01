@@ -24,7 +24,8 @@ namespace Fpv450.App
     /// - the FPV camera at drone.json's camera.lens_m, 0° uptilt (FEED-02's rig, FpvCamera), through the analog feed and its
     ///   OSD, fed by the physics' signals (FlightFeedSignals)
     /// - the setup's time of day and rain on the look (rain is the overcast preset's sky until the weather's look)
-    /// - over the picture: the arming hint, the pause (Esc) and the post-flight summary, read from the log off the frame.
+    /// - over the picture: the arming hint, the pause (Esc) and the post-flight summary, read from the log off the frame,
+    ///   which shows only once the pilot has ended the flight (D-063); nothing else is drawn over a flight
     /// V switches between the FPV view and the third-person chase view in every build (D-055); only the camera moves,
     /// still through the feed and its OSD. Review builds add F (the feed off and on).
     /// In the FPV view the camera takes each PAL field at its own sim time (p7e-camera-feel): the scene is drawn once per
@@ -468,10 +469,6 @@ namespace Fpv450.App
         {
             switch (kind)
             {
-                case FlightEndKind.Crash: return "Crashed";
-                case FlightEndKind.UpsideDown: return "Upside down";
-                case FlightEndKind.BatteryCutoff: return "Battery cut-off";
-                case FlightEndKind.Failsafe: return "Failsafe";
                 case FlightEndKind.Pilot: return "Flight ended";
                 case FlightEndKind.Fault: return "The flight stopped";
                 default: return "The log was cut";
