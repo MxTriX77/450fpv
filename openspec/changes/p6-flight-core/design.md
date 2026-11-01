@@ -60,10 +60,11 @@
    - **Coil drag:** at the coil, where `drone.json` puts it. The bootstrap is K§5.2's, 8–9 cm below the CoM (derived); `p5-drone` moves it to letter T's layout (D-043: above the CoM on the legs-on build).
    - **Calibration:** the areas are tuned to 0.95–2.6° of lean per m/s of crosswind (derived, nominal 1.8°).
 7. **Contacts:**
-   - **Legs:** each foot is a spring-damper in series with the ground: k and c in `drone.json` (assumed), the ground from `SampleGround` (height, normal and surface, rigid at this stage; soil is 7a).
+   - **Legs:** each foot is a spring-damper in series with the ground: k and c in `drone.json` (assumed), the ground from `SampleGround` (height, normal and surface, rigid at this stage; soil is 7a). Where it reports Hole (a patch, a hole band), the ground is the soil shapes `StaticContacts` returns: a contact is the ground by its surface (`Surface != 0`), never by its object, and a skid lying on the face its own spheres stand on adds no point (1.6b).
    - **Swept shapes:** arms, body, coil and prop discs against `StaticContacts` with the Time < 1 latch (K§7.5), load-bearing parts as spheres (PHB-05).
    - **The stand:** the four-post stand is a runtime object with its own pose, logged as asset, pose and order.
    - **A crash:** an impulse or peak acceleration over a threshold (assumed: 50 g peak, or a prop disc hitting a rigid shape at over 3 m/s), named with the part and the object.
+   - **A tunnel:** a latched part found past a rigid shape or the ground; leaving a compliant shape (twigs, straw) is its own law, not a tunnel (1.6b).
 8. **The stand-in wind** (PHB-06):
    - **The mean:** per level, Calm 0.8, Windy 2.5 and Severe 5 m/s mean crosswind (K§8.6, derived), each band ±25 %. Direction and strength are drawn per flight (uniform), both logged.
    - **Turbulence:** a first-order Gauss–Markov per axis, σ/U 0.12–0.15 and time constant L_u/U with L_u 115–200 m (K§6.7), from the named stream `wind.turbulence`.
