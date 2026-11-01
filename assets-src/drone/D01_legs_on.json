@@ -7,7 +7,7 @@
   "motor": {"base_d_m": 0.034, "base_h_m": 0.006},
   "prop": {
     "hub_d_m": 0.019, "hub_h_m": 0.008, "chord_m": 0.026, "tip_chord_m": 0.008, "sweep_m": 0.012, "thickness_m": 0.004,
-    "rest_deg": {"rr": 30.0, "fr": 100.0, "rl": 150.0, "fl": 60.0}
+    "rest_deg": {"rr": 178.0, "fr": 13.0, "rl": 132.0, "fl": 6.0}
   },
   "coil": {
     "wound_m": 0.15, "hoop_len_m": 0.015, "hoop_d_m": 0.090, "cap_d_m": 0.072, "core_d_m": 0.039, "hole_d_m": 0.011,
