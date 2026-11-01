@@ -143,7 +143,7 @@ namespace Fpv450.Sim.World
 
         public readonly WakeObstacles Obstacles;
 
-        /// <summary>The bearing the wind blows from, degrees (0 from the north, 90 from the east), as StandInWind's.</summary>
+        /// <summary>The bearing the wind blows from, degrees (0 from the north, 90 from the east), as WindField's.</summary>
         public double FromDeg { get; private set; }
 
         /// <summary>The upwind unit vector (towards the wind's source) and the crosswind one, world X and Z.</summary>

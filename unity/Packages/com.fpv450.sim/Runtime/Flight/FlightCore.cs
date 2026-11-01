@@ -86,8 +86,8 @@ namespace Fpv450.Sim.Flight
     /// own thread; a replay or a bench calls Advance directly.
     ///
     /// The body is RigidBody's, with the mass, centre of mass and inertia of the setup's MassModel (1.3). Its forces:
-    /// the flight controller and propulsion (1.4) when the setup has propulsion; the air (1.5): the stand-in wind
-    /// field (WindField), sampled at each hub, at the body's centre of pressure and at the coil, the rotors' axial
+    /// the flight controller and propulsion (1.4) when the setup has propulsion; the air (1.5): the wind
+    /// field (WindField, p7c-wind), sampled at each hub, at the body's centre of pressure and at the coil, the rotors' axial
     /// inflow and in-plane drag (Propulsion), the body's and the coil's drag (Aero), and the rotors' gyroscopic
     /// moment; the contacts (ContactModel, 1.6): the legs, the frame's parts and their friction on the ground and the
     /// world's objects. A bench's body without propulsion is a free one, gravity and the torque-free motion of its

@@ -29,7 +29,7 @@ namespace Fpv450.Sim.Tests
     ///   (the tracker's convention), roll and pitch from TrackerAngles, the yaw rate the frame-to-frame change of the
     ///   heading × 29.917, every confidence 1, dup 0, flag ok.
     /// - **The start:** each run starts where the seed's prevailing wind stays within 90° of its drawn direction for the
-    ///   whole run (StartSecond). The stand-in's direction never moves, so that is always its start, 0.
+    ///   whole run (StartSecond).
     /// </summary>
     public static class WindHarness
     {
