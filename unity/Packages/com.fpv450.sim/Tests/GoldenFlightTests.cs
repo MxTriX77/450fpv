@@ -83,6 +83,18 @@ namespace Fpv450.Sim.Tests
             Assert.That(GoldenFlights.FlyTumble(Model11(), out _, out _, ModeAt, ModeBytes), Is.EqualTo(0x58EF4F6AE8D111D8UL), "tumble");
         }
 
+        // The electronics fit's audit (model 15): on model 14's fit, the record's layout unchanged, all three are model 14's
+        // bit for bit, so the new pins move by the fit alone.
+        [Test]
+        public void OnModel14sFitEachGoldenIsModel14s()
+        {
+            Assert.That(GoldenFlights.FlyPowered(Model14(), out _), Is.EqualTo(0x381ABAE6909C139FUL), "powered");
+            Assert.That(GoldenFlights.FlyContact(Model14(), out _), Is.EqualTo(0xB57132DE1812820DUL), "contact");
+            Assert.That(GoldenFlights.FlyTumble(Model14(), out _, out _), Is.EqualTo(0x26CDDB5EDB155896UL), "tumble");
+        }
+
+        static DroneSpec Model14() => GoldenFlights.WithModel14Fit(DroneSpec.Parse(RepositoryDrone.Text()));
+
         // Model 3's 992 bytes, then 1.6's contacts, then 1.4b's filter block: each parent's layout is the record less the
         // other's block. Then p7b-airframe 1.1's rotor angles: model 7's layout is the record less them.
         const int ContactBytesAt = 992, ContactBytes = 120, FilterBytesAt = ContactBytesAt + ContactBytes;

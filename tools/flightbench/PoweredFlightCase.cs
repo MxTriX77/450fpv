@@ -19,6 +19,9 @@ namespace Fpv450.FlightBench
         static DroneSpec M13() => Repository(GoldenFlights.Model13DronePath);
         static DroneSpec M11() => GoldenFlights.WithModel11Packs(M13());
 
+        // The electronics fit's audit flies model 14's fit on the repository's drone.json.
+        static DroneSpec M14() => GoldenFlights.WithModel14Fit(Drone());
+
         public static DroneSpec Drone() => Repository("assets-src/drone/drone.json");
 
         static DroneSpec Repository(string relative)
@@ -97,7 +100,14 @@ namespace Fpv450.FlightBench
             bool mok = p12 == 0x63D668DD01A1E587UL && c12 == 0x8B50CC1BD8EBC8FFUL && t12 == 0x58EF4F6AE8D111D8UL;
             Console.WriteLine($"modes off, over model 12's layout: powered 0x{p12:X16}, contact 0x{c12:X16}, tumble 0x{t12:X16} "
                 + $"({(mok ? "model 12's, bit for bit" : "NOT model 12's")}): {(mok ? "PASS" : "FAIL")}");
-            return ok && cok && tok && aok && rok && gok && fok && pok && mok;
+            // The electronics fit's audit (model 15): on model 14's fit (the record's layout unchanged), each golden is model 14's.
+            ulong p14 = GoldenFlights.FlyPowered(M14(), out _);
+            ulong c14 = GoldenFlights.FlyContact(M14(), out _);
+            ulong t14 = GoldenFlights.FlyTumble(M14(), out _, out _);
+            bool eok = p14 == 0x381ABAE6909C139FUL && c14 == 0xB57132DE1812820DUL && t14 == 0x26CDDB5EDB155896UL;
+            Console.WriteLine($"model 14's fit: powered 0x{p14:X16}, contact 0x{c14:X16}, tumble 0x{t14:X16} "
+                + $"({(eok ? "model 14's, bit for bit" : "NOT model 14's")}): {(eok ? "PASS" : "FAIL")}");
+            return ok && cok && tok && aok && rok && gok && fok && pok && mok && eok;
         }
 
         public static bool Bench()

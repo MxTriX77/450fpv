@@ -118,7 +118,13 @@ namespace Fpv450.Sim.Tests
         // sling's mode, mode_shape0): 74 mm by 2.5 s, 31 m by 10 s on the open-loop script. On D-050's file it moves from
         // step 1 (the Windy air on the new silhouette, position.x): 147 mm by 2.5 s, 1.3 m by 5 s, 31.4 m by 10 s, 220.36 m
         // up against 227.76; 102 events against 134; armed, no crash.
-        public const ulong PoweredHash = 0x381ABAE6909C139FUL;
+        // Model 14: 0x381ABAE6909C139F. The electronics fit: re-recorded with ModelVersion 15 (drone.json: the stack's box
+        // between the plates, the bottle on the upper plate at 0.068 m, the centre of pressure at −0.018 m). Audited against
+        // model 14: on model 14's fit (WithModel14Fit, the kept test) all three are model 14's bit for bit. On the fit the
+        // flight moves from step 1 (position.x: the Windy air's moment about the lower centre of mass) and keeps its course
+        // on the open-loop script: 12 mm by 2.5 s, 0.16 m by 5 s, 1.93 m and 53 mrad by 10 s, 220.65 m up against 220.36;
+        // 112 events against 102; armed, no crash.
+        public const ulong PoweredHash = 0xCCECAFB7466D6ADEUL;
 
         // 1.6: first recorded with ModelVersion 4 as 0x8B568804552379E6.
         // 1.6 and 1.4b merged: re-recorded with ModelVersion 5. Audited against 1.6: with every filter off and the PID
@@ -175,7 +181,11 @@ namespace Fpv450.Sim.Tests
         // further out, the T-joints on the ground) it moves from step 1 and keeps its course: within 40 mm of model 13's path
         // (step 2268) and 26 mrad, 5 impacts, no crash, at rest on 8 contacts at the same 0.2519 m, 35 mm aside; 129 events
         // against 153.
-        public const ulong ContactHash = 0xB57132DE1812820DUL;
+        // Model 14: 0xB57132DE1812820D. The electronics fit (ModelVersion 15), audited as the powered flight: on model 14's
+        // fit it is model 14's bit for bit. On the fit it moves from step 1 and keeps its course: within 7.2 mm of model 14's
+        // path (step 8816, the held bounce) and 4.3 mrad, 5 impacts, no crash, at rest on 8 contacts at the same 0.2519 m,
+        // 5.7 mm aside; 131 events against 129.
+        public const ulong ContactHash = 0xC378E1EFFB9AEC93UL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -192,7 +202,11 @@ namespace Fpv450.Sim.Tests
         // roll 0.0479, pitch 0.0508, yaw 0.0599 kg·m²; I_yz −7.9e-5) moves it from step 1; model 13's file gives model 13's
         // hash (the audit). Its checks: the momentum within 1.4e-12, the energy 2.9e-12, the parabola 5.1e-11 m, the rate
         // wandering 5.18 rad/s.
-        public const ulong TumbleHash = 0x26CDDB5EDB155896UL;
+        // Model 14: 0x26CDDB5EDB155896. The electronics fit (ModelVersion 15): the L4 body with the bottle on the upper plate
+        // (4.832 kg; roll 0.0445, pitch 0.0474, yaw 0.0599 kg·m²; I_yz −6.5e-5) moves it from step 1; model 14's fit gives
+        // model 14's hash (the kept test). Its checks: the momentum within 7.1e-13, the energy 1.4e-12, the parabola
+        // 5.1e-11 m, the rate wandering 5.55 rad/s.
+        public const ulong TumbleHash = 0xFB841727FADDC7A7UL;
         public const int TumbleSteps = 10000;
 
         /// <summary>Model 13's drone.json (D-043's layout, before D-050), a fixture: the kept audits of models 7–12 fly on it,
@@ -209,6 +223,35 @@ namespace Fpv450.Sim.Tests
             for (int k = 0; k < spec.Packs.Length; k++) spec.Packs[k].Ocv = (double[])Model11Ocv.Clone();
             return spec;
         }
+
+        /// <summary>The spec with model 14's fit (drone.json before the electronics were fitted between the plates): the
+        /// electronics' box 0.005–0.045 m up, 17 mm over the upper plate, its capsule with it; the bottle on it at 0.087 m;
+        /// the centre of pressure at −0.01 m. Pass a freshly parsed spec: it is changed in place.</summary>
+        public static DroneSpec WithModel14Fit(DroneSpec spec)
+        {
+            int electronics = spec.PartIndex("electronics"), bottle = spec.Payload.Part;
+            spec.Parts[electronics].Position.Y = 0.025;
+            spec.Parts[electronics].Size.Y = 0.04;
+            spec.Parts[bottle].Position.Y = 0.087;
+            for (int i = 0; i < spec.Contacts.Shapes.Length; i++)
+            {
+                ref ContactShape s = ref spec.Contacts.Shapes[i];
+                if (s.Part == electronics)
+                {
+                    s.A = new Double3(0, 0.025, -0.02);
+                    s.B = new Double3(0, 0.025, 0.04);
+                    s.Radius = 0.02;
+                }
+                else if (s.Part == bottle)
+                {
+                    s.A.Y = 0.087;
+                    s.B.Y = 0.087;
+                }
+            }
+            spec.Aero.BodyCenterOfPressure.Y = -0.01;
+            return spec;
+        }
+
 
         public static FlightSetup PoweredSetup(DroneSpec spec)
         {

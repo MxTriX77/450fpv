@@ -104,8 +104,10 @@ namespace Fpv450.Sim.Log
         ///    nothing; fitted to the drone model: the plates' stack, the legs, clamps and T-joints, the camera's lens) and
         ///    both loads on strapped mounts in the modes, no sling; on model 13's drone.json a flight without the modes steps
         ///    as in 13).
+        /// 15: the electronics fitted between the plates (drone.json: the stack's box 0.005–0.025 m, the bottle on the upper
+        ///    plate at 0.068 m, the centre of pressure re-derived; on model 14's fit a flight steps as in 14).
         /// </summary>
-        public const int ModelVersion = 14;
+        public const int ModelVersion = 15;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
