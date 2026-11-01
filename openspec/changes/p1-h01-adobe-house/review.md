@@ -11,7 +11,130 @@
 - **Tools:** Unity 6000.3.26f1 (Hub running, every call piped), Blender 5.2.2 LTS, Python 3.14.6 with Pillow 12.3, pwsh 7.
 - **Power and memory:** AC before every Blender and Unity run (`BatteryStatus.PowerOnline` True), at least 2.5 GB free before each start. Other agents' EditMode runs overlapped part of the H01 build. **No performance claim is made.**
 
-## Verdict: CHANGES REQUESTED
+## Re-check at `be14dd4` (2026-11-01): APPROVED for I, D, K02 and K03
+
+**Reviewer:** qa-engineer, fresh, for B1 and B2 only · **Range:** `f8171f7..be14dd4` (6 commits: the first pass `94c3a45`, the orchestrator's spec lines `ecce570`, the artist's fix `5e05d9d`, the rebuild `7ee0abf` and two notes) · **Read:** `CLAUDE.md`, the first pass below, `ecce570`'s three lines, task 1.6's notes, `joinery.door` and `_throat`, the new tests, `Rubble.place`, `walls.outer_and_liner`, `roof._far_cover`, and on `origin/unity/main` `IWorldQuery.cs`, `AssetPhysicsMeta.cs`, the `asset-pipeline` spec and `p6-world-query-gallery`.
+
+**How QA ran it.** The orchestrator lent the GPU to the pilot mid-task, so **no Blender and no Unity ran**: no build, audit or LOD probe was re-run. That leaves no hole here. `git diff f8171f7 be14dd4` changes only the door gap in both states' `.assetmeta.json` and prefabs (34 lines), plus `joinery.py`, `test_house.py` and the change's docs. So the FBX, masks, materials and every shape, snag and other gap are the ones the first pass built, audited and probed. QA's new scripts (scratchpad, never committed; plain Python on the shipped files, no code from `tools/blender`):
+- `qa_door2.py`: the leaf's board box and the far jamb's arris from the collision, the exact distance between them, the widest sphere through the doorway over every shape (a max-min path on a 10 mm grid), and the gap and the prefab against both
+- `qa_door_probe.py`: the first pass's gap probe on the new polygons
+- `qa_door_axis.py`: straight lines along the gap's normal and the wall's
+
+AC power, 3.6 GB free.
+
+**Verdict:**
+- **B1 is closed.** Both door gaps are now the throat from the far jamb's room-side arris to the leaf, within 1 µm of QA's own distance. The shipped verdicts read I "no" (0.368 m) and D "passes at any yaw, 7 mm a side on the diagonal" (0.720 m). The tests derive the throat from the leaf's box and fail the old 0.80 m rule at every swing.
+- **B2 is met by the amended text, all three items.** None needs a fix or more wording.
+- **The new normal breaks nothing.** No code on the trunk reads a gap's normal, and the trunk's contract already defines a gap as the throat, with a normal of free sign.
+- **Task 2.1 is ticked.** Left for the change: X and task 1.4b (N6), and the pre-PR merge of the trunk (N7: now 206 commits ahead, no file in common with the branch's 61).
+
+### B1: the door's gap is its throat
+**QA's distance against the shipped gap** (`qa_door2.py`):
+```
+== H01_I: leaf centre [-0.046, 1.005, -2.364], axis [0.866, 0.0, 0.5] (30.00 deg from the wall), far jamb arris x 0.400 z -2.550
+  arris to leaf box, min over the threshold..head: 0.368000 m; by hand 0.8 sin 30 - 0.032 = 0.368000
+  gap: 2 points on the arris, leaf distance per point [0.368136, 0.01, 1e-06, 0.368], width 0.368000, height 1.900 (0.05..1.95), narrowest_m 0.368
+  normal [-0.866025, 0.0, -0.5]: . leaf axis -1.000000, . leaf face normal -0.000000, . throat segment +1.00e-07, |n| 1.000000, the wall's normal [0,0,-1] . n +0.5000
+  QA's verdict from narrowest_m: no; nose-first -103.0 mm a side
+  prefab's door gap equals the metadata's: True
+== H01_D: leaf centre [-0.245, 1.0, -2.171], axis [0.342, -0.013, 0.94] (70.00 deg from the wall), far jamb arris x 0.400 z -2.550
+  arris to leaf box, min over the threshold..head: 0.719754 m; by hand 0.8 sin 70 - 0.032 = 0.719754
+  gap: 2 points on the arris, leaf distance per point [0.719784, 0.00656, 0.003292, 0.719761], width 0.719754, height 1.900 (0.05..1.95), narrowest_m 0.719754
+  normal [-0.34202, 0.0, -0.939693]: . leaf axis -0.999922, . leaf face normal -0.000001, . throat segment +3.17e-07, |n| 1.000000, the wall's normal [0,0,-1] . n +0.9397
+  QA's verdict from narrowest_m: passes at any yaw, 7 mm a side on the diagonal; nose-first 72.9 mm a side
+  prefab's door gap equals the metadata's: True
+```
+- **Where the feet sit.** The two feet lie on the leaf's outer board face. They are 1–10 mm off the box only where the 1.89 m leaf stops short of the frame's 0.05 m threshold and 1.95 m head (D's sag tilts it 0.013), and that sliver is free space.
+- **The normal** lies along the leaf (dot −1.000), square to the throat, so it meets the contract's "perpendicular to the polygon".
+- **Nothing narrower than the throat.** The widest sphere from outside the door into the hall, over every shape, at mid-height:
+  - I: 0.356 m at every height from 0.3 to 1.7 m
+  - D: 0.709 m from 0.6 to 1.4 m
+
+  Both are about 11 mm under the throat, which is the 10 mm grid's resolution. At D's narrowest cell (x 0.06, z −2.45), the nearest shapes are the far jamb (0.354 m) and the leaf (0.366 m). D's 0.500 m at 0.3 and 1.7 m is the sphere meeting the threshold and the head, 0.25 m away, not a pinch in plan.
+- **The first pass's probe on the new polygons** (`qa_door_probe.py`; segments ±0.10 m along the normal, 10 mm grid):
+  ```
+  H01_I door: width 0.3680 x 1.900 m; inside 0/6615 blocked; outside blocked: arris side 189/189, leaf side 189/189, below the threshold's top 35/35, above the head's underside 5/35
+  H01_D door: width 0.7198 x 1.900 m; inside 0/13230 blocked; outside blocked: arris side 189/189, leaf side 189/189, below the threshold's top 70/70, above the head's underside 27/70
+  ```
+  The throat stands in the hall, just inside the wall's inner face, and the hall is open above it to the 2.4 m ceiling. So its top edge is tight only near the arris, where the lintel is. That is the safe side: the frame's 1.90 m head limits anything that comes through the door before it reaches the throat.
+- **The look.** The sheets were re-captured with the rebuild (2026-11-01 01:43; new SHA-256 `fc5506598cf5bed9` D day, `673f2da7a0fc31c3` I day). QA projected each shipped polygon through the overlay tile's camera (10 m, 20° down, az 225, 60° vertical, framed on `bounds.lod`). In both states the magenta quadrilateral is drawn there, running into the hall from the far jamb to the leaf: narrow in I, near-square to the wall in D.
+- **Tests.** `test_ajar_door_gap_is_the_throat_its_leaf_leaves` and `test_hanging_door_gap_is_the_throat_its_leaf_leaves` take the throat from the leaf's collision box and the arris, not from `_throat`. They hold the gap to it (2 mm, the polylabel's precision) with two points on the arris, and the verdicts "no" and "any yaw, 7 mm" with 73 mm nose-first. `test_door_gap_narrows_with_its_leaf` sweeps 10–90°: the old rule (0.80 m for every open leaf) fails `narrowest_m < 0.80 − 5 mm` at every swing, and the pass flips between 45° and 50°. By hand, 0.8 sin θ − 0.032 = 0.574 at 49.2°.
+- **The scenario** (`ecce570`): "a 0.720 m throat … 73 mm a side nose-first, 7 mm on the diagonal". QA reads 0.719754 m, 72.9 mm and 6.9 mm: **passed**. The task note's "16.000 mm at the leaf" in the audit's 2 cm zone was not re-run (no Blender). The code explains it: five 32 mm boards with 3 mm joints, on the same faces as the leaf's one board box, so a joint's side face lies 16 mm inside the box, under the 20 mm zone and too narrow to pass.
+
+### B2 against the amended lines (`ecce570`)
+| Item | Amended line | Shipped | Judgement |
+|---|---|---|---|
+| B2.1 the adobe set | "the wall sets at most 2K (the adobe set `dirt_floor` is 1K, 495 px/m)" | `manifest.json`: `dirt_floor`, `resolution` 1k, CC0. Its four maps are 1024 × 1024 (diff, nor_gl, rough, ao). `adobe.json` and `facade_h01.json` tile it at 2.07 m, so 1024 / 2.07 = 494.7 px/m | **met by the amended text.** It also sits inside AST-07's "about 512 px/m" near openings (3.4 % under) and AST-08's "2K at most" |
+| B2.2 the LODs | "the openings kept through LOD2 (LOD3, the far shell, closes them, and the flue closes from LOD2; collision is unaffected)" | The FBX is unchanged since the first pass's probe: every opening is open at LOD0–2, and LOD3 closes them at the `interior` faces; the flue is closed from LOD2 at the chimney's box. By design, `walls.outer_and_liner` gives LOD3 its outer faces with the openings cut, over a dark liner per room, "so an opening shows the inside, not the sky". `roof._far_cover` draws a stripped roof only where tiles remain, so D's roof holes stay open down to the liner. The prefab carries 4 047 `BoxCollider`/`CapsuleCollider` entries and no `MeshCollider` (`grep -c`), so collision never comes from an LOD | **met by the amended text** |
+| B2.3 the piece count | "at least one shape per piece (two for a cambered tile; a timber piece also carries its splinter and nail capsules) … and the build prints the piece count" | `house.py:659` prints `rubble pieces: {counts}; {shapes}, {snags}`, and D's line reads adobe 173, clay 48, tile 340, timber 119 (680 pieces); 2 025 shapes, 1 665 snags. `Rubble.place` adds every shape of each kit piece and counts it once: adobe and clay one box each, a K02 shard one box and a whole tile two (`test_debris_tile`), a K03 piece its box plus a capsule per splinter and two per nail. The first pass's audit holds each within 41.5 mm | **met by the amended text.** The WHEN's "300 tile shards and 40 timber pieces" is the scenario's example; D composes more |
+
+### The world queries and the door's new normal
+The door gap's normal now lies along the leaf: I's is 60° off the wall's normal, D's 20° (dot with [0, 0, −1]: 0.500 and 0.940). **No code assumes the wall's normal, because nothing on the trunk consumes a gap at all:**
+- `GapsNear` exists only as a name in `IWorldQuery.cs`'s header ("not in this change"). `p6-world-query-gallery` lists it as a non-goal, and D-047's world-query tasks 1.4 and 1.5 do not include it.
+- The flight's contacts read primitives, never gaps.
+- `AssetPhysicsMeta.Gap` holds the polygon, normal and `narrowestM` as data.
+- No Python on the trunk reads `gaps` outside `tools/blender`'s writer, audit and tests.
+
+**The contract already says what the build does.** The trunk's `asset-pipeline` spec: "a gap `polygon` is the throat of the opening … with a unit `normal` of free sign"; the audit refuses a normal that is not perpendicular. `requirements.md`'s metadata line: "planar polygons in any orientation".
+
+**What the first consumer must not assume** (`qa_door_axis.py`, at y 1.0, ±1.5 m along each line):
+```
+H01_I along the gap normal [-0.866, 0.0, -0.5] through (0.308, -2.391): min clearance 0.000 m (a 0.000 m disc) at t -0.94 m, to a masonry box at [1.0, 1.2, -2.05]; drone nose-first 0.574 does not clear
+H01_I along the wall normal [0.0, 0.0, -1.0] through (0.000, -2.600): min clearance 0.000 m (a 0.000 m disc) at t -0.28 m, to a timber box at [-0.046, 1.005, -2.364]; drone nose-first 0.574 does not clear
+H01_D along the gap normal [-0.342, 0.0, -0.94] through (0.062, -2.427): min clearance 0.313 m (a 0.626 m disc) at t +0.72 m, to a masonry box at [-1.29, 1.175, -2.96]; drone nose-first 0.574 clears
+H01_D along the wall normal [0.0, 0.0, -1.0] through (0.000, -2.600): min clearance 0.093 m (a 0.187 m disc) at t -0.80 m, to a timber box at [-0.245, 1.0, -2.171]; drone nose-first 0.574 does not clear
+```
+- **The wall's normal is wrong for D.** A straight line in through the frame's centre meets the hanging leaf (0.187 m); D's own normal clears the whole doorway (0.626 m, tightest at the wall's outer reveal, not the throat).
+- **A gap's normal is no straight path either.** I's runs into the hall's partition 0.94 m in; I is "no", so that is moot.
+- **For `GapsNear` (WLD-11) and the wind's jets through gaps (`p7c-wind`):** carry the polygon and normal as the asset gives them, rotated by the placement, never re-derived from the host wall. AST-05's capsule acceptance should fly through the polygon, from either side of the normal, rather than along a fixed line past the wall.
+
+### Suggestions (non-blocking)
+- **S1.** No test holds a `gone` door's gap (the frame's 0.80 × 1.90 m, `joinery.py:103-105`). Neither I nor D builds it, so nothing shipped depends on it.
+- **S2.** `test_rubble_pieces_carry_their_own_collision_and_the_houses_colours` holds the aggregate (`len(rb.collision) >= sum(rb.counts.values())`), and the heaps' boxes sit in the same list. A per-piece count in `Rubble.place` would hold the scenario's "at least one shape per piece" directly. Today it holds by construction.
+- **S3.** The door scenario's "in every leaf state" reads best as every open state. A closed leaf leaves no gap, and a gone one the frame's opening (the docstring says so).
+- N1–N5 from the first pass are unchanged by the rebuild.
+
+### Commands and output
+```
+> git diff --stat f8171f7 HEAD            # the rebuild touched only the door gap
+ openspec/changes/p1-h01-adobe-house/review.md      | 265 +++
+ .../specs/asset-pipeline/spec.md                   |   2 +-
+ .../specs/assets-houses-and-yard/spec.md           |   4 +-
+ openspec/changes/p1-h01-adobe-house/tasks.md       |   1 +
+ tools/blender/lib/joinery.py                       |  23 +-
+ tools/blender/tests/test_house.py                  |  73 +++++-
+ .../Art/Models/houses/H01/H01_D.assetmeta.json     |  22 +-       (the door gap's 4 points, normal, narrowest_m)
+ .../Art/Models/houses/H01/H01_I.assetmeta.json     |  22 +-       (the same)
+ unity/Assets/_Project/Prefabs/houses/H01_D.prefab  |  12 +-       (the same)
+ unity/Assets/_Project/Prefabs/houses/H01_I.prefab  |  12 +-       (the same)
+
+> python -m pytest tools/blender/tests/test_house.py -q -p no:cacheprovider     # PowerOnline True, 3.57 GB free
+41 passed in 58.98s
+
+> BLENDER=<missing> python -m pytest tools -q -p no:cacheprovider --ignore=tools/blender/tests/test_build_blender.py -rs   # PowerOnline True, 2.38 GB free; another agent's pytest overlapped
+SKIPPED [1] tools\blender\tests\test_xsign_probe.py:34: the pinned Blender is not installed ($BLENDER or the default path)
+1352 passed, 1 skipped in 1705.12s (0:28:25)
+# reconciled with the first pass's 1 356: test_house.py 34 -> 41 collected (the old door test out, 2 + 6 in) = 1 363,
+# less test_build_blender.py's 10 (collected, not run) = 1 353 = 1 352 + the skipped probe
+
+> python tools/hygiene/precommit.py --tree HEAD
+1574 files scanned, 0 findings
+> openspec validate p1-h01-adobe-house --strict
+Change 'p1-h01-adobe-house' is valid
+
+> per commit in f8171f7..be14dd4: subject length, body, case, author / committer
+be14dd45 len=60 body_bytes=1 upper=0 Asset Artist <assets@450fpv.local> / Asset Artist <assets@450fpv.local>
+7ee0abf3 len=69 body_bytes=1 upper=0 Asset Artist <assets@450fpv.local> / Asset Artist <assets@450fpv.local>
+7a04f1bd len=68 body_bytes=1 upper=0 Asset Artist <assets@450fpv.local> / Asset Artist <assets@450fpv.local>
+5e05d9d8 len=63 body_bytes=1 upper=0 Asset Artist <assets@450fpv.local> / Asset Artist <assets@450fpv.local>
+ecce570c len=72 body_bytes=1 upper=0 Orchestrator <orchestrator@450fpv.local> / Orchestrator <orchestrator@450fpv.local>
+94c3a450 len=57 body_bytes=1 upper=0 QA Engineer <qa@450fpv.local> / QA Engineer <qa@450fpv.local>
+> git log --format=%B f8171f7..HEAD | grep -ci 'co-authored|claude|anthropic'  -> 0
+> git diff --name-only f8171f7 HEAD | grep reference/, Library/, Temp/, Logs/, UserSettings, .log  -> 0;  git ls-files reference -> 0
+> git merge-base HEAD origin/unity/main -> 46d96609; trunk ahead 206, branch ahead 61; files changed on both sides: 0
+```
+
+## First pass at `f8171f7`: CHANGES REQUESTED
 
 Two blocking items, neither a look item (D-040):
 - **B1. The door's gap ignores its own leaf** (metadata, test). H01_I's ajar leaf leaves a 0.368 m throat, but its gap says 0.80 m and "passes at any yaw", and the test asserts it. In D the verdict holds, by 7 mm a side on the diagonal at the leaf, not the 47 mm the build prints and the scenario states.
