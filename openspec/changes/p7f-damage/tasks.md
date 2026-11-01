@@ -19,5 +19,6 @@ Every physics task re-records the goldens it moves and audits them against its p
 
 ## 2. Review
 
+- [ ] 1.10 [tech-artist, asset-artist] Draw the damage: the prop's blades from the blade state (trimmed, chipped, bent, lost) in the feed and the chase view; verify with shots of each state.
 - [ ] 2.1 [qa-engineer] review against spec scenarios: every `prop-motor-damage` and `asset-pipeline` (this change's) scenario run by QA on its own seeds and cells; each known-wrong model failing; the two new draws the only new randomness, nothing about a strike or the world drawn, never noise on the pose; every new value labelled with a source or reason; the goldens' re-records audited case by case; replay bit for bit through damage; the budget on AC; hygiene
 - [ ] 2.2 [user-review] **The 7f MVP** (plan phase 7): the pilot flies the build (`tools/build_latest.json` brought up to date by the orchestrator) on the test range, scraping props and motors on walls, poles, trunks and the ground, and flying on damaged. The orchestrator records their words and asks only qualitative questions (D-024).
