@@ -263,7 +263,8 @@ namespace Fpv450.App
         /// then a flight from the ground (legs on, the first start that is not the stand's) and one from the launch stand
         /// (legs off, the stand's start), the second set from the first's summary through Setup. With the development
         /// keyboard each flight is flown by a script of its keys: armed, climbed, paused (no step while paused),
-        /// restarted (the stand's, before arming, from the pause: a new seed and log), descended, disarmed, and the summary
+        /// restarted (the stand's, before arming, from the pause: a new seed and log), the throttle down, disarmed in the
+        /// air with no end and no summary (D-062), re-armed, flown on, ended from the pause's End flight, and the summary
         /// read from the log. The keyboard is barred twice, as in a pilot's build without the radio: the stand's flight,
         /// set from the first's summary, waits at its start; its Restart ends it and waits. A pilot's build has no keyboard:
         /// there each flight is checked waiting for the radio. The flights log to the smoke test's own folder.
@@ -488,13 +489,35 @@ namespace Fpv450.App
                 Check(session.State == SessionState.Paused && session.Core.State.Step == steps, "paused: no step for 0.3 s, at step " + steps);
                 if (n == 0) yield return Shot("pause");
                 host.Resume();
-                yield return Hold(KeyboardKeys.ThrottleDown, 1.4f);
+
+                // D-062: a disarm in the air ends nothing. The throttle down (re-arming wants it there), disarmed at the
+                // top of the climb: still flying, no summary, DISARMED. Re-armed while it falls: AIR, and it flies on. The
+                // flight ends from the pause's End flight, and only then is there a summary.
+                yield return Hold(KeyboardKeys.ThrottleDown, 1.8f);
+                yield return Until(() => _flight.Pose.Velocity.Y <= 0, 5);
+                double up = _flight.Pose.Position.Y - rest;
                 yield return Hold(KeyboardKeys.ArmToggle, 0.1f);
-                yield return Until(() => session.State == SessionState.Ended, 5);
-                Check(session.State == SessionState.Ended, "the flight ends on the disarm");
+                yield return new WaitForSecondsRealtime(0.2f);
+                Check(!_flight.Pose.Armed && session.State == SessionState.Flying && _flight.Summary == null && up > 3 &&
+                      _flight.Osd.Row(0).StartsWith(FlightOsd.DisarmedMode, StringComparison.Ordinal),
+                      "disarmed in the air at " + up.ToString("0.0") + " m: still flying, no summary, the OSD reads DISARMED: " + Osd());
+                yield return Shot("disarmed_air_" + start.Name);
+                yield return Hold(KeyboardKeys.ArmToggle, 0.1f);
+                yield return new WaitForSecondsRealtime(0.2f);
+                up = _flight.Pose.Position.Y - rest;
+                Check(_flight.Pose.Armed && session.State == SessionState.Flying && up > 1 && _flight.Osd.Row(0).StartsWith(FlightOsd.ArmedMode + " ", StringComparison.Ordinal),
+                      "re-armed in the air at " + up.ToString("0.0") + " m: the OSD reads AIR: " + Osd());
+                double sink = _flight.Pose.Velocity.Y;
+                yield return Hold(KeyboardKeys.ThrottleUp, 0.6f);
+                Check(session.State == SessionState.Flying && _flight.Pose.Armed && _flight.Osd.Shown.Centiamps > 0 && _flight.Summary == null,
+                      "flies on after the re-arm, at " + (_flight.Pose.Position.Y - rest).ToString("0.0") + " m, " + sink.ToString("0.0") + " then " +
+                      _flight.Pose.Velocity.Y.ToString("0.0") + " m/s up: " + Osd());
+                yield return Shot("rearmed_" + start.Name);
+                host.Pause();
+                session.EndFlight(); // the pause's End flight
                 yield return Until(() => _flight.Summary != null, 30);
                 PostFlight summary = _flight.Summary;
-                Check(summary != null && summary.End.Kind == FlightEndKind.Disarm, "the summary from the log: " + (summary != null ? summary.Cause() : "none"));
+                Check(summary != null && summary.End.Kind == FlightEndKind.Pilot, "End flight, and the summary from the log: " + (summary != null ? summary.Cause() : "none"));
                 Check(summary != null && summary.Log.Events.Exists(e => e.Event.Kind == EventKind.Hitch && e.Event.Index == (byte)HitchCause.Pause), "the pause is in the log");
                 yield return Shot("summary_" + start.Name);
                 yield return Replays(session.LogPath, "from " + where);
