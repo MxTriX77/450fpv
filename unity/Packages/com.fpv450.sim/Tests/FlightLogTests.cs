@@ -672,6 +672,59 @@ namespace Fpv450.Sim.Tests
             StringAssert.Contains("ContactMade event at step 5 that the replay did not make", r.Message);
         }
 
+        // QA's p7b-airframe finding 5: the summary names every airframe effect, on or off, once each. Each flight records the
+        // powered golden's setup for 20 steps with one effect off (and one with all five off), and its summary says so.
+        [TestCase("motor asymmetry", "motor asymmetry: off (identical rotors)")]
+        [TestCase("vortex rings", "vortex rings: off")]
+        [TestCase("ground effect", "ground effect: off")]
+        [TestCase("flapping", "flapping: off")]
+        [TestCase("modes", "modes: off (a rigid airframe)")]
+        [TestCase(null, null)]
+        public void TheSummaryNamesEveryAirframeEffectOnOrOff(string offName, string offLine)
+        {
+            string[] names = { "motor asymmetry", "vortex rings", "ground effect", "flapping", "modes" };
+            DroneSpec spec = RepositoryDrone.Spec();
+            foreach (bool allOff in offName == null ? new[] { false, true } : new[] { false })
+            {
+                FlightSetup setup = GoldenFlights.PoweredSetup(spec);
+                bool Off(string n) => allOff || n == offName;
+                if (Off("motor asymmetry")) setup.Asymmetry = null;
+                if (Off("vortex rings")) setup.VortexRing = null;
+                if (Off("ground effect")) setup.GroundEffect = null;
+                if (Off("flapping")) setup.Flapping = null;
+                if (Off("modes")) setup.Modes = null;
+                var core = new FlightCore(setup);
+                LogHeader h = LogHeader.For(setup, core);
+                h.Build = "simtests";
+                h.Isa = "test";
+                h.WorldId = "floor";
+                h.SetDrone(spec, spec.Nominal);
+                var log = new MemoryStream();
+                var recorder = new FlightRecorder(log, h, FlightRecorder.DefaultCapacity, ownsStream: false);
+                for (int k = 0; k < 20; k++)
+                {
+                    StickSample stick = GoldenFlights.PoweredStick(k);
+                    core.Advance(stick);
+                    recorder.RecordStep(core.State, stick, core.Trace, core.Events);
+                }
+                recorder.Close();
+                var text = new StringWriter();
+                FlightSummary.Read(new MemoryStream(log.ToArray())).Print(text);
+                string summary = text.ToString();
+                foreach (string n in names)
+                {
+                    int lines = 0;
+                    foreach (string line in summary.Split(new[] { Environment.NewLine, "\n" }, StringSplitOptions.None))
+                        if (line.TrimStart().StartsWith(n + ":", StringComparison.Ordinal)) lines++;
+                    Assert.That(lines, Is.EqualTo(1), $"one line for {n}: {summary}");
+                    string off = n == "motor asymmetry" ? "motor asymmetry: off (identical rotors)" : n == "modes" ? "modes: off (a rigid airframe)" : n + ": off";
+                    if (Off(n)) StringAssert.Contains(off, summary);
+                    else StringAssert.DoesNotContain(off, summary);
+                }
+                if (offLine != null) StringAssert.Contains(offLine, summary);
+            }
+        }
+
         [Test]
         public void TheDroneHashSeesEditsNotLineEndings()
         {

@@ -319,18 +319,22 @@ namespace Fpv450.Sim.Log
                     + G(h.GroundEffect.RecirculationSigma) + " v_h within " + G(h.GroundEffect.RecirculationBound) + " below "
                     + G(h.GroundEffect.RecirculationOnset) + " R, loop " + G(h.GroundEffect.RecirculationLoop) + " (z + R)/v_h; air "
                     + G(h.GroundEffect.AirDensity) + " kg/m3" + (h.GroundEffect.RecirculationSigma > 0 ? "" : "; KNOWN-WRONG: no recirculation"));
+            else
+                w.WriteLine("  ground effect: off");
             if (h.Modes != null)
                 w.WriteLine("  modes: arms " + G(h.Modes.ArmWidth * 1000) + " x " + G(h.Modes.ArmThickness * 1000) + " mm plate of " + G(h.Modes.ArmModulus / 1e9)
                     + " GPa over " + G(h.Modes.ArmLength) + " m, " + G(h.Modes.ArmStiffness) + " N/m, damping " + G(h.Modes.ArmDamping) + "; mounts "
                     + G(h.Modes.MountStiffness) + " N/m, damping " + G(h.Modes.MountDamping) + "; camera at (" + G(h.Modes.Camera.X) + ", "
                     + G(h.Modes.Camera.Y) + ", " + G(h.Modes.Camera.Z) + ") m; payload part " + h.Modes.PayloadPart + ", coil part " + h.Modes.CoilPart);
+            else
+                w.WriteLine("  modes: off (a rigid airframe)");
             if (h.Flapping != null)
                 w.WriteLine("  flapping: blade-element, lift slope " + G(h.Flapping.LiftSlope) + "/rad, zero lift " + G(h.Flapping.ZeroLiftAngle)
                     + " rad, bending " + G(h.Flapping.BendingFrequency) + " Hz, Southwell " + G(h.Flapping.Southwell) + ", skew gain "
                     + G(h.Flapping.SkewGain) + ", " + h.Flapping.Blades + " blades of " + G(h.Flapping.BladeInertia) + " kg m2 on R "
                     + G(h.Flapping.Radius) + " m, " + h.Flapping.Stations.Length + " stations; air " + G(h.Flapping.AirDensity) + " kg/m3");
             else
-                w.WriteLine("  ground effect: off");
+                w.WriteLine("  flapping: off");
             for (int n = 0; n < h.RuntimeObjects.Length; n++)
                 w.WriteLine("  runtime object " + (n < h.RuntimeIds.Length ? h.RuntimeIds[n] : -1) + " '" + h.RuntimeObjects[n].Name + "': "
                     + h.RuntimeObjects[n].Shapes.Length + " shapes");
