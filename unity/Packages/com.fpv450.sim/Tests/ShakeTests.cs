@@ -11,20 +11,22 @@ namespace Fpv450.Sim.Tests
         static readonly double[] Payloads = { 0, 2 }, Drops = { 0, 0.3, 0.6, 1.0 };
         static readonly ulong[] Seeds = { 1, 2 };
 
-        // The airframe's modes on letter T's layout (L4, 1 kg): the arms' four at the builder's notches (fc-profiles §1: the
-        // gyro's at 50 Hz, the D term's at 60, the dynamic one from 60), the coil's mount and the payload's sling below.
+        // The airframe's modes on D-050's layout (1 kg): the arms' four at the builder's notches (fc-profiles §1: the gyro's
+        // at 50 Hz, the D term's at 60, the dynamic one from 60), below them the bottle's strapped mount on top and the coil's
+        // beneath, no sling.
         [Test]
         public void TheModesSitAtTheBuildersNotches()
         {
             DroneSpec spec = RepositoryDrone.Spec();
             var core = new FlightCore(ShakeScenario.Setup(spec, 1, 1));
             AirframeModes m = core.Modes;
-            Assert.That(m.Count, Is.EqualTo(10), "four arms, the payload's three and the coil's three");
+            Assert.That(m.Count, Is.EqualTo(10), "four arms, the bottle's three and the coil's three");
             for (int i = 0; i < m.Count; i++) TestContext.WriteLine($"mode {i}: {m.Frequency(i):F2} Hz, ζ {m.Damping(i):F3}");
-            Assert.That(m.Frequency(0), Is.InRange(1.5, 2.5), "the payload's sling swings as its pendulum: √(g/ℓ)/2π at ℓ 0.105 m is 1.54 Hz on a fixed pivot, higher with the body free");
+            for (int i = 0; i < 6; i++)
+                Assert.That(m.Frequency(i), Is.InRange(27, 37), "the loads' strapped mounts, the bottle's and the full coil's, 1 kg each: √(k/m)/2π at 30 kN/m is 27.6 Hz on a fixed base, higher with the body free");
             for (int i = m.Count - 4; i < m.Count; i++) Assert.That(m.Frequency(i), Is.InRange(45, 65), "an arm mode");
             var empty = new FlightCore(ShakeScenario.Setup(spec, 0, 1));
-            Assert.That(empty.Modes.Count, Is.EqualTo(7), "no payload, no sling");
+            Assert.That(empty.Modes.Count, Is.EqualTo(7), "no bottle: the arms and the coil");
         }
 
         // Fifty arrested descents: two payloads, four drops (from the hover, 2.5, 5.4 and 9 m/s), a sharp full and a sharp
