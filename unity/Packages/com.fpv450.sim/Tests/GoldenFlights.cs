@@ -312,12 +312,18 @@ namespace Fpv450.Sim.Tests
         // branch's 1656 bytes, in still air it is model 16's still-air flight bit for bit, every record and event
         // (Model16StillRangeHash, the kept test), and in a steady 5 m/s from 270° model 16's 0x156C9858A7790315 with the
         // record's wind slot written as model 16's stand-in carried it, 0 (a temporary check). Against unity/main the stub's
-        // goldens and audits keep main's model 18 pins: 1.6b's laws change no flight on the floor. The Calm field blows
-        // nothing here: SampleGround reports Hole over S04 and the field takes a hole as sheltered (WindField.Begin), so the
-        // flight is the same in still air and in Windy's field, bit for bit (a check). It moves from model 16's by the
+        // goldens and audits keep main's model 18 pins: 1.6b's laws change no flight on the floor. At model 19 the Calm field
+        // blew nothing here: SampleGround reports Hole over S04 and the field took a hole as sheltered (WindField.Begin), so the
+        // flight was the same in still air and in Windy's field, bit for bit (a check). It moved from model 16's by the
         // stand-in's Calm air, which blew over the hole, the derived drag and the record: 5 impacts, no crash, at rest
-        // 19.15 mm into the straw on 18 pairs (model 16: 21.98 mm on 17).
-        public const ulong RangeHash = 0xE4B13EDD65CFF0B2UL;
+        // 19.15 mm into the straw on 18 pairs (model 16: 21.98 mm on 17). Model 19: 0xE4B13EDD65CFF0B2.
+        // Model 20 (the wind over a hole, FlightWorld.SoilUnder): re-recorded on the same content and query version 4, where
+        // the Calm field now blows over S04 from the straw mat's top: 5 impacts, no crash, at rest 21.19 mm into the straw on
+        // 19 pairs. Audited: with the old rule (the hole's −∞ taken as sheltered, a temporary switch) it is model 19's pin bit
+        // for bit, so the wind over the hole is the whole change; in still air it is model 16's (Model16StillRangeHash, the
+        // kept test), and Calm and still air now differ. Read from the first soil shape alone (the mat's soil box, 0.125 m
+        // under the plane's height, a known-wrong) it was 0xCE9BEF5615932EFB, 7 impacts, 0.233 m up on 21 pairs.
+        public const ulong RangeHash = 0x7A21A5FA04DD30E0UL;
 
         /// <summary>The merge's audit against the range branch (GoldenFlightTests.InStillAirTheRangeGoldenIsModel16s): model
         /// 16's range golden in still air over its 1656-byte layout, pinned from the range branch's code (c2cf4023) with the
@@ -545,7 +551,8 @@ namespace Fpv450.Sim.Tests
         /// SampleGround reports Hole and the mat's straw boxes (490 N/m, over the patch's soil) are all the ground: legs on,
         /// settling into the straw, the closed-loop pilot up to a metre for 4 s, then down at 0.5 m/s; with the skids 0.1 m
         /// over the straw the sticks are held (roll, pitch and yaw centred) and the mat takes the bounce; 1.5 s later the
-        /// throttle is cut and it settles into the straw again. In the Calm wind (the field), as the stub's, with the airframe's
+        /// throttle is cut and it settles into the straw again. In the Calm wind (the field, over the hole from the mat's top
+        /// since model 20), as the stub's, with the airframe's
         /// effects on as FlyContact's (its toggles, its parent layout's skip and its air, for an audit; onRecord sees each
         /// step's record before it is hashed). Returns its hash, with the core for a report.
         /// </summary>

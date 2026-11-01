@@ -134,8 +134,11 @@ namespace Fpv450.Sim.Log
         /// 19: 1.6b's range branch and unity/main merged (model 18's wind field, wakes, canopy and rain with model 16's
         ///    contacts: the skids on soil faces, the seam rule, no tunnel out of a compliant shape; the code is the two
         ///    parents' together, so a flight on the stub's floor steps as in 18).
+        /// 20: the wind over a hole (FlightWorld.SoilUnder): where SampleGround reports Hole the field's profile, roughness and
+        ///    wakes read the soil a ray straight down meets (S04's straw and soil, E01's fillers), not a sheltered −∞; a
+        ///    flight that never flies over a hole, or flies in still or steady air, steps as in 19).
         /// </summary>
-        public const int ModelVersion = 19;
+        public const int ModelVersion = 20;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

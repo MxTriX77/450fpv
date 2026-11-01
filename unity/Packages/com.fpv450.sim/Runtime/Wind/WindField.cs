@@ -451,8 +451,8 @@ namespace Fpv450.Sim.Wind
 
         /// <summary>
         /// Fixes the frame of the step that starts at `step`: its time, the mean wind at the reference height and its
-        /// drift, each mode's phase offset, the body's origin (world) and the ground's height under it (m; not finite
-        /// in a hole, which the field takes as sheltered until 1.3's cavity).
+        /// drift, each mode's phase offset, the body's origin (world) and the ground's height under it (m: over a hole the
+        /// soil's, FlightWorld.SoilUnder; −∞ for no ground under it, which the field takes as sheltered).
         /// </summary>
         public void Begin(long step, in Double3 origin, double ground)
         {
@@ -525,7 +525,7 @@ namespace Fpv450.Sim.Wind
         Double3 Air(in Double3 point)
         {
             double h = point.Y - _ground;
-            if (!(h - _d > _z0) || !(h < double.PositiveInfinity)) return default; // in the cover, or sheltered in a hole
+            if (!(h - _d > _z0) || !(h < double.PositiveInfinity)) return default; // in the cover, or with no ground under it
             double profile = Profile(h);
             double taper = DetMath.Min(1, (h - _d) / Preset.TaperHeight);
             if (_canopy != null && h < _canopy.BlendingHeight)

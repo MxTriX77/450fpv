@@ -310,9 +310,9 @@ namespace Fpv450.Sim.Tests
 
         // ---- in the wind (p7c-wind's field, model 19) ------------------------------------------------------------------
 
-        // The laws in the wind, the airframe's effects on. The level presets blow nothing over S04 and E01: SampleGround
-        // reports Hole there and the field takes a hole as sheltered (WindField.Begin), so the soil's laws are held in a
-        // steady 5 m/s from 270°, the same air everywhere, against the plane at the same heading in it.
+        // The laws in the wind, the airframe's effects on. The soil's laws are held in a steady 5 m/s from 270°, the same air
+        // everywhere, against the plane at the same heading in it (at model 19 the level presets blew nothing over S04 and
+        // E01, where SampleGround reports Hole; since model 20 they read the soil there, OverAHoleTheWindReadsTheSoil).
         static ContactScenarios.Site InTheAir(ContactScenarios.Site site, WindSetup wind)
         {
             site.Airframe = true;
@@ -352,8 +352,7 @@ namespace Fpv450.Sim.Tests
         }
 
         // No tunnel through a compliant shape in the wind: the straw landings in the crosswind, and the crown in Windy's field
-        // (the posadka stands on the plane, where the field blows). Severe's crown flight, not pinned here, logs 4 tunnels
-        // through V01_L's rigid bark (a tunnel is a bug the log names; 1.6b's handoff).
+        // (the posadka stands on the plane; the approach crosses S04, where the field blows since model 20).
         [Test]
         public void InTheWindACompliantShapeIsNoTunnel()
         {
@@ -377,6 +376,78 @@ namespace Fpv450.Sim.Tests
             Assert.That(track.Plane, Is.EqualTo(8));
             Assert.That(track.LoadOverWeight + track.AeroOverWeight, Is.EqualTo(1).Within(1e-3), "Severe's field at the track start");
             Assert.That(track.LateEvents, Is.EqualTo(0));
+        }
+
+        // Model 20, the wind over a hole: where SampleGround reports Hole the field reads the soil a ray straight down meets
+        // (FlightWorld.SoilUnder): the top of the object holding that soil, past any other object's shapes. Over S04's straw
+        // mat (its top at y 0, the plane's height) the field blows as over the stub's floor at y 0, over the bare soil between
+        // its straw boxes from the soil (y −0.125), and over E01's run from its floor (y −1.5). The known-wrongs: the old
+        // rule (a hole's −∞ taken as sheltered) blows nothing over the patches and the run at any height, so the Calm wind
+        // at 1 m over the straw is 0 and the range golden in Calm is its flight in still air, bit for bit; the first soil
+        // shape alone reads the straw mat's soil box, 0.125 m under the plane's height, and the wind there is not the floor's.
+        [Test]
+        public void OverAHoleTheWindReadsTheSoil()
+        {
+            var w = new FlightWorld(RangeScenarios.World);
+            var ray = new Ray[1];
+            var hit = new RayHit[1];
+            var up = new Double3(0, 1, 0);
+            Assert.That(w.SoilUnder(RangeScenarios.Straw + up, ray, hit, out _), Is.EqualTo(0).Within(1e-9), "the straw mat's top");
+            Assert.That(w.SoilUnder(RangeScenarios.Soil + up, ray, hit, out _), Is.EqualTo(-0.125).Within(1e-9), "the soil box between the straw boxes");
+            Assert.That(w.SoilUnder(RangeScenarios.Run + up * 3, ray, hit, out _), Is.EqualTo(-1.5).Within(1e-9), "the run's floor");
+            Assert.That(w.SoilUnder(RangeScenarios.Straw - up * 0.5, ray, hit, out _), Is.EqualTo(double.NegativeInfinity), "under the soil: sheltered");
+
+            // The scan of every patch and the run on a 0.5 m grid at four heights, clear of the footprints' edges (a ray straight
+            // down an edge grazes the faces there): ground under every point, past what stands on it.
+            var xz = new XZ[1];
+            var g = new GroundSample[1];
+            int most = 0, points = 0, holes = 0, crossed = 0;
+            foreach ((double x0, double z0, double x1, double z1) in new[] { (-140.0, -19.355, 160.0, -7.355), (-140.0, 7.353, 160.0, 19.353), (44.0, -21.15, 79.25, -7.4) })
+            {
+                for (int ix = 0; ix < (int)((x1 - x0) / 0.5); ix++)
+                {
+                    for (int iz = 0; iz < (int)((z1 - z0) / 0.5); iz++)
+                    {
+                        double x = x0 + 0.2 + 0.5 * ix, z = z0 + 0.2 + 0.5 * iz; // off the footprints' edges
+                        xz[0] = new XZ(x, z);
+                        RangeScenarios.World.SampleGround(xz, g);
+                        points++;
+                        if ((g[0].Flags & GroundFlags.Hole) == 0) continue;
+                        holes++;
+                        foreach (double y in new[] { 0.5, 2, 10, 40 })
+                        {
+                            double ground = w.SoilUnder(new Double3(x, y, z), ray, hit, out int casts);
+                            Assert.That(ground, Is.InRange(-1.6, 0.5), $"soil under ({x}, {y}, {z})");
+                            most = casts > most ? casts : most;
+                            if (casts > 1) crossed++;
+                        }
+                    }
+                }
+            }
+            TestContext.Out.WriteLine($"{holes} of {points} points over a hole, {crossed} rays cast again past a shape, at most {most} casts (SoilCasts {FlightWorld.SoilCasts})");
+            Assert.That(holes, Is.GreaterThan(10000));
+            Assert.That(8 * most, Is.LessThanOrEqualTo(FlightWorld.SoilCasts), "SoilCasts holds eight times the scan's most");
+
+            // The field over the straw is the stub floor's at the same point: one step 1 m over the mat in Calm.
+            MaterialRow[] m = Materials(out ulong h);
+            Double3 WindAt(FlightWorld world, WindSetup wind)
+            {
+                FlightSetup setup = ContactScenarios.Setup(Spec, m, h, true, RangeScenarios.Straw + up);
+                setup.World = world;
+                setup.Wind = wind;
+                var core = new FlightCore(setup);
+                core.Advance(default);
+                return core.Trace.Wind;
+            }
+            Double3 over = WindAt(new FlightWorld(RangeScenarios.World), WindSetup.Of(WindLevel.Calm));
+            Double3 floor = WindAt(FlightWorld.Floor(), WindSetup.Of(WindLevel.Calm));
+            TestContext.Out.WriteLine($"Calm at 1 m over the straw: {over.Length():F4} m/s (the floor's {floor.Length():F4})");
+            Assert.That(over.Length(), Is.GreaterThan(0.1), "the field blows over the hole");
+            Assert.That((over - floor).Length(), Is.LessThan(1e-9), "as over the floor at the same height");
+
+            // The range golden's flight in Calm is no longer its flight in still air.
+            Assert.That(GoldenFlights.FlyRange(Spec, out _), Is.Not.EqualTo(GoldenFlights.FlyRange(Spec, out _, wind: WindSetup.Of(WindLevel.Still))),
+                "Calm and still air differ over S04");
         }
 
         // review-physics §6 and W6: a rotor's down ray meets a conductor, and cast again from inside it goes on to the ground.
