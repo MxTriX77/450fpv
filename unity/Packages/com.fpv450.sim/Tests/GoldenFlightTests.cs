@@ -89,6 +89,19 @@ namespace Fpv450.Sim.Tests
             Assert.That(hash, Is.EqualTo(GoldenFlights.RangeHash), "the pinned golden (a re-record is audited and raises the model version)");
         }
 
+        // The merge's audit of the range golden (model 16) against 1.6b's parent: every airframe mechanism off, the trunk's
+        // 5 ms ESC lag and model 11's packs on model 13's drone.json (1.6b's drone.json, as the base it was flown on), over
+        // 1.6b's 1296 bytes with its events. With the seam rule taken out (ContactModel.Seam and SameSupport's coplanar
+        // piece, a temporary edit, reverted) it is 1.6b's 0x778DD7ED57A37F62 bit for bit; this pin is the same flight with
+        // the rule, so the new golden moves by the seams, D-050's drone and the airframe's effects alone.
+        [Test]
+        public void AtTheTrunksEscLagTheRangeGoldenIs16bsWithTheSeams()
+        {
+            DroneSpec spec = GoldenFlights.WithTheTrunksEscLag(Model11());
+            const int skip = RotorAngleBytes + RingBytes + GroundBytes + ModeBytes;
+            Assert.That(GoldenFlights.FlyRange(spec, out _, RotorAngleAt, skip, false, false, false, false, false), Is.EqualTo(0x613987892649445FUL), "range");
+        }
+
         // The kept audits of models 7–12 fly model 13's drone.json (D-043's layout, a fixture since D-050), those of
         // models 7–11 on model 11's pack table (p7b-airframe 1.5 re-mapped it).
         static DroneSpec Model13() => DroneSpec.Parse(Model13Drone.Text());

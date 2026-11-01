@@ -211,9 +211,13 @@ namespace Fpv450.Sim.Tests
 
         // 1.6b: first recorded with ModelVersion 7, on the test range's content RangeContent (MapWorld.ContentHash, query
         // version 2): a change of the map or its assets moves the content hash first, so an audit tells the world's change
-        // from the physics'.
-        public const ulong RangeHash = 0x778DD7ED57A37F62UL;
-        public const ulong RangeContent = 0xD6DE238216CEB4B9UL;
+        // from the physics'. Model 7: 0x778DD7ED57A37F62 on content 0xD6DE238216CEB4B9. The merge with p7b-airframe
+        // (ModelVersion 16): the content moves by physics_materials.json's new carbon_composite row alone (every worldbench
+        // query hash unchanged); the flight by D-050's drone, the airframe's effects (FlyContact's five) and the seam rule.
+        // Audited (the kept test): every mechanism off on 1.6b's drone.json over 1.6b's layout, without the seam rule (a
+        // temporary edit) it is model 7's bit for bit, with it 0x613987892649445F.
+        public const ulong RangeHash = 0x292C0858705902B6UL;
+        public const ulong RangeContent = 0x6114242E06475FB5UL;
         public const int RangeSteps = 12000;
 
         /// <summary>Model 13's drone.json (D-043's layout, before D-050), a fixture: the kept audits of models 7–12 fly on it,
@@ -411,10 +415,12 @@ namespace Fpv450.Sim.Tests
         /// SampleGround reports Hole and the mat's straw boxes (490 N/m, over the patch's soil) are all the ground: legs on,
         /// settling into the straw, the closed-loop pilot up to a metre for 4 s, then down at 0.5 m/s; with the skids 0.1 m
         /// over the straw the sticks are held (roll, pitch and yaw centred) and the mat takes the bounce; 1.5 s later the
-        /// throttle is cut and it settles into the straw again. In the Calm stand-in wind, as the stub's. Returns its hash,
-        /// with the core for a report.
+        /// throttle is cut and it settles into the straw again. In the Calm stand-in wind, as the stub's, with the airframe's
+        /// effects on as FlyContact's (its toggles and its parent layout's skip, for an audit). Returns its hash, with the core
+        /// for a report.
         /// </summary>
-        public static ulong FlyRange(DroneSpec spec, out FlightCore core)
+        public static ulong FlyRange(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
+            bool ring = true, bool ground = true, bool flapping = true, bool modes = true)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -423,6 +429,11 @@ namespace Fpv450.Sim.Tests
             FlightSetup setup = ContactScenarios.Setup(spec, materials, mh, true, foot + new Double3(0, stand, 0));
             setup.World = new FlightWorld(RangeScenarios.World);
             setup.Wind = WindSetup.Of(WindLevel.Calm);
+            if (asymmetry) setup.Asymmetry = spec.BuildAsymmetry();
+            if (ring) setup.VortexRing = spec.BuildVortexRing();
+            if (ground) setup.GroundEffect = spec.BuildGroundEffect();
+            if (flapping) setup.Flapping = spec.BuildFlapping();
+            if (modes) setup.Modes = spec.BuildModes();
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, foot + new Double3(0, stand + 1, 0));
             var record = new byte[LogFormat.StepSize];
@@ -454,7 +465,8 @@ namespace Fpv450.Sim.Tests
                 }
                 core.Advance(stick);
                 LogFormat.EncodeStep(record, core.State, stick, core.Trace);
-                hash = Fnv(hash, record, 0, record.Length);
+                hash = Fnv(hash, record, 0, skipAt);
+                hash = Fnv(hash, record, skipAt + skipBytes, record.Length);
                 for (int i = 0; i < core.Events.Count; i++)
                 {
                     LogFormat.EncodeEvent(e, core.State.Step, core.Events[i]);

@@ -122,7 +122,14 @@ namespace Fpv450.FlightBench
             bool tlok = p6 == 0x3F13A5CF5DB7DAFDUL && c6 == 0x3EE12C8D692BADF3UL && t6 == 0xE3178EE7FF322698UL;
             Console.WriteLine($"the trunk's 5 ms ESC lag, every mechanism off, over model 7's layout: powered 0x{p6:X16}, contact 0x{c6:X16}, "
                 + $"tumble 0x{t6:X16} ({(tlok ? "the trunk's (model 6's), bit for bit" : "NOT the trunk's")}): {(tlok ? "PASS" : "FAIL")}");
-            return ok && cok && rangeOk && tok && aok && rok && gok && fok && pok && mok && eok && tlok;
+            // The merge's audit of the range golden (model 16, p6-flight-core 1.6b on p7b): the same on the test range's straw is
+            // 1.6b's (the branch's model 7) 0x778DD7ED57A37F62 bit for bit without the seam rule (a temporary edit, reverted);
+            // with it, this pin.
+            ulong r7 = GoldenFlights.FlyRange(trunk, out _, 1296, 360, false, false, false, false, false);
+            bool r7ok = r7 == 0x613987892649445FUL;
+            Console.WriteLine($"the trunk's 5 ms ESC lag, every mechanism off, over model 7's layout: range 0x{r7:X16} "
+                + $"({(r7ok ? "1.6b's with the seam rule (without it, 1.6b's bit for bit)" : "NOT 1.6b's with the seam rule")}): {(r7ok ? "PASS" : "FAIL")}");
+            return ok && cok && rangeOk && tok && aok && rok && gok && fok && pok && mok && eok && tlok && r7ok;
         }
 
         public static bool Bench()
