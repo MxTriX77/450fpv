@@ -48,6 +48,13 @@ namespace Fpv450.UI
             GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), _gradient);
         }
 
+        /// <summary>
+        /// A text colour as IMGUI needs it to draw c. In this Linear-colour-space project IMGUI takes a style's text
+        /// colour as linear and draws it darker, each channel to the power 2.2, while the fills keep their values; so text
+        /// colours are given as c.gamma (QA's finding 18: Muted on the panel at its designed 6.3:1, not 2.2:1).
+        /// </summary>
+        public static Color Ink(Color c) => QualitySettings.activeColorSpace == ColorSpace.Linear ? c.gamma : c;
+
         /// <summary>A flat rectangle of a colour.</summary>
         public static void Fill(Rect r, Color c)
         {
@@ -102,10 +109,10 @@ namespace Fpv450.UI
             _skin.button = Secondary;
             _skin.label = Body;
             _skin.toggle.fontSize = (int)S(19);
-            _skin.toggle.normal.textColor = _skin.toggle.onNormal.textColor = _skin.toggle.hover.textColor = _skin.toggle.onHover.textColor = Text;
+            _skin.toggle.normal.textColor = _skin.toggle.onNormal.textColor = _skin.toggle.hover.textColor = _skin.toggle.onHover.textColor = Ink(Text);
             _skin.textField.fontSize = (int)S(20);
             _skin.textField.normal.background = _skin.textField.focused.background = _skin.textField.hover.background = Solid(Control);
-            _skin.textField.normal.textColor = _skin.textField.focused.textColor = _skin.textField.hover.textColor = Text;
+            _skin.textField.normal.textColor = _skin.textField.focused.textColor = _skin.textField.hover.textColor = Ink(Text);
             _skin.textField.padding = new RectOffset((int)S(10), (int)S(10), (int)S(6), (int)S(6));
             _skin.horizontalSlider.normal.background = Solid(Control);
             _skin.horizontalSlider.fixedHeight = S(6);
@@ -119,7 +126,7 @@ namespace Fpv450.UI
         static GUIStyle Text0(GUIStyle from, float size, FontStyle style, Color colour)
         {
             var s = new GUIStyle(from) { fontSize = (int)S(size), fontStyle = style, wordWrap = false, richText = false };
-            s.normal.textColor = s.hover.textColor = s.active.textColor = colour;
+            s.normal.textColor = s.hover.textColor = s.active.textColor = Ink(colour);
             s.normal.background = null;
             return s;
         }
@@ -136,8 +143,8 @@ namespace Fpv450.UI
             s.active.background = Solid(Color.Lerp(hoverFill, Accent, 0.35f));
             s.focused.background = s.normal.background;
             s.onNormal.background = s.onHover.background = s.onActive.background = s.normal.background;
-            s.normal.textColor = s.focused.textColor = s.onNormal.textColor = text;
-            s.hover.textColor = s.active.textColor = s.onHover.textColor = s.onActive.textColor = hoverText;
+            s.normal.textColor = s.focused.textColor = s.onNormal.textColor = Ink(text);
+            s.hover.textColor = s.active.textColor = s.onHover.textColor = s.onActive.textColor = Ink(hoverText);
             return s;
         }
 

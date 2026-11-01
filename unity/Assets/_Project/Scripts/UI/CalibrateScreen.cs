@@ -150,7 +150,7 @@ namespace Fpv450.UI
             _text = new GUIStyle(GUI.skin.label) { fontSize = 20, wordWrap = true };
             _small = new GUIStyle(GUI.skin.label) { fontSize = 15 };
             _title.normal.textColor = _text.normal.textColor = Color.white;
-            _small.normal.textColor = new Color(0.75f, 0.75f, 0.75f);
+            _small.normal.textColor = AppStyle.Ink(new Color(0.75f, 0.75f, 0.75f));
         }
 
         void OnGUI()

@@ -66,7 +66,7 @@ namespace Fpv450.UI
             _value = new GUIStyle(GUI.skin.label) { fontSize = 18, alignment = TextAnchor.MiddleRight };
             _small = new GUIStyle(GUI.skin.label) { fontSize = 15 };
             _head.normal.textColor = _value.normal.textColor = Color.white;
-            _small.normal.textColor = new Color(0.75f, 0.75f, 0.75f);
+            _small.normal.textColor = AppStyle.Ink(new Color(0.75f, 0.75f, 0.75f));
         }
 
         /// <param name="width">The screen's content width.</param>
