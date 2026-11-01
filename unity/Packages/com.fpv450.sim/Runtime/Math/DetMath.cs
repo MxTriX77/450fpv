@@ -105,5 +105,54 @@ namespace Fpv450.Sim
             sin = q == 0 ? s : q == 1 ? c : q == 2 ? -s : -c;
             cos = q == 0 ? c : q == 1 ? -s : q == 2 ? -c : s;
         }
+
+        // ln 2 in two parts (fdlibm's ln2_hi and ln2_lo, published): the first has 32 bits, so k·Ln2Hi is exact for
+        // |k| < 2^21.
+        const double Ln2Hi = 6.93147180369123816490e-01, Ln2Lo = 1.90821492927058770002e-10;
+        const double Sqrt2 = 1.4142135623730951;
+
+        /// <summary>
+        /// The natural logarithm, by the basic operations only (System.Math.Log is not correctly rounded). x = m·2^e
+        /// with m in [√½, √2), e read from the bits exactly (a subnormal is first scaled by 2^54, exactly); then
+        /// ln m = 2·atanh(s), s = (m − 1)/(m + 1), |s| ≤ 0.172, by its series to s^25 (the next term below 2e-21), and
+        /// e·ln 2 in two parts. 0 gives −∞, a negative or NaN gives NaN, +∞ itself.
+        /// </summary>
+        public static double Log(double x)
+        {
+            if (!(x > 0)) return x == 0 ? double.NegativeInfinity : double.NaN;
+            if (x > double.MaxValue) return x;
+            long e = 0;
+            if (x < 2.2250738585072014e-308) { x *= 18014398509481984.0; e = -54; } // 2^54
+            long bits = System.BitConverter.DoubleToInt64Bits(x);
+            e += ((bits >> 52) & 0x7FF) - 1023;
+            double m = System.BitConverter.Int64BitsToDouble((bits & 0x000FFFFFFFFFFFFFL) | 0x3FF0000000000000L);
+            if (m >= Sqrt2) { m *= 0.5; e++; }
+            double s = (m - 1) / (m + 1), s2 = s * s;
+            double series = s2 * (1.0 / 3 + s2 * (1.0 / 5 + s2 * (1.0 / 7 + s2 * (1.0 / 9 + s2 * (1.0 / 11 + s2 * (1.0 / 13
+                + s2 * (1.0 / 15 + s2 * (1.0 / 17 + s2 * (1.0 / 19 + s2 * (1.0 / 21 + s2 * (1.0 / 23 + s2 * (1.0 / 25))))))))))));
+            return e * Ln2Hi + (2 * s + (2 * s * series + e * Ln2Lo));
+        }
+
+        /// <summary>
+        /// e^x, by the basic operations only (System.Math.Exp is not correctly rounded). x = k·ln 2 + r with |r| ≤ ln 2 / 2
+        /// (ln 2 in two parts), e^r by its Taylor series to r^17 (the next term below 1e-23), then 2^k exactly, in two
+        /// steps where k leaves the normal range. Overflow gives +∞, underflow 0, NaN itself.
+        /// </summary>
+        public static double Exp(double x)
+        {
+            if (double.IsNaN(x)) return x;
+            if (x > 709.8) return double.PositiveInfinity;
+            if (x < -745.2) return 0;
+            double k = System.Math.Round(x * 1.4426950408889634); // 1/ln 2; rounding to an integer is exact
+            double r = x - k * Ln2Hi - k * Ln2Lo;
+            double p = 1 + r * (1 + r * (1.0 / 2 + r * (1.0 / 6 + r * (1.0 / 24 + r * (1.0 / 120 + r * (1.0 / 720 + r * (1.0 / 5040
+                + r * (1.0 / 40320 + r * (1.0 / 362880 + r * (1.0 / 3628800 + r * (1.0 / 39916800 + r * (1.0 / 479001600
+                + r * (1.0 / 6227020800 + r * (1.0 / 87178291200 + r * (1.0 / 1307674368000 + r * (1.0 / 20922789888000
+                + r * (1.0 / 355687428096000)))))))))))))))));
+            long n = (long)k;
+            if (n > 1023) { p *= 8.98846567431158e307; n -= 1023; } // 2^1023
+            if (n < -1022) { p *= 2.2250738585072014e-308; n += 1022; } // 2^-1022
+            return p * System.BitConverter.Int64BitsToDouble((n + 1023) << 52);
+        }
     }
 }

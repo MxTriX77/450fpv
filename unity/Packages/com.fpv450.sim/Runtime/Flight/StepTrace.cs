@@ -43,6 +43,24 @@ namespace Fpv450.Sim.Flight
         /// <summary>The touching (shape, object, shape) pairs whose force the step took, the legs' points among them.</summary>
         public int ContactsTouching;
 
+        /// <summary>The wind field's velocity at the body's origin during the step, world, m/s (p7c-wind 1.4).</summary>
+        public Double3 Wind;
+
+        /// <summary>The wind at each rotor's hub during the step, world, m/s (the rotors' inflow and in-plane drag take
+        /// it); zero for a body without propulsion.</summary>
+        public Corners3 RotorWind;
+
+        /// <summary>The rain's force on the airframe during the step, world, N (p7c-wind 1.7; inside AeroForce too); zero
+        /// when Sunny.</summary>
+        public Double3 RainForce;
+
+        /// <summary>The rain's water film on the airframe after the step, kg (the mass model's "rain_film"); zero when
+        /// Sunny.</summary>
+        public double FilmMass;
+
+        /// <summary>The air's velocity at the camera at the step's start, camera (body) axes, m/s: the feed's
+        /// AirVelocityAtCamera (FEED-13's lens drops).</summary>
+        public Double3 CameraAir;
         /// <summary>Each rotor's distance along its axis to the surface below it and above it at the step's start, m (its rays
         /// and SampleGround, GroundEffectSpec): +∞ for none within the reach, 0 without the ground effect.</summary>
         public Corners GroundDistance, CeilingDistance;
