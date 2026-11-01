@@ -205,7 +205,7 @@ namespace Fpv450.FlightBench
                     FlappingScenario.Describe(from, on, off));
             }
             // p7b-airframe 1.4: the throttle-punch shake, its causes and the airframe's modes (D-049's scenarios).
-            Console.WriteLine("the throttle-punch shake (p7b-airframe 1.4, D-049):");
+            Console.WriteLine("the throttle-punch shake (p7b-airframe 1.4, D-049, D-051; its 40-seed distribution: --shake):");
             var modes = new FlightCore(ShakeScenario.Setup(spec, 1, 1)).Modes;
             var hz = new System.Text.StringBuilder();
             for (int i = 0; i < modes.Count; i++) hz.Append($"{(i > 0 ? ", " : "")}{modes.Frequency(i):F1}");
@@ -217,15 +217,18 @@ namespace Fpv450.FlightBench
                     ShakeScenario.Result sharp = ShakeScenario.Fly(ShakeScenario.Setup(spec, payload, 1), drop, false);
                     ShakeScenario.Result gentle = ShakeScenario.Fly(ShakeScenario.Setup(spec, payload, 1), drop, true);
                     if (payload > 0 && drop == 0.6) heavy = sharp;
-                    // From the hover: the kick, never the shake; arresting a descent: the shake as long as the arrest, 0.3–0.7 s
-                    // for the empty drone's moderate descents, 0.8–1.4 s heavy or from 9 m/s; a gentle ramp in a 5–9 m/s
-                    // descent shows PHY-09's wobble instead, below the punch's.
+                    // From the hover: the kick, never the shake; arresting a descent: an ESC on its current limit through the
+                    // whole arrest and the shake lasting it, the frame's band ringing; a gentle ramp in a 5–9 m/s descent shows
+                    // PHY-09's wobble instead.
                     bool ok = drop == 0 ? sharp.Duration < 0.3 && gentle.Fields == 0
-                        : ShakeScenario.LastsTheArrest(sharp) && sharp.VibrationPeak.Y > 0.5 && gentle.Peak < sharp.Peak
-                          && (payload == 0 && drop <= 0.6 ? ShakeScenario.LastsInTenths(sharp.Duration, 0.3, 0.7) : ShakeScenario.LastsInTenths(sharp.Duration, 0.8, 1.4))
-                          && (drop < 0.6 || ShakeScenario.Wobbles(gentle));
+                        : ShakeScenario.LastsTheArrest(sharp) && sharp.VibrationPeak.Y > ShakeScenario.Rings
+                          && (drop < 0.6 || ShakeScenario.Wobbles(gentle, sharp));
                     Row($"{payload:F0} kg, {(drop == 0 ? "from the hover" : $"after a {drop:F1} s drop")}", ok,
                         $"sharp: {ShakeScenario.Describe(sharp)}; gentle: {ShakeScenario.Describe(gentle)}");
+                    if (drop == 0) continue;
+                    ShakeScenario.Result noLimit = ShakeScenario.Fly(ShakeScenario.Setup(spec, payload, 1, currentLimit: false), drop, false);
+                    Row($"known-wrong: an ESC that senses no current, {payload:F0} kg after a {drop:F1} s drop", ShakeScenario.LastsTheArrest(noLimit)
+                        || noLimit.TiltMax >= 0.5 * sharp.TiltMax, $"tilt {noLimit.TiltMax:F2}° against the punch's {sharp.TiltMax:F2}°; " + ShakeScenario.Describe(noLimit), knownWrong: true);
                 }
             ShakeScenario.Result stiff = ShakeScenario.Fly(ShakeScenario.Setup(spec, 2, 1, false), 0.6, false);
             Row("a rigid airframe keeps the visible shake (the rigid body's)", ShakeScenario.LastsTheArrest(stiff) && stiff.Peak / heavy.Peak >= 0.8

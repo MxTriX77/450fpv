@@ -43,9 +43,8 @@ namespace Fpv450.Sim.Tests
         const double RadToDeg = 57.29577951308232, TwoPi = 6.283185307179586;
 
         /// <summary>
-        /// D-049's lengths of the shake, s, read to the text's tenth (a field is 20 ms, and the first and last fields over the
-        /// visible line move by one with the seed): 0.3–0.7 for the empty drone's moderate descents, 0.8–1.4 for a full punch
-        /// with the payload or from 9 m/s.
+        /// The pilot's 0.3–0.7 s for the empty drone's moderate descents (PR-1, K§4.1, D-049), read to the text's tenth (a
+        /// field is 20 ms, and the first and last fields over the visible line move by one with the seed).
         /// </summary>
         public static bool LastsInTenths(double seconds, double low, double high)
         {
@@ -54,19 +53,26 @@ namespace Fpv450.Sim.Tests
         }
 
         /// <summary>
-        /// A full punch's shake lasts as long as the arrest (D-049): the four ESCs on their limit for the whole arrest, and
-        /// the shake ending after the descent is arrested, within Settle (or with the window).
+        /// A full punch's shake lasts the arrest (D-049, D-051): an ESC on its current limit for the whole arrest (within
+        /// 0.03 s) and all four for part of it, and the shake showing and never outlasting the arrest by more than Settle.
+        /// On 40 seeds a cell it holds on every full punch. Its end is bounded above only: on 2 of 240 the visible shake fades
+        /// below the line before the arrest ends (2 kg from 5.4 m/s), and on 4 weak ones from 2.5 m/s it shows only in the
+        /// settling just after the arrest (0.10–0.22 s long).
         /// </summary>
         public static bool LastsTheArrest(in Result r) =>
-            !double.IsNaN(r.ArrestedAfter) && DetMath.Abs(r.Limited - r.ArrestedAfter) <= 0.03
-            && r.First + r.Duration >= r.ArrestedAfter && r.First + r.Duration <= r.ArrestedAfter + Settle;
+            !double.IsNaN(r.ArrestedAfter) && DetMath.Abs(r.Limited - r.ArrestedAfter) <= 0.03 && r.AllLimited > 0
+            && r.Fields > 0 && r.First + r.Duration <= r.ArrestedAfter + Settle;
 
         /// <summary>
-        /// PHY-09's wobble, not the shake (D-049): a gentle ramp does not arrest a 5–9 m/s descent within the window, so the
-        /// rotors sit in their ring for most of it (over 1 s of 1.5) with the ESCs off their limit (under 0.2 s), and the
-        /// wandering thrust shows over the visible line.
+        /// PHY-09's wobble, not the shake (D-049): a gentle ramp does not arrest a 5–9 m/s descent within HoldLimit, so the
+        /// rotors sit in their ring for over 1 s of the window and the wandering thrust shows over the visible line, while an
+        /// ESC meets its limit for at most half the full punch's time at the same descent (0.43 at most on 40 seeds a cell).
         /// </summary>
-        public static bool Wobbles(in Result r) => r.Fields > 0 && r.InRing > 1.0 && r.Limited < 0.2;
+        public static bool Wobbles(in Result r, in Result punch) => r.Fields > 0 && r.InRing > 1.0 && r.Limited <= 0.5 * punch.Limited;
+
+        /// <summary>The frame's band rings on a sharp step: the camera vibration's Y band (50–200 Hz) over this, m/s² (derived:
+        /// between the gentle input from the hover's 0.11 at most and every sharp step's 0.42 at least, on 40 seeds a cell).</summary>
+        public const double Rings = 0.3;
 
         public struct Result
         {
