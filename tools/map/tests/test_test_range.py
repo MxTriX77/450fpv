@@ -91,22 +91,55 @@ def test_everything_is_placed(data, world):
     assert [r["id"] for r in data["instances"]] == list(range(len(data["instances"])))
 
 
+def nearest(points):
+    return [min(math.dist(p, q) for j, q in enumerate(points) if j != i) for i, p in enumerate(points)]
+
+
+def check_trunks(points):
+    """The posadka's trunks in four rows 3 m apart and a nearest-neighbour median of 1-3 m (the spec's scenario). A row
+    is a run of trunks whose sorted z steps less than half the spacing; its line is its median z, and the lines stand
+    3 m apart within a trunk's jitter off its line."""
+    zs = sorted(z for _, z in points)
+    runs = [[zs[0]]]
+    for a, b in zip(zs, zs[1:]):
+        if b - a >= 1.5:
+            runs.append([])
+        runs[-1].append(b)
+    lines = [statistics.median(run) for run in runs]
+    assert len(lines) == 4, f"trunk rows {len(lines)}, not 4"
+    for a, b in zip(lines, lines[1:]):
+        assert abs(b - a - 3.0) <= gen.v("row_jitter_m"), f"rows at z {a:.3f} and {b:.3f}, not 3 m apart"
+    assert 1.0 <= statistics.median(nearest(points)) <= 3.0
+
+
+def trunks(belt):
+    trees = {variant for _, variant, _ in gen.v("tree_mix")}
+    return [(r["position_m"][0], r["position_m"][2]) for r in belt if r["variant"] in trees]
+
+
 def test_the_posadkas_shape(data):
-    """Trunks within a strip 10-30 m wide and at least 200 m long, nearest neighbours' median 1-3 m, at least a fifth
-    V01 or V13, and a gap at least 4 m wide across it."""
+    """Its plants (trees and bushes) within a strip 10-30 m wide and at least 200 m long, its trunks in four rows 3 m
+    apart with a nearest-neighbour median of 1-3 m, at least a fifth V01 or V13, and a gap at least 4 m wide across
+    it."""
     belt = rows(data, group="posadka")
     xs = [r["position_m"][0] for r in belt]
     zs = [r["position_m"][2] for r in belt]
     assert 10.0 <= max(zs) - min(zs) <= 30.0
     assert max(xs) - min(xs) >= 200.0
-    points = [(x, z) for x, z in zip(xs, zs)]
-    nearest = [min(math.dist(p, q) for j, q in enumerate(points) if j != i) for i, p in enumerate(points)]
-    assert 1.0 <= statistics.median(nearest) <= 3.0
-    assert min(nearest) >= gen.v("plant_clearance_m") - MM
+    check_trunks(trunks(belt))
+    assert min(nearest(list(zip(xs, zs)))) >= gen.v("plant_clearance_m") - MM
     unity = sum(r["asset"] in ("V01", "V13") for r in belt)
     assert unity / len(belt) >= 0.2
     ordered = sorted(xs)
     assert max(b - a for a, b in zip(ordered, ordered[1:])) >= 4.0
+
+
+def test_a_belt_with_its_trunks_on_one_line_fails_the_trunk_check(data):
+    """The known-wrong belt QA named: every trunk moved onto the centre line, the bushes kept, so the plants' strip is
+    still 12.7 m wide. The trunk check must fail it."""
+    on_one_line = [(x, gen.v("belt_z")) for x, _ in trunks(rows(data, group="posadka"))]
+    with pytest.raises(AssertionError, match="trunk rows 1, not 4"):
+        check_trunks(on_one_line)
 
 
 def test_the_start_points(data, world):

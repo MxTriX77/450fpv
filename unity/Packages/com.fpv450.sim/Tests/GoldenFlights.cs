@@ -9,7 +9,7 @@ namespace Fpv450.Sim.Tests
 {
     /// <summary>
     /// The golden flights. The powered one (p6-flight-core 1.4, 1.5, 1.4b): the repository's drone at its nominal loadout
-    /// with its drag and its contacts, in the Windy stand-in wind, armed by Betaflight's rules and flown 10 s by a scripted
+    /// with its drag and its contacts, in the Windy wind (the field, p7c-wind 1.4), armed by Betaflight's rules and flown 10 s by a scripted
     /// pilot through every part of the controller with the builder's filter chain, propulsion, the motors' asymmetry
     /// (p7b-airframe 1.1, on the seed's draws; the contact flight too), the rotors' vortex rings (1.2; the contact flight
     /// too), their ground effect (1.3; the contact flight too, where it acts), the airframe's modes (1.4; the contact flight
@@ -124,7 +124,74 @@ namespace Fpv450.Sim.Tests
         // flight moves from step 1 (position.x: the Windy air's moment about the lower centre of mass) and keeps its course
         // on the open-loop script: 12 mm by 2.5 s, 0.16 m by 5 s, 1.93 m and 53 mrad by 10 s, 220.65 m up against 220.36;
         // 112 events against 102; armed, no crash.
-        public const ulong PoweredHash = 0xCCECAFB7466D6ADEUL;
+        // Model 15 on unity/main: 0xCCECAFB7466D6ADE. On p7c-wind's branch, from model 5 (0x734B61C0C15797BC):
+        // p7c-wind 1.4: re-recorded with ModelVersion 6 (the 1392-byte record: model 5's 1296 bytes, the stand-in's gust
+        // slot now the wind at the body's origin, then the four hubs' winds) in the Windy field, audited case by case
+        // against model 5 (35c6432) by flying both models in still air and in a steady 5 m/s from 270° and hashing model
+        // 5's 1296 bytes (for steady air less the 24-byte wind slot, which model 5 left 0): every record and event of
+        // all 10 000 steps is bit-identical (StillAirPoweredHash below; steady 0x00D35F9AE93901C0 on both). In the Windy
+        // field the flight moves from step 1, the wind's first: the field's draws are new (the direction, the strength,
+        // the meander, the shifts, the modes), so the stand-in's air is gone; it ends 203.1 m up against 199.4 and
+        // 16.6 m from model 5's end.
+        // p7c-wind 1.6: re-recorded with ModelVersion 7 (drone.json's rotor in-plane drag 0.225 → 0.044 N per m/s, the
+        // only change), audited case by case: on model 6's drone (Model6Drone) both goldens are model 6's pins and the
+        // still-air ones model 5's, every record and event (WithModel6sRotorDragTheGoldenFlightsAreModel6s). With the new
+        // drag every flight moves from step 21, the first with the hubs moving in their discs' planes through the air
+        // (position.x), in the Windy field, in still air and in a steady 5 m/s alike: the open-loop sticks leave the drone
+        // tilted and sinking, its discs edgewise to the descent meet 5× less in-plane drag, and it ends 131.2 m up against
+        // 203.1 (still air 128.8 against 200.0), 71.9 m from model 6's end.
+        // p7c-wind 1.5: re-recorded with ModelVersion 8 (the levels' centres from the cruise, Severe 7.2, Windy 3.6, Calm
+        // 1.08 m/s; the wakes, which no golden flies). Audited case by case: with the centres set back to model 7's
+        // (5.0 / 2.5 / 0.8, the temporary edit) both goldens are model 7's pins (0x376ECD53376BBC68, 0xCD821FAEE49DF277)
+        // and on model 6's drone model 6's (0xBC85ED28D55D2986, 0x3D6092D3121E468A), every record and event, so the wake
+        // code and the header's new fields change no flight without obstacles; the still-air pins hold as they are. At
+        // model 8's centres the Windy flight moves from step 1, the wind's first: the strength draw is the same uniform
+        // draw in a band 1.44 times model 7's. The model-6-drone pins of 1.6's audit fly model 7's centres only, so their
+        // standing test went with them (flightbench --golden no longer flies them).
+        // p7c-wind 1.7: re-recorded with ModelVersion 9 (rain; the 1448-byte record: model 8's 1392 bytes, then the rain's
+        // force, the film and the air at the camera). The golden flies Sunny, and audited case by case: over model 8's
+        // 1392 bytes with its events it is model 8's pin (Model8PoweredHash) bit for bit, every record of the 10 000 steps
+        // (RainTests.ASunnyFlightIsModel8sBitForBit): a Sunny flight opens no rain stream and adds no film part. Only
+        // the new bytes move: the rain's two slots stay 0, and the camera's air is the field's at drone.json's new lens
+        // position. RainPoweredHash below pins the same flight in Severe rain.
+        // Model 10 on p7c-wind's branch: 0xFF9521B7653C909C.
+        // p7c-wind merged with unity/main: re-recorded with ModelVersion 17 (the 1808-byte record: model 5's 1296 bytes with
+        // the wind at the body's origin where the stand-in's gust was, p7c-wind's 152, then p7b-airframe's 360), in the Windy
+        // field on D-050's drone with p7c-wind 1.6's derived rotor drag (0.044). Audited case by case against each parent with
+        // the other's terms off, every record and event of each flight bit for bit:
+        // - against p7c-wind's model 10: with the rigid body's midpoint passes at 0 (main's model 6; a temporary edit,
+        //   reverted), every airframe mechanism off, the trunk's 5 ms ESC lag and model 11's pack table on model 13's file
+        //   (main's models 7 and 12 undone, D-043's layout), its rotor drag 0.044 and p7c-wind's lens (0, −0.005, 0.115),
+        //   hashed over p7c-wind's 1448 bytes (the record less p7b-airframe's 360), the powered, contact and rain goldens are
+        //   model 10's 0xFF9521B7653C909C, 0xBC4E9FA68E254625 and 0x6E28860F47C45BC1.
+        // - against unity/main's model 15: with main's tuned rotor drag (0.25) on the repository's drone, hashed over main's
+        //   1656 bytes (the record less p7c-wind's 152), in still air (the kept test, InStillAirTheGoldenFlightsAreModel15s),
+        //   in a steady 5 m/s from 270° and in a 4 m/s head gust stepping in at 3 s (the stand-in's gust slot written as it
+        //   carried it, −Mean before the onset and 0 after), the powered and contact flights are model 15's, as flown on main's
+        //   code with the goldens' air so set (a temporary edit there): still 0xABF47E6E55E48EB8 and 0x557DEBE410FAEEA1, steady
+        //   0xC64EBF46E14DCB08 and 0x77E7E0AB78B82E81, stepped 0xFEA7140235016C01 and 0xF5C392DF1CB6E9B8; the tumble is model
+        //   15's 0xFB841727FADDC7A7. The field's steady onset and the rotors' inflow seam (RotorInflow) carry main's air.
+        // In the Windy field the flight moves from step 1 against either parent (the field's draws against main's stand-in;
+        // the midpoint passes against p7c-wind's) and ends 148.18 m up (main's 220.65 m); 106 events; armed, no crash.
+        // Model 17: 0x14FA2EF5AE127F25. p7c-wind 1.5's re-grade: re-recorded with ModelVersion 18 (Severe's centre 7.2 → 9.5
+        // m/s, Windy's 3.6 → 4.75, Calm's 1.08 → 1.425). Audited: with the centre set back to 7.2 (a temporary edit, reverted)
+        // the powered, contact, rain and tumble goldens and the still-air audit are model 17's, every record and event. At
+        // 11.5 the Windy flight moves from step 1 (the strength draw, 4.83 m/s in Windy's band) and ends 148.12 m up,
+        // 102 events, armed, no crash.
+        public const ulong PoweredHash = 0xFE81E38EFCBD2F4EUL;
+
+        // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
+        // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
+        // Model 10 on p7c-wind's branch: 0x6E28860F47C45BC1. p7c-wind merged with unity/main (ModelVersion 17), audited as the
+        // powered flight: with main's terms off it is model 10's bit for bit; on the merge the film holds 9.50 g at 10 s.
+        // Model 17: 0x5FA1F49E82CBC0D5. p7c-wind 1.5's re-grade (ModelVersion 18), audited as the powered flight: in Calm's
+        // stronger band it moves from step 1; the film holds 9.57 g at 10 s.
+        public const ulong RainPoweredHash = 0xE5D4C472F6CA12D2UL;
+
+        /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
+        /// model 15 in still air over its 1656-byte layout, the powered and contact goldens (pinned from main's code with
+        /// their air set still, a temporary edit), and its tumble's pin.</summary>
+        public const ulong Model15StillPoweredHash = 0xABF47E6E55E48EB8UL, Model15StillContactHash = 0x557DEBE410FAEEA1UL, Model15TumbleHash = 0xFB841727FADDC7A7UL;
 
         // 1.6: first recorded with ModelVersion 4 as 0x8B568804552379E6.
         // 1.6 and 1.4b merged: re-recorded with ModelVersion 5. Audited against 1.6: with every filter off and the PID
@@ -185,7 +252,27 @@ namespace Fpv450.Sim.Tests
         // fit it is model 14's bit for bit. On the fit it moves from step 1 and keeps its course: within 7.2 mm of model 14's
         // path (step 8816, the held bounce) and 4.3 mrad, 5 impacts, no crash, at rest on 8 contacts at the same 0.2519 m,
         // 5.7 mm aside; 131 events against 129.
-        public const ulong ContactHash = 0xC378E1EFFB9AEC93UL;
+        // Model 15 on unity/main: 0xC378E1EFFB9AEC93. On p7c-wind's branch, from model 5 (0xF1D0832353311083):
+        // p7c-wind 1.4: re-recorded with ModelVersion 6 in the Calm field. Audited as the powered one: in still air
+        // (StillAirContactHash) and in the steady 5 m/s (0x7F53C9713DCE5641) both models fly every record and event of
+        // the 12 000 steps bit for bit over model 5's bytes. In Calm the flight moves from its first step (the field's
+        // draws are new) and keeps its course: 5 impacts as model 5's, at rest 0.2519 m up on its 8 touching pairs.
+        // p7c-wind 1.6: re-recorded with ModelVersion 7, audited as the powered one (model 6's drone flies model 6's pin).
+        // With the new drag the flight moves from step 9, the first armed step's motion (position.x), and keeps its
+        // course: 5 impacts as model 6's, at rest 0.2518 m up, 9.5 cm from model 6's resting place in Calm (1.8 mm in
+        // still air); in a steady 5 m/s it drifts 0.8 m against 1.7 and touches down with 5 impacts against 7.
+        // p7c-wind 1.5: re-recorded with ModelVersion 8, audited as the powered one (above); in Calm's band, 1.35 times
+        // model 7's, the flight moves from step 1 and keeps its course: 5 impacts, at rest 0.2518 m up on 8 touching pairs.
+        // p7c-wind 1.7: re-recorded with ModelVersion 9, audited as the powered one: over model 8's 1392 bytes it is
+        // model 8's pin (Model8ContactHash) bit for bit; only the camera's air is new.
+        // Model 10 on p7c-wind's branch: 0xBC4E9FA68E254625.
+        // p7c-wind merged with unity/main: re-recorded with ModelVersion 17, audited as the powered flight (above), against
+        // each parent bit for bit. In the Calm field on D-050's drone it moves from step 1 and keeps its course: 5 impacts,
+        // no crash, at rest on 8 touching pairs at 0.2518 m, 50 mm from where it rose; 125 events.
+        // Model 17: 0x4D5A4F57872D01F7. p7c-wind 1.5's re-grade (ModelVersion 18), audited as the powered flight. In Calm's
+        // band, 1.32 times model 17's, it moves from step 1 and keeps its course: 5 impacts, no crash, at rest on 8 touching
+        // pairs at 0.2518 m, 51 mm from where it rose; 125 events.
+        public const ulong ContactHash = 0x1152D64875230761UL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -206,7 +293,10 @@ namespace Fpv450.Sim.Tests
         // (4.832 kg; roll 0.0445, pitch 0.0474, yaw 0.0599 kg·m²; I_yz −6.5e-5) moves it from step 1; model 14's fit gives
         // model 14's hash (the kept test). Its checks: the momentum within 7.1e-13, the energy 1.4e-12, the parabola
         // 5.1e-11 m, the rate wandering 5.55 rad/s.
-        public const ulong TumbleHash = 0xFB841727FADDC7A7UL;
+        // Model 15 on unity/main: 0xFB841727FADDC7A7. p7c-wind merged with unity/main (ModelVersion 17): the 1808-byte record,
+        // p7c-wind's bytes zero but the camera's air (the free body's own motion at the lens); over main's 1656 bytes it is
+        // model 15's (the kept test), and models 13's and 14's on their files. It has no air: model 18 keeps it.
+        public const ulong TumbleHash = 0x2A0283BBFE59FD84UL;
         public const int TumbleSteps = 10000;
 
         // 1.6b: first recorded with ModelVersion 7, on the test range's content RangeContent (MapWorld.ContentHash, query
@@ -217,6 +307,11 @@ namespace Fpv450.Sim.Tests
         // Audited (the kept test): every mechanism off on 1.6b's drone.json over 1.6b's layout, without the seam rule (a
         // temporary edit) it is model 7's bit for bit, with it 0x613987892649445F.
         public const ulong RangeHash = 0x292C0858705902B6UL;
+
+        /// <summary>The merge's audit against the range branch (GoldenFlightTests.InStillAirTheRangeGoldenIsModel16s): model
+        /// 16's range golden in still air over its 1656-byte layout, pinned from the range branch's code (c2cf4023) with the
+        /// golden's air set still, a temporary edit.</summary>
+        public const ulong Model16StillRangeHash = 0xDC85BA160EB0415CUL;
         public const ulong RangeContent = 0x6114242E06475FB5UL;
         public const int RangeSteps = 12000;
 
@@ -271,6 +366,23 @@ namespace Fpv450.Sim.Tests
             return spec;
         }
 
+        /// <summary>unity/main's rotor in-plane drag, N per m/s at the reference speed (p7b-airframe 1.7: tuned so the model
+        /// flies clip P's pitch at 13 m/s on D-050's silhouette), which p7c-wind 1.6's derived 0.044 replaces at the merge.</summary>
+        public const string TunedHForce = "0.25";
+
+        /// <summary>
+        /// The drone with another rotor in-plane drag (drone.json's props.h_force_n_per_m_s, N per m/s at the reference speed):
+        /// drone.json's text with the value replaced, for the merge's audit against unity/main's tuned 0.25.
+        /// </summary>
+        public static DroneSpec WithRotorDrag(string text, string hForce)
+        {
+            const string key = "\"h_force_n_per_m_s\": {\"value\": ";
+            int at = text.IndexOf(key, System.StringComparison.Ordinal);
+            if (at < 0) throw new System.InvalidOperationException("drone.json has no h_force_n_per_m_s");
+            int from = at + key.Length, to = text.IndexOf(',', from);
+            return DroneSpec.Parse(text.Substring(0, from) + hForce + text.Substring(to));
+        }
+
         public static FlightSetup PoweredSetup(DroneSpec spec)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong hash);
@@ -282,6 +394,7 @@ namespace Fpv450.Sim.Tests
                 Propulsion = spec.BuildPropulsion(),
                 Aero = spec.BuildAero(),
                 Wind = WindSetup.Of(WindLevel.Windy),
+                CameraPosition = spec.CameraPosition,
                 Contacts = spec.BuildContacts(spec.Nominal, materials, hash),
                 Asymmetry = spec.BuildAsymmetry(),
                 VortexRing = spec.BuildVortexRing(),
@@ -318,11 +431,14 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>Flies the powered golden flight; returns its hash, with the core's last state for a report. With
         /// skipAt and skipBytes the hash leaves out each record's bytes from skipAt on, skipBytes of them (a parent model's
-        /// layout, for an audit).</summary>
+        /// layout, for an audit); onRecord sees each step's record before it is hashed (an audit's step-by-step comparison).</summary>
         public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool contacts = true,
-            bool asymmetry = true, bool ring = true, bool ground = true, bool flapping = true, bool modes = true)
+            bool asymmetry = true, bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
+            Action<byte[]> onRecord = null, RainLevel rain = RainLevel.Sunny)
         {
             FlightSetup setup = PoweredSetup(spec);
+            if (wind != null) setup.Wind = wind.Value;
+            setup.Rain = rain;
             if (!modes) setup.Modes = null;
             if (!flapping) setup.Flapping = null;
             if (!contacts) setup.Contacts = null;
@@ -338,6 +454,7 @@ namespace Fpv450.Sim.Tests
                 StickSample stick = PoweredStick(k);
                 core.Advance(stick);
                 LogFormat.EncodeStep(record, core.State, stick, core.Trace);
+                onRecord?.Invoke(record);
                 hash = Fnv(hash, record, 0, skipAt);
                 hash = Fnv(hash, record, skipAt + skipBytes, record.Length);
                 for (int i = 0; i < core.Events.Count; i++)
@@ -355,13 +472,14 @@ namespace Fpv450.Sim.Tests
         /// later the throttle is cut and it comes to rest. Returns its hash, with the core for a report.
         /// </summary>
         public static ulong FlyContact(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
-            bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true, bool modes = true)
+            bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
+            Action<byte[]> onRecord = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
             double stand = ContactScenarios.Standing(contacts);
             FlightSetup setup = ContactScenarios.Setup(spec, materials, mh, true, new Double3(0, stand, 0));
-            setup.Wind = WindSetup.Of(WindLevel.Calm);
+            setup.Wind = wind ?? WindSetup.Of(WindLevel.Calm);
             if (asymmetry) setup.Asymmetry = spec.BuildAsymmetry();
             if (ring) setup.VortexRing = spec.BuildVortexRing();
             if (ground) setup.GroundEffect = spec.BuildGroundEffect();
@@ -399,6 +517,7 @@ namespace Fpv450.Sim.Tests
                 core.Advance(stick);
                 after?.Invoke(core);
                 LogFormat.EncodeStep(record, core.State, stick, core.Trace);
+                onRecord?.Invoke(record);
                 hash = Fnv(hash, record, 0, skipAt);
                 hash = Fnv(hash, record, skipAt + skipBytes, record.Length);
                 for (int i = 0; i < core.Events.Count; i++)
@@ -415,12 +534,12 @@ namespace Fpv450.Sim.Tests
         /// SampleGround reports Hole and the mat's straw boxes (490 N/m, over the patch's soil) are all the ground: legs on,
         /// settling into the straw, the closed-loop pilot up to a metre for 4 s, then down at 0.5 m/s; with the skids 0.1 m
         /// over the straw the sticks are held (roll, pitch and yaw centred) and the mat takes the bounce; 1.5 s later the
-        /// throttle is cut and it settles into the straw again. In the Calm stand-in wind, as the stub's, with the airframe's
-        /// effects on as FlyContact's (its toggles and its parent layout's skip, for an audit). Returns its hash, with the core
-        /// for a report.
+        /// throttle is cut and it settles into the straw again. In the Calm wind (the field), as the stub's, with the airframe's
+        /// effects on as FlyContact's (its toggles, its parent layout's skip and its air, for an audit; onRecord sees each
+        /// step's record before it is hashed). Returns its hash, with the core for a report.
         /// </summary>
         public static ulong FlyRange(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
-            bool ring = true, bool ground = true, bool flapping = true, bool modes = true)
+            bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null, Action<byte[]> onRecord = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -428,7 +547,7 @@ namespace Fpv450.Sim.Tests
             Double3 foot = RangeScenarios.Straw;
             FlightSetup setup = ContactScenarios.Setup(spec, materials, mh, true, foot + new Double3(0, stand, 0));
             setup.World = new FlightWorld(RangeScenarios.World);
-            setup.Wind = WindSetup.Of(WindLevel.Calm);
+            setup.Wind = wind ?? WindSetup.Of(WindLevel.Calm);
             if (asymmetry) setup.Asymmetry = spec.BuildAsymmetry();
             if (ring) setup.VortexRing = spec.BuildVortexRing();
             if (ground) setup.GroundEffect = spec.BuildGroundEffect();
@@ -465,6 +584,7 @@ namespace Fpv450.Sim.Tests
                 }
                 core.Advance(stick);
                 LogFormat.EncodeStep(record, core.State, stick, core.Trace);
+                onRecord?.Invoke(record);
                 hash = Fnv(hash, record, 0, skipAt);
                 hash = Fnv(hash, record, skipAt + skipBytes, record.Length);
                 for (int i = 0; i < core.Events.Count; i++)

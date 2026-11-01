@@ -477,3 +477,62 @@ From QA's review of `p6-input-app` 1.4b (finding 17): PRD-04 and PRD-05 keep the
 - **The empty drone's full punch** lasts 0.3–0.7 s on about 96 % of flights, matching the pilot's account.
 - **The tilt** on a full punch is 2.7–10° and at least about twice the no-current-limit model's (0.1–3.2°), so the ESC firmware question decides it.
 - **The bands with no physical floor are dropped.** The spec states rates where a bound is not true on every seed (QA's re-review, B1).
+
+## D-054 How the world queries' budget is judged until the fiber · Accepted
+From QA's review of `p6-world-query-gallery` (B1, S2):
+- **At G7 the queries are judged on physics' pattern,** the calls `ContactModel` makes each step, inside PLT-04's whole-step budget (p99 at most 300 µs, 0 B). The 100 000-capsule and 100 000-ray budgets are read the same way.
+- **K§10.5's batch with the fiber's segments** is judged when the fiber is built (phase 7d), which decides how often the fiber is queried.
+- **PLT-04's 60 µs line stays the target** for the queries' speed work. The straw patch (194 µs at p99 a step) and the launch stand get a broad phase inside each object.
+
+## D-055 V switches between the first- and third-person view · Accepted
+The pilot, 2026-11-02: "let's add V - it shifts between 1st person and 3rd person view. it doesn't change anything else, only the camera view".
+- **V toggles the camera** between the FPV camera at the lens and the third-person chase view, in every build, the pilot's included.
+- **Nothing else changes:** the feed, its noise and the OSD apply in both views; the physics, the log and the input don't see the toggle.
+- **The keys move:** the review builds' feed toggle leaves V for a free key; C (the old chase key) is retired. The flight's key list on screen and in the spec follows.
+
+## D-056 Physics next: wind, ground, damage and the fiber · Accepted
+The pilot, 2026-11-02, after flying the map build: "i'm very much pleased with the results. let's enhance the physics further, should be mega realistic (turbulence, wind, stucking, wobbling, motors worsening when you scratch the motors and/or propellers on a wall etc.) and opto cutting physics too."
+- **Wind and turbulence** (`p7c-wind`): it lands in the player as soon as its merge with the airframe and its re-grade pass QA.
+- **The ground** (`p7a-ground`, PHY-01…06): legs that stick for a moment at liftoff, pitfalls, loose and porous soil, grass and stem jitter, and the landing's wobble.
+- **Damage from strikes** (`p7f-damage`, the new PHY-26): a prop or motor that scrapes a wall or an obstacle is damaged by the strike's energy. A chipped or bent blade loses thrust and adds a once-per-revolution vibration; a struck motor loses torque or efficiency. The drone flies on worse, logged and replayable.
+- **The fiber** (`p7d-tether`, PHY-18…23): the spool, the span, cuts from sharp reverses, snags and wires, and the link's loss.
+- **Each is a Complex change** (D-033): its proposal is researched and drafted by the physics engineer from published sources, never asked of the pilot (D-024), then reviewed by the orchestrator. They run in parallel as slots allow, and each ships into the player behind the build command.
+
+## D-057 The OSD shows the arm state, the amps and the volts · Accepted
+The pilot, 2026-11-02: "when armed it says AIR, when not it says DISARMED" and "let's simulate ampers and voltage".
+- **The flight-mode element** reads **AIR** while armed and **DISARMED** while disarmed, as Betaflight's OSD does. The armament label "! SAFE !" (D-011) and the name "Svinoriz 10 Opto" are unchanged.
+- **Amps and volts from the sim:** the pack's loaded voltage (total and per cell), the current drawn (A) and the charge used (mAh) come from the battery and ESC model (PHY-11), through the feed signals, at the OSD's refresh, with Betaflight's voltage filter and warning hysteresis (D-048). The low-voltage warning follows `PackLow`.
+- **This is `p4-feed` 1.5** (the OSD content model), built on the player's branch.
+
+## D-058 The wind's two numbers, and landing it before every target passes · Accepted
+From `p7c-wind`'s re-grade on the merged airframe (model 18):
+- **The rotor's in-plane drag is the derived 0.044 N per m/s,** not the 0.25 tuned to the old 13 m/s calibration. PHY-17a's cruise replaced that calibration: clip P's 22.7° now flies 20.6 m/s, inside 17–22.
+- **Severe's centre is 9.5 m/s,** tuned until T0 passes, as design 6 says. Windy and Calm follow from it.
+- **The wind lands in the player with task 1.5 open:** Severe meets 9 of 21 targets, Windy 10, Calm 9 of 9. The field is far closer than the stand-in it replaces. The misses are the roll and pitch spreads (2–3× low), with yaw answering 3× more than roll and pitch against P: the next flight-model investigation.
+
+## D-059 Vegetation, soft wires and a camera that feels every movement · Accepted
+The pilot, 2026-11-02, after flying the map build:
+- "straws and leaves still dont affect flight physics. in real life a straw or two even tho they are tiny may affect the flight - add wobbling, shaking, props getting stuck a bit etc."
+- the electrical cables: the drone should get tangled, twisted and flipped, "just like in real life coz they are smooth, they are not solid ... they are soft and a bit elastic"
+- "there's still this smoothness to how the camera view looks. the drone's camera must be sensitive to micro movements of the whole drone"
+
+What follows:
+- **Straw, leaves, grass and twigs act on the drone** (`p7a-ground`, PHY-05, with `p7f-damage`): a prop that cuts a straw or a leaf takes a torque spike and a short rpm dip, and can stall a moment; the body and legs feel drag and jitter in weeds and crowns. Each is a physical force from the stem's or leaf's own mechanics, never noise on the pose.
+- **Wires are soft and elastic** (`p7d-tether`, PHY-22): a wire is a tensioned cable that deflects, stretches and slides. It can wrap a prop, an arm or a leg, entangle the drone, twist it and flip it, as a real strike does.
+- **The camera shows the body's every movement** (a new `p7e-camera-feel` change, PHY-25):
+  - the rendered camera takes the sim's pose at each video field, never smoothed
+  - the camera's soft mount and the frame's vibration reach the picture
+  - each prop's small factory imbalance (bounded, seeded, logged) and the frame's modes give the high-frequency shake the pilot knows
+- **Order:** these join the ground, damage and fiber changes (D-056). The camera change starts first, because it needs no new world data.
+
+## D-060 The picture's fast motion comes from the turbulence, not the props · Accepted
+From the micro-motion investigation (`docs/reference-notes/hover-micro-motion.md`, `unity/physics/p7-micro-motion`). It corrects D-059's camera bullet:
+- **Like for like** (Severe cruise, the footage's frame rate, 4–15 Hz), the sim's camera moves 3–4× less than clip P in roll, 2× in pitch and about 5× in heading. The earlier 40–1000× compared the stand-in wind's hover with P's cruise and P's tracker noise.
+- **The gust difference between rotors makes 87–97 % of it.** The factory imbalance, the blade pass, ripple and cogging are vibration (`CameraVibration`, the gyro's once-per-rev peak), at most about 1e-4° in the picture; `p7f-damage` grades them as vibration only.
+- **`p7c-wind` takes:**
+  - z0 from the landscape's class (Davenport–Wieringa class 4, z0 0.10 m, σ_u/U 0.164)
+  - the turbulence carried down to the discs' 0.5 m
+  - the harness pilot's split set to match P's measured roll share
+  - the grade above 4 Hz against P's real motion, with the recorder's field timing
+  - the pilot's stick noise from a published human-operator model (the noiseless pilot as the known-wrong, never tuned to pass)
+- **Roll and heading then match P;** pitch stays 3× low. A new flight-model item, the rear rotors in the front rotors' wake in forward flight, is named for it.

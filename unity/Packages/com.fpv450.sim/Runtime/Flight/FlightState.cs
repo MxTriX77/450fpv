@@ -46,10 +46,6 @@ namespace Fpv450.Sim.Flight
         /// <summary>The flight controller's filters, integrators and latches (FlightController).</summary>
         public FcState Fc;
 
-        /// <summary>The stand-in wind's gust in force during the last step, world m/s (StandInWind); 0 in still or
-        /// steady air.</summary>
-        public Double3 Gust;
-
         /// <summary>The ESCs whose current limit held their motor during the last step, bit 1 &lt;&lt; corner (Propulsion).</summary>
         public byte EscLimited;
 

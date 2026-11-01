@@ -18,6 +18,8 @@
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/SimPilot.cs" Link="SimPilot.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/CrosswindScenario.cs" Link="CrosswindScenario.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/WindTargets.cs" Link="WindTargets.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/GustFrontScenario.cs" Link="GustFrontScenario.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/RainScenario.cs" Link="RainScenario.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/ContactScenarios.cs" Link="ContactScenarios.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/RangeScenarios.cs" Link="RangeScenarios.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/AsymmetryScenario.cs" Link="AsymmetryScenario.cs" />
@@ -25,5 +27,12 @@
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/GroundEffectScenario.cs" Link="GroundEffectScenario.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/FlappingScenario.cs" Link="FlappingScenario.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/ShakeScenario.cs" Link="ShakeScenario.cs" />
+  </ItemGroup>
+
+  <!-- K§8.5's simulated pilot and the test flight, which the wind-harness mode flies (p7c-wind 1.2). -->
+  <ItemGroup>
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/HarnessPilot.cs" Link="HarnessPilot.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/WindHarness.cs" Link="WindHarness.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/World/WakeGridFixture.cs" Link="WakeGridFixture.cs" />
   </ItemGroup>
 </Project>

@@ -52,19 +52,24 @@ namespace Fpv450.Sim.Flight
         public AeroSpec Spec { get; }
 
         /// <summary>The body's drag, body N, for its centre of pressure moving at v through the air (body m/s).</summary>
-        public Double3 Body(in Double3 v)
-        {
-            double area = _area.X * DetMath.Abs(v.X) + _area.Y * DetMath.Abs(v.Y) + _area.Z * DetMath.Abs(v.Z);
-            return v * (-_q * area);
-        }
+        public Double3 Body(in Double3 v) => v * (-_q * BodyFlux(v));
+
+        /// <summary>The body's silhouette along v times |v|, m³/s: A(n)·|v| = A_x|v_x| + A_y|v_y| + A_z|v_z| (the
+        /// volume it sweeps per second; the rain's mass flux per kg/m³ of water).</summary>
+        public double BodyFlux(in Double3 v) => _area.X * DetMath.Abs(v.X) + _area.Y * DetMath.Abs(v.Y) + _area.Z * DetMath.Abs(v.Z);
 
         /// <summary>The coil's drag, body N, for its centre moving at v through the air (body m/s).</summary>
-        public Double3 Coil(in Double3 v, in DronePart coil)
+        public Double3 Coil(in Double3 v, in DronePart coil) => v * (-_q * CoilFlux(v, coil));
+
+        /// <summary>The coil's silhouette along v times |v|, m³/s.</summary>
+        public static double CoilFlux(in Double3 v, in DronePart coil)
         {
             double along = Double3.Dot(v, coil.Axis), across2 = Double3.Dot(v, v) - along * along;
-            double area = coil.Length * coil.Diameter * DetMath.Sqrt(DetMath.Max(across2, 0))
+            return coil.Length * coil.Diameter * DetMath.Sqrt(DetMath.Max(across2, 0))
                 + QuarterPi * coil.Diameter * coil.Diameter * DetMath.Abs(along);
-            return v * (-_q * area);
         }
+
+        /// <summary>The coil's wetted surface, m²: its cylinder's side and ends, π·D·(L + D/2).</summary>
+        public static double CoilSurface(in DronePart coil) => 4 * QuarterPi * coil.Diameter * (coil.Length + 0.5 * coil.Diameter);
     }
 }
