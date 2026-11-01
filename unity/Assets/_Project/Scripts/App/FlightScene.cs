@@ -231,7 +231,7 @@ namespace Fpv450.App
 
         // While the radio is awaited (before the first flight, or after a Fly or a Restart): the FPV view from the chosen
         // start at the chosen time, once for each choice the setup hands over and once after each flight. The last
-        // flight's stand-in and stand go.
+        // flight's stand-in and stand go, and its OSD values.
         void Preview(SessionInputs inputs)
         {
             FlightChoices c = inputs.Choices;
@@ -244,6 +244,7 @@ namespace Fpv450.App
             _body.SetPositionAndRotation(new Vector3((float)at.X, PreviewHeightM, (float)at.Z), Quaternion.Euler(0f, (float)(at.Yaw * 180 / Math.PI), 0f));
             _camera.transform.localPosition = CameraMount;
             _camera.transform.localRotation = Quaternion.identity;
+            _signals.Update(default, 0, 0, 0); // the OSD as before the first flight, not the last flight's end
             Look(c);
         }
 
