@@ -463,3 +463,10 @@ QA's review of `p7b-airframe` 1.4 corrects D-049:
 - **The cause is the assumed 40 A ESC current limit,** not the rotors re-ingesting their wash: without the limit the full-punch tilt falls from 11–16° to 1.5–3.4° and the arrest is about twice as fast. The four ESCs are limited together for only part of the arrest.
 - **The firmware decides it:** with Bluejay, which senses no current, the modelled shake mostly vanishes. G7's ESC firmware question settles the tilt question.
 - **The bands kept:** the shake lasts the arrest (60 of 60); the empty drone's 0.3–0.7 s (40 of 40); the 6–15° tilt applies to a full punch only. The heavy or fast band is re-measured with a window that sees its end, on enough seeds, before it is stated.
+
+## D-052 The quality preset is the build's, with a command-line override · Accepted
+From QA's review of `p6-input-app` 1.4b (finding 17): PRD-04 and PRD-05 keep the menu and the setup to their few choices, so the quality preset gets no screen.
+- **At G7 the player runs the build's preset (High).**
+- **A `-quality <name>` option** on the command line picks another preset and is saved to the profile for the next start.
+- **APP-05 stands as written:** the preset chosen on the command line is the one saved to the profile.
+- **The pilot is asked only if their frame rate needs it** (a preference, at G7).
