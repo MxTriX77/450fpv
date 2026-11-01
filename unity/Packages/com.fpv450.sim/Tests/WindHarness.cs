@@ -9,7 +9,9 @@ namespace Fpv450.Sim.Tests
     /// <summary>
     /// K§8.5's acceptance harness (wind.md §6.2; p7c-wind 1.2, design 2): HarnessPilot flies the test flight and the
     /// camera's frames are logged in `track_attitude.py`'s columns at 29.917 Hz, the input `wind_stats.py` reads.
-    /// - **The flight:** the repository's drone at its nominal loadout, released 16 steps after arming at
+    /// - **The flight:** the repository's drone at its nominal loadout with its whole airframe (p7b-airframe: the motors'
+    ///   asymmetry on the seed's draws, the vortex rings, the ground effect, the rotors' flapping and the airframe's modes,
+    ///   as a pilot's flight has them), released 16 steps after arming at
     ///   `ReleaseSpeed` along the course, nose down at the pilot's θ_ref, level, at the run's height. The course is
     ///   laid with the seed's drawn wind abeam from the left (bearing = the wind's + 90°), straight, `Seconds` long:
     ///   the belt stretch's `BeltSeconds` through a wooded strip, the rest over open field.
@@ -156,6 +158,7 @@ namespace Fpv450.Sim.Tests
             const double height = 35;
             FlightSetup setup = CrosswindScenario.Setup(spec, WindSetup.Of(WindLevel.Still));
             if (hForce >= 0) setup.Propulsion.Props.HForce = hForce; // a known-wrong rotor drag
+            Airframe(spec, setup);
             setup.StartPosition = new Double3(0, height, 0);
             setup.StartVelocity = new Double3(0, 0, releaseSpeed);
             DetMath.SinCos(-HarnessPilot.ClipPPitchDeg * DegToRad / 2, out double sp, out double cp);
@@ -278,6 +281,7 @@ namespace Fpv450.Sim.Tests
             if (belt) wind.Canopy = Strip(courseDeg);
             if (steady) wind = WindSetup.SteadyFrom(fromDeg, drawn.MeanSpeed);
             FlightSetup setup = CrosswindScenario.Setup(spec, wind, seed, drag, drag);
+            Airframe(spec, setup);
             setup.StartPosition = new Double3(0, height, 0);
             setup.StartVelocity = along * ReleaseSpeed;
             // Yaw onto the course (about +Y, the heading grows), then the nose down (about body +x).
@@ -285,6 +289,17 @@ namespace Fpv450.Sim.Tests
             DetMath.SinCos(-HarnessPilot.ClipPPitchDeg * DegToRad / 2, out double sp, out double cp);
             setup.StartAttitude = new Quat(0, sy, 0, cy) * new Quat(sp, 0, 0, cp);
             return setup;
+        }
+
+        // The whole airframe a pilot's flight has (p7b-airframe): the motors' asymmetry on the seed's draws, the vortex rings,
+        // the ground effect, the rotors' flapping and the airframe's modes.
+        static void Airframe(DroneSpec spec, FlightSetup setup)
+        {
+            setup.Asymmetry = spec.BuildAsymmetry();
+            setup.VortexRing = spec.BuildVortexRing();
+            setup.GroundEffect = spec.BuildGroundEffect();
+            setup.Flapping = spec.BuildFlapping();
+            setup.Modes = spec.BuildModes();
         }
 
         const double DegToRad = 0.017453292519943295, RadToDeg = 57.29577951308232;
