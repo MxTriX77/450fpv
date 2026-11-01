@@ -483,3 +483,9 @@ From QA's review of `p6-world-query-gallery` (B1, S2):
 - **At G7 the queries are judged on physics' pattern,** the calls `ContactModel` makes each step, inside PLT-04's whole-step budget (p99 at most 300 µs, 0 B). The 100 000-capsule and 100 000-ray budgets are read the same way.
 - **K§10.5's batch with the fiber's segments** is judged when the fiber is built (phase 7d), which decides how often the fiber is queried.
 - **PLT-04's 60 µs line stays the target** for the queries' speed work. The straw patch (194 µs at p99 a step) and the launch stand get a broad phase inside each object.
+
+## D-055 V switches between the first- and third-person view · Accepted
+The pilot, 2026-11-02: "let's add V - it shifts between 1st person and 3rd person view. it doesn't change anything else, only the camera view".
+- **V toggles the camera** between the FPV camera at the lens and the third-person chase view, in every build, the pilot's included.
+- **Nothing else changes:** the feed, its noise and the OSD apply in both views; the physics, the log and the input don't see the toggle.
+- **The keys move:** the review builds' feed toggle leaves V for a free key; C (the old chase key) is retired. The flight's key list on screen and in the spec follows.
