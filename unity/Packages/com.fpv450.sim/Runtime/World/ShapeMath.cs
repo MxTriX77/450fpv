@@ -19,7 +19,9 @@
 // sweep that provably cannot touch ends early (Clear). Task 1.4: the sweep is
 // generic over the shape's closest approach (IClosest), so a primitive and a wire share
 // one Time rule; a wire's candidate segments are found along its chord (WireRange); a
-// ray that starts inside any segment of a wire does not hit that wire.
+// ray that starts inside any segment of a wire does not hit that wire. QA's review B3 (QueryVersion 3): a
+// separating plane bounds every kind's sweep (Bound), so a sweep that cannot touch ends instead of creeping,
+// the plane's first touch is exact, and a sweep the advancement cannot settle counts no first touch.
 // Frame: none of this depends on handedness (IWorldQuery, Frame).
 
 using System;
@@ -89,6 +91,16 @@ namespace Fpv450.Sim.World
 
         /// <summary>True only if the swept capsule stays more than `beyond` from the shape from `t` to the step's end (ShapeMath.Clear).</summary>
         bool Clear(in Capsule previous, in Capsule current, double t, double beyond);
+
+        /// <summary>
+        /// The separating-plane bound of the sweep from `t` (ShapeMath.Bound): the first t' in [t, 1] at which the swept
+        /// core can reach the shape (+∞ if it cannot before the step ends), and whether it provably stays more than
+        /// TouchDistance away for the rest of the step. `near` is a closest approach of the shape at some pose of the step.
+        /// </summary>
+        double Bound(in Capsule previous, in Capsule current, double t, in Near near, out bool apart);
+
+        /// <summary>A plane: its bound is its distance, so the sweep steps by the bound from the start and lands on the first touch.</summary>
+        bool Flat { get; }
     }
 
     /// <summary>A primitive given by its geometry (a copy).</summary>
@@ -101,6 +113,11 @@ namespace Fpv450.Sim.World
         public void Closest(Double3 p, Double3 q, double r, out Near near) => ShapeMath.Closest(_s, p, q, r, out near);
 
         public bool Clear(in Capsule previous, in Capsule current, double t, double beyond) => ShapeMath.Clear(_s, previous, current, t, beyond);
+
+        public double Bound(in Capsule previous, in Capsule current, double t, in Near near, out bool apart) =>
+            ShapeMath.Bound(_s, previous, current, t, near, out apart);
+
+        public bool Flat => _s.Kind == ShapeKind.Plane;
     }
 
     /// <summary>A primitive in a world's array, by its index (no copy).</summary>
@@ -119,6 +136,11 @@ namespace Fpv450.Sim.World
 
         public bool Clear(in Capsule previous, in Capsule current, double t, double beyond) =>
             ShapeMath.Clear(_prims[_index].Geometry, previous, current, t, beyond);
+
+        public double Bound(in Capsule previous, in Capsule current, double t, in Near near, out bool apart) =>
+            ShapeMath.Bound(_prims[_index].Geometry, previous, current, t, near, out apart);
+
+        public bool Flat => _prims[_index].Geometry.Kind == ShapeKind.Plane;
     }
 
     /// <summary>
@@ -148,6 +170,11 @@ namespace Fpv450.Sim.World
         public void Closest(Double3 p, Double3 q, double r, out Near near) => ShapeMath.WireClosest(this, p, q, r, out near);
 
         public bool Clear(in Capsule previous, in Capsule current, double t, double beyond) => false;
+
+        public double Bound(in Capsule previous, in Capsule current, double t, in Near near, out bool apart) =>
+            ShapeMath.WireBound(this, previous, current, t, out apart);
+
+        public bool Flat => false;
     }
 
     /// <summary>The closest approach of a capsule to one primitive.</summary>
@@ -163,8 +190,10 @@ namespace Fpv450.Sim.World
     {
         /// <summary>A sweep touches a shape once it comes this close (conservative advancement stops there), m.</summary>
         private const double TouchDistance = 1e-6;
-        /// <summary>Conservative advancement gives up after this many steps and counts the shape as touched.</summary>
+        /// <summary>Conservative advancement steps by distance / speed this many times, then by the separating plane's bound.</summary>
         private const int MaxAdvance = 64;
+        /// <summary>It gives up after this many steps in all and counts no first touch (IWorldQuery).</summary>
+        private const int MaxSteps = 2 * MaxAdvance;
         /// <summary>Clear's margin over TouchDistance for its own rounding (coordinates of a few hundred metres), m.</summary>
         private const double ClearSlack = 1e-9;
         /// <summary>The largest double below 1: a Time below 1 never reads as the current pose.</summary>
@@ -173,6 +202,10 @@ namespace Fpv450.Sim.World
         /// <summary>
         /// The contact of a capsule swept from `previous` to `current` with `s`, under
         /// IWorldQuery's Time rule. `speed` is the larger of the two core ends' moves, m.
+        /// Conservative advancement keeps 1.4's distance / speed steps for its first MaxAdvance
+        /// (so every sweep they settle keeps its bits), then steps by the separating plane's
+        /// bound, a Newton step on the distance that ends a graze's creep; a plane steps by its
+        /// bound from the start. At every step the bound may prove the rest clear.
         /// </summary>
         public static bool Sweep(in ShapeGeometry s, in Capsule previous, in Capsule current, double margin, double speed,
             out Near near, out double time) =>
@@ -198,7 +231,17 @@ namespace Fpv450.Sim.World
                 return near.Distance <= margin;
             if (speed > 0)
             {
-                // The distance changes by at most `speed` per unit of t, so stepping by distance / speed never skips a touch.
+                // The plane through the current pose's closest approach separates the whole sweep from the shape: never
+                // touched, again without the start pose's closest approach.
+                if (near.Distance > TouchDistance)
+                {
+                    s.Bound(previous, current, 0, near, out bool apart);
+                    if (apart)
+                        return near.Distance <= margin;
+                }
+                // Conservative advancement: the distance changes by at most `speed` per unit of t, and it stays above the
+                // separating plane's bound (Bound), so stepping to the later of the two never skips a touch. Along a plane
+                // the bound is the distance itself, so the step lands on the first touch.
                 double t = 0;
                 Near first;
                 for (int i = 0; ; i++)
@@ -206,11 +249,12 @@ namespace Fpv450.Sim.World
                     s.Closest(previous.A + (current.A - previous.A) * t, previous.B + (current.B - previous.B) * t, r, out first);
                     if (first.Distance <= TouchDistance)
                         break;
-                    if (s.Clear(previous, current, t, TouchDistance))
-                        return near.Distance <= margin; // never touched: a box's per-axis bound (Clear) proves it for the rest
-                    if (i == MaxAdvance)
-                        break;
-                    t += first.Distance / speed;
+                    double bound = s.Bound(previous, current, t, first, out bool apart);
+                    if (apart || s.Clear(previous, current, t, TouchDistance))
+                        return near.Distance <= margin; // never touched: a bound proves it for the rest of the step
+                    if (i == MaxSteps)
+                        return near.Distance <= margin; // no touch shown: counted as none, never as a first touch
+                    t = i < MaxAdvance && !s.Flat ? t + first.Distance / speed : DetMath.Max(t + first.Distance / speed, bound);
                     if (!(t <= 1))
                         return near.Distance <= margin; // never touched
                 }
@@ -250,6 +294,88 @@ namespace Fpv450.Sim.World
             double bound = DetMath.Max(AxisBound(lp.X, lq.X, la.X, lb.X, h.X, rest),
                 DetMath.Max(AxisBound(lp.Y, lq.Y, la.Y, lb.Y, h.Y, rest), AxisBound(lp.Z, lq.Z, la.Z, lb.Z, h.Z, rest)));
             return bound - current.Radius > beyond + ClearSlack;
+        }
+
+        /// <summary>
+        /// The separating-plane bound of the sweep from `t` for a convex primitive (task 1.6, review B3). Any unit n gives
+        /// a plane that holds the whole shape below support(n) = max over the shape of x·n, so a core point x is at least
+        /// x·n − support(n) from it; the core's least x·n is one of its ends', and each end's x·n is linear in t. Along the
+        /// normal of a closest approach at t the bound equals the distance at t, and only the move along that normal
+        /// lowers it. So it ends a slide past a sphere, a capsule, a cylinder or a box, where the distance / speed step
+        /// creeps, and along a plane (its bound is its distance) it is the exact first touch. Returns the first t' in
+        /// [t, 1] where the bound reaches 0 (+∞ if it stays above), and whether it stays above TouchDistance throughout.
+        /// </summary>
+        public static double Bound(in ShapeGeometry s, in Capsule previous, in Capsule current, double t, in Near near, out bool apart) =>
+            Bound(near.Normal, Support(s, near.Normal), previous, current, t, out apart);
+
+        /// <summary>The largest x·n over a primitive (n a unit vector); a plane's only along its normal, +∞ otherwise.</summary>
+        private static double Support(in ShapeGeometry s, Double3 n)
+        {
+            double c = Double3.Dot(s.Center, n);
+            switch (s.Kind)
+            {
+                case ShapeKind.Plane:
+                    return n.X == s.AxisY.X && n.Y == s.AxisY.Y && n.Z == s.AxisY.Z ? c : double.PositiveInfinity;
+                case ShapeKind.Sphere:
+                    return c + s.Radius;
+                case ShapeKind.Capsule:
+                    return c + s.HalfLength * DetMath.Abs(Double3.Dot(s.AxisY, n)) + s.Radius;
+                case ShapeKind.Box:
+                    return c + s.HalfExtents.X * DetMath.Abs(Double3.Dot(s.AxisX, n)) + s.HalfExtents.Y * DetMath.Abs(Double3.Dot(s.AxisY, n))
+                        + s.HalfExtents.Z * DetMath.Abs(Double3.Dot(s.AxisZ, n));
+                case ShapeKind.Cylinder:
+                {
+                    double along = Double3.Dot(s.AxisY, n), side = 1 - along * along;
+                    return c + s.HalfLength * DetMath.Abs(along) + s.Radius * DetMath.Sqrt(side > 0 ? side : 0);
+                }
+                default:
+                    return double.PositiveInfinity;
+            }
+        }
+
+        /// <summary>The bound along a plane of unit normal n that holds the shape below `support` (Bound).</summary>
+        private static double Bound(Double3 n, double support, in Capsule previous, in Capsule current, double t, out bool apart)
+        {
+            double r = current.Radius;
+            Double3 a = previous.A + (current.A - previous.A) * t, b = previous.B + (current.B - previous.B) * t;
+            double at = Double3.Dot(a, n) - support - r, a1 = Double3.Dot(current.A, n) - support - r;
+            double bt = Double3.Dot(b, n) - support - r, b1 = Double3.Dot(current.B, n) - support - r;
+            apart = DetMath.Min(DetMath.Min(at, a1), DetMath.Min(bt, b1)) > TouchDistance + ClearSlack;
+            return DetMath.Min(Crossing(at, a1, t), Crossing(bt, b1, t));
+        }
+
+        /// <summary>The first t' in [t, 1] where a height linear from ht (at t) to h1 (at 1) reaches 0; +∞ if it stays above.</summary>
+        private static double Crossing(double ht, double h1, double t) =>
+            !(ht > 0) ? t : h1 > 0 ? double.PositiveInfinity : t + ht / (ht - h1) * (1 - t);
+
+        /// <summary>
+        /// Bound for a wire's chain: the chain is not convex, so each candidate segment (a capsule) is bounded along the
+        /// normal of its own closest approach at t, and the chain's bound is the least of theirs.
+        /// </summary>
+        public static double WireBound(in WireChain w, in Capsule previous, in Capsule current, double t, out bool apart)
+        {
+            Double3 p = previous.A + (current.A - previous.A) * t, q = previous.B + (current.B - previous.B) * t;
+            double bound = double.PositiveInfinity;
+            apart = true;
+            for (int i = w.Lo; i <= w.Hi; i++)
+            {
+                Double3 a = w.Points[i], b = w.Points[i + 1];
+                if (!Bounds.Of(a, b, w.Radius).Overlaps(w.Reach))
+                    continue;
+                SegmentSegment(p, q, a, b, out double u, out double v);
+                Double3 d = p + (q - p) * u - (a + (b - a) * v);
+                double length = d.Length();
+                if (!(length > 0))
+                {
+                    apart = false; // the core meets this segment's axis: no bound
+                    return t;
+                }
+                Double3 n = d * (1 / length);
+                double bi = Bound(n, DetMath.Max(Double3.Dot(a, n), Double3.Dot(b, n)) + w.Radius, previous, current, t, out bool clear);
+                apart &= clear;
+                bound = DetMath.Min(bound, bi);
+            }
+            return bound;
         }
 
         /// <summary>A lower bound of |x| − h over the core segment p–q along one axis, for the rest of the step.</summary>

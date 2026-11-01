@@ -1,7 +1,7 @@
 # worldbench golden: the floor stub (p6-world-query-gallery 1.1). FNV-1a 64 over every result field's bits.
 # Re-record only with a QueryVersion bump, audited case by case: dotnet run --project tools/worldbench -- --golden --record
-query_version 2
+query_version 3
 content_hash d09ed1b887389ac7
 floor.ground fa4c0d4df862f325
-floor.contacts 6f6ca03d23e8cf6b
+floor.contacts 4287ea612b22c18f
 floor.rays 9bcb2ccc646d0baa
