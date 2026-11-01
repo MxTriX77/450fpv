@@ -44,8 +44,17 @@ namespace Fpv450.App
         /// <summary>AppFlow draws the setup over the flight: draw nothing.</summary>
         public bool Covered;
 
-        /// <summary>The review chase view (C).</summary>
-        public bool Chase;
+        /// <summary>The review chase view (C), which shows the stand-in (the FPV view draws only its shadow).</summary>
+        public bool Chase
+        {
+            get => _chase;
+            set
+            {
+                _chase = value;
+                if (_model != null) StandIn.Visible(_model, value);
+            }
+        }
+        bool _chase;
 
         /// <summary>This frame's interpolated pose, and the current flight's first (rest) pose; Flights 0 before any.</summary>
         public PoseFrame Pose;
@@ -225,11 +234,7 @@ namespace Fpv450.App
                 else if (session.State == SessionState.Paused) Host.Resume();
             }
             if (!AppData.Review) return;
-            if (k.cKey.wasPressedThisFrame)
-            {
-                Chase = !Chase;
-                if (_model != null) StandIn.Visible(_model, Chase);
-            }
+            if (k.cKey.wasPressedThisFrame) Chase = !Chase;
             if (k.vKey.wasPressedThisFrame && _rig != null) _rig.enabled = !_rig.enabled;
         }
 
