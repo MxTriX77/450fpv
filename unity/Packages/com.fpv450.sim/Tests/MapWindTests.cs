@@ -501,5 +501,36 @@ namespace Fpv450.Sim.Tests
             Assert.That(allocated, Is.EqualTo(0), "the step only samples");
             Assert.That(differ, Is.GreaterThan(6000 * points.Length * 9 / 10), "another seed, another wind");
         }
+
+        // The map's wind at seven points over 4 s of Severe, every bit of it: pinned on .NET 10 and checked on Mono by the
+        // Unity EditMode run (the same test), so the field over the map is the same bits on both runtimes.
+        const ulong PinnedMapWind = 0x9E8D9108B60D91B8UL;
+
+        [Test]
+        public void TheMapsWindIsTheSameBitsOnEveryRuntime()
+        {
+            using var wind = new WindField(WindSetup.ForMap(Map, WindLevel.Severe), new FlightRandom(21));
+            Double3[] points =
+            {
+                new Double3(-80, 5, 0), new Double3(-80, 14, 0.5), new Double3(60, 3, 20), new Double3(60, 3, -25),
+                new Double3(-122, 2.5, -75), new Double3(-170, 4, -40), new Double3(-20, 6, 12),
+            };
+            ulong hash = WorldHash.Offset;
+            for (long step = 0; step < 4000; step++)
+            {
+                wind.Begin(step, points[0], 0);
+                foreach (Double3 p in points)
+                {
+                    Double3 v = wind.At(p);
+                    foreach (double x in new[] { v.X, v.Y, v.Z })
+                    {
+                        ulong bits = (ulong)BitConverter.DoubleToInt64Bits(x);
+                        for (int b = 0; b < 8; b++) hash = (hash ^ (byte)(bits >> 8 * b)) * 0x100000001B3UL;
+                    }
+                }
+            }
+            TestContext.Out.WriteLine($"the map's wind, Severe seed 21, 4000 steps at 7 points: 0x{hash:X16}");
+            Assert.That(hash, Is.EqualTo(PinnedMapWind));
+        }
     }
 }
