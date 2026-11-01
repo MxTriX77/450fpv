@@ -18,20 +18,22 @@ namespace Fpv450.App
     /// <summary>
     /// The flight over the test range (design 6, APP-04, D-047), put on the loaded TestRange scene by AppFlow. It switches
     /// the range's noclip rig off and takes over its look, then flies a FlightSessionHost:
-    /// - the drone at the interpolated PoseFrame (PosePair.Interpolate on the host clock): the stand-in from drone.json's
-    ///   parts at the flight's loadout, and the launch stand from the flight's runtime object when the legs are off
-    /// - the FPV camera on the drone at 0° uptilt (FEED-02's rig, FpvCamera) through the analog feed and its OSD, fed by
-    ///   the physics' signals (FlightFeedSignals)
+    /// - the drone at the interpolated PoseFrame (PosePair.Interpolate on the host clock): p5-drone's D01 prefab for the
+    ///   setup's legs (DroneModels), and the launch stand from the flight's runtime object when the legs are off
+    /// - the FPV camera at drone.json's camera.lens_m, 0° uptilt (FEED-02's rig, FpvCamera), through the analog feed and its
+    ///   OSD, fed by the physics' signals (FlightFeedSignals)
     /// - the setup's time of day and rain on the look (rain is the overcast preset's sky until the weather's look)
     /// - over the picture: the arming hint, the pause (Esc) and the post-flight summary, read from the log off the frame.
-    /// Review builds add C (a chase view that shows the stand-in) and V (the feed off and on).
+    /// Review builds add C (a chase view of the drone) and V (the feed off and on).
     /// </summary>
     [DefaultExecutionOrder(100)] // after the host has ticked the session this frame
     public sealed class FlightScene : MonoBehaviour
     {
-        /// <summary>The FPV camera's mount, body axes: the front of the stack between the plates (drone.json's electronics
-        /// box, "the camera at the front"), looking along +z at 0° uptilt. Assumed until p5-drone's prefab.</summary>
-        public static readonly Vector3 CameraMount = new Vector3(0f, 0.025f, 0.06f);
+        public const string DroneName = "Svinoriz 10 Opto";
+
+        /// <summary>The FPV camera's mount, body axes: drone.json's camera.lens_m (where the model draws the lens), looking
+        /// along +z at 0° uptilt.</summary>
+        public Vector3 CameraMount { get; private set; }
 
         /// <summary>The chase view's offset behind and above the drone, m, and its pitch down, degrees (review only).</summary>
         static readonly Vector3 ChaseOffset = new Vector3(0f, 0.7f, -2.2f);
@@ -50,17 +52,8 @@ namespace Fpv450.App
         /// <summary>AppFlow draws the setup over the flight: draw nothing.</summary>
         public bool Covered;
 
-        /// <summary>The review chase view (C), which shows the stand-in (the FPV view draws only its shadow).</summary>
-        public bool Chase
-        {
-            get => _chase;
-            set
-            {
-                _chase = value;
-                if (_model != null) StandIn.Visible(_model, value);
-            }
-        }
-        bool _chase;
+        /// <summary>The review chase view (C), behind and above the drone.</summary>
+        public bool Chase;
 
         /// <summary>This frame's interpolated pose, and the current flight's first (rest) pose; Flights 0 before any.</summary>
         public PoseFrame Pose;
@@ -77,6 +70,7 @@ namespace Fpv450.App
         readonly FlightFeedSignals _signals = new FlightFeedSignals();
         GameObject _model, _stand;
         DroneSpec _spec;
+        DroneModels _models;
         bool _armedOnce;
         Task<PostFlight> _reading;
         int _readFor;
@@ -108,7 +102,6 @@ namespace Fpv450.App
             _body.SetParent(transform, false);
             var go = new GameObject("FpvCamera") { tag = "MainCamera" };
             go.transform.SetParent(_body, false);
-            go.transform.localPosition = CameraMount;
             _camera = go.AddComponent<Camera>();
             _camera.nearClipPlane = 0.05f;
             _camera.farClipPlane = 3000f;
@@ -135,11 +128,17 @@ namespace Fpv450.App
             try
             {
                 _spec = DroneSpec.Parse(System.IO.File.ReadAllText(AppData.File(AppData.DroneFile)));
+                if (_spec.CameraLens is Double3 lens) CameraMount = V(lens);
+                else Debug.LogError("[Flight] drone.json gives no camera.lens_m: the FPV camera sits at the body origin");
             }
             catch (Exception e)
             {
                 Debug.LogError("[Flight] " + e.Message);
             }
+            _models = DroneModels.Load();
+            if (_models == null || _models.legsOn == null || _models.legsOff == null)
+                Debug.LogError("[Flight] no Resources/" + DroneModels.ResourceName + " with both D01 prefabs: run Fpv450.EditorSetup.ProjectSetup.Apply");
+            _camera.transform.localPosition = CameraMount;
         }
 
         void LateUpdate()
@@ -182,7 +181,7 @@ namespace Fpv450.App
             Summarise(session);
         }
 
-        // A new flight: its stand-in at the loadout, its stand, its rest pose and its look.
+        // A new flight: its drone for the legs, its stand, its rest pose and its look.
         void Show(FlightSession session)
         {
             ShownFlight = session.Flights;
@@ -193,11 +192,14 @@ namespace Fpv450.App
             _reading = null; // a read the pilot flew again before it finished is the last flight's
             if (_model != null) Destroy(_model);
             if (_stand != null) Destroy(_stand);
-            if (_spec != null)
+            GameObject prefab = _models != null ? _models.For(session.Loadout.Legs) : null;
+            if (prefab != null)
             {
-                _model = StandIn.Drone(_spec, session.Loadout);
-                _model.transform.SetParent(_body, false);
-                StandIn.Visible(_model, Chase);
+                // Drawn in both views (the parts in the lens's frustum, and the chase view), its colliders gone: PhysX
+                // stays out of the flight, whose contacts are drone.json's.
+                _model = Instantiate(prefab, _body, false);
+                _model.name = DroneName;
+                foreach (Collider c in _model.GetComponentsInChildren<Collider>(true)) Destroy(c);
             }
             foreach (RuntimeObject o in session.Setup.RuntimeObjects ?? new RuntimeObject[0])
                 if (o.Name == LaunchStand.Name)
@@ -231,7 +233,7 @@ namespace Fpv450.App
 
         // While the radio is awaited (before the first flight, or after a Fly or a Restart): the FPV view from the chosen
         // start at the chosen time, once for each choice the setup hands over and once after each flight. The last
-        // flight's stand-in and stand go, and its OSD values.
+        // flight's drone and stand go, and its OSD values.
         void Preview(SessionInputs inputs)
         {
             FlightChoices c = inputs.Choices;
@@ -282,7 +284,8 @@ namespace Fpv450.App
             if (_reading == null)
             {
                 string path = session.LogPath;
-                _reading = Task.Run(() => PostFlight.Read(path));
+                SessionInputs inputs = Host.Inputs;
+                _reading = Task.Run(() => PostFlight.Read(path, inputs.OpenWorld));
                 return;
             }
             if (!_reading.IsCompleted) return;
@@ -322,7 +325,7 @@ namespace Fpv450.App
         {
             if (Covered) return;
             FlightSession session = Host.Session;
-            if (Chase) FlightScreens.Corner("Chase view (C) · " + StandIn.DroneName);
+            if (Chase) FlightScreens.Corner("Chase view (C) · " + DroneName);
             if (session == null)
             {
                 if (Host.Problems.Count > 0) FlightScreens.Hint(Host.Problems[Host.Problems.Count - 1] + "  ·  Esc for the menu");

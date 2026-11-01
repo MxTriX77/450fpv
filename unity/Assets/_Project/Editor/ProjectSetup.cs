@@ -40,6 +40,7 @@ namespace Fpv450.EditorSetup
             FeedSetup.ApplyFeature();
 
             EnsureBootScene();
+            EnsureDroneModels();
             // The game: the Boot scene's menu, then the test range it flies over (p6-input-app 1.4b, D-047).
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(BootScenePath, true), new EditorBuildSettingsScene(TestRangeScene.ScenePath, true) };
             AssetDatabase.SaveAssets();
@@ -164,6 +165,27 @@ namespace Fpv450.EditorSetup
 
             if (!EditorSceneManager.SaveScene(scene, BootScenePath))
                 throw new InvalidOperationException($"Could not save {BootScenePath}");
+        }
+
+        // The flight's drone (p6-input-app 1.4b): p5-drone's D01 prefabs, referenced from a Resources asset so the build
+        // carries them.
+        static void EnsureDroneModels()
+        {
+            const string path = "Assets/_Project/Scripts/App/Resources/" + DroneModels.ResourceName + ".asset";
+            var models = AssetDatabase.LoadAssetAtPath<DroneModels>(path);
+            if (models == null)
+            {
+                if (!AssetDatabase.IsValidFolder("Assets/_Project/Scripts/App/Resources"))
+                    AssetDatabase.CreateFolder("Assets/_Project/Scripts/App", "Resources");
+                models = ScriptableObject.CreateInstance<DroneModels>();
+                AssetDatabase.CreateAsset(models, path);
+            }
+            GameObject Prefab(string variant) =>
+                AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/_Project/Prefabs/drone/{variant}.prefab")
+                ?? throw new InvalidOperationException($"p5-drone's {variant}.prefab is missing");
+            models.legsOn = Prefab("D01_legs_on");
+            models.legsOff = Prefab("D01_legs_off");
+            EditorUtility.SetDirty(models);
         }
 
         static SerializedObject ProjectSettingsFile(string file) =>
