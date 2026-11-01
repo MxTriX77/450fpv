@@ -542,3 +542,9 @@ Supersedes D-054's last sentence. The world builder measured it, and QA accepted
 - **S04's straw patch stays in the grid:** a tree over its 195 long, crossing strips measured about 20 % slower than the grid's walk.
 - **A tree inside an object goes only to objects with more than 256 shapes.** The straw's cost was the exact distance tests, not the search for candidates.
 - **Physics' pattern meets the 60 µs line** at p99 on every row (crown, H01_D, E01, posadka, straw, stand), with 0 B.
+
+## D-062 Disarming doesn't end the flight · Accepted
+The pilot, 2026-11-02: "arm disarm change AIR DISARM on OSD, dont make disarm trigger that stupid dialog."
+- **Disarming no longer ends the flight.** The OSD shows DISARMED (D-057); the drone stays in the world under physics, and the pilot can re-arm with the switch and fly on.
+- **The flight ends on:** a crash, the failsafe, the battery cut-off, or End flight from the pause menu. The post-flight summary shows only then.
+- The arm and disarm events stay in the log, and replay is unchanged.
