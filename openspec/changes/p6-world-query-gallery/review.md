@@ -530,3 +530,243 @@ range overlay (c2cf4023 + this branch's World, Tests/World, worldbench):
   - the pitching set, the fresh set and the new tests' mutations
   - the merge's goldens and pytest's merge check
 - **GPU checks:** Unity EditMode, `--bench` and pytest with the real Blender all finished before the request to stop GPU use, so none is owed.
+
+# QA re-check of 1.7 (B4, M1, S3, L4; QueryVersion 4, at `0ccf424`)
+
+**Verdict: approved.** Task 2.1 is ticked. B4 and M1 are closed, L4 is accepted, and S3 is closed except for a capsule's caps. Two follow-ups remain, and neither blocks the merge:
+- **S3 (Should, partly open):** an unsafe capsule bound at its caps still passes every world test.
+- **L6 (Low):** two numbers in `IWorldQuery`'s give-up rule do not hold on my fresh sets.
+
+**Physics' sign-off of the give-up rule is still open** (B4 fix, item 5). It belongs to the range branch's merge (see "The merge notes").
+
+**Scope:**
+- The commits `ab805d6` (the M1 merge), `69a1070` (B4, QueryVersion 4), `f805aba` (S3) and `0ccf424` (the as-built note).
+- The review branch merges `0ccf424` (`54db361`), so every check below ran on the branch plus this file.
+
+**How I checked:**
+- Every command below was run by me.
+- **Scratch harnesses, never committed:**
+  - Both are my 1.6 harness, with its own truth (`System.Math` distances, a Lipschitz branch and bound over the step, resolved to 1e-10 of t). One is built on `0ccf424`'s sources (QV4) and one on `ab805d6`'s (QV3).
+  - A counting copy of QV4 logs every 128-step give-up and every bisection.
+  - Throwaway copies: one for the mutations, three worldbench builds (QV3, QV4, counting) and a worktree of the range branch for the overlay.
+- **Unity:** used this worktree's Library. EditMode started with 3.2 GB free and no other Unity running.
+
+## B4: closed
+**A fresh pitching set** (not the tests' seeds or shapes): seeds 601 and 602, with 10 000 sweeps per set and seed.
+- **The sets:**
+  - **twig:** my 10 mm and 8 mm cylinders, turned off every axis (the test range has no cylinder under 12 mm)
+  - **trunk:** my 0.15 m cylinder and 30 of the test range's 455 long cylinders (r ≥ 30 mm)
+  - **conductor:** all 20 wires
+  - **box edge:** my box turned about three axes, the probe's yawed box and 40 test range boxes. Edges 60 %, corners 20 %, faces 20 %; on an edge, half the cores lie across it.
+  - **other round:** the probe's sphere, capsule and cylinder
+- **The sweeps:**
+  - a core of 0.1–0.3 m, r 3–10 mm, pitching at 290–2000 °/s about an axis across it (60 % straight at the shape)
+  - the pivot at the contact, or (40 %) up to 0.8 of the half-core away from it
+  - **70 % approaches:** the middle closes at 0.2–10 % of the ends' swing, at 1 µm–1 mm a step, or at the test's 10–100 µm. It slides up to 2× (or 20×) that.
+  - **30 % dips:** sliding 1–100 mm a step, the least gap aimed at −3 mm…−1 µm, or within ±2 µm
+
+**Results** (both seeds: 100 000 sweeps, 52 588 starting more than 5 µm clear):
+
+| truth's class | sweeps | QV4 (`0ccf424`) | QV3 (`ab805d6`) |
+|---|---|---|---|
+| ends > 1 µm inside | 36 760 | **0 missed** | 6 500 missed (17.7 %) |
+| touches, ends within 1 µm | 1 562 | 0 unlatched; **6 after the truth** (L6) | 415 unlatched |
+| touches, ends clear (the remainder) | 4 518 | 281 unlatched, deepest 42.7 µm | the same 281 |
+| within 1 µm only | 2 190 | | |
+| clear | 7 558 | **0 false first touches** | 0 |
+
+**Checks on every QV4 first touch (44 510):**
+- each is a touch by the truth (gap at Time ≤ 1.00 µm)
+- Distance agrees with the truth within 1.5e-14 m, and |Distance| ≤ 1 µm
+- Time > 0, with one contact per shape
+- none is after the truth's first touch among the sweeps that end inside
+- the truth is never ambiguous
+
+**Two more runs:**
+- **My 1.6 random fresh set** (seed 2026) on QV4:
+  - It has 0 false first touches.
+  - The turning quarter misses 10 touches, down from 19. All 10 end clear by 2.0 µm to 1.07 mm and are at most 5.9 µm deep: the stated remainder.
+  - The 7 straight cylinder touches of L4 are unchanged.
+- **The counting build:**
+  - 0 give-ups over both goldens' 20 000 capsule cases, and over the bench's six physics paths and K§10.5 batches. So the bisection can move none of them.
+  - On 1 000 of my pitching sweeps: 96 give-ups, 90 of them bisected.
+
+**The give-up rule as stated holds on my sets:**
+- A step that ends inside is always a first touch.
+- A first touch is always a touch.
+- The remainder (a graze that dips in and comes back clear) may count none.
+- The test is `PitchingCores_…`. Each of these mutations fails it:
+  - QV3's give-up
+  - the bisection's touch dropped (reported at Time 1)
+  - a cylinder's support without its radius
+
+## L6 (Low, new): two numbers in `IWorldQuery`'s give-up rule
+Owner: the World Builder. Only the comments change; no bits move.
+
+**1. "A first touch lies … not after the true touch" fails at the step's end.**
+- 6 of the 1 562 sweeps that touch and end within 1 µm report Time 0.9999999999999999, after the truth's first touch: 3 twigs, 2 `L03_medium` conductors and the probe's cylinder.
+- Each is 0.5–11.5 mm of travel late.
+- **Cause:** each step dipped 0.015–2.4 µm in mid-step, and its end pose is 0.61–0.99 µm off. That is already inside `Touch`'s [0.5, 1] µm band, so `Touch` returns the end pose without a halving.
+- **Impact:** none that physics can feel. The latched plane at the end shows no penetration, so it is a graze (F8). QV3 counted these none.
+- **Fix:** add the exception to `IWorldQuery`, and drop "on QA's … sets it was never later".
+
+**2. The remainder's "at most about 6 µm deep" reads 42.7 µm on my sets.**
+- The deepest uncounted dip: a 0.17 m core at 1515 °/s, its ends moving up to 20.5 mm a step past a 10 mm twig, ending 1.77 mm clear.
+- The next deepest are 22.8 µm and 12.2 µm.
+- QV3 leaves the same sweeps uncounted, so nothing new.
+- **Impact:** a sub-step graze of tens of µm, with an impulse far below anything physics resolves.
+- **Fix:** state QA's number.
+
+## M1: closed
+- **The merge `ab805d6`** (`unity/main` at `8fe7875`, with `-m`, subject only) keeps both sides of `tools/worldbench/Program.cs`:
+  - one `GoldenFile` checks the floor, the test range and the wakes, with the count check
+  - `--wakes` and `--wakes-range` stay
+- **The goldens:**
+  - `golden/wakes.txt` equals `unity/main`'s.
+  - `--golden` passes all three in Debug and Release, and no hash moved.
+- **The power line:** `--bench` and `--wakes` both print "AC, Balanced plan, best performance mode, CPU 3201/3201 MHz". `--wakes` passes.
+- **The merge check:** pytest's `test_existing_tree_is_clean` passes against today's `unity/main` (`b088dd4`, which only adds docs since `8fe7875`).
+
+## S3: closed except a capsule's caps (Should, partly open)
+Owner: the World Builder.
+
+`GrazingSpheres_…` fails every unsafe-bound mutation I made, except one:
+
+| mutation (39 world tests) | fails |
+|---|---|
+| a sphere's support without its radius | `GrazingSpheres_…` |
+| a sphere's support 0.1 % short (0.1 mm) | `GrazingSpheres_…` |
+| a capsule's without its radius | `GrazingSpheres_…` |
+| **a capsule's without its half length** | **none**; only the goldens' contact hashes (floor, test range, overflow) |
+| a box's without its z extent / its x extent | `GrazingSpheres_…` |
+| a cylinder's without its radius | `GrazingSpheres_…` and `PitchingCores_…` |
+| a cylinder's without its half length | `GrazingSpheres_…` |
+
+- **Why the capsule passes:** the test grazes a capsule's side only, where the support's axial term is 0.
+- **It is unsafe, by experiment:**
+  - I added a graze past a capsule's cap to the test: past its end, the normal tilted 13–86° from square to the axis.
+  - It passes on the branch.
+  - With the mutation it fails at once: "capsule cap 0: Time; Expected: greater than 0 and less than 1; But was: 1.0d". The sphere passes unseen.
+- **Fix:** add the cap graze to `GrazingSpheres_…`, so a re-record cannot bless that mutation.
+
+## L4: accepted
+- **What physics reads:** `ContactModel` latches on Time < 1 and takes the first touch's point and normal as its plane.
+- **The size:** a plane 0.1–2.3 nm inside, set at most 74 nm of travel late, is three orders under the 1 µm the contract allows.
+  - In stiffness, k · 2 nm is tens of micronewtons.
+  - In time, 74 nm at a 1 cm step is 7e-6 of a step.
+- **The cost of a fix:** it would move every advancing cylinder sweep's bits for no physical gain.
+- `IWorldQuery` states it. Unchanged on my sets: the same 7 straight touches, and none in the pitching sets.
+
+## The golden re-record (QueryVersion 4)
+- **No case moved:**
+  - In both files only the `query_version` line changed (3 → 4).
+  - `content_hash` and every query hash are byte-identical to `6a49730`'s. I audited those hashes case by case at QV3.
+  - The wakes file is `unity/main`'s.
+  - Debug and Release print the same cases.
+  - Time < 1 contacts read 329 and 4136, as at QV3.
+- **The cause, by experiment:** the counting build takes 0 give-ups over the golden cases, so QV4's only change cannot touch them.
+- **Verdict:** a version-only re-record, justified.
+
+## The budgets (AC only)
+- **Judged** (D-054: physics' pattern inside PLT-04's 300 µs at p99, 0 B): met on all 3 runs and the 8 A/B runs.
+- **The 60 µs line at p99:**
+  - Every row meets it on run 3.
+  - Under other agents' load, E01's run crosses it, and the QV3 build crosses it the same way.
+  - The bisection runs 0 times on these paths, so the change costs nothing there. E01's margin is load-bound.
+
+| physics' pattern, median / p99 µs | run 1 (load 60 %) | run 2 (17 %) | run 3 (45 %) |
+|---|---|---|---|
+| inside V01_L's crown | 8.8 / 50.1 | 7.2 / 34.9 | 6.0 / 30.7 |
+| round H01_D's walls | 3.9 / 21.1 | 3.7 / 18.0 | 3.6 / 15.6 |
+| along E01's run | 15.2 / 116.3 | 12.9 / 70.1 | 11.9 / 57.5 |
+| the posadka at 2 m | 5.0 / 13.5 | 4.8 / 10.0 | 4.6 / 8.1 |
+| resting in S04's straw | 8.2 / 20.4 | 8.2 / 15.6 | 7.9 / 14.5 |
+| the stand | 3.1 / 21.8 | 2.1 / 10.3 | 2.0 / 9.9 |
+
+- **The A/B, interleaved:** E01's p99 reads 64.8 / 64.9 / 66.9 / 95.6 µs on QV3 and 105.4 / 69.8 / 71.8 / 59.6 µs on QV4, at loads of 37–88 %.
+- **The power mode:** the plan now reads "best performance mode" (it read "balanced" at 1.6). Something outside this change set it.
+- **Other rows:**
+  - physics' 100 000 capsules 25.9–37.6 ms, rays 14.7–22.3 ms, samples 0.99–1.49 ms, 0 B everywhere
+  - shown, not judged: random-pose capsules 94.9–165.7 ms, rays 59.6–94.2 ms
+
+## Spec scenarios (re-run)
+| Scenario | Result | Evidence (mine) |
+|---|---|---|
+| A swept arm meets the pole | pass | simtests 316 of 316 |
+| A small fast sphere never crosses a wire unseen | pass | simtests; my conductor set: 0 missed, 0 false |
+| A first touch is a touch | pass | 0 false first touches in 132 190 fresh sweeps (my pitching and random sets) |
+| A pitching core's touch is latched (new) | pass, as written | its test passes and fails 3 mutations; my pitching set: 0 missed of 36 760, 0 false, 0 after the truth among those ending inside. The 6 late ends are outside its clause (L6). |
+| The separating plane never steps past a touch (new) | pass, except a capsule's caps | its test fails 7 of 8 unsafe-bound mutations; not the capsule's half length (S3) |
+| A rotor ray re-cast from inside a conductor goes on | pass | simtests |
+| The launch stand is added and reset | pass | simtests; `flightbench --probe`'s stand checks pass |
+| Batched equals single | pass | `--golden`: Debug and Release, the same hashes |
+| Threads share one world | pass | simtests |
+| The sim sees what the scene shows | pass | EditMode `TestRangeWorldTests`: 731 objects, 43 677 colliders, worst 0.015 mm and 0.0000° |
+| A foot in the trench, A patch is the ground once, A capsule straddling a band's edge | pass | simtests; the goldens keep their bits |
+| The worst-case step over the busiest spots (restated) | pass, except one clause not testable here | `--bench` ×3 on AC; the `flightbench --bench` clause is `p6-flight-core`'s |
+
+## Requirements
+- **WLD-11 (G7 subset): met.** No first touch is missed when a step ends inside. The give-up's remainder is stated, with L6's two numbers to correct.
+- **PLT-04 (the world-query share): met,** as D-054 judges it. p99 ≤ 116.3 µs under load, against 300 µs, at 0 B.
+- **WLD-16: met.** L1 stays a measure-zero edge.
+- **PHB-05 (the world's side): met.**
+  - On this branch every contact check passes. The one red is the coil geometry from `unity/main`, as before.
+  - On the range overlay the whole probe passes.
+- **AST-05: met.** Scene parity holds.
+
+## The merge notes (for the orchestrator)
+- **`p6-flight-core--range` (`dff94c17`) and this branch conflict in `tools/worldbench/Program.cs`.**
+  - Each resolved p7c-wind's wake merge its own way: the `GoldenFile` signature and its header.
+  - `git merge-tree` shows that one conflict. Whichever lands second resolves it, keeping one signature.
+- **The range branch still asserts `QueryVersion_IsThree`.** Take this branch's `QueryVersion_IsFour` at its merge.
+- **My overlay** (this branch's `Runtime/World`, `Tests/World` and both golden files over `dff94c17`):
+  - simtests pass 343 of 343, with `GoldenFlights.RangeHash` `0xE4B13EDD65CFF0B2` unchanged at QV4, so no range flight moves
+  - `worldbench --golden` passes
+  - `flightbench --probe` passes
+- **Physics' sign-off** of the give-up rule (B4 item 5) is owed at that merge. The physics engineer reads the rule and L6.
+
+## Hygiene
+- **Commits:** the four commits are by `World Builder <world@450fpv.local>`, subject only (57–64 characters), with no body or trailer.
+- **Paths:** nothing from `reference/`, `Library/`, `Temp/`, `Logs/` or `UserSettings/`.
+- **Determinism:**
+  - `Touch` uses + − × and comparisons only, with no `System.Math`, and allocates nothing (0 B on every bench row).
+  - The `System.Math` hits in `Runtime/World` are p7c-wind's `WakeGridMath`, not this change.
+- **OPSEC and licences:** `precommit.py --tree HEAD` finds nothing, and `fetch.py --verify` is OK.
+
+## Commands and output (logs in this worktree's `unity/Logs/qa21c-*`)
+```
+dotnet test tools/simtests                                          Passed! Failed 0, Passed 316 (12 m 53 s, loaded machine)
+dotnet run -c Debug --project tools/worldbench -- --golden          worldbench: ALL PASS, exit 0 (floor 5, test-range 6, wakes 11;
+                                                                    query_version 4, content 6114242e06475fb5)
+dotnet run -c Release --project tools/worldbench -- --golden        worldbench: ALL PASS, exit 0, the same cases as Debug;
+                                                                    floor 329 and test range 4136 contacts with Time < 1
+dotnet run -c Release --project tools/worldbench -- --bench (x3)    exit 0 each, "AC, Balanced plan, best performance mode, CPU 3201/3201 MHz",
+                                                                    CPU load 60 / 17 / 45 % before; "worldbench: bench done, every budget met"
+worldbench --bench A/B, QV3 and QV4 builds interleaved (x4 each)    every budget met; E01 p99 64.8-95.6 (QV3) / 59.6-105.4 (QV4) us
+dotnet run -c Release --project tools/worldbench -- --wakes         worldbench --wakes: PASS, exit 0 (the same power line)
+dotnet run -c Release --project tools/flightbench -- --probe        contact-probe: FAIL (1 checks), exit 1: "geometry: ... coil r 0.0415 m
+                                                                    at y -0.053 (legs off -0.053)"; every contact check PASS (24)
+& $env:UNITY -batchmode -nographics -projectPath unity -runTests -testPlatform EditMode -testResults Logs/qa21c-editmode.xml -logFile ... | Out-Host
+                                                                    937 of 937 passed, exit 0 (442 s); TestRangeWorldTests:
+                                                                    "731 objects, 43677 colliders: worst position 0.015 mm, worst turn 0.0000°"
+python -m pytest tools -q -p no:cacheprovider (BLENDER the real 5.2)   1517 passed, 0 skipped, in 1519 s, exit 0 (the merge check included)
+python -m pytest tools/hygiene/tests/test_precommit.py -k test_existing_tree_is_clean
+                                                                    2 passed (origin/unity/main b088dd4 merged with HEAD), exit 0
+python tools/hygiene/precommit.py --tree HEAD                       2242 files scanned, 0 findings, exit 0
+python tools/assets/fetch.py --verify                               OK, exit 0
+openspec validate p6-world-query-gallery --strict                   Change 'p6-world-query-gallery' is valid, exit 0
+harness p4 10000 601 / 602 (QV4)                                    missed 0 / 0; false 0 / 0; after the truth 3 / 3 (all ending within 1 um, L6)
+harness p4 10000 601 / 602 (QV3)                                    missed 3260 / 3240
+harness fresh 120 2026 (QV4)                                        false 0; missed 10 (all ending clear, <= 5.9 um deep); L4's 7 late
+counting build, --golden and --bench                                0 give-ups; harness p4 200 777: 96 give-ups, 90 bisected
+mutations (39 world tests)                                          as tabled under S3; the capsule-cap experiment: passes, fails mutated
+range overlay (dff94c17 + this branch's World, Tests/World, golden files):
+  dotnet test tools/simtests                                        Passed 343 of 343 (RangeHash 0xE4B13EDD65CFF0B2 included)
+  worldbench --golden (Release)                                     ALL PASS
+  flightbench --probe                                               contact-probe: PASS
+```
+
+## For the orchestrator, outside this change
+- The S3 cap test and L6's two comment lines are small. They can land in a Quick change or with the range branch's merge; I re-check them by the diff and the capsule mutation.
+- `flightbench --probe`'s coil geometry check fails on `unity/main` and this branch (p7b's fit), as before. Owner: the physics engineer.
+- The power plan reads "best performance mode" now. Bench numbers across sessions differ in that, besides other agents' load.
