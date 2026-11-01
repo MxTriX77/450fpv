@@ -1,0 +1,25 @@
+{
+  "material": "whitewash_blue",
+  "texture_set": "polyhaven/blue_plaster_weathered",
+  "formula": "R metallic, G occlusion, B 0, A smoothness; 8-bit linear at the sources' size",
+  "mask": {
+    "metallic": 0.0,
+    "occlusion": "ao",
+    "smoothness": "1 - roughness"
+  },
+  "sources": {
+    "ao": {
+      "name": "blue_plaster_weathered_ao_2k.png",
+      "sha256": "22dd32a5bfaa347dbacf4b1d558930e3722247561193e3a9347fffd0de75b75e"
+    },
+    "roughness": {
+      "name": "blue_plaster_weathered_rough_2k.png",
+      "sha256": "32042651535e985ce1bdb8207aec47bc9530923a05f7a978f51879a51cf62d60"
+    }
+  },
+  "inputs_sha256": "3467f51b74d83ac3674a250f9e0f66e6cc2eca4fc8d64572db798533d3673771",
+  "size": [
+    2048,
+    2048
+  ]
+}

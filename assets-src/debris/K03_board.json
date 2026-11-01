@@ -1,0 +1,13 @@
+{
+  "piece": "board",
+  "seed": 1,
+  "section_m": { "w": 0.15, "h": 0.032 },
+  "length_m": 1.5,
+  "break_ends": 1,
+  "splinter_len_m": 0.2,
+  "splinter_count": 5,
+  "nails": 2,
+  "nail_proud_mm": 50.0,
+  "physics_material": "timber",
+  "lod": { "lod1_switch_m": 6.0, "cull_m": 220.0 }
+}

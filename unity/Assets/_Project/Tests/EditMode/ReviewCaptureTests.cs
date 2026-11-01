@@ -231,6 +231,35 @@ namespace Fpv450.Tests.EditMode
             }
         }
 
+        /// <summary>
+        /// p1-h01-adobe-house task 1.6 (p1-r01-vaz-sedan QA 2.2's T1): with a <c>bounds.lod</c> the stage frames the object's
+        /// own box, not the rubble spread round it, while the lift onto the ground still reads the whole bounds: a 16 x 20 m
+        /// spread with a 10.6 x 7 m house in it, the spread reaching 0.024 m below the ground.
+        /// </summary>
+        [Test]
+        public void StageBuild_FramesOnTheLodBoxWhenTheMetadataGivesOne()
+        {
+            const string prefabPath = "Assets/_Project/Prefabs/debris/K01_whole.prefab";
+            Assert.That(AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath), Is.Not.Null, $"{prefabPath} is missing: run pwsh tools/build_asset.ps1 K01");
+            var meta = new ReviewMeta
+            {
+                Bounds = new Bounds(new Vector3(0.08f, 2.783f, -1.62f), new Vector3(16.23f, 5.614f, 20.19f)),
+                Lod = new Bounds(new Vector3(0.206f, 2.795f, 0f), new Vector3(10.612f, 5.59f, 7.024f)),
+            };
+            Review.Stage stage = Review.Stage.Build(prefabPath, meta, "houses");
+            try
+            {
+                AssertNear(stage.Origin, new Vector3(0f, 0.024f, 0f), "asset origin");
+                AssertNear(stage.AssetBounds.center, new Vector3(0.206f, 2.819f, 0f), "frame centre");
+                AssertNear(stage.AssetBounds.size, new Vector3(10.612f, 5.59f, 7.024f), "frame size");
+                Assert.That(new ReviewMeta { Bounds = meta.Bounds }.Frame, Is.EqualTo(meta.Bounds), "no bounds.lod: the bounds");
+            }
+            finally
+            {
+                Object.DestroyImmediate(stage.Root);
+            }
+        }
+
         // p1-e01-trench design 9: hand-made metadata, the run first and a niche after it, square to the run, which the
         // capture ignores. The straight run lies on the lip along +X; the bent one starts at (2, 1), runs (0.6, 0.8) for
         // two metres and bends 25° left, with its points at y = -1.5 to show the lip is taken at y = 0 whatever their height.

@@ -333,7 +333,8 @@ namespace Fpv450
                 // Onto the ground when its bounds reach below it; an asset above it (a wire span) stays at its own height.
                 instance.transform.localPosition = new Vector3(0f, Mathf.Max(0f, -meta.Bounds.min.y), 0f);
                 stage.Origin = instance.transform.position;
-                stage.AssetBounds = new Bounds(meta.Bounds.center + instance.transform.localPosition, meta.Bounds.size);
+                // The shots frame the object's own box (bounds.lod) when the metadata gives one, not what lies round it.
+                stage.AssetBounds = new Bounds(meta.Frame.center + instance.transform.localPosition, meta.Frame.size);
                 stage.LodGroup = instance.GetComponent<LODGroup>();
 
                 // The bar stands 1 m outside the bounds, at a bearing off the 45° turntable grid so no view lines it up with the asset.
@@ -790,7 +791,8 @@ namespace Fpv450
             y += 12;
             foreach (string line in new[]
                      {
-                         $"BOUNDS {meta.Bounds.size.x:0.000} X {meta.Bounds.size.y:0.000} X {meta.Bounds.size.z:0.000} M",
+                         $"BOUNDS {meta.Bounds.size.x:0.000} X {meta.Bounds.size.y:0.000} X {meta.Bounds.size.z:0.000} M" +
+                         (meta.Lod is Bounds lod ? $", SHOTS FRAMED ON BOUNDS.LOD {lod.size.x:0.000} X {lod.size.y:0.000} X {lod.size.z:0.000} M" : ""),
                          $"LODS {meta.LodSummary}, CULL {meta.CullDistance:0.#} M",
                          $"MATERIALS {meta.MaterialSummary}",
                          $"LIGHT {profile.name}: {profile.Summary}",
