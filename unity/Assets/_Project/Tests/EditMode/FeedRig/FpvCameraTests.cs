@@ -93,6 +93,49 @@ namespace Fpv450.Feed.Tests
             }
         }
 
+        /// fpv-camera (p7e-camera-feel 1.5): a rig handed a rolling-shutter track renders with the shutter's margin, reads
+        /// each field through the track (the identity until the flight builds one) and steps only where the flight drives
+        /// it; with the settings' shutter off it renders and reads as before ("Off reads the scene as before").
+        [Test]
+        public void ARigWithATrackReadsThroughIt()
+        {
+            var go = new GameObject("FpvCameraShutterTest");
+            FeedSettings s = ScriptableObject.CreateInstance<FeedSettings>();
+            try
+            {
+                var camera = go.AddComponent<Camera>();
+                var rig = go.AddComponent<FpvCamera>();
+                rig.settings = s;
+                rig.Shutter = new RollingShutter();
+                rig.Begin();
+                Assert.That(s.ShutterCoverage, Is.EqualTo(1.5047f).Within(0.0002f), "1.434 and 4° at f 1.005");
+                Assert.That(rig.RenderCoverage, Is.EqualTo(s.ShutterCoverage));
+                Assert.That(camera.fieldOfView, Is.EqualTo(s.VerticalFovDeg(s.ShutterCoverage)).Within(1e-4f));
+                Assert.That(new Vector2Int(camera.targetTexture.width, camera.targetTexture.height), Is.EqualTo(s.SceneSizeFor(s.ShutterCoverage)));
+                Assert.That(rig.Feed.ShutterTrack, Is.Not.Null);
+                Assert.That(new Vector2Int(rig.Feed.ShutterTrack.width, rig.Feed.ShutterTrack.height), Is.EqualTo(new Vector2Int(RollingShutter.RowTexels, RollingShutter.Rows)));
+                Assert.That(rig.Feed.Shutter, Is.EqualTo(new Vector4(1f, s.focalHalfWidths, s.ShutterCoverage, 0f)));
+                Assert.That(rig.Shutter.TapsOf(0), Is.EqualTo(1), "the identity until a track is built");
+
+                rig.Driven = true;
+                rig.Drive(700);
+                Assert.That(rig.Events.Field, Is.EqualTo(700), "the flight's field");
+                rig.End();
+
+                s.shutter = false;
+                rig.Begin();
+                Assert.That(rig.RenderCoverage, Is.EqualTo(s.Coverage));
+                Assert.That(new Vector2Int(camera.targetTexture.width, camera.targetTexture.height), Is.EqualTo(s.SceneSize));
+                Assert.That(rig.Feed.ShutterTrack, Is.Null, "the old read");
+                rig.End();
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(s);
+            }
+        }
+
         /// The noclip camera feeds its angular rate in its own axes (design 4), measured off its pose per frame, even
         /// for a frame's turn far below a degree; every other signal stays its labelled stub, and the log says so.
         [Test]

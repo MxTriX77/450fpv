@@ -21,6 +21,8 @@
 //
 // One addition, off by default in the A/B: O1, the lens (K§11.4, FEED-02), on the sensor_read coordinate only, so the
 // OSD keeps its straight horizon while the real one bends (gd:28-30). With k1 = 0 and coverage 1 it is Godot's read.
+// A second, off in the A/B (p7e-camera-feel): the camera's read, each field row turned by the camera's rotation at its
+// read and averaged over its exposure (shutter_tex), on the scene only; with _Shutter.x = 0 the read is the one above.
 Shader "Hidden/Fpv450/Feed"
 {
     Properties
@@ -69,6 +71,15 @@ Shader "Hidden/Fpv450/Feed"
     float4 _Lens;
     // The field texture: x = columns, y = rows (FieldRows = LINES + 1, so an odd field's half line at the top fits).
     float4 _FieldSize;
+
+    // The camera's read (p7e-camera-feel, RollingShutter.cs): per field row, 8 tap rotations of the camera against the
+    // field's reference instant (x, y, z, w) then (tap count, 0, 0, 0), 9 x 287 texels, row 0 the top. _Shutter: x = 1 to
+    // read through it, y = the pinhole's f in half-widths, z = the render's coverage (the lens's and the margin's). x = 0
+    // is the old read, exactly.
+    TEXTURE2D(_ShutterTrack);
+    float4 _Shutter;
+    static float4 g_tap[8];
+    static int g_taps;
 
     // --- the constants, literal (gd:70-101) ---------------------------------------------------------------------
     #define GD_TWO_PI 6.2831853         // gd:70 (core RP defines its own TWO_PI)
@@ -123,10 +134,59 @@ Shader "Hidden/Fpv450/Feed"
         return 0.5 + 0.5 * pu / (_Lens.y * halfSize);
     }
 
+    // v rotated by the unit quaternion q: v + 2w(u x v) + 2u x (u x v), the sim's Quat.Rotate.
+    float3 rotate_q(float4 q, float3 v)
+    {
+        float3 t = 2.0 * cross(q.xyz, v);
+        return v + q.w * t + cross(q.xyz, t);
+    }
+
+    // The camera's read (p7e-camera-feel): the picture point's pinhole ray (x right, y up, z forward, in half-widths) as
+    // the camera saw it at each of this row's taps, turned into the reference camera's axes and projected into the
+    // render, the taps averaged: the rolling shutter's skew and the exposure's blur.
+    float3 shutter_tex(float2 uv)
+    {
+        float2 halfSize = float2(1.0, 1.0 / _Lens.z);
+        float2 pd = (uv - 0.5) * 2.0 * halfSize;
+        float2 pu = pd * (1.0 + _Lens.x * dot(pd, pd));
+        float f = _Shutter.y;
+        float3 ray = float3(pu.x, -pu.y, f);
+        float3 sum = float3(0.0, 0.0, 0.0);
+        [loop] for (int i = 0; i < g_taps; i++)
+        {
+            float3 r = rotate_q(g_tap[i], ray);
+            float2 pr = f * float2(r.x, -r.y) / max(r.z, 1e-4);
+            float2 s = 0.5 + 0.5 * pr / (_Shutter.z * halfSize);
+            sum += SAMPLE_TEXTURE2D_X_LOD(_BlitTexture, sampler_LinearClamp, float2(s.x, 1.0 - s.y), 0).rgb;
+        }
+        return sum / float(g_taps);
+    }
+
     float3 screen_tex(float2 uv)
     {
+        if (_Shutter.x > 0.5)
+        {
+            return shutter_tex(uv);
+        }
         float2 s = lens_read(uv);
         return SAMPLE_TEXTURE2D_X_LOD(_BlitTexture, sampler_LinearClamp, float2(s.x, 1.0 - s.y), 0).rgb;
+    }
+
+    // This field row's taps into g_tap and g_taps (one identity tap with the shutter off).
+    void shutter_row(float row)
+    {
+        g_taps = 1;
+        g_tap[0] = float4(0.0, 0.0, 0.0, 1.0);
+        if (_Shutter.x < 0.5)
+        {
+            return;
+        }
+        int r = clamp(int(row), 0, 286);
+        g_taps = clamp(int(LOAD_TEXTURE2D(_ShutterTrack, int2(8, r)).x + 0.5), 1, 8);
+        [loop] for (int j = 0; j < g_taps; j++)
+        {
+            g_tap[j] = LOAD_TEXTURE2D(_ShutterTrack, int2(j, r));
+        }
     }
 
     // gd:114-117. The sensor's vertical aperture lives on the sensor, so the lens maps each of its two reads.
@@ -189,6 +249,8 @@ Shader "Hidden/Fpv450/Feed"
     // gd:165-412: one field line's picture at column `x`. `row` counts the field texture's rows from the top.
     float3 feed_field(float x, float row)
     {
+        shutter_row(row);
+
         // --- field sampling (P1), gd:166-174
         float fw = glsl_mod(_Field, 1024.0);
         float parity = glsl_mod(_Field, 2.0);

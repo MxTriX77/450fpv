@@ -19,7 +19,9 @@ namespace Fpv450.Feed
     /// sets the render's samples across the picture (<see cref="FeedSettings.sceneWidth"/>, task 1.8's render-size
     /// runs); <c>-feedcost</c> runs the cost scenario (PLT-07: 2 s warm-up, 30 s measured at the start view, the feed
     /// passes' GPU time from their "Feed" profiling sampler, so it needs a development build) and quits, exit code 1
-    /// over FEED-10's 1.0 ms.
+    /// over FEED-10's 1.0 ms. With <c>-feedshutter &lt;s&gt;</c> it reads through the camera's rolling shutter
+    /// (p7e-camera-feel 1.7): a track for the pilot's full-stick yaw, 300 °/s (fc-profiles.md), at that exposure, so
+    /// daylight's 1/8192 s reads one tap a row and dusk's 1/50 s eight, the flight's worst case.
     /// </remarks>
     [DefaultExecutionOrder(-100)] // samples the camera's pose after every mover and before the rig steps its field
     public sealed class NoclipFeed : MonoBehaviour
@@ -27,9 +29,12 @@ namespace Fpv450.Feed
         const string SceneName = "TestRange";
         const float WarmUpSeconds = 2f, CostSeconds = 30f; // PLT-07
         const float BudgetMs = 1f;                         // FEED-10
+        const double ShutterYawDegPerS = 300;             // fc-profiles.md, the pilot's full stick
 
         FpvCamera rig;
         NoclipFeedSignals signals;
+        RollingShutter shutter;
+        float shutterExposureS;
         bool overlay;
         GUIStyle style;
 
@@ -71,6 +76,13 @@ namespace Fpv450.Feed
             rig = gameObject.AddComponent<FpvCamera>(); // it waits for its settings and begins at Start
             rig.settings = settings;
             rig.Signals = signals;
+            int at = Array.IndexOf(args, "-feedshutter");
+            if (at >= 0 && at + 1 < args.Length && float.TryParse(args[at + 1], System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out shutterExposureS) && shutterExposureS > 0f)
+            {
+                shutter = new RollingShutter();
+                rig.Shutter = shutter;
+            }
             rig.enabled = IntArg(args, "-feed", 1) != 0;
             if (!rig.enabled)
                 Debug.Log("[Feed] off at start (-feed 0); V turns it on.");
@@ -115,6 +127,14 @@ namespace Fpv450.Feed
         /// The cost scenario (analog-feed spec, "The cost on AC"): the GPU time of the feed's three passes per frame.
         IEnumerator Cost()
         {
+            yield return null; // the rig has begun (its Start), with the identity track
+            if (shutter != null)
+            {
+                shutter.Build(YawSamples(ShutterYawDegPerS), shutterExposureS, rig.settings.PixelsPerRad);
+                rig.UploadShutter();
+                Debug.Log($"[Feed] cost: the rolling shutter's read, a {ShutterYawDegPerS:0} °/s yaw at a {shutterExposureS * 1e3:0.###} ms exposure, " +
+                          $"{shutter.TapsOf(0)} to {shutter.TapsOf(RollingShutter.Rows - 1)} taps a row, the render covering {rig.RenderCoverage:0.000} half-widths");
+            }
             yield return new WaitForSecondsRealtime(WarmUpSeconds);
             Recorder feed = Recorder.Get("Feed");
             if (!feed.isValid || !SystemInfo.supportsGpuRecorder)
@@ -149,7 +169,7 @@ namespace Fpv450.Feed
             foreach (float ms in gpu)
                 mean += ms;
             mean /= gpu.Count;
-            Vector2Int size = rig.settings.SceneSize;
+            Vector2Int size = rig.settings.SceneSizeFor(rig.RenderCoverage);
             Debug.Log($"[Feed] cost: {gpu.Count} of {frames} frames over {seconds:0.0} s, {(float)blocks / gpu.Count:0.0} passes a frame, the feed's GPU time mean {mean:0.000} ms, " +
                       $"median {gpu[gpu.Count / 2]:0.000}, 99th percentile {gpu[Mathf.Clamp(Mathf.CeilToInt(0.99f * gpu.Count) - 1, 0, gpu.Count - 1)]:0.000}, " +
                       $"max {gpu[gpu.Count - 1]:0.000} ms ({(mean <= BudgetMs ? "within" : "OVER")} FEED-10's {BudgetMs:0.0} ms); " +
@@ -189,6 +209,19 @@ namespace Fpv450.Feed
             Vector2Int size = s.SceneSize;
             return $"Feed on (V)   seed {s.seed}   field {rig.Events.Field}   {rig.Events.Loss.Current}   quality drop {rig.Events.Degrade:0.00}\n" +
                    $"render {size.x}x{size.y}, analog pass {s.fieldWidth}x{FeedSettings.FieldRows}";
+        }
+
+        // The camera turning about its own up axis at degPerS, at the track's samples against the field's reference instant.
+        static System.Numerics.Quaternion[] YawSamples(double degPerS)
+        {
+            var q = new System.Numerics.Quaternion[RollingShutter.Samples];
+            for (int i = 0; i < q.Length; i++)
+            {
+                double us = (i - RollingShutter.SampleLead) * RollingShutter.SampleUs - RollingShutter.ReferenceUs;
+                double half = 0.5 * degPerS * Math.PI / 180.0 * us * 1e-6;
+                q[i] = new System.Numerics.Quaternion(0f, (float)Math.Sin(half), 0f, (float)Math.Cos(half));
+            }
+            return q;
         }
 
         static int IntArg(string[] args, string name, int fallback)

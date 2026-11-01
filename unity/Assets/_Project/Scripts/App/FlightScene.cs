@@ -12,6 +12,7 @@ using Fpv450.World;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering.Universal;
+using Num = System.Numerics;
 
 namespace Fpv450.App
 {
@@ -26,6 +27,9 @@ namespace Fpv450.App
     /// - over the picture: the arming hint, the pause (Esc) and the post-flight summary, read from the log off the frame.
     /// V switches between the FPV view and the third-person chase view in every build (D-055); only the camera moves,
     /// still through the feed and its OSD. Review builds add F (the feed off and on).
+    /// In the FPV view the camera takes each PAL field at its own sim time (p7e-camera-feel): the scene is drawn once per
+    /// whole field, with the camera at the field's reference instant on the flexing frame (FieldCamera), each line read
+    /// through the field's rolling-shutter track, and held until the next field; the feed's fields follow the flight's.
     /// </summary>
     [DefaultExecutionOrder(100)] // after the host has ticked the session this frame
     public sealed class FlightScene : MonoBehaviour
@@ -50,6 +54,10 @@ namespace Fpv450.App
         FlightChoices _previewed;
 
         public FlightSessionHost Host { get; private set; }
+
+        /// <summary>The flight's camera, enabled or not: the FPV view holds a field by not rendering between fields
+        /// (p7e-camera-feel), when Camera.main does not see it.</summary>
+        public Transform Eye => _camera != null ? _camera.transform : null;
 
         /// <summary>The summary's Setup and Menu, for AppFlow.</summary>
         public event Action SetupRequested, MenuRequested;
@@ -84,6 +92,25 @@ namespace Fpv450.App
         int _readFor;
         List<string> _lines;
         string _title;
+
+        // The field latch (p7e-camera-feel): the camera's rolling-shutter track, the history's samples it is built from,
+        // the field last drawn, and the feed's field offset while the flight drives it.
+        readonly RollingShutter _shutter = new RollingShutter();
+        readonly Num.Quaternion[] _samples = new Num.Quaternion[RollingShutter.Samples];
+        long _shownField = -1;
+        int _fieldOffset;
+        bool _driving;
+
+        /// <summary>False with <c>-camerafeel 0</c>: the camera as before p7e-camera-feel, drawn every frame at the render
+        /// clock's pose and read as rendered, the feed on its own clock (the before half of its A/B, task 1.7).</summary>
+        public static readonly bool CameraFeel = CameraFeelArg();
+
+        static bool CameraFeelArg()
+        {
+            string[] args = Environment.GetCommandLineArgs();
+            int i = Array.IndexOf(args, "-camerafeel");
+            return !(i >= 0 && i + 1 < args.Length && args[i + 1] == "0");
+        }
 
         /// <summary>
         /// Takes the loaded test range over for a flight; call it from SceneManager.sceneLoaded, before the scene's Start.
@@ -128,6 +155,8 @@ namespace Fpv450.App
             _rig = go.AddComponent<FpvCamera>(); // it begins at Start, once it has its settings and signals
             _rig.settings = settings;
             _rig.Signals = _signals;
+            if (CameraFeel) _rig.Shutter = _shutter;
+            else Debug.Log("[Flight] -camerafeel 0: the camera at the render clock's pose, read as rendered (p7e-camera-feel's before)");
             if (_look != null) _look.viewCamera = _camera;
         }
 
@@ -157,6 +186,7 @@ namespace Fpv450.App
             if (session == null) return;
             if (Host.WaitingForRadio)
             {
+                Unlatch();
                 Preview(Host.Inputs);
                 PlaceCamera(_camera.transform, _body, CameraMount, Chase);
                 return;
@@ -166,7 +196,8 @@ namespace Fpv450.App
 
             // The buffer is reused by every flight: a pair from before this flight's step 0 is the last flight's.
             ref readonly PosePair pair = ref session.Poses.Read();
-            if (pair.StartUs >= session.StartUs)
+            bool thisFlight = pair.StartUs >= session.StartUs;
+            if (thisFlight)
             {
                 pair.Interpolate(HostClock.Instance.NowUs(), out Pose);
                 _body.SetPositionAndRotation(V(Pose.Position), Q(Pose.Attitude));
@@ -175,6 +206,7 @@ namespace Fpv450.App
                 _signals.Update(pair.Signals, Pose.Armed, Pose.Position.Y - RestPose.Position.Y, Math.Sqrt(home.X * home.X + home.Z * home.Z), Pose.TimeS);
             }
             PlaceCamera(_camera.transform, _body, CameraMount, Chase);
+            Latch(session, thisFlight);
             if (_look != null) _look.UpdateFog(_camera);
             Cursor.visible = session.State != SessionState.Flying || Covered;
             Summarise(session);
@@ -198,9 +230,110 @@ namespace Fpv450.App
             }
         }
 
+        /// <summary>The field to draw this frame (p7e-camera-feel): the newest whole field when it is not the one shown,
+        /// else −1 (the shown field is held).</summary>
+        public static long NewField(long latestStep, long shownField)
+        {
+            long field = FieldCamera.LatestField(latestStep);
+            return field >= 0 && field != shownField ? field : -1;
+        }
+
+        // The field latch while this flight flies or pauses with the feed running (p7e-camera-feel, design 2): the feed at
+        // the flight's field; in the FPV view the scene drawn once per whole field, the body and the camera at the field's
+        // reference instant and its rows through the field's track; in the chase view every frame, read as rendered.
+        void Latch(FlightSession session, bool thisFlight)
+        {
+            bool flying = CameraFeel && thisFlight && (session.State == SessionState.Flying || session.State == SessionState.Paused)
+                && _rig != null && _rig.Running;
+            long latest = flying ? FieldCamera.LatestField(session.Poses.LatestStep) : -1;
+            if (latest < 0)
+            {
+                Unlatch();
+                return;
+            }
+            if (!_driving)
+            {
+                _fieldOffset = _rig.Events.Field + 1 - (int)latest; // the feed runs on, never back
+                _driving = _rig.Driven = true;
+            }
+            _rig.Drive(_fieldOffset + (int)latest);
+            long field = NewField(session.Poses.LatestStep, _shownField);
+            if (Chase)
+            {
+                _camera.enabled = true;
+                if (field >= 0 && _shutter.Turning)
+                {
+                    _shutter.Clear();
+                    _rig.UploadShutter();
+                }
+                _shownField = latest;
+                return;
+            }
+            if (field < 0)
+            {
+                _camera.enabled = false; // the field shown is held: the feed reads the last render
+                return;
+            }
+            _shownField = field;
+            _camera.enabled = true;
+            long start = FieldCamera.FieldStartUs(field);
+            if (!FieldCamera.At(session.Poses, start + (long)RollingShutter.ReferenceUs, out PoseFrame at))
+            {
+                // The history has lost the field (a render stalled past it): this frame's pose, read as rendered.
+                _shutter.Clear();
+                _rig.UploadShutter();
+                return;
+            }
+            // The camera renders at the mount on the rigid body; the frame's elastic turn, the reference row's included,
+            // is in the track, so the camera's transform stays the lens's (D-055) and the read turns the picture.
+            _body.SetPositionAndRotation(V(at.Position), Q(at.Attitude));
+            FillSamples(session.Poses, start, at.Attitude);
+            _shutter.Build(_samples, RollingShutter.ExposureS(_signals.SceneLuminance), _rig.settings.PixelsPerRad);
+            _rig.UploadShutter();
+        }
+
+        // The camera on the flexing frame (FieldCamera.Attitude) against the rigid body's attitude at the field's reference
+        // instant, at the history's steps from SampleLead before the field to its end; a
+        // step the history does not hold (before the flight began) takes the nearest one it does, none the identity.
+        void FillSamples(PoseBuffer poses, long fieldStartUs, Quat reference)
+        {
+            Quat inverse = reference.Conjugate();
+            long first = fieldStartUs / FlightCore.StepUs - RollingShutter.SampleLead;
+            Num.Quaternion held = Num.Quaternion.Identity;
+            bool any = false;
+            for (int i = 0; i < RollingShutter.Samples; i++)
+            {
+                if (poses.TryRead(first + i, out PoseFrame p))
+                {
+                    Quat q = inverse * FieldCamera.Attitude(p);
+                    held = new Num.Quaternion((float)q.X, (float)q.Y, (float)q.Z, (float)q.W);
+                    if (!any)
+                        for (int b = 0; b < i; b++) _samples[b] = held;
+                    any = true;
+                }
+                _samples[i] = held;
+            }
+        }
+
+        // Back to the render clock: the camera drawn every frame, read as rendered, the feed on its own clock.
+        void Unlatch()
+        {
+            if (_camera != null) _camera.enabled = true;
+            _shownField = -1;
+            if (!_driving) return;
+            _driving = false;
+            if (_rig != null) _rig.Driven = false;
+            if (_shutter.Turning)
+            {
+                _shutter.Clear();
+                if (_rig != null) _rig.UploadShutter();
+            }
+        }
+
         // A new flight: its drone for the legs, its stand, its rest pose and its look.
         void Show(FlightSession session)
         {
+            Unlatch();
             ShownFlight = session.Flights;
             _previewed = null; // the next wait for the radio previews again
             _armedOnce = false;

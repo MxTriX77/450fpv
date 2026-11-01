@@ -9,7 +9,7 @@ A small flat map, 512 m square, to look around in noclip now and to fly the firs
 - Options for the team: `-windowed` (a 1920 × 1080 window), `-vsync 0` (vsync off, for frame-rate measurements), `-smoketest` (loads, logs every placed object, quits after one frame), `-capture <folder>` (saves every number-key view under every light, then quits), `-bench` (flies the three frame-rate legs, over the yard, along the posadka at 2 m and over the fields at 50 m, logs each leg's frame rate, then quits). Captures and the bench go through the feed unless it is off:
   - `-feed 0` starts with the feed off (the clean noclip view, its frame rate and clean captures)
   - `-feedwidth <n>` renders the scene at `n` samples across the picture instead of 1920 (frame-rate runs)
-  - `-feedcost` measures the feed's own GPU time for 30 s at the start view and quits (exit code 1 over 1.0 ms); it needs a development build (`-executeMethod Fpv450.Build.TestRange -developmentBuild`)
+  - `-feedcost` measures the feed's own GPU time for 30 s at the start view and quits (exit code 1 over 1.0 ms); it needs a development build (`-executeMethod Fpv450.Build.TestRange -developmentBuild`); `-feedshutter <s>` adds the camera's rolling-shutter read (p7e-camera-feel), a 300 °/s yaw at that exposure: 0.000122 is daylight's one tap a row, 0.02 dusk's eight
 
 ## Keys
 | Key | Does |

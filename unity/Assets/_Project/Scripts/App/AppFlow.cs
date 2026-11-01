@@ -30,7 +30,8 @@ namespace Fpv450.App
     /// Options: <c>-windowed</c> (a 1920 × 1080 window), <c>-vsync &lt;n&gt;</c> (as the range's boot), <c>-quality &lt;name&gt;</c>
     /// (a preset, saved for the next start: QualityPreset). <c>-smoketest</c>
     /// walks the app (Smoke) and quits, exit code 1 on any failed check or any error logged; <c>-smokeshots &lt;folder&gt;</c>
-    /// saves its screens there.
+    /// saves its screens there, and <c>-smokeseq &lt;n&gt;</c> beside them n consecutive frames at the punch-outs and the
+    /// hover, FPV and chase (Sequence). <c>-camerafeel 0</c> flies the camera as before p7e-camera-feel (FlightScene.CameraFeel).
     /// </remarks>
     public sealed class AppFlow : MonoBehaviour
     {
@@ -47,6 +48,8 @@ namespace Fpv450.App
         string _profile;
         int _errors;
         string _smokeLogs; // the smoke test's flight logs, never in the pilot's folder
+        string _sequences; // -smokeseq's folder, and its frames a sequence
+        int _sequenceFrames;
 
         /// <summary>Boot's: makes the app once; the Boot scene loads again for the menu and finds it.</summary>
         public static void Create()
@@ -282,6 +285,11 @@ namespace Fpv450.App
             // Its flights log to a folder of its own (QA's note): beside the shots, or in the app's temporary folder.
             _smokeLogs = shots != null ? Path.Combine(shots, "flights") : Path.Combine(Application.temporaryCachePath, "smoketest-flights");
             Debug.Log("[Smoke] flight logs in " + _smokeLogs);
+            // -smokeseq <n>: n consecutive frames at the punch and the hover, FPV and chase, and in the house flight's yaw
+            // and pitch (p7e-camera-feel 1.7's before and after, with -camerafeel 0 for the before), beside the shots.
+            int seq = Array.IndexOf(args, "-smokeseq");
+            if (shots != null && seq >= 0 && seq + 1 < args.Length && int.TryParse(args[seq + 1], out _sequenceFrames) && _sequenceFrames > 0)
+                _sequences = Path.Combine(shots, "seq");
             // The smoke test's flights save their setup; the pilot's own is put back at the end.
             string setupFile = SetupStore.PathIn(Application.persistentDataPath);
             byte[] pilotSetup = File.Exists(setupFile) ? File.ReadAllBytes(setupFile) : null;
@@ -330,7 +338,7 @@ namespace Fpv450.App
                 Check(k[FlightScene.ViewKey].isPressed && KeyboardFallback.ReadKeys() == KeyboardKeys.None, "V held " + where + ": the flight's keys are none");
                 InputSystem.QueueStateEvent(k, new KeyboardState());
                 yield return null;
-                Transform eye = Camera.main != null ? Camera.main.transform : null;
+                Transform eye = _flight.Eye; // not Camera.main: the FPV view's camera is off between fields (p7e-camera-feel)
                 FpvCamera feed = eye != null ? eye.GetComponent<FpvCamera>() : null;
                 bool feedOn = feed != null && feed.Running;
                 if (chase)
@@ -464,16 +472,19 @@ namespace Fpv450.App
                 yield return Shot("rest_" + start.Name);
                 yield return PressV("at rest at " + where);
                 yield return Shot("chase_" + start.Name);
-                yield return PressV("at rest at " + where);
+                bool chaseClimb = _sequences != null && start.Stand; // -smokeseq: the stand's punch-out in the chase view
+                if (!chaseClimb) yield return PressV("at rest at " + where);
 
                 yield return Hold(KeyboardKeys.ArmToggle, 0.1f);
                 yield return new WaitForSecondsRealtime(0.4f);
                 Check(_flight.Pose.Armed, "armed by the keyboard's switch");
                 double top = rest;
                 Action climb = () => top = Math.Max(top, _flight.Pose.Position.Y);
+                StartCoroutine(Sequence("punch_" + (chaseClimb ? "chase_" : "fpv_") + start.Name, 1.4f)); // the throttle near 0.7
                 yield return Hold(KeyboardKeys.ThrottleUp, 1.6f, climb);
                 yield return Hold(KeyboardKeys.None, 1.4f, climb);
                 Check(top - rest > 1.0, "climbed " + (top - rest).ToString("0.00") + " m");
+                if (chaseClimb) yield return PressV("in the air");
                 FlightOsd.Readout shown = _flight.Osd.Shown;
                 Check(_flight.Osd.Row(0).StartsWith(FlightOsd.ArmedMode + " ", StringComparison.Ordinal) && shown.Centiamps > 0 && shown.MahDrawn > 0 &&
                       shown.PackCentivolts > 0 && shown.CellCentivolts == shown.PackCentivolts / _flight.Osd.Cells,
@@ -567,6 +578,12 @@ namespace Fpv450.App
             Menu();
             yield return Until(() => _view == View.Menu, 30);
             Check(_view == View.Menu, "Menu returns to the menu");
+            if (_sequences != null)
+            {
+                UnityEngine.Rendering.AsyncGPUReadback.WaitAllRequests();
+                yield return Until(() => _sequenceWrites.TrueForAll(t => t.IsCompleted), 60);
+                Check(_sequenceWrites.TrueForAll(t => t.IsCompleted && !t.IsFaulted), "the sequences' " + _sequenceWrites.Count + " frames are written in " + _sequences);
+            }
             Debug.Log("[Smoke] " + (failed == 0 && _errors == 0 ? "PASS" : "FAIL") + ": " + failed + " checks failed, " + _errors + " errors logged");
             Application.Quit(failed == 0 && _errors == 0 ? 0 : 1);
         }
@@ -588,6 +605,8 @@ namespace Fpv450.App
             host.Keys = () => keys;
             double rest = _flight.RestPose.Position.Y, throttle = 0; // the keyboard's throttle, as its keys move it
             float end = Time.realtimeSinceStartup + 15, pitchFrom = -1;
+            float hoverUntil = _sequences != null ? -1 : 0; // -smokeseq: a hover once 2 m up, shot FPV then chase
+            bool turning = false;
             while (session.State == SessionState.Flying && Time.realtimeSinceStartup < end)
             {
                 yield return null;
@@ -604,13 +623,94 @@ namespace Fpv450.App
                 KeyboardKeys k = throttle < want - 0.01 ? KeyboardKeys.ThrottleUp : throttle > want + 0.01 ? KeyboardKeys.ThrottleDown : KeyboardKeys.None;
                 if (pitchFrom < 0 && h > 2)
                 {
-                    if (Math.Abs(turn) > 3) k |= turn > 0 ? KeyboardKeys.YawRight : KeyboardKeys.YawLeft;
-                    else pitchFrom = now;
+                    if (hoverUntil < 0)
+                    {
+                        hoverUntil = now + 2.5f;
+                        end += 2.5f; // the hover is not the flight's time to the house
+                        StartCoroutine(HoverSequences());
+                    }
+                    if (now < hoverUntil) { }
+                    else if (Math.Abs(turn) > 3)
+                    {
+                        k |= turn > 0 ? KeyboardKeys.YawRight : KeyboardKeys.YawLeft;
+                        if (!turning) StartCoroutine(Sequence("yaw_fpv", 0.15f));
+                        turning = true;
+                    }
+                    else
+                    {
+                        pitchFrom = now;
+                        StartCoroutine(Sequence("punch_forward_fpv", 0.1f));
+                    }
                 }
                 if (pitchFrom >= 0 && now - pitchFrom < 0.35f) k |= KeyboardKeys.PitchForward;
                 keys = k;
             }
             host.Keys = () => KeyboardKeys.None;
+        }
+
+        // The house flight's hover (-smokeseq): a sequence in the FPV view, then one in the chase view and back. V's own
+        // toggle, which the flight never sees.
+        IEnumerator HoverSequences()
+        {
+            yield return Sequence("hover_fpv", 0.6f);
+            _flight.Pressed(true, false);
+            yield return Sequence("hover_chase", 0.3f);
+            _flight.Pressed(true, false);
+        }
+
+        readonly List<Task> _sequenceWrites = new List<Task>();
+
+        // -smokeseq's frames (p7e-camera-feel 1.7): _sequenceFrames consecutive frames from `delay` s on, each as the screen
+        // showed it: copied on the GPU at the frame's end, read back without a stall and written off the main thread, so
+        // the capture leaves the frames' timing as it was. frames.txt has each frame's number, its time, the feed's field,
+        // the view and whether the FPV camera drew that frame or held its field.
+        IEnumerator Sequence(string name, float delay)
+        {
+            if (_sequences == null) yield break;
+            if (delay > 0f) yield return new WaitForSecondsRealtime(delay);
+            string dir = Path.Combine(_sequences, name);
+            Directory.CreateDirectory(dir);
+            var lines = new string[_sequenceFrames];
+            bool flip = SystemInfo.graphicsUVStartsAtTop;
+            float t0 = -1f;
+            for (int i = 0; i < _sequenceFrames; i++)
+            {
+                yield return new WaitForEndOfFrame();
+                RenderTexture rt = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.ARGB32);
+                ScreenCapture.CaptureScreenshotIntoRenderTexture(rt);
+                string file = Path.Combine(dir, i.ToString("00") + ".png");
+                int w = rt.width, h = rt.height;
+                UnityEngine.Rendering.AsyncGPUReadback.Request(rt, 0, TextureFormat.RGBA32, r =>
+                {
+                    RenderTexture.ReleaseTemporary(rt);
+                    if (r.hasError)
+                    {
+                        Debug.LogError("[Smoke] sequence " + name + ": a frame's readback failed");
+                        return;
+                    }
+                    byte[] px = r.GetData<byte>().ToArray();
+                    _sequenceWrites.Add(Task.Run(() => File.WriteAllBytes(file,
+                        ImageConversion.EncodeArrayToPNG(Opaque(px, w, h, flip), UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_SRGB, (uint)w, (uint)h))));
+                });
+                if (t0 < 0f) t0 = Time.realtimeSinceStartup;
+                Transform eye = _flight != null ? _flight.Eye : null;
+                FpvCamera rig = eye != null ? eye.GetComponent<FpvCamera>() : null;
+                lines[i] = i.ToString("00") + "  frame " + Time.frameCount + "  " + ((Time.realtimeSinceStartup - t0) * 1e3).ToString("0.0") + " ms  field " +
+                           (rig != null && rig.Running ? rig.Events.Field.ToString() : "-") + "  " + (_flight != null && _flight.Chase ? "chase" : "fpv") +
+                           (eye == null ? "" : eye.GetComponent<Camera>().enabled ? "  drawn" : "  held");
+            }
+            File.WriteAllLines(Path.Combine(dir, "frames.txt"), lines);
+            Debug.Log("[Smoke] sequence " + name + ": " + _sequenceFrames + " frames, " + (FlightScene.CameraFeel ? "the field latch" : "-camerafeel 0") + ", in " + dir);
+        }
+
+        // The readback's rows top first and every pixel opaque (the back buffer's alpha is not the picture's).
+        static byte[] Opaque(byte[] px, int w, int h, bool flip)
+        {
+            var o = new byte[px.Length];
+            int row = w * 4;
+            for (int y = 0; y < h; y++) Buffer.BlockCopy(px, (flip ? h - 1 - y : y) * row, o, y * row, row);
+            for (int i = 3; i < o.Length; i += 4) o[i] = 255;
+            return o;
         }
     }
 }

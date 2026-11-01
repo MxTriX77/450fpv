@@ -517,6 +517,7 @@ namespace Fpv450.Sim.Flight
                 RotorSpeed = s.RotorSpeed,
                 Armed = s.Armed,
                 LegCompression = _trace.LegCompression, // the step's start: one step behind the pose
+                CameraTurn = _modes != null ? _modes.FrameTurn(s.ModeShape) : default,
             };
         }
 
