@@ -298,6 +298,43 @@ namespace Fpv450.Sim.Log
                     + G(h.Contacts.CrashPropSpeed) + " m/s; physics_materials.json 0x" + h.Contacts.MaterialsHash.ToString("X16", c) + " (" + h.Contacts.Materials.Length + " rows)");
             else
                 w.WriteLine("  contacts: none");
+            if (h.Asymmetry != null)
+                w.WriteLine("  motor asymmetry: Kv sigma " + G(h.Asymmetry.KvSigma) + " within " + G(h.Asymmetry.KvBound) + ", ESC lag within "
+                    + G(h.Asymmetry.EscLagBound) + " s, props at balance grade " + G(h.Asymmetry.BalanceGrade) + " m/s ("
+                    + G(h.Asymmetry.PropMass) + " kg at " + G(h.Asymmetry.ServiceRpm) + " rpm)");
+            else
+                w.WriteLine("  motor asymmetry: off (identical rotors)");
+            if (h.VortexRing != null)
+                w.WriteLine("  vortex rings: in at eta " + G(h.VortexRing.EntryRate) + ", out below " + G(h.VortexRing.ExitRate) + " or past "
+                    + G(h.VortexRing.EndRate) + ", swept away at mu " + G(h.VortexRing.EscapeInPlane) + "; inflow " + G(h.VortexRing.EntryInflow)
+                    + " to " + G(h.VortexRing.PeakInflow) + " v_h at its peak eta " + G(h.VortexRing.PeakRate) + ", lag " + G(h.VortexRing.InflowLag)
+                    + " R/v_h; thrust sigma " + G(h.VortexRing.FluctuationSigma) + " within " + G(h.VortexRing.FluctuationBound) + " at f R/v_h "
+                    + G(h.VortexRing.FluctuationFrequency) + "; air " + G(h.VortexRing.AirDensity) + " kg/m3"
+                    + (h.VortexRing.FixedInducedVelocity > 0 ? "; KNOWN-WRONG: scaled by a fixed " + G(h.VortexRing.FixedInducedVelocity) + " m/s" : ""));
+            else
+                w.WriteLine("  vortex rings: off");
+            if (h.GroundEffect != null)
+                w.WriteLine("  ground effect: Cheeseman-Bennett below, Hsiao-Chirarattananon alpha0 " + G(h.GroundEffect.CeilingAlpha)
+                    + " above, rays " + G(h.GroundEffect.Reach) + " R, held at " + G(h.GroundEffect.LowestHeight) + " R; wash sigma "
+                    + G(h.GroundEffect.RecirculationSigma) + " v_h within " + G(h.GroundEffect.RecirculationBound) + " below "
+                    + G(h.GroundEffect.RecirculationOnset) + " R, loop " + G(h.GroundEffect.RecirculationLoop) + " (z + R)/v_h; air "
+                    + G(h.GroundEffect.AirDensity) + " kg/m3" + (h.GroundEffect.RecirculationSigma > 0 ? "" : "; KNOWN-WRONG: no recirculation"));
+            else
+                w.WriteLine("  ground effect: off");
+            if (h.Modes != null)
+                w.WriteLine("  modes: arms " + G(h.Modes.ArmWidth * 1000) + " x " + G(h.Modes.ArmThickness * 1000) + " mm plate of " + G(h.Modes.ArmModulus / 1e9)
+                    + " GPa over " + G(h.Modes.ArmLength) + " m, " + G(h.Modes.ArmStiffness) + " N/m, damping " + G(h.Modes.ArmDamping) + "; mounts "
+                    + G(h.Modes.MountStiffness) + " N/m, damping " + G(h.Modes.MountDamping) + "; camera at (" + G(h.Modes.Camera.X) + ", "
+                    + G(h.Modes.Camera.Y) + ", " + G(h.Modes.Camera.Z) + ") m; payload part " + h.Modes.PayloadPart + ", coil part " + h.Modes.CoilPart);
+            else
+                w.WriteLine("  modes: off (a rigid airframe)");
+            if (h.Flapping != null)
+                w.WriteLine("  flapping: blade-element, lift slope " + G(h.Flapping.LiftSlope) + "/rad, zero lift " + G(h.Flapping.ZeroLiftAngle)
+                    + " rad, bending " + G(h.Flapping.BendingFrequency) + " Hz, Southwell " + G(h.Flapping.Southwell) + ", skew gain "
+                    + G(h.Flapping.SkewGain) + ", " + h.Flapping.Blades + " blades of " + G(h.Flapping.BladeInertia) + " kg m2 on R "
+                    + G(h.Flapping.Radius) + " m, " + h.Flapping.Stations.Length + " stations; air " + G(h.Flapping.AirDensity) + " kg/m3");
+            else
+                w.WriteLine("  flapping: off");
             for (int n = 0; n < h.RuntimeObjects.Length; n++)
                 w.WriteLine("  runtime object " + (n < h.RuntimeIds.Length ? h.RuntimeIds[n] : -1) + " '" + h.RuntimeObjects[n].Name + "': "
                     + h.RuntimeObjects[n].Shapes.Length + " shapes");
@@ -391,6 +428,10 @@ namespace Fpv450.Sim.Log
                     return e.A > 0
                         ? "ESC " + CornerName(e.Index) + " holds its motor at its " + G(e.B) + " A current limit, taking " + G(e.A * 100) + " % of its duty"
                         : "ESC " + CornerName(e.Index) + " lets go of its " + G(e.B) + " A current limit";
+                case EventKind.VortexRingEntered:
+                case EventKind.VortexRingLeft:
+                    return "rotor " + CornerName(e.Index) + (e.Kind == EventKind.VortexRingEntered ? " enters" : " leaves") + " its vortex ring at eta "
+                        + G(e.A) + ", mu " + G(e.B) + " (v_h " + G(e.C) + " m/s" + (e.C > 0 ? ")" : ": the rotor stopped)");
                 default:
                     return "event kind " + (int)e.Kind + ": part " + e.Part + ", index " + e.Index + ", " + Where(e) + ", a " + G(e.A) + ", b "
                         + G(e.B) + ", c " + G(e.C);

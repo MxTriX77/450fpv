@@ -19,6 +19,10 @@ namespace Fpv450.Sim.Wind
         /// north, 90 from the east).</summary>
         public double SteadySpeed, SteadyFromDeg;
 
+        /// <summary>Steady only: the time it starts to blow, s (0: from the start). Before it the air is still, then the
+        /// whole wind steps in at once: a gust step for the airframe's response (p7b-airframe 1.3c), carried in the gust.</summary>
+        public double SteadyOnsetSeconds;
+
         public static WindSetup Of(WindLevel level) => new WindSetup { Level = level };
 
         public static WindSetup SteadyFrom(double fromDeg, double speed) =>
@@ -128,6 +132,7 @@ namespace Fpv450.Sim.Wind
         public readonly Double3 StartGust;
 
         readonly bool _turbulent;
+        readonly long _onsetStep;
         readonly SeedStream _turbulence;
         readonly double _aH, _cH, _aV, _cV;
 
@@ -144,6 +149,9 @@ namespace Fpv450.Sim.Wind
                     FromDeg = setup.SteadyFromDeg;
                     MeanSpeed = setup.SteadySpeed;
                     Mean = Toward(FromDeg, MeanSpeed);
+                    if (!(setup.SteadyOnsetSeconds >= 0)) throw new ArgumentException("a steady wind's onset is 0 s or later", nameof(setup));
+                    _onsetStep = (long)(setup.SteadyOnsetSeconds / Dt + 0.5);
+                    if (_onsetStep > 0) StartGust = new Double3(-Mean.X, -Mean.Y, -Mean.Z);
                     return;
             }
             if (random == null) throw new ArgumentNullException(nameof(random));
@@ -183,10 +191,12 @@ namespace Fpv450.Sim.Wind
 
         /// <summary>
         /// Advances the gust over the step that starts at `step` (the state's step before it): g ← a·g + c·n, n from
-        /// wind.turbulence's draws 3·step to 3·step + 2, then clamped. Still and Steady air has no gust.
+        /// wind.turbulence's draws 3·step to 3·step + 2, then clamped. Still and Steady air has no gust (a steady wind with an onset
+        /// carries −Mean in it until the onset step, then none).
         /// </summary>
         public void Advance(ref Double3 gust, long step)
         {
+            if (_onsetStep > 0 && step + 1 >= _onsetStep) gust = default;
             if (!_turbulent) return;
             ulong i = unchecked((ulong)step * 3);
             gust.X = Clamp(_aH * gust.X + _cH * Uniform(i), BoundH);

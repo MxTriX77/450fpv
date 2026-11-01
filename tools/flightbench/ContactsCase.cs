@@ -164,6 +164,8 @@ namespace Fpv450.FlightBench
                 FlightSetup setup = ContactScenarios.Setup(spec, materials, hash, legs, legs
                     ? new Double3(0, ContactScenarios.Standing(contacts), 0) : LaunchStand.RestingOrigin(spec, contacts, default));
                 if (!legs) setup.RuntimeObjects = new[] { LaunchStand.Build(spec, default, 0, setup.World.Query.MaterialId(spec.Stand.Material)) };
+                setup.GroundEffect = spec.BuildGroundEffect(); // p7b-airframe 1.3: the rotors' rays and ground samples on top of the contacts
+                setup.Flapping = spec.BuildFlapping(); // and 1.3c's flapping
                 var core = new FlightCore(setup);
                 const int warmup = 2000, steps = 60000;
                 var times = new long[steps];
@@ -185,6 +187,8 @@ namespace Fpv450.FlightBench
                 ok &= pass;
                 FlightSetup again = ContactScenarios.Setup(spec, materials, hash, legs, setup.StartPosition);
                 if (!legs) again.RuntimeObjects = new[] { LaunchStand.Build(spec, default, 0, again.World.Query.MaterialId(spec.Stand.Material)) };
+                again.GroundEffect = spec.BuildGroundEffect();
+                again.Flapping = spec.BuildFlapping();
                 string share = TimedQuery.Share(again, (c, k) => new StickSample { HostUs = c.State.Step * FlightCore.StepUs, Arm = k >= 8, Throttle = 0 }, warmup, steps);
                 Console.WriteLine($"{Name}: {(legs ? "legs on, resting on the floor" : "legs off, resting on the stand")}, armed at idle: {steps} steps, "
                     + $"{contacts.Shapes.Length} shapes, {touching} touching pairs: p50 {p50:F2} µs, p99 {p99:F2} µs, steady-state allocation {allocated} B, "
