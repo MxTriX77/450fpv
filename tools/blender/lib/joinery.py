@@ -18,8 +18,10 @@ gone), sash_hanging (one outer casement left, hung open inward on its stile into
 opening only; its crumbled edges are task 1.4's).
 
 Gaps (design decision 9): an opening's clear space through the wall, projected along its normal: the frame's clear
-opening less everything standing in the wall's depth (a hanging casement, shards); a door's leaf swings into the room
-beyond the wall and is collision of its own. narrowest_m is the polygon's largest inscribed circle (lib.audit).
+opening less everything standing in the wall's depth (a hanging casement, shards). An open door's gap is its throat
+(QA's B1): the narrowest clear section between the open leaf and the far jamb, square to the leaf and from the
+threshold to the head, so w sin(swing) - board thickness wide; a closed leaf leaves none, a gone one the frame's clear
+opening. narrowest_m is the polygon's largest inscribed circle (lib.audit).
 """
 import math
 
@@ -117,12 +119,27 @@ def door(plan, o, lods, rng):
     res.collision += _leaf(lods[:2], frame, w, leaf_h)
     _leaf_lod2(lods[2], frame, w, leaf_h)
     if state != "closed":
-        res.gaps.append(_gap(side, "door", [(c0, plan.F), (c1, plan.F), (c1, y_top), (c0, y_top)], plan.T - DOOR_DEPTH_M / 2))
+        res.gaps.append(_throat(side.point(c1, plan.F, plan.T), side.point(c1, y_top, plan.T), frame))
         z = LEDGE_M[1]
         res.snag.append({"kind": "edge", "radius_m": EDGE_SNAG_R_M,
                          "points": [list(frame.point(p)) for p in ((w, 0.0, z), (w, leaf_h, z), (0.0, leaf_h, z))],
                          "material": TIMBER})
     return res
+
+
+def _throat(q0, q1, frame):
+    """An open leaf's gap: the narrowest clear section between the leaf's outer board face (z = -BOARD_M[0] in its
+    frame) and the far jamb's room-side arris from q0 (the threshold's top) to q1 (the head's underside), square to
+    the leaf. The arris's foot on the face lies on the leaf for any swing up to 90 degrees; the sag turns the leaf in
+    its own plane, so the face and the section stay vertical."""
+    feet = []
+    for q in (q0, q1):
+        s = frame.local(q)[2] + BOARD_M[0]  # the arris's signed distance from the board face
+        feet.append(tuple(q[k] - s * frame.ez[k] for k in range(3)))
+    points = [list(q0), list(feet[0]), list(feet[1]), list(q1)]
+    normal = list(prism.cross(frame.ez, (0.0, 1.0, 0.0)))  # along the leaf, out of the room
+    return {"id": "door", "polygon": points, "normal": normal,
+            "narrowest_m": round(audit.inscribed_diameter(points, normal), 6)}
 
 
 def _turned(frame, pivot, angle):
