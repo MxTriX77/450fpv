@@ -1,5 +1,7 @@
 using Fpv450.Sim.Contact;
+using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Log;
 using Fpv450.Sim.World;
 using NUnit.Framework;
 
@@ -321,6 +323,59 @@ namespace Fpv450.Sim.Tests
             Assert.That(hits[0].Distance, Is.EqualTo(0.1 - g.Radius).Within(1e-6), "the conductor's top");
             Assert.That(hits[1].Object, Is.EqualTo(WorldIds.Ground), "from its axis, past it to the ground");
             Assert.That(hits[1].Distance, Is.EqualTo(wire.Y).Within(1e-9));
+        }
+
+        // ---- the log ------------------------------------------------------------------------------------------------------
+
+        // A player's flight on the test range, its log naming the world by the map's id as the app's does (FlightWorlds):
+        // the legs-on drone at the track start with the airframe's effects on, armed, a collective ramp to 0.7 over 1.5 s,
+        // off the ground and climbing. Recorded on the shared map, it replays bit for bit on the map loaded again from the
+        // repository, as tools/replay opens it; a log whose world hash is not the map's is refused before its first step.
+        [Test]
+        public void ARangeFlightReplaysOnTheMapItNames()
+        {
+            DroneSpec spec = Spec;
+            MaterialRow[] m = Materials(out ulong h);
+            ContactScenarios.Site site = Airframe(RangeScenarios.At(RangeScenarios.Start("track")));
+            double stand = ContactScenarios.Standing(spec.BuildContacts(spec.Nominal, m, h));
+            FlightSetup setup = ContactScenarios.Setup(spec, m, h, true, site.Foot + new Double3(0, stand, 0));
+            setup.World = site.Open();
+            setup.StartAttitude = site.Attitude();
+            var core = new FlightCore(site.Effects(setup, spec));
+            LogHeader header = LogHeader.For(setup, core);
+            header.WorldId = RangeScenarios.World.MapId;
+            header.SetDrone(spec, spec.Nominal);
+            var stream = new System.IO.MemoryStream();
+            var recorder = new FlightRecorder(stream, header, FlightRecorder.DefaultCapacity, ownsStream: false);
+            const int Steps = 4000;
+            for (int k = 0; k < Steps; k++)
+            {
+                var stick = new StickSample { HostUs = k * FlightCore.StepUs, Arm = k >= 200, Throttle = k < 500 ? 0 : DetMath.Min(0.7, 0.7 * (k - 500) / 1500.0) };
+                core.Advance(stick);
+                recorder.RecordStep(core.State, stick, core.Trace, core.Events);
+            }
+            recorder.Close();
+            Assert.That(recorder.Fault, Is.Null);
+            Assert.That(core.State.Position.Y - setup.StartPosition.Y, Is.GreaterThan(0.5), "off the range's ground");
+            byte[] log = stream.ToArray();
+
+            FlightWorld Open(string id) => id == "test-range" ? new FlightWorld(MapWorld.Load(RangeScenarios.Root, id)) : null;
+            ReplayResult r = FlightReplay.Run(new System.IO.MemoryStream(log), Open, spec.ContentHash);
+            TestContext.Out.WriteLine(r.Message);
+            Assert.That(r.Outcome, Is.EqualTo(ReplayOutcome.Match), r.Message);
+            Assert.That(r.Steps, Is.EqualTo(Steps));
+            Assert.That(r.Events, Is.GreaterThanOrEqualTo(8), "the supports' contacts broken at liftoff, replayed bit for bit");
+
+            var hash = new byte[8];
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt64LittleEndian(hash, header.WorldHash);
+            int at = System.MemoryExtensions.IndexOf(new System.ReadOnlySpan<byte>(log, 0, (int)header.Length), new System.ReadOnlySpan<byte>(hash));
+            Assert.That(at, Is.GreaterThan(0), "the header holds the world's hash");
+            log[at] ^= 1;
+            ReplayResult tampered = FlightReplay.Run(new System.IO.MemoryStream(log), Open, spec.ContentHash);
+            TestContext.Out.WriteLine(tampered.Message);
+            Assert.That(tampered.Outcome, Is.EqualTo(ReplayOutcome.Refused), tampered.Message);
+            StringAssert.Contains("the world differs: the log was flown on world 'test-range'", tampered.Message);
+            Assert.That(tampered.Steps, Is.EqualTo(0), "nothing replayed");
         }
     }
 }
