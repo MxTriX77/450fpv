@@ -531,10 +531,11 @@ namespace Fpv450.Tests.Session
             Assert.That(p.Lines(), Has.Member("log " + rig.Session.LogPath));
         }
 
-        // app-flow "A crash into the car" on the test range (QA's finding 3): from the track start, turned to 108° to face
-        // R01_A (17.5 m ahead and 4 m to the right), lifted, pitched forward and flown low into its flank. The summary
-        // names the placed car by MapWorld.ObjectName, through the log's world id and hash; without the world, or with
-        // another, it is "object N".
+        // app-flow "A crash into the car" on the test range (QA's finding 3): from the track start, turned to 103° to face
+        // R01_A's middle (17.5 m ahead and 4 m to the right), lifted, pitched forward and flown at about 0.6 m into its
+        // end, where the steel bumper is (at the flight model 19 the old 108° and lower throttle skimmed past it into a
+        // fence). The summary names the placed car by MapWorld.ObjectName, through the log's world id and hash; without
+        // the world, or with another, it is "object N".
         [Test]
         public void ACrashIntoTheRangesCarNamesIt()
         {
@@ -545,7 +546,7 @@ namespace Fpv450.Tests.Session
                 i.Choices = new FlightChoices { StartPoint = "track", Legs = true, Payload = 1.0 };
                 i.Adjust = s =>
                 {
-                    DetMath.SinCos(108 * Math.PI / 360, out double sin, out double cos);
+                    DetMath.SinCos(103 * Math.PI / 360, out double sin, out double cos);
                     s.StartAttitude = new Quat(0, sin, 0, cos);
                 };
             });
@@ -553,7 +554,7 @@ namespace Fpv450.Tests.Session
             rig.ArmCycle();
             for (int ms = 0; ms < 6000 && rig.Session.State != SessionState.Ended; ms += 10)
             {
-                rig.Radio.Throttle = ms < 350 ? 0.62 : ms < 1000 ? 0.43 : 0.46; // lift, then low and level
+                rig.Radio.Throttle = ms < 350 ? 0.62 : ms < 1000 ? 0.43 : 0.52; // lift, then low and level
                 rig.Radio.Pitch = ms >= 350 && ms < 1000 ? 0.35 : 0; // forward, then held there (acro)
                 rig.Run(10);
             }
@@ -564,9 +565,9 @@ namespace Fpv450.Tests.Session
             Assert.That(p.Log.Header.WorldId, Is.EqualTo("test-range"));
             Assert.That(p.HasCrash);
             Assert.That(p.CrashObject, Is.EqualTo("R01_A"));
-            Assert.That(p.CrashMaterial, Is.EqualTo("sheet_metal"));
+            Assert.That(p.CrashMaterial, Is.EqualTo("steel"), "the bumper");
             Assert.That(Array.Exists(_spec.Parts, part => part.Name == p.CrashPart), "the part is drone.json's: " + p.CrashPart);
-            StringAssert.Contains("hit R01_A (sheet_metal)", p.Cause());
+            StringAssert.Contains("hit R01_A (steel)", p.Cause());
 
             string unnamed = "object " + p.Crash.Event.Object;
             Assert.That(PostFlight.Read(rig.Session.LogPath).CrashObject, Is.EqualTo(unnamed), "no world to open");
