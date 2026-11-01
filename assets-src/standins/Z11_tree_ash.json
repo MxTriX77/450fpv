@@ -1,0 +1,10 @@
+{
+  "source": {
+    "commit": "83401382e8b733389982997180cc181b063f61ae",
+    "model": "game/assets/models/vegetation/tree_ash.glb",
+    "model_sha256": "a784633e390fb2f7285580e9bdf704563691ffe000f439f41d4388c0b030af71",
+    "catalog_key": "tree_ash"
+  },
+  "lod": { "switch_m": [0.0, 30.0, 80.0], "cull_m": 600.0 },
+  "holes": []
+}
