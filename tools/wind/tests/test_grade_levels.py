@@ -45,3 +45,16 @@ def test_the_verdicts_read_bands_and_ratios():
     res = gl.verdicts(v, "severe")
     assert not res["T0"][2] and not res["T3 ratio"][2] and not res["T0b windward"][2]
     assert not gl.inside(math.nan, (0, 1))
+
+
+def test_t0b_windward_is_a_share_of_the_runs():
+    # QA's S6: K section 8.6's "min > 0 in >= 4/5 runs" is 80 % of the runs at any count; the old runs - 1 asked 9 of 10.
+    v = {k: (lo if lo is not None else hi) for k, (lo, hi) in gl.SEVERE.items()}
+    v.update({"T0 into wind": True, "T3": 1.0, "T1": 0.5, "T3 ratio": 2.0, "T4": 0.4, "T2": 0.3, "T4 ratio": 1.33,
+              "T11a belt": 1.5, "T11a field": 0.6, "T11a ratio": 2.5, "T10b belt": 0.6, "T10b field": 0.4})
+    for windward, runs, ok in ((4, 5, True), (3, 5, False), (8, 10, True), (7, 10, False), (16, 20, True), (15, 20, False)):
+        v.update({"T0b windward runs": windward, "T0b runs": runs})
+        assert gl.verdicts(v, "severe")["T0b windward"][2] is ok, (windward, runs)
+    v.update({"T0b windward runs": 8, "T0b runs": 10})
+    assert not (8 >= 10 - 1)                                       # the old rule failed 8 of 10, the known-wrong
+    assert gl.verdicts(v, "severe")["T0b windward"][1] == ">= 8 of 10"

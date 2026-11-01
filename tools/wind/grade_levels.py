@@ -74,6 +74,7 @@ TARGETS = [
     ("T12", ["T12 cv roll", "T12 cv pitch", "T12 min roll", "T12 min pitch"], "calm/busy"),
 ]
 POSE_NOISE_DEG = 0.15
+WINDWARD_SHARE = 0.8    # T0b: the minimum on the windward side in at least 80 % of the runs (K section 8.6's 4 of 5)
 
 
 def bands(level):
@@ -207,7 +208,8 @@ def verdicts(v, level):
         txt = ("<= " + txt) if band[0] is None else (">= " + txt) if band[1] is None else txt
         out[k] = (v[k], txt, ok)
     if level != "calm":
-        out["T0b windward"] = (v["T0b windward runs"], f">= {v['T0b runs'] - 1} of {v['T0b runs']}", v["T0b windward runs"] >= v["T0b runs"] - 1)
+        need = math.ceil(WINDWARD_SHARE * v["T0b runs"] - 1e-9)       # QA's S6: a share, not runs - 1
+        out["T0b windward"] = (v["T0b windward runs"], f">= {need} of {v['T0b runs']}", v["T0b windward runs"] >= need)
         out["T3 ratio"] = (v["T3 ratio"], ">= 1.8", inside(v["T3 ratio"], (1.8, None)))
         out["T4 ratio"] = (v["T4 ratio"], ">= 1.2", inside(v["T4 ratio"], (1.2, None)))
         out["T11a ratio"] = (v["T11a ratio"], ">= 1.8", inside(v["T11a ratio"], (1.8, None)))
