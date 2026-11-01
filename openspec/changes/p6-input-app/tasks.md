@@ -113,9 +113,34 @@ Branch `unity/game/p6-input-app` off `unity/main`, after `p6-flight-core`'s task
       - **Persistence:** `roll_srate` 30, and payload 1.7 kg with the legs off, Severe wind and Rain, are saved, loaded fresh, flown and found in the header. A broken setup.json is named, and the defaults are used.
       - **The keyboard** flies only without a radio. With one, Enter does nothing. With neither, `Start` refuses.
       - **The flight thread** in real time: 891 steps in 892 ms flown, a 201 ms pause logged, 2 hitches.
-- [ ] 1.4b [game-developer] The app's screens and the built player (design 6, 7), after 1.4a, with the GPU:
+- [x] 1.4b [game-developer] The app's screens and the built player (design 6, 7), after 1.4a, with the GPU:
   - **What:** the menu (Train, Calibrate, Exit; Explore in review builds), the setup screen, the flight session's scene over the test range (D-044) with the world loader, the stand-in drone, the FEED-02 camera and the launch stand.
   - **Verify:** the remaining `app-flow` scenarios, and a built player flying the stand-in from the stand and from the ground with the keyboard fallback.
+  - **As built** (`Scripts/App/{AppFlow,AppData,FlightScene,StandIn,FlightFeedSignals,FlightSessionHost,Boot}.cs`, `Scripts/App/Session/FlightWorlds.cs`, `Scripts/UI/{AppStyle,MenuScreen,SetupScreen,FlightScreens}.cs`, `Editor/Build.cs`; tests in `Tests/EditMode/App/AppTests.cs` and `Tests/EditMode/Session/SessionTests.cs`; the players' smoke test is `AppFlow.Smoke`):
+    - **The app:** the Boot scene makes one `AppFlow`, which lives across scenes.
+      - The menu offers Train, Calibrate and Exit, and Explore in a review build (`-review`'s `FPV450_REVIEW`, every development build and the editor): the test range's own noclip and feed, Esc back to the menu.
+      - Train opens the setup with the last saved choices. Fly saves them and loads `TestRange`; the flight starts as soon as the radio is in, so arming the switch is the only step left.
+      - The summary's Fly again and Setup stay over the range; Menu loads Boot.
+      - One IMGUI look (`AppStyle`): a dark slate ground, white and grey text, one warm accent, flat buttons, sized for 1080 lines and scaled to the screen. Its look is judged at G7 (D-042).
+    - **The world seam:** `FlightWorlds.TestRange(root)` gives the world's id, a new `FlightWorld` for each flight and the start points, read from `maps/test-range/placements.json` in its order: `track` (the ground, legs on, heading 90°) and `field` (the launch stand, legs off, 180°). The world is still the floor stub at y = 0, logged as "floor" so replay reopens it. `MapWorld` drops in there with the id "test-range", and nothing else changes. `StartPoint.Stand` is a hint for the screens; the setup's legs decide what the drone stands on.
+    - **The flight scene** (`FlightScene`, put on the loaded range by `AppFlow`):
+      - The range's noclip rig and the look's own preset are switched off. The drone sits at `PosePair.Interpolate` on the host clock.
+      - The FPV camera sits at the electronics box's front (0, 0.025, 0.06 m in body axes, assumed until `p5-drone`) at 0° uptilt, through `p4-feed`'s `FpvCamera` and the feed. `FlightFeedSignals` gives each signal the physics marks live and the feed's labelled stub for the rest. The OSD is the feed's stand-in layout ("Svinoriz 10 Opto", "! SAFE !"), with the altitude, distance and timer from the flight.
+      - The stand-in is drone.json's parts at the flight's loadout, labelled "Svinoriz 10 Opto (stand-in)", and drawn only into the shadows in the FPV view. The launch stand is its runtime object's boxes.
+      - The time of day goes to `LookSetup`. Rain is the overcast preset's sky until the weather's look.
+      - Esc pauses (Resume, Restart, End flight). The summary is `PostFlight.Read` on a worker thread, titled by the end, with `Lines()`.
+      - Review keys: C the chase view (it shows the stand-in), V the feed off and on.
+    - **No radio:** a pilot's build waits before the first flight and after each Fly ("Connect the radio by USB, in joystick mode · Esc for the menu"), with the view from the chosen start at the chosen time. Esc goes back to the menu. The development keyboard flies after 1 s.
+    - **The player:** `Fpv450.Build.Windows` builds Boot and TestRange (`ProjectSetup.Apply` adds TestRange to the build's scenes). It copies drone.json, physics_materials.json and placements.json into the player's StreamingAssets at their repository paths, where `AppData.Root` finds them. `-developmentBuild` writes `Builds/Windows-Development/`, `-review` writes `Builds/Windows-Review/`.
+    - **The smoke test** (`-smoketest [-windowed] [-smokeshots <dir>]`; exit 1 on a failed check or any error logged): the menu, the setup, Explore (review builds), then a flight from `track` (legs on) and one from `field` (legs off), the second set from the first's summary through Setup.
+      - On the keyboard each flight is armed, climbed, paused, resumed, disarmed and summarised from its log. The stand's flight is restarted first, for a new seed and log.
+      - Without the keyboard each flight is checked waiting for the radio.
+      - The pilot's own `setup.json` is put back afterwards.
+    - **QA's finding 13:** the Done screen names a radio that updates more slowly than `SlowRadioUs`, 4 375 µs (EdgeTX's floor gain on the jump rule's fastest accepted sweep): "… (an RF module is on): switch it off for the sim."
+    - **Numbers** (the development and review players, 1920 × 1080 windowed, on AC):
+      - **The development player:** PASS, 0 checks failed, 0 errors logged. `track`: at rest at 0.252 m (start 0.253 m), armed, climbed 11.21 m, 0.3 s paused with no step, ended on the disarm: "disarmed, time 0:06.2, distance 28 m, battery used 0.4 %", the pause in the log. `field`: restarted to a new seed and log, at rest on the stand at 0.253 m, climbed 11.66 m, the same end, 29 m. EditMode: 883 tests passed.
+      - **The review player:** PASS, 0 checks failed, 0 errors logged. Explore loads; both flights wait for the radio from their starts.
+    - **Not in 1.4b:** the quality preset (APP-05) has no screen yet: neither the menu nor the setup may take it. The stand-in follows drone.json, which still holds D-043's layout until D-050's mass build.
 - [x] 1.5 [game-developer] Latency (design 3) (ticked for its build; the TX12's figures are 1.5b):
   - **What:** the latency test mode.
   - **Verify:** the latency scenario with a TX12, both figures in the header.
