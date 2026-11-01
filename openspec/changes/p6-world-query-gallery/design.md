@@ -24,7 +24,7 @@
    - **Primitives:** boxes, spheres, capsules and cylinders, as the metadata gives them. A cylinder is exact in the sim, where Unity's is a convex mesh for noclip only (`asset-pipeline`).
    - **Wires:** a capsule chain along the point list at the record's radius.
    - **Shells:** shell pieces (`twig`, `foliage`) return their material like any shape; the flight core's law gives them their compliance.
-   - **The index:** a uniform 2 m grid over the map's extent, holding object and shape ids in a fixed order, so iteration is deterministic.
+   - **The index:** a uniform 2 m grid over the map's extent, holding object and shape ids in a fixed order, so iteration is deterministic. An object of more than 256 shapes (H01's houses, E01, V01's crowns) is listed by its bounds and holds a tree over its shapes' bounds (D-054's broad phase inside each object, task 1.6); a query tests exactly the shapes whose bounds meet its own either way.
 5. **The ground:**
    - **The floor:** a plane at y = 0 with the floor's surface id.
    - **The patches:** S04's and E01's ground meshes are the asset's collision as ground. As built (review-physics W4, option a): the plane is absent over each patch's footprint, `SampleGround` reports a hole there, and the patch's soil and straw shapes are the only ground, through `StaticContacts`.
