@@ -27,7 +27,9 @@ namespace Fpv450.Sim.Tests
     ///   lost frames): they belong to neither stretch. The run is that much longer than `Seconds`.
     /// - **The measurement:** the frames from `DiscardSeconds` on, numbered from 1 with time_s = (frame − 1)/29.917
     ///   (the tracker's convention), roll and pitch from TrackerAngles, the yaw rate the frame-to-frame change of the
-    ///   heading × 29.917, every confidence 1, dup 0, flag ok.
+    ///   heading × 29.917, every confidence 1, dup 0, flag ok. Each logged frame shows the camera at the recorder's
+    ///   field pick (FieldStep, D-060), as clip P's recording does, not at the tick's own instant; the pilot sees the
+    ///   tick's (K§8.5).
     /// - **The start:** each run starts where the seed's prevailing wind stays within 90° of its drawn direction for the
     ///   whole run (StartSecond).
     /// </summary>
@@ -193,6 +195,23 @@ namespace Fpv450.Sim.Tests
         /// <summary>The held-pitch flight's measured end, s.</summary>
         public const double MeasuredSeconds = 10;
 
+        /// <summary>The PAL field's period, ms, and its horizon row's instant after the field's start, ms (published, PAL
+        /// timing: (25 + 60) lines × 64 µs, the horizon in the picture's top fifth, wind.md §1.1).</summary>
+        public const double FieldMs = 20, HorizonMs = 5.44;
+
+        /// <summary>
+        /// The step (from the release) whose camera a logged frame shows: the recorder writes the newest whole field at each
+        /// of its 29.917 Hz ticks (video-feed.md §0, hover-micro-motion.md §2.3), so frame f, ticked at f/29.917 s, shows
+        /// field ⌊t/20 ms⌋ − 1 at its horizon row. Its instant lags the tick by 14.6–34.6 ms, uniform over a field (σ 5.8 ms,
+        /// derived): the timing jitter the tracker's uniform clock reads as motion (0.018 / 0.012 / 0.020° over 4–15 Hz in
+        /// P's roll, pitch and heading, derived). Before the first whole field, the release.
+        /// </summary>
+        public static long FieldStep(int frame)
+        {
+            long field = (long)(frame * 1000 / HarnessPilot.CameraHz / FieldMs) - 1;
+            return field < 0 ? 0 : (long)(field * FieldMs + HorizonMs);
+        }
+
         /// <summary>The field height of run i of n, m: evenly over the band.</summary>
         public static double HeightOf(int i, int n) => LowHeight + (HighHeight - LowHeight) * (i + 0.5) / n;
 
@@ -341,15 +360,20 @@ namespace Fpv450.Sim.Tests
             int steps = (int)(seconds * 1000), frame = 0;
             long climbFrom = -1; // the step the drone passed the stretch's end
             double lastHeading = 0;
+            var fields = new HarnessPilot.Frame[4]; // the camera at the last fields' horizon rows, by field number
             for (int k = 0; k < steps; k++)
             {
                 if (climbFrom < 0 && Double3.Dot(core.State.Position - setup.StartPosition, along) > beltTo) climbFrom = k;
                 if (climbFrom >= 0) p.Height = System.Math.Min(height, low + ClimbRate * (k - climbFrom) * 0.001);
+                if ((k - (long)HorizonMs) % (long)FieldMs == 0 || k == 0)
+                    fields[(k / (long)FieldMs) % fields.Length] = HarnessPilot.Take(core.State, k, course);
                 if (k * HarnessPilot.CameraHz >= frame * 1000.0)
                 {
                     ref readonly FlightState s = ref core.State;
-                    HarnessPilot.Frame f = HarnessPilot.Take(s, k, course);
-                    p.See(f);
+                    p.See(HarnessPilot.Take(s, k, course));
+                    long pick = FieldStep(frame);
+                    HarnessPilot.Frame f = fields[(pick / (long)FieldMs) % fields.Length];
+                    if (f.Step != pick) throw new System.InvalidOperationException("the field pick lost its field");
                     double time = frame / HarnessPilot.CameraHz;
                     if (time >= DiscardSeconds)
                     {
