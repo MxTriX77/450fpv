@@ -357,7 +357,9 @@ namespace Fpv450.App
                 {
                     yield return new WaitForSecondsRealtime(1);
                     Vector3 eye = Camera.main != null ? Camera.main.transform.position : Vector3.positiveInfinity;
-                    Check(host.WaitingForRadio && Math.Abs(eye.x - start.X) < 0.1 && Math.Abs(eye.z - start.Z) < 0.1 && eye.y < 0.5,
+                    // The lens over the start: its mount turned to the start's heading.
+                    Vector3 lens = new Vector3((float)start.X, 0f, (float)start.Z) + Quaternion.Euler(0f, (float)(start.Yaw * 180 / Math.PI), 0f) * _flight.CameraMount;
+                    Check(host.WaitingForRadio && Math.Abs(eye.x - lens.x) < 0.01 && Math.Abs(eye.z - lens.z) < 0.01 && eye.y < 0.5,
                           "after a flight, the wait for the radio views the chosen start " + where + " from " + eye.ToString("0.00"));
                     yield return Shot("waiting_after_flight_" + start.Name);
                     host.Inputs.KeyboardAllowed = true;
@@ -488,32 +490,39 @@ namespace Fpv450.App
         /// north wall lies between headings 143° and 176° from the start.</summary>
         const string HouseBesideTrack = "Z01_house_adobe";
 
-        // The smoke test's keyboard pilot into the house, on the flight's own pose: the throttle (W, S) holds 3 m over the
-        // start, D turns to 158° once 2 m up, then the pitch key tilts it forward for 0.35 s, and it flies on until it hits.
+        // The smoke test's keyboard pilot into the house, on the flight's own pose. The throttle (W, S, which move it at
+        // KeyboardSticks.ThrottlePerSecond) is steered to a level set by the height's and the climb's errors about the
+        // hover (0.48 at 1 kg, assumed; tried on the session at 7 and 16 ms frames), holding 3 m over the start; D turns
+        // to 158° once 2 m up, then the pitch key tilts it forward for 0.35 s, and it flies on until it hits.
         IEnumerator IntoTheHouse()
         {
-            const double Height = 3, Heading = 158;
+            const double Height = 3, Heading = 158, Hover = 0.48;
             FlightSessionHost host = _flight.Host;
             FlightSession session = host.Session;
             KeyboardKeys keys = KeyboardKeys.None;
             host.Keys = () => keys;
-            double rest = _flight.RestPose.Position.Y;
+            double rest = _flight.RestPose.Position.Y, throttle = 0; // the keyboard's throttle, as its keys move it
             float end = Time.realtimeSinceStartup + 15, pitchFrom = -1;
             while (session.State == SessionState.Flying && Time.realtimeSinceStartup < end)
             {
                 yield return null;
+                float now = Time.realtimeSinceStartup;
+                throttle += KeyboardSticks.ThrottlePerSecond * Time.unscaledDeltaTime
+                            * (((keys & KeyboardKeys.ThrottleUp) != 0 ? 1 : 0) - ((keys & KeyboardKeys.ThrottleDown) != 0 ? 1 : 0));
+                throttle = Math.Max(0, Math.Min(1, throttle));
                 PoseFrame p = _flight.Pose;
-                double h = p.Position.Y - rest + 0.8 * p.Velocity.Y; // a little ahead
+                double h = p.Position.Y - rest;
                 Quat q = p.Attitude;
                 double heading = Math.Atan2(2 * (q.X * q.Z + q.W * q.Y), 1 - 2 * (q.X * q.X + q.Y * q.Y)) * 180 / Math.PI;
                 double turn = ((Heading - heading) % 360 + 540) % 360 - 180;
-                KeyboardKeys k = h < Height ? KeyboardKeys.ThrottleUp : h > Height + 0.3 ? KeyboardKeys.ThrottleDown : KeyboardKeys.None;
-                if (pitchFrom < 0 && p.Position.Y - rest > 2)
+                double want = Math.Max(0.3, Math.Min(0.7, Hover + (pitchFrom >= 0 ? 0.03 : 0) + 0.05 * (Height - h) - 0.06 * p.Velocity.Y));
+                KeyboardKeys k = throttle < want - 0.01 ? KeyboardKeys.ThrottleUp : throttle > want + 0.01 ? KeyboardKeys.ThrottleDown : KeyboardKeys.None;
+                if (pitchFrom < 0 && h > 2)
                 {
                     if (Math.Abs(turn) > 3) k |= turn > 0 ? KeyboardKeys.YawRight : KeyboardKeys.YawLeft;
-                    else pitchFrom = Time.realtimeSinceStartup;
+                    else pitchFrom = now;
                 }
-                if (pitchFrom >= 0 && Time.realtimeSinceStartup - pitchFrom < 0.35f) k |= KeyboardKeys.PitchForward;
+                if (pitchFrom >= 0 && now - pitchFrom < 0.35f) k |= KeyboardKeys.PitchForward;
                 keys = k;
             }
             host.Keys = () => KeyboardKeys.None;
