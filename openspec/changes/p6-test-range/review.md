@@ -217,3 +217,114 @@ $ 450fpv-gallery.exe -smoketest -windowed
 [Gallery] 16 prefabs placed, 0 missing meshes, materials, textures or unsupported shaders           exit 0
 $ git merge-base --is-ancestor 8340138 HEAD    -> not an ancestor
 ```
+
+# Second pass at `937bcafc` (task 2.1: B1–B3, N2 and N9 re-checked)
+
+**Verdict: approved.** B1, B2 and B3 are fixed, N2 and N9 are done, and nothing blocks. The map stack can land.
+- **Unity EditMode** on the merged tree: 885 of 885 passed (GalleryTests 2, LookSetupTests 4, TestRangeTests 4).
+- **`Fpv450.Build.TestRange`**: Succeeded, 0 errors, 0 warnings. **`-smoketest`** exits 0 twice: 731 prefabs in 8 groups, 29 variants, 0 missing meshes, materials, textures or unsupported shaders.
+- Three new findings, none blocking (N10–N12 below). N10 is a weak statistic in the posadka test, not a fault in the map.
+
+**Scope:** `unity/world/p6-test-range` at `937bcafc`, range `b1d0e863..937bcafc`. That is four World Builder commits (`7ad533f1`, `4149b81d`, `e913c251`, `937bcafc`) and the trunk merge `28ab7179`. Since the first pass, the map's data, generator, scenes' builders, scripts and stand-ins are unchanged: `placements.json` is still `a3718564…63e7`. Only the posadka test, the two changes' texts and the gallery scene changed, plus what the merge brought: the flight core, `drone.json`, `physics_materials.json` and `test_meta.py`.
+
+**How QA ran it:** in the change's worktree after `git lfs checkout` (230 of 230 objects present), with Unity 6000.3.26f1 and Hub running. Every Unity call ran on AC power (`BatteryStatus.PowerOnline` True) and waited for at least 2.5 GB free first. Other agents' jobs shared the machine. QA's scripts are plain Python and PowerShell in the scratchpad, never committed, and share no code with `tools/`.
+
+## The findings, answered
+
+| # | Finding | Fix | Verdict |
+|---|---|---|---|
+| B1 | The posadka's width was measured on every plant, and the trunks span 9.79 m | (b): the scenario's 10–30 m strip is the planted width, trees and edge bushes. The scenario adds "its trunks stand in four rows 3 m apart". `check_trunks` measures the trunks alone (four rows, 3 m apart within the 0.4 m jitter, median nearest neighbour 1–3 m). A known-wrong test proves it fails a belt with every trunk on one line | **Fixed.** Both lines now name their sets, and the test measures what each line says. QA's own script (below) agrees and fails four known-wrong belts. WLD-04 is met |
+| B2.1 | "with grass round it" | Contents: "on the floor's straw-and-soil ground with no S04 patch round it". Design 8: S04 as the posadka's two verges only | **Fixed.** That matches the map (46 S04, all in the verges) |
+| B2.2 | "LOD distances match" | Requirement: "LOD switches but the last". Scenario: switches equal Godot's but its last, that level not ported, cull 600 m | **Fixed.** That matches the first pass's measurement and the port's test |
+| B2.3 | Design 2 and 3 described another port | Design 2–4 rewritten to the build | **Fixed.** QA checked each claim against the code. `lib/glb.py` reads the buffers, so no glTF importer is involved. Godot's own LOD meshes are ported, none decimated, and `lod.cull_m` defaults to 600. In `lib/godot.py`: every shape `landable=False`; a gap rectangle becomes a polygon with `narrowest_m` its smaller side; the wind volume is Godot's `wind_volume`, else the collision, and none at porosity 1. `snag_hazard` goes in the `stand_in` record and `snag` stays `[]`. Design 4's materials match the catalog's 13 stand-ins: 9 `bark_locust` and 6 `brick_red` slots, and 12 `godot_*` palette recipes |
+| B3 | G1's tasks and spec did not record D-046 | 1.3: R01's part as built, H01's part "Dropped by D-046". 2.1 and 2.2 ticked "**Dropped by D-046.**", each with a note. Spec: H01's station is a numbered marker only; "Stations present" names five stations and the empty marker; "The 200 m belt view" becomes the camera pose; "Belt at 200 m" keeps the luminance and records the gap in the band as V01's open miss; "Frame rate" is removed, and the build requirement says no frame rate is claimed | **Fixed, and the change completes honestly** (below) |
+| N2 | `Gallery_LookLock.unity` one field behind its builder | `937bcafc`: the builder re-run and its scene committed | **Done.** QA re-ran the builder on `937bcafc` (below): 0 of 67 documents differ |
+| N9 | Merge `unity/main` with `-m` | `28ab7179` merges `de8d7399` | **Done.** Subject only, with an empty body. Its tree `6e17a1e2` is exactly `git merge-tree --write-tree e913c251 de8d7399`'s, so it is clean and nothing was hand-resolved. The trunk has since moved 2 commits (`bf722cc1`, `docs/decisions.md` only, D-054), and `git merge-tree` merges them clean. No second merge is needed |
+
+**Does marking G1's 1.3, 2.1 and 2.2 make the change complete honestly? Yes.**
+- **D-046 drops exactly these three.** It reads: "1.3 H01's station, the QA pass for the gate, the pilot's look". It keeps the code and its one QA pass, which is this review.
+- **Every ticked box shows what it did.** Each either did its work or opens with "Dropped by D-046" in bold, and names what did not happen: the H01 placement, viewpoint 3 against a facade, key 9, the letter-read captures, the 200 m band and the gallery's frame rate.
+- **2.2's note is true.** The pilot flew the five-station preview (`docs/style-rules.md`, "G1 look-lock"), and D-001 is closed at G1 by D-042.
+- **The amended scenarios match the code:**
+  - The 200 m pose is `GalleryStations.Viewpoints[7]`, "V01 V13 200 M" at (40, 2, −200), yaw 0, pitch 0: 2 m up and level, 200 m south of the row at z 0, which runs across x 33–50.
+  - The empty marker is the gallery smoke log's `station 3 H01 at (100, 0, 0): empty marker` (first pass).
+- **An archive will not write a false claim into the main specs.** No scenario left claims H01, a continuous band or a gallery frame rate.
+- **The only cost:** OpenSpec counts a dropped box as done (`openspec list`: "✓ Complete"). The bold first words carry the record.
+
+## Runs on the merged tree
+
+**The posadka, by QA's own script** (`qa_trunks.py`; trunks = Z08–Z12 and V01; rows split where the sorted z steps 1.5 m or more):
+```
+as built:                       plants 655 strip 12.708 x 299.208 m; trunks 505; rows 4 at z [-4.473, -1.526, 1.523, 4.508], apart [2.947, 3.049, 2.985]; trunk NN median 1.993 -> PASS
+known-wrong, trunks on one line: rows 1;                                   trunk NN median 0.259 -> FAIL
+known-wrong, rows 2 m apart:     rows 1 (the rows run together)            trunk NN median 1.831 -> FAIL
+known-wrong, rows 4 m apart:     rows 4, apart [3.929, 4.065, 3.98]         trunk NN median 2.013 -> FAIL
+known-wrong, the north row gone: rows 3                                    trunk NN median 1.984 -> FAIL
+known-wrong, trunks 3x sparser:  rows 4, apart [2.911, 3.002, 3.129]        trunk NN median 2.899 -> PASS   (N10)
+```
+
+**The gallery scene, from its builder** (`qa_scene_cmp.py`: Unity YAML documents compared as multisets, with every local fileID replaced by the referenced object's name, class, script or prefab source):
+```
+937bcafc^ against 937bcafc (the committed rebuild):   67 and 67 documents; 1 differs: ViewpointKeys gains `views: []`
+$ & $env:UNITY -batchmode -nographics -quit -projectPath unity -executeMethod Fpv450.GalleryScene.Build ...
+AC True, free 4469 MB; exit=0 seconds=41
+rebuilt against 937bcafc:                             67 and 67 documents; only in A 0, only in B 0   (bytes differ: new fileIDs)
+known-wrong, 1 mm planted in one m_LocalPosition.x:   only in A 1, only in B 1
+git checkout -- unity/Assets/_Project/Scenes                                  -> git status clean
+```
+
+```
+$ & $env:UNITY -batchmode -nographics -projectPath unity -runTests -testPlatform EditMode -testResults <scratch>/qa_editmode.xml -logFile <scratch>/qa_editmode.log | Out-Host
+AC True, free 5932 MB at start; exit=0 seconds=345
+<test-run testcasecount="885" result="Passed" total="885" passed="885" failed="0" inconclusive="0" skipped="0" duration="277.8">
+  GalleryTests Passed 2 | LookSetupTests Passed 4 | TestRangeTests Passed 4; 0 "error CS" in the log
+$ & $env:UNITY -batchmode -quit -projectPath unity -executeMethod Fpv450.Build.TestRange -logFile <scratch>/qa_build_testrange.log | Out-Host
+AC True, free 2599 MB; exit=0 seconds=67
+[Build] TestRange: Succeeded, 0 errors, 0 warnings, 437559457 bytes in 00:00:42.43
+git status after the build: clean
+$ unity/Builds/Windows-TestRange/450fpv-test-range.exe -smoketest -windowed -logFile <scratch>/qa_smoke_1.log      (the first launch after the build)
+AC True; exit=0 wall=18.04 s
+[TestRange] TestRange loaded, first frame 3.32 s after start: GPU NVIDIA GeForce RTX 4050 Laptop GPU (Direct3D12), 1920x1080 Windowed, quality High, LOD bias 1, vsync 1
+[TestRange] <29 variant lines, E01 ... Z13>
+[TestRange] 731 prefabs placed in 8 groups, 29 variants, 0 missing meshes, materials, textures or unsupported shaders
+$ 450fpv-test-range.exe -smoketest -windowed -logFile <scratch>/qa_smoke_2.log      (warm)
+AC True; exit=0 wall=6.16 s
+[TestRange] TestRange loaded, first frame 3.17 s after start: ... (as above)
+[TestRange] 731 prefabs placed in 8 groups, 29 variants, 0 missing meshes, materials, textures or unsupported shaders
+$ python -m pytest tools -q -p no:cacheprovider -rfE
+1452 passed in 1387.44s (0:23:07)                                    exit 0
+  (the first pass's 1451 plus the known-wrong belt test; tools/map alone: 8 passed)
+$ python tools/hygiene/precommit.py --tree HEAD
+2158 files scanned, 0 findings                                       exit 0
+$ openspec validate p6-test-range --strict
+Change 'p6-test-range' is valid                                      exit 0
+$ openspec validate p1-g1-look-lock-gallery --strict
+Change 'p1-g1-look-lock-gallery' is valid                            exit 0
+$ openspec list
+p6-test-range 3/4 tasks (2.1, this review) | p1-g1-look-lock-gallery ✓ Complete
+```
+
+**The first pytest run exited 1 and its failure is unknown.** It ran alongside QA's Unity builds and other agents' jobs. While it ran, another process cleared the session's shared scratchpad, which deleted its log. The re-run on the same tree passed 1452 of 1452, and `tools/map`, `tools/hygiene`, `tools/reference` and `tools/assets` passed alone. That leaves `tools/blender`. Its `run_build` gives Blender 300 s (`test_build_blender.py`), the one deadline QA found in the tests. That suggests a test bound by machine load, but it is not proven. This change touches no file under `tools/blender`. If it recurs, keep the log.
+
+**Requirements:** WLD-04 (belts) **met**:
+- planted width 12.7 m and length 299.2 m;
+- trunks 1.501–2.993 m apart along each row (median 2.31 m), and the nearest-neighbour median 1.99 m;
+- bushes among and along the trees, and a 12 m gap.
+
+PLT-02, PLT-06 and PLT-07 are as the first pass measured them: no runtime file changed. The smoke run's first frame came at 3.17–3.32 s on the player's own clock.
+
+**Hygiene:**
+- The five commits are under World Builder's identity, subject only, 42–68 characters, no body and no `Co-Authored-By`.
+- Nothing under `reference/`, `Library/`, `Temp/`, `Logs/` or `Builds/` in the range.
+- No new third-party file.
+- The OPSEC scan finds 0 findings.
+
+## New findings (non-blocking)
+- **N10. The trunk nearest-neighbour median barely bounds the spacing along a row.**
+  - **The hole:** rows 3 m apart leave every trunk a neighbour within about 3 m, so the 1–3 m median can hardly exceed 3 m.
+  - **The proof:** a belt thinned to every third trunk passes at 2.90 m. Its along-row steps then have a median of 5.32 m and reach 9.96 m, so WLD-04's "1–3 m apart" fails.
+  - **The map is fine:** the generator draws `trunk_step_m` 1.5–3 m, and the steps measured 1.501–2.993 m.
+  - **Suggested** (world-builder): `check_trunks` also asks the median step along each row within 1–3 m, skipping the gap, and a known-wrong test fails the sparse belt.
+- **N11. `docs/gallery-g1.md` still describes six stations**, with "3 H01: the adobe house, intact and damaged side by side". No gallery build goes to the pilot (D-046). **Suggested:** one line saying station 3 is an empty marker and H01 stands in the test range.
+- **N12. `godot_port.py`'s docstring is stale** (lines 12–15, and `lod.cull_m`'s effect text). It still gives "the design's rule" as the cull at Godot's last `lod_switch_m`; design 2 now says 600 m. The code is correct; only the comment is stale.
+- **Role scope (as N8):** the World Builder committed the spec amendments. `tasks.md` records B1 (b) as the orchestrator's call, so this is a note, not a fix.

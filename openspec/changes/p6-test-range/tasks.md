@@ -47,4 +47,5 @@ Standard tier (D-033): one QA pass, then the map reaches the pilot inside G4 (no
 
 ## 2. Review
 
-- [ ] 2.1 [qa-engineer] review against spec scenarios: every `test-range` scenario run by QA; the stand-ins' metadata against the Godot catalog (shape by shape, gaps and wind volumes) and their review sheets; the frame rate on AC along the three legs with vsync off and the power mode printed (PLT-07); the load time (PLT-06); the port's provenance (each stand-in names its Godot source and commit, nothing merged, D-027); hygiene (no text in the map, nothing from `reference/`, subject-only commits)
+- [x] 2.1 [qa-engineer] review against spec scenarios: every `test-range` scenario run by QA; the stand-ins' metadata against the Godot catalog (shape by shape, gaps and wind volumes) and their review sheets; the frame rate on AC along the three legs with vsync off and the power mode printed (PLT-07); the load time (PLT-06); the port's provenance (each stand-in names its Godot source and commit, nothing merged, D-027); hygiene (no text in the map, nothing from `reference/`, subject-only commits)
+  - **Approved** at `937bcafc` (second pass, `review.md`): B1–B3 fixed, N2 and N9 done; on the merged tree EditMode 885 of 885 and the test-range build and smoke test exit 0. N10 (the trunks' step along a row), N11 and N12 are follow-ups.
