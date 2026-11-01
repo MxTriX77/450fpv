@@ -3,33 +3,34 @@ using System.Diagnostics;
 using System.IO;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Log;
 using Fpv450.Sim.Tests;
+using Fpv450.Sim.Wind;
 
 namespace Fpv450.FlightBench
 {
     // The powered flight (tasks 1.4 and 1.5): the repository's drone with the Betaflight 4.5 controller at 4 kHz and the
-    // ESCs, motors, props and packs at its loops, its drag and the Windy stand-in wind, flown by GoldenFlights' scripted pilot (the same file the suite compiles,
+    // ESCs, motors, props and packs at its loops, its drag and the Windy wind (the field, p7c-wind 1.4), flown by GoldenFlights' scripted pilot (the same file the suite compiles,
     // so the suite on .NET and on Unity's Mono and this Release build pin one hash). The bench times the powered step.
     internal static class PoweredFlightCase
     {
         public const string Name = "powered-flight";
 
-        // The kept audits of models 7–12 fly model 13's drone.json (D-043's layout, a fixture since D-050), those of
-        // models 7–11 on model 11's pack table.
-        static DroneSpec M13() => Repository(GoldenFlights.Model13DronePath);
-        static DroneSpec M11() => GoldenFlights.WithModel11Packs(M13());
-
-        // The electronics fit's audit flies model 14's fit on the repository's drone.json.
+        // The tumble's chain over main's layout flies model 14's fit and model 13's file (D-043's layout, a fixture since D-050).
+        static DroneSpec M13() => DroneSpec.Parse(Repository(GoldenFlights.Model13DronePath));
         static DroneSpec M14() => GoldenFlights.WithModel14Fit(Drone());
 
-        public static DroneSpec Drone() => Repository("assets-src/drone/drone.json");
+        public static DroneSpec Drone() => DroneSpec.Parse(DroneText());
 
-        static DroneSpec Repository(string relative)
+        /// <summary>The repository's drone.json, found from the working directory up.</summary>
+        public static string DroneText() => Repository("assets-src/drone/drone.json");
+
+        static string Repository(string relative)
         {
             for (string dir = Directory.GetCurrentDirectory(); dir != null; dir = Path.GetDirectoryName(dir))
             {
                 string path = Path.Combine(dir, relative);
-                if (File.Exists(path)) return DroneSpec.Parse(File.ReadAllText(path));
+                if (File.Exists(path)) return File.ReadAllText(path);
             }
             throw new FileNotFoundException(relative + " was not found from " + Directory.GetCurrentDirectory());
         }
@@ -49,74 +50,35 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"contact-flight: {GoldenFlights.ContactSteps} steps, hash 0x{contact:X16} "
                 + $"({(contact == GoldenFlights.ContactHash ? "matches" : $"golden 0x{GoldenFlights.ContactHash:X16}")}), {c.Contacts.ImpactCount} impacts, "
                 + $"ends {c.State.Position.Y:F4} m up on {c.Trace.ContactsTouching} touching pairs: {(cok ? "PASS" : "FAIL")}");
+            ulong rain = GoldenFlights.FlyPowered(Drone(), out FlightCore r, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain);
+            bool rok = rain == GoldenFlights.RainPoweredHash && r.Rain.FilmMass > 0;
+            Console.WriteLine($"rain-flight: {GoldenFlights.PoweredSteps} steps in Calm and Severe rain, hash 0x{rain:X16} "
+                + $"({(rain == GoldenFlights.RainPoweredHash ? "matches" : $"golden 0x{GoldenFlights.RainPoweredHash:X16}")}), "
+                + $"{r.Rain.RateMmPerHour:F2} mm/h, film {r.Rain.FilmMass * 1000:F2} of {r.Rain.FilmCapacity * 1000:F2} g: {(rok ? "PASS" : "FAIL")}");
             ulong tumble = GoldenFlights.FlyTumble(Drone(), out FlightCore t, out GoldenFlights.TumbleChecks tc);
             bool tok = tumble == GoldenFlights.TumbleHash && tc.Momentum < 1e-10 && tc.Energy < 1e-10 && tc.Parabola < 1e-9 && tc.Wander > 0.5;
             Console.WriteLine($"tumble: {GoldenFlights.TumbleSteps} steps of the L4 body off its principal axes, hash 0x{tumble:X16} "
                 + $"({(tumble == GoldenFlights.TumbleHash ? "matches" : $"golden 0x{GoldenFlights.TumbleHash:X16}")}), momentum within {tc.Momentum:E2} (< 1e-10), "
                 + $"energy within {tc.Energy:E2} (< 1e-10), CoM {tc.Parabola:E2} m from its parabola (< 1e-9), body rate wandering {tc.Wander:F3} rad/s (> 0.5): "
                 + $"{(tok ? "PASS" : "FAIL")}");
-            // p7b-airframe 1.1's audit: with the motors' asymmetry off (and 1.2's rings, 1.3's ground effect), over model 7's
-            // 1296-byte layout, each golden is model 7's.
-            ulong p7 = GoldenFlights.FlyPowered(M11(), out _, 1296, 360, asymmetry: false, ring: false, ground: false, flapping: false, modes: false);
-            ulong c7 = GoldenFlights.FlyContact(M11(), out _, 1296, 360, false, false, ground: false, flapping: false, modes: false);
-            ulong t7 = GoldenFlights.FlyTumble(M11(), out _, out _, 1296, 360);
-            bool aok = p7 == 0xA65FBFBCBCFC5B96UL && c7 == 0x3AF33645FF8F1919UL && t7 == 0xE3178EE7FF322698UL;
-            Console.WriteLine($"asymmetry off, over model 7's layout: powered 0x{p7:X16}, contact 0x{c7:X16}, tumble 0x{t7:X16} "
-                + $"({(aok ? "model 7's, bit for bit" : "NOT model 7's")}): {(aok ? "PASS" : "FAIL")}");
-            // p7b-airframe 1.2's audit: with the vortex rings off (and 1.3's ground effect), over model 8's 1328-byte layout, each
-            // golden is model 8's.
-            ulong p8 = GoldenFlights.FlyPowered(M11(), out _, 1328, 328, ring: false, ground: false, flapping: false, modes: false);
-            ulong c8 = GoldenFlights.FlyContact(M11(), out _, 1328, 328, ring: false, ground: false, flapping: false, modes: false);
-            ulong t8 = GoldenFlights.FlyTumble(M11(), out _, out _, 1328, 328);
-            bool rok = p8 == 0x08FBAF9331110BE9UL && c8 == 0x5D45B356ECD6B940UL && t8 == 0xF7E0F587B45FA098UL;
-            Console.WriteLine($"rings off, over model 8's layout: powered 0x{p8:X16}, contact 0x{c8:X16}, tumble 0x{t8:X16} "
-                + $"({(rok ? "model 8's, bit for bit" : "NOT model 8's")}): {(rok ? "PASS" : "FAIL")}");
-            // p7b-airframe 1.3's audit: with the ground effect off, over model 9's 1400-byte layout, each golden is model 9's.
-            ulong p9 = GoldenFlights.FlyPowered(M11(), out _, 1400, 256, ground: false, flapping: false, modes: false);
-            ulong c9 = GoldenFlights.FlyContact(M11(), out _, 1400, 256, ground: false, flapping: false, modes: false);
-            ulong t9 = GoldenFlights.FlyTumble(M11(), out _, out _, 1400, 256);
-            bool gok = p9 == 0x5AF86BCB6FD0B3A2UL && c9 == 0x8D965FFD8708C6C3UL && t9 == 0x50541A5726F695D8UL;
-            Console.WriteLine($"ground effect off, over model 9's layout: powered 0x{p9:X16}, contact 0x{c9:X16}, tumble 0x{t9:X16} "
-                + $"({(gok ? "model 9's, bit for bit" : "NOT model 9's")}): {(gok ? "PASS" : "FAIL")}");
-            // p7b-airframe 1.3c's audit: with the flapping off (the record's layout unchanged), each golden is model 10's.
-            ulong p10 = GoldenFlights.FlyPowered(M11(), out _, 1496, 160, flapping: false, modes: false);
-            ulong c10 = GoldenFlights.FlyContact(M11(), out _, 1496, 160, flapping: false, modes: false);
-            ulong t10 = GoldenFlights.FlyTumble(M11(), out _, out _, 1496, 160);
-            bool fok = p10 == 0x0B91602E467653F4UL && c10 == 0x05EDD1881425872EUL && t10 == 0x58EF4F6AE8D111D8UL;
-            Console.WriteLine($"flapping off: powered 0x{p10:X16}, contact 0x{c10:X16}, tumble 0x{t10:X16} "
-                + $"({(fok ? "model 10's, bit for bit" : "NOT model 10's")}): {(fok ? "PASS" : "FAIL")}");
-            // p7b-airframe 1.5's audit: on model 11's pack table (the record's layout unchanged), each golden is model 11's;
-            // the audits above fly on it too.
-            ulong p11 = GoldenFlights.FlyPowered(M11(), out _, 1496, 160, modes: false);
-            ulong c11 = GoldenFlights.FlyContact(M11(), out _, 1496, 160, modes: false);
-            ulong t11 = GoldenFlights.FlyTumble(M11(), out _, out _, 1496, 160);
-            bool pok = p11 == 0x9057D18CF741A255UL && c11 == 0xF6E32F2FDC831268UL && t11 == 0x58EF4F6AE8D111D8UL;
-            Console.WriteLine($"model 11's pack table: powered 0x{p11:X16}, contact 0x{c11:X16}, tumble 0x{t11:X16} "
-                + $"({(pok ? "model 11's, bit for bit" : "NOT model 11's")}): {(pok ? "PASS" : "FAIL")}");
-            // p7b-airframe 1.4's audit: with the airframe's modes off, over model 12's 1496-byte layout, each golden is model 12's.
-            ulong p12 = GoldenFlights.FlyPowered(M13(), out _, 1496, 160, modes: false);
-            ulong c12 = GoldenFlights.FlyContact(M13(), out _, 1496, 160, modes: false);
-            ulong t12 = GoldenFlights.FlyTumble(M13(), out _, out _, 1496, 160);
-            bool mok = p12 == 0x63D668DD01A1E587UL && c12 == 0x8B50CC1BD8EBC8FFUL && t12 == 0x58EF4F6AE8D111D8UL;
-            Console.WriteLine($"modes off, over model 12's layout: powered 0x{p12:X16}, contact 0x{c12:X16}, tumble 0x{t12:X16} "
-                + $"({(mok ? "model 12's, bit for bit" : "NOT model 12's")}): {(mok ? "PASS" : "FAIL")}");
-            // The electronics fit's audit (model 15): on model 14's fit (the record's layout unchanged), each golden is model 14's.
-            ulong p14 = GoldenFlights.FlyPowered(M14(), out _);
-            ulong c14 = GoldenFlights.FlyContact(M14(), out _);
-            ulong t14 = GoldenFlights.FlyTumble(M14(), out _, out _);
-            bool eok = p14 == 0x381ABAE6909C139FUL && c14 == 0xB57132DE1812820DUL && t14 == 0x26CDDB5EDB155896UL;
-            Console.WriteLine($"model 14's fit: powered 0x{p14:X16}, contact 0x{c14:X16}, tumble 0x{t14:X16} "
-                + $"({(eok ? "model 14's, bit for bit" : "NOT model 14's")}): {(eok ? "PASS" : "FAIL")}");
-            // QA's audit of model 7 (p7b-airframe 2.1): every mechanism off and the trunk's 5 ms ESC lag, on model 11's pack
-            // table, over model 7's 1296-byte layout, each golden is the trunk's (model 6's).
-            DroneSpec trunk = GoldenFlights.WithTheTrunksEscLag(M11());
-            ulong p6 = GoldenFlights.FlyPowered(trunk, out _, 1296, 360, asymmetry: false, ring: false, ground: false, flapping: false, modes: false);
-            ulong c6 = GoldenFlights.FlyContact(trunk, out _, 1296, 360, false, false, ground: false, flapping: false, modes: false);
-            ulong t6 = GoldenFlights.FlyTumble(trunk, out _, out _, 1296, 360);
-            bool tlok = p6 == 0x3F13A5CF5DB7DAFDUL && c6 == 0x3EE12C8D692BADF3UL && t6 == 0xE3178EE7FF322698UL;
-            Console.WriteLine($"the trunk's 5 ms ESC lag, every mechanism off, over model 7's layout: powered 0x{p6:X16}, contact 0x{c6:X16}, "
-                + $"tumble 0x{t6:X16} ({(tlok ? "the trunk's (model 6's), bit for bit" : "NOT the trunk's")}): {(tlok ? "PASS" : "FAIL")}");
-            return ok && cok && tok && aok && rok && gok && fok && pok && mok && eok && tlok;
+            // The merge's audit against unity/main (model 17): on drone.json with main's tuned rotor drag (0.25) in still air,
+            // over main's 1656-byte layout (the record less p7c-wind's 152 bytes at 1296), each golden is main's model 15 flight
+            // in still air, and the tumble main's pin. Main's kept audits of models 6–14 flew the stand-in's air, which is gone.
+            DroneSpec main = GoldenFlights.WithRotorDrag(DroneText(), GoldenFlights.TunedHForce);
+            WindSetup still = WindSetup.Of(WindLevel.Still);
+            ulong p15 = GoldenFlights.FlyPowered(main, out _, 1296, 152, wind: still);
+            ulong c15 = GoldenFlights.FlyContact(main, out _, 1296, 152, wind: still);
+            ulong t15 = GoldenFlights.FlyTumble(main, out _, out _, 1296, 152);
+            bool mok = p15 == GoldenFlights.Model15StillPoweredHash && c15 == GoldenFlights.Model15StillContactHash && t15 == GoldenFlights.Model15TumbleHash;
+            Console.WriteLine($"main's rotor drag in still air, over main's layout: powered 0x{p15:X16}, contact 0x{c15:X16}, tumble 0x{t15:X16} "
+                + $"({(mok ? "model 15's, bit for bit" : "NOT model 15's")}): {(mok ? "PASS" : "FAIL")}");
+            // The tumble's chain over main's layout: model 14's fit and model 13's file fly their pins.
+            ulong t14 = GoldenFlights.FlyTumble(M14(), out _, out _, 1296, 152);
+            ulong t13 = GoldenFlights.FlyTumble(M13(), out _, out _, 1296, 152);
+            bool eok = t14 == 0x26CDDB5EDB155896UL && t13 == 0xB371E06FF28075D8UL;
+            Console.WriteLine($"the tumble over main's layout: model 14's fit 0x{t14:X16}, model 13's file 0x{t13:X16} "
+                + $"({(eok ? "theirs, bit for bit" : "NOT theirs")}): {(eok ? "PASS" : "FAIL")}");
+            return ok && cok && rok && tok && mok && eok;
         }
 
         public static bool Bench()

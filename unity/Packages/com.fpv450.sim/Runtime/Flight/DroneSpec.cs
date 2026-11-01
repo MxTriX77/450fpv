@@ -222,6 +222,10 @@ namespace Fpv450.Sim.Flight
         /// <summary>The airframe's drag; its coil part is the coil's.</summary>
         public AeroSpec Aero;
 
+        /// <summary>The FPV camera's lens, body m (camera.lens_m, as CameraLens; p7c-wind 1.7: FlightSetup.CameraPosition,
+        /// where the feed's air at the camera is taken); the body's origin when the file has no camera block.</summary>
+        public Double3 CameraPosition;
+
         /// <summary>The contact shapes and thresholds (p6-flight-core 1.6), the shapes at the file's positions; null when the
         /// file has no contacts block (the bootstrap fixture). BuildContacts places them at a loadout.</summary>
         public Contact.ContactSpec Contacts;
@@ -504,7 +508,11 @@ namespace Fpv450.Sim.Flight
                 if ((n = root.Member("camera")) != null && IsObject(n, "camera"))
                 {
                     Members(n, "camera", "lens_m");
-                    if (Vector(n, "lens_m", "camera", out Double3 lens)) spec.CameraLens = lens;
+                    if (Vector(n, "lens_m", "camera", out Double3 lens))
+                    {
+                        spec.CameraLens = lens;
+                        spec.CameraPosition = lens;
+                    }
                 }
                 if ((n = Required(root, "stand", top)) != null) spec.Stand = ReadStand(n);
                 if ((n = Required(root, "aero", top)) != null) ReadAero(n, spec);

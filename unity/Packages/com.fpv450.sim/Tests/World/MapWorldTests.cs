@@ -344,6 +344,203 @@ namespace Fpv450.Sim.Tests
                 AssertFastSpheresCaught(World, line, shape, 470 + shape, 100, 0.990, 0.998);
         }
 
+        // ---- Turning sweeps (QA's re-check B4) -------------------------------------------------------------------------
+
+        private static double Norm(Double3 v) => Math.Sqrt(v.X * v.X + v.Y * v.Y + v.Z * v.Z);
+
+        private static Double3 Unit(Double3 v) => v * (1 / Norm(v));
+
+        private static double Clamp01(double x) => x < 0 ? 0 : x > 1 ? 1 : x;
+
+        /// <summary>v turned by `angle` about the unit axis k (Rodrigues).</summary>
+        private static Double3 Turn(Double3 v, Double3 k, double angle) =>
+            v * Math.Cos(angle) + Double3.Cross(k, v) * Math.Sin(angle) + k * (Double3.Dot(k, v) * (1 - Math.Cos(angle)));
+
+        /// <summary>The least distance between segment p1–q1 (not a point) and segment or point p2–q2 (Ericson 5.1.9), as the truth.</summary>
+        private static double SegmentDistance(Double3 p1, Double3 q1, Double3 p2, Double3 q2)
+        {
+            Double3 d1 = q1 - p1, d2 = q2 - p2, w = p1 - p2;
+            double a = Double3.Dot(d1, d1), b = Double3.Dot(d1, d2), c = Double3.Dot(d1, w), e = Double3.Dot(d2, d2), f = Double3.Dot(d2, w);
+            double s, t;
+            if (e <= 0)
+            {
+                t = 0;
+                s = Clamp01(-c / a);
+            }
+            else
+            {
+                double denom = a * e - b * b;
+                s = denom > 0 ? Clamp01((b * f - c * e) / denom) : 0;
+                t = (b * s + f) / e;
+                if (t < 0)
+                {
+                    t = 0;
+                    s = Clamp01(-c / a);
+                }
+                else if (t > 1)
+                {
+                    t = 1;
+                    s = Clamp01((b - c) / a);
+                }
+            }
+            return Norm(p1 + d1 * s - (p2 + d2 * t));
+        }
+
+        /// <summary>
+        /// The truth's first touch: the first t in [0, 1] at which `gap` (the core's signed distance to the shape at t)
+        /// reaches 0, NaN if it never does. A Lipschitz branch and bound: `speed`, the larger core end's move, bounds how
+        /// fast the gap changes, so over [a, b] it stays above (gap(a) + gap(b) − speed·(b − a)) / 2; resolved to 1e-10 of t.
+        /// </summary>
+        private static double TrueFirstTouch(Func<double, double> gap, double speed) => FirstTouchIn(gap, speed, 0, gap(0), 1, gap(1));
+
+        private static double FirstTouchIn(Func<double, double> gap, double speed, double a, double ga, double b, double gb)
+        {
+            if (ga <= 0)
+                return a;
+            if (ga + gb > speed * (b - a))
+                return double.NaN;
+            if (b - a < 1e-10)
+                return gb <= 0 ? b : double.NaN;
+            double m = 0.5 * (a + b), gm = gap(m);
+            double first = FirstTouchIn(gap, speed, a, ga, m, gm);
+            return double.IsNaN(first) ? FirstTouchIn(gap, speed, m, gm, b, gb) : first;
+        }
+
+        /// <summary>A point on a curved shape, its outward normal, the shape's axis there, and the truth's signed distance of a core axis to the shape.</summary>
+        private delegate (Double3 Point, Double3 Normal, Double3 Axis, Func<Double3, Double3, double> Distance) Placement(Random rng);
+
+        /// <summary>A cylinder along x through `center`: a point within 0.3 m of its middle, where its side is the nearest part to any core.</summary>
+        private static Placement OnCylinderAlongX(Double3 center, double radius, double halfLength)
+        {
+            Double3 x = new Double3(1, 0, 0), a = center - x * halfLength, b = center + x * halfLength;
+            return rng =>
+            {
+                double around = 2 * Math.PI * rng.NextDouble();
+                Double3 n = new Double3(0, Math.Cos(around), Math.Sin(around));
+                return (center + x * (0.6 * rng.NextDouble() - 0.3) + n * radius, n, x, (p, q) => SegmentDistance(p, q, a, b) - radius);
+            };
+        }
+
+        /// <summary>A wire's chain (capsules along its points): a point on a random segment, 0.1–0.9 along it.</summary>
+        private static Placement OnWire(MapWorld world, int obj, int shape)
+        {
+            Double3[] points = world.WirePoints(obj, shape).ToArray();
+            Assert.That(world.Geometry(obj, shape, out ShapeGeometry g), Is.True);
+            double radius = g.Radius;
+            return rng =>
+            {
+                int k = rng.Next(points.Length - 1);
+                Double3 a = points[k], b = points[k + 1], u = Unit(b - a), c = a + (b - a) * (0.1 + 0.8 * rng.NextDouble());
+                Double3 p1 = Unit(Double3.Cross(u, Math.Abs(u.Y) < 0.9 ? Up : new Double3(1, 0, 0))), p2 = Double3.Cross(u, p1);
+                double around = 2 * Math.PI * rng.NextDouble();
+                Double3 n = p1 * Math.Cos(around) + p2 * Math.Sin(around);
+                var near = new List<int>(); // the segments within 0.5 m: no core point (0.15 m from its middle) reaches others
+                for (int j = 0; j + 1 < points.Length; j++)
+                    if (SegmentDistance(points[j], points[j + 1], c, c) < 0.5)
+                        near.Add(j);
+                return (c + n * radius, n, u, (p, q) =>
+                {
+                    double least = double.PositiveInfinity;
+                    foreach (int j in near)
+                        least = Math.Min(least, SegmentDistance(p, q, points[j], points[j + 1]));
+                    return least - radius;
+                });
+            };
+        }
+
+        /// <summary>
+        /// QA's re-check B4: a core of 0.1–0.3 m (r 5–10 mm) lying across a curved shape (up to 60° off square), pitching
+        /// about its middle at 290–2000 °/s at 1 kHz about a random axis across it; its middle starts 0.05–0.95 of a step's
+        /// approach off the shape and approaches at 10–100 µm a step, sliding up to twice that. Against the truth, each
+        /// sweep that starts more than 5 µm clear:
+        /// - ends more than 1 µm inside: one contact with Time in (0, 1), not after the true first touch, Distance within
+        ///   1 µm of 0, and a touch by the truth (within 1 µm) at its Time;
+        /// - touches and ends clear: may count none (IWorldQuery), and a Time below 1 is held to the same;
+        /// - never touches: never a first touch.
+        /// Returns how many sweeps ended inside.
+        /// </summary>
+        private static int AssertPitchingCoresCaught(IWorldQuery world, int obj, int shape, int seed, int count, Placement place)
+        {
+            var rng = new Random(seed);
+            int inside = 0;
+            for (int trial = 0; trial < count; trial++)
+            {
+                var (c, n, u, distance) = place(rng);
+                double h = 0.05 + 0.1 * rng.NextDouble(), r = 0.005 + 0.005 * rng.NextDouble();
+                double approach = 1e-5 + 9e-5 * rng.NextDouble(), gap = (0.05 + 0.9 * rng.NextDouble()) * approach;
+                double crossing = (2 * rng.NextDouble() - 1) * Math.PI / 3, tilt = 2 * Math.PI * rng.NextDouble();
+                double turn = (290 + 1710 * rng.NextDouble()) * Math.PI / 180 / 1000, before = turn * rng.NextDouble();
+                double slideAngle = 2 * Math.PI * rng.NextDouble(), slide = 2 * approach * rng.NextDouble();
+                Double3 across = Unit(Double3.Cross(n, u));
+                Double3 e = across * Math.Cos(crossing) + u * Math.Sin(crossing);                // the core, square to n
+                Double3 k = n * Math.Cos(tilt) + Unit(Double3.Cross(e, n)) * Math.Sin(tilt);    // the pitch axis, across the core
+                Double3 m0 = c + n * (r + gap);
+                Double3 m1 = m0 - n * approach + (across * Math.Cos(slideAngle) + u * Math.Sin(slideAngle)) * slide;
+                Double3 e0 = Turn(e, k, -before), e1 = Turn(e, k, turn - before);
+                var previous = new Capsule(m0 - e0 * h, m0 + e0 * h, r);
+                var current = new Capsule(m1 - e1 * h, m1 + e1 * h, r);
+
+                Func<double, double> gapAt = t =>
+                    distance(previous.A + (current.A - previous.A) * t, previous.B + (current.B - previous.B) * t) - r;
+                if (!(gapAt(0) > 5e-6))
+                    continue;
+                double first = TrueFirstTouch(gapAt, Math.Max(Norm(current.A - previous.A), Norm(current.B - previous.B)));
+                StaticContact[] mine = Array.FindAll(Contacts(world, previous, current), x => x.Object == obj && x.Shape == shape);
+                string what = $"seed {seed} trial {trial}";
+                Assert.That(mine.Length, Is.LessThanOrEqualTo(1), what);
+                bool latched = mine.Length == 1 && mine[0].Time < 1;
+                if (double.IsNaN(first))
+                {
+                    Assert.That(latched, Is.False, what + ": a first touch where the truth never touches");
+                    continue;
+                }
+                if (gapAt(1) < -1e-6)
+                {
+                    inside++;
+                    Assert.That(latched, Is.True, $"{what}: the touch at {first} was missed, {-gapAt(1) * 1e6:0.0} µm deep at the step's end");
+                }
+                if (!latched)
+                    continue;
+                StaticContact hit = mine[0];
+                Assert.That(hit.Time, Is.GreaterThan(0), what);
+                Assert.That(hit.Time, Is.LessThanOrEqualTo(first + 1e-9), what + ": Time after the first touch");
+                Assert.That(hit.Distance, Is.EqualTo(0).Within(1e-6), what + ": Distance at the first touch");
+                Assert.That(gapAt(hit.Time), Is.LessThanOrEqualTo(1e-6 + 1e-9), what + ": the first touch is a touch");
+            }
+            return inside;
+        }
+
+        [Test]
+        public void PitchingCores_TouchingACurvedShapeNearTheirMiddle_LatchTheTrueFirstTouch()
+        {
+            // A core touching a twig, a trunk or a conductor near its middle while it pitches: its far ends swing at up to
+            // 5 mm a step while its middle creeps in at 10–100 µm, so neither the distance / speed step nor the separating
+            // plane's outruns the creep, and the sweep gave up after 128 steps, missing a quarter of its true touches (QA:
+            // up to 1.4 mm deep). Its current pose touches, so the step touched: the sweep bisects to that touch.
+            var floor = new FloorWorld(0, "meadow_sod", "timber");
+            ushort timber = floor.MaterialId("timber");
+            ShapeGeometry Along(Double3 center, double radius) => new ShapeGeometry
+            {
+                Kind = ShapeKind.Cylinder,
+                Center = center,
+                AxisX = new Double3(0, -1, 0),
+                AxisY = new Double3(1, 0, 0),
+                AxisZ = new Double3(0, 0, 1),
+                Radius = radius,
+                HalfLength = 1,
+                Material = timber,
+            };
+            Double3 twigAt = new Double3(0, 2, 0), trunkAt = new Double3(0, 2, 5);
+            int twig = floor.AddObject("twig", new[] { Along(twigAt, 0.01) });
+            int trunk = floor.AddObject("trunk", new[] { Along(trunkAt, 0.15) });
+            const int sweeps = 300;
+            Assert.That(AssertPitchingCoresCaught(floor, twig, 0, 4101, sweeps, OnCylinderAlongX(twigAt, 0.01, 1)), Is.GreaterThan(sweeps / 2));
+            Assert.That(AssertPitchingCoresCaught(floor, trunk, 0, 4102, sweeps, OnCylinderAlongX(trunkAt, 0.15, 1)), Is.GreaterThan(sweeps / 2));
+            int line = Object("L03_medium");
+            for (int shape = 0; shape < 4; shape++)
+                Assert.That(AssertPitchingCoresCaught(World, line, shape, 4110 + shape, sweeps / 3, OnWire(World, line, shape)), Is.GreaterThan(sweeps / 6));
+        }
+
         [Test]
         public void WireDistance_IsTheTrueSignedOneDeepInside_AndGeometryGivesItsSpan()
         {
