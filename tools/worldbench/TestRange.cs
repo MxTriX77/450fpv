@@ -13,9 +13,11 @@ namespace Fpv450.WorldBench
     // MapWorld, with a fixed four-post stand at the "field" start as its runtime object.
     // - Golden: 10 000 each of ground samples, swept capsules and rays, spread over the map's busiest spots (canonical
     //   order: input i lies in spot i mod the spot count), batched against one by one where a call takes a batch.
-    // - Bench: a physics step's batch at the densest spots (a crown, beside H01_D, over E01's run, the posadka at 2 m),
-    //   in physics' pattern (review-physics W7) and K§10.5's, at physics' margin; then 100 000 capsules (moving at most
-//   30 mm, physics' 30 m/s at 1 kHz), rays and samples over the golden's spots.
+    // - Bench: a physics step's batch at the densest spots (a crown, beside H01_D, over E01's run, the posadka at 2 m,
+    //   resting in S04's straw, lifting off the stand), in physics' pattern (review-physics W7) and K§10.5's, at physics'
+    //   margin; then 100 000 capsules (moving at most 30 mm, physics' 30 m/s at 1 kHz), rays and samples over the golden's
+    //   spots. Judged as D-054 sets it: physics' pattern inside PLT-04's 300 µs step at p99 with 0 B, the 60 µs target
+    //   printed beside it; K§10.5's batch with its fiber shown, judged at phase 7d.
     internal static partial class Program
     {
         /// <summary>Physics' StaticContacts margin (review-physics P2, drone.json's contacts.margin_m is 0.1 on the drone).</summary>
@@ -493,7 +495,9 @@ namespace Fpv450.WorldBench
         {
             Console.WriteLine("  the test range (D-047), with a stand at the field start:");
             MapWorld world = TestRange();
-            int crown = Find(world, "V01_L"), house = Find(world, "H01_D"), trench = Find(world, "E01_curving");
+            int crown = Find(world, "V01_L"), house = Find(world, "H01_D"), trench = Find(world, "E01_curving"), patch = Find(world, "S04_patch");
+            world.Geometry(patch, 1, out ShapeGeometry strip); // a straw strip, its top the plane's height
+            Double3 straw = new Double3(strip.Center.X, 0.235, strip.Center.Z), stand = StandFoot(world) + new Double3(0, 0.253, 0);
             Spot inCrown = Around(world, "crown", crown, 0, "twig");
             Spot walls = HouseWalls(world, house, 0.25);
             Double3[] run = RunLine();
@@ -507,6 +511,11 @@ namespace Fpv450.WorldBench
                 ($"along and over E01's run at 10 m/s, its skids from the floor to 1 m up (object {trench})",
                     s => Along(run, 0.01 * s) + new Double3(0, -1.25 + 2.25 * Tri(s, 2 * 1709), 0)),
                 ("the posadka at 2 m (its bench leg, 15.75 m/s)", s => legFrom + (legTo - legFrom) * (Math.Max(0, s) / (double)steps)),
+                // physics' 1.6b bench rows: the skids 13 mm into the straw, the pose trembling by a micrometre; the arms on the
+                // stand's post tops for 1 s, then a 0.5 m/s climb.
+                ($"resting in S04's straw (object {patch}), the skids 13 mm into it", s => straw + new Double3(0, 1e-6 * Tri(s, 14), 0)),
+                ("on the field start's stand, its arms on the posts for 1 s, then climbing at 0.5 m/s",
+                    s => stand + new Double3(0, 0.0005 * Math.Max(0, s - 1000), 0)),
             };
             var times = new long[steps];
             int failures = 0;
@@ -534,19 +543,21 @@ namespace Fpv450.WorldBench
                     }
                     Array.Sort(times);
                     most = times[steps - 1];
-                    double median = times[steps / 2] * us;
-                    bool over = !(median < 60);
+                    double median = times[steps / 2] * us, p99 = times[steps * 99 / 100] * us;
+                    // D-054: physics' pattern is judged inside PLT-04's 300 us step (p99, 0 B); 60 us is the target, printed.
+                    bool judged = pattern == physics, over = judged && !(p99 < 300);
                     failures += over || allocated != 0 ? 1 : 0;
-                    Console.WriteLine($"  {pattern.Name}, {path.Name}: median {median:F2} us, p99 {times[steps * 99 / 100] * us:F2} us, "
-                        + $"max {most * us:F1} us, {(double)queries / steps:F1} swept queries a step, {allocated} B{(over ? " (OVER the 60 us budget)" : "")}");
+                    Console.WriteLine($"  {pattern.Name}, {path.Name}: median {median:F2} us, p99 {p99:F2} us, max {most * us:F1} us, "
+                        + $"{(double)queries / steps:F1} swept queries a step, {allocated} B; the 60 us target {(p99 < 60 ? "met" : "missed")} at p99"
+                        + (over ? " (OVER the step's 300 us)" : judged ? "" : " (shown: judged at phase 7d, D-054)"));
                 }
             }
 
-            // K§10.4's 100 000 capsules and rays, in physics' pattern: its swept queries and rotor rays over the four paths
+            // K§10.4's 100 000 capsules and rays, in physics' pattern: its swept queries and rotor rays over the six paths
             // (both passes), per 100 000.
             double perSweeps = physics.SweepTicks * 1e3 / Stopwatch.Frequency * 100000 / physics.Sweeps;
             double perRays = physics.RayTicks * 1e3 / Stopwatch.Frequency * 100000 / physics.Rays;
-            Console.WriteLine($"  test-range.capsules in physics' pattern ({physics.Sweeps} swept over the four paths): {perSweeps:F2} ms per 100000 (budget 100 ms)");
+            Console.WriteLine($"  test-range.capsules in physics' pattern ({physics.Sweeps} swept over the six paths): {perSweeps:F2} ms per 100000 (budget 100 ms)");
             Console.WriteLine($"  test-range.rays in physics' pattern ({physics.Rays} rotor rays of 5 m): {perRays:F2} ms per 100000 (budget 100 ms)");
             failures += perSweeps < 100 && perRays < 100 ? 0 : 1;
 

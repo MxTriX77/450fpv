@@ -164,6 +164,113 @@ namespace Fpv450.Sim.Tests
             Assert.That(one[0].Object, Is.EqualTo(WorldIds.Ground), "the buffer keeps the first in canonical order");
         }
 
+        // ---- No false first touch (QA's review B3, QueryVersion 3) -----------------------------------------------------
+
+        [Test]
+        public void SkidSlidingJustAboveTheFloor_IsNeverAFirstTouch_AtAnySpeed()
+        {
+            // A level skid (r 5 mm) 0.1 mm over the floor, sliding 10, 20 and 30 mm in a step (10–30 m/s at 1 kHz): it never
+            // touches, so the floor is the current contact (Time 1). The distance / speed advancement alone crept 0.1 mm at a
+            // time and gave up as a first touch at Time 0.64, 0.32 and 0.213.
+            FloorWorld world = World();
+            const double r = 0.005, y = r + 0.0001;
+            var contacts = new StaticContact[4];
+            foreach (double move in new[] { 0.010, 0.020, 0.030 })
+            {
+                var before = new Capsule(new Double3(0, y, 0), new Double3(0.12, y, 0), r);
+                var after = new Capsule(new Double3(move, y, 0), new Double3(0.12 + move, y, 0), r);
+                Assert.That(world.StaticContacts(before, after, 0.02, contacts), Is.EqualTo(1), $"{move} m");
+                Assert.That(contacts[0].Object, Is.EqualTo(WorldIds.Ground));
+                Assert.That(contacts[0].Time, Is.EqualTo(1), $"{move} m: never touched");
+                Assert.That(contacts[0].Distance, Is.EqualTo(0.0001).Within(Exact), $"{move} m");
+            }
+        }
+
+        [Test]
+        public void GrazingDescentOntoTheFloor_IsItsExactFirstTouch()
+        {
+            // A 5 mm sphere 40 µm over the floor, moving 20 mm across it while sinking 50 µm: it touches at t = 0.8 exactly.
+            // The distance / speed steps would take 0.2 % of the step at a time; the plane's bound is its distance, so its
+            // step lands on the touch, with Distance 0 to rounding.
+            FloorWorld world = World();
+            const double r = 0.005;
+            var before = new Capsule(new Double3(0, r + 0.00004, 0), new Double3(0, r + 0.00004, 0), r);
+            var after = new Capsule(new Double3(0.02, r - 0.00001, 0), new Double3(0.02, r - 0.00001, 0), r);
+            var contacts = new StaticContact[4];
+            Assert.That(world.StaticContacts(before, after, 0.02, contacts), Is.EqualTo(1));
+            Assert.That(contacts[0].Time, Is.EqualTo(0.8).Within(Exact));
+            Assert.That(contacts[0].Distance, Is.EqualTo(0).Within(Exact));
+            AssertNear(contacts[0].Point, new Double3(0.016, 0, 0), Exact);
+        }
+
+        [Test]
+        public void SphereSlidingPastATrunk_IsNeverAFirstTouch()
+        {
+            // A 5 mm sphere sliding 20 mm in a step along a tangent of a 0.15 m trunk cylinder, 0.2 mm off it at the
+            // closest (half way): it never touches, so the trunk is the current contact. The distance / speed advancement
+            // alone gave up as a first touch (QA's Z07 case: Time 0.836, Distance 0.34 mm).
+            FloorWorld world = World();
+            int trunk = world.AddObject("trunk", new[] { Shape(ShapeKind.Cylinder, new Double3(0, 2, 0), world.MaterialId("timber"), 0.15, 2) });
+            const double r = 0.005, off = 0.15 + r + 0.0002;
+            var before = new Capsule(new Double3(-0.01, 1, off), new Double3(-0.01, 1, off), r);
+            var after = new Capsule(new Double3(0.01, 1, off), new Double3(0.01, 1, off), r);
+            var contacts = new StaticContact[4];
+            Assert.That(world.StaticContacts(before, after, 0.02, contacts), Is.EqualTo(1));
+            Assert.That(contacts[0].Object, Is.EqualTo(trunk));
+            Assert.That(contacts[0].Time, Is.EqualTo(1), "never touched");
+            Assert.That(contacts[0].Distance, Is.EqualTo(Math.Sqrt(off * off + 0.0001) - 0.15 - r).Within(1e-9));
+        }
+
+        // ---- The line contact on a box face (review-physics W5) ---------------------------------------------------------
+
+        /// <summary>The contact of a level 5 mm skid 1 mm over the 1 m box's top face (y 1), at rest, from a to b at the face's height.</summary>
+        private static StaticContact OnTheBox(FloorWorld world, Double3 a, Double3 b)
+        {
+            const double r = 0.005, y = 1 + r + 0.001;
+            var skid = new Capsule(new Double3(a.X, y, a.Z), new Double3(b.X, y, b.Z), r);
+            var contacts = new StaticContact[4];
+            Assert.That(world.StaticContacts(skid, skid, 0.02, contacts), Is.EqualTo(1), "the box alone, the floor beyond the margin");
+            Assert.That(contacts[0].Time, Is.EqualTo(1));
+            Assert.That(contacts[0].Distance, Is.EqualTo(0.001).Within(Exact));
+            AssertNear(contacts[0].Normal, Up, Exact);
+            return contacts[0];
+        }
+
+        [Test]
+        public void FlatSkidOnABoxFace_TouchesAtTheStartOfItsFlatStretch()
+        {
+            // IWorldQuery's line contact: a skid lying along a face is equally near all along its flat stretch, and the
+            // contact is that stretch's start, A itself when A lies over the face (physics' skid rule relies on it).
+            FloorWorld world = World();
+            world.AddObject("block", new[] { Shape(ShapeKind.Box, new Double3(0, 0.5, 0), world.MaterialId("steel"), halfExtents: new Double3(0.5, 0.5, 0.5)) });
+
+            // Both ends over the face: A's foot, in either order.
+            AssertNear(OnTheBox(world, new Double3(-0.2, 0, 0.1), new Double3(0.3, 0, 0.1)).Point, new Double3(-0.2, 1, 0.1), Exact);
+            AssertNear(OnTheBox(world, new Double3(0.3, 0, 0.1), new Double3(-0.2, 0, 0.1)).Point, new Double3(0.3, 1, 0.1), Exact);
+
+            // A over the face, B 0.25 m past its edge (x 0.5): the flat stretch [A, edge] and the edge tie exactly at the
+            // edge's u = 0.5, and the stretch's start, A, is the contact. From B's side the stretch starts at the edge.
+            AssertNear(OnTheBox(world, new Double3(0.25, 0, 0), new Double3(0.75, 0, 0)).Point, new Double3(0.25, 1, 0), Exact);
+            AssertNear(OnTheBox(world, new Double3(0.75, 0, 0), new Double3(0.25, 0, 0)).Point, new Double3(0.5, 1, 0), Exact);
+        }
+
+        [Test]
+        public void FlatSkidOnAYawedBoxFace_TouchesAtAsFoot()
+        {
+            // The same on a box yawed by an exact 3-4-5 rotation: its x axis (0.8, 0, −0.6), its z axis (0.6, 0, 0.8).
+            FloorWorld world = World();
+            Double3 ax = new Double3(0.8, 0, -0.6), az = new Double3(0.6, 0, 0.8);
+            ShapeGeometry block = Shape(ShapeKind.Box, new Double3(0, 0.5, 0), world.MaterialId("steel"), halfExtents: new Double3(0.5, 0.5, 0.5));
+            block.AxisX = ax;
+            block.AxisZ = az;
+            world.AddObject("block", new[] { block });
+            Double3 a = ax * -0.2 + az * 0.1, b = ax * 0.3 + az * 0.1;
+            AssertNear(OnTheBox(world, a, b).Point, new Double3(a.X, 1, a.Z), Exact);
+            AssertNear(OnTheBox(world, b, a).Point, new Double3(b.X, 1, b.Z), Exact);
+            Double3 over = ax * 0.25, past = ax * 0.75;
+            AssertNear(OnTheBox(world, over, past).Point, new Double3(over.X, 1, over.Z), Exact);
+        }
+
         [Test]
         public void Raycast_HitsTheFloorFromAboveAndTheNearestObject()
         {

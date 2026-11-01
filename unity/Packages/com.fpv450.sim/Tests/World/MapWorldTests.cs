@@ -247,10 +247,11 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>
         /// Spheres of r = 7.5 mm (K§10.4's 15 mm sphere) moved 60 mm in one step across random points of a wire's chain,
-        /// perpendicular to the segment there, passing within 0.9 (R + r) of its axis: every one is one contact with that
-        /// wire with Time below 1, its Distance about 0, and WireParam the length along the chain to the crossing.
+        /// perpendicular to the segment there, passing at `low` to `high` of (R + r) from its axis: every one is one contact
+        /// with that wire with Time below 1 and not after the analytic first touch, its Distance within 1 µm of 0 (the
+        /// spec's clause), and WireParam the length along the chain to the crossing.
         /// </summary>
-        private static void AssertFastSpheresCaught(MapWorld world, int obj, int shape, int seed, int count)
+        private static void AssertFastSpheresCaught(MapWorld world, int obj, int shape, int seed, int count, double low = 0, double high = 0.9)
         {
             ReadOnlySpan<Double3> points = world.WirePoints(obj, shape);
             Assert.That(points.Length, Is.GreaterThan(2));
@@ -276,14 +277,18 @@ namespace Fpv450.Sim.Tests
                 Double3 p2 = Double3.Cross(u, p1);
                 double angle = 2 * Math.PI * rng.NextDouble();
                 Double3 d = p1 * Math.Cos(angle) + p2 * Math.Sin(angle), side = Double3.Cross(u, d);
-                Double3 pass = c + side * ((2 * rng.NextDouble() - 1) * 0.9 * reach);
+                double offset = (low + (high - low) * rng.NextDouble()) * reach;
+                Double3 pass = c + side * (rng.Next(2) == 0 ? offset : -offset);
                 Double3 from = pass - d * (step / 2), to = pass + d * (step / 2);
+                // The segment is straight there: the sphere first touches it where it is R + r from the axis.
+                double touch = 0.5 - Math.Sqrt(reach * reach - offset * offset) / step;
                 StaticContact[] hits = Contacts(world, new Capsule(from, from, r), new Capsule(to, to, r));
                 StaticContact[] mine = Array.FindAll(hits, h => h.Object == obj && h.Shape == shape);
                 Assert.That(mine.Length, Is.EqualTo(1), $"trial {trial}: the sphere crossed the wire unseen");
                 StaticContact w = mine[0];
                 Assert.That(w.Time, Is.GreaterThan(0).And.LessThan(1), $"trial {trial}: Time");
-                Assert.That(w.Distance, Is.EqualTo(0).Within(Advance), $"trial {trial}: Distance at the first touch");
+                Assert.That(w.Time, Is.LessThanOrEqualTo(touch + 1e-9), $"trial {trial}: Time after the first touch");
+                Assert.That(w.Distance, Is.EqualTo(0).Within(1e-6), $"trial {trial}: Distance at the first touch");
                 Assert.That(w.Material, Is.EqualTo(g.Material));
                 Assert.That(w.WireParam, Is.EqualTo((along[k] + (along[k + 1] - along[k]) * f) / total).Within(1e-9),
                     $"trial {trial}: WireParam");
@@ -328,6 +333,18 @@ namespace Fpv450.Sim.Tests
         }
 
         [Test]
+        public void GrazingSpheres_AreCaughtWithinAMicrometreOfTheirFirstTouch()
+        {
+            // QA's review B3: crossings at 0.990–0.998 of R + r, 20–100 µm deep at the deepest, where the distance / speed
+            // advancement gave up 1.4–13 µm short of the wire. The separating plane's step reaches the touch.
+            MapWorld world = FiveMillimetreWire();
+            AssertFastSpheresCaught(world, 0, 0, 7, 500, 0.990, 0.998);
+            int line = Object("L03_medium");
+            for (int shape = 0; shape < 4; shape++)
+                AssertFastSpheresCaught(World, line, shape, 470 + shape, 100, 0.990, 0.998);
+        }
+
+        [Test]
         public void WireDistance_IsTheTrueSignedOneDeepInside_AndGeometryGivesItsSpan()
         {
             int line = Object("L03_medium");
@@ -353,6 +370,32 @@ namespace Fpv450.Sim.Tests
                 Assert.That(w[0].Time, Is.EqualTo(1));
                 Assert.That(w[0].Normal.Length(), Is.EqualTo(1).Within(Exact));
             }
+        }
+
+        [Test]
+        public void Raycast_OverAPatchOrInAHoleBand_GoesOnPastThePlane()
+        {
+            // The plane is absent over a patch and inside a band (W3, W4), so a ray down meets the shapes there: inside E01's
+            // run the floor filler 1.5 m down, never the plane at 0; over S04 the straw strip whose top is the plane's height
+            // (a tie the plane would win in canonical order). On the open field, the plane.
+            int e01 = Object("E01_curving"), patch = Object("S04_patch");
+            Assert.That(World.Geometry(patch, 1, out ShapeGeometry straw), Is.True);
+            var rays = new[]
+            {
+                new Ray(new Double3(59.5, 1, -14.587), new Double3(0, -1, 0)),
+                new Ray(new Double3(straw.Center.X, 1, straw.Center.Z), new Double3(0, -1, 0)),
+                new Ray(new Double3(-178, 1, -40), new Double3(0, -1, 0)), // the "track" start, on the plane
+            };
+            var hits = new RayHit[rays.Length];
+            World.Raycast(rays, 5, hits);
+            Assert.That(hits[0].Object, Is.EqualTo(e01), "in the run: its floor filler");
+            Assert.That(World.SurfaceName(hits[0].Surface), Is.EqualTo("belt_bare"));
+            Assert.That(hits[0].Point.Y, Is.EqualTo(-1.5).Within(1e-3));
+            Assert.That(hits[1].Object, Is.EqualTo(patch), "over the patch: its straw");
+            Assert.That(hits[1].Point.Y, Is.EqualTo(0).Within(Exact));
+            Assert.That(World.MaterialName(hits[1].Material), Is.EqualTo("straw"));
+            Assert.That(hits[2].Object, Is.EqualTo(WorldIds.Ground), "the open field: the plane");
+            Assert.That(hits[2].Distance, Is.EqualTo(1).Within(Exact));
         }
 
         [Test]
@@ -449,7 +492,7 @@ namespace Fpv450.Sim.Tests
             List<object> rows = List(Obj(TestJson.Parse(Placements()))["instances"]);
             var metas = new Dictionary<string, Dictionary<string, object>>(StringComparer.Ordinal);
             int shapes = 0, wirePoints = 0;
-            double worst = 0;
+            double worst = 0, worstAxis = 0;
             for (int i = 0; i < rows.Count; i++)
             {
                 Dictionary<string, object> row = Obj(rows[i]);
@@ -472,8 +515,12 @@ namespace Fpv450.Sim.Tests
                     double norm = Math.Sqrt(qx * qx + qy * qy + qz * qz + qw * qw);
                     // The row's yaw times the shape's rotation: (0, ys, 0, yc) * (qx, qy, qz, qw), normalised.
                     double rx = (yc * qx + ys * qz) / norm, ry = (yc * qy + ys * qw) / norm, rz = (yc * qz - ys * qx) / norm, rw = (yc * qw - ys * qy) / norm;
-                    Double3 axisY = Rotate(rx, ry, rz, rw, Up);
-                    Assert.That((g.AxisY - axisY).Length(), Is.LessThan(1e-6), $"row {i} shape {s}: its axis");
+                    Double3 axisX = Rotate(rx, ry, rz, rw, new Double3(1, 0, 0)), axisY = Rotate(rx, ry, rz, rw, Up);
+                    Double3 axisZ = Rotate(rx, ry, rz, rw, new Double3(0, 0, 1));
+                    worstAxis = Math.Max(worstAxis, Math.Max((g.AxisX - axisX).Length(), Math.Max((g.AxisY - axisY).Length(), (g.AxisZ - axisZ).Length())));
+                    Assert.That((g.AxisX - axisX).Length(), Is.LessThan(1e-6), $"row {i} shape {s}: its x axis");
+                    Assert.That((g.AxisY - axisY).Length(), Is.LessThan(1e-6), $"row {i} shape {s}: its y axis");
+                    Assert.That((g.AxisZ - axisZ).Length(), Is.LessThan(1e-6), $"row {i} shape {s}: its z axis");
                     switch ((string)c["shape"])
                     {
                         case "box":
@@ -504,7 +551,7 @@ namespace Fpv450.Sim.Tests
                 Assert.That(World.Geometry(i, collision.Count + wires.Count, out _), Is.False, $"row {i}: one shape too many");
             }
             Assert.That(worst, Is.LessThan(0.001), "the worst offset, m");
-            TestContext.WriteLine($"{rows.Count} rows, {shapes} shapes, {wirePoints} wire points: worst offset {worst:E2} m");
+            TestContext.WriteLine($"{rows.Count} rows, {shapes} shapes, {wirePoints} wire points: worst offset {worst:E2} m, worst axis {worstAxis:E2}");
         }
 
         [Test]

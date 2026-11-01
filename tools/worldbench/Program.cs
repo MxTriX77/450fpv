@@ -371,6 +371,32 @@ namespace Fpv450.WorldBench
         [DllImport("powrprof.dll")]
         private static extern uint PowerGetEffectiveOverlayScheme(out Guid overlay);
 
+        [StructLayout(LayoutKind.Sequential)]
+        private struct ProcessorPowerInformation
+        {
+            public uint Number, MaxMhz, CurrentMhz, MhzLimit, MaxIdleState, CurrentIdleState;
+        }
+
+        [DllImport("powrprof.dll")]
+        private static extern uint CallNtPowerInformation(int level, IntPtr input, uint inputLength, [Out] ProcessorPowerInformation[] output,
+            uint outputLength);
+
+        /// <summary>The CPU clock, current over most, MHz (QA's L3; tools/flightbench's Power reads it the same way).</summary>
+        private static string Clock()
+        {
+            var info = new ProcessorPowerInformation[Environment.ProcessorCount];
+            uint size = (uint)(Marshal.SizeOf<ProcessorPowerInformation>() * info.Length);
+            if (CallNtPowerInformation(11, IntPtr.Zero, 0, info, size) != 0)
+                return "CPU clock unknown";
+            uint current = 0, most = 0;
+            foreach (ProcessorPowerInformation p in info)
+            {
+                current = Math.Max(current, p.CurrentMhz);
+                most = Math.Max(most, p.MaxMhz);
+            }
+            return $"CPU {current}/{most} MHz";
+        }
+
         private static string Power()
         {
             if (!OperatingSystem.IsWindows())
@@ -403,7 +429,7 @@ namespace Fpv450.WorldBench
                     _ => "unknown mode",
                 };
             }
-            return $"{source}, {plan} plan, {mode} mode";
+            return $"{source}, {plan} plan, {mode} mode, {Clock()}";
         }
     }
 }

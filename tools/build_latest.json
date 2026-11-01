@@ -1,0 +1,16 @@
+{
+  "about": "What tools/build_latest.ps1 builds: the newest playable state. The orchestrator keeps this current as branches land; every listed merge is checked to be conflict-free when it changes. Branch names are without origin/; paths are relative to unity/.",
+  "base": "unity/game/p6-input-app--player",
+  "merge": [],
+  "method": "Fpv450.Build.Windows",
+  "unity_args": [
+    "-review"
+  ],
+  "output_dir": "Builds/Windows-Review",
+  "exe": "450fpv.exe",
+  "smoke_args": [
+    "-smoketest",
+    "-windowed"
+  ],
+  "contents": "The G7 player: menu (Train, Calibrate, Exit, Explore), setup, the TX12 calibration, flights on the test range from the track (legs on) or the stand (legs off), the analog feed and OSD, pause, restart, the post-flight summary and the flight log. Not yet: collision with houses, trees, the car and wires (the world queries); the D-050 drone and the airframe effects (p7b); the OSD's live content; the weather look."
+}

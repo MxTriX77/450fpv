@@ -13,8 +13,9 @@ namespace Fpv450.Tests.EditMode
     /// <summary>
     /// The sim sees what the scene shows (p6-world-query-gallery 1.4, world-query spec): every collider of every placed
     /// prefab in the committed test range scene lies within 1 mm and 0.01° of the shape the sim's MapWorld loads from the
-    /// same placement file and metadata, with the same size, and the sim has no shape the scene lacks. Needs a prior
-    /// <c>-executeMethod Fpv450.TestRangeScene.Build</c>, as <see cref="TestRangeTests"/>.
+    /// same placement file and metadata, with the same size, and the sim has no shape the scene lacks. Each collider is
+    /// read as PhysX places it (QA's L2): its centre through its transform, its scale, a capsule's direction, a
+    /// cylinder mesh's bounds. Needs a prior <c>-executeMethod Fpv450.TestRangeScene.Build</c>, as <see cref="TestRangeTests"/>.
     /// </summary>
     public sealed class TestRangeWorldTests
     {
@@ -61,24 +62,49 @@ namespace Fpv450.Tests.EditMode
                         Assert.That(host, Is.Not.Null, $"{key}: no collider in the scene");
                         Collider c = host.GetComponent<Collider>();
                         Assert.That(c, Is.Not.Null, key);
-                        float off = Vector3.Distance(host.position, V(g.Center));
+                        Vector3 scale = host.lossyScale, centre;
                         float turn = AngleDeg(host.up, g.AxisY);
                         if (g.Kind == ShapeKind.Box)
                         {
+                            var box = (BoxCollider)c;
+                            centre = host.TransformPoint(box.center);
                             turn = Mathf.Max(turn, AngleDeg(host.right, g.AxisX));
-                            Vector3 size = Vector3.Scale(((BoxCollider)c).size, host.lossyScale);
+                            Vector3 size = Vector3.Scale(box.size, scale);
                             Assert.That(Vector3.Distance(size, 2f * V(g.HalfExtents)), Is.LessThanOrEqualTo(ToleranceM), $"{key}: size");
                         }
                         else if (g.Kind == ShapeKind.Sphere)
-                            Assert.That(((SphereCollider)c).radius, Is.EqualTo((float)g.Radius).Within(ToleranceM), $"{key}: radius");
+                        {
+                            var sphere = (SphereCollider)c;
+                            centre = host.TransformPoint(sphere.center);
+                            float radius = sphere.radius * Mathf.Max(Mathf.Abs(scale.x), Mathf.Max(Mathf.Abs(scale.y), Mathf.Abs(scale.z)));
+                            Assert.That(radius, Is.EqualTo((float)g.Radius).Within(ToleranceM), $"{key}: radius");
+                        }
                         else if (g.Kind == ShapeKind.Capsule)
                         {
+                            // PhysX's capsule: its axis the transform's along `direction`, its radius scaled by the larger of the
+                            // other two axes' scales, its height by its own axis's.
                             var capsule = (CapsuleCollider)c;
-                            Assert.That(capsule.radius, Is.EqualTo((float)g.Radius).Within(ToleranceM), $"{key}: radius");
-                            Assert.That(capsule.height / 2f - capsule.radius, Is.EqualTo((float)g.HalfLength).Within(ToleranceM), $"{key}: core");
+                            centre = host.TransformPoint(capsule.center);
+                            int d = capsule.direction;
+                            Vector3 axis = d == 0 ? host.right : d == 1 ? host.up : host.forward;
+                            turn = AngleDeg(axis, g.AxisY);
+                            float along = Mathf.Abs(scale[d]), across = Mathf.Max(Mathf.Abs(scale[(d + 1) % 3]), Mathf.Abs(scale[(d + 2) % 3]));
+                            float radius = capsule.radius * across;
+                            Assert.That(radius, Is.EqualTo((float)g.Radius).Within(ToleranceM), $"{key}: radius");
+                            Assert.That(Mathf.Max(0f, capsule.height * along / 2f - radius), Is.EqualTo((float)g.HalfLength).Within(ToleranceM), $"{key}: core");
                         }
                         else
+                        {
+                            // A cylinder's noclip MeshCollider: a prism whose bounds are exactly its circle and height (CatalogImporter).
                             Assert.That(c, Is.InstanceOf<MeshCollider>(), $"{key}: a cylinder's noclip collider");
+                            Bounds mesh = ((MeshCollider)c).sharedMesh.bounds;
+                            centre = host.TransformPoint(mesh.center);
+                            Vector3 size = Vector3.Scale(mesh.size, scale);
+                            Assert.That(size.x / 2f, Is.EqualTo((float)g.Radius).Within(ToleranceM), $"{key}: radius along x");
+                            Assert.That(size.z / 2f, Is.EqualTo((float)g.Radius).Within(ToleranceM), $"{key}: radius along z");
+                            Assert.That(size.y / 2f, Is.EqualTo((float)g.HalfLength).Within(ToleranceM), $"{key}: half height");
+                        }
+                        float off = Vector3.Distance(centre, V(g.Center));
                         Assert.That(off, Is.LessThanOrEqualTo(ToleranceM), $"{key}: position");
                         Assert.That(turn, Is.LessThanOrEqualTo(ToleranceDeg), $"{key}: axes");
                         worstM = Mathf.Max(worstM, off);
