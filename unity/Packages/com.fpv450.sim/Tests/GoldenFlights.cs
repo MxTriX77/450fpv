@@ -252,6 +252,13 @@ namespace Fpv450.Sim.Tests
             return spec;
         }
 
+        /// <summary>The spec with the trunk's ESC lag (drone.json's 5 ms before p7b-airframe 1.0) on every motor. Pass a
+        /// freshly parsed spec: it is changed in place.</summary>
+        public static DroneSpec WithTheTrunksEscLag(DroneSpec spec)
+        {
+            for (int i = 0; i < spec.Motors.Length; i++) spec.Motors[i].EscTau = 0.005;
+            return spec;
+        }
 
         public static FlightSetup PoweredSetup(DroneSpec spec)
         {

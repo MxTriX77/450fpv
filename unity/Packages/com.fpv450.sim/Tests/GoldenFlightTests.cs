@@ -95,6 +95,19 @@ namespace Fpv450.Sim.Tests
 
         static DroneSpec Model14() => GoldenFlights.WithModel14Fit(DroneSpec.Parse(RepositoryDrone.Text()));
 
+        // QA's audit of model 7 (p7b-airframe 2.1), kept: every mechanism off and the trunk's 5 ms ESC lag, on model 11's pack
+        // table, over model 7's 1296 bytes with its events, each golden is the trunk's (model 6's) bit for bit; with 1.0's
+        // 0.4 ms they are model 7's (WithTheAsymmetryOffEachGoldenIsModel7s), so the audits chain to the trunk.
+        [Test]
+        public void AtTheTrunksEscLagEachGoldenIsModel6s()
+        {
+            DroneSpec spec = GoldenFlights.WithTheTrunksEscLag(Model11());
+            const int skip = RotorAngleBytes + RingBytes + GroundBytes + ModeBytes;
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, RotorAngleAt, skip, asymmetry: false, ring: false, ground: false, flapping: false, modes: false), Is.EqualTo(0x3F13A5CF5DB7DAFDUL), "powered");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, RotorAngleAt, skip, false, false, ground: false, flapping: false, modes: false), Is.EqualTo(0x3EE12C8D692BADF3UL), "contact");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, RotorAngleAt, skip), Is.EqualTo(0xE3178EE7FF322698UL), "tumble");
+        }
+
         // Model 3's 992 bytes, then 1.6's contacts, then 1.4b's filter block: each parent's layout is the record less the
         // other's block. Then p7b-airframe 1.1's rotor angles: model 7's layout is the record less them.
         const int ContactBytesAt = 992, ContactBytes = 120, FilterBytesAt = ContactBytesAt + ContactBytes;

@@ -107,7 +107,16 @@ namespace Fpv450.FlightBench
             bool eok = p14 == 0x381ABAE6909C139FUL && c14 == 0xB57132DE1812820DUL && t14 == 0x26CDDB5EDB155896UL;
             Console.WriteLine($"model 14's fit: powered 0x{p14:X16}, contact 0x{c14:X16}, tumble 0x{t14:X16} "
                 + $"({(eok ? "model 14's, bit for bit" : "NOT model 14's")}): {(eok ? "PASS" : "FAIL")}");
-            return ok && cok && tok && aok && rok && gok && fok && pok && mok && eok;
+            // QA's audit of model 7 (p7b-airframe 2.1): every mechanism off and the trunk's 5 ms ESC lag, on model 11's pack
+            // table, over model 7's 1296-byte layout, each golden is the trunk's (model 6's).
+            DroneSpec trunk = GoldenFlights.WithTheTrunksEscLag(M11());
+            ulong p6 = GoldenFlights.FlyPowered(trunk, out _, 1296, 360, asymmetry: false, ring: false, ground: false, flapping: false, modes: false);
+            ulong c6 = GoldenFlights.FlyContact(trunk, out _, 1296, 360, false, false, ground: false, flapping: false, modes: false);
+            ulong t6 = GoldenFlights.FlyTumble(trunk, out _, out _, 1296, 360);
+            bool tlok = p6 == 0x3F13A5CF5DB7DAFDUL && c6 == 0x3EE12C8D692BADF3UL && t6 == 0xE3178EE7FF322698UL;
+            Console.WriteLine($"the trunk's 5 ms ESC lag, every mechanism off, over model 7's layout: powered 0x{p6:X16}, contact 0x{c6:X16}, "
+                + $"tumble 0x{t6:X16} ({(tlok ? "the trunk's (model 6's), bit for bit" : "NOT the trunk's")}): {(tlok ? "PASS" : "FAIL")}");
+            return ok && cok && tok && aok && rok && gok && fok && pok && mok && eok && tlok;
         }
 
         public static bool Bench()
