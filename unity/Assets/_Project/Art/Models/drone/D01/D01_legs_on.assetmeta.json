@@ -1,0 +1,1302 @@
+{
+  "schema": 1,
+  "id": "D01",
+  "variant": "D01_legs_on",
+  "generator": "drone",
+  "params_sha256": "b6d882e9cb58c8183c6c2ee43f3a0528f134435034f39c4833da9142621dd023",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -0.286709,
+      -0.2534,
+      -0.263797
+    ],
+    "max": [
+      0.286911,
+      0.109624,
+      0.225
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "D01_legs_on_LOD0",
+      "tris": 19026,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "D01_legs_on_LOD1",
+      "tris": 6176,
+      "switch_distance_m": 3.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "D01_legs_on_LOD2",
+      "tris": 2536,
+      "switch_distance_m": 10.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "D01_legs_on_LOD3",
+      "tris": 480,
+      "switch_distance_m": 35.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 330.0,
+  "materials": [
+    {
+      "slot": "bottle",
+      "visual": "drone_bottle",
+      "physics": "plastic"
+    },
+    {
+      "slot": "carbon",
+      "visual": "drone_carbon",
+      "physics": "carbon_composite"
+    },
+    {
+      "slot": "lead",
+      "visual": "drone_lead",
+      "physics": "cable"
+    },
+    {
+      "slot": "metal",
+      "visual": "drone_metal",
+      "physics": "steel"
+    },
+    {
+      "slot": "plastic",
+      "visual": "drone_plastic",
+      "physics": "plastic"
+    },
+    {
+      "slot": "prop",
+      "visual": "drone_prop",
+      "physics": "plastic"
+    },
+    {
+      "slot": "strap",
+      "visual": "drone_strap",
+      "physics": "fabric"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "box",
+      "center": [
+        0,
+        0.011,
+        0
+      ],
+      "size": [
+        0.09,
+        0.034,
+        0.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "material": "carbon_composite",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.095815,
+        0,
+        -0.095815
+      ],
+      "size": [
+        0.181005,
+        0.006,
+        0.025
+      ],
+      "rotation": [
+        0.0,
+        0.382683,
+        0.0,
+        0.92388
+      ],
+      "material": "carbon_composite",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.15981,
+        0.0,
+        -0.15981
+      ],
+      "radius": 0.016,
+      "height": 0.006,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "carbon_composite",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.15981,
+        0.019,
+        -0.15981
+      ],
+      "radius": 0.0186,
+      "height": 0.032,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.15981,
+        0.03825,
+        -0.15981
+      ],
+      "radius": 0.0095,
+      "height": 0.0145,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.091565,
+        0.035,
+        -0.160652
+      ],
+      "size": [
+        0.1175,
+        0.016,
+        0.038
+      ],
+      "rotation": [
+        0.0,
+        0.999981,
+        0.0,
+        0.006169
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.228055,
+        0.035,
+        -0.158968
+      ],
+      "size": [
+        0.1175,
+        0.016,
+        0.038
+      ],
+      "rotation": [
+        0.0,
+        -0.006169,
+        0.0,
+        0.999981
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.1025,
+        -0.01125,
+        -0.1025
+      ],
+      "size": [
+        0.035,
+        0.0165,
+        0.025
+      ],
+      "rotation": [
+        0.0,
+        0.382683,
+        0.0,
+        0.92388
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.1025,
+        -0.128,
+        -0.1025
+      ],
+      "radius": 0.005,
+      "height": 0.25,
+      "rotation": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "material": "carbon_composite",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.1025,
+        -0.2365,
+        -0.1025
+      ],
+      "size": [
+        0.016,
+        0.033,
+        0.03
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.095815,
+        0,
+        0.095815
+      ],
+      "size": [
+        0.181005,
+        0.006,
+        0.025
+      ],
+      "rotation": [
+        0.0,
+        -0.382683,
+        0.0,
+        0.92388
+      ],
+      "material": "carbon_composite",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.15981,
+        0.0,
+        0.15981
+      ],
+      "radius": 0.016,
+      "height": 0.006,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "carbon_composite",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.15981,
+        0.019,
+        0.15981
+      ],
+      "radius": 0.0186,
+      "height": 0.032,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.15981,
+        0.03825,
+        0.15981
+      ],
+      "radius": 0.0095,
+      "height": 0.0145,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.226962,
+        0.035,
+        0.172005
+      ],
+      "size": [
+        0.1175,
+        0.016,
+        0.038
+      ],
+      "rotation": [
+        0.0,
+        -0.089704,
+        0.0,
+        0.995969
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.092658,
+        0.035,
+        0.147615
+      ],
+      "size": [
+        0.1175,
+        0.016,
+        0.038
+      ],
+      "rotation": [
+        0.0,
+        0.995969,
+        0.0,
+        0.089704
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.1025,
+        -0.01125,
+        0.1025
+      ],
+      "size": [
+        0.035,
+        0.0165,
+        0.025
+      ],
+      "rotation": [
+        0.0,
+        -0.382683,
+        0.0,
+        0.92388
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.1025,
+        -0.128,
+        0.1025
+      ],
+      "radius": 0.005,
+      "height": 0.25,
+      "rotation": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "material": "carbon_composite",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.1025,
+        -0.2365,
+        0.1025
+      ],
+      "size": [
+        0.016,
+        0.033,
+        0.03
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.095815,
+        0,
+        -0.095815
+      ],
+      "size": [
+        0.181005,
+        0.006,
+        0.025
+      ],
+      "rotation": [
+        0.0,
+        0.92388,
+        0.0,
+        0.382683
+      ],
+      "material": "carbon_composite",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -0.15981,
+        0.0,
+        -0.15981
+      ],
+      "radius": 0.016,
+      "height": 0.006,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "carbon_composite",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -0.15981,
+        0.019,
+        -0.15981
+      ],
+      "radius": 0.0186,
+      "height": 0.032,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -0.15981,
+        0.03825,
+        -0.15981
+      ],
+      "radius": 0.0095,
+      "height": 0.0145,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.203032,
+        0.035,
+        -0.10699
+      ],
+      "size": [
+        0.1175,
+        0.016,
+        0.038
+      ],
+      "rotation": [
+        0.0,
+        -0.903684,
+        0.0,
+        0.428201
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.116588,
+        0.035,
+        -0.21263
+      ],
+      "size": [
+        0.1175,
+        0.016,
+        0.038
+      ],
+      "rotation": [
+        0.0,
+        0.428201,
+        0.0,
+        0.903684
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.1025,
+        -0.01125,
+        -0.1025
+      ],
+      "size": [
+        0.035,
+        0.0165,
+        0.025
+      ],
+      "rotation": [
+        0.0,
+        0.92388,
+        0.0,
+        0.382683
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.1025,
+        -0.128,
+        -0.1025
+      ],
+      "radius": 0.005,
+      "height": 0.25,
+      "rotation": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "material": "carbon_composite",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.1025,
+        -0.2365,
+        -0.1025
+      ],
+      "size": [
+        0.016,
+        0.033,
+        0.03
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.095815,
+        0,
+        0.095815
+      ],
+      "size": [
+        0.181005,
+        0.006,
+        0.025
+      ],
+      "rotation": [
+        0.0,
+        -0.92388,
+        0.0,
+        0.382683
+      ],
+      "material": "carbon_composite",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -0.15981,
+        0.0,
+        0.15981
+      ],
+      "radius": 0.016,
+      "height": 0.006,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "carbon_composite",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -0.15981,
+        0.019,
+        0.15981
+      ],
+      "radius": 0.0186,
+      "height": 0.032,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        -0.15981,
+        0.03825,
+        0.15981
+      ],
+      "radius": 0.0095,
+      "height": 0.0145,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.092347,
+        0.035,
+        0.170142
+      ],
+      "size": [
+        0.1175,
+        0.016,
+        0.038
+      ],
+      "rotation": [
+        0.0,
+        -0.075909,
+        0.0,
+        0.997115
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.227273,
+        0.035,
+        0.149478
+      ],
+      "size": [
+        0.1175,
+        0.016,
+        0.038
+      ],
+      "rotation": [
+        0.0,
+        0.997115,
+        0.0,
+        0.075909
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.1025,
+        -0.01125,
+        0.1025
+      ],
+      "size": [
+        0.035,
+        0.0165,
+        0.025
+      ],
+      "rotation": [
+        0.0,
+        -0.92388,
+        0.0,
+        0.382683
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.1025,
+        -0.128,
+        0.1025
+      ],
+      "radius": 0.005,
+      "height": 0.25,
+      "rotation": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "material": "carbon_composite",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.1025,
+        -0.2365,
+        0.1025
+      ],
+      "size": [
+        0.016,
+        0.033,
+        0.03
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.0735,
+        -0.043,
+        0
+      ],
+      "size": [
+        0.047,
+        0.045,
+        0.22
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.054,
+        -0.0165,
+        -0.145
+      ],
+      "size": [
+        0.04,
+        0.011,
+        0.021
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.1025,
+        -0.248,
+        0.0
+      ],
+      "radius": 0.005,
+      "height": 0.45,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "carbon_composite",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0735,
+        -0.043,
+        0
+      ],
+      "size": [
+        0.047,
+        0.045,
+        0.22
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.054,
+        -0.0165,
+        -0.145
+      ],
+      "size": [
+        0.04,
+        0.011,
+        0.021
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.1025,
+        -0.248,
+        0.0
+      ],
+      "radius": 0.005,
+      "height": 0.45,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "carbon_composite",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.015,
+        0.102
+      ],
+      "size": [
+        0.019,
+        0.019,
+        0.026
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        -0.053,
+        -0.0075
+      ],
+      "radius": 0.0415,
+      "height": 0.185,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        -0.053,
+        0.0925
+      ],
+      "radius": 0.045,
+      "height": 0.015,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        -0.010375,
+        0.0175
+      ],
+      "size": [
+        0.044,
+        0.00875,
+        0.165
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        -0.0142,
+        -0.0825
+      ],
+      "size": [
+        0.044,
+        0.0164,
+        0.035
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        0.068,
+        -0.0425
+      ],
+      "radius": 0.04,
+      "height": 0.115,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        0.068,
+        0.045
+      ],
+      "radius": 0.02625,
+      "height": 0.06,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        0.068,
+        0.0875
+      ],
+      "radius": 0.015,
+      "height": 0.025,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "plastic",
+      "landable": false
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": [
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.1025,
+          -0.248,
+          -0.225
+        ],
+        [
+          -0.1025,
+          -0.248,
+          0.225
+        ]
+      ],
+      "radius_m": 0.005,
+      "material": "carbon_composite"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.1025,
+          -0.248,
+          -0.1025
+        ],
+        [
+          -0.1025,
+          -0.248,
+          -0.225
+        ]
+      ],
+      "radius_m": 0.005,
+      "material": "carbon_composite"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.1025,
+          -0.248,
+          0.1025
+        ],
+        [
+          -0.1025,
+          -0.248,
+          0.225
+        ]
+      ],
+      "radius_m": 0.005,
+      "material": "carbon_composite"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.1025,
+          -0.248,
+          -0.225
+        ],
+        [
+          0.1025,
+          -0.248,
+          0.225
+        ]
+      ],
+      "radius_m": 0.005,
+      "material": "carbon_composite"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.1025,
+          -0.248,
+          -0.1025
+        ],
+        [
+          0.1025,
+          -0.248,
+          -0.225
+        ]
+      ],
+      "radius_m": 0.005,
+      "material": "carbon_composite"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.1025,
+          -0.248,
+          0.1025
+        ],
+        [
+          0.1025,
+          -0.248,
+          0.225
+        ]
+      ],
+      "radius_m": 0.005,
+      "material": "carbon_composite"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.1025,
+          -0.003,
+          -0.1025
+        ],
+        [
+          0.1025,
+          -0.253,
+          -0.1025
+        ]
+      ],
+      "radius_m": 0.005,
+      "material": "carbon_composite"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          0.1025,
+          -0.003,
+          0.1025
+        ],
+        [
+          0.1025,
+          -0.253,
+          0.1025
+        ]
+      ],
+      "radius_m": 0.005,
+      "material": "carbon_composite"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.1025,
+          -0.003,
+          -0.1025
+        ],
+        [
+          -0.1025,
+          -0.253,
+          -0.1025
+        ]
+      ],
+      "radius_m": 0.005,
+      "material": "carbon_composite"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.1025,
+          -0.003,
+          0.1025
+        ],
+        [
+          -0.1025,
+          -0.253,
+          0.1025
+        ]
+      ],
+      "radius_m": 0.005,
+      "material": "carbon_composite"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.038103,
+          -0.082192,
+          0.0925
+        ],
+        [
+          -0.036746,
+          -0.094115,
+          0.0925
+        ]
+      ],
+      "radius_m": 0.00225,
+      "material": "plastic"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.023034,
+          -0.084471,
+          -0.0825
+        ],
+        [
+          -0.018377,
+          -0.095531,
+          -0.0825
+        ]
+      ],
+      "radius_m": 0.00225,
+      "material": "plastic"
+    }
+  ]
+}

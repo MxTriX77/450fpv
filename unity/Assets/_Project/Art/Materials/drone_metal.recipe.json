@@ -1,0 +1,40 @@
+{
+  "material": "drone_metal",
+  "kind": "palette",
+  "formula": "palette v2: one column PALETTE_BLOCK_PX x PALETTE_HEIGHT_PX per colour, left to right in the recipe's order, its stops spread evenly from the bottom to the top and interpolated in linear light, padded with the last column to a power of two of columns; 8-bit sRGB",
+  "constants": {
+    "PALETTE_BLOCK_PX": 16,
+    "PALETTE_HEIGHT_PX": 64
+  },
+  "recipe": {
+    "schema": 1,
+    "kind": "palette",
+    "shader": "Universal Render Pipeline/Lit",
+    "colours": {
+      "bell": "#110e0f",
+      "copper": "#9a5a2e",
+      "stator": "#2a1c14",
+      "zinc": "#a3a6a8",
+      "anodised": "#1a1a1c"
+    },
+    "tint": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "smoothness": 0.55
+  },
+  "inputs_sha256": "fc81e2895a570b2ec38d4c1a2ebfb4811b6d8f1ce8d7b77b79db9840a0c30e2b",
+  "size": [
+    128,
+    64
+  ],
+  "columns": [
+    "bell",
+    "copper",
+    "stator",
+    "zinc",
+    "anodised"
+  ]
+}

@@ -35,16 +35,20 @@ Branch `unity/art/p5-drone` off `unity/main`, **stacked on `p6-flight-core`** (m
       - A roll moment also yaws the body, the other way, at +2.5 to +6.9 % of its roll rate (−I_yz/I_yy). Roll and yaw inertia are close, so the principal axes in that plane turn 5–35° off the body axes (62° at 2 kg).
       - At hover the front motors carry 3.7 % more than the rear (L4; 6.4 % at L2). Legs off, I_yz is about −0.1 g·m².
     - **Materials:** `DroneSpec`'s list (carbon, aluminium, polymer, li_ion, electronics). `carbon_composite` is not added: contacts (`p6-flight-core` 1.6) need a contact material for the carbon arms, legs and skids.
-- [ ] 1.3 [asset-artist] The drone generator (design 3):
+- [x] 1.3 [asset-artist] The drone generator (design 3):
   - **What:** `drone.py` reading `drone.json` and the look params, both variants, LODs, and the review sheet at 1.5 / 10 / 50 / 200 m.
   - **Verify:** the prop-tips scenario, `pwsh tools/build_asset.ps1 D01` exits 0, and a second build leaves `git status` clean. Look at the sheet against the object sheet's references.
+  - **As built:** `tools/blender/generators/drone.py` on `lib/solids.py`, D-050's layout (the coil beneath, a bottle strapped on top) read from `drone.json`, `D01_legs_on` and `D01_legs_off` with four LODs, collision and snag, six palette recipes and the bottle's, the catalog entry, and pure-Python tests (`test_drone.py`, `test_solids.py`; the prop tips 0.5736 / 0.7060 m).
+    - **Materials:** the carbon parts and the legs' and skids' snags are `carbon_composite` (physics' sign-off in `p7b-airframe`).
+    - **The build:** `build_asset.ps1 D01` exits 0 and a rebuild leaves `git status` clean. LOD0–3 are 19 026 / 6 176 / 2 536 / 480 triangles legs on (18 154 / 5 592 / 2 192 / 408 legs off), with 51 and 41 collision shapes; the build's audit gives shape to mesh at most 21.9 mm (the blade boxes) and mesh to shape 23.6 mm, inside its 50 mm. The palette PNGs, the `.mat` files, both FBX and their metadata, the prefabs and the collider meshes are committed.
+    - **The look against T** (the local `reference/_compare/D01.png`, at T's recreated view): the X of plate arms, the motors, the 2-blade props, the packs along the sides and the legs on fore-aft skids match. The props rest at T's angles, fitted through T's camera (rr 178°, fr 13°, rl 132°, fl 6°), and their tips then span about 90 % of the width (T about 86 %). The differences: the legs are the pilot's 0.25 m (T's 0.18 m); the packs are smooth tan boxes, where T shows ribbed cells under more strap; the stator's copper reads a little more than T's glint; and the bottle and the coil replace T's spool and slung body (D-050).
 - [ ] 1.4 [asset-artist] The launch stand (design 4):
   - **What:** its generator from `drone.json`, with its metadata.
   - **Verify:** the "drone rests on the stand" scenario, and `build_asset.ps1 D02` exits 0.
 - [ ] 1.5 [tech-artist] In-view parts and hooks (design 5):
   - **What:** the props' rpm blur, the parts in the FPV frustum, leg flex and coil payout from `PoseFrame`.
   - **Verify:** the "props in view" scenario through `p4-feed`'s rig.
-- [ ] 1.6 [world-builder] The gallery station (design 6):
+- [x] 1.6 [world-builder] The gallery station (design 6): **dropped by D-047** (the test range is the final map; G5 folds into G7).
   - **What:** both variants, a turntable and the stand, in `stations.json` with a viewpoint.
   - **Verify:** the gallery scene test and the smoke test list them.
 

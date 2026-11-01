@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "kind": "palette",
+  "shader": "Universal Render Pipeline/Lit",
+  "colours": { "bell": "#110e0f", "copper": "#9a5a2e", "stator": "#2a1c14", "zinc": "#a3a6a8", "anodised": "#1a1a1c" },
+  "tint": [1.0, 1.0, 1.0, 1.0],
+  "smoothness": 0.55
+}
