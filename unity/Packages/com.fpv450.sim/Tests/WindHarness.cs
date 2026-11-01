@@ -282,6 +282,7 @@ namespace Fpv450.Sim.Tests
             if (steady) wind = WindSetup.SteadyFrom(fromDeg, drawn.MeanSpeed);
             FlightSetup setup = CrosswindScenario.Setup(spec, wind, seed, drag, drag);
             Airframe(spec, setup);
+            if (level == WindLevel.Calm) setup.Asymmetry = null; // PHY-14, K§8.6: Calm is flown with the asymmetry off
             setup.StartPosition = new Double3(0, height, 0);
             setup.StartVelocity = along * ReleaseSpeed;
             // Yaw onto the course (about +Y, the heading grows), then the nose down (about body +x).
