@@ -2,15 +2,20 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using Fpv450.App.Session;
+using Fpv450.Feed;
+using Fpv450.Input;
 using Fpv450.Input.Radio;
 using Fpv450.Sim;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Log;
 using Fpv450.Sim.Wind;
 using Fpv450.UI;
 using Fpv450.World;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
 using UnityEngine.SceneManagement;
 
 namespace Fpv450.App
@@ -262,6 +267,8 @@ namespace Fpv450.App
         /// read from the log. The keyboard is barred twice, as in a pilot's build without the radio: the stand's flight,
         /// set from the first's summary, waits at its start; its Restart ends it and waits. A pilot's build has no keyboard:
         /// there each flight is checked waiting for the radio. The flights log to the smoke test's own folder.
+        /// V is pressed through the Input System (D-055) for each view's shot: at rest, in the air and after the crash, or
+        /// while waiting for the radio; the keyboard's flights, flown with those presses, must replay bit for bit.
         /// </summary>
         IEnumerator Smoke()
         {
@@ -306,6 +313,48 @@ namespace Fpv450.App
                 }
                 host.Keys = () => KeyboardKeys.None;
                 yield return null;
+            }
+            // D-055: V pressed through the Input System, as the pilot's key: while it is held the flight's keys
+            // (KeyboardFallback's) stay none, and once the scene has read it the camera has switched views, the feed on it.
+            IEnumerator PressV(string where)
+            {
+                bool chase = !_flight.Chase;
+                Keyboard k = Keyboard.current ?? InputSystem.AddDevice<Keyboard>("Smoke keyboard");
+                InputSystem.QueueStateEvent(k, new KeyboardState(FlightScene.ViewKey));
+                yield return null; // the frame's input update has it; its LateUpdate reads it
+                Check(k[FlightScene.ViewKey].isPressed && KeyboardFallback.ReadKeys() == KeyboardKeys.None, "V held " + where + ": the flight's keys are none");
+                InputSystem.QueueStateEvent(k, new KeyboardState());
+                yield return null;
+                Transform eye = Camera.main != null ? Camera.main.transform : null;
+                FpvCamera feed = eye != null ? eye.GetComponent<FpvCamera>() : null;
+                bool feedOn = feed != null && feed.Running;
+                if (chase)
+                {
+                    // From the drone: up, and back along its heading, whatever its attitude.
+                    Vector3 d = eye != null ? eye.position - eye.parent.position : Vector3.zero;
+                    Vector3 back = eye != null ? Vector3.ProjectOnPlane(d, Vector3.up) : Vector3.zero;
+                    Check(_flight.Chase && Math.Abs(d.y - FlightScene.ChaseOffset.y) < 0.01 && Math.Abs(back.magnitude + FlightScene.ChaseOffset.z) < 0.01 &&
+                          Vector3.Dot(back, Vector3.ProjectOnPlane(eye.parent.forward, Vector3.up)) < 0 && feedOn,
+                          "V " + where + ": the 3rd-person view, " + back.magnitude.ToString("0.00") + " m behind and " + d.y.ToString("0.00") +
+                          " m above the drone, the feed " + (feedOn ? "on" : "OFF"));
+                }
+                else
+                    Check(!_flight.Chase && eye != null && (eye.localPosition - _flight.CameraMount).magnitude < 1e-4f && Quaternion.Angle(eye.localRotation, Quaternion.identity) < 0.01f && feedOn,
+                          "V again " + where + ": the FPV camera at the lens, the feed " + (feedOn ? "on" : "OFF"));
+            }
+            // A flight flown with V presses replays bit for bit on the world it names (D-055: the log never sees V).
+            IEnumerator Replays(string log, string where)
+            {
+                SessionInputs inputs = _flight.Host.Inputs;
+                Task<ReplayResult> replay = Task.Run(() =>
+                {
+                    using (var f = new FileStream(log, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                        return FlightReplay.Run(f, id => id == inputs.WorldId ? inputs.World() : null, inputs.Drone.ContentHash);
+                });
+                yield return Until(() => replay.IsCompleted, 60);
+                ReplayResult r = replay.IsCompleted && !replay.IsFaulted ? replay.Result : null;
+                Check(r != null && r.Outcome == ReplayOutcome.Match, "the flight " + where + ", flown with V presses, replays bit for bit: " +
+                      (r != null ? r.Message : replay.IsFaulted ? replay.Exception.GetBaseException().Message : "not done in 60 s"));
             }
 
             yield return Until(() => Time.frameCount > 3, 5);
@@ -371,6 +420,9 @@ namespace Fpv450.App
                     yield return Shot("waiting_" + start.Name);
                     if (n == 0)
                     {
+                        yield return PressV("while waiting at '" + start.Name + "'");
+                        yield return Shot("waiting_chase_" + start.Name);
+                        yield return PressV("while waiting at '" + start.Name + "'");
                         _flight.Covered = true;
                         _setup.Choices = host.Inputs.Choices.Clone();
                         _view = View.Setup;
@@ -402,10 +454,9 @@ namespace Fpv450.App
                 double rest = _flight.Pose.Position.Y;
                 Check(Math.Abs(rest - _flight.RestPose.Position.Y) < 0.01, "at rest at " + rest.ToString("0.000") + " m (start " + _flight.RestPose.Position.Y.ToString("0.000") + " m)");
                 yield return Shot("rest_" + start.Name);
-                _flight.Chase = true;
-                yield return null;
+                yield return PressV("at rest at " + where);
                 yield return Shot("chase_" + start.Name);
-                _flight.Chase = false;
+                yield return PressV("at rest at " + where);
 
                 yield return Hold(KeyboardKeys.ArmToggle, 0.1f);
                 yield return new WaitForSecondsRealtime(0.4f);
@@ -415,10 +466,9 @@ namespace Fpv450.App
                 yield return Hold(KeyboardKeys.ThrottleUp, 1.6f, climb);
                 yield return Hold(KeyboardKeys.None, 1.4f, climb);
                 Check(top - rest > 1.0, "climbed " + (top - rest).ToString("0.00") + " m");
-                _flight.Chase = true;
-                yield return null;
+                yield return PressV("in the air");
                 yield return Shot("air_chase_" + start.Name);
-                _flight.Chase = false;
+                yield return PressV("in the air");
 
                 host.Pause();
                 long steps = session.Core.State.Step;
@@ -435,6 +485,7 @@ namespace Fpv450.App
                 Check(summary != null && summary.End.Kind == FlightEndKind.Disarm, "the summary from the log: " + (summary != null ? summary.Cause() : "none"));
                 Check(summary != null && summary.Log.Events.Exists(e => e.Event.Kind == EventKind.Hitch && e.Event.Index == (byte)HitchCause.Pause), "the pause is in the log");
                 yield return Shot("summary_" + start.Name);
+                yield return Replays(session.LogPath, "from " + where);
                 if (n == 0)
                 {
                     _setup.Choices = host.Inputs.Choices.Clone();
@@ -463,10 +514,9 @@ namespace Fpv450.App
                 yield return IntoTheHouse();
                 FlightSession session = host.Session;
                 Check(session.State == SessionState.Ended && session.End.Kind == FlightEndKind.Crash, "the flight into the house ends in a crash: " + session.End.Kind);
-                _flight.Chase = true;
-                yield return null;
+                yield return PressV("after the crash");
                 yield return Shot("crash_chase");
-                _flight.Chase = false;
+                yield return PressV("after the crash");
                 yield return Until(() => _flight.Summary != null, 30);
                 PostFlight summary = _flight.Summary;
                 Check(summary != null && summary.HasCrash && summary.CrashObject == HouseBesideTrack,
