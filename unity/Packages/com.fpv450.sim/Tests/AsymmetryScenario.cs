@@ -329,11 +329,19 @@ namespace Fpv450.Sim.Tests
             && Near(DetMath.Abs(r.YankRollDeg), p.RollDeg, YankFloorDeg) && Near(DetMath.Abs(r.YankHeadingDeg), p.HeadingDeg, YankFloorDeg)
             && r.VibrationMin <= 1.3 * p.Vibration && r.VibrationMax >= 0.7 * p.Vibration;
 
-        /// <summary>Never buzzes: the ESCs' commands move by under 1e-4 a step (the loop does not chase the vibration) and the
-        /// vibration stays within the props' own pull with all four beating in phase (D-050's layout, its centre of mass
-        /// nearer the hubs' plane, puts more of the pull on yaw, where the four beat on one axis, so a block passes model
-        /// 13's √2 of their quadrature sum); never diverges: the body rate under 0.01 rad/s and the attitude within 5° of
-        /// level.</summary>
+        /// <summary>
+        /// Never buzzes: the ESCs' commands move by under 1e-4 a step (the loop does not chase the vibration) and no 1 s block
+        /// of the vibration passes the props' own pull with all four in phase. Each rotor's unbalance turns the body at its
+        /// own speed; on each axis the four sinusoids add to one whose envelope never exceeds the sum of their amplitudes, so
+        /// a block's RMS step-to-step change is at most that sum over √2 (Prediction.VibrationInPhase), whatever their
+        /// phases and however slowly they beat (the Kv spread puts the rotors 1–5 Hz apart, so a 1 s block can hold two in
+        /// phase). Model 13's bound, √2 of the quadrature sum, assumed the four beat apart within a block; on D-050's layout
+        /// the centre of mass sits nearer the hubs' plane, more of the pull lands on yaw, and seeds 3–5 and 13 reach 1.4–1.7
+        /// × the quadrature sum, inside the in-phase sum. A block above it needs a source the unbalance has not: the loop
+        /// amplifying it. Measured on seeds 1–30, every seed's busiest block is 0.45–0.86 of the bound; the known-wrong loop
+        /// on the edge of a buzz (the D gains × 4) passes it 34 times over (AsymmetryTests). Never diverges: the body rate
+        /// under 0.01 rad/s and the attitude within 5° of level.
+        /// </summary>
         public static bool Steady(in Result r, in Prediction p) =>
             r.DutyJump < 1e-4 && r.VibrationMax <= p.VibrationInPhase && r.RateMax < 0.01
             && DetMath.Abs(r.RollDeg) < 5 && DetMath.Abs(r.PitchDeg) < 5;

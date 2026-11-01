@@ -57,6 +57,28 @@ namespace Fpv450.Sim.Tests
             TestContext.Out.WriteLine($"seeds 1-30: the largest miss beyond 30 % {beyond:F4}° (the floor {AsymmetryScenario.YankFloorDeg}°), the busiest block {busiest:F2} of the in-phase bound");
         }
 
+        // The known-wrong loop for "never buzzes": the builder's D gains (and D min) × 4 put the loop on the edge of a buzz,
+        // and it chases the props' vibration: the ESCs' commands jump and the body vibrates far past the props' in-phase pull.
+        // × 3 still holds (the D-term's filters), so the bound sits where the loop's own margin ends.
+        [Test]
+        public void ALoopOnTheEdgeOfABuzzFailsSteady()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            AsymmetryScenario.Run run = AsymmetryScenario.Flown(spec);
+            FlightSetup setup = AsymmetryScenario.Setup(spec, 1, true);
+            Control.FcSettings fc = setup.Settings;
+            fc.d_roll *= 4;
+            fc.d_min_roll *= 4;
+            fc.d_pitch *= 4;
+            fc.d_min_pitch *= 4;
+            setup.Settings = fc;
+            AsymmetryScenario.Result r = AsymmetryScenario.Hover(setup, out FlightCore core);
+            AsymmetryScenario.Prediction p = AsymmetryScenario.Predict(run.Model, core.Draws);
+            TestContext.Out.WriteLine($"D x 4: the ESCs' largest step {r.DutyJump:E2}, the busiest block {r.VibrationMax / p.VibrationInPhase:F1} of the in-phase bound");
+            Assert.That(AsymmetryScenario.Steady(r, p), Is.False, "it buzzes");
+            Assert.That(r.VibrationMax, Is.GreaterThan(p.VibrationInPhase), "past the props' own pull");
+        }
+
         // Calm's floor (PHY-14), "never perfectly still", from the airframe: with the asymmetry on, every 1 s block of the
         // hover's last 20 s vibrates above the band's floor, and with it off every block is far below it.
         [Test]
