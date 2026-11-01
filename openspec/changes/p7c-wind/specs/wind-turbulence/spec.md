@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The wind the drone flies through: a seeded field of mean profile, turbulence and wakes, drawn per flight, graded against clip P's measured targets by a simulated pilot, with the airframe's drag calibrated to the pilot's cruise.
+The wind the drone flies through: a seeded field of mean profile, turbulence, wakes and the canopy flow of wooded strips, drawn per flight, graded against clip P's measured targets by a simulated pilot, with the airframe's drag calibrated to the pilot's cruise.
 
 ## ADDED Requirements
 
@@ -11,7 +11,7 @@ The first attempt's `wind_stats.py`, `wind_history_fixture.py` and `rain_stats.p
 
 #### Scenario: The tools reject noise and schedules
 - **WHEN** the ported tools are given stationary Gaussian noise with clip P's spectra, and a wind history with shifts on a fixed schedule
-- **THEN** the noise fails T9 and T12, the schedule fails T0c, and the starting direction model of K§8.3 passes T0c in every one of 40 seed sets
+- **THEN** the noise fails T9 (stationary noise on T9b, noise alternating calm and busy on T9a) and, when it alternates calm and busy, T12; the schedule fails T0c; and the starting direction model of K§8.3 passes T0c in every one of 40 seed sets
 
 ### Requirement: The levels meet the targets under the simulated pilot
 Severe, Windy and Calm SHALL meet the K§8.6 target table when K§8.5's simulated pilot flies the test flight over the test range on at least five seeds, measured by the ported tools, with Calm flown with the airframe's asymmetry off.
