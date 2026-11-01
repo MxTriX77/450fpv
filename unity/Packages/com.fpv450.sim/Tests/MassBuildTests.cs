@@ -31,26 +31,26 @@ namespace Fpv450.Sim.Tests
         static readonly BuildLoadout[] Builds =
         {
             new BuildLoadout { Name = "L1", Payload = 0, Coil = 0,
-                Mass = 3.487, ComY = -0.0288, Roll = 0.0356, Pitch = 0.0346, Yaw = 0.0549, CoilAbove = -0.0242, PitchRoll = 0.971, YawRoll = 1.541,
-                OffMass = 3.371, OffComY = -0.0229, OffRoll = 0.0302, OffPitch = 0.0289, OffYaw = 0.0522, OffCoilAbove = -0.0301, OffPitchRoll = 0.958, OffYawRoll = 1.727 },
+                Mass = 3.487, ComY = -0.0295, Roll = 0.0353, Pitch = 0.0343, Yaw = 0.0549, CoilAbove = -0.0235, PitchRoll = 0.971, YawRoll = 1.553,
+                OffMass = 3.371, OffComY = -0.0236, OffRoll = 0.0300, OffPitch = 0.0287, OffYaw = 0.0522, OffCoilAbove = -0.0294, OffPitchRoll = 0.957, OffYawRoll = 1.741 },
             new BuildLoadout { Name = "L2", Payload = 0, Coil = 1,
-                Mass = 4.177, ComY = -0.0328, Roll = 0.0365, Pitch = 0.0375, Yaw = 0.0575, CoilAbove = -0.0202, PitchRoll = 1.027, YawRoll = 1.573,
-                OffMass = 4.061, OffComY = -0.0280, OffRoll = 0.0313, OffPitch = 0.0321, OffYaw = 0.0548, OffCoilAbove = -0.0250, OffPitchRoll = 1.023, OffYawRoll = 1.749 },
+                Mass = 4.177, ComY = -0.0334, Roll = 0.0363, Pitch = 0.0372, Yaw = 0.0575, CoilAbove = -0.0196, PitchRoll = 1.027, YawRoll = 1.586,
+                OffMass = 4.061, OffComY = -0.0286, OffRoll = 0.0311, OffPitch = 0.0318, OffYaw = 0.0548, OffCoilAbove = -0.0244, OffPitchRoll = 1.023, OffYawRoll = 1.764 },
             new BuildLoadout { Name = "L3", Payload = 1.0, Coil = 0,
-                Mass = 4.487, ComY = -0.0030, Roll = 0.0468, Pitch = 0.0487, Yaw = 0.0586, CoilAbove = -0.0500, PitchRoll = 1.041, YawRoll = 1.252,
-                OffMass = 4.371, OffComY = 0.0023, OffRoll = 0.0403, OffPitch = 0.0420, OffYaw = 0.0559, OffCoilAbove = -0.0553, OffPitchRoll = 1.041, OffYawRoll = 1.387 },
+                Mass = 4.487, ComY = -0.0078, Roll = 0.0435, Pitch = 0.0454, Yaw = 0.0586, CoilAbove = -0.0452, PitchRoll = 1.044, YawRoll = 1.347,
+                OffMass = 4.371, OffComY = -0.0027, OffRoll = 0.0373, OffPitch = 0.0389, OffYaw = 0.0559, OffCoilAbove = -0.0503, OffPitchRoll = 1.044, OffYawRoll = 1.501 },
             new BuildLoadout { Name = "L4 nominal in flight", Payload = 1.0, Coil = 0.5,
-                Mass = 4.832, ComY = -0.0066, Roll = 0.0479, Pitch = 0.0508, Yaw = 0.0599, CoilAbove = -0.0464, PitchRoll = 1.061, YawRoll = 1.250,
-                OffMass = 4.716, OffComY = -0.0018, OffRoll = 0.0416, OffPitch = 0.0443, OffYaw = 0.0572, OffCoilAbove = -0.0512, OffPitchRoll = 1.064, OffYawRoll = 1.376 },
+                Mass = 4.832, ComY = -0.0110, Roll = 0.0445, Pitch = 0.0474, Yaw = 0.0599, CoilAbove = -0.0420, PitchRoll = 1.065, YawRoll = 1.347,
+                OffMass = 4.716, OffComY = -0.0063, OffRoll = 0.0384, OffPitch = 0.0410, OffYaw = 0.0572, OffCoilAbove = -0.0467, OffPitchRoll = 1.069, OffYawRoll = 1.492 },
             new BuildLoadout { Name = "L5 nominal take-off", Payload = 1.0, Coil = 1,
-                Mass = 5.177, ComY = -0.0097, Roll = 0.0489, Pitch = 0.0528, Yaw = 0.0612, CoilAbove = -0.0433, PitchRoll = 1.080, YawRoll = 1.251,
-                OffMass = 5.061, OffComY = -0.0053, OffRoll = 0.0427, OffPitch = 0.0464, OffYaw = 0.0585, OffCoilAbove = -0.0477, OffPitchRoll = 1.085, OffYawRoll = 1.369 },
+                Mass = 5.177, ComY = -0.0138, Roll = 0.0453, Pitch = 0.0493, Yaw = 0.0612, CoilAbove = -0.0392, PitchRoll = 1.086, YawRoll = 1.350,
+                OffMass = 5.061, OffComY = -0.0095, OffRoll = 0.0394, OffPitch = 0.0430, OffYaw = 0.0585, OffCoilAbove = -0.0435, OffPitchRoll = 1.093, OffYawRoll = 1.487 },
             new BuildLoadout { Name = "L6", Payload = 2.0, Coil = 1,
-                Mass = 6.177, ComY = 0.0094, Roll = 0.0620, Pitch = 0.0723, Yaw = 0.0693, CoilAbove = -0.0624, PitchRoll = 1.166, YawRoll = 1.118,
-                OffMass = 6.061, OffComY = 0.0134, OffRoll = 0.0549, OffPitch = 0.0650, OffYaw = 0.0666, OffCoilAbove = -0.0664, OffPitchRoll = 1.183, OffYawRoll = 1.213 },
+                Mass = 6.177, ComY = 0.0028, Roll = 0.0557, Pitch = 0.0660, Yaw = 0.0693, CoilAbove = -0.0558, PitchRoll = 1.185, YawRoll = 1.245,
+                OffMass = 6.061, OffComY = 0.0067, OffRoll = 0.0490, OffPitch = 0.0590, OffYaw = 0.0666, OffCoilAbove = -0.0597, OffPitchRoll = 1.205, OffYawRoll = 1.361 },
             new BuildLoadout { Name = "L7 heaviest", SixP = true, Payload = 1.4, Coil = 1,
-                Mass = 6.497, ComY = -0.0074, Roll = 0.0660, Pitch = 0.0656, Yaw = 0.0780, CoilAbove = -0.0456, PitchRoll = 0.993, YawRoll = 1.182,
-                OffMass = 6.381, OffComY = -0.0039, OffRoll = 0.0597, OffPitch = 0.0590, OffYaw = 0.0753, OffCoilAbove = -0.0491, OffPitchRoll = 0.988, OffYawRoll = 1.261 },
+                Mass = 6.497, ComY = -0.0119, Roll = 0.0609, Pitch = 0.0605, Yaw = 0.0780, CoilAbove = -0.0411, PitchRoll = 0.993, YawRoll = 1.280,
+                OffMass = 6.381, OffComY = -0.0085, OffRoll = 0.0549, OffPitch = 0.0542, OffYaw = 0.0753, OffCoilAbove = -0.0445, OffPitchRoll = 0.987, OffYawRoll = 1.373 },
         };
 
         static IEnumerable<BuildLoadout> BuildLoadouts() => Builds;
@@ -135,11 +135,13 @@ namespace Fpv450.Sim.Tests
                 if (!legs) continue;
                 // D-050's layout: the bottle fore-aft on top and the coil fore-aft beneath put pitch above roll on five of the
                 // seven (L2–L6); the empty drone on an empty coil (L1) and the wide 6S3P packs (L7) keep roll at or above
-                // pitch. Yaw/roll is 1.0–1.3 with a bottle aboard (L3–L7) and 1.54–1.57 without one (L1, L2).
+                // pitch. With the bottle on the upper plate (y 0.068) yaw/roll is 1.35 with the nominal 1 kg bottle (L3–L5),
+                // 1.25–1.28 with the heavier ones (L6, L7) and 1.55–1.59 without one (L1, L2): K§5.3's 1.0–1.3 holds from
+                // 1.4 kg of bottle up.
                 bool pitchAbove = pitch > roll, yawInBand = yaw / roll >= 1.0 && yaw / roll <= 1.3;
                 TestContext.WriteLine($"  PHY-12: pitch above roll {pitchAbove}, yaw 1.0–1.3 × roll {yawInBand}");
                 Assert.That(pitchAbove, Is.EqualTo(l.Name != "L1" && !l.SixP), "pitch above roll, as the layout gives it");
-                Assert.That(yawInBand, Is.EqualTo(l.Payload > 0), "yaw 1.0–1.3 × roll, as the layout gives it");
+                Assert.That(yawInBand, Is.EqualTo(l.Payload >= 1.4), "yaw 1.0–1.3 × roll, as the layout gives it");
             }
         }
 
