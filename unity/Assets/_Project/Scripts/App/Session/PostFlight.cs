@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using Fpv450.Sim;
@@ -39,7 +40,12 @@ namespace Fpv450.App.Session
 
         public ulong Seed => Log.Header != null ? Log.Header.Seed : 0;
 
-        public static PostFlight Read(string path)
+        /// <summary>
+        /// The summary of the log at path. A crash's object is named by the header when the flight placed it (the stand),
+        /// else by the world the log was flown in: openWorld opens it by the header's world id, and its name counts only
+        /// when the world's content hash is the header's (QA's finding 3). Without it, or for another world, "object N".
+        /// </summary>
+        public static PostFlight Read(string path, Func<string, IWorldQuery> openWorld = null)
         {
             var p = new PostFlight { LogPath = path, Log = FlightSummary.Read(path) };
             if (p.Log.Header == null) return p;
@@ -66,11 +72,23 @@ namespace Fpv450.App.Session
                 p.HasCrash = true;
                 p.Crash = e;
                 p.CrashPart = e.Event.Part < h.Parts.Length ? h.Parts[e.Event.Part].Name : "part #" + e.Event.Part;
-                p.CrashObject = e.Event.Object == WorldIds.Ground ? "the ground" : h.RuntimeObjectName(e.Event.Object) ?? "object " + e.Event.Object;
+                p.CrashObject = ObjectName(h, e.Event.Object, openWorld);
                 p.CrashMaterial = e.Event.Surface != 0 ? h.SurfaceName(e.Event.Surface) : e.Event.Material != 0 ? h.MaterialName(e.Event.Material) : "";
                 break;
             }
             return p;
+        }
+
+        static string ObjectName(LogHeader h, int id, Func<string, IWorldQuery> openWorld)
+        {
+            if (id == WorldIds.Ground) return "the ground";
+            string name = h.RuntimeObjectName(id);
+            if (name == null)
+            {
+                IWorldQuery world = openWorld?.Invoke(h.WorldId);
+                if (world != null && world.ContentHash == h.WorldHash) name = world.ObjectName(id);
+            }
+            return name ?? "object " + id;
         }
 
         /// <summary>The end and its cause in words.</summary>

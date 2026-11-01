@@ -505,6 +505,48 @@ namespace Fpv450.Tests.Session
             Assert.That(p.Lines(), Has.Member("log " + rig.Session.LogPath));
         }
 
+        // app-flow "A crash into the car" on the test range (QA's finding 3): from the track start, turned to 108° to face
+        // R01_A (17.5 m ahead and 4 m to the right), lifted, pitched forward and flown low into its flank. The summary
+        // names the placed car by MapWorld.ObjectName, through the log's world id and hash; without the world, or with
+        // another, it is "object N".
+        [Test]
+        public void ACrashIntoTheRangesCarNamesIt()
+        {
+            FlightWorldChoice range = FlightWorlds.TestRange(RepositoryRoot());
+            Rig rig = Make(i =>
+            {
+                range.ApplyTo(i);
+                i.Choices = new FlightChoices { StartPoint = "track", Legs = true, Payload = 1.0 };
+                i.Adjust = s =>
+                {
+                    DetMath.SinCos(108 * Math.PI / 360, out double sin, out double cos);
+                    s.StartAttitude = new Quat(0, sin, 0, cos);
+                };
+            });
+            rig.Session.Start();
+            rig.ArmCycle();
+            for (int ms = 0; ms < 6000 && rig.Session.State != SessionState.Ended; ms += 10)
+            {
+                rig.Radio.Throttle = ms < 350 ? 0.62 : ms < 1000 ? 0.43 : 0.46; // lift, then low and level
+                rig.Radio.Pitch = ms >= 350 && ms < 1000 ? 0.35 : 0; // forward, then held there (acro)
+                rig.Run(10);
+            }
+            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Crash));
+
+            PostFlight p = rig.Session.ReadSummary();
+            TestContext.WriteLine(string.Join(" | ", p.Lines()));
+            Assert.That(p.Log.Header.WorldId, Is.EqualTo("test-range"));
+            Assert.That(p.HasCrash);
+            Assert.That(p.CrashObject, Is.EqualTo("R01_A"));
+            Assert.That(p.CrashMaterial, Is.EqualTo("sheet_metal"));
+            Assert.That(Array.Exists(_spec.Parts, part => part.Name == p.CrashPart), "the part is drone.json's: " + p.CrashPart);
+            StringAssert.Contains("hit R01_A (sheet_metal)", p.Cause());
+
+            string unnamed = "object " + p.Crash.Event.Object;
+            Assert.That(PostFlight.Read(rig.Session.LogPath).CrashObject, Is.EqualTo(unnamed), "no world to open");
+            Assert.That(PostFlight.Read(rig.Session.LogPath, id => FlightWorld.Floor().Query).CrashObject, Is.EqualTo(unnamed), "another world's hash");
+        }
+
         [Test]
         public void UpsideDownOnTheGroundEndsTheFlight()
         {
@@ -761,7 +803,8 @@ namespace Fpv450.Tests.Session
 
             readonly ManualClock _clock;
             long _next = long.MinValue;
-            public double Throttle; // roll, pitch and yaw centred
+            public double Throttle; // 0–1
+            public double Pitch; // −1–1; roll and yaw centred
             public bool Arm, Lost;
 
             public TestRadio(ManualClock clock) => _clock = clock;
@@ -777,7 +820,8 @@ namespace Fpv450.Tests.Session
                 if (Lost) return RadioRead.Lost;
                 if (_clock.Now < _next) return RadioRead.Timeout;
                 _next = _clock.Now + 2000;
-                report.Axes[0] = report.Axes[1] = report.Axes[3] = 1024;
+                report.Axes[0] = report.Axes[3] = 1024;
+                report.Axes[1] = (int)Math.Round(1023.5 + Pitch * 1023.5);
                 report.Axes[2] = (int)Math.Round(Throttle * 2047);
                 report.Axes[4] = Arm ? 2047 : 0;
                 for (int i = 5; i < 8; i++) report.Axes[i] = 1024;

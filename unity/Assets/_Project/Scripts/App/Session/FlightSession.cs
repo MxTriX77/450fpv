@@ -29,7 +29,7 @@ namespace Fpv450.App.Session
         /// the screens and the smoke test: the setup's legs decide what the flight stands on.</summary>
         public bool Stand;
 
-        /// <summary>The floor's one start point until the test range lists its own.</summary>
+        /// <summary>The floor's one start point, for tests (the test range lists its own).</summary>
         public static StartPoint Origin => new StartPoint { Name = "origin" };
     }
 
@@ -63,11 +63,14 @@ namespace Fpv450.App.Session
 
         public string Build = "";
 
-        /// <summary>A new world per flight: the world-query stub's floor until the test range's queries land.</summary>
+        /// <summary>A new world per flight: the world-query stub's floor for tests; the app's is the test range (FlightWorlds).</summary>
         public Func<FlightWorld> World = FlightWorld.Floor;
 
         public string WorldId = "floor";
         public StartPoint[] StartPoints = { StartPoint.Origin };
+
+        /// <summary>The flights' world by a log's world id (the summary's names), or null for another id.</summary>
+        public IWorldQuery OpenWorld(string id) => id == WorldId ? World().Query : null;
 
         /// <summary>Each flight's seed; null for a random one.</summary>
         public Func<ulong> NewSeed;
@@ -351,7 +354,7 @@ namespace Fpv450.App.Session
         public PostFlight ReadSummary()
         {
             if (State != SessionState.Ended) throw new InvalidOperationException("the flight has not ended");
-            return PostFlight.Read(LogPath);
+            return PostFlight.Read(LogPath, _in.OpenWorld);
         }
 
         public void Dispose()
