@@ -45,4 +45,36 @@ namespace Fpv450.Sim.Flight
             FrontLeft = a.FrontLeft + (b.FrontLeft - a.FrontLeft) * t,
         };
     }
+
+    /// <summary>One vector per corner of the X frame, in Corners' order; a value type.</summary>
+    public struct Corners3
+    {
+        public Double3 RearRight, FrontRight, RearLeft, FrontLeft;
+
+        public Double3 this[int i]
+        {
+            readonly get
+            {
+                switch (i)
+                {
+                    case 0: return RearRight;
+                    case 1: return FrontRight;
+                    case 2: return RearLeft;
+                    case 3: return FrontLeft;
+                    default: throw new ArgumentOutOfRangeException(nameof(i));
+                }
+            }
+            set
+            {
+                switch (i)
+                {
+                    case 0: RearRight = value; break;
+                    case 1: FrontRight = value; break;
+                    case 2: RearLeft = value; break;
+                    case 3: FrontLeft = value; break;
+                    default: throw new ArgumentOutOfRangeException(nameof(i));
+                }
+            }
+        }
+    }
 }

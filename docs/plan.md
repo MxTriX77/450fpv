@@ -246,7 +246,7 @@ This is the pilot's seven-step plan (2026-10-17), "made right". Their order stay
 **Goal:** everything in PHY-01…25, each mechanism physical and seeded, tuned with the pilot's flights.
 **Owners:** physics-engineer (lead), tech-artist (feed coupling), world-builder (wind grid and wake data), QA (acceptance harness, forensics).
 
-Five changes, each ending in an MVP the pilot flies:
+Six changes, each ending in an MVP the pilot flies (D-056, D-059):
 
 | Change | Covers | Pilot account it must reproduce (computed, never asked: D-024) |
 |---|---|---|
@@ -254,7 +254,8 @@ Five changes, each ending in an MVP the pilot flies:
 | 7b Propulsion and airframe | PHY-07…12: asymmetry, ground effect, VRS, PR-1 shake, battery, inertia character | settling into own wash depends on throttle against weight, with wobble; the PR-1 shake is rare |
 | 7c Wind and turbulence | PHY-13…17 (the wind and rain statistics tools ported to plain Python first, D-037): field, PR-3 vorticity and gradients, wakes, levels against the K§8.6 targets via the simulated-pilot harness, per-flight draws, trade-off, rain, cruise in wind | wind flown at normal cruise speed; the effort goes into correcting course |
 | 7d Tether and wires | PHY-18…23: spool, span, cut risk, link margin, fiber break, wire strikes, openings (with the fortifications reading's §9: the exact bend radius over an edge, `payout_tension_n` named and logged, abrasion per fiber section, barb pitch as a lock point, the fiber skipping compliant stand-in shapes; QA scenarios: a line draped over a coil run, a reverse round a snagged barb); a wire's contact takes the span's compliance per direction: 4T/L pushed aside, Irvine's in-plane value with the tension rise pressed down, about 5× stiffer (`p1-materials-per-part`, the `cable` row) | cuts from sharp reverse, tree snags, very sharp liftoff, backward momentum after liftoff |
-| 7e Physics → feed, and forensics | PHY-24/25, LOG-03/04: all signals live, the crash report with a verdict, the second-machine determinism check, lens drops driven by physics | drops stay on the lens even when fast, and travel with the airflow |
+| 7e Physics → feed, and forensics (with `p7e-camera-feel`, D-059: the camera at each field's pose, the rolling shutter and blur) | PHY-24/25, LOG-03/04: all signals live, the crash report with a verdict, the second-machine determinism check, lens drops driven by physics | drops stay on the lens even when fast, and travel with the airflow |
+| 7f Damage from strikes (`p7f-damage`) | PHY-26: blade damage by the hardness rule (trim, chip, break, bend), the once-per-revolution shake and the factory imbalance, motor damage (scrape, dent, gap, rub, bind; shaft and bearings), prop strikes flown on rather than crashes | motors and props get worse when scraped on a wall; props stuck a bit |
 
 **Done means, per change:** its PHY requirements are met with scenarios; statistical targets are proven to fail wrong models; replay is bit-exact; performance is held; the pilot has flown it.
 
