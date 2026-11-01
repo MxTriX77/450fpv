@@ -26,7 +26,7 @@
    - **Profiles:** stored as JSON under the user's profile folder.
 6. **The flight session:**
    - **The scene:** one scene loads the test range, the world loader and a `FlightSession` component, which owns the physics thread's lifecycle.
-   - **The drone:** a stand-in mesh at the interpolated pose (labelled), replaced by `p5-drone`'s prefab.
+   - **The drone:** `p5-drone`'s D01 prefab for the setup's legs at the interpolated pose (a labelled stand-in until it landed).
    - **The camera:** a plain camera with FEED-02's intrinsics (106° horizontal, 16:9, 0° uptilt by the pilot's answer) until `p4-feed`'s rig.
    - **Restart:** a new seed, a new log.
 7. **The summary:** read through `p6-flight-core`'s summary reader, never by parsing the log in the UI.

@@ -9,13 +9,13 @@ The main menu SHALL offer Train, Calibrate and Exit (plus Explore in review buil
 
 ### Requirement: The flight session over the test range
 A flight session SHALL:
-- load the test range and its world from `maps/test-range/placements.json` (D-044; a flat floor until its queries land, D-046)
+- load the test range and its world from `maps/test-range/placements.json` (D-044; its queries, `MapWorld`)
 - place the launch stand at the start point when the legs are off
 - start the physics thread with the setup's payload, legs, wind and rain and the profile's `FcSettings`
 - show the drone at the interpolated `PoseFrame` through the FPV camera
 - arm and disarm on the transmitter switch, and offer pause and restart
 
-The drone SHALL be a labelled stand-in until `p5-drone`, and the camera a clean camera with FEED-02's intrinsics until `p4-feed`'s rig lands.
+The drone SHALL be `p5-drone`'s D01 prefab for the setup's legs, and the FPV camera `p4-feed`'s rig at `drone.json`'s `camera.lens_m`.
 
 #### Scenario: Pause and restart
 - **WHEN** the pilot pauses mid-flight, then restarts
