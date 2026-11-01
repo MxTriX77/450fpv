@@ -183,6 +183,7 @@ namespace Fpv450.App
             if (k == null || !k.escapeKey.wasPressedThisFrame) return;
             if (_view == View.Explore) Menu();
             else if (_view == View.Setup) Back();
+            else if (_view == View.Flight && _flight != null) _flight.Escape();
         }
 
         void Back()

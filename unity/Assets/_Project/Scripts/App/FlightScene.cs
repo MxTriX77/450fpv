@@ -36,6 +36,11 @@ namespace Fpv450.App
         static readonly Vector3 ChaseOffset = new Vector3(0f, 0.7f, -2.2f);
         const float ChasePitchDeg = 14f;
 
+        /// <summary>The camera's height over the ground while the first flight waits for the radio: about where the drone
+        /// rests on its legs or on the stand (0.253 m), a preview only.</summary>
+        const float PreviewHeightM = 0.25f;
+        FlightChoices _previewed;
+
         public FlightSessionHost Host { get; private set; }
 
         /// <summary>The summary's Setup and Menu, for AppFlow.</summary>
@@ -139,8 +144,13 @@ namespace Fpv450.App
         void LateUpdate()
         {
             FlightSession session = Host.Session;
-            Keys(session);
-            if (session == null || session.Flights == 0) return;
+            Keys();
+            if (session == null) return;
+            if (session.Flights == 0)
+            {
+                if (Host.WaitingForRadio) Preview(Host.Inputs);
+                return;
+            }
             if (session.Flights != ShownFlight) Show(session);
 
             // The buffer is reused by every flight: a pair from before this flight's step 0 is the last flight's.
@@ -216,6 +226,19 @@ namespace Fpv450.App
                       $"sun {_look.State.SunElevationDeg:0.0}° up");
         }
 
+        // Before the first flight, while the radio is awaited: the view from the chosen start at the chosen time, once for
+        // each choice the setup hands over.
+        void Preview(SessionInputs inputs)
+        {
+            FlightChoices c = inputs.Choices;
+            if (ReferenceEquals(c, _previewed)) return;
+            _previewed = c;
+            StartPoint at = Array.Find(inputs.StartPoints, s => s.Name == c.StartPoint);
+            if (at.Name == null) at = inputs.StartPoints[0];
+            _body.SetPositionAndRotation(new Vector3((float)at.X, PreviewHeightM, (float)at.Z), Quaternion.Euler(0f, (float)(at.Yaw * 180 / Math.PI), 0f));
+            Look(c);
+        }
+
         LookPreset Preset(string name)
         {
             foreach (TextAsset asset in _look.presets)
@@ -224,18 +247,23 @@ namespace Fpv450.App
             return null;
         }
 
-        void Keys(FlightSession session)
+        // The review keys: C the chase view, V the feed.
+        void Keys()
         {
             Keyboard k = Keyboard.current;
-            if (k == null || Covered) return;
-            if (k.escapeKey.wasPressedThisFrame && session != null)
-            {
-                if (session.State == SessionState.Flying) Host.Pause();
-                else if (session.State == SessionState.Paused) Host.Resume();
-            }
-            if (!AppData.Review) return;
+            if (k == null || Covered || !AppData.Review) return;
             if (k.cKey.wasPressedThisFrame) Chase = !Chase;
             if (k.vKey.wasPressedThisFrame && _rig != null) _rig.enabled = !_rig.enabled;
+        }
+
+        /// <summary>Esc over the flight (AppFlow routes it, one action a press): pause and resume, and the menu while no
+        /// flight can start.</summary>
+        public void Escape()
+        {
+            FlightSession session = Host.Session;
+            if (session != null && session.State == SessionState.Flying) Host.Pause();
+            else if (session != null && session.State == SessionState.Paused) Host.Resume();
+            else if (session == null || Host.WaitingForRadio) MenuRequested?.Invoke();
         }
 
         // The ended flight's summary, read from its log on a worker thread (PostFlight reads the whole log).
@@ -288,14 +316,16 @@ namespace Fpv450.App
             if (Chase) FlightScreens.Corner("Chase view (C) · " + StandIn.DroneName);
             if (session == null)
             {
-                if (Host.Problems.Count > 0) FlightScreens.Hint(Host.Problems[Host.Problems.Count - 1]);
+                if (Host.Problems.Count > 0) FlightScreens.Hint(Host.Problems[Host.Problems.Count - 1] + "  ·  Esc for the menu");
+                return;
+            }
+            if (Host.WaitingForRadio)
+            {
+                FlightScreens.Hint("Connect the radio by USB, in joystick mode  ·  Esc for the menu");
                 return;
             }
             switch (session.State)
             {
-                case SessionState.Ready:
-                    if (Host.WaitingForRadio) FlightScreens.Hint("Connect the radio by USB, in joystick mode");
-                    break;
                 case SessionState.Flying:
                     if (!_armedOnce) FlightScreens.Hint("Arm: switch off, then on, with the throttle down  ·  Esc pauses");
                     break;

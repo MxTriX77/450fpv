@@ -35,12 +35,16 @@ namespace Fpv450.App
         /// <summary>Why no flight could start, or a profile file that could not be read; empty when all is well.</summary>
         public readonly List<string> Problems = new List<string>();
 
-        /// <summary>No radio is connected and the keyboard may not fly: the scene asks for the radio.</summary>
-        public bool WaitingForRadio => Session != null && Session.State == SessionState.Ready && !AppRadio.Reader.Connected && !Inputs.KeyboardAllowed;
+        // A flight is wanted: the first once enabled, then one for each Fly. It starts when it can.
+        bool _wanted;
+
+        /// <summary>A flight is wanted, no radio is connected and the keyboard may not fly: the scene asks for the radio.</summary>
+        public bool WaitingForRadio => Session != null && _wanted && !AppRadio.Reader.Connected && !Inputs.KeyboardAllowed;
 
         void OnEnable()
         {
             _enabledAt = Time.unscaledTime;
+            _wanted = true;
             Problems.Clear();
             try
             {
@@ -64,9 +68,8 @@ namespace Fpv450.App
         void Update()
         {
             if (Session == null) return;
-            if (Session.State == SessionState.Ready
-                && (AppRadio.Reader.Connected || (Inputs.KeyboardAllowed && Time.unscaledTime - _enabledAt >= StartWaitSeconds)))
-                Fly();
+            if (_wanted && (AppRadio.Reader.Connected || (Inputs.KeyboardAllowed && Time.unscaledTime - _enabledAt >= StartWaitSeconds)))
+                Begin();
             Session?.Tick(Keys());
         }
 
@@ -76,10 +79,17 @@ namespace Fpv450.App
             Session = null;
         }
 
-        /// <summary>A new flight, after the last has ended (the summary's Fly again) or before the first.</summary>
+        /// <summary>A new flight after the last has ended (the summary's Fly again, the setup's Fly): it starts once the
+        /// radio is in, at once when it is (or on the development keyboard).</summary>
         public void Fly()
         {
             if (Session == null || Session.State == SessionState.Flying || Session.State == SessionState.Paused) return;
+            _wanted = true;
+        }
+
+        void Begin()
+        {
+            _wanted = false;
             try
             {
                 Session.Start();
