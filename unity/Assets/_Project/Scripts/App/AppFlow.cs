@@ -21,7 +21,9 @@ namespace Fpv450.App
     /// radio is in, so arming the switch is the only step left. The summary's Fly again and Setup stay in the range.
     /// </summary>
     /// <remarks>
-    /// Options: <c>-windowed</c> (a 1920 × 1080 window), <c>-vsync &lt;n&gt;</c> (as the range's boot).
+    /// Options: <c>-windowed</c> (a 1920 × 1080 window), <c>-vsync &lt;n&gt;</c> (as the range's boot). <c>-smoketest</c>
+    /// walks the app (Smoke) and quits, exit code 1 on any failed check or any error logged; <c>-smokeshots &lt;folder&gt;</c>
+    /// saves its screens there.
     /// </remarks>
     public sealed class AppFlow : MonoBehaviour
     {
@@ -36,6 +38,7 @@ namespace Fpv450.App
         CalibrateScreen _calibrate;
         FlightScene _flight;
         string _profile;
+        int _errors;
 
         /// <summary>Boot's: makes the app once; the Boot scene loads again for the menu and finds it.</summary>
         public static void Create()
@@ -54,6 +57,7 @@ namespace Fpv450.App
         void Awake()
         {
             SceneManager.sceneLoaded += OnSceneLoaded;
+            Application.logMessageReceivedThreaded += OnLog;
             try
             {
                 _setup.Starts = FlightWorlds.TestRange(AppData.Root).StartPoints;
@@ -65,11 +69,18 @@ namespace Fpv450.App
             ReadProfile();
             Debug.Log("[App] menu: Train, Calibrate, " + (AppData.Review ? "Explore, " : "") + "Exit (" + (AppData.Review ? "a review build" : "the pilot's build")
                       + "); data under " + AppData.Root + "; profile folder " + Application.persistentDataPath);
+            if (Array.IndexOf(Environment.GetCommandLineArgs(), "-smoketest") >= 0) StartCoroutine(Smoke());
         }
 
         void OnDestroy()
         {
             SceneManager.sceneLoaded -= OnSceneLoaded;
+            Application.logMessageReceivedThreaded -= OnLog;
+        }
+
+        void OnLog(string message, string stack, LogType type)
+        {
+            if (type == LogType.Error || type == LogType.Exception || type == LogType.Assert) System.Threading.Interlocked.Increment(ref _errors);
         }
 
         // ---- The flow ----
@@ -229,6 +240,181 @@ namespace Fpv450.App
                     GUI.Label(new Rect(AppStyle.S(150), Screen.height * 0.45f, Screen.width, AppStyle.S(40)), _explore ? "Loading the test range…" : "Loading the test range…  arm once the drone is in", AppStyle.Label);
                     break;
             }
+        }
+
+        // ---- The smoke test ----
+
+        /// <summary>
+        /// The player's smoke test, through the screens' own calls: the menu and the setup drawn; Explore in a review build;
+        /// then a flight from the ground (legs on, the first start that is not the stand's) and one from the launch stand
+        /// (legs off, the stand's start), the second set from the first's summary through Setup. With the development
+        /// keyboard each flight is flown by a script of its keys: armed, climbed, paused (no step while paused),
+        /// restarted (the stand's, before arming: a new seed and log), descended, disarmed, and the summary read from the
+        /// log. A pilot's build has no keyboard: there each flight is checked waiting for the radio.
+        /// </summary>
+        IEnumerator Smoke()
+        {
+            string[] args = Environment.GetCommandLineArgs();
+            int at = Array.IndexOf(args, "-smokeshots");
+            string shots = at >= 0 && at + 1 < args.Length ? args[at + 1] : null;
+            if (shots != null) Directory.CreateDirectory(shots);
+            // The smoke test's flights save their setup; the pilot's own is put back at the end.
+            string setupFile = SetupStore.PathIn(Application.persistentDataPath);
+            byte[] pilotSetup = File.Exists(setupFile) ? File.ReadAllBytes(setupFile) : null;
+            int failed = 0, shot = 0;
+            void Check(bool ok, string what)
+            {
+                Debug.Log("[Smoke] " + (ok ? "ok   " : "FAIL ") + what);
+                if (!ok) failed++;
+            }
+            IEnumerator Shot(string name)
+            {
+                if (shots == null) yield break;
+                yield return new WaitForEndOfFrame();
+                ScreenCapture.CaptureScreenshot(Path.Combine(shots, (++shot).ToString("00") + "_" + name + ".png"));
+                yield return null;
+                yield return null;
+            }
+            IEnumerator Until(Func<bool> done, float seconds)
+            {
+                float end = Time.realtimeSinceStartup + seconds;
+                while (!done() && Time.realtimeSinceStartup < end) yield return null;
+            }
+            IEnumerator Hold(KeyboardKeys keys, float seconds, Action each = null)
+            {
+                FlightSessionHost host = _flight.Host;
+                host.Keys = () => keys;
+                float end = Time.realtimeSinceStartup + seconds;
+                while (Time.realtimeSinceStartup < end)
+                {
+                    yield return null;
+                    each?.Invoke();
+                }
+                host.Keys = () => KeyboardKeys.None;
+                yield return null;
+            }
+
+            yield return Until(() => Time.frameCount > 3, 5);
+            yield return new WaitForSecondsRealtime(0.5f);
+            Check(_view == View.Menu, "the menu opens first");
+            yield return Shot("menu");
+            Train();
+            yield return null;
+            Check(_view == View.Setup && _setup.Starts.Length >= 2, "Train opens the setup, " + _setup.Starts.Length + " start points");
+            yield return Shot("setup");
+
+            if (AppData.Review)
+            {
+                Load(explore: true);
+                yield return Until(() => _view == View.Explore, 60);
+                Check(_view == View.Explore && Camera.main != null, "Explore loads the test range's noclip");
+                yield return new WaitForSecondsRealtime(2);
+                yield return Shot("explore");
+                Menu();
+                yield return Until(() => _view == View.Menu, 30);
+                Check(_view == View.Menu, "Esc's route back to the menu");
+                Train();
+            }
+
+            StartPoint ground = Array.Find(_setup.Starts, s => !s.Stand), stand = Array.Find(_setup.Starts, s => s.Stand);
+            Check(ground.Name != null && stand.Name != null, "the range lists a ground start and a stand start");
+            var starts = new[] { ground, stand };
+            for (int n = 0; n < starts.Length; n++)
+            {
+                StartPoint start = starts[n];
+                FlightChoices c = _setup.Choices;
+                c.StartPoint = start.Name;
+                c.Legs = !start.Stand;
+                c.Payload = 1.0;
+                c.Wind = WindLevel.Calm;
+                c.Rain = Rain.Sunny;
+                c.TimeOfDay = n == 0 ? 11.5 : 17.5;
+                Fly();
+                string where = "'" + start.Name + "' (legs " + (c.Legs ? "on" : "off, the stand") + ")";
+                yield return Until(() => _view == View.Flight && _flight != null && _flight.Host.Session != null, 60);
+                Check(_flight != null && _flight.Host.Session != null, "Fly loads the flight over the test range at " + where);
+                if (_flight == null || _flight.Host.Session == null) break;
+                FlightSessionHost host = _flight.Host;
+                if (!host.Inputs.KeyboardAllowed)
+                {
+                    yield return new WaitForSecondsRealtime(2);
+                    Check(host.WaitingForRadio || host.Session.State == SessionState.Flying, "the flight waits for the radio (or flies on it)");
+                    yield return Shot("waiting_" + start.Name);
+                    if (n == 0)
+                    {
+                        _flight.Covered = true;
+                        _setup.Choices = host.Inputs.Choices.Clone();
+                        _view = View.Setup;
+                    }
+                    continue;
+                }
+
+                yield return Until(() => host.Session.State == SessionState.Flying && _flight.ShownFlight == host.Session.Flights, 10);
+                yield return new WaitForSecondsRealtime(1);
+                FlightSession session = host.Session;
+                Check(session.State == SessionState.Flying, "flight " + session.Flights + " started at " + where + " on " + session.Input);
+                if (start.Stand)
+                {
+                    ulong seed = session.Seed;
+                    string log = session.LogPath;
+                    int flights = session.Flights;
+                    host.Restart();
+                    yield return new WaitForSecondsRealtime(1);
+                    Check(session.Flights == flights + 1 && session.Seed != seed && session.LogPath != log, "Restart: a new flight with a new seed and log");
+                }
+                double rest = _flight.Pose.Position.Y;
+                Check(Math.Abs(rest - _flight.RestPose.Position.Y) < 0.01, "at rest at " + rest.ToString("0.000") + " m (start " + _flight.RestPose.Position.Y.ToString("0.000") + " m)");
+                yield return Shot("rest_" + start.Name);
+                _flight.Chase = true;
+                yield return null;
+                yield return Shot("chase_" + start.Name);
+                _flight.Chase = false;
+
+                yield return Hold(KeyboardKeys.ArmToggle, 0.1f);
+                yield return new WaitForSecondsRealtime(0.4f);
+                Check(_flight.Pose.Armed, "armed by the keyboard's switch");
+                double top = rest;
+                Action climb = () => top = Math.Max(top, _flight.Pose.Position.Y);
+                yield return Hold(KeyboardKeys.ThrottleUp, 1.6f, climb);
+                yield return Hold(KeyboardKeys.None, 1.4f, climb);
+                Check(top - rest > 1.0, "climbed " + (top - rest).ToString("0.00") + " m");
+                _flight.Chase = true;
+                yield return null;
+                yield return Shot("air_chase_" + start.Name);
+                _flight.Chase = false;
+
+                host.Pause();
+                long steps = session.Core.State.Step;
+                yield return new WaitForSecondsRealtime(0.3f);
+                Check(session.State == SessionState.Paused && session.Core.State.Step == steps, "paused: no step for 0.3 s, at step " + steps);
+                if (n == 0) yield return Shot("pause");
+                host.Resume();
+                yield return Hold(KeyboardKeys.ThrottleDown, 1.4f);
+                yield return Hold(KeyboardKeys.ArmToggle, 0.1f);
+                yield return Until(() => session.State == SessionState.Ended, 5);
+                Check(session.State == SessionState.Ended, "the flight ends on the disarm");
+                yield return Until(() => _flight.Summary != null, 30);
+                PostFlight summary = _flight.Summary;
+                Check(summary != null && summary.End.Kind == FlightEndKind.Disarm, "the summary from the log: " + (summary != null ? summary.Cause() : "none"));
+                Check(summary != null && summary.Log.Events.Exists(e => e.Event.Kind == EventKind.Hitch && e.Event.Index == (byte)HitchCause.Pause), "the pause is in the log");
+                yield return Shot("summary_" + start.Name);
+                if (n == 0)
+                {
+                    _setup.Choices = host.Inputs.Choices.Clone();
+                    _flight.Covered = true;
+                    _view = View.Setup; // the summary's Setup
+                }
+            }
+
+            FlightChoices saved = SetupStore.Load(Application.persistentDataPath, out string error);
+            Check(error == null && saved.StartPoint == stand.Name && !saved.Legs, "the last setup is saved for the next start");
+            if (pilotSetup != null) File.WriteAllBytes(setupFile, pilotSetup);
+            else File.Delete(setupFile);
+            Menu();
+            yield return Until(() => _view == View.Menu, 30);
+            Check(_view == View.Menu, "Menu returns to the menu");
+            Debug.Log("[Smoke] " + (failed == 0 && _errors == 0 ? "PASS" : "FAIL") + ": " + failed + " checks failed, " + _errors + " errors logged");
+            Application.Quit(failed == 0 && _errors == 0 ? 0 : 1);
         }
     }
 }
