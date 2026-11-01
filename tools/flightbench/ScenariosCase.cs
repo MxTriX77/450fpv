@@ -147,7 +147,12 @@ namespace Fpv450.FlightBench
                 var white = new List<WindTargets.History>();
                 WindPreset cut = preset;
                 cut.ShortestWavelength = WindHarness.ReleaseSpeed; // the known-wrong field: nothing above 1 Hz at the cruise
-                for (ulong seed = 1; seed <= 20; seed++) runs.Add(WindTargets.Gusts(level, seed, 1200, 50));
+                var stubble = new List<WindTargets.History>();
+                for (ulong seed = 1; seed <= 20; seed++)
+                {
+                    runs.Add(WindTargets.Gusts(level, seed, 1200, 50));
+                    stubble.Add(WindTargets.Gusts(level, seed, 1200, 50, null, WindTargets.Stubble(level)));
+                }
                 for (ulong seed = 1; seed <= 5; seed++)
                 {
                     flat.Add(WindTargets.Gusts(level, seed, 300, 50, WindTargets.FlatSigma));
@@ -163,6 +168,7 @@ namespace Fpv450.FlightBench
                 Row($"{level} known-wrong: a field that stops below 1 Hz at the {WindHarness.ReleaseSpeed:F1} m/s cruise", WindTargets.Spectrum(lowPass, preset, WindHarness.ReleaseSpeed, 2, 4, out d, out _), d, knownWrong: true);
                 Row($"{level} known-wrong: white noise", WindTargets.Spectrum(white, preset, WindHarness.ReleaseSpeed, 2, 4, out d, out _), d, knownWrong: true);
                 Row($"{level} known-wrong: a flat 0.2 m/s σ", WindTargets.Intensity(flat, preset, out d, out _), d, knownWrong: true);
+                Row($"{level} known-wrong: the stubble's roughness (z0 0.03 m), 20 seeds of 1200 s", WindTargets.Intensity(stubble, preset, out d, out _), d, knownWrong: true);
                 Row($"{level} known-wrong: a mean 5 % strong", WindTargets.MeanInBand(biased, preset, out d), d, knownWrong: true);
             }
 

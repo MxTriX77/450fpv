@@ -43,11 +43,18 @@ namespace Fpv450.Sim.Wind
         public double ReferenceHeight;
 
         /// <summary>The cover's height, m (assumed: stubble and low crop, clip P's open fields; 1.3's wake grid brings
-        /// the world's own).</summary>
+        /// the world's own). Below d + z0 the field is still.</summary>
         public double CoverHeight;
 
-        /// <summary>z0 and d over the cover's height (published rules of thumb, K§6.7: z0 ≈ 0.1·h, d ≈ 0.67·h).</summary>
-        public double RoughnessRatio, DisplacementRatio;
+        /// <summary>d over the cover's height (published rule of thumb, K§6.7: d ≈ 0.67·h): the stubble's 0.2 m.</summary>
+        public double DisplacementRatio;
+
+        /// <summary>z0, m: the landscape's effective roughness, not the stubble's (published: Davenport–Wieringa class 4,
+        /// "roughly open", z0 0.10 m: open farmland with low crops and obstacles such as tree rows at 20 heights or more
+        /// apart, Wieringa 1992, Davenport et al. 2000, WMO-No. 8's table; recalled, not re-read). The field at 35 m answers
+        /// to the fetch's kilometres upwind, clip P's farmland with its belts, so its u* and σ follow from them
+        /// (D-060; hover-micro-motion.md §4 row 2). The stubble's own z0 ≈ 0.1·h = 0.03 m is the known-wrong.</summary>
+        public double Roughness;
 
         /// <summary>The log law's top, m: above it the mean holds (assumed: the neutral surface layer's depth, about a
         /// tenth of a 1 km boundary layer).</summary>
@@ -59,9 +66,16 @@ namespace Fpv450.Sim.Wind
 
         // ---- the turbulence (K§6.7 layer 2): von Kármán, as random Fourier modes ----
 
-        /// <summary>σ_u/U = σ_v/U at every height (assumed: the middle of K§6.7's 0.12–0.15; the neutral surface layer's
-        /// σ_u ≈ 2.4·u*, constant with height (published, Panofsky and Dutton), gives 0.136 at 35 m over z0 = 0.03 m).</summary>
+        /// <summary>σ_u/U = σ_v/U at every height (derived, SurfaceIntensity: the neutral surface layer's σ_u = 2.4·u*
+        /// over the log law's u* = κ·U/ln((z_ref − d)/z0) at the reference height: 0.164 over class 4's z0 0.10 m; the
+        /// stubble's 0.03 m gave 0.136, the first attempt's K§6.7 assumed 0.12–0.15).</summary>
         public double Intensity;
+
+        /// <summary>σ_u/u* in the neutral surface layer, constant with height (published: Panofsky and Dutton 1984).</summary>
+        public const double SurfaceSigmaU = 2.4;
+
+        /// <summary>Von Kármán's constant (published).</summary>
+        public const double Karman = 0.4;
 
         /// <summary>σ_w/σ_u (derived: MIL-HDBK-1797's low-altitude (0.177 + 0.000823·h)^0.4 at h = 35 m = 114.8 ft).</summary>
         public double VerticalRatio;
@@ -149,11 +163,11 @@ namespace Fpv450.Sim.Wind
             MeanHi = centre * (1 + Band);
             ReferenceHeight = 35;
             CoverHeight = 0.3;
-            RoughnessRatio = 0.1;
             DisplacementRatio = 0.67;
+            Roughness = 0.10;
             ProfileTop = 100;
             TaperHeight = 1;
-            Intensity = 0.135;
+            Intensity = SurfaceIntensity(Roughness, DisplacementRatio * CoverHeight, ReferenceHeight);
             VerticalRatio = 0.594;
             HorizontalScale = 167;
             VerticalScale = 35;
@@ -196,15 +210,17 @@ namespace Fpv450.Sim.Wind
             }
         }
 
-        /// <summary>z0, m.</summary>
-        public double Roughness => RoughnessRatio * CoverHeight;
+        /// <summary>σ_u/U at a reference height over a roughness z0 and a displacement d (m): 2.4·κ / ln((z_ref − d)/z0),
+        /// the neutral surface layer's (derived).</summary>
+        public static double SurfaceIntensity(double z0, double d, double referenceHeight) =>
+            SurfaceSigmaU * Karman / DetMath.Log((referenceHeight - d) / z0);
 
         /// <summary>d, m.</summary>
         public double Displacement => DisplacementRatio * CoverHeight;
 
         internal void Check()
         {
-            if (!(MeanLo > 0 && MeanHi >= MeanLo) || !(CoverHeight > 0) || !(RoughnessRatio > 0) || !(DisplacementRatio >= 0)
+            if (!(MeanLo > 0 && MeanHi >= MeanLo) || !(CoverHeight > 0) || !(Roughness > 0) || !(DisplacementRatio >= 0)
                 || !(ReferenceHeight > Displacement + Roughness) || !(ProfileTop >= ReferenceHeight) || !(TaperHeight > 0)
                 || !(Intensity >= 0) || !(VerticalRatio >= 0) || !(HorizontalScale > 0) || !(VerticalScale > 0) || Modes < 1
                 || !(ShortestWavelength > 0) || !(LongestFraction > 0) || !(WakeEddyMin > 0 && WakeEddyMax >= WakeEddyMin) || WakeModes < 1
@@ -229,7 +245,8 @@ namespace Fpv450.Sim.Wind
     ///   velocity is linear and its drift (the integral) exact.
     /// - **The mean profile:** the drawn strength U (wind.strength, uniform in the level's band) at the reference
     ///   height, scaled by the log law ln((z − d)/z0) / ln((z_ref − d)/z0), z the height over the ground under the
-    ///   body, held above ProfileTop, 0 at and below d + z0 (inside the cover). Horizontal.
+    ///   body, z0 the landscape's and d the cover's, held above ProfileTop, 0 at and below d + z0 (inside the cover).
+    ///   Horizontal.
     /// - **The turbulence:** von Kármán's isotropic spectrum E(k) = C·σ²·(k/k_e)^4 / (1 + (k/k_e)²)^(17/6),
     ///   k_e = 1/(1.339·L), C·k_e·½B(5/2, 1/3) = 1.5 (so ∫E = 1.5·σ² and its 1-D spectra are MIL-HDBK-1797's), as
     ///   Modes random Fourier modes in log-spaced bands from k_min to 2π/ShortestWavelength: per mode a wavenumber

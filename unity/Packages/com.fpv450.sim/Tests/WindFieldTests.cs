@@ -99,6 +99,22 @@ namespace Fpv450.Sim.Tests
             TestContext.Out.WriteLine($"known-wrong: from the left only: {d1}; an unseeded turbulence matched {same} of {u1.Samples.Length} samples");
         }
 
+        // D-060: the open field's z0 is the landscape's class (Davenport–Wieringa class 4, 0.10 m, published), and σ_u/U
+        // follows from it (derived: 2.4·κ/ln((35 − 0.2)/0.10) = 0.164), not the stubble's 0.03 m (0.136).
+        [Test]
+        public void TheOpenFieldsRoughnessIsTheLandscapesClass()
+        {
+            foreach (WindLevel level in new[] { WindLevel.Calm, WindLevel.Windy, WindLevel.Severe })
+            {
+                WindPreset p = WindPreset.Of(level);
+                Assert.That(p.Roughness, Is.EqualTo(0.10), "class 4's z0");
+                Assert.That(p.Displacement, Is.EqualTo(0.67 * 0.3).Within(1e-15), "the stubble's d");
+                Assert.That(p.Intensity, Is.EqualTo(2.4 * 0.4 / Math.Log((35 - 0.201) / 0.10)).Within(1e-12));
+                Assert.That(p.Intensity, Is.EqualTo(0.164).Within(0.0005));
+                Assert.That(Stubble(level).Intensity, Is.EqualTo(0.136).Within(0.0005), "the stubble's z0 0.03 m");
+            }
+        }
+
         [Test]
         public void TheLevelsHoldTheirIntensityAndSpectrum()
         {
@@ -118,12 +134,14 @@ namespace Fpv450.Sim.Tests
                 Assert.That(spectrum, Is.True, ds);
 
                 // The known-wrong: a field that stops below 1 Hz at the cruise and white noise fail the spectrum, a σ that
-                // ignores the wind fails the intensity, a mean 5 % off its drawn strength fails the unbiased mean.
+                // ignores the wind and the stubble's roughness (z0 0.03 m, D-060's known-wrong) fail the intensity, a mean
+                // 5 % off its drawn strength fails the unbiased mean.
                 WindPreset cut = preset;
                 cut.ShortestWavelength = WindHarness.ReleaseSpeed;
                 var low = new List<History>();
                 var white = new List<History>();
                 var flat = new List<History>();
+                var stubble = new List<History>();
                 var biased = new List<History>();
                 for (ulong seed = 1; seed <= 5; seed++)
                 {
@@ -131,12 +149,14 @@ namespace Fpv450.Sim.Tests
                     white.Add(Encounter(level, seed, 33, WindHarness.ReleaseSpeed, null, White));
                     flat.Add(Gusts(level, seed, 300, 50, FlatSigma));
                 }
+                for (ulong seed = 1; seed <= 20; seed++) stubble.Add(Gusts(level, seed, 1200, 50, null, Stubble(level)));
                 foreach (History h in runs) biased.Add(Biased(h));
                 Assert.That(Spectrum(low, preset, WindHarness.ReleaseSpeed, 2, 4, out string w0, out _), Is.False, "a field below 1 Hz fails the spectrum: " + w0);
                 Assert.That(Spectrum(white, preset, WindHarness.ReleaseSpeed, 2, 4, out string w1, out _), Is.False, "white noise fails the spectrum: " + w1);
                 Assert.That(Intensity(flat, preset, out string w2, out _), Is.False, "a flat σ fails the intensity: " + w2);
+                Assert.That(Intensity(stubble, preset, out string w4, out _), Is.False, "the stubble's roughness fails the class's intensity: " + w4);
                 Assert.That(MeanInBand(biased, preset, out string w3), Is.False, "a biased mean fails: " + w3);
-                TestContext.Out.WriteLine($"  known-wrong: below 1 Hz: {w0}; white noise: {w1}; a flat 0.2 m/s σ: {w2}; a mean 5 % strong: {w3}");
+                TestContext.Out.WriteLine($"  known-wrong: below 1 Hz: {w0}; white noise: {w1}; a flat 0.2 m/s σ: {w2}; the stubble's z0: {w4}; a mean 5 % strong: {w3}");
             }
         }
 
