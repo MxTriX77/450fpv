@@ -29,7 +29,7 @@
    - **The floor:** a plane at y = 0 with the floor's surface id.
    - **The patches:** S04's and E01's ground meshes are the asset's collision as ground. As built (review-physics W4, option a): the plane is absent over each patch's footprint, `SampleGround` reports a hole there, and the patch's soil and straw shapes are the only ground, through `StaticContacts`.
    - **Holes:** inside an asset's `holes` band (`asset-pipeline`: a centre line and a band of half its width), `SampleGround` reports a hole, and the fillers answer through `StaticContacts` (WLD-16's rule, at gallery scale; the terrain-hole machinery is phase 3's).
-6. **Identity:** FNV-1a over the placement file, every referenced `.assetmeta.json` and the material names, CRLF read as LF (K§10.4), plus `QueryVersion` (2 since task 1.5). The flight log's header records both.
+6. **Identity:** FNV-1a over the placement file, every referenced `.assetmeta.json` and the material names, CRLF read as LF (K§10.4), plus `QueryVersion` (4 since task 1.7). The flight log's header records both.
 7. **Budgets:** `tools/worldbench --bench` runs physics' pattern and the K§10.5 batch at four spots of the test range (inside V01_L's crown, round H01_D's walls, along E01's run, the posadka at 2 m) on AC with the power mode printed; `--golden` writes and checks the golden files.
 
 ## Risks / Trade-offs

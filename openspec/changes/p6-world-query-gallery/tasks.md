@@ -142,6 +142,23 @@ Branch `unity/world/p6-world-query-gallery` off `unity/main` once `p1-g1-look-lo
     - **Open:**
       - The search inside a box (44 evaluations) is the straw rest's largest remaining cost; making it exact moves every deep contact's bits (1.5 found it flipped the Time rule's normal test on 7148 of 92 000), so it waits for physics.
       - QA's L1 (a ray lying exactly on a seam line falls through) is not changed.
+- [x] 1.7 [world-builder] QA's re-check (`review.md` at `6a49730`: B4, M1, S3, L4):
+  - **M1** (`ab805d6`): `unity/main` at `8fe7875` (p7c-wind's wake grid) merged with `-m`. `tools/worldbench/Program.cs` keeps both sides: one `GoldenFile` checks the floor, the test range and the wakes (each with its own header, the count check and the per-world summary); `--wakes` and `--wakes-range` sit beside `--golden` and `--bench`, both printing the power line with the clock. `--golden` passes all three, no hash moved.
+  - **B4, a turning sweep's touch** (`69a1070`, `QueryVersion` 4):
+    - **The rule:** a sweep unsettled after 128 steps whose current pose touches (within 1 µm) bisects between the last pose the advancement showed clear and the current one, to a pose 0.5–1 µm off the shape (`ShapeMath.Touch`, at most 64 halvings): that is its first touch. Otherwise it counts none, as at 3. `IWorldQuery`'s Time rule states it, with the remainder: a turning graze that dips in and comes back clear within the step may count none.
+    - **The test** (`PitchingCores_…`, fresh seeds 4101–4113): cores of 0.1–0.3 m pitching at 290–2000 °/s across a 10 mm twig, a 0.15 m trunk and the four `L03_medium` conductors, the middle approaching at 10–100 µm a step. The truth is a Lipschitz branch and bound over the step on closed-form segment distances (`System.Math`), resolved to 1e-10 of t. The old give-up fails it (seed 4101, trial 1: a touch missed, 31.1 µm deep at the step's end).
+    - **A scratch harness with the same truth** (2000 sweeps a shape; the twig, the trunk and a 3-4-5-turned box's edges, then the test range's 20 wires and its 455 long cylinders, r ≥ 30 mm; sweeps ending more than 1 µm inside, missed):
+
+      | | seed 7, approach 0.2–10 % of the ends' swing | seed 99, approach 10–100 µm a step |
+      |---|---|---|
+      | 3 (`ab805d6`) | 3204 of 44 938 (7.1 %), up to 222.7 µm deep | 7926 of 42 587 (18.6 %), up to 274.0 µm deep |
+      | 4 | 0 | 0 |
+
+      At 4 on both seeds: 0 false first touches, 0 after the truth's first touch, every Distance within 1 µm, every first touch a touch by the truth (within 1 µm). The 86 sweeps that touched and ended clear (or within 1 µm) were all latched too; 3 missed 19 of them.
+    - **The goldens:** no case moved (floor 5, test range 6, wakes 11; Debug and Release). Both query golden files re-recorded for their `query_version` line alone, audited line by line: both content hashes and every query hash are unchanged.
+  - **S3, the bound on every primitive** (`f805aba`): `GrazingSpheres_AreCaughtNotAfterTheirFirstTouch_OnEveryPrimitive`, 150 rounds of 7.5 mm spheres at 60 mm a step: past a sphere, a capsule, a cylinder's side and rim, and a 3-4-5-turned box's edges and corners at 0.990–0.998 of the touch distance; sinking 15–75 µm into a cylinder's cap and each of the box's faces across 60 mm. Each is one contact not after its analytic first touch, its Distance within 1 µm. Mutations, each against the 39 world tests: a sphere's support without its radius, a capsule's without its radius and a box's without its z extent each fail this test; a cylinder's without its radius fails it and B4's; the old give-up fails B4's.
+  - **L4, a cylinder's touch a few nm inside:** not changed. It is 0.1–2.3 nm deep and at most 74 nm of travel late, three orders under `IWorldQuery`'s 1 µm, and nothing physics computes from a contact can tell it. The only fixes (a slack in a cylinder's distance / speed step, or a tighter search) move every advancing cylinder sweep's bits, so the goldens and physics' flights, for no physical gain. `IWorldQuery` states it.
+  - **Owed (no GPU, by request):** Unity EditMode (the package's tests under Unity), `worldbench --bench` on AC (the give-up now adds up to 64 closest approaches to a sweep that already took 128 steps), and pytest with the real Blender.
 
 ## 2. Review
 

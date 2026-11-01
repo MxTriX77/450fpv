@@ -21,6 +21,14 @@ The sim package SHALL provide, engine-free, allocation-free, reentrant and calla
 - **WHEN** a skid slides 0.1 mm over the open plane at 10, 20 and 30 m/s, a 5 mm sphere slides 20 mm in a step 0.2 mm past a trunk cylinder, a sphere sinks 50 µm while moving 20 mm across the plane, and 15 mm spheres graze a 5 mm wire and an `L03_medium` conductor at 0.990–0.998 of R + r
 - **THEN** the slides are never a first touch (the current contact, `Time` 1), the sinking sphere's first touch on the plane is exact (`Time` and `Distance` within 1e-12), and every graze is one contact with `Time` in (0, 1), not after its analytic first touch, and its `Distance` within 1 µm of 0
 
+#### Scenario: A pitching core's touch is latched
+- **WHEN** cores of 0.1–0.3 m pitch about their middle at 290–2000 °/s (1 kHz) across a 10 mm twig cylinder, a 0.15 m trunk cylinder and an `L03_medium` conductor, their middle approaching at 10–100 µm a step and sliding up to twice that, judged against a brute-force truth (a Lipschitz branch and bound over the step)
+- **THEN** every sweep that starts more than 5 µm clear and ends more than 1 µm inside is one contact with `Time` in (0, 1), not after the truth's first touch, its `Distance` within 1 µm of 0 and a touch by the truth; a sweep that never touches is never a first touch; one that dips in and comes back clear within the step may count none
+
+#### Scenario: The separating plane never steps past a touch
+- **WHEN** 7.5 mm spheres moved 60 mm in a step graze a sphere, a capsule, a cylinder's side and rim, and a turned box's edges and corners at 0.990–0.998 of their touch distance, or sink 15–75 µm into a cylinder's cap or a box's face across 60 mm
+- **THEN** each is one contact with `Time` in (0, 1), not after its analytic first touch, and its `Distance` within 1 µm of 0
+
 #### Scenario: A rotor ray re-cast from inside a conductor goes on
 - **WHEN** a ray down onto an `L03_medium` conductor is re-cast from 1 mm inside it
 - **THEN** the re-cast does not hit that wire and returns the ground below it, and a ray from inside a segment along the conductor hits nothing of it
