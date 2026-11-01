@@ -76,25 +76,27 @@ namespace Fpv450.Sim.Tests
         }
 
         /// <summary>
-        /// - pole: L01_straight #21 at (0, −34), 30 m north at 1.5 m (ground-contact's "Into a pole" on the test range)
+        /// - pole: L01_straight #21 at (0, −34), 50 m north at 1.5 m (ground-contact's "Into a pole" on the test range; 30 m
+        ///   until p7c-wind 1.6's lower rotor drag let the pilot's speed overshoot there, 11.3 m/s, as on the stub)
         /// - crown: V01_L #31's crown in the posadka, 35 m north at 10 m: among its twig shapes (30 N/m, pushed through)
         ///   and bark limbs, then the belt's trees behind it
         /// - wall: H01_D's south wall (masonry), 30 m north at 1.5 m
         /// - car: R01_A's flank (sheet metal), 30 m south at 0.8 m
-        /// - wire: L03_medium #23's third conductor (y 5.555 at mid-span), 30 m north at 5.73 m: pitched for 10 m/s the
-        ///   front discs span 0.09 m below the CoM to 0.02 m above it, and the pilot holds 0.13 m low at that speed, so the
-        ///   conductor meets their rims
+        /// - wire: L03_medium #23's third conductor (y 5.555 at mid-span), 50 m north at 5.47 m: the front discs' rims meet
+        ///   it first only in a band of the held height 1 cm wide (5.47–5.48 m): held lower the payload meets it first, held
+        ///   higher the front motor; found by a scan in 1 cm steps on p7c-wind 1.6's rotor drag (5.73 m from 30 m on the tuned
+        ///   drag before it)
         /// - climb: straight up at 3 m/s under #23's lowest conductor (5.06 m at mid-span, z −34.263), nose north, the
         ///   CoM 0.22 m south of it: the conductor crosses both front discs' rims (hubs at body z 0.160, r 0.127) clear of
         ///   the coil (to z 0.140), the cans (0.179) and the arms, so a prop ring meets it first (review-physics §6)
         /// </summary>
         public static readonly Approach[] Approaches =
         {
-            new Approach { Name = "pole", Variant = "L01_straight", Occurrence = 3, Foot = new Double3(0, 0, -64), HeadingDeg = 0, Height = 1.5, Speed = 10, ClimbSteps = 3000 },
+            new Approach { Name = "pole", Variant = "L01_straight", Occurrence = 3, Foot = new Double3(0, 0, -84), HeadingDeg = 0, Height = 1.5, Speed = 10, ClimbSteps = 3000 },
             new Approach { Name = "crown", Variant = "V01_L", Occurrence = 0, Foot = new Double3(-136.5, 0, -40), HeadingDeg = 0, Height = 10, Speed = 10, ClimbSteps = 6000 },
             new Approach { Name = "wall", Variant = "H01_D", Occurrence = 0, Foot = new Double3(-125, 0, -90), HeadingDeg = 0, Height = 1.5, Speed = 10, ClimbSteps = 3000 },
             new Approach { Name = "car", Variant = "R01_A", Occurrence = 0, Foot = new Double3(-161.5, 0, -13), HeadingDeg = 180, Height = 0.8, Speed = 10, ClimbSteps = 3000 },
-            new Approach { Name = "wire", Variant = "L03_medium", Occurrence = 1, Foot = new Double3(-140, 0, -64), HeadingDeg = 0, Height = 5.73, Speed = 10, ClimbSteps = 6000 },
+            new Approach { Name = "wire", Variant = "L03_medium", Occurrence = 1, Foot = new Double3(-140, 0, -84), HeadingDeg = 0, Height = 5.47, Speed = 10, ClimbSteps = 6000 },
             new Approach { Name = "climb", Variant = "L03_medium", Occurrence = 1, Foot = new Double3(-140, 0, -34.483), HeadingDeg = 0, Height = 1.5, Speed = 0, ClimbSteps = 3000, ClimbRate = 3 },
         };
 
