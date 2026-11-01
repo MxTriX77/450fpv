@@ -107,8 +107,8 @@ namespace Fpv450.Sim.Tests
         }
 
         // DetMath is the one file allowed System.Math, and inside it only the members IEEE 754 rounds correctly, so they
-        // give the same bits on every runtime: Sqrt, Abs, and Round to an integer. Its Cbrt, SinCos, Exp, Ln and Atan2 are
-        // built from them and + − × ÷ (p7d-tether 1.1); a transcendental call slipped in here would pass the step scan.
+        // give the same bits on every runtime: Sqrt, Abs, and Round to an integer. Its Cbrt, SinCos, Exp, Log and Atan2 are
+        // built from them and + − × ÷ (p7c-wind 1.4, p7d-tether 1.1); a transcendental call slipped in here would pass the step scan.
         static readonly string[] ExactRuntimeMembers = { "Sqrt", "Abs", "Round" };
 
         [Test]

@@ -106,21 +106,58 @@ namespace Fpv450.Sim
             cos = q == 0 ? c : q == 1 ? -s : q == 2 ? -c : s;
         }
 
-        // ---- Exp, Ln and Atan2 (p7d-tether 1.1): fdlibm 5.3's algorithms and constants (Sun Microsystems, 1993,
-        // published), on the basic operations only: no bit access, the binary exponent moved by exact multiplications by
-        // powers of two. Each constant's bits match fdlibm's hex comment; the splits of ln 2, π/2, π and atan(½, 1, 3/2)
-        // into a head and a tail are re-derived exactly (the 1.1 as-built note). ----
+        // ln 2 in two parts (fdlibm's ln2_hi and ln2_lo, published): the first has 32 bits, so k·Ln2Hi is exact for
+        // |k| < 2^21.
+        const double Ln2Hi = 6.93147180369123816490e-01, Ln2Lo = 1.90821492927058770002e-10;
+        const double Sqrt2 = 1.4142135623730951;
 
-        // ln 2 in two parts: Ln2Hi has 32 significant bits, so k·Ln2Hi is exact for every |k| ≤ 1075.
-        const double Ln2Hi = 6.93147180369123816490e-01, Ln2Lo = 1.90821492927058770002e-10, InvLn2 = 1.44269504088896338700e+00;
+        /// <summary>
+        /// The natural logarithm, by the basic operations only (System.Math.Log is not correctly rounded). x = m·2^e
+        /// with m in [√½, √2), e read from the bits exactly (a subnormal is first scaled by 2^54, exactly); then
+        /// ln m = 2·atanh(s), s = (m − 1)/(m + 1), |s| ≤ 0.172, by its series to s^25 (the next term below 2e-21), and
+        /// e·ln 2 in two parts. 0 gives −∞, a negative or NaN gives NaN, +∞ itself.
+        /// </summary>
+        public static double Log(double x)
+        {
+            if (!(x > 0)) return x == 0 ? double.NegativeInfinity : double.NaN;
+            if (x > double.MaxValue) return x;
+            long e = 0;
+            if (x < 2.2250738585072014e-308) { x *= 18014398509481984.0; e = -54; } // 2^54
+            long bits = System.BitConverter.DoubleToInt64Bits(x);
+            e += ((bits >> 52) & 0x7FF) - 1023;
+            double m = System.BitConverter.Int64BitsToDouble((bits & 0x000FFFFFFFFFFFFFL) | 0x3FF0000000000000L);
+            if (m >= Sqrt2) { m *= 0.5; e++; }
+            double s = (m - 1) / (m + 1), s2 = s * s;
+            double series = s2 * (1.0 / 3 + s2 * (1.0 / 5 + s2 * (1.0 / 7 + s2 * (1.0 / 9 + s2 * (1.0 / 11 + s2 * (1.0 / 13
+                + s2 * (1.0 / 15 + s2 * (1.0 / 17 + s2 * (1.0 / 19 + s2 * (1.0 / 21 + s2 * (1.0 / 23 + s2 * (1.0 / 25))))))))))));
+            return e * Ln2Hi + (2 * s + (2 * s * series + e * Ln2Lo));
+        }
 
-        // e^x's rational form on |r| ≤ ln2/2: r·(e^r + 1)/(e^r − 1) ≈ 2 + P1·r² + … + P5·r^10 (Remez, |error| < 2^-59).
-        const double ExpP1 = 1.66666666666666019037e-01, ExpP2 = -2.77777777770155933842e-03, ExpP3 = 6.61375632143793436117e-05,
-            ExpP4 = -1.65339022054652515390e-06, ExpP5 = 4.13813679705723846039e-08;
+        /// <summary>
+        /// e^x, by the basic operations only (System.Math.Exp is not correctly rounded). x = k·ln 2 + r with |r| ≤ ln 2 / 2
+        /// (ln 2 in two parts), e^r by its Taylor series to r^17 (the next term below 1e-23), then 2^k exactly, in two
+        /// steps where k leaves the normal range. Overflow gives +∞, underflow 0, NaN itself.
+        /// </summary>
+        public static double Exp(double x)
+        {
+            if (double.IsNaN(x)) return x;
+            if (x > 709.8) return double.PositiveInfinity;
+            if (x < -745.2) return 0;
+            double k = System.Math.Round(x * 1.4426950408889634); // 1/ln 2; rounding to an integer is exact
+            double r = x - k * Ln2Hi - k * Ln2Lo;
+            double p = 1 + r * (1 + r * (1.0 / 2 + r * (1.0 / 6 + r * (1.0 / 24 + r * (1.0 / 120 + r * (1.0 / 720 + r * (1.0 / 5040
+                + r * (1.0 / 40320 + r * (1.0 / 362880 + r * (1.0 / 3628800 + r * (1.0 / 39916800 + r * (1.0 / 479001600
+                + r * (1.0 / 6227020800 + r * (1.0 / 87178291200 + r * (1.0 / 1307674368000 + r * (1.0 / 20922789888000
+                + r * (1.0 / 355687428096000)))))))))))))))));
+            long n = (long)k;
+            if (n > 1023) { p *= 8.98846567431158e307; n -= 1023; } // 2^1023
+            if (n < -1022) { p *= 2.2250738585072014e-308; n += 1022; } // 2^-1022
+            return p * System.BitConverter.Int64BitsToDouble((n + 1023) << 52);
+        }
 
-        // ln(1 + f) = 2s + s·R(s²), s = f/(2 + f), R ≈ Lg1·s² + … + Lg7·s^14 on √2/2 ≤ 1 + f ≤ √2 (Remez, |error| < 2^-58.45).
-        const double Lg1 = 6.666666666666735130e-01, Lg2 = 3.999999999940941908e-01, Lg3 = 2.857142874366239149e-01,
-            Lg4 = 2.222219843214978396e-01, Lg5 = 1.818357216161805012e-01, Lg6 = 1.531383769920937332e-01, Lg7 = 1.479819860511658591e-01;
+        // ---- Atan2 (p7d-tether 1.1): fdlibm 5.3's algorithm and constants (Sun Microsystems, 1993, published), on the
+        // basic operations only. Each constant's bits match fdlibm's hex comment; the splits of π/2, π and atan(½, 1, 3/2)
+        // into a head and a tail are re-derived exactly (the 1.1 as-built note). Exp and Log are p7c-wind's, above. ----
 
         // atan x ≈ x − x·(aT0·x² + … + aT10·x^22) on |x| ≤ 7/16 (Remez), and atan of the reduction points ½, 1, 3/2 and ∞
         // as a head and a tail.
@@ -133,72 +170,6 @@ namespace Fpv450.Sim
 
         // π in two parts and π/2.
         const double Pi = 3.1415926535897931160e+00, PiLo = 1.2246467991473531772e-16, HalfPi = 1.57079632679489655800e+00;
-
-        const double MinNormal = 2.2250738585072014e-308, TwoTo54 = 18014398509481984.0, Sqrt2 = 1.4142135623730951;
-
-        // 2^(2^i) and 2^-(2^i) for i = 9 … 0 (2^512 … 2), built by exact squaring.
-        static readonly double[] Up = SquaredPowers(2.0), Down = SquaredPowers(0.5);
-
-        static double[] SquaredPowers(double b)
-        {
-            var p = new double[10];
-            for (int i = 9; i >= 0; i--) { p[i] = b; b *= b; }
-            return p;
-        }
-
-        /// <summary>
-        /// e^x by the basic operations only, so every runtime gives the same bits (System.Math.Exp is not correctly
-        /// rounded and differs between C libraries). fdlibm's method: x = k·ln2 + r with |r| ≤ ln2/2 (Cody–Waite, ln 2 in
-        /// two parts), e^r from a degree-5 Remez form in r², then 2^k put on by exact multiplications, the last of them
-        /// rounding once when the result is subnormal. Within 1 ulp of e^x (fdlibm's bound; the tests measure it against
-        /// the runtime's over the whole range). e^NaN is NaN; above 709.78 it is +∞, below −745.13 it is 0.
-        /// </summary>
-        public static double Exp(double x)
-        {
-            if (double.IsNaN(x)) return x;
-            if (x > 7.09782712893383973096e+02) return double.PositiveInfinity;
-            if (x < -7.45133219101941108420e+02) return 0;
-            double k = System.Math.Round(x * InvLn2); // exact: rounding to an integer is one correctly rounded op
-            double hi = x - k * Ln2Hi, lo = k * Ln2Lo, r = hi - lo, t = r * r;
-            double c = r - t * (ExpP1 + t * (ExpP2 + t * (ExpP3 + t * (ExpP4 + t * ExpP5))));
-            double y = 1 - ((lo - r * c / (2 - c)) - hi);
-            int n = (int)k;
-            if (n > 1023) return y * TwoToThe(1023) * 2;          // y < 1 there, so the result is finite
-            if (n < -1021) return y * TwoToThe(n + 1000) * TwoToThe(-1000); // exact, then one rounding into the subnormals
-            return y * TwoToThe(n);
-        }
-
-        /// <summary>
-        /// The natural logarithm by the basic operations only, so every runtime gives the same bits (System.Math.Log is
-        /// not correctly rounded). fdlibm's method: x = 2^k·(1 + f) with √2/2 &lt; 1 + f ≤ √2, the exponent found by exact
-        /// multiplications by powers of two (a subnormal x first scaled by 2^54), then ln(1 + f) from s = f/(2 + f) and a
-        /// degree-7 Remez form in s², in the order that keeps its error under 1 ulp, plus k·ln2 in two parts. ln 1 = +0,
-        /// ln 0 = −∞, ln +∞ = +∞, and a negative x or NaN gives NaN.
-        /// </summary>
-        public static double Ln(double x)
-        {
-            if (!(x > 0)) return x == 0 ? double.NegativeInfinity : double.NaN;
-            if (x > double.MaxValue) return x;
-            int k = 0;
-            double m = x;
-            if (m < MinNormal) { m *= TwoTo54; k = -54; }
-            if (m >= 2)
-            {
-                for (int i = 0, e = 512; i < 10; i++, e >>= 1)
-                    if (m >= Up[i]) { m *= Down[i]; k += e; }
-            }
-            else if (m < 1)
-            {
-                for (int i = 0, e = 512; i < 10; i++, e >>= 1)
-                    if (m * Up[i] < 2) { m *= Up[i]; k -= e; }
-            }
-            if (m > Sqrt2) { m *= 0.5; k++; }
-            double f = m - 1; // exact: m lies within a factor of two of 1
-            double s = f / (2 + f), z = s * s, w = z * z;
-            double t1 = w * (Lg2 + w * (Lg4 + w * Lg6)), t2 = z * (Lg1 + w * (Lg3 + w * (Lg5 + w * Lg7)));
-            double r = t2 + t1, hfsq = 0.5 * f * f, dk = k;
-            return dk * Ln2Hi - ((hfsq - (s * (hfsq + r) + dk * Ln2Lo)) - f);
-        }
 
         /// <summary>
         /// The angle of the point (x, y) from the +x axis, in (−π, π], as System.Math.Atan2(y, x) defines it (the signs of
@@ -240,16 +211,5 @@ namespace Fpv450.Sim
             return AtanHi[id] - ((t * (s1 + s2) - AtanLo[id]) - t);
         }
 
-        // 2^n for −1022 ≤ n ≤ 1023 by exact squaring: every factor and partial product is a normal power of two.
-        static double TwoToThe(int n)
-        {
-            double b = n < 0 ? 0.5 : 2.0, p = 1;
-            for (int m = n < 0 ? -n : n; m != 0; m >>= 1)
-            {
-                if ((m & 1) != 0) p *= b;
-                b *= b;
-            }
-            return p;
-        }
     }
 }

@@ -4,8 +4,8 @@ namespace Fpv450.Sim.Flight
 {
     /// <summary>
     /// The physics' signals, as bits of FeedSignals.Live. Each bit is 1 &lt;&lt; the index of the same name in p4-feed's
-    /// FeedSignal enum, so the feed's SourceOf(signal) is (Live &amp; 1 &lt;&lt; signal) != 0. Bits 11–14 and 16 are the
-    /// feed's signals the physics never publishes (scene light, sun, time of day, rain rate, OSD state).
+    /// FeedSignal enum, so the feed's SourceOf(signal) is (Live &amp; 1 &lt;&lt; signal) != 0. Bits 11–13 and 16 are the
+    /// feed's signals the physics never publishes (scene light, sun, time of day, OSD state).
     /// </summary>
     [Flags]
     public enum FeedSignalSet : uint
@@ -22,6 +22,7 @@ namespace Fpv450.Sim.Flight
         FiberMinBendRadius = 1u << 8,
         LinkState = 1u << 9,
         LinkMargin = 1u << 10,
+        RainRate = 1u << 14,
         AirVelocityAtCamera = 1u << 15,
     }
 
@@ -38,12 +39,13 @@ namespace Fpv450.Sim.Flight
     /// - CameraAngularVelocity: filled (1.1)
     /// - MotorElectricalHz, MotorCurrent (each ESC's draw from the packs), MotorCurrentStep, PackVolts: filled (1.4),
     ///   for a body with propulsion · Impact and Crashed: 1.6 (design 1's list)
-    /// - AirVelocityAtCamera: filled (1.5) from the stand-in wind, then p7c-wind's field
+    /// - AirVelocityAtCamera: filled (1.5), from p7c-wind's field at the setup's CameraPosition (1.7)
+    /// - RainRate: filled (p7c-wind 1.7), the setup's rain: the flight's drawn rate, 0 when Sunny
     /// - CameraVibration: filled (p7b-airframe 1.4, PR-1's throttle-punch shake) with the airframe's modes (VibrationBands);
     ///   with them CameraAngularVelocity gains the frame's elastic turn
     /// - FiberTension, FiberMinBendRadius, LinkState, LinkMargin: stub; 7d
     /// K§11.8's other rows are not the physics': scene light, sun and time of day (the renderer), the OSD state (the
-    /// app), the rain rate (the setup).
+    /// app).
     ///
     /// "Field mean" and "field max" are over the latest whole 20 ms window of sim time (steps 20k to 20k + 19): the
     /// PAL field rate, aligned to the flight, never to the render clock.
@@ -105,6 +107,9 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The link's optical margin above the receiver threshold, dB.</summary>
         public double LinkMarginDb;
+
+        /// <summary>The rain's rate, mm/h (FEED-13's lens drops); 0 when Sunny.</summary>
+        public double RainRateMmPerHour;
 
         /// <summary>The air's velocity at the camera, m/s, in the camera's axes.</summary>
         public Double3 AirVelocityAtCamera;

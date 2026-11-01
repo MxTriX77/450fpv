@@ -79,8 +79,11 @@ namespace Fpv450.Sim.Log
     /// - the drone: drone.json's hash (0 for a body not read from it), its name and the pilot's loadout
     /// - the body the flight started with: the mass model's parts and the mass, CoM and inertia they built
     /// - the propulsion: the motors, the props with their curves, the packs (none for a bench's free body)
-    /// - the airframe's drag (none for a bench's body), and the wind: its model ("stand-in", PHB-06), its level and
-    ///   the level's preset by name (its per-flight draws are the randomness's)
+    /// - the airframe's drag (none for a bench's body), and the wind: its model ("field", p7c-wind 1.4), its level,
+    ///   its start second and the level's preset by name (its per-flight draws are the randomness's), with the
+    ///   wakes' obstacles, the gust front and the canopy strip when the flight has them
+    /// - the rain (p7c-wind 1.7): its level and its preset by name (its per-flight draws, the rate and the film's
+    ///   thickness, are the randomness's), and the camera's lens position the feed's air velocity is taken at
     /// - the flight controller's settings, every field by its CLI name
     /// - the contacts (1.6): drone.json's contact shapes at the loadout with their thresholds, the legs' spring, and the
     ///   physics materials' rows with physics_materials.json's hash (none for a flight without contacts)
@@ -103,7 +106,7 @@ namespace Fpv450.Sim.Log
         public static readonly string[] SetupFieldsLogged =
         {
             "Seed", "Settings", "World", "Mass", "Propulsion", "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate",
-            "StartPackCharge", "Aero", "Wind", "Contacts", "RuntimeObjects", "Asymmetry", "VortexRing", "GroundEffect",
+            "StartPackCharge", "Aero", "Wind", "Rain", "CameraPosition", "Contacts", "RuntimeObjects", "Asymmetry", "VortexRing", "GroundEffect",
             "Flapping", "Modes", "Tether",
         };
 
@@ -159,7 +162,11 @@ namespace Fpv450.Sim.Log
             "StaticTorqueRatio", "InflowAdvanceRatio", "InflowThrustRatio", "InflowTorqueRatio", "HForce",
         };
         public static readonly string[] AeroFieldsLogged = { "AirDensity", "BodyArea", "BodyCenterOfPressure", "DragCoefficient", "CoilPart" };
-        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg", "SteadyOnsetSeconds" };
+        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg", "SteadyOnsetSeconds", "StartSecond", "Wakes", "Front", "Canopy" };
+        public static readonly string[] WakeFieldsLogged = { "OriginX", "OriginZ", "NX", "NZ", "Volumes" };
+        public static readonly string[] VolumeFieldsLogged = { "Kind", "X", "Z", "BaseM", "TopM", "HalfX", "HalfZ", "Radius", "Yaw", "Porosity" };
+        public static readonly string[] FrontFieldsLogged = { "Start", "Normal", "Delta", "Speed", "Width", "Uniform" };
+        public static readonly string[] CanopyFieldsLogged = { "CentreX", "CentreZ", "AxisDeg", "Length", "Width", "Height", "FrontalAreaIndex" };
         public static readonly string[] AsymmetryFieldsLogged = { "KvBound", "KvSigma", "EscLagBound", "BalanceGrade", "PropMass", "ServiceRpm" };
         public static readonly string[] VortexRingFieldsLogged =
         {
@@ -171,7 +178,7 @@ namespace Fpv450.Sim.Log
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
             TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
             TagRuntimeObjects = 14, TagInput = 15, TagAsymmetry = 16, TagVortexRing = 17, TagGroundEffect = 18, TagFlapping = 19,
-            TagModes = 20, TagTether = 21;
+            TagModes = 20, TagRain = 21, TagTether = 22;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -204,6 +211,12 @@ namespace Fpv450.Sim.Log
         public string WindModel = WindPreset.Model;
         public WindSetup Wind;
         public NamedValue[] WindParameters = new NamedValue[0];
+
+        /// <summary>The rain: its level and its preset by name (empty when Sunny), and the camera's lens, body m. A log
+        /// without the entry is Sunny with the camera at the body's origin.</summary>
+        public RainLevel Rain;
+        public NamedValue[] RainParameters = new NamedValue[0];
+        public Double3 CameraPosition;
 
         /// <summary>The contacts; null for none.</summary>
         public ContactSpec Contacts;
@@ -290,6 +303,9 @@ namespace Fpv450.Sim.Log
                 Aero = setup.Aero?.Clone(),
                 Wind = setup.Wind,
                 WindParameters = PresetOf(setup.Wind.Level),
+                Rain = setup.Rain,
+                RainParameters = RainPreset.Named(setup.Rain),
+                CameraPosition = setup.CameraPosition,
                 Contacts = setup.Contacts?.Clone(),
                 Asymmetry = setup.Asymmetry?.Clone(),
                 VortexRing = setup.VortexRing?.Clone(),
@@ -334,9 +350,24 @@ namespace Fpv450.Sim.Log
             return new[]
             {
                 new NamedValue("mean_lo_m_s", p.MeanLo), new NamedValue("mean_hi_m_s", p.MeanHi),
-                new NamedValue("intensity_sigma_over_u", WindPreset.Intensity), new NamedValue("vertical_over_horizontal_sigma", WindPreset.VerticalRatio),
-                new NamedValue("horizontal_scale_m", WindPreset.HorizontalScale), new NamedValue("vertical_scale_m", WindPreset.VerticalScale),
-                new NamedValue("gust_bound_sigma", WindPreset.GustBound),
+                new NamedValue("reference_height_m", p.ReferenceHeight), new NamedValue("cover_height_m", p.CoverHeight),
+                new NamedValue("roughness_over_cover", p.RoughnessRatio), new NamedValue("displacement_over_cover", p.DisplacementRatio),
+                new NamedValue("profile_top_m", p.ProfileTop), new NamedValue("taper_height_m", p.TaperHeight),
+                new NamedValue("intensity_sigma_over_u", p.Intensity), new NamedValue("vertical_over_horizontal_sigma", p.VerticalRatio),
+                new NamedValue("horizontal_scale_m", p.HorizontalScale), new NamedValue("vertical_scale_m", p.VerticalScale),
+                new NamedValue("modes", p.Modes), new NamedValue("shortest_wavelength_m", p.ShortestWavelength),
+                new NamedValue("longest_over_knee", p.LongestFraction),
+                new NamedValue("wake_eddy_min_over_h", p.WakeEddyMin), new NamedValue("wake_eddy_max_over_h", p.WakeEddyMax),
+                new NamedValue("wake_modes", p.WakeModes),
+                new NamedValue("canopy_sigma_u_over_ustar", p.CanopySigmaU), new NamedValue("canopy_sigma_v_over_ustar", p.CanopySigmaV),
+                new NamedValue("canopy_sigma_w_over_ustar", p.CanopySigmaW), new NamedValue("canopy_scale_u_over_h", p.CanopyScaleU),
+                new NamedValue("canopy_scale_w_over_h", p.CanopyScaleW), new NamedValue("canopy_modes", p.CanopyModes),
+                new NamedValue("canopy_convection_over_uh", p.CanopyConvection), new NamedValue("canopy_decay_power", p.CanopyDecay),
+                new NamedValue("blending_over_h", p.BlendingHeights), new NamedValue("canopy_edge_over_h", p.CanopyEdge),
+                new NamedValue("meander_sigma_deg", p.MeanderSigmaDeg), new NamedValue("meander_tau_s", p.MeanderTau),
+                new NamedValue("meander_lag_s", p.MeanderLag), new NamedValue("shift_rate_per_s", p.ShiftRate),
+                new NamedValue("shift_lo_deg", p.ShiftLoDeg), new NamedValue("shift_hi_deg", p.ShiftHiDeg),
+                new NamedValue("ramp_lo_s", p.RampLo), new NamedValue("ramp_hi_s", p.RampHi), new NamedValue("horizon_s", p.Horizon),
             };
         }
 
@@ -372,6 +403,8 @@ namespace Fpv450.Sim.Log
                 StartPackCharge = StartPackCharge,
                 Aero = Aero?.Clone(),
                 Wind = Wind,
+                Rain = Rain,
+                CameraPosition = CameraPosition,
                 Contacts = Contacts?.Clone(),
                 Asymmetry = Asymmetry?.Clone(),
                 VortexRing = VortexRing?.Clone(),
@@ -585,12 +618,48 @@ namespace Fpv450.Sim.Log
                 e.Write(Wind.SteadySpeed);
                 e.Write(Wind.SteadyFromDeg);
                 e.Write(Wind.SteadyOnsetSeconds);
+                e.Write(Wind.StartSecond);
                 e.Write((ushort)WindParameters.Length);
                 foreach (NamedValue v in WindParameters)
                 {
                     Text(e, v.Name);
                     e.Write(v.Value);
                 }
+                // The wakes' obstacles (p7c-wind 1.5) with the wake grid's version, and the gust front (1.4), each after a flag.
+                WakeLayout b = Wind.Wakes;
+                e.Write(b != null);
+                if (b != null)
+                {
+                    e.Write(WakeGrid.Version);
+                    e.Write(b.OriginX);
+                    e.Write(b.OriginZ);
+                    e.Write(b.NX);
+                    e.Write(b.NZ);
+                    e.Write(b.Volumes.Length);
+                    foreach (WindVolume v in b.Volumes)
+                    {
+                        e.Write((byte)v.Kind);
+                        foreach (double x in new[] { v.X, v.Z, v.BaseM, v.TopM, v.HalfX, v.HalfZ, v.Radius, v.Yaw, v.Porosity })
+                            e.Write(x);
+                    }
+                }
+                GustFront g = Wind.Front;
+                e.Write(g != null);
+                if (g != null)
+                {
+                    V3(e, g.Start);
+                    V3(e, g.Normal);
+                    V3(e, g.Delta);
+                    e.Write(g.Speed);
+                    e.Write(g.Width);
+                    e.Write(g.Uniform);
+                }
+                // The canopy strip (p7c-wind 1.5, format 9) after its flag.
+                CanopyStrip c = Wind.Canopy;
+                e.Write(c != null);
+                if (c == null) return;
+                foreach (double x in new[] { c.CentreX, c.CentreZ, c.AxisDeg, c.Length, c.Width, c.Height, c.FrontalAreaIndex })
+                    e.Write(x);
             });
             Entry(w, TagContacts, e =>
             {
@@ -627,6 +696,17 @@ namespace Fpv450.Sim.Log
                     e.Write(m.DampingRatio);
                 }
                 e.Write(c.MaterialsHash);
+            });
+            Entry(w, TagRain, e =>
+            {
+                e.Write((byte)Rain);
+                e.Write((ushort)RainParameters.Length);
+                foreach (NamedValue v in RainParameters)
+                {
+                    Text(e, v.Name);
+                    e.Write(v.Value);
+                }
+                V3(e, CameraPosition);
             });
             Entry(w, TagAsymmetry, e =>
             {
@@ -928,12 +1008,48 @@ namespace Fpv450.Sim.Log
                         break;
                     case TagWind:
                         WindModel = Text(r);
-                        Wind = new WindSetup { Level = (WindLevel)r.ReadByte(), SteadySpeed = r.ReadDouble(), SteadyFromDeg = r.ReadDouble(), SteadyOnsetSeconds = r.ReadDouble() };
+                        Wind = new WindSetup
+                        {
+                            Level = (WindLevel)r.ReadByte(), SteadySpeed = r.ReadDouble(), SteadyFromDeg = r.ReadDouble(),
+                            SteadyOnsetSeconds = r.ReadDouble(), StartSecond = r.ReadInt32(),
+                        };
                         WindParameters = new NamedValue[r.ReadUInt16()];
                         for (int i = 0; i < WindParameters.Length; i++) WindParameters[i] = new NamedValue(Text(r), r.ReadDouble());
+                        if (r.ReadBoolean())
+                        {
+                            int wakeVersion = r.ReadInt32();
+                            if (wakeVersion != WakeGrid.Version)
+                                throw new FlightLogException("the log's wake grid is version " + wakeVersion + "; this build's is " + WakeGrid.Version);
+                            Wind.Wakes = new WakeLayout { OriginX = r.ReadDouble(), OriginZ = r.ReadDouble(), NX = r.ReadInt32(), NZ = r.ReadInt32() };
+                            Wind.Wakes.Volumes = new WindVolume[r.ReadInt32()];
+                            for (int i = 0; i < Wind.Wakes.Volumes.Length; i++)
+                                Wind.Wakes.Volumes[i] = new WindVolume
+                                {
+                                    Kind = (WindVolumeKind)r.ReadByte(), X = r.ReadDouble(), Z = r.ReadDouble(), BaseM = r.ReadDouble(),
+                                    TopM = r.ReadDouble(), HalfX = r.ReadDouble(), HalfZ = r.ReadDouble(), Radius = r.ReadDouble(),
+                                    Yaw = r.ReadDouble(), Porosity = r.ReadDouble(),
+                                };
+                        }
+                        if (r.ReadBoolean())
+                            Wind.Front = new GustFront
+                            {
+                                Start = V3(r), Normal = V3(r), Delta = V3(r), Speed = r.ReadDouble(), Width = r.ReadDouble(), Uniform = r.ReadBoolean(),
+                            };
+                        if (r.ReadBoolean())
+                            Wind.Canopy = new CanopyStrip
+                            {
+                                CentreX = r.ReadDouble(), CentreZ = r.ReadDouble(), AxisDeg = r.ReadDouble(), Length = r.ReadDouble(),
+                                Width = r.ReadDouble(), Height = r.ReadDouble(), FrontalAreaIndex = r.ReadDouble(),
+                            };
                         break;
                     case TagContacts:
                         Contacts = r.ReadBoolean() ? ReadContacts(r) : null;
+                        break;
+                    case TagRain:
+                        Rain = (RainLevel)r.ReadByte();
+                        RainParameters = new NamedValue[r.ReadUInt16()];
+                        for (int i = 0; i < RainParameters.Length; i++) RainParameters[i] = new NamedValue(Text(r), r.ReadDouble());
+                        CameraPosition = V3(r);
                         break;
                     case TagAsymmetry:
                         Asymmetry = r.ReadBoolean()

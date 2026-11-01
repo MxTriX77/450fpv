@@ -51,8 +51,16 @@ namespace Fpv450.Sim.Flight
         /// the rotors' in-plane drag comes with the propulsion.</summary>
         public AeroSpec Aero;
 
-        /// <summary>The wind (StandInWind): a pilot's level, or still or steady air for a bench. Still by default.</summary>
+        /// <summary>The wind (WindField): a pilot's level, or still or steady air for a bench. Still by default.</summary>
         public WindSetup Wind;
+
+        /// <summary>The rain (RainField, p7c-wind 1.7): the pilot's own setting, independent of the wind. Sunny by default.
+        /// Rain needs the airframe's drag (Aero), whose silhouettes it falls on.</summary>
+        public RainLevel Rain;
+
+        /// <summary>The camera's lens, body m (drone.json's camera block, DroneSpec.CameraPosition): where the feed's air
+        /// velocity at the camera is taken. The body's origin by default.</summary>
+        public Double3 CameraPosition;
 
         /// <summary>The contacts (DroneSpec.BuildContacts, 1.6): null for none (a bench's free body, a flight in open air).</summary>
         public Contact.ContactSpec Contacts;
@@ -82,15 +90,15 @@ namespace Fpv450.Sim.Flight
     /// own thread; a replay or a bench calls Advance directly.
     ///
     /// The body is RigidBody's, with the mass, centre of mass and inertia of the setup's MassModel (1.3). Its forces:
-    /// the flight controller and propulsion (1.4) when the setup has propulsion; the air (1.5): the stand-in wind
-    /// (StandInWind), sampled at each hub, at the body's centre of pressure and at the coil, the rotors' axial
+    /// the flight controller and propulsion (1.4) when the setup has propulsion; the air (1.5): the wind
+    /// field (WindField, p7c-wind), sampled at each hub, at the body's centre of pressure and at the coil, the rotors' axial
     /// inflow and in-plane drag (Propulsion), the body's and the coil's drag (Aero), and the rotors' gyroscopic
     /// moment; the contacts (ContactModel, 1.6): the legs, the frame's parts and their friction on the ground and the
     /// world's objects. A bench's body without propulsion is a free one, gravity and the torque-free motion of its
     /// inertia (and the drag, when its setup has an AeroSpec).
     ///
-    /// Each step first advances the wind's gust from its stream (the gust in the record is the one that acted), then
-    /// takes every force from the step's starting state (the contacts' from the planes and ground the last step's sweep
+    /// Each step first fixes the wind field's frame (its time and the ground under the body; the record carries the wind
+    /// that acted at the body's origin and at each hub), then takes every force from the step's starting state (the contacts' from the planes and ground the last step's sweep
     /// left at that pose), then moves the body, then sweeps the contact shapes from the old pose to the new one.
     ///
     /// The controller runs at its real 4 kHz: each step is FlightController.LoopsPerStep loops, each followed by a
@@ -125,9 +133,15 @@ namespace Fpv450.Sim.Flight
         readonly FlightController _fc;
         readonly Propulsion _propulsion;
         readonly Aero _aero;
-        readonly StandInWind _wind;
+        readonly WindField _wind;
+        readonly RainField _rain;
+        readonly int _filmPart = -1;
+        readonly Double3 _camera;
+        double _rainMassRate;
         readonly Contact.ContactModel _contacts;
         readonly Double3[] _hubWind = new Double3[4];
+        readonly Sim.World.XZ[] _windAt = new Sim.World.XZ[1];
+        readonly Sim.World.GroundSample[] _windGround = new Sim.World.GroundSample[1];
         readonly RotorSurfaces _surfaces; // the rotors' surfaces (GroundEffectSpec), or null
         readonly AirframeModes _modes; // the airframe's modes (AirframeModesSpec), or null
         readonly VibrationBands _vibration; // the camera mount's vibration, with the modes
@@ -147,22 +161,38 @@ namespace Fpv450.Sim.Flight
             if (setup == null) throw new ArgumentNullException(nameof(setup));
             World = setup.World ?? throw new ArgumentException("the setup needs a world", nameof(setup));
             _settings = setup.Settings;
-            _mass = (setup.Mass ?? throw new ArgumentException("the setup needs a mass model", nameof(setup))).Clone();
+            MassModel mass = (setup.Mass ?? throw new ArgumentException("the setup needs a mass model", nameof(setup))).Clone();
             Random = new FlightRandom(setup.Seed);
             if (setup.Aero != null)
             {
-                if (setup.Aero.CoilPart >= _mass.PartCount || (setup.Aero.CoilPart >= 0 && _mass.Part(setup.Aero.CoilPart).Kind != PartKind.Cylinder))
+                if (setup.Aero.CoilPart >= mass.PartCount || (setup.Aero.CoilPart >= 0 && mass.Part(setup.Aero.CoilPart).Kind != PartKind.Cylinder))
                     throw new ArgumentException("the aero spec's coil is not a cylinder of the mass model", nameof(setup));
                 _aero = new Aero(setup.Aero);
             }
-            _wind = new StandInWind(setup.Wind, Random);
+            _wind = new WindField(setup.Wind, Random);
+            _camera = setup.CameraPosition;
+
+            // The rain (a Sunny flight builds none and opens no stream): its draws, then its film as the mass model's
+            // last part, at 0 kg until the drops fill it (0 kg leaves the model's mass, centre and inertia bit for bit).
+            if (setup.Rain != RainLevel.Sunny)
+            {
+                if (_aero == null) throw new ArgumentException("rain needs the airframe's drag (an AeroSpec)", nameof(setup));
+                int coil = setup.Aero.CoilPart;
+                _rain = new RainField(setup.Rain, Random, setup.Aero, coil >= 0 ? Aero.CoilSurface(mass.Part(coil)) : 0);
+                var parts = new DronePart[mass.PartCount + 1];
+                for (int i = 0; i < mass.PartCount; i++) parts[i] = mass.Part(i);
+                parts[mass.PartCount] = RainField.FilmPartOf(setup.Aero);
+                mass = new MassModel(parts);
+                _filmPart = mass.PartCount - 1;
+                if (_rain.FilmMass > 0) mass.SetPartMass(_filmPart, _rain.FilmMass);
+            }
+            _mass = mass;
             _state = new FlightState
             {
                 Position = setup.StartPosition,
                 Velocity = setup.StartVelocity,
                 Attitude = setup.StartAttitude.Normalized(),
                 BodyRate = setup.StartBodyRate,
-                Gust = _wind.StartGust,
             };
             if (setup.Propulsion != null)
             {
@@ -241,7 +271,10 @@ namespace Fpv450.Sim.Flight
         public VibrationBands Vibration => _vibration;
 
         /// <summary>The flight's wind, with its per-flight draws.</summary>
-        public StandInWind Wind => _wind;
+        public WindField Wind => _wind;
+
+        /// <summary>The flight's rain, or null for a Sunny flight.</summary>
+        public RainField Rain => _rain;
 
         /// <summary>The airframe's drag, or null for none.</summary>
         public Aero Aero => _aero;
@@ -263,7 +296,7 @@ namespace Fpv450.Sim.Flight
         {
             ref FlightState s = ref _state;
             _events.Clear();
-            _wind.Advance(ref s.Gust, s.Step);
+            BeginWind(s);
 
             // The net force (world, N) and the net moment about the CoM (body, N·m), weight aside; the air's share
             // of them in body axes.
@@ -293,6 +326,12 @@ namespace Fpv450.Sim.Flight
             s.Step++;
             if (_contacts != null) _contacts.Sense(was, ref s, _events);
             if (_vibration != null) _vibration.Add(CameraAcceleration(was, s), FieldSteps);
+
+            // The film takes the water the drops brought this step; the next step flies its mass.
+            if (_rain == null) return;
+            _rain.Fill(_rainMassRate, Dt);
+            _mass.SetPartMass(_filmPart, _rain.FilmMass);
+            _trace.FilmMass = _rain.FilmMass;
         }
 
         // The camera mount's acceleration over the step, body m/s²: the body origin's (from its velocities), the turn's at the
@@ -305,26 +344,76 @@ namespace Fpv450.Sim.Flight
             return a + Double3.Cross(alpha, r) + Double3.Cross(w, Double3.Cross(w, r)) + _modes.CameraAcceleration(_modeAccel);
         }
 
-        // The body's and the coil's drag (Aero) on the air's velocity at their centres, into the air's body-axis sums.
+        // The wind field's frame for the step that starts at s (WindField.Begin): the ground under the body's origin from
+        // the world when the field has a profile, and the wind there for the record.
+        void BeginWind(in FlightState s)
+        {
+            double ground = 0;
+            if (_wind.HasProfile)
+            {
+                _windAt[0] = new Sim.World.XZ(s.Position.X, s.Position.Z);
+                World.SampleGround(_windAt, _windGround);
+                ground = _windGround[0].Height;
+            }
+            _wind.Begin(s.Step, s.Position, ground);
+            _trace.Wind = _wind.At(s.Position);
+            _trace.CameraAir = AirAtCamera(s);
+        }
+
+        // The air's velocity at the camera, in its axes (the body's, 0° uptilt): the wind there less the camera's motion,
+        // v + ω × r.
+        Double3 AirAtCamera(in FlightState s) =>
+            s.Attitude.InverseRotate(_wind.At(s.Position + s.Attitude.Rotate(_camera)) - s.Velocity) - Double3.Cross(s.BodyRate, _camera);
+
+        // The body's and the coil's drag (Aero) on the air's velocity at their centres, into the air's body-axis sums;
+        // in rain, the drops' momentum flux on the same silhouettes (RainField), and the water they bring.
         void Drag(in FlightState s, in MassProperties body, ref Double3 force, ref Double3 moment)
         {
             Double3 v = s.Attitude.InverseRotate(s.Velocity), com = body.CenterOfMass;
             Double3 cp = _aero.Spec.BodyCenterOfPressure;
-            Double3 f = _aero.Body(Air(s, v, cp));
+            Double3 a = Air(s, v, cp);
+            Double3 f = _aero.Body(a);
             force = force + f;
             moment = moment + Double3.Cross(cp - com, f);
+            Double3 fall = default, rain = default;
+            double flux = 0;
+            if (_rain != null)
+            {
+                // The airframe's velocity through the drops: through the air, plus the drops' fall in body axes.
+                fall = s.Attitude.InverseRotate(new Double3(0, _rain.FallSpeed, 0));
+                Double3 u = a + fall;
+                flux = _aero.BodyFlux(u);
+                rain = _rain.Force(u, flux);
+                moment = moment + Double3.Cross(cp - com, rain);
+            }
             int coil = _aero.Spec.CoilPart;
-            if (coil < 0) return;
-            ref readonly DronePart part = ref _mass.Part(coil);
-            f = _aero.Coil(Air(s, v, part.Position), part);
-            force = force + f;
-            moment = moment + Double3.Cross(part.Position - com, f);
+            if (coil >= 0)
+            {
+                ref readonly DronePart part = ref _mass.Part(coil);
+                a = Air(s, v, part.Position);
+                f = _aero.Coil(a, part);
+                force = force + f;
+                moment = moment + Double3.Cross(part.Position - com, f);
+                if (_rain != null)
+                {
+                    Double3 u = a + fall;
+                    double c = Aero.CoilFlux(u, part);
+                    f = _rain.Force(u, c);
+                    flux += c;
+                    rain = rain + f;
+                    moment = moment + Double3.Cross(part.Position - com, f);
+                }
+            }
+            if (_rain == null) return;
+            force = force + rain;
+            _rainMassRate = _rain.WaterContent * flux;
+            _trace.RainForce = s.Attitude.Rotate(rain);
         }
 
         // A body point's velocity through the air, body m/s: the body origin's velocity v (body) plus ω × r, less the
         // wind there.
         Double3 Air(in FlightState s, in Double3 v, in Double3 point) =>
-            v + Double3.Cross(s.BodyRate, point) - s.Attitude.InverseRotate(_wind.At(s.Gust, s.Position + s.Attitude.Rotate(point)));
+            v + Double3.Cross(s.BodyRate, point) - s.Attitude.InverseRotate(_wind.At(s.Position + s.Attitude.Rotate(point)));
 
         // The controller's loops and propulsion's sub-steps for one step; the rotors' mean loads on the body: their
         // thrust and reaction into force (world) and moment, their in-plane drag into the air's sums (body).
@@ -332,7 +421,7 @@ namespace Fpv450.Sim.Flight
             ref Double3 airForce, ref Double3 airMoment)
         {
             for (int i = 0; i < 4; i++)
-                _hubWind[i] = _wind.At(s.Gust, s.Position + s.Attitude.Rotate(_propulsion.Hub(i)));
+                _trace.RotorWind[i] = _hubWind[i] = _wind.At(s.Position + s.Attitude.Rotate(_propulsion.Hub(i)));
             if (_surfaces != null)
             {
                 _surfaces.Find(World, s, out Corners below, out Corners above);
@@ -527,16 +616,15 @@ namespace Fpv450.Sim.Flight
         /// <summary>The feed signals of the current state (FeedSignals says which are live).</summary>
         public void GetSignals(out FeedSignals signals)
         {
-            // The air at the camera, in its axes (the body's, 0° uptilt): the wind less the camera's motion, taken at
-            // the body origin (drone.json has no camera position yet; within 0.1 m, ω × r is below 0.1·|ω| m/s).
+            // The air at the camera's lens (the setup's CameraPosition) in its axes, and the rain's rate (0 when Sunny).
             ref readonly FlightState s = ref _state;
-            Double3 air = s.Attitude.InverseRotate(_wind.At(s.Gust, s.Position) - s.Velocity);
             signals = new FeedSignals
             {
-                Live = FeedSignalSet.CameraAngularVelocity | FeedSignalSet.AirVelocityAtCamera,
+                Live = FeedSignalSet.CameraAngularVelocity | FeedSignalSet.AirVelocityAtCamera | FeedSignalSet.RainRate,
                 Step = _state.Step,
                 CameraAngularVelocity = _state.BodyRate,
-                AirVelocityAtCamera = air,
+                AirVelocityAtCamera = AirAtCamera(s),
+                RainRateMmPerHour = _rain != null ? _rain.RateMmPerHour : 0,
                 Crashed = _state.Crashed,
             };
             if (_contacts != null)

@@ -8,10 +8,10 @@ using Fpv450.Sim.Wind;
 
 namespace Fpv450.FlightBench
 {
-    // The aero and wind scenarios (p6-flight-core 1.5), from the same files the suite compiles (CrosswindScenario,
-    // WindTargets, SimPilot): the crosswind lean under the closed-loop pilot, the cruise trim, and the stand-in wind's
-    // targets, each statistical target also run on a known-wrong model that must fail it. PASS needs every target met
-    // and every known-wrong model failed.
+    // The aero and wind scenarios (p6-flight-core 1.5, p7c-wind 1.4), from the same files the suite compiles
+    // (CrosswindScenario, WindHarness, WindTargets, GustFrontScenario, SimPilot): the crosswind lean under the closed-loop
+    // pilot, clip P's pitch flying the cruise (p7c-wind 1.6), and the wind field's open-air targets, each statistical target also run on a known-wrong model that
+    // must fail it. PASS needs every target met and every known-wrong model failed.
     internal static class ScenariosCase
     {
         static bool _ok = true;
@@ -32,13 +32,18 @@ namespace Fpv450.FlightBench
             $"lean {r.LeanDeg:F2}° = {r.LeanPerMs:F3}° per m/s of {r.WindSpeed:F2} m/s, {r.LeanOffWindDeg:F1}° off the wind's bearing, "
             + $"position error {r.MeanError:F3} m mean / {r.MaxError:F3} m max, drift {r.Drift:F4} m/s";
 
-        static bool LeanTarget(CrosswindScenario.Result r) => r.LeanPerMs >= 0.95 && r.LeanPerMs <= 2.6 && r.LeanOffWindDeg < 5;
+        static (long, long, long) Bits(Double3 v) =>
+            (BitConverter.DoubleToInt64Bits(v.X), BitConverter.DoubleToInt64Bits(v.Y), BitConverter.DoubleToInt64Bits(v.Z));
+
+        static bool LeanTarget(CrosswindScenario.Result r) =>
+            r.LeanPerMs >= CrosswindScenario.HoverLeanLo && r.LeanPerMs <= CrosswindScenario.HoverLeanHi && r.LeanOffWindDeg < 5;
 
         public static bool Run()
         {
             DroneSpec spec = PoweredFlightCase.Drone();
 
-            Console.WriteLine("crosswind lean (flight-dynamics, K§6.5: 0.95–2.6° per m/s, nominal 1.8, into the wind), the drone holding its point "
+            Console.WriteLine($"crosswind lean in a hover (flight-dynamics: the drag's bands over the weight, {CrosswindScenario.HoverLeanLo:F2}–{CrosswindScenario.HoverLeanHi:F2}° "
+                + $"per m/s in a steady 5 m/s, to {CrosswindScenario.GustLeanHi:F2} × U/5 above 5 m/s in the Severe field; into the wind), the drone holding its point "
                 + $"under the closed-loop pilot, the last {CrosswindScenario.MeasuredSeconds:F0} s of {CrosswindScenario.Seconds:F0}:");
             foreach (double from in new[] { 270.0, 0, 90, 180, 45, 135 })
             {
@@ -48,24 +53,33 @@ namespace Fpv450.FlightBench
             foreach (ulong seed in new ulong[] { 1, 2, 3, 4, 5 })
             {
                 CrosswindScenario.Result r = CrosswindScenario.Hold(CrosswindScenario.Setup(spec, WindSetup.Of(WindLevel.Severe), seed));
-                Row($"Severe stand-in, seed {seed}", r.LeanPerMs >= 0.95 && r.LeanPerMs <= 2.6 && r.LeanOffWindDeg < 10, Lean(r));
+                Row($"Severe field, seed {seed}", r.LeanPerMs >= CrosswindScenario.HoverLeanLo && r.LeanPerMs <= CrosswindScenario.GustLeanHiAt(r.WindSpeed) && r.LeanOffWindDeg < 10, Lean(r));
             }
             CrosswindScenario.Result none = CrosswindScenario.Hold(CrosswindScenario.Setup(spec, WindSetup.SteadyFrom(270, 5), drag: false, rotorDrag: false));
             Row("known-wrong: no drag", LeanTarget(none), Lean(none), knownWrong: true);
             CrosswindScenario.Result body = CrosswindScenario.Hold(CrosswindScenario.Setup(spec, WindSetup.SteadyFrom(270, 5), rotorDrag: false));
             Row("known-wrong: the body's drag alone, no rotor in-plane drag", LeanTarget(body), Lean(body), knownWrong: true);
 
-            Console.Write("  cruise trim in still air, the pitch that holds an airspeed (clip P: 22.7° at wind.md §5.3's nominal 13 m/s; the published cruise 17–22 m/s):");
-            foreach (double v in new[] { 13.0, 17, 22 }) Console.Write($" {v:F0} m/s {CrosswindScenario.CruisePitch(spec, v):F1}°;");
+            Console.WriteLine("clip P's pitch flies the cruise (wind-turbulence, p7c-wind 1.6, PHY-17a): the harness pilot holds 22.7° of pitch, a heading "
+                + "and 35 m in still air at the nominal loadout; it settles inside the published 17–22 m/s, the last 10 s of 39:");
+            double slow = WindHarness.HeldPitchAirspeed(spec, 13, out double pitchSlow), fast = WindHarness.HeldPitchAirspeed(spec, 25, out double pitchFast);
+            Row("released at 13 m/s and at 25 m/s", slow >= 17 && slow <= 22 && Math.Abs(fast - slow) <= 0.05
+                    && Math.Abs(pitchSlow + 22.7) <= 0.3 && Math.Abs(pitchFast + 22.7) <= 0.3,
+                $"settles at {slow:F2} m/s (pitch {pitchSlow:F2}°) and {fast:F2} m/s ({pitchFast:F2}°)");
+            Row("the harness's release is the cruise", Math.Abs(WindHarness.ReleaseSpeed - slow) <= 0.3, $"{WindHarness.ReleaseSpeed:F1} m/s");
+            double old = WindHarness.HeldPitchAirspeed(spec, 13, out _, hForce: double.Parse(GoldenFlights.TunedHForce, System.Globalization.CultureInfo.InvariantCulture));
+            Row("known-wrong: unity/main's rotor drag, tuned to 13 m/s (p7b-airframe 1.7)", old >= 17 && old <= 22, $"{old:F2} m/s", knownWrong: true);
+            double v = WindHarness.ReleaseSpeed;
+            double lean0 = CrosswindScenario.CruiseLean(spec, v, 0), lean2 = CrosswindScenario.CruiseLean(spec, v, 2);
+            double perMs = (lean2 - lean0) / 2, relation = 23.4 / v, roll = WindHarness.CruiseRollPerMs(spec, WindPreset.SevereCentre);
+            Row($"at the cruise, {v:F1} m/s north, a 2 m/s crosswind from the west, the nose on the track", Math.Abs(perMs / relation - 1) <= 0.15,
+                $"{lean2 - lean0:F2}° more lean = {perMs:F3}° per m/s (wind.md §5.3's 23.4°/V: {relation:F3}); as the tracker's roll {roll:F3}, "
+                + $"so {roll * WindPreset.SevereCentre:F1}° in Severe's {WindPreset.SevereCentre:F1} m/s abeam (T0, graded by wind_stats.py: 9 ± 3)");
+            Console.Write("  cruise trim in still air, the pitch that holds an airspeed:");
+            foreach (double speed in new[] { 13.0, 17, v, 22 }) Console.Write($" {speed:F1} m/s {CrosswindScenario.CruisePitch(spec, speed):F1}°;");
             Console.WriteLine();
-            double pitch = CrosswindScenario.CruisePitch(spec, 13);
-            double lean0 = CrosswindScenario.CruiseLean(spec, 13, 0), lean2 = CrosswindScenario.CruiseLean(spec, 13, 2);
-            double perMs = (lean2 - lean0) / 2;
-            Row("at cruise, 13 m/s north, a 2 m/s crosswind from the west, the nose on the track",
-                pitch >= 22.4 && pitch <= 23.0 && perMs >= 0.95 && perMs <= 2.6,
-                $"pitch {pitch:F2}° (P: 22.7°), {lean2 - lean0:F2}° more lean = {perMs:F3}° per m/s (wind.md §5.3: 1.8 nominal)");
 
-            Console.WriteLine("stand-in wind (wind-field, design 8):");
+            Console.WriteLine("the wind field (wind-turbulence, p7c-wind 1.4, design 3 and 5):");
             var calm = new List<WindTargets.History>();
             var still = new List<WindTargets.History>();
             var vector = new List<WindTargets.History>();
@@ -80,18 +94,34 @@ namespace Fpv450.FlightBench
             Row("known-wrong: still air", WindTargets.NeverStill(still, out d), d, knownWrong: true);
             Row("known-wrong: a fixed vector", WindTargets.NeverStill(vector, out d), d, knownWrong: true);
 
-            // The same seed, the same wind: two bench flights on one seed, flown differently.
-            FlightSetup a = WindTargets.BenchFlight(WindLevel.Windy, 0x450F), b = WindTargets.BenchFlight(WindLevel.Windy, 0x450F);
-            b.StartVelocity = new Double3(3, 1, -2);
-            FlightCore ca = new FlightCore(a), cb = new FlightCore(b);
-            int same = 0;
-            for (int k = 0; k < 60000; k++)
+            // Same seed, same wind: two powered flights on one seed and level, flown alike, the wind at every rotor and
+            // at the body compared bit for bit at every step; a different seed draws another direction.
+            int same = 0, steps = 20000, rotors = 0;
             {
-                ca.Advance(default);
-                cb.Advance(default);
-                if (ca.State.Gust.X == cb.State.Gust.X && ca.State.Gust.Y == cb.State.Gust.Y && ca.State.Gust.Z == cb.State.Gust.Z) same++;
+                FlightCore Fly(ulong seed)
+                {
+                    FlightSetup f = CrosswindScenario.Setup(spec, WindSetup.Of(WindLevel.Severe), seed);
+                    f.StartPosition = new Double3(0, 30, 0);
+                    var c = new FlightCore(f);
+                    CrosswindScenario.Arm(c);
+                    return c;
+                }
+                FlightCore ca = Fly(0x450F), cb = Fly(0x450F);
+                var pa = new SimPilot(ca.Controller, ca.State.Position);
+                var pb = new SimPilot(cb.Controller, cb.State.Position);
+                for (int k = 0; k < steps; k++)
+                {
+                    ca.Advance(pa.Sticks(ca, ca.State.Step * FlightCore.StepUs));
+                    cb.Advance(pb.Sticks(cb, cb.State.Step * FlightCore.StepUs));
+                    int alike = 0;
+                    for (int i = 0; i < 4; i++)
+                        if (Bits(ca.Trace.RotorWind[i]) == Bits(cb.Trace.RotorWind[i])) alike++;
+                    rotors += alike;
+                    if (alike == 4 && Bits(ca.Trace.Wind) == Bits(cb.Trace.Wind)) same++;
+                }
             }
-            Row("the same seed, the same wind", same == 60000, $"{same} of 60000 steps' gusts bit-identical on two differently flown flights");
+            Row("same seed, same wind (Severe, 20 s held at 30 m)", same == steps && rotors == 4 * steps,
+                $"{same} of {steps} steps with the wind at all 4 rotors and the body bit-identical");
             WindTargets.History u1 = WindTargets.Gusts(WindLevel.Windy, 0x450F, 5, 1, WindTargets.Unseeded);
             WindTargets.History u2 = WindTargets.Gusts(WindLevel.Windy, 0x450F, 5, 1, WindTargets.Unseeded);
             int sameWrong = 0;
@@ -100,7 +130,7 @@ namespace Fpv450.FlightBench
             Row("known-wrong: an unseeded turbulence", sameWrong == u1.Samples.Length, $"{sameWrong} of {u1.Samples.Length} samples alike", knownWrong: true);
 
             var bearings = new double[400];
-            for (int i = 0; i < bearings.Length; i++) bearings[i] = new StandInWind(WindSetup.Of(WindLevel.Windy), new FlightRandom((ulong)i + 1)).FromDeg;
+            for (int i = 0; i < bearings.Length; i++) bearings[i] = new WindField(WindSetup.Of(WindLevel.Windy), new FlightRandom((ulong)i + 1)).FromDeg;
             Row("a different seed, a different direction, uniform over the compass", WindTargets.Uniform(bearings, out d) && new HashSet<double>(bearings).Count == 400, d);
             var left = new double[400];
             for (int i = 0; i < left.Length; i++) left[i] = 225 + 90 * ((i * 0.618034) % 1);
@@ -108,24 +138,41 @@ namespace Fpv450.FlightBench
 
             foreach (WindLevel level in new[] { WindLevel.Windy, WindLevel.Severe })
             {
+                WindPreset preset = WindPreset.Of(level);
                 var runs = new List<WindTargets.History>();
-                var white = new List<WindTargets.History>();
                 var flat = new List<WindTargets.History>();
                 var biased = new List<WindTargets.History>();
+                var met = new List<WindTargets.History>();
+                var lowPass = new List<WindTargets.History>();
+                var white = new List<WindTargets.History>();
+                WindPreset cut = preset;
+                cut.ShortestWavelength = WindHarness.ReleaseSpeed; // the known-wrong field: nothing above 1 Hz at the cruise
                 for (ulong seed = 1; seed <= 20; seed++) runs.Add(WindTargets.Gusts(level, seed, 1200, 50));
                 for (ulong seed = 1; seed <= 5; seed++)
                 {
-                    white.Add(WindTargets.Gusts(level, seed, 300, 50, WindTargets.White));
                     flat.Add(WindTargets.Gusts(level, seed, 300, 50, WindTargets.FlatSigma));
+                    met.Add(WindTargets.Encounter(level, seed, 66, WindHarness.ReleaseSpeed));
+                    lowPass.Add(WindTargets.Encounter(level, seed, 66, WindHarness.ReleaseSpeed, cut));
+                    white.Add(WindTargets.Encounter(level, seed, 66, WindHarness.ReleaseSpeed, null, WindTargets.White));
                 }
                 foreach (WindTargets.History h in runs) biased.Add(WindTargets.Biased(h));
-                Row($"{level}: σ/U, 20 seeds of 1200 s", WindTargets.Intensity(runs, out d, out _), d);
-                Row($"{level}: the time constant L/U", WindTargets.TimeConstant(runs, out d), d);
-                Row($"{level}: the mean in its band and unbiased", WindTargets.MeanInBand(runs, WindPreset.Of(level), out d), d);
-                Row($"{level} known-wrong: white noise", WindTargets.TimeConstant(white, out d), d, knownWrong: true);
-                Row($"{level} known-wrong: a flat 0.2 m/s σ", WindTargets.Intensity(flat, out d, out _), d, knownWrong: true);
-                Row($"{level} known-wrong: a mean 5 % strong", WindTargets.MeanInBand(biased, WindPreset.Of(level), out d), d, knownWrong: true);
+                Row($"{level}: σ/U, 20 seeds of 1200 s", WindTargets.Intensity(runs, preset, out d, out _), d);
+                Row($"{level}: the mean in its band and unbiased", WindTargets.MeanInBand(runs, preset, out d), d);
+                Row($"{level}: energy at 2–4 Hz at the {WindHarness.ReleaseSpeed:F1} m/s cruise, 5 seeds", WindTargets.Spectrum(met, preset, WindHarness.ReleaseSpeed, 2, 4, out d, out _), d);
+                Row($"{level}: energy at 1–2 Hz at the {WindHarness.ReleaseSpeed:F1} m/s cruise, 5 seeds", WindTargets.Spectrum(met, preset, WindHarness.ReleaseSpeed, 1, 2, out d, out _), d);
+                Row($"{level} known-wrong: a field that stops below 1 Hz at the {WindHarness.ReleaseSpeed:F1} m/s cruise", WindTargets.Spectrum(lowPass, preset, WindHarness.ReleaseSpeed, 2, 4, out d, out _), d, knownWrong: true);
+                Row($"{level} known-wrong: white noise", WindTargets.Spectrum(white, preset, WindHarness.ReleaseSpeed, 2, 4, out d, out _), d, knownWrong: true);
+                Row($"{level} known-wrong: a flat 0.2 m/s σ", WindTargets.Intensity(flat, preset, out d, out _), d, knownWrong: true);
+                Row($"{level} known-wrong: a mean 5 % strong", WindTargets.MeanInBand(biased, preset, out d), d, knownWrong: true);
             }
+
+            // Per-rotor gradients (PR-3): a gust front crossing the drone tail to nose.
+            GustFrontScenario.Result field = GustFrontScenario.Fly(spec, uniform: false), uniform = GustFrontScenario.Fly(spec, uniform: true);
+            string Rates(GustFrontScenario.Result r) =>
+                $"peak pitch {r.Pitch * 57.29578:F2} °/s at +{r.PitchStep} ms, yaw {r.Yaw * 57.29578:F2} °/s at +{r.YawStep} ms, roll {r.Roll * 57.29578:F2} °/s";
+            Row("a gust front crossing the drone: coupled pitch and yaw, each 3× the uniform field's or more",
+                GustFrontScenario.Coupled(field, uniform), Rates(field) + "; the uniform field " + Rates(uniform));
+            Row("known-wrong: the uniform field", GustFrontScenario.Coupled(uniform, uniform), Rates(uniform), knownWrong: true);
             Console.WriteLine("motor asymmetry (airframe-effects, p7b-airframe 1.1): a hands-off hover in still air, "
                 + $"{AsymmetryScenario.Seconds:F0} s on seeds 1-5, asymmetry on and off:");
             AsymmetryScenario.Run run = AsymmetryScenario.Flown(spec);
@@ -235,6 +282,38 @@ namespace Fpv450.FlightBench
                 && stiff.Peak / heavy.Peak <= 1.2, $"peak {stiff.Peak / heavy.Peak:F2} of the flexing airframe's; " + ShakeScenario.Describe(stiff));
             Row("known-wrong: a rigid airframe publishes no camera vibration", stiff.Published, ShakeScenario.Describe(stiff), knownWrong: true);
             Console.WriteLine($"scenarios: {(_ok ? "PASS" : "FAIL")}");
+            // Rain without wind (wind-turbulence, p7c-wind 1.7, PHY-17): the powered golden's pilot in Calm air and Severe
+            // rain, against the same flight Sunny.
+            Console.WriteLine("rain without wind (wind-turbulence, p7c-wind 1.7, PHY-17): the golden's scripted pilot, Calm and Severe rain, 10 s:");
+            RainScenario.Result rain = RainScenario.Fly(spec);
+            RainField rf = rain.Core.Rain;
+            bool calmWind = rain.Core.Wind.MeanSpeed == rain.Sunny.Wind.MeanSpeed && rain.Core.Wind.FromDeg == rain.Sunny.Wind.FromDeg;
+            Row("the wind stays Calm's", calmWind, $"from {rain.Core.Wind.FromDeg:F2}°, {rain.Core.Wind.MeanSpeed:F3} m/s, the Sunny flight's draws");
+            FeedSignals sig = rain.LastSignals;
+            bool live = (sig.Live & FeedSignalSet.RainRate) != 0 && (sig.Live & FeedSignalSet.AirVelocityAtCamera) != 0
+                && sig.RainRateMmPerHour == rf.RateMmPerHour && rain.LoggedMismatches == 0;
+            Row("the rain rate and the camera's air are live and logged", live,
+                $"{sig.RainRateMmPerHour:F2} mm/h in [10, 50]; camera air ({sig.AirVelocityAtCamera.X:F2}, {sig.AirVelocityAtCamera.Y:F2}, "
+                + $"{sig.AirVelocityAtCamera.Z:F2}) m/s; {rain.LoggedMismatches} records whose rain force, film or camera air read back other");
+            Row("the rain's drag matches its labelled formula within 1 %", rain.WorstDragError < 0.01,
+                $"worst {rain.WorstDragError:E2} over 10 000 steps; V {rf.FallSpeed:F2} m/s (D0 {rf.DropDiameterMm:F2} mm), W {rf.WaterContent * 1000:F3} g/m³; "
+                + $"mean {rain.MeanRainForce * 1000:F2} mN, peak {rain.PeakRainForce * 1000:F2} mN against the air's peak {rain.PeakAirDrag:F2} N");
+            Row("the film fills inside its bound and weighs", rain.FilmMass > 0 && rain.FilmMass <= rf.FilmCapacity
+                    && Math.Abs(rain.Core.Body.Mass - rain.DryMass - rain.FilmMass) < 1e-12,
+                $"{rain.FilmMass * 1000:F2} g of {rf.FilmCapacity * 1000:F2} g ({rf.FilmThickness * 1000:F3} mm over {rf.WettedArea:F3} m²)");
+            // The known-wrong: rain as denser air (½(ρ + W)·C_d·A·v²) puts no drops on a drone at rest in still air.
+            FlightSetup stillRain = GoldenFlights.PoweredSetup(spec);
+            stillRain.Wind = WindSetup.Of(WindLevel.Still);
+            stillRain.Rain = RainLevel.SevereRain;
+            var atRest = new FlightCore(stillRain);
+            atRest.Advance(new StickSample());
+            DronePart coil = stillRain.Mass.Part(stillRain.Aero.CoilPart);
+            double top = stillRain.Aero.BodyArea.Y + coil.Length * coil.Diameter;
+            double hover = RainPreset.WaterDensity * atRest.Rain.RateMmPerHour * RainPreset.MmPerHour * atRest.Rain.FallSpeed * top;
+            Row("at rest in still air: ρ_w·R·V on the top silhouettes, down", Math.Abs(-atRest.Trace.RainForce.Y - hover) <= 0.01 * hover,
+                $"{-atRest.Trace.RainForce.Y * 1000:F3} mN against {hover * 1000:F3} mN");
+            Row("known-wrong: rain as denser air", Math.Abs(0 - hover) <= 0.01 * hover, "0 mN at rest", knownWrong: true);
+
             return _ok;
         }
     }

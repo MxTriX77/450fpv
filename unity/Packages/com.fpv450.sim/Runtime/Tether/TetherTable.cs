@@ -299,7 +299,7 @@ namespace Fpv450.Sim.Tether
             Derived(rows, "fiber.proof_force_n", V("fiber.proof_stress_pa") * area, "proof_stress_pa·glass_area", problems);
             Derived(rows, "link.launch_margin_db", V("link.budget_db") - V("link.connector_loss_db"), "budget_db − connector_loss_db", problems);
             Derived(rows, "link.macrobend_decay_per_m",
-                DetMath.Ln(V("link.macrobend_loss_a_db") / V("link.macrobend_loss_b_db")) / (V("link.macrobend_radius_b_m") - V("link.macrobend_radius_a_m")),
+                DetMath.Log(V("link.macrobend_loss_a_db") / V("link.macrobend_loss_b_db")) / (V("link.macrobend_radius_b_m") - V("link.macrobend_radius_a_m")),
                 "ln(macrobend_loss_a_db/macrobend_loss_b_db)/(macrobend_radius_b_m − macrobend_radius_a_m)", problems);
 
             double proof = V("fiber.proof_stress_pa");
