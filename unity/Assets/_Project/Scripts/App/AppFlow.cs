@@ -560,6 +560,9 @@ namespace Fpv450.App
 
             // The keyboard's flight into the house beside the ground start (QA's finding 3 in a player): the summary names
             // the placed object it hit, from the map. A pilot's build has no keyboard and skips it.
+            // D-063: the crash ends nothing. The drone stays under physics with nothing over the picture: the throttle
+            // down, it falls from the wall and lies where it lands, stepping on, until the pause's End flight, whose
+            // summary lists the crash.
             string lastStart = stand.Name;
             double lastHour = 17.5;
             if (_flight != null && _flight.Host.Inputs != null && _flight.Host.Inputs.KeyboardAllowed)
@@ -577,15 +580,33 @@ namespace Fpv450.App
                 Check(_flight.Pose.Armed, "armed for the flight into the house");
                 yield return IntoTheHouse();
                 FlightSession session = host.Session;
-                Check(session.State == SessionState.Ended && session.End.Kind == FlightEndKind.Crash, "the flight into the house ends in a crash: " + session.End.Kind);
+                double rest = _flight.RestPose.Position.Y, hit = _flight.Pose.Position.Y - rest;
+                long crashStep = session.Poses.LatestStep;
+                Check(Crashed(session) && session.State == SessionState.Flying && _flight.Summary == null,
+                      "the flight into the house crashes at " + hit.ToString("0.0") + " m and flies on, no summary: " + session.State);
+                yield return Shot("crash_fpv");
+                yield return Hold(KeyboardKeys.ThrottleDown, 1.5f);
+                yield return Hold(KeyboardKeys.None, 1.0f);
+                PoseFrame lying = _flight.Pose;
+                long stepped = session.Poses.LatestStep - crashStep;
+                Check(session.State == SessionState.Flying && _flight.Summary == null && stepped > 2000 && hit - (lying.Position.Y - rest) > 0.5 &&
+                      _flight.Osd.Row(0).StartsWith(FlightOsd.ArmedMode + " ", StringComparison.Ordinal),
+                      "after the crash the drone stays under physics, nothing over the picture: it fell from " + hit.ToString("0.0") + " to " +
+                      (lying.Position.Y - rest).ToString("0.0") + " m, " + lying.Velocity.Length().ToString("0.0") + " m/s, " + stepped + " steps on; " + Osd());
+                yield return Shot("crash_lying_fpv");
                 yield return PressV("after the crash");
                 yield return Shot("crash_chase");
                 yield return PressV("after the crash");
+                host.Pause();
+                session.EndFlight(); // the pause's End flight
                 yield return Until(() => _flight.Summary != null, 30);
                 PostFlight summary = _flight.Summary;
-                Check(summary != null && summary.HasCrash && summary.CrashObject == HouseBesideTrack,
-                      "the summary names the house: " + (summary != null ? summary.Cause() : "none"));
+                FlightIncident crash = summary != null ? summary.Incidents.Find(i => i.Kind == FlightIncidentKind.Crash) : default;
+                Check(summary != null && summary.End.Kind == FlightEndKind.Pilot && summary.HasCrash && crash.Kind == FlightIncidentKind.Crash &&
+                      summary.CrashObject == HouseBesideTrack && summary.Lines().Contains(summary.Describe(crash)),
+                      "End flight, and the summary lists the crash into the house: " + (summary != null ? string.Join(" | ", summary.Lines()) : "none"));
                 yield return Shot("summary_crash");
+                yield return Replays(session.LogPath, "into the house");
             }
 
             FlightChoices saved = SetupStore.Load(Application.persistentDataPath, out string error);
@@ -614,6 +635,9 @@ namespace Fpv450.App
         // KeyboardSticks.ThrottlePerSecond) is steered to a level set by the height's and the climb's errors about the
         // hover (0.48 at 1 kg, assumed; tried on the session at 7 and 16 ms frames), holding 3 m over the start; D turns
         // to 158° once 2 m up, then the pitch key tilts it forward for 0.35 s, and it flies on until it hits.
+        // The flight's crash latch, as the physics last published it (the core is stepping on its thread).
+        static bool Crashed(FlightSession session) => session.Poses.Read().Signals.Crashed;
+
         IEnumerator IntoTheHouse()
         {
             const double Height = 3, Heading = 158, Hover = 0.48;
@@ -625,7 +649,7 @@ namespace Fpv450.App
             float end = Time.realtimeSinceStartup + 15, pitchFrom = -1;
             float hoverUntil = _sequences != null ? -1 : 0; // -smokeseq: a hover once 2 m up, shot FPV then chase
             bool turning = false;
-            while (session.State == SessionState.Flying && Time.realtimeSinceStartup < end)
+            while (session.State == SessionState.Flying && !Crashed(session) && Time.realtimeSinceStartup < end)
             {
                 yield return null;
                 float now = Time.realtimeSinceStartup;
