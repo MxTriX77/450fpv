@@ -21,13 +21,13 @@ namespace Fpv450.FlightBench
     // steady|nodrag` and `--belt off` fly the known-wrong families that tools/wind/grade_levels.py grades every target on.
     internal static class WindHarnessCase
     {
-        const string Usage = "usage: flightbench --wind-harness calm|windy|severe [--seeds N] [--out DIR] [--pilots nominal|all] [--belt on|off] [--wrong steady|nodrag|noiseless] [--history N]";
+        const string Usage = "usage: flightbench --wind-harness calm|windy|severe [--seeds N] [--first-seed S] [--out DIR] [--pilots nominal|all] [--belt on|off] [--wrong steady|nodrag|noiseless] [--history N]";
 
         public static int Run(string[] args)
         {
             if (args.Length < 2 || !Enum.TryParse(args[1], true, out WindLevel level) || level == WindLevel.Still || level == WindLevel.Steady)
                 return Fail(Usage);
-            int seeds = 5, history = 0;
+            int seeds = 5, history = 0, first = 1;
             string output = null;
             bool all = true, belt = true, steady = false, drag = true, remnant = true;
             for (int i = 2; i < args.Length; i++)
@@ -36,6 +36,7 @@ namespace Fpv450.FlightBench
                 switch (args[i])
                 {
                     case "--seeds" when int.TryParse(value, out seeds) && seeds >= 1: i++; break;
+                    case "--first-seed" when int.TryParse(value, out first) && first >= 1: i++; break; // another seed set (QA's S2)
                     case "--history" when int.TryParse(value, out history) && history >= 0: i++; break;
                     case "--out" when value != null: output = value; i++; break;
                     case "--pilots" when value == "nominal" || value == "all": all = value == "all"; i++; break;
@@ -55,7 +56,7 @@ namespace Fpv450.FlightBench
             var runs = new WindHarness.Run[pilots.Length * seeds];
             var clock = System.Diagnostics.Stopwatch.StartNew();
             Parallel.For(0, runs.Length, j =>
-                runs[j] = WindHarness.Fly(spec, level, (ulong)(j % seeds) + 1, j % seeds, seeds, pilots[j / seeds], belt, drag, steady, remnant));
+                runs[j] = WindHarness.Fly(spec, level, (ulong)(j % seeds + first), j % seeds, seeds, pilots[j / seeds], belt, drag, steady, remnant));
             Console.WriteLine($"  {runs.Length} flights in {clock.Elapsed.TotalSeconds:F1} s");
 
             foreach (WindHarness.Run r in runs)
@@ -84,13 +85,13 @@ namespace Fpv450.FlightBench
                     Console.WriteLine($"  nominal seed {r.Seed}: {r.LeanPerMs:F3}° per m/s in {r.MeanCrosswind:F2} m/s, {100 * (r.LeanPerMs / own - 1):+0.0;-0.0} % off 1.5's there ({own:F3}): {(lean ? "PASS" : "FAIL")}; "
                         + $"airspeed {r.MeanAirspeed:F2} m/s, {100 * (r.MeanAirspeed / WindHarness.ReleaseSpeed - 1):+0.0;-0.0} % off the cruise (−5 to +8 %): {(speed ? "PASS" : "FAIL")}");
                 }
-                WindHarness.Run wrong = WindHarness.Fly(spec, level, 1, 0, seeds, WindHarness.Pilots[0], belt, drag: false);
+                WindHarness.Run wrong = WindHarness.Fly(spec, level, (ulong)first, 0, seeds, WindHarness.Pilots[0], belt, drag: false);
                 // It must fail the nominal runs' checks: the lean, or the airspeed, which nothing holds without drag (its lean
                 // per m/s is a ratio of near-zero means when its course drifts out of the wind).
                 double ratio = wrong.MeanAirspeed / WindHarness.ReleaseSpeed;
                 bool caught = !Reproduces(wrong.LeanPerMs, reference, belt) || ratio < 0.95 || ratio > 1.08;
                 ok &= caught;
-                Console.WriteLine($"  known-wrong: no drag, seed 1: {wrong.LeanPerMs:F3}° per m/s, airspeed {wrong.MeanAirspeed:F2} m/s: "
+                Console.WriteLine($"  known-wrong: no drag, seed {first}: {wrong.LeanPerMs:F3}° per m/s, airspeed {wrong.MeanAirspeed:F2} m/s: "
                     + $"{(caught ? "fails, as it must" : "PASSES: the check cannot tell it (FAIL)")}");
             }
 
@@ -125,7 +126,7 @@ namespace Fpv450.FlightBench
                 if (history > 0)
                 {
                     Directory.CreateDirectory(Path.Combine(dir, "history"));
-                    Parallel.For(1, history + 1, s =>
+                    Parallel.For(first, first + history, s =>
                     {
                         double[] h = WindHarness.History(level, (ulong)s, 120, out double drawn);
                         File.WriteAllText(Path.Combine(dir, "history", $"seed-{s}.csv"), WindHarness.HistoryCsv(h, drawn));
