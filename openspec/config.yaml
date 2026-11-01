@@ -1,7 +1,7 @@
 schema: spec-driven
 
 context: |
-  450fpv: simulator of heavy fiber-optic cargo FPV drones. One drone, "Svinoriz 10 Opto" (10-inch, 3-blade props,
+  450fpv: simulator of heavy fiber-optic cargo FPV drones. One drone, "Svinoriz 10 Opto" (10-inch, 2-blade props (letter T),
   fiber coil underneath, two battery packs, payload on top). Vision: VISION.md (the pilot's manifesto, never contradict
   it silently). Restart brief: docs/pilot-brief-2026-10-17.md. Requirements with stable IDs: docs/requirements.md.
   Decisions: docs/decisions.md. Plan and gates: docs/plan.md. Everything learned in the Godot attempt: docs/knowledge.md.
