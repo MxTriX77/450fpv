@@ -6,8 +6,8 @@ using NUnit.Framework;
 
 namespace Fpv450.Sim.Tests
 {
-    // The repository's drone.json (assets-src/drone/drone.json): p5-drone's researched Svinoriz 10 Opto on letter T's
-    // layout (D-043).
+    // The repository's drone.json (assets-src/drone/drone.json): p5-drone's researched Svinoriz 10 Opto, letter T's frame,
+    // arms, packs and legs (D-043) with the pilot's simpler loads (D-050): the coil beneath, a bottle strapped on top.
     public static class RepositoryDrone
     {
         public const string RelativePath = "assets-src/drone/drone.json";
@@ -31,6 +31,15 @@ namespace Fpv450.Sim.Tests
         public static string Text() => File.ReadAllText(TestFiles.Find(RelativePath));
 
         public static DroneSpec Spec() => _spec ?? (_spec = DroneSpec.Parse(Text()));
+    }
+
+    // Model 13's drone.json, D-043's layout (the spool on top, the payload slung below), kept as a fixture when D-050
+    // replaced it, so the kept golden audits of models 7–13 still fly the file they were recorded on.
+    public static class Model13Drone
+    {
+        public const string RelativePath = GoldenFlights.Model13DronePath;
+
+        public static string Text() => File.ReadAllText(TestFiles.Find(RelativePath));
     }
 
     // A repository file, found from this file's own path (the .NET tools compile it in place) or from Unity's project

@@ -1,6 +1,9 @@
 // IWorldQuery: the world questions the physics asks (K§10.4, WLD-11), cut to
 // p6-world-query-gallery's calls. Fixed first by task 1.1 (D-041): the flight core's
 // contacts build against it, so a later change to it is a superseding decision.
+// Implementations: FloorWorld (the stub: an endless floor and runtime objects) and
+// MapWorld (task 1.4: a map's placement file and its assets' metadata; the test range,
+// the one map of D-047, is MapWorld.Load(repositoryRoot, "test-range")).
 //
 // Ported from the first attempt (D-027, read from refs/godot/main and never merged):
 // the public calls of refs/godot/main:game/src/world/WorldQuery.cs (SampleGround,
@@ -22,12 +25,10 @@
 // - The first attempt's frame was +Z south. Its query math is vector algebra with no
 //   handedness (closest points, sweeps, rays, the hash), so it is taken unchanged;
 //   only Radial's cross product picks an arbitrary perpendicular, in any frame.
-// - The Z flip lives where world data enters, never in these calls: the gallery loader
-//   reads metadata already in Unity's frame (asset-pipeline: frame "unity-lh-yup"), so
-//   it flips nothing (task 1.3); phase 3's map grid puts row 0 on the +Z (north) edge,
-//   where the first attempt's row index grew towards +Z (south); and a placement's yaw
-//   is D-019's (positive turns north towards east), where the first attempt's positive
-//   yaw turned east towards north.
+// - The Z flip lives where world data enters, never in these calls: MapWorld reads a
+//   placement file and metadata already in Unity's frame (frame "unity-lh-yup"), so it
+//   flips nothing; a placement's yaw is D-019's (positive turns north towards east),
+//   where the first attempt's positive yaw turned east towards north.
 //
 // The Time rule of StaticContacts (K§7.5), per (object, shape)
 // The capsule's two core ends move linearly from `previous` (t = 0) to `current`
@@ -45,6 +46,33 @@
 // - Never touched: the current contact if within the margin, Time = 1.
 // A Time < 1 contact whose latched plane shows no penetration at the current pose is a
 // graze (API review F8). The capsule's radius is current.Radius.
+//
+// The contact's point (review-physics W5). Point is on the shape's surface, nearest the
+// core point closest to the shape. Where a stretch of the core is equally close (a line
+// contact: a skid lying on the plane or along a face), that core point is the stretch's
+// end nearest A: on the plane the lower core end (A on a tie); on a box face the start of
+// the flat stretch, A itself when A lies over the face; along a parallel capsule or wire
+// segment, A's end of the overlap.
+//
+// The ground (design 5; review-physics W3 and W4, option a). A world may have no plane
+// ground over parts of it: MapWorld over each ground patch's footprint (S04, E01) and
+// inside each hole band (an asset's holes: a centre line and a band of half its width).
+// There SampleGround reports Hole, and the shapes there (a patch's soil and straw, a
+// hole's fillers and walls) are the only ground, through StaticContacts, so nothing is
+// counted twice. StaticContacts decides it per contact point: the ground's contact is
+// kept only where its Point lies outside every patch and band. A capsule straddling a
+// band's edge so meets the plane when its lower core end lies outside the band, and the
+// shapes inside carry the rest; with its lower end inside, the plane is absent for it.
+// Raycast likewise drops a ground hit inside a patch or band, and the ray goes on.
+//
+// Wires (review-physics W1, W2, W6). A wire is a capsule chain along its point list at
+// Radius (half its diameter). Its Distance is the true signed distance to the chain's
+// nearest segment, deep inside too; WireParam is the contact's length along the chain
+// over the chain's whole length (0 at its first point, 1 at its last). Geometry gives its
+// chord (Center its midpoint, AxisY along it, SpanA and SpanB the chain's ends, Sag,
+// Radius), and MapWorld.WirePoints(object, shape) the chain itself. A ray that starts
+// inside any segment of a wire does not hit that wire, so a rotor ray re-cast from inside
+// a conductor goes on to what lies past it.
 
 using System;
 
@@ -66,12 +94,13 @@ namespace Fpv450.Sim.World
         /// <summary>WorldHash.QueryVersion: the version of the query math, logged beside ContentHash.</summary>
         int QueryVersion { get; }
 
-        /// <summary>One GroundSample per point, into results[0 .. points.Length).</summary>
+        /// <summary>One GroundSample per point, into results[0 .. points.Length); Hole where the world has no plane ground (above).</summary>
         void SampleGround(ReadOnlySpan<XZ> points, Span<GroundSample> results);
 
         /// <summary>
         /// The contacts of a capsule (a sphere when A = B) swept from `previous` to
-        /// `current` with the ground (absent over a hole), every placed shape and wire and
+        /// `current` with the ground (kept where its point lies outside every patch and hole
+        /// band, above), every placed shape and wire and
         /// every runtime object within `margin` (m): at most one per (object, shape), under the Time rule
         /// above, in canonical order (object, then shape; the ground first). Returns the
         /// true count, which exceeds results.Length on overflow; the buffer then holds the
@@ -81,8 +110,9 @@ namespace Fpv450.Sim.World
 
         /// <summary>
         /// The first surface each ray enters within maxDistance (m, finite): the ground
-        /// (from above only, and never over a hole), shapes and wires. A ray that starts
-        /// inside a shape does not hit it. A tie keeps the first in canonical order.
+        /// (from above only, and never over a patch or inside a hole band), shapes and wires.
+        /// A ray that starts inside a shape (or any segment of a wire) does not hit it. A tie
+        /// keeps the first in canonical order.
         /// </summary>
         void Raycast(ReadOnlySpan<Ray> rays, double maxDistance, Span<RayHit> hits);
 

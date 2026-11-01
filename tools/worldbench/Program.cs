@@ -13,8 +13,9 @@ namespace Fpv450.WorldBench
     // --golden            runs every case and checks it against golden/<world>.txt
     // --golden --record   writes those files (a re-record is audited case by case, with a QueryVersion bump)
     // --bench             times a physics step's batch (K§10.5) and 100 000 capsules and rays, on AC only (PLT-07)
-    // Cases: the floor stub (p6-world-query-gallery task 1.1). The gallery world joins in tasks 1.4 and 1.5.
-    internal static class Program
+    // Worlds: the floor stub (p6-world-query-gallery task 1.1, golden/floor.txt) and the test range (tasks 1.4 and 1.5,
+    // golden/test-range.txt; TestRange.cs), the map of D-047.
+    internal static partial class Program
     {
         private const int GoldenCount = 10000;
 
@@ -229,8 +230,18 @@ namespace Fpv450.WorldBench
             const string config = "Release";
 #endif
             Console.WriteLine($"worldbench --golden ({config}, .NET {Environment.Version}, {RuntimeInformation.OSDescription}, {RuntimeInformation.ProcessArchitecture})");
-            List<(string Name, string Value, bool Agree)> cases = FloorCases();
-            string path = GoldenPath("floor");
+            int failures = GoldenFile("floor", "the floor stub (p6-world-query-gallery 1.1)", FloorCases(), record)
+                + GoldenFile("test-range", "the test range (p6-world-query-gallery 1.4, D-047) with a fixed stand", TestRangeCases(), record);
+            if (record)
+                return failures == 0 ? 0 : 1;
+            Console.WriteLine(failures == 0 ? "worldbench: ALL PASS" : $"worldbench: {failures} FAILED");
+            return failures == 0 ? 0 : 1;
+        }
+
+        /// <summary>Checks one world's cases against golden/&lt;world&gt;.txt, or records them there; returns the failures.</summary>
+        private static int GoldenFile(string world, string what, List<(string Name, string Value, bool Agree)> cases, bool record)
+        {
+            string path = GoldenPath(world);
             int failures = 0;
             foreach (var c in cases)
             {
@@ -243,11 +254,11 @@ namespace Fpv450.WorldBench
             if (record)
             {
                 if (failures > 0)
-                    return 1;
+                    return failures;
                 Directory.CreateDirectory(Path.GetDirectoryName(path));
                 var lines = new List<string>
                 {
-                    "# worldbench golden: the floor stub (p6-world-query-gallery 1.1). FNV-1a 64 over every result field's bits.",
+                    $"# worldbench golden: {what}. FNV-1a 64 over every result field's bits.",
                     "# Re-record only with a QueryVersion bump, audited case by case: dotnet run --project tools/worldbench -- --golden --record",
                 };
                 foreach (var c in cases)
@@ -259,7 +270,7 @@ namespace Fpv450.WorldBench
             if (!File.Exists(path))
             {
                 Console.WriteLine($"  FAIL no golden file at {path}");
-                return 1;
+                return failures + 1;
             }
             var expected = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (string line in File.ReadAllLines(path))
@@ -272,11 +283,15 @@ namespace Fpv450.WorldBench
             foreach (var c in cases)
             {
                 bool match = expected.TryGetValue(c.Name, out string want) && want == c.Value;
-                Console.WriteLine($"  {(match ? "PASS" : "FAIL")} {c.Name} {c.Value}{(match ? "" : " (golden " + (want ?? "missing") + ")")}");
+                Console.WriteLine($"  {(match ? "PASS" : "FAIL")} {world}/{c.Name} {c.Value}{(match ? "" : " (golden " + (want ?? "missing") + ")")}");
                 failures += match ? 0 : 1;
             }
-            Console.WriteLine(failures == 0 ? $"worldbench: ALL PASS ({cases.Count} cases)" : $"worldbench: {failures} FAILED");
-            return failures == 0 ? 0 : 1;
+            if (expected.Count != cases.Count)
+            {
+                Console.WriteLine($"  FAIL {world}: the golden file holds {expected.Count} cases, the run {cases.Count}");
+                failures++;
+            }
+            return failures;
         }
 
         // ---- Bench -------------------------------------------------------------------------------------------------
@@ -338,8 +353,7 @@ namespace Fpv450.WorldBench
                 Console.WriteLine("worldbench: FAIL, the queries allocated");
                 return 1;
             }
-            Console.WriteLine("worldbench: bench done (the stub; judged on AC only)");
-            return 0;
+            return TestRangeBench();
         }
 
         // ---- Power state (PLT-07), as tools/hygiene/bench.py prints it ---------------------------------------------

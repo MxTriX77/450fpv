@@ -74,6 +74,76 @@ namespace Fpv450.Sim.Tests
             };
         }
 
+        /// <summary>
+        /// Where a scenario flies: a world (null: a fresh stub floor), the ground point the drone starts over (its skids or
+        /// its stand there), and its heading (rad, D-019's yaw: positive turns north towards east), which is also the way it
+        /// flies forward. The default is the stub's origin, facing north. Airframe turns on the airframe's effects as a pilot's
+        /// flight has them (p7b-airframe: the motors' asymmetry, the vortex rings, the ground effect, the flapping, the
+        /// modes); off by default, so 1.6's and 1.6b's numbers keep their bits.
+        /// </summary>
+        public struct Site
+        {
+            public FlightWorld World;
+            public Double3 Foot;
+            public double Heading;
+            public bool Airframe;
+
+            public Site(FlightWorld world, Double3 foot, double heading)
+            {
+                World = world;
+                Foot = foot;
+                Heading = heading;
+                Airframe = false;
+            }
+
+            public FlightWorld Open() => World ?? FlightWorld.Floor();
+
+            /// <summary>The setup with the airframe's effects on, when Airframe asks for them.</summary>
+            public FlightSetup Effects(FlightSetup setup, DroneSpec spec)
+            {
+                if (!Airframe) return setup;
+                setup.Asymmetry = spec.BuildAsymmetry();
+                setup.VortexRing = spec.BuildVortexRing();
+                setup.GroundEffect = spec.BuildGroundEffect();
+                setup.Flapping = spec.BuildFlapping();
+                setup.Modes = spec.BuildModes();
+                return setup;
+            }
+
+            /// <summary>The heading's turn of the body about +y (LaunchStand's convention).</summary>
+            public Quat Attitude()
+            {
+                if (Heading == 0) return Quat.Identity;
+                DetMath.SinCos(Heading / 2, out double sin, out double cos);
+                return new Quat(0, sin, 0, cos);
+            }
+
+            /// <summary>The nose's horizontal bearing, a unit vector (+z at heading 0).</summary>
+            public Double3 Nose()
+            {
+                if (Heading == 0) return new Double3(0, 0, 1);
+                DetMath.SinCos(Heading, out double sin, out double cos);
+                return new Double3(sin, 0, cos);
+            }
+        }
+
+        /// <summary>The setup at a site: its world, the start foot + offset, the heading's attitude.</summary>
+        static FlightSetup Setup(DroneSpec spec, MaterialRow[] materials, ulong materialsHash, bool legs, in Site site, FlightWorld world, Double3 start)
+        {
+            FlightSetup setup = Setup(spec, materials, materialsHash, legs, start);
+            setup.World = world;
+            setup.StartAttitude = site.Attitude();
+            return site.Effects(setup, spec);
+        }
+
+        /// <summary>Whether a contact shape is a leg's (a support sphere or a skid capsule).</summary>
+        public static bool Leg(FlightCore core, in FlightEvent e)
+        {
+            if (e.Index >= core.Contacts.Spec.Shapes.Length) return false;
+            ContactRole role = core.Contacts.Spec.Shapes[e.Index].Role;
+            return role == ContactRole.Support || role == ContactRole.Skid;
+        }
+
         /// <summary>The body origin's height of the legs-on drone standing on the floor at y = 0, its skids unloaded.</summary>
         public static double Standing(ContactSpec contacts)
         {
@@ -103,28 +173,39 @@ namespace Fpv450.Sim.Tests
             public double LastUnloaded, Settled;
 
             public int Tunnels, Crashes, Lost, ContactEvents;
+
+            /// <summary>The last step's touching pairs (StepTrace), and the core, for a site's own checks.</summary>
+            public int Touching;
+            public FlightCore Core;
+
+            /// <summary>The first touch's event: its contact shape (Index), object, shape, material and surface.</summary>
+            public FlightEvent First;
         }
 
         /// <summary>
-        /// The manifesto's §2.6: the pilot takes off from the floor, hovers, and comes down on the slow glide path at
-        /// descentSpeed; with the skids a hand's width (0.1 m) above the floor the sticks are held where they are (roll,
+        /// The manifesto's §2.6: the pilot takes off from the ground, hovers, and comes down on the slow glide path at
+        /// descentSpeed; with the skids a hand's width (0.1 m) above the ground the sticks are held where they are (roll,
         /// pitch and yaw centred, the throttle at its sweet spot) until the touch, and then either held (cut = false) or the
-        /// throttle dropped to zero at the first touch (cut = true). Flown for 4 s past the first touch.
+        /// throttle dropped to zero at the first touch (cut = true). Flown for 4 s past the first touch. The first touch is
+        /// a leg's first ContactMade, whatever it meets (the plane, a patch's soil or its straw). At a site the drone
+        /// starts standing on its skids over the site's foot, whose height is the ground's there.
         /// </summary>
-        public static Landing Land(DroneSpec spec, MaterialRow[] materials, ulong materialsHash, bool cut, double descentSpeed = 0.5, double forward = 0)
+        public static Landing Land(DroneSpec spec, MaterialRow[] materials, ulong materialsHash, bool cut, double descentSpeed = 0.5, double forward = 0,
+            Site site = default)
         {
             ContactSpec probe = spec.BuildContacts(spec.Nominal, materials, materialsHash);
             double stand = Standing(probe);
-            FlightSetup setup = Setup(spec, materials, materialsHash, true, new Double3(0, stand, 0));
+            Double3 foot = site.Foot;
+            FlightSetup setup = Setup(spec, materials, materialsHash, true, site, site.Open(), foot + new Double3(0, stand, 0));
             var core = new FlightCore(setup);
             CrosswindScenario.Arm(core);
-            var pilot = new SimPilot(core.Controller, new Double3(0, stand + 1, 0));
-            var r = new Landing { Settled = double.NaN };
+            var pilot = new SimPilot(core.Controller, foot + new Double3(0, stand + 1, 0)) { Heading = site.Nose() };
+            var r = new Landing { Settled = double.NaN, Core = core };
             double weight = core.Body.Mass * G;
             // Up to a metre, a hover, then the descent: the target falls at descentSpeed (and moves forward if asked).
             int k = 0;
             for (; k < 6000; k++) core.Advance(pilot.Sticks(core, core.State.Step * FlightCore.StepUs));
-            double y0 = stand + 1;
+            double y0 = foot.Y + stand + 1;
             StickSample held = default;
             bool holding = false;
             long touch = -1;
@@ -133,16 +214,16 @@ namespace Fpv450.Sim.Tests
             for (; k < 30000; k++)
             {
                 ref readonly FlightState s = ref core.State;
-                double clearance = s.Position.Y - stand;
+                double clearance = s.Position.Y - (foot.Y + stand);
                 StickSample stick = held;
                 if (!holding)
                 {
                     double t = (k - 6000) * FlightCore.Dt;
-                    pilot.Target = new Double3(0, y0 - descentSpeed * t, 0);
+                    pilot.Target = new Double3(foot.X, y0 - descentSpeed * t, foot.Z);
                     if (forward > 0)
                     {
                         pilot.HoldVelocity = true;
-                        pilot.TargetVelocity = new Double3(0, 0, forward);
+                        pilot.TargetVelocity = site.Nose() * forward;
                     }
                     stick = pilot.Sticks(core, s.Step * FlightCore.StepUs);
                     if (clearance < 0.1 && s.Velocity.Y < 0)
@@ -166,8 +247,9 @@ namespace Fpv450.Sim.Tests
                     if (e.Kind == EventKind.Crash) r.Crashes++;
                     if (e.Kind == EventKind.ContactsLost) r.Lost++;
                     if (e.Kind == EventKind.ContactMade || e.Kind == EventKind.ContactBroken) r.ContactEvents++;
-                    if (touch < 0 && e.Kind == EventKind.ContactMade && e.Object == WorldIds.Ground)
+                    if (touch < 0 && e.Kind == EventKind.ContactMade && Leg(core, e))
                     {
+                        r.First = e;
                         touch = n.Step;
                         r.TouchSpeed = e.A;
                     }
@@ -185,10 +267,10 @@ namespace Fpv450.Sim.Tests
                 if (loaded < 4) r.LastUnloaded = t1;
                 if (loaded == 4 && double.IsNaN(r.Settled) && DetMath.Sqrt(Double3.Dot(n.Velocity, n.Velocity)) < 0.01) r.Settled = t1;
                 if (loaded < 4 || DetMath.Sqrt(Double3.Dot(n.Velocity, n.Velocity)) >= 0.01) r.Settled = double.NaN;
-                // The skids' lowest point over the floor: positive when every support is off the ground.
+                // The skids' lowest point over the ground: positive when every support is off it.
                 lowest = double.PositiveInfinity;
                 foreach (ContactShape sh in core.Contacts.Spec.Shapes)
-                    if (sh.Role == ContactRole.Support) lowest = DetMath.Min(lowest, n.Position.Y + n.Attitude.Rotate(sh.A).Y - sh.Radius);
+                    if (sh.Role == ContactRole.Support) lowest = DetMath.Min(lowest, n.Position.Y + n.Attitude.Rotate(sh.A).Y - sh.Radius - foot.Y);
                 if (lowest > 0 && t1 < 2)
                 {
                     if (!left) r.LeaveSpeed = n.Velocity.Y;
@@ -201,6 +283,7 @@ namespace Fpv450.Sim.Tests
             r.SeparationHeight = top;
             r.Restitution = r.TouchSpeed > 0 ? r.LeaveSpeed / r.TouchSpeed : 0;
             r.PeakLegOverWeight = r.PeakLegLoad / weight;
+            r.Touching = core.Trace.ContactsTouching;
             return r;
         }
 
@@ -230,23 +313,22 @@ namespace Fpv450.Sim.Tests
         /// ground-contact's "Liftoff from the stand": the legs-off drone set on the stand at rest (1 s to settle), armed, then
         /// a collective ramp from zero to 0.75 over 3 s with roll, pitch and yaw centred, and 1 s more.
         /// </summary>
-        public static Liftoff FromStand(DroneSpec spec, MaterialRow[] materials, ulong materialsHash, double rampSeconds = 3)
+        public static Liftoff FromStand(DroneSpec spec, MaterialRow[] materials, ulong materialsHash, double rampSeconds = 3, Site site = default)
         {
             Loadout off = spec.Nominal;
             off.Legs = false;
             ContactSpec contacts = spec.BuildContacts(off, materials, materialsHash);
-            FlightWorld world = FlightWorld.Floor();
-            Double3 foot = default;
-            FlightSetup setup = Setup(spec, materials, materialsHash, false, LaunchStand.RestingOrigin(spec, contacts, foot));
-            setup.World = world;
-            setup.RuntimeObjects = new[] { LaunchStand.Build(spec, foot, 0, world.Query.MaterialId(spec.Stand.Material)) };
+            FlightWorld world = site.Open();
+            Double3 foot = site.Foot;
+            FlightSetup setup = Setup(spec, materials, materialsHash, false, site, world, LaunchStand.RestingOrigin(spec, contacts, foot));
+            setup.RuntimeObjects = new[] { LaunchStand.Build(spec, foot, site.Heading, world.Query.MaterialId(spec.Stand.Material)) };
             var core = new FlightCore(setup);
             int stand = core.RuntimeIds[0];
             var r = new Liftoff { Time = double.NaN };
             int open = 0;
             Double3 start = default;
             long ramp = 1016;
-            double postTop = spec.Stand.PostHeight;
+            double postTop = foot.Y + spec.Stand.PostHeight;
             for (int k = 0; k < 1016 + (int)(rampSeconds * 1000) + 2000; k++)
             {
                 ref readonly FlightState s = ref core.State;
@@ -366,6 +448,16 @@ namespace Fpv450.Sim.Tests
             public List<string> Touched;
 
             public int Crashes, Tunnels, Lost, Impacts;
+
+            /// <summary>The flight's first touch of anything but the ground (Surface 0): a ContactMade or PropStrike event,
+            /// with its part's and object's names, its material, its closing speed (m/s) and the flight's speed then.</summary>
+            public FlightEvent First;
+            public bool Touch;
+            public string FirstPart, FirstObject, FirstMaterial;
+            public double FirstFlightSpeed;
+
+            /// <summary>The tunnel events' objects and materials, for a report.</summary>
+            public List<string> TunnelThrough;
         }
 
         /// <summary>
@@ -375,33 +467,52 @@ namespace Fpv450.Sim.Tests
         /// </summary>
         public static PoleStrike IntoPole(DroneSpec spec, MaterialRow[] materials, ulong materialsHash, double speed = 10)
         {
+            FlightWorld world = FlightWorld.Floor();
+            return Into(spec, materials, materialsHash, new Site(world, default, 0), 1.5, speed, core => core.RuntimeIds[0], new[] { Pole(world, new Double3(0, 0, 30)) });
+        }
+
+        /// <summary>
+        /// The legs-on drone takes off from the site's foot, the pilot climbs to height (m over the foot) and holds it there
+        /// for climbSteps, then holds speed (m/s) along the heading at that height into whatever stands ahead, and keeps the
+        /// sticks there for 1.5 s past the first crash (or to 20 s). Touched lists the parts that touch the target object
+        /// (target(core) gives its id: a runtime object or a placed one), in order.
+        /// </summary>
+        public static PoleStrike Into(DroneSpec spec, MaterialRow[] materials, ulong materialsHash, Site site, double height, double speed,
+            System.Func<FlightCore, int> target, RuntimeObject[] objects = null, int climbSteps = 3000, double climbRate = 0)
+        {
             ContactSpec probe = spec.BuildContacts(spec.Nominal, materials, materialsHash);
             double stand = Standing(probe);
-            FlightWorld world = FlightWorld.Floor();
-            FlightSetup setup = Setup(spec, materials, materialsHash, true, new Double3(0, stand, 0));
-            setup.World = world;
-            setup.RuntimeObjects = new[] { Pole(world, new Double3(0, 0, 30)) };
+            FlightWorld world = site.Open();
+            Double3 foot = site.Foot;
+            FlightSetup setup = Setup(spec, materials, materialsHash, true, site, world, foot + new Double3(0, stand, 0));
+            if (objects != null) setup.RuntimeObjects = objects;
             var core = new FlightCore(setup);
+            int aim = target(core);
             CrosswindScenario.Arm(core);
-            var pilot = new SimPilot(core.Controller, new Double3(0, 1.5, 0));
-            var r = new PoleStrike { Touched = new List<string>() };
+            var pilot = new SimPilot(core.Controller, foot + new Double3(0, height, 0)) { Heading = site.Nose() };
+            var r = new PoleStrike { Touched = new List<string>(), TunnelThrough = new List<string>() };
             long crashed = -1;
             double lastSpeed = 0, lastHeight = 0;
             for (int k = 0; k < 20000; k++)
             {
                 ref readonly FlightState s = ref core.State;
-                if (k == 3000)
+                if (k == climbSteps)
                 {
                     pilot.HoldVelocity = true;
-                    pilot.TargetVelocity = new Double3(0, 0, speed);
+                    pilot.TargetVelocity = site.Nose() * speed;
                 }
+                if (climbRate > 0 && k >= climbSteps) pilot.Target = foot + new Double3(0, height + climbRate * (k - climbSteps) * FlightCore.Dt, 0);
                 lastSpeed = DetMath.Sqrt(Double3.Dot(s.Velocity, s.Velocity));
                 lastHeight = s.Position.Y;
                 core.Advance(pilot.Sticks(core, s.Step * FlightCore.StepUs));
                 for (int i = 0; i < core.Events.Count; i++)
                 {
                     FlightEvent e = core.Events[i];
-                    if (e.Kind == EventKind.Tunnel) r.Tunnels++;
+                    if (e.Kind == EventKind.Tunnel)
+                    {
+                        r.Tunnels++;
+                        r.TunnelThrough.Add(world.Query.ObjectName(e.Object) + " " + (world.Query.MaterialName(e.Material) ?? world.Query.SurfaceName(e.Surface)));
+                    }
                     if (e.Kind == EventKind.ContactsLost) r.Lost++;
                     if (e.Kind == EventKind.Impact && crashed >= 0 && r.ImpactPart == null)
                     {
@@ -410,8 +521,17 @@ namespace Fpv450.Sim.Tests
                         r.Impulse = e.B;
                         r.ImpactPart = spec.Parts[e.Part].Name;
                     }
-                    if ((e.Kind == EventKind.ContactMade || e.Kind == EventKind.PropStrike) && world.Query.ObjectName(e.Object) == "L01_straight")
-                        r.Touched.Add(spec.Parts[e.Part].Name);
+                    bool touch = e.Kind == EventKind.ContactMade || e.Kind == EventKind.PropStrike;
+                    if (touch && e.Object == aim) r.Touched.Add(spec.Parts[e.Part].Name);
+                    if (touch && !r.Touch && e.Surface == WorldIds.NoSurface)
+                    {
+                        r.Touch = true;
+                        r.First = e;
+                        r.FirstPart = spec.Parts[e.Part].Name;
+                        r.FirstObject = world.Query.ObjectName(e.Object);
+                        r.FirstMaterial = world.Query.MaterialName(e.Material);
+                        r.FirstFlightSpeed = lastSpeed;
+                    }
                     if (e.Kind != EventKind.Crash) continue;
                     r.Crashes++;
                     if (crashed >= 0) continue;

@@ -5,6 +5,7 @@
         "Fpv450.Editor",
         "Fpv450.Feed",
         "Fpv450.Input",
+        "Fpv450.Sim",
         "Fpv450.World",
         "Unity.InputSystem",
         "Unity.RenderPipelines.Core.Runtime",

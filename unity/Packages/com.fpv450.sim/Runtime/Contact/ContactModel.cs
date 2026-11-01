@@ -32,9 +32,10 @@ namespace Fpv450.Sim.Contact
     ///
     /// The laws:
     /// - A leg (K§7.1 step 8): one spring k and damper c per corner in series with what its foot touches. Its points are
-    ///   its support spheres on SampleGround's ground and on objects, and its skid capsule's object contacts that are not
-    ///   within two radii of a touching support of the skid (P3). The leg carries F = k·δ_max − c·v̄ (at least 0), δ_max the
-    ///   deepest point's depth, split over the points by depth, w_i = δ_i/Σδ; v̄ is the depth-weighted closing speed.
+    ///   its support spheres on SampleGround's ground and on objects (a sphere's contacts on coplanar pieces of one face are
+    ///   one, Seam), and its skid capsule's object contacts that are not its supports' (P3, SameSupport). The leg carries
+    ///   F = k·δ_max − c·v̄ (at least 0), δ_max the deepest point's depth, split over the points by depth, w_i = δ_i/Σδ; v̄
+    ///   is the depth-weighted closing speed.
     /// - A body shape: each touching pair is its own spring and damper, the shape's stiffness along the normal in series
     ///   with the material's (a rigid material drops out: the shape's alone, never 1/(1/k + 1/∞), P7), c = 2ζ·√(k·m·share).
     /// - Friction (K§7.1 step 5): a stick anchor per pair, tangential stiffness ratio × the normal's, holding to μs·Fn and
@@ -57,6 +58,14 @@ namespace Fpv450.Sim.Contact
         // The chord capsules' pad over the farthest point they hold, m: far above the rounding of the body-to-world
         // transform and the query's tests, far below anything physical; a larger gate only costs time.
         const double ChordPad = 1e-6;
+
+        // How far a shallower contact's point may lie off a deeper one's plane and still be that face's seam, m (assumed: a
+        // micron, far above the rounding of placed boxes' faces, far below a step a 5 mm foot can feel).
+        const double SeamTolerance = 1e-6;
+
+        // Two depths within this are one face's, m (assumed: a nanometre; one plane through two boxes' transforms differs by
+        // about 1e-15 m), so the earlier result keeps the contact and rounding never trades it between the pieces.
+        const double SeamTie = 1e-9;
 
         const int Buffer = 32;
 
@@ -365,7 +374,8 @@ namespace Fpv450.Sim.Contact
             return ft;
         }
 
-        Row RowOf(in Pair p) => p.Material != WorldIds.NoMaterial && p.Material < _byMaterial.Length && _byMaterial[p.Material].Known
+        // The ground is the plane and every soil shape (a patch's soil, a hole's fillers): its surface, never its object.
+        Row RowOf(in Pair p) => p.Surface == WorldIds.NoSurface && p.Material < _byMaterial.Length && _byMaterial[p.Material].Known
             ? _byMaterial[p.Material] : _groundRow;
 
         static double Series(double a, double b) => a * b / (a + b);
@@ -443,7 +453,7 @@ namespace Fpv450.Sim.Contact
                 if (groundless && c.Object == WorldIds.Ground) continue; // the supports' ground is SampleGround's
                 int k = 0;
                 while (k < _count[i] && (_pairs[first + k].Object != c.Object || _pairs[first + k].Shape != c.Shape)) k++;
-                bool same = capsule && SameSupport(i, c.Point);
+                bool same = capsule ? SameSupport(i, c) : Seam(j, found, groundless);
                 if (k == _count[i])
                 {
                     if (same) continue;
@@ -506,7 +516,9 @@ namespace Fpv450.Sim.Contact
                 Depth(ref p, part);
                 if (!p.Seen || p.Suppressed)
                 {
-                    if (!p.Seen && p.Latched && p.Depth > 0 && (p.Flipped || PastCentre(p, part))) Tunnel(i, p, part, now, events);
+                    // Only a rigid shape or the ground can be passed by mistake: a compliant one (a crown's twig shell, a
+                    // straw mat) yields to its own law, and leaving it is an ordinary break.
+                    if (!p.Seen && p.Latched && p.Depth > 0 && RowOf(p).Rigid && (p.Flipped || PastCentre(p, part))) Tunnel(i, p, part, now, events);
                     if (p.Touching) Broken(ref p, i, now.Step, events);
                     continue;
                 }
@@ -522,8 +534,13 @@ namespace Fpv450.Sim.Contact
             _count[i] = kept;
         }
 
-        // A capsule's contact at point lies within two radii of a touching sphere of the same part: the same support (P3).
-        bool SameSupport(int capsule, Double3 point)
+        // A capsule's contact is the same support as a touching sphere of the same part (P3) when its point lies within two
+        // radii of the sphere's, or when the sphere is a support on the same world shape, or on one whose face holds the
+        // contact's point (a seam's coplanar piece, Seam), and the capsule is no deeper into it by more than its own radius:
+        // a straight skid on a flat face, whose line contact's tie falls at either core end (IWorldQuery: the start of the
+        // flat stretch), the far one's point well clear of every sphere. A crossing between the spheres (a rod, a wire, a
+        // ridge or a hump the spheres stand off) is deeper, or off that face, and counts.
+        bool SameSupport(int capsule, in StaticContact contact)
         {
             ContactShape c = _shapes[capsule];
             for (int i = 0; i < _shapes.Length; i++)
@@ -531,14 +548,46 @@ namespace Fpv450.Sim.Contact
                 ContactShape s = _shapes[i];
                 if (i == capsule || s.Part != c.Part || s.Role == ContactRole.Disc || !Same(s.A, s.B)) continue;
                 double reach = c.Radius + s.Radius;
-                if (s.Role == ContactRole.Support && _ground[i].Touching && Near(_ground[i].Point, point, reach)) return true;
+                if (s.Role == ContactRole.Support && _ground[i].Touching && Near(_ground[i].Point, contact.Point, reach)) return true;
                 for (int k = 0; k < _count[i]; k++)
                 {
                     ref Pair p = ref _pairs[i * PairsPerShape + k];
-                    if (p.Touching && !p.Suppressed && Near(p.Point, point, reach)) return true;
+                    if (!p.Touching || p.Suppressed) continue;
+                    if (Near(p.Point, contact.Point, reach)) return true;
+                    if (s.Role == ContactRole.Support && (p.Object == contact.Object && p.Shape == contact.Shape || OnPlane(p.N, p.Point, contact.Point))
+                        && -contact.Distance <= p.Depth + c.Radius) return true;
                 }
             }
             return false;
+        }
+
+        // A sphere meets a flat surface at one point, however many coplanar pieces make it (a filler beside a filler, a box
+        // flush with another): its contact whose point lies on the plane of a deeper one on another world shape (or of one
+        // as deep within SeamTie, earlier in the results) is that face's seam, and the face carries it. Without it E01's fillers under
+        // D-050's legs carry the drone off the plane's way twice over: a support 2 mm past a filler's edge meets that edge,
+        // its normal 10° off the vertical (the drone 1.3 µm deeper than on the plane, 1.001 of its weight on the legs), and
+        // a support on two fillers is two of its leg's points against one beside it, so the leg's depth split leans on it
+        // (pitched, 9 µm higher, the rear legs 5 % over the front). A real edge (a curb, a step, a rod or a wire on the
+        // floor) stands off that plane and counts. A leg's ground is SampleGround's, never the plane's contact here. A
+        // capsule's line contact is left to the query and the skids' same-face rule (SameSupport).
+        bool Seam(int j, int found, bool groundless)
+        {
+            StaticContact c = _buf[j];
+            for (int q = 0; q < found; q++)
+            {
+                StaticContact d = _buf[q];
+                double deeper = c.Distance - d.Distance;
+                if (q == j || !(deeper > SeamTie || deeper >= -SeamTie && q < j) || groundless && d.Object == WorldIds.Ground) continue;
+                if (OnPlane(d.Normal, d.Point, c.Point)) return true;
+            }
+            return false;
+        }
+
+        // x lies on the plane through p with normal n, within SeamTolerance.
+        static bool OnPlane(Double3 n, Double3 p, Double3 x)
+        {
+            double off = Double3.Dot(n, x - p);
+            return off <= SeamTolerance && off >= -SeamTolerance;
         }
 
         static bool Near(Double3 a, Double3 b, double reach)

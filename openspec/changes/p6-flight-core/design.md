@@ -50,7 +50,7 @@
    - **No sensor model in this change:** the gyro carries no noise, bias or on-chip filter, and with no vibration model the dynamic notch tracks the flight's own spectrum.
 5. **Propulsion:**
    - **The mixer:** an X mixer clips each motor to [0, 1], then desaturates the collective (K§5.3).
-   - **The ESC:** a first-order command filter, then the motor's first-order lag. τ_esc ≈ 5 ms and τ_m ≈ 40–60 ms for a 3115 motor on a 10-inch 3-blade prop are assumed, and the exact update is n += (n_cmd − n)·dt/(τ + dt), with no `exp`.
+   - **The ESC:** a first-order command filter, then the motor's first-order lag. τ_esc ≈ 5 ms and τ_m ≈ 40–60 ms for a 3115 motor on a 10-inch 3-blade prop are assumed (`p7b-airframe` 1.0 derived τ_esc as 0.4 ms: the DShot frame, the PWM and the winding's L/R), and the exact update is n += (n_cmd − n)·dt/(τ + dt), with no `exp`.
    - **Thrust and torque:** T = k_T·n², Q = κ·T (κ 0.015–0.02, assumed). n_max is Kv·V times the unloaded-to-loaded factor, and k_T is set so T_max is K§5.3's nominal 2.6 kgf per motor at full charge (derived).
    - **The inflow derate:** momentum theory with axial inflow V_a through the disc, solving T = 2ρA·v_i·(v_i + V_a) for v_i in closed form (a quadratic, √ only). The thrust at a given n follows the blade's loss of angle of attack, T(n, V_a) = k_T·n²·(1 − V_a / (n·p)) with the prop's pitch speed n·p, clamped at 0 (assumed; the form the legacy draft used, PHB-03's L11 case).
    - **Battery:** V = n_s·(OCV(SoC) − I_cell·R_cell), with R_cell 15 mΩ (assumed) and the OCV curve of a 21700 Li-ion cell, 4.2 → 3.0 V (assumed; table in `drone.json`). The SoC is integrated from I.
@@ -60,10 +60,11 @@
    - **Coil drag:** at the coil, where `drone.json` puts it. The bootstrap is K§5.2's, 8–9 cm below the CoM (derived); `p5-drone` moves it to letter T's layout (D-043: above the CoM on the legs-on build).
    - **Calibration:** the areas are tuned to 0.95–2.6° of lean per m/s of crosswind (derived, nominal 1.8°).
 7. **Contacts:**
-   - **Legs:** each foot is a spring-damper in series with the ground: k and c in `drone.json` (assumed), the ground from `SampleGround` (height, normal and surface, rigid at this stage; soil is 7a).
+   - **Legs:** each foot is a spring-damper in series with the ground: k and c in `drone.json` (assumed), the ground from `SampleGround` (height, normal and surface, rigid at this stage; soil is 7a). Where it reports Hole (a patch, a hole band), the ground is the soil shapes `StaticContacts` returns: a contact is the ground by its surface (`Surface != 0`), never by its object, and a skid lying on the face its own spheres stand on adds no point (1.6b).
    - **Swept shapes:** arms, body, coil and prop discs against `StaticContacts` with the Time < 1 latch (K§7.5), load-bearing parts as spheres (PHB-05).
    - **The stand:** the four-post stand is a runtime object with its own pose, logged as asset, pose and order.
    - **A crash:** an impulse or peak acceleration over a threshold (assumed: 50 g peak, or a prop disc hitting a rigid shape at over 3 m/s), named with the part and the object.
+   - **A tunnel:** a latched part found past a rigid shape or the ground; leaving a compliant shape (twigs, straw) is its own law, not a tunnel (1.6b).
 8. **The stand-in wind** (PHB-06):
    - **The mean:** per level, Calm 0.8, Windy 2.5 and Severe 5 m/s mean crosswind (K§8.6, derived), each band ±25 %. Direction and strength are drawn per flight (uniform), both logged.
    - **Turbulence:** a first-order Gauss–Markov per axis, σ/U 0.12–0.15 and time constant L_u/U with L_u 115–200 m (K§6.7), from the named stream `wind.turbulence`.
@@ -79,7 +80,7 @@
     - **Replay:** `tools/replay` compiles the same sources and re-runs from the header and the logged inputs, comparing each record bit for bit.
 
 ## Risks / Trade-offs
-- **The FC model's fidelity:** Betaflight's formulas and the builder's filter chain are mirrored (D-045). The chain's phase lag takes the builder PIDs' 200 °/s step from about 16 % overshoot to about 41 %. Stability is the check (PHB-03); the overshoot is held as a regression band.
+- **The FC model's fidelity:** Betaflight's formulas and the builder's filter chain are mirrored (D-045). The chain's phase lag takes the builder PIDs' 200 °/s step from about 11 % overshoot to about 29 % (16 % to 41 % on design 5's assumed 5 ms ESC lag, which `p7b-airframe` 1.0 derived as 0.4 ms). Stability is the check (PHB-03); the overshoot is held as a regression band.
   - **A slower plant** than the real drone would explain part of that overshoot. Task 1.7 re-checked it against the published data (the Flash Hobby 3115 900 KV bench, APC's 10x4.5MR table, UMN's measured rotor inertia): τ_m = J/(K_t·K_e/R + 2κ·k_T·ω) is 42.8 ms at hover, 30–56 ms over the inertia's ±30 %, and the bench's voltage loss grows with the current, as a resistance does, so its 0.11 Ω is the one the dynamics see. Nothing published says faster, so the numbers stand. The fastest plant in that band (J −30 %) takes the chain's overshoot to 34 % (roll), 0.057 Ω (the winding's 0.046 with the ESC and the leads, against the bench) to 39 %, and the assumed 5 ms ESC lag at 1 ms to 31 %. The chain's lag dominates either way, and the pilot's feel decides at G7.
   - The gyro is clean until a sensor model is asked for.
 - **The log's state:** the 1 kHz record carries the filters' outputs, not their delay lines (about 700 doubles, D-045). A replay re-runs the flight from its start and stays bit for bit, but it cannot start mid-flight. This departs from K§6.10's "full state at 1 kHz"; a keyframe block comes only if forensics needs a mid-flight restart.
@@ -91,4 +92,4 @@
 
 ## Open Questions
 - The gyro's sensor model (noise, bias, its on-chip filter) and the frame's vibration: deferred until the pilot asks (D-023: optional). The filter chain itself is built (1.4b, D-045).
-- Whether the builder's chain's 41 % step overshoot is the real drone's: task 1.7's plant check leaves the motor at 43 ms (published data), so the pilot's feel decides at G7 (a qualitative question in `docs/pilot-questions.md`). The ESC's command lag (5 ms, assumed) is the plant's largest unpublished lever.
+- Whether the builder's chain's 29 % step overshoot is the real drone's: task 1.7's plant check leaves the motor at 43 ms (published data), and `p7b-airframe` 1.0 put the ESC's command lag at 0.4 ms (derived; it was the plant's largest unpublished lever at an assumed 5 ms), so the pilot's feel decides at G7 (a qualitative question in `docs/pilot-questions.md`).
