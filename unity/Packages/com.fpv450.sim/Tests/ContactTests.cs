@@ -60,8 +60,8 @@ namespace Fpv450.Sim.Tests
                 Assert.That(s.Role == ContactRole.Support || s.Role == ContactRole.Skid || s.Name.StartsWith("leg_"), Is.False, s.Name + " comes off with the legs");
             Assert.That(off.Shapes.Length, Is.EqualTo(on.Shapes.Length - 16));
             ContactShape coilOn = Array.Find(on.Shapes, s => s.Name == "coil"), coilOff = Array.Find(off.Shapes, s => s.Name == "coil");
-            Assert.That(coilOn.A.Y, Is.EqualTo(0.087));
-            Assert.That(coilOff.A.Y, Is.EqualTo(-0.053).Within(1e-12), "legs off, the spool hangs under the plate (D-043)");
+            Assert.That(coilOn.A.Y, Is.EqualTo(-0.053), "the spool beneath the frame (D-050)");
+            Assert.That(coilOff.A.Y, Is.EqualTo(-0.053), "legs off it stays where it is (D-050: the build moves nothing)");
             Assert.That(coilOff.A.Z - coilOff.B.Z, Is.EqualTo(coilOn.A.Z - coilOn.B.Z).Within(1e-12));
             Assert.That(LaunchStand.RestingOrigin(spec, off, default).Y, Is.EqualTo(0.253), "the arms' undersides on the 0.25 m posts");
 
@@ -73,7 +73,7 @@ namespace Fpv450.Sim.Tests
             ContactShape big = Array.Find(spec.BuildContacts(two, m, h).Shapes, s => s.Name == "payload");
             ContactShape one = Array.Find(on.Shapes, s => s.Name == "payload");
             Assert.That(big.Radius / one.Radius, Is.EqualTo(Math.Pow(2, 1.0 / 3)).Within(1e-12), "the payload's shapes scale with it (DRN-03)");
-            Assert.That(big.A.Y + big.Radius, Is.EqualTo(one.A.Y + one.Radius).Within(1e-12), "its top stays put");
+            Assert.That(big.A.Y - big.Radius, Is.EqualTo(one.A.Y - one.Radius).Within(1e-12), "the bottle on top grows upwards, its underside stays put");
         }
 
         [TestCase("\"radius_m\": {\"value\": 0.005, \"label\": \"measured\", \"note\": \"legs.foot_radius_m\"}", "\"radius_m\": {\"value\": 0.006, \"label\": \"measured\"}", "legs.foot_radius_m")]

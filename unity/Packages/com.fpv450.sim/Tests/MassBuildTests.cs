@@ -6,42 +6,58 @@ using NUnit.Framework;
 
 namespace Fpv450.Sim.Tests
 {
-    // flight-dynamics: "Mass and inertia from the drone's components" (PHB-02, DRN-03), and the drone spec's "Re-derived
-    // for letter T's layout". Roll is about body z (forward), pitch about body x (right), yaw about body y (up), all
-    // about the centre of mass. Every figure printed is derived: the parallel-axis sum of drone.json's parts.
+    // flight-dynamics: "Mass and inertia from the drone's components" (PHB-02, DRN-03), on D-050's layout: letter T's frame,
+    // arms, packs and legs, the coil beneath and a bottle strapped on top. Roll is about body z (forward), pitch about body
+    // x (right), yaw about body y (up), all about the centre of mass. Every figure printed is derived: the parallel-axis
+    // sum of drone.json's parts.
     public sealed class MassBuildTests
     {
-        // ---- the repository's drone.json against the object sheet (docs/object-sheets/drone.md) ----
+        // ---- the repository's drone.json at the seven loadouts ----
 
-        // One of the sheet's seven loadouts, with the sheet's own re-derivation of K§5.2 on letter T's layout. L7 is the
-        // heaviest corner, on the sheet's pack option B (6S3P twice), which the test puts on in place of the file's packs.
-        public sealed class SheetLoadout
+        // One of the object sheet's seven loadouts (docs/object-sheets/drone.md), with D-050's build of it from drone.json,
+        // derived and pinned (D-048, D-050: the figures as the file's layout gives them). L7 is the heaviest corner, on the
+        // sheet's pack option B (6S3P twice), which the test puts on in place of the file's packs.
+        public sealed class BuildLoadout
         {
             public string Name;
             public bool SixP;
-            public double Payload, Coil;                     // kg; the coil's line left, 0–1
-            public double Mass, ComY, Roll, Pitch, Yaw, CoilAbove;          // legs on
-            public double OffMass, OffRoll, OffPitch, OffYaw, OffCoilAbove; // legs off (the sheet gives no CoM there)
+            public double Payload, Coil;                                              // kg; the coil's line left, 0–1
+            public double Mass, ComY, Roll, Pitch, Yaw, CoilAbove, PitchRoll, YawRoll; // legs on
+            public double OffMass, OffComY, OffRoll, OffPitch, OffYaw, OffCoilAbove, OffPitchRoll, OffYawRoll; // legs off
 
             public override string ToString() => Name;
         }
 
-        static readonly SheetLoadout[] Sheet =
+        static readonly BuildLoadout[] Builds =
         {
-            new SheetLoadout { Name = "L1", Payload = 0, Coil = 0, Mass = 3.46, ComY = -0.016, Roll = 0.039, Pitch = 0.038, Yaw = 0.055, CoilAbove = 0.104, OffMass = 3.34, OffRoll = 0.030, OffPitch = 0.029, OffYaw = 0.052, OffCoilAbove = -0.030 },
-            new SheetLoadout { Name = "L2", Payload = 0, Coil = 1, Mass = 4.16, ComY = 0.001, Roll = 0.046, Pitch = 0.048, Yaw = 0.058, CoilAbove = 0.087, OffMass = 4.04, OffRoll = 0.031, OffPitch = 0.032, OffYaw = 0.055, OffCoilAbove = -0.025 },
-            new SheetLoadout { Name = "L3", Payload = 1.0, Coil = 0, Mass = 4.46, ComY = -0.037, Roll = 0.051, Pitch = 0.046, Yaw = 0.060, CoilAbove = 0.125, OffMass = 4.34, OffRoll = 0.046, OffPitch = 0.041, OffYaw = 0.057, OffCoilAbove = -0.057 },
-            new SheetLoadout { Name = "L4 nominal in flight", Payload = 1.0, Coil = 0.5, Mass = 4.81, ComY = -0.028, Roll = 0.056, Pitch = 0.053, Yaw = 0.062, CoilAbove = 0.116, OffMass = 4.69, OffRoll = 0.048, OffPitch = 0.043, OffYaw = 0.059, OffCoilAbove = -0.053 },
-            new SheetLoadout { Name = "L5 nominal take-off", Payload = 1.0, Coil = 1, Mass = 5.16, ComY = -0.020, Roll = 0.061, Pitch = 0.059, Yaw = 0.064, CoilAbove = 0.108, OffMass = 5.04, OffRoll = 0.049, OffPitch = 0.045, OffYaw = 0.060, OffCoilAbove = -0.049 },
-            new SheetLoadout { Name = "L6", Payload = 2.0, Coil = 1, Mass = 6.16, ComY = -0.038, Roll = 0.083, Pitch = 0.072, Yaw = 0.076, CoilAbove = 0.126, OffMass = 6.04, OffRoll = 0.073, OffPitch = 0.061, OffYaw = 0.072, OffCoilAbove = -0.070 },
-            new SheetLoadout { Name = "L7 heaviest", SixP = true, Payload = 1.4, Coil = 1, Mass = 6.46, ComY = -0.030, Roll = 0.080, Pitch = 0.068, Yaw = 0.082, CoilAbove = 0.118, OffMass = 6.34, OffRoll = 0.070, OffPitch = 0.057, OffYaw = 0.078, OffCoilAbove = -0.051 },
+            new BuildLoadout { Name = "L1", Payload = 0, Coil = 0,
+                Mass = 3.487, ComY = -0.0288, Roll = 0.0356, Pitch = 0.0346, Yaw = 0.0549, CoilAbove = -0.0242, PitchRoll = 0.971, YawRoll = 1.541,
+                OffMass = 3.371, OffComY = -0.0229, OffRoll = 0.0302, OffPitch = 0.0289, OffYaw = 0.0522, OffCoilAbove = -0.0301, OffPitchRoll = 0.958, OffYawRoll = 1.727 },
+            new BuildLoadout { Name = "L2", Payload = 0, Coil = 1,
+                Mass = 4.177, ComY = -0.0328, Roll = 0.0365, Pitch = 0.0375, Yaw = 0.0575, CoilAbove = -0.0202, PitchRoll = 1.027, YawRoll = 1.573,
+                OffMass = 4.061, OffComY = -0.0280, OffRoll = 0.0313, OffPitch = 0.0321, OffYaw = 0.0548, OffCoilAbove = -0.0250, OffPitchRoll = 1.023, OffYawRoll = 1.749 },
+            new BuildLoadout { Name = "L3", Payload = 1.0, Coil = 0,
+                Mass = 4.487, ComY = -0.0030, Roll = 0.0468, Pitch = 0.0487, Yaw = 0.0586, CoilAbove = -0.0500, PitchRoll = 1.041, YawRoll = 1.252,
+                OffMass = 4.371, OffComY = 0.0023, OffRoll = 0.0403, OffPitch = 0.0420, OffYaw = 0.0559, OffCoilAbove = -0.0553, OffPitchRoll = 1.041, OffYawRoll = 1.387 },
+            new BuildLoadout { Name = "L4 nominal in flight", Payload = 1.0, Coil = 0.5,
+                Mass = 4.832, ComY = -0.0066, Roll = 0.0479, Pitch = 0.0508, Yaw = 0.0599, CoilAbove = -0.0464, PitchRoll = 1.061, YawRoll = 1.250,
+                OffMass = 4.716, OffComY = -0.0018, OffRoll = 0.0416, OffPitch = 0.0443, OffYaw = 0.0572, OffCoilAbove = -0.0512, OffPitchRoll = 1.064, OffYawRoll = 1.376 },
+            new BuildLoadout { Name = "L5 nominal take-off", Payload = 1.0, Coil = 1,
+                Mass = 5.177, ComY = -0.0097, Roll = 0.0489, Pitch = 0.0528, Yaw = 0.0612, CoilAbove = -0.0433, PitchRoll = 1.080, YawRoll = 1.251,
+                OffMass = 5.061, OffComY = -0.0053, OffRoll = 0.0427, OffPitch = 0.0464, OffYaw = 0.0585, OffCoilAbove = -0.0477, OffPitchRoll = 1.085, OffYawRoll = 1.369 },
+            new BuildLoadout { Name = "L6", Payload = 2.0, Coil = 1,
+                Mass = 6.177, ComY = 0.0094, Roll = 0.0620, Pitch = 0.0723, Yaw = 0.0693, CoilAbove = -0.0624, PitchRoll = 1.166, YawRoll = 1.118,
+                OffMass = 6.061, OffComY = 0.0134, OffRoll = 0.0549, OffPitch = 0.0650, OffYaw = 0.0666, OffCoilAbove = -0.0664, OffPitchRoll = 1.183, OffYawRoll = 1.213 },
+            new BuildLoadout { Name = "L7 heaviest", SixP = true, Payload = 1.4, Coil = 1,
+                Mass = 6.497, ComY = -0.0074, Roll = 0.0660, Pitch = 0.0656, Yaw = 0.0780, CoilAbove = -0.0456, PitchRoll = 0.993, YawRoll = 1.182,
+                OffMass = 6.381, OffComY = -0.0039, OffRoll = 0.0597, OffPitch = 0.0590, OffYaw = 0.0753, OffCoilAbove = -0.0491, OffPitchRoll = 0.988, OffYawRoll = 1.261 },
         };
 
-        static IEnumerable<SheetLoadout> SheetLoadouts() => Sheet;
+        static IEnumerable<BuildLoadout> BuildLoadouts() => Builds;
 
         // The file's spec, or (L7) a fresh copy with the sheet's pack option B: 18 of the same 71 g cells and 8 % for
         // strip and wrap, 3 across, so the box is 0.068 m wide with its inner face where the file's is (x ±0.050).
-        static DroneSpec SpecFor(SheetLoadout l)
+        static DroneSpec SpecFor(BuildLoadout l)
         {
             if (!l.SixP) return RepositoryDrone.Spec();
             DroneSpec spec = DroneSpec.Parse(File.ReadAllText(TestFiles.Find(RepositoryDrone.RelativePath)));
@@ -56,14 +72,14 @@ namespace Fpv450.Sim.Tests
             return spec;
         }
 
-        static Loadout At(DroneSpec spec, SheetLoadout l, bool legs) =>
+        static Loadout At(DroneSpec spec, BuildLoadout l, bool legs) =>
             new Loadout { Payload = l.Payload, Legs = legs, CoilPaidOut = (1 - l.Coil) * spec.Coil.FiberLength };
 
-        // The drone spec's "Re-derived for letter T's layout": each loadout, legs on and legs off, lands on the sheet's
-        // figures. Mass to 1 % (the sheet's 70 g cells and 0.30 kg housing, the file's published 71 g and derived
-        // 0.31 kg), the centre of mass and the coil's height above it to 2 mm, the inertia to 3 %.
-        [TestCaseSource(nameof(SheetLoadouts))]
-        public void TheDroneMatchesTheSheetsLoadouts(SheetLoadout l)
+        // Each loadout, legs on and legs off, as D-050's drone.json builds it: the figures pinned as printed (mass to the
+        // gram, the CoM and the coil's height above it to 0.1 mm, the inertia to 1e-4 kg·m²), so a change of the file is
+        // seen and re-derived.
+        [TestCaseSource(nameof(BuildLoadouts))]
+        public void TheDroneBuildsItsLoadouts(BuildLoadout l)
         {
             DroneSpec spec = SpecFor(l);
             foreach (bool legs in new[] { true, false })
@@ -73,25 +89,26 @@ namespace Fpv450.Sim.Tests
                 double above = coil.Y - b.CenterOfMass.Y;
                 TestContext.WriteLine($"{l.Name}, legs {(legs ? "on " : "off")}: mass {b.Mass:F3} kg, CoM ({b.CenterOfMass.X:F4}, {b.CenterOfMass.Y:F4}, {b.CenterOfMass.Z:F4}) m, "
                     + $"roll {b.Inertia.ZZ:F4} pitch {b.Inertia.XX:F4} yaw {b.Inertia.YY:F4} kg·m², products xy {b.Inertia.XY:F5} xz {b.Inertia.XZ:F5} yz {b.Inertia.YZ:F5}, "
-                    + $"coil {above:+0.000;-0.000} m above the CoM (all derived)");
+                    + $"coil {above:+0.0000;-0.0000} m above the CoM (all derived)");
 
-                Assert.That(b.Mass, Is.EqualTo(legs ? l.Mass : l.OffMass).Within(1).Percent, "mass");
-                Assert.That(b.Inertia.ZZ, Is.EqualTo(legs ? l.Roll : l.OffRoll).Within(3).Percent, "roll");
-                Assert.That(b.Inertia.XX, Is.EqualTo(legs ? l.Pitch : l.OffPitch).Within(3).Percent, "pitch");
-                Assert.That(b.Inertia.YY, Is.EqualTo(legs ? l.Yaw : l.OffYaw).Within(3).Percent, "yaw");
-                Assert.That(above, Is.EqualTo(legs ? l.CoilAbove : l.OffCoilAbove).Within(0.002), "the coil's height above the CoM");
-                if (legs) Assert.That(b.CenterOfMass.Y, Is.EqualTo(l.ComY).Within(0.002), "the CoM's height");
+                Assert.That(b.Mass, Is.EqualTo(legs ? l.Mass : l.OffMass).Within(0.0005), "mass");
+                Assert.That(b.CenterOfMass.Y, Is.EqualTo(legs ? l.ComY : l.OffComY).Within(0.00005), "the CoM's height");
+                Assert.That(b.Inertia.ZZ, Is.EqualTo(legs ? l.Roll : l.OffRoll).Within(0.00005), "roll");
+                Assert.That(b.Inertia.XX, Is.EqualTo(legs ? l.Pitch : l.OffPitch).Within(0.00005), "pitch");
+                Assert.That(b.Inertia.YY, Is.EqualTo(legs ? l.Yaw : l.OffYaw).Within(0.00005), "yaw");
+                Assert.That(above, Is.EqualTo(legs ? l.CoilAbove : l.OffCoilAbove).Within(0.00005), "the coil's height above the CoM");
                 Assert.That(b.CenterOfMass.X, Is.EqualTo(0).Within(1e-12), "the layout is symmetric across");
             }
         }
 
-        // PHY-12 (p7b-airframe 1.5) on the seven loadouts, legs on and off: the inertia ratios as the real drone.json builds
-        // them, and yaw saturating first. Yaw's authority: the same thrust step ΔT on each rotor, in the mixer's pattern for
-        // each axis, gives a roll moment Σ ΔT·|x|, a pitch moment Σ ΔT·|z| (the hubs about the CoM) and a yaw moment Σ ΔT·Q/T
-        // (the props' torque over thrust at hover speed, derived from drone.json's k_T, torque ratio and static tables); over
-        // each axis's inertia, the angular accelerations. Yaw's is the smallest by far, so yaw meets the motors' range first.
-        [TestCaseSource(nameof(SheetLoadouts))]
-        public void TheInertiaCharacterOnTheSevenLoadouts(SheetLoadout l)
+        // PHY-12 (p7b-airframe 1.5, D-048, D-050) on the seven loadouts, legs on and off: the inertia ratios as the real
+        // drone.json builds them, asserted to the third decimal, and yaw saturating first. Yaw's authority: the same thrust
+        // step ΔT on each rotor, in the mixer's pattern for each axis, gives a roll moment Σ ΔT·|x|, a pitch moment Σ ΔT·|z|
+        // (the hubs about the CoM) and a yaw moment Σ ΔT·Q/T (the props' torque over thrust at hover speed, derived from
+        // drone.json's k_T, torque ratio and static tables); over each axis's inertia, the angular accelerations. Yaw's is
+        // the smallest by far, so yaw meets the motors' range first.
+        [TestCaseSource(nameof(BuildLoadouts))]
+        public void TheInertiaCharacterOnTheSevenLoadouts(BuildLoadout l)
         {
             DroneSpec spec = SpecFor(l);
             DroneProps p = spec.Props;
@@ -113,13 +130,16 @@ namespace Fpv450.Sim.Tests
                     + $"(roll {roll:F4} pitch {pitch:F4} yaw {yaw:F4} kg·m²); a newton of ΔT a rotor: roll {aRoll:F1}, pitch {aPitch:F1}, "
                     + $"yaw {aYaw:F2} rad/s² (Q/T {qOverT * 1000:F2} mm at {rpm:F0} rpm), yaw/roll {aYaw / aRoll:F3} (all derived)");
                 Assert.That(aYaw, Is.LessThan(0.2 * aRoll).And.LessThan(0.2 * aPitch), "yaw saturates first");
+                Assert.That(pitch / roll, Is.EqualTo(legs ? l.PitchRoll : l.OffPitchRoll).Within(0.0005), "pitch / roll, as the layout gives it");
+                Assert.That(yaw / roll, Is.EqualTo(legs ? l.YawRoll : l.OffYawRoll).Within(0.0005), "yaw / roll, as the layout gives it");
                 if (!legs) continue;
-                // PHY-12's ratios as letter T's layout gives them (1.5's finding, D-048): the packs along the sides and the
-                // payload crosswise put roll above pitch on six of the seven; yaw/roll is 1.0–1.3 on five.
+                // D-050's layout: the bottle fore-aft on top and the coil fore-aft beneath put pitch above roll on five of the
+                // seven (L2–L6); the empty drone on an empty coil (L1) and the wide 6S3P packs (L7) keep roll at or above
+                // pitch. Yaw/roll is 1.0–1.3 with a bottle aboard (L3–L7) and 1.54–1.57 without one (L1, L2).
                 bool pitchAbove = pitch > roll, yawInBand = yaw / roll >= 1.0 && yaw / roll <= 1.3;
                 TestContext.WriteLine($"  PHY-12: pitch above roll {pitchAbove}, yaw 1.0–1.3 × roll {yawInBand}");
-                Assert.That(pitchAbove, Is.EqualTo(l.Name == "L2"), "pitch above roll, as the layout gives it");
-                Assert.That(yawInBand, Is.EqualTo(l.Name != "L1" && l.Name != "L6"), "yaw 1.0–1.3 × roll, as the layout gives it");
+                Assert.That(pitchAbove, Is.EqualTo(l.Name != "L1" && !l.SixP), "pitch above roll, as the layout gives it");
+                Assert.That(yawInBand, Is.EqualTo(l.Payload > 0), "yaw 1.0–1.3 × roll, as the layout gives it");
             }
         }
 
@@ -132,10 +152,10 @@ namespace Fpv450.Sim.Tests
             return y[y.Length - 1];
         }
 
-        // The spool above the centre of mass on the legs-on build and below it on the legs-off build (D-043), at every
-        // payload of the setting (APP-03: 0–2.0 kg in 0.1 kg steps) and every state of the coil.
+        // The coil below the centre of mass on both builds (D-050), at every payload of the setting (APP-03: 0–2.0 kg in
+        // 0.1 kg steps) and every state of the coil.
         [Test]
-        public void TheSpoolIsAboveTheCentreOfMassLegsOnAndBelowItLegsOff()
+        public void TheCoilIsBelowTheCentreOfMassOnBothBuilds()
         {
             DroneSpec spec = RepositoryDrone.Spec();
             double onMin = double.MaxValue, onMax = double.MinValue, offMin = double.MaxValue, offMax = double.MinValue;
@@ -149,34 +169,34 @@ namespace Fpv450.Sim.Tests
                 else { offMin = Math.Min(offMin, above); offMax = Math.Max(offMax, above); }
             }
             TestContext.WriteLine($"the coil above the CoM: legs on {onMin:F3}–{onMax:F3} m, legs off {offMin:F3}–{offMax:F3} m (derived)");
-            Assert.That(onMin, Is.GreaterThan(0.05), "legs on, the spool is well above the CoM");
-            Assert.That(offMax, Is.LessThan(-0.02), "legs off, the spool is below it");
+            Assert.That(onMax, Is.LessThan(-0.015), "legs on, the coil is below the CoM");
+            Assert.That(offMax, Is.LessThan(-0.02), "legs off, the coil is below it");
         }
 
-        // What letter T's layout changed from K§5.2 (the sheet): from the class's typical 1 kg payload up, roll exceeds
-        // pitch (the crosswise payload and the side packs), where K§5.2 had pitch above roll; with no payload the
-        // fore-aft spool keeps pitch level with roll; yaw is 0.9–1.45 × roll; the spool's forward offset puts the CoM
-        // forward and leaves a product of inertia I_yz that the build keeps (nothing is balanced to zero).
+        // What D-050's layout gives across the setting (APP-03): from 1.0 kg of bottle up pitch exceeds roll at every state
+        // of the coil (the bottle and the coil lie fore-aft); with no bottle pitch is level with roll; yaw is 1.1–1.6 × roll;
+        // the stack's electronics forward of the centre put the CoM under 1 mm forward and leave a small product of inertia
+        // I_yz, which the build keeps (nothing is balanced to zero).
         [Test]
-        public void LetterTsLayoutPutsRollAbovePitchWithAPayload()
+        public void D050sLayoutPutsPitchAboveRollWithABottle()
         {
             DroneSpec spec = RepositoryDrone.Spec();
             foreach (double left in new[] { 0.0, 0.5, 1.0 })
             {
-                int lowest = 21; // tenths of a kg: the lowest payload of the run, from 2.0 kg down, with roll above pitch
+                int lowest = 21; // tenths of a kg: the lowest payload of the run, from 2.0 kg down, with pitch above roll
                 for (int tenths = 20; tenths >= 0; tenths--)
                 {
                     var loadout = new Loadout { Payload = tenths / 10.0, Legs = true, CoilPaidOut = (1 - left) * spec.Coil.FiberLength };
                     MassProperties b = spec.BuildMass(loadout).Properties;
                     double roll = b.Inertia.ZZ, pitch = b.Inertia.XX, yaw = b.Inertia.YY;
-                    if (roll > pitch && lowest == tenths + 1) lowest = tenths;
-                    if (loadout.Payload >= 1.0) Assert.That(roll, Is.GreaterThan(pitch), $"roll above pitch at {loadout.Payload} kg");
-                    if (loadout.Payload == 0) Assert.That(pitch / roll, Is.InRange(0.97, 1.05), "no payload: pitch level with roll");
-                    Assert.That(yaw / roll, Is.InRange(0.9, 1.45), "yaw / roll");
-                    Assert.That(b.CenterOfMass.Z, Is.InRange(0.002, 0.011), "the CoM forward of the centre (the spool)");
-                    Assert.That(b.Inertia.YZ, Is.InRange(-0.006, -0.0009), "the spool above and forward leaves I_yz");
+                    if (pitch > roll && lowest == tenths + 1) lowest = tenths;
+                    if (loadout.Payload >= 1.0) Assert.That(pitch, Is.GreaterThan(roll), $"pitch above roll at {loadout.Payload} kg");
+                    if (loadout.Payload == 0) Assert.That(pitch / roll, Is.InRange(0.97, 1.03), "no bottle: pitch level with roll");
+                    Assert.That(yaw / roll, Is.InRange(1.1, 1.6), "yaw / roll");
+                    Assert.That(b.CenterOfMass.Z, Is.InRange(0.0003, 0.001), "the CoM forward of the centre (the stack)");
+                    Assert.That(b.Inertia.YZ, Is.InRange(-0.0002, -0.00001), "the stack above and forward leaves I_yz");
                 }
-                TestContext.WriteLine($"coil {left * 100:F0} % full: roll exceeds pitch from {lowest / 10.0:F1} kg of payload up (derived)");
+                TestContext.WriteLine($"coil {left * 100:F0} % full: pitch exceeds roll from {lowest / 10.0:F1} kg of bottle up (derived)");
             }
         }
 
@@ -187,22 +207,22 @@ namespace Fpv450.Sim.Tests
         public void TheProductOfInertiaCouplesRollIntoYaw()
         {
             DroneSpec spec = RepositoryDrone.Spec();
-            foreach (SheetLoadout l in Sheet)
+            foreach (BuildLoadout l in Builds)
             {
                 if (l.SixP) continue;
                 MassProperties b = spec.BuildMass(At(spec, l, true)).Properties;
                 Double3 spin = b.InverseInertia * new Double3(0, 0, 1);
                 double ratio = spin.Y / spin.Z;
                 double tilt = 0.5 * Math.Atan2(2 * b.Inertia.YZ, b.Inertia.YY - b.Inertia.ZZ) * 180 / Math.PI;
-                TestContext.WriteLine($"{l.Name}: a roll moment yaws the body at {ratio:+0.000;-0.000} of its roll rate (−I_yz/I_yy {-b.Inertia.YZ / b.Inertia.YY:+0.000;-0.000}); "
-                    + $"the yaw principal axis {tilt:F1}° off body y about x (derived)");
+                TestContext.WriteLine($"{l.Name}: a roll moment yaws the body at {ratio:+0.0000;-0.0000} of its roll rate (−I_yz/I_yy {-b.Inertia.YZ / b.Inertia.YY:+0.0000;-0.0000}); "
+                    + $"the yaw principal axis {tilt:F2}° off body y about x (derived)");
                 Assert.That(ratio, Is.EqualTo(-b.Inertia.YZ / b.Inertia.YY).Within(0.1 * Math.Abs(ratio) + 1e-4));
-                Assert.That(ratio, Is.InRange(0.01, 0.1), "a few per cent, the sign of the spool above and forward");
+                Assert.That(ratio, Is.InRange(0.0003, 0.003), "a few tenths of a per cent, the sign of the stack above and forward (D-050)");
             }
         }
 
-        // The payload setting scales the payload part (DRN-03): T's body at the file's 1.0 kg, uniformly by the cube root
-        // of the mass ratio, its face toward the frame where it was (the top legs on, the bottom on the upper plate legs off).
+        // The payload setting scales the payload part (DRN-03): D-050's bottle at the file's 1.0 kg, uniformly by the cube
+        // root of the mass ratio, its face toward the frame where it was: on both builds its underside stays on the stack.
         [Test]
         public void ThePayloadScalesWithItsMass()
         {
@@ -224,8 +244,7 @@ namespace Fpv450.Sim.Tests
                 double r0 = file.Diameter / 2, r = p.Diameter / 2;
                 Assert.That(p.Diameter, Is.EqualTo(file.Diameter * s).Within(1e-15));
                 Assert.That(p.Length, Is.EqualTo(file.Length * s).Within(1e-15));
-                if (legs) Assert.That(p.Position.Y + r, Is.EqualTo(at.Y + r0).Within(1e-15), "legs on, its top stays under the frame");
-                else Assert.That(p.Position.Y - r, Is.EqualTo(at.Y - r0).Within(1e-15), "legs off, its bottom stays on the upper plate");
+                Assert.That(p.Position.Y - r, Is.EqualTo(at.Y - r0).Within(1e-15), "its underside stays on the stack");
                 TestContext.WriteLine($"2.0 kg, legs {(legs ? "on" : "off")}: Ø{p.Diameter:F4} × {p.Length:F4} m, centre y {p.Position.Y:F4} m (derived)");
             }
 
@@ -253,15 +272,15 @@ namespace Fpv450.Sim.Tests
             Double3 lever = (spec.Parts[coil].Position - before.CenterOfMass) * (change / after.Mass);
             Assert.That(after.Mass, Is.EqualTo(before.Mass + change).Within(1e-15));
             Assert.That((after.CenterOfMass - (before.CenterOfMass + lever)).Length(), Is.LessThan(1e-15), "the lever rule");
-            Assert.That(after.CenterOfMass.Y, Is.LessThan(before.CenterOfMass.Y), "legs on, the CoM sinks as the line on top pays out");
+            Assert.That(after.CenterOfMass.Y, Is.GreaterThan(before.CenterOfMass.Y), "the CoM rises as the line beneath pays out (D-050)");
 
             Loadout paid = spec.Nominal;
             paid.CoilPaidOut = spec.Coil.FiberLength;
             Assert.That(Bits(after), Is.EqualTo(Bits(spec.BuildMass(paid).Properties)), "a rebuild is a build");
         }
 
-        // Legs off is drone.json's legs_off build: the legs, T-joints and skids off, the spool under the bottom plate and
-        // the payload on top.
+        // Legs off is drone.json's legs_off build: the legs, T-joints and skids off and nothing moved (D-050): the coil
+        // stays beneath and the bottle on top.
         [Test]
         public void LegsOffIsTheLegsOffBuild()
         {
@@ -280,8 +299,9 @@ namespace Fpv450.Sim.Tests
             TestContext.WriteLine($"legs off: {removed:F3} kg off (derived)");
             Assert.That(removed, Is.EqualTo(0.116).Within(1e-12), "4 legs, 4 T-joints and 2 skids (the sheet: 0.12 kg)");
             Assert.That(model.Properties.Mass, Is.EqualTo(spec.BuildMass(spec.Nominal).Properties.Mass - removed).Within(1e-12));
-            Assert.That(model.Part(spec.Coil.Part).Position.Y, Is.LessThan(0), "the spool hangs underneath");
-            Assert.That(model.Part(spec.Payload.Part).Position.Y, Is.GreaterThan(0), "the payload rides on top");
+            Assert.That(spec.LegsOff.Moved, Is.Empty, "nothing moves");
+            Assert.That(model.Part(spec.Coil.Part).Position.Y, Is.LessThan(0), "the coil hangs underneath");
+            Assert.That(model.Part(spec.Payload.Part).Position.Y, Is.GreaterThan(0), "the bottle rides on top");
         }
 
         [Test]
