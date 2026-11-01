@@ -669,6 +669,44 @@ namespace Fpv450.Tests.Session
             Assert.Throws<InvalidOperationException>(() => none.Session.Start(), "no radio, and no keyboard in the pilot's build");
         }
 
+        // The log header carries the host's ISA flags as tools/replay's Host.Isa writes them (LOG-04), so a replay of the
+        // app's log on the same machine notes no ISA difference.
+        [Test]
+        public void TheLogHeaderCarriesTheHostsIsa()
+        {
+            Rig rig = Make(i => i.KeyboardAllowed = true, radio: false);
+            rig.Session.Start();
+            rig.Run(30);
+            rig.Run(1, KeyboardKeys.ArmToggle);
+            rig.Run(50);
+            rig.Run(1, KeyboardKeys.ArmToggle);
+            rig.Run(20);
+            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Disarm));
+            string isa = rig.Session.ReadSummary().Log.Header.Isa;
+            TestContext.WriteLine("isa " + isa);
+            Assert.That(isa, Is.EqualTo(HostIsa.Flags));
+            Assert.That(isa, Does.StartWith("x64 sse2"), "the players are Windows x64");
+#if NET5_0_OR_GREATER
+            Assert.That(isa, Is.EqualTo(ReplayIsa()), "tools/replay's own detection, from .NET's intrinsics");
+#endif
+        }
+
+#if NET5_0_OR_GREATER
+        // tools/replay's Host.DetectIsa, verbatim (Unity's Mono has no System.Runtime.Intrinsics).
+        static string ReplayIsa()
+        {
+            var flags = new List<string> { System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant() };
+            if (System.Runtime.Intrinsics.X86.Sse2.IsSupported) flags.Add("sse2");
+            if (System.Runtime.Intrinsics.X86.Sse41.IsSupported) flags.Add("sse4.1");
+            if (System.Runtime.Intrinsics.X86.Avx.IsSupported) flags.Add("avx");
+            if (System.Runtime.Intrinsics.X86.Avx2.IsSupported) flags.Add("avx2");
+            if (System.Runtime.Intrinsics.X86.Fma.IsSupported) flags.Add("fma");
+            if (System.Runtime.Intrinsics.X86.Avx512F.IsSupported) flags.Add("avx512f");
+            if (System.Runtime.Intrinsics.Arm.AdvSimd.IsSupported) flags.Add("advsimd");
+            return string.Join(" ", flags);
+        }
+#endif
+
         // ---- The flight thread ------------------------------------------------------------------------------------------
 
         [Test]

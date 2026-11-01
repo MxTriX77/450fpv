@@ -213,6 +213,7 @@ namespace Fpv450.App.Session
             LogHeader header = LogHeader.For(setup, core);
             header.SetDrone(_in.Drone, loadout);
             header.Build = _in.Build ?? "";
+            header.Isa = HostIsa.Flags;
             header.WorldId = _in.WorldId ?? "";
             header.Input = radio ? reader.Source : InputSource.Keyboard;
             header.InputDevice = radio ? reader.DeviceName : "keyboard";
