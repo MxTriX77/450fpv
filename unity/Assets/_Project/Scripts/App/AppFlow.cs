@@ -268,7 +268,9 @@ namespace Fpv450.App
         /// set from the first's summary, waits at its start; its Restart ends it and waits. A pilot's build has no keyboard:
         /// there each flight is checked waiting for the radio. The flights log to the smoke test's own folder.
         /// V is pressed through the Input System (D-055) for each view's shot: at rest, in the air and after the crash, or
-        /// while waiting for the radio; the keyboard's flights, flown with those presses, must replay bit for bit.
+        /// while waiting for the radio; the keyboard's flights, flown with those presses, must replay bit for bit. The OSD
+        /// (p4-feed 1.5, D-057) reads DISARMED while waiting and at rest, and AIR in the air with the current, the charge
+        /// used and the pack, shot in the FPV view.
         /// </summary>
         IEnumerator Smoke()
         {
@@ -283,6 +285,8 @@ namespace Fpv450.App
             string setupFile = SetupStore.PathIn(Application.persistentDataPath);
             byte[] pilotSetup = File.Exists(setupFile) ? File.ReadAllBytes(setupFile) : null;
             int failed = 0, shot = 0;
+            string Osd() => "'" + _flight.Osd.Row(0).TrimEnd() + "' / '" + _flight.Osd.Row(11).TrimEnd() + "' / '" + _flight.Osd.Row(12).TrimEnd() +
+                            "' / '" + _flight.Osd.Row(13).TrimEnd() + "'";
             void Check(bool ok, string what)
             {
                 Debug.Log("[Smoke] " + (ok ? "ok   " : "FAIL ") + what);
@@ -417,6 +421,8 @@ namespace Fpv450.App
                 {
                     yield return new WaitForSecondsRealtime(2);
                     Check(host.WaitingForRadio || host.Session.State == SessionState.Flying, "the flight waits for the radio (or flies on it)");
+                    Check(!host.WaitingForRadio || _flight.Osd.Row(0).StartsWith(FlightOsd.DisarmedMode, StringComparison.Ordinal),
+                          "the OSD reads DISARMED while waiting: " + Osd());
                     yield return Shot("waiting_" + start.Name);
                     if (n == 0)
                     {
@@ -453,6 +459,7 @@ namespace Fpv450.App
                 }
                 double rest = _flight.Pose.Position.Y;
                 Check(Math.Abs(rest - _flight.RestPose.Position.Y) < 0.01, "at rest at " + rest.ToString("0.000") + " m (start " + _flight.RestPose.Position.Y.ToString("0.000") + " m)");
+                Check(_flight.Osd.Row(0).StartsWith(FlightOsd.DisarmedMode, StringComparison.Ordinal), "the OSD reads DISARMED at rest: " + Osd());
                 yield return Shot("rest_" + start.Name);
                 yield return PressV("at rest at " + where);
                 yield return Shot("chase_" + start.Name);
@@ -466,6 +473,11 @@ namespace Fpv450.App
                 yield return Hold(KeyboardKeys.ThrottleUp, 1.6f, climb);
                 yield return Hold(KeyboardKeys.None, 1.4f, climb);
                 Check(top - rest > 1.0, "climbed " + (top - rest).ToString("0.00") + " m");
+                FlightOsd.Readout shown = _flight.Osd.Shown;
+                Check(_flight.Osd.Row(0).StartsWith(FlightOsd.ArmedMode + " ", StringComparison.Ordinal) && shown.Centiamps > 0 && shown.MahDrawn > 0 &&
+                      shown.PackCentivolts > 0 && shown.CellCentivolts == shown.PackCentivolts / _flight.Osd.Cells,
+                      "the OSD reads AIR armed, with the current, the charge used and the pack: " + Osd());
+                yield return Shot("air_" + start.Name);
                 yield return PressV("in the air");
                 yield return Shot("air_chase_" + start.Name);
                 yield return PressV("in the air");
