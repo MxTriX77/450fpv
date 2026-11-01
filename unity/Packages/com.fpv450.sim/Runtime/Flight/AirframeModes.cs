@@ -306,6 +306,10 @@ namespace Fpv450.Sim.Flight
             return new Double3(x, y, z);
         }
 
+        /// <summary>The frame's elastic turn, body rad (small angles about x, y, z), at the modes' coordinates: the angle
+        /// FrameRate turns at (the camera's elastic tilt on the frame, p7e-camera-feel).</summary>
+        public Double3 FrameTurn(in ModeSet q) => FrameRate(q);
+
         /// <summary>A hub's elastic velocity along +y, m/s, at the modes' rates (its rotor's inflow gains it).</summary>
         public double HubVelocity(in ModeSet rate, int corner)
         {

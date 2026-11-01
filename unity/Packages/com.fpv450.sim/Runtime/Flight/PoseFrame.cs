@@ -33,6 +33,10 @@ namespace Fpv450.Sim.Flight
         /// <summary>Fiber paid out from the spool, m (0 until 7d; p5-drone draws the coil).</summary>
         public double FiberPaidOut;
 
+        /// <summary>The frame's elastic turn at the camera, body rad (small angles about x, y, z; AirframeModes.FrameTurn),
+        /// 0 for a rigid airframe: the camera on the flexing frame (p7e-camera-feel, FieldCamera.Attitude). Render-side.</summary>
+        public Double3 CameraTurn;
+
         public readonly double TimeS => Step * FlightCore.Dt;
 
         /// <summary>
@@ -59,6 +63,7 @@ namespace Fpv450.Sim.Flight
                 Armed = b.Armed,
                 LegCompression = Corners.Lerp(a.LegCompression, b.LegCompression, t),
                 FiberPaidOut = a.FiberPaidOut + (b.FiberPaidOut - a.FiberPaidOut) * t,
+                CameraTurn = a.CameraTurn + (b.CameraTurn - a.CameraTurn) * t,
             };
         }
     }
