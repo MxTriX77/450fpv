@@ -216,6 +216,8 @@ namespace Fpv450.Replay
             double stand = 0; // the body origin's height standing on the floor, the skids unloaded
             foreach (ContactShape s in contacts.Shapes)
                 if (s.Role == ContactRole.Support) stand = Math.Max(stand, s.Radius - s.A.Y);
+            if (map != null && (wakes || canopy))
+                throw new ArgumentException("--map " + map + " flies the map's own wind (WindSetup.ForMap): not with --wakes or --canopy");
             WindSetup air = WindSetup.Of(wind);
             // --wakes (p7c-wind 1.5): the wake grid's synthetic layout (a maple row along X through the start, with a gap,
             // and a solid house), so the replay rebuilds the grid and its worker's handovers from the header. --canopy: a
@@ -228,7 +230,8 @@ namespace Fpv450.Replay
                     new CanopyStrip { CentreX = 0, CentreZ = 0, AxisDeg = 90, Length = 1000, Width = 141, Height = 16.6, FrontalAreaIndex = 0.3 },
                 };
             // --map: the map's first legs-on start point off a stand, its foot and heading (D-019's yaw: the body turned
-            // about +y, the nose's bearing (sin, 0, cos), as ContactScenarios.Site turns it).
+            // about +y, the nose's bearing (sin, 0, cos), as ContactScenarios.Site turns it), and the map's own wind
+            // (WindSetup.ForMap: its obstacles' wakes and its belt's canopy, as the app flies it).
             FlightWorld world = FlightWorld.Floor();
             Double3 foot = default, nose = new Double3(0, 0, 1);
             Quat attitude = Quat.Identity;
@@ -238,6 +241,7 @@ namespace Fpv450.Replay
                 StartPoint start = Array.Find(((MapWorld)world.Query).StartPoints, p => p.LegsOn && !p.Stand);
                 if (start.Id == null) throw new ArgumentException("--map " + map + ": no legs-on start point off a stand");
                 foot = start.Position;
+                air = WindSetup.ForMap((MapWorld)world.Query, wind);
                 double heading = start.HeadingDeg * (Math.PI / 180);
                 DetMath.SinCos(heading / 2, out double sin, out double cos);
                 attitude = new Quat(0, sin, 0, cos);
