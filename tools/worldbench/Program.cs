@@ -16,9 +16,9 @@ namespace Fpv450.WorldBench
     // --wakes             the wake grid (p7c-wind 1.3) over its synthetic layout: the scenario numbers, and the worker's
     //                     10-degree rebuild under a 1 kHz loop, on AC only (PLT-07)
     // --wakes-range DIR   the wake grid over the test range's placements, from a checkout of p6-test-range at DIR
-    // Cases: the floor stub (p6-world-query-gallery task 1.1) and the wake grid (golden/wakes.txt). The gallery world
-    // joins in tasks 1.4 and 1.5.
-    internal static class Program
+    // Worlds: the floor stub (p6-world-query-gallery task 1.1, golden/floor.txt) and the test range (tasks 1.4 and 1.5,
+    // golden/test-range.txt; TestRange.cs), the map of D-047; and the wake grid (golden/wakes.txt).
+    internal static partial class Program
     {
         private const int GoldenCount = 10000;
 
@@ -242,9 +242,11 @@ namespace Fpv450.WorldBench
             const string config = "Release";
 #endif
             Console.WriteLine($"worldbench --golden ({config}, .NET {Environment.Version}, {RuntimeInformation.OSDescription}, {RuntimeInformation.ProcessArchitecture})");
-            int failures = Golden("floor", FloorCases(), record,
+            int failures = GoldenFile("floor", FloorCases(), record,
                 "# worldbench golden: the floor stub (p6-world-query-gallery 1.1). FNV-1a 64 over every result field's bits.");
-            failures += Golden("wakes", WakeBench.Cases(), record,
+            failures += GoldenFile("test-range", TestRangeCases(), record,
+                "# worldbench golden: the test range (p6-world-query-gallery 1.4, D-047) with a fixed stand. FNV-1a 64 over every result field's bits.");
+            failures += GoldenFile("wakes", WakeBench.Cases(), record,
                 "# worldbench golden: the wake grid over its synthetic layout (p7c-wind 1.3). FNV-1a 64 over every cell's and sample's bits; WakeGrid.Version bumps with a re-record.");
             if (record)
                 return failures == 0 ? 0 : 1;
@@ -252,7 +254,8 @@ namespace Fpv450.WorldBench
             return failures == 0 ? 0 : 1;
         }
 
-        private static int Golden(string world, List<(string Name, string Value, bool Agree)> cases, bool record, string header)
+        /// <summary>Checks one world's cases against golden/&lt;world&gt;.txt, or records them there; returns the failures.</summary>
+        private static int GoldenFile(string world, List<(string Name, string Value, bool Agree)> cases, bool record, string header)
         {
             string path = GoldenPath(world);
             int failures = 0;
@@ -267,7 +270,7 @@ namespace Fpv450.WorldBench
             if (record)
             {
                 if (failures > 0)
-                    return 1;
+                    return failures;
                 Directory.CreateDirectory(Path.GetDirectoryName(path));
                 var lines = new List<string>
                 {
@@ -283,7 +286,7 @@ namespace Fpv450.WorldBench
             if (!File.Exists(path))
             {
                 Console.WriteLine($"  FAIL no golden file at {path}");
-                return 1;
+                return failures + 1;
             }
             var expected = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (string line in File.ReadAllLines(path))
@@ -296,8 +299,13 @@ namespace Fpv450.WorldBench
             foreach (var c in cases)
             {
                 bool match = expected.TryGetValue(c.Name, out string want) && want == c.Value;
-                Console.WriteLine($"  {(match ? "PASS" : "FAIL")} {c.Name} {c.Value}{(match ? "" : " (golden " + (want ?? "missing") + ")")}");
+                Console.WriteLine($"  {(match ? "PASS" : "FAIL")} {world}/{c.Name} {c.Value}{(match ? "" : " (golden " + (want ?? "missing") + ")")}");
                 failures += match ? 0 : 1;
+            }
+            if (expected.Count != cases.Count)
+            {
+                Console.WriteLine($"  FAIL {world}: the golden file holds {expected.Count} cases, the run {cases.Count}");
+                failures++;
             }
             Console.WriteLine(failures == 0 ? $"  {world}: all {cases.Count} cases pass" : $"  {world}: {failures} FAILED");
             return failures;
@@ -362,8 +370,7 @@ namespace Fpv450.WorldBench
                 Console.WriteLine("worldbench: FAIL, the queries allocated");
                 return 1;
             }
-            Console.WriteLine("worldbench: bench done (the stub; judged on AC only)");
-            return 0;
+            return TestRangeBench();
         }
 
         // ---- Power state (PLT-07), as tools/hygiene/bench.py prints it ---------------------------------------------
@@ -380,6 +387,32 @@ namespace Fpv450.WorldBench
 
         [DllImport("powrprof.dll")]
         private static extern uint PowerGetEffectiveOverlayScheme(out Guid overlay);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct ProcessorPowerInformation
+        {
+            public uint Number, MaxMhz, CurrentMhz, MhzLimit, MaxIdleState, CurrentIdleState;
+        }
+
+        [DllImport("powrprof.dll")]
+        private static extern uint CallNtPowerInformation(int level, IntPtr input, uint inputLength, [Out] ProcessorPowerInformation[] output,
+            uint outputLength);
+
+        /// <summary>The CPU clock, current over most, MHz (QA's L3; tools/flightbench's Power reads it the same way).</summary>
+        private static string Clock()
+        {
+            var info = new ProcessorPowerInformation[Environment.ProcessorCount];
+            uint size = (uint)(Marshal.SizeOf<ProcessorPowerInformation>() * info.Length);
+            if (CallNtPowerInformation(11, IntPtr.Zero, 0, info, size) != 0)
+                return "CPU clock unknown";
+            uint current = 0, most = 0;
+            foreach (ProcessorPowerInformation p in info)
+            {
+                current = Math.Max(current, p.CurrentMhz);
+                most = Math.Max(most, p.MaxMhz);
+            }
+            return $"CPU {current}/{most} MHz";
+        }
 
         private static string Power()
         {
@@ -413,7 +446,7 @@ namespace Fpv450.WorldBench
                     _ => "unknown mode",
                 };
             }
-            return $"{source}, {plan} plan, {mode} mode";
+            return $"{source}, {plan} plan, {mode} mode, {Clock()}";
         }
     }
 }
