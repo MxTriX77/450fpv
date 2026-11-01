@@ -86,6 +86,38 @@ Complex tier (D-033). Branch `unity/physics/p7b-airframe` off `unity/main` once 
     - **Inside PLT-04:** the worst p99 is the stand's 81.2 µs, 27 % of the 300 µs; the airframe effects cost 1.8–3.5 µs a step; 0 B in every case.
     - **Finding** (outside this change): PLT-04's queries alone under 60 µs worst case. On the stand the stub's queries take 65–66 µs a step at p99 (75–78 % of the step), here and in the contacts case's stand with only 1.3's rays and the flapping (66.3): the contacts' swept queries on the posts, of the 45 calls all but the ground effect's two. The step stays inside its budget; the queries' line is the world query's to meet (the test range's on 1.3b).
     - **Checks** (with D-049's scenarios, after the merge of `unity/main` at 88a524c, which moved no golden): `dotnet test` 254 of 254; `flightbench --golden` (every kept audit), `--scenarios` (45 rows), `--contacts` PASS; `--bench` as above, every row PASS. `replay --record --realtime` (Windy): 120 049 steps, 13 hitches, 0 log waits, landed at 0.483 m/s; replayed bit for bit (120 049 steps, 295 events) in 1.88 s. Hygiene: 0 findings. Unity EditMode (Mono, `-nographics`): 859 of 859, the same golden hashes.
+- [x] 1.7 [physics-engineer] D-050's simpler drone in the physics: `drone.json`'s coil beneath and bottle on top, fitted to the drone model; both loads on strapped mounts; the mass build and PHY-12's ratios re-derived; the goldens re-recorded and audited
+  - **As built** (`LogFormat.ModelVersion` 14, `LogFormat.Version` 12: the header's modes entry without the slings' fields):
+    - **`drone.json`** (`e6938d0d`): the coil beneath at y −0.053 on both builds; a 1 L bottle, 1.0 kg, Ø0.080 × 0.20 m, strapped on top at y 0.087, fore-aft; `legs_off.moved` empty; the body's drag areas (0.041, 0.052, 0.039 m²) and centre of pressure (y −0.01 m) re-derived.
+    - **Fitted to the drone model** (p5-drone's generator): the plates box centred at +0.011 m (the drawn 34 mm stack, −0.006 to +0.028); the legs at r 0.145 m (x, z ±0.1025), 0.5 mm clear of the packs, their skids, T-joints, clamps and contact shapes with them; the clamps 16.5 mm tall, 1 mm above the packs' tops; the T-joints flat on the ground (centre −0.243); the coil's axis 0.047 m below the bottom plate's underside (the tray needs 0.046); `camera.lens_m` (0, 0.015, 0.115), which `DroneSpec` reads into the modes' camera; `carbon_composite` in `physics_materials.json` (μ 0.30 / 0.25, rigid per part, a 0.5 mm edge).
+    - **The modes:** both loads on strapped mounts, 30 kN/m every way, ζ 0.1; the sling's stiffness, its swing damping, the bottom plate and gravity gone from `AirframeModesSpec`, the header and the summary. At 1 kg with a full coil: the loads' six modes 27.6–36.2 Hz, the arms 48.0–63.4 Hz.
+    - **The rotors' in-plane drag** re-tuned from 0.225 to 0.25 (assumed, tuned to clip P): on D-050's drag 0.225 flies the 13 m/s cruise at 21.1°; 0.25 flies 22.6° (22.7° measured), needs 1.90° per m/s of crosswind there and 1.39 in a hover.
+    - **The mass build and PHY-12** (`MassBuildTests`, derived and pinned to the printed figure): L4 4.832 kg, the CoM 6.6 mm below the arm plane and 0.5 mm forward; roll 0.0479, pitch 0.0508, yaw 0.0599 kg·m². The coil is 0.020–0.070 m below the CoM legs on and 0.025–0.075 m legs off. Legs on, L1–L7: pitch/roll 0.971, 1.027, 1.041, 1.061, 1.080, 1.166, 0.993 (pitch above roll on L2–L6); yaw/roll 1.541, 1.573, 1.252, 1.250, 1.251, 1.118, 1.182 (1.0–1.3 with a bottle aboard, L3–L7). Yaw saturates first on all seven (at L4 a newton of ΔT turns yaw at 0.072 of roll's rate). The hover's front motors run 0.32 % over the mean (3.7 % on model 13).
+    - **The rate loop** (`TheBuildersPidsHoldAStableLoop`, now also on the elastic airframe): the builder's chain overshoots 32.5 % (roll) and 27.1 % (pitch); with the modes on, 32.6 % and 27.3 %, within 5 % from 212 and 216 ms, 5.3 and 5.2 °/s peak to peak in the last second: stable, inside the 20–35 % band. The 5 ms known-wrong gives 46.0 % and 39.3 %.
+    - **The asymmetry's "never buzzes"** (`AsymmetryScenario.Steady`): the vibration's bound is now the four rotors in phase (their amplitudes summed on each axis), not √2 of their quadrature sum. On D-050 the centre of mass sits nearer the hubs' plane, so more of the pull lands on yaw, and seeds 3, 4 and 5 reach 1.48, 1.43 and 1.57 × the quadrature sum. Measured, every seed is at 0.68–0.90 of the in-phase bound.
+    - **Goldens at model 14,** audited against model 13 (temporary edits, removed; `GoldenFlights`' notes): with the sling put back, model 13's `drone.json` (now the fixture `Tests/Fixtures/drone-model13.json`) flies model 13's three hashes bit for bit; the kept audits of models 7–12 fly on that fixture. The powered flight moves from step 1 (the Windy air on the new silhouette): 147 mm by 2.5 s, 31.4 m by 10 s on the open-loop script, 220.36 m up against 227.76; 102 events against 134; armed, no crash. The contact flight moves from step 1 and keeps its course: within 40 mm and 26 mrad, 5 impacts, no crash, at rest on 8 contacts at the same 0.2519 m, 35 mm aside. The tumble flies D-050's L4 body.
+    - **Finding** (the orchestrator's call, with QA's findings 1–3): on D-050's layout the shake is weaker and shorter, and `ShakeTests` fails on its own seeds 1 and 2:
+      - **The full punch** keeps it: tilt 6.3–10.7°, against 12–15° on model 13's file. It lasts the arrest. The empty drone's moderate descents run 0.44–0.64 s. The 2 kg punch from 2.5 m/s lasts 0.72 s on seed 1, which reads 0.7, below the 0.8–1.4 band: QA's finding 1, low side.
+      - **The 0.8 step:**
+        - tilt 2.7–5.2°, 10 of 12 below 5°
+        - 4 of 12 shorter than 0.28 s (0.24–0.26 s); on model 13's file the empty drone's from 2.5 m/s lasted 0.52–0.54 s
+        - 2 of the empty drone's 4 moderate ones below 0.3 s
+        - one longer than its full punch (0 kg, 5.3 m/s, seed 2: 0.66 s against 0.64)
+      - **The gentle ramp** from 9 m/s, empty, seed 1, holds an ESC on its limit for 0.22 s against `Wobbles`' 0.2 s.
+      - The H-force re-tune moves none of these: at 0.225 the empty drone's sharp arrests last the same and tilt within 0.02°.
+    - **Checks:**
+      - `dotnet test tools/simtests`: 252 of 254. The two failing are `ShakeTests`' `ShakeOnlyWhenItsCausesMeet` and `TheShakeLastsAboutTheArrest`: the finding above.
+      - `flightbench --golden`: PASS, every kept audit on the model 13 fixture.
+      - `--scenarios`: FAIL on the same two shake rows (0 kg from 9 m/s, the gentle ramp's ESC limit 0.22 s; 2 kg from 2.5 m/s, the full punch 0.72 s). Every other row passes, and every known-wrong fails, as it must.
+      - `--contacts`: PASS.
+      - `--bench` on AC (Balanced, best power efficiency, 3201 MHz), every row PASS, 0 B:
+        - the worst p99 is the stand's 179.9 µs (off 177.0; the queries 74.9 %, 123.4 µs a step at p99)
+        - the close hover 38.9 µs, the ring 40.2 µs
+        - the powered flight p50 18.9, p99 99.2 µs
+        - higher than 1.6's on the same host under other agents' load
+      - `replay --record --realtime` (Windy): 120 037 steps, 168 hitches, 0 log waits, landed at 0.475 m/s. Replayed bit for bit (120 037 steps, 304 events) in 3.41 s.
+      - Hygiene: 0 findings over 1879 files. `openspec validate p7b-airframe --strict`: valid.
+      - Unity EditMode (Mono, `-nographics`): 862 of 864, the same two `ShakeTests`; the three goldens and every kept audit pass on Mono with .NET's hashes.
 
 ## 2. Review
 
