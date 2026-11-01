@@ -115,6 +115,34 @@ namespace Fpv450.Sim.Tests
             }
         }
 
+        // D-060: the turbulence reaches the discs' 0.5 m (2D), so the inertial range spans the rotors' spacing. Met at the
+        // cruise, the field's 20–30 Hz (its 0.7–1 m eddies) holds von Kármán's energy; the 1 m cut, the field before D-060,
+        // leaves almost none there (only the projection of its 1 m modes on the path).
+        [Test]
+        public void TheTurbulenceReachesTheDiscsScale()
+        {
+            WindPreset preset = WindPreset.Of(WindLevel.Severe);
+            Assert.That(preset.ShortestWavelength, Is.EqualTo(2 * 0.254).Within(0.01), "twice the 10-inch disc");
+            WindPreset cut = preset;
+            cut.ShortestWavelength = 1;
+            cut.Modes = 128;
+            var met = new List<History>();
+            var coarse = new List<History>();
+            for (ulong seed = 1; seed <= 5; seed++)
+            {
+                met.Add(Encounter(WindLevel.Severe, seed, 33, WindHarness.ReleaseSpeed));
+                coarse.Add(Encounter(WindLevel.Severe, seed, 33, WindHarness.ReleaseSpeed, cut));
+            }
+            bool reaches = Spectrum(met, preset, WindHarness.ReleaseSpeed, 20, 30, out string d, out _);
+            bool wrong = Spectrum(coarse, preset, WindHarness.ReleaseSpeed, 20, 30, out string w, out _);
+            Spectrum(met, preset, WindHarness.ReleaseSpeed, 4, 15, out string d4, out _);
+            Spectrum(coarse, preset, WindHarness.ReleaseSpeed, 4, 15, out string w4, out _);
+            TestContext.Out.WriteLine($"to 0.5 m: {d}; over the camera's band, {d4}");
+            TestContext.Out.WriteLine($"known-wrong, the 1 m cut: {w}; over the camera's band, {w4}");
+            Assert.That(reaches, Is.True, d);
+            Assert.That(wrong, Is.False, "the 1 m cut fails: " + w);
+        }
+
         [Test]
         public void TheLevelsHoldTheirIntensityAndSpectrum()
         {

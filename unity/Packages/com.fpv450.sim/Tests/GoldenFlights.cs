@@ -182,8 +182,12 @@ namespace Fpv450.Sim.Tests
         // 0.135 → 0.164). Audited: with z0 0.03 m and σ_u/U 0.135 (a temporary edit, reverted) the powered, contact, rain and
         // tumble goldens are model 18's, every record and event. With class 4's roughness the Windy flight moves from step 1
         // (the turbulence's amplitude and the profile) and keeps its course: armed, no crash, 148.28 m up against 148.12,
-        // 2.5 m from model 18's end and within 8 mrad of its attitude.
-        public const ulong PoweredHash = 0xD28B561A9782C097UL;
+        // 2.5 m from model 18's end and within 8 mrad of its attitude. Then the turbulence carried from the 1 m cut to the
+        // discs' 0.5 m (ModelVersion 19 still; the branch had not landed): with the cut back at 1 m and 128 and 64 modes (a
+        // temporary edit, reverted) every golden is the class-4 step's (powered 0xD28B561A9782C097, contact
+        // 0xA05AEB00620769BF, rain 0xCCAE77686A84020E); to 0.5 m the Windy flight moves from step 1 and keeps its course:
+        // armed, no crash, 147.90 m up, 0.59 m from the class-4 step's end and within 8.3 mrad.
+        public const ulong PoweredHash = 0xA1FF085091A019CDUL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -192,8 +196,9 @@ namespace Fpv450.Sim.Tests
         // Model 17: 0x5FA1F49E82CBC0D5. p7c-wind 1.5's re-grade (ModelVersion 18), audited as the powered flight: in Calm's
         // stronger band it moves from step 1; the film holds 9.57 g at 10 s.
         // Model 18: 0xE5D4C472F6CA12D2. D-060 (ModelVersion 19), audited as the powered flight: it moves from step 1 and keeps
-        // its course, 148.90 m up against 148.97, 0.58 m from model 18's end; the film holds 9.59 g at 10 s.
-        public const ulong RainPoweredHash = 0xCCAE77686A84020EUL;
+        // its course, 148.90 m up against 148.97, 0.58 m from model 18's end; the film holds 9.59 g at 10 s. To 0.5 m it
+        // moves from step 1: 148.69 m up, 0.24 m from the class-4 step's end; the film holds 9.60 g.
+        public const ulong RainPoweredHash = 0xB10D9A860D4431C0UL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered and contact goldens (pinned from main's code with
@@ -281,8 +286,10 @@ namespace Fpv450.Sim.Tests
         // pairs at 0.2518 m, 51 mm from where it rose; 125 events.
         // Model 18: 0x1152D64875230761. D-060 (ModelVersion 19), audited as the powered flight. It moves from step 1 (on its
         // legs the hubs, 0.288 m up, are now under d + z0 = 0.30 m, in the cover's still air) and keeps its course: within
-        // 20 mm of model 18's path and 1.2 mrad, 5 impacts, no crash, at rest at the same 0.2518 m, 20 mm aside.
-        public const ulong ContactHash = 0xA05AEB00620769BFUL;
+        // 20 mm of model 18's path and 1.2 mrad, 5 impacts, no crash, at rest at the same 0.2518 m, 20 mm aside. To 0.5 m it
+        // is the class-4 step's to step 290 (still air at the hubs on the floor) and moves from step 291, as they rise into
+        // the field: within 2.7 mm and 1.3 mrad, 5 impacts, no crash, at rest at the same 0.2518 m, 0.8 mm aside.
+        public const ulong ContactHash = 0x8C1E6B066F143A67UL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;

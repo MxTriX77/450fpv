@@ -89,12 +89,14 @@ namespace Fpv450.Sim.Wind
         /// isotropic scale of w is h, at 35 m; K§6.7's "L_w ≈ the height").</summary>
         public double VerticalScale;
 
-        /// <summary>The modes (assumed: about 34 per decade of wavenumber, so the drone's 0.1–20 Hz sees a near-normal
-        /// sum).</summary>
+        /// <summary>The modes (assumed: about 34 per decade of wavenumber, so the drone's 0.1–40 Hz sees a near-normal sum;
+        /// 128 to the 1 m cut, 138 to 0.5 m keeps the modes per e-fold, derived).</summary>
         public int Modes;
 
-        /// <summary>The shortest wavelength, m (assumed: a rotor's 0.254 m disc averages shorter eddies' inflow, and they
-        /// carry 0.7 % of the variance).</summary>
+        /// <summary>The shortest wavelength, m (derived, D-060: twice a rotor's 0.254 m disc. The disc averages shorter
+        /// eddies' inflow, and a hub's point sample of them would overstate what it feels; down to 2D the inertial range
+        /// reaches the rotors' 0.32–0.45 m spacing, the per-rotor gradient that moves the camera above 4 Hz. The 1 m cut
+        /// before it is the known-wrong: at the 20.6 m/s cruise it leaves the encounter's 20–30 Hz almost empty).</summary>
         public double ShortestWavelength;
 
         /// <summary>The longest scale as a fraction of the spectrum's knee: k_min = this / (1.339·L_u) (assumed: the
@@ -123,7 +125,8 @@ namespace Fpv450.Sim.Wind
         /// Finnigan (1994)'s h/3, recalled) is the isotropic form's lateral scale, half its L).</summary>
         public double CanopyScaleU, CanopyScaleW;
 
-        /// <summary>The canopy eddies' random Fourier modes (assumed: about 23 per decade over their 2.7 decades).</summary>
+        /// <summary>The canopy eddies' random Fourier modes (assumed: about 23 per decade over their 3.1 decades to the
+        /// 0.5 m cut on the harness's 17.5 m strip; 64 to the 1 m cut, derived to keep the modes per e-fold).</summary>
         public int CanopyModes;
 
         /// <summary>The canopy eddies' convection velocity over U(h) (published: U_c ≈ 1.8·U(h), Finnigan, Shaw and Patton
@@ -171,8 +174,8 @@ namespace Fpv450.Sim.Wind
             VerticalRatio = 0.594;
             HorizontalScale = 167;
             VerticalScale = 35;
-            Modes = 128;
-            ShortestWavelength = 1;
+            Modes = 138;
+            ShortestWavelength = 0.5;
             LongestFraction = 0.25;
             WakeEddyMin = 0.6;
             WakeEddyMax = 2.4;
@@ -182,7 +185,7 @@ namespace Fpv450.Sim.Wind
             CanopySigmaW = 1.1;
             CanopyScaleU = 1.0;
             CanopyScaleW = 0.6;
-            CanopyModes = 64;
+            CanopyModes = 71;
             CanopyConvection = 1.8;
             CanopyDecay = 0.5;
             BlendingHeights = 3;

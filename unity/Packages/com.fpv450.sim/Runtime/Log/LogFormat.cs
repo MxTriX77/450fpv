@@ -130,8 +130,10 @@ namespace Fpv450.Sim.Log
         /// 18: p7c-wind 1.5's re-grade on the merge (Severe's centre tuned until T0 passes, 7.2 → 9.5 m/s at 35 m; Windy 4.75
         ///    and Calm 1.425 from it; a flight at model 17's centres steps as in 17).
         /// 19: D-060's open field (p7c-wind 1.5): z0 from the landscape's class (Davenport–Wieringa class 4, 0.10 m, not the
-        ///    stubble's 0.03 m) and σ_u/U derived from it (0.164 for 0.135); a flight with z0 0.03 m and σ_u/U 0.135 steps as
-        ///    in 18. p6-flight-core's range branch also takes 19 for its next model: whichever lands second takes 20.
+        ///    stubble's 0.03 m) and σ_u/U derived from it (0.164 for 0.135), and the turbulence carried to the discs' 0.5 m
+        ///    (138 open modes, 71 canopy modes; the 1 m cut had 128 and 64); a flight with z0 0.03 m, σ_u/U 0.135 and the 1 m
+        ///    cut steps as in 18. p6-flight-core's range branch also takes 19 for its next model: whichever lands second
+        ///    takes 20.
         /// </summary>
         public const int ModelVersion = 19;
 

@@ -147,6 +147,10 @@ namespace Fpv450.FlightBench
                 var white = new List<WindTargets.History>();
                 WindPreset cut = preset;
                 cut.ShortestWavelength = WindHarness.ReleaseSpeed; // the known-wrong field: nothing above 1 Hz at the cruise
+                WindPreset oneMetre = preset; // the known-wrong field before D-060: cut at 1 m
+                oneMetre.ShortestWavelength = 1;
+                oneMetre.Modes = 128;
+                var coarse = new List<WindTargets.History>();
                 var stubble = new List<WindTargets.History>();
                 for (ulong seed = 1; seed <= 20; seed++)
                 {
@@ -158,6 +162,7 @@ namespace Fpv450.FlightBench
                     flat.Add(WindTargets.Gusts(level, seed, 300, 50, WindTargets.FlatSigma));
                     met.Add(WindTargets.Encounter(level, seed, 66, WindHarness.ReleaseSpeed));
                     lowPass.Add(WindTargets.Encounter(level, seed, 66, WindHarness.ReleaseSpeed, cut));
+                    coarse.Add(WindTargets.Encounter(level, seed, 66, WindHarness.ReleaseSpeed, oneMetre));
                     white.Add(WindTargets.Encounter(level, seed, 66, WindHarness.ReleaseSpeed, null, WindTargets.White));
                 }
                 foreach (WindTargets.History h in runs) biased.Add(WindTargets.Biased(h));
@@ -165,6 +170,8 @@ namespace Fpv450.FlightBench
                 Row($"{level}: the mean in its band and unbiased", WindTargets.MeanInBand(runs, preset, out d), d);
                 Row($"{level}: energy at 2–4 Hz at the {WindHarness.ReleaseSpeed:F1} m/s cruise, 5 seeds", WindTargets.Spectrum(met, preset, WindHarness.ReleaseSpeed, 2, 4, out d, out _), d);
                 Row($"{level}: energy at 1–2 Hz at the {WindHarness.ReleaseSpeed:F1} m/s cruise, 5 seeds", WindTargets.Spectrum(met, preset, WindHarness.ReleaseSpeed, 1, 2, out d, out _), d);
+                Row($"{level}: energy at 20–30 Hz at the {WindHarness.ReleaseSpeed:F1} m/s cruise (the field to the discs' 0.5 m), 5 seeds", WindTargets.Spectrum(met, preset, WindHarness.ReleaseSpeed, 20, 30, out d, out _), d);
+                Row($"{level} known-wrong: the field cut at 1 m, 20–30 Hz", WindTargets.Spectrum(coarse, preset, WindHarness.ReleaseSpeed, 20, 30, out d, out _), d, knownWrong: true);
                 Row($"{level} known-wrong: a field that stops below 1 Hz at the {WindHarness.ReleaseSpeed:F1} m/s cruise", WindTargets.Spectrum(lowPass, preset, WindHarness.ReleaseSpeed, 2, 4, out d, out _), d, knownWrong: true);
                 Row($"{level} known-wrong: white noise", WindTargets.Spectrum(white, preset, WindHarness.ReleaseSpeed, 2, 4, out d, out _), d, knownWrong: true);
                 Row($"{level} known-wrong: a flat 0.2 m/s σ", WindTargets.Intensity(flat, preset, out d, out _), d, knownWrong: true);
