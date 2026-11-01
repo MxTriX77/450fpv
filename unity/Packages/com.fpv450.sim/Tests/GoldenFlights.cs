@@ -312,9 +312,11 @@ namespace Fpv450.Sim.Tests
         // branch's 1656 bytes, in still air it is model 16's still-air flight bit for bit, every record and event
         // (Model16StillRangeHash, the kept test), and in a steady 5 m/s from 270° model 16's 0x156C9858A7790315 with the
         // record's wind slot written as model 16's stand-in carried it, 0 (a temporary check). Against unity/main the stub's
-        // goldens and audits keep main's model 18 pins: 1.6b's laws change no flight on the floor. In the Calm field (its own
-        // draws, not the stand-in's) the flight keeps its course: 5 impacts, no crash, at rest 19.15 mm into the straw on 18
-        // pairs (model 16: 21.98 mm on 17).
+        // goldens and audits keep main's model 18 pins: 1.6b's laws change no flight on the floor. The Calm field blows
+        // nothing here: SampleGround reports Hole over S04 and the field takes a hole as sheltered (WindField.Begin), so the
+        // flight is the same in still air and in Windy's field, bit for bit (a check). It moves from model 16's by the
+        // stand-in's Calm air, which blew over the hole, the derived drag and the record: 5 impacts, no crash, at rest
+        // 19.15 mm into the straw on 18 pairs (model 16: 21.98 mm on 17).
         public const ulong RangeHash = 0xE4B13EDD65CFF0B2UL;
 
         /// <summary>The merge's audit against the range branch (GoldenFlightTests.InStillAirTheRangeGoldenIsModel16s): model
