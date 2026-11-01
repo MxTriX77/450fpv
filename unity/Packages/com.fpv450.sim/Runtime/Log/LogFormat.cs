@@ -137,8 +137,13 @@ namespace Fpv450.Sim.Log
         /// 20: the wind over a hole (FlightWorld.SoilUnder): where SampleGround reports Hole the field's profile, roughness and
         ///    wakes read the soil a ray straight down meets (S04's straw and soil, E01's fillers), not a sheltered −∞; a
         ///    flight that never flies over a hole, or flies in still or steady air, steps as in 19).
+        /// 21: p7c-wind--d060 merged onto 20 (D-060's open field, p7c-wind 1.5, which that branch logged as 19): z0 from the
+        ///    landscape's class (Davenport–Wieringa class 4, 0.10 m, not the stubble's 0.03 m) and σ_u/U derived from it (0.164
+        ///    for 0.135), and the turbulence carried to the discs' 0.5 m (138 open modes, 71 canopy modes; the 1 m cut had 128
+        ///    and 64), with 20's wind over a hole; a flight with z0 0.03 m, σ_u/U 0.135 and the 1 m cut steps as in 20, and a
+        ///    flight on the stub's floor as on p7c-wind--d060's 19.
         /// </summary>
-        public const int ModelVersion = 20;
+        public const int ModelVersion = 21;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

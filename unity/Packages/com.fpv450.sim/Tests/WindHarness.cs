@@ -27,9 +27,14 @@ namespace Fpv450.Sim.Tests
     ///   lost frames): they belong to neither stretch. The run is that much longer than `Seconds`.
     /// - **The measurement:** the frames from `DiscardSeconds` on, numbered from 1 with time_s = (frame − 1)/29.917
     ///   (the tracker's convention), roll and pitch from TrackerAngles, the yaw rate the frame-to-frame change of the
-    ///   heading × 29.917, every confidence 1, dup 0, flag ok.
+    ///   heading × 29.917, every confidence 1, dup 0, flag ok. Each logged frame shows the camera at the recorder's
+    ///   field pick (FieldStep, D-060), as clip P's recording does, not at the tick's own instant; the pilot sees the
+    ///   tick's (K§8.5).
     /// - **The start:** each run starts where the seed's prevailing wind stays within 90° of its drawn direction for the
     ///   whole run (StartSecond).
+    /// - **The pilot's stick noise** (D-060): every pilot flies with the optimal-control model's motor noise
+    ///   (HarnessPilot.UseRemnant, on the run's seed), its level learnt over the measured span only (the release's first
+    ///   DiscardSeconds and the climb are not a steady flight); `remnant: false` flies the noiseless pilot, the known-wrong.
     /// </summary>
     public static class WindHarness
     {
@@ -76,11 +81,20 @@ namespace Fpv450.Sim.Tests
         /// (assumed: a gentle cruise climb; twice HarnessPilot's 2 s height loop).</summary>
         public const double ClimbRate = 3, SettleSeconds = 4;
 
-        /// <summary>A pilot: the nominal one or a variant (wind.md §6.1).</summary>
+        /// <summary>
+        /// The nominal pilot's split s over the open field and over the belt stretch (derived, D-060: set so that the
+        /// harness's measured roll share, wind_stats.py's cov(roll, e)/var(e), reads clip P's, K§8.4's measured 0.80 over
+        /// the field and 0.64 over the belt, on Severe's 10 seeds, as K§8.5 once set 0.64 from the belt's share; the pilot
+        /// splits the tilt it wants, and the airframe's own roll and the heading's turn of the horizon move the share it
+        /// reads). K§8.5's single 0.64, which reads about 0.51 over the field, is the known-wrong.
+        /// </summary>
+        public const double FieldSplit = 0.85, BeltSplit = 0.73;
+
+        /// <summary>A pilot: the nominal one or a variant (wind.md §6.1), with its split over the field and the belt.</summary>
         public sealed class Pilot
         {
             public string Name;
-            public double Delay = 0.10, TauV = 0.5, Split = 0.64;
+            public double Delay = 0.10, TauV = 0.5, FieldSplit = WindHarness.FieldSplit, BeltSplit = WindHarness.BeltSplit;
         }
 
         /// <summary>The nominal pilot and its variants, flown on the same seeds; s = 1 and s = 0 are for T11b only.</summary>
@@ -91,8 +105,8 @@ namespace Fpv450.Sim.Tests
             new Pilot { Name = "d0.2", Delay = 0.2 },
             new Pilot { Name = "tv0.3", TauV = 0.3 },
             new Pilot { Name = "tv1.0", TauV = 1.0 },
-            new Pilot { Name = "s1", Split = 1 },
-            new Pilot { Name = "s0", Split = 0 },
+            new Pilot { Name = "s1", FieldSplit = 1, BeltSplit = 1 },
+            new Pilot { Name = "s0", FieldSplit = 0, BeltSplit = 0 },
         };
 
         /// <summary>One logged camera frame, and the flight's truth beside it (for the run's summary, never the CSV).</summary>
@@ -110,7 +124,7 @@ namespace Fpv450.Sim.Tests
             public WindLevel Level;
             public ulong Seed;
             public string Pilot;
-            public bool Belt, Steady;
+            public bool Belt, Steady, Remnant;
             public double HeightRef, BeltHeightRef, ClimbSeconds, FromDeg, MeanSpeed, CourseDeg, Mass, StartSecond;
 
             /// <summary>The body's inertia about its roll, pitch and yaw axes, kg·m² (body z, x, y).</summary>
@@ -192,6 +206,23 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>The held-pitch flight's measured end, s.</summary>
         public const double MeasuredSeconds = 10;
+
+        /// <summary>The PAL field's period, ms, and its horizon row's instant after the field's start, ms (published, PAL
+        /// timing: (25 + 60) lines × 64 µs, the horizon in the picture's top fifth, wind.md §1.1).</summary>
+        public const double FieldMs = 20, HorizonMs = 5.44;
+
+        /// <summary>
+        /// The step (from the release) whose camera a logged frame shows: the recorder writes the newest whole field at each
+        /// of its 29.917 Hz ticks (video-feed.md §0, hover-micro-motion.md §2.3), so frame f, ticked at f/29.917 s, shows
+        /// field ⌊t/20 ms⌋ − 1 at its horizon row. Its instant lags the tick by 14.6–34.6 ms, uniform over a field (σ 5.8 ms,
+        /// derived): the timing jitter the tracker's uniform clock reads as motion (0.018 / 0.012 / 0.020° over 4–15 Hz in
+        /// P's roll, pitch and heading, derived). Before the first whole field, the release.
+        /// </summary>
+        public static long FieldStep(int frame)
+        {
+            long field = (long)(frame * 1000 / HarnessPilot.CameraHz / FieldMs) - 1;
+            return field < 0 ? 0 : (long)(field * FieldMs + HorizonMs);
+        }
 
         /// <summary>The field height of run i of n, m: evenly over the band.</summary>
         public static double HeightOf(int i, int n) => LowHeight + (HighHeight - LowHeight) * (i + 0.5) / n;
@@ -307,7 +338,7 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>Flies run i of n for a seed with a pilot, and logs it.</summary>
         public static Run Fly(DroneSpec spec, WindLevel level, ulong seed, int i, int n, Pilot pilot, bool belt = true, bool drag = true,
-            bool steady = false)
+            bool steady = false, bool remnant = true)
         {
             double height = HeightOf(i, n), low = BeltHeightOf(i, n), climb = ClimbSecondsOf(i, n), seconds = Seconds + climb;
             double[] history = History(level, seed, 120, out double drawn);
@@ -322,8 +353,9 @@ namespace Fpv450.Sim.Tests
             double course = courseDeg * DegToRad;
             var p = new HarnessPilot(core.Controller)
             {
-                Delay = pilot.Delay, TauV = pilot.TauV, Split = pilot.Split, Course = course, Height = low,
+                Delay = pilot.Delay, TauV = pilot.TauV, Split = pilot.FieldSplit, Course = course, Height = low,
             };
+            if (remnant) p.UseRemnant(seed); // D-060: the stick noise; the noiseless pilot is the known-wrong
             DetMath.SinCos(course, out double sin, out double cos);
             var along = new Double3(sin, 0, cos);
             var right = new Double3(cos, 0, -sin);
@@ -331,7 +363,7 @@ namespace Fpv450.Sim.Tests
 
             var run = new Run
             {
-                Level = level, Seed = seed, Pilot = pilot.Name, Belt = belt, Steady = steady, HeightRef = height, BeltHeightRef = low,
+                Level = level, Seed = seed, Pilot = pilot.Name, Belt = belt, Steady = steady, Remnant = remnant, HeightRef = height, BeltHeightRef = low,
                 ClimbSeconds = climb, FromDeg = fromDeg,
                 MeanSpeed = core.Wind.MeanSpeed, CourseDeg = courseDeg, Mass = core.Body.Mass, StartSecond = start,
                 RollInertia = core.Body.Inertia.ZZ, PitchInertia = core.Body.Inertia.XX, YawInertia = core.Body.Inertia.YY,
@@ -341,15 +373,24 @@ namespace Fpv450.Sim.Tests
             int steps = (int)(seconds * 1000), frame = 0;
             long climbFrom = -1; // the step the drone passed the stretch's end
             double lastHeading = 0;
+            var fields = new HarnessPilot.Frame[4]; // the camera at the last fields' horizon rows, by field number
             for (int k = 0; k < steps; k++)
             {
-                if (climbFrom < 0 && Double3.Dot(core.State.Position - setup.StartPosition, along) > beltTo) climbFrom = k;
+                double travelled = Double3.Dot(core.State.Position - setup.StartPosition, along);
+                p.Split = travelled >= beltFrom && travelled <= beltTo ? pilot.BeltSplit : pilot.FieldSplit; // per stretch
+                if (climbFrom < 0 && travelled > beltTo) climbFrom = k;
                 if (climbFrom >= 0) p.Height = System.Math.Min(height, low + ClimbRate * (k - climbFrom) * 0.001);
+                // The stick noise learns from the stationary flight only: the measured frames' span (Usable below).
+                p.Learning = k >= DiscardSeconds * 1000 && (climbFrom < 0 || k >= climbFrom + climb * 1000);
+                if ((k - (long)HorizonMs) % (long)FieldMs == 0 || k == 0)
+                    fields[(k / (long)FieldMs) % fields.Length] = HarnessPilot.Take(core.State, k, course);
                 if (k * HarnessPilot.CameraHz >= frame * 1000.0)
                 {
                     ref readonly FlightState s = ref core.State;
-                    HarnessPilot.Frame f = HarnessPilot.Take(s, k, course);
-                    p.See(f);
+                    p.See(HarnessPilot.Take(s, k, course));
+                    long pick = FieldStep(frame);
+                    HarnessPilot.Frame f = fields[(pick / (long)FieldMs) % fields.Length];
+                    if (f.Step != pick) throw new System.InvalidOperationException("the field pick lost its field");
                     double time = frame / HarnessPilot.CameraHz;
                     if (time >= DiscardSeconds)
                     {

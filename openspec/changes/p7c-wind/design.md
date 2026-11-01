@@ -11,10 +11,10 @@
 
 ## Decisions
 1. **Tools first** (D-037). The three Blender scripts are ported to plain Python before any tuning, and their self-checks must pass first: a model is never tuned against a tool that would pass noise.
-2. **The harness is the acceptance.** K§8.5's pilot, test flight and measurement exactly, at least five seeds, the first 5 s discarded; its variants (delay, τ_v, the split s) for T11b. A target passes only when it also fails its known-wrong model (as 1.5's wind-field tests do).
+2. **The harness is the acceptance.** K§8.5's pilot, test flight and measurement exactly, at least five seeds, the first 5 s discarded; its variants (delay, τ_v, the split s) for T11b. A target passes only when it also fails its known-wrong model (as 1.5's wind-field tests do). D-060 adds three things to it: the split per stretch from P's measured roll shares (K§8.4), the pilot's stick noise from the optimal-control model's motor noise (the noiseless pilot its known-wrong), and the recorder's field pick in the logged frames; T6d is graded against P's real motion above 4 Hz, not its tracker floor.
 3. **The field's layers** (K§6.7), sampled at each rotor, the body and the coil:
-   - the mean profile, a log law with z0 and d from the cover height (assumed, labelled)
-   - von Kármán turbulence with σ/U, L_u, L_v and L_w per level, energy reaching 2–4 Hz at the encounter frequency, generated as a deterministic, seeded field (never noise on the pose)
+   - the mean profile, a log law with d from the cover height (assumed, labelled) and z0 from the landscape's roughness class (D-060: Davenport–Wieringa class 4, 0.10 m, published)
+   - von Kármán turbulence with σ/U (derived from z0: the surface layer's σ_u = 2.4·u*, 0.164 at 35 m), L_u, L_v and L_w per level, energy reaching 2–4 Hz at the encounter frequency and the discs' 0.5 m (D-060), generated as a deterministic, seeded field (never noise on the pose)
    - the wakes from the wake grid (decision 4)
    - the canopy flow of wooded strips (p7c-wind 1.5, belt-geometry-p.md: clip P's belt is a wide strip with the wind along it, crossed at 0.45–1.0 H inside its canopy layer): Raupach (1994)'s displacement, roughness and u*/U(h) from the strip's height and frontal area index, the exponential in-canopy profile, the roughness sublayer and the log law to a blending height, the canopy-top σ/u* with eddies of the canopy's scale convected at 1.8·U(h); K§8.5's belt stretch is flown through it at 0.5–1.0 H
    - vorticity and per-rotor gradients (PR-3), so a gust front crossing the drone gives coupled pitch-and-yaw events

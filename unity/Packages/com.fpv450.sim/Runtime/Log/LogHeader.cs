@@ -339,7 +339,7 @@ namespace Fpv450.Sim.Log
             {
                 new NamedValue("mean_lo_m_s", p.MeanLo), new NamedValue("mean_hi_m_s", p.MeanHi),
                 new NamedValue("reference_height_m", p.ReferenceHeight), new NamedValue("cover_height_m", p.CoverHeight),
-                new NamedValue("roughness_over_cover", p.RoughnessRatio), new NamedValue("displacement_over_cover", p.DisplacementRatio),
+                new NamedValue("roughness_m", p.Roughness), new NamedValue("displacement_over_cover", p.DisplacementRatio),
                 new NamedValue("profile_top_m", p.ProfileTop), new NamedValue("taper_height_m", p.TaperHeight),
                 new NamedValue("intensity_sigma_over_u", p.Intensity), new NamedValue("vertical_over_horizontal_sigma", p.VerticalRatio),
                 new NamedValue("horizontal_scale_m", p.HorizontalScale), new NamedValue("vertical_scale_m", p.VerticalScale),

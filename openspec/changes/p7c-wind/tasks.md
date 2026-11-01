@@ -185,6 +185,72 @@ Complex tier (D-033). Branch `unity/physics/p7c-wind` off `unity/main` once `p6-
         - **S6:** T0b's "windward in ≥ 4 of 5" is graded as `runs − 1`, 9 of 10 at 10 seeds; state it as a share, at least 8 of 10 (80 %, K§8.6), or size it from its false-failure rate at the run count used.
         - **S8:** the harness's airspeed band (−5 to +8 %), like the lean's ±15 % and ±20 %, has no measured false-failure rate (`--belt off` on 10 seeds exits 1 at −5.3 %). Size it, or report the no-strip family without the pass and fail.
         - **The micro-motion investigation** runs on `unity/physics/p7-micro-motion`: the misses D-058 names (the roll and pitch spreads 2–3× low, the yaw 3× high) wait for it.
+    - **D-060's fixes and the re-grade** (`unity/physics/p7c-wind--d060`, with `p7-micro-motion`'s probe merged; `ModelVersion` 19, log format 13 unchanged; the range branch also names its next model 19, so whichever lands second takes 20). Each item has its known-wrong:
+      - **z0 from the landscape's class** (`WindPreset.Roughness`): Davenport–Wieringa class 4, z0 0.10 m (published, recalled), d still the stubble's 0.2 m. σ_u/U is now derived from it, 2.4·κ/ln((35 − 0.2)/0.10) = 0.164 (`SurfaceIntensity`), not the assumed 0.135. Measured over 20 seeds × 1200 s: 0.161 Windy, 0.157 Severe. The stubble's z0 0.03 m (0.136) reads 0.130–0.133 and fails the class's ±10 %.
+      - **The turbulence to the discs' 0.5 m** (2D of the 10-inch disc, derived): 138 open modes and 71 canopy modes keep the modes per e-fold. Met at the cruise, the field's 20–30 Hz (its 0.7–1 m eddies) holds 0.86–0.92 of von Kármán's energy. The 1 m cut reads 0.01–0.05 and fails.
+      - **The recorder's field pick** (`WindHarness.FieldStep`): each logged frame shows the newest whole PAL field at its horizon row (5.44 ms into the field). The frames' instants jitter by σ 5.77 ms (a field's 20/√12). The uniform clock reads 0.29 ms and fails. The pilot still sees the tick's frame (K§8.5).
+      - **T6d against P's real motion** (`grade_levels.py`): a ceiling of 0.082° roll and 0.044° pitch (derived: hover-micro-motion.md §2.4's upper ends with P's pick in quadrature), not P's raw floor (0.125° / 0.054°, half of it the tracker's, `floor_check.py`). The 0.15° pose noise reads 0.13° and fails.
+      - **The pilot's stick noise** (`HarnessPilot.UseRemnant`, stream `pilot.motor`): the optimal-control model's motor noise (Kleinman, Baron and Levison 1970; recalled, not re-read: the scanned NTRS copies have no text layer).
+        - The noise is −25 dB of each command's variance, white, through the neuromotor lag τ_n 0.1 s. It is added to the three body rates and the throttle.
+        - Its E{u_c²} is learnt over the measured span only. On a 1 Hz command it reads 0.0531 of the command's variance against the model's 0.0497. −20 dB in its place reads 0.168 and fails.
+        - The noiseless pilot is the grade's known-wrong family for T2 and T6c (`--wrong noiseless`). It was never tuned.
+        - Measured and not adopted (Severe, 10 seeds, split 0.64):
+          - The model's −20 dB observation noise, fed raw into K§8.5's laws (this pilot has no optimal estimator to filter it), runs away: T1 5.1°.
+          - On the pilot's errors, through τ_n, it swamps the field: T1 0.83°, T2 0.38°, T5 field 1.99°, T3/T1 1.27, T7 34/min with 35 % in the belt.
+          - The motor noise with its level learnt from the release: the release's transient sets the noise for the next 10 s. Calm's pitch residual reads 0.23° in the first 3 s and 0.035° at 40 s, and T4 fails Calm's 0.145° ceiling at 0.165°.
+      - **The split per stretch** (`WindHarness.FieldSplit`, `BeltSplit`): s 0.85 over the field and 0.73 over the belt (derived). They are set so that wind_stats.py's roll share reads K§8.4's measured 0.80 and 0.64 on Severe's 10 seeds, as K§8.5 once set 0.64 from the belt's share.
+        - Calibration (field / belt share): 0.64 / 0.64 read 0.518 / 0.524; 0.86 / 0.64 read 0.810 / 0.532; 0.92 / 0.50 read 0.887 / 0.362; 0.85 / 0.73 read 0.796 / 0.643.
+        - On the four final sets the shares read 0.79–0.80 over the field and 0.64–0.68 over the belt. The single 0.64 reads 0.51–0.52 over the field and fails (`TheSplitReadsClipPsRollShare`).
+      - **QA's S6:** T0b's windward rule is now a share, at least 80 % of the runs (K§8.6's 4 of 5): 8 of 10 passes and 7 of 10 fails. The old `runs − 1` failed 8 of 10.
+      - **For S2:** `flightbench --wind-harness … --first-seed S` flies another seed set.
+    - **The goldens (ModelVersion 19)**, audited case by case (GoldenFlights' notes):
+      - With z0 0.03 m and σ_u/U 0.135, every golden is model 18's.
+      - With the 1 m cut, every golden is the class-4 step's.
+      - Powered (Windy) `0xA1FF085091A019CD`: it moves from step 1, ends 147.90 m up, armed, no crash.
+      - Contact (Calm) `0x8C1E6B066F143A67`: it is the class-4 step's to step 290, since the hubs on the floor sit under d + z0 = 0.30 m. It then moves within 2.7 mm and ends with 5 impacts, at rest at 0.2518 m.
+      - Rain `0xB10D9A860D4431C0`: the film holds 9.60 g.
+      - The free body and the tumble are unchanged.
+    - **The re-grade** (every family flown, `--pilots all`, 10 seeds a set; targets passed):
+
+      | Set | Severe, model 18 | Severe, model 19 | Windy, model 18 | Windy, model 19 | Calm, model 19 |
+      |---|---|---|---|---|---|
+      | 1–10 | 9 of 21 | **11** | 10 | 10 | 9 of 9 (18: 9) |
+      | 101–110 | 10 (QA's) | **11** | 10 (QA's) | **11** | 9 of 9 |
+      | 201–210 | 8 (QA's) | **10** | 9 (QA's) | 9 | 9 of 9 |
+      | 301–310 | 9 (QA's) | **11** | 10 (QA's) | **11** | 9 of 9 |
+
+      Model 18's seeds 1–10 read the same counts under the new grader (T6d's ceiling and T0b's share move no verdict there).
+
+      - **Severe, seeds 1–10, model 18 → 19** (P in brackets):
+        - T1 0.254 → **0.439°** [0.51]: PASS on every set (0.44–0.52).
+        - T5 field 0.720 → **0.408°** [0.44]: PASS on every set. The yaw's 3× was the pilot's split, as the note found.
+        - T2 0.072 → 0.087° [0.28]: the noiseless pilot reads 0.082°, so the stick noise adds 6 %.
+        - T6c's 1–2 Hz 0.055 → 0.064° [0.18]; its share 0.44 → 0.50 (20–45 %).
+        - T6b 0.021 → 0.039° (0.06–0.16).
+        - T6d 0.020 / 0.021 → 0.034 / 0.025° against the 0.082 / 0.044° ceiling. Like for like, roll is still 2–2.5× under P's real 0.06–0.08° and pitch 1.5× under its 0.04°.
+        - T10b passes 3 of 4 sets (belt 0.53–0.58 against ≥ 0.55).
+        - Lost: T7, at 25–32 /min with 40–58 % of the roll events in the belt. The field's roll rose 1.7× and the belt's ratio fell: T3/T1 2.68 → 1.41–1.74, T11a's ratio 2.72 → 1.62–2.13.
+        - T11a belt reads 0.88–1.14°, under 1.1 on 3 of 4 sets.
+      - Windy follows: T1 0.110 → 0.194°, now passing. It loses T7 the same way, and T11b's s0 tilt on seeds 1–10 (1.27 against 1.25).
+      - **S2's spread:** Severe 10–11 of 21 and Windy 9–11 over the four sets (8–10 and 9–10 at model 18).
+        - Per target, from the 40 runs' per-run spread (a normal approximation of a 10-run mean outside its band): T0 3 % at Severe and 6 % at Windy, T1 0.1 % and 3 %, T5 belt 0.3 % and 0.9 %, and below 0.1 % for every other passing mean.
+        - At 20 seeds every passing mean's rate is 1.2 % or less (Windy's T0). 20 seeds is the suggested size.
+        - T10b belt sits on its floor: 0.556 against 0.55, failing 44 % of 10-run sets at any count.
+        - The pooled conditions are not covered by that estimate. T0b's windward share is 29 of 40 runs at Severe and 32 of 40 at Windy, against 80 %.
+      - **Known-wrongs that pass:**
+        - T6a's pose noise (0.92–0.95 against ≥ 0.85, as before).
+        - T8's fixed vector on seeds 301–310, and T11b's no-drag on 101–110 (QA's S3).
+        - Calm's T2 and T4 read on Severe's runs, as before.
+    - **Still missing at model 19 (not tuned away):**
+      - Pitch's 1–4 Hz and spread: T2 0.09° against 0.19–0.38, and T6c. The stick noise does not close them. D-060's next flight-model item, the rear rotors in the front rotors' wake, is named for it.
+      - The belt's absolute spreads (T3, T4) and T7's belt share, now that the field carries P's roll.
+      - T6b, T8's median, T9b (pitch kurtosis 2.9 against 3.3–5.5), T10a, and T0b's windward share.
+    - **Verified:**
+      - The suite: 299 of 299.
+      - `flightbench --golden` PASS (the new pins), `--scenarios` PASS (the class's σ_u/U, the 20–30 Hz reach and their known-wrongs).
+      - `replay --record … --wind severe --canopy` (60 s, 60 000 steps, 128 events) and a 30 s Windy flight replay bit for bit.
+      - `python -m pytest tools/wind tools/flightbench` and the OPSEC scan pass.
+      - `--bench` is owed on AC: the open field's 138 modes are 8 % more samples a point than 128, and the canopy's 71 are 11 % more than 64.
 - [x] 1.6 [physics-engineer] Cruise in wind (design 6): the drag re-derived for clip P's pitch at 17–22 m/s, superseding 1.5's 13 m/s calibration in `drone.json`'s `aero` block; verify the "clip P's pitch flies the cruise" scenario and T0 at that airspeed
   - **As built** (`drone.json`'s `props.h_force_n_per_m_s` and `aero.drag_coefficient` notes; `Tests/{WindHarness,CrosswindScenario,AeroTests,GoldenFlights}.cs`; `ModelVersion` 7, `LogFormat.Version` 6 unchanged):
     - **The drag:**

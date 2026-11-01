@@ -19,4 +19,5 @@ These notes were copied verbatim from the Godot repo (`MxTriX77/450fpv`, `main`)
 - **Speed in strong wind** (wind.md Q14) is answered: normal cruise. So the low-drag reading of §5.3 applies (crosswind about 6.5–8.5 m/s).
 - **Launch rails → launch stand** (D-022): four posts about 25 cm high, one under each motor.
 - **New:** [fc-profiles.md](fc-profiles.md), with real Betaflight profiles of the class and the sim's default rates (D-023).
+- **New:** [hover-micro-motion.md](hover-micro-motion.md), why the sim's camera is quiet above 4 Hz against clip P: P's floor split from its tracker's, the sources ranked, and the spreads (D-059).
 - **Drone layout:** the payload sits on top and there are two battery packs (pilot, 2026-10-17). The mass layout in wind.md §5.5 assumed cargo forward and below, with one pack. Phase 5 re-derives it.
