@@ -14,16 +14,21 @@ namespace Fpv450.FlightBench
     {
         public const string Name = "powered-flight";
 
-        static DroneSpec M11() => GoldenFlights.WithModel11Packs(Drone());
+        // The kept audits of models 7–12 fly model 13's drone.json (D-043's layout, a fixture since D-050), those of
+        // models 7–11 on model 11's pack table.
+        static DroneSpec M13() => Repository(GoldenFlights.Model13DronePath);
+        static DroneSpec M11() => GoldenFlights.WithModel11Packs(M13());
 
-        public static DroneSpec Drone()
+        public static DroneSpec Drone() => Repository("assets-src/drone/drone.json");
+
+        static DroneSpec Repository(string relative)
         {
             for (string dir = Directory.GetCurrentDirectory(); dir != null; dir = Path.GetDirectoryName(dir))
             {
-                string path = Path.Combine(dir, "assets-src", "drone", "drone.json");
+                string path = Path.Combine(dir, relative);
                 if (File.Exists(path)) return DroneSpec.Parse(File.ReadAllText(path));
             }
-            throw new FileNotFoundException("assets-src/drone/drone.json was not found from " + Directory.GetCurrentDirectory());
+            throw new FileNotFoundException(relative + " was not found from " + Directory.GetCurrentDirectory());
         }
 
         public static bool Golden()
@@ -86,9 +91,9 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"model 11's pack table: powered 0x{p11:X16}, contact 0x{c11:X16}, tumble 0x{t11:X16} "
                 + $"({(pok ? "model 11's, bit for bit" : "NOT model 11's")}): {(pok ? "PASS" : "FAIL")}");
             // p7b-airframe 1.4's audit: with the airframe's modes off, over model 12's 1496-byte layout, each golden is model 12's.
-            ulong p12 = GoldenFlights.FlyPowered(Drone(), out _, 1496, 160, modes: false);
-            ulong c12 = GoldenFlights.FlyContact(Drone(), out _, 1496, 160, modes: false);
-            ulong t12 = GoldenFlights.FlyTumble(Drone(), out _, out _, 1496, 160);
+            ulong p12 = GoldenFlights.FlyPowered(M13(), out _, 1496, 160, modes: false);
+            ulong c12 = GoldenFlights.FlyContact(M13(), out _, 1496, 160, modes: false);
+            ulong t12 = GoldenFlights.FlyTumble(M13(), out _, out _, 1496, 160);
             bool mok = p12 == 0x63D668DD01A1E587UL && c12 == 0x8B50CC1BD8EBC8FFUL && t12 == 0x58EF4F6AE8D111D8UL;
             Console.WriteLine($"modes off, over model 12's layout: powered 0x{p12:X16}, contact 0x{c12:X16}, tumble 0x{t12:X16} "
                 + $"({(mok ? "model 12's, bit for bit" : "NOT model 12's")}): {(mok ? "PASS" : "FAIL")}");

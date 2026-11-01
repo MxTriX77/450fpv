@@ -178,6 +178,10 @@ namespace Fpv450.Sim.Tests
         public const ulong TumbleHash = 0xB371E06FF28075D8UL;
         public const int TumbleSteps = 10000;
 
+        /// <summary>Model 13's drone.json (D-043's layout, before D-050), a fixture: the kept audits of models 7–12 fly on it,
+        /// those of models 7–11 with model 11's pack table on it.</summary>
+        public const string Model13DronePath = "unity/Packages/com.fpv450.sim/Tests/Fixtures/drone-model13.json";
+
         /// <summary>Model 11's pack table (drone.json's before p7b-airframe 1.5: one cell at charge 0, 0.1, …, 1, from 3.0 V),
         /// which the kept audits of models 7–11 fly on.</summary>
         public static readonly double[] Model11Ocv = { 3.00, 3.45, 3.55, 3.62, 3.67, 3.73, 3.81, 3.90, 3.98, 4.07, 4.20 };

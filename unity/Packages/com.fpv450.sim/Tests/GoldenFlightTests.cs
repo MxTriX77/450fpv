@@ -68,8 +68,10 @@ namespace Fpv450.Sim.Tests
             Assert.That(hash, Is.EqualTo(GoldenFlights.ContactHash), "the pinned golden (a re-record is audited and raises the model version)");
         }
 
-        // The kept audits of models 7–11 fly drone.json on model 11's pack table (p7b-airframe 1.5 re-mapped it).
-        static DroneSpec Model11() => GoldenFlights.WithModel11Packs(DroneSpec.Parse(RepositoryDrone.Text()));
+        // The kept audits of models 7–12 fly model 13's drone.json (D-043's layout, a fixture since D-050), those of
+        // models 7–11 on model 11's pack table (p7b-airframe 1.5 re-mapped it).
+        static DroneSpec Model13() => DroneSpec.Parse(Model13Drone.Text());
+        static DroneSpec Model11() => GoldenFlights.WithModel11Packs(Model13());
 
         // p7b-airframe 1.5's audit: on model 11's pack table, the record's layout unchanged, all three are model 11's bit for
         // bit, so the new pins move by the table alone.
@@ -137,7 +139,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void WithTheModesOffEachGoldenIsModel12s()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = Model13();
             Assert.That(GoldenFlights.FlyPowered(spec, out _, ModeAt, ModeBytes, modes: false), Is.EqualTo(0x63D668DD01A1E587UL), "powered");
             Assert.That(GoldenFlights.FlyContact(spec, out _, ModeAt, ModeBytes, modes: false), Is.EqualTo(0x8B50CC1BD8EBC8FFUL), "contact");
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, ModeAt, ModeBytes), Is.EqualTo(0x58EF4F6AE8D111D8UL), "tumble");
