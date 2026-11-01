@@ -524,3 +524,15 @@ What follows:
   - the camera's soft mount and the frame's vibration reach the picture
   - each prop's small factory imbalance (bounded, seeded, logged) and the frame's modes give the high-frequency shake the pilot knows
 - **Order:** these join the ground, damage and fiber changes (D-056). The camera change starts first, because it needs no new world data.
+
+## D-060 The picture's fast motion comes from the turbulence, not the props · Accepted
+From the micro-motion investigation (`docs/reference-notes/hover-micro-motion.md`, `unity/physics/p7-micro-motion`). It corrects D-059's camera bullet:
+- **Like for like** (Severe cruise, the footage's frame rate, 4–15 Hz), the sim's camera moves 3–4× less than clip P in roll, 2× in pitch and about 5× in heading. The earlier 40–1000× compared the stand-in wind's hover with P's cruise and P's tracker noise.
+- **The gust difference between rotors makes 87–97 % of it.** The factory imbalance, the blade pass, ripple and cogging are vibration (`CameraVibration`, the gyro's once-per-rev peak), at most about 1e-4° in the picture; `p7f-damage` grades them as vibration only.
+- **`p7c-wind` takes:**
+  - z0 from the landscape's class (Davenport–Wieringa class 4, z0 0.10 m, σ_u/U 0.164)
+  - the turbulence carried down to the discs' 0.5 m
+  - the harness pilot's split set to match P's measured roll share
+  - the grade above 4 Hz against P's real motion, with the recorder's field timing
+  - the pilot's stick noise from a published human-operator model (the noiseless pilot as the known-wrong, never tuned to pass)
+- **Roll and heading then match P;** pitch stays 3× low. A new flight-model item, the rear rotors in the front rotors' wake in forward flight, is named for it.
