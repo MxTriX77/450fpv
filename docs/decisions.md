@@ -497,3 +497,9 @@ The pilot, 2026-11-02, after flying the map build: "i'm very much pleased with t
 - **Damage from strikes** (`p7f-damage`, the new PHY-26): a prop or motor that scrapes a wall or an obstacle is damaged by the strike's energy. A chipped or bent blade loses thrust and adds a once-per-revolution vibration; a struck motor loses torque or efficiency. The drone flies on worse, logged and replayable.
 - **The fiber** (`p7d-tether`, PHY-18…23): the spool, the span, cuts from sharp reverses, snags and wires, and the link's loss.
 - **Each is a Complex change** (D-033): its proposal is researched and drafted by the physics engineer from published sources, never asked of the pilot (D-024), then reviewed by the orchestrator. They run in parallel as slots allow, and each ships into the player behind the build command.
+
+## D-057 The OSD shows the arm state, the amps and the volts · Accepted
+The pilot, 2026-11-02: "when armed it says AIR, when not it says DISARMED" and "let's simulate ampers and voltage".
+- **The flight-mode element** reads **AIR** while armed and **DISARMED** while disarmed, as Betaflight's OSD does. The armament label "! SAFE !" (D-011) and the name "Svinoriz 10 Opto" are unchanged.
+- **Amps and volts from the sim:** the pack's loaded voltage (total and per cell), the current drawn (A) and the charge used (mAh) come from the battery and ESC model (PHY-11), through the feed signals, at the OSD's refresh, with Betaflight's voltage filter and warning hysteresis (D-048). The low-voltage warning follows `PackLow`.
+- **This is `p4-feed` 1.5** (the OSD content model), built on the player's branch.
