@@ -221,7 +221,7 @@ namespace Fpv450.Sim.Tests
                 int n = 0;
                 for (long k = 0; k < 250 * 300; k++)
                 {
-                    double noise = pilot.Motor(1, amplitude * Math.Sin(2 * Math.PI * k / 250.0), k);
+                    double noise = pilot.Motor(1, amplitude * Math.Sin(2 * Math.PI * k / 250.0), k, true);
                     if (k >= 250 * 30)
                     {
                         sum += noise;

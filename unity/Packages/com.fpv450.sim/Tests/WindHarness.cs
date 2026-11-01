@@ -33,7 +33,8 @@ namespace Fpv450.Sim.Tests
     /// - **The start:** each run starts where the seed's prevailing wind stays within 90° of its drawn direction for the
     ///   whole run (StartSecond).
     /// - **The pilot's stick noise** (D-060): every pilot flies with the optimal-control model's motor noise
-    ///   (HarnessPilot.UseRemnant, on the run's seed); `remnant: false` flies the noiseless pilot, the known-wrong.
+    ///   (HarnessPilot.UseRemnant, on the run's seed), its level learnt over the measured span only (the release's first
+    ///   DiscardSeconds and the climb are not a steady flight); `remnant: false` flies the noiseless pilot, the known-wrong.
     /// </summary>
     public static class WindHarness
     {
@@ -379,6 +380,8 @@ namespace Fpv450.Sim.Tests
                 p.Split = travelled >= beltFrom && travelled <= beltTo ? pilot.BeltSplit : pilot.FieldSplit; // per stretch
                 if (climbFrom < 0 && travelled > beltTo) climbFrom = k;
                 if (climbFrom >= 0) p.Height = System.Math.Min(height, low + ClimbRate * (k - climbFrom) * 0.001);
+                // The stick noise learns from the stationary flight only: the measured frames' span (Usable below).
+                p.Learning = k >= DiscardSeconds * 1000 && (climbFrom < 0 || k >= climbFrom + climb * 1000);
                 if ((k - (long)HorizonMs) % (long)FieldMs == 0 || k == 0)
                     fields[(k / (long)FieldMs) % fields.Length] = HarnessPilot.Take(core.State, k, course);
                 if (k * HarnessPilot.CameraHz >= frame * 1000.0)

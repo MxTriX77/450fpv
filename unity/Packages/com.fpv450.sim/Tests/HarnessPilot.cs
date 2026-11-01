@@ -84,7 +84,9 @@ namespace Fpv450.Sim.Tests
     /// - **Stick noise** (D-060), when the harness gives it its stream (`UseRemnant`): the optimal-control model's motor
     ///   noise (Kleinman, Baron and Levison 1970), at its published ratio, not tuned. On each command (the three body
     ///   rates and the throttle), white noise of covariance V_u = π·ρ_u·E{u_c²}, ρ_u at `MotorNoiseDb` and E{u_c²} the
-    ///   command's variance about its running mean over `RemnantWindow`, through the neuromotor lag `NeuromotorTau` (so
+    ///   command's variance about its running mean over `RemnantWindow`, learnt only while the flight is stationary
+    ///   (`Learning`: the model's E{u_c²} is a steady flight's, so the harness's release and its climb between the
+    ///   stretches are not in it, and before any steady flight the noise is 0), through the neuromotor lag `NeuromotorTau` (so
     ///   its variance is V_u/(2·τ_n)), added to the command; the commands' own path keeps K§8.5's measured τ, which already
     ///   holds the pilot's lag. The model's observation noise (−20 dB) is not carried: it enters that model through its
     ///   optimal estimator, which this pilot has not, and fed raw into K§8.5's laws it is another model (p7c-wind 1.5's
@@ -147,6 +149,10 @@ namespace Fpv450.Sim.Tests
         /// 0.23 Hz band's period, short against a run; set before any grade, never tuned).</summary>
         public double RemnantWindow = 10;
 
+        /// <summary>Whether the flight is stationary now, so the stick noise's E{u_c²} learns from it (the harness clears it
+        /// before its discarded start and through its climb between the stretches).</summary>
+        public bool Learning = true;
+
         /// <summary>The course's bearing, radians from north toward east, and the height to hold, m.</summary>
         public double Course, Height;
 
@@ -169,6 +175,7 @@ namespace Fpv450.Sim.Tests
         bool _remnant;
         SeedStream _motor;
         readonly double[] _mean = new double[4], _variance = new double[4], _lagged = new double[4];
+        readonly long[] _learnt = new long[4];
         long _reports;
 
         public HarnessPilot(FlightController fc)
@@ -246,10 +253,10 @@ namespace Fpv450.Sim.Tests
             double throttle = ThrottleStart + _throttleIntegral + ClimbGain * ClimbError(v);
             if (_remnant)
             {
-                p += Motor(0, p, _reports);
-                q += Motor(1, q, _reports);
-                r += Motor(2, r, _reports);
-                throttle += Motor(3, throttle, _reports);
+                p += Motor(0, p, _reports, Learning);
+                q += Motor(1, q, _reports, Learning);
+                r += Motor(2, r, _reports, Learning);
+                throttle += Motor(3, throttle, _reports, Learning);
                 _reports++;
             }
             throttle = throttle < 0 ? 0 : throttle > 1 ? 1 : throttle;
@@ -268,18 +275,21 @@ namespace Fpv450.Sim.Tests
 
         double ClimbError(in Frame f) => (Height - f.Height) / HeightTau - f.Climb;
 
-        // Command i's motor noise at stick report `report` (from 0, once per report and command): its running mean and
-        // variance (exponentially weighted over RemnantWindow, the plain mean until it has that many reports) updated with
-        // the command, then one draw of white noise of covariance π·ρ_u·E{u_c²} held over the report, through the
-        // neuromotor lag.
-        internal double Motor(int i, double command, long report)
+        // Command i's motor noise at stick report `report` (from 0, once per report and command): when `learn`, its running
+        // mean and variance (exponentially weighted over RemnantWindow, the plain mean until it has learnt that many
+        // reports) updated with the command; then one draw of white noise of covariance π·ρ_u·E{u_c²} held over the report,
+        // through the neuromotor lag.
+        internal double Motor(int i, double command, long report, bool learn)
         {
             double dt = Period * 0.001, window = RemnantWindow / dt;
-            long n = report + 1;
-            double alpha = n < window ? 1.0 / n : 1 / window;
-            double d = command - _mean[i];
-            _mean[i] += alpha * d;
-            _variance[i] = (1 - alpha) * (_variance[i] + alpha * d * d);
+            if (learn)
+            {
+                long n = ++_learnt[i];
+                double alpha = n < window ? 1.0 / n : 1 / window;
+                double d = command - _mean[i];
+                _mean[i] += alpha * d;
+                _variance[i] = (1 - alpha) * (_variance[i] + alpha * d * d);
+            }
             double ratio = DetMath.Exp(MotorNoiseDb * 0.23025850929940458); // 10^(dB/10)
             double white = DetMath.Sqrt(TrackerAngles.Pi * ratio * _variance[i] / dt) * Normal(_motor, (ulong)report * 4 + (ulong)i);
             double a = DetMath.Exp(-dt / NeuromotorTau);
