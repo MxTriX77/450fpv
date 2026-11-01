@@ -41,7 +41,7 @@ shapes; each is drawn as follows.
   turned along the arm and trimmed to clear the packs, the T-joints the parts' plan, flat-bottomed on the ground.
 
 Collision (gallery noclip only: the flight's shapes come from drone.json through the core) follows the drawn parts;
-material ids follow the object sheet (`carbon_composite` awaits the physics sign-off, so carbon parts are `plastic`).
+material ids follow the object sheet (the carbon parts `carbon_composite`, signed off by physics in p7b-airframe).
 LODs drop detail by the pixel: at the feed's 935 px/rad (CatalogImporter) a feature of s metres is one pixel at
 935 s metres away, so LOD1 (3 m) drops what is under 3 mm (vents, ribs, wing nuts, tie tails), LOD2 (10 m) what is
 under 1 cm (leads, standoffs, nuts, bolts), LOD3 (35 m) what is under 4 cm (keeping boxes and prisms of the big
@@ -70,8 +70,8 @@ PALETTES = {
     "lead": ("red", "black"),
     "bottle": ("body", "cap"),
 }
-# The object sheet's material ids (Physics role): carbon_composite is proposed, plastic until physics signs it off.
-PHYSICS = {"carbon": "plastic", "metal": "steel", "prop": "plastic", "plastic": "plastic", "strap": "fabric",
+# The object sheet's material ids (Physics role).
+PHYSICS = {"carbon": "carbon_composite","metal": "steel", "prop": "plastic", "plastic": "plastic", "strap": "fabric",
            "lead": "cable", "bottle": "plastic"}
 BLADE_MAX_TWIST_DEG = 35.0  # a blade's root turns no steeper than this into the hub (assumed: molded props)
 # A blade's chord along the radius, as a share of prop.chord_m at r / R (the sheet: widest near a third of the
@@ -1177,7 +1177,7 @@ def _snag(params, layout):
     """Where a wire or the drone's own line can catch (the sheet's snag hazards): the skids' open ends (hooks), the
     legs and skids as edges a line rides into, and the cable ties' cut tails (hooks)."""
     snag = []
-    plastic = PHYSICS["plastic"]
+    plastic, carbon = PHYSICS["plastic"], PHYSICS["carbon"]
     for side in ("left", "right"):
         if layout.has(f"skid_{side}"):
             sk = layout.part(f"skid_{side}")
@@ -1186,15 +1186,15 @@ def _snag(params, layout):
             joints = sorted(layout.part(f"tjoint_{c}")["position_m"][2] for c in CORNERS
                             if layout.has(f"tjoint_{c}") and (layout.part(f"tjoint_{c}")["position_m"][0] > 0) == (x > 0))
             snag.append({"kind": "edge", "points": [[x, y, z - L / 2], [x, y, z + L / 2]], "radius_m": r,
-                         "material": plastic})
+                         "material": carbon})
             for end, joint in ((z - L / 2, joints[0]), (z + L / 2, joints[-1])):
-                snag.append({"kind": "hook", "points": [[x, y, joint], [x, y, end]], "radius_m": r, "material": plastic})
+                snag.append({"kind": "hook", "points": [[x, y, joint], [x, y, end]], "radius_m": r, "material": carbon})
     for corner in CORNERS:
         if layout.has(f"leg_{corner}"):
             leg = layout.part(f"leg_{corner}")
             x, y, z = leg["position_m"]
             snag.append({"kind": "edge", "points": [[x, y + leg["length_m"] / 2, z], [x, y - leg["length_m"] / 2, z]],
-                         "radius_m": leg["diameter_m"] / 2, "material": plastic})
+                         "radius_m": leg["diameter_m"] / 2, "material": carbon})
     f, _ = mount_frame(params, layout, "coil")
     rng = random.Random(params["seed"])
     for zc, r in tie_stations(params, layout):

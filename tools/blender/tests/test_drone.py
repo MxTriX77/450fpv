@@ -385,5 +385,8 @@ def test_metadata_validates(variant, built):
         assert kinds.count("hook") == 4 + 2 and kinds.count("edge") == 2 + 4  # skid ends and ties; skids and legs
     else:
         assert kinds == ["hook", "hook"]  # the cable ties' tails
-    assert {m["slot"]: m["physics"] for m in data["materials"]}["metal"] == "steel"
+    physics = {m["slot"]: m["physics"] for m in data["materials"]}
+    assert physics["metal"] == "steel" and physics["carbon"] == "carbon_composite"
+    assert "carbon_composite" in {c["material"] for c in data["collision"]}
+    assert all(s["material"] == "carbon_composite" for s in data["snag"] if s["kind"] == "edge")  # legs and skids
     assert not any(c["landable"] for c in data["collision"])
