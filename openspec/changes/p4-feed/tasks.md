@@ -48,6 +48,31 @@ Branch `unity/techart/p4-feed` off `unity/main`, once `p1-g1-look-lock-gallery` 
 - [ ] 1.5 [game-developer] The OSD content model (design 5):
   - **What:** OSD-03's fields from the sim state, with invented values.
   - **Verify:** the voltage scenario with a stub pack signal, and with `p6-flight-core`'s once it lands.
+
+  **As built** (D-057, on the player's branch `unity/game/p6-input-app--player`; not ticked: its Unity runs are owed, below):
+  - *Where:* `Scripts/UI/Osd/FlightOsd.cs` (asmdef `Fpv450.UI.Osd`, engine-free, so `tools/inputcore` compiles it and `tools/inputtests` runs `Tests/EditMode/Osd/`). `FlightFeedSignals` feeds it from `FlightScene` and hands its grid to the feed; `StubOsd` stays the noclip view's and the captures' stand-in, unchanged. `FlightScene` resets it for each flight and each wait for the radio (a fresh pack); the cells are `drone.json`'s series, `Propulsion.SeriesCells`.
+  - *The elements* (row, columns: content ← source), the footage's layout as `StubOsd` ports it:
+    - 0, 0–7: **AIR** while armed, **DISARMED** while disarmed (D-057; Betaflight's "AIR ", its 4th cell blank) ← the pose's arm state
+    - 0, to 26: the altitude, ">" and whole m ← the pose over the rest pose
+    - 7, 13–15: the reticle · 10, 0–7: **"! SAFE !"** (D-011), always
+    - 11, 0–5: the timer, MM:SS ← flight time · 11, to 27: **mAh drawn**, "%4d" and "MAH" ← ∫ `MotorCurrentTotalA`
+    - 12, 0–5: battery mark and the **average cell**, "4.20в" ← `PackVolts` filtered ÷ the cells · 12, 7–22: **"Svinoriz 10 Opto"** (D-011), or the warning over it · 12, to 27: the distance home, km ← the pose
+    - 13, 0–5: battery mark and the **pack**, "25.2в" ← `PackVolts` filtered · 13, 21–27: the **current**, "%3u.%02u" and "a" ← `MotorCurrentTotalA` filtered
+  - *Betaflight 4.5's path* (read off its 4.5.0 source: `battery.c`, `voltage.c`, `current.c`, `osd_elements.c`, `osd_warnings.c`, `osd.c`), its settings stored with their CLI names: `vbat_warning_cell_voltage` 300 (the pilot's 3.00 V, = `FeedSignals.LowCellVolts`), `vbat_hysteresis` 1, `vbat_display_lpf_period` 30, `ibat_lpf_period` 10, `osd_framerate_hz` 12 (Betaflight's defaults but the first).
+    - The 50 Hz battery tasks run once per 20 ms field window of sim time, on its field means: the display PT1 at 0.33 Hz (k 0.0402) and the current PT1 at 1 Hz (k 0.1116), `pt1FilterGain`'s ω / (ω + 1); a frame that missed windows runs each with the latest means. Both filters start at their first sample, as a settled flight controller's.
+    - The pack shows the filtered 0.01 V rounded, one decimal from 10 V (`lrintf`, half to even), two below; the cell, that 0.01 V divided by the cells, truncated; the current truncated to 0.01 A; mAh drawn, the unfiltered field means times 20 ms, from the first window, truncated.
+    - The warning is `batteryUpdateVoltageState` on the filtered voltage: OK to WARNING at or below 6 × 3.00 − 0.01 = 17.99 V, back above 18.00 V, so it follows `PackLow` (the same threshold and cells) through the filter and the hysteresis (D-048). It shows "LOW BATTERY" over the name, and the pack and cell blink with it (`osdUpdateAlarms`), at the footage's 12 fields on and 9 off.
+    - The text takes its values at each 12 Hz refresh (fields 0, 5, 9, 13 … of each 50); blinking stays per field.
+    - The physics publishes `PackVolts` 0 and `PackLow` true until its first whole field (step 20), so `FlightFeedSignals` samples from step 20 on, and the battery elements stay blank until the first sample (a suggestion for physics: publish the rest voltage before the first field). Before a flight the OSD shows the stub's 25.2 V, disarmed.
+  - *The log header* records `Isa` (`HostIsa`, in `FlightSession`), as `tools/replay`'s `Host.Isa` writes it.
+  - *Checked* (2026-11-01; Unity barred, the pilot on the GPU): `dotnet test tools/inputtests` runs `FlightOsdTests` (10) and the session's ISA test:
+    - the mode word armed and disarmed, at the next refresh; every row cell for cell; Betaflight's formats (25.25 V reads 25.2, 4.198 V a cell 4.19, 12.349 A 12.34); the PT1s window by window and 63 % of a sag at one time constant; the hysteresis at 17.99/18.00/18.01 V and on 8S; the blink; mAh over 3000 windows and across missed ones; the 12 Hz refresh
+    - the voltage scenario with a stub pack: a sag at field 40 shows at field 42
+    - with `p6-flight-core`'s signals, a keyboard flight on the floor from 8 % charge (rest 19.92 V), a full-collective pull to 17.41 V: every window's values are Betaflight's path on the field means; mAh drawn, 89, is the packs' own 1 kHz charge used (the field means' integral within 10⁻⁶ mAh); `PackLow` at 1.98 s, the warning at 2.46 s (the display filter's 0.48 s); the shown pack falls in the sag's field
+    - the header's ISA, "x64 sse2 sse4.1 avx avx2 fma", is .NET's own intrinsics' list on this machine
+    - Unity's own Roslyn with Unity's response files compiles every changed assembly (App.Session, UI.Osd, UI, App, Editor, Tests.Session, Tests.Osd, Tests.App) with no error or warning
+  - *Owed, once the GPU is free:* Unity EditMode (`Fpv450.Tests.Osd`, `Tests.Session`, `Tests.App`'s updated `TheFeedReadsThePhysicsWhereItIsLive`), and both players (`Fpv450.Build.Windows` with and without `-review`) with `-smoketest -windowed -smokeshots`: PASS, the new OSD checks (DISARMED waiting and at rest, AIR in the air with current, mAh and pack), and the OSD's shots looked at (`rest_*`, `waiting_*` disarmed; the new `air_*` armed, in the FPV view).
+  - *Not in this task:* OSD-03's link-quality readout (7d's link margin; the stand-in's LOW LINK warning stays), the dotted artificial horizon (K§11.6: optional; the measured layout has none), Betaflight's critical level and "LAND NOW" (the physics publishes no critical signal), and a one-cell mAh mark in the ROM (the tech-artist's `FeedFont`; "MAH" spells it until then).
 - [x] 1.6 [reference-analyst] The frame-metrics tool (design 7):
   - **What:** one tool for footage and captured feed frames, with the local-jump outlier rule and burst extraction, plus the stable letter index (FEED-12, D-037).
   - **Verify:** it runs on two letters' frames and on a captured feed sequence, writing only to `reference/_compare/`, and the OPSEC scan stays clean.
