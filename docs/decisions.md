@@ -489,3 +489,11 @@ The pilot, 2026-11-02: "let's add V - it shifts between 1st person and 3rd perso
 - **V toggles the camera** between the FPV camera at the lens and the third-person chase view, in every build, the pilot's included.
 - **Nothing else changes:** the feed, its noise and the OSD apply in both views; the physics, the log and the input don't see the toggle.
 - **The keys move:** the review builds' feed toggle leaves V for a free key; C (the old chase key) is retired. The flight's key list on screen and in the spec follows.
+
+## D-056 Physics next: wind, ground, damage and the fiber · Accepted
+The pilot, 2026-11-02, after flying the map build: "i'm very much pleased with the results. let's enhance the physics further, should be mega realistic (turbulence, wind, stucking, wobbling, motors worsening when you scratch the motors and/or propellers on a wall etc.) and opto cutting physics too."
+- **Wind and turbulence** (`p7c-wind`): it lands in the player as soon as its merge with the airframe and its re-grade pass QA.
+- **The ground** (`p7a-ground`, PHY-01…06): legs that stick for a moment at liftoff, pitfalls, loose and porous soil, grass and stem jitter, and the landing's wobble.
+- **Damage from strikes** (`p7f-damage`, the new PHY-26): a prop or motor that scrapes a wall or an obstacle is damaged by the strike's energy. A chipped or bent blade loses thrust and adds a once-per-revolution vibration; a struck motor loses torque or efficiency. The drone flies on worse, logged and replayable.
+- **The fiber** (`p7d-tether`, PHY-18…23): the spool, the span, cuts from sharp reverses, snags and wires, and the link's loss.
+- **Each is a Complex change** (D-033): its proposal is researched and drafted by the physics engineer from published sources, never asked of the pilot (D-024), then reviewed by the orchestrator. They run in parallel as slots allow, and each ships into the player behind the build command.
