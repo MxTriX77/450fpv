@@ -100,8 +100,12 @@ namespace Fpv450.Sim.Log
         /// 13: p7b-airframe 1.4 (the airframe's elastic modes, AirframeModesSpec: the arms' bending and the payload's and the
         ///    coil's mounts about the rigid body, the frame's elastic turn in the gyro, each hub's elastic velocity in its
         ///    rotor's inflow; a flight without them steps as in 12).
+        /// 14: D-050's simpler drone (drone.json: the coil beneath, a bottle strapped on top, the legs-off build moving
+        ///    nothing; fitted to the drone model: the plates' stack, the legs, clamps and T-joints, the camera's lens) and
+        ///    both loads on strapped mounts in the modes, no sling; on model 13's drone.json a flight without the modes steps
+        ///    as in 13).
         /// </summary>
-        public const int ModelVersion = 13;
+        public const int ModelVersion = 14;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

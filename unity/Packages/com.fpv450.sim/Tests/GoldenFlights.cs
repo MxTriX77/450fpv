@@ -110,7 +110,15 @@ namespace Fpv450.Sim.Tests
         // its first armed one: the Windy air's drag on the body, relieved through the masses, has set the payload's sling and
         // the coil's mount swinging, and the gyro reads the frame's turn; 73 mm by 2.5 s, 31 m by 10 s on the open-loop script,
         // 227.76 m up against 220.30, armed, no crash.
-        public const ulong PoweredHash = 0x0F843363CA8DBFBAUL;
+        // Model 13: 0x0F843363CA8DBFBA. D-050: re-recorded with ModelVersion 14 on the simpler drone (drone.json: the coil
+        // beneath, a bottle strapped on top, fitted to the drone model, the rotors' in-plane drag re-tuned to 0.25 for clip P's
+        // pitch on its drag), both loads on strapped mounts. Audited against model 13 (temporary edits, removed): with the
+        // sling put back, model 13's drone.json (the fixture) flies model 13's three hashes bit for bit, and with the modes off
+        // models 7–12's (the kept tests). On model 13's file the strapped payload alone moves the flight from step 1 (the
+        // sling's mode, mode_shape0): 74 mm by 2.5 s, 31 m by 10 s on the open-loop script. On D-050's file it moves from
+        // step 1 (the Windy air on the new silhouette, position.x): 147 mm by 2.5 s, 1.3 m by 5 s, 31.4 m by 10 s, 220.36 m
+        // up against 227.76; 102 events against 134; armed, no crash.
+        public const ulong PoweredHash = 0x381ABAE6909C139FUL;
 
         // 1.6: first recorded with ModelVersion 4 as 0x8B568804552379E6.
         // 1.6 and 1.4b merged: re-recorded with ModelVersion 5. Audited against 1.6: with every filter off and the PID
@@ -161,7 +169,13 @@ namespace Fpv450.Sim.Tests
         // Model 12: 0x8B50CC1BD8EBC8FF. p7b-airframe 1.4: re-recorded with ModelVersion 13, the modes in its setup, audited as the
         // powered flight: with them off, over model 12's layout, it is model 12's bit for bit. With them it moves from step 9
         // and keeps its course: within 32 mm of model 12's path, 5 impacts, no crash, at rest at the same 0.2519 m, 26 mm aside.
-        public const ulong ContactHash = 0xD1EA300928A02EEEUL;
+        // Model 13: 0xD1EA300928A02EEE. D-050: re-recorded with ModelVersion 14, audited as the powered flight: with the sling
+        // put back, model 13's file flies model 13's bit for bit; the strapped payload alone moves it from step 1 and it keeps
+        // its course (within 35 mm, 5 impacts, at rest at the same 0.2519 m, 24 mm aside). On D-050's file (the legs 3.5 mm
+        // further out, the T-joints on the ground) it moves from step 1 and keeps its course: within 40 mm of model 13's path
+        // (step 2268) and 26 mrad, 5 impacts, no crash, at rest on 8 contacts at the same 0.2519 m, 35 mm aside; 129 events
+        // against 153.
+        public const ulong ContactHash = 0xB57132DE1812820DUL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -174,8 +188,11 @@ namespace Fpv450.Sim.Tests
         // p7b-airframe 1.3 (ModelVersion 10): the 1496-byte record, the surfaces' and the wash's bytes zero (no propulsion);
         // over model 9's layout the hash is model 9's (the kept test). Model 10–12: 0x58EF4F6AE8D111D8. p7b-airframe 1.4
         // (ModelVersion 13): the 1656-byte record, the modes' bytes zero (no propulsion, no modes); over model 12's layout the
-        // hash is model 12's (the kept test).
-        public const ulong TumbleHash = 0xB371E06FF28075D8UL;
+        // hash is model 12's (the kept test). Model 13: 0xB371E06FF28075D8. D-050 (ModelVersion 14): D-050's L4 body (4.832 kg;
+        // roll 0.0479, pitch 0.0508, yaw 0.0599 kg·m²; I_yz −7.9e-5) moves it from step 1; model 13's file gives model 13's
+        // hash (the audit). Its checks: the momentum within 1.4e-12, the energy 2.9e-12, the parabola 5.1e-11 m, the rate
+        // wandering 5.18 rad/s.
+        public const ulong TumbleHash = 0x26CDDB5EDB155896UL;
         public const int TumbleSteps = 10000;
 
         /// <summary>Model 13's drone.json (D-043's layout, before D-050), a fixture: the kept audits of models 7–12 fly on it,
