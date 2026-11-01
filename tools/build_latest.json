@@ -1,0 +1,11 @@
+{
+  "about": "What tools/build_latest.ps1 builds: the newest playable state. The orchestrator keeps this current as branches land; every listed merge is checked to be conflict-free when it changes. Branch names are without origin/; paths are relative to unity/.",
+  "base": "unity/techart/p4-feed",
+  "merge": ["unity/world/p6-test-range"],
+  "method": "Fpv450.Build.TestRange",
+  "unity_args": [],
+  "output_dir": "Builds/Windows-TestRange",
+  "exe": "450fpv-test-range.exe",
+  "smoke_args": ["-smoketest"],
+  "contents": "The test range (the final map, D-047) with H01's houses, the analog feed (V) and its overlay (O), the OSD, noclip. No flying drone yet: that comes with the app's player (p6-input-app 1.4b)."
+}
