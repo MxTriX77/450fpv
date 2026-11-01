@@ -34,6 +34,12 @@
 // The capsule's two core ends move linearly from `previous` (t = 0) to `current`
 // (t = 1); conservative advancement finds the first t at which it touches the shape
 // (within 1 µm), so no shape is missed however thin it is and however far it moved.
+// - On a plane the first touch is exact: its Distance is 0 to rounding.
+// - A separating plane proves when the sweep cannot touch a shape, so a capsule sliding
+//   past or along any shape is never a first touch (QueryVersion 3).
+// - A sweep that neither touches nor is proven clear within 128 steps counts no first
+//   touch (the current contact, if within the margin): a first touch is always one the
+//   advancement reached, never a give-up.
 // - Touching since the step began (t = 0):
 //   - the current pose on the same side (normals agree) and within the margin: the
 //     current contact, Time = 1;

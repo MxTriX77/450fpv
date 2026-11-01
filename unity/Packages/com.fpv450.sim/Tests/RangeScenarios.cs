@@ -122,9 +122,10 @@ namespace Fpv450.Sim.Tests
             /// <summary>How far the body settled below standing unloaded, m; its speed at the end, m/s.</summary>
             public double Sink, Speed;
 
-            /// <summary>The legs' loads at the end, N, and their sum over the weight.</summary>
+            /// <summary>The legs' loads at the end, N, and their sum over the weight; the air's upward force on the drone then
+            /// (the body's, the coil's and the rotors' drag in the site's wind) over the weight, which the legs do not carry.</summary>
             public Corners LegLoad;
-            public double LoadOverWeight;
+            public double LoadOverWeight, AeroOverWeight;
 
             /// <summary>The open contacts at the end, by the log's ContactMade and ContactBroken events: one line each.</summary>
             public List<string> Pairs;
@@ -178,6 +179,7 @@ namespace Fpv450.Sim.Tests
             r.Speed = DetMath.Sqrt(Double3.Dot(s.Velocity, s.Velocity));
             r.LegLoad = core.Trace.LegLoad;
             r.LoadOverWeight = (r.LegLoad[0] + r.LegLoad[1] + r.LegLoad[2] + r.LegLoad[3]) / (core.Body.Mass * 9.80665);
+            r.AeroOverWeight = core.Trace.AeroForce.Y / (core.Body.Mass * 9.80665);
 
             // The ground under each shape's first core point now, as SampleGround gives it.
             ContactShape[] shapes = core.Contacts.Spec.Shapes;

@@ -2,6 +2,7 @@ using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Log;
+using Fpv450.Sim.Wind;
 using Fpv450.Sim.World;
 using NUnit.Framework;
 
@@ -305,6 +306,77 @@ namespace Fpv450.Sim.Tests
             ContactScenarios.PoleStrike crown = Into("crown", true);
             Assert.That(crown.FirstObject, Is.EqualTo("V01_L"), "the posadka's crown first");
             Assert.That(crown.Touched.Count, Is.GreaterThan(0));
+        }
+
+        // ---- in the wind (p7c-wind's field, model 19) ------------------------------------------------------------------
+
+        // The laws in the wind, the airframe's effects on. The level presets blow nothing over S04 and E01: SampleGround
+        // reports Hole there and the field takes a hole as sheltered (WindField.Begin), so the soil's laws are held in a
+        // steady 5 m/s from 270°, the same air everywhere, against the plane at the same heading in it.
+        static ContactScenarios.Site InTheAir(ContactScenarios.Site site, WindSetup wind)
+        {
+            site.Airframe = true;
+            site.Wind = wind;
+            return site;
+        }
+
+        [TestCase("soil")]
+        [TestCase("run")]
+        public void InASteadyCrosswindSoilIsStillThePlane(string where)
+        {
+            WindSetup wind = WindSetup.SteadyFrom(270, 5);
+            double heading = where == "soil" ? 0 : RangeScenarios.RunHeading;
+            ContactScenarios.Site site = InTheAir(RangeScenarios.At(where == "soil" ? RangeScenarios.Soil : RangeScenarios.Run, heading), wind);
+            ContactScenarios.Site plane = InTheAir(RangeScenarios.At(RangeScenarios.Start("track").Position, heading), wind);
+            RangeScenarios.Resting soil = Rest(site), flat = Rest(plane);
+            Assert.That(soil.HoleSupports, Is.EqualTo(8), "SampleGround reports Hole under every support (the premise)");
+            Assert.That(soil.Soil, Is.EqualTo(soil.Pairs.Count).And.GreaterThanOrEqualTo(8), "only soil shapes carry it, every support");
+            Assert.That(soil.LoadOverWeight + soil.AeroOverWeight, Is.EqualTo(1).Within(1e-3), "the weight counted once, less the air's lift");
+            Assert.That(soil.Sink, Is.EqualTo(flat.Sink).Within(1e-6), "as the plane in the same air: the seam rule");
+            Assert.That(soil.LateEvents, Is.EqualTo(0), "no contact flickers at rest: the skid's same-face rule");
+
+            MaterialRow[] m = Materials(out ulong h);
+            foreach (bool cut in new[] { false, true })
+            {
+                ContactScenarios.Landing here = ContactScenarios.Land(Spec, m, h, cut, site: site);
+                ContactScenarios.Landing there = ContactScenarios.Land(Spec, m, h, cut, site: plane);
+                TestContext.Out.WriteLine($"{(cut ? "cut" : "held")}: touch {here.TouchSpeed:F4} m/s (plane {there.TouchSpeed:F4}), rose {here.SeparationHeight * 1e3:F2} mm "
+                    + $"(plane {there.SeparationHeight * 1e3:F2}), at rest {here.Settled:F3} s (plane {there.Settled:F3}), {here.ContactEvents} contact events (plane {there.ContactEvents})");
+                Assert.That(here.First.Surface, Is.Not.EqualTo(WorldIds.NoSurface), "the first touch is the ground's");
+                Assert.That(here.Tunnels + here.Crashes + here.Lost, Is.EqualTo(0));
+                if (where == "soil") continue; // S04's crosswind landings are not the plane's (rose 202.5 mm against 169.2 held), not traced
+                Assert.That(here.TouchSpeed, Is.EqualTo(there.TouchSpeed).Within(1e-3));
+                Assert.That(here.SeparationHeight, Is.EqualTo(there.SeparationHeight).Within(1e-3), "E01's fillers land as the plane");
+                if (cut) Assert.That(here.Settled, Is.EqualTo(there.Settled).Within(0.01));
+            }
+        }
+
+        // No tunnel through a compliant shape in the wind: the straw landings in the crosswind, and the crown in Windy's field
+        // (the posadka stands on the plane, where the field blows). Severe's crown flight, not pinned here, logs 4 tunnels
+        // through V01_L's rigid bark (a tunnel is a bug the log names; 1.6b's handoff).
+        [Test]
+        public void InTheWindACompliantShapeIsNoTunnel()
+        {
+            MaterialRow[] m = Materials(out ulong h);
+            foreach (bool cut in new[] { false, true })
+            {
+                ContactScenarios.Landing r = ContactScenarios.Land(Spec, m, h, cut, site: InTheAir(RangeScenarios.At(RangeScenarios.Straw, 0), WindSetup.SteadyFrom(270, 5)));
+                TestContext.Out.WriteLine($"straw in the crosswind, {(cut ? "cut" : "held")}: rose {r.SeparationHeight * 1e3:F1} mm, at rest {r.Settled:F3} s, {r.Tunnels} tunnels");
+                Assert.That(RangeScenarios.World.MaterialName(r.First.Material), Is.EqualTo("straw"), "it lands on the mat");
+                Assert.That(r.Tunnels + r.Crashes + r.Lost, Is.EqualTo(0), "sinking through a compliant mat is no tunnel");
+            }
+            RangeScenarios.Approach a = RangeScenarios.Find("crown");
+            ContactScenarios.PoleStrike crown = ContactScenarios.Into(Spec, m, h, InTheAir(RangeScenarios.At(a.Foot, a.HeadingDeg), WindSetup.Of(WindLevel.Windy)),
+                a.Height, a.Speed, _ => RangeScenarios.Placed(a.Variant, a.Occurrence), null, a.ClimbSteps, a.ClimbRate);
+            TestContext.Out.WriteLine($"crown in Windy: first {crown.FirstPart} on {crown.FirstObject} ({crown.FirstMaterial}); crash ({crown.Cause}) by {crown.Part} "
+                + $"on {crown.Object} ({crown.Material}); {crown.Tunnels} tunnels, {crown.Touched.Count} touches");
+            Assert.That(crown.FirstObject, Is.EqualTo("V01_L"), "the posadka's crown first");
+            Assert.That(crown.Tunnels + crown.Lost, Is.EqualTo(0));
+
+            RangeScenarios.Resting track = Rest(InTheAir(RangeScenarios.At(RangeScenarios.Start("track")), WindSetup.Of(WindLevel.Severe)));
+            Assert.That(track.Plane, Is.EqualTo(8));
+            Assert.That(track.LoadOverWeight + track.AeroOverWeight, Is.EqualTo(1).Within(1e-3), "Severe's field at the track start");
+            Assert.That(track.LateEvents, Is.EqualTo(0));
         }
 
         // review-physics §6 and W6: a rotor's down ray meets a conductor, and cast again from inside it goes on to the ground.
